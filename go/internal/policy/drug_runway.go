@@ -13,33 +13,30 @@ import (
 // ForecastResourceRunway turns the observed rate and the stock into days left.
 // The shortfall is the projector's Drugs domain; the stock to hold is the
 // runway's own Target, raised into the resource ladder like any other
-// runway. The runway exists only once Brewing is finished.
+// runway. The social drugs are the catalog's (ItemFacts.RecreationDrugs).
 
-// SocialDrugs are the social drugs the colony brews or rolls.
-var SocialDrugs = []Resource{"Beer", "SmokeleafJoint"}
-
-// DrugRunwayReserves are the runway keys of the social drugs: none until
-// Brewing is finished, then each at one dose per colonist whose drug policy
-// permits it (users), so a drug nobody has taken yet is still stocked; once
-// doses are taken the observed rate takes over.
-func DrugRunwayReserves(research domain.Fact[ResearchFacts], users map[Resource]int64) map[Resource]int64 {
-	if !BrewingFinished(research) {
-		return nil
-	}
-	out := make(map[Resource]int64, len(SocialDrugs))
-	for _, drug := range SocialDrugs {
-		out[drug] = colonistReserve(users[drug], 1)
+// DrugRunwayReserves are the runway keys of the catalog's social drugs, each
+// at one dose per colonist whose drug policy permits it (users), so a drug
+// nobody has taken yet is still stocked; once doses are taken the observed
+// rate takes over.
+func DrugRunwayReserves(items ItemFacts, users map[Resource]int64) map[Resource]int64 {
+	drugs := items.RecreationDrugs()
+	out := make(map[Resource]int64, len(drugs))
+	for _, drug := range drugs {
+		out[drug.Def] = max(0, users[drug.Def])
 	}
 	return out
 }
 
 // DrugUsers counts, for each social drug, the colonists holding a drug policy
 // that allows it (joy, addiction or scheduled use).
-func DrugUsers(policies []DrugPolicyEntry) map[Resource]int64 {
+func DrugUsers(items ItemFacts, policies []DrugPolicyEntry) map[Resource]int64 {
+	social := items.RecreationDrugs()
 	out := map[Resource]int64{}
 	for _, p := range policies {
 		for _, entry := range p.Entries {
-			if drug := Resource(entry.Drug); !entry.Off() && slices.Contains(SocialDrugs, drug) {
+			drug := Resource(entry.Drug)
+			if !entry.Off() && slices.ContainsFunc(social, func(d Drug) bool { return d.Def == drug }) {
 				out[drug] += int64(len(p.Pawns))
 			}
 		}
@@ -47,9 +44,9 @@ func DrugUsers(policies []DrugPolicyEntry) map[Resource]int64 {
 	return out
 }
 
-// DrugResourceRunway is one social drug's runway: the observed use a day, the
-// stock and the days of use that stock covers (zero when none is observed).
-type DrugResourceRunway struct {
+// StockRunway is one resource's runway: the observed use a day, the stock and
+// the days of use that stock covers (zero when none is observed).
+type StockRunway struct {
 	Resource      Resource
 	PerDay        float64
 	Stock         int64
@@ -57,48 +54,49 @@ type DrugResourceRunway struct {
 	ShortfallDays float64
 }
 
-// DrugProjection is the drug domain of the forward projection.
-// ShortfallDays is the largest per-drug shortfall.
-type DrugProjection struct {
-	Resources     []DrugResourceRunway
+// StockProjection is one resource-runway domain of the forward projection
+// (drugs, materials, medicines). ShortfallDays is the largest per-resource
+// shortfall.
+type StockProjection struct {
+	Resources     []StockRunway
 	ShortfallDays float64
 }
 
 // PlanDrugRunway reads the social drugs' rows out of the resource runways. No
-// drug row (Brewing unfinished) or a drug whose use or stock is unobserved
-// leaves the projection unknown; a drug observed unused has no shortfall.
-func PlanDrugRunway(rows []ResourceRunway) domain.Fact[DrugProjection] {
-	resources, shortfall, ok := stockRunways(rows, SocialDrugs)
-	if !ok {
-		return domain.Unknown[DrugProjection]()
-	}
-	return domain.Known(DrugProjection{Resources: resources, ShortfallDays: shortfall})
+// drug row or a drug whose use or stock is unobserved leaves the projection
+// unknown; a drug observed unused has no shortfall.
+func PlanDrugRunway(rows []ResourceRunway, items ItemFacts) domain.Fact[StockProjection] {
+	social := items.RecreationDrugs()
+	return stockProjection(rows, func(r Resource) bool {
+		return slices.ContainsFunc(social, func(d Drug) bool { return d.Def == r })
+	})
 }
 
-// stockRunways is the runway of each listed resource that has a row: the
-// observed use a day, the stock and the days it covers, and the largest
-// shortfall. No row, or one whose use or stock is unobserved, is not ok.
-func stockRunways(rows []ResourceRunway, listed []Resource) (out []DrugResourceRunway, shortfall float64, ok bool) {
+// stockProjection is the runway of each row the predicate keeps: the observed
+// use a day, the stock and the days it covers, and the largest shortfall. No
+// such row, or one whose use or stock is unobserved, is unknown.
+func stockProjection(rows []ResourceRunway, keep func(Resource) bool) domain.Fact[StockProjection] {
+	var out StockProjection
 	for _, row := range rows {
-		if !slices.Contains(listed, row.Resource) {
+		if !keep(row.Resource) {
 			continue
 		}
 		rate, rk := row.ConsumptionPerDay.Value()
 		stock, sk := row.Stock.Value()
 		if !rk || !sk || !finite(rate) || rate < 0 {
-			return nil, 0, false
+			return domain.Unknown[StockProjection]()
 		}
-		entry := DrugResourceRunway{Resource: row.Resource, PerDay: rate, Stock: stock}
+		entry := StockRunway{Resource: row.Resource, PerDay: rate, Stock: stock}
 		if rate > 0 {
 			entry.StockDays = float64(stock) / rate
 			entry.ShortfallDays = RunwayShortfall(entry.StockDays, ProjectionHorizonDays)
 		}
-		shortfall = math.Max(shortfall, entry.ShortfallDays)
-		out = append(out, entry)
+		out.ShortfallDays = math.Max(out.ShortfallDays, entry.ShortfallDays)
+		out.Resources = append(out.Resources, entry)
 	}
-	if len(out) == 0 {
-		return nil, 0, false
+	if len(out.Resources) == 0 {
+		return domain.Unknown[StockProjection]()
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Resource < out[j].Resource })
-	return out, shortfall, true
+	sort.Slice(out.Resources, func(i, j int) bool { return out.Resources[i].Resource < out.Resources[j].Resource })
+	return domain.Known(out)
 }

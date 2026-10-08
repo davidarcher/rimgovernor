@@ -21,10 +21,11 @@ type ForwardInputs struct {
 	Policy       RoundsPolicy
 	Construction ConstructionInputs
 	Fuel         FuelInputs
-	Drugs        []ResourceRunway
-	Materials    []ResourceRunway
-	Medicine     MedicineInputs
-	AnimalFeed   AnimalFeedInputs
+	// Runways are the resource runways the drug, material and medicine
+	// domains read, split by the catalog's Items.
+	Runways    []ResourceRunway
+	Items      ItemFacts
+	AnimalFeed AnimalFeedInputs
 }
 
 // SleepingRange is the coldest and hottest observed sleeping-room temperature.
@@ -40,9 +41,9 @@ type ForwardProjection struct {
 	Defense      domain.Fact[DefenseProjection]
 	Construction domain.Fact[ConstructionProjection]
 	Fuel         domain.Fact[FuelProjection]
-	Drugs        domain.Fact[DrugProjection]
-	Resources    domain.Fact[MaterialProjection]
-	Medicine     domain.Fact[MedicineProjection]
+	Drugs        domain.Fact[StockProjection]
+	Resources    domain.Fact[StockProjection]
+	Medicine     domain.Fact[StockProjection]
 	AnimalFeed   domain.Fact[AnimalFeedProjection]
 }
 
@@ -93,9 +94,9 @@ func ProjectForward(in ForwardInputs) ForwardProjection {
 		Defense:      projectDefense(in.Turrets),
 		Construction: projectConstruction(in.Construction),
 		Fuel:         PlanFuelRunway(in.Fuel).Projection,
-		Drugs:        PlanDrugRunway(in.Drugs),
-		Resources:    PlanMaterialRunway(in.Materials),
-		Medicine:     PlanMedicineRunway(in.Medicine),
+		Drugs:        PlanDrugRunway(in.Runways, in.Items),
+		Resources:    PlanMaterialRunway(in.Runways, in.Items),
+		Medicine:     PlanMedicineRunway(in.Runways, in.Items),
 		AnimalFeed:   PlanAnimalFeedRunway(in.AnimalFeed).Projection,
 	}
 }

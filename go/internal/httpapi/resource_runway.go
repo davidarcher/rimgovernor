@@ -23,7 +23,7 @@ type resourceRunwayDTO struct {
 func resourceRunwaysDTO(rows []policy.ResourceRunway) []resourceRunwayDTO {
 	out := []resourceRunwayDTO{}
 	for _, r := range rows {
-		out = append(out, resourceRunwayDTO{Resource: r.Resource, Tick: r.Tick, WindowDays: r.WindowDays, ThresholdDays: policy.ResourceRunwayDays, Reserve: r.Reserve,
+		out = append(out, resourceRunwayDTO{Resource: r.Resource, Tick: r.Tick, WindowDays: r.WindowDays, ThresholdDays: policy.ProjectionHorizonDays, Reserve: r.Reserve,
 			Stock: factPointer(r.Stock), SurfaceOre: factPointer(r.SurfaceOre), ConsumptionPerDay: factPointer(r.ConsumptionPerDay), StockDays: factPointer(r.StockDays), DaysLeft: factPointer(r.DaysLeft), Deficit: factPointer(r.Deficit), Target: r.Target})
 	}
 	return out

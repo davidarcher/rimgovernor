@@ -20,17 +20,16 @@ namespace HomeBridge.BridgeTools
         Rot = 11, Deterioration = 12, Fire = 13, Sold = 14, Stolen = 15, DestroyedOther = 16,
     }
 
-    // Realized consumption (#2441): monotone cumulative counters per
-    // (ThingDef, reason) plus a ring of hourly increments (2500-tick hours,
-    // 60 days), saved with the game as one packed, versioned string so the save
-    // stays small. A count may be negative (an ejected refuel or a removed
+    // Realized consumption (#2441): a ring of hourly increments per
+    // (ThingDef, reason) (2500-tick hours, 60 days), saved with the game as one
+    // packed, versioned string so the save stays small. A count may be negative (an ejected refuel or a removed
     // shell subtracts). Hooks (ConsumptionHooks) add on the game thread; reads
     // are game-thread too, but a lock keeps a stray worker-thread destroy safe.
     public sealed class ConsumptionState : GameComponent
     {
         public const int HourTicks = 2500;
         public const int WindowHours = 60 * 24;
-        private const byte FormatVersion = 1;
+        private const byte FormatVersion = 2;
 
         public static readonly string[] Names = {
             "", "bill_ingredient", "medicine_tend", "food_eaten", "drug_dose", "animal_feed", "nutrient_paste",
@@ -57,7 +56,6 @@ namespace HomeBridge.BridgeTools
         private string? packed;
         // The first hour this ring covers: when the component first counted.
         public int FirstHour = -1;
-        public readonly Dictionary<Key, long> Totals = new Dictionary<Key, long>();
         // Ascending by hour; the last entry is the hour still filling.
         public readonly List<Hour> Hours = new List<Hour>();
 
@@ -86,8 +84,6 @@ namespace HomeBridge.BridgeTools
             lock (gate)
             {
                 if (FirstHour < 0) FirstHour = hour;
-                Totals.TryGetValue(key, out var total);
-                Totals[key] = total + count;
                 var bucket = Bucket(hour);
                 bucket.Rows.TryGetValue(key, out var have);
                 var next = have + count;
@@ -142,7 +138,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Layout (all integers LEB128 varints, counts zig-zag): version byte,
-        // first hour, def table, totals (def index, reason, count), then hours
+        // first hour, def table, then hours
         // as (hour delta from the previous, row count, rows).
         public string Pack()
         {
@@ -153,7 +149,6 @@ namespace HomeBridge.BridgeTools
                 if (!index.TryGetValue(name, out var at)) { at = defs.Count; index[name] = at; defs.Add(name); }
                 return at;
             }
-            foreach (var key in Totals.Keys) Def(key.Def);
             foreach (var hour in Hours) foreach (var key in hour.Rows.Keys) Def(key.Def);
             using (var stream = new MemoryStream())
             {
@@ -166,8 +161,6 @@ namespace HomeBridge.BridgeTools
                     Write(stream, bytes.Length);
                     stream.Write(bytes, 0, bytes.Length);
                 }
-                Write(stream, Totals.Count);
-                foreach (var pair in Totals) Row(stream, Def(pair.Key.Def), pair.Key.Reason, pair.Value);
                 var written = 0;
                 foreach (var hour in Hours) if (hour.Rows.Count > 0) written++;
                 Write(stream, written);
@@ -188,7 +181,7 @@ namespace HomeBridge.BridgeTools
         // the ring empty: saves regenerate, nothing here is worth a shim.
         public void Unpack(string? text)
         {
-            Totals.Clear(); Hours.Clear(); FirstHour = -1;
+            Hours.Clear(); FirstHour = -1;
             if (string.IsNullOrEmpty(text)) return;
             try
             {
@@ -203,8 +196,6 @@ namespace HomeBridge.BridgeTools
                     defs[i] = System.Text.Encoding.UTF8.GetString(data, at, length);
                     at += length;
                 }
-                var totals = (int)ReadU(data, ref at);
-                for (var i = 0; i < totals; i++) { ReadRow(data, ref at, defs, out var key, out var count); Totals[key] = count; }
                 var hours = (int)ReadU(data, ref at);
                 var hourIndex = 0;
                 for (var i = 0; i < hours; i++)
@@ -219,7 +210,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception)
             {
-                Totals.Clear(); Hours.Clear(); FirstHour = -1;
+                Hours.Clear(); FirstHour = -1;
             }
         }
 

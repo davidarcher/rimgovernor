@@ -112,22 +112,22 @@ func TestIngredientDrawsCompete(t *testing.T) {
 }
 
 func TestMaterialRunwayProjection(t *testing.T) {
-	got, ok := PlanMaterialRunway(materialRunways(30, 2)).Value()
+	got, ok := PlanMaterialRunway(materialRunways(30, 2), CoreItemFacts()).Value()
 	// Steel covers 3 days, components half a day: the larger shortfall is 4.5.
 	if !ok || got.ShortfallDays != 4.5 || len(got.Resources) != 2 {
 		t.Fatal(got, ok)
 	}
-	if shortfall, why := shadowShortfall(ProjectForward(ForwardInputs{Materials: materialRunways(30, 2)}), ShadowResources); why != "" || shortfall != 4.5 {
+	if shortfall, why := shadowShortfall(ProjectForward(ForwardInputs{Runways: materialRunways(30, 2), Items: CoreItemFacts()}), ShadowResources); why != "" || shortfall != 4.5 {
 		t.Fatal(shortfall, why)
 	}
-	if _, ok := PlanMaterialRunway(materialRunways(30, 2)[:1]).Value(); !ok {
+	if _, ok := PlanMaterialRunway(materialRunways(30, 2)[:1], CoreItemFacts()).Value(); !ok {
 		t.Fatal("steel alone is a projection")
 	}
-	if _, ok := PlanMaterialRunway(nil).Value(); ok {
+	if _, ok := PlanMaterialRunway(nil, CoreItemFacts()).Value(); ok {
 		t.Fatal("no row is unknown")
 	}
 	unread := ForecastResourceRunway("Steel", domain.Known(int64(30)), domain.Known(int64(0)), 0, 0, domain.Unknown[ResourceConsumption]())
-	if _, ok := PlanMaterialRunway([]ResourceRunway{unread}).Value(); ok {
+	if _, ok := PlanMaterialRunway([]ResourceRunway{unread}, CoreItemFacts()).Value(); ok {
 		t.Fatal("unread consumption is unknown")
 	}
 	if _, why := shadowShortfall(ProjectForward(ForwardInputs{}), ShadowResources); why == "" {

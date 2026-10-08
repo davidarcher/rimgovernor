@@ -12,13 +12,9 @@ import (
 // recurring spend native observed (Facts.ResourceConsumption).
 func resourceRunways(r RoundsRequest) []policy.ResourceRunway {
 	reserves := r.Policy.RunwayReserves(r.Facts.Items, r.Facts.Colonists)
-	// A social drug and the reserve medicine have no ore to mine: their
-	// prospective supply is observed zero.
-	drugs := policy.DrugRunwayReserves(r.Facts.Research, r.Facts.DrugUsers)
-	for resource, reserve := range drugs {
+	for resource, reserve := range policy.DrugRunwayReserves(r.Facts.Items, r.Facts.DrugUsers) {
 		reserves[resource] = reserve
 	}
-	herbal, herbalErr := r.Facts.Items.MedicineAt(0)
 	targets := make([]policy.Resource, 0, len(reserves))
 	for resource := range reserves {
 		targets = append(targets, resource)
@@ -43,11 +39,7 @@ func resourceRunways(r RoundsRequest) []policy.ResourceRunway {
 				stock = domain.Known(n)
 			}
 		}
-		ore := r.Facts.ResourceSurfaceOre[resource]
-		if _, drug := drugs[resource]; drug || herbalErr == nil && resource == herbal {
-			ore = domain.Known(int64(0))
-		}
-		result = append(result, policy.ForecastResourceRunway(resource, stock, ore, reserves[resource], r.Tick, r.Facts.ResourceConsumption))
+		result = append(result, policy.ForecastResourceRunway(resource, stock, r.Facts.ResourceSurfaceOre[resource], reserves[resource], r.Tick, r.Facts.ResourceConsumption))
 	}
 	return result
 }

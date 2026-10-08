@@ -6,10 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-const ResourceRunwayDays = 5.0
-
 // ResourceRunway separates immediately usable stock from prospective ore.
-// DaysLeft includes only known safe surface ore; unknown ore leaves it unknown.
+// DaysLeft includes only known safe surface ore; unknown ore counts as none.
 // A zero observed rate has no finite runway, rather than an invented infinity.
 type ResourceRunway struct {
 	Resource                               Resource
@@ -23,21 +21,18 @@ type ResourceRunway struct {
 }
 
 // ForecastResourceRunway reads the resource's recurring spend over the
-// consumption window (resource_consumption.go). Unknown consumption leaves the
-// rate, and so the runway, unknown.
+// consumption window (resource_consumption.go). A window shorter than a day
+// is read as a day, so a burst in the first hours is not a huge daily rate.
+// Unknown consumption leaves the rate, and so the runway, unknown; unknown
+// ore is no prospective supply.
 func ForecastResourceRunway(resource Resource, stock, ore domain.Fact[int64], reserve int64, tick domain.Tick, consumption domain.Fact[ResourceConsumption]) ResourceRunway {
 	out := ResourceRunway{Resource: resource, Tick: tick, Reserve: reserve, Stock: stock, SurfaceOre: ore}
 	c, known := consumption.Value()
-	if !known || reserve < 0 || reserve > 10000 {
+	if !known || reserve < 0 {
 		return out
 	}
 	out.WindowDays = c.WindowDays
-	// No ledger yet (a zero window) has no observed spend: rate zero, so the
-	// reserve still applies.
-	var rate float64
-	if out.WindowDays > 0 {
-		rate = float64(c.Recurring[resource]) / out.WindowDays
-	}
+	rate := float64(c.Recurring[resource]) / math.Max(c.WindowDays, 1)
 	out.ConsumptionPerDay = domain.Known(rate)
 	n, known := stock.Value()
 	if !known || n < 0 {
@@ -50,15 +45,12 @@ func ForecastResourceRunway(resource Resource, stock, ore domain.Fact[int64], re
 	}
 	usable := max(0, n-reserve)
 	out.StockDays = domain.Known(float64(usable) / rate)
-	remaining, known := ore.Value()
-	if !known || remaining < 0 || remaining > math.MaxInt64-usable {
-		return out
-	}
-	days := float64(usable+remaining) / rate
+	remaining, _ := ore.Value()
+	days := (float64(usable) + float64(max(0, remaining))) / rate
 	out.DaysLeft = domain.Known(days)
-	out.Deficit = domain.Known(days < ResourceRunwayDays)
-	if days < ResourceRunwayDays {
-		out.Target = int64(math.Min(10000, float64(reserve)+math.Ceil(rate*ResourceRunwayDays)))
+	out.Deficit = domain.Known(days < ProjectionHorizonDays)
+	if days < ProjectionHorizonDays {
+		out.Target = int64(math.Min(maxResourceTarget, float64(reserve)+math.Ceil(rate*ProjectionHorizonDays)))
 	}
 	return out
 }
@@ -74,20 +66,26 @@ func ResourceRunwayTargets(rows []ResourceRunway) map[Resource]int64 {
 }
 
 // RunwayReserves is every resource a runway is forecast for and its reserve:
-// the operator's ResourceTargets, plus the reserve medicine (the catalog's
-// lowest-potency one, herbal) at the medical reserve's TargetPerColonist doses per
-// colonist, so a colony never tended still stocks it; once doses
-// are used the observed tend rate takes over (#2378). Without the catalog's
-// medicines it adds nothing; an unread colonist count leaves the reserve zero.
+// the operator's ResourceTargets, plus every catalog medicine (the colony
+// tends with whichever it holds, so a better medicine in use is counted too),
+// the lowest-potency one (herbal) reserved at the medical reserve's
+// TargetPerColonist doses per colonist so a colony never tended still stocks
+// it; once doses are used the observed tend rate takes over (#2378). Without
+// the catalog's medicines it adds nothing; an unread colonist count leaves the
+// reserve zero.
 func (p RoundsPolicy) RunwayReserves(items ItemFacts, colonists domain.Fact[int64]) map[Resource]int64 {
-	out := make(map[Resource]int64, len(p.ResourceTargets)+1)
+	out := make(map[Resource]int64, len(p.ResourceTargets)+len(items.MedicalPotency))
 	for resource, reserve := range p.ResourceTargets {
 		out[resource] = reserve
 	}
-	if herbal, err := items.MedicineAt(0); err == nil {
-		if _, set := out[herbal]; !set {
+	for rank, medicine := range items.MedicineTiers() {
+		if _, set := out[medicine]; set {
+			continue
+		}
+		out[medicine] = 0
+		if rank == 0 {
 			n, _ := colonists.Value()
-			out[herbal] = colonistReserve(n, p.MedicalReserve.TargetPerColonist)
+			out[medicine] = max(0, n) * p.MedicalReserve.TargetPerColonist
 		}
 	}
 	return out

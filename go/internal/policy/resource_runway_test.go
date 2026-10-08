@@ -51,8 +51,8 @@ func TestRunwayWindowShorterThanADay(t *testing.T) {
 	stock, ore := domain.Known(int64(4)), domain.Known(int64(0))
 	hours := domain.Known(ResourceConsumption{WindowDays: 0.5, Recurring: map[Resource]int64{"Steel": 5}})
 	r := ForecastResourceRunway("Steel", stock, ore, 0, 0, hours)
-	if rate, known := r.ConsumptionPerDay.Value(); !known || rate != 10 {
-		t.Fatal("sub-day window must yield a known rate", r)
+	if rate, known := r.ConsumptionPerDay.Value(); !known || rate != 5 {
+		t.Fatal("a sub-day window is read as one day", r)
 	}
 	none := domain.Known(ResourceConsumption{})
 	z := ForecastResourceRunway("Steel", domain.Known(int64(3)), ore, 10, 0, none)
@@ -101,4 +101,27 @@ func TestUnknownRunwayCannotRecoverMaintenance(t *testing.T) {
 		}
 	}
 	t.Fatal("missing resource assessment")
+}
+
+func TestFirstHoursBurstIsNotAHugeDailyRate(t *testing.T) {
+	// 60 steel spent in the first hour of a 1/24-day ledger reads as 60 a day.
+	burst := domain.Known(ResourceConsumption{WindowDays: 1.0 / 24, Recurring: map[Resource]int64{"Steel": 60}})
+	r := ForecastResourceRunway("Steel", domain.Known(int64(300)), domain.Known(int64(0)), 0, 0, burst)
+	if rate, _ := r.ConsumptionPerDay.Value(); rate != 60 {
+		t.Fatal(r)
+	}
+	if deficit, known := r.Deficit.Value(); !known || deficit {
+		t.Fatal("5 days of 60 a day is held", r)
+	}
+}
+
+func TestUnknownOreIsNoProspectiveSupply(t *testing.T) {
+	busy := domain.Known(ResourceConsumption{WindowDays: 15, Recurring: map[Resource]int64{"Steel": 30}})
+	r := ForecastResourceRunway("Steel", domain.Known(int64(4)), domain.Unknown[int64](), 0, 0, busy)
+	if days, known := r.DaysLeft.Value(); !known || days != 2 {
+		t.Fatal(r)
+	}
+	if deficit, _ := r.Deficit.Value(); !deficit || r.Target != 10 {
+		t.Fatal(r)
+	}
 }

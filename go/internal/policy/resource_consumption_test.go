@@ -65,8 +65,8 @@ func TestResourceRunwayUnknownAndZeroRate(t *testing.T) {
 	if d, k := r.StockDays.Value(); !k || d != 2 {
 		t.Fatal(r)
 	}
-	if _, k := r.DaysLeft.Value(); k {
-		t.Fatal("unknown ore treated as zero")
+	if d, k := r.DaysLeft.Value(); !k || d != 2 {
+		t.Fatal("unknown ore is no prospective supply", r)
 	}
 	if _, k := ForecastResourceRunway("Steel", domain.Unknown[int64](), domain.Known(int64(0)), 0, 0, ten).DaysLeft.Value(); k {
 		t.Fatal("unknown stock")

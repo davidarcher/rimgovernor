@@ -103,7 +103,7 @@ func UsableIngredients(runways []ResourceRunway, supply []Stock) []ResourceQuant
 		if !hk {
 			continue
 		}
-		line := float64(row.Reserve) + math.Ceil(rate*ResourceRunwayDays)
+		line := float64(row.Reserve) + math.Ceil(rate*ProjectionHorizonDays)
 		out = append(out, ResourceQuantity{Key: ResourceKey{Def: row.Resource}, Count: int64(math.Max(0, float64(have)-line))})
 	}
 	return out

@@ -77,7 +77,7 @@ func ForwardInputsOf(f RoundsFacts, p RoundsPolicy) ForwardInputs {
 	in := ForwardInputs{Power: f.Forward.Power, Sleeping: SleepingRange{Min: f.SleepingMin, Max: f.SleepingMax}, Conditions: f.DisasterConditions, Turrets: f.Forward.Turrets, Policy: p,
 		Construction: ConstructionInputs{Deficit: f.ConstructionDeficit, Admitted: f.Admitted, Stock: f.Resources, Items: f.Items},
 		Fuel:         FuelInputs{Consumers: f.Fuel, Stock: StockReader{Resources: f.Resources, Wood: f.Wood}},
-		AnimalFeed:   f.animalFeedInputs(), Drugs: f.ResourceRunways, Materials: f.ResourceRunways, Medicine: MedicineInputs{Runways: f.ResourceRunways, Items: f.Items}}
+		AnimalFeed:   f.animalFeedInputs(), Runways: f.ResourceRunways, Items: f.Items}
 	if supply, known := f.AnimalUpkeep.Food.Value(); known {
 		in.Food = supply
 	}

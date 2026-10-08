@@ -506,7 +506,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		for _, e := range policies.Drug {
 			entries = append(entries, policy.DrugPolicyEntry{ID: e.ID, Label: e.Label, Pawns: e.Pawns, Entries: e.Drugs})
 		}
-		reading.Projection.Facts.DrugUsers = policy.DrugUsers(entries)
+		reading.Projection.Facts.DrugUsers = policy.DrugUsers(reading.Projection.Facts.Items, entries)
 	}
 	r.reviewMeals(&reading.Projection)
 	r.reviewReserve(&reading.Projection)

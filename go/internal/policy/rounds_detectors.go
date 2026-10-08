@@ -359,7 +359,7 @@ func inspectResource(c *roundsRun) error {
 			resourceRecovered = domain.Known(false)
 			if days, known := runway.DaysLeft.Value(); known {
 				old, _ := resourceDeficit.Value()
-				resourceDeficit = domain.Known(max(old, 1-days/ResourceRunwayDays))
+				resourceDeficit = domain.Known(max(old, 1-days/ProjectionHorizonDays))
 			}
 		}
 	}
