@@ -19,7 +19,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -1844,6 +1843,6 @@ func (r *RoundsDefenseLayoutPlanner) logUnbuiltTiers(ctx context.Context, record
 			continue
 		}
 		r.unbuilt[tier.Name] = summary
-		slog.InfoContext(ctx, "defense tier unbuilt", telemetry.ComponentKey, "defense-layout", "tier", tier.Name, "buildings", len(tier.Buildings), "census", summary)
+		defenseAction(ctx, "defense-layout", slog.LevelInfo, "waiting", "tier_unbuilt", string(tier.Name), map[string]any{"buildings": len(tier.Buildings), "census": summary})
 	}
 }
