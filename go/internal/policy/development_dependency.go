@@ -271,49 +271,6 @@ func ResolveDonations(goals []DevelopmentConcern, deps []DevelopmentDependency) 
 	return donations, blockers
 }
 
-// DependencyResourceNeeds are the stock floors MaintainResource's live
-// shortfall edges ask for: per resource, the open dependent costs,
-// each action once, wherever the freshest known stock falls short of them.
-// ResourceGoalTargets merges them into the configured targets, so a goal
-// admitted short of any resource raises its acquisition.
-func DependencyResourceNeeds(deps []DevelopmentDependency) map[Resource]int64 {
-	var out map[Resource]int64
-	for resource, d := range dependencyDemands(deps, MaintainResource) {
-		if d.need > d.available {
-			if out == nil {
-				out = map[Resource]int64{}
-			}
-			out[resource] = d.need
-		}
-	}
-	return out
-}
-
-// ConstructionResourceNeeds raises needs to the material a standing
-// blueprint or frame is still owed wherever the known stock falls short of
-// it, so a site blocked on materials names its cost to MaintainResource.
-func ConstructionResourceNeeds(needs map[Resource]int64, deficit domain.Fact[map[Resource]int64], resources domain.Fact[[]Amount]) map[Resource]int64 {
-	owed, ok := deficit.Value()
-	rows, known := resources.Value()
-	if !ok || !known {
-		return needs
-	}
-	stock := map[Resource]int64{}
-	for _, row := range rows {
-		stock[row.Resource] += row.Count
-	}
-	for resource, n := range owed {
-		if n <= stock[resource] || n <= needs[resource] {
-			continue
-		}
-		if needs == nil {
-			needs = map[Resource]int64{}
-		}
-		needs[resource] = n
-	}
-	return needs
-}
-
 type dependencyDemand struct{ need, available int64 }
 
 // dependencyDemands is ResolveDonations' shared demand for one
@@ -355,45 +312,4 @@ func dependencyDemands(deps []DevelopmentDependency, prerequisite ConcernID) map
 		out[r] = dependencyDemand{need, a.available}
 	}
 	return out
-}
-
-// WoodFloor is the WoodLog floor the wood latch asks for: WoodTarget while
-// latched, 0 otherwise.
-func WoodFloor(latched bool, p RoundsPolicy) int64 {
-	if !latched {
-		return 0
-	}
-	return p.WoodTarget
-}
-
-// WoodFloorNeeds is floor as a MaintainResource need, nil at 0.
-func WoodFloorNeeds(floor int64) map[Resource]int64 {
-	if floor <= 0 {
-		return nil
-	}
-	return map[Resource]int64{"WoodLog": floor}
-}
-
-// WoodStock is the census MaintainResource is assessed against with its
-// WoodLog row taken from the wood fact the latch reads, so the floor and
-// the latch agree. An unknown census stays unknown unless wood is the only
-// target.
-func WoodStock(resources domain.Fact[[]Amount], wood domain.Fact[int64], targets map[Resource]int64) domain.Fact[[]Amount] {
-	n, known := wood.Value()
-	if !known {
-		return resources
-	}
-	rows, rk := resources.Value()
-	if !rk {
-		if _, only := targets["WoodLog"]; !only || len(targets) != 1 {
-			return resources
-		}
-	}
-	out := make([]Amount, 0, len(rows)+1)
-	for _, row := range rows {
-		if row.Resource != "WoodLog" {
-			out = append(out, row)
-		}
-	}
-	return domain.Known(append(out, Amount{Resource: "WoodLog", Count: n}))
 }

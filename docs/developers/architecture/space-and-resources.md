@@ -78,9 +78,10 @@ open; the planners do not rank:
   the deficit, the trader's stock and the affordable units), and trade buys only
   the lines the plan opened ([trade offers](supply-model.md#trade-offers)). The
   plan is the only ranker.
-- Shortfall holds: a shelter or bench short of a non-wood resource raises exactly that
-  shortfall as a floor (`DependencyNeeds`), and the wood latch (`WoodMin`,
-  `WoodTarget`, seasonal scaling) is a floor like any other.
+- Construction demand (`policy.ConstructionDemand`): a blueprint's owed material,
+  the open costs of an admitted shelter or bench short of a resource, and the
+  wood latch (`WoodMin`, `WoodTarget`, seasonal scaling) each raise a floor
+  (`DependencyNeeds`, `WoodFloor`) measured by one stock reader (`policy.StockReader`).
 
 Higher-priority urgent work (`policy.RemoteCompetition`) holds acquisition in the
 plan (`UrgentPriority`); remote loot and salvage rank through the recovery queue

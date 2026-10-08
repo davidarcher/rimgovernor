@@ -325,15 +325,18 @@ func inspectResearch(c *roundsRun) error {
 
 func inspectResource(c *roundsRun) error {
 	f, p, l := c.f, c.p, c.l
-	// The wood latch is a WoodLog floor on MaintainResource: below
-	// WoodMin it asks for WoodTarget until the latch recovers.
-	c.r.WoodFloor = WoodFloor(l.Wood, p)
-	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceConcernTargets(ResourceConcernTargets(MedicineResourceNeeds(f.Items, ResourceConcernTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, c.medicine.Active)), DependencyResourceNeeds(f.Dependencies)), WoodFloorNeeds(c.r.WoodFloor)))
+	// Construction material demand (blueprint deficit, admitted methods'
+	// open costs, the wood latch's floor) is a stock floor on
+	// MaintainResource.
+	construction := ConstructionDemandOf(f, p, l)
+	c.r.WoodFloor = woodLatchFloor(l.Wood, p)
+	stock := StockReader{f.Resources, f.Wood}
+	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceConcernTargets(MedicineResourceNeeds(f.Items, ResourceConcernTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, c.medicine.Active)), construction))
 	if err != nil {
 		return err
 	}
 	c.r.ResourceTargets = resourceTargets
-	resourceRecovered, resourceDeficit := ResourceTargetNeed(resourceTargets, WoodStock(f.Resources, f.Wood, resourceTargets))
+	resourceRecovered, resourceDeficit := ResourceTargetNeed(resourceTargets, stock.Census(resourceTargets))
 	for _, runway := range f.ResourceRunways {
 		if _, known := runway.Deficit.Value(); !known && runway.WindowDays >= 1 && positive(resourceRecovered) {
 			resourceRecovered = domain.Unknown[bool]()
@@ -358,8 +361,8 @@ func inspectResource(c *roundsRun) error {
 		// The ladder's research rung: while a project the workshop recorded
 		// as gating the bench is unfinished, the goal has no method of its
 		// own and holds no slot, so EnsureResearch can take one (#4 M4).
-		// Wood and dependency floors are chopped or mined meanwhile.
-		g.MethodUnavailable = ResearchConcernTarget("", f.ResearchNeeds, f.Research) != "" && c.r.WoodFloor == 0 && len(DependencyResourceNeeds(f.Dependencies)) == 0
+		// Construction demand is chopped or mined meanwhile.
+		g.MethodUnavailable = ResearchConcernTarget("", f.ResearchNeeds, f.Research) != "" && len(construction) == 0
 	}
 	c.assess(MaintainResource, priority, resourceRecovered)
 	return nil

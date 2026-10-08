@@ -7,24 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A research bench blueprint short of 25 steel names the steel; a site the
-// stock already covers (waiting on a hauler) adds nothing.
-func TestConstructionResourceNeedsNamesBlockedSiteCost(t *testing.T) {
-	deficit := domain.Known(map[Resource]int64{"Steel": 25, "WoodLog": 10})
-	stock := domain.Known([]Amount{{Resource: "Steel", Count: 4}, {Resource: "WoodLog", Count: 40}})
-	got := ConstructionResourceNeeds(nil, deficit, stock)
-	if !reflect.DeepEqual(got, map[Resource]int64{"Steel": 25}) {
-		t.Fatalf("needs = %v", got)
-	}
-	got = ConstructionResourceNeeds(map[Resource]int64{"Steel": 60}, deficit, stock)
-	if got["Steel"] != 60 {
-		t.Fatalf("a larger dependency need must stand: %v", got)
-	}
-	if got := ConstructionResourceNeeds(nil, domain.Unknown[map[Resource]int64](), stock); got != nil {
-		t.Fatalf("unknown deficit = %v", got)
-	}
-}
-
 // woodShortage: initial shelter (priority 2, served by an admitted shell)
 // waits on wood, one worker can cut, cook or haul, and the feed and supply
 // upkeep outrank MaintainResource on deficit.
@@ -177,7 +159,7 @@ func TestShelterShortfallActivatesMaintainResource(t *testing.T) {
 	if r := needs(t, f, RoundsLatches{}); r.Latches.Wood || hasNeed(r, MaintainResource) {
 		t.Fatal("150 wood is above WoodMin", r)
 	}
-	f.Dependencies = []DevelopmentDependency{{Dependent: MaintainHousing, Concern: "g", Episode: 1, Method: "m", Prerequisite: MaintainResource, Resource: "WoodLog", Costs: []DependencyCost{{Action: "a", Count: 120}, {Action: "b", Count: 80}}, Available: domain.Known(int64(150))}}
+	f.Admitted = []AdmittedCost{{"WoodLog", "a", 120}, {"WoodLog", "b", 80}}
 	r := needs(t, f, RoundsLatches{})
 	if r.Latches.Wood || !hasNeed(r, MaintainResource) {
 		t.Fatal("shortfall did not activate MaintainResource", r)
@@ -187,10 +169,10 @@ func TestShelterShortfallActivatesMaintainResource(t *testing.T) {
 			t.Fatal(a)
 		}
 	}
-	if got := DependencyResourceNeeds(f.Dependencies)["WoodLog"]; got != 200 {
+	if got := ConstructionDemandOf(f, RoundsPolicy{}, r.Latches)["WoodLog"]; got != 200 {
 		t.Fatal(got)
 	}
-	f.Dependencies = nil
+	f.Admitted = nil
 	r = needs(t, f, r.Latches)
 	if hasNeed(r, MaintainResource) {
 		t.Fatal("settled edge kept MaintainResource", r)
@@ -213,15 +195,15 @@ func TestNonWoodShortfallRaisesResourceFloor(t *testing.T) {
 	if hasNeed(needs(t, f, RoundsLatches{}), MaintainResource) {
 		t.Fatal("no floor configured")
 	}
-	f.Dependencies = []DevelopmentDependency{{Dependent: MaintainHousing, Concern: "g", Episode: 1, Method: "m", Prerequisite: MaintainResource, Resource: "Steel", Costs: []DependencyCost{{Action: "a", Count: 25}, {Action: "b", Count: 25}}, Available: domain.Known(int64(10))}}
-	if got := DependencyResourceNeeds(f.Dependencies); got["Steel"] != 50 || len(got) != 1 {
+	f.Admitted = []AdmittedCost{{"Steel", "a", 25}, {"Steel", "b", 25}}
+	if got := ConstructionDemandOf(f, RoundsPolicy{}, RoundsLatches{}); got["Steel"] != 50 || len(got) != 1 {
 		t.Fatal(got)
 	}
 	if !hasNeed(needs(t, f, RoundsLatches{}), MaintainResource) {
 		t.Fatal("steel shortfall did not activate MaintainResource")
 	}
-	f.Dependencies[0].Available = domain.Known(int64(50))
-	if got := DependencyResourceNeeds(f.Dependencies); len(got) != 0 {
+	f.Resources = domain.Known([]Amount{{"Steel", 50}})
+	if got := ConstructionDemandOf(f, RoundsPolicy{}, RoundsLatches{}); len(got) != 0 {
 		t.Fatal("covered edge raised a floor", got)
 	}
 }

@@ -519,9 +519,12 @@ type RoundsFacts struct {
 	Forward ForwardObserved `json:",omitzero"`
 	Wood    domain.Fact[int64]
 	// Dependencies are the live typed shortfall edges (#651) carried from the
-	// last review: an open shortfall raises a MaintainResource floor for
-	// the bounded difference (#711).
+	// last review.
 	Dependencies []DevelopmentDependency
+	// Admitted are the open costs of admitted methods, from the same
+	// live records as Dependencies: an open shortfall raises a
+	// MaintainResource floor for the bounded difference (#711).
+	Admitted []AdmittedCost
 	// Resources is the generic reachable, unforbidden player item census
 	// (the same colony facts rows Wood is taken from), so MaintainResource's
 	// deficit is measured at review time instead of assumed from config.
@@ -1004,7 +1007,7 @@ func raisedAtStage(goals []DevelopmentConcern, f RoundsFacts, p RoundsPolicy, l 
 		allowed := StageConcernAllowed(g.ID, stage)
 		switch g.ID {
 		case MaintainResource:
-			allowed = allowed || l.Wood || len(DependencyResourceNeeds(f.Dependencies)) > 0
+			allowed = allowed || l.Wood || len(ConstructionDemandOf(f, p, l)) > 0
 		case MaintainRefrigeration:
 			d, known := g.Deficit.Value()
 			allowed = allowed || known && d >= 1

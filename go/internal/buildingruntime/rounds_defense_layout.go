@@ -1199,8 +1199,8 @@ func (r *Rounder) resourceTargets(ctx context.Context, snapshot domain.Generatio
 		}
 		needs = policy.MedicineResourceNeeds(items, needs, review.MedicineTarget)
 		needs = policy.ResourceConcernTargets(needs, review.DependencyNeeds)
+		needs = policy.ResourceConcernTargets(needs, policy.ConstructionDemand(policy.ConstructionDemandInput{WoodFloor: review.WoodFloor}))
 		needs = policy.ResourceConcernTargets(needs, review.ClothingNeeds)
-		needs = policy.ResourceConcernTargets(needs, policy.WoodFloorNeeds(review.WoodFloor))
 		needs = policy.ResourceConcernTargets(needs, policy.ResourceRunwayTargets(review.ResourceRunwayState()))
 		if review.BrewingFinished {
 			needs = policy.ResourceConcernTargets(needs, policy.SocialDrugTargets(domain.Known(policy.ResearchFacts{Finished: []policy.ResearchProjectID{"Brewing"}})))

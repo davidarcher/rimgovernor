@@ -30,7 +30,7 @@ func TestSnapshotWorkshopClubRanksLastBehindReviewFloors(t *testing.T) {
 	// (the recording's colony has no standing layout).
 	needs := policy.MedicineResourceNeeds(policy.CoreItemFacts(), nil, r.Review.MedicineTarget)
 	needs = policy.ResourceConcernTargets(needs, r.Review.DependencyNeeds)
-	needs = policy.ResourceConcernTargets(needs, policy.WoodFloorNeeds(r.Review.WoodFloor))
+	needs = policy.ResourceConcernTargets(needs, policy.ConstructionDemand(policy.ConstructionDemandInput{WoodFloor: r.Review.WoodFloor}))
 	needs = policy.ResourceConcernTargets(needs, policy.ResourceRunwayTargets(r.Review.ResourceRunwayState()))
 	targets, err := r.Policy.EffectiveResourceTargets(r.Facts.Resources, needs)
 	if err != nil {

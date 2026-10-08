@@ -191,28 +191,21 @@ func roundsDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRec
 			continue
 		}
 		kept = append(kept, rec)
-		edges = append(edges, policy.DevelopmentDependency{Dependent: rec.Need, Concern: rec.Concern, Episode: rec.Episode, Method: rec.Method, Prerequisite: prerequisite, Resource: rec.Resource, Costs: costs, Available: resourceStock(facts, rec.Resource), Observed: rec.Observed})
+		edges = append(edges, policy.DevelopmentDependency{Dependent: rec.Need, Concern: rec.Concern, Episode: rec.Episode, Method: rec.Method, Prerequisite: prerequisite, Resource: rec.Resource, Costs: costs, Available: policy.StockReader{Resources: facts.Resources, Wood: facts.Wood}.Count(rec.Resource), Observed: rec.Observed})
 	}
 	return kept, edges, nil
 }
 
-// resourceStock is the current usable stock of resource: the wood fact
-// for WoodLog, the item census for any other.
-func resourceStock(f policy.RoundsFacts, resource policy.Resource) domain.Fact[int64] {
-	if resource == "WoodLog" {
-		return f.Wood
-	}
-	rows, known := f.Resources.Value()
-	if !known {
-		return domain.Unknown[int64]()
-	}
-	var n int64
-	for _, a := range rows {
-		if a.Resource == resource {
-			n += a.Count
+// admittedCosts flattens the live edges' open costs: the admitted-method
+// source of construction demand (policy.ConstructionDemand).
+func admittedCosts(edges []policy.DevelopmentDependency) []policy.AdmittedCost {
+	var out []policy.AdmittedCost
+	for _, e := range edges {
+		for _, c := range e.Costs {
+			out = append(out, policy.AdmittedCost{Resource: e.Resource, Action: c.Action, Count: c.Count})
 		}
 	}
-	return domain.Known(n)
+	return out
 }
 
 // priorDependencies is the last review's still-live edges against its goal

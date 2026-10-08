@@ -177,20 +177,19 @@ func (p *resPlanner) Plan(v supplysim.WorldView) []supplysim.Command {
 			needs[r] = max(needs[r], n)
 		}
 	}
+	var woodFloor int64
 	for _, f := range v.Floors {
-		if f.Good == supplysim.Wood {
-			merge(policy.WoodFloorNeeds(policy.WoodFloor(f.Latched, p.policy)))
+		if f.Good == supplysim.Wood && f.Latched {
+			woodFloor = p.policy.WoodTarget
 		}
 	}
-	var deps []policy.DevelopmentDependency
+	var admitted []policy.AdmittedCost
 	for i, b := range v.Builds {
 		for g, left := range b.Left {
-			deps = append(deps, policy.DevelopmentDependency{Prerequisite: policy.MaintainResource, Resource: resDef(g),
-				Costs:     []policy.DependencyCost{{Action: domain.ActionID(b.Name + string(rune('a'+i))), Count: int64(math.Ceil(left))}},
-				Available: domain.Known(have[resDef(g)]), Observed: tick})
+			admitted = append(admitted, policy.AdmittedCost{Resource: resDef(g), Action: domain.ActionID(b.Name + string(rune('a'+i))), Count: int64(math.Ceil(left))})
 		}
 	}
-	merge(policy.DependencyResourceNeeds(deps))
+	merge(policy.ConstructionDemand(policy.ConstructionDemandInput{Stock: policy.StockReader{Resources: facts}, Admitted: admitted, WoodFloor: woodFloor}))
 
 	runways := p.runways(v, have, tick)
 	merge(policy.ResourceRunwayTargets(runways))

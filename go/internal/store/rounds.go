@@ -68,8 +68,9 @@ type Rounds struct {
 	Latches        policy.RoundsLatches
 	MedicalCare    policy.MedicalCareHistory
 	MedicineTarget int64 `json:",omitempty"`
-	// DependencyNeeds are the MaintainResource floors this review's live
-	// shortfall edges raised, so the resource planner stocks them.
+	// DependencyNeeds are the MaintainResource floors this review's blueprint
+	// deficits and admitted methods raised (policy.ConstructionDemand), so the
+	// resource planner stocks them.
 	DependencyNeeds map[policy.Resource]int64 `json:",omitempty"`
 	// ClothingNeeds are the MaintainResource floors of the colonists'
 	// replacement outfits (policy.ClothingResourceNeeds).
@@ -529,6 +530,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			if request.Facts.Dependencies, err = priorDependencies(ctx, tx, previous, request.Facts, request.Tick); err != nil {
 				return RoundsResult{}, err
 			}
+			request.Facts.Admitted = admittedCosts(request.Facts.Dependencies)
 		}
 		detection = &RoundsDetection{Facts: request.Facts, Latches: latches, Policy: request.Policy}
 		needs, err = policy.InspectRounds(request.Facts, latches, request.Policy)
@@ -629,9 +631,9 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 	r.MedicalCare = medical
 	r.BrewingFinished = policy.BrewingFinished(request.Facts.Research)
 	r.MedicineTarget = request.Policy.MedicineReserveTarget(request.Facts.Colonists, needs.Latches.MedicalReserve)
-	r.DependencyNeeds = policy.ConstructionResourceNeeds(policy.DependencyResourceNeeds(request.Facts.Dependencies), request.Facts.ConstructionDeficit, request.Facts.Resources)
-	r.ClothingNeeds = policy.ClothingResourceNeeds(request.Facts.ClothingMaterials(), request.Facts.Resources)
+	r.DependencyNeeds = policy.ConstructionDemand(policy.ConstructionDemandInput{Stock: policy.StockReader{Resources: request.Facts.Resources, Wood: request.Facts.Wood}, Owed: request.Facts.ConstructionDeficit, Admitted: request.Facts.Admitted})
 	r.WoodFloor = needs.WoodFloor
+	r.ClothingNeeds = policy.ClothingResourceNeeds(request.Facts.ClothingMaterials(), request.Facts.Resources)
 	r.EventLoot = loot
 	if rows, known := request.Facts.EventLoot.Value(); known {
 		r.Unsafe = policy.UnsafeLoot(rows)

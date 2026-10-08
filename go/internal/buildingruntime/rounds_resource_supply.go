@@ -156,7 +156,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 	var inputs []policy.ResourceSupplyInput
 	for _, target := range ranked {
 		resource := target.Resource
-		deficit := target.Target - resourceCount(stock, resource)
+		deficit := target.Target - policy.StockReader{Resources: stock}.Units(resource)
 		if resource == "Beer" || deficit <= 0 {
 			continue
 		}

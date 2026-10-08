@@ -205,12 +205,13 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 	// (#595): keep going until a target admits a plan, lends a window, or
 	// reports a real block. When nothing at all is dispatchable the first
 	// target's outcome stands, so its selected sources stay observable.
+	have := policy.StockReader{Resources: stock}
 	var first *RoundsResourceResult
 	for _, row := range ranked {
 		var result RoundsResourceResult
 		if row.Resource == "Beer" {
 			result, err = r.dispatchResourceConcern(call, epoch, state, goal, review.Tick, identity, row.Resource, row.Target, stock, nil, started)
-		} else if resourceCount(stock, row.Resource) >= row.Target {
+		} else if have.Units(row.Resource) >= row.Target {
 			continue
 		} else {
 			result, err = r.dispatchSupplied(call, epoch, state, goal, review.Tick, identity, supply, row.Resource, stock, started)
@@ -435,17 +436,6 @@ func (r *RoundsResourcePlanner) dispatchSupplied(call, epoch context.Context, st
 	tail.selected = nil
 	result, _, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, row.target, stock, started, &tail)
 	return result, err
-}
-
-// resourceCount is resource's units in a known census, 0 otherwise.
-func resourceCount(stock domain.Fact[[]policy.Amount], resource policy.Resource) int64 {
-	rows, _ := stock.Value()
-	for _, row := range rows {
-		if row.Resource == resource {
-			return row.Count
-		}
-	}
-	return 0
 }
 
 type sourceSelection struct {
