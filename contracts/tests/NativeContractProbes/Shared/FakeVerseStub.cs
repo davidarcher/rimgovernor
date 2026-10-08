@@ -13,6 +13,7 @@ namespace Verse
 {
     public class Game
     {
+        public Map CurrentMap { get => Find.CurrentMap; set => Find.CurrentMap = value; }
         public HomeBridge.BridgeTools.ColonyIdentity Identity = new HomeBridge.BridgeTools.ColonyIdentity();
         public T GetComponent<T>() where T : class => Identity as T;
     }
@@ -25,8 +26,9 @@ namespace Verse
     public static class Find
     {
         public static Map CurrentMap; public static TickManager TickManager;
+        public static List<Map> LoadedMaps;
         // Real Verse exposes the game's loaded maps; the fixtures load one map, the current one (#35 M2).
-        public static List<Map> Maps => CurrentMap == null ? null : new List<Map> { CurrentMap };
+        public static List<Map> Maps => LoadedMaps ?? (CurrentMap == null ? null : new List<Map> { CurrentMap });
     }
     public enum TimeSpeed { Paused, Normal, Fast, Superfast, Ultrafast }
     public class TickManager
@@ -82,6 +84,21 @@ namespace RimWorld
 }
 namespace HomeBridge.BridgeTools
 {
+    // SnapshotStream's native frame hook is outside these in-process probes.
+    // The control adapter still requests a keyframe after changing the view.
+    internal static class SnapshotStream
+    {
+        internal static int KeyframeRequests;
+        internal static RimGovernor.Protocol.Observations.SnapshotStreamReply Open(
+            RimGovernor.Protocol.Observations.SnapshotStreamRequest request)
+        {
+            if (request.Keyframe) KeyframeRequests++;
+            return new RimGovernor.Protocol.Observations.SnapshotStreamReply
+            {
+                Opened = new RimGovernor.Protocol.Observations.SnapshotStreamOpened()
+            };
+        }
+    }
     public class ColonyIdentity { public string ColonyId = "colony"; public string LoadToken = "load"; }
 
     internal static class GameWatchReads

@@ -891,6 +891,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if err = bridge.ValidateContext(loaded.Context); err != nil {
 		return out, errors.Join(err, s.session.Disable())
 	}
+	if handed, handoffErr := s.player.expeditionIncomingHandoff(call, epoch, loaded); handed || handoffErr != nil {
+		out.Deferred = handed
+		return out, handoffErr
+	}
 	epochs, err := journalTimed(journal, func() ([]store.ClockEpochObligation, error) { return s.player.journal.LoadClockEpochs(call, 4096) })
 	if err != nil {
 		return out, err
@@ -1992,7 +1996,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 				domain.SubdueAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction,
 				domain.HaulAction, domain.EquipAction, domain.DropEquipmentAction, domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction,
 				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.AreaPlantCutAction, domain.CutPlantAction, domain.StripAction, domain.RulesAttachAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.WastepackHaulAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.TradeAction, domain.QuestAcceptAction, domain.QuestShuttleAction, domain.RitualAction, domain.IdeoligionReformAction, domain.AbilityAction, domain.IgniteAction, domain.RemoveProductionBillAction, domain.DoorControlAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
+				domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.AreaPlantCutAction, domain.CutPlantAction, domain.StripAction, domain.RulesAttachAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.WastepackHaulAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.TradeAction, domain.QuestAcceptAction, domain.QuestShuttleAction, domain.HackDesignationAction, domain.GiveItemAction, domain.RitualAction, domain.IdeoligionReformAction, domain.AbilityAction, domain.IgniteAction, domain.RemoveProductionBillAction, domain.DoorControlAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

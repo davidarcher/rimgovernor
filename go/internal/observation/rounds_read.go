@@ -362,6 +362,7 @@ func frameQuests(read *bridge.WorldProgressionRead, home domain.MapID, catalog *
 			row.Monument = questMonument(objective.Monument)
 			row.GravEngine = questGravEngine(objective.GravEngine)
 			row.SurveyScanner = questSurveyScanner(objective.SurveyScanner)
+			questHackGift(objective, &row)
 			row.DurationTicks = optional(objective.DurationTicks)
 			row.Workload = questWorkload(objective.Workload, objective.Kind, catalog)
 			for _, mood := range objective.LodgerMoods {

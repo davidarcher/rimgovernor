@@ -21,7 +21,7 @@ type CoreSiteWork struct {
 func PlanCoreSiteWork(offer JoinerOffer, site WorldSite, f RoundsFacts, currentMap domain.MapID) CoreSiteWork {
 	result := CoreSiteWork{Quest: offer.Quest}
 	profile, known := offer.Profile.Value()
-	if !known || profile.Family != QuestFamilySite && profile.Family != QuestFamilyBanditCamp && !OdysseyGroundSiteRoot(offer.ScriptDef) || offer.State != "Ongoing" && offer.State != "EndedSuccess" && offer.State != "EndedFailed" || !slices.Contains(site.QuestIDs, offer.Quest) {
+	if !known || profile.Family != QuestFamilySite && profile.Family != QuestFamilyBanditCamp && !(profile.Family == QuestFamilyHack && offer.State == "EndedFailed") && !OdysseyGroundSiteRoot(offer.ScriptDef) || offer.State != "Ongoing" && offer.State != "EndedSuccess" && offer.State != "EndedFailed" || !slices.Contains(site.QuestIDs, offer.Quest) {
 		return result
 	}
 	result.Kind = "wait"

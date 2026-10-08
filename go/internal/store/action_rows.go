@@ -177,6 +177,14 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'quest_shuttle',?,?)", a.ID(), plan, ordinal, shuttle.Quest(), string(data))
+	} else if hack, ok := a.HackDesignation(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'hack_designation',?,?)", a.ID(), plan, ordinal, hack.Target(), strconv.FormatBool(hack.Enabled()))
+	} else if gift, ok := a.GiveItem(); ok {
+		data, encodeErr := json.Marshal(giveItemPayload{gift.Definition(), gift.ExpectedRemaining()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'give_item',?,?,?)", a.ID(), plan, ordinal, gift.Hauler(), gift.Recipient(), string(data))
 	} else if ignite, ok := a.Ignite(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,x,z) VALUES(?,?,?,'ignite',?,?,?)", a.ID(), plan, ordinal, ignite.Pawn(), ignite.Cell().X, ignite.Cell().Z)
 	} else if removal, ok := a.RemoveProductionBill(); ok {
@@ -1203,6 +1211,34 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewQuestShuttleAction(id, shuttle)
 		return a, ordinal, err
 	}
+	if kind == "hack_designation" && target.Valid && def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid {
+		enabled, err := strconv.ParseBool(def.String)
+		if err != nil || strconv.FormatBool(enabled) != def.String {
+			return domain.Action{}, 0, errors.New("invalid hack designation payload")
+		}
+		hack, err := domain.NewHackDesignation(target.String, enabled)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewHackDesignationAction(id, hack)
+		return a, ordinal, err
+	}
+	if kind == "give_item" && pawn.Valid && target.Valid && def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid {
+		var payload giveItemPayload
+		if json.Unmarshal([]byte(def.String), &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid give item payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if string(canonical) != def.String {
+			return domain.Action{}, 0, errors.New("noncanonical give item payload")
+		}
+		gift, err := domain.NewGiveItem(domain.PawnID(pawn.String), domain.PawnID(target.String), payload.Definition, payload.ExpectedRemaining)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewGiveItemAction(id, gift)
+		return a, ordinal, err
+	}
 	if kind == "building" && !pawn.Valid && !target.Valid && !draftAction.Valid && def.Valid && x.Valid && z.Valid && rotation.Valid && stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
 		b, e := domain.NewBuilding(def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)}, domain.Rotation(rotation.String), stuff.String)
 		if e != nil {
@@ -1212,6 +1248,11 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		return a, ordinal, e
 	}
 	return domain.Action{}, 0, errors.New("invalid action payload")
+}
+
+type giveItemPayload struct {
+	Definition        string
+	ExpectedRemaining int64
 }
 
 type workPayload struct {

@@ -22,6 +22,12 @@ internal static class NativeRefIndexProbe
 
     internal static void Invoke()
     {
+        Check(NativeQuestTargetIdentity.WorshippedTerminalSignal(7, "Quest7.terminal.HackingStarted"),
+            "spawned terminal retains exact quest signal identity");
+        foreach (var signal in new[] { "Quest8.terminal.HackingStarted", "Quest7.terminal.HackingStarted.extra",
+            "prefix.Quest7.terminal.HackingStarted", "Quest7.terminal", "", null })
+            Check(!NativeQuestTargetIdentity.WorshippedTerminalSignal(7, signal),
+                "terminal identity refuses another quest or nonexact signal");
         var things = new List<FakeThing>();
         var zones = new List<FakeZone>();
         var thingIndex = new LoadIdIndex<FakeThing>(() => things.Select(t => Pair(t.Id, t)), t => t.Id, t => t.Spawned && things.Contains(t));

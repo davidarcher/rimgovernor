@@ -406,6 +406,12 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if err != nil {
 		return store.RoundsResult{}, err
 	}
+	if handed, handoffErr := p.expeditionHandoff(ctx, epoch, state, reading); handed || handoffErr != nil {
+		if handoffErr != nil {
+			return store.RoundsResult{}, handoffErr
+		}
+		return p.stopRounds(ctx)
+	}
 	if err = releaseBreakWork(ctx, p.journal, state.Snapshot, reading.Emergency, plans); err != nil {
 		return store.RoundsResult{}, err
 	}

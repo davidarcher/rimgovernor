@@ -47,42 +47,50 @@ namespace RimGovernor.Protocol.Authority {
             "ASABKAsyHy5yaW1nb3Zlcm5vci5jb21tb24udjEuSWRlbnRpdHkSIAoTZXhw",
             "ZWN0ZWRfZ2VuZXJhdGlvbhgCIAEoBEgAiAEBEj8KBnJlYXNvbhgDIAEoDjIq",
             "LnJpbWdvdmVybm9yLmF1dGhvcml0eS52MS5SZXZvY2F0aW9uUmVhc29uSAGI",
-            "AQFCFgoUX2V4cGVjdGVkX2dlbmVyYXRpb25CCQoHX3JlYXNvbiKIAQoOQ29u",
-            "dHJvbFJlcXVlc3QSNQoIc2V0X21vZGUYASABKAsyIS5yaW1nb3Zlcm5vci5h",
-            "dXRob3JpdHkudjEuU2V0TW9kZUgAEjIKBnJldm9rZRgCIAEoCzIgLnJpbWdv",
-            "dmVybm9yLmF1dGhvcml0eS52MS5SZXZva2VIAEILCglvcGVyYXRpb24igwEK",
-            "B0dyYW50ZWQSOgoHY29udGV4dBgBIAEoCzIpLnJpbWdvdmVybm9yLmNvbW1v",
-            "bi52MS5PYnNlcnZhdGlvbkNvbnRleHQSPAoJYXV0aG9yaXR5GAIgASgLMiku",
-            "cmltZ292ZXJub3IuYXV0aG9yaXR5LnYxLkFjdGl2ZUF1dGhvcml0eSKFAQoH",
-            "UmV2b2tlZBI6Cgdjb250ZXh0GAEgASgLMikucmltZ292ZXJub3IuY29tbW9u",
-            "LnYxLk9ic2VydmF0aW9uQ29udGV4dBI+CglhdXRob3JpdHkYAiABKAsyKy5y",
-            "aW1nb3Zlcm5vci5hdXRob3JpdHkudjEuSW5hY3RpdmVBdXRob3JpdHkiuAEK",
-            "DENvbnRyb2xSZXBseRI0CgdncmFudGVkGAEgASgLMiEucmltZ292ZXJub3Iu",
-            "YXV0aG9yaXR5LnYxLkdyYW50ZWRIABI0CgdyZXZva2VkGAIgASgLMiEucmlt",
-            "Z292ZXJub3IuYXV0aG9yaXR5LnYxLlJldm9rZWRIABIxCgdmYWlsdXJlGAMg",
-            "ASgLMh4ucmltZ292ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRj",
-            "b21lIrQBChFXcml0ZVByZWNvbmRpdGlvbhIxCghpZGVudGl0eRgBIAEoCzIf",
-            "LnJpbWdvdmVybm9yLmNvbW1vbi52MS5JZGVudGl0eRIgChNleHBlY3RlZF9n",
-            "ZW5lcmF0aW9uGAIgASgESACIAQESMgoHYXR0ZW1wdBgDIAEoCzIhLnJpbWdv",
-            "dmVybm9yLmNvbW1vbi52MS5BdHRlbXB0S2V5QhYKFF9leHBlY3RlZF9nZW5l",
-            "cmF0aW9uKjwKBE1vZGUSFAoQTU9ERV9VTlNQRUNJRklFRBAAEg0KCU1PREVf",
-            "QVVUTxABEg8KC01PREVfTUFOVUFMEAIqnQMKEFJldm9jYXRpb25SZWFzb24S",
-            "IQodUkVWT0NBVElPTl9SRUFTT05fVU5TUEVDSUZJRUQQABIaChZSRVZPQ0FU",
-            "SU9OX1JFQVNPTl9OT05FEAESHAoYUkVWT0NBVElPTl9SRUFTT05fTUFOVUFM",
-            "EAISJAogUkVWT0NBVElPTl9SRUFTT05fUExBWUVSX0NPTlRST0wQAxIkCiBS",
-            "RVZPQ0FUSU9OX1JFQVNPTl9FWFRFUk5BTF9PUkRFUhAEEiYKIlJFVk9DQVRJ",
-            "T05fUkVBU09OX0lERU5USVRZX0NIQU5HRUQQBRIgChxSRVZPQ0FUSU9OX1JF",
-            "QVNPTl9ESVNDT05ORUNUEAYSHgoaUkVWT0NBVElPTl9SRUFTT05fU0hVVERP",
-            "V04QBxInCiNSRVZPQ0FUSU9OX1JFQVNPTl9IT09LU19VTkFWQUlMQUJMRRAI",
-            "EioKJlJFVk9DQVRJT05fUkVBU09OX0dFTkVSQVRJT05fRVhIQVVTVEVEEAkS",
-            "IQodUkVWT0NBVElPTl9SRUFTT05fVU5BVkFJTEFCTEUQCjLGAQoJQXV0aG9y",
-            "aXR5ElwKClJlYWRTdGF0dXMSJy5yaW1nb3Zlcm5vci5hdXRob3JpdHkudjEu",
-            "U3RhdHVzUmVxdWVzdBolLnJpbWdvdmVybm9yLmF1dGhvcml0eS52MS5TdGF0",
-            "dXNSZXBseRJbCgdDb250cm9sEigucmltZ292ZXJub3IuYXV0aG9yaXR5LnYx",
-            "LkNvbnRyb2xSZXF1ZXN0GiYucmltZ292ZXJub3IuYXV0aG9yaXR5LnYxLkNv",
-            "bnRyb2xSZXBseUJuWktnaXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVy",
-            "bm9yL2dvL2ludGVybmFsL3dpcmUvYXV0aG9yaXR5cGI7YXV0aG9yaXR5cGKq",
-            "Ah5SaW1Hb3Zlcm5vci5Qcm90b2NvbC5BdXRob3JpdHliBnByb3RvMw=="));
+            "AQFCFgoUX2V4cGVjdGVkX2dlbmVyYXRpb25CCQoHX3JlYXNvbiKoAQoIRm9j",
+            "dXNNYXASMQoIaWRlbnRpdHkYASABKAsyHy5yaW1nb3Zlcm5vci5jb21tb24u",
+            "djEuSWRlbnRpdHkSIAoTZXhwZWN0ZWRfZ2VuZXJhdGlvbhgCIAEoBEgAiAEB",
+            "Ei8KBnRhcmdldBgDIAEoCzIfLnJpbWdvdmVybm9yLmNvbW1vbi52MS5JZGVu",
+            "dGl0eUIWChRfZXhwZWN0ZWRfZ2VuZXJhdGlvbiJICgpGb2N1c2VkTWFwEjoK",
+            "B2NvbnRleHQYASABKAsyKS5yaW1nb3Zlcm5vci5jb21tb24udjEuT2JzZXJ2",
+            "YXRpb25Db250ZXh0IsEBCg5Db250cm9sUmVxdWVzdBI1CghzZXRfbW9kZRgB",
+            "IAEoCzIhLnJpbWdvdmVybm9yLmF1dGhvcml0eS52MS5TZXRNb2RlSAASMgoG",
+            "cmV2b2tlGAIgASgLMiAucmltZ292ZXJub3IuYXV0aG9yaXR5LnYxLlJldm9r",
+            "ZUgAEjcKCWZvY3VzX21hcBgDIAEoCzIiLnJpbWdvdmVybm9yLmF1dGhvcml0",
+            "eS52MS5Gb2N1c01hcEgAQgsKCW9wZXJhdGlvbiKDAQoHR3JhbnRlZBI6Cgdj",
+            "b250ZXh0GAEgASgLMikucmltZ292ZXJub3IuY29tbW9uLnYxLk9ic2VydmF0",
+            "aW9uQ29udGV4dBI8CglhdXRob3JpdHkYAiABKAsyKS5yaW1nb3Zlcm5vci5h",
+            "dXRob3JpdHkudjEuQWN0aXZlQXV0aG9yaXR5IoUBCgdSZXZva2VkEjoKB2Nv",
+            "bnRleHQYASABKAsyKS5yaW1nb3Zlcm5vci5jb21tb24udjEuT2JzZXJ2YXRp",
+            "b25Db250ZXh0Ej4KCWF1dGhvcml0eRgCIAEoCzIrLnJpbWdvdmVybm9yLmF1",
+            "dGhvcml0eS52MS5JbmFjdGl2ZUF1dGhvcml0eSL1AQoMQ29udHJvbFJlcGx5",
+            "EjQKB2dyYW50ZWQYASABKAsyIS5yaW1nb3Zlcm5vci5hdXRob3JpdHkudjEu",
+            "R3JhbnRlZEgAEjQKB3Jldm9rZWQYAiABKAsyIS5yaW1nb3Zlcm5vci5hdXRo",
+            "b3JpdHkudjEuUmV2b2tlZEgAEjEKB2ZhaWx1cmUYAyABKAsyHi5yaW1nb3Zl",
+            "cm5vci5jb21tb24udjEuRmFpbHVyZUgAEjsKC2ZvY3VzZWRfbWFwGAQgASgL",
+            "MiQucmltZ292ZXJub3IuYXV0aG9yaXR5LnYxLkZvY3VzZWRNYXBIAEIJCgdv",
+            "dXRjb21lIrQBChFXcml0ZVByZWNvbmRpdGlvbhIxCghpZGVudGl0eRgBIAEo",
+            "CzIfLnJpbWdvdmVybm9yLmNvbW1vbi52MS5JZGVudGl0eRIgChNleHBlY3Rl",
+            "ZF9nZW5lcmF0aW9uGAIgASgESACIAQESMgoHYXR0ZW1wdBgDIAEoCzIhLnJp",
+            "bWdvdmVybm9yLmNvbW1vbi52MS5BdHRlbXB0S2V5QhYKFF9leHBlY3RlZF9n",
+            "ZW5lcmF0aW9uKjwKBE1vZGUSFAoQTU9ERV9VTlNQRUNJRklFRBAAEg0KCU1P",
+            "REVfQVVUTxABEg8KC01PREVfTUFOVUFMEAIqnQMKEFJldm9jYXRpb25SZWFz",
+            "b24SIQodUkVWT0NBVElPTl9SRUFTT05fVU5TUEVDSUZJRUQQABIaChZSRVZP",
+            "Q0FUSU9OX1JFQVNPTl9OT05FEAESHAoYUkVWT0NBVElPTl9SRUFTT05fTUFO",
+            "VUFMEAISJAogUkVWT0NBVElPTl9SRUFTT05fUExBWUVSX0NPTlRST0wQAxIk",
+            "CiBSRVZPQ0FUSU9OX1JFQVNPTl9FWFRFUk5BTF9PUkRFUhAEEiYKIlJFVk9D",
+            "QVRJT05fUkVBU09OX0lERU5USVRZX0NIQU5HRUQQBRIgChxSRVZPQ0FUSU9O",
+            "X1JFQVNPTl9ESVNDT05ORUNUEAYSHgoaUkVWT0NBVElPTl9SRUFTT05fU0hV",
+            "VERPV04QBxInCiNSRVZPQ0FUSU9OX1JFQVNPTl9IT09LU19VTkFWQUlMQUJM",
+            "RRAIEioKJlJFVk9DQVRJT05fUkVBU09OX0dFTkVSQVRJT05fRVhIQVVTVEVE",
+            "EAkSIQodUkVWT0NBVElPTl9SRUFTT05fVU5BVkFJTEFCTEUQCjLGAQoJQXV0",
+            "aG9yaXR5ElwKClJlYWRTdGF0dXMSJy5yaW1nb3Zlcm5vci5hdXRob3JpdHku",
+            "djEuU3RhdHVzUmVxdWVzdBolLnJpbWdvdmVybm9yLmF1dGhvcml0eS52MS5T",
+            "dGF0dXNSZXBseRJbCgdDb250cm9sEigucmltZ292ZXJub3IuYXV0aG9yaXR5",
+            "LnYxLkNvbnRyb2xSZXF1ZXN0GiYucmltZ292ZXJub3IuYXV0aG9yaXR5LnYx",
+            "LkNvbnRyb2xSZXBseUJuWktnaXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdv",
+            "dmVybm9yL2dvL2ludGVybmFsL3dpcmUvYXV0aG9yaXR5cGI7YXV0aG9yaXR5",
+            "cGKqAh5SaW1Hb3Zlcm5vci5Qcm90b2NvbC5BdXRob3JpdHliBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Authority.Mode), typeof(global::RimGovernor.Protocol.Authority.RevocationReason), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -93,10 +101,12 @@ namespace RimGovernor.Protocol.Authority {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.StatusReply), global::RimGovernor.Protocol.Authority.StatusReply.Parser, new[]{ "Status", "Failure" }, new[]{ "Outcome" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.SetMode), global::RimGovernor.Protocol.Authority.SetMode.Parser, new[]{ "Identity", "ExpectedGeneration", "Mode" }, new[]{ "ExpectedGeneration", "Mode" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.Revoke), global::RimGovernor.Protocol.Authority.Revoke.Parser, new[]{ "Identity", "ExpectedGeneration", "Reason" }, new[]{ "ExpectedGeneration", "Reason" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.ControlRequest), global::RimGovernor.Protocol.Authority.ControlRequest.Parser, new[]{ "SetMode", "Revoke" }, new[]{ "Operation" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.FocusMap), global::RimGovernor.Protocol.Authority.FocusMap.Parser, new[]{ "Identity", "ExpectedGeneration", "Target" }, new[]{ "ExpectedGeneration" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.FocusedMap), global::RimGovernor.Protocol.Authority.FocusedMap.Parser, new[]{ "Context" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.ControlRequest), global::RimGovernor.Protocol.Authority.ControlRequest.Parser, new[]{ "SetMode", "Revoke", "FocusMap" }, new[]{ "Operation" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.Granted), global::RimGovernor.Protocol.Authority.Granted.Parser, new[]{ "Context", "Authority" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.Revoked), global::RimGovernor.Protocol.Authority.Revoked.Parser, new[]{ "Context", "Authority" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.ControlReply), global::RimGovernor.Protocol.Authority.ControlReply.Parser, new[]{ "Granted", "Revoked", "Failure" }, new[]{ "Outcome" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.ControlReply), global::RimGovernor.Protocol.Authority.ControlReply.Parser, new[]{ "Granted", "Revoked", "Failure", "FocusedMap" }, new[]{ "Outcome" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.WritePrecondition), global::RimGovernor.Protocol.Authority.WritePrecondition.Parser, new[]{ "Identity", "ExpectedGeneration", "Attempt" }, new[]{ "ExpectedGeneration" }, null, null, null)
           }));
     }
@@ -2103,6 +2113,523 @@ namespace RimGovernor.Protocol.Authority {
 
   }
 
+  /// <summary>
+  /// Trusted control-plane view change. Neither moves pawns nor grants authority.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class FocusMap : pb::IMessage<FocusMap>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<FocusMap> _parser = new pb::MessageParser<FocusMap>(() => new FocusMap());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<FocusMap> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[7]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public FocusMap() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public FocusMap(FocusMap other) : this() {
+      _hasBits0 = other._hasBits0;
+      identity_ = other.identity_ != null ? other.identity_.Clone() : null;
+      expectedGeneration_ = other.expectedGeneration_;
+      target_ = other.target_ != null ? other.target_.Clone() : null;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public FocusMap Clone() {
+      return new FocusMap(this);
+    }
+
+    /// <summary>Field number for the "identity" field.</summary>
+    public const int IdentityFieldNumber = 1;
+    private global::RimGovernor.Protocol.Common.Identity identity_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Identity Identity {
+      get { return identity_; }
+      set {
+        identity_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "expected_generation" field.</summary>
+    public const int ExpectedGenerationFieldNumber = 2;
+    private readonly static ulong ExpectedGenerationDefaultValue = 0UL;
+
+    private ulong expectedGeneration_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ulong ExpectedGeneration {
+      get { if ((_hasBits0 & 1) != 0) { return expectedGeneration_; } else { return ExpectedGenerationDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        expectedGeneration_ = value;
+      }
+    }
+    /// <summary>Gets whether the "expected_generation" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasExpectedGeneration {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "expected_generation" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearExpectedGeneration() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "target" field.</summary>
+    public const int TargetFieldNumber = 3;
+    private global::RimGovernor.Protocol.Common.Identity target_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Identity Target {
+      get { return target_; }
+      set {
+        target_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as FocusMap);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(FocusMap other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(Identity, other.Identity)) return false;
+      if (ExpectedGeneration != other.ExpectedGeneration) return false;
+      if (!object.Equals(Target, other.Target)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (identity_ != null) hash ^= Identity.GetHashCode();
+      if (HasExpectedGeneration) hash ^= ExpectedGeneration.GetHashCode();
+      if (target_ != null) hash ^= Target.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (identity_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Identity);
+      }
+      if (HasExpectedGeneration) {
+        output.WriteRawTag(16);
+        output.WriteUInt64(ExpectedGeneration);
+      }
+      if (target_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(Target);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (identity_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Identity);
+      }
+      if (HasExpectedGeneration) {
+        output.WriteRawTag(16);
+        output.WriteUInt64(ExpectedGeneration);
+      }
+      if (target_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(Target);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (identity_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Identity);
+      }
+      if (HasExpectedGeneration) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(ExpectedGeneration);
+      }
+      if (target_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Target);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(FocusMap other) {
+      if (other == null) {
+        return;
+      }
+      if (other.identity_ != null) {
+        if (identity_ == null) {
+          Identity = new global::RimGovernor.Protocol.Common.Identity();
+        }
+        Identity.MergeFrom(other.Identity);
+      }
+      if (other.HasExpectedGeneration) {
+        ExpectedGeneration = other.ExpectedGeneration;
+      }
+      if (other.target_ != null) {
+        if (target_ == null) {
+          Target = new global::RimGovernor.Protocol.Common.Identity();
+        }
+        Target.MergeFrom(other.Target);
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            if (identity_ == null) {
+              Identity = new global::RimGovernor.Protocol.Common.Identity();
+            }
+            input.ReadMessage(Identity);
+            break;
+          }
+          case 16: {
+            ExpectedGeneration = input.ReadUInt64();
+            break;
+          }
+          case 26: {
+            if (target_ == null) {
+              Target = new global::RimGovernor.Protocol.Common.Identity();
+            }
+            input.ReadMessage(Target);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            if (identity_ == null) {
+              Identity = new global::RimGovernor.Protocol.Common.Identity();
+            }
+            input.ReadMessage(Identity);
+            break;
+          }
+          case 16: {
+            ExpectedGeneration = input.ReadUInt64();
+            break;
+          }
+          case 26: {
+            if (target_ == null) {
+              Target = new global::RimGovernor.Protocol.Common.Identity();
+            }
+            input.ReadMessage(Target);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class FocusedMap : pb::IMessage<FocusedMap>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<FocusedMap> _parser = new pb::MessageParser<FocusedMap>(() => new FocusedMap());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<FocusedMap> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[8]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public FocusedMap() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public FocusedMap(FocusedMap other) : this() {
+      context_ = other.context_ != null ? other.context_.Clone() : null;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public FocusedMap Clone() {
+      return new FocusedMap(this);
+    }
+
+    /// <summary>Field number for the "context" field.</summary>
+    public const int ContextFieldNumber = 1;
+    private global::RimGovernor.Protocol.Common.ObservationContext context_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.ObservationContext Context {
+      get { return context_; }
+      set {
+        context_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as FocusedMap);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(FocusedMap other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(Context, other.Context)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (context_ != null) hash ^= Context.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (context_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Context);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (context_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Context);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (context_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Context);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(FocusedMap other) {
+      if (other == null) {
+        return;
+      }
+      if (other.context_ != null) {
+        if (context_ == null) {
+          Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+        }
+        Context.MergeFrom(other.Context);
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            if (context_ == null) {
+              Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+            }
+            input.ReadMessage(Context);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            if (context_ == null) {
+              Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+            }
+            input.ReadMessage(Context);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class ControlRequest : pb::IMessage<ControlRequest>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
@@ -2118,7 +2645,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[7]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[9]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2144,6 +2671,9 @@ namespace RimGovernor.Protocol.Authority {
           break;
         case OperationOneofCase.Revoke:
           Revoke = other.Revoke.Clone();
+          break;
+        case OperationOneofCase.FocusMap:
+          FocusMap = other.FocusMap.Clone();
           break;
       }
 
@@ -2180,12 +2710,25 @@ namespace RimGovernor.Protocol.Authority {
       }
     }
 
+    /// <summary>Field number for the "focus_map" field.</summary>
+    public const int FocusMapFieldNumber = 3;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Authority.FocusMap FocusMap {
+      get { return operationCase_ == OperationOneofCase.FocusMap ? (global::RimGovernor.Protocol.Authority.FocusMap) operation_ : null; }
+      set {
+        operation_ = value;
+        operationCase_ = value == null ? OperationOneofCase.None : OperationOneofCase.FocusMap;
+      }
+    }
+
     private object operation_;
     /// <summary>Enum of possible cases for the "operation" oneof.</summary>
     public enum OperationOneofCase {
       None = 0,
       SetMode = 1,
       Revoke = 2,
+      FocusMap = 3,
     }
     private OperationOneofCase operationCase_ = OperationOneofCase.None;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2218,6 +2761,7 @@ namespace RimGovernor.Protocol.Authority {
       }
       if (!object.Equals(SetMode, other.SetMode)) return false;
       if (!object.Equals(Revoke, other.Revoke)) return false;
+      if (!object.Equals(FocusMap, other.FocusMap)) return false;
       if (OperationCase != other.OperationCase) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -2228,6 +2772,7 @@ namespace RimGovernor.Protocol.Authority {
       int hash = 1;
       if (operationCase_ == OperationOneofCase.SetMode) hash ^= SetMode.GetHashCode();
       if (operationCase_ == OperationOneofCase.Revoke) hash ^= Revoke.GetHashCode();
+      if (operationCase_ == OperationOneofCase.FocusMap) hash ^= FocusMap.GetHashCode();
       hash ^= (int) operationCase_;
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -2255,6 +2800,10 @@ namespace RimGovernor.Protocol.Authority {
         output.WriteRawTag(18);
         output.WriteMessage(Revoke);
       }
+      if (operationCase_ == OperationOneofCase.FocusMap) {
+        output.WriteRawTag(26);
+        output.WriteMessage(FocusMap);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -2273,6 +2822,10 @@ namespace RimGovernor.Protocol.Authority {
         output.WriteRawTag(18);
         output.WriteMessage(Revoke);
       }
+      if (operationCase_ == OperationOneofCase.FocusMap) {
+        output.WriteRawTag(26);
+        output.WriteMessage(FocusMap);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -2288,6 +2841,9 @@ namespace RimGovernor.Protocol.Authority {
       }
       if (operationCase_ == OperationOneofCase.Revoke) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Revoke);
+      }
+      if (operationCase_ == OperationOneofCase.FocusMap) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(FocusMap);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -2313,6 +2869,12 @@ namespace RimGovernor.Protocol.Authority {
             Revoke = new global::RimGovernor.Protocol.Authority.Revoke();
           }
           Revoke.MergeFrom(other.Revoke);
+          break;
+        case OperationOneofCase.FocusMap:
+          if (FocusMap == null) {
+            FocusMap = new global::RimGovernor.Protocol.Authority.FocusMap();
+          }
+          FocusMap.MergeFrom(other.FocusMap);
           break;
       }
 
@@ -2353,6 +2915,15 @@ namespace RimGovernor.Protocol.Authority {
             Revoke = subBuilder;
             break;
           }
+          case 26: {
+            global::RimGovernor.Protocol.Authority.FocusMap subBuilder = new global::RimGovernor.Protocol.Authority.FocusMap();
+            if (operationCase_ == OperationOneofCase.FocusMap) {
+              subBuilder.MergeFrom(FocusMap);
+            }
+            input.ReadMessage(subBuilder);
+            FocusMap = subBuilder;
+            break;
+          }
         }
       }
     #endif
@@ -2390,6 +2961,15 @@ namespace RimGovernor.Protocol.Authority {
             Revoke = subBuilder;
             break;
           }
+          case 26: {
+            global::RimGovernor.Protocol.Authority.FocusMap subBuilder = new global::RimGovernor.Protocol.Authority.FocusMap();
+            if (operationCase_ == OperationOneofCase.FocusMap) {
+              subBuilder.MergeFrom(FocusMap);
+            }
+            input.ReadMessage(subBuilder);
+            FocusMap = subBuilder;
+            break;
+          }
         }
       }
     }
@@ -2412,7 +2992,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[8]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[10]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2665,7 +3245,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[9]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[11]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2918,7 +3498,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[10]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[12]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2947,6 +3527,9 @@ namespace RimGovernor.Protocol.Authority {
           break;
         case OutcomeOneofCase.Failure:
           Failure = other.Failure.Clone();
+          break;
+        case OutcomeOneofCase.FocusedMap:
+          FocusedMap = other.FocusedMap.Clone();
           break;
       }
 
@@ -2995,6 +3578,18 @@ namespace RimGovernor.Protocol.Authority {
       }
     }
 
+    /// <summary>Field number for the "focused_map" field.</summary>
+    public const int FocusedMapFieldNumber = 4;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Authority.FocusedMap FocusedMap {
+      get { return outcomeCase_ == OutcomeOneofCase.FocusedMap ? (global::RimGovernor.Protocol.Authority.FocusedMap) outcome_ : null; }
+      set {
+        outcome_ = value;
+        outcomeCase_ = value == null ? OutcomeOneofCase.None : OutcomeOneofCase.FocusedMap;
+      }
+    }
+
     private object outcome_;
     /// <summary>Enum of possible cases for the "outcome" oneof.</summary>
     public enum OutcomeOneofCase {
@@ -3002,6 +3597,7 @@ namespace RimGovernor.Protocol.Authority {
       Granted = 1,
       Revoked = 2,
       Failure = 3,
+      FocusedMap = 4,
     }
     private OutcomeOneofCase outcomeCase_ = OutcomeOneofCase.None;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3035,6 +3631,7 @@ namespace RimGovernor.Protocol.Authority {
       if (!object.Equals(Granted, other.Granted)) return false;
       if (!object.Equals(Revoked, other.Revoked)) return false;
       if (!object.Equals(Failure, other.Failure)) return false;
+      if (!object.Equals(FocusedMap, other.FocusedMap)) return false;
       if (OutcomeCase != other.OutcomeCase) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -3046,6 +3643,7 @@ namespace RimGovernor.Protocol.Authority {
       if (outcomeCase_ == OutcomeOneofCase.Granted) hash ^= Granted.GetHashCode();
       if (outcomeCase_ == OutcomeOneofCase.Revoked) hash ^= Revoked.GetHashCode();
       if (outcomeCase_ == OutcomeOneofCase.Failure) hash ^= Failure.GetHashCode();
+      if (outcomeCase_ == OutcomeOneofCase.FocusedMap) hash ^= FocusedMap.GetHashCode();
       hash ^= (int) outcomeCase_;
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -3077,6 +3675,10 @@ namespace RimGovernor.Protocol.Authority {
         output.WriteRawTag(26);
         output.WriteMessage(Failure);
       }
+      if (outcomeCase_ == OutcomeOneofCase.FocusedMap) {
+        output.WriteRawTag(34);
+        output.WriteMessage(FocusedMap);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -3099,6 +3701,10 @@ namespace RimGovernor.Protocol.Authority {
         output.WriteRawTag(26);
         output.WriteMessage(Failure);
       }
+      if (outcomeCase_ == OutcomeOneofCase.FocusedMap) {
+        output.WriteRawTag(34);
+        output.WriteMessage(FocusedMap);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -3117,6 +3723,9 @@ namespace RimGovernor.Protocol.Authority {
       }
       if (outcomeCase_ == OutcomeOneofCase.Failure) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Failure);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.FocusedMap) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(FocusedMap);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -3148,6 +3757,12 @@ namespace RimGovernor.Protocol.Authority {
             Failure = new global::RimGovernor.Protocol.Common.Failure();
           }
           Failure.MergeFrom(other.Failure);
+          break;
+        case OutcomeOneofCase.FocusedMap:
+          if (FocusedMap == null) {
+            FocusedMap = new global::RimGovernor.Protocol.Authority.FocusedMap();
+          }
+          FocusedMap.MergeFrom(other.FocusedMap);
           break;
       }
 
@@ -3197,6 +3812,15 @@ namespace RimGovernor.Protocol.Authority {
             Failure = subBuilder;
             break;
           }
+          case 34: {
+            global::RimGovernor.Protocol.Authority.FocusedMap subBuilder = new global::RimGovernor.Protocol.Authority.FocusedMap();
+            if (outcomeCase_ == OutcomeOneofCase.FocusedMap) {
+              subBuilder.MergeFrom(FocusedMap);
+            }
+            input.ReadMessage(subBuilder);
+            FocusedMap = subBuilder;
+            break;
+          }
         }
       }
     #endif
@@ -3243,6 +3867,15 @@ namespace RimGovernor.Protocol.Authority {
             Failure = subBuilder;
             break;
           }
+          case 34: {
+            global::RimGovernor.Protocol.Authority.FocusedMap subBuilder = new global::RimGovernor.Protocol.Authority.FocusedMap();
+            if (outcomeCase_ == OutcomeOneofCase.FocusedMap) {
+              subBuilder.MergeFrom(FocusedMap);
+            }
+            input.ReadMessage(subBuilder);
+            FocusedMap = subBuilder;
+            break;
+          }
         }
       }
     }
@@ -3275,7 +3908,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[11]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[13]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

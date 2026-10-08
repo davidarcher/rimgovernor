@@ -41,6 +41,8 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.Prisoner] = new PrisonerInteractionActionHandler(),
             [Operations.Action.IntentOneofCase.AcceptQuest] = new AcceptQuestActionHandler(),
             [Operations.Action.IntentOneofCase.QuestShuttle] = new QuestShuttleActionHandler(),
+            [Operations.Action.IntentOneofCase.HackDesignation] = new HackDesignationActionHandler(),
+            [Operations.Action.IntentOneofCase.GiveItem] = new GiveItemActionHandler(),
             [Operations.Action.IntentOneofCase.Ritual] = new RitualActionHandler(),
             [Operations.Action.IntentOneofCase.IdeoligionReform] = new IdeoligionReformActionHandler(),
             [Operations.Action.IntentOneofCase.Ability] = new AbilityActionHandler(),

@@ -142,6 +142,9 @@ type QuestObjectiveFact struct {
 	Monument         *o.QuestMonument
 	GravEngine       *o.QuestGravEngine
 	SurveyScanner    *o.QuestSurveyScanner
+	HackTargets      []*o.QuestHackTarget
+	Gift             *o.QuestGiftRequest
+	HackRisk         *o.QuestHackRisk
 	Kind             o.QuestObjectiveKind
 	Def              string
 	Stuff            string
@@ -450,7 +453,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			quest.Rewards = append(quest.Rewards, fact)
 		}
 		for _, objective := range row.Objectives {
-			if objective == nil || objective.Kind == nil || objective.GetKind() < o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_UNKNOWN || objective.GetKind() > o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_HOLD_SURVEY_SCANNER || objective.GetCount() < 0 || objective.GetProduced() < 0 || objective.GetDeadlineTicks() < 0 || objective.GetDurationTicks() < 0 {
+			if objective == nil || objective.Kind == nil || objective.GetKind() < o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_UNKNOWN || objective.GetKind() > o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_GIVE_ITEMS || objective.GetCount() < 0 || objective.GetProduced() < 0 || objective.GetDeadlineTicks() < 0 || objective.GetDurationTicks() < 0 {
 				return WorldProgressionRead{}, contract("invalid quest objective")
 			}
 			seen := map[string]bool{}
@@ -462,6 +465,9 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			}
 			fact := QuestObjectiveFact{Kind: objective.GetKind(), Def: objective.GetDef(), Stuff: objective.GetStuff(), Count: objective.Count, Produced: objective.Produced, DeadlineTicks: objective.DeadlineTicks, UnmetRequirement: objective.GetUnmetRequirement(), PawnIDs: append([]string(nil), objective.PawnIds...), Active: objective.Active, MinimumMood: objective.MinimumMood}
 			fact.Monument = validatedQuestMonument(objective.Monument)
+			if err := decodeQuestHackGift(objective, &fact); err != nil {
+				return WorldProgressionRead{}, err
+			}
 			if engine, err := validatedQuestGravEngine(objective.GravEngine); err != nil {
 				return WorldProgressionRead{}, err
 			} else {

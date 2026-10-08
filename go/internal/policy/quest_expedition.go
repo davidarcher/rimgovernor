@@ -86,7 +86,22 @@ func ExpeditionDeficit(f RoundsFacts) bool {
 	}
 	for _, offer := range offers {
 		profile, known := offer.Profile.Value()
-		if known && !profile.NeverAct && profile.Disposition != QuestRefuse && offer.State == "Ongoing" {
+		if known && !profile.NeverAct && profile.Disposition != QuestRefuse {
+			if sites, sk := f.QuestSites.Value(); sk {
+				for _, site := range sites {
+					if !slices.Contains(site.QuestIDs, offer.Quest) {
+						continue
+					}
+					if _, loaded := site.Map.Value(); loaded {
+						if extraction, ek := site.Extraction.Value(); ek && len(extraction.Crew) > 0 {
+							return true
+						}
+					}
+				}
+			}
+			if offer.State != "Ongoing" {
+				continue
+			}
 			if _, found := questExpeditionSite(offer, f); found {
 				return true
 			}
@@ -133,6 +148,9 @@ func SelectExpedition(f RoundsFacts, p RoundsPolicy) ExpeditionPlan {
 					return ExpeditionPlan{Quest: offer.Quest, Site: site.ID, Waiting: true}
 				}
 			}
+		}
+		if reason := WorshippedTerminalAdmission(offer); reason != "" {
+			return ExpeditionPlan{Quest: offer.Quest, Site: site.ID, Reason: reason, Waiting: true}
 		}
 		if offer.ScriptDef == "SurveySite" {
 			return PlanSurvey(offer, site, f, f.AnimalUpkeep.Food, p)

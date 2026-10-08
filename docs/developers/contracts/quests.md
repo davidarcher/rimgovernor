@@ -115,6 +115,20 @@ pawns to native exit cells. A stopped caravan returns only when its crew matches
 a journaled expedition; moving caravans retain their route. Existing journals
 and derived site facts own this lifecycle.
 
+Hack objectives retain exact native terminal identities and the native filter's
+satisfaction predicate, including destruction only when that filter permits it.
+The hack intent sets vanilla autohack; ordinary Research work performs hacking.
+Lockout remains a wait, and an applied toggle never proves completion. Worshipped
+terminals use their own site's faction relationship to refuse the friendly tribe
+trap. Relic parents require spare hacking capacity before their subquests exist.
+
+Beggar visitors stay protected regardless of whether a donation is affordable.
+Donations preserve observed colony resource needs and use native item market value.
+GiveItem names one hauler, recipient, definition and expected remaining request.
+Native rejects a changed remaining count, then issues vanilla GiveToPawn for the
+whole request. Its receipt proves an accepted order; native delivery and quest
+signals prove fulfillment. These intents share the existing action journal.
+
 MechanoidSignal uses the exact quest grav engine and vanilla InspectGravEngine job.
 The planner waits for spawning and running inspection, then observes the native
 inspection flag. Gravlite panels retain vanilla forbiddance. Shuttle-crash rescue

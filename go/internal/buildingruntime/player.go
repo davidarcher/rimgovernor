@@ -241,6 +241,11 @@ func (p *Player) Resume(ctx context.Context, request store.ControlRequest) (stor
 		return store.ControlRecord{}, err
 	}
 	defer done()
+	return p.resumeHeld(call, epoch, request)
+}
+
+func (p *Player) resumeHeld(call, epoch context.Context, request store.ControlRequest) (store.ControlRecord, error) {
+	var err error
 	if request.Kind != store.ResumeControl {
 		return store.ControlRecord{}, store.ErrConflict
 	}
@@ -263,6 +268,12 @@ func (p *Player) Resume(ctx context.Context, request store.ControlRequest) (stor
 	if err != nil || !created {
 		return record, err
 	}
+	return p.completeResumeHeld(call, epoch, record)
+}
+
+func (p *Player) completeResumeHeld(call, epoch context.Context, record store.ControlRecord) (store.ControlRecord, error) {
+	request := record.Request
+	var err error
 	if err = p.current(call, epoch); err != nil {
 		return p.uncertain(record, err)
 	}

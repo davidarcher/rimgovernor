@@ -51,6 +51,9 @@ type JoinerOffer struct {
 
 // QuestObjective carries the typed native requirement and its observed progress.
 type QuestObjective struct {
+	HackTargets      []QuestHackTarget
+	HackRisk         domain.Fact[QuestHackRisk]
+	Gift             domain.Fact[QuestGiftRequest]
 	Monument         domain.Fact[QuestMonument]
 	GravEngine       domain.Fact[QuestGravEngine]
 	SurveyScanner    domain.Fact[QuestSurveyScanner]

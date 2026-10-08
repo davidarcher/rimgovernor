@@ -281,6 +281,9 @@ func (control *Control) observeForAcquire(ctx context.Context, requested domain.
 			status, _, err = control.native.ReadAuthority(call, controlIdentity(requested))
 			if err == nil {
 				err = controlStatus(status, requested)
+				if required, handoff := ctx.Value(handoffGenerationKey{}).(domain.NativeGeneration); handoff && (required == 0 || status.GetStatus().GetContext().GetNativeGeneration() != uint64(required)) {
+					err = ErrControl
+				}
 			}
 			if err != nil {
 				err = control.failedObservation(epoch, err)

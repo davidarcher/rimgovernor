@@ -35,6 +35,13 @@ func (r *RoundsPopulationJoinerPlanner) admitSiteWork(call, epoch context.Contex
 			if !known || profile.NeverAct {
 				continue
 			}
+			hackTargets := false
+			for _, objective := range offer.Objectives {
+				hackTargets = hackTargets || len(objective.HackTargets) > 0
+			}
+			if hackTargets && offer.State != "EndedFailed" && !policy.QuestHackComplete(offer) {
+				continue
+			}
 			id := domain.MintPlanID()
 			actionID := domain.ActionID(string(id) + "-0")
 			var action domain.Action
@@ -79,7 +86,11 @@ func (r *RoundsPopulationJoinerPlanner) admitSiteWork(call, epoch context.Contex
 				case "return":
 					returning = true
 				default:
-					continue
+					if policy.QuestHackComplete(offer) {
+						returning = true
+					} else {
+						continue
+					}
 				}
 			}
 			if returning {

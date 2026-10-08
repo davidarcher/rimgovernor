@@ -600,12 +600,118 @@ func (x *Revoke) GetReason() RevocationReason {
 	return RevocationReason_REVOCATION_REASON_UNSPECIFIED
 }
 
+// Trusted control-plane view change. Neither moves pawns nor grants authority.
+type FocusMap struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Identity           *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	ExpectedGeneration *uint64                `protobuf:"varint,2,opt,name=expected_generation,json=expectedGeneration,proto3,oneof" json:"expected_generation,omitempty"`
+	Target             *commonpb.Identity     `protobuf:"bytes,3,opt,name=target,proto3" json:"target,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *FocusMap) Reset() {
+	*x = FocusMap{}
+	mi := &file_authority_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FocusMap) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FocusMap) ProtoMessage() {}
+
+func (x *FocusMap) ProtoReflect() protoreflect.Message {
+	mi := &file_authority_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FocusMap.ProtoReflect.Descriptor instead.
+func (*FocusMap) Descriptor() ([]byte, []int) {
+	return file_authority_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *FocusMap) GetIdentity() *commonpb.Identity {
+	if x != nil {
+		return x.Identity
+	}
+	return nil
+}
+
+func (x *FocusMap) GetExpectedGeneration() uint64 {
+	if x != nil && x.ExpectedGeneration != nil {
+		return *x.ExpectedGeneration
+	}
+	return 0
+}
+
+func (x *FocusMap) GetTarget() *commonpb.Identity {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+type FocusedMap struct {
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FocusedMap) Reset() {
+	*x = FocusedMap{}
+	mi := &file_authority_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FocusedMap) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FocusedMap) ProtoMessage() {}
+
+func (x *FocusedMap) ProtoReflect() protoreflect.Message {
+	mi := &file_authority_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FocusedMap.ProtoReflect.Descriptor instead.
+func (*FocusedMap) Descriptor() ([]byte, []int) {
+	return file_authority_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *FocusedMap) GetContext() *commonpb.ObservationContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
 type ControlRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Operation:
 	//
 	//	*ControlRequest_SetMode
 	//	*ControlRequest_Revoke
+	//	*ControlRequest_FocusMap
 	Operation     isControlRequest_Operation `protobuf_oneof:"operation"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -613,7 +719,7 @@ type ControlRequest struct {
 
 func (x *ControlRequest) Reset() {
 	*x = ControlRequest{}
-	mi := &file_authority_proto_msgTypes[7]
+	mi := &file_authority_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -625,7 +731,7 @@ func (x *ControlRequest) String() string {
 func (*ControlRequest) ProtoMessage() {}
 
 func (x *ControlRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[7]
+	mi := &file_authority_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -638,7 +744,7 @@ func (x *ControlRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControlRequest.ProtoReflect.Descriptor instead.
 func (*ControlRequest) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{7}
+	return file_authority_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ControlRequest) GetOperation() isControlRequest_Operation {
@@ -666,6 +772,15 @@ func (x *ControlRequest) GetRevoke() *Revoke {
 	return nil
 }
 
+func (x *ControlRequest) GetFocusMap() *FocusMap {
+	if x != nil {
+		if x, ok := x.Operation.(*ControlRequest_FocusMap); ok {
+			return x.FocusMap
+		}
+	}
+	return nil
+}
+
 type isControlRequest_Operation interface {
 	isControlRequest_Operation()
 }
@@ -678,9 +793,15 @@ type ControlRequest_Revoke struct {
 	Revoke *Revoke `protobuf:"bytes,2,opt,name=revoke,proto3,oneof"`
 }
 
+type ControlRequest_FocusMap struct {
+	FocusMap *FocusMap `protobuf:"bytes,3,opt,name=focus_map,json=focusMap,proto3,oneof"`
+}
+
 func (*ControlRequest_SetMode) isControlRequest_Operation() {}
 
 func (*ControlRequest_Revoke) isControlRequest_Operation() {}
+
+func (*ControlRequest_FocusMap) isControlRequest_Operation() {}
 
 type Granted struct {
 	state         protoimpl.MessageState       `protogen:"open.v1"`
@@ -692,7 +813,7 @@ type Granted struct {
 
 func (x *Granted) Reset() {
 	*x = Granted{}
-	mi := &file_authority_proto_msgTypes[8]
+	mi := &file_authority_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -704,7 +825,7 @@ func (x *Granted) String() string {
 func (*Granted) ProtoMessage() {}
 
 func (x *Granted) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[8]
+	mi := &file_authority_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -717,7 +838,7 @@ func (x *Granted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Granted.ProtoReflect.Descriptor instead.
 func (*Granted) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{8}
+	return file_authority_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Granted) GetContext() *commonpb.ObservationContext {
@@ -744,7 +865,7 @@ type Revoked struct {
 
 func (x *Revoked) Reset() {
 	*x = Revoked{}
-	mi := &file_authority_proto_msgTypes[9]
+	mi := &file_authority_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -756,7 +877,7 @@ func (x *Revoked) String() string {
 func (*Revoked) ProtoMessage() {}
 
 func (x *Revoked) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[9]
+	mi := &file_authority_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -769,7 +890,7 @@ func (x *Revoked) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Revoked.ProtoReflect.Descriptor instead.
 func (*Revoked) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{9}
+	return file_authority_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Revoked) GetContext() *commonpb.ObservationContext {
@@ -793,6 +914,7 @@ type ControlReply struct {
 	//	*ControlReply_Granted
 	//	*ControlReply_Revoked
 	//	*ControlReply_Failure
+	//	*ControlReply_FocusedMap
 	Outcome       isControlReply_Outcome `protobuf_oneof:"outcome"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -800,7 +922,7 @@ type ControlReply struct {
 
 func (x *ControlReply) Reset() {
 	*x = ControlReply{}
-	mi := &file_authority_proto_msgTypes[10]
+	mi := &file_authority_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -812,7 +934,7 @@ func (x *ControlReply) String() string {
 func (*ControlReply) ProtoMessage() {}
 
 func (x *ControlReply) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[10]
+	mi := &file_authority_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -825,7 +947,7 @@ func (x *ControlReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControlReply.ProtoReflect.Descriptor instead.
 func (*ControlReply) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{10}
+	return file_authority_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ControlReply) GetOutcome() isControlReply_Outcome {
@@ -862,6 +984,15 @@ func (x *ControlReply) GetFailure() *commonpb.Failure {
 	return nil
 }
 
+func (x *ControlReply) GetFocusedMap() *FocusedMap {
+	if x != nil {
+		if x, ok := x.Outcome.(*ControlReply_FocusedMap); ok {
+			return x.FocusedMap
+		}
+	}
+	return nil
+}
+
 type isControlReply_Outcome interface {
 	isControlReply_Outcome()
 }
@@ -878,11 +1009,17 @@ type ControlReply_Failure struct {
 	Failure *commonpb.Failure `protobuf:"bytes,3,opt,name=failure,proto3,oneof"`
 }
 
+type ControlReply_FocusedMap struct {
+	FocusedMap *FocusedMap `protobuf:"bytes,4,opt,name=focused_map,json=focusedMap,proto3,oneof"`
+}
+
 func (*ControlReply_Granted) isControlReply_Outcome() {}
 
 func (*ControlReply_Revoked) isControlReply_Outcome() {}
 
 func (*ControlReply_Failure) isControlReply_Outcome() {}
+
+func (*ControlReply_FocusedMap) isControlReply_Outcome() {}
 
 // A new write requires these preconditions atomically on the game thread: the
 // identity is still current, the attempt is admitted at most once, and the
@@ -902,7 +1039,7 @@ type WritePrecondition struct {
 
 func (x *WritePrecondition) Reset() {
 	*x = WritePrecondition{}
-	mi := &file_authority_proto_msgTypes[11]
+	mi := &file_authority_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -914,7 +1051,7 @@ func (x *WritePrecondition) String() string {
 func (*WritePrecondition) ProtoMessage() {}
 
 func (x *WritePrecondition) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[11]
+	mi := &file_authority_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -927,7 +1064,7 @@ func (x *WritePrecondition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WritePrecondition.ProtoReflect.Descriptor instead.
 func (*WritePrecondition) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{11}
+	return file_authority_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *WritePrecondition) GetIdentity() *commonpb.Identity {
@@ -985,21 +1122,32 @@ const file_authority_proto_rawDesc = "" +
 	"\x13expected_generation\x18\x02 \x01(\x04H\x00R\x12expectedGeneration\x88\x01\x01\x12G\n" +
 	"\x06reason\x18\x03 \x01(\x0e2*.rimgovernor.authority.v1.RevocationReasonH\x01R\x06reason\x88\x01\x01B\x16\n" +
 	"\x14_expected_generationB\t\n" +
-	"\a_reason\"\x99\x01\n" +
+	"\a_reason\"\xce\x01\n" +
+	"\bFocusMap\x12;\n" +
+	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x124\n" +
+	"\x13expected_generation\x18\x02 \x01(\x04H\x00R\x12expectedGeneration\x88\x01\x01\x127\n" +
+	"\x06target\x18\x03 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\x06targetB\x16\n" +
+	"\x14_expected_generation\"Q\n" +
+	"\n" +
+	"FocusedMap\x12C\n" +
+	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\"\xdc\x01\n" +
 	"\x0eControlRequest\x12>\n" +
 	"\bset_mode\x18\x01 \x01(\v2!.rimgovernor.authority.v1.SetModeH\x00R\asetMode\x12:\n" +
-	"\x06revoke\x18\x02 \x01(\v2 .rimgovernor.authority.v1.RevokeH\x00R\x06revokeB\v\n" +
+	"\x06revoke\x18\x02 \x01(\v2 .rimgovernor.authority.v1.RevokeH\x00R\x06revoke\x12A\n" +
+	"\tfocus_map\x18\x03 \x01(\v2\".rimgovernor.authority.v1.FocusMapH\x00R\bfocusMapB\v\n" +
 	"\toperation\"\x97\x01\n" +
 	"\aGranted\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12G\n" +
 	"\tauthority\x18\x02 \x01(\v2).rimgovernor.authority.v1.ActiveAuthorityR\tauthority\"\x99\x01\n" +
 	"\aRevoked\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12I\n" +
-	"\tauthority\x18\x02 \x01(\v2+.rimgovernor.authority.v1.InactiveAuthorityR\tauthority\"\xd3\x01\n" +
+	"\tauthority\x18\x02 \x01(\v2+.rimgovernor.authority.v1.InactiveAuthorityR\tauthority\"\x9c\x02\n" +
 	"\fControlReply\x12=\n" +
 	"\agranted\x18\x01 \x01(\v2!.rimgovernor.authority.v1.GrantedH\x00R\agranted\x12=\n" +
 	"\arevoked\x18\x02 \x01(\v2!.rimgovernor.authority.v1.RevokedH\x00R\arevoked\x12:\n" +
-	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
+	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailure\x12G\n" +
+	"\vfocused_map\x18\x04 \x01(\v2$.rimgovernor.authority.v1.FocusedMapH\x00R\n" +
+	"focusedMapB\t\n" +
 	"\aoutcome\"\xdb\x01\n" +
 	"\x11WritePrecondition\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x124\n" +
@@ -1041,7 +1189,7 @@ func file_authority_proto_rawDescGZIP() []byte {
 }
 
 var file_authority_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_authority_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_authority_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_authority_proto_goTypes = []any{
 	(Mode)(0),                           // 0: rimgovernor.authority.v1.Mode
 	(RevocationReason)(0),               // 1: rimgovernor.authority.v1.RevocationReason
@@ -1052,51 +1200,58 @@ var file_authority_proto_goTypes = []any{
 	(*StatusReply)(nil),                 // 6: rimgovernor.authority.v1.StatusReply
 	(*SetMode)(nil),                     // 7: rimgovernor.authority.v1.SetMode
 	(*Revoke)(nil),                      // 8: rimgovernor.authority.v1.Revoke
-	(*ControlRequest)(nil),              // 9: rimgovernor.authority.v1.ControlRequest
-	(*Granted)(nil),                     // 10: rimgovernor.authority.v1.Granted
-	(*Revoked)(nil),                     // 11: rimgovernor.authority.v1.Revoked
-	(*ControlReply)(nil),                // 12: rimgovernor.authority.v1.ControlReply
-	(*WritePrecondition)(nil),           // 13: rimgovernor.authority.v1.WritePrecondition
-	(*commonpb.ObservationContext)(nil), // 14: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Unavailable)(nil),        // 15: rimgovernor.common.v1.Unavailable
-	(*commonpb.Identity)(nil),           // 16: rimgovernor.common.v1.Identity
-	(*commonpb.Failure)(nil),            // 17: rimgovernor.common.v1.Failure
-	(*commonpb.AttemptKey)(nil),         // 18: rimgovernor.common.v1.AttemptKey
+	(*FocusMap)(nil),                    // 9: rimgovernor.authority.v1.FocusMap
+	(*FocusedMap)(nil),                  // 10: rimgovernor.authority.v1.FocusedMap
+	(*ControlRequest)(nil),              // 11: rimgovernor.authority.v1.ControlRequest
+	(*Granted)(nil),                     // 12: rimgovernor.authority.v1.Granted
+	(*Revoked)(nil),                     // 13: rimgovernor.authority.v1.Revoked
+	(*ControlReply)(nil),                // 14: rimgovernor.authority.v1.ControlReply
+	(*WritePrecondition)(nil),           // 15: rimgovernor.authority.v1.WritePrecondition
+	(*commonpb.ObservationContext)(nil), // 16: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Unavailable)(nil),        // 17: rimgovernor.common.v1.Unavailable
+	(*commonpb.Identity)(nil),           // 18: rimgovernor.common.v1.Identity
+	(*commonpb.Failure)(nil),            // 19: rimgovernor.common.v1.Failure
+	(*commonpb.AttemptKey)(nil),         // 20: rimgovernor.common.v1.AttemptKey
 }
 var file_authority_proto_depIdxs = []int32{
 	1,  // 0: rimgovernor.authority.v1.InactiveAuthority.reason:type_name -> rimgovernor.authority.v1.RevocationReason
 	0,  // 1: rimgovernor.authority.v1.ActiveAuthority.mode:type_name -> rimgovernor.authority.v1.Mode
-	14, // 2: rimgovernor.authority.v1.Status.context:type_name -> rimgovernor.common.v1.ObservationContext
-	15, // 3: rimgovernor.authority.v1.Status.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	16, // 2: rimgovernor.authority.v1.Status.context:type_name -> rimgovernor.common.v1.ObservationContext
+	17, // 3: rimgovernor.authority.v1.Status.unavailable:type_name -> rimgovernor.common.v1.Unavailable
 	2,  // 4: rimgovernor.authority.v1.Status.inactive:type_name -> rimgovernor.authority.v1.InactiveAuthority
 	3,  // 5: rimgovernor.authority.v1.Status.active:type_name -> rimgovernor.authority.v1.ActiveAuthority
-	16, // 6: rimgovernor.authority.v1.StatusRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	18, // 6: rimgovernor.authority.v1.StatusRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	4,  // 7: rimgovernor.authority.v1.StatusReply.status:type_name -> rimgovernor.authority.v1.Status
-	17, // 8: rimgovernor.authority.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
-	16, // 9: rimgovernor.authority.v1.SetMode.identity:type_name -> rimgovernor.common.v1.Identity
+	19, // 8: rimgovernor.authority.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
+	18, // 9: rimgovernor.authority.v1.SetMode.identity:type_name -> rimgovernor.common.v1.Identity
 	0,  // 10: rimgovernor.authority.v1.SetMode.mode:type_name -> rimgovernor.authority.v1.Mode
-	16, // 11: rimgovernor.authority.v1.Revoke.identity:type_name -> rimgovernor.common.v1.Identity
+	18, // 11: rimgovernor.authority.v1.Revoke.identity:type_name -> rimgovernor.common.v1.Identity
 	1,  // 12: rimgovernor.authority.v1.Revoke.reason:type_name -> rimgovernor.authority.v1.RevocationReason
-	7,  // 13: rimgovernor.authority.v1.ControlRequest.set_mode:type_name -> rimgovernor.authority.v1.SetMode
-	8,  // 14: rimgovernor.authority.v1.ControlRequest.revoke:type_name -> rimgovernor.authority.v1.Revoke
-	14, // 15: rimgovernor.authority.v1.Granted.context:type_name -> rimgovernor.common.v1.ObservationContext
-	3,  // 16: rimgovernor.authority.v1.Granted.authority:type_name -> rimgovernor.authority.v1.ActiveAuthority
-	14, // 17: rimgovernor.authority.v1.Revoked.context:type_name -> rimgovernor.common.v1.ObservationContext
-	2,  // 18: rimgovernor.authority.v1.Revoked.authority:type_name -> rimgovernor.authority.v1.InactiveAuthority
-	10, // 19: rimgovernor.authority.v1.ControlReply.granted:type_name -> rimgovernor.authority.v1.Granted
-	11, // 20: rimgovernor.authority.v1.ControlReply.revoked:type_name -> rimgovernor.authority.v1.Revoked
-	17, // 21: rimgovernor.authority.v1.ControlReply.failure:type_name -> rimgovernor.common.v1.Failure
-	16, // 22: rimgovernor.authority.v1.WritePrecondition.identity:type_name -> rimgovernor.common.v1.Identity
-	18, // 23: rimgovernor.authority.v1.WritePrecondition.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	5,  // 24: rimgovernor.authority.v1.Authority.ReadStatus:input_type -> rimgovernor.authority.v1.StatusRequest
-	9,  // 25: rimgovernor.authority.v1.Authority.Control:input_type -> rimgovernor.authority.v1.ControlRequest
-	6,  // 26: rimgovernor.authority.v1.Authority.ReadStatus:output_type -> rimgovernor.authority.v1.StatusReply
-	12, // 27: rimgovernor.authority.v1.Authority.Control:output_type -> rimgovernor.authority.v1.ControlReply
-	26, // [26:28] is the sub-list for method output_type
-	24, // [24:26] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	18, // 13: rimgovernor.authority.v1.FocusMap.identity:type_name -> rimgovernor.common.v1.Identity
+	18, // 14: rimgovernor.authority.v1.FocusMap.target:type_name -> rimgovernor.common.v1.Identity
+	16, // 15: rimgovernor.authority.v1.FocusedMap.context:type_name -> rimgovernor.common.v1.ObservationContext
+	7,  // 16: rimgovernor.authority.v1.ControlRequest.set_mode:type_name -> rimgovernor.authority.v1.SetMode
+	8,  // 17: rimgovernor.authority.v1.ControlRequest.revoke:type_name -> rimgovernor.authority.v1.Revoke
+	9,  // 18: rimgovernor.authority.v1.ControlRequest.focus_map:type_name -> rimgovernor.authority.v1.FocusMap
+	16, // 19: rimgovernor.authority.v1.Granted.context:type_name -> rimgovernor.common.v1.ObservationContext
+	3,  // 20: rimgovernor.authority.v1.Granted.authority:type_name -> rimgovernor.authority.v1.ActiveAuthority
+	16, // 21: rimgovernor.authority.v1.Revoked.context:type_name -> rimgovernor.common.v1.ObservationContext
+	2,  // 22: rimgovernor.authority.v1.Revoked.authority:type_name -> rimgovernor.authority.v1.InactiveAuthority
+	12, // 23: rimgovernor.authority.v1.ControlReply.granted:type_name -> rimgovernor.authority.v1.Granted
+	13, // 24: rimgovernor.authority.v1.ControlReply.revoked:type_name -> rimgovernor.authority.v1.Revoked
+	19, // 25: rimgovernor.authority.v1.ControlReply.failure:type_name -> rimgovernor.common.v1.Failure
+	10, // 26: rimgovernor.authority.v1.ControlReply.focused_map:type_name -> rimgovernor.authority.v1.FocusedMap
+	18, // 27: rimgovernor.authority.v1.WritePrecondition.identity:type_name -> rimgovernor.common.v1.Identity
+	20, // 28: rimgovernor.authority.v1.WritePrecondition.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	5,  // 29: rimgovernor.authority.v1.Authority.ReadStatus:input_type -> rimgovernor.authority.v1.StatusRequest
+	11, // 30: rimgovernor.authority.v1.Authority.Control:input_type -> rimgovernor.authority.v1.ControlRequest
+	6,  // 31: rimgovernor.authority.v1.Authority.ReadStatus:output_type -> rimgovernor.authority.v1.StatusReply
+	14, // 32: rimgovernor.authority.v1.Authority.Control:output_type -> rimgovernor.authority.v1.ControlReply
+	31, // [31:33] is the sub-list for method output_type
+	29, // [29:31] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_authority_proto_init() }
@@ -1117,23 +1272,26 @@ func file_authority_proto_init() {
 	}
 	file_authority_proto_msgTypes[5].OneofWrappers = []any{}
 	file_authority_proto_msgTypes[6].OneofWrappers = []any{}
-	file_authority_proto_msgTypes[7].OneofWrappers = []any{
+	file_authority_proto_msgTypes[7].OneofWrappers = []any{}
+	file_authority_proto_msgTypes[9].OneofWrappers = []any{
 		(*ControlRequest_SetMode)(nil),
 		(*ControlRequest_Revoke)(nil),
+		(*ControlRequest_FocusMap)(nil),
 	}
-	file_authority_proto_msgTypes[10].OneofWrappers = []any{
+	file_authority_proto_msgTypes[12].OneofWrappers = []any{
 		(*ControlReply_Granted)(nil),
 		(*ControlReply_Revoked)(nil),
 		(*ControlReply_Failure)(nil),
+		(*ControlReply_FocusedMap)(nil),
 	}
-	file_authority_proto_msgTypes[11].OneofWrappers = []any{}
+	file_authority_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_authority_proto_rawDesc), len(file_authority_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

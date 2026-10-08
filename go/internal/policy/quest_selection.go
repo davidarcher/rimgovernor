@@ -41,7 +41,7 @@ func questDecision(offer JoinerOffer, f RoundsFacts) (bool, QuestSkipReason) {
 	if !expedition && (offer.ScriptDef == "SurveySite" || offer.ScriptDef == "OpportunitySite_PeaceTalks") {
 		return false, "site_unknown"
 	}
-	if profile.Family != QuestFamilyOdysseyGround && !expedition {
+	if profile.Family != QuestFamilyOdysseyGround && profile.Family != QuestFamilyHack && profile.Family != QuestFamilyRelic && !expedition {
 		if offer.FactionID == "" {
 			return false, "no_faction"
 		}
@@ -65,6 +65,12 @@ func questDecision(offer JoinerOffer, f RoundsFacts) (bool, QuestSkipReason) {
 	if reason := QuestFeasibility(offer, f); reason != "" {
 		return false, reason
 	}
+	if reason := HackAdmission(offer, f); reason != "" {
+		return false, reason
+	}
+	if reason := RelicAdmission(offer, f); reason != "" {
+		return false, reason
+	}
 	if reason := ShuttleRescueAdmission(offer, f); reason != "" {
 		return false, reason
 	}
@@ -85,8 +91,7 @@ func questDecision(offer JoinerOffer, f RoundsFacts) (bool, QuestSkipReason) {
 	}
 	// These families need a quest driver before their acceptance can be enabled.
 	switch profile.Family {
-	case QuestFamilyDecreeProduce, QuestFamilyDecreeHarvest, QuestFamilyDecreeHunt,
-		QuestFamilyHack, QuestFamilyRelic:
+	case QuestFamilyDecreeProduce, QuestFamilyDecreeHarvest, QuestFamilyDecreeHunt:
 		return false, "driver_unavailable"
 	}
 	return true, ""
@@ -138,7 +143,7 @@ func QuestFeasibility(offer JoinerOffer, f RoundsFacts) QuestSkipReason {
 		if !known {
 			return "open_demands_unknown"
 		}
-		if p.NeverAct || p.Disposition == QuestObserve || p.Cost == QuestCostFree {
+		if p.NeverAct || p.Disposition == QuestObserve || p.Disposition == QuestFollow || p.Cost == QuestCostFree {
 			continue
 		}
 		need, reason := questPawnDemand(open)
@@ -233,5 +238,5 @@ func QuestDeficit(f RoundsFacts) domain.Fact[bool] {
 	if _, known := f.QuestOffers.Value(); !known {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(SelectQuestMethod(f).Reason == "" || HospitalityDeficit(f) || ExpeditionDeficit(f))
+	return domain.Known(SelectQuestMethod(f).Reason == "" || HospitalityDeficit(f) || ExpeditionDeficit(f) || IdeologyWorkDeficit(f))
 }

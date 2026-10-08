@@ -29,6 +29,7 @@ const (
 	QuestFamilyRoyalAscent          QuestFamily = "royal_ascent"
 	QuestFamilyUtility              QuestFamily = "utility"
 	QuestFamilySite                 QuestFamily = "site"
+	QuestFamilyBeggars              QuestFamily = "beggars"
 	QuestFamilyRelic                QuestFamily = "relic"
 	QuestFamilyHack                 QuestFamily = "hack"
 	QuestFamilyIncident             QuestFamily = "incident"

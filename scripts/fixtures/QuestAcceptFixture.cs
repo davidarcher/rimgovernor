@@ -474,6 +474,93 @@ namespace HomeBridge.BridgeTools
             if(empire.HostileTo(Faction.OfPlayer)) empire.SetRelationDirect(Faction.OfPlayer,FactionRelationKind.Neutral,false);
             return empire;
         }
+        [Tool("test/quest_hack_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable lab: an unhacked Ideology terminal and ordinary Research worker; no autohack designation, hacking job or completion supplied.")]
+        public async Task<object> PrepareHack(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !ModsConfig.IdeologyActive) return Refuse("Ideology lab map is required.");
+                var hacker = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber)
+                    .FirstOrDefault(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Research) && !p.Dead && !p.Downed);
+                if (hacker == null) return Refuse("The pinned lab needs a Research-capable colonist.");
+                foreach (var pawn in map.mapPawns.FreeColonistsSpawned) {
+                    pawn.workSettings.EnableAndInitialize();
+                    foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading) pawn.workSettings.SetPriority(work, 0);
+                    pawn.jobs.StopAll();
+                    for (var hour = 0; hour < 24; hour++) pawn.timetable.SetAssignment(hour, TimeAssignmentDefOf.Anything);
+                }
+                hacker.skills.GetSkill(SkillDefOf.Intellectual).Level = 12;
+                hacker.workSettings.SetPriority(WorkTypeDefOf.Research, 1);
+                var terminal = Place(map, DefDatabase<ThingDef>.GetNamed("AncientTerminal_Worshipful"), null, map.Center + new IntVec3(6, 0, 6));
+                map.fogGrid.Unfog(terminal.Position);
+                var item = ThingMaker.MakeThing(ThingDefOf.WoodLog); item.stackCount = 1;
+                GenSpawn.Spawn(item, map.Center + new IntVec3(7, 0, 6), map);
+                FixtureMeals(map);
+                var hack = terminal.TryGetComp<CompHackable>();
+                if (hack == null || hack.Autohack || hack.IsHacked || hack.ProgressPercent != 0) return Refuse("The terminal must start untouched.");
+                return new { success = true, terminalId = terminal.GetUniqueLoadID(), hackerId = hacker.GetUniqueLoadID(), unhackableItemId = item.GetUniqueLoadID() };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/quest_hack_read", Description = "UNSAFE FOR MODEL EXECUTION. Read exact terminal autohack, actual native hacking progress/completion and the vanilla comp's last hacker; never changes progress.")]
+        public async Task<object> ReadHack(IRimBridgeContext ctx, CancellationToken cancellationToken, string terminalId)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var terminal = map?.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == terminalId);
+                var hack = terminal?.TryGetComp<CompHackable>();
+                if (hack == null) return Refuse("The exact terminal is unavailable.");
+                var hacker = (Pawn)typeof(CompHackable).GetField("lastUser", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(hack);
+                return new { success = true, tick = Find.TickManager.TicksGame, autohack = hack.Autohack, hacked = hack.IsHacked,
+                    progress = hack.ProgressPercent, hackerId = hacker?.GetUniqueLoadID() ?? "" };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/quest_give_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable Ideology lab with a vanilla beggar lord requesting twenty silver; no delivery job or received items supplied.")]
+        public async Task<object> PrepareGive(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !ModsConfig.IdeologyActive) return Refuse("Ideology lab map is required.");
+                var hauler = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber)
+                    .FirstOrDefault(p => !p.Dead && !p.Downed && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling));
+                var faction = Find.FactionManager.AllFactionsListForReading.FirstOrDefault(f => !f.IsPlayer && !f.def.hidden && f.def.humanlikeFaction && !f.HostileTo(Faction.OfPlayer));
+                if (hauler == null || faction == null) return Refuse("A mobile hauler and neutral visitor faction are required.");
+                foreach (var pawn in map.mapPawns.FreeColonistsSpawned) {
+                    pawn.workSettings.EnableAndInitialize();
+                    foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading) pawn.workSettings.SetPriority(work, 0);
+                    pawn.jobs.StopAll();
+                    for (var hour = 0; hour < 24; hour++) pawn.timetable.SetAssignment(hour, TimeAssignmentDefOf.Anything);
+                }
+                var recipient = PawnGenerator.GeneratePawn(PawnKindDefOf.Colonist, faction);
+                recipient.inventory.innerContainer.ClearAndDestroyContents();
+                var spot = map.Center + new IntVec3(5, 0, 5);
+                GenSpawn.Spawn(recipient, spot, map);
+                Verse.AI.Group.LordMaker.MakeNewLord(faction, new LordJob_BegForItems(faction, spot, recipient, ThingDefOf.Silver, 20), map, new[] { recipient });
+                var silver = ThingMaker.MakeThing(ThingDefOf.Silver); silver.stackCount = 20;
+                GenSpawn.Spawn(silver, map.Center + new IntVec3(2, 0, 5), map);
+                map.fogGrid.Unfog(spot); map.fogGrid.Unfog(silver.Position);
+                FixtureMeals(map);
+                return new { success = true, haulerId = hauler.GetUniqueLoadID(), recipientId = recipient.GetUniqueLoadID(), remaining = GiveItemsToPawnUtility.ItemCountLeftToCollect(recipient) };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/quest_give_read", Description = "UNSAFE FOR MODEL EXECUTION. Read actual recipient silver inventory and native whole-request remainder, plus the exact hauler's current job; no delivery mutations.")]
+        public async Task<object> ReadGive(IRimBridgeContext ctx, CancellationToken cancellationToken, string recipientId, string haulerId)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var recipient = Find.Maps.SelectMany(m => m.mapPawns.AllPawns)
+                    .Concat(Find.WorldPawns.AllPawnsAliveOrDead).FirstOrDefault(p => p.GetUniqueLoadID() == recipientId);
+                var hauler = map?.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == haulerId);
+                if (recipient == null || hauler == null) return Refuse("Exact lab pawns are unavailable.");
+                return new { success = true, tick = Find.TickManager.TicksGame,
+                    received = recipient.inventory.innerContainer.Where(t => t.def == ThingDefOf.Silver).Sum(t => t.stackCount),
+                    remaining = GiveItemsToPawnUtility.GetCountRemaining(recipient, ThingDefOf.Silver, 20),
+                    job = hauler.CurJob?.def.defName ?? "", targetId = hauler.CurJob?.targetB.Pawn?.GetUniqueLoadID() ?? "" };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         private static void FixtureMeals(Map map) {
             for(var i=0;i<4;i++) { var food=ThingMaker.MakeThing(ThingDefOf.MealSurvivalPack);food.stackCount=food.def.stackLimit;GenSpawn.Spawn(food,map.Center+new IntVec3(i,0,4),map); }
         }

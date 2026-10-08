@@ -84,6 +84,9 @@ func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbite
 	if result, handled, err := r.admitSiteWork(call, epoch, state, goal, read, arbiter, started); handled || err != nil {
 		return result, err
 	}
+	if result, handled, err := r.admitIdeologyQuestWork(call, epoch, state, goal, read, arbiter, started); handled || err != nil {
+		return result, err
+	}
 	if ceremony, ok := policy.CeremonyStartOf(facts.Royalty); ok {
 		return r.admitCeremonyStart(call, epoch, state, goal, ceremony, started)
 	}

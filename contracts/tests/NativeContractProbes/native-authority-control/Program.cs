@@ -178,7 +178,56 @@ internal static class NativeAuthorityControlProbe
     }
     internal static void Invoke()
     {
-        Boundary(); InvalidFields(); EagerInitialization(); GrantsAndRevocations();
+        Boundary(); InvalidFields(); EagerInitialization(); GrantsAndRevocations(); FocusMaps();
         Console.WriteLine($"Native authority Control: {checks} checks (production parser, identity, adapter and state; SDK/hook transport seams).");
+    }
+
+    private static void FocusMaps()
+    {
+        Reset(); Check(Call(SetMode(Wire.Mode.Auto)).Granted != null, "Auto before focus");
+        var source = Find.CurrentMap;
+        var destination = new Map { uniqueID = 77 };
+        source.mapPawns.AllPawns.Add(new Pawn { thingIDNumber = 1 });
+        destination.mapPawns.AllPawns.Add(new Pawn { thingIDNumber = 2 });
+        Find.LoadedMaps = new List<Map> { source, destination };
+        try
+        {
+            var generation = state.Status().Generation;
+            var keyframes = SnapshotStream.KeyframeRequests;
+            var target = Identity.Clone(); target.MapId = 77;
+            Wire.ControlRequest Request() => new() { FocusMap = new Wire.FocusMap
+            { Identity = Identity.Clone(), Target = target.Clone(), ExpectedGeneration = generation } };
+            foreach (var field in new[] { "source", "generation", "unloaded", "targetLoad" })
+            {
+                var request = Request();
+                switch (field)
+                {
+                    case "source": request.FocusMap.Identity.MapId = 77; break;
+                    case "generation": request.FocusMap.ExpectedGeneration++; break;
+                    case "unloaded": request.FocusMap.Target.MapId = 99; break;
+                    case "targetLoad": request.FocusMap.Target.LoadToken = "other"; break;
+                }
+                Failure(Call(request), field == "generation" ? Common.FailureCode.StaleGeneration
+                    : field == "targetLoad" ? Common.FailureCode.InvalidRequest : Common.FailureCode.StaleIdentity);
+                Check(ReferenceEquals(Find.CurrentMap, source) && state.Status().Generation == generation
+                    && SnapshotStream.KeyframeRequests == keyframes, "refused focus changed view, authority or keyframe");
+            }
+            var reply = Call(Request());
+            Check(reply.FocusedMap != null && reply.FocusedMap.Context.Identity.Equals(target)
+                && reply.FocusedMap.Context.NativeGeneration == generation + 1, "focus exact target context/generation");
+            Check(ReferenceEquals(Find.CurrentMap, destination), "focus did not select exact loaded map");
+            Check(source.mapPawns.AllPawns.Count == 1 && source.mapPawns.AllPawns[0].thingIDNumber == 1
+                && destination.mapPawns.AllPawns.Count == 1 && destination.mapPawns.AllPawns[0].thingIDNumber == 2,
+                "focus moved a pawn");
+            Check(SnapshotStream.KeyframeRequests == keyframes + 1, "focus did not request one keyframe");
+            Check(!state.Status().Active && state.Status().Reason == NativeControlRevocationReason.IdentityChanged,
+                "focus granted authority");
+            var inactive = Request(); inactive.FocusMap.Identity = target.Clone();
+            inactive.FocusMap.Target = Identity.Clone(); inactive.FocusMap.ExpectedGeneration = state.Status().Generation;
+            Failure(Call(inactive), Common.FailureCode.AuthorityRequired);
+            Check(ReferenceEquals(Find.CurrentMap, destination) && SnapshotStream.KeyframeRequests == keyframes + 1,
+                "inactive focus changed view");
+        }
+        finally { Find.LoadedMaps = null; }
     }
 }

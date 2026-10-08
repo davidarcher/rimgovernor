@@ -1041,6 +1041,8 @@ enum QuestObjectiveKind {
   QUEST_OBJECTIVE_KIND_RESCUE_PAWNS = 10;
   QUEST_OBJECTIVE_KIND_INSPECT_GRAV_ENGINE = 11;
   QUEST_OBJECTIVE_KIND_HOLD_SURVEY_SCANNER = 12;
+  QUEST_OBJECTIVE_KIND_HACK_THINGS = 13;
+  QUEST_OBJECTIVE_KIND_GIVE_ITEMS = 14;
 }
 message QuestObjective {
   optional QuestObjectiveKind kind = 1;
@@ -1060,7 +1062,13 @@ message QuestObjective {
   QuestWorkload workload = 14;
   QuestGravEngine grav_engine = 15;
   QuestSurveyScanner survey_scanner = 16;
+  repeated QuestHackTarget hack_targets = 17;
+  QuestGiftRequest gift_request = 18;
+  QuestHackRisk hack_risk = 19;
 }
+message QuestHackTarget { optional string id = 1; optional int32 map_id = 2; optional bool spawned = 3; HackableState hackable = 4; repeated string eligible_pawn_ids = 5; optional bool satisfied = 6; }
+message QuestGiftRequest { optional string recipient_id = 1; repeated string pawn_ids = 2; optional string def = 3; optional int64 remaining = 4; repeated string hauling_pawn_ids = 5; repeated string eligible_pawn_ids = 6; optional int32 map_id = 7; }
+message QuestHackRisk { optional string faction_id = 1; optional bool hostile = 2; }
 message QuestSurveyScanner {
   optional string site_id = 1; optional string scanner_id = 2;
   optional int64 duration_ticks = 3; optional int64 end_tick = 4;

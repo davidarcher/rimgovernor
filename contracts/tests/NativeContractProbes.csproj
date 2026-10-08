@@ -81,6 +81,7 @@
     <Compile Include="$(NativeSourceRoot)/Runtime/Persistence/NativeControlAuthority.cs" Link="Production/NativeControlAuthority.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAuthorityTools.cs" Link="Production/NativeAuthorityTools.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAuthorityControlTools.cs" Link="Production/NativeAuthorityControlTools.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeQuestTargetIdentity.cs" Link="Production/NativeQuestTargetIdentity.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NullableAttributes.cs" Link="Production/NullableAttributes.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ProtoBoundary.cs" Link="Production/ProtoBoundary.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadWatchdog.cs" Link="Production/MainThreadWatchdog.cs" />
@@ -145,6 +146,7 @@
     <Compile Include="NativeContractProbes/native-give-job/Program.cs" />
     <Compile Include="NativeContractProbes/native-remove-production-bill/Program.cs" />
     <Compile Include="NativeContractProbes/native-quest-shuttle/Program.cs" />
+    <Compile Include="NativeContractProbes/native-quest-hack-gift/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-research/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-rooms/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-supplies/Program.cs" />

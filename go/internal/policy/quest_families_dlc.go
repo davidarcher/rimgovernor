@@ -38,6 +38,18 @@ func extendQuestFamilies(table map[string]QuestProfile) {
 		"AncientSignalActivation", "ReliquaryPilgrims", "Bossgroup", "MechanitorShip", "PollutionRaid", "PollutionRetaliation", "SightstealerArrival", "UnnaturalDarkness", "MechanitorStartingMech", "Beggars")
 	add(QuestFamilyHack, QuestDecide, "", QuestDemandTravel|QuestDemandSecurity, "AncientComplex_Standard", "Hack_Spacedrone", "AncientComplex_Mission", "Hack_WorshippedTerminal")
 	add(QuestFamilyRelic, QuestDecide, "", QuestDemandTravel, "RelicHunt")
+	add(QuestFamilySite, QuestFollow, "", QuestDemandPawns|QuestDemandTravel|QuestDemandSecurity,
+		"OpportunitySite_AncientComplex", "OpportunitySite_AncientComplex_Mechanitor", "OpportunitySite_WorkSite", "OpportunitySite_AncientComplex_Giver")
+	for _, name := range []string{"OpportunitySite_AncientComplex", "OpportunitySite_AncientComplex_Mechanitor", "OpportunitySite_WorkSite", "OpportunitySite_AncientComplex_Giver", "AncientComplex_Standard", "AncientComplex_Mission", "Hack_WorshippedTerminal"} {
+		profile := table[name]
+		profile.Cost = QuestCostPawns
+		table[name] = profile
+	}
+	add(QuestFamilyHack, QuestDecide, "", QuestDemandSecurity, "Hack_Spacedrone")
+	add(QuestFamilyBeggars, QuestFollow, "", QuestDemandMaterials, "Beggars")
+	beggars := table["Beggars"]
+	beggars.ProtectGuests = true
+	table["Beggars"] = beggars
 	add(QuestFamilyHospitalityJoiners, QuestDecide, "", QuestDemandFood|QuestDemandBeds|QuestDemandSecurity, "SanguophageMeetingHost")
 	meeting := table["SanguophageMeetingHost"]
 	meeting.ProtectGuests = true
@@ -46,7 +58,7 @@ func extendQuestFamilies(table map[string]QuestProfile) {
 	add(QuestFamilyIncident, QuestRefuse, "sanguophage_ship", 0, "SanguophageShip")
 	add(QuestFamilyAnomaly, QuestRefuse, "entity_risk", 0, "MonolithMigration", "MysteriousCargoUnnaturalCorpse", "MysteriousCargoCube", "MysteriousCargoRevenantSpine")
 	add(QuestFamilyOdysseyGround, QuestObserve, "", QuestDemandTravel,
-		"OpportunitySite_AlphaThrumbo_Giver", "OpportunitySite_AncientComplex_Giver", "OpportunitySite_AncientMercenaries", "OpportunitySite_BanditCamp_Giver", "GravEngine", "Gravcore_MechanoidRelay", "Gravcore_InsectLair", "Gravcore_AncientReactor", "Gravcore_AncientStockpile", "Gravcore_CrashedMechanoidPlatform", "Gravcore_FrozenTerraformer", "GravshipWreckage", "OpportunitySite_ItemStash_Giver")
+		"OpportunitySite_AlphaThrumbo_Giver", "OpportunitySite_AncientMercenaries", "OpportunitySite_BanditCamp_Giver", "GravEngine", "Gravcore_MechanoidRelay", "Gravcore_InsectLair", "Gravcore_AncientReactor", "Gravcore_AncientStockpile", "Gravcore_CrashedMechanoidPlatform", "Gravcore_FrozenTerraformer", "GravshipWreckage", "OpportunitySite_ItemStash_Giver")
 	add(QuestFamilyOdysseyGround, QuestDecide, "", QuestDemandTravel|QuestDemandSecurity,
 		"Opportunity_AncientStructureLaunchSite", "Opportunity_AncientStructureGarrison", "Opportunity_AncientStructureChemfuelRefinery", "Opportunity_AncientStructureWarehouse", "Opportunity_AncientInfestedSettlement", "MechanoidSignal")
 	for name, profile := range table {

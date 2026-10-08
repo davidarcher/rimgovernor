@@ -75,10 +75,20 @@ message Revoke {
   optional uint64 expected_generation = 2;
   optional RevocationReason reason = 3;
 }
+// Trusted control-plane view change. Neither moves pawns nor grants authority.
+message FocusMap {
+  rimgovernor.common.v1.Identity identity = 1;
+  optional uint64 expected_generation = 2;
+  rimgovernor.common.v1.Identity target = 3;
+}
+message FocusedMap {
+  rimgovernor.common.v1.ObservationContext context = 1;
+}
 message ControlRequest {
   oneof operation {
     SetMode set_mode = 1;
     Revoke revoke = 2;
+    FocusMap focus_map = 3;
   }
 }
 message Granted {
@@ -94,6 +104,7 @@ message ControlReply {
     Granted granted = 1;
     Revoked revoked = 2;
     rimgovernor.common.v1.Failure failure = 3;
+    FocusedMap focused_map = 4;
   }
 }
 

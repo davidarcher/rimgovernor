@@ -255,6 +255,11 @@ func ProtectedQuestGuestIDs(offers domain.Fact[[]JoinerOffer]) map[domain.PawnID
 			continue
 		}
 		for _, objective := range offer.Objectives {
+			if gift, known := objective.Gift.Value(); known {
+				for _, id := range gift.PawnIDs {
+					ids[id] = true
+				}
+			}
 			if objective.Kind == o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_HOST_LODGERS {
 				for _, id := range objective.PawnIDs {
 					ids[id] = true

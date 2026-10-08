@@ -304,8 +304,13 @@ message Action {
     RemoveProductionBillIntent remove_production_bill = 67;
     IdeoligionReformIntent ideoligion_reform = 68;
     QuestShuttleIntent quest_shuttle = 69;
+    HackDesignationIntent hack_designation = 70;
+    GiveItemIntent give_item = 71;
   }
 }
+message HackDesignationIntent { rimgovernor.common.v1.Ref target = 1; optional bool enabled = 2; }
+// The count fences the whole native request, after items already being hauled.
+message GiveItemIntent { rimgovernor.common.v1.Ref hauler = 1; rimgovernor.common.v1.Ref recipient = 2; optional string definition = 3; optional int64 expected_remaining = 4; }
 // A normal fluid reformation; the current design and count fence an uncertain
 // retry even after native's short request replay window has expired.
 message IdeoligionReformIntent {

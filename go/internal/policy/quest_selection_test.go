@@ -28,6 +28,12 @@ func TestQuestFeasibilityCostClassesAndOpenCommitments(t *testing.T) {
 			open.State = "Ongoing"
 			f.QuestOffers = domain.Known([]JoinerOffer{open})
 		}, want: "no_spare_pawn"},
+		"automatic unstarted sites reserve no crew": {cost: QuestCostPawns, edit: func(f *RoundsFacts) {
+			open := makeOffer(QuestCostPawns)
+			open.State = "Ongoing"
+			open.Profile = domain.Known(QuestProfile{Family: QuestFamilySite, Cost: QuestCostPawns, Disposition: QuestFollow})
+			f.QuestOffers = domain.Known([]JoinerOffer{open, open, open})
+		}},
 		"unknown": {cost: QuestCostPawns, edit: func(f *RoundsFacts) { f.QuestColonyCalm = domain.Unknown[bool]() }, want: "capacity_unknown"},
 	} {
 		t.Run(name, func(t *testing.T) {

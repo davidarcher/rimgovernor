@@ -247,6 +247,7 @@ namespace HomeBridge.BridgeTools
             if (quest.TicksUntilExpiry >= 0 && quest.State == QuestState.NotYetAccepted)
                 rows.Add(new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.Expiry, DeadlineTicks = (long)Find.TickManager.TicksGame + quest.TicksUntilExpiry });
             rows.AddRange(NativeQuestRefugees.Read(quest));
+            rows.AddRange(NativeQuestHackGift.Read(quest));
             return rows;
         }
 

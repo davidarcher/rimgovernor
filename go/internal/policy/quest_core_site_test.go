@@ -13,6 +13,36 @@ func coreSiteSnapshot(root string) (JoinerOffer, WorldSite, RoundsFacts) {
 	return offer, site, facts
 }
 
+func TestFailedHackSiteReturnsCrewWithoutCompletingTargets(t *testing.T) {
+	offer, site, facts := coreSiteSnapshot("AncientComplex_Mission")
+	offer.Profile = domain.Known(QuestFamilyForRoot(offer.ScriptDef))
+	offer.Objectives = []QuestObjective{{HackTargets: []QuestHackTarget{{ID: "terminal", Satisfied: domain.Known(false)}}}}
+	if got := PlanCoreSiteWork(offer, site, facts, 2); got.Kind == "return" {
+		t.Fatalf("unfinished ongoing complex abandoned: %+v", got)
+	}
+	offer.State = "EndedFailed"
+	if QuestHackComplete(offer) {
+		t.Fatal("failed objective incorrectly complete")
+	}
+	if got := PlanCoreSiteWork(offer, site, facts, 2); got.Kind != "return" || got.Reason != "quest_failed" {
+		t.Fatalf("failed complex stranded crew: %+v", got)
+	}
+	returnSite := returnFixture()
+	returnSite.ID, returnSite.Map, returnSite.QuestIDs, returnSite.Threat = site.ID, site.Map, site.QuestIDs, site.Threat
+	if got := PlanSiteReturn(returnSite, false); got.Departure == nil || got.Departure.DestinationTile() != 12 {
+		t.Fatalf("legal failed complex return missing: %+v", got)
+	}
+	site.Threat = domain.Known(true)
+	if got := PlanCoreSiteWork(offer, site, facts, 2); got.Kind == "return" {
+		t.Fatalf("failed complex bypassed active threat: %+v", got)
+	}
+	site.Threat = domain.Known(false)
+	site.QuestIDs = nil
+	if got := PlanCoreSiteWork(offer, site, facts, 2); got.Kind != "" {
+		t.Fatalf("failed complex claimed unrelated map: %+v", got)
+	}
+}
+
 func TestCoreSiteWorkRecordedFamiliesSecurityAndReturn(t *testing.T) {
 	for _, root := range []string{"OpportunitySite_BanditCamp", "OpportunitySite_DownedRefugee", "OpportunitySite_PrisonerWillingToJoin", "OpportunitySite_ItemStash", "LongRangeMineralScannerLump"} {
 		t.Run(root, func(t *testing.T) {

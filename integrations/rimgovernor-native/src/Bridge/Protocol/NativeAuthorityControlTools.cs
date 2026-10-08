@@ -26,6 +26,8 @@ namespace HomeBridge.BridgeTools
 
         internal static Authority.ControlReply Apply(Authority.ControlRequest request)
         {
+            if (request.OperationCase == Authority.ControlRequest.OperationOneofCase.FocusMap)
+                return Focus(request.FocusMap);
             Common.Identity identity;
             switch (request.OperationCase)
             {
@@ -89,6 +91,28 @@ namespace HomeBridge.BridgeTools
             {
                 Context = context, Authority = projected.Active
             } };
+        }
+
+        private static Authority.ControlReply Focus(Authority.FocusMap request)
+        {
+            if (!request.HasExpectedGeneration || request.ExpectedGeneration == 0 || request.Target == null
+                || request.Identity == null || request.Target.ColonyId != request.Identity.ColonyId
+                || request.Target.LoadToken != request.Identity.LoadToken) return Invalid();
+            if (!ProtoBoundary.ValidateViewedIdentity(request.Identity, out var before, out var failure))
+                return new Authority.ControlReply { Failure = failure };
+            if (!ProtoBoundary.ValidateIdentity(request.Target, out var map, out var context, out failure))
+                return new Authority.ControlReply { Failure = failure };
+            if (!NativeControlAuthority.TryGetForGame(Current.Game, out var state) || state == null)
+                return new Authority.ControlReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native authority unavailable.") };
+            var snapshot = state.Status();
+            if (snapshot.Generation != request.ExpectedGeneration)
+                return new Authority.ControlReply { Failure = Refusal(NativeControlError.StaleGeneration, before) };
+            if (!snapshot.Active)
+                return new Authority.ControlReply { Failure = Refusal(NativeControlError.AuthorityRequired, before) };
+            Current.Game.CurrentMap = map;
+            context.NativeGeneration = state.Status().Generation;
+            SnapshotStream.Open(new RimGovernor.Protocol.Observations.SnapshotStreamRequest { Keyframe = true });
+            return new Authority.ControlReply { FocusedMap = new Authority.FocusedMap { Context = context } };
         }
 
         internal static Common.Failure Refusal(NativeControlError error, Common.ObservationContext context)

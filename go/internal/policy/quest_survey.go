@@ -175,6 +175,10 @@ func surveyReliefFacts(f RoundsFacts, crew []domain.PawnID) (RoundsFacts, bool) 
 
 func SurveyWork(offer JoinerOffer, site WorldSite, f RoundsFacts, food domain.Fact[FoodSupply], p RoundsPolicy) SurveyPlan {
 	result := SurveyPlan{Quest: offer.Quest, Site: site.ID, Waiting: true}
+	if offer.State == "EndedFailed" {
+		result.Waiting, result.Return, result.Failed, result.Reason = false, true, true, "quest_failed"
+		return result
+	}
 	scanner, known := surveyScanner(offer, site.ID)
 	if !known {
 		result.Reason = "survey_unknown"

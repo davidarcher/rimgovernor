@@ -111,6 +111,21 @@ func (control *AuthorityControl) Revoke(ctx context.Context, request *a.Revoke) 
 	}
 	return control.call(ctx, &a.ControlRequest{Operation: &a.ControlRequest_Revoke{Revoke: request}})
 }
+
+// FocusMap changes only the viewed loaded map under the trusted control CAS.
+func (control *AuthorityControl) FocusMap(ctx context.Context, request *a.FocusMap) (*a.ControlReply, Result, error) {
+	if request == nil {
+		return nil, Result{}, contract("focus-map required")
+	}
+	request = proto.Clone(request).(*a.FocusMap)
+	if err := errors.Join(authorityUnknown(request), authorityRequest(request.Identity, request.ExpectedGeneration), authorityIdentity(request.Target)); err != nil {
+		return nil, Result{}, err
+	}
+	if request.Identity.GetColonyId() != request.Target.GetColonyId() || request.Identity.GetLoadToken() != request.Target.GetLoadToken() {
+		return nil, Result{}, contract("focus-map requires same colony and load")
+	}
+	return control.call(ctx, &a.ControlRequest{Operation: &a.ControlRequest_FocusMap{FocusMap: request}})
+}
 func (control *AuthorityControl) call(ctx context.Context, request *a.ControlRequest) (*a.ControlReply, Result, error) {
 	if control == nil || control.client == nil {
 		return nil, Result{}, contract("authority capability required")
@@ -142,6 +157,22 @@ func validateAuthorityControl(request *a.ControlRequest, reply *a.ControlReply) 
 	var reason a.RevocationReason
 	var mode a.Mode
 	switch op := request.Operation.(type) {
+	case *a.ControlRequest_FocusMap:
+		focused := reply.GetFocusedMap()
+		if focused == nil {
+			return contract("focus-map requires focused reply")
+		}
+		if err := ValidateContext(focused.Context); err != nil {
+			return err
+		}
+		expected := op.FocusMap.GetExpectedGeneration()
+		if !sameIdentity(op.FocusMap.Identity, op.FocusMap.Target) {
+			expected++
+		}
+		if !sameIdentity(focused.Context.Identity, op.FocusMap.Target) || focused.Context.NativeGeneration == nil || focused.Context.GetNativeGeneration() != expected {
+			return contract("focus-map context mismatch")
+		}
+		return nil
 	case *a.ControlRequest_SetMode:
 		identity, generation, mode = op.SetMode.Identity, op.SetMode.GetExpectedGeneration(), op.SetMode.GetMode()
 	case *a.ControlRequest_Revoke:

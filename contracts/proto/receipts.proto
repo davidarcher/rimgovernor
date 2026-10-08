@@ -61,8 +61,13 @@ message EffectEvidence {
     AbilityEffect ability = 32;
     IdeoligionEffect ideoligion = 41;
     QuestShuttleEffect quest_shuttle = 42;
+    HackDesignationEffect hack_designation = 43;
+    GiveItemEffect give_item = 44;
   }
 }
+message HackDesignationEffect { optional string target_id = 1; optional bool enabled = 2; }
+// An accepted vanilla order; delivery is observed separately.
+message GiveItemEffect { optional string hauler_id = 1; optional string recipient_id = 2; optional string definition = 3; optional int64 expected_remaining = 4; optional string source_item_id = 5; JobEffect job = 6; }
 message IdeoligionEffect {
   optional string ideo_id = 1;
   rimgovernor.common.v1.IdeoligionDesign design = 2;

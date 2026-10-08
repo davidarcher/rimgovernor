@@ -81,6 +81,30 @@ direction compare-and-swap. Intents are journaled in order and each `requestId` 
   (`httpapi.ControlReader`) is `CurrentControl`. Configuration routes have their own narrow
   interfaces. Production composition supplies the same Player and store the worker uses.
 
+An expedition may carry a running Auto intent to its physically reached map.
+The accepted departure in the retained method journal must name the exact
+destination tile and crew, and the fresh world census must place that crew
+there. A site also needs its quest identity to match the journal method.
+The handoff holds the player gate and captures the current player epoch before
+disabling local writes and joining writers. Its Resume intent is journaled
+before any native view change; it uses the destination's normal root plan.
+
+Trusted `Authority.Control/FocusMap` compares the exact viewed colony, load,
+map and native generation, requires active Auto authority, and focuses an
+already loaded map in the same colony/load. It moves no pawns, grants no
+authority and is unavailable to model dispatch. Native requests a fresh
+snapshot keyframe after focusing. Normal identity-scoped Resume reacquires
+authority; the focus generation must still match at acquisition.
+
+Vanilla may remove an emptied site map and focus home before the review runs.
+The scheduler handles this from the incoming frame's actual identity and exact
+returning crew, without reading the removed map. Reacquisition requires native
+`IDENTITY_CHANGED` at precisely the prior Auto generation plus one. A Manual
+request cancels the captured player epoch before waiting for the gate; a native
+Manual changes the generation/revocation reason. Either prevents automatic
+regrant, including between focus and acquisition. Historical control records
+alone never restore authority after restart.
+
 ## Colony configuration
 
 Configuration routes record player intent and issue no per-pawn order. The autopilot owns the
