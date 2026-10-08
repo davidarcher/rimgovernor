@@ -121,8 +121,11 @@ when the demand itself is unknown. Explain terms are `risk_discount`,
 
 A candidate is `designated` (committed, not yet seen delivering) until the
 [delivery ledger](../contracts/forecast-contracts.md#delivery-ledger) shows its
-counter group delivering, then `delivering`; the state is kept while nothing
-arrives, and a closed channel is never credited. Under an emergency (runway
+counter group delivering over an observed interval, then `delivering`.
+A historical cumulative counter alone does not establish a flow. When recent
+delivery stops the measured rate falls to zero; the state remains `delivering`,
+so failed existing work does not regain its estimated yield. A closed channel
+is never credited. Under an emergency (runway
 below `EmergencyDays`) every candidate that is not delivering is uncredited.
 
 `policy.DeliveryCredit` (`delivery_credit.go`, Go memory only, never persisted)
@@ -138,12 +141,17 @@ expected rate x factor`.
 - **Window**: `LedgerWindowDays` = 3 days; a bursty channel is judged over at
   least its cycle plus a replant day (a crop's grow days); hunting over
   `HuntCreditWindowDays` = 6 days, so a kill every few days averages out.
-- **Warm-up**: a group is judged only after its lead plus one window since the
-  plan opened it (`Opened`) or it was first seen delivering, so a candidate
-  nobody asked for is never penalised; until then the factor holds.
+- **Warm-up**: an undelivered group is judged after its lead plus one window
+  since the plan opened it (`Opened`), so unrequested candidates are not
+  penalised. Once a group has deliveries it uses the available trailing
+  counter differences immediately, with at least one day's expected demand
+  in the denominator; a burst between nearby Rounds cannot promise a sustained
+  flow. The first cumulative read is a baseline, earning no delivery credit.
 - **Holds**: a factor holds while the ledger is unavailable, after a load
   (re-baseline: the epoch changed) and for a group without a row while rows were
-  lost. A group no longer in the census is forgotten.
+  lost. A group remains tracked through gaps between designations while its
+  source remains in the census; its samples are bounded to the trailing window.
+  A group no longer in the census is forgotten.
 - **Flight**: a `food_credit` decision row per group when its factor moves by 0.1
   or more, its state changes, or a hold ends a window it was judged over.
 

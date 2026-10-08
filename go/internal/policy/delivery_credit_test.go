@@ -1,10 +1,121 @@
 package policy
 
 import (
+	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
+
+// The launcher did not record a colony snapshot stream. This accounting
+// snapshot preserves the final Round's actual portfolio, stock and demand
+// from flight sequence 5383695, run dcd8611772684fc1bf65ce59b3b849d1.
+// Historical counter magnitudes were not logged: the positive baseline and
+// subsequent stopped counter below are explicit negative controls, not
+// invented native deliveries. They reproduce the proven warm-up overcredit.
+func TestRecordedStarvingPortfolioDoesNotCreditHistoricalDeliveries(t *testing.T) {
+	var recorded struct {
+		Tick                                       domain.Tick
+		FoodDays, Stock, Demand, ReportedDelivered float64
+		Channels                                   []struct {
+			Kind                   CandidateKind
+			ID, Source             string
+			State                  CandidateState
+			Rate, Work, Lead, Risk float64
+		}
+	}
+	data, err := os.ReadFile("testdata/food-starving-portfolio-2454.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = json.Unmarshal(data, &recorded); err != nil {
+		t.Fatal(err)
+	}
+	if recorded.Stock != 0 || recorded.FoodDays != 0 || recorded.ReportedDelivered <= 2*recorded.Demand {
+		t.Fatal("snapshot lost the observed starvation and nominal surplus")
+	}
+	var channels []SupplyCandidate
+	baseline := map[string]float64{}
+	for _, row := range recorded.Channels {
+		c := FoodCandidate(row.Kind, row.ID, domain.Known(row.Rate))
+		c.State, c.Source = domain.Known(row.State), row.Source
+		c.LeadDays, c.LaborPerDay = domain.Known(row.Lead), domain.Known(row.Work)
+		if row.Risk > 0 {
+			c.Risk = []CandidateRisk{{CandidateRevenge, row.Risk}}
+		}
+		channels = append(channels, c)
+		if row.State == CandidateDelivering {
+			baseline[row.Source] = 1
+		}
+	}
+	var credit DeliveryCredit
+	credit.Apply(channels, CreditInput{Tick: recorded.Tick, Known: true, LoadToken: "recorded", Delivered: baseline})
+	credited := credit.Apply(channels, CreditInput{Tick: recorded.Tick + creditDay/10, Known: true, LoadToken: "recorded", Delivered: baseline})
+	// The stock/runway and aggregate consumption are recorded. Eight workers
+	// is an explicit planning-budget control, not an inferred labor census.
+	// The standard policy must derive emergency admission from empty stocks.
+	thresholds := DefaultRoundsPolicy()
+	plan, err := SupplyFoodPlan(FoodPlanRequest{Channels: domain.Known(credited), Labor: domain.Known(160000.0),
+		MinDays: thresholds.FoodMinDays, TargetDays: thresholds.FoodTargetDays, EmergencyDays: thresholds.FootholdFoodDays,
+		Demand: FoodForecast{RunwayDays: domain.Known(recorded.FoodDays), Consumers: []ConsumerFoodForecast{{ID: "recorded-consumers", NutritionPerDay: recorded.Demand}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.DeliveredPerDay != 0 || plan.GapPerDay != 2*recorded.Demand {
+		t.Fatal("historical counters certified flow", plan.Explain())
+	}
+	opened := map[CandidateKind]bool{}
+	used := 0.0
+	for _, e := range plan.Portfolio {
+		if e.Decision == FoodPlanOpen {
+			opened[e.Channel.Kind] = true
+			work, _ := e.Channel.LaborPerDay.Value()
+			used += work
+		}
+	}
+	if !opened[CandidateForage] || !opened[CandidateHunt] || used > 160000 {
+		t.Fatal("shortfall did not reopen acquisition within available labor", plan.Explain())
+	}
+}
+
+func TestCreditPartialWindowUsesMeasuredFlowAndKeepsCensusHistory(t *testing.T) {
+	c := FoodCandidate(CandidateForage, "berry", domain.Known(10.0))
+	c.Source, c.State, c.LeadDays = "forage:Berry", domain.Known(CandidateDesignated), domain.Known(0.0)
+	var d DeliveryCredit
+	step := func(day float64, cumulative float64) SupplyCandidate {
+		return d.Apply([]SupplyCandidate{c}, CreditInput{Tick: domain.Tick(day * float64(creditDay)), Known: true, LoadToken: "a", Delivered: map[string]float64{c.Source: cumulative}})[0]
+	}
+	step(0, 100)
+	got := step(.1, 101)
+	rate, _ := got.Nutrition().PerDay.Value()
+	if got.State != domain.Known(CandidateDelivering) || !near(rate, 1) {
+		t.Fatal("partial-window burst inflated flow", got)
+	}
+	c.State = domain.Known(CandidateClosed)
+	step(.2, 101)
+	if len(d.groups) != 1 {
+		t.Fatal("closed census source lost history")
+	}
+	c.State = domain.Known(CandidateDesignated)
+	got = step(1, 101)
+	rate, _ = got.Nutrition().PerDay.Value()
+	if !near(rate, 1) {
+		t.Fatal("designation reset observed flow", got)
+	}
+	d.Drain()
+	step(1.1, 101)
+	if changes := d.Drain(); len(changes) != 0 {
+		t.Fatal("stable standing emitted repeated rows", changes)
+	}
+	c.State = domain.Known(CandidateClosed)
+	for day := 2.0; day < 30; day++ {
+		step(day, 101)
+	}
+	if n := len(d.groups[c.Source].samples); n > 5 {
+		t.Fatal("closed history grew beyond window", n)
+	}
+}
 
 const creditDay = domain.Tick(domain.TicksPerDay)
 
@@ -113,7 +224,7 @@ func TestCreditClampAndRecovery(t *testing.T) {
 	}
 }
 
-func TestCreditStateIsSticky(t *testing.T) {
+func TestCreditStoppedFlowKeepsMeasuredZeroRate(t *testing.T) {
 	r := newCreditRun(1, 0)
 	if got := r.step(0, 0); got.State != CandidateDesignated {
 		t.Fatalf("state = %v", got.State)
@@ -121,8 +232,8 @@ func TestCreditStateIsSticky(t *testing.T) {
 	if got := r.step(1, 2); got.State != CandidateDelivering {
 		t.Fatalf("deliveries make the group delivering, got %v", got.State)
 	}
-	if got := r.step(9, 0); got.State != CandidateDelivering {
-		t.Fatalf("a group stays delivering while nothing arrives, got %v", got.State)
+	if got := r.step(9, 0); got.State != CandidateDelivering || got.Factor != 0 {
+		t.Fatalf("a stopped group keeps zero measured credit, got %+v", got)
 	}
 }
 
@@ -231,8 +342,8 @@ func TestCreditApplyAttributesByCounterGroupAndRisk(t *testing.T) {
 	in := CreditInput{Tick: 0, LoadToken: "e", Known: true, Delivered: map[string]float64{"forage:Berry": 1}}
 	out := d.Apply(channels, in)
 	for _, i := range []int{0, 1} {
-		if out[i].Source != "forage:Berry" || out[i].State != domain.Known(CandidateDelivering) {
-			t.Fatalf("a forage channel takes its def's state from the ledger: %+v", out[i])
+		if out[i].Source != "forage:Berry" || out[i].State != domain.Known(CandidateDesignated) {
+			t.Fatalf("a cumulative baseline cannot establish a flow: %+v", out[i])
 		}
 	}
 	if out[2].State == domain.Known(CandidateDelivering) || out[3].State != channels[3].State {

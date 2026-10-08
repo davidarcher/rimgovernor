@@ -48,7 +48,7 @@ type CreditInput struct {
 }
 
 // CreditResult is a group's standing: Factor in [0,1] scales its expected rate
-// and State is Designated until the ledger shows deliveries, then Delivering.
+// and State is Delivering once counter differences have calibrated the flow.
 type CreditResult struct {
 	Factor float64
 	State  CandidateState
@@ -87,7 +87,8 @@ type creditHistory struct {
 // DeliveryCredit credits each ledger counter group by what it delivers: the
 // factor is observed over expected nutrition across a trailing window, in
 // [0,1], starting at 1. It lives in memory only; a restart starts every group
-// again at factor 1 and Designated, which the ledger corrects within a window.
+// again at factor 1 and Designated. Historical counters establish a baseline;
+// positive differences calibrate delivering rates before a full window elapses.
 type DeliveryCredit struct {
 	loadToken string
 	lost      uint64
@@ -122,6 +123,7 @@ func (d *DeliveryCredit) Observe(in CreditInput, channels []CreditChannel) map[s
 		d.loadToken, d.lost = in.LoadToken, in.Lost
 	}
 	live := map[string]bool{}
+	previousResults := d.results
 	d.results = make(map[string]CreditResult, len(channels))
 	sorted := append([]CreditChannel(nil), channels...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Source < sorted[j].Source })
@@ -134,7 +136,7 @@ func (d *DeliveryCredit) Observe(in CreditInput, channels []CreditChannel) map[s
 		}
 		window := creditWindowDays(c)
 		h.leadNow = math.Max(0, c.LeadDays)
-		wasDelivering := h.delivered
+		previous := previousResults[c.Source].State
 		reason := CreditWindow
 		cum, present := in.Delivered[c.Source]
 		switch {
@@ -155,13 +157,13 @@ func (d *DeliveryCredit) Observe(in CreditInput, channels []CreditChannel) map[s
 			d.evaluate(h, c, in.Tick, window, cum)
 		}
 		state := CandidateDesignated
-		if h.delivered {
+		if h.delivered && h.evaluated {
 			state = CandidateDelivering
 		}
 		d.results[c.Source] = CreditResult{Factor: h.factor, State: state}
 		held := reason != CreditWindow && h.evaluated && (rebaselined || lostRaised)
 		moved := math.Abs(h.factor-h.reported) >= CreditMoveThreshold
-		if held || moved || h.delivered != wasDelivering {
+		if held || moved || previous != "" && state != previous {
 			h.reported = h.factor
 			d.changes = append(d.changes, CreditChange{Source: c.Source, Reason: reason, State: string(state),
 				Expected: h.expected, Observed: h.observed, Factor: h.factor, WindowDays: window})
@@ -204,14 +206,17 @@ func (d *DeliveryCredit) Opened(plan FoodPlan, channels []SupplyCandidate, now d
 	}
 }
 
-// evaluate sets the group's factor from the newest sample at least one window
-// old that is not older than the end of the group's lead; with none (the
-// warm-up), no expected delivery or a group no plan opened the factor is held.
+// evaluate uses the trailing window, or the available history once deliveries
+// exist. Undelivered proposals retain their lead-plus-window grace period.
 func (d *DeliveryCredit) evaluate(h *creditHistory, c CreditChannel, now domain.Tick, window, cum float64) {
+	cutoff := now - domain.Tick(window*float64(domain.TicksPerDay))
+	// Keep the newest baseline before the window even for closed sources.
+	for len(h.samples) > 1 && h.samples[1].tick <= cutoff {
+		h.samples = h.samples[1:]
+	}
 	if !h.armed {
 		return
 	}
-	cutoff := now - domain.Tick(window*float64(domain.TicksPerDay))
 	start := h.opened + domain.Tick(h.lead*float64(domain.TicksPerDay))
 	base := -1
 	for i, s := range h.samples {
@@ -220,10 +225,22 @@ func (d *DeliveryCredit) evaluate(h *creditHistory, c CreditChannel, now domain.
 		}
 	}
 	if base < 0 {
-		return
+		if !h.delivered || len(h.samples) < 2 {
+			return
+		}
+		// A positive cumulative counter establishes a baseline, not a
+		// sustained flow. Once deliveries exist, use the available history
+		// immediately rather than crediting the forecast for a whole window.
+		base = 0
 	}
 	h.samples = h.samples[base:]
-	expected := c.Expected * float64(now-h.samples[0].tick) / float64(domain.TicksPerDay)
+	span := float64(now-h.samples[0].tick) / float64(domain.TicksPerDay)
+	if h.delivered {
+		// A single burst between nearby Rounds cannot promise many days
+		// of food; like hunt cadence, price at least one day's demand.
+		span = math.Max(1, span)
+	}
+	expected := c.Expected * span
 	if expected <= 0 {
 		return
 	}
@@ -250,7 +267,7 @@ func (d *DeliveryCredit) Apply(channels []SupplyCandidate, in CreditInput) []Sup
 	}
 	byGroup := map[string]*CreditChannel{}
 	for _, c := range channels {
-		if c.Source == "" || !committed(c) {
+		if c.Source == "" {
 			continue
 		}
 		rate, known := c.Nutrition().PerDay.Value()
@@ -261,6 +278,11 @@ func (d *DeliveryCredit) Apply(channels []SupplyCandidate, in CreditInput) []Sup
 		if g == nil {
 			g = &CreditChannel{Source: c.Source, LeadDays: math.Inf(1)}
 			byGroup[c.Source] = g
+		}
+		// Keep the source's history while it is in the census, including
+		// gaps between designations; only committed channels expect delivery.
+		if !committed(c) {
+			continue
 		}
 		risk := 0.0
 		for _, r := range c.Risk {

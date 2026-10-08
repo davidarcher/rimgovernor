@@ -1,0 +1,681 @@
+{
+  "ReportedDelivered": 27.5918,
+  "Tick": 203152,
+  "Run": "dcd8611772684fc1bf65ce59b3b849d1",
+  "FoodDays": 0,
+  "Channels": [
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Deer39268",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 1260.3871,
+      "Rate": 2.4788,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry13079",
+      "State": "delivering",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.5,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "cook",
+      "ID": "cooking-capacity",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "",
+      "Work": 0.0,
+      "Rate": 0.0,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "fishing",
+      "ID": "water-112-81",
+      "State": "delivering",
+      "Lead": 0.0,
+      "Source": "fish:112,81",
+      "Work": 0.0,
+      "Rate": 0.0,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "reserve",
+      "ID": "stock-protection",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "",
+      "Work": 0.0,
+      "Rate": 0.0,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "crop",
+      "ID": "new:Plant_Rice",
+      "State": "closed",
+      "Lead": 3.0,
+      "Source": "",
+      "Work": 18113.3335,
+      "Rate": 25.74,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "squad:Thing_Deer39264",
+      "State": "delivering",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 3781.1612,
+      "Rate": 7.4365,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry13805",
+      "State": "delivering",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.5,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "crop",
+      "ID": "new:Plant_Potato",
+      "State": "closed",
+      "Lead": 5.8,
+      "Source": "",
+      "Work": 13889.6549,
+      "Rate": 25.9448,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "squad:Thing_WildBoar39228",
+      "State": "delivering",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 10083.0965,
+      "Rate": 14.0467,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry16067",
+      "State": "delivering",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.5,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "crop",
+      "ID": "new:Plant_Corn",
+      "State": "closed",
+      "Lead": 11.3,
+      "Source": "",
+      "Work": 11263.7168,
+      "Rate": 25.9327,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Muffalo39242",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 9.9792,
+      "Risk": 0.1
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry16601",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.5,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Donkey39246",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 9.8,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry16807",
+      "State": "delivering",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.5,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Donkey39247",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 9.8,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry20666",
+      "State": "delivering",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.5,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Boomalope39253",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 7.0,
+      "Risk": 0.5
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry21200",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.5,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Boomalope39254",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 7.0,
+      "Risk": 0.5
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry22712",
+      "State": "delivering",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.5,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Boomalope39255",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 7.0,
+      "Risk": 0.5
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry24453",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.5,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Boomalope39256",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 7.0,
+      "Risk": 0.5
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry24748",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.5,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Boomalope39257",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 7.0,
+      "Risk": 0.5
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry14966",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.45,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Turkey48318",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 4.2,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry28046",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.4,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Crow39261",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 1260.3871,
+      "Rate": 0.3396,
+      "Risk": 0.1
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry19996",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.35,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Lynx48692",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 2.1,
+      "Risk": 0.5
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry13751",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.3,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry27467",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.3,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_GuineaPig39222",
+      "State": "delivering",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry28000",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.3,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_GuineaPig39223",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry30981",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.3,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_GuineaPig39226",
+      "State": "delivering",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_GuineaPig51509",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry25773",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.25,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_GuineaPig51510",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry28063",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.25,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_GuineaPig51511",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "forage",
+      "ID": "Thing_Plant_Berry31353",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "forage:Plant_Berry",
+      "Work": 2500.0,
+      "Rate": 0.25,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_GuineaPig51512",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_GuineaPig51513",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_GuineaPig51514",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_GuineaPig51515",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Hare39240",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Squirrel49270",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Squirrel51590",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Boomrat39237",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Boomrat48199",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Boomrat51377",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Rat39227",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Rat39238",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Rat39263",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Rat49699",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Rat50845",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Rat51469",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.5543,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Crow39262",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.1649,
+      "Risk": 0.1
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Sparrow39249",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.1383,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Sparrow39250",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.1383,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Sparrow39248",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 1.0759,
+      "Risk": 0.0
+    },
+    {
+      "Kind": "hunt",
+      "ID": "Thing_Badger39236",
+      "State": "closed",
+      "Lead": 0.0,
+      "Source": "hunt",
+      "Work": 7500.0,
+      "Rate": 0.0,
+      "Risk": 1.0
+    }
+  ],
+  "Demand": 13.6,
+  "Sequence": 5383695,
+  "Stock": 0
+}

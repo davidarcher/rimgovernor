@@ -21,10 +21,13 @@ func TestFoodPlanIncludesAnimalRatesLaborAndDerivedFloor(t *testing.T) {
 	p.Facts.AnimalUpkeep.Animals = domain.Known([]policy.UpkeepAnimal{cow("cow", "Female"), cow("bull", "Male")})
 	p.Facts.AnimalUpkeep.AnimalRaces = policy.AnimalRaceCatalog{Races: map[policy.Resource]policy.AnimalRace{"Cow": {Def: "Cow", BodySize: domain.Known(2.5),
 		Products: []policy.RaceProduct{{Kind: "milk", Def: "Milk", Amount: domain.Known(12.0), IntervalDays: domain.Known(1.0)}}}}}
-	// The cows are seen delivering, so the emergency (no stock) still credits them.
+	// Observe a day's delivery, so the emergency credits measured milk flow.
+	var credit policy.DeliveryCredit
+	p.DeliveryLedger = domain.Known(observation.DeliveryLedger{LoadToken: "t"})
+	reviewFoodPlan(p, policy.DefaultRoundsPolicy(), &credit, nil, foodTrade{})
+	p.Identity.Tick = domain.Tick(domain.TicksPerDay)
 	p.DeliveryLedger = domain.Known(observation.DeliveryLedger{LoadToken: "t", Counts: map[observation.DeliveryKey]observation.DeliveryCount{
 		{Kind: observation.DeliveryAnimalProduct, SourceID: "Cow", Def: "Milk"}: {Nutrition: 1}}})
-	var credit policy.DeliveryCredit
 	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), &credit, nil, foodTrade{}).Value()
 	if !known || !strings.Contains(plan.Explain(), "MaintainHerd-Cow floor 3") {
 		t.Fatal(plan.Explain(), known)
@@ -122,6 +125,10 @@ func TestFoodCreditAttributesLedgerCountersToChannels(t *testing.T) {
 		count(observation.DeliveryCrop, "other-zone"):   {Nutrition: 3},
 	}})
 	var credit policy.DeliveryCredit
+	baseline := p
+	baseline.DeliveryLedger = domain.Known(observation.DeliveryLedger{LoadToken: "t"})
+	reviewFoodPlan(baseline, policy.DefaultRoundsPolicy(), &credit, nil, foodTrade{})
+	p.Identity.Tick = domain.Tick(domain.TicksPerDay)
 	plan, known := reviewFoodPlan(p, policy.DefaultRoundsPolicy(), &credit, nil, foodTrade{}).Value()
 	if !known {
 		t.Fatal("plan unknown")
