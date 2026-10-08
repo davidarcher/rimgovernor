@@ -24,7 +24,7 @@ func TestBasicDefenseOwedWhileAFighterIsUnarmed(t *testing.T) {
 	}
 	p := DefaultRoundsPolicy()
 	f := RoundsFacts{Colonists: domain.Known(int64(3)), Armed: domain.Known(int64(2)), Unarmed: domain.Known(int64(1))}
-	if v, k := RoundsDevelopmentDeficit(EnsureBasicDefense, f, p).Value(); !k || v <= 0 {
+	if v, k := RoundsDeficit(EnsureBasicDefense, f, p).Value(); !k || v <= 0 {
 		t.Fatal("unarmed fighter left no development deficit", v, k)
 	}
 }

@@ -40,7 +40,7 @@ type NoOpRecord struct {
 // raised no goal and filed no deficit assessment for its goal. The reason
 // follows the assessments it filed: none is not_applicable, any unknown is
 // inputs_unknown, otherwise satisfied.
-func noOpOf(id ConcernID, goals []DevelopmentConcern, assessments []RoundsAssessment) (NoOpRecord, bool) {
+func noOpOf(id ConcernID, goals []RoundsConcern, assessments []RoundsAssessment) (NoOpRecord, bool) {
 	reason := NoOpNotApplicable
 	for _, g := range goals {
 		if g.ID == id {

@@ -8,8 +8,8 @@ pursues a role walks the same ladder. This page is the ladder and the matrix;
 
 ## The ladder
 
-Each rung is a separate deficit under an existing maintained concern, ranked by
-`RankDevelopment` like any other; nothing here adds a per-role concern.
+Each rung is a separate deficit under an existing maintained Concern. Shared
+admission checks its resources and dependencies; vanilla priorities schedule pawn work.
 
 1. **Reuse**: a room the game already scores as hosting the function, or an
    existing bench, bed or spot that already does the job. Reuse always wins

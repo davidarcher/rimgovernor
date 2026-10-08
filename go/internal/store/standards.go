@@ -320,8 +320,7 @@ func commitMethod(ctx context.Context, tx *sql.Tx, id domain.ConcernID, revision
 }
 
 // admitOwnerCommit is the commit every method owner shares, a goal or a
-// Project: the revision CAS, the open-deficit check, the Safeguards and development
-// admission, the open-work check with its exemptions, then the family
+// Project: the revision CAS, the open-deficit check, the Safeguards and current review, the open-work check with its exemptions, then the family
 // admission, the methods row and the revision bump. The caller reloads
 // the owner.
 func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) error {
@@ -335,9 +334,10 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 	if err := admitRoundsSafeguards(ctx, tx, state, plan.Actions()); err != nil {
 		return err
 	}
-	if err := admitRoundsDevelopment(ctx, tx, summary, plan); err != nil {
+	if err := admitRoundsReview(ctx, tx, summary); err != nil {
 		return err
 	}
+
 	open, err := standardOpenWork(ctx, tx, state)
 	if err != nil {
 		return err

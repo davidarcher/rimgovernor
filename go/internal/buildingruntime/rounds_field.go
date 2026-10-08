@@ -59,15 +59,7 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoundsFieldResult{}, err
 	}
 	idle := BuildingReasonNoDeficit
-	if workable && goal.Standard.Priority >= 3 {
-		selected := false
-		for _, row := range review.Development.Rows {
-			selected = selected || row.Concern == policy.EnsureFoodSupply && row.Selected
-		}
-		if !selected {
-			workable, idle = false, awaitingSlot(string(policy.EnsureFoodSupply))
-		}
-	}
+
 	// Open field work is budgeted against the food plan below. Infrastructure
 	// with unknown output keeps its barrier; completed growers may be recropped.
 	blocked := false

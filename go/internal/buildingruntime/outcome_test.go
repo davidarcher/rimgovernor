@@ -15,8 +15,8 @@ import (
 // shared_admission_refused kind and names its first refusal (#1880).
 func TestAdmissionRefusedCarriesReason(t *testing.T) {
 	t.Parallel()
-	got := admissionRefused(store.BuildingMethodDecision{Refused: []policy.Refusal{{Reason: policy.NoDevelopmentSlot, Resource: "wood"}}})
-	if !got.Is(RefusalSharedAdmission) || got.String() != "shared_admission_refused:no_development_slot:wood" || got.Text() != "the shared admission check turned the plan down (no development slot: wood)" {
+	got := admissionRefused(store.BuildingMethodDecision{Refused: []policy.Refusal{{Reason: policy.AlreadyReserved, Resource: "wood"}}})
+	if !got.Is(RefusalSharedAdmission) || got.String() != "shared_admission_refused:already_reserved:wood" || got.Text() != "the shared admission check turned the plan down (already reserved: wood)" {
 		t.Fatal(got.String(), got.Text())
 	}
 	if bare := admissionRefused(store.BuildingMethodDecision{}); bare.String() != "shared_admission_refused:candidates_left_unadmitted" {
@@ -53,7 +53,6 @@ func TestVerdictRendersPerKind(t *testing.T) {
 		{noSpace("floor_cells"), "no_space:floor_cells", "no space found for it (floor cells)"},
 		{admissionRefused(store.BuildingMethodDecision{}), "shared_admission_refused:candidates_left_unadmitted", "the shared admission check turned the plan down (candidates left unadmitted)"},
 		{refuse(RefusalRetriesSpent, "gear_craft", ""), "retry_budget_spent:gear_craft", "tried as often as it may (gear craft)"},
-		{awaitingSlot("clear_ancient_shrine"), "awaiting_plan:development_slot:clear_ancient_shrine", "waiting on development slot (clear ancient shrine)"},
 		{noSpace("walkable_layout"), "no_space:walkable_layout", "no space found for it (walkable layout)"},
 		{waitFor(WaitMethodUsed, "bill_method"), "method_already_used:bill_method", "waiting for work it already started (bill method)"},
 		{BuildingBunksOpen, "shelter_bunks_open", "waiting on the shelter's open bunks"},
@@ -65,7 +64,7 @@ func TestVerdictRendersPerKind(t *testing.T) {
 		{BuildingReasonSeparation, "butcher_separation_pending", "waiting for the butcher spot to be built apart"},
 		{BuildingReasonNotInteractive, "dialog_not_interactive", "waiting for the choice dialog to accept an answer"},
 		{BuildingReasonWaiting, "waiting_on_claim", "waiting on a claim held by a higher-ranked proposal"},
-		{awaitingSlot("EnsureFoodSupply"), "awaiting_plan:development_slot:EnsureFoodSupply", "waiting on development slot (Ensure food supply)"},
+		{awaitingPlan("prerequisite", "EnsureFoodSupply"), "awaiting_plan:prerequisite:EnsureFoodSupply", "waiting on prerequisite (Ensure food supply)"},
 		{claimHeld("bench"), "waiting_on_claim:bench", "waiting on a claim held by a higher-ranked proposal (bench)"},
 		{awaitingPlan("feed_bench", "within_reach_of_animals"), "awaiting_plan:feed_bench:within_reach_of_animals", "waiting on feed bench (within reach of animals)"},
 		{fieldUnavailable("acquisition_sources"), "field_unavailable:acquisition_sources", "the game did not report acquisition sources"},

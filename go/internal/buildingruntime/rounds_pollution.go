@@ -56,17 +56,6 @@ func (r *RoundsPollutionPlanner) step(call, epoch context.Context, arbiter *step
 	if !workable {
 		return RoundsPollutionResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	// ManagePollution competes for the bounded development capacity like
-	// blight and the other priority>=3 autopilot goals.
-	selected := false
-	for _, row := range review.Development.Rows {
-		selected = selected || row.Concern == policy.ManagePollution && row.Selected
-	}
-	if !selected {
-		return RoundsPollutionResult{Verdict: awaitingSlot(string(policy.ManagePollution))}, nil
-	}
-	// A pack whose haul ended unsuccessful (no stockpile took it) is not
-	// re-ordered while it stands.
 	claimed := map[string]bool{}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)

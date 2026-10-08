@@ -1,25 +1,18 @@
 package policy
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestRoundsDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
+func TestRoundsDisabledMethodsPreserveNeeds(t *testing.T) {
 	f := stableRounds()
 	f.IndoorCapacity = domain.Known(int64(3))
 	f.ComfortRecovered = domain.Known(false)
 	f.ComfortDeficit = domain.Known(.8)
 	f.AvailableMethods = domain.Known([]ConcernID{MaintainHousing})
 	needs := needs(t, f, RoundsLatches{})
-	request := developmentFixture()
-	request.Concerns = needs.Concerns
-	got := rank(t, request)
-	if !reflect.DeepEqual(selected(got), []ConcernID{MaintainHousing}) {
-		t.Fatal(got)
-	}
 	found := false
 	for _, a := range needs.Assessments {
 		if a.ID == EnsureComfort {
@@ -32,19 +25,21 @@ func TestRoundsDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 	if !found {
 		t.Fatal("disabled method erased need")
 	}
-	for _, row := range got.Rows {
-		if row.Concern == EnsureComfort && row.Reason != DevelopmentMethodUnavailable {
+	for _, row := range needs.Concerns {
+		if row.ID == EnsureComfort && !row.MethodUnavailable {
 			t.Fatal(row)
 		}
 	}
+
 	f.AvailableMethods = domain.Known([]ConcernID{})
 	empty, err := InspectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}
-	request.Concerns = empty.Concerns
-	if len(selected(rank(t, request))) != 0 {
-		t.Fatal("disabled methods admitted")
+	for _, row := range empty.Concerns {
+		if row.Priority >= 3 && !row.MethodUnavailable {
+			t.Fatal(row)
+		}
 	}
 	for _, bad := range [][]ConcernID{{EnsureComfort, EnsureComfort}, {"unknown-method"}} {
 		f.AvailableMethods = domain.Known(bad)
@@ -100,7 +95,7 @@ func TestRoundsSleepingMethodFollowsDeclaredCapability(t *testing.T) {
 // The animal needs are admitted through the same capability gate as every
 // other optional routine goal: declared, they rank and may take a development
 // slot; undeclared, they stay MethodUnavailable without erasing the need.
-func TestRoundsAnimalNeedsRankWhenTheirMethodIsDeclared(t *testing.T) {
+func TestRoundsAnimalMethodAvailability(t *testing.T) {
 	f := stableRounds()
 	// A census that knows of no tame animal raises no animal goal; this one
 	// does not know.
@@ -111,12 +106,7 @@ func TestRoundsAnimalNeedsRankWhenTheirMethodIsDeclared(t *testing.T) {
 		if declared {
 			f.AvailableMethods = domain.Known([]ConcernID{MaintainAnimalContainment})
 		}
-		request := developmentFixture()
-		request.Concerns = needs(t, f, RoundsLatches{}).Concerns
-		got := selected(rank(t, request))
-		if declared != (len(got) == 1) {
-			t.Fatalf("declared=%v selected=%v", declared, got)
-		}
+		request := needs(t, f, RoundsLatches{})
 		for _, g := range request.Concerns {
 			if g.ID == MaintainAnimalContainment && g.MethodUnavailable == declared {
 				t.Fatalf("declared=%v goal=%+v", declared, g)

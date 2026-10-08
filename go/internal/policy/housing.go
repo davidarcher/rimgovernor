@@ -25,7 +25,6 @@ type HousingReview struct {
 	Phase     Phase
 	Priority  int
 	Deficit   domain.Fact[float64]
-	Blocked   bool
 	Recovered domain.Fact[bool]
 }
 
@@ -63,11 +62,7 @@ func reviewHousing(f RoundsFacts, previous RoundsLatches, p RoundsPolicy, sleepi
 	case !positive(sleeping) && (sleepingKnown || sleepingActive):
 		return sleepingHousing(sleeping, sleepingPriority)
 	case staged && !positive(expansion):
-		r := HousingReview{Phase: HousingExpansion, Priority: 4, Deficit: RoundsDevelopmentDeficit(MaintainHousing, f, p), Recovered: expansion}
-		if plan, known := f.FoodPlan.Value(); known && plan.GapPerDay > 0 {
-			r.Blocked = true
-		}
-		return r
+		return HousingReview{Phase: HousingExpansion, Priority: 4, Deficit: RoundsDeficit(MaintainHousing, f, p), Recovered: expansion}
 	case !positive(sleeping):
 		return sleepingHousing(sleeping, sleepingPriority)
 	}

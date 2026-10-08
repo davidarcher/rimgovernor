@@ -106,9 +106,8 @@ func (s serviceRoundsDiagnostics) RoundsStatus(ctx context.Context) (httpapi.Rou
 		}
 	}
 	if review.Revision != 0 {
-		development := review.Development.State()
-		status.Development = &development
 		status.Progress = review.Progress
+		status.Emergency = review.Emergency
 		status.NoOps = review.NoOps
 		status.Stage = review.Stage
 		status.Roster = review.Roster
@@ -1013,10 +1012,7 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 		thresholds.Trade = policy.RoundsTradePolicy{}
 		capabilities.Methods = append(capabilities.Methods, policy.TradeWithCaravan)
 	}
-	// The equip planner is EnsureBasicDefense's method: without this
-	// declaration the priority-3 goal reviews as method_unavailable, never
-	// wins a development slot, and every equip commit is refused (colony-2
-	// ended with every survivor unarmed beside loose bows).
+	// The equip planner supplies EnsureBasicDefense's method capability.
 	if sc.roundsEquipPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureBasicDefense)
 	}

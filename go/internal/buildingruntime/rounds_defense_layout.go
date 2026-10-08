@@ -236,18 +236,6 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	if wait != nil {
 		return r.fight(call, epoch, goal, state, *wait)
 	}
-	// EnsureDefensiveLayout competes for the bounded concurrent-project
-	// capacity with the other priority>=3 autopilot goals; admission would
-	// conflict unless this review's arbitration selected it. Checked after
-	// the existing-work loop: an in-flight tier is Committed, never
-	// re-Selected, so an earlier check would refuse its own open work.
-	selected := false
-	for _, row := range review.Development.Rows {
-		selected = selected || row.Concern == policy.EnsureDefensiveLayout && row.Selected
-	}
-	if !selected {
-		return RoundsDefenseLayoutResult{Verdict: awaitingSlot(string(policy.EnsureDefensiveLayout))}, nil
-	}
 	record, stored, err := p.journal.LoadDefenseLayout(call, world)
 	if err != nil {
 		return RoundsDefenseLayoutResult{}, err
@@ -1148,10 +1136,6 @@ func (r *RoundsDefenseLayoutPlanner) observeTiers(call context.Context, state Co
 	return census, r.reviewer.player.journal.SaveDefenseLayout(call, *record)
 }
 
-// roundsDefensiveLayoutStanding is the journal's view of the layout for
-// development arbitration: known only while the goal is opted in and a
-// record for this colony is stored; a record from another load is a reload
-// whose tiers are re-observed before it counts.
 func roundsDefensiveLayoutStanding(ctx context.Context, journal *store.Store, p policy.RoundsPolicy, snapshot domain.GenerationSnapshot) (domain.Fact[bool], error) {
 	if !p.DefensiveLayout {
 		return domain.Unknown[bool](), nil

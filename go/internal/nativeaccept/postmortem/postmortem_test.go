@@ -74,10 +74,7 @@ func fixture(t *testing.T) string {
 	exec(`CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL, retired INTEGER NOT NULL DEFAULT 0)`)
 	exec(`CREATE TABLE standard_methods(standard_id TEXT NOT NULL, episode TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL)`)
 	exec(`CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL, payload BLOB NOT NULL)`)
-	review := map[string]any{"Revision": 7, "Tick": 1200, "Enabled": true, "Development": map[string]any{"Capacity": 2, "Rows": []map[string]any{
-		{"Concern": "EnsureComfort", "Score": 10, "Selected": false, "Reason": "startup_survival"},
-		{"Concern": "EnsureFoodStorage", "Score": 50, "Selected": true, "Reason": ""},
-	}}}
+	review := map[string]any{"Revision": 7, "Tick": 1200, "Enabled": true}
 	data, _ := json.Marshal(review)
 	exec(`INSERT INTO rounds VALUES(1,?)`, data)
 	goal := func(id, status, need string) {
@@ -146,17 +143,17 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 		t.Fatalf("flight native_call error missing: %+v", refusals)
 	}
 	review := section(t, d, "rounds")
-	if !hasLine(review, "EnsureComfort not selected: startup_survival", "Development.Rows[EnsureComfort]") {
+	if !hasLine(review, "standard routine-c-EnsureComfort deficit/open priority 2 episode 0: 0 live methods", "standards#routine-c-EnsureComfort") {
 		t.Fatalf("review = %+v", review)
 	}
-	if !hasLine(review, "review revision 7 at tick 1200 enabled=true; development capacity 2 committed=[]", "rounds") {
+	if !hasLine(review, "review revision 7 at tick 1200 enabled=true", "rounds") {
 		t.Fatalf("review line missing: %+v", review)
 	}
 	if !hasLine(review, "standard routine-c-EnsureFoodStorage deficit/open priority 2 episode 0: 0 live methods", "standards#routine-c-EnsureFoodStorage") {
 		t.Fatalf("selected goal without methods missing: %+v", review)
 	}
-	if hasLine(review, "standard routine-c-EnsureComfort", "") || hasLine(review, "EnsureCooking", "") {
-		t.Fatalf("a development-refused or satisfied goal is not a zero-method finding: %+v", review)
+	if hasLine(review, "EnsureCooking", "") {
+		t.Fatalf("a satisfied goal is not a zero-method finding: %+v", review)
 	}
 	stages := section(t, d, "unsuccessful plan stages")
 	if !hasLine(stages, "a1 () unsuccessful at tick 40: native_failure", "transitions#3") || !hasLine(stages, "a2 () receipt refused at tick 41", "transitions#4") {

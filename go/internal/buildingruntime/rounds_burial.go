@@ -71,16 +71,6 @@ func (r *RoundsBurialPlanner) step(call, epoch context.Context, _ *stepArbiter) 
 	if !workable {
 		return RoundsBurialResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	// MaintainBurial competes for the bounded concurrent-project capacity like
-	// any other autopilot goal; only act while this review's arbitration
-	// selected it.
-	selected := false
-	for _, row := range review.Development.Rows {
-		selected = selected || row.Concern == policy.MaintainBurial && row.Selected
-	}
-	if !selected {
-		return RoundsBurialResult{Verdict: awaitingSlot(string(policy.MaintainBurial))}, nil
-	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {

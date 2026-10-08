@@ -25,7 +25,7 @@ func TestServeClientDecodesEachEndpoint(t *testing.T) {
 		case "/api/spectator/now":
 			w.Write([]byte(`{"tick":4200,"concerns":[{"concern":"Feed","method":"Hunt","blocked":"no_hunter"}],"pacing":{"reason":"held","detail":"d"}}`))
 		case "/api/routines":
-			w.Write([]byte(`{"reviewsEnabled":true,"sections":[{"x":1}],"development":{"tick":4200,"capacity":3,"heldWorkers":1,"limiting":"capacity","committed":["Feed"],"rows":[{"concern":"Feed","score":1.5,"selected":true,"reason":"selected"},{"concern":"Roof","score":0.5,"reason":"capacity","bottleneck":"Construction"}]},"progress":[{"concern":"Feed","blocked":"no_hunter"}]}`))
+			w.Write([]byte(`{"lastReviewTick":4200,"emergency":["Fire"],"progress":[{"concern":"Feed","blocked":"no_hunter"}]}`))
 		default:
 			w.WriteHeader(404)
 		}
@@ -38,7 +38,7 @@ func TestServeClientDecodesEachEndpoint(t *testing.T) {
 		t.Fatalf("now %+v", n)
 	}
 	r := c.Routines(ctx)
-	if r.Value == nil || r.Value.Development == nil || len(r.Value.Development.Rows) != 2 || r.Value.Development.Rows[1].Reason != "capacity" || r.Value.Development.Rows[1].Bottleneck != "Construction" || r.Value.Progress[0].Blocked != "no_hunter" {
+	if r.Value == nil || r.Value.Tick == nil || *r.Value.Tick != 4200 || len(r.Value.Emergency) != 1 || r.Value.Progress[0].Blocked != "no_hunter" {
 		t.Fatalf("routines %+v", r)
 	}
 }

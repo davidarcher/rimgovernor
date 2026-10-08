@@ -570,7 +570,6 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 		return s
 	}
 	// development is need -> refused (ranked and not selected).
-	development := map[string]bool{}
 	var payload []byte
 	err := db.QueryRowContext(ctx, "SELECT payload FROM rounds WHERE singleton=1").Scan(&payload)
 	switch {
@@ -580,45 +579,15 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 		s.Note = "rounds: " + err.Error()
 	default:
 		var review struct {
-			Revision    uint64
-			Tick        int64
-			Enabled     bool
-			Development struct {
-				Tick      int64
-				Capacity  int
-				Committed []string
-				Rows      []struct {
-					Concern             string
-					Score               float64
-					Deficit             *float64
-					Selected, Committed bool
-					Reason              string
-					Bottleneck          string
-				}
-			}
+			Revision uint64
+			Tick     int64
+			Enabled  bool
 		}
 		if err := json.Unmarshal(payload, &review); err != nil {
 			s.Note = "rounds payload: " + err.Error()
 		} else {
-			text := fmt.Sprintf("review revision %d at tick %d enabled=%t; development capacity %d committed=%v", review.Revision, review.Tick, review.Enabled, review.Development.Capacity, review.Development.Committed)
+			text := fmt.Sprintf("review revision %d at tick %d enabled=%t", review.Revision, review.Tick, review.Enabled)
 			s.Lines = append(s.Lines, Line{Text: text, Evidence: "service.sqlite rounds"})
-			for _, row := range review.Development.Rows {
-				development[row.Concern] = !row.Selected
-				if row.Selected {
-					continue
-				}
-				deficit := "-"
-				if row.Deficit != nil {
-					deficit = strconv.FormatFloat(*row.Deficit, 'f', 2, 64)
-				}
-				text := fmt.Sprintf("%s not selected: %s (score %.2f deficit %s)", row.Concern, row.Reason, row.Score, deficit)
-				if row.Bottleneck != "" {
-					text += " bottleneck " + row.Bottleneck
-				}
-				if len(s.Lines) < maxLines {
-					s.Lines = append(s.Lines, Line{Text: text, Evidence: "service.sqlite rounds Development.Rows[" + row.Concern + "]"})
-				}
-			}
 		}
 	}
 	// Goals in deficit that development selected (or never ranked) with no
@@ -648,9 +617,6 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 			continue
 		}
 		if goal.Status != "open" || goal.Finding != "unmet" {
-			continue
-		}
-		if refused, known := development[needOf(id)]; known && refused {
 			continue
 		}
 		count++
@@ -684,9 +650,6 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 		if json.Unmarshal(payload, &project) != nil || project.Status != "open" || project.Finding != "unmet" {
 			continue
 		}
-		if refused, known := development[project.Kind]; known && refused {
-			continue
-		}
 		count++
 		if len(s.Lines) >= 2*maxLines {
 			continue
@@ -697,17 +660,6 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 		s.Lines = append(s.Lines, Line{Text: "no selected standard in deficit", Evidence: "service.sqlite standards"})
 	}
 	return s
-}
-
-// needOf is the routine need a goal id names: routine goal ids are
-// "routine-<colony>-<Need>[-<subject>]", so the need is the third
-// dash-separated part; any other id is returned whole.
-func needOf(concernID string) string {
-	parts := strings.SplitN(concernID, "-", 4)
-	if len(parts) >= 3 && parts[0] == "routine" {
-		return parts[2]
-	}
-	return concernID
 }
 
 // --- 4. unsuccessful stages (raw store) --------------------------------

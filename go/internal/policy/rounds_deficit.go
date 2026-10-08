@@ -19,7 +19,7 @@ func RoundsWorkers(pawns []WorkPawn) domain.Fact[int] {
 	return domain.Known(count)
 }
 
-func RoundsDevelopmentDeficit(id ConcernID, f RoundsFacts, p RoundsPolicy) domain.Fact[float64] {
+func RoundsDeficit(id ConcernID, f RoundsFacts, p RoundsPolicy) domain.Fact[float64] {
 	var stock, target int64
 	var known bool
 	switch id {
@@ -42,13 +42,7 @@ func RoundsDevelopmentDeficit(id ConcernID, f RoundsFacts, p RoundsPolicy) domai
 			target = max(target, stock+unarmed)
 		}
 	case EnsureDefensiveLayout:
-		// Config-only opt-in (see RoundsPolicy.DefensiveLayout): while
-		// opted in the layout counts as a full deficit so development
-		// arbitration can select it, until the journal shows every tier
-		// standing; then it ranks by age alone so an active repair or power
-		// deficit takes the slot first and the planner's periodic
-		// re-verification still runs when a slot is free. Without this
-		// the goal ranks deficit_unknown and every tier admission conflicts.
+		// A configured layout is owed until every tier is observed standing.
 		if !p.DefensiveLayout {
 			return domain.Unknown[float64]()
 		}
@@ -57,10 +51,7 @@ func RoundsDevelopmentDeficit(id ConcernID, f RoundsFacts, p RoundsPolicy) domai
 		}
 		return domain.Known(1.0)
 	case MaintainFoodStorage:
-		// The food reserve review (#428): its refill is a preservation bill
-		// that needs a ranked deficit for a development slot. Reserve access
-		// (a pending hold or release) is a full deficit so the slot is not
-		// withheld while stock moves; the upkeep census itself ranks no slot.
+		// Pending reserve access is observed as a full deficit.
 		reserve, reserveKnown := f.FoodReserve.Value()
 		if !reserveKnown {
 			return domain.Unknown[float64]()
@@ -73,8 +64,7 @@ func RoundsDevelopmentDeficit(id ConcernID, f RoundsFacts, p RoundsPolicy) domai
 		}
 		return domain.Known(min(1.0, max(0.0, reserve.DeficitNutrition/reserve.TargetNutrition)))
 	case MaintainMedicalReserves:
-		// The reserve review's own stock/target: the harvest or bench method
-		// needs a ranked deficit to be admitted at development priority.
+		// The reserve review supplies the measured stock and target.
 		review, err := ReviewMedicalReserve(f.MedicalReserve, f.UpkeepIssued[MaintainMedicalReserves], p.MedicalReserve)
 		if err != nil {
 			return domain.Unknown[float64]()
@@ -317,35 +307,4 @@ func ResourceTargetNeed(targets map[Resource]int64, stock domain.Fact[[]Amount])
 		}
 	}
 	return domain.Known(false), domain.Known(min(1.0, max(0.0, float64(target-have)/float64(target))))
-}
-
-// outdoorHazards are native game conditions under which outdoor pawn work is
-// observed unsafe rather than merely uncomfortable.
-var outdoorHazards = map[string]bool{"ToxicFallout": true}
-
-// RoundsDevelopmentRisk measures a routine goal's observed work exposure for
-// ranking: goals whose labor profile is outdoor work (construction, mining,
-// plant cutting) carry risk 1 under an observed outdoor hazard condition and
-// risk 0.5 while a cold or hot latch is active; everything else is 0. It is
-// ordering evidence for admission, not a safety guard: native danger checks
-// and Hands dispatch guards still apply.
-func RoundsDevelopmentRisk(id ConcernID, f RoundsFacts, l RoundsLatches) domain.Fact[float64] {
-	outdoor := false
-	for _, w := range ConcernLabor(id) {
-		outdoor = outdoor || w == WorkConstruction || w == WorkMining || w == WorkPlantCutting
-	}
-	if !outdoor {
-		return domain.Known(0.0)
-	}
-	if conditions, known := f.DisasterConditions.Value(); known {
-		for _, c := range conditions {
-			if outdoorHazards[c.Definition] {
-				return domain.Known(1.0)
-			}
-		}
-	}
-	if l.Cold || l.Hot {
-		return domain.Known(0.5)
-	}
-	return domain.Known(0.0)
 }

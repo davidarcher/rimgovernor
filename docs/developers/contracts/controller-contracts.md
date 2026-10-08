@@ -104,14 +104,13 @@ the observable it should move, the tick native evidence last moved it, the block
 inspection tick and the blocker. Progress is native outcome, never dispatch. Blocker
 reads: `blocked:no_worker` (designation dispatched, no capable pawn), `native_ineligible`,
 `reconcile_write` (unknown receipt; reconciled by action identity before any retry),
-`no_method`. `DevelopmentStallTicks` (and the hunt, haul and harvest instances
+`no_method`. `domain.TicksPerDay` (and the hunt, haul and harvest instances
 `RoundsPolicy.HuntProgress`/`HaulProgress`/`AcquisitionProgress` of `ProgressContract`)
 keys a stalled situation out for a bounded cooldown (`ProgressCooldownMax`, never
 permanent) and planners rotate method or target (`Store.RecordProgressCooldown`). The
 food concern walks acquire, cook, store, grow, naming `prerequisite:EnsureCooking` while
-cooking is known missing. A record blocked on a foothold prerequisite withholds
-Construction from development ranking (`DevelopmentRequest.Withheld`), so optional
-projects read `labor_unavailable` instead of diverting the builder.
+cooking is known missing. Prerequisites remain explicit dependencies; pawn work priorities schedule the
+orders without reserving a builder for a Concern.
 
 **Colony stage** (`policy.ColonyStage`: Foothold, Reserves, Stable, Development) is a
 pure function of colony facts and progress records (`ReviewColonyStage`), never of
@@ -128,22 +127,15 @@ two thirds of `FootholdFoodDays`, Development only under the target, Stable only
 production concern stays blocked `StableExitTicks`). The stage climbs one step per review,
 drops cascade, and unknown facts neither advance nor drop it.
 
-Concerns raised by stage (`policy.StageConcernAllowed`):
-
-| From stage | Concerns raised |
-| --- | --- |
-| Reserves | Expansion, research, non-emergency resource floors. |
-| Stable | Defensive layout, stone shell (with Stonecutting), equipment, refrigeration (earlier for a full spoiling emergency), cleaning, hospital beds, animal concerns with a tame animal. |
-| Development | Comfort, flooring, lighting. |
-| Every stage | Emergencies and cross-stage monitors (tending, mood, fire, raids). |
+Inspection-specific stage and prerequisite checks determine useful work.
+There is no stage-based worker allocation or generic development admission queue.
 
 The record (`ColonyStageRecord`: stage, since, first unmet criterion as blocker+reason,
 held) lives on `Rounds.Stage` and sets the next review's budgets
-(`policy.StageRoundsPolicy`): Development adds one development project; the research
-ladder walks 2/5/8/all rungs at Foothold/Reserves/Stable/Development; food reserve and
-wood targets scale 1.5x at Stable and 2x at Development. Foothold with shelter unmet
-holds comfort-class development (`EnsureComfort`, `MaintainStoneShell`,
-`MaintainHomeCoverage`; rows read `stage_foothold`, after the labor check). The stage
+(`policy.StageRoundsPolicy`): the research ladder walks 2/5/8/all rungs at
+Foothold/Reserves/Stable/Development; food reserve and wood targets scale 1.5x at
+Stable and 2x at Development. A Foothold colony with shelter unmet promotes shelter
+planning into the critical planner wave. The stage
 adds no action kind; the `rounds_review` timeline event carries
 `stage`/`stage_blocker`/`stage_reason`/`stage_held` and `colony_stage` records each
 change. `GET /api/spectator/now` (a pure read: no journal row, no speed request) adds

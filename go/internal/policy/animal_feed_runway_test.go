@@ -187,16 +187,6 @@ func TestAnimalFeedRunwayUnknownInputs(t *testing.T) {
 	if _, known := PlanAnimalFeedRunway(in).Projection.Value(); known {
 		t.Fatal("unknown animals defaulted")
 	}
-	if d, reason := shadowShortfall(ForwardProjection{}, ShadowAnimalFeed); d != 0 || reason == "" {
-		t.Fatal(d, reason)
-	}
-}
-
-func TestShadowShortfallAnimalFeed(t *testing.T) {
-	p := ForwardProjection{AnimalFeed: domain.Known(AnimalFeedProjection{ShortfallDays: 2})}
-	if d, reason := shadowShortfall(p, ShadowAnimalFeed); d != 2 || reason != "" {
-		t.Fatal(d, reason)
-	}
 }
 
 func TestAnimalFeedFilterOf(t *testing.T) {

@@ -44,26 +44,17 @@ with a flag (`warn`, `emergency`) per line and no labels of its own.
   observable it should move and how long ago the tick evidence last moved it
   (game hours); when the pacing reason is idle (governor off, held, stopped,
   between windows, refused), that reason instead.
-- **Pursuing**: the colony stage, the first unmet condition of the next stage
-  with its measured values, and the ranked development rows that are selected or
-  in progress.
-- **Concerns**: every active concern with its method, status, deficit and
-  review deadline, most urgent first, emergencies marked; the last clock stop
-  with its latency split.
-- **Waiting**: the development capacity summary and each ranked row that waits,
-  with its reason and bottleneck.
+- **Pursuing**: the colony stage, its next unmet condition and current Concern methods.
+- **Concerns**: every active Concern with its method, status, deficit and review
+  deadline, most urgent first; the last clock stop with its latency split.
+- **Waiting**: actual Concern blockers and waits, including prerequisites,
+  unavailable methods and emergency precedence.
 
 `internal/spectator` projects these from the last review's records and the
-flight-recorder rows of the current launch. Reading issues no native call,
-writes no journal row and requests no speed, so watching never changes the
-simulation. A failed Now reading keeps its last good report with the stale
-notice; a failed routines reading puts its notice on Pursuing and Waiting, which
-then say development priorities are unavailable. In Observe mode neither route
-is served, so the tab shows one notice line and no sections. The data has gaps
-the report states instead of filling: the feeds mark an emergency only through
-deferral reasons and `held:emergency` concerns, never naming the need (the
-controller log does), and development rows carry no category, so Pursuing ranks
-them by concern name.
+flight recorder. `/api/routines` supplies the review tick, emergency needs and
+progress. These reads issue no native calls and change no simulation state.
+A failed reading retains its last good report with a stale notice. In Observe
+mode the routes are unserved and the tab shows a notice without sections.
 
 The Problems tab ([problems.go](../../../go/cmd/launcher/problems.go)) reads the
 flight recorder directly, so it still shows the last session after the

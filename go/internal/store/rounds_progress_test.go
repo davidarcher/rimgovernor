@@ -40,14 +40,8 @@ func TestRoundsProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	food := progressRecord(t, first.Review, policy.EnsureFoodSupply)
 	// The Reserves floor raises expansion and the resource floors and keeps
 	// the full-day stall deadline (StageGoalStallScale cuts only Foothold's).
-	if food.Method != "acquire" || food.Blocked != policy.BlockedPrerequisite(policy.EnsureCooking) || food.LastProgress != 10 || food.NextReview != 10+policy.DevelopmentStallTicks || food.Expected == "" {
+	if food.Method != "acquire" || food.Blocked != policy.BlockedPrerequisite(policy.EnsureCooking) || food.LastProgress != 10 || food.NextReview != 10+domain.TicksPerDay || food.Expected == "" {
 		t.Fatalf("food record %+v", food)
-	}
-	if expansion := developmentRow(t, first.Review, policy.MaintainHousing); !expansion.Selected {
-		t.Fatalf("builder withheld for a bench nobody proposed: %+v", expansion)
-	}
-	if !developmentRow(t, first.Review, policy.MaintainResource).Selected {
-		t.Fatal(first.Review.Development.Rows)
 	}
 	for _, binding := range first.Review.Standards {
 		if _, ok := first.Review.ConcernProgress(binding.Concern); !ok && roundsGoal(t, first, binding.Concern).Standard.Status == domain.StandardOpen {
@@ -66,9 +60,6 @@ func TestRoundsProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	second := reviewRounds(t, s, &r)
 	if food = progressRecord(t, second.Review, policy.EnsureFoodSupply); food.Blocked != policy.BlockedNoMethod || food.LastProgress != 10 {
 		t.Fatalf("food record %+v", food)
-	}
-	if !developmentRow(t, second.Review, policy.MaintainHousing).Selected {
-		t.Fatal(second.Review.Development.Rows)
 	}
 	// A shrinking deficit is native progress and resets the clock; a
 	// disabled review keeps the records.
@@ -143,7 +134,7 @@ func TestRoundsProgressDesignationWithoutWorkerIsBlocked(t *testing.T) {
 	wood = progressRecord(t, second.Review, policy.MaintainResource)
 	// Still Foothold: the six-hour deadline applies here too, so 3000 ticks
 	// later the settlement's progress still stands.
-	if wood.Blocked != policy.BlockedNoWorker || wood.Method != "cut" || wood.LastProgress != settled.Review.Tick || wood.NextReview != settled.Review.Tick+policy.DevelopmentStallTicks/4 {
+	if wood.Blocked != policy.BlockedNoWorker || wood.Method != "cut" || wood.LastProgress != settled.Review.Tick || wood.NextReview != settled.Review.Tick+domain.TicksPerDay/4 {
 		t.Fatalf("issued cut with no plant cutter must be blocked: %+v", wood)
 	}
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1, policy.WorkPlantCutting: 1})

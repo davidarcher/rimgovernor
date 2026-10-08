@@ -108,7 +108,7 @@ func TestGoalProgressCooldownLiftsWhenConditionChanges(t *testing.T) {
 	}
 }
 
-func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T) {
+func TestFoodProgressSurfacesCookingPrerequisite(t *testing.T) {
 	f := RoundsFacts{FoodDays: domain.Known(3.5), Cooking: domain.Known(false), StockpileZones: domain.Known([]StockpileRoleCount{{Role: "meals", Zones: 1}})}
 	c, prerequisite, observed := FoodProgress(f, DefaultRoundsPolicy(), false)
 	if v, known := observed.Value(); c.Method != "cook" || prerequisite != EnsureCooking || !known || v != 0.5 {
@@ -134,38 +134,5 @@ func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T
 	food := ReviewConcernProgress(ConcernProgress{}, EnsureFoodSupply, ProgressContract{Method: "cook", Deadline: 10}, ProgressEvidence{Prerequisite: EnsureCooking}, 5)
 	if food.Blocked != BlockedPrerequisite(EnsureCooking) || food.Blocked.Prerequisite() != EnsureCooking {
 		t.Fatalf("prerequisite not surfaced: %+v", food)
-	}
-	if withheld := WithheldLabor([]ConcernProgress{food, {Concern: EnsureCooking}}); len(withheld) != 0 {
-		t.Fatalf("prerequisite with no open method withheld %v", withheld)
-	}
-	withheld := WithheldLabor([]ConcernProgress{food, {Concern: MaintainResource}, {Concern: EnsureCooking, Open: true}})
-	if len(withheld) != 1 || withheld[0] != WorkConstruction {
-		t.Fatalf("withheld %v", withheld)
-	}
-	// One builder, withheld for the bench: the ranked construction goal
-	// reads labor_unavailable while the plant-cutting goal is selected.
-	r := developmentFixture()
-	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkPlantCutting: 1})
-	r.Concerns = []DevelopmentConcern{
-		{ID: EnsureBasicDefense, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkConstruction}},
-		{ID: MaintainResource, Priority: 3, Deficit: domain.Known(.5), Labor: LaborProfile{WorkPlantCutting}},
-	}
-	r.Withheld = withheld
-	s := rank(t, r)
-	for _, row := range s.Rows {
-		switch row.Concern {
-		case EnsureBasicDefense:
-			if !row.Selected {
-				t.Fatalf("builder diverted: %+v", row)
-			}
-		case MaintainResource:
-			if !row.Selected {
-				t.Fatalf("wood not selected: %+v", row)
-			}
-		}
-	}
-	r.Withheld = nil
-	if s = rank(t, r); len(selected(s)) != 2 {
-		t.Fatalf("without the hold both select: %+v", s.Rows)
 	}
 }

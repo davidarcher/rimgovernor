@@ -26,7 +26,7 @@ func TestPlannerStepDecisionOnePerRunShape(t *testing.T) {
 	}{
 		{name: "admitted", verdict: Verdict{Outcome: OutcomeAdmitted}, wantVerdict: "admitted", wantReason: "plan_admitted"},
 		{name: "refused", verdict: refuse(RefusalNoSpace, "", ""), wantVerdict: "refused", wantReason: "no_space"},
-		{name: "refused subject", verdict: refuse(RefusalSharedAdmission, "no_development_slot", "wood"), wantVerdict: "refused", wantReason: "shared_admission_refused", wantAttr: "subject", value: "no_development_slot"},
+		{name: "refused subject", verdict: refuse(RefusalSharedAdmission, "already_reserved", "wood"), wantVerdict: "refused", wantReason: "shared_admission_refused", wantAttr: "subject", value: "already_reserved"},
 		{name: "waiting", verdict: waitOn(WaitExistingWork), wantVerdict: "waiting", wantReason: "already_working_on_it"},
 		{name: "nothing to do", verdict: Verdict{Outcome: OutcomeNothingToDo}, wantVerdict: "ok", wantReason: "nothing_to_do"},
 		{name: "no verdict", wantVerdict: "ok", wantReason: "no_verdict"},
@@ -70,9 +70,9 @@ func TestMethodAdmissionDecisionAdmittedAndRefused(t *testing.T) {
 	if p := admitted.Payload(); admitted.Kind != "admission" || p["verdict"] != "admitted" || p["reason"] != "method_committed" || p["target"] != "shelter" {
 		t.Fatalf("%+v", p)
 	}
-	refused := methodAdmissionDecision(r, store.BuildingMethodDecision{Refused: []policy.Refusal{{Reason: policy.NoDevelopmentSlot}}})
+	refused := methodAdmissionDecision(r, store.BuildingMethodDecision{Refused: []policy.Refusal{{Reason: policy.AlreadyReserved}}})
 	p := refused.Payload()
-	if p["verdict"] != "refused" || p["reason"] != string(policy.NoDevelopmentSlot) || p["attrs"].(map[string]any)["refused"] != "["+string(policy.NoDevelopmentSlot)+"]" {
+	if p["verdict"] != "refused" || p["reason"] != string(policy.AlreadyReserved) || p["attrs"].(map[string]any)["refused"] != "["+string(policy.AlreadyReserved)+"]" {
 		t.Fatalf("%+v", p)
 	}
 }

@@ -82,15 +82,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	if !workable {
 		return RoundsBillResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	if goal.OwnerPriority() >= 3 {
-		selected := false
-		for _, row := range review.Development.Rows {
-			selected = selected || row.Concern == r.need && row.Selected
-		}
-		if !selected {
-			return RoundsBillResult{Verdict: awaitingSlot(string(r.need))}, nil
-		}
-	}
+
 	for _, method := range goal.OwnerMethods() {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {

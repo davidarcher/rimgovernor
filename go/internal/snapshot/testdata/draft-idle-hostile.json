@@ -5171,12 +5171,6 @@
   "Labor": {
    "v": {}
   },
-  "LaborUse": {
-   "v": {
-    "Busy": {},
-    "Idle": {}
-   }
-  },
   "LootReadiness": {
    "FreeHaulers": {
     "v": 0
@@ -7417,126 +7411,6 @@
  },
  "Recorded": "colony 7f60d09eec774440b7135c426cb600bc load e58f6c260b9d4e17a06ced7a4e2791b2 map 0 tick 15",
  "Review": {
-  "Development": {
-   "Holds": [
-    {
-     "Labor": [
-      "Construction"
-     ]
-    }
-   ],
-   "Labor": {},
-   "Rows": [
-    {
-     "Deficit": 1,
-     "Concern": "EnsureComfort",
-     "Labor": [
-      "Construction"
-     ],
-     "Reason": "emergency",
-     "Risk": 0.5,
-     "Score": 80,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
-     "Concern": "MaintainHousing",
-     "Labor": [
-      "Construction"
-     ],
-     "Reason": "emergency",
-     "Risk": 0.5,
-     "Score": 80,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
-     "Concern": "MaintainEquipment",
-     "Labor": [
-      "Construction",
-      "Tailoring",
-      "Smithing",
-      "Crafting"
-     ],
-     "Reason": "emergency",
-     "Risk": 0.5,
-     "Score": 80,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
-     "Concern": "MaintainMedicalReserves",
-     "Labor": [
-      "Crafting",
-      "PlantCutting"
-     ],
-     "Reason": "emergency",
-     "Risk": 0.5,
-     "Score": 80,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
-     "Concern": "MaintainResource",
-     "Labor": [
-      "Mining",
-      "PlantCutting",
-      "Crafting"
-     ],
-     "Reason": "emergency",
-     "Risk": 0.5,
-     "Score": 80,
-     "WaitingSince": 15
-    },
-    {
-     "Concern": "ClearAncientShrine",
-     "Labor": [
-      "Construction"
-     ],
-     "Reason": "emergency",
-     "Risk": 0.5,
-     "WaitingSince": 15
-    },
-    {
-     "Concern": "ClearHomeObstructions",
-     "Labor": [
-      "Construction"
-     ],
-     "Reason": "emergency",
-     "Risk": 0.5,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 0,
-     "Concern": "EnsureBasicDefense",
-     "Labor": [
-      "Construction"
-     ],
-     "Reason": "emergency",
-     "Risk": 0.5,
-     "WaitingSince": 15
-    },
-    {
-     "Concern": "MaintainHerd",
-     "Labor": [
-      "Handling"
-     ],
-     "Reason": "emergency",
-     "Risk": 0,
-     "WaitingSince": 15
-    }
-   ],
-   "Snapshot": {
-    "Colony": "7f60d09eec774440b7135c426cb600bc",
-    "Load": "e58f6c260b9d4e17a06ced7a4e2791b2",
-    "Native": 12,
-    "Plan": "root/7f60d09eec774440b7135c426cb600bc/e58f6c260b9d4e17a06ced7a4e2791b2/0",
-    "Revision": 1
-   },
-   "StageHold": true,
-   "Tick": 15,
-   "Workers": 0
-  },
   "Enabled": true,
   "EventLoot": {
    "Held": [

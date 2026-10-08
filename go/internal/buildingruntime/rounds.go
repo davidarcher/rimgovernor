@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
+
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -610,7 +610,6 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
 		reading.Projection.Facts.Workers = policy.RoundsWorkers(pawns)
 		reading.Projection.Facts.Labor = policy.RoundsLabor(pawns)
-		reading.Projection.Facts.LaborUse = policy.RoundsLaborUse(pawns)
 		reading.Projection.Facts.WorkProfiles = domain.Known(policy.Profiles(pawns))
 		required, known := roundsProjectWork(definitions, reading.Projection.Definitions).Value()
 		if known {
@@ -733,7 +732,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		return store.RoundsResult{}, err
 	}
 	reading.Projection.Facts.StaleBills = r.staleBills.stale(staleCandidates)
-	result, err := p.journal.ReviewRounds(ctx, store.RoundsRequest{Revision: previous.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial})
+	result, err := p.journal.ReviewRounds(ctx, store.RoundsRequest{Revision: previous.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts})
 	if err != nil {
 	} else {
 		r.staleBills.observe(staleCandidates, result.Needs.Assessments)
@@ -741,7 +740,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		r.construction.set(result.Review.Snapshot, policy.ResourceConcernTargets(policy.ResourceConcernTargets(policy.ConstructionDemandOf(reading.Projection.Facts, r.seasonal(reading.Projection.Facts), result.Review.Latches), billDemand), clothing.Needs), clothing.Serves)
 		r.construction.merge(result.Review.Snapshot, reading.Projection.Facts.FuelRunway().Needs)
 		r.construction.merge(result.Review.Snapshot, reading.Projection.Facts.AnimalFeedRunway().Needs)
-		clockEvent(ctx, "routine", "rounds_review", "rounds ran", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "concerns", len(result.Standards) + len(result.Projects), "emergency", roundsEmergencyNames(result.Emergency)}, roundsStageAttrs(result.Review.Stage)...), append(roundsDevelopmentAttrs(result.Review.Development), roundsFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)...)
+		clockEvent(ctx, "routine", "rounds_review", "rounds ran", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "concerns", len(result.Standards) + len(result.Projects), "emergency", roundsEmergencyNames(result.Emergency)}, roundsStageAttrs(result.Review.Stage)...), roundsFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
 		r.logColonyStage(ctx, result.Review)
 		recordRoundsSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)
 		r.drawSafetyOverlay(ctx, state.Snapshot, &reading.Projection, reading.Emergency)
@@ -862,20 +861,4 @@ func (r *Rounder) dropClearedRetiredGround(ctx context.Context, snapshot domain.
 	}
 	projection.LayoutPlan = domain.Known(next)
 	return nil
-}
-
-// roundsDevelopmentAttrs is the review row's development ranking: each row's
-// concern with the reason it holds no slot ("selected" when it has one), so a
-// concern that never acts shows why at Info instead of only as a refused
-// admission.
-func roundsDevelopmentAttrs(d store.RoundsDevelopment) []any {
-	rows := make([]string, 0, len(d.Rows))
-	for _, row := range d.Rows {
-		verdict := string(row.Reason)
-		if row.Selected {
-			verdict = "selected"
-		}
-		rows = append(rows, fmt.Sprintf("%s=%s", row.Concern, verdict))
-	}
-	return []any{"development", strings.Join(rows, " "), "development_limiting", string(d.Limiting)}
 }

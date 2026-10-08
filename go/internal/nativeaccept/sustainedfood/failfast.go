@@ -164,22 +164,14 @@ func (f *failFastState) noMethod(sample map[string]any) (Verdict, bool) {
 	}
 	f.lastRevision = revision
 	methodCount, _ := sample["method_count"].(int)
-	development, _ := sample["development"].(map[string]any)
-	idle, _ := development["idle"].(bool)
-	committed, _ := development["committed"].(bool)
 	deficit := asString(sample["need"]) == string(domain.FindingUnmet) && asString(sample["status"]) == string(domain.StandardOpen)
-	if !deficit || methodCount > 0 || committed || !idle {
+	blocked := policy.BlockedReason(asString(sample["blocked"]))
+	vetoed, _ := sample["vetoed"].(bool)
+	if !deficit || methodCount > 0 {
 		f.idleReviews = f.idleReviews[:0]
 		return Verdict{}, false
 	}
-	reason := asString(development["reason"])
-	if f.cfg.MethodUnavailableWaits && reason == string(policy.DevelopmentMethodUnavailable) {
-		return Verdict{}, false
-	}
-	// An emergency (a dialog pause, an injury) holds every development row
-	// idle without handing any planner the slot; those reviews are neutral
-	// too, and a goal its Safeguard vetoes is the park verdict's.
-	if reason == string(policy.DevelopmentEmergency) {
+	if vetoed || blocked == policy.HeldEmergency || blocked.Waiting() || blocked == policy.HeldOptIn || f.cfg.MethodUnavailableWaits && blocked == policy.HeldUnavailable {
 		return Verdict{}, false
 	}
 	f.idleReviews = append(f.idleReviews, revision)
@@ -188,8 +180,8 @@ func (f *failFastState) noMethod(sample map[string]any) (Verdict, bool) {
 	}
 	return Verdict{
 		Shape:    "no_method",
-		Reason:   fmt.Sprintf("standard %s stayed open/unmet with no method through %d reviews that handed its planner the slot (revisions %d..%d, development reason %q)", f.concern, len(f.idleReviews), f.idleReviews[0], revision, asString(development["reason"])),
-		Evidence: map[string]any{"revisions": append([]uint64(nil), f.idleReviews...), "development": development},
+		Reason:   fmt.Sprintf("standard %s stayed open/unmet with no method through %d reviews (revisions %d..%d)", f.concern, len(f.idleReviews), f.idleReviews[0], revision),
+		Evidence: map[string]any{"revisions": append([]uint64(nil), f.idleReviews...), "blocked": blocked},
 	}, true
 }
 

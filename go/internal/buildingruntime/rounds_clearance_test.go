@@ -325,7 +325,7 @@ func TestRoundsClearanceRefusesPendingChunksWithoutAStore(t *testing.T) {
 	}
 	result, err := planner.Step(ctx)
 	if err != nil || result.Verdict != noSpace("chunk_dump_site") || len(source.previews) != 0 {
-		t.Fatal(result, err, source.previews, review.Review.Development.Rows)
+		t.Fatal(result, err, source.previews)
 	}
 }
 
@@ -351,7 +351,7 @@ func TestRoundsClearanceChunkHaulBatchIsOrderedOnce(t *testing.T) {
 	reviewer.native = source
 	reviewer.methods = domain.Known([]policy.ConcernID{policy.ClearHomeObstructions})
 	ctx := context.Background()
-	review, err := reviewer.Step(ctx)
+	_, err := reviewer.Step(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,7 +361,7 @@ func TestRoundsClearanceChunkHaulBatchIsOrderedOnce(t *testing.T) {
 	}
 	result, err := planner.Step(ctx)
 	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal(result, err, review.Review.Development.Rows)
+		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
 	if err != nil {

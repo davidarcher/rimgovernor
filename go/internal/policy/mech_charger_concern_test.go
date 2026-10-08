@@ -20,7 +20,7 @@ func TestEnsureMechChargerRaisesGoalOnlyWhereTheNeedIsKnown(t *testing.T) {
 	if !hasNeed(r, EnsureMechCharger) {
 		t.Fatal("an owed charger opens the goal", r)
 	}
-	if got, _ := RoundsDevelopmentDeficit(EnsureMechCharger, f, RoundsPolicy{}).Value(); got != 1 {
+	if got, _ := RoundsDeficit(EnsureMechCharger, f, RoundsPolicy{}).Value(); got != 1 {
 		t.Fatal("owed is a full deficit", got)
 	}
 	f.MechChargerOwed = domain.Known(false)
@@ -28,11 +28,11 @@ func TestEnsureMechChargerRaisesGoalOnlyWhereTheNeedIsKnown(t *testing.T) {
 	if hasNeed(r, EnsureMechCharger) || assessment(t, r, EnsureMechCharger) != domain.FindingMet {
 		t.Fatal("no charger owed settles the goal", r)
 	}
-	if got, ok := RoundsDevelopmentDeficit(EnsureMechCharger, f, RoundsPolicy{}).Value(); !ok || got != 0 {
+	if got, ok := RoundsDeficit(EnsureMechCharger, f, RoundsPolicy{}).Value(); !ok || got != 0 {
 		t.Fatal("none owed is no deficit", got, ok)
 	}
 	f.MechChargerOwed = domain.Unknown[bool]()
-	if _, ok := RoundsDevelopmentDeficit(EnsureMechCharger, f, RoundsPolicy{}).Value(); ok {
+	if _, ok := RoundsDeficit(EnsureMechCharger, f, RoundsPolicy{}).Value(); ok {
 		t.Fatal("an unread need is an unknown deficit")
 	}
 }

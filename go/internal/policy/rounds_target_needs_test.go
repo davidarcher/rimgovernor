@@ -57,7 +57,7 @@ func TestResourceTargetNeedUsesWorstCoveredTarget(t *testing.T) {
 // Configured research and resource targets must be able to win a development
 // slot: a measured deficit ranks them alongside comfort and expansion instead
 // of leaving them permanently deficit_unknown.
-func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
+func TestConfiguredTargetsReportDeficits(t *testing.T) {
 	p := DefaultRoundsPolicy()
 	p.ResearchLadder = []string{"Stonecutting"}
 	f := stableRounds()
@@ -74,20 +74,6 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 	}
 	if assessed[EnsureResearch] != domain.FindingUnmet || assessed[MaintainResource] != domain.FindingUnmet {
 		t.Fatal(assessed)
-	}
-	state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Concerns: r.Concerns})
-	if err != nil {
-		t.Fatal(err)
-	}
-	selected := map[ConcernID]DevelopmentRow{}
-	for _, row := range state.Rows {
-		selected[row.Concern] = row
-	}
-	if !selected[EnsureResearch].Selected || selected[EnsureResearch].Score != 100 {
-		t.Fatal(selected[EnsureResearch])
-	}
-	if !selected[MaintainResource].Selected || selected[MaintainResource].Score != 60 {
-		t.Fatal(selected[MaintainResource])
 	}
 	// Missing native facts keep a configured resource target unknown, never
 	// recovered; the research ladder is not walked without a census.
@@ -106,37 +92,34 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 // A MaintainResource deficit whose bench waits on a recorded research need
 // holds no development slot of its own: with one slot, EnsureResearch takes
 // it; once the project is finished the resource goal competes again.
-func TestResourceGoalYieldsItsSlotToRecordedResearch(t *testing.T) {
+func TestResourceMethodWaitsForRecordedResearch(t *testing.T) {
 	p := DefaultRoundsPolicy()
 	f := stableRounds()
 	f.ResourceNeeds = map[Resource]int64{"MeleeWeapon_Gladius": 1}
 	f.ResearchNeeds = []string{"Smithing"}
 	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Smithing"}})
 	f.Resources = domain.Known([]Amount{})
-	rank := func() map[ConcernID]DevelopmentRow {
+	check := func() map[ConcernID]RoundsConcern {
 		r, err := InspectRounds(f, RoundsLatches{}, p)
 		if err != nil {
 			t.Fatal(err)
 		}
-		state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Concerns: r.Concerns})
-		if err != nil {
-			t.Fatal(err)
-		}
-		rows := map[ConcernID]DevelopmentRow{}
-		for _, row := range state.Rows {
-			rows[row.Concern] = row
+		rows := map[ConcernID]RoundsConcern{}
+		for _, row := range r.Concerns {
+			rows[row.ID] = row
 		}
 		return rows
 	}
-	rows := rank()
-	if !rows[EnsureResearch].Selected || rows[MaintainResource].Reason != DevelopmentMethodUnavailable {
-		t.Fatal(rows[EnsureResearch], rows[MaintainResource])
+	rows := check()
+	if rows[EnsureResearch].ID == "" || !rows[MaintainResource].MethodUnavailable {
+		t.Fatal(rows)
 	}
 	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Smithing"}, Finished: []ResearchProjectID{"Smithing"}})
-	rows = rank()
-	if _, raised := rows[EnsureResearch]; raised || !rows[MaintainResource].Selected {
-		t.Fatal(rows[EnsureResearch], rows[MaintainResource])
+	rows = check()
+	if rows[EnsureResearch].ID != "" || rows[MaintainResource].MethodUnavailable {
+		t.Fatal(rows)
 	}
+
 }
 
 // A derived resource need (the defensive layout's turret fuel the census

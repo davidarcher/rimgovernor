@@ -406,18 +406,10 @@ func TestServeShutdownCancelsActiveProvider(t *testing.T) {
 	<-requestDone
 }
 
-func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
-	risk := 1.0
-	development := policy.DevelopmentState{Tick: 500, Workers: domain.Known(3), Labor: domain.Known(map[policy.WorkType]int{policy.WorkResearch: 1, policy.WorkConstruction: 0}), Capacity: 2, Committed: []domain.ConcernID{"player-room"},
-		Rows: []policy.DevelopmentRow{
-			{Concern: "ensure-research", Score: 60, Deficit: domain.Known(0.6), WaitingSince: 100, Selected: true},
-			{Concern: "ensure-comfort", Score: 40, Deficit: domain.Known(0.5), WaitingSince: 100, Reason: policy.DevelopmentLabor, Bottleneck: policy.WorkConstruction},
-			{Concern: "maintain-wood", Score: 0, Deficit: domain.Known(0.3), Risk: domain.Known(risk), WaitingSince: 200, Reason: policy.DevelopmentRisk},
-			{Concern: "maintain-resource", WaitingSince: 300, Reason: policy.DevelopmentUnknown},
-		}}
+func TestRoutinesRouteExposesProgressWithoutCapacity(t *testing.T) {
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
 		Rounds: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
-			return RoundsStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Development: &development}, nil
+			return RoundsStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Emergency: []policy.ConcernID{policy.ActiveCombat}, Progress: []policy.ConcernProgress{{Concern: policy.MaintainHousing, Blocked: policy.HeldEmergency}}}, nil
 		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)
@@ -428,24 +420,15 @@ func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
-	d := got.Development
-	if status != 200 || d == nil || d.Tick != 500 || d.Workers == nil || *d.Workers != 3 || d.Capacity != 2 || len(d.Committed) != 1 || len(d.Rows) != 4 {
-		t.Fatalf("development ranking: %s", body)
+	if status != 200 || got.LastReviewTick == nil || *got.LastReviewTick != 500 || len(got.Emergency) != 1 || len(got.Progress) != 1 || got.Progress[0].Blocked != policy.HeldEmergency {
+		t.Fatalf("progress: %s", body)
 	}
-	if len(d.Labor) != 2 || d.Labor[0].Work != policy.WorkConstruction || d.Labor[0].Free != 0 || d.Labor[1].Work != policy.WorkResearch || d.Labor[1].Free != 1 {
-		t.Fatalf("labor rows unsorted or lost: %s", body)
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(body, &fields); err != nil {
+		t.Fatal(err)
 	}
-	if d.Rows[1].Reason != policy.DevelopmentLabor || d.Rows[1].Bottleneck != policy.WorkConstruction || d.Rows[1].Risk != nil {
-		t.Fatalf("labor deferral: %s", body)
-	}
-	if d.Rows[2].Reason != policy.DevelopmentRisk || d.Rows[2].Risk == nil || *d.Rows[2].Risk != 1 || d.Rows[3].Deficit != nil {
-		t.Fatalf("risk deferral or unknown deficit: %s", body)
-	}
-	if !strings.Contains(string(body), `"reason":"labor_unavailable"`) || !strings.Contains(string(body), `"reason":"risk_deferred"`) || !strings.Contains(string(body), `"bottleneck":""`) {
-		t.Fatalf("wire reasons: %s", body)
-	}
-	if got.Roster != nil {
-		t.Fatalf("roster without a report: %s", body)
+	if _, present := fields["development"]; present {
+		t.Fatal("obsolete capacity exposed")
 	}
 }
 
@@ -454,7 +437,7 @@ func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
 // blocker, with its bounded cooldowns.
 func TestRoutinesRouteExposesConcernProgress(t *testing.T) {
 	progress := []policy.ConcernProgress{
-		{Concern: policy.EnsureFoodSupply, Method: "acquire", Expected: "food runway toward target", LastProgress: 100, NextReview: 100 + policy.DevelopmentStallTicks, Blocked: policy.BlockedPrerequisite(policy.EnsureCooking)},
+		{Concern: policy.EnsureFoodSupply, Method: "acquire", Expected: "food runway toward target", LastProgress: 100, NextReview: 100 + domain.TicksPerDay, Blocked: policy.BlockedPrerequisite(policy.EnsureCooking)},
 		{Concern: policy.MaintainResource, Method: "cut", Expected: "wood stock", LastProgress: 400, NextReview: 900, Blocked: policy.BlockedNoWorker, Cooldowns: []policy.ProgressCooldown{{Key: "cut/Plant_TreeOak", Until: 1200}}},
 	}
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
@@ -474,7 +457,7 @@ func TestRoutinesRouteExposesConcernProgress(t *testing.T) {
 		t.Fatalf("concern progress: %s", body)
 	}
 	food := got.Progress[0]
-	if food.Concern != policy.EnsureFoodSupply || food.Method != "acquire" || food.Expected == "" || food.LastProgress != 100 || food.NextReview != 100+policy.DevelopmentStallTicks || food.Blocked.Prerequisite() != policy.EnsureCooking || len(food.Cooldowns) != 0 {
+	if food.Concern != policy.EnsureFoodSupply || food.Method != "acquire" || food.Expected == "" || food.LastProgress != 100 || food.NextReview != 100+domain.TicksPerDay || food.Blocked.Prerequisite() != policy.EnsureCooking || len(food.Cooldowns) != 0 {
 		t.Fatalf("food record: %s", body)
 	}
 	wood := got.Progress[1]

@@ -10,13 +10,13 @@ func TestRoundsDevelopmentNativeFractionsAndWorkers(t *testing.T) {
 	p := DefaultRoundsPolicy()
 	f := RoundsFacts{Colonists: domain.Known(int64(3)), Armed: domain.Known(int64(1)), Wood: domain.Known(int64(175))}
 	for _, id := range []ConcernID{EnsureBasicDefense} {
-		v, k := RoundsDevelopmentDeficit(id, f, p).Value()
+		v, k := RoundsDeficit(id, f, p).Value()
 		if !k || v != .5 {
 			t.Fatal(id, v, k)
 		}
 	}
 	f.Armed = domain.Unknown[int64]()
-	if _, k := RoundsDevelopmentDeficit(EnsureBasicDefense, f, p).Value(); k {
+	if _, k := RoundsDeficit(EnsureBasicDefense, f, p).Value(); k {
 		t.Fatal("unknown equipment became a deficit")
 	}
 	pawns := []WorkPawn{{Available: domain.Known(true), Applies: domain.Known(true)}, {Available: domain.Known(false)}}
@@ -29,24 +29,24 @@ func TestRoundsDevelopmentNativeFractionsAndWorkers(t *testing.T) {
 	}
 }
 
-func TestRoundsDevelopmentDeficitDefensiveLayoutFollowsOptIn(t *testing.T) {
-	if _, known := RoundsDevelopmentDeficit(EnsureDefensiveLayout, RoundsFacts{}, RoundsPolicy{}).Value(); known {
+func TestRoundsDeficitDefensiveLayoutFollowsOptIn(t *testing.T) {
+	if _, known := RoundsDeficit(EnsureDefensiveLayout, RoundsFacts{}, RoundsPolicy{}).Value(); known {
 		t.Fatal("opted-out layout must rank deficit_unknown")
 	}
-	if v, known := RoundsDevelopmentDeficit(EnsureDefensiveLayout, RoundsFacts{}, RoundsPolicy{DefensiveLayout: true}).Value(); !known || v != 1 {
+	if v, known := RoundsDeficit(EnsureDefensiveLayout, RoundsFacts{}, RoundsPolicy{DefensiveLayout: true}).Value(); !known || v != 1 {
 		t.Fatalf("opted-in layout deficit = %v,%v; want 1,true", v, known)
 	}
 	// A standing layout ranks by age alone so an active repair or power
 	// deficit outranks it; an unknown or fallen record keeps the full deficit.
 	standing := RoundsFacts{DefensiveLayoutStanding: domain.Known(true)}
-	if v, known := RoundsDevelopmentDeficit(EnsureDefensiveLayout, standing, RoundsPolicy{DefensiveLayout: true}).Value(); !known || v != 0 {
+	if v, known := RoundsDeficit(EnsureDefensiveLayout, standing, RoundsPolicy{DefensiveLayout: true}).Value(); !known || v != 0 {
 		t.Fatalf("standing layout deficit = %v,%v; want 0,true", v, known)
 	}
 	fallen := RoundsFacts{DefensiveLayoutStanding: domain.Known(false)}
-	if v, known := RoundsDevelopmentDeficit(EnsureDefensiveLayout, fallen, RoundsPolicy{DefensiveLayout: true}).Value(); !known || v != 1 {
+	if v, known := RoundsDeficit(EnsureDefensiveLayout, fallen, RoundsPolicy{DefensiveLayout: true}).Value(); !known || v != 1 {
 		t.Fatalf("fallen layout deficit = %v,%v; want 1,true", v, known)
 	}
-	if _, known := RoundsDevelopmentDeficit(EnsureDefensiveLayout, standing, RoundsPolicy{}).Value(); known {
+	if _, known := RoundsDeficit(EnsureDefensiveLayout, standing, RoundsPolicy{}).Value(); known {
 		t.Fatal("opted-out layout must rank deficit_unknown even when standing")
 	}
 }

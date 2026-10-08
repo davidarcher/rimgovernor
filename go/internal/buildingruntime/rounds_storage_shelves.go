@@ -75,10 +75,8 @@ func (r *RoundsStorageShelvesPlanner) step(call, epoch context.Context) (RoundsS
 	}
 	selected := map[domain.ConcernID]policy.ConcernID{}
 	for _, binding := range review.Standards {
-		for _, row := range review.Development.Rows {
-			if row.Concern == binding.Concern && row.Selected && shelfConcerns[binding.Concern] {
-				selected[binding.Standard] = binding.Concern
-			}
+		if shelfConcerns[binding.Concern] {
+			selected[binding.Standard] = binding.Concern
 		}
 	}
 	claims, err := p.journal.ZoneClaims(call, state.Snapshot, review.Tick)

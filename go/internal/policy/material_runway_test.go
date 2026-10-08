@@ -130,8 +130,8 @@ func TestMaterialRunwayProjection(t *testing.T) {
 	if !ok || got.ShortfallDays != 4.5 || len(got.Resources) != 2 {
 		t.Fatal(got, ok)
 	}
-	if shortfall, why := shadowShortfall(ProjectForward(ForwardInputs{Runways: materialRunways(30, 2), Items: CoreItemFacts()}), ShadowResources); why != "" || shortfall != 4.5 {
-		t.Fatal(shortfall, why)
+	if projection, known := (ProjectForward(ForwardInputs{Runways: materialRunways(30, 2), Items: CoreItemFacts()})).Resources.Value(); !known || projection.ShortfallDays != 4.5 {
+		t.Fatal(projection, known)
 	}
 	if _, ok := PlanMaterialRunway(materialRunways(30, 2)[:1], CoreItemFacts()).Value(); !ok {
 		t.Fatal("steel alone is a projection")
@@ -143,7 +143,7 @@ func TestMaterialRunwayProjection(t *testing.T) {
 	if _, ok := PlanMaterialRunway([]ResourceRunway{unread}, CoreItemFacts()).Value(); ok {
 		t.Fatal("unread consumption is unknown")
 	}
-	if _, why := shadowShortfall(ProjectForward(ForwardInputs{}), ShadowResources); why == "" {
-		t.Fatal("no inputs is unranked")
+	if _, known := (ProjectForward(ForwardInputs{})).Resources.Value(); known {
+		t.Fatal("unknown inputs produced a forecast")
 	}
 }

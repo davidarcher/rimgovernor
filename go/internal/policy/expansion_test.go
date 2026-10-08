@@ -44,7 +44,7 @@ func TestExpansionHeadroomUnknownAndHousingGate(t *testing.T) {
 			if r.Latches.Housing != tc.phase {
 				t.Fatal(r.Latches.Housing)
 			}
-			v, k := RoundsDevelopmentDeficit(MaintainHousing, f, DefaultRoundsPolicy()).Value()
+			v, k := RoundsDeficit(MaintainHousing, f, DefaultRoundsPolicy()).Value()
 			if k != tc.known || k && v != tc.deficit {
 				t.Fatal(v, k)
 			}
@@ -58,15 +58,6 @@ func TestExpansionHeadroomUnknownAndHousingGate(t *testing.T) {
 	f.BedCapacity = domain.Known(int64(4))
 	if !hasNeed(needs(t, f, RoundsLatches{}), MaintainHousing) {
 		t.Fatal("arrival did not renew headroom deficit")
-	}
-	// A food gap holds the spare room.
-	f = stableRounds()
-	f.Colonists, f.IndoorCapacity = domain.Known(int64(3)), domain.Known(int64(3))
-	f.FoodPlan = domain.Known(FoodPlan{GapPerDay: 1})
-	for _, g := range needs(t, f, RoundsLatches{}).Concerns {
-		if g.ID == MaintainHousing && !g.Blocked {
-			t.Fatal(g)
-		}
 	}
 	// Before StageReserves the spare room is not raised.
 	f = stableRounds()

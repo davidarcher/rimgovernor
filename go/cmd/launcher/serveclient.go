@@ -45,37 +45,11 @@ type Reading[T any] struct {
 	At        time.Time `json:"at"`
 }
 
-// DevelopmentView is the Now view's slice of /api/routines: the development
-// rows with their blocked-by reasons, and each active concern's blocked
-// reason. The full DTO is unexported and up to 1 MiB; the decoder skips
-// everything else in it.
-type DevelopmentView struct {
-	Development *Development   `json:"development"`
-	Progress    []ConcernBlock `json:"progress"`
-}
-
-type Development struct {
-	Tick        int64            `json:"tick"`
-	Workers     *int             `json:"workers"`
-	Capacity    int              `json:"capacity"`
-	Committed   []string         `json:"committed"`
-	HeldWorkers int              `json:"heldWorkers"`
-	Limiting    string           `json:"limiting"`
-	Rows        []DevelopmentRow `json:"rows"`
-}
-
-// DevelopmentRow is one candidate concern; Reason is why it was or was not
-// given a slot, Bottleneck the work type that limited it.
-type DevelopmentRow struct {
-	Concern      string   `json:"concern"`
-	Score        float64  `json:"score"`
-	Deficit      *float64 `json:"deficit"`
-	Risk         *float64 `json:"risk"`
-	WaitingSince int64    `json:"waitingSince"`
-	Selected     bool     `json:"selected"`
-	Committed    bool     `json:"committed"`
-	Reason       string   `json:"reason"`
-	Bottleneck   string   `json:"bottleneck"`
+// RoundsView is the report's review tick, emergency needs and progress.
+type RoundsView struct {
+	Tick      *int64         `json:"lastReviewTick"`
+	Emergency []string       `json:"emergency"`
+	Progress  []ConcernBlock `json:"progress"`
 }
 
 // ConcernBlock is a concern's blocked-by reason, empty when not blocked.
@@ -99,7 +73,7 @@ type ServeClient struct {
 	http     *http.Client
 	state    feed[httpapi.State]
 	now      feed[spectator.Now]
-	routines feed[DevelopmentView]
+	routines feed[RoundsView]
 }
 
 func NewServeClient(base func() string) *ServeClient {
@@ -117,7 +91,7 @@ func (c *ServeClient) State(ctx context.Context) Reading[httpapi.State] {
 func (c *ServeClient) Now(ctx context.Context) Reading[spectator.Now] {
 	return refresh(ctx, c, &c.now)
 }
-func (c *ServeClient) Routines(ctx context.Context) Reading[DevelopmentView] {
+func (c *ServeClient) Routines(ctx context.Context) Reading[RoundsView] {
 	return refresh(ctx, c, &c.routines)
 }
 

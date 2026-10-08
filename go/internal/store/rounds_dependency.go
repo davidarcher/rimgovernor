@@ -24,7 +24,7 @@ type DependencyCost struct {
 // against. It is the one persisted source of admitted-method construction
 // demand (policy.ConstructionDemand): the review keeps the record while the
 // Episode stays active and any of the actions stays open, for at most
-// policy.DevelopmentStallTicks (roundsDependencies).
+// domain.TicksPerDay (roundsDependencies).
 type DependencyRecord struct {
 	Need     domain.ConcernID
 	Concern  domain.ConcernID
@@ -157,7 +157,7 @@ func roundsDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRec
 	var admitted []policy.AdmittedCost
 	for _, rec := range records {
 		g, ok := active[rec.Need]
-		if !ok || domain.ConcernID(g.OwnerID()) != rec.Concern || g.OwnerEpisode() != rec.Episode || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > policy.DevelopmentStallTicks {
+		if !ok || domain.ConcernID(g.OwnerID()) != rec.Concern || g.OwnerEpisode() != rec.Episode || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > domain.TicksPerDay {
 			continue
 		}
 		plan, err := load(ctx, tx, rec.Plan)

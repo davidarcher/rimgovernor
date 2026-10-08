@@ -37,8 +37,8 @@ type roundsRun struct {
 }
 
 // raise appends an autopilot goal and returns it for the detector to adjust.
-func (c *roundsRun) raise(id ConcernID, priority int) *DevelopmentConcern {
-	c.r.Concerns = append(c.r.Concerns, DevelopmentConcern{ID: id, Priority: priority, Deficit: RoundsDevelopmentDeficit(id, c.f, c.p), Labor: ConcernLabor(id), Risk: RoundsDevelopmentRisk(id, c.f, c.l)})
+func (c *roundsRun) raise(id ConcernID, priority int) *RoundsConcern {
+	c.r.Concerns = append(c.r.Concerns, RoundsConcern{ID: id, Priority: priority, Deficit: RoundsDeficit(id, c.f, c.p)})
 	return &c.r.Concerns[len(c.r.Concerns)-1]
 }
 
@@ -163,12 +163,6 @@ func inspectHousing(c *roundsRun) error {
 	if housing.Phase != "" {
 		g := c.raise(MaintainHousing, housing.Priority)
 		g.Deficit = housing.Deficit
-		g.Blocked = housing.Blocked
-		if housing.Phase == HousingShelter {
-			// The starter shelter is a foothold goal: no ranked labor, as
-			// before the housing goals merged.
-			g.Labor, g.Risk = nil, domain.Known(0.0)
-		}
 	}
 	c.assess(MaintainHousing, housing.Priority, housing.Recovered)
 	return nil
@@ -265,7 +259,6 @@ func inspectComfort(c *roundsRun) error {
 		// facilities stand and the colony reached StageDevelopment.
 		c.r.Latches.Comfort = ComfortRanked
 		g := c.raise(EnsureComfort, 4)
-		g.Comfort = true
 		g.Deficit = f.ComfortDeficit
 	}
 	priority, recovered := 4, basicComfort.Recovered()
@@ -422,13 +415,8 @@ func upkeepInspection(id ConcernID, hold func(c *roundsRun) bool) func(c *rounds
 			c.assess(id, n.Priority, recovered)
 			if !positive(recovered) {
 				g := c.raise(id, n.Priority)
-				// RoundsDevelopmentDeficit only covers a few measured
-				// goals and otherwise reports Unknown, leaving a goal
-				// permanently DevelopmentUnknown in RankDevelopment so it
-				// could never win a capacity slot. These needs are binary
-				// (recovered/deficit, not a partial fraction -- see
-				// UpkeepNeed.Active/Targets), so a confirmed active deficit
-				// reports the full Known(1.0).
+				// These needs are binary, so a confirmed active deficit
+				// reports Known(1.0) rather than a partial fraction.
 				if targetsKnown {
 					g.Deficit = domain.Known(1.0)
 				}
@@ -530,7 +518,6 @@ func inspectMedicalReserves(c *roundsRun) error {
 		c.r.Latches.Medical, priority = MedicalCare, 2
 		g := c.raise(MaintainMedicalReserves, 2)
 		g.MethodUnavailable = true
-		g.Labor = nil
 	} else if !positive(reserveRecovered) {
 		c.r.Latches.Medical = MedicalReserves
 		c.raise(MaintainMedicalReserves, reservePriority)

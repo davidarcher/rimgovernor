@@ -4,10 +4,8 @@
 
 `MaintainEquipment` is a maintained development concern in the shared ColonyPlan.
 Emergencies suspend it. Hands issues its actions; neither the native read nor an
-adviser independently starts work. Missing observations remain unknown. The concern
-ranks for an optional development slot like any other priority-3 need (labor
-profile Construction, Tailoring, Smithing or Crafting) and its methods are admitted only while
-it holds one. The [pawn profile](work-assignment.md#pawn-profile) exports the
+adviser independently starts work. Missing observations remain unknown. Vanilla pawn priorities schedule crafting and construction; bounded methods
+and pawn/item claims prevent duplicate work. The [pawn profile](work-assignment.md#pawn-profile) exports the
 per-pawn apparel and weapon flags (Nudist, Ascetic, Brawler's `MeleeOnly`) the
 loadout planner consumes. The role apparel policies are the
 [apparel-policy operation](apparel-policy.md); weapon assignment is the
@@ -34,8 +32,7 @@ candidate, and the wear order's own census applies the same bound. The census
 candidates are apparel only; loose weapons are the equip family's. A
 `gear_replace` whose candidate the fresh census no longer offers as apparel, or
 whose wear preview refuses `NOT_FOUND`, is cancelled rather than held, so the
-concern's development slot frees at the next review (as haul and supply do for a
-thing that left its cell).
+concern can select a fresh method at the next review.
 
 ## Production and resource protection
 
@@ -262,7 +259,7 @@ Forbidden and tainted apparel is excluded. Normal-or-better items above 50%
 condition offset matching definition/stuff demand before production. A finite
 `GearBatch` bill reserves the full batch ingredients and carries its exact filter;
 weapon demand joins after colony-wide loose-weapon assignment. Each review admits
-at most one bill and independent pawn orders bounded by free development slots;
+at most one bill and up to sixteen independent pawn orders;
 pawn and item identities cannot be claimed twice by open dressing methods.
 
 Fixture checks, native scripted pawn outcomes and sustained seasonal campaigns

@@ -57,15 +57,7 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 	if !workable {
 		return RoundsAcquisitionResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	if goal.Standard.Priority >= 3 {
-		selected := false
-		for _, row := range review.Development.Rows {
-			selected = selected || row.Concern == r.need && row.Selected
-		}
-		if !selected {
-			return RoundsAcquisitionResult{Verdict: awaitingSlot(string(r.need))}, nil
-		}
-	}
+
 	expected, projection, err := r.reviewer.acquisitionReading(call, state, review)
 	if err != nil {
 		return RoundsAcquisitionResult{}, err

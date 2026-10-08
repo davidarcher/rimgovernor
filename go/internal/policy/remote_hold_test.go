@@ -22,7 +22,7 @@ func remoteSalvageRow() ClearanceTarget {
 // ruin under the request's threat and urgent work; "" when it is admitted.
 func salvageQueueReason(row ClearanceTarget, r RemoteWorkRequest) string {
 	thing, _ := RecoveryClearanceThing(row, false)
-	q := RankRecovery(RecoveryRequest{Things: []RecoveryThing{thing}, Threat: r.Reach.Threat, Urgent: domain.Known(r.Competition.UrgentPriority > 0), Slot: true})
+	q := RankRecovery(RecoveryRequest{Things: []RecoveryThing{thing}, Threat: r.Reach.Threat, Urgent: domain.Known(r.Competition.UrgentPriority > 0)})
 	return q.Entries[0].Reason
 }
 

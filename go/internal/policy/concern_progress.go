@@ -74,10 +74,8 @@ const (
 	blockedWaiting      string        = "waiting:"
 	blockedHeld         string        = "held:"
 	// Held reasons: the goal is intentionally not worked (HoldProgress).
-	HeldStage       BlockedReason = "held:stage"
 	HeldUnavailable BlockedReason = "held:unavailable"
 	HeldOptIn       BlockedReason = "held:opt-in"
-	HeldCapacity    BlockedReason = "held:capacity"
 	HeldEmergency   BlockedReason = "held:emergency"
 )
 
@@ -127,11 +125,6 @@ func (p ConcernProgress) PlannerNote() PlannerNote {
 // can improve: no method, or a refusal or wait already filed from it.
 func (r BlockedReason) Unmethoded() bool {
 	return r == BlockedNoMethod || strings.HasPrefix(string(r), blockedPlanner) || r.Waiting()
-}
-
-// HeldLabor holds a goal whose work type is withheld or unavailable.
-func HeldLabor(w WorkType) BlockedReason {
-	return BlockedReason(blockedHeld + "labor:" + string(w))
 }
 
 // Held reports a goal intentionally not worked: a held: reason or a
@@ -472,94 +465,26 @@ func ConcernProgressContract(method string, p RoundsPolicy) ProgressContract {
 	return ProgressContract{Method: method, Expected: "deficit shrinks or the method's work settles", Deadline: domain.Tick(p.ConcernStallTicks)}
 }
 
-// WithheldLabor is the labor a blocked prerequisite keeps out of optional
-// development: while a goal's record is blocked on a prerequisite goal
-// that a builder places, construction is withheld from the ranked queue
-// so the builder is not diverted before the bench stands.
-// A prerequisite with no open method (its planner proposed nothing)
-// withholds nothing: holding the builder for work nobody placed would
-// idle construction forever.
-func WithheldLabor(progress []ConcernProgress) LaborProfile {
-	var withheld LaborProfile
-	seen := map[WorkType]bool{}
-	open := map[ConcernID]bool{}
-	for _, p := range progress {
-		open[p.Concern] = open[p.Concern] || p.Open
-	}
-	for _, p := range progress {
-		switch pre := p.Blocked.Prerequisite(); pre {
-		case EnsureCooking, MaintainFoodStorage, MaintainHousing:
-			if open[pre] && !seen[WorkConstruction] {
-				seen[WorkConstruction] = true
-				withheld = append(withheld, WorkConstruction)
-			}
-		}
-	}
-	return withheld
-}
-
 // PlannerOptOut is the planner reason for a goal whose method this runtime
 // did not enable (the routine building planners' "disabled").
 const PlannerOptOut = "disabled"
 
-// HoldProgress relabels the records with no method whose goal is held on
-// purpose, so "no_method" and planner refusals name only goals someone
-// should look at: an unavailable method, a planner the runtime left
-// disabled, a development row the ranking held (stage, labor, capacity,
-// emergency) or labor withheld for every work type the goal uses.
-func HoldProgress(progress []ConcernProgress, rows []DevelopmentRow, withheld LaborProfile, unavailable map[ConcernID]bool) []ConcernProgress {
-	byGoal := map[ConcernID]DevelopmentRow{}
-	for _, row := range rows {
-		byGoal[row.Concern] = row
-	}
+// HoldProgress reports unavailable methods and emergency precedence.
+func HoldProgress(progress []ConcernProgress, emergency []ConcernID, unavailable map[ConcernID]bool) []ConcernProgress {
 	out := append([]ConcernProgress(nil), progress...)
 	for i := range out {
 		p := &out[i]
 		if !p.Blocked.Unmethoded() {
 			continue
 		}
-		if held := heldReason(*p, byGoal, withheld, unavailable); held != "" {
-			p.Blocked = held
+		switch {
+		case unavailable[p.Concern]:
+			p.Blocked = HeldUnavailable
+		case p.Planner == PlannerOptOut:
+			p.Blocked = HeldOptIn
+		case len(emergency) > 0 && !slices.Contains(emergency, p.Concern):
+			p.Blocked = HeldEmergency
 		}
 	}
 	return out
-}
-
-func heldReason(p ConcernProgress, rows map[ConcernID]DevelopmentRow, withheld LaborProfile, unavailable map[ConcernID]bool) BlockedReason {
-	if unavailable[p.Concern] {
-		return HeldUnavailable
-	}
-	if p.Planner == PlannerOptOut {
-		return HeldOptIn
-	}
-	if row, ok := rows[p.Concern]; ok {
-		switch row.Reason {
-		case DevelopmentStage:
-			return HeldStage
-		case DevelopmentMethodUnavailable:
-			return HeldUnavailable
-		case DevelopmentCapacity, DevelopmentOvercommitted:
-			return HeldCapacity
-		case DevelopmentEmergency:
-			return HeldEmergency
-		case DevelopmentLabor, DevelopmentNoWorkers:
-			w := row.Bottleneck
-			if w == "" && len(row.Labor) > 0 {
-				w = row.Labor[0]
-			}
-			if w != "" {
-				return HeldLabor(w)
-			}
-		}
-	}
-	if labor := ConcernLabor(p.Concern); len(labor) > 0 && len(withheld) > 0 {
-		all := true
-		for _, w := range labor {
-			all = all && slices.Contains(withheld, w)
-		}
-		if all {
-			return HeldLabor(labor[0])
-		}
-	}
-	return ""
 }

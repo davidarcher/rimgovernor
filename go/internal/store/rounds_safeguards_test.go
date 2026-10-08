@@ -19,6 +19,8 @@ func TestRoundsSafeguardsVetoAdmissionUntilEmergencyClears(t *testing.T) {
 	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := roundsRequest()
+	r.Facts.Workers = domain.Known(0)
+	r.Facts.Labor = domain.Known(map[policy.WorkType]int{})
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})
 	out := reviewRounds(t, s, &r)
 	if len(out.Review.Emergency) != 1 || out.Review.Emergency[0] != policy.MaintainFireSafety {

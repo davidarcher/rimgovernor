@@ -260,21 +260,3 @@ func TestRoundsDirectionAndManualDoNotEraseRecoveryTarget(t *testing.T) {
 		t.Fatal("Manual erased known recovery target")
 	}
 }
-
-// A tick rewind (a new colony loaded over the stored review) resets ranking
-// history; a disabled review at the earlier tick must not carry the later
-// development record forward into an invalid history.
-func TestRoundsDisabledReviewAfterTickRewindDropsDevelopment(t *testing.T) {
-	t.Parallel()
-	s := open(t, memoryPath(t))
-	r := roundsRequest()
-	first := reviewRounds(t, s, &r)
-	if len(first.Review.Development.Rows) == 0 {
-		t.Fatal("enabled review ranked nothing")
-	}
-	r.Enabled, r.Tick = false, 3
-	out := reviewRounds(t, s, &r)
-	if len(out.Review.Development.Rows) != 0 || out.Review.Development.Tick > out.Review.Tick {
-		t.Fatal(out.Review.Development)
-	}
-}

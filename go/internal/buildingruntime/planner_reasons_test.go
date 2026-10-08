@@ -24,7 +24,7 @@ func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
 		"gear":     refuse(RefusalRetriesSpent, "gear_craft", ""),
 		"research": BuildingReasonNoReview,
 		"clean":    BuildingReasonExistingWork,
-		"naming":   refuse(RefusalSharedAdmission, "no_development_slot", "wood"),
+		"naming":   refuse(RefusalSharedAdmission, "already_reserved", "wood"),
 	}
 	got := wavePlannerReasons([]string{"power", "equip", "gear", "research", "clean", "naming"}, filingOf(goals, verdicts))
 	want := map[policy.ConcernID]policy.PlannerNote{

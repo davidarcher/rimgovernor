@@ -131,11 +131,11 @@ type RoundsPolicy struct {
 	ColonyStage ColonyStage `json:",omitempty"`
 }
 
-// DefaultRoundsPolicy admits development automatically (#655): slots
-// bound planner cost only and distinct observed workers decide admission.
+// DefaultRoundsPolicy supplies the routine inspection targets and budgets.
+// Individual planners bound their orders; vanilla priorities schedule pawn work.
 func DefaultRoundsPolicy() RoundsPolicy {
 	return RoundsPolicy{MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays, PrisonerReleaseAfterDays: 15,
-		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: domain.TicksPerDay / 2, AcquisitionStallTicks: domain.TicksPerDay, ConcernStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder(), ColonyStage: StageDevelopment}
+		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: domain.TicksPerDay / 2, AcquisitionStallTicks: domain.TicksPerDay, ConcernStallTicks: int64(domain.TicksPerDay), ResearchLadder: DefaultResearchLadder(), ColonyStage: StageDevelopment}
 }
 
 func (p RoundsPolicy) Validate() error {
@@ -457,11 +457,8 @@ type RoundsFacts struct {
 	MedicalCareRecovered domain.Fact[bool]
 	Workers              domain.Fact[int]
 	// Labor is the per-work-type census of the same pawns Workers counts
-	// (RoundsLabor); unknown labor leaves only the coarse worker bound.
+	// (RoundsLabor); unknown labor remains unavailable evidence.
 	Labor domain.Fact[map[WorkType]int]
-	// LaborUse is what those pawns are doing (RoundsLaborUse): the evidence
-	// RankDevelopment releases an idle commitment's slot on.
-	LaborUse domain.Fact[LaborUse]
 	// WorkRoster is the planner's per-work-type coverage (PlanWork): the
 	// owners each type wanted and found and the pawns capable of it, so a
 	// goal can name a missing capability instead of stalling.
@@ -678,7 +675,7 @@ type RoundsLatches struct {
 type RoundsFindings struct {
 	Disaster *DisasterHistory
 	Latches  RoundsLatches
-	Concerns []DevelopmentConcern
+	Concerns []RoundsConcern
 	// Assessments are the Standard and Project needs the review files rows for;
 	// Incidents are the incident kinds' assessments (#1020, #1121).
 	Assessments []RoundsAssessment
@@ -908,7 +905,6 @@ func InspectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Round
 			r.Concerns[i].Deficit = domain.Known(pressure)
 		}
 	}
-	r.Concerns = raisedAtStage(r.Concerns, f, p, c.l)
 	if methods, known := f.AvailableMethods.Value(); known {
 		available := map[ConcernID]bool{}
 		recognized := map[ConcernID]bool{}
@@ -978,42 +974,6 @@ func criticalMedicinePriority(f RoundsFacts) int {
 		return 2
 	}
 	return 1
-}
-
-// raisedAtStage marks the goals the colony stage does not raise yet
-// (StageGoalAllowed) as Staged: they stay in the ranking with a waiting
-// reason instead of vanishing, and take no slot. The exceptions: the stage's exceptions: MaintainResource opens
-// early for the wood floor or a construction dependency, MaintainRefrigeration
-// for a full spoiling emergency, the stone shell waits for stone blocks
-// (a known unfinished Stonecutting) and the animal goals for a tame animal (a census that knows of none
-// raises none).
-func raisedAtStage(goals []DevelopmentConcern, f RoundsFacts, p RoundsPolicy, l RoundsLatches) []DevelopmentConcern {
-	stage := p.ColonyStage
-	for i := range goals {
-		g := goals[i]
-		allowed := StageConcernAllowed(g.ID, stage)
-		switch g.ID {
-		case MaintainResource:
-			allowed = allowed || l.Wood || len(ConstructionDemandOf(f, p, l)) > 0
-		case MaintainRefrigeration:
-			d, known := g.Deficit.Value()
-			allowed = allowed || known && d >= 1
-		case MaintainStoneShell:
-			allowed = allowed && !stonecuttingUnfinished(f.Research)
-		case MaintainAnimalContainment, MaintainHerd:
-			animals, known := f.AnimalUpkeep.Animals.Value()
-			allowed = allowed && !(known && len(animals) == 0)
-		}
-		goals[i].Staged = !allowed
-	}
-	return goals
-}
-
-// stonecuttingUnfinished: the research census is known and has not
-// finished Stonecutting, so no stone block can be cut for a shell.
-func stonecuttingUnfinished(research domain.Fact[ResearchFacts]) bool {
-	r, known := research.Value()
-	return known && !slices.Contains(r.Finished, "Stonecutting")
 }
 
 // cookingMet is EnsureCooking's recovery: cooking ready and no cooking

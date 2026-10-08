@@ -24,7 +24,7 @@ func withFact(f ColonyStageFacts, set func(*ColonyStageFacts)) ColonyStageFacts 
 func TestColonyStageTransitions(t *testing.T) {
 	t.Parallel()
 	p := DefaultRoundsPolicy().Stages()
-	day := DevelopmentStallTicks
+	day := domain.Tick(domain.TicksPerDay)
 	no := domain.Known(false)
 	blockedFood := stageFacts(true, 9)
 	blockedFood.ProductionBlocked, blockedFood.Blocked = EnsureFoodSupply, BlockedNoWorker
@@ -131,7 +131,7 @@ func TestColonyStageHysteresisUnderOscillation(t *testing.T) {
 	}
 	// The same at the Stable boundary: production blocked and unblocked
 	// under a day at a time never drops Stable.
-	r = ReviewColonyStage(r, stageFacts(true, 8), p, 1200+2*DevelopmentStallTicks)
+	r = ReviewColonyStage(r, stageFacts(true, 8), p, 1200+2*domain.TicksPerDay)
 	if r.Stage != StageStable {
 		t.Fatal(r)
 	}
@@ -140,7 +140,7 @@ func TestColonyStageHysteresisUnderOscillation(t *testing.T) {
 		if i%2 == 0 {
 			f.ProductionBlocked, f.Blocked = MaintainResource, BlockedNoWorker
 		}
-		r = ReviewColonyStage(r, f, p, 1200+2*DevelopmentStallTicks+domain.Tick(i+1)*DevelopmentStallTicks/2)
+		r = ReviewColonyStage(r, f, p, 1200+2*domain.TicksPerDay+domain.Tick(i+1)*domain.TicksPerDay/2)
 		if r.Stage != StageStable {
 			t.Fatal(i, r)
 		}
@@ -153,15 +153,15 @@ func TestColonyStageHoldAndReset(t *testing.T) {
 	t.Parallel()
 	p := DefaultRoundsPolicy().Stages()
 	r := ReviewColonyStage(ColonyStageRecord{}, ColonyStageFacts{Shelter: domain.Known(false)}, p, 10)
-	if !r.HoldsDevelopment() {
+	if !r.NeedsShelter() {
 		t.Fatal(r)
 	}
 	r = ReviewColonyStage(r, ColonyStageFacts{Shelter: domain.Unknown[bool]()}, p, 20)
-	if !r.HoldsDevelopment() || r.Reason != "shelter unknown" {
+	if !r.NeedsShelter() || r.Reason != "shelter unknown" {
 		t.Fatal(r)
 	}
 	r = ReviewColonyStage(r, ColonyStageFacts{Shelter: domain.Known(true)}, p, 30)
-	if r.HoldsDevelopment() || r.Blocker != StageBlockerUnknown {
+	if r.NeedsShelter() || r.Blocker != StageBlockerUnknown {
 		t.Fatal(r)
 	}
 	rewound := ReviewColonyStage(ColonyStageRecord{Stage: StageStable, Since: 500, Held: true}, ColonyStageFacts{}, p, 40)
@@ -222,60 +222,5 @@ func TestStageRoundsPolicyBudgets(t *testing.T) {
 	bad.Stage = ColonyStagePolicy{ReserveEnterDays: 5, ReserveExitDays: 6}
 	if err := bad.Validate(); err == nil {
 		t.Fatal("unordered thresholds accepted")
-	}
-}
-
-// A goal before its stage is not raised (Staged: it waits, visible, with no slot); the stage's exceptions
-// raise it early (the wood floor, a full spoiling emergency) or later (the
-// stone shell without Stonecutting, animal goals with no tame animal).
-func TestRaisedAtStage(t *testing.T) {
-	t.Parallel()
-	ids := func(goals []DevelopmentConcern) map[ConcernID]bool {
-		out := map[ConcernID]bool{}
-		for _, g := range goals {
-			out[g.ID] = !g.Staged
-		}
-		return out
-	}
-	raised := func(goals []DevelopmentConcern) map[ConcernID]bool {
-		out := map[ConcernID]bool{}
-		for id, ok := range ids(goals) {
-			if ok {
-				out[id] = true
-			}
-		}
-		return out
-	}
-	all := func() []DevelopmentConcern {
-		var goals []DevelopmentConcern
-		for _, id := range []ConcernID{CriticalMedicine, EnsureFoodSupply, EnsureResearch, MaintainResource, MaintainStoneShell, MaintainRefrigeration, MaintainHerd, MaintainFlooring, MaintainLighting} {
-			goals = append(goals, DevelopmentConcern{ID: id, Deficit: domain.Known(0.5)})
-		}
-		return goals
-	}
-	p := DefaultRoundsPolicy()
-	f := RoundsFacts{Research: domain.Known(ResearchFacts{}), AnimalUpkeep: AnimalUpkeepObservation{Animals: domain.Known([]UpkeepAnimal{})}}
-	p.ColonyStage = StageFoothold
-	got := raised(raisedAtStage(all(), f, p, RoundsLatches{}))
-	if !got[CriticalMedicine] || !got[EnsureFoodSupply] || !got[EnsureResearch] || !got[MaintainResource] || len(got) != 4 {
-		t.Fatalf("foothold raised %v", got)
-	}
-	spoiling := all()
-	spoiling[5].Deficit = domain.Known(1.0)
-	if got := raised(raisedAtStage(spoiling, f, p, RoundsLatches{Wood: true})); !got[MaintainResource] || !got[MaintainRefrigeration] {
-		t.Fatalf("emergencies not raised early: %v", got)
-	}
-	p.ColonyStage = StageReserves
-	if got := raised(raisedAtStage(all(), f, p, RoundsLatches{})); !got[EnsureResearch] || !got[MaintainResource] || got[MaintainRefrigeration] {
-		t.Fatalf("reserves raised %v", got)
-	}
-	p.ColonyStage = StageStable
-	if got := raised(raisedAtStage(all(), f, p, RoundsLatches{})); got[MaintainStoneShell] || got[MaintainHerd] || !got[MaintainRefrigeration] || got[MaintainFlooring] {
-		t.Fatalf("stable raised %v", got)
-	}
-	f.Research = domain.Known(ResearchFacts{Finished: []ResearchProjectID{"Stonecutting"}})
-	p.ColonyStage = StageDevelopment
-	if got := raised(raisedAtStage(all(), f, p, RoundsLatches{})); !got[MaintainStoneShell] || got[MaintainHerd] || !got[MaintainFlooring] || !got[MaintainLighting] {
-		t.Fatalf("development raised %v", got)
 	}
 }

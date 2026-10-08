@@ -89,9 +89,8 @@ type ColonyStageRecord struct {
 	// Reason is the same in words, with the measured values.
 	Blocker StageBlocker `json:",omitempty"`
 	Reason  string       `json:",omitempty"`
-	// Held: Foothold's own shelter condition is unmet (the last known
-	// shelter gate), so the stage holds every ranked development project
-	// and their planners (HoldsDevelopment).
+	// Held records Foothold's unmet shelter condition, used by NeedsShelter
+	// to promote shelter planning into the critical wave.
 	Held bool `json:",omitempty"`
 	// ProductionBlocked and ProductionSince are the production clock: whether
 	// a production goal's progress record was blocked at the last review
@@ -100,10 +99,8 @@ type ColonyStageRecord struct {
 	ProductionSince   domain.Tick `json:",omitempty"`
 }
 
-// HoldsDevelopment reports the Foothold hold: the colony has no shelter for
-// everyone yet, so the ranked development projects (StageDevelopmentGoal)
-// and the comfort-class planners wait for the builder.
-func (r ColonyStageRecord) HoldsDevelopment() bool {
+// NeedsShelter promotes shelter planning into the critical wave at Foothold.
+func (r ColonyStageRecord) NeedsShelter() bool {
 	return r.Stage == StageFoothold && r.Held
 }
 
@@ -180,13 +177,13 @@ func (p RoundsPolicy) Stages() ColonyStagePolicy {
 		s.DevelopmentExitDays = p.FoodTargetDays
 	}
 	if s.StableTicks <= 0 {
-		s.StableTicks = 2 * DevelopmentStallTicks
+		s.StableTicks = 2 * domain.TicksPerDay
 	}
 	if s.StableExitTicks <= 0 {
-		s.StableExitTicks = DevelopmentStallTicks
+		s.StableExitTicks = domain.TicksPerDay
 	}
 	if s.DevelopmentTicks <= 0 {
-		s.DevelopmentTicks = 3 * DevelopmentStallTicks
+		s.DevelopmentTicks = 3 * domain.TicksPerDay
 	}
 	return s
 }
@@ -343,7 +340,7 @@ func ReviewColonyStage(previous ColonyStageRecord, f ColonyStageFacts, p ColonyS
 	return r
 }
 
-func days(t domain.Tick) float64 { return float64(t) / float64(DevelopmentStallTicks) }
+func days(t domain.Tick) float64 { return float64(t) / float64(domain.TicksPerDay) }
 
 // ValidateColonyStage checks a persisted record against the review tick.
 func ValidateColonyStage(r ColonyStageRecord, tick domain.Tick) error {
@@ -435,28 +432,6 @@ func DoctorCapable(profiles domain.Fact[[]PawnProfile]) domain.Fact[bool] {
 		}
 	}
 	return domain.Known(false)
-}
-
-// stageGoals is the stage each staged goal is first raised at; a goal not
-// listed (the foothold goals, emergencies, the cross-stage monitors: medical
-// tending, mood, fire, raids) is raised at every stage. A goal before its
-// stage is not raised at all, not merely held: it takes no slot and no
-// planner runs for it.
-var stageConcerns = map[ConcernID]ColonyStage{
-	EnsureDefensiveLayout:   StageStable,
-	MaintainStoneShell:      StageStable,
-	MaintainRefrigeration:   StageStable,
-	MaintainCleanFacilities: StageStable,
-	MaintainHerd:            StageStable,
-	MaintainFlooring:        StageDevelopment,
-	MaintainLighting:        StageDevelopment,
-	MaintainArt:             StageDevelopment,
-}
-
-// StageGoalAllowed reports whether the review raises the goal at the stage.
-func StageConcernAllowed(goal ConcernID, stage ColonyStage) bool {
-	first, staged := stageConcerns[goal]
-	return !staged || stage >= first
 }
 
 // stageLadderRungs is how many rungs of the research ladder each stage

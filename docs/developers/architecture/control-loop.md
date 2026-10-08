@@ -22,44 +22,23 @@ the home map, excluding caravan members. Calm requires the emergency review to
 clear, no pending raid pods and cleared combat. Missing inputs keep these facts
 unknown. `QuestMinimumColonistsAtHome` sets the departure reserve to three.
 
-### Optional-project admission
+### Routine work admission
 
-Optional projects (comfort, research, production targets, defense, expansion)
-compete for bounded capacity based on measured deficits, player targets, waiting time,
-labor contention and observed outdoor risk. Each Concern declares the native work types
-that can serve it. Accepted work keeps its identity as capacity changes; unavailable
-methods yield to other candidates.
+The governor selects bounded orders from observed deficits, player targets and
+prerequisites. Vanilla pawn work priorities schedule those orders; Concerns do not
+reserve exclusive workers or development slots. Multiple Concerns may queue work
+for the same work type. Existing methods and per-planner bounds prevent duplicate
+or unbounded plans.
 
-- Admission is automatic. Slots are bounded only at eight (planner cost); every
-  project a distinct observed worker can take is admitted (a pawn enabled for
-  three work types is one worker).
-- Open startup and survival work holds its worker without a slot. Open work beyond
-  the census pauses new admissions (`workers_overcommitted`) without cancelling it.
-- Ranking and method admission share one fit (`policy/development_capacity.go`):
-  labor and the stage are checked before the slot count, and admission refits
-  against commitments read inside its transaction, so a player project or another
-  admission since the ranking is counted.
-- The development record shows the mode, workers held by startup work, the limiting
-  reason and, per deferred project, the reason (including the bottleneck work type).
-  Worker capacity is a scheduling bound, not a completion-time guarantee; waiting
-  age alone overtakes any deficit gap within a fixed tick bound.
-- Accepted work holds its slot only while it is worked. The review reads each pawn's
-  current job and the work type of the giver that issued it. A commitment whose
-  profile no pawn is on, while a pawn enabled for it idles or works for another
-  type, releases its slot after a game hour (`labor_idle`) without closing the work;
-  a pawn back on it takes the slot back. A colony asleep is no evidence either way.
+Method admission checks the current enabled review, owner revision, open work and
+Safeguards. Shared resource and footprint reservations, native legality, dependency
+checks and Hands dispatch guards still apply. Emergency precedence comes from
+Safeguards and pawn work priorities. Progress records report actual blockers and
+observed outcomes, including work with no capable pawn.
 
-**Project ranking** (`policy/development_shadow.go`, #1914). The forward projector
-scores each eligible optional Concern by projected shortfall days per open plan action
-(food, power, temperature, defense, construction material). Concerns with a projected
-shortfall take the next slot and worker ahead of the rest, in that order;
-MaintainResource, which acquires the material construction waits on, is never ranked
-behind a construction Concern. Concerns the projector does not map, or whose projection
-is unknown, are never given a default score: they keep the deficit-and-age order behind
-the scored ones. Startup, emergency and player work are not ranked rows and keep their
-precedence. A shelter shell admitted short of a material records its open costs
-(`store.DependencyRecord`), which feed the construction demand MaintainResource
-supplies until those actions settle.
+Resource forecasts continue to inform supply planning. A shelter shell admitted
+short of a material records its open costs (`store.DependencyRecord`), which feed
+the construction demand MaintainResource supplies until those actions settle.
 
 ### Disease care
 

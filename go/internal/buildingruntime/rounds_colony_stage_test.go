@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -53,19 +53,7 @@ func TestRoundsStoneShellFollowsColonyStage(t *testing.T) {
 		}
 		return *review.Stage
 	}
-	row := func() (store.RoundsDevelopmentRow, bool) {
-		t.Helper()
-		review, err := db.LoadRounds(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, row := range review.Development.Rows {
-			if row.Concern == policy.MaintainStoneShell {
-				return row, true
-			}
-		}
-		return store.RoundsDevelopmentRow{}, false
-	}
+
 	step := func() {
 		t.Helper()
 		tick := v.Context.GetTick() + 1
@@ -85,15 +73,9 @@ func TestRoundsStoneShellFollowsColonyStage(t *testing.T) {
 	if s := stage(); s.Stage != policy.StageFoothold || !s.Held || s.Blocker != policy.StageBlockerShelter {
 		t.Fatalf("foothold stage %+v", s)
 	}
-	if r, ok := row(); ok && (r.Selected || r.Reason != policy.DevelopmentStage) {
-		t.Fatalf("stone shell raised at Foothold: %+v", r)
-	}
 	v.IndoorSleepingCapacity = indoor
 	p.reviewer.policy.Stage.Floor = policy.StageStable
 	step()
-	if r, ok := row(); !ok || !r.Selected || r.Reason != "" {
-		t.Fatalf("stone shell row at Stable %+v", r)
-	}
 	result, err := p.Step(ctx)
 	if err != nil || result.Verdict != BuildingReasonAdmitted || n.previews != 1 {
 		t.Fatal(result, err, n.previews)

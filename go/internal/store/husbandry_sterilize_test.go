@@ -25,9 +25,6 @@ func TestHusbandrySterilizeActionRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if developmentExemptMethod(p) {
-		t.Fatal("sterilize gained the settings-write exemption")
-	}
 	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "sterilize", p); err != nil {
 		t.Fatal(err)
 	}

@@ -31,10 +31,11 @@ func TestFailFastRetryableUnsuccessfulSkipsListedReasons(t *testing.T) {
 }
 
 func idleSample(revision uint64, idle bool, methods int) map[string]any {
-	return map[string]any{
-		"review_revision": revision, "method_count": methods, "need": "unmet", "status": "open",
-		"development": map[string]any{"reason": "", "selected": true, "committed": methods > 0, "idle": idle},
+	blocked := ""
+	if !idle {
+		blocked = string(policy.BlockedWaiting("prerequisite"))
 	}
+	return map[string]any{"review_revision": revision, "method_count": methods, "need": "unmet", "status": "open", "blocked": blocked}
 }
 
 func TestFailFastNoMethodCountsDistinctIdleReviews(t *testing.T) {
@@ -66,7 +67,7 @@ func TestFailFastNoMethodCountsDistinctIdleReviews(t *testing.T) {
 	}
 	// A goal the review never selected (startup_survival) is waiting, not refused.
 	waiting := idleSample(2, false, 0)
-	waiting["development"] = map[string]any{"reason": "startup_survival", "selected": false, "committed": false, "idle": false}
+	waiting["blocked"] = string(policy.BlockedWaiting("prerequisite"))
 	if _, failed := g.check(waiting); failed {
 		t.Fatal("an unselected goal is not a refusal")
 	}
@@ -75,7 +76,7 @@ func TestFailFastNoMethodCountsDistinctIdleReviews(t *testing.T) {
 func TestFailFastNoMethodMethodUnavailableWaits(t *testing.T) {
 	yielded := func(revision uint64) map[string]any {
 		s := idleSample(revision, true, 0)
-		s["development"] = map[string]any{"reason": string(policy.DevelopmentMethodUnavailable), "selected": false, "committed": false, "idle": true}
+		s["blocked"] = string(policy.HeldUnavailable)
 		return s
 	}
 	// By default a method_unavailable row counts like any idle review.
@@ -104,7 +105,7 @@ func TestFailFastNoMethodMethodUnavailableWaits(t *testing.T) {
 func TestFailFastNoMethodEmergencyHoldIsNeutral(t *testing.T) {
 	held := func(revision uint64) map[string]any {
 		s := idleSample(revision, true, 0)
-		s["development"] = map[string]any{"reason": string(policy.DevelopmentEmergency), "selected": false, "committed": false, "idle": true}
+		s["blocked"] = string(policy.HeldEmergency)
 		return s
 	}
 	f := newFailFast(FailFast{NoMethodReviews: 2}, policy.MaintainResource, "")

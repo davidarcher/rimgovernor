@@ -16,14 +16,14 @@ import (
 // their evidence marks them.
 func TestStalledClockMarksOnlyAdmissionRefusals(t *testing.T) {
 	t.Parallel()
-	refused := store.BuildingMethodDecision{Refused: []policy.Refusal{{Reason: "no_development_slot", Resource: "wood"}}}
+	refused := store.BuildingMethodDecision{Refused: []policy.Refusal{{Reason: "already_reserved", Resource: "wood"}}}
 	cases := []struct {
 		name    string
 		verdict Verdict
 		marked  bool
 	}{
 		{"admission refusal", admissionRefused(refused), true},
-		{"development ranking", awaitingSlot("EnsureFoodSupply"), false},
+		{"development ranking", awaitingPlan("prerequisite", "EnsureFoodSupply"), false},
 		{"lost claim", claimHeld("colonist"), false},
 		{"blocked paste site", siteBlocked("paste_dispenser_site", "preview_refused"), false},
 		{"no buildable bed", BuildingHospitalUnavailable, false},

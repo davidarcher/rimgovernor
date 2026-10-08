@@ -61,16 +61,9 @@ func TestRoundsBlightPlannerDesignatesUndesignatedCensusPlants(t *testing.T) {
 	source := &roundsBlightNative{roundsNative: native}
 	reviewer.native = source
 	ctx := context.Background()
-	got, err := reviewer.Step(ctx)
+	_, err := reviewer.Step(ctx)
 	if err != nil {
 		t.Fatal(err)
-	}
-	selected := false
-	for _, row := range got.Review.Development.Rows {
-		selected = selected || row.Concern == policy.RemoveBlight && row.Selected
-	}
-	if !selected {
-		t.Fatal("RemoveBlight was not selected by development arbitration", got.Review.Development.Rows)
 	}
 	planner, err := NewRoundsBlightPlanner(reviewer, source)
 	if err != nil {

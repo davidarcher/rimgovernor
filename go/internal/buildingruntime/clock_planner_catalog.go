@@ -26,7 +26,7 @@ type plannerEntry struct {
 	priority int
 	// startup promotes the planner into the critical wave while the colony
 	// stage holds development (the shelter every other goal waits for is
-	// unmet, ColonyStageRecord.HoldsDevelopment). Its work is the hold
+	// unmet, ColonyStageRecord.NeedsShelter). Its work is the hold
 	// itself, not a development review, so the one-second optional grace
 	// must not discard it: siting a starter shell walks the bunk rungs and
 	// previews a ring, seconds of native round trips, and every step

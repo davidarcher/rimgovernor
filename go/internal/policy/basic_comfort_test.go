@@ -64,20 +64,20 @@ func TestComfortFootholdComesFromTheCensus(t *testing.T) {
 func TestBasicComfortRanksAtFootholdOnceShelterStands(t *testing.T) {
 	f := stableRounds()
 	f.BasicComfort = domain.Known(ComfortObservation{People: []PawnID{"a"}})
-	find := func(needs RoundsFindings) (DevelopmentConcern, bool) {
+	find := func(needs RoundsFindings) (RoundsConcern, bool) {
 		for _, g := range needs.Concerns {
 			if g.ID == EnsureComfort {
 				return g, true
 			}
 		}
-		return DevelopmentConcern{}, false
+		return RoundsConcern{}, false
 	}
 	needs, err := InspectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}
 	g, ok := find(needs)
-	if !ok || g.Priority != 2 || g.MethodUnavailable || g.Deficit != domain.Known(1.0) || len(g.Labor) == 0 {
+	if !ok || g.Priority != 2 || g.MethodUnavailable || g.Deficit != domain.Known(1.0) {
 		t.Fatal("basic comfort is not a foothold construction goal", g, ok)
 	}
 	// While the initial shelter is owed there is nothing to furnish: the

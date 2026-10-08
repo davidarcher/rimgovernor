@@ -8,7 +8,7 @@ import (
 
 // One EmergencyNeed answers both the EmergencySafeguard veto and the
 // development freeze, so the two agree for every exclusion (#1014).
-func TestEmergencyNeedExclusionsAgreeWithDevelopmentFreeze(t *testing.T) {
+func TestEmergencyNeedExclusions(t *testing.T) {
 	for _, c := range []struct {
 		name string
 		a    RoundsAssessment
@@ -27,15 +27,7 @@ func TestEmergencyNeedExclusionsAgreeWithDevelopmentFreeze(t *testing.T) {
 			if got := EmergencyNeed(c.a); got != c.want {
 				t.Fatalf("EmergencyNeed = %v, want %v", got, c.want)
 			}
-			r := developmentFixture()
-			r.Assessments = []RoundsAssessment{c.a}
-			frozen := false
-			for _, row := range rank(t, r).Rows {
-				frozen = frozen || row.Reason == DevelopmentEmergency
-			}
-			if frozen != c.want {
-				t.Fatalf("development frozen = %v, want %v", frozen, c.want)
-			}
+
 		})
 	}
 }

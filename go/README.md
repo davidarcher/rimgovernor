@@ -204,7 +204,7 @@ thresholds; missing facts cannot certify foothold stability or clear risk.
   increases stock or runway. Food selection uses the diet, rot and
   competing-consumer forecast; wild plants in growing zones are excluded; outdoor
   writes hold during roof-collapse hazards; native enabled workers and designators
-  decide eligibility. Wood plans consume development capacity. Each write rechecks
+  decide eligibility. Each write rechecks
   the source CAS; native callbacks account for actual produced stacks including
   merges, and missing or consumed output stays unknown (a completed designation is
   not production). Hunting follows plant food, allows at most two outstanding
@@ -218,27 +218,13 @@ thresholds; missing facts cannot certify foothold stability or clear risk.
     bill or prey distance required; hostile ones are left to the defense family. It
     recovers when none remain.
 
-### Development ranking and placement
+### Routine work and placement
 
-`RankDevelopment` preserves accepted shared-action commitments while ranking new
-projects by deficit, player preference, native-tick age and selection hysteresis.
+Concerns may queue bounded work for the same pawn or work type. Vanilla pawn work
+priorities schedule that work. Method admission preserves resource reservations,
+current-world checks, prerequisites, geometry and Safeguards; worker counts do not
+allocate exclusive capacity. Unavailable methods remain visible in progress.
 
-- Unavailable methods can yield their slot in the same review. Disabled optional
-  planners keep their assessments as `method_unavailable` and cannot occupy
-  slots; capability availability comes from runtime configuration. Committed work
-  still consumes capacity and stays tracked when capacity falls.
-- A commitment whose labor idles (`RoundsLaborUse`: no pawn on any of its profile's
-  work types while one enabled for them idles or works for another type) across
-  reviews spanning `DevelopmentIdleTicks` releases its slot and reads `labor_idle`
-  until work is picked up again.
-- Rounds persist scores, waiting age, known worker counts and selection history
-  with need assessments. Wood and defense deficits use bounded native deficit
-  fractions. Unknown worker counts admit no optional work; optional concurrency is
-  automatic (every project a distinct observed worker can take, at most eight).
-  Admission rechecks commitments in the same transaction as the method. Manual
-  clears selections.
-- Persisted ranking does not create missing action families or replace native
-  resource/placement admission.
 - `PlannedLayout` stands each shell on its layout plan room, respecting observed
   geometry and player exclusions; proposals still need native preflight.
 - `NewPlacementSearch`: up to 64 nearby observed anchors ordered by distance and
@@ -590,7 +576,7 @@ execution remain pending.
 **Equipment**: the paused gear read is compared against native upkeep for the
 pawn/loadout census, deficit flags, eligible candidates and gains, and replacement
 needs. `MaintainEquipment` stays `method_unavailable` until its execution family is
-connected and does not consume an optional development slot.
+connected.
 
 ### Mood
 

@@ -420,7 +420,7 @@ func TestComposedRoundsFamiliesFreshStartReconciliationRecoversIndependently(t *
 	// review ranks it Committed rather than Selected, so the planner refuses
 	// a fresh admission before it reaches the existing-work check.
 	acquisitionResult2, err := acquisitionPlanner2.Step(ctx)
-	if err != nil || acquisitionResult2.Verdict != awaitingSlot(string(policy.MaintainResource)) && acquisitionResult2.Verdict != BuildingReasonExistingWork {
+	if err != nil || acquisitionResult2.Verdict != BuildingReasonExistingWork {
 		t.Fatalf("restart acquisition reconciliation: %+v %v", acquisitionResult2, err)
 	}
 
@@ -449,7 +449,7 @@ func TestComposedRoundsFamiliesFreshStartReconciliationRecoversIndependently(t *
 	if next, err := supplyPlanner2.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatalf("post-restart supply hold: %+v %v", next, err)
 	}
-	if next, err := acquisitionPlanner2.Step(ctx); err != nil || next.Verdict != awaitingSlot(string(policy.MaintainResource)) && next.Verdict != BuildingReasonExistingWork {
+	if next, err := acquisitionPlanner2.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatalf("post-restart acquisition hold: %+v %v", next, err)
 	}
 }

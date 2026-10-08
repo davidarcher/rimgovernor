@@ -103,16 +103,9 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 	}
 	sleeping.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{worker("crafter"), worker("builder")}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 	base.reviewer.native = native
-	got, err := base.reviewer.Step(context.Background())
+	_, err := base.reviewer.Step(context.Background())
 	if err != nil {
 		t.Fatal(err)
-	}
-	selected := false
-	for _, row := range got.Review.Development.Rows {
-		selected = selected || row.Concern == policy.MaintainResource && row.Selected
-	}
-	if !selected {
-		t.Fatal("MaintainResource holds no development slot", got.Review.Development.Rows)
 	}
 	planner, err := NewRoundsResourcePlanner(base.reviewer, native)
 	if err != nil {

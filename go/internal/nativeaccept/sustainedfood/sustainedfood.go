@@ -437,6 +437,12 @@ func SampleStandard(ctx context.Context, s *store.Store, need policy.ConcernID) 
 	}
 	sample["review_revision"] = review.Revision
 	sample["review_tick"] = uint64(review.Tick)
+	for _, progress := range review.Progress {
+		if progress.Concern == need {
+			sample["blocked"] = string(progress.Blocked)
+		}
+	}
+
 	sample["latch_food"] = review.Latches.Food
 	// The emergency needs whose EmergencySafeguard vetoes other work (#1017).
 	emergency := []string{}
@@ -462,17 +468,6 @@ func SampleStandard(ctx context.Context, s *store.Store, need policy.ConcernID) 
 		return sample, nil
 	}
 	sample["concern_bound"] = true
-	// The review's ranking row (keyed by need) says why a deficit goal is
-	// or is not selected this review (startup_survival, capacity_committed...).
-	for _, row := range review.Development.Rows {
-		if row.Concern == need {
-			development := map[string]any{"reason": string(row.Reason), "selected": row.Selected, "committed": row.Committed, "idle": row.Idle}
-			if row.Deficit != nil {
-				development["deficit"] = *row.Deficit
-			}
-			sample["development"] = development
-		}
-	}
 	// The mood review's provisioning of this goal (#255): the fraction of
 	// reviewed pawns whose dominant thought pressure its facility removes,
 	// which DetectRounds raises the ranked deficit to at least.
@@ -547,15 +542,6 @@ func sampleProject(ctx context.Context, s *store.Store, review store.Rounds, kin
 	sample["concern_bound"] = bound
 	if !bound {
 		return sample, nil
-	}
-	for _, row := range review.Development.Rows {
-		if row.Concern == kind {
-			development := map[string]any{"reason": string(row.Reason), "selected": row.Selected, "committed": row.Committed, "idle": row.Idle}
-			if row.Deficit != nil {
-				development["deficit"] = *row.Deficit
-			}
-			sample["development"] = development
-		}
 	}
 	project, err := s.LoadProject(ctx, id)
 	if err != nil {

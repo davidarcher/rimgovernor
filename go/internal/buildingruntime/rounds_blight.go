@@ -18,10 +18,6 @@ type RoundsBlightSource interface {
 	observation.ColonySource
 }
 
-// RoundsBlightPlanner composes RemoveBlight's method (#245): while the
-// review holds the goal in deficit and development arbitration selected it,
-// one plan of up to eight CutPlant designations on the census's undesignated
-// plants. The goal settles on the census emptying, never on the plan.
 type RoundsBlightPlanner struct {
 	reviewer *Rounder
 	native   RoundsBlightSource
@@ -60,18 +56,6 @@ func (r *RoundsBlightPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !workable {
 		return RoundsBlightResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	// RemoveBlight competes for the bounded development capacity like waste
-	// and the other priority>=3 autopilot goals; act only while this
-	// review's arbitration selected it.
-	selected := false
-	for _, row := range review.Development.Rows {
-		selected = selected || row.Concern == policy.RemoveBlight && row.Selected
-	}
-	if !selected {
-		return RoundsBlightResult{Verdict: awaitingSlot(string(policy.RemoveBlight))}, nil
-	}
-	// A plant whose designation the player cancelled (an unsuccessful cut)
-	// is theirs to keep; it is not re-designated while it stands.
 	claimed := map[string]bool{}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)

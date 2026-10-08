@@ -1336,12 +1336,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		work = true
 		start.MaxTicks = min(start.MaxTicks, nativeWorkTicks, s.nativeWorkBudget())
 	}
-	// A colony that is waiting on the world (a shell being raised, a dig in
-	// progress, a development slot another goal holds) offers no method and
-	// no native-work hint, and a stopped clock never moves the tick that
-	// would change that: the step refused no_work forever (live, tick 60023).
-	// After a few such steps one short window lends game time; every other
-	// refusal (hostiles, interruption, stale facts) still applies to it.
 	if !work && s.config.RoundsMethods && s.idleRefusals >= idleLendAfter && len(out.HeldBy) == 0 {
 		s.warnIdleStall(call, loaded.Context.GetTick())
 		work = true
@@ -1876,7 +1870,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		// every window while one is observed stopped the clock for good in
 		// autonomous play. The break stays visible through the pawn's mood
 		// goal and the native hazard supervisor keeps its authority.
-		if stage := review.Review.Stage; stage != nil && stage.HoldsDevelopment() {
+		if stage := review.Review.Stage; stage != nil && stage.NeedsShelter() {
 			// Foothold (#630): the shelter's planner is critical for this
 			// step (#658), its siting reads outlasting the optional grace.
 			// Every other planner still runs.

@@ -190,7 +190,7 @@ func TestProtoRefusalUnavailableAndWrapperFailures(t *testing.T) {
 func TestPlacementValidationBeforeDispatchAndCompleteFacts(t *testing.T) {
 	s := &testServer{schema: protoSchema}
 	client := testClient(t, s, testBudget)
-	for _, change := range []func(*p.PlacementRequest){func(q *p.PlacementRequest) { q.Identity.MapId = nil }, func(q *p.PlacementRequest) { q.Identity.ColonyId = proto.String("a\x00b") }, func(q *p.PlacementRequest) { q.Placements[0].X = nil }, func(q *p.PlacementRequest) { q.Placements[0].Rotation = p.Rotation(99).Enum() }, func(q *p.PlacementRequest) { q.Placements[0].DefName = proto.String(strings.Repeat("界", 86)) }, func(q *p.PlacementRequest) { q.Placements = nil }} {
+	for _, change := range []func(*p.PlacementRequest){func(q *p.PlacementRequest) { q.Identity.MapId = nil }, func(q *p.PlacementRequest) { q.Identity.ColonyId = proto.String("a\x00b") }, func(q *p.PlacementRequest) { q.Placements[0].X = nil }, func(q *p.PlacementRequest) { q.Placements[0].Rotation = p.Rotation(99).Enum() }, func(q *p.PlacementRequest) { q.Placements[0].DefName = proto.String(strings.Repeat("ç•Œ", 86)) }, func(q *p.PlacementRequest) { q.Placements = nil }} {
 		q := pbRequest()
 		change(q)
 		if _, _, err := client.PlacementPreviews(context.Background(), q); !errors.Is(err, ErrContract) {

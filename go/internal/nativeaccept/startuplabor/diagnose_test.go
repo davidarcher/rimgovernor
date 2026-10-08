@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // held builds a Pending progress view holding the given reasons, the way
@@ -46,55 +45,42 @@ func TestDiagnoseDistinguishesBlockers(t *testing.T) {
 		subject Subject
 		want    Class
 		blocker domain.HeldReason
-		reason  policy.DevelopmentReason
 	}{
 		{
-			name:    "slot refusal",
-			subject: Subject{Slot: &Slot{Reason: policy.DevelopmentCapacity}},
-			want:    ClassSlotRefusal, reason: policy.DevelopmentCapacity,
-		},
-		{
-			name:    "worker refusal is not an ordinary slot refusal",
-			subject: Subject{Slot: &Slot{Reason: policy.DevelopmentNoWorkers}},
-			want:    ClassWorkerBlocker, reason: policy.DevelopmentNoWorkers,
-		},
-		{
 			name:    "material blocker",
-			subject: Subject{Slot: &Slot{Selected: true}, Progress: held(t, domain.HeldInsufficientStock)},
+			subject: Subject{Progress: held(t, domain.HeldInsufficientStock)},
 			want:    ClassMaterialBlocker, blocker: domain.HeldInsufficientStock,
 		},
 		{
 			name:    "worker blocker",
-			subject: Subject{Slot: &Slot{Selected: true}, Progress: held(t, domain.HeldUrgentCompetingWork)},
+			subject: Subject{Progress: held(t, domain.HeldUrgentCompetingWork)},
 			want:    ClassWorkerBlocker, blocker: domain.HeldUrgentCompetingWork,
 		},
 		{
-			name: "material outranks worker when both are held",
-			subject: Subject{Slot: &Slot{Selected: true},
-				Progress: held(t, domain.HeldUrgentCompetingWork, domain.HeldMaterialRequired)},
-			want: ClassMaterialBlocker, blocker: domain.HeldMaterialRequired,
+			name:    "material outranks worker when both are held",
+			subject: Subject{Progress: held(t, domain.HeldUrgentCompetingWork, domain.HeldMaterialRequired)},
+			want:    ClassMaterialBlocker, blocker: domain.HeldMaterialRequired,
 		},
 		{
-			name: "unresolved action",
-			subject: Subject{Slot: &Slot{Selected: true, Committed: true},
-				Progress: &domain.ProgressView{Stage: domain.Dispatched, Unresolved: true}},
-			want: ClassUnresolvedAction,
+			name:    "unresolved action",
+			subject: Subject{Progress: &domain.ProgressView{Stage: domain.Dispatched, Unresolved: true}},
+			want:    ClassUnresolvedAction,
 		},
 		{
 			name: "normal non-work activity",
-			subject: Subject{Slot: &Slot{Selected: true}, Progress: pending(),
+			subject: Subject{Progress: pending(),
 				Activity: []Activity{ActivitySleep, ActivityMeal}},
 			want: ClassNonWorkActivity,
 		},
 		{
 			name: "a working pawn is progress, not a blocker",
-			subject: Subject{Slot: &Slot{Selected: true}, Progress: pending(),
+			subject: Subject{Progress: pending(),
 				Activity: []Activity{ActivitySleep, ActivityWork}},
 			want: ClassProgressing,
 		},
 		{
 			name:    "a dispatched, resolved action is progressing",
-			subject: Subject{Slot: &Slot{Selected: true, Committed: true}, Progress: &domain.ProgressView{Stage: domain.Dispatched}},
+			subject: Subject{Progress: &domain.ProgressView{Stage: domain.Dispatched}},
 			want:    ClassProgressing,
 		},
 	} {
@@ -105,9 +91,6 @@ func TestDiagnoseDistinguishesBlockers(t *testing.T) {
 			}
 			if d.Blocker != tc.blocker {
 				t.Fatalf("blocker = %q, want %q", d.Blocker, tc.blocker)
-			}
-			if d.Reason != tc.reason {
-				t.Fatalf("reason = %q, want %q", d.Reason, tc.reason)
 			}
 			if len(d.Missing) != 0 {
 				t.Fatalf("missing = %v, want none", d.Missing)
@@ -122,32 +105,27 @@ func TestDiagnoseNeverInfersMissingFacts(t *testing.T) {
 		subject Subject
 		missing []string
 	}{
-		{name: "no evidence at all", subject: Subject{}, missing: []string{"development_row", "progress"}},
-		{
-			name:    "refused with no reason recorded",
-			subject: Subject{Slot: &Slot{}},
-			missing: []string{"development_reason"},
-		},
+		{name: "no evidence at all", subject: Subject{}, missing: []string{"progress"}},
 		{
 			name:    "selected and unheld with no pawn sample",
-			subject: Subject{Slot: &Slot{Selected: true}, Progress: pending()},
+			subject: Subject{Progress: pending()},
 			missing: []string{"pawn_activity"},
 		},
 		{
 			name: "a sample with no readable job",
-			subject: Subject{Slot: &Slot{Selected: true}, Progress: pending(),
+			subject: Subject{Progress: pending(),
 				Activity: []Activity{ActivityUnknown}},
 			missing: []string{"pawn_activity"},
 		},
 		{
 			name: "an idle pawn beside an unblocked goal names no blocker",
-			subject: Subject{Slot: &Slot{Selected: true}, Progress: pending(),
+			subject: Subject{Progress: pending(),
 				Activity: []Activity{ActivityIdle}},
 			missing: []string{"blocker"},
 		},
 		{
 			name:    "a hold in neither class is reported, not guessed",
-			subject: Subject{Slot: &Slot{Selected: true}, Progress: held(t, domain.HeldUnsafeThreat)},
+			subject: Subject{Progress: held(t, domain.HeldUnsafeThreat)},
 			missing: []string{"hold_reason_class"},
 		},
 	} {
@@ -166,8 +144,7 @@ func TestDiagnoseNeverInfersMissingFacts(t *testing.T) {
 func TestDiagnosisRowOmitsUnobservedFacts(t *testing.T) {
 	d := Diagnose(Subject{
 		World: World{Colony: "c", Load: "l", Map: 3}, ReviewTick: 42,
-		Concern: "routine-shelter", Method: "shelter-beds", Action: "act-1",
-		Slot: &Slot{Selected: true}, Progress: held(t, domain.HeldInsufficientStock),
+		Concern: "routine-shelter", Method: "shelter-beds", Action: "act-1", Progress: held(t, domain.HeldInsufficientStock),
 		ShelterBeds: domain.Known(true),
 	})
 	row := d.Row()
@@ -183,7 +160,7 @@ func TestDiagnosisRowOmitsUnobservedFacts(t *testing.T) {
 		}
 	}
 	// An unknown shelter-beds fact is absent from the row, not false.
-	if _, present := Diagnose(Subject{Slot: &Slot{Reason: policy.DevelopmentCapacity}}).Row()["shelter_beds"]; present {
+	if _, present := Diagnose(Subject{}).Row()["shelter_beds"]; present {
 		t.Fatal("unknown shelter-beds fact rendered as a value")
 	}
 }

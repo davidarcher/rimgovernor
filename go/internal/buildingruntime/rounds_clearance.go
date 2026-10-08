@@ -64,13 +64,6 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 	if !workable {
 		return RoundsClearanceResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	selected := false
-	for _, row := range review.Development.Rows {
-		selected = selected || row.Concern == policy.ClearHomeObstructions && row.Selected
-	}
-	if !selected {
-		return RoundsClearanceResult{Verdict: awaitingSlot(string(policy.ClearHomeObstructions))}, nil
-	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {

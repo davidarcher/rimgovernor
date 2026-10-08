@@ -61,17 +61,12 @@ func migrateRounds(ctx context.Context, tx *sql.Tx, data []byte, r *Rounds) (boo
 // of the row that names Concerns, reporting whether anything went.
 func dropRemovedStandards(r *Rounds) bool {
 	removed := func(id policy.ConcernID) bool { return removedStandardConcerns[id] }
-	before := len(r.Standards) + len(r.Emergency) + len(r.Progress) + len(r.NoOps) + len(r.Dependencies) +
-		len(r.Development.Committed) + len(r.Development.Rows) + len(r.Development.Holds)
+	before := len(r.Standards) + len(r.Emergency) + len(r.Progress) + len(r.NoOps) + len(r.Dependencies)
 	r.Standards = slices.DeleteFunc(r.Standards, func(v RoundsStandard) bool { return removed(v.Concern) })
 	r.Emergency = slices.DeleteFunc(r.Emergency, removed)
 	r.Progress = slices.DeleteFunc(r.Progress, func(v policy.ConcernProgress) bool { return removed(v.Concern) })
 	r.NoOps = slices.DeleteFunc(r.NoOps, func(v policy.NoOpRecord) bool { return removed(v.Concern) })
 	r.Dependencies = slices.DeleteFunc(r.Dependencies, func(v DependencyRecord) bool { return removed(v.Need) || removed(v.Concern) })
-	r.Development.Committed = slices.DeleteFunc(r.Development.Committed, removed)
-	r.Development.Rows = slices.DeleteFunc(r.Development.Rows, func(v RoundsDevelopmentRow) bool { return removed(v.Concern) })
-	r.Development.Holds = slices.DeleteFunc(r.Development.Holds, func(v policy.DevelopmentHold) bool { return removed(v.Concern) })
-	after := len(r.Standards) + len(r.Emergency) + len(r.Progress) + len(r.NoOps) + len(r.Dependencies) +
-		len(r.Development.Committed) + len(r.Development.Rows) + len(r.Development.Holds)
+	after := len(r.Standards) + len(r.Emergency) + len(r.Progress) + len(r.NoOps) + len(r.Dependencies)
 	return after != before
 }

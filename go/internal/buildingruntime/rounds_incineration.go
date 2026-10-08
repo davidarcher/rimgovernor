@@ -73,13 +73,6 @@ func (r *RoundsIncinerationPlanner) step(call, epoch context.Context, arbiter *s
 	// MaintainIncineration competes for the same bounded concurrent-project
 	// capacity as the other priority>=3 goals; only act while this review's
 	// arbitration actually selected it.
-	selected := false
-	for _, row := range review.Development.Rows {
-		selected = selected || row.Concern == policy.MaintainIncineration && row.Selected
-	}
-	if !selected {
-		return RoundsIncinerationResult{Verdict: awaitingSlot(string(policy.MaintainIncineration))}, nil
-	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {

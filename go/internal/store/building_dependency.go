@@ -128,7 +128,7 @@ func wallCells(ctx context.Context, tx *sql.Tx, census policy.CurrentConstructio
 
 // abandonStuckWallRemovals is the census-side give-up for a wall removal
 // native never carries out (#1001): once a completed removal's wall still
-// stands in the census more than policy.DevelopmentStallTicks after its
+// stands in the census more than domain.TicksPerDay after its
 // dispatch, the removal and every action waiting on it are cancelled, so
 // the plan settles and its goal re-plans instead of checkDependencies
 // holding the replacement forever.
@@ -168,7 +168,7 @@ func abandonStuckWallRemovals(ctx context.Context, tx *sql.Tx, cells []WallCell,
 		for _, p := range state.Progress {
 			v := p.View()
 			removal, ok := p.Action().WallRemoval()
-			if ok && v.Stage == domain.Completed && standing[removal.Cell()] && tick-v.Tick > policy.DevelopmentStallTicks {
+			if ok && v.Stage == domain.Completed && standing[removal.Cell()] && tick-v.Tick > domain.TicksPerDay {
 				withdraw[v.Action] = true
 			}
 		}

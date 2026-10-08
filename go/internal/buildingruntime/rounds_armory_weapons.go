@@ -28,16 +28,13 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 	if err != nil {
 		return RoundsArmoryResult{}, err
 	}
-	workable = workable && equipmentRanked(review)
+
 	food, foodWorkable, err := p.journal.WorkableHunterWeapons(call, review)
 	if err != nil {
 		return RoundsArmoryResult{}, err
 	}
 	if !workable && !foodWorkable {
 		return RoundsArmoryResult{Verdict: BuildingReasonNoDeficit}, nil
-	}
-	if _, refused, err := equipmentSlots(call, p, review); err != nil || !refused.IsZero() {
-		return RoundsArmoryResult{Verdict: refused}, err
 	}
 	claimed := map[string]bool{}
 	for _, method := range goal.Methods {

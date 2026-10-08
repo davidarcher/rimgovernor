@@ -27,13 +27,13 @@ then four sections:
   worked it says why: governor off, held for a review, stopped, or between
   windows.
 - **Pursuing**: the colony stage, what the next stage is waiting on, and the
-  ranked development projects it has selected or started.
+  Concern methods currently in progress.
 - **Concerns**: the active concerns with their method, status and review
   deadline, most urgent first; an emergency is marked. The last clock stop and
   how long it took to land close the section.
-- **Waiting**: the optional projects that are not started and why: capacity, free
-  pawns of a named work type, a known deficit, or unsafe outdoor work. The lists
-  are absent when routine reviews are disabled.
+- **Waiting**: the Concerns waiting on prerequisites, unavailable methods,
+  native blockers or emergency precedence. Pawn work priorities schedule queued
+  work; the governor does not allocate exclusive development slots.
 
 In Observe mode the controller serves no colony readings, so the tab shows a
 single notice instead of the report.

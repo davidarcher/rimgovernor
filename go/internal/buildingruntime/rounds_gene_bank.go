@@ -98,15 +98,6 @@ func (r *RoundsGeneBankPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !workable {
 		return RoundsBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	// The bank competes for the bounded development capacity like the other
-	// priority>=3 autopilot goals.
-	selected := false
-	for _, row := range review.Development.Rows {
-		selected = selected || row.Concern == policy.MaintainGeneBank && row.Selected
-	}
-	if !selected {
-		return RoundsBuildingResult{Verdict: awaitingSlot(string(policy.MaintainGeneBank))}, nil
-	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {

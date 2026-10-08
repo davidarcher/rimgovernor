@@ -128,13 +128,6 @@ func (r *RoundsShrinePlanner) step(call, epoch context.Context, arbiter *stepArb
 			return RoundsShrineResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
-	selected := false
-	for _, row := range review.Development.Rows {
-		selected = selected || row.Concern == policy.ClearAncientShrine && (row.Selected || row.Committed)
-	}
-	if !selected {
-		return RoundsShrineResult{Verdict: awaitingSlot(string(policy.ClearAncientShrine))}, nil
-	}
 	started := r.reviewer.clock.Now()
 	identity, _, err := r.native.Identity(call)
 	if err != nil {

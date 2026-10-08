@@ -102,8 +102,7 @@ func TestRoundsResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 	}
 	result, err := planner.Step(context.Background())
 	if err != nil || result.Verdict != BuildingReasonAdmitted || result.Plan == "" {
-		review, _ := db.LoadRounds(context.Background())
-		t.Fatal(result, err, review.Development.Rows)
+		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Plan)
 	if err != nil || len(plan.Spec.Actions()) != 1 {

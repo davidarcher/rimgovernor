@@ -60,25 +60,11 @@ func (r *RoundsRepairPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if err != nil {
 		return RoundsRepairResult{}, err
 	}
-	// A repair the colonists already made (the goal recovered, or the
-	// structure is ineligible) is settled here, before the need gate:
-	// once the goal recovers the gate returns early, and the open
-	// method would hold the goal's development commitment forever.
 	if err = cancelSettledRepairMethods(call, p.journal, goal); err != nil {
 		return RoundsRepairResult{}, err
 	}
 	if !workable {
 		return RoundsRepairResult{Verdict: BuildingReasonNoDeficit}, nil
-	}
-	// MaintainEssentialRepairs competes for the same bounded concurrent-project
-	// capacity as comfort/expansion/other priority>=3 autopilot goals; only act
-	// while this review's arbitration actually selected it.
-	selected := false
-	for _, row := range review.Development.Rows {
-		selected = selected || row.Concern == policy.MaintainEssentialRepairs && row.Selected
-	}
-	if !selected {
-		return RoundsRepairResult{Verdict: awaitingSlot(string(policy.MaintainEssentialRepairs))}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)

@@ -52,7 +52,7 @@ func blockedPlanner(name string, class plannerClass, released chan<- error) plan
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			<-ctx.Done()
 			released <- ctx.Err()
-			out.Lighting = &RoundsBuildingResult{Verdict: refuse(RefusalSharedAdmission, "no_development_slot", "")}
+			out.Lighting = &RoundsBuildingResult{Verdict: refuse(RefusalSharedAdmission, "already_reserved", "")}
 			return Verdict{}, ctx.Err()
 		}}
 }
@@ -297,7 +297,7 @@ func TestClockSchedulerPromotesTheShelterPlannerUnderTheFootholdHold(t *testing.
 	if !errors.Is(err, executor.ErrHeld) || got.Attempt != nil || f.writes != 0 {
 		t.Fatal(got, err, f.writes)
 	}
-	if got.Rounds == nil || got.Rounds.Review.Stage == nil || !got.Rounds.Review.Stage.HoldsDevelopment() {
+	if got.Rounds == nil || got.Rounds.Review.Stage == nil || !got.Rounds.Review.Stage.NeedsShelter() {
 		t.Fatalf("the fixture must review under the Foothold hold: %+v", got.Rounds)
 	}
 	if !reflect.DeepEqual(got.HeldBy, []string{"sleeping"}) || len(got.MissedCutoff) != 0 {

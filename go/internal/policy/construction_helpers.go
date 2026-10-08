@@ -211,3 +211,12 @@ func busyBuilding(w *workWorker) bool {
 	job, ok := w.pawn.Job.Value()
 	return ok && job.Work == WorkConstruction
 }
+
+// idleJob reports a pawn job with no productive work.
+func idleJob(job PawnJob) bool {
+	switch job.Def {
+	case "", "Wait", "Wait_Wander", "GotoWander", "Wait_MaintainPosture":
+		return true
+	}
+	return false
+}

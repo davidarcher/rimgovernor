@@ -158,7 +158,7 @@ func TestDetectRoundsRanksLightingFromMeasuredCensus(t *testing.T) {
 	}
 	for _, g := range r.Concerns {
 		if g.ID == MaintainLighting {
-			if g.Priority != lightingPriority || g.MethodUnavailable || len(g.Labor) != 1 || g.Labor[0] != WorkConstruction {
+			if g.Priority != lightingPriority || g.MethodUnavailable {
 				t.Fatal(g)
 			}
 			if d, known := g.Deficit.Value(); !known || d != 1 {

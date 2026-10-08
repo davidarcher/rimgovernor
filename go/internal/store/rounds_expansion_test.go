@@ -23,7 +23,7 @@ func TestExpansionDurableRenewalAndUnknown(t *testing.T) {
 	r.Facts.Sleeping = housedSleeping(3)
 	out := reviewRounds(t, s, &r)
 	first := roundsGoal(t, out, policy.MaintainHousing)
-	if first.Standard.Finding != domain.FindingUnmet || !developmentRow(t, out.Review, policy.MaintainHousing).Selected {
+	if first.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(out)
 	}
 	r.Facts.IndoorCapacity = domain.Unknown[int64]()
@@ -83,18 +83,11 @@ func TestRoundsCapabilitiesPreserveCommittedExpansion(t *testing.T) {
 	r.Facts.AvailableMethods = domain.Known([]policy.ConcernID{policy.MaintainHousing})
 	out := reviewRounds(t, s, &r)
 	g := roundsGoal(t, out, policy.MaintainHousing)
-	if !developmentRow(t, out.Review, policy.MaintainHousing).Selected {
-		t.Fatal(out)
-	}
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "expansion", plan(t, "expansion", "additional-place")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.AvailableMethods = domain.Known([]policy.ConcernID{})
 	out = reviewRounds(t, s, &r)
-	row := developmentRow(t, out.Review, policy.MaintainHousing)
-	if row.Selected || !row.Committed || row.Reason != policy.DevelopmentCommitted {
-		t.Fatal(row)
-	}
 	if got := roundsGoal(t, out, policy.MaintainHousing); got.Standard.Finding != domain.FindingUnmet || len(got.Methods) != 1 {
 		t.Fatal(got)
 	}

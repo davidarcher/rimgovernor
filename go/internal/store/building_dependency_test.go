@@ -216,11 +216,11 @@ func TestStuckWallRemovalWithdrawsReplacement(t *testing.T) {
 		}
 		return out
 	}
-	reviewWalls(t, s, 10+policy.DevelopmentStallTicks, cell)
+	reviewWalls(t, s, 10+domain.TicksPerDay, cell)
 	if got := stages(); got["demolish"] != domain.Completed || got["replace"] != domain.Pending {
 		t.Fatalf("gave up inside the stall bound: %v", got)
 	}
-	reviewWalls(t, s, 11+policy.DevelopmentStallTicks, cell)
+	reviewWalls(t, s, 11+domain.TicksPerDay, cell)
 	if got := stages(); got["demolish"] != domain.Cancelled || got["replace"] != domain.Cancelled {
 		t.Fatalf("stuck removal not withdrawn: %v", got)
 	}

@@ -94,7 +94,7 @@ func TestClearPestsOpensOnlyOnAKnownPest(t *testing.T) {
 	}
 	for _, g := range r.Concerns {
 		if g.ID == ClearPests {
-			if deficit, known := g.Deficit.Value(); g.Priority != 2 || !known || deficit != 1 || g.MethodUnavailable || g.Blocked {
+			if deficit, known := g.Deficit.Value(); g.Priority != 2 || !known || deficit != 1 || g.MethodUnavailable {
 				t.Fatal(g)
 			}
 		}

@@ -64,8 +64,6 @@ func TestLoadRoundsMigratesRemovedMaintainWaste(t *testing.T) {
 		t.Fatal(err)
 	}
 	row["Standards"] = append(row["Standards"].([]any), map[string]any{"Concern": "MaintainWaste", "Standard": "routine-legacy-MaintainWaste"})
-	dev := row["Development"].(map[string]any)
-	dev["Rows"] = append(dev["Rows"].([]any), map[string]any{"Concern": "MaintainWaste"})
 	row["Progress"] = append(asSlice(row["Progress"]), map[string]any{"Concern": "MaintainWaste"})
 	if data, err = json.Marshal(row); err != nil {
 		t.Fatal(err)
@@ -80,11 +78,6 @@ func TestLoadRoundsMigratesRemovedMaintainWaste(t *testing.T) {
 	for _, binding := range loaded.Standards {
 		if binding.Concern == "MaintainWaste" {
 			t.Fatal("removed concern still bound", loaded.Standards)
-		}
-	}
-	for _, development := range loaded.Development.Rows {
-		if development.Concern == "MaintainWaste" {
-			t.Fatal("removed concern still ranked", loaded.Development.Rows)
 		}
 	}
 	for _, progress := range loaded.Progress {

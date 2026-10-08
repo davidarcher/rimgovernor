@@ -50,7 +50,7 @@ the save holds. The rest of this page details the session journal.
   The existing in-memory action replay retains those creation receipts for the
   load, including every created zone ID and actual footprint. Go journals the
   receipt and derives ownership from it; no ownership metadata is saved natively.
-- **The Rounds cursor and policy inputs.** Latches, recovery histories and the current Standard
+- **The Rounds cursor and policy inputs.** Latches, recovery histories, observed Concern progress and the current Standard
   bindings let the next Rounds continue where the last stopped; population and resource policies and
   per-pawn decisions are what the reviewer reads.
 - **Clock inbox and source cursors.** Native clock reads journal fetched events with their source

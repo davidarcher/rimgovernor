@@ -85,6 +85,12 @@ func (w WorkPawn) HostilityPawn() HostilityPawn {
 	return HostilityPawn{ID: w.ID, Current: w.Hostility, ViolenceCapable: w.ViolenceCapable, Age: w.Age, BloodLoss: w.BloodLoss, Health: w.Health, Job: w.Job}
 }
 
+// JobTarget is the native thing or cell a pawn's job works on.
+type JobTarget struct {
+	Thing string
+	Cell  domain.Fact[domain.Cell]
+}
+
 // PawnJob is one pawn's current job as the census saw it. Def is the
 // JobDef name, empty for a pawn with no job; Work is the WorkTypeDef of
 // the work giver that issued it, empty for a job no giver issued (a forced

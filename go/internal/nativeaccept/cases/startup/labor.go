@@ -236,15 +236,8 @@ func observe(ctx context.Context, s cases.Session, variant string) (startuplabor
 func reviewDiagnoses(ctx context.Context, st *store.Store, review store.Rounds) ([]startuplabor.Diagnosis, error) {
 	world := startuplabor.World{Colony: string(review.Snapshot.Colony), Load: string(review.Snapshot.Load), Map: int(review.Snapshot.Map)}
 	var out []startuplabor.Diagnosis
-	for _, row := range review.Development.Rows {
-		slot := startuplabor.Slot{
-			Reason: row.Reason, Bottleneck: row.Bottleneck, Score: row.Score,
-			Selected: row.Selected, Committed: row.Committed, Idle: row.Idle,
-		}
-		subject := startuplabor.Subject{
-			World: world, ReviewTick: review.Development.Tick, Concern: row.Concern, Slot: &slot,
-			ShelterBeds: domain.Unknown[bool](),
-		}
+	for _, row := range review.Progress {
+		subject := startuplabor.Subject{World: world, ReviewTick: review.Tick, Concern: row.Concern, ShelterBeds: domain.Unknown[bool]()}
 		if methods, ok, err := ownerMethods(ctx, st, review, row.Concern); err != nil {
 			return nil, err
 		} else if ok {

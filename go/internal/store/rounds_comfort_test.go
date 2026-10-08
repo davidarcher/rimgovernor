@@ -43,11 +43,8 @@ func TestRecreationMaintenanceAssessmentSurvivesJournalRead(t *testing.T) {
 	}
 	// Loading and reviewing again traverses Rounds's optional-goal
 	// validation: this goal can be foothold or maintenance in the same save.
-	out = reviewRounds(t, s, &r)
-	row := developmentRow(t, out.Review, policy.EnsureComfort)
-	if row.Concern != policy.EnsureComfort {
-		t.Fatal(row)
-	}
+	reviewRounds(t, s, &r)
+
 	v.Joy.Pawns[0].Bored[0] = false
 	r.Facts.BasicComfort = domain.Known(v)
 	out = reviewRounds(t, s, &r)

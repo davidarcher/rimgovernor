@@ -317,8 +317,6 @@ func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err 
 	failures := make([]string, 0, len(result.PlannerFailures))
 	var unselected []string
 	for _, failure := range result.PlannerFailures {
-		// A goal the ranking left without a development slot this round is
-		// waiting its turn, not faulting.
 		if errors.Is(failure, store.ErrNotAdmitted) {
 			unselected = append(unselected, failure.Error())
 			continue

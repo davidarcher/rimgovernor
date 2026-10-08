@@ -34,7 +34,6 @@ func recovery(t *testing.T, path string) (Rounds, []policy.ClearanceTarget, poli
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Slot = true
 	return r, rows, policy.RankRecovery(req)
 }
 

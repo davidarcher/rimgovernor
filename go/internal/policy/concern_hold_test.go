@@ -30,26 +30,17 @@ func TestWaitingGoalSaysWhatItWaitsOn(t *testing.T) {
 }
 
 func TestHoldProgressNamesIntentionalHolds(t *testing.T) {
-	progress := []ConcernProgress{
-		{Concern: EnsureComfort, Blocked: BlockedNoMethod},
-		{Concern: EnsureResearch, Blocked: BlockedPlanner("x")},
-		{Concern: MaintainLighting, Blocked: BlockedNoMethod},
-		{Concern: MaintainRefrigeration, Blocked: BlockedNoMethod, Planner: PlannerOptOut},
-		{Concern: MaintainFireSafety, Blocked: BlockedNoMethod},
-		{Concern: MaintainHousing, Blocked: BlockedNoMethod},
-		{Concern: MaintainResource, Blocked: BlockedNoWorker},
-		{Concern: ManagePollution, Blocked: BlockedNoMethod},
-	}
-	rows := []DevelopmentRow{{Concern: EnsureComfort, Reason: DevelopmentStage}, {Concern: EnsureResearch, Reason: DevelopmentLabor, Bottleneck: WorkResearch}, {Concern: MaintainHousing, Reason: DevelopmentCapacity}}
-	got := HoldProgress(progress, rows, LaborProfile{WorkConstruction}, map[ConcernID]bool{MaintainFireSafety: true})
-	want := []BlockedReason{HeldStage, HeldLabor(WorkResearch), HeldLabor(WorkConstruction), HeldOptIn, HeldUnavailable, HeldCapacity, BlockedNoWorker, BlockedNoMethod}
+	progress := []ConcernProgress{{Concern: EnsureResearch, Blocked: BlockedNoMethod}, {Concern: EnsureComfort, Blocked: BlockedNoMethod, Planner: PlannerOptOut}, {Concern: MaintainResource, Blocked: BlockedNoMethod}, {Concern: MaintainHousing, Blocked: BlockedNoWorker}}
+	got := HoldProgress(progress, nil, map[ConcernID]bool{EnsureResearch: true})
+	want := []BlockedReason{HeldUnavailable, HeldOptIn, BlockedNoMethod, BlockedNoWorker}
 	for i, w := range want {
 		if got[i].Blocked != w || ValidateConcernProgress(got[i], 0) != nil {
-			t.Fatalf("%s = %q, want %q", got[i].Concern, got[i].Blocked, w)
+			t.Fatal(got[i], w)
 		}
-		if w.Held() == w.Actionable() {
-			t.Fatalf("%q held and actionable", w)
-		}
+	}
+	emergency := HoldProgress(progress, []ConcernID{MaintainResource}, nil)
+	if emergency[0].Blocked != HeldEmergency || emergency[2].Blocked != BlockedNoMethod || emergency[3].Blocked != BlockedNoWorker {
+		t.Fatal(emergency)
 	}
 	if progress[0].Blocked != BlockedNoMethod {
 		t.Fatal("input mutated")

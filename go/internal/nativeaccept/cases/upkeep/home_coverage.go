@@ -245,10 +245,8 @@ func serveStage(ctx context.Context, service *na.ServiceProcess, report na.Repor
 	}
 	reviewData, _ := json.Marshal(review)
 	report["rounds_review_first"] = json.RawMessage(reviewData)
-	for _, row := range review.Development.Rows {
-		if row.Reason == policy.DevelopmentEmergency {
-			return nil, fmt.Errorf("first review holds development as an emergency (patients %v); the fixture roll is unusable", review.MedicalCare.Patients)
-		}
+	if len(review.Emergency) > 0 {
+		return nil, fmt.Errorf("first review holds development as an emergency (patients %v); the fixture roll is unusable", review.MedicalCare.Patients)
 	}
 	return journal, nil
 }

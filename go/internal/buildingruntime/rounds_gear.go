@@ -107,17 +107,12 @@ func gearCandidateDefinition(observation policy.GearObservation, pawn policy.Paw
 	return "", false
 }
 
+// maxGearMethods bounds planning cost; each method names one pawn and item.
+const maxGearMethods = 16
+
 func (r *RoundsGearPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoundsGearResult, error) {
-	review, err := r.reviewer.player.journal.LoadRounds(call)
-	if err != nil {
-		return RoundsGearResult{}, err
-	}
-	limit, refused, err := equipmentSlots(call, r.reviewer.player, review)
-	if err != nil || !refused.IsZero() {
-		return RoundsGearResult{Verdict: refused}, err
-	}
 	var admitted RoundsGearResult
-	for i := 0; i < limit; i++ {
+	for i := 0; i < maxGearMethods; i++ {
 		result, err := r.stepOne(call, epoch, arbiter)
 		if err != nil {
 			return result, err
@@ -131,30 +126,6 @@ func (r *RoundsGearPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		admitted = result
 	}
 	return admitted, nil
-}
-
-// equipmentSlots is how many MaintainEquipment methods the gear and armory
-// planners may start in one step. There is no development slot or pawn limit:
-// each gear plan is already confined to one pawn and one item.
-func equipmentSlots(call context.Context, p *Player, review store.Rounds) (int, Verdict, error) {
-	return 16, Verdict{}, nil
-}
-
-// equipmentRanked: the ranking gave MaintainEquipment a slot (or it already
-// holds one). A goal the colony stage has not raised yet waits with a
-// reason and holds none, and a wear order or bill admitted for it is refused
-// on every tick. Settings writes hold no slot and go ahead regardless. A
-// review with no rows at all predates the ranking.
-func equipmentRanked(review store.Rounds) bool {
-	if len(review.Development.Rows) == 0 {
-		return true
-	}
-	for _, row := range review.Development.Rows {
-		if row.Concern == policy.MaintainEquipment {
-			return row.Selected || row.Committed
-		}
-	}
-	return false
 }
 
 func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepArbiter) (RoundsGearResult, error) {
@@ -205,11 +176,9 @@ func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepAr
 			}
 		}
 	}
-	if equipmentRanked(review) {
-		// A bill whose need is gone (the owner stayed Met) is removed first (#2411).
-		if plan, err := r.reviewer.removeStaleBill(call, epoch, arbiter, state, goal, policy.MaintainEquipment); err != nil || plan != "" {
-			return RoundsGearResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
-		}
+	// A bill whose need is gone (the owner stayed Met) is removed first (#2411).
+	if plan, err := r.reviewer.removeStaleBill(call, epoch, arbiter, state, goal, policy.MaintainEquipment); err != nil || plan != "" {
+		return RoundsGearResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
@@ -255,29 +224,21 @@ func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepAr
 		}
 		pawn.Candidates = domain.Known(available)
 	}
-	if equipmentRanked(review) {
-		// An apparel or armor bill outside every loadout's replacements goes
-		// whatever the owner's finding (#2433); the armory judges weapons.
-		wanted, known, err := policy.GearBillsWanted(domain.Known(observation))
-		if err != nil {
-			return RoundsGearResult{}, err
+	// An apparel or armor bill outside every loadout's replacements goes
+	// whatever the owner's finding (#2433); the armory judges weapons.
+	wanted, known, err := policy.GearBillsWanted(domain.Known(observation))
+	if err != nil {
+		return RoundsGearResult{}, err
+	}
+	if known {
+		judge := func(b policy.StaleBill) (bool, bool) {
+			return !policy.WeaponBill(b.Products), policy.BillWanted(b.Products, wanted)
 		}
-		if known {
-			judge := func(b policy.StaleBill) (bool, bool) {
-				return !policy.WeaponBill(b.Products), policy.BillWanted(b.Products, wanted)
-			}
-			if plan, err := r.reviewer.removeUnwantedBill(call, epoch, arbiter, state, review, goal, policy.MaintainEquipment, judge); err != nil || plan != "" {
-				return RoundsGearResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
-			}
+		if plan, err := r.reviewer.removeUnwantedBill(call, epoch, arbiter, state, review, goal, policy.MaintainEquipment, judge); err != nil || plan != "" {
+			return RoundsGearResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
 		}
 	}
-	// Configure vanilla dressing before choosing individual replacements. The
-	// shared goal and Hands executor own this settings operation like wear work.
-	// Every pawn that needs a policy is admitted in the same step: one write per
-	// development slot per round spent a whole 60k-tick window assigning eight
-	// colonists before any wear order or bill (#660). A write whose CAS token an
-	// earlier write in the batch staled is cancelled and re-admitted next round,
-	// so the batch converges in about one round per distinct role policy.
+	// Configure vanilla dressing before choosing individual replacements.
 	var policies RoundsGearResult
 	for _, pawn := range observation.Pawns {
 		if pawn.Blocked {
@@ -315,9 +276,6 @@ func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepAr
 		if err != nil || result.Plan != "" {
 			return result, err
 		}
-	}
-	if !equipmentRanked(review) {
-		return RoundsGearResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {

@@ -63,16 +63,6 @@ func (r *RoundsCleanPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !workable {
 		return RoundsCleanResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	// MaintainCleanFacilities competes for the same bounded concurrent-project
-	// capacity as comfort/expansion/other priority>=3 autopilot goals; only act
-	// while this review's arbitration actually selected it.
-	selected := false
-	for _, row := range review.Development.Rows {
-		selected = selected || row.Concern == policy.MaintainCleanFacilities && row.Selected
-	}
-	if !selected {
-		return RoundsCleanResult{Verdict: awaitingSlot(string(policy.MaintainCleanFacilities))}, nil
-	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {

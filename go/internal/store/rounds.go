@@ -75,8 +75,8 @@ type Rounds struct {
 	Projects  []RoundsProject `json:",omitempty"`
 	// Incidents binds the Responses this review assessed to their open
 	// occurrences (#1020); those needs have no entry in Goals.
-	Incidents   []RoundsIncident `json:",omitempty"`
-	Development RoundsDevelopment
+	Incidents []RoundsIncident `json:",omitempty"`
+
 	// Roster is the roster planner's last recorded report (#448): coverage,
 	// decaying skills and pawn profiles as of its Tick. A disabled review
 	// keeps the last one; absent until an enabled review planned work.
@@ -121,9 +121,6 @@ type RoundsRequest struct {
 	Enabled  bool
 	Policy   policy.RoundsPolicy
 	Facts    policy.RoundsFacts
-	// PartialPlanners: only the planners a wake named follow this review,
-	// so the next review must not count an unrun planner's goal idle.
-	PartialPlanners bool
 }
 
 type RoundsResult struct {
@@ -276,32 +273,11 @@ func loadRounds(ctx context.Context, tx *sql.Tx) (Rounds, error) {
 	if r.Stage != nil && policy.ValidateColonyStage(*r.Stage, r.Tick) != nil {
 		return Rounds{}, errors.New("invalid routine stage history")
 	}
-	if r.Enabled {
-		if r.Development.Snapshot != r.Snapshot || r.Development.Tick != r.Tick || policy.ValidateDevelopmentState(r.Development.State()) != nil {
-			return Rounds{}, errors.New("invalid routine development history")
-		}
-	} else if len(r.Development.Rows) > 0 || r.Development.Workers != nil {
-		// A disabled review keeps the last ranking (waiting ages) but
-		// selects nothing: methods cannot be committed without authority.
-		if r.Development.Tick > r.Tick || policy.ValidateDevelopmentState(r.Development.State()) != nil {
-			return Rounds{}, errors.New("invalid routine development history")
-		}
-		for _, row := range r.Development.Rows {
-			if row.Selected {
-				return Rounds{}, errors.New("disabled routine retains development selection")
-			}
-		}
-	}
 	// The stored review is the fact: a binding is valid when it names a
 	// routine goal the table knows, not when a second derivation from empty
 	// facts would also have assessed it (#1763). Response kinds live in the
 	// incidents table and Project kinds in the projects table; Goals binds
 	// Standards only.
-	for _, row := range r.Development.Rows {
-		if c := policy.ConcernTypeOf(row.Concern); c != policy.StandardConcern && c != policy.ProjectConcern {
-			return Rounds{}, errors.New("unknown optional routine standard")
-		}
-	}
 	seen := map[domain.ConcernID]bool{}
 	identities := map[domain.ConcernID]bool{}
 	for _, binding := range r.Standards {
@@ -469,12 +445,9 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 				return RoundsResult{}, err
 			}
 			recovery = &req
-			// The clearance deficit is what the queue could work with a
-			// slot: the rows it neither holds nor throttles.
-			ranked := req
-			ranked.Slot = true
+			// Only candidates that pass safety and storage checks are owed.
 			working := map[string]bool{}
-			for _, e := range policy.RankRecovery(ranked).Entries {
+			for _, e := range policy.RankRecovery(req).Entries {
 				working[e.ID] = e.Status == policy.RecoveryAdmitted || e.Status == policy.RecoveryQueued
 			}
 			var workable []policy.ClearanceTarget
@@ -684,22 +657,12 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			}
 		}
 		r.Latches = latches
-		// Manual mode, a player interruption or a restart's first review
-		// before authority returns does not rank; the last ranking stays
-		// so waiting ages survive it. Only a world change or tick rewind
-		// resets ranking history.
+		// Manual control retains progress and prerequisites in the same world.
 		if !reset {
-			r.Development = previous.Development
-			r.Development.Rows = append([]RoundsDevelopmentRow(nil), previous.Development.Rows...)
 			r.Progress = previous.Progress
 			r.Stage = previous.Stage
 			r.Dependencies = previous.Dependencies
 			r.NoOps = previous.NoOps
-		}
-		for i := range r.Development.Rows {
-			if row := &r.Development.Rows[i]; row.Selected || row.Reason == "" {
-				row.Selected, row.Reason = false, policy.DevelopmentDisabled
-			}
 		}
 		for _, binding := range r.Standards {
 			result.Standards = append(result.Standards, old[binding.Concern])
@@ -775,7 +738,6 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			states = append(states, g)
 		}
 	}
-	recoverySlot := false
 	if request.Enabled {
 		r.Progress, err = roundsProgress(ctx, tx, request, previous, reset, needs, states)
 		if err != nil {
@@ -783,13 +745,12 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		}
 		stage := policy.ReviewColonyStage(previousStage, policy.StageColonyFacts(needs, request.Facts, request.Policy, r.Progress), request.Policy.Stages(), request.Tick)
 		r.Stage = &stage
-		var development policy.DevelopmentState
 		var ready policy.ReadyWorkReport
 		var records []DependencyRecord
 		if !reset {
 			records = previous.Dependencies
 		}
-		development, ready, r.Dependencies, err = rankRoundsDevelopment(ctx, tx, request, needs, states, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, records)
+		ready, r.Dependencies, err = reviewWork(ctx, tx, request, needs, states, records)
 		if err != nil {
 			return RoundsResult{}, err
 		}
@@ -797,11 +758,10 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		for _, n := range needs.All() {
 			unavailable[n.ID] = n.MethodUnavailable
 		}
-		r.Progress = policy.HoldProgress(r.Progress, development.Rows, policy.WithheldLabor(r.Progress), unavailable)
-		r.Development = developmentRecord(development)
-		for _, row := range development.Rows {
-			recoverySlot = recoverySlot || row.Concern == policy.ClearHomeObstructions && row.Selected
+		for _, n := range needs.Concerns {
+			unavailable[n.ID] = unavailable[n.ID] || n.MethodUnavailable
 		}
+		r.Progress = policy.HoldProgress(r.Progress, r.Emergency, unavailable)
 		r.ReadyWork = &ready
 		r.Recovery, err = roundsRecovery(ctx, tx, request.Facts, disaster, r, request.Tick)
 		if err != nil {
@@ -818,7 +778,6 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			}
 			recovery = &req
 		}
-		recovery.Slot = recoverySlot
 		queue := policy.RankRecovery(*recovery)
 		r.RecoveryQueue = &queue
 	} else {

@@ -137,11 +137,6 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoundsBuildingResult{Verdict: BuildingShelterPending}, nil
 		}
 	}
-	if r.phase == policy.ComfortRanked || r.phase == policy.HousingExpansion || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes || (r.concern == policy.MaintainResource || r.concern == policy.MaintainEquipment) || r.phase == policy.HousingSleeping {
-		if !developmentSelects(review.Development.Rows, r.concern) {
-			return RoundsBuildingResult{Verdict: awaitingSlot(string(r.concern))}, nil
-		}
-	}
 	bunksOpen := false
 	for _, m := range goal.OwnerMethods() {
 		plan, err := p.journal.LoadPlan(call, m.Plan)
@@ -1439,19 +1434,6 @@ func regularBedsShort(f policy.RoundsFacts) bool {
 		}
 	}
 	return regular < count
-}
-
-// developmentSelects reports whether the development rows let goal build.
-// A resource or equipment goal held on an existing commitment keeps
-// building its prerequisite bench (#981).
-func developmentSelects(rows []store.RoundsDevelopmentRow, goal domain.ConcernID) bool {
-	for _, row := range rows {
-		held := row.Committed && (goal == policy.MaintainResource || goal == policy.MaintainEquipment)
-		if row.Concern == goal && (row.Selected || held) {
-			return true
-		}
-	}
-	return false
 }
 
 // nonSleepingPlannedCells are the interior cells of the layout plan's rooms

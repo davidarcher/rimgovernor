@@ -116,10 +116,11 @@ func TestForwardProjectionCarriesFuelDomain(t *testing.T) {
 	if p, ok := got.Fuel.Value(); !ok || p.ShortfallDays <= 0 {
 		t.Fatalf("%+v %v", p, ok)
 	}
-	if shortfall, why := shadowShortfall(got, ShadowFuel); why != "" || shortfall <= 0 {
-		t.Fatal(shortfall, why)
+	if projection, known := (got).Fuel.Value(); !known || projection.ShortfallDays <= 0 {
+		t.Fatal(projection, known)
 	}
-	if _, why := shadowShortfall(ProjectForward(ForwardInputs{}), ShadowFuel); why == "" {
-		t.Fatal("an unread census must stay unranked")
+
+	if _, known := (ProjectForward(ForwardInputs{})).Fuel.Value(); known {
+		t.Fatal("unknown inputs produced a forecast")
 	}
 }

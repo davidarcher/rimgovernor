@@ -52,8 +52,8 @@ eligible researchers. Unknown or ambiguous definitions stay unknown.
 - Traversal visits at most 128 unfinished nodes and keeps at most eight queued projects and eight
   capability inspections per review. Completed prerequisites are omitted; stable native definition
   order breaks ties.
-- Research uses the shared development admission limit. An observed owned project keeps its slot until
-  native work ends; repeated reviews never switch an active project to a newly preferred one. Obsolete
+- Vanilla pawn priorities schedule research. Repeated reviews never switch an active project
+  to a newly preferred one. Obsolete
   requests leave the queue without clearing already-issued native research.
 
 **Ownership.** The current project is player-owned unless this load's controller recorded its verified

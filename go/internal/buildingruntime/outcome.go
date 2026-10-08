@@ -166,10 +166,6 @@ func awaitingPlan(subject, detail string) Verdict {
 	return refuse(RefusalAwaitingPlan, subject, detail)
 }
 
-// awaitingSlot is the refusal of a goal this review's arbitration did not
-// select: the bounded concurrent-project capacity went to other goals.
-func awaitingSlot(goal string) Verdict { return awaitingPlan("development_slot", goal) }
-
 // claimHeld is the wait of a step whose claim another planner already holds
 // this step (a bench, an animal); the subject names the claim.
 func claimHeld(subject string) Verdict {

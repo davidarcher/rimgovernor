@@ -76,15 +76,6 @@ func (r *RoundsMechChargerPlanner) step(call, epoch context.Context, arbiter *st
 	if !workable {
 		return RoundsBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	// The charger competes for the bounded development capacity like the
-	// other priority>=3 autopilot goals.
-	selected := false
-	for _, row := range review.Development.Rows {
-		selected = selected || row.Concern == policy.EnsureMechCharger && row.Selected
-	}
-	if !selected {
-		return RoundsBuildingResult{Verdict: awaitingSlot(string(policy.EnsureMechCharger))}, nil
-	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {

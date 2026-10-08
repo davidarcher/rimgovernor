@@ -40,16 +40,15 @@ func TestShelterShortfallAdmitsMaintainResourceUntilSatisfied(t *testing.T) {
 		t.Fatal(err)
 	}
 	second := reviewRounds(t, s, &r)
-	wood := developmentRow(t, second.Review, policy.MaintainResource)
-	if !wood.Selected || len(second.Review.Dependencies) != 1 || len(second.Detection.Facts.Admitted) != 2 {
-		t.Fatalf("wood row %+v, deps %+v", wood, second.Review.Dependencies)
+	if len(second.Review.Dependencies) != 1 || len(second.Detection.Facts.Admitted) != 2 {
+		t.Fatalf("deps %+v", second.Review.Dependencies)
 	}
 	// Stock covers the open costs: no donation, the edge stays while the
 	// frames are open.
 	r.Facts.Wood = domain.Known(int64(150))
 	third := reviewRounds(t, s, &r)
-	if w := developmentRow(t, third.Review, policy.MaintainResource); len(third.Review.Dependencies) != 1 {
-		t.Fatalf("covered: %+v", w)
+	if len(third.Review.Dependencies) != 1 {
+		t.Fatalf("covered: %+v", third.Review.Dependencies)
 	}
 	// Cancelled actions settle the dependency: the record drops.
 	r.Facts.Wood = domain.Known(int64(40))
@@ -59,8 +58,8 @@ func TestShelterShortfallAdmitsMaintainResourceUntilSatisfied(t *testing.T) {
 		}
 	}
 	fourth := reviewRounds(t, s, &r)
-	if w := developmentRow(t, fourth.Review, policy.MaintainResource); len(fourth.Review.Dependencies) != 0 || len(fourth.Detection.Facts.Admitted) != 0 {
-		t.Fatalf("settled: %+v %+v", w, fourth.Review.Dependencies)
+	if len(fourth.Review.Dependencies) != 0 || len(fourth.Detection.Facts.Admitted) != 0 {
+		t.Fatalf("settled: %+v", fourth.Review.Dependencies)
 	}
 }
 
@@ -114,8 +113,7 @@ func TestShelterNonWoodShortfallRaisesResourceFloor(t *testing.T) {
 		t.Fatal(err)
 	}
 	second := reviewRounds(t, s, &r)
-	row := developmentRow(t, second.Review, policy.MaintainResource)
-	if !row.Selected || len(second.Detection.Facts.Admitted) != 2 {
-		t.Fatalf("resource row %+v", row)
+	if len(second.Review.Dependencies) != 1 || policy.ConstructionDemandOf(second.Detection.Facts, second.Detection.Policy, second.Review.Latches)["BlocksGranite"] < 120 {
+		t.Fatal(second.Review.Dependencies, second.Detection.Facts.Admitted)
 	}
 }

@@ -292,10 +292,8 @@ func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, 
 	}
 	reviewData, _ := json.Marshal(review)
 	report["rounds_review_first"] = json.RawMessage(reviewData)
-	for _, row := range review.Development.Rows {
-		if row.Reason == policy.DevelopmentEmergency {
-			return nil, fmt.Errorf("first review holds development as an emergency (patients %v); the world is unusable", review.MedicalCare.Patients)
-		}
+	if len(review.Emergency) > 0 {
+		return nil, fmt.Errorf("first review holds development as an emergency (patients %v); the world is unusable", review.MedicalCare.Patients)
 	}
 	// The earlier goals are checked on every review while this stage's
 	// watch runs, and once more after it: a reopened goal has a tick budget

@@ -58,18 +58,3 @@ func TestAnimalContainmentStuffRequiresSharedOrBothAbsentMaterial(t *testing.T) 
 		t.Fatal("partially known material accepted")
 	}
 }
-
-// A live colony built its fence ring, then the development review refused
-// the priority-3 goal for Construction labor; the marker step was gated with
-// the shell and the ring never became a pen.
-func TestAnimalContainmentDevelopmentGatesOnlyTheShell(t *testing.T) {
-	if !animalContainmentDevelopmentGated(3, false, policy.ContainmentBuildShell) {
-		t.Fatal("unselected priority-3 shell must wait for development")
-	}
-	if animalContainmentDevelopmentGated(3, false, policy.ContainmentPlaceMarker) {
-		t.Fatal("a completed shell's marker must not wait for development")
-	}
-	if animalContainmentDevelopmentGated(3, true, policy.ContainmentBuildShell) || animalContainmentDevelopmentGated(2, false, policy.ContainmentBuildShell) {
-		t.Fatal("selected or higher-priority goals build without the gate")
-	}
-}

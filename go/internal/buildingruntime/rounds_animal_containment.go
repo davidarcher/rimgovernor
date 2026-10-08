@@ -137,15 +137,6 @@ func containmentWait(reason policy.AnimalContainmentReason) Verdict {
 	return awaitingPlan("pen", string(reason))
 }
 
-// animalContainmentDevelopmentGated reports whether an unselected
-// low-priority goal must wait for development: only an unclosed wall does. Once
-// the wall stands and its lane is fenced, the PenMarker is the step that makes
-// the yard a working pen, so a development row refusing Construction labor
-// never strands a closed yard without a marker.
-func animalContainmentDevelopmentGated(priority int, selected bool, reason policy.AnimalContainmentReason) bool {
-	return priority >= 3 && !selected && reason == policy.ContainmentBuildShell
-}
-
 func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoundsAnimalContainmentResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
@@ -168,10 +159,6 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	}
 	if !workable {
 		return RoundsAnimalContainmentResult{Verdict: BuildingReasonNoDeficit}, nil
-	}
-	selected := false
-	for _, row := range review.Development.Rows {
-		selected = selected || row.Concern == policy.MaintainAnimalContainment && row.Selected
 	}
 	penBuilding := false
 	for _, method := range goal.Methods {
@@ -220,9 +207,6 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	choice, err := policy.SelectAnimalContainmentMethod(animals, handlerAvailable, shellStage, markerStands)
 	if err != nil {
 		return RoundsAnimalContainmentResult{}, err
-	}
-	if animalContainmentDevelopmentGated(goal.Standard.Priority, selected, choice.Reason) {
-		return RoundsAnimalContainmentResult{Verdict: awaitingSlot(string(policy.MaintainAnimalContainment))}, nil
 	}
 	if choice.Reason == policy.ContainmentNoDeficit {
 		// The pen stands (or no animal needs one): the barn and vet room.

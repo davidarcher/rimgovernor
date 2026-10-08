@@ -27,6 +27,7 @@ type RoundsProvider interface {
 // are the state store's held census sections with the tick each describes
 // (facts.Store, #354), so a live serve shows staleness per section.
 type RoundsStatus struct {
+	Emergency         []policy.ConcernID
 	ExtentEligibility policy.ExtentEligibilityRequest
 	// ResourceReach holds same-observation inputs; absent facts stay unknown.
 	ResourceReach   policy.ResourceReachRequest
@@ -36,7 +37,6 @@ type RoundsStatus struct {
 	ActiveFamilies  []string
 	LastReviewTick  domain.Tick
 	LastReviewKnown bool
-	Development     *policy.DevelopmentState
 	// Progress is every active concern's progress record from the last review
 	// (#629): method, expected observable, last progress tick, next review
 	// tick and blocker.
@@ -58,6 +58,7 @@ type RoundsStatus struct {
 }
 
 type roundsStatusDTO struct {
+	Emergency         []policy.ConcernID           `json:"emergency"`
 	ExtentEligibility policy.ExtentEligibilityView `json:"extentEligibility"`
 	ResourceReach     policy.ResourceReachDecision `json:"resourceReach"`
 	Extent            roundsExtentDTO              `json:"extent"`
@@ -66,7 +67,6 @@ type roundsStatusDTO struct {
 	MethodsEnabled    bool                         `json:"methodsEnabled"`
 	ActiveFamilies    []string                     `json:"activeFamilies"`
 	LastReviewTick    *domain.Tick                 `json:"lastReviewTick"`
-	Development       *roundsDevelopmentDTO        `json:"development"`
 	Progress          []concernProgressDTO         `json:"progress"`
 	Stage             *colonyStageDTO              `json:"stage"`
 	Roster            *roundsRosterDTO             `json:"roster"`
@@ -162,39 +162,6 @@ type colonyStageDTO struct {
 	Held    bool        `json:"held"`
 }
 
-// roundsDevelopmentDTO is the recorded development ranking: bounded
-// admission (capacity, labor) and every optional concern's ordering evidence and
-// deferral reason. Unknown facts are null; labor rows are sorted by work type.
-type roundsDevelopmentDTO struct {
-	Tick      domain.Tick               `json:"tick"`
-	Workers   *int                      `json:"workers"`
-	Labor     []roundsLaborDTO          `json:"labor"`
-	Capacity  int                       `json:"capacity"`
-	Committed []domain.ConcernID        `json:"committed"`
-	Rows      []roundsDevelopmentRowDTO `json:"rows"`
-	// Capacity bounds planner cost; distinct observed workers decide
-	// admission. HeldWorkers is labor open startup work and withheld prerequisites
-	// hold without a slot; Limiting the
-	// first reason an eligible concern was left unselected.
-	HeldWorkers int                      `json:"heldWorkers"`
-	Limiting    policy.DevelopmentReason `json:"limiting"`
-}
-type roundsLaborDTO struct {
-	Work policy.WorkType `json:"work"`
-	Free int             `json:"free"`
-}
-type roundsDevelopmentRowDTO struct {
-	Concern      domain.ConcernID         `json:"concern"`
-	Score        float64                  `json:"score"`
-	Deficit      *float64                 `json:"deficit"`
-	Risk         *float64                 `json:"risk"`
-	WaitingSince domain.Tick              `json:"waitingSince"`
-	Selected     bool                     `json:"selected"`
-	Committed    bool                     `json:"committed"`
-	Reason       policy.DevelopmentReason `json:"reason"`
-	Bottleneck   policy.WorkType          `json:"bottleneck"`
-}
-
 // concernProgressDTO is one concern's progress record on the wire (#629): the
 // five fields per concern plus the bounded cooldowns keying failed situations
 // out. lastProgress and nextReview are ticks; blocked is empty when the
@@ -231,7 +198,7 @@ func roundsStatus(v RoundsStatus) roundsStatusDTO {
 	if families == nil {
 		families = []string{}
 	}
-	result := roundsStatusDTO{ReviewsEnabled: v.ReviewsEnabled, MethodsEnabled: v.MethodsEnabled, ActiveFamilies: families, Sections: []roundsSectionDTO{}}
+	result := roundsStatusDTO{Emergency: append([]policy.ConcernID{}, v.Emergency...), ReviewsEnabled: v.ReviewsEnabled, MethodsEnabled: v.MethodsEnabled, ActiveFamilies: families, Sections: []roundsSectionDTO{}}
 	result.ResourceRunways = resourceRunwaysDTO(v.ResourceRunways)
 	result.ResourceReach = policy.ResourceReach(v.ResourceReach)
 	result.Extent = roundsExtent(v.ResourceReach.Extent)
@@ -248,10 +215,6 @@ func roundsStatus(v RoundsStatus) roundsStatusDTO {
 	if v.LastReviewKnown {
 		tick := v.LastReviewTick
 		result.LastReviewTick = &tick
-	}
-	if v.Development != nil {
-		dto := roundsDevelopment(*v.Development)
-		result.Development = &dto
 	}
 	if v.Stage != nil {
 		result.Stage = &colonyStageDTO{Stage: v.Stage.Stage.String(), Since: v.Stage.Since, Blocker: string(v.Stage.Blocker), Reason: v.Stage.Reason, Held: v.Stage.Held}
@@ -313,36 +276,6 @@ func roundsRosterPawn(p policy.PawnProfile) roundsRosterPawnDTO {
 	}
 	for _, work := range e.DisabledWork {
 		dto.Effects.Flags = append(dto.Effects.Flags, "No"+string(work))
-	}
-	return dto
-}
-
-func roundsDevelopment(s policy.DevelopmentState) roundsDevelopmentDTO {
-	dto := roundsDevelopmentDTO{Tick: s.Tick, Capacity: s.Capacity, Labor: []roundsLaborDTO{}, Committed: []domain.ConcernID{}, Rows: []roundsDevelopmentRowDTO{}, Limiting: s.Limiting}
-	for _, h := range s.Holds {
-		if !h.Slot && len(h.Labor) > 0 {
-			dto.HeldWorkers++
-		}
-	}
-	if v, k := s.Workers.Value(); k {
-		dto.Workers = &v
-	}
-	if labor, k := s.Labor.Value(); k {
-		for w, n := range labor {
-			dto.Labor = append(dto.Labor, roundsLaborDTO{Work: w, Free: n})
-		}
-		sort.Slice(dto.Labor, func(i, j int) bool { return dto.Labor[i].Work < dto.Labor[j].Work })
-	}
-	dto.Committed = append(dto.Committed, s.Committed...)
-	for _, row := range s.Rows {
-		v := roundsDevelopmentRowDTO{Concern: row.Concern, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck}
-		if d, k := row.Deficit.Value(); k {
-			v.Deficit = &d
-		}
-		if r, k := row.Risk.Value(); k {
-			v.Risk = &r
-		}
-		dto.Rows = append(dto.Rows, v)
 	}
 	return dto
 }

@@ -142,12 +142,6 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 		}
 	}
 	committed, err := commitOwnerMethod(ctx, tx, owner, r.Method, r.Reason, r.Plan)
-	if errors.Is(err, ErrNotAdmitted) {
-		// The review no longer grants this goal a development slot: refuse
-		// the method like any other policy outcome so the planner reports a
-		// reason and waits for the next review instead of failing every step.
-		return decisionOf(owner, []policy.Refusal{{Reason: policy.NoDevelopmentSlot}}), nil
-	}
 	if err != nil {
 		return BuildingMethodDecision{}, err
 	}

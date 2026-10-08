@@ -244,11 +244,3 @@ func vetoAction(ctx context.Context, tx *sql.Tx, a domain.Action) error {
 	}
 	return nil
 }
-
-// needOf is the need the review binds the goal or Project row id to.
-func (r Rounds) needOf(id string) (domain.ConcernID, bool) {
-	if isProjectID(id) {
-		return r.projectNeed(domain.ProjectID(id))
-	}
-	return r.Need(domain.ConcernID(id))
-}

@@ -13,8 +13,7 @@ import (
 // distance from Home. Rank is tier, then distance: tier 1 a room obstruction,
 // tier 2 anything yielding at least one currently short resource, tier 3 the
 // rest; within a tier nearest first. Safety holds apply per thing; demand
-// never holds one. Admission is one thing per development slot of the
-// ClearHomeObstructions labor profile. The review journals the queue
+// never holds one. Each clearance method admits one bounded recovery batch. The review journals the queue
 // (Rounds.RecoveryQueue); the clearance planner executes its removals as a
 // roof-first batch (PlanRecoveryBatch) and loot is released by FilterLootReach
 // under the same hold vocabulary.
@@ -32,19 +31,15 @@ const (
 type RecoveryStatus string
 
 const (
-	// RecoveryAdmitted is the one thing the slot works now.
+	// RecoveryAdmitted is the first ready thing in the bounded batch.
 	RecoveryAdmitted RecoveryStatus = "admitted"
-	// RecoveryQueued waits behind the admitted thing; the slot is granted.
+	// RecoveryQueued follows the admitted thing in queue order.
 	RecoveryQueued RecoveryStatus = "queued"
 	// RecoveryDeferred waits on labor or storage and stays in the queue.
 	RecoveryDeferred RecoveryStatus = "deferred"
 	// RecoveryHeld is refused by a safety hold (RemoteHoldReason words).
 	RecoveryHeld RecoveryStatus = "held"
 )
-
-// RecoveryReasonLaborExhausted defers every ready thing while the
-// ClearHomeObstructions profile has no development slot.
-const RecoveryReasonLaborExhausted = "labor_exhausted"
 
 // RecoveryThing is one candidate. Hold is a thing-level refusal already in
 // the RemoteHoldReason vocabulary (not_deconstructible, ancient_danger,
@@ -65,8 +60,7 @@ type RecoveryThing struct {
 // RecoveryRequest is the review's input. Short are the resources currently
 // below demand (unknown demand leaves none short: nothing is held for it).
 // Origins are the cells distance is measured from (the nearest wins);
-// Center stands in when there are none. Slot is the development slot of the
-// ClearHomeObstructions profile.
+// Center stands in when there are none.
 type RecoveryRequest struct {
 	Things  []RecoveryThing
 	Short   map[Resource]bool
@@ -74,7 +68,6 @@ type RecoveryRequest struct {
 	Center  domain.Cell
 	Threat  domain.Fact[bool]
 	Urgent  domain.Fact[bool]
-	Slot    bool
 }
 
 // RecoveryEntry is one ranked thing as journaled.
@@ -202,8 +195,6 @@ func RankRecovery(r RecoveryRequest) RecoveryQueue {
 		case !ready[i]:
 		case throttled[i]:
 			e.Status, e.Reason = RecoveryDeferred, RemoteHoldMissingStorage
-		case !r.Slot:
-			e.Status, e.Reason = RecoveryDeferred, RecoveryReasonLaborExhausted
 		case q.Admitted == "":
 			e.Status, q.Admitted = RecoveryAdmitted, e.ID
 		default:

@@ -132,7 +132,7 @@ passes ~140 characters (`setup` refuses one).
 - Read the digest first: a failed case writes `diagnosis` at the top of
   `result.json` and `diagnosis.txt` beside it (`acceptance why
   <output>/<area>/<case>`, `-json` for structure): the run binary's revision
-  against `main`, last native refusals, refused development rows and selected
+  against `main`, last native refusals, Concern progress blockers and active
   concerns with no method, unsuccessful stages, failed dispatches (native job
   failures, pooled-job mismatches) and authority generation flips and rows,
   each naming its file and row; flight rows are cited `flight.jsonl#<sequence>`

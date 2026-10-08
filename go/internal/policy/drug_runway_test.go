@@ -47,11 +47,11 @@ func TestMedicineRunwayProjection(t *testing.T) {
 	if !ok || len(got.Resources) != 1 || got.Resources[0].StockDays != 2 || got.ShortfallDays != RunwayShortfall(2, ProjectionHorizonDays) {
 		t.Fatal(got, ok)
 	}
-	if shortfall, why := shadowShortfall(ForwardProjection{Medicine: domain.Known(got)}, ShadowMedicine); why != "" || shortfall <= 0 {
-		t.Fatal(shortfall, why)
+	if projection, known := (ForwardProjection{Medicine: domain.Known(got)}).Medicine.Value(); !known || projection.ShortfallDays <= 0 {
+		t.Fatal(projection, known)
 	}
-	if _, why := shadowShortfall(ProjectForward(ForwardInputs{}), ShadowMedicine); why == "" {
-		t.Fatal("no inputs must be unknown")
+	if _, known := (ProjectForward(ForwardInputs{})).Medicine.Value(); known {
+		t.Fatal("unknown inputs produced a forecast")
 	}
 	unread := ForecastResourceRunway("MedicineHerbal", domain.Known(int64(4)), domain.Known(int64(0)), 0, 0, domain.Unknown[ResourceConsumption]())
 	if _, ok := PlanMedicineRunway([]ResourceRunway{unread}, items).Value(); ok {

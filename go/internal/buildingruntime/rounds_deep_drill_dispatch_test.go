@@ -128,7 +128,7 @@ func TestDeepDrillAdmitsNearestReachableSiteAndHoldsExistingDrill(t *testing.T) 
 				return
 			}
 			if err != nil || !handled || result.Verdict != BuildingReasonAdmitted {
-				t.Fatal(result, handled, err, d.review.Development.Rows)
+				t.Fatal(result, handled, err)
 			}
 			plan, err := d.db.LoadPlan(context.Background(), result.Plan)
 			if err != nil {

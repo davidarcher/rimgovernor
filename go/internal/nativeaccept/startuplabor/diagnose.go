@@ -15,15 +15,12 @@ import (
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // Class is one diagnosis outcome for a goal at a review.
 type Class string
 
 const (
-	// ClassSlotRefusal: the ranking saw the goal and did not select it.
-	ClassSlotRefusal Class = "slot_refusal"
 	// ClassMaterialBlocker: the open action is held on stock, a
 	// reservation or spending policy.
 	ClassMaterialBlocker Class = "material_blocker"
@@ -51,16 +48,6 @@ type World struct {
 	Map          int
 }
 
-// Slot is the review's own ranking row for the goal (the durable
-// RoundsDevelopmentRow), as the diagnosis reads it.
-type Slot struct {
-	Reason              policy.DevelopmentReason
-	Bottleneck          policy.WorkType
-	Score               float64
-	Selected, Committed bool
-	Idle                bool
-}
-
 // Subject is one goal at one review: what the ranking did with it, the
 // open action bound to it (nil when the goal has none), and the labor
 // observation that covers its work (nil when no sample was taken).
@@ -70,8 +57,6 @@ type Subject struct {
 	Concern    domain.ConcernID
 	Method     domain.MethodID
 	Action     domain.ActionID
-	// Slot is the ranking row, nil when the goal was not on the review.
-	Slot *Slot
 	// Progress is the open action's view, nil when the goal bound none.
 	Progress *domain.ProgressView
 	// Activity is what the pawns eligible for this goal's work were doing
@@ -92,8 +77,6 @@ type Diagnosis struct {
 	Method       domain.MethodID
 	Action       domain.ActionID
 	Class        Class
-	// Reason is the ranking's refusal reason when one decided the class.
-	Reason policy.DevelopmentReason
 	// Held are the fresh hold reasons on the open action, in the domain's
 	// own order.
 	Held []domain.HeldReason
@@ -104,10 +87,6 @@ type Diagnosis struct {
 	Stage domain.Stage
 	// Unresolved is the open action's outstanding-effect flag.
 	Unresolved bool
-	// Selected, Committed, Idle come from the ranking row.
-	Selected, Committed, SlotIdle bool
-	// Bottleneck is the scarce work type the ranking named, if any.
-	Bottleneck policy.WorkType
 	// ShelterBeds: true/false when known, absent from the row otherwise.
 	ShelterBeds *bool
 	// Activities counts the observed pawn activities by kind; empty when
@@ -133,14 +112,6 @@ var workerHolds = map[domain.HeldReason]bool{
 	domain.HeldUrgentCompetingWork: true,
 }
 
-// laborRefusals are the ranking reasons that are a worker shortage rather
-// than an ordinary slot refusal.
-var laborRefusals = map[policy.DevelopmentReason]bool{
-	policy.DevelopmentNoWorkers: true,
-	policy.DevelopmentLabor:     true,
-	policy.DevelopmentLaborIdle: true,
-}
-
 // Diagnose classifies one subject. It reads only what the subject carries:
 // an absent fact produces ClassUnknown with the fact named in Missing, and
 // never a guess.
@@ -151,10 +122,6 @@ func Diagnose(s Subject) Diagnosis {
 	}
 	if v, known := s.ShelterBeds.Value(); known {
 		d.ShelterBeds = &v
-	}
-	if s.Slot != nil {
-		d.Reason, d.Bottleneck = s.Slot.Reason, s.Slot.Bottleneck
-		d.Selected, d.Committed, d.SlotIdle = s.Slot.Selected, s.Slot.Committed, s.Slot.Idle
 	}
 	if len(s.Activity) > 0 {
 		d.Activities = map[Activity]int{}
@@ -174,8 +141,8 @@ func Diagnose(s Subject) Diagnosis {
 }
 
 func classify(s Subject, d *Diagnosis) Class {
-	if s.Slot == nil && s.Progress == nil {
-		d.Missing = append(d.Missing, "development_row", "progress")
+	if s.Progress == nil {
+		d.Missing = append(d.Missing, "progress")
 		return ClassUnknown
 	}
 	if s.Progress != nil {
@@ -214,22 +181,6 @@ func classify(s Subject, d *Diagnosis) Class {
 			return ClassProgressing
 		}
 	}
-	if s.Slot == nil {
-		d.Missing = append(d.Missing, "development_row")
-		return ClassUnknown
-	}
-	if !s.Slot.Selected {
-		if s.Slot.Reason == "" {
-			d.Missing = append(d.Missing, "development_reason")
-			return ClassUnknown
-		}
-		if laborRefusals[s.Slot.Reason] {
-			return ClassWorkerBlocker
-		}
-		return ClassSlotRefusal
-	}
-	// Selected, nothing held: only the pawn sample can say whether the
-	// colony is busy elsewhere.
 	if s.Activity == nil {
 		d.Missing = append(d.Missing, "pawn_activity")
 		return ClassUnknown
@@ -257,7 +208,6 @@ func (d Diagnosis) Row() map[string]any {
 	row := map[string]any{
 		"colony": d.Colony, "load": d.Load, "map": d.Map,
 		"review_tick": d.ReviewTick, "concern": d.Concern, "class": d.Class,
-		"selected": d.Selected, "committed": d.Committed,
 	}
 	if d.Method != "" {
 		row["method"] = d.Method
@@ -265,20 +215,11 @@ func (d Diagnosis) Row() map[string]any {
 	if d.Action != "" {
 		row["action"] = d.Action
 	}
-	if d.Reason != "" {
-		row["reason"] = d.Reason
-	}
-	if d.Bottleneck != "" {
-		row["bottleneck"] = d.Bottleneck
-	}
 	if d.Stage != "" {
 		row["stage"] = d.Stage
 	}
 	if d.Unresolved {
 		row["unresolved"] = true
-	}
-	if d.SlotIdle {
-		row["slot_idle"] = true
 	}
 	if len(d.Held) > 0 {
 		row["held"] = d.Held
