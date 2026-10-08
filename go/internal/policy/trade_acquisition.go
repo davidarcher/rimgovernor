@@ -163,7 +163,9 @@ func acquisitionAttemptGate(o TradeAcquisitionOption) string {
 			}
 		}
 	case TradeAcquireSettlement:
-		if o.Participant.Kind != domain.TradeParticipantSettlement || o.Participant.Validate() != nil {
+		// Scouting precedes native caravan creation. Executable trade keeps the
+		// strict participant contract; a predeparture option has only its seller.
+		if o.Participant.Kind != domain.TradeParticipantSettlement || !foodID(o.Participant.ID) || o.Participant.Caravan != "" && o.Participant.Validate() != nil {
 			return "unknown_target"
 		}
 		safe, sk := o.SafeCrew.Value()

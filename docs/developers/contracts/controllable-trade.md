@@ -78,3 +78,27 @@ and completion exist. Native inventory, trade stock/prices, goodwill, cooldown,
 caravan position and routes stay native facts. Action attempts remain in the
 session journal. Goods bought away count as away inventory until native delivery
 at home is observed; request/scouting intent supplies no secured yield.
+
+`domain.TradeMission` is the bounded, strictly decoded `Project.Record` for
+`trade-mission` Projects. It adds home/settlement tiles for return/departure intent,
+the exact negotiator, definition/count demands and packed cargo. Phases are
+planned, departing, outbound, buying, returning, delivered and ended; return-home
+intent is mandatory. Caravan IDs are discovered from exact native crew, never
+invented or saved. Acquisition options may name a settlement before a caravan
+exists; executable trade participants still require its observed caravan ID.
+
+Preparation retains the shared departure policy's healthy spare worker, home
+work owners, staffing and defense headroom. Urgent claims exclude crew members.
+The native preview requires a day of food before returning mass/routes, so the
+read-only calculation seeds a legal dietary one-day pack plus reserved silver,
+then replaces food with the round-trip pack and validates its full native mass,
+food, rot and asymmetric routes. The final native calculation admits the trip;
+unknown estimates hold it. It supplies no expected purchase yield.
+
+Departure admission records the departing phase and Hands method atomically.
+Exact observed assembly or player caravan reconstructs progress after a lost
+receipt or load. Missing/overlapping crew evidence never resets a departing
+mission to planned. A stopped player caravan on the settlement tile is available
+to the shared session through vanilla `SettlementVisitedNow`; arrival does not
+require an extra order. The departure helper remains unregistered until the
+purchase, return and home-delivery driver is installed.

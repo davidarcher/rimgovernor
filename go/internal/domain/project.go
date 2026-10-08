@@ -45,6 +45,12 @@ func (p Project) Validate() error {
 	if len(p.Record) > MaxProjectRecord {
 		return errors.New("project record exceeds bound")
 	}
+	if p.Kind == TradeMissionConcern {
+		mission, err := DecodeTradeMission(p.Record)
+		if err != nil || mission.HomeColony != p.Snapshot.Colony || mission.HomeMap != p.Snapshot.Map {
+			return errors.New("invalid trade mission project record")
+		}
+	}
 	switch p.Status {
 	case ProjectOpen, ProjectCompleted, ProjectVoided:
 	default:
