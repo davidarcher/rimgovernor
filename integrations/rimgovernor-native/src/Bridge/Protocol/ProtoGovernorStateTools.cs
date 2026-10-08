@@ -23,28 +23,6 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => Reply(), cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("rimgovernor/lifecycle_put_governor_state", Title = "Put governor state",
-            Description = "Replace one opaque ASCII governor-state blob; an empty blob deletes it. Durable once the game next saves (#882). The reply carries no blobs (#1362).")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.GovernorStateReply.", Always = true)]
-        public async Task<object> Put(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle PutGovernorStateRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/lifecycle_put_governor_state", request,
-                Lifecycle.PutGovernorStateRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.GovernorStateReply { Failure = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () =>
-            {
-                if (string.IsNullOrEmpty(parsed.Key) || !Ascii(parsed.Key) || !Ascii(parsed.Blob))
-                    return new Lifecycle.GovernorStateReply { Failure = new Common.Failure {
-                        Code = Common.FailureCode.InvalidRequest, Detail = "key must be non-empty ASCII and blob ASCII" } };
-                if (Current.Game == null) return Reply();
-                var blobs = GovernorState.For(Current.Game).Blobs;
-                if (parsed.Blob.Length == 0) blobs.Remove(parsed.Key);
-                else blobs[parsed.Key] = parsed.Blob;
-                return new Lifecycle.GovernorStateReply { Loaded = new Lifecycle.GovernorStateBlobs() };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
         [Tool("rimgovernor/lifecycle_put_governor_state_batch", Title = "Put governor state batch",
             Description = "Replace the whole opaque ASCII governor-state blob set in one call; keys absent from the batch are removed. Runs off the game thread. Durable once the game next saves (#2357). The reply carries no blobs.")]
         [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.GovernorStateReply.", Always = true)]
@@ -54,7 +32,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/lifecycle_put_governor_state_batch", request,
                 Lifecycle.PutGovernorStateBatchRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Lifecycle.GovernorStateReply { Failure = failure });
-            // An empty blob means absent, as in the single put.
+            // An empty blob means absent.
             var set = new System.Collections.Generic.Dictionary<string, string>();
             foreach (var pair in parsed.Blobs)
             {

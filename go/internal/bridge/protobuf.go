@@ -260,7 +260,6 @@ var reviewedNativeMethods = map[string]bool{
 	"rimgovernor/lifecycle_read_identity":              true,
 	"rimgovernor/lifecycle_read_tick":                  true,
 	"rimgovernor/lifecycle_read_governor_state":        true,
-	"rimgovernor/lifecycle_put_governor_state":         true,
 	"rimgovernor/lifecycle_put_governor_state_batch":   true,
 	"rimgovernor/lifecycle_wait_save_signal":           true,
 	"rimgovernor/lifecycle_flush_done":                 true,

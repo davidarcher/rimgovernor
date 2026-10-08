@@ -94,19 +94,3 @@ func TestBuildingMethodAdmitsUnderNewLoad(t *testing.T) {
 		t.Fatal(d, e)
 	}
 }
-
-// A goal write wakes the governor-state mirror (#1362).
-func TestGoalWriteWakesMirror(t *testing.T) {
-	t.Parallel()
-	s, _, _ := goalFixture(t)
-	select {
-	case <-s.StandardsWritten():
-	default:
-	}
-	anotherGoal(t, s, "woken")
-	select {
-	case <-s.StandardsWritten():
-	default:
-		t.Fatal("create did not wake the mirror")
-	}
-}

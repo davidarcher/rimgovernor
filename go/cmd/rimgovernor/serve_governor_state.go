@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"maps"
 	"sync"
 	"time"
 
@@ -20,49 +19,11 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-// governorStateNative is the save's governor state component (#882).
+// governorStateNative is the save's governor state component (#882): read on
+// a world change, written whole at save time (#2359).
 type governorStateNative interface {
 	GovernorState(context.Context) (map[string]string, error)
-	PutGovernorState(context.Context, string, string) error
 	PutGovernorStateBatch(context.Context, map[string]string) error
-}
-
-// shadowGovernorState mirrors goals and family records into the save each
-// refresh (#974): only changed keys are put, a vanished key is deleted.
-// A commit that may create a goal wakes it early (#1362), so a restart
-// right after creation does not rebuild the goal away.
-// The first successful read in each world (#994: a new world or native
-// generation re-reads the save) rebuilds the store's goals from the save
-// (#998) and logs family drift; the store stays authoritative for
-// families. A round with no current world skips.
-func shadowGovernorState(ctx context.Context, native governorStateNative, world func(context.Context) (governorWorld, bool), database *store.Store, rebuild *worldRebuild, refresh time.Duration, out io.Writer) {
-	shadow := governorShadow{rebuild: rebuild}
-	ticker := time.NewTicker(refresh)
-	defer ticker.Stop()
-	for {
-		call, cancel := context.WithTimeout(ctx, 10*time.Second)
-		if current, ok := world(call); ok {
-			if err := shadow.round(call, current, native, database, out); err != nil && ctx.Err() == nil {
-				fmt.Fprintf(out, "governor state: %v\n", err)
-			}
-		}
-		cancel()
-		select {
-		case <-ctx.Done():
-			// The service is stopping: put what the last round missed, so the
-			// next process rebuilds from a save that holds the latest records.
-			final, stop := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-			defer stop()
-			if current, ok := world(final); ok {
-				if err := shadow.round(final, current, native, database, out); err != nil {
-					fmt.Fprintf(out, "governor state: final flush: %v\n", err)
-				}
-			}
-			return
-		case <-ticker.C:
-		case <-database.StandardsWritten():
-		}
-	}
 }
 
 // governorWorld names one loaded world and native generation: the
@@ -95,8 +56,8 @@ func currentGovernorWorld(reads httpapi.SnapshotProvider) func(context.Context) 
 
 // worldRebuild is the per-world rebuild (#998/#1005/#1011): the save's
 // goals and families replace the store's and rounds_review empties. The
-// clock worker and the shadow writer both call ensure before they act in a
-// world, so it runs once per world ahead of the first review (#1123).
+// clock worker's gate and the save flusher both call ensure before they act
+// in a world, so it runs once per world ahead of the first review (#1123).
 // orphans, when set, is the native the #1000 orphan pass sweeps.
 type worldRebuild struct {
 	mu       sync.Mutex
@@ -168,29 +129,6 @@ func (r *worldRebuild) workerGate(native governorStateNative) func(context.Conte
 	}
 }
 
-// governorShadow is the per-world written cache; a world change drops it
-// so the next round re-reads the save and re-checks drift.
-type governorShadow struct {
-	world   governorWorld
-	written map[string]string
-	rebuild *worldRebuild
-}
-
-func (s *governorShadow) round(ctx context.Context, world governorWorld, native governorStateNative, database *store.Store, out io.Writer) error {
-	if world != s.world {
-		s.world, s.written = world, nil
-	}
-	if s.rebuild == nil {
-		s.rebuild = &worldRebuild{database: database, out: out}
-	}
-	if s.written == nil {
-		if err := s.rebuild.ensure(ctx, world, native); err != nil {
-			return err
-		}
-	}
-	return shadowGovernorStateOnce(ctx, native, database, &s.written, out)
-}
-
 // orphanNative lists and cancels the Autopilot's native side effects
 // (#1000). Only the trade session has a "list mine" read today; every other
 // intent kind is a filed follow-up.
@@ -237,43 +175,4 @@ func orphanSweep(native orphanNative, world governorWorld, out io.Writer) store.
 		fmt.Fprintf(out, "governor state: cancelled orphan trade with %s (%d old plans)\n", session.Trader, len(plans))
 		return nil
 	}
-}
-
-func shadowGovernorStateOnce(ctx context.Context, native governorStateNative, database *store.Store, written *map[string]string, out io.Writer) error {
-	if *written == nil {
-		// First round in a world: the caller has rebuilt the store from
-		// the save, so the writer seeds from the save's keys (it owns
-		// every one) and puts only what changed since.
-		saved, err := native.GovernorState(ctx)
-		if err != nil {
-			return err
-		}
-		*written = maps.Clone(saved)
-		if *written == nil {
-			*written = map[string]string{}
-		}
-	}
-	blobs, err := database.GovernorStateBlobs(ctx)
-	if err != nil {
-		return err
-	}
-	for key, blob := range blobs {
-		if (*written)[key] == blob {
-			continue
-		}
-		if err := native.PutGovernorState(ctx, key, blob); err != nil {
-			return fmt.Errorf("put %s: %w", key, err)
-		}
-		(*written)[key] = blob
-	}
-	for key := range *written {
-		if _, ok := blobs[key]; ok {
-			continue
-		}
-		if err := native.PutGovernorState(ctx, key, ""); err != nil {
-			return fmt.Errorf("delete %s: %w", key, err)
-		}
-		delete(*written, key)
-	}
-	return nil
 }

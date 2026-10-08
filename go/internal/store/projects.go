@@ -69,7 +69,6 @@ func (s *Store) CreateProject(ctx context.Context, p domain.Project) error {
 	if err = tx.Commit(); err != nil {
 		return err
 	}
-	s.notifyStandardsWritten()
 	return nil
 }
 

@@ -147,67 +147,62 @@ namespace RimGovernor.Protocol.Lifecycle {
             "GAEgASgLMiwucmltZ292ZXJub3IubGlmZWN5Y2xlLnYxLkdvdmVybm9yU3Rh",
             "dGVCbG9ic0gAEjkKC3VuYXZhaWxhYmxlGAIgASgLMiIucmltZ292ZXJub3Iu",
             "Y29tbW9uLnYxLlVuYXZhaWxhYmxlSAASMQoHZmFpbHVyZRgDIAEoCzIeLnJp",
-            "bWdvdmVybm9yLmNvbW1vbi52MS5GYWlsdXJlSABCCQoHb3V0Y29tZSJPChdQ",
-            "dXRHb3Zlcm5vclN0YXRlUmVxdWVzdBIQCgNrZXkYASABKAlIAIgBARIRCgRi",
-            "bG9iGAIgASgJSAGIAQFCBgoEX2tleUIHCgVfYmxvYiKeAQocUHV0R292ZXJu",
-            "b3JTdGF0ZUJhdGNoUmVxdWVzdBJQCgVibG9icxgBIAMoCzJBLnJpbWdvdmVy",
-            "bm9yLmxpZmVjeWNsZS52MS5QdXRHb3Zlcm5vclN0YXRlQmF0Y2hSZXF1ZXN0",
-            "LkJsb2JzRW50cnkaLAoKQmxvYnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFs",
-            "dWUYAiABKAk6AjgBIj8KFVdhaXRTYXZlU2lnbmFsUmVxdWVzdBIXCgp0aW1l",
-            "b3V0X21zGAEgASgFSACIAQFCDQoLX3RpbWVvdXRfbXMiRgoKU2F2ZVNpZ25h",
-            "bBIRCgRraW5kGAEgASgJSACIAQESEgoFdG9rZW4YAiABKAlIAYgBAUIHCgVf",
-            "a2luZEIICgZfdG9rZW4iEwoRU2F2ZVNpZ25hbFRpbWVvdXQiywEKE1dhaXRT",
-            "YXZlU2lnbmFsUmVwbHkSNgoGc2lnbmFsGAEgASgLMiQucmltZ292ZXJub3Iu",
-            "bGlmZWN5Y2xlLnYxLlNhdmVTaWduYWxIABI+Cgd0aW1lb3V0GAIgASgLMisu",
-            "cmltZ292ZXJub3IubGlmZWN5Y2xlLnYxLlNhdmVTaWduYWxUaW1lb3V0SAAS",
-            "MQoHZmFpbHVyZRgDIAEoCzIeLnJpbWdvdmVybm9yLmNvbW1vbi52MS5GYWls",
-            "dXJlSABCCQoHb3V0Y29tZSIwChBGbHVzaERvbmVSZXF1ZXN0EhIKBXRva2Vu",
-            "GAEgASgJSACIAQFCCAoGX3Rva2VuIhAKDkZsdXNoRG9uZUFja2VkIokBCg5G",
-            "bHVzaERvbmVSZXBseRI5CgVhY2tlZBgBIAEoCzIoLnJpbWdvdmVybm9yLmxp",
-            "ZmVjeWNsZS52MS5GbHVzaERvbmVBY2tlZEgAEjEKB2ZhaWx1cmUYAiABKAsy",
-            "Hi5yaW1nb3Zlcm5vci5jb21tb24udjEuRmFpbHVyZUgAQgkKB291dGNvbWUq",
-            "oQEKEUNhcGFiaWxpdHlTdXBwb3J0EiIKHkNBUEFCSUxJVFlfU1VQUE9SVF9V",
-            "TlNQRUNJRklFRBAAEiAKHENBUEFCSUxJVFlfU1VQUE9SVF9TVVBQT1JURUQQ",
-            "ARIiCh5DQVBBQklMSVRZX1NVUFBPUlRfVU5BVkFJTEFCTEUQAhIiCh5DQVBB",
-            "QklMSVRZX1NVUFBPUlRfVU5TVVBQT1JURUQQAypPCglSZWFkaW5lc3MSGQoV",
-            "UkVBRElORVNTX1VOU1BFQ0lGSUVEEAASEQoNUkVBRElORVNTX01BUBABEhQK",
-            "EFJFQURJTkVTU19WSVNVQUwQAiqHAgoOTmV3Q29sb255UGhhc2USIAocTkVX",
-            "X0NPTE9OWV9QSEFTRV9VTlNQRUNJRklFRBAAEiUKIU5FV19DT0xPTllfUEhB",
-            "U0VfR0VORVJBVElOR19XT1JMRBABEiIKHk5FV19DT0xPTllfUEhBU0VfQ0hP",
-            "T1NJTkdfVElMRRACEiYKIk5FV19DT0xPTllfUEhBU0VfUk9MTElOR19DT0xP",
-            "TklTVFMQAxIjCh9ORVdfQ09MT05ZX1BIQVNFX0dFTkVSQVRJTkdfTUFQEAQS",
-            "HgoaTkVXX0NPTE9OWV9QSEFTRV9GSU5JU0hJTkcQBRIbChdORVdfQ09MT05Z",
-            "X1BIQVNFX1NBVklORxAGMs4JCglMaWZlY3ljbGUScAoOV2FpdFNhdmVTaWdu",
-            "YWwSLy5yaW1nb3Zlcm5vci5saWZlY3ljbGUudjEuV2FpdFNhdmVTaWduYWxS",
-            "ZXF1ZXN0Gi0ucmltZ292ZXJub3IubGlmZWN5Y2xlLnYxLldhaXRTYXZlU2ln",
-            "bmFsUmVwbHkSYQoJRmx1c2hEb25lEioucmltZ292ZXJub3IubGlmZWN5Y2xl",
-            "LnYxLkZsdXNoRG9uZVJlcXVlc3QaKC5yaW1nb3Zlcm5vci5saWZlY3ljbGUu",
-            "djEuRmx1c2hEb25lUmVwbHkScQoRUmVhZEdvdmVybm9yU3RhdGUSLi5yaW1n",
-            "b3Zlcm5vci5saWZlY3ljbGUudjEuR292ZXJub3JTdGF0ZVJlcXVlc3QaLC5y",
-            "aW1nb3Zlcm5vci5saWZlY3ljbGUudjEuR292ZXJub3JTdGF0ZVJlcGx5EnMK",
-            "EFB1dEdvdmVybm9yU3RhdGUSMS5yaW1nb3Zlcm5vci5saWZlY3ljbGUudjEu",
-            "UHV0R292ZXJub3JTdGF0ZVJlcXVlc3QaLC5yaW1nb3Zlcm5vci5saWZlY3lj",
-            "bGUudjEuR292ZXJub3JTdGF0ZVJlcGx5En0KFVB1dEdvdmVybm9yU3RhdGVC",
-            "YXRjaBI2LnJpbWdvdmVybm9yLmxpZmVjeWNsZS52MS5QdXRHb3Zlcm5vclN0",
-            "YXRlQmF0Y2hSZXF1ZXN0GiwucmltZ292ZXJub3IubGlmZWN5Y2xlLnYxLkdv",
-            "dmVybm9yU3RhdGVSZXBseRJiCgxSZWFkSWRlbnRpdHkSKS5yaW1nb3Zlcm5v",
-            "ci5saWZlY3ljbGUudjEuSWRlbnRpdHlSZXF1ZXN0GicucmltZ292ZXJub3Iu",
-            "bGlmZWN5Y2xlLnYxLklkZW50aXR5UmVwbHkSUgoEU2F2ZRIlLnJpbWdvdmVy",
-            "bm9yLmxpZmVjeWNsZS52MS5TYXZlUmVxdWVzdBojLnJpbWdvdmVybm9yLmxp",
-            "ZmVjeWNsZS52MS5TYXZlUmVwbHkSUgoETG9hZBIlLnJpbWdvdmVybm9yLmxp",
-            "ZmVjeWNsZS52MS5Mb2FkUmVxdWVzdBojLnJpbWdvdmVybm9yLmxpZmVjeWNs",
-            "ZS52MS5Mb2FkUmVwbHkSWAoIUmVhZExvYWQSJy5yaW1nb3Zlcm5vci5saWZl",
-            "Y3ljbGUudjEuUmVxdWVzdFN0YXR1cxojLnJpbWdvdmVybm9yLmxpZmVjeWNs",
-            "ZS52MS5Mb2FkUmVwbHkSWAoIUmVhZFNhdmUSJy5yaW1nb3Zlcm5vci5saWZl",
-            "Y3ljbGUudjEuUmVxdWVzdFN0YXR1cxojLnJpbWdvdmVybm9yLmxpZmVjeWNs",
-            "ZS52MS5TYXZlUmVwbHkSYQoJTmV3Q29sb255EioucmltZ292ZXJub3IubGlm",
-            "ZWN5Y2xlLnYxLk5ld0NvbG9ueVJlcXVlc3QaKC5yaW1nb3Zlcm5vci5saWZl",
-            "Y3ljbGUudjEuTmV3Q29sb255UmVwbHkSYgoNUmVhZE5ld0NvbG9ueRInLnJp",
-            "bWdvdmVybm9yLmxpZmVjeWNsZS52MS5SZXF1ZXN0U3RhdHVzGigucmltZ292",
-            "ZXJub3IubGlmZWN5Y2xlLnYxLk5ld0NvbG9ueVJlcGx5Qm5aS2dpdGh1Yi5j",
-            "b20vZGF2aWRhcmNoZXIvUmltR292ZXJub3IvZ28vaW50ZXJuYWwvd2lyZS9s",
-            "aWZlY3ljbGVwYjtsaWZlY3ljbGVwYqoCHlJpbUdvdmVybm9yLlByb3RvY29s",
-            "LkxpZmVjeWNsZWIGcHJvdG8z"));
+            "bWdvdmVybm9yLmNvbW1vbi52MS5GYWlsdXJlSABCCQoHb3V0Y29tZSKeAQoc",
+            "UHV0R292ZXJub3JTdGF0ZUJhdGNoUmVxdWVzdBJQCgVibG9icxgBIAMoCzJB",
+            "LnJpbWdvdmVybm9yLmxpZmVjeWNsZS52MS5QdXRHb3Zlcm5vclN0YXRlQmF0",
+            "Y2hSZXF1ZXN0LkJsb2JzRW50cnkaLAoKQmxvYnNFbnRyeRILCgNrZXkYASAB",
+            "KAkSDQoFdmFsdWUYAiABKAk6AjgBIj8KFVdhaXRTYXZlU2lnbmFsUmVxdWVz",
+            "dBIXCgp0aW1lb3V0X21zGAEgASgFSACIAQFCDQoLX3RpbWVvdXRfbXMiRgoK",
+            "U2F2ZVNpZ25hbBIRCgRraW5kGAEgASgJSACIAQESEgoFdG9rZW4YAiABKAlI",
+            "AYgBAUIHCgVfa2luZEIICgZfdG9rZW4iEwoRU2F2ZVNpZ25hbFRpbWVvdXQi",
+            "ywEKE1dhaXRTYXZlU2lnbmFsUmVwbHkSNgoGc2lnbmFsGAEgASgLMiQucmlt",
+            "Z292ZXJub3IubGlmZWN5Y2xlLnYxLlNhdmVTaWduYWxIABI+Cgd0aW1lb3V0",
+            "GAIgASgLMisucmltZ292ZXJub3IubGlmZWN5Y2xlLnYxLlNhdmVTaWduYWxU",
+            "aW1lb3V0SAASMQoHZmFpbHVyZRgDIAEoCzIeLnJpbWdvdmVybm9yLmNvbW1v",
+            "bi52MS5GYWlsdXJlSABCCQoHb3V0Y29tZSIwChBGbHVzaERvbmVSZXF1ZXN0",
+            "EhIKBXRva2VuGAEgASgJSACIAQFCCAoGX3Rva2VuIhAKDkZsdXNoRG9uZUFj",
+            "a2VkIokBCg5GbHVzaERvbmVSZXBseRI5CgVhY2tlZBgBIAEoCzIoLnJpbWdv",
+            "dmVybm9yLmxpZmVjeWNsZS52MS5GbHVzaERvbmVBY2tlZEgAEjEKB2ZhaWx1",
+            "cmUYAiABKAsyHi5yaW1nb3Zlcm5vci5jb21tb24udjEuRmFpbHVyZUgAQgkK",
+            "B291dGNvbWUqoQEKEUNhcGFiaWxpdHlTdXBwb3J0EiIKHkNBUEFCSUxJVFlf",
+            "U1VQUE9SVF9VTlNQRUNJRklFRBAAEiAKHENBUEFCSUxJVFlfU1VQUE9SVF9T",
+            "VVBQT1JURUQQARIiCh5DQVBBQklMSVRZX1NVUFBPUlRfVU5BVkFJTEFCTEUQ",
+            "AhIiCh5DQVBBQklMSVRZX1NVUFBPUlRfVU5TVVBQT1JURUQQAypPCglSZWFk",
+            "aW5lc3MSGQoVUkVBRElORVNTX1VOU1BFQ0lGSUVEEAASEQoNUkVBRElORVNT",
+            "X01BUBABEhQKEFJFQURJTkVTU19WSVNVQUwQAiqHAgoOTmV3Q29sb255UGhh",
+            "c2USIAocTkVXX0NPTE9OWV9QSEFTRV9VTlNQRUNJRklFRBAAEiUKIU5FV19D",
+            "T0xPTllfUEhBU0VfR0VORVJBVElOR19XT1JMRBABEiIKHk5FV19DT0xPTllf",
+            "UEhBU0VfQ0hPT1NJTkdfVElMRRACEiYKIk5FV19DT0xPTllfUEhBU0VfUk9M",
+            "TElOR19DT0xPTklTVFMQAxIjCh9ORVdfQ09MT05ZX1BIQVNFX0dFTkVSQVRJ",
+            "TkdfTUFQEAQSHgoaTkVXX0NPTE9OWV9QSEFTRV9GSU5JU0hJTkcQBRIbChdO",
+            "RVdfQ09MT05ZX1BIQVNFX1NBVklORxAGMtkICglMaWZlY3ljbGUScAoOV2Fp",
+            "dFNhdmVTaWduYWwSLy5yaW1nb3Zlcm5vci5saWZlY3ljbGUudjEuV2FpdFNh",
+            "dmVTaWduYWxSZXF1ZXN0Gi0ucmltZ292ZXJub3IubGlmZWN5Y2xlLnYxLldh",
+            "aXRTYXZlU2lnbmFsUmVwbHkSYQoJRmx1c2hEb25lEioucmltZ292ZXJub3Iu",
+            "bGlmZWN5Y2xlLnYxLkZsdXNoRG9uZVJlcXVlc3QaKC5yaW1nb3Zlcm5vci5s",
+            "aWZlY3ljbGUudjEuRmx1c2hEb25lUmVwbHkScQoRUmVhZEdvdmVybm9yU3Rh",
+            "dGUSLi5yaW1nb3Zlcm5vci5saWZlY3ljbGUudjEuR292ZXJub3JTdGF0ZVJl",
+            "cXVlc3QaLC5yaW1nb3Zlcm5vci5saWZlY3ljbGUudjEuR292ZXJub3JTdGF0",
+            "ZVJlcGx5En0KFVB1dEdvdmVybm9yU3RhdGVCYXRjaBI2LnJpbWdvdmVybm9y",
+            "LmxpZmVjeWNsZS52MS5QdXRHb3Zlcm5vclN0YXRlQmF0Y2hSZXF1ZXN0Giwu",
+            "cmltZ292ZXJub3IubGlmZWN5Y2xlLnYxLkdvdmVybm9yU3RhdGVSZXBseRJi",
+            "CgxSZWFkSWRlbnRpdHkSKS5yaW1nb3Zlcm5vci5saWZlY3ljbGUudjEuSWRl",
+            "bnRpdHlSZXF1ZXN0GicucmltZ292ZXJub3IubGlmZWN5Y2xlLnYxLklkZW50",
+            "aXR5UmVwbHkSUgoEU2F2ZRIlLnJpbWdvdmVybm9yLmxpZmVjeWNsZS52MS5T",
+            "YXZlUmVxdWVzdBojLnJpbWdvdmVybm9yLmxpZmVjeWNsZS52MS5TYXZlUmVw",
+            "bHkSUgoETG9hZBIlLnJpbWdvdmVybm9yLmxpZmVjeWNsZS52MS5Mb2FkUmVx",
+            "dWVzdBojLnJpbWdvdmVybm9yLmxpZmVjeWNsZS52MS5Mb2FkUmVwbHkSWAoI",
+            "UmVhZExvYWQSJy5yaW1nb3Zlcm5vci5saWZlY3ljbGUudjEuUmVxdWVzdFN0",
+            "YXR1cxojLnJpbWdvdmVybm9yLmxpZmVjeWNsZS52MS5Mb2FkUmVwbHkSWAoI",
+            "UmVhZFNhdmUSJy5yaW1nb3Zlcm5vci5saWZlY3ljbGUudjEuUmVxdWVzdFN0",
+            "YXR1cxojLnJpbWdvdmVybm9yLmxpZmVjeWNsZS52MS5TYXZlUmVwbHkSYQoJ",
+            "TmV3Q29sb255EioucmltZ292ZXJub3IubGlmZWN5Y2xlLnYxLk5ld0NvbG9u",
+            "eVJlcXVlc3QaKC5yaW1nb3Zlcm5vci5saWZlY3ljbGUudjEuTmV3Q29sb255",
+            "UmVwbHkSYgoNUmVhZE5ld0NvbG9ueRInLnJpbWdvdmVybm9yLmxpZmVjeWNs",
+            "ZS52MS5SZXF1ZXN0U3RhdHVzGigucmltZ292ZXJub3IubGlmZWN5Y2xlLnYx",
+            "Lk5ld0NvbG9ueVJlcGx5Qm5aS2dpdGh1Yi5jb20vZGF2aWRhcmNoZXIvUmlt",
+            "R292ZXJub3IvZ28vaW50ZXJuYWwvd2lyZS9saWZlY3ljbGVwYjtsaWZlY3lj",
+            "bGVwYqoCHlJpbUdvdmVybm9yLlByb3RvY29sLkxpZmVjeWNsZWIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Lifecycle.CapabilitySupport), typeof(global::RimGovernor.Protocol.Lifecycle.Readiness), typeof(global::RimGovernor.Protocol.Lifecycle.NewColonyPhase), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -239,7 +234,6 @@ namespace RimGovernor.Protocol.Lifecycle {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.GovernorStateRequest), global::RimGovernor.Protocol.Lifecycle.GovernorStateRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.GovernorStateBlobs), global::RimGovernor.Protocol.Lifecycle.GovernorStateBlobs.Parser, new[]{ "Blobs" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { null, }),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.GovernorStateReply), global::RimGovernor.Protocol.Lifecycle.GovernorStateReply.Parser, new[]{ "Loaded", "Unavailable", "Failure" }, new[]{ "Outcome" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.PutGovernorStateRequest), global::RimGovernor.Protocol.Lifecycle.PutGovernorStateRequest.Parser, new[]{ "Key", "Blob" }, new[]{ "Key", "Blob" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.PutGovernorStateBatchRequest), global::RimGovernor.Protocol.Lifecycle.PutGovernorStateBatchRequest.Parser, new[]{ "Blobs" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { null, }),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.WaitSaveSignalRequest), global::RimGovernor.Protocol.Lifecycle.WaitSaveSignalRequest.Parser, new[]{ "TimeoutMs" }, new[]{ "TimeoutMs" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Lifecycle.SaveSignal), global::RimGovernor.Protocol.Lifecycle.SaveSignal.Parser, new[]{ "Kind", "Token" }, new[]{ "Kind", "Token" }, null, null, null),
@@ -10084,273 +10078,6 @@ namespace RimGovernor.Protocol.Lifecycle {
   }
 
   /// <summary>
-  /// Put replaces the blob under key; an empty blob deletes it. The reply's
-  /// loaded outcome carries every blob after the put.
-  /// </summary>
-  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class PutGovernorStateRequest : pb::IMessage<PutGovernorStateRequest>
-  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      , pb::IBufferMessage
-  #endif
-  {
-    private static readonly pb::MessageParser<PutGovernorStateRequest> _parser = new pb::MessageParser<PutGovernorStateRequest>(() => new PutGovernorStateRequest());
-    private pb::UnknownFieldSet _unknownFields;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<PutGovernorStateRequest> Parser { get { return _parser; } }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[28]; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    pbr::MessageDescriptor pb::IMessage.Descriptor {
-      get { return Descriptor; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PutGovernorStateRequest() {
-      OnConstruction();
-    }
-
-    partial void OnConstruction();
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PutGovernorStateRequest(PutGovernorStateRequest other) : this() {
-      key_ = other.key_;
-      blob_ = other.blob_;
-      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PutGovernorStateRequest Clone() {
-      return new PutGovernorStateRequest(this);
-    }
-
-    /// <summary>Field number for the "key" field.</summary>
-    public const int KeyFieldNumber = 1;
-    private readonly static string KeyDefaultValue = "";
-
-    private string key_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string Key {
-      get { return key_ ?? KeyDefaultValue; }
-      set {
-        key_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-    /// <summary>Gets whether the "key" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasKey {
-      get { return key_ != null; }
-    }
-    /// <summary>Clears the value of the "key" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearKey() {
-      key_ = null;
-    }
-
-    /// <summary>Field number for the "blob" field.</summary>
-    public const int BlobFieldNumber = 2;
-    private readonly static string BlobDefaultValue = "";
-
-    private string blob_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string Blob {
-      get { return blob_ ?? BlobDefaultValue; }
-      set {
-        blob_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-    /// <summary>Gets whether the "blob" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasBlob {
-      get { return blob_ != null; }
-    }
-    /// <summary>Clears the value of the "blob" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearBlob() {
-      blob_ = null;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as PutGovernorStateRequest);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(PutGovernorStateRequest other) {
-      if (ReferenceEquals(other, null)) {
-        return false;
-      }
-      if (ReferenceEquals(other, this)) {
-        return true;
-      }
-      if (Key != other.Key) return false;
-      if (Blob != other.Blob) return false;
-      return Equals(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override int GetHashCode() {
-      int hash = 1;
-      if (HasKey) hash ^= Key.GetHashCode();
-      if (HasBlob) hash ^= Blob.GetHashCode();
-      if (_unknownFields != null) {
-        hash ^= _unknownFields.GetHashCode();
-      }
-      return hash;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void WriteTo(pb::CodedOutputStream output) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      output.WriteRawMessage(this);
-    #else
-      if (HasKey) {
-        output.WriteRawTag(10);
-        output.WriteString(Key);
-      }
-      if (HasBlob) {
-        output.WriteRawTag(18);
-        output.WriteString(Blob);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(output);
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (HasKey) {
-        output.WriteRawTag(10);
-        output.WriteString(Key);
-      }
-      if (HasBlob) {
-        output.WriteRawTag(18);
-        output.WriteString(Blob);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(ref output);
-      }
-    }
-    #endif
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int CalculateSize() {
-      int size = 0;
-      if (HasKey) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(Key);
-      }
-      if (HasBlob) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(Blob);
-      }
-      if (_unknownFields != null) {
-        size += _unknownFields.CalculateSize();
-      }
-      return size;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(PutGovernorStateRequest other) {
-      if (other == null) {
-        return;
-      }
-      if (other.HasKey) {
-        Key = other.Key;
-      }
-      if (other.HasBlob) {
-        Blob = other.Blob;
-      }
-      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(pb::CodedInputStream input) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      input.ReadRawMessage(this);
-    #else
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-            break;
-          case 10: {
-            Key = input.ReadString();
-            break;
-          }
-          case 18: {
-            Blob = input.ReadString();
-            break;
-          }
-        }
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-            break;
-          case 10: {
-            Key = input.ReadString();
-            break;
-          }
-          case 18: {
-            Blob = input.ReadString();
-            break;
-          }
-        }
-      }
-    }
-    #endif
-
-  }
-
-  /// <summary>
   /// PutBatch replaces the whole blob set (#2357): keys absent from blobs are
   /// removed. It runs off the game thread; the reply's loaded outcome is empty.
   /// </summary>
@@ -10369,7 +10096,7 @@ namespace RimGovernor.Protocol.Lifecycle {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[29]; }
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[28]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -10565,7 +10292,7 @@ namespace RimGovernor.Protocol.Lifecycle {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[30]; }
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[29]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -10779,7 +10506,7 @@ namespace RimGovernor.Protocol.Lifecycle {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[31]; }
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[30]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -11042,7 +10769,7 @@ namespace RimGovernor.Protocol.Lifecycle {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[32]; }
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[31]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -11203,7 +10930,7 @@ namespace RimGovernor.Protocol.Lifecycle {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[33]; }
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[32]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -11550,7 +11277,7 @@ namespace RimGovernor.Protocol.Lifecycle {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[34]; }
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[33]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -11762,7 +11489,7 @@ namespace RimGovernor.Protocol.Lifecycle {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[35]; }
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[34]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -11923,7 +11650,7 @@ namespace RimGovernor.Protocol.Lifecycle {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[36]; }
+      get { return global::RimGovernor.Protocol.Lifecycle.LifecycleReflection.Descriptor.MessageTypes[35]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

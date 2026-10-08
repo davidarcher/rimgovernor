@@ -87,10 +87,6 @@ func runLoad(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("save-signal-stale: want failure: %w", err)
 	}
 	governorBlob := `{"probe":[` + strings.Repeat(`{"id":"p","payload":{}},`, 200) + `{}]}`
-	// The put reply carries no blobs (#1362): read them back to prove it stored.
-	if _, err := governorState(ctx, h, "governor-state-put", "lifecycle_put_governor_state", map[string]any{"key": "probe", "blob": governorBlob}); err != nil {
-		return fmt.Errorf("governor-state-put: %w", err)
-	}
 	// The batched off-thread put (#2357) replaces the whole set: a second key
 	// goes in with the probe, then a batch without it removes it by absence.
 	if _, err := governorState(ctx, h, "governor-state-batch-add", "lifecycle_put_governor_state_batch", map[string]any{"blobs": map[string]string{"probe": governorBlob, "stale": "x"}}); err != nil {

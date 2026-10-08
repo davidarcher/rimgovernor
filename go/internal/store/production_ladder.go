@@ -113,6 +113,5 @@ func (s *Store) SaveProductionLadder(ctx context.Context, r ProductionLadderReco
 	if err = tx.Commit(); err != nil {
 		return err
 	}
-	s.notifyStandardsWritten()
 	return nil
 }

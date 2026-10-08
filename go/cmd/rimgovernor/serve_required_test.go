@@ -42,7 +42,6 @@ func (*buildingReadFake) FlushSnapshot(context.Context) error { return nil }
 func (*buildingReadFake) GovernorState(context.Context) (map[string]string, error) {
 	return map[string]string{}, nil
 }
-func (*buildingReadFake) PutGovernorState(context.Context, string, string) error { return nil }
 func (*buildingReadFake) PutGovernorStateBatch(context.Context, map[string]string) error {
 	return nil
 }

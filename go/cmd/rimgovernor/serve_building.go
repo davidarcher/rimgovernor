@@ -274,8 +274,8 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	var advanced, windowRunning = func() {}, func() bool { return false }
 	var stepTrace func() telemetry.Trace
 	var validity func() (domain.ReadValidity, bool)
-	// The per-world store rebuild (#1123): the clock worker and the shadow
-	// writer share it, so it runs before either acts in a new world.
+	// The per-world store rebuild (#1123): the clock worker's gate and the save
+	// flusher share it, so it runs before either acts in a new world.
 	stateNative := natives.state
 	rebuild := &worldRebuild{database: database, out: out, orphans: struct {
 		buildingruntime.TradeNative
@@ -311,6 +311,19 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return err
 	}
 	_ = reads.Refresh(lifetime)
+	// A world change rebuilds the store from the save as soon as the poll sees
+	// it, so goals written before the first clock step or save are not
+	// replaced by that step's rebuild (#1123). A read only: nothing is put.
+	rebuildOnWorld := func(ctx context.Context) {
+		call, stop := context.WithTimeout(ctx, 10*time.Second)
+		defer stop()
+		if world, ok := currentGovernorWorld(reads)(call); ok {
+			if err := rebuild.ensure(call, world, stateNative); err != nil && ctx.Err() == nil {
+				fmt.Fprintf(out, "governor state: %v\n", err)
+			}
+		}
+	}
+	rebuildOnWorld(lifetime)
 	// Every Go-made save and every pre_save signal flushes the same way (#2359).
 	flusher := &stateFlusher{native: stateNative, world: currentGovernorWorld(reads), database: database, rebuild: rebuild}
 	if client.lifecycle.flushedSave != nil {
@@ -334,16 +347,10 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return err
 	}
 	pollDone = make(chan struct{})
-	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh) }()
+	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh, rebuildOnWorld) }()
 	superviseDone := make(chan struct{})
 	defer func() { <-superviseDone }()
 	go func() { defer close(superviseDone); superviseBridge(lifetime, client.reads, out, cancel) }()
-	shadowDone := make(chan struct{})
-	defer func() { <-shadowDone }()
-	go func() {
-		defer close(shadowDone)
-		shadowGovernorState(lifetime, stateNative, currentGovernorWorld(reads), database, rebuild, config.refresh, out)
-	}()
 	flushLoopDone := make(chan struct{})
 	defer func() { <-flushLoopDone }()
 	go func() {
@@ -405,7 +412,7 @@ func requireServeNatives(client buildingServiceBridge) (natives serveNatives, er
 	if natives.flush, err = requireNative[interface{ FlushSnapshot(context.Context) error }](client.reads, "the snapshot flush (FlushSnapshot)"); err != nil {
 		return natives, err
 	}
-	if natives.state, err = requireNative[governorStateNative](client.reads, "the governor state component (GovernorState, PutGovernorState)"); err != nil {
+	if natives.state, err = requireNative[governorStateNative](client.reads, "the governor state component (GovernorState, PutGovernorStateBatch)"); err != nil {
 		return natives, err
 	}
 	if natives.breaks, err = requireNative[buildingruntime.BreakResponseSource](client.reads, "the break response reads (ReadEmergency, ReadCombatPawns; also the arrival hold reads)"); err != nil {

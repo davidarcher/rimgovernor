@@ -4,7 +4,6 @@ import (
 	"context"
 
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	"google.golang.org/protobuf/proto"
 )
 
 // Governor state (#882) is opaque ASCII blobs Go keeps in the save's
@@ -12,7 +11,6 @@ import (
 // durable once the game next saves.
 const (
 	readGovernorStateMethod = "rimgovernor/lifecycle_read_governor_state"
-	putGovernorStateMethod  = "rimgovernor/lifecycle_put_governor_state"
 
 	putGovernorStateBatchMethod = "rimgovernor/lifecycle_put_governor_state_batch"
 )
@@ -25,21 +23,6 @@ func (caller *Client) GovernorState(ctx context.Context) (map[string]string, err
 		return nil, err
 	}
 	return governorStateBlobs(reply, raw)
-}
-
-// PutGovernorState replaces the blob under key; an empty blob deletes it.
-// The reply carries no blobs (#1362): a put no longer returns the map.
-func (caller *Client) PutGovernorState(ctx context.Context, key, blob string) error {
-	if key == "" || !asciiString(key) || !asciiString(blob) {
-		return contract("governor state key must be non-empty ASCII and blob ASCII")
-	}
-	reply := &l.GovernorStateReply{}
-	raw, err := caller.protoCall(ctx, putGovernorStateMethod, &l.PutGovernorStateRequest{Key: proto.String(key), Blob: proto.String(blob)}, reply)
-	if err != nil {
-		return err
-	}
-	_, err = governorStateBlobs(reply, raw)
-	return err
 }
 
 // PutGovernorStateBatch replaces the whole blob set in one call (#2357): keys

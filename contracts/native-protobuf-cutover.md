@@ -9,7 +9,6 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/lifecycle_read_identity | rimgovernor.lifecycle.v1.Lifecycle/ReadIdentity | Protocol/ProtoIdentityTools.cs |
 | rimgovernor/lifecycle_read_tick | rimgovernor.lifecycle.v1.Lifecycle/ReadTick | Protocol/ProtoIdentityTools.cs |
 | rimgovernor/lifecycle_read_governor_state | rimgovernor.lifecycle.v1.Lifecycle/ReadGovernorState | Protocol/ProtoGovernorStateTools.cs |
-| rimgovernor/lifecycle_put_governor_state | rimgovernor.lifecycle.v1.Lifecycle/PutGovernorState | Protocol/ProtoGovernorStateTools.cs |
 | rimgovernor/lifecycle_put_governor_state_batch | rimgovernor.lifecycle.v1.Lifecycle/PutGovernorStateBatch | Protocol/ProtoGovernorStateTools.cs |
 | rimgovernor/lifecycle_wait_save_signal | rimgovernor.lifecycle.v1.Lifecycle/WaitSaveSignal | Protocol/ProtoLifecycleSaveSignalTools.cs |
 | rimgovernor/lifecycle_flush_done | rimgovernor.lifecycle.v1.Lifecycle/FlushDone | Protocol/ProtoLifecycleSaveSignalTools.cs |

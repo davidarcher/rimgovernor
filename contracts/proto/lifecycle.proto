@@ -210,9 +210,6 @@ message GovernorStateReply {
     rimgovernor.common.v1.Failure failure = 3;
   }
 }
-// Put replaces the blob under key; an empty blob deletes it. The reply's
-// loaded outcome carries every blob after the put.
-message PutGovernorStateRequest { optional string key = 1; optional string blob = 2; }
 // PutBatch replaces the whole blob set (#2357): keys absent from blobs are
 // removed. It runs off the game thread; the reply's loaded outcome is empty.
 message PutGovernorStateBatchRequest { map<string, string> blobs = 1; }
@@ -244,7 +241,6 @@ service Lifecycle {
   rpc WaitSaveSignal(WaitSaveSignalRequest) returns (WaitSaveSignalReply);
   rpc FlushDone(FlushDoneRequest) returns (FlushDoneReply);
   rpc ReadGovernorState(GovernorStateRequest) returns (GovernorStateReply);
-  rpc PutGovernorState(PutGovernorStateRequest) returns (GovernorStateReply);
   rpc PutGovernorStateBatch(PutGovernorStateBatchRequest) returns (GovernorStateReply);
   rpc ReadIdentity(IdentityRequest) returns (IdentityReply);
   rpc Save(SaveRequest) returns (SaveReply);

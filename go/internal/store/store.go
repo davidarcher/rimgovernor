@@ -43,21 +43,6 @@ var ErrNotFound = core.ErrNotFound
 type Store struct {
 	db     *sql.DB
 	floors *retirementFloors
-	// goalsWritten wakes the governor-state mirror after a commit that may
-	// have created a goal (#1362), so a restart does not lose it.
-	standardsWritten chan struct{}
-}
-
-// StandardsWritten fires (coalesced) after a commit that may have created a
-// goal or changed a family record; the governor-state mirror puts it without
-// waiting for its tick, so a stop right after the write does not lose it.
-func (s *Store) StandardsWritten() <-chan struct{} { return s.standardsWritten }
-
-func (s *Store) notifyStandardsWritten() {
-	select {
-	case s.standardsWritten <- struct{}{}:
-	default:
-	}
 }
 
 // ControllerSessionID identifies one persistent controller execution namespace.
@@ -129,7 +114,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("journal mode %q, want %s", journal, want)
 	}
-	s := &Store{db: db, floors: floorsFor(path), standardsWritten: make(chan struct{}, 1)}
+	s := &Store{db: db, floors: floorsFor(path)}
 	if err = s.initialize(ctx); err != nil {
 		_ = db.Close()
 		return nil, err

@@ -33,8 +33,8 @@ func TestStateFlusherRebuildsThenPutsAllBlobsInOneBatch(t *testing.T) {
 	if err := flusher.Flush(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if len(native.batches) != 1 || native.puts != 0 || native.batches[0]["standard/a"] == "" {
-		t.Fatalf("batches %v puts %d", native.batches, native.puts)
+	if len(native.batches) != 1 || native.batches[0]["standard/a"] == "" {
+		t.Fatalf("batches %v", native.batches)
 	}
 	if err := flusher.Flush(context.Background()); err != nil || len(native.batches) != 2 || native.batches[1]["standard/a"] == "" {
 		t.Fatalf("second flush is not a full batch: %v %v", native.batches, err)

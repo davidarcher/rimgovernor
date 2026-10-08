@@ -65,7 +65,6 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/lifecycle_read_identity` | `rimgovernor.lifecycle.v1.Lifecycle/ReadIdentity` | `rimgovernor.lifecycle.v1.IdentityRequest` | `rimgovernor.lifecycle.v1.IdentityReply` |
 | `rimgovernor/lifecycle_read_tick` | `rimgovernor.lifecycle.v1.Lifecycle/ReadTick` | `rimgovernor.lifecycle.v1.TickRequest` | `rimgovernor.lifecycle.v1.TickReply` |
 | `rimgovernor/lifecycle_read_governor_state` | `rimgovernor.lifecycle.v1.Lifecycle/ReadGovernorState` | `rimgovernor.lifecycle.v1.GovernorStateRequest` | `rimgovernor.lifecycle.v1.GovernorStateReply` |
-| `rimgovernor/lifecycle_put_governor_state` | `rimgovernor.lifecycle.v1.Lifecycle/PutGovernorState` | `rimgovernor.lifecycle.v1.PutGovernorStateRequest` | `rimgovernor.lifecycle.v1.GovernorStateReply` |
 | `rimgovernor/lifecycle_put_governor_state_batch` | `rimgovernor.lifecycle.v1.Lifecycle/PutGovernorStateBatch` | `rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest` | `rimgovernor.lifecycle.v1.GovernorStateReply` |
 | `rimgovernor/lifecycle_wait_save_signal` | `rimgovernor.lifecycle.v1.Lifecycle/WaitSaveSignal` | `rimgovernor.lifecycle.v1.WaitSaveSignalRequest` | `rimgovernor.lifecycle.v1.WaitSaveSignalReply` |
 | `rimgovernor/lifecycle_flush_done` | `rimgovernor.lifecycle.v1.Lifecycle/FlushDone` | `rimgovernor.lifecycle.v1.FlushDoneRequest` | `rimgovernor.lifecycle.v1.FlushDoneReply` |

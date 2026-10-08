@@ -281,6 +281,5 @@ func (s *Store) SaveDefenseLayout(ctx context.Context, r DefenseLayoutRecord) er
 	if err = tx.Commit(); err != nil {
 		return err
 	}
-	s.notifyStandardsWritten()
 	return nil
 }

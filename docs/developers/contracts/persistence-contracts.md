@@ -14,11 +14,21 @@ copy of a fact is a bug, not a cache.
 
 | Home | Holds | On reload |
 |---|---|---|
-| Native save, `GovernorState` blobs | Go intent the world cannot show: Standards (`standard/<id>`, a Standard's own intent in its `Record`, e.g. ManageCreepJoiners' inspection record), Projects (`project/<id>`, `GovernorProjectBlob`; finished Projects stay as the record), family plans (`family/*`; the layout plan, `family/layout_plan`, keys each herd reservation, pen, barn and vet room, with its herd's race in `Herd`, #2226) and the soldier squad (`family/soldier_squad`); written by Go, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
+| Native save, `GovernorState` blobs | Go intent the world cannot show: Standards (`standard/<id>`, a Standard's own intent in its `Record`, e.g. ManageCreepJoiners' inspection record), Projects (`project/<id>`, `GovernorProjectBlob`; finished Projects stay as the record), family plans (`family/*`; the layout plan, `family/layout_plan`, keys each herd reservation, pen, barn and vet room, with its herd's race in `Herd`, #2226) and the soldier squad (`family/soldier_squad`); written by Go at save time, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
 | Native save, other components | Colony identity and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition; deep drilling; home coverage) | Follows the save |
 | SQLite, one database per launch (`--state`) | The session journal: actions, transitions, admissions, clock inbox and cursors (native buffers clock events in memory only), request-ID replay | Not restored; read across launches only by postmortem |
 | Go memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (read once per load token), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`); the `standards`, `projects`, `methods` and family tables are such views of the save blobs (`RebuildStandards` rebuilds Standards and Projects under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
 | `flight.jsonl` | All controller telemetry, one row per thing that happened ([flight rows](flight-rows.md), schema v2), the only log: always on for `serve`, nothing else is written to stderr but the startup banner, fatals and panics; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
+
+The blobs reach the save only when it is made (#2352): every vanilla save, whether the player's,
+vanilla's or Go's own, parks in native's `pre_save` handshake while Go flushes all blobs in one batched
+put, and every Go-made save (the lifecycle save route, Go autosave) flushes first through the same path.
+There is no continuous mirror. A save made while no Go is connected keeps the last flush, so it can lack
+intent written since. Go's own autosave (`Autosave-1..5`, game-time interval) needs Go holding the clock,
+so manual mode gets none; only a save the player makes there flushes. A Go crash loses intent back to the
+last save. On a world change (load token, not a native generation bump) Go reads the save's blobs once
+and rebuilds its views before the first review: the clock worker's step gate, the read poll and the
+flusher all call the same once-per-world rebuild.
 
 Native saves no Go bookkeeping (receipts, lineage, purpose tags), and Go keeps no durable copy of what
 the save holds. The rest of this page details the session journal.

@@ -401,7 +401,6 @@ func (s *Store) ReviewRounds(ctx context.Context, request RoundsRequest) (Rounds
 		return RoundsResult{}, err
 	}
 	s.floors.raise(settled)
-	s.notifyStandardsWritten()
 	return result, nil
 }
 

@@ -73,7 +73,6 @@ func (s *Store) SeedStandard(ctx context.Context, g domain.Standard) error {
 	if err = tx.Commit(); err != nil {
 		return err
 	}
-	s.notifyStandardsWritten()
 	return nil
 }
 

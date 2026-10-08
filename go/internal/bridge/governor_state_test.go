@@ -90,7 +90,7 @@ func TestGovernorState(t *testing.T) {
 		t.Fatalf("read %v %v", blobs, err)
 	}
 	reply = &l.GovernorStateReply{Outcome: &l.GovernorStateReply_Loaded{Loaded: &l.GovernorStateBlobs{}}}
-	if err := client.PutGovernorState(ctx, "goals", ""); err != nil {
+	if err := client.PutGovernorStateBatch(ctx, map[string]string{}); err != nil {
 		t.Fatalf("delete %v", err)
 	}
 	reply = &l.GovernorStateReply{Outcome: &l.GovernorStateReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_LOADED.Enum()}}}
@@ -103,11 +103,11 @@ func TestGovernorState(t *testing.T) {
 	}
 	calls := len(tools)
 	for _, bad := range [][2]string{{"", "x"}, {"gö", "x"}, {"k", "ö"}} {
-		if err := client.PutGovernorState(ctx, bad[0], bad[1]); !errors.Is(err, ErrContract) {
+		if err := client.PutGovernorStateBatch(ctx, map[string]string{bad[0]: bad[1]}); !errors.Is(err, ErrContract) {
 			t.Fatalf("put %q: %v", bad, err)
 		}
 	}
-	if len(tools) != calls || tools[1] != putGovernorStateMethod || tools[0] != readGovernorStateMethod {
+	if len(tools) != calls || tools[1] != putGovernorStateBatchMethod || tools[0] != readGovernorStateMethod {
 		t.Fatalf("calls %v", tools)
 	}
 }

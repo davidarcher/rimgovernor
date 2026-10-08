@@ -20,23 +20,14 @@ import (
 
 type fakeGovernorState struct {
 	blobs map[string]string
-	puts  int
+	reads int
 	// batches is every PutGovernorStateBatch argument, in call order.
 	batches []map[string]string
 }
 
 func (f *fakeGovernorState) GovernorState(context.Context) (map[string]string, error) {
+	f.reads++
 	return f.blobs, nil
-}
-
-func (f *fakeGovernorState) PutGovernorState(_ context.Context, key, blob string) error {
-	f.puts++
-	if blob == "" {
-		delete(f.blobs, key)
-	} else {
-		f.blobs[key] = blob
-	}
-	return nil
 }
 
 func (f *fakeGovernorState) PutGovernorStateBatch(_ context.Context, blobs map[string]string) error {
@@ -45,49 +36,27 @@ func (f *fakeGovernorState) PutGovernorStateBatch(_ context.Context, blobs map[s
 	return nil
 }
 
-func TestShadowGovernorStatePutsChanges(t *testing.T) {
-	ctx := context.Background()
-	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer database.Close()
-	native := &fakeGovernorState{blobs: map[string]string{"family/stale": "{}", "unrelated": "x"}}
-	var out bytes.Buffer
-	var written map[string]string
-	if err = shadowGovernorStateOnce(ctx, native, database, &written, &out); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := native.blobs["family/stale"]; ok || native.blobs["unrelated"] != "" {
-		t.Fatal(out.String(), native.blobs)
-	}
-	puts := native.puts
-	if err = shadowGovernorStateOnce(ctx, native, database, &written, &out); err != nil || native.puts != puts {
-		t.Fatal("unchanged store put again", err)
-	}
-}
-
 // A second world in the same process re-reads its save (#994); the same
 // world does not.
-func TestShadowGovernorStateRereadsSaveOnWorldChange(t *testing.T) {
+func TestWorldRebuildRereadsSaveOnWorldChange(t *testing.T) {
 	ctx := context.Background()
 	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer database.Close()
-	var shadow governorShadow
 	var out bytes.Buffer
+	rebuild := &worldRebuild{database: database, out: &out}
+	native := &fakeGovernorState{blobs: map[string]string{}}
 	first := governorWorld{Colony: "a", Map: 1, Load: "load-a", Generation: 1}
-	stale := func() *fakeGovernorState { return &fakeGovernorState{blobs: map[string]string{"family/stale": "{}"}} }
-	if native := stale(); shadow.round(ctx, first, native, database, &out) != nil || native.blobs["family/stale"] != "" {
-		t.Fatal("first world save not read", native.blobs)
+	if err = rebuild.ensure(ctx, first, native); err != nil || native.reads != 1 {
+		t.Fatal("first world save not read", native.reads, err)
 	}
-	if native := stale(); shadow.round(ctx, first, native, database, &out) != nil || native.blobs["family/stale"] == "" {
-		t.Fatal("same world re-read", native.blobs)
+	if err = rebuild.ensure(ctx, first, native); err != nil || native.reads != 1 {
+		t.Fatal("same world re-read", native.reads, err)
 	}
-	if native := stale(); shadow.round(ctx, governorWorld{Colony: "b", Map: 1, Load: "load-b", Generation: 1}, native, database, &out) != nil || native.blobs["family/stale"] != "" {
-		t.Fatal("second world save not read", native.blobs)
+	if err = rebuild.ensure(ctx, governorWorld{Colony: "b", Map: 1, Load: "load-b", Generation: 1}, native); err != nil || native.reads != 2 {
+		t.Fatal("second world save not read", native.reads, err)
 	}
 }
 
@@ -107,7 +76,7 @@ func governorStandardBlob(t *testing.T, id domain.ConcernID, colony domain.Colon
 // A world change rebuilds the family tables from the save (#1005): the
 // store's layout plan goes, and a saved production ladder is not written
 // back.
-func TestShadowGovernorStateRebuildsFamiliesOnWorldChange(t *testing.T) {
+func TestWorldRebuildRebuildsFamiliesOnWorldChange(t *testing.T) {
 	ctx := context.Background()
 	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
 	if err != nil {
@@ -126,37 +95,37 @@ func TestShadowGovernorStateRebuildsFamiliesOnWorldChange(t *testing.T) {
 	if err = database.SaveProductionLadder(ctx, store.ProductionLadderRecord{World: store.World{Colony: "a", Load: "l", Map: 1}, Tick: 9, Resource: "Steel"}); err != nil {
 		t.Fatal(err)
 	}
-	var shadow governorShadow
 	var out bytes.Buffer
+	rebuild := &worldRebuild{database: database, out: &out}
 	native := &fakeGovernorState{blobs: saved}
-	if err = shadow.round(ctx, governorWorld{Colony: "b", Map: 1, Load: "l", Generation: 1}, native, database, &out); err != nil {
+	if err = rebuild.ensure(ctx, governorWorld{Colony: "b", Map: 1, Load: "l", Generation: 1}, native); err != nil {
 		t.Fatal(err)
 	}
-	if got, ok, err := database.LoadProductionLadder(ctx, ladder.World); err != nil || !ok || got.Resource != ladder.Resource || native.puts != 0 {
-		t.Fatal(got, ok, err, native.puts, out.String())
+	if got, ok, err := database.LoadProductionLadder(ctx, ladder.World); err != nil || !ok || got.Resource != ladder.Resource {
+		t.Fatal(got, ok, err, out.String())
 	}
 }
 
 // Loading world 2 replaces world 1's goals with world 2's saved goals
 // (#998): the save wins over the store.
-func TestShadowGovernorStateRebuildsGoalsOnWorldChange(t *testing.T) {
+func TestWorldRebuildRebuildsGoalsOnWorldChange(t *testing.T) {
 	ctx := context.Background()
 	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer database.Close()
-	var shadow governorShadow
 	var out bytes.Buffer
+	rebuild := &worldRebuild{database: database, out: &out}
 	first := &fakeGovernorState{blobs: map[string]string{"standard/a": governorStandardBlob(t, "a", "one", 3)}}
-	if err = shadow.round(ctx, governorWorld{Colony: "one", Map: 1, Load: "l", Generation: 1}, first, database, &out); err != nil {
+	if err = rebuild.ensure(ctx, governorWorld{Colony: "one", Map: 1, Load: "l", Generation: 1}, first); err != nil {
 		t.Fatal(err)
 	}
 	if state, err := database.LoadStandard(ctx, "a"); err != nil || state.Revision != 3 {
 		t.Fatal("world 1 goals not rebuilt", state, err)
 	}
 	second := &fakeGovernorState{blobs: map[string]string{"standard/b": governorStandardBlob(t, "b", "two", 7)}}
-	if err = shadow.round(ctx, governorWorld{Colony: "two", Map: 1, Load: "l", Generation: 1}, second, database, &out); err != nil {
+	if err = rebuild.ensure(ctx, governorWorld{Colony: "two", Map: 1, Load: "l", Generation: 1}, second); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := database.LoadStandard(ctx, "a"); !errors.Is(err, store.ErrNotFound) {
@@ -168,7 +137,7 @@ func TestShadowGovernorStateRebuildsGoalsOnWorldChange(t *testing.T) {
 }
 
 // A save without governor state starts with no goals (D5).
-func TestShadowGovernorStateEmptySaveStartsWithoutGoals(t *testing.T) {
+func TestWorldRebuildEmptySaveStartsWithoutGoals(t *testing.T) {
 	ctx := context.Background()
 	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
 	if err != nil {
@@ -182,10 +151,10 @@ func TestShadowGovernorStateEmptySaveStartsWithoutGoals(t *testing.T) {
 	if err = database.SeedStandard(ctx, g); err != nil {
 		t.Fatal(err)
 	}
-	var shadow governorShadow
 	var out bytes.Buffer
+	rebuild := &worldRebuild{database: database, out: &out}
 	native := &fakeGovernorState{blobs: map[string]string{}}
-	if err = shadow.round(ctx, governorWorld{Colony: "c", Map: 1, Load: "l", Generation: 1}, native, database, &out); err != nil {
+	if err = rebuild.ensure(ctx, governorWorld{Colony: "c", Map: 1, Load: "l", Generation: 1}, native); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := database.LoadStandard(ctx, "stale"); !errors.Is(err, store.ErrNotFound) || len(native.blobs) != 0 {
@@ -213,7 +182,7 @@ func (f *fakeOrphanNative) Apply(_ context.Context, _ *c.Identity, actions []*o.
 
 // Loading a world with a committed method cancels the open trade
 // session no rebuilt goal owns (#1000, D3); with no session nothing is sent.
-func TestShadowGovernorStateCancelsOrphanTrade(t *testing.T) {
+func TestWorldRebuildCancelsOrphanTrade(t *testing.T) {
 	ctx := context.Background()
 	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
 	if err != nil {
@@ -251,8 +220,8 @@ func TestShadowGovernorStateCancelsOrphanTrade(t *testing.T) {
 	world := governorWorld{Colony: "c", Map: 1, Load: "l", Generation: 1}
 	native := &fakeOrphanNative{session: bridge.TradeSessionRead{Trader: "trader", Negotiator: "negotiator", Open: true}}
 	var out bytes.Buffer
-	shadow := governorShadow{rebuild: &worldRebuild{database: database, orphans: native, out: &out}}
-	if err = shadow.round(ctx, world, &fakeGovernorState{blobs: map[string]string{}}, database, &out); err != nil {
+	rebuild := &worldRebuild{database: database, orphans: native, out: &out}
+	if err = rebuild.ensure(ctx, world, &fakeGovernorState{blobs: map[string]string{}}); err != nil {
 		t.Fatal(err)
 	}
 	if len(native.applied) != 1 || native.applied[0].GetTrade().GetEnd().GetKind() != o.EndTradeKind_END_TRADE_KIND_CANCEL {
@@ -264,9 +233,9 @@ func TestShadowGovernorStateCancelsOrphanTrade(t *testing.T) {
 	}
 }
 
-// The clock worker's first step in a world rebuilds before it reviews, so
-// the shadow's first round for that world leaves the review alone (#1123);
-// a rebuild after the review makes the worker's next step re-review.
+// The clock worker's first step in a world rebuilds before it reviews (#1123),
+// and a later step in the same world leaves the review alone; a rebuild after
+// the review makes the worker's next step re-review.
 func TestWorldRebuildRunsBeforeTheWorkerReview(t *testing.T) {
 	ctx := context.Background()
 	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
@@ -285,13 +254,6 @@ func TestWorldRebuildRunsBeforeTheWorkerReview(t *testing.T) {
 	snapshot := domain.GenerationSnapshot{Colony: "c", Map: 1, Load: "l", Plan: "p"}
 	if _, err = database.ReviewRounds(ctx, store.RoundsRequest{Current: snapshot, Tick: 27, Enabled: true, Policy: policy.DefaultRoundsPolicy()}); err != nil {
 		t.Fatal(err)
-	}
-	shadow := governorShadow{rebuild: rebuild}
-	if err = shadow.round(ctx, governorWorld{Colony: "c", Map: 1, Load: "l", Generation: 4}, native, database, &out); err != nil {
-		t.Fatal(err)
-	}
-	if review, err := database.LoadRounds(ctx); err != nil || review.Revision == 0 {
-		t.Fatal("shadow round wiped the worker's review", review.Revision, err)
 	}
 	if reset, err := gate(ctx, observed); err != nil || reset {
 		t.Fatal("same world rebuilt again", reset, err)

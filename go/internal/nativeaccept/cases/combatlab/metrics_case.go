@@ -319,7 +319,23 @@ func storeLayout(ctx context.Context, h *na.Harness, identity map[string]any, l 
 	if err != nil {
 		return record, err
 	}
-	reply, err := h.Wire(ctx, "store-layout", "lifecycle_put_governor_state", map[string]any{"key": store.GovernorDefenseLayoutKey, "blob": string(blob)})
+	// The batch put replaces the whole set, so read the save's blobs and add the
+	// layout to them.
+	read, err := h.Wire(ctx, "store-layout-read", "lifecycle_read_governor_state", map[string]any{})
+	if err != nil {
+		return record, err
+	}
+	_, loaded, err := na.Outcome(read, "loaded")
+	if err != nil {
+		return record, fmt.Errorf("store-layout-read: %w", err)
+	}
+	blobs := map[string]string{}
+	saved, _ := na.AsMap(loaded["blobs"])
+	for key, value := range saved {
+		blobs[key] = na.AsString(value)
+	}
+	blobs[store.GovernorDefenseLayoutKey] = string(blob)
+	reply, err := h.Wire(ctx, "store-layout", "lifecycle_put_governor_state_batch", map[string]any{"blobs": blobs})
 	if err != nil {
 		return record, err
 	}

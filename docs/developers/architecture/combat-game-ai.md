@@ -63,7 +63,7 @@ RimWorld process running, so times are upper bounds:
 | Whole stop, `clock_stop` to `clock_step` wake | 430 to 530 ms wall; the game is paused for it |
 | `combat_geometry` | one call per stop, 46 ms in the sampled stop, mean 101 ms over the run |
 | Orders (`operations_apply`) | 86 ms in the sampled stop, mean 69 ms |
-| `lifecycle_put_governor_state` | about 12 per stop, mean 34 ms each, 2,526 in the run (#2349) |
+| `lifecycle_put_governor_state` | about 12 per stop, mean 34 ms each, 2,526 in the run (#2349); the continuous mirror that made them is gone (#2361), blobs flush at save time |
 | Rounds review | 88 ms of planner time in the sampled stop |
 
 The geometry caps (64 cells, 16 hostiles, one ask per stop) are not what makes a stop slow. The code puts
