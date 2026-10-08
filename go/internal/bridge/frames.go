@@ -923,15 +923,29 @@ func combatFrameHeld(v *o.BundleSnapshot, held *heldTables) *o.BundleSnapshot {
 	if t := frameOutdoorC(v); t != nil {
 		out.ColonyFacts = &o.ColonyFactsSnapshot{OutdoorTemperatureC: t}
 	}
-	out.Things = primaryWeaponThings(v.Things, out.Pawns)
+	out.Things = primaryWeaponThings(v, held, out.Pawns)
 	return out
 }
 
 // primaryWeaponThings is the rows of things the census pawns' primary
 // weapons name, so a fight's frame resolves their defs on its own (#1723).
-func primaryWeaponThings(things *o.ThingsSnapshot, pawns *o.PawnSnapshot) *o.ThingsSnapshot {
-	if things == nil || pawns == nil {
+// A stream frame carries only the things its re-read sections referenced, so
+// a hold's table is the source when there is one: the pawn rows come from
+// it too (#2353).
+func primaryWeaponThings(v *o.BundleSnapshot, held *heldTables, pawns *o.PawnSnapshot) *o.ThingsSnapshot {
+	if pawns == nil || held == nil && v.Things == nil {
 		return nil
+	}
+	out := &o.ThingsSnapshot{Context: v.Context}
+	if held != nil {
+		for _, pawn := range pawns.Pawns {
+			if id := pawn.GetEquipment().GetPrimaryId(); id != "" {
+				if row, ok := held.things.Get(id); ok && row != nil {
+					out.Things = append(out.Things, row)
+				}
+			}
+		}
+		return out
 	}
 	ids := map[string]bool{}
 	for _, pawn := range pawns.Pawns {
@@ -939,8 +953,8 @@ func primaryWeaponThings(things *o.ThingsSnapshot, pawns *o.PawnSnapshot) *o.Thi
 			ids[id] = true
 		}
 	}
-	out := &o.ThingsSnapshot{Context: things.Context}
-	for _, row := range things.Things {
+	out.Context = v.Things.Context
+	for _, row := range v.Things.Things {
 		if ids[row.GetThing().GetId()] {
 			out.Things = append(out.Things, row)
 		}
