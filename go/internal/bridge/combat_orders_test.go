@@ -150,6 +150,43 @@ func TestCombatOrderResultsDecode(t *testing.T) {
 	}
 }
 
+func TestCombatDrugRefusalsPreserveBatch(t *testing.T) {
+	// Use the native strings independently of the bridge constants.
+	for _, reason := range []string{"child", "not_a_drug", "no_drug", "already_high", "drug_risk"} {
+		t.Run(reason, func(t *testing.T) {
+			orders := &o.CombatOrders{Orders: []*o.CombatOrder{
+				{Pawn: combatPawn("p0"), Order: &o.CombatOrder_Move{Move: combatCell(7, 8)}},
+				{Pawn: combatPawn("p1"), Order: &o.CombatOrder_CombatDrug{CombatDrug: "GoJuice"}},
+				{Pawn: combatPawn("p2"), Order: &o.CombatOrder_Stop{Stop: &o.Clear{}}},
+			}}
+			if err := ValidateCombatOrders(orders); err != nil {
+				t.Fatal(err)
+			}
+			got, err := CombatOrderResults(combatReceipt([]*r.CombatOrderResult{
+				combatResult(0, "p0", true, "", "Goto"),
+				combatResult(1, "p1", false, reason, ""),
+				combatResult(2, "p2", true, "", ""),
+			}), orders)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := []CombatOrderResult{
+				{0, "p0", true, "", "Goto"},
+				{1, "p1", false, reason, ""},
+				{2, "p2", true, "", ""},
+			}
+			if len(got) != len(want) {
+				t.Fatalf("got %d results, want %d", len(got), len(want))
+			}
+			for i := range want {
+				if got[i] != want[i] {
+					t.Errorf("result %d = %+v, want %+v", i, got[i], want[i])
+				}
+			}
+		})
+	}
+}
+
 func TestCombatOrdersIssue(t *testing.T) {
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != ActionsApplyMethod {
