@@ -3,6 +3,10 @@
 // The anomaly/hold-study case (#1747) proves a colony captures a downed
 // entity into its containment cell, holds it and studies it.
 //
+// The anomaly/monolith-disrupt case (#2439) proves a colony awakens the void
+// monolith, activates the structures the quest spawns and disrupts at the
+// void node.
+//
 // The anomaly/horror-incident case (#1748) proves a colony survives a horror
 // incident: the game's own Anomaly threat incident arrives at the staged
 // colony, the served defense planner answers it with the combat tactics of

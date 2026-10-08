@@ -64,6 +64,7 @@
     <Compile Include="../../../../scripts/fixtures/FirstRitualFixture.cs" Condition="'$(FirstRitualFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HorrorIncidentFixture.cs" Condition="'$(HorrorIncidentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EntityHoldFixture.cs" Condition="'$(EntityHoldFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/MonolithAwakenFixture.cs" Condition="'$(MonolithAwakenFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PlanStageFixture.cs" Condition="'$(PlanStageFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RecoveryAreaFixture.cs" Condition="'$(RecoveryAreaFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BedAssignFixture.cs" Condition="'$(BedAssignFixture)' == 'true'" />
