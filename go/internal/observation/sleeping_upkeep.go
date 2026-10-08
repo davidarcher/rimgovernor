@@ -29,6 +29,9 @@ func colonySleeping(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) domain
 	for _, p := range u.Slaves {
 		r.Slaves = append(r.Slaves, person(p))
 	}
+	for _, p := range u.Guests {
+		r.Guests = append(r.Guests, person(p))
+	}
 	for _, b := range u.Beds {
 		head := buildings.Entity(b.Bed)
 		if head == nil {

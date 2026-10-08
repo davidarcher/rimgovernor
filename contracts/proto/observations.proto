@@ -1397,6 +1397,9 @@ message UpkeepFacts {
   // Every cell of the map's home area (#1328), unordered; the home-area
   // planner diffs its target against it.
   repeated rimgovernor.common.v1.Cell home_cells = 26;
+  // Hosted guests (HostFaction == player, quest lodgers included; #2384):
+  // people the colony houses but does not own, in the sleeping census.
+  repeated UpkeepPerson guests = 27;
 }
 message UpkeepSection { oneof outcome { UpkeepFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Threat facts (#395): the colony wealth the storyteller scales raids by

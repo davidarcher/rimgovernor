@@ -180,7 +180,20 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 		return choice, nil
 	}
 	ordered := append([]SleepingTarget{}, targets...)
-	sort.Slice(ordered, func(i, j int) bool { return ordered[i].Pawn < ordered[j].Pawn })
+	// A hosted guest (#2384) is assigned after every colonist, and never
+	// causes a bed to be built.
+	guests := map[PawnID]bool{}
+	if census, ok := r.Sleeping.Value(); ok {
+		for _, g := range census.Guests {
+			guests[g.ID] = true
+		}
+	}
+	sort.Slice(ordered, func(i, j int) bool {
+		if gi, gj := guests[ordered[i].Pawn], guests[ordered[j].Pawn]; gi != gj {
+			return gj
+		}
+		return ordered[i].Pawn < ordered[j].Pawn
+	})
 	// A bed already owned by the pawn is never reassigned to itself; the
 	// review lists only vacant beds as available, so that cannot arise, but
 	// the assignment contract requires it.
@@ -220,7 +233,7 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 		}
 	}
 	for _, t := range ordered {
-		if t.Kind == SleepingUseNeeded {
+		if t.Kind == SleepingUseNeeded || guests[t.Pawn] {
 			continue
 		}
 		needsBed = true

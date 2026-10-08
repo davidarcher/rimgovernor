@@ -378,10 +378,16 @@ namespace HomeBridge.BridgeTools
                 // Slaves of the colony (#1036): MaintainHousing gives each a
                 // bed set for slaves.
                 result.Slaves.AddRange(map.mapPawns.AllPawnsSpawned.Where(p => p.IsSlaveOfColony && !p.Dead).OrderBy(p => p.thingIDNumber).Select(Person));
+                // Hosted guests (#2384): housed to their title like a colonist;
+                // a visiting envoy is not hosted and stays out.
+                var guests = map.mapPawns.AllPawnsSpawned.Where(HostedGuest).OrderBy(p => p.thingIDNumber).ToList();
+                var guestRows = guests.Select(Person).ToList();
+                for (var i = 0; i < guests.Count; i++) SleepingRelations(guests[i], guestRows[i]);
+                result.Guests.AddRange(guestRows);
             });
             Read("beds", result, () => {
                 var beds = sets.PlayerBuildings.OfType<Building_Bed>().OrderBy(b => b.thingIDNumber).ToList();
-                var people = map.mapPawns.AllPawnsSpawned.Where(p => (p.IsFreeColonist || p.IsSlaveOfColony) && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
+                var people = map.mapPawns.AllPawnsSpawned.Where(p => (p.IsFreeColonist || p.IsSlaveOfColony || HostedGuest(p)) && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
                 var values = beds.Select(b => {
                     var row = new Obs.UpkeepBed { Bed = NativeBuildingObservationTools.Ref(b), Slots = checked((uint)b.SleepingSlotsCount),
                         Humanlike = b.def.building.bed_humanlike, RestEffectiveness = Number(b.GetStatValue(StatDefOf.BedRestEffectiveness)),
@@ -515,6 +521,11 @@ namespace HomeBridge.BridgeTools
         // fiance relations to living pawns on the same map), the native
         // willingness to share a bed with each of them (the plain SharedBed
         // precept when there is none) and the most senior royal title.
+        // A hosted guest: a humanlike the player faction holds as a guest
+        // (quest lodgers included), not a prisoner.
+        internal static bool HostedGuest(Pawn p) => p.Spawned && !p.Dead && p.RaceProps.Humanlike && !p.IsPrisoner
+            && p.HostFaction == Faction.OfPlayerSilentFail && p.guest?.GuestStatus == GuestStatus.Guest;
+
         private static void SleepingRelations(Pawn p, Obs.UpkeepPerson row)
         {
             var partners = (p.relations?.DirectRelations ?? new List<DirectPawnRelation>())

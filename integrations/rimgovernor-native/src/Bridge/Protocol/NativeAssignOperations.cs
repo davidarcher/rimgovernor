@@ -88,7 +88,9 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Assignment requires an exact pawn, thing and expected previous assignment.");
             var map = ProtoBoundary.ResolveMap(context);
             if (map == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current map required.");
-            var found = map.mapPawns.FreeColonistsSpawned.ById(intent!.PawnId);
+            // A hosted guest owns a bed like a colonist (#2384).
+            var found = map.mapPawns.FreeColonistsSpawned.ById(intent!.PawnId)
+                ?? map.mapPawns.AllPawnsSpawned.Where(NativeUpkeepFacts.HostedGuest).ById(intent.PawnId);
             var target = RefIndex.Thing<ThingWithComps>(map, intent!.ThingId);
             var comp = target?.GetComp<CompAssignableToPawn>();
             if (found != null && target != null && comp != null && comp.AssignedPawnsForReading.Contains(found))

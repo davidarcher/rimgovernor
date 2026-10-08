@@ -9,7 +9,7 @@ import (
 )
 
 func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error {
-	counts := map[string]int{"items": len(v.Items), "structures": len(v.Structures), "fires": len(v.Fires), "filth": len(v.Filth), "animals": len(v.Animals), "people": len(v.People) + len(v.Slaves), "beds": len(v.Beds)}
+	counts := map[string]int{"items": len(v.Items), "structures": len(v.Structures), "fires": len(v.Fires), "filth": len(v.Filth), "animals": len(v.Animals), "people": len(v.People) + len(v.Slaves) + len(v.Guests), "beds": len(v.Beds)}
 	if v.HomeCoverage != nil {
 		counts["home_coverage"] = 1
 	}
@@ -69,7 +69,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		}
 		return true
 	}
-	for _, row := range append(append([]*o.UpkeepPerson{}, v.People...), v.Slaves...) {
+	for _, row := range append(append(append([]*o.UpkeepPerson{}, v.People...), v.Slaves...), v.Guests...) {
 		if row == nil || !uniqueRef(row.Pawn, seen) || !optionalRef(row.OwnedBed) || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !validRefs(row.Partners) || !validTitle(row.Title) || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBed: row.OwnedBed, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC, Partners: row.Partners, BedSharingAllowed: row.BedSharingAllowed, Title: row.Title}) {
 			return contract("invalid sleeping person")
 		}

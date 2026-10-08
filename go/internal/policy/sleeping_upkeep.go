@@ -3,6 +3,7 @@ package policy
 import (
 	"errors"
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -45,6 +46,11 @@ type SleepingObservation struct {
 	// People: each needs a bed set for slaves (Building_Bed.ForSlaves),
 	// which a free colonist may never own. They are never partnered.
 	Slaves []SleepingPerson
+	// Guests are the hosted guests (HostFaction is the player, quest lodgers
+	// included; #2384), outside Colonists and People: each is offered a vacant
+	// suitable bed through Assign, a titled one the beds fitting its title
+	// first. A guest never causes a bed to be built.
+	Guests []SleepingPerson
 	Beds   []SleepingBed
 	// Rooms is the room quality census, unknown when its section is.
 	Rooms domain.Fact[[]UpkeepRoom]
@@ -168,8 +174,11 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 	people := map[PawnID]bool{}
 	complete := true
 	// Slaves sleep only in beds set for slaves, colonists never in one.
-	everyone := append(append([]SleepingPerson{}, v.People...), v.Slaves...)
-	slave := map[PawnID]bool{}
+	everyone := append(append(append([]SleepingPerson{}, v.People...), v.Slaves...), v.Guests...)
+	slave, guest := map[PawnID]bool{}, map[PawnID]bool{}
+	for _, p := range v.Guests {
+		guest[p.ID] = true
+	}
 	for _, p := range v.Slaves {
 		slave[p.ID] = true
 	}
@@ -280,6 +289,23 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 		}
 		bedID, _ := p.OwnedBed.Value()
 		owned, exists := beds[bedID]
+		if guest[p.ID] {
+			// A guest is only offered a vacant bed: housed in a suitable bed
+			// it owns, or with none to take, it needs nothing from us.
+			if exists && suitable(owned) && contains(owned.Owners, p.ID) {
+				continue
+			}
+			available := guestBeds(v, p, suitable)
+			if len(available) == 0 {
+				continue
+			}
+			kind := SleepingUpgrade
+			if exists && !safe(owned) {
+				kind = SleepingUnsafe
+			}
+			targets = append(targets, SleepingTarget{Pawn: p.ID, Kind: kind, PreviousBed: bedID, Available: available})
+			continue
+		}
 		kind := SleepingUpgrade
 		q, coupled := couples[p.ID]
 		// A double bed only p's partner may join: p waits for the partner's
@@ -368,4 +394,55 @@ func (r SleepingReview) Recovered() domain.Fact[bool] {
 		return domain.Unknown[bool]()
 	}
 	return domain.Known(len(rows) == 0)
+}
+
+// guestBeds are the vacant beds suitable for guest p (#2384), best first. A
+// titled guest's beds come first by how many of its title's bedroom
+// requirements they meet: the title's bed, a room of the minimum area and
+// impressiveness. The rest, and an untitled guest's, go by bed ID.
+func guestBeds(v SleepingObservation, p SleepingPerson, suitable func(SleepingBed) bool) []string {
+	rooms := map[string]UpkeepRoom{}
+	if census, ok := v.Rooms.Value(); ok {
+		for _, r := range census {
+			rooms[r.ID] = r
+		}
+	}
+	met := func(b SleepingBed) int {
+		t := p.Title
+		if t == nil {
+			return 0
+		}
+		n := 0
+		for _, thing := range t.BedroomThings {
+			if isReplacementBed(thing.AnyOf) && slices.Contains(thing.AnyOf, b.Definition) {
+				n++
+			}
+		}
+		id, _ := b.Room.Value()
+		room := rooms[id]
+		if cells, ok := room.Cells.Value(); ok && cells >= t.BedroomMinArea {
+			n++
+		}
+		if q, ok := room.Quality.Value(); ok && q.Impressiveness >= float64(t.BedroomMinImpressiveness) {
+			n++
+		}
+		return n
+	}
+	var vacant []SleepingBed
+	for _, b := range v.Beds {
+		if len(b.Owners) == 0 && suitable(b) {
+			vacant = append(vacant, b)
+		}
+	}
+	sort.SliceStable(vacant, func(i, j int) bool {
+		if a, b := met(vacant[i]), met(vacant[j]); a != b {
+			return a > b
+		}
+		return vacant[i].ID < vacant[j].ID
+	})
+	ids := []string{}
+	for _, b := range vacant {
+		ids = append(ids, b.ID)
+	}
+	return ids
 }
