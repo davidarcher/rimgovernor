@@ -202,6 +202,7 @@ type supplyCand struct {
 	laborNew                        float64
 	cost                            float64 // labor-equivalent per covered value; +Inf covers nothing
 	credited                        []float64
+	finite                          bool // some yield is a stock cap: the source runs out
 	entry                           SupplyEntry
 }
 
@@ -294,6 +295,7 @@ func PlanSupply(r SupplyPlanRequest) (SupplyPlan, error) {
 	}
 	remaining := make([]int64, len(demands))
 	delivered := make([]float64, len(demands))
+	finite := make([]float64, len(demands))
 	for i, d := range demands {
 		remaining[i] = d.Units
 	}
@@ -326,7 +328,7 @@ func PlanSupply(r SupplyPlanRequest) (SupplyPlan, error) {
 	for _, c := range cands {
 		if c.open {
 			c.entry.Reason = "already delivering"
-			c.admit(c.share(demands, remaining), false, demands, remaining, delivered)
+			c.admit(c.share(demands, remaining), false, demands, remaining, delivered, finite)
 			used += c.work
 			openOrder = append(openOrder, c)
 		}
@@ -339,6 +341,9 @@ func PlanSupply(r SupplyPlanRequest) (SupplyPlan, error) {
 		if c.surplus(demands, delivered) {
 			for i, amount := range c.credited {
 				delivered[i] -= amount
+				if c.finite {
+					finite[i] -= amount
+				}
 			}
 			c.entry.Decision, c.entry.Reason, c.entry.Credit = SupplyClose, "surplus", nil
 			used -= c.work
@@ -350,7 +355,7 @@ func PlanSupply(r SupplyPlanRequest) (SupplyPlan, error) {
 				c.entry.Terms = append(c.entry.Terms, CandidateTerm{"labor_excess", used - labor})
 			}
 		} else {
-			used += c.consider(demands, remaining, delivered, used, labor, r.UrgentPriority)
+			used += c.consider(demands, remaining, delivered, finite, used, labor, r.UrgentPriority)
 		}
 		p.Portfolio = append(p.Portfolio, c.entry)
 	}
@@ -450,7 +455,13 @@ func newSupplyCand(row SupplyCandidate, identities map[[2]string]bool) (*supplyC
 			return nil, nil, bad
 		}
 	}
-	c := &supplyCand{c: own, yields: yields, open: state == CandidateDelivering, lead: lead, work: work, upfront: upfront, risk: risk, dist: dist, distSq: row.DistanceSquared}
+	finite := false
+	for _, y := range yields {
+		if _, capped := y.StockCap.Value(); capped {
+			finite = true
+		}
+	}
+	c := &supplyCand{c: own, finite: finite, yields: yields, open: state == CandidateDelivering, lead: lead, work: work, upfront: upfront, risk: risk, dist: dist, distSq: row.DistanceSquared}
 	c.entry = SupplyEntry{Candidate: own, Decision: SupplyHold, Terms: append([]CandidateTerm(nil), row.Terms...)}
 	return c, missing, nil
 }
@@ -643,7 +654,7 @@ func breadthFirst(cands []*supplyCand, demands []SupplyDemand) []*supplyCand {
 
 // admit credits the share toward the demands. Under an emergency a candidate
 // that is not yet delivering is not food until delivered, so it covers nothing.
-func (c *supplyCand) admit(s supplyShare, opening bool, demands []SupplyDemand, remaining []int64, delivered []float64) {
+func (c *supplyCand) admit(s supplyShare, opening bool, demands []SupplyDemand, remaining []int64, delivered, finite []float64) {
 	c.credited = make([]float64, len(demands))
 	for i, d := range demands {
 		amount := s.credit[i]
@@ -656,6 +667,9 @@ func (c *supplyCand) admit(s supplyShare, opening bool, demands []SupplyDemand, 
 		}
 		c.credited[i] = amount
 		delivered[i] += amount
+		if c.finite {
+			finite[i] += amount
+		}
 		if !d.flow() {
 			remaining[i] -= int64(amount)
 		}
@@ -681,7 +695,7 @@ func (c *supplyCand) surplus(demands []SupplyDemand, delivered []float64) bool {
 }
 
 // consider decides a closed candidate and returns the labor it takes.
-func (c *supplyCand) consider(demands []SupplyDemand, remaining []int64, delivered []float64, used, labor float64, urgent int) float64 {
+func (c *supplyCand) consider(demands []SupplyDemand, remaining []int64, delivered, finite []float64, used, labor float64, urgent int) float64 {
 	e, f := &c.entry, c.full
 	total, flow, anyOK := 0.0, false, false
 	for i, d := range demands {
@@ -709,7 +723,7 @@ func (c *supplyCand) consider(demands []SupplyDemand, remaining []int64, deliver
 	share := c.share(demands, remaining)
 	needs, good := false, ""
 	for i, d := range demands {
-		if f.matched[i] && c.ok[i] && share.credit[i] > 0 && (!d.flow() || delivered[i] < d.PerDay) {
+		if f.matched[i] && c.ok[i] && share.credit[i] > 0 && (!d.flow() || c.covered(delivered[i], finite[i]) < d.PerDay) {
 			if !needs {
 				good = goodName(d.Good)
 			}
@@ -726,7 +740,7 @@ func (c *supplyCand) consider(demands []SupplyDemand, remaining []int64, deliver
 		return 0
 	}
 	e.Decision, e.Reason = SupplyOpen, "close "+good+" gap"
-	c.admit(share, true, demands, remaining, delivered)
+	c.admit(share, true, demands, remaining, delivered, finite)
 	return c.laborNew
 }
 
@@ -737,4 +751,15 @@ func (c *supplyCand) flowGood(demands []SupplyDemand) ResourceKey {
 		}
 	}
 	return ResourceKey{}
+}
+
+// covered is the delivery a closed candidate is judged against: a source that
+// does not run out is needed until the flow stands without the ones that do, so
+// the colony does not lean on a herd it will exhaust while a field could be
+// planted; a finite source is needed only until the whole flow is covered.
+func (c *supplyCand) covered(delivered, finite float64) float64 {
+	if c.finite {
+		return delivered
+	}
+	return delivered - finite
 }
