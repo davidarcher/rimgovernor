@@ -66,6 +66,7 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/lifecycle_read_tick` | `rimgovernor.lifecycle.v1.Lifecycle/ReadTick` | `rimgovernor.lifecycle.v1.TickRequest` | `rimgovernor.lifecycle.v1.TickReply` |
 | `rimgovernor/lifecycle_read_governor_state` | `rimgovernor.lifecycle.v1.Lifecycle/ReadGovernorState` | `rimgovernor.lifecycle.v1.GovernorStateRequest` | `rimgovernor.lifecycle.v1.GovernorStateReply` |
 | `rimgovernor/lifecycle_put_governor_state` | `rimgovernor.lifecycle.v1.Lifecycle/PutGovernorState` | `rimgovernor.lifecycle.v1.PutGovernorStateRequest` | `rimgovernor.lifecycle.v1.GovernorStateReply` |
+| `rimgovernor/lifecycle_put_governor_state_batch` | `rimgovernor.lifecycle.v1.Lifecycle/PutGovernorStateBatch` | `rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest` | `rimgovernor.lifecycle.v1.GovernorStateReply` |
 | `rimgovernor/lifecycle_read_load` | `rimgovernor.lifecycle.v1.Lifecycle/ReadLoad` | `rimgovernor.lifecycle.v1.RequestStatus` | `rimgovernor.lifecycle.v1.LoadReply` |
 | `rimgovernor/lifecycle_read_save` | `rimgovernor.lifecycle.v1.Lifecycle/ReadSave` | `rimgovernor.lifecycle.v1.RequestStatus` | `rimgovernor.lifecycle.v1.SaveReply` |
 | `rimgovernor/lifecycle_save` | `rimgovernor.lifecycle.v1.Lifecycle/Save` | `rimgovernor.lifecycle.v1.SaveRequest` | `rimgovernor.lifecycle.v1.SaveReply` |

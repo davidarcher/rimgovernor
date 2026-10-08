@@ -261,6 +261,7 @@ var reviewedNativeMethods = map[string]bool{
 	"rimgovernor/lifecycle_read_tick":                  true,
 	"rimgovernor/lifecycle_read_governor_state":        true,
 	"rimgovernor/lifecycle_put_governor_state":         true,
+	"rimgovernor/lifecycle_put_governor_state_batch":   true,
 	"rimgovernor/observations_read_status":             true,
 	"rimgovernor/placement_preview":                    true,
 	"rimgovernor/authority_read_status":                true,

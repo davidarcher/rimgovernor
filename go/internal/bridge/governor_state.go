@@ -13,6 +13,8 @@ import (
 const (
 	readGovernorStateMethod = "rimgovernor/lifecycle_read_governor_state"
 	putGovernorStateMethod  = "rimgovernor/lifecycle_put_governor_state"
+
+	putGovernorStateBatchMethod = "rimgovernor/lifecycle_put_governor_state_batch"
 )
 
 // GovernorState returns every saved blob by key.
@@ -33,6 +35,24 @@ func (caller *Client) PutGovernorState(ctx context.Context, key, blob string) er
 	}
 	reply := &l.GovernorStateReply{}
 	raw, err := caller.protoCall(ctx, putGovernorStateMethod, &l.PutGovernorStateRequest{Key: proto.String(key), Blob: proto.String(blob)}, reply)
+	if err != nil {
+		return err
+	}
+	_, err = governorStateBlobs(reply, raw)
+	return err
+}
+
+// PutGovernorStateBatch replaces the whole blob set in one call (#2357): keys
+// absent from blobs are removed natively. Native runs it off the game thread
+// and each key is replaced whole, so a save cut lands between blobs.
+func (caller *Client) PutGovernorStateBatch(ctx context.Context, blobs map[string]string) error {
+	for key, blob := range blobs {
+		if key == "" || !asciiString(key) || !asciiString(blob) {
+			return contract("governor state key must be non-empty ASCII and blob ASCII")
+		}
+	}
+	reply := &l.GovernorStateReply{}
+	raw, err := caller.protoCall(ctx, putGovernorStateBatchMethod, &l.PutGovernorStateBatchRequest{Blobs: blobs}, reply)
 	if err != nil {
 		return err
 	}
