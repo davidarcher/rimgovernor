@@ -640,30 +640,6 @@ func TestDefenseLayoutLeavesThePerimeterWall(t *testing.T) {
 	}
 }
 
-// A funnel wall whose eight neighbours are all rock or wall can never have
-// its frame touched once they finish, so the plan would never close (#1248).
-func TestDefenseLayoutFunnelHasNoSealedFrames(t *testing.T) {
-	r := defenseFixture()
-	layout, err := DefenseLayouts(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	funnel, _ := layout.Tier(TierFunnel)
-	walls := map[domain.Cell]bool{}
-	for _, b := range funnel.Buildings {
-		walls[b.Cell()] = true
-	}
-	site, err := newDefenseSite(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for c := range walls {
-		if site.enclosed(c, func(n domain.Cell) bool { return walls[n] }) {
-			t.Errorf("funnel wall %v is sealed by its neighbours", c)
-		}
-	}
-}
-
 // A funnel wall cell whose terrain cannot carry the wall (native: "requires
 // terrain that supports: Light") is not sited: the layout leaves it open (or
 // refuses at siting when that opens a route), never asks native to place it

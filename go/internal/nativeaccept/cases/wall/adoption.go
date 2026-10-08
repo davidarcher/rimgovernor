@@ -11,7 +11,7 @@ import (
 
 func init() {
 	cases.Register(cases.Case{Name: "wall/adoption", Scope: "Smoke: a DECONSTRUCT Designate adopts a player designation with applied evidence; revoking authority removes adopted work and preserves unadopted player work.",
-		Start: cases.Fixture{Op: "test/deconstruct_prepare", On: cases.LabStart()}, Budget: time.Minute, Run: runAdoption})
+		Start: cases.Fixture{Op: "test/deconstruct_prepare", On: cases.LabStart()}, Budget: time.Minute, Crew: cases.Crew{Size: 3}, Run: runAdoption})
 }
 
 func runAdoption(ctx context.Context, s cases.Session) error {

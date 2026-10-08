@@ -38,7 +38,7 @@ const reserveRoundTicks = 15000
 func init() {
 	cases.Register(cases.Case{Name: "food/reserve", Scope: "MaintainFoodStorage holds unforbidden pemmican and fills the rest with a target-count pemmican bill that stops at the reserve while simple meals feed the colony (#428); deleting every other food releases the reserve and the colonists eat it.",
 		Start: EmptyChannels("MealSimple", 200), RequiredOps: []string{reservePrepareOp, reserveProbeOp}, Keep: []string{"Food"},
-		Service: true, Budget: 12 * time.Minute, Stall: 2 * time.Minute, Run: runFoodReserve})
+		Service: true, Budget: 12 * time.Minute, Crew: cases.Crew{Size: 3}, Stall: 2 * time.Minute, Run: runFoodReserve})
 }
 
 func runFoodReserve(ctx context.Context, s cases.Session) error {

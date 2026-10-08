@@ -113,7 +113,7 @@ func init() {
 			"backups, guarded demolition of the original and of a backup by real supervised native deconstruct jobs, resend idempotency.",
 		Start:  cases.Fixture{Op: "test/lighting_prepare", On: cases.LabStart()},
 		Budget: 5 * time.Minute,
-		Run:    runRemoval,
+		Crew:   cases.Crew{Size: 3}, Run: runRemoval,
 	})
 }
 

@@ -80,7 +80,7 @@ func init() {
 			NoCheckpoint: true,
 			Serve:        &cases.ServeSpec{Families: metricsFamilies, PlayerSpeed: metricsSpeed, Prefix: "combatlab"},
 			Budget:       cases.LabBudget,
-			Run:          func(ctx context.Context, s cases.Session) error { return runMetrics(ctx, s, name) },
+			Crew:         cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error { return runMetrics(ctx, s, name) },
 		})
 	}
 }

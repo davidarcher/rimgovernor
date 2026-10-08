@@ -264,6 +264,13 @@ type Case struct {
 	// the suite schedules it after the bridge-only cases (#119) and passes
 	// its -rimgovernor to the run.
 	Service bool
+	// Crew is the colonists the case runs with, declared upfront. The runner
+	// staffs the opened game with it before Run: the colony is topped up to
+	// Crew.Size and every colonist is a superpawn (every skill 20, capable of
+	// every work type, Jogger and Industrious) unless Crew.Ordinary keeps the
+	// generated pawns, which needs a Reason. An Owned case has no game and
+	// declares none.
+	Crew Crew
 	// Budget fails the run when exceeded, distinct from the -timeout safety
 	// net. Every case declares one, at most MaxBudget (checklist item 6).
 	Budget time.Duration
@@ -318,6 +325,20 @@ type Case struct {
 	// run on demand and whenever the clock scheduler or the native tick
 	// path changes, never by a tier.
 	Matrix bool
+}
+
+// Crew is a case's declared crew. Size is the colonists it holds at least:
+// a start with more keeps them. Ordinary leaves the pawns as the start made
+// them (a case about skills, traits or work restrictions), with a Reason.
+type Crew struct {
+	Size     int
+	Ordinary bool
+}
+
+// staffed is whether the runner staffs the case's game with its crew.
+func (c Case) staffed() bool {
+	_, owned := c.Start.(Owned)
+	return !owned && !c.Crew.Ordinary
 }
 
 // FixtureOps are the test ops the case's Start calls, outermost last:
@@ -412,6 +433,14 @@ func (c Case) Lint() error {
 		fail("Budget is missing: every case declares the wall clock it needs", 6, "Budget in minutes and say so")
 	case c.Budget > MaxBudget && c.Reason == "":
 		fail(fmt.Sprintf("Budget %s exceeds %s: stage the precondition, split the assertion or give a Reason", c.Budget, MaxBudget), 6, "Budget in minutes and say so")
+	}
+	if _, owned := c.Start.(Owned); !owned {
+		switch {
+		case c.Crew.Size <= 0:
+			errs = append(errs, fmt.Errorf("case %q: Crew is missing: every case declares the colonists it runs with", c.Name))
+		case c.Crew.Ordinary && c.Reason == "":
+			errs = append(errs, fmt.Errorf("case %q: Crew is Ordinary without a Reason: superpawns are the default", c.Name))
+		}
 	}
 	if c.Quiet != na.QuietRequired && c.Reason == "" {
 		fail(fmt.Sprintf("Quiet is %s without a Reason: only an assertion about an interruption keeps the storyteller", c.Quiet), 4, "Quiet by default")

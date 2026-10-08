@@ -40,7 +40,7 @@ func init() {
 		Start:  cases.Fixture{Op: "test/containment_construct_prepare", On: cases.LabStart()},
 		Keep:   []string{string(na.LiveNeeds)},
 		Budget: 5 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

@@ -36,7 +36,7 @@ func init() {
 		Quiet:  na.Loud,
 		Reason: "an interruption case: the typed epochs run the colony watch policy against the game's own storyteller, and the transport drop must reattach to a game that kept running unquieted",
 		Budget: 8 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

@@ -45,7 +45,7 @@ func init() {
 			Quiet:  na.Loud,
 			Reason: loudReason,
 			Budget: 12 * time.Minute,
-			Run: func(ctx context.Context, s cases.Session) error {
+			Crew:   cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error {
 				return run(ctx, s, v.ranged, v.explosive)
 			},
 		})

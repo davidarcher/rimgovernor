@@ -58,8 +58,8 @@ func laborCase() cases.Case {
 		Keep:        []string{string(na.LiveNeeds)},
 		Serve:       &cases.ServeSpec{NativeTimeout: 30 * time.Second, Prefix: "startuplabor"},
 		Budget:      15 * time.Minute,
-		Reason:      "one window of a third of a game day over an eight-colonist fixture",
-		Run:         run,
+		Crew:        cases.Crew{Size: 3}, Reason: "one window of a third of a game day over an eight-colonist fixture",
+		Run: run,
 	}
 }
 

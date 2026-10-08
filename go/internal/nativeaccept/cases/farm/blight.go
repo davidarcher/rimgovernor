@@ -37,7 +37,7 @@ func init() {
 		Start:   cases.Fixture{Op: "test/blight_prepare", On: cases.LabStart()},
 		Service: true,
 		Budget:  6 * time.Minute,
-		Run:     runBlight,
+		Crew:    cases.Crew{Size: 3}, Run: runBlight,
 	})
 }
 

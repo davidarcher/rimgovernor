@@ -49,7 +49,7 @@ func init() {
 			Families: []routinefamily.Family{routinefamily.PopulationCustody, routinefamily.Work, routinefamily.Tend, routinefamily.Shelter, routinefamily.Dialog}, NativeTimeout: 15 * time.Second, Prefix: "anomaly-hold-study",
 		},
 		Budget: 12 * time.Minute,
-		Run:    runHoldStudy,
+		Crew:   cases.Crew{Size: 3}, Run: runHoldStudy,
 	})
 }
 

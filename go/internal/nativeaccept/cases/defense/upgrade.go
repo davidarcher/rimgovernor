@@ -52,8 +52,8 @@ func init() {
 		Start: cases.Save{Name: sustained.BaselineSave}, Serve: &cases.ServeSpec{Families: families, Prefix: "defense-upgrade"},
 		NoCheckpoint: true,
 		Budget:       3 * time.Hour,
-		Reason:       "the turret tier stands on the perimeter layout's killbox, which only the native campaign builds",
-		Run:          runUpgrade,
+		Crew:         cases.Crew{Size: 3}, Reason: "the turret tier stands on the perimeter layout's killbox, which only the native campaign builds",
+		Run: runUpgrade,
 	})
 }
 

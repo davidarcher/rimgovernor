@@ -32,7 +32,7 @@ func init() {
 			Start:       cases.Save{Name: "RimGovernor-tribal8-baseline"},
 			RequiredOps: []string{"test/shrine_prepare", "test/shrine_audit"},
 			Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shrine, routinefamily.Defense, routinefamily.Clearance, routinefamily.Repair, routinefamily.Tend, routinefamily.Rescue}, Prefix: "shrine-breach"},
-			Stages:      []string{"sealed-shrine-ready"}, Budget: 8 * time.Minute, Stall: 90 * time.Second,
+			Stages:      []string{"sealed-shrine-ready"}, Budget: 8 * time.Minute, Crew: cases.Crew{Size: 3}, Stall: 90 * time.Second,
 			Run: func(ctx context.Context, s cases.Session) error { return runShrineBreach(ctx, s, claim) },
 		})
 	}

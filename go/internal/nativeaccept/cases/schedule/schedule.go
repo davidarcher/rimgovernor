@@ -38,7 +38,7 @@ func init() {
 		// Rest stays live so the fixture's staged level is what the planner reads.
 		Keep:   []string{string(na.NeedRest)},
 		Budget: 12 * time.Minute,
-		Run:    timetables,
+		Crew:   cases.Crew{Size: 3}, Run: timetables,
 	})
 	cases.Register(cases.Case{
 		Name: "schedule/meditate",
@@ -50,7 +50,7 @@ func init() {
 		Service:    true,
 		Keep:       []string{string(na.NeedRest)},
 		Budget:     10 * time.Minute,
-		Run:        meditate,
+		Crew:       cases.Crew{Size: 3}, Run: meditate,
 	})
 }
 

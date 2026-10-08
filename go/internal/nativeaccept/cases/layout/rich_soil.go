@@ -42,8 +42,8 @@ func init() {
 		Keep:        []string{string(na.NeedFood)},
 		Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Expansion, routinefamily.Field}, NativeTimeout: 30 * time.Second, Prefix: "layout-rich-soil"},
 		Budget:      8 * time.Minute,
-		Reason:      "two short serves: a plan and its first field review, then one in-game hour after a colonist joins",
-		Run:         richSoil,
+		Crew:        cases.Crew{Size: 3}, Reason: "two short serves: a plan and its first field review, then one in-game hour after a colonist joins",
+		Run: richSoil,
 	})
 }
 

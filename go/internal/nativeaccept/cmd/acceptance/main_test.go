@@ -92,7 +92,7 @@ func TestRegistryPassesLint(t *testing.T) {
 // checklist rule, so a failing TestRegistryPassesLint reads as a fix.
 func TestLintNamesEachRule(t *testing.T) {
 	noop := func(context.Context, cases.Session) error { return nil }
-	good := cases.Case{Name: "area/good", Start: cases.DebugStart{}, Budget: time.Minute, Run: noop}
+	good := cases.Case{Name: "area/good", Start: cases.DebugStart{}, Budget: time.Minute, Crew: cases.Crew{Size: 3}, Run: noop}
 	if err := good.Lint(); err != nil {
 		t.Fatalf("good case: %v", err)
 	}
@@ -115,6 +115,8 @@ func TestLintNamesEachRule(t *testing.T) {
 	}{
 		{"no budget", func(c *cases.Case) { c.Budget = 0 }, "Budget is missing", "checklist item 6"},
 		{"budget over max", func(c *cases.Case) { c.Budget = 16 * time.Minute }, "exceeds 15m0s", "checklist item 6"},
+		{"no crew", func(c *cases.Case) { c.Crew = cases.Crew{} }, "Crew is missing", ""},
+		{"ordinary crew without reason", func(c *cases.Case) { c.Crew.Ordinary = true }, "Ordinary without a Reason", ""},
 		{"loud without reason", func(c *cases.Case) { c.Quiet = na.Loud }, "Quiet is loud without a Reason", "checklist item 4"},
 		{"big start without reason", func(c *cases.Case) {
 			c.Start = cases.DebugStart{Size: na.DebugStart{MapSize: 250, PlanetCoverage: 0.05}}

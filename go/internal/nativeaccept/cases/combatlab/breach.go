@@ -21,7 +21,7 @@ func init() {
 		RequiredOps: []string{na.LabStartTool, StageTool},
 		QuietWorld:  true,
 		Budget:      cases.LabBudget,
-		Run:         runBreach,
+		Crew:        cases.Crew{Size: 3}, Run: runBreach,
 	})
 }
 

@@ -33,7 +33,7 @@ func init() {
 			"further intent is refused once a native recruit has taken the pawn out of custody.",
 		Start:  cases.Fixture{Op: "test/population_setup", Args: map[string]any{"candidateKind": "Villager"}, On: cases.LabStart()},
 		Budget: cases.LabBudget,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

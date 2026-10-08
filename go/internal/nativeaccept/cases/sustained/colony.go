@@ -75,7 +75,7 @@ func colony(name string, quiet na.QuietMode, scope string) cases.Case {
 		Reason: "sustained multi-day diagnostic over every routine family with live needs" +
 			map[bool]string{true: " and the save's storyteller", false: ""}[quiet == na.Loud],
 		Budget: Window() + 7*time.Minute,
-		Run: func(ctx context.Context, s cases.Session) error {
+		Crew:   cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error {
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{
 					Watch: Window(), Window: ColonyWindow(), Poll: 10 * time.Second,

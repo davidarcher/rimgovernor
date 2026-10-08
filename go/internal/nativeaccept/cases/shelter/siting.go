@@ -28,8 +28,8 @@ func init() {
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Sleeping}, NativeTimeout: 30 * time.Second, Prefix: "shelter-siting"},
 		Budget: 4 * time.Minute,
-		Reason: "one short watch until the first review records a layout plan",
-		Run:    siting,
+		Crew:   cases.Crew{Size: 3}, Reason: "one short watch until the first review records a layout plan",
+		Run: siting,
 	})
 }
 

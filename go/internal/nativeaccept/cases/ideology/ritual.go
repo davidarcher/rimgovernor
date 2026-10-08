@@ -53,7 +53,7 @@ func init() {
 			Families: []routinefamily.Family{routinefamily.Rituals, routinefamily.IdeoRoles, routinefamily.Shelter, routinefamily.Dialog}, NativeTimeout: 15 * time.Second, Prefix: "ideology-first-ritual",
 		},
 		Budget: 15 * time.Minute,
-		Run:    runFirstRitual,
+		Crew:   cases.Crew{Size: 3}, Run: runFirstRitual,
 	})
 }
 

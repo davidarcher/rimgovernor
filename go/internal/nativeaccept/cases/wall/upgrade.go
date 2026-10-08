@@ -100,7 +100,7 @@ func init() {
 		// the lighting fixture builds the walls on top of it.
 		Start:  cases.Fixture{Op: "test/lighting_prepare", On: cases.LabStart()},
 		Budget: 5 * time.Minute,
-		Run:    runUpgrade,
+		Crew:   cases.Crew{Size: 3}, Run: runUpgrade,
 	})
 }
 

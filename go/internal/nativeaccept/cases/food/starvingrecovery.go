@@ -26,7 +26,7 @@ func init() {
 			"crafts a bow that a colonist wields, designates and kills prey, the killer's job after a kill is Hunt on the next live designated prey and not a haul of its own corpse, " +
 			"the meat is butchered (delivery ledger) and eaten (native ingest counter), malnutrition has recovered to 0.3 or below and the food runway is positive, all within eight game days.",
 		Start: EmptyChannels("MealSurvivalPack", 0), RequiredOps: []string{starvingPrepareOp, starvingObserveOp}, Keep: []string{"Food"}, NoCheckpoint: true,
-		Service: true, Budget: 20 * time.Minute, Stall: 2 * time.Minute,
+		Service: true, Budget: 20 * time.Minute, Crew: cases.Crew{Size: 3}, Stall: 2 * time.Minute,
 		Reason: "up to eight native days of a bow craft, hunts, butchering and recovery from malnutrition, like food/fishing's fifteen; the start is already the starving fixture",
 		Run:    runStarvingRecovery})
 }

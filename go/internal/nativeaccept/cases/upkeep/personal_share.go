@@ -44,8 +44,8 @@ func init() {
 			Keep:        sleeping.keep,
 			Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Flooring, routinefamily.Gear, routinefamily.Work}, Extra: sleeping.extra, Prefix: prefix},
 			Budget:      30 * time.Minute,
-			Reason:      c.reason,
-			Run:         func(ctx context.Context, s cases.Session) error { return runPersonalShare(ctx, s, wealth) },
+			Crew:        cases.Crew{Size: 3}, Reason: c.reason,
+			Run: func(ctx context.Context, s cases.Session) error { return runPersonalShare(ctx, s, wealth) },
 		})
 	}
 }

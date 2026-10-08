@@ -23,7 +23,7 @@ func init() {
 			"and comes back refused, and a resent key replays its first result. A Go test cannot see which arms native handles.",
 		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
-		Run:    runActions,
+		Crew:   cases.Crew{Size: 3}, Run: runActions,
 	})
 }
 

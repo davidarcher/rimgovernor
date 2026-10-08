@@ -20,7 +20,7 @@ func init() {
 		Scope:  "The defense-site census carries each colonist wall's stuff def, equal to the building census's (#1065); read-only.",
 		Start:  cases.Fixture{Op: "test/lighting_prepare", On: cases.LabStart()},
 		Budget: 3 * time.Minute,
-		Run:    runSiteStuff,
+		Crew:   cases.Crew{Size: 3}, Run: runSiteStuff,
 	})
 }
 

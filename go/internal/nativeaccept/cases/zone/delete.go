@@ -46,7 +46,7 @@ func init() {
 			"its cell rectangle (#359).",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/zone_delete_prepare"},
 		Budget: 5 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

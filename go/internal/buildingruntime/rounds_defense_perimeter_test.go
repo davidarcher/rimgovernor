@@ -71,7 +71,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	}
 	record := perimeterRecord(t, plan)
 	transmitters := []domain.Cell{{X: plan.Rooms[0].Interior.X, Z: plan.Rooms[0].Interior.Z}}
-	if changed, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6, false, nil); err != nil || !changed || record.PerimeterRevision != 0 || record.PerimeterKey == "" {
+	if changed, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6, nil); err != nil || !changed || record.PerimeterRevision != 0 || record.PerimeterKey == "" {
 		t.Fatal("anchor", changed, err)
 	}
 	wood := tierBuildings(record, func(t store.DefenseTierRecord) bool { return true })
@@ -84,7 +84,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	if pumps == 0 {
 		t.Fatal("no pump tier")
 	}
-	if changed, _ := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6, false, nil); changed {
+	if changed, _ := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6, nil); changed {
 		t.Fatal("an unchanged plan re-cut")
 	}
 	// No tombs: the plan above was derived with none, and a tomb room the
@@ -93,7 +93,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	if !changed {
 		t.Fatal("dried ground kept the plan")
 	}
-	if changed, err := defenseRecutPerimeter(&record, dried, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6, false, nil); err != nil || !changed || record.PerimeterRevision != 1 {
+	if changed, err := defenseRecutPerimeter(&record, dried, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6, nil); err != nil || !changed || record.PerimeterRevision != 1 {
 		t.Fatal("re-cut", changed, err)
 	}
 	if record.Tiers[0].Name != policy.TierTrapCorridor {
@@ -171,7 +171,7 @@ func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 		want  func(int) bool
 	}{{0, func(n int) bool { return n == 0 }}, {149, func(n int) bool { return n == 0 }}, {150, func(n int) bool { return n == 1 }}, {1e6, func(n int) bool { return n >= 1 }}} {
 		record := perimeterRecord(t, plan)
-		if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, c.spare, false, nil); err != nil {
+		if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, c.spare, nil); err != nil {
 			t.Fatal(err)
 		}
 		if n := pumps(record); !c.want(n) {
@@ -179,11 +179,11 @@ func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 		}
 	}
 	record := perimeterRecord(t, plan)
-	if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6, false, nil); err != nil {
+	if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6, nil); err != nil {
 		t.Fatal(err)
 	}
 	built := pumps(record)
-	if changed, _ := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 0, false, nil); changed || pumps(record) != built {
+	if changed, _ := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 0, nil); changed || pumps(record) != built {
 		t.Fatal("standing pumps re-priced", changed, pumps(record), built)
 	}
 }
@@ -199,11 +199,11 @@ func TestDefenseRecutPerimeterMovedKillbox(t *testing.T) {
 	}
 	record := perimeterRecord(t, plan)
 	record.Anchored = true
-	if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, nil, 0, false, nil); err != nil {
+	if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, nil, 0, nil); err != nil {
 		t.Fatal(err)
 	}
 	record.Entry.X++
-	if changed, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, nil, 0, false, nil); err != nil || !changed || record.Anchored {
+	if changed, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, nil, 0, nil); err != nil || !changed || record.Anchored {
 		t.Fatal("moved killbox kept the anchor", changed, err)
 	}
 }
@@ -224,11 +224,11 @@ func TestDefenseRecutPerimeterHeavyBridges(t *testing.T) {
 		t.Fatal("no plan")
 	}
 	record := perimeterRecord(t, plan)
-	if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, nil, 0, false, nil); err != nil {
+	if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, nil, 0, nil); err != nil {
 		t.Fatal(err)
 	}
 	bridges := tierBuildings(record, func(t store.DefenseTierRecord) bool { return true })
-	changed, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterHeavyBridge, nil, 0, false, nil)
+	changed, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterHeavyBridge, nil, 0, nil)
 	if err != nil || !changed {
 		t.Fatal("heavy bridges re-cut nothing", err)
 	}

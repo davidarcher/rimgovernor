@@ -3,6 +3,7 @@ package nativeaccept
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -131,6 +132,32 @@ func (r Report) Finalize(output string) int {
 		return ExitBreak
 	}
 	return 1
+}
+
+// SoftFailuresKey is the report field Expect appends to.
+const SoftFailuresKey = "soft_failures"
+
+// Expect records err under check and returns whether it was nil, so a case
+// can run several independent assertions over one finished state and see
+// every failure in one run instead of the first. A case still returns early
+// when a later step depends on the result; the runner fails a case whose
+// body returned nil with failures recorded (SoftFailure).
+func (r Report) Expect(check string, err error) bool {
+	if err == nil {
+		return true
+	}
+	r[SoftFailuresKey] = append(AsSlice(r[SoftFailuresKey]), map[string]any{"check": check, "error": err.Error()})
+	return false
+}
+
+// SoftFailure is the failures Expect recorded, joined; nil when none.
+func (r Report) SoftFailure() error {
+	var errs []error
+	for _, f := range AsSlice(r[SoftFailuresKey]) {
+		row, _ := f.(map[string]any)
+		errs = append(errs, fmt.Errorf("%v: %v", row["check"], row["error"]))
+	}
+	return errors.Join(errs...)
 }
 
 // ExitBreak is the exit code of a run paused at a breakpoint (#280): the

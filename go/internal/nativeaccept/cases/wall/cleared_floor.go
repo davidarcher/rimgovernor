@@ -21,7 +21,7 @@ func init() {
 		RequiredOps: []string{na.LabSpawnTool, "test/roof_cells", "test/floor_cells", "test/deconstruct_target"},
 		QuietWorld:  true,
 		Budget:      6 * time.Minute,
-		Run:         runClearedFloor,
+		Crew:        cases.Crew{Size: 3}, Run: runClearedFloor,
 	})
 }
 

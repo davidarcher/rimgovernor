@@ -27,7 +27,7 @@ func init() {
 			Start:       cases.Save{Name: "RimGovernor-tribal8-baseline"},
 			RequiredOps: []string{"test/clearance_prepare", "test/clearance_support", "test/clearance_audit"},
 			Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Clearance, routinefamily.Tend, routinefamily.Rescue}, Prefix: "clearance"},
-			Stages:      []string{"clearance-ready"}, Budget: 4 * time.Minute, Stall: 60 * time.Second,
+			Stages:      []string{"clearance-ready"}, Budget: 4 * time.Minute, Crew: cases.Crew{Size: 3}, Stall: 60 * time.Second,
 			Run: func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
 		})
 	}

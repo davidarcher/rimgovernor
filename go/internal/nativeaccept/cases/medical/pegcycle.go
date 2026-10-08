@@ -19,7 +19,7 @@ func init() {
 			"Native: vanilla surgery XP and the wood-part install and removal completing are no Go snapshot.",
 		Start: cases.Fixture{Op: "test/medical_management_setup", On: cases.LabStart(),
 			Args: map[string]any{"disease": false, "condition": "pegTraining"}},
-		Service: true, Budget: 15 * time.Minute, Run: pegTraining,
+		Service: true, Budget: 15 * time.Minute, Crew: cases.Crew{Size: 3}, Run: pegTraining,
 	})
 }
 

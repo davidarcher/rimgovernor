@@ -29,7 +29,7 @@ func init() {
 		// planner.
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Work}, Resume: true, Prefix: "restart"},
 		Budget: 10 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

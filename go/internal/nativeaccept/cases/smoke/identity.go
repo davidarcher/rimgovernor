@@ -23,7 +23,7 @@ func init() {
 		Start: cases.LabStart(),
 		// Boot plus a handful of reads on a kept process.
 		Budget: 5 * time.Minute,
-		Run: func(ctx context.Context, s cases.Session) error {
+		Crew:   cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error {
 			identity := s.Identity()
 			for _, key := range []string{"colonyId", "loadToken"} {
 				if na.AsString(identity[key]) == "" {

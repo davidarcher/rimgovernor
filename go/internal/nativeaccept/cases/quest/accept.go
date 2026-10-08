@@ -32,7 +32,7 @@ func init() {
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/quest_accept_prepare"},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
-		Run:    runAccept,
+		Crew:   cases.Crew{Size: 3}, Run: runAccept,
 	})
 }
 

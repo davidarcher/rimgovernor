@@ -32,40 +32,40 @@ func init() {
 		Scope: "Restore (#1164): a colonist missing a leg with a prosthetic in stock gets an InstallSimpleProstheticLeg " +
 			"medical ProductionBillIntent from MaintainSurgery, and native doctors install it (the part is no longer missing). " +
 			"End to end: the vanilla doctor job completing the bill is no Go snapshot; the service queues it, the case then advances the game.",
-		Start: setup("restore"), Service: true, Budget: 10 * time.Minute, Run: surgeryRestore,
+		Start: setup("restore"), Service: true, Budget: 10 * time.Minute, Crew: cases.Crew{Size: 3}, Run: surgeryRestore,
 	})
 	cases.Register(cases.Case{
 		Name: "medical/surgery-cataract",
 		Scope: "Chronic replacement (#1165): the pawn read carries a Cataract on the eye, and with a bionic eye in stock " +
 			"MaintainSurgery admits a medical bill on that eye. A native read contract: the chronic defName and part index come from vanilla hediffs.",
-		Start: setup("cataract"), Service: true, Budget: 5 * time.Minute, Run: surgeryCataract,
+		Start: setup("cataract"), Service: true, Budget: 5 * time.Minute, Crew: cases.Crew{Size: 3}, Run: surgeryCataract,
 	})
 	cases.Register(cases.Case{
 		Name: "medical/surgery-amputation",
 		Scope: "Life-saving amputation (#1166): a hand WoundInfection losing its immunity race reads with its part index " +
 			"and a RemoveBodyPart operation of kind amputate; CriticalMedical queues it and native doctors complete it. Native: the read contract and vanilla infection physics.",
-		Start: setup("infectedHand"), Service: true, Budget: 10 * time.Minute, Run: surgeryAmputation,
+		Start: setup("infectedHand"), Service: true, Budget: 10 * time.Minute, Crew: cases.Crew{Size: 3}, Run: surgeryAmputation,
 	})
 	cases.Register(cases.Case{
 		Name: "medical/surgery-harvest",
 		Scope: "Organ harvest (#1169): with an unrecruitable prisoner, a colonist missing a kidney and none stocked, the " +
 			"population read carries the prisoner's harvest facts, MaintainSurgery harvests a kidney from the prisoner, " +
 			"then installs it with InstallNaturalKidney. Native: the population read contract and the vanilla harvest yielding the kidney.",
-		Start: setup("missingKidney"), Service: true, Budget: 10 * time.Minute, Run: surgeryHarvest,
+		Start: setup("missingKidney"), Service: true, Budget: 10 * time.Minute, Crew: cases.Crew{Size: 3}, Run: surgeryHarvest,
 	})
 	cases.Register(cases.Case{
 		Name: "medical/surgery-harvest-care-limit",
 		Scope: "Prisoner care limit (#1239): with industrial medicine the only stock, the population read reports the " +
 			"prisoner's HerbalOrWorse medical_care and its kidney harvest as medicine_care_limited with ingredients_on_map " +
 			"false. Native: the population read contract; the refusal and herbal want are policy snapshot tests.",
-		Start: setup("missingKidneyIndustrial"), Budget: 3 * time.Minute, Run: surgeryHarvestCareLimit,
+		Start: setup("missingKidneyIndustrial"), Budget: 3 * time.Minute, Crew: cases.Crew{Size: 3}, Run: surgeryHarvestCareLimit,
 	})
 	cases.Register(cases.Case{
 		Name: "medical/surgery-part-recovery",
 		Scope: "Artificial part recovery (#1232): with an unrecruitable low-worth prisoner wearing a BionicArm and a colonist " +
 			"missing an arm with none stocked, MaintainSurgery removes the arm from the prisoner, then installs it with " +
 			"InstallBionicArm. Native: the vanilla removal yielding the BionicArm item.",
-		Start: setup("missingArm"), Service: true, Budget: 10 * time.Minute, Run: surgeryPartRecovery,
+		Start: setup("missingArm"), Service: true, Budget: 10 * time.Minute, Crew: cases.Crew{Size: 3}, Run: surgeryPartRecovery,
 	})
 }
 

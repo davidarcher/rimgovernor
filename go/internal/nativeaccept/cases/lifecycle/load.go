@@ -27,7 +27,7 @@ func init() {
 		Scope:  "Trusted native rimgovernor/lifecycle_load: governor state (#882) empty on a fresh game, a put blob surviving the save and load with its save-size delta reported; a setup checkpoint save, an async MAP-readiness load of that save polled via rimgovernor/lifecycle_read_load to LoadCompleted with map_ready and a fresh load token, a second VISUAL-readiness load of the same save reaching a completed VISUAL outcome, and an unknown-request-id rejection. No reconnect/competing-viewer capability exercised.",
 		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
-		Run:    runLoad,
+		Crew:   cases.Crew{Size: 3}, Run: runLoad,
 	})
 }
 

@@ -27,7 +27,7 @@ func EmptyChannels(foodDef string, units int) cases.Start {
 func init() {
 	cases.Register(cases.Case{
 		Name: "food/empty-channels", Scope: "Empty-channel fixture has no competing sources; native foodNutrition equals only the declared stock, including after a zero-stock reset.",
-		Start: EmptyChannels("MealSurvivalPack", 10), RequiredOps: []string{observeOp, prepareOp}, Budget: 2 * time.Minute,
+		Start: EmptyChannels("MealSurvivalPack", 10), RequiredOps: []string{observeOp, prepareOp}, Budget: 2 * time.Minute, Crew: cases.Crew{Size: 3},
 		Run: func(ctx context.Context, s cases.Session) error {
 			if err := checkFixture(ctx, s, s.Prepared(), "stocked", 10); err != nil {
 				return err

@@ -629,34 +629,16 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 			ordered = append(ordered, build)
 		}
 	}
-	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
+	ledger := newFundingLedger(policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick})
 	var selected []policy.Preview
 	var key strings.Builder
-	spend := map[policy.Resource]int64{}
-	priced := map[string][]policy.Amount{}
-	// funded is whether the stock read so far still pays costs after what is
-	// selected; a resource the stock does not name is not funded.
-	funded := func(costs []policy.Amount) bool {
-		for _, c := range costs {
-			available, known := int64(0), false
-			for _, s := range stock.Values {
-				if v, ok := s.Available.Value(); ok && s.Resource == c.Resource {
-					available, known = v, true
-				}
-			}
-			if !known || spend[c.Resource]+c.Count > available {
-				return false
-			}
-		}
-		return true
-	}
 	previewed := 0
 	var refused []refusedPlacement
 	for _, build := range ordered {
 		rr := works[build.work].rr
 		priceKey := build.def + "/" + build.stuff
 		// A building priced already and unfunded is not previewed again.
-		if costs, seen := priced[priceKey]; seen && build.work != head && !funded(costs) {
+		if costs, seen := ledger.priceOf(priceKey); seen && build.work != head && !ledger.funded(costs) {
 			continue
 		}
 		if err := check(); err != nil {
@@ -692,20 +674,18 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 			}
 			continue
 		}
-		if err := mergeRoundsStock(&stock, preview.Stock, previewed == 0); err != nil {
+		if err := ledger.merge(preview.Stock, previewed == 0); err != nil {
 			return RoundsBuildingResult{}, err
 		}
 		previewed++
 		costs, priceKnown := v.Costs.Value()
 		if priceKnown {
-			priced[priceKey] = costs
+			ledger.price(priceKey, costs)
 		}
-		if build.work != head && (!priceKnown || !funded(costs)) {
+		if build.work != head && (!priceKnown || !ledger.funded(costs)) {
 			continue
 		}
-		for _, c := range costs {
-			spend[c.Resource] += c.Count
-		}
+		ledger.claim(costs)
 		selected = append(selected, v)
 		fmt.Fprintf(&key, "%s@%d,%d;", build.def, build.cell.X, build.cell.Z)
 	}
@@ -718,7 +698,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 	if once, err := b.methodOnce(call, goal, method); err != nil || !once {
 		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, rr.name+"_build")}, err
 	}
-	return b.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, reason: rr.reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
+	return b.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, reason: rr.reason, snapshot: snapshot, selected: selected, stock: ledger.stock, purpose: policy.Shelter})
 }
 
 // shellMaterials chooses the wall's and the door's stuff from the one stuff the

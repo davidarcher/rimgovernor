@@ -39,7 +39,7 @@ func init() {
 		Start:   cases.Fixture{On: cases.LabStart(), Op: "test/flooring_prepare"},
 		Service: true,
 		Budget:  5 * time.Minute,
-		Run:     run,
+		Crew:    cases.Crew{Size: 3}, Run: run,
 	})
 }
 

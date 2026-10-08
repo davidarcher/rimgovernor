@@ -92,7 +92,7 @@ func init() {
 		Serve:    &cases.ServeSpec{NativeTimeout: 15 * time.Second, StepStall: 90 * time.Second, Prefix: "colony-review"},
 		Reason:   "a season of whole-colony play with the storyteller on is the thing under review",
 		Budget:   time.Duration(days*minutesPerDay+10) * time.Minute,
-		Run: func(ctx context.Context, s cases.Session) error {
+		Crew:     cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error {
 			dir := filepath.Join(s.Config().Output, "review")
 			s.Report()["review_dir"] = dir
 			// What map this was, for cmd/colonyreview's header.

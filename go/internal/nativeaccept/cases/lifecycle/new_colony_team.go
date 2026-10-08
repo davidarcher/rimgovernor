@@ -33,7 +33,7 @@ func init() {
 		Reason: "each start needs a fresh main menu process, so every seed opens and retires its own game",
 		NoKeep: true,
 		Budget: 45 * time.Minute,
-		Run:    runNewColonyTeam,
+		Crew:   cases.Crew{Size: 3}, Run: runNewColonyTeam,
 	})
 }
 

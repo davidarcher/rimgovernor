@@ -131,8 +131,8 @@ func init() {
 		Serve:  &cases.ServeSpec{Families: cumulativeFamilies(stages, len(stages)), Prefix: prefix},
 		Stages: names,
 		Budget: campaignBudget,
-		Reason: "Four deficits chained on one colony with a service restart between them; each stage alone runs in one to four minutes on the registry runner and the chain is the property under test.",
-		Run:    runCampaign,
+		Crew:   cases.Crew{Size: 3}, Reason: "Four deficits chained on one colony with a service restart between them; each stage alone runs in one to four minutes on the registry runner and the chain is the property under test.",
+		Run: runCampaign,
 	})
 }
 

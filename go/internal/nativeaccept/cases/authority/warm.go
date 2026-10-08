@@ -48,7 +48,7 @@ func init() {
 		Start:  cases.Owned{},
 		NoKeep: true,
 		Budget: 5 * time.Minute,
-		Run:    runWarm,
+		Crew:   cases.Crew{Size: 3}, Run: runWarm,
 	})
 }
 

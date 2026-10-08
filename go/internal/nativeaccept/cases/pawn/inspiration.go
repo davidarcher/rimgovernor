@@ -18,7 +18,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "pawn/inspiration", Scope: "A fixture pawn given Inspired_Creativity reads it back through the pawn read and the Go pawn profile (#1187).",
-		Start: cases.Fixture{On: cases.LabStart(), Op: "test/inspire_creativity"}, Budget: time.Minute,
+		Start: cases.Fixture{On: cases.LabStart(), Op: "test/inspire_creativity"}, Budget: time.Minute, Crew: cases.Crew{Size: 3},
 		Run: inspiration,
 	})
 }

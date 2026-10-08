@@ -43,7 +43,7 @@ func init() {
 		// the case is about.
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Trade}, NativeTimeout: 15 * time.Second, Prefix: "trade-routine"},
 		Budget: 15 * time.Minute,
-		Run: func(ctx context.Context, s cases.Session) error {
+		Crew:   cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error {
 			prepared := s.Prepared()
 			s.Report()["trade_prepared"] = prepared
 			if success, _ := na.AsBool(prepared["success"]); !success {

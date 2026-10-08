@@ -51,7 +51,7 @@ func init() {
 			NativeTimeout: 15 * time.Second, Prefix: "stable-patient",
 		},
 		Budget: 15 * time.Minute,
-		Run: func(ctx context.Context, s cases.Session) error {
+		Crew:   cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error {
 			medicalPrepared := s.Prepared()
 			s.Report()["medical_prepared"] = medicalPrepared
 			if na.AsString(medicalPrepared["withdrawalPatient"]) == "" {

@@ -88,7 +88,7 @@ func TestExecuteFailureWritesDiagnosis(t *testing.T) {
 	output := t.TempDir()
 	// A serve case without a binary fails inside execute, before any game
 	// opens, which is enough for the failure path to collect its digest.
-	c := Case{Name: "digest/noserve", Scope: "digest", Start: Save{Name: "missing"}, Budget: time.Minute, Serve: &ServeSpec{}, Run: noop}
+	c := Case{Name: "digest/noserve", Scope: "digest", Start: Save{Name: "missing"}, Budget: time.Minute, Crew: Crew{Size: 3}, Serve: &ServeSpec{}, Run: noop}
 	report, code := Execute(context.Background(), c, Options{Root: output, Output: output, Timeout: time.Second})
 	if code == 0 {
 		t.Fatalf("Execute passed a serve case without a binary")

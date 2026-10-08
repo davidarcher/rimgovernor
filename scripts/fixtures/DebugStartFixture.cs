@@ -105,7 +105,7 @@ namespace HomeBridge.BridgeTools
 
         // An adult baseliner with every work type enabled and on, no traits,
         // no bad hediffs and every skill at SkillLevel without passion.
-        private static Pawn Colonist(int index)
+        internal static Pawn Colonist(int index)
         {
             for (var tries = 0; tries < 50; tries++)
             {
@@ -148,6 +148,54 @@ namespace HomeBridge.BridgeTools
         static LabStartFixture() { LabStart.EnsurePatched(); }
         public LabStartFixture() { LabStart.EnsurePatched(); }
 
+        [Tool("test/lab_crew", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: staff the loaded map with a crew of superpawns. Tops the free colonists up to size with fixture-made adults beside the first colonist (a larger colony is left as it is), then makes every free colonist capable of every work type (backstory work restrictions dropped), sets every skill to level (or only skill when it names one SkillDef) with no passion lost, and replaces the traits with the traits list of TraitDef[:degree] (empty leaves traits alone). Replies the colonist count and how many were added.")]
+        public async Task<object> Crew(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Colonists the crew holds at least; 0 adds none.")] int size = 0,
+            [ToolParameter(Description = "Level 0..20 for the skills.")] int level = 20,
+            [ToolParameter(Description = "One SkillDef name to set; empty sets every skill.")] string skill = "",
+            [ToolParameter(Description = "Comma list of TraitDef[:degree], e.g. SpeedOffset:2,Industriousness:2; empty skips.")] string traits = "")
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game with a current map is required.");
+                if (level < 0 || level > 20) throw new ArgumentException("level must be within 0..20.");
+                if (size < 0 || size > 64) throw new ArgumentException("size must be within 0..64.");
+                var skillDef = skill == "" ? null : DefDatabase<SkillDef>.GetNamedSilentFail(skill) ?? throw new ArgumentException($"No SkillDef named {skill}.");
+                var wanted = new List<Trait>();
+                foreach (var part in (traits ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var pair = part.Trim().Split(':');
+                    var traitDef = DefDatabase<TraitDef>.GetNamedSilentFail(pair[0]) ?? throw new ArgumentException($"No TraitDef named {pair[0]}.");
+                    wanted.Add(new Trait(traitDef, pair.Length > 1 ? int.Parse(pair[1]) : 0, true));
+                }
+                var open = new { Childhood = DefDatabase<BackstoryDef>.AllDefs.First(b => b.slot == BackstorySlot.Childhood && b.workDisables == WorkTags.None), Adulthood = DefDatabase<BackstoryDef>.AllDefs.First(b => b.slot == BackstorySlot.Adulthood && b.workDisables == WorkTags.None) };
+                var crew = map.mapPawns.FreeColonistsSpawned.ToList();
+                var home = crew.Count > 0 ? crew[0].Position : map.Center;
+                var added = 0;
+                while (crew.Count < size)
+                {
+                    var pawn = LabStart.Colonist(crew.Count);
+                    GenSpawn.Spawn(pawn, CellFinder.RandomClosewalkCellNear(home, map, 8), map);
+                    crew.Add(pawn);
+                    added++;
+                }
+                foreach (var pawn in crew)
+                {
+                    if (pawn.story.Childhood != null && pawn.story.Childhood.workDisables != WorkTags.None) pawn.story.Childhood = open.Childhood;
+                    if (pawn.story.Adulthood != null && pawn.story.Adulthood.workDisables != WorkTags.None) pawn.story.Adulthood = open.Adulthood;
+                    foreach (var s in pawn.skills.skills)
+                        if (skillDef == null || s.def == skillDef) { s.Level = level; s.xpSinceLastLevel = 0f; }
+                    if (wanted.Count > 0)
+                    {
+                        foreach (var trait in pawn.story.traits.allTraits.ToList()) pawn.story.traits.RemoveTrait(trait);
+                        foreach (var trait in wanted) pawn.story.traits.GainTrait(new Trait(trait.def, trait.Degree, true));
+                    }
+                    pawn.Notify_DisabledWorkTypesChanged();
+                    pawn.workSettings.EnableAndInitialize();
+                }
+                return new { success = true, colonists = crew.Count, added };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         [Tool("test/lab_start", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#730): wipe the loaded map to bare Soil (no things, plants, filth, zones, roofs, snow or fog; every pawn removed), spawn N fixture-made adult colonists (fixed skills, every work type on, no traits) at the centre, lock clear weather and a 21 C outdoor temperature, and quiet the storyteller. Persists across save and reload. Replies the map size, colonist ids, centre cell and a digest of the map.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture colonists to spawn, 1..8 (default 3).")] int colonists = LabStart.DefaultColonists,
@@ -158,6 +206,39 @@ namespace HomeBridge.BridgeTools
                 if (action == "digest") return new { success = true, mapSize = map.Size.x, lab = !float.IsNaN(AcceptanceWorld.Lab), digest = LabStart.Digest(map) };
                 if (action != "wipe") throw new ArgumentException("Unknown action.");
                 return LabStart.Wipe(map, colonists);
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/lab_stock", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: stock the loaded map with total units of one item def, laid as full stacks (the def's stack limit) and a remainder on the free cells nearest the given cell, joining a stack already there where one has room. Replies the units placed and the stacks laid. Use it for any case that needs a resource in quantity, never a spawn per stack.")]
+        public async Task<object> Stock(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Item ThingDef name, e.g. BlocksGranite.")] string def,
+            [ToolParameter(Description = "Units of the item to place.")] int total,
+            [ToolParameter(Description = "Cell x the stacks are laid nearest to.")] int x,
+            [ToolParameter(Description = "Cell z the stacks are laid nearest to.")] int z,
+            [ToolParameter(Description = "Stuff ThingDef for a stuffed item; empty takes the def's default.")] string stuff = "")
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game with a current map is required.");
+                var thingDef = DefDatabase<ThingDef>.GetNamedSilentFail(def ?? "") ?? throw new ArgumentException($"No ThingDef named {def}.");
+                if (thingDef.category != ThingCategory.Item) throw new ArgumentException($"{def} is not an item.");
+                if (total < 1 || total > 1000000) throw new ArgumentException("total must be within 1..1000000.");
+                var cell = new IntVec3(x, 0, z);
+                if (!cell.InBounds(map)) throw new ArgumentException($"Cell {x},{z} is out of bounds.");
+                ThingDef stuffDef = null;
+                if (thingDef.MadeFromStuff)
+                    stuffDef = stuff == "" ? GenStuff.DefaultStuffFor(thingDef) : DefDatabase<ThingDef>.GetNamedSilentFail(stuff) ?? throw new ArgumentException($"No stuff named {stuff}.");
+                var placed = 0;
+                var stacks = 0;
+                while (placed < total)
+                {
+                    var thing = ThingMaker.MakeThing(thingDef, stuffDef);
+                    thing.stackCount = Math.Min(total - placed, thingDef.stackLimit);
+                    var units = thing.stackCount;
+                    if (!GenPlace.TryPlaceThing(thing, cell, map, ThingPlaceMode.Near)) throw new InvalidOperationException($"No room near {x},{z} for {def}: placed {placed} of {total}.");
+                    placed += units;
+                    stacks++;
+                }
+                return new { success = true, def = thingDef.defName, placed, stacks };
             }, cancellationToken).ConfigureAwait(false);
         }
 

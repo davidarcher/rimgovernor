@@ -28,7 +28,7 @@ func init() {
 			"observed via native ticks (not just an applied result), and key replay idempotency.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/recovery_service_prepare"},
 		Budget: 5 * time.Minute,
-		Run:    runService,
+		Crew:   cases.Crew{Size: 3}, Run: runService,
 	})
 }
 

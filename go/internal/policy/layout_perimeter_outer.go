@@ -2,17 +2,9 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The outer ring (#1595): a second stone wall, planned up front around the
-// geothermal enclosures near the core, wholly apart from the core ring
-// (perimeterOuterGap cells between them, never a shared wall). Fertile
-// patches stand outside it: fields are open ground. It has its own reservation kinds, so the core
-// ring's logic and the builder tell them apart; it holds no killbox. It
-// traces, snaps to rock and gates as the core ring does (wallRuns); soft
-// ground on it is walled like any other cell.
+// The core ring also walls in the geothermal enclosures that crowd it; the
+// outer ring that once walled the rest apart was removed.
 const (
-	ReserveOuterWall ReservationKind = "outer_wall"
-	ReserveOuterGate ReservationKind = "outer_gate"
-
 	// perimeterOuterGap is the free cells between the core ring (and the
 	// killbox approach) and the outer ring.
 	perimeterOuterGap int32 = 1
@@ -30,100 +22,6 @@ var outerEnclosed = map[ReservationKind]bool{ReserveGeothermal: true}
 // lanes stand beside the core, inside its wall, not out in the fields.
 var innerEnclosed = map[ReservationKind]bool{ReserveYard: true, ReserveBarn: true, ReserveVetRoom: true, ReserveTurbine: true, ReserveTurbineLane: true}
 
-// planOuterRing returns the outer ring's reservations: walls and gates around
-// the units within twice perimeterFieldReach of the core ring. core is the core
-// ring's enclosure and approaches the killbox's lanes, both kept clear.
-func planOuterRing(plan LayoutPlan, s MapSurvey, core enclosure, approaches []Rectangle, impassable func(domain.Cell) bool) []LayoutReservation {
-	w, h := core.w, core.h
-	chain := pad(core.bbox, 2*perimeterFieldReach)
-	region := make([]bool, w*h)
-	found := false
-	// take adds a unit (an enclosure) when some cell of it
-	// lies within the chain, whole.
-	take := func(cells []domain.Cell) {
-		near := false
-		for _, c := range cells {
-			near = near || contains(chain, c)
-		}
-		for _, c := range cells {
-			if near && c.X >= 0 && c.Z >= 0 && c.X < w && c.Z < h {
-				region[c.Z*w+c.X] = true
-				found = true
-			}
-		}
-	}
-	pairs := map[int32][]domain.Cell{}
-	for _, r := range plan.Reservations {
-		switch r.Kind {
-		case ReserveTurbine, ReserveTurbineLane:
-			// The core ring walls a turbine pair in; none stands outside.
-		default:
-			if outerEnclosed[r.Kind] && !coreTakesIn(plan, w, h, r) {
-				take(rectCells(r.Area))
-			}
-		}
-	}
-	for _, cells := range pairs {
-		take(cells)
-	}
-	if !found {
-		return nil
-	}
-
-	// What the ring must keep clear of: the core and its ring, and the
-	// approach lanes. The ring stands at least ring+gap cells off them, so
-	// what it encloses stands a ring's thickness further.
-	apart := make([]bool, w*h)
-	copy(apart, core.in)
-	for _, r := range approaches {
-		for _, c := range rectCells(clipRect(r, Rectangle{Width: w, Height: h})) {
-			apart[c.Z*w+c.X] = true
-		}
-	}
-	ringOff := perimeterThick + perimeterOuterGap + 1
-	near := chebyshevField(w, h, apart, ringOff+perimeterThick-1)
-	m := LayoutEdgeMargin + perimeterThick
-	in := encloseRegion(region, w, h, Rectangle{X: m, Z: m, Width: w - 2*m, Height: h - 2*m}, perimeterOuterYard)
-	for i := range in {
-		in[i] = in[i] && near[i] < 0
-	}
-	enc := newEnclosure(in, w, h)
-	if enc.bbox.Width == 0 {
-		return nil
-	}
-	for i := range enc.ring {
-		enc.ring[i] = enc.ring[i] && (near[i] < 0 || near[i] >= ringOff)
-	}
-
-	sides, owner := enc.sides()
-	walls := map[domain.Cell]bool{}
-	var gates, stepGates []Rectangle
-	for _, sd := range sides {
-		g, sg := wallRuns(sd, impassable, walls, nil, func(p int32) bool {
-			for t := int32(0); t < perimeterThick; t++ {
-				if !impassable(sd.cell(p, t)) {
-					return false
-				}
-			}
-			return true
-		})
-		gates, stepGates = append(gates, g...), append(stepGates, sg...)
-	}
-	for _, c := range enc.ringCells() {
-		if _, ok := owner[c]; !ok && !impassable(c) {
-			walls[c] = true
-		}
-	}
-	var res []LayoutReservation
-	for _, r := range cellRects(walls) {
-		res = append(res, LayoutReservation{Kind: ReserveOuterWall, Area: r})
-	}
-	for _, g := range pitchGates(gates, stepGates) {
-		res = append(res, LayoutReservation{Kind: ReserveOuterGate, Area: g})
-	}
-	return res
-}
-
 // wallRuns walls side sd's open cells into walls, run by run between the
 // positions skip reports (an opening, bare terrain, soft ground), and returns
 // each run's gates on the perimeterGatePitch: a run shorter than the pitch
@@ -132,7 +30,7 @@ func planOuterRing(plan LayoutPlan, s MapSurvey, core enclosure, approaches []Re
 // on its open cells, and not behind a rock row that spans the column and both
 // neighbours, which no raider can reach round. axes are the positions of
 // hallways meeting the side, which the pitch lines up with (#952).
-func wallRuns(sd ringSide, impassable func(domain.Cell) bool, walls map[domain.Cell]bool, axes []int32, skip func(p int32) bool) (gates, stepGates []Rectangle) {
+func wallRuns(sd ringSide, impassable func(domain.Cell) bool, walls map[domain.Cell]bool, axes []int32, skip func(p int32) bool) (gates []Rectangle, stepGates []stepGate) {
 	sealed := func(p, t int32) bool {
 		for u := int32(0); u < t; u++ {
 			if impassable(sd.cell(p-1, u)) && impassable(sd.cell(p, u)) && impassable(sd.cell(p+1, u)) {
@@ -176,7 +74,7 @@ func wallRuns(sd ringSide, impassable func(domain.Cell) bool, walls map[domain.C
 				}
 				g := rectOf(sd.base(p), sd.cell(p, perimeterThick-1))
 				if n < perimeterGatePitch {
-					stepGates = append(stepGates, g)
+					stepGates = append(stepGates, stepGate{area: g, face: sd.base(p), out: domain.Cell{X: -sd.in.X, Z: -sd.in.Z}, along: sd.al})
 				} else {
 					gates = append(gates, g)
 				}
@@ -195,11 +93,35 @@ func wallRuns(sd ringSide, impassable func(domain.Cell) bool, walls map[domain.C
 	return gates, stepGates
 }
 
-// pitchGates adds to gates the step gates a pitch clear of every other, so a
-// staircase is gated about as often as a straight side (#1287).
-func pitchGates(gates, stepGates []Rectangle) []Rectangle {
-	for _, g := range stepGates {
-		clear := true
+// stepGate is a gate on a run shorter than the pitch: its outer-face cell, the
+// way out from it and the way along the wall.
+type stepGate struct {
+	area             Rectangle
+	face, out, along domain.Cell
+}
+
+// opensOut is whether a gate leads outside: the strip of three cells wide and
+// three deep straight out from its door holds no wall and no rock. On a step
+// of a squared-off diagonal the next step's wall stands in that strip, and the
+// door would open into the jog.
+func (g stepGate) opensOut(blocked func(domain.Cell) bool) bool {
+	for k := int32(1); k <= 3; k++ {
+		for a := int32(-1); a <= 1; a++ {
+			if blocked(domain.Cell{X: g.face.X + g.out.X*k + g.along.X*a, Z: g.face.Z + g.out.Z*k + g.along.Z*a}) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// pitchGates adds to gates the step gates a pitch clear of every other that
+// lead outside, so a staircase is gated about as often as a straight side
+// (#1287) and never into a jog.
+func pitchGates(gates []Rectangle, stepGates []stepGate, blocked func(domain.Cell) bool) []Rectangle {
+	for _, step := range stepGates {
+		g := step.area
+		clear := step.opensOut(blocked)
 		for _, o := range gates {
 			clear = clear && max(o.X-g.X, g.X-o.X, o.Z-g.Z, g.Z-o.Z) >= perimeterGatePitch
 		}
@@ -212,8 +134,8 @@ func pitchGates(gates, stepGates []Rectangle) []Rectangle {
 
 // coreFootprint marks the cells of a w x h map the core ring walls in: each
 // room's interior with its walls, each hallway padded by SpineWidth/2, the
-// pen, barn, vet room and turbine pairs beside them, and any outer-ring unit
-// crowding that footprint (coreTakesIn). It follows the plan's real outline,
+// pen, barn, vet room and turbine pairs beside them, and any
+// geothermal crowding that footprint. It follows the plan's real outline,
 // not its bounding rectangle (#1945).
 func coreFootprint(plan LayoutPlan, w, h int32) []bool {
 	fp := coreBaseFootprint(plan, w, h)
@@ -317,12 +239,6 @@ func crowdsCore(fp []bool, w, h int32, area Rectangle, gap int32) bool {
 		}
 	}
 	return false
-}
-
-// coreTakesIn reports whether the core ring walls the outer-ring unit r in.
-func coreTakesIn(plan LayoutPlan, w, h int32, r LayoutReservation) bool {
-	base := coreBaseFootprint(plan, w, h)
-	return crowdsCore(base, w, h, r.Area, yardGap(base, w, h, plan.YardCells))
 }
 
 // outerKeepOut marks the cells of a w x h map the core ring will occupy or

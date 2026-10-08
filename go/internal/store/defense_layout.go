@@ -97,9 +97,6 @@ type DefenseLayoutRecord struct {
 	PerimeterRevision int    `json:",omitempty"`
 }
 
-// maxDefenseTiers holds the killbox's tiers and the perimeter's sections.
-const maxDefenseTiers = 160
-
 const maxDefenseLayoutBytes = 1024 * 1024
 
 // Validate rejects a record that could not have come from a policy layout:
@@ -108,7 +105,7 @@ func (r DefenseLayoutRecord) Validate() error {
 	if !validIdentity(string(r.World.Colony)) || !validIdentity(string(r.World.Load)) || r.World.Map < 0 || !validIdentity(string(r.Project)) {
 		return errors.New("defense layout world or project identity invalid")
 	}
-	if len(r.Firing) == 0 || len(r.Tiers) == 0 || len(r.Tiers) > maxDefenseTiers || len(r.Firing) > 64 || len(r.Retreat) != 0 && len(r.Retreat) != len(r.Firing) || len(r.TrapLane) > 512 || len(r.SafeLane) > 64 || len(r.Entrances) > 64 {
+	if len(r.Firing) == 0 || len(r.Tiers) == 0 || len(r.Firing) > 64 || len(r.Retreat) != 0 && len(r.Retreat) != len(r.Firing) || len(r.TrapLane) > 512 || len(r.SafeLane) > 64 || len(r.Entrances) > 64 {
 		return errors.New("defense layout geometry out of bounds")
 	}
 	if r.VerifiedTick < 0 || r.TurretsProbedTick < 0 || r.MortarsProbedTick < 0 || len(r.VerifiedCombat) > 512 || len(r.PerimeterKey) > 128 || r.PerimeterRevision < 0 {
@@ -281,5 +278,9 @@ func (s *Store) SaveDefenseLayout(ctx context.Context, r DefenseLayoutRecord) er
 	if _, err = tx.ExecContext(ctx, "INSERT INTO defense_layout(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	s.notifyStandardsWritten()
+	return nil
 }

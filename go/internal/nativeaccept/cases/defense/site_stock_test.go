@@ -10,15 +10,15 @@ func TestSiteStockCarriesWoodForTheWoodenTiers(t *testing.T) {
 	for _, thing := range siteStock(10, 10) {
 		switch thing.Def {
 		case "WoodLog":
-			wood += thing.Count
+			wood += thing.Total
 		case "BlocksGranite":
-			stone += thing.Count
+			stone += thing.Total
 		}
 	}
 	if wood < 78*5+400 {
 		t.Fatalf("site stock holds %d wood, want the funnel walls plus traps, fences and doors", wood)
 	}
-	if stone != perimeterStacks*75 {
-		t.Fatalf("site stock holds %d stone blocks, want %d", stone, perimeterStacks*75)
+	if stone != perimeterStone {
+		t.Fatalf("site stock holds %d stone blocks, want %d", stone, perimeterStone)
 	}
 }

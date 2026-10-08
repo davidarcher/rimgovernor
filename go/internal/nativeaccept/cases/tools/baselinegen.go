@@ -22,7 +22,7 @@ func init() {
 			na.BaselineStart.Seed + ") through the new-colony op under the run's profile.",
 		Start:  cases.Scenario{Spec: na.BaselineStart},
 		Budget: 15 * time.Minute,
-		Run: func(ctx context.Context, s cases.Session) error {
+		Crew:   cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error {
 			row := map[string]any{"spec": na.BaselineStart}
 			s.Report()["generated"] = row
 			if err := variantgen.SaveVariant(ctx, s.Harness(), s.Config().Root, s.Config().Headless, sustained.BaselineSave, row); err != nil {

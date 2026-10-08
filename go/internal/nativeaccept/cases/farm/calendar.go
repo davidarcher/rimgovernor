@@ -26,7 +26,7 @@ func init() {
 		Start:  cases.LabStart(),
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
-		Run:    runCalendar,
+		Crew:   cases.Crew{Size: 3}, Run: runCalendar,
 	})
 }
 

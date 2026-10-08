@@ -21,7 +21,7 @@ func init() {
 		Start:      cases.Fixture{Op: "test/waste_fixture", Args: map[string]any{"burial": false}, On: cases.LabStart()},
 		QuietWorld: true,
 		Budget:     3 * time.Minute,
-		Run:        runEquality,
+		Crew:       cases.Crew{Size: 3}, Run: runEquality,
 	})
 }
 

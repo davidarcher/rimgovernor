@@ -41,8 +41,8 @@ func init() {
 		Start:   cases.Fixture{Op: "test/power_prepare", Args: map[string]any{"scenario": "mountain"}, On: cases.LabStart()},
 		Service: true,
 		Budget:  30 * time.Minute,
-		Reason:  "three colonists mine, unroof and build a 7x16 turbine path out of solid granite",
-		Run:     runWindThinRoof,
+		Crew:    cases.Crew{Size: 3}, Reason: "three colonists mine, unroof and build a 7x16 turbine path out of solid granite",
+		Run: runWindThinRoof,
 	})
 }
 

@@ -1448,6 +1448,8 @@ namespace HomeBridge.BridgeTools
                 s.Epoch, kind, s.RequestedSpeed, s.TestAcceleration, ticks, wall, wall > 0 ? ticks * 1000.0 / wall : 0,
                 t.Frames, t.MaxFrameTicks, t.HookTicks, Ms(t.HookElapsed), s.ProbeCount, Ms(t.ProbeElapsed), s.MaxProbeTickGap,
                 s.BlindTickBudget, s.MaxBlindTicks, s.RegulatorThrottles, t.Digests, Ms(t.DigestElapsed)));
+            var prof = TickProfile.Take();
+            if (prof.Length > 0) ModLog.Info("clock", "RimGovernor clock epoch " + s.Epoch + " tick profile:" + prof);
         }
 
         private sealed class Hit

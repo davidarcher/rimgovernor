@@ -52,7 +52,7 @@ func init() {
 			Families: []routinefamily.Family{routinefamily.Mechs, routinefamily.Work, routinefamily.Shelter, routinefamily.Dialog}, NativeTimeout: 15 * time.Second, Prefix: "child-mech-gestation",
 		},
 		Budget: 12 * time.Minute,
-		Run:    runMechGestation,
+		Crew:   cases.Crew{Size: 3}, Run: runMechGestation,
 	})
 }
 

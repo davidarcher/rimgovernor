@@ -26,7 +26,7 @@ func init() {
 		RequiredOps: []string{"test/grid_things"},
 		QuietWorld:  true,
 		Budget:      cases.LabBudget,
-		Run: func(ctx context.Context, s cases.Session) error {
+		Crew:        cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error {
 			center, _ := na.AsMap(s.Prepared()["center"])
 			cx, cz := int(na.AsNumber(center["x"])), int(na.AsNumber(center["z"]))
 			reply, err := s.Harness().Call(ctx, "grid-things", "test/grid_things", map[string]any{"cell": fmt.Sprintf("%d,%d", cx+2, cz+9)})

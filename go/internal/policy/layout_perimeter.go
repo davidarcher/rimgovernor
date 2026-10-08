@@ -50,7 +50,7 @@ const (
 )
 
 // perimeterKinds are the reservations PlanPerimeter owns.
-var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveKillboxApproach: true, ReserveKillboxFence: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true, ReserveOuterWall: true, ReserveOuterGate: true}
+var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveKillboxApproach: true, ReserveKillboxFence: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true}
 
 const (
 	perimeterThick int32 = 3
@@ -446,7 +446,8 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	// than the pitch (a step of a squared-off diagonal) takes its gate
 	// only a pitch clear of every other, so a staircase is gated about as
 	// often as a straight side (#1287).
-	var gates, stepGates []Rectangle
+	var gates []Rectangle
+	var stepGates []stepGate
 	walls, light, bridges, gaps := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	for k, sd := range sides {
 		g, sg := wallRuns(sd, impassable, walls, axes(sd), func(p int32) bool {
@@ -458,7 +459,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		})
 		gates, stepGates = append(gates, g...), append(stepGates, sg...)
 	}
-	gates = pitchGates(gates, stepGates)
+	gates = pitchGates(gates, stepGates, func(c domain.Cell) bool { return walls[c] || impassable(c) })
 	for _, g := range gates {
 		add(ReserveGate, g)
 	}
@@ -609,7 +610,6 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			approaches = append(approaches, r.Area)
 		}
 	}
-	res = append(res, planOuterRing(plan, s, enc, approaches, impassable)...)
 
 	kept := plan.Reservations[:0:0]
 	for _, r := range plan.Reservations {

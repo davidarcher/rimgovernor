@@ -54,8 +54,8 @@ func init() {
 		Keep:         []string{string(na.NeedFood)},
 		Serve:        &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Expansion, routinefamily.Field}, NativeTimeout: 30 * time.Second, Prefix: "odyssey-lava-field"},
 		Budget:       8 * time.Minute,
-		Reason:       "one serve until the layout plan is recorded and the field planner has had an in-game hour",
-		Run:          runLavaField,
+		Crew:         cases.Crew{Size: 3}, Reason: "one serve until the layout plan is recorded and the field planner has had an in-game hour",
+		Run: runLavaField,
 	})
 }
 

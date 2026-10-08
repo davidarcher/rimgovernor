@@ -32,8 +32,8 @@ func init() {
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Serve:  &cases.ServeSpec{Families: families, NativeTimeout: 60 * time.Second, Prefix: "bunks"},
 		Budget: 25 * time.Minute,
-		Reason: "one unstaged run of three construction rungs: eight tribal builders raise eight beds (800 work each) and a hut ring of some thirty cells side by side, and the game roofs the room after; the rungs' layout and progress are the assertion, so no rung can be staged",
-		Run:    bunksFirst,
+		Crew:   cases.Crew{Size: 3}, Reason: "one unstaged run of three construction rungs: eight tribal builders raise eight beds (800 work each) and a hut ring of some thirty cells side by side, and the game roofs the room after; the rungs' layout and progress are the assertion, so no rung can be staged",
+		Run: bunksFirst,
 	})
 }
 

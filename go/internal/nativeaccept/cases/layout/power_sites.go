@@ -35,8 +35,8 @@ func init() {
 		Keep:   []string{string(na.NeedFood)},
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Expansion}, NativeTimeout: 30 * time.Second, Prefix: "layout-power"},
 		Budget: 3 * time.Minute,
-		Reason: "one short watch until the first review records a layout plan, then native previews",
-		Run:    powerSites,
+		Crew:   cases.Crew{Size: 3}, Reason: "one short watch until the first review records a layout plan, then native previews",
+		Run: powerSites,
 	})
 }
 

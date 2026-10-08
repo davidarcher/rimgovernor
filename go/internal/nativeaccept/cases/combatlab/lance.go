@@ -22,7 +22,7 @@ func init() {
 		RequiredOps: []string{na.LabStartTool, StageTool, "rimgovernor/operations_apply"},
 		QuietWorld:  true,
 		Budget:      cases.LabBudget,
-		Run:         runShockLance,
+		Crew:        cases.Crew{Size: 3}, Run: runShockLance,
 	})
 }
 

@@ -57,7 +57,7 @@ func init() {
 		Keep:   []string{string(na.NeedFood)},
 		Serve:  ptr(Spec("sustained-winter")),
 		Budget: Window() + 7*time.Minute,
-		Run:    runWinter,
+		Crew:   cases.Crew{Size: 3}, Run: runWinter,
 	})
 }
 

@@ -17,7 +17,7 @@ func init() {
 			"proposing doctors the native tend gate refuses (#657).",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/medical_plague_prepare"},
 		Budget: time.Minute,
-		Run:    tendGates,
+		Crew:   cases.Crew{Size: 3}, Run: tendGates,
 	})
 }
 

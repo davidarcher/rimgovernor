@@ -119,8 +119,8 @@ func init() {
 		QuietWorld: true,
 		Service:    true,
 		Budget:     cases.MaxBudget,
-		Matrix:     true,
-		Run:        run(plainProfile),
+		Crew:       cases.Crew{Size: 3}, Matrix: true,
+		Run: run(plainProfile),
 	})
 }
 

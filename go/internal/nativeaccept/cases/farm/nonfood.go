@@ -56,8 +56,8 @@ func (c nonFoodField) register() cases.Case {
 			NativeTimeout: 15 * time.Second, Prefix: "nonfood-field",
 		},
 		Budget: 40 * time.Minute,
-		Reason: "sowing and harvest each wait for the planner to open the field and the colonists to work it: two serve phases on one colony",
-		Run:    c.run,
+		Crew:   cases.Crew{Size: 3}, Reason: "sowing and harvest each wait for the planner to open the field and the colonists to work it: two serve phases on one colony",
+		Run: c.run,
 	}
 }
 

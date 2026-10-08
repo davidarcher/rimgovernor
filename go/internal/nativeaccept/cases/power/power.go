@@ -42,7 +42,7 @@ func init() {
 		// ~2x the measured healthy run (403eebbb): the refuel hold plays ~4
 		// minutes.
 		Budget: 10 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

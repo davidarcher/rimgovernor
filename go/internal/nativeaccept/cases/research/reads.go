@@ -21,7 +21,7 @@ func init() {
 		QuietWorld: true,
 		Quiet:      na.QuietRequired,
 		Budget:     5 * time.Minute,
-		Run:        run,
+		Crew:       cases.Crew{Size: 3}, Run: run,
 	})
 }
 

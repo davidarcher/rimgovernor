@@ -17,7 +17,7 @@ func init() {
 			"receipt carries the area load id and cell count after the edit.",
 		Start:  cases.LabStart(),
 		Budget: 2 * time.Minute,
-		Run:    areaIntent,
+		Crew:   cases.Crew{Size: 3}, Run: areaIntent,
 	})
 }
 

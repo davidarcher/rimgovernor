@@ -19,7 +19,7 @@ func init() {
 	cases.Register(cases.Case{Name: "food/ledger",
 		Scope:        "Native read contract and end-to-end signal (a Go snapshot test cannot cover native hooks): the colony facts delivery ledger's fish and rice counters equal the fixture's independent tally of Notify_Fished catches and rice yields, and a gathered cow yields a milk counter; counters never decrease within an epoch.",
 		Start:        cases.Fixture{On: cases.DebugStart{Size: na.DebugStart{MapSize: 150, PlanetCoverage: 0.05, Biomes: "TropicalRainforest", Seed: "fishing-426"}}, Op: ledgerPrepareOp},
-		NoCheckpoint: true, RequiredOps: []string{ledgerObserveOp}, Budget: 10 * time.Minute,
+		NoCheckpoint: true, RequiredOps: []string{ledgerObserveOp}, Budget: 10 * time.Minute, Crew: cases.Crew{Size: 3},
 		Reason: "an Odyssey coast needs the fishing case's 150-tile start; a few native days of fishing, harvest and milking on a programmatic coast with a mature rice field",
 		Run:    runLedger})
 }

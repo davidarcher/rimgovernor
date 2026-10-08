@@ -34,7 +34,7 @@ func init() {
 		Reason: "the case unloads the runner's game and starts a second one; the process ends on a game the next case did not open",
 		NoKeep: true,
 		Budget: 8 * time.Minute,
-		Run:    runShutdown,
+		Crew:   cases.Crew{Size: 3}, Run: runShutdown,
 	})
 	// runtime-fault (the former runtimefaultaccept, #35 M3): a required
 	// authority invalidation hook that goes missing at runtime (a partial
@@ -49,7 +49,7 @@ func init() {
 		Reason: "the fixture unpatches a Harmony hook: process-scoped static state no later case should inherit",
 		NoKeep: true,
 		Budget: 8 * time.Minute,
-		Run:    runRuntimeFault,
+		Crew:   cases.Crew{Size: 3}, Run: runRuntimeFault,
 	})
 }
 

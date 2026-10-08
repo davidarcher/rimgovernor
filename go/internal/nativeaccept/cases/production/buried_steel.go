@@ -34,7 +34,7 @@ func init() {
 		Quiet:       na.QuietRequired, QuietWorld: true,
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Resource, routinefamily.Supply}, NativeTimeout: 15 * time.Second, Prefix: "buried-steel"},
 		Budget: 14 * time.Minute,
-		Run:    func(ctx context.Context, s cases.Session) error { return runBuriedSteel(ctx, s, false) },
+		Crew:   cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error { return runBuriedSteel(ctx, s, false) },
 	})
 	// The stockpile against the face deposit (#1133): ore is always mined,
 	// and each face cell beside colony space is followed by a wall.
@@ -46,7 +46,7 @@ func init() {
 		Quiet:       na.QuietRequired, QuietWorld: true,
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Resource, routinefamily.Supply}, NativeTimeout: 15 * time.Second, Prefix: "buried-steel-stockpile"},
 		Budget: 14 * time.Minute,
-		Run:    func(ctx context.Context, s cases.Session) error { return runBuriedSteel(ctx, s, true) },
+		Crew:   cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error { return runBuriedSteel(ctx, s, true) },
 	})
 }
 

@@ -43,7 +43,7 @@ func init() {
 				Args: map[string]any{"disease": false, "condition": "elective", "wealth": wealth}},
 			Service: true,
 			Budget:  12 * time.Minute,
-			Run:     func(ctx context.Context, s cases.Session) error { return surgeryElective(ctx, s, wealth) },
+			Crew:    cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error { return surgeryElective(ctx, s, wealth) },
 		})
 	}
 }

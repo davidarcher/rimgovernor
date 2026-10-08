@@ -11,14 +11,14 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "mood/ancient-arrest", Scope: "The Arrest GiveJobIntent delivers a standing neutral Faction.OfAncients pawn to its exact prisoner bed under owned draft; ordinary colonists still require a legal mental state.", Start: cases.Fixture{On: cases.LabStart(), Op: "test/arrest_prepare", ArgsFrom: startersite.ArgsFor(7)}, Keep: []string{string(na.NeedRest)}, Budget: 2 * time.Minute, Run: func(ctx context.Context, s cases.Session) error { return runArrestTarget(ctx, s, "ancient") }})
+	cases.Register(cases.Case{Name: "mood/ancient-arrest", Scope: "The Arrest GiveJobIntent delivers a standing neutral Faction.OfAncients pawn to its exact prisoner bed under owned draft; ordinary colonists still require a legal mental state.", Start: cases.Fixture{On: cases.LabStart(), Op: "test/arrest_prepare", ArgsFrom: startersite.ArgsFor(7)}, Keep: []string{string(na.NeedRest)}, Budget: 2 * time.Minute, Crew: cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error { return runArrestTarget(ctx, s, "ancient") }})
 	cases.Register(cases.Case{
 		Name:   "mood/arrest",
 		Scope:  "Vanilla Arrest custody through the Arrest GiveJobIntent on Actions/Apply: refuse normal targets, unarmed arresters, hostile Berserk and non-prisoner beds; require owned draft; a resend applies again; a living sad-wander target ends in the exact prisoner bed with its mental state ended.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/arrest_prepare", ArgsFrom: startersite.ArgsFor(7)},
 		Keep:   []string{string(na.NeedRest)},
 		Budget: 2 * time.Minute,
-		Run:    runArrest,
+		Crew:   cases.Crew{Size: 3}, Run: runArrest,
 	})
 }
 

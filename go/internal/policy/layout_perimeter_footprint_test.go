@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -87,39 +86,5 @@ func TestCoreFootprintNarrowNotchCloses(t *testing.T) {
 	enc := coreEnclosure(plan, n, n)
 	if !enc.inside(domain.Cell{X: 52, Z: 45}) {
 		t.Fatal("the gap between two rooms is not enclosed")
-	}
-}
-
-// A rich patch inside the footprint is walled by the core ring only; the
-// outer ring leaves it alone.
-func TestOuterRingSkipsPatchInsideTheFootprint(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	const n = 150
-	patch := Rectangle{X: 70, Z: 70, Width: 8, Height: 8}
-	plan := LayoutPlan{Rooms: []PlannedRoom{
-		footprintRoom(PlannedWorkshop, 50, 50, 40, 8),
-		footprintRoom(PlannedStorage, 50, 90, 40, 8),
-		footprintRoom(PlannedKitchen, 50, 58, 8, 32),
-		footprintRoom(PlannedDining, 82, 58, 8, 32),
-	}}
-	zone := LayoutZone{Kind: ZoneField}
-	for z := patch.Z; z < patch.Z+patch.Height; z++ {
-		zone.Runs = append(zone.Runs, RowRun{Z: z, X: patch.X, Length: patch.Width})
-	}
-	plan.Zones = append(plan.Zones, zone)
-	s := zoningSurvey(n, func(x, z int32) SurveyCell {
-		c := SurveyCell{Walkable: true}
-		if contains(patch, domain.Cell{X: x, Z: z}) {
-			c.Fertility = 1.4
-		}
-		return c
-	})
-	out := PlanPerimeter(plan, s)
-	if got := len(reservedCells(out, ReserveOuterWall)); got != 0 {
-		t.Fatalf("%d outer wall cells around a patch the core already holds", got)
-	}
-	if len(reservedCells(out, ReservePerimeter)) == 0 {
-		t.Fatal("no core ring")
 	}
 }

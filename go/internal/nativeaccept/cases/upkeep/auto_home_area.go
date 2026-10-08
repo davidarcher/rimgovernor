@@ -16,7 +16,7 @@ func init() {
 			"again is UNCHANGED, and UpkeepFacts.auto_home_area reads each value back.",
 		Start:  cases.LabStart(),
 		Budget: 2 * time.Minute,
-		Run:    runAutoHomeArea,
+		Crew:   cases.Crew{Size: 3}, Run: runAutoHomeArea,
 	})
 }
 

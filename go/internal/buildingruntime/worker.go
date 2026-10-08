@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -31,7 +32,8 @@ type WorkerConfig struct {
 	StepInterval, MaxBackoff, StepTimeout time.Duration
 	RenewInterval, RenewTimeout           time.Duration
 	// MaxDispatches bounds the actions one step runs before it yields the
-	// player gate; zero means workerDefaultDispatches. Every eligible
+	// player gate; zero means no count bound: the step budget (StepTimeout,
+	// and the longest dispatch so far) ends a step, not a number. Every eligible
 	// independent action is dispatched in the step that finds it (#593):
 	// one per step cost a scheduler-step round trip per wall segment. A
 	// dependent action still waits for its prerequisite's outcome, which
@@ -130,17 +132,11 @@ type Worker struct {
 // workerBurstMax bounds the steps one wake or advance runs back to back.
 const workerBurstMax = 16
 
-// workerDefaultDispatches is MaxDispatches when the config leaves it zero:
-// the whole of an ordinary plan (a wall run, a room's furniture) in one
-// step, bounded so a long catalog still yields the gate within the step
-// budget.
-const workerDefaultDispatches = 16
-
 func (w *Worker) dispatchBudget() int {
 	if w.config.MaxDispatches > 0 {
 		return w.config.MaxDispatches
 	}
-	return workerDefaultDispatches
+	return math.MaxInt
 }
 
 type workerCandidate struct {

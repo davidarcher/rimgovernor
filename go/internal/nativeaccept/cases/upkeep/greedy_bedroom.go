@@ -25,8 +25,8 @@ func init() {
 		Keep:   sleeping.keep,
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Flooring, routinefamily.Work}, Extra: sleeping.extra, Prefix: prefix},
 		Budget: 30 * time.Minute,
-		Reason: "Three furniture builds and a floor, then the native room stat.",
-		Run:    runGreedyBedroom,
+		Crew:   cases.Crew{Size: 3}, Reason: "Three furniture builds and a floor, then the native room stat.",
+		Run: runGreedyBedroom,
 	})
 }
 

@@ -27,7 +27,7 @@ func init() {
 			"which hunt blockers hold (butcher bill, Cooking worker, ordinary ranged weapon, three gunners, pending-hunt cap), pawn weapons and work state, wildlife counts and the food channel census. " +
 			"A Go snapshot test over recorded colony facts cannot cover it: the weapon, work and wildlife state only exist on a live map; the recorded facts it yields become the replay snapshot.",
 		Start: EmptyChannels("MealSurvivalPack", 0), RequiredOps: []string{starvingPrepareOp, starvingObserveOp}, Keep: []string{"Food"},
-		Service: true, Budget: 15 * time.Minute, Stall: 2 * time.Minute, Run: runStarvingTribal})
+		Service: true, Budget: 15 * time.Minute, Crew: cases.Crew{Size: 3}, Stall: 2 * time.Minute, Run: runStarvingTribal})
 }
 
 func runStarvingTribal(ctx context.Context, s cases.Session) error {

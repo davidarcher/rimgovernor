@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "mood/subdue", Scope: "Ordinary melee containment through a GiveJobIntent AttackMelee on Actions/Apply: refuse non-aggro targets and ranged weapons; draft and order a blunt attack, resend applies again, and the colonist ends living, downed or recovered, without prisoner conversion.", Start: cases.Fixture{Op: "test/subdue_prepare", ArgsFrom: startersite.ArgsFor(7), On: cases.LabStart()}, Budget: 2 * time.Minute, Run: runSubdue})
+	cases.Register(cases.Case{Name: "mood/subdue", Scope: "Ordinary melee containment through a GiveJobIntent AttackMelee on Actions/Apply: refuse non-aggro targets and ranged weapons; draft and order a blunt attack, resend applies again, and the colonist ends living, downed or recovered, without prisoner conversion.", Start: cases.Fixture{Op: "test/subdue_prepare", ArgsFrom: startersite.ArgsFor(7), On: cases.LabStart()}, Budget: 2 * time.Minute, Crew: cases.Crew{Size: 3}, Run: runSubdue})
 }
 
 func runSubdue(ctx context.Context, s cases.Session) error {

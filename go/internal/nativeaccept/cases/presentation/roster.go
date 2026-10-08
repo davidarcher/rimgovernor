@@ -26,7 +26,7 @@ func init() {
 		Scope:  "presentation_colonists carries no dossier; the controller's include_dossier join attaches each colonist's pawn table row (mood, health summary, skills, equipment present; settings absent). Native: the roster read and the pawn table list read.",
 		Start:  cases.LabStart(),
 		Budget: 3 * time.Minute,
-		Run:    runRoster,
+		Crew:   cases.Crew{Size: 3}, Run: runRoster,
 	})
 }
 

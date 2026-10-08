@@ -78,7 +78,7 @@ func (sel selection) register(name string) cases.Case {
 			Families: []routinefamily.Family{routinefamily.Field}, NativeTimeout: 30 * time.Second, Prefix: "farm-select",
 		},
 		Budget: 10 * time.Minute,
-		Run: func(ctx context.Context, s cases.Session) error {
+		Crew:   cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error {
 			fixture := s.Prepared()
 			if sel.environment != "" {
 				// An unlit lamp (outside its sun schedule at this save's

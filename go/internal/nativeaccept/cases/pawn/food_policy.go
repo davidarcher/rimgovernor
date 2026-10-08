@@ -28,7 +28,7 @@ func init() {
 		NoKeep:     true,
 		Serve:      &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Work}},
 		Budget:     4 * time.Minute,
-		Run:        foodPolicy,
+		Crew:       cases.Crew{Size: 3}, Run: foodPolicy,
 	})
 }
 

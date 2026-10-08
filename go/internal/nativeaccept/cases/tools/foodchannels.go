@@ -16,7 +16,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "tools/foodchannels", Scope: "Core-only food source census on the lab: spawned berry-bush forage and absent Odyssey water; a fixture cow reports native milk fullness (#421).",
-		Start: cases.LabStart(), Budget: 3 * time.Minute,
+		Start: cases.LabStart(), Budget: 3 * time.Minute, Crew: cases.Crew{Size: 3},
 		Run: func(ctx context.Context, s cases.Session) error {
 			h := s.Harness()
 			c := na.LabMapSize / 2

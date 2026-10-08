@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -144,21 +145,52 @@ func squadDraftBusy(d SquadDefenderFacts) (busy, known bool) {
 // squadDefenderEligible is the shared combat_health_hold gate: known health,
 // not drafted under another claim, violence-capable, not
 // needing tending and above the native combat-health threshold.
-func squadDefenderEligible(d SquadDefenderFacts) bool {
-	dead, dk := d.Dead.Value()
-	downed, wk := d.Downed.Value()
-	busy, tk := squadDraftBusy(d)
-	mental, mk := d.MentalState.Value()
-	violent, vk := d.ViolenceCapable.Value()
-	needsTend, nk := d.NeedsTend.Value()
-	health, hk := d.HealthFraction.Value()
-	if !dk || !wk || !tk || !mk || !vk || !nk || !hk {
-		return false
+func squadDefenderEligible(d SquadDefenderFacts) bool { return len(squadDefenderReasons(d)) == 0 }
+
+// squadDefenderReasons is every reason d is not eligible, empty when eligible.
+// Each check stands alone: an unknown fact is a reason, and the known ones
+// are still checked.
+func squadDefenderReasons(d SquadDefenderFacts) []string {
+	var why []string
+	if dead, ok := d.Dead.Value(); !ok {
+		why = append(why, "dead unknown")
+	} else if dead {
+		why = append(why, "dead")
 	}
-	if dead || downed || busy || mental || !violent || needsTend || d.Deathresting {
-		return false
+	if downed, ok := d.Downed.Value(); !ok {
+		why = append(why, "downed unknown")
+	} else if downed {
+		why = append(why, "downed")
 	}
-	return health > squadHurtHealth
+	if busy, ok := squadDraftBusy(d); !ok {
+		why = append(why, "drafted unknown")
+	} else if busy {
+		why = append(why, "drafted under another claim")
+	}
+	if mental, ok := d.MentalState.Value(); !ok {
+		why = append(why, "mental state unknown")
+	} else if mental {
+		why = append(why, "in a mental state")
+	}
+	if violent, ok := d.ViolenceCapable.Value(); !ok {
+		why = append(why, "violence capability unknown")
+	} else if !violent {
+		why = append(why, "not violence-capable")
+	}
+	if needsTend, ok := d.NeedsTend.Value(); !ok {
+		why = append(why, "needs-tend unknown")
+	} else if needsTend {
+		why = append(why, "needs tending")
+	}
+	if d.Deathresting {
+		why = append(why, "deathresting")
+	}
+	if health, ok := d.HealthFraction.Value(); !ok {
+		why = append(why, "health unknown")
+	} else if health <= squadHurtHealth {
+		why = append(why, fmt.Sprintf("health %.2f", health))
+	}
+	return why
 }
 
 func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFacts) ([]SquadAssignment, bool) {

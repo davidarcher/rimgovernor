@@ -26,8 +26,8 @@ func init() {
 		Keep:   sleeping.keep,
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.HomeCoverage, routinefamily.Work}, Extra: sleeping.extra, Prefix: prefix},
 		Budget: 12 * time.Minute,
-		Reason: "Two small beds establish real ownership; subsequent Home writes require only rounds on the same colony.",
-		Run:    runHomeCoverage,
+		Crew:   cases.Crew{Size: 3}, Reason: "Two small beds establish real ownership; subsequent Home writes require only rounds on the same colony.",
+		Run: runHomeCoverage,
 	})
 }
 

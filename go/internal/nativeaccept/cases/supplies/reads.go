@@ -18,7 +18,7 @@ func init() {
 		Scope:  "Fresh typed supply census: quantities, instances and holders agree within each row for held and spawned-only ownership over spawned WoodLog and Steel; no gameplay orders.",
 		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

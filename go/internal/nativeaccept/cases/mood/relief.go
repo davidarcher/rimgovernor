@@ -26,7 +26,7 @@ func init() {
 		Start:  cases.LabStart(),
 		Keep:   []string{string(na.NeedJoy), "Mood"},
 		Budget: 5 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

@@ -29,7 +29,7 @@ func init() {
 		RequiredOps: []string{na.LabStartTool, StageTool},
 		QuietWorld:  true,
 		Budget:      cases.LabBudget,
-		Run:         runStops,
+		Crew:        cases.Crew{Size: 3}, Run: runStops,
 	})
 }
 

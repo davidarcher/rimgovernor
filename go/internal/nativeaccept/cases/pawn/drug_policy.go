@@ -25,7 +25,7 @@ func init() {
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/drinker_and_child"},
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Work}},
 		Budget: 4 * time.Minute,
-		Run:    drugPolicy,
+		Crew:   cases.Crew{Size: 3}, Run: drugPolicy,
 	})
 }
 

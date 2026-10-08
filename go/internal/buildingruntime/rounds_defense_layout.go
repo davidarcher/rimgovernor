@@ -18,6 +18,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -134,6 +135,9 @@ type RoundsDefenseLayoutSource interface {
 type RoundsDefenseLayoutPlanner struct {
 	reviewer *Rounder
 	native   RoundsDefenseLayoutSource
+	// unbuilt is the last census summary logged per unbuilt tier, so a tier that
+	// stays unbuilt is logged when its cells change, not on every step.
+	unbuilt map[policy.DefenseTierName]string
 }
 type RoundsDefenseLayoutResult struct {
 	Verdict
@@ -156,7 +160,7 @@ func NewRoundsDefenseLayoutPlanner(reviewer *Rounder, native RoundsDefenseLayout
 	if reviewer.native == nil {
 		return nil, fmt.Errorf("%w: NewRoundsDefenseLayoutPlanner: reviewer.native == nil", ErrControl)
 	}
-	return &RoundsDefenseLayoutPlanner{reviewer, native}, nil
+	return &RoundsDefenseLayoutPlanner{reviewer: reviewer, native: native}, nil
 }
 
 // A tier's method is keyed by tier, repair and attempt: a plan cancelled by
@@ -219,14 +223,15 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	if wait == nil && (goal.Project.Finding != domain.FindingUnmet || review.VetoProject(goal.Project) != "") {
 		return RoundsDefenseLayoutResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	for _, method := range goal.Methods {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return RoundsDefenseLayoutResult{}, err
-		}
-		if store.PlanOpen(plan) {
-			return RoundsDefenseLayoutResult{Verdict: BuildingReasonExistingWork}, nil
-		}
+	// Open perimeter tiers do not hold the layout: more of the wall is admitted
+	// beside them while the stock funds it (#2316). Any other open plan, or a
+	// fight, still does.
+	pipe, pipelinable, err := defenseOpenTiers(goal, func(id domain.PlanID) (store.PlanState, error) { return p.journal.LoadPlan(call, id) })
+	if err != nil {
+		return RoundsDefenseLayoutResult{}, err
+	}
+	if !pipelinable || wait != nil && pipe.piped() {
+		return RoundsDefenseLayoutResult{Verdict: BuildingReasonExistingWork}, nil
 	}
 	if wait != nil {
 		return r.fight(call, epoch, goal, state, *wait)
@@ -346,9 +351,11 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		return RoundsDefenseLayoutResult{}, err
 	}
 	tick := read.Projection.Identity.Tick
+	pipe.ledger = newFundingLedger(policy.StockObservation{Snapshot: state.Snapshot, Tick: tick})
+	pipe.settle(census)
 	// A layout that stood before turrets could be placed (no research, no
 	// network, no steel) gains the tier once the observed gates open.
-	if len(definitions) > 0 && stored && defenseTurretsDue(record, expected.Tick) {
+	if !pipe.piped() && len(definitions) > 0 && stored && defenseTurretsDue(record, expected.Tick) {
 		request := defenseTurretRequest(read)
 		if request.TurretGatesOpen() {
 			if err = r.proposeTurrets(call, state, read, &record); err != nil {
@@ -359,7 +366,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	}
 	// The mortar tier follows the same way once mortar research and the
 	// raid points' budget open its gates (#1206).
-	if len(definitions) > 0 && defenseMortarsDue(record, expected.Tick) {
+	if !pipe.piped() && len(definitions) > 0 && defenseMortarsDue(record, expected.Tick) {
 		if request := defenseMortarRequest(read); request.MortarGatesOpen() {
 			if err = r.proposeMortars(call, state, read, &record); err != nil {
 				return RoundsDefenseLayoutResult{}, err
@@ -368,15 +375,24 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	}
 	// A standing turret below the armory's rung is replaced in place, one
 	// at a time (#1210).
-	if len(definitions) > 0 && stored && defenseReplaceDue(record, expected.Tick) {
+	if !pipe.piped() && len(definitions) > 0 && stored && defenseReplaceDue(record, expected.Tick) {
 		if err = r.replaceTurret(call, state, read, &record); err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}
 	}
 	order := defenseTierSequence(record, defenseRoamerOwned(read.Projection))
+	var admitted *RoundsDefenseLayoutResult
 	for _, name := range order {
 		tier, buildings, ok := record.Tier(name)
-		if !ok || len(buildings) == 0 || tier.Built {
+		if !ok || len(buildings) == 0 || tier.Built || defenseTierOpen(pipe.open, name) {
+			continue
+		}
+		// Tiers after the first go on only while they are perimeter tiers the
+		// stock funds beside the ones in flight; anything else waits for them.
+		if pipe.piped() && (!policy.IsPerimeterTier(name) || tier.Remove) {
+			break
+		}
+		if pipe.piped() && tier.Attempts >= maxDefenseTierAttempts {
 			continue
 		}
 		if tier.Attempts >= maxDefenseTierAttempts {
@@ -393,9 +409,15 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		}
 		buildings = defenseMissingBuildings(buildings, census)
 		if len(buildings) == 0 {
+			if pipe.piped() {
+				continue
+			}
 			// The census re-opened the tier on a cell it cannot see
 			// (fogged); nothing can be admitted until it can.
 			return RoundsDefenseLayoutResult{Verdict: fieldUnavailable("fogged_defense_cells"), Tier: name}, nil
+		}
+		if pipe.piped() && pipe.overlaps(buildings) {
+			continue
 		}
 		if policy.IsPerimeterTier(name) && defenseNeedsStone(buildings) {
 			// The wall is stone: the stock's most plentiful block, waited
@@ -404,6 +426,9 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 			// keep theirs.
 			stuff, ok := defensePerimeterStone(read.Projection, buildings)
 			if !ok {
+				if pipe.piped() {
+					break
+				}
 				if gate := policy.ResearchGate([]string{policy.StoneShellResearch}, read.Projection.Facts.Research); gate != "" {
 					return RoundsDefenseLayoutResult{Verdict: researchWait(gate), Tier: name}, nil
 				}
@@ -418,7 +443,36 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 				}
 			}
 		}
-		return r.admit(call, epoch, goal, state, read, record, tier, buildings, defenseTierMethodID(tier))
+		result, err := r.admit(call, epoch, goal, state, read, record, tier, buildings, defenseTierMethodID(tier), pipe)
+		if err != nil {
+			return RoundsDefenseLayoutResult{}, err
+		}
+		if result.Verdict != BuildingReasonAdmitted {
+			if admitted != nil {
+				return *admitted, nil
+			}
+			if len(pipe.open) > 0 {
+				// The tiers in flight are the work this one waits behind.
+				return RoundsDefenseLayoutResult{Verdict: BuildingReasonExistingWork}, nil
+			}
+			return result, nil
+		}
+		admitted = &result
+		if record, _, err = p.journal.LoadDefenseLayout(call, world); err != nil {
+			return RoundsDefenseLayoutResult{}, err
+		}
+		// An admission moves the project's revision: the next tier of this step
+		// is admitted against the project as it now stands, not the one read
+		// before the first (a stale owner ended every step after one tier).
+		if goal, _, err = defenseLayoutProject(call, p, review); err != nil {
+			return RoundsDefenseLayoutResult{}, err
+		}
+	}
+	if admitted != nil {
+		return *admitted, nil
+	}
+	if len(pipe.open) > 0 {
+		return RoundsDefenseLayoutResult{Verdict: BuildingReasonExistingWork}, nil
 	}
 	record.Complete, record.VerifiedTick, record.VerifiedCombat = true, tick, combat
 	// Every tier stands, so combat holds the proven line; a standing turret
@@ -663,6 +717,9 @@ type defenseCensus struct {
 	// cells whose foundation is designated for removal (#954).
 	cover      map[domain.Cell]*bridge.DefenseCover
 	unbridging map[domain.Cell]bool
+	// fogged is the cells the census could not see: their facts are unknown, so a tier
+	// standing on one never reads as built.
+	fogged map[domain.Cell]bool
 }
 
 // standing reports whether the building's cell carries it: a conduit by the
@@ -1059,7 +1116,7 @@ func (r *RoundsDefenseLayoutPlanner) observeTiers(call context.Context, state Co
 	}
 	projection := read.Projection
 	census := &defenseCensus{edifice: map[domain.Cell]string{}, terrain: map[domain.Cell]string{}, conduits: map[domain.Cell]bool{}, consumers: map[domain.Cell]policy.PowerSite{},
-		cover: map[domain.Cell]*bridge.DefenseCover{}, unbridging: map[domain.Cell]bool{}}
+		cover: map[domain.Cell]*bridge.DefenseCover{}, unbridging: map[domain.Cell]bool{}, fogged: map[domain.Cell]bool{}}
 	// One read covers the killbox and every perimeter section: each native
 	// read costs a frame on a running clock, so a read per section outlasts
 	// the optional planner cutoff and the ring is never admitted (#1360).
@@ -1071,6 +1128,7 @@ func (r *RoundsDefenseLayoutPlanner) observeTiers(call context.Context, state Co
 		return nil, err
 	}
 	for _, cell := range site.Cells {
+		census.fogged[cell.Cell] = cell.Fogged
 		if !cell.Fogged {
 			census.edifice[cell.Cell], census.terrain[cell.Cell] = cell.EdificeDefName, cell.Terrain
 			census.cover[cell.Cell], census.unbridging[cell.Cell] = cell.Cover, cell.Unbridging
@@ -1084,6 +1142,7 @@ func (r *RoundsDefenseLayoutPlanner) observeTiers(call context.Context, state Co
 			census.consumers[b.Cell] = b
 		}
 	}
+	r.logUnbuiltTiers(call, *record, census)
 	if !defenseTierCensus(record, census) {
 		return census, nil
 	}
@@ -1284,7 +1343,7 @@ func (r *RoundsDefenseLayoutPlanner) digKillbox(call, epoch context.Context, goa
 // admit previews one tier's placements, audits colonist access with every
 // tier's footprint impassable, and admits the tier as one Defense-purpose
 // building method.
-func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal store.ProjectState, state ControlState, read observation.RoundsReading, record store.DefenseLayoutRecord, tier store.DefenseTierRecord, buildings []domain.Building, key domain.MethodID) (RoundsDefenseLayoutResult, error) {
+func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal store.ProjectState, state ControlState, read observation.RoundsReading, record store.DefenseLayoutRecord, tier store.DefenseTierRecord, buildings []domain.Building, key domain.MethodID, pipe *defensePipeline) (RoundsDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	projection := read.Projection
 	id := domain.MintPlanID()
@@ -1297,6 +1356,9 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 	// the floor affordance, say) is dropped from the tier instead of holding
 	// it: the position keeps its cover and stays a firing cell, unfloored.
 	unfloorable := map[domain.Cell]bool{}
+	placed := 0
+	var total []policy.Amount
+	priceUnknown := false
 	// One native call per placement batch previews the whole tier: a
 	// perimeter tier is over a hundred cells, and a preview per cell
 	// outlasted the optional wave's wall on a slow runner every step (#1248).
@@ -1319,6 +1381,12 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 		action := candidates[i]
 		preview, ok := classifyDefensePreview(evaluated[i], building.Cell())
 		if !ok && preview.NativeWorkPending {
+			// A wall cell whose blueprint or frame is already placed is in
+			// flight: the rest of a perimeter tier is admitted beside it.
+			if policy.IsPerimeterTier(tier.Name) {
+				placed++
+				continue
+			}
 			return RoundsDefenseLayoutResult{Verdict: BuildingReasonExistingWork, Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
 		}
 		if !ok && (tier.Name == policy.TierFiringLine && building.Definition() == defenseDefinitions.Floor || policy.IsPerimeterTier(tier.Name) || tier.Name == policy.TierIEDs) {
@@ -1339,6 +1407,19 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 		if err := mergeRoundsStock(&stock, preview.Stock, len(actions) == 1); err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}
+		if err := pipe.ledger.merge(preview.Stock, !pipe.merged); err != nil {
+			return RoundsDefenseLayoutResult{}, err
+		}
+		pipe.merged = true
+		if costs, known := preview.Preview.Costs.Value(); known {
+			pipe.ledger.price(building.Definition()+"/"+building.Stuff(), costs)
+			total = append(total, costs...)
+		} else {
+			priceUnknown = true
+		}
+	}
+	if len(actions) == 0 && placed > 0 && len(unfloorable) == 0 {
+		return RoundsDefenseLayoutResult{Verdict: BuildingReasonExistingWork, Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
 	}
 	if len(unfloorable) > 0 {
 		tier.Buildings = defenseWithoutFloors(tier.Buildings, unfloorable, policy.IsPerimeterTier(tier.Name) || tier.Name == policy.TierIEDs)
@@ -1349,6 +1430,15 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 		}
 		if len(actions) == 0 {
 			return RoundsDefenseLayoutResult{Verdict: noSpace("defense_tier"), Tier: tier.Name}, nil
+		}
+	}
+	// A tier admitted beside others in flight is admitted only while the stock
+	// still pays for it after what they have claimed; the first tier goes whole,
+	// as a lone tier always did.
+	if pipe.piped() {
+		pipe.claimOpen()
+		if priceUnknown || !pipe.ledger.funded(total) {
+			return RoundsDefenseLayoutResult{Verdict: BuildingReasonExistingWork, Tier: tier.Name}, nil
 		}
 	}
 	// The audit blocks every placement of the whole layout that colonists
@@ -1368,21 +1458,26 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 			}
 		}
 	}
-	targets := append([]domain.Cell{record.Entry}, record.Entrances...)
-	access, _, err := r.native.ReadSpatialAccess(call, boundary.Identity(state.Snapshot), blockedCells, targets, nil)
-	var native *bridge.NativeUnavailable
-	if errors.As(err, &native) {
-		return RoundsDefenseLayoutResult{Verdict: fieldUnavailable("spatial_access"), Tier: tier.Name}, nil
-	}
-	if err != nil {
-		return RoundsDefenseLayoutResult{}, err
-	}
-	if err = r.sameTick(access.Context, state, projection.Identity.Tick); err != nil {
-		return RoundsDefenseLayoutResult{}, err
-	}
-	if refusal := access.Refusal(); refusal != "" {
-		defenseAction(call, "defense-layout", slog.LevelInfo, "refused", "access_audit", string(tier.Name), map[string]any{"blocked_cells": len(blockedCells), "detail": refusal})
-		return RoundsDefenseLayoutResult{Verdict: noSpace("walkable_layout"), Tier: tier.Name}, nil
+	// A perimeter section skips it: a wall blueprint is walkable and the native
+	// guard (#2314) builds a thick wall inner layer first, so placing a section
+	// walls no colonist in, and the gates are the layout's own design.
+	if !policy.IsPerimeterTier(tier.Name) {
+		targets := append([]domain.Cell{record.Entry}, record.Entrances...)
+		access, _, err := r.native.ReadSpatialAccess(call, boundary.Identity(state.Snapshot), blockedCells, targets, nil)
+		var native *bridge.NativeUnavailable
+		if errors.As(err, &native) {
+			return RoundsDefenseLayoutResult{Verdict: fieldUnavailable("spatial_access"), Tier: tier.Name}, nil
+		}
+		if err != nil {
+			return RoundsDefenseLayoutResult{}, err
+		}
+		if err = r.sameTick(access.Context, state, projection.Identity.Tick); err != nil {
+			return RoundsDefenseLayoutResult{}, err
+		}
+		if refusal := access.Refusal(); refusal != "" {
+			defenseAction(call, "defense-layout", slog.LevelInfo, "refused", "access_audit", string(tier.Name), map[string]any{"blocked_cells": len(blockedCells), "detail": refusal})
+			return RoundsDefenseLayoutResult{Verdict: noSpace("walkable_layout"), Tier: tier.Name}, nil
+		}
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
@@ -1394,8 +1489,14 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 	if p.session.State() != state {
 		return RoundsDefenseLayoutResult{}, defenseControlErr(358)
 	}
-	actual, err := stepScope(call, r.reviewer.native)
-	if err != nil || !roundsBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick) {
+	if !pipe.scoped {
+		if pipe.scope, err = stepScope(call, r.reviewer.native); err != nil {
+			return RoundsDefenseLayoutResult{}, defenseControlErr(366)
+		}
+		pipe.scoped = true
+	}
+	actual := pipe.scope
+	if !roundsBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick) {
 		return RoundsDefenseLayoutResult{}, defenseControlErr(366)
 	}
 	now := r.reviewer.clock.Now()
@@ -1411,6 +1512,13 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 		reason = BuildingReasonAdmitted
 		tier.Attempts++
 		record.SetTier(tier)
+		pipe.ledger.claim(total)
+		pipe.admitted++
+		for _, action := range actions {
+			if b, ok := action.Building(); ok {
+				pipe.cells[b.Cell()] = true
+			}
+		}
 		if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}
@@ -1684,4 +1792,35 @@ func defenseIEDRequest(read observation.RoundsReading, request *policy.DefenseRe
 		}
 	}
 	request.FlammableStorage = domain.Known(storage)
+}
+
+// logUnbuiltTiers logs what the census shows on each unbuilt tier's missing
+// cells (fogged, or the edifice found there), when that changes: a tier that
+// never reads as built is otherwise silent about why.
+func (r *RoundsDefenseLayoutPlanner) logUnbuiltTiers(ctx context.Context, record store.DefenseLayoutRecord, census *defenseCensus) {
+	if r.unbuilt == nil {
+		r.unbuilt = map[policy.DefenseTierName]string{}
+	}
+	for _, tier := range record.Tiers {
+		if tier.Built || tier.Remove || len(tier.Buildings) == 0 {
+			continue
+		}
+		counts := map[string]int{}
+		for _, b := range tier.Buildings {
+			switch {
+			case census.standing(b.Definition, b.Cell):
+				counts["standing"]++
+			case census.fogged[b.Cell]:
+				counts["fogged"]++
+			default:
+				counts["found:"+census.edifice[b.Cell]]++
+			}
+		}
+		summary := fmt.Sprint(counts)
+		if r.unbuilt[tier.Name] == summary {
+			continue
+		}
+		r.unbuilt[tier.Name] = summary
+		slog.InfoContext(ctx, "defense tier unbuilt", telemetry.ComponentKey, "defense-layout", "tier", tier.Name, "buildings", len(tier.Buildings), "census", summary)
+	}
 }

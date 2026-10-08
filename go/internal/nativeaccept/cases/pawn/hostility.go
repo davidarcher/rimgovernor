@@ -24,7 +24,7 @@ func init() {
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/pacifist_ignore"},
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Work}},
 		Budget: 4 * time.Minute,
-		Run:    hostility,
+		Crew:   cases.Crew{Size: 3}, Run: hostility,
 	})
 }
 

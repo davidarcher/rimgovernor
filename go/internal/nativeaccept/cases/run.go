@@ -273,6 +273,9 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	err := execute(runCtx, c, opts, output, report)
+	if soft := report.SoftFailure(); soft != nil && !errors.Is(err, errBroke) {
+		err = errors.Join(err, soft)
+	}
 	switch {
 	case errors.Is(err, errBroke):
 		// Paused at the breakpoint: neither passed nor failed; the report's
@@ -446,6 +449,9 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	}
 	defer opened.Close()
 	defer s.stopServices()
+	if err := c.staff(ctx, opened.Harness, report); err != nil {
+		return err
+	}
 	report["quiet_mode"] = c.Quiet.String()
 	s.Session = opened
 	if resumed.resuming() && resumed.entry.Prepared != nil {
@@ -808,6 +814,9 @@ func (s *session) Reload(ctx context.Context) (*na.Harness, error) {
 	if err := s.Session.Reopen(ctx, start, s.c.Quiet, s.c.keepNeeds()...); err != nil {
 		return nil, err
 	}
+	if err := s.c.staff(ctx, h, s.report); err != nil {
+		return nil, err
+	}
 	return h, nil
 }
 func (s *session) Spec() ServeSpec {
@@ -955,4 +964,20 @@ func (s *session) Advance(ctx context.Context, ticks uint64, opts ...na.AdvanceO
 		opts = append([]na.AdvanceOption{na.WithExpectedLetters(s.c.Letters...)}, opts...)
 	}
 	return na.AdvanceGame(ctx, rt, ticks, opts...)
+}
+
+// staff makes the opened game the case's declared crew (Case.Crew): the
+// colony topped up to Crew.Size, every colonist a superpawn. It runs before
+// the Run body and again after a Reload, and is a no-op on a colony that is
+// already staffed.
+func (c Case) staff(ctx context.Context, h *na.Harness, report na.Report) error {
+	if !c.staffed() {
+		return nil
+	}
+	colonists, added, err := na.StaffCrew(ctx, h, c.Crew.Size)
+	if err != nil {
+		return fmt.Errorf("staff the crew of %d: %w", c.Crew.Size, err)
+	}
+	report["crew"] = map[string]any{"declared": c.Crew.Size, "colonists": colonists, "added": added}
+	return nil
 }

@@ -39,8 +39,8 @@ func init() {
 		Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Expansion, routinefamily.Sleeping}, NativeTimeout: 30 * time.Second, Prefix: "layout-ring",
 			Env: []string{buildingruntime.FaultsEnv + "=foodgap=zero"}},
 		Budget: 3 * time.Minute,
-		Reason: "one watch: the fixture raises the ring the expansion step orders",
-		Run:    ring,
+		Crew:   cases.Crew{Size: 3}, Reason: "one watch: the fixture raises the ring the expansion step orders",
+		Run: ring,
 	})
 }
 

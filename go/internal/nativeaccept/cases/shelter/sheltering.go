@@ -56,7 +56,7 @@ func init() {
 			RequiredOps: []string{"test/shelter_prepare", "test/shelter_stage"},
 			Serve:       &cases.ServeSpec{Families: shelteringFamilies, NativeTimeout: 60 * time.Second, Prefix: "sheltering"},
 			Budget:      12 * time.Minute,
-			Run:         func(ctx context.Context, s cases.Session) error { return runSheltering(ctx, s, c.animal) },
+			Crew:        cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error { return runSheltering(ctx, s, c.animal) },
 		})
 	}
 }

@@ -21,7 +21,7 @@ func init() {
 		Scope:       "Native read contract and end-to-end signal (a Go snapshot test cannot cover native hooks): a ranger kills one wild deer and a bill butchers it; the colony facts delivery ledger counts kill 1 and a butcher record whose meat equals the produced stack's independent tally with leather above zero, linked by corpse id, and a corpse re-placed twice (a haul) is not recounted.",
 		Start:       cases.Fixture{Op: huntPrepareOp, On: cases.LabStart()},
 		QuietWorld:  true,
-		RequiredOps: []string{huntButcherOp, huntObserveOp}, Budget: 5 * time.Minute,
+		RequiredOps: []string{huntButcherOp, huntObserveOp}, Budget: 5 * time.Minute, Crew: cases.Crew{Size: 3},
 		Reason: "a lab with a ranger, one deer and a butcher table; a few native hours of hunting and one butchering",
 		Run:    runLedgerHunt})
 }

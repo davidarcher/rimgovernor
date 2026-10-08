@@ -16,7 +16,7 @@ func init() {
 		Scope:  "Routine colonist health carries Plague severity and immunity per day, untended/tended presence and quality; colony facts retain envelope headroom.",
 		Start:  cases.Fixture{Op: "test/medical_plague_prepare", On: cases.LabStart()},
 		Budget: time.Minute,
-		Run:    plagueReadback,
+		Crew:   cases.Crew{Size: 3}, Run: plagueReadback,
 	})
 }
 

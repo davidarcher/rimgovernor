@@ -24,7 +24,7 @@ func init() {
 		Scope:  "Trusted native rimgovernor/lifecycle_save checkpoint: paused happy-path completed save with identity/tick/direction/pause verification, unpaused refusal, and wrong-expected-tick uncertain outcome; plus rimgovernor/lifecycle_read_save replaying the happy-path outcome by request_id and refusing an unknown request_id. No reconnect/competing-viewer capability exercised.",
 		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
-		Run:    runCheckpoint,
+		Crew:   cases.Crew{Size: 3}, Run: runCheckpoint,
 	})
 }
 

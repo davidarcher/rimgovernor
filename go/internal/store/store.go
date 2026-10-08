@@ -48,8 +48,9 @@ type Store struct {
 	standardsWritten chan struct{}
 }
 
-// GoalsWritten fires (coalesced) after a commit that may have created a
-// goal; the governor-state mirror puts it without waiting for its tick.
+// StandardsWritten fires (coalesced) after a commit that may have created a
+// goal or changed a family record; the governor-state mirror puts it without
+// waiting for its tick, so a stop right after the write does not lose it.
 func (s *Store) StandardsWritten() <-chan struct{} { return s.standardsWritten }
 
 func (s *Store) notifyStandardsWritten() {

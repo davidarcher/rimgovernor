@@ -14,7 +14,7 @@ func init() {
 		Name: "draft/intent",
 		Scope: "The draft intent through Actions/Apply (#939): draft issues, a same-state draft applies with issued=false, " +
 			"an unknown pawn is refused, and undraft issues; census readbacks prove each effect.",
-		Start: cases.LabStart(), Budget: 2 * time.Minute, Run: runIntent,
+		Start: cases.LabStart(), Budget: 2 * time.Minute, Crew: cases.Crew{Size: 3}, Run: runIntent,
 	})
 }
 

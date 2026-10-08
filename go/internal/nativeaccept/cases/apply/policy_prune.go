@@ -19,7 +19,7 @@ func init() {
 			"reassignment.",
 		Start:  cases.LabStart(),
 		Budget: 2 * time.Minute,
-		Run:    policyPrune,
+		Crew:   cases.Crew{Size: 3}, Run: policyPrune,
 	})
 }
 

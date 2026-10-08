@@ -31,7 +31,7 @@ func init() {
 		Reason: "each start needs a fresh main menu process, so every row opens and retires its own game",
 		NoKeep: true,
 		Budget: 90 * time.Minute,
-		Run:    runStartCost,
+		Crew:   cases.Crew{Size: 3}, Run: runStartCost,
 	})
 }
 

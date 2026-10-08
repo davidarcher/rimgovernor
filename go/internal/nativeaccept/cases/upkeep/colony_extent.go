@@ -14,7 +14,7 @@ import (
 
 func init() {
 	sleeping := scenarios()["sleeping"]
-	cases.Register(cases.Case{Name: "upkeep/colony-extent", Scope: "Runtime extent producer leaves the complete native Home mask byte-identical (#519, #580); existing Home maintenance covers the ready corridor.", Start: cases.LabStart(), Keep: sleeping.keep, Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.HomeCoverage, routinefamily.Work}, Extra: sleeping.extra, Prefix: prefix}, Budget: 4 * time.Minute, Reason: "Ready connected rooms; Home orders require no construction waits.", Run: runColonyExtent})
+	cases.Register(cases.Case{Name: "upkeep/colony-extent", Scope: "Runtime extent producer leaves the complete native Home mask byte-identical (#519, #580); existing Home maintenance covers the ready corridor.", Start: cases.LabStart(), Keep: sleeping.keep, Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.HomeCoverage, routinefamily.Work}, Extra: sleeping.extra, Prefix: prefix}, Budget: 4 * time.Minute, Crew: cases.Crew{Size: 3}, Reason: "Ready connected rooms; Home orders require no construction waits.", Run: runColonyExtent})
 }
 
 func runColonyExtent(ctx context.Context, s cases.Session) error {

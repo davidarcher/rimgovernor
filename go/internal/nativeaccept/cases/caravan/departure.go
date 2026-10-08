@@ -31,7 +31,7 @@ func init() {
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/caravan_departure_prepare", Args: map[string]any{"crewCount": 1}},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
-		Run:    runDeparture,
+		Crew:   cases.Crew{Size: 3}, Run: runDeparture,
 	})
 }
 

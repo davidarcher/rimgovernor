@@ -13,7 +13,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "takeover/draft", Scope: "A Manual player draft is undrafted by the Auto undraft intent; pawn readbacks prove both effects.",
-		Start: cases.LabStart(), RequiredOps: []string{"test/b04f_setup"}, Budget: 2 * time.Minute, Run: runDraftTakeover,
+		Start: cases.LabStart(), RequiredOps: []string{"test/b04f_setup"}, Budget: 2 * time.Minute, Crew: cases.Crew{Size: 3}, Run: runDraftTakeover,
 	})
 }
 

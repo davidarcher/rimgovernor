@@ -24,8 +24,8 @@ func init() {
 		Keep:   sleeping.keep,
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Work}, Extra: sleeping.extra, Prefix: prefix},
 		Budget: 20 * time.Minute,
-		Reason: "Two assignments, then a night of observed shared sleep.",
-		Run:    runCouple,
+		Crew:   cases.Crew{Size: 3}, Reason: "Two assignments, then a night of observed shared sleep.",
+		Run: runCouple,
 	})
 }
 

@@ -47,7 +47,7 @@ func init() {
 		NoCheckpoint: true,
 		Serve:        &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue}, PlayerSpeed: "Fast", Prefix: "defense-siege-mortar"},
 		Budget:       2 * cases.LabBudget,
-		Run:          runSiegeMortar,
+		Crew:         cases.Crew{Size: 3}, Run: runSiegeMortar,
 	})
 }
 

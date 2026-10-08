@@ -18,7 +18,7 @@ func init() {
 			"prisoner is refused without acknowledge_violation.",
 		Start:  cases.Fixture{Op: "test/surgery_intent_prepare", On: cases.LabStart()},
 		Budget: 2 * time.Minute,
-		Run:    surgeryIntent,
+		Crew:   cases.Crew{Size: 3}, Run: surgeryIntent,
 	})
 }
 

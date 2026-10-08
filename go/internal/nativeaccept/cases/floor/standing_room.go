@@ -46,7 +46,7 @@ func init() {
 		Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Clearance, routinefamily.Work, routinefamily.Flooring},
 			NativeTimeout: 60 * time.Second, Prefix: "standing-room"},
 		Budget: 14 * time.Minute,
-		Reason: "an inert service run reads the plan the room is staged from, then up to sixteen controller bursts with an audit " +
+		Crew:   cases.Crew{Size: 3}, Reason: "an inert service run reads the plan the room is staged from, then up to sixteen controller bursts with an audit " +
 			"between each; the floor and the walls are real pawn work over game time",
 		Run: runStandingRoom,
 	})

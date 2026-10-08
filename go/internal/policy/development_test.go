@@ -269,3 +269,18 @@ func TestPartialPlannerPassDoesNotIdleSelection(t *testing.T) {
 		t.Fatal("selection after a partial pass keeps its hysteresis", s.Rows)
 	}
 }
+
+// Capacity is the worker count, so a stored review of a colony of more than
+// eight colonists must validate: the planner stalled at the first review of a
+// ten-colonist perimeter case.
+func TestDevelopmentStateOfALargeColonyValidates(t *testing.T) {
+	r := developmentFixture()
+	r.Workers = domain.Known(36)
+	s := rank(t, r)
+	if s.Capacity != 36 {
+		t.Fatalf("capacity %d, want the 36 workers", s.Capacity)
+	}
+	if err := ValidateDevelopmentState(s); err != nil {
+		t.Fatalf("a 36-worker development state is invalid: %v", err)
+	}
+}

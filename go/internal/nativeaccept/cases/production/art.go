@@ -43,8 +43,8 @@ func init() {
 		Quiet:       na.QuietRequired, QuietWorld: true,
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Art, routinefamily.Trade}, NativeTimeout: 15 * time.Second, Prefix: "art"},
 		Budget: 45 * time.Minute,
-		Reason: "two phases on one colony: a sculpture, its install and a sale piece take two in-game days before the caravan phase can sell the surplus",
-		Run:    runArt,
+		Crew:   cases.Crew{Size: 3}, Reason: "two phases on one colony: a sculpture, its install and a sale piece take two in-game days before the caravan phase can sell the surplus",
+		Run: runArt,
 	})
 }
 

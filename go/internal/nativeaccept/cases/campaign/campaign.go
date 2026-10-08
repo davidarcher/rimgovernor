@@ -82,7 +82,7 @@ func campaignCase(name, scope, reason string, budget time.Duration, run func(con
 		RequiredOps: []string{"test/defense_setup", "test/hut_shell_fixture"},
 		Reason:      reason,
 		Budget:      budget,
-		Run:         run,
+		Crew:        cases.Crew{Size: 3}, Run: run,
 	}
 }
 

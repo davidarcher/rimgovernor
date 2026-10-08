@@ -24,7 +24,7 @@ func init() {
 			"captures them. The capture schedule is native; a Go test cannot see it.",
 		Start:  cases.LabStart(),
 		Budget: 3 * time.Minute,
-		Run:    runDeferredSnapshot,
+		Crew:   cases.Crew{Size: 3}, Run: runDeferredSnapshot,
 	})
 }
 

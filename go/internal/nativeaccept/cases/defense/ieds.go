@@ -23,7 +23,7 @@ import (
 // outcome (colonist routes can cover the whole approach) but proves
 // nothing here, so the case fails naming it.
 func init() {
-	v := variant{strategy: "ImmediateAttack", arrival: "EdgeWalkIn", threat: "raid",
+	v := variant{strategy: "ImmediateAttack", arrival: "EdgeWalkIn", threat: "raid", instantWalls: true,
 		gates: func(fixture fixtureFunc, siteX, siteZ int) (map[string]any, error) {
 			return fixture("ieds", map[string]any{"op": "ieds", "x": siteX, "z": siteZ})
 		},
@@ -37,8 +37,8 @@ func init() {
 			"one IED is sprung by the time the raid resolves; the rest of the perimeter campaign (hold-the-line, release, repair) holds as in defense/perimeter. Native: vanilla raid pathing springing the traps.",
 		Start: cases.Save{Name: sustained.BaselineSave}, Serve: &cases.ServeSpec{Families: perimeterFamilies, Prefix: "defense-ieds"},
 		Budget: 3 * time.Hour,
-		Reason: "the IED tier is part of the perimeter's build, and only a real raid on the approach springs it",
-		Run:    func(ctx context.Context, s cases.Session) error { return run(ctx, s, v) },
+		Crew:   cases.Crew{Size: 3}, Reason: "the IED tier is part of the perimeter's build, and only a real raid on the approach springs it",
+		Run: func(ctx context.Context, s cases.Session) error { return run(ctx, s, v) },
 	})
 }
 

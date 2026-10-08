@@ -26,7 +26,7 @@ func init() {
 		RequiredOps: []string{na.LabStartTool, StageTool},
 		QuietWorld:  true,
 		Budget:      cases.LabBudget,
-		Run: func(ctx context.Context, s cases.Session) error {
+		Crew:        cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error {
 			h := s.Harness()
 			report := map[string]any{}
 			for _, name := range Names {

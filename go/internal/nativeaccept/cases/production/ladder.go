@@ -102,7 +102,7 @@ func init() {
 		Serve:  &cases.ServeSpec{Families: ladderFamilies, NativeTimeout: 15 * time.Second, Prefix: "production"},
 		Stages: []string{benchStage},
 		Budget: benchWindow + window + 5*time.Minute,
-		Reason: "the research rung and the bench build are a cached stage (#329); the stockpile and the first bill iteration after it run on a miss and a hit alike",
+		Crew:   cases.Crew{Size: 3}, Reason: "the research rung and the bench build are a cached stage (#329); the stockpile and the first bill iteration after it run on a miss and a hit alike",
 		Run: func(ctx context.Context, s cases.Session) error {
 			if err := s.Stage(ctx, benchStage, func(ctx context.Context) error {
 				_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{

@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
             return fixtureCover;
         }
 
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|scaling|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty|hostile|wealth|intrude|cover|ieds|armory.")]
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|scaling|ranged|raid|predator|damage|breach|heal|inspect|quiet|instant-shells|power|depower|muster|empty|hostile|wealth|intrude|cover|ieds|armory.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "", int grace = 600, int dx = 0, int dz = 1, string side = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -102,6 +102,7 @@ namespace HomeBridge.BridgeTools
                     case "heal": return Heal(map);
                     case "inspect": return Inspect(map, player);
                     case "quiet": return Quiet();
+                    case "instant-shells": LayoutGridFixture.ArmInstantShells(); return new { success = true, armed = true };
                     case "power": return Power(map, new IntVec3(x, 0, z));
                     case "depower": return Depower(map, new IntVec3(x, 0, z));
                     case "muster": return Muster(map, colonists, cells);

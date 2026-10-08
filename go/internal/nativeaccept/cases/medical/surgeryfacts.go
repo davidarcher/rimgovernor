@@ -18,7 +18,7 @@ func init() {
 		Start: cases.Fixture{On: cases.LabStart(), Op: "test/medical_management_setup",
 			Args: map[string]any{"disease": false}},
 		Budget: cases.LabBudget,
-		Run:    surgeryFacts,
+		Crew:   cases.Crew{Size: 3}, Run: surgeryFacts,
 	})
 }
 

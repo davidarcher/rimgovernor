@@ -97,7 +97,7 @@ func init() {
 		Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Husbandry, routinefamily.AnimalContainment, routinefamily.Sheltering},
 			NativeTimeout: 60 * time.Second, Prefix: "husbandry-plan"},
 		Budget: 28 * time.Minute,
-		Reason: "one unstaged run of three service phases: the controller builds the pen, the vet room beds and the medical flag " +
+		Crew:   cases.Crew{Size: 3}, Reason: "one unstaged run of three service phases: the controller builds the pen, the vet room beds and the medical flag " +
 			"(construction), the game's doctors then sterilize, and a handler tames the mate before the retirement shows; " +
 			"the pen and beds cannot be staged without leaving the controller path the case exists to prove",
 		Run: runPlan,

@@ -51,7 +51,7 @@ func init() {
 		Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Clearance, routinefamily.Work},
 			NativeTimeout: 60 * time.Second, Prefix: "pack-reinstall"},
 		Budget: 14 * time.Minute,
-		Reason: "two service runs: an inert one reads the layout plan the rooms are staged from, then the controller reconciles; " +
+		Crew:   cases.Crew{Size: 3}, Reason: "two service runs: an inert one reads the layout plan the rooms are staged from, then the controller reconciles; " +
 			"the pack, haul and install are real pawn work over game time",
 		Run: runPackReinstall,
 	})

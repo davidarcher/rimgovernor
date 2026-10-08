@@ -29,7 +29,7 @@ func init() {
 		RequiredOps: []string{na.LabStartTool, StageTool},
 		QuietWorld:  true,
 		Budget:      cases.LabBudget,
-		Run:         runRepair,
+		Crew:        cases.Crew{Size: 3}, Run: runRepair,
 	})
 	cases.Register(cases.Case{
 		Name: "combatlab/resume-drafted",
@@ -43,7 +43,7 @@ func init() {
 		// Normal speed: the fight must outlast the kill-and-restart window.
 		Serve:  &cases.ServeSpec{Families: metricsFamilies, Resume: true, PlayerSpeed: "Normal", Prefix: "combatlab-resume"},
 		Budget: cases.LabBudget,
-		Run:    runResumeDrafted,
+		Crew:   cases.Crew{Size: 3}, Run: runResumeDrafted,
 	})
 }
 

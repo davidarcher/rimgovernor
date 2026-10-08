@@ -26,7 +26,7 @@ func init() {
 				" for the sustained matrix (issue #1).",
 			Start:  cases.Scenario{Spec: v.Start()},
 			Budget: 8 * time.Minute,
-			Run: func(ctx context.Context, s cases.Session) error {
+			Crew:   cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error {
 				row := map[string]any{"variant": v}
 				s.Report()["generated"] = row
 				return variantgen.SaveVariant(ctx, s.Harness(), s.Config().Root, s.Config().Headless, v.Save, row)

@@ -19,7 +19,7 @@ func init() {
 		RequiredOps: []string{na.LabSpawnTool},
 		QuietWorld:  true,
 		Budget:      cases.LabBudget,
-		Run: func(ctx context.Context, s cases.Session) error {
+		Crew:        cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error {
 			prepared := s.Prepared()
 			if n := len(na.AsSlice(prepared["colonists"])); n != 2 {
 				return fmt.Errorf("lab start: want 2 colonists, got %d: %#v", n, prepared)

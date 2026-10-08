@@ -33,7 +33,7 @@ func init() {
 			"obedience and area-existence refusals, designation cancels, and resends of orders that already hold applying again.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/husbandry_setup"},
 		Budget: 5 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

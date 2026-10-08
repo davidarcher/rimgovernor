@@ -25,7 +25,7 @@ func init() {
 		Start:  cases.Fixture{Op: "test/routine_production_prepare", On: cases.LabStart()},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

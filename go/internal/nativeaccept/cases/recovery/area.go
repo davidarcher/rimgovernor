@@ -32,7 +32,7 @@ func init() {
 			"key returns its first result and a fresh key applies again.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/recovery_area_prepare"},
 		Budget: 5 * time.Minute,
-		Run:    runArea,
+		Crew:   cases.Crew{Size: 3}, Run: runArea,
 	})
 }
 

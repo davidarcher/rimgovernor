@@ -64,8 +64,8 @@ func init() {
 			Start:  c.start,
 			Serve:  &cases.ServeSpec{Families: c.families, NativeTimeout: 30 * time.Second, Prefix: "shelter-climate"},
 			Budget: 30 * time.Minute,
-			Reason: "one short serve window per climate: the first recorded plan and the first placement of the climate's building",
-			Run:    func(ctx context.Context, s cases.Session) error { return runClimate(ctx, s, c) },
+			Crew:   cases.Crew{Size: 3}, Reason: "one short serve window per climate: the first recorded plan and the first placement of the climate's building",
+			Run: func(ctx context.Context, s cases.Session) error { return runClimate(ctx, s, c) },
 		})
 	}
 }

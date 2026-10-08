@@ -105,7 +105,7 @@ func init() {
 			"and still interrupts on an unexpected threat letter or, in strict mode, on any letter.",
 		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

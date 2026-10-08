@@ -30,7 +30,7 @@ func init() {
 		Reason: "the start needs a fresh main menu process",
 		NoKeep: true,
 		Budget: 20 * time.Minute,
-		Run:    runQuietStoryteller,
+		Crew:   cases.Crew{Size: 3}, Run: runQuietStoryteller,
 	})
 }
 

@@ -36,7 +36,7 @@ func init() {
 		Reason: "the start needs a fresh main menu process and the determinism check needs a second launch; the case opens and retires its own games",
 		NoKeep: true,
 		Budget: 30 * time.Minute,
-		Run:    runNewColony,
+		Crew:   cases.Crew{Size: 3}, Run: runNewColony,
 	})
 }
 

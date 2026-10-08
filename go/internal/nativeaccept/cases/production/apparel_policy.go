@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "production/apparel-policy", Scope: "The ApparelPolicyIntent creates, assigns and updates the pawn's own outfit, labelled with its short name (#1302),, reapplies as applied, and overrides manual policies and forced/locked apparel under autonomous control. A Go test cannot see the native filter write.", Start: cases.LabStart(), Budget: 2 * time.Minute, Run: runApparelPolicy})
+	cases.Register(cases.Case{Name: "production/apparel-policy", Scope: "The ApparelPolicyIntent creates, assigns and updates the pawn's own outfit, labelled with its short name (#1302),, reapplies as applied, and overrides manual policies and forced/locked apparel under autonomous control. A Go test cannot see the native filter write.", Start: cases.LabStart(), Budget: 2 * time.Minute, Crew: cases.Crew{Size: 3}, Run: runApparelPolicy})
 }
 func runApparelPolicy(ctx context.Context, s cases.Session) error {
 	h := s.Harness()

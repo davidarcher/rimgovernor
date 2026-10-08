@@ -14,7 +14,7 @@ import (
 
 func init() {
 	cases.Register(cases.Case{Name: "tools/deepresources", Scope: "Seeded deep resource lumps aggregate by connected definition, both scanner types expose native state, and drills report exact deposit, depletion and controller ownership (#482, #538).",
-		Start: cases.Fixture{Op: "test/deep_resources_seed", On: cases.LabStart()}, Budget: 3 * time.Minute,
+		Start: cases.Fixture{Op: "test/deep_resources_seed", On: cases.LabStart()}, Budget: 3 * time.Minute, Crew: cases.Crew{Size: 3},
 		Run: func(ctx context.Context, s cases.Session) error {
 			h := s.Harness()
 			data, err := json.Marshal(s.Prepared())

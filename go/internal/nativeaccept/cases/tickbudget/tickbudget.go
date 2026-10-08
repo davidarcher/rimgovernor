@@ -33,8 +33,8 @@ func init() {
 		Scope:  "Verify exact native execution boundaries and external clock ownership in a private game.",
 		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
-		Matrix: true,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Matrix: true,
+		Run: run,
 	})
 }
 

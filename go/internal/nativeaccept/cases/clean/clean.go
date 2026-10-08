@@ -51,8 +51,8 @@ func init() {
 		Start:   cases.Fixture{On: cases.LabStart(), Op: "test/cleanliness_prepare", Args: map[string]any{"scenario": scenario, "filthPerRoom": 3}},
 		Service: true,
 		Budget:  5 * time.Minute,
-		Stall:   90 * time.Second,
-		Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
+		Crew:    cases.Crew{Size: 3}, Stall: 90 * time.Second,
+		Run: func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
 	})
 }
 

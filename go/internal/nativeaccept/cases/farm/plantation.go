@@ -21,7 +21,7 @@ func init() {
 			"and is designatable by chop acquisition; a rice plant in the same zone is not a row (#2292).",
 		Start:  cases.Fixture{Op: "test/plantation_prepare", On: cases.LabStart()},
 		Budget: 3 * time.Minute,
-		Run:    runPlantationRows,
+		Crew:   cases.Crew{Size: 3}, Run: runPlantationRows,
 	})
 }
 

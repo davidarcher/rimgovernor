@@ -50,8 +50,8 @@ func init() {
 		Keep:   []string{string(na.NeedFood)},
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Expansion, routinefamily.Sleeping}, NativeTimeout: 30 * time.Second, Prefix: "sleeping-bedrooms"},
 		Budget: 3 * time.Minute,
-		Reason: "one watch: the fixture raises the shell the planner orders, then the furnished, assigned bedroom",
-		Run:    bedrooms,
+		Crew:   cases.Crew{Size: 3}, Reason: "one watch: the fixture raises the shell the planner orders, then the furnished, assigned bedroom",
+		Run: bedrooms,
 	})
 }
 

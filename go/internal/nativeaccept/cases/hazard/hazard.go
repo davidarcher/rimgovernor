@@ -76,7 +76,7 @@ func init() {
 			QuietWorld:  true,
 			RequiredOps: []string{"test/hazard_inject", "test/deliver_letter", "test/letter_pause_mode"},
 			Budget:      4 * time.Minute,
-			Run:         func(ctx context.Context, s cases.Session) error { return run(ctx, s, hc) },
+			Crew:        cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error { return run(ctx, s, hc) },
 		})
 	}
 }

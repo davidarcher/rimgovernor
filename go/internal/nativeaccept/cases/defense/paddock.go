@@ -42,8 +42,8 @@ func init() {
 			"Native: AnimalPenEnclosureCalculator, Fence pass-through and vanilla raid pathing.",
 		Start: cases.Save{Name: sustained.BaselineSave}, Serve: &cases.ServeSpec{Families: families, Prefix: "defense-paddock"},
 		Budget: 3 * time.Hour,
-		Reason: "the ring's build, the barn-bound roamer, the pen marker and the raid are one native campaign",
-		Run:    func(ctx context.Context, s cases.Session) error { return run(ctx, s, v) },
+		Crew:   cases.Crew{Size: 3}, Reason: "the ring's build, the barn-bound roamer, the pen marker and the raid are one native campaign",
+		Run: func(ctx context.Context, s cases.Session) error { return run(ctx, s, v) },
 	})
 }
 

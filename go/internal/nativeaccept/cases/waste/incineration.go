@@ -54,8 +54,8 @@ func init() {
 			NativeTimeout: 30 * time.Second, Prefix: "waste-incineration",
 		},
 		Budget: 2*disposalWindow + 10*time.Minute,
-		Reason: "two serve windows: the incinerator is shelled by colonists, then burned and cleaned",
-		Run:    disposal,
+		Crew:   cases.Crew{Size: 3}, Reason: "two serve windows: the incinerator is shelled by colonists, then burned and cleaned",
+		Run: disposal,
 	})
 }
 

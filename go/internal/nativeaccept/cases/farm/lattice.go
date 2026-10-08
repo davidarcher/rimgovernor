@@ -30,7 +30,7 @@ func init() {
 		NoKeep:      true,
 		RequiredOps: []string{latticePrepare, latticeCensus},
 		Budget:      10 * time.Minute,
-		Run:         runLatticeSow,
+		Crew:        cases.Crew{Size: 3}, Run: runLatticeSow,
 	})
 }
 

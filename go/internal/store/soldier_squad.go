@@ -84,6 +84,9 @@ func (s *Store) SaveSoldierSquad(ctx context.Context, r SoldierSquadRecord) erro
 	if len(data) > maxSoldierSquadBytes {
 		return ErrCapacity
 	}
-	_, err = s.db.ExecContext(ctx, "INSERT INTO soldier_squad(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data)
-	return err
+	if _, err = s.db.ExecContext(ctx, "INSERT INTO soldier_squad(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
+		return err
+	}
+	s.notifyStandardsWritten()
+	return nil
 }

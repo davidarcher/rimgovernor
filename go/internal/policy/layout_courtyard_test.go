@@ -75,7 +75,7 @@ func TestCourtyardPlusPatchStaysOneFarmedFieldEnclosedWhole(t *testing.T) {
 	// and the core ring encloses all of it or none (it is farmed, so all).
 	for _, r := range plan.Reservations {
 		switch r.Kind {
-		case ReservePerimeter, ReservePerimeterLight, ReserveOuterWall, ReserveGate, ReserveBridge, ReservePerimeterGap:
+		case ReservePerimeter, ReservePerimeterLight, ReserveGate, ReserveBridge, ReservePerimeterGap:
 			for _, c := range rectCells(r.Area) {
 				if rich[c] {
 					t.Fatalf("%s on rich soil at %v", r.Kind, c)

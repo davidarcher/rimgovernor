@@ -30,7 +30,7 @@ func init() {
 		RequiredOps: []string{"test/defense_setup"},
 		Quiet:       na.QuietRequired,
 		Budget:      5 * time.Minute,
-		Run:         runThreat,
+		Crew:        cases.Crew{Size: 3}, Run: runThreat,
 	})
 }
 

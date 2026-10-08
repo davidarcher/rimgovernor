@@ -49,7 +49,7 @@ func init() {
 			Families: []routinefamily.Family{routinefamily.PopulationJoiner, routinefamily.Supply, routinefamily.Shelter, routinefamily.Dialog}, NativeTimeout: 15 * time.Second, Prefix: "quest-joiner",
 		},
 		Budget: 15 * time.Minute,
-		Run:    runJoiner,
+		Crew:   cases.Crew{Size: 3}, Run: runJoiner,
 	})
 }
 

@@ -6,7 +6,7 @@ import (
 )
 
 func ValidateDevelopmentState(s DevelopmentState) error {
-	if s.Snapshot.Validate() != nil || s.Tick < 0 || s.Capacity < 0 || s.Capacity > 8 {
+	if s.Snapshot.Validate() != nil || s.Tick < 0 || s.Capacity < 0 || s.Capacity > 4096 {
 		return errors.New("invalid development state")
 	}
 	if labor, known := s.Labor.Value(); known {

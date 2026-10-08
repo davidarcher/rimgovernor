@@ -37,7 +37,7 @@ func init() {
 		Reason: "the diagnostic opens its own bridge session and stops the game it soaked",
 		NoKeep: true,
 		Budget: 6 * time.Minute,
-		Run:    runSoak,
+		Crew:   cases.Crew{Size: 3}, Run: runSoak,
 	})
 }
 

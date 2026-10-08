@@ -23,7 +23,7 @@ func init() {
 			"out-of-range refusal, the real write read back, and key replay idempotency.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/building_temperature_prepare"},
 		Budget: 5 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

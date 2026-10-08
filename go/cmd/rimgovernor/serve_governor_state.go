@@ -48,6 +48,15 @@ func shadowGovernorState(ctx context.Context, native governorStateNative, world 
 		cancel()
 		select {
 		case <-ctx.Done():
+			// The service is stopping: put what the last round missed, so the
+			// next process rebuilds from a save that holds the latest records.
+			final, stop := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			defer stop()
+			if current, ok := world(final); ok {
+				if err := shadow.round(final, current, native, database, out); err != nil {
+					fmt.Fprintf(out, "governor state: final flush: %v\n", err)
+				}
+			}
 			return
 		case <-ticker.C:
 		case <-database.StandardsWritten():

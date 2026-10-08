@@ -56,9 +56,9 @@ func init() {
 			Families: []routinefamily.Family{routinefamily.Dialog, routinefamily.Supply, routinefamily.Shelter, routinefamily.Sleeping}, NativeTimeout: 15 * time.Second, Prefix: "dialog-pause",
 		},
 		Budget: 12 * time.Minute,
-		// A dialog answer took 68s to show in the trace once (#353).
-		Stall: 2 * time.Minute,
-		Run:   run,
+		Crew:   cases.Crew{Size: 3}, // A dialog answer took 68s to show in the trace once (#353).
+		Stall:  2 * time.Minute,
+		Run:    run,
 	})
 }
 

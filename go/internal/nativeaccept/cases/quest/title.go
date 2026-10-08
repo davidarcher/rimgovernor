@@ -47,7 +47,7 @@ func init() {
 			Families: []routinefamily.Family{routinefamily.PopulationJoiner, routinefamily.Shelter, routinefamily.Dialog}, NativeTimeout: 15 * time.Second, Prefix: "quest-first-title",
 		},
 		Budget: 12 * time.Minute,
-		Run:    runFirstTitle,
+		Crew:   cases.Crew{Size: 3}, Run: runFirstTitle,
 	})
 }
 

@@ -32,7 +32,7 @@ func init() {
 		RequiredOps: []string{burnableReadTool},
 		QuietWorld:  true,
 		Budget:      5 * time.Minute,
-		Run:         runBurnableFilters,
+		Crew:        cases.Crew{Size: 3}, Run: runBurnableFilters,
 	})
 }
 

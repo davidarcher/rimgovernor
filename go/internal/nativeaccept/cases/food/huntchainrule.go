@@ -31,7 +31,7 @@ func init() {
 		Start:       cases.Fixture{Op: chainPrepareOp, On: cases.LabStart()},
 		Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Acquisition, routinefamily.Work, routinefamily.Rules}, NativeTimeout: 60 * time.Second, Prefix: "hunt-chain"},
 		QuietWorld:  true,
-		RequiredOps: []string{chainObserveOp}, Budget: 6 * time.Minute,
+		RequiredOps: []string{chainObserveOp}, Budget: 6 * time.Minute, Crew: cases.Crew{Size: 3},
 		Reason: "a lab with one ranger, a corpse stockpile and four deer; one controller phase until the rules_attach receipt, then three native kills",
 		Run:    runHuntChain})
 }

@@ -20,7 +20,7 @@ func init() {
 		Start:  cases.LabStart(),
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Gear}},
 		Budget: 4 * time.Minute,
-		Run:    perPawnOutfits,
+		Crew:   cases.Crew{Size: 3}, Run: perPawnOutfits,
 	})
 }
 

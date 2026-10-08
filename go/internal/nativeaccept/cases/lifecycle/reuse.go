@@ -52,7 +52,7 @@ func init() {
 		Service: true,
 		NoKeep:  true,
 		Budget:  15 * time.Minute,
-		Run:     runReuse,
+		Crew:    cases.Crew{Size: 3}, Run: runReuse,
 	})
 }
 

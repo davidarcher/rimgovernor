@@ -62,8 +62,6 @@ var reservationOverlay = map[ReservationKind]overlayStyle{
 	ReserveVetRoom:      {planWhite, "vet room"},
 	ReservePerimeter:    {planRed, "perimeter"},
 	ReserveGate:         {planYellow, "gate"},
-	ReserveOuterWall:    {planRed, "outer wall"},
-	ReserveOuterGate:    {planYellow, "outer gate"},
 	ReserveBridge:       {planBrown, "bridge"},
 	ReservePerimeterGap: {planYellow, "open gap"},
 	ReserveMoisturePump: {planCyan, "moisture pump"},
@@ -122,10 +120,10 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 			cover = r.Area
 		}
 		shape := OverlayFill
-		if r.Kind == ReservePerimeter || r.Kind == ReserveOuterWall || r.Kind == ReserveKillbox {
+		if r.Kind == ReservePerimeter || r.Kind == ReserveKillbox {
 			shape = OverlayOutline
 		}
-		if add(style, shape, []Rectangle{r.Area}, nil) && r.Kind != ReservePerimeter && r.Kind != ReserveOuterWall && r.Kind != ReserveCoverClear {
+		if add(style, shape, []Rectangle{r.Area}, nil) && r.Kind != ReservePerimeter && r.Kind != ReserveCoverClear {
 			label(style.label, centre(r.Area))
 		}
 	}

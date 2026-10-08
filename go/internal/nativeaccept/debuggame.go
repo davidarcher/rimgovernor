@@ -23,6 +23,8 @@ const QuietWorldTool = "test/quiet_world"
 const (
 	LabStartTool = "test/lab_start"
 	LabSpawnTool = "test/lab_spawn"
+	LabCrewTool  = "test/lab_crew"
+	LabStockTool = "test/lab_stock"
 )
 
 // LabThing is one LabSpawn: Def names a PawnKindDef (a generated pawn) or a
@@ -304,4 +306,60 @@ func applyQuiet(ctx context.Context, h *Harness, apply bool) (map[string]any, er
 	}
 	h.quiet = true
 	return quiet, nil
+}
+
+// SuperTraits are the positive traits every superpawn carries so a crew
+// works and walks fast: Jogger (SpeedOffset 2) and Industrious
+// (Industriousness 2).
+const SuperTraits = "SpeedOffset:2,Industriousness:2"
+
+// StaffCrew makes the loaded colony a crew of superpawns (LabCrewTool): it
+// tops the free colonists up to size with fixture-made adults, then makes
+// each capable of every work type with every skill at 20 and SuperTraits. A
+// colony already larger than size is left as it is.
+func StaffCrew(ctx context.Context, h *Harness, size int) (colonists, added int, err error) {
+	reply, err := h.Call(ctx, "lab-crew", LabCrewTool, map[string]any{"size": size, "level": 20, "traits": SuperTraits})
+	if err != nil {
+		return 0, 0, fmt.Errorf("%s: %w", LabCrewTool, err)
+	}
+	if ok, _ := AsBool(reply["success"]); !ok {
+		return 0, 0, fmt.Errorf("%s refused: %#v", LabCrewTool, reply)
+	}
+	n := AsNumber(reply["colonists"])
+	a := AsNumber(reply["added"])
+	return int(n), int(a), nil
+}
+
+// Stock is Total units of one item def laid by LabStock.
+type Stock struct {
+	Def   string
+	Total int
+	// X, Z is the cell the stacks are laid nearest to.
+	X, Z int
+	// Stuff is the stuff of a stuffed item; empty takes the def's default.
+	Stuff string
+}
+
+// LabStock stocks the loaded map with s (LabStockTool): full stacks and a
+// remainder on the free cells nearest (X, Z), joining stacks that have room.
+// It is the one way a case puts a resource on the map in quantity: never one
+// LabSpawn per stack, which merges into what is already on the cell. It
+// returns the units placed.
+func LabStock(ctx context.Context, h *Harness, s Stock) (int, error) {
+	args := map[string]any{"def": s.Def, "total": s.Total, "x": s.X, "z": s.Z}
+	if s.Stuff != "" {
+		args["stuff"] = s.Stuff
+	}
+	reply, err := h.Call(ctx, "lab-stock-"+s.Def, LabStockTool, args)
+	if err != nil {
+		return 0, fmt.Errorf("%s %s: %w", LabStockTool, s.Def, err)
+	}
+	if ok, _ := AsBool(reply["success"]); !ok {
+		return 0, fmt.Errorf("%s %s refused: %#v", LabStockTool, s.Def, reply)
+	}
+	placed := int(AsNumber(reply["placed"]))
+	if placed != s.Total {
+		return placed, fmt.Errorf("%s %s placed %d of %d", LabStockTool, s.Def, placed, s.Total)
+	}
+	return placed, nil
 }

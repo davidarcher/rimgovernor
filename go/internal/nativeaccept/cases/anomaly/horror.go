@@ -57,7 +57,7 @@ func init() {
 		NoCheckpoint: true,
 		Serve:        &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue}, PlayerSpeed: "Fast", Prefix: "anomaly-horror-incident"},
 		Budget:       15 * time.Minute,
-		Run:          runHorrorIncident,
+		Crew:         cases.Crew{Size: 3}, Run: runHorrorIncident,
 	})
 }
 

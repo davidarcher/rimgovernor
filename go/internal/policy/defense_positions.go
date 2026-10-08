@@ -116,7 +116,14 @@ func explainDefensivePositions(firing []domain.Cell, toward domain.Rotation, hel
 		}
 	}
 	if len(pool) == 0 {
-		return nil, fmt.Sprintf("no eligible ranged defender among %d", len(defenders))
+		ranged, why := 0, []string{}
+		for _, d := range defenders {
+			if positive(d.RangedEquipped) {
+				ranged++
+				why = append(why, string(d.ID)+": "+strings.Join(squadDefenderReasons(d), ", "))
+			}
+		}
+		return nil, fmt.Sprintf("no eligible ranged defender among %d (%d ranged-equipped: %s)", len(defenders), ranged, strings.Join(why, "; "))
 	}
 	// Shooters take the firing cells before the line holders do.
 	sort.Slice(pool, func(i, j int) bool {

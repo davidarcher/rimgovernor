@@ -55,8 +55,8 @@ func init() {
 		Rendered: true,
 		Service:  true,
 		Budget:   cases.MaxBudget,
-		Matrix:   true,
-		Run:      run(observationsProfile),
+		Crew:     cases.Crew{Size: 3}, Matrix: true,
+		Run: run(observationsProfile),
 	})
 }
 

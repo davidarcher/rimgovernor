@@ -110,5 +110,9 @@ func (s *Store) SaveProductionLadder(ctx context.Context, r ProductionLadderReco
 	if _, err = tx.ExecContext(ctx, "INSERT INTO production_ladder(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	s.notifyStandardsWritten()
+	return nil
 }

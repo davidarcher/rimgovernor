@@ -315,18 +315,36 @@ namespace HomeBridge.BridgeTools
         // the planner's shell plan complete without minutes of hauling.
         private static bool instantShells, instantHook;
 
-        private static void ArmInstantShells()
+        internal static void ArmInstantShells()
         {
             instantShells = true;
             if (instantHook) return;
             new Harmony("rimgovernor.fixture.instant-shells").Patch(AccessTools.Method(typeof(TickManager), nameof(TickManager.DoSingleTick)),
                 postfix: new HarmonyMethod(typeof(LayoutGridFixture), nameof(RaiseShells)));
+            new Harmony("rimgovernor.fixture.instant-shells-jobs").Patch(AccessTools.Method(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.EndCurrentJob)),
+                prefix: new HarmonyMethod(typeof(LayoutGridFixture), nameof(HoldJobSearch)));
             instantHook = true;
+        }
+
+        // Completing a wall ends the worker's job, and the tracker then runs a
+        // full think-tree search for the next one: thousands of searches per tick
+        // on a long wall. The next tracker tick finds the pawn a job anyway.
+        private static bool raising;
+
+        private static void HoldJobSearch(ref bool startNewJob)
+        {
+            if (raising) startNewJob = false;
         }
 
         private static void RaiseShells()
         {
             if (!instantShells) return;
+            raising = true;
+            try { RaiseShellsNow(); } finally { raising = false; }
+        }
+
+        private static void RaiseShellsNow()
+        {
             var map = Find.CurrentMap;
             if (map == null) return;
             var worker = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => !p.Dead);

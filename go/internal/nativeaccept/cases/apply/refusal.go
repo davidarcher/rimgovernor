@@ -32,7 +32,7 @@ func init() {
 		// (#441); the case asserts the planting happened.
 		Start:  cases.Fixture{Op: "test/apply_refusal_prepare", Args: map[string]any{"clutter": true}, On: cases.LabStart()},
 		Budget: 5 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

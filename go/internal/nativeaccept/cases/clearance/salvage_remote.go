@@ -18,7 +18,7 @@ import (
 func recoveryCase(name, scope string, run func(context.Context, cases.Session) error) {
 	cases.Register(cases.Case{Name: name, Scope: scope,
 		Start:       cases.Fixture{Op: "test/storage_haul_prepare", Args: map[string]any{"itemCount": 1}, On: cases.LabStart()},
-		RequiredOps: []string{"test/loot_remote_drop", "test/salvage_remote"}, Quiet: na.QuietRequired, QuietWorld: true, Budget: 4 * time.Minute, Stall: 60 * time.Second,
+		RequiredOps: []string{"test/loot_remote_drop", "test/salvage_remote"}, Quiet: na.QuietRequired, QuietWorld: true, Budget: 4 * time.Minute, Crew: cases.Crew{Size: 3}, Stall: 60 * time.Second,
 		Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Clearance, routinefamily.Supply, routinefamily.Resource}}, Run: run})
 }
 

@@ -337,20 +337,6 @@ func (s defenseSite) unseen(c domain.Cell) bool {
 	return ok && !known
 }
 
-// enclosed reports every one of c's eight neighbours observed blocking or
-// planned closed.
-func (s defenseSite) enclosed(c domain.Cell, closed func(domain.Cell) bool) bool {
-	for dx := int32(-1); dx <= 1; dx++ {
-		for dz := int32(-1); dz <= 1; dz++ {
-			n := domain.Cell{X: c.X + dx, Z: c.Z + dz}
-			if (dx != 0 || dz != 0) && !s.blocking(n) && !closed(n) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 func newDefenseSite(r DefenseRequest) (defenseSite, error) {
 	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 {
 		return defenseSite{}, errors.New("invalid defense bounds")
@@ -599,14 +585,6 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	}
 	for _, c := range cellsToWall {
 		if !candidates[c] {
-			continue
-		}
-		// A wall whose eight neighbours are all rock or wall seals nothing
-		// the walls around it do not, and once those finish no builder can
-		// touch its frame: the plan never closes. Only the hollow of a thick
-		// mass is skipped; the mass stays closed to pathing.
-		if s.enclosed(c, func(n domain.Cell) bool { return candidates[n] || costs.closed[n] }) {
-			costs.closed[c] = true
 			continue
 		}
 		// Terrain that cannot carry the wall is left open, not closed: the

@@ -57,7 +57,7 @@ func init() {
 		}, On: cases.LabStart()},
 		Service: true,
 		Budget:  8 * time.Minute,
-		Run:     run,
+		Crew:    cases.Crew{Size: 3}, Run: run,
 	})
 }
 

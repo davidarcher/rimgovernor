@@ -80,7 +80,7 @@ func food(name, save, prefix string, ticks uint64) cases.Case {
 		Serve: ptr(Spec(prefix)),
 		// Load, acquire, stop and reattach fit in the margin over the window.
 		Budget: Window() + 7*time.Minute,
-		Run: func(ctx context.Context, s cases.Session) error {
+		Crew:   cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error {
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{Watch: Window(), Window: ticks},
 			})

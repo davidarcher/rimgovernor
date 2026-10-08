@@ -20,7 +20,7 @@ func init() {
 		Scope:  "Naturally generated rooms; read-only geometry, native stats and contents, no fixture spawning or construction orders.",
 		Start:  cases.Fixture{Op: "test/bed_assign_prepare", On: cases.LabStart()},
 		Budget: 5 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

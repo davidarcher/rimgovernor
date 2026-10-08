@@ -37,7 +37,7 @@ func init() {
 		Keep:        []string{"Mood"},
 		Reason:      "Mood stays live: the assertion reads the memory it gains.",
 		Budget:      8 * time.Minute,
-		Run:         runStrangerSarcophagus,
+		Crew:        cases.Crew{Size: 3}, Run: runStrangerSarcophagus,
 	})
 }
 

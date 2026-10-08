@@ -20,7 +20,7 @@ func init() {
 			"resent under a new key applies as a no-op. A Go test cannot see native reachability or the job it issues.",
 		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
-		Run:    run,
+		Crew:   cases.Crew{Size: 3}, Run: run,
 	})
 }
 

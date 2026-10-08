@@ -48,7 +48,7 @@ func init() {
 		NoCheckpoint: true,
 		Serve:        &cases.ServeSpec{Families: huntFamilies, PlayerSpeed: metricsSpeed, Prefix: "combatlab-hunt"},
 		Budget:       huntBudget,
-		Run:          runHuntSquad,
+		Crew:         cases.Crew{Size: 3}, Run: runHuntSquad,
 	})
 	cases.Register(cases.Case{
 		Name: "combatlab/hunt-door",
@@ -62,7 +62,7 @@ func init() {
 		NoCheckpoint: true,
 		Serve:        &cases.ServeSpec{Families: huntFamilies, PlayerSpeed: metricsSpeed, Prefix: "combatlab-hunt-door"},
 		Budget:       huntBudget,
-		Run:          runHuntDoor,
+		Crew:         cases.Crew{Size: 3}, Run: runHuntDoor,
 	})
 }
 
