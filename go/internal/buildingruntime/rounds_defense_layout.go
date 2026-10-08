@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -1179,6 +1180,32 @@ func roundsDefensiveLayoutStanding(ctx context.Context, journal *store.Store, p 
 	return domain.Known(record.Standing()), needs, nil
 }
 
+// constructionMemory is the construction material demand of the latest
+// review of one world: derived state the Rounder keeps in memory, empty
+// until the first review after a restart.
+type constructionMemory struct {
+	mu       sync.Mutex
+	snapshot domain.GenerationSnapshot
+	needs    map[policy.Resource]int64
+}
+
+func (m *constructionMemory) set(snapshot domain.GenerationSnapshot, needs map[policy.Resource]int64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.snapshot, m.needs = snapshot, needs
+}
+
+// get is the demand the review of snapshot's world computed, none for
+// another world.
+func (m *constructionMemory) get(snapshot domain.GenerationSnapshot) map[policy.Resource]int64 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.snapshot != snapshot {
+		return nil
+	}
+	return m.needs
+}
+
 // resourceTargets is the operator's MaintainResource floors, the stone-block
 // floor the stock census derives (#231) and the journal's derived needs
 // merged, the targets every resource planner dispatches on. An unknown
@@ -1198,8 +1225,7 @@ func (r *Rounder) resourceTargets(ctx context.Context, snapshot domain.Generatio
 			return nil, err
 		}
 		needs = policy.MedicineResourceNeeds(items, needs, review.MedicineTarget)
-		needs = policy.ResourceConcernTargets(needs, review.DependencyNeeds)
-		needs = policy.ResourceConcernTargets(needs, policy.ConstructionDemand(policy.ConstructionDemandInput{WoodFloor: review.WoodFloor}))
+		needs = policy.ResourceConcernTargets(needs, r.construction.get(snapshot))
 		needs = policy.ResourceConcernTargets(needs, review.ClothingNeeds)
 		needs = policy.ResourceConcernTargets(needs, policy.ResourceRunwayTargets(review.ResourceRunwayState()))
 		if review.BrewingFinished {

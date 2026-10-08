@@ -35160,8 +35160,7 @@
    "ProductionSince": 32,
    "Reason": "food 4.4 days below 7.0"
   },
-  "Tick": 32,
-  "WoodFloor": 1814
+  "Tick": 32
  },
  "Snapshot": {
   "Colony": "8a97e8220fed4c2eaaa91440697278b4",

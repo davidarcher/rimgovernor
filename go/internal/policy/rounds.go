@@ -699,9 +699,6 @@ type RoundsFindings struct {
 	// NoOps is every detector that raised nothing, with the typed reason
 	// (#1909), in registry order.
 	NoOps []NoOpRecord `json:",omitempty"`
-	// WoodFloor is the WoodLog stock floor the wood latch asks of
-	// MaintainResource, 0 while the latch is off.
-	WoodFloor int64
 	// ResourceTargets are the effective MaintainResource stock targets the
 	// review held the census to (configured, derived and the wood floor);
 	// the stock overlay (#825) tints stockpiles by them.

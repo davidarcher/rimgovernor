@@ -329,7 +329,6 @@ func inspectResource(c *roundsRun) error {
 	// open costs, the wood latch's floor) is a stock floor on
 	// MaintainResource.
 	construction := ConstructionDemandOf(f, p, l)
-	c.r.WoodFloor = woodLatchFloor(l.Wood, p)
 	stock := StockReader{f.Resources, f.Wood}
 	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceConcernTargets(MedicineResourceNeeds(f.Items, ResourceConcernTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, c.medicine.Active)), construction))
 	if err != nil {

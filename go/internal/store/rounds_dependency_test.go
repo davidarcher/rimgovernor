@@ -114,9 +114,6 @@ func TestShelterNonWoodShortfallRaisesResourceFloor(t *testing.T) {
 		t.Fatal(err)
 	}
 	second := reviewRounds(t, s, &r)
-	if got := second.Review.DependencyNeeds["BlocksGranite"]; got != 120 {
-		t.Fatalf("floor %d, deps %+v", got, second.Review.Dependencies)
-	}
 	row := developmentRow(t, second.Review, policy.MaintainResource)
 	if row.Donation == nil || row.Donation.Priority != 2 || row.Donation.Shortfall != 90 {
 		t.Fatalf("resource row %+v", row)

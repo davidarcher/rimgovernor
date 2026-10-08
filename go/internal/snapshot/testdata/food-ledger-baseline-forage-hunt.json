@@ -11432,8 +11432,7 @@
    "ProductionSince": 15,
    "Reason": "shelter unmet"
   },
-  "Tick": 12538,
-  "WoodFloor": 1199
+  "Tick": 12538
  },
  "Snapshot": {
   "Colony": "7f60d09eec774440b7135c426cb600bc",

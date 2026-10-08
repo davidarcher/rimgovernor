@@ -68,17 +68,11 @@ type Rounds struct {
 	Latches        policy.RoundsLatches
 	MedicalCare    policy.MedicalCareHistory
 	MedicineTarget int64 `json:",omitempty"`
-	// DependencyNeeds are the MaintainResource floors this review's blueprint
-	// deficits and admitted methods raised (policy.ConstructionDemand), so the
-	// resource planner stocks them.
-	DependencyNeeds map[policy.Resource]int64 `json:",omitempty"`
 	// ClothingNeeds are the MaintainResource floors of the colonists'
 	// replacement outfits (policy.ClothingResourceNeeds).
 	ClothingNeeds map[policy.Resource]int64 `json:",omitempty"`
-	// WoodFloor is the wood latch's WoodLog floor (policy.RoundsFindings).
-	WoodFloor int64 `json:",omitempty"`
-	EventLoot policy.EventLootHistory
-	Comfort   policy.ComfortHistory
+	EventLoot     policy.EventLootHistory
+	Comfort       policy.ComfortHistory
 	// Goals binds the Standards this review assessed; Projects binds the
 	// Projects.
 	Standards []RoundsStandard
@@ -195,14 +189,8 @@ func loadRounds(ctx context.Context, tx *sql.Tx) (Rounds, error) {
 	if r.MedicineTarget < 0 || r.MedicineTarget > 10000 {
 		return Rounds{}, errors.New("invalid medicine resource target")
 	}
-	if r.WoodFloor < 0 || r.WoodFloor > 1_000_000 {
-		return Rounds{}, errors.New("invalid wood floor")
-	}
 	if len(r.ClothingNeeds) > maxDependencyRecords || policy.ValidateResourceTargets(r.ClothingNeeds) != nil {
 		return Rounds{}, errors.New("invalid clothing needs")
-	}
-	if len(r.DependencyNeeds) > maxDependencyRecords || policy.ValidateResourceTargets(r.DependencyNeeds) != nil {
-		return Rounds{}, errors.New("invalid dependency resource needs")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
 		return Rounds{}, err
@@ -630,8 +618,6 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 	r.MedicalCare = medical
 	r.BrewingFinished = policy.BrewingFinished(request.Facts.Research)
 	r.MedicineTarget = request.Policy.MedicineReserveTarget(request.Facts.Colonists, needs.Latches.MedicalReserve)
-	r.DependencyNeeds = policy.ConstructionDemand(policy.ConstructionDemandInput{Stock: policy.StockReader{Resources: request.Facts.Resources, Wood: request.Facts.Wood}, Owed: request.Facts.ConstructionDeficit, Admitted: request.Facts.Admitted})
-	r.WoodFloor = needs.WoodFloor
 	r.ClothingNeeds = policy.ClothingResourceNeeds(request.Facts.ClothingMaterials(), request.Facts.Resources)
 	r.EventLoot = loot
 	if rows, known := request.Facts.EventLoot.Value(); known {

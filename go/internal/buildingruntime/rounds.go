@@ -68,6 +68,10 @@ type Rounder struct {
 	// store receives each review's decoded sections (#354); the scheduler
 	// that steps this reviewer sets it, a standalone reviewer files nowhere.
 	store *facts.Store
+	// construction is the latest review's construction material demand
+	// (derived state, empty until the first review after a restart); see
+	// constructionMemory.
+	construction constructionMemory
 	// skipsLogged are the Odyssey quest skips already logged (#1717).
 	skipsLogged map[odysseySkipKey]bool
 	// buildTier is the last build tier logged (#604): the flight recorder
@@ -690,6 +694,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	result, err := p.journal.ReviewRounds(ctx, store.RoundsRequest{Revision: previous.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial})
 	if err != nil {
 	} else {
+		r.construction.set(result.Review.Snapshot, policy.ConstructionDemandOf(reading.Projection.Facts, r.seasonal(reading.Projection.Facts), result.Review.Latches))
 		clockEvent(ctx, "routine", "rounds_review", "rounds ran", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "concerns", len(result.Standards) + len(result.Projects), "emergency", roundsEmergencyNames(result.Emergency)}, roundsStageAttrs(result.Review.Stage)...), append(roundsDevelopmentAttrs(result.Review.Development), roundsFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)...)
 		r.logColonyStage(ctx, result.Review)
 		recordRoundsSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)
