@@ -26,14 +26,16 @@ type fixtureOptions struct {
 	Args map[string]any
 	// Save is the save the op runs on (the committed tribal8 baseline by
 	// default); Loaded runs it on whatever an earlier call left loaded.
-	Save     string
-	Loaded   bool
-	Root     string
-	Output   string
-	GameID   string
-	Headless bool
-	Timeout  time.Duration
-	JSON     bool
+	Save   string
+	Loaded bool
+	// IgnoreMods loads Save though it records mods the build no longer has.
+	IgnoreMods bool
+	Root       string
+	Output     string
+	GameID     string
+	Headless   bool
+	Timeout    time.Duration
+	JSON       bool
 }
 
 // parseFixture resolves the fixture subcommand: the op name, its key=value
@@ -166,7 +168,7 @@ func executeFixture(ctx context.Context, o fixtureOptions, result *fixtureResult
 	}
 	var start na.Start = na.Loaded{}
 	if !o.Loaded {
-		start = na.Save{Name: o.Save}
+		start = na.Save{Name: o.Save, IgnoreModCompatibility: o.IgnoreMods}
 	}
 	// FixtureOps names the op so the stale-package check's rebuild hint
 	// does; Prepare stages the baseline save into the profile.

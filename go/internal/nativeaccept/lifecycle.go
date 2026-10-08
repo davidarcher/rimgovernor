@@ -69,6 +69,10 @@ type Save struct {
 	Name string
 	// Timeout bounds the load; zero is 90s.
 	Timeout time.Duration
+	// IgnoreModCompatibility loads a save whose recorded mods are not all
+	// active: a downloaded CI bundle predates mods the build has since dropped
+	// (the retired RimBridgeServer, #2341).
+	IgnoreModCompatibility bool
 }
 
 func (v Save) saves() []string      { return []string{v.Name} }
@@ -79,7 +83,7 @@ func (v Save) load(ctx context.Context, s *Session, quiet QuietMode) (map[string
 	if v.Name == "" {
 		return nil, fmt.Errorf("save start: empty save name")
 	}
-	if err := loadSave(ctx, s.Harness, v.Name, v.Timeout); err != nil {
+	if err := loadSaveMods(ctx, s.Harness, v.Name, v.Timeout, v.IgnoreModCompatibility); err != nil {
 		return nil, err
 	}
 	apply, err := quietDecision(s.Names, quiet)
@@ -102,11 +106,15 @@ type caller interface {
 
 // loadSave is the load_game_ready call every save-driven harness issues.
 func loadSave(ctx context.Context, c caller, name string, timeout time.Duration) error {
+	return loadSaveMods(ctx, c, name, timeout, false)
+}
+
+func loadSaveMods(ctx context.Context, c caller, name string, timeout time.Duration, ignoreMods bool) error {
 	if timeout <= 0 {
 		timeout = 90 * time.Second
 	}
 	if _, err := c.Call(ctx, "load-save", "rimgovernor/load_game_ready", map[string]any{
-		"saveName": name, "readiness": "visual", "timeoutMs": timeout.Milliseconds(), "ignoreModCompatibility": false,
+		"saveName": name, "readiness": "visual", "timeoutMs": timeout.Milliseconds(), "ignoreModCompatibility": ignoreMods,
 	}); err != nil {
 		return fmt.Errorf("load save %s: %w", name, err)
 	}

@@ -226,6 +226,8 @@ func profileCapture(ctx context.Context, args []string, stdout, stderr io.Writer
 		}
 		fmt.Fprintf(info, "profile-capture: %s from %s (saved %s ago)\n", p.Case, bundle, age)
 		o.Save = profileSave
+		// A CI bundle may record mods since retired from the build (#2341).
+		o.IgnoreMods = true
 	}
 	opts := cases.Options{Root: o.Root, Output: o.Output, GameID: o.GameID, Headless: o.Headless, NoHeal: p.NoHeal}
 	if _, ok := preflight(ctx, []cases.Case{{Start: cases.Fixture{Op: profileOp}}}, opts, info); !ok {

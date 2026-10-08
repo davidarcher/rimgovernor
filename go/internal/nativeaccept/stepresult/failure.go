@@ -34,6 +34,7 @@ func Parse(raw json.RawMessage) (Failure, bool) {
 			AttentionID string `json:"attentionId"`
 			Summary     string `json:"summary"`
 			Reason      string `json:"reason"`
+			Message     string `json:"message"`
 			Success     *bool  `json:"success"`
 			Refused     bool   `json:"refused"`
 		} `json:"structuredContent"`
@@ -59,6 +60,9 @@ func Parse(raw json.RawMessage) (Failure, bool) {
 	// nothing on one line; its structured "reason" is the refusal itself.
 	if result.Structured.Reason != "" {
 		f.Summary = firstLine(result.Structured.Reason)
+	}
+	if f.Summary == "" && result.Structured.Message != "" {
+		f.Summary = firstLine(result.Structured.Message)
 	}
 	if result.Structured.Exception != "" {
 		f.Kind = "native exception"
