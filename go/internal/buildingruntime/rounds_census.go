@@ -168,26 +168,6 @@ func (s *roundsCensusStore) retain(reading observation.RoundsReading, rooms bool
 	s.mu.Unlock()
 }
 
-// materialHolds is policy.MaterialHolds over the retained census of
-// snapshot's colony, load, map and native generation (#1354): what
-// construction and live bill jobs already owe. Without such a census it
-// holds nothing.
-func (s *roundsCensusStore) materialHolds(snapshot domain.GenerationSnapshot) []policy.Amount {
-	s.mu.Lock()
-	census, generation := s.latest, s.generation
-	s.mu.Unlock()
-	if census == nil || census.generation != generation {
-		return nil
-	}
-	id := census.reading.Projection.Identity
-	native, known := id.NativeGeneration.Value()
-	if !known || native != snapshot.Native || id.Colony != snapshot.Colony || id.Load != snapshot.Load || id.Map != snapshot.Map {
-		return nil
-	}
-	f := census.reading.Projection.Facts
-	return policy.MaterialHolds(f.ConstructionDeficit, f.BillReservations, "")
-}
-
 // psycasters is the royalty read and the colonists' rows of the latest
 // census, which a psycast planner reads its casters from (#1612). Both are
 // unknown without a current census.

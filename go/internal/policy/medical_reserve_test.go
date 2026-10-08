@@ -107,15 +107,14 @@ func medicineFixture() MedicinePlanningRequest {
 		Review:   MedicalReserveReview{Active: true, Target: domain.Known(int64(9))},
 		Resource: "MedicineHerbal",
 		Benches:  domain.Known([]GearBench{bench}),
-		Stock:    []Stock{{"MedicalHerb", domain.Known(int64(50))}},
 	}
 }
 
-func TestMedicineProductionSelectsFundedRecipe(t *testing.T) {
+func TestMedicineProductionSelectsRecipe(t *testing.T) {
 	r := medicineFixture()
 	before := medicineFixture()
 	method, err := SelectMedicineMethod(r)
-	if err != nil || method.Kind != MedicineProduce || method.Bench != "bench" || method.Recipe != "MakeHerbalMedicine" || method.Target != 9 || !reflect.DeepEqual(method.Costs, []Amount{{"MedicalHerb", 5}}) || !reflect.DeepEqual(method.Filter, []Resource{"MedicalHerb"}) {
+	if err != nil || method.Kind != MedicineProduce || method.Bench != "bench" || method.Recipe != "MakeHerbalMedicine" || method.Target != 9 {
 		t.Fatal(method, err)
 	}
 	if !reflect.DeepEqual(r, before) {
@@ -167,15 +166,6 @@ func TestMedicineExistingActiveBillWaits(t *testing.T) {
 	r.Benches = domain.Known(v)
 	method, err := SelectMedicineMethod(r)
 	if err != nil || method.Kind != MedicineWait {
-		t.Fatal(method, err)
-	}
-}
-
-func TestMedicineUnfundedRecipeIsBlocked(t *testing.T) {
-	r := medicineFixture()
-	r.Stock = []Stock{{"MedicalHerb", domain.Known(int64(2))}}
-	method, err := SelectMedicineMethod(r)
-	if err != nil || method.Kind != MedicineBlocked {
 		t.Fatal(method, err)
 	}
 }

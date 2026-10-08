@@ -22,7 +22,7 @@ import (
 // workable (open, unmet, admitted by the Safeguards) its weapon bill is that
 // Standard's Method, so a starving colony still crafts the bow its hunt waits
 // on. Without that open need the same weapons are ordinary demand.
-func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, tier policy.ArmoryTier, holds []policy.Amount) (RoundsArmoryResult, error) {
+func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, tier policy.ArmoryTier, stuffCategories map[policy.Resource][]string) (RoundsArmoryResult, error) {
 	p := r.reviewer.player
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainEquipment)
 	if err != nil {
@@ -112,12 +112,6 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 		benches = append(benches, row.Bench)
 		tokens[row.Bench.ID] = row.Token
 	}
-	var stock []policy.Stock
-	if names := recipeIngredientNames(census, ""); len(names) > 0 {
-		if stock, _, err = r.native.ReadSupplyStock(call, identity, names); err != nil {
-			return RoundsArmoryResult{}, err
-		}
-	}
 	weapons, hunters, unarmed, err := r.weaponDemand(call, state, gear, benches, tier)
 	if err != nil {
 		return RoundsArmoryResult{}, err
@@ -150,15 +144,8 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 	for _, method := range goal.Methods {
 		seen = append(seen, method.Method)
 	}
-	// MaintainResource holds (#1230) bind upgrades and armor, never arming
-	// the unarmed: an early wood floor would otherwise leave a tribal start
-	// without clubs.
-	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: domain.Known(benches), Stock: stock}
-	if unarmed == 0 && !hunting {
-		request.Holds = holds
-	}
+	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: domain.Known(benches), StuffCategories: stuffCategories}
 	choice, err := policy.SelectArmoryMethod(request, weapons)
-	request.Holds = holds
 	if err != nil {
 		return RoundsArmoryResult{}, err
 	}

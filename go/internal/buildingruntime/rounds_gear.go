@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -23,16 +22,14 @@ import (
 // (bridge.ReadColonyFacts runs validateColonyGear on it internally); no
 // dedicated gear read is needed to plan a method, only to refresh CAS tokens
 // immediately before dispatch (see bridge.ReadGearReplacement, used by
-// GearReplaceBoundary). ReadGearBenches and ReadSupplyStock feed the
-// workshop-bill half (GearProduce): a fresh bench/recipe census and the
-// ingredient stock funding it, respectively, gathered only when no
+// GearReplaceBoundary). ReadGearBenches feeds the workshop-bill half
+// (GearProduce): a fresh bench/recipe census, gathered only when no
 // replace-candidate is already pending (SelectGearMethod always prefers
-// wearing an existing item over crafting a new one). Native checks the bill against
-// live state when the ProductionBillIntent applies.
+// wearing an existing item over crafting a new one). The bill is placed
+// whatever the stock; its ingredients are demand (#2373).
 type RoundsGearSource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
-	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
 }
 type RoundsGearPlanner struct {
 	reviewer *Rounder
@@ -307,32 +304,16 @@ func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepAr
 	// SelectGearMethod always prefers wearing an already-observed replacement
 	// candidate over crafting a new one and never reaches bench/recipe
 	// selection while any candidate is pending, so the bench census (extra
-	// native round trips) is only worth gathering once none exist. A wear
-	// order still needs the candidate's own definition in a funded stock
-	// (gearIngredients), so its stock is read either way (#233).
+	// native round trips) is only worth gathering once none exist.
 	hasCandidates := false
-	candidateNames := map[string]bool{}
 	for _, pawn := range observation.Pawns {
 		if candidates, known := pawn.Candidates.Value(); known && len(candidates) > 0 {
 			hasCandidates = true
-			for _, c := range candidates {
-				candidateNames[string(c.Definition)] = true
-			}
 		}
 	}
 	benchesFact := domain.Unknown[[]policy.GearBench]()
 	tokens := map[string]string{}
-	var stock []policy.Stock
-	if hasCandidates {
-		names := make([]string, 0, len(candidateNames))
-		for name := range candidateNames {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		if stock, _, err = r.native.ReadSupplyStock(call, identity, names); err != nil {
-			return RoundsGearResult{}, err
-		}
-	} else {
+	if !hasCandidates {
 		census, _, err := r.native.ReadGearBenches(call, identity)
 		if err != nil {
 			return RoundsGearResult{}, err
@@ -342,17 +323,13 @@ func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepAr
 			benches = append(benches, row.Bench)
 			tokens[row.Bench.ID] = row.Token
 		}
-		names := recipeIngredientNames(census, "")
-		if len(names) > 0 {
-			stock, _, err = r.native.ReadSupplyStock(call, identity, names)
-			if err != nil {
-				return RoundsGearResult{}, err
-			}
-		}
 		benchesFact = domain.Known(benches)
 	}
-	// Construction and other pawns' bill jobs hold their material (#1354).
-	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock, Holds: r.reviewer.census.materialHolds(state.Snapshot)}
+	items, err := r.reviewer.itemFacts(call, state.Snapshot)
+	if err != nil {
+		return RoundsGearResult{}, err
+	}
+	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, StuffCategories: items.StuffCategories}
 	snap.NoteGearMethod(call, request)
 	choice, err := policy.SelectGearMethod(request)
 	if err != nil {

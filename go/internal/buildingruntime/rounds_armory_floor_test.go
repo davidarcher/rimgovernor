@@ -40,10 +40,6 @@ func (n *fabricationArmorNative) ReadGearBenches(context.Context, *c.Identity) (
 	return []bridge.GearBenchRead{{Token: "fab-cas", Bench: policy.GearBench{ID: "fab", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known(recipes)}}}, bridge.Result{}, nil
 }
 
-func (n *fabricationArmorNative) ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error) {
-	return []policy.Stock{{Resource: "Plasteel", Available: domain.Known(int64(400))}, {Resource: "ComponentSpacer", Available: domain.Known(int64(4))}, {Resource: "Steel", Available: domain.Known(int64(500))}}, bridge.Result{}, nil
-}
-
 // armoryArmorRecipe runs one armory step for a colonist wanting marine
 // armor under the given MaintainResource plasteel floor and returns the
 // billed recipe.
@@ -89,15 +85,15 @@ func armoryArmorRecipe(t *testing.T, plasteelFloor int64) string {
 	return bill.Recipe()
 }
 
-// A plasteel stock MaintainResource holds is not spent by an armor bill
-// (#1230): the marine need falls to flak, which spends only steel.
-func TestArmoryArmorBillLeavesHeldPlasteel(t *testing.T) {
+// A MaintainResource floor on the armor's own plasteel never holds the bill
+// back (#2373): it is placed before any stock exists and its ingredients are
+// the demand that fills the floor.
+func TestArmoryArmorBillIgnoresItsOwnFloor(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	if got := armoryArmorRecipe(t, 0); got != "Make_Apparel_PowerArmor" {
-		t.Fatal("unheld plasteel did not fund marine armor", got)
-	}
-	if got := armoryArmorRecipe(t, 350); got != "Make_Apparel_FlakVest" {
-		t.Fatal("armor bill spent held plasteel", got)
+	for _, floor := range []int64{0, 350} {
+		if got := armoryArmorRecipe(t, floor); got != "Make_Apparel_PowerArmor" {
+			t.Fatal("a plasteel floor held back the armor bill", floor, got)
+		}
 	}
 }

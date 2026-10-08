@@ -147,7 +147,7 @@ func TestGearUtilityExtras(t *testing.T) {
 	}
 }
 
-func armoryArmorFixture(stock ...Stock) GearPlanningRequest {
+func armoryArmorFixture() GearPlanningRequest {
 	r := gearModelFixture()
 	v, _ := r.Observation.Value()
 	armor := armorOption("Apparel_PowerArmor", GearOuter, 1, 1, nil)
@@ -164,44 +164,51 @@ func armoryArmorFixture(stock ...Stock) GearPlanningRequest {
 		recipe("Make_Apparel_ArmorRecon", "Apparel_ArmorRecon", [][]Amount{{{"Plasteel", 60}}}),
 		recipe("Make_Apparel_FlakVest", "Apparel_FlakVest", [][]Amount{{{"Steel", 60}}}),
 	})}})
-	r.Stock = stock
 	return r
 }
 
 func TestArmoryArmorLadderByTier(t *testing.T) {
-	full := []Stock{{"Plasteel", domain.Known(int64(400))}, {"ComponentSpacer", domain.Known(int64(4))}, {"Steel", domain.Known(int64(500))}}
 	for tier, want := range map[ArmoryTier]Resource{ArmoryTierFabrication: "Apparel_PowerArmor", ArmoryTierMachining: "Apparel_FlakVest", ArmoryTierSmithing: "", ArmoryTierNeolithic: ""} {
-		m, err := SelectArmoryArmorMethod(armoryArmorFixture(full...), tier)
+		m, err := SelectArmoryArmorMethod(armoryArmorFixture(), tier)
 		if err != nil || want == "" && m.Kind != GearBlocked || want != "" && (m.Kind != GearProduce || m.Need.Definition != want || m.Count != 2) {
 			t.Fatal(tier, m, err)
 		}
 	}
-	if m, err := SelectArmoryArmorMethod(armoryArmorFixture(full...), ArmoryTierUnknown); err != nil || m.Kind != GearUnknown {
+	if m, err := SelectArmoryArmorMethod(armoryArmorFixture(), ArmoryTierUnknown); err != nil || m.Kind != GearUnknown {
 		t.Fatal(m, err)
 	}
 }
 
-func TestArmoryArmorScarcityFallsBackATier(t *testing.T) {
-	// No advanced components: marine falls to recon.
-	m, err := SelectArmoryArmorMethod(armoryArmorFixture(Stock{"Plasteel", domain.Known(int64(400))}, Stock{"ComponentSpacer", domain.Known(int64(0))}, Stock{"Steel", domain.Known(int64(500))}), ArmoryTierFabrication)
-	if err != nil || m.Kind != GearProduce || m.Need.Definition != "Apparel_ArmorRecon" {
+// An armor bill is placed with nothing in stock and its materials become
+// demand; the bill never waits on, or is held back by, its own demand (#2373).
+func TestArmoryArmorBillPlacedBeforeStockBecomesDemand(t *testing.T) {
+	r := armoryArmorFixture()
+	m, err := SelectArmoryArmorMethod(r, ArmoryTierFabrication)
+	if err != nil || m.Kind != GearProduce || m.Need.Definition != "Apparel_PowerArmor" || m.Count != 2 || !reflect.DeepEqual(m.Filter, []Resource{"ComponentSpacer", "Plasteel"}) {
 		t.Fatal(m, err)
 	}
-	// No plasteel: flak, spending only steel.
-	m, err = SelectArmoryArmorMethod(armoryArmorFixture(Stock{"Plasteel", domain.Known(int64(0))}, Stock{"ComponentSpacer", domain.Known(int64(4))}, Stock{"Steel", domain.Known(int64(500))}), ArmoryTierFabrication)
-	if err != nil || m.Kind != GearProduce || m.Need.Definition != "Apparel_FlakVest" || len(m.Costs) != 1 || m.Costs[0] != (Amount{"Steel", 120}) {
-		t.Fatal(m, err)
+	benches, _ := r.Benches.Value()
+	recipes, _ := benches[0].Recipes.Value()
+	slots, _ := recipes[0].Ingredients.Value()
+	filter := make([]string, len(m.Filter))
+	for i, f := range m.Filter {
+		filter[i] = string(f)
 	}
-	// Plasteel held for MaintainResource is not spent.
-	r := armoryArmorFixture(Stock{"Plasteel", domain.Known(int64(400))}, Stock{"ComponentSpacer", domain.Known(int64(4))}, Stock{"Steel", domain.Known(int64(500))})
-	r.Holds = []Amount{{"Plasteel", 350}}
-	if m, err = SelectArmoryArmorMethod(r, ArmoryTierFabrication); err != nil || m.Need.Definition != "Apparel_FlakVest" {
-		t.Fatal(m, err)
+	bill := OpenBill{Recipe: m.Recipe, Count: m.Count, Filter: filter, Slots: domain.Known(slots)}
+	empty := StockReader{Resources: domain.Known([]Amount{})}
+	demand := OpenBillDemand([]OpenBill{bill}, empty)
+	if demand["Plasteel"] != 200 || demand["ComponentSpacer"] != 4 || len(demand) != 2 {
+		t.Fatal(demand)
+	}
+	// The same selection stands whatever the demand, so a floor raised by the
+	// bill's own ingredients cannot starve it.
+	again, err := SelectArmoryArmorMethod(r, ArmoryTierFabrication)
+	if err != nil || !reflect.DeepEqual(again, m) {
+		t.Fatal(again, err)
 	}
 }
-
 func TestGearLeavesArmorBillsToArmory(t *testing.T) {
-	r := armoryArmorFixture(Stock{"Plasteel", domain.Known(int64(400))}, Stock{"ComponentSpacer", domain.Known(int64(4))}, Stock{"Steel", domain.Known(int64(500))})
+	r := armoryArmorFixture()
 	if m, err := SelectGearMethod(r); err != nil || m.Kind == GearProduce {
 		t.Fatal(m, err)
 	}

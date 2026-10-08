@@ -32,7 +32,6 @@ type RoundsMedicalSource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 	FrameTables(context.Context, *c.Identity) (bridge.Tables, error)
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
-	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
 }
 type RoundsMedicalPlanner struct {
 	reviewer *Rounder
@@ -185,15 +184,7 @@ func (r *RoundsMedicalPlanner) step(call, epoch context.Context, arbiter *stepAr
 		benches = append(benches, row.Bench)
 		tokens[row.Bench.ID] = row.Token
 	}
-	names := recipeIngredientNames(census, medicineResource)
-	var stock []policy.Stock
-	if len(names) > 0 {
-		stock, _, err = r.native.ReadSupplyStock(call, identity, names)
-		if err != nil {
-			return RoundsMedicalResult{}, err
-		}
-	}
-	choice, err := policy.SelectMedicineMethod(policy.MedicinePlanningRequest{Review: medicalReview, Resource: medicineResource, Seen: seen, Benches: domain.Known(benches), Stock: stock})
+	choice, err := policy.SelectMedicineMethod(policy.MedicinePlanningRequest{Review: medicalReview, Resource: medicineResource, Seen: seen, Benches: domain.Known(benches)})
 	if err != nil {
 		return RoundsMedicalResult{}, err
 	}

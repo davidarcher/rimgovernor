@@ -55,7 +55,7 @@ func shellTargets(ctx context.Context, native any, journal *store.Store, snapsho
 // stockShells admits one stock-target shell bill under MaintainEquipment
 // for the first shell no bench bill produces (#1207). Native keeps the
 // stock from then on; the planner only adds missing bills.
-func (r *RoundsArmoryPlanner) stockShells(call, epoch context.Context, state ControlState, review store.Rounds, projection observation.ColonyProjection, holds []policy.Amount) (RoundsArmoryResult, error) {
+func (r *RoundsArmoryPlanner) stockShells(call, epoch context.Context, state ControlState, review store.Rounds, projection observation.ColonyProjection) (RoundsArmoryResult, error) {
 	p := r.reviewer.player
 	targets, err := shellTargets(call, r.native, p.journal, state.Snapshot, projection)
 	if err != nil || len(targets) == 0 {
@@ -83,17 +83,11 @@ func (r *RoundsArmoryPlanner) stockShells(call, epoch context.Context, state Con
 	if err != nil {
 		return RoundsArmoryResult{}, err
 	}
-	var stock []policy.Stock
-	if names := recipeIngredientNames(census, ""); len(holds) > 0 && len(names) > 0 {
-		if stock, _, err = r.native.ReadSupplyStock(call, identity, names); err != nil {
-			return RoundsArmoryResult{}, err
-		}
-	}
 	benches := make([]policy.GearBench, 0, len(census))
 	for _, row := range census {
 		benches = append(benches, row.Bench)
 	}
-	choice, ok := policy.SelectShellBill(benches, targets, stock, holds)
+	choice, ok := policy.SelectShellBill(benches, targets)
 	if !ok {
 		return RoundsArmoryResult{Verdict: waitFor(WaitMethodUsed, "shell_bill_choice")}, nil
 	}

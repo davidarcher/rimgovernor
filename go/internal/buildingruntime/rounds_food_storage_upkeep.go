@@ -40,7 +40,6 @@ type RoundsFoodStorageUpkeepSource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error)
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
-	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
 	// FrameTables carries the things table the colony census's food stocks
 	// reference (#1343) and the catalog their defs resolve against (#1733).
 	FrameTables(context.Context, *c.Identity) (bridge.Tables, error)
@@ -237,14 +236,6 @@ func (r *RoundsFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbit
 		benches = append(benches, row.Bench)
 		tokens[row.Bench.ID] = row.Token
 	}
-	ingredientNames := recipeIngredientNames(census, "")
-	var stock []policy.Stock
-	if len(ingredientNames) > 0 {
-		stock, _, err = r.native.ReadSupplyStock(call, identity, ingredientNames)
-		if err != nil {
-			return RoundsFoodStorageUpkeepResult{}, err
-		}
-	}
 	// SelectFoodStorageMethod's Produce outcome only returns {Resource,
 	// Target}; bench/recipe selection for that resource is the routine
 	// planner's own job, the same deferral SelectMedicineMethod/GearProduce
@@ -257,7 +248,7 @@ func (r *RoundsFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbit
 	// otherwise expects, since it only reads Review.Active/Review.Target.
 	medChoice, err := policy.SelectMedicineMethod(policy.MedicinePlanningRequest{
 		Review:   policy.MedicalReserveReview{Active: true, Target: domain.Known(choice.Target)},
-		Resource: choice.Resource, Seen: seen, Benches: domain.Known(benches), Stock: stock,
+		Resource: choice.Resource, Seen: seen, Benches: domain.Known(benches),
 	})
 	if err != nil {
 		return RoundsFoodStorageUpkeepResult{}, err

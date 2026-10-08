@@ -456,8 +456,7 @@ func SelectResourceMethod(r ResourceMethodRequest) (ResourceMethod, error) {
 	if !known {
 		return ResourceMethod{Kind: ResourceMethodUnknown}, nil
 	}
-	gearRequest := GearPlanningRequest{Stock: r.Stock}
-	if err := validateGearProduction(benches, gearRequest); err != nil {
+	if err := validateGearProduction(benches); err != nil {
 		return ResourceMethod{}, err
 	}
 	benches = append([]GearBench(nil), benches...)
@@ -498,17 +497,6 @@ func SelectResourceMethod(r ResourceMethodRequest) (ResourceMethod, error) {
 			}
 			if !ak || !ok {
 				return ResourceMethod{Kind: ResourceMethodUnknown}, nil
-			}
-			slots, known := recipe.Ingredients.Value()
-			if !known {
-				return ResourceMethod{Kind: ResourceMethodUnknown}, nil
-			}
-			_, _, funded, unknown := gearIngredients(slots, "", gearRequest)
-			if unknown {
-				return ResourceMethod{Kind: ResourceMethodUnknown}, nil
-			}
-			if !funded {
-				continue
 			}
 			id := resourceMethodID(r.Resource, b.ID, recipe.Definition)
 			if seen[id] {

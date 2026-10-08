@@ -60,38 +60,20 @@ func TestSelectShellBill(t *testing.T) {
 	}
 	bench := GearBench{ID: "machining", Bills: domain.Known([]GearBill{}), Recipes: domain.Known([]GearRecipe{recipe("Make_Shell_HighExplosive", testShellHE), recipe("Make_Shell_Incendiary", testShellIncendiary)})}
 	targets := MortarShellTargets(1, ArmoryAssessment{Threat: ArmoryTierFabrication, Tier: ArmoryTierMachining}, testShells)
-	if _, ok := SelectShellBill([]GearBench{bench}, nil, nil, nil); ok {
+	if _, ok := SelectShellBill([]GearBench{bench}, nil); ok {
 		t.Fatal("no targets must issue no bill")
 	}
-	got, ok := SelectShellBill([]GearBench{bench}, targets, nil, nil)
+	got, ok := SelectShellBill([]GearBench{bench}, targets)
 	if !ok || got.Recipe != "Make_Shell_HighExplosive" || got.Target != 10 || got.Bench != "machining" {
 		t.Fatal("first bill", got, ok)
 	}
 	bench.Bills = domain.Known([]GearBill{{ID: "b1", Recipe: "Make_Shell_HighExplosive", Products: []Resource{testShellHE}}})
-	got, ok = SelectShellBill([]GearBench{bench}, targets, nil, nil)
+	got, ok = SelectShellBill([]GearBench{bench}, targets)
 	if !ok || got.Recipe != "Make_Shell_Incendiary" || got.Target != 5 {
 		t.Fatal("second bill", got, ok)
 	}
 	bench.Bills = domain.Known([]GearBill{{Products: []Resource{testShellHE}}, {Products: []Resource{testShellIncendiary}}})
-	if got, ok := SelectShellBill([]GearBench{bench}, targets, nil, nil); ok {
+	if got, ok := SelectShellBill([]GearBench{bench}, targets); ok {
 		t.Fatal("EMP has no recipe; nothing to bill", got)
-	}
-}
-
-// A shell recipe whose steel MaintainResource holds is skipped (#1230).
-func TestSelectShellBillLeavesHeldStock(t *testing.T) {
-	t.Parallel()
-	he := GearRecipe{Definition: "Make_Shell_HighExplosive", Products: []Resource{testShellHE}, Available: domain.Known(true), AvailableOn: domain.Known(true), Ingredients: domain.Known([][]Amount{{{"Steel", 15}}})}
-	bench := GearBench{ID: "machining", Bills: domain.Known([]GearBill{}), Recipes: domain.Known([]GearRecipe{he})}
-	targets := []Amount{{testShellHE, 10}}
-	stock := []Stock{{"Steel", domain.Known(int64(100))}}
-	if _, ok := SelectShellBill([]GearBench{bench}, targets, stock, []Amount{{"Steel", 90}}); ok {
-		t.Fatal("shell bill spent held steel")
-	}
-	if _, ok := SelectShellBill([]GearBench{bench}, targets, stock, []Amount{{"Steel", 80}}); !ok {
-		t.Fatal("unheld steel did not fund a shell")
-	}
-	if got := ResourceHolds(map[Resource]int64{"Steel": 5, "Plasteel": 3, "Wood": 0}); len(got) != 2 || got[0].Resource != "Plasteel" {
-		t.Fatal(got)
 	}
 }

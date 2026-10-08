@@ -65,15 +65,9 @@ func (r *RoundsArmoryPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	facts := read.Projection.Facts
 	assessment := policy.AssessArmory(facts.RaidPoints, facts.Research)
-	// MaintainResource floors are held back from every armory bill (#1230).
-	targets, err := r.reviewer.resourceTargets(call, state.Snapshot, facts.Resources)
-	if err != nil {
-		return RoundsArmoryResult{}, err
-	}
-	holds := policy.ResourceHolds(targets)
-	result, err := r.craftWeapons(call, epoch, arbiter, state, review, assessment.Tier, holds)
+	result, err := r.craftWeapons(call, epoch, arbiter, state, review, assessment.Tier, facts.Items.StuffCategories)
 	if err == nil && result.Verdict != BuildingReasonAdmitted {
-		result, err = r.stockShells(call, epoch, state, review, read.Projection, holds)
+		result, err = r.stockShells(call, epoch, state, review, read.Projection)
 	}
 	result.Assessment = assessment
 	return result, err

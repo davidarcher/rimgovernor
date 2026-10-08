@@ -297,11 +297,11 @@ func TestSelectResourceMethodReplacesInactiveMatchingBill(t *testing.T) {
 	}
 }
 
-func TestSelectResourceMethodUnfundedRecipeIsBlocked(t *testing.T) {
+func TestSelectResourceMethodPlacesBillBeforeStock(t *testing.T) {
 	r := resourceMethodFixture()
-	r.Stock = []Stock{{"Slag", domain.Known(int64(2))}}
+	r.Stock = nil
 	method, err := SelectResourceMethod(r)
-	if err != nil || method.Kind != ResourceMethodBlocked {
+	if err != nil || method.Kind != ResourceMethodProduce {
 		t.Fatalf("got %v %v", method, err)
 	}
 }

@@ -152,8 +152,6 @@ type MedicineMethod struct {
 	Bench, Recipe string
 	Resource      Resource
 	Target        int64
-	Costs         []Amount
-	Filter        []Resource
 	RequiredWork  []WorkRequirement
 }
 
@@ -169,8 +167,6 @@ type MedicinePlanningRequest struct {
 	Resource Resource
 	Seen     []domain.MethodID
 	Benches  domain.Fact[[]GearBench]
-	Stock    []Stock
-	Holds    []Amount
 }
 
 func medicineMethodID(resource Resource, bench, recipe string) domain.MethodID {
@@ -218,8 +214,7 @@ func SelectMedicineMethod(r MedicinePlanningRequest) (MedicineMethod, error) {
 	if !known {
 		return MedicineMethod{Kind: MedicineUnknown}, nil
 	}
-	gearRequest := GearPlanningRequest{Stock: r.Stock, Holds: r.Holds}
-	if err := validateGearProduction(benches, gearRequest); err != nil {
+	if err := validateGearProduction(benches); err != nil {
 		return MedicineMethod{}, err
 	}
 	benches = append([]GearBench(nil), benches...)
@@ -265,22 +260,11 @@ func SelectMedicineMethod(r MedicinePlanningRequest) (MedicineMethod, error) {
 			if !known {
 				return MedicineMethod{Kind: MedicineUnknown}, nil
 			}
-			slots, known := recipe.Ingredients.Value()
-			if !known {
-				return MedicineMethod{Kind: MedicineUnknown}, nil
-			}
-			costs, filter, funded, unknown := gearIngredients(slots, "", gearRequest)
-			if unknown {
-				return MedicineMethod{Kind: MedicineUnknown}, nil
-			}
-			if !funded {
-				continue
-			}
 			id := medicineMethodID(r.Resource, b.ID, recipe.Definition)
 			if seen[id] {
 				return MedicineMethod{Kind: MedicineWait, ID: id}, nil
 			}
-			return MedicineMethod{Kind: MedicineProduce, ID: id, Bench: b.ID, Recipe: recipe.Definition, Resource: r.Resource, Target: target, Costs: costs, Filter: filter, RequiredWork: append([]WorkRequirement(nil), work...)}, nil
+			return MedicineMethod{Kind: MedicineProduce, ID: id, Bench: b.ID, Recipe: recipe.Definition, Resource: r.Resource, Target: target, RequiredWork: append([]WorkRequirement(nil), work...)}, nil
 		}
 	}
 	return MedicineMethod{Kind: MedicineBlocked}, nil

@@ -75,28 +75,10 @@ func GearSoldierPresent(gear domain.Fact[GearObservation]) bool {
 	return false
 }
 
-// gearAvailable is the ingredient stock a gear bill may spend: the known
-// supply census less each concurrent hold. Known reports which resources the
-// census measured at all.
-func gearAvailable(stock []Stock, holds []Amount) (available map[Resource]int64, known map[Resource]bool) {
-	available = map[Resource]int64{}
-	known = map[Resource]bool{}
-	for _, s := range stock {
-		if n, ok := s.Available.Value(); ok {
-			available[s.Resource] = n
-			known[s.Resource] = true
-		}
-	}
-	for _, hold := range holds {
-		available[hold.Resource] = max(0, available[hold.Resource]-hold.Count)
-	}
-	return available, known
-}
-
 // armoryArmorRung is one step of an armor family's ladder (#1205): the
 // definition and the lowest armory tier that may craft it. Rungs run from
 // the cheapest to the best; a family's need falls back down its rungs when
-// the tier or the stock (plasteel, components) cannot fund the higher one.
+// the tier cannot reach the higher one.
 type armoryArmorRung struct {
 	Definition Resource
 	Tier       ArmoryTier
@@ -139,10 +121,9 @@ func ArmoryArmor(definition Resource) bool {
 
 // SelectArmoryArmorMethod proposes one demand-sized armor bill for the
 // loadout gaps the gear model filled from a bill (#1205). Each need is
-// capped at tier and falls back down its family's rungs until a bench
-// recipe the stock (less r.Holds) funds covers it; a need no rung funds is
-// skipped, so scarce plasteel drops marine to recon to flak instead of
-// waiting on stock. A pending wear candidate defers the bill.
+// capped at tier and falls back down its family's rungs to the best one a
+// bench recipe makes. The bill is placed with nothing in stock; its materials
+// become demand (OpenBillDemand). A pending wear candidate defers the bill.
 func SelectArmoryArmorMethod(r GearPlanningRequest, tier ArmoryTier) (GearMethod, error) {
 	review, err := ReviewGear(r.Observation)
 	if err != nil {
@@ -155,7 +136,7 @@ func SelectArmoryArmorMethod(r GearPlanningRequest, tier ArmoryTier) (GearMethod
 	if err != nil {
 		return GearMethod{}, err
 	}
-	if err := validateGearProduction(nil, r); err != nil {
+	if err := validateGearProduction(nil); err != nil {
 		return GearMethod{}, err
 	}
 	v, _ := r.Observation.Value()

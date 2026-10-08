@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -307,7 +308,6 @@ type GearMethod struct {
 	Loadout, Target string
 	Need            GearReplacement
 	Bench, Recipe   string
-	Costs           []Amount
 	Filter          []Resource
 	RequiredWork    []WorkRequirement
 }
@@ -358,8 +358,9 @@ type GearPlanningRequest struct {
 	Observation domain.Fact[GearObservation]
 	Seen        []domain.MethodID
 	Benches     domain.Fact[[]GearBench]
-	Stock       []Stock
-	Holds       []Amount
+	// StuffCategories are each stuff's catalog categories (ItemFacts): the
+	// stuffs a bill's filter admits beside the loadout's own (gearFilter).
+	StuffCategories map[Resource][]string
 }
 
 func gearMethodID(kind string, p GearPawn, target string, need GearReplacement) domain.MethodID {
@@ -408,7 +409,7 @@ func selectGear(r GearPlanningRequest, review GearReview, v GearObservation) (Ge
 	if err != nil {
 		return GearMethod{}, err
 	}
-	if err := validateGearProduction(nil, r); err != nil {
+	if err := validateGearProduction(nil); err != nil {
 		return GearMethod{}, err
 	}
 	type choice struct {
@@ -439,14 +440,7 @@ func selectGear(r GearPlanningRequest, review GearReview, v GearObservation) (Ge
 	for _, c := range choices {
 		id := gearMethodID("replace", c.pawn, c.candidate.Target, GearReplacement{})
 		if !seen[id] {
-			costs, _, funded, unknown := gearIngredients([][]Amount{{{Resource: c.candidate.Definition, Count: 1}}}, "", r)
-			if unknown {
-				return GearMethod{Kind: GearUnknown}, nil
-			}
-			if !funded {
-				continue
-			}
-			return GearMethod{Kind: GearReplace, ID: id, Pawn: c.pawn.Pawn, Loadout: c.pawn.Loadout, Target: c.candidate.Target, Costs: costs}, nil
+			return GearMethod{Kind: GearReplace, ID: id, Pawn: c.pawn.Pawn, Loadout: c.pawn.Loadout, Target: c.candidate.Target}, nil
 		}
 	}
 	if existing {
@@ -513,7 +507,7 @@ func produceGear(needs []gearNeed, v GearObservation, review GearReview, seen ma
 	if !known {
 		return GearMethod{Kind: GearUnknown}, nil
 	}
-	if err := validateGearProduction(benches, r); err != nil {
+	if err := validateGearProduction(benches); err != nil {
 		return GearMethod{}, err
 	}
 	benches = append([]GearBench(nil), benches...)
@@ -589,12 +583,8 @@ func produceGear(needs []gearNeed, v GearObservation, review GearReview, seen ma
 					return GearMethod{Kind: GearUnknown}, nil
 				}
 				slots = gearBatchIngredients(slots, count)
-				costs, filter, ok, unknown := gearIngredients(slots, n.need.Stuff, r)
-				if !ok && unknown {
-					return GearMethod{Kind: GearUnknown}, nil
-				}
-				if ok {
-					return GearMethod{Kind: GearProduce, Count: int32(count), ID: id, Pawn: n.pawn.Pawn, Loadout: n.pawn.Loadout, Need: n.need, Bench: b.ID, Recipe: recipe.Definition, Costs: costs, Filter: filter, RequiredWork: append([]WorkRequirement(nil), work...)}, nil
+				if filter, ok := gearFilter(slots, n.need.Stuff, r.StuffCategories); ok {
+					return GearMethod{Kind: GearProduce, Count: int32(count), ID: id, Pawn: n.pawn.Pawn, Loadout: n.pawn.Loadout, Need: n.need, Bench: b.ID, Recipe: recipe.Definition, Filter: filter, RequiredWork: append([]WorkRequirement(nil), work...)}, nil
 				}
 			}
 		}
@@ -602,20 +592,7 @@ func produceGear(needs []gearNeed, v GearObservation, review GearReview, seen ma
 	return GearMethod{Kind: GearBlocked}, nil
 }
 
-func validateGearProduction(benches []GearBench, r GearPlanningRequest) error {
-	stock := map[Resource]bool{}
-	for _, s := range r.Stock {
-		n, k := s.Available.Value()
-		if !validResource(s.Resource) || stock[s.Resource] || k && n < 0 {
-			return errors.New("invalid gear stock")
-		}
-		stock[s.Resource] = true
-	}
-	for _, h := range r.Holds {
-		if !validResource(h.Resource) || h.Count < 0 {
-			return errors.New("invalid gear resource hold")
-		}
-	}
+func validateGearProduction(benches []GearBench) error {
 	ids := map[string]bool{}
 	products := func(v []Resource) bool {
 		seen := map[Resource]bool{}
@@ -668,69 +645,63 @@ func validateGearProduction(benches []GearBench, r GearPlanningRequest) error {
 	return nil
 }
 
-func gearIngredients(slots [][]Amount, stuff Resource, r GearPlanningRequest) ([]Amount, []Resource, bool, bool) {
-	available, knownStock := gearAvailable(r.Stock, r.Holds)
-	used := map[Resource]int64{}
-	for _, slot := range slots {
-		hasStuff := false
+// gearValuables are the stuffs a bill never draws on unless the loadout
+// names them: the currency and the favor-sale gold.
+var gearValuables = map[Resource]bool{"Silver": true, FavorSaleResource: true}
+
+// gearFilter is the ingredient filter of a bill placed with nothing in stock
+// (#2373). A slot holding the loadout's stuff admits it and the stuffs
+// sharing a catalog category with it (never a valuable); any other slot
+// admits only its cheapest non-valuable alternative (fewest units, then
+// name), the member OpenBillDemand asks for. ok is false when a slot has no
+// admissible member, the loadout's stuff is in no slot, or the flat native
+// filter would let another slot's member stand in for a stuff-bearing slot.
+func gearFilter(slots [][]Amount, stuff Resource, categories map[Resource][]string) ([]Resource, bool) {
+	admitted := map[Resource]bool{}
+	members := make([]map[Resource]bool, len(slots))
+	stuffSlot := make([]bool, len(slots))
+	stuffed := false
+	for i, slot := range slots {
+		members[i] = map[Resource]bool{}
+		stuffSlot[i] = stuff != "" && slices.ContainsFunc(slot, func(a Amount) bool { return a.Resource == stuff })
+		stuffed = stuffed || stuffSlot[i]
+		var pick Amount
 		for _, a := range slot {
-			hasStuff = hasStuff || a.Resource == stuff
+			if stuffSlot[i] {
+				if a.Resource == stuff || !gearValuables[a.Resource] && slices.ContainsFunc(categories[stuff], func(c string) bool { return slices.Contains(categories[a.Resource], c) }) {
+					members[i][a.Resource] = true
+				}
+			} else if !gearValuables[a.Resource] && (pick.Resource == "" || a.Count < pick.Count || a.Count == pick.Count && a.Resource < pick.Resource) {
+				pick = a
+			}
 		}
-		options := append([]Amount(nil), slot...)
-		sort.Slice(options, func(i, j int) bool {
-			if options[i].Count != options[j].Count {
-				return options[i].Count < options[j].Count
-			}
-			return options[i].Resource < options[j].Resource
-		})
-		chosen := false
-		unknown := false
-		for _, a := range options {
-			if hasStuff && a.Resource != stuff {
-				continue
-			}
-			if !knownStock[a.Resource] {
-				unknown = true
-				continue
-			}
-			if available[a.Resource] < a.Count {
-				continue
-			}
-			available[a.Resource] -= a.Count
-			used[a.Resource] += a.Count
-			chosen = true
-			break
+		if pick.Resource != "" {
+			members[i][pick.Resource] = true
 		}
-		if !chosen {
-			return nil, nil, false, unknown
+		if len(members[i]) == 0 {
+			return nil, false
+		}
+		for r := range members[i] {
+			admitted[r] = true
 		}
 	}
-	if stuff != "" {
-		if used[stuff] == 0 {
-			return nil, nil, false, false
+	if stuff != "" && !stuffed {
+		return nil, false
+	}
+	for i, slot := range slots {
+		if !stuffSlot[i] {
+			continue
 		}
-		// The native bill filter is flat: another chosen ingredient must not also
-		// allow substituting a different material in a stuff-bearing slot.
-		for _, slot := range slots {
-			hasStuff := false
-			other := false
-			for _, a := range slot {
-				hasStuff = hasStuff || a.Resource == stuff
-				other = other || a.Resource != stuff && used[a.Resource] > 0
-			}
-			if hasStuff && other {
-				return nil, nil, false, false
+		for _, a := range slot {
+			if admitted[a.Resource] && !members[i][a.Resource] {
+				return nil, false
 			}
 		}
 	}
-	filter := []Resource{}
-	for resource := range used {
-		filter = append(filter, resource)
+	filter := make([]Resource, 0, len(admitted))
+	for r := range admitted {
+		filter = append(filter, r)
 	}
-	sort.Slice(filter, func(i, j int) bool { return filter[i] < filter[j] })
-	costs := []Amount{}
-	for _, resource := range filter {
-		costs = append(costs, Amount{resource, used[resource]})
-	}
-	return costs, filter, true, false
+	slices.Sort(filter)
+	return filter, true
 }

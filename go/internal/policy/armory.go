@@ -124,7 +124,7 @@ func SelectArmoryMethod(r GearPlanningRequest, weapons []Amount) (GearMethod, er
 	if err != nil {
 		return GearMethod{}, err
 	}
-	if err := validateGearProduction(nil, r); err != nil {
+	if err := validateGearProduction(nil); err != nil {
 		return GearMethod{}, err
 	}
 	v, _ := r.Observation.Value()
