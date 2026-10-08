@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
 
         // The equality probe's switch (test/gear_memo_equality): a read with
         // it set computes every fact afresh.
-        internal static bool Off;
+        internal static bool Off = false;
         private readonly CensusMemo? previous;
         private readonly Dictionary<(string, object?), object> values = new Dictionary<(string, object?), object>();
 
