@@ -281,6 +281,16 @@ and the threatened ActiveCombat review.
 
 ### Combat extensions
 
+**Combat drugs.** A threatened defender receives a dose order only for a combat
+drug in its observed carried inventory, with catalog preference breaking ties.
+The combat pawn row carries a complete drug definition set; absent inventory
+facts hold dosing and a present empty set orders no dose. Native rechecks carried
+stock and chemical safety when applying the order. The fight's `Dosed` memory
+limits each pawn to one attempted dose, including refused attempts; it does not
+assert ingestion. Unavailable inventory produces neither an order nor an attempt
+mark. Policy and runtime tests cover selection; `combatlab/drugs` covers the
+native inventory projection and `combatlab/combat_drug` covers ingestion.
+
 **Squad hunt.** A squad hunt is the `ActiveCombat` incident's hunt origin: while no
 hostile stands and the food plan opens a formation `Hunt` candidate (a group of three or
 more wild animals, or any animal a lone hunter must not designate, with three colonists

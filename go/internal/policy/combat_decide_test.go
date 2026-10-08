@@ -30,14 +30,14 @@ func holdView() CombatView {
 	s2, d2 := combatRaider("r2", domain.Cell{X: 10, Z: 4})
 	return CombatView{
 		Tick:       100,
-		Drug:       "GoJuice",
+		Drugs:      []string{"GoJuice"},
 		Defenders:  []SquadDefenderFacts{combatRifleman("a"), combatRifleman("b"), combatRifleman("c")},
 		Threats:    []SquadThreatFacts{s1, s2},
 		Positional: []DefensiveThreatFacts{d1, d2},
 		Layout:     domain.Known(CombatLayout{Firing: []domain.Cell{{X: 9, Z: 23}, {X: 8, Z: 23}, {X: 10, Z: 23}}, Toward: domain.North}),
 		Pawns: []CombatPawnState{
 			{ID: "a", Cell: domain.Known(domain.Cell{X: 1, Z: 30}), Stance: StanceIdle},
-			{ID: "b", Cell: domain.Known(domain.Cell{X: 2, Z: 30}), Stance: StanceIdle},
+			{ID: "b", Cell: domain.Known(domain.Cell{X: 2, Z: 30}), Stance: StanceIdle, CarriedDrugs: domain.Known([]string{"GoJuice"})},
 			{ID: "c", Cell: domain.Known(domain.Cell{X: 3, Z: 30}), Stance: StanceIdle},
 		},
 		Orderable: []domain.PawnID{"a", "b", "c"},

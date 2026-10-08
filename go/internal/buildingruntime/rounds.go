@@ -36,17 +36,17 @@ func (r *Rounder) itemFacts(ctx context.Context, snapshot domain.GenerationSnaps
 	return catalog.ItemFacts()
 }
 
-// combatDrug is the preferred combat drug of the load's catalog (#1540), ""
-// when it has none or the reviewer's source serves no definitions.
-func (r *Rounder) combatDrug(ctx context.Context, snapshot domain.GenerationSnapshot) (string, error) {
+// combatDrugs are the load's combat drugs in catalog preference order.
+func (r *Rounder) combatDrugs(ctx context.Context, snapshot domain.GenerationSnapshot) ([]string, error) {
 	items, err := r.itemFacts(ctx, snapshot)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	if drugs := items.CombatDrugs(); len(drugs) > 0 {
-		return string(drugs[0].Def), nil
+	var defs []string
+	for _, drug := range items.CombatDrugs() {
+		defs = append(defs, string(drug.Def))
 	}
-	return "", nil
+	return defs, nil
 }
 
 type Rounder struct {

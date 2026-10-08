@@ -189,12 +189,12 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoundsDefenseResult{}, err
 	}
-	drug, err := r.reviewer.combatDrug(call, state.Snapshot)
+	drug, err := r.reviewer.combatDrugs(call, state.Snapshot)
 	if err != nil {
 		return RoundsDefenseResult{}, err
 	}
 	view := combatView(combat, in, orderable, held)
-	view.Burn, view.Royalty, view.Drug = burn, r.reviewer.census.remembered(), drug
+	view.Burn, view.Royalty, view.Drugs = burn, r.reviewer.census.remembered(), drug
 	tick := view.Tick
 	stop := combatStop(combat, memory.Tick)
 	orders, ask, next := policy.DecideCombat(view, policy.GeometryReply{}, stop, memory)
@@ -240,7 +240,7 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 		recorded.Orderable = append(slices.Clone(orderable), drafts...)
 		slices.Sort(recorded.Orderable)
 		view = combatView(combat, in, recorded.Orderable, held)
-		view.Burn, view.Royalty, view.Drug = burn, r.reviewer.census.remembered(), drug
+		view.Burn, view.Royalty, view.Drugs = burn, r.reviewer.census.remembered(), drug
 		var more *policy.GeometryRequest
 		orders, more, next = policy.DecideCombat(view, recorded.Reply, stop, memory)
 		if more != nil && recorded.Ask == nil {

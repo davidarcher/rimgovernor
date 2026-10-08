@@ -296,6 +296,9 @@ type CombatPawnState struct {
 	// Enemy drugs (#1056): a go-juice high (fights on past the pain that
 	// would down it) and a luciferium addiction.
 	GoJuice, Luciferium bool
+	// CarriedDrugs is the complete observed inventory drug definition set.
+	// Unknown inventory cannot authorize a dose.
+	CarriedDrugs domain.Fact[[]string] `json:",omitzero"`
 	// Animal is a colony animal (mirror side colony_animal, #1058).
 	Animal bool `json:",omitempty"`
 	// Health summary (#1035): BloodLoss severity, the bleed rate per day
@@ -372,9 +375,9 @@ type CombatView struct {
 	// Royalty is the slow-refresh royalty read (#1608); unknown holds every
 	// permit call.
 	Royalty domain.Fact[RoyaltyFacts] `json:",omitzero"`
-	// Drug is the preferred combat drug (ItemFacts.CombatDrugs) from the
-	// catalog; empty when the game has none, which orders no dose.
-	Drug string `json:",omitempty"`
+	// Drugs are the catalog's combat drug definitions in preference order.
+	// Selection is restricted to each pawn's observed carried inventory.
+	Drugs []string `json:",omitempty"`
 }
 
 // CombatStopKind is the #849 event that stopped the clock, lower-cased
@@ -543,7 +546,7 @@ type CombatOrder struct {
 	// A psycast_cast order (#1611) names the psycast in Permit and the arm
 	// it takes in Arm: self (no target), pawn (Target) or cell (Cell).
 	Arm PsycastTarget `json:",omitempty"`
-	// Drug is a drug order's drug def, the preferred combat drug (CombatView.Drug);
+	// Drug is a drug order's carried drug def, selected from CombatView.Drugs;
 	// native validates it and the pawn carrying it.
 	Drug string `json:",omitempty"`
 }
@@ -640,7 +643,8 @@ type CombatMemory struct {
 	// NoShells are the shells native refused a mortar order for (#1051):
 	// none in reach, or not a shell the mortar takes.
 	NoShells []string `json:",omitempty"`
-	// Dosed are the defenders given a combat drug order this fight (#1311).
+	// Dosed are defenders whose combat drug order was attempted this fight,
+	// including native refusals; it limits attempts, not observed ingestion.
 	Dosed []domain.PawnID `json:",omitempty"`
 	// Permitted are the permits called this fight, "pawn/faction/permit"
 	// (#1608): the royalty read is slow, so a call is not repeated.

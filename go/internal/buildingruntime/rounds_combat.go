@@ -103,7 +103,7 @@ func (r *RoundsDefensePlanner) admitFight(call, epoch context.Context, incident 
 	// same decision with them orderable. An ask (a rescue path) waits for
 	// the next stop; the batch then only drafts.
 	view := combatView(a.combat, a.in, drafts, a.held)
-	if view.Drug, err = r.reviewer.combatDrug(call, state.Snapshot); err != nil {
+	if view.Drugs, err = r.reviewer.combatDrugs(call, state.Snapshot); err != nil {
 		return RoundsDefenseResult{}, err
 	}
 	orders, ask, next := policy.DecideCombat(view, a.reply, policy.StopEvent{}, memory)
@@ -511,6 +511,9 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState, weapon
 				Job: row.GetJob(), TargetMortar: row.GetTargetMortar(), ShieldBelt: row.GetShieldBelt(), MedicalSkill: int(row.GetMedicalSkill()), MoveSpeed: row.GetMoveSpeed(), StunTicks: int(row.GetStunTicksLeft()),
 				GoJuice: row.GetGoJuiceHigh(), Luciferium: row.GetLuciferiumAddicted(),
 				Animal: row.GetSide() == mp.CombatSide_COMBAT_SIDE_COLONY_ANIMAL}
+			if drugs := row.GetCarriedDrugs(); drugs != nil {
+				s.CarriedDrugs = domain.Known(slices.Clone(drugs.GetDefs()))
+			}
 			if cell := row.GetCell(); cell != nil && cell.X != nil && cell.Z != nil {
 				s.Cell = domain.Known(domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 			}

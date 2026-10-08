@@ -77,7 +77,13 @@ message CombatPawn {
   // The job target is a mortar, or a frame that will build one (#1148):
   // a turret whose verb fires mortar shells.
   optional bool target_mortar = 34;
+  // Present after a complete inventory scan; absent means unknown.
+  CarriedDrugs carried_drugs = 35;
 }
+
+// Distinct drug ThingDefs with positive stack counts in this pawn's inventory.
+// A present empty message establishes that the pawn carries no drugs.
+message CarriedDrugs { repeated string defs = 1; }
 
 // A damaged player door (BundleSnapshot.combat_doors, #900): hit points
 // below max.

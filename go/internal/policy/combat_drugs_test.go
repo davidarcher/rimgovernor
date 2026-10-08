@@ -7,9 +7,9 @@ import (
 )
 
 func doseView(hostiles int, hostile CombatPawnState) (CombatView, map[domain.PawnID]bool, map[domain.PawnID]CombatPawnState) {
-	defender := CombatPawnState{ID: "d1", Cell: domain.Known(domain.Cell{X: 0, Z: 0}), WeaponRange: 25}
+	defender := CombatPawnState{ID: "d1", Cell: domain.Known(domain.Cell{X: 0, Z: 0}), WeaponRange: 25, CarriedDrugs: domain.Known([]string{"GoJuice"})}
 	view := CombatView{
-		Drug:      "GoJuice",
+		Drugs:     []string{"GoJuice"},
 		Pawns:     []CombatPawnState{defender},
 		Defenders: []SquadDefenderFacts{squadDefender("d1", true)},
 		Orderable: []domain.PawnID{"d1"},
@@ -77,5 +77,43 @@ func TestDoseOrdersSkipsHighAndDowned(t *testing.T) {
 		if got := doseOrders(view, &m, nil, orderable, state); len(got) != 0 {
 			t.Fatalf("dosed %+v: %v", d, got)
 		}
+	}
+}
+
+func TestDoseOrdersRequireCarriedDrug(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		carried domain.Fact[[]string]
+		want    string
+	}{
+		{"unknown inventory", domain.Unknown[[]string](), ""},
+		{"empty inventory", domain.Known([]string{}), ""},
+		{"noncombat drug", domain.Known([]string{"Beer"}), ""},
+		{"different carried combat drug", domain.Known([]string{"GoJuice"}), "GoJuice"},
+		{"catalog preference among carried drugs", domain.Known([]string{"GoJuice", "Yayo"}), "Yayo"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			view, orderable, state := doseView(2, CombatPawnState{Cell: domain.Known(domain.Cell{X: 5, Z: 0})})
+			view.Drugs = []string{"Yayo", "GoJuice"}
+			d := state["d1"]
+			d.CarriedDrugs = tc.carried
+			state["d1"] = d
+			var memory CombatMemory
+			got := doseOrders(view, &memory, nil, orderable, state)
+			if tc.want == "" {
+				if len(got) != 0 || len(memory.Dosed) != 0 {
+					t.Fatalf("unavailable drug produced orders %v or attempt marks %v", got, memory.Dosed)
+				}
+				// A later observation of a carried drug may still authorize a dose.
+				d.CarriedDrugs = domain.Known([]string{"GoJuice"})
+				state["d1"] = d
+				got = doseOrders(view, &memory, nil, orderable, state)
+				if len(got) != 1 || got[0].Drug != "GoJuice" {
+					t.Fatalf("later available dose = %v", got)
+				}
+			} else if len(got) != 1 || got[0].Drug != tc.want {
+				t.Fatalf("dose = %v, want %s", got, tc.want)
+			}
+		})
 	}
 }

@@ -303,6 +303,15 @@ namespace HomeBridge.BridgeTools
             // Enemy drugs (#1056).
             row.GoJuiceHigh = HasHediff(pawn, "GoJuiceHigh");
             row.LuciferiumAddicted = HasHediff(pawn, "LuciferiumAddiction");
+            if (side == Mirror.CombatSide.Colonist)
+            {
+                var drugs = new Mirror.CarriedDrugs();
+                if (pawn.inventory != null)
+                    drugs.Defs.Add(pawn.inventory.innerContainer
+                        .Where(t => t.stackCount > 0 && t.def.GetCompProperties<CompProperties_Drug>() != null)
+                        .Select(t => t.def.defName).Distinct().OrderBy(name => name, StringComparer.Ordinal));
+                row.CarriedDrugs = drugs;
+            }
             var shield = pawn.apparel?.WornApparel.Select(a => a.GetComp<CompShield>()).FirstOrDefault(c => c != null);
             if (shield != null)
             {
