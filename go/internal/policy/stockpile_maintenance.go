@@ -12,8 +12,8 @@ import (
 // (#725, DeclareStores): a zone is created once at its store's size, a zone
 // whose role's desired filter or priority changed is patched, a zone whose
 // role's purpose is gone is deleted, and a store no zone serves is created
-// (#724, #917). A zone is never grown, shrunk or
-// merged: its empty cells are its headroom. It acts on the zones the colony
+// (#724, #917). Whole-footprint stores grow over cleared ground and consolidate
+// compatible owned fragments. It acts on the zones the colony
 // created (store.OwnedZone), role-keyed; a role-less legacy claim stands as
 // created. It is a Standard whose target is no outstanding work: no zone edit
 // due (#1024).
@@ -60,6 +60,7 @@ type StockpileEditKind string
 const (
 	StockpileDelete   StockpileEditKind = "delete"
 	StockpileRetarget StockpileEditKind = "retarget"
+	StockpileGrow     StockpileEditKind = "grow"
 )
 
 // StockpileEdit creates a rectangle or edits one standing zone. Native
@@ -72,13 +73,19 @@ type StockpileEdit struct {
 	// delete of a moved zone; empty once the site is served.
 	After       string `json:",omitempty"`
 	Rectangle   Rectangle
+	AddedCells  []domain.Cell `json:",omitempty"`
 	Filter      domain.StockpileFilter
 	Priority    domain.StockpilePriority
 	Explanation string
 }
 
 // Cells is the requested rectangle, not the resolved native footprint.
-func (e StockpileEdit) Cells() []domain.Cell { return rectCells(e.Rectangle) }
+func (e StockpileEdit) Cells() []domain.Cell {
+	if e.Kind == StockpileGrow {
+		return append([]domain.Cell(nil), e.AddedCells...)
+	}
+	return rectCells(e.Rectangle)
+}
 
 // StockpileRequest is the review's input.
 type StockpileRequest struct {
@@ -251,7 +258,7 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 	for _, e := range stockpileShelfEdits(r.Stores, zones, r.Shelves) {
 		take(e, true)
 	}
-	rank := map[StockpileEditKind]int{StockpileDelete: 0, StockpileRetarget: 1, StockpileShelfPatch: 1, StockpileCreate: 2}
+	rank := map[StockpileEditKind]int{StockpileDelete: 0, StockpileRetarget: 1, StockpileShelfPatch: 1, StockpileGrow: 1, StockpileCreate: 2}
 	// A moved zone's delete follows its replacement's create.
 	order := func(e StockpileEdit) int {
 		if e.After != "" {

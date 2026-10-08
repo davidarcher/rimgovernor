@@ -182,9 +182,8 @@ func TestWarehouseIsOneZoneOverItsWholeRoom(t *testing.T) {
 	}
 }
 
-// A zone over its room is never grown, shrunk or merged; it is only
-// retargeted when its settings drift.
-func TestWarehouseIsNeverResized(t *testing.T) {
+// A full warehouse stays stable; a partial zone fills cleared room cells.
+func TestWarehouseFillsClearedRoom(t *testing.T) {
 	t.Parallel()
 	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
 	for _, stored := range []int{0, 4, 9} {
@@ -193,11 +192,11 @@ func TestWarehouseIsNeverResized(t *testing.T) {
 			t.Fatalf("%d stored: %+v", stored, edits)
 		}
 	}
-	// A smaller standing zone is left as it is: no growth onto the room.
+	// A smaller standing zone grows onto the remaining room cells.
 	small := warehouseZone("a", domain.GeneralRole, first, 4)
 	small.Cells, small.Stored = small.Cells[:4], small.Stored[:4]
-	if edits := PlanStockpileMaintenance(stockpileOf(storeRequest(1, 1, small))).Edits; len(edits) != 0 {
-		t.Fatalf("resized: %+v", edits)
+	if edits := PlanStockpileMaintenance(stockpileOf(storeRequest(1, 1, small))).Edits; len(edits) != 1 || edits[0].Kind != StockpileGrow || edits[0].Zone != "a" || len(edits[0].Cells()) != 5 {
+		t.Fatalf("growth: %+v", edits)
 	}
 }
 

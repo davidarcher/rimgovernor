@@ -72,6 +72,7 @@ func TestStockpileEditActionsCarryTheZoneToken(t *testing.T) {
 		{policy.StockpileEdit{Kind: policy.StockpileRetarget, Zone: "Zone_1", Filter: domain.FoodFilter(), Priority: domain.ImportantPriority, Role: "kitchen"}, domain.StockpilePatchAction},
 		{policy.StockpileEdit{Kind: policy.StockpileShelfPatch, Zone: "Shelf_1", Filter: domain.FoodFilter(), Priority: domain.ImportantPriority, Role: "kitchen"}, domain.StockpilePatchAction},
 		{policy.StockpileEdit{Kind: policy.StockpileDelete, Zone: "Zone_1"}, domain.ZoneDeleteAction},
+		{policy.StockpileEdit{Kind: policy.StockpileGrow, Zone: "Zone_1", AddedCells: []domain.Cell{{X: 2, Z: 3}}}, domain.ZoneCellEditAction},
 	} {
 		a, err := stockpileEditAction("a-0", tc.edit)
 		if err != nil || a.Kind() != tc.kind {
@@ -83,6 +84,9 @@ func TestStockpileEditActionsCarryTheZoneToken(t *testing.T) {
 		}
 		if p, ok := a.StockpilePatch(); ok && (p.Role() != "kitchen" || p.TargetKind() != want || p.Target() != tc.edit.Zone) {
 			t.Fatalf("patch %+v", p)
+		}
+		if edit, ok := a.ZoneCellEdit(); ok && (edit.Zone() != tc.edit.Zone || edit.Mode() != domain.AddZoneCells || len(edit.Cells()) != 1) {
+			t.Fatalf("zone growth %+v", edit)
 		}
 	}
 }

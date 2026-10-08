@@ -6,7 +6,7 @@ Each department owns its stockpiles. A Department that holds stock is a
 `policy.StoreOwner` (registered in `storeOwners`): it declares its `Stores` (a
 `policy.Store`: role, planned room or rectangle, filter, priority, the room it
 asks for when full) and its `RoomDemand` from capacity. `MaintainStockpiles` is
-the one applier, through the ordinary zone create, patch and delete actions; the
+the one applier, through the ordinary zone create, cell-edit, patch and delete actions; the
 standing zones are the only record (see
 [persistence contracts](../contracts/persistence-contracts.md)). Rooms stay
 layout's job. The stores are declared per department: Storage (warehouse, yard),
@@ -16,26 +16,31 @@ animal feed store belongs to Husbandry.
 
 A store is a rectangle placement over its planned room, created once the room's
 interior is open ground (at plan time on open ground; when the last cell clears
-for a dug or partly rocky room, which layout excavates first) and sized once.
-It is never grown, shrunk or merged, never given a stand-in, and deleted only
-when its purpose is gone (a bench demolished, a room retired), create before
-delete on a move. Headroom is another room: see below.
+for a dug or partly rocky room, which layout excavates first). Whole-footprint
+stores expand over reachable cleared cells within their declared site. Compatible
+owned fragments consolidate into the first native zone by ID once they connect:
+growth settles before adjacent fragments are deleted, then their freed cells are
+added on the next review. Blockers, unknown cells, policy exclusions and unrelated
+zones stay untouched. Fixed-size stores retain their requested size. A store is
+never given a stand-in; a move creates its replacement before deleting the old
+zone. Headroom beyond the declared footprint needs another room: see below.
 
 Native filters each rectangle with vanilla stockpile zoneability and passable
 terrain, then creates a zone for every cardinally connected component. Items
 already on the ground do not prevent placement. Existing zones are skipped;
 creating a store never adopts or changes player zones. Each created component
 gets the requested filter and priority, and its receipt carries its native ID
-and actual cells into the Concern's ownership claims. Standing zones keep their
-size. Planned exclusions are covered by separate rectangle drags.
+and actual cells into the Concern's ownership claims. Growth keeps the survivor's
+native ID, filter, priority and ownership. Planned exclusions are covered by
+separate rectangle drags and excluded from growth.
 
 ## The stores
 
 
 | Store | Role | Where | Priority | Holds |
 | --- | --- | --- | --- | --- |
-| Warehouse | `general` | One zone over the whole interior of each planned storage room (15x7): from plan time on open ground, once the interior is open for a dug or partly rocky room; sized once | Low | The `indoor_only` preset plus Buildings, less the burnable special |
-| Materials yard | `yard` | One zone over the whole interior of each planned yard, an Outdoor room (13x9 interior, fence and gate) beside the core inside its ring (`ReserveYard`, planned from the start; MaintainStockpiles raises the fence ring and gate as a `shell` edit, no floor); sized once | Low | The `outdoor_safe` preset: items that neither spoil nor deteriorate outdoors, derived from the native item catalog, never a list in Go |
+| Warehouse | `general` | One zone over the whole interior of each planned storage room (15x7): from plan time on open ground, once the interior is open for a dug or partly rocky room | Low | The `indoor_only` preset plus Buildings, less the burnable special |
+| Materials yard | `yard` | One zone over the whole interior of each planned yard, an Outdoor room (13x9 interior, fence and gate) beside the core inside its ring (`ReserveYard`, planned from the start; MaintainStockpiles raises the fence ring and gate as a `shell` edit, no floor) | Low | The `outdoor_safe` preset: items that neither spoil nor deteriorate outdoors, derived from the native item catalog, never a list in Go |
 | Workstation stockpiles | `ingredients:*` | A free roofed 2x2 patch in the bench's room nearest the bench, one per bench with an active bill (the kitchen and butcher excepted) | Important | That bench's recipe ingredients (`policy.DeriveBenchInputs`); a stonecutter's is its stone chunks |
 | Meal store | `meals:*` | The planned meal closet whole, a 2x2 in the freezer at its dining door, or one cell beside the dining table off the chairs (the one store sited from a built fact, the table); each from plan time | Critical | Prepared meals |
 | Freezer shelves | `rawmeat:*`, `rawveg:*`, `corpses:*`, `perishables:*` | Three 2x2 shelves in the planned freezer (raw meat and raw vegetables nearest the kitchen door, carcasses by the butchery door) and the perishables cover over the rest, all declared by the Food department from plan time on open ground (a rock or unseen interior defers the create; no room census) | Critical, perishables Preferred | Raw meat, raw vegetables, the corpse larder, the perishables catch-all |
@@ -48,7 +53,7 @@ Low priority on the warehouse and yard is deliberate: the higher-priority
 workstation and medicine stockpiles draw their items first, and
 hauling (which RimWorld owns) moves the rest to the warehouse or yard.
 
-The one waste dump is a declared store sized once over the yard, so waste
+The one waste dump is a declared store over the yard, so waste
 hauls to it from anywhere and the incinerator zone (Preferred) draws the
 burnable part off it. Fresh animal corpses use the freezer shelf and the
 butchery; there is no dump role for them. Zones of the retired `dump:*` roles

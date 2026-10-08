@@ -220,20 +220,23 @@ and the entry drops once nothing of ours stands on it.
 `MaintainStockpiles` (family `stockpiles`) applies the stores the departments declare
 (`policy.DeclareStores`; see [storage](../architecture/storage.md)) against the colony's
 own zones (`store.OwnedZone`, role-keyed) every review cycle, at any tier. A store is one
-zone over its whole planned room, created once and sized once; the edits are:
+zone over its declared site; the edits are:
 
 | Edit | Rule |
 | --- | --- |
 | create | a declared store has no zone and its room interior is open ground; admitted alone, once no other edit stands |
 | patch | the store's desired filter or priority differs from the last applied (`store.StockpilePatches`) |
+| grow | a whole-footprint store has reachable cleared cells within its site; add them to the first owned zone by native ID |
 | delete | the department declares the store `Retired` (its purpose is gone); a moved store's new zone is admitted first |
+| consolidate | after growth settles, delete compatible adjacent owned fragments; add their freed cells to the survivor next review |
 
-A zone is never grown, shrunk or merged: its empty cells are its headroom, and a
-store whose zones are 85% used asks layout for a further room. A role-less legacy claim
+Geometry maintenance preserves blockers, unknown ground, exclusions, unrelated
+zones and separate store sites. Fixed-size stores retain their requested size.
+A store whose zones are 85% used asks layout for a further room. A role-less legacy claim
 stands as created. A source answers nothing while the fact it judges by is unknown.
 
 `RoundsStockpilePlanner` commits the edits as one plan per cycle, each action under
-its target's fresh CAS token: `stockpile_patch` (zone or shelf) or `zone_delete`; a
+its target's fresh CAS token: `stockpile_patch` (zone or shelf), `zone_cell_edit` or `zone_delete`; a
 create is a native zone preview and a `zone_create` method. Each is a
 `layout`/`stockpiles` clock event.
 

@@ -24,9 +24,8 @@ func (g reservedGround) Claim(cells []domain.Cell) {
 // or a clean rectangle inside that room. The interior rectangle is the site's
 // identity: a zone is matched to it by where it stands and by its role's
 // prefix, never by a key carrying the census room ID that RimWorld renumbers.
-// A zone is sized once at creation; moving or resizing a store is a create at
-// the new site and a delete of the old zone (create before delete), never a
-// patch of its geometry.
+// Whole-footprint stores expand and consolidate their owned fragments as ground
+// clears. Moving a store creates its replacement before deleting the old zone.
 type StoreSite struct {
 	// Role is the zone's role; only its prefix (before ':') identifies it.
 	Role string

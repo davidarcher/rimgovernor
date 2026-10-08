@@ -130,6 +130,12 @@ func (z stockpileZones) editTargetPresent(ctx context.Context, identity *c.Ident
 // stockpileEditAction is one edit's action.
 func stockpileEditAction(id domain.ActionID, e policy.StockpileEdit) (domain.Action, error) {
 	switch e.Kind {
+	case policy.StockpileGrow:
+		edit, err := domain.NewZoneCellEdit(e.Zone, domain.AddZoneCells, e.AddedCells)
+		if err != nil {
+			return domain.Action{}, err
+		}
+		return domain.NewZoneCellEditAction(id, edit)
 	case policy.StockpileRetarget:
 		patch, err := domain.NewStockpilePatch(domain.StorageZoneTarget, e.Zone, e.Filter, e.Priority, e.Role)
 		if err != nil {

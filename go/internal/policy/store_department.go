@@ -8,12 +8,12 @@ import (
 // declares its Stores and publishes its RoomDemand, and MaintainStockpiles
 // applies every declaration in one pass. A department that owns no store stays
 // a grouping tag. A store is declared here once, and the one definition serves create,
-// retarget and retire.
+// retarget, geometry maintenance and retirement.
 
 // Store is one declared stockpile: its site (role, planned room or clean
 // rectangle inside it, filter, priority) and what the department does when it
-// is full or gone. It is sized once; the pass never grows, shrinks or merges
-// its zone.
+// is full or gone. Whole-footprint stores fill cleared site ground; fixed-size
+// stores keep their requested rectangle.
 type Store struct {
 	StoreSite
 	// Further is the planned room the department asks layout for when the
@@ -176,8 +176,8 @@ func DeclaredDemand(view StoreView, stores []Store) RoomDemand {
 // a zone outside every live site of its role is deleted once the replacement
 // stands (create before delete), a zone of a retired role is deleted, one
 // whose filter or priority differs is retargeted, and a store no zone serves
-// gets its zone created. Zones of declared stores are returned in touched so
-// the pass never grows, shrinks or merges them.
+// gets its zone created. Whole-footprint stores expand and consolidate as
+// their ground clears. Zones handled here are returned in touched.
 func declaredStoreEdits(zones []StockpileZone, stores []Store, open stockpileOpen) (edits []StockpileEdit, touched map[string]bool) {
 	touched = map[string]bool{}
 	var live []StoreSite
@@ -204,6 +204,7 @@ func declaredStoreEdits(zones []StockpileZone, stores []Store, open stockpileOpe
 			}
 		}
 	}
+	edits = append(edits, storeGeometryEdits(zones, live, open, edits)...)
 	edits = append(edits, storeSiteEdits(zones, live, open)...)
 	return edits, touched
 }
