@@ -113,6 +113,13 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 			return RoundsBillResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
+	if r.purpose == policy.ArtBill || r.purpose == policy.SurgeryPartBill {
+		// A sculpture or part bill whose need is gone (the owner stayed Met)
+		// is removed first (#2411).
+		if plan, err := r.reviewer.removeStaleBill(call, epoch, arbiter, state, goal, r.need); err != nil || plan != "" {
+			return RoundsBillResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
+		}
+	}
 	plans, err := p.journal.LoadPlans(call)
 	if err != nil {
 		return RoundsBillResult{}, err

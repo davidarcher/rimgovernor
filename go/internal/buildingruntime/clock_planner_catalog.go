@@ -320,7 +320,7 @@ var plannerCatalog = []plannerEntry{
 			out.CookAheadBills = &method
 			return method.Verdict, nil
 		}},
-	{name: "artBills", concern: policy.MaintainArt, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsBills,
+	{name: "artBills", concern: policy.MaintainArt, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.RemoveProductionBillAction}, sections: sectionsBills,
 		configured: func(c *ClockSchedulerConfig) bool { return c.ArtBills != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.ArtBills.step(ctx, epoch, arbiter)
@@ -340,7 +340,7 @@ var plannerCatalog = []plannerEntry{
 			out.BabyFoodBills = &method
 			return method.Verdict, nil
 		}},
-	{name: "surgeryPartBills", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsBills,
+	{name: "surgeryPartBills", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.RemoveProductionBillAction}, sections: sectionsBills,
 		configured: func(c *ClockSchedulerConfig) bool { return c.SurgeryPartBills != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.SurgeryPartBills.step(ctx, epoch, arbiter)
@@ -570,7 +570,7 @@ var plannerCatalog = []plannerEntry{
 			out.Blight = &method
 			return method.Verdict, nil
 		}},
-	{name: "armory", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.BuildingAction}, sections: sectionsArmory,
+	{name: "armory", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.RemoveProductionBillAction, domain.BuildingAction}, sections: sectionsArmory,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Armory != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Armory.step(ctx, epoch, arbiter)
@@ -610,7 +610,7 @@ var plannerCatalog = []plannerEntry{
 			out.MoodRelief = &method
 			return method.Verdict, nil
 		}},
-	{name: "gear", concern: policy.MaintainEquipment, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.GearReplaceAction, domain.ApparelPolicyAction, domain.ProductionBillAction, domain.PolicyPruneAction}, sections: sectionsMedical,
+	{name: "gear", concern: policy.MaintainEquipment, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.GearReplaceAction, domain.ApparelPolicyAction, domain.ProductionBillAction, domain.RemoveProductionBillAction, domain.PolicyPruneAction}, sections: sectionsMedical,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Gear != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Gear.step(ctx, epoch, arbiter)

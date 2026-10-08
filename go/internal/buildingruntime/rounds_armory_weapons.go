@@ -59,6 +59,12 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 			}
 		}
 	}
+	if workable {
+		// A bill whose need is gone (the owner stayed Met) is removed first (#2411).
+		if plan, err := r.reviewer.removeStaleBill(call, epoch, arbiter, state, goal, policy.MaintainEquipment); err != nil || plan != "" {
+			return RoundsArmoryResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
+		}
+	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, true)

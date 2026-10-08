@@ -83,3 +83,33 @@ func (b OpenBill) picks() []Amount {
 	}
 	return out
 }
+
+// StaleBillReviews is how many consecutive reviews a finite bill's owner
+// must stay Met before the bill is stale (#2411); a restart restarts the count.
+const StaleBillReviews = 4
+
+// StaleBill is a finite (gear_batch) bill still on its bench whose journaled
+// owner placed it: the id RemoveProductionBill names.
+type StaleBill struct {
+	Owner     ConcernID
+	Bench, ID string
+}
+
+// StaleBillOwner reports whether id's planners remove stale bills. Excluded:
+// MaintainMechs (a gestation is a Bill_Mech the native handler does not
+// remove, and MechGestationOwed counts the placed gestation bill as covering
+// the need, so removal would loop) and EnsureFoodSupply (its hunter-weapon
+// bills; filing it Unmet would start the food machinery).
+func StaleBillOwner(id ConcernID) bool {
+	return id == MaintainEquipment || id == MaintainArt || id == MaintainSurgery
+}
+
+// HasStaleBill reports whether any of bills belongs to owner.
+func HasStaleBill(bills []StaleBill, owner ConcernID) bool {
+	for _, b := range bills {
+		if b.Owner == owner {
+			return true
+		}
+	}
+	return false
+}

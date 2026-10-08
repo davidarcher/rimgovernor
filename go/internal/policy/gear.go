@@ -319,6 +319,9 @@ type GearBill struct {
 	// Worker is the pinned pawn, known "" when unrestricted (#1190).
 	Worker   domain.Fact[string]
 	Products []Resource
+	// Finite is whether the bill repeats a count (neither Forever nor a
+	// stock target), the only bills a stale-bill removal may name (#2411).
+	Finite domain.Fact[bool]
 }
 type GearRecipe struct {
 	Definition string
