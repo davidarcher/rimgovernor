@@ -3,6 +3,8 @@ package bridge
 import (
 	"context"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -13,9 +15,10 @@ import (
 // trader kind and faction, whether native reports it tradeable now
 // (CanTradeNow, not dismissed and no longer walking in), whether its
 // caravan is still travelling to its trade spot, and the cell it stands on
-// (native walks the negotiator to it on open). Orbital ships
-// are never listed; direct orbital opening is unsupported.
+// (native walks the negotiator to it on open). Orbital ships share the census;
+// their participant selects a comms job instead of a pawn walk.
 type TraderRead struct {
+	Participant domain.TradeParticipant
 	ID          string
 	Token       string
 	Kind        string
@@ -109,9 +112,6 @@ func decodeTraders(snapshot *o.TradersSnapshot, identity *c.Identity) (TradersRe
 		if !diagnostic(row.Kind) || !optionalRef(row.Faction) || !diagnostic(row.Reason) || row.CanTrade == nil || row.Travelling == nil {
 			return TradersRead{}, contract("invalid trader row text")
 		}
-		if row.GetOrbital() {
-			return TradersRead{}, contract("orbital trader listed")
-		}
 		cell := row.Trader.Position
 		if cell == nil || cell.X == nil || cell.Z == nil || cell.GetX() < 0 || cell.GetZ() < 0 {
 			return TradersRead{}, contract("trader position missing")
@@ -120,7 +120,11 @@ func decodeTraders(snapshot *o.TradersSnapshot, identity *c.Identity) (TradersRe
 			return TradersRead{}, contract("duplicate trader")
 		}
 		seen[row.Trader.GetId()] = true
-		out.Traders = append(out.Traders, TraderRead{ID: row.Trader.GetId(), Token: row.GetTraderSnapshot().GetToken(), Kind: row.GetKind(), Faction: row.GetFaction().GetId(), CanTrade: row.GetCanTrade(), Travelling: row.GetTravelling(), Reason: row.GetReason(), GoodsStacks: row.GetGoodsStacks(), X: cell.GetX(), Z: cell.GetZ()})
+		participant := domain.TradeParticipant{Kind: domain.TradeParticipantMap, ID: row.Trader.GetId()}
+		if row.GetOrbital() {
+			participant.Kind = domain.TradeParticipantOrbital
+		}
+		out.Traders = append(out.Traders, TraderRead{Participant: participant, ID: participant.Key(), Token: row.GetTraderSnapshot().GetToken(), Kind: row.GetKind(), Faction: row.GetFaction().GetId(), CanTrade: row.GetCanTrade(), Travelling: row.GetTravelling(), Reason: row.GetReason(), GoodsStacks: row.GetGoodsStacks(), X: cell.GetX(), Z: cell.GetZ()})
 	}
 	for _, row := range snapshot.Negotiators {
 		if row == nil || validID(row.GetId()) != nil {

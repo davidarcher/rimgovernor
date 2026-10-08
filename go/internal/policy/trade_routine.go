@@ -41,6 +41,7 @@ const (
 // negotiator has no fresh record of: the always-browse phase opens a session
 // to read it (the Rounder sets it from its offer book).
 type TraderFacts struct {
+	Participant          domain.TradeParticipant
 	ID, Kind, Faction    string
 	CanTrade, Travelling bool
 	Unpriced             bool

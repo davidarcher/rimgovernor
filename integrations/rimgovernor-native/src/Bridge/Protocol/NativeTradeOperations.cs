@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using HarmonyLib;
 using RimWorld;
+using RimWorld.Planet;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
@@ -61,7 +62,7 @@ namespace HomeBridge.BridgeTools
         internal bool Live() { try { return Owns(Negotiator.CurJob) || Negotiator.jobs != null && Negotiator.jobs.jobQueue.Any(q => Owns(q.job)); } catch { return false; } }
     }
 
-    internal static class NativeTradeOperations
+    internal static partial class NativeTradeOperations
     {
         // ---------------------------------------------------- session state
         private static string? _sessionId;
@@ -69,7 +70,7 @@ namespace HomeBridge.BridgeTools
         private static string? _sessionLoadToken;
         private static Map? _sessionMap;
         private static TradeDeal? _sessionDeal;
-        private static Pawn? _sessionTrader;
+        private static ITrader? _sessionTrader;
         private static Pawn? _sessionNegotiator;
         private static bool _giftMode;
         // The one OpenTrade still walking its negotiator to the trader; a
@@ -195,9 +196,9 @@ namespace HomeBridge.BridgeTools
         internal readonly struct OpenSession
         {
             internal readonly string SessionId, DealSignature;
-            internal readonly TradeDeal Deal; internal readonly Pawn Trader, Negotiator; internal readonly bool GiftMode;
-            internal OpenSession(string id, string signature, TradeDeal deal, Pawn trader, Pawn negotiator, bool gift)
-            { SessionId = id; DealSignature = signature; Deal = deal; Trader = trader; Negotiator = negotiator; GiftMode = gift; }
+            internal readonly TradeDeal Deal; internal readonly ITrader Trader; internal readonly Pawn Negotiator; internal readonly Common.TradeTarget Target; internal readonly bool GiftMode;
+            internal OpenSession(string id, string signature, TradeDeal deal, ITrader trader, Pawn negotiator, bool gift)
+            { SessionId = id; DealSignature = signature; Deal = deal; Trader = trader; Negotiator = negotiator; GiftMode = gift; Target = _sessionTarget!.Clone(); }
         }
 
         // SessionSheet is the read-side counterpart of RequireSession: the
@@ -207,6 +208,8 @@ namespace HomeBridge.BridgeTools
         {
             session = default;
             if (!RequireSession(identity, out failure)) return false;
+            RefreshPrices(_sessionDeal!);
+            SafeUpdateCurrency(_sessionDeal!);
             session = new OpenSession(_sessionId!, DealSignature(), _sessionDeal!, _sessionTrader!, _sessionNegotiator!, _giftMode);
             return true;
         }
@@ -215,7 +218,7 @@ namespace HomeBridge.BridgeTools
         private static bool RequireParticipants(string traderId, string negotiatorId, Common.Identity identity, out Common.Failure failure)
         {
             if (!RequireSession(identity, out failure)) return false;
-            if (string.IsNullOrEmpty(traderId) || string.IsNullOrEmpty(negotiatorId) || traderId != SafeString(_sessionTrader) || negotiatorId != SafeString(_sessionNegotiator))
+            if (string.IsNullOrEmpty(traderId) || string.IsNullOrEmpty(negotiatorId) || traderId != SessionTargetKey() || negotiatorId != SafeString(_sessionNegotiator))
             { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "The open trade session is held by a different trader or negotiator."); return false; }
             return true;
         }
@@ -229,29 +232,24 @@ namespace HomeBridge.BridgeTools
         private static bool RequireSession(Common.Identity identity, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No native trade session is open for this identity.");
-            if (_sessionId == null || _sessionColonyId != identity.ColonyId || _sessionLoadToken != identity.LoadToken) return false;
+            if (_sessionId == null || _sessionColonyId != identity.ColonyId || _sessionLoadToken != identity.LoadToken || _sessionMap?.uniqueID != identity.MapId) return false;
             if (!TradeSession.Active || TradeSession.deal == null || !ReferenceEquals(TradeSession.deal, _sessionDeal)
                 || !ReferenceEquals(TradeSession.trader, _sessionTrader) || !ReferenceEquals(TradeSession.playerNegotiator, _sessionNegotiator)
                 || !ProtoBoundary.IsLoaded(_sessionMap))
             { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Trade session, map or load changed; do not reuse a stale session."); return false; }
-            var trader = _sessionTrader!; var negotiator = _sessionNegotiator!;
-            if (!trader.Spawned || trader.Map != _sessionMap || !SafeCanTradeNow(trader)
-                || SafeBool(() => trader.mindState != null && trader.mindState.traderDismissed)
-                || !negotiator.CanTradeWith(trader.Faction, trader.TraderKind).Accepted)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Trader or negotiator departed or became unavailable."); return false; }
-            if (SafeBool(() => negotiator.Dead) || SafeBool(() => negotiator.Downed) || SafeBool(() => negotiator.InMentalState) || !negotiator.Spawned || negotiator.Map != _sessionMap)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The negotiator is no longer able to trade."); return false; }
+            if (!SessionParticipantsLive())
+            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Trader, negotiator or inventory owner became unavailable."); return false; }
             return true;
         }
 
         private static void CloseSession(bool receiveQuest)
         {
-            if (receiveQuest && _sessionTrader != null)
+            if (receiveQuest && _sessionTrader is Pawn questTrader)
             {
                 try
                 {
-                    if (_sessionTrader.mindState != null && _sessionTrader.mindState.hasQuest && _sessionNegotiator != null)
-                        TradeUtility.ReceiveQuestFromTrader(_sessionTrader, _sessionNegotiator);
+                    if (questTrader.mindState != null && questTrader.mindState.hasQuest && _sessionNegotiator != null)
+                        TradeUtility.ReceiveQuestFromTrader(questTrader, _sessionNegotiator);
                 }
                 catch { }
             }
@@ -267,9 +265,9 @@ namespace HomeBridge.BridgeTools
         private static void DropForeignSession(Common.Identity identity)
         {
             if (_sessionId == null) return;
-            var sameIdentity = _sessionColonyId == identity.ColonyId && _sessionLoadToken == identity.LoadToken;
+            var sameIdentity = _sessionColonyId == identity.ColonyId && _sessionLoadToken == identity.LoadToken && _sessionMap?.uniqueID == identity.MapId;
             var ours = TradeSession.Active && ReferenceEquals(TradeSession.deal, _sessionDeal);
-            if (sameIdentity && ours && ProtoBoundary.IsLoaded(_sessionMap)) return;
+            if (sameIdentity && ours && ProtoBoundary.IsLoaded(_sessionMap) && SessionParticipantsLive()) return;
             if (ours) { CloseSession(false); return; }
             _sessionId = null; _sessionColonyId = null; _sessionLoadToken = null; _sessionMap = null;
             _sessionDeal = null; _sessionTrader = null; _sessionNegotiator = null; _giftMode = false;
@@ -291,8 +289,9 @@ namespace HomeBridge.BridgeTools
             {
                 if (!RequireParticipants(traderId, negotiatorId, identity, out failure)) return false;
                 if (_giftMode != giftMode) { failure = ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "The open trade session differs in gift mode."); return false; }
-                reuse = OpenReuse.Session; trader = _sessionTrader; negotiator = _sessionNegotiator; return true;
+                reuse = OpenReuse.Session; trader = _sessionTrader as Pawn; negotiator = _sessionNegotiator; return true;
             }
+            if (_contact != null && _contact.Live()) { failure = ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "Another comms contact is live."); return false; }
             var walk = _walk;
             if (walk != null && walk.Live())
             {
@@ -334,6 +333,7 @@ namespace HomeBridge.BridgeTools
             if (!TradeSession.Active || TradeSession.deal == null) throw new InvalidOperationException("TradeSession.SetupWith returned but the session is not active.");
             _sessionId = Guid.NewGuid().ToString("N"); _sessionColonyId = identity.ColonyId; _sessionLoadToken = identity.LoadToken;
             _sessionMap = map; _sessionDeal = TradeSession.deal; _sessionTrader = trader; _sessionNegotiator = negotiator;
+            _sessionTarget = new Common.TradeTarget { MapTrader = new Common.MapTradeTarget { TraderId = trader.GetUniqueLoadID() } };
             _giftMode = giftMode;
         }
 
@@ -398,7 +398,7 @@ namespace HomeBridge.BridgeTools
             if (_sessionId != null)
             {
                 if (_sessionColonyId != identity.ColonyId || _sessionLoadToken != identity.LoadToken) return false;
-                trader = _sessionTrader; negotiator = _sessionNegotiator; open = true;
+                trader = _sessionTrader as Pawn; negotiator = _sessionNegotiator; open = true;
                 return true;
             }
             var walk = _walk;
@@ -504,6 +504,7 @@ namespace HomeBridge.BridgeTools
             if (!RequireParticipants(traderId, negotiatorId, identity, out failure)) return false;
             if (OpenTradeDialog() != null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A Dialog_Trade window is open on screen; close it first."); return false; }
             var deal = _sessionDeal!;
+            RefreshPrices(deal);
             SafeUpdateCurrency(deal);
             if (!command.HasExpectedDealSignature || DealSignature() != command.ExpectedDealSignature)
             { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Trade contents or prices changed since preview."); return false; }
@@ -543,7 +544,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 colonyGoods = new HashSet<Thing>(_sessionTrader!.ColonyThingsWillingToBuy(_sessionNegotiator));
-                traderGoods = new HashSet<Thing>(_sessionTrader.trader.Goods);
+                traderGoods = new HashSet<Thing>(_sessionTrader.Goods);
             }
             catch (Exception e) { failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Trade stock could not be read: " + e.GetType().Name); return false; }
             foreach (var row in deal.AllTradeables.Where(t => SafeInt(() => t.CountToTransfer) != 0))
@@ -568,6 +569,7 @@ namespace HomeBridge.BridgeTools
                     return false;
                 }
             }
+            if (!CaravanCargoFits(deal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Caravan carrying capacity would be exceeded."); return false; }
             return true;
         }
 
@@ -576,6 +578,11 @@ namespace HomeBridge.BridgeTools
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "EndTrade requires an explicit kind.");
             if (command == null || !command.HasKind || command.Kind == Operations.EndTradeKind.Unspecified) return false;
+            if (_sessionId != null && (_sessionColonyId != identity.ColonyId || _sessionLoadToken != identity.LoadToken))
+            { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "The session belongs to another world identity."); return false; }
+            if (_contact != null && _contact.Live() && (TargetKey(_contact.Target) != traderId || _contact.Pawn.GetUniqueLoadID() != negotiatorId)
+                || _walk != null && _walk.Live() && (_walk.Trader.GetUniqueLoadID() != traderId || _walk.Negotiator.GetUniqueLoadID() != negotiatorId))
+            { failure = ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A different pair owns the pending trade."); return false; }
             // A cancel with no session left is already done, and one whose
             // trader has since left still closes; a session held by a
             // different pair is refused.
@@ -589,7 +596,7 @@ namespace HomeBridge.BridgeTools
 
         // Whether an EndTrade names the pair holding this adapter's session.
         private static bool EndMatches(string traderId, string negotiatorId) =>
-            _sessionId != null && !string.IsNullOrEmpty(traderId) && traderId == SafeString(_sessionTrader) && negotiatorId == SafeString(_sessionNegotiator);
+            _sessionId != null && !string.IsNullOrEmpty(traderId) && traderId == SessionTargetKey() && negotiatorId == SafeString(_sessionNegotiator);
 
         // --------------------------------------------------------- intent
         // Actions/Apply's trade arm (NativeActionDispatch). The pair on the
@@ -598,18 +605,19 @@ namespace HomeBridge.BridgeTools
         internal static Common.Failure? Validate(Operations.TradeIntent intent, Common.Identity identity)
         {
             Common.Failure failure;
-            if (intent.Target?.KindCase != Common.TradeTarget.KindOneofCase.MapTrader || string.IsNullOrEmpty(intent.Target.MapTrader.TraderId)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only a map trader target is enabled.");
+            if (intent.Target == null || string.IsNullOrEmpty(TargetKey(intent.Target))) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A typed trade target is required.");
+            if (intent.StepCase == Operations.TradeIntent.StepOneofCase.Open && intent.Target.KindCase != Common.TradeTarget.KindOneofCase.MapTrader) return PrepareWorldOpen(intent, identity, out _, out _, out _, out failure) ? null : failure;
             switch (intent.StepCase)
             {
                 case Operations.TradeIntent.StepOneofCase.Open:
-                    return PrepareOpen(intent.Open, intent.Target.MapTrader.TraderId, intent.NegotiatorId, identity, out _, out _, out _, out failure) ? null : failure;
+                    return PrepareOpen(intent.Open, TargetKey(intent.Target), intent.NegotiatorId, identity, out _, out _, out _, out failure) ? null : failure;
                 case Operations.TradeIntent.StepOneofCase.SetLines:
                     var all = RequireSession(identity, out _) ? _sessionDeal!.AllTradeables : new List<Tradeable>();
-                    return PrepareLines(intent.SetLines, intent.Target.MapTrader.TraderId, intent.NegotiatorId, identity, all, out _, out failure) ? null : failure;
+                    return PrepareLines(intent.SetLines, TargetKey(intent.Target), intent.NegotiatorId, identity, all, out _, out failure) ? null : failure;
                 case Operations.TradeIntent.StepOneofCase.Accept:
-                    return PrepareAccept(intent.Accept, intent.Target.MapTrader.TraderId, intent.NegotiatorId, identity, out failure) ? null : failure;
+                    return PrepareAccept(intent.Accept, TargetKey(intent.Target), intent.NegotiatorId, identity, out failure) ? null : failure;
                 case Operations.TradeIntent.StepOneofCase.End:
-                    return PrepareEnd(intent.End, intent.Target.MapTrader.TraderId, intent.NegotiatorId, identity, out failure) ? null : failure;
+                    return PrepareEnd(intent.End, TargetKey(intent.Target), intent.NegotiatorId, identity, out failure) ? null : failure;
                 default:
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A trade intent names exactly one step.");
             }
@@ -619,13 +627,14 @@ namespace HomeBridge.BridgeTools
         // throw after a partial effect leaves the session to the next read.
         internal static Receipts.EffectEvidence Apply(Operations.TradeIntent intent, Common.ObservationContext context)
         {
-            if (intent.Target?.KindCase != Common.TradeTarget.KindOneofCase.MapTrader) throw new InvalidOperationException("Only a map trader target is enabled.");
+            if (intent.Target == null) throw new InvalidOperationException("A typed trade target is required.");
+            if (intent.StepCase == Operations.TradeIntent.StepOneofCase.Open && intent.Target.KindCase != Common.TradeTarget.KindOneofCase.MapTrader) return WithTarget(ApplyWorldOpen(intent, context), intent.Target);
             switch (intent.StepCase)
             {
-                case Operations.TradeIntent.StepOneofCase.Open: return WithTarget(ApplyOpen(intent.Open, intent.Target.MapTrader.TraderId, intent.NegotiatorId, context), intent.Target);
-                case Operations.TradeIntent.StepOneofCase.SetLines: return WithTarget(ApplyLines(intent.SetLines, intent.Target.MapTrader.TraderId, intent.NegotiatorId, context.Identity), intent.Target);
-                case Operations.TradeIntent.StepOneofCase.Accept: return WithTarget(ApplyAccept(intent.Accept, intent.Target.MapTrader.TraderId, intent.NegotiatorId, context.Identity), intent.Target);
-                case Operations.TradeIntent.StepOneofCase.End: return WithTarget(ApplyEnd(intent.End, intent.Target.MapTrader.TraderId, intent.NegotiatorId, context.Identity), intent.Target);
+                case Operations.TradeIntent.StepOneofCase.Open: return WithTarget(ApplyOpen(intent.Open, TargetKey(intent.Target), intent.NegotiatorId, context), intent.Target);
+                case Operations.TradeIntent.StepOneofCase.SetLines: return WithTarget(ApplyLines(intent.SetLines, TargetKey(intent.Target), intent.NegotiatorId, context.Identity), intent.Target);
+                case Operations.TradeIntent.StepOneofCase.Accept: return WithTarget(ApplyAccept(intent.Accept, TargetKey(intent.Target), intent.NegotiatorId, context.Identity), intent.Target);
+                case Operations.TradeIntent.StepOneofCase.End: return WithTarget(ApplyEnd(intent.End, TargetKey(intent.Target), intent.NegotiatorId, context.Identity), intent.Target);
                 default: throw new InvalidOperationException("A trade intent names exactly one step.");
             }
         }
@@ -692,17 +701,18 @@ namespace HomeBridge.BridgeTools
             bool executed, actuallyTraded;
             try { executed = deal.TryExecute(out actuallyTraded); }
             catch { executed = false; actuallyTraded = false; }
+            _sessionNegotiator?.GetCaravan()?.RecacheInventory();
             var afterGoodwill = faction != null ? SafeInt(() => faction.PlayerGoodwill) : beforeGoodwill;
             var afterSilver = ColonySilverNow(traderPawn, _sessionNegotiator, beforeSilver);
             var sessionIdForEvidence = _sessionId ?? "";
             var receiveQuest = !command.HasReceiveQuest || command.ReceiveQuest;
             var quest = false;
-            if (receiveQuest && traderPawn != null)
+            if (receiveQuest && traderPawn is Pawn questPawn)
             {
                 try
                 {
-                    if (traderPawn.mindState != null && traderPawn.mindState.hasQuest && _sessionNegotiator != null)
-                    { TradeUtility.ReceiveQuestFromTrader(traderPawn, _sessionNegotiator); quest = true; }
+                    if (questPawn.mindState != null && questPawn.mindState.hasQuest && _sessionNegotiator != null)
+                    { TradeUtility.ReceiveQuestFromTrader(questPawn, _sessionNegotiator); quest = true; }
                 }
                 catch { quest = false; }
             }
@@ -725,7 +735,7 @@ namespace HomeBridge.BridgeTools
 
         // The colony silver the trader could now take, read fresh from live
         // stacks: the session deal's rows are stale once it has executed.
-        private static int ColonySilverNow(Pawn? trader, Pawn? negotiator, int fallback)
+        private static int ColonySilverNow(ITrader? trader, Pawn? negotiator, int fallback)
         {
             if (trader == null || negotiator == null) return fallback;
             try { return trader.ColonyThingsWillingToBuy(negotiator).Where(t => t != null && !t.Destroyed && t.def == ThingDefOf.Silver).Sum(t => t.stackCount); }
@@ -743,7 +753,8 @@ namespace HomeBridge.BridgeTools
                 try { foreach (var w in stack?.Windows?.OfType<Window>().Where(IsTradeDialog).ToList() ?? new List<Window>()) { try { w.Close(false); } catch { try { stack!.TryRemove(w, false); } catch { } } } }
                 catch { }
             }
-            if (matches) CloseSession(command.HasReceiveQuest && command.ReceiveQuest);
+            matches = CancelApproach(traderId, negotiatorId) || matches;
+            if (_sessionId != null && matches) CloseSession(command.HasReceiveQuest && command.ReceiveQuest);
             return new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect { SessionId = sessionIdForEvidence, Executed = false, Closed = matches } };
         }
     }

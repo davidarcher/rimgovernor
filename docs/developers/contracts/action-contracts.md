@@ -184,9 +184,12 @@ jade) sold down to the highest of the target, the economic floor and a retained 
 sells one piece at a time when it lies in a warehouse zone below the gear hit-point or
 quality floor (`policy.SaleGear`, authorized by `export_thing_ids`).
 
-Direct orbital opening is refused. Ordinary orbital input requires the comms console's
-native menu, a powered reachable interaction cell and capable negotiator, then
-`UseCommsConsole` and the native trade dialog; adjacent map-trade checks cannot authorize it.
+Orbital opening requires a powered beacon and console, a reachable interaction
+cell and talking negotiator, then an ordinary `UseCommsConsole` job. The
+matching contact opens the shared headless session. Settlement opening requires
+the named player caravan visiting that settlement; its inventory owns both
+sides of the reserve and carrying-capacity checks. Settlement purchases remain
+away inventory; an exchange receipt does not establish delivery at home.
 
 ## Dependencies and retained cancellation
 

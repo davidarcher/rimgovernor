@@ -322,3 +322,8 @@ or decides: it hands the candidates and the demands to `PlanSupply` and reads
 the entries back (decision, reason, credit per demand). A new good is a new
 demand and a new yield key; a new channel is a new `CandidateKind`. A candidate
 whose facts are unknown is listed in `Unknown`, never opened.
+
+Priced records also carry the typed trade participant. Orbital offers share the
+colony scope and freshness policy; settlement offers belong to the visiting
+caravan and never supply colony stock before native delivery at home. Present
+orbital ships use the same browsing and purchasing routine as map traders.

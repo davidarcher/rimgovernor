@@ -225,7 +225,7 @@ func (r *RoundsTradePlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// left, and a walk only game time finishes.
 	traders := make([]policy.TraderFacts, 0, len(census.Traders))
 	for _, row := range census.Traders {
-		traders = append(traders, policy.TraderFacts{ID: row.ID, Kind: row.Kind, Faction: row.Faction, CanTrade: row.CanTrade, Travelling: row.Travelling, GoodsStacks: int64(row.GoodsStacks)})
+		traders = append(traders, policy.TraderFacts{Participant: row.Participant, ID: row.ID, Kind: row.Kind, Faction: row.Faction, CanTrade: row.CanTrade, Travelling: row.Travelling, GoodsStacks: int64(row.GoodsStacks)})
 	}
 	arriving := false
 	for _, row := range census.Traders {
@@ -277,7 +277,7 @@ func (r *RoundsTradePlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if open.found {
 		attempt = open.attempt + 1
 	}
-	return r.open(call, epoch, state, incident, trader.ID, negotiator, attempt, arbiter, started)
+	return r.open(call, epoch, state, incident, trader.ID, negotiator, attempt, arbiter, started, trader.Participant)
 }
 
 // negotiator picks the colonist to open with: policy.TraderFor over the
@@ -320,13 +320,19 @@ func (r *RoundsTradePlanner) negotiator(call context.Context, state ControlState
 // open commits the Open phase: the census already vetted the negotiator's
 // eligibility and the trader's tradeability, and native checks
 // reachability when the open applies and walks the negotiator over.
-func (r *RoundsTradePlanner) open(call, epoch context.Context, state ControlState, incident store.IncidentState, trader string, negotiator bridge.NegotiatorRead, attempt int, arbiter *stepArbiter, started time.Time) (RoundsTradeResult, error) {
+func (r *RoundsTradePlanner) open(call, epoch context.Context, state ControlState, incident store.IncidentState, trader string, negotiator bridge.NegotiatorRead, attempt int, arbiter *stepArbiter, started time.Time, participant domain.TradeParticipant) (RoundsTradeResult, error) {
 	if !arbiter.tryClaim(nil, "pawn:"+negotiator.ID) {
 		return RoundsTradeResult{Verdict: waitFor(WaitMethodUsed, "negotiator_claim")}, nil
 	}
 	value, err := domain.NewTradeOpen(trader, domain.PawnID(negotiator.ID), false)
 	if err != nil {
 		return RoundsTradeResult{}, err
+	}
+	if participant.Kind != "" {
+		value, err = value.WithParticipant(participant)
+		if err != nil {
+			return RoundsTradeResult{}, err
+		}
 	}
 	return r.commit(call, epoch, state, incident, domain.TradeOpen, attempt, trader, value, started)
 }
@@ -648,6 +654,19 @@ func (r *RoundsTradePlanner) commit(call, epoch context.Context, state ControlSt
 	method := tradeMethod(kind, trader, attempt)
 	id := domain.MintPlanID()
 	tradeID := domain.ActionID(fmt.Sprintf("%s-trade", id))
+	if kind != domain.TradeOpen {
+		session, _, readErr := r.native.ReadTradeSession(call, boundary.Identity(state.Snapshot))
+		if readErr != nil {
+			return RoundsTradeResult{}, readErr
+		}
+		if session.Trader == trader && session.Target != nil {
+			var err error
+			value, err = value.WithParticipant(bridge.TradeParticipantOf(session.Target))
+			if err != nil {
+				return RoundsTradeResult{}, err
+			}
+		}
+	}
 	action, err := domain.NewTradeAction(tradeID, value)
 	if err != nil {
 		return RoundsTradeResult{}, err

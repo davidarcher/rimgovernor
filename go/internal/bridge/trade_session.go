@@ -57,7 +57,7 @@ func (client *Client) ReadTradeSession(ctx context.Context, identity *c.Identity
 	if !sameIdentity(session.Context.Identity, identity) {
 		return TradeSessionRead{}, raw, contract("trade session world mismatch")
 	}
-	out := TradeSessionRead{Context: session.Context, Target: proto.CloneOf(session.Target), Trader: mapTraderID(session.Target), Negotiator: session.GetNegotiatorId(), Open: session.GetOpen()}
+	out := TradeSessionRead{Context: session.Context, Target: proto.CloneOf(session.Target), Trader: TradeParticipantOf(session.Target).Key(), Negotiator: session.GetNegotiatorId(), Open: session.GetOpen()}
 	if (session.Target == nil) != (session.NegotiatorId == nil) || out.Open && session.Target == nil {
 		return TradeSessionRead{}, raw, contract("trade session names half a pair")
 	}

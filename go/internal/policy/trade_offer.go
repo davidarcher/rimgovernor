@@ -14,8 +14,9 @@ import (
 // it executes. RoundsTradePlanner records one at each sheet read and
 // Rounder.tradeOffers hands out the fresh ones.
 type TradeOffers struct {
-	Trader     string
-	Negotiator string
+	Participant domain.TradeParticipant
+	Trader      string
+	Negotiator  string
 	// Tick is the observed tick of the sheet read.
 	Tick domain.Tick
 	// Silver is the colony's silver on the sheet and GoodsStacks the number
@@ -73,6 +74,9 @@ func TradeCandidateID(trader string, resource Resource) string {
 func TradeOfferCandidates(resource Resource, offers []TradeOffers, deficit, silver, reserve int64) []SupplyCandidate {
 	var out []SupplyCandidate
 	for _, record := range offers {
+		if record.Participant.Kind == domain.TradeParticipantSettlement {
+			continue
+		}
 		var best *TradeOffer
 		for i := range record.Rows {
 			row := &record.Rows[i]
@@ -105,6 +109,9 @@ func TradeOfferCandidates(resource Resource, offers []TradeOffers, deficit, silv
 func TradeFoodChannels(offers []TradeOffers, silver, reserve int64, want float64) []SupplyCandidate {
 	var out []SupplyCandidate
 	for _, record := range offers {
+		if record.Participant.Kind == domain.TradeParticipantSettlement {
+			continue
+		}
 		var rows []TradeOffer
 		for _, row := range record.Rows {
 			if g, known := row.Food.Value(); known && validTradeFood(g) && row.Count > 0 && finite(row.Price) && row.Price > 0 && row.Price <= tradeBuyPriceCeiling {

@@ -113,7 +113,7 @@ func (r *RoundsTradePlanner) recordOffers(call context.Context, state ControlSta
 	if tables.Catalog == nil {
 		return fmt.Errorf("%w: recordOffers: no definition catalog", ErrControl)
 	}
-	offers := policy.TradeOffers{Trader: sheet.Trader, Negotiator: sheet.Negotiator, Tick: domain.Tick(sheet.Context.GetTick()), Silver: silver, GoodsStacks: stacks}
+	offers := policy.TradeOffers{Participant: bridge.TradeParticipantOf(sheet.Target), Trader: sheet.Trader, Negotiator: sheet.Negotiator, Tick: domain.Tick(sheet.Context.GetTick()), Silver: silver, GoodsStacks: stacks}
 	for _, row := range sheet.Rows {
 		if row.CurrencyKnown && row.Currency || row.TraderCount <= 0 || !row.BuyPriceKnown {
 			continue

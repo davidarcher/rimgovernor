@@ -85,3 +85,16 @@ func TestTradeOfferArbitratedAgainstMining(t *testing.T) {
 		}
 	}
 }
+
+func TestSettlementOffersDoNotCreditHomeSupply(t *testing.T) {
+	away := TradeOffers{Participant: domain.TradeParticipant{Kind: domain.TradeParticipantSettlement, ID: "town", Caravan: "crew"}, Trader: "settlement/town/crew", Rows: []TradeOffer{
+		{Def: "Steel", Count: 100, Price: 1},
+		{Def: "Rice", Count: 100, Price: 1, Food: domain.Known(TradeFoodGood{Nutrition: 1})},
+	}}
+	if got := TradeOfferCandidates(Resource("Steel"), []TradeOffers{away}, 50, 1000, 200); len(got) != 0 {
+		t.Fatal(got)
+	}
+	if got := TradeFoodChannels([]TradeOffers{away}, 1000, 200, 50); len(got) != 0 {
+		t.Fatal(got)
+	}
+}

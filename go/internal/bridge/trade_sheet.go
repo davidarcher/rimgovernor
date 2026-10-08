@@ -180,7 +180,7 @@ func tradeSheetPage(v *o.TradeSheet, identity *c.Identity, seen map[string]bool,
 	}
 	header := TradeSheetRead{
 		Context: v.Snapshot.Context, SessionID: v.GetSessionId(),
-		Target: proto.CloneOf(v.Target), Trader: mapTraderID(v.Target), Negotiator: v.GetNegotiator().GetId(), GiftMode: v.GetGiftMode(),
+		Target: proto.CloneOf(v.Target), Trader: TradeParticipantOf(v.Target).Key(), Negotiator: v.GetNegotiator().GetId(), GiftMode: v.GetGiftMode(),
 		CanTradeNow: v.GetCanTradeNow(), Balance: v.GetBalance(), BalanceKnown: v.Balance != nil,
 		ColonyCanAfford: v.GetColonyCanAfford(), TraderHasSilver: v.GetTraderHasEnoughSilver(),
 		DealSignature: v.GetDealSignature(), FavorCurrency: v.GetCurrencyKind() == o.TradeCurrencyKind_TRADE_CURRENCY_KIND_FAVOR,

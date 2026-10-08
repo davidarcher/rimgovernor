@@ -76,6 +76,16 @@ namespace HomeBridge.BridgeTools
                 else if (travelling) row.Reason = "The caravan is still travelling to its trade spot.";
                 traders.Add(row);
             }
+            foreach (var ship in map.passingShipManager.passingShips.OfType<TradeShip>())
+            {
+                var id = ship.GetUniqueLoadID();
+                var usable = ship.CanTradeNow && Building_OrbitalTradeBeacon.AllPowered(map).Any()
+                    && map.mapPawns.FreeColonistsSpawned.Any(p => p.CanTradeWith(ship.Faction, ship.TraderKind).Accepted
+                        && map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>().Any(c => NativeTradeAcquisition.ConsoleNegotiator(c, p)));
+                traders.Add(new Obs.Trader { Trader_ = new Obs.EntityRef { Id = id, Label = ship.FullTitle, MapId = map.uniqueID, Position = new Common.Cell { X = 0, Z = 0 } },
+                    TraderSnapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = id, Token = id }, Kind = ship.TraderKind.defName,
+                    Faction = NativeRef.Of(ship.Faction), CanTrade = usable, Travelling = false, Orbital = true, GoodsStacks = (uint)ship.Goods.Count() });
+            }
             traders.Sort((a, b) => string.CompareOrdinal(a.Trader_.Id, b.Trader_.Id));
             snapshot.Traders.Add(traders);
             var negotiators = map.mapPawns.FreeColonistsSpawned.Where(EligibleNegotiator).ToList();
@@ -178,8 +188,8 @@ namespace HomeBridge.BridgeTools
         internal static Obs.TradeSession Session(Common.ObservationContext context)
         {
             var session = new Obs.TradeSession { Context = context.Clone() };
-            if (NativeTradeOperations.Live(context.Identity, out var trader, out var negotiator, out var open) && trader != null && negotiator != null)
-            { session.Target = new Common.TradeTarget { MapTrader = new Common.MapTradeTarget { TraderId = trader.GetUniqueLoadID() } }; session.NegotiatorId = negotiator.GetUniqueLoadID(); session.Open = open; }
+            if (NativeTradeOperations.LiveTarget(context.Identity, out var target, out var negotiator, out var open) && target != null && negotiator != null)
+            { session.Target = target; session.NegotiatorId = negotiator.GetUniqueLoadID(); session.Open = open; }
             return session;
         }
 
@@ -200,10 +210,10 @@ namespace HomeBridge.BridgeTools
             {
                 Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = session.SessionId, Token = session.DealSignature },
                 SessionId = session.SessionId,
-                Target = new Common.TradeTarget { MapTrader = new Common.MapTradeTarget { TraderId = session.Trader.GetUniqueLoadID() } },
+                Target = session.Target.Clone(),
                 Negotiator = NativeRef.Thing(session.Negotiator),
                 GiftMode = session.GiftMode,
-                NegotiatorAdjacent = Math.Max(Math.Abs(session.Trader.Position.x - session.Negotiator.Position.x), Math.Abs(session.Trader.Position.z - session.Negotiator.Position.z)) <= 1,
+                NegotiatorAdjacent = session.Trader is Pawn seller && Math.Max(Math.Abs(seller.Position.x - session.Negotiator.Position.x), Math.Abs(seller.Position.z - session.Negotiator.Position.z)) <= 1,
                 CanTradeNow = SafeBool(() => session.Trader.CanTradeNow),
                 TraderHasEnoughSilver = SafeBool(() => deal.DoesTraderHaveEnoughSilver()),
                 DealSignature = session.DealSignature,
@@ -224,7 +234,7 @@ namespace HomeBridge.BridgeTools
     public sealed class NativeTradeObservationTools
     {
         [Tool(NativeTradeObservation.TradersToolName, Title = "List map traders and eligible negotiators",
-            Description = "Official TradersRequest ProtoJSON. Read-only census of every trader caravan pawn on the identified map and every colonist eligible to negotiate. Orbital ships are not listed (direct orbital opening is unsupported). Does not advance time.")]
+            Description = "Official TradersRequest ProtoJSON. Read-only census of every trader caravan pawn on the identified map and every colonist eligible to negotiate. Orbital trade ships share this census and open through a real comms job. Does not advance time.")]
         [ToolResponse("payload", "string", "Official observations TradersReply ProtoJSON.", Always = true)]
         public async Task<object> ListTraders(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a TradersRequest ProtoJSON string.")] object? request = null)

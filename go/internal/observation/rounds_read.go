@@ -440,7 +440,7 @@ func frameTraders(read *bridge.TradersRead) domain.Fact[[]policy.TraderFacts] {
 	}
 	rows := make([]policy.TraderFacts, 0, len(read.Traders))
 	for _, row := range read.Traders {
-		rows = append(rows, policy.TraderFacts{ID: row.ID, Kind: row.Kind, Faction: row.Faction, CanTrade: row.CanTrade, Travelling: row.Travelling, GoodsStacks: int64(row.GoodsStacks)})
+		rows = append(rows, policy.TraderFacts{Participant: row.Participant, ID: row.ID, Kind: row.Kind, Faction: row.Faction, CanTrade: row.CanTrade, Travelling: row.Travelling, GoodsStacks: int64(row.GoodsStacks)})
 	}
 	return domain.Known(rows)
 }

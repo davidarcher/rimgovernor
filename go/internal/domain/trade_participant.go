@@ -49,3 +49,17 @@ func (t Trade) WithParticipant(p TradeParticipant) (Trade, error) {
 }
 
 func (t Trade) Participant() TradeParticipant { return t.participant }
+
+// Key is the identity of a priced seller and the inventory owning the deal.
+func (p TradeParticipant) Key() string {
+	switch p.Kind {
+	case TradeParticipantMap:
+		return p.ID
+	case TradeParticipantOrbital:
+		return "orbital/" + p.ID
+	case TradeParticipantSettlement:
+		return "settlement/" + p.ID + "/" + p.Caravan
+	default:
+		return ""
+	}
+}
