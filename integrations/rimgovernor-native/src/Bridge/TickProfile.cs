@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
             Watch(harmony, pre, post, typeof(Pawn_PathFollower), "PatherTick", "pather");
             Watch(harmony, pre, post, typeof(PathFinder), "FindPath", "findpath");
             Watch(harmony, pre, post, typeof(RegionAndRoomUpdater), "TryRebuildDirtyRegionsAndRooms", "regions");
-            Watch(harmony, pre, post, typeof(GenConstruct), "CanConstruct", "can-construct");
+            Watch(harmony, pre, post, typeof(GenConstruct), "CanConstruct", "can-construct", new[] { typeof(Thing), typeof(Pawn), typeof(bool), typeof(bool), typeof(JobDef) });
             Watch(harmony, pre, post, typeof(Frame), "Tick", "frame-thing");
             Watch(harmony, pre, post, typeof(Frame), "CompleteConstruction", "complete-construction");
             Watch(harmony, pre, post, typeof(Blueprint), "Tick", "blueprint-tick");
