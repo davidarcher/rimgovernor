@@ -501,6 +501,13 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	}
 	reading.Projection.Facts.ResourceSurfaceOre = r.resourceSurfaceOre(ctx, state.Snapshot)
 	reading.Projection.Facts.ResourceConsumption = r.resourceConsumption(ctx, state.Snapshot)
+	if policies, known := reading.Projection.Policies.Value(); known {
+		entries := make([]policy.DrugPolicyEntry, 0, len(policies.Drug))
+		for _, e := range policies.Drug {
+			entries = append(entries, policy.DrugPolicyEntry{ID: e.ID, Label: e.Label, Pawns: e.Pawns, Entries: e.Drugs})
+		}
+		reading.Projection.Facts.DrugUsers = policy.DrugUsers(entries)
+	}
 	r.reviewMeals(&reading.Projection)
 	r.reviewReserve(&reading.Projection)
 	r.reviewBabyFeeding(&reading.Projection)

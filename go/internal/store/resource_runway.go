@@ -11,10 +11,10 @@ import (
 // resourceRunways forecasts every resource with a configured target from the
 // recurring spend native observed (Facts.ResourceConsumption).
 func resourceRunways(r RoundsRequest) []policy.ResourceRunway {
-	reserves := r.Policy.RunwayReserves(r.Facts.Items)
+	reserves := r.Policy.RunwayReserves(r.Facts.Items, r.Facts.Colonists)
 	// A social drug and the reserve medicine have no ore to mine: their
 	// prospective supply is observed zero.
-	drugs := policy.DrugRunwayReserves(r.Facts.Research)
+	drugs := policy.DrugRunwayReserves(r.Facts.Research, r.Facts.DrugUsers)
 	for resource, reserve := range drugs {
 		reserves[resource] = reserve
 	}

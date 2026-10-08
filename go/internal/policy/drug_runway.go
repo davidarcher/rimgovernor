@@ -19,15 +19,30 @@ import (
 var SocialDrugs = []Resource{"Beer", "SmokeleafJoint"}
 
 // DrugRunwayReserves are the runway keys of the social drugs: none until
-// Brewing is finished, then each at reserve zero, so a drug is short only
-// against the days of observed use.
-func DrugRunwayReserves(research domain.Fact[ResearchFacts]) map[Resource]int64 {
+// Brewing is finished, then each at one dose per colonist whose drug policy
+// permits it (users), so a drug nobody has taken yet is still stocked; once
+// doses are taken the observed rate takes over.
+func DrugRunwayReserves(research domain.Fact[ResearchFacts], users map[Resource]int64) map[Resource]int64 {
 	if !BrewingFinished(research) {
 		return nil
 	}
 	out := make(map[Resource]int64, len(SocialDrugs))
 	for _, drug := range SocialDrugs {
-		out[drug] = 0
+		out[drug] = colonistReserve(users[drug], 1)
+	}
+	return out
+}
+
+// DrugUsers counts, for each social drug, the colonists holding a drug policy
+// that allows it (joy, addiction or scheduled use).
+func DrugUsers(policies []DrugPolicyEntry) map[Resource]int64 {
+	out := map[Resource]int64{}
+	for _, p := range policies {
+		for _, entry := range p.Entries {
+			if drug := Resource(entry.Drug); !entry.Off() && slices.Contains(SocialDrugs, drug) {
+				out[drug] += int64(len(p.Pawns))
+			}
+		}
 	}
 	return out
 }

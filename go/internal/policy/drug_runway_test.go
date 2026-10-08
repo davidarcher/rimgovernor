@@ -8,13 +8,58 @@ import (
 
 func TestDrugRunwayRequiresResearch(t *testing.T) {
 	for _, research := range []domain.Fact[ResearchFacts]{domain.Unknown[ResearchFacts](), domain.Known(ResearchFacts{}), domain.Known(ResearchFacts{Current: "Brewing"})} {
-		if len(DrugRunwayReserves(research)) != 0 {
+		if len(DrugRunwayReserves(research, map[Resource]int64{"Beer": 3})) != 0 {
 			t.Fatal("runway before completed research")
 		}
 	}
-	got := DrugRunwayReserves(domain.Known(ResearchFacts{Finished: []ResearchProjectID{"Brewing"}}))
-	if len(got) != 2 || got["Beer"] != 0 || got["SmokeleafJoint"] != 0 {
+	brewed := domain.Known(ResearchFacts{Finished: []ResearchProjectID{"Brewing"}})
+	got := DrugRunwayReserves(brewed, map[Resource]int64{"Beer": 3, "SmokeleafJoint": 2})
+	if len(got) != 2 || got["Beer"] != 3 || got["SmokeleafJoint"] != 2 {
 		t.Fatal(got)
+	}
+	if got := DrugRunwayReserves(brewed, nil); len(got) != 2 || got["Beer"] != 0 {
+		t.Fatal("no permitted colonist reserves nothing", got)
+	}
+}
+
+func TestDrugUsersCountPermittedColonists(t *testing.T) {
+	beer := domain.DrugPolicyEntry{Drug: "Beer", Joy: true, DaysFrequency: 1, OnlyIfMoodBelow: 1, OnlyIfJoyBelow: 1}
+	got := DrugUsers([]DrugPolicyEntry{
+		{ID: "a", Pawns: []PawnID{"p1", "p2"}, Entries: []domain.DrugPolicyEntry{beer, {Drug: "Yayo", Joy: true}}},
+		{ID: "b", Pawns: []PawnID{"p3"}, Entries: []domain.DrugPolicyEntry{{Drug: "Beer"}}},
+	})
+	if len(got) != 1 || got["Beer"] != 2 {
+		t.Fatal(got)
+	}
+}
+
+func TestDrugReserveDemandsUnusedStock(t *testing.T) {
+	quiet := domain.Known(ResourceConsumption{WindowDays: 15, Recurring: map[Resource]int64{}})
+	row := ForecastResourceRunway("Beer", domain.Known(int64(1)), domain.Known(int64(0)), 3, 0, quiet)
+	if row.Target != 3 {
+		t.Fatal(row)
+	}
+}
+
+func TestMedicineRunwayProjection(t *testing.T) {
+	busy := domain.Known(ResourceConsumption{WindowDays: 15, Recurring: map[Resource]int64{"MedicineHerbal": 30}})
+	row := ForecastResourceRunway("MedicineHerbal", domain.Known(int64(4)), domain.Known(int64(0)), 0, 0, busy)
+	got, ok := PlanMedicineRunway(MedicineInputs{Runways: []ResourceRunway{row}, Items: CoreItemFacts()}).Value()
+	if !ok || got.StockDays != 2 || got.ShortfallDays != RunwayShortfall(2, ProjectionHorizonDays) {
+		t.Fatal(got, ok)
+	}
+	if shortfall, why := shadowShortfall(ForwardProjection{Medicine: domain.Known(got)}, ShadowMedicine); why != "" || shortfall <= 0 {
+		t.Fatal(shortfall, why)
+	}
+	if _, why := shadowShortfall(ProjectForward(ForwardInputs{}), ShadowMedicine); why == "" {
+		t.Fatal("no inputs must be unknown")
+	}
+	unread := ForecastResourceRunway("MedicineHerbal", domain.Known(int64(4)), domain.Known(int64(0)), 0, 0, domain.Unknown[ResourceConsumption]())
+	if _, ok := PlanMedicineRunway(MedicineInputs{Runways: []ResourceRunway{unread}, Items: CoreItemFacts()}).Value(); ok {
+		t.Fatal("unread consumption is unknown")
+	}
+	if _, ok := PlanMedicineRunway(MedicineInputs{Runways: []ResourceRunway{row}}).Value(); ok {
+		t.Fatal("no catalog medicine is unknown")
 	}
 }
 

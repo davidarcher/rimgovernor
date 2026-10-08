@@ -31,6 +31,9 @@ const (
 	ShadowFuel ShadowDomain = "fuel"
 	// ShadowDrugs is the social drugs the colonists take against stock (#2380).
 	ShadowDrugs ShadowDomain = "drugs"
+	// ShadowMedicine is the reserve medicine tending spends against stock
+	// (#2378).
+	ShadowMedicine ShadowDomain = "medicine"
 	// ShadowAnimalFeed is the feed the herd eats against stock and pasture
 	// (#2379).
 	ShadowAnimalFeed ShadowDomain = "animal_feed"
@@ -41,7 +44,7 @@ const (
 // two domains scores the larger known shortfall; it is unranked only when
 // every domain is unknown.
 var shadowDomains = map[ConcernID][]ShadowDomain{
-	MaintainResource:        {ShadowFood, ShadowConstruction, ShadowFuel, ShadowAnimalFeed, ShadowDrugs},
+	MaintainResource:        {ShadowFood, ShadowConstruction, ShadowFuel, ShadowAnimalFeed, ShadowDrugs, ShadowMedicine},
 	MaintainFoodStorage:     {ShadowFood},
 	MaintainRefrigeration:   {ShadowPower},
 	EnsureTemperatureSafety: {ShadowTemperature},
@@ -70,7 +73,7 @@ func ForwardInputsOf(f RoundsFacts, p RoundsPolicy) ForwardInputs {
 	in := ForwardInputs{Power: f.Forward.Power, Sleeping: SleepingRange{Min: f.SleepingMin, Max: f.SleepingMax}, Conditions: f.DisasterConditions, Turrets: f.Forward.Turrets, Policy: p,
 		Construction: ConstructionInputs{Deficit: f.ConstructionDeficit, Admitted: f.Admitted, Stock: f.Resources, Items: f.Items},
 		Fuel:         FuelInputs{Consumers: f.Fuel, Stock: StockReader{Resources: f.Resources, Wood: f.Wood}},
-		AnimalFeed:   f.animalFeedInputs(), Drugs: f.ResourceRunways}
+		AnimalFeed:   f.animalFeedInputs(), Drugs: f.ResourceRunways, Medicine: MedicineInputs{Runways: f.ResourceRunways, Items: f.Items}}
 	if supply, known := f.AnimalUpkeep.Food.Value(); known {
 		in.Food = supply
 	}
@@ -134,6 +137,10 @@ func shadowShortfall(p ForwardProjection, d ShadowDomain) (float64, string) {
 		}
 	case ShadowDrugs:
 		if v, ok := p.Drugs.Value(); ok {
+			return v.ShortfallDays, ""
+		}
+	case ShadowMedicine:
+		if v, ok := p.Medicine.Value(); ok {
 			return v.ShortfallDays, ""
 		}
 	case ShadowFuel:

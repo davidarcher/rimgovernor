@@ -74,17 +74,19 @@ func ResourceRunwayTargets(rows []ResourceRunway) map[Resource]int64 {
 
 // RunwayReserves is every resource a runway is forecast for and its reserve:
 // the operator's ResourceTargets, plus the reserve medicine (the catalog's
-// lowest-potency one, herbal) at a zero reserve, so medicine is demanded only
-// by the observed tend rate (#2378). Without the catalog's medicines it adds
-// nothing.
-func (p RoundsPolicy) RunwayReserves(items ItemFacts) map[Resource]int64 {
+// lowest-potency one, herbal) at one dose per colonist (the medical reserve's
+// MinimumPerColonist), so a colony never tended still stocks it; once doses
+// are used the observed tend rate takes over (#2378). Without the catalog's
+// medicines it adds nothing; an unread colonist count leaves the reserve zero.
+func (p RoundsPolicy) RunwayReserves(items ItemFacts, colonists domain.Fact[int64]) map[Resource]int64 {
 	out := make(map[Resource]int64, len(p.ResourceTargets)+1)
 	for resource, reserve := range p.ResourceTargets {
 		out[resource] = reserve
 	}
 	if herbal, err := items.MedicineAt(0); err == nil {
 		if _, set := out[herbal]; !set {
-			out[herbal] = 0
+			n, _ := colonists.Value()
+			out[herbal] = colonistReserve(n, p.MedicalReserve.MinimumPerColonist)
 		}
 	}
 	return out

@@ -549,6 +549,9 @@ type RoundsFacts struct {
 	// native's realized-consumption ring (#2441); unknown when the read failed.
 	ResourceConsumption domain.Fact[ResourceConsumption]
 	ResourceRunways     []ResourceRunway
+	// DrugUsers is the colonists whose drug policy permits each social drug
+	// (DrugUsers); it sets the drug runway's reserve before any dose is observed.
+	DrugUsers map[Resource]int64
 	// Wealth is the colony wealth split (#395) TradeWithCaravan's
 	// wealth-driven surplus keys on; unknown leaves that surplus out.
 	Wealth domain.Fact[WealthFacts]

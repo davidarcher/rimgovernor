@@ -19,11 +19,11 @@ func TestSurfaceOreOnlySafeMineables(t *testing.T) {
 func TestMedicineRunwayFromTendRate(t *testing.T) {
 	p := DefaultRoundsPolicy()
 	p.ResourceTargets = DefaultResourceTargets()
-	reserves := p.RunwayReserves(CoreItemFacts())
-	if reserve, set := reserves["MedicineHerbal"]; !set || reserve != 0 || reserves["Steel"] == 0 {
+	reserves := p.RunwayReserves(CoreItemFacts(), domain.Known(int64(8)))
+	if reserve, set := reserves["MedicineHerbal"]; !set || reserve != 8*p.MedicalReserve.MinimumPerColonist || reserves["Steel"] == 0 {
 		t.Fatal(reserves)
 	}
-	if got := p.RunwayReserves(ItemFacts{}); len(got) != len(p.ResourceTargets) {
+	if got := p.RunwayReserves(ItemFacts{}, domain.Known(int64(8))); len(got) != len(p.ResourceTargets) {
 		t.Fatal("no catalog medicine must add no runway key", got)
 	}
 	if !p.TracksResource(CoreItemFacts(), "MedicineHerbal") {
