@@ -67,7 +67,10 @@ them by concern name.
 
 The Problems tab ([problems.go](../../../go/cmd/launcher/problems.go)) reads the
 flight recorder directly, so it still shows the last session after the
-controller crashed or stopped. The Log tab shows the
+controller crashed or stopped. One background refresh reads and summarizes the
+recorder at a time; Problems bindings return the last completed feed and Copy
+snapshot without waiting for disk or aggregation. Filters take effect in the
+next completed refresh. The Log tab shows the
 newest run's flight rows through [logview](../../../go/internal/logview): WARN and ERROR rows and an explicit set of INFO event kinds, repeats collapsed. See
 [measure throughput](../testing/measure-throughput.md) for what the rows carry.
 

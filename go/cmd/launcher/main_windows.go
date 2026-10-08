@@ -78,6 +78,7 @@ func main() {
 		fatal("Could not open a WebView2 window. Install the Microsoft Edge WebView2 Runtime and try again.")
 	}
 	defer w.Destroy()
+	problems := newProblemsRefresh(a.recorder)
 	for name, f := range map[string]any{
 		"getState":          a.view,
 		"saveSettings":      a.saveSettings,
@@ -87,8 +88,8 @@ func main() {
 		"restart":           func() { go a.restart() },
 		"closeGame":         func() { go a.closeGame() },
 		"getEvents":         a.tail.rows,
-		"getProblems":       func(hidden []string, needle string) ProblemsView { return a.recorder.view(hidden, needle) },
-		"allProblems":       a.recorder.allProblems,
+		"getProblems":       problems.poll,
+		"allProblems":       problems.allProblems,
 		"getNewColony":      a.colony.View,
 		"generateNewColony": a.colony.Generate,
 		"cancelNewColony":   func() { go a.colony.Cancel() },
