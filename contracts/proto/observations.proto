@@ -1019,6 +1019,7 @@ enum QuestObjectiveKind {
   QUEST_OBJECTIVE_KIND_LOAD_NAMED_PAWNS = 7;
   QUEST_OBJECTIVE_KIND_MONUMENT = 8;
   QUEST_OBJECTIVE_KIND_EXPIRY = 9;
+  QUEST_OBJECTIVE_KIND_RESCUE_PAWNS = 10;
 }
 message QuestObjective {
   optional QuestObjectiveKind kind = 1;
@@ -1033,7 +1034,11 @@ message QuestObjective {
   QuestMonument monument = 10;
   optional double minimum_mood = 11;
   repeated QuestLodgerMood lodger_moods = 12;
+  // Time available after acceptance; never an offer expiry.
+  optional int64 duration_ticks = 13;
+  QuestWorkload workload = 14;
 }
+message QuestWorkload { optional string recipe = 1; optional string stat = 2; optional double work = 3; optional double rate_factor = 4; }
 message QuestLodgerMood { optional string pawn_id = 1; optional double mood = 2; }
 message QuestMonument {
   optional string marker_id = 1;
@@ -1049,6 +1054,11 @@ message QuestMonument {
   repeated rimgovernor.common.v1.Cell install_cells = 11;
   repeated QuestMonumentPiece pieces = 12;
   repeated QuestMonumentResource resources = 13;
+  optional bool offered = 14;
+  // Legal marker placements observed against the complete sketch footprint.
+  optional bool clear_site = 15;
+  repeated Quantity supplied_resources = 16;
+  repeated Quantity available_resources = 17;
 }
 message QuestMonumentPiece {
   optional string def_name = 1;
@@ -1060,7 +1070,11 @@ message QuestMonumentPiece {
   optional bool allowed = 7;
   repeated string allowed_stuffs = 8;
   repeated rimgovernor.common.v1.Cell footprint = 9;
+  repeated QuestMonumentBuildOption build_options = 10;
 }
+message QuestMonumentBuildOption { optional string stuff = 1; repeated Quantity costs = 2; optional double work = 3; }
+message QuestWorker { optional string pawn_id = 1; optional bool healthy_adult = 2; optional bool can_fight = 3; repeated QuestWorkRate rates = 4; }
+message QuestWorkRate { optional string stat = 1; optional double rate = 2; }
 message QuestMonumentResource {
   optional string id = 1;
   optional string def_name = 2;
@@ -1078,10 +1092,11 @@ message QuestShuttleState {
   repeated string pawn_ids = 7;
   repeated string loaded_pawn_ids = 8;
   optional int32 required_colonist_count = 9;
+  repeated string pending_pawn_ids = 10;
 }
-message QuestState { optional string id = 1; optional string label = 2; optional string description = 3; optional rimgovernor.receipts.v1.QuestStatus state = 4; optional int64 accepted_tick = 5; optional int64 expires_in_ticks = 6; optional bool requires_accepter = 7; optional bool can_accept = 8; repeated rimgovernor.common.v1.Ref eligible_pawns = 9; repeated QuestTradeRequest trade_requests = 10; repeated QuestReward rewards = 11; repeated ReadIssue issues = 12; SnapshotRef snapshot = 13; optional string script_def = 14; optional string faction_id = 15; optional int32 map_id = 16; repeated QuestObjective objectives = 17; optional int32 choice_part_count = 18; optional string asker_pawn_id = 19; optional bool asker_faction_player = 20; optional bool violent_quests_allowed = 21; repeated QuestShuttleState shuttles = 22; }
+message QuestState { optional string id = 1; optional string label = 2; optional string description = 3; optional rimgovernor.receipts.v1.QuestStatus state = 4; optional int64 accepted_tick = 5; optional int64 expires_in_ticks = 6; optional bool requires_accepter = 7; optional bool can_accept = 8; repeated rimgovernor.common.v1.Ref eligible_pawns = 9; repeated QuestTradeRequest trade_requests = 10; repeated QuestReward rewards = 11; repeated ReadIssue issues = 12; SnapshotRef snapshot = 13; optional string script_def = 14; optional string faction_id = 15; optional int32 map_id = 16; repeated QuestObjective objectives = 17; optional int32 choice_part_count = 18; optional string asker_pawn_id = 19; optional bool asker_faction_player = 20; optional bool violent_quests_allowed = 21; repeated QuestShuttleState shuttles = 22; optional double threat_points = 23; repeated string departure_pawn_ids = 24; }
 message FactionState { optional string id = 1; optional string label = 2; optional bool player = 3; optional bool hostile = 4; optional int32 goodwill = 5; optional string relation = 6; SnapshotRef snapshot = 7; }
-message WorldMap { optional int32 id = 1; optional int32 tile = 2; optional bool home = 3; optional string label = 4; repeated PawnState pawns = 5; repeated ResourceStock stored_items = 6; }
+message WorldMap { optional int32 id = 1; optional int32 tile = 2; optional bool home = 3; optional string label = 4; repeated PawnState pawns = 5; repeated ResourceStock stored_items = 6; repeated QuestWorker quest_workers = 7; }
 message CaravanAssembly { optional string id = 1; optional int32 map_id = 2; optional string status = 3; optional bool gathering_items = 4; repeated rimgovernor.common.v1.Ref pawns = 5; }
 message WorldProgressionSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated WorldMap maps = 2; repeated FactionState factions = 3; repeated CaravanState caravans = 4; repeated CaravanAssembly assemblies = 5; repeated QuestState quests = 6; }
 message WorldProgressionRequest { ReadScope scope = 1; optional bool include_storage = 2; }

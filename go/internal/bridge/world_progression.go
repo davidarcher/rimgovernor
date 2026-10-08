@@ -85,7 +85,8 @@ type CaravanJourney struct {
 // It does not surface reward item contents; nothing here picks a quest or a
 // reward, it only proves facts about one already-selected quest and option.
 type QuestOffer struct {
-	ID string
+	ThreatPoints *float64
+	ID           string
 	// ScriptDef is the root QuestScriptDef defName (Quest.root), "" for a
 	// quest built without one; policy.IsJoinerOffer tells a joiner offer
 	// from every other quest by it.
@@ -96,9 +97,10 @@ type QuestOffer struct {
 	ChoiceCount      int32
 	// TradeRequests is the quest's full native settlement trade objective
 	// list (QuestTradeRequest rows) the world-evaluation advisory reads.
-	TradeRequests   []QuestTradeRequestFact
-	EligiblePawnIDs []string
-	SnapshotToken   string
+	TradeRequests    []QuestTradeRequestFact
+	EligiblePawnIDs  []string
+	DeparturePawnIDs []string
+	SnapshotToken    string
 	// FactionID is the first non-player faction the quest involves ("" when
 	// none), the id FactionState rows carry. MapID is the map the quest's
 	// look targets sit on; MapKnown is false for a quest anchored only to a
@@ -143,6 +145,8 @@ type QuestObjectiveFact struct {
 	Count            *int64
 	Produced         *int64
 	DeadlineTicks    *int64
+	DurationTicks    *int64
+	Workload         *o.QuestWorkload
 	UnmetRequirement string
 	PawnIDs          []string
 	Active           *bool
@@ -157,6 +161,7 @@ type QuestShuttleFact struct {
 	ID                                                                             string
 	AutoloadAvailable, Autoload, Loading, AllRequiredLoaded, ManualLaunchAvailable *bool
 	PawnIDs, LoadedPawnIDs                                                         []string
+	PendingPawnIDs                                                                 []string
 	RequiredColonistCount                                                          *int32
 }
 
@@ -197,10 +202,11 @@ type QuestTradeRequestFact struct {
 // lets a caller tell "this pawn is alive and visible on some live map" from
 // "absent from every census we can read".
 type WorldMap struct {
-	ID      int32
-	Tile    int32
-	Home    bool
-	PawnIDs []string
+	ID           int32
+	Tile         int32
+	Home         bool
+	PawnIDs      []string
+	QuestWorkers []*o.QuestWorker
 }
 
 // WorldProgressionRead is the validated subset of one rimgovernor/
@@ -283,7 +289,11 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			seenMapPawns[pawn.Pawn.GetId()] = true
 			pawnIDs[j] = pawn.Pawn.GetId()
 		}
-		maps[i] = WorldMap{ID: row.GetId(), Tile: row.GetTile(), Home: row.GetHome(), PawnIDs: pawnIDs}
+		workers, err := validatedQuestWorkers(row.QuestWorkers)
+		if err != nil {
+			return WorldProgressionRead{}, err
+		}
+		maps[i] = WorldMap{ID: row.GetId(), Tile: row.GetTile(), Home: row.GetHome(), PawnIDs: pawnIDs, QuestWorkers: workers}
 	}
 	seen := map[string]bool{}
 	rows := make([]CaravanJourney, len(v.Caravans))
@@ -389,6 +399,12 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			ID: row.GetId(), ScriptDef: row.GetScriptDef(), State: QuestStatusName(row.GetState()), RequiresAccepter: row.GetRequiresAccepter(), CanAccept: row.GetCanAccept(),
 			ChoiceCount: int32(len(choices)), EligiblePawnIDs: pawnIDs, SnapshotToken: row.Snapshot.GetToken(),
 		}
+		for _, id := range row.DeparturePawnIds {
+			if validID(id) != nil {
+				return WorldProgressionRead{}, contract("invalid quest departure pawn")
+			}
+			quest.DeparturePawnIDs = append(quest.DeparturePawnIDs, id)
+		}
 		quest.FactionID, quest.MapKnown = row.GetFactionId(), row.MapId != nil
 		quest.MapID = row.GetMapId()
 		quest.ExpiresInTicks = row.ExpiresInTicks
@@ -396,6 +412,9 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			return WorldProgressionRead{}, contract("invalid quest asker")
 		}
 		quest.Asker, quest.AskerFactionPlayer, quest.ViolentQuestsAllowed = row.GetAskerPawnId(), row.AskerFactionPlayer, row.ViolentQuestsAllowed
+		if row.ThreatPoints != nil && !math.IsNaN(*row.ThreatPoints) && !math.IsInf(*row.ThreatPoints, 0) && *row.ThreatPoints >= 0 {
+			quest.ThreatPoints = row.ThreatPoints
+		}
 		if row.GetChoicePartCount() < 0 {
 			return WorldProgressionRead{}, contract("invalid quest choice parts")
 		}
@@ -425,7 +444,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			quest.Rewards = append(quest.Rewards, fact)
 		}
 		for _, objective := range row.Objectives {
-			if objective == nil || objective.Kind == nil || objective.GetKind() < o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_UNKNOWN || objective.GetKind() > o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_EXPIRY || objective.GetCount() < 0 || objective.GetProduced() < 0 || objective.GetDeadlineTicks() < 0 {
+			if objective == nil || objective.Kind == nil || objective.GetKind() < o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_UNKNOWN || objective.GetKind() > o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_RESCUE_PAWNS || objective.GetCount() < 0 || objective.GetProduced() < 0 || objective.GetDeadlineTicks() < 0 || objective.GetDurationTicks() < 0 {
 				return WorldProgressionRead{}, contract("invalid quest objective")
 			}
 			seen := map[string]bool{}
@@ -437,6 +456,13 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			}
 			fact := QuestObjectiveFact{Kind: objective.GetKind(), Def: objective.GetDef(), Stuff: objective.GetStuff(), Count: objective.Count, Produced: objective.Produced, DeadlineTicks: objective.DeadlineTicks, UnmetRequirement: objective.GetUnmetRequirement(), PawnIDs: append([]string(nil), objective.PawnIds...), Active: objective.Active, MinimumMood: objective.MinimumMood}
 			fact.Monument = validatedQuestMonument(objective.Monument)
+			fact.DurationTicks = objective.DurationTicks
+			if w := objective.Workload; w != nil {
+				if w.Work == nil || w.RateFactor == nil || math.IsNaN(w.GetWork()) || math.IsInf(w.GetWork(), 0) || w.GetWork() < 0 || math.IsNaN(w.GetRateFactor()) || math.IsInf(w.GetRateFactor(), 0) || w.GetRateFactor() < 0 {
+					return WorldProgressionRead{}, contract("invalid quest workload")
+				}
+				fact.Workload = proto.Clone(w).(*o.QuestWorkload)
+			}
 			if objective.MinimumMood != nil && (math.IsNaN(*objective.MinimumMood) || math.IsInf(*objective.MinimumMood, 0) || *objective.MinimumMood < 0 || *objective.MinimumMood > 1) {
 				return WorldProgressionRead{}, contract("invalid quest mood threshold")
 			}
@@ -456,7 +482,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 				return WorldProgressionRead{}, contract("invalid quest shuttle")
 			}
 			seenShuttles[shuttle.GetShuttleId()] = true
-			for _, ids := range [][]string{shuttle.PawnIds, shuttle.LoadedPawnIds} {
+			for _, ids := range [][]string{shuttle.PawnIds, shuttle.LoadedPawnIds, shuttle.PendingPawnIds} {
 				seen := map[string]bool{}
 				for _, id := range ids {
 					if validID(id) != nil || seen[id] {
@@ -466,6 +492,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 				}
 			}
 			quest.Shuttles = append(quest.Shuttles, QuestShuttleFact{ID: shuttle.GetShuttleId(), AutoloadAvailable: shuttle.AutoloadAvailable, Autoload: shuttle.Autoload, Loading: shuttle.Loading, AllRequiredLoaded: shuttle.AllRequiredLoaded, ManualLaunchAvailable: shuttle.ManualLaunchAvailable, PawnIDs: append([]string(nil), shuttle.PawnIds...), LoadedPawnIDs: append([]string(nil), shuttle.LoadedPawnIds...), RequiredColonistCount: shuttle.RequiredColonistCount})
+			quest.Shuttles[len(quest.Shuttles)-1].PendingPawnIDs = append([]string(nil), shuttle.PendingPawnIds...)
 		}
 		for choice, amount := range favor {
 			quest.Favor = append(quest.Favor, QuestFavorFact{Choice: int32(choice), Favor: amount})

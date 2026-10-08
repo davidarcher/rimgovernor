@@ -24,6 +24,9 @@ namespace HomeBridge.BridgeTools
                     RequiredColonistCount = shuttle.requiredColonistCount };
                 row.PawnIds.Add(shuttle.RequiredPawns.Select(p => p.GetUniqueLoadID()));
                 row.LoadedPawnIds.Add(shuttle.Transporter.innerContainer.OfType<Pawn>().Select(p => p.GetUniqueLoadID()));
+                if (shuttle.Transporter.leftToLoad != null)
+                    row.PendingPawnIds.Add(shuttle.Transporter.leftToLoad.Where(t => t.CountToTransfer > 0)
+                        .SelectMany(t => t.things).OfType<Pawn>().Select(p => p.GetUniqueLoadID()).Distinct());
                 rows.Add(row);
             }
             return rows;

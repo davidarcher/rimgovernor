@@ -19,11 +19,11 @@ func questDecision(offer JoinerOffer, f RoundsFacts) (bool, QuestSkipReason) {
 	if profile.Disposition == QuestRefuse {
 		return false, QuestSkipReason(profile.SkipReason)
 	}
-	if profile.NeverAct || profile.Disposition == QuestObserve {
+	if profile.NeverAct || profile.Disposition == QuestObserve || profile.Disposition == QuestFollow {
 		return false, ""
 	}
 	if profile.Family == QuestFamilyJoiner {
-		return false, ""
+		return false, JoinerThreatReason(offer, f)
 	}
 	if profile.Family == QuestFamilyBestowing {
 		if parts, known := offer.RewardChoiceParts.Value(); known && parts > 1 {
@@ -64,10 +64,16 @@ func questDecision(offer JoinerOffer, f RoundsFacts) (bool, QuestSkipReason) {
 	if reason := HospitalityAdmission(offer, f); reason != "" {
 		return false, reason
 	}
+	if reason := MonumentAdmission(offer, f); reason != "" {
+		return false, reason
+	}
+	if reason := DepartureAdmission(offer, f); reason != "" {
+		return false, reason
+	}
 	// These families need a quest driver before their acceptance can be enabled.
 	switch profile.Family {
-	case QuestFamilyBanditCamp, QuestFamilyPawnLend, QuestFamilyShuttleRescue, QuestFamilyBuildMonument,
-		QuestFamilyDecreeProduce, QuestFamilyDecreeHarvest, QuestFamilyDecreeHunt, QuestFamilyDecreeMonument,
+	case QuestFamilyShuttleRescue,
+		QuestFamilyDecreeProduce, QuestFamilyDecreeHarvest, QuestFamilyDecreeHunt,
 		QuestFamilyHack, QuestFamilyRelic:
 		return false, "driver_unavailable"
 	}
@@ -88,16 +94,9 @@ func QuestFeasibility(offer JoinerOffer, f RoundsFacts) QuestSkipReason {
 		if objective.Kind == o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_ACCEPT_REQUIREMENT_UNMET {
 			return "accept_requirement"
 		}
-		if deadline, known := objective.DeadlineTicks.Value(); known && objective.Kind != o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_EXPIRY {
-			produced, pk := objective.Produced.Value()
-			count, ck := objective.Count.Value()
-			if !pk || !ck || produced < count {
-				if now, nk := f.QuestObservedTick.Value(); nk && deadline <= int64(now) {
-					return "deadline"
-				}
-				return "deadline_unknown"
-			}
-		}
+	}
+	if reason := QuestDeadlineFeasibility(offer, f); reason != "" {
+		return reason
 	}
 	if profile.Cost == QuestCostFree {
 		return ""

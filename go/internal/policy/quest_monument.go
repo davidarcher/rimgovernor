@@ -6,15 +6,17 @@ import (
 )
 
 type QuestMonument struct {
-	Marker, Def                          string
-	Map                                  domain.MapID
-	Packed, Installed, Complete, AllDone domain.Fact[bool]
-	Cell                                 domain.Cell
-	DisallowedBuilding                   string
-	DisallowedTicks                      domain.Fact[int64]
-	InstallCells                         []domain.Cell
-	Pieces                               []QuestMonumentPiece
-	Resources                            []QuestMonumentResource
+	Marker, Def                           string
+	Map                                   domain.MapID
+	Packed, Installed, Complete, AllDone  domain.Fact[bool]
+	Cell                                  domain.Cell
+	DisallowedBuilding                    string
+	DisallowedTicks                       domain.Fact[int64]
+	InstallCells                          []domain.Cell
+	Pieces                                []QuestMonumentPiece
+	Resources                             []QuestMonumentResource
+	Offered, ClearSite                    domain.Fact[bool]
+	SuppliedResources, AvailableResources []Amount
 }
 
 type QuestMonumentPiece struct {
@@ -24,6 +26,12 @@ type QuestMonumentPiece struct {
 	Built, Queued, Allowed domain.Fact[bool]
 	AllowedStuffs          []string
 	Footprint              []domain.Cell
+	BuildOptions           []QuestMonumentBuildOption
+}
+type QuestMonumentBuildOption struct {
+	Stuff string
+	Costs []Amount
+	Work  float64
 }
 
 type QuestMonumentResource struct {

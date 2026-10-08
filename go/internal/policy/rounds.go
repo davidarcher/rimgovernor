@@ -507,6 +507,9 @@ type RoundsFacts struct {
 	// Quest capacity is derived from the current roster, world census and emergency review.
 	QuestSparePawns      domain.Fact[[]PawnID]
 	QuestWorkers         domain.Fact[[]WorkPawn]
+	QuestWorkCapacity    domain.Fact[[]QuestWorkCapacity]
+	QuestDeparturePawns  domain.Fact[[]QuestDeparturePawn]
+	QuestDepartureWork   domain.Fact[[]PawnWorkAssignment]
 	QuestObservedTick    domain.Fact[domain.Tick]
 	QuestColonistsAtHome domain.Fact[int]
 	QuestColonyCalm      domain.Fact[bool]

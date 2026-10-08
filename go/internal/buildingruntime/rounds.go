@@ -655,6 +655,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 				if _, ok := work.Capacity.Value(); ok {
 					reading.Projection.Facts.WorkRoster = domain.Known(work.Coverage)
 					reading.Projection.Facts.QuestSparePawns = policy.QuestSpareColonists(reading.Projection.WorkPawns, reading.Projection.Facts.MoodPawns, work)
+					reading.Projection.Facts.QuestDepartureWork = domain.Known(work.Assignments)
 					reading.Projection.Facts.WorkDecaying = domain.Known(work.Decaying)
 					reading.Projection.Facts.WorkHelp = work.Help
 				}

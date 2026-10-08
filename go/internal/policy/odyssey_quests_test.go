@@ -9,8 +9,8 @@ import (
 
 func odysseyOffer(id, script string, scope QuestScope, edit func(*JoinerOffer)) JoinerOffer {
 	offer := JoinerOffer{Quest: domain.QuestID(id), ScriptDef: script, State: "NotYetAccepted", CanAccept: true,
-		Profile: domain.Known(QuestFamilyForRoot(script)),
-		Class:   domain.Known(QuestClass{Scope: scope})}
+		Profile:      domain.Known(QuestFamilyForRoot(script)),
+		ThreatPoints: domain.Known(100.0), Class: domain.Known(QuestClass{Scope: scope})}
 	if scope == QuestScopeShipOnly {
 		offer.Class = domain.Known(QuestClass{Scope: scope, SpaceLayer: "Orbit"})
 	}

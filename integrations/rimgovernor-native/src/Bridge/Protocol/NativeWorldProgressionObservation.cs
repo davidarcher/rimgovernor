@@ -37,6 +37,7 @@ namespace HomeBridge.BridgeTools
             {
                 var row = new Obs.WorldMap { Id = m.uniqueID, Tile = m.Tile.tileId, Home = m.IsPlayerHome, Label = m.Parent?.Label ?? "" };
                 row.Pawns.Add(m.mapPawns.FreeColonistsSpawned.Select(p => NativeObservationTools.PawnRow(p, false, context)));
+                row.QuestWorkers.Add(NativeQuestWorkers.Read(m));
                 if (includeStorage)
                 {
                     var stored = m.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item && t.IsInValidStorage())
@@ -208,7 +209,16 @@ namespace HomeBridge.BridgeTools
                         break;
                     case QuestPart_DropMonumentMarkerCopy _:
                         row.Kind = Obs.QuestObjectiveKind.Monument;
-                        var monument = NativeQuestMonuments.Read(quest); if (monument != null) row.Monument = monument; break;
+                        var monument = NativeQuestMonuments.Read(quest); if (monument != null) row.Monument = monument;
+                        var timer = quest.PartsListForReading.OfType<QuestPart_Delay>().Where(p => p.isBad &&
+                            (decree || p.inSignalDisable?.EndsWith(".MonumentCompleted", StringComparison.Ordinal) == true))
+                            .OrderBy(p => p.delayTicks).FirstOrDefault();
+                        if (timer != null)
+                        {
+                            if (timer.State == QuestPartState.Enabled) row.DeadlineTicks = Math.Max(0, (long)Find.TickManager.TicksGame + timer.TicksLeft);
+                            else if (quest.State == QuestState.NotYetAccepted && timer.State == QuestPartState.NeverEnabled) row.DurationTicks = timer.delayTicks;
+                        }
+                        break;
                     case QuestPart_PawnsArrive p when p.pawns.Any(pawn => (pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest))):
                         row.Kind = Obs.QuestObjectiveKind.HostLodgers;
                         row.PawnIds.Add(p.pawns.Where(pawn => (pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest))).Select(pawn => pawn.GetUniqueLoadID()));
@@ -216,10 +226,24 @@ namespace HomeBridge.BridgeTools
                         row.Count = row.PawnIds.Count; break;
                 }
                 if (deadline.HasValue && (row.Kind == Obs.QuestObjectiveKind.ProduceItem || row.Kind == Obs.QuestObjectiveKind.HarvestPlant || row.Kind == Obs.QuestObjectiveKind.KillAnimals)) row.DeadlineTicks = deadline.Value;
+                var workload = NativeQuestWorkload.Read(row, quest); if (workload != null) row.Workload = workload;
+                rows.Add(row);
+            }
+            var hosted = quest.PartsListForReading.OfType<QuestPart_ExtraFaction>().SelectMany(p => p.affectedPawns)
+                .Where(p => p.HasExtraHomeFaction(quest) || p.HasExtraMiniFaction(quest))
+                .Concat(quest.State == QuestState.NotYetAccepted
+                    ? quest.PartsListForReading.OfType<QuestPart_RequirementsToAcceptBedroom>().SelectMany(p => p.targetPawns)
+                    : Enumerable.Empty<Pawn>()).Distinct().ToArray();
+            if (hosted.Length > 0 && !rows.Any(r => r.Kind == Obs.QuestObjectiveKind.HostLodgers))
+            {
+                var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HostLodgers, Count = hosted.Length };
+                row.PawnIds.Add(hosted.Select(p => p.GetUniqueLoadID()));
+                NativeQuestShuttles.LodgerMood(quest, row, hosted);
                 rows.Add(row);
             }
             if (quest.TicksUntilExpiry >= 0 && quest.State == QuestState.NotYetAccepted)
                 rows.Add(new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.Expiry, DeadlineTicks = (long)Find.TickManager.TicksGame + quest.TicksUntilExpiry });
+            rows.AddRange(NativeQuestRefugees.Read(quest));
             return rows;
         }
 
@@ -285,7 +309,11 @@ namespace HomeBridge.BridgeTools
                     if (asker[0].Faction != null) row.AskerFactionPlayer = asker[0].Faction.IsPlayer;
                 }
                 row.ViolentQuestsAllowed = Find.Storyteller.difficulty.allowViolentQuests;
+                var threatPoints = NativeQuestThreats.Read(q);
+                if (threatPoints.HasValue) row.ThreatPoints = threatPoints.Value;
                 row.Shuttles.Add(NativeQuestShuttles.Read(q));
+                row.DeparturePawnIds.Add(q.PartsListForReading.OfType<QuestPart_LendColonistsToFaction>()
+                    .SelectMany(p => p.LentColonistsListForReading).OfType<Pawn>().Select(p => p.GetUniqueLoadID()).Distinct());
                 row.Objectives.Add(Objectives(q));
                 row.Rewards.Add(Rewards(q));
                 rows.Add(row);

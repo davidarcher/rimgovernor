@@ -690,7 +690,7 @@ var plannerCatalog = []plannerEntry{
 			out.PopulationCustody = &method
 			return method.Verdict, nil
 		}},
-	{name: "populationJoiner", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.QuestAcceptAction, domain.RitualAction, domain.DialogAnswerAction, domain.ProductionBillAction, domain.ZoneCreateAction, domain.AcquisitionAction, domain.BuildingAction, domain.MoveBuildingAction, domain.HaulAction}, sections: sectionsMedical,
+	{name: "populationJoiner", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.TendAction, domain.QuestAcceptAction, domain.QuestShuttleAction, domain.RitualAction, domain.DialogAnswerAction, domain.ProductionBillAction, domain.ZoneCreateAction, domain.AcquisitionAction, domain.BuildingAction, domain.MoveBuildingAction, domain.HaulAction}, sections: sectionsMedical,
 		configured: func(c *ClockSchedulerConfig) bool { return c.PopulationJoiner != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.PopulationJoiner.step(ctx, epoch, arbiter)

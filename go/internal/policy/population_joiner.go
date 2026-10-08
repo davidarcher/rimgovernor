@@ -15,6 +15,7 @@ import (
 // token and native CanAcceptQuest verdict immediately before dispatch; this
 // only decides which already-observed offer to answer.
 type JoinerOffer struct {
+	ThreatPoints     domain.Fact[float64]
 	Quest            domain.QuestID
 	ScriptDef        string
 	State            string
@@ -23,6 +24,7 @@ type JoinerOffer struct {
 	ChoiceCount      int32
 	ExpiresInTicks   domain.Fact[int64]
 	EligiblePawnIDs  []domain.PawnID
+	DeparturePawnIDs []domain.PawnID
 	Objectives       []QuestObjective
 	Shuttles         []QuestShuttleState
 	Profile          domain.Fact[QuestProfile]
@@ -56,6 +58,8 @@ type QuestObjective struct {
 	Count            domain.Fact[int64]
 	Produced         domain.Fact[int64]
 	DeadlineTicks    domain.Fact[int64]
+	DurationTicks    domain.Fact[int64]
+	Workload         domain.Fact[QuestWorkload]
 	UnmetRequirement string
 	PawnIDs          []domain.PawnID
 	MinimumMood      domain.Fact[float64]
@@ -70,6 +74,7 @@ type QuestShuttleState struct {
 	ID                                                                             string
 	AutoloadAvailable, Autoload, Loading, AllRequiredLoaded, ManualLaunchAvailable domain.Fact[bool]
 	PawnIDs, LoadedPawnIDs                                                         []domain.PawnID
+	PendingPawnIDs                                                                 []domain.PawnID
 	RequiredColonistCount                                                          domain.Fact[int32]
 }
 
@@ -200,14 +205,14 @@ func JoinerCapacity(f JoinerCapacityFacts) domain.Fact[bool] {
 // the colony has capacity for it. An offer the colony cannot host is not a
 // deficit: it is left to expire. An unknown census leaves the need unknown
 // rather than silently settled, the same rule PrisonerRecruitDeficit uses.
-func JoinerDeficit(offers domain.Fact[[]JoinerOffer], capacity domain.Fact[bool]) domain.Fact[bool] {
+func JoinerDeficit(offers domain.Fact[[]JoinerOffer], capacity domain.Fact[bool], facts RoundsFacts) domain.Fact[bool] {
 	rows, known := offers.Value()
 	if !known {
 		return domain.Unknown[bool]()
 	}
 	waiting := false
 	for _, offer := range rows {
-		waiting = waiting || joinerAnswerable(offer)
+		waiting = waiting || joinerAnswerable(offer) && JoinerThreatReason(offer, facts) == ""
 	}
 	if !waiting {
 		return domain.Known(false)
@@ -222,13 +227,14 @@ func JoinerDeficit(offers domain.Fact[[]JoinerOffer], capacity domain.Fact[bool]
 // SelectJoinerMethod picks the lowest-ID answerable joiner offer to accept
 // next, mirroring SelectPrisonerInteractionMethod's determinism, once the
 // colony's capacity for one more colonist is known.
-func SelectJoinerMethod(offers domain.Fact[[]JoinerOffer], capacity domain.Fact[bool]) JoinerChoice {
+func SelectJoinerMethod(offers domain.Fact[[]JoinerOffer], capacity domain.Fact[bool], facts RoundsFacts) JoinerChoice {
 	rows, known := offers.Value()
 	if !known {
 		return JoinerChoice{Reason: JoinerCensusUnknown}
 	}
 	sorted := append([]JoinerOffer{}, rows...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Quest < sorted[j].Quest })
+	refused := false
 	for _, offer := range sorted {
 		if !joinerAnswerable(offer) {
 			continue
@@ -240,11 +246,18 @@ func SelectJoinerMethod(offers domain.Fact[[]JoinerOffer], capacity domain.Fact[
 		if !room {
 			return JoinerChoice{Reason: JoinerNoCapacity}
 		}
+		if JoinerThreatReason(offer, facts) != "" {
+			refused = true
+			continue
+		}
 		choice := JoinerChoice{Quest: offer.Quest, RewardChoice: -1}
 		if offer.ChoiceCount > 0 {
 			choice.RewardChoice = 0
 		}
 		return choice
+	}
+	if refused {
+		return JoinerChoice{Reason: JoinerNoCapacity}
 	}
 	return JoinerChoice{Reason: JoinerNoOffer}
 }

@@ -117,30 +117,30 @@ func TestJoinerCapacityNeedsFoodReserveAndASpareBed(t *testing.T) {
 
 func TestJoinerDeficitOnlyForAnswerableOffersWithRoom(t *testing.T) {
 	t.Parallel()
-	offer := JoinerOffer{Quest: "Quest_7", ScriptDef: "ThreatReward_Raid_Joiner", State: "NotYetAccepted", CanAccept: true}
-	if _, known := JoinerDeficit(domain.Unknown[[]JoinerOffer](), domain.Known(true)).Value(); known {
+	offer := JoinerOffer{Quest: "Quest_7", ScriptDef: "ThreatReward_Raid_Joiner", ThreatPoints: domain.Known(100.0), State: "NotYetAccepted", CanAccept: true}
+	if _, known := JoinerDeficit(domain.Unknown[[]JoinerOffer](), domain.Known(true), joinerThreatTestFacts()).Value(); known {
 		t.Fatal("unknown census must not settle the need")
 	}
-	if deficit, known := JoinerDeficit(domain.Known([]JoinerOffer{}), domain.Unknown[bool]()).Value(); !known || deficit {
+	if deficit, known := JoinerDeficit(domain.Known([]JoinerOffer{}), domain.Unknown[bool](), joinerThreatTestFacts()).Value(); !known || deficit {
 		t.Fatal("no offer is no deficit whatever the capacity")
 	}
 	for _, other := range []JoinerOffer{
 		{Quest: "Quest_1", ScriptDef: "TradeRequest", State: "NotYetAccepted", CanAccept: true},
-		{Quest: "Quest_2", ScriptDef: "ThreatReward_Raid_Joiner", State: "Ongoing", CanAccept: false},
-		{Quest: "Quest_3", ScriptDef: "ThreatReward_Raid_Joiner", State: "NotYetAccepted", CanAccept: false},
-		{Quest: "Quest_4", ScriptDef: "ThreatReward_Raid_Joiner", State: "NotYetAccepted", CanAccept: true, RequiresAccepter: true},
+		{Quest: "Quest_2", ScriptDef: "ThreatReward_Raid_Joiner", ThreatPoints: domain.Known(100.0), State: "Ongoing", CanAccept: false},
+		{Quest: "Quest_3", ScriptDef: "ThreatReward_Raid_Joiner", ThreatPoints: domain.Known(100.0), State: "NotYetAccepted", CanAccept: false},
+		{Quest: "Quest_4", ScriptDef: "ThreatReward_Raid_Joiner", ThreatPoints: domain.Known(100.0), State: "NotYetAccepted", CanAccept: true, RequiresAccepter: true},
 	} {
-		if deficit, known := JoinerDeficit(domain.Known([]JoinerOffer{other}), domain.Known(true)).Value(); !known || deficit {
+		if deficit, known := JoinerDeficit(domain.Known([]JoinerOffer{other}), domain.Known(true), joinerThreatTestFacts()).Value(); !known || deficit {
 			t.Fatalf("%+v is not answerable", other)
 		}
 	}
-	if deficit, known := JoinerDeficit(domain.Known([]JoinerOffer{offer}), domain.Known(true)).Value(); !known || !deficit {
+	if deficit, known := JoinerDeficit(domain.Known([]JoinerOffer{offer}), domain.Known(true), joinerThreatTestFacts()).Value(); !known || !deficit {
 		t.Fatal("an answerable offer with room is a deficit")
 	}
-	if deficit, known := JoinerDeficit(domain.Known([]JoinerOffer{offer}), domain.Known(false)).Value(); !known || deficit {
+	if deficit, known := JoinerDeficit(domain.Known([]JoinerOffer{offer}), domain.Known(false), joinerThreatTestFacts()).Value(); !known || deficit {
 		t.Fatal("an answerable offer without room is left to expire, not a deficit")
 	}
-	if _, known := JoinerDeficit(domain.Known([]JoinerOffer{offer}), domain.Unknown[bool]()).Value(); known {
+	if _, known := JoinerDeficit(domain.Known([]JoinerOffer{offer}), domain.Unknown[bool](), joinerThreatTestFacts()).Value(); known {
 		t.Fatal("an answerable offer with unknown room is unknown")
 	}
 }
@@ -148,27 +148,27 @@ func TestJoinerDeficitOnlyForAnswerableOffersWithRoom(t *testing.T) {
 func TestSelectJoinerMethodPicksTheLowestAnswerableOffer(t *testing.T) {
 	t.Parallel()
 	offers := domain.Known([]JoinerOffer{
-		{Quest: "Quest_9", ScriptDef: "ThreatReward_Raid_Joiner", State: "NotYetAccepted", CanAccept: true, ChoiceCount: 2},
+		{Quest: "Quest_9", ScriptDef: "ThreatReward_Raid_Joiner", ThreatPoints: domain.Known(100.0), State: "NotYetAccepted", CanAccept: true, ChoiceCount: 2},
 		{Quest: "Quest_3", ScriptDef: "TradeRequest", State: "NotYetAccepted", CanAccept: true},
-		{Quest: "Quest_5", ScriptDef: "ThreatReward_Raid_Joiner", State: "NotYetAccepted", CanAccept: true},
+		{Quest: "Quest_5", ScriptDef: "ThreatReward_Raid_Joiner", ThreatPoints: domain.Known(100.0), State: "NotYetAccepted", CanAccept: true},
 	})
-	if got := SelectJoinerMethod(offers, domain.Known(true)); got != (JoinerChoice{Quest: "Quest_5", RewardChoice: -1}) {
+	if got := SelectJoinerMethod(offers, domain.Known(true), joinerThreatTestFacts()); got != (JoinerChoice{Quest: "Quest_5", RewardChoice: -1}) {
 		t.Fatalf("%+v", got)
 	}
-	single := domain.Known([]JoinerOffer{{Quest: "Quest_9", ScriptDef: "ThreatReward_Raid_Joiner", State: "NotYetAccepted", CanAccept: true, ChoiceCount: 2}})
-	if got := SelectJoinerMethod(single, domain.Known(true)); got != (JoinerChoice{Quest: "Quest_9", RewardChoice: 0}) {
+	single := domain.Known([]JoinerOffer{{Quest: "Quest_9", ScriptDef: "ThreatReward_Raid_Joiner", ThreatPoints: domain.Known(100.0), State: "NotYetAccepted", CanAccept: true, ChoiceCount: 2}})
+	if got := SelectJoinerMethod(single, domain.Known(true), joinerThreatTestFacts()); got != (JoinerChoice{Quest: "Quest_9", RewardChoice: 0}) {
 		t.Fatalf("a reward-choice offer takes the first option: %+v", got)
 	}
-	if got := SelectJoinerMethod(offers, domain.Known(false)); got.Reason != JoinerNoCapacity {
+	if got := SelectJoinerMethod(offers, domain.Known(false), joinerThreatTestFacts()); got.Reason != JoinerNoCapacity {
 		t.Fatalf("%+v", got)
 	}
-	if got := SelectJoinerMethod(offers, domain.Unknown[bool]()); got.Reason != JoinerCensusUnknown {
+	if got := SelectJoinerMethod(offers, domain.Unknown[bool](), joinerThreatTestFacts()); got.Reason != JoinerCensusUnknown {
 		t.Fatalf("%+v", got)
 	}
-	if got := SelectJoinerMethod(domain.Unknown[[]JoinerOffer](), domain.Known(true)); got.Reason != JoinerCensusUnknown {
+	if got := SelectJoinerMethod(domain.Unknown[[]JoinerOffer](), domain.Known(true), joinerThreatTestFacts()); got.Reason != JoinerCensusUnknown {
 		t.Fatalf("%+v", got)
 	}
-	if got := SelectJoinerMethod(domain.Known([]JoinerOffer{{Quest: "Quest_3", ScriptDef: "TradeRequest", State: "NotYetAccepted", CanAccept: true}}), domain.Known(false)); got.Reason != JoinerNoOffer {
+	if got := SelectJoinerMethod(domain.Known([]JoinerOffer{{Quest: "Quest_3", ScriptDef: "TradeRequest", State: "NotYetAccepted", CanAccept: true}}), domain.Known(false), joinerThreatTestFacts()); got.Reason != JoinerNoOffer {
 		t.Fatalf("no answerable offer is no offer, whatever the capacity: %+v", got)
 	}
 }

@@ -35,6 +35,7 @@ const (
 	QuestFamilyEndgame              QuestFamily = "endgame"
 	QuestFamilyTrade                QuestFamily = "trade"
 	QuestFamilyAnomaly              QuestFamily = "anomaly"
+	QuestFamilyRefugeePod           QuestFamily = "refugee_pod"
 )
 
 type QuestDisposition string
@@ -111,7 +112,8 @@ var questFamilies = func() map[string]QuestProfile {
 	add(QuestFamilyBanditCamp, QuestCostPawns, QuestDemandPawns|QuestDemandTravel|QuestDemandSecurity, false, "Mission_BanditCamp")
 	add(QuestFamilyPawnLend, QuestCostPawns, QuestDemandPawns|QuestDemandShuttle, false, "PawnLend")
 	add(QuestFamilyShuttleRescue, QuestCostTime, QuestDemandMedical|QuestDemandSecurity|QuestDemandShuttle, false, "ShuttleCrash_Rescue")
-	add(QuestFamilyBuildMonument, QuestCostTime, QuestDemandMaterials|QuestDemandConstruction, false, "BuildMonument_Basic", "BuildMonument_TimeProtect")
+	add(QuestFamilyBuildMonument, QuestCostTime, QuestDemandMaterials|QuestDemandConstruction, false, "BuildMonument_Basic")
+	add(QuestFamilyBuildMonument, QuestCostTime, QuestDemandMaterials|QuestDemandConstruction|QuestDemandSecurity, false, "BuildMonument_TimeProtect")
 	add(QuestFamilyDecreeProduce, QuestCostTime, QuestDemandMaterials|QuestDemandProduction, false, "Decree_ProduceItem")
 	add(QuestFamilyDecreeHarvest, QuestCostTime, QuestDemandHarvest, false, "Decree_HarvestCrop")
 	add(QuestFamilyDecreeHunt, QuestCostTime, QuestDemandHunt, false, "Decree_HuntAnimal")

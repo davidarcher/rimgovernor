@@ -19,13 +19,22 @@ namespace HomeBridge.BridgeTools
             var markers = quest.PartsListForReading.SelectMany(p => p.QuestLookTargets)
                 .Select(t => t.Thing is MinifiedThing mini ? mini.InnerThing : t.Thing).OfType<MonumentMarker>()
                 .Where(m => !m.Destroyed && (m.Spawned || m.ParentHolder is MinifiedThing packed && packed.Spawned)).Distinct().ToArray();
+            var delivery = quest.PartsListForReading.OfType<QuestPart_DropPods>().Where(p => p.mapParent?.HasMap == true)
+                .SelectMany(p => p.Things.Select(t => new { Part = p, Thing = t.GetInnerIfMinified() }))
+                .Where(t => t.Thing is MonumentMarker && !t.Thing.Destroyed).ToArray();
+            if (markers.Length == 0 && quest.State == QuestState.NotYetAccepted && delivery.Length == 1)
+                markers = new[] { (MonumentMarker)delivery[0].Thing };
             if (markers.Length != 1) return null;
             var marker = markers[0];
             var pack = marker.ParentHolder as MinifiedThing;
-            var map = marker.Spawned ? marker.Map : pack!.Map;
+            var offered = quest.State == QuestState.NotYetAccepted && !marker.Spawned && pack?.Spawned != true;
+            var map = offered ? delivery[0].Part.mapParent.Map : marker.Spawned ? marker.Map : pack!.Map;
             var row = new Obs.QuestMonument { MarkerId = marker.GetUniqueLoadID(), DefName = marker.def.defName,
-                MapId = map.uniqueID, Packed = pack != null, Installed = marker.Spawned, Complete = marker.complete,
+                MapId = map.uniqueID, Packed = !offered && pack != null, Installed = marker.Spawned, Offered = offered, Complete = marker.complete,
                 DisallowedTicks = marker.ticksSinceDisallowedBuilding };
+            if (offered)
+                row.SuppliedResources.Add(delivery[0].Part.Things.Where(t => t.def.category == ThingCategory.Item && !(t.GetInnerIfMinified() is MonumentMarker))
+                    .GroupBy(t => t.def).Select(g => new Obs.Quantity { DefName = g.Key.defName, Units = g.Sum(t => (long)t.stackCount) }));
             if (marker.Spawned)
             {
                 row.AllDone = marker.AllDone;
@@ -41,6 +50,7 @@ namespace HomeBridge.BridgeTools
                     row.InstallCells.Add(Cell(cell));
                     if (row.InstallCells.Count == 32) break;
                 }
+                row.ClearSite = row.InstallCells.Count > 0;
             }
             var materials = new HashSet<ThingDef>();
             foreach (var entity in marker.sketch.Entities.OfType<SketchBuildable>())
@@ -53,6 +63,16 @@ namespace HomeBridge.BridgeTools
                 foreach (var stuff in stuffs) materials.Add(stuff);
                 if (!entity.Buildable.MadeFromStuff || entity.Stuff != null)
                     foreach (var cost in entity.Buildable.CostListAdjusted(entity.Stuff, false)) materials.Add(cost.thingDef);
+                var options = entity.Buildable.MadeFromStuff
+                    ? entity.Stuff != null ? new[] { entity.Stuff } : stuffs.ToArray()
+                    : new ThingDef[] { null! };
+                foreach (var stuff in options)
+                {
+                    var option = new Obs.QuestMonumentBuildOption { Stuff = stuff?.defName ?? "",
+                        Work = entity.Buildable.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff) };
+                    option.Costs.Add(entity.Buildable.CostListAdjusted(stuff, false).Select(c => new Obs.Quantity { DefName = c.thingDef.defName, Units = c.count }));
+                    piece.BuildOptions.Add(option);
+                }
                 if (marker.Spawned)
                 {
                     var cell = marker.Position + entity.pos;
@@ -65,6 +85,10 @@ namespace HomeBridge.BridgeTools
             }
             var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState
                 && p.workSettings?.WorkIsActive(WorkTypeDefOf.Hauling) == true).ToArray();
+            row.AvailableResources.Add(map.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item && materials.Contains(t.def)
+                    && !t.Position.Fogged(map) && !t.IsForbidden(Faction.OfPlayer)
+                    && map.mapPawns.FreeColonistsSpawned.Any(p => p.CanReserveAndReach(t, PathEndMode.Touch, Danger.None)))
+                .GroupBy(t => t.def).Select(g => new Obs.Quantity { DefName = g.Key.defName, Units = g.Sum(t => (long)t.stackCount) }));
             foreach (var item in map.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item && materials.Contains(t.def)
                 && !t.Position.Fogged(map) && !t.IsForbidden(Faction.OfPlayer) && !t.IsInAnyStorage()).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal))
             {

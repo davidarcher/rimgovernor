@@ -19,6 +19,31 @@ against open non-automatic quests. Departures retain at least three home colonis
 Unknown demands and unfinished objective drivers prevent acceptance. Native
 CanAcceptQuest remains the final eligibility check at dispatch.
 
+Timed work uses native workloads and observed worker rates, with shared budgets
+for open quests. The forecast counts complete days, at most eight scheduled
+Work/Anything hours per day, and half that time for useful work. Unknown work
+or rates hold admission. Monument offers also require a legal clear footprint,
+reachable materials after existing commitments, and enough defense for their
+protection threats.
+
+ThreatReward joiners require a calm colony and observed defense capacity covering
+the generated quest's incident budget. PawnLend and BanditCamp departures preserve
+every work type's last primary owner, healthy adults, home population and home
+defense. Pending, loaded and lent pawn identities prevent overlapping squads.
+
+Deadline admission uses native effective pawn work rates and canonical recipe or
+sketch work, not skill estimates. It budgets complete days before the deadline,
+at most eight scheduled Work/Anything hours per day, and half that time for useful
+work after walking, hauling and upkeep. Open nonautomatic work shares each pawn's
+budget. Missing rates, schedules or workloads hold admission; offer expiry is
+separate from the duration available after acceptance.
+
+Monument offers expose their generated drop-pod sketch before acceptance. Admission
+requires native legal footprint placements, reachable material stock plus supplied
+pod material after existing construction and quest reservations, and enough build
+time. TimeProtect also needs observed defense capacity covering its native threat.
+The execution path rechecks placement rules before ordering construction.
+
 Required accepters come from the native eligibility list. Lower aggregate skill
 value is preferred; royal rewards prefer an eligible existing title holder.
 Reward selection prioritizes favor needed for pending titles, observed material
@@ -44,5 +69,10 @@ permissions and eligible loose-resource haulers. The existing packed installatio
 intent places the marker; shared building admission handles its sketch. Queued
 blueprints remain work in progress, and the intact native sketch determines
 completion and maintenance during the keep period.
+
+Pod-refugee objectives name the native crashed pawns. Existing custody rescues
+neutral refugees and secures hostile ones; housed patients use the ordinary tend
+job, and held prospects use the existing recruitment policy. Ghoul pods retain
+their threat treatment. A native PlayerTended event completes the charity quest.
 
 All quest facts are derived observations. No quest-specific store is added.

@@ -77,8 +77,8 @@ func TestEveryDLCQuestRootHasDisposition(t *testing.T) {
 		if profile.Disposition == policy.QuestRefuse && (profile.SkipReason == "" || !profile.NeverAct) {
 			t.Errorf("refusal %s: %+v", row.GetDefName(), profile)
 		}
-		if row.GetAutoAccept() && !profile.NeverAct {
-			t.Errorf("automatic root %s can act: %+v", row.GetDefName(), profile)
+		if row.GetAutoAccept() && profile.Disposition == policy.QuestDecide {
+			t.Errorf("automatic root %s asks for acceptance: %+v", row.GetDefName(), profile)
 		}
 	}
 	for _, name := range []string{"EndGame_ArchonexusVictory_FirstCycle", "EndGame_ShipEscape", "EndGame_VoidAwakening", "EndGame_VoidMonolith", "MonolithMigration", "MysteriousCargoUnnaturalCorpse", "MysteriousCargoCube", "MysteriousCargoRevenantSpine", "PollutionDump", "SanguophageShip", "TradeRequest"} {

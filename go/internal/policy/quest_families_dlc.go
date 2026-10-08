@@ -13,7 +13,14 @@ func extendQuestFamilies(table map[string]QuestProfile) {
 	add(QuestFamilySite, QuestObserve, "", QuestDemandTravel,
 		"OpportunitySite_DownedRefugee", "OpportunitySite_ItemStash", "LongRangeMineralScannerLump", "OpportunitySite_PeaceTalks", "OpportunitySite_PrisonerWillingToJoin", "OpportunitySite_AncientComplex", "OpportunitySite_WorkSite", "OpportunitySite_AncientComplex_Mechanitor", "OpportunitySite_DistressCall")
 	add(QuestFamilyJoiner, QuestObserve, "", QuestDemandFood|QuestDemandBeds|QuestDemandMedical,
-		"RefugeePodCrash", "WandererJoins", "RefugeePodCrash_Baby", "RefugeePodCrash_Ghoul", "CreepJoinerArrival", "CreepJoinerArrival_Metalhorror")
+		"WandererJoins", "RefugeePodCrash_Ghoul", "CreepJoinerArrival", "CreepJoinerArrival_Metalhorror")
+	add(QuestFamilyRefugeePod, QuestFollow, "", QuestDemandMedical, "RefugeePodCrash", "RefugeePodCrash_Baby")
+	for name, profile := range table {
+		if profile.Family == QuestFamilyRefugeePod {
+			profile.Cost = QuestCostFree
+			table[name] = profile
+		}
+	}
 	add(QuestFamilyEndgame, QuestRefuse, "endgame", 0,
 		"EndGame_ShipEscape", "EndGame_ArchonexusVictory", "EndGame_ArchonexusVictory_FirstCycle", "EndGame_ArchonexusVictory_SecondCycle", "EndGame_ArchonexusVictory_ThirdCycle", "EndGame_VoidMonolith", "EndGame_VoidAwakening")
 	add(QuestFamilyTrade, QuestRefuse, "delivery_unavailable", QuestDemandProduction|QuestDemandTravel, "TradeRequest")

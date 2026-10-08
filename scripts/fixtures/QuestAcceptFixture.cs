@@ -300,6 +300,125 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        [Tool("test/quest_hospitality_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable lab: real Hospitality_Joiners offer, titled lodger, vacant furnished bedroom and short hosting interval.")]
+        public async Task<object> PrepareHospitality(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused || !ModsConfig.RoyaltyActive) return Refuse("Paused Royalty lab required.");
+                var empire = FixtureEmpire();
+                Quest quest = null;
+                for(var attempt=0;attempt<16;attempt++) {
+                    var slate = new Slate(); slate.Set("points", 300f); slate.Set("lodgersCount", 1);
+                    var candidate=RimWorld.QuestGen.QuestGen.Generate(DefDatabase<QuestScriptDef>.GetNamed("Hospitality_Joiners"),slate);
+                    var guests=candidate.PartsListForReading.OfType<QuestPart_RequirementsToAcceptBedroom>().SelectMany(p=>p.targetPawns).ToArray();
+                    if(guests.Length==1 && !guests[0].Downed && !candidate.PartsListForReading.OfType<QuestPart_AddHediff>().Any(p=>p.pawns.Contains(guests[0]))) {quest=candidate;break;}
+                    candidate.CleanupQuestParts();
+                }
+                if(quest==null) return Refuse("Could not generate a healthy one-lodger hospitality precondition.");
+                Find.QuestManager.Add(quest);
+                var requirements = quest.PartsListForReading.OfType<QuestPart_RequirementsToAcceptBedroom>().Single();
+                var lodger = requirements.targetPawns.First();
+                // Title is a precondition. The generated graph retains its real
+                // bedroom requirement, arrival, pickup and end signals.
+                var title = empire.def.RoyalTitlesAwardableInSeniorityOrderForReading.First(t => t.bedroomRequirements != null && t.bedroomRequirements.Count > 0);
+                if (lodger.royalty == null) lodger.royalty = new Pawn_RoyaltyTracker(lodger);
+                lodger.royalty.SetTitle(empire, title, false, false, false);
+                foreach (var p in quest.PartsListForReading.OfType<QuestPart_ShuttleDelay>()) p.delayTicks = 8000;
+                quest.acceptanceExpireTick = Find.TickManager.TicksGame + 30 * GenDate.TicksPerDay;
+                var stone = DefDatabase<ThingDef>.GetNamed("BlocksGranite");
+                var inside = new CellRect(map.Center.x-15,map.Center.z+5,9,9);
+                var shell = inside.ExpandedBy(1); var door = new IntVec3(inside.CenterCell.x,0,shell.minZ);
+                foreach(var cell in shell.Cells) {
+                    map.roofGrid.SetRoof(cell,RoofDefOf.RoofConstructed); map.areaManager.Home[cell]=true;
+                    if(!inside.Contains(cell)) Place(map,cell==door?ThingDefOf.Door:ThingDefOf.Wall,stone,cell);
+                    else map.terrainGrid.SetTerrain(cell,DefDatabase<TerrainDef>.GetNamed("TileMarble"));
+                }
+                var bed = (Building_Bed)Place(map,ThingDefOf.Bed,stone,new IntVec3(inside.minX+1,0,inside.maxZ-2));
+                var cells = inside.Cells.Where(c=>c.z<inside.maxZ-2 && c.z>inside.minZ).ToArray(); var index=0;
+                Action<ThingDef> furnish=def=> {
+                    while(index<cells.Length) { var c=cells[index++]; if(!GenConstruct.CanPlaceBlueprintAt(def,c,Rot4.North,map).Accepted) continue; Place(map,def,stone,c); return; }
+                    throw new InvalidOperationException("Bedroom fixture has no furniture space.");
+                };
+                foreach(var name in new[]{"Dresser","EndTable","SculptureLarge"}) furnish(DefDatabase<ThingDef>.GetNamed(name));
+                map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+                var room = bed.GetRoom();
+                foreach(var req in title.bedroomRequirements) {
+                    var defs=new List<ThingDef>(); var count=1;
+                    if(req is RoomRequirement_ThingAnyOfCount many) { defs=many.things; count=many.count; }
+                    else if(req is RoomRequirement_ThingAnyOf any) defs=any.things;
+                    else if(req is RoomRequirement_ThingCount counted) { defs.Add(counted.thingDef); count=counted.count; }
+                    else if(req is RoomRequirement_Thing one) defs.Add(one.thingDef);
+                    var def=defs.FirstOrDefault(d=>d!=ThingDefOf.Bed);
+                    if(def!=null) for(var i=0;i<count && !req.Met(room,lodger);i++) furnish(def);
+                }
+                map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+                if(!requirements.CanAccept().Accepted) return Refuse("Generated titled lodger bedroom requirement unmet: "+requirements.CanAccept().Reason);
+                FixtureMeals(map);
+                var witness=quest.AddPart<QuestHospitalityWitness>(); witness.inSignalEnable=quest.InitiateSignal; witness.pawn=lodger; witness.bed=bed;
+                return new { success=true, questId=quest.GetUniqueLoadID(), pawnId=lodger.GetUniqueLoadID(),bedId=bed.GetUniqueLoadID(),title=title.defName,scriptDef=quest.root.defName };
+            },cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/quest_decree_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable lab: real produce and harvest decree signal graphs, raw cloth, hand tailoring bench and mature rice; no bills or zones supplied.")]
+        public async Task<object> PrepareDecree(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map=Find.CurrentMap;
+                if(map==null || !Find.TickManager.Paused || !ModsConfig.RoyaltyActive) return Refuse("Paused Royalty lab required.");
+                var pawn=map.mapPawns.FreeColonistsSpawned.OrderBy(p=>p.thingIDNumber).First(); var empire=FixtureEmpire();
+                // Only the staged plot is fertile, so the ordinary field site
+                // chooser cannot plant somewhere that needs days of growth.
+                foreach(var cell in map.AllCells) map.terrainGrid.SetTerrain(cell,DefDatabase<TerrainDef>.GetNamed("Concrete"));
+                if(pawn.royalty==null) pawn.royalty=new Pawn_RoyaltyTracker(pawn);
+                pawn.royalty.SetTitle(empire,empire.def.RoyalTitlesAwardableInSeniorityOrderForReading.First(t=>t.decreeTags!=null && t.decreeTags.Count>0),false,false,false);
+                foreach(var worker in map.mapPawns.FreeColonistsSpawned) {
+                    worker.skills.GetSkill(SkillDefOf.Crafting).Level=12; worker.skills.GetSkill(SkillDefOf.Plants).Level=12;
+                    worker.workSettings.EnableAndInitialize();
+                    worker.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Tailoring"),1); worker.workSettings.SetPriority(WorkTypeDefOf.Growing,1);
+                    worker.workSettings.SetPriority(WorkTypeDefOf.PlantCutting,1);
+                }
+                var bench=(Building_WorkTable)Place(map,DefDatabase<ThingDef>.GetNamed("HandTailoringBench"),ThingDefOf.WoodLog,map.Center+new IntVec3(-8,0,-7));
+                var cloth=ThingMaker.MakeThing(ThingDefOf.Cloth); cloth.stackCount=200; GenSpawn.Spawn(cloth,map.Center+new IntVec3(-7,0,-4),map);
+                var crop=DefDatabase<ThingDef>.GetNamed("Plant_Rice");
+                var plot=new CellRect(map.Center.x+5,map.Center.z-10,3,3);
+                foreach(var c in plot.Cells) { map.terrainGrid.SetTerrain(c,TerrainDefOf.SoilRich); map.areaManager.Home[c]=true; var plant=(Plant)GenSpawn.Spawn(ThingMaker.MakeThing(crop),c,map); plant.Growth=1f; }
+                FixtureMeals(map);
+                Func<string,Quest> generate=name=> { var slate=new Slate();slate.Set("points",100f);slate.Set("asker",pawn); return QuestUtility.GenerateQuestAndMakeAvailable(DefDatabase<QuestScriptDef>.GetNamed(name),slate); };
+                var produce=generate("Decree_ProduceItem");
+                var requirement=produce.PartsListForReading.OfType<QuestPart_ThingsProduced>().Single();
+                requirement.def=DefDatabase<ThingDef>.GetNamed("Apparel_TribalA"); requirement.stuff=ThingDefOf.Cloth; requirement.count=1;
+                var harvest=generate("Decree_HarvestCrop");
+                var harvesting=harvest.PartsListForReading.OfType<QuestPart_PlantsHarvested>().Single();
+                harvesting.plant=crop.plant.harvestedThingDef; harvesting.count=1;
+                return new { success=true,produceQuest=produce.GetUniqueLoadID(),harvestQuest=harvest.GetUniqueLoadID(),benchId=bench.GetUniqueLoadID(),product=requirement.def.defName,crop=crop.defName,plot=new[]{plot.minX,plot.minZ,plot.Width,plot.Height} };
+            },cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/quest_lifecycle_read", Description = "UNSAFE FOR MODEL EXECUTION. Read actual fixture guest hosting/boarding, bills, growing zones and products; never supplies completion.")]
+        public async Task<object> ReadLifecycle(IRimBridgeContext ctx,CancellationToken cancellationToken,string questId)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(()=> {
+                var quest=Find.QuestManager.QuestsListForReading.FirstOrDefault(q=>q.GetUniqueLoadID()==questId);
+                var witness=quest?.PartsListForReading.OfType<QuestHospitalityWitness>().FirstOrDefault();
+                var map=Find.CurrentMap;
+                return new { success=quest!=null,hosted=witness?.hosted??false,bedAssigned=witness?.assigned??false,boarded=witness?.boarded??false,
+                    bills=map.listerBuildings.AllBuildingsColonistOfClass<Building_WorkTable>().Sum(b=>b.BillStack.Bills.Count),
+                    growingZones=map.zoneManager.AllZones.OfType<Zone_Growing>().Count(),
+                    products=map.listerThings.AllThings.Concat(map.mapPawns.AllPawnsSpawned.SelectMany(p=>p.apparel?.WornApparel.Cast<Thing>()??Enumerable.Empty<Thing>())).Distinct().Count(t=>t.def.defName=="Apparel_TribalA" && t.Stuff==ThingDefOf.Cloth) };
+            },cancellationToken).ConfigureAwait(false);
+        }
+
+        private static Faction FixtureEmpire() {
+            var empire=Find.FactionManager.FirstFactionOfDef(FactionDefOf.Empire);
+            if(empire==null) { empire=FactionGenerator.NewGeneratedFaction(new FactionGeneratorParms(FactionDefOf.Empire));Find.FactionManager.Add(empire); }
+            if(empire.HostileTo(Faction.OfPlayer)) empire.SetRelationDirect(Faction.OfPlayer,FactionRelationKind.Neutral,false);
+            return empire;
+        }
+        private static void FixtureMeals(Map map) {
+            for(var i=0;i<4;i++) { var food=ThingMaker.MakeThing(ThingDefOf.MealSurvivalPack);food.stackCount=food.def.stackLimit;GenSpawn.Spawn(food,map.Center+new IntVec3(i,0,4),map); }
+        }
+
         private static Thing Place(Map map, ThingDef def, ThingDef stuff, IntVec3 cell)
         {
             var thing = ThingMaker.MakeThing(def, def.MadeFromStuff ? stuff ?? GenStuff.DefaultStuffFor(def) : null);
@@ -308,5 +427,17 @@ namespace HomeBridge.BridgeTools
         }
 
         private static object Refuse(string reason) => new { success = false, reason };
+    }
+
+    public sealed class QuestHospitalityWitness : QuestPartActivable
+    {
+        public Pawn pawn; public Building_Bed bed; public bool hosted,assigned,boarded;
+        public override void QuestPartTick() {
+            if(pawn==null) return;
+            hosted|=pawn.Spawned && pawn.HasExtraHomeFaction(quest);
+            assigned|=bed!=null && bed.OwnersForReading.Contains(pawn);
+            boarded|=Find.Maps.SelectMany(m=>m.listerThings.AllThings).Select(t=>t.TryGetComp<CompTransporter>()).Any(t=>t!=null && t.innerContainer.Contains(pawn));
+        }
+        public override void ExposeData() { base.ExposeData();Scribe_References.Look(ref pawn,"pawn");Scribe_References.Look(ref bed,"bed");Scribe_Values.Look(ref hosted,"hosted");Scribe_Values.Look(ref assigned,"assigned");Scribe_Values.Look(ref boarded,"boarded"); }
     }
 }

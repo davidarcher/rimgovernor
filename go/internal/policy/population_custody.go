@@ -19,6 +19,7 @@ const (
 // PrisonerFacts already reads (rimgovernor/observations_read_population),
 // broadened to include every observed humanlike rather than only prisoners.
 type CustodyFacts struct {
+	QuestRefugee                                     bool
 	QuestProtected                                   bool
 	Pawn                                             domain.PawnID
 	Dead, Downed, Guest, Admitted, Prisoner, Hostile domain.Fact[bool]
@@ -71,6 +72,12 @@ func custodyEligible(row CustodyFacts) (CustodyDecision, bool) {
 	hostile, hk := row.Hostile.Value()
 	if !pk || !hk {
 		return "", false
+	}
+	if row.QuestRefugee && !admitted && !prisoner {
+		if hostile {
+			return CustodyCapture, true
+		}
+		return CustodyRescue, true
 	}
 	if !row.QuestProtected && !guest && !admitted && !prisoner && hostile {
 		addicted, _ := row.Luciferium.Value()

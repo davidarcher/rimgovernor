@@ -87,23 +87,37 @@ func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbite
 	if letter, ok := policy.SelectJoinerLetter(facts.JoinerLetters, policy.JoinerCapacity(facts.JoinerCapacity())); ok {
 		return r.admitLetter(call, epoch, state, goal, letter, started)
 	}
+	refugee, refugeeHandled, err := r.admitRefugeeTend(call, epoch, state, goal, review, read, arbiter, started)
+	if refugeeHandled || err != nil {
+		return refugee, err
+	}
 	if result, handled, err := r.admitMonument(call, epoch, state, goal, review, read, arbiter, started); handled || err != nil {
 		return result, err
 	}
 	if result, handled, err := r.admitDecree(call, epoch, state, goal, review, read, arbiter, started); handled || err != nil {
 		return result, err
 	}
+	departure, departed, err := r.admitDeparture(call, epoch, state, goal, read, arbiter, started)
+	if departed || err != nil {
+		return departure, err
+	}
 	hosting, hosted, err := r.admitHospitality(call, epoch, state, goal, review, read, arbiter, started)
 	if hosted || err != nil {
 		return hosting, err
 	}
-	choice := policy.SelectJoinerMethod(facts.QuestOffers, policy.JoinerCapacity(facts.JoinerCapacity()))
+	choice := policy.SelectJoinerMethod(facts.QuestOffers, policy.JoinerCapacity(facts.JoinerCapacity()), facts)
 	prefix := "joiner"
 	if choice.Reason == policy.JoinerNoOffer || choice.Reason == policy.JoinerNoCapacity {
 		choice, prefix = policy.SelectQuestMethod(facts), "quest"
 	}
 	switch choice.Reason {
 	case policy.JoinerNoOffer, policy.JoinerNoCapacity, policy.QuestNoOffer:
+		if departure.NativeWorkTicks > 0 {
+			return departure, nil
+		}
+		if refugee.NativeWorkTicks > 0 {
+			return refugee, nil
+		}
 		if hosting.NativeWorkTicks > 0 {
 			return hosting, nil
 		}

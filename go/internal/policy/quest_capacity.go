@@ -23,9 +23,7 @@ func QuestSpareColonists(workers domain.Fact[[]WorkPawn], mood domain.Fact[[]Moo
 	}
 	essential := map[WorkType]int{}
 	for _, row := range roster.Coverage {
-		if row.Work == WorkDoctor || row.Work == WorkCooking || row.Work == WorkConstruction {
-			essential[row.Work] = row.Owners
-		}
+		essential[row.Work] = row.Owners
 	}
 	for _, work := range []WorkType{WorkDoctor, WorkCooking, WorkConstruction} {
 		if _, known := essential[work]; !known {

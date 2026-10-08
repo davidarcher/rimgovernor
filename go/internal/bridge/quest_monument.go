@@ -4,11 +4,12 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
+	"math"
 )
 
 // Partial marker identities cannot become executable construction targets.
 func validatedQuestMonument(m *o.QuestMonument) *o.QuestMonument {
-	if m == nil || m.GetMarkerId() == "" || m.GetDefName() == "" || m.MapId == nil || m.GetMapId() < 0 || m.Packed == nil || m.Installed == nil || m.GetPacked() == m.GetInstalled() {
+	if m == nil || m.GetMarkerId() == "" || m.GetDefName() == "" || m.MapId == nil || m.GetMapId() < 0 || m.Packed == nil || m.Installed == nil || (m.GetPacked() == m.GetInstalled() && !(m.GetOffered() && !m.GetPacked())) {
 		return nil
 	}
 	if m.GetInstalled() && !monumentCellKnown(m.Cell) {
@@ -23,10 +24,27 @@ func validatedQuestMonument(m *o.QuestMonument) *o.QuestMonument {
 				return nil
 			}
 		}
+		for _, option := range p.BuildOptions {
+			if option == nil || option.Work == nil || math.IsNaN(option.GetWork()) || math.IsInf(option.GetWork(), 0) || option.GetWork() < 0 {
+				return nil
+			}
+			for _, cost := range option.Costs {
+				if cost == nil || cost.GetDefName() == "" || cost.Units == nil || cost.GetUnits() < 0 {
+					return nil
+				}
+			}
+		}
 	}
 	for _, r := range m.Resources {
 		if r == nil || r.GetId() == "" || r.GetDefName() == "" || !monumentCellKnown(r.Cell) {
 			return nil
+		}
+	}
+	for _, rows := range [][]*o.Quantity{m.SuppliedResources, m.AvailableResources} {
+		for _, q := range rows {
+			if q == nil || q.GetDefName() == "" || q.Units == nil || q.GetUnits() < 0 {
+				return nil
+			}
 		}
 	}
 	for _, c := range m.InstallCells {
