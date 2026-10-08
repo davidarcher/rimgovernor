@@ -1645,7 +1645,7 @@ func defensePerimeterStone(projection observation.ColonyProjection, buildings []
 	best, most := "", int64(0)
 	for resource, count := range stock {
 		name := string(resource)
-		if strings.HasPrefix(name, "Blocks") && (count > most || count == most && name < best) {
+		if projection.Facts.Items.IsStoneBlocks(resource) && (count > most || count == most && name < best) {
 			best, most = name, count
 		}
 	}

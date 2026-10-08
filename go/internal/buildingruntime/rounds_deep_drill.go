@@ -26,7 +26,7 @@ type deepDrillBuildingSource interface {
 
 // The native lump centre is an actual discovered resource cell, not the
 // arithmetic centroid (which could lie in an empty hole). Never offset it.
-func deepDrillSites(f observation.ColonyProjection, runways []policy.ResourceRunway) []observation.DeepResourceLump {
+func deepDrillSites(f observation.ColonyProjection, runways []policy.ResourceRunway, items policy.ItemFacts) []observation.DeepResourceLump {
 	deep, known := f.DeepResources.Value()
 	available, ak := f.DefinitionAvailable("DeepDrill").Value()
 	center, planned := f.Center().Value()
@@ -45,7 +45,7 @@ func deepDrillSites(f observation.ColonyProjection, runways []policy.ResourceRun
 	for _, row := range runways {
 		deficit, known := row.Deficit.Value()
 		stock, sk := f.ResourceStock(row.Resource).Value()
-		if known && deficit && sk && stock < row.Target && (row.Resource == "Steel" || row.Resource == "Plasteel") {
+		if known && deficit && sk && stock < row.Target && items.IsDeepResource(row.Resource) {
 			needed[string(row.Resource)] = true
 		}
 	}
@@ -181,7 +181,11 @@ type deepDrillReading struct {
 // deepDrillReading reads the drill gate; nil when no metal runway is in
 // deficit, the native cannot drill, or no lump of a needed metal is scanned.
 func (r *RoundsResourcePlanner) deepDrillReading(call context.Context, state ControlState, review store.Rounds) (*deepDrillReading, error) {
-	if len(policy.DeepDrillingResearch(nil, review.ResourceRunwayState())) == 0 {
+	items, err := r.reviewer.itemFacts(call, state.Snapshot)
+	if err != nil {
+		return nil, err
+	}
+	if len(policy.DeepDrillingResearch(nil, review.ResourceRunwayState(), items)) == 0 {
 		return nil, nil
 	}
 	native, ok := r.native.(deepDrillBuildingSource)
@@ -215,7 +219,7 @@ func (r *RoundsResourcePlanner) deepDrillReading(call context.Context, state Con
 	f.Facts.Research = domain.Known(finished)
 	recordStepRead("deepdrill", policy.MaintainResource, state.Snapshot, f)
 	out := &deepDrillReading{native: native, f: f}
-	out.sites = deepDrillSites(f, review.ResourceRunwayState())
+	out.sites = deepDrillSites(f, review.ResourceRunwayState(), items)
 	if len(out.sites) == 0 {
 		return out, nil
 	}
@@ -285,7 +289,11 @@ func (r *RoundsResourcePlanner) deepDrillPlacement(call context.Context, native 
 // plan opened: the plan decides whether a lump beats the mines, bills and
 // caravans for the metal; this step only executes it.
 func (r *RoundsResourcePlanner) deepDrill(call, epoch context.Context, state ControlState, goal store.StandardState, review store.Rounds, started time.Time) (RoundsResourceResult, bool, error) {
-	if len(policy.DeepDrillingResearch(nil, review.ResourceRunwayState())) == 0 {
+	items, err := r.reviewer.itemFacts(call, state.Snapshot)
+	if err != nil {
+		return RoundsResourceResult{}, true, err
+	}
+	if len(policy.DeepDrillingResearch(nil, review.ResourceRunwayState(), items)) == 0 {
 		return RoundsResourceResult{}, false, nil
 	}
 	supply, err := r.reviewer.resourceSupply(call, state, review, goal)

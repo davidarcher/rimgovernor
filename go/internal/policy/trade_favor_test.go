@@ -55,6 +55,9 @@ func TestSelectFavorSaleSellsNothingOnUnknownOrIneligibleGold(t *testing.T) {
 	}
 }
 
+// goldKept protects 50 gold through a construction demand.
+var goldKept = TradeRetained(domain.Known(ResourceConsumption{WindowDays: 15}), nil, map[Resource]int64{"Gold": 50})
+
 func goldStock(n int64) domain.Fact[[]Amount] {
 	return domain.Known([]Amount{{Resource: "Gold", Count: n}})
 }
@@ -64,11 +67,11 @@ func TestFavorGoldNeedRequiresACollectorAndGoldAboveKeep(t *testing.T) {
 	merchant := domain.Known([]TraderFacts{{ID: "t", Kind: "Caravan_Outlander_BulkGoods", CanTrade: true}})
 	base := domain.Known(TradeNeed{})
 	need := func(traders domain.Fact[[]TraderFacts], stock domain.Fact[[]Amount]) int64 {
-		n, _ := FavorGoldNeed(base, traders, stock, nil, nil, RoundsTradePolicy{}).Value()
+		n, _ := FavorGoldNeed(base, traders, stock, nil, nil, goldKept).Value()
 		return n.FavorGold
 	}
 	if got := need(collector, goldStock(120)); got != 70 {
-		t.Fatalf("collector with 120 gold needs %d, want 70 above the retained 50", got)
+		t.Fatalf("collector with 120 gold needs %d, want 70 above the protected 50", got)
 	}
 	for name, got := range map[string]int64{
 		"no collector":  need(merchant, goldStock(120)),
@@ -81,7 +84,7 @@ func TestFavorGoldNeedRequiresACollectorAndGoldAboveKeep(t *testing.T) {
 		}
 	}
 	floors := map[string]int64{"Gold": 100}
-	if n, _ := FavorGoldNeed(base, collector, goldStock(120), nil, floors, RoundsTradePolicy{}).Value(); n.FavorGold != 20 {
+	if n, _ := FavorGoldNeed(base, collector, goldStock(120), nil, floors, noRetained).Value(); n.FavorGold != 20 {
 		t.Fatalf("floor ignored: %+v", n)
 	}
 }
@@ -90,6 +93,7 @@ func TestFavorGoldNeedRequiresACollectorAndGoldAboveKeep(t *testing.T) {
 // without one or with no gold.
 func TestTradeWithCaravanStandsForCollectorWithGold(t *testing.T) {
 	f := stableRounds()
+	f.ResourceConsumption = domain.Known(ResourceConsumption{WindowDays: 15})
 	f.Resources = domain.Known([]Amount{{Resource: "Gold", Count: 300}})
 	f.Traders = domain.Known([]TraderFacts{{ID: "c", Kind: TributeCollectorKind, CanTrade: true}})
 	if got := needs(t, f, RoundsLatches{}); !assessedDeficit(got, TradeWithCaravan) {

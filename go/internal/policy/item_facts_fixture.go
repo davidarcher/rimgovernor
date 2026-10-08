@@ -27,6 +27,8 @@ func CoreItemFacts() ItemFacts {
 		Categories: map[Resource][]string{"RawRice": {"PlantFoodRaw"},
 			"BlocksSandstone": {"StoneBlocks"}, "BlocksGranite": {"StoneBlocks"}, "BlocksLimestone": {"StoneBlocks"}, "BlocksSlate": {"StoneBlocks"}, "BlocksMarble": {"StoneBlocks"}},
 		Currency: "Silver", Wort: "Wort",
+		// Core's deep deposits (ThingDef.deepCommonality > 0).
+		DeepResources: []Resource{"Gold", "Jade", "Plasteel", "Steel", "Uranium"},
 		// Sculptures are Core's (Buildings_Art.xml), smallest first.
 		Sculptures: []Sculpture{
 			{Recipe: "Make_SculptureSmall", Def: "SculptureSmall", Size: domain.Cell{X: 1, Z: 1}, Cost: 50, Work: 18000},

@@ -51,9 +51,21 @@ func ForecastResourceRunway(resource Resource, stock, ore domain.Fact[int64], re
 	out.DaysLeft = domain.Known(days)
 	out.Deficit = domain.Known(days < ProjectionHorizonDays)
 	if days < ProjectionHorizonDays {
-		out.Target = int64(math.Min(maxResourceTarget, float64(reserve)+math.Ceil(rate*ProjectionHorizonDays)))
+		out.Target, _ = out.ProtectedLine()
 	}
 	return out
+}
+
+// ProtectedLine is the stock the runway guards: the reserve plus the
+// observed rate over the projection horizon. It is the target while the
+// runway is in deficit and the trade's retained stock always. False while
+// the rate is unread.
+func (r ResourceRunway) ProtectedLine() (int64, bool) {
+	rate, known := r.ConsumptionPerDay.Value()
+	if !known || r.Reserve < 0 {
+		return 0, false
+	}
+	return int64(math.Min(maxResourceTarget, float64(r.Reserve)+math.Ceil(rate*ProjectionHorizonDays))), true
 }
 
 func ResourceRunwayTargets(rows []ResourceRunway) map[Resource]int64 {

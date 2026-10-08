@@ -150,6 +150,12 @@ func ConstructionDemandOf(f RoundsFacts, p RoundsPolicy, l RoundsLatches) map[Re
 	})
 }
 
+// TradeRetainedOf is TradeRetained over a review's facts: the runway rows'
+// protected lines plus the construction demand.
+func TradeRetainedOf(f RoundsFacts, p RoundsPolicy, l RoundsLatches) domain.Fact[map[Resource]int64] {
+	return TradeRetained(f.ResourceConsumption, f.ResourceRunways, ConstructionDemandOf(f, p, l))
+}
+
 // woodLatchFloor is the WoodLog floor the wood latch asks for: WoodTarget
 // while latched, 0 otherwise.
 func woodLatchFloor(latched bool, p RoundsPolicy) int64 {

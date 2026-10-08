@@ -76,7 +76,7 @@ func TestSnapshotDeepDrillSitesTheSteelLump(t *testing.T) {
 	t.Parallel()
 	r := loadRecorded(t, "deepdrill-steel-runway")
 	step := loadStep(t, "deepdrill-step-lump", policy.MaintainResource)
-	sites := deepDrillSites(step.Projection, r.Review.ResourceRunwayState())
+	sites := deepDrillSites(step.Projection, r.Review.ResourceRunwayState(), policy.CoreItemFacts())
 	if len(sites) == 0 || sites[0].Definition != "Steel" {
 		t.Fatalf("deep drill sites %+v, want the steel lump", sites)
 	}

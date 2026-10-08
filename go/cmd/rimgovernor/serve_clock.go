@@ -1009,7 +1009,6 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves, policy.MaintainSurgery)
 	}
 	if sc.roundsTradePlans {
-		thresholds.Trade = policy.RoundsTradePolicy{}
 		capabilities.Methods = append(capabilities.Methods, policy.TradeWithCaravan)
 	}
 	// The equip planner supplies EnsureBasicDefense's method capability.

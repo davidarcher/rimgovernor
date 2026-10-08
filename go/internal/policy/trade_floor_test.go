@@ -11,24 +11,27 @@ func TestRoundsTradeConstructionFloor(t *testing.T) {
 		name                       string
 		construction, target, want int64
 	}{
-		{"minimum", 0, 0, 500},
-		{"construction below minimum", 350, 0, 500},
-		{"construction only", 800, 0, 800},
+		{"unconsumed and unbuilt", 0, 0, 0},
+		{"construction demand", 350, 0, 350},
 		{"target dominates", 350, 900, 900},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			p := RoundsPolicy{Trade: RoundsTradePolicy{}}
 			targets := map[Resource]int64{"Steel": tt.target}
-			floors := RoundsTradeFloors(p, map[string]int64{"Steel": tt.construction})
+			floors := RoundsTradeFloors(RoundsPolicy{}, map[string]int64{"Steel": tt.construction})
 			if floors["Steel"] != tt.construction {
 				t.Fatalf("floor = %v", floors)
 			}
+			retained := TradeRetained(domain.Known(ResourceConsumption{WindowDays: 15}), nil, map[Resource]int64{"Steel": tt.construction})
 			wealth := domain.Known(WealthFacts{Items: 30000, Total: 40000})
-			got := WealthSurplus([]Amount{{Resource: "Steel", Count: 2000}}, targets, floors, wealth, p.Trade)
+			items := CoreItemFacts()
+			got := WealthSurplus([]Amount{{Resource: "Steel", Count: 2000}}, items, targets, floors, retained, wealth)
 			if len(got) != 1 || got[0].Count != 2000-tt.want {
 				t.Fatalf("surplus = %v, retained want %d", got, tt.want)
 			}
-			if got := WealthSurplus([]Amount{{Resource: "Steel", Count: tt.want}}, targets, floors, wealth, p.Trade); len(got) != 0 {
+			if tt.want == 0 {
+				return
+			}
+			if got := WealthSurplus([]Amount{{Resource: "Steel", Count: tt.want}}, items, targets, floors, retained, wealth); len(got) != 0 {
 				t.Fatalf("sold at floor: %v", got)
 			}
 		})

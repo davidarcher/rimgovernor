@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"errors"
 	"math"
 	"sort"
 
@@ -48,17 +47,6 @@ type TraderFacts struct {
 	GoodsStacks          int64
 }
 
-// RoundsTradePolicy is the operator's routine trade configuration.
-// RetainedMinimum is the stock each WealthSurplusResources hoard keeps
-// regardless of floor (DefaultTradeRetainedMinimum when nil). The silver
-// reserve is derived from the colonist count (TradeSilverReserve) and hoard
-// selling keys on the constant TradeItemWealthShare (#875). The component
-// stock the trade buys toward is the derived component need
-// (construction demand and the component runway).
-type RoundsTradePolicy struct {
-	RetainedMinimum map[Resource]int64
-}
-
 // TradeItemWealthShare is the share of total colony wealth held as items
 // past which WealthSurplus sells the raw-material hoards down to their floors.
 const TradeItemWealthShare = 0.6
@@ -72,28 +60,6 @@ func TradeSilverReserve(colonists domain.Fact[int64]) (int64, bool) {
 		return 200, false
 	}
 	return max(200, min(100*n, 100000)), true
-}
-
-func (p RoundsTradePolicy) Validate() error {
-	for _, retained := range p.RetainedMinimum {
-		if retained < 0 || retained > 1<<31 {
-			return errors.New("invalid routine trade policy: retained minimum")
-		}
-	}
-	return nil
-}
-
-// WealthSurplusResources are the raw materials WealthSurplus sells down:
-// stockpiled ore and refined metal whose only use at hoard size is raid
-// points (#341). Silver is currency and components are bought, never sold,
-// so both stay out as they do for the target-driven surplus.
-var WealthSurplusResources = []Resource{"Steel", "Plasteel", "Gold", "Uranium", "Jade"}
-
-// DefaultTradeRetainedMinimum is the stock each WealthSurplusResources
-// hoard keeps when the policy names no table: enough steel and plasteel
-// for repairs and a bench, a token of each precious material.
-func DefaultTradeRetainedMinimum() map[Resource]int64 {
-	return map[Resource]int64{"Steel": 500, "Plasteel": 100, "Gold": 50, "Uranium": 50, "Jade": 50}
 }
 
 // RoundsTradeFloors is the per-definition floor set the routine trade
@@ -111,30 +77,52 @@ func RoundsTradeFloors(p RoundsPolicy, construction map[string]int64) map[string
 // count half, which is why the surplus rule keys on the item share.
 type WealthFacts struct{ Items, Buildings, Pawns, Total float64 }
 
+// TradeRetained is the stock the colony keeps of each resource before a sale:
+// the runway's protected line (reserve plus the observed rate over the
+// projection horizon) plus the construction demand. A resource nothing
+// consumes or builds with has no entry and is wholly surplus. Unknown while
+// the consumption is: an unread rate is not an absence of use.
+func TradeRetained(consumption domain.Fact[ResourceConsumption], runways []ResourceRunway, construction map[Resource]int64) domain.Fact[map[Resource]int64] {
+	if _, known := consumption.Value(); !known {
+		return domain.Unknown[map[Resource]int64]()
+	}
+	out := map[Resource]int64{}
+	for _, row := range runways {
+		if line, ok := row.ProtectedLine(); ok {
+			out[row.Resource] += line
+		}
+	}
+	for resource, demand := range construction {
+		out[resource] += max(0, demand)
+	}
+	return domain.Known(out)
+}
+
 // WealthSurplus is the wealth-driven half of the trade surplus: while the
-// item share of total wealth exceeds p.ItemWealthShare, every resource in
-// WealthSurplusResources stocked above max(target, floor, retained minimum)
-// is a surplus of the difference, so a sale lands exactly on the highest
-// floor. Unknown wealth, a zero share, an unmet share or a stock at its
-// floor yields nothing; the rows come back in WealthSurplusResources order.
-func WealthSurplus(stock []Amount, targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], p RoundsTradePolicy) []Amount {
+// item share of total wealth exceeds TradeItemWealthShare, every deep-deposit
+// def (the raw ore and metal hoards, ItemFacts.DeepResources; never the
+// currency) stocked above max(target, floor, retained) is a surplus of the
+// difference, so a sale lands exactly on the highest floor. Unknown wealth,
+// unknown retention, an unmet share or a stock at its floor yields nothing;
+// the rows come back in DeepResources order.
+func WealthSurplus(stock []Amount, items ItemFacts, targets map[Resource]int64, floors map[string]int64, retainedFact domain.Fact[map[Resource]int64], wealth domain.Fact[WealthFacts]) []Amount {
 	facts, known := wealth.Value()
-	if !known || p.Validate() != nil {
+	retained, retainedKnown := retainedFact.Value()
+	if !known || !retainedKnown {
 		return nil
 	}
 	if !finite(facts.Items) || !finite(facts.Total) || facts.Total <= 0 || facts.Items < 0 || facts.Items/facts.Total <= TradeItemWealthShare {
 		return nil
-	}
-	retained := p.RetainedMinimum
-	if retained == nil {
-		retained = DefaultTradeRetainedMinimum()
 	}
 	counts := map[Resource]int64{}
 	for _, row := range stock {
 		counts[row.Resource] += row.Count
 	}
 	var out []Amount
-	for _, resource := range WealthSurplusResources {
+	for _, resource := range items.DeepResources {
+		if resource == items.Currency {
+			continue
+		}
 		keep := max(targets[resource], floors[string(resource)], retained[resource])
 		if surplus := counts[resource] - keep; surplus > 0 {
 			out = append(out, Amount{Resource: resource, Count: surplus})
@@ -204,13 +192,13 @@ func (n TradeNeed) Any() bool {
 // are EconomicReserves's per-definition floors (reserves plus construction
 // deficits); target-driven surplus rows win over wealth-driven ones for the
 // same resource.
-// currency is the colony census's coin, which is neither target nor surplus.
+// items.Currency is the colony census's coin, which is neither target nor surplus.
 // A single optional food context adds the shared ledger's food needs; omitting
 // it leaves food purchases and protected crop exports disabled.
-func ReviewTradeNeed(currency Resource, medicine MedicalReserveReview, resources domain.Fact[[]Amount], targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], p RoundsTradePolicy, food ...TradeFoodContext) domain.Fact[TradeNeed] {
+func ReviewTradeNeed(items ItemFacts, medicine MedicalReserveReview, resources domain.Fact[[]Amount], targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], retained domain.Fact[map[Resource]int64], food ...TradeFoodContext) domain.Fact[TradeNeed] {
 	replenish, known := medicine.Replenish.Value()
 	rows, rowsKnown := resources.Value()
-	if !known || !rowsKnown || p.Validate() != nil {
+	if !known || !rowsKnown {
 		return domain.Unknown[TradeNeed]()
 	}
 	stock := map[Resource]int64{}
@@ -229,7 +217,7 @@ func ReviewTradeNeed(currency Resource, medicine MedicalReserveReview, resources
 	sort.Strings(names)
 	for _, name := range names {
 		resource := Resource(name)
-		if resource == ComponentResource || resource == currency {
+		if resource == ComponentResource || resource == items.Currency {
 			continue
 		}
 		if short := targets[resource] - stock[resource]; short > 0 {
@@ -241,7 +229,7 @@ func ReviewTradeNeed(currency Resource, medicine MedicalReserveReview, resources
 			need.retain(resource, keep)
 		}
 	}
-	for _, row := range WealthSurplus(rows, targets, floors, wealth, p) {
+	for _, row := range WealthSurplus(rows, items, targets, floors, retained, wealth) {
 		if _, targeted := need.Retained[row.Resource]; targeted {
 			continue
 		}
@@ -308,9 +296,9 @@ func SelectTrader(traders []TraderFacts, settled map[string]bool) (TraderFacts, 
 // the trader carries), then components, then each surplus sale. Purchases
 // are capped at tradeBuyPriceCeiling per unit; sales take any positive
 // price, since the alternative is the surplus sitting unsold.
-func RoundsTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoundsTradePolicy, colonists domain.Fact[int64]) domain.TradeEconomicPolicy {
+func RoundsTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, colonists domain.Fact[int64]) domain.TradeEconomicPolicy {
 	reserve, buy := TradeSilverReserve(colonists)
-	out := roundsTradeTargets(items, need, rows, targets, p)
+	out := roundsTradeTargets(items, need, rows, targets)
 	out.SilverReserve = reserve
 	for i := range out.Targets {
 		if !buy {
@@ -320,7 +308,7 @@ func RoundsTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFac
 	return out
 }
 
-func roundsTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoundsTradePolicy) domain.TradeEconomicPolicy {
+func roundsTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64) domain.TradeEconomicPolicy {
 	var out domain.TradeEconomicPolicy
 	// Leave room for medicine and components while prioritizing the food bridge.
 	foodTargets := tradeFoodTargets(need.Food, rows)

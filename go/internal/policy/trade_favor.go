@@ -1,6 +1,8 @@
 package policy
 
 import (
+	"math"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -21,11 +23,13 @@ func IsTributeCollector(t TraderFacts) bool { return t.Kind == TributeCollectorK
 
 // FavorGoldKeep is the gold a favor sale never sells below: the largest of
 // the resource target, the economic floor (construction commitments) and the
-// retained minimum the wealth-surplus rule already keeps.
-func FavorGoldKeep(targets map[Resource]int64, floors map[string]int64, p RoundsTradePolicy) int64 {
-	retained := p.RetainedMinimum
-	if retained == nil {
-		retained = DefaultTradeRetainedMinimum()
+// retained stock the wealth-surplus rule already keeps (TradeRetained). While
+// the retained stock is unknown nothing is surplus: the keep is the largest
+// stock, so a sale takes none.
+func FavorGoldKeep(targets map[Resource]int64, floors map[string]int64, retainedFact domain.Fact[map[Resource]int64]) int64 {
+	retained, known := retainedFact.Value()
+	if !known {
+		return math.MaxInt64
 	}
 	return max(targets[FavorSaleResource], floors[string(FavorSaleResource)], retained[FavorSaleResource])
 }
@@ -33,11 +37,11 @@ func FavorGoldKeep(targets map[Resource]int64, floors map[string]int64, p Rounds
 // FavorGoldNeed adds the favor-sale reason to the need: a tribute collector
 // is present or arriving and the known gold stock exceeds FavorGoldKeep.
 // Unknown traders, stock or need add nothing.
-func FavorGoldNeed(need domain.Fact[TradeNeed], traders domain.Fact[[]TraderFacts], resources domain.Fact[[]Amount], targets map[Resource]int64, floors map[string]int64, p RoundsTradePolicy) domain.Fact[TradeNeed] {
+func FavorGoldNeed(need domain.Fact[TradeNeed], traders domain.Fact[[]TraderFacts], resources domain.Fact[[]Amount], targets map[Resource]int64, floors map[string]int64, retained domain.Fact[map[Resource]int64]) domain.Fact[TradeNeed] {
 	n, nk := need.Value()
 	rows, tk := traders.Value()
 	stock, sk := resources.Value()
-	if !nk || !tk || !sk || p.Validate() != nil {
+	if !nk || !tk || !sk {
 		return need
 	}
 	present := false
@@ -53,7 +57,7 @@ func FavorGoldNeed(need domain.Fact[TradeNeed], traders domain.Fact[[]TraderFact
 			gold += row.Count
 		}
 	}
-	if surplus := gold - FavorGoldKeep(targets, floors, p); surplus > 0 {
+	if surplus := gold - FavorGoldKeep(targets, floors, retained); surplus > 0 {
 		n.FavorGold = surplus
 		return domain.Known(n)
 	}

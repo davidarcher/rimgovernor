@@ -9,7 +9,7 @@ import (
 func TestDeepDrillingResearchRequiresMetalDeficit(t *testing.T) {
 	for _, resource := range []Resource{"Steel", "Plasteel", "ComponentIndustrial"} {
 		for _, deficit := range []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false), domain.Known(true)} {
-			needs := DeepDrillingResearch(nil, []ResourceRunway{{Resource: resource, Deficit: deficit}})
+			needs := DeepDrillingResearch(nil, []ResourceRunway{{Resource: resource, Deficit: deficit}}, CoreItemFacts())
 			want := deficit == domain.Known(true) && resource != "ComponentIndustrial"
 			if (len(needs) == 2) != want {
 				t.Fatal(resource, deficit, needs)

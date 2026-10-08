@@ -25,7 +25,7 @@ func drillFacts() observation.ColonyProjection {
 func TestDeepDrillRanksNeededLumpsAndGatesPrerequisites(t *testing.T) {
 	runways := []policy.ResourceRunway{{Resource: "Steel", Deficit: domain.Known(true), Target: 100}}
 	f := drillFacts()
-	sites := deepDrillSites(f, runways)
+	sites := deepDrillSites(f, runways, policy.CoreItemFacts())
 	if len(sites) != 2 || sites[0].Centre.X != 11 || sites[1].Centre.X != 15 {
 		t.Fatal(sites)
 	}
@@ -55,16 +55,16 @@ func TestDeepDrillRanksNeededLumpsAndGatesPrerequisites(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := drillFacts()
 			tc.change(&f)
-			if sites := deepDrillSites(f, runways); len(sites) != 0 {
+			if sites := deepDrillSites(f, runways, policy.CoreItemFacts()); len(sites) != 0 {
 				t.Fatal(sites)
 			}
 		})
 	}
-	if sites := deepDrillSites(f, nil); len(sites) != 0 {
+	if sites := deepDrillSites(f, nil, policy.CoreItemFacts()); len(sites) != 0 {
 		t.Fatal(sites)
 	}
 	runways[0].Resource = "Plasteel"
-	if sites := deepDrillSites(f, runways); len(sites) != 1 || sites[0].Definition != "Plasteel" {
+	if sites := deepDrillSites(f, runways, policy.CoreItemFacts()); len(sites) != 1 || sites[0].Definition != "Plasteel" {
 		t.Fatal(sites)
 	}
 }

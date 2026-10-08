@@ -107,8 +107,6 @@ type RoundsPolicy struct {
 	// planner lends the clock ticks while one is current so the rung
 	// finishes on its own (issue #230).
 	ResearchLadder []string
-	// Trade is TradeWithCaravan's configuration (policy/trade_routine.go).
-	Trade RoundsTradePolicy
 	// PrisonerReleaseAfterDays is how long MaintainPopulation feeds a
 	// prisoner it has no use for (not worth recruiting, not enslavable)
 	// while the food runway holds FoodTargetDays before releasing it
@@ -175,9 +173,6 @@ func (p RoundsPolicy) Validate() error {
 	}
 	if p.ConcernStallTicks <= 0 {
 		return errors.New("invalid standard stall grace")
-	}
-	if err := p.Trade.Validate(); err != nil {
-		return err
 	}
 	for _, rung := range p.ResearchLadder {
 		if !validResource(Resource(rung)) {

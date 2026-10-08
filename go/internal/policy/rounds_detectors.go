@@ -313,7 +313,7 @@ func inspectEquipment(c *roundsRun) error {
 // re-read native state immediately before proposing a method.
 func inspectResearch(c *roundsRun) error {
 	f, p := c.f, c.p
-	researchNeeds := DeepDrillingResearch(f.ResearchNeeds, f.ResourceRunways)
+	researchNeeds := DeepDrillingResearch(f.ResearchNeeds, f.ResourceRunways, f.Items)
 	researchTarget, researchDerived := ResearchConcern(ArmorResearchPolicy(p, c.l.Soldiers), researchNeeds, f.Research)
 	researchRecovered, researchDeficit := ResearchTargetNeed(researchTarget, researchDerived, f.Research)
 	// An empty Anomaly knowledge slot with a project to fund is a spending
@@ -377,9 +377,9 @@ func inspectResource(c *roundsRun) error {
 // caravan leaves or nothing is left worth trading. Restore parts a bench
 // could make do not stand the goal (#1255).
 func inspectTrade(c *roundsRun) error {
-	f, p := c.f, c.p
-	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(f.Items.Currency, c.medicine, f.Resources, f.ResourceNeeds, RoundsTradeFloors(p, nil), f.Wealth, p.Trade, RoundsTradeFood(f, p)), f.Resources, f.Colonists), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
-	tradeNeed = FavorGoldNeed(tradeNeed, f.Traders, f.Resources, f.ResourceNeeds, RoundsTradeFloors(p, nil), p.Trade)
+	f, p, l := c.f, c.p, c.l
+	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(f.Items, c.medicine, f.Resources, f.ResourceNeeds, RoundsTradeFloors(p, nil), f.Wealth, TradeRetainedOf(f, p, l), RoundsTradeFood(f, p)), f.Resources, f.Colonists), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
+	tradeNeed = FavorGoldNeed(tradeNeed, f.Traders, f.Resources, f.ResourceNeeds, RoundsTradeFloors(p, nil), TradeRetainedOf(f, p, l))
 	short, _ := RoundsSilverShort(f, p, c.medicine.Active).Value()
 	tradeNeed = FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(short))
 	c.assess(TradeWithCaravan, 3, TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity()))))

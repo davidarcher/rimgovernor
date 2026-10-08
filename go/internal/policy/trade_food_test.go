@@ -12,7 +12,7 @@ func tradeFoodContext() TradeFoodContext {
 }
 
 func foodTradeNeed(r TradeFoodContext) TradeNeed {
-	n, _ := ReviewTradeNeed(CoreItemFacts().Currency, MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), RoundsTradePolicy{}, r).Value()
+	n, _ := ReviewTradeNeed(CoreItemFacts(), MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), noRetained, r).Value()
 	return n
 }
 
@@ -104,7 +104,7 @@ func TestTradeFoodTargetsPreferDurableThenMealsThenRaw(t *testing.T) {
 		foodTradeRow("meal", 0, 2, TradeFoodGood{Nutrition: 1, Class: IngredientAny, Prepared: true}),
 		foodTradeRow("durable", 0, 2, TradeFoodGood{Nutrition: 1, Class: IngredientAny, Prepared: true, NonPerishable: true}),
 	}
-	p := RoundsTradeTargets(CoreItemFacts(), TradeNeed{Food: TradeFoodNeed{Nutrition: 5}}, rows, nil, RoundsTradePolicy{}, domain.Known(int64(3)))
+	p := RoundsTradeTargets(CoreItemFacts(), TradeNeed{Food: TradeFoodNeed{Nutrition: 5}}, rows, nil, domain.Known(int64(3)))
 	if len(p.Targets) != 3 || p.Targets[0].Item != "durable" || p.Targets[1].Item != "meal" || p.Targets[2].MaxBuy != 2 {
 		t.Fatal(p)
 	}
@@ -115,7 +115,7 @@ func TestTradeFoodTargetsPreferDurableThenMealsThenRaw(t *testing.T) {
 	// A missing classification or ambiguous definition cannot consume the
 	// nutrition budget and starve the known fallback of a target.
 	rows[2].Food = domain.Unknown[TradeFoodGood]()
-	p = RoundsTradeTargets(CoreItemFacts(), TradeNeed{Food: TradeFoodNeed{Nutrition: 5}}, rows, nil, RoundsTradePolicy{}, domain.Known(int64(3)))
+	p = RoundsTradeTargets(CoreItemFacts(), TradeNeed{Food: TradeFoodNeed{Nutrition: 5}}, rows, nil, domain.Known(int64(3)))
 	if len(p.Targets) != 2 || p.Targets[1].MaxBuy != 6 {
 		t.Fatal(p)
 	}
@@ -142,12 +142,12 @@ func TestTradeFoodMissingProteinAndCropFloors(t *testing.T) {
 	p.Portfolio[0].Channel.State = domain.Known(CandidateDelivering)
 	p.Portfolio[0].DeliveredPerDay = 12
 	r.Plan = domain.Known(p)
-	n, known := ReviewTradeNeed(CoreItemFacts().Currency, MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{{Resource: "crop", Count: 100}}), map[Resource]int64{"crop": 60}, map[string]int64{"crop": 80}, domain.Unknown[WealthFacts](), RoundsTradePolicy{}, r).Value()
+	n, known := ReviewTradeNeed(CoreItemFacts(), MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{{Resource: "crop", Count: 100}}), map[Resource]int64{"crop": 60}, map[string]int64{"crop": 80}, domain.Unknown[WealthFacts](), noRetained, r).Value()
 	if !known || len(n.Food.Missing) != 1 || n.Surplus[0].Count != 20 || n.Retained["crop"] != 80 {
 		t.Fatal(n)
 	}
 	rows := []TradeSheetRowFact{foodTradeRow("meat", 0, 100, TradeFoodGood{Nutrition: 0.5, Class: IngredientMeat}), foodTradeRow("crop", 100, 0, TradeFoodGood{Nutrition: 0.5, Class: IngredientVegetable, Crop: true})}
-	economic := RoundsTradeTargets(CoreItemFacts(), n, rows, map[Resource]int64{"crop": 60}, RoundsTradePolicy{}, domain.Known(int64(3)))
+	economic := RoundsTradeTargets(CoreItemFacts(), n, rows, map[Resource]int64{"crop": 60}, domain.Known(int64(3)))
 	facts := tradeFacts(rows, 400, 100, 100)
 	facts.CropSurplusFloors = CropSurplusFloors(n)
 	got := selectedCounts(t, SelectTrade(economic, facts))

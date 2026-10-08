@@ -147,7 +147,7 @@ func (r *RoundsResearchPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoundsResearchResult{}, err
 	}
 	needs = r.reviewer.censusResearchNeeds(needs)
-	needs = policy.DeepDrillingResearch(needs, review.ResourceRunwayState())
+	needs = policy.DeepDrillingResearch(needs, review.ResourceRunwayState(), items)
 	if len(needs) == 0 && len(staged.ResearchLadder) == 0 {
 		return RoundsResearchResult{Verdict: BuildingReasonDisabled}, nil
 	}

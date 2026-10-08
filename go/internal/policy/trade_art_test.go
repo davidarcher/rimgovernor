@@ -75,7 +75,7 @@ func TestSelectTradeSellsSurplusArt(t *testing.T) {
 // Unreserved art under known negative headroom is the shed_art need
 // (#1247); positive or unknown headroom, or no unreserved art, is none.
 func TestShedArtNeed(t *testing.T) {
-	base := ReviewTradeNeed(CoreItemFacts().Currency, MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), RoundsTradePolicy{})
+	base := ReviewTradeNeed(CoreItemFacts(), MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), noRetained)
 	cases := []struct {
 		name     string
 		headroom domain.Fact[float64]
@@ -104,7 +104,7 @@ func TestShedArtNeed(t *testing.T) {
 
 // The shed_art need alone opens a trade that sells the art first.
 func TestShedArtNeedAloneSellsArtFirst(t *testing.T) {
-	need, _ := ShedArtNeed(ReviewTradeNeed(CoreItemFacts().Currency, MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), RoundsTradePolicy{}), domain.Known(-500.0), domain.Known(int64(1))).Value()
+	need, _ := ShedArtNeed(ReviewTradeNeed(CoreItemFacts(), MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), noRetained), domain.Known(-500.0), domain.Known(int64(1))).Value()
 	if !need.Any() {
 		t.Fatal("shed_art need is no need")
 	}
@@ -112,7 +112,7 @@ func TestShedArtNeedAloneSellsArtFirst(t *testing.T) {
 		t.Fatal("trade recovered with a shed_art need and a caravan")
 	}
 	rows := []TradeSheetRowFact{artRow("#1", "Thing_A", 150), artRow("#2", "Thing_B", 400)}
-	economic := RoundsTradeTargets(CoreItemFacts(), need, rows, nil, RoundsTradePolicy{}, domain.Known(int64(3)))
+	economic := RoundsTradeTargets(CoreItemFacts(), need, rows, nil, domain.Known(int64(3)))
 	facts := tradeFacts(rows, 0, 1000, 0)
 	facts.SaleArt, facts.ArtFirst = map[string]bool{"Thing_A": true}, true
 	s := SelectTrade(economic, facts)

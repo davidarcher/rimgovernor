@@ -531,6 +531,9 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
+	// A wealth-driven sale keeps each resource's runway protected line plus
+	// its construction demand (#2488).
+	retained := policy.TradeRetained(r.reviewer.resourceConsumption(call, state.Snapshot), review.ResourceRunwayState(), r.reviewer.construction.get(state.Snapshot))
 	// Restore parts no bench can fabricate are bought (#1168).
 	parts, benches, err := surgeryPartDemand(call, r.native, identity, projection.Facts.MedicalPawns, projection.SurgeryContext())
 	if err != nil {
@@ -563,7 +566,7 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 	planInput.Offers = policy.HerdOffers(rows, projection.Facts.AnimalUpkeep.AnimalRaces)
 	herd := policy.PlanHerd(planInput)
 	saleAnimals := policy.HerdSaleAnimals(projection.Facts.AnimalUpkeep.Animals, herd.Policy)
-	need, known := policy.AnimalSaleNeed(projection.Facts.Items, policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.ReserveSurgeryStock(policy.OrganSaleSurplus(projection.Facts.Items, policy.ReviewTradeNeed(projection.Facts.Items.Currency, medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoundsTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), projection.Facts.MedicalPawns), policy.SurgeryPurchaseParts(projection.Facts.MedicalPawns, projection.SurgeryContext(), parts, policy.FabricableParts(benches))), headroom, artCount), saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).Value()
+	need, known := policy.AnimalSaleNeed(projection.Facts.Items, policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.ReserveSurgeryStock(policy.OrganSaleSurplus(projection.Facts.Items, policy.ReviewTradeNeed(projection.Facts.Items, medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, retained, policy.RoundsTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), projection.Facts.MedicalPawns), policy.SurgeryPurchaseParts(projection.Facts.MedicalPawns, projection.SurgeryContext(), parts, policy.FabricableParts(benches))), headroom, artCount), saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).Value()
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: !known", ErrControl)
 	}
@@ -574,11 +577,11 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
 	need = restrictToPlan(need, planned, policy.PlannedTradeNutrition(projection.Facts.FoodPlan, trader))
-	economic := policy.RoundsTradeTargets(projection.Facts.Items, need, rows, targets, r.reviewer.policy.Trade, projection.Facts.Colonists)
+	economic := policy.RoundsTradeTargets(projection.Facts.Items, need, rows, targets, projection.Facts.Colonists)
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)
-	facts.Favor, facts.FavorKeep = sheet.FavorCurrency, policy.FavorGoldKeep(targets, floors, seasonal.Trade)
+	facts.Favor, facts.FavorKeep = sheet.FavorCurrency, policy.FavorGoldKeep(targets, floors, retained)
 	facts.SaleArt = saleArt
 	if facts.Favor {
 		if facts.FavorPrisoners, err = r.favorPrisoners(call, state, review); err != nil {

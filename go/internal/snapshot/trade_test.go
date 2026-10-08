@@ -18,7 +18,7 @@ func tradeNeed(t *testing.T, r Rounds) policy.TradeNeed {
 	if err != nil {
 		t.Fatal(err)
 	}
-	need, known := policy.ReviewTradeNeed(r.Facts.Items.Currency, medicine, r.Facts.Resources, r.Facts.ResourceNeeds, policy.RoundsTradeFloors(r.Policy, nil), r.Facts.Wealth, r.Policy.Trade, policy.RoundsTradeFood(r.Facts, r.Policy)).Value()
+	need, known := policy.ReviewTradeNeed(r.Facts.Items, medicine, r.Facts.Resources, r.Facts.ResourceNeeds, policy.RoundsTradeFloors(r.Policy, nil), r.Facts.Wealth, policy.TradeRetainedOf(r.Facts, r.Policy, policy.RoundsLatches{}), policy.RoundsTradeFood(r.Facts, r.Policy)).Value()
 	if !known {
 		t.Fatal("trade need unknown")
 	}
@@ -56,11 +56,13 @@ func TestReplayCaravanOpensTradeOnMedicineShortfall(t *testing.T) {
 // Recorded from acceptance run trade/routine-stocked at 04b0a98cb, tick
 // 9655: 2000 steel, recorded under the since-deleted
 // --routine-item-wealth-share 0.01; the item share is raised past the
-// constant 0.6 (#875). The wealth rule sells exactly stock minus the
-// retained 500-steel floor.
+// constant 0.6 (#875), and a consumed steel runway is set. The wealth rule sells exactly stock minus the
+// steel runway's protected line (100 a day over the 5-day horizon).
 func TestReplaySteelHoardSellsDownToTheFloor(t *testing.T) {
 	r := loadTrade(t, "testdata/trade-steel-hoard-wealth-surplus.json")
 	r.Facts.Wealth = domain.Known(policy.WealthFacts{Items: 15000, Buildings: 3500, Pawns: 1500, Total: 20000})
+	r.Facts.ResourceConsumption = domain.Known(policy.ResourceConsumption{WindowDays: 15})
+	r.Facts.ResourceRunways = []policy.ResourceRunway{{Resource: "Steel", ConsumptionPerDay: domain.Known(100.0)}}
 	need := tradeNeed(t, r)
 	if len(need.Surplus) != 1 || need.Surplus[0] != (policy.Amount{Resource: "Steel", Count: 1500}) || need.Retained["Steel"] != 500 {
 		t.Fatalf("steel surplus %+v retained %v, want 1500 sold keeping 500", need.Surplus, need.Retained)

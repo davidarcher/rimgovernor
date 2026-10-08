@@ -50,6 +50,14 @@ type ItemFacts struct {
 	Prevention *Prevention
 	// Sculptures are the art recipes (RoleSculpture), smallest first (#1721).
 	Sculptures []Sculpture
+	// DeepResources are the defs the game generates as deep deposits (a
+	// positive ThingDef.deepCommonality): what a deep drill can yield, sorted.
+	DeepResources []Resource
+}
+
+// IsDeepResource reports whether def is a deep deposit def.
+func (i ItemFacts) IsDeepResource(def Resource) bool {
+	return slices.Contains(i.DeepResources, def)
 }
 
 // Sculpture is one art recipe: the building it makes, the building's

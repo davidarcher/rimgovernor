@@ -57,6 +57,9 @@ func buildItemFacts(catalog *DefinitionCatalog) (policy.ItemFacts, error) {
 		if len(def.StuffCategories) > 0 {
 			items.AcceptedStuff[resource] = def.StuffCategories
 		}
+		if def.DeepCommonality > 0 {
+			items.DeepResources = append(items.DeepResources, resource)
+		}
 		if a := def.GetApparel(); a != nil && ApparelIsArmor(a) {
 			items.Armor = append(items.Armor, resource)
 		}
@@ -77,6 +80,7 @@ func buildItemFacts(catalog *DefinitionCatalog) (policy.ItemFacts, error) {
 		}
 	}
 	slices.Sort(items.Armor)
+	slices.Sort(items.DeepResources)
 	items.Currency = policy.Resource(catalog.Constants.CurrencyDef)
 	if catalog.ThingDefs[catalog.Constants.CurrencyDef] == nil {
 		return policy.ItemFacts{}, contract("catalog has no def row for the currency %s", catalog.Constants.CurrencyDef)
