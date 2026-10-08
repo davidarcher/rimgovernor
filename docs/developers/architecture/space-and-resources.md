@@ -144,8 +144,11 @@ and usable on that bench, the resource production method proposes a StockTarget
 bill. Its target is capped at current components plus one per 12 surplus steel,
 retaining the Steel reserve and five days of observed consumption in stock.
 The budget uses the lower of fresh colony and usable ingredient stock; ore is
-never spendable steel. Unknown consumption or stock blocks fabrication, and
-an existing active component bill prevents a duplicate.
+never spendable steel. Every ingredient of any produce bill is priced against
+census stock; an ingredient with a runway row keeps that row's protected line
+(reserve plus five days of use) and one without protects nothing. An unread
+census blocks the bill, and an existing active component bill prevents a
+duplicate.
 
 The durable review retains both materials' stock, ore, rate, window, reserve,
 target and deficit. `/api/routines` exposes them as `resourceRunways`, with

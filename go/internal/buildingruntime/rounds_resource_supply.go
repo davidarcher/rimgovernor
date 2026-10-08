@@ -187,7 +187,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 			if row.selKnown {
 				input.Candidates = policy.MineCandidates(resource, row.sel.selected, domain.Known(row.sel.storage.Capacity))
 			}
-			if produce, found := policy.ProduceCandidate(row.choice, deficit, runways); found {
+			if produce, found := policy.ProduceCandidate(row.choice, deficit); found {
 				input.Candidates = append(input.Candidates, produce)
 			}
 		}

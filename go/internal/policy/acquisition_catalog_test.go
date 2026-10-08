@@ -10,7 +10,7 @@ import (
 // sliver of one does not.
 func TestCatalogRanksMineAgainstBill(t *testing.T) {
 	bill := ResourceMethod{Kind: ResourceMethodProduce, Bench: "smelter", Recipe: "SmeltSlag", Resource: "Steel", Target: 100}
-	produce, ok := ProduceCandidate(bill, 60, nil)
+	produce, ok := ProduceCandidate(bill, 60)
 	if !ok {
 		t.Fatal("no produce candidate")
 	}

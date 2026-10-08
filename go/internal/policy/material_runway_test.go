@@ -25,7 +25,7 @@ func componentMethod() ResourceMethod {
 func componentSupply(t *testing.T, runways []ResourceRunway, available domain.Fact[int64], deficit int64) SupplyEntry {
 	t.Helper()
 	method := componentMethod()
-	candidate, ok := ProduceCandidate(method, deficit, runways)
+	candidate, ok := ProduceCandidate(method, deficit)
 	if !ok || len(candidate.UpfrontCost.Resources) != 1 || candidate.UpfrontCost.Resources[0].Count != 12*deficit {
 		t.Fatalf("the recipe's steel is the candidate's upfront cost: %+v %v", candidate, method)
 	}
@@ -79,14 +79,27 @@ func TestComponentBillUnknownIngredients(t *testing.T) {
 	if e := componentSupply(t, runways, domain.Unknown[int64](), 18); e.Decision == SupplyOpen || e.Reason != "unknown: steel_usable" {
 		t.Fatalf("unknown census: %+v", e)
 	}
+}
+
+func TestComponentBillWithoutRunwayRowIsPriced(t *testing.T) {
+	// No row protects nothing: 157 steel is thirteen components of 12, and an
+	// unread rate protects only the reserve: 87 steel is seven.
 	unread := []ResourceRunway{ForecastResourceRunway("Steel", domain.Known(int64(157)), domain.Known(int64(0)), 70, 0, domain.Unknown[ResourceConsumption]())}
-	candidate, _ := ProduceCandidate(componentMethod(), 18, unread)
-	if len(candidate.UpfrontCost.Resources) != 1 {
-		t.Fatal("a runway with an unread rate still declares the draw")
-	}
-	plan, err := PlanResourceSupply([]ResourceSupplyInput{{Resource: ComponentResource, Deficit: 18, Candidates: []SupplyCandidate{candidate}, Usable: UsableIngredients(unread, nil)}}, domain.Known(1e6))
-	if err != nil || len(plan.Plan.Unknown) != 1 {
-		t.Fatalf("unread rate is unknown: %s %v", plan.Plan.Explain(), err)
+	for _, tc := range []struct {
+		name    string
+		runways []ResourceRunway
+		units   float64
+	}{{"no row", nil, 13}, {"unread rate", unread, 7}} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := componentSupply(t, tc.runways, domain.Known(int64(157)), 18)
+			got := 0.0
+			for _, c := range e.Credit {
+				got += c.Amount
+			}
+			if e.Decision != SupplyOpen || got != tc.units {
+				t.Fatalf("admitted %v (%s), want %v", got, e.Reason, tc.units)
+			}
+		})
 	}
 }
 
