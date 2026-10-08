@@ -22,6 +22,29 @@ type AnomalyColony struct {
 	// platform can take an entity on the colony map.
 	HoldingPlatformAvailable domain.Fact[bool]
 	Incidents                domain.Fact[AnomalyIncidents]
+	// Monolith is unknown unless the monolith is spawned (#2436).
+	Monolith domain.Fact[MonolithState]
+}
+
+// MonolithState is the void monolith and the endgame it gates (#2436), every
+// verdict the game's own. CanActivate is Building_VoidMonolith.CanActivate.
+// The next level's requirement is the codex category and count its def lists
+// (unknown when it lists none, or no level follows); CodexShortfall is the
+// entries still undiscovered there. BlockingConditions are the active game
+// conditions the next level lists as unreachable (UnnaturalDarkness blocks
+// VoidAwakened). VoidAwakeningStage is unknown while the quest is not running.
+type MonolithState struct {
+	CanActivate                  domain.Fact[bool]
+	NextLevelDef                 domain.Fact[string]
+	NextLevelCodexCategory       domain.Fact[string]
+	NextLevelCodexRequired       domain.Fact[uint32]
+	CodexShortfall               domain.Fact[uint32]
+	BlockingConditions           []string
+	GleamingInteractionAvailable domain.Fact[bool]
+	VoidStructures               domain.Fact[uint32]
+	VoidStructuresActivated      domain.Fact[uint32]
+	VoidNodeExists               domain.Fact[bool]
+	VoidAwakeningStage           domain.Fact[int32]
 }
 
 // KnowledgeProgress is one knowledge category: the project the research
@@ -76,6 +99,12 @@ func colonyAnomaly(section *o.AnomalySection) domain.Fact[AnomalyColony] {
 			AnomalyStudyEnabled: optional(i.AnomalyStudyEnabled), VoidAwakeningActive: optional(i.VoidAwakeningActive), AwokenCorpseActive: optional(i.AwokenCorpseActive),
 			MetalhorrorImplantPossible: optional(i.MetalhorrorImplantPossible), LevelDef: optional(i.LevelDef), Level: optional(i.Level), HighestLevelReached: optional(i.HighestLevelReached),
 			TicksSinceLevelChange: optional(i.TicksSinceLevelChange), ThreatFractionNow: optional(i.AnomalyThreatFractionNow)})
+	}
+	if m := f.Monolith; m != nil {
+		r.Monolith = domain.Known(MonolithState{CanActivate: optional(m.CanActivate), NextLevelDef: optional(m.NextLevelDef), NextLevelCodexCategory: optional(m.NextLevelCodexCategory),
+			NextLevelCodexRequired: optional(m.NextLevelCodexRequired), CodexShortfall: optional(m.CodexShortfall), BlockingConditions: m.BlockingConditions,
+			GleamingInteractionAvailable: optional(m.GleamingInteractionAvailable), VoidStructures: optional(m.VoidStructures), VoidStructuresActivated: optional(m.VoidStructuresActivated),
+			VoidNodeExists: optional(m.VoidNodeExists), VoidAwakeningStage: optional(m.VoidAwakeningStage)})
 	}
 	return domain.Known(r)
 }

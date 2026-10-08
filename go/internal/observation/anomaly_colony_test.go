@@ -96,3 +96,73 @@ func TestAnomalyColonyProjection(t *testing.T) {
 		proto.Merge(f, saved)
 	}
 }
+
+// A recorded monolith read projects the activation block, the next level's
+// requirement and the void facts; an unread monolith and unread scalars stay
+// unknown, and contradictory rows are refused.
+func TestAnomalyMonolithProjection(t *testing.T) {
+	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := &o.ColonyFactsReply{}
+	if err = protojson.Unmarshal(data, r); err != nil {
+		t.Fatal(err)
+	}
+	id := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
+	decode := func() (AnomalyColony, error) {
+		p, err := DecodeColony(r, id, bridge.Tables{})
+		v, _ := p.Anomaly.Value()
+		return v, err
+	}
+	f := &o.AnomalyColonyFacts{}
+	r.GetObserved().Anomaly = &o.AnomalySection{Outcome: &o.AnomalySection_Observed{Observed: f}}
+	v, err := decode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := v.Monolith.Value(); ok {
+		t.Fatal("unread monolith became known")
+	}
+	f.Monolith = &o.MonolithState{CanActivate: proto.Bool(false), NextLevelDef: proto.String("VoidAwakened"), NextLevelCodexCategory: proto.String("Advanced"),
+		NextLevelCodexRequired: proto.Uint32(12), CodexShortfall: proto.Uint32(5), BlockingConditions: []string{"UnnaturalDarkness"},
+		GleamingInteractionAvailable: proto.Bool(false), VoidStructures: proto.Uint32(2), VoidStructuresActivated: proto.Uint32(1), VoidNodeExists: proto.Bool(false)}
+	v, err = decode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := v.Monolith.Value()
+	if !ok {
+		t.Fatal("monolith lost")
+	}
+	if can, ok := m.CanActivate.Value(); !ok || can {
+		t.Fatal("can_activate lost")
+	}
+	if n, ok := m.CodexShortfall.Value(); !ok || n != 5 {
+		t.Fatal("codex shortfall lost")
+	}
+	if len(m.BlockingConditions) != 1 || m.BlockingConditions[0] != "UnnaturalDarkness" {
+		t.Fatalf("blocking conditions lost: %v", m.BlockingConditions)
+	}
+	if n, ok := m.VoidStructuresActivated.Value(); !ok || n != 1 {
+		t.Fatal("activated structures lost")
+	}
+	if _, ok := m.VoidAwakeningStage.Value(); ok {
+		t.Fatal("absent quest stage became known")
+	}
+	for name, change := range map[string]func(){
+		"requirement sans shortfall": func() { f.Monolith.CodexShortfall = nil },
+		"shortfall above required":   func() { f.Monolith.CodexShortfall = proto.Uint32(13) },
+		"activated above structures": func() { f.Monolith.VoidStructuresActivated = proto.Uint32(3) },
+		"negative stage":             func() { f.Monolith.VoidAwakeningStage = proto.Int32(-1) },
+		"duplicate condition":        func() { f.Monolith.BlockingConditions = []string{"UnnaturalDarkness", "UnnaturalDarkness"} },
+	} {
+		saved := proto.Clone(f).(*o.AnomalyColonyFacts)
+		change()
+		if _, err := decode(); err == nil {
+			t.Fatalf("%s accepted", name)
+		}
+		proto.Reset(f)
+		proto.Merge(f, saved)
+	}
+}

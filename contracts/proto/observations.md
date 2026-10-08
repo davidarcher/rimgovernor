@@ -594,7 +594,17 @@ into the pawn and building rows), `holding_platform_available` (the game's own
 reached, questline ended, ticks since the last level change, ambient horror
 mode, anomaly study enabled, the threat fraction the game gives Anomaly
 incidents now, void awakening, an awoken corpse, whether a new metalhorror
-implant can occur). A held entity's strength and need stay on its rows
+implant can occur) and `monolith` (#2436, absent unless the monolith is
+spawned: `can_activate` from `Building_VoidMonolith.CanActivate`; the next level
+def from `GameComponent_Anomaly.NextLevelDef` with the codex category and count
+its def requires and the entries still undiscovered; the active game conditions
+the next level lists as unreachable, e.g. `UnnaturalDarkness` for VoidAwakened;
+whether the Gleaming interaction (`CompGleamingMonolith.CanInteract`) is
+available; spawned and activated `VoidStructure` counts and whether a `VoidNode`
+exists on the monolith's map; and the void awakening stage, derived from the
+`stageStructure.N` quest tags of the spawned structures and absent while the
+`EndGame_VoidAwakening` quest is not running). Level effects and requirements
+come from the game defs through the native read, not Go tables. A held entity's strength and need stay on its rows
 (`HeldState`, `EntityHolderState`, `PawnAnomaly.min_containment_strength`).
 Selection is by the game's own types, never name lists; an absent scalar is
 unknown, never zero. Go validates the rows (`bridge.validateAnomalyColony`:

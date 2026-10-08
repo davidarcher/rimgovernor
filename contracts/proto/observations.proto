@@ -1605,7 +1605,7 @@ message UndergroundHackable {
 message AnomalySection { oneof outcome { AnomalyColonyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message AnomalyColonyFacts {
   repeated KnowledgeProgress knowledge = 1; repeated CodexProgress codex = 2; repeated string discovered_entries = 3;
-  repeated HeldEntity held_entities = 4; optional bool holding_platform_available = 5; AnomalyIncidentState incidents = 6;
+  repeated HeldEntity held_entities = 4; optional bool holding_platform_available = 5; AnomalyIncidentState incidents = 6; MonolithState monolith = 7;
 }
 // current_project is the ResearchProjectDef the research manager funds from
 // this category (absent when none is set); knowledge the amount stored for
@@ -1629,6 +1629,30 @@ message AnomalyIncidentState {
   optional bool questline_ended = 5; optional int32 ticks_since_level_change = 6; optional bool ambient_horror_mode = 7;
   optional bool anomaly_study_enabled = 8; optional double anomaly_threat_fraction_now = 9; optional bool void_awakening_active = 10;
   optional bool awoken_corpse_active = 11; optional bool metalhorror_implant_possible = 12;
+}
+// The void monolith and the endgame it gates (#2436), present only while the
+// monolith is spawned (absent otherwise: unknown). can_activate is
+// Building_VoidMonolith.CanActivate. next_level_def is
+// GameComponent_Anomaly.NextLevelDef (absent when the current level does not
+// advance through activation or none follows); next_level_codex_category and
+// next_level_codex_required are that def's entityCatagoryCompletionRequired and
+// entityCountCompletionRequired (both absent when it requires none), and
+// codex_shortfall the entries still undiscovered in that category (0 when met;
+// present with them). blocking_conditions are the active GameConditionDef names
+// on the monolith's map that the next level lists as unreachableDuringConditions
+// (UnnaturalDarkness blocks VoidAwakened). gleaming_interaction_available is
+// CompGleamingMonolith.CanInteract() (true only at the Gleaming level).
+// void_structures counts the spawned VoidStructure things on the monolith's map
+// and void_structures_activated those whose CompVoidStructure is active.
+// void_node_exists: a VoidNode thing is spawned on that map.
+// void_awakening_stage is 0 with the EndGame_VoidAwakening quest running and no
+// structure spawned yet, else one more than the highest stageStructure.N quest
+// tag on a spawned structure; absent when the quest is not running.
+message MonolithState {
+  optional bool can_activate = 1; optional string next_level_def = 2; optional string next_level_codex_category = 3;
+  optional uint32 next_level_codex_required = 4; optional uint32 codex_shortfall = 5; repeated string blocking_conditions = 6;
+  optional bool gleaming_interaction_available = 7; optional uint32 void_structures = 8; optional uint32 void_structures_activated = 9;
+  optional bool void_node_exists = 10; optional int32 void_awakening_stage = 11;
 }
 // One policy database row: Policy.GetUniqueLoadID(), label, the player
 // pawns (colonists, prisoners, slaves, tame animals; any map, caravan or

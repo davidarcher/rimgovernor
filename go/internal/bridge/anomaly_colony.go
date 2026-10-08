@@ -53,6 +53,21 @@ func validateAnomalyColony(v *o.ColonyFactsSnapshot) error {
 				return contract("invalid anomaly incident state")
 			}
 		}
+		if m := f.Monolith; m != nil {
+			seenCondition := map[string]bool{}
+			for _, name := range m.BlockingConditions {
+				if validID(name) != nil || seenCondition[name] {
+					return contract("invalid anomaly monolith blocking condition")
+				}
+				seenCondition[name] = true
+			}
+			if m.NextLevelDef != nil && validID(m.GetNextLevelDef()) != nil || m.NextLevelCodexCategory != nil && validID(m.GetNextLevelCodexCategory()) != nil ||
+				(m.NextLevelCodexCategory == nil) != (m.NextLevelCodexRequired == nil) || (m.NextLevelCodexCategory == nil) != (m.CodexShortfall == nil) ||
+				m.CodexShortfall != nil && m.GetCodexShortfall() > m.GetNextLevelCodexRequired() ||
+				m.VoidStructuresActivated != nil && m.GetVoidStructuresActivated() > m.GetVoidStructures() || m.VoidAwakeningStage != nil && m.GetVoidAwakeningStage() < 0 {
+				return contract("invalid anomaly monolith state")
+			}
+		}
 		return nil
 	default:
 		return contract("missing anomaly colony outcome")

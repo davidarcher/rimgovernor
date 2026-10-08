@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
@@ -43,10 +44,48 @@ namespace HomeBridge.BridgeTools
                         facts.HeldEntities.Add(new Obs.HeldEntity { PawnId = Id(held.GetUniqueLoadID()), PlatformId = Id(building.GetUniqueLoadID()) });
                 facts.HoldingPlatformAvailable = StudyUtility.HoldingPlatformAvailableOnCurrentMap();
                 facts.Incidents = Incidents(Find.Anomaly);
+                facts.Monolith = Monolith(Find.Anomaly);
                 return new Obs.AnomalySection { Observed = facts };
             } catch (Exception ex) {
                 return new Obs.AnomalySection { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } };
             }
+        }
+
+        // The monolith and the endgame it gates (#2436); null (unknown) unless
+        // it is spawned. Every verdict is the game's own: CanActivate, the next
+        // level def's requirement, the Gleaming comp's CanInteract and the
+        // spawned void things on the monolith's map. The block reasons repeat
+        // CanActivate's two checks so a consumer reads which one holds.
+        private static Obs.MonolithState? Monolith(GameComponent_Anomaly anomaly)
+        {
+            if (!anomaly.MonolithSpawned || anomaly.monolith is not Building_VoidMonolith monolith || monolith.Map is not Map map) return null;
+            var row = new Obs.MonolithState { CanActivate = monolith.CanActivate(out _, out _) };
+            if (anomaly.NextLevelDef is MonolithLevelDef next) {
+                if (Id(next.defName) is string name) row.NextLevelDef = name;
+                if (next.entityCatagoryCompletionRequired is EntityCategoryDef category && Id(category.defName) is string categoryName) {
+                    row.NextLevelCodexCategory = categoryName;
+                    row.NextLevelCodexRequired = (uint)Math.Max(0, next.entityCountCompletionRequired);
+                    row.CodexShortfall = (uint)Math.Max(0, next.entityCountCompletionRequired - Find.EntityCodex.DiscoveredCount(category));
+                }
+                if (next.unreachableDuringConditions != null)
+                    foreach (var condition in map.GameConditionManager.ActiveConditions.Select(c => c.def).Distinct().Where(next.unreachableDuringConditions.Contains).OrderBy(d => d.defName, StringComparer.Ordinal))
+                        if (Id(condition.defName) is string conditionName) row.BlockingConditions.Add(conditionName);
+            }
+            row.GleamingInteractionAvailable = monolith.GetComp<CompGleamingMonolith>()?.CanInteract().Accepted ?? false;
+            var structures = map.listerThings.ThingsOfDef(ThingDefOf.VoidStructure);
+            row.VoidStructures = (uint)structures.Count;
+            row.VoidStructuresActivated = (uint)structures.Count(t => t.TryGetComp<CompVoidStructure>()?.Active ?? false);
+            row.VoidNodeExists = map.listerThings.ThingsOfDef(ThingDefOf.VoidNode).Count > 0;
+            var quest = Find.QuestManager.questsInDisplayOrder.FirstOrDefault(q => !q.Historical && q.root == QuestScriptDefOf.EndGame_VoidAwakening);
+            if (quest != null) {
+                var prefix = "Quest" + quest.id + ".";
+                var stage = 0;
+                foreach (var tag in structures.Where(t => t.questTags != null).SelectMany(t => t.questTags))
+                    if (tag.StartsWith(prefix, StringComparison.Ordinal) && Regex.Match(tag, @"\.stageStructure\.(\d+)") is { Success: true } m && int.TryParse(m.Groups[1].Value, out var index))
+                        stage = Math.Max(stage, index + 1);
+                row.VoidAwakeningStage = stage;
+            }
+            return row;
         }
 
         private static Obs.AnomalyIncidentState Incidents(GameComponent_Anomaly anomaly)
