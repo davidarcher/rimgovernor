@@ -46,3 +46,30 @@ func TestShelterFromAManhunterPack(t *testing.T) {
 		t.Fatalf("%s %+v, want a step away from the pack", m.Tactic, orders)
 	}
 }
+
+// The fallback move never leaves the walled compound the colonist stands in
+// (#2376): with no roofed room free of hostiles, the step away from a gunner
+// outside the east wall is clamped to the interior.
+func TestShelterFallbackStaysInsideTheCompound(t *testing.T) {
+	compound := CombatRoom{Interior: Rectangle{X: 41, Z: 37, Width: 19, Height: 19}}
+	view := CombatView{Tick: 1, Rooms: []CombatRoom{compound}}
+	for i, c := range []domain.Cell{{X: 45, Z: 46}, {X: 55, Z: 40}, {X: 58, Z: 50}} {
+		id := domain.PawnID(string(rune('a' + i)))
+		d := combatRifleman(id)
+		d.RangedEquipped, d.Armed = domain.Known(false), domain.Known(false)
+		view.Defenders = append(view.Defenders, d)
+		view.Orderable = append(view.Orderable, id)
+		view.Pawns = append(view.Pawns, CombatPawnState{ID: id, Cell: domain.Known(c), Stance: StanceIdle})
+	}
+	s, p := combatRaider("r", domain.Cell{X: 62, Z: 46})
+	view.Threats, view.Positional = []SquadThreatFacts{s}, []DefensiveThreatFacts{p}
+	orders, _, _ := DecideCombat(view, GeometryReply{}, StopEvent{}, CombatMemory{})
+	if len(orders) != 3 {
+		t.Fatalf("%+v, want three moves", orders)
+	}
+	for _, o := range orders {
+		if o.Kind != OrderMove || !compound.contains(o.Cell) {
+			t.Fatalf("order %+v leaves the compound", o)
+		}
+	}
+}

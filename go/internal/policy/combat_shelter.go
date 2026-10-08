@@ -75,8 +75,38 @@ func shelterRolesFor(view CombatView, pick func(SquadDefenderFacts) bool) []Comb
 				continue
 			}
 			cell = domain.Cell{X: max(0, c.X+int32(math.Round(dx/n*shelterStep))), Z: max(0, c.Z+int32(math.Round(dz/n*shelterStep)))}
+			cell = keepDefended(view, c, cell)
 		}
 		roles = append(roles, CombatRole{Pawn: d.ID, Cell: &cell, Retreat: true})
 	}
 	return sortRoles(roles)
+}
+
+// keepDefended pulls a fallback move target back onto the defended side
+// (#2376): inside the room the colonist stands in, else, in a layout, no
+// further than the firing line's far side. A colonist already outside both
+// keeps the unclamped target; there is no defended side to hold.
+func keepDefended(view CombatView, from, to domain.Cell) domain.Cell {
+	for _, r := range view.Rooms {
+		if !r.contains(from) || r.contains(to) {
+			continue
+		}
+		in := r.Interior
+		return domain.Cell{
+			X: min(max(to.X, in.X), in.X+in.Width-1),
+			Z: min(max(to.Z, in.Z), in.Z+in.Height-1),
+		}
+	}
+	layout, ok := view.Layout.Value()
+	if !ok || !BehindFiringLine(layout.Firing, layout.Toward, from) || BehindFiringLine(layout.Firing, layout.Toward, to) {
+		return to
+	}
+	dx, dz := float64(to.X-from.X), float64(to.Z-from.Z)
+	for t := 1 - 1.0/shelterStep; t > 0; t -= 1.0 / shelterStep {
+		c := domain.Cell{X: from.X + int32(math.Round(dx*t)), Z: from.Z + int32(math.Round(dz*t))}
+		if BehindFiringLine(layout.Firing, layout.Toward, c) {
+			return c
+		}
+	}
+	return from
 }

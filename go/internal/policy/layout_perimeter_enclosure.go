@@ -90,12 +90,6 @@ func newEnclosure(in []bool, w, h int32) enclosure {
 	return e
 }
 
-// encloseRegion grows region by grow within yard's bounds, closes it by
-// perimeterThick and fills its holes.
-func encloseRegion(region []bool, w, h int32, yard Rectangle, grow int32) []bool {
-	return closeRegion(growRegion(region, w, h, grow), w, h, yard)
-}
-
 // growRegion is region grown by grow cells (Chebyshev).
 func growRegion(region []bool, w, h int32, grow int32) []bool {
 	grown := make([]bool, len(region))

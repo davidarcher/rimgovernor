@@ -604,13 +604,6 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		add(ReserveMortar, rectOf(mortar, mortar))
 	}
 
-	var approaches []Rectangle
-	for _, r := range res {
-		if r.Kind == ReserveKillboxApproach {
-			approaches = append(approaches, r.Area)
-		}
-	}
-
 	kept := plan.Reservations[:0:0]
 	for _, r := range plan.Reservations {
 		if !perimeterKinds[r.Kind] {
