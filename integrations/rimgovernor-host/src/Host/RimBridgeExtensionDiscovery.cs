@@ -302,7 +302,7 @@ internal static class RimBridgeExtensionDiscovery
         }
         catch (Exception ex)
         {
-            error = $"creating '{type.FullName ?? type.Name}' failed: {ex.Message}";
+            error = $"creating '{type.FullName ?? type.Name}' failed: {ex.GetBaseException()}";
             return false;
         }
     }
