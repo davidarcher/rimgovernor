@@ -451,7 +451,7 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 	}
 	pollCtx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
-	go func() { defer close(done); snapshots.Poll(pollCtx, config.refresh, nil) }()
+	go func() { defer close(done); snapshots.Poll(pollCtx, config.refresh) }()
 	superviseDone := make(chan struct{})
 	go func() { defer close(superviseDone); superviseBridge(pollCtx, client, out, closed) }()
 	defer func() { cancel(); <-done; <-superviseDone }()

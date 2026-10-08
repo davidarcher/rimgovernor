@@ -311,19 +311,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return err
 	}
 	_ = reads.Refresh(lifetime)
-	// A world change rebuilds the store from the save as soon as the poll sees
-	// it, so goals written before the first clock step or save are not
-	// replaced by that step's rebuild (#1123). A read only: nothing is put.
-	rebuildOnWorld := func(ctx context.Context) {
-		call, stop := context.WithTimeout(ctx, 10*time.Second)
-		defer stop()
-		if world, ok := currentGovernorWorld(reads)(call); ok {
-			if err := rebuild.ensure(call, world, stateNative); err != nil && ctx.Err() == nil {
-				fmt.Fprintf(out, "governor state: %v\n", err)
-			}
-		}
-	}
-	rebuildOnWorld(lifetime)
 	// Every Go-made save and every pre_save signal flushes the same way (#2359).
 	flusher := &stateFlusher{native: stateNative, world: currentGovernorWorld(reads), database: database, rebuild: rebuild}
 	if client.lifecycle.flushedSave != nil {
@@ -347,7 +334,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return err
 	}
 	pollDone = make(chan struct{})
-	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh, rebuildOnWorld) }()
+	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh) }()
 	superviseDone := make(chan struct{})
 	defer func() { <-superviseDone }()
 	go func() { defer close(superviseDone); superviseBridge(lifetime, client.reads, out, cancel) }()

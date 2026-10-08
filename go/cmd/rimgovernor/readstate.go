@@ -82,8 +82,7 @@ func (s *readState) Snapshot(ctx context.Context) (httpapi.Snapshot, error) {
 
 // Poll runs after the initial refresh. The caller cancels and joins it before
 // closing the bridge session, so no worker outlives its native connection.
-// after, when set, runs once per refresh (the world rebuild hook).
-func (s *readState) Poll(ctx context.Context, interval time.Duration, after func(context.Context)) {
+func (s *readState) Poll(ctx context.Context, interval time.Duration) {
 	timer := time.NewTicker(interval)
 	defer timer.Stop()
 	for {
@@ -92,9 +91,6 @@ func (s *readState) Poll(ctx context.Context, interval time.Duration, after func
 			return
 		case <-timer.C:
 			_ = s.Refresh(ctx)
-			if after != nil {
-				after(ctx)
-			}
 		}
 	}
 }
