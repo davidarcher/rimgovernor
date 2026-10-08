@@ -109,6 +109,7 @@ func (catalog *DefinitionCatalog) thoughtMoods(name string) ([]float64, error) {
 func (catalog *DefinitionCatalog) preceptEffect(comp *d.PreceptCompAny) (policy.PreceptEffect, error) {
 	var out policy.PreceptEffect
 	thought := func(name string) (err error) {
+		out.Thought = name
 		out.StageMoods, err = catalog.thoughtMoods(name)
 		return err
 	}

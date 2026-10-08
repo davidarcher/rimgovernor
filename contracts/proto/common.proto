@@ -3,6 +3,14 @@ package rimgovernor.common.v1;
 option csharp_namespace = "RimGovernor.Protocol.Common";
 option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb;commonpb";
 
+// Plain precepts are the exact issue selections; role, ritual and building
+// instances are initialized/preserved by the normal game creation/reform path.
+message IdeoligionDesign {
+  repeated string memes = 1;
+  repeated string precepts = 2;
+  optional bool fluid = 3;
+}
+
 // Presence is significant: map zero and tick zero are valid observations.
 message Identity {
   optional string colony_id = 1;
@@ -86,4 +94,3 @@ message Unavailable {
   optional UnavailableReason reason = 1;
   optional string detail = 2;
 }
-

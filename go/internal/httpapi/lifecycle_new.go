@@ -17,19 +17,26 @@ import (
 // their zero value fail the shared bridge validation; the optional ones are
 // pointers or empty strings.
 type newColonySpecDTO struct {
-	Scenario         string   `json:"scenario"`
-	ColonistCount    uint32   `json:"colonistCount"`
-	Seed             string   `json:"seed"`
-	Biomes           []string `json:"biomes"`
-	FlatTile         bool     `json:"flatTile"`
-	Difficulty       string   `json:"difficulty"`
-	Storyteller      string   `json:"storyteller"`
-	MinTemperature   *float32 `json:"minTemperature"`
-	MaxTemperature   *float32 `json:"maxTemperature"`
-	WorldTemperature string   `json:"worldTemperature"`
-	MapSize          uint32   `json:"mapSize"`
-	PlanetCoverage   float32  `json:"planetCoverage"`
-	SaveName         string   `json:"saveName"`
+	Scenario           string               `json:"scenario"`
+	ColonistCount      uint32               `json:"colonistCount"`
+	Seed               string               `json:"seed"`
+	Biomes             []string             `json:"biomes"`
+	FlatTile           bool                 `json:"flatTile"`
+	Difficulty         string               `json:"difficulty"`
+	Storyteller        string               `json:"storyteller"`
+	MinTemperature     *float32             `json:"minTemperature"`
+	MaxTemperature     *float32             `json:"maxTemperature"`
+	WorldTemperature   string               `json:"worldTemperature"`
+	MapSize            uint32               `json:"mapSize"`
+	PlanetCoverage     float32              `json:"planetCoverage"`
+	SaveName           string               `json:"saveName"`
+	Ideoligion         *ideoligionDesignDTO `json:"ideoligion,omitempty"`
+	GovernorIdeoligion bool                 `json:"governorIdeoligion,omitempty"`
+}
+type ideoligionDesignDTO struct {
+	Memes    []string `json:"memes"`
+	Precepts []string `json:"precepts"`
+	Fluid    *bool    `json:"fluid"`
 }
 type newColonyRequestDTO struct {
 	RequestID string           `json:"requestId"`
@@ -90,7 +97,14 @@ func (s *Server) handleLifecycleNew(w http.ResponseWriter, r *http.Request, ctx 
 	if body.Spec.WorldTemperature != "" {
 		spec.WorldTemperature = proto.String(body.Spec.WorldTemperature)
 	}
+	if body.Spec.Ideoligion != nil {
+		design := body.Spec.Ideoligion
+		spec.Ideoligion = &c.IdeoligionDesign{Memes: design.Memes, Precepts: design.Precepts, Fluid: design.Fluid}
+	}
 	request := &l.NewColonyRequest{RequestId: proto.String(body.RequestID), Spec: spec, TimeoutMs: proto.Uint32(body.TimeoutMs)}
+	if body.Spec.GovernorIdeoligion {
+		spec.GovernorIdeoligion = proto.Bool(true)
+	}
 	if err := bridgepkg.ValidateNewColonyRequest(request); err != nil {
 		s.failure(w, r, 400, "invalid_request", "Invalid new colony request: "+strings.TrimPrefix(err.Error(), bridgepkg.ErrContract.Error()+": "))
 		return

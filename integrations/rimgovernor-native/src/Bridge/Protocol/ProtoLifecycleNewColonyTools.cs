@@ -125,6 +125,8 @@ namespace HomeBridge.BridgeTools
                 return Fail(Common.FailureCode.Unavailable, "The game is busy with another long event.");
 
             ResolvedSpec resolved;
+            if (request.Spec.GovernorIdeoligion)
+                return Fail(Common.FailureCode.InvalidRequest, "Governor selection must be resolved by Go before native creation.");
             try { resolved = Resolve(request.Spec); }
             catch (Refusal refusal) { return Fail(refusal.Code, refusal.Message); }
 
@@ -294,6 +296,7 @@ namespace HomeBridge.BridgeTools
             Rand.PushState(GenText.StableStringHash(entry.Seed));
             try
             {
+                if (entry.Spec.Ideoligion != null) NativeIdeoligionDesign.Create(entry.Spec.Ideoligion);
                 Find.Scenario.PostIdeoChosen();
                 TeamPolicy(entry);
             }

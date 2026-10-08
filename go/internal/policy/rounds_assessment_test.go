@@ -19,7 +19,8 @@ func assessment(t *testing.T, r RoundsFindings, id ConcernID) domain.Finding {
 
 func TestRoundsAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 	r := needs(t, RoundsFacts{}, RoundsLatches{})
-	if len(r.All()) != 55 {
+	// ImproveIdeoligion contributes an assessment even when eligibility is unknown.
+	if len(r.All()) != 56 {
 		t.Fatal(r)
 	}
 	for _, n := range r.All() {

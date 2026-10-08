@@ -21,6 +21,14 @@ Controller output goes to `.rimgovernor/go/controller-<stamp>.{out,err}.log`; th
 
 ## New colony
 
+API clients can request governor ideology selection with
+`governorIdeoligion: true` in the new-colony spec. With Ideology installed,
+the controller chooses a fluid design that avoids known work restrictions and
+mood costs. An explicit `ideoligion` design takes precedence. Unread or
+unsupported required facts stop creation with an explanation.
+Auto's `ideoligion-reform` family considers a safe, game-authorized reform when
+a supported plain precept change improves those costs without losing benefits.
+
 The **New colony** panel on the Launch tab (collapsed until you open it; it opens itself when a generation starts) generates a fresh colony without
 touching the RimWorld menus: pick the scenario, colonist count, seed (blank is
 random; **Random** fills one in), biomes, difficulty, storyteller (including

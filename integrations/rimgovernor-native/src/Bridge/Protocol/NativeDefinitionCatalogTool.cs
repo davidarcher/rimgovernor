@@ -30,10 +30,27 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.DefinitionCatalogRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Failure = failure });
-            if (parsed.Scope?.ExpectedIdentity == null)
+            if (!parsed.Creation && parsed.Scope?.ExpectedIdentity == null)
                 return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity required.") });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, out _, out var context, out var error))
+                if (parsed.Creation)
+                {
+                    if (parsed.Scope != null || Current.ProgramState != ProgramState.Entry || Current.Game != null || LongEventHandler.AnyEventNowOrWaiting)
+                        return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Creation catalog requires a fresh main menu and no map scope.") });
+                    try
+                    {
+                        var mirror = new DefMirrorFill();
+                        var creation = new Obs.CreationDefinitionCatalog { Defs = DefSets(mirror) };
+                        foreach (var chain in mirror.ClassChains()) { var row = new Obs.ClassChain { Name = chain.Key }; row.Bases.AddRange(chain.Value); creation.ClassChains.Add(row); }
+                        return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Creation = creation });
+                    }
+                    catch (Exception ex)
+                    {
+                        ObservationWork.Failed("definitionCatalog", ex);
+                        return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Creation defs could not be read completely." } });
+                    }
+                }
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope!.ExpectedIdentity, out _, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Failure = error });
                 var player = Faction.OfPlayerSilentFail;
                 if (player?.def == null)

@@ -820,6 +820,16 @@ var plannerCatalog = []plannerEntry{
 			out.Rituals = &method
 			return method.Verdict, nil
 		}},
+	{name: "ideoligion", concern: policy.ImproveIdeoligion, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.IdeoligionReformAction}, sections: sectionsRituals,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Ideoligion != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
+			method, err := s.config.Ideoligion.step(ctx, epoch, arbiter)
+			if err != nil {
+				return Verdict{}, err
+			}
+			out.Ideoligion = &method
+			return method.Verdict, nil
+		}},
 	{name: "permits", concern: policy.MaintainPermits, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.PawnSettingsAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Permits != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

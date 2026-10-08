@@ -1,5 +1,10 @@
 # Action completion contracts
 
+`ideoligion_reform` is a journaled Hands intent for an eligible fluid
+ideoligion. Expected selections and reform count guard stale state; native
+checks normal reform limits, consumes development once, and returns observed
+design and progression. See [Ideology creation and reform](ideology-contracts.md#creation-and-reform).
+
 [Documentation](../../README.md)
 
 An accepted native order and a completed action are separate states. The table defines

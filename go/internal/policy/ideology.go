@@ -37,6 +37,7 @@ type PreceptEffect struct {
 	Kind              PreceptEffectKind
 	HistoryEvent      string
 	StageMoods        []float64
+	Thought           string
 	OnlyForNonSlaves  bool
 	NullifyingTraits  []string
 	NullifyingHediffs []string
@@ -156,6 +157,12 @@ type IdeoligionFacts struct {
 	ObligationsActive bool
 	Believers         int
 	MinBelievers      int
+	Development       domain.Fact[IdeoDevelopment]
+}
+
+type IdeoDevelopment struct {
+	Fluid, CanReform                bool
+	Points, ReformCount, NextPoints int
 }
 
 // Ideoligion is the ideoligion with the defs its rows resolve against.

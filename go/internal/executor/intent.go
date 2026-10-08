@@ -29,6 +29,7 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.PrisonerInteractionAction:  true,
 	domain.QuestAcceptAction:          true,
 	domain.RitualAction:               true,
+	domain.IdeoligionReformAction:     true,
 	domain.AbilityAction:              true,
 	domain.IgniteAction:               true,
 	domain.RemoveProductionBillAction: true,

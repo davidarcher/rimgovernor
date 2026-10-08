@@ -141,6 +141,7 @@ type ClockSchedulerConfig struct {
 	CreepJoiners        *RoundsCreepJoinerPlanner
 	Permits             *RoundsPermitsPlanner
 	IdeoRoles           *RoundsIdeoRolesPlanner
+	Ideoligion          *RoundsIdeoligionPlanner
 	Rituals             *RoundsRitualsPlanner
 	StoneShell          *RoundsStoneShellPlanner
 	Stockpiles          *RoundsStockpilePlanner
@@ -229,6 +230,7 @@ type ClockSchedulerResult struct {
 	CreepJoiners                 *RoundsCreepJoinerResult
 	Permits                      *RoundsPermitsResult
 	IdeoRoles                    *RoundsIdeoRolesResult
+	Ideoligion                   *RoundsIdeoligionResult
 	Rituals                      *RoundsRitualsResult
 	StoneShell                   *RoundsStoneShellResult
 	Stockpiles                   *RoundsStockpileResult
@@ -597,6 +599,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Rituals != nil && (config.Rounds == nil || config.Rituals.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Rituals != nil && (config.Rounds == nil || config.Rituals.reviewer != config.Rounds)", ErrControl)
+	}
+	if config.Ideoligion != nil && (config.Rounds == nil || config.Ideoligion.reviewer != config.Rounds) {
+		return nil, fmt.Errorf("%w: mismatched ideoligion reviewer", ErrControl)
 	}
 	if config.Permits != nil && (config.Rounds == nil || config.Permits.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Permits != nil && (config.Rounds == nil || config.Permits.reviewer != config.Rounds)", ErrControl)
@@ -1991,7 +1996,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 				domain.SubdueAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction,
 				domain.HaulAction, domain.EquipAction, domain.DropEquipmentAction, domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction,
 				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.AreaPlantCutAction, domain.CutPlantAction, domain.StripAction, domain.RulesAttachAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.WastepackHaulAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.TradeAction, domain.QuestAcceptAction, domain.RitualAction, domain.AbilityAction, domain.IgniteAction, domain.RemoveProductionBillAction, domain.CloseDoorAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
+				domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.AreaPlantCutAction, domain.CutPlantAction, domain.StripAction, domain.RulesAttachAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.WastepackHaulAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.TradeAction, domain.QuestAcceptAction, domain.RitualAction, domain.IdeoligionReformAction, domain.AbilityAction, domain.IgniteAction, domain.RemoveProductionBillAction, domain.CloseDoorAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

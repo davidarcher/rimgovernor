@@ -84,6 +84,7 @@ var inspections = []Inspection{
 	{MaintainMechs, StandardConcern, DepartmentIndustry, []FactFamily{FactColony, FactPawns}, inspectMechs},
 	{MaintainPsylink, StandardConcern, DepartmentPeople, []FactFamily{FactPawns, FactColony}, inspectPsylink},
 	{MaintainIdeoRoles, StandardConcern, DepartmentPeople, []FactFamily{FactPawns, FactColony}, inspectIdeoRoles},
+	{ImproveIdeoligion, StandardConcern, DepartmentPeople, []FactFamily{FactPawns, FactColony, FactDefinitions, FactEmergency}, inspectIdeoligion},
 	{MaintainRituals, StandardConcern, DepartmentPeople, []FactFamily{FactPawns, FactColony}, inspectRituals},
 	{MaintainPermits, StandardConcern, DepartmentPeople, []FactFamily{FactPawns, FactDefinitions, FactColony}, inspectPermits},
 	{ManageCreepJoiners, StandardConcern, DepartmentPeople, []FactFamily{FactPawns, FactEmergency}, inspectCreepJoiners},

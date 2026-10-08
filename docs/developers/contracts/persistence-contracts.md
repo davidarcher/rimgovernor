@@ -6,7 +6,7 @@ Vocabulary follows the [glossary](../agent-runbook.md#vocabulary-glossary-epic-1
 `standards`, `methods` (`standard_id`, `episode`) and `rounds`; blob keys `standard/<id>`; the
 `standard` and `episode` JSON keys; status words `open`/`settled`/`voided` (Standards) and
 `open`/`completed`/`voided` (Projects). Finding strings are `unclear`/`unmet`/`met` (Incident bindings
-store `unclear`/`active`/`clear`); schema 196. Databases and saves from other versions are refused;
+store `unclear`/`active`/`clear`); schema 199. Databases and saves from other versions are refused;
 there is no adoption path.
 
 Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second
@@ -29,6 +29,11 @@ so manual mode gets none; only a save the player makes there flushes. A Go crash
 last save. On a world change (load token, not a native generation bump) Go reads the save's blobs once
 and rebuilds its views before the first review: the clock worker's step gate, the read poll and the
 flusher all call the same once-per-world rebuild.
+
+`ImproveIdeoligion.Record` carries pending reform intent: ideoligion id,
+expected and target designs, and expected reform count. It follows the save;
+Methods and action attempts remain in the session journal. Current design,
+eligibility and scores are rebuilt from the keyed ideology section and catalog.
 
 Native saves no Go bookkeeping (receipts, lineage, purpose tags), and Go keeps no durable copy of what
 the save holds. The rest of this page details the session journal.

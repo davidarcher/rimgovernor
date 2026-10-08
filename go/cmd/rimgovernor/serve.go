@@ -95,6 +95,7 @@ type serveConfig struct {
 	roundsCreepJoinerPlans         bool
 	roundsPermitPlans              bool
 	roundsIdeoRolePlans            bool
+	roundsIdeoligionPlans          bool
 	roundsRitualPlans              bool
 	roundsStoneShellPlans          bool
 	roundsDefensiveLayoutPlans     bool
@@ -296,6 +297,7 @@ func roundsFamilies(c *serveConfig) []roundsFamily {
 		{routinefamily.Creepjoiner, &c.roundsCreepJoinerPlans},
 		{routinefamily.Permits, &c.roundsPermitPlans},
 		{routinefamily.IdeoRoles, &c.roundsIdeoRolePlans},
+		{routinefamily.Ideoligion, &c.roundsIdeoligionPlans},
 		{routinefamily.Rituals, &c.roundsRitualPlans},
 		{routinefamily.StoneShell, &c.roundsStoneShellPlans},
 		{routinefamily.DefensiveLayout, &c.roundsDefensiveLayoutPlans},

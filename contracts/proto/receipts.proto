@@ -59,7 +59,14 @@ message EffectEvidence {
     AreaPlantCutEffect area_plant_cut = 31;
     RitualEffect ritual = 40;
     AbilityEffect ability = 32;
+    IdeoligionEffect ideoligion = 41;
   }
+}
+message IdeoligionEffect {
+  optional string ideo_id = 1;
+  rimgovernor.common.v1.IdeoligionDesign design = 2;
+  optional int32 reform_count = 3;
+  optional int32 development_points = 4;
 }
 message SnapshotEvidence {
   optional string entity_id = 1;

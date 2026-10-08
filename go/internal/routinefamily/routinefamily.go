@@ -88,6 +88,7 @@ var (
 	Creepjoiner         = define("creepjoiner")
 	Permits             = define("permits")
 	IdeoRoles           = define("ideo-roles")
+	Ideoligion          = define("ideoligion-reform")
 	Rituals             = define("rituals")
 	StoneShell          = define("stone-shell")
 	DefensiveLayout     = define("defensive-layout")

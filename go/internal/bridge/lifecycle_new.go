@@ -76,6 +76,18 @@ func (n *LifecycleNewColony) NewColony(ctx context.Context, request *l.NewColony
 		return nil, Result{}, err
 	}
 	request = proto.Clone(request).(*l.NewColonyRequest)
+	if request.Spec.GetGovernorIdeoligion() && request.Spec.Ideoligion == nil {
+		catalog, raw, err := n.client.CreationCatalog(ctx)
+		if err != nil {
+			return nil, raw, err
+		}
+		choice, err := catalog.StartingIdeoligion(request.Spec.GetScenario())
+		if err != nil {
+			return nil, raw, err
+		}
+		request.Spec.Ideoligion = WireIdeoligionDesign(choice.Design)
+	}
+	request.Spec.GovernorIdeoligion = nil
 	reply := &l.NewColonyReply{}
 	raw, err := n.client.protoCall(ctx, "rimgovernor/lifecycle_new_colony", request, reply)
 	if err != nil {
@@ -189,6 +201,9 @@ func ValidateNewColonySpec(spec *l.NewColonySpec) error {
 	}
 	if spec.SaveName == nil || !newColonySaveName.MatchString(spec.GetSaveName()) {
 		return contract("new colony save name invalid")
+	}
+	if spec.Ideoligion != nil {
+		return ValidateIdeoligionDesign(spec.Ideoligion)
 	}
 	return nil
 }

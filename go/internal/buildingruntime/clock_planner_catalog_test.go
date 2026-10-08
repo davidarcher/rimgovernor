@@ -24,7 +24,7 @@ var inlinePlannerSet = []struct {
 	{"gear", plannerMaintenance}, {"foodStorageUpkeep", plannerFoothold},
 	{"animalContainment", plannerMaintenance}, {"recovery", plannerCritical}, {"rules", plannerMaintenance}, {"husbandry", plannerMaintenance}, {"prisonerInteraction", plannerMaintenance},
 	{"populationCustody", plannerPreempt}, {"populationJoiner", plannerMaintenance}, {"research", plannerMaintenance}, {"storage-shelves", plannerMaintenance}, {"dialog", plannerPreempt}, {"trade", plannerFoothold}, {"resource", plannerMaintenance},
-	{"animalFeed", plannerMaintenance}, {"maintainShelter", plannerComfort}, {"firebreak", plannerMaintenance}, {"psylink", plannerMaintenance}, {"creepJoiners", plannerMaintenance}, {"ideoRoles", plannerMaintenance}, {"rituals", plannerMaintenance}, {"permits", plannerMaintenance}, {"homeCoverage", plannerComfort},
+	{"animalFeed", plannerMaintenance}, {"maintainShelter", plannerComfort}, {"firebreak", plannerMaintenance}, {"psylink", plannerMaintenance}, {"creepJoiners", plannerMaintenance}, {"ideoRoles", plannerMaintenance}, {"rituals", plannerMaintenance}, {"ideoligion", plannerMaintenance}, {"permits", plannerMaintenance}, {"homeCoverage", plannerComfort},
 	{"stoneShell", plannerComfort}, {"stockpiles", plannerFoothold}, {"defenseLayout", plannerMaintenance},
 }
 

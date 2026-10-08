@@ -353,6 +353,7 @@ type RoundsFacts struct {
 	RitualSites domain.Fact[[]RitualSite]
 	RitualPlans domain.Fact[[]RitualPlan]
 	RitualsOwed domain.Fact[bool]
+	ReformOwed  domain.Fact[bool]
 	// ShelterArea is the Safe allowed area's native load id, "" when the
 	// map has none (PlanSheltering, #1326).
 	ShelterArea domain.Fact[string]

@@ -2174,7 +2174,10 @@ message IdeologySnapshot { rimgovernor.common.v1.ObservationContext context = 1;
   repeated IdeoPrecept precepts = 4; repeated IdeoRole roles = 5; repeated IdeoRitual rituals = 6; repeated IdeoBuilding buildings = 7;
   // Ideo.ObligationsActive, Ideo.ColonistBelieverCountCached and
   // Ideo.MinBelieversToEnableObligations.
-  optional bool obligations_active = 8; optional int32 believers = 9; optional int32 min_believers_for_obligations = 10; }
+  optional bool obligations_active = 8; optional int32 believers = 9; optional int32 min_believers_for_obligations = 10;
+  optional bool fluid = 11; optional bool can_reform = 12;
+  optional int32 development_points = 13; optional int32 reform_count = 14;
+  optional int32 next_reform_points = 15; }
 // A precept in force, role, ritual and building precepts excluded.
 message IdeoPrecept { optional string id = 1; optional string def_name = 2; }
 // A role precept: whether it is active (enough believers) and the pawns
@@ -2479,8 +2482,10 @@ message EntityHolderState { optional double containment_strength = 1; optional b
 // BlockedOpenMomentary (a thing or pawn stands in the doorway, or the door is
 // stuck open, so it cannot close).
 message AnomalyDoor { rimgovernor.common.v1.Cell cell = 1; optional bool open = 2; optional bool hold_open = 3; optional bool containment_breached = 4; optional bool blocked_open = 5; }
-message DefinitionCatalogRequest { ReadScope scope = 1; }
-message DefinitionCatalogReply { oneof outcome { DefinitionCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+message DefinitionCatalogRequest { ReadScope scope = 1; optional bool creation = 2; }
+// The same static def mirror before a world exists; no invented map/load identity.
+message CreationDefinitionCatalog { rimgovernor.defs.v1.DefSets defs = 1; repeated ClassChain class_chains = 2; }
+message DefinitionCatalogReply { oneof outcome { DefinitionCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; CreationDefinitionCatalog creation = 4; } }
 message SnapshotStreamOpened {
   string name = 1;       // mapping name; the ready event is name + "-ready"
   uint32 slots = 2;

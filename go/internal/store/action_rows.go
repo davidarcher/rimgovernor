@@ -23,7 +23,14 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		return fmt.Errorf("%w: action %s already reserved by a clock attempt", ErrConflict, a.ID())
 	}
 	var err error
-	if b, ok := a.ProductionBill(); ok {
+	if reform, ok := a.IdeoligionReform(); ok {
+		data, encodeErr := json.Marshal(ideoligionPayload{reform.Expected(), reform.Design(), reform.Count()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,zone_payload) VALUES(?,?,?,'ideoligion_reform',?,?)", a.ID(), plan, ordinal, reform.IdeoID(), data)
+		return conflict(err)
+	} else if b, ok := a.ProductionBill(); ok {
 		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.Mode(), b.Target(), b.Ingredients(), b.Worker(), b.Replaces()})
 		if err != nil {
 			return err
@@ -415,6 +422,22 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewAreaPlantCutAction(id, cut)
+		return a, ordinal, err
+	}
+	if kind == "ideoligion_reform" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {
+		var payload ideoligionPayload
+		if json.Unmarshal(zone, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid ideoligion reform payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, zone) {
+			return domain.Action{}, 0, errors.New("noncanonical ideoligion reform payload")
+		}
+		value, err := domain.NewIdeoligionReform(def.String, payload.Expected, payload.Design, payload.Count)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewIdeoligionReformAction(id, value)
 		return a, ordinal, err
 	}
 	if kind == "rules_attach" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {
@@ -1167,6 +1190,11 @@ type workPayload struct {
 	// omitted for work-only and area-only rows so older payloads stay
 	// canonical.
 	Schedule []string `json:",omitempty"`
+}
+
+type ideoligionPayload struct {
+	Expected, Design domain.IdeoligionDesign
+	Count            int
 }
 
 // zonePayload is a zone_create row.

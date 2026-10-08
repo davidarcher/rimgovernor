@@ -1558,22 +1558,25 @@ func (x *RequestStatus) GetExpectedInstanceId() string {
 // RimWorld OverallTemperature name; planet_coverage is 0.05..1; map_size is
 // the square side in cells (100..400).
 type NewColonySpec struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Scenario         *string                `protobuf:"bytes,1,opt,name=scenario,proto3,oneof" json:"scenario,omitempty"`
-	ColonistCount    *uint32                `protobuf:"varint,2,opt,name=colonist_count,json=colonistCount,proto3,oneof" json:"colonist_count,omitempty"`
-	Seed             *string                `protobuf:"bytes,3,opt,name=seed,proto3,oneof" json:"seed,omitempty"`
-	Biomes           []string               `protobuf:"bytes,4,rep,name=biomes,proto3" json:"biomes,omitempty"`
-	FlatTile         *bool                  `protobuf:"varint,5,opt,name=flat_tile,json=flatTile,proto3,oneof" json:"flat_tile,omitempty"`
-	Difficulty       *string                `protobuf:"bytes,6,opt,name=difficulty,proto3,oneof" json:"difficulty,omitempty"`
-	Storyteller      *string                `protobuf:"bytes,7,opt,name=storyteller,proto3,oneof" json:"storyteller,omitempty"`
-	MinTemperature   *float32               `protobuf:"fixed32,8,opt,name=min_temperature,json=minTemperature,proto3,oneof" json:"min_temperature,omitempty"`
-	MaxTemperature   *float32               `protobuf:"fixed32,9,opt,name=max_temperature,json=maxTemperature,proto3,oneof" json:"max_temperature,omitempty"`
-	WorldTemperature *string                `protobuf:"bytes,10,opt,name=world_temperature,json=worldTemperature,proto3,oneof" json:"world_temperature,omitempty"`
-	MapSize          *uint32                `protobuf:"varint,11,opt,name=map_size,json=mapSize,proto3,oneof" json:"map_size,omitempty"`
-	PlanetCoverage   *float32               `protobuf:"fixed32,12,opt,name=planet_coverage,json=planetCoverage,proto3,oneof" json:"planet_coverage,omitempty"`
-	SaveName         *string                `protobuf:"bytes,13,opt,name=save_name,json=saveName,proto3,oneof" json:"save_name,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state            protoimpl.MessageState     `protogen:"open.v1"`
+	Scenario         *string                    `protobuf:"bytes,1,opt,name=scenario,proto3,oneof" json:"scenario,omitempty"`
+	ColonistCount    *uint32                    `protobuf:"varint,2,opt,name=colonist_count,json=colonistCount,proto3,oneof" json:"colonist_count,omitempty"`
+	Seed             *string                    `protobuf:"bytes,3,opt,name=seed,proto3,oneof" json:"seed,omitempty"`
+	Biomes           []string                   `protobuf:"bytes,4,rep,name=biomes,proto3" json:"biomes,omitempty"`
+	FlatTile         *bool                      `protobuf:"varint,5,opt,name=flat_tile,json=flatTile,proto3,oneof" json:"flat_tile,omitempty"`
+	Difficulty       *string                    `protobuf:"bytes,6,opt,name=difficulty,proto3,oneof" json:"difficulty,omitempty"`
+	Storyteller      *string                    `protobuf:"bytes,7,opt,name=storyteller,proto3,oneof" json:"storyteller,omitempty"`
+	MinTemperature   *float32                   `protobuf:"fixed32,8,opt,name=min_temperature,json=minTemperature,proto3,oneof" json:"min_temperature,omitempty"`
+	MaxTemperature   *float32                   `protobuf:"fixed32,9,opt,name=max_temperature,json=maxTemperature,proto3,oneof" json:"max_temperature,omitempty"`
+	WorldTemperature *string                    `protobuf:"bytes,10,opt,name=world_temperature,json=worldTemperature,proto3,oneof" json:"world_temperature,omitempty"`
+	MapSize          *uint32                    `protobuf:"varint,11,opt,name=map_size,json=mapSize,proto3,oneof" json:"map_size,omitempty"`
+	PlanetCoverage   *float32                   `protobuf:"fixed32,12,opt,name=planet_coverage,json=planetCoverage,proto3,oneof" json:"planet_coverage,omitempty"`
+	SaveName         *string                    `protobuf:"bytes,13,opt,name=save_name,json=saveName,proto3,oneof" json:"save_name,omitempty"`
+	Ideoligion       *commonpb.IdeoligionDesign `protobuf:"bytes,14,opt,name=ideoligion,proto3" json:"ideoligion,omitempty"`
+	// Go resolves this request through the definition catalog before dispatch.
+	GovernorIdeoligion *bool `protobuf:"varint,15,opt,name=governor_ideoligion,json=governorIdeoligion,proto3,oneof" json:"governor_ideoligion,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *NewColonySpec) Reset() {
@@ -1695,6 +1698,20 @@ func (x *NewColonySpec) GetSaveName() string {
 		return *x.SaveName
 	}
 	return ""
+}
+
+func (x *NewColonySpec) GetIdeoligion() *commonpb.IdeoligionDesign {
+	if x != nil {
+		return x.Ideoligion
+	}
+	return nil
+}
+
+func (x *NewColonySpec) GetGovernorIdeoligion() bool {
+	if x != nil && x.GovernorIdeoligion != nil {
+		return *x.GovernorIdeoligion
+	}
+	return false
 }
 
 type NewColonyRequest struct {
@@ -2866,7 +2883,7 @@ const file_lifecycle_proto_rawDesc = "" +
 	"request_id\x18\x01 \x01(\tH\x00R\trequestId\x88\x01\x01\x125\n" +
 	"\x14expected_instance_id\x18\x02 \x01(\tH\x01R\x12expectedInstanceId\x88\x01\x01B\r\n" +
 	"\v_request_idB\x17\n" +
-	"\x15_expected_instance_id\"\xbc\x05\n" +
+	"\x15_expected_instance_id\"\xd3\x06\n" +
 	"\rNewColonySpec\x12\x1f\n" +
 	"\bscenario\x18\x01 \x01(\tH\x00R\bscenario\x88\x01\x01\x12*\n" +
 	"\x0ecolonist_count\x18\x02 \x01(\rH\x01R\rcolonistCount\x88\x01\x01\x12\x17\n" +
@@ -2884,7 +2901,11 @@ const file_lifecycle_proto_rawDesc = "" +
 	"\bmap_size\x18\v \x01(\rH\tR\amapSize\x88\x01\x01\x12,\n" +
 	"\x0fplanet_coverage\x18\f \x01(\x02H\n" +
 	"R\x0eplanetCoverage\x88\x01\x01\x12 \n" +
-	"\tsave_name\x18\r \x01(\tH\vR\bsaveName\x88\x01\x01B\v\n" +
+	"\tsave_name\x18\r \x01(\tH\vR\bsaveName\x88\x01\x01\x12G\n" +
+	"\n" +
+	"ideoligion\x18\x0e \x01(\v2'.rimgovernor.common.v1.IdeoligionDesignR\n" +
+	"ideoligion\x124\n" +
+	"\x13governor_ideoligion\x18\x0f \x01(\bH\fR\x12governorIdeoligion\x88\x01\x01B\v\n" +
 	"\t_scenarioB\x11\n" +
 	"\x0f_colonist_countB\a\n" +
 	"\x05_seedB\f\n" +
@@ -2898,7 +2919,8 @@ const file_lifecycle_proto_rawDesc = "" +
 	"\t_map_sizeB\x12\n" +
 	"\x10_planet_coverageB\f\n" +
 	"\n" +
-	"_save_name\"\xb5\x01\n" +
+	"_save_nameB\x16\n" +
+	"\x14_governor_ideoligion\"\xb5\x01\n" +
 	"\x10NewColonyRequest\x12\"\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tH\x00R\trequestId\x88\x01\x01\x12;\n" +
@@ -3081,6 +3103,7 @@ var file_lifecycle_proto_goTypes = []any{
 	(*commonpb.Unavailable)(nil),         // 42: rimgovernor.common.v1.Unavailable
 	(*commonpb.Failure)(nil),             // 43: rimgovernor.common.v1.Failure
 	(*commonpb.Identity)(nil),            // 44: rimgovernor.common.v1.Identity
+	(*commonpb.IdeoligionDesign)(nil),    // 45: rimgovernor.common.v1.IdeoligionDesign
 }
 var file_lifecycle_proto_depIdxs = []int32{
 	0,  // 0: rimgovernor.lifecycle.v1.Capability.support:type_name -> rimgovernor.lifecycle.v1.CapabilitySupport
@@ -3110,50 +3133,51 @@ var file_lifecycle_proto_depIdxs = []int32{
 	18, // 24: rimgovernor.lifecycle.v1.LoadReply.pending:type_name -> rimgovernor.lifecycle.v1.LoadPending
 	43, // 25: rimgovernor.lifecycle.v1.LoadReply.failure:type_name -> rimgovernor.common.v1.Failure
 	19, // 26: rimgovernor.lifecycle.v1.LoadReply.superseded:type_name -> rimgovernor.lifecycle.v1.LoadSuperseded
-	22, // 27: rimgovernor.lifecycle.v1.NewColonyRequest.spec:type_name -> rimgovernor.lifecycle.v1.NewColonySpec
-	41, // 28: rimgovernor.lifecycle.v1.NewColonyCompleted.context:type_name -> rimgovernor.common.v1.ObservationContext
-	2,  // 29: rimgovernor.lifecycle.v1.NewColonyPending.phase:type_name -> rimgovernor.lifecycle.v1.NewColonyPhase
-	24, // 30: rimgovernor.lifecycle.v1.NewColonyReply.completed:type_name -> rimgovernor.lifecycle.v1.NewColonyCompleted
-	25, // 31: rimgovernor.lifecycle.v1.NewColonyReply.pending:type_name -> rimgovernor.lifecycle.v1.NewColonyPending
-	43, // 32: rimgovernor.lifecycle.v1.NewColonyReply.failure:type_name -> rimgovernor.common.v1.Failure
-	26, // 33: rimgovernor.lifecycle.v1.NewColonyReply.superseded:type_name -> rimgovernor.lifecycle.v1.NewColonySuperseded
-	39, // 34: rimgovernor.lifecycle.v1.GovernorStateBlobs.blobs:type_name -> rimgovernor.lifecycle.v1.GovernorStateBlobs.BlobsEntry
-	29, // 35: rimgovernor.lifecycle.v1.GovernorStateReply.loaded:type_name -> rimgovernor.lifecycle.v1.GovernorStateBlobs
-	42, // 36: rimgovernor.lifecycle.v1.GovernorStateReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	43, // 37: rimgovernor.lifecycle.v1.GovernorStateReply.failure:type_name -> rimgovernor.common.v1.Failure
-	40, // 38: rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest.blobs:type_name -> rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest.BlobsEntry
-	33, // 39: rimgovernor.lifecycle.v1.WaitSaveSignalReply.signal:type_name -> rimgovernor.lifecycle.v1.SaveSignal
-	34, // 40: rimgovernor.lifecycle.v1.WaitSaveSignalReply.timeout:type_name -> rimgovernor.lifecycle.v1.SaveSignalTimeout
-	43, // 41: rimgovernor.lifecycle.v1.WaitSaveSignalReply.failure:type_name -> rimgovernor.common.v1.Failure
-	37, // 42: rimgovernor.lifecycle.v1.FlushDoneReply.acked:type_name -> rimgovernor.lifecycle.v1.FlushDoneAcked
-	43, // 43: rimgovernor.lifecycle.v1.FlushDoneReply.failure:type_name -> rimgovernor.common.v1.Failure
-	32, // 44: rimgovernor.lifecycle.v1.Lifecycle.WaitSaveSignal:input_type -> rimgovernor.lifecycle.v1.WaitSaveSignalRequest
-	36, // 45: rimgovernor.lifecycle.v1.Lifecycle.FlushDone:input_type -> rimgovernor.lifecycle.v1.FlushDoneRequest
-	28, // 46: rimgovernor.lifecycle.v1.Lifecycle.ReadGovernorState:input_type -> rimgovernor.lifecycle.v1.GovernorStateRequest
-	31, // 47: rimgovernor.lifecycle.v1.Lifecycle.PutGovernorStateBatch:input_type -> rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest
-	3,  // 48: rimgovernor.lifecycle.v1.Lifecycle.ReadIdentity:input_type -> rimgovernor.lifecycle.v1.IdentityRequest
-	12, // 49: rimgovernor.lifecycle.v1.Lifecycle.Save:input_type -> rimgovernor.lifecycle.v1.SaveRequest
-	16, // 50: rimgovernor.lifecycle.v1.Lifecycle.Load:input_type -> rimgovernor.lifecycle.v1.LoadRequest
-	21, // 51: rimgovernor.lifecycle.v1.Lifecycle.ReadLoad:input_type -> rimgovernor.lifecycle.v1.RequestStatus
-	21, // 52: rimgovernor.lifecycle.v1.Lifecycle.ReadSave:input_type -> rimgovernor.lifecycle.v1.RequestStatus
-	23, // 53: rimgovernor.lifecycle.v1.Lifecycle.NewColony:input_type -> rimgovernor.lifecycle.v1.NewColonyRequest
-	21, // 54: rimgovernor.lifecycle.v1.Lifecycle.ReadNewColony:input_type -> rimgovernor.lifecycle.v1.RequestStatus
-	35, // 55: rimgovernor.lifecycle.v1.Lifecycle.WaitSaveSignal:output_type -> rimgovernor.lifecycle.v1.WaitSaveSignalReply
-	38, // 56: rimgovernor.lifecycle.v1.Lifecycle.FlushDone:output_type -> rimgovernor.lifecycle.v1.FlushDoneReply
-	30, // 57: rimgovernor.lifecycle.v1.Lifecycle.ReadGovernorState:output_type -> rimgovernor.lifecycle.v1.GovernorStateReply
-	30, // 58: rimgovernor.lifecycle.v1.Lifecycle.PutGovernorStateBatch:output_type -> rimgovernor.lifecycle.v1.GovernorStateReply
-	6,  // 59: rimgovernor.lifecycle.v1.Lifecycle.ReadIdentity:output_type -> rimgovernor.lifecycle.v1.IdentityReply
-	15, // 60: rimgovernor.lifecycle.v1.Lifecycle.Save:output_type -> rimgovernor.lifecycle.v1.SaveReply
-	20, // 61: rimgovernor.lifecycle.v1.Lifecycle.Load:output_type -> rimgovernor.lifecycle.v1.LoadReply
-	20, // 62: rimgovernor.lifecycle.v1.Lifecycle.ReadLoad:output_type -> rimgovernor.lifecycle.v1.LoadReply
-	15, // 63: rimgovernor.lifecycle.v1.Lifecycle.ReadSave:output_type -> rimgovernor.lifecycle.v1.SaveReply
-	27, // 64: rimgovernor.lifecycle.v1.Lifecycle.NewColony:output_type -> rimgovernor.lifecycle.v1.NewColonyReply
-	27, // 65: rimgovernor.lifecycle.v1.Lifecycle.ReadNewColony:output_type -> rimgovernor.lifecycle.v1.NewColonyReply
-	55, // [55:66] is the sub-list for method output_type
-	44, // [44:55] is the sub-list for method input_type
-	44, // [44:44] is the sub-list for extension type_name
-	44, // [44:44] is the sub-list for extension extendee
-	0,  // [0:44] is the sub-list for field type_name
+	45, // 27: rimgovernor.lifecycle.v1.NewColonySpec.ideoligion:type_name -> rimgovernor.common.v1.IdeoligionDesign
+	22, // 28: rimgovernor.lifecycle.v1.NewColonyRequest.spec:type_name -> rimgovernor.lifecycle.v1.NewColonySpec
+	41, // 29: rimgovernor.lifecycle.v1.NewColonyCompleted.context:type_name -> rimgovernor.common.v1.ObservationContext
+	2,  // 30: rimgovernor.lifecycle.v1.NewColonyPending.phase:type_name -> rimgovernor.lifecycle.v1.NewColonyPhase
+	24, // 31: rimgovernor.lifecycle.v1.NewColonyReply.completed:type_name -> rimgovernor.lifecycle.v1.NewColonyCompleted
+	25, // 32: rimgovernor.lifecycle.v1.NewColonyReply.pending:type_name -> rimgovernor.lifecycle.v1.NewColonyPending
+	43, // 33: rimgovernor.lifecycle.v1.NewColonyReply.failure:type_name -> rimgovernor.common.v1.Failure
+	26, // 34: rimgovernor.lifecycle.v1.NewColonyReply.superseded:type_name -> rimgovernor.lifecycle.v1.NewColonySuperseded
+	39, // 35: rimgovernor.lifecycle.v1.GovernorStateBlobs.blobs:type_name -> rimgovernor.lifecycle.v1.GovernorStateBlobs.BlobsEntry
+	29, // 36: rimgovernor.lifecycle.v1.GovernorStateReply.loaded:type_name -> rimgovernor.lifecycle.v1.GovernorStateBlobs
+	42, // 37: rimgovernor.lifecycle.v1.GovernorStateReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	43, // 38: rimgovernor.lifecycle.v1.GovernorStateReply.failure:type_name -> rimgovernor.common.v1.Failure
+	40, // 39: rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest.blobs:type_name -> rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest.BlobsEntry
+	33, // 40: rimgovernor.lifecycle.v1.WaitSaveSignalReply.signal:type_name -> rimgovernor.lifecycle.v1.SaveSignal
+	34, // 41: rimgovernor.lifecycle.v1.WaitSaveSignalReply.timeout:type_name -> rimgovernor.lifecycle.v1.SaveSignalTimeout
+	43, // 42: rimgovernor.lifecycle.v1.WaitSaveSignalReply.failure:type_name -> rimgovernor.common.v1.Failure
+	37, // 43: rimgovernor.lifecycle.v1.FlushDoneReply.acked:type_name -> rimgovernor.lifecycle.v1.FlushDoneAcked
+	43, // 44: rimgovernor.lifecycle.v1.FlushDoneReply.failure:type_name -> rimgovernor.common.v1.Failure
+	32, // 45: rimgovernor.lifecycle.v1.Lifecycle.WaitSaveSignal:input_type -> rimgovernor.lifecycle.v1.WaitSaveSignalRequest
+	36, // 46: rimgovernor.lifecycle.v1.Lifecycle.FlushDone:input_type -> rimgovernor.lifecycle.v1.FlushDoneRequest
+	28, // 47: rimgovernor.lifecycle.v1.Lifecycle.ReadGovernorState:input_type -> rimgovernor.lifecycle.v1.GovernorStateRequest
+	31, // 48: rimgovernor.lifecycle.v1.Lifecycle.PutGovernorStateBatch:input_type -> rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest
+	3,  // 49: rimgovernor.lifecycle.v1.Lifecycle.ReadIdentity:input_type -> rimgovernor.lifecycle.v1.IdentityRequest
+	12, // 50: rimgovernor.lifecycle.v1.Lifecycle.Save:input_type -> rimgovernor.lifecycle.v1.SaveRequest
+	16, // 51: rimgovernor.lifecycle.v1.Lifecycle.Load:input_type -> rimgovernor.lifecycle.v1.LoadRequest
+	21, // 52: rimgovernor.lifecycle.v1.Lifecycle.ReadLoad:input_type -> rimgovernor.lifecycle.v1.RequestStatus
+	21, // 53: rimgovernor.lifecycle.v1.Lifecycle.ReadSave:input_type -> rimgovernor.lifecycle.v1.RequestStatus
+	23, // 54: rimgovernor.lifecycle.v1.Lifecycle.NewColony:input_type -> rimgovernor.lifecycle.v1.NewColonyRequest
+	21, // 55: rimgovernor.lifecycle.v1.Lifecycle.ReadNewColony:input_type -> rimgovernor.lifecycle.v1.RequestStatus
+	35, // 56: rimgovernor.lifecycle.v1.Lifecycle.WaitSaveSignal:output_type -> rimgovernor.lifecycle.v1.WaitSaveSignalReply
+	38, // 57: rimgovernor.lifecycle.v1.Lifecycle.FlushDone:output_type -> rimgovernor.lifecycle.v1.FlushDoneReply
+	30, // 58: rimgovernor.lifecycle.v1.Lifecycle.ReadGovernorState:output_type -> rimgovernor.lifecycle.v1.GovernorStateReply
+	30, // 59: rimgovernor.lifecycle.v1.Lifecycle.PutGovernorStateBatch:output_type -> rimgovernor.lifecycle.v1.GovernorStateReply
+	6,  // 60: rimgovernor.lifecycle.v1.Lifecycle.ReadIdentity:output_type -> rimgovernor.lifecycle.v1.IdentityReply
+	15, // 61: rimgovernor.lifecycle.v1.Lifecycle.Save:output_type -> rimgovernor.lifecycle.v1.SaveReply
+	20, // 62: rimgovernor.lifecycle.v1.Lifecycle.Load:output_type -> rimgovernor.lifecycle.v1.LoadReply
+	20, // 63: rimgovernor.lifecycle.v1.Lifecycle.ReadLoad:output_type -> rimgovernor.lifecycle.v1.LoadReply
+	15, // 64: rimgovernor.lifecycle.v1.Lifecycle.ReadSave:output_type -> rimgovernor.lifecycle.v1.SaveReply
+	27, // 65: rimgovernor.lifecycle.v1.Lifecycle.NewColony:output_type -> rimgovernor.lifecycle.v1.NewColonyReply
+	27, // 66: rimgovernor.lifecycle.v1.Lifecycle.ReadNewColony:output_type -> rimgovernor.lifecycle.v1.NewColonyReply
+	56, // [56:67] is the sub-list for method output_type
+	45, // [45:56] is the sub-list for method input_type
+	45, // [45:45] is the sub-list for extension type_name
+	45, // [45:45] is the sub-list for extension extendee
+	0,  // [0:45] is the sub-list for field type_name
 }
 
 func init() { file_lifecycle_proto_init() }

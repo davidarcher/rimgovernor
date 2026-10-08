@@ -154,6 +154,9 @@ message NewColonySpec {
   optional uint32 map_size = 11;
   optional float planet_coverage = 12;
   optional string save_name = 13;
+  rimgovernor.common.v1.IdeoligionDesign ideoligion = 14;
+  // Go resolves this request through the definition catalog before dispatch.
+  optional bool governor_ideoligion = 15;
 }
 message NewColonyRequest {
   optional string request_id = 1;

@@ -301,7 +301,16 @@ message Action {
     IgniteIntent ignite = 65;
     RulesAttachIntent rules_attach = 66;
     RemoveProductionBillIntent remove_production_bill = 67;
+    IdeoligionReformIntent ideoligion_reform = 68;
   }
+}
+// A normal fluid reformation; the current design and count fence an uncertain
+// retry even after native's short request replay window has expired.
+message IdeoligionReformIntent {
+  optional string ideo_id = 1;
+  rimgovernor.common.v1.IdeoligionDesign expected = 2;
+  optional int32 expected_reform_count = 3;
+  rimgovernor.common.v1.IdeoligionDesign design = 4;
 }
 // One drafted colonist throws a molotov at one cell (#1815, epic #1640): the
 // CombatOrder attack_ground force-fire with the molotov in the pawn's

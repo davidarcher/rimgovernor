@@ -5,6 +5,56 @@
 How the ideoligion reaches Go. It follows the wire pattern: each
 concept is modelled once, and there is no Ideology read tool.
 
+## Creation and reform
+
+`common.IdeoligionDesign` names memes, plain precept definitions and an explicit
+fluid/fixed mode. Roles, rituals and building instances are initialized or
+preserved by the game's foundation. Creation carries the design in
+`NewColonySpec.ideoligion`, before starting colonists receive their ideoligion.
+`governor_ideoligion` requests Go selection; an explicit player design takes
+precedence. Missing required facts fail explicitly, without a random fallback.
+The existing definition-catalog request's `creation` mode reads static generated
+rows at a fresh main menu, without inventing a map identity.
+
+The pure selector searches initial fluid designs with one structure and one
+normal meme. Native rechecks the game's count, faction, exclusion, issue and
+required-precept rules. Costs use an explicit lexicographic ordering: fewer
+action/work restrictions, lower worst known mood penalty, fewer mandatory
+obligations, then higher known mood benefit. Catalog-only positive mood stages receive no creation benefit credit;
+their potential is preserved conservatively during reform. Stable ordering resolves
+equal costs. Search stops unavailable at 100,000 visited candidates. Unvalued stat,
+ability, apparel, mental-break and mod effects are unavailable; mandatory ritual
+and other specialized meme choices are excluded when their feasibility cannot
+be established. The selector does not assume unknown obligations cost nothing.
+
+`ideoligion-reform` composes `ImproveIdeoligion` in People. It uses the same
+evaluator and a current emergency census; Manual follows the shared suspension
+path. It considers one plain precept change at a time, preserving memes and
+special instances whose transition costs cannot be valued. Only strict cost
+improvement that preserves known mood benefits is admitted. Complete believer
+coverage must demonstrate an assigned work restriction or an observed mood
+penalty removed by the change. Mood relief must exceed the candidate's worst
+known penalty across all believers; losing an observed positive thought holds.
+No score component may worsen. Unknown eligibility,
+effect costs or safety holds; ties retain the current design. Eligibility comes
+from the keyed section's fluid mode, points, reform count and next threshold.
+The pure result carries a typed comparison (current/candidate costs, work and
+mood relief, new mood cost and decision); an admitted Method's existing reason
+shows that comparison in player inspection without storing a second score.
+
+Hands dispatches `IdeoligionReformIntent` with expected design and reform count.
+Native prepares a detached candidate, validates normal-game eligibility and
+compatibility, then commits with `IdeoDevelopmentUtility.ApplyChangesToIdeo`.
+Refused requests leave live selections and progression untouched. A new-key
+resend whose target already holds at expected count + 1 returns the observed
+state without reforming again. Completion requires an observed target and that
+counter increment; a receipt alone does not settle the Standard. Pending intent
+uses its existing save Record; there is no second current-design store.
+
+Native coverage: `lifecycle/ideoligion-design` and `ideology/legal-reform`.
+These prove game creation and write/progression contracts; policy decisions
+remain Go tests, including the recorded full catalog fixture.
+
 | Fact | Where it rides | Go |
 | --- | --- | --- |
 | Static defs: memes, precepts with their comps, role precepts, ritual patterns and behaviors | Rows of the catalog's generated def mirror (`DefinitionCatalog.defs`: `MemeDef`, `PreceptDef`, `RitualPatternDef`, `RitualBehaviorDef`, `RitualObligationTargetFilterDef`, `ThoughtDef`), read once per load token | `bridge.DefinitionCatalog.IdeologyDefs()` (`policy.IdeologyDefs`) |

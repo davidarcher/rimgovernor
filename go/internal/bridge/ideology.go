@@ -49,6 +49,12 @@ func DecodeIdeology(v *o.IdeologySnapshot, identity *c.Identity, catalog *Defini
 		return nil, contract("invalid ideology section")
 	}
 	facts := policy.IdeoligionFacts{IdeoID: v.GetIdeoId(), Memes: v.Memes, ObligationsActive: v.GetObligationsActive(), Believers: int(v.GetBelievers()), MinBelievers: int(v.GetMinBelieversForObligations())}
+	if v.Fluid != nil || v.CanReform != nil || v.DevelopmentPoints != nil || v.ReformCount != nil || v.NextReformPoints != nil {
+		if v.Fluid == nil || v.CanReform == nil || v.DevelopmentPoints == nil || v.ReformCount == nil || v.NextReformPoints == nil || v.GetDevelopmentPoints() < 0 || v.GetReformCount() < 0 || v.GetNextReformPoints() < 0 || (!v.GetFluid() && (v.GetCanReform() || v.GetDevelopmentPoints() != 0 || v.GetReformCount() != 0 || v.GetNextReformPoints() != 0)) || (v.GetFluid() && (v.GetNextReformPoints() == 0 || v.GetCanReform() != (v.GetDevelopmentPoints() >= v.GetNextReformPoints()))) {
+			return nil, contract("invalid ideoligion development state")
+		}
+		facts.Development = domain.Known(policy.IdeoDevelopment{Fluid: v.GetFluid(), CanReform: v.GetCanReform(), Points: int(v.GetDevelopmentPoints()), ReformCount: int(v.GetReformCount()), NextPoints: int(v.GetNextReformPoints())})
+	}
 	for _, meme := range v.Memes {
 		if DefRow[*d.MemeDef](catalog, meme) == nil {
 			return nil, contract("ideology meme %q is not in the catalog", meme)

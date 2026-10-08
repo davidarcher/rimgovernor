@@ -19,6 +19,16 @@ import (
 // (observation/testdata/full_catalog.pb.gz).
 func fullCatalog(t *testing.T) *DefinitionCatalog {
 	t.Helper()
+	wire := recordedCatalog(t)
+	catalog, err := DecodeDefinitionCatalog(wire, wire.GetContext().GetIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return catalog
+}
+
+func recordedCatalog(t *testing.T) *o.DefinitionCatalog {
+	t.Helper()
 	file, err := os.Open("../observation/testdata/full_catalog.pb.gz")
 	if err != nil {
 		t.Fatal(err)
@@ -36,11 +46,7 @@ func fullCatalog(t *testing.T) *DefinitionCatalog {
 	if err := proto.Unmarshal(data, wire); err != nil {
 		t.Fatal(err)
 	}
-	catalog, err := DecodeDefinitionCatalog(wire, wire.GetContext().GetIdentity())
-	if err != nil {
-		t.Fatal(err)
-	}
-	return catalog
+	return wire
 }
 
 // retiredTraitTable is policy's trait table as it stood before the rows

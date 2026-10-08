@@ -41,6 +41,7 @@ func init() {
 	registerIntentKind(domain.PrisonerInteractionAction, prisonerInteractionAction)
 	registerIntentKind(domain.QuestAcceptAction, questAcceptAction)
 	registerIntentKind(domain.RitualAction, ritualAction)
+	registerIntentKind(domain.IdeoligionReformAction, ideoligionReformAction)
 	registerIntentKind(domain.AbilityAction, abilityAction)
 	registerIntentKind(domain.IgniteAction, igniteAction)
 	registerIntentKind(domain.RemoveProductionBillAction, removeProductionBillAction)

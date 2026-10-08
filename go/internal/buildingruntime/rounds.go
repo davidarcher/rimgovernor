@@ -519,6 +519,11 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if r.methodEnabled(policy.MaintainRituals) {
 		r.reviewRituals(&reading, state.Snapshot)
 	}
+	if r.methodEnabled(policy.ImproveIdeoligion) {
+		if err = r.reviewIdeoligion(ctx, &reading, state.Snapshot); err != nil {
+			return store.RoundsResult{}, err
+		}
+	}
 	if plan, known := reading.Projection.Facts.FoodPlan.Value(); known {
 		reading.Projection.Facts.AnimalUpkeep.Forecast = domain.Known(plan.Forecast)
 	}

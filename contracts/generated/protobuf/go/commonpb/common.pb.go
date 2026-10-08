@@ -286,6 +286,68 @@ func (UnavailableReason) EnumDescriptor() ([]byte, []int) {
 	return file_common_proto_rawDescGZIP(), []int{3}
 }
 
+// Plain precepts are the exact issue selections; role, ritual and building
+// instances are initialized/preserved by the normal game creation/reform path.
+type IdeoligionDesign struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Memes         []string               `protobuf:"bytes,1,rep,name=memes,proto3" json:"memes,omitempty"`
+	Precepts      []string               `protobuf:"bytes,2,rep,name=precepts,proto3" json:"precepts,omitempty"`
+	Fluid         *bool                  `protobuf:"varint,3,opt,name=fluid,proto3,oneof" json:"fluid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IdeoligionDesign) Reset() {
+	*x = IdeoligionDesign{}
+	mi := &file_common_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IdeoligionDesign) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IdeoligionDesign) ProtoMessage() {}
+
+func (x *IdeoligionDesign) ProtoReflect() protoreflect.Message {
+	mi := &file_common_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IdeoligionDesign.ProtoReflect.Descriptor instead.
+func (*IdeoligionDesign) Descriptor() ([]byte, []int) {
+	return file_common_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *IdeoligionDesign) GetMemes() []string {
+	if x != nil {
+		return x.Memes
+	}
+	return nil
+}
+
+func (x *IdeoligionDesign) GetPrecepts() []string {
+	if x != nil {
+		return x.Precepts
+	}
+	return nil
+}
+
+func (x *IdeoligionDesign) GetFluid() bool {
+	if x != nil && x.Fluid != nil {
+		return *x.Fluid
+	}
+	return false
+}
+
 // Presence is significant: map zero and tick zero are valid observations.
 type Identity struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -298,7 +360,7 @@ type Identity struct {
 
 func (x *Identity) Reset() {
 	*x = Identity{}
-	mi := &file_common_proto_msgTypes[0]
+	mi := &file_common_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -310,7 +372,7 @@ func (x *Identity) String() string {
 func (*Identity) ProtoMessage() {}
 
 func (x *Identity) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[0]
+	mi := &file_common_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -323,7 +385,7 @@ func (x *Identity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Identity.ProtoReflect.Descriptor instead.
 func (*Identity) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{0}
+	return file_common_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Identity) GetColonyId() string {
@@ -358,7 +420,7 @@ type ObservationContext struct {
 
 func (x *ObservationContext) Reset() {
 	*x = ObservationContext{}
-	mi := &file_common_proto_msgTypes[1]
+	mi := &file_common_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -370,7 +432,7 @@ func (x *ObservationContext) String() string {
 func (*ObservationContext) ProtoMessage() {}
 
 func (x *ObservationContext) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[1]
+	mi := &file_common_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -383,7 +445,7 @@ func (x *ObservationContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservationContext.ProtoReflect.Descriptor instead.
 func (*ObservationContext) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{1}
+	return file_common_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ObservationContext) GetIdentity() *Identity {
@@ -419,7 +481,7 @@ type AttemptKey struct {
 
 func (x *AttemptKey) Reset() {
 	*x = AttemptKey{}
-	mi := &file_common_proto_msgTypes[2]
+	mi := &file_common_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -431,7 +493,7 @@ func (x *AttemptKey) String() string {
 func (*AttemptKey) ProtoMessage() {}
 
 func (x *AttemptKey) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[2]
+	mi := &file_common_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -444,7 +506,7 @@ func (x *AttemptKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttemptKey.ProtoReflect.Descriptor instead.
 func (*AttemptKey) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{2}
+	return file_common_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *AttemptKey) GetControllerSessionId() string {
@@ -481,7 +543,7 @@ type Ref struct {
 
 func (x *Ref) Reset() {
 	*x = Ref{}
-	mi := &file_common_proto_msgTypes[3]
+	mi := &file_common_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -493,7 +555,7 @@ func (x *Ref) String() string {
 func (*Ref) ProtoMessage() {}
 
 func (x *Ref) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[3]
+	mi := &file_common_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -506,7 +568,7 @@ func (x *Ref) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ref.ProtoReflect.Descriptor instead.
 func (*Ref) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{3}
+	return file_common_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Ref) GetId() string {
@@ -526,7 +588,7 @@ type Cell struct {
 
 func (x *Cell) Reset() {
 	*x = Cell{}
-	mi := &file_common_proto_msgTypes[4]
+	mi := &file_common_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -538,7 +600,7 @@ func (x *Cell) String() string {
 func (*Cell) ProtoMessage() {}
 
 func (x *Cell) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[4]
+	mi := &file_common_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -551,7 +613,7 @@ func (x *Cell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cell.ProtoReflect.Descriptor instead.
 func (*Cell) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{4}
+	return file_common_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Cell) GetX() int32 {
@@ -580,7 +642,7 @@ type Failure struct {
 
 func (x *Failure) Reset() {
 	*x = Failure{}
-	mi := &file_common_proto_msgTypes[5]
+	mi := &file_common_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -592,7 +654,7 @@ func (x *Failure) String() string {
 func (*Failure) ProtoMessage() {}
 
 func (x *Failure) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[5]
+	mi := &file_common_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -605,7 +667,7 @@ func (x *Failure) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Failure.ProtoReflect.Descriptor instead.
 func (*Failure) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{5}
+	return file_common_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Failure) GetCode() FailureCode {
@@ -639,7 +701,7 @@ type Unavailable struct {
 
 func (x *Unavailable) Reset() {
 	*x = Unavailable{}
-	mi := &file_common_proto_msgTypes[6]
+	mi := &file_common_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -651,7 +713,7 @@ func (x *Unavailable) String() string {
 func (*Unavailable) ProtoMessage() {}
 
 func (x *Unavailable) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[6]
+	mi := &file_common_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -664,7 +726,7 @@ func (x *Unavailable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Unavailable.ProtoReflect.Descriptor instead.
 func (*Unavailable) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{6}
+	return file_common_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Unavailable) GetReason() UnavailableReason {
@@ -685,7 +747,12 @@ var File_common_proto protoreflect.FileDescriptor
 
 const file_common_proto_rawDesc = "" +
 	"\n" +
-	"\fcommon.proto\x12\x15rimgovernor.common.v1\"\x94\x01\n" +
+	"\fcommon.proto\x12\x15rimgovernor.common.v1\"i\n" +
+	"\x10IdeoligionDesign\x12\x14\n" +
+	"\x05memes\x18\x01 \x03(\tR\x05memes\x12\x1a\n" +
+	"\bprecepts\x18\x02 \x03(\tR\bprecepts\x12\x19\n" +
+	"\x05fluid\x18\x03 \x01(\bH\x00R\x05fluid\x88\x01\x01B\b\n" +
+	"\x06_fluid\"\x94\x01\n" +
 	"\bIdentity\x12 \n" +
 	"\tcolony_id\x18\x01 \x01(\tH\x00R\bcolonyId\x88\x01\x01\x12\"\n" +
 	"\n" +
@@ -784,24 +851,25 @@ func file_common_proto_rawDescGZIP() []byte {
 }
 
 var file_common_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_common_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_common_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_common_proto_goTypes = []any{
 	(CorpseClass)(0),           // 0: rimgovernor.common.v1.CorpseClass
 	(RotStage)(0),              // 1: rimgovernor.common.v1.RotStage
 	(FailureCode)(0),           // 2: rimgovernor.common.v1.FailureCode
 	(UnavailableReason)(0),     // 3: rimgovernor.common.v1.UnavailableReason
-	(*Identity)(nil),           // 4: rimgovernor.common.v1.Identity
-	(*ObservationContext)(nil), // 5: rimgovernor.common.v1.ObservationContext
-	(*AttemptKey)(nil),         // 6: rimgovernor.common.v1.AttemptKey
-	(*Ref)(nil),                // 7: rimgovernor.common.v1.Ref
-	(*Cell)(nil),               // 8: rimgovernor.common.v1.Cell
-	(*Failure)(nil),            // 9: rimgovernor.common.v1.Failure
-	(*Unavailable)(nil),        // 10: rimgovernor.common.v1.Unavailable
+	(*IdeoligionDesign)(nil),   // 4: rimgovernor.common.v1.IdeoligionDesign
+	(*Identity)(nil),           // 5: rimgovernor.common.v1.Identity
+	(*ObservationContext)(nil), // 6: rimgovernor.common.v1.ObservationContext
+	(*AttemptKey)(nil),         // 7: rimgovernor.common.v1.AttemptKey
+	(*Ref)(nil),                // 8: rimgovernor.common.v1.Ref
+	(*Cell)(nil),               // 9: rimgovernor.common.v1.Cell
+	(*Failure)(nil),            // 10: rimgovernor.common.v1.Failure
+	(*Unavailable)(nil),        // 11: rimgovernor.common.v1.Unavailable
 }
 var file_common_proto_depIdxs = []int32{
-	4, // 0: rimgovernor.common.v1.ObservationContext.identity:type_name -> rimgovernor.common.v1.Identity
+	5, // 0: rimgovernor.common.v1.ObservationContext.identity:type_name -> rimgovernor.common.v1.Identity
 	2, // 1: rimgovernor.common.v1.Failure.code:type_name -> rimgovernor.common.v1.FailureCode
-	5, // 2: rimgovernor.common.v1.Failure.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
+	6, // 2: rimgovernor.common.v1.Failure.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
 	3, // 3: rimgovernor.common.v1.Unavailable.reason:type_name -> rimgovernor.common.v1.UnavailableReason
 	4, // [4:4] is the sub-list for method output_type
 	4, // [4:4] is the sub-list for method input_type
@@ -822,13 +890,14 @@ func file_common_proto_init() {
 	file_common_proto_msgTypes[4].OneofWrappers = []any{}
 	file_common_proto_msgTypes[5].OneofWrappers = []any{}
 	file_common_proto_msgTypes[6].OneofWrappers = []any{}
+	file_common_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_proto_rawDesc), len(file_common_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

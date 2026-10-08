@@ -10,6 +10,40 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
+    public sealed class IdeoligionDesignFixture
+    {
+        [Tool("test/ideoligion_design_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage an eligible fluid ideoligion and return a legal plain-precept reform without applying it.")]
+        public async Task<object> PrepareDesign(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var ideo = Faction.OfPlayerSilentFail?.ideos?.PrimaryIdeo;
+                if (!ModsConfig.IdeologyActive || ideo == null || Find.CurrentMap == null || !Find.TickManager.Paused)
+                    return new { success = false, reason = "A paused Ideology lab is required." };
+                ideo.Fluid = true;
+                ideo.development.points = ideo.development.NextReformationDevelopmentPoints;
+                var expected = IdeoligionReformActionHandler.ReadDesign(ideo);
+                foreach (var old in ideo.PreceptsListForReading.Where(p => p.def.preceptClass == typeof(Precept)).OrderBy(p => p.def.defName, StringComparer.Ordinal))
+                    foreach (var def in DefDatabase<PreceptDef>.AllDefs.Where(d => d.preceptClass == typeof(Precept) && d.issue == old.def.issue && d != old.def).OrderBy(d => d.defName, StringComparer.Ordinal))
+                    {
+                        var design = expected.Clone();
+                        design.Precepts.Remove(old.def.defName); design.Precepts.Add(def.defName);
+                        if (NativeIdeoligionDesign.Prepare(ideo, design, true, out _) != null) continue;
+                        return new { success = true, ideoId = ideo.GetUniqueLoadID(), expected = Google.Protobuf.JsonFormatter.Default.Format(expected), design = Google.Protobuf.JsonFormatter.Default.Format(design), count = ideo.development.reformCount };
+                    }
+                return new { success = false, reason = "No legal plain-precept change is available in this fixture." };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/ideoligion_design_inspect", Description = "Read the disposable primary ideoligion's exact design and reform progression.")]
+        public async Task<object> InspectDesign(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var ideo = Faction.OfPlayer.ideos.PrimaryIdeo;
+                return new { design = Google.Protobuf.JsonFormatter.Default.Format(IdeoligionReformActionHandler.ReadDesign(ideo)), count = ideo.development?.reformCount ?? 0, points = ideo.development?.Points ?? 0 };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     // Private disposable acceptance only (#1665, epic #1653): a colony with an
     // ideoligion holds its first ritual. test/first_ritual_prepare keeps the
     // lab colony's own primary ideoligion and picks the ritual it stages from

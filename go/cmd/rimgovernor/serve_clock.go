@@ -634,6 +634,11 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
+		if sc.roundsIdeoligionPlans {
+			if config.Ideoligion, err = buildingruntime.NewRoundsIdeoligionPlanner(reviewer); err != nil {
+				return nil, err
+			}
+		}
 		if sc.roundsCreepJoinerPlans {
 			// ManageCreepJoiners (#1740) plans from the review's frame; no read of its own.
 			if config.CreepJoiners, err = buildingruntime.NewRoundsCreepJoinerPlanner(reviewer); err != nil {
@@ -1010,6 +1015,9 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 	}
 	if sc.roundsRitualPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainRituals)
+	}
+	if sc.roundsIdeoligionPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.ImproveIdeoligion)
 	}
 	if sc.roundsStoneShellPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainStoneShell)

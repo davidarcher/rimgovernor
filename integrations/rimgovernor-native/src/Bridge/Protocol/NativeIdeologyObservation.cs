@@ -31,6 +31,12 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.IdeologySnapshot { Context = context, IdeoId = Id(ideo.GetUniqueLoadID()), ObligationsActive = ideo.ObligationsActive,
                 Believers = ideo.ColonistBelieverCountCached, MinBelieversForObligations = Ideo.MinBelieversToEnableObligations };
             row.Memes.Add(Sorted(Names(ideo.memes)));
+            row.Fluid = ideo.Fluid;
+            if (ideo.Fluid && ideo.development == null) return null;
+            row.CanReform = ideo.Fluid && ideo.development!.CanReformNow;
+            row.DevelopmentPoints = ideo.Fluid ? ideo.development!.Points : 0;
+            row.ReformCount = ideo.Fluid ? ideo.development!.reformCount : 0;
+            row.NextReformPoints = ideo.Fluid ? ideo.development!.NextReformationDevelopmentPoints : 0;
             foreach (var precept in ideo.PreceptsListForReading.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) {
                 var id = Id(precept.GetUniqueLoadID());
                 var def = Id(precept.def.defName);
