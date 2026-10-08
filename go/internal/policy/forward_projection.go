@@ -21,6 +21,7 @@ type ForwardInputs struct {
 	Policy       RoundsPolicy
 	Construction ConstructionInputs
 	Fuel         FuelInputs
+	Drugs        []ResourceRunway
 	AnimalFeed   AnimalFeedInputs
 }
 
@@ -37,6 +38,7 @@ type ForwardProjection struct {
 	Defense      domain.Fact[DefenseProjection]
 	Construction domain.Fact[ConstructionProjection]
 	Fuel         domain.Fact[FuelProjection]
+	Drugs        domain.Fact[DrugProjection]
 	AnimalFeed   domain.Fact[AnimalFeedProjection]
 }
 
@@ -87,6 +89,7 @@ func ProjectForward(in ForwardInputs) ForwardProjection {
 		Defense:      projectDefense(in.Turrets),
 		Construction: projectConstruction(in.Construction),
 		Fuel:         PlanFuelRunway(in.Fuel).Projection,
+		Drugs:        PlanDrugRunway(in.Drugs),
 		AnimalFeed:   PlanAnimalFeedRunway(in.AnimalFeed).Projection,
 	}
 }

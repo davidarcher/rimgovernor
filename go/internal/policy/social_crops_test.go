@@ -6,18 +6,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestSocialDrugsRequireResearch(t *testing.T) {
-	for _, research := range []domain.Fact[ResearchFacts]{domain.Unknown[ResearchFacts](), domain.Known(ResearchFacts{}), domain.Known(ResearchFacts{Current: "Brewing"})} {
-		if len(SocialDrugTargets(research)) != 0 {
-			t.Fatal("reserve before completed research")
-		}
-	}
-	targets := SocialDrugTargets(domain.Known(ResearchFacts{Finished: []ResearchProjectID{"Brewing"}}))
-	if len(targets) != 2 || targets["Beer"] != 12 || targets["SmokeleafJoint"] != 12 {
-		t.Fatal(targets)
-	}
-}
-
 func TestSocialCropBoundedAndNotFood(t *testing.T) {
 	crop := CropChoice{Name: "Plant_Hops", Harvests: domain.Known(Resource("Hops")), Available: domain.Known(true), Edible: domain.Known(false), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(0.0), FertilityMin: domain.Known(0.7), FertilitySensitivity: domain.Known(1.0)}
 	climate := CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(30.0), OutdoorsDark: domain.Known(false)}

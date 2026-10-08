@@ -341,7 +341,7 @@ func inspectResource(c *roundsRun) error {
 	// MaintainResource.
 	construction := ConstructionDemandOf(f, p, l)
 	stock := StockReader{f.Resources, f.Wood}
-	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceConcernTargets(MedicineResourceNeeds(f.Items, ResourceConcernTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, c.medicine.Active)), construction))
+	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceConcernTargets(MedicineResourceNeeds(f.Items, f.ResourceNeeds, p.MedicineReserveTarget(f.Colonists, c.medicine.Active)), construction))
 	if err != nil {
 		return err
 	}

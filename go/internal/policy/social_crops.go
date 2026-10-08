@@ -14,14 +14,6 @@ func BrewingFinished(research domain.Fact[ResearchFacts]) bool {
 	return false
 }
 
-// Small floors use ordinary production bills and never reserve food nutrition.
-func SocialDrugTargets(research domain.Fact[ResearchFacts]) map[Resource]int64 {
-	if !BrewingFinished(research) {
-		return nil
-	}
-	return map[Resource]int64{"Beer": 12, "SmokeleafJoint": 12}
-}
-
 // SocialCropCells is each social crop's fixed field ceiling (#1226).
 const SocialCropCells = 9
 

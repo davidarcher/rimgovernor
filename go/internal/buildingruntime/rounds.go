@@ -580,7 +580,6 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if err != nil {
 		return store.RoundsResult{}, err
 	}
-	reading.Projection.Facts.ResourceNeeds = policy.ResourceConcernTargets(reading.Projection.Facts.ResourceNeeds, policy.SocialDrugTargets(reading.Projection.Facts.Research))
 	medicine, err := policy.ReviewMedicalReserve(reading.Projection.Facts.MedicalReserve, previous.Snapshot == state.Snapshot && previous.Latches.MedicalReserve, r.policy.MedicalReserve)
 	if err != nil {
 		return store.RoundsResult{}, err

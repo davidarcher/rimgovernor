@@ -1224,9 +1224,6 @@ func (r *Rounder) resourceTargets(ctx context.Context, snapshot domain.Generatio
 		needs = policy.MedicineResourceNeeds(items, needs, review.MedicineTarget)
 		needs = policy.ResourceConcernTargets(needs, r.construction.get(snapshot))
 		needs = policy.ResourceConcernTargets(needs, policy.ResourceRunwayTargets(review.ResourceRunwayState()))
-		if review.BrewingFinished {
-			needs = policy.ResourceConcernTargets(needs, policy.SocialDrugTargets(domain.Known(policy.ResearchFacts{Finished: []policy.ResearchProjectID{"Brewing"}})))
-		}
 	}
 	return r.policy.EffectiveResourceTargets(stock, needs)
 }
