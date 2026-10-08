@@ -727,6 +727,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		clothing := reading.Projection.Facts.ClothingRunway()
 		r.construction.set(result.Review.Snapshot, policy.ResourceConcernTargets(policy.ResourceConcernTargets(policy.ConstructionDemandOf(reading.Projection.Facts, r.seasonal(reading.Projection.Facts), result.Review.Latches), billDemand), clothing.Needs), clothing.Serves)
 		r.construction.merge(result.Review.Snapshot, reading.Projection.Facts.FuelRunway().Needs)
+		r.construction.merge(result.Review.Snapshot, reading.Projection.Facts.AnimalFeedRunway().Needs)
 		clockEvent(ctx, "routine", "rounds_review", "rounds ran", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "concerns", len(result.Standards) + len(result.Projects), "emergency", roundsEmergencyNames(result.Emergency)}, roundsStageAttrs(result.Review.Stage)...), append(roundsDevelopmentAttrs(result.Review.Development), roundsFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)...)
 		r.logColonyStage(ctx, result.Review)
 		recordRoundsSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)

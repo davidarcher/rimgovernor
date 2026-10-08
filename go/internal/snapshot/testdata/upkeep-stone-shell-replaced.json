@@ -12,10 +12,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [
-       "Thing_ElectricStove24247"
-      ],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -28,40 +24,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 106,
-        "Z": 111
-       },
-       {
-        "X": 106,
-        "Z": 110
-       },
-       {
-        "X": 105,
-        "Z": 111
-       },
-       {
-        "X": 106,
-        "Z": 109
-       },
-       {
-        "X": 104,
-        "Z": 111
-       },
-       {
-        "X": 106,
-        "Z": 108
-       },
-       {
-        "X": 104,
-        "Z": 110
-       },
-       {
-        "X": 104,
-        "Z": 109
-       }
-      ],
       "SuitablePen": {
        "v": ""
       },
@@ -13059,19 +13021,6 @@
     },
     {
      "Deficit": 1,
-     "Concern": "MaintainAnimalFeed",
-     "Labor": [
-      "Cooking",
-      "Hauling",
-      "Growing"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 199.791,
-     "WaitingSince": 29
-    },
-    {
-     "Deficit": 1,
      "Concern": "MaintainEquipment",
      "Labor": [
       "Construction",
@@ -13804,10 +13753,6 @@
     "Concern": "MaintainAnimalContainment"
    },
    {
-    "Standard": "routine-aa21352b1aef3b39-MaintainAnimalFeed",
-    "Concern": "MaintainAnimalFeed"
-   },
-   {
     "Standard": "routine-aa21352b1aef3b39-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -14073,21 +14018,6 @@
     "LastProgress": 99820,
     "Method": "assess",
     "NextReview": 102320
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 102320
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainAnimalFeed",
-    "LastProgress": 99820,
-    "Method": "assess",
-    "NextReview": 102320,
-    "Observed": 1
    }
   ],
   "ReadyWork": {
@@ -14311,16 +14241,6 @@
       "MaintainCleanFacilities"
      ],
      "ID": "a24230ed07585bff",
-     "Reason": "no plan or proposal",
-     "Stage": "none",
-     "State": "no_method"
-    },
-    {
-     "Adapter": "migrated",
-     "Concerns": [
-      "MaintainAnimalFeed"
-     ],
-     "ID": "ab93b28b43324137",
      "Reason": "no plan or proposal",
      "Stage": "none",
      "State": "no_method"

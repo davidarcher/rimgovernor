@@ -12,13 +12,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [
-       {
-        "Accepts": [],
-        "Zone": "Zone_0"
-       }
-      ],
       "Release": {
        "v": false
       },
@@ -31,7 +24,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [],
       "SuitablePen": {
        "v": ""
       },
@@ -95,13 +87,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [
-       {
-        "Accepts": [],
-        "Zone": "Zone_0"
-       }
-      ],
       "Release": {
        "v": false
       },
@@ -114,20 +99,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 103,
-        "Z": 137
-       },
-       {
-        "X": 103,
-        "Z": 138
-       },
-       {
-        "X": 102,
-        "Z": 138
-       }
-      ],
       "SuitablePen": {
        "v": ""
       },
@@ -191,13 +162,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [
-       {
-        "Accepts": [],
-        "Zone": "Zone_0"
-       }
-      ],
       "Release": {
        "v": false
       },
@@ -210,7 +174,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [],
       "SuitablePen": {
        "v": ""
       },
@@ -10154,19 +10117,6 @@
    "Rows": [
     {
      "Deficit": 1,
-     "Concern": "MaintainAnimalFeed",
-     "Labor": [
-      "Cooking",
-      "Hauling",
-      "Growing"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 100.6,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
      "Concern": "EnsureBasicDefense",
      "Labor": [
       "Construction"
@@ -10658,10 +10608,6 @@
     "Concern": "MaintainAnimalContainment"
    },
    {
-    "Standard": "routine-6a21b816f5c5d315-MaintainAnimalFeed",
-    "Concern": "MaintainAnimalFeed"
-   },
-   {
     "Standard": "routine-6a21b816f5c5d315-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -10834,15 +10780,6 @@
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainAnimalFeed",
-    "LastProgress": 15,
-    "Method": "assess",
-    "NextReview": 2515,
-    "Observed": 1
    }
   ],
   "ReadyWork": {
@@ -10881,16 +10818,6 @@
       "EnsureComfort"
      ],
      "ID": "269f1481fc14f762",
-     "Reason": "no plan or proposal",
-     "Stage": "none",
-     "State": "no_method"
-    },
-    {
-     "Adapter": "migrated",
-     "Concerns": [
-      "MaintainAnimalFeed"
-     ],
-     "ID": "28b7b7a5485d6cb0",
      "Reason": "no plan or proposal",
      "Stage": "none",
      "State": "no_method"

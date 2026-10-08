@@ -35,7 +35,7 @@ type FoodStock struct {
 	Perishable domain.Fact[bool]
 	RotTicks   domain.Fact[int64]
 	// DefName and Count are only needed to select a specific feed resource
-	// (MaintainAnimalFeed's update_feed_goal port); ForecastFood itself never
+	// (the animal feed runway's item choice); ForecastFood itself never
 	// reads them, so unknown/zero values never affect forecast validity.
 	DefName Resource
 	Count   domain.Fact[int64]

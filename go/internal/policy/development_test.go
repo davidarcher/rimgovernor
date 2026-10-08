@@ -224,7 +224,7 @@ func TestIdleTierOrderIsTotal(t *testing.T) {
 	}
 	r.Concerns = []DevelopmentConcern{
 		goal("EnsureDefensiveLayout", 0, false), goal("MaintainEquipment", 0, true), goal("EnsureComfort", 0.5, true),
-		goal("MaintainFlooring", 0.5, false), goal("MaintainAnimalFeed", 0, false), goal("MaintainLighting", 0, false),
+		goal("MaintainFlooring", 0.5, false), goal("MaintainHerd", 0, false), goal("MaintainLighting", 0, false),
 		goal("MaintainRoutes", 0, false), goal("MaintainHousing", 0.5, false),
 		goal("MaintainStoneShell", 0.5, false), goal("MaintainIncineration", 0, true),
 	}

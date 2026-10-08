@@ -750,16 +750,6 @@ var plannerCatalog = []plannerEntry{
 			out.Resource = &method
 			return method.Verdict, nil
 		}},
-	{name: "animalFeed", concern: policy.MaintainAnimalFeed, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MineAcquisitionAction, domain.ProductionBillAction, domain.ZoneCreateAction}, sections: sectionsZones,
-		configured: func(c *ClockSchedulerConfig) bool { return c.AnimalFeed != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.AnimalFeed.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.AnimalFeed = &method
-			return method.Verdict, nil
-		}},
 	{name: "maintainShelter", concern: policy.MaintainShelter, class: classOptional, priority: plannerComfort, kinds: []domain.ActionKind{domain.AreaAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.MaintainShelter != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

@@ -159,7 +159,7 @@ func TestReadyWorkBillIntentInFlightClaimsNoCook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := ReadyPlan{Concern: MaintainAnimalFeed, Spec: spec, Progress: []domain.Progress{readyProgress(t, spec, "bill", "dispatched")}}
+	plan := ReadyPlan{Concern: MaintainResource, Spec: spec, Progress: []domain.Progress{readyProgress(t, spec, "bill", "dispatched")}}
 	recipes := RecipeFacts{BillWork: map[string]WorkType{"Make_Kibble": WorkCooking}}
 	r := ProjectReadyWork(ReadyRequest{Snapshot: readySnap("feed"), Plans: []ReadyPlan{plan}, Recipes: recipes})
 	c := byStage(r)["bill:Make_Kibble"]
@@ -172,8 +172,12 @@ func TestReadyWorkBillIntentInFlightClaimsNoCook(t *testing.T) {
 }
 
 func TestReadyWorkFeedAlternativesAndSharedHaulsDeduplicate(t *testing.T) {
-	m := AnimalFeedMethod{Resource: "Kibble", Produced: true, Benches: []string{"b1", "b2"}}
-	props := AnimalFeedProposals(MaintainAnimalFeed, m, domain.Known(true), []domain.Cell{{X: 5, Z: 5}})
+	group := "Feed/feed"
+	props := []ReadyProposal{
+		{Concern: "Feed", Method: "kibble", Stage: "bill:Make_Kibble", Work: WorkCooking, Claims: []ReadyClaim{{"bench", "b1"}}, Alternative: group, Eligible: domain.Known(true), Parallelism: 1},
+		{Concern: "Feed", Method: "kibble", Stage: "bill:Make_Kibble", Work: WorkCooking, Claims: []ReadyClaim{{"bench", "b2"}}, Alternative: group, Eligible: domain.Known(true), Parallelism: 1},
+		{Concern: "Feed", Method: "hay", Stage: "grow:Hay", Work: WorkGrowing, Claims: []ReadyClaim{CellClaim(domain.Cell{X: 5, Z: 5})}, Alternative: group, Eligible: domain.Known(true), Parallelism: 1},
+	}
 	props = append(props, SupplyHaulProposals("GoalA", "haul", "Steel", []string{"s1", "s2"}, domain.Known(true))...)
 	props = append(props, SupplyHaulProposals("GoalB", "haul", "Steel", []string{"s2"}, domain.Known(true))...)
 	before := append([]ReadyProposal(nil), props...)

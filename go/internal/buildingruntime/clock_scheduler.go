@@ -133,7 +133,6 @@ type ClockSchedulerConfig struct {
 	Research            *RoundsResearchPlanner
 	StorageShelves      *RoundsStorageShelvesPlanner
 	Resource            *RoundsResourcePlanner
-	AnimalFeed          *RoundsAnimalFeedPlanner
 	HomeCoverage        *RoundsHomeCoveragePlanner
 	MaintainShelter     *MaintainShelterPlanner
 	Firebreak           *RoundsFirebreakPlanner
@@ -222,7 +221,6 @@ type ClockSchedulerResult struct {
 	Research                     *RoundsResearchResult
 	StorageShelves               *RoundsStorageShelvesResult
 	Resource                     *RoundsResourceResult
-	AnimalFeed                   *RoundsResourceResult
 	HomeCoverage                 *RoundsHomeCoverageResult
 	MaintainShelter              *MaintainShelterResult
 	Firebreak                    *RoundsFirebreakResult
@@ -581,9 +579,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Resource != nil && (config.Rounds == nil || config.Resource.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Resource != nil && (config.Rounds == nil || config.Resource.reviewer != config.Rounds)", ErrControl)
-	}
-	if config.AnimalFeed != nil && (config.Rounds == nil || config.AnimalFeed.reviewer != config.Rounds) {
-		return nil, fmt.Errorf("%w: NewClockScheduler: config.AnimalFeed != nil && (config.Rounds == nil || config.AnimalFeed.reviewer != config.Rounds)", ErrControl)
 	}
 	if config.MaintainShelter != nil && (config.Rounds == nil || config.MaintainShelter.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.MaintainShelter != nil && (config.Rounds == nil || config.MaintainShelter.reviewer != config.Rounds)", ErrControl)
@@ -1303,10 +1298,8 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	// A standing production bill past its first iteration needs game time,
 	// not another method (RoundsResourceResult.NativeWorkTicks).
-	for _, result := range []*RoundsResourceResult{out.Resource, out.AnimalFeed} {
-		if result != nil {
-			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
-		}
+	if out.Resource != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.Resource.NativeWorkTicks)
 	}
 	// A standing CriticalMedical deficit with no tend or rescue method to run
 	// freezes development on "not selected: emergency" while contributing no

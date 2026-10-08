@@ -38,10 +38,9 @@ func TestReconcileHerdRemoval(t *testing.T) {
 			if got := SelectHusbandryMethod(domain.Known(rows), wild, feedFine, herd, anyTamer); got.Method != "" {
 				t.Fatal("unwanted replacement", got)
 			}
-			upkeep, err := ReviewAnimalUpkeep(v, AnimalUpkeepHistory{}, DefaultFoodReserveDays)
-			feed, fk := upkeep.Feed.Value()
+			upkeep, err := ReviewAnimalUpkeep(v, AnimalUpkeepHistory{})
 			contain, ck := upkeep.Containment.Value()
-			if err != nil || !fk || !ck || len(feed) != 1 || len(contain) != 1 {
+			if err != nil || !ck || len(contain) != 1 {
 				t.Fatal(upkeep, err)
 			}
 		})

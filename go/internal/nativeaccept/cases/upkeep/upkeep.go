@@ -64,14 +64,6 @@ func scenarios() map[string]*scenario {
 		watch:  watchMedicine,
 		verify: verifyMedicine,
 	}
-	s["feed"] = &scenario{name: "feed", fixture: "test/feed_setup",
-		families: []routinefamily.Family{routinefamily.AnimalFeed, routinefamily.Resource, routinefamily.Bill, routinefamily.Work},
-		prepare: func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
-			return callFixture(ctx, h, identity, "test/feed_setup", map[string]any{})
-		},
-		watch:  watchFeed,
-		verify: verifyFeed,
-	}
 	s["sleeping"] = &scenario{name: "sleeping", fixture: "test/sleeping_setup",
 		families: []routinefamily.Family{routinefamily.Sleeping, routinefamily.Work},
 		prepare: func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
@@ -340,10 +332,6 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 		// returning deficit, so no terminal stage is coming.
 		state, incidental, undispatched, err := waitPlanOrRecovery(ctx, journal, method.Plan, recovered)
 		if err != nil {
-			if feedBillNeedsRecovery(need, state) {
-				report[label+"_unsuccessful_bill_plan"] = string(method.Plan)
-				return state, nil
-			}
 			return state, fmt.Errorf("%s plan %s: %w", label, method.Plan, err)
 		}
 		if undispatched {
@@ -481,73 +469,6 @@ func countColonists(ctx context.Context, h *na.Harness, identity map[string]any)
 		return 0, err
 	}
 	return int(na.AsNumber(observed["colonistCount"])), nil
-}
-
-// ---- feed ----------------------------------------------------------------
-
-func watchFeed(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error {
-	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
-	defer deficitCancel()
-	if _, err := waitNeed(deficitCtx, journal, policy.MaintainAnimalFeed, domain.FindingUnmet); err != nil {
-		return err
-	}
-	reachableBench := na.AsString(prepared["bench"])
-	if _, err := followMethods(ctx, journal, policy.MaintainAnimalFeed, "feed", func(a domain.Action) error {
-		switch a.Kind() {
-		case domain.AcquisitionAction, domain.MineAcquisitionAction:
-			return nil
-		case domain.ProductionBillAction:
-			// The product drops at the bench, so the bill belongs on the
-			// one inside the pet's area, not the earlier one outside it.
-			if bill, ok := a.ProductionBill(); ok && bill.Bench() != reachableBench {
-				return fmt.Errorf("kibble bill placed on %s outside the pet's area, not %s", bill.Bench(), reachableBench)
-			}
-			report["feed_bill_bench"] = reachableBench
-			return nil
-		}
-		return fmt.Errorf("unexpected %s action", a.Kind())
-	}, report); err != nil {
-		return err
-	}
-	recoverCtx, recoverCancel := context.WithTimeout(ctx, 12*time.Minute)
-	defer recoverCancel()
-	_, err := waitNeed(recoverCtx, journal, policy.MaintainAnimalFeed, domain.FindingMet)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func verifyFeed(ctx context.Context, h *na.Harness, identity, prepared map[string]any, report na.Report) error {
-	pet := na.AsString(prepared["pet"])
-	observed, err := readColonyFacts(ctx, h, identity, "animals-after")
-	if err != nil {
-		return err
-	}
-	section, _ := na.AsMap(observed["upkeep"])
-	_, upkeep, err := na.Outcome(section, "observed")
-	if err != nil {
-		return err
-	}
-	for _, raw := range na.AsSlice(upkeep["animals"]) {
-		row, _ := na.AsMap(raw)
-		if na.PawnRef(row) != pet {
-			continue
-		}
-		feed := na.AsSlice(row["reachableStoredFeed"])
-		report["pet_reachable_feed_rows"] = len(feed)
-		nutrition := 0.0
-		for _, rawStock := range feed {
-			stock, _ := na.AsMap(rawStock)
-			nutrition += na.AsNumber(stock["nutrition"])
-		}
-		report["pet_reachable_nutrition"] = nutrition
-		if len(feed) == 0 || nutrition <= 0 {
-			return fmt.Errorf("pet %s has no reachable stored feed natively after recovery", pet)
-		}
-		return nil
-	}
-	return fmt.Errorf("pet %s missing from the native animal feed census", pet)
 }
 
 // ---- sleeping ------------------------------------------------------------

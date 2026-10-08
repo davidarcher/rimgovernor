@@ -153,37 +153,6 @@ func SupplyHaulProposals(goal ConcernID, method domain.MethodID, definition stri
 	return out
 }
 
-// AnimalFeedProposals: MaintainAnimalFeed's methods as alternatives of one
-// group. A stock-sourced method is a haul; kibble is a bill on any of the
-// shared benches (each bench an alternative) that can run only when its
-// ingredients are observed; a hay field is growing on its cells.
-func AnimalFeedProposals(goal ConcernID, m AnimalFeedMethod, ingredients domain.Fact[bool], hay []domain.Cell) []ReadyProposal {
-	group := string(goal) + "/feed"
-	var out []ReadyProposal
-	if m.Produced {
-		for _, b := range m.Benches {
-			out = append(out, ReadyProposal{Concern: goal, Method: "kibble", Stage: "bill:Make_Kibble", Work: WorkCooking, Claims: []ReadyClaim{{"bench", b}}, Alternative: group, Eligible: ingredients, Parallelism: 1})
-		}
-	} else if m.Resource != "" {
-		out = append(out, ReadyProposal{Concern: goal, Method: domain.MethodID("stock-" + string(m.Resource)), Stage: "haul:" + string(m.Resource), Work: WorkHauling, Alternative: group, Eligible: domain.Known(m.Delivered), Reason: reasonIf(!m.Delivered, string(domain.HeldStorageMissing)), Parallelism: 1})
-	}
-	if len(hay) > 0 {
-		var claims []ReadyClaim
-		for _, c := range hay {
-			claims = append(claims, CellClaim(c))
-		}
-		out = append(out, ReadyProposal{Concern: goal, Method: "hay", Stage: "grow:Hay", Work: WorkGrowing, Claims: claims, Alternative: group, Eligible: domain.Known(true), Parallelism: 1})
-	}
-	return out
-}
-
-func reasonIf(cond bool, reason string) string {
-	if cond {
-		return reason
-	}
-	return ""
-}
-
 // MirrorPiece is a piece's mirror image across the frame's centre line,
 // under a new slot name.
 func (f InteriorFrame) MirrorPiece(p InteriorPiece, slot string) InteriorPiece {

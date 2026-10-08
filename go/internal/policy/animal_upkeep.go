@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -9,7 +10,6 @@ import (
 
 const (
 	MaintainAnimalContainment ConcernID = "MaintainAnimalContainment"
-	MaintainAnimalFeed        ConcernID = "MaintainAnimalFeed"
 )
 
 type UpkeepAnimal struct {
@@ -42,18 +42,6 @@ type UpkeepAnimal struct {
 	MinimumHandlingSkill domain.Fact[int]
 	// Herd carries the sizing facts MaintainHerd culls and tames by (#875).
 	Herd HerdFacts
-	// ReachableBenches names the player work tables the animal can reach
-	// inside its allowed area (sorted); a bill there drops feed where the
-	// animal eats it.
-	ReachableBenches []string
-	// ReachableStorage lists the stockpile zones holding a cell the animal
-	// can reach inside its allowed area, each with the edible definitions
-	// its filter accepts: feed hauled there is feed the animal eats.
-	// StorageCandidates is a connected footprint of free cells inside the
-	// area (native's own hauler-reachable scan) where such a zone could be
-	// made; empty when none qualifies.
-	ReachableStorage  []AnimalFeedStorage
-	StorageCandidates []domain.Cell
 	// Care cap inputs (#1301): MedicalCareCategory name, a bond to a
 	// living pawn, conditions and life threat.
 	Care   domain.Fact[string]
@@ -71,14 +59,6 @@ type UpkeepAnimal struct {
 	FollowDrafted, FollowFieldwork, Obedient domain.Fact[bool]
 	Conditions                               domain.Fact[[]CareCondition]
 	LifeThreatening                          domain.Fact[bool]
-}
-
-// AnimalFeedStorage is one stockpile zone an animal can reach and the
-// nutrition-giving definitions its filter accepts among those the animal's
-// race can eat.
-type AnimalFeedStorage struct {
-	Zone    string
-	Accepts []string
 }
 
 // HusbandryTrainable is one trainable definition's recursive-training
@@ -109,22 +89,17 @@ type AnimalUpkeepHistory struct {
 type AnimalUpkeepReview struct {
 	History     AnimalUpkeepHistory
 	Containment domain.Fact[[]PawnID]
-	// Feed is the race groups whose herd feed reserve is short (#1642); empty
-	// when every reserve is met, unknown while the herd or its food is.
-	Feed domain.Fact[[]AnimalFeedGroup]
 }
 
-// ReviewAnimalUpkeep reviews containment and, per race group, the standing
-// herd feed reserve of reserveDays days (RoundsPolicy.FoodReserveDays).
-func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory, reserveDays float64) (AnimalUpkeepReview, error) {
+// ReviewAnimalUpkeep reviews containment: the pen-bound animals not yet
+// contained. The herd's feed is the animal feed runway (PlanAnimalFeedRunway).
+func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory) (AnimalUpkeepReview, error) {
 	r := AnimalUpkeepReview{History: previous}
 	invalid := errors.New("invalid animal upkeep facts or history")
-	directed := map[Resource]bool{}
-	for _, race := range v.DirectedHerds {
-		if !validResource(race) || directed[race] {
+	for i, race := range v.DirectedHerds {
+		if !validResource(race) || slices.Contains(v.DirectedHerds[:i], race) {
 			return r, invalid
 		}
-		directed[race] = true
 	}
 	animals, known := v.Animals.Value()
 	if !known {
@@ -132,16 +107,10 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 	}
 	seen := map[PawnID]bool{}
 	containment := []PawnID{}
-	eligible := []UpkeepAnimal{}
-	containmentKnown, feedKnown := true, true
+	containmentKnown := true
 	for _, animal := range animals {
-		if !foodID(string(animal.ID)) || seen[animal.ID] || !validResource(animal.Definition) || !validAnimalFeedStorage(animal.ReachableStorage, animal.StorageCandidates) {
+		if !foodID(string(animal.ID)) || seen[animal.ID] || !validResource(animal.Definition) {
 			return r, invalid
-		}
-		for _, bench := range animal.ReachableBenches {
-			if !foodID(bench) {
-				return r, invalid
-			}
 		}
 		seen[animal.ID] = true
 		pen, pk := animal.RequiresPen.Value()
@@ -153,25 +122,12 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 		} else if pen && !contained && !release && !slaughter {
 			containment = append(containment, animal.ID)
 		}
-		if !rk || !sk {
-			feedKnown = false
-		} else if !release && !slaughter && !directed[animal.Definition] {
-			eligible = append(eligible, animal)
-		}
 	}
 	if containmentKnown {
 		sort.Slice(containment, func(i, j int) bool { return containment[i] < containment[j] })
 		r.Containment = domain.Known(containment)
 		r.History.Containment = len(containment) > 0
 	}
-	if !feedKnown {
-		return r, nil
-	}
-	feed, err := ReviewAnimalFeedReserve(v, eligible, reserveDays)
-	if err != nil {
-		return r, err
-	}
-	r.Feed = feed
 	return r, nil
 }
 

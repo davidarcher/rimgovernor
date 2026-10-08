@@ -276,14 +276,14 @@ func herdTameLess(role HerdRole, a, b UpkeepAnimal) bool {
 }
 
 // HerdFeedShort is the feed gate SelectHusbandryMethod's tame fallback
-// reads from MaintainAnimalFeed's own review: known true while any race group
-// has a feed reserve deficit, unknown while the feed forecast is.
-func HerdFeedShort(review AnimalUpkeepReview) domain.Fact[bool] {
-	targets, known := review.Feed.Value()
+// reads from the animal feed runway: known true while any race group's stock
+// and pasture fall short of the horizon, unknown while the projection is.
+func HerdFeedShort(projection domain.Fact[AnimalFeedProjection]) domain.Fact[bool] {
+	p, known := projection.Value()
 	if !known {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(len(targets) > 0)
+	return domain.Known(p.Short())
 }
 
 // SelectHusbandryMethod picks the lowest animal-ID, lowest-def-name available
@@ -295,7 +295,7 @@ func HerdFeedShort(review AnimalUpkeepReview) domain.Fact[bool] {
 // unknown minimum asks only for a capable handler; an unknown roster leaves
 // the choice unknown) -- and only while the herd's feed forecast is known
 // not short, since a new mouth on a herd already short of feed deepens
-// MaintainAnimalFeed's deficit -- and only after that to the lowest-ID
+// the animal feed runway's shortfall -- and only after that to the lowest-ID
 // surplus candidate for the operator's chosen removal method -- so an
 // operator who opts into tame or removal never loses the pre-existing
 // training behavior.

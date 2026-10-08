@@ -12,8 +12,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -26,7 +24,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [],
       "SuitablePen": {
        "v": ""
       },
@@ -90,8 +87,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -104,12 +99,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 113,
-        "Z": 132
-       }
-      ],
       "SuitablePen": {
        "v": ""
       },
@@ -173,8 +162,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -187,12 +174,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 113,
-        "Z": 132
-       }
-      ],
       "SuitablePen": {
        "v": ""
       },
@@ -9324,19 +9305,6 @@
    "Rows": [
     {
      "Deficit": 1,
-     "Concern": "MaintainAnimalFeed",
-     "Labor": [
-      "Cooking",
-      "Hauling",
-      "Growing"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 100,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
      "Concern": "ClearHomeObstructions",
      "Labor": [
       "Construction"
@@ -9798,10 +9766,6 @@
     "Concern": "MaintainAnimalContainment"
    },
    {
-    "Standard": "routine-6b35db9a7c814360-MaintainAnimalFeed",
-    "Concern": "MaintainAnimalFeed"
-   },
-   {
     "Standard": "routine-6b35db9a7c814360-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -9964,15 +9928,6 @@
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainAnimalFeed",
-    "LastProgress": 15,
-    "Method": "assess",
-    "NextReview": 2515,
-    "Observed": 1
    }
   ],
   "ReadyWork": {
@@ -10063,16 +10018,6 @@
       "MaintainMedicalReserves"
      ],
      "ID": "742f0dfb4e5ff897",
-     "Reason": "no plan or proposal",
-     "Stage": "none",
-     "State": "no_method"
-    },
-    {
-     "Adapter": "migrated",
-     "Concerns": [
-      "MaintainAnimalFeed"
-     ],
-     "ID": "99631bb19b7ceaf5",
      "Reason": "no plan or proposal",
      "Stage": "none",
      "State": "no_method"

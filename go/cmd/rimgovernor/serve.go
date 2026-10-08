@@ -102,7 +102,6 @@ type serveConfig struct {
 	roundsDialogPlans              bool
 	roundsTradePlans               bool
 	roundsResourcePlans            bool
-	roundsAnimalFeedPlans          bool
 	roundsMethods                  bool
 	refresh                        time.Duration
 	clockTestAcceleration          bool
@@ -304,7 +303,6 @@ func roundsFamilies(c *serveConfig) []roundsFamily {
 		{routinefamily.Dialog, &c.roundsDialogPlans},
 		{routinefamily.Trade, &c.roundsTradePlans},
 		{routinefamily.Resource, &c.roundsResourcePlans},
-		{routinefamily.AnimalFeed, &c.roundsAnimalFeedPlans},
 	}
 }
 

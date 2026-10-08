@@ -12,8 +12,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -26,7 +24,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [],
       "SuitablePen": {
        "v": ""
       },
@@ -90,8 +87,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -104,7 +99,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [],
       "SuitablePen": {
        "v": ""
       },
@@ -168,8 +162,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -182,7 +174,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [],
       "SuitablePen": {
        "v": ""
       },
@@ -7443,19 +7434,6 @@
    "Rows": [
     {
      "Deficit": 1,
-     "Concern": "MaintainAnimalFeed",
-     "Labor": [
-      "Cooking",
-      "Hauling",
-      "Growing"
-     ],
-     "Reason": "emergency",
-     "Risk": 0,
-     "Score": 100,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
      "Concern": "EnsureComfort",
      "Labor": [
       "Construction"
@@ -7912,10 +7890,6 @@
     "Concern": "MaintainAnimalContainment"
    },
    {
-    "Standard": "routine-c3eb5c5911aed24b-MaintainAnimalFeed",
-    "Concern": "MaintainAnimalFeed"
-   },
-   {
     "Standard": "routine-c3eb5c5911aed24b-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -8065,15 +8039,6 @@
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainAnimalFeed",
-    "LastProgress": 15,
-    "Method": "assess",
-    "NextReview": 2515,
-    "Observed": 1
    }
   ],
   "ReadyWork": {

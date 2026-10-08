@@ -21,6 +21,7 @@ type ForwardInputs struct {
 	Policy       RoundsPolicy
 	Construction ConstructionInputs
 	Fuel         FuelInputs
+	AnimalFeed   AnimalFeedInputs
 }
 
 // SleepingRange is the coldest and hottest observed sleeping-room temperature.
@@ -36,6 +37,7 @@ type ForwardProjection struct {
 	Defense      domain.Fact[DefenseProjection]
 	Construction domain.Fact[ConstructionProjection]
 	Fuel         domain.Fact[FuelProjection]
+	AnimalFeed   domain.Fact[AnimalFeedProjection]
 }
 
 type FoodProjection struct {
@@ -85,6 +87,7 @@ func ProjectForward(in ForwardInputs) ForwardProjection {
 		Defense:      projectDefense(in.Turrets),
 		Construction: projectConstruction(in.Construction),
 		Fuel:         PlanFuelRunway(in.Fuel).Projection,
+		AnimalFeed:   PlanAnimalFeedRunway(in.AnimalFeed).Projection,
 	}
 }
 

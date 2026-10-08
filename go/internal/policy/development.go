@@ -136,7 +136,7 @@ type DevelopmentRow struct {
 	// ranks behind every other eligible goal until each of them has been
 	// idle too (then the round restarts on score), so a planner with no
 	// method this review (colony-3: EnsureDefensiveLayout and
-	// MaintainAnimalFeed held both slots for a game day) hands the slot on.
+	// the former animal feed goal held both slots for a game day) hands the slot on.
 	Idle bool
 	// LaborIdleSince is the first review tick at which the goal's open
 	// work found its labor idle (laborIdle), carried while it stays idle;

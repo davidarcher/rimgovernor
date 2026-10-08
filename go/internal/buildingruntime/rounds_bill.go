@@ -344,11 +344,15 @@ func (r *RoundsBillPlanner) noBill(benches domain.Fact[[]policy.ProductionBench]
 	return awaitingPlan("cooking_bench", "")
 }
 
+// reserveBillWorkTicks bounds one clock window spent letting a standing
+// reserve bill run; the next review re-measures the stock.
+const reserveBillWorkTicks = domain.TicksPerHour
+
 // lendReserveWork asks for game time while a reserve bill runs and no new
 // bill was admitted this step.
 func (r *RoundsBillPlanner) lendReserveWork(result RoundsBillResult, running bool) RoundsBillResult {
 	if running && result.Verdict != BuildingReasonAdmitted {
-		result.NativeWorkTicks = max(result.NativeWorkTicks, animalFeedBillWorkTicks)
+		result.NativeWorkTicks = max(result.NativeWorkTicks, reserveBillWorkTicks)
 	}
 	return result
 }

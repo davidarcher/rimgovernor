@@ -15,8 +15,6 @@
       "Pen": {
        "v": "Thing_PenMarker13687"
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -29,40 +27,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 121,
-        "Z": 75
-       },
-       {
-        "X": 121,
-        "Z": 76
-       },
-       {
-        "X": 121,
-        "Z": 74
-       },
-       {
-        "X": 121,
-        "Z": 77
-       },
-       {
-        "X": 121,
-        "Z": 73
-       },
-       {
-        "X": 121,
-        "Z": 78
-       },
-       {
-        "X": 121,
-        "Z": 72
-       },
-       {
-        "X": 120,
-        "Z": 78
-       }
-      ],
       "SuitablePen": {
        "v": "Thing_PenMarker13687"
       },
@@ -129,8 +93,6 @@
       "Pen": {
        "v": "Thing_PenMarker13687"
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -143,40 +105,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 121,
-        "Z": 70
-       },
-       {
-        "X": 121,
-        "Z": 71
-       },
-       {
-        "X": 120,
-        "Z": 70
-       },
-       {
-        "X": 121,
-        "Z": 72
-       },
-       {
-        "X": 119,
-        "Z": 70
-       },
-       {
-        "X": 121,
-        "Z": 73
-       },
-       {
-        "X": 118,
-        "Z": 70
-       },
-       {
-        "X": 121,
-        "Z": 74
-       }
-      ],
       "SuitablePen": {
        "v": "Thing_PenMarker13687"
       },
@@ -243,8 +171,6 @@
       "Pen": {
        "v": "Thing_PenMarker13687"
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -257,40 +183,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 119,
-        "Z": 77
-       },
-       {
-        "X": 119,
-        "Z": 78
-       },
-       {
-        "X": 118,
-        "Z": 77
-       },
-       {
-        "X": 120,
-        "Z": 78
-       },
-       {
-        "X": 118,
-        "Z": 78
-       },
-       {
-        "X": 118,
-        "Z": 76
-       },
-       {
-        "X": 117,
-        "Z": 77
-       },
-       {
-        "X": 121,
-        "Z": 78
-       }
-      ],
       "SuitablePen": {
        "v": "Thing_PenMarker13687"
       },
@@ -354,8 +246,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -368,40 +258,6 @@
       "Slaughter": {
        "v": true
       },
-      "StorageCandidates": [
-       {
-        "X": 121,
-        "Z": 70
-       },
-       {
-        "X": 121,
-        "Z": 71
-       },
-       {
-        "X": 120,
-        "Z": 70
-       },
-       {
-        "X": 121,
-        "Z": 72
-       },
-       {
-        "X": 119,
-        "Z": 70
-       },
-       {
-        "X": 121,
-        "Z": 73
-       },
-       {
-        "X": 118,
-        "Z": 70
-       },
-       {
-        "X": 121,
-        "Z": 74
-       }
-      ],
       "SuitablePen": {
        "v": ""
       },
@@ -465,8 +321,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -479,40 +333,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 113,
-        "Z": 75
-       },
-       {
-        "X": 113,
-        "Z": 76
-       },
-       {
-        "X": 113,
-        "Z": 74
-       },
-       {
-        "X": 113,
-        "Z": 77
-       },
-       {
-        "X": 114,
-        "Z": 76
-       },
-       {
-        "X": 113,
-        "Z": 73
-       },
-       {
-        "X": 113,
-        "Z": 78
-       },
-       {
-        "X": 114,
-        "Z": 77
-       }
-      ],
       "SuitablePen": {
        "v": ""
       },
@@ -579,8 +399,6 @@
       "Pen": {
        "v": "Thing_PenMarker13687"
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -593,40 +411,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 118,
-        "Z": 73
-       },
-       {
-        "X": 118,
-        "Z": 74
-       },
-       {
-        "X": 118,
-        "Z": 72
-       },
-       {
-        "X": 117,
-        "Z": 73
-       },
-       {
-        "X": 118,
-        "Z": 75
-       },
-       {
-        "X": 117,
-        "Z": 74
-       },
-       {
-        "X": 118,
-        "Z": 71
-       },
-       {
-        "X": 117,
-        "Z": 72
-       }
-      ],
       "SuitablePen": {
        "v": "Thing_PenMarker13687"
       },
@@ -36115,10 +35899,6 @@
    {
     "Standard": "routine-6cb69ccfa0314397-MaintainAnimalContainment",
     "Concern": "MaintainAnimalContainment"
-   },
-   {
-    "Standard": "routine-6cb69ccfa0314397-MaintainAnimalFeed",
-    "Concern": "MaintainAnimalFeed"
    },
    {
     "Standard": "routine-6cb69ccfa0314397-RemoveBlight",

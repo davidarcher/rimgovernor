@@ -447,7 +447,6 @@ var stageConcerns = map[ConcernID]ColonyStage{
 	MaintainStoneShell:      StageStable,
 	MaintainRefrigeration:   StageStable,
 	MaintainCleanFacilities: StageStable,
-	MaintainAnimalFeed:      StageStable,
 	MaintainHerd:            StageStable,
 	MaintainFlooring:        StageDevelopment,
 	MaintainLighting:        StageDevelopment,

@@ -35,10 +35,6 @@ import (
 //	kitchen  -- test/cleanliness_prepare (filthy): blood in an enclosed
 //	            kitchen, every colonist's Cleaning at 0, so only
 //	            MaintainCleanFacilities' forced orders clean it.
-//	feed     -- test/feed_setup: a confined pet and an empty herd feed reserve,
-//	            MaintainAnimalFeed (the pet eating the stock down reopens it).
-//	            After the kitchen so its enclosed butchery bench stands as
-//	            a lower-id decoy the kibble bill must not land on (#237).
 //	medicine -- test/medicine_setup: no medicine, MaintainMedicalReserves.
 //	cold     -- routine_sleeping_prepare + routine_temperature_prepare
 //	            (coldSnap: days have passed, so ordinary cold snaps bring
@@ -106,13 +102,12 @@ func campaignStages() []stage {
 		{name: "kitchen", fixture: "test/cleanliness_prepare", families: []routinefamily.Family{routinefamily.Clean},
 			needs:   []policy.ConcernID{policy.MaintainCleanFacilities},
 			prepare: prepareKitchen, watch: watchKitchen, verify: verifyKitchen},
-		fromScenario(all["feed"], policy.MaintainAnimalFeed),
 		fromScenario(all["medicine"], policy.MaintainMedicalReserves),
 		fromScenario(all["cold"], policy.EnsureTemperatureSafety),
 	}
 	// Days of play have passed by the last stage; the fixture cools the map
 	// with ordinary cold snaps rather than failing on a warm afternoon.
-	stages[3].prepare = prepareColdWith(true)
+	stages[2].prepare = prepareColdWith(true)
 	return stages
 }
 
@@ -131,7 +126,7 @@ func init() {
 		Serve:  &cases.ServeSpec{Families: cumulativeFamilies(stages, len(stages)), Prefix: prefix},
 		Stages: names,
 		Budget: campaignBudget,
-		Crew:   cases.Crew{Size: 3}, Reason: "Four deficits chained on one colony with a service restart between them; each stage alone runs in one to four minutes on the registry runner and the chain is the property under test.",
+		Crew:   cases.Crew{Size: 3}, Reason: "Three deficits chained on one colony with a service restart between them; each stage alone runs in one to four minutes on the registry runner and the chain is the property under test.",
 		Run: runCampaign,
 	})
 }

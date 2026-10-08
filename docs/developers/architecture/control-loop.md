@@ -125,7 +125,7 @@ Every Concern id in `go/internal/policy` (`ConcernID` in code):
 | Incident | `ActiveCombat`, `CriticalMedicine` (`CriticalMedical`), `RestoreWorkers`, `MoodConcern(pawn)`, `AnswerDialog`, `RecoverDisasterServices`, `TradeWithCaravan` |
 | Project | `EnsureCooking`, `MaintainButcherSpot`, `EnsureBasicPower`, `EnsureWorkAssignments`, `EnsureResearch`, `EnsureDefensiveLayout`, `ClearAncientShrine` |
 | Standard (chore) | `MaintainBurial`, `MaintainIncineration`, `RemoveBlight`, `ManagePollution`, `EnsureMechCharger`, `MaintainGeneBank`, `MaintainStockpiles`, `ClearHomeObstructions` |
-| Standard | `EnsureFoodSupply`, `EnsureBasicDefense`, `EnsureTemperatureSafety`, `EnsureComfort`, `MaintainHousing`, `ManageSupplySafety`, `ClearPests`, `MaintainAnimalContainment`, `MaintainAnimalFeed`, `MaintainBabyFeeding`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFirebreak`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMechs`, `MaintainMedicalReserves`, `MaintainSurgery`, `MaintainPopulation`, `MaintainPermits`, `MaintainPsylink`, `ManageCreepJoiners`, `MaintainIdeoRoles`, `MaintainRituals`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainStoneShell` |
+| Standard | `EnsureFoodSupply`, `EnsureBasicDefense`, `EnsureTemperatureSafety`, `EnsureComfort`, `MaintainHousing`, `ManageSupplySafety`, `ClearPests`, `MaintainAnimalContainment`, `MaintainBabyFeeding`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFirebreak`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMechs`, `MaintainMedicalReserves`, `MaintainSurgery`, `MaintainPopulation`, `MaintainPermits`, `MaintainPsylink`, `ManageCreepJoiners`, `MaintainIdeoRoles`, `MaintainRituals`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainStoneShell` |
 | Safeguard | none (see above) |
 
 `policy.ConcernTypeOf` returns this classification, and a test fails on any
@@ -146,7 +146,7 @@ Concerns or budgets labor.
 | Industry | `EnsureBasicPower`, `MaintainResource`, `EnsureResearch`, `MaintainMechs`, `TradeWithCaravan`, `EnsureMechCharger` |
 | Military | `ActiveCombat`, `EnsureBasicDefense`, `EnsureDefensiveLayout`, `ClearAncientShrine`, `ClearPests`, `MaintainEquipment` |
 | Medical | `CriticalMedicine`, `MaintainMedicalCare`, `MaintainMedicalReserves`, `MaintainSurgery`, `MaintainGeneBank` |
-| People | `RestoreWorkers`, `EnsureWorkAssignments`, `MaintainPopulation`, `MaintainPsylink`, `ManageCreepJoiners`, `MaintainPermits`, `MaintainIdeoRoles`, `MaintainRituals`, `MaintainBurial`, `MoodConcern(pawn)`, `MaintainHerd`, `MaintainAnimalFeed`, `MaintainAnimalContainment` |
+| People | `RestoreWorkers`, `EnsureWorkAssignments`, `MaintainPopulation`, `MaintainPsylink`, `ManageCreepJoiners`, `MaintainPermits`, `MaintainIdeoRoles`, `MaintainRituals`, `MaintainBurial`, `MoodConcern(pawn)`, `MaintainHerd`, `MaintainAnimalContainment` |
 | Storage | `MaintainStockpiles`, `ManageSupplySafety` |
 | Sanitation | `MaintainCleanFacilities`, `ManagePollution`, `MaintainIncineration` |
 | System (no panel section) | `AnswerDialog` |
@@ -355,7 +355,7 @@ edit:
 - Saved allowed-area restrictions are cleared.
 - A suspended feed bill and standing release/slaughter flags open their upkeep
   Concerns; obsolete standing designations are cancelled through shared Hands.
-- Resource and animal-feed production replace an inactive bill for the selected
+- Resource production (animal feed included) replaces an inactive bill for the selected
   recipe using its native identity and the current bench snapshot. An active bill
   continues to suppress duplicate production; unrelated recipes remain unchanged.
 - The diet planner restores missing natively eligible definitions while retaining

@@ -12,10 +12,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [
-       "Thing_ButcherSpot44691"
-      ],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -28,7 +24,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [],
       "SuitablePen": {
        "v": ""
       },
@@ -92,10 +87,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [
-       "Thing_ButcherSpot44691"
-      ],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -108,7 +99,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [],
       "SuitablePen": {
        "v": ""
       },
@@ -172,10 +162,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [
-       "Thing_ButcherSpot44691"
-      ],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -188,7 +174,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [],
       "SuitablePen": {
        "v": ""
       },
@@ -9437,19 +9422,6 @@
    "Rows": [
     {
      "Deficit": 1,
-     "Concern": "MaintainAnimalFeed",
-     "Labor": [
-      "Cooking",
-      "Hauling",
-      "Growing"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 112.523,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
      "Concern": "EnsureComfort",
      "Labor": [
       "Construction"
@@ -9849,10 +9821,6 @@
     "Concern": "MaintainAnimalContainment"
    },
    {
-    "Standard": "routine-707e692f50358b56-MaintainAnimalFeed",
-    "Concern": "MaintainAnimalFeed"
-   },
-   {
     "Standard": "routine-707e692f50358b56-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -10099,21 +10067,6 @@
     "LastProgress": 12538,
     "Method": "assess",
     "NextReview": 15038
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 15038
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainAnimalFeed",
-    "LastProgress": 12538,
-    "Method": "assess",
-    "NextReview": 15038,
-    "Observed": 1
    }
   ],
   "ReadyWork": {
@@ -10457,16 +10410,6 @@
       "MaintainEquipment"
      ],
      "ID": "5d6c7d127e1c86ed",
-     "Reason": "no plan or proposal",
-     "Stage": "none",
-     "State": "no_method"
-    },
-    {
-     "Adapter": "migrated",
-     "Concerns": [
-      "MaintainAnimalFeed"
-     ],
-     "ID": "6631442088808da1",
      "Reason": "no plan or proposal",
      "Stage": "none",
      "State": "no_method"

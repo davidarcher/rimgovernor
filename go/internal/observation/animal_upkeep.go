@@ -31,15 +31,7 @@ func colonyAnimals(v *o.ColonyFactsSnapshot, pawns bridge.Pawns, races policy.An
 		for _, entry := range state.GetTraining() {
 			training = append(training, policy.HusbandryTrainable{Def: entry.GetDefName(), Available: optional(entry.Available), Learned: optional(entry.Learned)})
 		}
-		storage := make([]policy.AnimalFeedStorage, 0, len(a.ReachableStorage))
-		for _, zone := range a.ReachableStorage {
-			storage = append(storage, policy.AnimalFeedStorage{Zone: zone.GetZone().GetId(), Accepts: append([]string{}, zone.Accepts...)})
-		}
-		candidates := make([]domain.Cell, 0, len(a.StorageCandidates))
-		for _, cell := range a.StorageCandidates {
-			candidates = append(candidates, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
-		}
-		rows = append(rows, policy.UpkeepAnimal{SupportsAreas: optional(state.SupportsAllowedAreas), AllowedArea: area, ID: policy.PawnID(pawn.Pawn.GetId()), Label: pawn.Pawn.GetLabel(), Gender: state.GetGender(), Definition: policy.Resource(pawn.Pawn.GetDefName()), RequiresPen: optional(a.RequiresPen), Contained: optional(state.Contained), Release: optional(state.Release), Slaughter: optional(state.Slaughter), Pen: domain.Known(state.GetPenId()), SuitablePen: domain.Known(a.GetSuitablePen().GetId()), SlaughterFacts: policy.SlaughterFacts{Downed: optional(state.Downed), InMentalState: optional(state.InMentalState), Pregnant: optional(state.Pregnant), Mastered: mastered(state), ColonistBonded: optional(state.ColonistBonded), Designatable: optional(state.SlaughterDesignatable)}, SafeToRelease: optional(state.SafeToRelease), Herd: herdFacts(pawn, races), Training: training, ReachableBenches: bridge.RefIDs(a.ReachableBenches), ReachableStorage: storage, StorageCandidates: candidates})
+		rows = append(rows, policy.UpkeepAnimal{SupportsAreas: optional(state.SupportsAllowedAreas), AllowedArea: area, ID: policy.PawnID(pawn.Pawn.GetId()), Label: pawn.Pawn.GetLabel(), Gender: state.GetGender(), Definition: policy.Resource(pawn.Pawn.GetDefName()), RequiresPen: optional(a.RequiresPen), Contained: optional(state.Contained), Release: optional(state.Release), Slaughter: optional(state.Slaughter), Pen: domain.Known(state.GetPenId()), SuitablePen: domain.Known(a.GetSuitablePen().GetId()), SlaughterFacts: policy.SlaughterFacts{Downed: optional(state.Downed), InMentalState: optional(state.InMentalState), Pregnant: optional(state.Pregnant), Mastered: mastered(state), ColonistBonded: optional(state.ColonistBonded), Designatable: optional(state.SlaughterDesignatable)}, SafeToRelease: optional(state.SafeToRelease), Herd: herdFacts(pawn, races), Training: training})
 		last := &rows[len(rows)-1]
 		last.Care, last.Bonded, last.BondedPawns = careName(state.MedicalCare), optional(state.Bonded), state.GetBondedPawnIds()
 		last.Master, last.FollowDrafted, last.FollowFieldwork, last.Obedient = optional(state.MasterId), optional(state.FollowDrafted), optional(state.FollowFieldwork), optional(state.Obedient)

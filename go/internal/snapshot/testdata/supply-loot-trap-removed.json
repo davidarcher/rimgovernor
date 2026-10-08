@@ -12,13 +12,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [
-       {
-        "Accepts": [],
-        "Zone": "Zone_0"
-       }
-      ],
       "Release": {
        "v": false
       },
@@ -31,7 +24,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [],
       "SuitablePen": {
        "v": ""
       },
@@ -7554,19 +7546,6 @@
    "Rows": [
     {
      "Deficit": 1,
-     "Concern": "MaintainAnimalFeed",
-     "Labor": [
-      "Cooking",
-      "Hauling",
-      "Growing"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 100,
-     "WaitingSince": 21
-    },
-    {
-     "Deficit": 1,
      "Concern": "EnsureComfort",
      "Labor": [
       "Construction"
@@ -8216,10 +8195,6 @@
     "Concern": "MaintainAnimalContainment"
    },
    {
-    "Standard": "routine-02166dbc97454acb-MaintainAnimalFeed",
-    "Concern": "MaintainAnimalFeed"
-   },
-   {
     "Standard": "routine-02166dbc97454acb-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -8381,29 +8356,10 @@
     "LastProgress": 21,
     "Method": "assess",
     "NextReview": 2521
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainAnimalFeed",
-    "LastProgress": 21,
-    "Method": "assess",
-    "NextReview": 2521,
-    "Observed": 1
    }
   ],
   "ReadyWork": {
    "Candidates": [
-    {
-     "Adapter": "migrated",
-     "Concerns": [
-      "MaintainAnimalFeed"
-     ],
-     "ID": "1500d934321e8365",
-     "Reason": "no plan or proposal",
-     "Stage": "none",
-     "State": "no_method"
-    },
     {
      "Adapter": "migrated",
      "Concerns": [],

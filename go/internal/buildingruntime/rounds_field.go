@@ -215,9 +215,9 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 }
 
 // otherFieldShortfalls is the hay and social field demand of this step's
-// read (#1308), each under its own goal: hay under MaintainAnimalFeed,
-// social crops under MaintainResource once brewing is researched, and the new
-// fields the resource supply plan opened (#2285), also under MaintainResource.
+// read (#1308), all under MaintainResource: hay, the pasture the pens lack
+// (#2379), social crops once brewing is researched, and the new fields the
+// resource supply plan opened (#2285).
 // A goal with open work waits for it.
 func (r *RoundsFieldPlanner) otherFieldShortfalls(call context.Context, state ControlState, review store.Rounds, projection observation.ColonyProjection) ([]fieldShortfall, error) {
 	p := r.reviewer.player
@@ -239,7 +239,7 @@ func (r *RoundsFieldPlanner) otherFieldShortfalls(call context.Context, state Co
 	}
 	var out []fieldShortfall
 	if opt, ok := hayShortfall(projection); ok {
-		goal, ready, err := ready(policy.MaintainAnimalFeed)
+		goal, ready, err := ready(policy.MaintainResource)
 		if err != nil {
 			return nil, err
 		}

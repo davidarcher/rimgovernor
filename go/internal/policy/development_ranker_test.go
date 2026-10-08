@@ -17,12 +17,12 @@ func woodShortShelter() DevelopmentRequest {
 		Workers: domain.Known(2),
 		Concerns: []DevelopmentConcern{
 			{ID: MaintainShelter, Priority: 3, Deficit: domain.Known(.2), Labor: LaborProfile{WorkConstruction}},
-			{ID: MaintainAnimalFeed, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkCooking}},
+			{ID: MaintainHerd, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkCooking}},
 			{ID: MaintainIncineration, Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkHauling}},
 			{ID: MaintainResource, Priority: 3, Deficit: domain.Known(.3), Labor: LaborProfile{WorkPlantCutting}},
 		},
 		Projection:  p,
-		OpenActions: map[ConcernID]int{MaintainShelter: 1, MaintainResource: 4, MaintainAnimalFeed: 1},
+		OpenActions: map[ConcernID]int{MaintainShelter: 1, MaintainResource: 4, MaintainHerd: 1},
 	}
 }
 
@@ -46,11 +46,11 @@ func rankOrder(t *testing.T, r DevelopmentRequest) (DevelopmentState, []ConcernI
 func TestWoodShortShelterAdmitsPrerequisiteFirst(t *testing.T) {
 	base := woodShortShelter()
 	base.Projection = ForwardProjection{}
-	if _, order := rankOrder(t, base); order[0] != MaintainAnimalFeed {
+	if _, order := rankOrder(t, base); order[0] != MaintainHerd {
 		t.Fatalf("without a projection the deficit order holds: %v", order)
 	}
 	s, order := rankOrder(t, woodShortShelter())
-	if order[0] != MaintainResource || order[1] != MaintainShelter || order[2] != MaintainAnimalFeed || order[3] != MaintainIncineration {
+	if order[0] != MaintainResource || order[1] != MaintainShelter || order[2] != MaintainHerd || order[3] != MaintainIncineration {
 		t.Fatalf("order %v", order)
 	}
 	for _, id := range []ConcernID{MaintainResource, MaintainShelter} {
@@ -66,7 +66,7 @@ func TestUnscoredGoalsAreNotDefaulted(t *testing.T) {
 	r := woodShortShelter()
 	r.Projection.Construction = domain.Unknown[ConstructionProjection]()
 	r.Projection.Food = domain.Unknown[FoodProjection]()
-	if _, order := rankOrder(t, r); order[0] != MaintainAnimalFeed || order[1] != MaintainIncineration {
+	if _, order := rankOrder(t, r); order[0] != MaintainHerd || order[1] != MaintainIncineration {
 		t.Fatalf("unknown projection must leave the deficit order: %v", order)
 	}
 }

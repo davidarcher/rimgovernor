@@ -26,9 +26,8 @@ func TestRoundsLaborCountsEnabledWorkTypes(t *testing.T) {
 	if ConcernLabor(EnsureComfort)[0] != WorkConstruction || ConcernLabor(EnsureResearch)[0] != WorkResearch || ConcernLabor(ActiveCombat) != nil {
 		t.Fatal("unexpected goal labor profiles")
 	}
-	// Feed is cooked and hauled, never handled (#311).
-	if feed := ConcernLabor(MaintainAnimalFeed); len(feed) != 3 || feed[0] != WorkCooking || feed[1] != WorkHauling || feed[2] != WorkGrowing || ConcernLabor(MaintainHerd)[0] != WorkHandling {
-		t.Fatal("unexpected animal labor profiles", feed)
+	if ConcernLabor(MaintainHerd)[0] != WorkHandling {
+		t.Fatal("unexpected animal labor profiles")
 	}
 }
 

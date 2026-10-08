@@ -8,10 +8,8 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
@@ -135,82 +133,6 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 	again, err := planner.Step(context.Background())
 	if err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal(again, err)
-	}
-}
-
-// MaintainAnimalFeed's delivery constraint on the shared tail: a bench set
-// that excludes every standing bench refuses the bill
-// (producing where the animal cannot eat only piles feed up, #237), and one
-// that names the bench lets the same step commit the bill there.
-func TestResourceDispatchHonoursTheBenchFilter(t *testing.T) {
-	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	t.Parallel()
-	base, _, _, _, sleeping := sleepingFixture(t)
-	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{"MeleeWeapon_Club": 3}
-	sleeping.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("MeleeWeapon_Club"), Units: proto.Int64(0)}}
-	club := policy.GearRecipe{
-		Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"},
-		Available: domain.Known(true), AvailableOn: domain.Known(true),
-		Ingredients:  domain.Known([][]policy.Amount{{{Resource: "WoodLog", Count: 40}}}),
-		RequiredWork: domain.Known([]policy.WorkRequirement{{Work: "Crafting", Skill: "Crafting"}}),
-	}
-	native := &resourceNative{
-		workshopNative: &workshopNative{sleepingNative: sleeping, benches: []bridge.GearBenchRead{{Token: "bench-cas", Bench: policy.GearBench{ID: "Thing_CraftingSpot1", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{club})}}}},
-		stock:          []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(200))}},
-	}
-	v := sleeping.reply.GetObserved()
-	v.ColonistCount = proto.Uint32(2)
-	v.WorkerCount = proto.Uint32(2)
-	missing := func(field string) *o.ReadIssue {
-		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
-	}
-	worker := func(id string) *o.PawnState {
-		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
-	}
-	sleeping.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{worker("crafter"), worker("builder")}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
-	base.reviewer.native = native
-	if _, err := base.reviewer.Step(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	planner, err := NewRoundsResourcePlanner(base.reviewer, native)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p := base.reviewer.player
-	ctx, epoch, done, err := p.enter(context.Background(), "test", false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer done()
-	state := p.session.State()
-	review, err := p.journal.LoadRounds(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var goal store.StandardState
-	for _, binding := range review.Standards {
-		if binding.Concern == policy.MaintainResource {
-			if goal, err = p.journal.LoadStandard(ctx, binding.Standard); err != nil {
-				t.Fatal(err)
-			}
-		}
-	}
-	if goal.Standard.Status != domain.StandardOpen {
-		t.Fatal(goal)
-	}
-	identity := boundary.Identity(state.Snapshot)
-	stock := resourceStockFacts(v)
-	result, err := planner.dispatchResourceConcern(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{}, base.reviewer.clock.Now())
-	if err != nil || result.Verdict != awaitingPlan("feed_bench", "within_reach_of_animals") || result.NativeWorkTicks != stockWaitTicks {
-		t.Fatal(result, err)
-	}
-	result, err = planner.dispatchResourceConcern(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_ButcherSpot9"}, base.reviewer.clock.Now())
-	if err != nil || result.Verdict != awaitingPlan("feed_bench", "within_reach_of_animals") {
-		t.Fatal(result, err)
-	}
-	result, err = planner.dispatchResourceConcern(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_CraftingSpot1"}, base.reviewer.clock.Now())
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal(result, err)
 	}
 }
 

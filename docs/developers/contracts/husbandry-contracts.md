@@ -55,7 +55,7 @@ before. Raw facts only; policy decides.
   productive-animal terms, divided by one adult's yield. Below it, a
   tameable wild animal of that race is designated (`tame`; the pick is ranked
   below) while
-  `MaintainAnimalFeed`'s review reports no shortfall and a
+  the animal feed runway reports no shortfall and a
   [handler](work-assignment.md#situational-roles) (`TamerFor`) clears its
   `minimum_handling_skill`. Predators and races with
   `manhunterOnTameFailChance ≥ 0.2` are never tamed, except grizzly and polar
@@ -404,12 +404,12 @@ The portfolio explains `MaintainHerd-<race>` and its effective floor. Both herd
 review and dispatch use the plan's policy, including the existing feed gate
 before taming.
 
-`MaintainAnimalFeed` compares the seasonal harvest gap with each enclosed pen's
+`MaintainResource` compares the seasonal harvest gap with each enclosed pen's
 native worst-quadrum pasture rate and stored feed. A negative balance can add a
 `Plant_Haygrass` field through the existing soil planner, zone preview and Hands
 admission. Existing hay-field capacity offsets new planting; a short season or
 unknown capacity refuses that method. Hay stays human-inedible and out of human
-food channels and human runway. Growing joins the feed concern's labor profile.
+food channels and human runway.
 
 While the food runway is below target (a food-plan gap), eligible animals
 above max(floor, breeding pair) rank by native meat nutrition per daily

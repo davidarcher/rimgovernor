@@ -21,7 +21,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	}
 	set(1, false)
 	out := reviewRounds(t, s, &r)
-	for _, id := range []policy.ConcernID{policy.MaintainAnimalContainment, policy.MaintainAnimalFeed} {
+	for _, id := range []policy.ConcernID{policy.MaintainAnimalContainment} {
 		if g := roundsGoal(t, out, id); g.Standard.Finding != domain.FindingUnmet || g.Standard.Priority != 3 {
 			t.Fatal(g)
 		}
@@ -30,7 +30,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	out = reviewRounds(t, s, &r)
 	// Containment keeps its latch across an unknown census; the feed reserve
 	// has none, so an unread herd ranks as any other unknown optional need.
-	for id, priority := range map[policy.ConcernID]int{policy.MaintainAnimalContainment: 3, policy.MaintainAnimalFeed: 4} {
+	for id, priority := range map[policy.ConcernID]int{policy.MaintainAnimalContainment: 3} {
 		if g := roundsGoal(t, out, id); g.Standard.Finding != domain.FindingUnclear || g.Standard.Priority != priority {
 			t.Fatal(g)
 		}
@@ -49,28 +49,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	r.Enabled = true
 	set(3, true)
 	out = reviewRounds(t, s, &r)
-	if g := roundsGoal(t, out, policy.MaintainAnimalFeed); g.Standard.Finding != domain.FindingUnmet {
-		t.Fatal(g)
-	}
 	if g := roundsGoal(t, out, policy.MaintainAnimalContainment); g.Standard.Finding != domain.FindingMet {
-		t.Fatal(g)
-	}
-	set(5, true)
-	r.Facts.UpkeepIssued = map[policy.ConcernID]bool{policy.MaintainAnimalFeed: true}
-	out = reviewRounds(t, s, &r)
-	recovered := roundsGoal(t, out, policy.MaintainAnimalFeed)
-	if recovered.Standard.Finding != domain.FindingMet {
-		t.Fatal(recovered)
-	}
-	set(1, false)
-	out = reviewRounds(t, s, &r)
-	if g := roundsGoal(t, out, policy.MaintainAnimalFeed); g.Standard.Finding != domain.FindingUnmet || g.Standard.Episode <= recovered.Standard.Episode {
-		t.Fatal(g)
-	}
-	set(6, true)
-	r.Current.Load = "replacement"
-	out = reviewRounds(t, s, &r)
-	if g := roundsGoal(t, out, policy.MaintainAnimalFeed); g.Standard.Finding != domain.FindingMet {
 		t.Fatal(g)
 	}
 }

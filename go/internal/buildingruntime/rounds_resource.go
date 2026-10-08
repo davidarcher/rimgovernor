@@ -210,7 +210,7 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 	for _, row := range ranked {
 		var result RoundsResourceResult
 		if row.Resource == "Beer" {
-			result, err = r.dispatchResourceConcern(call, epoch, state, goal, review.Tick, identity, row.Resource, row.Target, stock, nil, started)
+			result, err = r.dispatchResourceConcern(call, epoch, state, goal, review.Tick, identity, row.Resource, row.Target, stock, started)
 		} else if have.Units(row.Resource) >= row.Target {
 			continue
 		} else {
@@ -252,36 +252,25 @@ func (r *RoundsResourcePlanner) gearSpareStorage(call context.Context, identity 
 
 // methodChoice reads the bench census and the recipes' ingredient stock and
 // selects the bill that would produce resource (policy.SelectResourceMethod).
-// A non-nil benchFilter restricts the benches to those IDs; noBench is true
-// when none remains. tokens receives each census bench's write token.
-func (r *RoundsResourcePlanner) methodChoice(call context.Context, state ControlState, identity *c.Identity, goal store.StandardState, review store.Rounds, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], benchFilter []string, tokens map[string]string) (choice policy.ResourceMethod, noBench bool, err error) {
+// tokens receives each census bench's write token.
+func (r *RoundsResourcePlanner) methodChoice(call context.Context, state ControlState, identity *c.Identity, goal store.StandardState, review store.Rounds, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], tokens map[string]string) (choice policy.ResourceMethod, err error) {
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
 		seen = append(seen, method.Method)
 	}
 	census, _, err := r.native.ReadGearBenches(call, identity)
 	if err != nil {
-		return policy.ResourceMethod{}, false, err
-	}
-	allowed := map[string]bool{}
-	for _, id := range benchFilter {
-		allowed[id] = true
+		return policy.ResourceMethod{}, err
 	}
 	benches := make([]policy.GearBench, 0, len(census))
 	for _, row := range census {
-		if benchFilter != nil && !allowed[row.Bench.ID] {
-			continue
-		}
 		benches = append(benches, row.Bench)
 		tokens[row.Bench.ID] = row.Token
-	}
-	if benchFilter != nil && len(benches) == 0 {
-		return policy.ResourceMethod{}, true, nil
 	}
 	var supply []policy.Stock
 	if names := recipeIngredientNames(census, resource); len(names) > 0 {
 		if supply, _, err = r.native.ReadSupplyStock(call, identity, names); err != nil {
-			return policy.ResourceMethod{}, false, err
+			return policy.ResourceMethod{}, err
 		}
 	}
 	var runways []policy.ResourceRunway
@@ -290,20 +279,15 @@ func (r *RoundsResourcePlanner) methodChoice(call context.Context, state Control
 	}
 	request := policy.ResourceMethodRequest{Resource: resource, Target: target, Seen: seen, Benches: domain.Known(benches), Stock: supply, Runways: runways, CurrentStock: stock}
 	snap.NoteResourceMethod(call, request)
-	choice, err = policy.SelectResourceMethod(request)
-	return choice, false, err
+	return policy.SelectResourceMethod(request)
 }
 
-// dispatchResourceConcern is the bill tail of the beer reserve and of
-// MaintainAnimalFeed's feed: one (resource, absolute stock floor) pair is
-// produced at a bench (policy.SelectResourceMethod), or, for feed with no bill
-// that fits, mined from native sources (acquireFromSources). A non-nil
-// benchFilter restricts the bench/recipe path to those bench IDs (the caller's
-// delivery constraint: a bill's product drops at its bench); an empty set
-// refuses the production path outright rather than producing where the product
-// cannot be used. MaintainResource floors other than beer run on the Round's
-// supply plan (dispatchSupplied).
-func (r *RoundsResourcePlanner) dispatchResourceConcern(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], benchFilter []string, started time.Time, ingredients ...string) (RoundsResourceResult, error) {
+// dispatchResourceConcern is the bill tail of the beer reserve: one (resource,
+// absolute stock floor) pair is produced at a bench
+// (policy.SelectResourceMethod), or, with no bill that fits, mined from native
+// sources (acquireFromSources). MaintainResource floors other than beer run on
+// the Round's supply plan (dispatchSupplied).
+func (r *RoundsResourcePlanner) dispatchResourceConcern(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], started time.Time) (RoundsResourceResult, error) {
 	if result, handled, err := r.gearSpareStorage(call, identity, resource, target); err != nil || handled {
 		return result, err
 	}
@@ -323,15 +307,9 @@ func (r *RoundsResourcePlanner) dispatchResourceConcern(call, epoch context.Cont
 		return RoundsResourceResult{}, err
 	}
 	tokens := map[string]string{}
-	choice, noBench, err := r.methodChoice(call, state, identity, goal, review, resource, target, stock, benchFilter, tokens)
+	choice, err := r.methodChoice(call, state, identity, goal, review, resource, target, stock, tokens)
 	if err != nil {
 		return RoundsResourceResult{}, err
-	}
-	if noBench {
-		// No bench where the product would be usable: producing elsewhere
-		// only piles it up out of reach (#237). Lend a window so a bench
-		// built or an area widened meanwhile is seen next step.
-		return RoundsResourceResult{Verdict: awaitingPlan("feed_bench", "within_reach_of_animals"), NativeWorkTicks: stockWaitTicks}, nil
 	}
 	if choice.Kind != policy.ResourceMethodProduce {
 		if beer && choice.Kind == policy.ResourceMethodWait {
@@ -340,11 +318,11 @@ func (r *RoundsResourcePlanner) dispatchResourceConcern(call, epoch context.Cont
 		result, _, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, nil)
 		return result, err
 	}
-	return r.commitBill(call, epoch, state, goal, choice, tokens, beer, started, ingredients)
+	return r.commitBill(call, epoch, state, goal, choice, tokens, beer, started)
 }
 
 // commitBill commits the production-bill method of a chosen bench and recipe.
-func (r *RoundsResourcePlanner) commitBill(call, epoch context.Context, state ControlState, goal store.StandardState, choice policy.ResourceMethod, tokens map[string]string, beer bool, started time.Time, ingredients []string) (RoundsResourceResult, error) {
+func (r *RoundsResourcePlanner) commitBill(call, epoch context.Context, state ControlState, goal store.StandardState, choice policy.ResourceMethod, tokens map[string]string, beer bool, started time.Time) (RoundsResourceResult, error) {
 	p := r.reviewer.player
 	if _, ok := tokens[choice.Bench]; !ok {
 		return RoundsResourceResult{}, fmt.Errorf("%w: commitBill: !ok", ErrControl)
@@ -358,7 +336,7 @@ func (r *RoundsResourcePlanner) commitBill(call, epoch context.Context, state Co
 	if beer {
 		mode = domain.BeerReserve
 	}
-	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, mode, targetCount, ingredients...)
+	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, mode, targetCount)
 	if err != nil {
 		return RoundsResourceResult{}, err
 	}
@@ -411,7 +389,7 @@ func (r *RoundsResourcePlanner) dispatchSupplied(call, epoch context.Context, st
 	for _, e := range supply.plan.Opened(resource) {
 		switch e.Candidate.Kind {
 		case policy.CandidateProduce:
-			return r.commitBill(call, epoch, state, goal, row.choice, supply.tokens, false, started, nil)
+			return r.commitBill(call, epoch, state, goal, row.choice, supply.tokens, false, started)
 		case policy.CandidateMining:
 			selection := row.sel
 			selection.selected = nil

@@ -12,8 +12,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -26,40 +24,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 106,
-        "Z": 123
-       },
-       {
-        "X": 105,
-        "Z": 123
-       },
-       {
-        "X": 105,
-        "Z": 124
-       },
-       {
-        "X": 105,
-        "Z": 125
-       },
-       {
-        "X": 106,
-        "Z": 125
-       },
-       {
-        "X": 104,
-        "Z": 125
-       },
-       {
-        "X": 103,
-        "Z": 125
-       },
-       {
-        "X": 102,
-        "Z": 125
-       }
-      ],
       "SuitablePen": {
        "v": ""
       },
@@ -123,8 +87,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -137,40 +99,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 106,
-        "Z": 125
-       },
-       {
-        "X": 105,
-        "Z": 125
-       },
-       {
-        "X": 105,
-        "Z": 124
-       },
-       {
-        "X": 104,
-        "Z": 125
-       },
-       {
-        "X": 105,
-        "Z": 123
-       },
-       {
-        "X": 103,
-        "Z": 125
-       },
-       {
-        "X": 106,
-        "Z": 123
-       },
-       {
-        "X": 102,
-        "Z": 125
-       }
-      ],
       "SuitablePen": {
        "v": ""
       },
@@ -234,8 +162,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -248,40 +174,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 106,
-        "Z": 123
-       },
-       {
-        "X": 105,
-        "Z": 123
-       },
-       {
-        "X": 105,
-        "Z": 124
-       },
-       {
-        "X": 105,
-        "Z": 125
-       },
-       {
-        "X": 106,
-        "Z": 125
-       },
-       {
-        "X": 104,
-        "Z": 125
-       },
-       {
-        "X": 103,
-        "Z": 125
-       },
-       {
-        "X": 102,
-        "Z": 125
-       }
-      ],
       "SuitablePen": {
        "v": ""
       },
@@ -18191,19 +18083,6 @@
    "Rows": [
     {
      "Deficit": 1,
-     "Concern": "MaintainAnimalFeed",
-     "Labor": [
-      "Cooking",
-      "Hauling",
-      "Growing"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 100,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
      "Concern": "EnsureBasicDefense",
      "Labor": [
       "Construction"
@@ -18692,10 +18571,6 @@
     "Concern": "MaintainAnimalContainment"
    },
    {
-    "Standard": "routine-6f3c4c43cb7542a8-MaintainAnimalFeed",
-    "Concern": "MaintainAnimalFeed"
-   },
-   {
     "Standard": "routine-6f3c4c43cb7542a8-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -18872,15 +18747,6 @@
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainAnimalFeed",
-    "LastProgress": 15,
-    "Method": "assess",
-    "NextReview": 2515,
-    "Observed": 1
    }
   ],
   "ReadyWork": {
@@ -18984,16 +18850,6 @@
       "MaintainResource"
      ],
      "ID": "00eeaff2b4e70605",
-     "Reason": "no plan or proposal",
-     "Stage": "none",
-     "State": "no_method"
-    },
-    {
-     "Adapter": "migrated",
-     "Concerns": [
-      "MaintainAnimalFeed"
-     ],
-     "ID": "05c49f08687e42f4",
      "Reason": "no plan or proposal",
      "Stage": "none",
      "State": "no_method"

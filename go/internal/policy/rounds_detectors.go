@@ -783,14 +783,15 @@ func inspectPermits(c *roundsRun) error {
 func inspectHerd(c *roundsRun) error {
 	f := c.f
 	herd := f.HerdPolicy()
+	feedShort := HerdFeedShort(f.AnimalFeedRunway().Projection)
 	recovered := domain.Unknown[bool]()
-	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, f.AnimalUpkeep.WildAnimals, HerdFeedShort(c.animals), herd).Value(); known {
+	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, f.AnimalUpkeep.WildAnimals, feedShort, herd).Value(); known {
 		recovered = domain.Known(!deficit)
 	}
 	if choice := FoodSlaughterChoice(f.FoodPlan, f.AnimalUpkeep.Animals, herd); choice.Method == domain.HusbandrySlaughter {
 		recovered = domain.Known(false)
 	}
-	if choice := FoodTameChoice(f.FoodPlan, f.AnimalUpkeep.WildAnimals, HerdFeedShort(c.animals), f.WorkProfiles); choice.Method == domain.HusbandryTame {
+	if choice := FoodTameChoice(f.FoodPlan, f.AnimalUpkeep.WildAnimals, feedShort, f.WorkProfiles); choice.Method == domain.HusbandryTame {
 		recovered = domain.Known(false)
 	}
 	if choice := ReconcileHerdRemoval(f.AnimalUpkeep.Animals, herd, f.FoodPlan); choice.Method != "" {
@@ -854,8 +855,8 @@ func inspectPopulation(c *roundsRun) error {
 	return nil
 }
 
-// animalNeedDetector serves an animal upkeep goal. Both have composed
-// planners (RoundsAnimalContainmentPlanner, RoundsAnimalFeedPlanner);
+// animalNeedDetector serves an animal upkeep goal. It has a composed
+// planner (RoundsAnimalContainmentPlanner);
 // availability is gated through AvailableMethods. The deficit is
 // census-driven: any uncontained or unfed target is a
 // full deficit, so a known need ranks for a development slot.
@@ -889,17 +890,6 @@ var inspectAnimalContainment = animalInspection(MaintainAnimalContainment, func(
 	}
 	return recovered
 }, func(c *roundsRun) bool { return c.animals.History.Containment })
-
-var inspectAnimalFeed = animalInspection(MaintainAnimalFeed, func(c *roundsRun) domain.Fact[bool] {
-	recovered := domain.Unknown[bool]()
-	if targets, known := c.animals.Feed.Value(); known {
-		recovered = domain.Known(len(targets) == 0)
-	}
-	if need, known := HayNutritionNeed(c.f.PenGrazing, HarvestGapDays(c.f.Calendar, c.f.DisasterConditions)).Value(); known && need > 0 {
-		recovered = domain.Known(false)
-	}
-	return recovered
-}, func(*roundsRun) bool { return false })
 
 // detectBlight is census-driven: any standing blighted plant is a
 // full deficit; availability is gated through AvailableMethods.

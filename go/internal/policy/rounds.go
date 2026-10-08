@@ -834,7 +834,7 @@ func InspectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Round
 	if c.stone, err = ReviewStoneShell(owned, f.StoneStructures); err != nil {
 		return RoundsFindings{}, err
 	}
-	if c.animals, err = ReviewAnimalUpkeep(f.AnimalUpkeep, previous.Animals, p.FoodReserveDays); err != nil {
+	if c.animals, err = ReviewAnimalUpkeep(f.AnimalUpkeep, previous.Animals); err != nil {
 		return RoundsFindings{}, err
 	}
 	medicineFacts := f.MedicalReserve
@@ -1031,7 +1031,7 @@ func raisedAtStage(goals []DevelopmentConcern, f RoundsFacts, p RoundsPolicy, l 
 			allowed = allowed || known && d >= 1
 		case MaintainStoneShell:
 			allowed = allowed && !stonecuttingUnfinished(f.Research)
-		case MaintainAnimalContainment, MaintainAnimalFeed, MaintainHerd:
+		case MaintainAnimalContainment, MaintainHerd:
 			animals, known := f.AnimalUpkeep.Animals.Value()
 			allowed = allowed && !(known && len(animals) == 0)
 		}

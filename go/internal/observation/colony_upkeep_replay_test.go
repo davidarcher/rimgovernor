@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"math"
 	"os"
 	"reflect"
 	"testing"
@@ -35,8 +34,6 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		}
 		Animals *struct {
 			Containment []policy.PawnID
-			// Feed are the race groups whose herd feed reserve is short.
-			Feed []policy.AnimalFeedGroup
 		}
 		Medical map[string]struct {
 			Known, Active                     bool
@@ -86,17 +83,10 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		if !known || len(animals) < 3 {
 			t.Fatal("native animal fixture missing", animals)
 		}
-		got, err := policy.ReviewAnimalUpkeep(projection.Facts.AnimalUpkeep, policy.AnimalUpkeepHistory{}, policy.DefaultFoodReserveDays)
+		got, err := policy.ReviewAnimalUpkeep(projection.Facts.AnimalUpkeep, policy.AnimalUpkeepHistory{})
 		containment, ck := got.Containment.Value()
-		feed, fk := got.Feed.Value()
-		if err != nil || !ck || !fk || !reflect.DeepEqual(containment, fixture.Animals.Containment) || len(feed) != len(fixture.Animals.Feed) {
-			t.Fatal(got, fixture.Animals.Feed, err)
-		}
-		for i, row := range feed {
-			want := fixture.Animals.Feed[i]
-			if row.Definition != want.Definition || !reflect.DeepEqual(row.Animals, want.Animals) || math.Abs(row.DeficitNutrition-want.DeficitNutrition) > 1e-6 {
-				t.Fatal(row, want)
-			}
+		if err != nil || !ck || !reflect.DeepEqual(containment, fixture.Animals.Containment) {
+			t.Fatal(got, err)
 		}
 	}
 	if fixture.Sleeping != nil {
@@ -153,12 +143,8 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	}
 	if fixture.Animals != nil {
 		animalNeeds[policy.MaintainAnimalContainment] = domain.FindingMet
-		animalNeeds[policy.MaintainAnimalFeed] = domain.FindingMet
 		if len(fixture.Animals.Containment) > 0 {
 			animalNeeds[policy.MaintainAnimalContainment] = domain.FindingUnmet
-		}
-		if len(fixture.Animals.Feed) > 0 {
-			animalNeeds[policy.MaintainAnimalFeed] = domain.FindingUnmet
 		}
 	}
 	for i, binding := range active.Review.Standards {

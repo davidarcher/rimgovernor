@@ -91,7 +91,7 @@ func TestCampaignDeclaresStages(t *testing.T) {
 	if err := c.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"kitchen", "feed", "medicine", "cold"}; !reflect.DeepEqual(c.Stages, want) {
+	if want := []string{"kitchen", "medicine", "cold"}; !reflect.DeepEqual(c.Stages, want) {
 		t.Fatalf("stages = %v; want %v", c.Stages, want)
 	}
 }

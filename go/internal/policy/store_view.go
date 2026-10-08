@@ -52,9 +52,10 @@ type StoreView struct {
 	// Incinerator is the planned incinerator room once its walls and door
 	// stand (#1814); nil before. The Sanitation store declares its zone.
 	Incinerator *PlannedRoom
-	// AnimalFeed are the herds' feed stores wanted (AnimalFeedStores); the
-	// People animal store declares them.
-	AnimalFeed []AnimalFeedStore
+	// AnimalFeed is the herds' feed and the barn's sleeping spot shape; nil
+	// while either is unread. The People animal store declares the barn feed
+	// stockpiles from it.
+	AnimalFeed *AnimalFeedStore
 }
 
 // RoomDemand is the departments' signal to layout that stored goods outgrew

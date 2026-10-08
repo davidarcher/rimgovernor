@@ -174,7 +174,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 				}
 				reachRead = true
 			}
-			if row.choice, _, err = planner.methodChoice(call, state, identity, goal, review, resource, target.Target, stock, nil, out.tokens); err != nil {
+			if row.choice, err = planner.methodChoice(call, state, identity, goal, review, resource, target.Target, stock, out.tokens); err != nil {
 				return nil, err
 			}
 			row.sel, row.selKnown = planner.sourcesForDeficit(call, identity, resource, target.Target, stock, reach)

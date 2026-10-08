@@ -29,6 +29,9 @@ const (
 	// ShadowFuel is the fuel generators and empty barrels burn against stock
 	// (#2377).
 	ShadowFuel ShadowDomain = "fuel"
+	// ShadowAnimalFeed is the feed the herd eats against stock and pasture
+	// (#2379).
+	ShadowAnimalFeed ShadowDomain = "animal_feed"
 )
 
 // shadowDomains is the goal-to-domain table (David, #1913 comment; #2365).
@@ -36,7 +39,7 @@ const (
 // two domains scores the larger known shortfall; it is unranked only when
 // every domain is unknown.
 var shadowDomains = map[ConcernID][]ShadowDomain{
-	MaintainResource:        {ShadowFood, ShadowConstruction, ShadowFuel},
+	MaintainResource:        {ShadowFood, ShadowConstruction, ShadowFuel, ShadowAnimalFeed},
 	MaintainFoodStorage:     {ShadowFood},
 	MaintainRefrigeration:   {ShadowPower},
 	EnsureTemperatureSafety: {ShadowTemperature},
@@ -64,7 +67,8 @@ type ForwardObserved struct {
 func ForwardInputsOf(f RoundsFacts, p RoundsPolicy) ForwardInputs {
 	in := ForwardInputs{Power: f.Forward.Power, Sleeping: SleepingRange{Min: f.SleepingMin, Max: f.SleepingMax}, Conditions: f.DisasterConditions, Turrets: f.Forward.Turrets, Policy: p,
 		Construction: ConstructionInputs{Deficit: f.ConstructionDeficit, Admitted: f.Admitted, Stock: f.Resources, Items: f.Items},
-		Fuel:         FuelInputs{Consumers: f.Fuel, Stock: StockReader{Resources: f.Resources, Wood: f.Wood}}}
+		Fuel:         FuelInputs{Consumers: f.Fuel, Stock: StockReader{Resources: f.Resources, Wood: f.Wood}},
+		AnimalFeed:   f.animalFeedInputs()}
 	if supply, known := f.AnimalUpkeep.Food.Value(); known {
 		in.Food = supply
 	}
@@ -128,6 +132,10 @@ func shadowShortfall(p ForwardProjection, d ShadowDomain) (float64, string) {
 		}
 	case ShadowFuel:
 		if v, ok := p.Fuel.Value(); ok {
+			return v.ShortfallDays, ""
+		}
+	case ShadowAnimalFeed:
+		if v, ok := p.AnimalFeed.Value(); ok {
 			return v.ShortfallDays, ""
 		}
 	}

@@ -12,18 +12,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [
-       "Thing_ButcherSpot12960",
-       "Thing_Campfire12961"
-      ],
-      "ReachableStorage": [
-       {
-        "Accepts": [
-         "Meat_Muffalo"
-        ],
-        "Zone": "Zone_0"
-       }
-      ],
       "Release": {
        "v": false
       },
@@ -36,7 +24,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [],
       "SuitablePen": {
        "v": ""
       },
@@ -19715,19 +19702,6 @@
     },
     {
      "Deficit": 1,
-     "Concern": "MaintainAnimalFeed",
-     "Labor": [
-      "Cooking",
-      "Hauling",
-      "Growing"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 100,
-     "WaitingSince": 26565
-    },
-    {
-     "Deficit": 1,
      "Concern": "MaintainEquipment",
      "Labor": [
       "Construction",
@@ -20428,10 +20402,6 @@
     "Concern": "MaintainAnimalContainment"
    },
    {
-    "Standard": "routine-9745523394465785-MaintainAnimalFeed",
-    "Concern": "MaintainAnimalFeed"
-   },
-   {
     "Standard": "routine-9745523394465785-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -20616,15 +20586,6 @@
     "Method": "assess",
     "NextReview": 29065,
     "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainAnimalFeed",
-    "LastProgress": 26565,
-    "Method": "assess",
-    "NextReview": 29065,
-    "Observed": 1
    }
   ],
   "ReadyWork": {
@@ -20712,16 +20673,6 @@
       "MaintainCleanFacilities"
      ],
      "ID": "46f14486bfa7ac1f",
-     "Reason": "no plan or proposal",
-     "Stage": "none",
-     "State": "no_method"
-    },
-    {
-     "Adapter": "migrated",
-     "Concerns": [
-      "MaintainAnimalFeed"
-     ],
-     "ID": "4ddb6329206bc83e",
      "Reason": "no plan or proposal",
      "Stage": "none",
      "State": "no_method"

@@ -23,47 +23,6 @@ func planner(t *testing.T, path string) Planner {
 	return p
 }
 
-func animalFeed(t *testing.T, path string) policy.AnimalFeedMethod {
-	t.Helper()
-	p := planner(t, path)
-	if len(p.AnimalFeed) != 1 {
-		t.Fatalf("%s: %d feed selections recorded", path, len(p.AnimalFeed))
-	}
-	c := p.AnimalFeed[0]
-	m, err := policy.SelectAnimalFeedMethod(c.Group, c.Stocks, c.Have, kibbleRaces(c.Group))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if m.Reason != policy.AnimalFeedSelected || m.Resource != "Kibble" {
-		t.Fatalf("%s: %+v, want kibble selected", path, m)
-	}
-	return m
-}
-
-// upkeep/feed, tick 15: the kibble bill lands on the one bench inside the
-// confined pet's area.
-func TestPickFeedBillOnBenchInsidePetArea(t *testing.T) {
-	m := animalFeed(t, "testdata/planner-feed-confined.json")
-	if !reflect.DeepEqual(m.Benches, []string{"Thing_ButcherSpot44691"}) {
-		t.Errorf("benches %v, want the in-area butcher spot", m.Benches)
-	}
-}
-
-// upkeep/feed-delivered, ticks 15 and 18654: with no bench inside the
-// pet's area the planner first zones feed storage on the area's free
-// footprint, then, once that zone accepts kibble, bills any bench and
-// counts on hauling to deliver.
-func TestPickFeedZoneThenDelivery(t *testing.T) {
-	m := animalFeed(t, "testdata/planner-feed-delivered-unzoned.json")
-	if len(m.Benches) != 0 || m.Delivered || len(m.StorageCells) == 0 {
-		t.Errorf("unzoned %+v, want feed storage cells and no bench", m)
-	}
-	m = animalFeed(t, "testdata/planner-feed-delivered-zoned.json")
-	if len(m.Benches) != 0 || !m.Delivered {
-		t.Errorf("zoned %+v, want delivery", m)
-	}
-}
-
 // homeShrineCaskets replays the rounds's open targets for its one
 // Home shrine.
 func homeShrineCaskets(t *testing.T, path string) (policy.AncientShrine, []policy.ShrineCasket) {
@@ -123,10 +82,4 @@ func TestPickSalvageHoldAndResume(t *testing.T) {
 			t.Errorf("%s: %+v, want hold %q", step.file, e, step.hold)
 		}
 	}
-}
-
-// kibbleRaces is the catalog the recordings predate: the group race eats
-// kibble, which a bench makes.
-func kibbleRaces(group policy.AnimalFeedGroup) policy.AnimalRaceCatalog {
-	return policy.AnimalRaceCatalog{Races: map[policy.Resource]policy.AnimalRace{group.Definition: {Def: group.Definition, FeedItems: []policy.RaceFeedItem{{Def: "Kibble", Nutrition: 0.05}}}}}
 }

@@ -15,8 +15,6 @@
       "Pen": {
        "v": "Thing_PenMarker13687"
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -29,40 +27,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 117,
-        "Z": 72
-       },
-       {
-        "X": 117,
-        "Z": 73
-       },
-       {
-        "X": 118,
-        "Z": 72
-       },
-       {
-        "X": 117,
-        "Z": 71
-       },
-       {
-        "X": 116,
-        "Z": 72
-       },
-       {
-        "X": 117,
-        "Z": 74
-       },
-       {
-        "X": 118,
-        "Z": 73
-       },
-       {
-        "X": 116,
-        "Z": 73
-       }
-      ],
       "SuitablePen": {
        "v": "Thing_PenMarker13687"
       },
@@ -129,8 +93,6 @@
       "Pen": {
        "v": "Thing_PenMarker13687"
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -143,40 +105,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 117,
-        "Z": 73
-       },
-       {
-        "X": 117,
-        "Z": 74
-       },
-       {
-        "X": 118,
-        "Z": 73
-       },
-       {
-        "X": 117,
-        "Z": 72
-       },
-       {
-        "X": 116,
-        "Z": 73
-       },
-       {
-        "X": 117,
-        "Z": 75
-       },
-       {
-        "X": 118,
-        "Z": 74
-       },
-       {
-        "X": 116,
-        "Z": 74
-       }
-      ],
       "SuitablePen": {
        "v": "Thing_PenMarker13687"
       },
@@ -243,8 +171,6 @@
       "Pen": {
        "v": "Thing_PenMarker13687"
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": true
       },
@@ -257,40 +183,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 117,
-        "Z": 75
-       },
-       {
-        "X": 117,
-        "Z": 76
-       },
-       {
-        "X": 118,
-        "Z": 75
-       },
-       {
-        "X": 117,
-        "Z": 74
-       },
-       {
-        "X": 116,
-        "Z": 75
-       },
-       {
-        "X": 117,
-        "Z": 77
-       },
-       {
-        "X": 118,
-        "Z": 76
-       },
-       {
-        "X": 116,
-        "Z": 76
-       }
-      ],
       "SuitablePen": {
        "v": "Thing_PenMarker13687"
       },
@@ -354,8 +246,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -368,40 +258,6 @@
       "Slaughter": {
        "v": true
       },
-      "StorageCandidates": [
-       {
-        "X": 117,
-        "Z": 76
-       },
-       {
-        "X": 117,
-        "Z": 77
-       },
-       {
-        "X": 118,
-        "Z": 76
-       },
-       {
-        "X": 117,
-        "Z": 75
-       },
-       {
-        "X": 116,
-        "Z": 76
-       },
-       {
-        "X": 117,
-        "Z": 78
-       },
-       {
-        "X": 118,
-        "Z": 77
-       },
-       {
-        "X": 116,
-        "Z": 77
-       }
-      ],
       "SuitablePen": {
        "v": ""
       },
@@ -465,8 +321,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -479,40 +333,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [
-       {
-        "X": 117,
-        "Z": 77
-       },
-       {
-        "X": 117,
-        "Z": 78
-       },
-       {
-        "X": 118,
-        "Z": 77
-       },
-       {
-        "X": 117,
-        "Z": 76
-       },
-       {
-        "X": 116,
-        "Z": 77
-       },
-       {
-        "X": 118,
-        "Z": 78
-       },
-       {
-        "X": 116,
-        "Z": 78
-       },
-       {
-        "X": 119,
-        "Z": 77
-       }
-      ],
       "SuitablePen": {
        "v": ""
       },
@@ -34606,10 +34426,6 @@
    {
     "Standard": "routine-6cb69ccfa0314397-MaintainAnimalContainment",
     "Concern": "MaintainAnimalContainment"
-   },
-   {
-    "Standard": "routine-6cb69ccfa0314397-MaintainAnimalFeed",
-    "Concern": "MaintainAnimalFeed"
    },
    {
     "Standard": "routine-6cb69ccfa0314397-RemoveBlight",

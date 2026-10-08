@@ -12,8 +12,6 @@
       "Pen": {
        "v": ""
       },
-      "ReachableBenches": [],
-      "ReachableStorage": [],
       "Release": {
        "v": false
       },
@@ -26,7 +24,6 @@
       "Slaughter": {
        "v": false
       },
-      "StorageCandidates": [],
       "SuitablePen": {
        "v": ""
       },
@@ -6408,19 +6405,6 @@
    },
    "Rows": [
     {
-     "Deficit": 1,
-     "Concern": "MaintainAnimalFeed",
-     "Labor": [
-      "Cooking",
-      "Hauling",
-      "Growing"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 109.634,
-     "WaitingSince": 21
-    },
-    {
      "Committed": true,
      "Deficit": 1,
      "Concern": "TradeWithCaravan",
@@ -6927,10 +6911,6 @@
     "Concern": "MaintainAnimalContainment"
    },
    {
-    "Standard": "routine-683ea481d4e8bb6d-MaintainAnimalFeed",
-    "Concern": "MaintainAnimalFeed"
-   },
-   {
     "Standard": "routine-683ea481d4e8bb6d-RemoveBlight",
     "Concern": "RemoveBlight"
    },
@@ -7181,21 +7161,6 @@
     "LastProgress": 9655,
     "Method": "assess",
     "NextReview": 12155
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 12155
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Concern": "MaintainAnimalFeed",
-    "LastProgress": 9655,
-    "Method": "assess",
-    "NextReview": 12155,
-    "Observed": 1
    }
   ],
   "ReadyWork": {
@@ -7278,16 +7243,6 @@
       "EnsureComfort"
      ],
      "ID": "3a65b072b354a9ec",
-     "Reason": "no plan or proposal",
-     "Stage": "none",
-     "State": "no_method"
-    },
-    {
-     "Adapter": "migrated",
-     "Concerns": [
-      "MaintainAnimalFeed"
-     ],
-     "ID": "3de61cefcead8cd5",
      "Reason": "no plan or proposal",
      "Stage": "none",
      "State": "no_method"

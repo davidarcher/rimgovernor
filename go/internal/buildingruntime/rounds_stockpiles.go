@@ -69,7 +69,7 @@ func stockpileWorld(s domain.GenerationSnapshot) string {
 // storage-empty flag is false holds things) and the colony's stockpile
 // claims, their settings superseded by the latest patch of each; the
 // registered roles judge on the projection and benches.
-func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool], inputs []policy.BenchInput, gear *policy.GearStore, protected []domain.Cell, feed []policy.AnimalFeedStore) policy.StockpileRequest {
+func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool], inputs []policy.BenchInput, gear *policy.GearStore, protected []domain.Cell, feed *policy.AnimalFeedStore) policy.StockpileRequest {
 	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Cells: projection.Cells, Bounds: projection.Bounds, Protected: protected}
 	for _, module := range []policy.PlannedRole{policy.PlannedStorage, policy.PlannedArmory, policy.PlannedWardrobe, policy.PlannedYard} {
 		if _, owed := plannedRoomOwed(*projection, module); owed {
@@ -171,7 +171,7 @@ func (r *Rounder) stockpileRequest(ctx context.Context, snapshot domain.Generati
 	if err != nil {
 		return policy.StockpileRequest{}, "", err
 	}
-	request := stockpileRequest(projection, owned, patches, domain.Known(benches), benchInputs(census, projection), gear, protected, r.animalFeedStores(projection))
+	request := stockpileRequest(projection, owned, patches, domain.Known(benches), benchInputs(census, projection), gear, protected, r.animalFeedStore(projection))
 	for _, z := range request.Zones {
 		shelves, _, err := zoneShelves(ctx, r.player.journal, zoneGoal[z.ID], z.ID, projection.Facts.CurrentConstruction)
 		if err != nil {
@@ -497,18 +497,22 @@ func stockpileEditDecision(verdict, reason, target string, attrs map[string]any)
 	return telemetry.Decision{Kind: "layout_edit", Component: "layout", Verdict: verdict, Reason: reason, Target: target, Attrs: attrs}
 }
 
-// animalFeedStores are the feed stores the herds lack, from the animals' observed
-// reachable ground (the one fact the plan cannot give): the short race groups
-// of the animal upkeep review, unknown reading as none.
-func (r *Rounder) animalFeedStores(projection *observation.ColonyProjection) []policy.AnimalFeedStore {
+// animalFeedStore is the herds' feed and the barn's sleeping spot shape the
+// People animal store declares the barn feed stockpiles from; nil while the
+// animal census, the race catalog or the spot's size is unread.
+func (r *Rounder) animalFeedStore(projection *observation.ColonyProjection) *policy.AnimalFeedStore {
 	upkeep := projection.Facts.AnimalUpkeep
-	if plan, known := projection.Facts.FoodPlan.Value(); known {
-		upkeep.Forecast = domain.Known(plan.Forecast)
-	}
-	reviewed, err := policy.ReviewAnimalUpkeep(upkeep, policy.AnimalUpkeepHistory{}, r.policy.FoodReserveDays)
-	if err != nil {
+	animals, known := upkeep.Animals.Value()
+	if !known {
 		return nil
 	}
-	groups, _ := reviewed.Feed.Value()
-	return policy.AnimalFeedStores(groups, upkeep.AnimalRaces)
+	furniture, usable, err := herdFurniture(*projection)
+	if err != nil || !usable {
+		return nil
+	}
+	feed := policy.AnimalFeedFilterOf(animals, upkeep.AnimalRaces)
+	if len(feed) == 0 {
+		return nil
+	}
+	return &policy.AnimalFeedStore{Feed: feed, Spot: furniture.Spot}
 }

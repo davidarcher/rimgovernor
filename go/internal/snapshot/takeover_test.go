@@ -67,12 +67,6 @@ func TestTakeoverScheduleEditOpensWorkAssignments(t *testing.T) {
 	}
 }
 
-// takeover/suspended-bill, tick 15: the player's suspended kibble bill leaves
-// the pet unfed; Auto opens MaintainAnimalFeed with a method available.
-func TestTakeoverSuspendedBillOpensAnimalFeed(t *testing.T) {
-	deficit(t, load(t, "testdata/takeover-suspended-kibble-bill.json"), policy.MaintainAnimalFeed)
-}
-
 // takeover/herd-removal, ticks 32 and 6693: standing Manual release and
 // slaughter flags on animals the breeding pair keeps are cancelled, release first.
 func TestTakeoverHerdRemovalFlagsAreCancelled(t *testing.T) {

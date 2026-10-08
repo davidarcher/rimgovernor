@@ -95,5 +95,4 @@ var (
 	Dialog              = define("dialog")
 	Trade               = define("trade")
 	Resource            = define("resource")
-	AnimalFeed          = define("animal-feed")
 )

@@ -28,7 +28,6 @@ func TestRoundsCapabilitiesDeclareSelectedGoals(t *testing.T) {
 		{"genebank", policy.MaintainGeneBank},
 		{"comfort", policy.EnsureComfort},
 		{"expansion", policy.MaintainHousing},
-		{"animal-feed", policy.MaintainAnimalFeed},
 		{"medical", policy.MaintainMedicalReserves},
 		{"home-coverage", policy.MaintainHomeCoverage},
 		{"stone-shell", policy.MaintainStoneShell},

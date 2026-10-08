@@ -398,33 +398,26 @@ The vet room is outside animal areas (animals enter when carried or via the bot-
   (`policy.CompanionMaster`) with a solo bedroom gets one `AnimalSleepingSpot` per animal
   (`policy.NextCompanionBed`, one per review). Pasture rotation is not built.
 
-`MaintainAnimalFeed` keeps a standing herd feed reserve: per race group the target is
-`FoodReserveDays` (5) times the group's nutrition per day, the stock is the unheld edible
-stock every animal of the group can eat, and a group below target is a deficit sized by the
-missing nutrition (`policy.ReviewAnimalFeedReserve`). No per-animal trigger, hysteresis or
-latch. Stock several races can eat counts toward each. Missing census, demand or access
-evidence leaves the review unknown. Pasture and future production earn no credit.
-`HerdFeedShort`, which gates taming, is true while any group has a deficit. Explicit player
-herd targets (including cancelled ones) retain feed ownership.
+The animal feed runway (#2379, `policy.PlanAnimalFeedRunway`) replaces the old
+`MaintainAnimalFeed` reserve. It is a forward-projector domain beside the fuel runway: per
+race group the consumption is the sum of the food forecast's `NutritionPerDay`, the pens'
+worst-quadrum pasture (per pen the lesser of demand and pasture, shared between groups in
+proportion to consumption) offsets it, and the unheld edible stock every animal of the
+group can eat covers the rest for a runway of days against `ProjectionHorizonDays`. A
+shorter runway demands the items the missing nutrition takes (the stock's lowest-defName
+item, else the cheapest `FeedItems` a bench makes) as a `MaintainResource` stock level,
+merged into the Rounder's construction memory like the fuel needs; kibble and hay are made
+on any bench and the old bench-reachability and delivery-fallback constraints are gone.
+Missing animals, pens, stock or forecast leave the projection unknown, never defaulted. A
+short group no item feeds is listed in `Gaps`. `HerdFeedShort`, which gates taming, is
+true while the projection is short. Explicit player herd targets are untouched. Herd growth
+from known events is not projected (a new conception stays reactive).
 
-- Feed is non-human food plus the kibble food-type flag, excluding drugs and corpses; at most
-  eight resources go through the shared source/bill method, falling back to the kibble bill
-  when no covering feed is reachable.
-- A bill drops its product at its bench. The census names per animal reachable benches
-  (`reachable_benches`), stockpile zones with accepted edibles (`reachable_storage`) and a
-  connected free roofed footprint for a zone (`storage_candidates`). The bill lands on a bench
-  every covered animal reaches (any bench if a zone accepting the feed is reachable by all);
-  otherwise the method first zones a feed-only important-priority stockpile on the shared
-  footprint, then bills. With no bench, zone or footprint production is refused for a bounded
-  window. A recipe slot accepting several ingredients uses the cheapest in stock.
-- Adequate bills are reused; player restrictions stay authoritative; diets, animal areas,
-  breeding and removal settings never change. Adequate stock with insufficient access or rot
-  runway is a staging blocker, not more bills. Receipts prove neither access nor ingestion.
-- Both animal concerns are admitted by the `animal-feed` / `animal-containment` capability and
-  rank like other optional concerns. A kibble bill completes once native places it; while the
-  deficit persists the planner asks for bounded 2,500-tick clock windows so the clock is not
-  refused as `no_work`. Feed acceptance verifies reachable feed after the bounded recovery
-  wait; produced items alone prove nothing.
+Each planned barn declares one small Important feed stockpile (`FeedStoreWidth` x
+`FeedStoreHeight`, filtered to the races' feed items and hay) in its free floor beside the
+sleeping spots (`animalOwner`); animals with no barn use the warehouse or freezer. The
+`reachable_benches`, `reachable_storage` and `storage_candidates` census fields are no
+longer read.
 
 ### Food storage and refrigeration
 

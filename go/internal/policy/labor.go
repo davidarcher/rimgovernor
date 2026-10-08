@@ -62,9 +62,6 @@ func ConcernLabor(id ConcernID) LaborProfile {
 		return LaborProfile{WorkCleaning, WorkBasic}
 	case MaintainHerd:
 		return LaborProfile{WorkHandling}
-	case MaintainAnimalFeed:
-		// Feed uses cooking/hauling for bills and growing for hay fields.
-		return LaborProfile{WorkCooking, WorkHauling, WorkGrowing}
 	case MaintainBabyFeeding:
 		return LaborProfile{WorkCooking}
 	case MaintainFireSafety:

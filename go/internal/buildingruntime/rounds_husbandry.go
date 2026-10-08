@@ -87,13 +87,9 @@ func (r *RoundsHusbandryPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	upkeep := read.Projection.Facts.AnimalUpkeep
 	animals := upkeep.Animals
-	// The tame fallback is gated on the same feed review
-	// RoundsAnimalFeedPlanner plans from, so a herd already short of feed
-	// never takes on another mouth.
-	reviewed, err := policy.ReviewAnimalUpkeep(upkeep, review.Latches.Animals, r.reviewer.policy.FoodReserveDays)
-	if err != nil {
-		return RoundsHusbandryResult{}, err
-	}
+	// The tame fallback is gated on the animal feed runway, so a herd already
+	// short of feed never takes on another mouth.
+	feedShort := policy.HerdFeedShort(read.Projection.Facts.AnimalFeedRunway().Projection)
 	handlers := domain.Unknown[[]policy.PawnProfile]()
 	if pawns, known := read.Projection.WorkPawns.Value(); known {
 		handlers = domain.Known(policy.Profiles(pawns))
@@ -109,13 +105,13 @@ func (r *RoundsHusbandryPlanner) step(call, epoch context.Context, arbiter *step
 		choice = policy.ReconcileHerdRemoval(animals, herd, read.Projection.Facts.FoodPlan)
 	}
 	if choice.Reason == policy.HusbandryNoDeficit {
-		choice = policy.SelectHusbandryMethod(animals, upkeep.WildAnimals, policy.HerdFeedShort(reviewed), herd, handlers)
+		choice = policy.SelectHusbandryMethod(animals, upkeep.WildAnimals, feedShort, herd, handlers)
 	}
 	if choice.Reason == policy.HusbandryNoDeficit {
 		choice = policy.FoodSlaughterChoice(read.Projection.Facts.FoodPlan, animals, herd)
 	}
 	if choice.Reason == policy.HusbandryNoDeficit {
-		choice = policy.FoodTameChoice(read.Projection.Facts.FoodPlan, upkeep.WildAnimals, policy.HerdFeedShort(reviewed), handlers)
+		choice = policy.FoodTameChoice(read.Projection.Facts.FoodPlan, upkeep.WildAnimals, feedShort, handlers)
 	}
 	if choice.Reason == policy.HusbandryNoDeficit {
 		choice = policy.PrioritizeSlaughterChoice(animals, handlers)

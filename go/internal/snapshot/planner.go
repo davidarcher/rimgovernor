@@ -27,8 +27,6 @@ type Planner struct {
 	Excavation []policy.ExcavationSiteRequest
 	// Sites is every native excavation site read, in order.
 	Sites []ExcavationRead
-	// AnimalFeed is every policy.SelectAnimalFeedMethod call.
-	AnimalFeed []AnimalFeedCall
 	// ShrineSquads is every shrine defender read, in order.
 	ShrineSquads [][]policy.ShrineDefenderFacts
 	// ShrineReadiness is every policy.ShrineBreachReadiness request.
@@ -86,7 +84,7 @@ func StartPlanner(ctx context.Context, goal policy.ConcernID) (context.Context, 
 		rec.mu.Lock()
 		defer rec.mu.Unlock()
 		p := rec.p
-		if len(p.Excavation)+len(p.Sites)+len(p.AnimalFeed)+len(p.ShrineSquads)+len(p.ShrineReadiness)+
+		if len(p.Excavation)+len(p.Sites)+len(p.ShrineSquads)+len(p.ShrineReadiness)+
 			len(p.ResourceMethods)+len(p.Workshops)+len(p.GearMethods)+len(p.Research) == 0 {
 			return nil
 		}
@@ -121,19 +119,6 @@ func NoteSite(ctx context.Context, purpose string, target policy.ExcavationTarge
 	recorder(ctx).add(func(p *Planner) {
 		p.Sites = append(p.Sites, ExcavationRead{Purpose: purpose, Target: target, Cells: append([]domain.Cell(nil), cells...), Site: site})
 	})
-}
-
-// AnimalFeedCall is one policy.SelectAnimalFeedMethod call's inputs.
-type AnimalFeedCall struct {
-	Group  policy.AnimalFeedGroup
-	Stocks []policy.FoodStock
-	Have   map[policy.Resource]int64
-	Races  policy.AnimalRaceCatalog
-}
-
-// NoteAnimalFeed records an animal feed method selection's inputs.
-func NoteAnimalFeed(ctx context.Context, c AnimalFeedCall) {
-	recorder(ctx).add(func(p *Planner) { p.AnimalFeed = append(p.AnimalFeed, c) })
 }
 
 // NoteShrineSquad records a shrine defender read.

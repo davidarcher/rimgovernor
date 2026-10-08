@@ -44,7 +44,7 @@ func roundsUpkeepIssued(ctx context.Context, tx *sql.Tx, current domain.Generati
 		}
 		// Invalidated methods keep their original goal binding while new routine
 		// goals replace the current review. Their unresolved effects still count.
-		for _, need := range []policy.ConcernID{policy.ClearHomeObstructions, policy.MaintainFireSafety, policy.MaintainEssentialRepairs, policy.MaintainCleanFacilities, policy.MaintainMedicalReserves, policy.MaintainFoodStorage, policy.MaintainAnimalContainment, policy.MaintainAnimalFeed, policy.MaintainHousing, policy.MaintainHomeCoverage, policy.MaintainStoneShell} {
+		for _, need := range []policy.ConcernID{policy.ClearHomeObstructions, policy.MaintainFireSafety, policy.MaintainEssentialRepairs, policy.MaintainCleanFacilities, policy.MaintainMedicalReserves, policy.MaintainFoodStorage, policy.MaintainAnimalContainment, policy.MaintainHousing, policy.MaintainHomeCoverage, policy.MaintainStoneShell} {
 			if roundsStandardOwns(goal, need) {
 				result[need] = true
 			}

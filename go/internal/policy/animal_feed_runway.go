@@ -1,0 +1,280 @@
+package policy
+
+import (
+	"math"
+	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
+
+// Animal feed runway (#2379, epic #1856). Each race group of the kept herd
+// eats NutritionPerDay (the food forecast's per-animal rate); the pasture of
+// the pens feeds part of it and the unheld stock every animal of the group can
+// eat the rest. The runway is that stock over the net daily consumption,
+// against ProjectionHorizonDays. The shortfall is a forward-projector domain
+// and the feed to stock ahead of it is a MaintainResource level in the
+// Rounder's construction memory, like FuelRunway. Unknown consumption, pasture,
+// stock or feed leaves the projection unknown, never defaulted. Herd growth
+// from known events (#2379 part 2) is not in it: a new conception stays
+// reactive.
+
+// AnimalFeedInputs are what the animal feed runway is computed from.
+type AnimalFeedInputs struct {
+	Animals  domain.Fact[[]UpkeepAnimal]
+	Directed []Resource
+	Food     domain.Fact[FoodSupply]
+	Forecast domain.Fact[FoodForecast]
+	// Pens are the pens' worst-season pasture rates (PenGrazing).
+	Pens  domain.Fact[[]PenGrazing]
+	Races AnimalRaceCatalog
+	Stock StockReader
+}
+
+// AnimalFeedGroupRunway is one race group's runway. NutritionPerDay is the
+// group's consumption, PasturePerDay the share of the pens' pasture it is
+// credited (in proportion to its consumption), StockNutrition the unheld
+// edible stock all its animals can eat. Feed is the item demanded when the
+// group is short ("" when it is not, or no item feeds the race), Need the
+// level of it to hold and Short the items missing from the stock of it.
+type AnimalFeedGroupRunway struct {
+	Definition                                     Resource
+	Animals                                        []PawnID
+	NutritionPerDay, PasturePerDay, StockNutrition float64
+	ShortfallDays                                  float64
+	Feed                                           Resource
+	Need, Short                                    int64
+}
+
+// AnimalFeedProjection is the animal feed domain of the forward projection.
+// ShortfallDays is the largest group shortfall. Gaps lists the race groups
+// that are short and that no item feeds.
+type AnimalFeedProjection struct {
+	Groups        []AnimalFeedGroupRunway
+	ShortfallDays float64
+	Gaps          []Resource
+}
+
+// Short reports a group the stock and pasture do not carry over the horizon.
+func (p AnimalFeedProjection) Short() bool { return p.ShortfallDays > 0 }
+
+// AnimalFeedRunway is the review's animal feed runway: Needs the stock levels
+// MaintainResource must reach, the projection beside them.
+type AnimalFeedRunway struct {
+	Needs      map[Resource]int64
+	Projection domain.Fact[AnimalFeedProjection]
+}
+
+func unknownFeedRunway() AnimalFeedRunway {
+	return AnimalFeedRunway{Projection: domain.Unknown[AnimalFeedProjection]()}
+}
+
+// feedEligible are the animals the herd feed covers: not marked for release or
+// slaughter and not of a directed herd. Unknown when an animal's removal flags
+// are.
+func feedEligible(animals []UpkeepAnimal, directed []Resource) ([]UpkeepAnimal, bool) {
+	skip := map[Resource]bool{}
+	for _, race := range directed {
+		skip[race] = true
+	}
+	var out []UpkeepAnimal
+	for _, a := range animals {
+		release, rk := a.Release.Value()
+		slaughter, sk := a.Slaughter.Value()
+		if !rk || !sk {
+			return nil, false
+		}
+		if !release && !slaughter && !skip[a.Definition] {
+			out = append(out, a)
+		}
+	}
+	return out, true
+}
+
+// feedItem is the item a short group is fed with: the lowest (defName, id)
+// stock every animal of it can eat, else the cheapest item a recipe makes that
+// its race can eat. known is false for a race the catalog lacks; ok false when
+// nothing feeds it.
+func feedItem(g *AnimalFeedGroupRunway, stocks []FoodStock, races AnimalRaceCatalog) (item Resource, perItem float64, ok, known bool) {
+	var bestID string
+	found := false
+	for _, s := range stocks {
+		if !groupEats(s, g.Animals) {
+			continue
+		}
+		count, _ := s.Count.Value()
+		nutrition, _ := s.Nutrition.Value()
+		if !found || s.DefName < item || (s.DefName == item && s.ID < bestID) {
+			item, bestID, perItem, found = s.DefName, s.ID, nutrition/float64(count), true
+		}
+	}
+	if found {
+		return item, perItem, true, true
+	}
+	race, in := races.Race(g.Definition)
+	if !in {
+		return "", 0, false, false
+	}
+	for _, f := range race.FeedItems {
+		if !validResource(f.Def) || !foodNumber(f.Nutrition) || f.Nutrition <= 0 {
+			return "", 0, false, false
+		}
+		if !found || f.Nutrition < perItem || (f.Nutrition == perItem && f.Def < item) {
+			item, perItem, found = f.Def, f.Nutrition, true
+		}
+	}
+	return item, perItem, found, true
+}
+
+// PlanAnimalFeedRunway rolls every race group of the herd forward over
+// ProjectionHorizonDays: the group eats its animals' NutritionPerDay less its
+// share of the pens' pasture, the stock every animal of it can eat covers the
+// rest for a runway of days, and a shorter runway demands the items of the
+// feed (the stock's, else the cheapest producible) the horizon's missing
+// nutrition takes, as an absolute stock level counted only where the stock
+// falls short. A short group no item feeds is listed in Gaps.
+func PlanAnimalFeedRunway(in AnimalFeedInputs) AnimalFeedRunway {
+	animals, known := in.Animals.Value()
+	if !known {
+		return unknownFeedRunway()
+	}
+	eligible, known := feedEligible(animals, in.Directed)
+	if !known {
+		return unknownFeedRunway()
+	}
+	if len(eligible) == 0 {
+		return AnimalFeedRunway{Projection: domain.Known(AnimalFeedProjection{})}
+	}
+	supply, known := in.Food.Value()
+	pens, pk := in.Pens.Value()
+	if !known || !pk {
+		return unknownFeedRunway()
+	}
+	forecast, reviewed := in.Forecast.Value()
+	if !reviewed {
+		ids := make([]PawnID, len(eligible))
+		for i, a := range eligible {
+			ids[i] = a.ID
+		}
+		var err error
+		if forecast, err = ForecastFood(supply, ids); err != nil {
+			return unknownFeedRunway()
+		}
+	}
+	perDay := map[PawnID]float64{}
+	for _, row := range forecast.Consumers {
+		perDay[row.ID] = row.NutritionPerDay
+	}
+	pasture := 0.0
+	for _, p := range pens {
+		d, dk := p.DemandPerDay.Value()
+		y, yk := p.PasturePerDay.Value()
+		if !dk || !yk || !foodNumber(d) || !foodNumber(y) {
+			return unknownFeedRunway()
+		}
+		pasture += math.Min(d, y)
+	}
+	byRace := map[Resource]*AnimalFeedGroupRunway{}
+	total := 0.0
+	for _, a := range eligible {
+		need, exists := perDay[a.ID]
+		if !exists || !foodNumber(need) {
+			return unknownFeedRunway()
+		}
+		g := byRace[a.Definition]
+		if g == nil {
+			g = &AnimalFeedGroupRunway{Definition: a.Definition}
+			byRace[a.Definition] = g
+		}
+		g.Animals = append(g.Animals, a.ID)
+		g.NutritionPerDay += need
+		total += need
+	}
+	out := AnimalFeedRunway{}
+	projection := AnimalFeedProjection{}
+	for _, g := range byRace {
+		sort.Slice(g.Animals, func(i, j int) bool { return g.Animals[i] < g.Animals[j] })
+		for _, stock := range supply.Stocks {
+			if groupEats(stock, g.Animals) {
+				nutrition, _ := stock.Nutrition.Value()
+				g.StockNutrition += nutrition
+			}
+		}
+		if total > 0 {
+			g.PasturePerDay = math.Min(g.NutritionPerDay, pasture*g.NutritionPerDay/total)
+		}
+		if !foodNumber(g.StockNutrition) || !foodNumber(g.NutritionPerDay) {
+			return unknownFeedRunway()
+		}
+		net := g.NutritionPerDay - g.PasturePerDay
+		if net > 0 {
+			missing := net*ProjectionHorizonDays - g.StockNutrition
+			if missing > 0 {
+				g.ShortfallDays = math.Min(ProjectionHorizonDays, ProjectionHorizonDays-g.StockNutrition/net)
+				item, perItem, ok, known := feedItem(g, supply.Stocks, in.Races)
+				if !known {
+					return unknownFeedRunway()
+				}
+				if !ok {
+					projection.Gaps = append(projection.Gaps, g.Definition)
+				} else {
+					have, hk := in.Stock.Count(item).Value()
+					if !hk {
+						return unknownFeedRunway()
+					}
+					g.Feed, g.Short = item, int64(math.Ceil(missing/perItem))
+					g.Need = min(have+g.Short, maxResourceTarget)
+					if out.Needs == nil {
+						out.Needs = map[Resource]int64{}
+					}
+					out.Needs[item] = max(out.Needs[item], g.Need)
+				}
+			}
+		}
+		projection.ShortfallDays = math.Max(projection.ShortfallDays, g.ShortfallDays)
+		projection.Groups = append(projection.Groups, *g)
+	}
+	sort.Slice(projection.Groups, func(i, j int) bool { return projection.Groups[i].Definition < projection.Groups[j].Definition })
+	sort.Slice(projection.Gaps, func(i, j int) bool { return projection.Gaps[i] < projection.Gaps[j] })
+	out.Projection = domain.Known(projection)
+	return out
+}
+
+// AnimalFeedRunway is PlanAnimalFeedRunway of the review's facts: the herd's
+// food forecast is the food plan's when it is read.
+func (f RoundsFacts) AnimalFeedRunway() AnimalFeedRunway {
+	return PlanAnimalFeedRunway(f.animalFeedInputs())
+}
+
+func (f RoundsFacts) animalFeedInputs() AnimalFeedInputs {
+	u := f.AnimalUpkeep
+	in := AnimalFeedInputs{Animals: u.Animals, Directed: u.DirectedHerds, Food: u.Food, Forecast: u.Forecast, Pens: f.PenGrazing, Races: u.AnimalRaces,
+		Stock: StockReader{Resources: f.Resources, Wood: f.Wood}}
+	if plan, known := f.FoodPlan.Value(); known {
+		in.Forecast = domain.Known(plan.Forecast)
+	}
+	return in
+}
+
+// groupEats reports unheld stock with positive known count and nutrition
+// that every one of the animals can eat.
+func groupEats(s FoodStock, animals []PawnID) bool {
+	holder, hk := s.Holder.Value()
+	if !hk || holder != "" || s.DefName == "" || !validResource(s.DefName) {
+		return false
+	}
+	count, ck := s.Count.Value()
+	nutrition, nk := s.Nutrition.Value()
+	if !ck || count <= 0 || !nk || !foodNumber(nutrition) || nutrition <= 0 {
+		return false
+	}
+	eaters := map[PawnID]bool{}
+	for _, e := range s.Eaters {
+		eaters[e] = true
+	}
+	for _, id := range animals {
+		if !eaters[id] {
+			return false
+		}
+	}
+	return true
+}

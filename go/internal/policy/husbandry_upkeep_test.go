@@ -188,23 +188,20 @@ func TestSelectHusbandryMethodTameWaitsForFeed(t *testing.T) {
 	if choice := SelectHusbandryMethod(domain.Known([]UpkeepAnimal{untrained}), wild, unknown, herd, anyTamer); choice.Method != domain.HusbandryTrain {
 		t.Fatal("training precedes the feed-gated tame fallback", choice)
 	}
-	// The gate reads MaintainAnimalFeed's own review.
-	if v, known := HerdFeedShort(feedReviewWith(nil)).Value(); !known || v {
+	// The gate reads the animal feed runway.
+	if v, known := HerdFeedShort(feedReviewWith(0)).Value(); !known || v {
 		t.Fatal("an empty feed target list opens the gate")
 	}
-	if v, known := HerdFeedShort(feedReviewWith([]AnimalFeedGroup{{Definition: "Muffalo"}})).Value(); !known || !v {
+	if v, known := HerdFeedShort(feedReviewWith(2)).Value(); !known || !v {
 		t.Fatal("a feed target closes the gate")
 	}
-	if _, known := HerdFeedShort(AnimalUpkeepReview{}).Value(); known {
+	if _, known := HerdFeedShort(domain.Unknown[AnimalFeedProjection]()).Value(); known {
 		t.Fatal("an unknown feed review leaves the gate unknown")
 	}
 }
 
-func feedReviewWith(targets []AnimalFeedGroup) AnimalUpkeepReview {
-	if targets == nil {
-		targets = []AnimalFeedGroup{}
-	}
-	return AnimalUpkeepReview{Feed: domain.Known(targets)}
+func feedReviewWith(shortfallDays float64) domain.Fact[AnimalFeedProjection] {
+	return domain.Known(AnimalFeedProjection{ShortfallDays: shortfallDays})
 }
 
 func TestSelectHusbandryMethodTameNeedsAHandlerAtTheMinimum(t *testing.T) {

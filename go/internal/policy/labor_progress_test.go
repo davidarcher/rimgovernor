@@ -7,14 +7,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Pending MaintainIncineration and MaintainAnimalFeed commitments, neither worked,
+// Pending MaintainIncineration and a feed-like commitments, neither worked,
 // while pawns haul for a third goal (one of them the very thing type the
 // supplies haul names, at another thing): the hauls are not evidence of work
 // on either commitment, which record an idle age but keep their commitments.
 // A haul that turns to the supplies thing is attributed activity; an older producer without job targets keeps the work-type rule
 // (#643).
 func TestUnrelatedHaulingIsNotEvidenceForCommitments(t *testing.T) {
-	s := newDevelopmentSim(t, 2, simGoal("supplies", 0.5, ConcernLabor(MaintainIncineration)), simGoal("feed", 0.5, ConcernLabor(MaintainAnimalFeed)), simGoal("storage", 0.9, ConcernLabor(ManagePollution)))
+	s := newDevelopmentSim(t, 2, simGoal("supplies", 0.5, ConcernLabor(MaintainIncineration)), simGoal("feed", 0.5, LaborProfile{WorkCooking, WorkHauling, WorkGrowing}), simGoal("storage", 0.9, ConcernLabor(ManagePollution)))
 	s.tick = 5000
 	haul, err := domain.NewHaul("pawn-a", "Thing_Steel1", "Steel", domain.Cell{X: 4, Z: 4})
 	if err != nil {
@@ -27,7 +27,7 @@ func TestUnrelatedHaulingIsNotEvidenceForCommitments(t *testing.T) {
 	supplies := s.commitment("supplies", 4, true)
 	supplies.Labor, supplies.Targets = ConcernLabor(MaintainIncineration), ActionWorkTargets(haulAction)
 	feed := s.commitment("feed", 4, true)
-	feed.Labor, feed.Targets = ConcernLabor(MaintainAnimalFeed), domain.Known(WorkTargets{Things: []string{"Thing_Stove1"}})
+	feed.Labor, feed.Targets = LaborProfile{WorkCooking, WorkHauling, WorkGrowing}, domain.Known(WorkTargets{Things: []string{"Thing_Stove1"}})
 	hauler := func(id PawnID, thing string) WorkPawn {
 		job := PawnJob{Def: "HaulToCell", Work: WorkHauling, Target: domain.Known(JobTarget{Thing: thing, Cell: domain.Known(domain.Cell{X: 9, Z: 9})})}
 		return WorkPawn{ID: id, Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]WorkPriority{{Work: WorkHauling, Priority: 3}, {Work: WorkCooking, Priority: 3}}), Job: domain.Known(job)}

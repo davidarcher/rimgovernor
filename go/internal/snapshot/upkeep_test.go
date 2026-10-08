@@ -80,18 +80,6 @@ func TestReplayMedicalReserveReplenished(t *testing.T) {
 	transition(t, "testdata/upkeep-medicine-short.json", "testdata/upkeep-medicine-stocked.json", policy.MaintainMedicalReserves)
 }
 
-// upkeep/feed, ticks 16740 and 23296: a pet confined away from the stock
-// opens MaintainAnimalFeed, closed once reachable kibble exists.
-func TestReplayConfinedPetFed(t *testing.T) {
-	transition(t, "testdata/upkeep-feed-hungry.json", "testdata/upkeep-feed-fed.json", policy.MaintainAnimalFeed)
-}
-
-// upkeep/feed-delivered, ticks 23939 and 30848: the confined pet with no
-// bench inside its area stays unfed until kibble is delivered into it.
-func TestReplayConfinedPetFedByDelivery(t *testing.T) {
-	transition(t, "testdata/upkeep-feed-delivered-hungry.json", "testdata/upkeep-feed-delivered-fed.json", policy.MaintainAnimalFeed)
-}
-
 // upkeep/sleeping, ticks 40346 and 40501: one bed fewer than colonists
 // keeps MaintainHousing open until every colonist sleeps in an owned bed.
 func TestReplayMissingBedBuiltAndOwned(t *testing.T) {

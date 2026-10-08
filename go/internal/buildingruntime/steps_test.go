@@ -27,15 +27,6 @@ func (r *RoundsAnimalContainmentPlanner) Step(ctx context.Context) (RoundsAnimal
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoundsAnimalFeedPlanner) Step(ctx context.Context) (RoundsResourceResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
-	if err != nil {
-		return RoundsResourceResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
-
 func (r *RoundsWorkPlanner) Step(ctx context.Context) (RoundsWorkResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {

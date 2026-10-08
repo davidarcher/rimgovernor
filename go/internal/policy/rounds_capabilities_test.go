@@ -59,7 +59,7 @@ func TestRoundsDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 // native read. RecoverDisasterServices is only assessed once a disaster
 // history exists, so it needs an explicit recognition.
 func TestRoundsComposedCapabilitiesValidateOnEmptyFacts(t *testing.T) {
-	all := []ConcernID{EnsureFoodSupply, MaintainFoodStorage, MaintainResource, EnsureCooking, EnsureTemperatureSafety, EnsureBasicPower, EnsureComfort, MaintainHousing, MaintainAnimalContainment, MaintainEssentialRepairs, MaintainCleanFacilities, MaintainIncineration, RecoverDisasterServices, MaintainHerd, MaintainPopulation, MaintainHomeCoverage, MaintainStoneShell, EnsureResearch, MaintainAnimalFeed, RemoveBlight}
+	all := []ConcernID{EnsureFoodSupply, MaintainFoodStorage, MaintainResource, EnsureCooking, EnsureTemperatureSafety, EnsureBasicPower, EnsureComfort, MaintainHousing, MaintainAnimalContainment, MaintainEssentialRepairs, MaintainCleanFacilities, MaintainIncineration, RecoverDisasterServices, MaintainHerd, MaintainPopulation, MaintainHomeCoverage, MaintainStoneShell, EnsureResearch, RemoveBlight}
 	if _, err := InspectRounds(RoundsFacts{AvailableMethods: domain.Known(all)}, RoundsLatches{}, DefaultRoundsPolicy()); err != nil {
 		t.Fatal(err)
 	}
@@ -105,20 +105,20 @@ func TestRoundsAnimalNeedsRankWhenTheirMethodIsDeclared(t *testing.T) {
 	// A census that knows of no tame animal raises no animal goal; this one
 	// does not know.
 	f.AnimalUpkeep.Animals = domain.Unknown[[]UpkeepAnimal]()
-	f.UpkeepIssued = map[ConcernID]bool{MaintainAnimalFeed: true, MaintainAnimalContainment: true}
+	f.UpkeepIssued = map[ConcernID]bool{MaintainAnimalContainment: true}
 	for _, declared := range []bool{true, false} {
 		f.AvailableMethods = domain.Known([]ConcernID{})
 		if declared {
-			f.AvailableMethods = domain.Known([]ConcernID{MaintainAnimalFeed, MaintainAnimalContainment})
+			f.AvailableMethods = domain.Known([]ConcernID{MaintainAnimalContainment})
 		}
 		request := developmentFixture()
 		request.Concerns = needs(t, f, RoundsLatches{}).Concerns
 		got := selected(rank(t, request))
-		if declared != (len(got) == 2) {
+		if declared != (len(got) == 1) {
 			t.Fatalf("declared=%v selected=%v", declared, got)
 		}
 		for _, g := range request.Concerns {
-			if (g.ID == MaintainAnimalFeed || g.ID == MaintainAnimalContainment) && g.MethodUnavailable == declared {
+			if g.ID == MaintainAnimalContainment && g.MethodUnavailable == declared {
 				t.Fatalf("declared=%v goal=%+v", declared, g)
 			}
 		}
