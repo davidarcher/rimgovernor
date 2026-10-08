@@ -223,7 +223,9 @@ func combatStopRecord(view policy.CombatView, orders []policy.CombatOrder, resul
 		if results != nil {
 			row.Applied, row.Refusal = results[i].Applied, results[i].Refusal
 		}
-		if !row.Applied && results != nil && order.Kind == policy.OrderMortarFire {
+		if !row.Applied && results != nil && order.Kind == policy.OrderDoor && row.Refusal == bridge.CombatRefusalNotADoor {
+			memory = memory.RefuseDoor(order.Cell)
+		} else if !row.Applied && results != nil && order.Kind == policy.OrderMortarFire {
 			memory = memory.RefuseFire(order, row.Refusal == bridge.CombatRefusalNoShell || row.Refusal == bridge.CombatRefusalUnknownShell)
 		} else if !row.Applied && results != nil && order.Pawn != "" {
 			if policy.AnimalOrderKind(order.Kind) {

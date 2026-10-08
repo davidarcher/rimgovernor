@@ -26,6 +26,40 @@ func doorOrder(orders []CombatOrder) (CombatOrder, bool) {
 	return CombatOrder{}, false
 }
 
+func TestCombatDoorDestroyedBetweenStops(t *testing.T) {
+	view := doorView(5)
+	_, memory := decideStop(t, view, StopEvent{}, CombatMemory{})
+	if memory.PotshotDoor == nil {
+		t.Fatal("fixture has no potshot door")
+	}
+	// The saved layout and earlier stop still refer to the door; the
+	// current room boundary has lost it after destruction.
+	view.Rooms[0].Doors = nil
+	for _, tick := range []domain.Tick{160, 220, 280} {
+		view.Tick = tick
+		var orders []CombatOrder
+		orders, memory = decideStop(t, view, StopEvent{}, memory)
+		if order, ok := doorOrder(orders); ok {
+			t.Fatalf("missing door ordered at %d: %+v", tick, order)
+		}
+		if memory.PotshotDoor != nil {
+			t.Fatal("missing door retained")
+		}
+	}
+}
+
+func TestCombatDoorRefusalRetiresSelection(t *testing.T) {
+	cell := domain.Cell{X: 15, Z: 19}
+	memory := CombatMemory{PotshotDoor: &PodDoor{Cell: cell, Mode: DoorHoldOpen}, PodDoors: []PodDoor{{Cell: cell}}, WaitDoors: []PodDoor{{Cell: cell}}}
+	got := memory.RefuseDoor(cell)
+	if got.PotshotDoor != nil || len(got.PodDoors) != 0 || len(got.WaitDoors) != 0 {
+		t.Fatalf("retained refused door: %+v", got)
+	}
+	if memory.PotshotDoor == nil || len(memory.PodDoors) != 1 {
+		t.Fatal("mutated input memory")
+	}
+}
+
 // {pack beyond 3 cells of the door} -> two gunners on the cells just
 // inside it, attacking, and the door held open.
 func TestDecideCombatManhunterDoorPotshot(t *testing.T) {

@@ -276,8 +276,9 @@ func outward(in Rectangle, door domain.Cell) (domain.Cell, bool) {
 
 // podDoorOrders are the door orders the pods tactic (and the manhunter
 // potshot door, #900) has not sent yet.
-func podDoorOrders(m *CombatMemory) []CombatOrder {
+func podDoorOrders(view CombatView, m *CombatMemory) []CombatOrder {
 	var out []CombatOrder
+	m.PodDoors = slices.DeleteFunc(m.PodDoors, func(d PodDoor) bool { return !combatDoorExists(view, d.Cell) })
 	send := func(d *PodDoor) {
 		if !d.Sent {
 			out = append(out, CombatOrder{Kind: OrderDoor, Cell: d.Cell, Door: d.Mode, Reason: ReasonFormation})
@@ -294,6 +295,18 @@ func podDoorOrders(m *CombatMemory) []CombatOrder {
 		send(m.PotshotDoor)
 	}
 	return out
+}
+
+// RefuseDoor retires an unapplied door selection. A later selection must
+// come from a new native room observation rather than this retained order.
+func (m CombatMemory) RefuseDoor(cell domain.Cell) CombatMemory {
+	m = m.clone()
+	m.PodDoors = slices.DeleteFunc(m.PodDoors, func(d PodDoor) bool { return d.Cell == cell })
+	m.WaitDoors = slices.DeleteFunc(m.WaitDoors, func(d PodDoor) bool { return d.Cell == cell })
+	if m.PotshotDoor != nil && m.PotshotDoor.Cell == cell {
+		m.PotshotDoor = nil
+	}
+	return m
 }
 
 // keepSent is want with each door already sent in the same mode marked

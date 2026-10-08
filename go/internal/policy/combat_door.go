@@ -45,6 +45,15 @@ func doorPotshot(view CombatView, formed bool, m *CombatMemory) {
 	if door == nil {
 		return
 	}
+	if !combatDoorExists(view, door.Cell) {
+		m.PotshotDoor = nil
+		for i := range m.Roles {
+			if m.Roles[i].Duty == DutyDoorway {
+				m.Roles[i].Target = ""
+			}
+		}
+		return
+	}
 	near := hostileDistance(view, door.Cell)
 	mode := door.Mode
 	switch {
@@ -67,6 +76,14 @@ func doorPotshot(view CombatView, formed bool, m *CombatMemory) {
 			}
 		}
 	}
+}
+
+// combatDoorExists uses the current native room boundary, never the saved
+// layout or a door retained by an earlier combat stop.
+func combatDoorExists(view CombatView, cell domain.Cell) bool {
+	return slices.ContainsFunc(view.Rooms, func(room CombatRoom) bool {
+		return slices.Contains(room.Doors, cell)
+	})
 }
 
 // provokedPrey is a live prey that turned manhunter or is hunting a

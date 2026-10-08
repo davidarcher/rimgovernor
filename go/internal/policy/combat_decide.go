@@ -227,7 +227,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	// A psycaster casts its ready combat psycast (#1611), one per caster.
 	orders = append(orders, castCalls(view, &next)...)
 	// The rescue's orders (#867) lead; a door order names no pawn to issue.
-	orders = append(append(rescue, podDoorOrders(&next)...), orders...)
+	orders = append(append(rescue, podDoorOrders(view, &next)...), orders...)
 	// The colony animals' orders (#1058) name no drafted pawn.
 	orders = append(orders, animalStep(view, &next)...)
 	for _, o := range orders {
