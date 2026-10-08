@@ -5,14 +5,119 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
+
+const subdueMethodPrefix = "combat-subdue-"
+
+// Subdue uses its guarded melee actions, while the fight owns injury stops
+// and cleanup. Cancel before stopping: uncertain dispatches still reconcile,
+// and a later worker step cannot issue an attack after the interruption.
+func (r *RoundsDefensePlanner) reconcileSubdueFight(call, epoch context.Context, incident store.IncidentState, state ControlState) (RoundsDefenseResult, bool, error) {
+	p := r.reviewer.player
+	for _, method := range incident.Methods {
+		if !strings.HasPrefix(string(method.Method), subdueMethodPrefix) {
+			continue
+		}
+		fight, found, err := p.journal.LoadCombatFight(call, method.Plan)
+		if err != nil || !found || !fight.Open {
+			if err != nil {
+				return RoundsDefenseResult{}, true, err
+			}
+			continue
+		}
+		plan, err := p.journal.LoadPlan(call, method.Plan)
+		if err != nil {
+			return RoundsDefenseResult{}, true, err
+		}
+		combat, err := r.native.ReadCombat(call, boundary.Identity(state.Snapshot))
+		if err != nil {
+			return RoundsDefenseResult{}, true, err
+		}
+		if _, err = boundary.Context(combat.Context, state.Snapshot); err != nil || combat.Emergency.Facts.ColonistsComplete != domain.Known(true) {
+			return RoundsDefenseResult{}, true, fmt.Errorf("%w: subdue needs a complete current census", ErrControl)
+		}
+		participants := map[domain.PawnID]bool{}
+		active := false
+		for _, progress := range plan.Progress {
+			if subdue, ok := progress.Action().Subdue(); ok {
+				participants[subdue.Pawn()], participants[subdue.Target()] = true, true
+				if progress.View().Stage != domain.Cancelled && progress.View().Stage != domain.Unsuccessful {
+					for _, pawn := range combat.Emergency.Facts.Colonists {
+						active = active || domain.PawnID(pawn.ID) == subdue.Target() && policy.AggressiveBreak(pawn)
+					}
+				}
+			}
+		}
+		stop := policy.StopEvent{}
+		// Inspect every new injury, including one followed by another event in
+		// the same frame; the target is a colonist too.
+		for _, event := range combat.Events {
+			if event.GetAt().GetTick() > int64(fight.Memory.Tick) && participants[domain.PawnID(event.GetThingId())] && (event.GetStop() == k.CombatEvent_COMBAT_EVENT_SERIOUS_INJURY || event.GetStop() == k.CombatEvent_COMBAT_EVENT_DOWNED) {
+				stop = policy.StopEvent{Kind: policy.CombatStopKind(strings.ToLower(strings.TrimPrefix(event.GetStop().String(), "COMBAT_EVENT_"))), Pawn: domain.PawnID(event.GetThingId())}
+				active = false
+			}
+		}
+		result := RoundsDefenseResult{Verdict: BuildingReasonExistingWork, Plan: method.Plan}
+		if active {
+			return result, true, nil
+		}
+		if err = p.current(call, epoch); err != nil || p.session.State() != state {
+			return result, true, fmt.Errorf("%w: subdue cleanup authority changed: %v", ErrControl, err)
+		}
+		unresolved := false
+		for _, progress := range plan.Progress {
+			v := progress.View()
+			unresolved = unresolved || v.Unresolved
+			if v.Stage == domain.Cancelled || v.Stage == domain.Unsuccessful || v.Stage == domain.Completed && progress.Action().Kind() != domain.SubdueAction {
+				continue
+			}
+			if _, err = p.journal.Cancel(call, method.Plan, v.Action); err != nil {
+				return result, true, err
+			}
+		}
+		var orders []policy.CombatOrder
+		for _, action := range plan.Spec.Actions() {
+			if draft, ok := action.OwnedDraft(); ok && fight.Roster[draft.Pawn()] {
+				orders = append(orders, policy.CombatOrder{Pawn: draft.Pawn(), Kind: policy.OrderStop})
+			}
+		}
+		results, _, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-subdue-stop-%d", method.Plan, combat.Context.GetTick()), nil, orders)
+		if err != nil {
+			return result, true, err
+		}
+		if results == nil {
+			return result, true, nil
+		}
+		record := store.CombatStopRecord{Tick: domain.Tick(combat.Context.GetTick()), Stop: stop}
+		confirmed := true
+		for i, order := range orders {
+			record.Orders = append(record.Orders, store.CombatOrderRecord{CombatOrder: order, Applied: results[i].Applied, Refusal: results[i].Refusal})
+			confirmed = confirmed && (results[i].Applied || results[i].Refusal == bridge.CombatRefusalNotDrafted || results[i].Refusal == bridge.CombatRefusalNotFound)
+		}
+		if len(record.Orders) > 0 {
+			if err = p.journal.RecordCombatStop(call, method.Plan, record, fight.Memory); err != nil {
+				return result, true, err
+			}
+		}
+		if confirmed && !unresolved {
+			if err = p.journal.CloseCombatFight(call, method.Plan); err != nil {
+				return result, true, err
+			}
+		}
+		return result, true, nil
+	}
+	return RoundsDefenseResult{}, false, nil
+}
 
 // breakMelee is whether the pawn's primary is a melee weapon; unarmed is
 // known false, an unresolved primary unknown.
@@ -32,10 +137,27 @@ func hasAggressiveBreak(f policy.EmergencyFacts) bool {
 	return false
 }
 
-func (r *RoundsDefensePlanner) planBreak(call, epoch context.Context, incident store.IncidentState, state ControlState, started time.Time, arbiter *stepArbiter, f policy.EmergencyFacts, rows map[string]*n.PawnState) (RoundsDefenseResult, error) {
+func (r *RoundsDefensePlanner) planBreak(call, epoch context.Context, incident store.IncidentState, state ControlState, started time.Time, arbiter *stepArbiter, tick domain.Tick, f policy.EmergencyFacts, rows map[string]*n.PawnState) (RoundsDefenseResult, error) {
 	var targets []policy.EmergencyPawn
+	// A cancelled response must not immediately start attacking the same pawn
+	// again. Its incident keeps this history until the aggressive break clears.
+	interrupted := map[policy.PawnID]bool{}
+	for _, method := range incident.Methods {
+		if !strings.HasPrefix(string(method.Method), subdueMethodPrefix) {
+			continue
+		}
+		plan, err := r.reviewer.player.journal.LoadPlan(call, method.Plan)
+		if err != nil {
+			return RoundsDefenseResult{}, err
+		}
+		for _, progress := range plan.Progress {
+			if subdue, ok := progress.Action().Subdue(); ok && (progress.View().Stage == domain.Cancelled || progress.View().Stage == domain.Unsuccessful) {
+				interrupted[policy.PawnID(subdue.Target())] = true
+			}
+		}
+	}
 	for _, p := range f.Colonists {
-		if policy.AggressiveBreak(p) {
+		if policy.AggressiveBreak(p) && !interrupted[p.ID] {
 			targets = append(targets, p)
 		}
 	}
@@ -82,7 +204,7 @@ func (r *RoundsDefensePlanner) planBreak(call, epoch context.Context, incident s
 		return RoundsDefenseResult{Verdict: waitFor(WaitMethodUsed, "break_pawn_claim")}, nil
 	}
 	fmt.Fprintf(h, "%s/%v", victim, chosen)
-	method, id := defenseMethodID("subdue", len(incident.Methods), h), domain.MintPlanID()
+	method, id := defenseMethodID("combat-subdue", len(incident.Methods), h), domain.MintPlanID()
 	for i, pawn := range chosen {
 		draftID := domain.ActionID(fmt.Sprintf("%s-d%d", id, i))
 		d, err := domain.NewOwnedDraft(pawn)
@@ -115,7 +237,7 @@ func (r *RoundsDefensePlanner) planBreak(call, epoch context.Context, incident s
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoundsDefenseResult{}, fmt.Errorf("%w: planBreak: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
+	if _, err = p.journal.CommitCombatFight(call, incident.Incident.ID, method, plan, policy.CombatMemory{Tick: tick}, playerWorld(state.Snapshot), chosen); err != nil {
 		return RoundsDefenseResult{}, err
 	}
 	return RoundsDefenseResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

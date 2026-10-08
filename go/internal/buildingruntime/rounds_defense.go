@@ -67,6 +67,11 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoundsDefenseResult{}, err
 	}
+	if found {
+		if result, handled, err := r.reconcileSubdueFight(call, epoch, incident, state); handled || err != nil {
+			return result, err
+		}
+	}
 	if found && need == domain.SituationClear {
 		// The raid ended before every action was issued: a squad draft the
 		// worker prepared but never dispatched, and the moves and attacks
@@ -148,7 +153,7 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 		return RoundsDefenseResult{}, err
 	}
 	emergency, rows := combat.Emergency, in.rows
-	if result, err := r.planBreak(call, epoch, incident, state, started, arbiter, emergency.Facts, rows); err != nil || !result.Verdict.IsZero() {
+	if result, err := r.planBreak(call, epoch, incident, state, started, arbiter, domain.Tick(combat.Context.GetTick()), emergency.Facts, rows); err != nil || !result.Verdict.IsZero() {
 		return result, err
 	}
 	var orderable []domain.PawnID

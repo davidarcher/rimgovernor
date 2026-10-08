@@ -45,6 +45,14 @@ the raiders giving up. Real raids do. Read fixture resolution times with that in
 
 ## What the planner should take from this
 
+An aggressive mental break's subdue response is an owned combat fight. Its
+actions retain native's guarded blunt melee and never finish a downed colonist.
+An injury or downing of the target or a responder cancels the response and
+stops its responders. Uncertain dispatched actions reconcile before the fight
+closes and draft cleanup releases claims. A cancelled response cannot attack
+the same target again in that incident. Injury stops preserve Auto while the
+fight owns the response; the health pause thresholds are unchanged.
+
 - Cover and spacing are scored with the hit formula above; `combat.geometry` already asks the game for cover
   and line of fire rather than reimplementing it. More such reads (hit chance per candidate cell, best
   target per pawn, path cost to the nearest colonist) are the way to borrow more, not a Go port.
