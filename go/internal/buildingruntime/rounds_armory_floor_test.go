@@ -48,7 +48,7 @@ func armoryArmorRecipe(t *testing.T, plasteelFloor int64) string {
 	reviewer, db, _, _, native := roundsFixture(t)
 	reviewer.policy.Stage.Floor = policy.StageDevelopment
 	if plasteelFloor > 0 {
-		reviewer.policy.ResourceTargets = map[policy.Resource]int64{"Plasteel": plasteelFloor}
+		native.setFloors(map[policy.Resource]int64{"Plasteel": plasteelFloor})
 	}
 	observed := native.reply.GetObserved()
 	setGearProductionNeed(observed)

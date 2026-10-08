@@ -129,13 +129,11 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoundsResourceResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	// The stone-block floor only names its block once the census is read
-	// below; a configured floor keeps the step alive until then.
-	targets, err := r.reviewer.resourceTargets(call, state.Snapshot, domain.Unknown[[]policy.Amount]())
+	targets, err := r.reviewer.resourceTargets(call, state.Snapshot)
 	if err != nil {
 		return RoundsResourceResult{}, err
 	}
-	if len(targets) == 0 && !r.reviewer.policy.ResourceConcernConfigured() {
+	if len(targets) == 0 {
 		return RoundsResourceResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	review, err := p.journal.LoadRounds(call)
@@ -188,7 +186,7 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 	if result, handled, err := r.deepDrill(call, epoch, state, goal, review, started); err != nil || handled {
 		return result, err
 	}
-	if targets, err = r.reviewer.resourceTargets(call, state.Snapshot, stock); err != nil {
+	if targets, err = r.reviewer.resourceTargets(call, state.Snapshot); err != nil {
 		return RoundsResourceResult{}, err
 	}
 	supply, err := r.reviewer.resourceSupply(call, state, review, goal)
@@ -232,24 +230,6 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 	return *first, nil
 }
 
-// gearSpareStorage refuses a gear-spare resource whose accepting storage is
-// blocked (spares need somewhere to land); handled is true when it did.
-func (r *RoundsResourcePlanner) gearSpareStorage(call context.Context, identity *c.Identity, resource policy.Resource, target int64) (RoundsResourceResult, bool, error) {
-	if r.reviewer.policy.GearSpareTargets[resource] <= 0 {
-		return RoundsResourceResult{}, false, nil
-	}
-	_, storage, _, err := r.native.ReadResourceSources(call, identity, string(resource))
-	if err != nil {
-		return RoundsResourceResult{}, false, err
-	}
-	if _, _, blocked, err := policy.SelectStockpileCapacity(max(0, target-storage.Stored), storage); err != nil {
-		return RoundsResourceResult{}, false, err
-	} else if blocked {
-		return RoundsResourceResult{Verdict: noSpace("gear_spares_storage")}, true, nil
-	}
-	return RoundsResourceResult{}, false, nil
-}
-
 // methodChoice reads the bench census and the recipes' ingredient stock and
 // selects the bill that would produce resource (policy.SelectResourceMethod).
 // tokens receives each census bench's write token.
@@ -284,9 +264,6 @@ func (r *RoundsResourcePlanner) methodChoice(call context.Context, state Control
 // sources (acquireFromSources). MaintainResource floors other than beer run on
 // the Round's supply plan (dispatchSupplied).
 func (r *RoundsResourcePlanner) dispatchResourceConcern(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], started time.Time) (RoundsResourceResult, error) {
-	if result, handled, err := r.gearSpareStorage(call, identity, resource, target); err != nil || handled {
-		return result, err
-	}
 	beer := resource == "Beer"
 	if beer {
 		items, err := r.reviewer.itemFacts(call, state.Snapshot)
@@ -374,9 +351,6 @@ func (r *RoundsResourcePlanner) dispatchSupplied(call, epoch context.Context, st
 	row := supply.rows[resource]
 	if row == nil {
 		return RoundsResourceResult{Verdict: noResourceSource(resource)}, nil
-	}
-	if result, handled, err := r.gearSpareStorage(call, identity, resource, row.target); err != nil || handled {
-		return result, err
 	}
 	if !row.selKnown && row.choice.Kind != policy.ResourceMethodProduce {
 		return RoundsResourceResult{Verdict: noResourceSource(resource)}, nil

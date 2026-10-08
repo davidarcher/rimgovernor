@@ -344,10 +344,7 @@ func inspectResource(c *roundsRun) error {
 	// MaintainResource.
 	construction := ConstructionDemandOf(f, p, l)
 	stock := StockReader{f.Resources, f.Wood}
-	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceConcernTargets(f.ResourceNeeds, construction))
-	if err != nil {
-		return err
-	}
+	resourceTargets := ResourceConcernTargets(f.ResourceNeeds, construction)
 	c.r.ResourceTargets = resourceTargets
 	resourceRecovered, resourceDeficit := ResourceTargetNeed(resourceTargets, stock.Census(resourceTargets))
 	for _, runway := range f.ResourceRunways {
@@ -388,8 +385,8 @@ func inspectResource(c *roundsRun) error {
 // could make do not stand the goal (#1255).
 func inspectTrade(c *roundsRun) error {
 	f, p := c.f, c.p
-	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(f.Items.Currency, c.medicine, f.Resources, p.ResourceTargets, RoundsTradeFloors(p, nil), f.Wealth, p.Trade, RoundsTradeFood(f, p)), f.Resources, f.Colonists), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
-	tradeNeed = FavorGoldNeed(tradeNeed, f.Traders, f.Resources, p.ResourceTargets, RoundsTradeFloors(p, nil), p.Trade)
+	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(f.Items.Currency, c.medicine, f.Resources, f.ResourceNeeds, RoundsTradeFloors(p, nil), f.Wealth, p.Trade, RoundsTradeFood(f, p)), f.Resources, f.Colonists), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
+	tradeNeed = FavorGoldNeed(tradeNeed, f.Traders, f.Resources, f.ResourceNeeds, RoundsTradeFloors(p, nil), p.Trade)
 	short, _ := RoundsSilverShort(f, p, c.medicine.Active).Value()
 	tradeNeed = FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(short))
 	c.assess(TradeWithCaravan, 3, TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity()))))

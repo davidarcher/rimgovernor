@@ -60,8 +60,8 @@ func TestResourceTargetNeedUsesWorstCoveredTarget(t *testing.T) {
 func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 	p := DefaultRoundsPolicy()
 	p.ResearchLadder = []string{"Stonecutting"}
-	p.ResourceTargets = map[Resource]int64{"Steel": 100}
 	f := stableRounds()
+	f.ResourceNeeds = map[Resource]int64{"Steel": 100}
 	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Stonecutting"}})
 	f.Resources = domain.Known([]Amount{{Resource: "Steel", Count: 40}})
 	r, err := InspectRounds(f, RoundsLatches{}, p)
@@ -108,8 +108,8 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 // it; once the project is finished the resource goal competes again.
 func TestResourceGoalYieldsItsSlotToRecordedResearch(t *testing.T) {
 	p := DefaultRoundsPolicy()
-	p.ResourceTargets = map[Resource]int64{"MeleeWeapon_Gladius": 1}
 	f := stableRounds()
+	f.ResourceNeeds = map[Resource]int64{"MeleeWeapon_Gladius": 1}
 	f.ResearchNeeds = []string{"Smithing"}
 	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Smithing"}})
 	f.Resources = domain.Known([]Amount{})

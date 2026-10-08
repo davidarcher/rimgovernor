@@ -141,8 +141,7 @@ func TestRemoteLootReleasesWithoutDemand(t *testing.T) {
 
 func TestLootDemandAndReachFromFacts(t *testing.T) {
 	p := DefaultRoundsPolicy()
-	p.ResourceTargets = map[Resource]int64{"Steel": 300}
-	f := RoundsFacts{Resources: domain.Known([]Amount{{Resource: "Steel", Count: 120}, {Resource: "WoodLog", Count: 500}})}
+	f := RoundsFacts{Resources: domain.Known([]Amount{{Resource: "Steel", Count: 120}, {Resource: "WoodLog", Count: 500}}), ResourceNeeds: map[Resource]int64{"Steel": 300}}
 	short, err := recoveryShortResources(p, f)
 	if err != nil || len(short) != 1 || !short["Steel"] {
 		t.Fatal(short, err)

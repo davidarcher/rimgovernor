@@ -1206,11 +1206,10 @@ func (m *constructionMemory) get(snapshot domain.GenerationSnapshot) map[policy.
 	return m.needs
 }
 
-// resourceTargets is the operator's MaintainResource floors, the stone-block
-// floor the stock census derives (#231) and the journal's derived needs
-// merged, the targets every resource planner dispatches on. An unknown
-// census leaves the stone floor out.
-func (r *Rounder) resourceTargets(ctx context.Context, snapshot domain.GenerationSnapshot, stock domain.Fact[[]policy.Amount]) (map[policy.Resource]int64, error) {
+// resourceTargets is the review's derived needs, construction demand and
+// resource runway targets merged: the targets every resource planner
+// dispatches on.
+func (r *Rounder) resourceTargets(ctx context.Context, snapshot domain.GenerationSnapshot) (map[policy.Resource]int64, error) {
 	var needs map[policy.Resource]int64
 	review, err := r.player.journal.LoadRounds(ctx)
 	if err != nil {
@@ -1220,7 +1219,7 @@ func (r *Rounder) resourceTargets(ctx context.Context, snapshot domain.Generatio
 		needs = policy.ResourceConcernTargets(needs, r.construction.get(snapshot))
 		needs = policy.ResourceConcernTargets(needs, policy.ResourceRunwayTargets(review.ResourceRunwayState()))
 	}
-	return r.policy.EffectiveResourceTargets(stock, needs)
+	return needs, nil
 }
 
 // defenseMissingBuildings keeps the tier's buildings the census does not

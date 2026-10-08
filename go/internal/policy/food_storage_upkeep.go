@@ -258,8 +258,7 @@ type FoodStorageMethod struct {
 // FoodStoragePlanningRequest carries everything SelectFoodStorageMethod needs:
 // the latched Review, the observed candidate Sites census, the one Resource
 // name to fall back to producing (an operator-declared preserved/non-perishable
-// food definition, the same config-only posture RoundsPolicy.ResourceTargets
-// uses), and Seen method IDs already dispatched this cycle so a resolved
+// food definition, a config-only choice), and Seen method IDs already dispatched this cycle so a resolved
 // relocation or bill is never proposed twice.
 type FoodStoragePlanningRequest struct {
 	Review   FoodStorageReview

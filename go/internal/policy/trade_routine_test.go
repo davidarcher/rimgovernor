@@ -9,8 +9,8 @@ import (
 func TestReviewTradeNeedMeasuresShortfallsAndSurplus(t *testing.T) {
 	medicine := MedicalReserveReview{Active: true, Replenish: domain.Known(int64(4))}
 	resources := domain.Known([]Amount{{Resource: "Steel", Count: 500}, {Resource: ComponentResource, Count: 2}, {Resource: "WoodLog", Count: 40}})
-	targets := map[Resource]int64{"Steel": 200, "WoodLog": 100}
-	need, known := ReviewTradeNeed(CoreItemFacts().Currency, medicine, resources, targets, nil, domain.Unknown[WealthFacts](), RoundsTradePolicy{ComponentTarget: 10}).Value()
+	targets := map[Resource]int64{"Steel": 200, "WoodLog": 100, ComponentResource: 10}
+	need, known := ReviewTradeNeed(CoreItemFacts().Currency, medicine, resources, targets, nil, domain.Unknown[WealthFacts](), RoundsTradePolicy{}).Value()
 	if !known || need.MedicineReplenish != 4 || need.ComponentShortfall != 8 || len(need.Surplus) != 1 || need.Surplus[0] != (Amount{Resource: "Steel", Count: 300}) {
 		t.Fatal(need, known)
 	}
@@ -73,7 +73,7 @@ func TestTradeSilverReserveFollowsColonistsAndFailsClosed(t *testing.T) {
 			t.Fatal(tt, got, buy)
 		}
 	}
-	p := RoundsTradeTargets(CoreItemFacts(), TradeNeed{ComponentShortfall: 5}, nil, nil, RoundsTradePolicy{ComponentTarget: 10}, domain.Unknown[int64]())
+	p := RoundsTradeTargets(CoreItemFacts(), TradeNeed{ComponentShortfall: 5}, nil, map[Resource]int64{ComponentResource: 10}, RoundsTradePolicy{}, domain.Unknown[int64]())
 	for _, target := range p.Targets {
 		if target.MaxBuy != 0 {
 			t.Fatal("unknown colonists bought", p.Targets)

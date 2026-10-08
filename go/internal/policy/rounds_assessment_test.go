@@ -25,8 +25,8 @@ func TestRoundsAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 	}
 	for _, n := range r.All() {
 		// EnsureResearch and MaintainResource are gated on
-		// operator config (RoundsPolicy.ResearchLadder/ResourceTargets): DefaultRoundsPolicy's empty
-		// target/map is itself known evidence ("no target configured" is
+		// operator config (RoundsPolicy.ResearchLadder): DefaultRoundsPolicy's empty
+		// ladder is itself known evidence ("no target configured" is
 		// certain, not unobserved) even though every other assessment here
 		// is correctly still Unknown. With a target configured, research and
 		// resource needs are measured from native facts (see

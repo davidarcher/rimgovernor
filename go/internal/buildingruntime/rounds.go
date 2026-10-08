@@ -499,8 +499,8 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if err = r.reviewStockpiles(ctx, state.Snapshot, &reading.Projection); err != nil {
 		return store.RoundsResult{}, err
 	}
-	reading.Projection.Facts.ResourceSurfaceOre = r.resourceSurfaceOre(ctx, state.Snapshot)
 	reading.Projection.Facts.ResourceConsumption = r.resourceConsumption(ctx, state.Snapshot)
+	reading.Projection.Facts.ResourceSurfaceOre = r.resourceSurfaceOre(ctx, state.Snapshot, reading.Projection.Facts.Items, reading.Projection.Facts.ResourceConsumption)
 	if policies, known := reading.Projection.Policies.Value(); known {
 		entries := make([]policy.DrugPolicyEntry, 0, len(policies.Drug))
 		for _, e := range policies.Drug {
@@ -600,10 +600,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	reading.Projection.Facts.ResourceNeeds = policy.PrisonerHerbalNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Facts, policy.RoundsSilverShort(reading.Projection.Facts, r.policy, medicine.Active))
 	// A willing colonist's psylink neuroformer, bought or made by the resource ladder (#1609).
 	reading.Projection.Facts.ResourceNeeds = policy.NeuroformerNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Royalty, psylinkCandidates)
-	resourceTargets, err := r.policy.EffectiveResourceTargets(reading.Projection.Facts.Resources, reading.Projection.Facts.ResourceNeeds)
-	if err != nil {
-		return store.RoundsResult{}, err
-	}
+	resourceTargets := reading.Projection.Facts.ResourceNeeds
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
 		reading.Projection.Facts.Workers = policy.RoundsWorkers(pawns)
 		reading.Projection.Facts.Labor = policy.RoundsLabor(pawns)

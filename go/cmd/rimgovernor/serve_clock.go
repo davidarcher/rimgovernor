@@ -167,23 +167,6 @@ func serviceClockConfig(profile string, testAcceleration bool, windowTicks, blin
 	}
 }
 
-// clockResourceThresholds is the operator's resource targets as the watch
-// policy's stock levels, sorted by definition and cut at the wire bound.
-func clockResourceThresholds(targets map[policy.Resource]int64) []*k.ResourceThreshold {
-	names := make([]string, 0, len(targets))
-	for name, level := range targets {
-		if level >= 1 {
-			names = append(names, string(name))
-		}
-	}
-	slices.Sort(names)
-	out := make([]*k.ResourceThreshold, 0, min(len(names), bridge.ClockResourceThresholdsMax))
-	for _, name := range names[:min(len(names), bridge.ClockResourceThresholdsMax)] {
-		out = append(out, &k.ResourceThreshold{DefName: proto.String(name), Level: proto.Int64(targets[policy.Resource(name)])})
-	}
-	return out
-}
-
 // serviceClockStepTimeout budgets one scheduler step: the rounds
 // census plus every composed planner's native reads. It matches the Player's
 // CallTimeout (serve_building.go) and is independent of the epoch lease. Under
@@ -240,12 +223,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	config := serviceClockConfig(profile, sc.clockTestAcceleration, defaultClockWindowTicks, uint32(sc.clockBlindTicks))
 	config.FollowPlayerSpeed = sc.followPlayerSpeed && !sc.clockTestAcceleration
 	config.PaceHorizonTicks = domain.Tick(sc.clockBlindTicks)
-	if sc.resourceTargetsConfigured() {
-		// The native digest appends a colony row when a stock crosses one
-		// of these levels (#670), so MaintainResource reviews under the
-		// running window instead of waiting for the budget stop.
-		config.Start.Policy.ResourceThresholds = clockResourceThresholds(sc.resourceTargets())
-	}
 	config.Store = sections
 	config.Worker = true
 	config.WorldReady = worldReady
@@ -1024,22 +1001,16 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureResearch)
 	}
 	if sc.resourceTargetsConfigured() {
-		thresholds.ResourceTargets = sc.resourceTargets()
-		thresholds.StoneBlockTarget = policy.DefaultStoneBlockTarget
 		// Acquisition already declares it (the wood floor).
 		if !slices.Contains(capabilities.Methods, policy.MaintainResource) {
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainResource)
 		}
-	} else {
-		// No resource family: no floors, so trade and the workshop do not
-		// chase targets nothing produces.
-		thresholds.ResourceTargets, thresholds.StoneBlockTarget = nil, 0
 	}
 	if sc.roundsMedicalPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves, policy.MaintainSurgery)
 	}
 	if sc.roundsTradePlans {
-		thresholds.Trade = policy.RoundsTradePolicy{ComponentTarget: policy.DefaultResourceTargets()[policy.ComponentResource]}
+		thresholds.Trade = policy.RoundsTradePolicy{}
 		capabilities.Methods = append(capabilities.Methods, policy.TradeWithCaravan)
 	}
 	// The equip planner is EnsureBasicDefense's method: without this

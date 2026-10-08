@@ -99,7 +99,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 		return nil, err
 	}
 	stock := projection.Facts.Resources
-	targets, err := r.resourceTargets(call, state.Snapshot, stock)
+	targets, err := r.resourceTargets(call, state.Snapshot)
 	if err != nil {
 		return nil, err
 	}

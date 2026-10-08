@@ -54,7 +54,7 @@ type drillDispatch struct {
 func deepDrillDispatchFixture(t *testing.T, existing bool, drills []*o.DeepDrillState) drillDispatch {
 	t.Helper()
 	base, db, session, _, sleeping := sleepingFixture(t)
-	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
+	sleeping.setFloors(map[policy.Resource]int64{"Steel": 1000})
 	v := sleeping.reply.GetObserved()
 	v.Resources = []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(0)}}
 	v.ColonistCount, v.WorkerCount = proto.Uint32(2), proto.Uint32(2)

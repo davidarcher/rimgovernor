@@ -15,9 +15,9 @@ import (
 // production/buried-steel (#1075, epic #986) mines compacted steel under a
 // thick mountain roof. test/buried_steel raises a granite block east of the
 // lab colonists with one two-cell steel deposit on the face (bordering open
-// ground) and one buried five cells in, fogged. The default steel floor
-// (policy.DefaultResourceTargets) is short from zero, both deposits together
-// hold less than it, so MaintainResource must mine the face deposit as
+// ground) and one buried five cells in, fogged. The steel
+// runway target (#2466; recurring spend over the horizon) is short from zero,
+// both deposits together hold less than it, so MaintainResource must mine the face deposit as
 // supported_roof and tunnel to the buried one (#1074) and mine it too.
 //
 // Why not a snapshot test: the roof-support verdict is native

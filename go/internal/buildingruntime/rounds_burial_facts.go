@@ -28,7 +28,7 @@ func (r *Rounder) reviewStrangers(ctx context.Context, snapshot domain.Generatio
 		projection.Strangers.Live = live
 		return nil
 	}
-	targets, err := r.resourceTargets(ctx, snapshot, projection.Facts.Resources)
+	targets, err := r.resourceTargets(ctx, snapshot)
 	if err != nil {
 		return err
 	}

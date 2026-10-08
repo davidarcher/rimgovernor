@@ -18,7 +18,7 @@ func tradeNeed(t *testing.T, r Rounds) policy.TradeNeed {
 	if err != nil {
 		t.Fatal(err)
 	}
-	need, known := policy.ReviewTradeNeed(r.Facts.Items.Currency, medicine, r.Facts.Resources, r.Policy.ResourceTargets, policy.RoundsTradeFloors(r.Policy, nil), r.Facts.Wealth, r.Policy.Trade, policy.RoundsTradeFood(r.Facts, r.Policy)).Value()
+	need, known := policy.ReviewTradeNeed(r.Facts.Items.Currency, medicine, r.Facts.Resources, r.Facts.ResourceNeeds, policy.RoundsTradeFloors(r.Policy, nil), r.Facts.Wealth, r.Policy.Trade, policy.RoundsTradeFood(r.Facts, r.Policy)).Value()
 	if !known {
 		t.Fatal("trade need unknown")
 	}
@@ -89,11 +89,14 @@ func TestReplayOneDayOfFoodBuysABridge(t *testing.T) {
 }
 
 // Recorded from acceptance run trade/routine-food-surplus at 04b0a98cb,
-// tick 9000: 6000 rice against a RawRice:5000 MaintainResource target and
-// an active fine-meal bill with no protein. The review sells the crop
-// surplus above the floor and buys the missing meat.
+// tick 9000: 6000 rice against a RawRice:5000 MaintainResource target (set
+// here as the derived need the recording carried as policy) and an active
+// fine-meal bill with no protein. The review sells the crop surplus above the
+// floor and buys the missing meat.
 func TestReplayCropSurplusBuysMissingProteinAboveTheFloor(t *testing.T) {
-	need := tradeNeed(t, loadTrade(t, "testdata/trade-food-crop-surplus-for-meat.json"))
+	r := loadTrade(t, "testdata/trade-food-crop-surplus-for-meat.json")
+	r.Facts.ResourceNeeds = map[policy.Resource]int64{"RawRice": 5000}
+	need := tradeNeed(t, r)
 	if len(need.Surplus) != 1 || need.Surplus[0] != (policy.Amount{Resource: "RawRice", Count: 1000}) || need.Retained["RawRice"] != 5000 {
 		t.Fatalf("rice surplus %+v retained %v, want 1000 sold keeping 5000", need.Surplus, need.Retained)
 	}

@@ -11,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
@@ -127,19 +126,5 @@ func TestClockServiceDisabledStartupPollsAndJoins(t *testing.T) {
 	}
 	if clock.colonyReads.Load() != 0 || clock.placementReads.Load() != 0 {
 		t.Fatal("disabled startup read routine facts")
-	}
-}
-
-func TestClockResourceThresholdsSortedAndBounded(t *testing.T) {
-	targets := map[policy.Resource]int64{"Steel": 200, "WoodLog": 300, "Silver": 0}
-	got := clockResourceThresholds(targets)
-	if len(got) != 2 || got[0].GetDefName() != "Steel" || got[0].GetLevel() != 200 || got[1].GetDefName() != "WoodLog" {
-		t.Fatal(got)
-	}
-	for i := range bridge.ClockResourceThresholdsMax + 5 {
-		targets[policy.Resource("Def"+string(rune('a'+i)))] = 1
-	}
-	if got := clockResourceThresholds(targets); len(got) != bridge.ClockResourceThresholdsMax {
-		t.Fatal(len(got))
 	}
 }

@@ -164,7 +164,7 @@ func TestRoundsDevelopmentConfiguredTargets(t *testing.T) {
 	r := roundsRequest()
 	r.Policy.Stage.Floor = policy.StageDevelopment
 	r.Policy.ResearchLadder = []string{"Stonecutting"}
-	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
+	r.Facts.ResourceNeeds = map[policy.Resource]int64{"Steel": 100}
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 50}})
 	r.Facts.Wood = domain.Known(int64(400))

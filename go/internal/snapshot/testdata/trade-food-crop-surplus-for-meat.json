@@ -18086,9 +18086,6 @@
    "MinimumPerColonist": 1,
    "TargetPerColonist": 3
   },
-  "ResourceTargets": {
-   "RawRice": 5000
-  },
   "Routes": {
    "Door": "Door",
    "MaxBreaches": 4,

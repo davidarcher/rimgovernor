@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"sort"
 	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -51,20 +50,15 @@ func (r *Rounder) resourceConsumption(ctx context.Context, snapshot domain.Gener
 	return m.ledger.Window(policy.ResourceRateWindowDays)
 }
 
-// resourceSurfaceOre reads the safe surface ore of every resource with a
-// configured target.
-func (r *Rounder) resourceSurfaceOre(ctx context.Context, snapshot domain.GenerationSnapshot) map[policy.Resource]domain.Fact[int64] {
+// resourceSurfaceOre reads the safe surface ore of every resource the
+// consumption ring shows recurring spend on.
+func (r *Rounder) resourceSurfaceOre(ctx context.Context, snapshot domain.GenerationSnapshot, items policy.ItemFacts, consumption domain.Fact[policy.ResourceConsumption]) map[policy.Resource]domain.Fact[int64] {
 	out := map[policy.Resource]domain.Fact[int64]{}
 	reader, ok := r.native.(resourceRunwaySource)
 	if !ok {
 		return out
 	}
-	targets := make([]policy.Resource, 0, len(r.policy.ResourceTargets))
-	for resource := range r.policy.ResourceTargets {
-		targets = append(targets, resource)
-	}
-	sort.Slice(targets, func(i, j int) bool { return targets[i] < targets[j] })
-	for _, resource := range targets {
+	for _, resource := range policy.MaterialRunwayKeys(items, consumption) {
 		rows, _, _, err := reader.ReadResourceSources(ctx, boundary.Identity(snapshot), string(resource))
 		if err == nil {
 			out[resource] = policy.SurfaceOre(rows)

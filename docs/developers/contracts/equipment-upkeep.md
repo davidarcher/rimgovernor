@@ -268,7 +268,6 @@ pawn and item identities cannot be claimed twice by open dressing methods.
 Fixture checks, native scripted pawn outcomes and sustained seasonal campaigns
 are different evidence levels.
 
-Optional `RoundsPolicy.GearSpareTargets` keeps unworn spares by definition.
 These targets bind to `MaintainResource`: its workshop ladder stages missing
 benches, and its storage prerequisite creates covered, reachable allow-listed
 stockpile space before the standing stock bill. Spares default to disabled.

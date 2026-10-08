@@ -1,6 +1,6 @@
 // Package production holds issue #4 M4's multi-stage production case
-// (production/ladder): on the Core tribal baseline, the service's default
-// component floor (policy.DefaultResourceTargets, #875) asks for an item
+// (production/ladder): on the Core tribal baseline, the colony's component
+// need (construction demand or recurring spend, #2466) asks for an item
 // only a research-gated bench produces (components on a fabrication bench),
 // and the ladder walks research -> bench -> workstation stockpile -> bill. The
 // fixture stages what the ladder does not build: a roofed starter hut whose

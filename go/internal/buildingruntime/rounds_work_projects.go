@@ -298,9 +298,6 @@ func roundsResearchNeeds(ctx context.Context, journal *store.Store, p policy.Rou
 		}
 		return nil, nil
 	}
-	if !p.TracksResource(items, ladder.Resource) {
-		return nil, nil
-	}
 	return ladder.Research, nil
 }
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -120,9 +119,9 @@ func TestServeRoundsFamiliesSelection(t *testing.T) {
 		t.Fatal("unknown family accepted")
 	}
 	withRoundsFamilies(t, "", true)
-	// The resource family keeps the default floors; no flag sets them (#875).
+	// The resource family runs on derived needs; no flag sets floors (#875).
 	c, err = parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
-	if err != nil || !c.resourceTargetsConfigured() || c.resourceTargets()["Steel"] != 200 || c.resourceTargets()["ComponentIndustrial"] != 10 {
+	if err != nil || !c.resourceTargetsConfigured() {
 		t.Fatal(c, err)
 	}
 	for _, gone := range []string{"--routine-resource-target", "--routine-component-target", "--routine-stone-block-target", "--routine-resource-reserve", "--routine-resource-stop"} {
@@ -144,26 +143,24 @@ func TestServeResumeFlag(t *testing.T) {
 	}
 }
 
-// A plain launch keeps the default resource floors (#875); an operator
-// target replaces them, and a serve without the resource family keeps none.
-func TestServeDefaultResourceFloors(t *testing.T) {
+// The resource family composes by family selection alone: no launch carries a
+// floor (#2466).
+func TestServeResourceFamilyComposition(t *testing.T) {
 	dir := t.TempDir()
 	withRoundsFamilies(t, "", true)
 	c, err := parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
-	thresholds, capabilities := roundsCapabilities(c)
-	if !maps.Equal(thresholds.ResourceTargets, policy.DefaultResourceTargets()) || thresholds.StoneBlockTarget != policy.DefaultStoneBlockTarget || !slices.Contains(capabilities.Methods, policy.MaintainResource) {
-		t.Fatalf("default launch floors %v stone %d methods %v", thresholds.ResourceTargets, thresholds.StoneBlockTarget, capabilities.Methods)
+	if _, capabilities := roundsCapabilities(c); !slices.Contains(capabilities.Methods, policy.MaintainResource) {
+		t.Fatalf("default launch methods %v", capabilities.Methods)
 	}
 	withRoundsFamilies(t, "sleeping", true)
-	c, err = parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
-	if err != nil {
+	if c, err = parseServe(append(serveBase(dir), "--profile", dir), io.Discard); err != nil {
 		t.Fatal(err)
 	}
-	if thresholds, _ = roundsCapabilities(c); len(thresholds.ResourceTargets) != 0 || thresholds.StoneBlockTarget != 0 {
-		t.Fatalf("floors without the resource family: %v stone %d", thresholds.ResourceTargets, thresholds.StoneBlockTarget)
+	if _, capabilities := roundsCapabilities(c); slices.Contains(capabilities.Methods, policy.MaintainResource) {
+		t.Fatalf("methods without the resource family %v", capabilities.Methods)
 	}
 }
 

@@ -276,12 +276,8 @@ func RoomObstructionIDs(rows []ClearanceTarget, ground []Rectangle) map[string]b
 // (the targets carry the derived resource needs): the short set tier 2 ranks
 // by. An unknown demand leaves none short.
 func recoveryShortResources(p RoundsPolicy, f RoundsFacts) (map[Resource]bool, error) {
-	targets, err := p.EffectiveResourceTargets(f.Resources, f.ResourceNeeds)
-	if err != nil {
-		return nil, err
-	}
 	in := ResourceDemandInput{EconomicFloors: map[string]int64{}}
-	for resource, count := range targets {
+	for resource, count := range f.ResourceNeeds {
 		if count > 0 {
 			in.Targets = append(in.Targets, ResourceDemand{Key: ResourceKey{Def: resource}, Count: count, Priority: 2})
 		}

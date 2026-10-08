@@ -37,6 +37,10 @@ const (
 
 const restoreDays = 25
 
+// resStoneFloor is the stone-block stock the stone-block scenarios hold the
+// planner to; a live colony's is the construction demand for blocks.
+const resStoneFloor = 150
+
 type resScenario struct {
 	name      string
 	world     supplysim.World
@@ -178,7 +182,7 @@ var resMixes = map[supplysim.Good]map[string]func() ([]supplysim.Source, map[str
 
 var resFixtures = map[supplysim.Good]resFixture{
 	supplysim.Wood:        {good: supplysim.Wood, stock: 300, perDay: 25, restore: supplysim.WoodTarget},
-	supplysim.StoneBlocks: {good: supplysim.StoneBlocks, stock: 400, perDay: 30, restore: float64(policy.DefaultStoneBlockTarget)},
+	supplysim.StoneBlocks: {good: supplysim.StoneBlocks, stock: 400, perDay: 30, restore: resStoneFloor},
 	supplysim.Steel:       {good: supplysim.Steel, stock: 300, perDay: 15, restore: supplysim.SteelFloor, research: true},
 	supplysim.Components:  {good: supplysim.Components, stock: 30, perDay: 1, restore: supplysim.ComponentFloor},
 	// Plasteel has no configured floor: only the runway forecast asks for it.
@@ -269,8 +273,12 @@ func resScenarios() []resScenario {
 				f.good = g
 				w := resWorld(f, srcs)
 				w.Shocks = shocks
+				floors := map[policy.Resource]int64{"Steel": 200, policy.ComponentResource: 10}
+				if g == supplysim.StoneBlocks {
+					floors[resDef(g)] = resStoneFloor
+				}
 				sc := resScenario{name: fmt.Sprintf("%s/%s/%s", g, mix, set), world: w, spec: spec, good: g,
-					targets: map[policy.Resource]int64{"Steel": 200, policy.ComponentResource: 10}, research: f.research,
+					targets: floors, research: f.research,
 					restoreTo: resFixtures[g].restore, days: 70, edgeDay: edge, lostDay: lost}
 				switch {
 				case lost > 0:

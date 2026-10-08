@@ -129,7 +129,7 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	if !known {
 		return existing(RoundsWorkResult{Verdict: fieldUnavailable("project_work")}), nil
 	}
-	resourceTargets, err := r.reviewer.resourceTargets(call, state.Snapshot, read.Projection.Facts.Resources)
+	resourceTargets, err := r.reviewer.resourceTargets(call, state.Snapshot)
 	if err != nil {
 		return RoundsWorkResult{}, err
 	}

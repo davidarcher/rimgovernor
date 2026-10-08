@@ -527,11 +527,10 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 	floors := policy.RoundsTradeFloors(seasonal, construction.StillNeed)
 	// MaintainResource's floors (the wood floor, shortfall edges) are the
 	// catalog's trade demand: a caravan selling one buys it.
-	targets, err := r.reviewer.resourceTargets(call, state.Snapshot, projection.Facts.Resources)
+	targets, err := r.reviewer.resourceTargets(call, state.Snapshot)
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
-	targets = policy.ResourceConcernTargets(targets, seasonal.ResourceTargets)
 	// Restore parts no bench can fabricate are bought (#1168).
 	parts, benches, err := surgeryPartDemand(call, r.native, identity, projection.Facts.MedicalPawns, projection.SurgeryContext())
 	if err != nil {
@@ -575,7 +574,7 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
 	need = restrictToPlan(need, planned, policy.PlannedTradeNutrition(projection.Facts.FoodPlan, trader))
-	economic := policy.RoundsTradeTargets(projection.Facts.Items, need, rows, policy.ResourceConcernTargets(targets, r.reviewer.policy.ResourceTargets), r.reviewer.policy.Trade, projection.Facts.Colonists)
+	economic := policy.RoundsTradeTargets(projection.Facts.Items, need, rows, targets, r.reviewer.policy.Trade, projection.Facts.Colonists)
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)

@@ -153,7 +153,7 @@ func TestBillMethodAcceptsResourceTargetGoal(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := roundsRequest()
 	r.Current.Native = 2
-	r.Policy.ResourceTargets = map[policy.Resource]int64{"MeleeWeapon_Club": 3}
+	r.Facts.ResourceNeeds = map[policy.Resource]int64{"MeleeWeapon_Club": 3}
 	r.Facts.Resources = domain.Known([]policy.Amount{})
 	out := reviewRounds(t, s, &r)
 	g := roundsGoal(t, out, policy.MaintainResource)

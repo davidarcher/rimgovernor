@@ -28,8 +28,8 @@ func (s TierStyleStock) has(resource Resource, count int64) bool { return s[reso
 // A colony without blocks has no quarried stone.
 func (s TierStyleStock) QuarriedStone() (Resource, bool) {
 	var blocks []Resource
-	for _, b := range stoneChunkBlocks {
-		if s[b] > 0 {
+	for b, n := range s {
+		if n > 0 && stoneSuffix(b) != "" {
 			blocks = append(blocks, b)
 		}
 	}

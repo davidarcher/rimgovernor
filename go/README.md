@@ -153,8 +153,8 @@ thresholds; missing facts cannot certify foothold stability or clear risk.
   (`medical` family) proposes a `ProductionBillAction` through the shared
   GearProduce bench/recipe census.
 - **`TradeWithCaravan`** (`trade` family, priority 3, development-exempt) stands
-  while a tradeable or arriving caravan is on the map and the medical reserve, the
-  component target or a `ResourceTargets` surplus gives it something to trade; an
+  while a tradeable or arriving caravan is on the map and the medical reserve or a
+  derived resource surplus gives it something to trade; an
   arriving caravan lends the clock one game hour per review. Each phase is one
   bounded plan per caravan and epoch. The open (up to three attempts) is native's:
   it walks the eligible negotiator to the trader with a goto that tracks the

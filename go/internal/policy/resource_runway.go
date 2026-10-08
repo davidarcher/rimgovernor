@@ -2,6 +2,7 @@ package policy
 
 import (
 	"math"
+	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -66,28 +67,47 @@ func ResourceRunwayTargets(rows []ResourceRunway) map[Resource]int64 {
 }
 
 // RunwayReserves is every resource a runway is forecast for and its reserve:
-// the operator's ResourceTargets, plus every catalog medicine (the colony
-// tends with whichever it holds, so a better medicine in use is counted too),
-// the lowest-potency one (herbal) reserved at the medical reserve's
-// TargetPerColonist doses per colonist so a colony never tended still stocks
-// it; once doses are used the observed tend rate takes over (#2378). Without
-// the catalog's medicines it adds nothing; an unread colonist count leaves the
-// reserve zero.
-func (p RoundsPolicy) RunwayReserves(items ItemFacts, colonists domain.Fact[int64]) map[Resource]int64 {
-	out := make(map[Resource]int64, len(p.ResourceTargets)+len(items.MedicalPotency))
-	for resource, reserve := range p.ResourceTargets {
-		out[resource] = reserve
-	}
+// every catalog medicine (the colony tends with whichever it holds, so a
+// better medicine in use is counted too), the lowest-potency one (herbal)
+// reserved at the medical reserve's TargetPerColonist doses per colonist so a
+// colony never tended still stocks it; once doses are used the observed tend
+// rate takes over (#2378). Without the catalog's medicines it adds nothing; an
+// unread colonist count leaves the reserve zero. Every other resource the
+// consumption ring shows recurring spend on (MaterialRunwayKeys) is a row with
+// no reserve: its protected line is the observed rate over the horizon.
+func (p RoundsPolicy) RunwayReserves(items ItemFacts, colonists domain.Fact[int64], consumption domain.Fact[ResourceConsumption]) map[Resource]int64 {
+	materials := MaterialRunwayKeys(items, consumption)
+	out := make(map[Resource]int64, len(items.MedicalPotency)+len(materials))
 	for rank, medicine := range items.MedicineTiers() {
-		if _, set := out[medicine]; set {
-			continue
-		}
 		out[medicine] = 0
 		if rank == 0 {
 			n, _ := colonists.Value()
 			out[medicine] = max(0, n) * p.MedicalReserve.TargetPerColonist
 		}
 	}
+	for _, resource := range materials {
+		if _, set := out[resource]; !set {
+			out[resource] = 0
+		}
+	}
+	return out
+}
+
+// MaterialRunwayKeys are the resources the consumption ring shows recurring
+// spend on, sorted: the colony's own use names them, no list does. Food (a
+// catalog nutrition value) is left to the food ledger, which plans it.
+func MaterialRunwayKeys(items ItemFacts, consumption domain.Fact[ResourceConsumption]) []Resource {
+	c, known := consumption.Value()
+	if !known {
+		return nil
+	}
+	var out []Resource
+	for resource, spent := range c.Recurring {
+		if spent > 0 && items.Nutrition[resource] <= 0 {
+			out = append(out, resource)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
 }
 

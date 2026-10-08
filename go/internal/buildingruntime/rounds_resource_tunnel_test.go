@@ -74,7 +74,7 @@ func (n *buriedOreNative) ReadExcavationSite(ctx context.Context, _ *c.Identity,
 func buriedOreFixture(t *testing.T) (*RoundsResourcePlanner, *store.Store, *buriedOreNative) {
 	t.Helper()
 	base, db, _, _, sleeping := sleepingFixture(t)
-	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{"Steel": 200}
+	sleeping.setFloors(map[policy.Resource]int64{"Steel": 200})
 	v := sleeping.reply.GetObserved()
 	v.Resources = []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(0)}}
 	native := &buriedOreNative{starvingResourceNative: &starvingResourceNative{resourceNative: &resourceNative{

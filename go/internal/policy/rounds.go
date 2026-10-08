@@ -107,25 +107,6 @@ type RoundsPolicy struct {
 	// planner lends the clock ticks while one is current so the rung
 	// finishes on its own (issue #230).
 	ResearchLadder []string
-	// ResourceTargets is an operator-declared map of native resource
-	// definition name to the native stock floor MaintainResource should keep
-	// it above; an empty map disables the goal entirely. The deficit is
-	// measured against RoundsFacts.Resources each review as the worst-covered
-	// target's shortfall fraction. This only supports
-	// policy.SelectResourceTarget's own single-goal dynamic-target selection
-	// across these targets.
-	ResourceTargets map[Resource]int64
-	// GearSpareTargets optionally maintains unworn replacements by definition.
-	// MaintainResource owns both its stockpile zone and standing production bill.
-	GearSpareTargets map[Resource]int64
-	// StoneBlockTarget is an operator-declared native stock floor for stone
-	// blocks of whichever Core stone the map's chunk census counts most
-	// (StoneBlockTarget): it joins ResourceTargets through
-	// EffectiveResourceTargets each review and planner step, so the
-	// MaintainResource ladder stages a stonecutter's table and keeps a
-	// do-until bill fed from map chunks without the operator naming the
-	// stone. Zero disables it.
-	StoneBlockTarget int64
 	// Trade is TradeWithCaravan's configuration (policy/trade_routine.go).
 	Trade RoundsTradePolicy
 	// PrisonerReleaseAfterDays is how long MaintainPopulation feeds a
@@ -203,15 +184,6 @@ func (p RoundsPolicy) Validate() error {
 			return errors.New("invalid research ladder rung")
 		}
 	}
-	if err := ValidateResourceTargets(p.ResourceTargets); err != nil {
-		return err
-	}
-	if err := ValidateResourceTargets(p.GearSpareTargets); err != nil {
-		return err
-	}
-	if p.StoneBlockTarget < 0 || p.StoneBlockTarget > 10000 {
-		return errors.New("invalid stone block target")
-	}
 	return nil
 }
 
@@ -220,20 +192,9 @@ func (p RoundsPolicy) Prisoners() PrisonerPolicy {
 	return PrisonerPolicy{ReleaseAfterDays: p.PrisonerReleaseAfterDays, FoodTargetDays: p.FoodTargetDays}
 }
 
-// maxResourceTarget is the largest MaintainResource target ValidateResourceTargets takes.
+// maxResourceTarget is the largest MaintainResource target a derived need
+// takes, the StockTarget production bill bound (see domain.NewProductionBill).
 const maxResourceTarget = 10000
-
-// ValidateResourceTargets checks every configured MaintainResource target:
-// a valid native resource definition name with a positive target within the
-// same StockTarget production bill bound (see domain.NewProductionBill).
-func ValidateResourceTargets(targets map[Resource]int64) error {
-	for resource, target := range targets {
-		if !validResource(resource) || target <= 0 || target > maxResourceTarget {
-			return errors.New("invalid resource target")
-		}
-	}
-	return nil
-}
 
 // RoundsFacts holds derived native facts, not forecasts masquerading as output.
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the

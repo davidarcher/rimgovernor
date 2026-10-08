@@ -73,11 +73,14 @@ var clubRecipe = policy.RecipeHost{Definition: "Make_MeleeWeapon_Club", Products
 
 func TestComponentWorkshopUsesResourcePrerequisites(t *testing.T) {
 	planner, session, native := workshopFixture(t)
-	planner.reviewer.policy.ResourceTargets = map[policy.Resource]int64{policy.ComponentResource: 20}
-	native.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("ComponentIndustrial"), Units: proto.Int64(2)}, {DefName: proto.String("WoodLog"), Units: proto.Int64(400)}}
+	native.setFloors(map[policy.Resource]int64{policy.ComponentResource: 20})
+	native.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("ComponentIndustrial"), Units: proto.Int64(2)}, {DefName: proto.String("WoodLog"), Units: proto.Int64(400)}, {DefName: proto.String("MedicineHerbal"), Units: proto.Int64(1000)}}
 	native.finished = []string{"Fabrication"}
 	native.hosts = []policy.RecipeHost{{Definition: "MakeComponent", Products: []policy.Resource{policy.ComponentResource}, Available: true, Benches: []string{"FabricationBench"}, Research: []string{"Fabrication"}}}
 	ctx := context.Background()
+	if _, err := planner.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
 	selection, reason, err := planner.prepareWorkshop(ctx, session.State(), store.Rounds{})
 	if err != nil || !reason.IsZero() || selection == nil || selection.resource != policy.ComponentResource || selection.candidates[0] != "FabricationBench" {
 		t.Fatal(selection, reason, err)
@@ -97,7 +100,6 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 	t.Parallel()
 	planner, session, native := workshopFixture(t)
 	planner.concern = policy.MaintainEquipment
-	planner.reviewer.policy.ResourceTargets = nil
 	setGearProductionNeed(native.reply.GetObserved())
 	native.finished = []string{}
 	native.hosts = []policy.RecipeHost{{Definition: "Make_Apparel_BasicShirt", Products: []policy.Resource{"Apparel_BasicShirt"}, Available: true, Benches: []string{"HandTailoringBench"}}}
@@ -156,8 +158,8 @@ func workshopFixture(t *testing.T) (*RoundsBuildingPlanner, *playerFakeSession, 
 	t.Helper()
 	base, _, session, _, native := sleepingFixture(t)
 	source := &workshopNative{sleepingNative: native, hosts: []policy.RecipeHost{clubRecipe}}
-	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{"MeleeWeapon_Club": 3}
-	native.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("MeleeWeapon_Club"), Units: proto.Int64(0)}, {DefName: proto.String("WoodLog"), Units: proto.Int64(400)}}
+	native.setFloors(map[policy.Resource]int64{"MeleeWeapon_Club": 5})
+	native.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("MeleeWeapon_Club"), Units: proto.Int64(0)}, {DefName: proto.String("WoodLog"), Units: proto.Int64(400)}, {DefName: proto.String("MedicineHerbal"), Units: proto.Int64(1000)}}
 	planner, err := NewRoundsWorkshopPlanner(base.reviewer, source)
 	if err != nil {
 		t.Fatal(err)
@@ -178,7 +180,7 @@ func TestWorkshopPrepareDiscoversBenchOrDefersToExistingBench(t *testing.T) {
 		candidates []string
 	}{
 		{"no bench", nil, []policy.RecipeHost{clubRecipe}, nil, 0, Verdict{}, append([]string{"CraftingSpot"}, policy.GeneratorDefinitions...)},
-		{"no deficit", nil, []policy.RecipeHost{clubRecipe}, nil, 3, BuildingReasonNoDeficit, nil},
+		{"no deficit", nil, []policy.RecipeHost{clubRecipe}, nil, 5, BuildingReasonNoDeficit, nil},
 		// The review's wood floor is a target even without operator ones.
 		{"no targets", nil, []policy.RecipeHost{clubRecipe}, map[policy.Resource]int64{}, 0, BuildingReasonNoDeficit, nil},
 		{"existing bench", []bridge.GearBenchRead{{Token: "t", Bench: policy.GearBench{ID: "spot", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: domain.Known(true), AvailableOn: domain.Known(true)}})}}}, []policy.RecipeHost{clubRecipe}, nil, 0, BuildingExistingFacility, nil},
@@ -189,9 +191,12 @@ func TestWorkshopPrepareDiscoversBenchOrDefersToExistingBench(t *testing.T) {
 			planner, session, native := workshopFixture(t)
 			native.benches, native.hosts = test.benches, test.hosts
 			if test.targets != nil {
-				planner.reviewer.policy.ResourceTargets = test.targets
+				native.setFloors(test.targets)
 			}
 			native.reply.GetObserved().Resources[0].Units = proto.Int64(test.stock)
+			if _, err := planner.reviewer.Step(context.Background()); err != nil {
+				t.Fatal(err)
+			}
 			selection, reason, err := planner.prepareWorkshop(context.Background(), session.State(), store.Rounds{})
 			if err != nil || reason != test.reason {
 				t.Fatal(selection, reason, err)

@@ -94,7 +94,7 @@ func ArtSaleWanted(items ItemFacts, need domain.Fact[TradeNeed], silver, colonis
 
 // reviewSilverShort is SilverShort over the review's trade need.
 func reviewSilverShort(f RoundsFacts, p RoundsPolicy, medicine MedicalReserveReview) domain.Fact[bool] {
-	need := ReviewTradeNeed(f.Items.Currency, medicine, f.Resources, p.ResourceTargets, RoundsTradeFloors(p, nil), f.Wealth, p.Trade, RoundsTradeFood(f, p))
+	need := ReviewTradeNeed(f.Items.Currency, medicine, f.Resources, f.ResourceNeeds, RoundsTradeFloors(p, nil), f.Wealth, p.Trade, RoundsTradeFood(f, p))
 	return SilverShort(f.Items, need, f.Silver(), f.Colonists)
 }
 

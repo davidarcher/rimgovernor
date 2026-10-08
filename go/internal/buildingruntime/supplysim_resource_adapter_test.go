@@ -90,10 +90,13 @@ type resHold struct {
 }
 
 type resPlanner struct {
-	batch    resSupplyBatch
-	world    supplysim.World
-	spec     map[string]resSpec
-	policy   policy.RoundsPolicy
+	batch  resSupplyBatch
+	world  supplysim.World
+	spec   map[string]resSpec
+	policy policy.RoundsPolicy
+	// floors are the scenario's stock floors, the needs its world stands in
+	// for (construction and recurring spend in a live colony).
+	floors   map[policy.Resource]int64
 	research bool
 	uses     []resUse
 	// clothing are the targets that are clothing-material floors, wanted
@@ -109,14 +112,12 @@ type resPlanner struct {
 
 func newResPlanner(w supplysim.World, spec map[string]resSpec, targets map[policy.Resource]int64, research bool) *resPlanner {
 	p := policy.DefaultRoundsPolicy()
-	p.ResourceTargets = targets
-	p.StoneBlockTarget = policy.DefaultStoneBlockTarget
 	for _, f := range w.Floors {
 		if f.Good == supplysim.Wood {
 			p.WoodMin, p.WoodTarget, p.WoodMax = int64(f.Min), int64(f.Target), int64(f.Max)
 		}
 	}
-	return &resPlanner{world: w, spec: spec, policy: p, research: research}
+	return &resPlanner{world: w, spec: spec, policy: p, research: research, floors: targets}
 }
 
 func (p *resPlanner) source(id string) supplysim.Source {
@@ -191,12 +192,10 @@ func (p *resPlanner) Plan(v supplysim.WorldView) []supplysim.Command {
 	}
 	merge(policy.ConstructionDemand(policy.ConstructionDemandInput{Stock: policy.StockReader{Resources: facts}, Admitted: admitted, WoodFloor: woodFloor}))
 
+	merge(p.floors)
 	runways := p.runways(v, have, tick)
 	merge(policy.ResourceRunwayTargets(runways))
-	targets, err := p.policy.EffectiveResourceTargets(facts, needs)
-	if err != nil {
-		panic(err)
-	}
+	targets := needs
 	deficitRunway := map[policy.Resource]bool{}
 	for _, r := range runways {
 		if d, ok := r.Deficit.Value(); ok && d {
@@ -249,7 +248,7 @@ func (p *resPlanner) runways(v supplysim.WorldView, have map[policy.Resource]int
 					Safety: policy.MineSafetyOpenSurface, Buried: s.Lead > 0})
 			}
 		}
-		out = append(out, policy.ForecastResourceRunway(r, domain.Known(have[r]), policy.SurfaceOre(rows), p.policy.ResourceTargets[r],
+		out = append(out, policy.ForecastResourceRunway(r, domain.Known(have[r]), policy.SurfaceOre(rows), p.floors[r],
 			tick, p.consumption(tick)))
 	}
 	return out

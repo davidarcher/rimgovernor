@@ -37,6 +37,8 @@ type roundsNative struct {
 	identityTick *int64
 	// built is the fake construction census (rounds_built_census_test.go).
 	built map[domain.ActionID]*o.BuildingState
+	// ring is the fake consumption ring's daily spend (setFloors).
+	ring map[policy.Resource]int64
 	// cells is the planning window the fake serves (ReadPlanningWindow);
 	// nil serves an empty window.
 	cells *bridge.PlanningWindow

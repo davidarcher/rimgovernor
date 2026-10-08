@@ -72,7 +72,7 @@ func TestResourceDispatchReplacesSuspendedKibbleBillThroughTheJournal(t *testing
 func testResourceDispatch(t *testing.T, resource, product policy.Resource, recipe string, mode domain.BillMode, replacement ...string) {
 	t.Parallel()
 	base, db, _, _, sleeping := sleepingFixture(t)
-	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{resource: 3}
+	sleeping.setFloors(map[policy.Resource]int64{resource: 5})
 	sleeping.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String(string(resource)), Units: proto.Int64(0)}}
 	club := policy.GearRecipe{
 		Definition: recipe, Products: []policy.Resource{product},
@@ -127,7 +127,7 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 		t.Fatal(plan, err)
 	}
 	bill, ok := plan.Spec.Actions()[0].ProductionBill()
-	if !ok || bill.Bench() != "Thing_CraftingSpot1" || bill.Recipe() != recipe || bill.Target() != 3 || bill.Mode() != mode || bill.Replaces() != replace {
+	if !ok || bill.Bench() != "Thing_CraftingSpot1" || bill.Recipe() != recipe || bill.Target() != 5 || bill.Mode() != mode || bill.Replaces() != replace {
 		t.Fatal(bill, ok)
 	}
 	again, err := planner.Step(context.Background())
@@ -176,7 +176,7 @@ func TestResourceStepFallsThroughAnUndispatchableTargetToTheNextDeficit(t *testi
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	base, db, _, _, sleeping := sleepingFixture(t)
-	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{"MedicineHerbal": 100, "Steel": 100}
+	sleeping.setFloors(map[policy.Resource]int64{"MedicineHerbal": 100, "Steel": 1000})
 	sleeping.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("MedicineHerbal"), Units: proto.Int64(0)}, {DefName: proto.String("Steel"), Units: proto.Int64(0)}}
 	club := policy.GearRecipe{
 		Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"},

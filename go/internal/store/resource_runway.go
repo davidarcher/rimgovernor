@@ -8,10 +8,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// resourceRunways forecasts every resource with a configured target from the
-// recurring spend native observed (Facts.ResourceConsumption).
+// resourceRunways forecasts every medicine, social drug and resource the
+// recurring spend native observed (Facts.ResourceConsumption) names.
 func resourceRunways(r RoundsRequest) []policy.ResourceRunway {
-	reserves := r.Policy.RunwayReserves(r.Facts.Items, r.Facts.Colonists)
+	reserves := r.Policy.RunwayReserves(r.Facts.Items, r.Facts.Colonists, r.Facts.ResourceConsumption)
 	for resource, reserve := range policy.DrugRunwayReserves(r.Facts.Items, r.Facts.DrugUsers) {
 		reserves[resource] = reserve
 	}

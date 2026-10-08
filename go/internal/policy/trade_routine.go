@@ -11,14 +11,14 @@ import (
 // TradeWithCaravan is the routine trade goal (#234): while a tradeable
 // caravan stands on the map and the colony has something to buy from it
 // (the medicine shortfall MaintainMedicalReserves already reports, or a
-// component shortfall under RoundsTradePolicy.ComponentTarget) or to sell
+// component shortfall under the derived component need) or to sell
 // to it (stock above a MaintainResource target), RoundsTradePlanner opens
 // one bounded session per caravan and settles it. It is config-only work
 // like a configuration push: a negotiator's conversation, not a development
 // project, so it holds no development slot.
 
 // ComponentResource is the one component definition the trade goal buys and
-// the resource family mines toward under RoundsTradePolicy.ComponentTarget.
+// the resource family produces toward under the derived component need.
 const ComponentResource Resource = "ComponentIndustrial"
 
 // tradeBuyPriceCeiling bounds a routine purchase's unit price. Vanilla
@@ -49,14 +49,13 @@ type TraderFacts struct {
 }
 
 // RoundsTradePolicy is the operator's routine trade configuration.
-// ComponentTarget (zero disables) is the component stock the trade buys
-// toward and the resource family mines toward. RetainedMinimum is the stock
-// each WealthSurplusResources hoard keeps regardless of floor
-// (DefaultTradeRetainedMinimum when nil). The silver reserve is derived from
-// the colonist count (TradeSilverReserve) and hoard selling keys on the
-// constant TradeItemWealthShare (#875).
+// RetainedMinimum is the stock each WealthSurplusResources hoard keeps
+// regardless of floor (DefaultTradeRetainedMinimum when nil). The silver
+// reserve is derived from the colonist count (TradeSilverReserve) and hoard
+// selling keys on the constant TradeItemWealthShare (#875). The component
+// stock the trade buys toward is the derived component need
+// (construction demand and the component runway).
 type RoundsTradePolicy struct {
-	ComponentTarget int64
 	RetainedMinimum map[Resource]int64
 }
 
@@ -76,9 +75,6 @@ func TradeSilverReserve(colonists domain.Fact[int64]) (int64, bool) {
 }
 
 func (p RoundsTradePolicy) Validate() error {
-	if p.ComponentTarget < 0 || p.ComponentTarget > 1<<31 {
-		return errors.New("invalid routine trade policy")
-	}
 	for _, retained := range p.RetainedMinimum {
 		if retained < 0 || retained > 1<<31 {
 			return errors.New("invalid routine trade policy: retained minimum")
@@ -225,9 +221,7 @@ func ReviewTradeNeed(currency Resource, medicine MedicalReserveReview, resources
 	if len(food) == 1 {
 		need.Food = reviewTradeFood(food[0])
 	}
-	if p.ComponentTarget > 0 {
-		need.ComponentShortfall = max(0, p.ComponentTarget-stock[ComponentResource])
-	}
+	need.ComponentShortfall = max(0, targets[ComponentResource]-stock[ComponentResource])
 	names := make([]string, 0, len(targets))
 	for name := range targets {
 		names = append(names, string(name))
@@ -350,7 +344,7 @@ func roundsTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFac
 		}
 	}
 	if need.ComponentShortfall > 0 {
-		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(ComponentResource), Stock: min(p.ComponentTarget, tradeRoundsMaximumCount), MaxBuy: min(need.ComponentShortfall, tradeRoundsMaximumCount), MaxBuyPrice: tradeBuyPriceCeiling})
+		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(ComponentResource), Stock: min(targets[ComponentResource], tradeRoundsMaximumCount), MaxBuy: min(need.ComponentShortfall, tradeRoundsMaximumCount), MaxBuyPrice: tradeBuyPriceCeiling})
 	}
 	seen := map[string]bool{}
 	for _, target := range out.Targets {

@@ -69,7 +69,7 @@ func TestCommitStockpileZoneMethodBindsToResourceTargetGoal(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := roundsRequest()
 	r.Current.Native = 2
-	r.Policy.ResourceTargets = map[policy.Resource]int64{"MeleeWeapon_Gladius": 3}
+	r.Facts.ResourceNeeds = map[policy.Resource]int64{"MeleeWeapon_Gladius": 3}
 	r.Facts.Resources = domain.Known([]policy.Amount{})
 	out := reviewRounds(t, s, &r)
 	g := roundsGoal(t, out, policy.MaintainResource)
@@ -100,7 +100,7 @@ func TestCommitResourceFieldZoneUnderMaintainResource(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := roundsRequest()
 	r.Current.Native = 2
-	r.Policy.ResourceTargets = map[policy.Resource]int64{"Cloth": 30}
+	r.Facts.ResourceNeeds = map[policy.Resource]int64{"Cloth": 30}
 	r.Facts.Resources = domain.Known([]policy.Amount{})
 	out := reviewRounds(t, s, &r)
 	g := roundsGoal(t, out, policy.MaintainResource)
@@ -384,7 +384,7 @@ func TestCommitStockpileZonesOfTwoOwnersInOneCycle(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
 	r := medicalReserveRoundsRequest()
-	r.Policy.ResourceTargets = map[policy.Resource]int64{"MeleeWeapon_Gladius": 3}
+	r.Facts.ResourceNeeds = map[policy.Resource]int64{"MeleeWeapon_Gladius": 3}
 	r.Facts.Resources = domain.Known([]policy.Amount{})
 	out := reviewRounds(t, s, &r)
 	feed := roundsGoal(t, out, policy.MaintainMedicalReserves)

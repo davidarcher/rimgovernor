@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
+	"slices"
 	"strings"
 	"time"
 
@@ -74,7 +75,7 @@ func ring(ctx context.Context, s cases.Session) error {
 func stoneRing(audit map[string]any) (doors, walls int) {
 	for _, item := range append(na.AsSlice(audit["walls"]), na.AsSlice(audit["planned"])...) {
 		row, _ := na.AsMap(item)
-		if !policy.StoneBlockResource(policy.Resource(na.AsString(row["stuff"]))) {
+		if !slices.Contains(policy.CoreItemFacts().Categories[policy.Resource(na.AsString(row["stuff"]))], "StoneBlocks") {
 			continue
 		}
 		switch na.AsString(row["def"]) {

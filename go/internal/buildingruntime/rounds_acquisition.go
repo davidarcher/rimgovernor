@@ -128,7 +128,7 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 	if !pest {
 		mine := func(row policy.AcquisitionSource) bool { return food && row.Food }
 		if stockGoal {
-			targets, err := r.reviewer.resourceTargets(call, state.Snapshot, projection.Facts.Resources)
+			targets, err := r.reviewer.resourceTargets(call, state.Snapshot)
 			if err != nil {
 				return RoundsAcquisitionResult{}, err
 			}

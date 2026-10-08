@@ -18,16 +18,18 @@ func TestSurfaceOreOnlySafeMineables(t *testing.T) {
 
 func TestMedicineRunwayFromTendRate(t *testing.T) {
 	p := DefaultRoundsPolicy()
-	p.ResourceTargets = DefaultResourceTargets()
-	reserves := p.RunwayReserves(CoreItemFacts(), domain.Known(int64(8)))
-	if reserve, set := reserves["MedicineHerbal"]; !set || reserve != 8*p.MedicalReserve.TargetPerColonist || reserves["Steel"] == 0 {
+	spent := domain.Known(ResourceConsumption{WindowDays: 15, Recurring: map[Resource]int64{"Steel": 30, "RawRice": 90, "Cloth": 0}})
+	reserves := p.RunwayReserves(CoreItemFacts(), domain.Known(int64(8)), spent)
+	if reserve, set := reserves["MedicineHerbal"]; !set || reserve != 8*p.MedicalReserve.TargetPerColonist {
 		t.Fatal(reserves)
 	}
-	if got := p.RunwayReserves(ItemFacts{}, domain.Known(int64(8))); len(got) != len(p.ResourceTargets) {
-		t.Fatal("no catalog medicine must add no runway key", got)
+	// The ring names the material rows: steel was spent, food is the food
+	// ledger's and cloth was not.
+	if reserve, set := reserves["Steel"]; !set || reserve != 0 || len(reserves) != 4 {
+		t.Fatal(reserves)
 	}
-	if !p.TracksResource(CoreItemFacts(), "MedicineHerbal") {
-		t.Fatal("medicine workshop research must remain tracked")
+	if got := p.RunwayReserves(ItemFacts{}, domain.Known(int64(8)), domain.Unknown[ResourceConsumption]()); len(got) != 0 {
+		t.Fatal("no catalog medicine and no ring must add no runway key", got)
 	}
 	busy := domain.Known(ResourceConsumption{WindowDays: 15, Recurring: map[Resource]int64{"MedicineHerbal": 30}})
 	short := ForecastResourceRunway("MedicineHerbal", domain.Known(int64(4)), domain.Known(int64(0)), 0, 0, busy)

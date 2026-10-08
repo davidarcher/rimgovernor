@@ -159,7 +159,7 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 	row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String("Hunting"), Priority: proto.Int32(0), Disabled: proto.Bool(false)})
 	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 
-	reviewer.policy.ResourceTargets = map[policy.Resource]int64{"Hay": 30}
+	native.setFloors(map[policy.Resource]int64{"Hay": 30})
 	for i := 0; i < 6; i++ {
 		id := fmt.Sprint("grass", i)
 		cell := proto.Clone(v.Center).(*c.Cell)
@@ -215,7 +215,7 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 	}
 	// A designated resource skips only itself: a second floor still
 	// plans, and never re-admits a held grass source.
-	reviewer.policy.ResourceTargets["RawBerries"] = 30
+	native.setFloors(map[policy.Resource]int64{"Hay": 30, "RawBerries": 30})
 	if _, err = reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}

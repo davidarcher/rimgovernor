@@ -19,7 +19,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -324,16 +323,10 @@ func (c serveConfig) workshopPlans() bool {
 	return c.roundsWorkshopPlans && (c.resourceTargetsConfigured() || c.roundsGearPlans)
 }
 
-// resourceTargetsConfigured reports whether MaintainResource runs: always
-// with the resource family, which keeps the default floors (#875).
+// resourceTargetsConfigured reports whether MaintainResource runs: with the
+// resource family, on the needs the reviews derive.
 func (c serveConfig) resourceTargetsConfigured() bool {
 	return c.roundsResourcePlans
-}
-
-// resourceTargets is the MaintainResource floor map: the defaults
-// (#875). Goal-derived needs raise it through EffectiveResourceTargets.
-func (c serveConfig) resourceTargets() map[policy.Resource]int64 {
-	return policy.DefaultResourceTargets()
 }
 
 // activeRoundsFamilies reports the name of every routine planner family this

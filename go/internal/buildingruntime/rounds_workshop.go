@@ -82,8 +82,8 @@ func NewRoundsWorkshopPlanner(reviewer *Rounder, native RoundsBuildingSource) (*
 // can describe exactly the candidate bench definitions. A non-empty reason
 // ends the step.
 func (r *RoundsBuildingPlanner) prepareWorkshop(call context.Context, state ControlState, review store.Rounds) (*workshopSelection, Verdict, error) {
-	if r.concern != policy.MaintainEquipment && !r.reviewer.policy.ResourceConcernConfigured() {
-		targets, err := r.reviewer.resourceTargets(call, state.Snapshot, domain.Unknown[[]policy.Amount]())
+	if r.concern != policy.MaintainEquipment {
+		targets, err := r.reviewer.resourceTargets(call, state.Snapshot)
 		if err != nil {
 			return nil, Verdict{}, err
 		}
@@ -146,7 +146,7 @@ func (r *RoundsBuildingPlanner) prepareWorkshop(call context.Context, state Cont
 		products = needs
 	} else {
 		stock := resourceStockFacts(observed)
-		targets, err := r.reviewer.resourceTargets(call, state.Snapshot, stock)
+		targets, err := r.reviewer.resourceTargets(call, state.Snapshot)
 		if err != nil {
 			return nil, Verdict{}, err
 		}

@@ -37,9 +37,9 @@ func (n *remoteOreNative) ReadResourceSources(_ context.Context, _ *c.Identity, 
 func remoteOreStep(t *testing.T, steel int64) (RoundsResourceResult, *remoteOreNative) {
 	t.Helper()
 	base, _, _, _, sleeping := sleepingFixture(t)
-	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{"Steel": 200}
+	sleeping.setFloors(map[policy.Resource]int64{"Steel": 300})
 	v := sleeping.reply.GetObserved()
-	v.Resources = []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(steel)}}
+	v.Resources = []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(steel)}, {DefName: proto.String("MedicineHerbal"), Units: proto.Int64(1000)}, {DefName: proto.String("WoodLog"), Units: proto.Int64(100000)}}
 	native := &remoteOreNative{&starvingResourceNative{resourceNative: &resourceNative{
 		workshopNative: &workshopNative{sleepingNative: sleeping},
 	}}}
