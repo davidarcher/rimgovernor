@@ -24,9 +24,11 @@ func containmentCatalog() *o.DefinitionCatalog {
 		{DefName: "ZPlatform", Comps: []*d.Opt_CompPropertiesAny{{Value: platformComp(1)}}},
 		{DefName: "Inhibitor", Comps: []*d.Opt_CompPropertiesAny{{Value: facility}}},
 	}
+	v.TerrainDefs = []*d.TerrainDef{{DefName: "BioferritePlate"}, {DefName: "Soil"}, {DefName: "SteelTile"}}
 	v.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: "ContainmentStrength", DefaultBaseValue: 1}}}
 	v.StatValues = &o.DefStatTable{
-		Stats: []string{"MaxHitPoints"},
+		Stats:       []string{"MaxHitPoints", "ContainmentStrength"},
+		TerrainRows: []*o.DefStatRow{{DefName: "BioferritePlate", Stat: []int32{1}, Value: []float32{16}}, {DefName: "Soil"}, {DefName: "SteelTile", Stat: []int32{1}, Value: []float32{3}}},
 		Rows: []*o.DefStatRow{
 			{DefName: "Wall", StuffName: "Steel", Stat: []int32{0}, Value: []float32{4000}},
 			{DefName: "Door", StuffName: "Steel", Stat: []int32{0}, Value: []float32{300}},
@@ -49,7 +51,7 @@ func TestContainmentDefsReadTheFormulaInputsFromDefs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Holder != "HoldingPlatform" || got.HolderFactor != 1 || got.HolderBase != 2 || got.FloorStrength != 1 || got.WallHP != 4000 || got.DoorHP != 300 {
+	if got.Holder != "HoldingPlatform" || got.HolderFactor != 1 || got.HolderBase != 2 || got.FloorStrength != 1 || got.Floor != (policy.ContainmentFloor{Def: "BioferritePlate", Strength: 16}) || got.WallHP != 4000 || got.DoorHP != 300 {
 		t.Fatalf("%+v", got)
 	}
 	if len(got.Facilities) != 1 || got.Facilities[0].Def != "Inhibitor" || got.Facilities[0].Offset != 10 || got.Facilities[0].MaxDistance != 4 || got.Facilities[0].MaxSimultaneous != 2 {

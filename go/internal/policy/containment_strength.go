@@ -81,7 +81,19 @@ type ContainmentDefs struct {
 	// FloorStrength is the terrain ContainmentStrength stat of the floor the
 	// room stands on: the stat's default base for plain terrain.
 	FloorStrength float64
-	Facilities    []ContainmentFacility
+	// Floor is the terrain def with the greatest ContainmentStrength stat above
+	// the plain floor's, the strength a floored room's floor term takes
+	// (#2435); its Def is empty when the catalog has none.
+	Floor      ContainmentFloor
+	Facilities []ContainmentFacility
+}
+
+// ContainmentFloor is a terrain that raises containment strength: the def and
+// its ContainmentStrength stat value as the catalog's stat table shows it. Its
+// cost and availability are the planning definition's (FloorDefinition).
+type ContainmentFloor struct {
+	Def      string
+	Strength float64
 }
 
 // ContainmentRoom is the room-dependent input of a prediction.
@@ -93,6 +105,8 @@ type ContainmentRoom struct {
 	OpenRoof bool
 	// OtherHolders counts the other holders in or beside the room.
 	OtherHolders int
+	// Floored is a room whose every tile is laid with the defs' Floor (#2435).
+	Floored bool
 	// Facilities is how many of each facility def (by name) stand within the
 	// def's MaxDistance of the holder.
 	Facilities map[string]int
@@ -109,7 +123,14 @@ func (d ContainmentDefs) Predict(room ContainmentRoom) (float64, error) {
 	case room.MeanGlow < 0 || room.OtherHolders < 0:
 		return 0, errors.New("a room has no negative glow or holder count")
 	}
-	terms := room.MeanGlow*containmentLightingFactor + containmentWallTerm(d.WallHP) + d.DoorHP/containmentDoorHPDivisor + d.FloorStrength
+	floor := d.FloorStrength
+	if room.Floored {
+		if d.Floor.Def == "" {
+			return 0, errors.New("the catalog has no floor that adds containment strength")
+		}
+		floor = d.Floor.Strength
+	}
+	terms := room.MeanGlow*containmentLightingFactor + containmentWallTerm(d.WallHP) + d.DoorHP/containmentDoorHPDivisor + floor
 	terms *= math.Pow(containmentOtherHolderFactor, float64(room.OtherHolders))
 	if room.OpenRoof {
 		terms += containmentOpenRoofPenalty

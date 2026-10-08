@@ -15,6 +15,14 @@ func WantedFloors(room PlannedRoom, tags []string, facts FlooringFacts, p Floori
 	none := func(domain.Cell) string { return "" }
 	d, ok := roomFloorDeficit(room, tags)
 	cells := d.Cells
+	if room.Role == PlannedContainmentCell {
+		// The containment cell takes the catalog's containment floor when the
+		// stock pays for the whole room (#2435), else no floor.
+		if !ContainmentFloorLaid(facts.ContainmentFloor, facts, len(cells)) {
+			return none
+		}
+		return func(domain.Cell) string { return facts.ContainmentFloor.Def }
+	}
 	if !ok || len(cells) == 0 || !p.valid() {
 		return none
 	}
@@ -59,6 +67,11 @@ func FloorKept(room PlannedRoom, tags []string, facts FlooringFacts, p FlooringP
 	return func(have, want string) bool {
 		if have == want {
 			return true
+		}
+		if room.Role == PlannedContainmentCell {
+			// Only the containment floor stands in for it (replacing a plain
+			// floor is what the strength was predicted on).
+			return false
 		}
 		def, known := facts.Definitions[have]
 		if !ok || !known || !p.valid() {

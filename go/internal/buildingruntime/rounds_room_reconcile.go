@@ -87,6 +87,9 @@ func roomRingOwed(facts observation.ColonyProjection, plan policy.LayoutPlan, ro
 // definition the mirror describes, the accessible stock and the tier style.
 func flooringFacts(facts observation.ColonyProjection) policy.FlooringFacts {
 	flooring := policy.FlooringFacts{Definitions: map[string]policy.FloorDefinition{}, Stock: facts.Resources, Style: floorStyle(facts)}
+	if defs, known := facts.Facts.Containment.Defs.Value(); known {
+		flooring.ContainmentFloor = defs.Floor
+	}
 	for _, d := range facts.Definitions {
 		flooring.Definitions[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs, WorkToBuild: d.WorkToBuild, Tags: d.FloorTags}
 	}

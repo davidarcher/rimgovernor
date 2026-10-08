@@ -708,6 +708,9 @@ type FlooringFacts struct {
 	// styled floor that is known available, meets the tier and pays for
 	// the whole batch is chosen before any scoring. Nil styles nothing.
 	Style func(RoomRole) (string, bool)
+	// ContainmentFloor is the terrain the containment cell is laid with when
+	// the stock pays for it (#2435); zero names none.
+	ContainmentFloor ContainmentFloor
 }
 
 // floorScore prices one candidate for a tier; ok is false when the floor

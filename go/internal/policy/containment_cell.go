@@ -18,6 +18,9 @@ import (
 // needs; how much margin to keep is the capture rule's (#1742), and the
 // standing platform's native strength (EntityHolder.ContainmentStrength) is
 // the check once it is built. Capture itself is not planned here.
+// Bioferrite plate floor (#2435): when the stock pays for every tile of the
+// room, the prediction counts the catalog's containment floor in place of the
+// plain floor, and the flooring review lays it (WantedFloors).
 
 // ShellWallDefinition and ShellDoorDefinition are the defs a planned room's
 // shell is built from (reconcileRoom); the prediction
@@ -81,7 +84,7 @@ type ContainmentVerdict struct {
 // reaches the demand, owes nothing; an unknown fact, an unavailable
 // platform, or a design whose predicted strength falls short owes nothing
 // and says why.
-func ContainmentCellNeed(p ContainmentPlanning, furniture []FurnitureDefinition) (ChildRoomNeed, ContainmentVerdict) {
+func ContainmentCellNeed(p ContainmentPlanning, furniture []FurnitureDefinition, floors FlooringFacts) (ChildRoomNeed, ContainmentVerdict) {
 	demand, ok := p.Demand.Value()
 	if !ok {
 		return ChildRoomNeed{}, ContainmentVerdict{Reason: "the entities' capture and containment facts are unread"}
@@ -110,13 +113,6 @@ func ContainmentCellNeed(p ContainmentPlanning, furniture []FurnitureDefinition)
 			return ChildRoomNeed{}, ContainmentVerdict{}
 		}
 	}
-	strength, err := defs.Predict(ContainmentRoom{})
-	if err != nil {
-		return ChildRoomNeed{}, ContainmentVerdict{Reason: "the cell's strength cannot be predicted: " + err.Error()}
-	}
-	if strength < required {
-		return ChildRoomNeed{}, ContainmentVerdict{Reason: fmt.Sprintf("a cell of %s with the planned walls and door holds at most %.1f containment strength and an entity needs %.1f plus a margin of %.1f; facilities that add strength are not planned", defs.Holder, strength, demand.Required, margin)}
-	}
 	need := ChildRoomNeed{Role: RoomRoleContainmentCell, Module: PlannedContainmentCell, Furniture: []ChildFurniture{
 		{Defs: []string{defs.Holder}, Count: 1},
 		// A lamp lights the cell (#1743): glow adds ten containment strength
@@ -128,5 +124,35 @@ func ContainmentCellNeed(p ContainmentPlanning, furniture []FurnitureDefinition)
 	if _, ok := need.resolve(furniture); !ok {
 		return ChildRoomNeed{}, ContainmentVerdict{Reason: "the holding platform " + defs.Holder + " is not buildable yet or its size is unknown"}
 	}
+	// The floor term counts the containment floor (#2435) when the stock pays
+	// for every tile of the smallest room that holds the cell; WantedFloors
+	// lays it under the same test.
+	floored := false
+	if shape, ok := need.shape(furniture); ok {
+		if sizes := ChildRoomSizes(shape); len(sizes) > 0 {
+			floored = ContainmentFloorLaid(defs.Floor, floors, int(sizes[0][0]*sizes[0][1]))
+		}
+	}
+	strength, err := defs.Predict(ContainmentRoom{Floored: floored})
+	if err != nil {
+		return ChildRoomNeed{}, ContainmentVerdict{Reason: "the cell's strength cannot be predicted: " + err.Error()}
+	}
+	if strength < required {
+		return ChildRoomNeed{}, ContainmentVerdict{Reason: fmt.Sprintf("a cell of %s with the planned walls and door holds at most %.1f containment strength and an entity needs %.1f plus a margin of %.1f; facilities that add strength are not planned", defs.Holder, strength, demand.Required, margin)}
+	}
 	return need, ContainmentVerdict{Owed: true}
+}
+
+// ContainmentFloorLaid reports whether a room of tiles can be laid with the
+// containment floor now: a floor def the catalog names, known available
+// terrain, and a stock that covers its whole cost for every tile. An unread
+// stock or definition is not enough (unknown stays unknown).
+func ContainmentFloorLaid(floor ContainmentFloor, facts FlooringFacts, tiles int) bool {
+	def, known := facts.Definitions[floor.Def]
+	if floor.Def == "" || !known || tiles <= 0 {
+		return false
+	}
+	available, ak := def.Available.Value()
+	terrain, tk := def.Terrain.Value()
+	return ak && tk && available && terrain && affordableCells(def, facts.Stock, tiles) >= tiles
 }

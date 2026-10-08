@@ -55,6 +55,19 @@ func (catalog *DefinitionCatalog) ContainmentDefs(wall, wallStuff, door, doorStu
 			out.HolderBase = float64(m.GetValue().GetValue())
 		}
 	}
+	// The floor is the terrain whose stat table shows the greatest
+	// ContainmentStrength above the plain floor's (#2435); a terrain the table
+	// shows no such stat for adds none.
+	terrains := make([]string, 0, len(catalog.TerrainDefs))
+	for name := range catalog.TerrainDefs {
+		terrains = append(terrains, name)
+	}
+	sort.Strings(terrains)
+	for _, name := range terrains {
+		if v, err := catalog.TerrainStatValue(name, containmentStat); err == nil && float64(v) > out.FloorStrength && (out.Floor.Def == "" || float64(v) > out.Floor.Strength) {
+			out.Floor = policy.ContainmentFloor{Def: name, Strength: float64(v)}
+		}
+	}
 	hitPoints := func(def, stuff string) (float64, error) {
 		v, err := catalog.StatValue(def, stuff, maxHitPointsStat)
 		switch {

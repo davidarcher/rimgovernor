@@ -44,14 +44,18 @@ func (r *Rounder) reviewChildRooms(reading *observation.RoundsReading) error {
 // places; none while the catalog's containment inputs are unknown.
 func containmentDefinitions(facts observation.ColonyProjection) []string {
 	if defs, known := facts.Facts.Containment.Defs.Value(); known {
-		return []string{defs.Holder, policy.ContainmentLampDefinition}
+		out := []string{defs.Holder, policy.ContainmentLampDefinition}
+		if defs.Floor.Def != "" {
+			out = append(out, defs.Floor.Def)
+		}
+		return out
 	}
 	return nil
 }
 
 // containmentCellNeed is the cell the capturable entities owe.
 func containmentCellNeed(facts observation.ColonyProjection) (policy.ChildRoomNeed, policy.ContainmentVerdict) {
-	return policy.ContainmentCellNeed(facts.Facts.Containment, furnitureDefinitions(facts))
+	return policy.ContainmentCellNeed(facts.Facts.Containment, furnitureDefinitions(facts), flooringFacts(facts))
 }
 
 // isolationRoomNeed is the room the isolated creepjoiners owe (#1740).

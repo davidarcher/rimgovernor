@@ -87,12 +87,12 @@ func planning(entities int, required float64) ContainmentPlanning {
 }
 
 func TestContainmentCellIsOwedWhenTheDesignReachesTheEntity(t *testing.T) {
-	need, verdict := ContainmentCellNeed(planning(1, 100), platformFurniture())
+	need, verdict := ContainmentCellNeed(planning(1, 100), platformFurniture(), FlooringFacts{})
 	if !verdict.Owed || verdict.Reason != "" || need.Role != RoomRoleContainmentCell || need.Module != PlannedContainmentCell || len(need.Furniture) != 2 || need.Furniture[0].Defs[0] != "HoldingPlatform" || need.Furniture[1].Defs[0] != ContainmentLampDefinition || !need.Furniture[1].Optional {
 		t.Fatalf("%+v %+v", need, verdict)
 	}
 	// The predicted 176.67 reaches 116.6 plus the margin of 60.
-	if _, v := ContainmentCellNeed(planning(1, 116.6), platformFurniture()); !v.Owed {
+	if _, v := ContainmentCellNeed(planning(1, 116.6), platformFurniture(), FlooringFacts{}); !v.Owed {
 		t.Fatalf("equal strength: %+v", v)
 	}
 }
@@ -103,7 +103,7 @@ func TestContainmentCellIsOwedWhenTheDesignReachesTheEntity(t *testing.T) {
 func TestContainmentCellIsFurnishedWithALamp(t *testing.T) {
 	lamp := FurnitureDefinition{Name: ContainmentLampDefinition, Available: domain.Known(true), Size: domain.Known(Bounds{Width: 1, Height: 1})}
 	withLamp := append(platformFurniture(), lamp)
-	need, v := ContainmentCellNeed(planning(1, 100), withLamp)
+	need, v := ContainmentCellNeed(planning(1, 100), withLamp, FlooringFacts{})
 	if !v.Owed {
 		t.Fatalf("%+v", v)
 	}
@@ -117,7 +117,7 @@ func TestContainmentCellIsFurnishedWithALamp(t *testing.T) {
 		t.Fatalf("an unresearched lamp is left out: %+v %v", pieces, ok)
 	}
 	// The predicted strength counts no glow, so the lamp never makes a cell owed.
-	if _, v := ContainmentCellNeed(planning(1, 400), withLamp); v.Owed {
+	if _, v := ContainmentCellNeed(planning(1, 400), withLamp, FlooringFacts{}); v.Owed {
 		t.Fatalf("%+v", v)
 	}
 	shape, _ := need.shape(withLamp)
@@ -148,7 +148,7 @@ func TestContainmentCellOwesNothingAndSaysWhy(t *testing.T) {
 		"not buildable":  {planning(1, 1), nil, "not buildable"},
 	}
 	for name, c := range cases {
-		need, v := ContainmentCellNeed(c.p, c.f)
+		need, v := ContainmentCellNeed(c.p, c.f, FlooringFacts{})
 		if v.Owed || len(need.Furniture) != 0 || !strings.Contains(v.Reason, c.reason) || (c.reason == "" && v.Reason != "") {
 			t.Fatalf("%s: %+v %+v", name, need, v)
 		}
@@ -158,11 +158,11 @@ func TestContainmentCellOwesNothingAndSaysWhy(t *testing.T) {
 func TestStandingPlatformThatReachesTheEntityOwesNoCell(t *testing.T) {
 	p := planning(1, 100)
 	p.Holders = domain.Known([]BuiltHolder{{Strength: 120, Available: true}, {Strength: 300, Available: false}})
-	if _, v := ContainmentCellNeed(p, platformFurniture()); !v.Owed {
+	if _, v := ContainmentCellNeed(p, platformFurniture(), FlooringFacts{}); !v.Owed {
 		t.Fatalf("a weak or taken platform leaves the cell owed: %+v", v)
 	}
 	p.Holders = domain.Known([]BuiltHolder{{Strength: 160, Available: true}})
-	if _, v := ContainmentCellNeed(p, platformFurniture()); v.Owed || v.Reason != "" {
+	if _, v := ContainmentCellNeed(p, platformFurniture(), FlooringFacts{}); v.Owed || v.Reason != "" {
 		t.Fatalf("a native strength that reaches it owes nothing: %+v", v)
 	}
 }
@@ -183,7 +183,7 @@ func TestContainmentCellRoleTables(t *testing.T) {
 }
 
 func TestContainmentCellIsStagedLikeAnyChildRoom(t *testing.T) {
-	need, _ := ContainmentCellNeed(planning(1, 100), platformFurniture())
+	need, _ := ContainmentCellNeed(planning(1, 100), platformFurniture(), FlooringFacts{})
 	defs := platformFurniture()
 	shape, ok := need.shape(defs)
 	if !ok || shape.Module != PlannedContainmentCell {
