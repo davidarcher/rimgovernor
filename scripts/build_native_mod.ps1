@@ -4,7 +4,7 @@ param(
     [Parameter(Mandatory = $true)][string]$HarmonyAssembly,
     [string]$DotNet = 'dotnet',
     [string]$OutputRoot = '',
-    [ValidateSet('HomeCoverageFixture', 'SleepingFixture', 'MedicineFixture', 'AnimalContainmentFixture', 'AnimalFeedFixture', 'ResearchObservationFixture', 'RoundsSleepingFixture', 'RoundsProductionFixture', 'GuardedConstructionFixture', 'StorageHaulFixture', 'ThroughputFixture', 'WasteFixture', 'BurnableFilterFixture', 'GearFixture',
+    [ValidateSet('HomeCoverageFixture', 'SleepingFixture', 'MedicineFixture', 'AnimalContainmentFixture', 'ResearchObservationFixture', 'RoundsSleepingFixture', 'RoundsProductionFixture', 'GuardedConstructionFixture', 'StorageHaulFixture', 'ThroughputFixture', 'WasteFixture', 'BurnableFilterFixture', 'GearFixture',
         'MoodFixture', 'PopulationFixture', 'HusbandryFixture', 'MedicalManagementFixture',
         'DeepResourcesFixture', 'FoodChannelFixture', 'FishingFixture', 'LedgerFixture', 'HuntLedgerFixture', 'HuntChainRuleFixture', 'UpkeepFixture', 'TradeFixture',
         'EmergencyDevelopmentFixture',

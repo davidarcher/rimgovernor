@@ -407,14 +407,6 @@ namespace HomeBridge.BridgeTools
             Read("animals", result, () => {
                 var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                     && p.Faction == Faction.OfPlayerSilentFail).OrderBy(p => p.thingIDNumber).ToList();
-                var food = sets.Items.Where(t => (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)
-                    && t.def.IsNutritionGivingIngestible && !t.def.IsDrug && t.IngestibleNow).ToList();
-                var benches = sets.PlayerBuildings.OfType<Building_WorkTable>()
-                    .OrderBy(b => b.thingIDNumber).ToList();
-                var stockpiles = map.zoneManager.AllZones.OfType<Zone_Stockpile>().OrderBy(z => z.ID).ToList();
-                var feedDefs = FeedDefs.Value;
-                var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState
-                    && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
                 var values = animals.Select(p => {
                     var requiresPen = AnimalPenUtility.NeedsToBeManagedByRope(p);
                     var suitable = requiresPen ? AnimalPenUtility.ClosestSuitablePen(p, false) : null;
@@ -425,37 +417,6 @@ namespace HomeBridge.BridgeTools
                         Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = requiresPen
                     };
                     if (suitable != null) value.SuitablePen = NativeRef.Of(Id(suitable.parent.GetUniqueLoadID()));
-                    var reachable = food.Where(t => p.WillEat(t) && !t.IsForbidden(p)
-                        && p.CanReach(t, PathEndMode.Touch, Danger.None)
-                        && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
-                            || p.playerSettings.AreaRestrictionInPawnCurrentMap[t.Position])).OrderBy(t => t.thingIDNumber).ToList();
-                    // Each feed stock references its things table row (#1343).
-                    foreach (var item in reachable) {
-                        var stock = new Obs.FoodStock { Item = NativeRef.Thing(item),
-                            Nutrition = Number(FoodUtility.NutritionForEater(p, item) * item.stackCount) };
-                        stock.Eaters.Add(NativeRef.Of(Id(p.GetUniqueLoadID()))!);
-                        value.ReachableStoredFeed.Add(stock);
-                    }
-                    // A bill drops its product at the bench, so only a bench
-                    // the animal can walk to inside its allowed area feeds it.
-                    var reachableBenches = benches.Where(b => p.CanReach(b, PathEndMode.Touch, Danger.None)
-                        && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
-                            || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position])).ToList();
-                    value.ReachableBenches.AddRange(NativeRef.All(reachableBenches.Select(b => Id(b.GetUniqueLoadID()))));
-                    // Feed made elsewhere still feeds the animal once hauled
-                    // into a stockpile it can reach: name those zones with
-                    // the edible definitions each accepts, and a free
-                    // connected footprint in the area where one could go.
-                    var area = p.playerSettings?.AreaRestrictionInPawnCurrentMap;
-                    bool Allowed(IntVec3 c) => area == null || area[c];
-                    bool AnimalReach(IntVec3 c) => Allowed(c) && p.CanReach(c, PathEndMode.OnCell, Danger.None);
-                    foreach (var zone in stockpiles) {
-                        if (!zone.Cells.Any(AnimalReach)) continue;
-                        var storage = new Obs.AnimalFeedStorage { Zone = NativeRef.Of(Id(zone.GetUniqueLoadID())) };
-                        storage.Accepts.AddRange(feedDefs.Where(d => p.RaceProps.CanEverEat(d) && zone.settings.filter.Allows(d)).Select(d => Id(d.defName)));
-                        value.ReachableStorage.Add(storage);
-                    }
-                    value.StorageCandidates.AddRange(FeedStorageCandidates(map, p, haulers, Allowed).Select(Cell));
                     return value;
                 }).ToList();
                 result.Animals.AddRange(values);
@@ -474,48 +435,6 @@ namespace HomeBridge.BridgeTools
 
         // TrafficTop bounds the cells reported per traffic layer (#817).
         private const int TrafficTop = 128;
-
-        // FeedStorageCandidates floods outward from the animal over the free
-        // cells of its allowed area (roofed and not marked to collapse, as the
-        // stockpile zone operation requires, standable, unzoned, no building,
-        // blueprint, frame or item, reachable by the animal and by an eligible
-        // hauler) and returns the first connected footprint of up to
-        // feedStorageCandidateCells cells, or nothing when no hauler exists or
-        // no cell qualifies. The flood is bounded so a wide area costs a
-        // bounded number of reachability checks.
-        private const int feedStorageCandidateCells = 8;
-        private const int feedStorageFloodBound = 256;
-        // The food item defs, sorted by name: fixed for the process, so scanned once
-        // rather than per frame.
-        private static readonly Lazy<List<ThingDef>> FeedDefs = new Lazy<List<ThingDef>>(() =>
-            DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.category == ThingCategory.Item && NativeFoodPolicy.IsFood(d))
-                .OrderBy(d => d.defName, StringComparer.Ordinal).ToList());
-
-        private static List<IntVec3> FeedStorageCandidates(Map map, Pawn animal, List<Pawn> haulers, Func<IntVec3, bool> allowed)
-        {
-            var result = new List<IntVec3>();
-            if (haulers.Count == 0) return result;
-            bool Free(IntVec3 c) => c.InBounds(map) && allowed(c) && !c.Fogged(map) && c.Standable(map)
-                && c.Roofed(map) && !map.roofCollapseBuffer.IsMarkedToCollapse(c)
-                && map.zoneManager.ZoneAt(c) == null && c.GetEdifice(map) == null
-                && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item);
-            bool Reachable(IntVec3 c) => animal.CanReach(c, PathEndMode.OnCell, Danger.None)
-                && haulers.Any(h => !c.IsForbidden(h) && h.CanReach(c, PathEndMode.OnCell, Danger.None));
-            var seed = GenRadial.RadialCellsAround(animal.Position, 12, true).Where(c => Free(c) && Reachable(c)).Cast<IntVec3?>().FirstOrDefault();
-            if (seed == null) return result;
-            var seen = new HashSet<IntVec3> { seed.Value };
-            var queue = new Queue<IntVec3>();
-            queue.Enqueue(seed.Value);
-            while (queue.Count > 0 && result.Count < feedStorageCandidateCells && seen.Count < feedStorageFloodBound) {
-                var cell = queue.Dequeue();
-                result.Add(cell);
-                foreach (var next in GenAdj.CardinalDirections.Select(d => cell + d)) {
-                    if (!seen.Add(next) || !Free(next) || !Reachable(next)) continue;
-                    queue.Enqueue(next);
-                }
-            }
-            return result;
-        }
 
         // SleepingRelations fills a colonist's partners (lover, spouse and
         // fiance relations to living pawns on the same map), the native

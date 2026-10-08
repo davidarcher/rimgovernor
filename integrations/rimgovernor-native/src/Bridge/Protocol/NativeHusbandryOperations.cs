@@ -82,6 +82,13 @@ namespace HomeBridge.BridgeTools
             state.AgeYears = animal.ageTracker.AgeBiologicalYearsFloat;
             state.Adult = animal.ageTracker.Adult;
             state.Gender = animal.gender.ToString();
+            // The next life stage (#2379): its index and the ticks until
+            // Pawn_AgeTracker reaches the next stage's minAge, absent in the last.
+            var tracker = animal.ageTracker;
+            state.LifeStageIndex = tracker.CurLifeStageIndex;
+            var stages = animal.RaceProps.lifeStageAges;
+            if (stages != null && tracker.CurLifeStageIndex + 1 < stages.Count && tracker.BiologicalTicksPerTick > 0f)
+                state.TicksToNextLifeStage = Math.Max(0L, (long)Math.Ceiling((stages[tracker.CurLifeStageIndex + 1].minAge * 3600000.0 - tracker.AgeBiologicalTicks) / tracker.BiologicalTicksPerTick));
             if (animal.Faction != Faction.OfPlayer) return;
             state.Sick = animal.health.hediffSet.AnyHediffMakesSickThought;
             state.Sterilized = Sterilized(animal);
@@ -95,7 +102,13 @@ namespace HomeBridge.BridgeTools
         {
             state.Downed = animal.Downed;
             state.InMentalState = animal.InMentalState;
-            state.Pregnant = animal.health.hediffSet.hediffs.OfType<Hediff_Pregnant>().Any();
+            var pregnancy = animal.health.hediffSet.hediffs.OfType<Hediff_Pregnant>().FirstOrDefault();
+            state.Pregnant = pregnancy != null;
+            // Hediff_Pregnant.Tick's own progress rate: BodyResourceGrowthSpeed over
+            // gestationPeriodDays * 60000 per tick (#2379).
+            var speed = PawnUtility.BodyResourceGrowthSpeed(animal);
+            if (pregnancy != null && speed > 0f)
+                state.TicksToBirth = Math.Max(0L, (long)Math.Ceiling((1.0 - pregnancy.GestationProgress) * animal.RaceProps.gestationPeriodDays * 60000.0 / speed));
             state.ColonistBonded = TrainableUtility.GetAllColonistBondsFor(animal).Any();
             state.SlaughterDesignatable = new Designator_Slaughter().CanDesignateThing(animal).Accepted;
         }

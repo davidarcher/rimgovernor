@@ -50,7 +50,6 @@
     <Compile Include="../../../../scripts/fixtures/ShrineFixture.cs" Condition="'$(ShrineFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MedicineFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(MedicineFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/AnimalContainmentFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(AnimalContainmentFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/AnimalFeedFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(AnimalFeedFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/TradeFixture.cs" Condition="'$(TradeFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EmergencyDevelopmentFixture.cs" Condition="'$(EmergencyDevelopmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DraftFaultFixture.cs" Condition="'$(DraftFaultFixture)' == 'true'" />

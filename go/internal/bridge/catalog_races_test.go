@@ -179,3 +179,48 @@ func TestCatalogAnimalRaceHusbandryFacts(t *testing.T) {
 		t.Fatalf("train interval %v", v)
 	}
 }
+
+// TestCatalogAnimalRaceHerdGrowth (#2379): a race carries its life stages with
+// the tick each begins and its hunger rate factor, and the mean litter of its
+// litterSizeCurve as Rand.ByCurveAverage reads it.
+func TestCatalogAnimalRaceHerdGrowth(t *testing.T) {
+	reply := racesReply()
+	point := func(x, y float32) *d.CurvePoint { return &d.CurvePoint{Loc: &d.Vector2{X: x, Y: y}} }
+	wolf := reply.ThingDefs[0].Race
+	wolf.LifeStageAges = []*d.Opt_LifeStageAge{{Value: &d.LifeStageAge{Def: "WolfBaby", MinAge: 0}}, {Value: &d.LifeStageAge{Def: "WolfAdult", MinAge: 0.5}}}
+	wolf.LitterSizeCurve = &d.SimpleCurve{Points: []*d.CurvePoint{point(1, 0), point(2, 1), point(3, 0)}}
+	reply.Defs = &d.DefSets{LifeStageDefs: []*d.LifeStageDef{{DefName: "WolfBaby", HungerRateFactor: 0.25}, {DefName: "WolfAdult", HungerRateFactor: 1}}}
+	catalog, err := DecodeDefinitionCatalog(reply, pbIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	races, err := catalog.AnimalRaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	race, _ := races.Race("Wolf")
+	if len(race.LifeStages) != 2 || race.LifeStages[1].MinAgeTicks != 1800000 || race.LifeStages[0].HungerRateFactor != 0.25 {
+		t.Fatalf("stages %+v", race.LifeStages)
+	}
+	if v, ok := race.LitterSize.Value(); !ok || v != 2 {
+		t.Fatalf("litter %v %v", v, ok)
+	}
+	if beaver, _ := races.Race("Alphabeaver"); beaver.LifeStages != nil {
+		t.Fatalf("stages without defs %+v", beaver.LifeStages)
+	} else if v, ok := beaver.LitterSize.Value(); !ok || v != 1 {
+		t.Fatalf("no curve is one child, %v %v", v, ok)
+	}
+	for name, curve := range map[string]*d.SimpleCurve{
+		"two points":   {Points: []*d.CurvePoint{point(1, 0), point(2, 0)}},
+		"open end":     {Points: []*d.CurvePoint{point(1, 0), point(2, 1), point(3, 1)}},
+		"no area":      {Points: []*d.CurvePoint{point(1, 0), point(1, 0), point(1, 0)}},
+		"negative row": {Points: []*d.CurvePoint{point(1, 0), point(2, -1), point(3, 0)}},
+	} {
+		if _, ok := litterSizeMean(curve).Value(); ok {
+			t.Fatal(name, "rolled")
+		}
+	}
+	if v, _ := litterSizeMean(&d.SimpleCurve{Points: []*d.CurvePoint{point(0, 0), point(0.5, 1), point(1, 0)}}).Value(); v != 1 {
+		t.Fatalf("a birth gives a child, %v", v)
+	}
+}

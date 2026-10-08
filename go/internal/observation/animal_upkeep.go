@@ -89,7 +89,8 @@ func raceOf(pawn *o.PawnState, races policy.AnimalRaceCatalog) policy.AnimalRace
 func herdFacts(pawn *o.PawnState, races policy.AnimalRaceCatalog) policy.HerdFacts {
 	state := pawn.GetAnimalState()
 	race := raceOf(pawn, races)
-	return policy.HerdFacts{AgeYears: optional(state.AgeYears), LifeExpectancy: race.LifeExpectancy, ManhunterOnTameFail: race.ManhunterOnTameFail, Sick: optional(state.Sick), Adult: optional(state.Adult), Venerated: optional(state.Venerated), Predator: race.Predator}
+	return policy.HerdFacts{AgeYears: optional(state.AgeYears), LifeExpectancy: race.LifeExpectancy, ManhunterOnTameFail: race.ManhunterOnTameFail, Sick: optional(state.Sick), Adult: optional(state.Adult), Venerated: optional(state.Venerated), Predator: race.Predator,
+		TicksToBirth: optional(state.TicksToBirth), LifeStageIndex: optional(state.LifeStageIndex), TicksToNextLifeStage: optional(state.TicksToNextLifeStage)}
 }
 
 // mergeHerdFoodFacts copies each player animal's meat, grazing demand and

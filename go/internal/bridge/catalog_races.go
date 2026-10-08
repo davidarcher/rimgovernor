@@ -138,6 +138,8 @@ func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts
 			*stage.into = domain.Known(*stage.from)
 		}
 	}
+	race.LifeStages = catalog.raceLifeStages(props)
+	race.LitterSize = litterSizeMean(props.GetLitterSizeCurve())
 	race.TamenessCanDecay = domain.Known(facts.GetTamenessCanDecay())
 	race.TamenessDecayPeriodTicks = domain.Known(int(facts.GetTamenessDecayPeriodTicks()))
 	race.TameChanceFactor = domain.Known(float64(facts.GetTameChanceFactor()))
@@ -184,6 +186,50 @@ func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts
 		}
 	}
 	return race, nil
+}
+
+// raceLifeStages is the race's lifeStageAges with each stage's hunger rate
+// factor (#2379); nil when an entry or its LifeStageDef row is absent.
+func (catalog *DefinitionCatalog) raceLifeStages(props *d.RaceProperties) []policy.RaceLifeStage {
+	var out []policy.RaceLifeStage
+	for _, entry := range props.GetLifeStageAges() {
+		age := entry.GetValue()
+		stage := DefRow[*d.LifeStageDef](catalog, age.GetDef())
+		if age == nil || stage == nil {
+			return nil
+		}
+		out = append(out, policy.RaceLifeStage{MinAgeTicks: int64(math.Round(float64(age.GetMinAge()) * domain.TicksPerDay * domain.DaysPerYear)), HungerRateFactor: float64(stage.GetHungerRateFactor())})
+	}
+	return out
+}
+
+// litterSizeMean is the mean litter of a birth (#2379), as Hediff_Pregnant
+// rolls it: one child without a curve, else Rand.ByCurveAverage of the curve,
+// never below the one child a birth gives. Unknown for a curve Rand.ByCurve
+// rejects (fewer than three points, or ends not at y = 0).
+func litterSizeMean(curve *d.SimpleCurve) domain.Fact[float64] {
+	points := curve.GetPoints()
+	if curve == nil {
+		return domain.Known(1.0)
+	}
+	n := len(points)
+	if n < 3 || points[0].GetLoc().GetY() != 0 || points[n-1].GetLoc().GetY() != 0 {
+		return domain.Unknown[float64]()
+	}
+	var area, moment float64
+	for i := 0; i < n-1; i++ {
+		x0, y0 := float64(points[i].GetLoc().GetX()), float64(points[i].GetLoc().GetY())
+		x1, y1 := float64(points[i+1].GetLoc().GetX()), float64(points[i+1].GetLoc().GetY())
+		if y0 < 0 {
+			return domain.Unknown[float64]()
+		}
+		area += (x1 - x0) * (y0 + y1)
+		moment += (x1 - x0) * (x0*(2*y0+y1) + x1*(y0+2*y1))
+	}
+	if area <= 0 {
+		return domain.Unknown[float64]()
+	}
+	return domain.Known(math.Max(1, moment/area/3))
 }
 
 // animalInteraction is the game's animal interaction job constants (#2238); a

@@ -38,6 +38,12 @@ type HerdFacts struct {
 	// chemfuel or egg producer (no longer read by the herd plan; kept so
 	// recorded snapshots still decode).
 	Predator, Product bool
+	// TicksToBirth is the game ticks until a pregnant animal gives birth;
+	// LifeStageIndex the index of its current life stage in the race's
+	// LifeStages and TicksToNextLifeStage the ticks until the next one begins,
+	// unknown in the last stage (#2379).
+	TicksToBirth, TicksToNextLifeStage domain.Fact[int64]
+	LifeStageIndex                     domain.Fact[int32]
 }
 
 // herdOldFraction of RaceProps.lifeExpectancy marks an animal as old.

@@ -413,6 +413,14 @@ message AnimalState {
   // acceptance (false while a slaughter designation stands).
   optional bool downed = 39; optional bool in_mental_state = 40;
   optional bool colonist_bonded = 41; optional bool slaughter_designatable = 42;
+  // Herd growth events (#2379): game ticks until a pregnant animal gives birth
+  // ((1 - gestation) * gestationPeriodDays * 60000 / BodyResourceGrowthSpeed),
+  // absent without a pregnancy; the index of the current life stage in the
+  // race's lifeStageAges (Pawn_AgeTracker.CurLifeStageIndex) and game ticks until
+  // the next stage begins ((next minAge in ticks - AgeBiologicalTicks) /
+  // BiologicalTicksPerTick), absent in the last stage. The litter size is rolled
+  // at birth and the stage rows are the catalog's, so neither is sent.
+  optional int64 ticks_to_birth = 43; optional int32 life_stage_index = 44; optional int64 ticks_to_next_life_stage = 45;
   // Ids of the living humanlike pawns this animal has a Bond relation with
   // (any faction or status; the planner keeps those on the colony roster).
   repeated string bonded_pawn_ids = 36;
@@ -1295,20 +1303,9 @@ message RoyalThrone { rimgovernor.common.v1.Ref thing = 1; optional string def_n
 // without Royalty.
 message RoyaltySection { oneof outcome { RoyaltyColonyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message RoyaltyColonyFacts { repeated NeuroformerStock neuroformers = 1; repeated BestowingCeremony ceremonies = 2; repeated RoyalThrone thrones = 3; }
-// reachable_benches lists the player work tables whose position the animal
-// can reach inside its allowed area: a bill there drops its product where the
-// animal can eat it. reachable_storage lists the stockpile zones holding a
-// cell the animal can reach inside its allowed area, each with the
-// nutrition-giving definitions its filter accepts among those the animal's
-// race can ever eat (accepts): feed produced elsewhere and hauled there is
-// feed the animal eats. storage_candidates is a bounded, connected footprint
-// of free roofed cells inside the allowed area (standable, unzoned, unbuilt,
-// reachable by the animal and a hauler) near the animal on which such a
-// zone could be made; empty when no hauler exists or no cell qualifies.
-message AnimalFeedStorage { rimgovernor.common.v1.Ref zone = 1; repeated string accepts = 2; }
 // pawn refers to the bundle pawn table row (#1343), whose animal_state
 // carries the herd facts.
-message AnimalFeed { rimgovernor.common.v1.Ref pawn = 9; optional string diet = 2; optional bool requires_pen = 3; rimgovernor.common.v1.Ref suitable_pen = 4; repeated FoodStock reachable_stored_feed = 5; repeated rimgovernor.common.v1.Ref reachable_benches = 6; repeated AnimalFeedStorage reachable_storage = 7; repeated rimgovernor.common.v1.Cell storage_candidates = 8; }
+message AnimalFeed { reserved 5, 6, 7, 8; rimgovernor.common.v1.Ref pawn = 9; optional string diet = 2; optional bool requires_pen = 3; rimgovernor.common.v1.Ref suitable_pen = 4; }
 message DevelopmentPower { rimgovernor.common.v1.Ref building = 8; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; optional bool roofed = 6;
   // A turret gun's damage per second from its own verb and burst timing (#1188); absent for other consumers.
   optional double turret_dps = 7; }

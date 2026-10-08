@@ -328,6 +328,23 @@ type AnimalRace struct {
 	// MeatNutritionPerUnit is the Nutrition stat of MeatDef (the catalog's
 	// def stat table, no native read).
 	MeatNutritionPerUnit domain.Fact[float64]
+	// LifeStages are RaceProperties.lifeStageAges in order, each with the tick
+	// it begins and its LifeStageDef's hungerRateFactor (#2379); nil when a
+	// stage or its def is missing from the catalog.
+	LifeStages []RaceLifeStage
+	// LitterSize is the mean litter of a birth (#2379): Rand.ByCurveAverage of
+	// RaceProperties.litterSizeCurve, one child without a curve, never below
+	// the one child a birth always gives. Unknown for a curve the game cannot
+	// roll (fewer than three points).
+	LitterSize domain.Fact[float64]
+}
+
+// RaceLifeStage is one life stage of a race: MinAgeTicks is its minAge in
+// biological ticks and HungerRateFactor scales the nutrition per day an
+// animal of it eats (Need_Food.BaseHungerRate).
+type RaceLifeStage struct {
+	MinAgeTicks      int64
+	HungerRateFactor float64
 }
 
 // AnimalInteraction is the game's constants of one animal interaction job

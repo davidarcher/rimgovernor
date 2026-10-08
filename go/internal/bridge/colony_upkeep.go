@@ -59,16 +59,6 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	}
 	seen = map[string]bool{}
 	finite := func(p *float64) bool { return p == nil || !math.IsNaN(*p) && !math.IsInf(*p, 0) }
-	ids := func(values []string) bool {
-		found := map[string]bool{}
-		for _, id := range values {
-			if validID(id) != nil || found[id] {
-				return false
-			}
-			found[id] = true
-		}
-		return true
-	}
 	for _, row := range append(append(append([]*o.UpkeepPerson{}, v.People...), v.Slaves...), v.Guests...) {
 		if row == nil || !uniqueRef(row.Pawn, seen) || !optionalRef(row.OwnedBed) || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !validRefs(row.Partners) || !validTitle(row.Title) || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBed: row.OwnedBed, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC, Partners: row.Partners, BedSharingAllowed: row.BedSharingAllowed, Title: row.Title}) {
 			return contract("invalid sleeping person")
@@ -82,29 +72,11 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Animals {
-		if row == nil || !uniqueRef(row.Pawn, seen) || row.Diet != nil && validID(row.GetDiet()) != nil || !optionalRef(row.SuitablePen) || !validRefs(row.ReachableBenches) {
+		if row == nil || !uniqueRef(row.Pawn, seen) || row.Diet != nil && validID(row.GetDiet()) != nil || !optionalRef(row.SuitablePen) {
 			return contract("invalid upkeep animal")
 		}
-		for _, zone := range row.ReachableStorage {
-			if zone == nil || !validRef(zone.Zone) || !ids(zone.Accepts) || !proto.Equal(zone, &o.AnimalFeedStorage{Zone: zone.Zone, Accepts: zone.Accepts}) {
-				return contract("invalid upkeep animal storage")
-			}
-		}
-		for _, cell := range row.StorageCandidates {
-			if cell == nil || cell.GetX() < 0 || cell.GetZ() < 0 {
-				return contract("invalid upkeep animal storage candidate")
-			}
-		}
-		p := row.Pawn
-		if row.RequiresPen != nil && !row.GetRequiresPen() && row.SuitablePen != nil || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePen: row.SuitablePen, ReachableStoredFeed: row.ReachableStoredFeed, ReachableBenches: row.ReachableBenches, ReachableStorage: row.ReachableStorage, StorageCandidates: row.StorageCandidates}) {
+		if row.RequiresPen != nil && !row.GetRequiresPen() && row.SuitablePen != nil || !proto.Equal(row, &o.AnimalFeed{Pawn: row.Pawn, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePen: row.SuitablePen}) {
 			return contract("conflicting upkeep animal fields")
-		}
-		stocks := map[string]bool{}
-		for _, stock := range row.ReachableStoredFeed {
-			// A feed stock references its things table row (#1343).
-			if stock == nil || !uniqueRef(stock.Item, stocks) || !number(stock.Nutrition) || len(stock.Eaters) != 1 || stock.Eaters[0].GetId() != p.GetId() || !proto.Equal(stock, &o.FoodStock{Item: stock.Item, Nutrition: stock.Nutrition, Eaters: stock.Eaters}) {
-				return contract("invalid reachable animal feed")
-			}
 		}
 	}
 	// A wild row is the factionless tame census: its diet only, never
