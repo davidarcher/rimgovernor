@@ -1,0 +1,177 @@
+probes: native contract probes build affected, running task probes:build
+task: [probes:build] dotnet build NativeContractProbes.csproj -c Release -v minimal -nologo -p:RestoreLockedMode=true "-p:OutputPath=C:/Users/darch/code/rimgovernor/.claude/worktrees/agent-a5f8a4034963f7228/contracts/tests/../../.rimgovernor/task/probes/bin/" "-p:BaseIntermediateOutputPath=C:/Users/darch/code/rimgovernor/.claude/worktrees/agent-a5f8a4034963f7228/contracts/tests/../../.rimgovernor/task/probes/obj/"
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  NativeContractProbes -> C:\Users\darch\code\rimgovernor\.claude\worktrees\agent-a5f8a4034963f7228\.rimgovernor\task\probes\bin\NativeContractProbes.exe
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.60
+task: [probes:build] if [ ! -f "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll" ]; then
+  echo "native-hook-set: unavailable (missing C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll)"
+  exit 0
+fi
+dotnet build NativeHookSetProbe/NativeHookSetProbe.csproj -c Release -v minimal -nologo "-p:HarmonyAssembly=C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll" "-p:OutputPath=C:/Users/darch/code/rimgovernor/.claude/worktrees/agent-a5f8a4034963f7228/contracts/tests/../../.rimgovernor/task/probes/hookset/bin/" "-p:BaseIntermediateOutputPath=C:/Users/darch/code/rimgovernor/.claude/worktrees/agent-a5f8a4034963f7228/contracts/tests/../../.rimgovernor/task/probes/hookset/obj/"
+
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  NativeHookSetProbe -> C:\Users\darch\code\rimgovernor\.claude\worktrees\agent-a5f8a4034963f7228\.rimgovernor\task\probes\hookset\bin\NativeHookSetProbe.exe
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.54
+lint: go vet and staticcheck on ./... (silent when clean)
+lint: ok (22s)
+tests: ./... (a package prints only when it finishes; silence is normal)
+?   	github.com/davidarcher/RimGovernor/go/cmd/issue	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/cmd/remotebundle	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/cmd/test	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/affected	(cached)
+?   	github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/childproc	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/bridge/cellgrid	(cached)
+?   	github.com/davidarcher/RimGovernor/go/internal/gabp/gabptest	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/gabp	(cached)
+ok  	github.com/davidarcher/RimGovernor/go/internal/domain	(cached)
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/animals	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/anomaly	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/apply	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/authority	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bed	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bills	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/burial	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/campaign	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/caravan	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/clean	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/custody	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/draft	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/floor	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/hazard	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/husbandry	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/ideology	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/lab	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/letter	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/lifecycle	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/mapscope	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/mood	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/needs	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/odyssey	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/power	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/presentation	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/quest	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/recovery	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/refrigeration	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/facts	0.165s
+ok  	github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul	0.167s
+ok  	github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary	0.169s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/clearance	0.163s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/child	0.168s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/dialog	0.157s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/combat	0.180s
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/review	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/route	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/schedule	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/service	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/farm	0.181s
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sleeping	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/smoke	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/startup	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/defense	0.194s
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/temperature	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/tickbudget	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/tools	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/trade	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/food	0.165s
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/waste	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/zone	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/layout	0.201s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/medical	0.194s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/research	0.164s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/light	0.201s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/production	0.191s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/pawn	0.197s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/movement	0.199s
+ok  	github.com/davidarcher/RimGovernor/go/internal/buildingruntime/cmd/buildingsmoke	0.307s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/combatlab	0.303s
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/planstage	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs	(cached)
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startuplabor	(cached)
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/stepresult	(cached)
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/speedmatrix	0.163s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/rooms	0.168s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/shelter	0.168s
+?   	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/variantgen	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained	0.189s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/takeover	0.183s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/supplies	0.196s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/upkeep	0.183s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/wall	0.172s
+?   	github.com/davidarcher/RimGovernor/go/internal/observation/cmd/readsmoke	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/protobufgen/cmd/generatecsharp	(cached)
+ok  	github.com/davidarcher/RimGovernor/go/internal/protobufgen/cmd/generatego	(cached)
+ok  	github.com/davidarcher/RimGovernor/go/internal/remoteaccept	(cached)
+?   	github.com/davidarcher/RimGovernor/go/internal/routinefamily	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/slowtest	(cached)
+?   	github.com/davidarcher/RimGovernor/go/internal/snapshot/cmd/rerecord	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/snapshot/cmd/trim	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/snapshotshm	(cached)
+?   	github.com/davidarcher/RimGovernor/go/internal/store/clock	[no test files]
+?   	github.com/davidarcher/RimGovernor/go/internal/store/core	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/logview	0.500s
+?   	github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest	[no test files]
+ok  	github.com/davidarcher/RimGovernor/go/internal/testkit	(cached)
+ok  	github.com/davidarcher/RimGovernor/go/internal/testkit/cmd/checktesttimes	(cached)
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cost	0.197s
+ok  	github.com/davidarcher/RimGovernor/go/internal/executor	0.528s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite	0.173s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/doctor	0.279s
+ok  	github.com/davidarcher/RimGovernor/go/internal/spectator	0.174s
+ok  	github.com/davidarcher/RimGovernor/go/internal/observation/cmd/previewsmoke	0.185s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/farmselect	0.350s
+ok  	github.com/davidarcher/RimGovernor/go/internal/store/storetest	0.264s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/sustainedfood	0.438s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/setup	0.504s
+ok  	github.com/davidarcher/RimGovernor/go/internal/supplysim	0.524s
+ok  	github.com/davidarcher/RimGovernor/go/cmd/colonyreview	13.227s
+ok  	github.com/davidarcher/RimGovernor/go/internal/httpapi	1.232s
+ok  	github.com/davidarcher/RimGovernor/go/cmd/launcher	1.278s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/postmortem	0.985s
+ok  	github.com/davidarcher/RimGovernor/go/cmd/rimgovernor	1.424s
+=== RUN   TestEverySlogCallNamesAKind
+    kinds_test.go:56: ..\..\internal\buildingruntime\rounds_defense_layout.go:1850:3: slog call without a kind attribute writes no row
+--- FAIL: TestEverySlogCallNamesAKind (0.68s)
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cmd/acceptance	1.159s
+ok  	github.com/davidarcher/RimGovernor/go/internal/remotebundle	0.496s
+FAIL
+FAIL	github.com/davidarcher/RimGovernor/go/internal/telemetry	1.016s
+ok  	github.com/davidarcher/RimGovernor/go/cmd/remoteaccept	1.633s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases	2.228s
+ok  	github.com/davidarcher/RimGovernor/go/internal/observation	3.183s
+ok  	github.com/davidarcher/RimGovernor/go/internal/snapshot	3.136s
+ok  	github.com/davidarcher/RimGovernor/go/cmd/land	1.748s
+ok  	github.com/davidarcher/RimGovernor/go/internal/gamehost	3.027s
+ok  	github.com/davidarcher/RimGovernor/go/internal/store	4.062s
+ok  	github.com/davidarcher/RimGovernor/go/internal/buildingruntime	5.370s
+ok  	github.com/davidarcher/RimGovernor/go/internal/nativeaccept	5.541s
+ok  	github.com/davidarcher/RimGovernor/go/internal/policy	5.933s
+  still running: go test (30s)
+ok  	github.com/davidarcher/RimGovernor/go/internal/bridge	8.572s
+warning: 8 test(s) took over 1s under -short without a slowtest.Skip marker (not a failure):
+  github.com/davidarcher/RimGovernor/go/cmd/colonyreview.TestRunJSONCarriesDelta took 3.15s
+  github.com/davidarcher/RimGovernor/go/internal/store.TestSupplyMethodRequiresCensusCohortAndBoundedBatch took 1.48s
+  github.com/davidarcher/RimGovernor/go/internal/remoteaccept.TestExportFullShardBeyondFormerFifteenMiBAllowance took 1.46s
+  github.com/davidarcher/RimGovernor/go/internal/store.TestClockEpochImmutableMismatchAndPositiveRetirement took 1.38s
+  github.com/davidarcher/RimGovernor/go/internal/store.TestRoundsExecutionRequiresCurrentReviewedMethod took 1.08s
+  github.com/davidarcher/RimGovernor/go/cmd/remoteaccept.TestWorkflowProgressObserverCredentialBoundary took 1.04s
+  github.com/davidarcher/RimGovernor/go/internal/store.TestRoundsUpkeepIssuedWorkCannotRecoverFromTargetDisappearance took 1.04s
+  github.com/davidarcher/RimGovernor/go/internal/store.TestRoundsRecoveryRejectsCorruptProposalInputs took 1.01s
+tests: failed (31s)
+test: FAIL (54s)
+test: go test -json -short ./...: exit status 1
+exit status 1

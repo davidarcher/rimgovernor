@@ -72,6 +72,9 @@ type Rounder struct {
 	// (derived state, empty until the first review after a restart); see
 	// constructionMemory.
 	construction constructionMemory
+	// firstSeen is the per-world first-seen record of humanlike pawns
+	// (#2383): derived, in memory only, empty after a restart.
+	firstSeen observation.FirstSeenRecord
 	// billAges times the undispatched gear bills toward their expiry.
 	billAges billAges
 	// skipsLogged are the Odyssey quest skips already logged (#1717).
@@ -239,6 +242,9 @@ func (r *Rounder) seasonal(facts policy.RoundsFacts) policy.RoundsPolicy {
 // section the frame lacks keeps the table the mirror holds, and its tick
 // (#1347).
 func (r *Rounder) publishFrame(expected observation.Identity, frame bridge.RoundsFrame) {
+	seenAt := expected
+	seenAt.Tick = domain.Tick(frame.Context.GetTick())
+	r.firstSeen.Observe(seenAt, frame.Tables.Pawns)
 	if r.store == nil {
 		r.census.rememberColony(nil)
 		return

@@ -53,6 +53,10 @@ the save holds. The rest of this page details the session journal.
   change empties it and the new session re-establishes the extent from the live world; another colony
   or map sees nothing. Historical Home exclusions are not recorded: they are current restorable
   state, not player vetoes. Ownership and consumer contract: [colony extent](colony-extent.md).
+- **Pawn first-seen record (memory only).** The Rounder remembers, per world (colony, map, load),
+  the tick, faction def, royal title, host faction and guest status at which each humanlike pawn
+  (colonist, visitor, envoy, lodger) first appeared in the pawn table (#2383). It is not saved: a
+  restart or a world change empties it, and a pawn present at reload looks new once.
 
 ## What is re-derived
 

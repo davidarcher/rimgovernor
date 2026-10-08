@@ -462,6 +462,19 @@ message PawnState {
   PawnAnomaly anomaly = 47;
   // Royalty facts of a free colonist (#1876); absent without Royalty or on a pawn with no royalty tracker. A failed read is a ReadIssue named "royalty".
   PawnRoyalty royalty = 48;
+  // Standing of a spawned humanlike pawn among the factions (#2383), colonist
+  // or not; absent for animals and mechanoids.
+  PawnStanding standing = 49;
+}
+// Faction standing of one humanlike pawn (#2383). faction_def_name is the
+// pawn's FactionDef (absent without a faction); royal_title the defName of its
+// most senior royal title (absent without Royalty or a title); host_faction
+// the faction holding it as guest, prisoner or slave (absent when none);
+// guest_status the GuestStatus name while a host faction holds it;
+// quest_lodger Pawn.IsQuestLodger().
+message PawnStanding {
+  optional string faction_def_name = 1; optional string royal_title = 2; rimgovernor.common.v1.Ref host_faction = 3;
+  optional string guest_status = 4; optional bool quest_lodger = 5;
 }
 // Biotech facts of one pawn (#1678). Each scalar is absent when native could
 // not read it (unknown, not zero); a failed sub-read adds a ReadIssue named

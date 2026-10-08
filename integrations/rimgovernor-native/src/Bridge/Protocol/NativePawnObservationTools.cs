@@ -175,6 +175,7 @@ namespace HomeBridge.BridgeTools
                 row.Issues.Add(Issue("nearest_colonist",Common.UnavailableReason.NotApplicable,"No other live colonist on this map."));
                 row.Issues.Add(Issue("nearest_colonist_distance",Common.UnavailableReason.NotApplicable,"No other live colonist on this map."));
             }
+            if(pawn.RaceProps.Humanlike) row.Standing=Standing(pawn);
             if(pawn.Faction==null) row.Issues.Add(Issue("faction",Common.UnavailableReason.NotApplicable,"Pawn has no faction."));
             if(pawn.MentalStateDef==null) row.Issues.Add(Issue("mental_state",Common.UnavailableReason.NotApplicable,"Pawn has no mental state."));
             if (pawn.ownership?.OwnedBed!=null) row.OwnedBed=NativeRef.Of(Id(pawn.ownership.OwnedBed.GetUniqueLoadID()));
@@ -189,6 +190,18 @@ namespace HomeBridge.BridgeTools
                     row.Job.Issues.Add(Issue(field,Common.UnavailableReason.Unsupported,"Job driver detail is not observed by this reader."));
             }
             return row;
+        }
+        // Faction standing of a humanlike pawn, colonist or not (#2383).
+        private static Obs.PawnStanding Standing(Pawn pawn)
+        {
+            var standing=new Obs.PawnStanding { QuestLodger=pawn.IsQuestLodger() };
+            if(pawn.Faction!=null) standing.FactionDefName=Id(pawn.Faction.def.defName);
+            if(ModsConfig.RoyaltyActive && pawn.royalty?.MostSeniorTitle is RoyalTitle title) standing.RoyalTitle=Id(title.def.defName);
+            if(pawn.HostFaction!=null) {
+                standing.HostFaction=NativeRef.Of(Id(pawn.HostFaction.GetUniqueLoadID()));
+                if(pawn.guest!=null) standing.GuestStatus=pawn.guest.GuestStatus.ToString();
+            }
+            return standing;
         }
         internal static Obs.SnapshotRef PawnSnapshotToken(Pawn pawn,Obs.PawnState row,Common.ObservationContext context)
             => NativeObservationSnapshot.Snapshot("pawn-state", context, row.Pawn.Id, w => {
