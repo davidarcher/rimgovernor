@@ -24,6 +24,7 @@ import (
 type governorStateNative interface {
 	GovernorState(context.Context) (map[string]string, error)
 	PutGovernorState(context.Context, string, string) error
+	PutGovernorStateBatch(context.Context, map[string]string) error
 }
 
 // shadowGovernorState mirrors goals and family records into the save each

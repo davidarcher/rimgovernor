@@ -47,7 +47,7 @@ type ownedAuthority struct {
 // (Save, Load, NewColony) into the single httpapi.LifecycleWriter shape; neither embedded
 // capability grants the other's authority.
 type lifecycleCapability struct {
-	*bridge.LifecycleSave
+	*flushedSave
 	*bridge.LifecycleLoad
 	*bridge.LifecycleNewColony
 }
@@ -99,7 +99,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		haul:              &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
 		trade:             &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		presentationMedia: presentationMedia,
-		lifecycle:         lifecycleCapability{lifecycleSave, lifecycleLoad, lifecycleNewColony},
+		lifecycle:         lifecycleCapability{&flushedSave{LifecycleSave: lifecycleSave}, lifecycleLoad, lifecycleNewColony},
 		attention:         attentionAcknowledger{client}}, nil
 }
 
@@ -306,6 +306,11 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return err
 	}
 	_ = reads.Refresh(lifetime)
+	// Every Go-made save and every pre_save signal flushes the same way (#2359).
+	flusher := &stateFlusher{native: stateNative, world: currentGovernorWorld(reads), database: database, rebuild: rebuild}
+	if client.lifecycle.flushedSave != nil {
+		client.lifecycle.flushedSave.flush = flusher.Flush
+	}
 	var clockReview httpapi.ClockReview
 	var routines httpapi.RoundsProvider
 	if config.clockControl {
@@ -334,6 +339,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		defer close(shadowDone)
 		shadowGovernorState(lifetime, stateNative, currentGovernorWorld(reads), database, rebuild, config.refresh, out)
 	}()
+	flushLoopDone := make(chan struct{})
+	defer func() { <-flushLoopDone }()
+	go func() {
+		defer close(flushLoopDone)
+		runSaveFlusher(lifetime, natives.signals, flusher.Flush, saveSignalRetry)
+	}()
 	if config.resume {
 		resumer, err := newAutoResumer(buildingSnapshots{reads, player}, player, database, out)
 		if err != nil {
@@ -356,6 +367,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 type serveNatives struct {
 	flush         interface{ FlushSnapshot(context.Context) error }
 	state         governorStateNative
+	signals       saveSignalNative
 	breaks        buildingruntime.BreakResponseSource
 	presentation  httpapi.PresentationReader
 	notifications httpapi.NotificationReader
@@ -392,6 +404,9 @@ func requireServeNatives(client buildingServiceBridge) (natives serveNatives, er
 		return natives, err
 	}
 	if natives.breaks, err = requireNative[buildingruntime.BreakResponseSource](client.reads, "the break response reads (ReadEmergency, ReadCombatPawns; also the arrival hold reads)"); err != nil {
+		return natives, err
+	}
+	if natives.signals, err = requireNative[saveSignalNative](client.reads, "the pre_save signal (WaitSaveSignal, FlushDone)"); err != nil {
 		return natives, err
 	}
 	natives.colony, err = requireNative[buildingruntime.ColonyStatusNative](client.native, "the colony census reads (ReadColonyFacts, ReadHomeColonists)")

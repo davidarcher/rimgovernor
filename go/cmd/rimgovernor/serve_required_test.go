@@ -43,6 +43,14 @@ func (*buildingReadFake) GovernorState(context.Context) (map[string]string, erro
 	return map[string]string{}, nil
 }
 func (*buildingReadFake) PutGovernorState(context.Context, string, string) error { return nil }
+func (*buildingReadFake) PutGovernorStateBatch(context.Context, map[string]string) error {
+	return nil
+}
+func (*buildingReadFake) WaitSaveSignal(ctx context.Context, _ time.Duration) (string, bool, error) {
+	<-ctx.Done()
+	return "", false, ctx.Err()
+}
+func (*buildingReadFake) FlushDone(context.Context, string) error { return nil }
 func (*buildingReadFake) ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
 	return bridge.EmergencyObservation{}, bridge.Result{}, errUnusedFakeRead
 }
@@ -120,6 +128,16 @@ type withoutBreaks struct {
 
 func (withoutBreaks) FlushSnapshot(context.Context) error { return nil }
 
+type withoutSignals struct {
+	serviceBridge
+	httpapi.PresentationReader
+	httpapi.NotificationReader
+	governorStateNative
+	buildingruntime.BreakResponseSource
+}
+
+func (withoutSignals) FlushSnapshot(context.Context) error { return nil }
+
 // Every native or client serve used to treat as optional fails startup with
 // its name (#1670).
 func TestServeRefusesAClientMissingARequiredNative(t *testing.T) {
@@ -159,6 +177,9 @@ func TestServeRefusesAClientMissingARequiredNative(t *testing.T) {
 		}},
 		{"break response reads", "the break response reads", func() buildingServiceBridge {
 			return completeBuildingBridge(withoutBreaks{fake, fake, fake, fake}, caps)
+		}},
+		{"pre_save signal", "the pre_save signal", func() buildingServiceBridge {
+			return completeBuildingBridge(withoutSignals{fake, fake, fake, fake, fake}, caps)
 		}},
 	}
 	for _, tc := range cases {

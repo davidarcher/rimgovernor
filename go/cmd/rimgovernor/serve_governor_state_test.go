@@ -21,6 +21,8 @@ import (
 type fakeGovernorState struct {
 	blobs map[string]string
 	puts  int
+	// batches is every PutGovernorStateBatch argument, in call order.
+	batches []map[string]string
 }
 
 func (f *fakeGovernorState) GovernorState(context.Context) (map[string]string, error) {
@@ -34,6 +36,12 @@ func (f *fakeGovernorState) PutGovernorState(_ context.Context, key, blob string
 	} else {
 		f.blobs[key] = blob
 	}
+	return nil
+}
+
+func (f *fakeGovernorState) PutGovernorStateBatch(_ context.Context, blobs map[string]string) error {
+	f.batches = append(f.batches, blobs)
+	f.blobs = blobs
 	return nil
 }
 
