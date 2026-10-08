@@ -123,7 +123,8 @@ type Rounder struct {
 	huntAdmission policy.HuntAdmission
 	// tradeOffers is the caravans' priced offers the supply plan reads as
 	// trade candidates, in memory only (#2168).
-	tradeOffers tradeOfferBook
+	tradeOffers      tradeOfferBook
+	tradeAcquisition tradeAcquisitionMemory
 	// planChecked is the tick of the last layout survey this process read;
 	// planSurveyed is set once any survey was read. See reviewLayoutPlan.
 	planChecked  domain.Tick
@@ -418,6 +419,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	r.logBuildTier(ctx, reading.Projection)
 	r.logQuestSkips(ctx, reading.Projection.Facts)
 	r.planFood(&reading.Projection)
+	r.planFoodAcquisition(ctx, state.Snapshot, reading.Projection)
 	reading.Projection.Facts.ConstructionClaims = claims
 	reading.Sections.Colony.Value.Facts.ConstructionClaims = reading.Projection.Facts.ConstructionClaims
 	if err = r.reviewRoyalty(ctx, state.Snapshot, &reading); err != nil {

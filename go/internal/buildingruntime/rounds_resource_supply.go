@@ -264,6 +264,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 	if out.plan, err = policy.PlanResourceSupply(inputs, resourceLabor(projection)); err != nil {
 		return nil, fmt.Errorf("%w: buildResourceSupply: %w", ErrControl, err)
 	}
+	r.planTradeAcquisition(call, state.Snapshot, "resources", projection, out.plan.Plan.Demands, nil)
 	return out, nil
 }
 
