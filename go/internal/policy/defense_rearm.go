@@ -1,9 +1,6 @@
 package policy
 
 import (
-	"math"
-	"sort"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -16,10 +13,9 @@ type DefenseTurretFacts struct {
 	Definition string
 	Cell       domain.Cell
 	// DPS is the turret's observed damage per second (#1188).
-	DPS              domain.Fact[float64]
-	Powered          domain.Fact[bool]
-	OutOfFuel        domain.Fact[bool]
-	Fuel, TargetFuel domain.Fact[float64]
+	DPS       domain.Fact[float64]
+	Powered   domain.Fact[bool]
+	OutOfFuel domain.Fact[bool]
 	// FuelDefinitions are the definitions the barrel accepts (steel for the
 	// mini turret), in the census's order.
 	FuelDefinitions []Resource
@@ -38,30 +34,25 @@ type DefenseRearm struct {
 // every tier stands. Unpowered and Empty are the deficit cells (an empty
 // barrel cannot fire, whether or not the definition marks fuel mandatory);
 // Rearm is the one order proposed for the first empty barrel whose fuel is
-// in stock; Shortage is the fuel the empty barrels need and stock lacks,
-// per definition, for the resource policy to raise.
+// in stock. The fuel an empty barrel needs and stock lacks is the fuel
+// runway's demand (PlanFuelRunway), not this plan's.
 type DefenseTurretUpkeep struct {
 	Unpowered []domain.Cell
 	Empty     []domain.Cell
 	Rearm     []DefenseRearm
-	Shortage  []Amount
 }
 
 // DefenseRearmTurrets measures the tier's turrets. The rearm's pawn is an
 // available colonist whose Hauling work (the native refuel work giver's
 // type) is not disabled, preferring one with it enabled at the highest
 // priority; the order is a forced one, so the game's own auto-refuel
-// setting and threshold do not gate it. The shortage per fuel definition is
-// the barrels' fuel gap in fuel units, an estimate: the native units-per-
-// item multiplier is not observed, and the resource policy's floor only
-// needs to be above zero to start sourcing. Under a solar flare (blackout)
+// setting and threshold do not gate it. Under a solar flare (blackout)
 // every turret is dark for the outage and none is a power deficit: the
 // tier is absent, not unserviced (#408); an empty barrel is still rearmed
 // so the line is whole when the flare ends.
 func DefenseRearmTurrets(turrets []DefenseTurretFacts, workers []WorkPawn, stock domain.Fact[map[Resource]int64], blackout bool) DefenseTurretUpkeep {
 	var out DefenseTurretUpkeep
 	stocked, stockKnown := stock.Value()
-	shortage := map[Resource]int64{}
 	pawn, pawnOK := defenseRearmPawn(workers)
 	for _, t := range turrets {
 		if on, known := t.Powered.Value(); known && !on && !blackout {
@@ -83,35 +74,13 @@ func DefenseRearmTurrets(turrets []DefenseTurretFacts, workers []WorkPawn, stock
 			}
 		}
 		if fuel == "" {
-			if len(t.FuelDefinitions) > 0 {
-				shortage[t.FuelDefinitions[0]] += defenseFuelGap(t)
-			}
 			continue
 		}
 		if pawnOK && len(out.Rearm) == 0 && t.ID != "" {
 			out.Rearm = append(out.Rearm, DefenseRearm{Turret: t.ID, Cell: t.Cell, Pawn: pawn, Fuel: fuel})
 		}
 	}
-	for resource, count := range shortage {
-		out.Shortage = append(out.Shortage, Amount{Resource: resource, Count: count})
-	}
-	sort.Slice(out.Shortage, func(i, j int) bool { return out.Shortage[i].Resource < out.Shortage[j].Resource })
 	return out
-}
-
-// defenseFuelGap is the fuel a barrel is short of its target, at least one
-// unit for an empty barrel whose levels are unknown.
-func defenseFuelGap(t DefenseTurretFacts) int64 {
-	fuel, fk := t.Fuel.Value()
-	target, tk := t.TargetFuel.Value()
-	if !fk || !tk || target <= fuel || math.IsNaN(target-fuel) || math.IsInf(target-fuel, 0) {
-		return 1
-	}
-	gap := int64(math.Ceil(target - fuel))
-	if gap > 10000 {
-		gap = 10000
-	}
-	return max(gap, 1)
 }
 
 func defenseRearmPawn(workers []WorkPawn) (PawnID, bool) {

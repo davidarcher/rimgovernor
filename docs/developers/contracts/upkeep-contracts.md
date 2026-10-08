@@ -180,10 +180,25 @@ defenders' doorway, sized from defenders and turrets, no door on the raiders' ro
   deficit so other upkeep concerns take the free slot.
 - An observed empty barrel (`unfuelled`) is a tier deficit. With fuel in stock the concern
   issues one forced `recovery_service` refuel per step on an available Hauling-enabled
-  colonist (up to four attempts per turret and Episode). With none, the record carries
-  `FuelShortage` and the rounds raise a derived `MaintainResource` floor
-  (`RoundsFacts.ResourceNeeds`, merged by `ResourceConcernTargets` without lowering an
-  operator floor). Unknown fuel state is neither deficit nor order.
+  colonist (up to four attempts per turret and Episode). With none, the fuel runway
+  (below) already demands the refill. Unknown fuel state is neither deficit nor order.
+
+### Fuel runway
+
+Fuel is a runway, not a standing floor (`policy.PlanFuelRunway`). Every refuelable
+building of the power census (generators, turret barrels) is a `FuelConsumer`; its def's
+`CompProperties_Refuelable` gives the burn (`fuelConsumptionRate` fuel units a day,
+`fuelMultiplier` fuel units per item; `bridge.RefuelBurn`). A comp burning continuously
+(native `CompTick`) burns while switched on and, if `consumeFuelOnlyWhenPowered`, powered;
+it needs the horizon's burn (`ProjectionHorizonDays`) less its tank, in items, as a stock
+level kept in the Rounder's `constructionMemory`. A barrel already empty has runway zero
+whatever its rate and needs its refill to target. A comp that burns per use
+(`consumeFuelOnlyWhenUsed`, a turret per shot) holding fuel has no daily rate: it is
+listed in `FuelProjection.Gaps`. Any consumer whose fuel level, burn, gate or fuel item is
+unknown makes the projection unknown and asks for nothing. The shortfall is the
+projector's `Fuel` domain (`ShadowFuel`, under `MaintainResource`). Difficulty's
+maintenance cost factor, which scales `fuelMultiplier` for a `factorByDifficulty` comp
+(turret barrels), is not observed; the def's own multiplier is used.
 
 ### Clearance
 

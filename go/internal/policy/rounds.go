@@ -524,6 +524,9 @@ type RoundsFacts struct {
 	// Forward are the shadow projector inputs the facts above lack (#1913).
 	Forward ForwardObserved `json:",omitzero"`
 	Wood    domain.Fact[int64]
+	// Fuel are the refuelable buildings of the power census (FuelRunway).
+	Fuel domain.Fact[[]FuelConsumer] `json:",omitzero"`
+
 	// Admitted are the open costs of admitted methods, from the last
 	// review's live records: an open shortfall raises a MaintainResource
 	// floor for the bounded difference (#711).

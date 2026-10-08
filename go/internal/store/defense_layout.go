@@ -81,11 +81,6 @@ type DefenseLayoutRecord struct {
 	TurretsProbedTick domain.Tick `json:",omitempty"`
 	// MortarsProbedTick is TurretsProbedTick for the mortar tier (#1206).
 	MortarsProbedTick domain.Tick `json:",omitempty"`
-	// FuelShortage is the fuel the tier's empty barrels need and the last
-	// census found no stock of (#205), per definition; the rounds
-	// raises it as a derived MaintainResource floor until a barrel is
-	// rearmed or the stock returns.
-	FuelShortage []policy.Amount `json:",omitempty"`
 	// Anchored marks a layout proposed on the layout plan's killbox with
 	// the perimeter's sections (#789); an older record is proposed afresh.
 	Anchored bool `json:",omitempty"`
@@ -110,14 +105,6 @@ func (r DefenseLayoutRecord) Validate() error {
 	}
 	if r.VerifiedTick < 0 || r.TurretsProbedTick < 0 || r.MortarsProbedTick < 0 || len(r.VerifiedCombat) > 512 || len(r.PerimeterKey) > 128 || r.PerimeterRevision < 0 {
 		return errors.New("defense layout verification invalid")
-	}
-	if len(r.FuelShortage) > 16 {
-		return errors.New("defense layout fuel shortage out of bounds")
-	}
-	for _, a := range r.FuelShortage {
-		if a.Resource == "" || len(a.Resource) > 256 || a.Count <= 0 || a.Count > 10000 {
-			return errors.New("defense layout fuel shortage invalid")
-		}
 	}
 	seen := map[policy.DefenseTierName]bool{}
 	for _, tier := range r.Tiers {

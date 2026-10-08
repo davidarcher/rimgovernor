@@ -489,6 +489,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		topology := policy.PowerTopology{}
 		geometryKnown := true
 		turrets := []policy.DefenseTurretFacts{}
+		fuel := []policy.FuelConsumer{}
 		if conditionsKnown {
 			blackout, eclipse := false, false
 			for _, condition := range conditions {
@@ -519,6 +520,13 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 				Fuel: optional(s.Fuel), TargetFuel: optional(s.TargetFuel), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: append([]string(nil), s.AllowedFuelDefs...),
 				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays), RainVulnerable: rainVulnerable, Roofed: optional(row.Roofed), TurretDPS: optional(row.TurretDps)})
 			ref := b.GetBuilding()
+			consumer, refuelable, err := fuelConsumer(tables.Catalog, ref.GetId(), ref.GetDefName(), power[len(power)-1])
+			if err != nil {
+				return ColonyProjection{}, err
+			}
+			if refuelable {
+				fuel = append(fuel, consumer)
+			}
 			site := policy.PowerSite{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, PowerBuilding: power[len(power)-1], Occupied: bridge.RectCells(b.Occupied)}
 			geometryKnown = geometryKnown && ref.DefName != nil && ref.Position != nil && len(site.Occupied) > 0
 			topology.Buildings = append(topology.Buildings, site)
@@ -556,6 +564,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 			r.PowerPlanning = domain.Known(topology)
 		}
 		r.DefenseTurrets = domain.Known(turrets)
+		r.Facts.Fuel = domain.Known(fuel)
 		r.Facts.PowerRequired, r.Facts.PowerHeadroom, r.Facts.DisabledConsumers = policy.PowerCoverage(domain.Known(power))
 		r.Facts.PowerWeatherSafe = policy.PowerWeatherSafe(power)
 		if len(topology.UnsafeConduits) > 0 {

@@ -485,7 +485,6 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	// for its duration, not a deficit (#408).
 	workers, _ := read.Projection.WorkPawns.Value()
 	upkeep := policy.DefenseRearmTurrets(defenseTurretFacts(record, census), workers, read.Projection.Resources, policy.PowerOutageHold(read.Projection.Facts.DisasterConditions))
-	record.FuelShortage = upkeep.Shortage
 	if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 		return RoundsDefenseLayoutResult{}, err
 	}
@@ -602,7 +601,7 @@ func defenseTurretFacts(record store.DefenseLayoutRecord, census *defenseCensus)
 			facts := policy.DefenseTurretFacts{Cell: b.Cell}
 			if site, ok := census.consumers[b.Cell]; ok {
 				facts.Definition, facts.DPS = site.Definition, site.TurretDPS
-				facts.ID, facts.Powered, facts.OutOfFuel, facts.Fuel, facts.TargetFuel = site.ID, site.Powered, site.OutOfFuel, site.Fuel, site.TargetFuel
+				facts.ID, facts.Powered, facts.OutOfFuel = site.ID, site.Powered, site.OutOfFuel
 				for _, d := range site.FuelDefinitions {
 					facts.FuelDefinitions = append(facts.FuelDefinitions, policy.Resource(d))
 				}
@@ -1153,31 +1152,20 @@ func (r *RoundsDefenseLayoutPlanner) observeTiers(call context.Context, state Co
 // roundsDefensiveLayoutStanding is the journal's view of the layout for
 // development arbitration: known only while the goal is opted in and a
 // record for this colony is stored; a record from another load is a reload
-// whose tiers are re-observed before it counts. It also returns the
-// record's turret fuel shortage as derived MaintainResource floors (#205).
-func roundsDefensiveLayoutStanding(ctx context.Context, journal *store.Store, p policy.RoundsPolicy, snapshot domain.GenerationSnapshot) (domain.Fact[bool], map[policy.Resource]int64, error) {
+// whose tiers are re-observed before it counts.
+func roundsDefensiveLayoutStanding(ctx context.Context, journal *store.Store, p policy.RoundsPolicy, snapshot domain.GenerationSnapshot) (domain.Fact[bool], error) {
 	if !p.DefensiveLayout {
-		return domain.Unknown[bool](), nil, nil
+		return domain.Unknown[bool](), nil
 	}
 	world := store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}
 	record, stored, err := journal.LoadDefenseLayout(ctx, world)
 	if err != nil {
-		return domain.Unknown[bool](), nil, err
+		return domain.Unknown[bool](), err
 	}
-	if !stored {
-		return domain.Known(false), nil, nil
+	if !stored || record.World != world {
+		return domain.Known(false), nil
 	}
-	if record.World != world {
-		return domain.Known(false), nil, nil
-	}
-	var needs map[policy.Resource]int64
-	for _, a := range record.FuelShortage {
-		if needs == nil {
-			needs = map[policy.Resource]int64{}
-		}
-		needs[a.Resource] += a.Count
-	}
-	return domain.Known(record.Standing()), needs, nil
+	return domain.Known(record.Standing()), nil
 }
 
 // constructionMemory is the construction material demand of the latest
@@ -1224,10 +1212,7 @@ func (m *constructionMemory) get(snapshot domain.GenerationSnapshot) map[policy.
 // merged, the targets every resource planner dispatches on. An unknown
 // census leaves the stone floor out.
 func (r *Rounder) resourceTargets(ctx context.Context, snapshot domain.GenerationSnapshot, stock domain.Fact[[]policy.Amount]) (map[policy.Resource]int64, error) {
-	_, needs, err := roundsDefensiveLayoutStanding(ctx, r.player.journal, r.policy, snapshot)
-	if err != nil {
-		return nil, err
-	}
+	var needs map[policy.Resource]int64
 	review, err := r.player.journal.LoadRounds(ctx)
 	if err != nil {
 		return nil, err

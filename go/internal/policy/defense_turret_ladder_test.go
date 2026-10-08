@@ -140,7 +140,7 @@ func TestDefenseRearmTurretsCoversLadderTurrets(t *testing.T) {
 	t.Parallel()
 	for _, def := range []string{TurretAutocannon, TurretSniper} {
 		c := domain.Cell{X: 10, Z: 10}
-		turrets := []DefenseTurretFacts{{ID: def + "1", Definition: def, Cell: c, Powered: domain.Known(true), OutOfFuel: domain.Known(true), Fuel: domain.Known(0.0), TargetFuel: domain.Known(80.0), FuelDefinitions: []Resource{"Steel"}}}
+		turrets := []DefenseTurretFacts{{ID: def + "1", Definition: def, Cell: c, Powered: domain.Known(true), OutOfFuel: domain.Known(true), FuelDefinitions: []Resource{"Steel"}}}
 		got := DefenseRearmTurrets(turrets, []WorkPawn{rearmWorker("keen", true, 1, false)}, domain.Known(map[Resource]int64{"Steel": 120}), false)
 		if !reflect.DeepEqual(got.Rearm, []DefenseRearm{{Turret: def + "1", Cell: c, Pawn: "keen", Fuel: "Steel"}}) {
 			t.Fatalf("%s: %+v", def, got)

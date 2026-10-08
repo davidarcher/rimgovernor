@@ -26,6 +26,9 @@ const (
 	// ShadowConstruction is wood, stone and steel owed to standing and
 	// admitted construction against stock (#2365).
 	ShadowConstruction ShadowDomain = "construction"
+	// ShadowFuel is the fuel generators and empty barrels burn against stock
+	// (#2377).
+	ShadowFuel ShadowDomain = "fuel"
 )
 
 // shadowDomains is the goal-to-domain table (David, #1913 comment; #2365).
@@ -33,7 +36,7 @@ const (
 // two domains scores the larger known shortfall; it is unranked only when
 // every domain is unknown.
 var shadowDomains = map[ConcernID][]ShadowDomain{
-	MaintainResource:        {ShadowFood, ShadowConstruction},
+	MaintainResource:        {ShadowFood, ShadowConstruction, ShadowFuel},
 	MaintainFoodStorage:     {ShadowFood},
 	MaintainRefrigeration:   {ShadowPower},
 	EnsureTemperatureSafety: {ShadowTemperature},
@@ -60,7 +63,8 @@ type ForwardObserved struct {
 // ForwardInputsOf assembles the projector inputs from the routine facts.
 func ForwardInputsOf(f RoundsFacts, p RoundsPolicy) ForwardInputs {
 	in := ForwardInputs{Power: f.Forward.Power, Sleeping: SleepingRange{Min: f.SleepingMin, Max: f.SleepingMax}, Conditions: f.DisasterConditions, Turrets: f.Forward.Turrets, Policy: p,
-		Construction: ConstructionInputs{Deficit: f.ConstructionDeficit, Admitted: f.Admitted, Stock: f.Resources, Items: f.Items}}
+		Construction: ConstructionInputs{Deficit: f.ConstructionDeficit, Admitted: f.Admitted, Stock: f.Resources, Items: f.Items},
+		Fuel:         FuelInputs{Consumers: f.Fuel, Stock: StockReader{Resources: f.Resources, Wood: f.Wood}}}
 	if supply, known := f.AnimalUpkeep.Food.Value(); known {
 		in.Food = supply
 	}
@@ -120,6 +124,10 @@ func shadowShortfall(p ForwardProjection, d ShadowDomain) (float64, string) {
 		}
 	case ShadowConstruction:
 		if v, ok := p.Construction.Value(); ok {
+			return v.ShortfallDays, ""
+		}
+	case ShadowFuel:
+		if v, ok := p.Fuel.Value(); ok {
 			return v.ShortfallDays, ""
 		}
 	}
