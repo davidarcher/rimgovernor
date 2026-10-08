@@ -1182,17 +1182,30 @@ func roundsDefensiveLayoutStanding(ctx context.Context, journal *store.Store, p 
 
 // constructionMemory is the construction material demand of the latest
 // review of one world: derived state the Rounder keeps in memory, empty
-// until the first review after a restart.
+// until the first review after a restart. serves maps the stuffs that may
+// serve a clothing demand to the stuff it names (policy.ClothingRunway).
 type constructionMemory struct {
 	mu       sync.Mutex
 	snapshot domain.GenerationSnapshot
 	needs    map[policy.Resource]int64
+	serves   map[policy.Resource]policy.Resource
 }
 
-func (m *constructionMemory) set(snapshot domain.GenerationSnapshot, needs map[policy.Resource]int64) {
+func (m *constructionMemory) set(snapshot domain.GenerationSnapshot, needs map[policy.Resource]int64, serves map[policy.Resource]policy.Resource) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.snapshot, m.needs = snapshot, needs
+	m.snapshot, m.needs, m.serves = snapshot, needs, serves
+}
+
+// getServes is the clothing serves map the review of snapshot's world
+// computed, none for another world.
+func (m *constructionMemory) getServes(snapshot domain.GenerationSnapshot) map[policy.Resource]policy.Resource {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.snapshot != snapshot {
+		return nil
+	}
+	return m.serves
 }
 
 // get is the demand the review of snapshot's world computed, none for
@@ -1226,7 +1239,6 @@ func (r *Rounder) resourceTargets(ctx context.Context, snapshot domain.Generatio
 		}
 		needs = policy.MedicineResourceNeeds(items, needs, review.MedicineTarget)
 		needs = policy.ResourceConcernTargets(needs, r.construction.get(snapshot))
-		needs = policy.ResourceConcernTargets(needs, review.ClothingNeeds)
 		needs = policy.ResourceConcernTargets(needs, policy.ResourceRunwayTargets(review.ResourceRunwayState()))
 		if review.BrewingFinished {
 			needs = policy.ResourceConcernTargets(needs, policy.SocialDrugTargets(domain.Known(policy.ResearchFacts{Finished: []policy.ResearchProjectID{"Brewing"}})))

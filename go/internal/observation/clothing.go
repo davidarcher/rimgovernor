@@ -10,7 +10,7 @@ import (
 
 // ClothingGarments are the garments the colonists' outfits allow that cover a
 // core body-part group, each with its first available recipe's ingredient
-// slots (policy.ClothingMaterials prices the outfit from them). A definition
+// slots (policy.PlanClothingRunway prices the replacement from them). A definition
 // without a known available recipe is left out; an unread census or catalog
 // yields none.
 func ClothingGarments(defs GearDefinitions, gear domain.Fact[policy.GearObservation]) []policy.ClothingGarment {

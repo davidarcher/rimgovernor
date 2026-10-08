@@ -151,7 +151,11 @@ type GearOption struct {
 	Layers, Groups                                              []string
 	Source                                                      GearSource
 	Condition, Sharp, Blunt, Cold, Heat, MoveSpeed, Cost, Range float64
-	Tainted, Locked, Shield, Ranged                             bool
+	// MaxHitPoints is the def x stuff MaxHitPoints stat (zero when the
+	// catalog hides it) and WearPerDay the def's hit points lost per day
+	// worn (ApparelProperties.wearPerDay; zero is no wear).
+	MaxHitPoints, WearPerDay        float64
+	Tainted, Locked, Shield, Ranged bool
 	// SlaveOnly is the def's slaveApparel flag: only a slave may wear it.
 	SlaveOnly bool
 	// Psychic marks a psychic foil helmet, Smokepop a smokepop belt: utility
@@ -530,7 +534,7 @@ func (p GearLoadoutInput) Validate() error {
 		if o.Source != GearWorn && o.Source != GearLoose && o.Source != GearStored && o.Source != GearBillSource {
 			return errors.New("invalid gear source")
 		}
-		for _, n := range []float64{o.Condition, o.Sharp, o.Blunt, o.Cold, o.Heat, o.Cost, o.Range} {
+		for _, n := range []float64{o.Condition, o.Sharp, o.Blunt, o.Cold, o.Heat, o.Cost, o.Range, o.MaxHitPoints, o.WearPerDay} {
 			if !foodNumber(n) {
 				return errors.New("invalid gear stat")
 			}

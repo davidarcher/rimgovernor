@@ -21,89 +21,85 @@ func clothingGarments(shirt, pants int64) []ClothingGarment {
 	}
 }
 
-func clothingInput(colonists int64, garments []ClothingGarment, stock ...Amount) ClothingDemandInput {
-	return ClothingDemandInput{Garments: garments, Categories: clothingStuffs, Colonists: domain.Known(colonists), Stock: domain.Known(stock), Stored: domain.Known([]GearStock{})}
+// wornShirt is a worn shirt of stuff with the given condition: 100 hit
+// points at 0.4 a day, so it crosses the tattered threshold (.5) in
+// (condition - .5) * 250 days.
+func wornShirt(stuff Resource, condition float64) GearOption {
+	return GearOption{ID: "shirt", Definition: "Apparel_BasicShirt", Stuff: stuff, Condition: condition, MaxHitPoints: 100, WearPerDay: .4, Groups: []string{"Torso"}}
 }
 
-func clothingFloor(t *testing.T, in ClothingDemandInput, category string) ClothingMaterial {
-	t.Helper()
-	for _, m := range ClothingMaterials(in) {
-		if m.Category == category {
-			return m
-		}
+func clothingInput(worn []GearOption, stored []GearStock, garments []ClothingGarment, stock ...Amount) ClothingDemandInput {
+	var pawns []GearPawn
+	for i, o := range worn {
+		pawns = append(pawns, GearPawn{Pawn: PawnID(string(rune('a' + i))), LoadoutModel: domain.Known(GearLoadoutInput{Worn: []GearOption{o}})})
 	}
-	return ClothingMaterial{}
+	return ClothingDemandInput{Garments: garments, Categories: clothingStuffs, Gear: domain.Known(GearObservation{Pawns: pawns, Stored: domain.Known(stored)}), Stock: StockReader{Resources: domain.Known(stock)}}
 }
 
-// The floor is the colonists times the recipes' own counts for one outfit of
-// the core groups, per stuff category; it scales with both.
-func TestClothingFloorScalesWithColonistsAndRecipes(t *testing.T) {
-	t.Parallel()
-	if got := clothingFloor(t, clothingInput(5, clothingGarments(40, 30)), "Leathery"); got.Floor != 350 {
-		t.Fatalf("5 colonists: %+v", got)
-	}
-	if got := clothingFloor(t, clothingInput(10, clothingGarments(40, 30)), "Leathery"); got.Floor != 700 {
-		t.Fatalf("10 colonists: %+v", got)
-	}
-	if got := clothingFloor(t, clothingInput(5, clothingGarments(60, 30)), "Fabric"); got.Floor != 450 {
-		t.Fatalf("dearer shirt: %+v", got)
-	}
-	// Steel makes the only Torso garment of its category and no Legs one.
-	if got := clothingFloor(t, clothingInput(5, clothingGarments(40, 30)), "Metallic"); got.Floor != 0 {
-		t.Fatalf("metallic outfit: %+v", got)
-	}
-}
-
-// The cheapest garment of each group prices the outfit, and a garment covering
-// both groups is priced once.
-func TestClothingFloorTakesCheapestGarmentPerGroup(t *testing.T) {
-	t.Parallel()
-	garments := append(clothingGarments(40, 30), ClothingGarment{Definition: "Apparel_Tribalwear", Groups: []string{"Torso", "Legs"}, Slots: [][]Amount{{{"Cloth", 50}, {"Leather_Plain", 50}}}})
-	if got := clothingFloor(t, clothingInput(2, garments), "Fabric"); got.Floor != 100 {
-		t.Fatalf("one dress covering both groups: %+v", got)
-	}
-}
-
-// No demand when the stock holds the floor, when stored outfits cover every
-// colonist, or when the facts are unknown.
-func TestClothingFloorZeroWhenCovered(t *testing.T) {
+// A garment projected to cross the tattered threshold within the horizon
+// raises its replacement demand ahead of need, at the recipe's own count; one
+// far from the threshold, or one that does not wear, does not.
+func TestClothingRunwayAsksForGarmentsAboutToWearOut(t *testing.T) {
 	t.Parallel()
 	garments := clothingGarments(40, 30)
-	in := clothingInput(5, garments, Amount{"Leather_Plain", 200}, Amount{"Leather_Light", 150})
-	if got := clothingFloor(t, in, "Leathery"); got.Deficit() != 0 || got.Held != 350 {
-		t.Fatalf("stock covers: %+v", got)
+	// 15 days at .4 a day is 6 hit points: condition .55 crosses in 12.5 days.
+	near := clothingInput([]GearOption{wornShirt("Leather_Plain", .55)}, nil, garments)
+	if got := PlanClothingRunway(near).Needs; got["Leather_Light"] != 40 || len(got) != 1 {
+		t.Fatalf("near the threshold: %v", got)
 	}
-	if needs := ClothingResourceNeeds(ClothingMaterials(clothingInput(5, garments, Amount{"Leather_Plain", 350}, Amount{"Cloth", 350})), in.Stock); needs != nil {
-		t.Fatalf("needs with stock covering: %v", needs)
+	far := clothingInput([]GearOption{wornShirt("Leather_Plain", .6)}, nil, garments)
+	if got := PlanClothingRunway(far).Needs; len(got) != 0 {
+		t.Fatalf("far from the threshold: %v", got)
 	}
-	in = clothingInput(5, garments)
-	in.Stored = domain.Known([]GearStock{{Definition: "Apparel_BasicShirt", Quality: 2, HPBand: 10, Count: 5}, {Definition: "Apparel_Pants", Quality: 2, HPBand: 10, Count: 4}})
-	if got := clothingFloor(t, in, "Leathery"); got.Floor != 70 {
-		t.Fatalf("four stored outfits of five: %+v", got)
+	still := wornShirt("Leather_Plain", .51)
+	still.WearPerDay = 0
+	if got := PlanClothingRunway(clothingInput([]GearOption{still}, nil, garments)).Needs; len(got) != 0 {
+		t.Fatalf("a garment that does not wear: %v", got)
 	}
-	in.Stored = domain.Known([]GearStock{{Definition: "Apparel_BasicShirt", Quality: 2, HPBand: 10, Count: 5}, {Definition: "Apparel_Pants", Quality: 2, HPBand: 10, Count: 5}})
-	if ms := ClothingMaterials(in); len(ms) != 0 {
-		t.Fatalf("stored outfits cover everyone: %+v", ms)
-	}
-	in = clothingInput(5, garments)
-	in.Colonists = domain.Unknown[int64]()
-	if ms := ClothingMaterials(in); len(ms) != 0 {
-		t.Fatalf("unknown colonists: %+v", ms)
+	tattered := wornShirt("Leather_Plain", .4)
+	tattered.MaxHitPoints, tattered.WearPerDay = 0, 0
+	if got := PlanClothingRunway(clothingInput([]GearOption{tattered}, nil, garments)).Needs; got["Leather_Light"] != 40 {
+		t.Fatalf("a tattered garment with unknown wear: %v", got)
 	}
 }
 
-// The floor is asked of the member holding the most, as that member's stock
-// plus the category's deficit, so the ordinary deficit is the category's.
-func TestClothingNeedsAskTheHeldMember(t *testing.T) {
+// The demand is the stock level to reach: it sums over garments, vanishes
+// where the stock holds it, and is netted by serviceable stored garments.
+func TestClothingRunwayCountsStockAndSpares(t *testing.T) {
 	t.Parallel()
-	stock := domain.Known([]Amount{{"Leather_Light", 100}, {"Leather_Plain", 20}})
-	materials := ClothingMaterials(clothingInput(5, clothingGarments(40, 30), []Amount{{"Leather_Light", 100}, {"Leather_Plain", 20}}...))
-	needs := ClothingResourceNeeds(materials, stock)
-	if needs["Leather_Light"] != 100+230 {
-		t.Fatalf("needs %v", needs)
+	garments := clothingGarments(40, 30)
+	two := []GearOption{wornShirt("Cloth", .5), wornShirt("Cloth", .5)}
+	if got := PlanClothingRunway(clothingInput(two, nil, garments)).Needs; got["Cloth"] != 80 {
+		t.Fatalf("two garments: %v", got)
 	}
-	if _, asked := needs["Leather_Plain"]; asked {
-		t.Fatalf("a second member asked: %v", needs)
+	if got := PlanClothingRunway(clothingInput(two, nil, garments, Amount{"Cloth", 80})).Needs; len(got) != 0 {
+		t.Fatalf("stock covers: %v", got)
+	}
+	spare := []GearStock{{Definition: "Apparel_BasicShirt", Quality: 2, HPBand: 10, Count: 1}}
+	if got := PlanClothingRunway(clothingInput(two, spare, garments)).Needs; got["Cloth"] != 40 {
+		t.Fatalf("one stored spare: %v", got)
+	}
+	worn := PlanClothingRunway(clothingInput(two, []GearStock{{Definition: "Apparel_BasicShirt", Quality: 2, HPBand: 2, Count: 5}}, garments)).Needs
+	if worn["Cloth"] != 80 {
+		t.Fatalf("an unserviceable stored garment covers: %v", worn)
+	}
+	in := clothingInput(two, nil, garments)
+	in.Gear = domain.Unknown[GearObservation]()
+	if got := PlanClothingRunway(in); len(got.Needs) != 0 {
+		t.Fatalf("unread census: %v", got)
+	}
+}
+
+// The demand names the cheapest member (equal counts: by name) of the loadout stuff's category; the
+// stuffs sharing its category serve it, others do not.
+func TestClothingRunwayServes(t *testing.T) {
+	t.Parallel()
+	got := PlanClothingRunway(clothingInput([]GearOption{wornShirt("Leather_Plain", .5)}, nil, clothingGarments(40, 30)))
+	if got.Needs["Leather_Light"] != 40 || got.Serves["Leather_Light"] != "Leather_Light" || got.Serves["Leather_Plain"] != "Leather_Light" {
+		t.Fatalf("leather: %+v", got)
+	}
+	if _, serves := got.Serves["Cloth"]; serves {
+		t.Fatalf("another category serves: %+v", got.Serves)
 	}
 }
 
@@ -112,47 +108,24 @@ func TestClothingNeedsAskTheHeldMember(t *testing.T) {
 // leather counts toward the need.
 func TestClothingLeatherShortOpensHunt(t *testing.T) {
 	t.Parallel()
-	materials := ClothingMaterials(clothingInput(5, clothingGarments(40, 30)))
-	targets := ClothingResourceNeeds(materials, domain.Known([]Amount{}))
-	serves := ClothingServes(materials, targets)
-	deer := AcquisitionSource{ID: "deer1", Resource: "Corpse_Deer", Hunt: true, Food: true, Yield: 1, NutritionYield: 80, Products: []SourceProduct{{Def: "Leather_Light", Amount: 40}}}
-	var resource Resource
-	for r := range targets {
-		if serves[r] == r && materialIn(materials, "Leathery", r) {
-			resource = r
-		}
-	}
-	if resource == "" {
-		t.Fatalf("leather not targeted: %v %v", targets, serves)
-	}
-	priced, ok := ResourceSourceFor(deer, resource, serves)
+	runway := PlanClothingRunway(clothingInput([]GearOption{wornShirt("Leather_Plain", .5)}, nil, clothingGarments(40, 30)))
+	deer := AcquisitionSource{ID: "deer1", Resource: "Corpse_Deer", Hunt: true, Food: true, Yield: 1, NutritionYield: 80, Products: []SourceProduct{{Def: "Leather_Plain", Amount: 40}}}
+	const resource Resource = "Leather_Light"
+	priced, ok := ResourceSourceFor(deer, resource, runway.Serves)
 	if !ok || priced.Yield != 40 {
 		t.Fatalf("deer priced %+v %v", priced, ok)
 	}
-	candidates := AcquisitionSourceCandidates(resource, []AcquisitionSource{priced}, domain.Cell{}, domain.Known(targets[resource]))
-	plan, err := PlanResourceSupply([]ResourceSupplyInput{{Resource: resource, Deficit: targets[resource], Candidates: candidates, HorizonDays: ClothingHorizonDays}}, domain.Known(100000.0))
+	candidates := AcquisitionSourceCandidates(resource, []AcquisitionSource{priced}, domain.Cell{}, domain.Known(runway.Needs[resource]))
+	plan, err := PlanResourceSupply([]ResourceSupplyInput{{Resource: resource, Deficit: runway.Needs[resource], Candidates: candidates, HorizonDays: ClothingHorizonDays}}, domain.Known(100000.0))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := plan.OpenedIDs(resource, CandidateHunt); !got["deer1"] {
 		t.Fatal("hunt not opened for leather", plan.Plan.Explain())
 	}
-	if _, ok := ResourceSourceFor(deer, "WoodLog", serves); ok {
+	if _, ok := ResourceSourceFor(deer, "WoodLog", runway.Serves); ok {
 		t.Fatal("a deer serves wood")
 	}
-}
-
-func materialIn(ms []ClothingMaterial, category string, r Resource) bool {
-	for _, m := range ms {
-		if m.Category == category {
-			for _, member := range m.Members {
-				if member == r {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }
 
 // A cotton field is a harvest candidate with a lead, an upfront sowing cost

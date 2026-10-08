@@ -296,9 +296,9 @@ func resScenarios() []resScenario {
 	return append(out, clothingScenarios()...)
 }
 
-// clothingScenarios are the clothing-material floors (#2169): five colonists'
-// replacement outfits of a shirt (40) and pants (30) from fabric or leather,
-// so each category's floor is 350. The other category is held, so only the
+// clothingScenarios are the clothing runway (#2374): five colonists wearing
+// tattered shirts (40) and pants (30) of fabric or leather, so the short
+// stuff's demand is 350. The other category is held, so only the
 // short one asks.
 func clothingScenarios() []resScenario {
 	garments := []policy.ClothingGarment{
@@ -316,9 +316,14 @@ func clothingScenarios() []resScenario {
 		for g, n := range stock {
 			amounts = append(amounts, policy.Amount{Resource: resDef(g), Count: int64(n)})
 		}
-		materials := policy.ClothingMaterials(policy.ClothingDemandInput{Garments: garments, Categories: categories, Colonists: domain.Known(int64(5)),
-			Stock: domain.Known(amounts), Stored: domain.Known([]policy.GearStock{})})
-		targets := policy.ClothingResourceNeeds(materials, domain.Known(amounts))
+		stuff := resDef(short)
+		var pawns []policy.GearPawn
+		for i := range 5 {
+			worn := []policy.GearOption{{ID: "shirt", Definition: "Apparel_BasicShirt", Stuff: stuff, Condition: .4}, {ID: "pants", Definition: "Apparel_Pants", Stuff: stuff, Condition: .4}}
+			pawns = append(pawns, policy.GearPawn{Pawn: policy.PawnID(fmt.Sprint(i)), LoadoutModel: domain.Known(policy.GearLoadoutInput{Worn: worn})})
+		}
+		targets := policy.PlanClothingRunway(policy.ClothingDemandInput{Garments: garments, Categories: categories,
+			Gear: domain.Known(policy.GearObservation{Pawns: pawns, Stored: domain.Known([]policy.GearStock{})}), Stock: policy.StockReader{Resources: domain.Known(amounts)}}).Needs
 		f := resFixture{good: short, stock: stock[short], perDay: 1, restore: float64(targets[resDef(short)])}
 		w := resWorld(f, []supplysim.Source{src})
 		w.Stock[held] = stock[held]

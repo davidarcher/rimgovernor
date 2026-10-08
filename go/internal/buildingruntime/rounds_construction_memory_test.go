@@ -16,7 +16,7 @@ func TestConstructionMemoryEmptyUntilFirstReview(t *testing.T) {
 	if got := m.get(world); len(got) != 0 {
 		t.Fatalf("restart window demand %v", got)
 	}
-	m.set(world, map[policy.Resource]int64{"Steel": 50})
+	m.set(world, map[policy.Resource]int64{"Steel": 50}, nil)
 	if got := m.get(world); got["Steel"] != 50 {
 		t.Fatalf("reviewed demand %v", got)
 	}

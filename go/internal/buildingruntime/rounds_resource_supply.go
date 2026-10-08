@@ -107,7 +107,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 	if err != nil {
 		return nil, err
 	}
-	serves := policy.ClothingServes(projection.Facts.ClothingMaterials(), targets)
+	serves := r.construction.getServes(state.Snapshot)
 	out := &resourceSupply{rows: map[policy.Resource]*resourceSupplyRow{}, tokens: map[string]string{}}
 	planner := &RoundsResourcePlanner{reviewer: r, native: r.resourceNative}
 	identity := boundary.Identity(state.Snapshot)

@@ -2,7 +2,6 @@ package policy
 
 import (
 	"slices"
-	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -16,256 +15,154 @@ type ClothingGarment struct {
 	Slots      [][]Amount
 }
 
-// ClothingDemandInput is what the standing clothing-material floor is
-// computed from: the allowed garments, each stuff's categories, the colonists,
-// the stock and the outfits already stored.
+// ClothingHorizonDays is how far ahead a wearing garment's replacement is
+// wanted: replacement is gradual, so a field that delivers within it (cotton
+// grows in about a week) serves the demand as well as a hunt.
+const ClothingHorizonDays = 15.0
+
+// ClothingDemandInput is what the clothing runway is computed from: the
+// allowed garments, each stuff's categories, the gear census (worn garments
+// from the loadout models, the garments in storage) and the stock.
 type ClothingDemandInput struct {
 	Garments   []ClothingGarment
 	Categories map[Resource][]string
-	Colonists  domain.Fact[int64]
-	Stock      domain.Fact[[]Amount]
-	Stored     domain.Fact[[]GearStock]
+	Gear       domain.Fact[GearObservation]
+	Stock      StockReader
 }
 
-// ClothingMaterial is one stuff category's share of the standing floor: the
-// units one replacement outfit of every colonist without a stored outfit
-// takes (Floor), what the category's stuffs already hold (Held), and the
-// stuff (Material) the units are asked of. Members are every stuff of the
-// category the outfit's recipes accept: a hunt's leather or a field's cotton
-// of any member serves Material's demand.
-type ClothingMaterial struct {
-	Category string
-	Material Resource
-	Members  []Resource
-	Floor    int64
-	Held     int64
+// ClothingRunway is the material the worn garments about to wear out take to
+// replace: Needs the stock levels MaintainResource must reach, and Serves each
+// stuff that may serve a demanded stuff (the loadout stuff and the stuffs
+// sharing a catalog category with it, gearFilter's rule) mapped to the
+// cheapest member the demand names.
+type ClothingRunway struct {
+	Needs  map[Resource]int64
+	Serves map[Resource]Resource
 }
 
-// Deficit is the units short of the floor.
-func (m ClothingMaterial) Deficit() int64 { return max(0, m.Floor-m.Held) }
-
-// ClothingMaterials is ClothingMaterials of the review's facts: the apparel
-// census's stored outfits, the catalog's stuff categories and the stock.
-func (f RoundsFacts) ClothingMaterials() []ClothingMaterial {
-	in := ClothingDemandInput{Garments: f.Garments, Categories: f.Items.StuffCategories, Colonists: f.Colonists, Stock: f.Resources, Stored: domain.Unknown[[]GearStock]()}
-	if gear, known := f.Gear.Value(); known {
-		in.Stored = gear.Stored
-	}
-	return ClothingMaterials(in)
+// ClothingRunway is PlanClothingRunway of the review's facts.
+func (f RoundsFacts) ClothingRunway() ClothingRunway {
+	return PlanClothingRunway(ClothingDemandInput{Garments: f.Garments, Categories: f.Items.StuffCategories, Gear: f.Gear, Stock: StockReader{Resources: f.Resources, Wood: f.Wood}})
 }
 
-// ClothingMaterials are the floors of the colonists' replacement outfits: per
-// stuff category, colonists x the units of the cheapest garment of each core
-// group (a garment covering several groups once), less the colonists whose
-// outfit is already stored. The cost is the recipes' own count, so it scales
-// with the recipe and the colony. A category some core group cannot be made
-// from has no floor, and an unknown colonist count, stock or recipe asks for
-// nothing. Material is the member holding the most (then the cheapest, then
-// by name).
-func ClothingMaterials(in ClothingDemandInput) []ClothingMaterial {
-	colonists, known := in.Colonists.Value()
-	stock, stockKnown := in.Stock.Value()
-	if !known || !stockKnown || colonists <= 0 {
-		return nil
+// TatteredWithin reports a worn option at or under the tattered threshold
+// now, or projected to cross it within days: it loses WearPerDay hit points a
+// day of its MaxHitPoints. An option without a wear rate or hit points does
+// not wear.
+func (o GearOption) TatteredWithin(days float64) bool {
+	if o.Condition <= GearTatteredCondition {
+		return true
 	}
-	need := colonists - spareOutfits(in)
-	if need <= 0 {
-		return nil
+	if !(o.MaxHitPoints > 0) || !(o.WearPerDay > 0) {
+		return false
 	}
-	held := map[Resource]int64{}
-	for _, a := range stock {
-		held[a.Resource] += a.Count
+	return (o.Condition-GearTatteredCondition)*o.MaxHitPoints/o.WearPerDay <= days
+}
+
+// PlanClothingRunway is the replacement demand of every worn garment that
+// is tattered or projected to be within ClothingHorizonDays: one garment's
+// recipe slots at the cheapest member of its filter (OpenBillDemand's rule),
+// less the serviceable stored garments covering the same core group. A
+// garment without a recipe, a pawn without a loadout model or an unread
+// census asks for nothing. The demand is an absolute stock level, counted
+// only where the stock falls short.
+func PlanClothingRunway(in ClothingDemandInput) ClothingRunway {
+	gear, known := in.Gear.Value()
+	if !known {
+		return ClothingRunway{}
 	}
-	categories := map[string]bool{}
-	for _, g := range in.Garments {
-		for _, slot := range g.Slots {
-			for _, a := range slot {
-				for _, c := range in.Categories[a.Resource] {
-					categories[c] = true
-				}
+	spare := map[Resource]int{}
+	if stored, ok := gear.Stored.Value(); ok {
+		for _, s := range stored {
+			if s.Serviceable() {
+				spare[s.Definition] += s.Count
 			}
 		}
 	}
-	names := make([]string, 0, len(categories))
-	for c := range categories {
-		names = append(names, c)
-	}
-	sort.Strings(names)
-	var out []ClothingMaterial
-	for _, category := range names {
-		if m, ok := clothingMaterial(in, category, need, held); ok {
-			out = append(out, m)
-		}
-	}
-	return out
-}
-
-// clothingMaterial prices the outfit in one stuff category.
-func clothingMaterial(in ClothingDemandInput, category string, need int64, held map[Resource]int64) (ClothingMaterial, bool) {
-	outfit, ok := cheapestOutfit(in, category, 0, nil)
-	if !ok {
-		return ClothingMaterial{}, false
-	}
-	// Members are the stuffs every garment of the outfit accepts.
-	var members []Resource
-	for i, g := range outfit {
-		accepted := stuffsOf(g, in.Categories, category)
-		if i == 0 {
-			members = accepted
-			continue
-		}
-		members = slices.DeleteFunc(members, func(r Resource) bool { return !slices.Contains(accepted, r) })
-	}
-	if len(members) == 0 {
-		return ClothingMaterial{}, false
-	}
-	cost := func(stuff Resource) (total int64) {
-		for _, g := range outfit {
-			for _, slot := range g.Slots {
-				for _, a := range slot {
-					if a.Resource == stuff {
-						total += a.Count
-					}
-				}
-			}
-		}
-		return total
-	}
-	m := ClothingMaterial{Category: category, Members: members}
-	for _, stuff := range members {
-		m.Held += held[stuff]
-		if m.Material == "" || held[stuff] > held[m.Material] || held[stuff] == held[m.Material] && cost(stuff) < cost(m.Material) {
-			m.Material = stuff
-		}
-	}
-	m.Floor = need * cost(m.Material)
-	return m, m.Floor > 0
-}
-
-// cheapestOutfit is the cheapest set of garments covering every core group
-// from group onward, given the garments chosen so far; a garment covering
-// several groups is counted once.
-func cheapestOutfit(in ClothingDemandInput, category string, group int, chosen []ClothingGarment) ([]ClothingGarment, bool) {
-	if group == len(GearCoreGroups) {
-		return chosen, true
-	}
-	if slices.ContainsFunc(chosen, func(g ClothingGarment) bool { return slices.Contains(g.Groups, GearCoreGroups[group]) }) {
-		return cheapestOutfit(in, category, group+1, chosen)
-	}
-	var best []ClothingGarment
-	bestCost := int64(0)
-	for _, g := range in.Garments {
-		if !slices.Contains(g.Groups, GearCoreGroups[group]) {
-			continue
-		}
-		if _, ok := garmentCost(g, in.Categories, category); !ok {
-			continue
-		}
-		outfit, ok := cheapestOutfit(in, category, group+1, append(slices.Clone(chosen), g))
+	var bills []OpenBill
+	for _, pawn := range gear.Pawns {
+		model, ok := pawn.LoadoutModel.Value()
 		if !ok {
 			continue
 		}
-		var cost int64
-		for _, o := range outfit {
-			c, _ := garmentCost(o, in.Categories, category)
-			cost += c
-		}
-		if best == nil || cost < bestCost {
-			best, bestCost = outfit, cost
-		}
-	}
-	return best, best != nil
-}
-
-// garmentCost is the cheapest total of the garment's slots in category's
-// stuffs; false when a slot has no stuff of the category.
-func garmentCost(g ClothingGarment, categories map[Resource][]string, category string) (total int64, ok bool) {
-	for _, slot := range g.Slots {
-		least := int64(0)
-		for _, a := range slot {
-			if slices.Contains(categories[a.Resource], category) && a.Count > 0 && (least == 0 || a.Count < least) {
-				least = a.Count
-			}
-		}
-		if least == 0 {
-			return 0, false
-		}
-		total += least
-	}
-	return total, len(g.Slots) > 0
-}
-
-// stuffsOf are the stuffs of category the garment's recipe accepts.
-func stuffsOf(g ClothingGarment, categories map[Resource][]string, category string) []Resource {
-	var out []Resource
-	for _, slot := range g.Slots {
-		for _, a := range slot {
-			if slices.Contains(categories[a.Resource], category) && !slices.Contains(out, a.Resource) {
-				out = append(out, a.Resource)
-			}
-		}
-	}
-	slices.Sort(out)
-	return out
-}
-
-// spareOutfits is the outfits already in storage: the fewest serviceable
-// stored garments covering any core group, over the allowed garments.
-func spareOutfits(in ClothingDemandInput) int64 {
-	stored, known := in.Stored.Value()
-	if !known {
-		return 0
-	}
-	spare := int64(-1)
-	for _, group := range GearCoreGroups {
-		var n int64
-		for _, s := range stored {
-			if !s.Serviceable() {
+		for _, worn := range model.Worn {
+			if !worn.TatteredWithin(ClothingHorizonDays) {
 				continue
 			}
-			if slices.ContainsFunc(in.Garments, func(g ClothingGarment) bool { return g.Definition == s.Definition && slices.Contains(g.Groups, group) }) {
-				n += int64(s.Count)
+			g, ok := garmentOf(in.Garments, worn.Definition)
+			if !ok || spareGarment(in.Garments, g, spare) {
+				continue
 			}
-		}
-		if spare < 0 || n < spare {
-			spare = n
+			filter, ok := gearFilter(g.Slots, worn.Stuff, in.Categories)
+			if !ok {
+				continue
+			}
+			bill := OpenBill{Count: 1, Slots: domain.Known(g.Slots)}
+			for _, r := range filter {
+				bill.Filter = append(bill.Filter, string(r))
+			}
+			bills = append(bills, bill)
 		}
 	}
-	return max(spare, 0)
-}
-
-// maxResourceTarget is the largest MaintainResource target ValidateResourceTargets takes.
-const maxResourceTarget = 10000
-
-// ClothingHorizonDays is how far ahead the outfit floor is wanted: replacement
-// is gradual, so a field that delivers within it (cotton grows in about a
-// week) serves the floor as well as a hunt.
-const ClothingHorizonDays = 15.0
-
-// ClothingServes maps each stuff that serves a targeted material's demand to
-// that material: the targets that are a Material or a member of a category
-// with a floor.
-func ClothingServes(materials []ClothingMaterial, targets map[Resource]int64) map[Resource]Resource {
-	out := map[Resource]Resource{}
-	for _, m := range materials {
-		for _, member := range m.Members {
-			if _, asked := targets[member]; asked && m.Deficit() > 0 {
-				for _, served := range m.Members {
-					out[served] = member
+	out := ClothingRunway{}
+	for resource, n := range OpenBillDemand(bills, in.Stock) {
+		if out.Needs == nil {
+			out.Needs, out.Serves = map[Resource]int64{}, map[Resource]Resource{}
+		}
+		out.Needs[resource] = min(n, maxResourceTarget)
+		out.Serves[resource] = resource
+	}
+	for _, bill := range bills {
+		for _, pick := range bill.picks() {
+			if _, demanded := out.Needs[pick.Resource]; !demanded {
+				continue
+			}
+			for _, m := range bill.Filter {
+				member := Resource(m)
+				if _, set := out.Serves[member]; !set && sharesCategory(in.Categories, member, pick.Resource) {
+					out.Serves[member] = pick.Resource
 				}
-				break
 			}
 		}
 	}
 	return out
+}
+
+// garmentOf is the allowed garment of definition.
+func garmentOf(garments []ClothingGarment, definition Resource) (ClothingGarment, bool) {
+	i := slices.IndexFunc(garments, func(g ClothingGarment) bool { return g.Definition == definition })
+	if i < 0 {
+		return ClothingGarment{}, false
+	}
+	return garments[i], true
+}
+
+// spareGarment consumes one serviceable stored garment covering a core group
+// g covers, reporting whether one was left.
+func spareGarment(garments []ClothingGarment, g ClothingGarment, spare map[Resource]int) bool {
+	for _, c := range garments {
+		if spare[c.Definition] > 0 && slices.ContainsFunc(g.Groups, func(group string) bool {
+			return slices.Contains(GearCoreGroups, group) && slices.Contains(c.Groups, group)
+		}) {
+			spare[c.Definition]--
+			return true
+		}
+	}
+	return false
+}
+
+// sharesCategory reports two stuffs that are the same or share a catalog
+// category.
+func sharesCategory(categories map[Resource][]string, a, b Resource) bool {
+	return a == b || slices.ContainsFunc(categories[a], func(c string) bool { return slices.Contains(categories[b], c) })
 }
 
 // ResourceSourceFor is the census row as the acquisition candidate of
 // resource prices it, false when it does not serve it. A row serves a
-// resource it names; a clothing material also takes its category's other
-// stuffs, and a hunt the stuffs its animal's butchery yields (a deer's
-// leather), at the leather's units: the hunt is one candidate whatever else
-// it yields, its labor charged once.
+// resource it names or one serves (ClothingRunway.Serves) maps it to; a hunt
+// the stuffs its animal's butchery yields (a deer's leather), at the leather's
+// units: the hunt is one candidate whatever else it yields, its labor charged
+// once.
 func ResourceSourceFor(s AcquisitionSource, resource Resource, serves map[Resource]Resource) (AcquisitionSource, bool) {
 	if Resource(s.Resource) == resource {
 		return s, true
@@ -313,28 +210,4 @@ func FieldHarvestCandidate(resource Resource, id string, f FieldHarvest) (Supply
 		LaborPerDay: domain.Known(f.WorkPerDay),
 		UpfrontCost: CandidateCost{LaborTicks: domain.Known(f.SetupTicks)},
 	}, true
-}
-
-// ClothingResourceNeeds are the materials' MaintainResource floors: each
-// Material's target is what it holds plus its category's deficit, so the
-// ordinary deficit (target - stock) is the category's.
-func ClothingResourceNeeds(materials []ClothingMaterial, stock domain.Fact[[]Amount]) map[Resource]int64 {
-	rows, _ := stock.Value()
-	var out map[Resource]int64
-	for _, m := range materials {
-		if m.Deficit() == 0 {
-			continue
-		}
-		var have int64
-		for _, a := range rows {
-			if a.Resource == m.Material {
-				have = a.Count
-			}
-		}
-		if out == nil {
-			out = map[Resource]int64{}
-		}
-		out[m.Material] = min(have+m.Deficit(), maxResourceTarget)
-	}
-	return out
 }

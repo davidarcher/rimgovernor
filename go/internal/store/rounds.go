@@ -68,11 +68,8 @@ type Rounds struct {
 	Latches        policy.RoundsLatches
 	MedicalCare    policy.MedicalCareHistory
 	MedicineTarget int64 `json:",omitempty"`
-	// ClothingNeeds are the MaintainResource floors of the colonists'
-	// replacement outfits (policy.ClothingResourceNeeds).
-	ClothingNeeds map[policy.Resource]int64 `json:",omitempty"`
-	EventLoot     policy.EventLootHistory
-	Comfort       policy.ComfortHistory
+	EventLoot      policy.EventLootHistory
+	Comfort        policy.ComfortHistory
 	// Goals binds the Standards this review assessed; Projects binds the
 	// Projects.
 	Standards []RoundsStandard
@@ -188,9 +185,6 @@ func loadRounds(ctx context.Context, tx *sql.Tx) (Rounds, error) {
 	}
 	if r.MedicineTarget < 0 || r.MedicineTarget > 10000 {
 		return Rounds{}, errors.New("invalid medicine resource target")
-	}
-	if len(r.ClothingNeeds) > maxDependencyRecords || policy.ValidateResourceTargets(r.ClothingNeeds) != nil {
-		return Rounds{}, errors.New("invalid clothing needs")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
 		return Rounds{}, err
@@ -618,7 +612,6 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 	r.MedicalCare = medical
 	r.BrewingFinished = policy.BrewingFinished(request.Facts.Research)
 	r.MedicineTarget = request.Policy.MedicineReserveTarget(request.Facts.Colonists, needs.Latches.MedicalReserve)
-	r.ClothingNeeds = policy.ClothingResourceNeeds(request.Facts.ClothingMaterials(), request.Facts.Resources)
 	r.EventLoot = loot
 	if rows, known := request.Facts.EventLoot.Value(); known {
 		r.Unsafe = policy.UnsafeLoot(rows)

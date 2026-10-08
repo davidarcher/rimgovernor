@@ -220,6 +220,9 @@ func (p RoundsPolicy) Prisoners() PrisonerPolicy {
 	return PrisonerPolicy{ReleaseAfterDays: p.PrisonerReleaseAfterDays, FoodTargetDays: p.FoodTargetDays}
 }
 
+// maxResourceTarget is the largest MaintainResource target ValidateResourceTargets takes.
+const maxResourceTarget = 10000
+
 // ValidateResourceTargets checks every configured MaintainResource target:
 // a valid native resource definition name with a positive target within the
 // same StockTarget production bill bound (see domain.NewProductionBill).
@@ -467,7 +470,7 @@ type RoundsFacts struct {
 	UpkeepIssued map[ConcernID]bool
 	Gear         domain.Fact[GearObservation]
 	// Garments are the allowed garments covering a core group with their
-	// recipes (ClothingMaterials); empty until the gear census and catalog
+	// recipes (ClothingRunway); empty until the gear census and catalog
 	// are read.
 	Garments []ClothingGarment `json:",omitzero"`
 	Comfort  domain.Fact[ComfortObservation]

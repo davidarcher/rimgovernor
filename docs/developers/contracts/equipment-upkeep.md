@@ -78,15 +78,20 @@ an item. Bench staging uses the equipment concern through the shared workshop la
 
 ### Clothing material demand
 
-Each review derives a `MaintainResource` floor per stuff category the apparel
-recipes accept (fabric, leather), not a Concern of its own (`policy.ClothingMaterials`).
-The floor is the colonists without a stored serviceable outfit times the units of
-the cheapest set of allowed garments covering the core groups (`GearCoreGroups`),
-read from the recipes' own ingredient counts (`observation.ClothingGarments`),
-so it scales with the colony and the recipe and is zero while stock or stored
-outfits cover it. It is asked of the member stuff holding the most, as its stock
-plus the category's deficit; the Round's resource supply plan serves it with the
-category's other stuffs and, for leather, with hunts priced at the animal's
+Clothing is a runway, not a Concern of its own or a standing floor
+(`policy.PlanClothingRunway`). Each review projects every worn garment of the
+loadout models to cross the 50% tattered threshold within `ClothingHorizonDays`:
+the garment's condition fraction above the threshold times its `MaxHitPoints`
+stat for its def and stuff, over `ApparelProperties.wearPerDay` (hit points
+lost per day; native `TakeWearoutDamageForDay`). A garment already tattered
+counts; one without hit points or a wear rate never does. Each such garment,
+less the serviceable stored garments covering the same core group, demands its
+recipe's ingredient counts (`observation.ClothingGarments`) at the cheapest
+member of the bill filter `gearFilter` builds (the loadout stuff and the
+stuffs sharing a catalog category with it), as a stock level like
+construction demand, kept in the Rounder's `constructionMemory`. The Round's
+resource supply plan serves it with the stuffs that filter admits and, for
+leather, with hunts priced at the animal's
 butchery leather (one candidate per animal whatever else it yields, its labor
 charged once and a designated deer's leather counted toward the need). The
 demand ranks below the food plan, which has already taken its labor, and is
