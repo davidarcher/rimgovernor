@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
         // Builds the dialog the game would show, selects the crew and fills
         // each cargo definition across its groups (reserve stock first, then
         // longest shelf life), and runs the game's own checks.
-        private static Common.Failure? Prepare(Operations.FormCaravanIntent command, Common.ObservationContext context, out Dialog_FormCaravan? dialog)
+        private static Common.Failure? PreparePacking(Operations.FormCaravanIntent command, Common.ObservationContext context, out Dialog_FormCaravan? dialog)
         {
             dialog = null;
             var map = ProtoBoundary.ResolveMap(context);
@@ -156,13 +156,49 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cargo exceeds native carrying capacity.");
             if (!reform && NativeCaravanCatalog.FoodDays(built).days < 1f)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "At least one native day of caravan food is required.");
-            // Emits refusal messages, but never creates a lord or moves cargo.
-            if (!(bool)NativeCaravanCatalog.Call(built, "CheckForErrors", selected)!)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native caravan eligibility refused; inspect game messages.");
+
             dialog = built;
             return null;
         }
 
+        private static Common.Failure? Prepare(Operations.FormCaravanIntent command, Common.ObservationContext context, out Dialog_FormCaravan? dialog)
+        {
+            var failure = PreparePacking(command, context, out dialog);
+            if (failure != null || dialog == null) return failure;
+            var selected = dialog.transferables.Where(g => g.AnyThing is Pawn && g.CountToTransfer > 0).Select(g => (Pawn)g.AnyThing).ToList();
+            if (!(bool)NativeCaravanCatalog.Call(dialog, "CheckForErrors", selected)!)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native caravan eligibility refused; inspect game messages.");
+            return null;
+        }
+
+        internal static RimGovernor.Protocol.Observations.TradePackEstimate Preview(Operations.FormCaravanIntent command, Common.ObservationContext context)
+        {
+            var row = new RimGovernor.Protocol.Observations.TradePackEstimate();
+            if (!Valid(command)) { row.CanPack = false; row.Reason = "invalid_pack"; return row; }
+            var failure = PreparePacking(command, context, out var dialog);
+            if (failure != null || dialog == null) { row.CanPack = false; row.Reason = failure?.Detail ?? "pack_unavailable"; return row; }
+            row.CanPack = true; row.Reason = "packing_ready";
+            row.MassUsage = dialog.MassUsage; row.MassCapacity = dialog.MassCapacity;
+            var food = NativeCaravanCatalog.FoodDays(dialog);
+            if (!float.IsNaN(food.days) && !float.IsInfinity(food.days)) row.FoodDays = food.days;
+            if (!float.IsNaN(food.tillRot) && !float.IsInfinity(food.tillRot)) row.FoodRotDays = food.tillRot;
+            var map = ProtoBoundary.ResolveMap(context)!;
+            var destination = new PlanetTile(command.DestinationTile);
+            var crew = dialog.transferables.Where(g => g.AnyThing is Pawn && g.CountToTransfer > 0).Select(g => (Pawn)g.AnyThing).ToList();
+            var ticks = CaravanTicksPerMoveUtility.GetTicksPerMove(crew, (float)row.MassUsage, (float)row.MassCapacity);
+            row.Outbound = RouteEstimate(map.Tile, destination, ticks, GenTicks.TicksAbs);
+            row.Home = RouteEstimate(destination, map.Tile, ticks, GenTicks.TicksAbs + (int)row.Outbound.EstimatedTicks);
+            return row;
+        }
+
+        private static RimGovernor.Protocol.Observations.WorldRoute RouteEstimate(PlanetTile from, PlanetTile to, int ticksPerMove, int departure)
+        {
+            var row = new RimGovernor.Protocol.Observations.WorldRoute { Destination = to.tileId };
+            using var path = from.Layer.Pather.FindPath(from, to, null);
+            row.Reachable = path.Found;
+            if (path.Found) row.EstimatedTicks = CaravanArrivalTimeEstimator.EstimatedTicksToArrive(from, to, path, 0, ticksPerMove, departure);
+            return row;
+        }
         private static Receipts.EffectEvidence Evidence(Operations.FormCaravanIntent command, Caravan? caravan)
         {
             var effect = new Receipts.CaravanEffect { AssemblyStarted = true, PathStarted = caravan != null && caravan.pather.Moving, DestinationTile = command.DestinationTile };

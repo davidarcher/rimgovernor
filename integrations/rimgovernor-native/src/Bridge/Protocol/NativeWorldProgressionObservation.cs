@@ -83,6 +83,20 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
+        private static List<Obs.WorldRoute> SettlementRoutes(Caravan caravan)
+        {
+            var rows = new List<Obs.WorldRoute>();
+            foreach (var settlement in Find.WorldObjects.Settlements.Where(s => s.Faction != null && !s.Faction.IsPlayer).OrderBy(s => s.GetUniqueLoadID()))
+            {
+                var row = new Obs.WorldRoute { SettlementId = settlement.GetUniqueLoadID(), Destination = settlement.Tile.tileId,
+                    Reachable = caravan.CanReach(settlement.Tile), Faction = NativeRef.Of(settlement.Faction), Hostile = settlement.Faction.HostileTo(Faction.OfPlayer), Goodwill = settlement.Faction.PlayerGoodwill };
+                if (row.Reachable)
+                    try { row.EstimatedTicks = CaravanArrivalTimeEstimator.EstimatedTicksToArrive(caravan.Tile, settlement.Tile, caravan); }
+                    catch (Exception) { /* Unknown estimate cannot admit a safe mission. */ }
+                rows.Add(row);
+            }
+            return rows;
+        }
         private static List<Obs.Quantity> Inventory(Caravan caravan)
         {
             var rows = new List<Obs.Quantity>();
@@ -106,6 +120,7 @@ namespace HomeBridge.BridgeTools
                 if (c.pather.Moving) row.Destination = c.pather.Destination.tileId;
                 row.Pawns.Add(c.PawnsListForReading.Select(p => NativeObservationTools.PawnRow(p, false, context)));
                 row.HomeRoutes.Add(HomeRoutes(c));
+                row.SettlementRoutes.Add(SettlementRoutes(c));
                 row.Inventory.Add(Inventory(c));
                 rows.Add(row);
             }

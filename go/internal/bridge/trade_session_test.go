@@ -27,9 +27,9 @@ func TestReadTradeSessionReadsPairOrNone(t *testing.T) {
 		bad     bool
 	}{
 		{"none", &o.TradeSession{Context: pbContext()}, TradeSessionRead{}, false},
-		{"walk", &o.TradeSession{Context: pbContext(), TraderId: proto.String("trader-1"), NegotiatorId: proto.String("pawn-1"), Open: proto.Bool(false)}, TradeSessionRead{Trader: "trader-1", Negotiator: "pawn-1"}, false},
-		{"open", &o.TradeSession{Context: pbContext(), TraderId: proto.String("trader-1"), NegotiatorId: proto.String("pawn-1"), Open: proto.Bool(true)}, TradeSessionRead{Trader: "trader-1", Negotiator: "pawn-1", Open: true}, false},
-		{"half pair", &o.TradeSession{Context: pbContext(), TraderId: proto.String("trader-1")}, TradeSessionRead{}, true},
+		{"walk", &o.TradeSession{Context: pbContext(), Target: mapTradeTarget("trader-1"), NegotiatorId: proto.String("pawn-1"), Open: proto.Bool(false)}, TradeSessionRead{Trader: "trader-1", Negotiator: "pawn-1"}, false},
+		{"open", &o.TradeSession{Context: pbContext(), Target: mapTradeTarget("trader-1"), NegotiatorId: proto.String("pawn-1"), Open: proto.Bool(true)}, TradeSessionRead{Trader: "trader-1", Negotiator: "pawn-1", Open: true}, false},
+		{"half pair", &o.TradeSession{Context: pbContext(), Target: mapTradeTarget("trader-1")}, TradeSessionRead{}, true},
 		{"open without pair", &o.TradeSession{Context: pbContext(), Open: proto.Bool(true)}, TradeSessionRead{}, true},
 	} {
 		got, _, err := tradeSessionClient(t, c.session).ReadTradeSession(context.Background(), pbIdentity())

@@ -91,6 +91,7 @@ type TradeSheetSkill struct {
 // trade_policy.py's select_trade makes with its
 // omittedByRowCap/omittedByFilter check.
 type TradeSheetRead struct {
+	Target          *c.TradeTarget
 	Context         *c.ObservationContext
 	SessionID       string
 	Trader          string
@@ -151,6 +152,7 @@ func (client *Client) ReadTradeSheet(ctx context.Context, identity *c.Identity) 
 	if err != nil {
 		return TradeSheetRead{}, raw, err
 	}
+	out.Target = header.Target
 	out.Context, out.SessionID = header.Context, header.SessionID
 	out.Trader, out.Negotiator, out.GiftMode, out.CanTradeNow = header.Trader, header.Negotiator, header.GiftMode, header.CanTradeNow
 	out.Balance, out.BalanceKnown = header.Balance, header.BalanceKnown
@@ -173,9 +175,12 @@ func tradeSheetPage(v *o.TradeSheet, identity *c.Identity, seen map[string]bool,
 	if !diagnostic(v.DealSignature) {
 		return TradeSheetRead{}, contract("trade sheet deal signature invalid")
 	}
+	if err := ValidateTradeTarget(v.Target, identity); err != nil {
+		return TradeSheetRead{}, err
+	}
 	header := TradeSheetRead{
 		Context: v.Snapshot.Context, SessionID: v.GetSessionId(),
-		Trader: v.GetTrader().GetId(), Negotiator: v.GetNegotiator().GetId(), GiftMode: v.GetGiftMode(),
+		Target: proto.CloneOf(v.Target), Trader: mapTraderID(v.Target), Negotiator: v.GetNegotiator().GetId(), GiftMode: v.GetGiftMode(),
 		CanTradeNow: v.GetCanTradeNow(), Balance: v.GetBalance(), BalanceKnown: v.Balance != nil,
 		ColonyCanAfford: v.GetColonyCanAfford(), TraderHasSilver: v.GetTraderHasEnoughSilver(),
 		DealSignature: v.GetDealSignature(), FavorCurrency: v.GetCurrencyKind() == o.TradeCurrencyKind_TRADE_CURRENCY_KIND_FAVOR,

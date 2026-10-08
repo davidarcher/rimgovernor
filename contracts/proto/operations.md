@@ -106,3 +106,5 @@ Trade line counts are absolute: positive buys and negative sells in normal trade
 `BillSettings.beer_reserve=true` is valid only for an ordinary single-product
 wort recipe with target-count settings. Its saved bill counts wort, barrel
 contents and finished beer; other production bills retain native counting.
+
+Trade intents and effects carry the same closed `common.TradeTarget`. Map-trader execution is enabled; settlement/orbital execution remains gated until their shared-session handlers are installed. The closed `CommsTradeRequestIntent`/effect boundary distinguishes queued work from native request tick/goodwill changes ([contract](../../docs/developers/contracts/controllable-trade.md)).

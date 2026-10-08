@@ -2,7 +2,7 @@
 
 Each canonical Protobuf RPC has one fixed MCP tool name: `rimgovernor/<family>_<snake_case_rpc>`. The family is the middle component of `rimgovernor.<family>.v1`; RPC names are converted from PascalCase to lowercase words separated by underscores. Service names remain part of the descriptor identity but are not repeated in tool names. Consequently, RPC names must remain unique across services within one family, including the three presentation services.
 
-This table comes from the nine official compiled C# `FileDescriptor` objects, not a parallel schema parser or source generator. All 81 methods have unique MCP names, and the longest name is 51 characters, below the 64-character ceiling. `common.proto` contributes shared messages but no RPCs. The table fixes capability identity; it does not claim an adapter is installed or native acceptance has passed.
+This table comes from the nine official compiled C# `FileDescriptor` objects, not a parallel schema parser or source generator. All methods have unique MCP names, and the longest name is 51 characters, below the 64-character ceiling. `common.proto` contributes shared messages but no RPCs. The table fixes capability identity; it does not claim an adapter is installed or native acceptance has passed.
 
 ## Wrapper and dispatch
 
@@ -104,6 +104,7 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/observations_read_status` | `rimgovernor.observations.v1.Observations/ReadStatus` | `rimgovernor.observations.v1.StatusRequest` | `rimgovernor.observations.v1.StatusReply` |
 | `rimgovernor/observations_read_trade_sheet` | `rimgovernor.observations.v1.Observations/ReadTradeSheet` | `rimgovernor.observations.v1.TradeSheetRequest` | `rimgovernor.observations.v1.TradeSheetReply` |
 | `rimgovernor/observations_read_trade_session` | `rimgovernor.observations.v1.Observations/ReadTradeSession` | `rimgovernor.observations.v1.TradeSessionRequest` | `rimgovernor.observations.v1.TradeSessionReply` |
+| `rimgovernor/observations_read_trade_acquisition` | `rimgovernor.observations.v1.Observations/ReadTradeAcquisition` | `rimgovernor.observations.v1.TradeAcquisitionRequest` | `rimgovernor.observations.v1.TradeAcquisitionReply` |
 | `rimgovernor/observations_read_world` | `rimgovernor.observations.v1.Observations/ReadWorld` | `rimgovernor.observations.v1.WorldRequest` | `rimgovernor.observations.v1.WorldReply` |
 | `rimgovernor/observations_read_world_progression` | `rimgovernor.observations.v1.Observations/ReadWorldProgression` | `rimgovernor.observations.v1.WorldProgressionRequest` | `rimgovernor.observations.v1.WorldProgressionReply` |
 | `rimgovernor/observations_resolve_target` | `rimgovernor.observations.v1.Observations/ResolveTarget` | `rimgovernor.observations.v1.ResolveTargetRequest` | `rimgovernor.observations.v1.ResolveTargetReply` |

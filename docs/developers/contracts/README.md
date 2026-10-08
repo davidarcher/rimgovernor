@@ -34,3 +34,5 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Colony upkeep contracts](upkeep-contracts.md)
 - [Work assignment contracts](work-assignment.md)
 - [Waste census contract](waste-management.md)
+
+- [Controllable trade](controllable-trade.md): shared targets, read-only request/packing facts, reconciliation and outbound Project ownership.

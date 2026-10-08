@@ -16,6 +16,7 @@ const tradeSessionTool = "rimgovernor/observations_read_trade_session"
 // to Trader to open a session (Open false), or the pair holding the open
 // session (Open true). Trader and Negotiator are empty when neither exists.
 type TradeSessionRead struct {
+	Target     *c.TradeTarget
 	Context    *c.ObservationContext
 	Trader     string
 	Negotiator string
@@ -56,11 +57,11 @@ func (client *Client) ReadTradeSession(ctx context.Context, identity *c.Identity
 	if !sameIdentity(session.Context.Identity, identity) {
 		return TradeSessionRead{}, raw, contract("trade session world mismatch")
 	}
-	out := TradeSessionRead{Context: session.Context, Trader: session.GetTraderId(), Negotiator: session.GetNegotiatorId(), Open: session.GetOpen()}
-	if (session.TraderId == nil) != (session.NegotiatorId == nil) || out.Open && session.TraderId == nil {
+	out := TradeSessionRead{Context: session.Context, Target: proto.CloneOf(session.Target), Trader: mapTraderID(session.Target), Negotiator: session.GetNegotiatorId(), Open: session.GetOpen()}
+	if (session.Target == nil) != (session.NegotiatorId == nil) || out.Open && session.Target == nil {
 		return TradeSessionRead{}, raw, contract("trade session names half a pair")
 	}
-	if session.TraderId != nil && (validID(out.Trader) != nil || validID(out.Negotiator) != nil || out.Trader == out.Negotiator) {
+	if session.Target != nil && (ValidateTradeTarget(session.Target, identity) != nil || validID(out.Negotiator) != nil || out.Trader != "" && out.Trader == out.Negotiator) {
 		return TradeSessionRead{}, raw, contract("invalid trade session pair")
 	}
 	return out, raw, nil

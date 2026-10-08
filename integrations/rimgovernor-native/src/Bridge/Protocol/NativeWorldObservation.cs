@@ -61,9 +61,10 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.Settlement
             {
                 Id = settlement.GetUniqueLoadID(), Label = settlement.Label ?? "", Tile = settlement.Tile.tileId,
-                Player = faction != null && faction.IsPlayer,
+                Player = faction != null && faction.IsPlayer, CanTrade = settlement.CanTradeNow,
                 Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = settlement.GetUniqueLoadID(), Token = SettlementToken(settlement) },
             };
+            if (settlement.TraderKind != null) row.TraderKind = settlement.TraderKind.defName;
             if (from.HasValue) { try { row.DistanceTiles = Find.WorldGrid.ApproxDistanceInTiles(from.Value, settlement.Tile); } catch (Exception) { } }
             if (faction != null)
             {

@@ -223,3 +223,5 @@ this for a Kibble bill.
 See [spatial contracts](spatial-contracts.md), [sessions and
 recovery](../architecture/sessions-and-recovery.md), and [plans and
 Hands](../architecture/plans-and-hands.md).
+
+Trade participant variants, request evidence and native eligibility: [controllable trade](controllable-trade.md).

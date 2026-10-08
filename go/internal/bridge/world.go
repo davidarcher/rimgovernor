@@ -17,6 +17,8 @@ import (
 // no current consumer needs them.
 type SettlementFact struct {
 	ID, Label                 string
+	CanTrade                  domain.Fact[bool]
+	TraderKind                string
 	Tile                      int32
 	FactionID, FactionDefName string
 	Relation                  string
@@ -97,7 +99,11 @@ func worldSelected(v *o.WorldSnapshot, identity *c.Identity) (WorldRead, error) 
 			return WorldRead{}, contract("world settlement CAS token unavailable")
 		}
 		fact := SettlementFact{
+			CanTrade: domain.Unknown[bool](), TraderKind: row.GetTraderKind(),
 			ID: row.GetId(), Label: row.GetLabel(), Tile: row.GetTile(), Player: row.GetPlayer(), SnapshotToken: row.Snapshot.GetToken(),
+		}
+		if row.CanTrade != nil {
+			fact.CanTrade = domain.Known(row.GetCanTrade())
 		}
 		if row.Faction != nil {
 			fact.FactionID, fact.FactionDefName, fact.Relation = row.GetFaction().GetId(), row.GetFactionDefName(), row.GetRelation()

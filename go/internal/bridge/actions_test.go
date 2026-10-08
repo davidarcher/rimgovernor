@@ -30,7 +30,7 @@ func actionsWriter(t *testing.T, reply *o.ApplyReply) *ActionsWriter {
 }
 
 func probeAction(key string) *o.Action {
-	return &o.Action{Key: proto.String(key), Intent: &o.Action_Trade{Trade: &o.TradeIntent{TraderId: proto.String("t"), NegotiatorId: proto.String("n"),
+	return &o.Action{Key: proto.String(key), Intent: &o.Action_Trade{Trade: &o.TradeIntent{Target: mapTradeTarget("t"), NegotiatorId: proto.String("n"),
 		Step: &o.TradeIntent_End{End: &o.EndTrade{Kind: o.EndTradeKind_END_TRADE_KIND_CANCEL.Enum()}}}}}
 }
 
@@ -85,7 +85,7 @@ func TestTradeAndBuildingRegisterAsIntentKinds(t *testing.T) {
 		t.Fatal(err)
 	}
 	trade := wire.GetTrade()
-	if wire.GetKey() != "plan/1" || trade.GetTraderId() != "trader-1" || trade.GetNegotiatorId() != "pawn-1" || trade.GetEnd().GetKind() != o.EndTradeKind_END_TRADE_KIND_CANCEL {
+	if wire.GetKey() != "plan/1" || mapTraderID(trade.GetTarget()) != "trader-1" || trade.GetNegotiatorId() != "pawn-1" || trade.GetEnd().GetKind() != o.EndTradeKind_END_TRADE_KIND_CANCEL {
 		t.Fatalf("%v", wire)
 	}
 }

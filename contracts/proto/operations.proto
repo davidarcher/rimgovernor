@@ -815,7 +815,7 @@ message BuildingIntent {
 // One step against RimWorld's single live trade session, named by its
 // trader and negotiator.
 message TradeIntent {
-  optional string trader_id = 1;
+  rimgovernor.common.v1.TradeTarget target = 1;
   optional string negotiator_id = 2;
   oneof step {
     OpenTrade open = 3;
@@ -823,6 +823,17 @@ message TradeIntent {
     AcceptTrade accept = 5;
     EndTrade end = 6;
   }
+}
+
+// Queues ordinary comms work; queued is distinct from a paid request.
+// Hands reconciles the faction's request tick before any retry.
+message CommsTradeRequestIntent {
+  rimgovernor.common.v1.TradeRequestKind kind = 1;
+  optional string faction_id = 2;
+  optional string trader_kind = 3;
+  optional string console_id = 4;
+  optional string negotiator_id = 5;
+  optional int64 expected_last_request_tick = 6;
 }
 message Refusal {
   optional rimgovernor.common.v1.FailureCode code = 1;

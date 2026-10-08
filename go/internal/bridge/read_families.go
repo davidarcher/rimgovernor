@@ -67,6 +67,7 @@ var nativeReadFamily = map[string]FactFamily{
 	"rimgovernor/observations_read_world_progression":  FactWorld,
 	"rimgovernor/observations_read_trade_sheet":        FactWorld,
 	tradeSessionTool:                                   FactWorld,
+	"rimgovernor/observations_read_trade_acquisition":  FactWorld,
 	"rimgovernor/observations_list_traders":            FactWorld,
 	"rimgovernor/lifecycle_read_identity":              FactIdentity,
 }

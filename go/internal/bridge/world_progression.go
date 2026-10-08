@@ -5,6 +5,8 @@ import (
 	"math"
 	"sort"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -18,6 +20,7 @@ import (
 // populated. Nothing here proves the route is still valid at dispatch time --
 // it is only ever the world-evaluation advisory's read of a same-tick census.
 type WorldRouteFact struct {
+	SettlementID        string
 	DestinationTile     int32
 	Reachable           bool
 	EstimatedTicks      int64
@@ -53,15 +56,17 @@ type CaravanPawnFact struct {
 // known fact, not a gap" discipline for CaravanState.food_days, which native
 // reports as an optional double.
 type CaravanJourney struct {
-	Destination   *int32
-	ID            string
-	Tile          int32
-	Moving        bool
-	PawnIDs       []string
-	Pawns         []CaravanPawnFact
-	FoodDays      float64
-	FoodDaysKnown bool
-	HomeRoutes    []WorldRouteFact
+	Destination                          *int32
+	ID                                   string
+	Tile                                 int32
+	Moving                               bool
+	PawnIDs                              []string
+	Pawns                                []CaravanPawnFact
+	FoodDays                             float64
+	FoodDaysKnown                        bool
+	HomeRoutes                           []WorldRouteFact
+	SettlementRoutes                     []WorldRouteFact
+	MassUsage, MassCapacity, FoodRotDays domain.Fact[float64]
 	// Inventory is the full per-caravan cargo census (defName -> units),
 	// aggregated by native across every pawn aboard
 	// (CaravanInventoryUtility.AllInventoryItems). The read-only
@@ -358,6 +363,28 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			return WorldProgressionRead{}, contract("invalid world progression caravan food days")
 		}
 		journey := CaravanJourney{ID: row.Caravan.GetId(), Tile: row.GetTile(), Moving: row.GetMoving(), PawnIDs: pawnIDs, Pawns: pawns, HomeRoutes: routes, Inventory: inventory}
+		seenSettlements := map[string]bool{}
+		for _, route := range row.SettlementRoutes {
+			if route == nil || validID(route.GetSettlementId()) != nil || seenSettlements[route.GetSettlementId()] || route.Destination == nil || route.GetDestination() < 0 || route.Reachable == nil || route.EstimatedTicks != nil && route.GetEstimatedTicks() < 0 {
+				return WorldProgressionRead{}, contract("invalid caravan settlement route")
+			}
+			seenSettlements[route.GetSettlementId()] = true
+			journey.SettlementRoutes = append(journey.SettlementRoutes, WorldRouteFact{SettlementID: route.GetSettlementId(), DestinationTile: route.GetDestination(), Reachable: route.GetReachable(), EstimatedTicks: route.GetEstimatedTicks(), EstimatedTicksKnown: route.EstimatedTicks != nil})
+		}
+		for _, value := range []*float64{row.MassUsage, row.MassCapacity, row.FoodRotDays} {
+			if !combatNumber(value, true) {
+				return WorldProgressionRead{}, contract("invalid caravan pack facts")
+			}
+		}
+		if row.MassUsage != nil {
+			journey.MassUsage = domain.Known(row.GetMassUsage())
+		}
+		if row.MassCapacity != nil {
+			journey.MassCapacity = domain.Known(row.GetMassCapacity())
+		}
+		if row.FoodRotDays != nil {
+			journey.FoodRotDays = domain.Known(row.GetFoodRotDays())
+		}
 		journey.Destination = row.Destination
 		if row.FoodDays != nil {
 			journey.FoodDays, journey.FoodDaysKnown = row.GetFoodDays(), true

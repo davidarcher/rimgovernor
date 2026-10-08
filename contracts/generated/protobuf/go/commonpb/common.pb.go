@@ -21,6 +21,55 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type TradeRequestKind int32
+
+const (
+	TradeRequestKind_TRADE_REQUEST_KIND_UNSPECIFIED TradeRequestKind = 0
+	TradeRequestKind_TRADE_REQUEST_KIND_CARAVAN     TradeRequestKind = 1
+	TradeRequestKind_TRADE_REQUEST_KIND_ORBITAL     TradeRequestKind = 2
+)
+
+// Enum value maps for TradeRequestKind.
+var (
+	TradeRequestKind_name = map[int32]string{
+		0: "TRADE_REQUEST_KIND_UNSPECIFIED",
+		1: "TRADE_REQUEST_KIND_CARAVAN",
+		2: "TRADE_REQUEST_KIND_ORBITAL",
+	}
+	TradeRequestKind_value = map[string]int32{
+		"TRADE_REQUEST_KIND_UNSPECIFIED": 0,
+		"TRADE_REQUEST_KIND_CARAVAN":     1,
+		"TRADE_REQUEST_KIND_ORBITAL":     2,
+	}
+)
+
+func (x TradeRequestKind) Enum() *TradeRequestKind {
+	p := new(TradeRequestKind)
+	*p = x
+	return p
+}
+
+func (x TradeRequestKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (TradeRequestKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_common_proto_enumTypes[0].Descriptor()
+}
+
+func (TradeRequestKind) Type() protoreflect.EnumType {
+	return &file_common_proto_enumTypes[0]
+}
+
+func (x TradeRequestKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use TradeRequestKind.Descriptor instead.
+func (TradeRequestKind) EnumDescriptor() ([]byte, []int) {
+	return file_common_proto_rawDescGZIP(), []int{0}
+}
+
 // Whose corpse a thing is (#832/#833): the player faction's humanlike
 // (colonists and slaves), any other humanlike, or an animal.
 type CorpseClass int32
@@ -59,11 +108,11 @@ func (x CorpseClass) String() string {
 }
 
 func (CorpseClass) Descriptor() protoreflect.EnumDescriptor {
-	return file_common_proto_enumTypes[0].Descriptor()
+	return file_common_proto_enumTypes[1].Descriptor()
 }
 
 func (CorpseClass) Type() protoreflect.EnumType {
-	return &file_common_proto_enumTypes[0]
+	return &file_common_proto_enumTypes[1]
 }
 
 func (x CorpseClass) Number() protoreflect.EnumNumber {
@@ -72,7 +121,7 @@ func (x CorpseClass) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CorpseClass.Descriptor instead.
 func (CorpseClass) EnumDescriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{0}
+	return file_common_proto_rawDescGZIP(), []int{1}
 }
 
 // A rotting thing's stage (Verse RotStage).
@@ -112,11 +161,11 @@ func (x RotStage) String() string {
 }
 
 func (RotStage) Descriptor() protoreflect.EnumDescriptor {
-	return file_common_proto_enumTypes[1].Descriptor()
+	return file_common_proto_enumTypes[2].Descriptor()
 }
 
 func (RotStage) Type() protoreflect.EnumType {
-	return &file_common_proto_enumTypes[1]
+	return &file_common_proto_enumTypes[2]
 }
 
 func (x RotStage) Number() protoreflect.EnumNumber {
@@ -125,7 +174,7 @@ func (x RotStage) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RotStage.Descriptor instead.
 func (RotStage) EnumDescriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{1}
+	return file_common_proto_rawDescGZIP(), []int{2}
 }
 
 type FailureCode int32
@@ -197,11 +246,11 @@ func (x FailureCode) String() string {
 }
 
 func (FailureCode) Descriptor() protoreflect.EnumDescriptor {
-	return file_common_proto_enumTypes[2].Descriptor()
+	return file_common_proto_enumTypes[3].Descriptor()
 }
 
 func (FailureCode) Type() protoreflect.EnumType {
-	return &file_common_proto_enumTypes[2]
+	return &file_common_proto_enumTypes[3]
 }
 
 func (x FailureCode) Number() protoreflect.EnumNumber {
@@ -210,7 +259,7 @@ func (x FailureCode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FailureCode.Descriptor instead.
 func (FailureCode) EnumDescriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{2}
+	return file_common_proto_rawDescGZIP(), []int{3}
 }
 
 type UnavailableReason int32
@@ -270,11 +319,11 @@ func (x UnavailableReason) String() string {
 }
 
 func (UnavailableReason) Descriptor() protoreflect.EnumDescriptor {
-	return file_common_proto_enumTypes[3].Descriptor()
+	return file_common_proto_enumTypes[4].Descriptor()
 }
 
 func (UnavailableReason) Type() protoreflect.EnumType {
-	return &file_common_proto_enumTypes[3]
+	return &file_common_proto_enumTypes[4]
 }
 
 func (x UnavailableReason) Number() protoreflect.EnumNumber {
@@ -283,7 +332,7 @@ func (x UnavailableReason) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use UnavailableReason.Descriptor instead.
 func (UnavailableReason) EnumDescriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{3}
+	return file_common_proto_rawDescGZIP(), []int{4}
 }
 
 // Plain precepts are the exact issue selections; role, ritual and building
@@ -409,6 +458,246 @@ func (x *Identity) GetMapId() int32 {
 	return 0
 }
 
+// A session participant is scoped to the same world as the observation/action.
+// Map and ship targets resolve on that map; settlement trades name our caravan.
+type TradeTarget struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Kind:
+	//
+	//	*TradeTarget_MapTrader
+	//	*TradeTarget_Settlement
+	//	*TradeTarget_OrbitalShip
+	Kind          isTradeTarget_Kind `protobuf_oneof:"kind"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TradeTarget) Reset() {
+	*x = TradeTarget{}
+	mi := &file_common_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TradeTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TradeTarget) ProtoMessage() {}
+
+func (x *TradeTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_common_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TradeTarget.ProtoReflect.Descriptor instead.
+func (*TradeTarget) Descriptor() ([]byte, []int) {
+	return file_common_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *TradeTarget) GetKind() isTradeTarget_Kind {
+	if x != nil {
+		return x.Kind
+	}
+	return nil
+}
+
+func (x *TradeTarget) GetMapTrader() *MapTradeTarget {
+	if x != nil {
+		if x, ok := x.Kind.(*TradeTarget_MapTrader); ok {
+			return x.MapTrader
+		}
+	}
+	return nil
+}
+
+func (x *TradeTarget) GetSettlement() *SettlementTradeTarget {
+	if x != nil {
+		if x, ok := x.Kind.(*TradeTarget_Settlement); ok {
+			return x.Settlement
+		}
+	}
+	return nil
+}
+
+func (x *TradeTarget) GetOrbitalShip() *OrbitalTradeTarget {
+	if x != nil {
+		if x, ok := x.Kind.(*TradeTarget_OrbitalShip); ok {
+			return x.OrbitalShip
+		}
+	}
+	return nil
+}
+
+type isTradeTarget_Kind interface {
+	isTradeTarget_Kind()
+}
+
+type TradeTarget_MapTrader struct {
+	MapTrader *MapTradeTarget `protobuf:"bytes,1,opt,name=map_trader,json=mapTrader,proto3,oneof"`
+}
+
+type TradeTarget_Settlement struct {
+	Settlement *SettlementTradeTarget `protobuf:"bytes,2,opt,name=settlement,proto3,oneof"`
+}
+
+type TradeTarget_OrbitalShip struct {
+	OrbitalShip *OrbitalTradeTarget `protobuf:"bytes,3,opt,name=orbital_ship,json=orbitalShip,proto3,oneof"`
+}
+
+func (*TradeTarget_MapTrader) isTradeTarget_Kind() {}
+
+func (*TradeTarget_Settlement) isTradeTarget_Kind() {}
+
+func (*TradeTarget_OrbitalShip) isTradeTarget_Kind() {}
+
+type MapTradeTarget struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TraderId      *string                `protobuf:"bytes,1,opt,name=trader_id,json=traderId,proto3,oneof" json:"trader_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MapTradeTarget) Reset() {
+	*x = MapTradeTarget{}
+	mi := &file_common_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MapTradeTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MapTradeTarget) ProtoMessage() {}
+
+func (x *MapTradeTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_common_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MapTradeTarget.ProtoReflect.Descriptor instead.
+func (*MapTradeTarget) Descriptor() ([]byte, []int) {
+	return file_common_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *MapTradeTarget) GetTraderId() string {
+	if x != nil && x.TraderId != nil {
+		return *x.TraderId
+	}
+	return ""
+}
+
+type SettlementTradeTarget struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SettlementId  *string                `protobuf:"bytes,1,opt,name=settlement_id,json=settlementId,proto3,oneof" json:"settlement_id,omitempty"`
+	CaravanId     *string                `protobuf:"bytes,2,opt,name=caravan_id,json=caravanId,proto3,oneof" json:"caravan_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SettlementTradeTarget) Reset() {
+	*x = SettlementTradeTarget{}
+	mi := &file_common_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SettlementTradeTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SettlementTradeTarget) ProtoMessage() {}
+
+func (x *SettlementTradeTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_common_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SettlementTradeTarget.ProtoReflect.Descriptor instead.
+func (*SettlementTradeTarget) Descriptor() ([]byte, []int) {
+	return file_common_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SettlementTradeTarget) GetSettlementId() string {
+	if x != nil && x.SettlementId != nil {
+		return *x.SettlementId
+	}
+	return ""
+}
+
+func (x *SettlementTradeTarget) GetCaravanId() string {
+	if x != nil && x.CaravanId != nil {
+		return *x.CaravanId
+	}
+	return ""
+}
+
+type OrbitalTradeTarget struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ShipId        *string                `protobuf:"bytes,1,opt,name=ship_id,json=shipId,proto3,oneof" json:"ship_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OrbitalTradeTarget) Reset() {
+	*x = OrbitalTradeTarget{}
+	mi := &file_common_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OrbitalTradeTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OrbitalTradeTarget) ProtoMessage() {}
+
+func (x *OrbitalTradeTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_common_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OrbitalTradeTarget.ProtoReflect.Descriptor instead.
+func (*OrbitalTradeTarget) Descriptor() ([]byte, []int) {
+	return file_common_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *OrbitalTradeTarget) GetShipId() string {
+	if x != nil && x.ShipId != nil {
+		return *x.ShipId
+	}
+	return ""
+}
+
 type ObservationContext struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Identity         *Identity              `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
@@ -420,7 +709,7 @@ type ObservationContext struct {
 
 func (x *ObservationContext) Reset() {
 	*x = ObservationContext{}
-	mi := &file_common_proto_msgTypes[2]
+	mi := &file_common_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -432,7 +721,7 @@ func (x *ObservationContext) String() string {
 func (*ObservationContext) ProtoMessage() {}
 
 func (x *ObservationContext) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[2]
+	mi := &file_common_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -445,7 +734,7 @@ func (x *ObservationContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservationContext.ProtoReflect.Descriptor instead.
 func (*ObservationContext) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{2}
+	return file_common_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ObservationContext) GetIdentity() *Identity {
@@ -481,7 +770,7 @@ type AttemptKey struct {
 
 func (x *AttemptKey) Reset() {
 	*x = AttemptKey{}
-	mi := &file_common_proto_msgTypes[3]
+	mi := &file_common_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -493,7 +782,7 @@ func (x *AttemptKey) String() string {
 func (*AttemptKey) ProtoMessage() {}
 
 func (x *AttemptKey) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[3]
+	mi := &file_common_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -506,7 +795,7 @@ func (x *AttemptKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttemptKey.ProtoReflect.Descriptor instead.
 func (*AttemptKey) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{3}
+	return file_common_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AttemptKey) GetControllerSessionId() string {
@@ -543,7 +832,7 @@ type Ref struct {
 
 func (x *Ref) Reset() {
 	*x = Ref{}
-	mi := &file_common_proto_msgTypes[4]
+	mi := &file_common_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -555,7 +844,7 @@ func (x *Ref) String() string {
 func (*Ref) ProtoMessage() {}
 
 func (x *Ref) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[4]
+	mi := &file_common_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -568,7 +857,7 @@ func (x *Ref) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ref.ProtoReflect.Descriptor instead.
 func (*Ref) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{4}
+	return file_common_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Ref) GetId() string {
@@ -588,7 +877,7 @@ type Cell struct {
 
 func (x *Cell) Reset() {
 	*x = Cell{}
-	mi := &file_common_proto_msgTypes[5]
+	mi := &file_common_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -600,7 +889,7 @@ func (x *Cell) String() string {
 func (*Cell) ProtoMessage() {}
 
 func (x *Cell) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[5]
+	mi := &file_common_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -613,7 +902,7 @@ func (x *Cell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cell.ProtoReflect.Descriptor instead.
 func (*Cell) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{5}
+	return file_common_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Cell) GetX() int32 {
@@ -642,7 +931,7 @@ type Failure struct {
 
 func (x *Failure) Reset() {
 	*x = Failure{}
-	mi := &file_common_proto_msgTypes[6]
+	mi := &file_common_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -654,7 +943,7 @@ func (x *Failure) String() string {
 func (*Failure) ProtoMessage() {}
 
 func (x *Failure) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[6]
+	mi := &file_common_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -667,7 +956,7 @@ func (x *Failure) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Failure.ProtoReflect.Descriptor instead.
 func (*Failure) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{6}
+	return file_common_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Failure) GetCode() FailureCode {
@@ -701,7 +990,7 @@ type Unavailable struct {
 
 func (x *Unavailable) Reset() {
 	*x = Unavailable{}
-	mi := &file_common_proto_msgTypes[7]
+	mi := &file_common_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -713,7 +1002,7 @@ func (x *Unavailable) String() string {
 func (*Unavailable) ProtoMessage() {}
 
 func (x *Unavailable) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[7]
+	mi := &file_common_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -726,7 +1015,7 @@ func (x *Unavailable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Unavailable.ProtoReflect.Descriptor instead.
 func (*Unavailable) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{7}
+	return file_common_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Unavailable) GetReason() UnavailableReason {
@@ -761,7 +1050,29 @@ const file_common_proto_rawDesc = "" +
 	"\n" +
 	"_colony_idB\r\n" +
 	"\v_load_tokenB\t\n" +
-	"\a_map_id\"\xbb\x01\n" +
+	"\a_map_id\"\xfd\x01\n" +
+	"\vTradeTarget\x12F\n" +
+	"\n" +
+	"map_trader\x18\x01 \x01(\v2%.rimgovernor.common.v1.MapTradeTargetH\x00R\tmapTrader\x12N\n" +
+	"\n" +
+	"settlement\x18\x02 \x01(\v2,.rimgovernor.common.v1.SettlementTradeTargetH\x00R\n" +
+	"settlement\x12N\n" +
+	"\forbital_ship\x18\x03 \x01(\v2).rimgovernor.common.v1.OrbitalTradeTargetH\x00R\vorbitalShipB\x06\n" +
+	"\x04kind\"@\n" +
+	"\x0eMapTradeTarget\x12 \n" +
+	"\ttrader_id\x18\x01 \x01(\tH\x00R\btraderId\x88\x01\x01B\f\n" +
+	"\n" +
+	"_trader_id\"\x86\x01\n" +
+	"\x15SettlementTradeTarget\x12(\n" +
+	"\rsettlement_id\x18\x01 \x01(\tH\x00R\fsettlementId\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"caravan_id\x18\x02 \x01(\tH\x01R\tcaravanId\x88\x01\x01B\x10\n" +
+	"\x0e_settlement_idB\r\n" +
+	"\v_caravan_id\">\n" +
+	"\x12OrbitalTradeTarget\x12\x1c\n" +
+	"\aship_id\x18\x01 \x01(\tH\x00R\x06shipId\x88\x01\x01B\n" +
+	"\n" +
+	"\b_ship_id\"\xbb\x01\n" +
 	"\x12ObservationContext\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12\x17\n" +
 	"\x04tick\x18\x02 \x01(\x03H\x00R\x04tick\x88\x01\x01\x120\n" +
@@ -796,7 +1107,11 @@ const file_common_proto_rawDesc = "" +
 	"\x06reason\x18\x01 \x01(\x0e2(.rimgovernor.common.v1.UnavailableReasonH\x00R\x06reason\x88\x01\x01\x12\x1b\n" +
 	"\x06detail\x18\x02 \x01(\tH\x01R\x06detail\x88\x01\x01B\t\n" +
 	"\a_reasonB\t\n" +
-	"\a_detail*z\n" +
+	"\a_detail*v\n" +
+	"\x10TradeRequestKind\x12\"\n" +
+	"\x1eTRADE_REQUEST_KIND_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aTRADE_REQUEST_KIND_CARAVAN\x10\x01\x12\x1e\n" +
+	"\x1aTRADE_REQUEST_KIND_ORBITAL\x10\x02*z\n" +
 	"\vCorpseClass\x12\x1c\n" +
 	"\x18CORPSE_CLASS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15CORPSE_CLASS_COLONIST\x10\x01\x12\x19\n" +
@@ -850,32 +1165,40 @@ func file_common_proto_rawDescGZIP() []byte {
 	return file_common_proto_rawDescData
 }
 
-var file_common_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_common_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_common_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_common_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_common_proto_goTypes = []any{
-	(CorpseClass)(0),           // 0: rimgovernor.common.v1.CorpseClass
-	(RotStage)(0),              // 1: rimgovernor.common.v1.RotStage
-	(FailureCode)(0),           // 2: rimgovernor.common.v1.FailureCode
-	(UnavailableReason)(0),     // 3: rimgovernor.common.v1.UnavailableReason
-	(*IdeoligionDesign)(nil),   // 4: rimgovernor.common.v1.IdeoligionDesign
-	(*Identity)(nil),           // 5: rimgovernor.common.v1.Identity
-	(*ObservationContext)(nil), // 6: rimgovernor.common.v1.ObservationContext
-	(*AttemptKey)(nil),         // 7: rimgovernor.common.v1.AttemptKey
-	(*Ref)(nil),                // 8: rimgovernor.common.v1.Ref
-	(*Cell)(nil),               // 9: rimgovernor.common.v1.Cell
-	(*Failure)(nil),            // 10: rimgovernor.common.v1.Failure
-	(*Unavailable)(nil),        // 11: rimgovernor.common.v1.Unavailable
+	(TradeRequestKind)(0),         // 0: rimgovernor.common.v1.TradeRequestKind
+	(CorpseClass)(0),              // 1: rimgovernor.common.v1.CorpseClass
+	(RotStage)(0),                 // 2: rimgovernor.common.v1.RotStage
+	(FailureCode)(0),              // 3: rimgovernor.common.v1.FailureCode
+	(UnavailableReason)(0),        // 4: rimgovernor.common.v1.UnavailableReason
+	(*IdeoligionDesign)(nil),      // 5: rimgovernor.common.v1.IdeoligionDesign
+	(*Identity)(nil),              // 6: rimgovernor.common.v1.Identity
+	(*TradeTarget)(nil),           // 7: rimgovernor.common.v1.TradeTarget
+	(*MapTradeTarget)(nil),        // 8: rimgovernor.common.v1.MapTradeTarget
+	(*SettlementTradeTarget)(nil), // 9: rimgovernor.common.v1.SettlementTradeTarget
+	(*OrbitalTradeTarget)(nil),    // 10: rimgovernor.common.v1.OrbitalTradeTarget
+	(*ObservationContext)(nil),    // 11: rimgovernor.common.v1.ObservationContext
+	(*AttemptKey)(nil),            // 12: rimgovernor.common.v1.AttemptKey
+	(*Ref)(nil),                   // 13: rimgovernor.common.v1.Ref
+	(*Cell)(nil),                  // 14: rimgovernor.common.v1.Cell
+	(*Failure)(nil),               // 15: rimgovernor.common.v1.Failure
+	(*Unavailable)(nil),           // 16: rimgovernor.common.v1.Unavailable
 }
 var file_common_proto_depIdxs = []int32{
-	5, // 0: rimgovernor.common.v1.ObservationContext.identity:type_name -> rimgovernor.common.v1.Identity
-	2, // 1: rimgovernor.common.v1.Failure.code:type_name -> rimgovernor.common.v1.FailureCode
-	6, // 2: rimgovernor.common.v1.Failure.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
-	3, // 3: rimgovernor.common.v1.Unavailable.reason:type_name -> rimgovernor.common.v1.UnavailableReason
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	8,  // 0: rimgovernor.common.v1.TradeTarget.map_trader:type_name -> rimgovernor.common.v1.MapTradeTarget
+	9,  // 1: rimgovernor.common.v1.TradeTarget.settlement:type_name -> rimgovernor.common.v1.SettlementTradeTarget
+	10, // 2: rimgovernor.common.v1.TradeTarget.orbital_ship:type_name -> rimgovernor.common.v1.OrbitalTradeTarget
+	6,  // 3: rimgovernor.common.v1.ObservationContext.identity:type_name -> rimgovernor.common.v1.Identity
+	3,  // 4: rimgovernor.common.v1.Failure.code:type_name -> rimgovernor.common.v1.FailureCode
+	11, // 5: rimgovernor.common.v1.Failure.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
+	4,  // 6: rimgovernor.common.v1.Unavailable.reason:type_name -> rimgovernor.common.v1.UnavailableReason
+	7,  // [7:7] is the sub-list for method output_type
+	7,  // [7:7] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_common_proto_init() }
@@ -885,19 +1208,27 @@ func file_common_proto_init() {
 	}
 	file_common_proto_msgTypes[0].OneofWrappers = []any{}
 	file_common_proto_msgTypes[1].OneofWrappers = []any{}
-	file_common_proto_msgTypes[2].OneofWrappers = []any{}
+	file_common_proto_msgTypes[2].OneofWrappers = []any{
+		(*TradeTarget_MapTrader)(nil),
+		(*TradeTarget_Settlement)(nil),
+		(*TradeTarget_OrbitalShip)(nil),
+	}
 	file_common_proto_msgTypes[3].OneofWrappers = []any{}
 	file_common_proto_msgTypes[4].OneofWrappers = []any{}
 	file_common_proto_msgTypes[5].OneofWrappers = []any{}
 	file_common_proto_msgTypes[6].OneofWrappers = []any{}
 	file_common_proto_msgTypes[7].OneofWrappers = []any{}
+	file_common_proto_msgTypes[8].OneofWrappers = []any{}
+	file_common_proto_msgTypes[9].OneofWrappers = []any{}
+	file_common_proto_msgTypes[10].OneofWrappers = []any{}
+	file_common_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_proto_rawDesc), len(file_common_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   8,
+			NumEnums:      5,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

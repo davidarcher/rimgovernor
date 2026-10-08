@@ -29,56 +29,72 @@ namespace RimGovernor.Protocol.Common {
             "EhIKBWZsdWlkGAMgASgISACIAQFCCAoGX2ZsdWlkIngKCElkZW50aXR5EhYK",
             "CWNvbG9ueV9pZBgBIAEoCUgAiAEBEhcKCmxvYWRfdG9rZW4YAiABKAlIAYgB",
             "ARITCgZtYXBfaWQYAyABKAVIAogBAUIMCgpfY29sb255X2lkQg0KC19sb2Fk",
-            "X3Rva2VuQgkKB19tYXBfaWQimQEKEk9ic2VydmF0aW9uQ29udGV4dBIxCghp",
-            "ZGVudGl0eRgBIAEoCzIfLnJpbWdvdmVybm9yLmNvbW1vbi52MS5JZGVudGl0",
-            "eRIRCgR0aWNrGAIgASgDSACIAQESHgoRbmF0aXZlX2dlbmVyYXRpb24YAyAB",
-            "KARIAYgBAUIHCgVfdGlja0IUChJfbmF0aXZlX2dlbmVyYXRpb24imAEKCkF0",
-            "dGVtcHRLZXkSIgoVY29udHJvbGxlcl9zZXNzaW9uX2lkGAEgASgJSACIAQES",
-            "FgoJYWN0aW9uX2lkGAIgASgJSAGIAQESFwoKYXR0ZW1wdF9pZBgDIAEoBEgC",
-            "iAEBQhgKFl9jb250cm9sbGVyX3Nlc3Npb25faWRCDAoKX2FjdGlvbl9pZEIN",
-            "CgtfYXR0ZW1wdF9pZCIdCgNSZWYSDwoCaWQYASABKAlIAIgBAUIFCgNfaWQi",
-            "MgoEQ2VsbBIOCgF4GAEgASgFSACIAQESDgoBehgCIAEoBUgBiAEBQgQKAl94",
-            "QgQKAl96Iq4BCgdGYWlsdXJlEjUKBGNvZGUYASABKA4yIi5yaW1nb3Zlcm5v",
-            "ci5jb21tb24udjEuRmFpbHVyZUNvZGVIAIgBARITCgZkZXRhaWwYAiABKAlI",
-            "AYgBARJDChBvYnNlcnZlZF9jb250ZXh0GAMgASgLMikucmltZ292ZXJub3Iu",
-            "Y29tbW9uLnYxLk9ic2VydmF0aW9uQ29udGV4dEIHCgVfY29kZUIJCgdfZGV0",
-            "YWlsIncKC1VuYXZhaWxhYmxlEj0KBnJlYXNvbhgBIAEoDjIoLnJpbWdvdmVy",
-            "bm9yLmNvbW1vbi52MS5VbmF2YWlsYWJsZVJlYXNvbkgAiAEBEhMKBmRldGFp",
-            "bBgCIAEoCUgBiAEBQgkKB19yZWFzb25CCQoHX2RldGFpbCp6CgtDb3Jwc2VD",
-            "bGFzcxIcChhDT1JQU0VfQ0xBU1NfVU5TUEVDSUZJRUQQABIZChVDT1JQU0Vf",
-            "Q0xBU1NfQ09MT05JU1QQARIZChVDT1JQU0VfQ0xBU1NfU1RSQU5HRVIQAhIX",
-            "ChNDT1JQU0VfQ0xBU1NfQU5JTUFMEAMqawoIUm90U3RhZ2USGQoVUk9UX1NU",
-            "QUdFX1VOU1BFQ0lGSUVEEAASEwoPUk9UX1NUQUdFX0ZSRVNIEAESFQoRUk9U",
-            "X1NUQUdFX1JPVFRJTkcQAhIYChRST1RfU1RBR0VfREVTU0lDQVRFRBADKvgD",
-            "CgtGYWlsdXJlQ29kZRIcChhGQUlMVVJFX0NPREVfVU5TUEVDSUZJRUQQABIg",
-            "ChxGQUlMVVJFX0NPREVfSU5WQUxJRF9SRVFVRVNUEAESHAoYRkFJTFVSRV9D",
-            "T0RFX1VOQVZBSUxBQkxFEAISHwobRkFJTFVSRV9DT0RFX1NUQUxFX0lERU5U",
-            "SVRZEAMSIQodRkFJTFVSRV9DT0RFX1NUQUxFX0dFTkVSQVRJT04QBBIjCh9G",
-            "QUlMVVJFX0NPREVfQVVUSE9SSVRZX1JFUVVJUkVEEAUSHgoaRkFJTFVSRV9D",
-            "T0RFX0xFQVNFX0VYUElSRUQQBhIfChtGQUlMVVJFX0NPREVfT1dORVJfQ09O",
-            "RkxJQ1QQBxIhCh1GQUlMVVJFX0NPREVfQVRURU1QVF9DT05GTElDVBAIEiMK",
-            "H0ZBSUxVUkVfQ09ERV9DQVBBQ0lUWV9FWEhBVVNURUQQCRIaChZGQUlMVVJF",
-            "X0NPREVfTk9UX0ZPVU5EEAoSHAoYRkFJTFVSRV9DT0RFX1VOU1VQUE9SVEVE",
-            "EAsSHwobRkFJTFVSRV9DT0RFX05BVElWRV9GQUlMVVJFEAwSGgoWRkFJTFVS",
-            "RV9DT0RFX0NBTkNFTExFRBANEiIKHkZBSUxVUkVfQ09ERV9ERUFETElORV9F",
-            "WENFRURFRBAOKqkDChFVbmF2YWlsYWJsZVJlYXNvbhIiCh5VTkFWQUlMQUJM",
-            "RV9SRUFTT05fVU5TUEVDSUZJRUQQABIhCh1VTkFWQUlMQUJMRV9SRUFTT05f",
-            "Tk9UX0xPQURFRBABEiMKH1VOQVZBSUxBQkxFX1JFQVNPTl9OT1RfT0JTRVJW",
-            "RUQQAhIiCh5VTkFWQUlMQUJMRV9SRUFTT05fVU5TVVBQT1JURUQQAxIiCh5V",
-            "TkFWQUlMQUJMRV9SRUFTT05fUkVBRF9GQUlMRUQQBBIcChhVTkFWQUlMQUJM",
-            "RV9SRUFTT05fU1RBTEUQBRIlCiFVTkFWQUlMQUJMRV9SRUFTT05fTElNSVRf",
-            "RVhDRUVERUQQBhIkCiBVTkFWQUlMQUJMRV9SRUFTT05fTk9UX1JFUVVFU1RF",
-            "RBAHEiUKIVVOQVZBSUxBQkxFX1JFQVNPTl9OT1RfQVBQTElDQUJMRRAIEh0K",
-            "GVVOQVZBSUxBQkxFX1JFQVNPTl9ISURERU4QCRIvCitVTkFWQUlMQUJMRV9S",
-            "RUFTT05fTkFUSVZFX0NPTVBPTkVOVF9NSVNTSU5HEApCZVpFZ2l0aHViLmNv",
-            "bS9kYXZpZGFyY2hlci9SaW1Hb3Zlcm5vci9nby9pbnRlcm5hbC93aXJlL2Nv",
-            "bW1vbnBiO2NvbW1vbnBiqgIbUmltR292ZXJub3IuUHJvdG9jb2wuQ29tbW9u",
-            "YgZwcm90bzM="));
+            "X3Rva2VuQgkKB19tYXBfaWQi2QEKC1RyYWRlVGFyZ2V0EjsKCm1hcF90cmFk",
+            "ZXIYASABKAsyJS5yaW1nb3Zlcm5vci5jb21tb24udjEuTWFwVHJhZGVUYXJn",
+            "ZXRIABJCCgpzZXR0bGVtZW50GAIgASgLMiwucmltZ292ZXJub3IuY29tbW9u",
+            "LnYxLlNldHRsZW1lbnRUcmFkZVRhcmdldEgAEkEKDG9yYml0YWxfc2hpcBgD",
+            "IAEoCzIpLnJpbWdvdmVybm9yLmNvbW1vbi52MS5PcmJpdGFsVHJhZGVUYXJn",
+            "ZXRIAEIGCgRraW5kIjYKDk1hcFRyYWRlVGFyZ2V0EhYKCXRyYWRlcl9pZBgB",
+            "IAEoCUgAiAEBQgwKCl90cmFkZXJfaWQibQoVU2V0dGxlbWVudFRyYWRlVGFy",
+            "Z2V0EhoKDXNldHRsZW1lbnRfaWQYASABKAlIAIgBARIXCgpjYXJhdmFuX2lk",
+            "GAIgASgJSAGIAQFCEAoOX3NldHRsZW1lbnRfaWRCDQoLX2NhcmF2YW5faWQi",
+            "NgoST3JiaXRhbFRyYWRlVGFyZ2V0EhQKB3NoaXBfaWQYASABKAlIAIgBAUIK",
+            "Cghfc2hpcF9pZCKZAQoST2JzZXJ2YXRpb25Db250ZXh0EjEKCGlkZW50aXR5",
+            "GAEgASgLMh8ucmltZ292ZXJub3IuY29tbW9uLnYxLklkZW50aXR5EhEKBHRp",
+            "Y2sYAiABKANIAIgBARIeChFuYXRpdmVfZ2VuZXJhdGlvbhgDIAEoBEgBiAEB",
+            "QgcKBV90aWNrQhQKEl9uYXRpdmVfZ2VuZXJhdGlvbiKYAQoKQXR0ZW1wdEtl",
+            "eRIiChVjb250cm9sbGVyX3Nlc3Npb25faWQYASABKAlIAIgBARIWCglhY3Rp",
+            "b25faWQYAiABKAlIAYgBARIXCgphdHRlbXB0X2lkGAMgASgESAKIAQFCGAoW",
+            "X2NvbnRyb2xsZXJfc2Vzc2lvbl9pZEIMCgpfYWN0aW9uX2lkQg0KC19hdHRl",
+            "bXB0X2lkIh0KA1JlZhIPCgJpZBgBIAEoCUgAiAEBQgUKA19pZCIyCgRDZWxs",
+            "Eg4KAXgYASABKAVIAIgBARIOCgF6GAIgASgFSAGIAQFCBAoCX3hCBAoCX3oi",
+            "rgEKB0ZhaWx1cmUSNQoEY29kZRgBIAEoDjIiLnJpbWdvdmVybm9yLmNvbW1v",
+            "bi52MS5GYWlsdXJlQ29kZUgAiAEBEhMKBmRldGFpbBgCIAEoCUgBiAEBEkMK",
+            "EG9ic2VydmVkX2NvbnRleHQYAyABKAsyKS5yaW1nb3Zlcm5vci5jb21tb24u",
+            "djEuT2JzZXJ2YXRpb25Db250ZXh0QgcKBV9jb2RlQgkKB19kZXRhaWwidwoL",
+            "VW5hdmFpbGFibGUSPQoGcmVhc29uGAEgASgOMigucmltZ292ZXJub3IuY29t",
+            "bW9uLnYxLlVuYXZhaWxhYmxlUmVhc29uSACIAQESEwoGZGV0YWlsGAIgASgJ",
+            "SAGIAQFCCQoHX3JlYXNvbkIJCgdfZGV0YWlsKnYKEFRyYWRlUmVxdWVzdEtp",
+            "bmQSIgoeVFJBREVfUkVRVUVTVF9LSU5EX1VOU1BFQ0lGSUVEEAASHgoaVFJB",
+            "REVfUkVRVUVTVF9LSU5EX0NBUkFWQU4QARIeChpUUkFERV9SRVFVRVNUX0tJ",
+            "TkRfT1JCSVRBTBACKnoKC0NvcnBzZUNsYXNzEhwKGENPUlBTRV9DTEFTU19V",
+            "TlNQRUNJRklFRBAAEhkKFUNPUlBTRV9DTEFTU19DT0xPTklTVBABEhkKFUNP",
+            "UlBTRV9DTEFTU19TVFJBTkdFUhACEhcKE0NPUlBTRV9DTEFTU19BTklNQUwQ",
+            "AyprCghSb3RTdGFnZRIZChVST1RfU1RBR0VfVU5TUEVDSUZJRUQQABITCg9S",
+            "T1RfU1RBR0VfRlJFU0gQARIVChFST1RfU1RBR0VfUk9UVElORxACEhgKFFJP",
+            "VF9TVEFHRV9ERVNTSUNBVEVEEAMq+AMKC0ZhaWx1cmVDb2RlEhwKGEZBSUxV",
+            "UkVfQ09ERV9VTlNQRUNJRklFRBAAEiAKHEZBSUxVUkVfQ09ERV9JTlZBTElE",
+            "X1JFUVVFU1QQARIcChhGQUlMVVJFX0NPREVfVU5BVkFJTEFCTEUQAhIfChtG",
+            "QUlMVVJFX0NPREVfU1RBTEVfSURFTlRJVFkQAxIhCh1GQUlMVVJFX0NPREVf",
+            "U1RBTEVfR0VORVJBVElPThAEEiMKH0ZBSUxVUkVfQ09ERV9BVVRIT1JJVFlf",
+            "UkVRVUlSRUQQBRIeChpGQUlMVVJFX0NPREVfTEVBU0VfRVhQSVJFRBAGEh8K",
+            "G0ZBSUxVUkVfQ09ERV9PV05FUl9DT05GTElDVBAHEiEKHUZBSUxVUkVfQ09E",
+            "RV9BVFRFTVBUX0NPTkZMSUNUEAgSIwofRkFJTFVSRV9DT0RFX0NBUEFDSVRZ",
+            "X0VYSEFVU1RFRBAJEhoKFkZBSUxVUkVfQ09ERV9OT1RfRk9VTkQQChIcChhG",
+            "QUlMVVJFX0NPREVfVU5TVVBQT1JURUQQCxIfChtGQUlMVVJFX0NPREVfTkFU",
+            "SVZFX0ZBSUxVUkUQDBIaChZGQUlMVVJFX0NPREVfQ0FOQ0VMTEVEEA0SIgoe",
+            "RkFJTFVSRV9DT0RFX0RFQURMSU5FX0VYQ0VFREVEEA4qqQMKEVVuYXZhaWxh",
+            "YmxlUmVhc29uEiIKHlVOQVZBSUxBQkxFX1JFQVNPTl9VTlNQRUNJRklFRBAA",
+            "EiEKHVVOQVZBSUxBQkxFX1JFQVNPTl9OT1RfTE9BREVEEAESIwofVU5BVkFJ",
+            "TEFCTEVfUkVBU09OX05PVF9PQlNFUlZFRBACEiIKHlVOQVZBSUxBQkxFX1JF",
+            "QVNPTl9VTlNVUFBPUlRFRBADEiIKHlVOQVZBSUxBQkxFX1JFQVNPTl9SRUFE",
+            "X0ZBSUxFRBAEEhwKGFVOQVZBSUxBQkxFX1JFQVNPTl9TVEFMRRAFEiUKIVVO",
+            "QVZBSUxBQkxFX1JFQVNPTl9MSU1JVF9FWENFRURFRBAGEiQKIFVOQVZBSUxB",
+            "QkxFX1JFQVNPTl9OT1RfUkVRVUVTVEVEEAcSJQohVU5BVkFJTEFCTEVfUkVB",
+            "U09OX05PVF9BUFBMSUNBQkxFEAgSHQoZVU5BVkFJTEFCTEVfUkVBU09OX0hJ",
+            "RERFThAJEi8KK1VOQVZBSUxBQkxFX1JFQVNPTl9OQVRJVkVfQ09NUE9ORU5U",
+            "X01JU1NJTkcQCkJlWkVnaXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVy",
+            "bm9yL2dvL2ludGVybmFsL3dpcmUvY29tbW9ucGI7Y29tbW9ucGKqAhtSaW1H",
+            "b3Zlcm5vci5Qcm90b2NvbC5Db21tb25iBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
-          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Common.CorpseClass), typeof(global::RimGovernor.Protocol.Common.RotStage), typeof(global::RimGovernor.Protocol.Common.FailureCode), typeof(global::RimGovernor.Protocol.Common.UnavailableReason), }, null, new pbr::GeneratedClrTypeInfo[] {
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Common.TradeRequestKind), typeof(global::RimGovernor.Protocol.Common.CorpseClass), typeof(global::RimGovernor.Protocol.Common.RotStage), typeof(global::RimGovernor.Protocol.Common.FailureCode), typeof(global::RimGovernor.Protocol.Common.UnavailableReason), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.IdeoligionDesign), global::RimGovernor.Protocol.Common.IdeoligionDesign.Parser, new[]{ "Memes", "Precepts", "Fluid" }, new[]{ "Fluid" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.Identity), global::RimGovernor.Protocol.Common.Identity.Parser, new[]{ "ColonyId", "LoadToken", "MapId" }, new[]{ "ColonyId", "LoadToken", "MapId" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.TradeTarget), global::RimGovernor.Protocol.Common.TradeTarget.Parser, new[]{ "MapTrader", "Settlement", "OrbitalShip" }, new[]{ "Kind" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.MapTradeTarget), global::RimGovernor.Protocol.Common.MapTradeTarget.Parser, new[]{ "TraderId" }, new[]{ "TraderId" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.SettlementTradeTarget), global::RimGovernor.Protocol.Common.SettlementTradeTarget.Parser, new[]{ "SettlementId", "CaravanId" }, new[]{ "SettlementId", "CaravanId" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.OrbitalTradeTarget), global::RimGovernor.Protocol.Common.OrbitalTradeTarget.Parser, new[]{ "ShipId" }, new[]{ "ShipId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.ObservationContext), global::RimGovernor.Protocol.Common.ObservationContext.Parser, new[]{ "Identity", "Tick", "NativeGeneration" }, new[]{ "Tick", "NativeGeneration" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.AttemptKey), global::RimGovernor.Protocol.Common.AttemptKey.Parser, new[]{ "ControllerSessionId", "ActionId", "AttemptId" }, new[]{ "ControllerSessionId", "ActionId", "AttemptId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.Ref), global::RimGovernor.Protocol.Common.Ref.Parser, new[]{ "Id" }, new[]{ "Id" }, null, null, null),
@@ -91,6 +107,12 @@ namespace RimGovernor.Protocol.Common {
 
   }
   #region Enums
+  public enum TradeRequestKind {
+    [pbr::OriginalName("TRADE_REQUEST_KIND_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("TRADE_REQUEST_KIND_CARAVAN")] Caravan = 1,
+    [pbr::OriginalName("TRADE_REQUEST_KIND_ORBITAL")] Orbital = 2,
+  }
+
   /// <summary>
   /// Whose corpse a thing is (#832/#833): the player faction's humanlike
   /// (colonists and slaves), any other humanlike, or an animal.
@@ -738,6 +760,1044 @@ namespace RimGovernor.Protocol.Common {
 
   }
 
+  /// <summary>
+  /// A session participant is scoped to the same world as the observation/action.
+  /// Map and ship targets resolve on that map; settlement trades name our caravan.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class TradeTarget : pb::IMessage<TradeTarget>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<TradeTarget> _parser = new pb::MessageParser<TradeTarget>(() => new TradeTarget());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<TradeTarget> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[2]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public TradeTarget() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public TradeTarget(TradeTarget other) : this() {
+      switch (other.KindCase) {
+        case KindOneofCase.MapTrader:
+          MapTrader = other.MapTrader.Clone();
+          break;
+        case KindOneofCase.Settlement:
+          Settlement = other.Settlement.Clone();
+          break;
+        case KindOneofCase.OrbitalShip:
+          OrbitalShip = other.OrbitalShip.Clone();
+          break;
+      }
+
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public TradeTarget Clone() {
+      return new TradeTarget(this);
+    }
+
+    /// <summary>Field number for the "map_trader" field.</summary>
+    public const int MapTraderFieldNumber = 1;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.MapTradeTarget MapTrader {
+      get { return kindCase_ == KindOneofCase.MapTrader ? (global::RimGovernor.Protocol.Common.MapTradeTarget) kind_ : null; }
+      set {
+        kind_ = value;
+        kindCase_ = value == null ? KindOneofCase.None : KindOneofCase.MapTrader;
+      }
+    }
+
+    /// <summary>Field number for the "settlement" field.</summary>
+    public const int SettlementFieldNumber = 2;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.SettlementTradeTarget Settlement {
+      get { return kindCase_ == KindOneofCase.Settlement ? (global::RimGovernor.Protocol.Common.SettlementTradeTarget) kind_ : null; }
+      set {
+        kind_ = value;
+        kindCase_ = value == null ? KindOneofCase.None : KindOneofCase.Settlement;
+      }
+    }
+
+    /// <summary>Field number for the "orbital_ship" field.</summary>
+    public const int OrbitalShipFieldNumber = 3;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.OrbitalTradeTarget OrbitalShip {
+      get { return kindCase_ == KindOneofCase.OrbitalShip ? (global::RimGovernor.Protocol.Common.OrbitalTradeTarget) kind_ : null; }
+      set {
+        kind_ = value;
+        kindCase_ = value == null ? KindOneofCase.None : KindOneofCase.OrbitalShip;
+      }
+    }
+
+    private object kind_;
+    /// <summary>Enum of possible cases for the "kind" oneof.</summary>
+    public enum KindOneofCase {
+      None = 0,
+      MapTrader = 1,
+      Settlement = 2,
+      OrbitalShip = 3,
+    }
+    private KindOneofCase kindCase_ = KindOneofCase.None;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public KindOneofCase KindCase {
+      get { return kindCase_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearKind() {
+      kindCase_ = KindOneofCase.None;
+      kind_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as TradeTarget);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(TradeTarget other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(MapTrader, other.MapTrader)) return false;
+      if (!object.Equals(Settlement, other.Settlement)) return false;
+      if (!object.Equals(OrbitalShip, other.OrbitalShip)) return false;
+      if (KindCase != other.KindCase) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (kindCase_ == KindOneofCase.MapTrader) hash ^= MapTrader.GetHashCode();
+      if (kindCase_ == KindOneofCase.Settlement) hash ^= Settlement.GetHashCode();
+      if (kindCase_ == KindOneofCase.OrbitalShip) hash ^= OrbitalShip.GetHashCode();
+      hash ^= (int) kindCase_;
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (kindCase_ == KindOneofCase.MapTrader) {
+        output.WriteRawTag(10);
+        output.WriteMessage(MapTrader);
+      }
+      if (kindCase_ == KindOneofCase.Settlement) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Settlement);
+      }
+      if (kindCase_ == KindOneofCase.OrbitalShip) {
+        output.WriteRawTag(26);
+        output.WriteMessage(OrbitalShip);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (kindCase_ == KindOneofCase.MapTrader) {
+        output.WriteRawTag(10);
+        output.WriteMessage(MapTrader);
+      }
+      if (kindCase_ == KindOneofCase.Settlement) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Settlement);
+      }
+      if (kindCase_ == KindOneofCase.OrbitalShip) {
+        output.WriteRawTag(26);
+        output.WriteMessage(OrbitalShip);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (kindCase_ == KindOneofCase.MapTrader) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(MapTrader);
+      }
+      if (kindCase_ == KindOneofCase.Settlement) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Settlement);
+      }
+      if (kindCase_ == KindOneofCase.OrbitalShip) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(OrbitalShip);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(TradeTarget other) {
+      if (other == null) {
+        return;
+      }
+      switch (other.KindCase) {
+        case KindOneofCase.MapTrader:
+          if (MapTrader == null) {
+            MapTrader = new global::RimGovernor.Protocol.Common.MapTradeTarget();
+          }
+          MapTrader.MergeFrom(other.MapTrader);
+          break;
+        case KindOneofCase.Settlement:
+          if (Settlement == null) {
+            Settlement = new global::RimGovernor.Protocol.Common.SettlementTradeTarget();
+          }
+          Settlement.MergeFrom(other.Settlement);
+          break;
+        case KindOneofCase.OrbitalShip:
+          if (OrbitalShip == null) {
+            OrbitalShip = new global::RimGovernor.Protocol.Common.OrbitalTradeTarget();
+          }
+          OrbitalShip.MergeFrom(other.OrbitalShip);
+          break;
+      }
+
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            global::RimGovernor.Protocol.Common.MapTradeTarget subBuilder = new global::RimGovernor.Protocol.Common.MapTradeTarget();
+            if (kindCase_ == KindOneofCase.MapTrader) {
+              subBuilder.MergeFrom(MapTrader);
+            }
+            input.ReadMessage(subBuilder);
+            MapTrader = subBuilder;
+            break;
+          }
+          case 18: {
+            global::RimGovernor.Protocol.Common.SettlementTradeTarget subBuilder = new global::RimGovernor.Protocol.Common.SettlementTradeTarget();
+            if (kindCase_ == KindOneofCase.Settlement) {
+              subBuilder.MergeFrom(Settlement);
+            }
+            input.ReadMessage(subBuilder);
+            Settlement = subBuilder;
+            break;
+          }
+          case 26: {
+            global::RimGovernor.Protocol.Common.OrbitalTradeTarget subBuilder = new global::RimGovernor.Protocol.Common.OrbitalTradeTarget();
+            if (kindCase_ == KindOneofCase.OrbitalShip) {
+              subBuilder.MergeFrom(OrbitalShip);
+            }
+            input.ReadMessage(subBuilder);
+            OrbitalShip = subBuilder;
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            global::RimGovernor.Protocol.Common.MapTradeTarget subBuilder = new global::RimGovernor.Protocol.Common.MapTradeTarget();
+            if (kindCase_ == KindOneofCase.MapTrader) {
+              subBuilder.MergeFrom(MapTrader);
+            }
+            input.ReadMessage(subBuilder);
+            MapTrader = subBuilder;
+            break;
+          }
+          case 18: {
+            global::RimGovernor.Protocol.Common.SettlementTradeTarget subBuilder = new global::RimGovernor.Protocol.Common.SettlementTradeTarget();
+            if (kindCase_ == KindOneofCase.Settlement) {
+              subBuilder.MergeFrom(Settlement);
+            }
+            input.ReadMessage(subBuilder);
+            Settlement = subBuilder;
+            break;
+          }
+          case 26: {
+            global::RimGovernor.Protocol.Common.OrbitalTradeTarget subBuilder = new global::RimGovernor.Protocol.Common.OrbitalTradeTarget();
+            if (kindCase_ == KindOneofCase.OrbitalShip) {
+              subBuilder.MergeFrom(OrbitalShip);
+            }
+            input.ReadMessage(subBuilder);
+            OrbitalShip = subBuilder;
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class MapTradeTarget : pb::IMessage<MapTradeTarget>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<MapTradeTarget> _parser = new pb::MessageParser<MapTradeTarget>(() => new MapTradeTarget());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<MapTradeTarget> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[3]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public MapTradeTarget() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public MapTradeTarget(MapTradeTarget other) : this() {
+      traderId_ = other.traderId_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public MapTradeTarget Clone() {
+      return new MapTradeTarget(this);
+    }
+
+    /// <summary>Field number for the "trader_id" field.</summary>
+    public const int TraderIdFieldNumber = 1;
+    private readonly static string TraderIdDefaultValue = "";
+
+    private string traderId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string TraderId {
+      get { return traderId_ ?? TraderIdDefaultValue; }
+      set {
+        traderId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "trader_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasTraderId {
+      get { return traderId_ != null; }
+    }
+    /// <summary>Clears the value of the "trader_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearTraderId() {
+      traderId_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as MapTradeTarget);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(MapTradeTarget other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (TraderId != other.TraderId) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasTraderId) hash ^= TraderId.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasTraderId) {
+        output.WriteRawTag(10);
+        output.WriteString(TraderId);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasTraderId) {
+        output.WriteRawTag(10);
+        output.WriteString(TraderId);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasTraderId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(TraderId);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(MapTradeTarget other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasTraderId) {
+        TraderId = other.TraderId;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            TraderId = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            TraderId = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class SettlementTradeTarget : pb::IMessage<SettlementTradeTarget>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<SettlementTradeTarget> _parser = new pb::MessageParser<SettlementTradeTarget>(() => new SettlementTradeTarget());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<SettlementTradeTarget> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[4]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public SettlementTradeTarget() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public SettlementTradeTarget(SettlementTradeTarget other) : this() {
+      settlementId_ = other.settlementId_;
+      caravanId_ = other.caravanId_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public SettlementTradeTarget Clone() {
+      return new SettlementTradeTarget(this);
+    }
+
+    /// <summary>Field number for the "settlement_id" field.</summary>
+    public const int SettlementIdFieldNumber = 1;
+    private readonly static string SettlementIdDefaultValue = "";
+
+    private string settlementId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string SettlementId {
+      get { return settlementId_ ?? SettlementIdDefaultValue; }
+      set {
+        settlementId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "settlement_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasSettlementId {
+      get { return settlementId_ != null; }
+    }
+    /// <summary>Clears the value of the "settlement_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearSettlementId() {
+      settlementId_ = null;
+    }
+
+    /// <summary>Field number for the "caravan_id" field.</summary>
+    public const int CaravanIdFieldNumber = 2;
+    private readonly static string CaravanIdDefaultValue = "";
+
+    private string caravanId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string CaravanId {
+      get { return caravanId_ ?? CaravanIdDefaultValue; }
+      set {
+        caravanId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "caravan_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasCaravanId {
+      get { return caravanId_ != null; }
+    }
+    /// <summary>Clears the value of the "caravan_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearCaravanId() {
+      caravanId_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as SettlementTradeTarget);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(SettlementTradeTarget other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (SettlementId != other.SettlementId) return false;
+      if (CaravanId != other.CaravanId) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasSettlementId) hash ^= SettlementId.GetHashCode();
+      if (HasCaravanId) hash ^= CaravanId.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasSettlementId) {
+        output.WriteRawTag(10);
+        output.WriteString(SettlementId);
+      }
+      if (HasCaravanId) {
+        output.WriteRawTag(18);
+        output.WriteString(CaravanId);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasSettlementId) {
+        output.WriteRawTag(10);
+        output.WriteString(SettlementId);
+      }
+      if (HasCaravanId) {
+        output.WriteRawTag(18);
+        output.WriteString(CaravanId);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasSettlementId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(SettlementId);
+      }
+      if (HasCaravanId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(CaravanId);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(SettlementTradeTarget other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasSettlementId) {
+        SettlementId = other.SettlementId;
+      }
+      if (other.HasCaravanId) {
+        CaravanId = other.CaravanId;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            SettlementId = input.ReadString();
+            break;
+          }
+          case 18: {
+            CaravanId = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            SettlementId = input.ReadString();
+            break;
+          }
+          case 18: {
+            CaravanId = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class OrbitalTradeTarget : pb::IMessage<OrbitalTradeTarget>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<OrbitalTradeTarget> _parser = new pb::MessageParser<OrbitalTradeTarget>(() => new OrbitalTradeTarget());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<OrbitalTradeTarget> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[5]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public OrbitalTradeTarget() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public OrbitalTradeTarget(OrbitalTradeTarget other) : this() {
+      shipId_ = other.shipId_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public OrbitalTradeTarget Clone() {
+      return new OrbitalTradeTarget(this);
+    }
+
+    /// <summary>Field number for the "ship_id" field.</summary>
+    public const int ShipIdFieldNumber = 1;
+    private readonly static string ShipIdDefaultValue = "";
+
+    private string shipId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string ShipId {
+      get { return shipId_ ?? ShipIdDefaultValue; }
+      set {
+        shipId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "ship_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasShipId {
+      get { return shipId_ != null; }
+    }
+    /// <summary>Clears the value of the "ship_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearShipId() {
+      shipId_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as OrbitalTradeTarget);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(OrbitalTradeTarget other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (ShipId != other.ShipId) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasShipId) hash ^= ShipId.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasShipId) {
+        output.WriteRawTag(10);
+        output.WriteString(ShipId);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasShipId) {
+        output.WriteRawTag(10);
+        output.WriteString(ShipId);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasShipId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(ShipId);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(OrbitalTradeTarget other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasShipId) {
+        ShipId = other.ShipId;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            ShipId = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            ShipId = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class ObservationContext : pb::IMessage<ObservationContext>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
@@ -754,7 +1814,7 @@ namespace RimGovernor.Protocol.Common {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[2]; }
+      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[6]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1070,7 +2130,7 @@ namespace RimGovernor.Protocol.Common {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[3]; }
+      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[7]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1392,7 +2452,7 @@ namespace RimGovernor.Protocol.Common {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[4]; }
+      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[8]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1605,7 +2665,7 @@ namespace RimGovernor.Protocol.Common {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[5]; }
+      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[9]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1875,7 +2935,7 @@ namespace RimGovernor.Protocol.Common {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[6]; }
+      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[10]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2187,7 +3247,7 @@ namespace RimGovernor.Protocol.Common {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[7]; }
+      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[11]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

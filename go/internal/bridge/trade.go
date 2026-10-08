@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -12,24 +13,26 @@ import (
 // refuses with a reason when the session is gone or held by a different pair
 // (NativeTradeOperations.cs). This file checks wire shape only.
 
-func tradeParticipants(trader, negotiator string) error {
-	if validID(trader) != nil || validID(negotiator) != nil || trader == negotiator {
-		return contract("trade intent requires a distinct trader and negotiator")
-	}
-	return nil
-}
-
 // tradeAction is the Actions/Apply trade arm of one domain trade action.
 func tradeAction(action domain.Action) (*o.Action, error) {
 	t, ok := action.Trade()
 	if !ok {
 		return nil, contract("not a trade action")
 	}
-	trader, negotiator := t.Trader(), string(t.Negotiator())
-	if err := tradeParticipants(trader, negotiator); err != nil {
-		return nil, err
+	participant, negotiator := t.Participant(), string(t.Negotiator())
+	if participant.Validate() != nil || validID(negotiator) != nil || participant.Kind == domain.TradeParticipantMap && participant.ID == negotiator {
+		return nil, contract("invalid trade participants")
 	}
-	intent := &o.TradeIntent{TraderId: proto.String(trader), NegotiatorId: proto.String(negotiator)}
+	var target *c.TradeTarget
+	switch participant.Kind {
+	case domain.TradeParticipantMap:
+		target = mapTradeTarget(participant.ID)
+	case domain.TradeParticipantSettlement:
+		target = &c.TradeTarget{Kind: &c.TradeTarget_Settlement{Settlement: &c.SettlementTradeTarget{SettlementId: proto.String(participant.ID), CaravanId: proto.String(participant.Caravan)}}}
+	case domain.TradeParticipantOrbital:
+		target = &c.TradeTarget{Kind: &c.TradeTarget_OrbitalShip{OrbitalShip: &c.OrbitalTradeTarget{ShipId: proto.String(participant.ID)}}}
+	}
+	intent := &o.TradeIntent{Target: target, NegotiatorId: proto.String(negotiator)}
 	switch t.Kind() {
 	case domain.TradeOpen:
 		intent.Step = &o.TradeIntent_Open{Open: &o.OpenTrade{GiftMode: proto.Bool(t.GiftMode())}}

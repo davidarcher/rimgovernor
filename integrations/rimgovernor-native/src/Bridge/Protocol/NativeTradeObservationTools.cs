@@ -179,7 +179,7 @@ namespace HomeBridge.BridgeTools
         {
             var session = new Obs.TradeSession { Context = context.Clone() };
             if (NativeTradeOperations.Live(context.Identity, out var trader, out var negotiator, out var open) && trader != null && negotiator != null)
-            { session.TraderId = trader.GetUniqueLoadID(); session.NegotiatorId = negotiator.GetUniqueLoadID(); session.Open = open; }
+            { session.Target = new Common.TradeTarget { MapTrader = new Common.MapTradeTarget { TraderId = trader.GetUniqueLoadID() } }; session.NegotiatorId = negotiator.GetUniqueLoadID(); session.Open = open; }
             return session;
         }
 
@@ -200,7 +200,7 @@ namespace HomeBridge.BridgeTools
             {
                 Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = session.SessionId, Token = session.DealSignature },
                 SessionId = session.SessionId,
-                Trader = NativeRef.Thing(session.Trader),
+                Target = new Common.TradeTarget { MapTrader = new Common.MapTradeTarget { TraderId = session.Trader.GetUniqueLoadID() } },
                 Negotiator = NativeRef.Thing(session.Negotiator),
                 GiftMode = session.GiftMode,
                 NegotiatorAdjacent = Math.Max(Math.Abs(session.Trader.Position.x - session.Negotiator.Position.x), Math.Abs(session.Trader.Position.z - session.Negotiator.Position.z)) <= 1,

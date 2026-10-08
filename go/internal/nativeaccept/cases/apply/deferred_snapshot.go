@@ -138,7 +138,7 @@ func waitFrame(ctx context.Context, reader *snapshotshm.Reader, writes int64, li
 // deferredProbe is an apply native refuses: a trade with a trader that
 // does not exist.
 func deferredProbe(key string) *o.Action {
-	return &o.Action{Key: proto.String(key), Intent: &o.Action_Trade{Trade: &o.TradeIntent{TraderId: proto.String("probe-trader"), NegotiatorId: proto.String("probe-negotiator"),
+	return &o.Action{Key: proto.String(key), Intent: &o.Action_Trade{Trade: &o.TradeIntent{Target: &c.TradeTarget{Kind: &c.TradeTarget_MapTrader{MapTrader: &c.MapTradeTarget{TraderId: proto.String("probe-trader")}}}, NegotiatorId: proto.String("probe-negotiator"),
 		Step: &o.TradeIntent_End{End: &o.EndTrade{Kind: o.EndTradeKind_END_TRADE_KIND_CANCEL.Enum()}}}}}
 }
 

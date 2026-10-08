@@ -18,6 +18,7 @@ its contracts and run the relevant checks.
 - [Development workflow](developers/development-process.md) and the
   [agent runbook](developers/agent-runbook.md) (shared machine, private game copy, running harnesses)
 - [Durable policy and Auto control](developers/contracts/durable-policy.md)
+- [Controllable trade contracts](developers/contracts/controllable-trade.md)
 - [Quest classification and execution](developers/contracts/quests.md)
 - [Subsystem contracts](developers/contracts/README.md) and
   [wire contracts](../contracts/README.md)

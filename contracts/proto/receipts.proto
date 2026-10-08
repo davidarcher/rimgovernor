@@ -275,6 +275,7 @@ message AnimalEffect { SnapshotEvidence animal = 1; optional string trainable_de
 message PrisonerEffect { SnapshotEvidence pawn = 1; optional string interaction_def = 2; optional string outcome = 3; }
 message TradeLineEffect { optional string line_id = 1; optional int32 before_count = 2; optional int32 after_count = 3; }
 message TradeEffect {
+  rimgovernor.common.v1.TradeTarget target = 14;
   optional string session_id = 1;
   optional string deal_signature = 2;
   repeated TradeLineEffect lines = 3;
@@ -288,6 +289,18 @@ message TradeEffect {
   repeated string received_quest_ids = 11;
   SnapshotEvidence snapshot = 12;
   optional bool actually_traded = 13;
+}
+message CommsTradeRequestEffect {
+  optional string faction_id = 1;
+  rimgovernor.common.v1.TradeRequestKind kind = 2;
+  optional string trader_kind = 3;
+  optional string negotiator_id = 4;
+  optional bool work_queued = 5;
+  optional int64 before_request_tick = 6;
+  optional int64 after_request_tick = 7;
+  optional int32 before_goodwill = 8;
+  optional int32 after_goodwill = 9;
+  optional int64 arrival_tick = 10;
 }
 message CaravanEffect { optional string caravan_id = 1; optional bool assembly_started = 2; optional bool path_started = 3; optional bool stopped = 4; optional int32 destination_tile = 5; repeated string pawn_ids = 6; SnapshotEvidence snapshot = 7; }
 // QuestStatus is the vanilla QuestState.

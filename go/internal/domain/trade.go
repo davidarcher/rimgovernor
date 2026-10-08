@@ -77,7 +77,7 @@ type TradeEconomicFloor struct {
 // re-checks the live session/sheet at admission time.
 type Trade struct {
 	kind                  TradeOperationKind
-	trader                string
+	participant           TradeParticipant
 	negotiator            string
 	giftMode              bool
 	lines                 string
@@ -150,10 +150,10 @@ func canonicalExportThings(ids []string) (string, error) {
 	return string(data), nil
 }
 
-func newTrade(kind TradeOperationKind, trader, negotiator string, giftMode bool, lines []TradeLine, allowPawns bool, expectedDealSignature string, floors []TradeEconomicFloor, exportThings []string, allowEmpty bool, endKind TradeEndKind, receiveQuest bool) (Trade, error) {
+func newTrade(kind TradeOperationKind, participant TradeParticipant, negotiator string, giftMode bool, lines []TradeLine, allowPawns bool, expectedDealSignature string, floors []TradeEconomicFloor, exportThings []string, allowEmpty bool, endKind TradeEndKind, receiveQuest bool) (Trade, error) {
 	// Every intent names the session's pair; native refuses when the live
 	// session is held by another pair or none is open.
-	if !validID(trader) || !validID(negotiator) || trader == negotiator {
+	if participant.Validate() != nil || !validID(negotiator) || participant.Kind == TradeParticipantMap && participant.ID == negotiator {
 		return Trade{}, errors.New("trade requires a distinct valid trader and negotiator")
 	}
 	switch kind {
@@ -197,19 +197,19 @@ func newTrade(kind TradeOperationKind, trader, negotiator string, giftMode bool,
 	if err != nil {
 		return Trade{}, err
 	}
-	return Trade{kind, trader, negotiator, giftMode, encodedLines, allowPawns, expectedDealSignature, encodedFloors, encodedThings, allowEmpty, endKind, receiveQuest}, nil
+	return Trade{kind, participant, negotiator, giftMode, encodedLines, allowPawns, expectedDealSignature, encodedFloors, encodedThings, allowEmpty, endKind, receiveQuest}, nil
 }
 
 // NewTradeOpen requests opening the single global trade session with one
 // already-selected trader pawn (the caravan's trader entity) and negotiator pawn.
 func NewTradeOpen(trader string, negotiator PawnID, giftMode bool) (Trade, error) {
-	return newTrade(TradeOpen, string(trader), string(negotiator), giftMode, nil, false, "", nil, nil, false, "", false)
+	return newTrade(TradeOpen, TradeParticipant{Kind: TradeParticipantMap, ID: trader}, string(negotiator), giftMode, nil, false, "", nil, nil, false, "", false)
 }
 
 // NewTradeSetLines requests staging an already-computed set of absolute line
 // adjustments against the live session held by trader and negotiator.
 func NewTradeSetLines(trader string, negotiator PawnID, lines []TradeLine, allowPawns bool) (Trade, error) {
-	return newTrade(TradeSetLines, trader, string(negotiator), false, lines, allowPawns, "", nil, nil, false, "", false)
+	return newTrade(TradeSetLines, TradeParticipant{Kind: TradeParticipantMap, ID: trader}, string(negotiator), false, lines, allowPawns, "", nil, nil, false, "", false)
 }
 
 // NewTradeAccept requests accepting the currently open session's deal,
@@ -217,18 +217,18 @@ func NewTradeSetLines(trader string, negotiator PawnID, lines []TradeLine, allow
 // below the given economic floors; exportThings names the protected gear it
 // may sell by thing id.
 func NewTradeAccept(trader string, negotiator PawnID, expectedDealSignature string, floors []TradeEconomicFloor, exportThings []string, allowEmpty, receiveQuest bool) (Trade, error) {
-	return newTrade(TradeAccept, trader, string(negotiator), false, nil, false, expectedDealSignature, floors, exportThings, allowEmpty, "", receiveQuest)
+	return newTrade(TradeAccept, TradeParticipant{Kind: TradeParticipantMap, ID: trader}, string(negotiator), false, nil, false, expectedDealSignature, floors, exportThings, allowEmpty, "", receiveQuest)
 }
 
 // NewTradeEnd requests ending the currently open session, either abandoning
 // the deal (cancel) or sweeping a stale/foreign dialog with no goodwill
 // effect (close_dialog).
 func NewTradeEnd(trader string, negotiator PawnID, kind TradeEndKind, receiveQuest bool) (Trade, error) {
-	return newTrade(TradeEnd, trader, string(negotiator), false, nil, false, "", nil, nil, false, kind, receiveQuest)
+	return newTrade(TradeEnd, TradeParticipant{Kind: TradeParticipantMap, ID: trader}, string(negotiator), false, nil, false, "", nil, nil, false, kind, receiveQuest)
 }
 
 func (t Trade) Kind() TradeOperationKind { return t.kind }
-func (t Trade) Trader() string           { return t.trader }
+func (t Trade) Trader() string           { return t.participant.ID }
 func (t Trade) Negotiator() PawnID       { return PawnID(t.negotiator) }
 func (t Trade) GiftMode() bool           { return t.giftMode }
 
@@ -262,7 +262,7 @@ func NewTradeAction(id ActionID, trade Trade) (Action, error) {
 	if !validID(string(id)) {
 		return Action{}, errors.New("invalid action identity")
 	}
-	canonical, err := newTrade(trade.kind, trade.trader, trade.negotiator, trade.giftMode, trade.Lines(), trade.allowPawns, trade.expectedDealSignature, trade.EconomicFloors(), trade.ExportThings(), trade.allowEmpty, trade.endKind, trade.receiveQuest)
+	canonical, err := newTrade(trade.kind, trade.participant, trade.negotiator, trade.giftMode, trade.Lines(), trade.allowPawns, trade.expectedDealSignature, trade.EconomicFloors(), trade.ExportThings(), trade.allowEmpty, trade.endKind, trade.receiveQuest)
 	if err != nil || canonical != trade {
 		return Action{}, errors.New("invalid trade")
 	}

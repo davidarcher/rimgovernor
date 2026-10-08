@@ -598,17 +598,18 @@ namespace HomeBridge.BridgeTools
         internal static Common.Failure? Validate(Operations.TradeIntent intent, Common.Identity identity)
         {
             Common.Failure failure;
+            if (intent.Target?.KindCase != Common.TradeTarget.KindOneofCase.MapTrader || string.IsNullOrEmpty(intent.Target.MapTrader.TraderId)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only a map trader target is enabled.");
             switch (intent.StepCase)
             {
                 case Operations.TradeIntent.StepOneofCase.Open:
-                    return PrepareOpen(intent.Open, intent.TraderId, intent.NegotiatorId, identity, out _, out _, out _, out failure) ? null : failure;
+                    return PrepareOpen(intent.Open, intent.Target.MapTrader.TraderId, intent.NegotiatorId, identity, out _, out _, out _, out failure) ? null : failure;
                 case Operations.TradeIntent.StepOneofCase.SetLines:
                     var all = RequireSession(identity, out _) ? _sessionDeal!.AllTradeables : new List<Tradeable>();
-                    return PrepareLines(intent.SetLines, intent.TraderId, intent.NegotiatorId, identity, all, out _, out failure) ? null : failure;
+                    return PrepareLines(intent.SetLines, intent.Target.MapTrader.TraderId, intent.NegotiatorId, identity, all, out _, out failure) ? null : failure;
                 case Operations.TradeIntent.StepOneofCase.Accept:
-                    return PrepareAccept(intent.Accept, intent.TraderId, intent.NegotiatorId, identity, out failure) ? null : failure;
+                    return PrepareAccept(intent.Accept, intent.Target.MapTrader.TraderId, intent.NegotiatorId, identity, out failure) ? null : failure;
                 case Operations.TradeIntent.StepOneofCase.End:
-                    return PrepareEnd(intent.End, intent.TraderId, intent.NegotiatorId, identity, out failure) ? null : failure;
+                    return PrepareEnd(intent.End, intent.Target.MapTrader.TraderId, intent.NegotiatorId, identity, out failure) ? null : failure;
                 default:
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A trade intent names exactly one step.");
             }
@@ -618,16 +619,19 @@ namespace HomeBridge.BridgeTools
         // throw after a partial effect leaves the session to the next read.
         internal static Receipts.EffectEvidence Apply(Operations.TradeIntent intent, Common.ObservationContext context)
         {
+            if (intent.Target?.KindCase != Common.TradeTarget.KindOneofCase.MapTrader) throw new InvalidOperationException("Only a map trader target is enabled.");
             switch (intent.StepCase)
             {
-                case Operations.TradeIntent.StepOneofCase.Open: return ApplyOpen(intent.Open, intent.TraderId, intent.NegotiatorId, context);
-                case Operations.TradeIntent.StepOneofCase.SetLines: return ApplyLines(intent.SetLines, intent.TraderId, intent.NegotiatorId, context.Identity);
-                case Operations.TradeIntent.StepOneofCase.Accept: return ApplyAccept(intent.Accept, intent.TraderId, intent.NegotiatorId, context.Identity);
-                case Operations.TradeIntent.StepOneofCase.End: return ApplyEnd(intent.End, intent.TraderId, intent.NegotiatorId, context.Identity);
+                case Operations.TradeIntent.StepOneofCase.Open: return WithTarget(ApplyOpen(intent.Open, intent.Target.MapTrader.TraderId, intent.NegotiatorId, context), intent.Target);
+                case Operations.TradeIntent.StepOneofCase.SetLines: return WithTarget(ApplyLines(intent.SetLines, intent.Target.MapTrader.TraderId, intent.NegotiatorId, context.Identity), intent.Target);
+                case Operations.TradeIntent.StepOneofCase.Accept: return WithTarget(ApplyAccept(intent.Accept, intent.Target.MapTrader.TraderId, intent.NegotiatorId, context.Identity), intent.Target);
+                case Operations.TradeIntent.StepOneofCase.End: return WithTarget(ApplyEnd(intent.End, intent.Target.MapTrader.TraderId, intent.NegotiatorId, context.Identity), intent.Target);
                 default: throw new InvalidOperationException("A trade intent names exactly one step.");
             }
         }
 
+        private static Receipts.EffectEvidence WithTarget(Receipts.EffectEvidence evidence, Common.TradeTarget target)
+        { evidence.Trade.Target = target.Clone(); return evidence; }
         private static Receipts.EffectEvidence ApplyOpen(Operations.OpenTrade command, string traderId, string negotiatorId, Common.ObservationContext context)
         {
             var identity = context.Identity;

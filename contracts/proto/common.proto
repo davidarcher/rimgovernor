@@ -18,6 +18,20 @@ message Identity {
   optional int32 map_id = 3;
 }
 
+// A session participant is scoped to the same world as the observation/action.
+// Map and ship targets resolve on that map; settlement trades name our caravan.
+message TradeTarget {
+  oneof kind {
+    MapTradeTarget map_trader = 1;
+    SettlementTradeTarget settlement = 2;
+    OrbitalTradeTarget orbital_ship = 3;
+  }
+}
+message MapTradeTarget { optional string trader_id = 1; }
+message SettlementTradeTarget { optional string settlement_id = 1; optional string caravan_id = 2; }
+message OrbitalTradeTarget { optional string ship_id = 1; }
+enum TradeRequestKind { TRADE_REQUEST_KIND_UNSPECIFIED = 0; TRADE_REQUEST_KIND_CARAVAN = 1; TRADE_REQUEST_KIND_ORBITAL = 2; }
+
 message ObservationContext {
   Identity identity = 1;
   optional int64 tick = 2;

@@ -20,7 +20,7 @@ is pairwise, so it is answered only for a query of at most 64 rows and carries a
 `reachable_pawn_ids` issue beyond that. A producer that omits the block leaves the
 gates unknown and the controller proposes no doctor, rather than failing the read.
 
-- [Fixed MCP tools](mcp-tools.md):83 descriptor methods, exact wrappers and capabilities.
+- [Fixed MCP tools](mcp-tools.md): descriptor methods, exact wrappers and capabilities.
 - [Validation](validation.md): shared presence, bounds and outcome requirements.
 - [Observations](observations.md), [operations/receipts](operations.md),
   [clock/lifecycle](clock-lifecycle.md), [placement](placement.md)
@@ -120,3 +120,5 @@ define required presence and semantic constraints beyond official parsing.
 Control/observation replies carry no envelope size cap. Dedicated media replies permit
 up to32MiB of image bytes within a48MiB ProtoJSON envelope, as specified by the
 presentation contract; this exception never applies to arbitrary data payloads.
+
+Shared trade target arms and acquisition/packing facts: [controllable trade](../../docs/developers/contracts/controllable-trade.md).

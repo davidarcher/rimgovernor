@@ -6,7 +6,7 @@ Vocabulary follows the [glossary](../agent-runbook.md#vocabulary-glossary-epic-1
 `standards`, `methods` (`standard_id`, `episode`) and `rounds`; blob keys `standard/<id>`; the
 `standard` and `episode` JSON keys; status words `open`/`settled`/`voided` (Standards) and
 `open`/`completed`/`voided` (Projects). Finding strings are `unclear`/`unmet`/`met` (Incident bindings
-store `unclear`/`active`/`clear`); journal schema 203. Databases and saves from other versions are refused;
+store `unclear`/`active`/`clear`); journal schema 205. Databases and saves from other versions are refused;
 there is no adoption path.
 
 Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second
@@ -34,6 +34,8 @@ flusher all call the same once-per-world rebuild.
 expected and target designs, and expected reform count. It follows the save;
 Methods and action attempts remain in the session journal. Current design,
 eligibility and scores are rebuilt from the keyed ideology section and catalog.
+
+Outbound trade Projects own home/settlement target, crew, silver budget, definition demand and mission phase/return intent ([controllable trade](controllable-trade.md)). Native goodwill, cooldown, caravan inventory and routes stay observed facts; the action journal carries the typed participant and attempts.
 
 Native saves no Go bookkeeping (receipts, lineage, purpose tags), and Go keeps no durable copy of what
 the save holds. The rest of this page details the session journal.
