@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -29,6 +30,10 @@ func temperatureRooms(rooms *o.RoomsSnapshot, cells map[string][]domain.Cell, sl
 	}
 	for _, room := range rooms.Rooms {
 		row := policy.Room{ID: room.GetId(), Role: roomRole(room), Temperature: optional(room.TemperatureC), Enclosed: domain.Known(room.GetProperRoom() && !room.GetDoorway() && !room.GetOutdoors() && !room.GetPsychologicallyOutdoors() && !room.GetTouchesMapEdge() && room.GetOpenRoofCount() == 0)}
+		row.Burning, row.TemperatureControl, row.PerishableContents = optional(room.Burning), optional(room.TemperatureControl), optional(room.PerishableContents)
+		for _, pawn := range room.Pawns {
+			row.Pawns = append(row.Pawns, domain.PawnID(pawn.GetId()))
+		}
 		for _, bed := range room.Beds {
 			row.Beds = append(row.Beds, bed.GetId())
 		}
@@ -44,7 +49,7 @@ func temperatureRooms(rooms *o.RoomsSnapshot, cells map[string][]domain.Cell, sl
 			row.Roofed = domain.Known(room.GetOpenRoofCount() == 0)
 		}
 		for _, door := range room.Doors {
-			row.Doors = append(row.Doors, policy.RoomDoor{Cell: domain.Cell{X: door.GetCell().GetX(), Z: door.GetCell().GetZ()}, Outside: domain.Cell{X: door.GetOutside().GetX(), Z: door.GetOutside().GetZ()}, Outdoors: optional(door.Outdoors)})
+			row.Doors = append(row.Doors, bridge.RoomDoorFacts(door))
 		}
 		result.Rooms = append(result.Rooms, row)
 	}

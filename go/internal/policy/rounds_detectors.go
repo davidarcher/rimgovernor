@@ -182,6 +182,9 @@ func inspectTemperatureSafety(c *roundsRun) error {
 		// goal open (#1180, #1199).
 		temperatureMet = domain.Known(false)
 	}
+	if slices.ContainsFunc(DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes, p), func(d DoorChange) bool { return d.Heat }) {
+		temperatureMet = domain.Known(false)
+	}
 	if l.Cold || l.Hot || !positive(temperatureMet) {
 		c.raise(EnsureTemperatureSafety, 2)
 	}
@@ -697,6 +700,9 @@ func inspectRoutes(c *roundsRun) error {
 		recovered = domain.Known(!c.routes.Active)
 	} else if !c.routes.Active {
 		priority = 4
+	}
+	if len(DoorChanges(c.f.Upkeep.Rooms, c.f.Upkeep.Routes, c.p)) > 0 {
+		recovered = domain.Known(false)
 	}
 	c.assess(MaintainRoutes, priority, recovered)
 	if !positive(recovered) {

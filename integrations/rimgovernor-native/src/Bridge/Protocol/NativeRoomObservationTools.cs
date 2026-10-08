@@ -112,6 +112,9 @@ namespace HomeBridge.BridgeTools
             var roof = room.OpenRoofCount;
             if (roof < 0 || roof > cells.Count) throw new InvalidOperationException("Invalid room open roof count.");
             row.OpenRoofCount = (uint)roof;
+            row.Burning = things.Any(t => t is Fire);
+            row.TemperatureControl = things.Any(t => t is Building_TempControl || t.TryGetComp<CompHeatPusher>() != null);
+            row.PerishableContents = things.Any(t => room.ContainsCell(t.Position) && t.TryGetComp<CompRottable>() != null);
             try { row.TemperatureC = Finite(room.Temperature); }
             catch (Exception) { row.Issues.Add(Issue("temperature_c", Common.UnavailableReason.ReadFailed, "Native room temperature unavailable.")); }
             try
@@ -177,7 +180,10 @@ namespace HomeBridge.BridgeTools
                     var inside = door.Position + offset;
                     if (!inside.InBounds(map) || inside.GetRoom(map) != room) continue;
                     var outside = door.Position - offset;
-                    var entry = new Obs.RoomDoor { Cell = Cell(door.Position), Outside = Cell(outside) };
+                    var entry = new Obs.RoomDoor { Cell = Cell(door.Position), Outside = Cell(outside),
+                        Id = door.GetUniqueLoadID(), PlayerOwned = door.Faction == Faction.OfPlayerSilentFail,
+                        Open = door.Open, HoldOpen = door.HoldOpen, BlockedOpen = door.BlockedOpenMomentary,
+                        Forbidden = door.IsForbidden(Faction.OfPlayerSilentFail) };
                     var far = outside.InBounds(map) ? outside.GetRoom(map) : null;
                     if (far != null && far != room) entry.Outdoors = far.PsychologicallyOutdoors;
                     row.Doors.Add(entry);
@@ -186,7 +192,8 @@ namespace HomeBridge.BridgeTools
             }
             row.Snapshot = NativeObservationSnapshot.Snapshot("room", context, row.Id, w => {
                 w.Write(row.CellCount); w.Write(row.OpenRoofCount); w.Write(row.Role??""); w.Write(row.Fogged);
-                foreach (var door in row.Doors) { w.Write(door.Cell.X); w.Write(door.Cell.Z); w.Write(door.Outside.X); w.Write(door.Outside.Z); w.Write(door.HasOutdoors ? (door.Outdoors ? 2 : 1) : 0); }
+                w.Write(row.Burning); w.Write(row.TemperatureControl); w.Write(row.PerishableContents);
+                foreach (var door in row.Doors) { w.Write(door.Cell.X); w.Write(door.Cell.Z); w.Write(door.Outside.X); w.Write(door.Outside.Z); w.Write(door.HasOutdoors ? (door.Outdoors ? 2 : 1) : 0); w.Write(door.Id); w.Write(door.PlayerOwned); w.Write(door.Open); w.Write(door.HoldOpen); w.Write(door.BlockedOpen); w.Write(door.Forbidden); }
                 foreach (var quantity in row.Contents) { w.Write(quantity.DefName); w.Write(quantity.Units); }
                 foreach (var membership in row.BedMemberships) { w.Write(membership.Building.Id); w.Write(membership.Owners.Count); w.Write(membership.Users.Count); }
                 foreach (var membership in row.StockpileMemberships) { w.Write(membership.Zone?.Id??""); foreach (var stock in membership.Contents) { w.Write(stock.Definition.DefName); w.Write(stock.Units); } }

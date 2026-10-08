@@ -81,6 +81,9 @@ func doorPotshot(view CombatView, formed bool, m *CombatMemory) {
 // combatDoorExists uses the current native room boundary, never the saved
 // layout or a door retained by an earlier combat stop.
 func combatDoorExists(view CombatView, cell domain.Cell) bool {
+	if doors, known := view.DoorStates.Value(); known {
+		return slices.ContainsFunc(doors, func(d RoomDoor) bool { return d.Cell == cell })
+	}
 	return slices.ContainsFunc(view.Rooms, func(room CombatRoom) bool {
 		return slices.Contains(room.Doors, cell)
 	})

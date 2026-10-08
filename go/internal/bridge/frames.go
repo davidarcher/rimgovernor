@@ -856,7 +856,8 @@ type Combat struct {
 	Detail Pawns
 	Lines  []LineOfFire
 	// Rooms are the map's standing rectangular rooms (#897).
-	Rooms []policy.CombatRoom
+	Rooms      []policy.CombatRoom
+	DoorStates domain.Fact[[]policy.RoomDoor]
 	// Doors are the damaged player doors (#900).
 	Doors []*mp.CombatDoorRow
 	// Mortars are the unroofed player mortars (#931).
@@ -1079,10 +1080,17 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 	if v.CombatHiveTemperatureC != nil {
 		out.HiveTemperatureC = domain.Known(float64(v.GetCombatHiveTemperatureC()))
 	}
+	var doorStates []policy.RoomDoor
 	for _, row := range v.GetRooms().GetRooms() {
+		for _, door := range row.GetDoors() {
+			doorStates = append(doorStates, RoomDoorFacts(door))
+		}
 		if room, ok := combatRoom(row); ok {
 			out.Rooms = append(out.Rooms, room)
 		}
+	}
+	if v.Rooms != nil {
+		out.DoorStates = domain.Known(doorStates)
 	}
 	return out, nil
 }
@@ -1108,6 +1116,12 @@ func combatRoom(row *o.RoomState) (policy.CombatRoom, bool) {
 		return policy.CombatRoom{}, false
 	}
 	room := policy.CombatRoom{Interior: policy.Rectangle{X: lo.X, Z: lo.Z, Width: w, Height: h}, Roofed: row.OpenRoofCount != nil && row.GetOpenRoofCount() == 0}
+	if row.Role != nil {
+		room.Role = domain.Known(policy.RoomRole(row.GetRole()))
+	}
+	if row.Burning != nil {
+		room.Burning = domain.Known(row.GetBurning())
+	}
 	for _, d := range row.GetDoors() {
 		if c, ok := protoCell(d.GetCell()); ok {
 			room.Doors = append(room.Doors, c)

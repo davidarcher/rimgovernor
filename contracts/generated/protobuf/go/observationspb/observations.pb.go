@@ -11317,9 +11317,12 @@ type RoomState struct {
 	// The room's key in the whole-map cell grid (CellGrid.room, #1346): the
 	// row-major map index of its first unfogged cell; its cells are the grid
 	// cells carrying it. Absent when every cell is fogged.
-	GridRoom      *string `protobuf:"bytes,29,opt,name=grid_room,json=gridRoom,proto3,oneof" json:"grid_room,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	GridRoom           *string `protobuf:"bytes,29,opt,name=grid_room,json=gridRoom,proto3,oneof" json:"grid_room,omitempty"`
+	Burning            *bool   `protobuf:"varint,30,opt,name=burning,proto3,oneof" json:"burning,omitempty"`
+	TemperatureControl *bool   `protobuf:"varint,31,opt,name=temperature_control,json=temperatureControl,proto3,oneof" json:"temperature_control,omitempty"` // Temperature-control buildings or heat-pusher comps in this room or its boundary.
+	PerishableContents *bool   `protobuf:"varint,32,opt,name=perishable_contents,json=perishableContents,proto3,oneof" json:"perishable_contents,omitempty"` // A contained item has CompRottable.
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *RoomState) Reset() {
@@ -11527,11 +11530,38 @@ func (x *RoomState) GetGridRoom() string {
 	return ""
 }
 
+func (x *RoomState) GetBurning() bool {
+	if x != nil && x.Burning != nil {
+		return *x.Burning
+	}
+	return false
+}
+
+func (x *RoomState) GetTemperatureControl() bool {
+	if x != nil && x.TemperatureControl != nil {
+		return *x.TemperatureControl
+	}
+	return false
+}
+
+func (x *RoomState) GetPerishableContents() bool {
+	if x != nil && x.PerishableContents != nil {
+		return *x.PerishableContents
+	}
+	return false
+}
+
 type RoomDoor struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cell          *commonpb.Cell         `protobuf:"bytes,1,opt,name=cell,proto3" json:"cell,omitempty"`
 	Outside       *commonpb.Cell         `protobuf:"bytes,2,opt,name=outside,proto3" json:"outside,omitempty"`
 	Outdoors      *bool                  `protobuf:"varint,3,opt,name=outdoors,proto3,oneof" json:"outdoors,omitempty"`
+	Id            *string                `protobuf:"bytes,4,opt,name=id,proto3,oneof" json:"id,omitempty"`
+	PlayerOwned   *bool                  `protobuf:"varint,5,opt,name=player_owned,json=playerOwned,proto3,oneof" json:"player_owned,omitempty"`
+	Open          *bool                  `protobuf:"varint,6,opt,name=open,proto3,oneof" json:"open,omitempty"`
+	HoldOpen      *bool                  `protobuf:"varint,7,opt,name=hold_open,json=holdOpen,proto3,oneof" json:"hold_open,omitempty"`
+	BlockedOpen   *bool                  `protobuf:"varint,8,opt,name=blocked_open,json=blockedOpen,proto3,oneof" json:"blocked_open,omitempty"`
+	Forbidden     *bool                  `protobuf:"varint,9,opt,name=forbidden,proto3,oneof" json:"forbidden,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -11583,6 +11613,48 @@ func (x *RoomDoor) GetOutside() *commonpb.Cell {
 func (x *RoomDoor) GetOutdoors() bool {
 	if x != nil && x.Outdoors != nil {
 		return *x.Outdoors
+	}
+	return false
+}
+
+func (x *RoomDoor) GetId() string {
+	if x != nil && x.Id != nil {
+		return *x.Id
+	}
+	return ""
+}
+
+func (x *RoomDoor) GetPlayerOwned() bool {
+	if x != nil && x.PlayerOwned != nil {
+		return *x.PlayerOwned
+	}
+	return false
+}
+
+func (x *RoomDoor) GetOpen() bool {
+	if x != nil && x.Open != nil {
+		return *x.Open
+	}
+	return false
+}
+
+func (x *RoomDoor) GetHoldOpen() bool {
+	if x != nil && x.HoldOpen != nil {
+		return *x.HoldOpen
+	}
+	return false
+}
+
+func (x *RoomDoor) GetBlockedOpen() bool {
+	if x != nil && x.BlockedOpen != nil {
+		return *x.BlockedOpen
+	}
+	return false
+}
+
+func (x *RoomDoor) GetForbidden() bool {
+	if x != nil && x.Forbidden != nil {
+		return *x.Forbidden
 	}
 	return false
 }
@@ -47932,7 +48004,7 @@ const file_observations_proto_rawDesc = "" +
 	"\raccessible_to\x18\x04 \x03(\v2\x1a.rimgovernor.common.v1.RefR\faccessibleTo\"\x8d\x01\n" +
 	"\x13StockpileMembership\x12.\n" +
 	"\x04zone\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04zone\x12F\n" +
-	"\bcontents\x18\x02 \x03(\v2*.rimgovernor.observations.v1.ResourceStockR\bcontents\"\xc7\v\n" +
+	"\bcontents\x18\x02 \x03(\v2*.rimgovernor.observations.v1.ResourceStockR\bcontents\"\x8e\r\n" +
 	"\tRoomState\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x17\n" +
 	"\x04role\x18\x02 \x01(\tH\x01R\x04role\x88\x01\x01\x12\x19\n" +
@@ -47962,7 +48034,10 @@ const file_observations_proto_rawDesc = "" +
 	"\x0fbed_memberships\x18\x19 \x03(\v2..rimgovernor.observations.v1.RoomBedMembershipR\x0ebedMemberships\x12e\n" +
 	"\x15stockpile_memberships\x18\x1a \x03(\v20.rimgovernor.observations.v1.StockpileMembershipR\x14stockpileMemberships\x12;\n" +
 	"\x05doors\x18\x1b \x03(\v2%.rimgovernor.observations.v1.RoomDoorR\x05doors\x12 \n" +
-	"\tgrid_room\x18\x1d \x01(\tH\fR\bgridRoom\x88\x01\x01B\x05\n" +
+	"\tgrid_room\x18\x1d \x01(\tH\fR\bgridRoom\x88\x01\x01\x12\x1d\n" +
+	"\aburning\x18\x1e \x01(\bH\rR\aburning\x88\x01\x01\x124\n" +
+	"\x13temperature_control\x18\x1f \x01(\bH\x0eR\x12temperatureControl\x88\x01\x01\x124\n" +
+	"\x13perishable_contents\x18  \x01(\bH\x0fR\x12perishableContents\x88\x01\x01B\x05\n" +
 	"\x03_idB\a\n" +
 	"\x05_roleB\b\n" +
 	"\x06_labelB\x0e\n" +
@@ -47977,12 +48052,30 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_open_roof_countB\r\n" +
 	"\v_cell_countB\f\n" +
 	"\n" +
-	"_grid_room\"\xa0\x01\n" +
+	"_grid_roomB\n" +
+	"\n" +
+	"\b_burningB\x16\n" +
+	"\x14_temperature_controlB\x16\n" +
+	"\x14_perishable_contents\"\xb1\x03\n" +
 	"\bRoomDoor\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x125\n" +
 	"\aoutside\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\aoutside\x12\x1f\n" +
-	"\boutdoors\x18\x03 \x01(\bH\x00R\boutdoors\x88\x01\x01B\v\n" +
-	"\t_outdoors\"\xe1\x01\n" +
+	"\boutdoors\x18\x03 \x01(\bH\x00R\boutdoors\x88\x01\x01\x12\x13\n" +
+	"\x02id\x18\x04 \x01(\tH\x01R\x02id\x88\x01\x01\x12&\n" +
+	"\fplayer_owned\x18\x05 \x01(\bH\x02R\vplayerOwned\x88\x01\x01\x12\x17\n" +
+	"\x04open\x18\x06 \x01(\bH\x03R\x04open\x88\x01\x01\x12 \n" +
+	"\thold_open\x18\a \x01(\bH\x04R\bholdOpen\x88\x01\x01\x12&\n" +
+	"\fblocked_open\x18\b \x01(\bH\x05R\vblockedOpen\x88\x01\x01\x12!\n" +
+	"\tforbidden\x18\t \x01(\bH\x06R\tforbidden\x88\x01\x01B\v\n" +
+	"\t_outdoorsB\x05\n" +
+	"\x03_idB\x0f\n" +
+	"\r_player_ownedB\a\n" +
+	"\x05_openB\f\n" +
+	"\n" +
+	"_hold_openB\x0f\n" +
+	"\r_blocked_openB\f\n" +
+	"\n" +
+	"_forbidden\"\xe1\x01\n" +
 	"\rRoomsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12<\n" +
 	"\x05rooms\x18\x02 \x03(\v2&.rimgovernor.observations.v1.RoomStateR\x05rooms\x12M\n" +

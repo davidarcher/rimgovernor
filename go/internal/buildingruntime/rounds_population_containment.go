@@ -23,7 +23,7 @@ type RoundsCustodySource interface {
 
 // stepContainment is the custody step's containment upkeep (#1743), reached
 // when no prisoner, capture or rescue work stands: a held entity's cell door
-// held open is closed (the combat door CLOSE order, as one close_door
+// held open is closed (the combat door CLOSE order, as one door_control
 // action), then a held entity whose bioferrite pays has its extract flag set
 // (#2434, one extract_bioferrite pawn setting; the game's Doctor work then
 // runs the job), then a held entity that needs tending is tended through the same
@@ -37,7 +37,7 @@ func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Con
 	}
 	if len(upkeep.CloseDoors) > 0 {
 		cell := upkeep.CloseDoors[0]
-		door, err := domain.NewCloseDoor(cell)
+		door, err := domain.NewDoorControl(cell, false)
 		if err != nil {
 			return RoundsPopulationCustodyResult{}, err
 		}
@@ -49,7 +49,7 @@ func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Con
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 		id := domain.MintPlanID()
-		action, err := domain.NewCloseDoorAction(domain.ActionID(fmt.Sprintf("%s-0", id)), door)
+		action, err := domain.NewDoorControlAction(domain.ActionID(fmt.Sprintf("%s-0", id)), door)
 		if err != nil {
 			return RoundsPopulationCustodyResult{}, err
 		}

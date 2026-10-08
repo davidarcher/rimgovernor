@@ -6,7 +6,7 @@ Vocabulary follows the [glossary](../agent-runbook.md#vocabulary-glossary-epic-1
 `standards`, `methods` (`standard_id`, `episode`) and `rounds`; blob keys `standard/<id>`; the
 `standard` and `episode` JSON keys; status words `open`/`settled`/`voided` (Standards) and
 `open`/`completed`/`voided` (Projects). Finding strings are `unclear`/`unmet`/`met` (Incident bindings
-store `unclear`/`active`/`clear`); schema 199. Databases and saves from other versions are refused;
+store `unclear`/`active`/`clear`); schema 201. Databases and saves from other versions are refused;
 there is no adoption path.
 
 Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second

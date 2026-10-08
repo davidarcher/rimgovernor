@@ -210,7 +210,7 @@ var plannerCatalog = []plannerEntry{
 			out.Power = &method
 			return method.Verdict, nil
 		}},
-	{name: "temperature", concern: policy.EnsureTemperatureSafety, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
+	{name: "temperature", concern: policy.EnsureTemperatureSafety, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction, domain.DoorControlAction, domain.OwnedDraftAction, domain.MovementAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Temperature != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Temperature.step(ctx, epoch, arbiter)
@@ -250,7 +250,7 @@ var plannerCatalog = []plannerEntry{
 			out.Flooring = &method
 			return method.Verdict, nil
 		}},
-	{name: "routes", concern: policy.MaintainRoutes, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
+	{name: "routes", concern: policy.MaintainRoutes, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction, domain.DoorControlAction, domain.OwnedDraftAction, domain.MovementAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Routes != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Routes.step(ctx, epoch, arbiter)
@@ -680,7 +680,7 @@ var plannerCatalog = []plannerEntry{
 			out.PrisonerInteraction = &method
 			return method.Verdict, nil
 		}},
-	{name: "populationCustody", class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.CaptureAction, domain.UseItemAction, domain.RescueAction, domain.OpenCasketAction, domain.TendAction, domain.CloseDoorAction, domain.RecoveryServiceAction}, sections: sectionsCustody,
+	{name: "populationCustody", class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.CaptureAction, domain.UseItemAction, domain.RescueAction, domain.OpenCasketAction, domain.TendAction, domain.DoorControlAction, domain.RecoveryServiceAction}, sections: sectionsCustody,
 		configured: func(c *ClockSchedulerConfig) bool { return c.PopulationCustody != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.PopulationCustody.step(ctx, epoch, arbiter)

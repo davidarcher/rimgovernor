@@ -67,17 +67,21 @@ type Room struct {
 	// Roofed is every cell roofed (native open roof count zero).
 	Roofed domain.Fact[bool]
 	// Doors are the doors in the room's boundary (#1323).
-	Doors []RoomDoor
+	Doors                                           []RoomDoor
+	Burning, TemperatureControl, PerishableContents domain.Fact[bool]
+	Pawns                                           []domain.PawnID
 }
 
 // RoomDoor is one door in a room's boundary: the door cell and the cell
 // across it from the room. Outdoors is whether that far side is outdoors;
 // EnemyFacing is set by MarkEnemyDoors.
 type RoomDoor struct {
-	Cell        domain.Cell
-	Outside     domain.Cell
-	Outdoors    domain.Fact[bool]
-	EnemyFacing bool
+	ID                                                  string
+	Cell                                                domain.Cell
+	Outside                                             domain.Cell
+	Outdoors                                            domain.Fact[bool]
+	EnemyFacing                                         bool
+	PlayerOwned, Open, HoldOpen, BlockedOpen, Forbidden domain.Fact[bool]
 }
 
 // KillboxCells are the cells of the plan's killbox reservation; nil when

@@ -150,7 +150,7 @@ type Action struct {
 	ability             Ability
 	ignite              Ignite
 	removeBill          RemoveProductionBill
-	closeDoor           CloseDoor
+	doorControl         DoorControl
 	mineAcquisition     Acquisition
 	wallRemoval         WallRemoval
 	excavation          Excavation
@@ -322,8 +322,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewRemoveProductionBillAction(a.id, a.removeBill)
 		case IgniteAction:
 			canonical, err = NewIgniteAction(a.id, a.ignite)
-		case CloseDoorAction:
-			canonical, err = NewCloseDoorAction(a.id, a.closeDoor)
+		case DoorControlAction:
+			canonical, err = NewDoorControlAction(a.id, a.doorControl)
 		case AbilityAction:
 			canonical, err = NewAbilityAction(a.id, a.ability)
 		case MineAcquisitionAction:

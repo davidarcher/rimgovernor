@@ -254,7 +254,7 @@ once no capture or custody is owed, keeps a held entity contained
 Doors: the native holder row carries the room's `Building_Door`s
 (`EntityHolderState.doors`: open, hold_open, containment_breached,
 blocked_open). A holder with a held pawn whose door is held open owes one
-`close_door` action per door, which is the existing combat door CLOSE write
+`door_control` action per door with hold-open false, which is the existing combat door CLOSE write
 (`CombatOrders`, mode CLOSE) for that cell; CLOSE clears the hold. A breached
 door that is neither held nor blocked closes by itself (the game's
 `ContainmentBreached` is the door staying open past its delay), and a breached
@@ -532,3 +532,32 @@ drives the ladder, and the case requires live native evidence for every rung:
 Fabrication finished, a fabrication bench in a Workshop-hosting room carrying
 the component bill, an allow-list stockpile for steel in that room, and the
 stored component count above the pre-service baseline.
+
+
+### Door ownership and passage
+
+`MaintainRoutes` holds observed internal workshop, warehouse and circulation
+links open when colonist traffic uses them. Known room roles, temperatures,
+ownership, fire and perishable-content facts are required. Custody, containment,
+thermal-control boundaries and exposed perimeter links are excluded. Changed
+conditions clear the latch. `EnsureTemperatureSafety` may open a safe internal
+link from an occupied hot room toward a cooler room, using the existing hot
+entry/recovery band. An available occupant receives a plan-owned draft and
+ordinary move across the door; without one, existing cooling methods remain.
+Both routines yield while a combat fight is open.
+
+A `door_control` action journals the desired hold-open boolean and uses the
+existing native combat door operation. `HoldOpen` is a latch, not physical
+`Open`: logistics waits for ordinary traffic, and emergency relief requires
+passage. Native room observations expose both separately. Temperature recovery
+is decided from later observed temperatures rather than action receipts.
+
+Combat can use a current room doorway against suitable melee threats when no
+established defense corridor is available. Existing blocker placement and
+rotation supply defenders behind the choke; shooters occupy standable cells
+inside. The latch remains closed until healthy plan-owned defenders are posted.
+A shooter approaches the door only while threats are sufficiently distant and
+returns after observed opening. Native line-of-fire checks govern attacks.
+Retreat or formation changes clear obsolete holds; combat completion releases
+all latches the fight changed before relinquishing ownership. Missing doors and
+refusals retire selections rather than repeatedly issuing invalid orders.

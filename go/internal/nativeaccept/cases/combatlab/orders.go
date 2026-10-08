@@ -138,6 +138,35 @@ func runOrders(ctx context.Context, s cases.Session) error {
 	if open, err := after.door(cx, cz-13); err != nil || !open {
 		return fmt.Errorf("door hold-open %v after hold_open (%v)", open, err)
 	}
+	if open, err := after.physicalDoor(cx, cz-13); err != nil || open {
+		return fmt.Errorf("latch alone opened door: %v (%v)", open, err)
+	}
+	if _, err := issue(ctx, h, identity, "door-passage", []any{map[string]any{"pawn": pawn(colonists[4]), "move": door}}); err != nil {
+		return err
+	}
+	opened := false
+	for ticks := 0; ticks < 1000; ticks += 20 {
+		after, err = tickReadN(ctx, h, 20)
+		if err != nil {
+			return err
+		}
+		opened, err = after.physicalDoor(cx, cz-13)
+		if err != nil {
+			return err
+		}
+		if opened {
+			break
+		}
+	}
+	if !opened {
+		return fmt.Errorf("ordinary pawn passage did not open held door")
+	}
+	if _, err := issue(ctx, h, identity, "door-clearance", []any{map[string]any{"pawn": pawn(colonists[4]), "move": cell(cx+5, cz-10)}}); err != nil {
+		return err
+	}
+	if _, err := tickReadN(ctx, h, 600); err != nil {
+		return err
+	}
 	closed, err := issue(ctx, h, identity, "combat-orders-2", []any{
 		map[string]any{"door": map[string]any{"cell": door, "mode": "COMBAT_DOOR_MODE_CLOSE"}},
 	})
@@ -147,12 +176,15 @@ func runOrders(ctx context.Context, s cases.Session) error {
 	if applied, _ := na.AsBool(closed[0]["applied"]); !applied {
 		return fmt.Errorf("door close refused: %v", closed[0])
 	}
-	after, err = tickRead(ctx, h)
+	after, err = tickReadN(ctx, h, 180)
 	if err != nil {
 		return err
 	}
 	if open, err := after.door(cx, cz-13); err != nil || open {
 		return fmt.Errorf("door hold-open %v after close (%v)", open, err)
+	}
+	if open, err := after.physicalDoor(cx, cz-13); err != nil || open {
+		return fmt.Errorf("door still physically open after clearance and close: %v (%v)", open, err)
 	}
 	report["doorClosed"] = true
 	return nil
@@ -180,10 +212,21 @@ type labState struct {
 }
 
 func (s labState) door(x, z int) (bool, error) {
+	return s.doorField(x, z, "holdOpen")
+}
+
+func (s labState) physicalDoor(x, z int) (bool, error) {
+	return s.doorField(x, z, "open")
+}
+
+func (s labState) doorField(x, z int, field string) (bool, error) {
 	for _, d := range s.doors {
 		row, _ := na.AsMap(d)
 		if int(na.AsNumber(row["x"])) == x && int(na.AsNumber(row["z"])) == z {
-			open, _ := na.AsBool(row["holdOpen"])
+			open, known := na.AsBool(row[field])
+			if !known {
+				return false, fmt.Errorf("door %s unknown: %v", field, row)
+			}
 			return open, nil
 		}
 	}

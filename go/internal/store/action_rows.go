@@ -177,8 +177,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if removal, ok := a.RemoveProductionBill(); ok {
 		// target is the bench, definition the native bill id.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'remove_production_bill',?,?)", a.ID(), plan, ordinal, removal.Bench(), removal.Bill())
-	} else if door, ok := a.CloseDoor(); ok {
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,x,z) VALUES(?,?,?,'close_door',?,?)", a.ID(), plan, ordinal, door.Cell().X, door.Cell().Z)
+	} else if door, ok := a.DoorControl(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,x,z,definition) VALUES(?,?,?,'door_control',?,?,?)", a.ID(), plan, ordinal, door.Cell().X, door.Cell().Z, fmt.Sprint(door.HoldOpen()))
 	} else if ability, ok := a.Ability(); ok {
 		// definition is the source key ("permit:<faction>:<permit>"); target is
 		// "pawn:<id>" or "thing:<id>", x and z a cell target, none for no
@@ -1119,13 +1119,13 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewRemoveProductionBillAction(id, removal)
 		return a, ordinal, err
 	}
-	if kind == "close_door" && x.Valid && z.Valid && !pawn.Valid && !def.Valid && !target.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid && work == nil && zone == nil &&
+	if kind == "door_control" && x.Valid && z.Valid && !pawn.Valid && def.Valid && (def.String == "true" || def.String == "false") && !target.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid && work == nil && zone == nil &&
 		x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
-		door, err := domain.NewCloseDoor(domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
+		door, err := domain.NewDoorControl(domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)}, def.String == "true")
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
-		a, err := domain.NewCloseDoorAction(id, door)
+		a, err := domain.NewDoorControlAction(id, door)
 		return a, ordinal, err
 	}
 	if kind == "ability" && pawn.Valid && def.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid && work == nil && zone == nil {

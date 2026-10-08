@@ -309,6 +309,11 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	facts := reading.Projection
 	recordStepRead("building", r.concern, state.Snapshot, facts)
+	if r.concern == policy.MaintainRoutes || r.concern == policy.EnsureTemperatureSafety {
+		if result, handled, err := r.controlRoomDoor(call, epoch, state, goal, facts); handled || err != nil {
+			return result, err
+		}
+	}
 	if r.concern == policy.EnsureCooking {
 		// A cooking campfire a stove kitchen supersedes is deconstructed
 		// first (#1179).

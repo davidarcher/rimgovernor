@@ -25,8 +25,10 @@ type PodArrival struct {
 // doors in its walls. Roofed is every floor cell roofed (#968).
 type CombatRoom struct {
 	Interior Rectangle
-	Doors    []domain.Cell `json:",omitempty"`
-	Roofed   bool          `json:",omitempty"`
+	Doors    []domain.Cell         `json:",omitempty"`
+	Roofed   bool                  `json:",omitempty"`
+	Role     domain.Fact[RoomRole] `json:",omitzero"`
+	Burning  domain.Fact[bool]     `json:",omitzero"`
 }
 
 // contains reports c on the room's floor.
@@ -135,6 +137,7 @@ type PodDoor struct {
 	// Repairer is the door gunner sent to repair the manhunter potshot
 	// door (#900), while it is damaged and no animal is near.
 	Repairer domain.PawnID `json:",omitempty"`
+	Opener   domain.PawnID `json:",omitempty"`
 }
 
 // closeRange ranks the armed for the doorway slots (#892): melee-only
@@ -280,9 +283,26 @@ func podDoorOrders(view CombatView, m *CombatMemory) []CombatOrder {
 	var out []CombatOrder
 	m.PodDoors = slices.DeleteFunc(m.PodDoors, func(d PodDoor) bool { return !combatDoorExists(view, d.Cell) })
 	send := func(d *PodDoor) {
+		if states, known := view.DoorStates.Value(); known {
+			index := slices.IndexFunc(states, func(s RoomDoor) bool { return s.Cell == d.Cell })
+			if index >= 0 {
+				state := states[index].HoldOpen
+				want := d.Mode == DoorHoldOpen
+				if d.Mode == DoorForbid || d.Mode == DoorAllow {
+					state = states[index].Forbidden
+					want = d.Mode == DoorForbid
+				}
+				if got, known := state.Value(); known {
+					d.Sent = got == want
+				}
+			}
+		}
 		if !d.Sent {
 			out = append(out, CombatOrder{Kind: OrderDoor, Cell: d.Cell, Door: d.Mode, Reason: ReasonFormation})
 			d.Sent = true
+			if d.Mode == DoorHoldOpen && !slices.Contains(m.HeldDoors, d.Cell) {
+				m.HeldDoors = append(m.HeldDoors, d.Cell)
+			}
 		}
 	}
 	for i := range m.PodDoors {
@@ -293,6 +313,35 @@ func podDoorOrders(view CombatView, m *CombatMemory) []CombatOrder {
 	}
 	if m.PotshotDoor != nil {
 		send(m.PotshotDoor)
+	}
+	if m.ChokeDoor != nil {
+		send(m.ChokeDoor)
+	}
+	// A formation that releases a door closes it until a fresh read
+	// confirms the latch is clear. Retained intent supplies ownership;
+	// observed state supplies reconciliation, including uncertain receipts.
+	if states, known := view.DoorStates.Value(); known {
+		active := func(cell domain.Cell) bool {
+			for _, d := range append(slices.Clone(m.PodDoors), m.WaitDoors...) {
+				if d.Cell == cell && d.Mode == DoorHoldOpen {
+					return true
+				}
+			}
+			return m.PotshotDoor != nil && m.PotshotDoor.Cell == cell && m.PotshotDoor.Mode == DoorHoldOpen || m.ChokeDoor != nil && m.ChokeDoor.Cell == cell && m.ChokeDoor.Mode == DoorHoldOpen
+		}
+		m.HeldDoors = slices.DeleteFunc(m.HeldDoors, func(cell domain.Cell) bool {
+			if active(cell) {
+				return false
+			}
+			index := slices.IndexFunc(states, func(d RoomDoor) bool { return d.Cell == cell })
+			if index < 0 || doorFactFalse(states[index].HoldOpen) {
+				return true
+			}
+			if !slices.ContainsFunc(out, func(o CombatOrder) bool { return o.Kind == OrderDoor && o.Cell == cell && o.Door == DoorClose }) {
+				out = append(out, CombatOrder{Kind: OrderDoor, Cell: cell, Door: DoorClose, Reason: ReasonFormation})
+			}
+			return false
+		})
 	}
 	return out
 }
@@ -305,6 +354,9 @@ func (m CombatMemory) RefuseDoor(cell domain.Cell) CombatMemory {
 	m.WaitDoors = slices.DeleteFunc(m.WaitDoors, func(d PodDoor) bool { return d.Cell == cell })
 	if m.PotshotDoor != nil && m.PotshotDoor.Cell == cell {
 		m.PotshotDoor = nil
+	}
+	if m.ChokeDoor != nil && m.ChokeDoor.Cell == cell {
+		m.ChokeDoor = nil
 	}
 	return m
 }

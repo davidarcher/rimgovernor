@@ -152,6 +152,49 @@ func (r *RoundsDefensePlanner) clearFightAnimals(call context.Context, state Con
 	}
 }
 
+func (r *RoundsDefensePlanner) clearFightDoors(call context.Context, state ControlState, plan domain.PlanID) error {
+	fight, found, err := r.reviewer.player.journal.LoadCombatFight(call, plan)
+	if err != nil || !found || !fight.Open {
+		return err
+	}
+	clears := policy.CombatDoorClears(fight.Memory)
+	if len(clears) == 0 {
+		return nil
+	}
+	combat, err := r.native.ReadCombat(call, boundary.Identity(state.Snapshot))
+	if err != nil {
+		return err
+	}
+	states, known := combat.DoorStates.Value()
+	if !known {
+		return fmt.Errorf("%w: combat door cleanup needs current door states", ErrControl)
+	}
+	clears = slices.DeleteFunc(clears, func(order policy.CombatOrder) bool {
+		index := slices.IndexFunc(states, func(door policy.RoomDoor) bool { return door.Cell == order.Cell })
+		if index < 0 {
+			return true
+		}
+		held, known := states[index].HoldOpen.Value()
+		return known && !held
+	})
+	if len(clears) == 0 {
+		return nil
+	}
+	results, _, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-door-clear", plan), nil, clears)
+	if err != nil {
+		return err
+	}
+	if results == nil {
+		return fmt.Errorf("%w: combat door cleanup receipt uncertain", ErrControl)
+	}
+	for _, result := range results {
+		if !result.Applied && result.Refusal != bridge.CombatRefusalNotADoor {
+			return fmt.Errorf("%w: combat door cleanup refused: %s", ErrControl, result.Refusal)
+		}
+	}
+	return nil
+}
+
 // recordDrafts records a batch's leading draft results on the fight's
 // roster (#939): an applied draft joins it, a refused one leaves it with its
 // orders forgotten. It returns the remaining (order) results; an uncertain

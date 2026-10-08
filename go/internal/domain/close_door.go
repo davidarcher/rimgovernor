@@ -2,33 +2,35 @@ package domain
 
 import "errors"
 
-// CloseDoorAction is explicit intent to clear the hold-open of one player
-// door (#1743, epic #1694): the CombatOrders door CLOSE order, which clears
-// Building_Door.holdOpenInt so the door shuts once nothing stands in it.
-// Applied means the order was taken; that the door then closed is a separate
-// observed state. Native refuses a cell that is not a player door.
-const CloseDoorAction ActionKind = "close_door"
+// DoorControlAction sets one player door's hold-open latch through CombatOrders.
+// Applied confirms the setting; physical opening or closing requires a separate
+// observation. Opening requires ordinary pawn passage; closing waits for clearance.
+const DoorControlAction ActionKind = "door_control"
 
-// CloseDoor is one door cell to close.
-type CloseDoor struct{ cell Cell }
-
-func NewCloseDoor(cell Cell) (CloseDoor, error) {
-	if cell.X < 0 || cell.Z < 0 {
-		return CloseDoor{}, errors.New("close door requires a valid cell")
-	}
-	return CloseDoor{cell: cell}, nil
+// DoorControl is the desired hold-open setting for one door cell.
+type DoorControl struct {
+	cell     Cell
+	holdOpen bool
 }
 
-func (d CloseDoor) Cell() Cell { return d.cell }
+func NewDoorControl(cell Cell, holdOpen bool) (DoorControl, error) {
+	if cell.X < 0 || cell.Z < 0 {
+		return DoorControl{}, errors.New("door control requires a valid cell")
+	}
+	return DoorControl{cell: cell, holdOpen: holdOpen}, nil
+}
 
-func NewCloseDoorAction(id ActionID, door CloseDoor) (Action, error) {
+func (d DoorControl) Cell() Cell     { return d.cell }
+func (d DoorControl) HoldOpen() bool { return d.holdOpen }
+
+func NewDoorControlAction(id ActionID, door DoorControl) (Action, error) {
 	if !validID(string(id)) {
 		return Action{}, errors.New("invalid action identity")
 	}
-	if _, err := NewCloseDoor(door.cell); err != nil {
+	if _, err := NewDoorControl(door.cell, door.holdOpen); err != nil {
 		return Action{}, err
 	}
-	return Action{id: id, kind: CloseDoorAction, closeDoor: door}, nil
+	return Action{id: id, kind: DoorControlAction, doorControl: door}, nil
 }
 
-func (a Action) CloseDoor() (CloseDoor, bool) { return a.closeDoor, a.kind == CloseDoorAction }
+func (a Action) DoorControl() (DoorControl, bool) { return a.doorControl, a.kind == DoorControlAction }

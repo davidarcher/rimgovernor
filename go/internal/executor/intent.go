@@ -34,7 +34,7 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.AbilityAction:              true,
 	domain.IgniteAction:               true,
 	domain.RemoveProductionBillAction: true,
-	domain.CloseDoorAction:            true,
+	domain.DoorControlAction:          true,
 	domain.CaravanDepartureAction:     true,
 	domain.AssignAction:               true,
 	domain.WorkAssignmentAction:       true,

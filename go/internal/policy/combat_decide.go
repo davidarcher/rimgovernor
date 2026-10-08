@@ -83,7 +83,10 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			// layout) it forms at once.
 			return nil, ask, memory
 		}
-		if Infestation(view) {
+		if door, ok := meleeDoorSite(view); ok && len(meleeDoorFormation(view, geometry, door, next.Relieved)) > 0 {
+			next.Tactic, next.Roles, next.Refusal = TacticDoorChoke, meleeDoorFormation(view, geometry, door, next.Relieved), ""
+			next.ChokeDoor = &PodDoor{Cell: door.Cell, Mode: DoorClose}
+		} else if Infestation(view) {
 			// An infestation picks its own tactic (#1071).
 			next.Tactic, next.Roles, next.Refusal = TacticInfestation, infestationFormation(view, geometry, next.Relieved), ""
 		} else if ManhunterPack(view) {
@@ -161,6 +164,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	sapperIntercept(view, &next)
 	sapperRush(view, stop, &next)
 	doorPotshot(view, formed, &next)
+	meleeDoorTurn(view, &next)
 	shelter(view, &next)
 	scatter(view, &next)
 	stood := counterBattery(view, memory.Roles, &next)
@@ -187,6 +191,9 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			continue
 		}
 		want, ok := role.want(state[role.Pawn])
+		if d := next.ChokeDoor; d != nil && d.Opener == role.Pawn {
+			want, ok = CombatOrder{Pawn: role.Pawn, Kind: OrderMove, Cell: d.Cell, Reason: ReasonFormation}, true
+		}
 		if d := next.PotshotDoor; d != nil && d.Repairer == role.Pawn {
 			want, ok = CombatOrder{Pawn: role.Pawn, Kind: OrderRepair, Cell: d.Cell, Reason: ReasonRepair}, true
 		} else if role.Repair != nil {
@@ -333,8 +340,9 @@ type CombatView struct {
 	Orderable  []domain.PawnID
 	// Pods is the frame's drop-pod arrival (#870, #891); Rooms the map's
 	// standing rectangular rooms from the frame (#897).
-	Pods  domain.Fact[PodArrival]
-	Rooms []CombatRoom
+	Pods       domain.Fact[PodArrival]
+	Rooms      []CombatRoom
+	DoorStates domain.Fact[[]RoomDoor] `json:",omitzero"`
 	// DamagedDoors are the frame's player doors below max hit points (#900).
 	DamagedDoors []domain.Cell `json:",omitempty"`
 	// Mortars are the colony's unroofed mortars (#931); Structures the
@@ -567,7 +575,9 @@ type CombatMemory struct {
 	PodStruck bool `json:",omitempty"`
 	// PotshotDoor is the potshot door of a manhunter pack (#900) or a
 	// squad-defense raid (#1059).
-	PotshotDoor *PodDoor `json:",omitempty"`
+	PotshotDoor *PodDoor      `json:",omitempty"`
+	ChokeDoor   *PodDoor      `json:",omitempty"`
+	HeldDoors   []domain.Cell `json:",omitempty"`
 	// Kiter is the manhunter tactic's kiter, Leading once it leads the
 	// chaser past the line (#901).
 	Kiter   domain.PawnID `json:",omitempty"`
@@ -768,6 +778,11 @@ func (m CombatMemory) clone() CombatMemory {
 		d := *m.PotshotDoor
 		m.PotshotDoor = &d
 	}
+	if m.ChokeDoor != nil {
+		d := *m.ChokeDoor
+		m.ChokeDoor = &d
+	}
+	m.HeldDoors = slices.Clone(m.HeldDoors)
 	if m.Burn != nil {
 		b := *m.Burn
 		m.Burn = &b
@@ -877,6 +892,9 @@ func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 		return reformPods(view, m)
 	case TacticManhunter, TacticInfestation:
 		return reformManhunter(view, m)
+	case TacticDoorChoke:
+		_, exists := meleeDoorSite(view)
+		return !exists || squadRosterChanged(view, stop, m)
 	case TacticSquad:
 		return squadTargetDown(view, m) || squadRosterChanged(view, stop, m)
 	case TacticHunt:
@@ -927,6 +945,9 @@ func squadTargetDown(view CombatView, m CombatMemory) bool {
 // is nothing to ask. adjacent_to_choke and firing_cells have no caller
 // yet: the squad formation targets pawns, not cells.
 func formationAsk(view CombatView) *GeometryRequest {
+	if door, ok := meleeDoorSite(view); ok {
+		return meleeDoorAsk(view, door)
+	}
 	layout, ok := view.Layout.Value()
 	if !ok || len(layout.Firing) == 0 {
 		return nil

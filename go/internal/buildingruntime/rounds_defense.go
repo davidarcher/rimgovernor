@@ -86,6 +86,9 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 		// defenders (#939).
 		for _, method := range incident.Methods {
 			if strings.HasPrefix(string(method.Method), combatMethodPrefix) {
+				if err = r.clearFightDoors(call, state, method.Plan); err != nil {
+					return RoundsDefenseResult{}, err
+				}
 				r.clearFightAnimals(call, state, method.Plan)
 				if err = p.journal.CloseCombatFight(call, method.Plan); err != nil {
 					return RoundsDefenseResult{}, err
@@ -501,7 +504,7 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	for _, door := range combat.Doors {
 		damaged = append(damaged, domain.Cell{X: door.GetCell().GetX(), Z: door.GetCell().GetZ()})
 	}
-	return policy.CombatView{Hunt: len(in.prey) > 0, Tick: domain.Tick(combat.Context.GetTick()), Pawns: preyStates(combatPawnStates(combat, in.rows, in.weapons), in, combat.Catalog), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat), Rooms: combat.Rooms, DamagedDoors: damaged, Mortars: combat.Mortars, Shells: combat.Shells, Structures: structures, OutdoorTemperatureC: combat.OutdoorTemperatureC, HiveTemperatureC: combat.HiveTemperatureC,
+	return policy.CombatView{Hunt: len(in.prey) > 0, Tick: domain.Tick(combat.Context.GetTick()), Pawns: preyStates(combatPawnStates(combat, in.rows, in.weapons), in, combat.Catalog), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat), Rooms: combat.Rooms, DoorStates: combat.DoorStates, DamagedDoors: damaged, Mortars: combat.Mortars, Shells: combat.Shells, Structures: structures, OutdoorTemperatureC: combat.OutdoorTemperatureC, HiveTemperatureC: combat.HiveTemperatureC,
 		Population: domain.Known(len(combat.Emergency.Facts.Colonists))}
 }
 

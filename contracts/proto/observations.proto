@@ -710,8 +710,19 @@ message RoomState {
   // row-major map index of its first unfogged cell; its cells are the grid
   // cells carrying it. Absent when every cell is fogged.
   optional string grid_room = 29;
+  optional bool burning = 30;
+  optional bool temperature_control = 31; // Temperature-control buildings or heat-pusher comps in this room or its boundary.
+  optional bool perishable_contents = 32; // A contained item has CompRottable.
 }
-message RoomDoor { rimgovernor.common.v1.Cell cell = 1; rimgovernor.common.v1.Cell outside = 2; optional bool outdoors = 3; }
+message RoomDoor {
+  rimgovernor.common.v1.Cell cell = 1; rimgovernor.common.v1.Cell outside = 2; optional bool outdoors = 3;
+  optional string id = 4;
+  optional bool player_owned = 5;
+  optional bool open = 6;
+  optional bool hold_open = 7;
+  optional bool blocked_open = 8;
+  optional bool forbidden = 9;
+}
 message RoomsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated RoomState rooms = 2; Completeness completeness = 3; }
 message ListRoomsRequest { ReadScope scope = 1; Rectangle region = 2; optional bool include_outdoors = 3; optional bool include_boundary = 4; repeated string room_ids = 6; }
 message ListRoomsReply { oneof outcome { RoomsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
