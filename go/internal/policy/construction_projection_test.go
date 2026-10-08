@@ -38,8 +38,7 @@ func TestProjectConstructionShortfall(t *testing.T) {
 
 func TestProjectConstructionAdmittedMethodCosts(t *testing.T) {
 	in := constructionInputs(map[Resource]int64{}, Amount{"WoodLog", 10})
-	in.Dependencies = []DevelopmentDependency{{Dependent: MaintainShelter, Prerequisite: MaintainResource, Resource: "WoodLog",
-		Costs: []DependencyCost{{Action: "a", Count: 15}, {Action: "b", Count: 15}}, Available: domain.Known(int64(10))}}
+	in.Admitted = []AdmittedCost{{"WoodLog", "a", 15}, {"WoodLog", "b", 15}}
 	got, ok := projectConstruction(in).Value()
 	if !ok || len(got.Classes) != 1 || got.Classes[0].Need != 30 || got.Classes[0].ShortfallUnits != 20 {
 		t.Fatal(got, ok)
@@ -79,12 +78,12 @@ func TestShadowRankConstructionConcerns(t *testing.T) {
 		state := DevelopmentState{Rows: []DevelopmentRow{shadowRow(c, "")}}
 		p := shadowProjection()
 		p.Construction = domain.Known(short)
-		got := ShadowRankOf(state, p, map[ConcernID]int{c: 1})
+		got := ShadowRankOf(state.Rows, p, map[ConcernID]int{c: 1})
 		if len(got.Ranked) != 1 || got.Ranked[0].Domain != ShadowConstruction || got.Ranked[0].ShortfallDays != 3 {
 			t.Fatal(c, got)
 		}
 		p.Construction = domain.Unknown[ConstructionProjection]()
-		if got = ShadowRankOf(state, p, map[ConcernID]int{c: 1}); len(got.Ranked) != 0 || len(got.Unranked) != 1 {
+		if got = ShadowRankOf(state.Rows, p, map[ConcernID]int{c: 1}); len(got.Ranked) != 0 || len(got.Unranked) != 1 {
 			t.Fatal(c, got)
 		}
 	}
@@ -97,7 +96,7 @@ func TestShadowRankWoodShortShelterAndPrerequisite(t *testing.T) {
 	p.Food = domain.Unknown[FoodProjection]()
 	p.Construction = projectConstruction(in)
 	state := DevelopmentState{Rows: []DevelopmentRow{shadowRow(MaintainShelter, DevelopmentCapacity), shadowRow(MaintainResource, DevelopmentCapacity)}}
-	got := ShadowRankOf(state, p, map[ConcernID]int{MaintainShelter: 5, MaintainResource: 1})
+	got := ShadowRankOf(state.Rows, p, map[ConcernID]int{MaintainShelter: 5, MaintainResource: 1})
 	if len(got.Ranked) != 2 || got.Ranked[0].Concern != MaintainResource || got.Ranked[0].Domain != ShadowConstruction || got.Ranked[0].ShortfallDays != 2.5 || got.Ranked[1].Concern != MaintainShelter {
 		t.Fatal(got)
 	}
@@ -109,19 +108,19 @@ func TestShadowRankMaintainResourceTwoDomains(t *testing.T) {
 	state := DevelopmentState{Rows: []DevelopmentRow{shadowRow(MaintainResource, "")}}
 	p := shadowProjection() // food shortfall 4
 	p.Construction = domain.Known(ConstructionProjection{ShortfallDays: 5})
-	if got := ShadowRankOf(state, p, map[ConcernID]int{MaintainResource: 1}); got.Ranked[0].Domain != ShadowConstruction || got.Ranked[0].ShortfallDays != 5 {
+	if got := ShadowRankOf(state.Rows, p, map[ConcernID]int{MaintainResource: 1}); got.Ranked[0].Domain != ShadowConstruction || got.Ranked[0].ShortfallDays != 5 {
 		t.Fatal(got)
 	}
 	p.Construction = domain.Known(ConstructionProjection{ShortfallDays: 1})
-	if got := ShadowRankOf(state, p, map[ConcernID]int{MaintainResource: 1}); got.Ranked[0].Domain != ShadowFood {
+	if got := ShadowRankOf(state.Rows, p, map[ConcernID]int{MaintainResource: 1}); got.Ranked[0].Domain != ShadowFood {
 		t.Fatal(got)
 	}
 	p.Construction = domain.Unknown[ConstructionProjection]()
-	if got := ShadowRankOf(state, p, map[ConcernID]int{MaintainResource: 1}); got.Ranked[0].Domain != ShadowFood {
+	if got := ShadowRankOf(state.Rows, p, map[ConcernID]int{MaintainResource: 1}); got.Ranked[0].Domain != ShadowFood {
 		t.Fatal(got)
 	}
 	p.Food = domain.Unknown[FoodProjection]()
-	if got := ShadowRankOf(state, p, map[ConcernID]int{MaintainResource: 1}); len(got.Ranked) != 0 || len(got.Unranked) != 1 {
+	if got := ShadowRankOf(state.Rows, p, map[ConcernID]int{MaintainResource: 1}); len(got.Ranked) != 0 || len(got.Unranked) != 1 {
 		t.Fatal(got)
 	}
 }

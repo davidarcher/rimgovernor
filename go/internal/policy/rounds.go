@@ -524,12 +524,9 @@ type RoundsFacts struct {
 	// Forward are the shadow projector inputs the facts above lack (#1913).
 	Forward ForwardObserved `json:",omitzero"`
 	Wood    domain.Fact[int64]
-	// Dependencies are the live typed shortfall edges (#651) carried from the
-	// last review.
-	Dependencies []DevelopmentDependency
-	// Admitted are the open costs of admitted methods, from the same
-	// live records as Dependencies: an open shortfall raises a
-	// MaintainResource floor for the bounded difference (#711).
+	// Admitted are the open costs of admitted methods, from the last
+	// review's live records: an open shortfall raises a MaintainResource
+	// floor for the bounded difference (#711).
 	Admitted []AdmittedCost
 	// Resources is the generic reachable, unforbidden player item census
 	// (the same colony facts rows Wood is taken from), so MaintainResource's

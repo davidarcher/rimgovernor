@@ -2,18 +2,18 @@ package policy
 
 import (
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Shadow project ranker (#1913, epic #1856). It scores each candidate
-// development goal by projected shortfall days per open plan action and
-// records where that order disagrees with the live ranking
-// (RankDevelopment: capacity, dependency donation, waiting age, overcommit
-// deferral). Shadow only: Rounds.ShadowRank is read by no admission,
-// and ShadowRankOf takes the DevelopmentState by value and never writes it.
-// No cutover without the colony-score A/B (decided on #1856).
+// Project ranker (#1913, cut over in #1914, epic #1856). It scores each
+// candidate development goal by projected shortfall days per open plan
+// action. RankDevelopment orders the optional goals that carry a projected
+// shortfall by it, ahead of the goals the projection cannot score, which
+// keep the deficit-and-age order. Startup, emergency and player work never
+// enter it: they are not ranked rows.
 
 // ShadowDomain is the projected resource a goal's work protects.
 type ShadowDomain string
@@ -60,7 +60,7 @@ type ForwardObserved struct {
 // ForwardInputsOf assembles the projector inputs from the routine facts.
 func ForwardInputsOf(f RoundsFacts, p RoundsPolicy) ForwardInputs {
 	in := ForwardInputs{Power: f.Forward.Power, Sleeping: SleepingRange{Min: f.SleepingMin, Max: f.SleepingMax}, Conditions: f.DisasterConditions, Turrets: f.Forward.Turrets, Policy: p,
-		Construction: ConstructionInputs{Deficit: f.ConstructionDeficit, Dependencies: f.Dependencies, Stock: f.Resources, Items: f.Items}}
+		Construction: ConstructionInputs{Deficit: f.ConstructionDeficit, Admitted: f.Admitted, Stock: f.Resources, Items: f.Items}}
 	if supply, known := f.AnimalUpkeep.Food.Value(); known {
 		in.Food = supply
 	}
@@ -77,29 +77,15 @@ type ShadowEntry struct {
 	Score float64
 }
 
-// ShadowDisagreement is a ranked goal whose 1-based place among the ranked
-// goals differs between the live order and the shadow order.
-type ShadowDisagreement struct {
-	Concern ConcernID
-	Current int
-	Shadow  int
-	// Reason is the live row's reason (empty while it is selected).
-	Reason DevelopmentReason `json:",omitempty"`
-}
-
 type ShadowUnranked struct {
 	Concern ConcernID
 	Reason  string
 }
 
 type ShadowRank struct {
-	HorizonDays float64
-	// Ranked is the shadow order, best first.
-	Ranked []ShadowEntry `json:",omitempty"`
-	// Current is the live order of the same goals.
-	Current       []ConcernID          `json:",omitempty"`
-	Disagreements []ShadowDisagreement `json:",omitempty"`
-	Unranked      []ShadowUnranked     `json:",omitempty"`
+	// Ranked is the order, best first.
+	Ranked   []ShadowEntry
+	Unranked []ShadowUnranked
 }
 
 // shadowCandidate: a row still contending for a slot, not one already under
@@ -140,13 +126,11 @@ func shadowShortfall(p ForwardProjection, d ShadowDomain) (float64, string) {
 	return 0, "projection unknown"
 }
 
-// ShadowRankOf ranks the state's candidate rows by projected shortfall per
-// open action. openActions is each goal's open plan action count.
-func ShadowRankOf(s DevelopmentState, projection ForwardProjection, openActions map[ConcernID]int) ShadowRank {
-	out := ShadowRank{HorizonDays: projection.HorizonDays}
-	var current []ConcernID
-	rows := map[ConcernID]DevelopmentRow{}
-	for _, row := range s.Rows {
+// ShadowRankOf ranks the candidate rows by projected shortfall per open
+// action. openActions is each goal's open plan action count.
+func ShadowRankOf(candidates []DevelopmentRow, projection ForwardProjection, openActions map[ConcernID]int) ShadowRank {
+	var out ShadowRank
+	for _, row := range candidates {
 		if !shadowCandidate(row) {
 			continue
 		}
@@ -154,7 +138,6 @@ func ShadowRankOf(s DevelopmentState, projection ForwardProjection, openActions 
 		if !mapped {
 			continue
 		}
-		rows[row.Concern] = row
 		var d ShadowDomain
 		var days float64
 		why := "projection unknown"
@@ -179,7 +162,6 @@ func ShadowRankOf(s DevelopmentState, projection ForwardProjection, openActions 
 		}
 		n := openActions[row.Concern]
 		out.Ranked = append(out.Ranked, ShadowEntry{Concern: row.Concern, Domain: d, ShortfallDays: days, OpenActions: n, Score: math.RoundToEven(days/float64(n)*1000) / 1000})
-		current = append(current, row.Concern)
 	}
 	sort.Slice(out.Ranked, func(i, j int) bool {
 		a, b := out.Ranked[i], out.Ranked[j]
@@ -188,15 +170,25 @@ func ShadowRankOf(s DevelopmentState, projection ForwardProjection, openActions 
 		}
 		return a.Concern < b.Concern
 	})
-	out.Current = current
-	shadow := map[ConcernID]int{}
-	for i, e := range out.Ranked {
-		shadow[e.Concern] = i + 1
+	acquirerFirst(out.Ranked)
+	return out
+}
+
+// acquirerFirst lifts MaintainResource, which acquires the material every
+// construction goal waits on, ahead of the first construction goal ranked
+// before it: a goal whose prerequisite is unbuilt is never ordered ahead of
+// it, however many open actions it spreads its shortfall over.
+func acquirerFirst(ranked []ShadowEntry) {
+	at := slices.IndexFunc(ranked, func(e ShadowEntry) bool { return e.Concern == MaintainResource })
+	if at < 0 {
+		return
 	}
-	for i, g := range current {
-		if shadow[g] != i+1 {
-			out.Disagreements = append(out.Disagreements, ShadowDisagreement{Concern: g, Current: i + 1, Shadow: shadow[g], Reason: rows[g].Reason})
+	for i := 0; i < at; i++ {
+		if ranked[i].Domain == ShadowConstruction {
+			acquirer := ranked[at]
+			copy(ranked[i+1:at+1], ranked[i:at])
+			ranked[i] = acquirer
+			return
 		}
 	}
-	return out
 }

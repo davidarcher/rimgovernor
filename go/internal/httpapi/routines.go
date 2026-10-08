@@ -193,21 +193,6 @@ type roundsDevelopmentRowDTO struct {
 	Committed    bool                     `json:"committed"`
 	Reason       policy.DevelopmentReason `json:"reason"`
 	Bottleneck   policy.WorkType          `json:"bottleneck"`
-	// Donation is the ordering the row inherited from a concern waiting on
-	// its shortfall (#651); absent when it serves none.
-	Donation *roundsDonationDTO `json:"donation,omitempty"`
-}
-
-// roundsDonationDTO: priority is the effective ordering (the concern's own
-// priority is unchanged), chain runs from the originating concern to this one,
-// shortfall is the bounded demand, conflict names an operator ceiling that
-// kept the row from a slot.
-type roundsDonationDTO struct {
-	Priority  int                `json:"priority"`
-	Chain     []domain.ConcernID `json:"chain"`
-	Resource  policy.Resource    `json:"resource,omitempty"`
-	Shortfall int64              `json:"shortfall,omitempty"`
-	Conflict  string             `json:"conflict,omitempty"`
 }
 
 // concernProgressDTO is one concern's progress record on the wire (#629): the
@@ -356,9 +341,6 @@ func roundsDevelopment(s policy.DevelopmentState) roundsDevelopmentDTO {
 		}
 		if r, k := row.Risk.Value(); k {
 			v.Risk = &r
-		}
-		if d := row.Donation; d != nil {
-			v.Donation = &roundsDonationDTO{Priority: d.Priority, Chain: append([]domain.ConcernID{}, d.Chain...), Resource: d.Resource, Shortfall: d.Shortfall, Conflict: d.Conflict}
 		}
 		dto.Rows = append(dto.Rows, v)
 	}

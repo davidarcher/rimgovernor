@@ -148,9 +148,6 @@ type DevelopmentRow struct {
 	// Labor is the goal's labor profile the ranking fitted; method
 	// admission refits the same profile.
 	Labor LaborProfile `json:",omitempty"`
-	// Donation is the ordering the row inherited from a blocked dependent
-	// (#651); nil when it serves none.
-	Donation *DevelopmentDonation `json:",omitempty"`
 }
 
 // DevelopmentState is a value snapshot owned by the review caller. Context and
@@ -179,8 +176,6 @@ type DevelopmentState struct {
 	// reads, empty when every eligible goal was selected or none was
 	// eligible.
 	Limiting DevelopmentReason
-	// Blockers are dependency edges that donated nothing, and why.
-	Blockers []DependencyBlocker `json:",omitempty"`
 }
 
 type DevelopmentRequest struct {
@@ -209,19 +204,21 @@ type DevelopmentRequest struct {
 	// (ReviewColonyStage); its Foothold hold refuses the comfort-class
 	// development with DevelopmentStage.
 	Stage ColonyStageRecord
-	// Dependencies are the live prerequisite edges (#651); a prerequisite
-	// row with an open shortfall ranks ahead of undonated rows
-	// (ResolveDonations) without changing its priority.
-	Dependencies []DevelopmentDependency
+	// Projection and OpenActions are what the project ranker (ShadowRankOf)
+	// scores the eligible goals against: an eligible goal with a projected
+	// shortfall ranks ahead of the rest, in ranker order. The zero value
+	// projects nothing and leaves the deficit-and-age order.
+	Projection  ForwardProjection
+	OpenActions map[ConcernID]int
 }
 
-// donatedOrder ranks an eligible donated row by its inherited priority;
-// every other row reads 5, after any class.
-func donatedOrder(row DevelopmentRow) int {
-	if row.Reason == "" && row.Donation != nil {
-		return row.Donation.Priority
+// rankedTier orders the eligible goals the ranker scored a shortfall for by
+// their place in its order; every other row reads after them all.
+func rankedTier(tier map[ConcernID]int, row DevelopmentRow) int {
+	if t, ok := tier[row.Concern]; ok && row.Reason == "" {
+		return t
 	}
-	return 5
+	return math.MaxInt
 }
 
 func validConcern(id ConcernID, priority int) bool {
@@ -340,11 +337,6 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	for _, a := range r.Assessments {
 		emergency = emergency || EmergencyNeed(a)
 	}
-	if len(r.Dependencies) > MaxDevelopmentDependencies {
-		return DevelopmentState{}, errors.New("invalid development dependencies")
-	}
-	donations, blockers := ResolveDonations(r.Concerns, r.Dependencies)
-	result.Blockers = blockers
 	for _, g := range r.Concerns {
 		if g.Priority < 3 {
 			continue
@@ -396,9 +388,6 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		if row.Committed || released[g.ID] {
 			row.WaitingSince = r.Tick
 		}
-		if d, ok := donations[g.ID]; ok {
-			row.Donation = &d
-		}
 		result.Rows = append(result.Rows, row)
 	}
 	profiles := map[ConcernID]LaborProfile{}
@@ -431,12 +420,19 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		ratio := min(1, float64(free)/float64(max(1, contenders)))
 		row.Score = math.RoundToEven(max(0, row.Score-weights.Bottleneck*(1-ratio))*1000) / 1000
 	}
+	tier := map[ConcernID]int{}
+	for i, e := range ShadowRankOf(result.Rows, r.Projection, r.OpenActions).Ranked {
+		if e.ShortfallDays > 0 {
+			tier[e.Concern] = i + 1
+		}
+	}
 	sort.Slice(result.Rows, func(i, j int) bool {
 		a, b := result.Rows[i], result.Rows[j]
-		// A donated eligible row (#651) takes the next slot and worker
-		// ahead of unrelated optional work, the most urgent origin first.
-		if da, db := donatedOrder(a), donatedOrder(b); da != db {
-			return da < db
+		// An eligible goal with a projected shortfall takes the next slot and
+		// worker ahead of the goals the projection cannot score, in the
+		// ranker's order.
+		if ta, tb := rankedTier(tier, a), rankedTier(tier, b); ta != tb {
+			return ta < tb
 		}
 		// An idle selection yields to every other goal before score; the
 		// tier is a total order so rows carrying a reason cannot form a
@@ -468,8 +464,8 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		}
 		sort.SliceStable(result.Rows, func(i, j int) bool {
 			a, b := result.Rows[i], result.Rows[j]
-			if da, db := donatedOrder(a), donatedOrder(b); da != db {
-				return da < db
+			if ta, tb := rankedTier(tier, a), rankedTier(tier, b); ta != tb {
+				return ta < tb
 			}
 			if a.Score != b.Score {
 				return a.Score > b.Score

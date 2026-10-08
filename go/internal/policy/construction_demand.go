@@ -109,8 +109,20 @@ func ConstructionDemand(in ConstructionDemandInput) map[Resource]int64 {
 			}
 		}
 	}
+	for resource, need := range admittedNeeds(in.Admitted) {
+		if short(resource, need) {
+			raise(resource, need)
+		}
+	}
+	raise("WoodLog", in.WoodFloor)
+	return out
+}
+
+// admittedNeeds is the open cost of admitted methods per resource, each
+// action once.
+func admittedNeeds(admitted []AdmittedCost) map[Resource]int64 {
 	costs := map[Resource]map[domain.ActionID]int64{}
-	for _, c := range in.Admitted {
+	for _, c := range admitted {
 		if c.Count <= 0 || c.Resource == "" {
 			continue
 		}
@@ -119,16 +131,12 @@ func ConstructionDemand(in ConstructionDemandInput) map[Resource]int64 {
 		}
 		costs[c.Resource][c.Action] = max(costs[c.Resource][c.Action], c.Count)
 	}
+	out := make(map[Resource]int64, len(costs))
 	for resource, actions := range costs {
-		var need int64
 		for _, n := range actions {
-			need += n
-		}
-		if short(resource, need) {
-			raise(resource, need)
+			out[resource] += n
 		}
 	}
-	raise("WoodLog", in.WoodFloor)
 	return out
 }
 

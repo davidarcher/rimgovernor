@@ -95,10 +95,6 @@ type Rounds struct {
 	// enabled review's plans and unserved goals, bounded by
 	// policy.DefaultReadyBounds. Diagnostics only: no admission reads it.
 	ReadyWork *policy.ReadyWorkReport `json:",omitempty"`
-	// ShadowRank is the shadow project ranker (#1913): candidate goals scored
-	// by projected shortfall per open action, and where that order disagrees
-	// with Development. Diagnostics only: no admission reads it.
-	ShadowRank *policy.ShadowRank `json:",omitempty"`
 	// Built is every live building action standing built, by geometry, in the
 	// last complete construction census (builtActions, #1355), sorted; a review without a
 	// complete census keeps the last one. Admission reads it for building
@@ -508,10 +504,9 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		request.Facts.Mood = mood
 		request.Facts.Disaster, request.Facts.DisasterTick = disaster, request.Tick
 		if !reset {
-			if request.Facts.Dependencies, err = priorDependencies(ctx, tx, previous, request.Facts, request.Tick); err != nil {
+			if request.Facts.Admitted, err = priorAdmitted(ctx, tx, previous, request.Tick); err != nil {
 				return RoundsResult{}, err
 			}
-			request.Facts.Admitted = admittedCosts(request.Facts.Dependencies)
 		}
 		detection = &RoundsDetection{Facts: request.Facts, Latches: latches, Policy: request.Policy}
 		needs, err = policy.InspectRounds(request.Facts, latches, request.Policy)
@@ -798,12 +793,11 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		r.Stage = &stage
 		var development policy.DevelopmentState
 		var ready policy.ReadyWorkReport
-		var shadow policy.ShadowRank
 		var records []DependencyRecord
 		if !reset {
 			records = previous.Dependencies
 		}
-		development, ready, shadow, r.Dependencies, err = rankRoundsDevelopment(ctx, tx, request, needs, states, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, records)
+		development, ready, r.Dependencies, err = rankRoundsDevelopment(ctx, tx, request, needs, states, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, records)
 		if err != nil {
 			return RoundsResult{}, err
 		}
@@ -817,7 +811,6 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			recoverySlot = recoverySlot || row.Concern == policy.ClearHomeObstructions && row.Selected
 		}
 		r.ReadyWork = &ready
-		r.ShadowRank = &shadow
 		r.Recovery, err = roundsRecovery(ctx, tx, request.Facts, disaster, r, request.Tick)
 		if err != nil {
 			return RoundsResult{}, err

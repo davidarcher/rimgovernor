@@ -789,11 +789,11 @@ func (r *RoundsBuildingPlanner) admitPreviews(call, epoch context.Context, a rou
 	if decision.Admitted {
 		reason = BuildingReasonAdmitted
 		// A shell admitted short of a material (#602) records each
-		// shortfall so the ranking orders that resource's acquisition ahead
-		// of unrelated optional work (#651). The review keeps an edge
-		// only while its actions stay open.
+		// shortfall so the construction demand MaintainResource supplies
+		// covers it (#651). The review keeps a record only while its
+		// actions stay open.
 		// A Project owner (the planned kitchen's shell under EnsureCooking) has
-		// no Standard: the edge records Episodes, so it records none.
+		// no Standard: the record names Episodes, so it records none.
 		if a.purpose == policy.Shelter && decision.Standard.Standard.ID != "" {
 			for _, resource := range previewResources(a.selected) {
 				if rec, short := store.ShortfallDependency(r.concern, decision.Standard.Standard, a.method, plan.ID(), a.selected, a.stock, resource, a.facts.Identity.Tick); short {

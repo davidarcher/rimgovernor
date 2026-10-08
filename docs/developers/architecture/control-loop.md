@@ -42,21 +42,17 @@ methods yield to other candidates.
   type, releases its slot after a game hour (`labor_idle`) without closing the work;
   a pawn back on it takes the slot back. A colony asleep is no evidence either way.
 
-**Dependency donation** (`policy/development_dependency.go`). A Concern waiting on a
-measured shortfall lends its ordering to the Concern that acquires it: a shelter
-shell admitted short of a resource records a typed edge (Episode, Method, each open
-action's cost per resource, the stock it was measured against). While the open costs
-exceed current stock, MaintainResource ranks ahead of unrelated optional work for
-the next slot and worker.
-
-- The donation is ordering only: declared priority, the startup/emergency classes and
-  the clock are unchanged, an explicit project limit still holds (the row reports
-  `project_limit`) and shared actions count once.
-- The edge drops when its actions settle, the Episode changes, the world changes or
-  a day passes.
-- Cycles, chains past four Concerns, unknown stock and a prerequisite without an
-  executable method donate nothing and are listed as blockers on the development
-  record.
+**Project ranking** (`policy/development_shadow.go`, #1914). The forward projector
+scores each eligible optional Concern by projected shortfall days per open plan action
+(food, power, temperature, defense, construction material). Concerns with a projected
+shortfall take the next slot and worker ahead of the rest, in that order;
+MaintainResource, which acquires the material construction waits on, is never ranked
+behind a construction Concern. Concerns the projector does not map, or whose projection
+is unknown, are never given a default score: they keep the deficit-and-age order behind
+the scored ones. Startup, emergency and player work are not ranked rows and keep their
+precedence. A shelter shell admitted short of a material records its open costs
+(`store.DependencyRecord`), which feed the construction demand MaintainResource
+supplies until those actions settle.
 
 ### Disease care
 

@@ -12,13 +12,19 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// DependencyRecord is one typed shortfall edge (#651) a planner observed at
-// admission: the dependent Episode and method, the resource its open
-// actions cost, each action's cost, and the stock it was measured against.
-// The review keeps the record while the Episode stays active and any of
-// the actions stays open, for at most policy.DevelopmentStallTicks; the
-// ranking recomputes the shortfall from the actions still open and the
-// current stock (roundsDependencies).
+// DependencyCost is one open action's cost in a DependencyRecord's resource.
+type DependencyCost struct {
+	Action domain.ActionID
+	Count  int64
+}
+
+// DependencyRecord is one admitted method's shortfall (#651) a planner
+// observed at admission: the dependent Episode and method, the resource its
+// open actions cost, each action's cost, and the stock it was measured
+// against. It is the one persisted source of admitted-method construction
+// demand (policy.ConstructionDemand): the review keeps the record while the
+// Episode stays active and any of the actions stays open, for at most
+// policy.DevelopmentStallTicks (roundsDependencies).
 type DependencyRecord struct {
 	Need     domain.ConcernID
 	Concern  domain.ConcernID
@@ -26,7 +32,7 @@ type DependencyRecord struct {
 	Method   domain.MethodID
 	Plan     domain.PlanID
 	Resource policy.Resource
-	Costs    []policy.DependencyCost
+	Costs    []DependencyCost
 	// Available is the usable stock the admission measured.
 	Available int64
 	Observed  domain.Tick
@@ -38,9 +44,6 @@ func (d DependencyRecord) validate() error {
 	if d.Need == "" || d.Concern == "" || d.Method == "" || d.Plan == "" || d.Resource == "" || len(d.Costs) == 0 || len(d.Costs) > 256 || d.Available < 0 || d.Observed < 0 {
 		return errors.New("invalid dependency record")
 	}
-	if _, ok := policy.ResourcePrerequisite(d.Resource); !ok {
-		return errors.New("dependency resource has no prerequisite standard")
-	}
 	for _, c := range d.Costs {
 		if c.Action == "" || c.Count <= 0 || c.Count > 1_000_000 {
 			return errors.New("invalid dependency cost")
@@ -51,13 +54,9 @@ func (d DependencyRecord) validate() error {
 
 // ShortfallDependency is the record for a method admitted under stock
 // that does not cover its costs in resource, or false when the stock
-// covers them (or the resource has no prerequisite goal): a shelter shell
-// is admitted without a stock check (#602), and its frames then wait for
-// the difference.
+// covers them: a shelter shell is admitted without a stock check (#602), and
+// its frames then wait for the difference.
 func ShortfallDependency(need domain.ConcernID, goal domain.Standard, method domain.MethodID, plan domain.PlanID, previews []policy.Preview, stock policy.StockObservation, resource policy.Resource, tick domain.Tick) (DependencyRecord, bool) {
-	if _, ok := policy.ResourcePrerequisite(resource); !ok {
-		return DependencyRecord{}, false
-	}
 	available := int64(-1)
 	for _, s := range stock.Values {
 		if v, known := s.Available.Value(); s.Resource == resource && known {
@@ -76,7 +75,7 @@ func ShortfallDependency(need domain.ConcernID, goal domain.Standard, method dom
 		}
 		for _, c := range costs {
 			if c.Resource == resource && c.Count > 0 {
-				rec.Costs = append(rec.Costs, policy.DependencyCost{Action: p.Action.ID(), Count: c.Count})
+				rec.Costs = append(rec.Costs, DependencyCost{Action: p.Action.ID(), Count: c.Count})
 				total += c.Count
 			}
 		}
@@ -142,27 +141,23 @@ func sortDependencies(d []DependencyRecord) {
 	})
 }
 
-// roundsDependencies keeps the records still live this review and turns
-// them into ranking edges. A record drops when its goal is no longer the
+// roundsDependencies keeps the records still live this review and flattens
+// the open costs of their actions into the admitted-method demand
+// (policy.ConstructionDemand). A record drops when its goal is no longer the
 // need's active Episode, every one of its actions has settled (the
 // dependency is satisfied, cancelled or replaced), or its evidence is
-// older than a game day. The shortfall is recomputed from the actions
-// still open against the current stock, so wood gained since admission
-// shrinks the donation; unknown stock keeps the record but donates nothing.
-func roundsDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRecord, bindings []RoundsStandard, states []WorkOwner, facts policy.RoundsFacts, tick domain.Tick) ([]DependencyRecord, []policy.DevelopmentDependency, error) {
+// older than a game day. The shortfall is measured against the stock of the
+// moment by the demand itself.
+func roundsDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRecord, bindings []RoundsStandard, states []WorkOwner, tick domain.Tick) ([]DependencyRecord, []policy.AdmittedCost, error) {
 	active := map[domain.ConcernID]WorkOwner{}
 	for i, b := range bindings {
 		active[b.Concern] = states[i]
 	}
 	var kept []DependencyRecord
-	var edges []policy.DevelopmentDependency
+	var admitted []policy.AdmittedCost
 	for _, rec := range records {
 		g, ok := active[rec.Need]
 		if !ok || domain.ConcernID(g.OwnerID()) != rec.Concern || g.OwnerEpisode() != rec.Episode || !ownerActive(g) || tick < rec.Observed || tick-rec.Observed > policy.DevelopmentStallTicks {
-			continue
-		}
-		prerequisite, ok := policy.ResourcePrerequisite(rec.Resource)
-		if !ok {
 			continue
 		}
 		plan, err := load(ctx, tx, rec.Plan)
@@ -181,37 +176,24 @@ func roundsDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRec
 				open[p.View().Action] = true
 			}
 		}
-		var costs []policy.DependencyCost
+		live := false
 		for _, c := range rec.Costs {
 			if open[c.Action] {
-				costs = append(costs, c)
+				live = true
+				admitted = append(admitted, policy.AdmittedCost{Resource: rec.Resource, Action: c.Action, Count: c.Count})
 			}
 		}
-		if len(costs) == 0 {
-			continue
-		}
-		kept = append(kept, rec)
-		edges = append(edges, policy.DevelopmentDependency{Dependent: rec.Need, Concern: rec.Concern, Episode: rec.Episode, Method: rec.Method, Prerequisite: prerequisite, Resource: rec.Resource, Costs: costs, Available: policy.StockReader{Resources: facts.Resources, Wood: facts.Wood}.Count(rec.Resource), Observed: rec.Observed})
-	}
-	return kept, edges, nil
-}
-
-// admittedCosts flattens the live edges' open costs: the admitted-method
-// source of construction demand (policy.ConstructionDemand).
-func admittedCosts(edges []policy.DevelopmentDependency) []policy.AdmittedCost {
-	var out []policy.AdmittedCost
-	for _, e := range edges {
-		for _, c := range e.Costs {
-			out = append(out, policy.AdmittedCost{Resource: e.Resource, Action: c.Action, Count: c.Count})
+		if live {
+			kept = append(kept, rec)
 		}
 	}
-	return out
+	return kept, admitted, nil
 }
 
-// priorDependencies is the last review's still-live edges against its goal
-// bindings, read before DetectRounds so an open shortfall raises its
-// MaintainResource floor (#711).
-func priorDependencies(ctx context.Context, tx *sql.Tx, previous Rounds, facts policy.RoundsFacts, tick domain.Tick) ([]policy.DevelopmentDependency, error) {
+// priorAdmitted is the last review's still-live admitted-method costs
+// against its goal bindings, read before DetectRounds so an open shortfall
+// raises its MaintainResource floor (#711).
+func priorAdmitted(ctx context.Context, tx *sql.Tx, previous Rounds, tick domain.Tick) ([]policy.AdmittedCost, error) {
 	if len(previous.Dependencies) == 0 {
 		return nil, nil
 	}
@@ -237,6 +219,6 @@ func priorDependencies(ctx context.Context, tx *sql.Tx, previous Rounds, facts p
 		}
 		bindings, states = append(bindings, RoundsStandard{Concern: b.Concern, Standard: domain.ConcernID(b.Project)}), append(states, g)
 	}
-	_, edges, err := roundsDependencies(ctx, tx, previous.Dependencies, bindings, states, facts, tick)
-	return edges, err
+	_, admitted, err := roundsDependencies(ctx, tx, previous.Dependencies, bindings, states, tick)
+	return admitted, err
 }

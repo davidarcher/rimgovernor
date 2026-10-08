@@ -20,8 +20,6 @@ type RoundsDevelopment struct {
 	Holds     []policy.DevelopmentHold `json:",omitempty"`
 	StageHold bool                     `json:",omitempty"`
 	Limiting  policy.DevelopmentReason `json:",omitempty"`
-	// Blockers are the dependency edges that donated nothing (#651).
-	Blockers []policy.DependencyBlocker `json:",omitempty"`
 }
 type RoundsDevelopmentRow struct {
 	Concern             domain.ConcernID
@@ -36,13 +34,11 @@ type RoundsDevelopmentRow struct {
 	LaborIdleSince      *domain.Tick         `json:",omitempty"`
 	LaborEvidence       policy.LaborEvidence `json:",omitempty"`
 	Labor               policy.LaborProfile  `json:",omitempty"`
-	// Donation is the ordering inherited from a blocked dependent (#651).
-	Donation *policy.DevelopmentDonation `json:",omitempty"`
 }
 
 func developmentRecord(s policy.DevelopmentState) RoundsDevelopment {
 	r := RoundsDevelopment{Snapshot: s.Snapshot, Tick: s.Tick, Capacity: s.Capacity, Committed: append([]domain.ConcernID(nil), s.Committed...), Partial: s.Partial,
-		Holds: append([]policy.DevelopmentHold(nil), s.Holds...), StageHold: s.StageHold, Limiting: s.Limiting, Blockers: append([]policy.DependencyBlocker(nil), s.Blockers...)}
+		Holds: append([]policy.DevelopmentHold(nil), s.Holds...), StageHold: s.StageHold, Limiting: s.Limiting}
 	if v, k := s.Workers.Value(); k {
 		r.Workers = &v
 	}
@@ -53,7 +49,7 @@ func developmentRecord(s policy.DevelopmentState) RoundsDevelopment {
 		}
 	}
 	for _, row := range s.Rows {
-		v := RoundsDevelopmentRow{Concern: row.Concern, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, LaborEvidence: row.LaborEvidence, Labor: row.Labor, Donation: cloneDonation(row.Donation)}
+		v := RoundsDevelopmentRow{Concern: row.Concern, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, LaborEvidence: row.LaborEvidence, Labor: row.Labor}
 		if deficit, k := row.Deficit.Value(); k {
 			v.Deficit = &deficit
 		}
@@ -71,7 +67,7 @@ func developmentRecord(s policy.DevelopmentState) RoundsDevelopment {
 // State rebuilds the policy ranking this record persisted.
 func (r RoundsDevelopment) State() policy.DevelopmentState {
 	s := policy.DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Capacity: r.Capacity, Committed: append([]domain.ConcernID(nil), r.Committed...), Partial: r.Partial,
-		Holds: append([]policy.DevelopmentHold(nil), r.Holds...), StageHold: r.StageHold, Limiting: r.Limiting, Blockers: append([]policy.DependencyBlocker(nil), r.Blockers...)}
+		Holds: append([]policy.DevelopmentHold(nil), r.Holds...), StageHold: r.StageHold, Limiting: r.Limiting}
 	if r.Workers != nil {
 		s.Workers = domain.Known(*r.Workers)
 	}
@@ -83,7 +79,7 @@ func (r RoundsDevelopment) State() policy.DevelopmentState {
 		s.Labor = domain.Known(labor)
 	}
 	for _, row := range r.Rows {
-		v := policy.DevelopmentRow{Concern: row.Concern, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, LaborEvidence: row.LaborEvidence, Labor: row.Labor, Donation: cloneDonation(row.Donation)}
+		v := policy.DevelopmentRow{Concern: row.Concern, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, LaborEvidence: row.LaborEvidence, Labor: row.Labor}
 		if row.Deficit != nil {
 			v.Deficit = domain.Known(*row.Deficit)
 		}
@@ -96,13 +92,4 @@ func (r RoundsDevelopment) State() policy.DevelopmentState {
 		s.Rows = append(s.Rows, v)
 	}
 	return s
-}
-
-func cloneDonation(d *policy.DevelopmentDonation) *policy.DevelopmentDonation {
-	if d == nil {
-		return nil
-	}
-	c := *d
-	c.Chain = append([]domain.ConcernID(nil), d.Chain...)
-	return &c
 }

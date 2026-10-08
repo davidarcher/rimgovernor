@@ -8,10 +8,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// A shelter shell admitted short of wood records a typed edge; the next
-// review orders MaintainResource by it while the shortfall stays open, and
-// drops the edge when the shell's actions settle (#651).
-func TestShelterShortfallDonatesUntilSatisfied(t *testing.T) {
+// A shelter shell admitted short of wood records its open costs; the next
+// review admits MaintainResource and carries them while the shortfall stays open, and
+// drops them when the shell's actions settle (#651).
+func TestShelterShortfallAdmitsMaintainResourceUntilSatisfied(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
@@ -41,14 +41,14 @@ func TestShelterShortfallDonatesUntilSatisfied(t *testing.T) {
 	}
 	second := reviewRounds(t, s, &r)
 	wood := developmentRow(t, second.Review, policy.MaintainResource)
-	if wood.Donation == nil || wood.Donation.Priority != 2 || wood.Donation.Shortfall != 80 || len(second.Review.Dependencies) != 1 {
+	if !wood.Selected || len(second.Review.Dependencies) != 1 || len(second.Detection.Facts.Admitted) != 2 {
 		t.Fatalf("wood row %+v, deps %+v", wood, second.Review.Dependencies)
 	}
 	// Stock covers the open costs: no donation, the edge stays while the
 	// frames are open.
 	r.Facts.Wood = domain.Known(int64(150))
 	third := reviewRounds(t, s, &r)
-	if w := developmentRow(t, third.Review, policy.MaintainResource); w.Donation != nil || len(third.Review.Dependencies) != 1 {
+	if w := developmentRow(t, third.Review, policy.MaintainResource); len(third.Review.Dependencies) != 1 {
 		t.Fatalf("covered: %+v", w)
 	}
 	// Cancelled actions settle the dependency: the record drops.
@@ -59,7 +59,7 @@ func TestShelterShortfallDonatesUntilSatisfied(t *testing.T) {
 		}
 	}
 	fourth := reviewRounds(t, s, &r)
-	if w := developmentRow(t, fourth.Review, policy.MaintainResource); w.Donation != nil || len(fourth.Review.Dependencies) != 0 {
+	if w := developmentRow(t, fourth.Review, policy.MaintainResource); len(fourth.Review.Dependencies) != 0 || len(fourth.Detection.Facts.Admitted) != 0 {
 		t.Fatalf("settled: %+v %+v", w, fourth.Review.Dependencies)
 	}
 }
@@ -115,7 +115,7 @@ func TestShelterNonWoodShortfallRaisesResourceFloor(t *testing.T) {
 	}
 	second := reviewRounds(t, s, &r)
 	row := developmentRow(t, second.Review, policy.MaintainResource)
-	if row.Donation == nil || row.Donation.Priority != 2 || row.Donation.Shortfall != 90 {
+	if !row.Selected || len(second.Detection.Facts.Admitted) != 2 {
 		t.Fatalf("resource row %+v", row)
 	}
 }

@@ -137,22 +137,22 @@ func readyWorkOf(r RoundsRequest, plans []roundsPlan, goals []policy.Development
 	return policy.ProjectReadyWork(policy.ReadyRequest{Snapshot: r.Current, Tick: r.Tick, Plans: ready, Unserved: unserved, Construction: r.Facts.CurrentConstruction, Recipes: r.Facts.Recipes})
 }
 
-func rankRoundsDevelopment(ctx context.Context, tx *sql.Tx, r RoundsRequest, needs policy.RoundsFindings, states []WorkOwner, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, policy.ShadowRank, []DependencyRecord, error) {
+func rankRoundsDevelopment(ctx context.Context, tx *sql.Tx, r RoundsRequest, needs policy.RoundsFindings, states []WorkOwner, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, []DependencyRecord, error) {
 	var bindings []RoundsStandard
 	for i, n := range needs.Assessments {
 		bindings = append(bindings, RoundsStandard{Concern: n.ID, Standard: domain.ConcernID(states[i].OwnerID())})
 	}
 	plans, err := roundsPlans(ctx, tx, r.Current, bindings)
 	if err != nil {
-		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
 	}
 	commitments, err := commitmentsOf(ctx, tx, plans)
 	if err != nil {
-		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
 	}
-	kept, dependencies, err := roundsDependencies(ctx, tx, records, bindings, states, r.Facts, r.Tick)
+	kept, _, err := roundsDependencies(ctx, tx, records, bindings, states, r.Tick)
 	if err != nil {
-		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
 	}
 	goals := append([]policy.DevelopmentConcern(nil), needs.Concerns...)
 	for i := range goals {
@@ -165,17 +165,17 @@ func rankRoundsDevelopment(ctx context.Context, tx *sql.Tx, r RoundsRequest, nee
 				// campfire plan completed and retired is served, not owed.
 				served, err := owner.servedCount(ctx, tx)
 				if err != nil {
-					return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
+					return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
 				}
 				goals[i].Served = served > 0
 			}
 		}
 	}
-	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Stage: stage, Concerns: goals, Assessments: needs.All(), Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Dependencies: dependencies})
+	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Stage: stage, Concerns: goals, Assessments: needs.All(), Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Projection: policy.ProjectForward(policy.ForwardInputsOf(r.Facts, r.Policy)), OpenActions: openPlanActions(plans)})
 	if err != nil {
-		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
 	}
-	return state, readyWorkOf(r, plans, goals), policy.ShadowRankOf(state, policy.ProjectForward(policy.ForwardInputsOf(r.Facts, r.Policy)), openPlanActions(plans)), kept, nil
+	return state, readyWorkOf(r, plans, goals), kept, nil
 }
 
 // developmentExemptMethod reports a method that is no development project:

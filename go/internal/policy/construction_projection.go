@@ -17,13 +17,13 @@ const (
 
 // ConstructionInputs are what standing and admitted construction still needs
 // and the stock it is measured against. Deficit and Stock are the facts
-// MaintainResource's floors already read; Dependencies carry the previewed
-// costs of admitted shelter methods (ShortfallDependency).
+// MaintainResource's floors already read; Admitted carries the previewed
+// costs of admitted shelter methods.
 type ConstructionInputs struct {
-	Deficit      domain.Fact[map[Resource]int64]
-	Dependencies []DevelopmentDependency
-	Stock        domain.Fact[[]Amount]
-	Items        ItemFacts
+	Deficit  domain.Fact[map[Resource]int64]
+	Admitted []AdmittedCost
+	Stock    domain.Fact[[]Amount]
+	Items    ItemFacts
 }
 
 // ConstructionClassProjection is one material pool: Need is the larger of
@@ -69,8 +69,8 @@ func projectConstruction(in ConstructionInputs) domain.Fact[ConstructionProjecti
 	for r, n := range owed {
 		need[r] = n
 	}
-	for r, d := range dependencyDemands(in.Dependencies, MaintainResource) {
-		need[r] = max(need[r], d.need)
+	for r, n := range admittedNeeds(in.Admitted) {
+		need[r] = max(need[r], n)
 	}
 	needs, stock := map[ConstructionClass]int64{}, map[ConstructionClass]int64{}
 	for r, n := range need {
