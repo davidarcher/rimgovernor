@@ -45,6 +45,18 @@ the raiders giving up. Real raids do. Read fixture resolution times with that in
 
 ## What the planner should take from this
 
+`combatlab/native-hold` tests the bounded split of Go tactics and native
+execution: Go assigns one exact firing cell, holds fire for 600 ticks, then
+assigns `HoldPosition` (`Wait_Combat`) and fire-at-will. Subsequent simulation
+receives no Go attack, retarget, movement or renewed hold orders. Native shot
+events must identify an acquired hostile and a later different live hostile
+after reads establish the first target is downed, dead or absent through normal
+combat. Every position sample (60 ticks apart) must retain the assigned cell.
+The hold-fire phase keeps a live hostile within weapon range and requires no
+defender shots. This is a registered nightly gameplay proof, not evidence of a
+passed run: its result artifact establishes the outcome. It does not establish
+local movement, squad coordination, tactical quality or controller throughput.
+
 An aggressive mental break's subdue response is an owned combat fight. Its
 actions retain native's guarded blunt melee and never finish a downed colonist.
 An injury or downing of the target or a responder cancels the response and

@@ -94,7 +94,8 @@ func smokeCases(all []cases.Case) ([]cases.Case, error) {
 // endToEnd is the nightly tier (#738 bucket C, #752): whole-colony
 // proofs, a signal rather than a gate.
 var endToEnd = map[string]bool{
-	"campaign/foothold": true, "campaign/recovery": true, "clearance/shrine-breach": true,
+	"combatlab/native-hold": true,
+	"campaign/foothold":     true, "campaign/recovery": true, "clearance/shrine-breach": true,
 	"defense/perimeter": true, "food/reserve": true, "food/starving-tribal-recovery": true, "production/ladder": true,
 	"shelter/bunks-first": true, "startup/labor": true,
 	"shelter/retirement": true, "shelter/climate-mild": true, "shelter/climate-cold": true, "shelter/climate-hot": true,
