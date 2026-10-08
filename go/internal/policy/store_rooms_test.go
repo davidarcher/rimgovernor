@@ -174,7 +174,7 @@ func TestWarehouseIsOneZoneOverItsWholeRoom(t *testing.T) {
 	req := storeRequest(1, 0)
 	created := createdRoles(PlanStockpileMaintenance(stockpileOf(req)))
 	zone, ok := created[domain.GeneralRole]
-	if !ok || len(zone.Cells) != 9 || zone.Priority != domain.LowPriority || zone.Filter != domain.GeneralFilter() || zone.Filter.Base() != domain.BaseIndoorOnly {
+	if !ok || len(zone.Cells()) != 9 || zone.Priority != domain.LowPriority || zone.Filter != domain.GeneralFilter() || zone.Filter.Base() != domain.BaseIndoorOnly {
 		t.Fatalf("created %+v", created)
 	}
 	if !slices.Contains(zone.Filter.Disallow(), domain.SpecialFilter(domain.BurnableFilterDef)) {
@@ -207,12 +207,12 @@ func TestSecondWarehouseZoneIsCreated(t *testing.T) {
 	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
 	req := storeRequest(2, 2, warehouseZone("a", domain.GeneralRole, first, 9))
 	zone, ok := createdRoles(PlanStockpileMaintenance(stockpileOf(req)))[domain.GeneralRole]
-	if !ok || len(zone.Cells) != 9 || zone.Priority != domain.LowPriority {
+	if !ok || len(zone.Cells()) != 9 || zone.Priority != domain.LowPriority {
 		t.Fatalf("created %+v", zone)
 	}
-	for _, c := range zone.Cells {
+	for _, c := range zone.Cells() {
 		if c.X < 20 || c.X > 22 || c.Z < 10 || c.Z > 12 {
-			t.Fatalf("second warehouse outside its room: %v", zone.Cells)
+			t.Fatalf("second warehouse outside its room: %v", zone.Cells())
 		}
 	}
 }
@@ -249,7 +249,7 @@ func TestDugWarehouseWaitsForItsInterior(t *testing.T) {
 			req.Cells[i].SetOccupied(false)
 		}
 	}
-	if created := createdRoles(PlanStockpileMaintenance(stockpileOf(req))); len(created[domain.GeneralRole].Cells) != 9 {
+	if created := createdRoles(PlanStockpileMaintenance(stockpileOf(req))); len(created[domain.GeneralRole].Cells()) != 9 {
 		t.Fatalf("no zone over the open room: %+v", created)
 	}
 }

@@ -61,7 +61,7 @@ func wasteDumpSite(plan *LayoutPlan) (StoreSite, bool) {
 		outline := cellSet(rectCells(pad(inc.Interior, 1)))
 		cells = slices.DeleteFunc(cells, func(c domain.Cell) bool { return outline[c] })
 	}
-	return StoreSite{Role: domain.DumpRole, Interior: yard, Filter: domain.DumpFilter(), Priority: domain.LowPriority, room: cells, exact: true}, true
+	return StoreSite{Role: domain.DumpRole, Interior: yard, Filter: domain.DumpFilter(), Priority: domain.LowPriority, regions: cellRects(cellSet(cells)), exact: true}, true
 }
 
 func (o incinerationOwner) RoomDemand(v StoreView) RoomDemand {

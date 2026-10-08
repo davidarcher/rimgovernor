@@ -218,7 +218,8 @@ type ProgressView struct {
 	// zone's unique load id, ZoneEffect.zone_id). It is the identity later
 	// native censuses name the zone by, which is how a completed stockpile
 	// method owns its zone for MaintainHomeCoverage (#315).
-	Zone Fact[string]
+	Zone       Fact[string]
+	Stockpiles Fact[CreatedZones]
 	// Bill is the native bill an applied production_bill or surgery receipt
 	// identifies (BillEffect.bill, SurgeryEffect.bill): the id a later
 	// remove_production_bill names.
@@ -375,7 +376,7 @@ func (p Progress) RecordReceipt(attempt AttemptID, receipt Receipt) (Progress, e
 // RecordZoneReceipt records an applied zone_create's receipt together with
 // the native zone identity its evidence named, which zone claims read.
 func (p Progress) RecordZoneReceipt(attempt AttemptID, receipt Receipt, zone string) (Progress, error) {
-	if p.action.kind != ZoneCreateAction || receipt != ReceiptAccepted || !validID(zone) {
+	if p.action.kind != ZoneCreateAction || p.action.zone.Kind() == StockpileZone || receipt != ReceiptAccepted || !validID(zone) {
 		return p, errors.New("zone identity requires an applied zone create")
 	}
 	next, err := p.recordReceipt(attempt, receipt)

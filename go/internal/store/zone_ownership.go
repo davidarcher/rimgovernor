@@ -80,10 +80,16 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
 			zone, isZone := progress.Action().ZoneCreate()
 			effect, ek := v.Effect.Value()
 			id, known := v.Zone.Value()
-			if !isZone || !ek || !known || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
+			if !isZone || !ek || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
 				continue
 			}
-			result = append(result, OwnedZone{ID: id, Kind: zone.Kind(), Crop: zone.Crop(), Cells: zone.Cells(), Role: zone.Role(), Concern: link.concern, Filter: zone.Filter(), Priority: zone.Priority()})
+			if placements, ok := v.Stockpiles.Value(); ok {
+				for _, created := range placements.Rows() {
+					result = append(result, OwnedZone{ID: created.ID, Kind: zone.Kind(), Cells: created.Cells, Role: zone.Role(), Concern: link.concern, Filter: zone.Filter(), Priority: zone.Priority()})
+				}
+			} else if known {
+				result = append(result, OwnedZone{ID: id, Kind: zone.Kind(), Crop: zone.Crop(), Cells: zone.Cells(), Role: zone.Role(), Concern: link.concern, Filter: zone.Filter(), Priority: zone.Priority()})
+			}
 		}
 	}
 	return domain.Known(result), nil

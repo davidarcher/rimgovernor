@@ -28,7 +28,7 @@ func TestGearFilterSettingsSizeStaysFarUnderTheFrame(t *testing.T) {
 			t.Fatal(err)
 		}
 		measure := func(f domain.StockpileFilter) int {
-			z, err := domain.NewFilteredStockpileZone(f, domain.NormalPriority, []domain.Cell{{X: 1, Z: 1}})
+			z, err := domain.NewFilteredStockpileZone(f, domain.NormalPriority, stockpileTestRectangle([]domain.Cell{{X: 1, Z: 1}}))
 			if err != nil {
 				t.Fatal(err)
 			}

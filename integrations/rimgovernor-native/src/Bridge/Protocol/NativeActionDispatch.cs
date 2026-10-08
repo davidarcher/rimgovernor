@@ -72,6 +72,7 @@ namespace HomeBridge.BridgeTools
         private const int ReplayCapacity = 256;
         private static readonly Dictionary<string, LinkedListNode<KeyValuePair<string, Operations.ActionResult>>> replay = new Dictionary<string, LinkedListNode<KeyValuePair<string, Operations.ActionResult>>>();
         private static readonly LinkedList<KeyValuePair<string, Operations.ActionResult>> order = new LinkedList<KeyValuePair<string, Operations.ActionResult>>();
+        private static string replayLoad = "";
 
         // Fails the mod load when an Action arm has no handler.
         internal static void AssertComplete()
@@ -97,14 +98,20 @@ namespace HomeBridge.BridgeTools
             if (!action.HasKey || !ProtoBoundary.IsIdentifier(action.Key))
                 return Refused(action.Key, Common.FailureCode.InvalidRequest, "An action requires an identifier key.");
             var slot = context.Identity.ColonyId + "/" + context.Identity.LoadToken + "/" + action.Key;
+            var load = context.Identity.ColonyId + "/" + context.Identity.LoadToken;
+            if (load != replayLoad) { replay.Clear(); order.Clear(); replayLoad = load; }
             if (replay.TryGetValue(slot, out var seen))
             {
-                order.Remove(seen); order.AddFirst(seen);
+                if (seen.List != null) { order.Remove(seen); order.AddFirst(seen); }
                 return seen.Value.Value.Clone();
             }
             var result = Decide(action, context.Clone());
-            var node = order.AddFirst(new KeyValuePair<string, Operations.ActionResult>(slot, result.Clone()));
+            var node = new LinkedListNode<KeyValuePair<string, Operations.ActionResult>>(new KeyValuePair<string, Operations.ActionResult>(slot, result.Clone()));
             replay[slot] = node;
+            // Stockpile creation cannot be reconstructed by adopting zones on
+            // the drag: keep its receipt in this existing replay window until
+            // the load changes. All other intents retain the bounded LRU.
+            if ((result.Applied?.Applied?.Observed?.Zone?.Created.Count ?? 0) == 0) order.AddFirst(node);
             if (order.Count > ReplayCapacity) { replay.Remove(order.Last.Value.Key); order.RemoveLast(); }
             return result;
         }

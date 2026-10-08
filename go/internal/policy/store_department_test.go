@@ -51,7 +51,7 @@ func TestDeclaredStoreIsCreatedOverItsWholeRoom(t *testing.T) {
 	r.Zones = nil
 	r.Stores = []Store{testStore()}
 	edits := PlanStockpileMaintenance(r).Edits
-	if len(edits) != 1 || edits[0].Kind != StockpileCreate || len(edits[0].Cells) != 9 || edits[0].Priority != domain.PreferredPriority {
+	if len(edits) != 1 || edits[0].Kind != StockpileCreate || len(edits[0].Cells()) != 9 || edits[0].Priority != domain.PreferredPriority {
 		t.Fatalf("edits %+v, want one 9-cell create at the store's priority", edits)
 	}
 }
@@ -107,7 +107,7 @@ func TestDeclaredStoresNeverOverlap(t *testing.T) {
 	r.Stores = []Store{a, b}
 	seen := map[domain.Cell]bool{}
 	for _, e := range PlanStockpileMaintenance(r).Edits {
-		for _, c := range e.Cells {
+		for _, c := range e.Cells() {
 			if seen[c] {
 				t.Fatalf("cell %v claimed twice", c)
 			}

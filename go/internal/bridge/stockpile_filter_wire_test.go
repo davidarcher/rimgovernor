@@ -30,7 +30,7 @@ func TestPresetFiltersWireUnchanged(t *testing.T) {
 	labels := map[string]string{"food": "Food storage", "corpse_larder": "Corpse larder", "general": "General store"}
 	for preset, filter := range presets {
 		for _, priority := range []domain.StockpilePriority{domain.CriticalPriority, domain.ImportantPriority, domain.PreferredPriority, domain.NormalPriority, domain.LowPriority} {
-			z, err := domain.NewFilteredStockpileZone(filter, priority, cells)
+			z, err := domain.NewFilteredStockpileZone(filter, priority, stockpileTestRectangle(cells))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -46,7 +46,7 @@ func TestPresetFiltersWireUnchanged(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			z, err := domain.NewFilteredStockpileZone(f, priority, cells)
+			z, err := domain.NewFilteredStockpileZone(f, priority, stockpileTestRectangle(cells))
 			if err != nil || z.Label() != label {
 				t.Fatal(z.Label(), err)
 			}

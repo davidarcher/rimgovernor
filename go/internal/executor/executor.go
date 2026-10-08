@@ -31,6 +31,7 @@ type Journal interface {
 	// RecordZoneReceipt records an applied zone_create's receipt with the
 	// zone identity its evidence named.
 	RecordZoneReceipt(context.Context, domain.PlanID, domain.ActionID, domain.AttemptID, string) (domain.Progress, error)
+	RecordStockpileReceipt(context.Context, domain.PlanID, domain.ActionID, domain.AttemptID, []domain.CreatedZone) (domain.Progress, error)
 	// RecordBillReceipt records an applied bill placement's receipt with the
 	// native bill id its evidence named.
 	RecordBillReceipt(context.Context, domain.PlanID, domain.ActionID, domain.AttemptID, string) (domain.Progress, error)
@@ -73,7 +74,8 @@ type Receipt struct {
 	Snapshot domain.GenerationSnapshot
 	Kind     domain.Receipt
 	// Zone is the zone an applied zone_create's evidence names.
-	Zone string
+	Zone       string
+	Stockpiles []domain.CreatedZone
 	// Bill is the native bill an applied production_bill's or surgery's
 	// evidence names.
 	Bill string

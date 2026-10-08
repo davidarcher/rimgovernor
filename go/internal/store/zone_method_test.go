@@ -22,7 +22,7 @@ func stockpilePlan(t *testing.T, id domain.PlanID, cells ...[]domain.Cell) domai
 	t.Helper()
 	var actions []domain.Action
 	for i, block := range cells {
-		zone, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, block)
+		zone, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, stockpileTestRectangle(block))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -204,11 +204,11 @@ func TestCommitStockpileZoneMethodRejectsOverlappingCells(t *testing.T) {
 	r := medicalReserveRoundsRequest()
 	out := reviewRounds(t, s, &r)
 	g := roundsGoal(t, out, policy.MaintainMedicalReserves)
-	zone1, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, []domain.Cell{{X: 4, Z: 6}})
+	zone1, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, stockpileTestRectangle([]domain.Cell{{X: 4, Z: 6}}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	zone2, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, []domain.Cell{{X: 4, Z: 6}})
+	zone2, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, stockpileTestRectangle([]domain.Cell{{X: 4, Z: 6}}))
 	if err != nil {
 		t.Fatal(err)
 	}

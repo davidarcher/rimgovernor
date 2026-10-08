@@ -17,13 +17,17 @@ type ActionsWriter interface {
 	Apply(context.Context, *c.Identity, []*o.Action) (*o.ApplyReply, bridge.Result, error)
 }
 
-// IntentKey is an intent-mode attempt's idempotency key: the action (whose
-// plan names the goal) and the attempt. The action, not the plan, keys it:
+// IntentKey is an intent-mode attempt's idempotency key: the action and attempt.
+// A stockpile rectangle uses only its immutable action ID so a lost reply
+// recovers every created identity from native replay. The action, not the plan, keys it:
 // a plan's building actions each start at attempt 1, and the native replay
 // window would answer the second with the first's result. Native stamps a
 // building intent's key on what it builds, which is how the construction
 // census names the owning action (store.ConstructionClaims).
 func IntentKey(p executor.Placement) string {
+	if z, ok := p.Action.ZoneCreate(); ok && z.Kind() == domain.StockpileZone {
+		return string(p.Action.ID())
+	}
 	return fmt.Sprintf("%s/%d", p.Action.ID(), p.Attempt)
 }
 
@@ -86,7 +90,25 @@ func DispatchIntents(ctx context.Context, leases LeaseSource, placements []execu
 		case result.GetApplied().GetApplied() != nil:
 			out[i].Kind = domain.ReceiptAccepted
 			if placements[i].Action.Kind() == domain.ZoneCreateAction {
-				out[i].Zone = result.GetApplied().GetApplied().GetObserved().GetZone().GetZoneId()
+				effect := result.GetApplied().GetApplied().GetObserved().GetZone()
+				zone, _ := placements[i].Action.ZoneCreate()
+				if zone.Kind() == domain.StockpileZone {
+					for _, row := range effect.GetCreated() {
+						created := domain.CreatedZone{ID: row.GetZoneId()}
+						for _, c := range row.GetCells() {
+							if c == nil || c.X == nil || c.Z == nil {
+								return out, executor.ErrEvidence
+							}
+							created.Cells = append(created.Cells, domain.Cell{X: c.GetX(), Z: c.GetZ()})
+						}
+						out[i].Stockpiles = append(out[i].Stockpiles, created)
+					}
+					if _, err := domain.NewCreatedZones(zone, out[i].Stockpiles); err != nil {
+						return out, executor.ErrEvidence
+					}
+				} else {
+					out[i].Zone = effect.GetZoneId()
+				}
 			}
 			if kind := placements[i].Action.Kind(); kind == domain.ProductionBillAction || kind == domain.SurgeryAction {
 				out[i].Bill = appliedBill(result.GetApplied().GetApplied().GetObserved())

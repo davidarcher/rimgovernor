@@ -24,7 +24,7 @@ func TestZoneCanonicalConnectedAndImmutable(t *testing.T) {
 
 func TestStockpileZoneCanonicalAndClosedToFoodImportant(t *testing.T) {
 	cells := []Cell{{X: 2, Z: 1}, {X: 1, Z: 1}}
-	z, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, cells)
+	z, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, stockpileTestRectangle(cells))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,12 +34,12 @@ func TestStockpileZoneCanonicalAndClosedToFoodImportant(t *testing.T) {
 	if z.Label() != "Food storage" {
 		t.Fatal("unexpected label", z.Label())
 	}
-	same, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, []Cell{{X: 1, Z: 1}, {X: 2, Z: 1}})
+	same, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, stockpileTestRectangle([]Cell{{X: 1, Z: 1}, {X: 2, Z: 1}}))
 	if err != nil || z != same {
 		t.Fatal("mutable/canonical", z, err)
 	}
 	for _, priority := range []StockpilePriority{"urgent", ""} {
-		if _, err := NewFilteredStockpileZone(FoodFilter(), priority, cells); err == nil {
+		if _, err := NewFilteredStockpileZone(FoodFilter(), priority, stockpileTestRectangle(cells)); err == nil {
 			t.Fatal(priority)
 		}
 	}
@@ -48,7 +48,7 @@ func TestStockpileZoneCanonicalAndClosedToFoodImportant(t *testing.T) {
 // The named filters keep the labels their retired presets sent native.
 func TestStockpileLabelsFollowFilters(t *testing.T) {
 	cells := []Cell{{X: 1, Z: 1}}
-	larder, _ := NewFilteredStockpileZone(CorpseLarderFilter(), ImportantPriority, cells)
+	larder, _ := NewFilteredStockpileZone(CorpseLarderFilter(), ImportantPriority, stockpileTestRectangle(cells))
 	dump, _ := allowListZone(LowPriority, []string{"ChunkGranite"}, cells)
 	supplies, _ := allowListZone(ImportantPriority, []string{"WoodLog", "Steel", "Cloth"}, cells)
 	many, _ := allowListZone(ImportantPriority, []string{"WoodLog", "Steel", "Cloth", "Silver", "Gold"}, cells)
@@ -64,7 +64,7 @@ func allowListZone(priority StockpilePriority, allow []string, cells []Cell) (Zo
 	if err != nil {
 		return ZoneCreate{}, err
 	}
-	return NewFilteredStockpileZone(f, priority, cells)
+	return NewFilteredStockpileZone(f, priority, stockpileTestRectangle(cells))
 }
 
 func allowOf(z ZoneCreate) []string {
@@ -78,7 +78,7 @@ func TestReconstructZoneRoundTripsBothKinds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stockpile, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, cells)
+	stockpile, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, stockpileTestRectangle(cells))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestReconstructZoneRoundTripsBothKinds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	general, err := NewFilteredStockpileZone(OpeningStoreFilter(), NormalPriority, cells)
+	general, err := NewFilteredStockpileZone(OpeningStoreFilter(), NormalPriority, stockpileTestRectangle(cells))
 	if err != nil || general.Label() != "General store" {
 		t.Fatal(general, err)
 	}
@@ -139,7 +139,7 @@ func TestAllowListStockpileZoneCanonicalAndBounded(t *testing.T) {
 }
 
 func TestNewZoneCreateActionRejectsNonCanonicalZone(t *testing.T) {
-	value, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, []Cell{{X: 1, Z: 1}})
+	value, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, stockpileTestRectangle([]Cell{{X: 1, Z: 1}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestNewZoneCreateActionRejectsNonCanonicalZone(t *testing.T) {
 func TestStockpilePrioritiesSpanVanilla(t *testing.T) {
 	cells := []Cell{{X: 1, Z: 1}}
 	for _, p := range []StockpilePriority{CriticalPriority, ImportantPriority, PreferredPriority, NormalPriority, LowPriority} {
-		if z, err := NewFilteredStockpileZone(FoodFilter(), p, cells); err != nil || z.Priority() != p {
+		if z, err := NewFilteredStockpileZone(FoodFilter(), p, stockpileTestRectangle(cells)); err != nil || z.Priority() != p {
 			t.Fatal(p, err)
 		}
 		if _, err := allowListZone(p, []string{"Steel"}, cells); err != nil {

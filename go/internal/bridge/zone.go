@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -24,6 +25,8 @@ func ZoneConfiguration(zone domain.ZoneCreate) *op.ZoneIntent {
 			command.Zone = zoneRef(zone.ExtendZoneID())
 		}
 	case domain.StockpileZone:
+		rect := zone.Rectangle()
+		command.AddCells = &op.Cells{Selection: &op.Cells_Rectangle{Rectangle: &op.Rectangle{Origin: &c.Cell{X: proto.Int32(rect.Origin.X), Z: proto.Int32(rect.Origin.Z)}, Width: proto.Int32(rect.Width), Height: proto.Int32(rect.Height)}}}
 		command.Kind = op.ZoneType_ZONE_TYPE_STOCKPILE.Enum()
 		command.Stockpile = stockpileSettings(zone)
 	default:
@@ -122,6 +125,24 @@ func (client *Client) PreviewZone(ctx context.Context, identity *c.Identity, zon
 	v := reply.GetEvaluated()
 	if v == nil || v.Accepted == nil || buildingContext(v.Context, identity, 0, false) != nil {
 		return nil, raw, contract("invalid zone preview evidence")
+	}
+	if zone.Kind() == domain.StockpileZone && v.GetAccepted() {
+		var rows []domain.CreatedZone
+		for i, component := range v.Components {
+			row := domain.CreatedZone{ID: fmt.Sprintf("component_%d", i)}
+			for _, c := range component.GetCells() {
+				if c == nil || c.X == nil || c.Z == nil {
+					return nil, raw, contract("missing preview cell")
+				}
+				row.Cells = append(row.Cells, domain.Cell{X: c.GetX(), Z: c.GetZ()})
+			}
+			rows = append(rows, row)
+		}
+		if _, err := domain.NewCreatedZones(zone, rows); err != nil {
+			return nil, raw, contract("invalid stockpile preview components: %v", err)
+		}
+	} else if len(v.Components) > 0 {
+		return nil, raw, contract("unexpected zone preview components")
 	}
 	return reply, raw, nil
 }

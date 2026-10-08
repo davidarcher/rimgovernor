@@ -265,6 +265,7 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 	}
 	kinds := make([]domain.Receipt, len(sent))
 	zones := make([]string, len(sent))
+	stockpiles := make([][]domain.CreatedZone, len(sent))
 	bills := make([]string, len(sent))
 	causes := make([]error, len(sent))
 	if err = e.guard(ctx, expected, generation); err != nil {
@@ -286,6 +287,7 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 				kinds[j], causes[j] = domain.ReceiptUnknown, ErrEvidence
 			default:
 				kinds[j], zones[j], bills[j] = receipts[j].Kind, receipts[j].Zone, receipts[j].Bill
+				stockpiles[j] = receipts[j].Stockpiles
 			}
 			if _, check := nexts[j].RecordReceipt(p.Attempt, kinds[j]); check != nil {
 				kinds[j], causes[j] = domain.ReceiptUnknown, errors.Join(causes[j], ErrEvidence)
@@ -293,7 +295,7 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 			causes[j] = errors.Join(causes[j], ctx.Err())
 		}
 	}
-	e.recordReceipts(out, sent, placements, kinds, zones, bills, causes)
+	e.recordReceipts(out, sent, placements, kinds, zones, stockpiles, bills, causes)
 	return out
 }
 
@@ -301,7 +303,7 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 // transaction; an applied zone_create or bill placement records its zone or bill id on its own. Like
 // recordZone, it uses a fresh bounded context so cancellation never erases
 // an attempt.
-func (e *Executor) recordReceipts(out []BatchItem, sent []int, placements []Placement, kinds []domain.Receipt, zones, bills []string, causes []error) {
+func (e *Executor) recordReceipts(out []BatchItem, sent []int, placements []Placement, kinds []domain.Receipt, zones []string, stockpiles [][]domain.CreatedZone, bills []string, causes []error) {
 	ctx, cancel := context.WithTimeout(context.Background(), e.limits.JournalTimeout)
 	defer cancel()
 	var receipts []store.BatchReceipt
@@ -309,6 +311,14 @@ func (e *Executor) recordReceipts(out []BatchItem, sent []int, placements []Plac
 	for j, i := range sent {
 		p, plan := placements[j], out[i].Result.Progress.View().Plan
 		out[i].Err = causes[j]
+		if len(stockpiles[j]) > 0 && kinds[j] == domain.ReceiptAccepted {
+			progress, err := e.journal.RecordStockpileReceipt(ctx, plan, p.Action.ID(), p.Attempt, stockpiles[j])
+			if err == nil {
+				out[i].Result.Progress = progress
+			}
+			out[i].Err = errors.Join(out[i].Err, err)
+			continue
+		}
 		if zones[j] != "" && kinds[j] == domain.ReceiptAccepted {
 			progress, err := e.journal.RecordZoneReceipt(ctx, plan, p.Action.ID(), p.Attempt, zones[j])
 			if err == nil {

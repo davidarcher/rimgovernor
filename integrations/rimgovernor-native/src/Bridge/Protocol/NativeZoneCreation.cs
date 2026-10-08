@@ -44,11 +44,6 @@ namespace HomeBridge.BridgeTools
                 return command.Label == "Crops" && command.Stockpile == null && !command.RequireCoveredEmpty
                     && command.Growing != null && command.Growing.HasPlantDef && ProtoBoundary.IsIdentifier(command.Growing.PlantDef)
                     && command.Growing.HasAllowSow && command.Growing.AllowSow && command.Growing.HasAllowCut && command.Growing.AllowCut;
-            // A stockpile takes any label and any typed settings body; the
-            // selectors resolve against the def database in Prepare.
-            if (command.Kind == Operations.ZoneType.Stockpile)
-                return command.HasLabel && ProtoBoundary.IsIdentifier(command.Label) && command.Growing == null && !command.RequireCoveredEmpty
-                    && command.Stockpile != null && command.Stockpile.HasPriority && NativeStockpileSettings.Valid(command.Stockpile);
             return false;
         }
         internal const string Kind = "Zone creation";
@@ -116,36 +111,12 @@ namespace HomeBridge.BridgeTools
                         .Require(() => designator.CanDesignateCell(c).Accepted, "cell " + At(c) + " is refused by the native growing-zone designator");
                 }
             }
-            else
-            {
-                var resolved = NativeStockpileSettings.Resolve(command.Stockpile, StockpileFilter.StorableDefs(null));
-                if (resolved == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires resolvable stockpile settings."); return false; }
-                // Vanilla stockpiles need no roof, and where one belongs is
-                // controller policy: a new colony's opening stockpiles sit on
-                // open ground because no roof stands yet.
-                // "Empty" is the cell census's own StorageEmpty: filth, a pawn or
-                // a mote on the floor never made a stockpile cell unusable, and a
-                // stricter check here refused every site the controller picked
-                // from that census on a lived-in floor (#216, #223).
-                ground = true;
-                foreach (var cell in cells)
-                {
-                    var c = cell;
-                    rules.Require(() => c.InBounds(map) && !c.Fogged(map) && c.Walkable(map)
-                        && c.GetEdifice(map) == null && StorageEmpty(c, map)
-                        && map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c))
-                        && !map.roofCollapseBuffer.IsMarkedToCollapse(c),
-                        "fresh free ground required: cell " + At(c) + " is not walkable, unzoned, empty storage ground");
-                }
-            }
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             ground = false;
             return true;
         }
-        // StorageEmpty is the one definition of a cell with nothing stored or
-        // built on it, shared by the cell grid (storage_empty,
-        // colony facts) and stockpile zone creation so a site the controller
-        // chose from the census is the site native accepts.
+        // StorageEmpty is the cell census's inventory occupancy fact. It is
+        // used for stockpile fill, not vanilla stockpile placement eligibility.
         internal static bool StorageEmpty(IntVec3 c, Map map)
         {
             return !c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item);
@@ -195,10 +166,7 @@ namespace HomeBridge.BridgeTools
                     if (!(zone is Zone_Growing growing) || !growing.allowSow || !growing.allowCut) return null;
                     var crop = (BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow") ?? throw new InvalidOperationException("Zone_Growing.plantDefToGrow is unavailable.")).GetValue(growing) as ThingDef;
                     return crop?.defName == command.Growing.PlantDef ? zone : null;
-                default:
-                    if (!(zone is Zone_Stockpile stockpile)) return null;
-                    var resolved = NativeStockpileSettings.Resolve(command.Stockpile, StockpileFilter.StorableDefs(stockpile));
-                    return resolved != null && NativeStockpileSettings.Matches(stockpile, resolved) ? zone : null;
+                default: return null;
             }
         }
 
@@ -219,14 +187,7 @@ namespace HomeBridge.BridgeTools
                 growing.SetPlantDefToGrow(crop!); growing.allowSow = true; growing.allowCut = true;
                 return growing;
             }
-            var stockpile = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
-            map.zoneManager.RegisterZone(stockpile); stockpile.label = command.Label;
-            foreach (var cell in cells) stockpile.AddCell(cell);
-            var resolved = NativeStockpileSettings.Resolve(command.Stockpile, StockpileFilter.StorableDefs(stockpile))
-                ?? throw new InvalidOperationException("Stockpile settings stopped resolving.");
-            stockpile.settings.Priority = resolved.Priority!.Value;
-            NativeStockpileSettings.Apply(stockpile.settings.filter, resolved, StockpileFilter.ParentFilter(stockpile), StockpileFilter.StorableDefs(stockpile));
-            return stockpile;
+            throw new InvalidOperationException("Unsupported exact zone creation.");
         }
 
         // Evidence is one zone's identity, presence and cell count.

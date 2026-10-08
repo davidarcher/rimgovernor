@@ -84,6 +84,17 @@ func (j *schedulingJournal) RecordZoneReceipt(ctx context.Context, plan domain.P
 	}
 	return p, err
 }
+
+func (j *schedulingJournal) RecordStockpileReceipt(ctx context.Context, plan domain.PlanID, action domain.ActionID, attempt domain.AttemptID, zones []domain.CreatedZone) (domain.Progress, error) {
+	if err := j.check(ctx, plan, action); err != nil {
+		return domain.Progress{}, err
+	}
+	p, err := j.progress.RecordStockpileReceipt(attempt, domain.ReceiptAccepted, zones)
+	if err == nil {
+		j.progress = p
+	}
+	return p, err
+}
 func (j *schedulingJournal) RecordBillReceipt(ctx context.Context, plan domain.PlanID, action domain.ActionID, attempt domain.AttemptID, bill string) (domain.Progress, error) {
 	if err := j.check(ctx, plan, action); err != nil {
 		return domain.Progress{}, err

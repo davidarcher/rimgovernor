@@ -65,7 +65,7 @@ func TestStockpileFilterCanonical(t *testing.T) {
 
 func TestFilteredStockpileZoneRoleRoundTrips(t *testing.T) {
 	f, _ := NewStockpileFilter(BaseEverything, nil, []FilterSelector{CategoryDef("Chunks")})
-	z, err := NewFilteredStockpileZone(f, LowPriority, []Cell{{X: 1, Z: 1}})
+	z, err := NewFilteredStockpileZone(f, LowPriority, stockpileTestRectangle([]Cell{{X: 1, Z: 1}}))
 	if err != nil {
 		t.Fatal(err)
 	}

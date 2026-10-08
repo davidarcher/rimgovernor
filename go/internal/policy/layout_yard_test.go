@@ -63,8 +63,8 @@ func TestYardStoreCoversItsWholeRoom(t *testing.T) {
 	}
 	created := createdRoles(PlanStockpileMaintenance(stockpileOf(req)))
 	zone := created[domain.YardRole]
-	if len(zone.Cells) != 117 || zone.Filter.Base() != domain.BaseOutdoorSafe || zone.Priority != domain.LowPriority {
-		t.Fatalf("yard zone %d cells, filter %v, priority %v", len(zone.Cells), zone.Filter.Base(), zone.Priority)
+	if len(zone.Cells()) != 117 || zone.Filter.Base() != domain.BaseOutdoorSafe || zone.Priority != domain.LowPriority {
+		t.Fatalf("yard zone %d cells, filter %v, priority %v", len(zone.Cells()), zone.Filter.Base(), zone.Priority)
 	}
 	cells := rectCells(yard.Interior)
 	standing := StockpileZone{ID: "yard", Role: domain.YardRole, Cells: cells, Stored: cells[:100], Filter: domain.YardFilter(), Priority: domain.LowPriority}
@@ -92,7 +92,7 @@ func TestYardStoreCoversItsWholeRoom(t *testing.T) {
 	}
 	created = createdRoles(PlanStockpileMaintenance(stockpileOf(req)))
 	further := created[domain.YardRole]
-	if len(further.Cells) != 117 || further.Cells[0] == cells[0] {
+	if len(further.Cells()) != 117 || further.Cells()[0] == cells[0] {
 		t.Fatalf("further yard zone %+v", further)
 	}
 }

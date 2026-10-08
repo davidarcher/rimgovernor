@@ -90,7 +90,7 @@ func TestStockpileEditActionsCarryTheZoneToken(t *testing.T) {
 // A room shell is days of building work and must not hold zone edits; only
 // zone-edit plans do, whichever owner's method carries them.
 func TestIsStockpileEditPlan(t *testing.T) {
-	zone, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, []domain.Cell{{X: 1, Z: 1}})
+	zone, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, stockpileTestRectangle([]domain.Cell{{X: 1, Z: 1}}))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -14,16 +14,20 @@ Food, Medical, Industry (bench ingredients), Military (armory, wardrobe),
 People (tomb, morgue, graveyard) and Sanitation (waste dump, incinerator); the
 animal feed store belongs to Husbandry.
 
-A store is one clean zone over its whole planned room, created once the room's
+A store is a rectangle placement over its planned room, created once the room's
 interior is open ground (at plan time on open ground; when the last cell clears
 for a dug or partly rocky room, which layout excavates first) and sized once.
 It is never grown, shrunk or merged, never given a stand-in, and deleted only
 when its purpose is gone (a bench demolished, a room retired), create before
 delete on a move. Headroom is another room: see below.
 
-If obstacles or exclusions split a store's usable ground, its zone takes the
-largest connected patch, for both rectangular and explicit footprints. Equal
-patches choose the lowest cell. The standing zone keeps that size.
+Native filters each rectangle with vanilla stockpile zoneability and passable
+terrain, then creates a zone for every cardinally connected component. Items
+already on the ground do not prevent placement. Existing zones are skipped;
+creating a store never adopts or changes player zones. Each created component
+gets the requested filter and priority, and its receipt carries its native ID
+and actual cells into the Concern's ownership claims. Standing zones keep their
+size. Planned exclusions are covered by separate rectangle drags.
 
 ## The stores
 

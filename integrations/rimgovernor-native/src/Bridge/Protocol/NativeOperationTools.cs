@@ -53,7 +53,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(new Operations.ZonePreviewReply { Failure = invalid });
                 if (parsed.Zone == null)
                     return ProtoBoundary.Encode(new Operations.ZonePreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A zone is required.") });
-                return ProtoBoundary.Encode(NativeZoneCreation.Preview(parsed.Zone, context));
+                return ProtoBoundary.Encode(parsed.Zone.Kind == Operations.ZoneType.Stockpile
+                    ? StockpilePlacementActionHandler.Preview(parsed.Zone, context) : NativeZoneCreation.Preview(parsed.Zone, context));
             }, cancellationToken).ConfigureAwait(false);
         }
 

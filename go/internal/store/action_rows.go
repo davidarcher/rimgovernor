@@ -40,6 +40,11 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if z, ok := a.ZoneCreate(); ok {
 		payload := zonePayload{Kind: z.Kind(), Crop: z.Crop(), Priority: z.Priority(), Cells: z.Cells(), ExtendZoneID: z.ExtendZoneID(), Role: z.Role()}
 		if z.Kind() == domain.StockpileZone {
+			payload.Cells = nil
+			rect := z.Rectangle()
+			payload.Rectangle = &rect
+		}
+		if z.Kind() == domain.StockpileZone {
 			f := z.Filter()
 			payload.Filter = &f
 		}
@@ -377,6 +382,9 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		}
 		var value domain.ZoneCreate
 		var valueErr error
+		if payload.Kind != domain.StockpileZone && payload.Rectangle != nil {
+			return domain.Action{}, 0, errors.New("rectangle only belongs to stockpile placement")
+		}
 		if payload.Kind != domain.FishingZone && payload.ExtendZoneID != "" || payload.Kind == domain.FishingZone && (payload.Crop != "" || payload.Priority != "") {
 			return domain.Action{}, 0, errors.New("mixed fishing zone payload")
 		}
@@ -392,7 +400,10 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			if payload.Filter == nil {
 				valueErr = errors.New("stockpile zone row missing filter")
 			} else {
-				value, valueErr = domain.NewFilteredStockpileZone(*payload.Filter, payload.Priority, payload.Cells)
+				if payload.Rectangle == nil || len(payload.Cells) != 0 {
+					return domain.Action{}, 0, errors.New("stockpile requires rectangle")
+				}
+				value, valueErr = domain.NewFilteredStockpileZone(*payload.Filter, payload.Priority, *payload.Rectangle)
 			}
 			if valueErr == nil && payload.Role != "" {
 				value, valueErr = value.WithRole(payload.Role)
@@ -1225,7 +1236,8 @@ type zonePayload struct {
 	Crop         string
 	Priority     domain.StockpilePriority
 	Cells        []domain.Cell
-	ExtendZoneID string `json:",omitempty"`
+	Rectangle    *domain.GroundRect `json:",omitempty"`
+	ExtendZoneID string             `json:",omitempty"`
 	// Filter is a stockpile's filter; Role a stockpile's planner role key.
 	Filter *domain.StockpileFilter `json:",omitempty"`
 	Role   string                  `json:",omitempty"`

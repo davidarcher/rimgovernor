@@ -22,12 +22,12 @@ func TestFreezerStoresDeclaredFromThePlannedRoom(t *testing.T) {
 	creates := storeCreates(view)
 	for _, prefix := range []string{domain.RawMeatRolePrefix, domain.RawVegRolePrefix, domain.CorpsesRolePrefix} {
 		edit, ok := creates[plannedKey(prefix, freezer.Interior)]
-		if !ok || len(edit.Cells) != 4 || edit.Priority != domain.CriticalPriority || !withinRect(edit.Cells, freezer.Interior) {
+		if !ok || len(edit.Cells()) != 4 || edit.Priority != domain.CriticalPriority || !withinRect(edit.Cells(), freezer.Interior) {
 			t.Fatalf("%s shelf: %+v", prefix, edit)
 		}
 	}
 	perishables, ok := creates[plannedKey(domain.PerishablesRolePrefix, freezer.Interior)]
-	if !ok || perishables.Priority != domain.PreferredPriority || !withinRect(perishables.Cells, freezer.Interior) {
+	if !ok || perishables.Priority != domain.PreferredPriority || !withinRect(perishables.Cells(), freezer.Interior) {
 		t.Fatalf("perishables: %+v", perishables)
 	}
 	if got := storeCreates(StoreView{Layout: &LayoutPlan{}}); len(got) != 0 {
@@ -52,12 +52,13 @@ func TestFreezerStoresDeferWhileTheInteriorIsNotOpen(t *testing.T) {
 		return PlanStockpileMaintenance(StockpileRequest{Tick: 1, Bounds: view.Bounds, Cells: view.Cells, Stores: DeclareStores(view).Stores}).Edits
 	}
 	freezerCreate := func(edits []StockpileEdit) (n int) {
+		roles := map[string]bool{}
 		for _, e := range edits {
-			if e.Kind == StockpileCreate && withinRect(e.Cells, freezer.Interior) {
-				n++
+			if e.Kind == StockpileCreate && withinRect(e.Cells(), freezer.Interior) {
+				roles[e.Role] = true
 			}
 		}
-		return n
+		return len(roles)
 	}
 	rock := plan(func(c *SiteCell) {
 		c.Walkable = domain.Known(false)

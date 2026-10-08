@@ -51,7 +51,7 @@ func TestArmoryShellsThenFillsItsRoom(t *testing.T) {
 	created := 0
 	for _, e := range policy.PlanStockpileMaintenance(request).Edits {
 		if e.Kind == policy.StockpileCreate && e.Role == "armory:Room_5" {
-			created = len(e.Cells)
+			created = len(e.Cells())
 		}
 	}
 	if created != 25 {

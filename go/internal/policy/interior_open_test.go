@@ -62,21 +62,21 @@ func TestKeptCellStaysInTheRoomAndOutOfTheZone(t *testing.T) {
 	}
 }
 
-func TestKeptCellsThatSplitTheRoomLeaveOnePart(t *testing.T) {
+func TestKeptCellsThatSplitTheStoreRetainBothParts(t *testing.T) {
 	t.Parallel()
 	site := StoreSite{Role: domain.GeneralRole, Interior: storeInterior}
-	// The column x=6 is kept: 2 columns on the left (6 cells), 2 on the right (6).
-	// Widen the right part by keeping x=5 instead for an unambiguous largest.
+	// A kept wall column divides the room into unequal components.
 	var wall []domain.Cell
 	for z := int32(4); z < 7; z++ {
 		wall = append(wall, domain.Cell{X: 5, Z: z})
 	}
-	cells := site.Cells(rockOpen(nil, wall, nil))
-	if len(cells) != 9 || !cellSet(cells)[domain.Cell{X: 8, Z: 6}] || cellSet(cells)[domain.Cell{X: 4, Z: 4}] {
-		t.Fatalf("zone %v must be the larger contiguous part", cells)
+	open := rockOpen(nil, wall, nil)
+	cells := site.Cells(open)
+	if len(cells) != 12 || !cellSet(cells)[domain.Cell{X: 8, Z: 6}] || !cellSet(cells)[domain.Cell{X: 4, Z: 4}] {
+		t.Fatalf("stockpile ground %v must keep both components", cells)
 	}
-	if !stockpileContiguous(cellSet(cells)) {
-		t.Fatalf("zone %v is not contiguous", cells)
+	if rects := site.Rectangles(open); len(rects) != 1 || rects[0] != storeInterior {
+		t.Fatalf("drag must retain the whole room: %v", rects)
 	}
 }
 
@@ -97,28 +97,4 @@ func TestDugStoreRoomDigsAheadOfOtherDugRoomsAndStone(t *testing.T) {
 	if MineTierOre >= MineTierStore {
 		t.Fatal("ore stays first")
 	}
-}
-
-// stockpileContiguous reports whether cells form one four-connected region.
-func stockpileContiguous(cells map[domain.Cell]bool) bool {
-	var start domain.Cell
-	first := true
-	for c := range cells {
-		if first || cellLess(c, start) {
-			start, first = c, false
-		}
-	}
-	reached := map[domain.Cell]bool{start: true}
-	queue := []domain.Cell{start}
-	for len(queue) > 0 {
-		c := queue[0]
-		queue = queue[1:]
-		for _, n := range stockpileNeighbours(c) {
-			if cells[n] && !reached[n] {
-				reached[n] = true
-				queue = append(queue, n)
-			}
-		}
-	}
-	return len(reached) == len(cells)
 }

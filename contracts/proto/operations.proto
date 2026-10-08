@@ -169,9 +169,10 @@ message GrowingSettings { optional string plant_def = 1; optional bool allow_sow
 message FishingSettings { optional double population_floor = 1; }
 // The one zone write (#1353). Its shape selects the edit; each applies again
 // once the map already holds it:
-// - create: kind set, zone empty, add_cells the new zone's cardinally
-//   connected cells with label and the kind's settings. Native checks the
-//   ground live. A fishing create with zone set extends that fishing zone to
+// - create: kind set, zone empty; stockpiles take an add_cells rectangle drag
+//   and create every free vanilla-zoneable cardinal component. Growing and
+//   fishing take explicit connected cells. Native checks ground live.
+//   A fishing create with zone set extends that fishing zone to
 //   add_cells, its complete larger footprint.
 // - cells: zone set, kind unset, exactly one of add_cells (free zoneable
 //   ground) and remove_cells (the zone's own cells); the result stays
@@ -230,7 +231,7 @@ service Zones {
 }
 message ZonePreviewRequest { rimgovernor.common.v1.Identity identity = 1; ZoneIntent zone = 2; }
 // reason names the ground rule a refused (accepted false) zone broke.
-message ZonePreview { rimgovernor.common.v1.ObservationContext context = 1; optional bool accepted = 2; optional string reason = 3; }
+message ZonePreview { rimgovernor.common.v1.ObservationContext context = 1; optional bool accepted = 2; optional string reason = 3; repeated CellList components = 4; }
 message ZonePreviewReply {
   oneof outcome {
     ZonePreview evaluated = 1;

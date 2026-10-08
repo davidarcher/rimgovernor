@@ -105,30 +105,30 @@ func TestStockpileCreatesWithSplitWasteYard(t *testing.T) {
 		request.Cells = append(request.Cells, cell)
 	}
 	review := PlanStockpileMaintenance(request)
-	created := map[string]StockpileEdit{}
+	created := map[string][]domain.Cell{}
 	for _, edit := range review.Edits {
 		if edit.Kind != StockpileCreate {
 			continue
 		}
-		if _, err := domain.NewFilteredStockpileZone(edit.Filter, edit.Priority, edit.Cells); err != nil {
-			t.Fatalf("%s create violates zone contract: %v; cells=%v", edit.Role, err, edit.Cells)
+		if _, err := domain.NewFilteredStockpileZone(edit.Filter, edit.Priority, domain.GroundRect{Origin: domain.Cell{X: edit.Rectangle.X, Z: edit.Rectangle.Z}, Width: edit.Rectangle.Width, Height: edit.Rectangle.Height}); err != nil {
+			t.Fatalf("%s create violates zone contract: %v; rectangle=%v", edit.Role, err, edit.Rectangle)
 		}
-		created[edit.Role] = edit
+		created[edit.Role] = append(created[edit.Role], coverCells(open, edit.Cells())...)
 	}
 	dump, ok := created[domain.DumpRole]
-	if !ok || len(dump.Cells) != 11 || dump.Cells[0] != (domain.Cell{X: 4, Z: 4}) {
-		t.Fatalf("dump must take the first of two equal connected patches: %+v", dump)
+	if !ok || len(dump) != 22 {
+		t.Fatalf("dump must retain both connected patches: %+v", dump)
 	}
 	outline := cellSet(rectCells(pad(incinerator, 1)))
-	for _, cell := range dump.Cells {
+	for _, cell := range dump {
 		if outline[cell] || cellSet(blocked)[cell] {
 			t.Fatalf("dump covers excluded cell %v", cell)
 		}
 	}
-	if len(created[domain.GeneralRole].Cells) != 9 {
+	if len(created[domain.GeneralRole]) != 9 {
 		t.Fatalf("other store held back: %+v", created)
 	}
-	request.Zones = []StockpileZone{{ID: "dump", Role: dump.Role, Cells: dump.Cells, Filter: dump.Filter, Priority: dump.Priority}}
+	request.Zones = []StockpileZone{{ID: "dump", Role: domain.DumpRole, Cells: dump, Filter: domain.DumpFilter(), Priority: domain.LowPriority}}
 	for _, edit := range PlanStockpileMaintenance(request).Edits {
 		if edit.Role == domain.DumpRole {
 			t.Fatalf("standing dump must keep its size: %+v", edit)

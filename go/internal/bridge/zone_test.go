@@ -23,7 +23,7 @@ func TestFishingZoneExtensionNamesZoneAndFloor(t *testing.T) {
 }
 
 func TestCorpseLarderZoneExcludesRottenAndNonAnimalStock(t *testing.T) {
-	zone, err := domain.NewFilteredStockpileZone(domain.CorpseLarderFilter(), domain.ImportantPriority, []domain.Cell{{X: 1, Z: 2}})
+	zone, err := domain.NewFilteredStockpileZone(domain.CorpseLarderFilter(), domain.ImportantPriority, stockpileTestRectangle([]domain.Cell{{X: 1, Z: 2}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,10 +44,22 @@ func TestRawFoodZoneAllowsRawMeatAndPlantFoodOnly(t *testing.T) {
 	}
 }
 
+func TestStockpileWireRequestsRectangleInsteadOfFinalCells(t *testing.T) {
+	rect := domain.GroundRect{Origin: domain.Cell{X: 10, Z: 20}, Width: 7, Height: 5}
+	zone, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, rect)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire := ZoneConfiguration(zone).GetAddCells()
+	if wire.GetExplicitCells() != nil || wire.GetRectangle().GetWidth() != 7 || wire.GetRectangle().GetHeight() != 5 || wire.GetRectangle().GetOrigin().GetX() != 10 || wire.GetRectangle().GetOrigin().GetZ() != 20 {
+		t.Fatal(wire)
+	}
+}
+
 func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 	cells := []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}}
 	growing, _ := domain.NewZoneCreate(domain.GrowingZone, "Plant_Rice", cells)
-	stockpile, _ := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, cells)
+	stockpile, _ := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, stockpileTestRectangle(cells))
 
 	g := ZoneConfiguration(growing)
 	if g.GetKind() != op.ZoneType_ZONE_TYPE_GROWING || g.Stockpile != nil || g.GetGrowing().GetPlantDef() != "Plant_Rice" || !g.GetGrowing().GetAllowSow() || !g.GetGrowing().GetAllowCut() {
@@ -81,8 +93,8 @@ func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 // is a reply the planner moves past to its next candidate, not a contract
 // violation; a failure outcome or a missing verdict still rejects (#223).
 func TestPreviewZoneReturnsARefusedSiteAsAnEvaluation(t *testing.T) {
-	zone, _ := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, []domain.Cell{{X: 1, Z: 1}})
-	valid := &op.ZonePreviewReply{Outcome: &op.ZonePreviewReply_Evaluated{Evaluated: &op.ZonePreview{Context: pbContext(), Accepted: proto.Bool(true)}}}
+	zone, _ := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, stockpileTestRectangle([]domain.Cell{{X: 1, Z: 1}}))
+	valid := &op.ZonePreviewReply{Outcome: &op.ZonePreviewReply_Evaluated{Evaluated: &op.ZonePreview{Context: pbContext(), Accepted: proto.Bool(true), Components: []*op.CellList{{Cells: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(1)}}}}}}}
 	for _, test := range []struct {
 		name     string
 		change   func(*op.ZonePreviewReply)
@@ -90,7 +102,12 @@ func TestPreviewZoneReturnsARefusedSiteAsAnEvaluation(t *testing.T) {
 		ok       bool
 	}{
 		{"accepted", func(*op.ZonePreviewReply) {}, true, true},
-		{"refused site", func(v *op.ZonePreviewReply) { v.GetEvaluated().Accepted = proto.Bool(false) }, false, true},
+		{"refused site", func(v *op.ZonePreviewReply) {
+			v.GetEvaluated().Accepted = proto.Bool(false)
+			v.GetEvaluated().Components = nil
+		}, false, true},
+		{"missing components", func(v *op.ZonePreviewReply) { v.GetEvaluated().Components = nil }, true, false},
+		{"outside rectangle", func(v *op.ZonePreviewReply) { v.GetEvaluated().Components[0].Cells[0].X = proto.Int32(2) }, true, false},
 		{"missing verdict", func(v *op.ZonePreviewReply) { v.GetEvaluated().Accepted = nil }, false, false},
 		{"failure outcome", func(v *op.ZonePreviewReply) {
 			v.Outcome = &op.ZonePreviewReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum()}}

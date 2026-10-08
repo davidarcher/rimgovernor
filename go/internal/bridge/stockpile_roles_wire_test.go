@@ -26,7 +26,7 @@ func TestArmoryAndWardrobeFiltersWire(t *testing.T) {
 		"wardrobe": `{"priority":"STORAGE_PRIORITY_NORMAL","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"Apparel"}],"disallow":[{"thingDef":"Apparel_FlakVest"},{"thingDef":"Apparel_PlateArmor"},{"specialFilterDef":"AllowBiocodedApparel"},{"specialFilterDef":"AllowDeadmansApparel"},{"specialFilterDef":"RimGovernorBurnable"}],"hitPointsMin":0.5,"hitPointsMax":1,"qualityMin":"Normal","qualityMax":"Legendary"}}`,
 	}
 	for name, f := range map[string]domain.StockpileFilter{"armory": armory, "wardrobe": wardrobe} {
-		z, err := domain.NewFilteredStockpileZone(f, domain.NormalPriority, []domain.Cell{{X: 1, Z: 1}})
+		z, err := domain.NewFilteredStockpileZone(f, domain.NormalPriority, stockpileTestRectangle([]domain.Cell{{X: 1, Z: 1}}))
 		if err != nil {
 			t.Fatal(name, err)
 		}

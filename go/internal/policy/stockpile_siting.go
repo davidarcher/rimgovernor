@@ -44,17 +44,21 @@ type StoreSite struct {
 	Filter   domain.StockpileFilter
 	Priority domain.StockpilePriority
 
-	// room, when set, stands in for Interior as the site's explicit cells, and
+	// regions, when set, are the rectangular placement areas of the site, and
 	// exact matches a zone by the whole role key (a bench ID, unlike a census
 	// room ID that RimWorld renumbers) instead of its prefix.
-	room  []domain.Cell
-	exact bool
+	regions []Rectangle
+	exact   bool
 }
 
 // footprint is the ground that identifies the site.
 func (s StoreSite) footprint() []domain.Cell {
-	if s.room != nil {
-		return s.room
+	if s.regions != nil {
+		var cells []domain.Cell
+		for _, r := range s.regions {
+			cells = append(cells, rectCells(r)...)
+		}
+		return cells
 	}
 	return rectCells(s.Interior)
 }
@@ -80,13 +84,10 @@ func storeServed(zones []StockpileZone, site StoreSite) bool {
 	return false
 }
 
-// Cells is the ground the site's zone would take now, or nil when none can be
-// had. A whole-room cover is the largest connected set of open footprint cells
-// (buildings, blocked cells and the wall ring are excluded); a rectangle is the
-// free Width x Height patch inside the interior
-// nearest Anchor.
-func (s StoreSite) Cells(open stockpileOpen) []domain.Cell {
-	if s.room == nil {
+// Rectangles chooses the site's drags. Native resolves obstacles and connected
+// zones inside each drag; policy exclusions limit the requested ground.
+func (s StoreSite) Rectangles(open stockpileOpen) []Rectangle {
+	if s.regions == nil {
 		// The zone waits until the interior is settled (#2190): no stand-in
 		// store covers a room still being dug, unseen or cleared.
 		reading := readInterior(s.Interior, func(c domain.Cell) (SiteCell, bool) { sc, ok := open.cells[c]; return sc, ok })
@@ -95,8 +96,29 @@ func (s StoreSite) Cells(open stockpileOpen) []domain.Cell {
 		}
 	}
 	if s.Width <= 0 || s.Height <= 0 {
-		// Exclusions can split either a rectangular or an explicit footprint.
-		return largestComponent(coverCells(open, s.footprint()))
+		regions := s.regions
+		if regions == nil {
+			regions = []Rectangle{s.Interior}
+		}
+		// Only policy exclusions change the drag. Native handles obstacles.
+		allowed := cellSet(withoutCells(s.footprint(), s.Avoid))
+		changed := len(s.Avoid) != 0
+		for c := range allowed {
+			if open.protected[c] || open.taken[c] {
+				delete(allowed, c)
+				changed = true
+			}
+		}
+		if changed {
+			regions = cellRects(allowed)
+		}
+		var out []Rectangle
+		for _, r := range regions {
+			if len(coverCells(open, rectCells(r))) > 0 {
+				out = append(out, r)
+			}
+		}
+		return out
 	}
 	within := open
 	within.only = cellSet(withoutCells(s.footprint(), s.Avoid))
@@ -108,7 +130,16 @@ func (s StoreSite) Cells(open stockpileOpen) []domain.Cell {
 	if len(sites) == 0 {
 		return nil
 	}
-	return stockpileSorted(rectCells(sites[0]))
+	return sites
+}
+
+// Cells estimates usable ground for capacity. It does not choose components.
+func (s StoreSite) Cells(open stockpileOpen) []domain.Cell {
+	var cells []domain.Cell
+	for _, r := range s.Rectangles(open) {
+		cells = append(cells, coverCells(open, rectCells(r))...)
+	}
+	return stockpileSorted(cells)
 }
 
 // coverCells are the open cells of room, in order.
@@ -202,13 +233,11 @@ func storeSiteEdits(zones []StockpileZone, sites []StoreSite, open stockpileOpen
 		if storeServed(zones, site) {
 			continue
 		}
-		cells := site.Cells(open)
-		if len(cells) == 0 {
-			continue
+		for _, r := range site.Rectangles(open) {
+			open.taken.Claim(rectCells(r))
+			out = append(out, StockpileEdit{Kind: StockpileCreate, Role: site.Role, Rectangle: r, Filter: site.Filter, Priority: site.Priority,
+				Explanation: fmt.Sprintf("stockpile role %s: create rectangle %dx%d at (%d,%d)", site.Role, r.Width, r.Height, r.X, r.Z)})
 		}
-		open.taken.Claim(cells)
-		out = append(out, StockpileEdit{Kind: StockpileCreate, Role: site.Role, Cells: cells, Filter: site.Filter, Priority: site.Priority,
-			Explanation: fmt.Sprintf("stockpile role %s: no zone on its site, create %d cells at (%d,%d)", site.Role, len(cells), cells[0].X, cells[0].Z)})
 	}
 	return out
 }

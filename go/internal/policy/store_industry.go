@@ -35,7 +35,7 @@ func (industryOwner) Stores(view StoreView) []Store {
 				continue
 			}
 			out = append(out, Store{StoreSite: StoreSite{
-				Role: domain.IngredientsPrefix + input.Bench, exact: true, room: room.Cells,
+				Role: domain.IngredientsPrefix + input.Bench, exact: true, regions: cellRects(cellSet(room.Cells)),
 				Width: benchStoreSize, Height: benchStoreSize, Roofed: true, Anchor: input.Cell,
 				Filter: filter, Priority: domain.ImportantPriority,
 			}})

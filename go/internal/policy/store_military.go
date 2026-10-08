@@ -97,7 +97,7 @@ func (militaryOwner) gearStores(r StoreView) ([]Store, error) {
 					break
 				}
 				if len(pool) < len(free) {
-					site.room = pool
+					site.regions = cellRects(cellSet(pool))
 				}
 			}
 			out = append(out, Store{StoreSite: site, Further: gear.module})

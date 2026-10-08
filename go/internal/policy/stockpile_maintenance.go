@@ -62,8 +62,8 @@ const (
 	StockpileRetarget StockpileEditKind = "retarget"
 )
 
-// StockpileEdit is one proposed edit of one zone. Cells are the cells a
-// create zones; Filter/Priority/Role a retarget's settings.
+// StockpileEdit creates a rectangle or edits one standing zone. Native
+// placement determines actual created footprints.
 type StockpileEdit struct {
 	Kind StockpileEditKind
 	Zone string
@@ -71,11 +71,14 @@ type StockpileEdit struct {
 	// After is the site role whose create must be admitted before this
 	// delete of a moved zone; empty once the site is served.
 	After       string `json:",omitempty"`
-	Cells       []domain.Cell
+	Rectangle   Rectangle
 	Filter      domain.StockpileFilter
 	Priority    domain.StockpilePriority
 	Explanation string
 }
+
+// Cells is the requested rectangle, not the resolved native footprint.
+func (e StockpileEdit) Cells() []domain.Cell { return rectCells(e.Rectangle) }
 
 // StockpileRequest is the review's input.
 type StockpileRequest struct {
@@ -316,10 +319,7 @@ func (s stockpileOpen) ok(p domain.Cell) bool {
 	}
 	walkable, wk := c.Walkable.Value()
 	zone, zk := c.Zone.Value()
-	// Native refuses a zone on ground holding things (the crash-site supplies),
-	// so a site there is retried every pass forever (#1581).
-	empty, ek := c.StorageEmpty.Value()
-	return wk && walkable && !c.Occupied() && zk && !zone && (!ek || empty)
+	return wk && walkable && !c.Occupied() && zk && !zone
 }
 
 // stockpileOpen indexes the cells a new zone may take: observed, walkable,

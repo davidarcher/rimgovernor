@@ -27,6 +27,22 @@ func TestStoreSiteCoversTheWholeInterior(t *testing.T) {
 	}
 }
 
+func TestStoreSiteRectangleKeepsBothSidesOfAnObstacle(t *testing.T) {
+	site := StoreSite{Role: domain.GeneralRole, Interior: Rectangle{X: 4, Z: 4, Width: 5, Height: 3}}
+	open := sitingOpen(domain.Cell{X: 6, Z: 4}, domain.Cell{X: 6, Z: 5}, domain.Cell{X: 6, Z: 6})
+	rects := site.Rectangles(open)
+	if len(rects) != 1 || rects[0] != site.Interior || len(site.Cells(open)) != 12 {
+		t.Fatal(rects, site.Cells(open))
+	}
+	c := domain.Cell{X: 4, Z: 4}
+	row := open.cells[c]
+	row.StorageEmpty = domain.Known(false)
+	open.cells[c] = row
+	if len(site.Cells(open)) != 12 {
+		t.Fatal("stored items rejected")
+	}
+}
+
 func TestStoreSiteSkipsBuildingAndBlockedCells(t *testing.T) {
 	t.Parallel()
 	site := StoreSite{Role: domain.GeneralRole, Interior: Rectangle{X: 4, Z: 4, Width: 5, Height: 3}}
@@ -88,10 +104,10 @@ func TestStoreSiteMoveCreatesBeforeDeleting(t *testing.T) {
 		t.Fatalf("delete %+v, want it to wait on the create of general", deletes)
 	}
 	creates := storeSiteEdits([]StockpileZone{old}, []StoreSite{site}, sitingOpen())
-	if len(creates) != 1 || creates[0].Kind != StockpileCreate || len(creates[0].Cells) != 9 {
+	if len(creates) != 1 || creates[0].Kind != StockpileCreate || len(creates[0].Cells()) != 9 {
 		t.Fatalf("create %+v", creates)
 	}
-	fresh := StockpileZone{ID: "Zone_new", Role: "general", Cells: creates[0].Cells}
+	fresh := StockpileZone{ID: "Zone_new", Role: "general", Cells: creates[0].Cells()}
 	deletes = storeSiteMoves([]StockpileZone{old, fresh}, []StoreSite{site})
 	if len(deletes) != 1 || deletes[0].Zone != "Zone_old" || deletes[0].After != "" {
 		t.Fatalf("delete %+v once the replacement stands, want it unconditional", deletes)
@@ -114,7 +130,7 @@ func TestStoreSitesInOnePassNeverOverlap(t *testing.T) {
 	}
 	seen := map[domain.Cell]string{}
 	for _, e := range edits {
-		for _, c := range e.Cells {
+		for _, c := range e.Cells() {
 			if other, dup := seen[c]; dup {
 				t.Fatalf("%s overlaps %s at %v", e.Role, other, c)
 			}

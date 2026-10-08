@@ -7,5 +7,5 @@ func allowListZone(priority domain.StockpilePriority, allow []string, cells []do
 	if err != nil {
 		return domain.ZoneCreate{}, err
 	}
-	return domain.NewFilteredStockpileZone(f, priority, cells)
+	return domain.NewFilteredStockpileZone(f, priority, stockpileTestRectangle(cells))
 }

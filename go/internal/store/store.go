@@ -25,7 +25,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 201
+const schemaVersion = 202
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -539,9 +539,10 @@ type transition struct {
 	Attempt     domain.AttemptID
 	Receipt     domain.Receipt
 	Observation domain.Observation
-	Zone        string              `json:",omitempty"`
-	Bill        string              `json:",omitempty"`
-	HeldReasons []domain.HeldReason `json:",omitempty"`
+	Zone        string               `json:",omitempty"`
+	Stockpiles  []domain.CreatedZone `json:",omitempty"`
+	Bill        string               `json:",omitempty"`
+	HeldReasons []domain.HeldReason  `json:",omitempty"`
 }
 
 func decode(data []byte, event *transition) error {
@@ -571,6 +572,9 @@ func apply(p domain.Progress, e transition) (domain.Progress, error) {
 	case "dispatch":
 		return p.MarkDispatched(e.Snapshot, e.Tick)
 	case "receipt":
+		if len(e.Stockpiles) > 0 {
+			return p.RecordStockpileReceipt(e.Attempt, e.Receipt, e.Stockpiles)
+		}
 		if e.Zone != "" {
 			return p.RecordZoneReceipt(e.Attempt, e.Receipt, e.Zone)
 		}
@@ -704,6 +708,10 @@ func (s *Store) RecordReceipt(ctx context.Context, plan domain.PlanID, action do
 // identity native created, which zone claims read.
 func (s *Store) RecordZoneReceipt(ctx context.Context, plan domain.PlanID, action domain.ActionID, attempt domain.AttemptID, zone string) (domain.Progress, error) {
 	return s.advance(ctx, plan, action, transition{Kind: "receipt", Attempt: attempt, Receipt: domain.ReceiptAccepted, Zone: zone})
+}
+
+func (s *Store) RecordStockpileReceipt(ctx context.Context, plan domain.PlanID, action domain.ActionID, attempt domain.AttemptID, zones []domain.CreatedZone) (domain.Progress, error) {
+	return s.advance(ctx, plan, action, transition{Kind: "receipt", Attempt: attempt, Receipt: domain.ReceiptAccepted, Stockpiles: zones})
 }
 
 // RecordBillReceipt records an applied production_bill's or surgery's receipt

@@ -307,7 +307,7 @@ func TestDevelopmentExemptHusbandrySettingsWrite(t *testing.T) {
 // never wait behind the shelter for a slot or a hauler.
 func TestDevelopmentExemptZoneCreate(t *testing.T) {
 	t.Parallel()
-	zone, err := domain.NewFilteredStockpileZone(domain.GeneralFilter(), domain.NormalPriority, []domain.Cell{{X: 1, Z: 1}})
+	zone, err := domain.NewFilteredStockpileZone(domain.GeneralFilter(), domain.NormalPriority, stockpileTestRectangle([]domain.Cell{{X: 1, Z: 1}}))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,7 +6,7 @@ Vocabulary follows the [glossary](../agent-runbook.md#vocabulary-glossary-epic-1
 `standards`, `methods` (`standard_id`, `episode`) and `rounds`; blob keys `standard/<id>`; the
 `standard` and `episode` JSON keys; status words `open`/`settled`/`voided` (Standards) and
 `open`/`completed`/`voided` (Projects). Finding strings are `unclear`/`unmet`/`met` (Incident bindings
-store `unclear`/`active`/`clear`); schema 201. Databases and saves from other versions are refused;
+store `unclear`/`active`/`clear`); journal schema 202. Databases and saves from other versions are refused;
 there is no adoption path.
 
 Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second
@@ -46,6 +46,10 @@ the save holds. The rest of this page details the session journal.
 - **Request-ID replay.** Player submissions (policies, decisions, building and research intents,
   control intents, clock acknowledgements) are keyed by the caller's request ID within a world.
   Repeating an ID returns the recorded outcome; a changed body under the same ID is a conflict.
+  Native stockpile placement uses the immutable action ID as its replay key.
+  The existing in-memory action replay retains those creation receipts for the
+  load, including every created zone ID and actual footprint. Go journals the
+  receipt and derives ownership from it; no ownership metadata is saved natively.
 - **The Rounds cursor and policy inputs.** Latches, recovery histories and the current Standard
   bindings let the next Rounds continue where the last stopped; population and resource policies and
   per-pawn decisions are what the reviewer reads.

@@ -175,7 +175,7 @@ func TestMaintenanceFillsGearRooms(t *testing.T) {
 	created := map[string]int{}
 	for _, e := range review.Edits {
 		if e.Kind == StockpileCreate {
-			created[stockpileRolePrefix(e.Role)] = len(e.Cells)
+			created[stockpileRolePrefix(e.Role)] = len(e.Cells())
 		}
 	}
 	if created["armory"] != 25 || created["wardrobe"] != 25 {

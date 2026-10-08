@@ -1,7 +1,7 @@
 // The zone/delete case exercises the native zone intents (N01.04, issues
 // #34 and #941) in one run, each one Action on rimgovernor/operations_apply,
 // the same Actions/Apply call Go's plain intent path sends: the one
-// ZoneIntent (#1353) in each shape -- create (NativeZoneCreation.cs),
+// ZoneIntent (#1353) in each shape -- create (NativeStockpilePlacement.cs),
 // settings (NativeStockpilePatch.cs), cells (NativeZoneCellEdit.cs, both
 // directions) and delete (NativeZoneDeletion.cs) -- read back through the native
 // rimgovernor/observations_list_zones tool (NativeZoneObservationTools.cs).
@@ -15,9 +15,8 @@
 // One corner cell is removed (leaving a contiguous 3-cell L-shape, and
 // returning that cell to genuinely free ground), that same cell is added
 // back (restoring the original 2x2), and the exact zone is then deleted.
-// Native validates each intent against live state at apply: a stale census
-// token and a missing zone refuse, and resending an intent whose effect
-// already holds applies again without touching the zone.
+// Native validates each intent against live state at apply. A stockpile
+// placement resends its immutable key to recover every original created ID.
 package zone
 
 import (
@@ -216,7 +215,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return map[string]any{
 			"label":     "Steel, WoodLog",
 			"kind":      "ZONE_TYPE_STOCKPILE",
-			"addCells":  map[string]any{"explicitCells": map[string]any{"cells": cells}},
+			"addCells":  map[string]any{"rectangle": map[string]any{"origin": cells[0], "width": 2, "height": 2}},
 			"stockpile": stockpileBody,
 		}
 	}
@@ -224,11 +223,16 @@ func run(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	zoneID := na.AsString(createEffect["zoneId"])
+	created := na.AsSlice(createEffect["created"])
+	if len(created) != 1 {
+		return fmt.Errorf("expected one created component: %#v", createEffect)
+	}
+	createdZone, _ := na.AsMap(created[0])
+	zoneID := na.AsString(createdZone["zoneId"])
 	if zoneID == "" {
 		return fmt.Errorf("apply-create: missing zoneId in effect evidence: %#v", createEffect)
 	}
-	if present, _ := na.AsBool(createEffect["present"]); !present || int(na.AsNumber(createEffect["listedCellCount"])) != len(cells) {
+	if len(na.AsSlice(createdZone["cells"])) != len(cells) {
 		return fmt.Errorf("apply-create: expected a present %d-cell zone, got %#v", len(cells), createEffect)
 	}
 	report["created_zone_id"] = zoneID
@@ -242,11 +246,10 @@ func run(ctx context.Context, s cases.Session) error {
 	if err := zoneFilter("filter-after-create", zoneID, "Important", []string{"Steel", "WoodLog"}, 0.5, 1, "Normal", "Legendary"); err != nil {
 		return err
 	}
-	// A resend (a lost reply's new attempt) finds the zone standing and
-	// applies again with the same identity instead of a second zone.
-	if resent, err := applied("resend-create", "zone-create-resend", "zone", create()); err != nil {
+	// A lost reply resends the immutable placement key and recovers the receipt.
+	if resent, err := applied("resend-create", "zone-create", "zone", create()); err != nil {
 		return err
-	} else if na.AsString(resent["zoneId"]) != zoneID {
+	} else if !na.DeepEqual(resent, createEffect) {
 		return fmt.Errorf("resend-create: expected the standing zone %s, got %#v", zoneID, resent)
 	}
 	if token, _, err := zoneState("zone-after-create-resend", zoneID); err != nil {

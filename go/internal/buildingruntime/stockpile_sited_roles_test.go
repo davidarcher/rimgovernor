@@ -74,10 +74,10 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 		t.Fatalf("review %+v", review)
 	}
 	create := review.Edits[0]
-	if create.Kind != policy.StockpileCreate || create.Role != "meals:10_10" || create.Priority != domain.CriticalPriority || create.Filter != simple || len(create.Cells) != 1 {
+	if create.Kind != policy.StockpileCreate || create.Role != "meals:10_10" || create.Priority != domain.CriticalPriority || create.Filter != simple || len(create.Cells()) != 1 {
 		t.Fatalf("create %+v", create)
 	}
-	c := create.Cells[0]
+	c := create.Cells()[0]
 	for _, a := range adjacent {
 		if a == c {
 			t.Fatal("meal cell on a chair", c)
@@ -129,7 +129,7 @@ func TestMealClosetIsZonedFromThePlan(t *testing.T) {
 		switch {
 		case e.Kind == policy.StockpileDelete && e.Zone == "Zone_7":
 			deleted = true
-		case e.Kind == policy.StockpileCreate && e.Role == "meals:14_21" && e.Filter == domain.MealShelfFilter() && len(e.Cells) == 4:
+		case e.Kind == policy.StockpileCreate && e.Role == "meals:14_21" && e.Filter == domain.MealShelfFilter() && len(e.Cells()) == 4:
 			created = true
 		default:
 			t.Fatalf("unexpected edit %+v", e)

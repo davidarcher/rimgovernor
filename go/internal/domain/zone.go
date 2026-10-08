@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 )
@@ -36,20 +37,21 @@ const (
 	LowPriority StockpilePriority = "low"
 )
 
-// ZoneCreate owns one bounded connected footprint. Settings are closed variants:
-// an explicitly sown crop, or a stockpile's StockpileFilter and priority
-// (NewFilteredStockpileZone). Role is the stable key a stockpile planner claims the
+// ZoneCreate is an exact growing/fishing footprint or a stockpile rectangle
+// drag. RimWorld resolves the stockpile's usable cells and connected zones.
+// Role is the stable key a stockpile planner claims the
 // zone by (e.g. "general", "ingredients:<benchID>", "dump:worn"); it
 // travels with the zone_create receipt into store.OwnedZone. Empty is a
 // legacy role-less claim.
 type ZoneCreate struct {
-	kind     ZoneKind
-	crop     string
-	priority StockpilePriority
-	cells    string
-	filter   StockpileFilter
-	role     string
-	extendID string
+	kind      ZoneKind
+	crop      string
+	priority  StockpilePriority
+	cells     string
+	filter    StockpileFilter
+	role      string
+	extendID  string
+	rectangle GroundRect
 }
 
 func canonicalConnectedCells(cells []Cell) (string, error) {
@@ -148,17 +150,16 @@ func validStockpilePriority(p StockpilePriority) bool {
 	return false
 }
 
-// NewFilteredStockpileZone is a stockpile with any canonical filter.
-func NewFilteredStockpileZone(filter StockpileFilter, priority StockpilePriority, cells []Cell) (ZoneCreate, error) {
+// NewFilteredStockpileZone requests a rectangle drag with a canonical filter.
+func NewFilteredStockpileZone(filter StockpileFilter, priority StockpilePriority, rectangle GroundRect) (ZoneCreate, error) {
 	canonical, err := ReconstructStockpileFilter(filter)
 	if err != nil || canonical != filter || !validStockpilePriority(priority) {
 		return ZoneCreate{}, errors.New("invalid stockpile zone configuration")
 	}
-	data, err := canonicalConnectedCells(cells)
-	if err != nil {
-		return ZoneCreate{}, err
+	if rectangle.Origin.X < 0 || rectangle.Origin.Z < 0 || rectangle.Width <= 0 || rectangle.Height <= 0 || int64(rectangle.Width)*int64(rectangle.Height) > 4096 || int64(rectangle.Origin.X)+int64(rectangle.Width) > math.MaxInt32 || int64(rectangle.Origin.Z)+int64(rectangle.Height) > math.MaxInt32 {
+		return ZoneCreate{}, errors.New("invalid stockpile rectangle")
 	}
-	return ZoneCreate{kind: StockpileZone, priority: priority, cells: data, filter: filter}, nil
+	return ZoneCreate{kind: StockpileZone, priority: priority, rectangle: rectangle, filter: filter}, nil
 }
 
 // WithRole tags a stockpile with the role key its planner claims it by.
@@ -184,7 +185,7 @@ func ReconstructZone(z ZoneCreate) (ZoneCreate, error) {
 	case GrowingZone:
 		return NewZoneCreate(z.kind, z.crop, z.Cells())
 	case StockpileZone:
-		out, err := NewFilteredStockpileZone(z.filter, z.priority, z.Cells())
+		out, err := NewFilteredStockpileZone(z.filter, z.priority, z.rectangle)
 		if err == nil && z.role != "" {
 			out, err = out.WithRole(z.role)
 		}
@@ -197,9 +198,26 @@ func ReconstructZone(z ZoneCreate) (ZoneCreate, error) {
 func (z ZoneCreate) Kind() ZoneKind              { return z.kind }
 func (z ZoneCreate) Crop() string                { return z.crop }
 func (z ZoneCreate) Priority() StockpilePriority { return z.priority }
+
+// Cells is the requested ground; stockpile receipts hold actual created cells.
 func (z ZoneCreate) Cells() []Cell {
+	if z.kind == StockpileZone {
+		return z.rectangle.Cells()
+	}
 	var cells []Cell
 	_ = json.Unmarshal([]byte(z.cells), &cells)
+	return cells
+}
+
+func (z ZoneCreate) Rectangle() GroundRect { return z.rectangle }
+
+func (r GroundRect) Cells() []Cell {
+	var cells []Cell
+	for x := int32(0); x < r.Width; x++ {
+		for z := int32(0); z < r.Height; z++ {
+			cells = append(cells, Cell{X: r.Origin.X + x, Z: r.Origin.Z + z})
+		}
+	}
 	return cells
 }
 

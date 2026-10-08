@@ -29,6 +29,7 @@ namespace HomeBridge.BridgeTools
     internal sealed class ZoneActionHandler : IActionHandler
     {
         private static readonly IActionHandler Creation = new ZoneCreationActionHandler();
+        private static readonly IActionHandler StockpilePlacement = new StockpilePlacementActionHandler();
         private static readonly IActionHandler Deletion = new ZoneDeletionActionHandler();
         private static readonly IActionHandler CellEdit = new ZoneCellsActionHandler();
         private static readonly IActionHandler Settings = new StockpileActionHandler();
@@ -37,7 +38,7 @@ namespace HomeBridge.BridgeTools
         {
             if (intent == null) return Creation;
             if (intent.HasDelete) return Deletion;
-            if (intent.HasKind) return Creation;
+            if (intent.HasKind) return intent.Kind == Operations.ZoneType.Stockpile ? StockpilePlacement : Creation;
             if (intent.AddCells != null || intent.RemoveCells != null) return CellEdit;
             return Settings;
         }

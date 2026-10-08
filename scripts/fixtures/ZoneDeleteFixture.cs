@@ -10,13 +10,36 @@ namespace HomeBridge.BridgeTools
     // Private disposable acceptance only. Builds one small walled, explicitly
     // roofed, empty and unzoned 2x2 interior near an existing colonist and
     // reports its exact cells, so zone/delete can apply a zone intent create
-    // (a stockpile zone needs roofed, walkable, clear, unzoned ground --
-    // NativeZoneCreation.Prepare's own stockpile eligibility) and then the
+    // and then the
     // settings, cell and DeleteZone intents on the zone it creates, without
     // depending on native random colony layout, mirroring BedAssignFixture's
     // own small-enclosure pattern.
     public sealed class ZoneDeleteFixture
     {
+        [Tool("test/stockpile_rectangle_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Pinned lab stockpile rectangle with a wall barrier, obstacle, stored Steel and an existing player zone.")]
+        public async Task<object> Rectangle(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) return Refuse("Paused lab required.");
+                var origin = map.Center + new IntVec3(14, 0, 4);
+                var rect = new CellRect(origin.x, origin.z, 7, 5);
+                if (!rect.Cells.All(c => c.InBounds(map))) return Refuse("Lab rectangle outside map.");
+                foreach (var c in rect.Cells) {
+                    foreach (var thing in c.GetThingList(map).ToArray()) thing.Destroy(DestroyMode.Vanish);
+                    var zone = c.GetZone(map); if (zone != null) zone.RemoveCell(c);
+                    map.terrainGrid.SetTerrain(c, TerrainDefOf.Soil); map.roofGrid.SetRoof(c, null); map.fogGrid.Unfog(c);
+                }
+                var walls = rect.Cells.Where(c => c.x == origin.x + 3).Concat(new[] { origin + new IntVec3(1, 0, 2) });
+                foreach (var c in walls) { var wall = ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.WoodLog); wall.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(wall,c,map); }
+                var steel = ThingMaker.MakeThing(ThingDefOf.Steel); steel.stackCount = 5; GenSpawn.Spawn(steel,origin,map);
+                var playerZone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile,map.zoneManager);
+                map.zoneManager.RegisterZone(playerZone); playerZone.label = "Player stockpile"; playerZone.AddCell(origin + new IntVec3(6,0,4));
+                playerZone.settings.Priority = StoragePriority.Low; playerZone.settings.filter.SetDisallowAll();
+                return new { success = true, x = origin.x, z = origin.z, width = 7, height = 5, playerZoneId = playerZone.GetUniqueLoadID(), expectedCells = 28, expectedComponents = 2 };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         [Tool("test/zone_delete_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one small walled, explicitly roofed, empty and unzoned 2x2 interior near an existing colonist and report its exact cells.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {

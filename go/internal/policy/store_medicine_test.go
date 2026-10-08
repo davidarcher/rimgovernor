@@ -18,7 +18,7 @@ func TestMedicalStoreBesideThePlannedBeds(t *testing.T) {
 	t.Parallel()
 	view, hospital := hospitalView(testShapes)
 	edit, ok := storeCreates(view)[plannedKey(domain.MedicineRolePrefix, hospital.Interior)]
-	if !ok || len(edit.Cells) != 4 || edit.Priority != domain.ImportantPriority || edit.Filter != domain.MedicineFilter() || !withinRect(edit.Cells, hospital.Interior) {
+	if !ok || len(edit.Cells()) != 4 || edit.Priority != domain.ImportantPriority || edit.Filter != domain.MedicineFilter() || !withinRect(edit.Cells(), hospital.Interior) {
 		t.Fatalf("%+v", edit)
 	}
 	in, ok := InteriorRoomFromLayout(hospital, testShapes)
@@ -35,12 +35,12 @@ func TestMedicalStoreBesideThePlannedBeds(t *testing.T) {
 			taken[c] = true
 		}
 	}
-	for _, c := range edit.Cells {
+	for _, c := range edit.Cells() {
 		if taken[c] {
 			t.Fatal("medicine on a planned bed or monitor", c)
 		}
 		if c.Z > 13 {
-			t.Fatal("medicine at the door, not beside the beds", edit.Cells)
+			t.Fatal("medicine at the door, not beside the beds", edit.Cells())
 		}
 	}
 	if f := edit.Filter; f.Base() != domain.BaseNothing || len(f.Allow()) != 1 {
@@ -54,12 +54,12 @@ func TestMedicalStoreFallsBackToTheDoorAndNeedsAHospital(t *testing.T) {
 	t.Parallel()
 	view, hospital := hospitalView(PieceShapes{})
 	edit, ok := storeCreates(view)[plannedKey(domain.MedicineRolePrefix, hospital.Interior)]
-	if !ok || len(edit.Cells) != 4 || !withinRect(edit.Cells, hospital.Interior) {
+	if !ok || len(edit.Cells()) != 4 || !withinRect(edit.Cells(), hospital.Interior) {
 		t.Fatalf("%+v", edit)
 	}
-	for _, c := range edit.Cells {
+	for _, c := range edit.Cells() {
 		if c.Z < 13 {
-			t.Fatal("medicine away from the door", edit.Cells)
+			t.Fatal("medicine away from the door", edit.Cells())
 		}
 	}
 	if got := storeCreates(StoreView{Layout: &LayoutPlan{}}); len(got) != 0 {

@@ -190,9 +190,9 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	if err := intentRefused("zone-create", map[string]any{"zone": map[string]any{
 		"label": "RimGovernor apply refusal", "kind": "ZONE_TYPE_STOCKPILE",
-		"addCells":  map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{freeCells[0]}}},
+		"addCells":  map[string]any{"rectangle": map[string]any{"origin": freeCells[0], "width": 1, "height": 1}},
 		"stockpile": map[string]any{"priority": "STORAGE_PRIORITY_NORMAL", "preset": "FILTER_PRESET_NOTHING"},
-	}}, "FAILURE_CODE_INVALID_REQUEST", "Zone creation refused: fresh free ground required: cell "+at(freeCells[0])+" is not walkable, unzoned, empty storage ground"); err != nil {
+	}}, "FAILURE_CODE_INVALID_REQUEST", "Rectangle has no free vanilla-zoneable stockpile cells"); err != nil {
 		return err
 	}
 
