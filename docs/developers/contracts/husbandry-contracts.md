@@ -86,7 +86,7 @@ before. Raw facts only; policy decides.
   (below), not culled. A bonded animal (`Bonded`, `bonded_pawn_ids`) is never
   removed: `herdRemovalMethod` returns none for it (so surplus slaughter,
   release, food slaughter and sale skip it and pick an unbonded animal of the
-  race) and `PrioritizeSlaughterChoice` orders no slaughter for it. An unread
+  race). An unread
   bond fails the removal choice as unknown.
 - **Plan output.** `HerdPlan.Roles` (job, preferred, founder, wanted sex,
   retiring) and `HerdPlan.Jobs` (ranked obtainable races, target, head count)
@@ -164,11 +164,19 @@ Native handler labor afterwards (taming, walking an animal off-map, training
 steps) is observed through the animal's own state, never inferred from the
 receipt. `cancel_slaughter` and `cancel_release` remove a standing designation.
 
+Standing slaughter, release and tame designations lend game time to vanilla
+handlers. The governor does not assign a prioritized slaughter job.
+
+Training selection reads availability, learned state and the native wanted flag.
+A wanted, unlearned trainable remains a herd deficit, lends game time and needs
+no further write. An unknown wanted flag refuses selection until read. Method
+identities count prior writes independently of the eight-refusal budget for each
+animal and trainable; successful requests do not consume that budget.
+
 | Method | Target | Native write | Completed when |
 | --- | --- | --- | --- |
 | `train` | player animal | `SetWantedRecursive` | trainable still wanted (learned state tracked separately) |
 | `slaughter` | player animal | `Slaughter` designation | designation present |
-| `prioritize_slaughter` | player animal with a standing slaughter designation | `GiveJobIntent` `Slaughter`, prioritized, by the best Animals-skilled Handling-capable colonist (argument: handler id); no draft, no flag write | handler takes the job; the designation is consumed by the slaughter |
 | `release` | player animal | `ReleaseAnimalToWild` designation | designation present |
 | `tame` | wild animal | `Tame` designation | designation present, or the animal now reads as a player animal (the taming job consumed it) |
 | `sterilize` | player animal | `HealthCardUtility.CreateSurgeryBill` of the sterilize recipe, found live on the animal's `def.AllRecipes` (whole-body, adds `HediffDefOf.Sterilized`); no argument, no fallback recipe | bill queued; the animal's `sterilized` reads back once the surgery has run (receipt: `AnimalEffect.sterilized`, `sterilize_queued`) |

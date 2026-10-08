@@ -111,42 +111,9 @@ func TestFoodOfferRetainsPendingSlaughterWithoutDuplicate(t *testing.T) {
 	}
 }
 
-func TestPrioritizeSlaughterChoice(t *testing.T) {
-	handler := func(id PawnID, level int, incapable bool) PawnProfile {
-		p := PawnProfile{ID: id, WorkSkill: testWorkSkill, Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: level}}}
-		if incapable {
-			p.Incapable = map[WorkType]bool{WorkHandling: true}
-		}
-		return p
-	}
-	v := animalFixture(0)
-	rows, _ := v.Animals.Value()
-	rows[0].Release, rows[0].Slaughter = domain.Known(false), domain.Known(true)
-	rows[0].Herd.SlaughterBarred, rows[0].Herd.EatingBarred = domain.Known(false), domain.Known(false)
-	animals := domain.Known(rows)
-	two := domain.Known([]PawnProfile{handler("a", 4, false), handler("b", 9, false), handler("c", 15, true)})
-	got := PrioritizeSlaughterChoice(animals, two)
-	if got.Method != domain.HusbandryPrioritizeSlaughter || got.Animal != "muffalo" || got.Handler != "b" {
-		t.Fatal(got)
-	}
-	if got := PrioritizeSlaughterChoice(animals, domain.Known([]PawnProfile{handler("c", 15, true)})); got.Method != "" || got.Reason != HusbandryNoDeficit {
-		t.Fatal("no capable handler must leave the designation to native", got)
-	}
-	rows[0].Slaughter = domain.Known(false)
-	if got := PrioritizeSlaughterChoice(domain.Known(rows), two); got.Method != "" {
-		t.Fatal("an undesignated animal got an order", got)
-	}
-	rows[0].Slaughter, rows[0].Release = domain.Known(true), domain.Known(true)
-	if got := PrioritizeSlaughterChoice(domain.Known(rows), two); got.Method != "" {
-		t.Fatal("a release-marked animal got an order", got)
-	}
-}
-
 // A bonded animal is never the removal pick: native refuses it for slaughter
 // and release (SafeToSlaughter, SafeToRelease read false), so the unbonded
-// animal of the same race goes instead (#1645). The sale and prioritized
-// slaughter paths keep their own bonded check, which native does not apply
-// for them (a player-designated slaughter).
+// animal of the same race goes instead (#1645). Sale also protects bonds.
 func TestBondedAnimalSkippedByEveryRemovalPath(t *testing.T) {
 	bonded := bondedAs(planAnimal("a1", "Cow", "None"), true)
 	bonded.BondedPawns = []string{"p1"}
@@ -166,18 +133,9 @@ func TestBondedAnimalSkippedByEveryRemovalPath(t *testing.T) {
 	if sale := HerdSaleAnimals(domain.Known([]UpkeepAnimal{bonded, free}), retired); !reflect.DeepEqual(sale, map[PawnID]bool{"a2": true}) {
 		t.Fatalf("sale = %v, want a2", sale)
 	}
-	bonded.Slaughter, free.Slaughter = domain.Known(true), domain.Known(true)
-	handlers := domain.Known([]PawnProfile{{ID: "h", WorkSkill: testWorkSkill, Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: 5}}}})
-	if got := PrioritizeSlaughterChoice(domain.Known([]UpkeepAnimal{bonded, free}), handlers); got.Animal != "a2" {
-		t.Fatalf("prioritized slaughter = %+v, want a2", got)
-	}
-	if got := PrioritizeSlaughterChoice(domain.Known([]UpkeepAnimal{bonded}), handlers); got.Method != "" {
-		t.Fatalf("bonded animal got a slaughter order: %+v", got)
-	}
 }
 
-// A venerated or precept-barred race is never slaughtered, ordered or
-// offered as food; an unread precept plans none of them.
+// A venerated or precept-barred race is never offered as food.
 func TestSlaughterBarredRaceIsNeverRemoved(t *testing.T) {
 	rows := cows(3)
 	for i := range rows {
@@ -186,19 +144,9 @@ func TestSlaughterBarredRaceIsNeverRemoved(t *testing.T) {
 	}
 	rows[1].Slaughter, rows[1].SlaughterFacts = domain.Known(true), safeSlaughter(false)
 	animals := domain.Known(rows)
-	handler := domain.Known([]PawnProfile{{ID: "h", WorkSkill: testWorkSkill, Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: 9}}}})
-	if got := PrioritizeSlaughterChoice(animals, handler); got.Method != "" {
-		t.Fatal("prioritized a barred slaughter", got)
-	}
 	food := []SlaughterFoodAnimal{{ID: "cowa", Race: "Cow", MeatNutrition: domain.Known(15.0), FeedPerDay: domain.Known(1.0), ReproductionDays: domain.Known(10.0)}}
 	if got := SlaughterFoodChannels(food, animals, HerdPolicy{}); len(got) != 0 {
 		t.Fatal("barred race offered as food", got)
-	}
-	unread := cows(3)
-	unread[1].Herd.SlaughterBarred = domain.Unknown[bool]()
-	unread[1].Slaughter = domain.Known(true)
-	if got := PrioritizeSlaughterChoice(domain.Known(unread), handler); got.Reason != HusbandryUnknown {
-		t.Fatal("unread precept must fail", got)
 	}
 }
 

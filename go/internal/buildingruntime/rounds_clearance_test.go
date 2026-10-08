@@ -90,6 +90,89 @@ type recoveryRoofCatalog struct {
 	empty bool
 }
 
+type roundsRecoveryNative struct{ *roundsClearanceNative }
+
+func (n *roundsRecoveryNative) DefinitionCatalog(ctx context.Context, identity *c.Identity) (*bridge.DefinitionCatalog, error) {
+	return (recoveryRoofCatalog{}).DefinitionCatalog(ctx, identity)
+}
+
+func TestRoundsClearanceWaitsForDesignatedBatchWithoutSpendingRetries(t *testing.T) {
+	reviewer, db, _, _, native := roundsFixture(t)
+	v := native.reply.GetObserved()
+	v.ColonistCount, v.WorkerCount = proto.Uint32(2), proto.Uint32(2)
+	newRow := func(id string) *o.PawnState {
+		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{{Field: proto.String("pawn.snapshot"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}, {Field: proto.String("mental_state"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}}
+	}
+	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{newRow("cutter"), newRow("cutter2")}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
+	source := &roundsRecoveryNative{&roundsClearanceNative{roundsBlightNative: &roundsBlightNative{roundsNative: native}}}
+	for i := 1; i <= policy.DefaultRecoveryBatch; i++ {
+		row := clearanceTestRow(fmt.Sprintf("Thing_Wall%d", i), int32(40+i))
+		row.Salvage.PathLength = float64(i)
+		source.rows = append(source.rows, row)
+	}
+	native.cells = &bridge.PlanningWindow{Context: v.Context}
+	for z := int32(0); z < 15; z++ {
+		for x := int32(30); x < 65; x++ {
+			cell := openCell(x, z)
+			if z == 5 && x >= 41 && x <= 52 {
+				cell.Things = []policy.Thing{{Def: "Wall", ID: uint64(x - 40), Category: policy.ThingBuilding, Flags: policy.FlagEdifice}}
+			}
+			native.cells.Cells = append(native.cells.Cells, cell)
+		}
+	}
+	reviewer.native, reviewer.methods = source, domain.Known([]policy.ConcernID{policy.ClearHomeObstructions})
+	ctx := context.Background()
+	if _, err := reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoundsClearancePlanner(reviewer, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := planner.Step(ctx)
+	if err != nil || first.Verdict != BuildingReasonAdmitted {
+		t.Fatal(first, err)
+	}
+	plan, err := db.LoadPlan(ctx, first.Plan)
+	if err != nil || len(plan.Spec.Actions()) != policy.DefaultRecoveryBatch {
+		t.Fatal("expected one full removal batch", plan, err)
+	}
+	snapshot := reviewer.player.session.State().Snapshot
+	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	for _, action := range plan.Spec.Actions() {
+		if _, err = db.Prepare(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Dispatch(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.RecordReceipt(ctx, plan.Spec.ID(), action.ID(), 1, domain.ReceiptAccepted); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, row := range source.rows {
+		row.Designated = proto.Bool(true)
+	}
+	if _, err = reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 12; i++ {
+		result, err := planner.Step(ctx)
+		if err != nil || result.Verdict != BuildingReasonExistingWork || result.Plan != "" || result.NativeWorkTicks == 0 {
+			t.Fatal("pending native work must wait without another method", result, err)
+		}
+	}
+	// The buildings are still present, so clearance has not recovered.
+	review, err := db.LoadRounds(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	goal, workable, err := db.Workable(ctx, review, policy.ClearHomeObstructions)
+	if err != nil || !workable || goal.Standard.Finding != domain.FindingUnmet || len(goal.History) != 1 {
+		t.Fatal("designation is not completed clearance", goal, workable, err)
+	}
+}
+
 func (s recoveryRoofCatalog) DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error) {
 	if s.empty {
 		return &bridge.DefinitionCatalog{}, nil
@@ -158,9 +241,41 @@ func TestRoundsClearanceRecoveryStepIsRoofFirstThenBatch(t *testing.T) {
 	if _, ok := actions[0].Deconstruction(); !ok {
 		t.Fatal("not a deconstruction", actions[0])
 	}
+	// Standing designations still participate in the joint roof check, but
+	// they do not need another write once that check admits the full batch.
+	rows[0].Designated, rows[1].Designated = true, true
+	for i := 0; i < 12; i++ {
+		step = planner.recoveryStep(ctx, nil, queue, rows, colony)
+		if len(step.Targets) != 2 {
+			t.Fatal("pending buildings disappeared from safety planning", step)
+		}
+		if pending := pendingClearanceStep(step); len(pending.Targets) != 0 {
+			t.Fatal("standing designations were reissued", pending)
+		}
+	}
+	rows[1].Designated = false
+	step = pendingClearanceStep(planner.recoveryStep(ctx, nil, queue, rows, colony))
+	if len(step.Targets) != 1 || step.Targets[0].EntityID != rows[1].EntityID {
+		t.Fatal("a missing designation needs a fresh write", step)
+	}
 	// Roof rules the source cannot serve plan nothing.
 	if step = (&RoundsClearancePlanner{native: recoveryRoofCatalog{empty: true}}).recoveryStep(ctx, nil, queue, rows, colony); len(step.Targets) != 0 || len(step.Roof) != 0 {
 		t.Fatalf("a failed roof read still planned %+v", step)
+	}
+}
+
+func TestClearancePendingWritesKeepTheSelectedPhase(t *testing.T) {
+	step := policy.GroundStep{Phase: policy.GroundFurniture,
+		Targets: []policy.ClearanceTarget{{EntityID: "pending", Designated: true}, {EntityID: "new"}},
+		Floors:  []policy.ClearanceFloor{{Cell: domain.Cell{X: 1}, Designated: true}, {Cell: domain.Cell{X: 2}}},
+		Cleared: []policy.Rectangle{{Width: 5, Height: 5}},
+	}
+	got := pendingClearanceStep(step)
+	if got.Phase != step.Phase || !slices.Equal(got.Cleared, step.Cleared) || len(got.Targets) != 1 || got.Targets[0].EntityID != "new" || len(got.Floors) != 1 || got.Floors[0].Cell.X != 2 {
+		t.Fatal(got)
+	}
+	if len(step.Targets) != 2 || len(step.Floors) != 2 {
+		t.Fatal("filter mutated the census")
 	}
 }
 

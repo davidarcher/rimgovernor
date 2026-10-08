@@ -64,8 +64,8 @@ type UpkeepAnimal struct {
 // HusbandryTrainable is one trainable definition's recursive-training
 // eligibility for one animal, ported from AnimalState.TrainingEntry.
 type HusbandryTrainable struct {
-	Def                string
-	Available, Learned domain.Fact[bool]
+	Def                        string
+	Available, Learned, Wanted domain.Fact[bool]
 }
 type AnimalUpkeepObservation struct {
 	Forecast domain.Fact[FoodForecast]

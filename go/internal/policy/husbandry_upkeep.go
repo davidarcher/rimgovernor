@@ -88,9 +88,6 @@ type HusbandryChoice struct {
 	Animal       PawnID
 	Method       domain.HusbandryMethod
 	TrainableDef string
-	// Handler is the colonist ordered to slaughter, for
-	// HusbandryPrioritizeSlaughter only.
-	Handler PawnID
 	// Argument is the master id or follow flag ("true"/"false") of
 	// HusbandryMaster and the follow methods (HerdMasterChoice).
 	Argument string
@@ -317,6 +314,13 @@ func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], feedShort 
 			avail, ak := t.Available.Value()
 			learned, lk := t.Learned.Value()
 			if ak && avail && lk && !learned {
+				wanted, known := t.Wanted.Value()
+				if !known {
+					return HusbandryChoice{Reason: HusbandryUnknown}
+				}
+				if wanted {
+					continue
+				}
 				return HusbandryChoice{Animal: a.ID, Method: domain.HusbandryTrain, TrainableDef: t.Def}
 			}
 		}
@@ -350,4 +354,33 @@ func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], feedShort 
 		return HusbandryChoice{Animal: removals[0].animal.ID, Method: removals[0].method}
 	}
 	return HusbandryChoice{Reason: HusbandryNoDeficit}
+}
+
+// HerdWorkPending is requested training or a standing animal designation.
+// Ordinary native handlers need game time, not another write or a forced job.
+func HerdWorkPending(animals, wild domain.Fact[[]UpkeepAnimal], herd HerdPolicy) bool {
+	wildRows, _ := wild.Value()
+	for _, a := range wildRows {
+		if tame, _ := a.Tame.Value(); tame {
+			return true
+		}
+	}
+	rows, _ := animals.Value()
+	for _, a := range rows {
+		if release, _ := a.Release.Value(); release {
+			return true
+		}
+		if slaughter, _ := a.Slaughter.Value(); slaughter {
+			return true
+		}
+		for _, t := range herdTrainQueue(herd, a) {
+			available, ak := t.Available.Value()
+			learned, lk := t.Learned.Value()
+			wanted, wk := t.Wanted.Value()
+			if ak && available && lk && !learned && wk && wanted {
+				return true
+			}
+		}
+	}
+	return false
 }

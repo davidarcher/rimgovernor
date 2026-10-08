@@ -44,6 +44,23 @@ func TestAnimalCensusPreservesUnknownAndKnownFalse(t *testing.T) {
 	}
 }
 
+func TestAnimalCensusPreservesTrainingWanted(t *testing.T) {
+	entry := &o.TrainingEntry{DefName: proto.String("Release"), Available: proto.Bool(true), Learned: proto.Bool(false)}
+	pawns := bridge.NewPawns(&o.PawnState{Pawn: &o.EntityRef{Id: proto.String("warg"), DefName: proto.String("Warg")}, AnimalState: &o.AnimalState{Training: []*o.TrainingEntry{entry}}})
+	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{Animals: []*o.AnimalFeed{{Pawn: &commonpb.Ref{Id: proto.String("warg")}}}}}}}
+	for _, wanted := range []*bool{nil, proto.Bool(false), proto.Bool(true)} {
+		entry.Wanted = wanted
+		rows, known := colonyAnimals(v, pawns, policy.AnimalRaceCatalog{}).Value()
+		if !known || len(rows) != 1 || len(rows[0].Training) != 1 {
+			t.Fatal(rows, known)
+		}
+		got, known := rows[0].Training[0].Wanted.Value()
+		if known != (wanted != nil) || wanted != nil && got != *wanted {
+			t.Fatal("wanted flag lost", got, known, wanted)
+		}
+	}
+}
+
 func TestWildAnimalCensusDecodesTameFactsAndIssues(t *testing.T) {
 	pawns := bridge.NewPawns(&o.PawnState{Pawn: &o.EntityRef{Id: proto.String("wild"), DefName: proto.String("Muffalo")}, Wild: proto.Bool(true), AnimalState: &o.AnimalState{Tameable: proto.Bool(true), Tame: proto.Bool(false)}})
 	u := &o.UpkeepFacts{WildAnimals: []*o.AnimalFeed{{Pawn: &commonpb.Ref{Id: proto.String("wild")}}}}

@@ -18,9 +18,8 @@ type ClearanceTarget struct {
 	Class                                  string
 	Deconstructible, InHome, AncientDanger bool
 	RoofBlocker                            string
-	// Designated is a standing Deconstruct designation, whoever placed it: not a
-	// hold, since the Deconstruction operation adopts it rather than placing a
-	// second one, and no ownership ledger says whose it was.
+	// Designated is a standing Deconstruct designation, whoever placed it.
+	// It suppresses another write; the building remains work until removed.
 	Designated bool
 	// Player marks the colony's own building, reported only on planned
 	// ground (#1365); EnclosesRoom is then a wall or door bounding an

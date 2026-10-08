@@ -805,10 +805,6 @@ func inspectHerd(c *roundsRun) error {
 	} else if choice.Reason == HusbandryUnknown {
 		recovered = domain.Unknown[bool]()
 	}
-	// A standing designation with a capable handler is ordered to completion.
-	if PrioritizeSlaughterChoice(f.AnimalUpkeep.Animals, f.WorkProfiles).Method != "" {
-		recovered = domain.Known(false)
-	}
 	if HerdMasterChoice(f.AnimalUpkeep.Animals, herd, f.WorkProfiles).Method != "" {
 		recovered = domain.Known(false)
 	}

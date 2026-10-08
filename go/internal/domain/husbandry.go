@@ -18,10 +18,6 @@ const (
 	HusbandrySlaughter       HusbandryMethod = "slaughter"
 	HusbandryTame            HusbandryMethod = "tame"
 	HusbandryRelease         HusbandryMethod = "release"
-	// HusbandryPrioritizeSlaughter orders the handler named by the argument
-	// to slaughter an already-designated animal (the game's Prioritize
-	// order, a GiveJobIntent on the wire); it writes no flag.
-	HusbandryPrioritizeSlaughter HusbandryMethod = "prioritize_slaughter"
 	// HusbandrySterilize queues the animal sterilize surgery bill (native
 	// finds the recipe on the animal's race live); applied means queued.
 	HusbandrySterilize       HusbandryMethod = "sterilize"
@@ -57,10 +53,6 @@ func NewHusbandry(animal PawnID, method HusbandryMethod, argument string) (Husba
 	case HusbandrySlaughter, HusbandryTame, HusbandryRelease, HusbandryCancelSlaughter, HusbandryCancelRelease, HusbandrySterilize:
 		if argument != "" {
 			return Husbandry{}, errors.New("husbandry designation does not take an argument")
-		}
-	case HusbandryPrioritizeSlaughter:
-		if !validID(argument) || argument == string(animal) {
-			return Husbandry{}, errors.New("prioritized slaughter requires a valid handler distinct from the animal")
 		}
 	case HusbandryAllowedArea, HusbandryMaster:
 		if argument != "" && !validID(argument) {

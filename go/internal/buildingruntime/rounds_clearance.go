@@ -29,8 +29,7 @@ type RoundsClearancePlanner struct {
 type RoundsClearanceResult struct {
 	Verdict
 	Plan domain.PlanID
-	// NativeWorkTicks asks for game time while ordinary hauling moves
-	// designated chunks into their store.
+	// NativeWorkTicks asks for game time while pawns finish designated work.
 	NativeWorkTicks uint32
 }
 
@@ -115,8 +114,16 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 	var prefix string
 	var actions []domain.Action
 	if len(step.Roof) > 0 || len(step.Targets) > 0 {
+		step = pendingClearanceStep(step)
+		if len(step.Roof)+len(step.Targets) == 0 {
+			return RoundsClearanceResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks}, nil
+		}
 		prefix, actions, err = recoveryStepMethod(id, step)
 	} else if step, ok := plannedGroundStep(colony.Projection, stampPacking(player, colony.Projection), census.Floors, r.reviewer.clearFloors(colony.Projection)); ok {
+		step = pendingClearanceStep(step)
+		if len(step.Roof)+len(step.Targets)+len(step.Floors) == 0 {
+			return RoundsClearanceResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks}, nil
+		}
 		prefix, actions, err = groundStepMethod(id, step)
 	} else {
 		return r.dump(call, epoch, state, goal, review.Tick, census, started)
@@ -125,8 +132,12 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 		return RoundsClearanceResult{}, err
 	}
 	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsClearanceResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+	failures, err := failedIntentMethods(call, p.journal, goal.History, goal.Standard.Episode, prefix)
+	if err != nil {
+		return RoundsClearanceResult{}, err
+	}
+	if failures >= maxFailedIntentMethods {
+		return RoundsClearanceResult{Verdict: refuse(RefusalRetriesSpent, "maxFailedIntentMethods", "")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	plan, err := domain.NewPlan(id, 1, actions)
@@ -144,6 +155,27 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 		return RoundsClearanceResult{}, err
 	}
 	return RoundsClearanceResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
+}
+
+// pendingClearanceStep removes writes already present in native state, after
+// the full step's roof safety and phase ordering have been checked. Standing
+// targets remain a clearance deficit until pawn work actually removes them.
+func pendingClearanceStep(step policy.GroundStep) policy.GroundStep {
+	targets := make([]policy.ClearanceTarget, 0, len(step.Targets))
+	for _, target := range step.Targets {
+		if !target.Designated {
+			targets = append(targets, target)
+		}
+	}
+	step.Targets = targets
+	floors := make([]policy.ClearanceFloor, 0, len(step.Floors))
+	for _, floor := range step.Floors {
+		if !floor.Designated {
+			floors = append(floors, floor)
+		}
+	}
+	step.Floors = floors
+	return step
 }
 
 // plannedGroundStep is the next clearance method over the recorded plan and

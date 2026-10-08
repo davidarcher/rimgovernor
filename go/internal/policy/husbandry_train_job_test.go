@@ -76,3 +76,69 @@ func TestAnimalHerdDeficitIgnoresUnwantedTrainables(t *testing.T) {
 		t.Fatal(v, known)
 	}
 }
+
+func TestRequestedTrainingWaitsForLearningWithoutAnotherWrite(t *testing.T) {
+	herd := HerdPolicy{Roles: map[Resource]HerdRole{"Warg": {Job: HerdJobWar}}}
+	a := plannedAnimal("warg", "Warg", trainable("Obedience", true, true), trainable("Release", true, false))
+	a.Training[1].Wanted = domain.Known(true)
+	animals := domain.Known([]UpkeepAnimal{a})
+	for i := 0; i < 12; i++ {
+		if choice := SelectHusbandryMethod(animals, noWild, feedFine, herd, anyTamer); choice.Reason != HusbandryNoDeficit {
+			t.Fatal("requested training was reissued", choice)
+		}
+		if deficit, known := AnimalHerdDeficit(animals, noWild, feedFine, herd).Value(); !known || !deficit {
+			t.Fatal("a request was mistaken for learning", deficit, known)
+		}
+		if !HerdWorkPending(animals, noWild, herd) {
+			t.Fatal("pending training needs native work")
+		}
+	}
+	// Other animals can still receive requests while this one's training waits.
+	b := plannedAnimal("other", "Warg", trainable("Obedience", true, false))
+	if choice := SelectHusbandryMethod(domain.Known([]UpkeepAnimal{a, b}), noWild, feedFine, herd, anyTamer); choice.Animal != b.ID || choice.Method != domain.HusbandryTrain {
+		t.Fatal(choice)
+	}
+	// If the request is absent in a fresh read, it can be issued again.
+	a.Training[1].Wanted = domain.Known(false)
+	if choice := SelectHusbandryMethod(domain.Known([]UpkeepAnimal{a}), noWild, feedFine, herd, anyTamer); choice.TrainableDef != "Release" {
+		t.Fatal(choice)
+	}
+	a.Training[1].Wanted = domain.Unknown[bool]()
+	if choice := SelectHusbandryMethod(domain.Known([]UpkeepAnimal{a}), noWild, feedFine, herd, anyTamer); choice.Reason != HusbandryUnknown {
+		t.Fatal("unknown request became absent", choice)
+	}
+	a.Training[1].Wanted, a.Training[1].Learned = domain.Known(true), domain.Known(true)
+	if HerdWorkPending(domain.Known([]UpkeepAnimal{a}), noWild, herd) {
+		t.Fatal("learned training is not pending")
+	}
+}
+
+func TestHerdDesignationsWaitOnVanillaHandlers(t *testing.T) {
+	for _, method := range []domain.HusbandryMethod{domain.HusbandrySlaughter, domain.HusbandryRelease, domain.HusbandryTame} {
+		t.Run(string(method), func(t *testing.T) {
+			a := plannedAnimal("animal", "Warg")
+			wild := noWild
+			animals := domain.Known([]UpkeepAnimal{a})
+			switch method {
+			case domain.HusbandrySlaughter:
+				a.Slaughter = domain.Known(true)
+				animals = domain.Known([]UpkeepAnimal{a})
+			case domain.HusbandryRelease:
+				a.Release = domain.Known(true)
+				animals = domain.Known([]UpkeepAnimal{a})
+			case domain.HusbandryTame:
+				a.Tame, a.Tameable = domain.Known(true), domain.Known(true)
+				wild = domain.Known([]UpkeepAnimal{a})
+				animals = domain.Known([]UpkeepAnimal{})
+			}
+			for i := 0; i < 12; i++ {
+				if !HerdWorkPending(animals, wild, HerdPolicy{}) {
+					t.Fatal("native handlers need game time")
+				}
+				if choice := SelectHusbandryMethod(animals, wild, feedFine, HerdPolicy{}, anyTamer); choice.Method != "" {
+					t.Fatal("standing designation selected another write", choice)
+				}
+			}
+		})
+	}
+}

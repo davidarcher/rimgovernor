@@ -23,9 +23,8 @@ type RoundsHusbandryPlanner struct {
 type RoundsHusbandryResult struct {
 	Verdict
 	Plan domain.PlanID
-	// NativeWorkTicks is lent while an open animal-product channel delivers
-	// on native jobs alone (milking, egg gathering): the herd needs game
-	// time, not a method, and a hold without it parks the clock on no_work.
+	// NativeWorkTicks is lent while training, animal designations or products
+	// wait on ordinary native jobs.
 	NativeWorkTicks uint32
 }
 
@@ -69,6 +68,11 @@ func (r *RoundsHusbandryPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	read.Projection.Facts.VetRoom.Ready = vetRoomReady(read.Projection)
 	wait := animalProductWait(read.Projection.Facts.FoodPlan)
+	herd := read.Projection.Facts.HerdPolicy()
+	nativeWorkPending := policy.HerdWorkPending(read.Projection.Facts.AnimalUpkeep.Animals, read.Projection.Facts.AnimalUpkeep.WildAnimals, herd)
+	if nativeWorkPending {
+		wait = max(wait, stockWaitTicks)
+	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainHerd)
 	if err != nil {
 		return RoundsHusbandryResult{}, err
@@ -94,7 +98,6 @@ func (r *RoundsHusbandryPlanner) step(call, epoch context.Context, arbiter *step
 	if pawns, known := read.Projection.WorkPawns.Value(); known {
 		handlers = domain.Known(policy.Profiles(pawns))
 	}
-	herd := read.Projection.Facts.HerdPolicy()
 	// Sheltering a race in danger outdoors comes first: its animals die of
 	// the exposure while a training or surplus write waits a cycle.
 	choice, err := read.Projection.Facts.AnimalShelterChoice()
@@ -114,9 +117,6 @@ func (r *RoundsHusbandryPlanner) step(call, epoch context.Context, arbiter *step
 		choice = policy.FoodTameChoice(read.Projection.Facts.FoodPlan, upkeep.WildAnimals, feedShort, handlers)
 	}
 	if choice.Reason == policy.HusbandryNoDeficit {
-		choice = policy.PrioritizeSlaughterChoice(animals, handlers)
-	}
-	if choice.Reason == policy.HusbandryNoDeficit {
 		choice = policy.HerdMasterChoice(animals, herd, handlers)
 	}
 	if choice.Reason == policy.HusbandryNoDeficit {
@@ -124,29 +124,32 @@ func (r *RoundsHusbandryPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	switch choice.Reason {
 	case policy.HusbandryNoDeficit:
+		if nativeWorkPending {
+			return RoundsHusbandryResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: wait}, nil
+		}
 		return RoundsHusbandryResult{Verdict: BuildingReasonNoDeficit, NativeWorkTicks: wait}, nil
 	case policy.HusbandryUnknown:
 		return RoundsHusbandryResult{Verdict: fieldUnavailable("husbandry_census")}, nil
 	}
-	// Keyed by animal, method and attempt count, not trainable: a fresh
-	// attempt after an interrupted or failed try re-selects whichever
-	// trainable is currently best, mirroring RoundsEquipPlanner's method
-	// key. The method name is included so a training attempt count never
-	// collides with, or is exhausted by, a slaughter attempt on the same
-	// animal (or vice versa) -- they are independent write kinds.
+	// Identity counts all prior methods; the budget counts only refusals.
+	// Each animal's trainable has its own failure budget.
 	prefix := fmt.Sprintf("%s-%s-", choice.Method, choice.Animal)
+	if choice.Method == domain.HusbandryTrain {
+		prefix = fmt.Sprintf("%s-%s-%s-", choice.Method, choice.Animal, choice.TrainableDef)
+	}
 	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsHusbandryResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+	failures, err := failedIntentMethods(call, p.journal, goal.History, goal.Standard.Episode, prefix)
+	if err != nil {
+		return RoundsHusbandryResult{}, err
+	}
+	if failures >= maxFailedIntentMethods {
+		return RoundsHusbandryResult{Verdict: refuse(RefusalRetriesSpent, "maxFailedIntentMethods", ""), NativeWorkTicks: wait}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Animal)}) {
 		return RoundsHusbandryResult{Verdict: claimHeld("animal")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	argument := choice.TrainableDef
-	if choice.Method == domain.HusbandryPrioritizeSlaughter {
-		argument = string(choice.Handler)
-	}
 	if choice.Argument != "" {
 		argument = choice.Argument
 	}

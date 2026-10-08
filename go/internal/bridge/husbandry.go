@@ -30,9 +30,6 @@ func husbandryAction(action domain.Action) (*o.Action, error) {
 	if !ok {
 		return nil, contract("not a husbandry action")
 	}
-	if v.Method() == domain.HusbandryPrioritizeSlaughter {
-		return PrioritizedJob(domain.PawnID(v.Argument()), JobSlaughter, string(v.Animal()))
-	}
 	order, ok := husbandryOrders[v.Method()]
 	if !ok || validID(string(v.Animal())) != nil {
 		return nil, contract("invalid husbandry order")

@@ -7,7 +7,7 @@ import (
 )
 
 func trainable(def string, available, learned bool) HusbandryTrainable {
-	return HusbandryTrainable{Def: def, Available: domain.Known(available), Learned: domain.Known(learned)}
+	return HusbandryTrainable{Def: def, Available: domain.Known(available), Learned: domain.Known(learned), Wanted: domain.Known(false)}
 }
 
 var noWild = domain.Known([]UpkeepAnimal{})
