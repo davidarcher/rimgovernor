@@ -904,6 +904,18 @@ message ExtractionDevelopment { repeated ResourceSource deposits = 3; repeated D
 message ResourceSourcesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; optional string resource = 2; repeated ResourceSource sources = 3; StorageCapacity storage = 4; ExtractionDevelopment development = 5; Completeness completeness = 6; }
 message ResourceSourcesRequest { ReadScope scope = 1; optional string resource = 2; optional bool include_development = 3; }
 message ResourceSourcesReply { oneof outcome { ResourceSourcesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+// Realized consumption (#2441). Native keeps a saved hourly ring (2500-tick
+// hours, 60 days) of what colony stock was spent, per (definition, reason). A
+// read names the last hour Go already holds; the reply carries every
+// completed hour after it (since_hour absent or negative: the whole window),
+// sparse: an hour or row not listed spent nothing. count is signed: an
+// ejected refuel or removed shell subtracts. current_hour is still filling and
+// is never listed; first_hour is the first hour the ring covers.
+message ConsumptionRow { optional string definition = 1; optional string reason = 2; optional int64 count = 3; }
+message ConsumptionHour { optional int32 hour = 1; repeated ConsumptionRow rows = 2; }
+message ConsumptionSnapshot { optional int32 current_hour = 1; optional int32 first_hour = 2; repeated ConsumptionHour hours = 3; }
+message ConsumptionRequest { optional int32 since_hour = 1; }
+message ConsumptionReply { oneof outcome { ConsumptionSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message HandlerState { rimgovernor.common.v1.Ref pawn = 1; optional int32 skill = 2; optional int32 priority = 3; optional bool eligible = 4; optional string reason = 5; }
 message HusbandryAnimal { rimgovernor.common.v1.Ref pawn = 6; AnimalState animal = 3; repeated HandlerState handlers = 4; }
 message HusbandrySnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef census = 2; repeated HusbandryAnimal animals = 3; }
@@ -2529,6 +2541,7 @@ service Observations {
   rpc ListWallUpgradeSites(WallUpgradeSitesRequest) returns (WallUpgradeSitesReply);
   rpc ListResourceSources(ResourceSourcesRequest) returns (ResourceSourcesReply);
   rpc ReadHusbandry(HusbandryRequest) returns (HusbandryReply);
+  rpc ReadConsumption(ConsumptionRequest) returns (ConsumptionReply);
   rpc ReadRecovery(RecoveryRequest) returns (RecoveryReply);
   rpc ReadPopulation(PopulationRequest) returns (PopulationReply);
   rpc ReadWorld(WorldRequest) returns (WorldReply);

@@ -202,7 +202,7 @@ func nativeReadMethod(name string) bool {
 	case clearanceTool, shrinesTool, "rimgovernor/observations_list_supplies", "rimgovernor/observations_read_colony_facts", "rimgovernor/observations_list_buildings", "rimgovernor/observations_list_rooms", "rimgovernor/observations_read_research", methodDefinitionCatalog, "rimgovernor/observations_list_wall_upgrade_sites", "rimgovernor/observations_list_zones", "rimgovernor/observations_read_defense_site", "rimgovernor/observations_read_lines_of_fire", "rimgovernor/observations_read_spatial_access", "rimgovernor/observations_read_husbandry":
 	case "rimgovernor/presentation_camera", "rimgovernor/presentation_selection", "rimgovernor/presentation_colonists", "rimgovernor/presentation_notifications", "rimgovernor/presentation_render_state":
 	case combatGeometryMethod:
-	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/zones_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/lifecycle_read_tick", "rimgovernor/lifecycle_read_governor_state", "rimgovernor/lifecycle_wait_save_signal", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", rulesStatusMethod, "rimgovernor/receipts_lookup", "rimgovernor/observations_read_world_progression", "rimgovernor/observations_read_world", "rimgovernor/observations_read_bills", "rimgovernor/observations_read_recipes", "rimgovernor/observations_list_resource_sources", "rimgovernor/observations_read_population", "rimgovernor/observations_read_trade_sheet", "rimgovernor/observations_read_trade_session", "rimgovernor/observations_list_traders", "rimgovernor/observations_read_excavation_site", methodOpenSnapshotStream:
+	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/zones_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/lifecycle_read_tick", "rimgovernor/lifecycle_read_governor_state", "rimgovernor/lifecycle_wait_save_signal", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", rulesStatusMethod, "rimgovernor/receipts_lookup", "rimgovernor/observations_read_world_progression", "rimgovernor/observations_read_world", "rimgovernor/observations_read_bills", "rimgovernor/observations_read_recipes", "rimgovernor/observations_list_resource_sources", "rimgovernor/observations_read_population", "rimgovernor/observations_read_trade_sheet", "rimgovernor/observations_read_trade_session", "rimgovernor/observations_list_traders", "rimgovernor/observations_read_excavation_site", "rimgovernor/observations_read_consumption", methodOpenSnapshotStream:
 	default:
 		return false
 	}
@@ -245,6 +245,7 @@ var reviewedNativeMethods = map[string]bool{
 	"rimgovernor/combat_geometry":                      true,
 	"rimgovernor/observations_read_spatial_access":     true,
 	"rimgovernor/observations_read_husbandry":          true,
+	"rimgovernor/observations_read_consumption":        true,
 	"rimgovernor/presentation_camera":                  true,
 	"rimgovernor/presentation_selection":               true,
 	"rimgovernor/presentation_colonists":               true,
@@ -418,6 +419,8 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		case *o.GetCellsReply:
 			typedFailure = r.GetFailure() != nil
 		case *o.StatusReply:
+			typedFailure = r.GetFailure() != nil
+		case *o.ConsumptionReply:
 			typedFailure = r.GetFailure() != nil
 		case *o.ResourceSourcesReply:
 			typedFailure = r.GetFailure() != nil

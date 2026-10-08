@@ -7,10 +7,7 @@ import (
 )
 
 func componentRequest() ResourceMethodRequest {
-	history := ResourceHistory{End: 60000, Uses: []ResourceUse{
-		{Tick: 60000, Resource: "Steel", Count: domain.Known(int64(10))},
-		{Tick: 60000, Resource: ComponentResource, Count: domain.Known(int64(4))},
-	}}
+	consumption := domain.Known(ResourceConsumption{WindowDays: 1, Recurring: map[Resource]int64{"Steel": 10, ComponentResource: 4}})
 	recipe := GearRecipe{Definition: "MakeComponent", Products: []Resource{ComponentResource}, Available: domain.Known(true), AvailableOn: domain.Known(true), Ingredients: domain.Known([][]Amount{{{Resource: "Steel", Count: 12}}}), RequiredWork: domain.Known([]WorkRequirement{})}
 	return ResourceMethodRequest{
 		Resource: ComponentResource, Target: 20,
@@ -18,8 +15,8 @@ func componentRequest() ResourceMethodRequest {
 		Stock:        []Stock{{Resource: "Steel", Available: domain.Known(int64(157))}},
 		CurrentStock: domain.Known([]Amount{{Resource: "Steel", Count: 157}, {Resource: ComponentResource, Count: 2}}),
 		Runways: []ResourceRunway{
-			ForecastResourceRunway("Steel", domain.Known(int64(157)), domain.Known(int64(0)), 70, history),
-			ForecastResourceRunway(ComponentResource, domain.Known(int64(2)), domain.Known(int64(0)), 0, history),
+			ForecastResourceRunway("Steel", domain.Known(int64(157)), domain.Known(int64(0)), 70, 60000, consumption),
+			ForecastResourceRunway(ComponentResource, domain.Known(int64(2)), domain.Known(int64(0)), 0, 60000, consumption),
 		},
 	}
 }

@@ -43,6 +43,20 @@ delivery counters with a load `epoch`; see the
 `NativeDeliveryLedger` counts; `observation.ColonyProjection.DeliveryLedger` is unknown
 unless the section validates (`bridge.ValidDeliveryLedger`).
 
+## Realized consumption
+
+`ReadConsumption` (#2441) reads the saved `ConsumptionState` ring: per (ThingDef, reason)
+cumulative counters plus hourly increments (2500-tick hours, 60 days), packed into one
+versioned base64 string in the save. A request names `since_hour`; the reply lists every
+completed hour after it, sparse (`current_hour` is still filling and never listed;
+`first_hour` is the first hour covered). `count` is signed: an ejected refuel or a removed
+shell subtracts. Reasons: recurring `bill_ingredient`, `medicine_tend`, `food_eaten`,
+`drug_dose`, `animal_feed`, `nutrient_paste`, `fuel_loaded`, `shell_loaded`, `apparel_wear`;
+project `construction`; loss `rot`, `deterioration`, `fire`, `sold`, `stolen`,
+`destroyed_other`. Go (`policy.ConsumptionLedger`) keeps the hours in memory, keyed by the
+load, and asks for the whole window once after a load or restart. Only recurring reasons
+feed a resource runway. A hook native misses under-counts; nothing gates on it.
+
 ## Deep resources and mineral scanners
 
 `ColonyFactsSnapshot.deep_resources` reads discovered `DeepResourceGrid` entries,

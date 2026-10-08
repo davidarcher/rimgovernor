@@ -233,6 +233,7 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/combat_geometry":                      AdmissionObservation,
 	"rimgovernor/observations_read_spatial_access":     AdmissionObservation,
 	"rimgovernor/observations_read_husbandry":          AdmissionObservation,
+	"rimgovernor/observations_read_consumption":        AdmissionObservation,
 	"rimgovernor/observations_read_world_progression":  AdmissionObservation,
 	"rimgovernor/observations_read_world":              AdmissionObservation,
 	"rimgovernor/observations_read_bills":              AdmissionObservation,

@@ -539,7 +539,10 @@ type RoundsFacts struct {
 	// deficit is measured at review time instead of assumed from config.
 	Resources          domain.Fact[[]Amount]
 	ResourceSurfaceOre map[Resource]domain.Fact[int64]
-	ResourceRunways    []ResourceRunway
+	// ResourceConsumption is the recurring spend over the rate window, from
+	// native's realized-consumption ring (#2441); unknown when the read failed.
+	ResourceConsumption domain.Fact[ResourceConsumption]
+	ResourceRunways     []ResourceRunway
 	// Wealth is the colony wealth split (#395) TradeWithCaravan's
 	// wealth-driven surplus keys on; unknown leaves that surplus out.
 	Wealth domain.Fact[WealthFacts]

@@ -90,6 +90,8 @@ type Rounder struct {
 	// tunnels remembers the buried-ore corridor each resource last sited
 	// until a stage is admitted under it (#1124); see tunnelMemory.
 	tunnels tunnelMemory
+	// consumption is the realized-consumption ledger of the current load (#2441), in memory only.
+	consumption consumptionMemory
 	// safeArea is MaintainShelter's Safe area memory (#1325).
 	safeArea safeAreaMemory
 	// firebreak is MaintainFirebreak's review memory (#1548), set when its
@@ -494,6 +496,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		return store.RoundsResult{}, err
 	}
 	reading.Projection.Facts.ResourceSurfaceOre = r.resourceSurfaceOre(ctx, state.Snapshot)
+	reading.Projection.Facts.ResourceConsumption = r.resourceConsumption(ctx, state.Snapshot)
 	r.reviewMeals(&reading.Projection)
 	r.reviewReserve(&reading.Projection)
 	r.reviewBabyFeeding(&reading.Projection)

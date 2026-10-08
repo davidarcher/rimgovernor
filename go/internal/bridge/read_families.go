@@ -48,6 +48,7 @@ var nativeReadFamily = map[string]FactFamily{
 	"rimgovernor/observations_read_lines_of_fire":      FactColony,
 	"rimgovernor/observations_read_spatial_access":     FactColony,
 	"rimgovernor/observations_read_husbandry":          FactColony,
+	"rimgovernor/observations_read_consumption":        FactColony,
 	"rimgovernor/observations_read_bills":              FactColony,
 	"rimgovernor/observations_list_resource_sources":   FactColony,
 	"rimgovernor/observations_read_excavation_site":    FactColony,

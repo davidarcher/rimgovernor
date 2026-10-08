@@ -95,7 +95,7 @@ type resPlanner struct {
 	spec     map[string]resSpec
 	policy   policy.RoundsPolicy
 	research bool
-	uses     []policy.ResourceUse
+	uses     []resUse
 	// clothing are the targets that are clothing-material floors, wanted
 	// within policy.ClothingHorizonDays.
 	clothing map[policy.Resource]bool
@@ -231,7 +231,7 @@ func (p *resPlanner) Plan(v supplysim.WorldView) []supplysim.Command {
 	}
 	cmds = append(cmds, p.dispatchSupply(v)...)
 	for g, d := range v.Demand {
-		p.uses = append(p.uses, policy.ResourceUse{Tick: tick + 1, Resource: resDef(g), Count: domain.Known(int64(math.Round(d)))})
+		p.uses = append(p.uses, resUse{tick: tick + 1, resource: resDef(g), count: int64(math.Round(d))})
 	}
 	return cmds
 }
@@ -250,7 +250,7 @@ func (p *resPlanner) runways(v supplysim.WorldView, have map[policy.Resource]int
 			}
 		}
 		out = append(out, policy.ForecastResourceRunway(r, domain.Known(have[r]), policy.SurfaceOre(rows), p.policy.ResourceTargets[r],
-			policy.ResourceHistory{End: tick, Uses: p.uses}))
+			tick, p.consumption(tick)))
 	}
 	return out
 }
@@ -460,4 +460,24 @@ func (p *resPlanner) dispatchSupply(v supplysim.WorldView) []supplysim.Command {
 		p.opens++
 	}
 	return cmds
+}
+
+// resUse is one day's demand the planner saw.
+type resUse struct {
+	tick     domain.Tick
+	resource policy.Resource
+	count    int64
+}
+
+// consumption is the recurring spend over the rate window ending at tick, in
+// the ring's shape.
+func (p *resPlanner) consumption(tick domain.Tick) domain.Fact[policy.ResourceConsumption] {
+	window := min(tick, policy.ResourceRateWindowDays*domain.TicksPerDay)
+	out := policy.ResourceConsumption{WindowDays: float64(window) / domain.TicksPerDay, Recurring: map[policy.Resource]int64{}}
+	for _, u := range p.uses {
+		if u.tick > tick-window && u.tick <= tick {
+			out.Recurring[u.resource] += u.count
+		}
+	}
+	return domain.Known(out)
 }
