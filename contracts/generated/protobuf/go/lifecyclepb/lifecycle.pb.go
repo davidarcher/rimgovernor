@@ -2365,6 +2365,404 @@ func (x *PutGovernorStateBatchRequest) GetBlobs() map[string]string {
 	return nil
 }
 
+// Save-time handshake (#2358). Native's SaveGame prefix never cancels a
+// save. When Go holds a WaitSaveSignal call and the save is not Go-initiated,
+// native hands that call a pre_save signal, blocks the game thread until
+// FlushDone acks its token (or ~3 s pass), then lets the save run. Signals
+// are not durable: a signal raised with no held call is dropped. Both tools
+// run on the bridge worker thread, never the game thread.
+type WaitSaveSignalRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TimeoutMs     *int32                 `protobuf:"varint,1,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WaitSaveSignalRequest) Reset() {
+	*x = WaitSaveSignalRequest{}
+	mi := &file_lifecycle_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitSaveSignalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitSaveSignalRequest) ProtoMessage() {}
+
+func (x *WaitSaveSignalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_lifecycle_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitSaveSignalRequest.ProtoReflect.Descriptor instead.
+func (*WaitSaveSignalRequest) Descriptor() ([]byte, []int) {
+	return file_lifecycle_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *WaitSaveSignalRequest) GetTimeoutMs() int32 {
+	if x != nil && x.TimeoutMs != nil {
+		return *x.TimeoutMs
+	}
+	return 0
+}
+
+type SaveSignal struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          *string                `protobuf:"bytes,1,opt,name=kind,proto3,oneof" json:"kind,omitempty"`
+	Token         *string                `protobuf:"bytes,2,opt,name=token,proto3,oneof" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveSignal) Reset() {
+	*x = SaveSignal{}
+	mi := &file_lifecycle_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveSignal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveSignal) ProtoMessage() {}
+
+func (x *SaveSignal) ProtoReflect() protoreflect.Message {
+	mi := &file_lifecycle_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveSignal.ProtoReflect.Descriptor instead.
+func (*SaveSignal) Descriptor() ([]byte, []int) {
+	return file_lifecycle_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *SaveSignal) GetKind() string {
+	if x != nil && x.Kind != nil {
+		return *x.Kind
+	}
+	return ""
+}
+
+func (x *SaveSignal) GetToken() string {
+	if x != nil && x.Token != nil {
+		return *x.Token
+	}
+	return ""
+}
+
+type SaveSignalTimeout struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveSignalTimeout) Reset() {
+	*x = SaveSignalTimeout{}
+	mi := &file_lifecycle_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveSignalTimeout) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveSignalTimeout) ProtoMessage() {}
+
+func (x *SaveSignalTimeout) ProtoReflect() protoreflect.Message {
+	mi := &file_lifecycle_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveSignalTimeout.ProtoReflect.Descriptor instead.
+func (*SaveSignalTimeout) Descriptor() ([]byte, []int) {
+	return file_lifecycle_proto_rawDescGZIP(), []int{32}
+}
+
+type WaitSaveSignalReply struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Outcome:
+	//
+	//	*WaitSaveSignalReply_Signal
+	//	*WaitSaveSignalReply_Timeout
+	//	*WaitSaveSignalReply_Failure
+	Outcome       isWaitSaveSignalReply_Outcome `protobuf_oneof:"outcome"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WaitSaveSignalReply) Reset() {
+	*x = WaitSaveSignalReply{}
+	mi := &file_lifecycle_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitSaveSignalReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitSaveSignalReply) ProtoMessage() {}
+
+func (x *WaitSaveSignalReply) ProtoReflect() protoreflect.Message {
+	mi := &file_lifecycle_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitSaveSignalReply.ProtoReflect.Descriptor instead.
+func (*WaitSaveSignalReply) Descriptor() ([]byte, []int) {
+	return file_lifecycle_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *WaitSaveSignalReply) GetOutcome() isWaitSaveSignalReply_Outcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return nil
+}
+
+func (x *WaitSaveSignalReply) GetSignal() *SaveSignal {
+	if x != nil {
+		if x, ok := x.Outcome.(*WaitSaveSignalReply_Signal); ok {
+			return x.Signal
+		}
+	}
+	return nil
+}
+
+func (x *WaitSaveSignalReply) GetTimeout() *SaveSignalTimeout {
+	if x != nil {
+		if x, ok := x.Outcome.(*WaitSaveSignalReply_Timeout); ok {
+			return x.Timeout
+		}
+	}
+	return nil
+}
+
+func (x *WaitSaveSignalReply) GetFailure() *commonpb.Failure {
+	if x != nil {
+		if x, ok := x.Outcome.(*WaitSaveSignalReply_Failure); ok {
+			return x.Failure
+		}
+	}
+	return nil
+}
+
+type isWaitSaveSignalReply_Outcome interface {
+	isWaitSaveSignalReply_Outcome()
+}
+
+type WaitSaveSignalReply_Signal struct {
+	Signal *SaveSignal `protobuf:"bytes,1,opt,name=signal,proto3,oneof"`
+}
+
+type WaitSaveSignalReply_Timeout struct {
+	Timeout *SaveSignalTimeout `protobuf:"bytes,2,opt,name=timeout,proto3,oneof"`
+}
+
+type WaitSaveSignalReply_Failure struct {
+	Failure *commonpb.Failure `protobuf:"bytes,3,opt,name=failure,proto3,oneof"`
+}
+
+func (*WaitSaveSignalReply_Signal) isWaitSaveSignalReply_Outcome() {}
+
+func (*WaitSaveSignalReply_Timeout) isWaitSaveSignalReply_Outcome() {}
+
+func (*WaitSaveSignalReply_Failure) isWaitSaveSignalReply_Outcome() {}
+
+type FlushDoneRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         *string                `protobuf:"bytes,1,opt,name=token,proto3,oneof" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FlushDoneRequest) Reset() {
+	*x = FlushDoneRequest{}
+	mi := &file_lifecycle_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FlushDoneRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FlushDoneRequest) ProtoMessage() {}
+
+func (x *FlushDoneRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_lifecycle_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FlushDoneRequest.ProtoReflect.Descriptor instead.
+func (*FlushDoneRequest) Descriptor() ([]byte, []int) {
+	return file_lifecycle_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *FlushDoneRequest) GetToken() string {
+	if x != nil && x.Token != nil {
+		return *x.Token
+	}
+	return ""
+}
+
+type FlushDoneAcked struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FlushDoneAcked) Reset() {
+	*x = FlushDoneAcked{}
+	mi := &file_lifecycle_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FlushDoneAcked) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FlushDoneAcked) ProtoMessage() {}
+
+func (x *FlushDoneAcked) ProtoReflect() protoreflect.Message {
+	mi := &file_lifecycle_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FlushDoneAcked.ProtoReflect.Descriptor instead.
+func (*FlushDoneAcked) Descriptor() ([]byte, []int) {
+	return file_lifecycle_proto_rawDescGZIP(), []int{35}
+}
+
+type FlushDoneReply struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Outcome:
+	//
+	//	*FlushDoneReply_Acked
+	//	*FlushDoneReply_Failure
+	Outcome       isFlushDoneReply_Outcome `protobuf_oneof:"outcome"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FlushDoneReply) Reset() {
+	*x = FlushDoneReply{}
+	mi := &file_lifecycle_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FlushDoneReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FlushDoneReply) ProtoMessage() {}
+
+func (x *FlushDoneReply) ProtoReflect() protoreflect.Message {
+	mi := &file_lifecycle_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FlushDoneReply.ProtoReflect.Descriptor instead.
+func (*FlushDoneReply) Descriptor() ([]byte, []int) {
+	return file_lifecycle_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *FlushDoneReply) GetOutcome() isFlushDoneReply_Outcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return nil
+}
+
+func (x *FlushDoneReply) GetAcked() *FlushDoneAcked {
+	if x != nil {
+		if x, ok := x.Outcome.(*FlushDoneReply_Acked); ok {
+			return x.Acked
+		}
+	}
+	return nil
+}
+
+func (x *FlushDoneReply) GetFailure() *commonpb.Failure {
+	if x != nil {
+		if x, ok := x.Outcome.(*FlushDoneReply_Failure); ok {
+			return x.Failure
+		}
+	}
+	return nil
+}
+
+type isFlushDoneReply_Outcome interface {
+	isFlushDoneReply_Outcome()
+}
+
+type FlushDoneReply_Acked struct {
+	Acked *FlushDoneAcked `protobuf:"bytes,1,opt,name=acked,proto3,oneof"`
+}
+
+type FlushDoneReply_Failure struct {
+	Failure *commonpb.Failure `protobuf:"bytes,2,opt,name=failure,proto3,oneof"`
+}
+
+func (*FlushDoneReply_Acked) isFlushDoneReply_Outcome() {}
+
+func (*FlushDoneReply_Failure) isFlushDoneReply_Outcome() {}
+
 var File_lifecycle_proto protoreflect.FileDescriptor
 
 const file_lifecycle_proto_rawDesc = "" +
@@ -2627,7 +3025,31 @@ const file_lifecycle_proto_rawDesc = "" +
 	"\n" +
 	"BlobsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*\xa1\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"J\n" +
+	"\x15WaitSaveSignalRequest\x12\"\n" +
+	"\n" +
+	"timeout_ms\x18\x01 \x01(\x05H\x00R\ttimeoutMs\x88\x01\x01B\r\n" +
+	"\v_timeout_ms\"S\n" +
+	"\n" +
+	"SaveSignal\x12\x17\n" +
+	"\x04kind\x18\x01 \x01(\tH\x00R\x04kind\x88\x01\x01\x12\x19\n" +
+	"\x05token\x18\x02 \x01(\tH\x01R\x05token\x88\x01\x01B\a\n" +
+	"\x05_kindB\b\n" +
+	"\x06_token\"\x13\n" +
+	"\x11SaveSignalTimeout\"\xe5\x01\n" +
+	"\x13WaitSaveSignalReply\x12>\n" +
+	"\x06signal\x18\x01 \x01(\v2$.rimgovernor.lifecycle.v1.SaveSignalH\x00R\x06signal\x12G\n" +
+	"\atimeout\x18\x02 \x01(\v2+.rimgovernor.lifecycle.v1.SaveSignalTimeoutH\x00R\atimeout\x12:\n" +
+	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
+	"\aoutcome\"7\n" +
+	"\x10FlushDoneRequest\x12\x19\n" +
+	"\x05token\x18\x01 \x01(\tH\x00R\x05token\x88\x01\x01B\b\n" +
+	"\x06_token\"\x10\n" +
+	"\x0eFlushDoneAcked\"\x99\x01\n" +
+	"\x0eFlushDoneReply\x12@\n" +
+	"\x05acked\x18\x01 \x01(\v2(.rimgovernor.lifecycle.v1.FlushDoneAckedH\x00R\x05acked\x12:\n" +
+	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
+	"\aoutcome*\xa1\x01\n" +
 	"\x11CapabilitySupport\x12\"\n" +
 	"\x1eCAPABILITY_SUPPORT_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cCAPABILITY_SUPPORT_SUPPORTED\x10\x01\x12\"\n" +
@@ -2644,8 +3066,10 @@ const file_lifecycle_proto_rawDesc = "" +
 	"\"NEW_COLONY_PHASE_ROLLING_COLONISTS\x10\x03\x12#\n" +
 	"\x1fNEW_COLONY_PHASE_GENERATING_MAP\x10\x04\x12\x1e\n" +
 	"\x1aNEW_COLONY_PHASE_FINISHING\x10\x05\x12\x1b\n" +
-	"\x17NEW_COLONY_PHASE_SAVING\x10\x062\xf9\a\n" +
-	"\tLifecycle\x12q\n" +
+	"\x17NEW_COLONY_PHASE_SAVING\x10\x062\xce\t\n" +
+	"\tLifecycle\x12p\n" +
+	"\x0eWaitSaveSignal\x12/.rimgovernor.lifecycle.v1.WaitSaveSignalRequest\x1a-.rimgovernor.lifecycle.v1.WaitSaveSignalReply\x12a\n" +
+	"\tFlushDone\x12*.rimgovernor.lifecycle.v1.FlushDoneRequest\x1a(.rimgovernor.lifecycle.v1.FlushDoneReply\x12q\n" +
 	"\x11ReadGovernorState\x12..rimgovernor.lifecycle.v1.GovernorStateRequest\x1a,.rimgovernor.lifecycle.v1.GovernorStateReply\x12s\n" +
 	"\x10PutGovernorState\x121.rimgovernor.lifecycle.v1.PutGovernorStateRequest\x1a,.rimgovernor.lifecycle.v1.GovernorStateReply\x12}\n" +
 	"\x15PutGovernorStateBatch\x126.rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest\x1a,.rimgovernor.lifecycle.v1.GovernorStateReply\x12b\n" +
@@ -2670,7 +3094,7 @@ func file_lifecycle_proto_rawDescGZIP() []byte {
 }
 
 var file_lifecycle_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_lifecycle_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_lifecycle_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
 var file_lifecycle_proto_goTypes = []any{
 	(CapabilitySupport)(0),               // 0: rimgovernor.lifecycle.v1.CapabilitySupport
 	(Readiness)(0),                       // 1: rimgovernor.lifecycle.v1.Readiness
@@ -2705,78 +3129,94 @@ var file_lifecycle_proto_goTypes = []any{
 	(*GovernorStateReply)(nil),           // 30: rimgovernor.lifecycle.v1.GovernorStateReply
 	(*PutGovernorStateRequest)(nil),      // 31: rimgovernor.lifecycle.v1.PutGovernorStateRequest
 	(*PutGovernorStateBatchRequest)(nil), // 32: rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest
-	nil,                                  // 33: rimgovernor.lifecycle.v1.GovernorStateBlobs.BlobsEntry
-	nil,                                  // 34: rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest.BlobsEntry
-	(*commonpb.ObservationContext)(nil),  // 35: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Unavailable)(nil),         // 36: rimgovernor.common.v1.Unavailable
-	(*commonpb.Failure)(nil),             // 37: rimgovernor.common.v1.Failure
-	(*commonpb.Identity)(nil),            // 38: rimgovernor.common.v1.Identity
+	(*WaitSaveSignalRequest)(nil),        // 33: rimgovernor.lifecycle.v1.WaitSaveSignalRequest
+	(*SaveSignal)(nil),                   // 34: rimgovernor.lifecycle.v1.SaveSignal
+	(*SaveSignalTimeout)(nil),            // 35: rimgovernor.lifecycle.v1.SaveSignalTimeout
+	(*WaitSaveSignalReply)(nil),          // 36: rimgovernor.lifecycle.v1.WaitSaveSignalReply
+	(*FlushDoneRequest)(nil),             // 37: rimgovernor.lifecycle.v1.FlushDoneRequest
+	(*FlushDoneAcked)(nil),               // 38: rimgovernor.lifecycle.v1.FlushDoneAcked
+	(*FlushDoneReply)(nil),               // 39: rimgovernor.lifecycle.v1.FlushDoneReply
+	nil,                                  // 40: rimgovernor.lifecycle.v1.GovernorStateBlobs.BlobsEntry
+	nil,                                  // 41: rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest.BlobsEntry
+	(*commonpb.ObservationContext)(nil),  // 42: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Unavailable)(nil),         // 43: rimgovernor.common.v1.Unavailable
+	(*commonpb.Failure)(nil),             // 44: rimgovernor.common.v1.Failure
+	(*commonpb.Identity)(nil),            // 45: rimgovernor.common.v1.Identity
 }
 var file_lifecycle_proto_depIdxs = []int32{
 	0,  // 0: rimgovernor.lifecycle.v1.Capability.support:type_name -> rimgovernor.lifecycle.v1.CapabilitySupport
-	35, // 1: rimgovernor.lifecycle.v1.LoadedIdentity.context:type_name -> rimgovernor.common.v1.ObservationContext
+	42, // 1: rimgovernor.lifecycle.v1.LoadedIdentity.context:type_name -> rimgovernor.common.v1.ObservationContext
 	4,  // 2: rimgovernor.lifecycle.v1.LoadedIdentity.capabilities:type_name -> rimgovernor.lifecycle.v1.Capability
 	5,  // 3: rimgovernor.lifecycle.v1.IdentityReply.loaded:type_name -> rimgovernor.lifecycle.v1.LoadedIdentity
-	36, // 4: rimgovernor.lifecycle.v1.IdentityReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	37, // 5: rimgovernor.lifecycle.v1.IdentityReply.failure:type_name -> rimgovernor.common.v1.Failure
-	35, // 6: rimgovernor.lifecycle.v1.LoadedTick.context:type_name -> rimgovernor.common.v1.ObservationContext
+	43, // 4: rimgovernor.lifecycle.v1.IdentityReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	44, // 5: rimgovernor.lifecycle.v1.IdentityReply.failure:type_name -> rimgovernor.common.v1.Failure
+	42, // 6: rimgovernor.lifecycle.v1.LoadedTick.context:type_name -> rimgovernor.common.v1.ObservationContext
 	8,  // 7: rimgovernor.lifecycle.v1.LoadedTick.pausing_windows:type_name -> rimgovernor.lifecycle.v1.PausingWindow
 	9,  // 8: rimgovernor.lifecycle.v1.TickReply.loaded:type_name -> rimgovernor.lifecycle.v1.LoadedTick
-	36, // 9: rimgovernor.lifecycle.v1.TickReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	37, // 10: rimgovernor.lifecycle.v1.TickReply.failure:type_name -> rimgovernor.common.v1.Failure
-	38, // 11: rimgovernor.lifecycle.v1.PlayerLifecycleContext.identity:type_name -> rimgovernor.common.v1.Identity
+	43, // 9: rimgovernor.lifecycle.v1.TickReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	44, // 10: rimgovernor.lifecycle.v1.TickReply.failure:type_name -> rimgovernor.common.v1.Failure
+	45, // 11: rimgovernor.lifecycle.v1.PlayerLifecycleContext.identity:type_name -> rimgovernor.common.v1.Identity
 	11, // 12: rimgovernor.lifecycle.v1.SaveRequest.player:type_name -> rimgovernor.lifecycle.v1.PlayerLifecycleContext
-	35, // 13: rimgovernor.lifecycle.v1.SaveCompleted.context:type_name -> rimgovernor.common.v1.ObservationContext
-	35, // 14: rimgovernor.lifecycle.v1.SaveUncertain.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
+	42, // 13: rimgovernor.lifecycle.v1.SaveCompleted.context:type_name -> rimgovernor.common.v1.ObservationContext
+	42, // 14: rimgovernor.lifecycle.v1.SaveUncertain.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
 	13, // 15: rimgovernor.lifecycle.v1.SaveReply.completed:type_name -> rimgovernor.lifecycle.v1.SaveCompleted
 	14, // 16: rimgovernor.lifecycle.v1.SaveReply.uncertain:type_name -> rimgovernor.lifecycle.v1.SaveUncertain
-	37, // 17: rimgovernor.lifecycle.v1.SaveReply.failure:type_name -> rimgovernor.common.v1.Failure
+	44, // 17: rimgovernor.lifecycle.v1.SaveReply.failure:type_name -> rimgovernor.common.v1.Failure
 	1,  // 18: rimgovernor.lifecycle.v1.LoadRequest.readiness:type_name -> rimgovernor.lifecycle.v1.Readiness
 	11, // 19: rimgovernor.lifecycle.v1.LoadRequest.expected_player:type_name -> rimgovernor.lifecycle.v1.PlayerLifecycleContext
 	5,  // 20: rimgovernor.lifecycle.v1.LoadCompleted.loaded:type_name -> rimgovernor.lifecycle.v1.LoadedIdentity
 	1,  // 21: rimgovernor.lifecycle.v1.LoadCompleted.readiness:type_name -> rimgovernor.lifecycle.v1.Readiness
-	35, // 22: rimgovernor.lifecycle.v1.LoadSuperseded.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
+	42, // 22: rimgovernor.lifecycle.v1.LoadSuperseded.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
 	17, // 23: rimgovernor.lifecycle.v1.LoadReply.completed:type_name -> rimgovernor.lifecycle.v1.LoadCompleted
 	18, // 24: rimgovernor.lifecycle.v1.LoadReply.pending:type_name -> rimgovernor.lifecycle.v1.LoadPending
-	37, // 25: rimgovernor.lifecycle.v1.LoadReply.failure:type_name -> rimgovernor.common.v1.Failure
+	44, // 25: rimgovernor.lifecycle.v1.LoadReply.failure:type_name -> rimgovernor.common.v1.Failure
 	19, // 26: rimgovernor.lifecycle.v1.LoadReply.superseded:type_name -> rimgovernor.lifecycle.v1.LoadSuperseded
 	22, // 27: rimgovernor.lifecycle.v1.NewColonyRequest.spec:type_name -> rimgovernor.lifecycle.v1.NewColonySpec
-	35, // 28: rimgovernor.lifecycle.v1.NewColonyCompleted.context:type_name -> rimgovernor.common.v1.ObservationContext
+	42, // 28: rimgovernor.lifecycle.v1.NewColonyCompleted.context:type_name -> rimgovernor.common.v1.ObservationContext
 	2,  // 29: rimgovernor.lifecycle.v1.NewColonyPending.phase:type_name -> rimgovernor.lifecycle.v1.NewColonyPhase
 	24, // 30: rimgovernor.lifecycle.v1.NewColonyReply.completed:type_name -> rimgovernor.lifecycle.v1.NewColonyCompleted
 	25, // 31: rimgovernor.lifecycle.v1.NewColonyReply.pending:type_name -> rimgovernor.lifecycle.v1.NewColonyPending
-	37, // 32: rimgovernor.lifecycle.v1.NewColonyReply.failure:type_name -> rimgovernor.common.v1.Failure
+	44, // 32: rimgovernor.lifecycle.v1.NewColonyReply.failure:type_name -> rimgovernor.common.v1.Failure
 	26, // 33: rimgovernor.lifecycle.v1.NewColonyReply.superseded:type_name -> rimgovernor.lifecycle.v1.NewColonySuperseded
-	33, // 34: rimgovernor.lifecycle.v1.GovernorStateBlobs.blobs:type_name -> rimgovernor.lifecycle.v1.GovernorStateBlobs.BlobsEntry
+	40, // 34: rimgovernor.lifecycle.v1.GovernorStateBlobs.blobs:type_name -> rimgovernor.lifecycle.v1.GovernorStateBlobs.BlobsEntry
 	29, // 35: rimgovernor.lifecycle.v1.GovernorStateReply.loaded:type_name -> rimgovernor.lifecycle.v1.GovernorStateBlobs
-	36, // 36: rimgovernor.lifecycle.v1.GovernorStateReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	37, // 37: rimgovernor.lifecycle.v1.GovernorStateReply.failure:type_name -> rimgovernor.common.v1.Failure
-	34, // 38: rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest.blobs:type_name -> rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest.BlobsEntry
-	28, // 39: rimgovernor.lifecycle.v1.Lifecycle.ReadGovernorState:input_type -> rimgovernor.lifecycle.v1.GovernorStateRequest
-	31, // 40: rimgovernor.lifecycle.v1.Lifecycle.PutGovernorState:input_type -> rimgovernor.lifecycle.v1.PutGovernorStateRequest
-	32, // 41: rimgovernor.lifecycle.v1.Lifecycle.PutGovernorStateBatch:input_type -> rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest
-	3,  // 42: rimgovernor.lifecycle.v1.Lifecycle.ReadIdentity:input_type -> rimgovernor.lifecycle.v1.IdentityRequest
-	12, // 43: rimgovernor.lifecycle.v1.Lifecycle.Save:input_type -> rimgovernor.lifecycle.v1.SaveRequest
-	16, // 44: rimgovernor.lifecycle.v1.Lifecycle.Load:input_type -> rimgovernor.lifecycle.v1.LoadRequest
-	21, // 45: rimgovernor.lifecycle.v1.Lifecycle.ReadLoad:input_type -> rimgovernor.lifecycle.v1.RequestStatus
-	21, // 46: rimgovernor.lifecycle.v1.Lifecycle.ReadSave:input_type -> rimgovernor.lifecycle.v1.RequestStatus
-	23, // 47: rimgovernor.lifecycle.v1.Lifecycle.NewColony:input_type -> rimgovernor.lifecycle.v1.NewColonyRequest
-	21, // 48: rimgovernor.lifecycle.v1.Lifecycle.ReadNewColony:input_type -> rimgovernor.lifecycle.v1.RequestStatus
-	30, // 49: rimgovernor.lifecycle.v1.Lifecycle.ReadGovernorState:output_type -> rimgovernor.lifecycle.v1.GovernorStateReply
-	30, // 50: rimgovernor.lifecycle.v1.Lifecycle.PutGovernorState:output_type -> rimgovernor.lifecycle.v1.GovernorStateReply
-	30, // 51: rimgovernor.lifecycle.v1.Lifecycle.PutGovernorStateBatch:output_type -> rimgovernor.lifecycle.v1.GovernorStateReply
-	6,  // 52: rimgovernor.lifecycle.v1.Lifecycle.ReadIdentity:output_type -> rimgovernor.lifecycle.v1.IdentityReply
-	15, // 53: rimgovernor.lifecycle.v1.Lifecycle.Save:output_type -> rimgovernor.lifecycle.v1.SaveReply
-	20, // 54: rimgovernor.lifecycle.v1.Lifecycle.Load:output_type -> rimgovernor.lifecycle.v1.LoadReply
-	20, // 55: rimgovernor.lifecycle.v1.Lifecycle.ReadLoad:output_type -> rimgovernor.lifecycle.v1.LoadReply
-	15, // 56: rimgovernor.lifecycle.v1.Lifecycle.ReadSave:output_type -> rimgovernor.lifecycle.v1.SaveReply
-	27, // 57: rimgovernor.lifecycle.v1.Lifecycle.NewColony:output_type -> rimgovernor.lifecycle.v1.NewColonyReply
-	27, // 58: rimgovernor.lifecycle.v1.Lifecycle.ReadNewColony:output_type -> rimgovernor.lifecycle.v1.NewColonyReply
-	49, // [49:59] is the sub-list for method output_type
-	39, // [39:49] is the sub-list for method input_type
-	39, // [39:39] is the sub-list for extension type_name
-	39, // [39:39] is the sub-list for extension extendee
-	0,  // [0:39] is the sub-list for field type_name
+	43, // 36: rimgovernor.lifecycle.v1.GovernorStateReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	44, // 37: rimgovernor.lifecycle.v1.GovernorStateReply.failure:type_name -> rimgovernor.common.v1.Failure
+	41, // 38: rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest.blobs:type_name -> rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest.BlobsEntry
+	34, // 39: rimgovernor.lifecycle.v1.WaitSaveSignalReply.signal:type_name -> rimgovernor.lifecycle.v1.SaveSignal
+	35, // 40: rimgovernor.lifecycle.v1.WaitSaveSignalReply.timeout:type_name -> rimgovernor.lifecycle.v1.SaveSignalTimeout
+	44, // 41: rimgovernor.lifecycle.v1.WaitSaveSignalReply.failure:type_name -> rimgovernor.common.v1.Failure
+	38, // 42: rimgovernor.lifecycle.v1.FlushDoneReply.acked:type_name -> rimgovernor.lifecycle.v1.FlushDoneAcked
+	44, // 43: rimgovernor.lifecycle.v1.FlushDoneReply.failure:type_name -> rimgovernor.common.v1.Failure
+	33, // 44: rimgovernor.lifecycle.v1.Lifecycle.WaitSaveSignal:input_type -> rimgovernor.lifecycle.v1.WaitSaveSignalRequest
+	37, // 45: rimgovernor.lifecycle.v1.Lifecycle.FlushDone:input_type -> rimgovernor.lifecycle.v1.FlushDoneRequest
+	28, // 46: rimgovernor.lifecycle.v1.Lifecycle.ReadGovernorState:input_type -> rimgovernor.lifecycle.v1.GovernorStateRequest
+	31, // 47: rimgovernor.lifecycle.v1.Lifecycle.PutGovernorState:input_type -> rimgovernor.lifecycle.v1.PutGovernorStateRequest
+	32, // 48: rimgovernor.lifecycle.v1.Lifecycle.PutGovernorStateBatch:input_type -> rimgovernor.lifecycle.v1.PutGovernorStateBatchRequest
+	3,  // 49: rimgovernor.lifecycle.v1.Lifecycle.ReadIdentity:input_type -> rimgovernor.lifecycle.v1.IdentityRequest
+	12, // 50: rimgovernor.lifecycle.v1.Lifecycle.Save:input_type -> rimgovernor.lifecycle.v1.SaveRequest
+	16, // 51: rimgovernor.lifecycle.v1.Lifecycle.Load:input_type -> rimgovernor.lifecycle.v1.LoadRequest
+	21, // 52: rimgovernor.lifecycle.v1.Lifecycle.ReadLoad:input_type -> rimgovernor.lifecycle.v1.RequestStatus
+	21, // 53: rimgovernor.lifecycle.v1.Lifecycle.ReadSave:input_type -> rimgovernor.lifecycle.v1.RequestStatus
+	23, // 54: rimgovernor.lifecycle.v1.Lifecycle.NewColony:input_type -> rimgovernor.lifecycle.v1.NewColonyRequest
+	21, // 55: rimgovernor.lifecycle.v1.Lifecycle.ReadNewColony:input_type -> rimgovernor.lifecycle.v1.RequestStatus
+	36, // 56: rimgovernor.lifecycle.v1.Lifecycle.WaitSaveSignal:output_type -> rimgovernor.lifecycle.v1.WaitSaveSignalReply
+	39, // 57: rimgovernor.lifecycle.v1.Lifecycle.FlushDone:output_type -> rimgovernor.lifecycle.v1.FlushDoneReply
+	30, // 58: rimgovernor.lifecycle.v1.Lifecycle.ReadGovernorState:output_type -> rimgovernor.lifecycle.v1.GovernorStateReply
+	30, // 59: rimgovernor.lifecycle.v1.Lifecycle.PutGovernorState:output_type -> rimgovernor.lifecycle.v1.GovernorStateReply
+	30, // 60: rimgovernor.lifecycle.v1.Lifecycle.PutGovernorStateBatch:output_type -> rimgovernor.lifecycle.v1.GovernorStateReply
+	6,  // 61: rimgovernor.lifecycle.v1.Lifecycle.ReadIdentity:output_type -> rimgovernor.lifecycle.v1.IdentityReply
+	15, // 62: rimgovernor.lifecycle.v1.Lifecycle.Save:output_type -> rimgovernor.lifecycle.v1.SaveReply
+	20, // 63: rimgovernor.lifecycle.v1.Lifecycle.Load:output_type -> rimgovernor.lifecycle.v1.LoadReply
+	20, // 64: rimgovernor.lifecycle.v1.Lifecycle.ReadLoad:output_type -> rimgovernor.lifecycle.v1.LoadReply
+	15, // 65: rimgovernor.lifecycle.v1.Lifecycle.ReadSave:output_type -> rimgovernor.lifecycle.v1.SaveReply
+	27, // 66: rimgovernor.lifecycle.v1.Lifecycle.NewColony:output_type -> rimgovernor.lifecycle.v1.NewColonyReply
+	27, // 67: rimgovernor.lifecycle.v1.Lifecycle.ReadNewColony:output_type -> rimgovernor.lifecycle.v1.NewColonyReply
+	56, // [56:68] is the sub-list for method output_type
+	44, // [44:56] is the sub-list for method input_type
+	44, // [44:44] is the sub-list for extension type_name
+	44, // [44:44] is the sub-list for extension extendee
+	0,  // [0:44] is the sub-list for field type_name
 }
 
 func init() { file_lifecycle_proto_init() }
@@ -2835,13 +3275,25 @@ func file_lifecycle_proto_init() {
 		(*GovernorStateReply_Failure)(nil),
 	}
 	file_lifecycle_proto_msgTypes[28].OneofWrappers = []any{}
+	file_lifecycle_proto_msgTypes[30].OneofWrappers = []any{}
+	file_lifecycle_proto_msgTypes[31].OneofWrappers = []any{}
+	file_lifecycle_proto_msgTypes[33].OneofWrappers = []any{
+		(*WaitSaveSignalReply_Signal)(nil),
+		(*WaitSaveSignalReply_Timeout)(nil),
+		(*WaitSaveSignalReply_Failure)(nil),
+	}
+	file_lifecycle_proto_msgTypes[34].OneofWrappers = []any{}
+	file_lifecycle_proto_msgTypes[36].OneofWrappers = []any{
+		(*FlushDoneReply_Acked)(nil),
+		(*FlushDoneReply_Failure)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_lifecycle_proto_rawDesc), len(file_lifecycle_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   32,
+			NumMessages:   39,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

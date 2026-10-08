@@ -9,9 +9,8 @@ namespace HomeBridge.BridgeTools
     // Cheaper fixture worlds for the headless acceptance profiles (#272).
     // Everything here is gated on the -rimgovernor-test-acceleration launch
     // argument, the same gate as the clock's tick boost: a production or
-    // player launch never sees it. Under the gate the autosaver never ticks
-    // (the profile already sets a 1000-day interval; this removes the tick
-    // itself), and a game whose QuietWorld marker is set (test/quiet_world,
+    // player launch never sees it. Vanilla autosave is skipped in production by SaveHandshake (#2358).
+    // A game whose QuietWorld marker is set (test/quiet_world,
     // persisted with the save) skips the simulation the cases never
     // observe: wild plants and wild animals outside the home area stop
     // ticking, and the wild plant and animal spawners stop. Plants in a
@@ -103,7 +102,6 @@ namespace HomeBridge.BridgeTools
             if (installed || !Launched) return;
             installed = true;
             var harmony = new Harmony("rimgovernor.test-acceleration.world");
-            Patch(harmony, AccessTools.Method(typeof(Autosaver), "AutosaverTick"), nameof(Skip));
             Patch(harmony, AccessTools.Method(typeof(WildPlantSpawner), "WildPlantSpawnerTick"), nameof(SkipWhenQuiet));
             Patch(harmony, AccessTools.Method(typeof(WildAnimalSpawner), "WildAnimalSpawnerTick"), nameof(SkipWhenQuiet));
             // A plant ticks Long (and, in 1.6, through TickInterval); a pawn
@@ -113,7 +111,7 @@ namespace HomeBridge.BridgeTools
                 Patch(harmony, AccessTools.DeclaredMethod(typeof(Plant), name), nameof(WildPlant));
             foreach (var name in new[] { "Tick", "TickRare", "TickInterval" })
                 Patch(harmony, AccessTools.DeclaredMethod(typeof(Pawn), name), nameof(WildAnimal));
-            ModLog.Info("startup", "test acceleration world patches installed: no autosave tick; quiet-world wild tick skip armed.");
+            ModLog.Info("startup", "test acceleration world patches installed: quiet-world wild tick skip armed.");
         }
 
         private static void Patch(Harmony harmony, System.Reflection.MethodBase? original, string prefix)
@@ -122,7 +120,6 @@ namespace HomeBridge.BridgeTools
             harmony.Patch(original, prefix: new HarmonyMethod(typeof(AcceptanceWorld), prefix));
         }
 
-        private static bool Skip() => false;
         private static bool SkipWhenQuiet() => !Quiet;
 
         // Outside the home area and any growing zone a wild plant neither

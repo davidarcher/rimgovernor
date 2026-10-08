@@ -216,7 +216,33 @@ message PutGovernorStateRequest { optional string key = 1; optional string blob 
 // PutBatch replaces the whole blob set (#2357): keys absent from blobs are
 // removed. It runs off the game thread; the reply's loaded outcome is empty.
 message PutGovernorStateBatchRequest { map<string, string> blobs = 1; }
+// Save-time handshake (#2358). Native's SaveGame prefix never cancels a
+// save. When Go holds a WaitSaveSignal call and the save is not Go-initiated,
+// native hands that call a pre_save signal, blocks the game thread until
+// FlushDone acks its token (or ~3 s pass), then lets the save run. Signals
+// are not durable: a signal raised with no held call is dropped. Both tools
+// run on the bridge worker thread, never the game thread.
+message WaitSaveSignalRequest { optional int32 timeout_ms = 1; }
+message SaveSignal { optional string kind = 1; optional string token = 2; }
+message SaveSignalTimeout {}
+message WaitSaveSignalReply {
+  oneof outcome {
+    SaveSignal signal = 1;
+    SaveSignalTimeout timeout = 2;
+    rimgovernor.common.v1.Failure failure = 3;
+  }
+}
+message FlushDoneRequest { optional string token = 1; }
+message FlushDoneAcked {}
+message FlushDoneReply {
+  oneof outcome {
+    FlushDoneAcked acked = 1;
+    rimgovernor.common.v1.Failure failure = 2;
+  }
+}
 service Lifecycle {
+  rpc WaitSaveSignal(WaitSaveSignalRequest) returns (WaitSaveSignalReply);
+  rpc FlushDone(FlushDoneRequest) returns (FlushDoneReply);
   rpc ReadGovernorState(GovernorStateRequest) returns (GovernorStateReply);
   rpc PutGovernorState(PutGovernorStateRequest) returns (GovernorStateReply);
   rpc PutGovernorStateBatch(PutGovernorStateBatchRequest) returns (GovernorStateReply);

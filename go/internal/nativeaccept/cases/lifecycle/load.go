@@ -68,6 +68,24 @@ func runLoad(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
+	// Save handshake (#2358): the client serializes calls, so a held wait
+	// cannot overlap a save here. With no signal the wait returns its timeout
+	// (and the Go-initiated saves above raised none), and a token native never
+	// issued is rejected rather than acked.
+	waitReply, err := h.Wire(ctx, "save-signal-wait", "lifecycle_wait_save_signal", map[string]any{"timeoutMs": 200})
+	if err != nil {
+		return fmt.Errorf("save-signal-wait: %w", err)
+	}
+	if _, _, err := na.Outcome(waitReply, "timeout"); err != nil {
+		return fmt.Errorf("save-signal-wait: want timeout: %w", err)
+	}
+	flushReply, err := h.Wire(ctx, "save-signal-stale", "lifecycle_flush_done", map[string]any{"token": "never-issued"})
+	if err != nil {
+		return fmt.Errorf("save-signal-stale: %w", err)
+	}
+	if _, _, err := na.Outcome(flushReply, "failure"); err != nil {
+		return fmt.Errorf("save-signal-stale: want failure: %w", err)
+	}
 	governorBlob := `{"probe":[` + strings.Repeat(`{"id":"p","payload":{}},`, 200) + `{}]}`
 	// The put reply carries no blobs (#1362): read them back to prove it stored.
 	if _, err := governorState(ctx, h, "governor-state-put", "lifecycle_put_governor_state", map[string]any{"key": "probe", "blob": governorBlob}); err != nil {

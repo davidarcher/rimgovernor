@@ -208,6 +208,8 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/lifecycle_put_governor_state":         AdmissionControl,
 	"rimgovernor/lifecycle_put_governor_state_batch":   AdmissionControl,
 	"rimgovernor/lifecycle_save":                       AdmissionControl,
+	"rimgovernor/lifecycle_wait_save_signal":           AdmissionControl,
+	"rimgovernor/lifecycle_flush_done":                 AdmissionControl,
 	"rimgovernor/presentation_overlay":                 AdmissionControl,
 	"rimgovernor/lifecycle_read_save":                  AdmissionControl,
 	"rimgovernor/lifecycle_load":                       AdmissionControl,

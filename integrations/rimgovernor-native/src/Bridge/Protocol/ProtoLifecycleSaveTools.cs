@@ -131,7 +131,10 @@ namespace HomeBridge.BridgeTools
         {
             var path = GenFilePaths.FilePathForSavedGame(saveName);
             var before = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
-            GameDataSaveLoader.SaveGame(saveName);
+            // Go-initiated: the SaveGame prefix raises no pre_save signal (#2358).
+            SaveHandshake.BeginGoSave();
+            try { GameDataSaveLoader.SaveGame(saveName); }
+            finally { SaveHandshake.EndGoSave(); }
             if (!File.Exists(path) || File.GetLastWriteTimeUtc(path) == before)
                 throw new IOException("The save file " + path + " was not written.");
             var length = new FileInfo(path).Length;

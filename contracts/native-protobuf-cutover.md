@@ -11,6 +11,8 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/lifecycle_read_governor_state | rimgovernor.lifecycle.v1.Lifecycle/ReadGovernorState | Protocol/ProtoGovernorStateTools.cs |
 | rimgovernor/lifecycle_put_governor_state | rimgovernor.lifecycle.v1.Lifecycle/PutGovernorState | Protocol/ProtoGovernorStateTools.cs |
 | rimgovernor/lifecycle_put_governor_state_batch | rimgovernor.lifecycle.v1.Lifecycle/PutGovernorStateBatch | Protocol/ProtoGovernorStateTools.cs |
+| rimgovernor/lifecycle_wait_save_signal | rimgovernor.lifecycle.v1.Lifecycle/WaitSaveSignal | Protocol/ProtoLifecycleSaveSignalTools.cs |
+| rimgovernor/lifecycle_flush_done | rimgovernor.lifecycle.v1.Lifecycle/FlushDone | Protocol/ProtoLifecycleSaveSignalTools.cs |
 | rimgovernor/authority_read_status | rimgovernor.authority.v1.Authority/ReadStatus | Protocol/NativeAuthorityTools.cs |
 | rimgovernor/placement_preview | rimgovernor.placement.v1.Placement/Preview | PlacementPreviewsTool.cs, Protocol/PlacementProtocol.cs, PlacementPreviewOperation.cs |
 | rimgovernor/authority_control | rimgovernor.authority.v1.Authority/Control | Protocol/NativeAuthorityControlTools.cs |

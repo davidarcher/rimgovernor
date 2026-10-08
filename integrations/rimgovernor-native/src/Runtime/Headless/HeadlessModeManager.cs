@@ -18,6 +18,8 @@ namespace HeadlessRim
                 // The acceptance-only world patches ride on their own launch
                 // gate (-rimgovernor-test-acceleration), not on batch mode.
                 HomeBridge.BridgeTools.AcceptanceWorld.Install();
+                // Production patches (#2358): the pre_save handshake and no vanilla autosave.
+                HomeBridge.BridgeTools.SaveHandshake.Install();
                 if (!args.Contains("-batchmode")) return;
 
 
