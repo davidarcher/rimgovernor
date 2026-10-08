@@ -181,6 +181,8 @@ func TestHoldSurvivesBlockerMeleeAtChoke(t *testing.T) {
 	if next := restage(); next.Tactic != TacticHold {
 		t.Fatalf("hurt blockers at the choke dropped the hold: %+v", next)
 	}
+	// Loose inside a standing room: engaged by position (#2375).
+	view.Rooms = []CombatRoom{{Interior: Rectangle{X: 8, Z: 19, Width: 3, Height: 3}}}
 	view.Positional[0].Position = domain.Known(domain.Cell{X: 9, Z: 20})
 	if next := restage(); next.Tactic == TacticHold {
 		t.Fatalf("a raider loose past the blockers kept the hold: %+v", next)

@@ -33,18 +33,12 @@ type DefensivePosition struct {
 	Target   PawnID
 }
 
-// defensiveEngagedDistance is the nearest-colonist distance at or under which
-// a hostile is already engaged inside the colony, so parking defenders on the
-// firing line would leave whoever it reached alone. PawnState carries no
-// position, so this native distance is the only inside/outside evidence.
-const defensiveEngagedDistance = 12.0
-
 // SelectDefensivePositions ports the M3 rule: only when the layout stands
 // (the firing cells supplied, facing the corridor direction toward) and
 // every live hostile is an ordinary edge-arriving assault still in front of
 // the line does the colony hold the line. Sappers, breachers, sieges, drop
 // pods, hostiles without a lord or with unknown lord evidence, hostiles
-// already within engaged distance and hostiles standing at or behind the
+// inside a standing room and hostiles standing at or behind the
 // line's cover row all return false so the caller falls back to
 // SelectSquadDefense. Ranged, healthy, idle defenders take firing cells in
 // cell order, one each, and engage the lowest-ID live hostile; unarmed or
@@ -59,13 +53,16 @@ func SelectDefensivePositions(firing []domain.Cell, toward domain.Rotation, thre
 // that fell through and the evidence it saw (#714), so a squad fallback in
 // a run log names the hostile or defender fact that decided it.
 func ExplainDefensivePositions(firing []domain.Cell, toward domain.Rotation, threats []DefensiveThreatFacts, defenders []SquadDefenderFacts) ([]DefensivePosition, string) {
-	return explainDefensivePositions(firing, toward, nil, threats, defenders)
+	return explainDefensivePositions(firing, toward, nil, nil, threats, defenders)
 }
 
-// explainDefensivePositions takes held, which reports a hostile cell the
-// hold's blockers stop at the choke: that hostile is the blockers' fight,
-// the hold doing its job, not a raider loose inside the line (#905).
-func explainDefensivePositions(firing []domain.Cell, toward domain.Rotation, held func(domain.Cell) bool, threats []DefensiveThreatFacts, defenders []SquadDefenderFacts) ([]DefensivePosition, string) {
+// explainDefensivePositions takes inside, which reports a cell in a standing
+// room (a hostile there is engaged, whatever its distance), and held, which
+// reports a hostile cell the hold's blockers stop at the choke: that hostile
+// is the blockers' fight, the hold doing its job, not a raider loose inside
+// the line (#905). A hostile outside the walls, however close, is not
+// engaged; only position counts (#2375).
+func explainDefensivePositions(firing []domain.Cell, toward domain.Rotation, inside, held func(domain.Cell) bool, threats []DefensiveThreatFacts, defenders []SquadDefenderFacts) ([]DefensivePosition, string) {
 	if len(firing) == 0 {
 		return nil, "no firing cells"
 	}
@@ -85,7 +82,6 @@ func explainDefensivePositions(firing []domain.Cell, toward domain.Rotation, hel
 		humanlike, hk := t.Humanlike.Value()
 		job, jk := t.LordJobClass.Value()
 		toil, tk := t.LordToilClass.Value()
-		distance, nk := t.NearestColonistDistance.Value()
 		position, pk := t.Position.Value()
 		switch {
 		case !t.Mech && (!hk || !humanlike):
@@ -94,12 +90,10 @@ func explainDefensivePositions(firing []domain.Cell, toward domain.Rotation, hel
 			return nil, fmt.Sprintf("hostile %s: lord unknown (job %q known=%t, toil %q known=%t)", t.ID, job, jk, toil, tk)
 		case !edgeAssault(job, toil):
 			return nil, fmt.Sprintf("hostile %s: not an edge assault (%s/%s)", t.ID, job, toil)
-		case !nk:
-			return nil, fmt.Sprintf("hostile %s: nearest colonist distance unknown", t.ID)
-		case distance <= defensiveEngagedDistance && !(pk && held != nil && held(position)):
-			return nil, fmt.Sprintf("hostile %s: engaged, nearest colonist %.1f cells", t.ID, distance)
 		case !pk:
 			return nil, fmt.Sprintf("hostile %s: position unknown", t.ID)
+		case inside != nil && inside(position) && !(held != nil && held(position)):
+			return nil, fmt.Sprintf("hostile %s: inside room at (%d,%d)", t.ID, position.X, position.Z)
 		case BehindFiringLine(firing, toward, position):
 			return nil, fmt.Sprintf("hostile %s: at (%d,%d), at or behind the line", t.ID, position.X, position.Z)
 		}

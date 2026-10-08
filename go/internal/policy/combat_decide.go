@@ -1025,7 +1025,7 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 		cells = slices.DeleteFunc(cells, func(c domain.Cell) bool { return slices.Contains(unreachable, c) })
 		cells = spaceCells(cells, firingGap(view))
 		defenders, tanks := splitTanks(view)
-		positions, refusal = explainDefensivePositions(cells, layout.Toward, chokeHeld(view, layout), markMechs(view), defenders)
+		positions, refusal = explainDefensivePositions(cells, layout.Toward, insideRooms(view), chokeHeld(view, layout), markMechs(view), defenders)
 		if refusal == "" {
 			roles := make([]CombatRole, 0, len(positions))
 			for _, p := range positions {

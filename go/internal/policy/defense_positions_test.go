@@ -41,8 +41,6 @@ func TestSelectDefensivePositionsFallsBack(t *testing.T) {
 		"siege":            func(f *DefensiveThreatFacts) { f.LordJobClass = domain.Known("LordJob_Siege") },
 		"no lord":          func(f *DefensiveThreatFacts) { f.LordJobClass = domain.Unknown[string]() },
 		"unknown toil":     func(f *DefensiveThreatFacts) { f.LordToilClass = domain.Unknown[string]() },
-		"already engaged":  func(f *DefensiveThreatFacts) { f.NearestColonistDistance = domain.Known(6.0) },
-		"unknown distance": func(f *DefensiveThreatFacts) { f.NearestColonistDistance = domain.Unknown[float64]() },
 		"on the cover row": func(f *DefensiveThreatFacts) { f.Position = domain.Known(domain.Cell{X: 12, Z: 22}) },
 		"behind the line":  func(f *DefensiveThreatFacts) { f.Position = domain.Known(domain.Cell{X: 9, Z: 30}) },
 		"unknown position": func(f *DefensiveThreatFacts) { f.Position = domain.Unknown[domain.Cell]() },
@@ -132,17 +130,34 @@ func TestExplainDefensivePositionsNamesTheGate(t *testing.T) {
 	firing := cells(9, 23)
 	defenders := []SquadDefenderFacts{defensiveDefender("colonist-a", true)}
 	for want, mutate := range map[string]func(*DefensiveThreatFacts){
-		"lord unknown":                func(f *DefensiveThreatFacts) { f.LordToilClass = domain.Fact[string]{} },
-		"not an edge assault":         func(f *DefensiveThreatFacts) { f.LordJobClass = domain.Known("LordJob_Siege") },
-		"engaged, nearest colonist 8": func(f *DefensiveThreatFacts) { f.NearestColonistDistance = domain.Known(8.0) },
-		"at or behind the line":       func(f *DefensiveThreatFacts) { f.Position = domain.Known(domain.Cell{X: 9, Z: 30}) },
-		"distance unknown":            func(f *DefensiveThreatFacts) { f.NearestColonistDistance = domain.Fact[float64]{} },
+		"lord unknown":          func(f *DefensiveThreatFacts) { f.LordToilClass = domain.Fact[string]{} },
+		"not an edge assault":   func(f *DefensiveThreatFacts) { f.LordJobClass = domain.Known("LordJob_Siege") },
+		"at or behind the line": func(f *DefensiveThreatFacts) { f.Position = domain.Known(domain.Cell{X: 9, Z: 30}) },
 	} {
 		threat := defensiveThreat("raider-1")
 		mutate(&threat)
 		if _, got := ExplainDefensivePositions(firing, domain.North, []DefensiveThreatFacts{threat}, defenders); !strings.Contains(got, want) {
 			t.Errorf("%s: %q", want, got)
 		}
+	}
+	room := func(c domain.Cell) bool { return c.X >= 5 && c.X < 15 && c.Z >= 0 && c.Z < 10 }
+	inRoom := defensiveThreat("raider-1")
+	if _, got := explainDefensivePositions(firing, domain.North, room, nil, []DefensiveThreatFacts{inRoom}, defenders); !strings.Contains(got, "inside room at (9,5)") {
+		t.Error(got)
+	}
+	// Choke-held hostile in a room does not refuse the hold.
+	if _, got := explainDefensivePositions(firing, domain.North, room, func(domain.Cell) bool { return true }, []DefensiveThreatFacts{inRoom}, defenders); got != "" {
+		t.Error(got)
+	}
+	// Six cells from a colonist but outside every room: the hold forms.
+	near := defensiveThreat("raider-1")
+	near.NearestColonistDistance = domain.Known(6.0)
+	near.Position = domain.Known(domain.Cell{X: 40, Z: 5})
+	if _, got := explainDefensivePositions(firing, domain.North, room, nil, []DefensiveThreatFacts{near}, defenders); got != "" {
+		t.Error(got)
+	}
+	if _, got := explainDefensivePositions(firing, domain.North, nil, nil, []DefensiveThreatFacts{inRoom}, defenders); got != "" {
+		t.Error("open field with no rooms", got)
 	}
 	if _, got := ExplainDefensivePositions(firing, domain.North, []DefensiveThreatFacts{defensiveThreat("raider-1")}, []SquadDefenderFacts{defensiveDefender("colonist-a", false)}); !strings.Contains(got, "no eligible ranged defender") {
 		t.Error(got)

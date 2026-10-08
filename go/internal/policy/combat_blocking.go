@@ -56,6 +56,17 @@ func blockingChoke(view CombatView) (domain.Cell, domain.Cell, bool) {
 // neighbour of the choke one step toward the colony), a hostile at the
 // choke or in front of it within two cells is held there, however hurt
 // the blockers are. Nil without a known choke.
+// insideRooms reports a cell on the floor of a standing room (#2375), or nil
+// when the frame has no rooms.
+func insideRooms(view CombatView) func(domain.Cell) bool {
+	if len(view.Rooms) == 0 {
+		return nil
+	}
+	return func(c domain.Cell) bool {
+		return slices.ContainsFunc(view.Rooms, func(r CombatRoom) bool { return r.contains(c) })
+	}
+}
+
 func chokeHeld(view CombatView, layout CombatLayout) func(domain.Cell) bool {
 	choke, ok := layout.Choke.Value()
 	v, vok := towardVector(layout.Toward)
