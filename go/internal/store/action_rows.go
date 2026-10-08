@@ -314,6 +314,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		// x carries the window ID and z the option's list position; definition
 		// is the exact observed option label.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z,stuff) VALUES(?,?,?,'dialog_answer',?,?,?,?)", a.ID(), plan, ordinal, dialog.OptionLabel(), dialog.WindowID(), dialog.OptionIndex(), sql.NullString{String: dialog.LetterToken(), Valid: dialog.LetterToken() != ""})
+	} else if request, ok := a.CommsTradeRequest(); ok {
+		data, encodeErr := json.Marshal(request)
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,trade_payload) VALUES(?,?,?,'comms_trade_request',?)", a.ID(), plan, ordinal, data)
 	} else if trade, ok := a.Trade(); ok {
 		data, encodeErr := json.Marshal(tradePayload{trade.Kind(), trade.Participant(), trade.Negotiator(), trade.GiftMode(), trade.Lines(), trade.AllowPawns(), trade.ExpectedDealSignature(), trade.EconomicFloors(), trade.ExportThings(), trade.AllowEmpty(), trade.EndKind(), trade.ReceiveQuest()})
 		if encodeErr != nil {
@@ -657,6 +663,18 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if moodReliefBlob != nil {
 		return domain.Action{}, 0, errors.New("mixed mood relief payload")
+	}
+	if kind == "comms_trade_request" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		var request domain.CommsTradeRequest
+		if json.Unmarshal(tradeBlob, &request) != nil {
+			return domain.Action{}, 0, errors.New("invalid comms request payload")
+		}
+		canonical, _ := json.Marshal(request)
+		if !bytes.Equal(canonical, tradeBlob) {
+			return domain.Action{}, 0, errors.New("noncanonical comms request payload")
+		}
+		action, err := domain.NewCommsTradeRequestAction(id, request)
+		return action, ordinal, err
 	}
 	if kind == "trade" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		var payload tradePayload

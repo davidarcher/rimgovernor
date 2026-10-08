@@ -30,6 +30,7 @@ namespace HomeBridge.BridgeTools
         private static readonly Dictionary<Operations.Action.IntentOneofCase, IActionHandler> Handlers = new Dictionary<Operations.Action.IntentOneofCase, IActionHandler>
         {
             [Operations.Action.IntentOneofCase.Trade] = new TradeActionHandler(),
+            [Operations.Action.IntentOneofCase.CommsTradeRequest] = new CommsTradeRequestActionHandler(),
             [Operations.Action.IntentOneofCase.Building] = new BuildingActionHandler(),
             [Operations.Action.IntentOneofCase.Move] = new MoveActionHandler(),
             [Operations.Action.IntentOneofCase.Haul] = new HaulActionHandler(),

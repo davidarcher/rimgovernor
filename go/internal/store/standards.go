@@ -343,6 +343,31 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 		return err
 	}
 	if open {
+		// An uncertain remote request earns no stock and cannot monopolize
+		// its supply owner. Ordinary local methods may proceed while its
+		// separate Hands attempt remains unresolved.
+		onlyRequests := true
+		for _, linked := range state.OwnerMethods() {
+			pending, err := load(ctx, tx, linked.Plan)
+			if err != nil {
+				return err
+			}
+			for _, progress := range pending.Progress {
+				if domain.StandardWorkOpen([]domain.Progress{progress}) && progress.Action().Kind() != domain.CommsTradeRequestAction {
+					onlyRequests = false
+				}
+			}
+		}
+		for _, action := range plan.Actions() {
+			if action.Kind() == domain.CommsTradeRequestAction {
+				onlyRequests = false
+			}
+		}
+		if onlyRequests {
+			open = false
+		}
+	}
+	if open {
 		exempt, err := acquisitionOpenWorkExempt(ctx, tx, state, plan)
 		if err != nil {
 			return err

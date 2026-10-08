@@ -4053,6 +4053,7 @@ type Action struct {
 	//	*Action_QuestShuttle
 	//	*Action_HackDesignation
 	//	*Action_GiveItem
+	//	*Action_CommsTradeRequest
 	Intent        isAction_Intent `protobuf_oneof:"intent"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4469,6 +4470,15 @@ func (x *Action) GetGiveItem() *GiveItemIntent {
 	return nil
 }
 
+func (x *Action) GetCommsTradeRequest() *CommsTradeRequestIntent {
+	if x != nil {
+		if x, ok := x.Intent.(*Action_CommsTradeRequest); ok {
+			return x.CommsTradeRequest
+		}
+	}
+	return nil
+}
+
 type isAction_Intent interface {
 	isAction_Intent()
 }
@@ -4634,6 +4644,10 @@ type Action_GiveItem struct {
 	GiveItem *GiveItemIntent `protobuf:"bytes,71,opt,name=give_item,json=giveItem,proto3,oneof"`
 }
 
+type Action_CommsTradeRequest struct {
+	CommsTradeRequest *CommsTradeRequestIntent `protobuf:"bytes,72,opt,name=comms_trade_request,json=commsTradeRequest,proto3,oneof"`
+}
+
 func (*Action_Trade) isAction_Intent() {}
 
 func (*Action_Building) isAction_Intent() {}
@@ -4713,6 +4727,8 @@ func (*Action_QuestShuttle) isAction_Intent() {}
 func (*Action_HackDesignation) isAction_Intent() {}
 
 func (*Action_GiveItem) isAction_Intent() {}
+
+func (*Action_CommsTradeRequest) isAction_Intent() {}
 
 type HackDesignationIntent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -9647,7 +9663,7 @@ const file_operations_proto_rawDesc = "" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12;\n" +
 	"\aactions\x18\x02 \x03(\v2!.rimgovernor.operations.v1.ActionR\aactions\x12*\n" +
 	"\x0edefer_snapshot\x18\x03 \x01(\bH\x00R\rdeferSnapshot\x88\x01\x01B\x11\n" +
-	"\x0f_defer_snapshot\"\xa0\x19\n" +
+	"\x0f_defer_snapshot\"\x86\x1a\n" +
 	"\x06Action\x12\x15\n" +
 	"\x03key\x18\x01 \x01(\tH\x01R\x03key\x88\x01\x01\x12\x1d\n" +
 	"\apurpose\x18\x02 \x01(\tH\x02R\apurpose\x88\x01\x01\x12>\n" +
@@ -9694,7 +9710,8 @@ const file_operations_proto_rawDesc = "" +
 	"\x11ideoligion_reform\x18D \x01(\v21.rimgovernor.operations.v1.IdeoligionReformIntentH\x00R\x10ideoligionReform\x12T\n" +
 	"\rquest_shuttle\x18E \x01(\v2-.rimgovernor.operations.v1.QuestShuttleIntentH\x00R\fquestShuttle\x12]\n" +
 	"\x10hack_designation\x18F \x01(\v20.rimgovernor.operations.v1.HackDesignationIntentH\x00R\x0fhackDesignation\x12H\n" +
-	"\tgive_item\x18G \x01(\v2).rimgovernor.operations.v1.GiveItemIntentH\x00R\bgiveItemB\b\n" +
+	"\tgive_item\x18G \x01(\v2).rimgovernor.operations.v1.GiveItemIntentH\x00R\bgiveItem\x12d\n" +
+	"\x13comms_trade_request\x18H \x01(\v22.rimgovernor.operations.v1.CommsTradeRequestIntentH\x00R\x11commsTradeRequestB\b\n" +
 	"\x06intentB\x06\n" +
 	"\x04_keyB\n" +
 	"\n" +
@@ -10566,105 +10583,106 @@ var file_operations_proto_depIdxs = []int32{
 	98,  // 99: rimgovernor.operations.v1.Action.quest_shuttle:type_name -> rimgovernor.operations.v1.QuestShuttleIntent
 	60,  // 100: rimgovernor.operations.v1.Action.hack_designation:type_name -> rimgovernor.operations.v1.HackDesignationIntent
 	61,  // 101: rimgovernor.operations.v1.Action.give_item:type_name -> rimgovernor.operations.v1.GiveItemIntent
-	124, // 102: rimgovernor.operations.v1.HackDesignationIntent.target:type_name -> rimgovernor.common.v1.Ref
-	124, // 103: rimgovernor.operations.v1.GiveItemIntent.hauler:type_name -> rimgovernor.common.v1.Ref
-	124, // 104: rimgovernor.operations.v1.GiveItemIntent.recipient:type_name -> rimgovernor.common.v1.Ref
-	128, // 105: rimgovernor.operations.v1.IdeoligionReformIntent.expected:type_name -> rimgovernor.common.v1.IdeoligionDesign
-	128, // 106: rimgovernor.operations.v1.IdeoligionReformIntent.design:type_name -> rimgovernor.common.v1.IdeoligionDesign
-	122, // 107: rimgovernor.operations.v1.IgniteIntent.cell:type_name -> rimgovernor.common.v1.Cell
-	65,  // 108: rimgovernor.operations.v1.AbilityIntent.permit:type_name -> rimgovernor.operations.v1.PermitAbility
-	66,  // 109: rimgovernor.operations.v1.AbilityIntent.psycast:type_name -> rimgovernor.operations.v1.PsycastAbility
-	67,  // 110: rimgovernor.operations.v1.AbilityIntent.no_target:type_name -> rimgovernor.operations.v1.AbilityNoTarget
-	122, // 111: rimgovernor.operations.v1.AbilityIntent.cell:type_name -> rimgovernor.common.v1.Cell
-	4,   // 112: rimgovernor.operations.v1.PawnSettingsIntent.hostility_response:type_name -> rimgovernor.operations.v1.HostilityResponse
-	5,   // 113: rimgovernor.operations.v1.PawnSettingsIntent.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
-	69,  // 114: rimgovernor.operations.v1.PawnSettingsIntent.choose_permit:type_name -> rimgovernor.operations.v1.PermitChoice
-	14,  // 115: rimgovernor.operations.v1.AreaIntent.operation:type_name -> rimgovernor.operations.v1.AreaOperation
-	70,  // 116: rimgovernor.operations.v1.AreaIntent.rects:type_name -> rimgovernor.operations.v1.AreaRect
-	15,  // 117: rimgovernor.operations.v1.PolicyPruneIntent.database:type_name -> rimgovernor.operations.v1.PolicyDatabase
-	74,  // 118: rimgovernor.operations.v1.DrugPolicyIntent.entries:type_name -> rimgovernor.operations.v1.DrugPolicyEntry
-	11,  // 119: rimgovernor.operations.v1.GiveJobOptions.relieve_need:type_name -> rimgovernor.operations.v1.Need
-	124, // 120: rimgovernor.operations.v1.GiveJobIntent.pawn:type_name -> rimgovernor.common.v1.Ref
-	124, // 121: rimgovernor.operations.v1.GiveJobIntent.targets:type_name -> rimgovernor.common.v1.Ref
-	122, // 122: rimgovernor.operations.v1.GiveJobIntent.cells:type_name -> rimgovernor.common.v1.Cell
-	79,  // 123: rimgovernor.operations.v1.GiveJobIntent.options:type_name -> rimgovernor.operations.v1.GiveJobOptions
-	2,   // 124: rimgovernor.operations.v1.DesignateIntent.designation:type_name -> rimgovernor.operations.v1.ThingDesignation
-	124, // 125: rimgovernor.operations.v1.DesignateIntent.target:type_name -> rimgovernor.common.v1.Ref
-	122, // 126: rimgovernor.operations.v1.DesignateIntent.cell:type_name -> rimgovernor.common.v1.Cell
-	16,  // 127: rimgovernor.operations.v1.DesignateIntent.guard:type_name -> rimgovernor.operations.v1.DesignationGuard
-	28,  // 128: rimgovernor.operations.v1.DesignateIntent.cleared_ground:type_name -> rimgovernor.operations.v1.Rectangle
-	122, // 129: rimgovernor.operations.v1.RelocateIntent.destination:type_name -> rimgovernor.common.v1.Cell
-	129, // 130: rimgovernor.operations.v1.RelocateIntent.rotation:type_name -> rimgovernor.placement.v1.Rotation
-	24,  // 131: rimgovernor.operations.v1.BuildingPatchIntent.for_prisoners:type_name -> rimgovernor.operations.v1.Clear
-	24,  // 132: rimgovernor.operations.v1.BuildingPatchIntent.claim:type_name -> rimgovernor.operations.v1.Clear
-	24,  // 133: rimgovernor.operations.v1.BuildingPatchIntent.for_slaves:type_name -> rimgovernor.operations.v1.Clear
-	122, // 134: rimgovernor.operations.v1.RemoveRoofIntent.cells:type_name -> rimgovernor.common.v1.Cell
-	122, // 135: rimgovernor.operations.v1.AreaPlantCutIntent.cells:type_name -> rimgovernor.common.v1.Cell
-	17,  // 136: rimgovernor.operations.v1.HusbandryIntent.order:type_name -> rimgovernor.operations.v1.HusbandryOrder
-	43,  // 137: rimgovernor.operations.v1.ProductionBillIntent.settings:type_name -> rimgovernor.operations.v1.BillSettings
-	124, // 138: rimgovernor.operations.v1.ProductionBillIntent.replace_owned_bill:type_name -> rimgovernor.common.v1.Ref
-	124, // 139: rimgovernor.operations.v1.ProductionBillIntent.patient:type_name -> rimgovernor.common.v1.Ref
-	124, // 140: rimgovernor.operations.v1.ProductionBillIntent.surgeon:type_name -> rimgovernor.common.v1.Ref
-	124, // 141: rimgovernor.operations.v1.RemoveProductionBillIntent.bill:type_name -> rimgovernor.common.v1.Ref
-	37,  // 142: rimgovernor.operations.v1.WorkSettingsIntent.work:type_name -> rimgovernor.operations.v1.WorkPriority
-	25,  // 143: rimgovernor.operations.v1.WorkSettingsIntent.allowed_area:type_name -> rimgovernor.operations.v1.Assignment
-	38,  // 144: rimgovernor.operations.v1.WorkSettingsIntent.schedule:type_name -> rimgovernor.operations.v1.Schedule
-	25,  // 145: rimgovernor.operations.v1.AssignIntent.expected_previous:type_name -> rimgovernor.operations.v1.Assignment
-	12,  // 146: rimgovernor.operations.v1.PrisonerInteractionIntent.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
-	26,  // 147: rimgovernor.operations.v1.FormCaravanIntent.cargo:type_name -> rimgovernor.operations.v1.DefCount
-	97,  // 148: rimgovernor.operations.v1.QuestShuttleIntent.explicit_pawns:type_name -> rimgovernor.operations.v1.ShuttlePawnList
-	122, // 149: rimgovernor.operations.v1.RitualIntent.spot:type_name -> rimgovernor.common.v1.Cell
-	100, // 150: rimgovernor.operations.v1.RitualIntent.roles:type_name -> rimgovernor.operations.v1.RitualRoleAssignment
-	122, // 151: rimgovernor.operations.v1.MoveIntent.destination:type_name -> rimgovernor.common.v1.Cell
-	130, // 152: rimgovernor.operations.v1.BuildingIntent.placement:type_name -> rimgovernor.placement.v1.PlacementCandidate
-	131, // 153: rimgovernor.operations.v1.TradeIntent.target:type_name -> rimgovernor.common.v1.TradeTarget
-	50,  // 154: rimgovernor.operations.v1.TradeIntent.open:type_name -> rimgovernor.operations.v1.OpenTrade
-	52,  // 155: rimgovernor.operations.v1.TradeIntent.set_lines:type_name -> rimgovernor.operations.v1.SetTradeLines
-	53,  // 156: rimgovernor.operations.v1.TradeIntent.accept:type_name -> rimgovernor.operations.v1.AcceptTrade
-	54,  // 157: rimgovernor.operations.v1.TradeIntent.end:type_name -> rimgovernor.operations.v1.EndTrade
-	132, // 158: rimgovernor.operations.v1.CommsTradeRequestIntent.kind:type_name -> rimgovernor.common.v1.TradeRequestKind
-	133, // 159: rimgovernor.operations.v1.Refusal.code:type_name -> rimgovernor.common.v1.FailureCode
-	134, // 160: rimgovernor.operations.v1.ActionResult.applied:type_name -> rimgovernor.receipts.v1.Receipt
-	106, // 161: rimgovernor.operations.v1.ActionResult.refused:type_name -> rimgovernor.operations.v1.Refusal
-	127, // 162: rimgovernor.operations.v1.ActionResult.failed:type_name -> rimgovernor.common.v1.Failure
-	107, // 163: rimgovernor.operations.v1.ApplyReply.results:type_name -> rimgovernor.operations.v1.ActionResult
-	127, // 164: rimgovernor.operations.v1.ApplyReply.batch_failure:type_name -> rimgovernor.common.v1.Failure
-	18,  // 165: rimgovernor.operations.v1.Rule.trigger:type_name -> rimgovernor.operations.v1.RuleTrigger
-	19,  // 166: rimgovernor.operations.v1.Rule.predicates:type_name -> rimgovernor.operations.v1.RulePredicate
-	20,  // 167: rimgovernor.operations.v1.Rule.action:type_name -> rimgovernor.operations.v1.RuleAction
-	21,  // 168: rimgovernor.operations.v1.Rule.target:type_name -> rimgovernor.operations.v1.RuleTargetSelector
-	22,  // 169: rimgovernor.operations.v1.RuleRefusal.reason:type_name -> rimgovernor.operations.v1.RuleRefusalReason
-	125, // 170: rimgovernor.operations.v1.RulesAttachRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	109, // 171: rimgovernor.operations.v1.RulesAttachRequest.rules:type_name -> rimgovernor.operations.v1.Rule
-	126, // 172: rimgovernor.operations.v1.RulesAttached.context:type_name -> rimgovernor.common.v1.ObservationContext
-	110, // 173: rimgovernor.operations.v1.RulesAttached.refused:type_name -> rimgovernor.operations.v1.RuleRefusal
-	109, // 174: rimgovernor.operations.v1.RulesAttachIntent.rules:type_name -> rimgovernor.operations.v1.Rule
-	112, // 175: rimgovernor.operations.v1.RulesAttachReply.attached:type_name -> rimgovernor.operations.v1.RulesAttached
-	127, // 176: rimgovernor.operations.v1.RulesAttachReply.failure:type_name -> rimgovernor.common.v1.Failure
-	125, // 177: rimgovernor.operations.v1.RulesClearRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	126, // 178: rimgovernor.operations.v1.RulesCleared.context:type_name -> rimgovernor.common.v1.ObservationContext
-	116, // 179: rimgovernor.operations.v1.RulesClearReply.cleared:type_name -> rimgovernor.operations.v1.RulesCleared
-	127, // 180: rimgovernor.operations.v1.RulesClearReply.failure:type_name -> rimgovernor.common.v1.Failure
-	125, // 181: rimgovernor.operations.v1.RulesStatusRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	126, // 182: rimgovernor.operations.v1.RulesStatus.context:type_name -> rimgovernor.common.v1.ObservationContext
-	119, // 183: rimgovernor.operations.v1.RulesStatus.rules:type_name -> rimgovernor.operations.v1.RuleStatus
-	120, // 184: rimgovernor.operations.v1.RulesStatusReply.status:type_name -> rimgovernor.operations.v1.RulesStatus
-	127, // 185: rimgovernor.operations.v1.RulesStatusReply.failure:type_name -> rimgovernor.common.v1.Failure
-	55,  // 186: rimgovernor.operations.v1.Zones.Preview:input_type -> rimgovernor.operations.v1.ZonePreviewRequest
-	58,  // 187: rimgovernor.operations.v1.Actions.Apply:input_type -> rimgovernor.operations.v1.ApplyRequest
-	111, // 188: rimgovernor.operations.v1.Rules.Attach:input_type -> rimgovernor.operations.v1.RulesAttachRequest
-	115, // 189: rimgovernor.operations.v1.Rules.Clear:input_type -> rimgovernor.operations.v1.RulesClearRequest
-	118, // 190: rimgovernor.operations.v1.Rules.ReadStatus:input_type -> rimgovernor.operations.v1.RulesStatusRequest
-	57,  // 191: rimgovernor.operations.v1.Zones.Preview:output_type -> rimgovernor.operations.v1.ZonePreviewReply
-	108, // 192: rimgovernor.operations.v1.Actions.Apply:output_type -> rimgovernor.operations.v1.ApplyReply
-	114, // 193: rimgovernor.operations.v1.Rules.Attach:output_type -> rimgovernor.operations.v1.RulesAttachReply
-	117, // 194: rimgovernor.operations.v1.Rules.Clear:output_type -> rimgovernor.operations.v1.RulesClearReply
-	121, // 195: rimgovernor.operations.v1.Rules.ReadStatus:output_type -> rimgovernor.operations.v1.RulesStatusReply
-	191, // [191:196] is the sub-list for method output_type
-	186, // [186:191] is the sub-list for method input_type
-	186, // [186:186] is the sub-list for extension type_name
-	186, // [186:186] is the sub-list for extension extendee
-	0,   // [0:186] is the sub-list for field type_name
+	105, // 102: rimgovernor.operations.v1.Action.comms_trade_request:type_name -> rimgovernor.operations.v1.CommsTradeRequestIntent
+	124, // 103: rimgovernor.operations.v1.HackDesignationIntent.target:type_name -> rimgovernor.common.v1.Ref
+	124, // 104: rimgovernor.operations.v1.GiveItemIntent.hauler:type_name -> rimgovernor.common.v1.Ref
+	124, // 105: rimgovernor.operations.v1.GiveItemIntent.recipient:type_name -> rimgovernor.common.v1.Ref
+	128, // 106: rimgovernor.operations.v1.IdeoligionReformIntent.expected:type_name -> rimgovernor.common.v1.IdeoligionDesign
+	128, // 107: rimgovernor.operations.v1.IdeoligionReformIntent.design:type_name -> rimgovernor.common.v1.IdeoligionDesign
+	122, // 108: rimgovernor.operations.v1.IgniteIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	65,  // 109: rimgovernor.operations.v1.AbilityIntent.permit:type_name -> rimgovernor.operations.v1.PermitAbility
+	66,  // 110: rimgovernor.operations.v1.AbilityIntent.psycast:type_name -> rimgovernor.operations.v1.PsycastAbility
+	67,  // 111: rimgovernor.operations.v1.AbilityIntent.no_target:type_name -> rimgovernor.operations.v1.AbilityNoTarget
+	122, // 112: rimgovernor.operations.v1.AbilityIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	4,   // 113: rimgovernor.operations.v1.PawnSettingsIntent.hostility_response:type_name -> rimgovernor.operations.v1.HostilityResponse
+	5,   // 114: rimgovernor.operations.v1.PawnSettingsIntent.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
+	69,  // 115: rimgovernor.operations.v1.PawnSettingsIntent.choose_permit:type_name -> rimgovernor.operations.v1.PermitChoice
+	14,  // 116: rimgovernor.operations.v1.AreaIntent.operation:type_name -> rimgovernor.operations.v1.AreaOperation
+	70,  // 117: rimgovernor.operations.v1.AreaIntent.rects:type_name -> rimgovernor.operations.v1.AreaRect
+	15,  // 118: rimgovernor.operations.v1.PolicyPruneIntent.database:type_name -> rimgovernor.operations.v1.PolicyDatabase
+	74,  // 119: rimgovernor.operations.v1.DrugPolicyIntent.entries:type_name -> rimgovernor.operations.v1.DrugPolicyEntry
+	11,  // 120: rimgovernor.operations.v1.GiveJobOptions.relieve_need:type_name -> rimgovernor.operations.v1.Need
+	124, // 121: rimgovernor.operations.v1.GiveJobIntent.pawn:type_name -> rimgovernor.common.v1.Ref
+	124, // 122: rimgovernor.operations.v1.GiveJobIntent.targets:type_name -> rimgovernor.common.v1.Ref
+	122, // 123: rimgovernor.operations.v1.GiveJobIntent.cells:type_name -> rimgovernor.common.v1.Cell
+	79,  // 124: rimgovernor.operations.v1.GiveJobIntent.options:type_name -> rimgovernor.operations.v1.GiveJobOptions
+	2,   // 125: rimgovernor.operations.v1.DesignateIntent.designation:type_name -> rimgovernor.operations.v1.ThingDesignation
+	124, // 126: rimgovernor.operations.v1.DesignateIntent.target:type_name -> rimgovernor.common.v1.Ref
+	122, // 127: rimgovernor.operations.v1.DesignateIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	16,  // 128: rimgovernor.operations.v1.DesignateIntent.guard:type_name -> rimgovernor.operations.v1.DesignationGuard
+	28,  // 129: rimgovernor.operations.v1.DesignateIntent.cleared_ground:type_name -> rimgovernor.operations.v1.Rectangle
+	122, // 130: rimgovernor.operations.v1.RelocateIntent.destination:type_name -> rimgovernor.common.v1.Cell
+	129, // 131: rimgovernor.operations.v1.RelocateIntent.rotation:type_name -> rimgovernor.placement.v1.Rotation
+	24,  // 132: rimgovernor.operations.v1.BuildingPatchIntent.for_prisoners:type_name -> rimgovernor.operations.v1.Clear
+	24,  // 133: rimgovernor.operations.v1.BuildingPatchIntent.claim:type_name -> rimgovernor.operations.v1.Clear
+	24,  // 134: rimgovernor.operations.v1.BuildingPatchIntent.for_slaves:type_name -> rimgovernor.operations.v1.Clear
+	122, // 135: rimgovernor.operations.v1.RemoveRoofIntent.cells:type_name -> rimgovernor.common.v1.Cell
+	122, // 136: rimgovernor.operations.v1.AreaPlantCutIntent.cells:type_name -> rimgovernor.common.v1.Cell
+	17,  // 137: rimgovernor.operations.v1.HusbandryIntent.order:type_name -> rimgovernor.operations.v1.HusbandryOrder
+	43,  // 138: rimgovernor.operations.v1.ProductionBillIntent.settings:type_name -> rimgovernor.operations.v1.BillSettings
+	124, // 139: rimgovernor.operations.v1.ProductionBillIntent.replace_owned_bill:type_name -> rimgovernor.common.v1.Ref
+	124, // 140: rimgovernor.operations.v1.ProductionBillIntent.patient:type_name -> rimgovernor.common.v1.Ref
+	124, // 141: rimgovernor.operations.v1.ProductionBillIntent.surgeon:type_name -> rimgovernor.common.v1.Ref
+	124, // 142: rimgovernor.operations.v1.RemoveProductionBillIntent.bill:type_name -> rimgovernor.common.v1.Ref
+	37,  // 143: rimgovernor.operations.v1.WorkSettingsIntent.work:type_name -> rimgovernor.operations.v1.WorkPriority
+	25,  // 144: rimgovernor.operations.v1.WorkSettingsIntent.allowed_area:type_name -> rimgovernor.operations.v1.Assignment
+	38,  // 145: rimgovernor.operations.v1.WorkSettingsIntent.schedule:type_name -> rimgovernor.operations.v1.Schedule
+	25,  // 146: rimgovernor.operations.v1.AssignIntent.expected_previous:type_name -> rimgovernor.operations.v1.Assignment
+	12,  // 147: rimgovernor.operations.v1.PrisonerInteractionIntent.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
+	26,  // 148: rimgovernor.operations.v1.FormCaravanIntent.cargo:type_name -> rimgovernor.operations.v1.DefCount
+	97,  // 149: rimgovernor.operations.v1.QuestShuttleIntent.explicit_pawns:type_name -> rimgovernor.operations.v1.ShuttlePawnList
+	122, // 150: rimgovernor.operations.v1.RitualIntent.spot:type_name -> rimgovernor.common.v1.Cell
+	100, // 151: rimgovernor.operations.v1.RitualIntent.roles:type_name -> rimgovernor.operations.v1.RitualRoleAssignment
+	122, // 152: rimgovernor.operations.v1.MoveIntent.destination:type_name -> rimgovernor.common.v1.Cell
+	130, // 153: rimgovernor.operations.v1.BuildingIntent.placement:type_name -> rimgovernor.placement.v1.PlacementCandidate
+	131, // 154: rimgovernor.operations.v1.TradeIntent.target:type_name -> rimgovernor.common.v1.TradeTarget
+	50,  // 155: rimgovernor.operations.v1.TradeIntent.open:type_name -> rimgovernor.operations.v1.OpenTrade
+	52,  // 156: rimgovernor.operations.v1.TradeIntent.set_lines:type_name -> rimgovernor.operations.v1.SetTradeLines
+	53,  // 157: rimgovernor.operations.v1.TradeIntent.accept:type_name -> rimgovernor.operations.v1.AcceptTrade
+	54,  // 158: rimgovernor.operations.v1.TradeIntent.end:type_name -> rimgovernor.operations.v1.EndTrade
+	132, // 159: rimgovernor.operations.v1.CommsTradeRequestIntent.kind:type_name -> rimgovernor.common.v1.TradeRequestKind
+	133, // 160: rimgovernor.operations.v1.Refusal.code:type_name -> rimgovernor.common.v1.FailureCode
+	134, // 161: rimgovernor.operations.v1.ActionResult.applied:type_name -> rimgovernor.receipts.v1.Receipt
+	106, // 162: rimgovernor.operations.v1.ActionResult.refused:type_name -> rimgovernor.operations.v1.Refusal
+	127, // 163: rimgovernor.operations.v1.ActionResult.failed:type_name -> rimgovernor.common.v1.Failure
+	107, // 164: rimgovernor.operations.v1.ApplyReply.results:type_name -> rimgovernor.operations.v1.ActionResult
+	127, // 165: rimgovernor.operations.v1.ApplyReply.batch_failure:type_name -> rimgovernor.common.v1.Failure
+	18,  // 166: rimgovernor.operations.v1.Rule.trigger:type_name -> rimgovernor.operations.v1.RuleTrigger
+	19,  // 167: rimgovernor.operations.v1.Rule.predicates:type_name -> rimgovernor.operations.v1.RulePredicate
+	20,  // 168: rimgovernor.operations.v1.Rule.action:type_name -> rimgovernor.operations.v1.RuleAction
+	21,  // 169: rimgovernor.operations.v1.Rule.target:type_name -> rimgovernor.operations.v1.RuleTargetSelector
+	22,  // 170: rimgovernor.operations.v1.RuleRefusal.reason:type_name -> rimgovernor.operations.v1.RuleRefusalReason
+	125, // 171: rimgovernor.operations.v1.RulesAttachRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	109, // 172: rimgovernor.operations.v1.RulesAttachRequest.rules:type_name -> rimgovernor.operations.v1.Rule
+	126, // 173: rimgovernor.operations.v1.RulesAttached.context:type_name -> rimgovernor.common.v1.ObservationContext
+	110, // 174: rimgovernor.operations.v1.RulesAttached.refused:type_name -> rimgovernor.operations.v1.RuleRefusal
+	109, // 175: rimgovernor.operations.v1.RulesAttachIntent.rules:type_name -> rimgovernor.operations.v1.Rule
+	112, // 176: rimgovernor.operations.v1.RulesAttachReply.attached:type_name -> rimgovernor.operations.v1.RulesAttached
+	127, // 177: rimgovernor.operations.v1.RulesAttachReply.failure:type_name -> rimgovernor.common.v1.Failure
+	125, // 178: rimgovernor.operations.v1.RulesClearRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	126, // 179: rimgovernor.operations.v1.RulesCleared.context:type_name -> rimgovernor.common.v1.ObservationContext
+	116, // 180: rimgovernor.operations.v1.RulesClearReply.cleared:type_name -> rimgovernor.operations.v1.RulesCleared
+	127, // 181: rimgovernor.operations.v1.RulesClearReply.failure:type_name -> rimgovernor.common.v1.Failure
+	125, // 182: rimgovernor.operations.v1.RulesStatusRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	126, // 183: rimgovernor.operations.v1.RulesStatus.context:type_name -> rimgovernor.common.v1.ObservationContext
+	119, // 184: rimgovernor.operations.v1.RulesStatus.rules:type_name -> rimgovernor.operations.v1.RuleStatus
+	120, // 185: rimgovernor.operations.v1.RulesStatusReply.status:type_name -> rimgovernor.operations.v1.RulesStatus
+	127, // 186: rimgovernor.operations.v1.RulesStatusReply.failure:type_name -> rimgovernor.common.v1.Failure
+	55,  // 187: rimgovernor.operations.v1.Zones.Preview:input_type -> rimgovernor.operations.v1.ZonePreviewRequest
+	58,  // 188: rimgovernor.operations.v1.Actions.Apply:input_type -> rimgovernor.operations.v1.ApplyRequest
+	111, // 189: rimgovernor.operations.v1.Rules.Attach:input_type -> rimgovernor.operations.v1.RulesAttachRequest
+	115, // 190: rimgovernor.operations.v1.Rules.Clear:input_type -> rimgovernor.operations.v1.RulesClearRequest
+	118, // 191: rimgovernor.operations.v1.Rules.ReadStatus:input_type -> rimgovernor.operations.v1.RulesStatusRequest
+	57,  // 192: rimgovernor.operations.v1.Zones.Preview:output_type -> rimgovernor.operations.v1.ZonePreviewReply
+	108, // 193: rimgovernor.operations.v1.Actions.Apply:output_type -> rimgovernor.operations.v1.ApplyReply
+	114, // 194: rimgovernor.operations.v1.Rules.Attach:output_type -> rimgovernor.operations.v1.RulesAttachReply
+	117, // 195: rimgovernor.operations.v1.Rules.Clear:output_type -> rimgovernor.operations.v1.RulesClearReply
+	121, // 196: rimgovernor.operations.v1.Rules.ReadStatus:output_type -> rimgovernor.operations.v1.RulesStatusReply
+	192, // [192:197] is the sub-list for method output_type
+	187, // [187:192] is the sub-list for method input_type
+	187, // [187:187] is the sub-list for extension type_name
+	187, // [187:187] is the sub-list for extension extendee
+	0,   // [0:187] is the sub-list for field type_name
 }
 
 func init() { file_operations_proto_init() }
@@ -10775,6 +10793,7 @@ func file_operations_proto_init() {
 		(*Action_QuestShuttle)(nil),
 		(*Action_HackDesignation)(nil),
 		(*Action_GiveItem)(nil),
+		(*Action_CommsTradeRequest)(nil),
 	}
 	file_operations_proto_msgTypes[37].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[38].OneofWrappers = []any{}

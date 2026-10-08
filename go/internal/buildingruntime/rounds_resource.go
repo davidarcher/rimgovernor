@@ -163,6 +163,13 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoundsResourceResult{}, err
 		}
 		if store.PlanOpen(plan) {
+			requestOnly := len(plan.Spec.Actions()) != 0
+			for _, action := range plan.Spec.Actions() {
+				requestOnly = requestOnly && action.Kind() == domain.CommsTradeRequestAction
+			}
+			if requestOnly {
+				continue
+			}
 			return RoundsResourceResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}

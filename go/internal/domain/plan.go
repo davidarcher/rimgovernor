@@ -88,6 +88,7 @@ func nativeText(s string, allowEmpty bool) bool {
 
 // Action is a closed variant. New families require constructor and handler coverage.
 type Action struct {
+	commsTradeRequest   CommsTradeRequest
 	apparelPolicy       ApparelPolicy
 	id                  ActionID
 	kind                ActionKind
@@ -344,6 +345,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewDialogAnswerAction(a.id, a.dialogAnswer)
 		case TradeAction:
 			canonical, err = NewTradeAction(a.id, a.trade)
+		case CommsTradeRequestAction:
+			canonical, err = NewCommsTradeRequestAction(a.id, a.commsTradeRequest)
 		case CaravanDepartureAction:
 			canonical, err = NewCaravanDepartureAction(a.id, a.caravanDeparture)
 		case UseItemAction:

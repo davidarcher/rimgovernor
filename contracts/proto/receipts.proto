@@ -63,6 +63,7 @@ message EffectEvidence {
     QuestShuttleEffect quest_shuttle = 42;
     HackDesignationEffect hack_designation = 43;
     GiveItemEffect give_item = 44;
+    CommsTradeRequestEffect comms_trade_request = 45;
   }
 }
 message HackDesignationEffect { optional string target_id = 1; optional bool enabled = 2; }

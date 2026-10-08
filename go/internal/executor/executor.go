@@ -95,6 +95,7 @@ type Result struct {
 }
 
 type Executor struct {
+	commsTrade      CommsTradeBoundary
 	haul            HaulBoundary
 	haulJournal     HaulJournal
 	trade           TradeBoundary
@@ -273,6 +274,9 @@ func find(state store.PlanState, actionID domain.ActionID) (domain.Action, domai
 
 func (e *Executor) runLoaded(ctx context.Context, state store.PlanState, actionID domain.ActionID, authority Authority, generation context.Context) (Result, error) {
 	action, progress := find(state, actionID)
+	if action.Kind() == domain.CommsTradeRequestAction && e.commsTrade != nil {
+		return e.runCommsTradeRequest(ctx, action, progress, authority, generation)
+	}
 	if action.Kind().IntentMode() && progress.View().Unresolved {
 		return e.settleIntent(progress)
 	}

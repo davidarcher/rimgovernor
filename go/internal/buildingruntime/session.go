@@ -185,6 +185,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	// typed boundary value, never discovered by type assertion on a composed
 	// boundary.
 	if config.Trade != nil {
+		if config.Trade.Requests != nil {
+			if err := worker.EnableCommsTradeRequests(&tradeBoundary{Boundary: place, trade: *config.Trade}); err != nil {
+				return cleanup(err)
+			}
+		}
 		if err := worker.EnableTrade(&tradeBoundary{Boundary: place, trade: *config.Trade}); err != nil {
 			return cleanup(err)
 		}

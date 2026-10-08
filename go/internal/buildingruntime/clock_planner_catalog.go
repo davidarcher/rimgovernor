@@ -730,7 +730,7 @@ var plannerCatalog = []plannerEntry{
 			out.Dialog = &method
 			return method.Verdict, nil
 		}},
-	{name: "trade", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.TradeAction}, sections: sectionsColony, families: familiesWorld,
+	{name: "trade", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.TradeAction, domain.CommsTradeRequestAction}, sections: sectionsColony, families: familiesWorld,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Trade != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Trade.step(ctx, epoch, arbiter)

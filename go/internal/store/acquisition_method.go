@@ -79,7 +79,7 @@ func pestConcern(goal WorkOwner) bool {
 // not block a fresh acquisition method for the same goal: a bill, a growing
 // zone, or the butcher spot being built for the hunt's corpse (#260).
 func acquisitionIndependentWork(action domain.Action) bool {
-	if action.Kind() == domain.ProductionBillAction || butcherSpotBuilding(action) {
+	if action.Kind() == domain.ProductionBillAction || action.Kind() == domain.CommsTradeRequestAction || butcherSpotBuilding(action) {
 		return true
 	}
 	zone, ok := action.ZoneCreate()

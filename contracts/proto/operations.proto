@@ -306,6 +306,7 @@ message Action {
     QuestShuttleIntent quest_shuttle = 69;
     HackDesignationIntent hack_designation = 70;
     GiveItemIntent give_item = 71;
+    CommsTradeRequestIntent comms_trade_request = 72;
   }
 }
 message HackDesignationIntent { rimgovernor.common.v1.Ref target = 1; optional bool enabled = 2; }

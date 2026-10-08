@@ -98,7 +98,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		clock: &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
 		movement:          &buildingruntime.MovementCapabilities{Writer: actionsWriter},
 		haul:              &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
-		trade:             &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
+		trade:             &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter, Requests: client},
 		presentationMedia: presentationMedia,
 		lifecycle:         lifecycleCapability{&flushedSave{LifecycleSave: lifecycleSave}, lifecycleLoad, lifecycleNewColony},
 		attention:         attentionAcknowledger{client}}, nil
