@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -18,7 +19,8 @@ namespace HomeBridge.BridgeTools
     // TryFormAndSendCaravan starts a LordJob_FormAndSendCaravan that gathers
     // the cargo and walks the crew to the exit over later ticks, so applied
     // means formation started. A crew already forming together, or already
-    // one player caravan, is applied again without a second formation.
+    // one player caravan, continues its native route without a second formation.
+    // Cleared non-home maps use the vanilla reform dialog and its packing rules.
     internal static class NativeCaravanOperations
     {
         private static bool Valid(Operations.FormCaravanIntent? command) => command != null
@@ -47,7 +49,52 @@ namespace HomeBridge.BridgeTools
                 if (lord == null || !(lord.LordJob is LordJob_FormAndSendCaravan)) return false;
                 lords.Add(lord);
             }
-            return lords.Count == 1;
+            return lords.Count == 1 && ((PlanetTile)typeof(LordJob_FormAndSendCaravan).GetField("destinationTile", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(lords.Single().LordJob)!).tileId == command.DestinationTile;
+        }
+
+        private static Common.Failure? Arrival(Operations.FormCaravanIntent command, out CaravanArrivalAction? action)
+        {
+            action = null;
+            var objects = Find.WorldObjects.AllWorldObjects.Where(w => w.Spawned && w.Tile.tileId == command.DestinationTile)
+                .Where(w => w is Site || w is PeaceTalks || w is MapParent mp && mp.HasMap && mp.Map.IsPlayerHome).ToArray();
+            if (objects.Length > 1)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The destination has multiple native arrival targets.");
+            if (objects.Length == 0) return null;
+            if (objects[0] is PeaceTalks talks) action = new CaravanArrivalAction_VisitPeaceTalks(talks);
+            else if (objects[0] is Site site) action = new CaravanArrivalAction_VisitSite(site);
+            else action = new CaravanArrivalAction_Enter((MapParent)objects[0]);
+            return null;
+        }
+
+        // Route is another application of this same owned intent. Cargo is
+        // never added to a world caravan here; reform owns the packing write.
+        private static Common.Failure? RouteFailure(Operations.FormCaravanIntent command, Caravan caravan)
+        {
+            var tile = new PlanetTile(command.DestinationTile);
+            if (!tile.Valid || tile.tileId >= Find.WorldGrid.TilesCount)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The destination tile is invalid.");
+            var failure = Arrival(command, out var arrival);
+            if (failure != null) return failure;
+            if (arrival != null && !arrival.StillValid(caravan, tile))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The native destination arrival is unavailable.");
+            foreach (var requested in command.Cargo)
+                if (caravan.PawnsListForReading.Sum(p => p.inventory.innerContainer.Where(t => t.def.defName == requested.DefName).Sum(t => t.stackCount)) < requested.Count)
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A formed caravan cannot acquire new cargo through routing.");
+            return null;
+        }
+
+        private static void Route(Operations.FormCaravanIntent command, Caravan caravan)
+        {
+            var failure = RouteFailure(command, caravan);
+            if (failure != null) throw new InvalidOperationException(failure.Detail);
+            Arrival(command, out var arrival);
+            var tile = new PlanetTile(command.DestinationTile);
+            var current = caravan.pather.ArrivalAction;
+            if (caravan.pather.Moving && caravan.pather.Destination == tile
+                && current?.GetType() == arrival?.GetType()
+                && (current == null || current.StillValid(caravan, tile))) return;
+            if (!caravan.pather.StartPath(tile, arrival, repathImmediately: true))
+                throw new InvalidOperationException("The caravan did not take its native destination route.");
         }
 
         // Shelf life left in days; stacks that never rot sort last-to-spoil.
@@ -65,17 +112,22 @@ namespace HomeBridge.BridgeTools
             dialog = null;
             var map = ProtoBoundary.ResolveMap(context);
             if (map == null) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A loaded map is required.");
-            var built = NativeCaravanCatalog.BuildDialog(map);
+            var destinationFailure = Arrival(command, out _);
+            if (destinationFailure != null) return destinationFailure;
+            var reform = !map.IsPlayerHome;
+            if (reform && !(map.Parent.GetComponent<FormCaravanComp>()?.CanReformNow() ?? false))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Vanilla caravan reform is unavailable while site threats remain.");
+            var built = NativeCaravanCatalog.BuildDialog(map, reform);
             var selected = new List<Pawn>();
             foreach (var id in command.PawnIds)
             {
                 var group = built.transferables.SingleOrDefault(g => g.AnyThing is Pawn p && RefIndex.Is(p, id));
-                if (!(group?.AnyThing is Pawn pawn) || !NativeCaravanCatalog.PawnEligible(pawn))
-                    return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible home colonist is unavailable: " + id);
+                if (!(group?.AnyThing is Pawn pawn) || !NativeCaravanCatalog.PawnEligible(pawn, reform))
+                    return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible colonist is unavailable: " + id);
                 selected.Add(pawn);
                 group.ForceToDestination(1);
             }
-            if (map.mapPawns.FreeColonistsSpawned.Count <= selected.Count)
+            if (map.IsPlayerHome && map.mapPawns.FreeColonistsSpawned.Count <= selected.Count)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "At least one colonist must remain home.");
             foreach (var item in command.Cargo)
             {
@@ -102,7 +154,7 @@ namespace HomeBridge.BridgeTools
             NativeCaravanCatalog.Call(built, "Notify_TransferablesChanged");
             if (built.MassUsage > built.MassCapacity)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cargo exceeds native carrying capacity.");
-            if (NativeCaravanCatalog.FoodDays(built).days < 1f)
+            if (!reform && NativeCaravanCatalog.FoodDays(built).days < 1f)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "At least one native day of caravan food is required.");
             // Emits refusal messages, but never creates a lord or moves cargo.
             if (!(bool)NativeCaravanCatalog.Call(built, "CheckForErrors", selected)!)
@@ -123,12 +175,17 @@ namespace HomeBridge.BridgeTools
         {
             if (!Valid(command))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Formation requires a unique crew, unique cargo definitions and a valid destination.");
-            return Formed(command!, out _) ? null : Prepare(command!, context, out _);
+            if (Formed(command!, out var caravan)) return caravan == null ? null : RouteFailure(command!, caravan);
+            return Prepare(command!, context, out _);
         }
 
         internal static Receipts.EffectEvidence Apply(Operations.FormCaravanIntent command, Common.ObservationContext context)
         {
-            if (Formed(command, out var existing)) return Evidence(command, existing);
+            if (Formed(command, out var existing))
+            {
+                if (existing != null) Route(command, existing);
+                return Evidence(command, existing);
+            }
             var failure = Prepare(command, context, out var dialog);
             if (failure != null || dialog == null) throw new InvalidOperationException("Caravan formation prerequisites changed before apply: " + failure?.Detail);
             // TryFormAndSendCaravan returns false without forming when the
@@ -136,7 +193,8 @@ namespace HomeBridge.BridgeTools
             // Dialog_MessageBox whose confirm action forms the caravan, which
             // the player would click. There is no player, so accept it.
             var windowsBefore = Find.WindowStack.Windows.ToArray();
-            var accepted = (bool)NativeCaravanCatalog.Call(dialog, "TryFormAndSendCaravan")!;
+            var reform = !ProtoBoundary.ResolveMap(context)!.IsPlayerHome;
+            var accepted = (bool)NativeCaravanCatalog.Call(dialog, reform ? "TryReformCaravan" : "TryFormAndSendCaravan")!;
             if (!accepted)
             {
                 var confirmation = Find.WindowStack.Windows.Where(w => !windowsBefore.Contains(w)).OfType<Dialog_MessageBox>().SingleOrDefault();
@@ -147,6 +205,7 @@ namespace HomeBridge.BridgeTools
                 }
             }
             if (!Formed(command, out var caravan)) throw new InvalidOperationException("Native caravan formation readback did not apply.");
+            if (caravan != null) Route(command, caravan);
             return Evidence(command, caravan);
         }
     }

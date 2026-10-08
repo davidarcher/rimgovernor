@@ -21,6 +21,7 @@ const (
 type CustodyFacts struct {
 	QuestRefugee                                     bool
 	QuestProtected                                   bool
+	WillJoinIfRescued                                domain.Fact[bool]
 	Pawn                                             domain.PawnID
 	Dead, Downed, Guest, Admitted, Prisoner, Hostile domain.Fact[bool]
 	// Recruitable is the game's guest.Recruitable, rolled at pawn generation

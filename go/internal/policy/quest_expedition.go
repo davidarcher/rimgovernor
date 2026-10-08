@@ -36,6 +36,7 @@ type ExpeditionTrip struct {
 	Tile, Destination domain.Fact[int32]
 	PawnIDs           []domain.PawnID
 	Forming           bool
+	HomeRoutes        []SiteHomeRoute
 }
 
 func questExpeditionSite(offer JoinerOffer, f RoundsFacts) (ExpeditionSite, bool) {
@@ -63,7 +64,19 @@ func questExpeditionSite(offer JoinerOffer, f RoundsFacts) (ExpeditionSite, bool
 	if !known {
 		return ExpeditionSite{}, false
 	}
-	return ExpeditionSite{ID: selected.ID, Quest: offer.Quest, Tile: tile, Layer: selected.Layer, ThreatPoints: selected.ThreatPoints, TravelTicks: selected.TravelTicks, Reachable: selected.Reachable, RoutePawnIDs: selected.RoutePawnIDs, HoldTicks: domain.Known(int64(0))}, true
+	threat := selected.ThreatPoints
+	if offer.ScriptDef != "OpportunitySite_PeaceTalks" {
+		threat = domain.Unknown[float64]()
+		if security, sk := selected.Security.Value(); sk {
+			complete, ck := security.Known.Value()
+			initial, ik := security.InitialPoints.Value()
+			pending, pk := security.PendingRaidPoints.Value()
+			if ck && complete && ik && pk && finite(initial) && finite(pending) && initial >= 0 && pending >= 0 {
+				threat = domain.Known(initial + pending)
+			}
+		}
+	}
+	return ExpeditionSite{ID: selected.ID, Quest: offer.Quest, Tile: tile, Layer: selected.Layer, ThreatPoints: threat, TravelTicks: selected.TravelTicks, Reachable: selected.Reachable, RoutePawnIDs: selected.RoutePawnIDs, HoldTicks: domain.Known(int64(0))}, true
 }
 
 func ExpeditionDeficit(f RoundsFacts) bool {
@@ -113,9 +126,19 @@ func SelectExpedition(f RoundsFacts, p RoundsPolicy) ExpeditionPlan {
 		if sites, known := f.QuestSites.Value(); known {
 			for _, row := range sites {
 				if row.ID == site.ID && row.State == o.WorldSiteState_WORLD_SITE_STATE_MAP_LOADED {
+					if offer.ScriptDef == "SurveySite" {
+						work := SurveyWork(offer, row, f, f.AnimalUpkeep.Food, p)
+						return ExpeditionPlan{Quest: offer.Quest, Site: site.ID, Departure: work.Departure, Waiting: work.Waiting, Reason: work.Reason}
+					}
 					return ExpeditionPlan{Quest: offer.Quest, Site: site.ID, Waiting: true}
 				}
 			}
+		}
+		if offer.ScriptDef == "SurveySite" {
+			return PlanSurvey(offer, site, f, f.AnimalUpkeep.Food, p)
+		}
+		if offer.ScriptDef == "OpportunitySite_PeaceTalks" {
+			return PlanPeaceTalks(offer, site, f, f.AnimalUpkeep.Food, p)
 		}
 		return PlanExpedition(offer, site, f, f.AnimalUpkeep.Food, p)
 	}
@@ -123,6 +146,12 @@ func SelectExpedition(f RoundsFacts, p RoundsPolicy) ExpeditionPlan {
 }
 
 func ExpeditionAdmission(offer JoinerOffer, f RoundsFacts) QuestSkipReason {
+	if offer.ScriptDef == "SurveySite" {
+		return SurveyAdmission(offer, f)
+	}
+	if offer.ScriptDef == "OpportunitySite_PeaceTalks" {
+		return PeaceTalksAdmission(offer, f)
+	}
 	site, found := questExpeditionSite(offer, f)
 	if !found {
 		return "site_unknown"
@@ -134,6 +163,19 @@ func ExpeditionAdmission(offer JoinerOffer, f RoundsFacts) QuestSkipReason {
 // shuttle missions. It packs only observed food that every selected pawn eats,
 // survives the round trip, and leaves the colony's diet-aware reserve intact.
 func PlanExpedition(offer JoinerOffer, site ExpeditionSite, f RoundsFacts, food domain.Fact[FoodSupply], p RoundsPolicy) ExpeditionPlan {
+	return planExpedition(offer, site, f, food, p, nil)
+}
+
+// PlanExpeditionCrew validates a specialized crew through the common staffing,
+// route, mass and food gates. Diplomacy may select noncombatant colonists.
+func PlanExpeditionCrew(offer JoinerOffer, site ExpeditionSite, f RoundsFacts, food domain.Fact[FoodSupply], p RoundsPolicy, crew []domain.PawnID) ExpeditionPlan {
+	if len(crew) == 0 {
+		return ExpeditionPlan{Quest: offer.Quest, Site: site.ID, Reason: "crew_unknown"}
+	}
+	return planExpedition(offer, site, f, food, p, crew)
+}
+
+func planExpedition(offer JoinerOffer, site ExpeditionSite, f RoundsFacts, food domain.Fact[FoodSupply], p RoundsPolicy, explicit []domain.PawnID) ExpeditionPlan {
 	result := ExpeditionPlan{Quest: offer.Quest, Site: site.ID}
 	fail := func(reason QuestSkipReason) ExpeditionPlan { result.Reason = reason; return result }
 	if site.Quest != offer.Quest || site.ID == "" || site.Tile < 0 {
@@ -184,7 +226,25 @@ func PlanExpedition(offer JoinerOffer, site ExpeditionSite, f RoundsFacts, food 
 		}
 	}
 	var crew []domain.PawnID
-	for count := 1; count <= len(spare); count++ {
+	if len(explicit) > 0 {
+		filtered := []PawnID{}
+		for _, id := range explicit {
+			if !slices.Contains(spare, PawnID(id)) || slices.Contains(filtered, PawnID(id)) {
+				return fail("no_spare_pawn")
+			}
+			filtered = append(filtered, PawnID(id))
+		}
+		mission := offer
+		mission.Profile = domain.Known(QuestProfile{Family: QuestFamilyBanditCamp})
+		mission.Objectives = []QuestObjective{{Kind: o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_LOAD_PAWNS, Count: domain.Known(int64(len(explicit)))}}
+		f.QuestSparePawns = domain.Known(filtered)
+		selected, reason := departureSquadWithCrew(mission, f, false, true)
+		if reason != "" {
+			return fail(reason)
+		}
+		crew = selected
+	}
+	for count := 1; len(crew) == 0 && count <= len(spare); count++ {
 		// The common departure selector takes an explicit required headcount.
 		mission := offer
 		mission.Profile = domain.Known(QuestProfile{Family: QuestFamilyBanditCamp})
@@ -203,6 +263,13 @@ func PlanExpedition(offer JoinerOffer, site ExpeditionSite, f RoundsFacts, food 
 		}
 	}
 	if len(crew) == 0 {
+		return fail("expedition_strength")
+	}
+	points := 0.0
+	for _, id := range crew {
+		points += strength[id]
+	}
+	if points < threat {
 		return fail("expedition_strength")
 	}
 	for _, id := range crew {

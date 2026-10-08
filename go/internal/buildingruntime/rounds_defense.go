@@ -504,7 +504,7 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	for _, door := range combat.Doors {
 		damaged = append(damaged, domain.Cell{X: door.GetCell().GetX(), Z: door.GetCell().GetZ()})
 	}
-	return policy.CombatView{Hunt: len(in.prey) > 0, Tick: domain.Tick(combat.Context.GetTick()), Pawns: preyStates(combatPawnStates(combat, in.rows, in.weapons), in, combat.Catalog), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat), Rooms: combat.Rooms, DoorStates: combat.DoorStates, DamagedDoors: damaged, Mortars: combat.Mortars, Shells: combat.Shells, Structures: structures, OutdoorTemperatureC: combat.OutdoorTemperatureC, HiveTemperatureC: combat.HiveTemperatureC,
+	return policy.CombatView{SiteExit: observation.CombatSiteExit(combat.World, domain.MapID(combat.Context.GetIdentity().GetMapId())), Hunt: len(in.prey) > 0, Tick: domain.Tick(combat.Context.GetTick()), Pawns: preyStates(combatPawnStates(combat, in.rows, in.weapons), in, combat.Catalog), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat), Rooms: combat.Rooms, DoorStates: combat.DoorStates, DamagedDoors: damaged, Mortars: combat.Mortars, Shells: combat.Shells, Structures: structures, OutdoorTemperatureC: combat.OutdoorTemperatureC, HiveTemperatureC: combat.HiveTemperatureC,
 		Population: domain.Known(len(combat.Emergency.Facts.Colonists))}
 }
 

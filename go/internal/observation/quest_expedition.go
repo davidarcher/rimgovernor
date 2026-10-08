@@ -16,6 +16,13 @@ func frameExpeditionTrips(read *bridge.WorldProgressionRead, home domain.MapID) 
 		for _, id := range caravan.PawnIDs {
 			row.PawnIDs = append(row.PawnIDs, domain.PawnID(id))
 		}
+		for _, route := range caravan.HomeRoutes {
+			r := policy.SiteHomeRoute{Tile: route.DestinationTile, Reachable: domain.Known(route.Reachable)}
+			if route.EstimatedTicksKnown {
+				r.TravelTicks = domain.Known(route.EstimatedTicks)
+			}
+			row.HomeRoutes = append(row.HomeRoutes, r)
+		}
 		rows = append(rows, row)
 	}
 	for _, assembly := range read.Assemblies {

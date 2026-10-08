@@ -21,6 +21,11 @@ func TestQuestWorkerCapacityRequiresCompleteHomeRoster(t *testing.T) {
 	if fight, known := pawns[0].CanFight.Value(); !known || fight {
 		t.Fatal(pawns)
 	}
+	read.Maps[0].Home = false
+	_, departures = frameQuestWorkerCapacity(read, 0)
+	if _, known := departures.Value(); !known {
+		t.Fatal("current remote-map actors became unknown")
+	}
 	read.Maps[0].PawnIDs = append(read.Maps[0].PawnIDs, "unobserved")
 	rates, _ = frameQuestWorkerCapacity(read, 0)
 	if _, known := rates.Value(); known {

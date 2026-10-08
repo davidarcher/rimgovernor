@@ -17,6 +17,10 @@ func projectDepartureStrength(candidates domain.Fact[[]policy.QuestDeparturePawn
 		byID[pawn.ID] = pawn
 	}
 	for i := range rows {
+		if fighting, known := rows[i].CanFight.Value(); known && !fighting {
+			rows[i].DefensePoints = domain.Known(0.0)
+			continue
+		}
 		pawn, found := byID[domain.PawnID(rows[i].ID)]
 		if !found {
 			continue

@@ -21,6 +21,7 @@ const (
 	// void structure, the Gleaming monolith or the void node.
 	RecoveryServiceInteract          RecoveryMethod = "interact_thing"
 	RecoveryServiceInspectGravEngine RecoveryMethod = "inspect_grav_engine"
+	RecoveryServiceOfferHelp         RecoveryMethod = "offer_help"
 )
 
 // RecoveryService is explicit intent to send one already-observed undrafted
@@ -38,7 +39,7 @@ func NewRecoveryService(pawn PawnID, thing string, method RecoveryMethod) (Recov
 		return RecoveryService{}, errors.New("recovery service requires a valid pawn and thing identity")
 	}
 	switch method {
-	case RecoveryServiceRepair, RecoveryServiceBreakdown, RecoveryServiceRefuel, RecoveryServiceInvestigateMonolith, RecoveryServiceActivateMonolith, RecoveryServiceInteract, RecoveryServiceInspectGravEngine:
+	case RecoveryServiceRepair, RecoveryServiceBreakdown, RecoveryServiceRefuel, RecoveryServiceInvestigateMonolith, RecoveryServiceActivateMonolith, RecoveryServiceInteract, RecoveryServiceInspectGravEngine, RecoveryServiceOfferHelp:
 	default:
 		return RecoveryService{}, errors.New("recovery service requires a valid method")
 	}

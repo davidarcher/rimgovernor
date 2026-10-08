@@ -23,8 +23,9 @@ forbidden gravlite panels unchanged. An order receipt never proves inspection.
 The definition catalog classifies explicit Core and DLC roots into quest families.
 Unknown roots remain unknown; automatic and incident-driven roots are observed
 without an acceptance decision. Endgame offers and deferred Anomaly progression
-are refused. SurveySite requires remote-site defense and stays refused until that
-capability is available.
+are refused. SurveySite reserves food for its full native hold and return, prices
+the forced raid, and retains a separately affordable healthy relief crew. Only
+native scanner completion ends the hold; scanner destruction ends it as failure.
 
 MaintainPopulation selects joiners first, then allowed bestowing claims, then an
 affordable family offer. Feasibility uses the existing work roster and emergency
@@ -98,6 +99,21 @@ crew must belong to that estimate. Shared departure staffing preserves home work
 owners and defense. Food packing covers the round trip and leaves the diet-aware
 home reserve intact; vanilla formation checks remain authoritative. Existing
 formation, travel and loaded-site facts prevent sending replacement crews.
+
+Site admission requires a complete native security bound, including dormant
+defenders, delayed attacks and complex triggers. Unsupported generated threats
+and underground entrances retain unknown risk. Peace talks send the best eligible
+social negotiator only when native goodwill downside is affordable. Survey crews
+pack for the scanner's full native duration and preserve an independently affordable
+relief crew; elapsed time alone does not finish the hold.
+
+Core rescue sites use exact native pawn identities and vanilla OfferHelp for
+willing joiners. Mineral sites designate observed mineables and wait for their
+disappearance. Cleared sites reform through vanilla with explicitly retained
+inventory, return food and mass-bounded loot. Failed site fights walk surviving
+pawns to native exit cells. A stopped caravan returns only when its crew matches
+a journaled expedition; moving caravans retain their route. Existing journals
+and derived site facts own this lifecycle.
 
 MechanoidSignal uses the exact quest grav engine and vanilla InspectGravEngine job.
 The planner waits for spawning and running inspection, then observes the native

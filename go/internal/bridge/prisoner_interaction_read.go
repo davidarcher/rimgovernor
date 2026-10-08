@@ -134,6 +134,9 @@ func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns, catalog *Defi
 		id := person.GetPawn().GetId()
 		pawn := resolved[i]
 		custodyRow := policy.CustodyFacts{Pawn: domain.PawnID(id)}
+		if person.WillJoinIfRescued != nil {
+			custodyRow.WillJoinIfRescued = domain.Known(person.GetWillJoinIfRescued())
+		}
 		if pawn.Dead != nil {
 			custodyRow.Dead = domain.Known(pawn.GetDead())
 		}

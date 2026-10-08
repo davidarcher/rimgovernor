@@ -7,11 +7,48 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"slices"
 	"time"
 )
 
 func (r *RoundsPopulationJoinerPlanner) admitExpedition(call, epoch context.Context, state ControlState, goal store.StandardState, read observation.RoundsReading, arbiter *stepArbiter, started time.Time) (RoundsPopulationJoinerResult, bool, error) {
 	work := policy.SelectExpedition(read.Projection.Facts, r.reviewer.policy)
+	// Walking through a native exit leaves survivors in a stopped caravan.
+	// Match its exact crew to a journaled expedition before routing it home.
+	trips, tripsKnown := read.Projection.Facts.QuestExpeditionTrips.Value()
+	sites, sitesKnown := read.Projection.Facts.QuestSites.Value()
+	if tripsKnown && sitesKnown {
+		for _, method := range goal.History {
+			previous, err := r.reviewer.player.journal.LoadPlan(call, method.Plan)
+			if err != nil {
+				return RoundsPopulationJoinerResult{}, false, err
+			}
+			for _, action := range previous.Spec.Actions() {
+				departed, ok := action.CaravanDeparture()
+				if !ok {
+					continue
+				}
+				for _, site := range sites {
+					tile, known := site.Tile.Value()
+					if !known || tile != departed.DestinationTile() || len(site.QuestIDs) == 0 {
+						continue
+					}
+					crew := departed.Crew()
+					for pawn, quest := range policy.QuestRefugeeIDs(read.Projection.Facts.QuestOffers) {
+						if slices.Contains(site.QuestIDs, quest) {
+							crew = append(crew, pawn)
+						}
+					}
+					for _, trip := range trips {
+						if home := policy.PlanStoppedExpeditionReturn(trip, crew); home != nil {
+							work = policy.ExpeditionPlan{Quest: site.QuestIDs[0], Site: site.ID, Departure: home}
+							break
+						}
+					}
+				}
+			}
+		}
+	}
 	if work.Quest == "" {
 		return RoundsPopulationJoinerResult{}, false, nil
 	}

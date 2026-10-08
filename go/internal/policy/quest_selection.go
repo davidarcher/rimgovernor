@@ -38,6 +38,9 @@ func questDecision(offer JoinerOffer, f RoundsFacts) (bool, QuestSkipReason) {
 		return false, reward.Reason
 	}
 	_, expedition := questExpeditionSite(offer, f)
+	if !expedition && (offer.ScriptDef == "SurveySite" || offer.ScriptDef == "OpportunitySite_PeaceTalks") {
+		return false, "site_unknown"
+	}
 	if profile.Family != QuestFamilyOdysseyGround && !expedition {
 		if offer.FactionID == "" {
 			return false, "no_faction"

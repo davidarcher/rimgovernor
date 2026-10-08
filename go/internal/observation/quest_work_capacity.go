@@ -7,7 +7,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func frameQuestWorkerCapacity(read *bridge.WorldProgressionRead, home domain.MapID) (domain.Fact[[]policy.QuestWorkCapacity], domain.Fact[[]policy.QuestDeparturePawn]) {
+func frameQuestWorkerCapacity(read *bridge.WorldProgressionRead, current domain.MapID) (domain.Fact[[]policy.QuestWorkCapacity], domain.Fact[[]policy.QuestDeparturePawn]) {
 	unknown := func() (domain.Fact[[]policy.QuestWorkCapacity], domain.Fact[[]policy.QuestDeparturePawn]) {
 		return domain.Unknown[[]policy.QuestWorkCapacity](), domain.Unknown[[]policy.QuestDeparturePawn]()
 	}
@@ -15,7 +15,7 @@ func frameQuestWorkerCapacity(read *bridge.WorldProgressionRead, home domain.Map
 		return unknown()
 	}
 	for _, m := range read.Maps {
-		if !m.Home || domain.MapID(m.ID) != home {
+		if domain.MapID(m.ID) != current {
 			continue
 		}
 		if len(m.QuestWorkers) != len(m.PawnIDs) {
@@ -36,7 +36,7 @@ func frameQuestWorkerCapacity(read *bridge.WorldProgressionRead, home domain.Map
 				row.Rates[rate.GetStat()] = rate.GetRate()
 			}
 			capacity = append(capacity, row)
-			departures = append(departures, policy.QuestDeparturePawn{ID: row.Pawn, HealthyAdult: row.HealthyAdult, CanFight: optional(p.CanFight), CarryCapacity: optional(p.CarryCapacity), CarriedMass: optional(p.CarriedMass)})
+			departures = append(departures, policy.QuestDeparturePawn{ID: row.Pawn, HealthyAdult: row.HealthyAdult, CanFight: optional(p.CanFight), CarryCapacity: optional(p.CarryCapacity), CarriedMass: optional(p.CarriedMass), SocialLevel: optional(p.SocialLevel), FactionLeader: optional(p.FactionLeader), NegotiationAbility: optional(p.NegotiationAbility)})
 		}
 		return domain.Known(capacity), domain.Known(departures)
 	}

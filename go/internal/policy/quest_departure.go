@@ -12,6 +12,9 @@ type QuestDeparturePawn struct {
 	HealthyAdult, CanFight     domain.Fact[bool]
 	DefensePoints              domain.Fact[float64]
 	CarryCapacity, CarriedMass domain.Fact[float64]
+	SocialLevel                domain.Fact[int32]
+	FactionLeader              domain.Fact[bool]
+	NegotiationAbility         domain.Fact[float64]
 }
 
 // DepartureSquad leaves every work type's last primary owner at home and
@@ -21,6 +24,10 @@ func DepartureSquad(offer JoinerOffer, f RoundsFacts) ([]domain.PawnID, QuestSki
 }
 
 func departureSquad(offer JoinerOffer, f RoundsFacts, strongestFirst bool) ([]domain.PawnID, QuestSkipReason) {
+	return departureSquadWithCrew(offer, f, strongestFirst, false)
+}
+
+func departureSquadWithCrew(offer JoinerOffer, f RoundsFacts, strongestFirst, allowNonfighters bool) ([]domain.PawnID, QuestSkipReason) {
 	profile, known := offer.Profile.Value()
 	if !known {
 		return nil, "class_unknown"
@@ -163,12 +170,14 @@ func departureSquad(offer JoinerOffer, f RoundsFacts, strongestFirst bool) ([]do
 		}
 		defense, dk := pawn.DefensePoints.Value()
 		if profile.Family == QuestFamilyBanditCamp {
-			fight, fk := pawn.CanFight.Value()
-			if !fk {
-				return nil, "defense_unknown"
-			}
-			if !fight {
-				continue
+			if !allowNonfighters {
+				fight, fk := pawn.CanFight.Value()
+				if !fk {
+					return nil, "defense_unknown"
+				}
+				if !fight {
+					continue
+				}
 			}
 			if !dk || !finite(defense) || defense < 0 {
 				return nil, "defense_unknown"

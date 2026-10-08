@@ -46,6 +46,9 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	for _, p := range view.Pawns {
 		state[p.ID] = p
 	}
+	if orders, exiting := siteExitTurn(view, stop, &next, state, orderable); exiting {
+		return orders, nil, next
+	}
 	if orders, ok := prisonBreakTurn(view, &next, state, orderable); ok {
 		// A prison break picks its own tactic (#1080) and answers every stop
 		// itself: no geometry, no raid reactions.
@@ -331,6 +334,7 @@ type CombatLayout struct {
 // defenders whose drafts the fight's plan owns (the caller's per-plan
 // owned-draft check), the only pawns an order may name.
 type CombatView struct {
+	SiteExit   domain.Fact[CombatSiteExit] `json:",omitzero"`
 	Tick       domain.Tick
 	Pawns      []CombatPawnState
 	Defenders  []SquadDefenderFacts

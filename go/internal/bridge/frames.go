@@ -847,6 +847,7 @@ const combatFrameMethod = "rimgovernor/snapshot_frame_combat"
 // from ranged colonists to hostile buildings. Context is the frame's; Frame
 // is the frame's combat part as read, which a combat recording keeps.
 type Combat struct {
+	World     *WorldProgressionRead
 	Context   *c.ObservationContext
 	Pawns     []*mp.CombatPawn
 	Events    []*mp.CombatEventRow
@@ -920,7 +921,7 @@ func combatFrame(v *o.BundleSnapshot) *o.BundleSnapshot { return combatFrameHeld
 // combatFrameHeld is combatFrame with the census rows looked up in the
 // hold's pawn table, when there is one, instead of walking v's list.
 func combatFrameHeld(v *o.BundleSnapshot, held *heldTables) *o.BundleSnapshot {
-	out := &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, Pawns: censusPawns(v, held), CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatLinesOfFire: v.CombatLinesOfFire, Rooms: v.Rooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars, CombatHiveTemperatureC: v.CombatHiveTemperatureC}
+	out := &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, Pawns: censusPawns(v, held), CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatLinesOfFire: v.CombatLinesOfFire, Rooms: v.Rooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars, CombatHiveTemperatureC: v.CombatHiveTemperatureC, WorldProgression: v.WorldProgression}
 	if t := frameOutdoorC(v); t != nil {
 		out.ColonyFacts = &o.ColonyFactsSnapshot{OutdoorTemperatureC: t}
 	}
@@ -1033,6 +1034,13 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 	}
 	out := Combat{Context: v.Context, Pawns: v.CombatPawns, Events: v.CombatEvents, Doors: v.CombatDoors, Frame: v}
 	identity := v.Context.Identity
+	if v.WorldProgression != nil {
+		world, err := worldProgressionSelected(v.WorldProgression, identity)
+		if err != nil {
+			return Combat{}, err
+		}
+		out.World = &world
+	}
 	pawns, err := PawnTable(v.Pawns, identity)
 	if err != nil {
 		return Combat{}, err

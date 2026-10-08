@@ -14,6 +14,9 @@ func validatedQuestWorkers(rows []*o.QuestWorker) ([]*o.QuestWorker, error) {
 			return nil, contract("invalid quest worker")
 		}
 		seen[row.GetPawnId()] = true
+		if row.GetSocialLevel() < 0 || row.GetSocialLevel() > 20 || row.NegotiationAbility != nil && !validNonnegative(row.GetNegotiationAbility()) {
+			return nil, contract("invalid quest diplomat")
+		}
 		if row.CarryCapacity != nil && !validNonnegative(row.GetCarryCapacity()) || row.CarriedMass != nil && !validNonnegative(row.GetCarriedMass()) {
 			return nil, contract("invalid quest worker carry capacity")
 		}

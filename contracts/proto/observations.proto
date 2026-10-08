@@ -986,7 +986,7 @@ message PopulationPerson { rimgovernor.common.v1.Ref pawn = 24; SnapshotRef pawn
   PawnHealth conditions = 22;
   // Policy inputs (#1554), for a prisoner of the colony only: its current
   // drug policy id and chemical state, as on the work census settings row.
-  PawnPolicyInputs policy_inputs = 26; }
+  PawnPolicyInputs policy_inputs = 26; optional bool will_join_if_rescued = 27; }
 message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2; repeated DefinitionRef supported_interactions = 3;
   // ModsConfig.IdeologyActive, IdeoManager.classicMode, the player faction's
   // primary ideoligion load id;
@@ -1040,6 +1040,7 @@ enum QuestObjectiveKind {
   QUEST_OBJECTIVE_KIND_EXPIRY = 9;
   QUEST_OBJECTIVE_KIND_RESCUE_PAWNS = 10;
   QUEST_OBJECTIVE_KIND_INSPECT_GRAV_ENGINE = 11;
+  QUEST_OBJECTIVE_KIND_HOLD_SURVEY_SCANNER = 12;
 }
 message QuestObjective {
   optional QuestObjectiveKind kind = 1;
@@ -1058,6 +1059,12 @@ message QuestObjective {
   optional int64 duration_ticks = 13;
   QuestWorkload workload = 14;
   QuestGravEngine grav_engine = 15;
+  QuestSurveyScanner survey_scanner = 16;
+}
+message QuestSurveyScanner {
+  optional string site_id = 1; optional string scanner_id = 2;
+  optional int64 duration_ticks = 3; optional int64 end_tick = 4;
+  optional int64 raid_tick = 5; optional bool alive = 6; optional bool complete = 7;
 }
 message QuestGravEngine {
   optional string engine_id = 1; optional int32 map_id = 2; optional bool spawned = 3;
@@ -1071,6 +1078,37 @@ message WorldSite {
   optional int32 map_id = 7; optional double distance_tiles = 8; repeated string quest_ids = 9;
   optional bool threat = 10; optional double threat_points = 11;
   optional bool reachable = 12; optional int64 travel_ticks = 13; repeated string route_pawn_ids = 14;
+  QuestSiteSecurity security = 15; QuestSiteExtraction extraction = 16;
+  QuestPeaceTalks peace_talks = 17;
+  repeated QuestSiteMiningTarget mining_targets = 18;
+}
+message QuestSiteMiningTarget { optional string id = 1; optional string def = 2; rimgovernor.common.v1.Cell cell = 3; optional int32 map_id = 4; optional bool designated = 5; }
+message QuestSiteSecurity {
+  optional bool known = 1; optional double initial_points = 2; optional double pending_raid_points = 3;
+  optional bool active_threat = 4; optional bool dormant_threat = 5; optional int32 trap_count = 6;
+  optional bool detection_active = 7; optional int64 detection_ticks_left = 8; optional int32 raids_sent = 9;
+}
+message QuestSiteExtraction {
+  optional bool can_reform = 1; repeated string crew_ids = 2;
+  optional double carry_capacity = 3; optional double carried_mass = 4;
+  optional double inventory_food_days = 5;
+  repeated QuestSiteCargo cargo = 6; repeated QuestSiteHomeRoute home_routes = 7;
+  optional double crew_nutrition_per_day = 8;
+  repeated rimgovernor.common.v1.Cell exit_cells = 9;
+}
+message QuestSiteCargo {
+  optional string id = 1; optional string def = 2; optional int64 count = 3;
+  optional double unit_mass = 4; optional double market_value = 5; optional double nutrition = 6;
+  optional bool held = 7;
+}
+message QuestSiteHomeRoute {
+  optional int32 map_id = 1; optional int32 tile = 2;
+  optional bool reachable = 3; optional int64 travel_ticks = 4;
+}
+message QuestPeaceTalks {
+  optional string faction_id = 1; optional int32 current_goodwill = 2;
+  optional int32 worst_goodwill_loss = 3; optional int32 best_goodwill_gain = 4;
+  optional bool ideology_active = 5;
 }
 message QuestWorkload { optional string recipe = 1; optional string stat = 2; optional double work = 3; optional double rate_factor = 4; }
 message QuestLodgerMood { optional string pawn_id = 1; optional double mood = 2; }
@@ -1107,7 +1145,7 @@ message QuestMonumentPiece {
   repeated QuestMonumentBuildOption build_options = 10;
 }
 message QuestMonumentBuildOption { optional string stuff = 1; repeated Quantity costs = 2; optional double work = 3; }
-message QuestWorker { optional string pawn_id = 1; optional bool healthy_adult = 2; optional bool can_fight = 3; repeated QuestWorkRate rates = 4; optional double carry_capacity = 5; optional double carried_mass = 6; }
+message QuestWorker { optional string pawn_id = 1; optional bool healthy_adult = 2; optional bool can_fight = 3; repeated QuestWorkRate rates = 4; optional double carry_capacity = 5; optional double carried_mass = 6; optional int32 social_level = 7; optional bool faction_leader = 8; optional double negotiation_ability = 9; }
 message QuestWorkRate { optional string stat = 1; optional double rate = 2; }
 message QuestMonumentResource {
   optional string id = 1;

@@ -10,7 +10,7 @@ func QuestRefugeeIDs(offers domain.Fact[[]JoinerOffer]) map[domain.PawnID]domain
 	out := map[domain.PawnID]domain.QuestID{}
 	for _, offer := range rows {
 		profile, known := offer.Profile.Value()
-		if offer.State != "Ongoing" || !known || profile.Family != QuestFamilyRefugeePod {
+		if offer.State != "Ongoing" || !known || profile.Family != QuestFamilyRefugeePod && profile.Family != QuestFamilySite {
 			continue
 		}
 		for _, objective := range offer.Objectives {

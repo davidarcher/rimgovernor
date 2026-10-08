@@ -8,6 +8,39 @@ import (
 	"testing"
 )
 
+func TestWorldSiteExtensionsRejectMalformedNativeEvidence(t *testing.T) {
+	v := worldProgressionFixture()
+	v.Quests[0].Objectives = []*o.QuestObjective{{Kind: o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_HOLD_SURVEY_SCANNER.Enum(), SurveyScanner: &o.QuestSurveyScanner{SiteId: proto.String("site"), DurationTicks: proto.Int64(900000)}}}
+	if _, err := worldProgressionSelected(v, pbIdentity()); err != nil {
+		t.Fatal(err)
+	}
+	for name, edit := range map[string]func(*o.WorldSite){
+		"negative risk":      func(s *o.WorldSite) { s.Security = &o.QuestSiteSecurity{InitialPoints: proto.Float64(-1)} },
+		"diplomacy identity": func(s *o.WorldSite) { s.PeaceTalks = &o.QuestPeaceTalks{} },
+		"cargo duplicate": func(s *o.WorldSite) {
+			c := &o.QuestSiteCargo{Id: proto.String("item"), Def: proto.String("Silver"), Count: proto.Int64(2)}
+			s.Extraction = &o.QuestSiteExtraction{Cargo: []*o.QuestSiteCargo{c, c}}
+		},
+		"negative exit": func(s *o.WorldSite) {
+			s.Extraction = &o.QuestSiteExtraction{ExitCells: []*c.Cell{{X: proto.Int32(-1), Z: proto.Int32(0)}}}
+		},
+		"unreachable estimate": func(s *o.WorldSite) {
+			s.Extraction = &o.QuestSiteExtraction{HomeRoutes: []*o.QuestSiteHomeRoute{{MapId: proto.Int32(0), Tile: proto.Int32(1), TravelTicks: proto.Int64(50), Reachable: proto.Bool(false)}}}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := &o.WorldSite{State: o.WorldSiteState_WORLD_SITE_STATE_MAP_LOADED.Enum()}
+			edit(s)
+			if err := validSiteExtensions(s); err == nil {
+				t.Fatal("accepted malformed census")
+			}
+		})
+	}
+	if _, err := validatedQuestSurvey(&o.QuestSurveyScanner{SiteId: proto.String("site"), Alive: proto.Bool(true)}); err == nil {
+		t.Fatal("live scanner without exact target")
+	}
+}
+
 func TestWorldSiteCensusStatesAndThreatPresence(t *testing.T) {
 	for state := o.WorldSiteState_WORLD_SITE_STATE_UNKNOWN; state <= o.WorldSiteState_WORLD_SITE_STATE_DESTROYED; state++ {
 		for _, threat := range []*bool{nil, proto.Bool(false), proto.Bool(true)} {

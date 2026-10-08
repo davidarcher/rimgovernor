@@ -22,16 +22,16 @@ namespace HomeBridge.BridgeTools
         internal static (float days, float tillRot) FoodDays(Dialog_FormCaravan dialog) =>
             ((float, float))typeof(Dialog_FormCaravan).GetProperty("DaysWorthOfFood", Private)!.GetValue(dialog)!;
 
-        internal static Dialog_FormCaravan BuildDialog(Map map)
+        internal static Dialog_FormCaravan BuildDialog(Map map, bool reform = false)
         {
-            var dialog = new Dialog_FormCaravan(map);
+            var dialog = new Dialog_FormCaravan(map, reform);
             Set(dialog, "autoSelectTravelSupplies", false);
             Call(dialog, "CalculateAndRecacheTransferables");
             foreach (var group in dialog.transferables) group.ForceToDestination(0);
             return dialog;
         }
 
-        internal static bool PawnEligible(Pawn pawn) => pawn.IsFreeColonist && !pawn.Downed && !pawn.Dead
+        internal static bool PawnEligible(Pawn pawn, bool reform = false) => pawn.IsFreeColonist && (reform || !pawn.Downed) && !pawn.Dead
             && !pawn.Drafted && !pawn.InMentalState && pawn.GetLord() == null;
     }
 }

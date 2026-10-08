@@ -18,7 +18,7 @@ import (
 // populated. Nothing here proves the route is still valid at dispatch time --
 // it is only ever the world-evaluation advisory's read of a same-tick census.
 type WorldRouteFact struct {
-	DestinationMapID    int32
+	DestinationTile     int32
 	Reachable           bool
 	EstimatedTicks      int64
 	EstimatedTicksKnown bool
@@ -141,6 +141,7 @@ type QuestTradeItemFact struct {
 type QuestObjectiveFact struct {
 	Monument         *o.QuestMonument
 	GravEngine       *o.QuestGravEngine
+	SurveyScanner    *o.QuestSurveyScanner
 	Kind             o.QuestObjectiveKind
 	Def              string
 	Stuff            string
@@ -341,7 +342,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			if route == nil || route.Destination == nil || route.GetDestination() < 0 || route.Reachable == nil {
 				return WorldProgressionRead{}, contract("invalid world progression caravan home route")
 			}
-			fact := WorldRouteFact{DestinationMapID: route.GetDestination(), Reachable: route.GetReachable()}
+			fact := WorldRouteFact{DestinationTile: route.GetDestination(), Reachable: route.GetReachable()}
 			if route.EstimatedTicks != nil {
 				if route.GetEstimatedTicks() < 0 {
 					return WorldProgressionRead{}, contract("invalid world progression caravan home route ticks")
@@ -449,7 +450,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			quest.Rewards = append(quest.Rewards, fact)
 		}
 		for _, objective := range row.Objectives {
-			if objective == nil || objective.Kind == nil || objective.GetKind() < o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_UNKNOWN || objective.GetKind() > o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_INSPECT_GRAV_ENGINE || objective.GetCount() < 0 || objective.GetProduced() < 0 || objective.GetDeadlineTicks() < 0 || objective.GetDurationTicks() < 0 {
+			if objective == nil || objective.Kind == nil || objective.GetKind() < o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_UNKNOWN || objective.GetKind() > o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_HOLD_SURVEY_SCANNER || objective.GetCount() < 0 || objective.GetProduced() < 0 || objective.GetDeadlineTicks() < 0 || objective.GetDurationTicks() < 0 {
 				return WorldProgressionRead{}, contract("invalid quest objective")
 			}
 			seen := map[string]bool{}
@@ -467,6 +468,11 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 				fact.GravEngine = engine
 			}
 			fact.DurationTicks = objective.DurationTicks
+			if survey, err := validatedQuestSurvey(objective.SurveyScanner); err != nil {
+				return WorldProgressionRead{}, err
+			} else {
+				fact.SurveyScanner = survey
+			}
 			if w := objective.Workload; w != nil {
 				if w.Work == nil || w.RateFactor == nil || math.IsNaN(w.GetWork()) || math.IsInf(w.GetWork(), 0) || w.GetWork() < 0 || math.IsNaN(w.GetRateFactor()) || math.IsInf(w.GetRateFactor(), 0) || w.GetRateFactor() < 0 {
 					return WorldProgressionRead{}, contract("invalid quest workload")

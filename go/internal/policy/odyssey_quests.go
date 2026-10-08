@@ -11,7 +11,6 @@ import (
 type QuestScope string
 
 const (
-	QuestSkipNeedsRemoteSiteHold QuestSkipReason = "needs_remote_site_hold"
 	// QuestScopeOther: the quest is not defined by Odyssey; the Odyssey
 	// selector leaves it to the joiner and Empire selectors.
 	QuestScopeOther QuestScope = "other"

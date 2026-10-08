@@ -47,6 +47,23 @@ func prisonerPerson(id, interaction string) *o.PopulationPerson {
 	return person
 }
 
+func TestPopulationWillJoinIfRescuedPresence(t *testing.T) {
+	for _, willing := range []*bool{nil, proto.Bool(false), proto.Bool(true)} {
+		person := prisonerPerson("rescued", "")
+		person.WillJoinIfRescued = willing
+		observed := populationReply(person).GetObserved()
+		census, err := decodePopulation(observed, populationPawns(observed), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows, _ := census.Custody.Value()
+		got, known := rows[0].WillJoinIfRescued.Value()
+		if known != (willing != nil) || willing != nil && got != *willing {
+			t.Fatal(rows)
+		}
+	}
+}
+
 // Every mode PrisonerInteractionIntent writes reads back as a known current
 // interaction; any other native defName (Execution, unexposed DLC modes)
 // stays unknown instead of being misread as one of them.

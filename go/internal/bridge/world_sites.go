@@ -67,9 +67,88 @@ func validatedWorldSites(rows []*o.WorldSite) ([]*o.WorldSite, error) {
 		if row.TravelTicks != nil && (row.Reachable == nil || !row.GetReachable() || len(row.RoutePawnIds) == 0) {
 			return nil, contract("world site estimate lacks reachable crew")
 		}
+		if err := validSiteExtensions(row); err != nil {
+			return nil, err
+		}
 		out = append(out, proto.Clone(row).(*o.WorldSite))
 	}
 	return out, nil
+}
+
+func validatedQuestSurvey(row *o.QuestSurveyScanner) (*o.QuestSurveyScanner, error) {
+	if row == nil {
+		return nil, nil
+	}
+	if validID(row.GetSiteId()) != nil || row.ScannerId != nil && validID(row.GetScannerId()) != nil || row.GetDurationTicks() < 0 || row.GetEndTick() < 0 || row.GetRaidTick() < 0 {
+		return nil, contract("invalid quest survey scanner")
+	}
+	if row.GetAlive() && row.ScannerId == nil {
+		return nil, contract("live quest scanner lacks identity")
+	}
+	return proto.Clone(row).(*o.QuestSurveyScanner), nil
+}
+
+func validSiteExtensions(row *o.WorldSite) error {
+	miningIDs := []string{}
+	for _, m := range row.MiningTargets {
+		if m == nil || m.GetDef() == "" || m.MapId == nil || m.GetMapId() < 0 || !monumentCellKnown(m.Cell) || m.Cell.GetX() < 0 || m.Cell.GetZ() < 0 {
+			return contract("invalid site mining target")
+		}
+		miningIDs = append(miningIDs, m.GetId())
+	}
+	if !validQuestIdentities(miningIDs) {
+		return contract("invalid site mining identity")
+	}
+	if s := row.Security; s != nil {
+		if s.InitialPoints != nil && !validNonnegative(s.GetInitialPoints()) || s.PendingRaidPoints != nil && !validNonnegative(s.GetPendingRaidPoints()) || s.GetTrapCount() < 0 || s.GetDetectionTicksLeft() < 0 || s.GetRaidsSent() < 0 {
+			return contract("invalid site security")
+		}
+	}
+	if p := row.PeaceTalks; p != nil {
+		if validID(p.GetFactionId()) != nil || p.GetCurrentGoodwill() < -100 || p.GetCurrentGoodwill() > 100 || p.GetWorstGoodwillLoss() < 0 || p.GetBestGoodwillGain() < 0 {
+			return contract("invalid site diplomacy")
+		}
+	}
+	if e := row.Extraction; e != nil {
+		if row.GetState() != o.WorldSiteState_WORLD_SITE_STATE_MAP_LOADED || !validQuestIdentities(e.CrewIds) {
+			return contract("invalid site extraction crew")
+		}
+		for _, v := range []*float64{e.CarryCapacity, e.CarriedMass, e.InventoryFoodDays, e.CrewNutritionPerDay} {
+			if v != nil && !validNonnegative(*v) {
+				return contract("invalid site extraction estimate")
+			}
+		}
+		ids := []string{}
+		for _, c := range e.Cargo {
+			if c == nil || c.GetDef() == "" || c.Count == nil || c.GetCount() <= 0 {
+				return contract("invalid site extraction cargo")
+			}
+			ids = append(ids, c.GetId())
+			for _, v := range []*float64{c.UnitMass, c.MarketValue, c.Nutrition} {
+				if v != nil && !validNonnegative(*v) {
+					return contract("invalid site cargo estimate")
+				}
+			}
+		}
+		if !validQuestIdentities(ids) {
+			return contract("invalid site cargo identity")
+		}
+		maps := map[int32]bool{}
+		cells := map[[2]int32]bool{}
+		for _, c := range e.ExitCells {
+			if !monumentCellKnown(c) || c.GetX() < 0 || c.GetZ() < 0 || cells[[2]int32{c.GetX(), c.GetZ()}] {
+				return contract("invalid site exit cell")
+			}
+			cells[[2]int32{c.GetX(), c.GetZ()}] = true
+		}
+		for _, r := range e.HomeRoutes {
+			if r == nil || r.MapId == nil || r.Tile == nil || r.GetMapId() < 0 || r.GetTile() < 0 || maps[r.GetMapId()] || r.GetTravelTicks() < 0 || r.TravelTicks != nil && !r.GetReachable() {
+				return contract("invalid site home route")
+			}
+			maps[r.GetMapId()] = true
+		}
+	}
+	return nil
 }
 
 func validatedQuestGravEngine(row *o.QuestGravEngine) (*o.QuestGravEngine, error) {

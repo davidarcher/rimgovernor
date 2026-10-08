@@ -120,6 +120,7 @@ namespace HomeBridge.BridgeTools
                 }
                 if (p.ownership?.OwnedBed is Building_Bed bed && bed.Spawned) person.OwnedBed = NativeBuildingObservationTools.Ref(bed);
                 if (p.needs?.food != null) person.NutritionPerDay = Number(GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true)));
+                person.WillJoinIfRescued = p.mindState.WillJoinColonyIfRescued;
                 // The prisoner custody and interaction settings token
                 // (NativePrisonerInteractionOperations.Settings).
                 person.PawnSnapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = person.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) };

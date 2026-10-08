@@ -6,6 +6,7 @@ import (
 )
 
 var recoveryServiceJobs = map[domain.RecoveryMethod]string{
+	domain.RecoveryServiceOfferHelp:         "OfferHelp",
 	domain.RecoveryServiceInspectGravEngine: JobInspectGravEngine,
 	domain.RecoveryServiceRepair:            JobRepair,
 	domain.RecoveryServiceBreakdown:         JobFixBrokenDownBuilding,

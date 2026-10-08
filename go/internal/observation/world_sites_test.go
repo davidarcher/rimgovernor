@@ -7,6 +7,32 @@ import (
 	"testing"
 )
 
+func TestWorldSiteExtensionsProjectionRetainsInventoryAndUnknownSecurity(t *testing.T) {
+	s := &o.WorldSite{Id: proto.String("site"), Security: &o.QuestSiteSecurity{Known: proto.Bool(false)}, PeaceTalks: &o.QuestPeaceTalks{WorstGoodwillLoss: proto.Int32(126), BestGoodwillGain: proto.Int32(50)}, Extraction: &o.QuestSiteExtraction{CanReform: proto.Bool(false), CrewIds: []string{"pawn"}, CrewNutritionPerDay: proto.Float64(1.6), Cargo: []*o.QuestSiteCargo{{Id: proto.String("meal"), Def: proto.String("MealSimple"), Count: proto.Int64(4), Held: proto.Bool(true)}}}}
+	rows, _ := frameWorldSites(&bridge.WorldProgressionRead{Sites: []*o.WorldSite{s}}).Value()
+	security, _ := rows[0].Security.Value()
+	if known, present := security.Known.Value(); !present || known {
+		t.Fatal("unknown envelope became safe")
+	}
+	if _, present := security.PendingRaidPoints.Value(); present {
+		t.Fatal("missing raid estimate became zero")
+	}
+	ex, _ := rows[0].Extraction.Value()
+	held, known := ex.Cargo[0].Held.Value()
+	if !known || !held || len(ex.Crew) != 1 {
+		t.Fatal(ex)
+	}
+	risk, _ := rows[0].PeaceTalks.Value()
+	loss, _ := risk.WorstGoodwillLoss.Value()
+	if loss != 126 {
+		t.Fatal(risk)
+	}
+	survey, _ := questSurveyScanner(&o.QuestSurveyScanner{SiteId: proto.String("site"), DurationTicks: proto.Int64(900000)}).Value()
+	if _, known := survey.Alive.Value(); known {
+		t.Fatal("pending scanner became alive")
+	}
+}
+
 func TestWorldSiteProjectionKeepsUnknownThreatAndTravel(t *testing.T) {
 	read := &bridge.WorldProgressionRead{Sites: []*o.WorldSite{{Id: proto.String("site"), DefName: proto.String("Site"), State: o.WorldSiteState_WORLD_SITE_STATE_PENDING.Enum(), Tile: proto.Int32(0), LayerId: proto.Int32(0), QuestIds: []string{"quest"}}}}
 	rows, known := frameWorldSites(read).Value()

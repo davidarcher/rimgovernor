@@ -24,6 +24,9 @@ namespace HomeBridge.BridgeTools
                         && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation),
                     CanFight = !pawn.Dead && !pawn.Downed && !pawn.InMentalState && !pawn.WorkTagIsDisabled(WorkTags.Violent),
                     CarryCapacity = MassUtility.Capacity(pawn), CarriedMass = MassUtility.GearAndInventoryMass(pawn) };
+                row.FactionLeader = pawn == Faction.OfPlayer.leader;
+                row.NegotiationAbility = pawn.GetStatValue(StatDefOf.NegotiationAbility);
+                if (pawn.skills != null && !StatDefOf.NegotiationAbility.Worker.IsDisabledFor(pawn)) row.SocialLevel = pawn.skills.GetSkill(SkillDefOf.Social).Level;
                 foreach (var stat in stats)
                     row.Rates.Add(new Obs.QuestWorkRate { Stat = stat.defName, Rate = pawn.GetStatValue(stat) });
                 yield return row;

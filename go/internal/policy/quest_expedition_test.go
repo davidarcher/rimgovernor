@@ -23,7 +23,7 @@ func expeditionFixture() (JoinerOffer, ExpeditionSite, RoundsFacts, FoodSupply) 
 func TestExpeditionFormationTravelArrivalDoNotSendReplacement(t *testing.T) {
 	offer, site, f, food := expeditionFixture()
 	f.AnimalUpkeep.Food = domain.Known(food)
-	f.QuestSites = domain.Known([]WorldSite{{ID: site.ID, Tile: domain.Known(site.Tile), Layer: site.Layer, State: o.WorldSiteState_WORLD_SITE_STATE_SPAWNED, QuestIDs: []domain.QuestID{offer.Quest}, ThreatPoints: site.ThreatPoints, Reachable: site.Reachable, TravelTicks: site.TravelTicks, RoutePawnIDs: site.RoutePawnIDs}})
+	f.QuestSites = domain.Known([]WorldSite{{ID: site.ID, Security: domain.Known(SiteSecurity{Known: domain.Known(true), InitialPoints: site.ThreatPoints, PendingRaidPoints: domain.Known(0.0)}), Tile: domain.Known(site.Tile), Layer: site.Layer, State: o.WorldSiteState_WORLD_SITE_STATE_SPAWNED, QuestIDs: []domain.QuestID{offer.Quest}, ThreatPoints: site.ThreatPoints, Reachable: site.Reachable, TravelTicks: site.TravelTicks, RoutePawnIDs: site.RoutePawnIDs}})
 	f.QuestExpeditionTrips = domain.Known([]ExpeditionTrip{})
 	if plan := SelectExpedition(f, DefaultRoundsPolicy()); plan.Departure == nil || plan.Reason != "" {
 		t.Fatal(plan)

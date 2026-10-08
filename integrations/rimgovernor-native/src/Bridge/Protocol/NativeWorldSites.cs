@@ -35,6 +35,16 @@ namespace HomeBridge.BridgeTools
                 if (origin != null && world.Tile.Valid && world.Tile.Layer.IsRootSurface && origin.Tile.Layer.IsRootSurface)
                     Route(origin, world, row);
                 row.QuestIds.Add(quests.Where(q => q.QuestLookTargets.Any(t => t.HasWorldObject && t.WorldObject == world)).Select(q => q.GetUniqueLoadID()));
+                if (site != null) row.Security = NativeSiteSecurity.Read(site, quests);
+                if (site != null) row.MiningTargets.Add(NativeQuestSiteMining.Read(site));
+                if (mapParent?.HasMap == true) row.Extraction = NativeSiteExtraction.Read(mapParent.Map);
+                if (world is PeaceTalks && world.Faction != null)
+                {
+                    var goodwill = Faction.OfPlayer.GoodwillWith(world.Faction);
+                    row.PeaceTalks = new Obs.QuestPeaceTalks { FactionId = world.Faction.GetUniqueLoadID(), CurrentGoodwill = goodwill,
+                        WorstGoodwillLoss = -System.Math.Min(DiplomacyTuning.Goodwill_PeaceTalksDisasterRange.min, Faction.OfPlayer.GoodwillToMakeHostile(world.Faction)),
+                        BestGoodwillGain = System.Math.Min(DiplomacyTuning.Goodwill_PeaceTalksTriumphRange.max, DiplomacyTuning.MaxGoodwill - goodwill), IdeologyActive = ModsConfig.IdeologyActive };
+                }
                 if (mapParent?.HasMap == true)
                     row.Threat = GenHostility.AnyHostileActiveThreatToPlayer(mapParent.Map, countDormantPawnsAsHostile: true, canBeFogged: true);
                 else if (site != null && site.sitePartsKnown && site.parts.All(p => !p.hidden))

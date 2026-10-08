@@ -53,6 +53,7 @@ type JoinerOffer struct {
 type QuestObjective struct {
 	Monument         domain.Fact[QuestMonument]
 	GravEngine       domain.Fact[QuestGravEngine]
+	SurveyScanner    domain.Fact[QuestSurveyScanner]
 	Kind             o.QuestObjectiveKind
 	Def              string
 	Stuff            string

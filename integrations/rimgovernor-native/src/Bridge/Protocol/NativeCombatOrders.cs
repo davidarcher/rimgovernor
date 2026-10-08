@@ -156,7 +156,9 @@ namespace HomeBridge.BridgeTools
                 {
                     var cell = new IntVec3(order.Move.X, 0, order.Move.Z);
                     if (!NativeMovementOperations.Legal(pawn, cell)) return "unreachable";
-                    return Take(pawn, JobMaker.MakeJob(JobDefOf.Goto, cell), out job);
+                    var move = JobMaker.MakeJob(JobDefOf.Goto, cell);
+                    if (map.exitMapGrid.IsExitCell(cell)) move.exitMapOnArrival = !pawn.IsColonyMech;
+                    return Take(pawn, move, out job);
                 }
                 case Operations.CombatOrder.OrderOneofCase.Attack:
                 {

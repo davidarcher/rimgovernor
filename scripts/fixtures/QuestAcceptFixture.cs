@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using RimWorld.QuestGen;
+using RimWorld.Planet;
 using Verse;
 using Verse.AI;
 
@@ -409,6 +410,64 @@ namespace HomeBridge.BridgeTools
             },cancellationToken).ConfigureAwait(false);
         }
 
+        [Tool("test/quest_expedition_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage a real neighboring bandit quest, equipped crew and home food; never forms a caravan, boards a shuttle or completes combat.")]
+        public async Task<object> PrepareExpedition(IRimBridgeContext ctx, CancellationToken cancellationToken, bool shuttleMission=false)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(()=> {
+                var home=Find.CurrentMap;
+                if(home==null || !Find.TickManager.Paused) return Refuse("Paused lab required.");
+                var crew=home.mapPawns.FreeColonistsSpawned.OrderBy(p=>p.thingIDNumber).ToList();
+                if(crew.Count<6) return Refuse("Six lab colonists required.");
+                if(shuttleMission) FixtureEmpire();
+                var neighbours=new List<PlanetTile>();Find.WorldGrid.GetTileNeighbors(home.Tile,neighbours);
+                var tile=neighbours.FirstOrDefault(t=>!Find.World.Impassable(t) && !Find.WorldObjects.AnyMapParentAt(t));
+                if(!tile.Valid) return Refuse("No adjacent passable site tile.");
+                foreach(var pawn in crew) {
+                    pawn.skills.GetSkill(SkillDefOf.Shooting).Level=18;
+                    pawn.skills.GetSkill(SkillDefOf.Melee).Level=18;
+                    if(pawn.equipment.Primary!=null) pawn.equipment.DestroyEquipment(pawn.equipment.Primary);
+                    pawn.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(ThingDef.Named("Gun_AssaultRifle")));
+                    foreach(var item in new[]{"Apparel_FlakVest","Apparel_FlakHelmet"}) pawn.apparel.Wear((Apparel)ThingMaker.MakeThing(ThingDef.Named(item)));
+                    pawn.workSettings.EnableAndInitialize();
+                    foreach(var work in DefDatabase<WorkTypeDef>.AllDefsListForReading)
+                        if(!pawn.WorkTypeIsDisabled(work)) pawn.workSettings.SetPriority(work,3);
+                }
+                FixtureMeals(home);
+                for(var i=0;i<crew.Count;i++) Place(home,ThingDefOf.Bed,ThingDefOf.WoodLog,home.Center+new IntVec3(-8+i*2,0,-8));
+                var script=shuttleMission?"Mission_BanditCamp":"OpportunitySite_BanditCamp";
+                var slate=new Slate();slate.Set("map",home);slate.Set("points",shuttleMission?4000f:350f);
+                var quest=RimWorld.QuestGen.QuestGen.Generate(DefDatabase<QuestScriptDef>.GetNamed(script),slate);
+                var site=quest.QuestLookTargets.Where(t=>t.HasWorldObject).Select(t=>t.WorldObject).OfType<Site>().Distinct().SingleOrDefault();
+                if(site==null) return Refuse("Generated quest lacks one exact bandit site.");
+                site.Tile=tile;
+                // The generated bandit part still creates genuine armed enemies;
+                // only its fixture budget is reduced to a small fast fight.
+                foreach(var part in site.parts) part.parms.threatPoints=200f;
+                site.desiredThreatPoints=site.ActualThreatPoints;
+                quest.acceptanceExpireTick=Find.TickManager.TicksGame+30*60000;
+                var witness=quest.AddPart<QuestExpeditionWitness>();witness.inSignalEnable=quest.InitiateSignal;
+                witness.home=home.Parent;witness.site=site;witness.crew=crew;
+                Find.QuestManager.Add(quest);
+                return new {success=true,questId=quest.GetUniqueLoadID(),scriptDef=script,siteId=site.GetUniqueLoadID(),homeMapId=home.uniqueID,homeTile=home.Tile.tileId,tile=tile.tileId,pawnIds=crew.Select(p=>p.GetUniqueLoadID()).ToArray(),shuttleMission};
+            },cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/quest_expedition_read", Description = "UNSAFE FOR MODEL EXECUTION. Read physical fixture caravan/shuttle departure, site fight, return and loot; never supplies the outcome.")]
+        public async Task<object> ReadExpedition(IRimBridgeContext ctx,CancellationToken cancellationToken,string questId)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(()=> {
+                var quest=Find.QuestManager.QuestsListForReading.FirstOrDefault(q=>q.GetUniqueLoadID()==questId);
+                var witness=quest?.PartsListForReading.OfType<QuestExpeditionWitness>().SingleOrDefault();
+                if(witness==null) return Refuse("Expedition witness absent.");
+                witness.Observe();
+                var returned=witness.travelers.Count>0 && witness.travelers.All(p=>!p.Dead && p.Spawned && p.Map?.Parent==witness.home);
+                var loot=witness.home.HasMap?witness.home.Map.listerThings.AllThings.Where(t=>t.def==ThingDefOf.Silver).Sum(t=>t.stackCount):0;
+                loot+=witness.travelers.Where(p=>p.Spawned && p.Map?.Parent==witness.home).Sum(p=>p.inventory.innerContainer.Where(t=>t.def==ThingDefOf.Silver).Sum(t=>t.stackCount));
+                var lootReturned=witness.siteLoot!=null && !witness.siteLoot.Destroyed && witness.siteLoot.MapHeld?.Parent==witness.home;
+                return new {success=true,state=quest.State.ToString(),formed=witness.formed,boarded=witness.boarded,arrived=witness.arrived,cleared=witness.cleared,returned,loot,lootReturned,travelers=witness.travelers.Select(p=>p.GetUniqueLoadID()).ToArray()};
+            },cancellationToken).ConfigureAwait(false);
+        }
+
         private static Faction FixtureEmpire() {
             var empire=Find.FactionManager.FirstFactionOfDef(FactionDefOf.Empire);
             if(empire==null) { empire=FactionGenerator.NewGeneratedFaction(new FactionGeneratorParms(FactionDefOf.Empire));Find.FactionManager.Add(empire); }
@@ -439,5 +498,41 @@ namespace HomeBridge.BridgeTools
             boarded|=Find.Maps.SelectMany(m=>m.listerThings.AllThings).Select(t=>t.TryGetComp<CompTransporter>()).Any(t=>t!=null && t.innerContainer.Contains(pawn));
         }
         public override void ExposeData() { base.ExposeData();Scribe_References.Look(ref pawn,"pawn");Scribe_References.Look(ref bed,"bed");Scribe_Values.Look(ref hosted,"hosted");Scribe_Values.Look(ref assigned,"assigned");Scribe_Values.Look(ref boarded,"boarded"); }
+    }
+
+    public sealed class QuestExpeditionWitness : QuestPartActivable
+    {
+        public MapParent home;public Site site;public List<Pawn> crew=new List<Pawn>();public List<Pawn> travelers=new List<Pawn>();
+        public bool formed,boarded,arrived,cleared,lootStaged;
+        public Thing siteLoot;
+        public void Observe() {
+            foreach(var pawn in crew) {
+                var inCaravan=Find.WorldObjects.Caravans.Any(c=>c.IsPlayerControlled && c.PawnsListForReading.Contains(pawn));
+                var inShuttle=Find.Maps.SelectMany(m=>m.listerThings.AllThings).Select(t=>t.TryGetComp<CompTransporter>()).Any(c=>c!=null && c.innerContainer.Contains(pawn));
+                var atSite=pawn.Spawned && pawn.Map?.Parent==site;
+                formed|=inCaravan;boarded|=inShuttle;arrived|=atSite;
+                if((inCaravan||inShuttle||atSite) && !travelers.Contains(pawn)) travelers.Add(pawn);
+            }
+            if(arrived && site.HasMap) cleared|=!GenHostility.AnyHostileActiveThreatToPlayer(site.Map,countDormantPawnsAsHostile:true,canBeFogged:true);
+        }
+        public override void QuestPartTick() {
+            if(!lootStaged && site.HasMap) {
+                var map=site.Map;
+                var cell=GenRadial.RadialCellsAround(map.Center,12,true).First(c=>c.InBounds(map) && c.Standable(map) && c.GetFirstItem(map)==null);
+                var silver=ThingMaker.MakeThing(ThingDefOf.Silver);silver.stackCount=30;GenSpawn.Spawn(silver,cell,map);silver.SetForbidden(false,false);siteLoot=silver;
+                lootStaged=true;
+            }
+            Observe();
+        }
+        public override void Notify_QuestSignalReceived(Signal signal) {
+            base.Notify_QuestSignalReceived(signal);
+            if(signal.tag.EndsWith(".AllEnemiesDefeated",StringComparison.Ordinal)) cleared=true;
+        }
+        public override void ExposeData() {
+            base.ExposeData();Scribe_References.Look(ref home,"home");Scribe_References.Look(ref site,"site");
+            Scribe_References.Look(ref siteLoot,"siteLoot");
+            Scribe_Collections.Look(ref crew,"crew",LookMode.Reference);Scribe_Collections.Look(ref travelers,"travelers",LookMode.Reference);
+            Scribe_Values.Look(ref formed,"formed");Scribe_Values.Look(ref boarded,"boarded");Scribe_Values.Look(ref arrived,"arrived");Scribe_Values.Look(ref cleared,"cleared");Scribe_Values.Look(ref lootStaged,"lootStaged");
+        }
     }
 }

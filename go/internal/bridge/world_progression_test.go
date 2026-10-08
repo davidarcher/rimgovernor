@@ -161,7 +161,7 @@ func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
 		!caravan.Pawns[0].DownedKnown || caravan.Pawns[0].Downed {
 		t.Fatal(caravan.Pawns)
 	}
-	if len(caravan.HomeRoutes) != 1 || caravan.HomeRoutes[0].DestinationMapID != 7 || !caravan.HomeRoutes[0].Reachable ||
+	if len(caravan.HomeRoutes) != 1 || caravan.HomeRoutes[0].DestinationTile != 7 || !caravan.HomeRoutes[0].Reachable ||
 		!caravan.HomeRoutes[0].EstimatedTicksKnown || caravan.HomeRoutes[0].EstimatedTicks != 6000 {
 		t.Fatal(caravan.HomeRoutes)
 	}

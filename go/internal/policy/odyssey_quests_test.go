@@ -38,7 +38,7 @@ func TestSelectOdysseyQuestMethodAcceptsGroundSkipsShipOnly(t *testing.T) {
 	if deficit, known := QuestDeficit(questTestFacts(offers)).Value(); !known || !deficit {
 		t.Fatal("an answerable ground quest is a population deficit")
 	}
-	want := []QuestSkip{{Quest: "Quest_5", ScriptDef: "SurveySite", Reason: QuestSkipNeedsRemoteSiteHold}, {Quest: "Quest_9", ScriptDef: "OrbitalFugitive", Reason: QuestSkipShipOnly, Detail: "Orbit"}}
+	want := []QuestSkip{{Quest: "Quest_5", ScriptDef: "SurveySite", Reason: "site_unknown"}, {Quest: "Quest_9", ScriptDef: "OrbitalFugitive", Reason: QuestSkipShipOnly, Detail: "Orbit"}}
 	if got := QuestSkips(questTestFacts(offers)); !reflect.DeepEqual(got, want) {
 		t.Fatalf("skips %+v", got)
 	}
