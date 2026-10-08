@@ -29,7 +29,7 @@ func rulesPlannerFixture(t *testing.T) (*RoundsRulesPlanner, *store.Store, *play
 
 func huntChainSet(t *testing.T) policy.RuleSet {
 	t.Helper()
-	set, known := policy.HuntChainRules(domain.Known([]policy.AcquisitionSource{{ID: "deer", Hunt: true, Designated: true}, {ID: "elk", Hunt: true, Designated: true}}), domain.Known([]policy.PawnProfile{{ID: "hunter", Ranged: true}}))
+	set, known := policy.HuntChainRules(domain.Known([]policy.AcquisitionSource{{ID: "deer", Hunt: true, Designated: true}, {ID: "elk", Hunt: true, Designated: true}}), domain.Known([]policy.PawnProfile{{ID: "hunter", Ranged: true}}), nil)
 	if !known || len(set.Rules) != 1 {
 		t.Fatalf("set = %+v", set)
 	}

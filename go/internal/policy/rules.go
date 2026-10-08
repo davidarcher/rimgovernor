@@ -22,11 +22,11 @@ type RuleSet struct {
 }
 
 // HuntChainRules derives the rule set from the hunt plan: with a hunter who
-// can take Hunting and two or more designated hunt prey standing, a hunter who kills
+// can take Hunting and designated hunt prey standing, a hunter who kills
 // moves on to the nearest designated prey instead of hauling its own kill;
 // otherwise the set is empty. known is false while either census is unread,
 // so a Round with no evidence changes nothing.
-func HuntChainRules(sources domain.Fact[[]AcquisitionSource], hunters domain.Fact[[]PawnProfile]) (set RuleSet, known bool) {
+func HuntChainRules(sources domain.Fact[[]AcquisitionSource], hunters domain.Fact[[]PawnProfile], holds []HuntHold) (set RuleSet, known bool) {
 	rows, sourcesKnown := sources.Value()
 	profiles, huntersKnown := hunters.Value()
 	if !sourcesKnown || !huntersKnown {
@@ -41,7 +41,16 @@ func HuntChainRules(sources domain.Fact[[]AcquisitionSource], hunters domain.Fac
 			designated++
 		}
 	}
-	if designated < 2 {
+	// Admission holds govern new designations, not orders already standing.
+	// Native rechecks the next target's route and work-giver legality at firing.
+	for _, hold := range holds {
+		if hold.Source.Hunt && hold.Source.Designated {
+			designated++
+		}
+	}
+	// Keep the rule while the final target stands; native fires nothing when
+	// the killed prey leaves no next target.
+	if designated == 0 {
 		return RuleSet{}, true
 	}
 	return RuleSet{Rules: []domain.Rule{{

@@ -33,9 +33,9 @@ Go re-attaches every Round with a lease (2500 ticks); rules live in native memor
 starts with none. The controller attaches through the `rules_attach` action (`RulesAttachIntent` on
 Actions/Apply, [action contracts](action-contracts.md)), which carries the rules and a lease relative to
 the apply tick and sits in the session journal before native is written. `RoundsRulesPlanner`
-(family `rules`, every half lease) derives the set from the hunt plan with `policy.HuntChainRules` (a Hunting-capable ranged colonist and two or more designated prey) and
+(family `rules`, every half lease) derives the set from the hunt plan with `policy.HuntChainRules` (a Hunting-capable ranged colonist and at least one designated prey, including prey held from new acquisition) and
 commits one method per Round under `EnsureFoodSupply`; an empty set clears what an earlier Round attached,
-and a Standard that is no longer workable lets the lease lapse. The `rules_attach` op (absolute
+and a Standard that is no longer workable lets the lease lapse. Admission holds for new hunt designations do not clear existing orders; native checks route and work-giver legality when selecting the next prey and fires nothing after the last kill. The `rules_attach` op (absolute
 `expires_at_tick`) stays for harnesses.
 
 ## Safety

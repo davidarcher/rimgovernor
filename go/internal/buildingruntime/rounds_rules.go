@@ -76,7 +76,7 @@ func (r *RoundsRulesPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if pawns, known := read.Projection.WorkPawns.Value(); known {
 		hunters = domain.Known(policy.Profiles(pawns))
 	}
-	set, known := policy.HuntChainRules(read.Projection.Acquisition, hunters)
+	set, known := policy.HuntChainRules(read.Projection.Acquisition, hunters, read.Projection.HuntHolds)
 	if !known {
 		return RoundsRulesResult{Verdict: fieldUnavailable("hunt_census")}, nil
 	}
