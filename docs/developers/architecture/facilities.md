@@ -295,8 +295,22 @@ reaches `AwakenStrengthFactor` (1.25, the largest points factor of an
 threat stands, no entity is free or escaping and no cell door stands open. The
 awakening's confirmation `Dialog_MessageBox` is answered as a dialog; the
 rule is inert in Ambient Horror mode, and an unread fact is a
-`monolith_advance_unread` row, never a guess. Disrupting at the void node
-belongs to the later void-structure work.
+`monolith_advance_unread` row, never a guess.
+
+**Awakening quest (#2438).** The same step walks the `EndGame_VoidAwakening`
+quest with one more recovery-service give-job, `InteractThing`
+(`MonolithInteract`): each `VoidStructure` still interactable
+(`pending_void_structure_ids`, 2160 ticks), the Gleaming monolith once
+`gleaming_interaction_available` (300 ticks; the colonist is stunned and
+skipped into the metal hell pocket map, drafted), then the `VoidNode` there,
+touched by a colonist read on that map (`void_node_pawn_ids`; native resolves
+target and pawn on the target's map). Node dialog (`VoidNodeDisrupt`,
+`VoidNodeEmbrace`, `VoidNodePostpone`) is answered by key through `DialogIntent`:
+disrupt only, never embrace; an absent disrupt postpones and logs
+`void_node_disrupt_absent` at error, and the per-target attempt cap ends the
+retries. Disrupting ends the quest at the Disrupted level, the monolith
+collapses and the facts go away. The quest family row for `MonolithMigration`
+stays refused for good (that questline ends here).
 
 ### Bedrooms and sleeping upkeep
 

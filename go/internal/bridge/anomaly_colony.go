@@ -61,6 +61,16 @@ func validateAnomalyColony(v *o.ColonyFactsSnapshot) error {
 				}
 				seenCondition[name] = true
 			}
+			seenID := map[string]bool{}
+			for _, id := range append(append([]string{m.GetVoidNodeId()}, m.PendingVoidStructureIds...), m.VoidNodePawnIds...) {
+				if id != "" && (validID(id) != nil || seenID[id]) {
+					return contract("invalid anomaly monolith void thing")
+				}
+				seenID[id] = true
+			}
+			if m.VoidNodeId != nil && m.GetVoidNodeId() == "" || len(m.VoidNodePawnIds) > 0 && m.VoidNodeId == nil || m.GetVoidNodeId() != "" && m.VoidNodeExists != nil && !m.GetVoidNodeExists() {
+				return contract("invalid anomaly monolith void node")
+			}
 			if m.MonolithId != nil && validID(m.GetMonolithId()) != nil || m.NextLevelDef != nil && validID(m.GetNextLevelDef()) != nil || m.NextLevelCodexCategory != nil && validID(m.GetNextLevelCodexCategory()) != nil ||
 				(m.NextLevelCodexCategory == nil) != (m.NextLevelCodexRequired == nil) || (m.NextLevelCodexCategory == nil) != (m.CodexShortfall == nil) ||
 				m.CodexShortfall != nil && m.GetCodexShortfall() > m.GetNextLevelCodexRequired() ||

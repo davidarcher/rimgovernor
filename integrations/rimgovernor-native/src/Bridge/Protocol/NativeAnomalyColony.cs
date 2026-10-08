@@ -76,7 +76,16 @@ namespace HomeBridge.BridgeTools
             var structures = map.listerThings.ThingsOfDef(ThingDefOf.VoidStructure);
             row.VoidStructures = (uint)structures.Count;
             row.VoidStructuresActivated = (uint)structures.Count(t => t.TryGetComp<CompVoidStructure>()?.Active ?? false);
-            row.VoidNodeExists = map.listerThings.ThingsOfDef(ThingDefOf.VoidNode).Count > 0;
+            foreach (var structure in structures.OrderBy(t => t.thingIDNumber))
+                if (structure.TryGetComp<CompVoidStructure>()?.CanInteract().Accepted == true && Id(structure.GetUniqueLoadID()) is string structureId) row.PendingVoidStructureIds.Add(structureId);
+            // The node stands on the pocket map the Gleaming monolith skips a pawn into, so every loaded map is searched.
+            var node = Find.Maps.SelectMany(m => m.listerThings.ThingsOfDef(ThingDefOf.VoidNode)).OrderBy(t => t.thingIDNumber).FirstOrDefault();
+            row.VoidNodeExists = node != null;
+            if (node?.TryGetComp<CompVoidNode>() is CompVoidNode nodeComp && node.Map is Map nodeMap && nodeComp.CanInteract().Accepted && Id(node.GetUniqueLoadID()) is string nodeId) {
+                row.VoidNodeId = nodeId;
+                foreach (var pawn in nodeMap.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber))
+                    if (nodeComp.CanInteract(pawn).Accepted && Id(pawn.GetUniqueLoadID()) is string pawnId) row.VoidNodePawnIds.Add(pawnId);
+            }
             var quest = Find.QuestManager.questsInDisplayOrder.FirstOrDefault(q => !q.Historical && q.root == QuestScriptDefOf.EndGame_VoidAwakening);
             if (quest != null) {
                 var prefix = "Quest" + quest.id + ".";

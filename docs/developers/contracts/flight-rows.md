@@ -96,7 +96,7 @@ its v1 payload and its readers.
 
 | Old kind | v2 kind | v2 shape and fields | Piece |
 |---|---|---|---|
-| `hold_refused`, `animal_clear`, `entity_capture_refused`, `entity_kill`, `entity_tend_unavailable`, `containment_upkeep_issue`, `containment_upkeep_exhausted`, `monolith_advance_unread`, `monolith_advance_exhausted`, `undraft`, defense tier unbuilt | `defense_action` (decision) | `target` pawn, plan, incident, cell or tier, `verdict` `applied`/`refused`/`failed`/`waiting`, `reason` the refusal or issue; attrs `incident`, `plan`, `outcome`, `x`, `z`, `error`. An unbuilt tier emits `waiting` / `tier_unbuilt` when its census changes, targeting the tier with attrs `buildings`, `census`. | #2067, #2369, #2437 |
+| `hold_refused`, `animal_clear`, `entity_capture_refused`, `entity_kill`, `entity_tend_unavailable`, `containment_upkeep_issue`, `containment_upkeep_exhausted`, `monolith_advance_unread`, `monolith_advance_exhausted`, `void_node_disrupt_absent`, `undraft`, defense tier unbuilt | `defense_action` (decision) | `target` pawn, plan, incident, cell or tier, `verdict` `applied`/`refused`/`failed`/`waiting`, `reason` the refusal or issue; attrs `incident`, `plan`, `outcome`, `x`, `z`, `error`. An unbuilt tier emits `waiting` / `tier_unbuilt` when its census changes, targeting the tier with attrs `buildings`, `census`. | #2067, #2369, #2437, #2438 |
 
 ### New in v2
 

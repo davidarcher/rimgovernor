@@ -34,3 +34,24 @@ func TestMonolithOrdersAreGiveJobsOnTheMonolith(t *testing.T) {
 		t.Fatal("an unknown service method was accepted")
 	}
 }
+
+// The awakening quest's interaction rides the same action as an InteractThing
+// give-job on the structure, the monolith or the node (#2438).
+func TestInteractIsAGiveJobOnTheTarget(t *testing.T) {
+	service, err := domain.NewRecoveryService("Thing_Pawn1", "Thing_VoidNode1", domain.RecoveryServiceInteract)
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := domain.NewRecoveryServiceAction("a-0", service)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire, err := recoverAction(action)
+	if err != nil {
+		t.Fatal(err)
+	}
+	intent := wire.GetGiveJob()
+	if intent.GetPawn().GetId() != "Thing_Pawn1" || intent.GetJob() != "InteractThing" || len(intent.Targets) != 1 || intent.Targets[0].GetId() != "Thing_VoidNode1" {
+		t.Fatal(intent)
+	}
+}

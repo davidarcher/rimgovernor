@@ -154,11 +154,27 @@ func TestAnomalyMonolithProjection(t *testing.T) {
 	if _, ok := m.VoidAwakeningStage.Value(); ok {
 		t.Fatal("absent quest stage became known")
 	}
+	f.Monolith.PendingVoidStructureIds = []string{"Thing_VoidStructure1"}
+	f.Monolith.VoidNodeExists = proto.Bool(true)
+	f.Monolith.VoidNodeId = proto.String("Thing_VoidNode1")
+	f.Monolith.VoidNodePawnIds = []string{"Thing_Human4"}
+	v, err = decode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, _ = v.Monolith.Value()
+	if len(m.PendingVoidStructureIDs) != 1 || m.VoidNodeID != "Thing_VoidNode1" || len(m.VoidNodePawnIDs) != 1 {
+		t.Fatalf("void interaction targets lost: %+v", m)
+	}
+	f.Monolith.PendingVoidStructureIds, f.Monolith.VoidNodeExists, f.Monolith.VoidNodeId, f.Monolith.VoidNodePawnIds = nil, proto.Bool(false), nil, nil
 	for name, change := range map[string]func(){
 		"requirement sans shortfall": func() { f.Monolith.CodexShortfall = nil },
 		"shortfall above required":   func() { f.Monolith.CodexShortfall = proto.Uint32(13) },
 		"activated above structures": func() { f.Monolith.VoidStructuresActivated = proto.Uint32(3) },
 		"negative stage":             func() { f.Monolith.VoidAwakeningStage = proto.Int32(-1) },
+		"node pawns sans node":       func() { f.Monolith.VoidNodePawnIds = []string{"Thing_Human4"} },
+		"node on a map with none":    func() { f.Monolith.VoidNodeId = proto.String("Thing_VoidNode1") },
+		"duplicate structure":        func() { f.Monolith.PendingVoidStructureIds = []string{"Thing_VoidStructure1", "Thing_VoidStructure1"} },
 		"duplicate condition":        func() { f.Monolith.BlockingConditions = []string{"UnnaturalDarkness", "UnnaturalDarkness"} },
 		"blank monolith id":          func() { f.Monolith.MonolithId = proto.String(" ") },
 	} {

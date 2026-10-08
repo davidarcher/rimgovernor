@@ -32,6 +32,8 @@ const (
 	// investigated, every later level activated.
 	JobInvestigateMonolith = "InvestigateMonolith"
 	JobActivateMonolith    = "ActivateMonolith"
+	// JobInteractThing is the awakening quest's interaction (#2438).
+	JobInteractThing = "InteractThing"
 )
 
 // giveJob is the GiveJobIntent of one pawn, one vanilla job and its targets

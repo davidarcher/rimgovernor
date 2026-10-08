@@ -25,6 +25,16 @@ import (
 //   - Ambient Horror mode (GameComponent_Anomaly.AmbientHorrorMode) has no
 //     monolith questline; the rule is inert there.
 //
+// The awakening quest that follows (EndGame_VoidAwakening, #2438) is walked
+// with one more order, MonolithInteract (JobDefOf.InteractThing): each
+// VoidStructure the quest spawns, then the Gleaming monolith once the game
+// offers its interaction (CompGleamingMonolith.CanInteract, true only at the
+// Gleaming level; the colonist is stunned and skipped into the pocket map),
+// then the VoidNode there, touched by the colonist skipped. The node's dialog
+// (CompVoidNode.OpenDialog: VoidNodeDisrupt, VoidNodeEmbrace, VoidNodePostpone)
+// is answered only by VoidNodeDisrupt, which collapses the monolith and ends
+// the questline at the Disrupted level; embracing is never chosen.
+//
 // The awakening is ordered only when the colony is strong enough for those
 // waves, containment is stable and no threat stands. An unread fact is a loud
 // issue and holds the order, never a guess.
@@ -53,6 +63,14 @@ type MonolithFacts struct {
 	NextLevel      domain.Fact[string]
 	CodexShortfall domain.Fact[uint32]
 	Blocking       []string
+	// Gleaming is whether the Gleaming monolith interaction is available.
+	// PendingStructures are the VoidStructures still to activate, NodeID the
+	// VoidNode that can be touched ("" when none) and NodePawns the colonists
+	// on its map able to touch it (#2438).
+	Gleaming          domain.Fact[bool]
+	PendingStructures []string
+	NodeID            string
+	NodePawns         []string
 }
 
 // MonolithOrder is the job the monolith advance sends a colonist on.
@@ -61,6 +79,8 @@ type MonolithOrder string
 const (
 	MonolithInvestigate MonolithOrder = "investigate"
 	MonolithActivate    MonolithOrder = "activate"
+	// MonolithInteract is the awakening quest's interaction with Target.
+	MonolithInteract MonolithOrder = "interact"
 )
 
 // AwakenGate is what the awakening needs the colony to be: defended against
@@ -77,13 +97,19 @@ type AwakenGate struct {
 // owed; Hold says why an advance the game allows is withheld (or the game
 // does not allow it yet), and Issues name the unread facts that kept the rule
 // from deciding.
+//
+// Target is the thing a MonolithInteract order is for; Performers, when set,
+// are the only pawns that can carry it out (the void node's, on the pocket
+// map), otherwise any able colonist on the colony map.
 type MonolithAdvance struct {
-	Order    MonolithOrder
-	Monolith string
-	Level    int32
-	Awaken   bool
-	Hold     string
-	Issues   []string
+	Order      MonolithOrder
+	Monolith   string
+	Level      int32
+	Awaken     bool
+	Target     string
+	Performers []string
+	Hold       string
+	Issues     []string
 }
 
 // MonolithAdvanceOwed decides the monolith's next step.
@@ -118,11 +144,18 @@ func MonolithAdvanceOwed(m domain.Fact[MonolithFacts], gate AwakenGate) Monolith
 	if len(out.Issues) > 0 {
 		return out
 	}
+	out.Monolith, out.Level = id, level
+	if target, performers, hold, issues := f.endgame(id); target != "" || hold != "" || len(issues) > 0 {
+		out.Hold, out.Issues = hold, issues
+		if target != "" {
+			out.Order, out.Target, out.Performers = MonolithInteract, target, performers
+		}
+		return out
+	}
 	if !can {
 		out.Hold = f.cannotActivate()
 		return out
 	}
-	out.Monolith, out.Level = id, level
 	if level == 0 {
 		out.Order = MonolithInvestigate
 		return out
@@ -142,6 +175,29 @@ func MonolithAdvanceOwed(m domain.Fact[MonolithFacts], gate AwakenGate) Monolith
 		out.Order = ""
 	}
 	return out
+}
+
+// endgame is the awakening quest's next interaction, in the order the quest
+// offers them: the void node, the Gleaming monolith, then a void structure.
+// Nothing is owed (empty target, no hold) outside the quest. A node nobody on
+// its map can touch is a hold; an unread Gleaming fact is an issue.
+func (f MonolithFacts) endgame(monolith string) (target string, performers []string, hold string, issues []string) {
+	if f.NodeID != "" {
+		if len(f.NodePawns) == 0 {
+			return "", nil, "no colonist on the void node's map can touch it", nil
+		}
+		return f.NodeID, f.NodePawns, "", nil
+	}
+	gleaming, known := f.Gleaming.Value()
+	switch {
+	case !known:
+		return "", nil, "", []string{"whether the Gleaming monolith can be used is unread"}
+	case gleaming:
+		return monolith, nil, "", nil
+	case len(f.PendingStructures) > 0:
+		return f.PendingStructures[0], nil, "", nil
+	}
+	return "", nil, "", nil
 }
 
 func (f MonolithFacts) cannotActivate() string {

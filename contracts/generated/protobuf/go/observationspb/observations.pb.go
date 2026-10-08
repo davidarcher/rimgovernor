@@ -34293,15 +34293,23 @@ func (x *AnomalyIncidentState) GetMetalhorrorImplantPossible() bool {
 // CompGleamingMonolith.CanInteract() (true only at the Gleaming level).
 // void_structures counts the spawned VoidStructure things on the monolith's map
 // and void_structures_activated those whose CompVoidStructure is active.
-// void_node_exists: a VoidNode thing is spawned on that map.
+// void_node_exists: a VoidNode thing is spawned on any loaded map (the node
+// stands in the metal hell pocket map once the Gleaming monolith is used).
 // void_awakening_stage is 0 with the EndGame_VoidAwakening quest running and no
 // structure spawned yet, else one more than the highest stageStructure.N quest
 // tag on a spawned structure; absent when the quest is not running.
 // monolith_id is the monolith's GetUniqueLoadID, the thing a give-job targets
-// (#2437).
+// (#2437). pending_void_structure_ids are the spawned VoidStructures on the
+// monolith's map whose CompInteractable.CanInteract() accepts (not yet
+// activated), sorted; void_node_id is the VoidNode whose CanInteract() accepts
+// and void_node_pawn_ids the free colonists spawned on the node's map (the
+// pawn skipped into the pocket map), sorted (#2438).
 type MonolithState struct {
 	state                        protoimpl.MessageState `protogen:"open.v1"`
 	MonolithId                   *string                `protobuf:"bytes,12,opt,name=monolith_id,json=monolithId,proto3,oneof" json:"monolith_id,omitempty"`
+	PendingVoidStructureIds      []string               `protobuf:"bytes,13,rep,name=pending_void_structure_ids,json=pendingVoidStructureIds,proto3" json:"pending_void_structure_ids,omitempty"`
+	VoidNodeId                   *string                `protobuf:"bytes,14,opt,name=void_node_id,json=voidNodeId,proto3,oneof" json:"void_node_id,omitempty"`
+	VoidNodePawnIds              []string               `protobuf:"bytes,15,rep,name=void_node_pawn_ids,json=voidNodePawnIds,proto3" json:"void_node_pawn_ids,omitempty"`
 	CanActivate                  *bool                  `protobuf:"varint,1,opt,name=can_activate,json=canActivate,proto3,oneof" json:"can_activate,omitempty"`
 	NextLevelDef                 *string                `protobuf:"bytes,2,opt,name=next_level_def,json=nextLevelDef,proto3,oneof" json:"next_level_def,omitempty"`
 	NextLevelCodexCategory       *string                `protobuf:"bytes,3,opt,name=next_level_codex_category,json=nextLevelCodexCategory,proto3,oneof" json:"next_level_codex_category,omitempty"`
@@ -34352,6 +34360,27 @@ func (x *MonolithState) GetMonolithId() string {
 		return *x.MonolithId
 	}
 	return ""
+}
+
+func (x *MonolithState) GetPendingVoidStructureIds() []string {
+	if x != nil {
+		return x.PendingVoidStructureIds
+	}
+	return nil
+}
+
+func (x *MonolithState) GetVoidNodeId() string {
+	if x != nil && x.VoidNodeId != nil {
+		return *x.VoidNodeId
+	}
+	return ""
+}
+
+func (x *MonolithState) GetVoidNodePawnIds() []string {
+	if x != nil {
+		return x.VoidNodePawnIds
+	}
+	return nil
 }
 
 func (x *MonolithState) GetCanActivate() bool {
@@ -49129,24 +49158,29 @@ const file_observations_proto_rawDesc = "" +
 	"\x1c_anomaly_threat_fraction_nowB\x18\n" +
 	"\x16_void_awakening_activeB\x17\n" +
 	"\x15_awoken_corpse_activeB\x1f\n" +
-	"\x1d_metalhorror_implant_possible\"\x8e\a\n" +
+	"\x1d_metalhorror_implant_possible\"\xb0\b\n" +
 	"\rMonolithState\x12$\n" +
 	"\vmonolith_id\x18\f \x01(\tH\x00R\n" +
-	"monolithId\x88\x01\x01\x12&\n" +
-	"\fcan_activate\x18\x01 \x01(\bH\x01R\vcanActivate\x88\x01\x01\x12)\n" +
-	"\x0enext_level_def\x18\x02 \x01(\tH\x02R\fnextLevelDef\x88\x01\x01\x12>\n" +
-	"\x19next_level_codex_category\x18\x03 \x01(\tH\x03R\x16nextLevelCodexCategory\x88\x01\x01\x12>\n" +
-	"\x19next_level_codex_required\x18\x04 \x01(\rH\x04R\x16nextLevelCodexRequired\x88\x01\x01\x12,\n" +
-	"\x0fcodex_shortfall\x18\x05 \x01(\rH\x05R\x0ecodexShortfall\x88\x01\x01\x12/\n" +
+	"monolithId\x88\x01\x01\x12;\n" +
+	"\x1apending_void_structure_ids\x18\r \x03(\tR\x17pendingVoidStructureIds\x12%\n" +
+	"\fvoid_node_id\x18\x0e \x01(\tH\x01R\n" +
+	"voidNodeId\x88\x01\x01\x12+\n" +
+	"\x12void_node_pawn_ids\x18\x0f \x03(\tR\x0fvoidNodePawnIds\x12&\n" +
+	"\fcan_activate\x18\x01 \x01(\bH\x02R\vcanActivate\x88\x01\x01\x12)\n" +
+	"\x0enext_level_def\x18\x02 \x01(\tH\x03R\fnextLevelDef\x88\x01\x01\x12>\n" +
+	"\x19next_level_codex_category\x18\x03 \x01(\tH\x04R\x16nextLevelCodexCategory\x88\x01\x01\x12>\n" +
+	"\x19next_level_codex_required\x18\x04 \x01(\rH\x05R\x16nextLevelCodexRequired\x88\x01\x01\x12,\n" +
+	"\x0fcodex_shortfall\x18\x05 \x01(\rH\x06R\x0ecodexShortfall\x88\x01\x01\x12/\n" +
 	"\x13blocking_conditions\x18\x06 \x03(\tR\x12blockingConditions\x12I\n" +
-	"\x1egleaming_interaction_available\x18\a \x01(\bH\x06R\x1cgleamingInteractionAvailable\x88\x01\x01\x12,\n" +
-	"\x0fvoid_structures\x18\b \x01(\rH\aR\x0evoidStructures\x88\x01\x01\x12?\n" +
-	"\x19void_structures_activated\x18\t \x01(\rH\bR\x17voidStructuresActivated\x88\x01\x01\x12-\n" +
+	"\x1egleaming_interaction_available\x18\a \x01(\bH\aR\x1cgleamingInteractionAvailable\x88\x01\x01\x12,\n" +
+	"\x0fvoid_structures\x18\b \x01(\rH\bR\x0evoidStructures\x88\x01\x01\x12?\n" +
+	"\x19void_structures_activated\x18\t \x01(\rH\tR\x17voidStructuresActivated\x88\x01\x01\x12-\n" +
 	"\x10void_node_exists\x18\n" +
-	" \x01(\bH\tR\x0evoidNodeExists\x88\x01\x01\x125\n" +
-	"\x14void_awakening_stage\x18\v \x01(\x05H\n" +
-	"R\x12voidAwakeningStage\x88\x01\x01B\x0e\n" +
+	" \x01(\bH\n" +
+	"R\x0evoidNodeExists\x88\x01\x01\x125\n" +
+	"\x14void_awakening_stage\x18\v \x01(\x05H\vR\x12voidAwakeningStage\x88\x01\x01B\x0e\n" +
 	"\f_monolith_idB\x0f\n" +
+	"\r_void_node_idB\x0f\n" +
 	"\r_can_activateB\x11\n" +
 	"\x0f_next_level_defB\x1c\n" +
 	"\x1a_next_level_codex_categoryB\x1c\n" +

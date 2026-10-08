@@ -48,6 +48,13 @@ type MonolithState struct {
 	VoidAwakeningStage           domain.Fact[int32]
 	// MonolithID is the thing a give-job targets (#2437).
 	MonolithID domain.Fact[string]
+	// PendingVoidStructureIDs are the VoidStructures that can still be
+	// interacted with; VoidNodeID is the VoidNode that can be touched ("" when
+	// none) and VoidNodePawnIDs the colonists on its map able to touch it
+	// (#2438). VoidNodeExists is true for a node on any loaded map.
+	PendingVoidStructureIDs []string
+	VoidNodeID              string
+	VoidNodePawnIDs         []string
 }
 
 // KnowledgeProgress is one knowledge category: the project the research
@@ -89,12 +96,13 @@ func monolithFacts(section domain.Fact[AnomalyColony]) domain.Fact[policy.Monoli
 		return domain.Fact[policy.MonolithFacts]{}
 	}
 	out := policy.MonolithFacts{Spawned: domain.Unknown[bool](), AmbientHorror: domain.Unknown[bool](), Level: domain.Unknown[int32](), ID: domain.Unknown[string](),
-		CanActivate: domain.Unknown[bool](), NextLevel: domain.Unknown[string](), CodexShortfall: domain.Unknown[uint32]()}
+		CanActivate: domain.Unknown[bool](), NextLevel: domain.Unknown[string](), CodexShortfall: domain.Unknown[uint32](), Gleaming: domain.Unknown[bool]()}
 	if i, ok := a.Incidents.Value(); ok {
 		out.Spawned, out.AmbientHorror, out.Level = i.MonolithSpawned, i.AmbientHorrorMode, i.Level
 	}
 	if m, ok := a.Monolith.Value(); ok {
 		out.ID, out.CanActivate, out.NextLevel, out.CodexShortfall, out.Blocking = m.MonolithID, m.CanActivate, m.NextLevelDef, m.CodexShortfall, m.BlockingConditions
+		out.Gleaming, out.PendingStructures, out.NodeID, out.NodePawns = m.GleamingInteractionAvailable, m.PendingVoidStructureIDs, m.VoidNodeID, m.VoidNodePawnIDs
 	}
 	return domain.Known(out)
 }
@@ -126,7 +134,8 @@ func colonyAnomaly(section *o.AnomalySection) domain.Fact[AnomalyColony] {
 		r.Monolith = domain.Known(MonolithState{CanActivate: optional(m.CanActivate), NextLevelDef: optional(m.NextLevelDef), NextLevelCodexCategory: optional(m.NextLevelCodexCategory),
 			NextLevelCodexRequired: optional(m.NextLevelCodexRequired), CodexShortfall: optional(m.CodexShortfall), BlockingConditions: m.BlockingConditions,
 			GleamingInteractionAvailable: optional(m.GleamingInteractionAvailable), VoidStructures: optional(m.VoidStructures), VoidStructuresActivated: optional(m.VoidStructuresActivated),
-			VoidNodeExists: optional(m.VoidNodeExists), VoidAwakeningStage: optional(m.VoidAwakeningStage), MonolithID: optional(m.MonolithId)})
+			VoidNodeExists: optional(m.VoidNodeExists), VoidAwakeningStage: optional(m.VoidAwakeningStage), MonolithID: optional(m.MonolithId),
+			PendingVoidStructureIDs: m.PendingVoidStructureIds, VoidNodeID: m.GetVoidNodeId(), VoidNodePawnIDs: m.VoidNodePawnIds})
 	}
 	return domain.Known(r)
 }

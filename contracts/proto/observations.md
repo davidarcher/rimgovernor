@@ -604,8 +604,10 @@ def from `GameComponent_Anomaly.NextLevelDef` with the codex category and count
 its def requires and the entries still undiscovered; the active game conditions
 the next level lists as unreachable, e.g. `UnnaturalDarkness` for VoidAwakened;
 whether the Gleaming interaction (`CompGleamingMonolith.CanInteract`) is
-available; spawned and activated `VoidStructure` counts and whether a `VoidNode`
-exists on the monolith's map; and the void awakening stage, derived from the
+available; spawned and activated `VoidStructure` counts, the ids of the structures
+still interactable, and whether a `VoidNode` exists on any loaded map (it stands in
+the pocket map once the Gleaming monolith is used) with its id and the free
+colonists spawned there (#2438); and the void awakening stage, derived from the
 `stageStructure.N` quest tags of the spawned structures and absent while the
 `EndGame_VoidAwakening` quest is not running). Level effects and requirements
 come from the game defs through the native read, not Go tables. A held entity's strength and need stay on its rows

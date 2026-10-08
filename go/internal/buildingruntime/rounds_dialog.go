@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"log/slog"
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -93,6 +94,9 @@ func (r *RoundsDialogPlanner) step(call, epoch context.Context, arbiter *stepArb
 	options := make([]policy.DialogOption, 0, len(dialog.Options))
 	for _, option := range dialog.Options {
 		options = append(options, policy.DialogOption{Index: option.GetIndex(), Label: option.GetLabel(), Keys: option.GetKeys(), Selectable: option.GetSelectable(), Resolves: option.GetResolves()})
+	}
+	if policy.VoidNodeDisruptAbsent(options) {
+		defenseAction(call, "routine-dialog", slog.LevelError, "refused", "void_node_disrupt_absent", "void_node", map[string]any{"window": dialog.GetWindowId()})
 	}
 	chosen, ok := policy.ChooseDialogOption(options, r.policy)
 	if !ok {

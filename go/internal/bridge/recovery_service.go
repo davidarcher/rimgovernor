@@ -12,6 +12,7 @@ var recoveryServiceJobs = map[domain.RecoveryMethod]string{
 
 	domain.RecoveryServiceInvestigateMonolith: JobInvestigateMonolith,
 	domain.RecoveryServiceActivateMonolith:    JobActivateMonolith,
+	domain.RecoveryServiceInteract:            JobInteractThing,
 }
 
 // recoverAction is the GiveJobIntent of one pawn servicing one colony

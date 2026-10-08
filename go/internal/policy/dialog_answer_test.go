@@ -56,6 +56,30 @@ func TestChooseDialogOptionMatchesTranslationKeysAndPrefersResolving(t *testing.
 	}
 }
 
+// The void node's choice is answered by key, never by position and never by
+// embracing (#2438).
+func TestVoidNodeDialogDisruptsPostponesAndNeverEmbraces(t *testing.T) {
+	prefer := DialogAnswerPolicy{Prefer: DefaultDialogAnswerPrefer}
+	option := func(i int32, key string, selectable bool) DialogOption {
+		return DialogOption{Index: i, Label: key, Keys: []string{key}, Selectable: selectable, Resolves: true}
+	}
+	node := []DialogOption{option(0, VoidNodeEmbrace, true), option(1, VoidNodePostpone, true), option(2, VoidNodeDisrupt, true)}
+	if got, ok := ChooseDialogOption(node, prefer); !ok || got.Index != 2 || VoidNodeDisruptAbsent(node) {
+		t.Fatal("disrupt is chosen wherever it stands", got, ok)
+	}
+	node[2].Selectable = false
+	if got, ok := ChooseDialogOption(node, prefer); !ok || got.Index != 1 || !VoidNodeDisruptAbsent(node) {
+		t.Fatal("an absent disrupt postpones", got, ok)
+	}
+	node[1].Selectable = false
+	if got, ok := ChooseDialogOption(node, prefer); ok {
+		t.Fatal("embrace is never the fallback", got)
+	}
+	if VoidNodeDisruptAbsent([]DialogOption{option(0, "OK", true)}) {
+		t.Fatal("another dialog has no disrupt to miss")
+	}
+}
+
 // The monolith's dialogs answer by key (#2437): the investigate node tree
 // takes its first option, the awakening confirmation confirms rather than goes
 // back, and the level letter closes instead of opening a main tab.

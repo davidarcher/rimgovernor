@@ -13,7 +13,7 @@ namespace HomeBridge.BridgeTools
 {
     // The single-target jobs a GiveJobIntent names, each validated and built
     // by its own operations class against live state.
-    internal enum JobOrderKind { Repair, Clean, OpenCasket, Tend, Equip, DropWeapon, Wear, Rescue, Capture, Arrest, Subdue, FixBreakdown, Refuel, InvestigateMonolith, ActivateMonolith }
+    internal enum JobOrderKind { Repair, Clean, OpenCasket, Tend, Equip, DropWeapon, Wear, Rescue, Capture, Arrest, Subdue, FixBreakdown, Refuel, InvestigateMonolith, ActivateMonolith, InteractThing }
 
     // One pawn, one target (and Arrest's bed) for a JobOrderKind.
     internal sealed class JobOrder
@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
             ["Rescue"] = JobOrderKind.Rescue, ["Capture"] = JobOrderKind.Capture, ["Arrest"] = JobOrderKind.Arrest,
             ["AttackMelee"] = JobOrderKind.Subdue, ["FixBrokenDownBuilding"] = JobOrderKind.FixBreakdown,
             ["Refuel"] = JobOrderKind.Refuel,
-            ["InvestigateMonolith"] = JobOrderKind.InvestigateMonolith, ["ActivateMonolith"] = JobOrderKind.ActivateMonolith,
+            ["InvestigateMonolith"] = JobOrderKind.InvestigateMonolith, ["ActivateMonolith"] = JobOrderKind.ActivateMonolith, ["InteractThing"] = JobOrderKind.InteractThing,
         };
         internal const string UseItem = "UseItem";
         // DropWeapon names the drop of the weapon in the pawn's hands
@@ -126,6 +126,7 @@ namespace HomeBridge.BridgeTools
                 case JobOrderKind.Subdue: return NativeSubdueOperations.Validate(order, context);
                 case JobOrderKind.FixBreakdown: case JobOrderKind.Refuel: return NativeRecoveryOperations.Validate(order, context);
                 case JobOrderKind.InvestigateMonolith: case JobOrderKind.ActivateMonolith: return NativeMonolithOperations.Validate(order, context);
+                case JobOrderKind.InteractThing: return NativeInteractOperations.Validate(order, context);
                 default: return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Unsupported job order.");
             }
         }
@@ -146,6 +147,7 @@ namespace HomeBridge.BridgeTools
                 case JobOrderKind.Subdue: return NativeSubdueOperations.Apply(order, context);
                 case JobOrderKind.FixBreakdown: case JobOrderKind.Refuel: return NativeRecoveryOperations.Apply(order, context);
                 case JobOrderKind.InvestigateMonolith: case JobOrderKind.ActivateMonolith: return NativeMonolithOperations.Apply(order, context);
+                case JobOrderKind.InteractThing: return NativeInteractOperations.Apply(order, context);
                 default: throw new InvalidOperationException("Unsupported job order.");
             }
         }

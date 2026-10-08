@@ -17,7 +17,8 @@ import (
 // no custody or containment upkeep stands: while the monolith is in play,
 // policy.MonolithAdvanceOwed decides, and an owed order sends one colonist at
 // the monolith with the investigate or activate job (a recovery-service
-// give-job). The investigate dialog and the awakening confirmation the job
+// give-job), or at the awakening quest's next void structure, the Gleaming
+// monolith or the void node with the interact job (#2438). The investigate dialog and the awakening confirmation the job
 // opens are answered by the dialog planner. A hostile census read here
 // completes the awakening gate; unread facts are logged and hold the order.
 // ok is false when no order was committed and the step goes on.
@@ -49,29 +50,42 @@ func (r *RoundsPopulationCustodyPlanner) stepMonolith(call, epoch context.Contex
 	if advance.Order == "" {
 		return result, false, nil
 	}
-	complete, known := emergency.Facts.ColonistsComplete.Value()
-	if !known || !complete {
-		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "colonists_complete")}, true, nil
-	}
 	var able []domain.PawnID
-	for _, pawn := range emergency.Facts.Colonists {
-		dead, dk := pawn.Dead.Value()
-		downed, wk := pawn.Downed.Value()
-		if _, inMental := pawn.MentalState.Value(); dk && !dead && wk && !downed && !inMental {
-			able = append(able, domain.PawnID(pawn.ID))
+	target := advance.Monolith
+	method, job := domain.RecoveryServiceActivateMonolith, fmt.Sprintf("activate-%d", advance.Level)
+	switch advance.Order {
+	case policy.MonolithInvestigate:
+		method, job = domain.RecoveryServiceInvestigateMonolith, fmt.Sprintf("investigate-%d", advance.Level)
+	case policy.MonolithInteract:
+		target = advance.Target
+		method, job = domain.RecoveryServiceInteract, "interact-"+target
+	}
+	if len(advance.Performers) > 0 {
+		// The void node's performers were read on the node's map (the pocket
+		// map the skipped colonist stands on), not the colony map's roster.
+		for _, id := range advance.Performers {
+			able = append(able, domain.PawnID(id))
 		}
+	} else {
+		complete, known := emergency.Facts.ColonistsComplete.Value()
+		if !known || !complete {
+			return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "colonists_complete")}, true, nil
+		}
+		for _, pawn := range emergency.Facts.Colonists {
+			dead, dk := pawn.Dead.Value()
+			downed, wk := pawn.Downed.Value()
+			if _, inMental := pawn.MentalState.Value(); dk && !dead && wk && !downed && !inMental {
+				able = append(able, domain.PawnID(pawn.ID))
+			}
+		}
+		sort.Slice(able, func(i, j int) bool { return able[i] < able[j] })
 	}
-	sort.Slice(able, func(i, j int) bool { return able[i] < able[j] })
-	method, job := domain.RecoveryServiceActivateMonolith, "activate"
-	if advance.Order == policy.MonolithInvestigate {
-		method, job = domain.RecoveryServiceInvestigateMonolith, "investigate"
-	}
-	// An attempt native refused (the colonist cannot reach the monolith) is
+	// An attempt native refused (the colonist cannot reach the target) is
 	// retried with the next colonist.
-	prefix := fmt.Sprintf("population-monolith-%s-%d-", job, advance.Level)
+	prefix := fmt.Sprintf("population-monolith-%s-", job)
 	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		defenseAction(call, "routine-population-custody", slog.LevelWarn, "refused", "monolith_advance_exhausted", advance.Monolith, nil)
+		defenseAction(call, "routine-population-custody", slog.LevelWarn, "refused", "monolith_advance_exhausted", target, nil)
 		return RoundsPopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, true, nil
 	}
 	if len(able) == 0 {
@@ -81,7 +95,7 @@ func (r *RoundsPopulationCustodyPlanner) stepMonolith(call, epoch context.Contex
 	if !arbiter.tryClaim([]domain.PawnID{pawn}) {
 		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "pawn_claim")}, true, nil
 	}
-	service, err := domain.NewRecoveryService(pawn, advance.Monolith, method)
+	service, err := domain.NewRecoveryService(pawn, target, method)
 	if err != nil {
 		return result, false, err
 	}

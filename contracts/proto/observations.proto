@@ -1644,14 +1644,20 @@ message AnomalyIncidentState {
 // CompGleamingMonolith.CanInteract() (true only at the Gleaming level).
 // void_structures counts the spawned VoidStructure things on the monolith's map
 // and void_structures_activated those whose CompVoidStructure is active.
-// void_node_exists: a VoidNode thing is spawned on that map.
+// void_node_exists: a VoidNode thing is spawned on any loaded map (the node
+// stands in the metal hell pocket map once the Gleaming monolith is used).
 // void_awakening_stage is 0 with the EndGame_VoidAwakening quest running and no
 // structure spawned yet, else one more than the highest stageStructure.N quest
 // tag on a spawned structure; absent when the quest is not running.
 // monolith_id is the monolith's GetUniqueLoadID, the thing a give-job targets
-// (#2437).
+// (#2437). pending_void_structure_ids are the spawned VoidStructures on the
+// monolith's map whose CompInteractable.CanInteract() accepts (not yet
+// activated), sorted; void_node_id is the VoidNode whose CanInteract() accepts
+// and void_node_pawn_ids the free colonists spawned on the node's map (the
+// pawn skipped into the pocket map), sorted (#2438).
 message MonolithState {
   optional string monolith_id = 12;
+  repeated string pending_void_structure_ids = 13; optional string void_node_id = 14; repeated string void_node_pawn_ids = 15;
   optional bool can_activate = 1; optional string next_level_def = 2; optional string next_level_codex_category = 3;
   optional uint32 next_level_codex_required = 4; optional uint32 codex_shortfall = 5; repeated string blocking_conditions = 6;
   optional bool gleaming_interaction_available = 7; optional uint32 void_structures = 8; optional uint32 void_structures_activated = 9;

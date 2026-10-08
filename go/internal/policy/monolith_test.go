@@ -9,7 +9,7 @@ import (
 
 func monolithAt(level int32, next string, can bool) MonolithFacts {
 	return MonolithFacts{Spawned: domain.Known(true), AmbientHorror: domain.Known(false), Level: domain.Known(level), ID: domain.Known("Thing_VoidMonolith1"),
-		CanActivate: domain.Known(can), NextLevel: domain.Known(next), CodexShortfall: domain.Known(uint32(0))}
+		CanActivate: domain.Known(can), NextLevel: domain.Known(next), CodexShortfall: domain.Known(uint32(0)), Gleaming: domain.Known(false)}
 }
 
 // strongGate is a colony that meets the awakening gate: capacity 1.25 times
@@ -161,5 +161,49 @@ func TestMonolithAdvanceIsAPopulationDeficit(t *testing.T) {
 	f.Monolith = domain.Known(monolithAt(1, "Waking", false))
 	if monolithAdvanceOwed(f) {
 		t.Fatal("a held advance is no deficit")
+	}
+}
+
+// The awakening quest is walked in the game's order (#2438): void structures,
+// the Gleaming monolith, then the void node touched by the colonist skipped
+// there; nothing is owed outside the quest.
+func TestVoidAwakeningQuestIsWalkedStageByStage(t *testing.T) {
+	quest := func(change func(*MonolithFacts)) MonolithAdvance {
+		f := monolithAt(3, "", false)
+		change(&f)
+		return MonolithAdvanceOwed(domain.Known(f), AwakenGate{})
+	}
+	if got := quest(func(*MonolithFacts) {}); got.Order != "" || got.Target != "" {
+		t.Fatalf("outside the quest: %+v", got)
+	}
+	got := quest(func(f *MonolithFacts) { f.PendingStructures = []string{"Thing_VoidStructure1", "Thing_VoidStructure2"} })
+	if got.Order != MonolithInteract || got.Target != "Thing_VoidStructure1" || len(got.Performers) != 0 {
+		t.Fatalf("a pending structure is interacted with: %+v", got)
+	}
+	got = quest(func(f *MonolithFacts) {
+		f.Gleaming = domain.Known(true)
+		f.PendingStructures = []string{"Thing_VoidStructure3"}
+	})
+	if got.Order != MonolithInteract || got.Target != "Thing_VoidMonolith1" {
+		t.Fatalf("the Gleaming monolith is interacted with: %+v", got)
+	}
+	got = quest(func(f *MonolithFacts) {
+		f.NodeID = "Thing_VoidNode1"
+		f.NodePawns = []string{"Thing_Human4"}
+		f.Gleaming = domain.Known(true)
+	})
+	if got.Order != MonolithInteract || got.Target != "Thing_VoidNode1" || len(got.Performers) != 1 || got.Performers[0] != "Thing_Human4" {
+		t.Fatalf("the void node is touched by the skipped colonist: %+v", got)
+	}
+	if got = quest(func(f *MonolithFacts) { f.NodeID = "Thing_VoidNode1" }); got.Order != "" || got.Hold == "" {
+		t.Fatalf("a node nobody can touch is a hold: %+v", got)
+	}
+	if got = quest(func(f *MonolithFacts) { f.Gleaming = domain.Unknown[bool]() }); got.Order != "" || len(got.Issues) != 1 {
+		t.Fatalf("an unread Gleaming fact is an issue: %+v", got)
+	}
+	pending := monolithAt(3, "", false)
+	pending.PendingStructures = []string{"Thing_VoidStructure1"}
+	if !monolithAdvanceOwed(RoundsFacts{Monolith: domain.Known(pending)}) {
+		t.Fatal("a pending structure is a standing work")
 	}
 }
