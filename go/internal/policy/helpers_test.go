@@ -2,7 +2,6 @@ package policy
 
 import (
 	"math"
-	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -95,20 +94,6 @@ var testComfortFurniture = DiningFurniture{
 	Table: InteriorPieceDef{Def: "Table", Size: domain.Cell{X: 1, Z: 2}},
 	Pin:   InteriorPieceDef{Def: "Pin", Size: domain.Cell{X: 1, Z: 1}},
 	Lane:  6,
-}
-
-// GearMaterialBudget is the loadout model's Budget: what each measured
-// material can fund after holds, the same
-// floor food bills honour (#470). Unmeasured resources are absent, which the
-// model treats as unfunded.
-func GearMaterialBudget(stock []Stock, holds []Amount) []Amount {
-	available, known := gearAvailable(stock, holds)
-	out := []Amount{}
-	for resource := range known {
-		out = append(out, Amount{resource, available[resource]})
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Resource < out[j].Resource })
-	return out
 }
 
 // TierStyleStockOf folds a stock census into the map the rules read,

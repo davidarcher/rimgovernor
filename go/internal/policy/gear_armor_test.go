@@ -73,10 +73,9 @@ func TestSoldierArmorGapProgression(t *testing.T) {
 	recon := armorOption("Apparel_PowerArmor", GearOuter, 92, 40, []string{"ReconArmor"}, Amount{"Plasteel", 80}, Amount{"ComponentSpacer", 3})
 	recon.Layers, recon.Groups = []string{"Middle", "Shell"}, []string{"Torso", "Legs"}
 	options := []GearOption{helmet, flakHelmet, vest, jacket, pants, plate, recon}
-	budget := []Amount{{"Steel", 500}, {"Plasteel", 20}, {"Cloth", 200}, {ComponentResource, 10}}
 	targets := func(research ...string) []Resource {
 		t.Helper()
-		l, err := PlanGearLoadout(GearLoadoutInput{Role: GearRoleInput{DraftedSquad: true}, Research: research, Budget: budget, Options: options})
+		l, err := PlanGearLoadout(GearLoadoutInput{Role: GearRoleInput{DraftedSquad: true}, Research: research, Options: options})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -101,16 +100,12 @@ func TestSoldierArmorGapProgression(t *testing.T) {
 			t.Fatal("flak ladder", got)
 		}
 	}
-	p := GearLoadoutInput{Role: GearRoleInput{DraftedSquad: true}, Research: []string{"Smithing", "FlakArmor", "PlateArmor", "ReconArmor"}, Budget: budget}
+	p := GearLoadoutInput{Role: GearRoleInput{DraftedSquad: true}, Research: []string{"Smithing", "FlakArmor", "PlateArmor", "ReconArmor"}}
 	if gearEligible(p, plate) {
 		t.Fatal("plate is never planned")
 	}
-	if gearEligible(p, recon) {
-		t.Fatal("recon before plasteel and advanced components are funded")
-	}
-	p.Budget = append(p.Budget, Amount{"Plasteel", 100}, Amount{"ComponentSpacer", 3})
 	if !gearEligible(p, recon) {
-		t.Fatal("funded recon")
+		t.Fatal("recon is planned; its materials are demand, not a gate")
 	}
 	p.Role = GearRoleInput{}
 	if gearEligible(p, vest) {
@@ -118,42 +113,7 @@ func TestSoldierArmorGapProgression(t *testing.T) {
 	}
 }
 
-func TestGearBudgetRefusesUnderHolds(t *testing.T) {
-	stock := []Stock{{Resource: "Steel", Available: domain.Known(int64(100))}, {Resource: "Plasteel", Available: domain.Known(int64(30))}, {Resource: "Cloth", Available: domain.Known(int64(50))}}
-	holds := []Amount{{"Steel", 80}, {"Plasteel", 25}}
-	budget := GearMaterialBudget(stock, holds)
-	if !reflect.DeepEqual(budget, []Amount{{"Cloth", 50}, {"Plasteel", 5}, {"Steel", 20}}) {
-		t.Fatal(budget)
-	}
-	helmet := armorOption("Apparel_SimpleHelmet", GearHeadgear, 50, 50, []string{"Smithing"}, Amount{"Steel", 40})
-	p := GearLoadoutInput{Role: GearRoleInput{DraftedSquad: true}, Research: []string{"Smithing"}, Budget: budget}
-	if gearEligible(p, helmet) {
-		t.Fatal("steel under holds")
-	}
-	stored := helmet
-	stored.ID, stored.Source = "helmet-stored", GearStored
-	if !gearEligible(p, stored) {
-		t.Fatal("a stored helmet costs no steel")
-	}
-	p.Budget = GearMaterialBudget(stock, []Amount{{"Steel", 60}})
-	if !gearEligible(p, helmet) {
-		t.Fatal("steel over holds")
-	}
-	p.Budget = nil
-	if !gearEligible(p, helmet) {
-		t.Fatal("unbudgeted")
-	}
-	p.Budget = []Amount{}
-	if gearEligible(p, helmet) {
-		t.Fatal("unmeasured steel is unfunded")
-	}
-	l, err := PlanGearLoadout(GearLoadoutInput{Role: GearRoleInput{DraftedSquad: true}, Research: []string{"Smithing"}, Budget: budget, Options: []GearOption{helmet}})
-	if err != nil || len(l.Gaps) != 0 {
-		t.Fatal("budgeted loadout raised a helmet gap", l, err)
-	}
-	if _, err := PlanGearLoadout(GearLoadoutInput{Budget: []Amount{{"Steel", -1}}}); err == nil {
-		t.Fatal("negative budget validated")
-	}
+func TestGearOptionZeroIngredientRefused(t *testing.T) {
 	if _, err := PlanGearLoadout(GearLoadoutInput{Options: []GearOption{armorOption("x", GearOuter, 0, 0, nil, Amount{"Steel", 0})}}); err == nil {
 		t.Fatal("zero ingredient validated")
 	}

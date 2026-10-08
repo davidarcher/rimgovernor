@@ -161,7 +161,7 @@ type GearOption struct {
 	Weapon WeaponDef
 	// Research names the ResearchProjectDefs the option's recipe requires;
 	// Ingredients its materials for a bill source (the armor ladder's steel,
-	// plasteel and components), judged against the input Budget.
+	// plasteel and components).
 	Research    []string
 	Ingredients []Amount
 }
@@ -173,10 +173,6 @@ type GearLoadoutInput struct {
 	// Research is the finished research census; an option is eligible only
 	// once every project its Research names is finished.
 	Research []string
-	// Budget is GearMaterialBudget: stock after holds.
-	// A bill option whose Ingredients exceed it is refused; nil is
-	// unbudgeted.
-	Budget []Amount
 	// PsychicDrone is whether a psychic-drone letter has been seen.
 	PsychicDrone bool
 	// Share is the colonist's personal wealth share (#1842): an upgrade gap
@@ -324,7 +320,7 @@ func gearEligible(p GearLoadoutInput, o GearOption) bool {
 		return false
 	}
 	// Plate (-0.8 c/s) and cataphract (-0.5) never; recon and marine only as
-	// far as their plasteel and advanced components are funded.
+	// once their research is finished (their materials are bill demand).
 	if role == GearSoldier && o.MoveSpeed <= GearArmorSpeedFloor {
 		return false
 	}
@@ -332,9 +328,6 @@ func gearEligible(p GearLoadoutInput, o GearOption) bool {
 		if !gearResearched(p, project) {
 			return false
 		}
-	}
-	if o.Source == GearBillSource && !gearFunded(p.Budget, o) {
-		return false
 	}
 	if o.Slot == GearPrimary {
 		if role == GearNonCombatant || role == GearChild {
@@ -568,11 +561,6 @@ func (p GearLoadoutInput) Validate() error {
 	for _, project := range p.Research {
 		if !validResource(Resource(project)) {
 			return errors.New("invalid gear research")
-		}
-	}
-	for _, a := range p.Budget {
-		if !validResource(a.Resource) || a.Count < 0 {
-			return errors.New("invalid gear budget")
 		}
 	}
 	for _, o := range p.Options {

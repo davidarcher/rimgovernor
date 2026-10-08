@@ -84,6 +84,11 @@ open; the planners do not rank:
   measured by one stock reader (`policy.StockReader`). The review computes the
   demand and the Rounder keeps it in memory (empty until the first review after
   a restart).
+- Open-bill demand (`policy.OpenBillDemand`): the journal's open gear-batch bills
+  (bill filter, batch count, catalog slot counts) raise each slot's cheapest
+  filtered member where stock is short, merged into the construction demand. A
+  bill left undispatched for a day (`policy.OpenBillExpiry`, timed in memory) is
+  cancelled; its planner places it again while the need stands.
 
 Higher-priority urgent work (`policy.RemoteCompetition`) holds acquisition in the
 plan (`UrgentPriority`); remote loot and salvage rank through the recovery queue

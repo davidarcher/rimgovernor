@@ -93,25 +93,6 @@ func gearAvailable(stock []Stock, holds []Amount) (available map[Resource]int64,
 	return available, known
 }
 
-// gearFunded reports whether budget covers every ingredient of o. A nil
-// budget is unbudgeted (the caller supplied no census) and funds everything;
-// an option without ingredients costs nothing.
-func gearFunded(budget []Amount, o GearOption) bool {
-	if budget == nil {
-		return true
-	}
-	for _, need := range o.Ingredients {
-		funded := false
-		for _, have := range budget {
-			funded = funded || have.Resource == need.Resource && have.Count >= need.Count
-		}
-		if !funded {
-			return false
-		}
-	}
-	return true
-}
-
 // armoryArmorRung is one step of an armor family's ladder (#1205): the
 // definition and the lowest armory tier that may craft it. Rungs run from
 // the cheapest to the best; a family's need falls back down its rungs when
