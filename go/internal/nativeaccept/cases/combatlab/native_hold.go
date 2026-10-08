@@ -31,7 +31,7 @@ func runNativeHold(ctx context.Context, s cases.Session) error {
 		x, z = cx, cz-9
 		f.Colonists, f.Layout = 1, nil
 		f.Pawns = []Pawn{
-			{Side: Colonist, Index: 0, X: x, Z: z - 2, Weapon: "Gun_ChargeRifle", Apparel: "Apparel_ArmorMarine"},
+			{Side: Colonist, Index: 0, X: x, Z: z - 2, Weapon: "Gun_ChargeRifle", Apparel: "Apparel_PowerArmor"},
 			{Side: Hostile, Kind: gunner, X: x - 2, Z: z + 16, Weapon: "Bow_Short"},
 			{Side: Hostile, Kind: gunner, X: x + 2, Z: z + 20, Weapon: "Bow_Short"},
 		}
