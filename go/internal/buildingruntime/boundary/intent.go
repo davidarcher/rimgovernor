@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
+	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 )
 
 // ActionsWriter narrows *bridge.ActionsWriter.
@@ -87,6 +88,9 @@ func DispatchIntents(ctx context.Context, leases LeaseSource, placements []execu
 			if placements[i].Action.Kind() == domain.ZoneCreateAction {
 				out[i].Zone = result.GetApplied().GetApplied().GetObserved().GetZone().GetZoneId()
 			}
+			if kind := placements[i].Action.Kind(); kind == domain.ProductionBillAction || kind == domain.SurgeryAction {
+				out[i].Bill = appliedBill(result.GetApplied().GetApplied().GetObserved())
+			}
 		case result.GetRefused() != nil:
 			out[i].Kind = domain.ReceiptRefused
 		case result.GetFailed() != nil && result.GetFailed().GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT:
@@ -94,4 +98,13 @@ func DispatchIntents(ctx context.Context, leases LeaseSource, placements []execu
 		}
 	}
 	return out, nil
+}
+
+// appliedBill is the native bill id a bill-placing receipt's evidence names:
+// BillEffect for an ordinary or mech bill, SurgeryEffect for a medical one.
+func appliedBill(evidence *r.EffectEvidence) string {
+	if id := evidence.GetBill().GetBill().GetId(); id != "" {
+		return id
+	}
+	return evidence.GetSurgeryBill().GetBill().GetId()
 }

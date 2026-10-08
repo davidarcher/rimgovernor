@@ -218,7 +218,11 @@ type ProgressView struct {
 	// zone's unique load id, ZoneEffect.zone_id). It is the identity later
 	// native censuses name the zone by, which is how a completed stockpile
 	// method owns its zone for MaintainHomeCoverage (#315).
-	Zone               Fact[string]
+	Zone Fact[string]
+	// Bill is the native bill an applied production_bill or surgery receipt
+	// identifies (BillEffect.bill, SurgeryEffect.bill): the id a later
+	// remove_production_bill names.
+	Bill               Fact[string]
 	Action             ActionID
 	Attempt            AttemptID
 	Plan               PlanID
@@ -346,6 +350,7 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 	p.view.UnsuccessfulReason = Unknown[UnsuccessfulReason]()
 	p.view.HeldReason = Unknown[HoldEvidence]()
 	p.view.Zone = Unknown[string]()
+	p.view.Bill = Unknown[string]()
 	return p, nil
 }
 
@@ -378,6 +383,20 @@ func (p Progress) RecordZoneReceipt(attempt AttemptID, receipt Receipt, zone str
 		return p, err
 	}
 	next.view.Zone = Known(zone)
+	return next, nil
+}
+
+// RecordBillReceipt records an applied bill-placing receipt together with the
+// native bill id its evidence named.
+func (p Progress) RecordBillReceipt(attempt AttemptID, receipt Receipt, bill string) (Progress, error) {
+	if p.action.kind != ProductionBillAction && p.action.kind != SurgeryAction || receipt != ReceiptAccepted || !validID(bill) {
+		return p, errors.New("bill identity requires an applied bill placement")
+	}
+	next, err := p.recordReceipt(attempt, receipt)
+	if err != nil {
+		return p, err
+	}
+	next.view.Bill = Known(bill)
 	return next, nil
 }
 func (p Progress) recordReceipt(attempt AttemptID, receipt Receipt) (Progress, error) {

@@ -161,6 +161,9 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,pawn) VALUES(?,?,?,'quest_accept',?,?,?)", a.ID(), plan, ordinal, accept.Quest(), strconv.FormatInt(int64(accept.RewardChoice()), 10), accepter)
 	} else if ignite, ok := a.Ignite(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,x,z) VALUES(?,?,?,'ignite',?,?,?)", a.ID(), plan, ordinal, ignite.Pawn(), ignite.Cell().X, ignite.Cell().Z)
+	} else if removal, ok := a.RemoveProductionBill(); ok {
+		// target is the bench, definition the native bill id.
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'remove_production_bill',?,?)", a.ID(), plan, ordinal, removal.Bench(), removal.Bill())
 	} else if door, ok := a.CloseDoor(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,x,z) VALUES(?,?,?,'close_door',?,?)", a.ID(), plan, ordinal, door.Cell().X, door.Cell().Z)
 	} else if ability, ok := a.Ability(); ok {
@@ -1077,6 +1080,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewIgniteAction(id, ignite)
+		return a, ordinal, err
+	}
+	if kind == "remove_production_bill" && target.Valid && def.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone == nil {
+		removal, err := domain.NewRemoveProductionBill(target.String, def.String)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewRemoveProductionBillAction(id, removal)
 		return a, ordinal, err
 	}
 	if kind == "close_door" && x.Valid && z.Valid && !pawn.Valid && !def.Valid && !target.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid && work == nil && zone == nil &&

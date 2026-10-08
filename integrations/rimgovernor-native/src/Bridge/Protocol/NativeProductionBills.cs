@@ -218,4 +218,37 @@ namespace HomeBridge.BridgeTools {
    return new Receipts.EffectEvidence{Bill=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},Bill=NativeRef.Of(standing.GetUniqueLoadID()),RecipeDef=standing.recipe.defName}};
   }
  }
+ // Actions/Apply remove_production_bill (#2410, epic #2385): delete one idle
+ // bill from a player bench. Bench and bill are re-resolved live; a bill that
+ // is gone, that a spawned pawn's current job works, or that an unfinished item
+ // is bound to is refused and the Round retries. Only ordinary production
+ // bills are removable here; medical and mech bills are not.
+ internal sealed class RemoveProductionBillActionHandler : IActionHandler {
+  internal const string Kind="Remove production bill";
+  private sealed class Target {internal Thing Bench=null!;internal Bill Bill=null!;}
+  private static Common.Failure? Resolve(Operations.RemoveProductionBillIntent? intent,Common.ObservationContext context,out Target target){
+   target=new Target();
+   if(intent==null||!intent.HasBenchId||!ProtoBoundary.IsIdentifier(intent.BenchId)||intent.Bill==null||!ProtoBoundary.IsIdentifier(intent.Bill.Id))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Remove production bill requires an exact bench and bill.");
+   var map=ProtoBoundary.LoadedMap(context);var t=target;
+   var bench=map.listerThings.AllThings.FirstOrDefault(x=>x.GetUniqueLoadID()==intent.BenchId);var giver=bench as IBillGiver;
+   var bill=giver?.BillStack.Bills.FirstOrDefault(b=>b.GetUniqueLoadID()==intent.Bill.Id);
+   var rules=new ApplyPreconditions(Kind)
+    .Present(()=>bench!=null&&giver!=null,"bench "+intent.BenchId+" is not a loaded bill giver")
+    .Present(()=>bill!=null,"bill "+intent.Bill.Id+" is not on bench "+intent.BenchId)
+    .Require(()=>bill is Bill_Production,"bill "+intent.Bill.Id+" is not an ordinary production bill")
+    .Require(()=>!map.mapPawns.AllPawnsSpawned.Any(p=>p.CurJob?.bill==bill),"a pawn is working bill "+intent.Bill.Id)
+    .Require(()=>!(bill is Bill_ProductionWithUft uft&&uft.BoundUft!=null&&!uft.BoundUft.Destroyed),"an unfinished item is bound to bill "+intent.Bill.Id);
+   if(!rules.Holds)return rules.Failure();
+   t.Bench=bench!;t.Bill=bill!;
+   return null;
+  }
+  public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context)=>Resolve(action.RemoveProductionBill,context,out _);
+  public Receipts.EffectEvidence Apply(Operations.Action action,Common.ObservationContext context){
+   var failure=Resolve(action.RemoveProductionBill,context,out var t);
+   if(failure!=null)throw new ApplyRefusedException(failure.Code,failure.Detail);
+   var id=t.Bill.GetUniqueLoadID();var recipe=t.Bill.recipe.defName;
+   NativeProductionTracking.Retire(t.Bill);t.Bill.billStack.Delete(t.Bill);
+   return new Receipts.EffectEvidence{Bill=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},Bill=NativeRef.Of(id),RecipeDef=recipe}};
+  }
+ }
 }

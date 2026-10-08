@@ -147,6 +147,7 @@ type Action struct {
 	ritual              Ritual
 	ability             Ability
 	ignite              Ignite
+	removeBill          RemoveProductionBill
 	closeDoor           CloseDoor
 	mineAcquisition     Acquisition
 	wallRemoval         WallRemoval
@@ -311,6 +312,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewRitualAction(a.id, a.ritual)
 		case QuestAcceptAction:
 			canonical, err = NewQuestAcceptAction(a.id, a.questAccept)
+		case RemoveProductionBillAction:
+			canonical, err = NewRemoveProductionBillAction(a.id, a.removeBill)
 		case IgniteAction:
 			canonical, err = NewIgniteAction(a.id, a.ignite)
 		case CloseDoorAction:

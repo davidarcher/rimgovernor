@@ -43,6 +43,7 @@ func init() {
 	registerIntentKind(domain.RitualAction, ritualAction)
 	registerIntentKind(domain.AbilityAction, abilityAction)
 	registerIntentKind(domain.IgniteAction, igniteAction)
+	registerIntentKind(domain.RemoveProductionBillAction, removeProductionBillAction)
 	registerIntentKind(domain.CloseDoorAction, closeDoorAction)
 	registerIntentKind(domain.CaravanDepartureAction, caravanDepartureAction)
 	registerIntentKind(domain.AssignAction, assignAction)

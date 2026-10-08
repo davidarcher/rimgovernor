@@ -22,71 +22,72 @@ type IntentInspection struct {
 // prerequisite action and no journal admission. Native validates each
 // against live state and treats a setting that already holds as applied.
 var plainIntents = map[domain.ActionKind]bool{
-	domain.BuildingAction:            true,
-	domain.ApparelPolicyAction:       true,
-	domain.ResearchSelectAction:      true,
-	domain.DialogAnswerAction:        true,
-	domain.PrisonerInteractionAction: true,
-	domain.QuestAcceptAction:         true,
-	domain.RitualAction:              true,
-	domain.AbilityAction:             true,
-	domain.IgniteAction:              true,
-	domain.CloseDoorAction:           true,
-	domain.CaravanDepartureAction:    true,
-	domain.AssignAction:              true,
-	domain.WorkAssignmentAction:      true,
-	domain.HusbandryAction:           true,
-	domain.ProductionBillAction:      true,
-	domain.ZoneCreateAction:          true,
-	domain.ZoneDeleteAction:          true,
-	domain.ZoneCellEditAction:        true,
-	domain.StockpilePatchAction:      true,
-	domain.FoundationRemovalAction:   true,
-	domain.FloorRemovalAction:        true,
-	domain.CoverClearanceAction:      true,
-	domain.WastepackHaulAction:       true,
-	domain.CutPlantAction:            true,
-	domain.SupplyAllowAction:         true,
-	domain.SupplyForbidAction:        true,
-	domain.DeconstructionAction:      true,
-	domain.ExcavationAction:          true,
-	domain.WallRemovalAction:         true,
-	domain.RecoveryServiceAction:     true,
-	domain.MoveBuildingAction:        true,
-	domain.UninstallBuildingAction:   true,
-	domain.AcquisitionAction:         true,
-	domain.MineAcquisitionAction:     true,
-	domain.AcquisitionWithdrawAction: true,
-	domain.BuildingTemperatureAction: true,
-	domain.BedUseAction:              true,
-	domain.GrowerCropAction:          true,
-	domain.ClaimBuildingAction:       true,
-	domain.AutoRefuelAction:          true,
-	domain.SurgeryAction:             true,
-	domain.AreaAction:                true,
-	domain.PolicyPruneAction:         true,
-	domain.RemoveRoofAction:          true,
-	domain.AreaPlantCutAction:        true,
-	domain.ReadingPolicyAction:       true,
-	domain.DrugPolicyAction:          true,
-	domain.FoodPolicyAction:          true,
-	domain.PawnSettingsAction:        true,
-	domain.AutoHomeAreaAction:        true,
-	domain.RepairAction:              true,
-	domain.CleanAction:               true,
-	domain.OpenCasketAction:          true,
-	domain.TendAction:                true,
-	domain.OwnedDraftAction:          true,
-	domain.SubdueAction:              true,
-	domain.EquipAction:               true,
-	domain.DropEquipmentAction:       true,
-	domain.RescueAction:              true,
-	domain.CaptureAction:             true,
-	domain.MoodReliefAction:          true,
-	domain.GearReplaceAction:         true,
-	domain.UseItemAction:             true,
-	domain.StripAction:               true,
-	domain.RulesAttachAction:         true,
+	domain.BuildingAction:             true,
+	domain.ApparelPolicyAction:        true,
+	domain.ResearchSelectAction:       true,
+	domain.DialogAnswerAction:         true,
+	domain.PrisonerInteractionAction:  true,
+	domain.QuestAcceptAction:          true,
+	domain.RitualAction:               true,
+	domain.AbilityAction:              true,
+	domain.IgniteAction:               true,
+	domain.RemoveProductionBillAction: true,
+	domain.CloseDoorAction:            true,
+	domain.CaravanDepartureAction:     true,
+	domain.AssignAction:               true,
+	domain.WorkAssignmentAction:       true,
+	domain.HusbandryAction:            true,
+	domain.ProductionBillAction:       true,
+	domain.ZoneCreateAction:           true,
+	domain.ZoneDeleteAction:           true,
+	domain.ZoneCellEditAction:         true,
+	domain.StockpilePatchAction:       true,
+	domain.FoundationRemovalAction:    true,
+	domain.FloorRemovalAction:         true,
+	domain.CoverClearanceAction:       true,
+	domain.WastepackHaulAction:        true,
+	domain.CutPlantAction:             true,
+	domain.SupplyAllowAction:          true,
+	domain.SupplyForbidAction:         true,
+	domain.DeconstructionAction:       true,
+	domain.ExcavationAction:           true,
+	domain.WallRemovalAction:          true,
+	domain.RecoveryServiceAction:      true,
+	domain.MoveBuildingAction:         true,
+	domain.UninstallBuildingAction:    true,
+	domain.AcquisitionAction:          true,
+	domain.MineAcquisitionAction:      true,
+	domain.AcquisitionWithdrawAction:  true,
+	domain.BuildingTemperatureAction:  true,
+	domain.BedUseAction:               true,
+	domain.GrowerCropAction:           true,
+	domain.ClaimBuildingAction:        true,
+	domain.AutoRefuelAction:           true,
+	domain.SurgeryAction:              true,
+	domain.AreaAction:                 true,
+	domain.PolicyPruneAction:          true,
+	domain.RemoveRoofAction:           true,
+	domain.AreaPlantCutAction:         true,
+	domain.ReadingPolicyAction:        true,
+	domain.DrugPolicyAction:           true,
+	domain.FoodPolicyAction:           true,
+	domain.PawnSettingsAction:         true,
+	domain.AutoHomeAreaAction:         true,
+	domain.RepairAction:               true,
+	domain.CleanAction:                true,
+	domain.OpenCasketAction:           true,
+	domain.TendAction:                 true,
+	domain.OwnedDraftAction:           true,
+	domain.SubdueAction:               true,
+	domain.EquipAction:                true,
+	domain.DropEquipmentAction:        true,
+	domain.RescueAction:               true,
+	domain.CaptureAction:              true,
+	domain.MoodReliefAction:           true,
+	domain.GearReplaceAction:          true,
+	domain.UseItemAction:              true,
+	domain.StripAction:                true,
+	domain.RulesAttachAction:          true,
 }
 
 // BatchItem is one action's outcome of RunBatch: its dispatch result and error.
@@ -262,6 +263,7 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 	}
 	kinds := make([]domain.Receipt, len(sent))
 	zones := make([]string, len(sent))
+	bills := make([]string, len(sent))
 	causes := make([]error, len(sent))
 	if err = e.guard(ctx, expected, generation); err != nil {
 		for j := range sent {
@@ -281,7 +283,7 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 			case receipts[j].Action != p.Action.ID() || receipts[j].Attempt != p.Attempt || receipts[j].Snapshot != expected:
 				kinds[j], causes[j] = domain.ReceiptUnknown, ErrEvidence
 			default:
-				kinds[j], zones[j] = receipts[j].Kind, receipts[j].Zone
+				kinds[j], zones[j], bills[j] = receipts[j].Kind, receipts[j].Zone, receipts[j].Bill
 			}
 			if _, check := nexts[j].RecordReceipt(p.Attempt, kinds[j]); check != nil {
 				kinds[j], causes[j] = domain.ReceiptUnknown, errors.Join(causes[j], ErrEvidence)
@@ -289,15 +291,15 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 			causes[j] = errors.Join(causes[j], ctx.Err())
 		}
 	}
-	e.recordReceipts(out, sent, placements, kinds, zones, causes)
+	e.recordReceipts(out, sent, placements, kinds, zones, bills, causes)
 	return out
 }
 
 // recordReceipts writes the receipts of the sent items in one journal
-// transaction; an applied zone_create records its zone on its own. Like
+// transaction; an applied zone_create or bill placement records its zone or bill id on its own. Like
 // recordZone, it uses a fresh bounded context so cancellation never erases
 // an attempt.
-func (e *Executor) recordReceipts(out []BatchItem, sent []int, placements []Placement, kinds []domain.Receipt, zones []string, causes []error) {
+func (e *Executor) recordReceipts(out []BatchItem, sent []int, placements []Placement, kinds []domain.Receipt, zones, bills []string, causes []error) {
 	ctx, cancel := context.WithTimeout(context.Background(), e.limits.JournalTimeout)
 	defer cancel()
 	var receipts []store.BatchReceipt
@@ -307,6 +309,14 @@ func (e *Executor) recordReceipts(out []BatchItem, sent []int, placements []Plac
 		out[i].Err = causes[j]
 		if zones[j] != "" && kinds[j] == domain.ReceiptAccepted {
 			progress, err := e.journal.RecordZoneReceipt(ctx, plan, p.Action.ID(), p.Attempt, zones[j])
+			if err == nil {
+				out[i].Result.Progress = progress
+			}
+			out[i].Err = errors.Join(out[i].Err, err)
+			continue
+		}
+		if bills[j] != "" && kinds[j] == domain.ReceiptAccepted {
+			progress, err := e.journal.RecordBillReceipt(ctx, plan, p.Action.ID(), p.Attempt, bills[j])
 			if err == nil {
 				out[i].Result.Progress = progress
 			}

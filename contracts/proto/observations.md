@@ -710,6 +710,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | DesignateIntent.thing_id | GetCells.thing.snapshot / ListPawns.pawn.snapshot / ListBuildings.building.snapshot |
 | WorkSettingsIntent.pawn_id | ReadPawnSettings (same pawn ID) |
 | ProductionBillIntent.bench_id | ReadBills.bench (same bench ID) |
+| RemoveProductionBillIntent.bench_id/bill | ReadBills.bench and ReadBills bill id (the bill id the placing receipt's `BillEffect`/`SurgeryEffect` returned) |
 | ZoneIntent.zone (Ref) | ListZones.zone.id; ListBuildings storage row id |
 | AssignIntent.pawn_id/thing_id/expected_previous | ListPawns.pawn and owned bed; ListBuildings.building; ColonyFactsSnapshot.royalty.thrones.thing for a throne |
 | NeedReliefIntent.pawn/job/schedule | ListPawns.pawn.snapshot, JobEvidence, PawnSettings.schedule |
