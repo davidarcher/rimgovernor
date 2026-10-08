@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -104,16 +105,64 @@ func TestDefenseSnapshotMeleeEngagesOnlyABeatableRaider(t *testing.T) {
 	}
 }
 
-// defense/drop: a centre-drop assault lands beside the colony; the layout
-// is irrelevant and squad defense engages at the threat with no defender
-// routed to a firing cell.
-func TestDefenseReplayCenterDropIsSquadDefense(t *testing.T) {
+// The recorded drop has already become an assault outside the firing line.
+// Position, not arrival history or proximity, determines whether to hold
+// (#2375). The same hostile behind the line must instead receive squad defense.
+func TestDefenseReplayDropUsesPositionRelativeToLine(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	results, methods, db := replayDefense(t, "testdata/defense/drop-center.json.gz")
-	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
-	if melee, ranged := squadAttacks(t, db, results[0].Plan); melee["Thing_Human53013"]+ranged["Thing_Human53013"] == 0 {
-		t.Fatal("squad defense does not engage the dropped raider")
+	for _, tc := range []struct {
+		name   string
+		cell   domain.Cell
+		tactic policy.CombatTactic
+	}{
+		{"recorded-outside-line", domain.Cell{X: 110, Z: 129}, policy.TacticHold},
+		{"behind-line", domain.Cell{X: 110, Z: 126}, policy.TacticSquad},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			step, err := snapshot.LoadDefense("testdata/defense/drop-center.json.gz")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.tactic == policy.TacticSquad {
+				step.CombatPawns, err = editRecordedPawns(step.CombatPawns, func(p map[string]any) {
+					if hostile, _ := p["hostile"].(bool); hostile {
+						p["pawn"].(map[string]any)["position"] = map[string]any{"x": tc.cell.X, "z": tc.cell.Z}
+					}
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			if behind := policy.BehindFiringLine(step.Layout.Firing, step.Layout.Toward, tc.cell); behind != (tc.tactic == policy.TacticSquad) {
+				t.Fatalf("hostile %v behind line: %t", tc.cell, behind)
+			}
+			results, methods, db := replayDefenseSteps(t, replayFrame{}, step)
+			wantTactic(t, db, methods[0], results[0].Plan, tc.tactic)
+			if tc.tactic == policy.TacticSquad {
+				if melee, ranged := squadAttacks(t, db, results[0].Plan); melee["Thing_Human53013"]+ranged["Thing_Human53013"] == 0 {
+					t.Fatal("squad defense does not engage the raider behind the line")
+				}
+				return
+			}
+			fight, _, err := db.LoadCombatFight(context.Background(), results[0].Plan)
+			if err != nil {
+				t.Fatal(err)
+			}
+			shooters := 0
+			for _, role := range fight.Memory.Roles {
+				if !role.Ranged {
+					continue
+				}
+				if role.Cell == nil || !slices.Contains(step.Layout.Firing, *role.Cell) || role.Target != "Thing_Human53013" {
+					t.Fatalf("hold must position a shooter on the line against the raider: %+v", role)
+				}
+				shooters++
+			}
+			if shooters == 0 {
+				t.Fatal("hold assigned no shooters")
+			}
+		})
 	}
 }
 

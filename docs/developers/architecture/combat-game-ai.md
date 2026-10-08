@@ -51,7 +51,7 @@ the raiders giving up. Real raids do. Read fixture resolution times with that in
 - The 8-second shooting-position window and the +40 target stickiness are things focus-fire and
   repositioning tactics can lean on: a raider keeps shooting its current target and does not re-plan for
   several seconds.
-- "Engaged" in `explainDefensivePositions` is native Chebyshev distance, which ignores walls (#2345).
+- `explainDefensivePositions` treats a hostile inside a standing room or at or behind the firing line as engaged. A hostile outside the walls does not prevent holding solely because it is nearby (#2375).
 
 ## What a combat stop costs
 

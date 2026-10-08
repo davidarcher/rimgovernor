@@ -856,6 +856,25 @@ func isSubset(a, b []string) bool {
 
 func TestFoodMatrix(t *testing.T) { runFoodMatrix(t, foodShortHorizon) }
 
+// Removing this scenario from the failure baseline must mean actual survival,
+// not a vacuous pass because the viability oracle stopped recognizing it.
+func TestFoodTradeFirstThreeChannelsStayFed(t *testing.T) {
+	sc := mixScenario("trade-first-three-channels", 3, 1, foodShare, foodChains["trade-first"][:3])
+	r := runFood(sc, foodLongHorizon)
+	if !r.viable {
+		t.Fatal("the oracle must still feed this colony at the viability margin")
+	}
+	if r.rep.Starved(supplysim.Nutrition) {
+		t.Fatalf("colony starved: first day %d, unmet days %d", r.rep.FirstStarved[supplysim.Nutrition], r.rep.StarvedDays[supplysim.Nutrition])
+	}
+	for _, kind := range []policy.CandidateKind{policy.CandidateHunt, policy.CandidateForage} {
+		if r.rep.Delivered[foodSrcID(kind)] <= 0 {
+			t.Fatalf("survival needs real %s deliveries: %v", kind, r.rep.Delivered)
+		}
+	}
+	t.Logf("%d days fed; minimum runway %.3f days; deliveries %v", len(r.rep.Days), r.rep.MinRunway[supplysim.Nutrition], r.rep.Delivered)
+}
+
 func TestFoodMatrixLongHorizon(t *testing.T) {
 	slowtest.Skip(t, "90 simulated days per scenario")
 	runFoodMatrix(t, foodLongHorizon)
