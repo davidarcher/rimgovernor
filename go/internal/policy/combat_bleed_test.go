@@ -175,6 +175,12 @@ func TestLoneFleeingBleederIsLeftToGoDown(t *testing.T) {
 		Orderable: []domain.PawnID{"a"},
 	}
 	memory := CombatMemory{Tactic: TacticSquad, Formed: 100, Roles: []CombatRole{{Pawn: "a", Target: "r1", Ranged: true}}}
+	// A recovered raider starts a fresh fight after the downed fight closed.
+	// Holding fire must still produce a roster that can admit a combat window.
+	_, admitted := decideStop(t, view, StopEvent{}, CombatMemory{})
+	if admitted.Tactic != TacticShelter || len(admitted.Roles) == 0 || targeted(admitted, "r1") {
+		t.Fatalf("no safe bleed-down roster: %+v", admitted)
+	}
 	orders, next := decideStop(t, view, StopEvent{}, memory)
 	if targeted(next, "r1") || slices.ContainsFunc(orders, func(o CombatOrder) bool { return o.Kind == OrderAttack }) {
 		t.Fatalf("%+v %+v", orders, next.Roles)

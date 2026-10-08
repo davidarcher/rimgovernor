@@ -100,13 +100,13 @@ func sparedBleeders(view CombatView) map[domain.PawnID]bool {
 }
 
 // spare drops the spared hostiles from the view's threats, so no tactic
-// assigns or retargets an attacker onto them.
+// assigns or retargets an attacker onto them. Their positions remain safety
+// facts: a new fight still needs a shelter roster while waiting for downing.
 func (v CombatView) spare(spared map[domain.PawnID]bool) CombatView {
 	if len(spared) == 0 {
 		return v
 	}
 	v.Threats = slices.DeleteFunc(slices.Clone(v.Threats), func(t SquadThreatFacts) bool { return spared[domain.PawnID(t.ID)] })
-	v.Positional = slices.DeleteFunc(slices.Clone(v.Positional), func(t DefensiveThreatFacts) bool { return spared[domain.PawnID(t.ID)] })
 	return v
 }
 
