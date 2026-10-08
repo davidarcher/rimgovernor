@@ -72,6 +72,24 @@ func ResourceRunwayTargets(rows []ResourceRunway) map[Resource]int64 {
 	return out
 }
 
+// RunwayReserves is every resource a runway is forecast for and its reserve:
+// the operator's ResourceTargets, plus the reserve medicine (the catalog's
+// lowest-potency one, herbal) at a zero reserve, so medicine is demanded only
+// by the observed tend rate (#2378). Without the catalog's medicines it adds
+// nothing.
+func (p RoundsPolicy) RunwayReserves(items ItemFacts) map[Resource]int64 {
+	out := make(map[Resource]int64, len(p.ResourceTargets)+1)
+	for resource, reserve := range p.ResourceTargets {
+		out[resource] = reserve
+	}
+	if herbal, err := items.MedicineAt(0); err == nil {
+		if _, set := out[herbal]; !set {
+			out[herbal] = 0
+		}
+	}
+	return out
+}
+
 func SurfaceOre(sources []ResourceSource) domain.Fact[int64] {
 	var total int64
 	seen := map[string]bool{}

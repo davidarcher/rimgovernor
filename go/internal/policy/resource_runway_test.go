@@ -16,6 +16,37 @@ func TestSurfaceOreOnlySafeMineables(t *testing.T) {
 	}
 }
 
+func TestMedicineRunwayFromTendRate(t *testing.T) {
+	p := DefaultRoundsPolicy()
+	p.ResourceTargets = DefaultResourceTargets()
+	reserves := p.RunwayReserves(CoreItemFacts())
+	if reserve, set := reserves["MedicineHerbal"]; !set || reserve != 0 || reserves["Steel"] == 0 {
+		t.Fatal(reserves)
+	}
+	if got := p.RunwayReserves(ItemFacts{}); len(got) != len(p.ResourceTargets) {
+		t.Fatal("no catalog medicine must add no runway key", got)
+	}
+	if !p.TracksResource(CoreItemFacts(), "MedicineHerbal") {
+		t.Fatal("medicine workshop research must remain tracked")
+	}
+	busy := domain.Known(ResourceConsumption{WindowDays: 15, Recurring: map[Resource]int64{"MedicineHerbal": 30}})
+	short := ForecastResourceRunway("MedicineHerbal", domain.Known(int64(4)), domain.Known(int64(0)), 0, 0, busy)
+	if deficit, _ := short.Deficit.Value(); !deficit || short.Target != 10 {
+		t.Fatal(short)
+	}
+	if days, _ := short.DaysLeft.Value(); days != 2 {
+		t.Fatal(short)
+	}
+	quiet := domain.Known(ResourceConsumption{WindowDays: 15, Recurring: map[Resource]int64{}})
+	if q := ForecastResourceRunway("MedicineHerbal", domain.Known(int64(0)), domain.Known(int64(0)), 0, 0, quiet); q.Target != 0 {
+		t.Fatal(q)
+	}
+	unknown := ForecastResourceRunway("MedicineHerbal", domain.Known(int64(4)), domain.Known(int64(0)), 0, 0, domain.Unknown[ResourceConsumption]())
+	if _, known := unknown.Deficit.Value(); known || unknown.Target != 0 {
+		t.Fatal(unknown)
+	}
+}
+
 func TestRunwaySurfacesMaintainResourceDeficit(t *testing.T) {
 	p := DefaultRoundsPolicy()
 	f := RoundsFacts{Resources: domain.Known([]Amount{{Resource: "Steel", Count: 100}}), ResourceRunways: []ResourceRunway{{Resource: "Steel", DaysLeft: domain.Known(2.0), Deficit: domain.Known(true)}}}

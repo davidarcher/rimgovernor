@@ -1217,11 +1217,6 @@ func (r *Rounder) resourceTargets(ctx context.Context, snapshot domain.Generatio
 		return nil, err
 	}
 	if review.Enabled && review.Snapshot == snapshot {
-		items, err := r.itemFacts(ctx, snapshot)
-		if err != nil {
-			return nil, err
-		}
-		needs = policy.MedicineResourceNeeds(items, needs, review.MedicineTarget)
 		needs = policy.ResourceConcernTargets(needs, r.construction.get(snapshot))
 		needs = policy.ResourceConcernTargets(needs, policy.ResourceRunwayTargets(review.ResourceRunwayState()))
 	}

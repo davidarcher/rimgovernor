@@ -366,6 +366,13 @@ count as pending; plants below harvest growth are not sources). Unavailable sour
 recipes are blockers. Patient care, drug policies and player bills are preserved;
 designations and bill receipts never prove replenishment.
 
+Medicine is also a resource runway (#2378): the herbal definition is forecast with a zero
+reserve beside the configured resource targets (`RoundsPolicy.RunwayReserves`), its rate
+the observed `medicine_tend` spend over the 15-day window. Below five days of runway
+the resource ladder is asked for five days of use; an unread rate or stock leaves the
+runway unknown, and a quiet colony demands nothing. There is no per-colonist production
+floor beyond the reserve latch above.
+
 ### Animals
 
 `MaintainAnimalContainment` observes pen membership for eligible starting animals. Pets and

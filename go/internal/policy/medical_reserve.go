@@ -37,31 +37,6 @@ type MedicalReserveReview struct {
 
 func DefaultMedicalReservePolicy() MedicalReservePolicy { return MedicalReservePolicy{1, 3} }
 
-// MedicineReserveTarget supplies MaintainResource's renewable herbal floor.
-// Industrial stock remains available for urgent treatment; glitterworld stock
-// never substitutes for the reserve that autonomous play replenishes.
-func (p RoundsPolicy) MedicineReserveTarget(colonists domain.Fact[int64], active bool) int64 {
-	count, known := colonists.Value()
-	if !active || !known || count <= 0 || p.MedicalReserve.TargetPerColonist <= 0 {
-		return 0
-	}
-	if count > 10000/p.MedicalReserve.TargetPerColonist {
-		return 10000
-	}
-	return count * p.MedicalReserve.TargetPerColonist
-}
-
-// MedicineResourceNeeds asks for target units of the reserve medicine, the
-// lowest-potency one (herbal). Without the catalog's medicines it asks for
-// nothing.
-func MedicineResourceNeeds(items ItemFacts, needs map[Resource]int64, target int64) map[Resource]int64 {
-	herbal, err := items.MedicineAt(0)
-	if target <= 0 || err != nil {
-		return needs
-	}
-	return ResourceConcernTargets(needs, map[Resource]int64{herbal: target})
-}
-
 // ReviewMedicalReserve preserves the latch through unavailable reads. Equal entry
 // stock does not activate it; equal recovery stock clears it. Future production
 // and expired stacks never contribute to the current reserve.

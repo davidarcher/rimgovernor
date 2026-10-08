@@ -55,21 +55,20 @@ type Rounds struct {
 	// ShrineStep is the shrine planner's last step (#680): the shrine it
 	// held on and why, and the candidates it passed over. A world change
 	// clears it; otherwise a review keeps the last one.
-	ShrineStep     *RoundsShrineStep       `json:",omitempty"`
-	Recovery       *RoundsRecovery         `json:",omitempty"`
-	Disaster       *policy.DisasterHistory `json:",omitempty"`
-	Mood           *RoundsMood             `json:",omitempty"`
-	MoodMethods    []RoundsMoodMethod      `json:",omitempty"`
-	Sleeping       policy.SleepingHistory
-	Revision       uint64
-	Snapshot       domain.GenerationSnapshot
-	Tick           domain.Tick
-	Enabled        bool
-	Latches        policy.RoundsLatches
-	MedicalCare    policy.MedicalCareHistory
-	MedicineTarget int64 `json:",omitempty"`
-	EventLoot      policy.EventLootHistory
-	Comfort        policy.ComfortHistory
+	ShrineStep  *RoundsShrineStep       `json:",omitempty"`
+	Recovery    *RoundsRecovery         `json:",omitempty"`
+	Disaster    *policy.DisasterHistory `json:",omitempty"`
+	Mood        *RoundsMood             `json:",omitempty"`
+	MoodMethods []RoundsMoodMethod      `json:",omitempty"`
+	Sleeping    policy.SleepingHistory
+	Revision    uint64
+	Snapshot    domain.GenerationSnapshot
+	Tick        domain.Tick
+	Enabled     bool
+	Latches     policy.RoundsLatches
+	MedicalCare policy.MedicalCareHistory
+	EventLoot   policy.EventLootHistory
+	Comfort     policy.ComfortHistory
 	// Goals binds the Standards this review assessed; Projects binds the
 	// Projects.
 	Standards []RoundsStandard
@@ -178,9 +177,6 @@ func loadRounds(ctx context.Context, tx *sql.Tx) (Rounds, error) {
 	}
 	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Standards) > 306 || len(r.Projects) > 306 {
 		return Rounds{}, errors.New("invalid rounds history")
-	}
-	if r.MedicineTarget < 0 || r.MedicineTarget > 10000 {
-		return Rounds{}, errors.New("invalid medicine resource target")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
 		return Rounds{}, err
@@ -603,7 +599,6 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 	r := Rounds{Revision: previous.Revision + 1, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
 	r.MedicalCare = medical
 	r.BrewingFinished = policy.BrewingFinished(request.Facts.Research)
-	r.MedicineTarget = request.Policy.MedicineReserveTarget(request.Facts.Colonists, needs.Latches.MedicalReserve)
 	r.EventLoot = loot
 	if rows, known := request.Facts.EventLoot.Value(); known {
 		r.Unsafe = policy.UnsafeLoot(rows)

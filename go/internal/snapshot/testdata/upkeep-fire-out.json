@@ -10634,7 +10634,6 @@
   "MedicalCare": {
    "CensusKnown": true
   },
-  "MedicineTarget": 24,
   "Progress": [
    {
     "Blocked": "no_method",

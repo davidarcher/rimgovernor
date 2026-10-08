@@ -7,27 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestMedicineReserveJoinsResourceFloors(t *testing.T) {
-	p := DefaultRoundsPolicy()
-	needs := map[Resource]int64{"Steel": 20, "MedicineHerbal": 30}
-	if got := p.MedicineReserveTarget(domain.Known(int64(8)), true); got != 24 {
-		t.Fatal(got)
-	}
-	merged := MedicineResourceNeeds(CoreItemFacts(), needs, 24)
-	if merged["Steel"] != 20 || merged["MedicineHerbal"] != 30 || len(needs) != 2 {
-		t.Fatal(merged, needs)
-	}
-	if got := MedicineResourceNeeds(CoreItemFacts(), nil, 24); got["MedicineHerbal"] != 24 {
-		t.Fatal(got)
-	}
-	if got := p.MedicineReserveTarget(domain.Unknown[int64](), true); got != 0 {
-		t.Fatal(got)
-	}
-	if !p.TracksResource(CoreItemFacts(), "MedicineHerbal") {
-		t.Fatal("medicine workshop research must remain tracked")
-	}
-}
-
 func TestGlitterworldDoesNotSatisfyAutonomousMedicineReserve(t *testing.T) {
 	f := MedicalReserveObservation{Catalog: CoreItemFacts(), Colonists: domain.Known(int64(1)), Resources: domain.Known([]Amount{{Resource: "MedicineUltratech", Count: 10}}), Items: domain.Known([]MedicineStack{{ID: "glitterworld", Definition: "MedicineUltratech", Count: 10, Perishable: domain.Known(false)}})}
 	review, err := ReviewMedicalReserve(f, false, DefaultMedicalReservePolicy())

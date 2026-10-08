@@ -28,7 +28,7 @@ func TestSnapshotWorkshopClubRanksLastBehindReviewFloors(t *testing.T) {
 	}
 	// resourceTargets over the review, minus the defensive layout's needs
 	// (the recording's colony has no standing layout).
-	needs := policy.MedicineResourceNeeds(policy.CoreItemFacts(), nil, r.Review.MedicineTarget)
+	var needs map[policy.Resource]int64
 	needs = policy.ResourceConcernTargets(needs, policy.ConstructionDemandOf(r.Facts, r.Policy.Seasonal(r.Facts.Calendar, r.Facts.DisasterConditions), r.Review.Latches))
 	needs = policy.ResourceConcernTargets(needs, policy.ResourceRunwayTargets(r.Review.ResourceRunwayState()))
 	targets, err := r.Policy.EffectiveResourceTargets(r.Facts.Resources, needs)
@@ -45,7 +45,7 @@ func TestSnapshotWorkshopClubRanksLastBehindReviewFloors(t *testing.T) {
 			club = i
 		}
 	}
-	want := []policy.ResourceTarget{{Resource: "WoodLog", Target: 1240}, {Resource: "MedicineHerbal", Target: 24}, {Resource: "MeleeWeapon_Club", Target: 3}}
+	want := []policy.ResourceTarget{{Resource: "WoodLog", Target: 1240}, {Resource: "MeleeWeapon_Club", Target: 3}}
 	if len(ranked) != len(want) || club != len(want)-1 {
 		t.Fatalf("ranked targets %+v: want %+v", ranked, want)
 	}
