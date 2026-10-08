@@ -23,6 +23,7 @@ namespace HomeBridge.BridgeTools
                 var map = Find.CurrentMap;
                 if (map == null || (!Find.TickManager.Paused && action != "session_inventory")) throw new InvalidOperationException("Pause a disposable colony first.");
                 if (action == "session_setup") return PrepareSession(map, channel);
+                if (action.StartsWith("request_")) return RequestFixture(map, action, channel, pawnId, traderId);
                 if (action == "session_inventory") return SessionInventory(map, channel, traderId, caravanId);
                 Func<bool, string, object> incident = (caravan, caravanKind) => {
                     var def = DefDatabase<IncidentDef>.GetNamed(caravan ? "TraderCaravanArrival" : "VisitorGroup");
@@ -319,6 +320,52 @@ namespace HomeBridge.BridgeTools
             negotiator.Position = console.InteractionCell; negotiator.Notify_Teleported();
             return new { success = true, traderId = ship.GetUniqueLoadID(), caravanId = "", pawnId = negotiator.GetUniqueLoadID(),
                 channel, silver = 2000, medicine = 6, components = 0 };
+        }
+
+        private static object RequestFixture(Map map, string action, string channel, string pawnId, string factionId)
+        {
+            var orbital = channel == "orbital";
+            var faction = factionId == null ? Find.FactionManager.AllFactionsVisible.First(f => !f.IsPlayer && !f.defeated
+                && (orbital ? f.def.canRequestOrbitalTrader : f.def.canRequestTraders)
+                && (orbital ? f.def.orbitalTraderKinds : f.def.caravanTraderKinds).Any(k => k.requestable && k.TitleRequiredToTrade == null)
+                && (orbital || f.def.allowedArrivalTemperatureRange.ExpandedBy(-4f).Includes(map.mapTemperature.SeasonalTemp)))
+                : Find.FactionManager.AllFactionsVisible.Single(f => f.GetUniqueLoadID() == factionId);
+            var pawn = pawnId == null ? map.mapPawns.FreeColonistsSpawned.First(p => !p.skills.GetSkill(SkillDefOf.Social).TotallyDisabled)
+                : map.mapPawns.FreeColonistsSpawned.Single(p => p.GetUniqueLoadID() == pawnId);
+            var console = map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>().FirstOrDefault();
+            if (action == "request_setup")
+            {
+                if (orbital && !ModsConfig.OdysseyActive) throw new InvalidOperationException("Odyssey required.");
+                Thing Spawn(string name, int x) {
+                    var t = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed(name));
+                    if (t.def.CanHaveFaction) t.SetFaction(Faction.OfPlayer);
+                    GenSpawn.Spawn(t, map.Center + new IntVec3(x, 0, 0), map); return t;
+                }
+                var generator = Spawn("WoodFiredGenerator", -6); generator.TryGetComp<CompRefuelable>().Refuel(50);
+                for (var x = -6; x <= 0; x++) Spawn("PowerConduit", x);
+                console = (Building_CommsConsole)Spawn("CommsConsole", 0);
+                map.powerNetManager.UpdatePowerNetsAndConnections_First();
+                console.TryGetComp<CompPowerTrader>().PowerOn = true;
+                faction.TryAffectGoodwillWith(Faction.OfPlayer, 100 - faction.BaseGoodwillWith(Faction.OfPlayer), false, false);
+                faction.lastTraderRequestTick = -240000; faction.lastOrbitalTraderRequestTick = -900000;
+                pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                // Distance gives the interrupted-job control a genuine uncompleted contact.
+                pawn.Position = map.Center + new IntVec3(10, 0, 10); pawn.Notify_Teleported();
+            }
+            else if (action == "request_interrupt") pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+            else if (action == "request_low_goodwill") faction.TryAffectGoodwillWith(Faction.OfPlayer, 1 - faction.BaseGoodwillWith(Faction.OfPlayer), false, false);
+            else if (action == "request_restore_goodwill") faction.TryAffectGoodwillWith(Faction.OfPlayer, 100 - faction.BaseGoodwillWith(Faction.OfPlayer), false, false);
+            else if (action == "request_console_off") console.TryGetComp<CompPowerTrader>().PowerOn = false;
+            else if (action == "request_console_on") console.TryGetComp<CompPowerTrader>().PowerOn = true;
+            else if (action != "request_state") throw new ArgumentException("Unknown request fixture action.");
+            var kind = (orbital ? faction.def.orbitalTraderKinds : faction.def.caravanTraderKinds).First(k => k.requestable && k.TitleRequiredToTrade == null);
+            return new { success = true, factionId = faction.GetUniqueLoadID(), pawnId = pawn.GetUniqueLoadID(), consoleId = console.GetUniqueLoadID(),
+                traderKind = kind.defName, goodwill = faction.PlayerGoodwill,
+                cost = -Faction.OfPlayer.CalculateAdjustedGoodwillChange(faction, orbital ? -30 : -15),
+                lastRequestTick = orbital ? faction.lastOrbitalTraderRequestTick : faction.lastTraderRequestTick,
+                tick = Find.TickManager.TicksGame, ally = faction.PlayerRelationKind == FactionRelationKind.Ally,
+                traders = map.mapPawns.AllPawnsSpawned.Count(p => p.Faction == faction && p.trader?.traderKind == kind),
+                ships = map.passingShipManager.passingShips.OfType<TradeShip>().Count(s => s.TraderKind == kind) };
         }
 
         private static object SessionInventory(Map map, string channel, string traderId, string caravanId)
