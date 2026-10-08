@@ -382,10 +382,16 @@ func (w *slowWindow) ReadPlanningWindow(ctx context.Context, id *c.Identity, rec
 // A planner whose owner moved under it (a sibling on the same standard
 // admitted in the wave) waits for the next round; it is not a failure.
 func TestClockSchedulerStaleOwnerIsNotAPlannerFailure(t *testing.T) {
+	t.Run("revision", func(t *testing.T) { testPlannerAdmissionWait(t, store.ErrStaleOwner) })
+	t.Run("open method", func(t *testing.T) { testPlannerAdmissionWait(t, store.ErrOpenMethod) })
+}
+
+func testPlannerAdmissionWait(t *testing.T, cause error) {
+	t.Helper()
 	s, _ := schedulerFixture(t)
 	stale := quickPlanner("fields", classOptional)
 	stale.run = func(*ClockScheduler, context.Context, context.Context, *ClockSchedulerResult, *stepArbiter) (Verdict, error) {
-		return Verdict{}, fmt.Errorf("standard x revision 2, method scoped to 1: %w", store.ErrStaleOwner)
+		return Verdict{}, fmt.Errorf("method admission: %w", cause)
 	}
 	s.catalog = []plannerEntry{quickPlanner("tend", classCritical), stale}
 	got, err := s.Step(context.Background())

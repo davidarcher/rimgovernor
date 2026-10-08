@@ -47,8 +47,14 @@ func TestMethodAtomicCommitReopenAndDuplicate(t *testing.T) {
 	if _, e = s.LoadPlan(ctx, p.ID()); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, "orphan", "orphan-action")); e == nil {
+	if _, e = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "other", plan(t, "orphan", "orphan-action")); !errors.Is(e, ErrOpenMethod) {
 		t.Fatal("unresolved method duplicated")
+	}
+	if _, e = s.CommitMethod(ctx, g.Standard.ID, g.Revision-1, "stale", plan(t, "stale-plan", "stale-action")); !errors.Is(e, ErrStaleOwner) || !errors.Is(e, ErrConflict) {
+		t.Fatal("stale method commit must preserve conflict classification", e)
+	}
+	if _, e = s.LoadPlan(ctx, "stale-plan"); !errors.Is(e, ErrNotFound) {
+		t.Fatal("stale commit left a plan", e)
 	}
 	if _, e = s.LoadPlan(ctx, "orphan"); !errors.Is(e, ErrNotFound) {
 		t.Fatal("failed method left a plan", e)

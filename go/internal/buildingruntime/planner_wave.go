@@ -128,6 +128,9 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 			// slow planner; it waits for the next round, not a failure.
 			reason, err = awaitingPlan("owner", "revision_changed"), nil
 		}
+		if errors.Is(err, store.ErrOpenMethod) {
+			reason, err = BuildingReasonExistingWork, nil
+		}
 		took := time.Since(start)
 		w.mu.Lock()
 		w.took[entry.name] = took
@@ -148,6 +151,9 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 // detail ride in attrs); any other outcome beyond admitted reads as ok with
 // the outcome as the reason; a run with no verdict reads ok/no_verdict.
 func plannerStepDecision(entry plannerEntry, v Verdict, err error, took time.Duration, late bool) telemetry.Decision {
+	if late && entry.class == classOptional && errors.Is(err, context.Canceled) {
+		v, err = awaitingPlan("planner", "cutoff"), nil
+	}
 	d := telemetry.Decision{Kind: "planner_step", Component: "clock-scheduler", Target: entry.name, Dur: took,
 		Attrs: map[string]any{"concern": string(entry.concern), "class": string(entry.class)}}
 	switch {

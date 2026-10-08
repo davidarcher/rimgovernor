@@ -1,6 +1,7 @@
 package buildingruntime
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"testing"
@@ -31,6 +32,8 @@ func TestPlannerStepDecisionOnePerRunShape(t *testing.T) {
 		{name: "no verdict", wantVerdict: "ok", wantReason: "no_verdict"},
 		{name: "failed", err: errors.New("boom"), wantVerdict: "failed", wantReason: "error", wantLevel: slog.LevelWarn, wantAttr: "error", value: "boom"},
 		{name: "late", verdict: Verdict{Outcome: OutcomeAdmitted}, late: true, wantVerdict: "admitted", wantReason: "plan_admitted", wantAttr: "late", value: "true"},
+		{name: "optional cutoff", err: context.Canceled, late: true, wantVerdict: "refused", wantReason: "awaiting_plan", wantAttr: "detail", value: "cutoff"},
+		{name: "early cancellation", err: context.Canceled, wantVerdict: "failed", wantReason: "error", wantLevel: slog.LevelWarn},
 	}
 	for _, c := range cases {
 		d := plannerStepDecision(entry, c.verdict, c.err, 1500*time.Microsecond, c.late)

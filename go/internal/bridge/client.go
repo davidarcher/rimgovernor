@@ -609,7 +609,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 		if recording {
 			c.recordCall(ctx, recordCtx, callRow(map[string]any{"ok": false, "error": err.Error(), "timing": phases(0, len(raw))}))
 		}
-		if errors.Is(err, ErrContract) {
+		if errors.Is(err, ErrContract) || errors.Is(err, context.Canceled) {
 			return Result{}, err
 		}
 		return Result{}, fmt.Errorf("%w: %s: %w", ErrTransport, name, err)

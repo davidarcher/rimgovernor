@@ -41,6 +41,10 @@ type BuildingMethodDecision struct {
 // method's owner after this one read it; the next round reads it afresh.
 var ErrStaleOwner = fmt.Errorf("%w: owner changed since it was read", ErrConflict)
 
+// ErrOpenMethod means native postconditions must settle existing work before
+// another method can be admitted.
+var ErrOpenMethod = errors.New("existing method requires observation")
+
 // AdmitBuildingMethod applies the same pure resource/geometry policy as Hands
 // inside the transaction that stores every method reservation and its plan.
 // Candidates can depend on future work in this method: admission reserves the

@@ -25,10 +25,14 @@ namespace HomeBridge.BridgeTools
                     CanFight = !pawn.Dead && !pawn.Downed && !pawn.InMentalState && !pawn.WorkTagIsDisabled(WorkTags.Violent),
                     CarryCapacity = MassUtility.Capacity(pawn), CarriedMass = MassUtility.GearAndInventoryMass(pawn) };
                 row.FactionLeader = pawn == Faction.OfPlayer.leader;
-                row.NegotiationAbility = pawn.GetStatValue(StatDefOf.NegotiationAbility);
-                if (pawn.skills != null && !StatDefOf.NegotiationAbility.Worker.IsDisabledFor(pawn)) row.SocialLevel = pawn.skills.GetSkill(SkillDefOf.Social).Level;
+                if (!StatDefOf.NegotiationAbility.Worker.IsDisabledFor(pawn))
+                {
+                    row.NegotiationAbility = pawn.GetStatValue(StatDefOf.NegotiationAbility);
+                    if (pawn.skills != null) row.SocialLevel = pawn.skills.GetSkill(SkillDefOf.Social).Level;
+                }
                 foreach (var stat in stats)
-                    row.Rates.Add(new Obs.QuestWorkRate { Stat = stat.defName, Rate = pawn.GetStatValue(stat) });
+                    row.Rates.Add(new Obs.QuestWorkRate { Stat = stat.defName,
+                        Rate = stat.Worker.IsDisabledFor(pawn) ? 0 : pawn.GetStatValue(stat) });
                 yield return row;
             }
         }

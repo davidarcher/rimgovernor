@@ -20,6 +20,33 @@ import (
 // passes its own, shorter deadline.
 const testBudget = time.Minute
 
+func TestCanceledNativeReadIsNotTransportFailure(t *testing.T) {
+	started := make(chan struct{})
+	s := &testServer{handler: func(ctx context.Context, _ nativeArgument) (*callResult, error) {
+		close(started)
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}}
+	client := testClient(t, s, testBudget)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := testNativeRead(client, ctx)
+		done <- err
+	}()
+	<-started
+	cancel()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) || errors.Is(err, ErrTransport) {
+			t.Fatalf("canceled read classified as transport failure: %v", err)
+		}
+	case <-time.After(testBudget):
+		t.Fatal("canceled read did not return")
+	}
+}
+
 func testClient(t *testing.T, s *testServer, timeout time.Duration) *Client {
 	t.Helper()
 	client, err := open(context.Background(), "fixture-game", timeout, nil, nil, s.factory(t))

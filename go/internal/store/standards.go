@@ -327,7 +327,7 @@ func commitMethod(ctx context.Context, tx *sql.Tx, id domain.ConcernID, revision
 func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) error {
 	summary, _ := SummarizeOwner(state)
 	if state.OwnerRevision() != revision {
-		return fmt.Errorf("%w: %s is at revision %d, not %d", ErrConflict, state.ownerLabel(), state.OwnerRevision(), revision)
+		return fmt.Errorf("%w: %s is at revision %d, not %d", ErrStaleOwner, state.ownerLabel(), state.OwnerRevision(), revision)
 	}
 	if summary.Status != domain.StandardOpen || summary.Finding != domain.FindingUnmet {
 		return errors.New("standard does not admit a method")
@@ -393,7 +393,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 			}
 		}
 		if !exempt {
-			return errors.New("existing method requires observation")
+			return ErrOpenMethod
 		}
 	}
 	m := domain.Method{Owner: domain.ConcernID(summary.ID), Episode: summary.Episode, Method: method, Plan: plan.ID()}

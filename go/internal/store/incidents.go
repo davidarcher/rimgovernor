@@ -275,7 +275,7 @@ func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID,
 		return IncidentState{}, err
 	}
 	if open {
-		return IncidentState{}, errors.New("existing method requires observation")
+		return IncidentState{}, ErrOpenMethod
 	}
 	if err = (domain.Method{Owner: domain.ConcernID(id), Method: method, Plan: plan.ID()}).Validate(); err != nil {
 		return IncidentState{}, err
