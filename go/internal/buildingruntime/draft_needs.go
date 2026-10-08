@@ -91,15 +91,14 @@ func undraftCandidates(rows []*n.PawnState, needed map[domain.PawnID]bool) []dom
 }
 
 // idleDrafts are the undraft candidates of a quiet frame: none while the
-// census is incomplete or a hostile, hostile building or near hunting
-// predator stands (a drafted colonist then waits for the fight's roster),
+// census is incomplete or the shared emergency policy holds for a threat,
 // and none from a pawn read of another generation.
 func idleDrafts(state ControlState, emergency policy.EmergencyFacts, observed *n.PawnSnapshot, needed map[domain.PawnID]bool) ([]domain.PawnID, error) {
 	if emergency.ColonistsComplete != domain.Known(true) || len(emergency.Colonists) == 0 || observed == nil {
 		return nil, nil
 	}
 	for _, threat := range emergency.Threats {
-		if threat.Kind == policy.Hostile || threat.Building() || threat.Kind == policy.HuntingPredator && !threat.DistantThreat() {
+		if policy.ThreatHolds(threat) {
 			return nil, nil
 		}
 	}

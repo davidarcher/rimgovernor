@@ -7,6 +7,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -35,6 +36,44 @@ func TestUndraftCandidatesSkipNeededAndCustody(t *testing.T) {
 	got := undraftCandidates(rows, map[domain.PawnID]bool{"needed": true})
 	if want := []domain.PawnID{"another", "stray"}; !slices.Equal(got, want) {
 		t.Fatalf("candidates %v, want %v", got, want)
+	}
+}
+
+// The emergency and undraft decisions share the same threat hold: a downed
+// raider must not strand the closed fight's roster drafted.
+func TestIdleDraftsUsesEmergencyThreatHold(t *testing.T) {
+	t.Parallel()
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 7}
+	observed := &n.PawnSnapshot{Context: &c.ObservationContext{Identity: boundary.Identity(snapshot), Tick: proto.Int64(12), NativeGeneration: proto.Uint64(7)}, Pawns: []*n.PawnState{draftedRow("fighter", "Wait_Combat"), draftedRow("needed", "Wait_Combat")}}
+	base := policy.EmergencyThreat{Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}
+	for _, tc := range []struct {
+		name   string
+		change func(*policy.EmergencyThreat)
+		hold   bool
+	}{
+		{"standing", func(*policy.EmergencyThreat) {}, true},
+		{"downed", func(v *policy.EmergencyThreat) { v.Downed = domain.Known(true) }, false},
+		{"dead", func(v *policy.EmergencyThreat) { v.Dead = domain.Known(true) }, false},
+		{"passive", func(v *policy.EmergencyThreat) { v.Passive = domain.Known(true) }, false},
+		{"fogged", func(v *policy.EmergencyThreat) { v.Fogged = domain.Known(true) }, false},
+		{"unknown downed", func(v *policy.EmergencyThreat) { v.Downed = domain.Fact[bool]{} }, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			threat := base
+			tc.change(&threat)
+			facts := policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{}}, Threats: []policy.EmergencyThreat{threat}}
+			got, err := idleDrafts(ControlState{Snapshot: snapshot}, facts, observed, map[domain.PawnID]bool{"needed": true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := []domain.PawnID{"fighter"}
+			if tc.hold {
+				want = nil
+			}
+			if !slices.Equal(got, want) {
+				t.Fatalf("drafts %v, want %v", got, want)
+			}
+		})
 	}
 }
 
