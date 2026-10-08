@@ -2,7 +2,7 @@ package policy
 
 import (
 	"errors"
-	"slices"
+
 	"sort"
 	"strings"
 
@@ -76,7 +76,6 @@ const (
 	// Held reasons: the goal is intentionally not worked (HoldProgress).
 	HeldUnavailable BlockedReason = "held:unavailable"
 	HeldOptIn       BlockedReason = "held:opt-in"
-	HeldEmergency   BlockedReason = "held:emergency"
 )
 
 // BlockedPlanner blocks on the goal's planner's refusal reason.
@@ -469,8 +468,8 @@ func ConcernProgressContract(method string, p RoundsPolicy) ProgressContract {
 // did not enable (the routine building planners' "disabled").
 const PlannerOptOut = "disabled"
 
-// HoldProgress reports unavailable methods and emergency precedence.
-func HoldProgress(progress []ConcernProgress, emergency []ConcernID, unavailable map[ConcernID]bool) []ConcernProgress {
+// HoldProgress reports unavailable methods and planner opt-outs.
+func HoldProgress(progress []ConcernProgress, unavailable map[ConcernID]bool) []ConcernProgress {
 	out := append([]ConcernProgress(nil), progress...)
 	for i := range out {
 		p := &out[i]
@@ -482,8 +481,6 @@ func HoldProgress(progress []ConcernProgress, emergency []ConcernID, unavailable
 			p.Blocked = HeldUnavailable
 		case p.Planner == PlannerOptOut:
 			p.Blocked = HeldOptIn
-		case len(emergency) > 0 && !slices.Contains(emergency, p.Concern):
-			p.Blocked = HeldEmergency
 		}
 	}
 	return out

@@ -409,7 +409,7 @@ func TestServeShutdownCancelsActiveProvider(t *testing.T) {
 func TestRoutinesRouteExposesProgressWithoutCapacity(t *testing.T) {
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
 		Rounds: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
-			return RoundsStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Emergency: []policy.ConcernID{policy.ActiveCombat}, Progress: []policy.ConcernProgress{{Concern: policy.MaintainHousing, Blocked: policy.HeldEmergency}}}, nil
+			return RoundsStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Emergency: []policy.ConcernID{policy.ActiveCombat}, Progress: []policy.ConcernProgress{{Concern: policy.MaintainHousing, Blocked: policy.BlockedNoWorker}}}, nil
 		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)
@@ -420,7 +420,7 @@ func TestRoutinesRouteExposesProgressWithoutCapacity(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
-	if status != 200 || got.LastReviewTick == nil || *got.LastReviewTick != 500 || len(got.Emergency) != 1 || len(got.Progress) != 1 || got.Progress[0].Blocked != policy.HeldEmergency {
+	if status != 200 || got.LastReviewTick == nil || *got.LastReviewTick != 500 || len(got.Emergency) != 1 || len(got.Progress) != 1 || got.Progress[0].Blocked != policy.BlockedNoWorker {
 		t.Fatalf("progress: %s", body)
 	}
 	var fields map[string]json.RawMessage

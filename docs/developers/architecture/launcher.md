@@ -48,7 +48,7 @@ with a flag (`warn`, `emergency`) per line and no labels of its own.
 - **Concerns**: every active Concern with its method, status, deficit and review
   deadline, most urgent first; the last clock stop with its latency split.
 - **Waiting**: actual Concern blockers and waits, including prerequisites,
-  unavailable methods and emergency precedence.
+  unavailable methods.
 
 `internal/spectator` projects these from the last review's records and the
 flight recorder. `/api/routines` supplies the review tick, emergency needs and

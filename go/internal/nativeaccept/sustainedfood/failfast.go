@@ -171,7 +171,7 @@ func (f *failFastState) noMethod(sample map[string]any) (Verdict, bool) {
 		f.idleReviews = f.idleReviews[:0]
 		return Verdict{}, false
 	}
-	if vetoed || blocked == policy.HeldEmergency || blocked.Waiting() || blocked == policy.HeldOptIn || f.cfg.MethodUnavailableWaits && blocked == policy.HeldUnavailable {
+	if vetoed || blocked.Waiting() || blocked == policy.HeldOptIn || f.cfg.MethodUnavailableWaits && blocked == policy.HeldUnavailable {
 		return Verdict{}, false
 	}
 	f.idleReviews = append(f.idleReviews, revision)

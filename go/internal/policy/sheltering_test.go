@@ -217,16 +217,14 @@ func TestDangerSeedsAreLiveHostilesAndEveryHive(t *testing.T) {
 	}
 }
 
-// A threat is itself the ActiveCombat emergency, and EmergencySafeguard vetoes
-// priority 2 and above: the Safe area and the moves into it must sit below
-// that floor, or a manhunter pack shelters no one (#1560).
-func TestShelteringUnderThreatEscapesEmergencyVeto(t *testing.T) {
+// Emergency findings guide response planning and reporting.
+func TestShelteringUnderThreatRemainsWorkable(t *testing.T) {
 	f := shelterFacts("")
 	f.Hostiles = domain.Known(int64(3))
 	f.ShelterCombatants = domain.Known([]PawnID{})
 	f.SafeAreaOwed = domain.Known(true)
 	r := needs(t, f, RoundsLatches{})
-	rule := SafeguardContext{Enabled: true, Emergency: []ConcernID{ActiveCombat}}
+	rule := SafeguardContext{Enabled: true}
 	seen := map[ConcernID]bool{}
 	for _, g := range r.Concerns {
 		if g.ID == MaintainShelter {

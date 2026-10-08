@@ -151,15 +151,15 @@ func TestRoundsRecoverySkipsSharedMethodHistory(t *testing.T) {
 	}
 }
 
-func TestRoundsRecoveryEmergencyVetoesCandidatesUntilObservedClearance(t *testing.T) {
+func TestRoundsRecoveryCandidatesRemainAvailableDuringEmergency(t *testing.T) {
 	t.Parallel()
 	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := recoveryRequest()
 	r.Facts.Hostiles = domain.Known(int64(1))
 	out := reviewRounds(t, s, &r)
-	if out.Review.VetoIncident(roundsIncident(t, out, policy.RecoverDisasterServices).Incident) == "" || out.Review.Recovery != nil {
-		t.Fatal("emergency allowed recovery proposals", out.Review.Recovery)
+	if out.Review.VetoIncident(roundsIncident(t, out, policy.RecoverDisasterServices).Incident) != "" || out.Review.Recovery == nil {
+		t.Fatal("emergency blocked recovery proposals", out.Review.Recovery)
 	}
 	r.Facts.Hostiles = domain.Known(int64(0))
 	out = reviewRounds(t, s, &r)

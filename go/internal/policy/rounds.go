@@ -540,7 +540,7 @@ type RoundsFacts struct {
 	Hostiles, CriticalPatients domain.Fact[int64]
 	// UrgentPatients counts the critical patients who are bleeding or downed
 	// with a tend outstanding (policy.UrgentPatients). CriticalMedicine is an
-	// emergency, suspending every other goal, only while one exists or the
+	// emergency only while one exists or the
 	// count is unknown; a colonist who merely needs tending, or is downed
 	// with nothing to tend, keeps the goal active at priority 2 so the
 	// colony's other work and the clock go on around the tend or rescue.
@@ -955,13 +955,12 @@ func (r RoundsFindings) All() []RoundsAssessment {
 	return slices.Concat(r.Assessments, r.Incidents)
 }
 
-// criticalMedicinePriority is 1 (an emergency that suspends every other goal)
+// criticalMedicinePriority is 1 (an emergency finding)
 // while any critical patient is urgent (policy.UrgentPatients) or the urgent
 // count is unknown, and 2 while every patient is stable: resting under care,
 // only needing a tend, or downed with nothing to tend. A stable patient is
-// served by the same tend and rescue methods; what the lower priority drops
-// is the suspension that otherwise parked the colony and its clock behind a
-// condition nobody could clear (#66, #304).
+// served by the same tend and rescue methods without classifying their
+// condition as an emergency.
 func criticalMedicinePriority(f RoundsFacts) int {
 	patients, pk := f.CriticalPatients.Value()
 	if !pk || patients == 0 {

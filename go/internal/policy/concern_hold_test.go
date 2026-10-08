@@ -31,16 +31,12 @@ func TestWaitingGoalSaysWhatItWaitsOn(t *testing.T) {
 
 func TestHoldProgressNamesIntentionalHolds(t *testing.T) {
 	progress := []ConcernProgress{{Concern: EnsureResearch, Blocked: BlockedNoMethod}, {Concern: EnsureComfort, Blocked: BlockedNoMethod, Planner: PlannerOptOut}, {Concern: MaintainResource, Blocked: BlockedNoMethod}, {Concern: MaintainHousing, Blocked: BlockedNoWorker}}
-	got := HoldProgress(progress, nil, map[ConcernID]bool{EnsureResearch: true})
+	got := HoldProgress(progress, map[ConcernID]bool{EnsureResearch: true})
 	want := []BlockedReason{HeldUnavailable, HeldOptIn, BlockedNoMethod, BlockedNoWorker}
 	for i, w := range want {
 		if got[i].Blocked != w || ValidateConcernProgress(got[i], 0) != nil {
 			t.Fatal(got[i], w)
 		}
-	}
-	emergency := HoldProgress(progress, []ConcernID{MaintainResource}, nil)
-	if emergency[0].Blocked != HeldEmergency || emergency[2].Blocked != BlockedNoMethod || emergency[3].Blocked != BlockedNoWorker {
-		t.Fatal(emergency)
 	}
 	if progress[0].Blocked != BlockedNoMethod {
 		t.Fatal("input mutated")

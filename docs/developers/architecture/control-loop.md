@@ -92,9 +92,9 @@ Storage:
 
 A Safeguard is not a Type. It is an admission veto: it rejects proposals,
 pursues nothing and owns no Methods. It is evaluated at Admission, and
-suspending other work is a Safeguard's job, not a priority value. Safeguards
-carry no Concern id of their own: the emergency check (`EmergencySafeguard`) and
-the unsafe-item veto split from `ManageSupplySafety` are Safeguards, while
+suspending new routine orders during manual pause is a Safeguard's job. Safeguards
+carry no Concern id of their own: manual pause and the unsafe-item veto
+split from `ManageSupplySafety` are Safeguards, while
 `ManageSupplySafety` itself is the Standard doing the allow and forbid work.
 
 Every Concern id in `go/internal/policy` (`ConcernID` in code):

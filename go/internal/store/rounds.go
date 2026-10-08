@@ -36,8 +36,7 @@ type ReserveSupply struct {
 // Rounds is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
 type Rounds struct {
-	// Emergency names the assessed needs policy.EmergencyNeed found in this
-	// enabled review; the EmergencySafeguard vetoes other work from them (#1017).
+	// Emergency findings guide response planning and reporting.
 	Emergency []policy.ConcernID `json:",omitempty"`
 	// Unsafe lists the loose things the last known safety census reported
 	// unsafe to haul; policy.UnsafeLootSafeguard refuses allowing them at
@@ -131,10 +130,7 @@ type RoundsResult struct {
 	Projects []ProjectState
 	// Incidents are the occurrences Review.Incidents binds (#1020).
 	Incidents []IncidentState
-	// Emergency names the assessed needs whose EmergencySafeguard vetoes every
-	// priority>=2 proposal in this review (a home fire, live hostiles, a critical patient);
-	// empty when nothing did. The development rows only say "emergency", so
-	// this is the log's answer to which need held the colony (#221).
+	// Emergency findings guide response planning and reporting.
 	Emergency []policy.ConcernID
 	// Detection is what an enabled review passed policy.DetectRounds: the
 	// journal-enriched facts, the prior latches and the staged policy. Not
@@ -671,8 +667,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			result.Projects = append(result.Projects, oldProjects[binding.Concern])
 		}
 	} else {
-		// The review records the emergency needs; the EmergencySafeguard vetoes
-		// other work from them at admission and dispatch (#1017).
+		// Emergency findings guide response planning and reporting.
 		for _, n := range needs.All() {
 			if policy.EmergencyNeed(n) {
 				r.Emergency = append(r.Emergency, n.ID)
@@ -761,7 +756,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		for _, n := range needs.Concerns {
 			unavailable[n.ID] = unavailable[n.ID] || n.MethodUnavailable
 		}
-		r.Progress = policy.HoldProgress(r.Progress, r.Emergency, unavailable)
+		r.Progress = policy.HoldProgress(r.Progress, unavailable)
 		r.ReadyWork = &ready
 		r.Recovery, err = roundsRecovery(ctx, tx, request.Facts, disaster, r, request.Tick)
 		if err != nil {

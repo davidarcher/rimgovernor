@@ -3,17 +3,14 @@ package store
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The Safeguards veto method admission during an emergency and a pause, with
-// the Safeguard's reason, and admit once the emergency clears (#1017). The goal
-// itself stays active throughout: priority orders work only.
-func TestRoundsSafeguardsVetoAdmissionUntilEmergencyClears(t *testing.T) {
+// Emergency findings do not suspend ordinary work; manual pause still does.
+func TestRoundsEmergencyAllowsAdmissionAndDispatchButPauseVetoes(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
@@ -34,22 +31,24 @@ func TestRoundsSafeguardsVetoAdmissionUntilEmergencyClears(t *testing.T) {
 	if g.Standard.Status != domain.StandardOpen {
 		t.Fatal("an emergency must not change the goal's status", g.Standard.Status)
 	}
-	_, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a"))
-	if !errors.Is(err, ErrNotAdmitted) || !strings.Contains(err.Error(), "emergency MaintainFireSafety") {
-		t.Fatal("emergency admitted a priority>=2 method", err)
+	p := plan(t, "p", "a", "b")
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood", p); err != nil {
+		t.Fatal("emergency blocked ordinary work", err)
+	}
+	if _, err = s.Prepare(ctx, "p", "a", scope(), r.Tick); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Prepare(ctx, "p", "b", scope(), r.Tick); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Dispatch(ctx, "p", "a", scope(), r.Tick); err != nil {
+		t.Fatal("emergency blocked dispatch", err)
 	}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{})
 	r.Tick++
 	out = reviewRounds(t, s, &r)
 	if len(out.Review.Emergency) != 0 {
 		t.Fatal("emergency did not clear", out.Review.Emergency)
-	}
-	g = roundsGoal(t, out, policy.MaintainResource)
-	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
-		t.Fatal("cleared emergency still vetoed", err)
-	}
-	if _, err = s.Prepare(ctx, "p", "a", scope(), r.Tick); err != nil {
-		t.Fatal(err)
 	}
 	r.Enabled = false
 	r.Tick++
@@ -58,10 +57,10 @@ func TestRoundsSafeguardsVetoAdmissionUntilEmergencyClears(t *testing.T) {
 	if reason := out.Review.Veto(g.Standard); reason != "control paused" {
 		t.Fatal("pause did not veto routine work", reason)
 	}
-	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood2", plan(t, "p2", "a2")); !errors.Is(err, ErrNotAdmitted) {
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood3", plan(t, "p3", "a3")); !errors.Is(err, ErrNotAdmitted) {
 		t.Fatal("pause admitted a routine method", err)
 	}
-	if _, err = s.Dispatch(ctx, "p", "a", scope(), r.Tick); !errors.Is(err, ErrNotAdmitted) {
+	if _, err = s.Dispatch(ctx, "p", "b", scope(), r.Tick); !errors.Is(err, ErrNotAdmitted) {
 		t.Fatal("pause dispatched a prepared plan", err)
 	}
 }

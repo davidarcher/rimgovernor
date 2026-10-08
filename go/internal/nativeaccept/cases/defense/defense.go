@@ -755,9 +755,8 @@ const layoutBuildTicks = 3 * 60000
 // buildProgress is the layout's construction as wait progress. A plan's
 // stages all read completed once its blueprints are placed, and the
 // colonists then build them over game hours with nothing in the journal
-// changing; a raid mid-build parks the layout planner (an emergency vetoes
-// it) while the fight itself takes minutes of wall time, and a built tier's
-// plan is retired before the next tier is admitted (#2134). The advancing
+// changing. A built tier's plan is retired before the next tier is admitted
+// (#2134). The advancing
 // tick is that progress for layoutBuildTicks after the open plans or the
 // record's built and attempted tiers last changed; a stopped clock or a
 // layout that never moves again still stalls.

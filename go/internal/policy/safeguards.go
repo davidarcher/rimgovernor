@@ -6,14 +6,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// SafeguardContext is what the Safeguards read: the rounds's control state,
-// the emergency needs it found (EmergencyNeed), which the review keeps in its
-// JSON record, and the loose things the last safety census reported unsafe
+// SafeguardContext is what the Safeguards read: the rounds's control state
+// and the loose things the last safety census reported unsafe
 // to haul (fire, trap, hostile line of sight).
 type SafeguardContext struct {
-	Enabled   bool
-	Emergency []ConcernID
-	Unsafe    []string
+	Enabled bool
+	Unsafe  []string
 }
 
 // SafeguardProposal is the routine goal a proposal would serve: its need and its
@@ -21,25 +19,6 @@ type SafeguardContext struct {
 type SafeguardProposal struct {
 	Need     ConcernID
 	Priority int
-	// HunterWeapons marks the one proposal an emergency does not suspend:
-	// EnsureFoodSupply's craft of the hunters' weapons (HunterWeaponCraft).
-	HunterWeapons bool
-}
-
-// HunterWeaponCraft reports whether a method of need is the hunters' weapon
-// craft: a gear-batch bill (only the armory writes those) owned by
-// EnsureFoodSupply. Food's hunt waits on that weapon, and EnsureFoodSupply sits at
-// priority 2, so it is no emergency need that ownership alone could exempt.
-func HunterWeaponCraft(need ConcernID, actions []domain.Action) bool {
-	if need != EnsureFoodSupply || len(actions) == 0 {
-		return false
-	}
-	for _, a := range actions {
-		if bill, ok := a.ProductionBill(); !ok || bill.Mode() != domain.GearBatch {
-			return false
-		}
-	}
-	return true
 }
 
 // Admission is what a Safeguard is asked to admit: a whole-goal proposal (#1017)
@@ -80,21 +59,6 @@ func (PauseSafeguard) Veto(c SafeguardContext, a Admission) string {
 	return "control paused"
 }
 
-// EmergencySafeguard vetoes every proposal at priority 2 or above while the
-// review found an emergency need; the emergency needs themselves and
-// anything below priority 2 are exempt, and so is the hunters' weapon craft.
-type EmergencySafeguard struct{}
-
-func (EmergencySafeguard) Name() string { return "EmergencySafeguard" }
-
-func (EmergencySafeguard) Veto(c SafeguardContext, a Admission) string {
-	p := a.Proposal
-	if p == nil || len(c.Emergency) == 0 || p.Priority < 2 || slices.Contains(c.Emergency, p.Need) || p.HunterWeapons {
-		return ""
-	}
-	return "emergency " + joinConcerns(c.Emergency)
-}
-
 // UnsafeLootSafeguard refuses allowing an item the safety census reported unsafe.
 // Forbidding stays open: that is ManageSupplySafety's Standard work. A veto
 // refuses only that action, and the rest of its plan dispatches.
@@ -114,7 +78,7 @@ func (UnsafeLootSafeguard) Veto(c SafeguardContext, a Admission) string {
 }
 
 // Safeguards is the veto registry: every admission Safeguard, asked in order.
-var Safeguards = []Safeguard{PauseSafeguard{}, EmergencySafeguard{}, UnsafeLootSafeguard{}}
+var Safeguards = []Safeguard{PauseSafeguard{}, UnsafeLootSafeguard{}}
 
 // Refuse asks each Safeguard in turn and returns the first refusal, or false
 // when every Safeguard admits.
@@ -142,15 +106,4 @@ func RefuseAction(c SafeguardContext, a domain.Action) (SafeguardRefusal, bool) 
 func VetoProposal(c SafeguardContext, p SafeguardProposal) string {
 	r, _ := RefuseProposal(c, p)
 	return r.Reason
-}
-
-func joinConcerns(ids []ConcernID) string {
-	out := ""
-	for i, id := range ids {
-		if i > 0 {
-			out += ","
-		}
-		out += string(id)
-	}
-	return out
 }

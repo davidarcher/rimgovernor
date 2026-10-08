@@ -201,7 +201,7 @@ type ArmoryPrimary struct {
 // A hunter (WeaponRoleHunter) wants a hunting weapon (WeaponDef.Hunts), so one
 // unarmed or armed without it is demand like any unarmed colonist. Those
 // weapons are returned apart as hunters: food owns that craft
-// (EnsureFoodSupply), so an emergency never suspends it. A hunter's upgrade
+// (EnsureFoodSupply). A hunter's upgrade
 // stays an ordinary fighter's.
 func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries map[domain.PawnID]ArmoryPrimary, weapons []EquipCandidateWeapon, recipes []GearRecipe, products map[Resource]WeaponDef) (fighters, hunters []Amount) {
 	assigned := map[domain.PawnID]bool{}

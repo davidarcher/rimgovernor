@@ -58,8 +58,8 @@ func TestRoundsUndeclaredFireEmergencyKeepsMethodsAuthorized(t *testing.T) {
 		err = s.AuthorizeRoundsPlan(ctx, r.Current, target)
 		power := roundsProject(t, out, policy.EnsureBasicPower)
 		if declared {
-			if len(out.Emergency) != 1 || out.Review.VetoProject(power.Project) == "" || err == nil {
-				t.Fatal("declared fire method did not veto", out.Emergency, power, err)
+			if len(out.Emergency) != 1 || out.Review.VetoProject(power.Project) != "" || err != nil {
+				t.Fatal("declared fire blocked ordinary power work", out.Emergency, power, err)
 			}
 			continue
 		}

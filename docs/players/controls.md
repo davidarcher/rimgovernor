@@ -32,7 +32,7 @@ then four sections:
   deadline, most urgent first; an emergency is marked. The last clock stop and
   how long it took to land close the section.
 - **Waiting**: the Concerns waiting on prerequisites, unavailable methods,
-  native blockers or emergency precedence. Pawn work priorities schedule queued
+  native blockers. Pawn work priorities schedule queued
   work; the governor does not allocate exclusive development slots.
 
 In Observe mode the controller serves no colony readings, so the tab shows a

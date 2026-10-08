@@ -122,8 +122,6 @@ func blockedLabel(blocked string) string {
 	switch blocked {
 	case "":
 		return "Progressing"
-	case "held:emergency":
-		return "Held for an emergency"
 	case "held:unavailable":
 		return "Held: unavailable"
 	case "held:opt-in":
@@ -261,9 +259,6 @@ func reportView(nr Reading[spectator.Now], dr Reading[RoundsView]) ReportView {
 	}
 	devNote := feedOf(dr, "Round progress").Notice
 	emergency := dr.Value != nil && len(dr.Value.Emergency) > 0
-	for _, c := range n.Concerns {
-		emergency = emergency || c.Blocked == "held:emergency"
-	}
 	idle := idleReasons[n.Pacing.Reason]
 
 	// Headline.
@@ -350,8 +345,6 @@ func reportView(nr Reading[spectator.Now], dr Reading[RoundsView]) ReportView {
 		text += " - " + deadline(c.NextReview, n.Tick)
 		flag := ""
 		switch {
-		case c.Blocked == "held:emergency":
-			flag = "emergency"
 		case c.Blocked != "":
 			flag = "warn"
 		}

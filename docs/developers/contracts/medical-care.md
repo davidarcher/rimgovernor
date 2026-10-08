@@ -25,7 +25,7 @@ player orders never authorize retries.
 
 ## Go planning
 
-`CriticalMedicine` is a priority-1 emergency, suspending every other concern, only
+`CriticalMedicine` is a priority-1 emergency only
 while a critical patient is bleeding or downed with a tend outstanding, or that
 count is unknown (`policy.UrgentPatients`). A living colonist who merely needs
 tending (chronic conditions included), or who is downed with nothing to tend

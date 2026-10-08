@@ -114,7 +114,7 @@ func (g StandardState) ownerLabel() string { return "standard " + string(g.Stand
 // planner already asked: a vetoed proposal is ErrNotAdmitted with the
 // Safeguard's reason. An owner the review does not bind (a player goal) is
 // outside the routine Safeguards.
-func admitRoundsSafeguards(ctx context.Context, tx *sql.Tx, owner methodOwner, actions []domain.Action) error {
+func admitRoundsSafeguards(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
 	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return err
@@ -123,7 +123,7 @@ func admitRoundsSafeguards(ctx context.Context, tx *sql.Tx, owner methodOwner, a
 	if !bound {
 		return nil
 	}
-	proposal := policy.SafeguardProposal{Need: need, Priority: owner.ownerPriority(), HunterWeapons: policy.HunterWeaponCraft(need, actions)}
+	proposal := policy.SafeguardProposal{Need: need, Priority: owner.ownerPriority()}
 	if ref, vetoed := review.refuse(proposal); vetoed {
 		return fmt.Errorf("%w: %s: %s: %s", ErrNotAdmitted, owner.ownerLabel(), ref.Safeguard, ref.Reason)
 	}
@@ -179,7 +179,7 @@ func (r Rounds) refuseNeed(need domain.ConcernID, priority int) (policy.Safeguar
 }
 
 func (r Rounds) refuse(p policy.SafeguardProposal) (policy.SafeguardRefusal, bool) {
-	return policy.RefuseProposal(policy.SafeguardContext{Enabled: r.Enabled, Emergency: r.Emergency, Unsafe: r.Unsafe}, p)
+	return policy.RefuseProposal(policy.SafeguardContext{Enabled: r.Enabled, Unsafe: r.Unsafe}, p)
 }
 
 func (r Rounds) vetoNeed(need domain.ConcernID, priority int) string {

@@ -93,7 +93,7 @@ func (g Standard) Validate() error {
 // measured it while a plan's effects were still unresolved and the world has
 // regressed since (a lamp removed behind a lit bench), so the settled
 // episode's methods may be proposed again. Priority orders work only: an
-// emergency or a pause vetoes proposals through the policy Safeguards (#1017).
+// manual pause vetoes proposals through the policy Safeguards.
 // Projects are not goals (Project, ReviewProject).
 //
 // A goal carries no review tick: a review that changes nothing returns g

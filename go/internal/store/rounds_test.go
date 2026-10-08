@@ -216,7 +216,7 @@ func TestRoundsTransactionRollbackAndStaleCursor(t *testing.T) {
 	}
 }
 
-func TestRoundsEmergencyHoldsSharedMethodUntilObservedRecovery(t *testing.T) {
+func TestRoundsEmergencyDoesNotHoldSharedMethod(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
@@ -228,11 +228,11 @@ func TestRoundsEmergencyHoldsSharedMethodUntilObservedRecovery(t *testing.T) {
 	}
 	r.Facts.Hostiles = domain.Unknown[int64]()
 	out = reviewRounds(t, s, &r)
-	if out.Review.Veto(roundsGoal(t, out, policy.MaintainResource).Standard) == "" {
+	if out.Review.Veto(roundsGoal(t, out, policy.MaintainResource).Standard) != "" {
 		t.Fatal(out)
 	}
-	if _, err := s.Prepare(ctx, "p", "a", scope(), r.Tick); err == nil {
-		t.Fatal("unknown threat allowed routine work")
+	if _, err := s.Prepare(ctx, "p", "a", scope(), r.Tick); err != nil {
+		t.Fatal("unknown threat blocked routine preparation", err)
 	}
 	r.Facts.Hostiles = domain.Known(int64(0))
 	reviewRounds(t, s, &r)

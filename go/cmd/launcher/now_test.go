@@ -20,7 +20,7 @@ func TestLabels(t *testing.T) {
 		t.Fatal(got)
 	}
 	for in, want := range map[string]string{"": "Progressing", "no_worker": "No capable worker available", "prerequisite:Roof": "Needs Roof first", "odd": "odd",
-		"held:emergency": "Held for an emergency", "planner:no site": "Planner refused: no site", "waiting:wood": "Waiting: wood"} {
+		"planner:no site": "Planner refused: no site", "waiting:wood": "Waiting: wood"} {
 		if got := blockedLabel(in); got != want {
 			t.Fatalf("%q -> %q", in, got)
 		}
@@ -85,7 +85,7 @@ func TestReportView(t *testing.T) {
 	stopped := paced(spectator.ReasonStopped, "tick budget")
 	stopped.Concerns = nil
 	emergencyNow := healthy
-	emergencyNow.Concerns = []spectator.Concern{{Concern: "Fire", Method: "Extinguish", Expected: "burning cells", LastProgress: 9900, NextReview: 9000, Blocked: "no_worker"}, {Concern: "Roof", Blocked: "held:emergency"}}
+	emergencyNow.Concerns = []spectator.Concern{{Concern: "Fire", Method: "Extinguish", Expected: "burning cells", LastProgress: 9900, NextReview: 9000, Blocked: "no_worker"}, {Concern: "Roof", Blocked: "no_worker"}}
 	emergencyDev := RoundsView{Tick: ptr(int64(9000)), Emergency: []string{"Fire"}}
 
 	at := time.Date(2026, 1, 1, 10, 30, 5, 0, time.Local)
@@ -127,8 +127,8 @@ func TestReportView(t *testing.T) {
 		{name: "emergency", now: Reading[spectator.Now]{Value: &emergencyNow}, dev: Reading[RoundsView]{Value: &emergencyDev}, hasValue: true,
 			headline: "Stage Foothold, governor running, last review 1,000 ticks ago, an emergency is in force.",
 			contains: map[string][]string{
-				"Concerns": {"emergency|Emergency in force.", "warn|Fire - Extinguish - No capable worker available - review overdue by 1,000 ticks", "emergency|Roof - no method - Held for an emergency"},
-				"Waiting":  {"|Roof - Held for an emergency"},
+				"Concerns": {"emergency|Emergency in force.", "warn|Fire - Extinguish - No capable worker available - review overdue by 1,000 ticks", "warn|Roof - no method - No capable worker available"},
+				"Waiting":  {"|Roof - No capable worker available"},
 				"Doing":    {"|Fire: Extinguish, to move burning cells (last moved 100 ticks ago)"},
 			}},
 		{name: "stale progress keeps its last value", now: Reading[spectator.Now]{Value: &healthy}, hasValue: true,

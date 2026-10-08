@@ -29,7 +29,7 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 		return RoundsArmoryResult{}, err
 	}
 
-	food, foodWorkable, err := p.journal.WorkableHunterWeapons(call, review)
+	food, foodWorkable, err := p.journal.Workable(call, review, policy.EnsureFoodSupply)
 	if err != nil {
 		return RoundsArmoryResult{}, err
 	}

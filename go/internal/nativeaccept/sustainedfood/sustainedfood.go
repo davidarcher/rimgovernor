@@ -444,7 +444,7 @@ func SampleStandard(ctx context.Context, s *store.Store, need policy.ConcernID) 
 	}
 
 	sample["latch_food"] = review.Latches.Food
-	// The emergency needs whose EmergencySafeguard vetoes other work (#1017).
+	// Emergency findings guide response planning and reporting.
 	emergency := []string{}
 	for _, id := range review.Emergency {
 		emergency = append(emergency, string(id))
