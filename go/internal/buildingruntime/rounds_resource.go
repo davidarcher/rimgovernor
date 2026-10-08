@@ -193,7 +193,7 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoundsResourceResult{}, err
 	}
-	ranked, err := policy.RankResourceTargets(targets, stock)
+	ranked, err := policy.RankResourceTargets(policy.ResourceConcernTargets(targets, supply.derived), stock)
 	if err != nil {
 		return RoundsResourceResult{}, err
 	}

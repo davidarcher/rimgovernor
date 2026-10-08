@@ -288,19 +288,6 @@ func clockPolicy(p *k.WatchPolicy, budget int64) error {
 	if len(p.MedicalRestIds) > 0 && budget > 600 {
 		return contract("medical rest clock budget exceeds 600 ticks")
 	}
-	if len(p.ResourceThresholds) > ClockResourceThresholdsMax {
-		return contract("clock policy resource threshold bound")
-	}
-	levels := map[string]bool{}
-	for _, t := range p.ResourceThresholds {
-		if t.DefName == nil || validID(t.GetDefName()) != nil || t.Level == nil || t.GetLevel() < 1 {
-			return contract("invalid clock resource threshold")
-		}
-		if levels[t.GetDefName()] {
-			return contract("duplicate clock resource threshold")
-		}
-		levels[t.GetDefName()] = true
-	}
 	if len(p.CombatStopEvents) > 0 && p.GetMode() != k.WatchMode_WATCH_MODE_COMBAT {
 		return contract("combat stop events outside combat mode")
 	}
@@ -313,9 +300,6 @@ func clockPolicy(p *k.WatchPolicy, budget int64) error {
 	}
 	return nil
 }
-
-// ClockResourceThresholdsMax bounds the stock levels one epoch digests (#670).
-const ClockResourceThresholdsMax = 32
 
 func clockOwner(owner *k.EpochOwner) error {
 	if owner == nil || owner.ControllerSessionId == nil || owner.Epoch == nil || owner.GetEpoch() <= 0 {

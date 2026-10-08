@@ -536,8 +536,6 @@ namespace HomeBridge.BridgeTools
                 && policy.HasHostileWithin && !float.IsNaN(policy.HostileWithin) && policy.HostileWithin >= 1 && policy.HostileWithin <= 250
                 && policy.HasInjuryStopCooldownMs && policy.InjuryStopCooldownMs <= 1800000
                 && (policy.MedicalRestIds.Count == 0 || maxTicks <= 600)
-                && policy.ResourceThresholds.Count <= 32 && policy.ResourceThresholds.All(t => t.HasDefName && ProtoBoundary.IsIdentifier(t.DefName) && t.HasLevel && t.Level >= 1)
-                && policy.ResourceThresholds.Select(t => t.DefName).Distinct(StringComparer.Ordinal).Count() == policy.ResourceThresholds.Count
                 && (policy.CombatStopEvents.Count == 0 || policy.Mode == Clock.WatchMode.Combat)
                 && policy.CombatStopEvents.All(e => e != Clock.CombatEvent.Unspecified && Enum.IsDefined(typeof(Clock.CombatEvent), e))
                 && policy.CombatStopEvents.Distinct().Count() == policy.CombatStopEvents.Count

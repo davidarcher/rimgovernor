@@ -148,7 +148,9 @@ never spendable steel. Every ingredient of any produce bill is priced against
 census stock; an ingredient with a runway row keeps that row's protected line
 (reserve plus five days of use) and one without protects nothing. An unread
 census blocks the bill, and an existing active component bill prevents a
-duplicate.
+duplicate. An ingredient the colony cannot spare for the bill (cost less usable
+stock) becomes a floor of its own in the same supply plan, so a cold start with
+no recorded spend mines the steel (#2487).
 
 The durable review retains both materials' stock, ore, rate, window, reserve,
 target and deficit. `/api/routines` exposes them as `resourceRunways`, with

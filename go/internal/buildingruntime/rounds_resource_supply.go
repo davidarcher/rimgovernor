@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -52,6 +53,9 @@ type resourceSupply struct {
 	// order is the unmet floors, worst covered first.
 	order []policy.Resource
 	rows  map[policy.Resource]*resourceSupplyRow
+	// derived are the floors the produce bills' ingredient needs add to the
+	// colony's targets (stock plus the bill's unfunded draw).
+	derived map[policy.Resource]int64
 	// tokens maps each bench id of the census to its write token.
 	tokens map[string]string
 	// hunts is how many hunts may be admitted.
@@ -108,7 +112,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 		return nil, err
 	}
 	serves := r.construction.getServes(state.Snapshot)
-	out := &resourceSupply{rows: map[policy.Resource]*resourceSupplyRow{}, tokens: map[string]string{}}
+	out := &resourceSupply{rows: map[policy.Resource]*resourceSupplyRow{}, tokens: map[string]string{}, derived: map[policy.Resource]int64{}}
 	planner := &RoundsResourcePlanner{reviewer: r, native: r.resourceNative}
 	identity := boundary.Identity(state.Snapshot)
 
@@ -158,7 +162,16 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 		runways = review.ResourceRunwayState()
 	}
 	var inputs []policy.ResourceSupplyInput
+	queued := map[policy.Resource]bool{}
 	for _, target := range ranked {
+		queued[target.Resource] = true
+	}
+	// A produce bill's ingredient the colony cannot spare is a floor of its
+	// own: the bill's priced need (cost less the usable stock) becomes supply
+	// demand for the ingredient, so a cold start with no recorded spend mines
+	// the steel instead of holding the bill unavailable forever.
+	for i := 0; i < len(ranked); i++ {
+		target := ranked[i]
 		resource := target.Resource
 		deficit := target.Target - policy.StockReader{Resources: stock}.Units(resource)
 		if resource == "Beer" || deficit <= 0 {
@@ -189,6 +202,19 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 			}
 			if produce, found := policy.ProduceCandidate(row.choice, deficit); found {
 				input.Candidates = append(input.Candidates, produce)
+				for _, cost := range produce.UpfrontCost.Resources {
+					short := cost.Count
+					for _, usable := range input.Usable {
+						if usable.Key == cost.Key {
+							short -= usable.Count
+						}
+					}
+					if known := slices.ContainsFunc(input.Usable, func(q policy.ResourceQuantity) bool { return q.Key == cost.Key }); known && short > 0 && !queued[cost.Key.Def] {
+						queued[cost.Key.Def] = true
+						out.derived[cost.Key.Def] = policy.StockReader{Resources: stock}.Units(cost.Key.Def) + short
+						ranked = append(ranked, policy.ResourceTarget{Resource: cost.Key.Def, Target: out.derived[cost.Key.Def]})
+					}
+				}
 			}
 		}
 		// A designated chop or harvest already covers part of the need.

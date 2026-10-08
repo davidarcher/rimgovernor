@@ -136,21 +136,10 @@ message WatchPolicy {
   repeated string medical_rest_ids = 10;
   // Watched attempts only ever named construction operations, which moved
   // to Actions/Apply (#856).
-  // Stored-resource levels the controller's planners act on (#670). When a
-  // definition's colony stock crosses its level in either direction under a
-  // running epoch the journal gets an observation_invalidated row for the
-  // colony family; the clock does not stop. At most 32, distinct def names,
-  // level >= 1.
-  repeated ResourceThreshold resource_thresholds = 12;
   // WATCH_MODE_COMBAT only: the combat events that stop the epoch on the
   // tick they happen (STOP_REASON_COMBAT_EVENT, #849). Distinct, specified;
   // empty arms none. Refused outside combat mode.
   repeated CombatEvent combat_stop_events = 13;
-}
-
-message ResourceThreshold {
-  optional string def_name = 1;
-  optional int64 level = 2;
 }
 
 // Epoch ownership is distinct from automation authority and viewer/input leases.
