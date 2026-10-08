@@ -13,12 +13,13 @@ const ProjectionHorizonDays = 5.0
 // ForwardInputs are the facts one projection reads. Shadow only: nothing in
 // admission consumes the result.
 type ForwardInputs struct {
-	Food       FoodSupply
-	Power      []PowerNetworkFact
-	Sleeping   SleepingRange
-	Conditions domain.Fact[[]DisasterCondition]
-	Turrets    domain.Fact[[]DefenseTurretFacts]
-	Policy     RoundsPolicy
+	Food         FoodSupply
+	Power        []PowerNetworkFact
+	Sleeping     SleepingRange
+	Conditions   domain.Fact[[]DisasterCondition]
+	Turrets      domain.Fact[[]DefenseTurretFacts]
+	Policy       RoundsPolicy
+	Construction ConstructionInputs
 }
 
 // SleepingRange is the coldest and hottest observed sleeping-room temperature.
@@ -27,11 +28,12 @@ type SleepingRange struct{ Min, Max domain.Fact[float64] }
 // ForwardProjection rolls each resource forward over HorizonDays. A resource
 // whose inputs are not all observed is an unknown fact, never a default.
 type ForwardProjection struct {
-	HorizonDays float64
-	Food        domain.Fact[FoodProjection]
-	Power       domain.Fact[PowerProjection]
-	Temperature domain.Fact[TemperatureProjection]
-	Defense     domain.Fact[DefenseProjection]
+	HorizonDays  float64
+	Food         domain.Fact[FoodProjection]
+	Power        domain.Fact[PowerProjection]
+	Temperature  domain.Fact[TemperatureProjection]
+	Defense      domain.Fact[DefenseProjection]
+	Construction domain.Fact[ConstructionProjection]
 }
 
 type FoodProjection struct {
@@ -74,15 +76,18 @@ type DefenseProjection struct {
 // ProjectionHorizonDays.
 func ProjectForward(in ForwardInputs) ForwardProjection {
 	return ForwardProjection{
-		HorizonDays: ProjectionHorizonDays,
-		Food:        projectFood(in.Food),
-		Power:       projectPower(in.Power),
-		Temperature: projectTemperature(in),
-		Defense:     projectDefense(in.Turrets),
+		HorizonDays:  ProjectionHorizonDays,
+		Food:         projectFood(in.Food),
+		Power:        projectPower(in.Power),
+		Temperature:  projectTemperature(in),
+		Defense:      projectDefense(in.Turrets),
+		Construction: projectConstruction(in.Construction),
 	}
 }
 
-func shortfall(days float64) float64 { return math.Max(0, ProjectionHorizonDays-days) }
+// RunwayShortfall is the days a runway falls short of target: the one formula
+// the food projection, the power projection and NutritionDemand share.
+func RunwayShortfall(runway, target float64) float64 { return math.Max(0, target-runway) }
 
 func projectFood(supply FoodSupply) domain.Fact[FoodProjection] {
 	forecast, err := ForecastFood(supply, nil)
@@ -93,7 +98,7 @@ func projectFood(supply FoodSupply) domain.Fact[FoodProjection] {
 	if !known || !finite(days) {
 		return domain.Unknown[FoodProjection]()
 	}
-	return domain.Known(FoodProjection{RunwayDays: days, ShortfallDays: shortfall(days)})
+	return domain.Known(FoodProjection{RunwayDays: days, ShortfallDays: RunwayShortfall(days, ProjectionHorizonDays)})
 }
 
 func projectPower(nets []PowerNetworkFact) domain.Fact[PowerProjection] {
@@ -106,7 +111,7 @@ func projectPower(nets []PowerNetworkFact) domain.Fact[PowerProjection] {
 		if !known || math.IsNaN(days) || days < 0 {
 			return domain.Unknown[PowerProjection]()
 		}
-		row := PowerNetProjection{ID: n.ID, ReserveDays: days, ShortfallDays: shortfall(days)}
+		row := PowerNetProjection{ID: n.ID, ReserveDays: days, ShortfallDays: RunwayShortfall(days, ProjectionHorizonDays)}
 		out.ShortfallDays = math.Max(out.ShortfallDays, row.ShortfallDays)
 		out.Nets = append(out.Nets, row)
 	}

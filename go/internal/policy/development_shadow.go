@@ -23,16 +23,31 @@ const (
 	ShadowPower       ShadowDomain = "power"
 	ShadowTemperature ShadowDomain = "temperature"
 	ShadowDefense     ShadowDomain = "defense"
+	// ShadowConstruction is wood, stone and steel owed to standing and
+	// admitted construction against stock (#2365).
+	ShadowConstruction ShadowDomain = "construction"
 )
 
-// shadowDomains is the goal-to-domain table (David, #1913 comment). A goal
-// outside it is left out of the ranking, never defaulted.
-var shadowDomains = map[ConcernID]ShadowDomain{
-	MaintainResource:        ShadowFood,
-	MaintainFoodStorage:     ShadowFood,
-	MaintainRefrigeration:   ShadowPower,
-	EnsureTemperatureSafety: ShadowTemperature,
-	EnsureBasicDefense:      ShadowDefense,
+// shadowDomains is the goal-to-domain table (David, #1913 comment; #2365).
+// A goal outside it is left out of the ranking, never defaulted. A goal with
+// two domains scores the larger known shortfall; it is unranked only when
+// every domain is unknown.
+var shadowDomains = map[ConcernID][]ShadowDomain{
+	MaintainResource:        {ShadowFood, ShadowConstruction},
+	MaintainFoodStorage:     {ShadowFood},
+	MaintainRefrigeration:   {ShadowPower},
+	EnsureTemperatureSafety: {ShadowTemperature},
+	EnsureBasicDefense:      {ShadowDefense},
+	// The construction-bearing Shelter and Industry building concerns.
+	MaintainStoneShell:   {ShadowConstruction},
+	MaintainHousing:      {ShadowConstruction},
+	MaintainShelter:      {ShadowConstruction},
+	MaintainHomeCoverage: {ShadowConstruction},
+	MaintainFlooring:     {ShadowConstruction},
+	MaintainLighting:     {ShadowConstruction},
+	MaintainFirebreak:    {ShadowConstruction},
+	EnsureBasicPower:     {ShadowConstruction},
+	EnsureMechCharger:    {ShadowConstruction},
 }
 
 // ForwardObserved are the projector inputs the routine facts do not already
@@ -44,7 +59,8 @@ type ForwardObserved struct {
 
 // ForwardInputsOf assembles the projector inputs from the routine facts.
 func ForwardInputsOf(f RoundsFacts, p RoundsPolicy) ForwardInputs {
-	in := ForwardInputs{Power: f.Forward.Power, Sleeping: SleepingRange{Min: f.SleepingMin, Max: f.SleepingMax}, Conditions: f.DisasterConditions, Turrets: f.Forward.Turrets, Policy: p}
+	in := ForwardInputs{Power: f.Forward.Power, Sleeping: SleepingRange{Min: f.SleepingMin, Max: f.SleepingMax}, Conditions: f.DisasterConditions, Turrets: f.Forward.Turrets, Policy: p,
+		Construction: ConstructionInputs{Deficit: f.ConstructionDeficit, Dependencies: f.Dependencies, Stock: f.Resources, Items: f.Items}}
 	if supply, known := f.AnimalUpkeep.Food.Value(); known {
 		in.Food = supply
 	}
@@ -116,6 +132,10 @@ func shadowShortfall(p ForwardProjection, d ShadowDomain) (float64, string) {
 		if _, ok := p.Defense.Value(); ok {
 			return 0, "defense projection has no shortfall"
 		}
+	case ShadowConstruction:
+		if v, ok := p.Construction.Value(); ok {
+			return v.ShortfallDays, ""
+		}
 	}
 	return 0, "projection unknown"
 }
@@ -130,12 +150,26 @@ func ShadowRankOf(s DevelopmentState, projection ForwardProjection, openActions 
 		if !shadowCandidate(row) {
 			continue
 		}
-		d, mapped := shadowDomains[row.Concern]
+		domains, mapped := shadowDomains[row.Concern]
 		if !mapped {
 			continue
 		}
 		rows[row.Concern] = row
-		days, why := shadowShortfall(projection, d)
+		var d ShadowDomain
+		var days float64
+		why := "projection unknown"
+		for _, cand := range domains {
+			dd, w := shadowShortfall(projection, cand)
+			if w != "" {
+				if why == "projection unknown" {
+					why = w
+				}
+				continue
+			}
+			if why != "" || dd > days {
+				d, days, why = cand, dd, ""
+			}
+		}
 		if why == "" && openActions[row.Concern] <= 0 {
 			why = "no open plan action"
 		}

@@ -71,7 +71,7 @@ func NutritionDemand(in NutritionDemandInput) (SupplyDemand, error) {
 		return SupplyDemand{}, ErrSupplyPlanFacts
 	}
 	usable := math.Max(0, runway-in.ReserveDays)
-	cover := 1 + math.Max(0, in.TargetDays-usable)/in.TargetDays
+	cover := 1 + RunwayShortfall(usable, in.TargetDays)/in.TargetDays
 	target := perDay * cover
 	if !foodNumber(target) {
 		return SupplyDemand{}, ErrSupplyPlanFacts

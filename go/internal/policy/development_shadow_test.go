@@ -28,7 +28,7 @@ func TestShadowRankOrdersByShortfallPerAction(t *testing.T) {
 		shadowRow(EnsureTemperatureSafety, ""),                // 5 / 1 = 5
 		shadowRow(EnsureBasicDefense, ""),                     // no shortfall in the projection
 		shadowRow(MaintainFoodStorage, ""),                    // no open action
-		shadowRow(MaintainHousing, ""),                        // unmapped: left out
+		shadowRow(MaintainPsylink, ""),                        // unmapped: left out
 		shadowRow(MaintainIncineration, DevelopmentCommitted), // already under way: left out
 	}}
 	open := map[ConcernID]int{MaintainRefrigeration: 1, MaintainResource: 4, EnsureTemperatureSafety: 1, EnsureBasicDefense: 2}
