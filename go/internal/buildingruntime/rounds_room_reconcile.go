@@ -47,14 +47,20 @@ type roomReconcile struct {
 }
 
 // roomRingInput is the ring-only diff input for room: the plan, the colony's
-// walls and doors with natural rock counted as wall; false while the construction
-// census is unknown.
+// walls and doors with natural rock counted as wall, and obstructions on the
+// ring alone; false while the construction census is unknown. Stored goods and
+// furniture inside the room do not obstruct its shell.
 func roomRingInput(facts observation.ColonyProjection, plan policy.LayoutPlan, room policy.PlannedRoom) (policy.ReconcileInput, bool) {
 	buildings, known := colonyGround(facts)
 	if !known {
 		return policy.ReconcileInput{}, false
 	}
-	return policy.ReconcileInput{Plan: plan, Room: room, Ground: plan.GroundWithRock(buildings, naturalRock(facts)), Rooms: colonyRooms(facts), Cells: cellsOn(facts.Cells, room.RoomGround())}, true
+	cells := cellsOn(facts.Cells, room.RoomGround())
+	in := room.Interior
+	cells = slices.DeleteFunc(cells, func(c policy.SiteCell) bool {
+		return c.Cell.X >= in.X && c.Cell.X < in.X+in.Width && c.Cell.Z >= in.Z && c.Cell.Z < in.Z+in.Height
+	})
+	return policy.ReconcileInput{Plan: plan, Room: room, Ground: plan.GroundWithRock(buildings, naturalRock(facts)), Rooms: colonyRooms(facts), Cells: cells}, true
 }
 
 // cellsOn is the mirror cells inside ground: the room's foreign things are read
@@ -246,6 +252,7 @@ func (b *RoundsBuildingPlanner) reconcileRooms(call, epoch context.Context, stat
 			return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
 		}
 		if !rr.ringOnly {
+			in.Cells = cellsOn(facts.Cells, rr.room.RoomGround())
 			source, ok := b.native.(observation.ClearanceSource)
 			if !ok {
 				return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil

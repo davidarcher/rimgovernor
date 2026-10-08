@@ -234,6 +234,9 @@ constrained terrain grow a connected irregular footprint
 A shell whose materials run out mid-build simply holds: dispatched wall
 orders wait for stock with no attempt timeout, and the review neither sites
 a second shell nor reissues an order while the plan is live.
+Ring-only construction clears obstructions on wall and door cells; goods,
+plants and furniture inside the room stay in place. Full room reconciliation
+also clears the interior for its furniture and flooring.
 Pausing and resuming control keeps the routine concern and its shell plan, so a
 restart mid-construction simply waits on the open plan. Only a world change
 (load token, map, tick rewind) invalidates the concern; the successor then
