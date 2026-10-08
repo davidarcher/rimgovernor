@@ -22,6 +22,7 @@ type ForwardInputs struct {
 	Construction ConstructionInputs
 	Fuel         FuelInputs
 	Drugs        []ResourceRunway
+	Materials    []ResourceRunway
 	Medicine     MedicineInputs
 	AnimalFeed   AnimalFeedInputs
 }
@@ -40,6 +41,7 @@ type ForwardProjection struct {
 	Construction domain.Fact[ConstructionProjection]
 	Fuel         domain.Fact[FuelProjection]
 	Drugs        domain.Fact[DrugProjection]
+	Resources    domain.Fact[MaterialProjection]
 	Medicine     domain.Fact[MedicineProjection]
 	AnimalFeed   domain.Fact[AnimalFeedProjection]
 }
@@ -92,6 +94,7 @@ func ProjectForward(in ForwardInputs) ForwardProjection {
 		Construction: projectConstruction(in.Construction),
 		Fuel:         PlanFuelRunway(in.Fuel).Projection,
 		Drugs:        PlanDrugRunway(in.Drugs),
+		Resources:    PlanMaterialRunway(in.Materials),
 		Medicine:     PlanMedicineRunway(in.Medicine),
 		AnimalFeed:   PlanAnimalFeedRunway(in.AnimalFeed).Projection,
 	}

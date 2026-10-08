@@ -97,6 +97,12 @@ type SupplyPlanRequest struct {
 	Candidates     domain.Fact[[]SupplyCandidate]
 	Labor          domain.Fact[float64]
 	UrgentPriority int
+	// Usable is each ingredient resource's units a produce candidate may
+	// spend: stock above what the plan protects. A candidate whose
+	// UpfrontCost.Resources names a resource absent here is unknown; the
+	// draws of the candidates opened are subtracted in rank order, so a bill
+	// cannot spend below the protected line however many bills compete.
+	Usable []ResourceQuantity
 }
 
 type SupplyDecision string
@@ -200,6 +206,7 @@ type supplyCand struct {
 	flow                            bool        // matches a flow demand
 	priority                        int
 	laborNew                        float64
+	scale                           float64 // fraction of the stock cap the ingredient draws leave affordable
 	cost                            float64 // labor-equivalent per covered value; +Inf covers nothing
 	credited                        []float64
 	finite                          bool // some yield is a stock cap: the source runs out
@@ -299,6 +306,13 @@ func PlanSupply(r SupplyPlanRequest) (SupplyPlan, error) {
 	for i, d := range demands {
 		remaining[i] = d.Units
 	}
+	usable := map[ResourceKey]int64{}
+	for _, q := range r.Usable {
+		if _, dup := usable[q.Key]; dup || !validAcquisitionKey(q.Key) || !validAcquisitionCount(q.Count) {
+			return fail()
+		}
+		usable[q.Key] = q.Count
+	}
 
 	var p SupplyPlan
 	var cands []*supplyCand
@@ -307,6 +321,11 @@ func PlanSupply(r SupplyPlanRequest) (SupplyPlan, error) {
 		c, missing, err := newSupplyCand(row, identities)
 		if err != nil {
 			return fail()
+		}
+		for _, q := range c.c.UpfrontCost.Resources {
+			if _, ok := usable[q.Key]; !ok {
+				missing = append(missing, goodName(q.Key)+"_usable")
+			}
 		}
 		if len(missing) > 0 || !dk {
 			c.entry.Reason = "unknown: " + strings.Join(missing, ", ")
@@ -355,7 +374,7 @@ func PlanSupply(r SupplyPlanRequest) (SupplyPlan, error) {
 				c.entry.Terms = append(c.entry.Terms, CandidateTerm{"labor_excess", used - labor})
 			}
 		} else {
-			used += c.consider(demands, remaining, delivered, finite, used, labor, r.UrgentPriority)
+			used += c.consider(demands, remaining, delivered, finite, usable, used, labor, r.UrgentPriority)
 		}
 		p.Portfolio = append(p.Portfolio, c.entry)
 	}
@@ -461,7 +480,7 @@ func newSupplyCand(row SupplyCandidate, identities map[[2]string]bool) (*supplyC
 			finite = true
 		}
 	}
-	c := &supplyCand{c: own, finite: finite, yields: yields, open: state == CandidateDelivering, lead: lead, work: work, upfront: upfront, risk: risk, dist: dist, distSq: row.DistanceSquared}
+	c := &supplyCand{c: own, scale: 1, finite: finite, yields: yields, open: state == CandidateDelivering, lead: lead, work: work, upfront: upfront, risk: risk, dist: dist, distSq: row.DistanceSquared}
 	c.entry = SupplyEntry{Candidate: own, Decision: SupplyHold, Terms: append([]CandidateTerm(nil), row.Terms...)}
 	return c, missing, nil
 }
@@ -482,7 +501,7 @@ func (c *supplyCand) rate(y CandidateYield, d SupplyDemand) float64 {
 // units is what a yield can deliver toward a stock demand.
 func (c *supplyCand) units(y CandidateYield, d SupplyDemand) int64 {
 	if stock, capped := y.StockCap.Value(); capped {
-		return stock
+		return int64(math.Floor(float64(stock)*c.scale + 1e-9))
 	}
 	rate, _ := y.PerDay.Value()
 	return int64(math.Floor(rate*math.Max(0, 1-c.risk)*math.Max(0, d.window()-c.lead) + 1e-9))
@@ -695,7 +714,7 @@ func (c *supplyCand) surplus(demands []SupplyDemand, delivered []float64) bool {
 }
 
 // consider decides a closed candidate and returns the labor it takes.
-func (c *supplyCand) consider(demands []SupplyDemand, remaining []int64, delivered, finite []float64, used, labor float64, urgent int) float64 {
+func (c *supplyCand) consider(demands []SupplyDemand, remaining []int64, delivered, finite []float64, usable map[ResourceKey]int64, used, labor float64, urgent int) float64 {
 	e, f := &c.entry, c.full
 	total, flow, anyOK := 0.0, false, false
 	for i, d := range demands {
@@ -720,7 +739,15 @@ func (c *supplyCand) consider(demands []SupplyDemand, remaining []int64, deliver
 		e.Reason = "competing_urgent_work"
 		return 0
 	}
+	c.scale = c.affordable(usable)
 	share := c.share(demands, remaining)
+	if c.scale < 1 {
+		e.Terms = append(e.Terms, CandidateTerm{"ingredient_scale", c.scale})
+		if sum(share.credit) == 0 {
+			e.Reason = "ingredient_unavailable"
+			return 0
+		}
+	}
 	needs, good := false, ""
 	for i, d := range demands {
 		if f.matched[i] && c.ok[i] && share.credit[i] > 0 && (!d.flow() || c.covered(delivered[i], finite[i]) < d.PerDay) {
@@ -741,6 +768,9 @@ func (c *supplyCand) consider(demands []SupplyDemand, remaining []int64, deliver
 	}
 	e.Decision, e.Reason = SupplyOpen, "close "+good+" gap"
 	c.admit(share, true, demands, remaining, delivered, finite)
+	for _, q := range c.c.UpfrontCost.Resources {
+		usable[q.Key] -= min(usable[q.Key], int64(math.Ceil(float64(q.Count)*c.scale-1e-9)))
+	}
 	return c.laborNew
 }
 
@@ -762,4 +792,24 @@ func (c *supplyCand) covered(delivered, finite float64) float64 {
 		return delivered
 	}
 	return delivered - finite
+}
+
+// affordable is the fraction of the candidate's declared ingredient draws the
+// usable stock still covers, 1 for a candidate that declares none.
+func (c *supplyCand) affordable(usable map[ResourceKey]int64) float64 {
+	scale := 1.0
+	for _, q := range c.c.UpfrontCost.Resources {
+		if q.Count > 0 {
+			scale = math.Min(scale, float64(usable[q.Key])/float64(q.Count))
+		}
+	}
+	return scale
+}
+
+func sum(values []float64) float64 {
+	total := 0.0
+	for _, v := range values {
+		total += v
+	}
+	return total
 }

@@ -153,6 +153,10 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 	var reach policy.RemoteWorkRequest
 	reachRead := false
 	fieldPlanner := r.newResourceFieldPlanner(call, state, review, expected, projection)
+	var runways []policy.ResourceRunway
+	if review.Enabled && review.Snapshot == state.Snapshot {
+		runways = review.ResourceRunwayState()
+	}
 	var inputs []policy.ResourceSupplyInput
 	for _, target := range ranked {
 		resource := target.Resource
@@ -174,14 +178,16 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 				}
 				reachRead = true
 			}
-			if row.choice, err = planner.methodChoice(call, state, identity, goal, review, resource, target.Target, stock, out.tokens); err != nil {
+			var ingredients []policy.Stock
+			if row.choice, ingredients, err = planner.methodChoice(call, state, identity, goal, review, resource, target.Target, stock, out.tokens); err != nil {
 				return nil, err
 			}
+			input.Usable = policy.UsableIngredients(runways, ingredients)
 			row.sel, row.selKnown = planner.sourcesForDeficit(call, identity, resource, target.Target, stock, reach)
 			if row.selKnown {
 				input.Candidates = policy.MineCandidates(resource, row.sel.selected, domain.Known(row.sel.storage.Capacity))
 			}
-			if produce, found := policy.ProduceCandidate(row.choice, deficit); found {
+			if produce, found := policy.ProduceCandidate(row.choice, deficit, runways); found {
 				input.Candidates = append(input.Candidates, produce)
 			}
 		}

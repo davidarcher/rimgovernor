@@ -324,7 +324,7 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 			if can <= 0 {
 				continue
 			}
-			if c, ok := policy.ProduceCandidate(policy.ResourceMethod{Kind: policy.ResourceMethodProduce, Bench: id, Recipe: "cut", Resource: row.Resource}, min(deficit, can)); ok {
+			if c, ok := policy.ProduceCandidate(policy.ResourceMethod{Kind: policy.ResourceMethodProduce, Bench: id, Recipe: "cut", Resource: row.Resource}, min(deficit, can), nil); ok {
 				c.ID = id
 				produce = &c
 			}

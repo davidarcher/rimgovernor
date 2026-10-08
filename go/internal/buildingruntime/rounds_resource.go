@@ -253,33 +253,29 @@ func (r *RoundsResourcePlanner) gearSpareStorage(call context.Context, identity 
 // methodChoice reads the bench census and the recipes' ingredient stock and
 // selects the bill that would produce resource (policy.SelectResourceMethod).
 // tokens receives each census bench's write token.
-func (r *RoundsResourcePlanner) methodChoice(call context.Context, state ControlState, identity *c.Identity, goal store.StandardState, review store.Rounds, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], tokens map[string]string) (choice policy.ResourceMethod, err error) {
+func (r *RoundsResourcePlanner) methodChoice(call context.Context, state ControlState, identity *c.Identity, goal store.StandardState, review store.Rounds, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], tokens map[string]string) (choice policy.ResourceMethod, supply []policy.Stock, err error) {
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
 		seen = append(seen, method.Method)
 	}
 	census, _, err := r.native.ReadGearBenches(call, identity)
 	if err != nil {
-		return policy.ResourceMethod{}, err
+		return policy.ResourceMethod{}, nil, err
 	}
 	benches := make([]policy.GearBench, 0, len(census))
 	for _, row := range census {
 		benches = append(benches, row.Bench)
 		tokens[row.Bench.ID] = row.Token
 	}
-	var supply []policy.Stock
 	if names := recipeIngredientNames(census, resource); len(names) > 0 {
 		if supply, _, err = r.native.ReadSupplyStock(call, identity, names); err != nil {
-			return policy.ResourceMethod{}, err
+			return policy.ResourceMethod{}, nil, err
 		}
 	}
-	var runways []policy.ResourceRunway
-	if resource == policy.ComponentResource && review.Enabled && review.Snapshot == state.Snapshot {
-		runways = review.ResourceRunwayState()
-	}
-	request := policy.ResourceMethodRequest{Resource: resource, Target: target, Seen: seen, Benches: domain.Known(benches), Stock: supply, Runways: runways, CurrentStock: stock}
+	request := policy.ResourceMethodRequest{Resource: resource, Target: target, Seen: seen, Benches: domain.Known(benches), Stock: supply}
 	snap.NoteResourceMethod(call, request)
-	return policy.SelectResourceMethod(request)
+	choice, err = policy.SelectResourceMethod(request)
+	return choice, supply, err
 }
 
 // dispatchResourceConcern is the bill tail of the beer reserve: one (resource,
@@ -307,7 +303,7 @@ func (r *RoundsResourcePlanner) dispatchResourceConcern(call, epoch context.Cont
 		return RoundsResourceResult{}, err
 	}
 	tokens := map[string]string{}
-	choice, err := r.methodChoice(call, state, identity, goal, review, resource, target, stock, tokens)
+	choice, _, err := r.methodChoice(call, state, identity, goal, review, resource, target, stock, tokens)
 	if err != nil {
 		return RoundsResourceResult{}, err
 	}
@@ -389,7 +385,15 @@ func (r *RoundsResourcePlanner) dispatchSupplied(call, epoch context.Context, st
 	for _, e := range supply.plan.Opened(resource) {
 		switch e.Candidate.Kind {
 		case policy.CandidateProduce:
-			return r.commitBill(call, epoch, state, goal, row.choice, supply.tokens, false, started)
+			// The bill funds the units the plan admitted, which ingredient
+			// draws may hold below the floor's deficit.
+			choice := row.choice
+			for _, credit := range e.Credit {
+				if credit.Good.Def == resource {
+					choice.Target = min(choice.Target, policy.StockReader{Resources: stock}.Units(resource)+int64(credit.Amount))
+				}
+			}
+			return r.commitBill(call, epoch, state, goal, choice, supply.tokens, false, started)
 		case policy.CandidateMining:
 			selection := row.sel
 			selection.selected = nil

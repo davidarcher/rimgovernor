@@ -391,6 +391,10 @@ type ResourceMethod struct {
 	Replace       string
 	Resource      Resource
 	Target        int64
+	// Ingredients are the recipe's ingredients for one craft, the slots with
+	// a single alternative (a slot that may be filled several ways has no
+	// known draw).
+	Ingredients []Amount
 }
 
 // ResourceMethodRequest names the one dynamically-selected resource and
@@ -406,10 +410,6 @@ type ResourceMethodRequest struct {
 	Seen     []domain.MethodID
 	Benches  domain.Fact[[]GearBench]
 	Stock    []Stock
-	// Runways and CurrentStock fund component fabrication without spending
-	// the steel needed for the maintenance horizon.
-	Runways      []ResourceRunway
-	CurrentStock domain.Fact[[]Amount]
 }
 
 func resourceMethodID(resource Resource, bench, recipe string) domain.MethodID {
@@ -434,16 +434,6 @@ func resourceMethodID(resource Resource, bench, recipe string) domain.MethodID {
 func SelectResourceMethod(r ResourceMethodRequest) (ResourceMethod, error) {
 	if !validResource(r.Resource) || r.Target <= 0 || r.Target > 10000 {
 		return ResourceMethod{Kind: ResourceMethodUnknown}, nil
-	}
-	if r.Resource == ComponentResource {
-		target, known := ComponentFabricationTarget(r.Target, r.CurrentStock, r.Stock, r.Runways)
-		if !known {
-			return ResourceMethod{Kind: ResourceMethodUnknown}, nil
-		}
-		if target == 0 {
-			return ResourceMethod{Kind: ResourceMethodBlocked}, nil
-		}
-		r.Target = target
 	}
 	seen := map[domain.MethodID]bool{}
 	for _, id := range r.Seen {
@@ -519,7 +509,7 @@ func SelectResourceMethod(r ResourceMethodRequest) (ResourceMethod, error) {
 					break
 				}
 			}
-			return ResourceMethod{Kind: ResourceMethodProduce, ID: id, Bench: b.ID, Recipe: recipe.Definition, Replace: replace, Resource: r.Resource, Target: r.Target}, nil
+			return ResourceMethod{Kind: ResourceMethodProduce, ID: id, Bench: b.ID, Recipe: recipe.Definition, Replace: replace, Resource: r.Resource, Target: r.Target, Ingredients: recipeDraws(recipe)}, nil
 		}
 	}
 	return ResourceMethod{Kind: ResourceMethodBlocked}, nil
@@ -536,4 +526,20 @@ const (
 // counted and selected.
 func MineSafe(safety string) bool {
 	return safety == MineSafetyOpenSurface || safety == MineSafetySupportedRoof
+}
+
+// recipeDraws is what one craft of the recipe consumes from the catalog: each
+// slot with a single alternative. Unknown ingredients declare nothing.
+func recipeDraws(recipe GearRecipe) []Amount {
+	slots, known := recipe.Ingredients.Value()
+	if !known {
+		return nil
+	}
+	var out []Amount
+	for _, slot := range slots {
+		if len(slot) == 1 && slot[0].Count > 0 {
+			out = append(out, slot[0])
+		}
+	}
+	return out
 }

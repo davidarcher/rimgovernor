@@ -14,6 +14,9 @@ type ResourceSupplyInput struct {
 	// HorizonDays is how far ahead the deficit is wanted: a candidate with a
 	// longer lead (a field) is not eligible. Zero is wanted now.
 	HorizonDays float64
+	// Usable is the stock the candidates' ingredient draws may spend (see
+	// UsableIngredients).
+	Usable []ResourceQuantity
 }
 
 // ResourceSupply is the Round's one supply plan over every resource deficit.
@@ -28,6 +31,8 @@ type ResourceSupply struct {
 func PlanResourceSupply(inputs []ResourceSupplyInput, labor domain.Fact[float64]) (ResourceSupply, error) {
 	var demands []SupplyDemand
 	var candidates []SupplyCandidate
+	usable := map[ResourceKey]int64{}
+	var keys []ResourceKey
 	seen := map[[2]string]bool{}
 	for _, in := range inputs {
 		if in.Deficit <= 0 {
@@ -36,6 +41,14 @@ func PlanResourceSupply(inputs []ResourceSupplyInput, labor domain.Fact[float64]
 		demand := SupplyDemandOfResource(ResourceDemand{Key: ResourceKey{Def: in.Resource}, Count: in.Deficit, Priority: 1})
 		demand.HorizonDays = in.HorizonDays
 		demands = append(demands, demand)
+		for _, q := range in.Usable {
+			if have, ok := usable[q.Key]; !ok {
+				keys = append(keys, q.Key)
+				usable[q.Key] = q.Count
+			} else {
+				usable[q.Key] = min(have, q.Count)
+			}
+		}
 		for _, c := range in.Candidates {
 			id := [2]string{string(c.Kind), c.ID}
 			if seen[id] {
@@ -45,7 +58,11 @@ func PlanResourceSupply(inputs []ResourceSupplyInput, labor domain.Fact[float64]
 			candidates = append(candidates, c)
 		}
 	}
-	plan, err := PlanSupply(SupplyPlanRequest{Demands: domain.Known(demands), Candidates: domain.Known(candidates), Labor: labor})
+	var spendable []ResourceQuantity
+	for _, k := range keys {
+		spendable = append(spendable, ResourceQuantity{Key: k, Count: usable[k]})
+	}
+	plan, err := PlanSupply(SupplyPlanRequest{Demands: domain.Known(demands), Candidates: domain.Known(candidates), Labor: labor, Usable: spendable})
 	return ResourceSupply{Plan: plan}, err
 }
 

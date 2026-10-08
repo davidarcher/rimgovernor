@@ -68,27 +68,37 @@ type DrugProjection struct {
 // drug row (Brewing unfinished) or a drug whose use or stock is unobserved
 // leaves the projection unknown; a drug observed unused has no shortfall.
 func PlanDrugRunway(rows []ResourceRunway) domain.Fact[DrugProjection] {
-	out := DrugProjection{}
+	resources, shortfall, ok := stockRunways(rows, SocialDrugs)
+	if !ok {
+		return domain.Unknown[DrugProjection]()
+	}
+	return domain.Known(DrugProjection{Resources: resources, ShortfallDays: shortfall})
+}
+
+// stockRunways is the runway of each listed resource that has a row: the
+// observed use a day, the stock and the days it covers, and the largest
+// shortfall. No row, or one whose use or stock is unobserved, is not ok.
+func stockRunways(rows []ResourceRunway, listed []Resource) (out []DrugResourceRunway, shortfall float64, ok bool) {
 	for _, row := range rows {
-		if !slices.Contains(SocialDrugs, row.Resource) {
+		if !slices.Contains(listed, row.Resource) {
 			continue
 		}
 		rate, rk := row.ConsumptionPerDay.Value()
 		stock, sk := row.Stock.Value()
 		if !rk || !sk || !finite(rate) || rate < 0 {
-			return domain.Unknown[DrugProjection]()
+			return nil, 0, false
 		}
 		entry := DrugResourceRunway{Resource: row.Resource, PerDay: rate, Stock: stock}
 		if rate > 0 {
 			entry.StockDays = float64(stock) / rate
 			entry.ShortfallDays = RunwayShortfall(entry.StockDays, ProjectionHorizonDays)
 		}
-		out.ShortfallDays = math.Max(out.ShortfallDays, entry.ShortfallDays)
-		out.Resources = append(out.Resources, entry)
+		shortfall = math.Max(shortfall, entry.ShortfallDays)
+		out = append(out, entry)
 	}
-	if len(out.Resources) == 0 {
-		return domain.Unknown[DrugProjection]()
+	if len(out) == 0 {
+		return nil, 0, false
 	}
-	sort.Slice(out.Resources, func(i, j int) bool { return out.Resources[i].Resource < out.Resources[j].Resource })
-	return domain.Known(out)
+	sort.Slice(out, func(i, j int) bool { return out[i].Resource < out[j].Resource })
+	return out, shortfall, true
 }

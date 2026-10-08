@@ -2,6 +2,7 @@ package policy
 
 import (
 	"math"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -59,13 +60,53 @@ func MineCandidates(resource Resource, sources []ResourceSource, headroom domain
 }
 
 // ProduceCandidate is the catalog row of a chosen production bill covering
-// units: the product drops at the bench, so no haul is charged.
-func ProduceCandidate(m ResourceMethod, units int64) (SupplyCandidate, bool) {
+// units: the product drops at the bench, so no haul is charged. The recipe's
+// ingredients that have a runway are its upfront resource cost, so the plan
+// prices the bill against the stock the runway protects.
+func ProduceCandidate(m ResourceMethod, units int64, runways []ResourceRunway) (SupplyCandidate, bool) {
 	if m.Kind != ResourceMethodProduce || units <= 0 {
 		return SupplyCandidate{}, false
 	}
-	return SourceCandidate(CandidateProduce, m.Bench+"/"+m.Recipe, catalogLabor(CandidateProduce, units), domain.Known(0.0), false, 0,
-		SourceYield(ResourceKey{Def: m.Resource}, units, 0, domain.Unknown[int64]())), true
+	c := SourceCandidate(CandidateProduce, m.Bench+"/"+m.Recipe, catalogLabor(CandidateProduce, units), domain.Known(0.0), false, 0,
+		SourceYield(ResourceKey{Def: m.Resource}, units, 0, domain.Unknown[int64]()))
+	for _, in := range m.Ingredients {
+		if slices.ContainsFunc(runways, func(r ResourceRunway) bool { return r.Resource == in.Resource }) {
+			c.UpfrontCost.Resources = append(c.UpfrontCost.Resources, ResourceQuantity{Key: ResourceKey{Def: in.Resource}, Count: in.Count * units})
+		}
+	}
+	return c, true
+}
+
+// UsableIngredients is, per runway resource, the stock a bill may spend: the
+// usable census (supply) or the runway's own stock, whichever is lower, less
+// the reserve plus five days of observed use. A resource whose stock or use is
+// unobserved is left out, so a bill that draws on it is unknown. Prospective
+// ore never funds a bill.
+func UsableIngredients(runways []ResourceRunway, supply []Stock) []ResourceQuantity {
+	var out []ResourceQuantity
+	for _, row := range runways {
+		rate, rk := row.ConsumptionPerDay.Value()
+		have, hk := row.Stock.Value()
+		if !rk || !hk || !finite(rate) || rate < 0 || row.Reserve < 0 || have < 0 {
+			continue
+		}
+		for _, s := range supply {
+			if s.Resource != row.Resource {
+				continue
+			}
+			avail, ok := s.Available.Value()
+			if !ok || avail < 0 {
+				hk = false
+			}
+			have = min(have, avail)
+		}
+		if !hk {
+			continue
+		}
+		line := float64(row.Reserve) + math.Ceil(rate*ResourceRunwayDays)
+		out = append(out, ResourceQuantity{Key: ResourceKey{Def: row.Resource}, Count: int64(math.Max(0, float64(have)-line))})
+	}
+	return out
 }
 
 // AcquisitionSourceCandidates are the catalog rows of the colony-facts
