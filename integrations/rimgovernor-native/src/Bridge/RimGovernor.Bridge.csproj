@@ -61,6 +61,7 @@
     <Compile Include="../../../../scripts/fixtures/CaravanDepartureFixture.cs" Condition="'$(CaravanDepartureFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RecoveryServiceFixture.cs" Condition="'$(RecoveryServiceFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/QuestAcceptFixture.cs" Condition="'$(QuestAcceptFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/QuestShuttleFixture.cs" Condition="'$(QuestAcceptFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FirstRitualFixture.cs" Condition="'$(FirstRitualFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HorrorIncidentFixture.cs" Condition="'$(HorrorIncidentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EntityHoldFixture.cs" Condition="'$(EntityHoldFixture)' == 'true'" />

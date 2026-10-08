@@ -10,7 +10,7 @@ func QuestSkips(f RoundsFacts) []QuestSkip {
 	}
 	var out []QuestSkip
 	for _, offer := range rows {
-		if claimAnswerable(offer, f.TitleClaimQuests) {
+		if claimAnswerable(offer, f.TitleClaimQuests) && SelectQuestReward(offer, f).Reason == "" {
 			continue
 		}
 		if _, reason := questDecision(offer, f); reason != "" {

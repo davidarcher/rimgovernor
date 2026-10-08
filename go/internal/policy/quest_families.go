@@ -83,6 +83,8 @@ type QuestProfile struct {
 	NeverAct    bool
 	Disposition QuestDisposition
 	SkipReason  string
+	// ProtectGuests forbids arrest and operations during an open hosted meeting (#2415).
+	ProtectGuests bool
 }
 
 // QuestFamilyForRoot is the explicit game-data table. Utility roots are listed

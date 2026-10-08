@@ -144,6 +144,7 @@ type Action struct {
 	husbandry           Husbandry
 	prisonerInteraction PrisonerInteraction
 	questAccept         QuestAccept
+	questShuttle        QuestShuttle
 	ritual              Ritual
 	ideoligionReform    IdeoligionReform
 	ability             Ability
@@ -315,6 +316,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewIdeoligionReformAction(a.id, a.ideoligionReform)
 		case QuestAcceptAction:
 			canonical, err = NewQuestAcceptAction(a.id, a.questAccept)
+		case QuestShuttleAction:
+			canonical, err = NewQuestShuttleAction(a.id, a.questShuttle)
 		case RemoveProductionBillAction:
 			canonical, err = NewRemoveProductionBillAction(a.id, a.removeBill)
 		case IgniteAction:

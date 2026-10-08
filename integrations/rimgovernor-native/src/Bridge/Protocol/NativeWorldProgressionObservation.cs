@@ -134,13 +134,28 @@ namespace HomeBridge.BridgeTools
             {
                 foreach (var indexed in part.choices.Select((choice, index) => (choice, index)))
                 {
+                    if (indexed.choice.rewards.Count == 0) rows.Add(new Obs.QuestReward { ChoiceIndex = (uint)indexed.index });
                     foreach (var reward in indexed.choice.rewards)
                     {
                         var row = new Obs.QuestReward { ChoiceIndex = (uint)indexed.index, Kind = reward.GetType().Name };
                         row.Label = reward.GetDescription(default(RewardsGeneratorParams)) ?? "";
                         if (reward is Reward_RoyalFavor favor) row.Favor = favor.amount;
+                        if (reward is Reward_Goodwill goodwill) { row.Goodwill = goodwill.amount; if (goodwill.faction != null) row.FactionId = goodwill.faction.GetUniqueLoadID(); }
+                        if (reward is Reward_BestowingCeremony ceremony)
+                        {
+                            row.Psylink = ceremony.givePsylink ? 1 : 0;
+                            if (ceremony.awardingFaction != null) row.FactionId = ceremony.awardingFaction.GetUniqueLoadID();
+                            if (ceremony.royalTitle != null)
+                            {
+                                row.TitleDef = ceremony.royalTitle.defName; row.PermitPoints = ceremony.royalTitle.permitPointsAwarded;
+                                if (ceremony.royalTitle.permits != null) row.Permits.Add(ceremony.royalTitle.permits.Select(p => p.defName));
+                            }
+                        }
                         if (reward is Reward_Items items)
+                        {
                             row.Items.Add(items.items.Select(t => new Obs.Quantity { DefName = t.def.defName, Units = t.stackCount }));
+                            row.Psylink = items.items.Where(t => t.def == ThingDefOf.PsychicAmplifier).Sum(t => t.stackCount);
+                        }
                         rows.Add(row);
                     }
                 }
@@ -159,9 +174,13 @@ namespace HomeBridge.BridgeTools
         private static List<Obs.QuestObjective> Objectives(Quest quest)
         {
             var rows = new List<Obs.QuestObjective>();
+            var decree = quest.root?.defName.StartsWith("Decree_", StringComparison.Ordinal) == true;
+            var deadline = decree ? quest.PartsListForReading.OfType<QuestPart_Delay>().Where(p => p.isBad && p.State == QuestPartState.Enabled)
+                .Select(p => (long?)Math.Max(0, (long)Find.TickManager.TicksGame + p.TicksLeft)).Min() : null;
             foreach (var part in quest.PartsListForReading)
             {
                 var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.Unknown };
+                if (part is QuestPartActivable activable) row.Active = activable.State == QuestPartState.Enabled;
                 switch (part)
                 {
                     case QuestPart_ThingsProduced p:
@@ -188,12 +207,15 @@ namespace HomeBridge.BridgeTools
                         }
                         break;
                     case QuestPart_DropMonumentMarkerCopy _:
-                        row.Kind = Obs.QuestObjectiveKind.Monument; break;
+                        row.Kind = Obs.QuestObjectiveKind.Monument;
+                        var monument = NativeQuestMonuments.Read(quest); if (monument != null) row.Monument = monument; break;
                     case QuestPart_PawnsArrive p when p.pawns.Any(pawn => (pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest))):
                         row.Kind = Obs.QuestObjectiveKind.HostLodgers;
                         row.PawnIds.Add(p.pawns.Where(pawn => (pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest))).Select(pawn => pawn.GetUniqueLoadID()));
+                        NativeQuestShuttles.LodgerMood(quest, row, p.pawns.Where(pawn => pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest)));
                         row.Count = row.PawnIds.Count; break;
                 }
+                if (deadline.HasValue && (row.Kind == Obs.QuestObjectiveKind.ProduceItem || row.Kind == Obs.QuestObjectiveKind.HarvestPlant || row.Kind == Obs.QuestObjectiveKind.KillAnimals)) row.DeadlineTicks = deadline.Value;
                 rows.Add(row);
             }
             if (quest.TicksUntilExpiry >= 0 && quest.State == QuestState.NotYetAccepted)
@@ -244,6 +266,7 @@ namespace HomeBridge.BridgeTools
                     State = NativeEnums.Quest(q.State), AcceptedTick = q.acceptanceTick, ExpiresInTicks = q.TicksUntilExpiry,
                     RequiresAccepter = q.RequiresAccepter, ScriptDef = q.root?.defName ?? "",
                     CanAccept = q.State == QuestState.NotYetAccepted && QuestUtility.CanAcceptQuest(q).Accepted,
+                    ChoicePartCount = q.PartsListForReading.OfType<QuestPart_Choice>().Count(),
                     // The quest row's identity-and-state token.
                     Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = q.GetUniqueLoadID(), Token = NativeQuestOperations.Token(q) },
                 };
@@ -254,6 +277,15 @@ namespace HomeBridge.BridgeTools
                 row.EligiblePawns.Add(Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned)
                     .Where(p => QuestUtility.CanPawnAcceptQuest(p, q)).Select(NativeRef.Thing));
                 row.TradeRequests.Add(TradeRequests(q));
+                var asker = q.root?.defName.StartsWith("Decree_", StringComparison.Ordinal) == true
+                    ? q.PartsListForReading.OfType<QuestPart_SituationalThought>().Where(p => p.def?.defName == "DecreeUnmet").Select(p => p.pawn).Distinct().ToArray() : Array.Empty<Pawn>();
+                if (asker.Length == 1 && asker[0] != null)
+                {
+                    row.AskerPawnId = asker[0].GetUniqueLoadID();
+                    if (asker[0].Faction != null) row.AskerFactionPlayer = asker[0].Faction.IsPlayer;
+                }
+                row.ViolentQuestsAllowed = Find.Storyteller.difficulty.allowViolentQuests;
+                row.Shuttles.Add(NativeQuestShuttles.Read(q));
                 row.Objectives.Add(Objectives(q));
                 row.Rewards.Add(Rewards(q));
                 rows.Add(row);

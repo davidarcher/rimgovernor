@@ -73,6 +73,7 @@ namespace HomeBridge.BridgeTools
                 return "Original neighboring walls changed";
             var target = Wall(map, r.Target);
             if (target == null || target.IsForbidden(Faction.OfPlayerSilentFail) || target.IsBurning()) return "Exact demolition target is unavailable or unsafe";
+            if (NativeQuestMonumentProtection.Protects(target)) return NativeQuestMonumentProtection.Refusal;
             if (requireDesignation && map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) == null)
                 return "Demolition designation was removed";
             if (r.Permanent == null) {

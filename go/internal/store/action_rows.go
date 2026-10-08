@@ -166,6 +166,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			accepter = sql.NullString{String: string(accept.AccepterPawn()), Valid: true}
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,pawn) VALUES(?,?,?,'quest_accept',?,?,?)", a.ID(), plan, ordinal, accept.Quest(), strconv.FormatInt(int64(accept.RewardChoice()), 10), accepter)
+	} else if shuttle, ok := a.QuestShuttle(); ok {
+		data, encodeErr := json.Marshal(questShuttlePayload{shuttle.Loading(), shuttle.Autoload(), shuttle.Pawns(), shuttle.Launch()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'quest_shuttle',?,?)", a.ID(), plan, ordinal, shuttle.Quest(), string(data))
 	} else if ignite, ok := a.Ignite(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,x,z) VALUES(?,?,?,'ignite',?,?,?)", a.ID(), plan, ordinal, ignite.Pawn(), ignite.Cell().X, ignite.Cell().Z)
 	} else if removal, ok := a.RemoveProductionBill(); ok {
@@ -1170,6 +1176,22 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewQuestAcceptAction(id, accept)
 		return a, ordinal, err
 	}
+	if kind == "quest_shuttle" && target.Valid && def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid {
+		var payload questShuttlePayload
+		if json.Unmarshal([]byte(def.String), &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid quest shuttle payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if string(canonical) != def.String {
+			return domain.Action{}, 0, errors.New("noncanonical quest shuttle payload")
+		}
+		shuttle, err := domain.NewQuestShuttle(domain.QuestID(target.String), payload.Loading, payload.Autoload, payload.Pawns, payload.Launch)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewQuestShuttleAction(id, shuttle)
+		return a, ordinal, err
+	}
 	if kind == "building" && !pawn.Valid && !target.Valid && !draftAction.Valid && def.Valid && x.Valid && z.Valid && rotation.Valid && stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
 		b, e := domain.NewBuilding(def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)}, domain.Rotation(rotation.String), stuff.String)
 		if e != nil {
@@ -1244,6 +1266,12 @@ type caravanPayload struct {
 	Crew            []domain.PawnID
 	Cargo           []domain.CargoItem
 	DestinationTile int32
+}
+type questShuttlePayload struct {
+	Loading  domain.ShuttleLoading
+	Autoload bool
+	Pawns    []domain.PawnID
+	Launch   bool
 }
 
 type tradePayload struct {

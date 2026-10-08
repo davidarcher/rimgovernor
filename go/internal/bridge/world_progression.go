@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"math"
 	"sort"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -103,16 +104,39 @@ type QuestOffer struct {
 	// look targets sit on; MapKnown is false for a quest anchored only to a
 	// world object. Favor is the Empire favor each reward choice grants,
 	// ascending by choice, omitting choices that grant none.
-	FactionID      string
-	MapID          int32
-	MapKnown       bool
-	Favor          []QuestFavorFact
-	Objectives     []QuestObjectiveFact
-	ExpiresInTicks *int64
+	FactionID            string
+	MapID                int32
+	MapKnown             bool
+	Favor                []QuestFavorFact
+	Objectives           []QuestObjectiveFact
+	Shuttles             []QuestShuttleFact
+	ExpiresInTicks       *int64
+	RewardChoiceParts    *int32
+	Rewards              []QuestRewardFact
+	Asker                string
+	AskerFactionPlayer   *bool
+	ViolentQuestsAllowed *bool
+}
+
+type QuestRewardFact struct {
+	Choice       int32
+	Items        []QuestTradeItemFact
+	Goodwill     int32
+	Psylink      int32
+	PermitPoints int32
+	Permits      []string
+	TitleDef     string
+	FactionID    string
+}
+
+type QuestTradeItemFact struct {
+	Def   string
+	Count int64
 }
 
 // QuestObjectiveFact preserves typed native progress; absent fields stay absent.
 type QuestObjectiveFact struct {
+	Monument         *o.QuestMonument
 	Kind             o.QuestObjectiveKind
 	Def              string
 	Stuff            string
@@ -121,6 +145,19 @@ type QuestObjectiveFact struct {
 	DeadlineTicks    *int64
 	UnmetRequirement string
 	PawnIDs          []string
+	Active           *bool
+	MinimumMood      *float64
+	LodgerMoods      []QuestLodgerMoodFact
+}
+type QuestLodgerMoodFact struct {
+	PawnID string
+	Mood   *float64
+}
+type QuestShuttleFact struct {
+	ID                                                                             string
+	AutoloadAvailable, Autoload, Loading, AllRequiredLoaded, ManualLaunchAvailable *bool
+	PawnIDs, LoadedPawnIDs                                                         []string
+	RequiredColonistCount                                                          *int32
 }
 
 // QuestFavorFact is the royal favor one reward choice grants in total.
@@ -321,7 +358,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 		choices := map[uint32]bool{}
 		favor := map[int32]int32{}
 		for _, reward := range row.Rewards {
-			if reward == nil || reward.GetFavor() < 0 {
+			if reward == nil || reward.GetFavor() < 0 || reward.GetPsylink() < 0 || reward.GetPermitPoints() < 0 {
 				return WorldProgressionRead{}, contract("invalid world progression quest reward")
 			}
 			choice := int32(-1)
@@ -355,6 +392,38 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 		quest.FactionID, quest.MapKnown = row.GetFactionId(), row.MapId != nil
 		quest.MapID = row.GetMapId()
 		quest.ExpiresInTicks = row.ExpiresInTicks
+		if row.AskerPawnId != nil && validID(row.GetAskerPawnId()) != nil {
+			return WorldProgressionRead{}, contract("invalid quest asker")
+		}
+		quest.Asker, quest.AskerFactionPlayer, quest.ViolentQuestsAllowed = row.GetAskerPawnId(), row.AskerFactionPlayer, row.ViolentQuestsAllowed
+		if row.GetChoicePartCount() < 0 {
+			return WorldProgressionRead{}, contract("invalid quest choice parts")
+		}
+		quest.RewardChoiceParts = row.ChoicePartCount
+		for _, reward := range row.Rewards {
+			choice := int32(-1)
+			if reward.ChoiceIndex != nil {
+				choice = int32(reward.GetChoiceIndex())
+			}
+			fact := QuestRewardFact{Choice: choice, Goodwill: reward.GetGoodwill(), Psylink: reward.GetPsylink(), PermitPoints: reward.GetPermitPoints(), Permits: append([]string(nil), reward.Permits...), TitleDef: reward.GetTitleDef(), FactionID: reward.GetFactionId()}
+			for _, item := range reward.Items {
+				if item == nil || validID(item.GetDefName()) != nil || item.Units == nil || item.GetUnits() < 0 {
+					return WorldProgressionRead{}, contract("invalid quest reward item")
+				}
+				fact.Items = append(fact.Items, QuestTradeItemFact{Def: item.GetDefName(), Count: item.GetUnits()})
+			}
+			seenPermits := map[string]bool{}
+			for _, permit := range fact.Permits {
+				if validID(permit) != nil || seenPermits[permit] {
+					return WorldProgressionRead{}, contract("invalid quest reward permit")
+				}
+				seenPermits[permit] = true
+			}
+			if fact.TitleDef != "" && validID(fact.TitleDef) != nil || fact.FactionID != "" && validID(fact.FactionID) != nil {
+				return WorldProgressionRead{}, contract("invalid quest reward reference")
+			}
+			quest.Rewards = append(quest.Rewards, fact)
+		}
 		for _, objective := range row.Objectives {
 			if objective == nil || objective.Kind == nil || objective.GetKind() < o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_UNKNOWN || objective.GetKind() > o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_EXPIRY || objective.GetCount() < 0 || objective.GetProduced() < 0 || objective.GetDeadlineTicks() < 0 {
 				return WorldProgressionRead{}, contract("invalid quest objective")
@@ -366,7 +435,37 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 				}
 				seen[id] = true
 			}
-			quest.Objectives = append(quest.Objectives, QuestObjectiveFact{Kind: objective.GetKind(), Def: objective.GetDef(), Stuff: objective.GetStuff(), Count: objective.Count, Produced: objective.Produced, DeadlineTicks: objective.DeadlineTicks, UnmetRequirement: objective.GetUnmetRequirement(), PawnIDs: append([]string(nil), objective.PawnIds...)})
+			fact := QuestObjectiveFact{Kind: objective.GetKind(), Def: objective.GetDef(), Stuff: objective.GetStuff(), Count: objective.Count, Produced: objective.Produced, DeadlineTicks: objective.DeadlineTicks, UnmetRequirement: objective.GetUnmetRequirement(), PawnIDs: append([]string(nil), objective.PawnIds...), Active: objective.Active, MinimumMood: objective.MinimumMood}
+			fact.Monument = validatedQuestMonument(objective.Monument)
+			if objective.MinimumMood != nil && (math.IsNaN(*objective.MinimumMood) || math.IsInf(*objective.MinimumMood, 0) || *objective.MinimumMood < 0 || *objective.MinimumMood > 1) {
+				return WorldProgressionRead{}, contract("invalid quest mood threshold")
+			}
+			seenMoods := map[string]bool{}
+			for _, mood := range objective.LodgerMoods {
+				if mood == nil || validID(mood.GetPawnId()) != nil || seenMoods[mood.GetPawnId()] || mood.Mood != nil && (math.IsNaN(*mood.Mood) || math.IsInf(*mood.Mood, 0) || *mood.Mood < 0 || *mood.Mood > 1) {
+					return WorldProgressionRead{}, contract("invalid quest lodger mood")
+				}
+				seenMoods[mood.GetPawnId()] = true
+				fact.LodgerMoods = append(fact.LodgerMoods, QuestLodgerMoodFact{mood.GetPawnId(), mood.Mood})
+			}
+			quest.Objectives = append(quest.Objectives, fact)
+		}
+		seenShuttles := map[string]bool{}
+		for _, shuttle := range row.Shuttles {
+			if shuttle == nil || validID(shuttle.GetShuttleId()) != nil || seenShuttles[shuttle.GetShuttleId()] || shuttle.GetRequiredColonistCount() < 0 {
+				return WorldProgressionRead{}, contract("invalid quest shuttle")
+			}
+			seenShuttles[shuttle.GetShuttleId()] = true
+			for _, ids := range [][]string{shuttle.PawnIds, shuttle.LoadedPawnIds} {
+				seen := map[string]bool{}
+				for _, id := range ids {
+					if validID(id) != nil || seen[id] {
+						return WorldProgressionRead{}, contract("invalid quest shuttle pawn")
+					}
+					seen[id] = true
+				}
+			}
+			quest.Shuttles = append(quest.Shuttles, QuestShuttleFact{ID: shuttle.GetShuttleId(), AutoloadAvailable: shuttle.AutoloadAvailable, Autoload: shuttle.Autoload, Loading: shuttle.Loading, AllRequiredLoaded: shuttle.AllRequiredLoaded, ManualLaunchAvailable: shuttle.ManualLaunchAvailable, PawnIDs: append([]string(nil), shuttle.PawnIds...), LoadedPawnIDs: append([]string(nil), shuttle.LoadedPawnIds...), RequiredColonistCount: shuttle.RequiredColonistCount})
 		}
 		for choice, amount := range favor {
 			quest.Favor = append(quest.Favor, QuestFavorFact{Choice: int32(choice), Favor: amount})

@@ -26,10 +26,16 @@ func questDecision(offer JoinerOffer, f RoundsFacts) (bool, QuestSkipReason) {
 		return false, ""
 	}
 	if profile.Family == QuestFamilyBestowing {
+		if parts, known := offer.RewardChoiceParts.Value(); known && parts > 1 {
+			return false, "reward_choices"
+		}
 		return false, "title_unclaimed"
 	}
 	if !offer.CanAccept {
 		return false, "cannot_accept"
+	}
+	if reward := SelectQuestReward(offer, f); reward.Reason != "" {
+		return false, reward.Reason
 	}
 	if profile.Family != QuestFamilyOdysseyGround {
 		if offer.FactionID == "" {
@@ -55,11 +61,14 @@ func questDecision(offer JoinerOffer, f RoundsFacts) (bool, QuestSkipReason) {
 	if reason := QuestFeasibility(offer, f); reason != "" {
 		return false, reason
 	}
+	if reason := HospitalityAdmission(offer, f); reason != "" {
+		return false, reason
+	}
 	// These families need a quest driver before their acceptance can be enabled.
 	switch profile.Family {
 	case QuestFamilyBanditCamp, QuestFamilyPawnLend, QuestFamilyShuttleRescue, QuestFamilyBuildMonument,
-		QuestFamilyDecreeProduce, QuestFamilyDecreeHarvest, QuestFamilyDecreeHunt, QuestFamilyDecreeMonument, QuestFamilyHack, QuestFamilyRelic,
-		QuestFamilyHospitalityAnimals, QuestFamilyHospitalityJoiners, QuestFamilyHospitalityPrisoners, QuestFamilyHospitalityRefugee:
+		QuestFamilyDecreeProduce, QuestFamilyDecreeHarvest, QuestFamilyDecreeHunt, QuestFamilyDecreeMonument,
+		QuestFamilyHack, QuestFamilyRelic:
 		return false, "driver_unavailable"
 	}
 	return true, ""
@@ -179,17 +188,17 @@ func SelectQuestMethod(f RoundsFacts) JoinerChoice {
 	}
 	var best *JoinerOffer
 	for i, offer := range rows {
-		if claimAnswerable(offer, f.TitleClaimQuests) && (best == nil || offer.Quest < best.Quest) {
+		if claimAnswerable(offer, f.TitleClaimQuests) && SelectQuestReward(offer, f).Reason == "" && (best == nil || offer.Quest < best.Quest) {
 			best = &rows[i]
 		}
 	}
 	if best == nil {
-		bestFavor := int32(-1)
+		var bestValue QuestRewardValue
 		for i, offer := range rows {
-			_, favor := empireFavor(offer)
-			if accept, _ := questDecision(offer, f); accept && (best == nil || favor > bestFavor || favor == bestFavor && offer.Quest < best.Quest) {
+			reward := SelectQuestReward(offer, f)
+			if accept, _ := questDecision(offer, f); accept && (best == nil || reward.Value.BetterThan(bestValue) || reward.Value == bestValue && offer.Quest < best.Quest) {
 				best = &rows[i]
-				bestFavor = favor
+				bestValue = reward.Value
 			}
 		}
 	}
@@ -197,9 +206,7 @@ func SelectQuestMethod(f RoundsFacts) JoinerChoice {
 		return JoinerChoice{Reason: QuestNoOffer}
 	}
 	choice := JoinerChoice{Quest: best.Quest, RewardChoice: -1}
-	if best.ChoiceCount > 0 {
-		choice.RewardChoice, _ = empireFavor(*best)
-	}
+	choice.RewardChoice = SelectQuestReward(*best, f).Choice
 	if best.RequiresAccepter {
 		choice.Accepter, _ = QuestAccepter(*best, f, f.QuestWorkers)
 	}
@@ -210,5 +217,5 @@ func QuestDeficit(f RoundsFacts) domain.Fact[bool] {
 	if _, known := f.QuestOffers.Value(); !known {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(SelectQuestMethod(f).Reason == "")
+	return domain.Known(SelectQuestMethod(f).Reason == "" || HospitalityDeficit(f))
 }

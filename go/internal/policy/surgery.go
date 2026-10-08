@@ -316,6 +316,9 @@ func SelectSurgery(pawns domain.Fact[[]CarePawn], inFlight map[PawnID]bool, ctx 
 		profiles[p.ID] = p
 	}
 	for _, pawn := range rows {
+		if pawn.QuestProtected {
+			continue
+		}
 		if dead, dk := pawn.Dead.Value(); !dk || dead || inFlight[pawn.ID] {
 			continue
 		}

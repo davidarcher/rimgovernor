@@ -25,7 +25,8 @@ type RoundsPopulationJoinerPlanner struct {
 }
 type RoundsPopulationJoinerResult struct {
 	Verdict
-	Plan domain.PlanID
+	Plan            domain.PlanID
+	NativeWorkTicks uint32
 }
 
 func NewRoundsPopulationJoinerPlanner(reviewer *Rounder) (*RoundsPopulationJoinerPlanner, error) {
@@ -86,6 +87,16 @@ func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbite
 	if letter, ok := policy.SelectJoinerLetter(facts.JoinerLetters, policy.JoinerCapacity(facts.JoinerCapacity())); ok {
 		return r.admitLetter(call, epoch, state, goal, letter, started)
 	}
+	if result, handled, err := r.admitMonument(call, epoch, state, goal, review, read, arbiter, started); handled || err != nil {
+		return result, err
+	}
+	if result, handled, err := r.admitDecree(call, epoch, state, goal, review, read, arbiter, started); handled || err != nil {
+		return result, err
+	}
+	hosting, hosted, err := r.admitHospitality(call, epoch, state, goal, review, read, arbiter, started)
+	if hosted || err != nil {
+		return hosting, err
+	}
 	choice := policy.SelectJoinerMethod(facts.QuestOffers, policy.JoinerCapacity(facts.JoinerCapacity()))
 	prefix := "joiner"
 	if choice.Reason == policy.JoinerNoOffer || choice.Reason == policy.JoinerNoCapacity {
@@ -93,6 +104,9 @@ func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbite
 	}
 	switch choice.Reason {
 	case policy.JoinerNoOffer, policy.JoinerNoCapacity, policy.QuestNoOffer:
+		if hosting.NativeWorkTicks > 0 {
+			return hosting, nil
+		}
 		return RoundsPopulationJoinerResult{Verdict: waitFor(WaitMethodUsed, "joiner_offers")}, nil
 	case policy.JoinerCensusUnknown:
 		return RoundsPopulationJoinerResult{Verdict: fieldUnavailable("joiner_census")}, nil

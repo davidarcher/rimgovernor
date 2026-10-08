@@ -24,15 +24,21 @@ type JoinerOffer struct {
 	ExpiresInTicks   domain.Fact[int64]
 	EligiblePawnIDs  []domain.PawnID
 	Objectives       []QuestObjective
+	Shuttles         []QuestShuttleState
 	Profile          domain.Fact[QuestProfile]
 	// FactionID is the quest's first non-player faction ("" when none);
 	// FactionHostile is that faction's FactionState.hostile, unknown when the
 	// census carries no row for it. OnMap is true when the quest's map is
 	// the colony's identity map. Favor is each reward choice's royal favor.
-	FactionID      string
-	FactionHostile domain.Fact[bool]
-	OnMap          bool
-	Favor          []QuestFavor
+	FactionID            string
+	FactionHostile       domain.Fact[bool]
+	OnMap                bool
+	Favor                []QuestFavor
+	Rewards              []QuestReward
+	RewardChoiceParts    domain.Fact[int32]
+	Asker                domain.PawnID
+	AskerFactionPlayer   domain.Fact[bool]
+	ViolentQuestsAllowed domain.Fact[bool]
 	// Class is the quest root's ground or ship-only classification from the
 	// catalog's QuestScriptDef rows (bridge.QuestClass); unknown when the
 	// catalog could not classify it. SelectOdysseyQuestMethod reads it.
@@ -43,6 +49,7 @@ type JoinerOffer struct {
 
 // QuestObjective carries the typed native requirement and its observed progress.
 type QuestObjective struct {
+	Monument         domain.Fact[QuestMonument]
 	Kind             o.QuestObjectiveKind
 	Def              string
 	Stuff            string
@@ -51,6 +58,19 @@ type QuestObjective struct {
 	DeadlineTicks    domain.Fact[int64]
 	UnmetRequirement string
 	PawnIDs          []domain.PawnID
+	MinimumMood      domain.Fact[float64]
+	LodgerMoods      []QuestLodgerMood
+	Active           domain.Fact[bool]
+}
+type QuestLodgerMood struct {
+	Pawn domain.PawnID
+	Mood domain.Fact[float64]
+}
+type QuestShuttleState struct {
+	ID                                                                             string
+	AutoloadAvailable, Autoload, Loading, AllRequiredLoaded, ManualLaunchAvailable domain.Fact[bool]
+	PawnIDs, LoadedPawnIDs                                                         []domain.PawnID
+	RequiredColonistCount                                                          domain.Fact[int32]
 }
 
 // QuestFavor is the royal favor one QuestAccept reward choice grants.
@@ -227,20 +247,6 @@ func SelectJoinerMethod(offers domain.Fact[[]JoinerOffer], capacity domain.Fact[
 		return choice
 	}
 	return JoinerChoice{Reason: JoinerNoOffer}
-}
-
-// empireFavor is the most royal favor any one reward choice of the offer
-// grants, with that choice's index (the lowest on a tie).
-func empireFavor(offer JoinerOffer) (choice, favor int32) {
-	for _, row := range offer.Favor {
-		if row.Choice < 0 {
-			continue
-		}
-		if row.Favor > favor || (row.Favor == favor && favor > 0 && row.Choice < choice) {
-			choice, favor = row.Choice, row.Favor
-		}
-	}
-	return choice, favor
 }
 
 // claimAnswerable reports whether an offer is a bestowing-ceremony quest the

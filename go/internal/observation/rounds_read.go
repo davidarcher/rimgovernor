@@ -242,6 +242,7 @@ func observeRounds(ctx context.Context, source RoundsSource, clock Clock, expect
 	personalShares(p, frame, pawns)
 	stampGearShares(p)
 	stampGearCreepjoiners(p, pawns, frame.Catalog.CreepJoinerDownsides())
+	stampQuestGuestProtection(&p.Facts)
 	return RoundsReading{ColonyReading: reading, Emergency: emergency, Sections: roundsSections(frame, *p, roomCensus), Frame: frame}, nil
 }
 
@@ -321,6 +322,23 @@ func frameQuests(read *bridge.WorldProgressionRead, home domain.MapID, catalog *
 		for _, favor := range quest.Favor {
 			offer.Favor = append(offer.Favor, policy.QuestFavor{Choice: favor.Choice, Favor: favor.Favor})
 		}
+		if quest.RewardChoiceParts != nil {
+			offer.RewardChoiceParts = domain.Known(*quest.RewardChoiceParts)
+		}
+		offer.Asker = domain.PawnID(quest.Asker)
+		if quest.AskerFactionPlayer != nil {
+			offer.AskerFactionPlayer = domain.Known(*quest.AskerFactionPlayer)
+		}
+		if quest.ViolentQuestsAllowed != nil {
+			offer.ViolentQuestsAllowed = domain.Known(*quest.ViolentQuestsAllowed)
+		}
+		for _, reward := range quest.Rewards {
+			row := policy.QuestReward{Choice: reward.Choice, Goodwill: reward.Goodwill, Psylink: reward.Psylink, PermitPoints: reward.PermitPoints, Permits: append([]string(nil), reward.Permits...), TitleDef: reward.TitleDef, FactionID: reward.FactionID}
+			for _, item := range reward.Items {
+				row.Items = append(row.Items, policy.Amount{Resource: policy.Resource(item.Def), Count: item.Count})
+			}
+			offer.Rewards = append(offer.Rewards, row)
+		}
 		for _, id := range quest.EligiblePawnIDs {
 			offer.EligiblePawnIDs = append(offer.EligiblePawnIDs, domain.PawnID(id))
 		}
@@ -329,8 +347,16 @@ func frameQuests(read *bridge.WorldProgressionRead, home domain.MapID, catalog *
 		}
 		for _, objective := range quest.Objectives {
 			row := policy.QuestObjective{Kind: objective.Kind, Def: objective.Def, Stuff: objective.Stuff, UnmetRequirement: objective.UnmetRequirement}
+			row.MinimumMood = optional(objective.MinimumMood)
+			row.Monument = questMonument(objective.Monument)
+			for _, mood := range objective.LodgerMoods {
+				row.LodgerMoods = append(row.LodgerMoods, policy.QuestLodgerMood{Pawn: domain.PawnID(mood.PawnID), Mood: optional(mood.Mood)})
+			}
 			if objective.Count != nil {
 				row.Count = domain.Known(*objective.Count)
+			}
+			if objective.Active != nil {
+				row.Active = domain.Known(*objective.Active)
 			}
 			if objective.Produced != nil {
 				row.Produced = domain.Known(*objective.Produced)
@@ -342,6 +368,16 @@ func frameQuests(read *bridge.WorldProgressionRead, home domain.MapID, catalog *
 				row.PawnIDs = append(row.PawnIDs, domain.PawnID(id))
 			}
 			offer.Objectives = append(offer.Objectives, row)
+		}
+		for _, shuttle := range quest.Shuttles {
+			row := policy.QuestShuttleState{ID: shuttle.ID, AutoloadAvailable: optional(shuttle.AutoloadAvailable), Autoload: optional(shuttle.Autoload), Loading: optional(shuttle.Loading), AllRequiredLoaded: optional(shuttle.AllRequiredLoaded), ManualLaunchAvailable: optional(shuttle.ManualLaunchAvailable), RequiredColonistCount: optional(shuttle.RequiredColonistCount)}
+			for _, id := range shuttle.PawnIDs {
+				row.PawnIDs = append(row.PawnIDs, domain.PawnID(id))
+			}
+			for _, id := range shuttle.LoadedPawnIDs {
+				row.LoadedPawnIDs = append(row.LoadedPawnIDs, domain.PawnID(id))
+			}
+			offer.Shuttles = append(offer.Shuttles, row)
 		}
 		offers = append(offers, offer)
 	}

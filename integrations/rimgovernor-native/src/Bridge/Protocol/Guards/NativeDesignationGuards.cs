@@ -72,7 +72,8 @@ namespace HomeBridge.BridgeTools
 
         // ---- enclosure ----
         private static string? Enclosure(Building target, HashSet<IntVec3>? ground) =>
-            Safety(target, ground) ?? (WallUpgradeSafety.Pending(target) != null ? "A pending wall upgrade owns the target." : null);
+            NativeQuestMonumentProtection.Protects(target) ? NativeQuestMonumentProtection.Refusal
+                : Safety(target, ground) ?? (WallUpgradeSafety.Pending(target) != null ? "A pending wall upgrade owns the target." : null);
 
         // The indoor rooms a player wall or door bounds, when every one lies
         // inside the cleared ground; null when there is no ground, the target

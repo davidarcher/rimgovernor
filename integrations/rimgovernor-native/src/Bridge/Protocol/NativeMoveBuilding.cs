@@ -48,13 +48,14 @@ namespace HomeBridge.BridgeTools
         {
             var cell = new IntVec3(intent.Destination.X, 0, intent.Destination.Z);
             var rotation = Rotation(intent);
-            var inner = mini.InnerThing as Building;
+            var inner = mini.InnerThing;
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => inner != null && !mini.Destroyed && mini.Spawned && ProtoBoundary.IsLoaded(mini.Map), "the exact packed building is not on this map")
                 .Require(() => inner!.Faction == null || inner.Faction == Faction.OfPlayer, "the packed building is not the player's")
                 .Require(() => !mini.Position.Fogged(map) && !mini.IsForbidden(Faction.OfPlayer), "the packed building is fogged or forbidden")
                 .Require(() => inner!.def.rotatable || rotation == Rot4.North, "the building is not rotatable; only north is valid")
                 .Require(() => cell.InBounds(map) && !cell.Fogged(map), "the destination is out of bounds or fogged")
+                .Require(() => !NativeQuestMonumentProtection.BlocksPlacement(map, inner!.def, cell, rotation), NativeQuestMonumentProtection.Refusal)
                 .Require(() => GenConstruct.CanPlaceBlueprintAt(inner!.def, cell, rotation, map, false, mini, inner).Accepted, "the game refuses an install blueprint at the destination")
                 .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Mover(p, mini)), "no free colonist with construction enabled can reach the packed building");
             failure = rules.Holds ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "") : rules.Failure();
@@ -65,7 +66,7 @@ namespace HomeBridge.BridgeTools
         // a refusal names the fact that moved. piece is the packed item for a
         // packed install, the building for a reinstall; queued is a blueprint
         // already standing for this exact placement.
-        private static Common.Failure? Resolve(Operations.RelocateIntent intent, Common.ObservationContext context, out Thing? piece, out Building? building, out Blueprint_Install? queued)
+        private static Common.Failure? Resolve(Operations.RelocateIntent intent, Common.ObservationContext context, out Thing? piece, out Thing? building, out Blueprint_Install? queued)
         {
             piece = null; building = null; queued = null;
             if (!Valid(intent)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A move requires an exact building, a destination cell and a cardinal rotation.");
@@ -73,10 +74,11 @@ namespace HomeBridge.BridgeTools
             var cell = new IntVec3(intent.Destination.X, 0, intent.Destination.Z);
             var rotation = Rotation(intent);
             var found = Find(map, intent.ThingId);
+            if (found != null && NativeQuestMonumentProtection.Protects(found)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, NativeQuestMonumentProtection.Refusal);
             if (found == null && FindPacked(map, intent.ThingId) is MinifiedThing mini)
             {
                 piece = mini;
-                building = mini.InnerThing as Building;
+                building = mini.InnerThing;
                 queued = InstallBlueprintUtility.ExistingBlueprintFor(mini) as Blueprint_Install;
                 if (queued != null) return queued.Position == cell && queued.Rotation == rotation ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Move building refused: the packed building already has an install blueprint elsewhere.");
                 return PreparePacked(intent, map, mini, out var packedFailure) ? null : packedFailure;
@@ -100,6 +102,7 @@ namespace HomeBridge.BridgeTools
                     && map.designationManager.DesignationOn(found!, DesignationDefOf.Deconstruct) == null, "the building is designated for uninstall or deconstruction")
                 .Require(() => cell.InBounds(map) && !cell.Fogged(map), "the destination is out of bounds or fogged")
                 .Require(() => GenConstruct.CanPlaceBlueprintAt(found!.def, cell, rotation, map, false, found, found).Accepted, "the game refuses a reinstall blueprint at the destination")
+                .Require(() => !NativeQuestMonumentProtection.BlocksPlacement(map, found!.def, cell, rotation), NativeQuestMonumentProtection.Refusal)
                 .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Mover(p, found!)), "no free colonist with construction enabled can reach the building");
             if (!rules.Holds) return rules.Failure();
             piece = building = found;
@@ -119,7 +122,7 @@ namespace HomeBridge.BridgeTools
             var cell = new IntVec3(intent.Destination.X, 0, intent.Destination.Z);
             var blueprint = queued ?? (piece is MinifiedThing mini
                 ? GenConstruct.PlaceBlueprintForInstall(mini, cell, mini.Map, Rotation(intent), Faction.OfPlayer)
-                : GenConstruct.PlaceBlueprintForReinstall(building!, cell, building!.Map, Rotation(intent), Faction.OfPlayer));
+                : GenConstruct.PlaceBlueprintForReinstall((Building)building!, cell, building!.Map, Rotation(intent), Faction.OfPlayer));
             if (blueprint == null || !blueprint.Spawned) throw new InvalidOperationException("Native install blueprint was not observed.");
             return new Receipts.EffectEvidence { Installation = new Receipts.InstallationEffect {
                 InnerThingId = building!.GetUniqueLoadID(), DefName = building.def.defName, Stuff = building.Stuff?.defName ?? "",

@@ -13,7 +13,13 @@ func QuestAccepter(offer JoinerOffer, facts RoundsFacts, workers domain.Fact[[]W
 		return "", false
 	}
 	royal, royalKnown := facts.Royalty.Value()
-	_, favor := empireFavor(offer)
+	choice := SelectQuestReward(offer, facts).Choice
+	favor := int64(0)
+	for _, reward := range offer.Favor {
+		if reward.Choice == choice || reward.Choice == -1 {
+			favor += int64(reward.Favor)
+		}
+	}
 	priorities := map[PawnID]int{}
 	pawns, known := workers.Value()
 	if !known {

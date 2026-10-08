@@ -22,6 +22,9 @@ func extendQuestFamilies(table map[string]QuestProfile) {
 	add(QuestFamilyHack, QuestDecide, "", QuestDemandTravel|QuestDemandSecurity, "AncientComplex_Standard", "Hack_Spacedrone", "AncientComplex_Mission", "Hack_WorshippedTerminal")
 	add(QuestFamilyRelic, QuestDecide, "", QuestDemandTravel, "RelicHunt")
 	add(QuestFamilyHospitalityJoiners, QuestDecide, "", QuestDemandFood|QuestDemandBeds|QuestDemandSecurity, "SanguophageMeetingHost")
+	meeting := table["SanguophageMeetingHost"]
+	meeting.ProtectGuests = true
+	table["SanguophageMeetingHost"] = meeting
 	add(QuestFamilyIncident, QuestRefuse, "pollution", 0, "PollutionDump")
 	add(QuestFamilyIncident, QuestRefuse, "sanguophage_ship", 0, "SanguophageShip")
 	add(QuestFamilyAnomaly, QuestRefuse, "entity_risk", 0, "MonolithMigration", "MysteriousCargoUnnaturalCorpse", "MysteriousCargoCube", "MysteriousCargoRevenantSpine")

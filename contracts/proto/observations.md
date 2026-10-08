@@ -727,6 +727,19 @@ outside every choice's part list emits a reward with absent `choice_index`:
 its favor applies independently of reward selection. Go represents this with
 choice -1 and does not count it as an option.
 
+`QuestReward.items` contains exact native item def names and stack counts.
+`goodwill` carries the signed faction relation change with `faction_id`.
+`psylink` counts neuroformers or the link awarded by a bestowing ceremony.
+Bestowing rows carry `title_def`, its `permit_points`, and the title's permit
+def IDs. These benefits are observed from native reward types; policy does not
+parse `kind`, labels or descriptions. `QuestState.choice_part_count` reports
+the number of independent native choice parts; more than one remains unsupported.
+
+Reward selection prioritizes favor while a recorded holder lacks the next
+title's favor, then items that meet observed resource, construction or food
+shortages, then the remaining native benefits. Ties choose the lowest option
+index. Independent favor contributes equally to every option.
+
 `QuestState.objectives` carries a closed `QuestObjectiveKind`: produce_item,
 harvest_plant, kill_animals, host_lodgers, accept_requirement_unmet,
 load_pawns, load_named_pawns, monument, expiry, or unknown. Definition and stuff
@@ -736,6 +749,20 @@ tick; expiry is the offer expiry. Named pawn objectives carry exact pawn IDs.
 `unmet_requirement` is native display text for an acceptance refusal, never
 policy input. Unsupported parts emit unknown without raw part data. These rows
 are derived observations, not persisted intent.
+
+`QuestObjective.active` is the native activable part's enabled state; it is
+absent for a non-activable part. Decree work rows use the earliest enabled
+native timeout as their absolute deadline. A decree's `asker_pawn_id` and
+`asker_faction_player` come from its `DecreeUnmet` situational-thought recipient,
+the exact requester reference in the native decree script. Conflicting or
+missing recipients remain unknown. `violent_quests_allowed` is the current
+storyteller difficulty setting.
+
+Completed monuments belonging to an ongoing quest remain protected at the native
+write boundary: construction and reinstall previews refuse their sketch area;
+removal guards refuse sketch pieces, its terrain and the marker. The guard reads
+live quest state and ends when the quest ends. Unrelated disallowed structures
+can still be removed. This is an intent precondition, with no additional store.
 
 ## Obtainable operation preconditions
 

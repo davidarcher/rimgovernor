@@ -93,6 +93,40 @@ func TestQuestFavorOutsideChoice(t *testing.T) {
 		t.Fatal("invented objectives")
 	}
 }
+
+func TestQuestTypedRewards(t *testing.T) {
+	v := worldProgressionFixture()
+	v.Quests[0].ChoicePartCount = proto.Int32(1)
+	v.Quests[0].Rewards = []*o.QuestReward{{ChoiceIndex: proto.Uint32(0), Items: []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(20)}}, Goodwill: proto.Int32(10), Psylink: proto.Int32(1), PermitPoints: proto.Int32(2), Permits: []string{"CallAid"}, TitleDef: proto.String("Knight"), FactionId: proto.String("Faction_5")}}
+	out, err := worldProgressionSelected(v, pbIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	reward := out.Quests[0].Rewards[0]
+	if reward.Choice != 0 || len(reward.Items) != 1 || reward.Items[0].Count != 20 || reward.Goodwill != 10 || reward.Psylink != 1 || reward.PermitPoints != 2 || len(reward.Permits) != 1 || reward.TitleDef != "Knight" || reward.FactionID != "Faction_5" || out.Quests[0].RewardChoiceParts == nil || *out.Quests[0].RewardChoiceParts != 1 {
+		t.Fatal(out.Quests[0])
+	}
+}
+
+func TestQuestTypedRewardRejectsMalformedEvidence(t *testing.T) {
+	for name, reward := range map[string]*o.QuestReward{
+		"negative psylink":       {Psylink: proto.Int32(-1)},
+		"negative permit points": {PermitPoints: proto.Int32(-1)},
+		"nil item":               {Items: []*o.Quantity{nil}},
+		"missing item units":     {Items: []*o.Quantity{{DefName: proto.String("Steel")}}},
+		"negative item units":    {Items: []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(-1)}}},
+		"duplicate permit":       {Permits: []string{"CallAid", "CallAid"}},
+		"invalid permit":         {Permits: []string{""}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			v := worldProgressionFixture()
+			v.Quests[0].Rewards = []*o.QuestReward{reward}
+			if _, err := worldProgressionSelected(v, pbIdentity()); err == nil {
+				t.Fatal("accepted malformed reward")
+			}
+		})
+	}
+}
 func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
 	snapshot := worldProgressionFixture()
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {

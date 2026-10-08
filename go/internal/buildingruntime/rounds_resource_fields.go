@@ -25,6 +25,11 @@ func (r *Rounder) fieldProtected(call context.Context, state ControlState, revie
 		return nil, err
 	}
 	var protected []domain.Cell
+	plans, err := p.journal.LoadPlans(call)
+	if err != nil {
+		return nil, err
+	}
+	protected = append(protected, pendingMonumentCells(plans, projection.Facts.QuestOffers)...)
 	for _, h := range held {
 		protected = append(protected, h.Footprint...)
 	}

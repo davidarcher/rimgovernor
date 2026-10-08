@@ -9,6 +9,8 @@ import (
 
 // CarePawn is a fresh native health assessment, independent of urgent tending.
 type CarePawn struct {
+	// QuestProtected guests may be tended, but never operated on during their visit.
+	QuestProtected                            bool
 	ID                                        PawnID
 	Care                                      domain.Fact[string]
 	LifeThreatening                           domain.Fact[bool]

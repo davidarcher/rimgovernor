@@ -19,6 +19,7 @@ const (
 // PrisonerFacts already reads (rimgovernor/observations_read_population),
 // broadened to include every observed humanlike rather than only prisoners.
 type CustodyFacts struct {
+	QuestProtected                                   bool
 	Pawn                                             domain.PawnID
 	Dead, Downed, Guest, Admitted, Prisoner, Hostile domain.Fact[bool]
 	// Recruitable is the game's guest.Recruitable, rolled at pawn generation
@@ -71,7 +72,7 @@ func custodyEligible(row CustodyFacts) (CustodyDecision, bool) {
 	if !pk || !hk {
 		return "", false
 	}
-	if !guest && !admitted && !prisoner && hostile {
+	if !row.QuestProtected && !guest && !admitted && !prisoner && hostile {
 		addicted, _ := row.Luciferium.Value()
 		if worn, known := row.WearingApparel.Value(); !CaptureWorthy(CombatPawnState{Luciferium: addicted}) || !known || worn {
 			return "", false

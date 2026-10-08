@@ -1296,6 +1296,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.PreservationBills != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.PreservationBills.NativeWorkTicks)
 	}
+	if out.PopulationJoiner != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.PopulationJoiner.NativeWorkTicks)
+	}
 	// A standing production bill past its first iteration needs game time,
 	// not another method (RoundsResourceResult.NativeWorkTicks).
 	if out.Resource != nil {
@@ -1989,7 +1992,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 				domain.SubdueAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction,
 				domain.HaulAction, domain.EquipAction, domain.DropEquipmentAction, domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction,
 				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.AreaPlantCutAction, domain.CutPlantAction, domain.StripAction, domain.RulesAttachAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.WastepackHaulAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.TradeAction, domain.QuestAcceptAction, domain.RitualAction, domain.IdeoligionReformAction, domain.AbilityAction, domain.IgniteAction, domain.RemoveProductionBillAction, domain.CloseDoorAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
+				domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.AreaPlantCutAction, domain.CutPlantAction, domain.StripAction, domain.RulesAttachAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.WastepackHaulAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.TradeAction, domain.QuestAcceptAction, domain.QuestShuttleAction, domain.RitualAction, domain.IdeoligionReformAction, domain.AbilityAction, domain.IgniteAction, domain.RemoveProductionBillAction, domain.CloseDoorAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

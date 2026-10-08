@@ -221,16 +221,20 @@ type questSkipKey struct {
 
 func (r *Rounder) logQuestSkips(ctx context.Context, facts policy.RoundsFacts) {
 	for _, skip := range policy.QuestSkips(facts) {
-		key := questSkipKey{skip.Quest, skip.Reason}
-		if r.skipsLogged[key] {
-			continue
-		}
-		if r.skipsLogged == nil {
-			r.skipsLogged = map[questSkipKey]bool{}
-		}
-		r.skipsLogged[key] = true
-		telemetry.Decide(ctx, questSkipDecision(skip))
+		r.logQuestSkip(ctx, skip)
 	}
+}
+
+func (r *Rounder) logQuestSkip(ctx context.Context, skip policy.QuestSkip) {
+	key := questSkipKey{skip.Quest, skip.Reason}
+	if r.skipsLogged[key] {
+		return
+	}
+	if r.skipsLogged == nil {
+		r.skipsLogged = map[questSkipKey]bool{}
+	}
+	r.skipsLogged[key] = true
+	telemetry.Decide(ctx, questSkipDecision(skip))
 }
 
 // seasonal is the configured policy with its food and wood targets widened

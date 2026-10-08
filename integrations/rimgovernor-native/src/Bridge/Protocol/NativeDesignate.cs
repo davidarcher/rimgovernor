@@ -166,6 +166,8 @@ namespace HomeBridge.BridgeTools
                 plan.WallStuff = WallStuff(plan.Target!);
                 if (plan.WallStuff == null) return "only a 1x1 player door of a wall stuff swaps for a wall";
             }
+            if (plan.Designation == Operations.ThingDesignation.RemoveFoundation && NativeQuestMonumentProtection.ProtectsTerrain(map, plan.Cell))
+                return NativeQuestMonumentProtection.Refusal;
             if (plan.Target != null && plan.Target.IsForbidden(Faction.OfPlayer)) return "the target is forbidden";
             if (plan.Guard != null)
             {

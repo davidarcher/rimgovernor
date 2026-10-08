@@ -21,6 +21,9 @@ CanAcceptQuest remains the final eligibility check at dispatch.
 
 Required accepters come from the native eligibility list. Lower aggregate skill
 value is preferred; royal rewards prefer an eligible existing title holder.
+Reward selection prioritizes favor needed for pending titles, observed material
+shortages, then useful benefits. Universal rewards apply to every choice; multiple
+choice parts are refused because the native acceptance intent selects one index.
 Each refusal is a stable reason in a deduplicated quest decision under
 `routine_skip`, with quest and script identities in attributes.
 
@@ -29,5 +32,17 @@ explicit pawn list into the transporter, or request launch once requirements are
 loaded. Native validates quest ownership, map, eligibility and departure
 conditions. Loading and launch-request receipts prove instructions applied;
 native boarding, departure and quest success establish lifecycle completion.
+
+Active decrees use native crafted, harvested and killed counts. Production bills
+retain exact product and stuff requirements; stored products do not count as
+crafting. Harvest demand counts plants, and hunt orders target the required wild
+species only when violence is permitted. Existing queued work keeps the objective
+active until native progress changes.
+
+Monument objectives expose the live marker, sketch footprints, native placement
+permissions and eligible loose-resource haulers. The existing packed installation
+intent places the marker; shared building admission handles its sketch. Queued
+blueprints remain work in progress, and the intact native sketch determines
+completion and maintenance during the keep period.
 
 All quest facts are derived observations. No quest-specific store is added.
