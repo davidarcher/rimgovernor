@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -148,6 +149,7 @@ func TestOutskirtsPlanHoldsWasteYardWithIncineratorInside(t *testing.T) {
 }
 
 func TestDeriveLayoutPlanPlansTheOutskirtsRooms(t *testing.T) {
+	slowtest.Skip(t, "two full layout derives on a 220-cell map; runs under cmd/test -full and nightly")
 	survey := zoningSurvey(220, func(x, z int32) SurveyCell {
 		if x >= 150 {
 			return SurveyCell{Rock: true}

@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -27,6 +28,7 @@ func TestHotMapCurve(t *testing.T) {
 // shelter is sized for the passive cooler slot, a replan keeps both, and the
 // template plans the slot on the floor only when hot (#2044).
 func TestHotMapShelterHoldsAPassiveCoolerSlot(t *testing.T) {
+	slowtest.Skip(t, "two full layout derives on a 120-cell map; runs under cmd/test -full and nightly")
 	t.Parallel()
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(120, open)

@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -104,6 +105,7 @@ func TestTemperaturePlannerCoolsTheShelter(t *testing.T) {
 
 // The latch comes from the survey through the real derive path.
 func TestDeriveLatchesTheSurveyClimate(t *testing.T) {
+	slowtest.Skip(t, "two full layout derives on a 120-cell map; runs under cmd/test -full and nightly")
 	t.Parallel()
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(120, open)

@@ -3,6 +3,7 @@ package snapshot
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -72,6 +73,7 @@ func TestReplayFilthyKitchenOpensCleaning(t *testing.T) {
 }
 
 func TestRecordStreamsKeyframesAndPatches(t *testing.T) {
+	slowtest.Skip(t, "streams a full recorded game; runs under cmd/test -full and nightly")
 	r, err := Load(cleanFilthy)
 	if err != nil {
 		t.Fatal(err)

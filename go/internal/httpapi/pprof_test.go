@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"io"
 	"net"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 // A CPU profile started for longer than the server's read/write timeouts
 // survives them and ends, with its data, on DELETE.
 func TestPprofProfileOutlivesTimeoutsAndStopsOnDelete(t *testing.T) {
+	slowtest.Skip(t, "waits on real one-second timeouts; runs under cmd/test -full and nightly")
 	s, err := New(Config{Pprof: true, ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)

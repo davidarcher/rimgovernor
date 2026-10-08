@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"reflect"
 	"testing"
 
@@ -668,6 +669,7 @@ func TestDefenseLayoutFunnelHasNoSealedFrames(t *testing.T) {
 // refuses at siting when that opens a route), never asks native to place it
 // (#2119).
 func TestDefenseLayoutFunnelSkipsUnsupportedTerrain(t *testing.T) {
+	slowtest.Skip(t, "layout search over a full defense fixture; runs under cmd/test -full and nightly")
 	base, err := DefenseLayouts(defenseFixture())
 	if err != nil {
 		t.Fatal(err)

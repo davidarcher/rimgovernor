@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"math"
 	"testing"
 	"time"
@@ -344,6 +345,7 @@ func syntheticCatalog(stride, perClass int) *o.DefinitionCatalog {
 // the binary reply is parsed, validated and indexed within the accepted
 // maximum, and the size and time are logged for the commit record.
 func TestDefinitionCatalogDecodeTime(t *testing.T) {
+	slowtest.Skip(t, "decodes a synthesized full catalog reply; runs under cmd/test -full and nightly")
 	// A third of every def filled, 40 defs of each other class.
 	for _, shape := range []struct{ stride, perClass int }{{3, 40}} {
 		t.Run(fmt.Sprintf("stride%d-per%d", shape.stride, shape.perClass), func(t *testing.T) {

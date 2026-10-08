@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"net"
 	"net/http"
 	"os"
@@ -94,6 +95,7 @@ func TestServeArgsFixesTheSharedFlags(t *testing.T) {
 // CPU profile and takes the heap snapshot before the kill, both on disk
 // and on the launch's entry (#301).
 func TestLaunchServeCapturesProfilesAtStop(t *testing.T) {
+	slowtest.Skip(t, "launches a serve process and captures profiles; runs under cmd/test -full and nightly")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	cfg := &Config{Output: t.TempDir(), Configuration: "cfg", GameID: "g"}

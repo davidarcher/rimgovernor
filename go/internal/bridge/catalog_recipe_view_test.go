@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"slices"
 	"sort"
 	"strings"
@@ -24,6 +25,7 @@ func recipeNames(catalog *DefinitionCatalog) []string {
 // a drug administration, which makes nothing and whose allowed drug no field of
 // the row records, has unknown ingredients.
 func TestRecipeViewReadsEveryVanillaRecipe(t *testing.T) {
+	slowtest.Skip(t, "reads all 442 vanilla recipes; runs under cmd/test -full and nightly")
 	catalog := fullCatalog(t)
 	names := recipeNames(catalog)
 	if len(names) != 442 {
