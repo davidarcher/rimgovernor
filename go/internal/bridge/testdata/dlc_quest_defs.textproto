@@ -1,0 +1,181 @@
+# Named QuestScriptDef identity mirror from RimWorld 1.6 game XML, Core and all DLCs.
+# Core/Script_BanditCamp.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_BanditCamp" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Script_DelayedRewardDropPods.xml; root QuestNode_Root_DelayedRewardDropPods
+quest_script_defs { defName: "DelayedRewardDropPods" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Script_DownedRefugee.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_DownedRefugee" modPackageId: "ludeon.rimworld.core" autoAccept: true }
+# Core/Script_EndGame_ShipEscape.xml; root QuestNode_Sequence
+quest_script_defs { defName: "EndGame_ShipEscape" modPackageId: "ludeon.rimworld.core" autoAccept: true }
+# Core/Script_ItemStash.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_ItemStash" modPackageId: "ludeon.rimworld.core" autoAccept: true }
+# Core/Script_LongRangeMineralScannerLump.xml; root QuestNode_Sequence
+quest_script_defs { defName: "LongRangeMineralScannerLump" modPackageId: "ludeon.rimworld.core" autoAccept: true }
+# Core/Script_PeaceTalks.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_PeaceTalks" modPackageId: "ludeon.rimworld.core" autoAccept: true }
+# Core/Script_PrisonerWillingToJoin.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_PrisonerWillingToJoin" modPackageId: "ludeon.rimworld.core" autoAccept: true }
+# Core/Script_TradeRequest.xml; root QuestNode_Sequence
+quest_script_defs { defName: "TradeRequest" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Script_TransportPodCrash.xml; root QuestNode_Root_RefugeePodCrash
+quest_script_defs { defName: "RefugeePodCrash" modPackageId: "ludeon.rimworld.core" autoAccept: true }
+# Core/Script_WandererJoins.xml; root QuestNode_Root_WandererJoin_WalkIn
+quest_script_defs { defName: "WandererJoins" modPackageId: "ludeon.rimworld.core" autoAccept: true }
+# Core/Scripts_JoinerThreatCore.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_JoinerThreat_Joiner" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Scripts_JoinerThreatCore.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ThreatReward_Raid_Joiner" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Scripts_Utility_RewardsCore.xml; root QuestNode_EvaluateSimpleCurve
+quest_script_defs { defName: "Util_GetDefaultRewardValueFromPoints" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Scripts_Utility_RewardsCore.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_JoinerWalkIn" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Scripts_Utility_RewardsCore.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_JoinerDropIn" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Scripts_Utility_RewardsCore.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_SendItemPods" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Scripts_Utility_ThreatsCore.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_RandomizePointsChallengeRating" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Scripts_Utility_ThreatsCore.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_AdjustPointsForDistantFight" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Scripts_Utility_ThreatsCore.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_Raid" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Scripts_Utility_ThreatsCore.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_MechCluster" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Scripts_Utility_ThreatsCore.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_RaidDelayRepeatable" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Core/Scripts_Utility_ThreatsCore.xml; root QuestNode_GenerateSite
+quest_script_defs { defName: "Util_GenerateSite" modPackageId: "ludeon.rimworld.core" autoAccept: false }
+# Ideology/Script_AncientSignalActivation.xml; root QuestNode_Root_AncientSignalActivation
+quest_script_defs { defName: "AncientSignalActivation" modPackageId: "ludeon.rimworld.ideology" autoAccept: true }
+# Ideology/Script_Beggars.xml; root QuestNode_Root_Beggars
+quest_script_defs { defName: "Beggars" modPackageId: "ludeon.rimworld.ideology" autoAccept: true }
+# Ideology/Script_EndGame_ArchonexusVictory.xml; root QuestNode_Root_ArchonexusVictory
+quest_script_defs { defName: "EndGame_ArchonexusVictory" modPackageId: "ludeon.rimworld.ideology" autoAccept: true }
+# Ideology/Script_EndGame_ArchonexusVictory.xml; root QuestNode_Root_ArchonexusVictory_FirstCycle
+quest_script_defs { defName: "EndGame_ArchonexusVictory_FirstCycle" modPackageId: "ludeon.rimworld.ideology" autoAccept: false }
+# Ideology/Script_EndGame_ArchonexusVictory.xml; root QuestNode_Root_ArchonexusVictory_SecondCycle
+quest_script_defs { defName: "EndGame_ArchonexusVictory_SecondCycle" modPackageId: "ludeon.rimworld.ideology" autoAccept: false }
+# Ideology/Script_EndGame_ArchonexusVictory.xml; root QuestNode_Root_ArchonexusVictory_ThirdCycle
+quest_script_defs { defName: "EndGame_ArchonexusVictory_ThirdCycle" modPackageId: "ludeon.rimworld.ideology" autoAccept: false }
+# Ideology/Script_Hack_AncientComplex.xml; root QuestNode_Root_Hack_AncientComplex
+quest_script_defs { defName: "AncientComplex_Standard" modPackageId: "ludeon.rimworld.ideology" autoAccept: false }
+# Ideology/Script_Hack_Spacedrone.xml; root QuestNode_Root_Hack_Spacedrone
+quest_script_defs { defName: "Hack_Spacedrone" modPackageId: "ludeon.rimworld.ideology" autoAccept: false }
+# Ideology/Script_Loot_AncientComplex.xml; root QuestNode_Root_Loot_AncientComplex
+quest_script_defs { defName: "OpportunitySite_AncientComplex" modPackageId: "ludeon.rimworld.ideology" autoAccept: true }
+# Ideology/Script_Missions.xml; root QuestNode_Root_Mission_AncientComplex
+quest_script_defs { defName: "AncientComplex_Mission" modPackageId: "ludeon.rimworld.ideology" autoAccept: false }
+# Ideology/Script_RelicHunt.xml; root QuestNode_Root_RelicHunt
+quest_script_defs { defName: "RelicHunt" modPackageId: "ludeon.rimworld.ideology" autoAccept: false }
+# Ideology/Script_ReliquaryPilgrims.xml; root QuestNode_Root_ReliquaryPilgrims
+quest_script_defs { defName: "ReliquaryPilgrims" modPackageId: "ludeon.rimworld.ideology" autoAccept: true }
+# Ideology/Script_WorkSite.xml; root QuestNode_Root_WorkSite
+quest_script_defs { defName: "OpportunitySite_WorkSite" modPackageId: "ludeon.rimworld.ideology" autoAccept: true }
+# Ideology/Script_WorshipppedTerminal.xml; root QuestNode_Root_Hack_WorshippedTerminal
+quest_script_defs { defName: "Hack_WorshippedTerminal" modPackageId: "ludeon.rimworld.ideology" autoAccept: false }
+# Biotech/Script_Bossgroup.xml; root QuestNode_Root_Bossgroup
+quest_script_defs { defName: "Bossgroup" modPackageId: "ludeon.rimworld.biotech" autoAccept: true }
+# Biotech/Script_Loot_AncientComplex.xml; root QuestNode_Root_Loot_AncientComplex_Mechanitor
+quest_script_defs { defName: "OpportunitySite_AncientComplex_Mechanitor" modPackageId: "ludeon.rimworld.biotech" autoAccept: true }
+# Biotech/Script_MechanitorShip.xml; root QuestNode_Root_MechanitorShip
+quest_script_defs { defName: "MechanitorShip" modPackageId: "ludeon.rimworld.biotech" autoAccept: false }
+# Biotech/Script_PollutionDump.xml; root QuestNode_Root_PollutionDump
+quest_script_defs { defName: "PollutionDump" modPackageId: "ludeon.rimworld.biotech" autoAccept: false }
+# Biotech/Script_PollutionRaid.xml; root QuestNode_Root_PollutionRaid
+quest_script_defs { defName: "PollutionRaid" modPackageId: "ludeon.rimworld.biotech" autoAccept: true }
+# Biotech/Script_PollutionRetaliation.xml; root QuestNode_Root_PollutionRetaliation
+quest_script_defs { defName: "PollutionRetaliation" modPackageId: "ludeon.rimworld.biotech" autoAccept: true }
+# Biotech/Script_SanguophageMeetingHost.xml; root QuestNode_Root_SanguophageMeetingHost
+quest_script_defs { defName: "SanguophageMeetingHost" modPackageId: "ludeon.rimworld.biotech" autoAccept: false }
+# Biotech/Script_SanguophageShip.xml; root QuestNode_Root_SanguophageShip
+quest_script_defs { defName: "SanguophageShip" modPackageId: "ludeon.rimworld.biotech" autoAccept: false }
+# Biotech/Script_StartingMech.xml; root QuestNode_Root_MechanitorStartingMech
+quest_script_defs { defName: "MechanitorStartingMech" modPackageId: "ludeon.rimworld.biotech" autoAccept: true }
+# Biotech/Script_TransportPodCrash_Baby.xml; root QuestNode_Root_RefugeePodCrash_Baby
+quest_script_defs { defName: "RefugeePodCrash_Baby" modPackageId: "ludeon.rimworld.biotech" autoAccept: true }
+# Anomaly/Script_CreepjoinerJoins.xml; root QuestNode_Root_Creepjoiner_Arrival
+quest_script_defs { defName: "CreepJoinerArrival" modPackageId: "ludeon.rimworld.anomaly" autoAccept: false }
+# Anomaly/Script_CreepjoinerJoins.xml; root QuestNode_Sequence
+quest_script_defs { defName: "CreepJoinerArrival_Metalhorror" modPackageId: "ludeon.rimworld.anomaly" autoAccept: false }
+# Anomaly/Script_DistressCall.xml; root QuestNode_Root_DistressCall
+quest_script_defs { defName: "OpportunitySite_DistressCall" modPackageId: "ludeon.rimworld.anomaly" autoAccept: true }
+# Anomaly/Script_EndGame_VoidAwakening.xml; root QuestNode_Root_VoidMonolith
+quest_script_defs { defName: "EndGame_VoidMonolith" modPackageId: "ludeon.rimworld.anomaly" autoAccept: true }
+# Anomaly/Script_EndGame_VoidAwakening.xml; root QuestNode_Root_VoidAwakening
+quest_script_defs { defName: "EndGame_VoidAwakening" modPackageId: "ludeon.rimworld.anomaly" autoAccept: true }
+# Anomaly/Script_MonolithMigration.xml; root QuestNode_Root_MonolithMigration
+quest_script_defs { defName: "MonolithMigration" modPackageId: "ludeon.rimworld.anomaly" autoAccept: false }
+# Anomaly/Script_MysteriousCargo.xml; root QuestNode_Root_MysteriousCargoUnnaturalCorpse
+quest_script_defs { defName: "MysteriousCargoUnnaturalCorpse" modPackageId: "ludeon.rimworld.anomaly" autoAccept: false }
+# Anomaly/Script_MysteriousCargo.xml; root QuestNode_Root_MysteriousCargoUnnaturalCube
+quest_script_defs { defName: "MysteriousCargoCube" modPackageId: "ludeon.rimworld.anomaly" autoAccept: false }
+# Anomaly/Script_MysteriousCargo.xml; root QuestNode_Root_MysteriousCargoRevenantSpine
+quest_script_defs { defName: "MysteriousCargoRevenantSpine" modPackageId: "ludeon.rimworld.anomaly" autoAccept: false }
+# Anomaly/Script_SightstealerArrival.xml; root QuestNode_Root_SightstealerArrival
+quest_script_defs { defName: "SightstealerArrival" modPackageId: "ludeon.rimworld.anomaly" autoAccept: true }
+# Anomaly/Script_TransportPodCrash_Ghoul.xml; root QuestNode_Root_RefugeePodCrash_Ghoul
+quest_script_defs { defName: "RefugeePodCrash_Ghoul" modPackageId: "ludeon.rimworld.anomaly" autoAccept: true }
+# Anomaly/Script_UnnaturalDarkness.xml; root QuestNode_Root_UnnaturalDarkness
+quest_script_defs { defName: "UnnaturalDarkness" modPackageId: "ludeon.rimworld.anomaly" autoAccept: true }
+# Odyssey/Script_AlphaThrumboSighting.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_AlphaThrumbo_Giver" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_AncientComplex.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_AncientComplex_Giver" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_AncientMercenaries.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_AncientMercenaries" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_AncientStructures.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_SetupAncientStructureCommon" modPackageId: "ludeon.rimworld.odyssey" autoAccept: false }
+# Odyssey/Script_AncientStructures.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Opportunity_AncientStructureLaunchSite" modPackageId: "ludeon.rimworld.odyssey" autoAccept: false }
+# Odyssey/Script_AncientStructures.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Opportunity_AncientStructureGarrison" modPackageId: "ludeon.rimworld.odyssey" autoAccept: false }
+# Odyssey/Script_AncientStructures.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Opportunity_AncientStructureChemfuelRefinery" modPackageId: "ludeon.rimworld.odyssey" autoAccept: false }
+# Odyssey/Script_AncientStructures.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Opportunity_AncientStructureWarehouse" modPackageId: "ludeon.rimworld.odyssey" autoAccept: false }
+# Odyssey/Script_AncientStructures.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Opportunity_AncientInfestedSettlement" modPackageId: "ludeon.rimworld.odyssey" autoAccept: false }
+# Odyssey/Script_BanditCamp.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_BanditCamp_Giver" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_GravShip.xml; root QuestNode_Root_MechanoidSignal
+quest_script_defs { defName: "MechanoidSignal" modPackageId: "ludeon.rimworld.odyssey" autoAccept: false }
+# Odyssey/Script_GravShip.xml; root QuestNode_Root_GravShip
+quest_script_defs { defName: "GravEngine" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_GravShip.xml; root QuestNode_Root_Gravcore_MechanoidRelay
+quest_script_defs { defName: "Gravcore_MechanoidRelay" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_GravShip.xml; root QuestNode_Root_Gravcore_InsectLair
+quest_script_defs { defName: "Gravcore_InsectLair" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_GravShip.xml; root QuestNode_Root_Gravcore_AncientReactor
+quest_script_defs { defName: "Gravcore_AncientReactor" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_GravShip.xml; root QuestNode_Root_Gravcore_OrbitalMechanoidPlatform
+quest_script_defs { defName: "Gravcore_OrbitalMechanoidPlatform" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_GravShip.xml; root QuestNode_Root_Gravcore_AncientStockpile
+quest_script_defs { defName: "Gravcore_AncientStockpile" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_GravShip.xml; root QuestNode_Root_Gravcore_CrashedMechanoidPlatform
+quest_script_defs { defName: "Gravcore_CrashedMechanoidPlatform" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_GravShip.xml; root QuestNode_Root_Gravcore_OrbitalAncientPlatform
+quest_script_defs { defName: "Gravcore_OrbitalAncientPlatform" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_GravShip.xml; root QuestNode_Root_Gravcore_FrozenTerraformer
+quest_script_defs { defName: "Gravcore_FrozenTerraformer" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_GravShip.xml; root QuestNode_Root_Gravcore_Mechhive
+quest_script_defs { defName: "Gravcore_Mechhive" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_GravShip.xml; root QuestNode_Root_Gravship_Wreckage
+quest_script_defs { defName: "GravshipWreckage" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_ItemStash.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_ItemStash_Giver" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_OrbitalFugitive.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OrbitalFugitive" modPackageId: "ludeon.rimworld.odyssey" autoAccept: false }
+# Odyssey/Script_Site.xml; root QuestNode_Sequence
+quest_script_defs { defName: "SurveySite" modPackageId: "ludeon.rimworld.odyssey" autoAccept: false }
+# Odyssey/Script_SpaceSites.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_Asteroid" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_SpaceSites.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_OrbitalItemStash" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_SpaceSites.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_AbandonedPlatform" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_SpaceSites.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_OrbitalWreck" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_SpaceSites.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_MechanoidPlatform" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }
+# Odyssey/Script_SpaceSites.xml; root QuestNode_Sequence
+quest_script_defs { defName: "OpportunitySite_Satellite" modPackageId: "ludeon.rimworld.odyssey" autoAccept: true }

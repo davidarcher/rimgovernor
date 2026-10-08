@@ -174,6 +174,11 @@ func observeRounds(ctx context.Context, source RoundsSource, clock Clock, expect
 	p.BuildTier = policy.SelectBuildTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel)
 	p.Facts.Traders = frameTraders(frame.Traders)
 	p.Facts.QuestOffers = frameQuests(frame.Quests, expected.Map, frame.Catalog)
+	p.Facts.QuestWorkers = p.WorkPawns
+	if frame.Quests != nil && frame.Quests.Context != nil && frame.Quests.Context.Tick != nil {
+		p.Facts.QuestObservedTick = domain.Known(domain.Tick(frame.Quests.Context.GetTick()))
+	}
+	p.Facts.QuestColonistsAtHome = frameQuestColonistsAtHome(frame.Quests, expected.Map, emergency)
 	p.Facts.Ideology = frameIdeology(frame.Ideology)
 	p.Facts.IdeologyInstalled = frame.IdeologyActive
 	p.Facts.RitualSites = ritualSites(frame.Buildings, p.Facts.Ideology)
@@ -299,6 +304,10 @@ func frameQuests(read *bridge.WorldProgressionRead, home domain.MapID, catalog *
 		offer := policy.JoinerOffer{Quest: domain.QuestID(quest.ID), ScriptDef: quest.ScriptDef, State: quest.State, CanAccept: quest.CanAccept, RequiresAccepter: quest.RequiresAccepter, ChoiceCount: quest.ChoiceCount,
 			FactionID: quest.FactionID, FactionHostile: domain.Unknown[bool](), OnMap: quest.MapKnown && domain.MapID(quest.MapID) == home, Class: domain.Unknown[policy.QuestClass]()}
 		if catalog != nil {
+			profile, profileErr := catalog.QuestProfile(quest.ScriptDef)
+			if profileErr == nil {
+				offer.Profile = domain.Known(profile)
+			}
 			class, err := catalog.QuestClass(quest.ScriptDef)
 			if err == nil {
 				offer.Class = domain.Known(class)
@@ -311,6 +320,28 @@ func frameQuests(read *bridge.WorldProgressionRead, home domain.MapID, catalog *
 		}
 		for _, favor := range quest.Favor {
 			offer.Favor = append(offer.Favor, policy.QuestFavor{Choice: favor.Choice, Favor: favor.Favor})
+		}
+		for _, id := range quest.EligiblePawnIDs {
+			offer.EligiblePawnIDs = append(offer.EligiblePawnIDs, domain.PawnID(id))
+		}
+		if quest.ExpiresInTicks != nil {
+			offer.ExpiresInTicks = domain.Known(*quest.ExpiresInTicks)
+		}
+		for _, objective := range quest.Objectives {
+			row := policy.QuestObjective{Kind: objective.Kind, Def: objective.Def, Stuff: objective.Stuff, UnmetRequirement: objective.UnmetRequirement}
+			if objective.Count != nil {
+				row.Count = domain.Known(*objective.Count)
+			}
+			if objective.Produced != nil {
+				row.Produced = domain.Known(*objective.Produced)
+			}
+			if objective.DeadlineTicks != nil {
+				row.DeadlineTicks = domain.Known(*objective.DeadlineTicks)
+			}
+			for _, id := range objective.PawnIDs {
+				row.PawnIDs = append(row.PawnIDs, domain.PawnID(id))
+			}
+			offer.Objectives = append(offer.Objectives, row)
 		}
 		offers = append(offers, offer)
 	}

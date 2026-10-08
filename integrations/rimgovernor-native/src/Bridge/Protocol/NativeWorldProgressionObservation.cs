@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
+using HarmonyLib;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using RimWorld.Planet;
@@ -144,6 +145,59 @@ namespace HomeBridge.BridgeTools
                     }
                 }
             }
+            var choiceParts = new HashSet<QuestPart>(quest.PartsListForReading.OfType<QuestPart_Choice>()
+                .SelectMany(p => p.choices).SelectMany(c => c.questParts));
+            foreach (var favor in quest.PartsListForReading.OfType<QuestPart_GiveRoyalFavor>().Where(p => !choiceParts.Contains(p) && p.amount > 0))
+                rows.Add(new Obs.QuestReward { Kind = nameof(QuestPart_GiveRoyalFavor), Favor = favor.amount });
+            return rows;
+        }
+
+        private static readonly AccessTools.FieldRef<QuestPart_ThingsProduced, int> Produced = AccessTools.FieldRefAccess<QuestPart_ThingsProduced, int>("produced");
+        private static readonly AccessTools.FieldRef<QuestPart_PlantsHarvested, int> Harvested = AccessTools.FieldRefAccess<QuestPart_PlantsHarvested, int>("harvested");
+        private static readonly AccessTools.FieldRef<QuestPart_PawnsKilled, int> Killed = AccessTools.FieldRefAccess<QuestPart_PawnsKilled, int>("killed");
+
+        private static List<Obs.QuestObjective> Objectives(Quest quest)
+        {
+            var rows = new List<Obs.QuestObjective>();
+            foreach (var part in quest.PartsListForReading)
+            {
+                var row = new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.Unknown };
+                switch (part)
+                {
+                    case QuestPart_ThingsProduced p:
+                        row.Kind = Obs.QuestObjectiveKind.ProduceItem; row.Def = p.def?.defName ?? ""; row.Stuff = p.stuff?.defName ?? "";
+                        row.Count = p.count; row.Produced = Produced(p); break;
+                    case QuestPart_PlantsHarvested p:
+                        row.Kind = Obs.QuestObjectiveKind.HarvestPlant; row.Def = p.plant?.defName ?? "";
+                        row.Count = p.count; row.Produced = Harvested(p); break;
+                    case QuestPart_PawnsKilled p when p.race?.race?.Animal == true:
+                        row.Kind = Obs.QuestObjectiveKind.KillAnimals; row.Def = p.race.defName;
+                        row.Count = p.count; row.Produced = Killed(p); break;
+                    case QuestPart_RequirementsToAccept p:
+                        var report = p.CanAccept();
+                        if (report.Accepted) continue;
+                        row.Kind = Obs.QuestObjectiveKind.AcceptRequirementUnmet; row.UnmetRequirement = report.Reason ?? ""; break;
+                    case QuestPart_RequiredShuttleThings p:
+                        row.Kind = Obs.QuestObjectiveKind.LoadPawns;
+                        if (p.requiredColonistCount >= 0) row.Count = p.requiredColonistCount;
+                        var shuttle = p.shuttle?.TryGetComp<CompShuttle>();
+                        if (shuttle != null && shuttle.requiredPawns.Count > 0)
+                        {
+                            row.Kind = Obs.QuestObjectiveKind.LoadNamedPawns;
+                            row.PawnIds.Add(shuttle.requiredPawns.Select(pawn => pawn.GetUniqueLoadID()));
+                        }
+                        break;
+                    case QuestPart_DropMonumentMarkerCopy _:
+                        row.Kind = Obs.QuestObjectiveKind.Monument; break;
+                    case QuestPart_PawnsArrive p when p.pawns.Any(pawn => (pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest))):
+                        row.Kind = Obs.QuestObjectiveKind.HostLodgers;
+                        row.PawnIds.Add(p.pawns.Where(pawn => (pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest))).Select(pawn => pawn.GetUniqueLoadID()));
+                        row.Count = row.PawnIds.Count; break;
+                }
+                rows.Add(row);
+            }
+            if (quest.TicksUntilExpiry >= 0 && quest.State == QuestState.NotYetAccepted)
+                rows.Add(new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.Expiry, DeadlineTicks = (long)Find.TickManager.TicksGame + quest.TicksUntilExpiry });
             return rows;
         }
 
@@ -200,6 +254,7 @@ namespace HomeBridge.BridgeTools
                 row.EligiblePawns.Add(Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned)
                     .Where(p => QuestUtility.CanPawnAcceptQuest(p, q)).Select(NativeRef.Thing));
                 row.TradeRequests.Add(TradeRequests(q));
+                row.Objectives.Add(Objectives(q));
                 row.Rewards.Add(Rewards(q));
                 rows.Add(row);
             }

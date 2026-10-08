@@ -55,6 +55,9 @@ func TestRoundsQuestCensusReadsTheFrame(t *testing.T) {
 		{ID: "Quest_4", ScriptDef: "ThreatReward_Raid_Joiner", State: "NotYetAccepted", CanAccept: true, ChoiceCount: 1},
 		{ID: "Quest_2", ScriptDef: "TradeRequest", State: "Ongoing"},
 	}}
+	read.Quests[0].ExpiresInTicks = proto.Int64(600)
+	read.Quests[0].EligiblePawnIDs = []string{"Pawn_1"}
+	read.Quests[0].Objectives = []bridge.QuestObjectiveFact{{Kind: o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_PRODUCE_ITEM, Def: "ComponentIndustrial", Count: proto.Int64(12), Produced: proto.Int64(3), DeadlineTicks: proto.Int64(900)}}
 	out, err = observeRoundsUnowned(ctx, questSource(base, read), clock, expected, time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -63,6 +66,9 @@ func TestRoundsQuestCensusReadsTheFrame(t *testing.T) {
 		{Quest: "Quest_4", ScriptDef: "ThreatReward_Raid_Joiner", State: "NotYetAccepted", CanAccept: true, ChoiceCount: 1},
 		{Quest: "Quest_2", ScriptDef: "TradeRequest", State: "Ongoing"},
 	}
+	want[0].ExpiresInTicks = domain.Known(int64(600))
+	want[0].EligiblePawnIDs = []domain.PawnID{"Pawn_1"}
+	want[0].Objectives = []policy.QuestObjective{{Kind: o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_PRODUCE_ITEM, Def: "ComponentIndustrial", Count: domain.Known(int64(12)), Produced: domain.Known(int64(3)), DeadlineTicks: domain.Known(int64(900))}}
 	if facts := out.Projection.Facts.QuestOffers; !reflect.DeepEqual(facts, domain.Known(want)) {
 		t.Fatal(facts)
 	}

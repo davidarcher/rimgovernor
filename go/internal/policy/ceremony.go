@@ -117,7 +117,7 @@ func CeremonyHold(f RoyaltyFacts) map[PawnID]bool {
 // ClaimQuests are the offered bestowing-ceremony quests the title claim
 // gate (NextTitleClaim) allows to accept now: the quest of the claiming
 // colonist for the claimed title, not yet accepted. Accepting it is how the
-// colony claims the title (SelectEmpireQuestMethod).
+// colony claims the title (SelectQuestMethod).
 func ClaimQuests(f RoyaltyFacts, claim TitleClaim) []domain.QuestID {
 	if !claim.Claim {
 		return nil

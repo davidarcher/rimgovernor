@@ -25,6 +25,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Flight rows (schema v2)](flight-rows.md)
 - [Durable policy and Auto control](durable-policy.md)
 - [Population commitments](population-contracts.md)
+- [Quest classification and execution](quests.md)
 - [Power contracts](power-contracts.md)
 - [Disaster planning](disaster-planning.md)
 - [Research tied to colony needs](research.md)

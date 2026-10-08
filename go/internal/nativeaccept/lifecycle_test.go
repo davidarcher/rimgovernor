@@ -45,21 +45,21 @@ func TestStartSavesDriveExpansions(t *testing.T) {
 
 func TestLoadSaveIssuesLoadGameReady(t *testing.T) {
 	c := &fakeCaller{}
-	if err := loadSave(context.Background(), c, "colony", 0); err != nil {
+	if err := loadSaveMods(context.Background(), c, "colony", 0, false); err != nil {
 		t.Fatal(err)
 	}
 	args := c.args["rimgovernor/load_game_ready"].(map[string]any)
 	if args["saveName"] != "colony" || args["timeoutMs"] != int64(90000) || args["readiness"] != "visual" {
 		t.Fatalf("load args %#v", args)
 	}
-	if err := loadSave(context.Background(), c, "colony", 5*time.Second); err != nil {
+	if err := loadSaveMods(context.Background(), c, "colony", 5*time.Second, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := c.args["rimgovernor/load_game_ready"].(map[string]any)["timeoutMs"]; got != int64(5000) {
 		t.Fatalf("explicit timeout %v", got)
 	}
 	c.fail = map[string]error{"rimgovernor/load_game_ready": errors.New("boom")}
-	if err := loadSave(context.Background(), c, "colony", 0); err == nil || !strings.Contains(err.Error(), "colony") {
+	if err := loadSaveMods(context.Background(), c, "colony", 0, false); err == nil || !strings.Contains(err.Error(), "colony") {
 		t.Fatalf("load failure %v", err)
 	}
 }

@@ -74,8 +74,8 @@ through its own native timeout; nothing is rejected natively. Expired, changed a
 are never answered.
 
 - **Quests.** The rounds read the visible quest census and accept a not-yet-accepted
-  `ThreatReward_*_Joiner` offer (a refugee chased by a threat; native checks `CanAcceptQuest` when it
-  applies the `AcceptQuestIntent`). A reward-choice offer takes the game's first option.
+  classified joiner offer (a refugee chased by a threat; native checks `CanAcceptQuest` when it
+  applies the `AcceptQuestIntent`). A reward-choice joiner offer takes the game's first option. Other quest offers share one family-table planner: allowed title claims take precedence, feasibility reserves spare capacity against open non-automatic quests, and unsupported objectives remain refused until their driver is available. An eligible required accepter is selected from native facts; refusal reasons are recorded once per quest and reason.
 - **Letters.** Pending current-map `WandererJoins` letters are read through the typed colony census
   (`joiner_letters`) with letter ID, pawn, expiry and snapshot token. One letter answer is admitted at
   a time through `DialogIntent.joiner_letter_token` on Actions/Apply. Native rechecks the exact letter,

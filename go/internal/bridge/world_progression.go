@@ -103,10 +103,24 @@ type QuestOffer struct {
 	// look targets sit on; MapKnown is false for a quest anchored only to a
 	// world object. Favor is the Empire favor each reward choice grants,
 	// ascending by choice, omitting choices that grant none.
-	FactionID string
-	MapID     int32
-	MapKnown  bool
-	Favor     []QuestFavorFact
+	FactionID      string
+	MapID          int32
+	MapKnown       bool
+	Favor          []QuestFavorFact
+	Objectives     []QuestObjectiveFact
+	ExpiresInTicks *int64
+}
+
+// QuestObjectiveFact preserves typed native progress; absent fields stay absent.
+type QuestObjectiveFact struct {
+	Kind             o.QuestObjectiveKind
+	Def              string
+	Stuff            string
+	Count            *int64
+	Produced         *int64
+	DeadlineTicks    *int64
+	UnmetRequirement string
+	PawnIDs          []string
 }
 
 // QuestFavorFact is the royal favor one reward choice grants in total.
@@ -305,14 +319,24 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			return WorldProgressionRead{}, contract("world progression quest CAS token unavailable")
 		}
 		choices := map[uint32]bool{}
-		favor := map[uint32]int32{}
+		favor := map[int32]int32{}
 		for _, reward := range row.Rewards {
 			if reward == nil || reward.GetFavor() < 0 {
 				return WorldProgressionRead{}, contract("invalid world progression quest reward")
 			}
-			choices[reward.GetChoiceIndex()] = true
+			choice := int32(-1)
+			if reward.ChoiceIndex != nil {
+				if reward.GetChoiceIndex() > 2147483647 {
+					return WorldProgressionRead{}, contract("invalid quest choice index")
+				}
+				choice = int32(reward.GetChoiceIndex())
+				choices[reward.GetChoiceIndex()] = true
+			}
 			if reward.GetFavor() > 0 {
-				favor[reward.GetChoiceIndex()] += reward.GetFavor()
+				if int64(favor[choice])+int64(reward.GetFavor()) > 2147483647 {
+					return WorldProgressionRead{}, contract("quest favor overflow")
+				}
+				favor[choice] += reward.GetFavor()
 			}
 		}
 		pawnIDs := make([]string, len(row.EligiblePawns))
@@ -330,6 +354,20 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 		}
 		quest.FactionID, quest.MapKnown = row.GetFactionId(), row.MapId != nil
 		quest.MapID = row.GetMapId()
+		quest.ExpiresInTicks = row.ExpiresInTicks
+		for _, objective := range row.Objectives {
+			if objective == nil || objective.Kind == nil || objective.GetKind() < o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_UNKNOWN || objective.GetKind() > o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_EXPIRY || objective.GetCount() < 0 || objective.GetProduced() < 0 || objective.GetDeadlineTicks() < 0 {
+				return WorldProgressionRead{}, contract("invalid quest objective")
+			}
+			seen := map[string]bool{}
+			for _, id := range objective.PawnIds {
+				if validID(id) != nil || seen[id] {
+					return WorldProgressionRead{}, contract("invalid quest objective pawn")
+				}
+				seen[id] = true
+			}
+			quest.Objectives = append(quest.Objectives, QuestObjectiveFact{Kind: objective.GetKind(), Def: objective.GetDef(), Stuff: objective.GetStuff(), Count: objective.Count, Produced: objective.Produced, DeadlineTicks: objective.DeadlineTicks, UnmetRequirement: objective.GetUnmetRequirement(), PawnIDs: append([]string(nil), objective.PawnIds...)})
+		}
 		for choice, amount := range favor {
 			quest.Favor = append(quest.Favor, QuestFavorFact{Choice: int32(choice), Favor: amount})
 		}

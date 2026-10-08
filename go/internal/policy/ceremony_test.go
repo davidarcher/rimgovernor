@@ -106,13 +106,13 @@ func bestowingOffer(edit func(*JoinerOffer)) JoinerOffer {
 func TestSelectEmpireQuestMethodAcceptsTheClaimedCeremony(t *testing.T) {
 	claims := []domain.QuestID{"Quest_4"}
 	offers := domain.Known([]JoinerOffer{empireOffer("Quest_2", nil), bestowingOffer(nil)})
-	if got := SelectEmpireQuestMethod(offers, claims...); got.Reason != "" || got.Quest != "Quest_4" || got.RewardChoice != -1 {
+	if got := SelectQuestMethod(questTestFacts(offers, claims...)); got.Reason != "" || got.Quest != "Quest_4" || got.RewardChoice != -1 {
 		t.Fatalf("the allowed claim outranks a favor quest: %+v", got)
 	}
-	if got := SelectEmpireQuestMethod(offers); got.Quest != "Quest_2" {
+	if got := SelectQuestMethod(questTestFacts(offers)); got.Quest != "Quest_2" {
 		t.Fatalf("without a claim the favor quest stands: %+v", got)
 	}
-	if deficit, _ := EmpireDeficit(domain.Known([]JoinerOffer{bestowingOffer(nil)}), claims...).Value(); !deficit {
+	if deficit, _ := QuestDeficit(questTestFacts(domain.Known([]JoinerOffer{bestowingOffer(nil)}), claims...)).Value(); !deficit {
 		t.Fatal("an allowed claim is a population deficit")
 	}
 	for name, edit := range map[string]func(*JoinerOffer){
@@ -122,10 +122,10 @@ func TestSelectEmpireQuestMethodAcceptsTheClaimedCeremony(t *testing.T) {
 		"other quest":  func(o *JoinerOffer) { o.Quest = "Quest_9" },
 	} {
 		offers := domain.Known([]JoinerOffer{bestowingOffer(edit)})
-		if got := SelectEmpireQuestMethod(offers, claims...); got.Reason != EmpireNoOffer {
+		if got := SelectQuestMethod(questTestFacts(offers, claims...)); got.Reason != QuestNoOffer {
 			t.Errorf("%s: %+v", name, got)
 		}
-		if deficit, _ := EmpireDeficit(offers, claims...).Value(); deficit {
+		if deficit, _ := QuestDeficit(questTestFacts(offers, claims...)).Value(); deficit {
 			t.Errorf("%s: deficit", name)
 		}
 	}

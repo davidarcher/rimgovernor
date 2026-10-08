@@ -60,6 +60,7 @@ message EffectEvidence {
     RitualEffect ritual = 40;
     AbilityEffect ability = 32;
     IdeoligionEffect ideoligion = 41;
+    QuestShuttleEffect quest_shuttle = 42;
   }
 }
 message IdeoligionEffect {
@@ -286,6 +287,14 @@ message CaravanEffect { optional string caravan_id = 1; optional bool assembly_s
 // QuestStatus is the vanilla QuestState.
 enum QuestStatus { QUEST_STATUS_UNSPECIFIED = 0; QUEST_STATUS_NOT_YET_ACCEPTED = 1; QUEST_STATUS_ONGOING = 2; QUEST_STATUS_ENDED_UNKNOWN_OUTCOME = 3; QUEST_STATUS_ENDED_SUCCESS = 4; QUEST_STATUS_ENDED_FAILED = 5; QUEST_STATUS_ENDED_OFFER_EXPIRED = 6; QUEST_STATUS_ENDED_INVALID = 7; }
 message QuestEffect { optional string quest_id = 1; optional bool accepted = 2; optional bool request_active = 3; optional QuestStatus state = 4; optional int64 acceptance_tick = 5; SnapshotEvidence snapshot = 6; }
+message QuestShuttleEffect {
+  optional string quest_id = 1;
+  optional string shuttle_id = 2;
+  optional bool autoload = 3;
+  optional bool loading = 4;
+  optional bool launch_requested = 5;
+  repeated string pawn_ids = 6;
+}
 
 message LookupRequest { rimgovernor.common.v1.Identity identity = 1; rimgovernor.common.v1.AttemptKey attempt = 2; }
 message UnknownAttempt { rimgovernor.common.v1.ObservationContext context = 1; }

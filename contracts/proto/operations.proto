@@ -302,6 +302,7 @@ message Action {
     RulesAttachIntent rules_attach = 66;
     RemoveProductionBillIntent remove_production_bill = 67;
     IdeoligionReformIntent ideoligion_reform = 68;
+    QuestShuttleIntent quest_shuttle = 69;
   }
 }
 // A normal fluid reformation; the current design and count fence an uncertain
@@ -745,6 +746,14 @@ message AcceptQuestIntent {
   optional string quest_id = 1;
   optional string accepter_pawn_id = 2;
   optional int32 reward_choice = 3;
+}
+// Loading starts ordinary vanilla pawn work. Launch requires the shuttle's
+// requirements already loaded; the loading order alone never proves departure.
+message ShuttlePawnList { repeated string pawn_ids = 1; }
+message QuestShuttleIntent {
+  optional string quest_id = 1;
+  oneof loading { bool autoload = 2; ShuttlePawnList explicit_pawns = 3; }
+  optional bool launch = 4;
 }
 // Command one ritual (#1639, epic #1598; #1659, epic #1653): a closed verb set.
 // verb "start" begins a ritual whose lord waits for the player. ritual

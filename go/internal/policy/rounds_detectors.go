@@ -834,12 +834,11 @@ func inspectPopulation(c *roundsRun) error {
 	prisonerDeficit, prisonerDeficitKnown := PrisonerRecruitDeficit(f.Prisoners, f.PrisonerColony, f.FoodDays, p.Prisoners()).Value()
 	custodyDeficit, custodyDeficitKnown := CustodyDeficit(f.Custody).Value()
 	joinerDeficit, joinerDeficitKnown := JoinerDeficit(f.QuestOffers, JoinerCapacity(f.JoinerCapacity())).Value()
-	empireDeficit, empireKnown := EmpireDeficit(f.QuestOffers, f.TitleClaimQuests...).Value()
-	odysseyDeficit, odysseyKnown := OdysseyDeficit(f.QuestOffers).Value()
+	questDeficit, questKnown := QuestDeficit(f).Value()
 	letterDeficit, letterKnown := JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).Value()
 	_, ceremonyStarts := CeremonyStartOf(f.Royalty)
 	switch {
-	case ShrineArrestTarget(f) != "", LanceTarget(f) != "", entityCaptureOwed(f.Containment), entityDoorOwed(f.Containment), entityTendOwed(f.Containment), entityBioferriteOwed(f.Containment, f.Research), monolithAdvanceOwed(f), prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit, empireKnown && empireDeficit, odysseyKnown && odysseyDeficit, letterKnown && letterDeficit, ceremonyStarts:
+	case ShrineArrestTarget(f) != "", LanceTarget(f) != "", entityCaptureOwed(f.Containment), entityDoorOwed(f.Containment), entityTendOwed(f.Containment), entityBioferriteOwed(f.Containment, f.Research), monolithAdvanceOwed(f), prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit, questKnown && questDeficit, letterKnown && letterDeficit, ceremonyStarts:
 		recovered = domain.Known(false)
 	case prisonerDeficitKnown:
 		recovered = domain.Known(!prisonerDeficit)

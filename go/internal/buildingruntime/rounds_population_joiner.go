@@ -17,7 +17,7 @@ import (
 // RoundsSource offers as RoundsQuestSource) against the bot's own
 // population target (domain.PopulationTarget) and the population, sleeping
 // and food facts the review already carries. Empire quests and ground
-// Odyssey quests (policy.SelectOdysseyQuestMethod) are accepted through the
+// Odyssey quests (policy.SelectQuestMethod) are accepted through the
 // same write. Pending WandererJoins letters use the same capacity gate
 // and the dialog-answer executor. Offers the colony cannot host expire.
 type RoundsPopulationJoinerPlanner struct {
@@ -89,14 +89,10 @@ func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbite
 	choice := policy.SelectJoinerMethod(facts.QuestOffers, policy.JoinerCapacity(facts.JoinerCapacity()))
 	prefix := "joiner"
 	if choice.Reason == policy.JoinerNoOffer || choice.Reason == policy.JoinerNoCapacity {
-		if empire := policy.SelectEmpireQuestMethod(facts.QuestOffers, facts.TitleClaimQuests...); empire.Reason == "" {
-			choice, prefix = empire, "empire"
-		} else if odyssey := policy.SelectOdysseyQuestMethod(facts.QuestOffers); odyssey.Reason == "" {
-			choice, prefix = odyssey, "odyssey"
-		}
+		choice, prefix = policy.SelectQuestMethod(facts), "quest"
 	}
 	switch choice.Reason {
-	case policy.JoinerNoOffer, policy.JoinerNoCapacity:
+	case policy.JoinerNoOffer, policy.JoinerNoCapacity, policy.QuestNoOffer:
 		return RoundsPopulationJoinerResult{Verdict: waitFor(WaitMethodUsed, "joiner_offers")}, nil
 	case policy.JoinerCensusUnknown:
 		return RoundsPopulationJoinerResult{Verdict: fieldUnavailable("joiner_census")}, nil
@@ -110,7 +106,7 @@ func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbite
 		return RoundsPopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	accept, err := domain.NewQuestAccept(choice.Quest, "", choice.RewardChoice)
+	accept, err := domain.NewQuestAccept(choice.Quest, choice.Accepter, choice.RewardChoice)
 	if err != nil {
 		return RoundsPopulationJoinerResult{}, err
 	}

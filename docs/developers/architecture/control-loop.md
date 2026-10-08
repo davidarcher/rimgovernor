@@ -15,6 +15,13 @@ Emergencies preempt development. Food, wood and temperature use separate entry a
 recovery thresholds to avoid replacing Standards on small fluctuations. Concerns retain
 outcomes, methods retain approaches and steps identify executable work across reviews.
 
+Quest capacity is derived in memory during Rounds. Spare colonists are available,
+alive, undrafted, conscious and outside mental states; a sole primary Doctor,
+Cooking or Construction owner stays home. The world census counts colonists on
+the home map, excluding caravan members. Calm requires the emergency review to
+clear, no pending raid pods and cleared combat. Missing inputs keep these facts
+unknown. `QuestMinimumColonistsAtHome` sets the departure reserve to three.
+
 ### Optional-project admission
 
 Optional projects (comfort, research, production targets, defense, expansion)

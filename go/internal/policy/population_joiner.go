@@ -3,9 +3,9 @@ package policy
 import (
 	"slices"
 	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 // JoinerOffer is one row of the visible quest census (bridge.QuestOffer,
@@ -21,6 +21,10 @@ type JoinerOffer struct {
 	CanAccept        bool
 	RequiresAccepter bool
 	ChoiceCount      int32
+	ExpiresInTicks   domain.Fact[int64]
+	EligiblePawnIDs  []domain.PawnID
+	Objectives       []QuestObjective
+	Profile          domain.Fact[QuestProfile]
 	// FactionID is the quest's first non-player faction ("" when none);
 	// FactionHostile is that faction's FactionState.hostile, unknown when the
 	// census carries no row for it. OnMap is true when the quest's map is
@@ -35,6 +39,18 @@ type JoinerOffer struct {
 	Class domain.Fact[QuestClass]
 	// ClassError is why the catalog could not classify the root.
 	ClassError string
+}
+
+// QuestObjective carries the typed native requirement and its observed progress.
+type QuestObjective struct {
+	Kind             o.QuestObjectiveKind
+	Def              string
+	Stuff            string
+	Count            domain.Fact[int64]
+	Produced         domain.Fact[int64]
+	DeadlineTicks    domain.Fact[int64]
+	UnmetRequirement string
+	PawnIDs          []domain.PawnID
 }
 
 // QuestFavor is the royal favor one QuestAccept reward choice grants.
@@ -58,6 +74,7 @@ const (
 // is empty; RewardChoice is the QuestAccept reward index (-1 without a
 // reward-choice part, otherwise the game's own first option).
 type JoinerChoice struct {
+	Accepter     domain.PawnID
 	Reason       JoinerPlanReason
 	Quest        domain.QuestID
 	RewardChoice int32
@@ -92,7 +109,8 @@ func JoinerFoodFloorDays(hosted int64) float64 {
 // ChoiceLetter_AcceptJoiner letter, not a census row, and the opportunity-
 // site joiners need a caravan, so neither is answered here.
 func IsJoinerOffer(scriptDef string) bool {
-	return strings.HasPrefix(scriptDef, "ThreatReward_") && strings.HasSuffix(scriptDef, "_Joiner")
+	profile := QuestFamilyForRoot(scriptDef)
+	return profile.Family == QuestFamilyJoiner && !profile.NeverAct
 }
 
 // joinerAnswerable reports whether an offer is a joiner quest the colony
@@ -211,36 +229,18 @@ func SelectJoinerMethod(offers domain.Fact[[]JoinerOffer], capacity domain.Fact[
 	return JoinerChoice{Reason: JoinerNoOffer}
 }
 
-// EmpireNoOffer is the reason SelectEmpireQuestMethod found nothing to accept.
-const EmpireNoOffer JoinerPlanReason = "no_empire_offer"
-
 // empireFavor is the most royal favor any one reward choice of the offer
 // grants, with that choice's index (the lowest on a tie).
 func empireFavor(offer JoinerOffer) (choice, favor int32) {
 	for _, row := range offer.Favor {
+		if row.Choice < 0 {
+			continue
+		}
 		if row.Favor > favor || (row.Favor == favor && favor > 0 && row.Choice < choice) {
 			choice, favor = row.Choice, row.Favor
 		}
 	}
 	return choice, favor
-}
-
-// empireAnswerable reports whether an offer is an Empire quest worth
-// accepting for favor: not yet accepted, not a joiner offer, native-
-// acceptable (CanAcceptQuest includes every requirements-to-accept check, so
-// an unaffordable quest reads can_accept=false), not a ship-only Odyssey quest
-// (QuestClass), needing no accepter, from a
-// faction known not to be hostile, on the colony's map, with a reward choice
-// granting favor. Disclosed narrowing: favor granted outside a reward-choice
-// part is not in the census, so such a quest is not chosen.
-func empireAnswerable(offer JoinerOffer) bool {
-	if class, classified := offer.Class.Value(); classified && class.Scope == QuestScopeShipOnly {
-		return false
-	}
-	hostile, known := offer.FactionHostile.Value()
-	_, favor := empireFavor(offer)
-	return offer.State == "NotYetAccepted" && !IsJoinerOffer(offer.ScriptDef) && offer.CanAccept && !offer.RequiresAccepter &&
-		offer.FactionID != "" && known && !hostile && offer.OnMap && favor > 0
 }
 
 // claimAnswerable reports whether an offer is a bestowing-ceremony quest the
@@ -249,60 +249,6 @@ func empireAnswerable(offer JoinerOffer) bool {
 // royalty read's quest id, not by script def.
 func claimAnswerable(offer JoinerOffer, claims []domain.QuestID) bool {
 	return slices.Contains(claims, offer.Quest) && offer.State == "NotYetAccepted" && offer.CanAccept && !offer.RequiresAccepter
-}
-
-// EmpireDeficit reports whether an answerable Empire quest (or an allowed
-// title claim, claims) is waiting; an unknown census leaves it unknown.
-func EmpireDeficit(offers domain.Fact[[]JoinerOffer], claims ...domain.QuestID) domain.Fact[bool] {
-	rows, known := offers.Value()
-	if !known {
-		return domain.Unknown[bool]()
-	}
-	for _, offer := range rows {
-		if empireAnswerable(offer) || claimAnswerable(offer, claims) {
-			return domain.Known(true)
-		}
-	}
-	return domain.Known(false)
-}
-
-// SelectEmpireQuestMethod picks the Empire quest to accept through the
-// existing QuestAccept write: first the bestowing-ceremony quest of an
-// allowed title claim (claims; the lowest quest ID, reward choice -1 or the
-// game's first option), else the answerable quest granting the most favor
-// (lowest quest ID on a tie) and the reward choice that grants it.
-func SelectEmpireQuestMethod(offers domain.Fact[[]JoinerOffer], claims ...domain.QuestID) JoinerChoice {
-	rows, known := offers.Value()
-	if !known {
-		return JoinerChoice{Reason: JoinerCensusUnknown}
-	}
-	var claim *JoinerOffer
-	for i, offer := range rows {
-		if claimAnswerable(offer, claims) && (claim == nil || offer.Quest < claim.Quest) {
-			claim = &rows[i]
-		}
-	}
-	if claim != nil {
-		choice := JoinerChoice{Quest: claim.Quest, RewardChoice: -1}
-		if claim.ChoiceCount > 0 {
-			choice.RewardChoice = 0
-		}
-		return choice
-	}
-	best, bestChoice, bestFavor := JoinerOffer{}, int32(0), int32(0)
-	for _, offer := range rows {
-		if !empireAnswerable(offer) {
-			continue
-		}
-		choice, favor := empireFavor(offer)
-		if favor > bestFavor || (favor == bestFavor && offer.Quest < best.Quest) {
-			best, bestChoice, bestFavor = offer, choice, favor
-		}
-	}
-	if bestFavor == 0 {
-		return JoinerChoice{Reason: EmpireNoOffer}
-	}
-	return JoinerChoice{Quest: best.Quest, RewardChoice: bestChoice}
 }
 
 // JoinerCapacity is the slice of a review's facts JoinerCapacity measures:

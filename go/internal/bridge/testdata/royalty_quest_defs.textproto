@@ -1,0 +1,123 @@
+# Identity mirror of every named Royalty QuestScriptDef from RimWorld 1.6 game XML.
+# Script_BuildMonument_Root_Basic.xml; root QuestNode_Sequence
+quest_script_defs { defName: "BuildMonument_Basic" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_BuildMonument_Root_TimeProtect.xml; root QuestNode_Sequence
+quest_script_defs { defName: "BuildMonument_TimeProtect" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_BuildMonument_Worker.xml; root QuestNode_Sequence
+quest_script_defs { defName: "BuildMonumentWorker" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Decree_Utility.xml; root QuestNode_Sequence
+quest_script_defs { defName: "DecreeSetup" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Decree_Utility.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Decree_Util_Reward" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Decree.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Decree_ProduceItem" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Decree.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Decree_HarvestCrop" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Decree.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Decree_HuntAnimal" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Decree.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Decree_BuildMonument" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_EndGame_RoyalAscent.xml; root QuestNode_Sequence
+quest_script_defs { defName: "EndGame_RoyalAscent" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Root_Animals.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Hospitality_Animals" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Root_Joiners.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Hospitality_Joiners" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Root_Prisoners.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Hospitality_Prisoners" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Utility.xml; root QuestNode_GetHediff
+quest_script_defs { defName: "Util_RandomSelectDiseaseHuman" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Utility.xml; root QuestNode_GetHediff
+quest_script_defs { defName: "Util_RandomSelectDiseaseAnimal" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Utility.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Hospitality_Util_DecideRandomLodgerCount" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Utility.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Hospitality_Util_DecideLodgerCountFromPoints" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Utility.xml; root QuestNode_Chance
+quest_script_defs { defName: "Hospitality_Util_AddHealthConditions" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Utility.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_ChooseRandomQuestLodgerKind" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Utility.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_ApplyMoodThreshold" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Utility.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_DecideRandomLodgerConditions" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Utility.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_ApplyLodgerConditions" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Utility.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_MaybeApplyGoodwillForMood" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Worker.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Hospitality_Util_Setup" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Worker.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_ArriveByDropPodsOrShuttle" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Worker.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Hospitality_Util_Worker" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Intro_Deserter.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Intro_Deserter" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Intro_Wimp.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Intro_Wimp" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_ItemPodThreat.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ThreatReward_Manhunters_ItemPod" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_ItemPodThreat.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ThreatReward_Infestation_ItemPod" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_ItemPodThreat.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ThreatReward_GameCondition_ItemPod" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_ItemPodThreat.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ThreatReward_SiteThreat_ItemPod" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_JoinerThreat.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ThreatReward_Infestation_Joiner" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_JoinerThreat.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ThreatReward_Manhunters_Joiner" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_JoinerThreat.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ThreatReward_GameCondition_Joiner" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_JoinerThreat.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ThreatReward_SiteThreat_Joiner" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_JoinerThreat.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ThreatReward_RaidMultiFaction_Joiner" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_JoinerThreat.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ThreatReward_MysteryThreat_Joiner" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_RewardMechpods.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ThreatReward_MechPods_MiscReward" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_RewardRaid.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ThreatReward_Raid_MiscReward" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Bestower.xml; root QuestNode_Root_BestowingCeremony
+quest_script_defs { defName: "BestowingCeremony" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_ChangeRoyalHeir.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ChangeRoyalHeir" modPackageId: "ludeon.rimworld.royalty" autoAccept: true }
+# Script_Hospitality_Refugee.xml; root QuestNode_Root_Hospitality_Refugee
+quest_script_defs { defName: "Hospitality_Refugee" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Refugee.xml; root QuestNode_Root_RefugeeDelayedReward
+quest_script_defs { defName: "RefugeeDelayedReward" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_Hospitality_Refugee.xml; root QuestNode_Root_RefugeeBetrayal
+quest_script_defs { defName: "RefugeeBetrayal" modPackageId: "ludeon.rimworld.royalty" autoAccept: true }
+# Script_PawnLend.xml; root QuestNode_Sequence
+quest_script_defs { defName: "PawnLend" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_ShuttleCrash_Rescue.xml; root QuestNode_Root_ShuttleCrash_Rescue
+quest_script_defs { defName: "ShuttleCrash_Rescue" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Script_WandererJoins.xml; root QuestNode_Root_WandererJoinAbasia
+quest_script_defs { defName: "WandererJoinAbasia" modPackageId: "ludeon.rimworld.royalty" autoAccept: true }
+# Scripts_Missions.xml; root QuestNode_Root_Mission_BanditCamp
+quest_script_defs { defName: "Mission_BanditCamp" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Permits.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Permit_CallLaborers" modPackageId: "ludeon.rimworld.royalty" autoAccept: true }
+# Scripts_ProblemCausers.xml; root QuestNode_Sequence
+quest_script_defs { defName: "ProblemCauser" modPackageId: "ludeon.rimworld.royalty" autoAccept: true }
+# Scripts_Utility_TransportShip.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_TransportShip_DropOff" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Utility_TransportShip.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_TransportShip_Pickup" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Utility_Helpers.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_MaybeGenerateHelpers" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Utility_Helpers.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_ChooseRandomQuestHelperKind" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Utility_Threats.xml; root QuestNode_ManhunterPack
+quest_script_defs { defName: "Util_ManhunterPack" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Utility_Threats.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_Infestation" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Utility_Threats.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_SpawnSiteThreat" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Utility_Threats.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_GameConditionNegativeRandom" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Utility.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_DecideRandomAsker" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }
+# Scripts_Utility.xml; root QuestNode_Sequence
+quest_script_defs { defName: "Util_Constants_Monuments" modPackageId: "ludeon.rimworld.royalty" autoAccept: false }

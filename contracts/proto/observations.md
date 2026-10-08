@@ -722,8 +722,20 @@ quest anchored only to a world object has no `map_id`). `QuestReward.favor` is
 the royal favor a `Reward_RoyalFavor` grants; summed per `choice_index`, it is
 what the Empire quest planner maximises. The Go read carries
 `FactionState` id and hostile beside the quests, and a quest with no
-`map_id` or one off the identity map is off-map. Favor granted outside a
-reward-choice part is not read.
+`map_id` or one off the identity map is off-map. A `QuestPart_GiveRoyalFavor`
+outside every choice's part list emits a reward with absent `choice_index`:
+its favor applies independently of reward selection. Go represents this with
+choice -1 and does not count it as an option.
+
+`QuestState.objectives` carries a closed `QuestObjectiveKind`: produce_item,
+harvest_plant, kill_animals, host_lodgers, accept_requirement_unmet,
+load_pawns, load_named_pawns, monument, expiry, or unknown. Definition and stuff
+are native def names; count and produced are native required and completed units.
+Missing optional fields remain unknown. `deadline_ticks` is an absolute game
+tick; expiry is the offer expiry. Named pawn objectives carry exact pawn IDs.
+`unmet_requirement` is native display text for an acceptance refusal, never
+policy input. Unsupported parts emit unknown without raw part data. These rows
+are derived observations, not persisted intent.
 
 ## Obtainable operation preconditions
 

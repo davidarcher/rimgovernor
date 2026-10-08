@@ -30,7 +30,8 @@ func joinerFacts(t *testing.T, hosted int) JoinerCapacityFacts {
 func TestIsJoinerOfferNamesOnlyThreatRewardJoinerRoots(t *testing.T) {
 	t.Parallel()
 	for def, want := range map[string]bool{
-		"ThreatReward_Raid_Joiner": true, "ThreatReward_MechPods_Joiner": true, "ThreatReward_Raid_Trade": false,
+		"ThreatReward_Raid_Joiner": true, "ThreatReward_Infestation_Joiner": true, "ThreatReward_Raid_Trade": false,
+		"ThreatReward_MechPods_Joiner": false, "ThreatReward_Unknown_Joiner": false,
 		"WandererJoins": false, "OpportunitySite_DownedRefugee": false, "TradeRequest": false, "": false,
 	} {
 		if got := IsJoinerOffer(def); got != want {

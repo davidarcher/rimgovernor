@@ -79,8 +79,8 @@ type Rounder struct {
 	billAges billAges
 	// staleBills counts the reviews each finite bill's owner stayed Met (#2411).
 	staleBills staleBills
-	// skipsLogged are the Odyssey quest skips already logged (#1717).
-	skipsLogged map[odysseySkipKey]bool
+	// skipsLogged are the quest skips already logged (#1717).
+	skipsLogged map[questSkipKey]bool
 	// buildTier is the last build tier logged (#604): the flight recorder
 	// records a change once, not every review.
 	buildTier domain.Fact[policy.BuildTier]
@@ -204,32 +204,32 @@ func (r *Rounder) logBuildTier(ctx context.Context, projection observation.Colon
 	clockEvent(ctx, "layout", "build_tier", message, "tier", tier.String(), "evidence", evidence)
 }
 
-// odysseySkipDecision is the routine_skip row of an Odyssey offer the colony
+// questSkipDecision is the routine_skip row of an Odyssey offer the colony
 // does not accept: target the quest, reason the skip reason, WARN.
-func odysseySkipDecision(skip policy.OdysseySkip) telemetry.Decision {
+func questSkipDecision(skip policy.QuestSkip) telemetry.Decision {
 	return telemetry.Decision{Kind: "routine_skip", Component: "routine", Level: slog.LevelWarn, Verdict: "skipped", Reason: string(skip.Reason), Target: string(skip.Quest),
 		Attrs: map[string]any{"quest": string(skip.Quest), "script": skip.ScriptDef, "detail": skip.Detail}}
 }
 
-type odysseySkipKey struct {
+type questSkipKey struct {
 	quest  domain.QuestID
-	reason policy.OdysseySkipReason
+	reason policy.QuestSkipReason
 }
 
-// logOdysseySkips records each Odyssey offer the colony does not accept
-// (policy.OdysseySkips) in the flight recorder once per quest and reason:
-// `[routine] odyssey quest skipped Q12 OrbitalFugitive: ship_only (Orbit)`.
-func (r *Rounder) logOdysseySkips(ctx context.Context, facts policy.RoundsFacts) {
-	for _, skip := range policy.OdysseySkips(facts.QuestOffers) {
-		key := odysseySkipKey{skip.Quest, skip.Reason}
+// logQuestSkips records each quest offer the colony does not accept
+// (policy.QuestSkips) in the flight recorder once per quest and reason.
+
+func (r *Rounder) logQuestSkips(ctx context.Context, facts policy.RoundsFacts) {
+	for _, skip := range policy.QuestSkips(facts) {
+		key := questSkipKey{skip.Quest, skip.Reason}
 		if r.skipsLogged[key] {
 			continue
 		}
 		if r.skipsLogged == nil {
-			r.skipsLogged = map[odysseySkipKey]bool{}
+			r.skipsLogged = map[questSkipKey]bool{}
 		}
 		r.skipsLogged[key] = true
-		telemetry.Decide(ctx, odysseySkipDecision(skip))
+		telemetry.Decide(ctx, questSkipDecision(skip))
 	}
 }
 
@@ -406,7 +406,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		return store.RoundsResult{}, err
 	}
 	r.logBuildTier(ctx, reading.Projection)
-	r.logOdysseySkips(ctx, reading.Projection.Facts)
+	r.logQuestSkips(ctx, reading.Projection.Facts)
 	r.planFood(&reading.Projection)
 	reading.Projection.Facts.ConstructionClaims = claims
 	reading.Sections.Colony.Value.Facts.ConstructionClaims = reading.Projection.Facts.ConstructionClaims
@@ -543,6 +543,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		return store.RoundsResult{}, err
 	}
 	reading.Projection.Facts.Hostiles, reading.Projection.Facts.CriticalPatients = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
+	reading.Projection.Facts.QuestColonyCalm = policy.QuestCalmColony(reading.Projection.Facts, policy.EvaluateEmergency(emergency, state.Snapshot, expected.Tick), emergency.PodsPending())
 	reading.Projection.Facts.DangerSeeds = dangerSeedFact(reading.Projection.Facts.Hostiles, reading.Emergency.Threats)
 	seeds, _ := reading.Projection.Facts.DangerSeeds.Value()
 	reading.Projection.Facts.DangerWindow = r.safeArea.dangerWindow(stockpileWorld(state.Snapshot), reading.Projection.Facts.Hostiles, seeds, expected.Tick)
@@ -644,6 +645,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 				}
 				if _, ok := work.Capacity.Value(); ok {
 					reading.Projection.Facts.WorkRoster = domain.Known(work.Coverage)
+					reading.Projection.Facts.QuestSparePawns = policy.QuestSpareColonists(reading.Projection.WorkPawns, reading.Projection.Facts.MoodPawns, work)
 					reading.Projection.Facts.WorkDecaying = domain.Known(work.Decaying)
 					reading.Projection.Facts.WorkHelp = work.Help
 				}

@@ -40,6 +40,59 @@ func worldProgressionFixture() *o.WorldProgressionSnapshot {
 		}},
 	}
 }
+
+func TestQuestObjectiveCensus(t *testing.T) {
+	for kind := o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_UNKNOWN; kind <= o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_EXPIRY; kind++ {
+		t.Run(kind.String(), func(t *testing.T) {
+			v := worldProgressionFixture()
+			v.Quests[0].Objectives = []*o.QuestObjective{{Kind: kind.Enum(), Def: proto.String("Steel"), Stuff: proto.String("WoodLog"), Count: proto.Int64(10), Produced: proto.Int64(3), DeadlineTicks: proto.Int64(6000), UnmetRequirement: proto.String("Bedroom required"), PawnIds: []string{"pawn-1"}}}
+			out, err := worldProgressionSelected(v, pbIdentity())
+			if err != nil {
+				t.Fatal(err)
+			}
+			fact := out.Quests[0].Objectives[0]
+			if fact.Kind != kind || fact.Def != "Steel" || fact.Stuff != "WoodLog" || fact.Count == nil || *fact.Count != 10 || fact.Produced == nil || *fact.Produced != 3 || fact.DeadlineTicks == nil || *fact.DeadlineTicks != 6000 || fact.UnmetRequirement != "Bedroom required" || len(fact.PawnIDs) != 1 {
+				t.Fatal(fact)
+			}
+		})
+	}
+}
+
+func TestQuestObjectiveRejectsMalformedEvidence(t *testing.T) {
+	for name, objective := range map[string]*o.QuestObjective{
+		"nil":               nil,
+		"missing kind":      {},
+		"unknown enum":      {Kind: o.QuestObjectiveKind(99).Enum()},
+		"negative count":    {Kind: o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_PRODUCE_ITEM.Enum(), Count: proto.Int64(-1)},
+		"negative progress": {Kind: o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_HARVEST_PLANT.Enum(), Produced: proto.Int64(-1)},
+		"negative deadline": {Kind: o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_EXPIRY.Enum(), DeadlineTicks: proto.Int64(-1)},
+		"invalid pawn":      {Kind: o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_LOAD_NAMED_PAWNS.Enum(), PawnIds: []string{""}},
+		"duplicate pawn":    {Kind: o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_HOST_LODGERS.Enum(), PawnIds: []string{"pawn-1", "pawn-1"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			v := worldProgressionFixture()
+			v.Quests[0].Objectives = []*o.QuestObjective{objective}
+			if _, err := worldProgressionSelected(v, pbIdentity()); err == nil {
+				t.Fatal("accepted malformed objective")
+			}
+		})
+	}
+}
+
+func TestQuestFavorOutsideChoice(t *testing.T) {
+	v := worldProgressionFixture()
+	v.Quests[0].Rewards = []*o.QuestReward{{Favor: proto.Int32(5)}}
+	out, err := worldProgressionSelected(v, pbIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if q := out.Quests[0]; q.ChoiceCount != 0 || len(q.Favor) != 1 || q.Favor[0] != (QuestFavorFact{Choice: -1, Favor: 5}) {
+		t.Fatal(q)
+	}
+	if len(out.Quests[0].Objectives) != 0 {
+		t.Fatal("invented objectives")
+	}
+}
 func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
 	snapshot := worldProgressionFixture()
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {

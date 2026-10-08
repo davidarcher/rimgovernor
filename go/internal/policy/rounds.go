@@ -504,6 +504,12 @@ type RoundsFacts struct {
 	// owners each type wanted and found and the pawns capable of it, so a
 	// goal can name a missing capability instead of stalling.
 	WorkRoster domain.Fact[[]WorkCoverage]
+	// Quest capacity is derived from the current roster, world census and emergency review.
+	QuestSparePawns      domain.Fact[[]PawnID]
+	QuestWorkers         domain.Fact[[]WorkPawn]
+	QuestObservedTick    domain.Fact[domain.Tick]
+	QuestColonistsAtHome domain.Fact[int]
+	QuestColonyCalm      domain.Fact[bool]
 	// WorkDecaying is the same plan's skills above 10 that no assignment
 	// exercises (WorkDecision.Decaying) and WorkProfiles every work pawn's
 	// typed profile (Profiles); both are presentation facts the review

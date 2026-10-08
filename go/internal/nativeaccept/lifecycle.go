@@ -104,11 +104,6 @@ type caller interface {
 	Call(ctx context.Context, label, tool string, arguments any) (map[string]any, error)
 }
 
-// loadSave is the load_game_ready call every save-driven harness issues.
-func loadSave(ctx context.Context, c caller, name string, timeout time.Duration) error {
-	return loadSaveMods(ctx, c, name, timeout, false)
-}
-
 func loadSaveMods(ctx context.Context, c caller, name string, timeout time.Duration, ignoreMods bool) error {
 	if timeout <= 0 {
 		timeout = 90 * time.Second
