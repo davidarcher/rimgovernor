@@ -5,7 +5,6 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"os"
@@ -253,20 +252,24 @@ func combatEnded(row na.FlightRow) bool {
 	return row.Kind == "combat_summary"
 }
 
-// writeCombatFlight copies the combat rows ScanFlight reads from the
+// writeCombatFlight copies the combat rows ScanFlight reads from the rotated
+// segments (oldest first, #2347) and the live file of the
 // service's flight recorder into the bundle, one wire line each.
 func writeCombatFlight(from, to string) error {
-	data, err := os.ReadFile(from)
-	if errors.Is(err, os.ErrNotExist) {
+	segments := na.FlightSegments(from)
+	if len(segments) == 0 {
 		return nil
 	}
-	if err != nil {
-		return err
-	}
 	var kept []byte
-	for _, line := range bytes.Split(data, []byte("\n")) {
-		if record, ok := bridge.DecodeFlightLine(line); ok && CombatRow(na.FlightRow{Kind: record.Kind}) {
-			kept = append(append(kept, line...), '\n')
+	for _, path := range segments {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		for _, line := range bytes.Split(data, []byte("\n")) {
+			if record, ok := bridge.DecodeFlightLine(line); ok && CombatRow(na.FlightRow{Kind: record.Kind}) {
+				kept = append(append(kept, line...), '\n')
+			}
 		}
 	}
 	return os.WriteFile(to, kept, 0o644)

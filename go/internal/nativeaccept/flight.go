@@ -2,9 +2,38 @@ package nativeaccept
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 )
+
+// FlightSegments lists the recorder at path oldest first: its rotated
+// segments path.N (a higher N is older), then path itself, each only when it
+// exists. A recorder that rotated holds its early rows only there (#2347).
+func FlightSegments(path string) []string {
+	type segment struct {
+		index int
+		path  string
+	}
+	var rotated []segment
+	matches, _ := filepath.Glob(path + ".*")
+	for _, m := range matches {
+		if i, err := strconv.Atoi(strings.TrimPrefix(m, path+".")); err == nil {
+			rotated = append(rotated, segment{i, m})
+		}
+	}
+	sort.Slice(rotated, func(i, j int) bool { return rotated[i].index > rotated[j].index })
+	var out []string
+	for _, s := range rotated {
+		out = append(out, s.path)
+	}
+	if _, err := os.Stat(path); err == nil {
+		out = append(out, path)
+	}
+	return out
+}
 
 // FlightRecorderPath is where every launch has rimgovernor serve write its
 // timeline under output (launchServe passes --flight-recorder); the

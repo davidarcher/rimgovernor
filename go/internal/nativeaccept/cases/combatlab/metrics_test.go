@@ -1,6 +1,7 @@
 package combatlab
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +26,45 @@ func TestScanFlightV2Rows(t *testing.T) {
 		t.Fatal(err)
 	}
 	if m.OrdersIssued != 2 || m.OrdersRefused != 1 || m.StepLatencyP95Ms != 250 {
+		t.Fatalf("%+v", m)
+	}
+}
+
+// A rotated recorder keeps its early combat rows in flight.jsonl.N: the
+// bundle copy reads them first, oldest segment (highest N) to the live file.
+func TestWriteCombatFlightReadsRotatedSegments(t *testing.T) {
+	dir := t.TempDir()
+	live := filepath.Join(dir, "flight.jsonl")
+	row := func(seq int, kind, verdict string) string {
+		return fmt.Sprintf(`{"sequence":%d,"kind":%q,"context":{},"payload":{"verdict":%q,"reason":"","target":"p","dur_ms":0,"attrs":{}}}`, seq, kind, verdict)
+	}
+	files := map[string][]string{
+		live + ".2": {row(1, "combat_order", "applied"), row(2, "native_call", "ok")},
+		live + ".1": {row(3, "combat_order", "refused")},
+		live:        {row(4, "combat_order", "applied")},
+	}
+	for path, rows := range files {
+		if err := os.WriteFile(path, []byte(strings.Join(rows, "\n")+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	out := filepath.Join(dir, FlightFile)
+	if err := writeCombatFlight(live, out); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 3 || !strings.Contains(lines[0], `"sequence":1`) || !strings.Contains(lines[1], `"sequence":3`) || !strings.Contains(lines[2], `"sequence":4`) {
+		t.Fatalf("rows out of order or dropped:\n%s", data)
+	}
+	m := Metrics{StepLatencyP95Ms: -1}
+	if err := m.ScanFlight(out); err != nil {
+		t.Fatal(err)
+	}
+	if m.OrdersIssued != 2 || m.OrdersRefused != 1 {
 		t.Fatalf("%+v", m)
 	}
 }
