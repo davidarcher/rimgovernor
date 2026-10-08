@@ -22,7 +22,8 @@ namespace HomeBridge.BridgeTools
                     HealthyAdult = !pawn.Dead && !pawn.Downed && !pawn.InMentalState && pawn.DevelopmentalStage.Adult()
                         && pawn.health.capacities.CanBeAwake && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Moving)
                         && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation),
-                    CanFight = !pawn.Dead && !pawn.Downed && !pawn.InMentalState && !pawn.WorkTagIsDisabled(WorkTags.Violent) };
+                    CanFight = !pawn.Dead && !pawn.Downed && !pawn.InMentalState && !pawn.WorkTagIsDisabled(WorkTags.Violent),
+                    CarryCapacity = MassUtility.Capacity(pawn), CarriedMass = MassUtility.GearAndInventoryMass(pawn) };
                 foreach (var stat in stats)
                     row.Rates.Add(new Obs.QuestWorkRate { Stat = stat.defName, Rate = pawn.GetStatValue(stat) });
                 yield return row;

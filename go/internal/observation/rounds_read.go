@@ -174,6 +174,8 @@ func observeRounds(ctx context.Context, source RoundsSource, clock Clock, expect
 	p.BuildTier = policy.SelectBuildTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel)
 	p.Facts.Traders = frameTraders(frame.Traders)
 	p.Facts.QuestOffers = frameQuests(frame.Quests, expected.Map, frame.Catalog)
+	p.Facts.QuestSites = frameWorldSites(frame.Quests)
+	p.Facts.QuestExpeditionTrips = frameExpeditionTrips(frame.Quests, expected.Map)
 	p.Facts.QuestWorkers = p.WorkPawns
 	p.Facts.QuestWorkCapacity, p.Facts.QuestDeparturePawns = frameQuestWorkerCapacity(frame.Quests, expected.Map)
 	if pawns != nil {
@@ -358,6 +360,7 @@ func frameQuests(read *bridge.WorldProgressionRead, home domain.MapID, catalog *
 			row := policy.QuestObjective{Kind: objective.Kind, Def: objective.Def, Stuff: objective.Stuff, UnmetRequirement: objective.UnmetRequirement}
 			row.MinimumMood = optional(objective.MinimumMood)
 			row.Monument = questMonument(objective.Monument)
+			row.GravEngine = questGravEngine(objective.GravEngine)
 			row.DurationTicks = optional(objective.DurationTicks)
 			row.Workload = questWorkload(objective.Workload, objective.Kind, catalog)
 			for _, mood := range objective.LodgerMoods {

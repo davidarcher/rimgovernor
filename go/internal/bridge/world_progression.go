@@ -53,6 +53,7 @@ type CaravanPawnFact struct {
 // known fact, not a gap" discipline for CaravanState.food_days, which native
 // reports as an optional double.
 type CaravanJourney struct {
+	Destination   *int32
 	ID            string
 	Tile          int32
 	Moving        bool
@@ -139,6 +140,7 @@ type QuestTradeItemFact struct {
 // QuestObjectiveFact preserves typed native progress; absent fields stay absent.
 type QuestObjectiveFact struct {
 	Monument         *o.QuestMonument
+	GravEngine       *o.QuestGravEngine
 	Kind             o.QuestObjectiveKind
 	Def              string
 	Stuff            string
@@ -218,11 +220,13 @@ type WorldMap struct {
 // on a live map (an encounter/ambush map, most likely), not lost -- without
 // ever claiming custody of that map's pawns or issuing any write to it.
 type WorldProgressionRead struct {
-	Context  *c.ObservationContext
-	Maps     []WorldMap
-	Caravans []CaravanJourney
-	Quests   []QuestOffer
-	Factions []FactionFact
+	Assemblies []CaravanAssemblyFact
+	Sites      []*o.WorldSite
+	Context    *c.ObservationContext
+	Maps       []WorldMap
+	Caravans   []CaravanJourney
+	Quests     []QuestOffer
+	Factions   []FactionFact
 }
 
 // worldProgressionRequest is the census read, shared with the bundle's
@@ -302,7 +306,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			return WorldProgressionRead{}, contract("invalid or duplicate world progression caravan")
 		}
 		seen[row.Caravan.GetId()] = true
-		if row.Tile == nil || row.GetTile() < 0 {
+		if row.Tile == nil || row.GetTile() < 0 || row.GetDestination() < 0 {
 			return WorldProgressionRead{}, contract("invalid world progression caravan tile or crew")
 		}
 		pawnIDs := make([]string, len(row.Pawns))
@@ -350,6 +354,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			return WorldProgressionRead{}, contract("invalid world progression caravan food days")
 		}
 		journey := CaravanJourney{ID: row.Caravan.GetId(), Tile: row.GetTile(), Moving: row.GetMoving(), PawnIDs: pawnIDs, Pawns: pawns, HomeRoutes: routes, Inventory: inventory}
+		journey.Destination = row.Destination
 		if row.FoodDays != nil {
 			journey.FoodDays, journey.FoodDaysKnown = row.GetFoodDays(), true
 		}
@@ -444,7 +449,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			quest.Rewards = append(quest.Rewards, fact)
 		}
 		for _, objective := range row.Objectives {
-			if objective == nil || objective.Kind == nil || objective.GetKind() < o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_UNKNOWN || objective.GetKind() > o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_RESCUE_PAWNS || objective.GetCount() < 0 || objective.GetProduced() < 0 || objective.GetDeadlineTicks() < 0 || objective.GetDurationTicks() < 0 {
+			if objective == nil || objective.Kind == nil || objective.GetKind() < o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_UNKNOWN || objective.GetKind() > o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_INSPECT_GRAV_ENGINE || objective.GetCount() < 0 || objective.GetProduced() < 0 || objective.GetDeadlineTicks() < 0 || objective.GetDurationTicks() < 0 {
 				return WorldProgressionRead{}, contract("invalid quest objective")
 			}
 			seen := map[string]bool{}
@@ -456,6 +461,11 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			}
 			fact := QuestObjectiveFact{Kind: objective.GetKind(), Def: objective.GetDef(), Stuff: objective.GetStuff(), Count: objective.Count, Produced: objective.Produced, DeadlineTicks: objective.DeadlineTicks, UnmetRequirement: objective.GetUnmetRequirement(), PawnIDs: append([]string(nil), objective.PawnIds...), Active: objective.Active, MinimumMood: objective.MinimumMood}
 			fact.Monument = validatedQuestMonument(objective.Monument)
+			if engine, err := validatedQuestGravEngine(objective.GravEngine); err != nil {
+				return WorldProgressionRead{}, err
+			} else {
+				fact.GravEngine = engine
+			}
 			fact.DurationTicks = objective.DurationTicks
 			if w := objective.Workload; w != nil {
 				if w.Work == nil || w.RateFactor == nil || math.IsNaN(w.GetWork()) || math.IsInf(w.GetWork(), 0) || w.GetWork() < 0 || math.IsNaN(w.GetRateFactor()) || math.IsInf(w.GetRateFactor(), 0) || w.GetRateFactor() < 0 {
@@ -518,5 +528,13 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 		}
 		factions = append(factions, FactionFact{ID: row.GetId(), Player: row.GetPlayer(), Hostile: row.GetHostile()})
 	}
-	return WorldProgressionRead{Context: v.Context, Maps: maps, Caravans: rows, Quests: quests, Factions: factions}, nil
+	sites, err := validatedWorldSites(v.Sites)
+	if err != nil {
+		return WorldProgressionRead{}, err
+	}
+	assemblies, err := validatedCaravanAssemblies(v.Assemblies)
+	if err != nil {
+		return WorldProgressionRead{}, err
+	}
+	return WorldProgressionRead{Context: v.Context, Maps: maps, Caravans: rows, Quests: quests, Factions: factions, Sites: sites, Assemblies: assemblies}, nil
 }

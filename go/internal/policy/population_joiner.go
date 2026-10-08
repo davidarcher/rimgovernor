@@ -52,6 +52,7 @@ type JoinerOffer struct {
 // QuestObjective carries the typed native requirement and its observed progress.
 type QuestObjective struct {
 	Monument         domain.Fact[QuestMonument]
+	GravEngine       domain.Fact[QuestGravEngine]
 	Kind             o.QuestObjectiveKind
 	Def              string
 	Stuff            string

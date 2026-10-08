@@ -39,6 +39,8 @@ type FoodStock struct {
 	// reads them, so unknown/zero values never affect forecast validity.
 	DefName Resource
 	Count   domain.Fact[int64]
+	// UnitMass is the catalog mass used only for caravan packing.
+	UnitMass domain.Fact[float64]
 	// Roofed, TemperatureC and Room describe where the stock sits at
 	// observation time; ForecastFood ignores them, storage upkeep and
 	// refrigeration policy read them.

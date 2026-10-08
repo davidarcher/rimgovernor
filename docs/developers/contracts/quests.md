@@ -6,6 +6,20 @@ The world-progression census carries typed objectives, reward choices, eligible
 accepters and offer expiry. Missing objective values remain unknown. Royal favor
 outside a choice part applies independently of the chosen reward index.
 
+World sites expose typed lifecycle state, planet layer/tile, associated visible
+quest IDs and threat presence. Hidden site parts leave threat unknown. Loaded
+maps use the native active-threat predicate. Distance is geographic distance,
+never travel duration. Surface route estimates use the native path and arrival
+estimator at full carrying mass and the slowest singleton of the observed eligible
+crew; only subsets of those crew identities may use that bound. Layered routes
+remain unknown. Formation crew and caravan destination are derived live reads.
+
+MechanoidSignal inspection names its exact quest look-target grav engine, its
+spawned state, eligible and already-inspecting colonists, and the native global
+gravEngineInspected flag. Missing targets hold the driver until the chunks land.
+The existing GiveJob intent runs InspectGravEngine on that engine; it leaves
+forbidden gravlite panels unchanged. An order receipt never proves inspection.
+
 The definition catalog classifies explicit Core and DLC roots into quest families.
 Unknown roots remain unknown; automatic and incident-driven roots are observed
 without an acceptance decision. Endgame offers and deferred Anomaly progression
@@ -76,3 +90,17 @@ job, and held prospects use the existing recruitment policy. Ghoul pods retain
 their threat treatment. A native PlayerTended event completes the charity quest.
 
 All quest facts are derived observations. No quest-specific store is added.
+
+World sites retain exact quest associations, lifecycle state, layer and loaded map.
+Unknown or hidden threats remain unknown. Surface expeditions use native route
+estimates bounded by the slowest eligible pawn at full carrying mass; the chosen
+crew must belong to that estimate. Shared departure staffing preserves home work
+owners and defense. Food packing covers the round trip and leaves the diet-aware
+home reserve intact; vanilla formation checks remain authoritative. Existing
+formation, travel and loaded-site facts prevent sending replacement crews.
+
+MechanoidSignal uses the exact quest grav engine and vanilla InspectGravEngine job.
+The planner waits for spawning and running inspection, then observes the native
+inspection flag. Gravlite panels retain vanilla forbiddance. Shuttle-crash rescue
+admits the observed hostile arrivals against defense capacity and boards named
+survivors through the shared pickup lifecycle.

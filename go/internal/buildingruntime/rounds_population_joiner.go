@@ -87,6 +87,10 @@ func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbite
 	if letter, ok := policy.SelectJoinerLetter(facts.JoinerLetters, policy.JoinerCapacity(facts.JoinerCapacity())); ok {
 		return r.admitLetter(call, epoch, state, goal, letter, started)
 	}
+	inspection, inspecting, err := r.admitGravInspection(call, epoch, state, goal, read, arbiter, started)
+	if inspecting || err != nil {
+		return inspection, err
+	}
 	refugee, refugeeHandled, err := r.admitRefugeeTend(call, epoch, state, goal, review, read, arbiter, started)
 	if refugeeHandled || err != nil {
 		return refugee, err
@@ -101,6 +105,10 @@ func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbite
 	if departed || err != nil {
 		return departure, err
 	}
+	expedition, expeditionHandled, err := r.admitExpedition(call, epoch, state, goal, read, arbiter, started)
+	if expeditionHandled || err != nil {
+		return expedition, err
+	}
 	hosting, hosted, err := r.admitHospitality(call, epoch, state, goal, review, read, arbiter, started)
 	if hosted || err != nil {
 		return hosting, err
@@ -112,6 +120,12 @@ func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbite
 	}
 	switch choice.Reason {
 	case policy.JoinerNoOffer, policy.JoinerNoCapacity, policy.QuestNoOffer:
+		if expedition.NativeWorkTicks > 0 {
+			return expedition, nil
+		}
+		if inspection.NativeWorkTicks > 0 {
+			return inspection, nil
+		}
 		if departure.NativeWorkTicks > 0 {
 			return departure, nil
 		}

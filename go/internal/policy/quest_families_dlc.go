@@ -39,6 +39,9 @@ func extendQuestFamilies(table map[string]QuestProfile) {
 		"OpportunitySite_AlphaThrumbo_Giver", "OpportunitySite_AncientComplex_Giver", "OpportunitySite_AncientMercenaries", "OpportunitySite_BanditCamp_Giver", "GravEngine", "Gravcore_MechanoidRelay", "Gravcore_InsectLair", "Gravcore_AncientReactor", "Gravcore_AncientStockpile", "Gravcore_CrashedMechanoidPlatform", "Gravcore_FrozenTerraformer", "GravshipWreckage", "OpportunitySite_ItemStash_Giver")
 	add(QuestFamilyOdysseyGround, QuestDecide, "", QuestDemandTravel|QuestDemandSecurity,
 		"Opportunity_AncientStructureLaunchSite", "Opportunity_AncientStructureGarrison", "Opportunity_AncientStructureChemfuelRefinery", "Opportunity_AncientStructureWarehouse", "Opportunity_AncientInfestedSettlement", "MechanoidSignal")
+	signal := table["MechanoidSignal"]
+	signal.Cost, signal.Demands = QuestCostFree, 0
+	table["MechanoidSignal"] = signal
 	add(QuestFamilyOdysseyGround, QuestRefuse, "needs_remote_site_hold", QuestDemandPawns|QuestDemandShuttle, "SurveySite")
 	add(QuestFamilyUtility, QuestObserve, "", 0, "Util_SetupAncientStructureCommon")
 	add(QuestFamilyOdysseyShipOnly, QuestRefuse, "ship_only", QuestDemandTravel,

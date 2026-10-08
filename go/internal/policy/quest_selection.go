@@ -37,7 +37,8 @@ func questDecision(offer JoinerOffer, f RoundsFacts) (bool, QuestSkipReason) {
 	if reward := SelectQuestReward(offer, f); reward.Reason != "" {
 		return false, reward.Reason
 	}
-	if profile.Family != QuestFamilyOdysseyGround {
+	_, expedition := questExpeditionSite(offer, f)
+	if profile.Family != QuestFamilyOdysseyGround && !expedition {
 		if offer.FactionID == "" {
 			return false, "no_faction"
 		}
@@ -61,19 +62,27 @@ func questDecision(offer JoinerOffer, f RoundsFacts) (bool, QuestSkipReason) {
 	if reason := QuestFeasibility(offer, f); reason != "" {
 		return false, reason
 	}
+	if reason := ShuttleRescueAdmission(offer, f); reason != "" {
+		return false, reason
+	}
 	if reason := HospitalityAdmission(offer, f); reason != "" {
 		return false, reason
 	}
 	if reason := MonumentAdmission(offer, f); reason != "" {
 		return false, reason
 	}
-	if reason := DepartureAdmission(offer, f); reason != "" {
-		return false, reason
+	if expedition {
+		if reason := ExpeditionAdmission(offer, f); reason != "" {
+			return false, reason
+		}
+	} else {
+		if reason := DepartureAdmission(offer, f); reason != "" {
+			return false, reason
+		}
 	}
 	// These families need a quest driver before their acceptance can be enabled.
 	switch profile.Family {
-	case QuestFamilyShuttleRescue,
-		QuestFamilyDecreeProduce, QuestFamilyDecreeHarvest, QuestFamilyDecreeHunt,
+	case QuestFamilyDecreeProduce, QuestFamilyDecreeHarvest, QuestFamilyDecreeHunt,
 		QuestFamilyHack, QuestFamilyRelic:
 		return false, "driver_unavailable"
 	}
@@ -163,6 +172,11 @@ func QuestFeasibility(offer JoinerOffer, f RoundsFacts) QuestSkipReason {
 
 func questPawnDemand(offer JoinerOffer) (int64, QuestSkipReason) {
 	need := int64(1)
+	// Pickup passengers of a time-cost quest are guests, not colony staff
+	// leaving home. Only pawn-cost work reserves the boarding roster.
+	if profile, known := offer.Profile.Value(); known && profile.Cost != QuestCostPawns {
+		return need, ""
+	}
 	for _, objective := range offer.Objectives {
 		switch objective.Kind {
 		case o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_LOAD_NAMED_PAWNS:
@@ -216,5 +230,5 @@ func QuestDeficit(f RoundsFacts) domain.Fact[bool] {
 	if _, known := f.QuestOffers.Value(); !known {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(SelectQuestMethod(f).Reason == "" || HospitalityDeficit(f))
+	return domain.Known(SelectQuestMethod(f).Reason == "" || HospitalityDeficit(f) || ExpeditionDeficit(f))
 }

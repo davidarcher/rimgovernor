@@ -14,6 +14,9 @@ func validatedQuestWorkers(rows []*o.QuestWorker) ([]*o.QuestWorker, error) {
 			return nil, contract("invalid quest worker")
 		}
 		seen[row.GetPawnId()] = true
+		if row.CarryCapacity != nil && !validNonnegative(row.GetCarryCapacity()) || row.CarriedMass != nil && !validNonnegative(row.GetCarriedMass()) {
+			return nil, contract("invalid quest worker carry capacity")
+		}
 		stats := map[string]bool{}
 		for _, rate := range row.Rates {
 			if rate == nil || rate.GetStat() == "" || stats[rate.GetStat()] || rate.Rate == nil || math.IsNaN(rate.GetRate()) || math.IsInf(rate.GetRate(), 0) || rate.GetRate() < 0 {

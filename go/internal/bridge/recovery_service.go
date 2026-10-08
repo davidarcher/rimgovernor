@@ -6,9 +6,10 @@ import (
 )
 
 var recoveryServiceJobs = map[domain.RecoveryMethod]string{
-	domain.RecoveryServiceRepair:    JobRepair,
-	domain.RecoveryServiceBreakdown: JobFixBrokenDownBuilding,
-	domain.RecoveryServiceRefuel:    JobRefuel,
+	domain.RecoveryServiceInspectGravEngine: JobInspectGravEngine,
+	domain.RecoveryServiceRepair:            JobRepair,
+	domain.RecoveryServiceBreakdown:         JobFixBrokenDownBuilding,
+	domain.RecoveryServiceRefuel:            JobRefuel,
 
 	domain.RecoveryServiceInvestigateMonolith: JobInvestigateMonolith,
 	domain.RecoveryServiceActivateMonolith:    JobActivateMonolith,

@@ -175,6 +175,7 @@ namespace HomeBridge.BridgeTools
         private static List<Obs.QuestObjective> Objectives(Quest quest)
         {
             var rows = new List<Obs.QuestObjective>();
+            rows.AddRange(NativeQuestGravEngine.Read(quest));
             var decree = quest.root?.defName.StartsWith("Decree_", StringComparison.Ordinal) == true;
             var deadline = decree ? quest.PartsListForReading.OfType<QuestPart_Delay>().Where(p => p.isBad && p.State == QuestPartState.Enabled)
                 .Select(p => (long?)Math.Max(0, (long)Find.TickManager.TicksGame + p.TicksLeft)).Min() : null;
@@ -337,6 +338,7 @@ namespace HomeBridge.BridgeTools
             snapshot.Caravans.Add(caravans);
             snapshot.Assemblies.Add(assemblies);
             snapshot.Quests.Add(quests);
+            snapshot.Sites.Add(NativeWorldSites.Read(context));
             return snapshot;
         }
     }

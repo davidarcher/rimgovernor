@@ -8,11 +8,12 @@ import (
 
 // Vanilla JobDef names a GiveJobIntent orders (#1352).
 const (
-	JobRepair      = "Repair"
-	JobClean       = "Clean"
-	JobOpen        = "Open"
-	JobTendPatient = "TendPatient"
-	JobEquip       = "Equip"
+	JobInspectGravEngine = "InspectGravEngine"
+	JobRepair            = "Repair"
+	JobClean             = "Clean"
+	JobOpen              = "Open"
+	JobTendPatient       = "TendPatient"
+	JobEquip             = "Equip"
 	// JobDropWeapon is this protocol's token, not a JobDef name: native drops the weapon the pawn holds with the game's own
 	// drop job, which it finds by its driver class (#1740).
 	JobDropWeapon  = "DropWeapon"

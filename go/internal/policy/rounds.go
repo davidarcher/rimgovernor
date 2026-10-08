@@ -411,6 +411,7 @@ type RoundsFacts struct {
 	// cycle by a RoundsSource offering RoundsQuestSource, for JoinerDeficit
 	// to detect and SelectJoinerMethod to answer a joiner offer from.
 	QuestOffers domain.Fact[[]JoinerOffer]
+	QuestSites  domain.Fact[[]WorldSite]
 	// Royalty is the royalty facts (#1599) from the pawn rows, the def mirror
 	// and the colony section; unknown when Royalty is not applicable or a read
 	// failed.
@@ -510,6 +511,7 @@ type RoundsFacts struct {
 	QuestWorkCapacity    domain.Fact[[]QuestWorkCapacity]
 	QuestDeparturePawns  domain.Fact[[]QuestDeparturePawn]
 	QuestDepartureWork   domain.Fact[[]PawnWorkAssignment]
+	QuestExpeditionTrips domain.Fact[[]ExpeditionTrip]
 	QuestObservedTick    domain.Fact[domain.Tick]
 	QuestColonistsAtHome domain.Fact[int]
 	QuestColonyCalm      domain.Fact[bool]

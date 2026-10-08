@@ -8,14 +8,19 @@ import (
 )
 
 type QuestDeparturePawn struct {
-	ID                     PawnID
-	HealthyAdult, CanFight domain.Fact[bool]
-	DefensePoints          domain.Fact[float64]
+	ID                         PawnID
+	HealthyAdult, CanFight     domain.Fact[bool]
+	DefensePoints              domain.Fact[float64]
+	CarryCapacity, CarriedMass domain.Fact[float64]
 }
 
 // DepartureSquad leaves every work type's last primary owner at home and
 // prices a fighting squad against the colony's observed defense headroom.
 func DepartureSquad(offer JoinerOffer, f RoundsFacts) ([]domain.PawnID, QuestSkipReason) {
+	return departureSquad(offer, f, false)
+}
+
+func departureSquad(offer JoinerOffer, f RoundsFacts, strongestFirst bool) ([]domain.PawnID, QuestSkipReason) {
 	profile, known := offer.Profile.Value()
 	if !known {
 		return nil, "class_unknown"
@@ -88,6 +93,9 @@ func DepartureSquad(offer JoinerOffer, f RoundsFacts) ([]domain.PawnID, QuestSki
 				return ak
 			}
 			if ak && bk && a != b {
+				if strongestFirst {
+					return a > b
+				}
 				return a < b
 			}
 		}
@@ -224,6 +232,9 @@ func SelectQuestDeparture(f RoundsFacts) (QuestDepartureWork, error) {
 	for _, offer := range rows {
 		p, k := offer.Profile.Value()
 		if !k || offer.State != "Ongoing" || (p.Family != QuestFamilyPawnLend && p.Family != QuestFamilyBanditCamp) {
+			continue
+		}
+		if _, expedition := questExpeditionSite(offer, f); expedition {
 			continue
 		}
 		result := QuestDepartureWork{Quest: offer.Quest, Waiting: true}

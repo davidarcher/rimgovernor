@@ -19,7 +19,8 @@ const (
 	RecoveryServiceActivateMonolith    RecoveryMethod = "activate_monolith"
 	// RecoveryServiceInteract is the awakening quest's interaction (#2438): a
 	// void structure, the Gleaming monolith or the void node.
-	RecoveryServiceInteract RecoveryMethod = "interact_thing"
+	RecoveryServiceInteract          RecoveryMethod = "interact_thing"
+	RecoveryServiceInspectGravEngine RecoveryMethod = "inspect_grav_engine"
 )
 
 // RecoveryService is explicit intent to send one already-observed undrafted
@@ -37,7 +38,7 @@ func NewRecoveryService(pawn PawnID, thing string, method RecoveryMethod) (Recov
 		return RecoveryService{}, errors.New("recovery service requires a valid pawn and thing identity")
 	}
 	switch method {
-	case RecoveryServiceRepair, RecoveryServiceBreakdown, RecoveryServiceRefuel, RecoveryServiceInvestigateMonolith, RecoveryServiceActivateMonolith, RecoveryServiceInteract:
+	case RecoveryServiceRepair, RecoveryServiceBreakdown, RecoveryServiceRefuel, RecoveryServiceInvestigateMonolith, RecoveryServiceActivateMonolith, RecoveryServiceInteract, RecoveryServiceInspectGravEngine:
 	default:
 		return RecoveryService{}, errors.New("recovery service requires a valid method")
 	}

@@ -83,6 +83,9 @@ func decodeFoodSupply(v *o.FoodSupplyFacts, rows map[string]*o.Thing, catalog *b
 		if row.StackCount != nil {
 			stock.Count = domain.Known(row.GetStackCount())
 		}
+		if mass, massErr := catalog.StatValue(def, "", "Mass"); massErr == nil {
+			stock.UnitMass = finiteFact(float64(mass))
+		}
 		stock.Corpse = row.GetCorpse()
 		// A forbidden stack is the travel reserve when its def is one; any
 		// other forbidden stack has no eaters and counts only as human meat.

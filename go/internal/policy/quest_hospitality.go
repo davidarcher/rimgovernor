@@ -19,8 +19,8 @@ type HospitalityWork struct {
 	Waiting bool
 }
 
-// SelectHospitalityWork reuses sleeping upkeep and ordinary guest work; only
-// explicit assignment/loading instructions become actions. Native facts end hosting.
+// SelectHospitalityWork reuses sleeping upkeep and ordinary guest work, including
+// crash rescue pickup. Native facts end hosting and prove transporter loading.
 func SelectHospitalityWork(f RoundsFacts, tick domain.Tick) (HospitalityWork, error) {
 	rows, known := f.QuestOffers.Value()
 	if !known {
@@ -68,14 +68,23 @@ func hospitalityWork(f RoundsFacts, tick domain.Tick) (HospitalityWork, error) {
 	})
 	for _, offer := range offers {
 		profile, known := offer.Profile.Value()
-		if !known || !HospitalityFamily(profile.Family) || profile.NeverAct && profile.Family != QuestFamilyLaborers || offer.State != "Ongoing" && offer.State != "NotYetAccepted" {
+		if !known || !HospitalityFamily(profile.Family) && profile.Family != QuestFamilyShuttleRescue || profile.NeverAct && profile.Family != QuestFamilyLaborers || offer.State != "Ongoing" && offer.State != "NotYetAccepted" {
 			continue
 		}
 		work := HospitalityWork{Quest: offer.Quest}
+		if profile.Family == QuestFamilyShuttleRescue {
+			if offer.State != "Ongoing" {
+				continue
+			}
+			if calm, known := f.QuestColonyCalm.Value(); !known || !calm {
+				work.Waiting = true
+				return work, nil
+			}
+		}
 		if offer.State == "NotYetAccepted" && offer.CanAccept {
 			continue
 		}
-		if profile.Family != QuestFamilyHospitalityAnimals && profile.Family != QuestFamilyHospitalityPrisoners {
+		if profile.Family != QuestFamilyHospitalityAnimals && profile.Family != QuestFamilyHospitalityPrisoners && profile.Family != QuestFamilyShuttleRescue {
 			review, err := ReviewSleeping(f.Sleeping, SleepingHistory{}, tick)
 			if err != nil {
 				return work, err
@@ -223,7 +232,7 @@ func HospitalityDeficit(f RoundsFacts) bool {
 	rows, _ := f.QuestOffers.Value()
 	for _, offer := range rows {
 		p, known := offer.Profile.Value()
-		if known && HospitalityFamily(p.Family) && (!p.NeverAct || p.Family == QuestFamilyLaborers) && offer.State == "Ongoing" {
+		if known && (HospitalityFamily(p.Family) || p.Family == QuestFamilyShuttleRescue) && (!p.NeverAct || p.Family == QuestFamilyLaborers) && offer.State == "Ongoing" {
 			return true
 		}
 		if known && HospitalityFamily(p.Family) && !p.NeverAct && offer.State == "NotYetAccepted" && !offer.CanAccept {

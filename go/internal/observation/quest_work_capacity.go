@@ -36,7 +36,7 @@ func frameQuestWorkerCapacity(read *bridge.WorldProgressionRead, home domain.Map
 				row.Rates[rate.GetStat()] = rate.GetRate()
 			}
 			capacity = append(capacity, row)
-			departures = append(departures, policy.QuestDeparturePawn{ID: row.Pawn, HealthyAdult: row.HealthyAdult, CanFight: optional(p.CanFight)})
+			departures = append(departures, policy.QuestDeparturePawn{ID: row.Pawn, HealthyAdult: row.HealthyAdult, CanFight: optional(p.CanFight), CarryCapacity: optional(p.CarryCapacity), CarriedMass: optional(p.CarriedMass)})
 		}
 		return domain.Known(capacity), domain.Known(departures)
 	}
