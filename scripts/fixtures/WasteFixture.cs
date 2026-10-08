@@ -532,6 +532,69 @@ namespace HomeBridge.BridgeTools
                 finally { tickManager.CurTimeSpeed = speed; }
             }, cancellationToken);
 
+        // The cell grid cache's equality probe (#1575): the cached whole-map
+        // read must encode to the same bytes as a read from scratch after the
+        // cache has been warmed and then each kind of map change is made and
+        // undone (wall, item, door blueprint, terrain, roof).
+        [Tool("test/grid_cache_equality", Description = "Compare the cached cell grid read with a fresh one across map changes.")]
+        public async Task<object> GridCacheEquality(IRimBridgeContext ctx, CancellationToken cancellationToken)
+            => await ctx.MainThread.InvokeAsync(() =>
+            {
+                var map = Find.CurrentMap;
+                var steps = new System.Collections.Generic.List<object>();
+                bool Same(string step)
+                {
+                    var cached = Google.Protobuf.MessageExtensions.ToByteArray(CellGridEncoder.Encode(CellGridEncoder.Read(map), null)!);
+                    var fresh = Google.Protobuf.MessageExtensions.ToByteArray(CellGridEncoder.Encode(CellGridEncoder.ReadUncached(map), null)!);
+                    var equal = cached.SequenceEqual(fresh);
+                    steps.Add(new { step, equal, cachedBytes = cached.Length, freshBytes = fresh.Length });
+                    return equal;
+                }
+                var free = GenRadial.RadialCellsAround(map.Center, 40f, true)
+                    .Where(c => c.InBounds(map) && c.Standable(map) && !c.Roofed(map) && !c.Fogged(map) && c.GetThingList(map).Count == 0
+                        && c.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)).Take(8).ToList();
+                if (free.Count < 8) throw new System.InvalidOperationException("Too few open cells near the map centre.");
+                Same("warm");
+                Same("rewarm");
+                var wall = ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.Steel);
+                wall.SetFaction(Faction.OfPlayer);
+                GenSpawn.Spawn(wall, free[0], map);
+                Same("wall spawned");
+                wall.Destroy();
+                Same("wall removed");
+                var steel = ThingMaker.MakeThing(ThingDefOf.Steel); steel.stackCount = 10;
+                GenSpawn.Spawn(steel, free[1], map);
+                Same("item spawned");
+                steel.Destroy();
+                Same("item removed");
+                var blueprint = GenConstruct.PlaceBlueprintForBuild(ThingDefOf.Door, free[2], map, Rot4.North, Faction.OfPlayer, ThingDefOf.Steel);
+                Same("door blueprint placed");
+                blueprint.Destroy();
+                Same("door blueprint removed");
+                var terrain = map.terrainGrid.TerrainAt(free[3]);
+                map.terrainGrid.SetTerrain(free[3], TerrainDefOf.Concrete);
+                Same("terrain changed");
+                map.terrainGrid.SetTerrain(free[3], terrain);
+                Same("terrain restored");
+                map.roofGrid.SetRoof(free[4], RoofDefOf.RoofConstructed);
+                Same("roof set");
+                map.roofGrid.SetRoof(free[4], null);
+                Same("roof cleared");
+                // A closed ring of walls round one cell makes a room and then unmakes it.
+                var ring = new System.Collections.Generic.List<Thing>();
+                foreach (var cell in GenAdj.CellsAdjacent8Way(new TargetInfo(free[5], map)).Where(c => c.InBounds(map) && c.Standable(map) && c.GetThingList(map).Count == 0))
+                {
+                    var piece = ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.Steel);
+                    piece.SetFaction(Faction.OfPlayer);
+                    GenSpawn.Spawn(piece, cell, map);
+                    ring.Add(piece);
+                }
+                Same("wall ring built");
+                foreach (var piece in ring) piece.Destroy();
+                Same("wall ring removed");
+                return (object)new { success = true, equal = steps.All(s => (bool)s.GetType().GetProperty("equal")!.GetValue(s)!), steps };
+            }, cancellationToken);
+
         private static double Ms(long stopwatchTicks) => stopwatchTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
     }
 }

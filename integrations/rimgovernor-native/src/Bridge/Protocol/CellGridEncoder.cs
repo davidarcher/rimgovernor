@@ -96,11 +96,19 @@ namespace HomeBridge.BridgeTools
 
         // On the game thread: every cell of map. A fogged cell is not held
         // (every array at its sentinel); glow leaves the sky out.
-        internal static GridRead Read(Map map) => Read(map, 0, 0, map.Size.x, map.Size.z);
+        internal static GridRead Read(Map map) => Read(map, 0, 0, map.Size.x, map.Size.z, CellGridCache.For(map));
+
+        // The whole map read from scratch, bypassing the cell cache: what the
+        // cached read must equal.
+        internal static GridRead ReadUncached(Map map) => Read(map, 0, 0, map.Size.x, map.Size.z, null);
 
         // On the game thread: the w x h rect at (x0, z0), on the map.
-        internal static GridRead Read(Map map, int x0, int z0, int w, int h)
+        internal static GridRead Read(Map map, int x0, int z0, int w, int h) => Read(map, x0, z0, w, h, null);
+
+        // cache, when set, is the map's cell cache and the rect is the whole map.
+        private static GridRead Read(Map map, int x0, int z0, int w, int h, CellGridCache? cache)
         {
+            cache?.Sync();
             int n = w * h, mapWidth = map.Size.x;
             var read = new GridRead { MapId = map.uniqueID, X = x0, Z = z0, Width = w, Height = h, SkyGlow = Finite(map.skyManager.CurSkyGlow), Columns = new Column[Fields.Length], Things = new ThingRec[]?[n] };
             for (int i = 0; i < Fields.Length; i++)
@@ -128,6 +136,8 @@ namespace HomeBridge.BridgeTools
             // room cell differ from the keyframe; the first cell stays put
             // unless it changes.
             var roomKeys = new Dictionary<Room, string>();
+            var roomIndoors = new Dictionary<Room, byte>();
+            var lights = new Dictionary<TerrainDef, byte>();
             for (int z = 0; z < h; z++)
                 for (int x = 0; x < w; x++)
                 {
@@ -135,32 +145,54 @@ namespace HomeBridge.BridgeTools
                     var j = z * w + x;
                     if (cell.Fogged(map)) continue;
                     c[Cell].Codes![j] = 1;
-                    c[Walkable].Codes![j] = B(cell.Walkable(map));
-                    c[Doorway].Codes![j] = B(NativeObservationTools.CellDoorway(map, cell));
-                    c[SupportsLight].Codes![j] = B(cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light));
+                    byte walkable, doorway, storageEmpty, light; string? terrainName, foundation; Room? room;
+                    if (cache != null && cache.Valid[j])
+                    {
+                        walkable = cache.Walkable[j]; doorway = cache.Doorway[j]; storageEmpty = cache.StorageEmpty[j]; light = cache.Light[j];
+                        terrainName = cache.Terrain[j]; foundation = cache.Foundation[j]; room = cache.Room[j];
+                    }
+                    else
+                    {
+                        walkable = B(cell.Walkable(map));
+                        CellThingFlags(map, cell, out var isDoorway, out var isEmpty);
+                        doorway = B(isDoorway); storageEmpty = B(isEmpty);
+                        var terrain = terrainGrid.TerrainAt(cell);
+                        if (!lights.TryGetValue(terrain, out light)) lights[terrain] = light = B(terrain.affordances.Contains(TerrainAffordanceDefOf.Light));
+                        terrainName = Identifier(terrain.defName);
+                        var baseTerrain = terrainGrid.BaseTerrainAt(cell);
+                        if (!affordances.TryGetValue(baseTerrain, out foundation))
+                            affordances[baseTerrain] = foundation = string.Join(",", baseTerrain.affordances.Select(a => Identifier(a.defName)).OrderBy(a => a, StringComparer.Ordinal));
+                        room = cell.GetRoom(map);
+                        if (cache != null)
+                        {
+                            cache.Walkable[j] = walkable; cache.Doorway[j] = doorway; cache.StorageEmpty[j] = storageEmpty; cache.Light[j] = light;
+                            cache.Terrain[j] = terrainName; cache.Foundation[j] = foundation; cache.Room[j] = room; cache.Valid[j] = true;
+                        }
+                    }
+                    c[Walkable].Codes![j] = walkable;
+                    c[Doorway].Codes![j] = doorway;
+                    c[SupportsLight].Codes![j] = light;
+                    c[StorageEmpty].Codes![j] = storageEmpty;
+                    c[Terrain].Strings![j] = terrainName;
+                    c[FoundationAffordances].Strings![j] = foundation;
                     var roof = map.roofGrid.RoofAt(cell);
                     c[Roofed].Codes![j] = B(roof != null);
                     if (roof != null) c[Roof].Strings![j] = Identifier(roof.defName);
                     var zone = map.zoneManager.ZoneAt(cell);
                     c[Zone].Codes![j] = B(zone != null);
                     if (zone != null) c[ZoneId].Strings![j] = zone.GetUniqueLoadID();
-                    c[StorageEmpty].Codes![j] = B(NativeZoneCreation.StorageEmpty(cell, map));
-                    var room = cell.GetRoom(map);
+                    byte indoors = 1;
                     if (room != null)
                     {
-                        if (!roomKeys.TryGetValue(room, out var key)) roomKeys[room] = key = (cell.z * mapWidth + cell.x).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        if (!roomKeys.TryGetValue(room, out var key)) { roomKeys[room] = key = (cell.z * mapWidth + cell.x).ToString(System.Globalization.CultureInfo.InvariantCulture); roomIndoors[room] = B(CellTracking.Indoors(room)); }
                         c[Room].Strings![j] = key;
+                        indoors = roomIndoors[room];
                     }
-                    c[Indoors].Codes![j] = B(CellTracking.Indoors(room));
+                    else indoors = B(false);
+                    c[Indoors].Codes![j] = indoors;
                     c[Polluted].Codes![j] = B(biotech && map.pollutionGrid.IsPolluted(cell));
                     c[Glow].Numbers![j] = Finite(map.glowGrid.GroundGlowAt(cell, false, true));
-                    var terrain = terrainGrid.TerrainAt(cell);
-                    c[Terrain].Strings![j] = Identifier(terrain.defName);
                     c[InHome].Codes![j] = B(home[cell]);
-                    var baseTerrain = terrainGrid.BaseTerrainAt(cell);
-                    if (!affordances.TryGetValue(baseTerrain, out var affordance))
-                        affordances[baseTerrain] = affordance = string.Join(",", baseTerrain.affordances.Select(a => Identifier(a.defName)).OrderBy(a => a, StringComparer.Ordinal));
-                    c[FoundationAffordances].Strings![j] = affordance;
                     // Held to 1/100: snowfall would otherwise re-send the column every frame.
                     c[SnowDepth].Numbers![j] = Math.Round(Finite(map.snowGrid.GetDepth(cell)) * 100.0) / 100.0;
                     c[TopLayerRemovable].Codes![j] = B(terrainGrid.CanRemoveTopLayerAt(cell));
@@ -169,6 +201,24 @@ namespace HomeBridge.BridgeTools
                     if (fertility > 0f) c[Fertility].Numbers![j] = Finite(fertility);
                 }
             return read;
+        }
+
+        // NativeObservationTools.CellDoorway and NativeZoneCreation.StorageEmpty
+        // in one pass over the cell's thing list, without their LINQ allocations.
+        private static void CellThingFlags(Map map, IntVec3 cell, out bool doorway, out bool storageEmpty)
+        {
+            doorway = cell.GetDoor(map) != null; storageEmpty = true;
+            var list = cell.GetThingList(map);
+            for (int i = 0; i < list.Count; i++)
+            {
+                var t = list[i];
+                if (t is Blueprint || t is Frame)
+                {
+                    storageEmpty = false;
+                    if (!doorway && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass)) doorway = true;
+                }
+                else if (t is Plant || t is Building || t.def.category == ThingCategory.Item) storageEmpty = false;
+            }
         }
 
         // Encoder worker state: the keyframe deltas are against.
