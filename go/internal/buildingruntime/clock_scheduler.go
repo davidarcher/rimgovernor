@@ -156,6 +156,11 @@ type ClockSchedulerConfig struct {
 	// (#1123) and reports whether a rebuild reset the review cache since
 	// the last step, which makes this step review in full.
 	WorldReady func(context.Context, *c.ObservationContext) (bool, error)
+	// Autosave, when set, runs in the stop between windows: the step has
+	// decided to admit a window, the game is paused, and nothing is in flight
+	// (#2360). It gets the observed identity and tick and handles its own
+	// failures; a save never fails the step.
+	Autosave func(ctx context.Context, identity *c.Identity, tick int64)
 }
 type ClockSchedulerResult struct {
 	// Pacing is what the step's clock status said of the pace (#627).
@@ -1437,6 +1442,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	if current := s.session.State(); !current.Enabled || !current.ObservationKnown || current.Snapshot != state.Snapshot {
 		return out, executor.ErrAuthority
+	}
+	if s.config.Autosave != nil && status.GetActualPaused() {
+		s.config.Autosave(call, loaded.Context.GetIdentity(), status.Context.GetTick())
 	}
 	attempt, err := s.session.CommandClockWindow(call, ClockWindowRequest{Intent: intent, Facts: facts, MaxAge: s.config.MaxAge, CombatMaxTicks: combatMaxTicks})
 	out.Attempt = &attempt

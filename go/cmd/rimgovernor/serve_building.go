@@ -21,6 +21,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
 type buildingServiceBridge struct {
@@ -281,9 +282,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		boundary.ActionsWriter
 	}{client.trade.Native, client.trade.Writer}}
 	worldReady := rebuild.workerGate(stateNative)
+	var autosave func(context.Context, *c.Identity, int64)
+	if client.lifecycle.flushedSave != nil {
+		autosave = newGoAutosaver(client.lifecycle.flushedSave.Save).AtStop
+	}
 	if config.clockControl {
 		sections = factsstore.NewStore()
-		clockWorker, err := startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout), wake, sections, worldReady)
+		clockWorker, err := startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout), wake, sections, worldReady, autosave)
 		if err != nil {
 			return err
 		}

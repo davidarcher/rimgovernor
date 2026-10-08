@@ -214,7 +214,7 @@ type serviceClockTimeoutConfig struct{ Poll, Renew, Step, SignalWait, RunningPol
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal, sections *facts.Store, worldReady func(context.Context, *c.ObservationContext) (bool, error)) (*buildingruntime.ClockWorker, error) {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal, sections *facts.Store, worldReady func(context.Context, *c.ObservationContext) (bool, error), autosave func(context.Context, *c.Identity, int64)) (*buildingruntime.ClockWorker, error) {
 	profile, routine := sc.profile, sc.roundsEnabled
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.roundsSleepingPlans, sc.roundsCookingPlans, sc.roundsShelterPlans, sc.roundsComfortPlans, sc.roundsExpansionPlans, sc.roundsPowerPlans, sc.roundsTemperaturePlans
 	workshop := sc.workshopPlans()
@@ -250,6 +250,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	config.Store = sections
 	config.Worker = true
 	config.WorldReady = worldReady
+	config.Autosave = autosave
 	// Acceptance fault injection (#633): a failing or hanging planner, a
 	// dropped renewal. Off unless the environment names one.
 	faults, err := buildingruntime.ParseFaults(os.Getenv(buildingruntime.FaultsEnv))
