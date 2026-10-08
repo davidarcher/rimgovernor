@@ -74,10 +74,6 @@ func TestResourceRunwayUnknownAndZeroRate(t *testing.T) {
 	if _, k := ForecastResourceRunway("Steel", domain.Known(int64(1)), domain.Known(int64(0)), 0, 0, domain.Unknown[ResourceConsumption]()).ConsumptionPerDay.Value(); k {
 		t.Fatal("unknown consumption has a rate")
 	}
-	short := domain.Known(ResourceConsumption{WindowDays: 0.5, Recurring: map[Resource]int64{"Steel": 5}})
-	if _, k := ForecastResourceRunway("Steel", domain.Known(int64(1)), domain.Known(int64(0)), 0, 0, short).ConsumptionPerDay.Value(); k {
-		t.Fatal("short history")
-	}
 }
 
 func hour(h int, rows ...ConsumptionRow) ConsumptionHour { return ConsumptionHour{Hour: h, Rows: rows} }

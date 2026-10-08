@@ -20,7 +20,7 @@ func TestMedicineRunwayFromTendRate(t *testing.T) {
 	p := DefaultRoundsPolicy()
 	p.ResourceTargets = DefaultResourceTargets()
 	reserves := p.RunwayReserves(CoreItemFacts(), domain.Known(int64(8)))
-	if reserve, set := reserves["MedicineHerbal"]; !set || reserve != 8*p.MedicalReserve.MinimumPerColonist || reserves["Steel"] == 0 {
+	if reserve, set := reserves["MedicineHerbal"]; !set || reserve != 8*p.MedicalReserve.TargetPerColonist || reserves["Steel"] == 0 {
 		t.Fatal(reserves)
 	}
 	if got := p.RunwayReserves(ItemFacts{}, domain.Known(int64(8))); len(got) != len(p.ResourceTargets) {
@@ -44,6 +44,27 @@ func TestMedicineRunwayFromTendRate(t *testing.T) {
 	unknown := ForecastResourceRunway("MedicineHerbal", domain.Known(int64(4)), domain.Known(int64(0)), 0, 0, domain.Unknown[ResourceConsumption]())
 	if _, known := unknown.Deficit.Value(); known || unknown.Target != 0 {
 		t.Fatal(unknown)
+	}
+}
+
+func TestRunwayWindowShorterThanADay(t *testing.T) {
+	stock, ore := domain.Known(int64(4)), domain.Known(int64(0))
+	hours := domain.Known(ResourceConsumption{WindowDays: 0.5, Recurring: map[Resource]int64{"Steel": 5}})
+	r := ForecastResourceRunway("Steel", stock, ore, 0, 0, hours)
+	if rate, known := r.ConsumptionPerDay.Value(); !known || rate != 10 {
+		t.Fatal("sub-day window must yield a known rate", r)
+	}
+	none := domain.Known(ResourceConsumption{})
+	z := ForecastResourceRunway("Steel", domain.Known(int64(3)), ore, 10, 0, none)
+	if deficit, known := z.Deficit.Value(); !known || !deficit || z.Target != 10 {
+		t.Fatal("zero window must demand the reserve", z)
+	}
+	if rate, known := z.ConsumptionPerDay.Value(); !known || rate != 0 {
+		t.Fatal(z)
+	}
+	u := ForecastResourceRunway("Steel", stock, ore, 10, 0, domain.Unknown[ResourceConsumption]())
+	if _, known := u.Deficit.Value(); known || u.Target != 0 {
+		t.Fatal("unknown read stays unknown", u)
 	}
 }
 

@@ -32,11 +32,12 @@ func ForecastResourceRunway(resource Resource, stock, ore domain.Fact[int64], re
 		return out
 	}
 	out.WindowDays = c.WindowDays
-	// Less than one day is too little evidence for a maintenance rate.
-	if out.WindowDays < 1 {
-		return out
+	// No ledger yet (a zero window) has no observed spend: rate zero, so the
+	// reserve still applies.
+	var rate float64
+	if out.WindowDays > 0 {
+		rate = float64(c.Recurring[resource]) / out.WindowDays
 	}
-	rate := float64(c.Recurring[resource]) / out.WindowDays
 	out.ConsumptionPerDay = domain.Known(rate)
 	n, known := stock.Value()
 	if !known || n < 0 {
@@ -74,8 +75,8 @@ func ResourceRunwayTargets(rows []ResourceRunway) map[Resource]int64 {
 
 // RunwayReserves is every resource a runway is forecast for and its reserve:
 // the operator's ResourceTargets, plus the reserve medicine (the catalog's
-// lowest-potency one, herbal) at one dose per colonist (the medical reserve's
-// MinimumPerColonist), so a colony never tended still stocks it; once doses
+// lowest-potency one, herbal) at the medical reserve's TargetPerColonist doses per
+// colonist, so a colony never tended still stocks it; once doses
 // are used the observed tend rate takes over (#2378). Without the catalog's
 // medicines it adds nothing; an unread colonist count leaves the reserve zero.
 func (p RoundsPolicy) RunwayReserves(items ItemFacts, colonists domain.Fact[int64]) map[Resource]int64 {
@@ -86,7 +87,7 @@ func (p RoundsPolicy) RunwayReserves(items ItemFacts, colonists domain.Fact[int6
 	if herbal, err := items.MedicineAt(0); err == nil {
 		if _, set := out[herbal]; !set {
 			n, _ := colonists.Value()
-			out[herbal] = colonistReserve(n, p.MedicalReserve.MinimumPerColonist)
+			out[herbal] = colonistReserve(n, p.MedicalReserve.TargetPerColonist)
 		}
 	}
 	return out
