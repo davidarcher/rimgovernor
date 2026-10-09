@@ -15,7 +15,7 @@ func departureFixture(family QuestFamily, count int64) (JoinerOffer, RoundsFacts
 		rows = append(rows, QuestDeparturePawn{ID: id, HealthyAdult: domain.Known(true), CanFight: domain.Known(true), DefensePoints: domain.Known(20.0)})
 		work = append(work, PawnWorkAssignment{Pawn: id, Priorities: []WorkPriority{{Work: WorkType("Research"), Priority: 1}}})
 	}
-	f := RoundsFacts{QuestOffers: domain.Known([]JoinerOffer{offer}), QuestColonyCalm: domain.Known(true), QuestColonistsAtHome: domain.Known(6), QuestSparePawns: domain.Known([]PawnID{"a", "b", "c"}), QuestDeparturePawns: domain.Known(rows), QuestDepartureWork: domain.Known(work), WorkRoster: domain.Known([]WorkCoverage{{Work: WorkType("Research"), Owners: 3}}), DefenseCapacity: domain.Known(100.0), RaidPoints: domain.Known(50.0)}
+	f := RoundsFacts{QuestOffers: domain.Known([]JoinerOffer{offer}), QuestColonyCalm: domain.Known(true), QuestColonistsAtHome: domain.Known(6), QuestHomeFloor: domain.Known(3), QuestSparePawns: domain.Known([]PawnID{"a", "b", "c"}), QuestDeparturePawns: domain.Known(rows), QuestDepartureWork: domain.Known(work), WorkRoster: domain.Known([]WorkCoverage{{Work: WorkType("Research"), Owners: 3}}), DefenseCapacity: domain.Known(100.0), RaidPoints: domain.Known(50.0)}
 	return offer, f
 }
 

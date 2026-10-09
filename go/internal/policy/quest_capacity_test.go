@@ -60,6 +60,39 @@ func TestQuestSpareColonists(t *testing.T) {
 	}
 }
 
+func TestQuestHomeFloorFollowsCoverage(t *testing.T) {
+	ids := []PawnID{"a", "b", "c", "d"}
+	workers, states := []WorkPawn{}, []MoodPawn{}
+	for _, id := range ids {
+		workers = append(workers, WorkPawn{ID: id, Available: domain.Known(true)})
+		states = append(states, MoodPawn{ID: id, Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), Mental: domain.Known(false)})
+	}
+	assign := func(pawn PawnID, work WorkType) PawnWorkAssignment {
+		return PawnWorkAssignment{Pawn: pawn, Priorities: []WorkPriority{{Work: work, Priority: 1}}}
+	}
+	floor := func(owners [3]int, rows ...PawnWorkAssignment) int {
+		t.Helper()
+		roster := WorkDecision{Capacity: domain.Known(true), Assignments: rows, Coverage: []WorkCoverage{{Work: WorkDoctor, Owners: owners[0]}, {Work: WorkCooking, Owners: owners[1]}, {Work: WorkConstruction, Owners: owners[2]}}}
+		got, known := QuestHomeFloor(domain.Known(workers), domain.Known(states), roster).Value()
+		if !known {
+			t.Fatal("floor unknown")
+		}
+		return got
+	}
+	if got := floor([3]int{1, 1, 1}, assign("a", WorkDoctor), assign("b", WorkCooking), assign("c", WorkConstruction), assign("d", "Research")); got != 3 {
+		t.Fatalf("sole owners floor = %d, want 3", got)
+	}
+	if got := floor([3]int{2, 2, 2}, assign("a", WorkDoctor), assign("b", WorkCooking), assign("c", WorkConstruction), assign("d", WorkDoctor)); got != 0 {
+		t.Fatalf("redundant owners floor = %d, want 0", got)
+	}
+	if got := floor([3]int{1, 0, 0}, assign("a", WorkDoctor), assign("b", "Research"), assign("c", "Research"), assign("d", "Research")); got != 1 {
+		t.Fatalf("single owner floor = %d, want 1", got)
+	}
+	if _, known := QuestHomeFloor(domain.Unknown[[]WorkPawn](), domain.Known(states), WorkDecision{}).Value(); known {
+		t.Fatal("unknown workers gave a known floor")
+	}
+}
+
 func TestQuestCalmColony(t *testing.T) {
 	facts := RoundsFacts{Hostiles: domain.Known(int64(0))}
 	for _, tc := range []struct {

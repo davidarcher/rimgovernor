@@ -64,7 +64,7 @@ func TestSelectEmpireQuestMethodRefuses(t *testing.T) {
 }
 
 func questTestFacts(offers domain.Fact[[]JoinerOffer], claims ...domain.QuestID) RoundsFacts {
-	return RoundsFacts{DefenseCapacity: domain.Known(1000.0), QuestOffers: offers, TitleClaimQuests: claims, QuestColonyCalm: domain.Known(true), QuestSparePawns: domain.Known([]PawnID{"spare"}), QuestColonistsAtHome: domain.Known(4), FoodDays: domain.Known(20.0)}
+	return RoundsFacts{DefenseCapacity: domain.Known(1000.0), QuestOffers: offers, TitleClaimQuests: claims, QuestColonyCalm: domain.Known(true), QuestSparePawns: domain.Known([]PawnID{"spare"}), QuestColonistsAtHome: domain.Known(4), QuestHomeFloor: domain.Known(3), FoodDays: domain.Known(20.0)}
 }
 
 func TestFamilyQuestDoesNotRequireFavor(t *testing.T) {

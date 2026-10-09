@@ -17,6 +17,7 @@ func (r *Rounder) settlementAcquisitionOptions(ctx context.Context, world domain
 		f := latest.reading.Projection.Facts
 		p.Facts.QuestColonyCalm = f.QuestColonyCalm
 		p.Facts.QuestSparePawns = f.QuestSparePawns
+		p.Facts.QuestHomeFloor = f.QuestHomeFloor
 		p.Facts.QuestDepartureWork = f.QuestDepartureWork
 		p.Facts.WorkRoster = f.WorkRoster
 	}

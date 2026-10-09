@@ -23,6 +23,11 @@ func TestQuestFeasibilityCostClassesAndOpenCommitments(t *testing.T) {
 		"no spare":         {cost: QuestCostPawns, edit: func(f *RoundsFacts) { f.QuestSparePawns = domain.Known([]PawnID{}) }, want: "no_spare_pawn"},
 		"busy":             {cost: QuestCostTime, edit: func(f *RoundsFacts) { f.QuestColonyCalm = domain.Known(false) }, want: "colony_busy"},
 		"home floor":       {cost: QuestCostPawns, edit: func(f *RoundsFacts) { f.QuestColonistsAtHome = domain.Known(3) }, want: "home_capacity"},
+		"redundant owners send more": {cost: QuestCostPawns, edit: func(f *RoundsFacts) {
+			f.QuestColonistsAtHome = domain.Known(3)
+			f.QuestHomeFloor = domain.Known(0)
+		}},
+		"floor unknown": {cost: QuestCostPawns, edit: func(f *RoundsFacts) { f.QuestHomeFloor = domain.Unknown[int]() }, want: "capacity_unknown"},
 		"open commitment": {cost: QuestCostPawns, edit: func(f *RoundsFacts) {
 			open := makeOffer(QuestCostPawns)
 			open.State = "Ongoing"

@@ -35,6 +35,7 @@ func TestTradeMissionCrewRetainsHomeOwnersAndUrgentClaims(t *testing.T) {
 	}
 	f, _ = missionFacts()
 	f.QuestColonistsAtHome = domain.Known(2)
+	f.QuestHomeFloor = domain.Known(3)
 	if crew, _ = TradeMissionCrew(f, nil); len(crew) != 0 {
 		t.Fatal("home staffing depleted")
 	}

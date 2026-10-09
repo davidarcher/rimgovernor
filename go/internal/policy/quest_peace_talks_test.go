@@ -76,7 +76,8 @@ func TestPeaceTalksKeepsHomeDefenseAndFoodStaffing(t *testing.T) {
 		t.Fatal(id, reason)
 	}
 	f.DefenseCapacity = domain.Known(100.0)
-	f.QuestColonistsAtHome = domain.Known(QuestMinimumColonistsAtHome)
+	f.QuestColonistsAtHome = domain.Known(3)
+	f.QuestHomeFloor = domain.Known(3)
 	if id, reason := PeaceTalksNegotiator(offer, f, pawns, domain.Known(false)); id != "" || reason != "negotiator_capacity" {
 		t.Fatal(id, reason)
 	}

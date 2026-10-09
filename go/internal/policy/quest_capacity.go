@@ -6,16 +6,32 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// QuestMinimumColonistsAtHome preserves a doctor, cook and builder while a squad is away.
-const QuestMinimumColonistsAtHome = 3
-
 // QuestSpareColonists uses the roster's intended assignments, including changes
 // that have not been applied yet. Sole primary owners of essential work stay home.
 func QuestSpareColonists(workers domain.Fact[[]WorkPawn], mood domain.Fact[[]MoodPawn], roster WorkDecision) domain.Fact[[]PawnID] {
+	spare, _, known := questRosterSplit(workers, mood, roster)
+	if !known {
+		return domain.Unknown[[]PawnID]()
+	}
+	return domain.Known(spare)
+}
+
+// QuestHomeFloor is the number of colonists who must stay home: the sole
+// primary owners of doctor, cooking and construction. It follows roster
+// coverage, so a colony with redundant owners may send more.
+func QuestHomeFloor(workers domain.Fact[[]WorkPawn], mood domain.Fact[[]MoodPawn], roster WorkDecision) domain.Fact[int] {
+	_, floor, known := questRosterSplit(workers, mood, roster)
+	if !known {
+		return domain.Unknown[int]()
+	}
+	return domain.Known(floor)
+}
+
+func questRosterSplit(workers domain.Fact[[]WorkPawn], mood domain.Fact[[]MoodPawn], roster WorkDecision) ([]PawnID, int, bool) {
 	pawns, wk := workers.Value()
 	states, mk := mood.Value()
 	if _, known := roster.Capacity.Value(); !known || !wk || !mk {
-		return domain.Unknown[[]PawnID]()
+		return nil, 0, false
 	}
 	status := map[PawnID]MoodPawn{}
 	for _, pawn := range states {
@@ -27,32 +43,32 @@ func QuestSpareColonists(workers domain.Fact[[]WorkPawn], mood domain.Fact[[]Moo
 	}
 	for _, work := range []WorkType{WorkDoctor, WorkCooking, WorkConstruction} {
 		if _, known := essential[work]; !known {
-			return domain.Unknown[[]PawnID]()
+			return nil, 0, false
 		}
 	}
 	assignments := map[PawnID][]WorkPriority{}
 	for _, row := range roster.Assignments {
 		assignments[row.Pawn] = row.Priorities
 	}
-	spare := []PawnID{}
+	spare, floor := []PawnID{}, 0
 	for _, pawn := range pawns {
 		available, known := pawn.Available.Value()
 		if !known {
-			return domain.Unknown[[]PawnID]()
+			return nil, 0, false
 		}
 		if !available {
 			continue
 		}
 		state, found := status[pawn.ID]
 		if !found || !allKnown(state.Dead, state.Downed, state.Drafted, state.Mental) {
-			return domain.Unknown[[]PawnID]()
+			return nil, 0, false
 		}
 		if positive(state.Dead) || positive(state.Downed) || positive(state.Drafted) || positive(state.Mental) {
 			continue
 		}
 		priorities, found := assignments[pawn.ID]
 		if !found {
-			return domain.Unknown[[]PawnID]()
+			return nil, 0, false
 		}
 		needed := false
 		for _, setting := range priorities {
@@ -61,12 +77,14 @@ func QuestSpareColonists(workers domain.Fact[[]WorkPawn], mood domain.Fact[[]Moo
 				needed = true
 			}
 		}
-		if !needed {
+		if needed {
+			floor++
+		} else {
 			spare = append(spare, pawn.ID)
 		}
 	}
 	slices.Sort(spare)
-	return domain.Known(spare)
+	return spare, floor, true
 }
 
 // QuestCalmColony retains uncertainty from the existing emergency decision.

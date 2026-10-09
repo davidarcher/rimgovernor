@@ -467,7 +467,9 @@ type RoundsFacts struct {
 	QuestExpeditionTrips domain.Fact[[]ExpeditionTrip]
 	QuestObservedTick    domain.Fact[domain.Tick]
 	QuestColonistsAtHome domain.Fact[int]
-	QuestColonyCalm      domain.Fact[bool]
+	// QuestHomeFloor is the sole essential owners who stay home (QuestHomeFloor).
+	QuestHomeFloor  domain.Fact[int]
+	QuestColonyCalm domain.Fact[bool]
 	// WorkDecaying is the same plan's skills above 10 that no assignment
 	// exercises (WorkDecision.Decaying) and WorkProfiles every work pawn's
 	// typed profile (Profiles); both are presentation facts the review

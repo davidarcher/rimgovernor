@@ -37,11 +37,12 @@ func departureSquadWithCrew(offer JoinerOffer, f RoundsFacts, strongestFirst, al
 	}
 	calm, ck := f.QuestColonyCalm.Value()
 	home, hk := f.QuestColonistsAtHome.Value()
+	floor, fk := f.QuestHomeFloor.Value()
 	spare, sk := f.QuestSparePawns.Value()
 	rows, rk := f.QuestDeparturePawns.Value()
 	work, wk := f.QuestDepartureWork.Value()
 	coverage, covk := f.WorkRoster.Value()
-	if !ck || !hk || !sk || !rk || !wk || !covk {
+	if !ck || !hk || !fk || !sk || !rk || !wk || !covk {
 		return nil, "capacity_unknown"
 	}
 	if !calm {
@@ -61,7 +62,7 @@ func departureSquadWithCrew(offer JoinerOffer, f RoundsFacts, strongestFirst, al
 	if need < 1 {
 		return nil, "pawn_demand_unknown"
 	}
-	if int64(home)-need < QuestMinimumColonistsAtHome {
+	if int64(home)-need < int64(floor) {
 		return nil, "home_capacity"
 	}
 	owners := map[WorkType]int{}
@@ -131,7 +132,7 @@ func departureSquadWithCrew(offer JoinerOffer, f RoundsFacts, strongestFirst, al
 			capacity -= points
 		}
 	}
-	if int64(home)-need < QuestMinimumColonistsAtHome {
+	if int64(home)-need < int64(floor) {
 		return nil, "home_capacity"
 	}
 	selected := []domain.PawnID{}

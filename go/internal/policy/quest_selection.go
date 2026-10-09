@@ -124,7 +124,8 @@ func QuestFeasibility(offer JoinerOffer, f RoundsFacts) QuestSkipReason {
 	calm, ck := f.QuestColonyCalm.Value()
 	spare, sk := f.QuestSparePawns.Value()
 	home, hk := f.QuestColonistsAtHome.Value()
-	if !ck || !sk || !hk {
+	floor, fk := f.QuestHomeFloor.Value()
+	if !ck || !sk || !hk || !fk {
 		return "capacity_unknown"
 	}
 	if !calm {
@@ -165,7 +166,7 @@ func QuestFeasibility(offer JoinerOffer, f RoundsFacts) QuestSkipReason {
 	if profile.Cost == QuestCostPawns {
 		away += need
 	}
-	if away > 0 && int64(home)-away < QuestMinimumColonistsAtHome {
+	if away > 0 && int64(home)-away < int64(floor) {
 		return "home_capacity"
 	}
 	if profile.Demands&QuestDemandFood != 0 {

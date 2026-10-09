@@ -18,6 +18,7 @@ func monumentOfferSnapshot() (JoinerOffer, RoundsFacts) {
 	f.ConstructionDeficit = domain.Known(map[Resource]int64{})
 	f.QuestColonyCalm = domain.Known(true)
 	f.QuestColonistsAtHome = domain.Known(5)
+	f.QuestHomeFloor = domain.Known(3)
 	return q, f
 }
 

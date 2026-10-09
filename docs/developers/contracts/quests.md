@@ -30,7 +30,7 @@ native scanner completion ends the hold; scanner destruction ends it as failure.
 MaintainPopulation selects joiners first, then allowed bestowing claims, then an
 affordable family offer. Feasibility uses the existing work roster and emergency
 decision, protects sole doctors, cooks and builders, and reserves spare capacity
-against open non-automatic quests. Departures retain at least three home colonists.
+against open non-automatic quests. The home floor is the count of sole primary owners of doctor, cooking and construction in the roster (`policy.QuestHomeFloor`); a colony with redundant owners may send more, and a departure that would leave fewer at home refuses as `home_capacity`.
 Unknown demands and unfinished objective drivers prevent acceptance. Native
 CanAcceptQuest remains the final eligibility check at dispatch.
 
