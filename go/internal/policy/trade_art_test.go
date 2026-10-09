@@ -43,7 +43,7 @@ func TestSelectTradeSellsSurplusArt(t *testing.T) {
 		artRow("#2", "Thing_B", 400),
 		tradeRow("#3", "Silver", 500, 1000, 1, 1),
 	}
-	target := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 50, 0, 150, 0, 1)}}
+	target := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 50, 0, 150, 1)}}
 	cases := []struct {
 		name     string
 		sale     map[string]bool

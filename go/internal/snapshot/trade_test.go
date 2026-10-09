@@ -18,10 +18,7 @@ func tradeNeed(t *testing.T, r Rounds) policy.TradeNeed {
 	if err != nil {
 		t.Fatal(err)
 	}
-	demand, err := policy.ResourceDemandOf(r.Facts, r.Policy, policy.RoundsLatches{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	demand := policy.ResourceDemandOf(r.Facts, r.Policy, policy.RoundsLatches{})
 	need, known := policy.ReviewTradeNeed(r.Facts.Items, medicine, r.Facts.Resources, demand.Needs, policy.RoundsTradeFloors(r.Policy, nil), r.Facts.Wealth, demand.Retained, policy.RoundsTradeFood(r.Facts, r.Policy)).Value()
 	if !known {
 		t.Fatal("trade need unknown")

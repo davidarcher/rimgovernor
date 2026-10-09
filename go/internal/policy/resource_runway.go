@@ -65,7 +65,7 @@ func (r ResourceRunway) ProtectedLine() (int64, bool) {
 	if !known || r.Reserve < 0 {
 		return 0, false
 	}
-	return int64(math.Min(maxResourceTarget, float64(r.Reserve)+math.Ceil(rate*ProjectionHorizonDays))), true
+	return r.Reserve + int64(math.Ceil(rate*ProjectionHorizonDays)), true
 }
 
 func ResourceRunwayTargets(rows []ResourceRunway) map[Resource]int64 {

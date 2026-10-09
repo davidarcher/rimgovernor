@@ -80,7 +80,7 @@ func TradeOfferCandidates(resource Resource, offers []TradeOffers, deficit, silv
 		var best *TradeOffer
 		for i := range record.Rows {
 			row := &record.Rows[i]
-			if Resource(row.Def) != resource || row.Count <= 0 || !finite(row.Price) || row.Price <= 0 || row.Price > tradeBuyPriceCeiling {
+			if Resource(row.Def) != resource || row.Count <= 0 || !finite(row.Price) || row.Price <= 0 {
 				continue
 			}
 			if best == nil || row.Price < best.Price {
@@ -114,7 +114,7 @@ func TradeFoodChannels(offers []TradeOffers, silver, reserve int64, want float64
 		}
 		var rows []TradeOffer
 		for _, row := range record.Rows {
-			if g, known := row.Food.Value(); known && validTradeFood(g) && row.Count > 0 && finite(row.Price) && row.Price > 0 && row.Price <= tradeBuyPriceCeiling {
+			if g, known := row.Food.Value(); known && validTradeFood(g) && row.Count > 0 && finite(row.Price) && row.Price > 0 {
 				rows = append(rows, row)
 			}
 		}

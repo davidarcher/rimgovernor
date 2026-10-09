@@ -175,7 +175,7 @@ func SelectMedicineMethod(r MedicinePlanningRequest) (MedicineMethod, error) {
 	if target <= 0 {
 		return MedicineMethod{Kind: MedicineRecovered}, nil
 	}
-	if target > 10000 {
+	if target > math.MaxInt32 {
 		return MedicineMethod{Kind: MedicineBlocked}, nil
 	}
 	seen := map[domain.MethodID]bool{}

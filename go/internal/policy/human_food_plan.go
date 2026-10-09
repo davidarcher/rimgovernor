@@ -236,10 +236,10 @@ func SelectHumanSurvivalBill(benches domain.Fact[[]ProductionBench], supply Food
 				continue
 			}
 			target := math.Floor(budget * eff / pn)
-			if target < 1 {
+			if target < 1 || target > math.MaxInt32 {
 				continue
 			}
-			choices = append(choices, BillSelection{Bench: b.ID, Recipe: r.Name, Token: token, Mode: domain.FoodTarget, Target: int32(math.Min(10000, target)), Ingredients: ingredients})
+			choices = append(choices, BillSelection{Bench: b.ID, Recipe: r.Name, Token: token, Mode: domain.FoodTarget, Target: int32(target), Ingredients: ingredients})
 		}
 	}
 	sort.Slice(choices, func(i, j int) bool { return choices[i].Bench < choices[j].Bench })

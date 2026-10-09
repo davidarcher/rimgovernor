@@ -126,7 +126,7 @@ func TestSelectTradeAnimalSaleKeepsSilverReserve(t *testing.T) {
 		animalRow("#1", "Goat", "g1", 400),
 		tradeRow("#2", "Silver", 250, 1000, 1, 1),
 	}
-	target := domain.TradeEconomicPolicy{SilverReserve: 200, Targets: []domain.TradeTarget{tradeTarget("MedicineIndustrial", 10, 10, 0, 50, 0)}}
+	target := domain.TradeEconomicPolicy{SilverReserve: 200, Targets: []domain.TradeTarget{tradeTarget("MedicineIndustrial", 10, 10, 0, 0)}}
 	facts := tradeFacts(rows, 250, 1000, 250)
 	facts.SaleAnimals = map[string]bool{"g1": true}
 	s := SelectTrade(target, facts)

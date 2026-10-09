@@ -29,7 +29,7 @@ it). Never add a line to make a gate pass. Every gate failure starts
    `internal` or `cmd`. Baseline: `file|func` entries.
 5. **Numbers (narrow).** In `policy` and `buildingruntime`: no literal `10000`
    compared with or clamping a count/target-named operand (use
-   `maxResourceTarget` or delete the cap), and no sentinel standing for
+   a named constant or delete the cap), and no sentinel standing for
    unknown (`1e12`, `1<<40`, `math.MaxFloat64`). A cap that triggers is a
    visible refusal with a reason, never a silent drop. Baseline: `file|func|token`.
 

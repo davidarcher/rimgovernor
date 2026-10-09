@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"fmt"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -30,9 +28,8 @@ type DerivedDemand struct {
 // one merge: the evidence needs other goals recorded (f.ResourceNeeds), then
 // construction (with the wood latch's floor), open bills, clothing, fuel,
 // animal feed and the runways' targets, each raising a level and never
-// lowering one. A new demand source is one entry here. A level over
-// maxResourceTarget is refused with its resource named.
-func ResourceDemandOf(f RoundsFacts, p RoundsPolicy, l RoundsLatches) (DerivedDemand, error) {
+// lowering one. A new demand source is one entry here.
+func ResourceDemandOf(f RoundsFacts, p RoundsPolicy, l RoundsLatches) DerivedDemand {
 	clothing := f.ClothingRunway()
 	works := ConstructionDemandOf(f, p, l)
 	for _, source := range []map[Resource]int64{
@@ -44,12 +41,7 @@ func ResourceDemandOf(f RoundsFacts, p RoundsPolicy, l RoundsLatches) (DerivedDe
 		works = ResourceConcernTargets(works, source)
 	}
 	needs := ResourceConcernTargets(ResourceConcernTargets(f.ResourceNeeds, works), ResourceRunwayTargets(f.ResourceRunways))
-	for resource, n := range needs {
-		if n > maxResourceTarget {
-			return DerivedDemand{}, fmt.Errorf("resource demand %s %d exceeds %d", resource, n, maxResourceTarget)
-		}
-	}
-	return DerivedDemand{Needs: needs, Works: works, Serves: clothing.Serves, Retained: TradeRetained(f.ResourceConsumption, f.ResourceRunways, works)}, nil
+	return DerivedDemand{Needs: needs, Works: works, Serves: clothing.Serves, Retained: TradeRetained(f.ResourceConsumption, f.ResourceRunways, works)}
 }
 
 // ResourceConcernTargets merges two stock-floor maps by maximum: derived

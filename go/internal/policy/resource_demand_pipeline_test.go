@@ -31,10 +31,7 @@ func TestInspectRoundsPublishesResourceDemandOfTheSameFacts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := ResourceDemandOf(f, p, findings.Latches)
-	if err != nil {
-		t.Fatal(err)
-	}
+	want := ResourceDemandOf(f, p, findings.Latches)
 	if !reflect.DeepEqual(findings.ResourceDemand, want) {
 		t.Fatalf("detector demand %+v, pipeline %+v", findings.ResourceDemand, want)
 	}
@@ -50,10 +47,7 @@ func TestInspectRoundsPublishesResourceDemandOfTheSameFacts(t *testing.T) {
 // counted once and an evidence need not at all.
 func TestResourceDemandRetainedIsTheTradeRetainedStock(t *testing.T) {
 	p, f := DefaultRoundsPolicy(), demandFacts()
-	demand, err := ResourceDemandOf(f, p, RoundsLatches{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	demand := ResourceDemandOf(f, p, RoundsLatches{})
 	retained, known := demand.Retained.Value()
 	if !known {
 		t.Fatal("retained unknown with a read consumption")
@@ -64,21 +58,8 @@ func TestResourceDemandRetainedIsTheTradeRetainedStock(t *testing.T) {
 		t.Fatalf("retained %v, want %v", retained, want)
 	}
 	f.ResourceConsumption = domain.Unknown[ResourceConsumption]()
-	if demand, err = ResourceDemandOf(f, p, RoundsLatches{}); err != nil {
-		t.Fatal(err)
-	}
+	demand = ResourceDemandOf(f, p, RoundsLatches{})
 	if _, known := demand.Retained.Value(); known {
 		t.Fatal("an unread consumption retained a number")
-	}
-}
-
-// A source over the one cap is refused with its resource named, never
-// dropped.
-func TestResourceDemandOfRefusesDemandOverTheCap(t *testing.T) {
-	f := stableRounds()
-	f.Resources = domain.Known([]Amount{})
-	f.ConstructionDeficit = domain.Known(map[Resource]int64{"Steel": maxResourceTarget + 1})
-	if _, err := ResourceDemandOf(f, DefaultRoundsPolicy(), RoundsLatches{}); err == nil {
-		t.Fatal("demand over the cap was accepted")
 	}
 }

@@ -53,7 +53,7 @@ func TestTradeFoodChannelsPricedAndCapped(t *testing.T) {
 }
 
 // An arrival nobody has priced is never planned for: no record, a record with
-// no food and a price over the ceiling give no candidate.
+// no food give no candidate.
 func TestTradeFoodChannelsIgnoreWindfalls(t *testing.T) {
 	t.Parallel()
 	if got := TradeFoodChannels(nil, 1000, 200, 100); len(got) != 0 {
@@ -61,10 +61,6 @@ func TestTradeFoodChannelsIgnoreWindfalls(t *testing.T) {
 	}
 	if got := TradeFoodChannels([]TradeOffers{steelOffers(0, 8, 100)}, 1000, 200, 100); len(got) != 0 {
 		t.Errorf("record without food: %v", got)
-	}
-	dear := []TradeOffers{foodOffers("caravan", foodRow("MealLavish", 5, tradeBuyPriceCeiling+1, 1))}
-	if got := TradeFoodChannels(dear, 1000, 200, 100); len(got) != 0 {
-		t.Errorf("price over the ceiling: %v", got)
 	}
 }
 

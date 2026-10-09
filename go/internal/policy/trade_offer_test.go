@@ -57,9 +57,6 @@ func TestTradeOfferCandidates(t *testing.T) {
 	if c := TradeOfferCandidates("Steel", o, 500, 200, 200); len(c) != 0 {
 		t.Errorf("no silver above the reserve: %v", c)
 	}
-	if c := TradeOfferCandidates("Steel", []TradeOffers{steelOffers(0, tradeBuyPriceCeiling+1, 100)}, 50, 1e6, 0); len(c) != 0 {
-		t.Errorf("price over the ceiling: %v", c)
-	}
 	if c := TradeOfferCandidates("WoodLog", o, 50, 1000, 200); len(c) != 0 {
 		t.Errorf("another resource: %v", c)
 	}

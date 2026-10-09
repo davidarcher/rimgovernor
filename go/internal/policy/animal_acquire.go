@@ -208,7 +208,7 @@ func AnimalPurchaseFoodChannels(offers []TradeOffers, in AnimalAcquisition, silv
 		var perTrader []SupplyCandidate
 		for _, row := range record.Rows {
 			race, ok := in.Races.Race(Resource(row.Def))
-			if !row.Pawn || !ok || row.Count < 1 || row.Gender == "" || strings.Contains(row.Def, "/") || !finite(row.Price) || row.Price <= 0 || row.Price > tradeBuyPriceCeiling || row.Price > float64(silver-reserve) || !in.room(race.Def) {
+			if !row.Pawn || !ok || row.Count < 1 || row.Gender == "" || strings.Contains(row.Def, "/") || !finite(row.Price) || row.Price <= 0 || row.Price > float64(silver-reserve) || !in.room(race.Def) {
 				continue
 			}
 			y, ok := in.yield(race, row.Gender, math.Inf(1))

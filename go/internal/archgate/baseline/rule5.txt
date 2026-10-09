@@ -1,20 +1,13 @@
 # Rule 5 (numbers): file|func|token in policy and buildingruntime. Delete a line when fixed; never add one.
-internal/buildingruntime/rounds_armory_shells.go|RoundsArmoryPlanner.stockShells|10000 clamp
 internal/buildingruntime/trade_mission.go|PrepareTradeMission|math.MaxFloat64
 internal/buildingruntime/trade_mission_options.go|Rounder.settlementAcquisitionOptions|math.MaxFloat64
 internal/policy/combat_grenade.go|bestGround|math.MaxFloat64
 internal/policy/combat_hunt.go|huntFormation|math.MaxFloat64
 internal/policy/combat_mortar.go|counterBattery|math.MaxFloat64
 internal/policy/combat_permit.go|aidCell|math.MaxFloat64
-internal/policy/food_reserve.go|selectTargetBill|10000 compared
 internal/policy/food_storage_upkeep.go|ReviewFoodStorage|math.MaxFloat64
-internal/policy/food_storage_upkeep.go|SelectFoodStorageMethod|10000 compared
-internal/policy/gear.go|produceGear|10000 compared
 internal/policy/herd_plan.go|herdLevelingRace|math.MaxFloat64
-internal/policy/human_food_plan.go|SelectHumanSurvivalBill|10000 clamp
-internal/policy/medical_reserve.go|SelectMedicineMethod|10000 compared
 internal/policy/power_method.go|SelectPowerMethod|sentinel 1e+12
-internal/policy/production_bill.go|SelectProductionBill|10000 compared
 internal/policy/resource_candidates.go|finiteAcquisitionCost|sentinel 1e+12
 internal/policy/supply_plan.go|newSupplyCand|math.MaxFloat64
 internal/policy/supply_plan.go|newSupplyCand|sentinel 1e+12

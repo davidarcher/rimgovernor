@@ -15,11 +15,10 @@ type TradeTarget struct {
 	Stock        int64
 	MaxBuy       int64
 	MaxSell      int64
-	MaxBuyPrice  float64
 	MinSellPrice float64
 }
 
-// TradeEconomicPolicy is colony_plan.py's TradePolicy: a bounded,
+// TradeEconomicPolicy is colony_plan.py's TradePolicy: a
 // priority-ordered list of case-insensitively unique targets plus the silver
 // the colony always keeps. Order is meaning, not presentation: it is the
 // purchase priority SelectTrade spends its budget in.
@@ -28,20 +27,16 @@ type TradeEconomicPolicy struct {
 	SilverReserve int64
 }
 
-const (
-	tradePolicyMaximumTargets = 30
-	tradeTargetMaximumCount   = 100000
-	tradeTargetMaximumName    = 160
-)
+const tradeTargetMaximumName = 160
 
 func (t TradeTarget) validate() error {
 	if t.Item == "" || len(t.Item) > tradeTargetMaximumName || strings.HasPrefix(t.Item, "#") {
 		return errors.New("economic target needs an observed definition, not a session row index")
 	}
-	if t.Stock < 0 || t.Stock > tradeTargetMaximumCount || t.MaxBuy < 0 || t.MaxBuy > tradeTargetMaximumCount || t.MaxSell < 0 || t.MaxSell > tradeTargetMaximumCount {
+	if t.Stock < 0 || t.MaxBuy < 0 || t.MaxSell < 0 {
 		return errors.New("economic target quantities out of range")
 	}
-	if !finite(t.MaxBuyPrice) || t.MaxBuyPrice < 0 || !finite(t.MinSellPrice) || t.MinSellPrice < 0 {
+	if !finite(t.MinSellPrice) || t.MinSellPrice < 0 {
 		return errors.New("economic target prices out of range")
 	}
 	return nil
@@ -50,10 +45,10 @@ func (t TradeTarget) validate() error {
 // Validate mirrors TradePolicy's own pydantic bounds and its unique_targets
 // validator exactly.
 func (p TradeEconomicPolicy) Validate() error {
-	if len(p.Targets) == 0 || len(p.Targets) > tradePolicyMaximumTargets {
-		return errors.New("economic policy needs one to thirty targets")
+	if len(p.Targets) == 0 {
+		return errors.New("economic policy needs at least one target")
 	}
-	if p.SilverReserve < 0 || p.SilverReserve > tradeTargetMaximumCount {
+	if p.SilverReserve < 0 {
 		return errors.New("economic silver reserve out of range")
 	}
 	seen := make(map[string]bool, len(p.Targets))

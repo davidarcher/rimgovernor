@@ -111,10 +111,7 @@ func RoundsSilverShort(f RoundsFacts, p RoundsPolicy, medicineActive bool) domai
 	if err != nil {
 		return domain.Unknown[bool]()
 	}
-	demand, err := ResourceDemandOf(f, p, RoundsLatches{})
-	if err != nil {
-		return domain.Unknown[bool]()
-	}
+	demand := ResourceDemandOf(f, p, RoundsLatches{})
 	return reviewSilverShort(f, p, medicine, demand)
 }
 

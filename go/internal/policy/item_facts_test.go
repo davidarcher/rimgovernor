@@ -24,11 +24,11 @@ func TestTradeCurrencyIsTheSheetsCurrencyRow(t *testing.T) {
 	}
 	sheet := withCurrency([]TradeSheetRowFact{tradeRow("#0", "Steel", 1, 1, 1, 1)})
 	sheet[len(sheet)-1].DefName = "Credits"
-	selection := SelectTrade(domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 5, 5, 0, 10, 0)}}, TradeSelectionFacts{Complete: true, Rows: sheet, ColonySilver: 100, TraderSilver: 100, SilverKnown: true, MaxSilverSpend: 100})
+	selection := SelectTrade(domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 5, 5, 0, 0)}}, TradeSelectionFacts{Complete: true, Rows: sheet, ColonySilver: 100, TraderSilver: 100, SilverKnown: true, MaxSilverSpend: 100})
 	if selection.Refused {
 		t.Fatalf("a sheet in another currency refused: %s", selection.Reason)
 	}
-	if selection = SelectTrade(domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 5, 5, 0, 10, 0)}}, TradeSelectionFacts{Complete: true, Rows: sheet[:1], ColonySilver: 100, TraderSilver: 100, SilverKnown: true, MaxSilverSpend: 100}); !selection.Refused {
+	if selection = SelectTrade(domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 5, 5, 0, 0)}}, TradeSelectionFacts{Complete: true, Rows: sheet[:1], ColonySilver: 100, TraderSilver: 100, SilverKnown: true, MaxSilverSpend: 100}); !selection.Refused {
 		t.Fatal("a sheet with no currency row selected")
 	}
 }

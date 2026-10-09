@@ -338,7 +338,7 @@ func SelectFoodStorageMethod(r FoodStoragePlanningRequest) (FoodStorageMethod, e
 	if target < 1 {
 		target = 1
 	}
-	if target > 10000 {
+	if target > math.MaxInt32 {
 		return FoodStorageMethod{Kind: FoodStorageBlocked}, nil
 	}
 	produceID := foodStorageMethodID("produce", struct {

@@ -189,8 +189,8 @@ stocked, installed, queued or no longer affordable. The trade side
 
 **Elective part purchase.** When no item of the chosen elective can be fabricated and
 no served part purchase is pending, `policy.SurgeryPurchaseParts` adds its part to the
-trade part demand. `surgeryPartTargets` buys one unit (MaxBuy 1) under
-`surgeryPartPriceCeiling` and the trade-wide silver reserve. The share gate lives in
+trade part demand. `surgeryPartTargets` buys one unit (MaxBuy 1) with no unit price ceiling, under
+the trade-wide silver reserve. The share gate lives in
 `ChosenElective`, so an unaffordable elective demands nothing and the concern recovers.
 
 Acceptance: `medical/surgery-elective-rich` and `medical/surgery-elective-poor` share a

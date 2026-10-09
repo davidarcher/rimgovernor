@@ -254,7 +254,7 @@ func selectTargetBill(rows []ProductionBench, spec targetBillSpec) (BillSelectio
 			if storable, sk := product.Storable.Value(); sk && target > float64(storable) {
 				target = float64(storable)
 			}
-			if !fieldPositive(target) || target > 10000 {
+			if !fieldPositive(target) || target > math.MaxInt32 {
 				continue
 			}
 			selected := BillSelection{Bench: bench.ID, Recipe: recipe.Name, Token: token, Mode: domain.FoodTarget, Target: int32(target)}

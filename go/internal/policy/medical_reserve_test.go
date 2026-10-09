@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"math"
 	"reflect"
 	"testing"
 
@@ -131,7 +132,7 @@ func TestMedicineReviewInactiveOrRecoveredNeedsNoMethod(t *testing.T) {
 		t.Fatal(method, err)
 	}
 	r = medicineFixture()
-	r.Review.Target = domain.Known(int64(20000))
+	r.Review.Target = domain.Known(int64(math.MaxInt32) + 1)
 	method, err = SelectMedicineMethod(r)
 	if err != nil || method.Kind != MedicineBlocked {
 		t.Fatal(method, err)

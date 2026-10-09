@@ -20,19 +20,6 @@ import (
 // the resource family produces toward under the derived component need.
 const ComponentResource Resource = "ComponentIndustrial"
 
-// tradeBuyPriceCeiling bounds a routine purchase's unit price. Vanilla
-// medicine and components price under 100 silver; anything past this is a
-// sheet the colony should not be buying from.
-const tradeBuyPriceCeiling = 250.0
-
-// tradeRoundsMaximumTargets and tradeRoundsMaximumCount are
-// domain.TradeEconomicPolicy's own bounds, which the routine targets clamp
-// to rather than fail validation over a large surplus.
-const (
-	tradeRoundsMaximumTargets = 30
-	tradeRoundsMaximumCount   = 100000
-)
-
 // TraderFacts is one map trader from bridge.ListTraders as the routine
 // review reads it: CanTrade is native's own verdict that a session can be
 // opened with it now (CanTradeNow, not dismissed, arrived), Travelling
@@ -295,7 +282,7 @@ func SelectTrader(traders []TraderFacts, settled map[string]bool) (TraderFacts, 
 // RoundsTradeTargets turns the measured need into SelectTrade's ordered
 // targets against one live sheet: food first, medicine (the cheapest definition
 // the trader carries), then components, then each surplus sale. Purchases
-// are capped at tradeBuyPriceCeiling per unit; sales take any positive
+// are bounded only by the silver above the reserve; sales take any positive
 // price, since the alternative is the surplus sitting unsold.
 func RoundsTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, colonists domain.Fact[int64]) domain.TradeEconomicPolicy {
 	reserve, buy := TradeSilverReserve(colonists)
@@ -313,9 +300,6 @@ func roundsTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFac
 	var out domain.TradeEconomicPolicy
 	// Leave room for medicine and components while prioritizing the food bridge.
 	foodTargets := tradeFoodTargets(need.Food, rows)
-	if len(foodTargets) > tradeRoundsMaximumTargets-2 {
-		foodTargets = foodTargets[:tradeRoundsMaximumTargets-2]
-	}
 	out.Targets = append(out.Targets, foodTargets...)
 	if need.MedicineReplenish > 0 {
 		var pick *TradeSheetRowFact
@@ -329,40 +313,38 @@ func roundsTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFac
 			}
 		}
 		if pick != nil {
-			out.Targets = append(out.Targets, domain.TradeTarget{Item: pick.DefName, Stock: min(pick.ColonyCount+need.MedicineReplenish, tradeRoundsMaximumCount), MaxBuy: min(need.MedicineReplenish, tradeRoundsMaximumCount), MaxBuyPrice: tradeBuyPriceCeiling})
+			out.Targets = append(out.Targets, domain.TradeTarget{Item: pick.DefName, Stock: pick.ColonyCount + need.MedicineReplenish, MaxBuy: need.MedicineReplenish})
 		}
 	}
 	if need.ComponentShortfall > 0 {
-		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(ComponentResource), Stock: min(targets[ComponentResource], tradeRoundsMaximumCount), MaxBuy: min(need.ComponentShortfall, tradeRoundsMaximumCount), MaxBuyPrice: tradeBuyPriceCeiling})
+		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(ComponentResource), Stock: targets[ComponentResource], MaxBuy: need.ComponentShortfall})
 	}
 	seen := map[string]bool{}
 	for _, target := range out.Targets {
 		seen[target.Item] = true
 	}
 	for _, target := range surgeryPartTargets(need.SurgeryParts, rows, seen) {
-		if len(out.Targets) < tradeRoundsMaximumTargets {
-			seen[target.Item] = true
-			out.Targets = append(out.Targets, target)
-		}
+		seen[target.Item] = true
+		out.Targets = append(out.Targets, target)
 	}
 	for _, short := range need.Shortfall {
-		if seen[string(short.Resource)] || len(out.Targets) >= tradeRoundsMaximumTargets {
+		if seen[string(short.Resource)] {
 			continue
 		}
 		seen[string(short.Resource)] = true
-		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(short.Resource), Stock: min(targets[short.Resource], tradeRoundsMaximumCount), MaxBuy: min(short.Count, tradeRoundsMaximumCount), MaxBuyPrice: tradeBuyPriceCeiling})
+		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(short.Resource), Stock: targets[short.Resource], MaxBuy: short.Count})
 	}
 	for _, surplus := range need.Surplus {
-		if seen[string(surplus.Resource)] || len(out.Targets) >= tradeRoundsMaximumTargets {
+		if seen[string(surplus.Resource)] {
 			continue
 		}
-		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(surplus.Resource), Stock: min(max(targets[surplus.Resource], need.Retained[surplus.Resource]), tradeRoundsMaximumCount), MaxSell: min(surplus.Count, tradeRoundsMaximumCount), MinSellPrice: math.SmallestNonzeroFloat64})
+		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(surplus.Resource), Stock: max(targets[surplus.Resource], need.Retained[surplus.Resource]), MaxSell: surplus.Count, MinSellPrice: math.SmallestNonzeroFloat64})
 	}
 	return out
 }
 
 // surgeryPartTargets buys each part's best item the trader carries at a
-// known price, one unit per part, capped by surgeryPartPriceCeiling.
+// known price, one unit per part.
 func surgeryPartTargets(parts []SurgeryPart, rows []TradeSheetRowFact, seen map[string]bool) []domain.TradeTarget {
 	var out []domain.TradeTarget
 	index := map[string]int{}
@@ -371,7 +353,7 @@ func surgeryPartTargets(parts []SurgeryPart, rows []TradeSheetRowFact, seen map[
 			var row *TradeSheetRowFact
 			for i := range rows {
 				r := &rows[i]
-				if r.DefName == string(item) && r.TraderCount > 0 && r.BuyPriceKnown && finite(r.BuyPrice) && r.BuyPrice > 0 && r.BuyPrice <= surgeryPartPriceCeiling {
+				if r.DefName == string(item) && r.TraderCount > 0 && r.BuyPriceKnown && finite(r.BuyPrice) && r.BuyPrice > 0 {
 					row = r
 					break
 				}
@@ -380,11 +362,11 @@ func surgeryPartTargets(parts []SurgeryPart, rows []TradeSheetRowFact, seen map[
 				continue
 			}
 			if i, ok := index[row.DefName]; ok {
-				out[i].Stock = min(out[i].Stock+1, tradeRoundsMaximumCount)
+				out[i].Stock = out[i].Stock + 1
 				out[i].MaxBuy = min(out[i].MaxBuy+1, row.TraderCount)
 			} else if !seen[row.DefName] {
 				index[row.DefName] = len(out)
-				out = append(out, domain.TradeTarget{Item: row.DefName, Stock: min(row.ColonyCount+1, tradeRoundsMaximumCount), MaxBuy: 1, MaxBuyPrice: surgeryPartPriceCeiling})
+				out = append(out, domain.TradeTarget{Item: row.DefName, Stock: row.ColonyCount + 1, MaxBuy: 1})
 			}
 			break
 		}

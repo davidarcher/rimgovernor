@@ -312,7 +312,7 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 				}
 				if purpose == CookAheadFood {
 					target := math.Ceil(ahead / nutrition)
-					if target < 1 || target > 10000 {
+					if target < 1 || target > math.MaxInt32 {
 						continue
 					}
 					selection.Target = int32(target)

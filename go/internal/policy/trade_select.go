@@ -263,7 +263,7 @@ func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeS
 				out.Evidence = append(out.Evidence, TradeSelectionEvidence{Item: target.Item, Blocker: tradeBlockerUnknown})
 				continue
 			}
-			if price := row.BuyPrice; price > 0 && price <= target.MaxBuyPrice {
+			if price := row.BuyPrice; price > 0 {
 				count = min(floor-stock, supply, target.MaxBuy, int64(math.Floor(budget/price)))
 				if count < 0 {
 					count = 0

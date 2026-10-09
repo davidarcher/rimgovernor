@@ -20,8 +20,8 @@ func tradeRow(line, def string, colony, trader int64, buy, sell float64) TradeSh
 	}
 }
 
-func tradeTarget(item string, stock, buy, sell int64, maxBuy, minSell float64) domain.TradeTarget {
-	return domain.TradeTarget{Item: item, Stock: stock, MaxBuy: buy, MaxSell: sell, MaxBuyPrice: maxBuy, MinSellPrice: minSell}
+func tradeTarget(item string, stock, buy, sell int64, minSell float64) domain.TradeTarget {
+	return domain.TradeTarget{Item: item, Stock: stock, MaxBuy: buy, MaxSell: sell, MinSellPrice: minSell}
 }
 
 func tradeFacts(rows []TradeSheetRowFact, colony, trader, spend int64) TradeSelectionFacts {
@@ -73,7 +73,7 @@ func TestSelectTradeBuysUpToTheBindingCap(t *testing.T) {
 		{"budget binds", 0, 1000, 1000, 25, 5},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, test.maxBuy, 0, 9, 0)}}
+			policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, test.maxBuy, 0, 0)}}
 			got := SelectTrade(policy, tradeFacts([]TradeSheetRowFact{tradeRow("#1", "Steel", test.stock, test.supply, 5, 4)}, test.silver, 500, 100000))
 			if counts := selectedCounts(t, got); counts["Steel"] != test.want {
 				t.Fatalf("bought %d, want %d", counts["Steel"], test.want)
@@ -87,7 +87,7 @@ func TestSelectTradeSpendsPriorityOrderNotSheetOrder(t *testing.T) {
 	// nothing, and the order that decides is the policy's, not the sheet's.
 	rows := []TradeSheetRowFact{tradeRow("#1", "Steel", 0, 50, 60, 1), tradeRow("#2", "Gold", 0, 50, 60, 1)}
 	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{
-		tradeTarget("Gold", 10, 10, 0, 100, 0), tradeTarget("Steel", 10, 10, 0, 100, 0),
+		tradeTarget("Gold", 10, 10, 0, 0), tradeTarget("Steel", 10, 10, 0, 0),
 	}}
 	got := selectedCounts(t, SelectTrade(policy, tradeFacts(rows, 60, 500, 100000)))
 	if want := map[string]int64{"Gold": 1}; !reflect.DeepEqual(got, want) {
@@ -100,7 +100,7 @@ func TestSelectTradeCarriesFractionalBudgetBetweenLines(t *testing.T) {
 	// to whole silver would wrongly afford a third unit.
 	rows := []TradeSheetRowFact{tradeRow("#1", "Steel", 0, 1, 1.5, 1), tradeRow("#2", "Gold", 0, 1, 1.5, 1), tradeRow("#3", "Jade", 0, 1, 1.5, 1)}
 	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{
-		tradeTarget("Steel", 5, 5, 0, 10, 0), tradeTarget("Gold", 5, 5, 0, 10, 0), tradeTarget("Jade", 5, 5, 0, 10, 0),
+		tradeTarget("Steel", 5, 5, 0, 0), tradeTarget("Gold", 5, 5, 0, 0), tradeTarget("Jade", 5, 5, 0, 0),
 	}}
 	got := selectedCounts(t, SelectTrade(policy, tradeFacts(rows, 4, 500, 100000)))
 	if want := map[string]int64{"Steel": 1, "Gold": 1}; !reflect.DeepEqual(got, want) {
@@ -109,7 +109,7 @@ func TestSelectTradeCarriesFractionalBudgetBetweenLines(t *testing.T) {
 }
 
 func TestSelectTradeSellsSurplusCappedByTraderCash(t *testing.T) {
-	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 0, 1000, 0, 2)}}
+	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 0, 1000, 2)}}
 	got := SelectTrade(policy, tradeFacts([]TradeSheetRowFact{tradeRow("#1", "Steel", 500, 0, 9, 3)}, 0, 21, 100000))
 	if counts := selectedCounts(t, got); counts["Steel"] != -7 {
 		t.Fatalf("sold %d, want -7 (21 silver of trader cash at 3 each)", counts["Steel"])
@@ -123,7 +123,7 @@ func TestSelectTradeSellsSurplusCappedByTraderCash(t *testing.T) {
 func TestSelectTradeDrainsTraderCashAcrossSales(t *testing.T) {
 	rows := []TradeSheetRowFact{tradeRow("#1", "Steel", 100, 0, 9, 10), tradeRow("#2", "Gold", 100, 0, 9, 10)}
 	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{
-		tradeTarget("Steel", 0, 0, 1000, 0, 1), tradeTarget("Gold", 0, 0, 1000, 0, 1),
+		tradeTarget("Steel", 0, 0, 1000, 1), tradeTarget("Gold", 0, 0, 1000, 1),
 	}}
 	got := selectedCounts(t, SelectTrade(policy, tradeFacts(rows, 0, 30, 100000)))
 	if want := map[string]int64{"Steel": -3}; !reflect.DeepEqual(got, want) {
@@ -131,24 +131,16 @@ func TestSelectTradeDrainsTraderCashAcrossSales(t *testing.T) {
 	}
 }
 
-func TestSelectTradeRespectsPriceLimits(t *testing.T) {
-	buy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 100, 0, 4, 0)}}
-	got := SelectTrade(buy, tradeFacts([]TradeSheetRowFact{tradeRow("#1", "Steel", 0, 100, 4.01, 1)}, 100000, 500, 100000))
-	if counts := selectedCounts(t, got); len(counts) != 0 {
-		t.Fatalf("bought %v above the max buy price", counts)
-	}
-	if row := evidenceFor(t, got, "Steel"); !row.Matched || row.Count != 0 {
-		t.Fatalf("an over-priced buy is a matched zero, not a blocker: %+v", row)
-	}
-	sell := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 0, 0, 100, 0, 4)}}
-	got = SelectTrade(sell, tradeFacts([]TradeSheetRowFact{tradeRow("#1", "Steel", 100, 0, 9, 3.99)}, 0, 100000, 100000))
+func TestSelectTradeRespectsMinSellPrice(t *testing.T) {
+	sell := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 0, 0, 100, 4)}}
+	got := SelectTrade(sell, tradeFacts([]TradeSheetRowFact{tradeRow("#1", "Steel", 100, 0, 9, 3.99)}, 0, 100000, 100000))
 	if counts := selectedCounts(t, got); len(counts) != 0 {
 		t.Fatalf("sold %v below the min sell price", counts)
 	}
 }
 
 func TestSelectTradeHonoursReservesAndSpendCeiling(t *testing.T) {
-	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 1000, 1000, 0, 10, 0)}, SilverReserve: 400}
+	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 1000, 1000, 0, 0)}, SilverReserve: 400}
 	rows := []TradeSheetRowFact{tradeRow("#1", "Steel", 0, 10000, 1, 1)}
 
 	facts := tradeFacts(rows, 1000, 500, 100000)
@@ -189,7 +181,7 @@ func TestSelectTradeHonoursReservesAndSpendCeiling(t *testing.T) {
 func TestSelectTradeFloorOutranksTargetStock(t *testing.T) {
 	// Stock 300 is above the target's own 100 but below the construction floor
 	// of 400, which turns what would have been a sale into a purchase.
-	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 1000, 1000, 10, 1)}}
+	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 1000, 1000, 1)}}
 	facts := tradeFacts([]TradeSheetRowFact{tradeRow("#1", "Steel", 300, 1000, 1, 5)}, 100000, 100000, 100000)
 	facts.Floors = map[string]int64{"Steel": 400}
 	got := SelectTrade(policy, facts)
@@ -202,7 +194,7 @@ func TestSelectTradeFloorOutranksTargetStock(t *testing.T) {
 }
 
 func TestSelectTradeWillNotSellProductionHaltedItems(t *testing.T) {
-	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 0, 0, 1000, 0, 1)}}
+	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 0, 0, 1000, 1)}}
 	facts := tradeFacts([]TradeSheetRowFact{tradeRow("#1", "Steel", 500, 0, 9, 5)}, 0, 100000, 100000)
 	facts.Stopped = []string{"Steel"}
 	got := SelectTrade(policy, facts)
@@ -227,7 +219,7 @@ func TestSelectTradeBlocksUnusableRows(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			row := tradeRow("#1", "Steel", 0, 1000, 1, 1)
 			spoiler(&row)
-			policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 100, 100, 10, 1)}}
+			policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 100, 100, 1)}}
 			got := SelectTrade(policy, tradeFacts([]TradeSheetRowFact{row}, 100000, 100000, 100000))
 			if len(got.Selected) != 0 {
 				t.Fatalf("selected %+v from an ineligible row", got.Selected)
@@ -245,7 +237,7 @@ func TestSelectTradeBlocksUnusableRows(t *testing.T) {
 func TestSelectTradeFoodSellsOnlyAsAuthorizedCropSurplus(t *testing.T) {
 	food := tradeRow("#1", "MealSimple", 500, 0, 9, 5)
 	food.Food = domain.Known(TradeFoodGood{Nutrition: 1, Class: IngredientAny, Prepared: true})
-	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("MealSimple", 100, 0, 1000, 0, 1)}}
+	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("MealSimple", 100, 0, 1000, 1)}}
 	got := SelectTrade(policy, tradeFacts([]TradeSheetRowFact{food}, 0, 100000, 100000))
 	if len(got.Selected) != 0 {
 		t.Fatalf("selected %+v of unauthorized food", got.Selected)
@@ -254,13 +246,13 @@ func TestSelectTradeFoodSellsOnlyAsAuthorizedCropSurplus(t *testing.T) {
 		t.Fatalf("evidence %+v, want the food blocker", evidence)
 	}
 	plain := tradeRow("#1", "Steel", 500, 0, 9, 5)
-	steel := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 0, 1000, 0, 1)}}
+	steel := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 0, 1000, 1)}}
 	if counts := selectedCounts(t, SelectTrade(steel, tradeFacts([]TradeSheetRowFact{plain}, 0, 100000, 100000))); counts["Steel"] != -400 {
 		t.Fatalf("sold %d, want -400", counts["Steel"])
 	}
 	buy := tradeRow("#1", "MealSimple", 0, 500, 5, 9)
 	buy.Food = food.Food
-	policy = domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("MealSimple", 100, 1000, 0, 10, 0)}}
+	policy = domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("MealSimple", 100, 1000, 0, 0)}}
 	if counts := selectedCounts(t, SelectTrade(policy, tradeFacts([]TradeSheetRowFact{buy}, 100000, 100000, 100000))); counts["MealSimple"] != 100 {
 		t.Fatalf("bought %d, want 100: food rules never block an import", counts["MealSimple"])
 	}
@@ -280,7 +272,7 @@ func TestSelectTradeNeverStagesBelowTheSilverReserve(t *testing.T) {
 						tradeRow("#2", "Wood", 500, 0, 1, 2),
 					}
 					policy := domain.TradeEconomicPolicy{SilverReserve: reserve, Targets: []domain.TradeTarget{
-						tradeTarget("Steel", 5000, 5000, 0, 10, 0), tradeTarget("Wood", 100, 0, 50, 0, 1)}}
+						tradeTarget("Steel", 5000, 5000, 0, 0), tradeTarget("Wood", 100, 0, 50, 1)}}
 					got := SelectTrade(policy, tradeFacts(rows, silver, 100000, spend))
 					if got.Refused {
 						t.Fatalf("refused: %s", got.Reason)
@@ -301,7 +293,7 @@ func TestSelectTradeNeverStagesBelowTheSilverReserve(t *testing.T) {
 }
 
 func TestSelectTradeBlocksAmbiguousAndAbsentDefinitions(t *testing.T) {
-	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 100, 100, 10, 1)}}
+	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 100, 100, 1)}}
 
 	got := SelectTrade(policy, tradeFacts(nil, 100000, 100000, 100000))
 	if evidence := evidenceFor(t, got, "Steel"); evidence.Blocker != tradeBlockerAmbiguous || evidence.Matched {
@@ -319,8 +311,8 @@ func TestSelectTradeBlocksAmbiguousAndAbsentDefinitions(t *testing.T) {
 }
 
 func TestSelectTradeBlocksUnknownQuantitiesAndPrices(t *testing.T) {
-	buy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 100, 0, 10, 0)}}
-	sell := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 0, 0, 100, 0, 1)}}
+	buy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 100, 0, 0)}}
+	sell := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 0, 0, 100, 1)}}
 	for _, test := range []struct {
 		name   string
 		policy domain.TradeEconomicPolicy
@@ -354,7 +346,7 @@ func TestSelectTradeBlocksUnknownQuantitiesAndPrices(t *testing.T) {
 }
 
 func TestSelectTradeRefusesUnusableFacts(t *testing.T) {
-	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 100, 0, 10, 0)}}
+	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 100, 0, 0)}}
 	rows := []TradeSheetRowFact{tradeRow("#1", "Steel", 0, 1000, 1, 1)}
 	for _, test := range []struct {
 		name  string
@@ -383,10 +375,10 @@ func TestSelectTradeRefusesUnusableFacts(t *testing.T) {
 
 func TestEconomicReservesFoldsPolicyTargetsAndConstruction(t *testing.T) {
 	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{
-		tradeTarget("Steel", 400, 100, 100, 10, 1), // below the player's own reserve
-		tradeTarget("Gold", 50, 100, 100, 10, 1),   // above it
-		tradeTarget("Jade", 25, 100, 100, 10, 1),   // no reserve of its own
-		tradeTarget("Cloth", 0, 100, 100, 10, 1),   // no floor from any source
+		tradeTarget("Steel", 400, 100, 100, 1), // below the player's own reserve
+		tradeTarget("Gold", 50, 100, 100, 1),   // above it
+		tradeTarget("Jade", 25, 100, 100, 1),   // no reserve of its own
+		tradeTarget("Cloth", 0, 100, 100, 1),   // no floor from any source
 	}}
 	floors, stopped := EconomicReserves(policy, TradeReserveFacts{
 		Reserves:     map[string]int64{"Steel": 500, "Gold": 10, "Silver": 0, "Plasteel": -5},
@@ -405,7 +397,7 @@ func TestEconomicReservesFoldsPolicyTargetsAndConstruction(t *testing.T) {
 func TestEconomicReservesDoesNotAliasItsInputs(t *testing.T) {
 	reserves := map[string]int64{"Steel": 100}
 	restricted := []string{"Wood"}
-	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 900, 1, 1, 1, 1)}}
+	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 900, 1, 1, 1)}}
 	floors, stopped := EconomicReserves(policy, TradeReserveFacts{Reserves: reserves, Restricted: restricted})
 	floors["Steel"], stopped[0] = 1, "Steel"
 	if reserves["Steel"] != 100 || restricted[0] != "Wood" {

@@ -187,10 +187,6 @@ func (p RoundsPolicy) Prisoners() PrisonerPolicy {
 	return PrisonerPolicy{ReleaseAfterDays: p.PrisonerReleaseAfterDays, FoodTargetDays: p.FoodTargetDays}
 }
 
-// maxResourceTarget is the largest MaintainResource target a derived need
-// takes, the StockTarget production bill bound (see domain.NewProductionBill).
-const maxResourceTarget = 10000
-
 // RoundsFacts holds derived native facts, not forecasts masquerading as output.
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
@@ -884,9 +880,7 @@ func InspectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Round
 		Soldiers:       previous.Soldiers || GearSoldierPresent(f.Gear),
 	}
 	c.r = RoundsFindings{Latches: c.l}
-	if c.demand, err = ResourceDemandOf(f, p, c.l); err != nil {
-		return RoundsFindings{}, err
-	}
+	c.demand = ResourceDemandOf(f, p, c.l)
 	c.r.ResourceDemand = c.demand
 	for _, d := range inspections {
 		goals, assessments := len(c.r.Concerns), len(c.r.Assessments)

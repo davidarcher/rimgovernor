@@ -204,7 +204,7 @@ func PlanFuelRunway(in FuelInputs) FuelRunway {
 			continue
 		}
 		need := int64(math.Ceil(a.continuous + a.empty))
-		row := FuelResourceRunway{Resource: item, Burn: a.burn, Need: min(need, maxResourceTarget), Stock: have}
+		row := FuelResourceRunway{Resource: item, Burn: a.burn, Need: need, Stock: have}
 		if need > have {
 			row.Short = need - have
 			row.ShortfallDays = ProjectionHorizonDays

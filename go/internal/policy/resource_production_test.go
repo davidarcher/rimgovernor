@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"math"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -252,7 +253,7 @@ func TestSelectResourceMethodInvalidResourceOrTargetIsUnknown(t *testing.T) {
 		t.Fatalf("got %v %v", method, err)
 	}
 	r = resourceMethodFixture()
-	r.Target = 20000
+	r.Target = math.MaxInt32 + 1
 	if method, err := SelectResourceMethod(r); err != nil || method.Kind != ResourceMethodUnknown {
 		t.Fatalf("got %v %v", method, err)
 	}

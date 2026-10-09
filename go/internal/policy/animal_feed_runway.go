@@ -321,7 +321,7 @@ func PlanAnimalFeedRunway(in AnimalFeedInputs) AnimalFeedRunway {
 					return unknownFeedRunway()
 				}
 				g.Feed, g.Short = item, int64(math.Ceil(missing/perItem))
-				g.Need = min(have+g.Short, maxResourceTarget)
+				g.Need = have + g.Short
 				if out.Needs == nil {
 					out.Needs = map[Resource]int64{}
 				}

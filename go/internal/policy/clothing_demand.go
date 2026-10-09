@@ -109,7 +109,7 @@ func PlanClothingRunway(in ClothingDemandInput) ClothingRunway {
 		if out.Needs == nil {
 			out.Needs, out.Serves = map[Resource]int64{}, map[Resource]Resource{}
 		}
-		out.Needs[resource] = min(n, maxResourceTarget)
+		out.Needs[resource] = n
 		out.Serves[resource] = resource
 	}
 	for _, bill := range bills {

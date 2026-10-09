@@ -49,9 +49,9 @@ func TestElectivePartPurchase(t *testing.T) {
 			t.Fatalf("parts %+v", got)
 		}
 	})
-	t.Run("price ceiling holds", func(t *testing.T) {
+	t.Run("a dear part is still targeted", func(t *testing.T) {
 		got := buy([]CarePawn{arm("a")}, map[PawnID]float64{"a": 1e9}, nil)
-		if len(got) != 1 || len(surgeryPartTargets(got, rows, map[string]bool{})) != 0 {
+		if len(got) != 1 || len(surgeryPartTargets(got, rows, map[string]bool{})) != 1 {
 			t.Fatalf("parts %+v", got)
 		}
 	})

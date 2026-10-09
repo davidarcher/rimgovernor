@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"sort"
 
@@ -538,7 +539,7 @@ func produceGear(needs []gearNeed, v GearObservation, review GearReview, seen ma
 		if count == 0 {
 			continue
 		}
-		if count > 10000 {
+		if count > math.MaxInt32 {
 			return GearMethod{}, errors.New("gear batch exceeds bill bound")
 		}
 		id := gearMethodID("produce", n.pawn, "", n.need)

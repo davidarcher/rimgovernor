@@ -203,7 +203,7 @@ Each sheet read of an open session also records the trader's priced offers in Go
 ([trade offers](../architecture/supply-model.md#trade-offers)); a resource purchase
 (MaintainResource shortfall, component target) is staged only as far as the Round's supply
 plan opened that trader's offer, re-priced by the live sheet and the price floors.
-Go selection owns the silver reserve, retained targets and what may sell (food only as the
+Purchases carry no unit-price ceiling, target-count cap or per-resource target cap: the silver above the reserve and the trader's stock bound them. Go selection owns the silver reserve, retained targets and what may sell (food only as the
 authorized crop surplus; gear and animals only through their sale plans) and never stages a
 purchase below the reserve. Native acceptance checks only the deal signature, an empty stage,
 the game's own `CanAdjustTo`/`TraderWillTrade` eligibility, affordability and caravan

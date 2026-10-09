@@ -150,7 +150,7 @@ func tradeFoodTargets(need TradeFoodNeed, rows []TradeSheetRowFact) []domain.Tra
 	}
 	for _, row := range rows {
 		g, known := row.Food.Value()
-		if !known || !validTradeFood(g) || counts[row.DefName] != 1 || row.ColonyCount < 0 || row.TraderCount <= 0 || !row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn || !row.CurrencyKnown || row.Currency || !row.BuyPriceKnown || !fieldPositive(row.BuyPrice) || row.BuyPrice > tradeBuyPriceCeiling {
+		if !known || !validTradeFood(g) || counts[row.DefName] != 1 || row.ColonyCount < 0 || row.TraderCount <= 0 || !row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn || !row.CurrencyKnown || row.Currency || !row.BuyPriceKnown || !fieldPositive(row.BuyPrice) {
 			continue
 		}
 		candidates = append(candidates, row)
@@ -189,7 +189,7 @@ func tradeFoodTargets(need TradeFoodNeed, rows []TradeSheetRowFact) []domain.Tra
 			if slot != nil && (g.Prepared || !mealSlotsSupported([]FoodIngredientSlot{*slot}, map[FoodIngredientClass]bool{g.Class: true})) {
 				continue
 			}
-			count := min(row.TraderCount-used[row.DefName], tradeRoundsMaximumCount-row.ColonyCount-used[row.DefName])
+			count := row.TraderCount - used[row.DefName]
 			if count <= 0 {
 				continue
 			}
@@ -216,8 +216,8 @@ func tradeFoodTargets(need TradeFoodNeed, rows []TradeSheetRowFact) []domain.Tra
 		buy(remaining, &need.Missing[i])
 	}
 	for _, row := range candidates {
-		if count := used[row.DefName]; count > 0 && len(out) < tradeRoundsMaximumTargets {
-			out = append(out, domain.TradeTarget{Item: row.DefName, Stock: row.ColonyCount + count, MaxBuy: count, MaxBuyPrice: tradeBuyPriceCeiling})
+		if count := used[row.DefName]; count > 0 {
+			out = append(out, domain.TradeTarget{Item: row.DefName, Stock: row.ColonyCount + count, MaxBuy: count})
 		}
 	}
 	return out

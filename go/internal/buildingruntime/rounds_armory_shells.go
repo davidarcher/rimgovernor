@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"math"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -92,7 +93,10 @@ func (r *RoundsArmoryPlanner) stockShells(call, epoch context.Context, state Con
 		return RoundsArmoryResult{Verdict: waitFor(WaitMethodUsed, "shell_bill_choice")}, nil
 	}
 	id := domain.MintPlanID()
-	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, domain.StockTarget, int32(min(choice.Target, 10000)))
+	if choice.Target < 1 || choice.Target > math.MaxInt32 {
+		return RoundsArmoryResult{}, fmt.Errorf("shell bill target %d exceeds the bill count", choice.Target)
+	}
+	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, domain.StockTarget, int32(choice.Target))
 	if err != nil {
 		return RoundsArmoryResult{}, err
 	}

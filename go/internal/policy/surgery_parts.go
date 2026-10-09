@@ -12,13 +12,6 @@ import (
 // researched and usable. ProductionBillContext.Parts carries the wants.
 const SurgeryPartBill BillPurpose = "surgery_part"
 
-// surgeryPartPriceCeiling bounds a part purchase's unit price. Bionics
-// price near 1500 silver in vanilla. It is a sanity cap on one unit, not the
-// spend bound: served parts spend under the trade's silver reserve, and an
-// elective additionally has to fit the colonist's personal share
-// (ElectiveShare) before ChosenElective demands it at all.
-const surgeryPartPriceCeiling = 5000.0
-
 // SurgeryPart is one missing part a restore wants: the items that would
 // serve it, best first, and the surgery's rank as a demand priority.
 type SurgeryPart struct {
