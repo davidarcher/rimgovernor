@@ -71,9 +71,12 @@ func (r *RoundsPopulationJoinerPlanner) admitExpedition(call, epoch context.Cont
 		return RoundsPopulationJoinerResult{}, false, err
 	}
 	prefix := fmt.Sprintf("quest-expedition-%s-%s-", work.Quest, work.Site)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsPopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "quest_expedition_attempts", "")}, true, nil
+	method, verdict, admitted, err := admitStandardMethod(call, r.reviewer.player.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsPopulationJoinerResult{}, false, err
+	}
+	if !admitted {
+		return RoundsPopulationJoinerResult{Verdict: verdict}, true, nil
 	}
 	if err = r.reviewer.player.current(call, epoch); err != nil {
 		return RoundsPopulationJoinerResult{}, false, err
@@ -82,7 +85,6 @@ func (r *RoundsPopulationJoinerPlanner) admitExpedition(call, epoch context.Cont
 	if r.reviewer.player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoundsPopulationJoinerResult{}, false, ErrControl
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	if _, err = r.reviewer.player.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoundsPopulationJoinerResult{}, false, err
 	}

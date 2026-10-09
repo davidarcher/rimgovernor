@@ -149,11 +149,13 @@ func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbite
 	// RoundsPrisonerInteractionPlanner's method key: a fresh attempt after
 	// an interrupted or failed try re-selects whichever offer is current.
 	prefix = fmt.Sprintf("%s-%s-", prefix, choice.Quest)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsPopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+	method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsPopulationJoinerResult{}, err
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	if !ok {
+		return RoundsPopulationJoinerResult{Verdict: verdict}, nil
+	}
 	accept, err := domain.NewQuestAccept(choice.Quest, choice.Accepter, choice.RewardChoice)
 	if err != nil {
 		return RoundsPopulationJoinerResult{}, err
@@ -186,11 +188,13 @@ func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbite
 func (r *RoundsPopulationJoinerPlanner) admitCeremonyStart(call, epoch context.Context, state ControlState, goal store.StandardState, ceremony policy.BestowingCeremony, started time.Time) (RoundsPopulationJoinerResult, error) {
 	p := r.reviewer.player
 	prefix := fmt.Sprintf("ritual-start-%s-", ceremony.Pawn)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsPopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+	method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsPopulationJoinerResult{}, err
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	if !ok {
+		return RoundsPopulationJoinerResult{Verdict: verdict}, nil
+	}
 	ritual, err := domain.NewRitual(domain.PawnID(ceremony.Pawn), domain.RitualBestowing, domain.RitualStart)
 	if err != nil {
 		return RoundsPopulationJoinerResult{}, err
@@ -220,11 +224,13 @@ func (r *RoundsPopulationJoinerPlanner) admitCeremonyStart(call, epoch context.C
 func (r *RoundsPopulationJoinerPlanner) admitLetter(call, epoch context.Context, state ControlState, goal store.StandardState, letter policy.JoinerLetterOffer, started time.Time) (RoundsPopulationJoinerResult, error) {
 	p := r.reviewer.player
 	prefix := fmt.Sprintf("joiner-letter-%d-", letter.ID)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsPopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+	method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsPopulationJoinerResult{}, err
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	if !ok {
+		return RoundsPopulationJoinerResult{Verdict: verdict}, nil
+	}
 	id := domain.MintPlanID()
 	value, err := domain.NewJoinerLetterAnswer(letter.ID, letter.Label, letter.Token)
 	if err != nil {

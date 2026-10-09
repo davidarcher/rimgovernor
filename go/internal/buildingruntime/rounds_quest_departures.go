@@ -40,11 +40,13 @@ func (r *RoundsPopulationJoinerPlanner) admitDeparture(call, epoch context.Conte
 		return RoundsPopulationJoinerResult{}, false, err
 	}
 	prefix := fmt.Sprintf("quest-departure-%s-%s-", work.Quest, work.Shuttle.Loading())
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsPopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "quest_departure_attempts", "")}, true, nil
+	method, verdict, admitted, err := admitStandardMethod(call, r.reviewer.player.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsPopulationJoinerResult{}, false, err
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	if !admitted {
+		return RoundsPopulationJoinerResult{Verdict: verdict}, true, nil
+	}
 	if err = r.reviewer.player.current(call, epoch); err != nil {
 		return RoundsPopulationJoinerResult{}, false, err
 	}

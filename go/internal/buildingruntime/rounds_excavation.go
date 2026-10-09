@@ -28,7 +28,6 @@ type RoundsExcavationSource interface {
 const (
 	excavationStagePrefix = "excavation-stage-"
 	excavationStageLimit  = 8
-	excavationStageBound  = 64
 	// excavationStallTicks bounds how long a stage action may stay held
 	// (unsupported, changed geometry, no way in) before the planner cancels
 	// it so the project can be reviewed against the geometry that changed
@@ -194,9 +193,6 @@ func (r *RoundsBuildingPlanner) stepExcavation(call, epoch context.Context, s ex
 		return RoundsBuildingResult{}, err
 	}
 	_, stage := excavationProgress(methods)
-	if stage > excavationStageBound {
-		return RoundsBuildingResult{Verdict: refuse(RefusalRetriesSpent, "excavation_stage", "")}, nil
-	}
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {
 			return err

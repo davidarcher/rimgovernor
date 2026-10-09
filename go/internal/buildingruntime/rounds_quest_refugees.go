@@ -91,9 +91,12 @@ func (r *RoundsPopulationJoinerPlanner) admitRefugeeTend(call, epoch context.Con
 		return RoundsPopulationJoinerResult{}, false, err
 	}
 	prefix := fmt.Sprintf("quest-refugee-tend-%s-", patient)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsPopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "refugee_tend_attempts", ""), NativeWorkTicks: medicalWaitTicks}, false, nil
+	method, verdict, admitted, err := admitStandardMethod(call, r.reviewer.player.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsPopulationJoinerResult{}, false, err
+	}
+	if !admitted {
+		return RoundsPopulationJoinerResult{Verdict: verdict, NativeWorkTicks: medicalWaitTicks}, false, nil
 	}
 	id := domain.MintPlanID()
 	action, err := domain.NewTendAction(domain.ActionID(string(id)+"-0"), value)
@@ -111,7 +114,6 @@ func (r *RoundsPopulationJoinerPlanner) admitRefugeeTend(call, epoch context.Con
 	if r.reviewer.player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoundsPopulationJoinerResult{}, false, ErrControl
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	if _, err = r.reviewer.player.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoundsPopulationJoinerResult{}, false, err
 	}

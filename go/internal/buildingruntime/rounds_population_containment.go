@@ -42,12 +42,13 @@ func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Con
 			return RoundsPopulationCustodyResult{}, err
 		}
 		prefix := fmt.Sprintf("population-door-%d-%d-", cell.X, cell.Z)
-		attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-		if attempt >= maxMedicalAttemptsPerPatient {
-			defenseAction(call, "routine-population-custody", slog.LevelWarn, "refused", "containment_upkeep_exhausted", fmt.Sprintf("%d,%d", cell.X, cell.Z), map[string]any{"x": cell.X, "z": cell.Z})
-			return RoundsPopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+		method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+		if err != nil {
+			return RoundsPopulationCustodyResult{}, err
 		}
-		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+		if !ok {
+			return RoundsPopulationCustodyResult{Verdict: verdict}, nil
+		}
 		id := domain.MintPlanID()
 		action, err := domain.NewDoorControlAction(domain.ActionID(fmt.Sprintf("%s-0", id)), door)
 		if err != nil {
@@ -62,10 +63,12 @@ func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Con
 	if len(harvest.Enable) > 0 {
 		entity := harvest.Enable[0]
 		prefix := fmt.Sprintf("population-bioferrite-%s-", entity)
-		attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-		if attempt >= maxMedicalAttemptsPerPatient {
-			defenseAction(call, "routine-population-custody", slog.LevelWarn, "refused", "bioferrite_harvest_exhausted", string(entity), nil)
-			return RoundsPopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+		method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+		if err != nil {
+			return RoundsPopulationCustodyResult{}, err
+		}
+		if !ok {
+			return RoundsPopulationCustodyResult{Verdict: verdict}, nil
 		}
 		setting, err := domain.NewExtractBioferriteSetting(entity, true)
 		if err != nil {
@@ -76,7 +79,7 @@ func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Con
 		if err != nil {
 			return RoundsPopulationCustodyResult{}, err
 		}
-		return r.commit(call, epoch, p, state, started, goal, domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt)), id, action)
+		return r.commit(call, epoch, p, state, started, goal, method, id, action)
 	}
 	if result, ok, err := r.stepMonolith(call, epoch, p, state, started, goal, facts, arbiter); err != nil || ok {
 		return result, err
@@ -150,11 +153,13 @@ func (r *RoundsPopulationCustodyPlanner) stepContainment(call, epoch context.Con
 		return RoundsPopulationCustodyResult{}, err
 	}
 	prefix := fmt.Sprintf("population-tend-%s-", target)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsPopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+	method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsPopulationCustodyResult{}, err
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	if !ok {
+		return RoundsPopulationCustodyResult{Verdict: verdict}, nil
+	}
 	id := domain.MintPlanID()
 	action, err := domain.NewTendAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 	if err != nil {

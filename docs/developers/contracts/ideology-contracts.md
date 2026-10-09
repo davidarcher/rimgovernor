@@ -167,8 +167,8 @@ the lower pawn id. Requirements without skills are the game's to judge at
 apply. A pawn that holds a role is never moved. The planner commits one Assign
 whose `thing_id` is the role precept id and whose expected previous is none;
 the write is the shared Assign intent ([action contracts](action-contracts.md)),
-postcondition: the pawn holds the role. At most `maxMedicalAttemptsPerPatient`
-tries per pawn and role per Episode. Composed by the `ideo-roles` routine family.
+postcondition: the pawn holds the role. Native refusals follow the shared refusal budget
+per pawn and role ([action contracts](action-contracts.md)). Composed by the `ideo-roles` routine family.
 
 ## Ritual scheduling
 
@@ -208,8 +208,8 @@ in Go.
   lands.
 
 The planner commits one Ritual `begin` per step: the plan's organizer, the
-site, the slot fills and the spectators. A refused begin is retried at most
-`maxMedicalAttemptsPerPatient` times per ritual and site per Episode; the
+site, the slot fills and the spectators. A refused begin follows the shared refusal budget
+per ritual and site (tried at the next site meanwhile); the
 method's reason records the organizer, ritual, site and attendance.
 Postcondition: a `LordJob_Ritual` of the precept is running
 (`RitualEffect.started`), read back as `running`. Composed by the `rituals`

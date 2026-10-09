@@ -206,11 +206,13 @@ func (r *RoundsPopulationCustodyPlanner) step(call, epoch context.Context, arbit
 			return RoundsPopulationCustodyResult{}, err
 		}
 		prefix = fmt.Sprintf("population-rescue-%s-", target)
-		attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-		if attempt >= maxMedicalAttemptsPerPatient {
-			return RoundsPopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+		method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+		if err != nil {
+			return RoundsPopulationCustodyResult{}, err
 		}
-		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+		if !ok {
+			return RoundsPopulationCustodyResult{Verdict: verdict}, nil
+		}
 		id := domain.MintPlanID()
 		action, err = domain.NewRescueAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 		if err != nil {
@@ -234,11 +236,13 @@ func (r *RoundsPopulationCustodyPlanner) step(call, epoch context.Context, arbit
 			return RoundsPopulationCustodyResult{}, err
 		}
 		prefix = fmt.Sprintf("population-capture-%s-", target)
-		attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-		if attempt >= maxMedicalAttemptsPerPatient {
-			return RoundsPopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+		method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+		if err != nil {
+			return RoundsPopulationCustodyResult{}, err
 		}
-		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+		if !ok {
+			return RoundsPopulationCustodyResult{Verdict: verdict}, nil
+		}
 		id := domain.MintPlanID()
 		action, err = domain.NewCaptureAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 		if err != nil {

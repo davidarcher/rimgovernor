@@ -32,8 +32,8 @@ func (r *Rounder) reviewRituals(reading *observation.RoundsReading, snapshot dom
 // `begin` for it: the organizer, the spot, the role slots and the spectators.
 // The committed plan is the persisted intent on the goal's method. The game
 // offers the begin command at the building its obligation targets, so a
-// refused begin is tried at the next site; each ritual and site is tried at
-// most maxMedicalAttemptsPerPatient times per Episode.
+// refused begin is tried at the next site; the shared refusal budget bounds
+// each ritual and site by native's own refusal class.
 type RoundsRitualsPlanner struct {
 	reviewer *Rounder
 }
@@ -97,13 +97,19 @@ func (r *RoundsRitualsPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !known || len(plans) == 0 {
 		return RoundsRitualsResult{Verdict: waitFor(WaitMethodUsed, "ritual_plans")}, nil
 	}
-	// The first ritual and site whose attempts are not spent; one ritual
-	// begins per step.
+	// The first ritual and site the refusal budget admits; one ritual begins
+	// per step. When every site is held, the last hold is the verdict.
+	var held Verdict
+	blocked := false
 	for _, plan := range plans {
 		for _, site := range plan.Sites {
 			prefix := fmt.Sprintf("ritual-%s-%d-%d-", plan.Ritual, site.X, site.Z)
-			attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-			if attempt >= maxMedicalAttemptsPerPatient {
+			method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+			if err != nil {
+				return RoundsRitualsResult{}, err
+			}
+			if !ok {
+				held, blocked = verdict, true
 				continue
 			}
 			attendees := make([]domain.PawnID, 0, 8)
@@ -145,7 +151,6 @@ func (r *RoundsRitualsPlanner) step(call, epoch context.Context, arbiter *stepAr
 			if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 				return RoundsRitualsResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 			}
-			method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 			reason := fmt.Sprintf("ideology: %s leads %s at (%d,%d) with %d attending", plan.Organizer, plan.Def, site.X, site.Z, len(attendees))
 			if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, reason, spec); err != nil {
 				return RoundsRitualsResult{}, err
@@ -153,5 +158,8 @@ func (r *RoundsRitualsPlanner) step(call, epoch context.Context, arbiter *stepAr
 			return RoundsRitualsResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 		}
 	}
-	return RoundsRitualsResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+	if blocked {
+		return RoundsRitualsResult{Verdict: held}, nil
+	}
+	return RoundsRitualsResult{Verdict: waitFor(WaitMethodUsed, "ritual_sites")}, nil
 }

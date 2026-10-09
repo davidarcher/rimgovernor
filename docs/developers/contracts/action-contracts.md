@@ -86,7 +86,7 @@ One setting per `PawnSettingsIntent`; the effect is a `SettingsEffect` of the na
 | `medicine_carry` (MEDICINE_CARRY) | Medicine `inventoryStock` count (0-3) with the best medicine the pawn's `medCare` allows (a positive count is refused when it allows none). Doctor-enabled colonists get 1-3, hunters or armed ranged fighters 1-2, one unit a round while colony stock plus carried stays at the medical reserve target; others 0. |
 | `reading_policy`, `drug_policy`, `food_policy` | Assigns the one policy of that kind labelled with the given name; contents come from the matching `*_policy` kinds. |
 | `mech_work_mode`, `mech_control_group` | For a controllable colony mechanoid with a living mechanitor overseer: the first sets the `MechWorkModeDef` of the mech's control group, the second moves the mech into the overseer's group with that index. Other factions, non-mechs, no overseer, unknown mode or index past the overseer's groups are refused. Move the mech first, then set the group's mode. Read back via `PawnMech.work_mode` / `control_group`. |
-| `choose_permit` (PERMIT) | The royalty write: the `faction_def` and `permit` def the colonist takes. MaintainPermits commits `policy.NextPermit`; tried at most `maxMedicalAttemptsPerPatient` times per holder and permit per Episode. Native applies the permit window's checks then `Pawn_RoyaltyTracker.AddPermit`. Refusals: unknown colonist, faction or permit def (NotFound); no title with the faction, a permit of another faction, title below the minimum, missing prerequisite or too few permit points (InvalidRequest). Read back: the permit is held and the faction's permit points dropped by its cost. |
+| `choose_permit` (PERMIT) | The royalty write: the `faction_def` and `permit` def the colonist takes. MaintainPermits commits `policy.NextPermit`; the shared refusal budget decides whether a holder and permit may be tried again. Native applies the permit window's checks then `Pawn_RoyaltyTracker.AddPermit`. Refusals: unknown colonist, faction or permit def (NotFound); no title with the faction, a permit of another faction, title below the minimum, missing prerequisite or too few permit points (InvalidRequest). Read back: the permit is held and the faction's permit points dropped by its cost. |
 | `extract_bioferrite` (EXTRACT_BIOFERRITE) | A held entity's extract flag (#2434, `CompHoldingPlatformTarget.extractBioferrite`); the game's Doctor work giver (`WorkGiver_ExtractBioferrite`) then runs `JobDriver_ExtractBioferrite` (2000 / MedicalTendSpeed ticks, 4 SurgicalCut, yields floor(BodySize * density * 4), applies BioferriteExtracted for 8 days with production 0). MaintainPopulation's custody step (`policy.BioferriteHarvestOwed`) sets it true for a held, living entity not in Release mode when `BioferriteExtraction` is finished, no powered `BioferriteHarvester` is attached to the platform (the game forces the flag false there), the flag is unset and `bioferrite_per_day` yields at least one (0 during the cooldown, so the flag waits it out). Studying is unaffected. An unread fact is a logged issue, never an order. Refusals (native): not Anomaly, no entity held on a platform of the map with that id (NotFound); a true flag before `BioferriteExtraction` is finished or beside an attached harvester (InvalidRequest). Read back: the flag; UNCHANGED when it already held. |
 
 ## Apply-time preconditions and refusal reasons
@@ -126,15 +126,16 @@ world)`, `Allowed(subject, world)`) is the one reason-aware retry budget: a perm
 gives its subject up with `retry_budget_spent` carrying the real reason, a transient one waits
 (`retry_budget_waiting`) and re-arms when the world's `GenerationSnapshot` changes, an unknown
 one stays allowed and visible (`refusal_unknown`). The tend, rescue, repair, clean, equip,
-mood relief and cast, exhausted-drill removal, ash cleaning, clearance and husbandry planners
-use it: they derive the ledger each step from the refusals journaled on their methods' plans
-(`refusalLedger`), keyed by the method-ID prefix (equip: by pawn), judged against the session
+mood relief and cast, exhausted-drill removal, ash cleaning, clearance, husbandry,
+population (custody, containment, joiner, lance, monolith, prisoner interaction, shrine arrest),
+quest, ideology, ritual, shrine and permit planners use it: they derive the ledger each step
+from the refusals journaled on their methods' plans (`refusalLedger`), keyed by the method-ID prefix (equip: by pawn), judged against the session
 snapshot with its plan and revision dropped. A spent subject is a `retry_budget_spent` refusal
 whose detail is native's reason, a waiting one a `retry_budget_waiting` wait; accepted,
 interrupted and unclassified methods spend nothing, and method identity (`nextMethodID`) is
-independent of the budget. Their per-planner attempt counts and `maxFailedIntentMethods` are
-gone; the planners that still count by `maxMedicalAttemptsPerPatient` (the tables here) move
-onto the budget as they migrate.
+independent of the budget. A non-refusal failure is not bounded: the planner replans from facts. Their per-planner attempt counts, `maxMedicalAttemptsPerPatient` and `maxFailedIntentMethods` are
+gone, as are the fixed-subject `retry_budget_spent` exits of the dialog and excavation planners. The refusal stays on the plan journal after the plan retires (`LoadPlan` reads retired plans), so a permanent refusal keeps blocking. The psylink planner still counts attempts and
+moves onto the budget with its own issue.
 
 An acquisition inspection outrun by the live clock records a stale_facts hold and
 invalidates its cached reads. The worker gives it one immediate fresh retry before

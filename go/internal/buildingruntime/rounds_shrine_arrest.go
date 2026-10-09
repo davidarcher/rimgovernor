@@ -37,11 +37,13 @@ func (r *RoundsPopulationCustodyPlanner) commitArrest(call, epoch context.Contex
 		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "shrine_arrest")}, nil
 	}
 	prefix := fmt.Sprintf("population-arrest-%s-", target)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsPopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+	method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsPopulationCustodyResult{}, err
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	if !ok {
+		return RoundsPopulationCustodyResult{Verdict: verdict}, nil
+	}
 	id := domain.MintPlanID()
 	plan, err := shrineArrestPlan(id, performer, target, bed)
 	if err != nil {

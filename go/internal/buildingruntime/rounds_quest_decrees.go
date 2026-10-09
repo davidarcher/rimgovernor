@@ -144,11 +144,13 @@ func (r *RoundsPopulationJoinerPlanner) admitDecree(call, epoch context.Context,
 			continue
 		}
 		prefix := fmt.Sprintf("decree-%s-%d-%d-", offer.Quest, objective.Kind, remaining)
-		attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-		if attempt >= maxMedicalAttemptsPerPatient {
-			return RoundsPopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "decree_attempts", "")}, true, nil
+		method, verdict, admitted, err := admitStandardMethod(call, r.reviewer.player.journal, goal, prefix, state.Snapshot)
+		if err != nil {
+			return RoundsPopulationJoinerResult{}, false, err
 		}
-		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+		if !admitted {
+			return RoundsPopulationJoinerResult{Verdict: verdict}, true, nil
+		}
 		claims := []string{}
 		for _, action := range actions {
 			if bill, ok := action.ProductionBill(); ok {

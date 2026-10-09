@@ -103,7 +103,7 @@ func (r *RoundsDialogPlanner) step(call, epoch context.Context, arbiter *stepArb
 		// Every option is disabled, a hyperlink or opens another window:
 		// nothing the controller can activate answers this dialog, so the
 		// hold stays with the player.
-		return RoundsDialogResult{Verdict: refuse(RefusalRetriesSpent, "no_selectable_dialog_option", "")}, nil
+		return RoundsDialogResult{Verdict: waitFor(WaitMethodUsed, "no_selectable_dialog_option")}, nil
 	}
 	windowID := dialog.GetWindowId()
 	digestNext := sha256.Sum256([]byte(fmt.Sprintf("%d/%d/%s", windowID, chosen.Index, chosen.Label)))

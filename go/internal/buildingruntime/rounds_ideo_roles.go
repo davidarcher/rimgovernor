@@ -15,8 +15,7 @@ import (
 // commits one Assign of the role precept to that believer, with no previous
 // assignment (a pawn that holds a role is never moved). The committed plan is
 // the persisted intent on the goal's method. An assignment native refuses is
-// tried at most maxMedicalAttemptsPerPatient times per pawn and role per goal
-// epoch.
+// tried again as the shared refusal budget allows for its pawn and role.
 type RoundsIdeoRolesPlanner struct {
 	reviewer *Rounder
 }
@@ -80,12 +79,18 @@ func (r *RoundsIdeoRolesPlanner) step(call, epoch context.Context, arbiter *step
 	if !known || len(owed) == 0 {
 		return RoundsIdeoRolesResult{Verdict: waitFor(WaitMethodUsed, "ideology_roles")}, nil
 	}
-	// The first assignment whose attempts are not spent; one in flight per
+	// The first assignment the refusal budget admits; one in flight per
 	// step keeps a role with several places filling one believer at a time.
+	// owed is non-empty, so a loop that admits none ends on the last hold.
+	var held Verdict
 	for _, choice := range owed {
 		prefix := fmt.Sprintf("ideorole-%s-%s-", choice.Pawn, choice.Role)
-		attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-		if attempt >= maxMedicalAttemptsPerPatient {
+		method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+		if err != nil {
+			return RoundsIdeoRolesResult{}, err
+		}
+		if !ok {
+			held = verdict
 			continue
 		}
 		if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Pawn)}) {
@@ -111,11 +116,10 @@ func (r *RoundsIdeoRolesPlanner) step(call, epoch context.Context, arbiter *step
 		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 			return RoundsIdeoRolesResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
-		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 		if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("ideology: %s takes role %s (%s)", choice.Pawn, choice.Def, choice.Role), plan); err != nil {
 			return RoundsIdeoRolesResult{}, err
 		}
 		return RoundsIdeoRolesResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 	}
-	return RoundsIdeoRolesResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+	return RoundsIdeoRolesResult{Verdict: held}, nil
 }

@@ -8,17 +8,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// maxMedicalAttemptsPerPatient bounds repeated tend/rescue attempts for one
-// patient within one goal episode (epoch). A patient who cannot be treated or
-// rescued after this many tries stops consuming the goal's method slot rather
-// than retrying forever; the deficit remains visible.
-const maxMedicalAttemptsPerPatient = 8
-
 // medicalAttemptCount counts prior same-episode methods whose ID has the given
-// prefix. Method IDs are keyed by patient and attempt count, not by doctor or
-// rescuer, so a fresh attempt after an interrupted or failed try naturally
-// picks whichever candidate is currently best — this is how doctor/rescuer
-// replacement happens, without a second bespoke recovery mechanism.
+// prefix. Only the psylink planner still counts attempts this way; it moves to
+// the shared refusal budget with its own child issue, and this helper goes
+// with it.
 func medicalAttemptCount(methods []domain.Method, epoch uint64, prefix string) int {
 	count := 0
 	for _, m := range methods {
@@ -54,16 +47,4 @@ func nextWaveMethod(goal store.StandardState, prefix string) domain.MethodID {
 			return method
 		}
 	}
-}
-
-// projectAttemptCount counts the Project's methods whose id starts with
-// prefix, retired plans included. A Project has no epochs.
-func projectAttemptCount(p store.ProjectState, prefix string) int {
-	count := 0
-	for _, m := range p.History {
-		if strings.HasPrefix(string(m.Method), prefix) {
-			count++
-		}
-	}
-	return count
 }

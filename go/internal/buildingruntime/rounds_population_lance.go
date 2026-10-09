@@ -88,9 +88,9 @@ func (r *RoundsPopulationCustodyPlanner) stepLance(call, epoch context.Context, 
 		return RoundsPopulationCustodyResult{}, false, nil
 	}
 	prefix := fmt.Sprintf("population-lance-%s-", choice.Target)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsPopulationCustodyResult{}, false, nil
+	method, _, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+	if err != nil || !ok {
+		return RoundsPopulationCustodyResult{}, false, err
 	}
 	use, err := domain.NewUseItem(choice.User, choice.Item, choice.Target)
 	if err != nil {
@@ -101,6 +101,6 @@ func (r *RoundsPopulationCustodyPlanner) stepLance(call, epoch context.Context, 
 	if err != nil {
 		return RoundsPopulationCustodyResult{}, false, err
 	}
-	result, err := r.commit(call, epoch, p, state, started, goal, domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt)), id, action)
+	result, err := r.commit(call, epoch, p, state, started, goal, method, id, action)
 	return result, err == nil, err
 }

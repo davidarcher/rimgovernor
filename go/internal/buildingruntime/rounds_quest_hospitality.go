@@ -46,11 +46,13 @@ func (r *RoundsPopulationJoinerPlanner) admitHospitality(call, epoch context.Con
 		return RoundsPopulationJoinerResult{}, false, nil
 	}
 	prefix := string(method) + "-"
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsPopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "quest_hosting_attempts", "")}, true, nil
+	method, verdict, admitted, err := admitStandardMethod(call, r.reviewer.player.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsPopulationJoinerResult{}, false, err
 	}
-	method = domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	if !admitted {
+		return RoundsPopulationJoinerResult{Verdict: verdict}, true, nil
+	}
 	if !arbiter.tryClaim(nil, "quest:"+string(work.Quest)) {
 		return RoundsPopulationJoinerResult{Verdict: waitFor(WaitClaim, "quest_hosting")}, true, nil
 	}

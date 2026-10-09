@@ -239,11 +239,13 @@ func (r RoundsShrineResult) pass(shrine, reason string) RoundsShrineResult {
 func (r *RoundsShrinePlanner) claim(call, epoch context.Context, state ControlState, goal store.ProjectState, shrine policy.AncientShrine, caskets []policy.ShrineCasket, started time.Time) (RoundsShrineResult, error) {
 	p := r.reviewer.player
 	prefix := fmt.Sprintf("claim-%s-", shrine.ID)
-	attempt := projectAttemptCount(goal, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsShrineResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), Shrine: shrine.ID}, nil
+	method, verdict, ok, err := admitProjectMethod(call, p.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsShrineResult{}, err
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	if !ok {
+		return RoundsShrineResult{Verdict: verdict, Shrine: shrine.ID}, nil
+	}
 	id := domain.MintPlanID()
 	identity := boundary.Identity(state.Snapshot)
 	var actions []domain.Action
@@ -288,8 +290,8 @@ func (r *RoundsShrinePlanner) claim(call, epoch context.Context, state ControlSt
 // breach commits one sealed shrine's method: an owned draft and a move to a
 // standing cell behind the trap line for each drafted defender, and the
 // breach deconstruction of the chosen wall. One colonist is always left
-// undrafted for the deconstruct job. The method is retried at most
-// maxMedicalAttemptsPerPatient times per wall and Episode.
+// undrafted for the deconstruct job. The shared refusal budget decides whether
+// the wall may be tried again.
 func (r *RoundsShrinePlanner) breach(call, epoch context.Context, state ControlState, goal store.ProjectState, shrine policy.AncientShrine, report ShrineReadinessReport, projection observation.ColonyProjection, started time.Time, arbiter *stepArbiter) (RoundsShrineResult, error) {
 	p := r.reviewer.player
 	wall := report.Readiness.Wall
@@ -303,11 +305,13 @@ func (r *RoundsShrinePlanner) breach(call, epoch context.Context, state ControlS
 	}
 	positions := policy.ShrineBreachPositions(wall, drafted, report.Standing, report.Traps)
 	prefix := fmt.Sprintf("breach-%s-%s-", shrine.ID, wall.EntityID)
-	attempt := projectAttemptCount(goal, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsShrineResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), Shrine: shrine.ID}, nil
+	method, verdict, ok, err := admitProjectMethod(call, p.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsShrineResult{}, err
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	if !ok {
+		return RoundsShrineResult{Verdict: verdict, Shrine: shrine.ID}, nil
+	}
 	id := domain.MintPlanID()
 	var actions []domain.Action
 	for _, defender := range drafted {
@@ -389,11 +393,13 @@ func (r *RoundsShrinePlanner) open(call, epoch context.Context, state ControlSta
 		return RoundsShrineResult{Verdict: waitFor(WaitMethodUsed, "casket_lockers")}, nil
 	}
 	prefix := fmt.Sprintf("open-%s-", shrine.ID)
-	attempt := projectAttemptCount(goal, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsShrineResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), Shrine: shrine.ID}, nil
+	method, verdict, ok, err := admitProjectMethod(call, p.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsShrineResult{}, err
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	if !ok {
+		return RoundsShrineResult{Verdict: verdict, Shrine: shrine.ID}, nil
+	}
 	id := domain.MintPlanID()
 	var actions []domain.Action
 	var target policy.ShrineCasket

@@ -533,7 +533,7 @@ wall depending on every draft and move. One colonist is always left undrafted fo
 deconstruct job. The deconstruction is inspected against the shrine census and eligible
 only while sealed. The wall falling ends the method: the undraft sweep undrafts the squad
 and `ActiveCombat` answers the guards, with the concern holding `guards_alive` until they
-are dead or downed. Eight attempts per wall and Episode; Stop and Manual leave the squad
+are dead or downed. A refused breach follows the shared refusal budget per wall; Stop and Manual leave the squad
 drafted. Ranged breaching is not composed.
 
 Filled caskets stay sealed unless the opening gate holds. `policy.CasketDecisionUnder`

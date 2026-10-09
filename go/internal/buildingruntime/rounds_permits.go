@@ -80,12 +80,16 @@ func (r *RoundsPermitsPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoundsPermitsResult{Verdict: waitFor(WaitMethodUsed, "permit")}, nil
 	}
 	intent := choice.Intent()
-	method, plan, exhausted, err := permitMethod(intent, goal.History, goal.Standard.Episode)
+	method, verdict, admitted, err := admitStandardMethod(call, p.journal, goal, permitMethodPrefix(intent), state.Snapshot)
 	if err != nil {
 		return RoundsPermitsResult{}, err
 	}
-	if exhausted {
-		return RoundsPermitsResult{Verdict: refuse(RefusalRetriesSpent, "permit_attempts", "")}, nil
+	if !admitted {
+		return RoundsPermitsResult{Verdict: verdict}, nil
+	}
+	plan, err := permitPlan(intent)
+	if err != nil {
+		return RoundsPermitsResult{}, err
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(intent.Holder)}) {
 		return RoundsPermitsResult{Verdict: waitFor(WaitMethodUsed, "pawn_claim")}, nil
@@ -103,25 +107,23 @@ func (r *RoundsPermitsPlanner) step(call, epoch context.Context, arbiter *stepAr
 	return RoundsPermitsResult{Verdict: BuildingReasonAdmitted, Plan: plan.ID()}, nil
 }
 
-// permitMethod builds the one-write plan that records a permit intent and the
-// method key that names it: keyed by holder, permit and attempt count, like
-// the other one-write planners, so a retry after an interrupted try
-// re-selects the current best. exhausted reports the attempt limit spent.
-func permitMethod(intent policy.PermitIntent, history []domain.Method, epoch uint64) (method domain.MethodID, plan domain.PlanSpec, exhausted bool, err error) {
-	prefix := fmt.Sprintf("permit-%s-%s-", intent.Holder, intent.Permit)
-	attempt := medicalAttemptCount(history, epoch, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return "", domain.PlanSpec{}, true, nil
-	}
+// permitMethodPrefix keys a permit method by holder and permit, like the other
+// one-write planners, so a retry after an interrupted try re-selects the
+// current best.
+func permitMethodPrefix(intent policy.PermitIntent) string {
+	return fmt.Sprintf("permit-%s-%s-", intent.Holder, intent.Permit)
+}
+
+// permitPlan builds the one-write plan that records a permit intent.
+func permitPlan(intent policy.PermitIntent) (domain.PlanSpec, error) {
 	setting, err := intent.Setting()
 	if err != nil {
-		return "", domain.PlanSpec{}, false, err
+		return domain.PlanSpec{}, err
 	}
 	id := domain.MintPlanID()
 	action, err := domain.NewPawnSettingsAction(domain.ActionID(fmt.Sprintf("%s-0", id)), setting)
 	if err != nil {
-		return "", domain.PlanSpec{}, false, err
+		return domain.PlanSpec{}, err
 	}
-	plan, err = domain.NewPlan(id, 1, []domain.Action{action})
-	return domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt)), plan, false, err
+	return domain.NewPlan(id, 1, []domain.Action{action})
 }

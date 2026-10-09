@@ -101,11 +101,13 @@ func (r *RoundsPrisonerInteractionPlanner) step(call, epoch context.Context, arb
 	// interrupted or failed try re-selects whichever prisoner and write is
 	// currently best.
 	prefix := fmt.Sprintf("%s-%s-", choice.Interaction, choice.Pawn)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsPrisonerInteractionResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+	method, verdict, ok, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsPrisonerInteractionResult{}, err
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	if !ok {
+		return RoundsPrisonerInteractionResult{Verdict: verdict}, nil
+	}
 	interaction, err := domain.NewPrisonerInteraction(choice.Pawn, choice.Interaction)
 	if err != nil {
 		return RoundsPrisonerInteractionResult{}, err

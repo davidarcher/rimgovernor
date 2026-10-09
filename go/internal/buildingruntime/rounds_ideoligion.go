@@ -235,9 +235,12 @@ func (r *RoundsIdeoligionPlanner) step(call, epoch context.Context, arbiter *ste
 		}
 	}
 	prefix := fmt.Sprintf("ideoligion-%d-", development.ReformCount)
-	attempt := medicalAttemptCount(concern.History, concern.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsIdeoligionResult{Verdict: refuse(RefusalRetriesSpent, "ideoligion_reform", "")}, nil
+	method, verdict, ok, err := admitStandardMethod(call, p.journal, concern, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsIdeoligionResult{}, err
+	}
+	if !ok {
+		return RoundsIdeoligionResult{Verdict: verdict}, nil
 	}
 	intent, err := domain.NewIdeoligionReform(ideo.Facts.IdeoID, current, choice.Design, development.ReformCount)
 	if err != nil {
@@ -276,7 +279,6 @@ func (r *RoundsIdeoligionPlanner) step(call, epoch context.Context, arbiter *ste
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoundsIdeoligionResult{}, ErrControl
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	record, err := json.Marshal(ideoligionRecord{intent.IdeoID(), intent.Expected(), intent.Design(), intent.Count()})
 	if err != nil {
 		return RoundsIdeoligionResult{}, err

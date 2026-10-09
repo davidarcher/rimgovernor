@@ -35,10 +35,3 @@ func TestMedicalAttemptCountScopesToPrefixAndEpoch(t *testing.T) {
 		t.Fatalf("empty methods: got %d, want 0", n)
 	}
 }
-
-func TestMaxMedicalAttemptsPerPatientIsPositiveAndBounded(t *testing.T) {
-	t.Parallel()
-	if maxMedicalAttemptsPerPatient <= 0 || maxMedicalAttemptsPerPatient > 256 {
-		t.Fatal(maxMedicalAttemptsPerPatient)
-	}
-}

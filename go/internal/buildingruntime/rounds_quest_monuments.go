@@ -85,11 +85,13 @@ func (r *RoundsPopulationJoinerPlanner) admitMonument(call, epoch context.Contex
 		target = fmt.Sprintf("%+v", choice.Build)
 	}
 	prefix := fmt.Sprintf("monument-%s-%s-%s-", choice.Quest, choice.Kind, target)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsPopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "monument_attempts", "")}, true, nil
+	method, verdict, admitted, err := admitStandardMethod(call, r.reviewer.player.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return RoundsPopulationJoinerResult{}, false, err
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	if !admitted {
+		return RoundsPopulationJoinerResult{Verdict: verdict}, true, nil
+	}
 	if err = r.reviewer.player.current(call, epoch); err != nil {
 		return RoundsPopulationJoinerResult{}, false, err
 	}

@@ -83,15 +83,17 @@ func (r *RoundsPopulationCustodyPlanner) stepMonolith(call, epoch context.Contex
 	// An attempt native refused (the colonist cannot reach the target) is
 	// retried with the next colonist.
 	prefix := fmt.Sprintf("population-monolith-%s-", job)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		defenseAction(call, "routine-population-custody", slog.LevelWarn, "refused", "monolith_advance_exhausted", target, nil)
-		return RoundsPopulationCustodyResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, true, nil
+	attemptMethod, verdict, admitted, err := admitStandardMethod(call, p.journal, goal, prefix, state.Snapshot)
+	if err != nil {
+		return result, false, err
+	}
+	if !admitted {
+		return RoundsPopulationCustodyResult{Verdict: verdict}, true, nil
 	}
 	if len(able) == 0 {
 		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "monolith_performer")}, true, nil
 	}
-	pawn := able[attempt%len(able)]
+	pawn := able[len(standardMethodPlans(goal.History, goal.Standard.Episode, prefix))%len(able)]
 	if !arbiter.tryClaim([]domain.PawnID{pawn}) {
 		return RoundsPopulationCustodyResult{Verdict: waitFor(WaitMethodUsed, "pawn_claim")}, true, nil
 	}
@@ -104,6 +106,6 @@ func (r *RoundsPopulationCustodyPlanner) stepMonolith(call, epoch context.Contex
 	if err != nil {
 		return result, false, err
 	}
-	result, err = r.commit(call, epoch, p, state, started, goal, domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt)), id, action)
+	result, err = r.commit(call, epoch, p, state, started, goal, attemptMethod, id, action)
 	return result, true, err
 }
