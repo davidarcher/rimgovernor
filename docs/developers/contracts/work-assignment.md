@@ -7,8 +7,8 @@ turns the routine read's pawns into one priority matrix per review: every work
 type native reports, every available colonist whose work applies. It is a
 proposal compared against the readback (`Matches`), never permission to change
 a pawn's settings; the work review dispatches the differences as a
-`WorkSettingsIntent` on Actions/Apply, and a player
-`WorkOverride` (per pawn × work type) always wins.
+`WorkSettingsIntent` on Actions/Apply. The plan owns every
+priority: no player edit is exempt, and a differing readback is replaced.
 
 ## Pawn profile
 

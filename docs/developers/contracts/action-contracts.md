@@ -206,7 +206,8 @@ the plan.
 
 ## Production bills
 
-Auto reviews matching cooking, reserve and animal-butchery bills regardless of ownership.
+The bot owns every production bill; ownership is not required to replace or remove one.
+Auto reviews matching cooking, reserve and animal-butchery bills.
 Known suspension, finite repeat mode, insufficient targets, narrowed ingredient filters
 and worker restrictions trigger a guarded replacement through the production action.
 Unknown fields remain unknown; adequate bills and unrelated recipes remain. Same-recipe

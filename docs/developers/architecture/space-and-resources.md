@@ -313,7 +313,7 @@ bill, not only food; the pawn work type a bill needs is the type of the
 admission requires an assigned pawn with that type enabled and the recipe's skill
 floors. Open bills contribute that work type to deterministic work coverage alongside
 construction. Existing bills count as continuing capacity only when their settings
-cover the requested target. Player edits remain authoritative.
+cover the requested target. The bot owns every production bill; ownership is not required to replace or remove one.
 
 Material development follows the same distinction. Safe surface deposits lead to
 bounded mining and exact-resource storage. Explicitly approved deep extraction stages

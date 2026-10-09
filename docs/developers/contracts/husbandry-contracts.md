@@ -344,7 +344,7 @@ work type (WorkGiverDefs), and the gather speed and yield stats (`AnimalGatherSp
 `AnimalGatherYield`) scale with the Animals skill alone. While the herd plan
 holds a milk or wool job (`HerdPlan.Jobs`), Handling has demand for one owner
 (`WorkDemand.Handling`), so the best Animals pawn the planner finds capable owns
-Handling at priority 1 even when nobody is a natural specialist. Player work overrides remain authoritative. The herd observation retains safe
+Handling at priority 1 even when nobody is a natural specialist. The bot owns every work priority. The herd observation retains safe
 handler reachability, current priorities, jobs and targets, alongside training target
 count and ready product count. Normal native handlers perform training, milking and
 shearing. No instant training, forced product generation or alternative job executor
