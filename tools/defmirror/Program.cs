@@ -144,6 +144,7 @@ internal sealed class Field
     public Ref? Element;
     public FieldInfo? Info;
     public string? Path; // a derived field: the member path native reads, not a CLR field
+    public string? DefRef; // a field of defNames (single or repeated): the Def class it references
 }
 
 internal sealed class Message
@@ -538,10 +539,13 @@ internal sealed class Generator
                 {
                     field.Repeated = true;
                     field.Element = CollectionElement(ft);
+                    var args = ft.IsArray ? new[] { ft.GetElementType()! } : ft.GetGenericArguments();
+                    if (args.Length == 1 && IsDef(args[0])) field.DefRef = args[0].FullName;
                 }
                 else
                 {
                     field.Element = Resolve(ft);
+                    if (IsDef(ft)) field.DefRef = ft.FullName;
                 }
                 message.Fields.Add(field);
                 keys[key] = f.Name;
@@ -719,6 +723,9 @@ internal sealed class Generator
         L("extend google.protobuf.FieldOptions {");
         L("  // A derived field: not a CLR field of the class but the value of this member path\n  // (fields or properties, dot separated) read from the mirrored object; unset when a\n  // step is null.");
         L("  string clr_path = 50102;");
+        L("  // A string field (or repeated string field) of defNames: the CLR full name of the Def class");
+        L("  // each names. Dictionary keys and values and nested collections of defNames carry none.");
+        L("  string clr_def_ref = 50103;");
         L("}");
 
         foreach (var e in enums.OrderBy(t => names[t], StringComparer.Ordinal))
@@ -758,7 +765,7 @@ internal sealed class Generator
             L("message " + names[t] + " {");
             L("  option (clr_type) = \"" + t.FullName + "\";");
             foreach (var f in m.Fields)
-                L($"  {(f.Repeated ? "repeated " : f.Optional ? "optional " : "")}{TypeName(f.Element!)} {f.Name} = {f.Number}{(f.Path != null ? " [(clr_path) = \"" + f.Path + "\"]" : "")};");
+                L($"  {(f.Repeated ? "repeated " : f.Optional ? "optional " : "")}{TypeName(f.Element!)} {f.Name} = {f.Number}{(f.Path != null ? " [(clr_path) = \"" + f.Path + "\"]" : f.DefRef != null ? " [(clr_def_ref) = \"" + f.DefRef + "\"]" : "")};");
             L("}");
         }
 

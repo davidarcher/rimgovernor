@@ -90,7 +90,10 @@ Mapping, with no allow-list and no name lists:
   `Def.modContentPack` is `[Unsaved]`, so reflection alone cannot reach it. It is
   unset for a def with no mod. `clr_path` is the one mechanism for a derived
   field: a field with the option is not a CLR field and is read by path.
-- Def references are the target's `defName` string; `System.Type` is the type's
+- Def references are the target's `defName` string; a field of one (single or
+  repeated) carries the `clr_def_ref` option naming the referenced Def class, which
+  the dangling-reference gate in `bridge` reads (Dictionary keys and values and
+  nested collections carry none); `System.Type` is the type's
   full name string; enums keep their numeric values (flags enums hold the bitmask).
 - `RimWorld.QuestGen.SlateRef<T>` (every quest node parameter) is the string it
   holds, the field's XML text: a literal or a `$variable`. Native reads the
