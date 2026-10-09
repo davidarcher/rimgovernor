@@ -231,8 +231,8 @@ func (s *Store) CommitCombatRestoration(ctx context.Context, id domain.IncidentI
 	return tx.Commit()
 }
 
-// FinishCombatRestoration drops saved intent only after every setting action
-// completed; retiring its method and transferred batches is one transaction.
+// FinishCombatRestoration drops saved intent after settings complete or native
+// cleanup proves the paired animal target impossible. Retirement is atomic.
 func (s *Store) FinishCombatRestoration(ctx context.Context, owner, plan domain.PlanID) error {
 	tx, err := s.begin(ctx)
 	if err != nil {
@@ -246,7 +246,30 @@ func (s *Store) FinishCombatRestoration(ctx context.Context, owner, plan domain.
 	if !combatRestorationPlan(ctx, tx, p) {
 		return ErrConflict
 	}
-	for _, v := range p.Progress {
+	// Only a completed native clear can discharge an impossible animal's
+	// original setting. A missing/uncertain reply never proves cleanup.
+	cleared := map[domain.PawnID]bool{}
+	batch, _ := p.Spec.Actions()[0].CombatBatch()
+	first := p.Progress[0].View()
+	results, known := first.Combat.Value()
+	if first.Stage != domain.Completed || first.Unresolved || !known {
+		return ErrConflict
+	}
+	for i, result := range results.Orders() {
+		command := batch.Orders()[i]
+		if result.Applied {
+			continue
+		}
+		if command.Kind == "animal_clear" && (result.Refusal == "not_found" || result.Refusal == "not_ours") {
+			cleared[command.Pawn] = true
+		} else if command.Kind != "door" || result.Refusal != "not_a_door" {
+			return ErrConflict
+		}
+	}
+	for i, v := range p.Progress {
+		if animal, ok := p.Spec.Actions()[i].Husbandry(); ok && cleared[animal.Animal()] {
+			continue
+		}
 		if v.View().Stage != domain.Completed || v.View().Unresolved {
 			return ErrConflict
 		}

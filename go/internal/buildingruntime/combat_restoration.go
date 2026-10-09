@@ -110,22 +110,10 @@ func (r *RoundsDefensePlanner) restoreCombatSettings(ctx context.Context, state 
 	if len(items) != len(actions) {
 		return ErrControl
 	}
-	for _, item := range items {
-		if item.Err != nil {
-			return fmt.Errorf("%w: %v", errCombatRestorationPending, item.Err)
-		}
-		if item.Result.Progress.View().Stage != domain.Completed {
-			return fmt.Errorf("%w: uncertain", errCombatRestorationPending)
-		}
-		if result, known := item.Result.Progress.View().Combat.Value(); known {
-			for _, v := range result.Orders() {
-				if !v.Applied && v.Refusal != "not_a_door" && v.Refusal != "not_found" && v.Refusal != "not_ours" {
-					return fmt.Errorf("%w: refused %s", errCombatRestorationPending, v.Refusal)
-				}
-			}
-		}
+	if err = r.reviewer.player.journal.FinishCombatRestoration(ctx, kept.Owner, id); err != nil {
+		return fmt.Errorf("%w: %v", errCombatRestorationPending, err)
 	}
-	return r.reviewer.player.journal.FinishCombatRestoration(ctx, kept.Owner, id)
+	return nil
 }
 func (r *RoundsDefensePlanner) restoreReloadedCombat(ctx context.Context, state ControlState) error {
 	kept, ok, err := r.reviewer.player.journal.LoadCombatRestoration(ctx)

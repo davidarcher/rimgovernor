@@ -2,6 +2,7 @@ package combatlab
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -89,6 +90,56 @@ func runAnimals(ctx context.Context, s cases.Session) error {
 	}
 	if p := cleared.pawns[pup]; na.AsString(p["area"]) != "" {
 		return fmt.Errorf("cleared husky still restricted: %v", p)
+	}
+	return nil
+}
+
+func init() {
+	cases.Register(cases.Case{Name: "combatlab/orphan-animal-area", Scope: "Native area deletion after death, despawn and lost ownership; Go snapshots cannot prove native areaManager effects. Repeated clears model a fresh cleanup after a lost reply.", Start: cases.Lab{Colonists: 1}, RequiredOps: []string{na.LabStartTool, StageTool}, QuietWorld: true, Budget: cases.LabBudget, Crew: cases.Crew{Size: 3}, Run: runOrphanAnimalArea})
+}
+func runOrphanAnimalArea(ctx context.Context, s cases.Session) error {
+	h, identity := s.Harness(), s.Identity()
+	for _, mode := range []string{"despawn", "dead", "foreign"} {
+		var cx, cz int
+		staged, err := Stage(ctx, h, "lab-manhunter", func(_ *Fixture, x, z int) { cx, cz = x, z })
+		if err != nil {
+			return err
+		}
+		animal := staged.Animals()[1]
+		if _, err = na.GrantAuto(ctx, h.WireFunc(), "orphan-acquire-"+mode, identity); err != nil {
+			return err
+		}
+		pawn := map[string]any{"entityId": animal}
+		results, err := issue(ctx, h, identity, "orphan-zone-"+mode, []any{map[string]any{"pawn": pawn, "animalArea": map[string]any{"cell": cell(cx-1, cz-3)}}})
+		if err != nil {
+			return err
+		}
+		if applied, _ := na.AsBool(results[0]["applied"]); !applied {
+			return fmt.Errorf("zone %s: %v", mode, results)
+		}
+		setup, _ := json.Marshal(map[string]string{"animal": animal, "mode": mode})
+		if _, err = h.Call(ctx, "orphan-setup-"+mode, StageTool, map[string]any{"action": "orphan-animal", "spec": string(setup)}); err != nil {
+			return err
+		}
+		for i := 0; i < 2; i++ {
+			results, err = issue(ctx, h, identity, fmt.Sprintf("orphan-clear-%s-%d", mode, i), []any{map[string]any{"pawn": pawn, "animalArea": map[string]any{"clear": map[string]any{}}}})
+			if err != nil {
+				return err
+			}
+			refusal := na.AsString(results[0]["refusal"])
+			if refusal != "not_found" && refusal != "not_ours" {
+				return fmt.Errorf("clear %s: %v", mode, results)
+			}
+			read, err := h.Call(ctx, fmt.Sprintf("orphan-read-%s-%d", mode, i), StageTool, map[string]any{"action": "read"})
+			if err != nil {
+				return err
+			}
+			for _, area := range na.AsSlice(read["areas"]) {
+				if na.AsString(area) == "Combat "+animal {
+					return fmt.Errorf("orphan area survived %s clear", mode)
+				}
+			}
+		}
 	}
 	return nil
 }

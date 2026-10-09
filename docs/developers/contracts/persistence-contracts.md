@@ -153,6 +153,12 @@ method may run after the combat Situation clears only when its exact actions
 match the saved restoration intent. A fresh cleanup decision transfers those same
 originals and retires the prior execution responsibility; uncertain historical
 receipts remain unchanged. Pending cleanup does not block unrelated protection.
+For animal cleanup, native deletes the exact `Combat <pawn ID>` area even
+when loaded-map lookup proves the animal absent, dead or no longer player-owned.
+Only the completed clear's `not_found` or `not_ours` result discharges that
+animal's paired original-area obligation. Unknown, stale or lost replies retain
+it; a fresh cleanup method must obtain its own result, including after reload.
+Historical uncertain actions remain uncertain, never relabeled as restored.
 ## Related reading
 
 [Sessions and recovery](../architecture/sessions-and-recovery.md) ·

@@ -572,12 +572,26 @@ namespace HomeBridge.BridgeTools
         [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile,hitPoints}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel, hediffs:[HediffDef], inventory:[ThingDef]}], roof:{def,minX,minZ,maxX,maxZ}, prisonBreak, sappers}. Hostiles get fixed skills, only the named apparel and an assault lord (a sapper one with sappers, #1149). Replies each staged pawn read back from the map (with worn apparel ids) and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
-            [ToolParameter(Description = "stage (default), read, or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",
+            [ToolParameter(Description = "stage (default), read, orphan-animal (spec animal and mode: despawn, dead or foreign), or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",
             [ToolParameter(Description = "Ticks for action tick, 1..2000.")] int ticks = 0)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game with a current map is required.");
                 if (float.IsNaN(AcceptanceWorld.Lab)) throw new InvalidOperationException("test/lab_stage needs a lab map (test/lab_start first).");
+                if (action == "orphan-animal")
+                {
+                    var setup = JObject.Parse(spec);
+                    var animal = map.mapPawns.AllPawnsSpawned.First(p => p.GetUniqueLoadID() == (string)setup["animal"]);
+                    if (!animal.RaceProps.Animal || animal.Faction != Faction.OfPlayer) throw new ArgumentException("Expected a player animal.");
+                    switch ((string)setup["mode"])
+                    {
+                        case "despawn": animal.DeSpawn(); break;
+                        case "dead": animal.Kill(null); break;
+                        case "foreign": animal.SetFaction(null); break;
+                        default: throw new ArgumentException("Expected despawn, dead or foreign.");
+                    }
+                    action = "read";
+                }
                 if (action == "tick")
                 {
                     if (ticks < 1 || ticks > MaxTicks) throw new ArgumentException($"ticks must be within 1..{MaxTicks}.");
@@ -595,6 +609,7 @@ namespace HomeBridge.BridgeTools
                         area = p.playerSettings?.AreaRestrictionInPawnCurrentMap?.Label, areaCells = p.playerSettings?.AreaRestrictionInPawnCurrentMap?.TrueCount ?? 0,
                         hediffs = p.health.hediffSet.hediffs.Select(h => h.def.defName).Distinct().ToList() }).ToList(),
                         doors = map.listerBuildings.allBuildingsColonist.OfType<Building_Door>().Select(d => new { x = d.Position.x, z = d.Position.z, open = d.Open, holdOpen = d.HoldOpen, forbidden = d.IsForbidden(Faction.OfPlayer) }).ToList(),
+                        areas = map.areaManager.AllAreas.Select(a => a.Label).ToList(),
                         damage = LabDamageLedger.Rows(), damageDropped = LabDamageLedger.Dropped };
                 if (action != "stage") throw new ArgumentException("Unknown action.");
                 LabDamageLedger.Reset();

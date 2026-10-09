@@ -95,9 +95,9 @@ namespace HomeBridge.BridgeTools
                     result.PawnId = order.Pawn.EntityId;
                     var admitted = pawns[order.Pawn.EntityId];
                     refusal = admitted.refusal;
-                    if (refusal.Length == 0)
+                    if (refusal.Length == 0 || refusal == "not_found" && order.OrderCase == Operations.CombatOrder.OrderOneofCase.AnimalArea && order.AnimalArea.AreaCase == Operations.CombatAnimalArea.AreaOneofCase.Clear)
                     {
-                        try { refusal = Animal(identity, map, admitted.pawn!, order, out job); }
+                        try { refusal = Animal(identity, map, admitted.pawn, order, out job); }
                         catch (Exception error) { refusal = "native_refused"; ModLog.Warn("combat", "combat order " + i + " animal order failed: " + error.GetType().Name); }
                     }
                 }
@@ -255,11 +255,24 @@ namespace HomeBridge.BridgeTools
         // AnimalArea: a one-cell native allowed area, labelled by the animal
         // so it survives a reload and clear still finds it; clear restores
         // the restriction the animal had before, none when unknown.
-        private static string Animal(NativeControlIdentity identity, Map map, Pawn animal, Operations.CombatOrder order, out string? job)
+        private static string Animal(NativeControlIdentity identity, Map map, Pawn? animal, Operations.CombatOrder order, out string? job)
         {
             job = null;
             var player = Faction.OfPlayerSilentFail;
-            if (player == null || animal.Faction != player || animal.RaceProps?.Animal != true || !animal.Spawned || animal.Dead) return "not_ours";
+            if (player == null) return "native_refused";
+            bool clear = order.OrderCase == Operations.CombatOrder.OrderOneofCase.AnimalArea
+                && order.AnimalArea.AreaCase == Operations.CombatAnimalArea.AreaOneofCase.Clear;
+            if (animal == null || animal.Faction != player || animal.RaceProps?.Animal != true || !animal.Spawned || animal.Dead)
+            {
+                // Loaded-map lookup and live ownership are authoritative. Delete
+                // only this command's temporary area before certifying impossibility.
+                if (clear)
+                {
+                    (map.areaManager.GetLabeled(CombatAreaPrefix + order.Pawn.EntityId) as Area_Allowed)?.Delete();
+                    PriorAreas.Remove(order.Pawn.EntityId);
+                }
+                return animal == null ? "not_found" : "not_ours";
+            }
             if (order.OrderCase == Operations.CombatOrder.OrderOneofCase.Release)
             {
                 if (animal.training == null || !animal.training.HasLearned(TrainableDefOf.Release)) return "untrained";

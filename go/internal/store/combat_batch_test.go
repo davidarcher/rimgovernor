@@ -208,3 +208,80 @@ func TestCombatRestorationReloadAuthorityAndBoundedRetries(t *testing.T) {
 		t.Fatal("completed restoration retained", exists, err)
 	}
 }
+
+// Only native clear results discharge orphan settings, never census omission.
+func TestOrphanCombatAnimalRestoration(t *testing.T) {
+	for _, refusal := range []string{"not_found", "not_ours", "stale_snapshot", "native_refused", ""} {
+		t.Run(refusal, func(t *testing.T) {
+			ctx := context.Background()
+			s := open(t, memoryPath(t))
+			req := roundsRequest()
+			req.Current.Native = 2
+			kept := CombatRestoration{World: World{Colony: req.Current.Colony, Load: "old", Map: req.Current.Map}, Owner: "fight", Animals: []CombatAnimalRestoration{{Pawn: "pet", Area: "Area_Safe"}}}
+			if err := s.SaveCombatRestoration(ctx, kept); err != nil {
+				t.Fatal(err)
+			}
+			saved, err := s.GovernorStateBlobs(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			s = open(t, memoryPath(t))
+			if err = s.RebuildFamilies(ctx, saved); err != nil {
+				t.Fatal(err)
+			}
+			reviewRounds(t, s, &req)
+			incident, err := s.OpenIncident(ctx, IncidentAssessment{Kind: policy.ActiveCombat, Trigger: "restore_combat_settings", Snapshot: req.Current, Tick: 10})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for attempt := 0; attempt < 2; attempt++ {
+				id := domain.PlanID(fmt.Sprintf("restore-%d", attempt))
+				actions, err := CombatRestorationActions(kept, id)
+				if err != nil {
+					t.Fatal(err)
+				}
+				plan, err := domain.NewPlan(id, 1, actions)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err = s.CommitCombatRestoration(ctx, incident.Incident.ID, plan); err != nil {
+					t.Fatal(err)
+				}
+				snap := req.Current
+				snap.Plan = id
+				snap.Revision = 1
+				if err = s.AuthorizeRoundsPlan(ctx, req.Current, snap); err != nil {
+					t.Fatal(err)
+				}
+				if _, err = s.Prepare(ctx, id, actions[0].ID(), snap, 10); err != nil {
+					t.Fatal(err)
+				}
+				progress, err := s.Dispatch(ctx, id, actions[0].ID(), snap, 10)
+				if err != nil {
+					t.Fatal(err)
+				}
+				receipt := BatchReceipt{Plan: id, Action: actions[0].ID(), Attempt: progress.View().Attempt, Receipt: domain.ReceiptUnknown}
+				if attempt == 1 {
+					receipt.Receipt = domain.ReceiptAccepted
+					receipt.Combat = []domain.CombatResult{{Index: 0, PawnID: "pet", Applied: refusal == "", Refusal: refusal}}
+				}
+				if _, err = s.RecordReceipts(ctx, []BatchReceipt{receipt}); err != nil {
+					t.Fatal(err)
+				}
+				err = s.FinishCombatRestoration(ctx, kept.Owner, id)
+				terminal := attempt == 1 && (refusal == "not_found" || refusal == "not_ours")
+				if (err == nil) != terminal {
+					t.Fatalf("attempt %d refusal %q: %v", attempt, refusal, err)
+				}
+				_, exists, err := s.LoadCombatRestoration(ctx)
+				if err != nil || exists == terminal {
+					t.Fatal(exists, err)
+				}
+			}
+			old, err := s.LoadPlan(ctx, "restore-0")
+			if err != nil || !old.Progress[0].View().Unresolved {
+				t.Fatal("lost reply rewritten", old, err)
+			}
+		})
+	}
+}
