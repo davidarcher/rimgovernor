@@ -62,7 +62,7 @@ namespace RimGovernor.Protocol.Common {
             "UlBTRV9DTEFTU19TVFJBTkdFUhACEhcKE0NPUlBTRV9DTEFTU19BTklNQUwQ",
             "AyprCghSb3RTdGFnZRIZChVST1RfU1RBR0VfVU5TUEVDSUZJRUQQABITCg9S",
             "T1RfU1RBR0VfRlJFU0gQARIVChFST1RfU1RBR0VfUk9UVElORxACEhgKFFJP",
-            "VF9TVEFHRV9ERVNTSUNBVEVEEAMq+AMKC0ZhaWx1cmVDb2RlEhwKGEZBSUxV",
+            "VF9TVEFHRV9ERVNTSUNBVEVEEAMq+AQKC0ZhaWx1cmVDb2RlEhwKGEZBSUxV",
             "UkVfQ09ERV9VTlNQRUNJRklFRBAAEiAKHEZBSUxVUkVfQ09ERV9JTlZBTElE",
             "X1JFUVVFU1QQARIcChhGQUlMVVJFX0NPREVfVU5BVkFJTEFCTEUQAhIfChtG",
             "QUlMVVJFX0NPREVfU1RBTEVfSURFTlRJVFkQAxIhCh1GQUlMVVJFX0NPREVf",
@@ -73,19 +73,22 @@ namespace RimGovernor.Protocol.Common {
             "X0VYSEFVU1RFRBAJEhoKFkZBSUxVUkVfQ09ERV9OT1RfRk9VTkQQChIcChhG",
             "QUlMVVJFX0NPREVfVU5TVVBQT1JURUQQCxIfChtGQUlMVVJFX0NPREVfTkFU",
             "SVZFX0ZBSUxVUkUQDBIaChZGQUlMVVJFX0NPREVfQ0FOQ0VMTEVEEA0SIgoe",
-            "RkFJTFVSRV9DT0RFX0RFQURMSU5FX0VYQ0VFREVEEA4qqQMKEVVuYXZhaWxh",
-            "YmxlUmVhc29uEiIKHlVOQVZBSUxBQkxFX1JFQVNPTl9VTlNQRUNJRklFRBAA",
-            "EiEKHVVOQVZBSUxBQkxFX1JFQVNPTl9OT1RfTE9BREVEEAESIwofVU5BVkFJ",
-            "TEFCTEVfUkVBU09OX05PVF9PQlNFUlZFRBACEiIKHlVOQVZBSUxBQkxFX1JF",
-            "QVNPTl9VTlNVUFBPUlRFRBADEiIKHlVOQVZBSUxBQkxFX1JFQVNPTl9SRUFE",
-            "X0ZBSUxFRBAEEhwKGFVOQVZBSUxBQkxFX1JFQVNPTl9TVEFMRRAFEiUKIVVO",
-            "QVZBSUxBQkxFX1JFQVNPTl9MSU1JVF9FWENFRURFRBAGEiQKIFVOQVZBSUxB",
-            "QkxFX1JFQVNPTl9OT1RfUkVRVUVTVEVEEAcSJQohVU5BVkFJTEFCTEVfUkVB",
-            "U09OX05PVF9BUFBMSUNBQkxFEAgSHQoZVU5BVkFJTEFCTEVfUkVBU09OX0hJ",
-            "RERFThAJEi8KK1VOQVZBSUxBQkxFX1JFQVNPTl9OQVRJVkVfQ09NUE9ORU5U",
-            "X01JU1NJTkcQCkJlWkVnaXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVy",
-            "bm9yL2dvL2ludGVybmFsL3dpcmUvY29tbW9ucGI7Y29tbW9ucGKqAhtSaW1H",
-            "b3Zlcm5vci5Qcm90b2NvbC5Db21tb25iBnByb3RvMw=="));
+            "RkFJTFVSRV9DT0RFX0RFQURMSU5FX0VYQ0VFREVEEA4SIwofRkFJTFVSRV9D",
+            "T0RFX05PX1dBTExfVE9fUkVQTEFDRRAPEikKJUZBSUxVUkVfQ09ERV9XQUxM",
+            "X1JFUExBQ0VNRU5UX1JFRlVTRUQQEBIuCipGQUlMVVJFX0NPREVfV0FMTF9S",
+            "RVBMQUNFTUVOVF9TVFJBTkRTX1JPT0YQESqpAwoRVW5hdmFpbGFibGVSZWFz",
+            "b24SIgoeVU5BVkFJTEFCTEVfUkVBU09OX1VOU1BFQ0lGSUVEEAASIQodVU5B",
+            "VkFJTEFCTEVfUkVBU09OX05PVF9MT0FERUQQARIjCh9VTkFWQUlMQUJMRV9S",
+            "RUFTT05fTk9UX09CU0VSVkVEEAISIgoeVU5BVkFJTEFCTEVfUkVBU09OX1VO",
+            "U1VQUE9SVEVEEAMSIgoeVU5BVkFJTEFCTEVfUkVBU09OX1JFQURfRkFJTEVE",
+            "EAQSHAoYVU5BVkFJTEFCTEVfUkVBU09OX1NUQUxFEAUSJQohVU5BVkFJTEFC",
+            "TEVfUkVBU09OX0xJTUlUX0VYQ0VFREVEEAYSJAogVU5BVkFJTEFCTEVfUkVB",
+            "U09OX05PVF9SRVFVRVNURUQQBxIlCiFVTkFWQUlMQUJMRV9SRUFTT05fTk9U",
+            "X0FQUExJQ0FCTEUQCBIdChlVTkFWQUlMQUJMRV9SRUFTT05fSElEREVOEAkS",
+            "LworVU5BVkFJTEFCTEVfUkVBU09OX05BVElWRV9DT01QT05FTlRfTUlTU0lO",
+            "RxAKQmVaRWdpdGh1Yi5jb20vZGF2aWRhcmNoZXIvUmltR292ZXJub3IvZ28v",
+            "aW50ZXJuYWwvd2lyZS9jb21tb25wYjtjb21tb25wYqoCG1JpbUdvdmVybm9y",
+            "LlByb3RvY29sLkNvbW1vbmIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Common.TradeRequestKind), typeof(global::RimGovernor.Protocol.Common.CorpseClass), typeof(global::RimGovernor.Protocol.Common.RotStage), typeof(global::RimGovernor.Protocol.Common.FailureCode), typeof(global::RimGovernor.Protocol.Common.UnavailableReason), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -150,6 +153,13 @@ namespace RimGovernor.Protocol.Common {
     [pbr::OriginalName("FAILURE_CODE_NATIVE_FAILURE")] NativeFailure = 12,
     [pbr::OriginalName("FAILURE_CODE_CANCELLED")] Cancelled = 13,
     [pbr::OriginalName("FAILURE_CODE_DEADLINE_EXCEEDED")] DeadlineExceeded = 14,
+    /// <summary>
+    /// In-place wall replacement (#2529): no built wall at the cell, vanilla refuses
+    /// the replacement blueprint, or the swap would drop a roof's last holder.
+    /// </summary>
+    [pbr::OriginalName("FAILURE_CODE_NO_WALL_TO_REPLACE")] NoWallToReplace = 15,
+    [pbr::OriginalName("FAILURE_CODE_WALL_REPLACEMENT_REFUSED")] WallReplacementRefused = 16,
+    [pbr::OriginalName("FAILURE_CODE_WALL_REPLACEMENT_STRANDS_ROOF")] WallReplacementStrandsRoof = 17,
   }
 
   public enum UnavailableReason {

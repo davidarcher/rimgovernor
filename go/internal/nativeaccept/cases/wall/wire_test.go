@@ -17,6 +17,7 @@ func TestCaseActionsParseAsProtoJSON(t *testing.T) {
 		"cleared":      deconstructIntent("k", "Thing_1", map[string]any{"clearedGround": ground}),
 		"swap":         deconstructIntent("k", "Thing_1", map[string]any{"replaceWithWall": true}),
 		"wall-upgrade": {"key": "k", "designate": map[string]any{"designation": "THING_DESIGNATION_DECONSTRUCT", "cell": map[string]any{"x": 1, "z": 2}, "guard": "DESIGNATION_GUARD_WALL_UPGRADE", "target": map[string]any{"id": "Thing_1"}}},
+		"replace-wall": {"key": "k", "building": map[string]any{"placement": map[string]any{"defName": "Wall", "stuff": "WoodLog", "x": 1, "z": 2, "rotation": "ROTATION_NORTH"}, "replaceWall": true}},
 		"remove-roof":  {"key": "k", "removeRoof": map[string]any{"cells": []any{map[string]any{"x": 1, "z": 2}}}},
 		"remove-floor": {"key": "k", "removeFloor": map[string]any{"cell": map[string]any{"x": 1, "z": 2}, "defName": "WoodPlankFloor"}},
 	} {

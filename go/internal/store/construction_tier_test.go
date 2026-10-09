@@ -27,7 +27,12 @@ func TestConstructionTierJournalRoundTripAndCanonicalForm(t *testing.T) {
 		t.Fatal(err)
 	}
 	plain, _ := domain.NewBuildingAction("plain", b, domain.TierExpand)
-	actions := []domain.Action{placed, retier, both, plain}
+	swap, _ := domain.NewBuildingAction("swap", b, domain.TierExpand)
+	swap, err = swap.WithWallReplacement()
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := []domain.Action{placed, retier, both, plain, swap}
 	plan, err := domain.NewPlan("tier-plan", 1, actions)
 	if err == nil {
 		err = s.CreatePlan(ctx, plan)

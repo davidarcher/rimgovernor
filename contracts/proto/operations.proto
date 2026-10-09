@@ -817,6 +817,10 @@ message BuildingIntent {
   // Construction tier 0-5 (#2522); absent = ungated. With existing_target_id it re-tiers
   // that exact blueprint or frame; the tier stays mutable while the finishing floor is write-once.
   optional int32 tier = 4;
+  // Replace the built wall at the cell in place (#2529): a vanilla replacement
+  // blueprint over it, the cell impassable at every tick of the swap. Native
+  // refuses with the wall-replacement failure codes; exclusive of existing_target_id.
+  optional bool replace_wall = 5;
 }
 // One step against RimWorld's single live trade session, named by its
 // trader and negotiator.

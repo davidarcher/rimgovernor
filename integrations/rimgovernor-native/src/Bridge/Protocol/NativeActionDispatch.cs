@@ -178,7 +178,8 @@ namespace HomeBridge.BridgeTools
             var intent = action.Building;
             if (intent.HasMinimumFinishingSkill && (intent.MinimumFinishingSkill < 0 || intent.MinimumFinishingSkill > 1000)
                 || intent.HasTier && (intent.Tier < 0 || intent.Tier > ConstructionSkillGuard.MaxTier)
-                || intent.HasExistingTargetId && !intent.HasMinimumFinishingSkill && !intent.HasTier)
+                || intent.HasExistingTargetId && !intent.HasMinimumFinishingSkill && !intent.HasTier
+                || intent.ReplaceWall && intent.HasExistingTargetId)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Invalid construction setting.");
             if (intent.HasMinimumFinishingSkill)
             {
@@ -204,7 +205,26 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction setting target is stale.");
             }
             if (Existing(map, action.Building.Placement) != null) return null;
-            return NativeConstructionPlan.Prepare(map, action.Building.Placement, context, out _, out _, out var failure) ? null : failure;
+            return intent.ReplaceWall ? WallReplacement(map, intent, context, out _)
+                : NativeConstructionPlan.Prepare(map, action.Building.Placement, context, out _, out _, out var failure) ? null : failure;
+        }
+
+        // In-place wall swap (#2529): refuse with a typed code when no built wall
+        // stands at the cell, the game refuses the replacement blueprint, or the
+        // swap would drop the last holder of a roof (a Frame holds no roof).
+        private static Common.Failure? WallReplacement(Map map, Operations.BuildingIntent intent, Common.ObservationContext context, out NativeConstructionPlan? plan)
+        {
+            plan = null;
+            var candidate = intent.Placement;
+            if (candidate == null || !candidate.HasX || !candidate.HasZ)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Wall replacement requires a placement cell.");
+            var wall = WallLayerGuard.BuiltWall(map, new IntVec3(candidate.X, 0, candidate.Z));
+            if (wall == null) return ProtoBoundary.Fail(Common.FailureCode.NoWallToReplace, "No built wall stands at the cell.");
+            if (!NativeConstructionPlan.Prepare(map, candidate, context, out plan, out _, out var failure)
+                || !(plan.Definition is ThingDef built) || built.passability != Traversability.Impassable)
+                return ProtoBoundary.Fail(Common.FailureCode.WallReplacementRefused, failure?.Detail ?? "The replacement is not an impassable building.");
+            var blocker = RoofSupportSafety.Blocker(wall, out _);
+            return blocker == null ? null : ProtoBoundary.Fail(Common.FailureCode.WallReplacementStrandsRoof, blocker);
         }
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
@@ -224,7 +244,7 @@ namespace HomeBridge.BridgeTools
             if (!NativeConstructionPlan.Prepare(map, candidate, context, out var plan, out _, out var failure))
                 throw new InvalidOperationException("Placement became invalid: " + failure.Detail);
             var observed = plan.Proposed();
-            var placed = plan.Place(observed) ?? throw new InvalidOperationException("Native placement returned no object.");
+            var placed = plan.Place(observed, action.Building.ReplaceWall) ??throw new InvalidOperationException("Native placement returned no object.");
             if (action.Building.HasMinimumFinishingSkill) ConstructionSkillGuard.Set(placed, action.Building.MinimumFinishingSkill);
             if (action.Building.HasTier) ConstructionSkillGuard.SetTier(placed, action.Building.Tier);
             observed.OriginThingId = observed.CurrentThingId = placed.GetUniqueLoadID();

@@ -150,7 +150,82 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/remote_pickup", Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab (#2517). remote stages an unfunded wall frame at the map centre and three WoodLog stacks 40 cells east inside a stockpile strip (15, then 20 at 8 cells and 20 at 14 cells from the first); local stages a frame 30 cells west with two loose stacks near it and removes the stockpile; audit reads the delivered wood, loose stacks and carriers. Construction priority 1 and Hauling off for every colonist; all other wood is forbidden.")]
+        private static int replaceViolations, replaceTicks;
+        private static string replaceFirstViolation = "";
+
+        [Tool("test/wall_replacement", Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab (#2529). prepare stages a roofed 5x5 room inside a 7x7 steel wall ring at the map centre and a lone roofed steel pillar 20 cells east, builders outside the ring, and clears the violation count. run ticks the game n single ticks (each audited: the target cell impassable, the room still enclosed with 25 cells and no reach to the map edge); a replacement Frame is funded the tick it appears so only construction work remains. audit reads the cell without ticking.")]
+        public async Task<object> WallReplacement(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "audit", int x = 0, int z = 0, int ticks = 0)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || (action != "audit" && !Find.TickManager.Paused) || map.Size.x != 100 || map.Size.z != 100)
+                    return Refuse("A paused 100x100 disposable lab is required.");
+                var centre = map.Center;
+                var target = new IntVec3(x, 0, z);
+                if (action == "prepare") {
+                    var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed
+                        && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && p.workSettings != null).ToList();
+                    if (pawns.Count == 0) return Refuse("No capable lab builder.");
+                    foreach (var pawn in pawns) {
+                        pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                        pawn.Position = centre + new IntVec3(0, 0, -6);
+                        pawn.Notify_Teleported(true, true);
+                        pawn.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
+                        for (var hour = 0; hour < 24; hour++) pawn.timetable.SetAssignment(hour, TimeAssignmentDefOf.Work);
+                    }
+                    for (var dx = -3; dx <= 3; dx++)
+                        for (var dz = -3; dz <= 3; dz++) {
+                            var cell = centre + new IntVec3(dx, 0, dz);
+                            ClearWallCell(map, cell);
+                            if (Math.Abs(dx) == 3 || Math.Abs(dz) == 3) SpawnPlayerWall(map, cell);
+                            else map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed);
+                            map.areaManager.Home[cell] = true;
+                        }
+                    var pillar = centre + new IntVec3(20, 0, 0);
+                    foreach (var cell in GenAdj.CellsAdjacent8Way(new TargetInfo(pillar, map)).Concat(new[] { pillar })) {
+                        ClearWallCell(map, cell);
+                        map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed);
+                    }
+                    SpawnPlayerWall(map, pillar);
+                    replaceViolations = replaceTicks = 0; replaceFirstViolation = "";
+                } else if (action == "run") {
+                    var interior = centre;
+                    for (var i = 0; i < ticks; i++) {
+                        Find.TickManager.DoSingleTick();
+                        replaceTicks++;
+                        foreach (var frame in target.GetThingList(map).OfType<Frame>().ToList())
+                            if (frame.resourceContainer.TotalStackCount < 1)
+                                foreach (var cost in frame.TotalMaterialCost()) {
+                                    var stack = ThingMaker.MakeThing(cost.thingDef);
+                                    stack.stackCount = cost.count;
+                                    frame.resourceContainer.TryAdd(stack, true);
+                                }
+                        var room = interior.GetRoom(map);
+                        string problem = target.Impassable(map) ? null : "target cell passable";
+                        if (problem == null && (room == null || !room.ProperRoom || room.TouchesMapEdge || room.CellCount != 25)) problem = "room not enclosed";
+                        if (problem == null && map.reachability.CanReachMapEdge(interior, TraverseParms.For(TraverseMode.PassDoors))) problem = "interior reaches the map edge";
+                        if (problem != null) { replaceViolations++; if (replaceFirstViolation.Length == 0) replaceFirstViolation = "tick " + Find.TickManager.TicksGame + ": " + problem; }
+                        if (target.GetEdifice(map) is Building done && !(done is Frame) && done.Stuff == ThingDefOf.WoodLog && done.def == ThingDefOf.Wall) break;
+                    }
+                } else if (action != "audit") return Refuse("Unknown wall_replacement action.");
+                var edifice = target.GetEdifice(map);
+                var built = edifice != null && !(edifice is Frame);
+                var frameThing = target.GetThingList(map).OfType<Frame>().FirstOrDefault();
+                return new { success = true, centre = new { x = centre.x, z = centre.z }, ticks = replaceTicks, violations = replaceViolations, firstViolation = replaceFirstViolation,
+                    impassable = target.Impassable(map), builtDef = built ? edifice.def.defName : "", builtStuff = built ? edifice.Stuff?.defName ?? "" : "",
+                    blueprint = target.GetThingList(map).OfType<Blueprint_Build>().Any(),
+                    frameDef = frameThing?.def.defName ?? "", frameStandable = frameThing != null && frameThing.def.passability == Traversability.Standable };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static void SpawnPlayerWall(Map map, IntVec3 cell)
+        {
+            var wall = ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.Steel);
+            wall.SetFaction(Faction.OfPlayer);
+            GenSpawn.Spawn(wall, cell, map);
+        }
+
+        [Tool("test/remote_pickup",Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab (#2517). remote stages an unfunded wall frame at the map centre and three WoodLog stacks 40 cells east inside a stockpile strip (15, then 20 at 8 cells and 20 at 14 cells from the first); local stages a frame 30 cells west with two loose stacks near it and removes the stockpile; audit reads the delivered wood, loose stacks and carriers. Construction priority 1 and Hauling off for every colonist; all other wood is forbidden.")]
         public async Task<object> RemotePickup(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "audit")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {

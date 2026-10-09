@@ -91,6 +91,22 @@ ordered by wall depth. Normal pawn jobs supply the work and vanilla owns pawn
 displacement at completion. `wall/layers` covers the native ring, completion veto
 and pawn-on-frame outcome; Go tests cover section geometry.
 
+In-place wall replacement (#2529) swaps a built wall's stuff, or its def for
+another sharing the `Wall` replace tag, with the cell impassable at every tick.
+A `BuildingIntent` with `replace_wall` skips the wipe in `Place` and goes through
+`GenConstruct.PlaceBlueprintForBuild`: vanilla accepts the blueprint over the
+built wall (`CanReplace`) and, on the first delivery, wipes the wall and spawns
+the Frame in one synchronous call. The guard makes the standable wall Frame a
+new-ring-only rule: at `Install` it registers one Impassable clone of each wall
+Frame def (a Frame is saved by defName), and a `Blueprint_Build.MakeSolidThing`
+prefix uses the clone when a built player wall occupies the cell. Completing a
+clone is not vetoed, because it takes over a cell that was already impassable.
+Native refuses with `NO_WALL_TO_REPLACE` (no built wall), `WALL_REPLACEMENT_REFUSED`
+(vanilla refuses the blueprint, or the new def is not an impassable building) and
+`WALL_REPLACEMENT_STRANDS_ROOF`: the wipe fires `Notify_RoofHolderDespawned` and a
+Frame holds no roof, so the swap is allowed only where `RoofSupportSafety` finds
+other holders for every roofed cell the wall supports. `wall/replace` covers it.
+
 Every planned shell is an exact-cell `RoomFootprint`: a 4-connected interior of
 1..3844 cells away from the map edge, a wall ring of every non-interior cell touching
 the interior orthogonally or diagonally, and one door on the ring whose inward

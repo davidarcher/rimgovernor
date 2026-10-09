@@ -59,7 +59,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return errors.New("untiered building action")
 		}
 		value := int(tier)
-		setting := constructionSkillPayload{Target: a.ConstructionTarget(), Tier: &value}
+		setting := constructionSkillPayload{Target: a.ConstructionTarget(), Tier: &value, ReplaceWall: a.ReplacesWall()}
 		if minimum, hasMinimum := a.FinishingSkill().Value(); hasMinimum {
 			setting.Minimum = &minimum
 		}
@@ -1326,6 +1326,9 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		if e == nil {
 			a, e = a.WithTier(domain.ConstructionTier(*payload.Tier), payload.Target)
 		}
+		if e == nil && payload.ReplaceWall {
+			a, e = a.WithWallReplacement()
+		}
 		return a, ordinal, e
 	}
 	return domain.Action{}, 0, errors.New("invalid action payload")
@@ -1343,6 +1346,8 @@ type constructionSkillPayload struct {
 	Minimum *int `json:",omitempty"`
 	Tier    *int `json:",omitempty"`
 	Target  string
+	// ReplaceWall marks an in-place wall swap (#2529).
+	ReplaceWall bool `json:",omitempty"`
 }
 
 type workPayload struct {

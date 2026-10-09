@@ -31,5 +31,8 @@ func buildingAction(action domain.Action) (*o.Action, error) {
 	if action.ConstructionTarget() != "" {
 		intent.ExistingTargetId = proto.String(action.ConstructionTarget())
 	}
+	if action.ReplacesWall() {
+		intent.ReplaceWall = proto.Bool(true)
+	}
 	return &o.Action{Intent: &o.Action_Building{Building: intent}}, nil
 }

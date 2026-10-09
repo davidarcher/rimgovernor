@@ -45,3 +45,18 @@ func (a Action) WithTier(tier ConstructionTier, target string) (Action, error) {
 }
 
 func (a Action) Tier() Fact[ConstructionTier] { return a.tier }
+
+// WithWallReplacement marks a building action as an in-place swap of the
+// built wall at the cell (#2529): a vanilla replacement blueprint, the cell
+// impassable at every tick of the swap. Native refuses when no built wall
+// stands there, placement is refused, or the swap would drop a roof's last
+// holder. It never names an existing blueprint or frame to adopt.
+func (a Action) WithWallReplacement() (Action, error) {
+	if a.kind != BuildingAction || a.constructionTarget != "" {
+		return Action{}, errors.New("invalid wall replacement")
+	}
+	a.replaceWall = true
+	return a, nil
+}
+
+func (a Action) ReplacesWall() bool { return a.replaceWall }

@@ -28,4 +28,17 @@ func TestConstructionTierIsAlwaysSentAndReTiersExactTarget(t *testing.T) {
 	if _, err = place.WithTier(domain.ConstructionTier(6), ""); err == nil {
 		t.Fatal("tier above the ladder accepted")
 	}
+	if wire, _ := buildingAction(place); wire.GetBuilding().ReplaceWall != nil {
+		t.Fatalf("a plain placement must not carry the replacement flag: %v", wire)
+	}
+	swap, err := place.WithWallReplacement()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wire, err := buildingAction(swap); err != nil || !wire.GetBuilding().GetReplaceWall() || wire.GetBuilding().GetTier() != 4 {
+		t.Fatalf("wall replacement: %v %v", wire, err)
+	}
+	if _, err = retier.WithWallReplacement(); err == nil {
+		t.Fatal("a replacement may not adopt an existing target")
+	}
 }

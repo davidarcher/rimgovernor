@@ -81,6 +81,11 @@ enum FailureCode {
   FAILURE_CODE_NATIVE_FAILURE = 12;
   FAILURE_CODE_CANCELLED = 13;
   FAILURE_CODE_DEADLINE_EXCEEDED = 14;
+  // In-place wall replacement (#2529): no built wall at the cell, vanilla refuses
+  // the replacement blueprint, or the swap would drop a roof's last holder.
+  FAILURE_CODE_NO_WALL_TO_REPLACE = 15;
+  FAILURE_CODE_WALL_REPLACEMENT_REFUSED = 16;
+  FAILURE_CODE_WALL_REPLACEMENT_STRANDS_ROOF = 17;
 }
 
 // Used before command admission. An uncertain admitted write requires a receipt.

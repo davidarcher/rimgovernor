@@ -80,8 +80,11 @@ namespace HomeBridge.BridgeTools
         }
 
         // Call inside the admitted native authority scope. Every mutation uses ordinary architect behavior.
-        internal Thing Place(Receipts.ConstructionEffect observed)
+        internal Thing Place(Receipts.ConstructionEffect observed, bool replaceWall = false)
         {
+            // A wall replacement keeps the built wall standing: vanilla wipes it in the
+            // same call that turns the blueprint into a Frame, so the cell is never open.
+            if (replaceWall) return GenConstruct.PlaceBlueprintForBuild(Definition, Cell, Map, Rotation, Player, Stuff);
             var blueprint = Definition.blueprintDef;
             foreach (var frame in Map.thingGrid.ThingsListAt(Cell).OfType<Frame>().ToArray())
             {

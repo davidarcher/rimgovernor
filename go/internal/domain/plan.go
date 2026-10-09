@@ -95,6 +95,7 @@ type Action struct {
 	building            Building
 	finishingSkill      Fact[int]
 	constructionTarget  string
+	replaceWall         bool
 	tier                Fact[ConstructionTier]
 	draft               OwnedDraft
 	subdue              Subdue
@@ -226,6 +227,9 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			}
 			if err == nil {
 				canonical, err = canonical.WithTier(tier, a.constructionTarget)
+			}
+			if err == nil && a.replaceWall {
+				canonical, err = canonical.WithWallReplacement()
 			}
 		case OwnedDraftAction:
 			canonical, err = NewOwnedDraftAction(a.id, a.draft)
