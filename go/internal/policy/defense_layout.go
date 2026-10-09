@@ -90,6 +90,10 @@ type DefenseRequest struct {
 	// IEDs are the IED traps the approach tier may place, in
 	// preference order; empty places none.
 	IEDs []DefenseIED
+	// IEDMax is the threat demand (IEDBudget) and IEDStock the stock census
+	// the tier's summed IED cost must fit; unknown stock places none.
+	IEDMax   int
+	IEDStock domain.Fact[map[Resource]int64]
 	// FlammableStorage is every storage cell the IED tier's blast must not
 	// reach; unknown places no IED.
 	FlammableStorage domain.Fact[[]domain.Cell]
@@ -124,7 +128,18 @@ type DefenseTier struct {
 	Buildings []domain.Building
 	Reserved  []domain.Cell
 	Costs     domain.Fact[[]Amount]
+	// Gated names the gate (the Gate* reasons) that stopped the tier short
+	// of the positions the layout found; empty when nothing did.
+	Gated string `json:",omitempty"`
 }
+
+// DefenseGated is a tier a gate stopped short of the positions the layout
+// found; a tier the gate emptied entirely is otherwise absent from Tiers.
+type DefenseGated struct {
+	Tier   DefenseTierName
+	Reason string
+}
+
 type FiringPosition struct {
 	Cell, Cover, Retreat domain.Cell
 	Verified             bool
@@ -153,6 +168,8 @@ type DefenseLayout struct {
 	LinesVerified bool
 	// Approaches describes local routes and cover demand, not admitted orders.
 	Approaches DefenseApproaches
+	// Gated lists the gates that stopped the turret and IED tiers short.
+	Gated []DefenseGated `json:",omitempty"`
 }
 
 const (
@@ -781,13 +798,20 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 		}
 		layout.Turrets = candidates
 		layout.Tiers = append(layout.Tiers, turrets)
+		if turrets.Gated != "" {
+			layout.Gated = append(layout.Gated, DefenseGated{Tier: TierTurrets, Reason: turrets.Gated})
+		}
 	}
 	layout.Approaches = s.defenseApproaches(layout)
 	if bait := s.baitTier(layout); len(bait.Buildings) > 0 {
 		layout.Tiers = append(layout.Tiers, bait)
 	}
-	if ieds := s.iedTier(layout, costs); len(ieds.Buildings) > 0 {
+	ieds := s.iedTier(layout, costs)
+	if len(ieds.Buildings) > 0 {
 		layout.Tiers = append(layout.Tiers, ieds)
+	}
+	if ieds.Gated != "" {
+		layout.Gated = append(layout.Gated, DefenseGated{Tier: TierIEDs, Reason: ieds.Gated})
 	}
 	return layout, nil
 }

@@ -42,7 +42,7 @@ func turretReading() observation.RoundsReading {
 
 // TestDefenseTurretRequestBudgetsObservedRaidPoints proves the census's
 // raid-point reading reaches the request as the turret budget: the
-// bands step 2/4/6 through policy.TurretBudget, an unknown or NaN reading
+// demand grows 2 per 300 points from 2 through policy.TurretBudget, an unknown or NaN reading
 // keeps the base budget, and no other gate of the request moves with it.
 func TestDefenseTurretRequestBudgetsObservedRaidPoints(t *testing.T) {
 	t.Parallel()
@@ -56,7 +56,8 @@ func TestDefenseTurretRequestBudgetsObservedRaidPoints(t *testing.T) {
 		{"nan", domain.Known(math.NaN()), 2},
 		{"low", domain.Known(120.0), 2},
 		{"mid", domain.Known(450.0), 4},
-		{"high", domain.Known(1500.0), 6},
+		{"high", domain.Known(1500.0), 12},
+		{"past the old cap", domain.Known(6000.0), 42},
 	} {
 		read := turretReading()
 		read.Projection.Facts.RaidPoints = tc.points

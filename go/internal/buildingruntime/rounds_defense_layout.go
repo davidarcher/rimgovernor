@@ -660,6 +660,9 @@ func (r *RoundsDefenseLayoutPlanner) proposeMortars(call context.Context, state 
 	geometry := defenseMortarGeometry(*record)
 	record.MortarsProbedTick = projection.Identity.Tick
 	tier, err := policy.DefenseMortars(request, geometry)
+	if err == nil {
+		defenseTierGated(call, tier.Name, tier.Gated)
+	}
 	if err == nil && len(tier.Buildings) > 0 {
 		record.SetPolicyTier(tier)
 	}
@@ -998,6 +1001,9 @@ func (r *RoundsDefenseLayoutPlanner) proposeTurrets(call context.Context, state 
 	}
 	recordLayoutSnapshot(call, state.Snapshot, projection.Identity.Tick, snapshot.Layout{Point: snapshot.LayoutTurrets, Request: request, Geometry: geometry, Record: record})
 	tier, _, err := policy.DefenseTurrets(request, geometry)
+	if err == nil {
+		defenseTierGated(call, tier.Name, tier.Gated)
+	}
 	if err != nil || len(tier.Buildings) == 0 {
 		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
 	}
@@ -1242,6 +1248,9 @@ func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal s
 	}
 	if !layout.LinesVerified {
 		return policy.DefenseLayout{}, nil, fieldUnavailable("lines_of_fire"), false, nil
+	}
+	for _, g := range layout.Gated {
+		defenseTierGated(call, g.Tier, g.Reason)
 	}
 	return layout, request.Entrances, Verdict{}, true, nil
 }
@@ -1667,6 +1676,7 @@ func defenderRange(rows []*o.PawnState, arms armament) (int, domain.Fact[float64
 // census not yet held leaves storage unknown, which places no IED.
 func defenseIEDRequest(read observation.RoundsReading, request *policy.DefenseRequest) {
 	projection := read.Projection
+	request.IEDMax, request.IEDStock = policy.IEDBudget(projection.Facts.RaidPoints), projection.Resources
 	for _, d := range projection.Definitions {
 		if d.Name != defenseIEDHighExplosive && d.Name != defenseIEDIncendiary {
 			continue

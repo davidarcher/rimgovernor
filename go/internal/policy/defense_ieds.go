@@ -16,8 +16,21 @@ const (
 	// defenseIEDSpacing keeps IEDs two cells apart along the approach:
 	// PlaceWorker_NeverAdjacentTrap refuses a trap beside another.
 	defenseIEDSpacing = 2
-	defenseIEDMax     = 4
 )
+
+// IEDBudget is the number of approach IEDs the observed raid points demand:
+// the base two, plus one for every turretStepPoints. Unknown, NaN or
+// infinite threat keeps the base. Stock and the approach's free cells bound
+// what is placed.
+func IEDBudget(raidPoints domain.Fact[float64]) int {
+	points, known := raidPoints.Value()
+	if !known || math.IsNaN(points) || math.IsInf(points, 0) || points < turretStepPoints {
+		return iedBaseBudget
+	}
+	return iedBaseBudget + int(points/turretStepPoints)
+}
+
+const iedBaseBudget = 2
 
 // DefenseIED is one IED definition the research and content gates allow,
 // with its native explosive radius. Incendiary IEDs also keep that radius
@@ -74,7 +87,7 @@ func (s defenseSite) iedTier(l DefenseLayout, costs corridorCosts) DefenseTier {
 		taken[f.Cell], taken[f.Cover], taken[f.Retreat] = true, true, true
 	}
 	back := scale(directionOf(l.Toward), -1)
-	for k := int32(defenseIEDSpacing); k <= defenseIEDReach && len(tier.Buildings) < defenseIEDMax; k += defenseIEDSpacing {
+	for k := int32(defenseIEDSpacing); k <= defenseIEDReach; k += defenseIEDSpacing {
 		c := addCell(l.Entry, scale(back, k))
 		if !s.inRegion(c) || taken[c] || !s.free(c) || !s.passable(c) {
 			continue
@@ -95,6 +108,14 @@ func (s defenseSite) iedTier(l DefenseLayout, costs corridorCosts) DefenseTier {
 			tier.Reserved = append(tier.Reserved, c)
 			break
 		}
+	}
+	if len(tier.Buildings) > s.r.IEDMax {
+		tier.Buildings, tier.Reserved = tier.Buildings[:max(s.r.IEDMax, 0)], tier.Reserved[:max(s.r.IEDMax, 0)]
+		tier.Gated = GateIEDThreat
+	}
+	for len(tier.Buildings) > 0 && !stockCovers(s.r.UnitCosts, s.r.IEDStock, tier.Buildings) {
+		tier.Buildings, tier.Reserved = tier.Buildings[:len(tier.Buildings)-1], tier.Reserved[:len(tier.Reserved)-1]
+		tier.Gated = GateIEDStock
 	}
 	tier.Costs = tierCosts(s.r.UnitCosts, tier.Buildings)
 	return tier

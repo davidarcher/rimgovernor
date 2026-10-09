@@ -439,6 +439,32 @@ independent of building ownership: measured temperatures, enclosure, colonist
 presence, one repairable door site, heater sites and existing heaters, doorway/retreat
 cells) are omitted on ambiguous geometry or fog; unknown never means heat-ready.
 
+## Defense tier counts
+
+The turret, mortar and approach-IED tiers have no fixed ceiling. Each count is
+the smallest of four Go gates, and the gate that stops a tier short is named:
+
+| Tier | Threat demand (raid points) | Power | Stock | Geometry |
+|---|---|---|---|---|
+| Turrets | `TurretBudget`: 2, plus 2 per full 300 points; unknown, NaN or infinite keeps 2 | spare watts cover every turret's draw | steel and components for the turrets, then again with routed conduits | verified, spaced flank slots (`defenseMaxWidth` per side, two rows) |
+| Mortars | `MortarBudget`: none below 800 points, then 1, plus 1 per 1700 more | none (unpowered) | `stockCovers` the summed mortar cost | unroofed, spaced cells behind the line (`mortarBehindMin`..`Max`) |
+| IEDs | `IEDBudget`: 2, plus 1 per full 300 points | none | `IEDStock` covers the summed IED cost | free approach cells every `defenseIEDSpacing` out to `defenseIEDReach` |
+
+Kept constants are geometry, not caps: `defenseMaxWidth`, `defenseMaxDefenders`,
+`turretSpacing`, `conduitReach`, `defenseIEDReach`, `defenseIEDSpacing`,
+`mortarBehindMin`/`mortarBehindMax` (the native placement and blast rules they
+mirror). Turret line-of-sight candidates are every verified slot, bounded by that
+geometry. Native still reports its own placement refusals, handled as ordinary
+refusals (`placement_preview_refused`).
+
+A gate that cuts a tier journals `defense_action` / `refused` with the gate as
+`reason` (`turret_unavailable`, `turret_threat_budget`, `turret_power`,
+`turret_stock`, `turret_no_conduit_route`, `mortar_unavailable`,
+`mortar_threat_budget`, `mortar_stock`, `ied_threat_budget`, `ied_stock`) and the
+tier as `target`. `policy.DefenseTier.Gated` carries it; `DefenseLayout.Gated`
+also names an IED or turret tier a gate emptied. Count scaling and each gate are
+proven by Go snapshot tests (`defense_budget_test.go`, `defense_gates_test.go`).
+
 ## Defense approach demand
 
 `policy.DefenseLayout.Approaches` groups observed, Home-connected boundary cells into

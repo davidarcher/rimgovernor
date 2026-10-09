@@ -26,7 +26,7 @@ func TestMortarBudgetStepsWithRaidPoints(t *testing.T) {
 		want   int
 	}{
 		{domain.Unknown[float64](), 0}, {domain.Known(math.NaN()), 0}, {domain.Known(500.0), 0},
-		{domain.Known(float64(turretHighPoints)), 1}, {domain.Known(3000.0), 2},
+		{domain.Known(float64(turretHighPoints)), 1}, {domain.Known(3000.0), 2}, {domain.Known(5000.0), 3},
 	} {
 		if got := MortarBudget(tc.points); got != tc.want {
 			t.Fatalf("%v: %d want %d", tc.points, got, tc.want)

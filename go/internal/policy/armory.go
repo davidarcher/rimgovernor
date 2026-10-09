@@ -45,7 +45,7 @@ func (t ArmoryTier) String() string {
 // two match the turret budget's (TurretBudget) so defenses and gear scale
 // together.
 const (
-	armorySmithingPoints    = turretMidPoints
+	armorySmithingPoints    = turretStepPoints
 	armoryMachiningPoints   = turretHighPoints
 	armoryFabricationPoints = 2500
 )

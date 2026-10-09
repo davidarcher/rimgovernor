@@ -13,6 +13,10 @@ import (
 func iedFixture(ieds ...DefenseIED) DefenseRequest {
 	r := defenseFixture()
 	r.IEDs, r.FlammableStorage = ieds, domain.Known([]domain.Cell{})
+	r.IEDMax, r.IEDStock = 8, domain.Known(map[Resource]int64{"Steel": 1000})
+	for _, ied := range ieds {
+		r.UnitCosts[ied.Definition] = []Amount{{Resource: "Steel", Count: 10}}
+	}
 	return r
 }
 
@@ -62,6 +66,7 @@ func TestIncendiaryIEDsKeepClearOfPlayerBuildings(t *testing.T) {
 	// A high-explosive IED ignores a building that is not a door, route or
 	// storage.
 	r.IEDs = []DefenseIED{testHE}
+	r.UnitCosts[testHE.Definition] = []Amount{{Resource: "Steel", Count: 10}}
 	if got := iedPlacements(t, r); len(got) != 2 {
 		t.Fatal(got)
 	}

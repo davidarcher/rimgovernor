@@ -272,11 +272,6 @@ func TestDefenseTurretsAvoidLanesReservedAndUnknownCells(t *testing.T) {
 			t.Fatal("turret off the kill zone", c)
 		}
 	}
-	r = turretFixture()
-	r.Turret.Max = 65
-	if _, err = DefenseLayouts(r); err == nil {
-		t.Fatal("turret bound")
-	}
 }
 func TestDefenseTurretsSeeTheKillZoneNotTheEntry(t *testing.T) {
 	// The corridor's walls hide the entry from the kill zone: a slot that

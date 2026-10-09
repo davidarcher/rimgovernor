@@ -128,9 +128,6 @@ const (
 	// consumer connects to the nearest transmitter within six cells, so a
 	// chain of conduits need only end that close to the turret.
 	conduitReach = 6
-	// maxTurretCandidates bounds the positions probed for line of sight; it
-	// covers TurretBudget's hard cap so a stocked colony can fill it.
-	maxTurretCandidates = turretHardCap
 )
 
 func directionOf(r domain.Rotation) domain.Cell {
@@ -189,7 +186,7 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 	if q.Definition == "" {
 		return tier, nil, nil
 	}
-	if q.Conduit == "" || q.Max > 64 {
+	if q.Conduit == "" {
 		return DefenseTier{}, nil, errors.New("invalid turret request")
 	}
 	if len(g.Firing) == 0 || len(g.Approach) == 0 || !s.inRegion(g.Entry) {
@@ -260,9 +257,6 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 		}
 	}
 	for _, c := range positions {
-		if len(candidates) >= maxTurretCandidates {
-			break
-		}
 		if !clear(c) {
 			continue
 		}
@@ -286,8 +280,12 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 			verified = append(verified, c.Cell)
 		}
 	}
-	n := turretGate(s.r, len(verified))
+	n, gate := turretLimit(s.r, len(verified))
 	if n == 0 {
+		tier.Gated = gate
+		if len(verified) == 0 {
+			tier.Gated = ""
+		}
 		return tier, candidates, nil
 	}
 	transmitters := map[domain.Cell]bool{}
@@ -330,6 +328,7 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 			// No route to the network: the turret would stand dark, so
 			// the tier stops at the turrets it can power.
 			buildings = buildings[:len(buildings)-1]
+			gate = GateTurretRoute
 			break
 		}
 		for _, c := range chain {
@@ -345,7 +344,9 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 	// tier is re-checked against stock with them included.
 	for len(buildings) > 0 && !affordable(s.r, buildings) {
 		buildings = trimLastTurret(buildings, q.Definition)
+		gate = GateTurretStock
 	}
+	tier.Gated = gate
 	// Each turret reserves its whole footprint.
 	for _, b := range buildings {
 		if b.Definition() == q.Definition {
@@ -366,20 +367,47 @@ func (r DefenseRequest) TurretGatesOpen() bool { return turretGate(r, 1) > 0 }
 // gates allow: available definition, spare watts for every turret's draw,
 // and stock for the turrets alone (conduits are checked once routed).
 func turretGate(r DefenseRequest, verified int) int {
+	n, _ := turretLimit(r, verified)
+	return n
+}
+
+// Gated reasons: the gate that stopped a tier short of the positions the
+// layout found, journaled by the caller (defense_action).
+const (
+	GateTurretUnavailable = "turret_unavailable"
+	GateTurretThreat      = "turret_threat_budget"
+	GateTurretPower       = "turret_power"
+	GateTurretStock       = "turret_stock"
+	GateTurretRoute       = "turret_no_conduit_route"
+	GateMortarUnavailable = "mortar_unavailable"
+	GateMortarThreat      = "mortar_threat_budget"
+	GateMortarStock       = "mortar_stock"
+	GateIEDThreat         = "ied_threat_budget"
+	GateIEDStock          = "ied_stock"
+)
+
+// turretLimit is turretGate with the gate that cut the count below the
+// verified positions ("" when nothing did): the threat demand (Max), spare
+// watts, then stock.
+func turretLimit(r DefenseRequest, verified int) (int, string) {
 	q := r.Turret
 	available, ak := q.Available.Value()
 	draw, dk := q.DrawW.Value()
 	spare, sk := q.SpareW.Value()
-	if !ak || !available || !dk || !sk || draw < 0 || q.Max <= 0 {
-		return 0
+	if !ak || !available || !dk || !sk || draw < 0 {
+		return 0, GateTurretUnavailable
 	}
-	n := q.Max
-	if n > verified {
-		n = verified
+	if q.Max <= 0 {
+		return 0, GateTurretThreat
+	}
+	n, gate := q.Max, GateTurretThreat
+	if n >= verified {
+		n, gate = verified, ""
 	}
 	if draw > 0 {
 		for n > 0 && float64(n)*draw > spare {
 			n--
+			gate = GateTurretPower
 		}
 	}
 	for n > 0 {
@@ -387,7 +415,7 @@ func turretGate(r DefenseRequest, verified int) int {
 		for i := 0; i < n; i++ {
 			b, err := domain.NewBuilding(q.Definition, domain.Cell{}, domain.North, q.Stuff)
 			if err != nil {
-				return 0
+				return 0, GateTurretUnavailable
 			}
 			turrets = append(turrets, b)
 		}
@@ -395,8 +423,9 @@ func turretGate(r DefenseRequest, verified int) int {
 			break
 		}
 		n--
+		gate = GateTurretStock
 	}
-	return n
+	return n, gate
 }
 
 // affordable reports whether the stock census covers the buildings' summed
