@@ -124,16 +124,6 @@ func HorseshoesLane(f InteriorFrame) Rectangle {
 	return Rectangle{X: CentreStart(f.Width, 1) - 1, Z: f.Depth - f.Dining.Lane, Width: 3, Height: f.Dining.Lane - 1}
 }
 
-// MoodUnownedThought reports whether the thought is removable environment
-// pressure no goal owns.
-func MoodUnownedThought(def string) bool { return moodUnownedThoughts[def] }
-
-// MoodProvisionOwners names the goals whose facility removes the thought,
-// if the catalog knows any.
-func MoodProvisionOwners(def string) []ConcernID {
-	return append([]ConcernID(nil), moodProvisionOwners[def]...)
-}
-
 // WoodProposals: each designatable tree is one cut.
 func WoodProposals(goal ConcernID, method domain.MethodID, definition string, trees []string, eligible domain.Fact[bool]) []ReadyProposal {
 	var out []ReadyProposal

@@ -42,10 +42,10 @@ type MoodState struct {
 	// pawn's dominant environment thought pressure (moodProvisioning); empty
 	// when need relief is the only measured response.
 	Provision []MoodProvision
-	// Unowned names the removable environment thoughts no goal owns
-	// (moodUnowned) when they dominate the pawn's pressure instead; the
-	// method proposal is then the explicit MoodUnowned blocker once no
-	// measured relief remains.
+	// Unowned is the pawn's slice of the ledger's unowned bucket: negative
+	// thoughts with no audited owner (moodUnowned), recorded when owned
+	// provisioning does not apply; the method proposal is then the explicit
+	// MoodUnowned blocker once no measured relief remains.
 	Unowned []MoodThought
 }
 
@@ -87,7 +87,12 @@ func (h MoodHistory) Validate() error {
 		if err := validateMoodProvision(s.Provision); err != nil {
 			return err
 		}
-		if err := validateMoodUnowned(s.Unowned); err != nil {
+		for i, t := range s.Unowned {
+			if len(thoughtOwners(t.Def)) > 0 || t.Offset >= 0 || i > 0 && s.Unowned[i-1].Offset > t.Offset {
+				return errors.New("invalid mood unowned thought")
+			}
+		}
+		if err := validateMoodThoughts(domain.Known(s.Unowned)); err != nil {
 			return err
 		}
 		if len(s.Provision) > 0 && len(s.Unowned) > 0 {
@@ -311,7 +316,7 @@ const (
 	// facility removes, so a native relief job would not clear it.
 	MoodProvisioned MoodMethodReason = "facility_provision"
 	// MoodUnowned is the explicit blocker for pressure dominated by a
-	// removable environment thought no goal owns (SleptInBarracks): no
+	// thought no goal owns (SleptInBarracks, social memories): no
 	// measured need relief remains and no facility goal can be raised, so
 	// the goal names the thought (Thought) and waits on native recovery.
 	MoodUnowned MoodMethodReason = "unowned_thought_pressure"

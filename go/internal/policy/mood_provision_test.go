@@ -88,7 +88,7 @@ func TestMoodProvisionValidation(t *testing.T) {
 		t.Fatal("duplicate owner accepted")
 	}
 	for _, def := range []string{"AteWithoutTable", "NeedJoy", "SleptOutside", "SleptOnGround", "EnvironmentDark", "EnvironmentCold", "EnvironmentHot", "NeedBeauty", "NeedRoomSize"} {
-		owners := MoodProvisionOwners(def)
+		owners := thoughtOwners(def)
 		if len(owners) == 0 {
 			t.Fatal(def)
 		}
@@ -98,12 +98,12 @@ func TestMoodProvisionValidation(t *testing.T) {
 			}
 		}
 	}
-	if len(MoodProvisionOwners("SleptInBarracks")) > 0 || !MoodUnownedThought("SleptInBarracks") {
+	if len(thoughtOwners("SleptInBarracks")) > 0 {
 		t.Fatal("bedrooms have no owner goal")
 	}
-	s = MoodState{Pawn: moodPawn(), Active: true, Unowned: []MoodThought{{"Insulted", -5}}}
+	s = MoodState{Pawn: moodPawn(), Active: true, Unowned: []MoodThought{{"NeedJoy", -5}}}
 	if err := (MoodHistory{States: []MoodState{s}}).Validate(); err == nil {
-		t.Fatal("owned or social thought accepted as unowned pressure")
+		t.Fatal("owned thought accepted as unowned pressure")
 	}
 	s.Unowned = []MoodThought{{"SleptInBarracks", -5}}
 	s.Provision = []MoodProvision{{EnsureComfort, -20}}
@@ -121,7 +121,7 @@ func TestMoodUnownedThoughtBlocker(t *testing.T) {
 		t.Fatal(h)
 	}
 	s := h.States[0]
-	if len(s.Provision) != 0 || len(s.Unowned) != 1 || s.Unowned[0] != (MoodThought{"SleptInBarracks", -5}) {
+	if len(s.Provision) != 0 || len(s.Unowned) != 2 || s.Unowned[0] != (MoodThought{"SleptInBarracks", -5}) || s.Unowned[1] != (MoodThought{"Insulted", -3}) {
 		t.Fatalf("unowned pressure not recorded: %+v", s)
 	}
 	if MoodProvisionDeficits(h) != nil {
@@ -162,9 +162,9 @@ func TestMoodUnownedThoughtBlocker(t *testing.T) {
 	if len(h.States[0].Provision) == 0 || len(h.States[0].Unowned) != 0 {
 		t.Fatalf("provisioned pawn also marked unowned: %+v", h.States[0])
 	}
-	p.Thoughts = domain.Known([]MoodThought{{"SleptInBarracks", -2}, {"Insulted", -5}})
-	if h = moodReview(t, p, MoodHistory{}); len(h.States[0].Unowned) != 0 {
-		t.Fatal("non-dominant unowned pressure recorded", h.States[0].Unowned)
+	p.Thoughts = domain.Known([]MoodThought{{"Insulted", -5}, {"NeedJoy", 4}})
+	if h = moodReview(t, p, MoodHistory{}); len(h.States[0].Unowned) != 1 || h.States[0].Unowned[0].Def != "Insulted" {
+		t.Fatal("social memory missing from the unowned bucket", h.States[0].Unowned)
 	}
 	p.Thoughts = domain.Known([]MoodThought{{"SleptInBarracks", -5}})
 	h = moodReview(t, p, MoodHistory{})

@@ -55,13 +55,15 @@ active with a deficit the planner falls back to the measured need method. An
 unreadable social block keeps the previous provisioning; a readable one with no such
 pressure clears it.
 
-`SleptInBarracks` is removable pressure no concern owns (nothing builds private
-bedrooms): when it dominates a pawn's negative offset the mood state records it
-(`Unowned`) and, once no measured need method remains, the proposal is the explicit
-`unowned_thought_pressure` blocker naming the thought instead of
-`no_measured_correctable_need`; measured relief runs first. Apparel and social
-memories stay native relief and recovery evidence. Every review that provisions
-`EnsureComfort` must rank it with a deficit at least the provisioned fraction
+The owner of a thought is the audit table's `owner` column (see below); there is no
+second table in code. Every negative thought with an empty owner, or no table row at
+all, is **unowned**: when owned provisioning does not apply, the pawn's mood state
+records its unowned thoughts (`Unowned`, most negative first) and, once no measured
+need method remains, the proposal is the explicit `unowned_thought_pressure` blocker
+naming the largest instead of `no_measured_correctable_need`; measured relief runs
+first. Apparel and social memories are unowned in this sense but stay native relief and
+recovery evidence. Every review that provisions `EnsureComfort` must rank it with a
+deficit at least the provisioned fraction
 (snapshot-tested). Schedules are never written. Social recreation, tolerated
 recreation kinds and environmental eligibility remain native job-giver choices.
 Thoughts without a measured eligible corrective method produce an explicit blocker,
@@ -93,12 +95,32 @@ owner column, so neither policy nor the bridge imports the other for it). The br
 `policy.ThoughtFacts`: `WorstOffset` (lowest stage `BaseMoodEffect`; null stages skipped),
 `NullifyingTraits`, `NullifyingPrecepts`, `RequiredTraits`, `MinExpectation`, `Dependency` and
 `Owner`. A def with no table row (modded, or new since the last regeneration) gets the
-dependency `unclassified` and no owner. Policy stays catalog-free; nothing reads the facts
-until the mood ledger.
+dependency `unclassified` and no owner. Policy stays catalog-free.
 
 There is no check mode; a stale row shows as unowned. Modded thoughts are out of scope.
-`moodProvisionOwners` keys `HighExpectations`, `SkyHighExpectations` and `AteAwfulMeal`
-are not ThoughtDefs in the installed game, so the table has no rows for them.
+`HighExpectations`, `SkyHighExpectations` and `AteAwfulMeal` are not ThoughtDefs in the
+installed game, so the table has no rows for them and no owner entry exists; high
+expectations reach the review only through the pawn's `HighExpectations` flag.
+
+### Mood ledger
+
+`policy.BuildMoodLedger` (pure) turns pawns' thought rows (`MoodLedgerPawn`: the
+`MoodThought` rows plus traits, precepts and expectation level as facts) and a
+`map[def]ThoughtFacts` into:
+
+- per pawn, the mood lost per thought: negative offsets only, most negative first, after
+  dropping thoughts the pawn cannot carry (a nullifying trait or precept, a missing
+  required trait, an expectation below `MinExpectation`); unknown when the pawn's thoughts
+  are unreadable;
+- per colony thought, `Pawns` affected and summed `Lost`, ranked most negative first,
+  with the audit owners;
+- `Unowned`, the same ranking restricted to thoughts with no owner;
+- the expectation levels by pawn count, shown only (no concern fixes it).
+
+An unknown attribute or a def without facts never drops or zeroes a loss: the observed
+row counts and the source's `Unverified` count rises. The review still runs on the audit
+table alone; production does not yet pass `ThoughtFacts` or pawn traits, precepts and
+expectation to the ledger.
 
 ## Relief jobs
 

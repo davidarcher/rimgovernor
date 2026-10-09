@@ -24,51 +24,6 @@ type MoodProvision struct {
 	Offset  float64
 }
 
-// moodProvisionOwners maps the removable environment thoughts to the goals
-// whose facility removes them; a thought names every goal that provides
-// the facility (the foothold table/seat/recreation goal and the ranked
-// hosted-room one both remove the dining and recreation thoughts), and
-// each active one is raised. Everything else (ugly apparel, social
-// memories) is left to native relief and the pawn's own recovery.
-var moodProvisionOwners = map[string][]ConcernID{
-	"HighExpectations":    {EnsureCooking},
-	"SkyHighExpectations": {EnsureCooking},
-	"AteRawFood":          {EnsureCooking},
-	"AteAwfulMeal":        {EnsureCooking},
-	"AteWithoutTable":     {EnsureComfort},
-	"NeedJoy":             {EnsureComfort},
-	"SleptOutside":        {MaintainHousing},
-	"SleptOnGround":       {MaintainHousing},
-	"EnvironmentDark":     {MaintainLighting},
-	"EnvironmentCold":     {EnsureTemperatureSafety},
-	"EnvironmentHot":      {EnsureTemperatureSafety},
-	"NeedBeauty":          {MaintainCleanFacilities},
-	"NeedRoomSize":        {MaintainHousing},
-}
-
-// moodUnownedThoughts are the removable environment thoughts no goal owns
-// a facility for: a private bedroom would clear SleptInBarracks, but no
-// goal builds bedrooms (MaintainHousing stages hosted beds and the game
-// scores the room by count). When they dominate a pawn's pressure
-// the mood goal records them (MoodState.Unowned) and, with no measured
-// relief left, proposes the explicit MoodUnowned blocker instead of
-// reporting no cause.
-var moodUnownedThoughts = map[string]bool{
-	"SleptInBarracks": true,
-}
-
-// MoodProvisionGoal reports whether the catalog can name the goal as an owner.
-func MoodProvisionConcern(goal ConcernID) bool {
-	for _, owners := range moodProvisionOwners {
-		for _, owner := range owners {
-			if owner == goal {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // Better meals can offset high-expectation mood pressure; they do not remove
 // the expectation itself. Only an observed deficit requests this lever.
 func mealMoodProvision(p MoodPawn, rows []MoodProvision) []MoodProvision {
@@ -108,23 +63,6 @@ func validateMoodThoughts(f domain.Fact[[]MoodThought]) error {
 	return nil
 }
 
-func validateMoodUnowned(rows []MoodThought) error {
-	if len(rows) > 8 {
-		return errors.New("mood unowned thoughts exceed bound")
-	}
-	seen := map[string]bool{}
-	for i, t := range rows {
-		if !moodUnownedThoughts[t.Def] || seen[t.Def] || math.IsNaN(t.Offset) || math.IsInf(t.Offset, 0) || t.Offset >= 0 {
-			return errors.New("invalid mood unowned thought")
-		}
-		if i > 0 && rows[i-1].Offset > t.Offset {
-			return errors.New("mood unowned thoughts out of order")
-		}
-		seen[t.Def] = true
-	}
-	return nil
-}
-
 func validateMoodProvision(rows []MoodProvision) error {
 	if len(rows) > 8 {
 		return errors.New("mood provision exceeds bound")
@@ -158,7 +96,7 @@ func moodProvisioning(f domain.Fact[[]MoodThought]) []MoodProvision {
 			continue
 		}
 		total += t.Offset
-		owners := moodProvisionOwners[t.Def]
+		owners := thoughtOwners(t.Def)
 		if len(owners) > 0 {
 			owned += t.Offset
 		}
@@ -178,40 +116,6 @@ func moodProvisioning(f domain.Fact[[]MoodThought]) []MoodProvision {
 			return result[i].Offset < result[j].Offset
 		}
 		return result[i].Concern < result[j].Concern
-	})
-	return result
-}
-
-// moodUnowned reduces a pawn's observed negative thoughts to the removable
-// environment thoughts no goal owns, most negative first, when those
-// dominate: they carry at least half of the pawn's total negative offset.
-// Owned provisioning takes precedence (moodProvisioning), so a pawn is
-// never both provisioned and blocked.
-func moodUnowned(f domain.Fact[[]MoodThought]) []MoodThought {
-	rows, known := f.Value()
-	if !known {
-		return nil
-	}
-	total, unowned := 0.0, 0.0
-	var result []MoodThought
-	for _, t := range rows {
-		if t.Offset >= 0 {
-			continue
-		}
-		total += t.Offset
-		if moodUnownedThoughts[t.Def] {
-			unowned += t.Offset
-			result = append(result, t)
-		}
-	}
-	if unowned >= 0 || unowned > total/2 {
-		return nil
-	}
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].Offset != result[j].Offset {
-			return result[i].Offset < result[j].Offset
-		}
-		return result[i].Def < result[j].Def
 	})
 	return result
 }
