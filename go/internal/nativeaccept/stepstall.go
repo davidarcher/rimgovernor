@@ -9,7 +9,7 @@ import (
 )
 
 // StepStallError is Run's fail-fast verdict when RunConfig.StepStall elapsed
-// without any scheduler step admitting a clock window (issue #103). It names
+// without any scheduler step admitting a clock window. It names
 // the family selection the service ran with and the last step failure the
 // clock worker recorded, so a starved step budget reads as such instead of as
 // twenty minutes of an unchanged EnsureFoodSupply timeline.

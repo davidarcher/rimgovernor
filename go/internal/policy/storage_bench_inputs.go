@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Workstation stockpiles (#1775): one generic bench-input rule. A bench that
+// Workstation stockpiles: one generic bench-input rule. A bench that
 // works a standing bill consumes stored inputs (stone chunks at the
 // stonecutter, ingredients at every other bench), so a small stockpile
 // holding exactly those inputs stands in the bench's room, nearest the bench

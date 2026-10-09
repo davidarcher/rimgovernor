@@ -12,7 +12,7 @@ import (
 )
 
 // A step's N dispatches all run deferred and the step flushes once, on a
-// normal end, on a budget yield and on a dispatch error (#1274); a step
+// normal end, on a budget yield and on a dispatch error; a step
 // that dispatches nothing does not flush.
 func TestWorkerDefersDispatchesAndFlushesOncePerStep(t *testing.T) {
 	t.Parallel()

@@ -10,9 +10,9 @@ import (
 )
 
 // PackedItem is one spawned, unheld packed (minified) item and the building
-// inside it; a RelocateIntent on Inner installs it (#830).
+// inside it; a RelocateIntent on Inner installs it.
 // Quality (QualityCategory ordinal, QualityKnown false without one) and
-// MarketValue rank art stock for the trade selector (#1194).
+// MarketValue rank art stock for the trade selector.
 type PackedItem struct {
 	ID, Inner, InnerDef string
 	Quality             int32

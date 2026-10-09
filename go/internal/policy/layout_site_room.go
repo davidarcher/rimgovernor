@@ -12,7 +12,7 @@ const siteRoomCandidates = 12
 // clearance. Throne, child, gear, storage, incinerator and battery rooms all
 // come through it, so a new generator replaces this body and nothing else. A
 // plan with no core ground or no slot for any size is returned as it is, with
-// an error naming the room that could not be placed and why (#1799).
+// an error naming the room that could not be placed and why.
 //
 // Slots are scored as the initial siting scores a plan (planScorer.core: soil,
 // rock to dig, the walk from the spawn edge through the dug rock, footprint,

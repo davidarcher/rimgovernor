@@ -15,7 +15,7 @@ import (
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// stripMethodPrefix names a fight's strip of one downed raider (#1079):
+// stripMethodPrefix names a fight's strip of one downed raider:
 // an ActiveCombat method beside the open fight, its plan one strip action.
 const stripMethodPrefix = "strip-"
 
@@ -23,7 +23,7 @@ const stripMethodPrefix = "strip-"
 const stripJob = "Strip"
 
 // postFight keeps the fight open after the raid until its downed raiders
-// are handled (#1079): every one is stripped (a strip method at a time),
+// are handled: every one is stripped (a strip method at a time),
 // then one not CaptureWorthy is finished by its stripper, drafted and
 // given the attack order; a worthy one is left for the custody capture.
 // held says the fight stays open; the result is this stop's.

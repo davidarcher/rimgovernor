@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Door-to-door walkability (#801). Pawns walk a room's free floor; a piece
+// Door-to-door walkability. Pawns walk a room's free floor; a piece
 // may not cut the aisle between its doors, wall off any floor, or stand on
 // another piece's interaction cell. Reachability is over orthogonal steps,
 // the conservative reading of RimWorld's no-corner-cutting pathing.

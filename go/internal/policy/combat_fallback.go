@@ -7,10 +7,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// scatterCells is how far a scattering defender runs from the raid (#1077).
+// scatterCells is how far a scattering defender runs from the raid.
 const scatterCells = 20
 
-// scatter is the hold's last resort (#1077). The line collapses when the
+// scatter is the hold's last resort. The line collapses when the
 // fight is outmatched and most of the hold-the-line cells defenders once
 // stood on are lost (their defenders downed or pushed off): every live
 // role then drops its target and runs scatterCells away from the live
@@ -115,10 +115,10 @@ func queueRepairs(view CombatView, m *CombatMemory, at map[domain.PawnID]domain.
 	}
 }
 
-// StopSeriousInjury is the #849 stop for a colonist's serious hit.
+// StopSeriousInjury is the combat stop for a colonist's serious hit.
 const StopSeriousInjury CombatStopKind = "serious_injury"
 
-// fallBack is the reaction table's pull-back row (#860). On a held line
+// fallBack is the reaction table's pull-back row. On a held line
 // whose layout records an inner line: a breach or a compromised line pulls
 // every defender back to its Retreat cell, and a serious injury pulls the
 // hurt defender back alone. A role once pulled back stays on the inner

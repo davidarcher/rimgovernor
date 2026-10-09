@@ -16,8 +16,7 @@ import (
 // goals.
 const maxActiveProjects = 512
 
-// ProjectState is one Project row and the methods bound to it (#1926, epic
-// #1911). Its methods live in methods with project_id set instead of
+// ProjectState is one Project row and the methods bound to it. Its methods live in methods with project_id set instead of
 // standard_id, epoch "0", and go through the same admission. Revision is a local
 // CAS token, as a goal's.
 type ProjectState struct {

@@ -14,7 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Planner is one planner step as recorded (#745): the pure decisions it
+// Planner is one planner step as recorded: the pure decisions it
 // made and the inputs each took, the native site reads among them. The
 // rounds's facts (Routine) say which goals open; this says how an excavation
 // proceeds, which the planner decides from its own colony read at step time.
@@ -33,7 +33,7 @@ type Planner struct {
 	ShrineReadiness []policy.ShrineReadinessRequest
 	// ResourceMethods is every policy.SelectResourceMethod request: the
 	// fresh bench census and ingredient stock a production bill is chosen
-	// from (#894).
+	// from.
 	ResourceMethods []policy.ResourceMethodRequest
 	// Workshops is every policy.SelectWorkshopBench request: the recipe
 	// catalog and bench census a workshop bench is chosen from.

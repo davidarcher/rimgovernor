@@ -6,9 +6,9 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // from: each medical bed is one unit of traffic.
 const maxMedicineHaulConsumers = 64
 
-// medicineStore is the hospital's medicine store (#1776, #2219): a 2x2 inside
+// medicineStore is the hospital's medicine store: a 2x2 inside
 // the first planned hospital, nearest the template's bed slots by
-// traffic-weighted walking distance (#723), off the planned beds and monitors.
+// traffic-weighted walking distance, off the planned beds and monitors.
 // Without bed slots (no template fit) it sits nearest the hospital's door.
 func (r StoreView) medicineStore() (Store, bool) {
 	if r.Layout == nil {

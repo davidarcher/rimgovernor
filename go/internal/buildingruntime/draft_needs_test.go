@@ -26,7 +26,7 @@ func draftedRow(id, job string) *n.PawnState {
 }
 
 // The sweep undrafts only drafted colonists no plan needs and no custody
-// job holds (#939).
+// job holds.
 func TestUndraftCandidatesSkipNeededAndCustody(t *testing.T) {
 	t.Parallel()
 	undrafted := draftedRow("idle-undrafted", "Wait")
@@ -125,7 +125,7 @@ func TestPlannedDraftsCoversInFlightAndFights(t *testing.T) {
 	}
 }
 
-// #1151: a fight whose admission batch went out uncertain (dispatched, no
+// A fight whose admission batch went out uncertain (dispatched, no
 // receipt) holds its whole intended roster; once it closes and its drafts
 // settle, another plan's owned draft on a rostered pawn keeps that pawn
 // drafted. The fight row is keyed by plan, so closing it frees nothing

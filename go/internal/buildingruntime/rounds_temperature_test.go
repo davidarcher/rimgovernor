@@ -89,7 +89,7 @@ func TestTemperatureNativeWorkBudgetCountsFromTheApplyReceipt(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// The apply receipt settles the building (#856): the budget runs
+		// The apply receipt settles the building: the budget runs
 		// from its tick.
 		state.Progress[0] = progress
 		for _, row := range []struct {
@@ -260,7 +260,7 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 				}
 			}
 			// Planners plan from the review's census, so the review must
-			// observe the mutation before the planner steps (#75).
+			// observe the mutation before the planner steps.
 			if _, err := p.reviewer.Step(context.Background()); err != nil {
 				t.Fatal(err)
 			}
@@ -268,7 +268,7 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// A spilled footprint or a missing builder is not resolved by ticks (#66).
+			// A spilled footprint or a missing builder is not resolved by ticks.
 			if result.Decision.Admitted || result.NativeWorkTicks != 0 {
 				t.Fatal(result)
 			}

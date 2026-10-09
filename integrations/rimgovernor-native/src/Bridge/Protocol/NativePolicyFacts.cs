@@ -10,7 +10,7 @@ using static HomeBridge.BridgeTools.NativePawnObservationTools;
 
 namespace HomeBridge.BridgeTools
 {
-    // Policy databases and per-pawn policy inputs (#1297). Read-only: the
+    // Policy databases and per-pawn policy inputs. Read-only: the
     // bot's per-pawn policy planners compose their writes from these.
     internal static class NativePolicyFacts
     {

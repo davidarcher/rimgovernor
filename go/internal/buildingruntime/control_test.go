@@ -37,14 +37,14 @@ func (s *controlSink) UpdateAuthority(v executor.Authority) error {
 }
 func (s *controlSink) enabled() bool { s.mu.Lock(); defer s.mu.Unlock(); return s.value.Enabled }
 
-// controlNative fakes the native side's Mode+generation authority (see #52):
+// controlNative fakes the native side's Mode+generation authority:
 // there is no session/lease negotiation any more, just an Active/Inactive Mode
 // and a generation counter that bumps on every SetMode/Revoke.
 type controlNative struct {
 	mu         sync.Mutex
 	generation uint64
 	active     bool
-	// renews stays at zero: there is no renewal handshake any more (see #52),
+	// renews stays at zero: there is no renewal handshake any more,
 	// but it is kept so sibling test files that assert "renew never happened"
 	// still compile and hold.
 	acquires, renews, revokes atomic.Int32
@@ -458,11 +458,11 @@ func TestControlAcquireReclaimsStaleAutoFromDeadProcess(t *testing.T) {
 // A Disable from outside the gate (the clock poll on a gap, an interrupting
 // event or a pending hold) cancels the epoch an Acquire's status read runs
 // under. Nothing has been written yet, so the read starts over under the next
-// epoch instead of reporting an uncertain outcome (#206); a caller's own
+// epoch instead of reporting an uncertain outcome; a caller's own
 // cancellation still ends it.
 // The clock poll ingests the AuthorityChanged event Manual's own revoke
 // raises and calls Disable on it; Disable replaces the control epoch.
-// Manual's owned cleanup must still run under a live call (#322).
+// Manual's owned cleanup must still run under a live call.
 func TestControlManualSurvivesConcurrentDisable(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -552,7 +552,7 @@ func TestControlAcquireRestartsObservationAfterConcurrentDisable(t *testing.T) {
 
 // A grant this process accepted and disabled locally (a clock hold) is
 // re-acquired in place: one SetMode at the held generation, no revoke, one
-// generation advanced (#259). An observed revocation clears the held grant.
+// generation advanced. An observed revocation clears the held grant.
 func TestControlAcquireReacquiresOwnHeldGrantInOneGeneration(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

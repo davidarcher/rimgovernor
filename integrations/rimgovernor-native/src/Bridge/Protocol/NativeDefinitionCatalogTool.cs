@@ -15,7 +15,7 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // The definition catalog (#1340): the static planning facts of every
+    // The definition catalog: the static planning facts of every
     // buildable or sowable definition and every research project. They hold
     // for the whole load, so the controller reads them once per load token
     // and frames carry only per-map, per-tick values.
@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
             var catalog = new Obs.DefinitionCatalog { Context = context };
             foreach (var def in DefDatabase<ResearchProjectDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName)).OrderBy(d => d.defName, StringComparer.Ordinal))
                 catalog.Research.Add(NativeResearchObservationTools.Static(def, player));
-            // Every def with all its fields (#1730), by protobuf reflection over the
+            // Every def with all its fields, by protobuf reflection over the
             // generated messages. An unmapped field throws and fails the read.
             var mirror = new DefMirrorFill();
             foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
@@ -94,7 +94,7 @@ namespace HomeBridge.BridgeTools
             return catalog;
         }
 
-        // Every def of each class DefSets mirrors (#1761), by exact class and in
+        // Every def of each class DefSets mirrors, by exact class and in
         // defName order. A concrete def class the mirror has no field for (a mod's)
         // fails the read naming it.
         private static Defs.DefSets DefSets(DefMirrorFill mirror)
@@ -132,7 +132,7 @@ namespace HomeBridge.BridgeTools
             return sets;
         }
 
-        // The game's own GetStatValueAbstract(stat, stuff) (#1759) for every
+        // The game's own GetStatValueAbstract(stat, stuff) for every
         // ThingDef: once per allowed stuff when the def is made from stuff, once
         // with no stuff otherwise. A stat the game does not show for the def
         // (StatWorker.ShouldShowFor) is left out of its row, except the planner

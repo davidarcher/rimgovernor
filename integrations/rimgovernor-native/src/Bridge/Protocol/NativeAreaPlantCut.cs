@@ -10,14 +10,14 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // AreaPlantCutIntent on Actions/Apply (#1547):
+    // AreaPlantCutIntent on Actions/Apply:
     // every non-crop plant on cells is ordered cut, wild plants with
     // CutPlant and a harvestable tree with chop-wood (HarvestPlant), the way
     // NativeClearCover chooses. Plants in a growing zone or on a plant
     // grower and sown crops are never touched; there is no cover-fill
     // requirement. A fogged cell, a cell with nothing to cut and a plant
     // already designated are no-ops. The firebreak reads standing plants from the
-    // mirror, not from native (#2273).
+    // mirror, not from native.
     internal static class NativeAreaPlantCut
     {
         internal const int MaxCells = 1024;

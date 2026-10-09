@@ -9,7 +9,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // AreaIntent on Actions/Apply (#1321): create, edit or delete one
+    // AreaIntent on Actions/Apply: create, edit or delete one
     // bot-owned Area_Allowed, or edit the home area. A bot area is the
     // Area_Allowed labelled with its key (combat animal areas are
     // "Combat <id>"); a player area is never resolved, so never touched.

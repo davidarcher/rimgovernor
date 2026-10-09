@@ -14,9 +14,9 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// MaintainPsylink (#1609, epic #1598): each review finds the willing
+// MaintainPsylink: each review finds the willing
 // colonists with no psylink (policy.PsylinkCandidates) and the untitled ones
-// below the level cap (policy.PsylinkLevelUps, #1940) and, while one waits,
+// below the level cap (policy.PsylinkLevelUps) and, while one waits,
 // reads the held neuroformer items. The planner orders one colonist to use
 // one neuroformer on itself (UseItem with the pawn as its own target),
 // colonists with no psylink first. The neuroformer itself is acquired by

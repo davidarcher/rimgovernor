@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 )
 
-// IncidentID names one occurrence of a Response (#1019).
+// IncidentID names one occurrence of a Response.
 type IncidentID string
 
 // MintIncidentID mints a fresh incident id when an occurrence opens.

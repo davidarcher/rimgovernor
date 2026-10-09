@@ -10,7 +10,7 @@ import (
 // CaravanDeparture is explicit intent to form and send one already-selected
 // crew, carrying an already-composed pack (journey food included, by
 // definition), toward one already-scouted world tile. It is a
-// FormCaravanIntent on Actions/Apply (#942): native checks the crew, cargo,
+// FormCaravanIntent on Actions/Apply: native checks the crew, cargo,
 // home staffing, route, mass and a day of food when it applies. A canonical
 // crew/cargo encoding keeps Action comparable the same way WorkAssignment
 // encodes its settings list.

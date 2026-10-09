@@ -103,7 +103,7 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoundsStoneShellPlan
 			t.Fatal(err)
 		}
 	}
-	// The colony stock funds the replacement (#1354).
+	// The colony stock funds the replacement.
 	v.Resources = append(v.Resources, &o.Quantity{DefName: proto.String("BlocksGranite"), Units: proto.Int64(100)})
 	cell := &c.Cell{X: proto.Int32(4), Z: proto.Int32(4)}
 	entity := &o.EntityRef{Id: proto.String("wall-1"), DefName: proto.String("Wall"), MapId: proto.Int32(0), Position: cell}
@@ -120,7 +120,7 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoundsStoneShellPlan
 		b, _ := p.Preview.Action.Building()
 		p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 		// Native reports every Wall as made from stuff; a planner that
-		// mistook that for a refusal never admitted a bundle (#293).
+		// mistook that for a refusal never admitted a bundle.
 		p.Preview.MadeFromStuff = domain.Known(true)
 		p.Preview.Costs = domain.Known([]policy.Amount{{Resource: "BlocksGranite", Count: 5}})
 		p.Stock.Values = []policy.Stock{{Resource: "BlocksGranite", Available: domain.Known(int64(100))}}
@@ -187,7 +187,7 @@ func TestRoundsStoneShellAdmitsReplacementBundleWithFreshStock(t *testing.T) {
 		t.Fatal(again, err)
 	}
 	// The pending demolition is clock work like the wall build after it: a
-	// window that held on the WallRemovalAction never ran the bundle (#293).
+	// window that held on the WallRemovalAction never ran the bundle.
 	target := p.reviewer.player.session.State().Snapshot
 	target.Plan, target.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	if work, _, err := clockSchedulerWork(plan, target); err != nil || !work {

@@ -12,8 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// upkeep/personal-share-rich and upkeep/personal-share-poor (#1847, epic
-// #1829): the same bare greedy bedroom and the same gear staging run twice,
+// upkeep/personal-share-rich and upkeep/personal-share-poor: the same bare greedy bedroom and the same gear staging run twice,
 // once in a colony stocked with gold and food and once in one stripped of
 // every loose item but wood and food (a poor colony; the equipment goal needs Stable, so it is not Foothold). Each case asserts its own
 // absolute outcome against the shared thresholds below, so the pair diverges

@@ -9,7 +9,7 @@ import (
 
 // A hold plan drafts two defenders and moves each; one defender's move
 // cancelled (its dispatch timed out) must not release the other's draft
-// while that pawn's own move is still open (#318).
+// while that pawn's own move is still open.
 func TestWorkerPlanHoldsDraftPerDefender(t *testing.T) {
 	t.Parallel()
 	mk := func(id string) (domain.Action, domain.Action) {

@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// LoadoutThreat is the threat a fight's loadout answers (#1048).
+// LoadoutThreat is the threat a fight's loadout answers.
 type LoadoutThreat string
 
 const (
@@ -71,7 +71,7 @@ type LoadoutDefender struct {
 	// shield belt.
 	Primary    string
 	ShieldBelt bool
-	// PrimaryFacts is the primary's def rows (#1723).
+	// PrimaryFacts is the primary's def rows.
 	PrimaryFacts WeaponDef
 }
 
@@ -90,7 +90,7 @@ type LoadoutOrder struct {
 	Wear              bool
 }
 
-// ThreatLoadout is the decision under test for #1048: (threat, stocked
+// ThreatLoadout is the loadout decision: (threat, stocked
 // gear, defenders) → equip orders before a fight's first order. Each thing
 // and pawn is used once; ties break by pawn then thing id.
 //   - pods: every non-melee defender takes the highest-DPS weapon of range
@@ -173,7 +173,7 @@ func ThreatLoadout(threat LoadoutThreat, defenders []LoadoutDefender, weapons []
 		}
 		sort.Strings(squads)
 		for _, s := range squads {
-			// The grenade first (#1048: EMP is thrown as the carrier's equipped
+			// The grenade first (EMP is thrown as the carrier's equipped
 			// primary): the shorter-ranged EMP weapon is the grenade.
 			take(carrier[s], func(w EquipCandidateWeapon) bool { return w.Facts.EMP }, func(a, b EquipCandidateWeapon) bool {
 				return a.Facts.Range < b.Facts.Range

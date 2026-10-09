@@ -318,7 +318,7 @@ func (r *RoundsBuildingPlanner) previewPowerSite(ctx context.Context, snapshot d
 }
 
 // previewPowerOrSearch places a generator or battery on the v2 layout
-// plan's sites (#788) at Masonry and above, and falls back to the search
+// plan's sites at Masonry and above, and falls back to the search
 // near the consumer when the plan has no open site for it (no plan yet, the
 // battery room not built and roofed, every site taken or refused).
 func (r *RoundsBuildingPlanner) previewPowerOrSearch(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
@@ -348,7 +348,7 @@ func (r *RoundsBuildingPlanner) previewPlannedPower(ctx context.Context, snapsho
 		return nil, stock, false, nil
 	}
 	// refused names why each planned site was passed over, logged once when
-	// fewer than missing sites fit (#1585: a reserved turbine that is never
+	// fewer than missing sites fit (a reserved turbine that is never
 	// built left no trace).
 	var refused []string
 	blocked := map[domain.Cell]bool{}

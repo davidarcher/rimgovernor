@@ -48,7 +48,7 @@ func DispatchIntent(ctx context.Context, leases LeaseSource, p executor.Placemen
 }
 
 // DispatchIntents sends intent-mode actions of one world in one
-// Actions/Apply call (#1041). Only the identity is checked on the wire;
+// Actions/Apply call. Only the identity is checked on the wire;
 // native validates each intent against live state. Receipts are in input
 // order: applied is accepted; refused and failed are refused, except an
 // attempt conflict; a batch failure or a lost reply leaves every receipt

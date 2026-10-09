@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// ClearAncientShrine is the breach goal (#458): a sealed shrine whose room
+// ClearAncientShrine is the breach goal: a sealed shrine whose room
 // touches Home is a deficit until it is open and its guards are down. The
 // goal drafts the readiness squad behind the trap line, deconstructs the
 // chosen wall in place and lets ActiveCombat fight what pops.
@@ -15,15 +15,15 @@ const ClearAncientShrine ConcernID = "ClearAncientShrine"
 // ShrineHold is one shrine's judgement as the review journals it: Reason
 // is a ShrineHold* constant, ShrineHoldGuardsAlive after the breach, or
 // ShrineReady; Wall names the chosen breach wall when one was chosen. A
-// row with a Casket is that casket's CasketDecision (#459) instead.
+// row with a Casket is that casket's CasketDecision instead.
 type ShrineHold struct {
 	Shrine, Reason, Wall string
 	Casket               string `json:",omitempty"`
-	// Occupant rows (#460) name a released humanlike and the colony decision
+	// Occupant rows name a released humanlike and the colony decision
 	// on it (OccupantDecision).
 	Occupant string `json:",omitempty"`
 	// Planner marks a shrine row with what the shrine planner's last step
-	// did with it (#680): "held" for the shrine it held on, "skipped" for a
+	// did with it: "held" for the shrine it held on, "skipped" for a
 	// candidate it passed over; empty for a shrine it never judged.
 	Planner string `json:",omitempty"`
 }
@@ -32,7 +32,7 @@ const (
 	ShrineReady           = "ready"
 	ShrineHoldGuardsAlive = "guards_alive"
 
-	// Casket decisions (#459): the default policy never opens a casket.
+	// Casket decisions: the default policy never opens a casket.
 	CasketClaim       = "claim"
 	CasketLeaveSealed = "leave_sealed"
 	CasketClaimed     = "claimed"
@@ -50,7 +50,7 @@ func CasketDecision(casket ShrineCasket, shrine AncientShrine) string {
 
 // CasketDecisionUnder is CasketDecision under an operator policy: a
 // filled casket of an open, guard-free shrine takes the shrine's Opening
-// decision (#460, #875): open, or the readiness hold it is left sealed on.
+// decision: open, or the readiness hold it is left sealed on.
 func CasketDecisionUnder(casket ShrineCasket, shrine AncientShrine, policy ShrinePolicy) string {
 	switch {
 	case shrine.Sealed:
@@ -67,8 +67,8 @@ func CasketDecisionUnder(casket ShrineCasket, shrine AncientShrine, policy Shrin
 	return CasketClaim
 }
 
-// ShrineClaimTargets are the empty caskets the breach goal owes a claim on
-// (#459): those of an open, guard-free shrine touching Home, in casket
+// ShrineClaimTargets are the empty caskets the breach goal owes a claim on:
+// those of an open, guard-free shrine touching Home, in casket
 // identity order per shrine.
 func ShrineClaimTargets(rows []AncientShrine) map[string][]ShrineCasket {
 	out := map[string][]ShrineCasket{}
@@ -102,8 +102,8 @@ const (
 
 // ShrineClearanceTargets are the shrines the breach goal owes work on:
 // those touching Home that are still sealed, open with a guard seen
-// standing, open and guard-free with an empty casket still to claim
-// (#459), or with a filled casket the policy opens (#460). A shrine open
+// standing, open and guard-free with an empty casket still to claim,
+// or with a filled casket the policy opens. A shrine open
 // but fogged (nobody has looked in) is not a target: exploring is not
 // this goal's, and ActiveCombat answers a guard the moment it is seen.
 // Stable by identity.

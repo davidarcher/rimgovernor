@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The containment cell (#1741, epic #1694): one planned room holding one
+// The containment cell: one planned room holding one
 // holding platform, owed while an entity the game lets the colony capture
 // has no platform that can hold it. It is staged like the worship room
 // (worship.go, layout_child_rooms.go): the layout review grows a core room
@@ -15,10 +15,10 @@ import (
 // The platform is the catalog's own (a ThingDef with an entity-holder
 // platform comp), never a name here. A cell is owed only when its predicted
 // containment strength (ContainmentDefs.Predict) reaches what the entity
-// needs; how much margin to keep is the capture rule's (#1742), and the
+// needs; how much margin to keep is the capture rule's, and the
 // standing platform's native strength (EntityHolder.ContainmentStrength) is
 // the check once it is built. Capture itself is not planned here.
-// Bioferrite plate floor (#2435): when the stock pays for every tile of the
+// Bioferrite plate floor: when the stock pays for every tile of the
 // room, the prediction counts the catalog's containment floor in place of the
 // plain floor, and the flooring review lays it (WantedFloors).
 
@@ -30,7 +30,7 @@ const (
 	ShellDoorDefinition = "Door"
 )
 
-// ContainmentLampDefinition is the lamp the cell is furnished with (#1743):
+// ContainmentLampDefinition is the lamp the cell is furnished with:
 // the same standing lamp that stands beside a bed or throne.
 const ContainmentLampDefinition = standingLampDef
 
@@ -52,7 +52,7 @@ type BuiltHolder struct {
 	// Available is whether the platform can take a pawn now.
 	Available bool
 	// HeldPawn is the pawn on the platform ("" when none) and Doors the
-	// doors of its room (#1743).
+	// doors of its room.
 	HeldPawn string
 	Doors    domain.Fact[[]ContainmentDoor]
 }
@@ -67,7 +67,7 @@ type ContainmentPlanning struct {
 	// why they are unknown.
 	Defs       domain.Fact[ContainmentDefs]
 	DefsReason string
-	// Entities are the entity pawn rows the capture rule (#1742) decides;
+	// Entities are the entity pawn rows the capture rule decides;
 	// unknown without Anomaly.
 	Entities domain.Fact[[]CapturableEntity]
 }
@@ -101,7 +101,7 @@ func ContainmentCellNeed(p ContainmentPlanning, furniture []FurnitureDefinition,
 		return ChildRoomNeed{}, ContainmentVerdict{Reason: "the containment inputs cannot be read from the definitions: " + p.DefsReason}
 	}
 	// A cell is owed for what the capture rule would take: the need plus its
-	// margin (#1742), so a cell is never built for an entity that would then
+	// margin, so a cell is never built for an entity that would then
 	// be killed.
 	margin, err := CaptureMargin(defs)
 	if err != nil {
@@ -115,7 +115,7 @@ func ContainmentCellNeed(p ContainmentPlanning, furniture []FurnitureDefinition,
 	}
 	need := ChildRoomNeed{Role: RoomRoleContainmentCell, Module: PlannedContainmentCell, Furniture: []ChildFurniture{
 		{Defs: []string{defs.Holder}, Count: 1},
-		// A lamp lights the cell (#1743): glow adds ten containment strength
+		// A lamp lights the cell: glow adds ten containment strength
 		// per unit of mean glow, and the power planner connects the lamp
 		// like any other unpowered consumer. Optional: left out until the
 		// lamp is researched, and the predicted strength above counts no
@@ -124,7 +124,7 @@ func ContainmentCellNeed(p ContainmentPlanning, furniture []FurnitureDefinition,
 	if _, ok := need.resolve(furniture); !ok {
 		return ChildRoomNeed{}, ContainmentVerdict{Reason: "the holding platform " + defs.Holder + " is not buildable yet or its size is unknown"}
 	}
-	// The floor term counts the containment floor (#2435) when the stock pays
+	// The floor term counts the containment floor when the stock pays
 	// for every tile of the smallest room that holds the cell; WantedFloors
 	// lays it under the same test.
 	floored := false

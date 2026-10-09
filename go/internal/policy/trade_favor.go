@@ -6,11 +6,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The Royalty tribute collector pays royal favor (honor) instead of silver
-// (#1939): a caravan of TraderKind TributeCollectorKind opens a favor-currency
+// The Royalty tribute collector pays royal favor (honor) instead of silver:
+// a caravan of TraderKind TributeCollectorKind opens a favor-currency
 // session (bridge.TradeSheetRead.FavorCurrency), where every row's sell price
 // is the item's favor value and the trader's count is a placeholder, never a
-// silver budget. The bot sells it surplus gold and surplus prisoners (#1971).
+// silver budget. The bot sells it surplus gold and surplus prisoners.
 
 // TributeCollectorKind is the trader kind of the Empire's tribute collector.
 const TributeCollectorKind = "Empire_Caravan_TributeCollector"
@@ -65,7 +65,7 @@ func FavorGoldNeed(need domain.Fact[TradeNeed], traders domain.Fact[[]TraderFact
 }
 
 // SoldPrisonerEvent is the history event selling a prisoner raises; the
-// precept rule answers it (#1971).
+// precept rule answers it.
 const SoldPrisonerEvent = "SoldPrisoner"
 
 // FavorPrisonersHeld reports that the ideoligion does not plainly allow

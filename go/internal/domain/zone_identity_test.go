@@ -31,7 +31,7 @@ func dispatchedZone(t *testing.T) (Progress, GenerationSnapshot) {
 }
 
 // The zone identity an applied creation receipt names is the only ownership
-// evidence a stockpile claim has (#315), so only an accepted zone_create
+// evidence a stockpile claim has, so only an accepted zone_create
 // receipt with a valid id records one.
 func TestZoneIdentityRequiresAnAppliedZoneCreateReceipt(t *testing.T) {
 	p, _ := dispatchedZone(t)

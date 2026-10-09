@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Bedroom wings (#1213, epic #1200). The standard bedrooms form one wing: a
+// Bedroom wings. The standard bedrooms form one wing: a
 // SpineWidth corridor branching off the main hallway, with identical rooms
 // on both sides. Neighbouring rooms on a side share their walls and every
 // door sits in the corridor wall, so no room is a thoroughfare. A wing is
@@ -13,18 +13,18 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 type WingPurpose string
 
 // WingBedrooms is the standard bedroom wing; WingSuites the suite wing
-// (#1215, layout_suite.go).
+// (layout_suite.go).
 const (
 	WingBedrooms WingPurpose = "bedrooms"
 	WingSuites   WingPurpose = "suites"
 	// WingBedroomsRetiring is a standard wing whose rooms are smaller than
-	// the tier's WingRoomSize (#1219): it keeps its ground,
+	// the tier's WingRoomSize: it keeps its ground,
 	// and its pawns migrate to an active wing (NextMigrateStep).
 	WingBedroomsRetiring WingPurpose = "bedrooms_retiring"
 )
 
 // retireWings marks every bedroom wing whose rooms are smaller than tier's
-// WingRoomSize Retiring (#1219); the next wing sited takes the new size.
+// WingRoomSize Retiring; the next wing sited takes the new size.
 func retireWings(wings []Wing, tier TechTier) []Wing {
 	want := WingRoomSize(tier)
 	var out []Wing
@@ -47,7 +47,7 @@ type Wing struct {
 	Rooms    []PlannedRoom
 }
 
-// WingRoomSize is a standard room's interior for tier (#1214, epic #1200):
+// WingRoomSize is a standard room's interior for tier:
 // width along the corridor, depth away from it. Camp and Masonry rooms are
 // 3x4, Powered and Industrial 4x4, Spacer 4x5. A new wing takes the
 // current tier's size; an existing wing keeps the size of its rooms.
@@ -61,7 +61,7 @@ func WingRoomSize(tier TechTier) [2]int32 {
 	return [2]int32{3, 4}
 }
 
-// wingMaxRooms is a bedroom wing's size (#1950, epic #1938): a wing is
+// wingMaxRooms is a bedroom wing's size: a wing is
 // planned at this many rooms when sited and never grows; once every wing
 // is occupied, a new one is sited.
 const wingMaxRooms = 10
@@ -95,7 +95,7 @@ func (p LayoutPlan) Hallways() []SpineSegment {
 // size is a standard wing's room interior, as WingRoomSize.
 //
 // A wing runs along Z off an east-west hallway by default; horiz transposes
-// it (#1965): the corridor runs along X at row cx off a north-south hallway
+// it: the corridor runs along X at row cx off a north-south hallway
 // at column z0, v counting cells east (sign +1) or west (-1). The geometry
 // is computed in the Z-axis frame and transposed, so the two are twins.
 type wingFrame struct {

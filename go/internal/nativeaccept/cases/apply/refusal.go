@@ -1,4 +1,4 @@
-// The apply/refusal case (#242, #252) executes one routine write per kind
+// The apply/refusal case executes one routine write per kind
 // with a snapshot token that was valid when the fixture read it, after the
 // fixture has moved the world under that token, and asserts the refusal
 // names the fact that moved (the reason strings in
@@ -28,8 +28,8 @@ func init() {
 			"with the documented reason naming the moved fact.",
 		// clutter plants every bare cell around the colonist before the
 		// fixture stages its interior, so the initial map cannot supply
-		// one untouched and the fixture's own clearing is exercised
-		// (#441); the case asserts the planting happened.
+		// one untouched and the fixture's own clearing is exercised;
+		// the case asserts the planting happened.
 		Start:  cases.Fixture{Op: "test/apply_refusal_prepare", Args: map[string]any{"clutter": true}, On: cases.LabStart()},
 		Budget: 5 * time.Minute,
 		Crew:   cases.Crew{Size: 3}, Run: run,
@@ -126,7 +126,7 @@ func run(ctx context.Context, s cases.Session) error {
 	at := func(cell map[string]any) string { return fmt.Sprintf("(%v, %v)", cell["x"], cell["z"]) }
 
 	// Build: the open build cell is walled over after the placement preview
-	// accepted it; the Actions/Apply building intent (#856) is refused with
+	// accepted it; the Actions/Apply building intent is refused with
 	// the re-planned placement's own reason. A Campfire, not a wall: the
 	// fixture's player wall would otherwise be applied as it stands.
 	placement := map[string]any{"defName": "Campfire", "x": buildCell["x"], "z": buildCell["z"], "rotation": "ROTATION_NORTH"}
@@ -178,7 +178,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["build"] = na.AsString(buildRefusal["reason"])
 
-	// Zone intents are Actions/Apply intents (#941). Zone cell edit and zone
+	// Zone intents are Actions/Apply intents. Zone cell edit and zone
 	// creation: the free roofed cell is walled over after the read.
 	if err := move("fill-free-cell", map[string]any{"action": "fill_cell", "x": freeCells[0]["x"], "z": freeCells[0]["z"]}); err != nil {
 		return err
@@ -216,7 +216,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if err := move("draft-pawn", map[string]any{"action": "draft_pawn", "id": tokens["pawnId"]}); err != nil {
 		return err
 	}
-	// Haul and work settings are intents on Actions/Apply (#856, #941): the
+	// Haul and work settings are intents on Actions/Apply: the
 	// refusal is the action's result, not a failure reply.
 	if err := intentRefused("haul", map[string]any{"haul": map[string]any{"pawnId": tokens["pawnId"], "thingId": tokens["haulItemId"]}},
 		"FAILURE_CODE_INVALID_REQUEST", "Haul refused: the pawn is drafted"); err != nil {
@@ -231,7 +231,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	// Bills are intents too (#941): the same bill on the fixture's bench
+	// Bills are intents too: the same bill on the fixture's bench
 	// would find its matching bill standing and apply again, so the refusal
 	// names a bench that is not on the map.
 	if err := intentRefused("bill", map[string]any{"productionBill": map[string]any{
@@ -244,7 +244,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 
 	// Tame: the hare was designated for hunting after the read; the
-	// Actions/Apply husbandry intent (#941) is refused by native tame
+	// Actions/Apply husbandry intent is refused by native tame
 	// eligibility. (A tame designation would apply as it stands.)
 	if err := move("designate-tame-prey", map[string]any{"action": "designate_hunt", "id": tokens["tameId"]}); err != nil {
 		return err

@@ -131,7 +131,7 @@ func canonicalTradeFloors(floors []TradeEconomicFloor) (string, error) {
 }
 
 // canonicalExportThings is the sorted, deduplicated thing ids an AcceptTrade
-// authorizes the colony to export although their defs are protected (#1831).
+// authorizes the colony to export although their defs are protected.
 func canonicalExportThings(ids []string) (string, error) {
 	rows := append([]string(nil), ids...)
 	sort.Strings(rows)
@@ -246,7 +246,7 @@ func (t Trade) EconomicFloors() []TradeEconomicFloor {
 	return rows
 }
 
-// ExportThings are the protected gear things an accept may sell (#1831).
+// ExportThings are the protected gear things an accept may sell.
 func (t Trade) ExportThings() []string {
 	var rows []string
 	_ = json.Unmarshal([]byte(t.exportThings), &rows)

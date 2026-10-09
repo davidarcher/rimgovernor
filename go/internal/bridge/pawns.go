@@ -238,7 +238,7 @@ func pawnsSocial(v *o.PawnSocial) error {
 	return pawnsIssues(v.Issues, v.ProtoReflect())
 }
 
-// pawnsTendDoctor validates the doctor-side tend gates (#657). Reachability is
+// pawnsTendDoctor validates the doctor-side tend gates. Reachability is
 // answered pairwise across the rows of this one reply, so every listed ID must
 // be another requested pawn, never the row itself. A producer that skips the
 // block leaves the gates unknown -- SelectTend then proposes no doctor -- rather

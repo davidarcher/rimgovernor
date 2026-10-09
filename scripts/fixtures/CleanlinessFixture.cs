@@ -11,8 +11,8 @@ namespace HomeBridge.BridgeTools
 {
     // Private disposable acceptance only. Builds the rooms cleanaccept needs
     // to exercise MaintainCleanFacilities' bounded response and the
-    // kitchen/butcher rooms (issue #6 slice 2; the separation scenario is a
-    // snapshot test since #794):
+    // kitchen/butcher rooms ( the separation scenario is a
+    // snapshot test):
     //
     //   filthy     -- an enclosed roofed kitchen (fuelled stove) and an
     //                 enclosed roofed butchery (butcher spot), each with blood

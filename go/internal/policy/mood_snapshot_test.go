@@ -21,7 +21,7 @@ func loadRecorded(t *testing.T, path string, v any) {
 	}
 }
 
-// Replaces the native mood/provision case (#255, #748). MaintainMood's
+// Replaces the native mood/provision case. MaintainMood's
 // review is not a routine planner input the case served, so the recording
 // is the policy.MoodPawn the case lifted from the routine census's social
 // block (observations_list_pawns with needs, schedule and social), encoded
@@ -100,7 +100,7 @@ func TestMoodProvisionDefersRecordedEnvironmentPressure(t *testing.T) {
 	}
 }
 
-// Replaces the native mood/berserk case's selection half (#748). The
+// Replaces the native mood/berserk case's selection half. The
 // subdue squad and the rescue are chosen by the defense and rescue step
 // planners from reads outside the rounds, so their inputs were
 // recorded by a temporary dump at the policy call (buildingruntime

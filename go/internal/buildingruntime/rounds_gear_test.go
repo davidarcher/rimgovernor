@@ -47,9 +47,8 @@ func TestGearPlannerAssignsPolicyBeforeWearOrProduction(t *testing.T) {
 	}
 }
 
-// TestGearPlannerAdmitsEveryPawnPolicyInOneStep pins #660: policy writes
-// were admitted one per development slot per round, so eight colonists took a
-// whole window to assign and no wear order or bill ever followed.
+// Pawn policy writes are admitted together so assignment does not delay wear
+// orders or production across multiple review windows.
 func TestGearPlannerAdmitsEveryPawnPolicyInOneStep(t *testing.T) {
 	reviewer, db, _, _, native := roundsFixture(t)
 	setGearProductionNeed(native.reply.GetObserved())
@@ -248,7 +247,7 @@ func TestGearProductionPersistsOnlyFundedMaterials(t *testing.T) {
 
 // gearTestNative is the equip colony with a gear census attached: pawn a has
 // an unworn replacement candidate on the map, pawn b is fully equipped. The
-// candidate's own definition is in stock so the wear order is funded (#233).
+// candidate's own definition is in stock so the wear order is funded.
 type gearTestNative struct {
 	*equipTestNative
 	benchReads int
@@ -272,10 +271,7 @@ func (n *gearTestNative) ReadSupplyStock(ctx context.Context, _ *c.Identity, nam
 	return stock, bridge.Result{}, ctx.Err()
 }
 
-// The gear family must admit a GearReplace method once the rounds
-// ranks MaintainEquipment in deficit: the goal was hard-gated
-// method_unavailable for every review until #233, and no planner test covered
-// the family (#258).
+// MaintainEquipment deficits admit a GearReplace method.
 func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -299,7 +295,7 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 	}
 	// The census lists a weapon beside the parka: only the parka is a wear
 	// candidate; the weapon's eligibility belongs to the equip family and
-	// the wear operation refuses it as absent (#339).
+	// the wear operation refuses it as absent.
 	bow := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("bow"), DefName: proto.String("Bow_Short"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)}})}, Gain: proto.Float64(9)}
 	parka := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("parka"), DefName: proto.String("Apparel_Parka"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(6), Z: proto.Int32(5)}})}, Gain: proto.Float64(1)}
 	v.Planning.GetObserved().Gear = &o.GearSnapshot{Context: observedContext(), Pawns: []*o.GearLoadout{loadout("a", true, bow, parka), loadout("b", false)}}
@@ -353,7 +349,7 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 // A census whose only candidates are weapons proposes no wear order: the
 // wear operation cannot target a weapon, so the planner falls through to the
 // bench census instead of committing a plan that is refused on every attempt
-// and holds a development slot for the run (#339).
+// and holds a development slot for the run.
 func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

@@ -8,7 +8,7 @@ import (
 )
 
 // An emptied Retiring wing stays unless a replan sited without it scores
-// clearly better and still houses the colonists (#1249, #1958); a wing with
+// clearly better and still houses the colonists; a wing with
 // owned beds never goes.
 func TestEmptiedRetiringWingDropsOnlyForGain(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

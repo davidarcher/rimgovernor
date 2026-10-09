@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Plan ids are minted (#985): the double-admission guard is the
+// Plan ids are minted: the double-admission guard is the
 // (goal, epoch, method) key, and planners whose work outlives an epoch
 // find its plan by (goal, method), newest epoch first.
 func TestMethodPlanKey(t *testing.T) {

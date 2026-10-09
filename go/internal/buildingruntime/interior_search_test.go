@@ -13,7 +13,7 @@ import (
 // A bed for a generic 4x4 room with a door in its north wall takes the
 // bedroom template's slot: head against the south wall on the centre line,
 // facing away from the door. With the slot occupied the search falls back
-// to a snap cell of the room (#800).
+// to a snap cell of the room.
 func TestFacilityBedTakesTheInteriorTemplateSlot(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

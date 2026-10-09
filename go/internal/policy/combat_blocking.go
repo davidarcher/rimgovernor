@@ -12,15 +12,15 @@ import (
 type CombatDuty string
 
 const (
-	// DutyBlocker holds a cell just outside the choke (#864).
+	// DutyBlocker holds a cell just outside the choke.
 	DutyBlocker CombatDuty = "blocker"
-	// DutyReserve waits to relieve a hurt blocker (#864).
+	// DutyReserve waits to relieve a hurt blocker.
 	DutyReserve CombatDuty = "reserve"
-	// DutyPeeler intercepts melee attackers on the gunners (#865).
+	// DutyPeeler intercepts melee attackers on the gunners.
 	DutyPeeler CombatDuty = "peeler"
 )
 
-// maxChokeBlockers is how many brawlers block the choke (#845: up to 3).
+// maxChokeBlockers is how many brawlers block the choke (up to 3).
 const maxChokeBlockers = 3
 
 // chokeAnchorSteps is how far along the corridor direction the
@@ -28,8 +28,8 @@ const maxChokeBlockers = 3
 // choke's neighbours on our side are strictly nearer to it.
 const chokeAnchorSteps = 3
 
-// blockingChoke says whether Formation runs the melee blocking formation
-// (#864): a layout with a known choke and at least one eligible brawler.
+// blockingChoke says whether Formation runs the melee blocking formation:
+// a layout with a known choke and at least one eligible brawler.
 // It returns the choke and the our_side anchor for the adjacent_to_choke
 // ask.
 func blockingChoke(view CombatView) (domain.Cell, domain.Cell, bool) {
@@ -40,7 +40,7 @@ func blockingChoke(view CombatView) (domain.Cell, domain.Cell, bool) {
 	choke, ok := layout.Choke.Value()
 	v, vok := towardVector(layout.Toward)
 	rest, _ := splitTanks(view)
-	// A manhunter pack with an exploder is never melee-blocked (#898).
+	// A manhunter pack with an exploder is never melee-blocked.
 	if !ok || !vok || len(brawlers(rest)) == 0 || ManhunterPack(view) && len(liveExploders(view)) > 0 {
 		return domain.Cell{}, domain.Cell{}, false
 	}
@@ -52,11 +52,11 @@ func blockingChoke(view CombatView) (domain.Cell, domain.Cell, bool) {
 }
 
 // chokeHeld reports the hostile cells the hold's blockers stop at the
-// choke (#905): with a live colonist standing in the blockers' row (a
+// choke: with a live colonist standing in the blockers' row (a
 // neighbour of the choke one step toward the colony), a hostile at the
 // choke or in front of it within two cells is held there, however hurt
 // the blockers are. Nil without a known choke.
-// insideRooms reports a cell on the floor of a standing room (#2375), or nil
+// insideRooms reports a cell on the floor of a standing room, or nil
 // when the frame has no rooms.
 func insideRooms(view CombatView) func(domain.Cell) bool {
 	if len(view.Rooms) == 0 {
@@ -124,7 +124,7 @@ func byArmor(out []SquadDefenderFacts) []SquadDefenderFacts {
 }
 
 // rotated is the brawler pool with the relieved blockers last, in relief
-// order (#881), so a re-formation keeps the rotation.
+// order, so a re-formation keeps the rotation.
 func rotated(pool []SquadDefenderFacts, relieved []domain.PawnID) []SquadDefenderFacts {
 	var fresh, rested []SquadDefenderFacts
 	for _, d := range pool {
@@ -147,9 +147,9 @@ func rotated(pool []SquadDefenderFacts, relieved []domain.PawnID) []SquadDefende
 // the choke, at most three, and the next is the reserve (on the next
 // proposed cell when there is one); with two or more brawlers one is
 // always held back, so a hurt blocker can be relieved. The next brawler
-// after those is the peeler (#865), waiting at its home behind the
+// after those is the peeler, waiting at its home behind the
 // gunners when the game found that cell standable. Blockers the reserve
-// relieved rank last (#881).
+// relieved rank last.
 func brawlerRoles(view CombatView, defenders []SquadDefenderFacts, blocking bool, geometry GeometryReply, relieved []domain.PawnID) []CombatRole {
 	pool := rotated(brawlers(defenders), relieved)
 	proposals := geometry.Proposals
@@ -184,10 +184,10 @@ func brawlerRoles(view CombatView, defenders []SquadDefenderFacts, blocking bool
 	return roles
 }
 
-// relieveBlocker is the reaction table's relief row (#864): on a serious
+// relieveBlocker is the reaction table's relief row: on a serious
 // injury to a blocker, the reserve takes the blocker's cell and the hurt
 // blocker pulls back to where the reserve stands. Without a live reserve
-// whose place is known nothing changes, and the fall-back row (#860) takes
+// whose place is known nothing changes, and the fall-back row takes
 // the stop. It reports whether it swapped.
 func relieveBlocker(view CombatView, stop StopEvent, m *CombatMemory) bool {
 	if stop.Kind != StopSeriousInjury {
@@ -216,7 +216,7 @@ func relieveBlocker(view CombatView, stop StopEvent, m *CombatMemory) bool {
 	}
 	m.Roles[reserve].Cell, m.Roles[reserve].Duty = m.Roles[hurt].Cell, DutyBlocker
 	// The relieved blocker's pull-back is a retreat: it passes the aim
-	// guard and the #860 fall-back leaves it in place.
+	// guard and the fall-back leaves it in place.
 	m.Roles[hurt].Cell, m.Roles[hurt].Duty, m.Roles[hurt].Target, m.Roles[hurt].Retreat = back, "", "", true
 	m.Relieved = append(slices.DeleteFunc(m.Relieved, func(id domain.PawnID) bool { return id == stop.Pawn }), stop.Pawn)
 	return true

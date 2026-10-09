@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // Cheap is the read's speed switch (#1295): on, the census reads only
+        // Cheap is the read's speed switch: on, the census reads only
         // the plant and rock defs that can yield the resource, and the map's
         // reservations are read once (ExcavationSafety.Shortcut is the
         // support check's own switch). The reply is identical either
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Cheap = true;
 
         // Read is the read on the main thread under a validated identity: the
-        // reply its tool encodes, and the section the bundle carries (#593).
+        // reply its tool encodes, and the section the bundle carries.
         internal static Obs.ResourceSourcesReply Read(Map map, Obs.ResourceSourcesRequest parsed, Common.ObservationContext context)
         {
             var cheap = Cheap;
@@ -74,7 +74,7 @@ namespace HomeBridge.BridgeTools
                 else deposits = map.listerThings.AllThings.Where(t => ResourceAcquisitionTools.Product(t)?.defName == parsed.Resource).ToList();
                 var eligible = deposits.Where(t => ResourceAcquisitionTools.Eligible(t, map)).ToList();
                 var admitted = new HashSet<Thing>(eligible);
-                // Buried ore (#1072): a supported deposit no colonist can reach,
+                // Buried ore: a supported deposit no colonist can reach,
                 // usually fogged. The support check reads the true map, so it is
                 // reported for a corridor excavation rather than dropped.
                 var buried = new HashSet<Thing>(deposits.Where(t => !admitted.Contains(t) && ResourceAcquisitionTools.Buried(t, map)));
@@ -123,7 +123,7 @@ namespace HomeBridge.BridgeTools
             var knownBorder = border is int width && width >= 0 && width <= 32;
             var margin = knownBorder ? (int)(border ?? 0) + 1 : 0;
             var candidates = haulers.Count == 0 || !knownBorder ? new List<IntVec3>() : GenRadial.RadialCellsAround(haulers[0].Position, 20, true)
-                // Cheapest tests first; reachability last (#1295).
+                // Cheapest tests first; reachability last.
                 .Where(c => c.InBounds(map) && map.zoneManager.ZoneAt(c) == null
                     && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item)
                     && Protected(c) && !CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
@@ -147,7 +147,7 @@ namespace HomeBridge.BridgeTools
             bool Protected(IntVec3 c) => durable || c.Roofed(map);
             // Count empty stack slots, conservatively excluding partial stacks: one per
             // empty floor cell, and a storage building's (shelf's) free slots of its
-            // maxItemsInCell per cell (#721), reached by touch since it is not standable.
+            // maxItemsInCell per cell, reached by touch since it is not standable.
             int Slots(IntVec3 c)
             {
                 var items = c.GetThingList(map).Count(t => t.def.category == ThingCategory.Item);

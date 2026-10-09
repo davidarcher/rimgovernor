@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// A pending wing migration keeps housing owed (#1244) though policy
+// A pending wing migration keeps housing owed though policy
 // BedroomsOwed counts no deficit.
 func TestPendingMigrationKeepsHousingOwed(t *testing.T) {
 	room := func(x int32) policy.PlannedRoom {

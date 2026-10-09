@@ -15,7 +15,7 @@ using Mirror = RimGovernor.Protocol.Mirror;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// rimgovernor/combat_geometry (#851): DecideCombat's one geometry read
+    /// rimgovernor/combat_geometry: DecideCombat's one geometry read
     /// per stop, by the game's own rules so Go never reimplements cover,
     /// sight or pathing. For each candidate cell and each hostile: the cover
     /// at the cell against a shot from the hostile's cell
@@ -28,11 +28,11 @@ namespace HomeBridge.BridgeTools
     {
         private const string ToolName = "rimgovernor/combat_geometry";
         /// The caps, measured on lab-ranged against the 50 ms main-thread
-        /// budget (#851): 64 cells x 8 pawns took 1.3-6.6 ms of main thread
+        /// budget: 64 cells x 8 pawns took 1.3-6.6 ms of main thread
         /// (worst of 5 per run, path ticks included), about 13 ms at the caps.
         internal const int MaxCells = 64;
         internal const int MaxHostiles = 16;
-        /// A firing_cells proposal's search radius cap (#871).
+        /// A firing_cells proposal's search radius cap.
         internal const int MaxRadius = 12;
 
         [Tool(ToolName, Title = "Read combat geometry",
@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
                 if (request.Cells.Count >= MaxCells || !ValidatePropose(request.Propose)
                     || request.Propose.RoleCase == Mirror.CombatGeometryPropose.RoleOneofCase.RescuePath && !request.HasPawnId) return false;
             }
-            // Named cells alone need no hostile: their standability (#897).
+            // Named cells alone need no hostile: their standability.
             var hostilesMin = request.Propose == null && !request.HasPawnId ? 0 : 1;
             if (request.Cells.Count < (request.Propose == null ? 1 : 0) || request.Cells.Count > MaxCells || request.HostileIds.Count < hostilesMin || request.HostileIds.Count > MaxHostiles) return false;
             if (request.Cells.Any(c => c == null || !c.HasX || !c.HasZ) || request.Cells.Select(c => (c.X, c.Z)).Distinct().Count() != request.Cells.Count) return false;
@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
         private static bool ValidCells(IList<Common.Cell> cells, int max) =>
             cells.Count >= 1 && cells.Count <= max && cells.All(ValidCell) && cells.Select(c => (c.X, c.Z)).Distinct().Count() == cells.Count;
 
-        /// A propose block (#871): named cells may be 0..MaxCells-1, since
+        /// A propose block: named cells may be 0..MaxCells-1, since
         /// named plus proposed share MaxCells; each role's anchor is checked.
         private static bool ValidatePropose(Mirror.CombatGeometryPropose p)
         {
@@ -145,7 +145,7 @@ namespace HomeBridge.BridgeTools
 
         private static int DistanceTo(IntVec3 cell, IEnumerable<IntVec3> anchors) => anchors.Min(a => cell.DistanceToSquared(a));
 
-        /// The role's candidates (#871), best first: standable, in bounds,
+        /// The role's candidates, best first: standable, in bounds,
         /// not named. Ties break on (x, z) so the order is stable.
         private static IEnumerable<IntVec3> Propose(Map map, Mirror.CombatGeometryPropose propose, List<Pawn> hostiles, HashSet<IntVec3> named)
         {
@@ -191,7 +191,7 @@ namespace HomeBridge.BridgeTools
             throw new GeometryRefused("A propose block needs a role.");
         }
 
-        /// The rescue_path role (#867): the pawn's route to `to` by the game
+        /// The rescue_path role: the pawn's route to `to` by the game
         /// pathfinder, in walking order without the start cell; empty with no
         /// path. PawnPath.Peek(0) is the start cell.
         private static List<IntVec3> Route(Map map, Pawn walker, IntVec3 to)

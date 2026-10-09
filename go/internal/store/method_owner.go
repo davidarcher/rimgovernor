@@ -15,7 +15,7 @@ import (
 var ErrMethodBound = errors.New("method already bound")
 
 // methodOwner is what method admission reads of the goal or incident a
-// methods row binds to (#1019): the world it was last reviewed in,
+// methods row binds to: the world it was last reviewed in,
 // whether the autopilot owns it, the routine need it serves and its open
 // plans. StandardState, ProjectState and IncidentState implement it.
 type methodOwner interface {
@@ -146,7 +146,7 @@ func admitOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan d
 // admission and store the plan, then write the methods row and name the
 // plan's method.
 func bindOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, method domain.MethodID, reason string, plan domain.PlanSpec) error {
-	// Plan ids are minted (#985); the real double-admission key is the
+	// Plan ids are minted; the real double-admission key is the
 	// owner table's primary key (owner, [episode,] method).
 	switch bound, err := owner.boundPlan(ctx, tx, method); {
 	case err == nil:

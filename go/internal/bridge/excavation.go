@@ -8,7 +8,7 @@ import (
 )
 
 // excavateAction is the MINE Designate of one rock cell under the
-// mine_safety guard (#1350). Native checks the rock, roof support and the
+// mine_safety guard. Native checks the rock, roof support and the
 // game designator live when it applies, adopting a standing Mine
 // designation; applied means designated, and the site read decides when the
 // cell is cleared.

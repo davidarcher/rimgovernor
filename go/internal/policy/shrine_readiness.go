@@ -8,9 +8,9 @@ import (
 )
 
 // Breaching a sealed shrine releases its guards at once, so the gate is
-// judged before the wall goes, never during the fight (#457). Every hold is
+// judged before the wall goes, never during the fight. Every hold is
 // a journal reason; Ready names the wall and the squad the breach goal
-// (#458) drafts. Peaceful softens the gate: that storyteller never spawns
+// drafts. Peaceful softens the gate: that storyteller never spawns
 // hostile mechanoids (1.3+), so the squad and trap floors drop.
 const (
 	ShrineHoldNotSealed     = "not_sealed"
@@ -46,7 +46,7 @@ type ShrineDefenderFacts struct {
 
 type ShrineReadinessRequest struct {
 	Shrine AncientShrine
-	// RaidPoints is the storyteller's current reading (#395); unknown holds.
+	// RaidPoints is the storyteller's current reading; unknown holds.
 	RaidPoints domain.Fact[float64]
 	// Peaceful is true under the Peaceful storyteller; unknown counts as not.
 	Peaceful domain.Fact[bool]

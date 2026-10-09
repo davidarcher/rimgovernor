@@ -85,14 +85,14 @@ func TestRegressionsFlagOverRatioAndFloorNetOfBoot(t *testing.T) {
 	rows := []map[string]any{
 		// Over the ratio and the floor.
 		{"name": "a", "wall_ms": int64(15001)},
-		// Over the ratio but not the floor (#176: letteraccept 1.28x).
+		// Over the ratio but not the floor (letteraccept 1.28x).
 		{"name": "b", "wall_ms": int64(12800)},
 		// Faster.
 		{"name": "c", "wall_ms": int64(4000)},
 		// Over the floor but not the ratio.
 		{"name": "d", "wall_ms": int64(110000)},
 		// Over both on wall time only because this run booted the game
-		// (#176: smoke/identity 1.53x with boot_ms 5083 against a 200ms attach).
+		// (smoke/identity 1.53x with boot_ms 5083 against a 200ms attach).
 		{"name": "e", "wall_ms": int64(15400), "boot_ms": int64(5083)},
 		// A tiny baseline never trips the floor.
 		{"name": "f", "wall_ms": int64(4000)},
@@ -256,8 +256,8 @@ func TestParseSuiteRejects(t *testing.T) {
 	}
 }
 
-// The issue #6 acceptance matrix must keep one row per criterion in the
-// issue text, each naming a registered service case (#142), so a typo or a
+// The acceptance matrix must keep one row per criterion in the
+// issue text, each naming a registered service case, so a typo or a
 // dropped row fails go test rather than a spent native session.
 func TestIssue6MatrixCoversEveryCriterion(t *testing.T) {
 	path := filepath.Join("suites", "issue-6-matrix.json")
@@ -278,8 +278,8 @@ func TestIssue6MatrixCoversEveryCriterion(t *testing.T) {
 	}
 	// Partially lit benches, protected fungus rooms, layout changes,
 	// exhausted batteries, the hot-weather freezer failure and kitchen/butcher
-	// separation (#794) are snapshot
-	// tests in internal/buildingruntime (#747), not native rows.
+	// separation are snapshot
+	// tests in internal/buildingruntime, not native rows.
 	criteria := map[string]bool{
 		"dark benches": false, "filthy vs inherently dirty rooms": false,
 		"unreachable stores": false, "disconnected consumers": false, "exhausted fuel": false,
@@ -308,7 +308,7 @@ func TestIssue6MatrixCoversEveryCriterion(t *testing.T) {
 	}
 }
 
-// A baseline row's flake record (#281) rides on the regression it flags.
+// A baseline row's flake record rides on the regression it flags.
 func TestRegressionsCarryTheBaselineFlake(t *testing.T) {
 	b, err := loadBaseline(writeBaseline(t, `{"cases":[
 		{"name":"a","wall_ms":10000,"flake":{"rate":0.3,"failures":3,"samples":10}},

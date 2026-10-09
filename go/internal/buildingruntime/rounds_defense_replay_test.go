@@ -113,7 +113,7 @@ func replayDefense(t *testing.T, paths ...string) ([]RoundsDefenseResult, []doma
 }
 
 // replayFrame is what a test adds to every replayed frame: its combat pawn
-// rows (#969) and colony mortars (#931); the recordings carry neither.
+// rows and colony mortars; the recordings carry neither.
 type replayFrame struct {
 	mirror  []*mp.CombatPawn
 	mortars []*mp.CombatMortarRow

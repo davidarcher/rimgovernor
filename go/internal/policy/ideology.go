@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The Ideology facts (#1654). Static defs are a view over the definition
+// The Ideology facts. Static defs are a view over the definition
 // catalog's mirrored rows (IdeologyDefs, fixed for a load); the primary ideoligion's current state
 // comes from the frame's ideology section (IdeoligionFacts). Both are read
 // from the game's defs: no def name is listed here. Unknown stays unknown:
@@ -134,7 +134,7 @@ type HeldRole struct {
 
 // HeldRitual is a ritual precept. LastFinishedTick is the game's
 // Precept_Ritual.lastFinishedTick as read; no sentinel is interpreted here.
-// Running is whether a lord job of the precept is running now (#1660).
+// Running is whether a lord job of the precept is running now.
 type HeldRitual struct {
 	ID, Def, Pattern    string
 	LastFinishedTick    int64

@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The snapshot stream (#858). Native publishes whole BundleSnapshot frames
+// The snapshot stream. Native publishes whole BundleSnapshot frames
 // into a shared-memory ring (every PeriodTicks, on a pause edge and after
 // every applied write), and the state families are read from it: a read
 // is looked up by its encoded request in the newest frame, waiting for one
@@ -69,12 +69,12 @@ type frameStream struct {
 	context   *c.ObservationContext // the decoded frame's
 	held      heldTables            // the keyed tables as of the decoded frame
 	census    Memo                  // the routine census readers derive from the building table
-	// hold keeps the sections native omits while unchanged (#1347);
+	// hold keeps the sections native omits while unchanged;
 	// keyframe asks native for a frame carrying every section after a
 	// seq gap.
 	hold     sectionHold
 	keyframe bool
-	// gridHold keeps the grid keyframe deltas apply to (#1345); grid is
+	// gridHold keeps the grid keyframe deltas apply to; grid is
 	// the newest decoded frame's grid.
 	gridHold gridHold
 	grid     frameGrid
@@ -241,7 +241,7 @@ func (caller *Client) frameReadView(ctx context.Context, name string, key readCa
 // frame is read, and names the world the frame describes (nil when it
 // cannot be decoded). carries reports whether the frame answers the
 // method in any request shape. decoded is set when this call built the table: the
-// frame's size and cost (#858), one native_frame row per frame the
+// frame's size and cost, one native_frame row per frame the
 // controller consumed. skipped counts the frames published since the last
 // one consumed and never read.
 func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey, wantPayload bool, pick func(*frameStream)) (payload []byte, world *c.Identity, ok, carries bool, decoded map[string]any, refusal *Refusal) {
@@ -301,7 +301,7 @@ func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey]*frameR
 		return nil, nil, nil, heldTables{}, 0, false, frameGrid{}, "", err
 	}
 	// A frame carrying a Failure is native's account that a section read
-	// threw (#1905): a refusal naming the section, never a frame without it.
+	// threw: a refusal naming the section, never a frame without it.
 	if f := v.GetFailure(); f != nil {
 		return nil, nil, nil, heldTables{}, 0, false, frameGrid{}, "", &Refusal{Tool: "snapshot_frame", Cause: f.GetDetail()}
 	}
@@ -354,7 +354,7 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, seed func
 	})
 }
 
-// frameRepliesWith is frameReplies for the live stream (#1578). Replies
+// frameRepliesWith is frameReplies for the live stream. Replies
 // are built when read, so a frame no consumer reads costs none. With held
 // (the hold's persistent table versions at this frame), v's keyed tables
 // carry their envelope only: the typed table reads and the routine frame
@@ -375,7 +375,7 @@ func frameRepliesWith(v *o.BundleSnapshot, emergency EmergencyObservation, held 
 	if v.ColonyFacts != nil {
 		seed("rimgovernor/observations_read_colony_facts", colonyFactsRequest(identity, true), &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v.ColonyFacts}})
 		// A read without planning is the same facts with the planning
-		// section the native answers it with (#984): without this shape
+		// section the native answers it with: without this shape
 		// every non-planning read missed the frame and hopped the game
 		// thread.
 		seedLazy("rimgovernor/observations_read_colony_facts", colonyFactsRequest(identity, false), func() proto.Message {
@@ -453,7 +453,7 @@ const frameBuildingsMethod = "rimgovernor/snapshot_frame_buildings"
 // frames-only like combatFrameMethod.
 const roundsFrameMethod = "rimgovernor/snapshot_frame_routine"
 
-// RoundsFrame is the routine census of one frame (#884), each section
+// RoundsFrame is the routine census of one frame, each section
 // decoded: every row has the frame's tick, so no section is checked
 // against another. A nil section is one the frame does not carry.
 type RoundsFrame struct {
@@ -467,10 +467,10 @@ type RoundsFrame struct {
 	Research   *ResearchRead
 	Traders    *TradersRead
 	Quests     *WorldProgressionRead
-	// Ideology is the primary ideoligion with the catalog's defs (#1654);
+	// Ideology is the primary ideoligion with the catalog's defs;
 	// nil when the frame carries no ideology section.
 	Ideology *policy.Ideoligion
-	// IdeologyActive is whether the Ideology expansion is installed (#1922);
+	// IdeologyActive is whether the Ideology expansion is installed;
 	// unknown when the frame does not say.
 	IdeologyActive domain.Fact[bool]
 	// Buildings is the frame's all-status player building table, whose
@@ -478,18 +478,18 @@ type RoundsFrame struct {
 	// the frame carries none.
 	Buildings *BuildingCensus
 	// Tables are the frame's keyed tables every other section's
-	// references resolve against (#1343): Sites by id and the pawn table.
+	// references resolve against: Sites by id and the pawn table.
 	Tables Tables
 	Zones  *ZonesRead
-	// Catalog is the load's definition catalog (#1340), which the
+	// Catalog is the load's definition catalog, which the
 	// research section and the planning definitions resolve against.
 	Catalog *DefinitionCatalog
-	// Rooms is the indoor room census (#944); RoomCells are its rooms'
-	// cells resolved against the newest frame grid (RoomCells, #1346).
+	// Rooms is the indoor room census; RoomCells are its rooms'
+	// cells resolved against the newest frame grid (RoomCells).
 	Rooms     *o.RoomsSnapshot
 	RoomCells map[string][]domain.Cell
 	// Bills is the bench bill census, whose rows carry live bill jobs'
-	// ingredient reservations (#1354).
+	// ingredient reservations.
 	Bills *o.BillsSnapshot
 }
 
@@ -645,8 +645,8 @@ func BundleEmergency(v *o.BundleSnapshot) (EmergencyObservation, error) {
 	return out, nil
 }
 
-// podArrivals are the drop-pod arrival rows among a frame's combat events
-// (#870): what the routine frame and the clock's step carry of them.
+// podArrivals are the drop-pod arrival rows among a frame's combat events:
+// what the routine frame and the clock's step carry of them.
 func podArrivals(events []*mp.CombatEventRow) []*mp.CombatEventRow {
 	var out []*mp.CombatEventRow
 	for _, row := range events {
@@ -658,8 +658,8 @@ func podArrivals(events []*mp.CombatEventRow) []*mp.CombatEventRow {
 }
 
 // podsPending sets e's PodsOpen to the latest open tick of a drop-pod
-// arrival among events whose pods are still closed at e's census tick
-// (#908): its raiders are in their pods, not in the census.
+// arrival among events whose pods are still closed at e's census tick:
+// its raiders are in their pods, not in the census.
 func podsPending(e *EmergencyObservation, events []*mp.CombatEventRow) {
 	for _, row := range events {
 		if open := int64(row.GetOpenTick()); DropPodArrival(row) && open >= e.Context.GetTick() && domain.Tick(open) > e.Facts.PodsOpen {
@@ -715,7 +715,7 @@ func (caller *Client) frameReader(ctx context.Context) frameReader {
 	if (s.reader == nil || s.stale || s.keyframe) && !s.opening && (s.stale || s.keyframe || time.Since(s.attempted) >= frameRetry) {
 		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources)}
 		if s.reader != nil && !s.stale {
-			// Only a keyframe (#1347): the subscription stands.
+			// Only a keyframe: the subscription stands.
 			request = &o.SnapshotStreamRequest{Keyframe: proto.Bool(true)}
 		}
 		s.opening, s.attempted, s.stale, s.keyframe = true, time.Now(), false, false
@@ -817,7 +817,7 @@ func (caller *Client) frameSubscribe(name string, request proto.Message) {
 // close unmaps the ring and forgets everything tied to it (the write
 // count frames must reach, the decoded frame), keeping the subscription:
 // a reconnect may be to a new game process with a ring of its own, so the
-// next read opens the stream afresh (#858).
+// next read opens the stream afresh.
 func (s *frameStream) close() {
 	if s == nil {
 		return
@@ -839,8 +839,8 @@ func (s *frameStream) close() {
 // frames-only read with no GABP method behind it.
 const combatFrameMethod = "rimgovernor/snapshot_frame_combat"
 
-// Combat is a frame's combat state (#851) and the defense planner's other
-// inputs from the same frame (#853): every colonist, hostile and colony
+// Combat is a frame's combat state and the defense planner's other
+// inputs from the same frame: every colonist, hostile and colony
 // animal while combat is active, the native's retained event ring on the
 // map, oldest first, the emergency census, the combat pawn detail rows for
 // its colonists, hostiles and hunting predators, and the lines of fire
@@ -852,30 +852,30 @@ type Combat struct {
 	Pawns     []*mp.CombatPawn
 	Events    []*mp.CombatEventRow
 	Emergency EmergencyObservation
-	// Detail is the frame's pawn table cut to the emergency census
-	// (#1343): colonists, hostiles and predators with their combat detail.
+	// Detail is the frame's pawn table cut to the emergency census:
+	// colonists, hostiles and predators with their combat detail.
 	Detail Pawns
 	Lines  []LineOfFire
-	// Rooms are the map's standing rectangular rooms (#897).
+	// Rooms are the map's standing rectangular rooms.
 	Rooms      []policy.CombatRoom
 	DoorStates domain.Fact[[]policy.RoomDoor]
-	// Doors are the damaged player doors (#900).
+	// Doors are the damaged player doors.
 	Doors []*mp.CombatDoorRow
-	// Mortars are the unroofed player mortars (#931).
+	// Mortars are the unroofed player mortars.
 	Mortars []policy.CombatMortar
-	// OutdoorTemperatureC is the colony facts outdoor temperature (#1077).
+	// OutdoorTemperatureC is the colony facts outdoor temperature.
 	OutdoorTemperatureC domain.Fact[float64]
-	// HiveTemperatureC is the hottest live hive's temperature (#1073).
+	// HiveTemperatureC is the hottest live hive's temperature.
 	HiveTemperatureC domain.Fact[float64]
 	Frame            *o.BundleSnapshot
-	// Catalog is the load's definition catalog: the mech kinds (#1736), the
-	// weapons' def rows (#1723) and the race rows (#1722) resolve against it.
+	// Catalog is the load's definition catalog: the mech kinds, the
+	// weapons' def rows and the race rows resolve against it.
 	Catalog *DefinitionCatalog
-	// Shells are the load's mortar shells by kind (#1723), read off Catalog.
+	// Shells are the load's mortar shells by kind, read off Catalog.
 	Shells policy.MortarShells
 	// Things is the frame's things table cut to the census pawns' primary
 	// weapons: a gear reference carries no def name, so the weapons resolve
-	// through it (#1723).
+	// through it.
 	Things Things
 }
 
@@ -897,8 +897,8 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 	if err != nil {
 		return Combat{}, err
 	}
-	// The weapons' facts (#1723), the mech guard orders (#1736) and a fight's
-	// race flags (mech, insect, body size: the catalog's race rows, #1722)
+	// The weapons' facts, the mech guard orders and a fight's
+	// race flags (mech, insect, body size: the catalog's race rows)
 	// resolve against the catalog of the load.
 	if combat.Catalog, err = caller.DefinitionCatalog(ctx, identity); err != nil {
 		return Combat{}, err
@@ -930,10 +930,10 @@ func combatFrameHeld(v *o.BundleSnapshot, held *heldTables) *o.BundleSnapshot {
 }
 
 // primaryWeaponThings is the rows of things the census pawns' primary
-// weapons name, so a fight's frame resolves their defs on its own (#1723).
+// weapons name, so a fight's frame resolves their defs on its own.
 // A stream frame carries only the things its re-read sections referenced, so
 // a hold's table is the source when there is one: the pawn rows come from
-// it too (#2353).
+// it too.
 func primaryWeaponThings(v *o.BundleSnapshot, held *heldTables, pawns *o.PawnSnapshot) *o.ThingsSnapshot {
 	if pawns == nil || held == nil && v.Things == nil {
 		return nil
@@ -979,13 +979,13 @@ func censusPawns(v *o.BundleSnapshot, held *heldTables) *o.PawnSnapshot {
 			ids[row.GetPawn().GetId()] = true
 		}
 	}
-	// A squad hunt's prey (#1617): the open hunt rows of the colony census.
+	// A squad hunt's prey: the open hunt rows of the colony census.
 	for _, row := range v.GetColonyFacts().GetAcquisition() {
 		if row.GetHunt() && !row.GetDesignated() && !row.GetTaken() {
 			ids[row.GetSource().GetId()] = true
 		}
 	}
-	// A living mechanitor's or mech's row rides with the census (#1736):
+	// A living mechanitor's or mech's row rides with the census:
 	// the guard orders read the mechs from the combat frame.
 	if held != nil {
 		for id, row := range held.pawns.All() {
@@ -1106,7 +1106,7 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 // maxCombatRoomCells bounds a combat room: a larger enclosure is not one.
 const maxCombatRoomCells = 1024
 
-// combatRoom is a frame room census row (#897, #1338) as the pods tactic's
+// combatRoom is a frame room census row as the pods tactic's
 // room: a proper room of at most maxCombatRoomCells whose cells fill its
 // extents, with the doors in its boundary. A room of any other shape is
 // left out.
@@ -1138,7 +1138,7 @@ func combatRoom(row *o.RoomState) (policy.CombatRoom, bool) {
 	return room, true
 }
 
-// validateCombat checks a frame's combat rows (#851).
+// validateCombat checks a frame's combat rows.
 func validateCombat(v *o.BundleSnapshot) error {
 	if t := frameOutdoorC(v); t != nil && (*t != *t || *t < -300 || *t > 300) {
 		return contract("combat outdoor temperature")
@@ -1191,10 +1191,10 @@ func CombatBefore(a, b *mp.Watermark) bool {
 	return a.GetSeq() < b.GetSeq()
 }
 
-// PodsStrategy is the raid strategy of a drop-pod arrival row (#870).
+// PodsStrategy is the raid strategy of a drop-pod arrival row.
 const PodsStrategy = "pods"
 
-// DropPodArrival reports whether row is a drop-pod raid's arrival (#870):
+// DropPodArrival reports whether row is a drop-pod raid's arrival:
 // a hostile arrived row with strategy pods, landing cells and open tick.
 func DropPodArrival(row *mp.CombatEventRow) bool {
 	return row.GetKind() == mp.CombatLogKind_COMBAT_LOG_KIND_HOSTILE_ARRIVED && row.GetRaidStrategy() == PodsStrategy
@@ -1206,9 +1206,9 @@ func CombatEventID(row *mp.CombatEventRow) string {
 }
 
 // builtBuildings is the construction census carried by a frame's single
-// buildings family: its rows whose status is built (#1338). The
+// buildings family: its rows whose status is built. The
 // blueprints and frames reach the census from the unfiltered read
-// (observation.WithSites, #1355).
+// (observation.WithSites).
 func builtBuildings(v *o.BuildingsSnapshot) *o.BuildingsSnapshot {
 	if v == nil {
 		return nil

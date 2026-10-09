@@ -27,8 +27,8 @@ const (
 	bridgeClosedWait = 10 * time.Second
 )
 
-// superviseBridge restores the game session for the life of the service
-// (#87). A lost session is reattached with exponential backoff until it
+// superviseBridge restores the game session for the life of the service.
+// A lost session is reattached with exponential backoff until it
 // succeeds or ctx ends; nothing else is retried, so in-flight and later
 // native calls fail with bridge.ErrDisconnected until the reattach lands and
 // the controller re-observes before writing. Authority native revoked while

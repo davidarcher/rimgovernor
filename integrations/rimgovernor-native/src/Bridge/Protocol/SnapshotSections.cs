@@ -11,7 +11,7 @@ using Obs = RimGovernor.Protocol.Observations;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// Unchanged singleton sections are left out of a snapshot frame (#1347).
+    /// Unchanged singleton sections are left out of a snapshot frame.
     /// Each omittable section is encoded with every nested context tick
     /// cleared and compared with the bytes last published; an equal one is
     /// omitted. Every frame lists each section's watermark, carried or not:
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
             frame.Things = Keyed(frame, "things", frame.Things, t => t.Things, r => r.Thing_?.Id, t => t.Removed, keyframe, tick);
         }
 
-        // Per-row state of a keyed table (#1348): the row hashes, the hash of
+        // Per-row state of a keyed table: the row hashes, the hash of
         // everything but the rows, and whether the next carried copy must be
         // whole (nothing published yet, or the section failed to read).
         private sealed class Table

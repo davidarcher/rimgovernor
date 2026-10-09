@@ -27,7 +27,7 @@ type schedulerNative struct {
 }
 
 // ReadStep answers what the fake's Tick, ReadClockStatus and
-// ReadEmergency answer, from one call (issue #127).
+// ReadEmergency answer, from one call.
 func (f *schedulerNative) ReadStep(ctx context.Context, request bridge.StepRequest) (*o.BundleSnapshot, bridge.Result, error) {
 	return composeStep(ctx, request, bundleParts{tick: f.Tick, status: f.ReadClockStatus, emergency: f.ReadEmergency})
 }
@@ -314,7 +314,7 @@ func TestClockSchedulerCombatPlanAdmitsBoundedCombatWindow(t *testing.T) {
 	if start.MaxTicks != 30 || got.Attempt.Intent.Window.MaxTicks != 30 || start.Policy.GetMode() != k.WatchMode_WATCH_MODE_COMBAT || !reflect.DeepEqual(start.Policy.AcknowledgedHostileIds, []string{"archer", "raider"}) || len(start.Policy.AcknowledgedDownedColonistIds)+len(start.Policy.MedicalRestIds) != 0 {
 		t.Fatal(start)
 	}
-	// No fight plan owns this combat (#852), so the window is disarmed:
+	// No fight plan owns this combat, so the window is disarmed:
 	// its tick budget alone stops it.
 	if len(start.Policy.CombatStopEvents) != 0 {
 		t.Fatal("combat window armed without a fight", start.Policy.CombatStopEvents)
@@ -360,7 +360,7 @@ func TestClockSchedulerRejectsCombatBudgetAboveColonyBudget(t *testing.T) {
 	}
 }
 
-// An armed combat stop (#849) under an open fight plan (#852) is that
+// An armed combat stop under an open fight plan is that
 // plan's next decision: the scheduler resumes with another armed window.
 // With the fight closed and hostiles still live, no window is admitted and
 // the stop holds.

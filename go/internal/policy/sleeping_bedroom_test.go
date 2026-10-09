@@ -50,7 +50,7 @@ func TestBedroomStepShellsFurnishesThenMoves(t *testing.T) {
 	}
 }
 
-// A joiner with no bed, Bed locked and no bedroll stuff, is housed (#1197):
+// A joiner with no bed, Bed locked and no bedroll stuff, is housed:
 // five colonists in bedrooms, the sixth gets a shell, then its furnish.
 func TestBedroomStepHousesABedlessJoiner(t *testing.T) {
 	var plan LayoutPlan
@@ -120,7 +120,7 @@ func TestBedroomStepNeverSplitsACouple(t *testing.T) {
 
 // Spot owners in the starter shell (the planned storage room) move out one
 // by one into doored bedrooms; each spot left behind is cleared, and the
-// last spot in the shell never reads as a bedroom (#1182).
+// last spot in the shell never reads as a bedroom.
 func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
 	plan, _, sleeping := bedroomFixture()
 	plan.Rooms[0] = PlannedRoom{Role: PlannedShelter, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 7}, DoorRot: domain.North}
@@ -170,7 +170,7 @@ func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
 
 // Spots built in the starter shell for the shelter stand vacant (a spot is
 // never an owned bed), and clearing them as "left behind" reopened the
-// shelter deficit in a loop (#1266): only a spare spot is cleared.
+// shelter deficit in a loop: only a spare spot is cleared.
 func TestBedroomStepKeepsShellSpotsTheShelterNeeds(t *testing.T) {
 	plan, _, sleeping := bedroomFixture()
 	spot := func(id string) SleepingBed {

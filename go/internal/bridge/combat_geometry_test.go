@@ -13,7 +13,7 @@ func rescuePathAsk() *mp.CombatGeometryRequest {
 	return CombatGeometryProposeAsk(pbIdentity(), propose, []string{"h0"}, "p0")
 }
 
-// TestCombatGeometryRescuePath covers the rescue_path role (#867): it
+// TestCombatGeometryRescuePath covers the rescue_path role: it
 // needs a pawn and a to cell, and its route cells may repeat, stand on a
 // door and be unstandable, unlike a ranked proposal.
 func TestCombatGeometryRescuePath(t *testing.T) {

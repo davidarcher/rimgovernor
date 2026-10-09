@@ -163,7 +163,7 @@ func timed(stage string, fn func() error) error {
 // lint runs the static gates task go:build applies to the whole module
 // (gofmt, go vet, staticcheck) on the changed Go files and the affected
 // packages, so a finding surfaces in the edit/test loop rather than at the
-// next task build (#334).
+// next task build.
 func lint(goDir string, changed, packages []string) error {
 	var files []string
 	for _, file := range changed {

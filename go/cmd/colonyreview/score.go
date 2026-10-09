@@ -5,7 +5,7 @@ import (
 	"math"
 )
 
-// The colony score (#1934, epic #1852) is a vector of components read from
+// The colony score is a vector of components read from
 // the run timeline plus a weighted scalar for ranking. Signal only: it gates
 // nothing. A component the timeline cannot supply is unknown (a nil Value)
 // and is left out of the scalar, never counted as zero.

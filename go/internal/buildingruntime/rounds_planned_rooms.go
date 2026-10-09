@@ -12,7 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Planned rooms an owning goal shells before it furnishes (#835): the
+// Planned rooms an owning goal shells before it furnishes: the
 // kitchen before EnsureCooking's stove, the freezer before
 // MaintainRefrigeration's cooler, the jail while MaintainPopulation holds a
 // prisoner. Each raises the plan's exact rectangle, with doors at the plan's
@@ -129,7 +129,7 @@ func plannedRoomMethod(room policy.PlannedRoom) domain.MethodID {
 }
 
 // facilityFurnishingRoles are the facility roles whose furniture stands in the
-// layout plan's room of that role (#2267): dining, rec, hospital, laboratory
+// layout plan's room of that role: dining, rec, hospital, laboratory
 // and workshop. No census room hosts them.
 var facilityFurnishingRoles = map[policy.RoomRole]bool{
 	policy.RoomRoleDiningRoom: true, policy.RoomRoleRecRoom: true, policy.RoomRoleHospital: true,
@@ -141,7 +141,7 @@ var facilityFurnishingRoles = map[policy.RoomRole]bool{
 // furniture goes onto the footprint's interior with it, not after the walls,
 // since the room is where they will stand anyway; once the room stands the
 // furniture goes into its interior. A laboratory takes the planned shelter's
-// bench row instead (#2264). done is true when the ring's own step produced
+// bench row instead. done is true when the ring's own step produced
 // the result to return.
 func (r *RoundsBuildingPlanner) plannedFacilityFurnishing(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, facts observation.ColonyProjection) (planner *RoundsBuildingPlanner, result RoundsBuildingResult, done bool, err error) {
 	if r.facility == nil || r.cells != nil || !facilityFurnishingRoles[r.facility.Role] {
@@ -175,7 +175,7 @@ func (r *RoundsBuildingPlanner) plannedFacilityFurnishing(call, epoch context.Co
 
 // takesShelterSlot reports a planner placing furniture on the planned
 // shelter's template slots: the cold campfires, the hot passive cooler, the
-// crafting spot and the research bench (#2264).
+// crafting spot and the research bench.
 func (r *RoundsBuildingPlanner) takesShelterSlot(facts observation.ColonyProjection) bool {
 	plan, known := facts.LayoutPlan.Value()
 	switch {
@@ -195,27 +195,27 @@ func (r *RoundsBuildingPlanner) takesShelterSlot(facts observation.ColonyProject
 // hostsInPlannedRoom reports a planner whose building stands on the planned
 // room's interior: the kitchen's and the butchery's furniture, unless the
 // planner takes the shelter's template slot instead (a cold map's cooking
-// campfire, #2303).
+// campfire).
 func (r *RoundsBuildingPlanner) hostsInPlannedRoom(module policy.PlannedRole, facts observation.ColonyProjection) bool {
 	return (module == policy.PlannedKitchen || module == policy.PlannedButchery) && !r.takesShelterSlot(facts)
 }
 
 // shelterCampfires is how many campfires the shelter holds indoors: the plan's
-// latched climate decides (#2044).
+// latched climate decides.
 func shelterCampfires(facts observation.ColonyProjection) int {
 	plan, known := facts.LayoutPlan.Value()
 	return policy.ShelterCampfires(known && plan.Cold)
 }
 
 // shelterCoolers is how many passive coolers the shelter holds on its floor:
-// the plan's latched climate decides (#2044).
+// the plan's latched climate decides.
 func shelterCoolers(facts observation.ColonyProjection) int {
 	plan, known := facts.LayoutPlan.Value()
 	return policy.ShelterCoolers(known && plan.Hot)
 }
 
 // plannedShelterRooms are the layout plan's shelter rooms read as plan inputs
-// from the planned interior alone, whether or not a wall stands (#2264): the
+// from the planned interior alone, whether or not a wall stands: the
 // template's slots (campfires, cooler, crafting spot, research bench) are
 // keyed on the footprint, like the dining furniture. Empty while no plan holds
 // a shelter.
@@ -230,7 +230,7 @@ func plannedShelterRooms(facts observation.ColonyProjection) []policy.InteriorRo
 
 // plannedInteriorRooms are the layout plan's rooms that keep accepts, read as
 // plan inputs from the planned interior alone, with the buildings already
-// standing in each (#2267); a room with no usable door is left out.
+// standing in each; a room with no usable door is left out.
 func plannedInteriorRooms(facts observation.ColonyProjection, keep func(policy.PlannedRoom) bool) []policy.InteriorRoom {
 	plan, known := facts.LayoutPlan.Value()
 	if !known {
@@ -267,5 +267,5 @@ func plannedInteriorRooms(facts observation.ColonyProjection, keep func(policy.P
 // craftingSpotDefinition is the free, unpowered bench every tech level can
 // place at once; it hosts the club and short bow recipes a tribal start
 // arms itself with. It lives here, not in rounds_armory.go, so the armory's
-// scope does not widen through the shelter slot predicate (#2281).
+// scope does not widen through the shelter slot predicate.
 const craftingSpotDefinition = "CraftingSpot"

@@ -7,7 +7,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// Things is a frame's things table by id (#1343): the canonical rows every
+// Things is a frame's things table by id: the canonical rows every
 // food stock reference resolves against. A reference the table does not
 // hold waits for the next frame: the fact it feeds is unknown until then.
 type Things struct{ Table[*o.Thing] }

@@ -1,6 +1,6 @@
-// The child/first-child case (#1691, epic #1667) proves a Biotech colony
+// The child/first-child case proves a Biotech colony
 // raises its first child end to end in vanilla: a baby with no breastfeeder in
-// the colony is fed through the baby food the MaintainBabyFeeding goal (#1681)
+// the colony is fed through the baby food the MaintainBabyFeeding goal
 // has the colony cook, and grows into the Child developmental stage alive and
 // not starved.
 package child

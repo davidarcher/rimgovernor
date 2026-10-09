@@ -5,8 +5,8 @@ import "fmt"
 // sampleColony reads the service's live colony census (GET
 // /api/player/colony: food nutrition and runway, colonists, downed, mood
 // mean, the roster) for one timeline sample, so a sustained run's timeline
-// carries the colony facts the run is judged by beside the goal state
-// (#261). A failed read is recorded as an error block, never dropped.
+// carries the colony facts the run is judged by beside the goal state.
+// A failed read is recorded as an error block, never dropped.
 func sampleColony(apiCall func(string, string, map[string]any, string) (map[string]any, int, error)) map[string]any {
 	body, status, err := apiCall("GET", "/api/player/colony", nil, "")
 	if err != nil {

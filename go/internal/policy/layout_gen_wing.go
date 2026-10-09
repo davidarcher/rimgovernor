@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Housing blocks for the new generator (#1956, epic #1938). A wing (bedroom
+// Housing blocks. A wing (bedroom
 // wing or suite block) is sited as one straight unit: which east-west
 // hallway it hangs off, its column and its direction (north or south of
 // that hallway), its length fixed at siting (a bedroom wing wingMaxRooms
@@ -122,7 +122,7 @@ func openBlock(spine []SpineSegment, seg int, f wingFrame) []SpineSegment {
 	return spine
 }
 
-// diningAnchor is dining's door, else the storage room's (#1178), else the
+// diningAnchor is dining's door, else the storage room's, else the
 // first hallway's middle: the cell housing wants to be near.
 func diningAnchor(spine []SpineSegment, rooms []PlannedRoom) domain.Cell {
 	for _, role := range []PlannedRole{PlannedDining, PlannedStorage} {
@@ -139,7 +139,7 @@ func diningAnchor(spine []SpineSegment, rooms []PlannedRoom) domain.Cell {
 }
 
 // siteBedWings sites bedroom wings until they hold pawns rooms: each a
-// straight block of wingMaxRooms standard rooms of tier's size (#1214),
+// straight block of wingMaxRooms standard rooms of tier's size,
 // sited by siteBlock. Existing wings are never touched; rooms that do not
 // fit are left out. g is the core before any bedroom wing's ground is
 // carved out of it.
@@ -196,7 +196,7 @@ func (g coreGrid) siteBedWing(spine []SpineSegment, rooms []PlannedRoom, wings [
 
 // siteSuiteBlocks sites suite blocks for the targets past the suites the
 // plan holds (index-aligned with its suites), each block of at most
-// suiteMaxRooms suites sized by SuiteSize at siting (#1951). Existing
+// suiteMaxRooms suites sized by SuiteSize at siting. Existing
 // suites never move or change; suites that do not fit are left out. g is
 // the core with the existing wings' ground carved out.
 func (g coreGrid) siteSuiteBlocks(spine []SpineSegment, rooms []PlannedRoom, wings []Wing, targets []float64) ([]SpineSegment, []Wing) {

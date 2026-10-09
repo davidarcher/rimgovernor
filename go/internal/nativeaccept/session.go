@@ -65,7 +65,7 @@ func OpenBridgeSessionWith(ctx context.Context, config bridge.ProcessConfig) (*b
 // prepareFreshLaunch runs right before a games_start that launches (not
 // attaches): the prepared ModsConfig.xml
 // and the installed package's hashes are snapshotted so a later OpenGame
-// can tell what the process runs with (#166, #209).
+// can tell what the process runs with.
 func prepareFreshLaunch(configDir string) error {
 	if err := RecordLaunchedMods(configDir); err != nil {
 		return err
@@ -160,7 +160,7 @@ func (r Report) SoftFailure() error {
 	return errors.Join(errs...)
 }
 
-// ExitBreak is the exit code of a run paused at a breakpoint (#280): the
+// ExitBreak is the exit code of a run paused at a breakpoint: the
 // report carries "break", neither "passed" nor "error".
 const ExitBreak = 3
 
@@ -174,8 +174,7 @@ func (r Report) Write(output string) {
 	}
 }
 
-// marshalReport encodes the report with "diagnosis" (the failure digest,
-// #278) as the first member so it is the first thing read; the remaining
+// marshalReport encodes the report with "diagnosis" (the failure digest) as the first member so it is the first thing read; the remaining
 // fields follow in key order as encoding/json writes a map.
 func marshalReport(r Report) ([]byte, error) {
 	diagnosis, has := r["diagnosis"]
@@ -217,13 +216,13 @@ type Config struct {
 	Configuration string // resolved by Prepare/PrepareRendered
 	// Expansions are the official expansions to keep active (short names or
 	// package IDs); nil defers to ExpansionsEnv, and when that is unset every installed
-	// expansion loads (#1258); an empty non-nil slice pins Core-only.
+	// expansion loads; an empty non-nil slice pins Core-only.
 	Expansions []string
 	// FixtureOps are the test ops the run's Start calls; OpenSession fills
 	// it from the start when unset. The stale-package check names their
-	// fixtures in its rebuild hint (#208).
+	// fixtures in its rebuild hint.
 	FixtureOps []string
-	// QuietWorld marks the opened game quiet-world (QuietWorldTool, #272):
+	// QuietWorld marks the opened game quiet-world (QuietWorldTool):
 	// under the headless profiles' -rimgovernor-test-acceleration launch,
 	// wild plants and animals outside the home area stop ticking and the
 	// wild spawners stop. The marker persists with the game's saves, so a
@@ -236,14 +235,14 @@ type Config struct {
 	// works on one loaded world across several calls. The next OpenGame
 	// without it unloads as usual.
 	KeepLoaded bool
-	// Resumed marks a run restored from a checkpoint bundle (#249): its
+	// Resumed marks a run restored from a checkpoint bundle: its
 	// store holds clock cursors from the process that saved it, so OpenGame
 	// relaunches a kept process, whose cursors could be older, and the new
 	// process's cursors then start past them.
 	Resumed bool
 	// ServiceProfile, when set, is the profile directory every service this
 	// session launches uses instead of <Output>/service-profile: a resumed
-	// run keeps its bundle's, which the restored store is bound to (#249).
+	// run keeps its bundle's, which the restored store is bound to.
 	ServiceProfile string
 }
 

@@ -1,12 +1,12 @@
 package sleeping
 
-// sleeping/suites (#1221, epic #1200) starts from the same layout/grid
+// sleeping/suites starts from the same layout/grid
 // fixture as sleeping/bedrooms with one hut colonist turned Greedy, on a
 // Royalty profile. Phase one: the sleeping planner builds a standard
 // bedroom wing, gives the Greedy colonist (whose standard room cannot
 // reach slightly impressive on space) a suite and moves them into it.
 // Then the fixture grants them Baron, whose bedroom floor (70) needs more
-// floor than the suite has. Phase two: a suite never grows (#1951), so the
+// floor than the suite has. Phase two: a suite never grows, so the
 // planner sites a second, larger suite and shells it, and the first
 // suite's plan row stays exactly as it was.
 
@@ -222,7 +222,7 @@ func suites(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	// Phase two: the title raises the target; a second suite is planned and
-	// shelled, and the first one is left as it is (#1951).
+	// shelled, and the first one is left as it is.
 	_, err = sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 		WatchConfig: sustainedfood.WatchConfig{Watch: 8 * time.Minute, Extra: []policy.ConcernID{policy.MaintainHousing}, Until: func(map[string]any) bool {
 			if live == nil {

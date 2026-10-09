@@ -1,7 +1,7 @@
-// Package layout holds the tiered colony layout cases (#603) staged on the
+// Package layout holds the tiered colony layout cases staged on the
 // layout grid fixture hut (test/layout_grid_prepare). The former
 // layout/grid field decision replays as a colony snapshot
-// (buildingruntime TestLayoutGridFieldFillsPlanFieldBlocks, #982).
+// (buildingruntime TestLayoutGridFieldFillsPlanFieldBlocks).
 package layout
 
 import (
@@ -21,7 +21,7 @@ const (
 )
 
 // planned reports a plan of the sampled goal, active or retired, whose
-// method matches (#987): with complete set, every one of its actions has
+// method matches: with complete set, every one of its actions has
 // completed, otherwise it need only hold actions.
 func planned(sample map[string]any, match func(domain.MethodID) bool, complete bool) bool {
 	plans, _ := sample["plans"].([]map[string]any)

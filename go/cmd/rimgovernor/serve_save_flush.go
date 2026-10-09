@@ -25,7 +25,7 @@ const (
 var errNoGovernorWorld = errors.New("no current world to flush governor state into")
 
 // stateFlusher writes the store's governor state into the save's component:
-// every blob in one batched put, no diffing (#2359). The world is rebuilt
+// every blob in one batched put, no diffing. The world is rebuilt
 // from the save first when it is new, so a flush never replaces the save's
 // blobs with a store that has not read them yet.
 type stateFlusher struct {
@@ -67,7 +67,7 @@ func (s *flushedSave) Save(ctx context.Context, request *l.SaveRequest) (*l.Save
 	return s.LifecycleSave.Save(ctx, request)
 }
 
-// saveSignalNative is the pre_save long-poll and its ack (#2358).
+// saveSignalNative is the pre_save long-poll and its ack.
 type saveSignalNative interface {
 	WaitSaveSignal(ctx context.Context, timeout time.Duration) (string, bool, error)
 	FlushDone(ctx context.Context, token string) error

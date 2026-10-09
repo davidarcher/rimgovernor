@@ -7,10 +7,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Psycasts in the fight (#1611, epic #1598): a psycaster that holds a known
+// Psycasts in the fight: a psycaster that holds a known
 // combat psycast casts it at the fight's hostiles or wounded defenders. A
 // cast is a psycast_cast order, not a pawn job: the defense planner sends it
-// as the generic Ability action (#1610), where native owns the guards
+// as the generic Ability action, where native owns the guards
 // (psyfocus, entropy, cooldown, range, target arm).
 const (
 	OrderCast  CombatOrderKind   = "psycast_cast"

@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Staging the morgue (#1820, #2185). The planned morgue stands in the
+// Staging the morgue. The planned morgue stands in the
 // outskirts cluster from the start of the plan and is shelled once a human
 // corpse, colonist or stranger, fresh or rotten, lies waiting. Cooling never
 // gates the shell: a walled-in room already keeps corpses out of sight, and

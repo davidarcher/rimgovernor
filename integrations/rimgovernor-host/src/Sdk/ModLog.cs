@@ -17,7 +17,7 @@ namespace RimGovernor.Host.Sdk
     /// <summary>
     /// One diagnostic line from the mod. <see cref="ModLog"/> keeps them in a bounded ring until the
     /// host publishes them on the <c>rimgovernor.log</c> GABP channel and the controller records each
-    /// as a flight row (epic #2038, #2058).
+    /// as a flight row.
     /// </summary>
     public sealed class ModLogEntry
     {

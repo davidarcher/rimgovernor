@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// An auto home area action (#1322) persists the value it sets.
+// An auto home area action persists the value it sets.
 func TestAutoHomeAreaActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The herd's precept facts (#1644, epic #1653) come from the shared precept
+// The herd's precept facts come from the shared precept
 // rule: each animal action is bound to the HistoryEventDef the game raises
 // for it (HistoryEventDefOf in Assembly-CSharp), and ActionStance answers
 // what the colony ideoligion makes of it.

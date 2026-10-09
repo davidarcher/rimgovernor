@@ -9,7 +9,7 @@ import (
 )
 
 // TestUseItemActionRowRoundTrips proves the actions CHECK clause accepts a
-// use_item row and that it decodes back (#1038).
+// use_item row and that it decodes back.
 func TestUseItemActionRowRoundTrips(t *testing.T) {
 	db := open(t, memoryPath(t))
 	defer db.Close()

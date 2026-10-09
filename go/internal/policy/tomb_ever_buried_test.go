@@ -7,7 +7,7 @@ import (
 )
 
 // A stranger corpse that has lain in a sarcophagus fires no memory on a
-// re-burial (#2342), so a deconstruct-eject-restage loop never starts: the
+// re-burial, so a deconstruct-eject-restage loop never starts: the
 // ejected corpse is not owed a sarcophagus and waits for the morgue.
 func TestEjectedStrangerCorpseIsNotRestaged(t *testing.T) {
 	plan, _ := tombFixture()

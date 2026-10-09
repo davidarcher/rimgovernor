@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// #1943: RoomGrowth.Fixed reads one helper: the
+// RoomGrowth.Fixed reads one helper: the
 // census, its blueprint and frame sites and the open journal claims count; a
 // claim whose work closed without a building does not.
 func TestOccupiedCellsCountSitesAndOpenClaims(t *testing.T) {
@@ -42,7 +42,7 @@ func TestOccupiedCellsCountSitesAndOpenClaims(t *testing.T) {
 	}
 }
 
-// #1958: a site or claim marks its whole footprint when the definition's
+// A site or claim marks its whole footprint when the definition's
 // size was read, not only its anchor.
 func TestOccupiedCellsMarkSiteFootprint(t *testing.T) {
 	bed, err := domain.NewBuilding("Bed", domain.Cell{X: 10, Z: 10}, domain.North, "")
@@ -80,7 +80,7 @@ func TestOccupiedCellsMarkSiteFootprint(t *testing.T) {
 	}
 }
 
-// #1958: the open plans keyed by a planned room's origin make that room
+// The open plans keyed by a planned room's origin make that room
 // fixed; a retired plan or another method does not.
 func TestRoomMethodOrigins(t *testing.T) {
 	plans := []store.PlanState{

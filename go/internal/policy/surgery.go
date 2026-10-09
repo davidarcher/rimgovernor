@@ -7,8 +7,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// MaintainSurgery is the medical-operation goal (#1160). It restores missing
-// or destroyed parts (#1164); later kinds (cure, amputation, electives) add
+// MaintainSurgery is the medical-operation goal. It restores missing
+// or destroyed parts; later kinds (cure, amputation, electives) add
 // their own candidates to SelectSurgery.
 const MaintainSurgery ConcernID = "MaintainSurgery"
 
@@ -17,11 +17,11 @@ const MaintainSurgery ConcernID = "MaintainSurgery"
 const surgeryPriority = 2
 
 // RestoreFailureCap is the highest native failure chance a restore or a
-// chronic cure (#1165) may carry for the best eligible doctor.
+// chronic cure may carry for the best eligible doctor.
 const RestoreFailureCap = 0.20
 
 // ElectiveFailureCap is the highest failure chance an elective upgrade
-// (a better part on a healthy one, #1167) may carry; electives also need a
+// (a better part on a healthy one) may carry; electives also need a
 // hospital bed and no restore or cure pending colony-wide.
 const ElectiveFailureCap = 0.05
 
@@ -31,8 +31,8 @@ const ElectiveFailureCap = 0.05
 type SurgeryContext struct {
 	Profiles    []PawnProfile
 	HospitalBed bool
-	// Elective gates electives by each colonist's remaining personal share
-	// (#1843); the zero value is ungated.
+	// Elective gates electives by each colonist's remaining personal share;
+	// the zero value is ungated.
 	Elective ElectiveShare
 }
 
@@ -43,7 +43,7 @@ type SurgeryContext struct {
 // wealth jitter around the price must not strand it.
 const ElectiveShareSlack = 0.1
 
-// ElectiveShare prices electives against personal shares (#1843). Of is the
+// ElectiveShare prices electives against personal shares. Of is the
 // colonist's share (observation.ColonyProjection.PersonalShareOf); nil gates
 // nothing. Items price the installed part; a part with no price is not
 // affordable while Of is set, as an unknown share is not.
@@ -76,7 +76,7 @@ const (
 	// clears the failure cap.
 	SurgeryNoDoctor SurgeryWantReason = "surgery_no_doctor"
 	// SurgeryBedShort: an eligible doctor clears the cap with an ideal bed
-	// and room but not with the colony's best medical bed (#1240); the
+	// and room but not with the colony's best medical bed; the
 	// hospital planner builds a Bed ward for it (SurgeryBedShortPatients).
 	SurgeryBedShort SurgeryWantReason = "surgery_bed_short"
 )
@@ -89,13 +89,13 @@ type SurgeryChoice struct {
 	Item Resource
 	Part int
 	Kind SurgeryKind
-	// Elective: an upgrade on a healthy part (#1167).
+	// Elective: an upgrade on a healthy part.
 	Elective bool
 	Value    float64
 }
 
 // SurgeryWant is an operation a patient needs that cannot be queued yet;
-// part-short wants feed bill and trade demand (#1168).
+// part-short wants feed bill and trade demand.
 type SurgeryWant struct {
 	Pawn   PawnID
 	Part   int
@@ -146,7 +146,7 @@ func SurgeryRecovered(pawns domain.Fact[[]CarePawn]) domain.Fact[bool] {
 
 // servedSurgery is the capacity weight an operation gives back, zero when
 // the planner does not serve it: a restore weighs its part; a cure recipe or
-// a replacement part on a part carrying a chronic condition (#1165) weighs
+// a replacement part on a part carrying a chronic condition weighs
 // the condition. known is false when a cure's conditions are unread.
 func servedSurgery(pawn CarePawn, op SurgeryOperation) (weight float64, known bool) {
 	name, _ := op.PartDefName.Value()
@@ -177,7 +177,7 @@ func servedSurgery(pawn CarePawn, op SurgeryOperation) (weight float64, known bo
 }
 
 // chronicWeight is the capacity a chronic condition costs, which its cure
-// or replacement gives back (#1165).
+// or replacement gives back.
 var chronicWeight = map[string]float64{
 	"Cataract": 0.6, "Blindness": 0.6, "HearingLoss": 0.3,
 	"BadBack": 0.8, "Frail": 0.8, "Asthma": 0.8, "ChemicalDamageModerate": 0.8,
@@ -186,7 +186,7 @@ var chronicWeight = map[string]float64{
 
 // electivesAllowed: a medical bed stands and no living colonist has a
 // surgery bill queued or a served operation (restore, cure or chronic
-// replacement) offered (#1167, #1241).
+// replacement) offered.
 func electivesAllowed(rows []CarePawn, hospital bool) bool {
 	if !hospital {
 		return false
@@ -228,7 +228,7 @@ func electiveUpgrade(op SurgeryOperation) bool {
 // electives never do.
 //
 // A chosen elective whose part is missing (ChosenElective) also holds it open
-// while a usable bench can fabricate the part (#1844): the part bill is the
+// while a usable bench can fabricate the part: the part bill is the
 // work. fabricable is FabricableParts; nil fabricates nothing.
 func ElectiveSurgeryOwed(pawns domain.Fact[[]CarePawn], ctx SurgeryContext, fabricable map[Resource]bool) domain.Fact[bool] {
 	rows, known := pawns.Value()
@@ -274,7 +274,7 @@ func HospitalBedReady(sleeping domain.Fact[SleepingObservation]) domain.Fact[boo
 }
 
 // SurgeryBillsQueued reports whether a living colonist or prisoner has a
-// queued medical bill (#1238). A native doctor job carries the bill, so it
+// queued medical bill. A native doctor job carries the bill, so it
 // is clock work until the operation completes or the bill ends; an unknown
 // count is not work.
 func SurgeryBillsQueued(pawns domain.Fact[[]CarePawn], prisoners domain.Fact[[]PrisonerFacts]) bool {
@@ -460,7 +460,7 @@ func surgeryBedBlocked(op SurgeryOperation, failureCap float64) bool {
 }
 
 // SurgeryBedShortPatients are the living colonists whose served operation
-// waits only on a better bed or room (#1240): the hospital planner's
+// waits only on a better bed or room: the hospital planner's
 // surgical demand, which needs a Bed, not a sleeping spot.
 func SurgeryBedShortPatients(pawns domain.Fact[[]CarePawn]) []PawnID {
 	var ids []PawnID
@@ -475,7 +475,7 @@ func SurgeryBedShortPatients(pawns domain.Fact[[]CarePawn]) []PawnID {
 }
 
 // PartTier is the capacity a restore recipe's part gives back, relative to
-// a natural part (1), read from vanilla's recipe naming; an added-part hediff def (BionicArm, PegLeg) carries the same words (#1837).
+// a natural part (1), read from vanilla's recipe naming; an added-part hediff def (BionicArm, PegLeg) carries the same words.
 func PartTier(recipe string) float64 {
 	switch {
 	case strings.Contains(recipe, "Archotech"):

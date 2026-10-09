@@ -14,7 +14,7 @@ import (
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 )
 
-// TestSaveSignalWaitAndAck covers the pre_save handshake adapters (#2358)
+// TestSaveSignalWaitAndAck covers the pre_save handshake adapters
 // against a fake native: a signal yields its token, a timeout yields
 // ok=false, an ack of the held token succeeds, and a stale token is
 // ErrStaleSaveToken rather than an ack.

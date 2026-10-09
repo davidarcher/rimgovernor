@@ -7,13 +7,13 @@ import (
 )
 
 // PersonalShareFraction is f, the part of the personal pool colonists may
-// direct at themselves (#1829). It must stay below 1: personal spend adds to
+// direct at themselves. It must stay below 1: personal spend adds to
 // the colony's wealth and so to the pool, and with f < 1 the total converges
 // at f/(1-f) x the starting pool (0.2 gives a quarter), where f >= 1 would
 // let spending chase its own growth without bound.
 const PersonalShareFraction = 0.2
 
-// Share weight modifiers over the equal base of 1 (#1836). A role adds to the
+// Share weight modifiers over the equal base of 1. A role adds to the
 // claim its owner presses; an Ascetic claims half the base and nothing more.
 const (
 	shareWeightSoldier = 0.25 // gear
@@ -25,7 +25,7 @@ const (
 
 // PersonalPool is the wealth a colony's personal shares divide: items plus
 // buildings, pawns excluded so animals, prisoners and installed bionics do
-// not inflate it (#1836). Unknown unless the wealth fact is known and both
+// not inflate it. Unknown unless the wealth fact is known and both
 // parts are finite and non-negative, like WealthBudget.
 func PersonalPool(wealth domain.Fact[WealthFacts]) domain.Fact[float64] {
 	w, ok := wealth.Value()
@@ -62,7 +62,7 @@ func (f RoundsFacts) PersonalPool() domain.Fact[float64] { return PersonalPool(f
 
 // ShareMember is one colonist's input to PersonalShares. Soldier and Doctor
 // come from the caller's roster (SoldierSquad, the surgeon role); Spent is the
-// derived attribution of what the colonist holds (#1838, #1839), unknown until
+// derived attribution of what the colonist holds, unknown until
 // read.
 type ShareMember struct {
 	Profile PawnProfile
@@ -129,8 +129,8 @@ func UnknownPersonalShare() PersonalShare {
 	return PersonalShare{Share: domain.Unknown[float64](), Spent: domain.Unknown[float64](), Remaining: domain.Unknown[float64](), Gated: true}
 }
 
-// ShareDoctors are the colonists whose claim carries the doctor weight
-// (#1846): the DoctorsWanted(len(profiles)) most skilled Medicine doctors
+// ShareDoctors are the colonists whose claim carries the doctor weight:
+// the DoctorsWanted(len(profiles)) most skilled Medicine doctors
 // among those able to doctor (not backstory-incapable, not a child), best
 // level first and ties by id.
 func ShareDoctors(profiles []PawnProfile) map[PawnID]bool {

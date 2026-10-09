@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// The bounded encoder capacity detached replies are formatted on (#644).
+    /// The bounded encoder capacity detached replies are formatted on.
     /// A caller reserves a slot before it admits an expensive capture, so no
     /// more captured replies exist than encoders to own them; a reservation
     /// that cannot be had within the bound is the caller's typed capacity

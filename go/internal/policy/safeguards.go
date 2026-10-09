@@ -21,8 +21,8 @@ type SafeguardProposal struct {
 	Priority int
 }
 
-// Admission is what a Safeguard is asked to admit: a whole-goal proposal (#1017)
-// or one action at dispatch (#1018). Exactly one is set.
+// Admission is what a Safeguard is asked to admit: a whole-goal proposal
+// or one action at dispatch. Exactly one is set.
 type Admission struct {
 	Proposal *SafeguardProposal
 	Action   *domain.Action
@@ -34,7 +34,7 @@ type SafeguardRefusal struct {
 	Reason    string
 }
 
-// A Safeguard is an admission veto (#1910), not a goal row. Priority orders work
+// A Safeguard is an admission veto, not a goal row. Priority orders work
 // only; suspending other work is a Safeguard's job. The planner runner asks the
 // Safeguards before planning for a need, method admission asks them again as a
 // backstop, and dispatch asks them before any prepared plan writes. A Safeguard

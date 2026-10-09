@@ -56,8 +56,8 @@ func PreceptAcceptable(held domain.Fact[HeldPrecepts], ideology IdeologyRead) do
 const ButcheredHumanEvent = "ButcheredHuman"
 
 // QualifyingHumanButcher picks the lowest-id eligible worker whose
-// ideoligion does not forbid butchering humans (#1657). An unread ideoligion
-// with Ideology installed holds (#1922); without the expansion nothing is
+// ideoligion does not forbid butchering humans. An unread ideoligion
+// with Ideology installed holds; without the expansion nothing is
 // forbidden and the native disposition still gates the worker.
 func QualifyingHumanButcher(rows []HumanButcherCandidate, ideology IdeologyRead) (PawnID, bool) {
 	var selected PawnID
@@ -160,8 +160,7 @@ func HumanButcherEligible(traits domain.Fact[[]PawnTrait], preceptAcceptable, ca
 	return false
 }
 
-// StrangerRoute is where a stranger corpse (raider, prisoner, visitor) goes
-// (#1811).
+// StrangerRoute is where a stranger corpse (raider, prisoner, visitor) goes.
 type StrangerRoute string
 
 const (
@@ -170,7 +169,7 @@ const (
 )
 
 // RouteStranger butchers a corpse that is still fresh while butchery is
-// open and burns every other in the incinerator (#1822): a rotting or desiccated
+// open and burns every other in the incinerator: a rotting or desiccated
 // one is never hauled to the butchery. An unread rot stage is not spoiled.
 func RouteStranger(rot domain.RotStage, butcheryOpen bool) StrangerRoute {
 	if butcheryOpen && !rot.Spoiled() {

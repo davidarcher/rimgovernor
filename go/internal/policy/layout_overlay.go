@@ -4,7 +4,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// LayoutOverlay is a plan drawn as one native overlay layer (#817): output
+// LayoutOverlay is a plan drawn as one native overlay layer: output
 // only, replaced whole on every draw. Each planned room or module is
 // outlined in its role's color with its role name as a text label; zones
 // and hallways are filled.
@@ -49,7 +49,7 @@ type overlayHue struct{ R, G, B float32 }
 func (h overlayHue) fill() OverlayColor    { return OverlayColor{h.R, h.G, h.B, 0.3} }
 func (h overlayHue) outline() OverlayColor { return OverlayColor{h.R, h.G, h.B, 0.85} }
 
-// The overlay palette, after the planning colors it replaced.
+// Overlay palette.
 var (
 	planGray       = overlayHue{0.6, 0.6, 0.6}
 	planRed        = overlayHue{0.9, 0.2, 0.2}

@@ -113,7 +113,7 @@ func TestFoodOfferRetainsPendingSlaughterWithoutDuplicate(t *testing.T) {
 
 // A bonded animal is never the removal pick: native refuses it for slaughter
 // and release (SafeToSlaughter, SafeToRelease read false), so the unbonded
-// animal of the same race goes instead (#1645). Sale also protects bonds.
+// animal of the same race goes instead. Sale also protects bonds.
 func TestBondedAnimalSkippedByEveryRemovalPath(t *testing.T) {
 	bonded := bondedAs(planAnimal("a1", "Cow", "None"), true)
 	bonded.BondedPawns = []string{"p1"}
@@ -162,7 +162,7 @@ func TestSaleIgnoresSlaughterBar(t *testing.T) {
 }
 
 // ApplyHerdPrecepts binds slaughter and eating to the game's history events
-// and reads the stance from the shared rule (#1644).
+// and reads the stance from the shared rule.
 func TestApplyHerdPreceptsFromRule(t *testing.T) {
 	ideo := domain.Known(ruleIdeoligion(
 		PreceptDef{Name: "Venerated", Effects: []PreceptEffect{took(eventSlaughteredVeneratedAnimal, -8), took(eventAteVeneratedAnimalMeat, -6)}},

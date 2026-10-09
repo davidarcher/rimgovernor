@@ -1,14 +1,13 @@
 package husbandry
 
-// husbandry/plan proves the herd plan end to end on the blank lab (epic
-// #1622, #1638). A lone cow is a founder and is kept; an old milk race
+// husbandry/plan proves the herd plan end to end on the blank lab. A lone cow is a founder and is kept; an old milk race
 // (superseded while the cow has no mate) loses one male to sterilize in the
 // vet room, read back sterilized; a wild bull is then tamed as the cow's mate
 // and the old race retires one animal per review, never all at once. The race
 // catalog read is asserted first: cows with a milk product, wild and tame
 // races, minimum handling skill.
 //
-// A Go snapshot test cannot cover it (#738): the assertion is native bed and
+// A Go snapshot test cannot cover it: the assertion is native bed and
 // room use (an animal bed flagged medical in a standing vet room), a surgery
 // bill the game's own doctors perform, and the tame and designation ops
 // landing on live animals; the planner decisions themselves are snapshot
@@ -18,27 +17,27 @@ package husbandry
 // LayoutPlan (LayoutPlan.VetRoomCells, test/hut_shell_fixture stage, as the
 // shelter cases did) so the beds, the medical flag, the VetRoom allowed area
 // and the sterilize writes still run the real controller path. The
-// controller holds the GABP slot while it runs (#676), so staging and native
+// controller holds the GABP slot while it runs, so staging and native
 // readbacks happen between service runs.
 //
 // Native semantics this case asserts and does not confirm (each failure
 // below names the one it hit):
-//   - the Wildness stat orders the catalog's races (the wild race is
-//     wilder than a cow, and a cow is below 1);
-//   - combat power and the trainables approximation are not read here;
-//   - a PawnKindDef shares its race's defName, so lab_spawn can place
-//     the old race by the catalog's name;
-//   - an AnimalBed can be flagged medical (the sterilize writes only start
-//     once the sleeping census reads a standing vet room bed medical);
-//   - a doctor performs the sterilize bill on an animal in the vet room
-//     (the animal reads sterilized afterwards);
-//   - the VetRoom allowed area exists and the sterilize flow moves the
-//     animal into it;
-//   - native master ids equal pawn ids (the husbandry plan's animal ids are
-//     the lab_spawn load ids);
-//   - the lab's colonists, whose Animals skill is DebugStartFixture
-//     SkillLevel, clear a cow's minimum handling skill;
-//   - a stack of Hay per animal keeps the feed review from gating taming.
+// - the Wildness stat orders the catalog's races (the wild race is
+// wilder than a cow, and a cow is below 1);
+// - combat power and the trainables approximation are not read here;
+// - a PawnKindDef shares its race's defName, so lab_spawn can place
+// the old race by the catalog's name;
+// - an AnimalBed can be flagged medical (the sterilize writes only start
+// once the sleeping census reads a standing vet room bed medical);
+// - a doctor performs the sterilize bill on an animal in the vet room
+// (the animal reads sterilized afterwards);
+// - the VetRoom allowed area exists and the sterilize flow moves the
+// animal into it;
+// - native master ids equal pawn ids (the husbandry plan's animal ids are
+// the lab_spawn load ids);
+// - the lab's colonists, whose Animals skill is DebugStartFixture
+// SkillLevel, clear a cow's minimum handling skill;
+// - a stack of Hay per animal keeps the feed review from gating taming.
 
 import (
 	"context"
@@ -114,7 +113,7 @@ type raceRow struct {
 }
 
 // readCatalog reads the definition catalog once and returns its animal race
-// rows by defName (#1722: the race rows of the catalog, not a separate read).
+// rows by defName (the race rows of the catalog, not a separate read).
 func readCatalog(ctx context.Context, h *na.Harness, identity map[string]any) (map[string]raceRow, error) {
 	data, err := json.Marshal(identity)
 	if err != nil {

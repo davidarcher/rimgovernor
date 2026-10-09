@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The Industry department's stores (#2194): one ingredient stockpile per bench
+// The Industry department's stores: one ingredient stockpile per bench
 // that works a standing bill (stone chunks at the stonecutter, ingredients at
 // every other bench; the kitchen's and butcher's benches are the food stores'),
 // a free roofed 2x2 patch in the bench's room nearest the bench, holding that

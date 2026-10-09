@@ -9,7 +9,7 @@ import (
 )
 
 // baselineSurveyPath is one real MapSurvey read from the committed baseline
-// save (250x250) through startersite's RIMGOVERNOR_SURVEY_DUMP (#1280).
+// save (250x250) through startersite's RIMGOVERNOR_SURVEY_DUMP.
 const baselineSurveyPath = "testdata/baseline-survey.json.gz"
 
 func loadSurvey(tb testing.TB, path string) MapSurvey {

@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The recovery queue (#2297, epic #2291): one ranking over every ruin,
+// The recovery queue: one ranking over every ruin,
 // foreign obstruction and loot-capable stack on the map, whatever its
 // distance from Home. Rank is tier, then distance: tier 1 a room obstruction,
 // tier 2 anything yielding at least one currently short resource, tier 3 the
@@ -208,7 +208,7 @@ func RankRecovery(r RecoveryRequest) RecoveryQueue {
 // RecoveryClearanceThing prices one census row. Player buildings are the
 // colony's own and are no recovery thing (ok false). The row's native
 // verdicts (ancient, casket, not deconstructible) fold into Hold. Its native
-// per-building roof verdict does not (#2301): the mirror's joint roof check
+// per-building roof verdict does not: the mirror's joint roof check
 // supersedes it, so a ruin holding up a roof is queued and PlanRecoveryBatch
 // takes the thin roofs down before it; what the mirror check still refuses
 // after that is held roof_support_risk there. Native re-checks at admission.

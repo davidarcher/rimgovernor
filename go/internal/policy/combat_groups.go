@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Divide and conquer (#1064): a raid split into groups on different flanks
+// Divide and conquer: a raid split into groups on different flanks
 // gets one squad per group. The group nearest the layout choke (the line's
 // middle without one) keeps the hold; each other group gets a share of the
 // line's gunners proportional to its hostile count, posted at firing cells
@@ -26,7 +26,7 @@ const (
 	groupFallbackRange = 3
 )
 
-// CombatGroup is one raid group's squad (#1064). Hostiles are the group's
+// CombatGroup is one raid group's squad. Hostiles are the group's
 // members when it was given its squad; an empty Pawns means the line had
 // no gunner to spare or the game proposed no cells, and the fight does
 // not ask again for that group until it re-forms.

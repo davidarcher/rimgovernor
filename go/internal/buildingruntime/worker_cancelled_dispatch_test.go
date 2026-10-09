@@ -13,7 +13,7 @@ import (
 // A dispatch whose own context is cancelled while the step's is live
 // retries once under the step's; a cancellation that survives the retry
 // step after step settles the undispatched action cancelled rather than
-// parking it at attempt 0 for ever (#671).
+// parking it at attempt 0 for ever.
 func TestWorkerCancelledDispatchRetriesThenSettles(t *testing.T) {
 	t.Parallel()
 	w, f, db := workerFixture(t)

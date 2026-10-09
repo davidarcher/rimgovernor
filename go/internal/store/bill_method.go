@@ -28,9 +28,9 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	// production path (RoundsResourcePlanner.dispatchResourceConcern) stages a
 	// bench and then a StockTarget bill on it, the equipment goal whose
 	// replacement (RoundsGearPlanner, GearProduce) is a StockTarget bill on
-	// a standing bench (#233), and the refrigeration goal whose solar-flare
-	// answer is a cook-ahead bill (#408), and the art goal's pinned sculpture
-	// bills (#1190), and the baby feeding goal's baby food bill (#1681), and the mech goal's gestation bills (#1686), and the surgery goal's part bills (#1168, #1755).
+	// a standing bench, and the refrigeration goal whose solar-flare
+	// answer is a cook-ahead bill, and the art goal's pinned sculpture
+	// bills, and the baby feeding goal's baby food bill, and the mech goal's gestation bills, and the surgery goal's part bills.
 	need, bound := owner.ownerNeed(review)
 	bound = bound && (need == policy.EnsureCooking || need == policy.EnsureFoodSupply || need == policy.MaintainFoodStorage || need == policy.MaintainResource || need == policy.MaintainEquipment || need == policy.MaintainRefrigeration || need == policy.MaintainArt || need == policy.MaintainBabyFeeding || need == policy.MaintainMechs || need == policy.MaintainSurgery)
 	if !bound {
@@ -65,11 +65,9 @@ func (s *Store) BillClaimed(ctx context.Context, current domain.GenerationSnapsh
 	return count != 0, err
 }
 
-// BillPending reports whether an unretired plan still carries an unfinished
-// bill for the bench and recipe. A claim is only recorded once a write is
-// receipted, so two planners of one step could otherwise both pick the same
-// bench from the same before-token, and the second dispatch would hold on
-// the stale token forever (#408, the cook-ahead bill beside EnsureCooking's).
+// BillPending reports an unfinished bill on an unretired plan for the bench and recipe.
+// Claims are recorded after receipts, so pending plans must also prevent two planners from
+// selecting the same bench token.
 func (s *Store) BillPending(ctx context.Context, bench, recipe string) (bool, error) {
 	if submissionID(bench) != nil || submissionID(recipe) != nil {
 		return false, ErrConflict

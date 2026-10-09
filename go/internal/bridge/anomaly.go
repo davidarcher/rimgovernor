@@ -8,7 +8,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// AnomalyCatalog is one load's Anomaly defs (#1737) by name, the native rows
+// AnomalyCatalog is one load's Anomaly defs by name, the native rows
 // as read: what an entity needs, what a study yields and which incidents
 // are Anomaly threats are the game defs' own, never Go name lists. Nil
 // without Anomaly. Thing rows are the ThingDefs that are entities, are
@@ -20,7 +20,7 @@ type AnomalyCatalog struct {
 	Codex               map[string]*o.EntityCodexRow
 	Things              map[string]*o.AnomalyThingRow
 	Incidents           map[string]*o.AnomalyIncidentRow
-	// Creepjoiner parts (#1740) by def name. The downside rows are the
+	// Creepjoiner parts by def name. The downside rows are the
 	// static defs; which downside a given pawn has is hidden and is not in
 	// any pawn row.
 	CreepJoinerForms     map[string]*o.CreepJoinerFormRow
@@ -170,7 +170,7 @@ func validateStudyState(s *o.StudyState) error {
 	return nil
 }
 
-// validatePawnAnomaly bounds a pawn row's Anomaly block (#1737).
+// validatePawnAnomaly bounds a pawn row's Anomaly block.
 func validatePawnAnomaly(a *o.PawnAnomaly) error {
 	if a == nil {
 		return nil
@@ -202,7 +202,7 @@ func validatePawnAnomaly(a *o.PawnAnomaly) error {
 	return pawnsIssues(a.Issues, a.ProtoReflect())
 }
 
-// validateBuildingAnomaly bounds a building row's Anomaly block (#1737).
+// validateBuildingAnomaly bounds a building row's Anomaly block.
 func validateBuildingAnomaly(b *o.AnomalyBuilding) error {
 	if b == nil {
 		return nil
@@ -324,7 +324,7 @@ func BuildingAnomaly(row *o.BuildingState) domain.Fact[policy.BuildingAnomaly] {
 	return domain.Known(r)
 }
 
-// decodeCreepJoinerCatalog indexes the creepjoiner defs (#1740). Numbers are
+// decodeCreepJoinerCatalog indexes the creepjoiner defs. Numbers are
 // the def values and only checked for being finite; requires and excludes
 // name other creepjoiner defs (aggressive and rejection defs among them,
 // which the catalog does not carry), so they are checked for valid names only.

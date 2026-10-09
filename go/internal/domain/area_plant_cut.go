@@ -6,7 +6,7 @@ import (
 	"sort"
 )
 
-// AreaPlantCutAction orders every non-crop plant on cells cut (#1547): an
+// AreaPlantCutAction orders every non-crop plant on cells cut: an
 // AreaPlantCutIntent on Actions/Apply. Wild plants get CutPlant, harvestable
 // trees chop-wood; growing-zone plants and sown crops are never touched.
 // Native validates the cells live; a cell with nothing to cut is a no-op.

@@ -10,7 +10,7 @@ import (
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 )
 
-// The lab-choke recording's stop 7 (#1035): raider Thing_Human7385 is
+// The lab-choke recording's stop 7: raider Thing_Human7385 is
 // panic-fleeing and bleeding (blood loss 0.02 at 4.8/day, 4.9 h to
 // death), so below the population target the fight leaves it to go down:
 // the formation asks no geometry about it and no role targets it, while

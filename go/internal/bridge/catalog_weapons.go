@@ -10,7 +10,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// Classes and names the weapon rows are read against (#1723).
+// Classes and names the weapon rows are read against.
 const (
 	meleeVerbClass  = "RimWorld.Verb_MeleeAttack"
 	shootVerbClass  = "Verse.Verb_Shoot"

@@ -14,8 +14,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/postmortem"
 )
 
-// These are retained step shapes, including the MCP content blocks that used
-// to be the only place a remote failure's cause could be found.
+// Failure extraction accepts retained step shapes, including MCP content blocks carrying
+// remote failure causes.
 func TestFailedStepReachesCaseResultAndDiagnosis(t *testing.T) {
 	for _, tc := range []struct{ name, step, summary, kind, detail string }{
 		{"fixture", `{"request":{"tool":"test/berserk_prepare","arguments":{}},"result":{"isError":true,"content":[{"type":"text","text":"Prepare failed"}],"structuredContent":{"exception":"System.InvalidOperationException: Healthy baseline required.\n at BerserkFixture.Prepare()"}}}`, "System.InvalidOperationException: Healthy baseline required.", "fixture exception", "BerserkFixture.Prepare"},

@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// An area plant cut builds one AreaPlantCutIntent (#1547) with canonical cells.
+// An area plant cut builds one AreaPlantCutIntent with canonical cells.
 func TestAreaPlantCutBuildsIntent(t *testing.T) {
 	value, err := domain.NewAreaPlantCut([]domain.Cell{{X: 5, Z: 2}, {X: 1, Z: 9}})
 	if err != nil {

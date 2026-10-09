@@ -12,7 +12,7 @@ type HerdWant struct {
 	Male, Female bool
 }
 
-// HerdWants lists what the plan lacks, best first (#1636): each job's target
+// HerdWants lists what the plan lacks, best first: each job's target
 // race in job order, then each founder's missing sex by race. A race is
 // listed once.
 func HerdWants(plan HerdPlan) []HerdWant {
@@ -59,7 +59,7 @@ func HerdOffers(rows []TradeSheetRowFact, races AnimalRaceCatalog) []Resource {
 }
 
 // SelectAnimalPurchase picks the live animal a trader offers that the herd
-// plan wants (#1636): a pawn row the trader holds and will trade, with none
+// plan wants: a pawn row the trader holds and will trade, with none
 // on the colony side, of the first want that has an affordable row of its
 // race and a sex it wants. The budget is SelectPawnPurchase's:
 // min(PawnPurchaseFraction of colony silver, colony silver - reserve -

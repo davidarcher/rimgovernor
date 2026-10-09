@@ -6,13 +6,13 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    // Observed pawn traffic per layer (#817): every cell a pawn's path
+    // Observed pawn traffic per layer: every cell a pawn's path
     // follower enters counts once on the pawn's layer, and on the crossing
     // layer when the step carries soil onto a floor. Counts are not saved
     // (no ExposeData state): a load starts from zero and SinceTick names the
     // window's start so a short window is not read as a quiet colony. The
     // class keeps its old name so saves listing the component still load,
-    // and lives in the Assemblies/ runtime (#1131): RimGovernor.Host loads the
+    // and lives in the Assemblies/ runtime: RimGovernor.Host loads the
     // BridgeTools assembly after a save can already be read, so the type
     // database would not resolve it there.
     public sealed class TrafficState : MapComponent

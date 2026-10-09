@@ -2,7 +2,7 @@ package policy
 
 import "sort"
 
-// Tier-styled buildings (#610): each tech tier looks different because the
+// Tier-styled buildings: each tech tier looks different because the
 // floor under each room role and the lighting fixture advance with
 // TechTier, all through existing Core defs and stuff choices. Every rule here is a pure f(tier, role, stock) -> def/stuff with
 // one stock fallback: when the tier's rung names a material the colony does

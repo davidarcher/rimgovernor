@@ -58,8 +58,7 @@ func TestInfestationCommitsAll(t *testing.T) {
 }
 
 // {a choke, four brawlers, insects} -> the best-armored brawlers block
-// outside the choke with one in reserve, and a hurt blocker is relieved
-// (#864).
+// outside the choke with one in reserve, and a hurt blocker is relieved.
 func TestInfestationBlockRelief(t *testing.T) {
 	view := infested(chokeView())
 	_, memory := decideChoke(t, view, StopEvent{}, CombatMemory{})

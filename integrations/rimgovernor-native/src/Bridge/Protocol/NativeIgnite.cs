@@ -9,7 +9,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // IgniteIntent on Actions/Apply (#1815, epic #1640): one drafted colonist
+    // IgniteIntent on Actions/Apply: one drafted colonist
     // force-fires the molotov in the primary slot at one cell, as the
     // CombatOrder attack_ground order does; apply runs that order. Refused
     // while any pawn (colonist, animal, prisoner or hostile, downed or not)
@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
     // everything in the room, so nothing alive may be in it. No firebreak or
     // stock veto. Applied means the throw order was taken; the fire catching
     // is the next census. The attack_ground path calls no validator that
-    // reads Event.current (#1038).
+    // reads Event.current.
     internal sealed class IgniteActionHandler : IActionHandler
     {
         private static Common.Failure Refuse(string guard, string detail) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Ignite guard " + guard + ": " + detail);

@@ -108,11 +108,8 @@ func TestMealTierTable(t *testing.T) {
 	}
 }
 
-// Converted from the native case food/meal-tiers (removed for #749 at
-// 04b0a98c): a skilled cook with raw rice and milk surplus cooks fine meals;
-// once the raw stock is drained below target the owned fine bill gives way
-// to simple, with the fine tier carried as the previous review's tier (the
-// case crossed a controller restart between the two reviews).
+// Raw surplus supports fine meals; draining it below target selects simple
+// meals while carrying the previous tier into the next review.
 func TestMealTiersFineThenSimpleAfterDrain(t *testing.T) {
 	r := tierRequest()
 	first, err := ReviewMealTier(r, tierBenches())

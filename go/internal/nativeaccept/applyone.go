@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// GiveJob is the GiveJobIntent (#1352) of pawn taking the vanilla JobDef
+// GiveJob is the GiveJobIntent of pawn taking the vanilla JobDef
 // job on targets, in job target order.
 func GiveJob(pawn, job string, targets ...string) map[string]any {
 	refs := make([]any, 0, len(targets))
@@ -35,7 +35,7 @@ func ApplyOne(ctx context.Context, h *Harness, label string, identity map[string
 	return result, nil
 }
 
-// ApplyDraft drafts or undrafts pawn through a DraftIntent (#939) and
+// ApplyDraft drafts or undrafts pawn through a DraftIntent and
 // returns the applied job evidence (issued is false when the pawn already
 // stood that way), or an error naming a refusal.
 func ApplyDraft(ctx context.Context, h *Harness, label string, identity map[string]any, key, pawn string, drafted bool) (map[string]any, error) {

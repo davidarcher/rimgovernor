@@ -50,7 +50,7 @@ func TestDecideCombatMeleeEntityPackPicksManhunterTactic(t *testing.T) {
 	}
 }
 
-// TestEscapedEntityFallsToTheExistingDefense (#1743): there is no dedicated
+// TestEscapedEntityFallsToTheExistingDefense: there is no dedicated
 // breach tactic. A containment breach is a lone live hostile entity loose in
 // the colony, and the manhunter tactic takes it; the entity is a ranked target
 // and every role aims at it.
@@ -72,7 +72,7 @@ func TestEscapedEntityFallsToTheExistingDefense(t *testing.T) {
 }
 
 // A shambler assault is no humanoid raid: it never waits out the raid; a
-// squad of raiders still is one (#1065).
+// squad of raiders still is one.
 func TestShamblersAreNoHumanoidRaid(t *testing.T) {
 	view := withAnimals(holdView(), shambler("s1", domain.Cell{X: 9, Z: 5}))
 	view.Layout = domain.Unknown[CombatLayout]()

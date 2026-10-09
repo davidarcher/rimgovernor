@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TestDefinitionsResolveAgainstTheCatalog (#1340): availability is derived
+// TestDefinitionsResolveAgainstTheCatalog: availability is derived
 // from the catalog's research prerequisites and the finished projects, a
 // crop takes the map's demand and diet rows, and a name the catalog lacks
 // is unavailable.
@@ -42,7 +42,7 @@ func TestDefinitionsResolveAgainstTheCatalog(t *testing.T) {
 	}
 }
 
-// A row the view needs and the catalog lacks fails the resolve (#1731): a
+// A row the view needs and the catalog lacks fails the resolve: a
 // plant whose harvested product the catalog has no row for is no default.
 func TestDefinitionsFailWhenARowTheViewNeedsIsMissing(t *testing.T) {
 	catalog := testCatalog(bridge.FixtureDef{Name: "Plant_Rice", Plant: &bridge.FixturePlant{GrowDays: 3, SowTags: []string{"Ground"}}})
@@ -54,7 +54,7 @@ func TestDefinitionsFailWhenARowTheViewNeedsIsMissing(t *testing.T) {
 }
 
 // A non-edible plant resolves what it harvests, the yield, the sowing skill
-// and that a harvest fells it (#2282); a plant naming no product leaves the
+// and that a harvest fells it; a plant naming no product leaves the
 // harvest facts unknown rather than zero.
 func TestDefinitionsResolveCropHarvestFacts(t *testing.T) {
 	catalog := testCatalog(

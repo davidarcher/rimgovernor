@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TestColonyFrameWithoutBiomeFailsWhereDarknessDecides (#1712): a frame that
+// TestColonyFrameWithoutBiomeFailsWhereDarknessDecides: a frame that
 // carries a sowing climate but no biome, or a biome but no catalog, is an
 // error naming the missing piece rather than a lit biome.
 func TestColonyFrameWithoutBiomeFailsWhereDarknessDecides(t *testing.T) {

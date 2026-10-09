@@ -22,7 +22,7 @@ func (s wallCatalogSource) DefinitionCatalog(context.Context, *c.Identity) (*bri
 
 // Terrain whose affordances lack the wall's need reads WallSupport false; a
 // wooden wall takes Light from its stuff, and an unlisted terrain stays
-// unknown (#2119).
+// unknown.
 func TestDefenseMarkWallSupportFromTerrainAffordances(t *testing.T) {
 	t.Parallel()
 	catalog := &bridge.DefinitionCatalog{

@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// areaPlantCutAction is the AreaPlantCutIntent over canonical cells (#1547).
+// areaPlantCutAction is the AreaPlantCutIntent over canonical cells.
 // Native designates the cells' non-crop plants live (NativeAreaPlantCut.cs).
 func areaPlantCutAction(action domain.Action) (*op.Action, error) {
 	v, ok := action.AreaPlantCut()

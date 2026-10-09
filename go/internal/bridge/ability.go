@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// abilityAction is the AbilityIntent of one ability use (#1607): the pawn, the
+// abilityAction is the AbilityIntent of one ability use: the pawn, the
 // source arm and the target arm. Native's guard for the source checks
 // eligibility against live state when it applies.
 func abilityAction(action domain.Action) (*o.Action, error) {

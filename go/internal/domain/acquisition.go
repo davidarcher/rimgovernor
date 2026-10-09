@@ -37,7 +37,7 @@ func NewAcquisitionAction(id ActionID, acquisition Acquisition) (Action, error) 
 func (a Action) Acquisition() (Acquisition, bool) { return a.acquisition, a.kind == AcquisitionAction }
 
 // AcquisitionWithdrawAction removes the harvest, hunt or mine designation on
-// one source (#1046): the planner's stall withdraw, filed as its own
+// one source: the planner's stall withdraw, filed as its own
 // one-action method. Like UninstallBuildingAction it shares its intent arm
 // (the acquisition Designate, withdraw=true) with the acquisition that placed it.
 const AcquisitionWithdrawAction ActionKind = "acquisition_withdraw"

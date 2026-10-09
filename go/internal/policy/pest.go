@@ -7,7 +7,7 @@ import (
 )
 
 // A pest is a wild animal ClearPests hunts for what it destroys rather than
-// for meat (#247): an alphabeaver pack arrives as a NegativeEvent letter, is
+// for meat: an alphabeaver pack arrives as a NegativeEvent letter, is
 // factionless, never hostile and not a predator, so no emergency census
 // answers it while it defoliates the map. The race rows say which races are
 // pests (AnimalRace.Pest: an animal that eats trees); native's

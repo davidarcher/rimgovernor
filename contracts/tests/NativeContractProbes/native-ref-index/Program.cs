@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using HomeBridge.BridgeTools;
 
-// Compiles the production LoadIdIndex (#1339) and drives it the way RefIndex wires it per map:
+// Compiles the production LoadIdIndex and drives it the way RefIndex wires it per map:
 // spawned things, the inner thing of a spawned minified thing, zones, and bills on spawned givers.
 internal static class NativeRefIndexProbe
 {

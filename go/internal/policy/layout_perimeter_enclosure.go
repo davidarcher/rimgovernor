@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The enclosure the wall is traced around (#1286, #1591): the padded core
+// The enclosure the wall is traced around: the padded core
 // box grown by the yard (perimeterGap, which holds the killbox), closed by
 // perimeterThick so the outline has no notches, with its holes filled. The
 // ring is every cell within perimeterThick outside it. Field patches and
@@ -269,7 +269,7 @@ func cellRects(set map[domain.Cell]bool) []Rectangle {
 }
 
 // wallInterior is the traced enclosure read back from a plan's
-// reservations (#1287): the cells the ring closes in, not its bounding
+// reservations: the cells the ring closes in, not its bounding
 // box. The cover-clear band lies wholly outside the ring, so a flood from
 // the rooms that the band and the wall stop is the inside; cells within
 // perimeterThick of the band are the ring itself (the opening and terrain

@@ -63,8 +63,8 @@ namespace HomeBridge.BridgeTools
                 wood.stackCount = 75;
                 GenPlace.TryPlaceThing(wood, woodCell, map, ThingPlaceMode.Near);
                 wood.SetForbidden(false, false);
-                // The colony's food reserve (#428): forbidden pemmican the
-                // departure adapter packs first (#464), beside unforbidden
+                // The colony's food reserve: forbidden pemmican the
+                // departure adapter packs first, beside unforbidden
                 // survival meals it packs next and the simple meals above it
                 // must leave home. Two survival stacks keep the home runway
                 // over the routine floor after the pack leaves.

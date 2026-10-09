@@ -57,7 +57,7 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	// Every census cell is one plan field block (#1223).
+	// Every census cell is one plan field block.
 	var runs []policy.RowRun
 	for _, cell := range n.cells.Cells {
 		runs = append(runs, policy.RowRun{Z: cell.Cell.Z, X: cell.Cell.X, Length: 1})

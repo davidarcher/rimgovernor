@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // PolicyPruneIntent on Actions/Apply (#1298): delete outfit, drug, food
+    // PolicyPruneIntent on Actions/Apply: delete outfit, drug, food
     // or reading policies, or allowed areas, by load id. Vanilla TryDelete
     // refuses while a live pawn holds the policy, so every such pawn first
     // moves onto its own per-pawn policy: the one labelled with its short

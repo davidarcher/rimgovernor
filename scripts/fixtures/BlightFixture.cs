@@ -10,7 +10,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Private disposable acceptance only. Stages the blight responder's
-    // precondition (issue #245): one small growing zone of grown rice near
+    // precondition: one small growing zone of grown rice near
     // the colonists with a few of its plants blighted. Blight is a plant
     // state (Plant.Blighted, a Blight thing on the cell), not a map
     // condition, so nothing is registered; the crop-blight census in the

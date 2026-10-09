@@ -35,8 +35,7 @@ type RoundsBuildingResult struct {
 type RoundsBuildingPlanner struct {
 	paste []policy.SiteBuilding
 	// slotCuts are the plants a refused shelter slot names on its footprint or
-	// interaction cell; the step commits their cut wave and the slot is retried
-	// (#2303).
+	// interaction cell; the step commits their cut wave and the slot is retried.
 	slotCuts         []policy.ClearanceTarget
 	reviewer         *Rounder
 	native           RoundsBuildingSource
@@ -54,7 +53,7 @@ type RoundsBuildingPlanner struct {
 	lighting         *policy.LightingProposal
 	flooring         *policy.FlooringProposal
 	// firebreakPave supplies MaintainFlooring's firebreak tier: the ring's
-	// pave cells still natural ground with no floor ordered (#1549).
+	// pave cells still natural ground with no floor ordered.
 	firebreakPave func() []domain.Cell
 	routes        *policy.RoutesProposal
 	// facility restricts furnishing to rooms whose native role can host the
@@ -144,7 +143,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoundsBuildingResult{}, err
 		}
 		if r.concern == policy.MaintainButcherSpot {
-			// Only a pending spot of this definition is the planner's own work (#260).
+			// Only a pending spot of this definition is the planner's own work.
 			for _, progress := range plan.Progress {
 				if pendingFacility(progress, r.definition) || pendingFacility(progress, "TableButcher") {
 					return RoundsBuildingResult{Verdict: BuildingReasonExistingWork}, nil
@@ -153,7 +152,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			continue
 		}
 		if r.phase == policy.HousingShelter && isShelterBunkMethod(m.Method) {
-			// An open bunk rung does not hold the ring (#641): the walls and
+			// An open bunk rung does not hold the ring: the walls and
 			// door stand on cells the bunks never take (the ring is sited
 			// around them), and a stalled bed must not keep the colony
 			// outdoors. The rungs and the shell each stay idempotent on
@@ -171,7 +170,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 		if !r.shelter && IsShellMethod(m.Method) {
 			// A planned room's open ring wave does not hold the furniture
-			// raised on its interior with it (#2303): the ring and the slot
+			// raised on its interior with it: the ring and the slot
 			// are admitted together, and reconcileRooms leaves the ring alone
 			// while its wave is open.
 			continue
@@ -192,8 +191,8 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoundsBuildingResult{}, err
 	}
 	if !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		// ErrControl alone reads as a lost writer gate in the diagnosis
-		// (#662); name the boundary that actually failed.
+		// ErrControl alone reads as a lost writer gate in the diagnosis;
+		// name the boundary that actually failed.
 		return RoundsBuildingResult{}, fmt.Errorf("%w: step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) observed tick=%d review tick=%d", ErrControl, expected.Tick, review.Tick)
 	}
 	if r.concern == policy.MaintainResource || r.concern == policy.MaintainEquipment {
@@ -267,19 +266,19 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		definitions = []string{"Wall", "Door"}
 	}
 	// The read names the definitions the step may place; the initial
-	// shelter also places its bunks before the ring (#612), and their
+	// shelter also places its bunks before the ring, and their
 	// availability is judged from the same read.
 	observed := definitions
 	if r.shelter && r.phase == policy.HousingShelter {
 		observed = append(append([]string(nil), definitions...), "SleepingSpot", shelterBedDefinition, policy.SleepingBedrollDefinition)
 	}
 	if r.concern == policy.EnsureCooking || r.concern == policy.MaintainRefrigeration {
-		// The planned kitchen or freezer is shelled first (#835).
+		// The planned kitchen or freezer is shelled first.
 		observed = append(append([]string(nil), observed...), "Wall", "Door")
 	}
 	if r.shelter {
 		// The door ladder proposes an Autodoor only once the read shows it
-		// available (#610); the ring never waits on it.
+		// available; the ring never waits on it.
 		observed = append(append([]string(nil), observed...), "Autodoor")
 	}
 	var reading observation.ColonyReading
@@ -288,12 +287,12 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if r.concern == policy.EnsureTemperatureSafety || r.facilityLadder() || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes || separation {
 		// Cooking and butcher placements read rooms too when the source can
 		// serve them, so kitchen/butcher separation protects each other's
-		// rooms (issue #6 slice 2); without a census nothing is protected.
+		// rooms; without a census nothing is protected.
 		full, readErr := r.reviewer.observeRooms(call, r.native.(observation.RoundsSource), expected, domain.Unknown[[]policy.ConstructionClaim](), observed...)
 		reading, err = full.ColonyReading, readErr
 	} else if r.concern == policy.EnsureBasicPower || r.phase == policy.ComfortBasic || r.shelter {
 		// The shelter ring reconciles against the construction census, which
-		// only the rounds read carries (#2277).
+		// only the rounds read carries.
 		full, readErr := r.reviewer.observeOwned(call, r.native.(observation.RoundsSource), expected, domain.Unknown[[]policy.ConstructionClaim](), observed...)
 		reading, err = full.ColonyReading, readErr
 	} else {
@@ -311,7 +310,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	if r.concern == policy.EnsureCooking {
 		// A cooking campfire a stove kitchen supersedes is deconstructed
-		// first (#1179).
+		// first.
 		claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 		if err != nil {
 			return RoundsBuildingResult{}, err
@@ -343,8 +342,8 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			if err != nil {
 				return RoundsBuildingResult{}, err
 			}
-			// The dining room's meal closet stands before its cooler
-			// (#936); a shell already tried this epoch, or refused, leaves
+			// The dining room's meal closet stands before its cooler;
+			// a shell already tried this epoch, or refused, leaves
 			// the cooling to go on.
 			if closet, owed := plannedMealCloset(facts); positiveFact(owed) {
 				result, err := r.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading}, nil, roomReconcile{ringOnly: true, room: closet, name: string(plannedRoomMethod(closet)), reason: "cold meal shelf"})
@@ -394,9 +393,9 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			// A cooler completed on the tick the supervisor latched the
 			// window reads powerOn=false until the power net ticks once, so
 			// the cooling allowance also covers cooler_power_needed; a
-			// cooler still unpowered when it runs out is a real hold (#66).
+			// cooler still unpowered when it runs out is a real hold.
 			// Time lent from the latch alone does not cover it: with no
-			// method in the epoch there is no cooler still settling (#202).
+			// method in the epoch there is no cooler still settling.
 			powerSettling := r.concern == policy.MaintainRefrigeration && reason == awaitingMethod(policy.RefrigerationPowerNeeded) && !coolingLent
 			if reason == BuildingComfortWait || reason == awaitingMethod(policy.PowerWaitOutput) || reason == BuildingTemperatureWait || reason == awaitingMethod(policy.RefrigerationWait) || powerSettling {
 				if r.concern == policy.EnsureTemperatureSafety {
@@ -480,7 +479,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		r = &table
 	}
 	if reason == BuildingExistingFacility {
-		// The ring and the furniture are independent (#835): a campfire
+		// The ring and the furniture are independent: a campfire
 		// already standing for the kitchen does not excuse the planned
 		// room's ring.
 		if module, ok := r.plannedRoomModule(); ok {
@@ -497,7 +496,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	// The shelter's template slots are keyed on its planned interior, so the
 	// slot is previewed and admitted first and the ring wave goes in right
-	// after it, around the placed slot (#2264, #2303): a ring blueprint on the
+	// after it, around the placed slot: a ring blueprint on the
 	// slot's interaction spot makes the native refuse the slot. A ring wave
 	// already open leaves the placement to go on.
 	var ringAfter *roomReconcile
@@ -516,7 +515,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		return r.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading}, nil, *ringAfter)
 	}
 	if module, ok := r.plannedRoomModule(); ok {
-		// The planned room is raised and furnished together (#835): the
+		// The planned room is raised and furnished together: the
 		// ring is admitted, and the stove or cooler goes onto the room's
 		// interior without waiting for the walls. A shell already tried
 		// this epoch, or refused, leaves the usual placement to go on.
@@ -539,7 +538,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 	}
 	if r.concern == policy.EnsureCooking && r.definition == "Campfire" && r.cells == nil && len(r.paste) == 0 && !r.takesShelterSlot(facts) {
-		// The cooking campfire goes in the planned kitchen once it stands (#2044).
+		// The cooking campfire goes in the planned kitchen once it stands.
 		if cells := plannedRoomCells(facts, policy.PlannedKitchen); cells != nil {
 			fire := *r
 			fire.cells = cells
@@ -592,7 +591,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	// A campfire the pawns let burn out leaves the cooking census empty
 	// again in the same epoch; the completed method yields to a numbered
-	// successor the same way a staged bed's does (#217).
+	// successor the same way a staged bed's does.
 	// Indoor shelter spots do too once the census shows fewer regular
 	// beds than the colony needs: a spot converted to medical (which
 	// native indoor capacity excludes) or lost must not leave a spent
@@ -668,7 +667,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		protected = append(protected, h.Footprint...)
 	}
 	// Building intents admitted on other goals' plans but not yet applied
-	// show nothing on the map; keep off their anchors (#943).
+	// show nothing on the map; keep off their anchors.
 	var own []domain.PlanID
 	for _, m := range goal.OwnerMethods() {
 		own = append(own, m.Plan)
@@ -713,7 +712,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	if err == nil && !reason.IsZero() && len(r.slotCuts) > 0 {
 		// A plant on the only accepted slot is a foreign obstruction: cut it, and
-		// the slot is retried once the order is done (#2303). A wave already
+		// the slot is retried once the order is done. A wave already
 		// committed keeps the wait.
 		if result, done, cutErr := r.commitObstructionWave(call, epoch, state, goal, string(r.concern)+"-slot", policy.OpCut, r.slotCuts); cutErr != nil || done {
 			return result, cutErr
@@ -724,7 +723,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	// Admission never checks stock: RimWorld places the blueprints
 	// regardless and the frames hold natively for materials, which
-	// MaintainResource then reads as the deficit (#602).
+	// MaintainResource then reads as the deficit.
 	purpose := policy.Rounds
 	if r.power != nil && r.power.Method == policy.PowerShelter {
 		purpose = policy.Shelter
@@ -754,7 +753,7 @@ type roundsAdmission struct {
 	owner  store.WorkOwner
 	facts  observation.ColonyProjection
 	method domain.MethodID
-	// reason is the planner's short why, stored with the method (#846).
+	// reason is the planner's short why, stored with the method.
 	reason   string
 	snapshot domain.GenerationSnapshot
 	selected []policy.Preview
@@ -795,7 +794,7 @@ func tierPreviews(selected []policy.Preview, tiers []domain.Fact[domain.Construc
 }
 
 // admitPreviews admits the plan, the previews in dispatch order. Native
-// validates each building intent when it applies it (#856), so the siting
+// validates each building intent when it applies it, so the siting
 // reads carry no boundary re-check here.
 func (r *RoundsBuildingPlanner) admitPreviews(call, epoch context.Context, a roundsAdmission) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
@@ -804,7 +803,7 @@ func (r *RoundsBuildingPlanner) admitPreviews(call, epoch context.Context, a rou
 	// (the preview lists it first). The walls are not gated on the door
 	// completing: a door blueprint or frame no more seals a room than a
 	// wall's does, and gating held every wall until the door stood, or for
-	// ever when its observation came back unknown (#602). The pen shell in
+	// ever when its observation came back unknown. The pen shell in
 	// rounds_animal_containment.go orders its ring the same way.
 	selected, err := tierPreviews(a.selected, a.tiers)
 	if err != nil {
@@ -825,9 +824,9 @@ func (r *RoundsBuildingPlanner) admitPreviews(call, epoch context.Context, a rou
 	reason := admissionRefused(decision)
 	if decision.Admitted {
 		reason = BuildingReasonAdmitted
-		// A shell admitted short of a material (#602) records each
+		// A shell admitted short of a material records each
 		// shortfall so the construction demand MaintainResource supplies
-		// covers it (#651). The review keeps a record only while its
+		// covers it. The review keeps a record only while its
 		// actions stay open.
 		// A Project owner (the planned kitchen's shell under EnsureCooking) has
 		// no Standard: the record names Episodes, so it records none.
@@ -911,14 +910,14 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	if looseSpot {
 		// A loose spot off the template's bed slots must not take the shelter's
 		// campfire, cooler, crafting or bench slot: a cold map's cooking campfire
-		// then finds its slot taken and falls through to the kitchen (#2138).
+		// then finds its slot taken and falls through to the kitchen.
 		protected = append(append([]domain.Cell(nil), protected...), shelterFurnitureCells(facts)...)
 	}
 	if r.definition == "TableButcher" || r.concern == policy.EnsureCooking {
 		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "TableButcher")...)
 	}
-	// The cooking campfire stands in the planned kitchen (#2044); on a cold map
-	// it takes the shelter's template slot. It has no outdoor stand-in (#2266).
+	// The cooking campfire stands in the planned kitchen; on a cold map
+	// it takes the shelter's template slot. It has no outdoor stand-in.
 	cookingCampfire := r.concern == policy.EnsureCooking && r.definition == "Campfire" && r.facility == nil && len(r.paste) == 0
 	slotProtected := protected
 	var cells []policy.SiteCell
@@ -935,17 +934,17 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 			roomCells[c] = true
 		}
 	}
-	// The crafting spot takes the standing shelter's template slot (#2074);
+	// The crafting spot takes the standing shelter's template slot;
 	// with no shelter, or its slot taken, it is placed as before.
 	slotOnly := r.concern == policy.EnsureBasicDefense && r.definition == craftingSpotDefinition && r.facility == nil
 	// On a cold map the campfires stand indoors on the shelter's template
-	// slots (#2044); a taken slot, or no shelter, leaves the campfire to the
+	// slots; a taken slot, or no shelter, leaves the campfire to the
 	// search below.
 	if plan, known := facts.LayoutPlan.Value(); known && plan.Cold && r.definition == "Campfire" && (cookingCampfire || r.temperature != nil && r.temperature.Method == policy.TemperatureHeat) {
 		slotOnly = len(plannedShelterRooms(facts)) > 0
 	}
 	// A hot map's passive cooler for the shelter stands on the template's
-	// cooler slot (#2044); the powered wall cooler path is unchanged.
+	// cooler slot; the powered wall cooler path is unchanged.
 	if plan, known := facts.LayoutPlan.Value(); known && plan.Hot && r.definition == "PassiveCooler" && r.temperature != nil && r.temperature.Method == policy.TemperatureCool {
 		for _, shelter := range plannedShelterRooms(facts) {
 			for _, c := range r.temperature.Cells {
@@ -955,18 +954,18 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		}
 	}
 	if cookingCampfire && r.cells == nil && !slotOnly {
-		// Cooking waits for the planned kitchen (#2266).
+		// Cooking waits for the planned kitchen.
 		return nil, policy.StockObservation{}, BuildingNoLayoutPlan, nil
 	}
 	// The slots come from the planned interior, not a standing census room, so
-	// they place before any wall does (#2264).
+	// they place before any wall does.
 	plannedInterior := slotOnly
 	if slotOnly {
 		interiorRooms = plannedShelterRooms(facts)
 	}
 	// A campfire or cooler for a planned shelter has no outdoor stand-in: a slot
 	// the native refuses waits, named by its blocker, instead of the search
-	// below placing one outside the room (#2303). The crafting spot keeps its
+	// below placing one outside the room. The crafting spot keeps its
 	// placed-as-before fall-through.
 	strictSlot := slotOnly && len(interiorRooms) > 0 && r.concern != policy.EnsureBasicDefense
 	var refusedSlot *refusedPlacement
@@ -978,7 +977,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	}
 	if r.facility != nil {
 		if planned := plannedShelterRooms(facts); r.facility.Role == policy.RoomRoleLaboratory && len(planned) > 0 {
-			// The research bench takes the planned shelter's bench row (#2264).
+			// The research bench takes the planned shelter's bench row.
 			interiorRooms, plannedInterior = planned, true
 			for _, room := range planned {
 				for _, c := range rectCells(room.Interior) {
@@ -986,7 +985,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 				}
 			}
 		} else if r.cells != nil {
-			// A bed's cells are the planned bedroom's (#2267); its interior
+			// A bed's cells are the planned bedroom's; its interior
 			// slots come from the plan room they lie in.
 			for _, c := range r.cells {
 				roomCells[c] = true
@@ -999,7 +998,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 			})
 		}
 		// Every other facility furnishes through its planned room, which sets
-		// r.cells (plannedFacilityFurnishing, #2267); with none planned there
+		// r.cells (plannedFacilityFurnishing); with none planned there
 		// is no room to place in.
 		if len(roomCells) == 0 {
 			return nil, policy.StockObservation{}, noSpace("hosting_room"), nil
@@ -1010,7 +1009,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		for _, c := range r.cells {
 			allowed[c] = true
 			if r.facility == nil {
-				// No facility: the cells are the room (the kitchen, #835).
+				// No facility: the cells are the room (the kitchen).
 				roomCells[c] = true
 			}
 		}
@@ -1044,7 +1043,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: center, Cells: cells, Protected: append(append([]domain.Cell(nil), protected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...), Environment: policy.PlacementIndoors, Radius: max(facts.Bounds.Width, facts.Bounds.Height), Limit: 64}
 	if r.facility != nil {
 		// A facility furnishes the free room of its role nearest the colony
-		// centre (#609); the search spans the map, so the
+		// centre; the search spans the map, so the
 		// starter shell stays a candidate until such a room stands.
 		anchor := center
 		if module, ok := r.roomModule(); ok {
@@ -1056,13 +1055,13 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	}
 	if r.concern == policy.EnsureCooking && r.definition == "Campfire" || r.definition == "TableButcher" {
 		// The cooking campfire and the butcher table stand by the base, not the landing
-		// centroid (#1534).
+		// centroid.
 		if anchor, ok := planCore(facts); ok {
 			searchRequest.Center = anchor
 		}
 	}
 	if r.cells != nil {
-		// The room is fixed: search around it, wherever it stands (#838).
+		// The room is fixed: search around it, wherever it stands.
 		box := cellsBox(roomCells)
 		searchRequest.Center = domain.Cell{X: box.X + box.Width/2, Z: box.Z + box.Height/2}
 		searchRequest.Radius = max(box.Width, box.Height)/2 + 1
@@ -1164,7 +1163,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		}
 	}
 	// overlaps refuses a footprint on a site already chosen, or one that
-	// cuts a planned room's door-to-door aisle or strands its floor (#801).
+	// cuts a planned room's door-to-door aisle or strands its floor.
 	overlaps := func(p policy.Preview) bool {
 		footprint, _ := p.Footprint.Value()
 		for _, c := range footprint {
@@ -1227,7 +1226,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		return Verdict{}, nil
 	}
 	// An indoor facility asks each room's interior template for the
-	// piece's slots first (#800) and takes any slot that can be placed,
+	// piece's slots first and takes any slot that can be placed,
 	// whatever its score. Only then does the scored search run, over the
 	// rooms' wall bands, centre lines and mirror positions before any
 	// other free cell.
@@ -1257,8 +1256,8 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 			request.Protected = append(append([]domain.Cell(nil), slotProtected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...)
 			request.Anchors, request.Limit = nil, min(len(slots), 64)
 			if plannedInterior {
-				// The slots are keyed on the planned footprint, walled or not
-				// (#2264): the interior's cells stand in whatever their roof.
+				// The slots are keyed on the planned footprint, walled or not:
+				// the interior's cells stand in whatever their roof.
 				request.Environment, request.Cells = policy.PlacementAnywhere, plannedInteriorSiteCells(facts, interiorRooms)
 			}
 			for _, p := range slots {
@@ -1341,15 +1340,14 @@ func roundsBuildingBoundary(actual observation.Identity, expected domain.Generat
 
 // roundsBuildingFresh accepts an identity read the step's fact cache may
 // serve: seeded at the tick the step opened on, it sits behind the review's
-// colony anchor under a running window and is not a changed world (#306,
-// #662).
+// colony anchor under a running window and is not a changed world.
 func roundsBuildingFresh(actual, anchor domain.Tick) bool {
 	return roundsCachedFresh(bridge.FactIdentity, actual, anchor)
 }
 
 // roundsCachedFresh accepts any observation the step's fact cache may
 // have served: a read's tick never makes it stale, only another world does,
-// and that is checked beside it (#306, #662).
+// and that is checked beside it.
 func roundsCachedFresh(family bridge.FactFamily, actual, anchor domain.Tick) bool {
 	return true
 }
@@ -1384,7 +1382,7 @@ const sleepingBedsPerEpoch = 8
 // so a method whose plan is no longer open yields to a numbered successor;
 // only a method whose plan is still open stays the one reported used. A
 // building gone from the census (a campfire that burnt out, a bed that
-// disappeared) and one never built both mean try again (#856).
+// disappeared) and one never built both mean try again.
 func (r *RoundsBuildingPlanner) nextSleepingBedMethod(call context.Context, goal store.WorkOwner, method domain.MethodID, census domain.Fact[policy.CurrentConstruction]) (domain.MethodID, error) {
 	p := r.reviewer.player
 	base := method

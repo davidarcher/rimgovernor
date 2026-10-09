@@ -8,7 +8,7 @@ import (
 )
 
 // A window starts at the player's speed; none chosen is paced Ultrafast,
-// and only a paced window keeps the frame budget (#875).
+// and only a paced window keeps the frame budget.
 func TestFollowPlayerSpeed(t *testing.T) {
 	base := bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL}
 	if got := followPlayerSpeed(base, &k.Status{}); got.Speed != k.Speed_SPEED_ULTRAFAST || !got.PlayerAccelerated {

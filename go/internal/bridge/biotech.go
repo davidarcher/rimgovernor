@@ -8,7 +8,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// BiotechCatalog is one load's Biotech defs (#1678) by name, the native
+// BiotechCatalog is one load's Biotech defs by name, the native
 // rows as read: effects are the game defs' own, never Go name lists. Nil
 // without Biotech.
 type BiotechCatalog struct {
@@ -18,7 +18,7 @@ type BiotechCatalog struct {
 	Xenotypes     map[string]*o.XenotypeRow
 	MechKinds     map[string]*o.MechKindRow
 	MechWorkModes map[string]*o.MechWorkModeRow
-	// GeneTuning is the singleton of GeneTuning constants (#1932); nil when
+	// GeneTuning is the singleton of GeneTuning constants; nil when
 	// the native did not send it.
 	GeneTuning *o.GeneTuningFacts
 }
@@ -160,7 +160,7 @@ func DecodeBiotechCatalog(v *o.BiotechCatalog) (*BiotechCatalog, error) {
 	return out, nil
 }
 
-// validateGeneTuning bounds the GeneTuning singleton (#1932): finite
+// validateGeneTuning bounds the GeneTuning singleton: finite
 // numbers, ordered ranges, an ascending curve, nonnegative counts.
 func validateGeneTuning(g *o.GeneTuningFacts) error {
 	if g == nil {
@@ -196,7 +196,7 @@ func validateGeneTuning(g *o.GeneTuningFacts) error {
 	return nil
 }
 
-// validatePawnBiotech bounds a pawn row's Biotech block (#1678).
+// validatePawnBiotech bounds a pawn row's Biotech block.
 func validatePawnBiotech(b *o.PawnBiotech) error {
 	if b == nil {
 		return nil
@@ -341,7 +341,7 @@ func PawnBiotech(b *o.PawnBiotech) domain.Fact[policy.PawnBiotech] {
 }
 
 // MechCatalog is the catalog's mech kinds and the work modes the game names
-// by role as the mech planner reads them (#1687); the zero value without
+// by role as the mech planner reads them; the zero value without
 // Biotech.
 func (c *BiotechCatalog) MechCatalog() policy.MechCatalog {
 	out := policy.MechCatalog{Kinds: map[string]policy.MechKind{}}
@@ -408,7 +408,7 @@ func (c *BiotechCatalog) GeneEffects(genes []policy.PawnGene) (policy.GeneEffect
 }
 
 // WorkMinAges is the race's minimum age in years per work type from the
-// catalog (#1682). A race the catalog lacks is a contract failure: a child
+// catalog. A race the catalog lacks is a contract failure: a child
 // must never be left unrestricted for want of data.
 func (c *BiotechCatalog) WorkMinAges(race string) (map[policy.WorkType]int, error) {
 	var row *o.RaceLifeStages

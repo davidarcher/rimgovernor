@@ -7,7 +7,7 @@ import (
 )
 
 // InteriorReading classifies a planned room's interior cells against the
-// census cells (#2190). A store's zone is created only when every interior
+// census cells. A store's zone is created only when every interior
 // cell is settled: walkable (Open), or a Kept cell.
 type InteriorReading struct {
 	// Open cells are walkable.
@@ -105,7 +105,7 @@ func (r PlannedRoom) InteriorOpen(cells []SiteCell) InteriorReading {
 }
 
 // IsStoreRoom reports whether role is a room whose purpose is a store, the dug
-// rooms whose excavation is a priority (#2190).
+// rooms whose excavation is a priority.
 func IsStoreRoom(role PlannedRole) bool {
 	return role == PlannedStorage || role == PlannedArmory || role == PlannedWardrobe
 }

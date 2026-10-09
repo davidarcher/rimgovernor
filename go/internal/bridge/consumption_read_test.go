@@ -20,7 +20,7 @@ func consumptionRow(def, reason string, count int64) *o.ConsumptionRow {
 	return &o.ConsumptionRow{Definition: proto.String(def), Reason: proto.String(reason), Count: proto.Int64(count)}
 }
 
-// TestReadConsumption covers the realized-consumption read (#2441) against a
+// TestReadConsumption covers the realized-consumption read against a
 // fake native: the since hour rides the request (absent for the whole window),
 // the hours decode sparse, and a malformed page is a contract error.
 func TestReadConsumption(t *testing.T) {

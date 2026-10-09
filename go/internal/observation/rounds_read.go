@@ -65,7 +65,7 @@ func (f frameColony) ReadColonyFacts(context.Context, *c.Identity, bool) (*o.Col
 func (f frameColony) FrameTables(context.Context, *c.Identity) (bridge.Tables, error) {
 	tables := f.frame.Tables
 	// A power row's wattage includes the upgrades the frame's research
-	// census says are finished (#1726).
+	// census says are finished.
 	if f.frame.Research != nil {
 		tables.FinishedResearch = domain.Known(slices.Clone(f.frame.Research.Finished))
 	}
@@ -86,7 +86,7 @@ func (f frameColony) Zones(ctx context.Context, id *c.Identity) (facts.Held[brid
 
 // observeRounds decodes one frame. ObserveColony checks the frame's colony
 // context against expected; every other section of the frame shares that
-// context and tick, so none is checked against another (#306, #884).
+// context and tick, so none is checked against another.
 func observeRounds(ctx context.Context, source RoundsSource, clock Clock, expected Identity, maxAge time.Duration, claims domain.Fact[[]policy.ConstructionClaim], rooms, planning bool, definitions ...string) (RoundsReading, error) {
 	if source == nil {
 		return RoundsReading{}, ErrContract

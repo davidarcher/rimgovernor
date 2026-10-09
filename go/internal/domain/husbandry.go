@@ -5,8 +5,8 @@ import "errors"
 // HusbandryMethod names the direct-write animal management orders: a
 // recursive training request; a slaughter, tame or release-to-wild
 // designation or its cancel; a sterilize surgery bill; or one Animals-tab setting (allowed area,
-// master, follow-drafted, follow-fieldwork). Each is a HusbandryIntent
-// (#941), a direct settings write with no native job, so applied is the
+// master, follow-drafted, follow-fieldwork). Each is a HusbandryIntent,
+// a direct settings write with no native job, so applied is the
 // effect; the taming and release work itself is native handler labor
 // afterwards. Tame targets a wild animal, the others a player animal.
 type HusbandryMethod string

@@ -6,8 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Cooling for the standing tomb, morgue and meal closet (#840, #936, #1820,
-// #2185). Once the colony can build coolers, each of those rooms that stands
+// Cooling for the standing tomb, morgue and meal closet. Once the colony can build coolers, each of those rooms that stands
 // and measures above TombMaxC owes cooling, empty or not: cold keeps a
 // colonist fresh for resurrector mech serum and slows rot, and the room is
 // cooled before anything lies in it. MaintainRefrigeration takes the room

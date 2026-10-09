@@ -40,7 +40,7 @@ func dispatchedBill(t *testing.T, kind string) (Progress, GenerationSnapshot) {
 }
 
 // The bill id an applied placement receipt names is recorded only for an
-// accepted production_bill or surgery receipt with a valid id (#2410).
+// accepted production_bill or surgery receipt with a valid id.
 func TestBillIdentityRequiresAnAppliedBillPlacement(t *testing.T) {
 	for _, kind := range []string{"production", "surgery"} {
 		p, _ := dispatchedBill(t, kind)

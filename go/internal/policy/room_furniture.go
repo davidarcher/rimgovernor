@@ -59,7 +59,7 @@ type RoomFurniture struct {
 	Heater      string
 	AnimalSpot  string
 	AnimalBed   string
-	// AnimalFlap is the door of a pen and barn's shared wall (#2122).
+	// AnimalFlap is the door of a pen and barn's shared wall.
 	AnimalFlap string
 	Bench      map[RoomRole]string
 

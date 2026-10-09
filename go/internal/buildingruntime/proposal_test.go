@@ -21,7 +21,7 @@ func testProposal(id string, priority, urgency int, claims ResourceClaims, commi
 // Two proposals claiming the same pawn and the same quantity of one
 // resource: the higher (priority, urgency, id) proposal is admitted and
 // the loser is reported waiting on the claim, never as an error --
-// whichever arrived first (#622).
+// whichever arrived first.
 func TestCoordinateAdmitsHigherRankAndReportsLoserWaiting(t *testing.T) {
 	t.Parallel()
 	for _, order := range [][2]string{{"high", "low"}, {"low", "high"}} {
@@ -94,7 +94,7 @@ func TestCoordinateRankOrder(t *testing.T) {
 	}
 }
 
-// A claim an un-migrated planner took first-arrival on the same arbiter
+// A claim an un-proposal planner took first-arrival on the same arbiter
 // still refuses the proposal, and a non-proposal result settles as the
 // planner reported it.
 func TestCoordinateHonoursArbiterClaimsAndSettlesNonProposals(t *testing.T) {

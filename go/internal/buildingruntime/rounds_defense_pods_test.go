@@ -9,9 +9,9 @@ import (
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// Raiders still in their pods (#908) are a fight to decide with no
+// Raiders still in their pods are a fight to decide with no
 // hostile in the census yet, so the pods tactic can draft the nearest
-// armed before the open (#891); without them a hostile-free census is no
+// armed before the open; without them a hostile-free census is no
 // fight.
 func TestCombatFrameInputsPendingPodsIsAFight(t *testing.T) {
 	t.Parallel()

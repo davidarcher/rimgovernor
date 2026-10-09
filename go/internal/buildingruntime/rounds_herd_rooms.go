@@ -12,7 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The barn and vet room (#1633): once the pen stands, MaintainAnimalContainment
+// The barn and vet room: once the pen stands, MaintainAnimalContainment
 // reconciles each planned herd room (ring, door, animal beds; policy.NextHerdStep
 // over reconcileRoom) and flags the vet room's beds medical. The review holds the goal open while a step is due
 // (HerdRoomsOwed), so a herd that outgrows its beds is topped up.

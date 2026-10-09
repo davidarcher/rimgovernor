@@ -14,7 +14,7 @@ import (
 )
 
 // downedEntities are the frame's downed live hostile pawns whose detail row
-// reads them as Anomaly entities, by id: the ones the capture rule (#1742)
+// reads them as Anomaly entities, by id: the ones the capture rule
 // decides.
 func downedEntities(combat bridge.Combat) []*mp.CombatPawn {
 	var out []*mp.CombatPawn
@@ -34,7 +34,7 @@ func downedEntities(combat bridge.Combat) []*mp.CombatPawn {
 	return out
 }
 
-// postFightEntities applies the capture rule (#1742) to the fight's downed
+// postFightEntities applies the capture rule to the fight's downed
 // hostile entities: one the rule kills is finished by its nearest colonist
 // (held says the fight stays open on it), one it captures is left to the
 // custody capture, and one whose facts are unread is neither captured nor

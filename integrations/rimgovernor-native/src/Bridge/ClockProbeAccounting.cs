@@ -7,7 +7,7 @@ using System.Diagnostics;
 namespace HomeBridge.BridgeTools
 {
     /// Where the supervisor's main-thread time goes and how far apart its
-    /// hazard probes ran (#626), cumulative for the loaded game session like
+    /// hazard probes ran, cumulative for the loaded game session like
     /// ClockPauseAccounting: the hazard probe (Probe: letters, messages,
     /// alerts, pawns) and the fact-change digests (PublishFactChanges:
     /// research, world, conditions, zones) are timed apart, so a throughput

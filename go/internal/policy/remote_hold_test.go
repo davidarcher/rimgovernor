@@ -77,7 +77,7 @@ func TestRemoteWorkHoldsAreExplicitAcrossKinds(t *testing.T) {
 			if tt.salvage != nil {
 				tt.salvage(&salvage)
 			}
-			// A ruin's roof is the mirror check's (#2301), so only mining holds on it here.
+			// A ruin's roof is the mirror check's, so only mining holds on it here.
 			if got := salvageQueueReason(salvage, r); got != tt.reason && tt.reason != RemoteHoldRoofSupport {
 				t.Fatalf("salvage %q, want %q", got, tt.reason)
 			}

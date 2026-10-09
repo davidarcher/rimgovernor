@@ -11,7 +11,7 @@ import (
 
 // A wake naming an attempt reconciles that action first and ignores its
 // backoff; every other action's backoff is dropped too, since the latched
-// outcome may have unblocked it (issue #162), and the rotation resumes
+// outcome may have unblocked it, and the rotation resumes
 // fairly afterwards.
 func TestWorkerWakeReconcilesNamedAttemptFirst(t *testing.T) {
 	t.Parallel()
@@ -77,7 +77,7 @@ func TestWorkerWakeReconcilesNamedAttemptFirst(t *testing.T) {
 
 // A wake naming two attempts reconciles both in consecutive steps: the loop
 // steps again at once while woken actions remain instead of idling out a
-// StepInterval between them (#108).
+// StepInterval between them.
 func TestWorkerWakeStepsConsecutivelyWhileFocused(t *testing.T) {
 	t.Parallel()
 	w, f, db := workerFixture(t)
@@ -142,7 +142,7 @@ func TestWorkerWakeStepsConsecutivelyWhileFocused(t *testing.T) {
 
 // A step that advanced an action steps again at once: the successor the
 // advance unblocked dispatches before the clock readmits a window instead
-// of a StepInterval later (issue #162). A step that changed nothing idles.
+// of a StepInterval later. A step that changed nothing idles.
 func TestWorkerAdvanceStepsAgainAtOnce(t *testing.T) {
 	t.Parallel()
 	w, f, db := workerFixture(t)

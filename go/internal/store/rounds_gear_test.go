@@ -97,7 +97,7 @@ func TestRoundsGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 		t.Fatal("a new model gap did not reopen equipment need", g)
 	}
 	// The equipment goal ranks for a development slot like any other
-	// optional need (#233): with the slot it admits the gear family's
+	// optional need: with the slot it admits the gear family's
 	// replacement bill on a standing bench.
 	bill, err := domain.NewProductionBill("bench", "Make_Apparel_BasicShirt", domain.StockTarget, 1)
 	if err != nil {

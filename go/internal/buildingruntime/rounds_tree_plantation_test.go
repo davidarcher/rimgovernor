@@ -20,7 +20,7 @@ func oakChoice() policy.CropChoice {
 
 // A wood deficit opens a lattice-sized oak zone; a standing plantation counts
 // only its growing trees, so a second one is not opened for the same deficit
-// and a grown tree (already a chop row) is not counted twice (#2289).
+// and a grown tree (already a chop row) is not counted twice.
 func TestTreePlantationPlannerSizesAndCountsStanding(t *testing.T) {
 	var cells []policy.SiteCell
 	for x := int32(0); x < 20; x++ {

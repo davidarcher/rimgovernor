@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// An extract_bioferrite pawn setting (#2434) persists its pawn and flag.
+// An extract_bioferrite pawn setting persists its pawn and flag.
 func TestExtractBioferriteSettingRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

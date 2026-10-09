@@ -9,7 +9,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The ideology role target of AssignIntent (#1661, epic #1653): thing_id
+    // The ideology role target of AssignIntent: thing_id
     // is the role precept's load id as the ideology section lists it, and the
     // pawn's previous assignment of the kind is the role it holds now (a pawn
     // holds at most one, Ideo.GetRole). Native checks live that the role is

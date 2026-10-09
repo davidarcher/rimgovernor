@@ -28,7 +28,7 @@ type Native interface {
 	ReadMapBounds(context.Context, *c.Identity, domain.Cell) (bridge.MapBounds, bridge.Result, error)
 }
 
-// BuildingWriter sends building intents through Actions/Apply (#856).
+// BuildingWriter sends building intents through Actions/Apply.
 type BuildingWriter = ActionsWriter
 type LeaseSource interface {
 	Lease(domain.GenerationSnapshot) (string, error)
@@ -124,16 +124,10 @@ func Admission(receipt *r.Receipt, placement executor.Placement, session string)
 	return nil
 }
 
-// Unadmitted resolves a ledger lookup that carries no receipt. The native
-// ledger admits an attempt on the game's main thread before it schedules
-// any effect, and receipts_lookup is served on that same thread, so a lookup
-// under the attempt's own load that finds no entry proves the write never
-// reached admission: a dispatch that timed out on the controller side (#71,
-// the native call ceiling under peer load) was dropped before it ran, and
-// the controller's unknown receipt is its only trace. That is complete
-// no-effect evidence, so the action returns to Pending for a fresh attempt
-// instead of holding forever. An admitted entry still in flight stays held:
-// it will finish with a receipt of its own.
+// Unadmitted resolves a receipt-free ledger lookup under the attempt's load.
+// Admission and lookup share the native main thread, so a missing entry proves
+// no effect occurred and permits a fresh Pending attempt. In-flight entries
+// remain held until their receipts arrive.
 func Unadmitted(lookup *r.LookupReply, placement executor.Placement, current domain.GenerationSnapshot) (domain.Observation, error) {
 	out := domain.Observation{Action: placement.Action.ID(), Attempt: placement.Attempt, Snapshot: current, Effect: domain.EffectUnknown}
 	switch v := lookup.GetOutcome().(type) {

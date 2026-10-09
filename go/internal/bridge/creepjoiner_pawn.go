@@ -7,7 +7,7 @@ import (
 )
 
 // Downsides is what the catalog's creepjoiner downside defs add: the trait
-// and hediff def names over every downside def (#1740). A nil catalog (the
+// and hediff def names over every downside def. A nil catalog (the
 // game has no Anomaly) adds none.
 func (c *AnomalyCatalog) Downsides() policy.CreepJoinerDownsides {
 	out := policy.CreepJoinerDownsides{Traits: map[string]bool{}, Hediffs: map[string]bool{}}
@@ -35,7 +35,7 @@ func (catalog *DefinitionCatalog) CreepJoinerDownsides() policy.CreepJoinerDowns
 }
 
 // CreepJoinerPawn lifts a combat-detail pawn row into the downside check's
-// facts (#1740). A row with no Anomaly block is a game without Anomaly: no
+// facts. A row with no Anomaly block is a game without Anomaly: no
 // creepjoiner. A failed creepjoiner read stays unknown. The hediffs are the
 // visible ones, known only from a complete hediff read.
 func CreepJoinerPawn(row *o.PawnState) policy.CreepJoinerPawn {
@@ -70,7 +70,7 @@ func CreepJoinerPawn(row *o.PawnState) policy.CreepJoinerPawn {
 }
 
 // CreepJoinerHand lifts a combat-detail pawn row into the weapon drop's
-// facts (#1740): the downside check's facts, whether the colonist can take an
+// facts: the downside check's facts, whether the colonist can take an
 // order (alive, standing, undrafted, out of a mental state) and the weapon in
 // its hands, its surgery operations and bills.
 func CreepJoinerHand(row *o.PawnState) policy.CreepJoinerHand {

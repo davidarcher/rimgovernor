@@ -108,7 +108,7 @@ func TestGrowStopsAtEdge(t *testing.T) {
 }
 
 // The freezer shares a wall with the kitchen: its hallway door takes the
-// haulers, its link door the cook (#819).
+// haulers, its link door the cook.
 func TestFreezerLinksToTheKitchen(t *testing.T) {
 	p := corePlan(coreTestZones(), 3, TechTierCamp)
 	var kitchen, freezer PlannedRoom
@@ -140,8 +140,8 @@ func TestFreezerLinksToTheKitchen(t *testing.T) {
 	t.Fatalf("link %v is not in the wall between kitchen %+v and freezer %+v", l, k, f)
 }
 
-// The dining room takes the freezer's free side wall with a door into it
-// (#936), so the meal stockpile can sit in the cold one door from the
+// The dining room takes the freezer's free side wall with a door into it,
+// so the meal stockpile can sit in the cold one door from the
 // table; no meal closet is planned then.
 func TestDiningOpensIntoTheFreezer(t *testing.T) {
 	p := corePlan(coreTestZones(), 3, TechTierCamp)
@@ -162,7 +162,7 @@ func TestDiningOpensIntoTheFreezer(t *testing.T) {
 	}
 }
 
-// A dining room with no freezer door (a plan from before #936) gets a 2x2
+// A dining room with no freezer door gets a 2x2
 // meal closet behind its back wall, its door in that wall and its cooler
 // site in the closet's own back wall, venting away from the dining room.
 func TestMealClosetBehindTheDiningRoom(t *testing.T) {
@@ -207,7 +207,7 @@ func TestMealClosetBehindTheDiningRoom(t *testing.T) {
 }
 
 // A fresh core reserves its centre crossing: the main hallway grows out
-// from it on both sides and no room takes its column (#952).
+// from it on both sides and no room takes its column.
 func TestCoreReservesCentreCrossing(t *testing.T) {
 	// The five base rooms all fit east of the crossing, so demand rooms fill
 	// the hallway out to its west side.
@@ -229,18 +229,18 @@ func TestCoreReservesCentreCrossing(t *testing.T) {
 
 // A growing core fills the main hallway, then its crossings, each on
 // both sides of the main hallway, never one (no L or U); rooms never move
-// (a crossing may add a second door, #1948, but never drops or shifts one)
-// and every door opens on a hallway (#952).
+// (a crossing may add a second door, but never drops or shifts one)
+// and every door opens on a hallway.
 func TestGrowBranchesIntoCrossings(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	zones := coreTestZones()
 	p := corePlan(zones, 3, TechTierCamp)
-	// Bedrooms live in the wing (#1213); tomb rooms fill the hallways.
+	// Bedrooms live in the wing; tomb rooms fill the hallways.
 	for _, tombs := range []int{10, 20, 30} {
 		g := growPlan(p, 3, tombs, TechTierCamp)
 		for i, r := range p.Rooms {
 			// A new crossing can give a pass-through room a second door
-			// (addSecondDoors, #1948): the room and the doors it had stay.
+			// (addSecondDoors): the room and the doors it had stay.
 			kept := g.Rooms[i]
 			if len(kept.Doors) >= len(r.Doors) {
 				kept.Doors = kept.Doors[:len(r.Doors)]
@@ -276,9 +276,8 @@ func TestGrowBranchesIntoCrossings(t *testing.T) {
 	}
 }
 
-// The demand-grown rooms (#1535 kept dining central; the rest used to be
-// sited at start) join the plan on the nearest free slot beside the essentials:
-// each stands clear of every other room and the routes stay valid.
+// Demand rooms take the nearest free slots beside the essentials without
+// overlapping rooms or invalidating routes.
 func TestDemandRoomsJoinTheCore(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, rock := range []int32{50, 80} {

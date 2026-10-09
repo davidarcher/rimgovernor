@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-// The evidence budget (#302): a row's payload (a native reply envelope
+// The evidence budget: a row's payload (a native reply envelope
 // under "result", a service response under "response") is kept inline up
 // to EvidencePayloadCap and past it replaced by its preview, size and
 // hash; the untouched row survives only under EvidenceFull, in

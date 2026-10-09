@@ -12,7 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// upkeep/jealous-ascetic (#839, epic #799 items 3-4): a Jealous colonist
+// upkeep/jealous-ascetic: a Jealous colonist
 // owns a bare bedroom beside an Ascetic colonist's room that already holds
 // an end table. The jealous room is raised until BedroomJealous clears; the
 // ascetic room is capped below decent and must never rise.

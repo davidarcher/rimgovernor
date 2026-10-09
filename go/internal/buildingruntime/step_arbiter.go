@@ -15,11 +15,10 @@ type stepArbiter struct {
 	mu        sync.Mutex
 	pawns     map[domain.PawnID]bool
 	resources map[string]bool // namespaced, e.g. "haul-item:<id>", "bench:<id>"
-	// arrivals are the migrated planners' results in the order the wave
-	// delivered them, arbitrated by coordinate once the wave has returned
-	// (#622).
+	// arrivals are the proposal planners' results in the order the wave
+	// delivered them, arbitrated by coordinate once the wave has returned.
 	arrivals []proposalArrival
-	// closed is set at the step's cutoff (#623): a result proposed after
+	// closed is set at the step's cutoff: a result proposed after
 	// it goes to late, the carry to the next step's coordinator, when the
 	// step has one; otherwise it is dropped.
 	closed bool

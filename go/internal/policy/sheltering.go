@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// AllowedAreaChange is one MaintainShelter sheltering move (#1326): a pawn's
+// AllowedAreaChange is one MaintainShelter sheltering move: a pawn's
 // allowed area set to the Safe area, or cleared ("") once no trigger holds.
 type AllowedAreaChange struct {
 	Pawn   PawnID
@@ -19,7 +19,7 @@ type AllowedAreaChange struct {
 const SafeAreaLabel = SafeAreaKey
 
 // NoDangerAreaKey is the bot area key of the NoDanger allowed area: the home
-// area minus the danger cells (#1327, #1802).
+// area minus the danger cells.
 const NoDangerAreaKey = "NoDanger"
 
 // NoDangerAreaLabel is the native label of the NoDanger area.
@@ -165,7 +165,7 @@ func ShelterTriggerOf(f RoundsFacts) (ShelterTrigger, bool) {
 	return ShelterNone, ck && tempKnown && hk
 }
 
-// PlanSheltering is MaintainShelter's sheltering planner (#1326). While a
+// PlanSheltering is MaintainShelter's sheltering planner. While a
 // trigger holds, undrafted colonists (for a threat, those outside the squad's
 // draft set, ShelterCombatants) and animals that take areas without a pen
 // are moved into the Safe area. Once every trigger is known clear, pawns
@@ -210,7 +210,7 @@ func PlanSheltering(f RoundsFacts) []AllowedAreaChange {
 			to, move = safe, area != safe
 		case noKill != "" && windowKnown && window && hk && hauler:
 			// Haulers stay out of the danger cells through the fight and its
-			// cooldown (#1327, #1802).
+			// cooldown.
 			to, move = noKill, area != noKill
 		case safe != "" && area == safe:
 			move = trigger == ShelterNone
@@ -255,7 +255,7 @@ func areaKnownFalse(f domain.Fact[bool]) bool { v, k := f.Value(); return k && !
 // ShelterHeld is whether a threat's sheltering response is complete: a
 // threat triggers sheltering and every living, undowned, undrafted, sane
 // colonist (at least one) is restricted to the Safe area. The clock window
-// then watches the threat instead of refusing it (#1560): sheltered
+// then watches the threat instead of refusing it: sheltered
 // colonists wait it out on game time.
 func ShelterHeld(f RoundsFacts) bool {
 	trigger, tk := ShelterTriggerOf(f)

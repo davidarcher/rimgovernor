@@ -6,14 +6,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// StopDowned is the #849 stop for a colonist downed or killed.
+// StopDowned is the combat stop for a colonist downed or killed.
 const StopDowned CombatStopKind = "downed"
 
-// RoleRescuePath asks the game for a rescuer's route to a downed pawn
-// (#867): the pathfinder's cells, each flagged for hostile line of fire.
+// RoleRescuePath asks the game for a rescuer's route to a downed pawn:
+// the pathfinder's cells, each flagged for hostile line of fire.
 const RoleRescuePath FormationRole = "rescue_path"
 
-// Rescue orders (#867): the rescue itself, and a door's forbid or allow.
+// Rescue orders: the rescue itself, and a door's forbid or allow.
 const (
 	OrderRescue CombatOrderKind = "rescue"
 	OrderDoor   CombatOrderKind = "door"
@@ -25,7 +25,7 @@ type DoorMode string
 const (
 	DoorForbid DoorMode = "forbid"
 	DoorAllow  DoorMode = "allow"
-	// DoorHoldOpen and DoorClose hold a door open or shut it (#892, #893).
+	// DoorHoldOpen and DoorClose hold a door open or shut it.
 	DoorHoldOpen DoorMode = "hold_open"
 	DoorClose    DoorMode = "close"
 )
@@ -58,7 +58,7 @@ func (r *CombatRescue) carrying(pawn domain.PawnID) bool {
 	return r != nil && r.Rescuer != "" && r.Rescuer == pawn
 }
 
-// rescueStep is the reaction table's rescue row (#867). A downed stop for
+// rescueStep is the reaction table's rescue row. A downed stop for
 // a defender opens a rescue. Each stop until it ends: pick a rescuer (a
 // non-combatant doctor with a shield belt first, else the nearest
 // non-blocker), ask the game for its route to the patient, and order the
@@ -194,7 +194,7 @@ func pickRescuer(view CombatView, m CombatMemory, orderable map[domain.PawnID]bo
 }
 
 // rescueHostiles are the live hostiles the route is scored against, the
-// top-scored first (#863), at most the geometry cap.
+// top-scored first, at most the geometry cap.
 func rescueHostiles(view CombatView) []domain.PawnID {
 	var out []domain.PawnID
 	for _, h := range rankThreats(view) {

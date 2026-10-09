@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A deconstruction with cleared ground (#1366) sends its rectangles on the
+// A deconstruction with cleared ground sends its rectangles on the
 // DECONSTRUCT Designate; one without sends none.
 func TestDeconstructCarriesClearedGround(t *testing.T) {
 	base, err := domain.NewDeconstruction("Thing_Wall1", "Wall", domain.Cell{X: 10, Z: 12})

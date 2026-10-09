@@ -10,7 +10,7 @@ import (
 )
 
 // clockFacts is the scheduler's decoded
-// state store (facts.Store, #354) and the bounded memory of
+// state store (facts.Store) and the bounded memory of
 // which action kind each natively watched attempt belongs to, so an
 // OperationOutcome event can drop only the fact families that kind of
 // operation changes.
@@ -109,7 +109,7 @@ func operationFamilies(kind domain.ActionKind, known bool) (bool, []bridge.FactF
 // can change any fact) or the union of families the operation outcomes and
 // ObservationInvalidated events name. families is that union, for the
 // byte cache; narrowed lists the ObservationInvalidated events that named
-// entity ids or a rectangle (#359), for the store, while a family an
+// entity ids or a rectangle, for the store, while a family an
 // outcome or an unnarrowed event names is whole in families and absent
 // from narrowed's exclusive coverage.
 func clockPageInvalidation(page *k.EventsPage, kindOf func(domain.ActionID) (domain.ActionKind, bool)) (all bool, families []bridge.FactFamily, narrowed []facts.Invalidation) {

@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The frame's one buildings family (#1338) keeps open blueprints and frames
+// The frame's one buildings family keeps open blueprints and frames
 // as construction sites; the construction census is its built rows.
 func TestDecodeRoundsFrameKeepsBlueprintSites(t *testing.T) {
 	t.Parallel()
@@ -36,8 +36,8 @@ func TestDecodeRoundsFrameKeepsBlueprintSites(t *testing.T) {
 	}
 }
 
-// DecodeRoundsFrame checks every section against the frame's own identity
-// (#884): a section naming another colony, load or map is a contract error.
+// DecodeRoundsFrame checks every section against the frame's own identity:
+// a section naming another colony, load or map is a contract error.
 func TestDecodeRoundsFrameChecksSectionIdentity(t *testing.T) {
 	t.Parallel()
 	zones := func(ctx *c.ObservationContext) *o.ZonesSnapshot {
@@ -78,7 +78,7 @@ func TestDecodeRoundsFrameChecksSectionIdentity(t *testing.T) {
 
 // The routine frame a stream serves carries the frame's things table: a
 // food stock's reference resolves against it, so a frame without it leaves
-// the review's food supply unknown (#1571).
+// the review's food supply unknown.
 func TestRoundsFrameServesThingsTable(t *testing.T) {
 	t.Parallel()
 	frame := bundleTestSnapshot()

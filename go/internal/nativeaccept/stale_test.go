@@ -238,7 +238,7 @@ func TestFindRepoAcceptsAWorktreeGitFile(t *testing.T) {
 
 // The rebuild hint lists the case's own fixtures beside the installed
 // build's: following the installed list alone left farm/select-hydroponics
-// without FarmEnvironmentFixture (#208).
+// without FarmEnvironmentFixture.
 func TestRequireCurrentPackageHintNamesTheRunsFixtures(t *testing.T) {
 	t.Setenv(AllowStaleModEnv, "")
 	repo := t.TempDir()
@@ -247,7 +247,7 @@ func TestRequireCurrentPackageHintNamesTheRunsFixtures(t *testing.T) {
 	writeFile(t, repo, "scripts/fixtures/PowerFixture.cs", `[Tool("test/power_prepare")] class Power {}`)
 	writeFile(t, repo, "scripts/fixtures/QuietStorytellerFixture.cs", `class Quiet {}`)
 	pkg := filepath.Join(t.TempDir(), "RimGovernor")
-	// BerserkFixture was installed but deleted from the checkout (#775).
+	// BerserkFixture was installed but deleted from the checkout.
 	writeManifest(t, pkg, `{"packageId":"davidarcher.rimgovernor.native","role":"fixture","fixtures":["QuietStorytellerFixture","PowerFixture","BerserkFixture"],"sourceRevision":"0123456789abcdef","sourceTree":"not-this-tree"}`)
 	inRepo(t, repo, func() {
 		_, err := RequireCurrentPackage(pkg, "test/farm_environment_prepare", "test/power_prepare", "test/unregistered")

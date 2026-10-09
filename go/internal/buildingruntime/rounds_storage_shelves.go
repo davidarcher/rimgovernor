@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RoundsStorageShelvesPlanner (#721) places shelves inside the stockpiles
+// RoundsStorageShelvesPlanner places shelves inside the stockpiles
 // a method created -- the general store and the ingredient zones
 // MaintainResource created before the storage planner took them over. Each shelf is a method of the goal that created its zone, taken
 // only while that goal is active and selected; policy.NextShelfStep picks

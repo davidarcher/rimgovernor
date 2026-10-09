@@ -63,7 +63,7 @@ func growingCropPlan(t *testing.T, id domain.PlanID, crop string, cells []domain
 
 // A zone method committed under MaintainResource must bind to the resource
 // target goal; the production ladder once stalled on "plan or action
-// identity already exists" at this admission before the goal was bound (#155).
+// identity already exists" at this admission before the goal was bound.
 func TestCommitStockpileZoneMethodBindsToResourceTargetGoal(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
@@ -93,8 +93,8 @@ func TestCommitStockpileZoneMethodBindsToResourceTargetGoal(t *testing.T) {
 	}
 }
 
-// A resource's field is a growing zone of any crop under MaintainResource
-// (#2285); the planner, not the store, gates the social crops.
+// A resource's field is a growing zone of any crop under MaintainResource;
+// the planner, not the store, gates the social crops.
 func TestCommitResourceFieldZoneUnderMaintainResource(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
@@ -318,7 +318,7 @@ func buildingOnlyPlan(t *testing.T, id, definition string) domain.PlanSpec {
 }
 
 // A basin batch stays open until its last basin stands; the re-crop of a
-// basin that already finished must not wait for it (#102).
+// basin that already finished must not wait for it.
 func TestCommitGrowerCropExemptFromOpenFieldWork(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A ranged attack along a blocked line (a wall, #912) retargets to a
+// A ranged attack along a blocked line (a wall) retargets to a
 // hostile with a clear line, or is dropped; an attack native refused
 // cannot_hit is not re-sent from the same cell, and is forgotten once the
 // shooter moves.
@@ -91,7 +91,7 @@ func TestDecideCombatNoAttackThroughColonist(t *testing.T) {
 	want := []CombatOrder{
 		{Pawn: "a", Kind: OrderAttack, Target: "h4", Reason: ReasonFormation},
 		{Pawn: "c", Kind: OrderAttack, Target: "h5", Reason: ReasonFormation},
-		// b, outmatched with nothing to shoot, takes its combat drug (#1311).
+		// b, outmatched with nothing to shoot, takes its combat drug.
 		{Pawn: "b", Kind: OrderDrug, Drug: "GoJuice", Reason: ReasonDrug},
 	}
 	if again != nil || !reflect.DeepEqual(orders, want) {
@@ -116,7 +116,7 @@ func TestDecideCombatNoAttackThroughColonist(t *testing.T) {
 }
 
 // A squad role whose target left the view (fled, despawned) gets no
-// attack: native refuses it as not_found every stop (#904).
+// attack: native refuses it as not_found every stop.
 func TestDecideCombatNoAttackOnMissingTarget(t *testing.T) {
 	view := threatView()
 	memory := CombatMemory{Tactic: TacticSquad, Formed: 50, Roles: []CombatRole{
@@ -133,7 +133,7 @@ func TestDecideCombatNoAttackOnMissingTarget(t *testing.T) {
 	}
 }
 
-// Lab pods (#967): raiders dropped inside a walled room, the gunner in the
+// Lab pods: raiders dropped inside a walled room, the gunner in the
 // corridor outside with every line blocked. Its walled lines become
 // refused hits, the next stop asks firing cells around it, and the answer
 // moves it to the nearest free proposal with a clear line.
@@ -207,7 +207,7 @@ func loneThreat(view CombatView) CombatView {
 // A gunner whose target is in melee with our blocker gets stop and
 // hold-fire; it holds while the melee lasts and gets fire-at-will back
 // when it ends, then its attack. h1 is the only hostile, so no other is
-// in range to shoot instead (#978).
+// in range to shoot instead.
 func TestDecideCombatHoldsFireOnBlockerMelee(t *testing.T) {
 	view := loneThreat(threatView())
 	cell := func(x int32) *domain.Cell { return &domain.Cell{X: x, Z: 23} }
@@ -251,7 +251,7 @@ func TestDecideCombatHoldsFireOnBlockerMelee(t *testing.T) {
 
 // A melee raider reports cooldown between swings: hold fire stays on while
 // it stands next to our blocker, and a gunner mid-aim at another hostile
-// keeps its fire mode (#903).
+// keeps its fire mode.
 func TestDecideCombatHoldFireSteadyBetweenSwings(t *testing.T) {
 	view := loneThreat(threatView())
 	cell := func(x int32) *domain.Cell { return &domain.Cell{X: x, Z: 23} }

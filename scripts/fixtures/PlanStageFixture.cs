@@ -10,7 +10,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Disposable test setup only (#2118, epic #2101). Stages the ground of a
+    // Disposable test setup only. Stages the ground of a
     // plan the controller has already derived, so the plan-vs-ground
     // reconciler has a standing room to work on: finished player walls and
     // doors of a chosen stuff, a roof over the room, a constructed floor,
@@ -82,7 +82,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Fill loads an ancient casket with friendly pod contents, so the
-        // reconciler meets a casket that still holds something (#2278).
+        // reconciler meets a casket that still holds something.
         private static void Fill(Map map, Building_AncientCryptosleepCasket casket)
         {
             var parms = default(ThingSetMakerParams);

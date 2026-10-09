@@ -77,7 +77,7 @@ func buildColony(sections map[string]*recSection) *colonyDecoded {
 	if err != nil {
 		return fail(err)
 	}
-	// The keyed tables the facts' references resolve against (#1343).
+	// The keyed tables the facts' references resolve against.
 	tables := bridge.Tables{Buildings: bridge.Buildings{}, Pawns: bridge.Pawns{}, Things: bridge.Things{}}
 	if s := sections[string(facts.Buildings)]; s != nil {
 		for _, raw := range s.rows {

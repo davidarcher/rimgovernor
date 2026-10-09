@@ -17,9 +17,9 @@ import (
 const hook = "Pawn_DraftController.Drafted"
 
 func init() {
-	// shutdown (the former shutdownaccept, #88): an orderly end of the game
+	// shutdown (the former shutdownaccept): an orderly end of the game
 	// revokes native authority as REVOCATION_REASON_SHUTDOWN, which a
-	// controller can tell apart from the lease lapse (DISCONNECT, #35 M1)
+	// controller can tell apart from the lease lapse (DISCONNECT M1)
 	// a vanished bot leaves behind. The case grants Auto, ends the game
 	// the way the player's quit-to-menu does (the test/shutdown_unload
 	// fixture op), and reads authority for the ended game's identity once
@@ -36,7 +36,7 @@ func init() {
 		Budget: 8 * time.Minute,
 		Crew:   cases.Crew{Size: 3}, Run: runShutdown,
 	})
-	// runtime-fault (the former runtimefaultaccept, #35 M3): a required
+	// runtime-fault (the former runtimefaultaccept M3): a required
 	// authority invalidation hook that goes missing at runtime (a partial
 	// startup install, or another mod unpatching it) invalidates authority
 	// as HOOKS_UNAVAILABLE and is reinstalled by the next admission without

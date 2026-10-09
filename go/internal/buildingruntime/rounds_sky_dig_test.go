@@ -22,7 +22,7 @@ func setRoof(s *excavationStep, roof string, cells ...domain.Cell) {
 
 // Thin-roof rock under an open-sky site is dug and the roof removed once the
 // digging is done; the plan holds no building, which the ordinary preview
-// places when the site reads clear (#1758, #1896).
+// places when the site reads clear.
 func TestAdmitRockStepDigsThenUnroofsWithoutBuilding(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

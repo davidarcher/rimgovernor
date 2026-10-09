@@ -10,9 +10,9 @@ import (
 // ResourceFieldCellCap bounds the cells one resource field plan asks for.
 const ResourceFieldCellCap = 4096
 
-// ResourceFieldRequest is a demand-driven field decision (#2283): sow the
+// ResourceFieldRequest is a demand-driven field decision: sow the
 // crop whose harvest is Resource so that Deficit units come in. Edibility is
-// irrelevant; only Harvests and UnitsPerCell (#2282) say what a crop is for.
+// irrelevant; only Harvests and UnitsPerCell say what a crop is for.
 type ResourceFieldRequest struct {
 	Resource Resource
 	// Deficit is the units still wanted; unknown or non-positive plans nothing.
@@ -34,7 +34,7 @@ type ResourceFieldRequest struct {
 // never plants on a guess: unknown season, darkness or crop facts refuse.
 // Candidates are ranked by yield per day over the needed cells.
 //
-// A tree species (IsTreeCrop, #2289) is planned on the native lattice, one
+// A tree species (IsTreeCrop) is planned on the native lattice, one
 // tree per domain.TreeCellsPerTree cells, each yielding its wood at the first
 // harvestable growth (treePricing); it needs a researched, biome-native species
 // and a skilled sower, has no season to fit (its growth carries across
@@ -76,11 +76,11 @@ func PlanFieldByResource(r ResourceFieldRequest) (FieldPlan, bool) {
 }
 
 // ResourceFieldPrefix starts the ID of a resource field candidate: the prefix
-// plus the crop name, so the executor (#2285) reads the plan it priced by ID.
+// plus the crop name, so the executor reads the plan it priced by ID.
 const ResourceFieldPrefix = "field:"
 
 // ResourceFieldCandidate prices a planned resource field as a harvest
-// candidate (#2284): the plan's cells, the crop's grow days and units per cell,
+// candidate: the plan's cells, the crop's grow days and units per cell,
 // the sowing as upfront labor (FieldSowTicksPerCell) and the harvest work over
 // the grow time as daily labor. False when the plan has no cells or a crop fact
 // is unknown; a field is never priced on a guess.

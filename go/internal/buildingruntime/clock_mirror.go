@@ -12,7 +12,7 @@ import (
 )
 
 // Mirror helpers for the planning window: the rows it holds across steps
-// in the recorded mirror (#795), each refresh read whole since #858.
+// in the recorded mirror, each refresh read whole since #858.
 
 func cellRows(cells []policy.SiteCell) map[domain.Cell]policy.SiteCell {
 	out := make(map[domain.Cell]policy.SiteCell, len(cells))
@@ -28,13 +28,13 @@ const (
 	benchSectionName = "benches"
 )
 
-// publishThings publishes the review frame's things table (#1343) as the
+// publishThings publishes the review frame's things table as the
 // things section keyed by thing id.
 func publishThings(m *facts.Store, scope facts.Scope, things bridge.Things, tick int64) {
 	facts.PutKeyed(m, scope, bridge.ThingsSection, things.Table, facts.At(tick))
 }
 
-// publishPawns publishes the review frame's pawn table (#1343) as the pawn
+// publishPawns publishes the review frame's pawn table as the pawn
 // section keyed by pawn id; the recording keeps only the rows that
 // changed.
 func publishPawns(m *facts.Store, scope facts.Scope, pawns bridge.Pawns, tick int64) {

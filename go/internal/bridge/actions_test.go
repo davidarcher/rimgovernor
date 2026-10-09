@@ -91,7 +91,7 @@ func TestTradeAndBuildingRegisterAsIntentKinds(t *testing.T) {
 }
 
 // An accept carries the gear things it authorizes past native's export
-// protection (#1831), sorted.
+// protection, sorted.
 func TestTradeAcceptCarriesExportThings(t *testing.T) {
 	value, err := domain.NewTradeAccept("trader-1", "pawn-1", "sig-1", nil, []string{"Apparel_B", "Apparel_A"}, false, false)
 	if err != nil {
@@ -114,7 +114,7 @@ func TestTradeAcceptCarriesExportThings(t *testing.T) {
 }
 
 // Acquisition, mine acquisition and a stall withdraw build one
-// acquisition-guarded Designate; only the withdraw sets withdraw (#1046).
+// acquisition-guarded Designate; only the withdraw sets withdraw.
 func TestAcquisitionKindsBuildAcquisitionDesignate(t *testing.T) {
 	value, err := domain.NewAcquisition("deer-1", "Corpse_Deer", domain.Cell{X: 3, Z: 4})
 	if err != nil {
@@ -146,7 +146,7 @@ func TestAcquisitionKindsBuildAcquisitionDesignate(t *testing.T) {
 	}
 }
 
-// A surgery builds one medical ProductionBillIntent (#1162); a whole-body recipe leaves
+// A surgery builds one medical ProductionBillIntent; a whole-body recipe leaves
 // part_index absent.
 func TestSurgeryBuildsMedicalBill(t *testing.T) {
 	for _, tc := range []struct {
@@ -175,8 +175,7 @@ func TestSurgeryBuildsMedicalBill(t *testing.T) {
 	}
 }
 
-// An auto home area action builds one AutoHomeAreaIntent carrying the value
-// (#1322).
+// An auto home area action builds one AutoHomeAreaIntent carrying the value.
 func TestAutoHomeAreaBuildsIntent(t *testing.T) {
 	for _, enabled := range []bool{false, true} {
 		action, err := domain.NewAutoHomeAreaAction("a1", enabled)

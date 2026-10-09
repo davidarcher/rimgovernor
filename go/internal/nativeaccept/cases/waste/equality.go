@@ -1,6 +1,6 @@
 // The waste/colony_facts_equality case is the permanent ColonyFacts
-// equality check (#1296): on the waste fixture (item, corpse and waste rows
-// whose order matters, and ResourceSources, #1295) the native snapshot read with every read
+// equality check: on the waste fixture (item, corpse and waste rows
+// whose order matters, and ResourceSources) the native snapshot read with every read
 // optimization off and then on must be byte-identical.
 package waste
 
@@ -27,7 +27,7 @@ func init() {
 
 func runEquality(ctx context.Context, s cases.Session) error {
 	// A roofed granite block with a face and a buried steel deposit gives
-	// the ResourceSources comparison mine, buried and roof-support rows (#1295).
+	// the ResourceSources comparison mine, buried and roof-support rows.
 	if _, err := s.Harness().Call(ctx, "buried-steel", "test/buried_steel", map[string]any{"action": "prepare"}); err != nil {
 		return err
 	}

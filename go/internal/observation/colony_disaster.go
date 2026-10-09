@@ -33,7 +33,7 @@ func colonyConditions(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCatalo
 }
 
 // colonyOutdoorsDark is whether the frame's biome keeps the sky dark for good
-// (its map conditions' class family, #1712). A frame with no biome, or no
+// (its map conditions' class family). A frame with no biome, or no
 // catalog to read its conditions from, is an error naming which is missing, as
 // is a biome the catalog has no row for: lit is never assumed.
 func colonyOutdoorsDark(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCatalog) (domain.Fact[bool], error) {

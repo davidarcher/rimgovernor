@@ -20,7 +20,7 @@ func (s clearanceSource) ReadClearanceTargets(context.Context, *c.Identity, bool
 	return s.reply, bridge.Result{}, s.err
 }
 
-// A ruin standing in Home carries yield evidence like any other (#2295).
+// A ruin standing in Home carries yield evidence like any other.
 func TestClearanceHomeRuinCarriesSalvageEvidence(t *testing.T) {
 	native := &c.ObservationContext{Identity: &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(1)}, Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}
 	expected, err := contextIdentity(native)

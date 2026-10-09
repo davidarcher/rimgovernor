@@ -107,7 +107,7 @@ func admittedBuilds(t *testing.T, available int64) []domain.Building {
 }
 
 // A stocked wing's rooms are one batch: every room's ring is admitted
-// together, the first room leading, rooms in plan order (#2133).
+// together, the first room leading, rooms in plan order.
 func TestCommitBuildsAdmitsAStockedWingTogether(t *testing.T) {
 	got := admittedBuilds(t, 100)
 	if len(got) != 12 {

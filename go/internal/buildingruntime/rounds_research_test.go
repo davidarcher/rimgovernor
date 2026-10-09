@@ -23,7 +23,7 @@ type researchNative struct {
 	// benchMissing locks every project on the bench the colony lacks.
 	benchMissing bool
 	// knowledge adds the Anomaly knowledge slots and two startable basic
-	// projects and one advanced one to the census (#1745).
+	// projects and one advanced one to the census.
 	knowledge []policy.KnowledgeSlot
 }
 
@@ -74,7 +74,7 @@ func (n *researchNative) ReadResearch(ctx context.Context, _ *c.Identity) (bridg
 // With no operator target and no workshop need, the research planner walks
 // the default ladder: it selects the first unfinished rung while the tab is
 // idle, and lends the clock ticks while any project is current so the rung
-// finishes on its own (#230).
+// finishes on its own.
 func TestRoundsResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -134,7 +134,7 @@ func TestRoundsResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 
 // A rung locked only for lack of a research bench is a building need, never
 // a selection native SelectResearch would refuse: with no building ladder
-// composed the planner reports the bench hold by name (#254).
+// composed the planner reports the bench hold by name.
 func TestRoundsResearchReportsTheBenchHoldInsteadOfSelecting(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

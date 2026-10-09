@@ -39,7 +39,7 @@ func TestParseFaults(t *testing.T) {
 	}
 }
 
-// A planner faulted to fail is an isolated failure (#62): the step still
+// A planner faulted to fail is an isolated failure: the step still
 // admits its window and names the fault.
 func TestClockSchedulerFailFaultIsIsolated(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -56,8 +56,8 @@ func TestClockSchedulerFailFaultIsIsolated(t *testing.T) {
 	}
 }
 
-// A critical planner faulted to hang holds admission past the wall budget
-// (#623): the step admits nothing and names it under held_by.
+// A critical planner faulted to hang holds admission past the wall budget:
+// the step admits nothing and names it under held_by.
 func TestClockSchedulerHangFaultOnCriticalHolds(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

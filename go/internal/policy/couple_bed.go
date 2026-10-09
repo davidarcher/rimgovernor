@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Couple beds (#843). When two colonists become a couple (sleepingCouples)
+// Couple beds. When two colonists become a couple (sleepingCouples)
 // and share no double bed, the couple's room gets one in its bedroom
 // template's bed slot. The change is walked across reviews, each step read
 // back from the census:
@@ -32,7 +32,7 @@ const (
 
 // CoupleBed is the next couple bed step. Pack lists the beds to uninstall
 // (the couple's room's first); Room is the room's census id. An install is the
-// build side's (#2115): Planned is the couple's planned room and Template its
+// build side's: Planned is the couple's planned room and Template its
 // DoubleBed in the bedroom template's bed slot, which ReconcileRoom installs
 // from stock or builds.
 type CoupleBed struct {
@@ -59,7 +59,7 @@ func coupleBedSlot(plan LayoutPlan, room FurnitureRoom) (PlannedRoom, []WantedPi
 
 // NextCoupleBed returns the first couple (by lower pawn id) bed step due,
 // false when none. rooms are the furniture rooms, each of which must stand in a
-// planned room of plan (its install is reconciled, #2115); packed are the cells
+// planned room of plan (its install is reconciled); packed are the cells
 // of the beds this Episode's completed pack steps uninstalled, the
 // couple's room's bed first; buildable reports that a DoubleBed can be
 // built, without which nothing is packed.

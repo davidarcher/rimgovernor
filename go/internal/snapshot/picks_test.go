@@ -8,8 +8,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Planner picks converted from the native upkeep/* and clearance/* cases
-// (#746): each planner step's recorded policy inputs, the reads the
+// Planner picks converted from the native upkeep/* and clearance/* cases:
+// each planner step's recorded policy inputs, the reads the
 // rounds's facts do not carry (feed benches and zones, haulers,
 // dump sites, shrine squads and breach readiness), replayed through the
 // policy that chose the bench, cell, pawn or casket.

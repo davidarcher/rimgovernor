@@ -11,7 +11,7 @@ import (
 
 // A review that planned work records the roster report, a review without a
 // known census (or a disabled one) keeps the last report, and the record
-// survives a reload byte for byte (#448).
+// survives a reload byte for byte.
 func TestRoundsRosterRecordedAndKept(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

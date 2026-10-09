@@ -55,7 +55,7 @@ func TestRoomUpgradeFillsTemplateSlotsCheapestFirst(t *testing.T) {
 	}
 }
 
-// layout/ring (run 36991368938, #1560): a 4x3 Masonry bedroom below its
+// layout/ring (run 36991368938): a 4x3 Masonry bedroom below its
 // Dull floor, its bed off the template's centre line, owes the end table
 // alone; one standing anywhere in the room settles the upgrade, so the
 // expansion fixture's furnished bedrooms leave MaintainHousing's bedroom

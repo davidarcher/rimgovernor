@@ -79,8 +79,8 @@ func TestNoWeaponsNearPrison(t *testing.T) {
 	}
 }
 
-// Layout keeps a new armory, and a new prison, the weapon clearance apart
-// (#1805): the armory's room and walls stand outside nearPrison.
+// Layout keeps a new armory, and a new prison, the weapon clearance apart:
+// the armory's room and walls stand outside nearPrison.
 func TestGrowGearRoomsKeepsTheArmoryClearOfPrisons(t *testing.T) {
 	t.Parallel()
 	plan := gearTestPlan()

@@ -16,7 +16,7 @@ import (
 )
 
 // defenseRecorder is a RoundsDefenseSource that keeps the replies one
-// defense step read, for its colony snapshot (#744).
+// defense step read, for its colony snapshot.
 type defenseRecorder struct {
 	RoundsDefenseSource
 	emergency *bridge.EmergencyObservation
@@ -25,7 +25,7 @@ type defenseRecorder struct {
 }
 
 // ReadCombat keeps the frame's census, its pawn table rows and building
-// lines of fire, in the shapes of the reads they replace (#853).
+// lines of fire, in the shapes of the reads they replace.
 func (d *defenseRecorder) ReadCombat(ctx context.Context, id *c.Identity) (bridge.Combat, error) {
 	v, err := d.RoundsDefenseSource.ReadCombat(ctx, id)
 	if err != nil || v.Emergency.Context == nil {
@@ -66,7 +66,7 @@ func (r *RoundsDefensePlanner) step(call, epoch context.Context, arbiter *stepAr
 }
 
 // recordLayoutSnapshot writes one layout decision's request when
-// snapshot.DirEnv names a directory (#744); a failed write is logged.
+// snapshot.DirEnv names a directory; a failed write is logged.
 func recordLayoutSnapshot(ctx context.Context, current domain.GenerationSnapshot, tick domain.Tick, l snapshot.Layout) {
 	dir := os.Getenv(snapshot.DirEnv)
 	if dir == "" {

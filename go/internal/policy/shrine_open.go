@@ -7,16 +7,16 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// ShrinePolicy is the review's casket stance (#460, #875): Opening maps a
+// ShrinePolicy is the review's casket stance: Opening maps a
 // shrine to CasketOpen when ShrineOpenReadiness held at the review, or to the
 // readiness hold reason. A shrine it does not name, the zero value, leaves
-// every filled casket sealed (#459); the goal then finishes with the caskets
+// every filled casket sealed; the goal then finishes with the caskets
 // sealed and re-arms the next review the gate holds.
 type ShrinePolicy struct {
 	Opening map[string]string
 }
 
-// Casket decisions and holds under the opening policy (#460).
+// Casket decisions and holds under the opening policy.
 const (
 	// CasketOpen is a filled casket the policy opens.
 	CasketOpen = "open"
@@ -61,8 +61,8 @@ func OccupantDecision(occupant ShrineOccupant, custodyRoom bool) string {
 	return OccupantRelease
 }
 
-// ShrineOpenTargets are the filled caskets the goal owes an opening on
-// (#460): those of an open, guard-free shrine touching Home, in casket
+// ShrineOpenTargets are the filled caskets the goal owes an opening on:
+// those of an open, guard-free shrine touching Home, in casket
 // identity order per shrine, and only under a policy that opens caskets.
 func ShrineOpenTargets(rows []AncientShrine, shrine ShrinePolicy) map[string][]ShrineCasket {
 	out := map[string][]ShrineCasket{}
@@ -137,7 +137,7 @@ func ShrineMeleeLock(caskets []ShrineCasket, squad []ShrineDefenderFacts) Shrine
 	return out
 }
 
-// Opening readiness holds (#875): each names the first unmet condition of
+// Opening readiness holds: each names the first unmet condition of
 // ShrineOpenReadiness; the caskets stay sealed and the goal re-arms once the
 // gate holds.
 const (
@@ -167,8 +167,7 @@ type ShrineOpenRequest struct {
 	RaidPoints        domain.Fact[float64]
 }
 
-// ShrineOpenReadiness is the gate that replaced the operator's opening flag
-// (#875): CasketOpen only when a melee lock of healthy colonists covers every
+// ShrineOpenReadiness permits CasketOpen only when a melee lock of healthy colonists covers every
 // filled casket with one armed ranged colonist besides, custody has a bed for
 // a captive, there is a medicine per casket and a doctor, nothing is on fire,
 // and raid points sit under the breach ceiling for a squad of that size.

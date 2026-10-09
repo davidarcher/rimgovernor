@@ -82,7 +82,7 @@ func TestHuntCountFollowsGapAndHunterBudget(t *testing.T) {
 	if err != nil || len(selected) != 4 {
 		t.Fatal(len(selected), err)
 	}
-	// A large gap is bounded by the hunters, past the old eight-row cap.
+	// Hunting capacity bounds a large food gap.
 	four := append(hunters, PawnProfile{ID: "c", Ranged: true}, PawnProfile{ID: "d", Ranged: true})
 	selected, err = SelectAcquisition(domain.Known(rows), domain.Known(1000.0), domain.Known(0.0), true, nil, domain.Known(HuntBudget(four, 0)))
 	if err != nil || len(selected) != 12 {
@@ -107,11 +107,8 @@ func TestResourceAcquisitionSelectsOnlyTheNamedHarvest(t *testing.T) {
 	}
 }
 
-// Converted from the native case food/hunt-selection (removed for #749 at
-// 04b0a98c): HuntSelectionFixture staged a wild deer and a three-muffalo
-// herd with a positive revenge chance. With one hunting slot and a small
-// food deficit the planner picks the deer first, whatever the native row
-// order, and every hunt channel explains its revenge risk and work.
+// A small food deficit and one hunting slot prefer the safer deer over a
+// retaliating herd, independent of census order. Channels retain risk and work.
 func TestHuntSelectionPrefersTheSafeDeerOverTheHerd(t *testing.T) {
 	var rows []AcquisitionSource
 	for i := 0; i < 3; i++ {

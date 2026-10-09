@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Anomaly threats in defense tactics (#1739). Every fact here is a native
+// Anomaly threats in defense tactics. Every fact here is a native
 // def or object read on the pawn row (PawnAnomaly); unknown is never one of
 // the cases below, so a pawn the native read could not classify keeps the
 // tactic it had before.
@@ -42,7 +42,7 @@ func hiddenFromPlayer(t SquadThreatFacts) bool {
 
 // ritualCasterCells are the live ritual casters' known cells, not within
 // MortarSafeRadius of a colonist: shelled while they cast, before a
-// colonist is near enough for the scatter to land on it (#1739).
+// colonist is near enough for the scatter to land on it.
 func ritualCasterCells(view CombatView) []domain.Cell {
 	caster := map[domain.PawnID]bool{}
 	for _, t := range view.Threats {

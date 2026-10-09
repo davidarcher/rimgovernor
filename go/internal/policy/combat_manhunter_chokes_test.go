@@ -18,7 +18,7 @@ func blockers(m CombatMemory) map[domain.PawnID]domain.Cell {
 	return out
 }
 
-// {one approach, a layout choke, brawlers} -> #864's blocker cells just
+// {one approach, a layout choke, brawlers} -> blocker cells just
 // outside the choke, a reserve held back.
 func TestDecideCombatManhunterBlocksLayoutChoke(t *testing.T) {
 	view := withAnimals(chokeView(), animal("w1", "Wolf_Timber", domain.Cell{X: 9, Z: 5}, 6.8), animal("w2", "Wolf_Timber", domain.Cell{X: 10, Z: 4}, 6.8))
@@ -55,7 +55,7 @@ func waveView(n int) CombatView {
 		pack = append(pack, animal(PawnID(fmt.Sprintf("w%d", i)), "Wolf_Timber", cell, 6.8))
 	}
 	view = withAnimals(view, pack...)
-	// Small animals: the pack does not outmatch us (#902).
+	// Small animals: the pack does not outmatch us.
 	for i := range view.Threats {
 		view.Threats[i].BodySize = domain.Known(0.5)
 	}

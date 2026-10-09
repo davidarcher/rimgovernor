@@ -89,7 +89,7 @@ func TestShelterReconsidersReachedExposedCell(t *testing.T) {
 }
 
 // A fists-only colonist against a raider takes the roofed room with no
-// hostile in it, or with none, steps straight away from the raider (#968).
+// hostile in it, or with none, steps straight away from the raider.
 func TestShelterPrefersARoofedRoomElseStepsAway(t *testing.T) {
 	d := combatRifleman("a")
 	d.RangedEquipped, d.Armed = domain.Known(false), domain.Known(false)
@@ -111,7 +111,7 @@ func TestShelterPrefersARoofedRoomElseStepsAway(t *testing.T) {
 	}
 }
 
-// A fists-only colonist against a manhunter pack shelters too (#1146):
+// A fists-only colonist against a manhunter pack shelters too:
 // the manhunter formation has no role for her, and a fight with no role
 // admits no combat window, so the clock would park on unsafe_colony.
 func TestShelterFromAManhunterPack(t *testing.T) {
@@ -129,8 +129,8 @@ func TestShelterFromAManhunterPack(t *testing.T) {
 	}
 }
 
-// The fallback move never leaves the walled compound the colonist stands in
-// (#2376): with no roofed room free of hostiles, the step away from a gunner
+// The fallback move never leaves the walled compound the colonist stands in:
+// with no roofed room free of hostiles, the step away from a gunner
 // outside the east wall is clamped to the interior.
 func TestShelterFallbackStaysInsideTheCompound(t *testing.T) {
 	compound := CombatRoom{Interior: Rectangle{X: 41, Z: 37, Width: 19, Height: 19}}

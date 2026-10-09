@@ -57,7 +57,7 @@ type ResourceSource struct {
 	Distance   float64
 	Method     ResourceSourceMethod
 	Designated bool
-	// DesignatedTick and Taken mirror AcquisitionSource's (#1043); mine
+	// DesignatedTick and Taken mirror AcquisitionSource's; mine
 	// rows only.
 	DesignatedTick domain.Tick
 	Taken          bool
@@ -75,8 +75,8 @@ type ResourceSource struct {
 	Cell      domain.Cell
 	Token     string
 	Reachable domain.Fact[bool]
-	// Buried marks a supported "mine" deposit no colonist can reach yet
-	// (#1072): it is never mined directly, only tunnelled to by a
+	// Buried marks a supported "mine" deposit no colonist can reach yet:
+	// it is never mined directly, only tunnelled to by a
 	// corridor excavation (CorridorExcavationSites).
 	Buried bool
 	// Tier is the layout plan's MineTier for a mine source (0 without a
@@ -84,10 +84,10 @@ type ResourceSource struct {
 	Tier int
 }
 
-// BuriedResourceSource is the deposit MaintainResource tunnels to (#1074)
+// BuriedResourceSource is the deposit MaintainResource tunnels to
 // when no mine source can be selected directly: the nearest undesignated,
 // MineSafe, buried mine row with yield left whose cell the resource reach
-// would let a miner work once the corridor opens it (#1124). Nothing is
+// would let a miner work once the corridor opens it. Nothing is
 // returned while a known threat or urgent competing work would hold any
 // mining.
 func BuriedResourceSource(sources []ResourceSource, r RemoteWorkRequest) (ResourceSource, bool) {
@@ -228,7 +228,7 @@ type ResourceStorage struct {
 }
 
 // ResourceStorageZone is the exact new allow-listed stockpile zone the
-// storage check sizes (SelectStockpileCapacity; no zone is built, #2200).
+// storage check sizes (SelectStockpileCapacity; no zone is built).
 type ResourceStorageZone struct {
 	Cells []domain.Cell
 }
@@ -322,7 +322,7 @@ func SelectResourceTarget(targets map[Resource]int64, stock domain.Fact[[]Amount
 // configured floor, worst-covered first (proportional deficit descending,
 // definition name ascending on a tie), so a caller whose first choice has no
 // dispatchable method can go on to the next demanded resource in the same
-// step instead of starving it behind one it cannot act on (#595). Empty when
+// step instead of starving it behind one it cannot act on. Empty when
 // stock is unknown, nothing is configured, or every floor is met.
 func RankResourceTargets(targets map[Resource]int64, stock domain.Fact[[]Amount]) ([]ResourceTarget, error) {
 	if len(targets) == 0 {
@@ -516,7 +516,7 @@ func SelectResourceMethod(r ResourceMethodRequest) (ResourceMethod, error) {
 }
 
 // Native mine-source safety verdicts that permit excavation: open ground,
-// or a roofed deposit whose removal keeps the roof supported (#1068).
+// or a roofed deposit whose removal keeps the roof supported.
 const (
 	MineSafetyOpenSurface   = "open_surface"
 	MineSafetySupportedRoof = "supported_roof"

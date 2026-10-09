@@ -6,7 +6,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// Weather and game condition facts the generated def rows state (#1723).
+// Weather and game condition facts the generated def rows state.
 
 // electricityDisabledClass is the GameCondition whose ElectricityDisabled is
 // true: every powered building is off while it lasts (a solar flare). A mod's
@@ -54,7 +54,7 @@ const noSunlightClass = "RimWorld.GameCondition_NoSunlight"
 
 // OutdoorsPermanentlyDark reports whether the biome's map conditions (the
 // ones every map of the biome carries for its whole life) include one whose
-// class is GameCondition_NoSunlight or derives from it (#1712): the sky never
+// class is GameCondition_NoSunlight or derives from it: the sky never
 // lights the ground, so plants that need light do not grow outdoors and an
 // unroofed work cell stays dark by day. A biome or condition the catalog has
 // no row for is an error.

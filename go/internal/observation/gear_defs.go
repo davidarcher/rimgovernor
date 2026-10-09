@@ -15,10 +15,9 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// Apparel facts are Go views over the catalog's ThingDef rows and stat table
-// (#1732): layers, body part groups, wear filters, outfit tags, equipped stat
-// offsets and comps come from the apparel row, armor, insulation and market
-// value from the game's own stat values for the (def, stuff) pair.
+// Apparel facts use catalog rows for layers, body groups, wear filters, outfit tags,
+// equipped offsets and components. Armor, insulation and market value use native stat values
+// for the exact def/stuff pair.
 
 // GearDefinitions is what a gear census is decoded against: the load's
 // catalog and its finished research projects (unknown without a research

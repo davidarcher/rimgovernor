@@ -6,24 +6,22 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Perimeter, gates and killbox from terrain (#781, A5). The wall is a
-// 3-thick ring traced around the core and its yard (#1286,
-// layout_perimeter_enclosure.go); the patches, pen and geothermal sites
+// The perimeter is a three-cell-thick ring around the core and its yard; the patches, pen and geothermal sites
 // beside it get a separate outer ring (layout_perimeter_outer.go); rock and
 // deep water already close their cells, so only the open cells of a stretch
-// are walled (#1592). Soft ground a raider wades through (marsh, mud,
-// shallow and moving water) is closed too (#949): the wall follows the
+// are walled. Soft ground a raider wades through (marsh, mud,
+// shallow and moving water) is closed too: the wall follows the
 // shore inside the ring when that costs at most perimeterDetour times the
 // straight stretch, and otherwise crosses it, a wooden wall on light
 // footing, a bridge under the wall on water. Raider approaches from the map
 // edges are traced with the defense planner's flood (defense_arrivals.go),
 // and the dry ring position most of them cross becomes the one opening: a
 // killbox behind it (its snake, kill zone and turrets are the defense
-// layout's, #1544), and a bent approach lane outside.
-// Airlock gates (a door on each face, #1060) stand along the dry ring. A
+// layout's), and a bent approach lane outside.
+// Airlock gates (a door on each face) stand along the dry ring. A
 // cover-clear band runs 30 cells out, and the mortar spot is the firm cell
 // farthest from the wall. Moisture pump sites inside the wall cover the soft
-// ring cells a pump dries (#954), so a later re-survey straightens the wall.
+// ring cells a pump dries, so a later re-survey straightens the wall.
 // The colony's own buildings read as the ground under them, and a replan
 // keeps the opening while it still opens: the defense layout is anchored
 // on it.
@@ -31,7 +29,7 @@ import (
 // Reservation kinds A5 adds beside A1's.
 const (
 	ReserveKillboxApproach ReservationKind = "killbox_approach"
-	// ReserveKillboxFence marks the fence across the opening (#2231): a
+	// ReserveKillboxFence marks the fence across the opening: a
 	// Fence is PassThroughOnly (path cost 80), so only roamers
 	// (FenceBlocked) are stopped and raiders still walk through; the cost
 	// is a penalty, not a block, and the census reads the cell as Passable.
@@ -45,7 +43,7 @@ const (
 	// ReservePerimeterGap marks walkable ring cells nothing can close.
 	ReservePerimeterGap ReservationKind = "perimeter_gap"
 	// ReserveMoisturePump marks a moisture pump site: soft ring cells it
-	// dries lie within pumpRadius (#954).
+	// dries lie within pumpRadius.
 	ReserveMoisturePump ReservationKind = "perimeter_pump"
 )
 
@@ -66,7 +64,7 @@ const (
 	killboxDepth              = killboxRows
 	approachLeg         int32 = 8
 	// perimeterDetour caps a shoreline detour's wall at this many times
-	// the straight stretch it replaces (#949).
+	// the straight stretch it replaces.
 	perimeterDetour = 1.5
 	// pumpRadiusSq is a moisture pump's reach, 6.9 cells, squared.
 	pumpRadiusSq = 47
@@ -94,7 +92,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	}
 
 	// The enclosure: the core's footprint and its yard (killbox included);
-	// the ring traced outside it (#1286, #1945).
+	// the ring traced outside it.
 	enc := coreEnclosure(plan, w, h)
 	if enc.bbox.Width == 0 {
 		return plan
@@ -130,7 +128,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		return false
 	}
 
-	// Soft ground on the ring (#949). Each connected stretch of it is
+	// Soft ground on the ring. Each connected stretch of it is
 	// closed by a shoreline detour inside the ring where that stays short,
 	// else crossed where the ring runs.
 	wet := map[crossing]bool{}
@@ -232,7 +230,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		return clipRect(rectOf(at(perimeterThick, -killboxHalf), at(perimeterThick+killboxDepth-1, killboxHalf)), enc.bbox), at
 	}
 	// fields are the plan's field cells: a killbox on one would build over
-	// crops, so an opening off the patches is preferred (#1287).
+	// crops, so an opening off the patches is preferred.
 	fields := map[domain.Cell]bool{}
 	for _, z := range plan.Zones {
 		if z.Kind == ZoneField {
@@ -445,7 +443,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	// Wall runs and gates along the dry ring, side by side. A run shorter
 	// than the pitch (a step of a squared-off diagonal) takes its gate
 	// only a pitch clear of every other, so a staircase is gated about as
-	// often as a straight side (#1287).
+	// often as a straight side.
 	var gates []Rectangle
 	var stepGates []stepGate
 	walls, light, bridges, gaps := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
@@ -504,7 +502,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 	}
 
-	// Moisture pumps (#954): sites inside the wall, greedily covering the
+	// Moisture pumps: sites inside the wall, greedily covering the
 	// soft ring cells a pump dries, each within pumpRadiusSq of its pump.
 	dries := map[domain.Cell]bool{}
 	for _, c := range enc.ringCells() {
@@ -669,7 +667,7 @@ func contains(r Rectangle, c domain.Cell) bool {
 }
 
 // floodGrid is defenseSite.paths over a dense array, for the callers that
-// need only distances (#2089): one pass per sector is the replan's hot loop.
+// need only distances: one pass per sector is the replan's hot loop.
 type floodGrid struct {
 	x0, z0, w, h int32
 	pass         []bool

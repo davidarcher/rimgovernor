@@ -1,6 +1,6 @@
 package policy
 
-// Suite blocks (#1215, #1951, epic #1938): a block is a wing off the main
+// Suite blocks: a block is a wing off the main
 // hallway whose rooms are sized per owner at siting. Each side packs its
 // suites outward along the corridor, sharing walls. A block is planned at
 // full size and never grows; a claim no planned suite answers sites another

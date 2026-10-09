@@ -1,5 +1,4 @@
-// Package defense holds the defensive-layout vertical (issue #5, B06c; the
-// v2 perimeter, #789) end to end against a live game and a live rimgovernor
+// Package defense holds the defensive-layout vertical and perimeter end to end against a live game and a live rimgovernor
 // "serve" service. On the tribal8 baseline with stone blocks stocked, the
 // RoundsDefenseLayoutPlanner anchors its corridor on the layout plan's
 // killbox opening, builds every tier natively (firing line, funnel, trap
@@ -10,15 +9,15 @@
 // reaches the killbox entry and every colony door through them) and by a
 // native inspection that no colonist stands on a trap. A real RaidEnemy
 // edge assault is then raised at the opening and the RoundsDefensePlanner
-// must open one fight (method "combat-…") formed as hold-the-line (#852). The service then
+// must open one fight (method "combat-…") formed as hold-the-line. The service then
 // holds the raid itself -- the scheduler admits bounded combat watch
 // windows acknowledging the live hostiles while the ActiveCombat goal has
-// an admitted plan (#69) -- and the run waits for the goal to recover, then
-// for the aftermath (#72): the hold plan's drafts are released and the
+// an admitted plan -- and the run waits for the goal to recover, then
+// for the aftermath: the hold plan's drafts are released and the
 // layout planner re-admits every tier the raid degraded (a sprung spike
 // trap is destroyed; a breached wall is gone) until the stored record is
 // verified standing again within a bounded number of ticks. The repair is
-// the planner's own (#117): before the repair service starts, the fixture
+// the planner's own: before the repair service starts, the fixture
 // switches the game's auto-rebuild off, removes its pending trap blueprints
 // and vanishes a surviving trap, so every missing trap can only be replaced
 // by a re-admitted tier method. Natively the run then asserts that the
@@ -29,7 +28,7 @@
 // The other threat responses and layout decisions (bypass, breach, siege,
 // drop, predator, hostile buildings, turrets, cover, stocked projection)
 // are go-test snapshot replays in
-// internal/buildingruntime/rounds_defense_cases_test.go (#744).
+// internal/buildingruntime/rounds_defense_cases_test.go.
 //
 // Only one GABP client may hold the game at a time: the case's fixture
 // session and the service's session are used strictly in turn.
@@ -74,7 +73,7 @@ const (
 	// corridor, fences, doors and floors are built from (defenseDefinitions
 	// stuffs them all with wood): the case serves no resource family, so
 	// nothing fells trees and an unstocked colony leaves the funnel's
-	// blueprints waiting for wood that never comes (#2134).
+	// blueprints waiting for wood that never comes.
 	woodLogs = 1500
 )
 
@@ -83,7 +82,7 @@ type fixtureFunc func(label string, args map[string]any) (map[string]any, error)
 
 // variant is one case's scenario: the edge raid staged after the layout
 // (its RaidStrategyDef/PawnsArrivalModeDef), and the hooks a case built on
-// the perimeter campaign adds (#1211): gates stages extra layout gates
+// the perimeter campaign adds: gates stages extra layout gates
 // before the layout is built, layoutBuilt audits the built layout against
 // the native inspect after it, and raided compares that inspect with the
 // one taken as soon as the raid resolved.
@@ -93,19 +92,19 @@ type variant struct {
 	layoutBuilt               func(layout store.DefenseLayoutRecord, inspect map[string]any) error
 	raided                    func(afterLayout, afterRaid map[string]any) error
 	// herd stages a roamer before the layout and asserts its barn-bound then
-	// paddock phases around the layout build (defense/paddock, #2236).
+	// paddock phases around the layout build (defense/paddock).
 	herd *paddockHerd
 	// instantWalls has the fixture raise every wall, door and embrasure as
 	// it is placed (the perimeter is ~1600 walls: hauling and building them
 	// took 36 wall minutes of game time, the layout itself is what the case
-	// proves, #2134).
+	// proves).
 	instantWalls bool
 }
 
 // perimeterFamilies are the families a perimeter campaign serves; see init.
 //
 // work staffs the layout's construction: every building method's builder
-// check needs the work priorities only that family applies (#1248).
+// check needs the work priorities only that family applies.
 var perimeterFamilies = []routinefamily.Family{routinefamily.DefensiveLayout, routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue, routinefamily.Fire, routinefamily.Supply, routinefamily.Work}
 
 func init() {
@@ -114,12 +113,12 @@ func init() {
 	// whose only method is a short native-firefighting window. Without the
 	// family nothing admits one, so the fire holds every other goal
 	// suspended while the clock is refused no_work and the tick never moves
-	// -- the post-raid repair stall of #221. The supply family belongs here
+	// during post-raid repair. The supply family belongs here
 	// too: a dead raider's drops lie in the trap lane, where the hauling
 	// safety verdict flaps unsafe, and ManageSupplySafety is then a
 	// priority-0 emergency that only the supplies planner clears by
 	// forbidding the stack; without it every development goal, the layout's
-	// cover clearance included, stays unselected after the raid (#620).
+	// cover clearance included, stays unselected after the raid.
 	spec := &cases.ServeSpec{Families: perimeterFamilies, Prefix: "defense"}
 	// The baseline save keeps the site deterministic.
 	baseline := cases.Save{Name: sustained.BaselineSave}
@@ -225,10 +224,10 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		return launchService(ctx, s, name, identity, report)
 	}
 	// The band, the stock, the rifles and the construction site are
-	// staged here, in the run body, so a resume from the ring (#249)
+	// staged here, in the run body, so a resume from the ring
 	// finds them in the save already: the resumed entry's state names
 	// the site the fresh run chose, and the prep is skipped rather than
-	// laid again on the colonists' shifted centre (#316).
+	// laid again on the colonists' shifted centre.
 	var staged bool
 	if entry, ok := s.Resumed(); ok {
 		if state, ok := na.AsMap(entry.State["fixture"]); ok {
@@ -377,7 +376,7 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	fenced := map[domain.Cell]bool{}
 	for _, tier := range layout.Tiers {
 		for _, b := range tier.Buildings {
-			// A Fence is PassThroughOnly (the killbox lane's, #2231): only
+			// A Fence is PassThroughOnly (the killbox lane's): only
 			// roamers are stopped, so colonists pass it.
 			if b.Definition == "Fence" {
 				fenced[b.Cell] = true
@@ -454,7 +453,7 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	// building. A hold plan drafts and moves
 	// them one action per window, so a raider reaching the corridor
 	// first bounced authority on a colonist-health stop and settled
-	// the plan before dispatch (#222). The line is held from the
+	// the plan before dispatch. The line is held from the
 	// firing positions, so stand the defenders there before the raid;
 	// the plan's own drafts and moves are still what the run asserts.
 	cells := make([]string, 0, len(layout.Firing))
@@ -469,17 +468,17 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	// Hold-the-line needs the raid to come through the corridor the cover
 	// row faces: it walks in from the map edge nearest the corridor entry
 	// rather than any edge the raid worker picks. A raider arriving behind
-	// the cover row rightly gets no hold (#681). The nearest edge to the
+	// the cover row rightly gets no hold. The nearest edge to the
 	// entry can be a flank one cell closer than the edge the corridor
 	// faces; a raider walking in from the side crosses the cover row far
-	// off the line and rightly gets no hold (#714), so pin the edge the
+	// off the line and rightly gets no hold, so pin the edge the
 	// corridor faces: Toward runs from that edge toward Home.
 	raidArgs := map[string]any{"op": "raid", "strategy": v.strategy, "arrival": v.arrival,
 		"x": int(layout.Entry.X), "z": int(layout.Entry.Z), "side": edgeSide(layout.Toward)}
 	// The ring stops here: a resume replays the pre-raid audits above, and
 	// a world captured after the raid has sprung traps the repair may not
 	// have replaced yet, so every resume starts from a pre-raid entry and
-	// stages the raid again (#330).
+	// stages the raid again.
 	na.CapCheckpoints("raid staged; a resume replays the pre-raid audits, so no entry is taken after this point (#330)")
 	raid, err := fixture("raid", raidArgs)
 	if err != nil {
@@ -698,7 +697,7 @@ func siteStock(x, z int) []na.Stock {
 }
 
 // edgeSide names the map side a corridor facing toward (the direction from
-// the edge toward Home) opens onto, as the fixture's raid side (#714).
+// the edge toward Home) opens onto, as the fixture's raid side.
 func edgeSide(toward domain.Rotation) string {
 	switch toward {
 	case domain.North:
@@ -722,7 +721,7 @@ func launchService(ctx context.Context, s cases.Session, name string, identity m
 	// any other. The declared spec carries the families (tend and rescue
 	// ride along for the aftermath: raid injuries hold CriticalMedical in
 	// deficit, which suspends every priority>=2 goal including the layout
-	// repair until the wounded are treated, #72); each phase gets its own
+	// repair until the wounded are treated); each phase gets its own
 	// requestId prefix.
 	spec := s.Spec()
 	spec.Prefix = "defense-" + name
@@ -755,8 +754,8 @@ const layoutBuildTicks = 3 * 60000
 // buildProgress is the layout's construction as wait progress. A plan's
 // stages all read completed once its blueprints are placed, and the
 // colonists then build them over game hours with nothing in the journal
-// changing. A built tier's plan is retired before the next tier is admitted
-// (#2134). The advancing
+// changing. A built tier's plan is retired before the next tier is admitted.
+// The advancing
 // tick is that progress for layoutBuildTicks after the open plans or the
 // record's built and attempted tiers last changed; a stopped clock or a
 // layout that never moves again still stalls.
@@ -838,7 +837,7 @@ func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, 
 	return record, nil
 }
 
-// combatIncident is the review's ActiveCombat incident (#1020), if bound.
+// combatIncident is the review's ActiveCombat incident, if bound.
 func combatIncident(ctx context.Context, s *store.Store, review store.Rounds) (store.IncidentState, store.RoundsIncident, bool, error) {
 	binding, ok := review.Incident(policy.ActiveCombat)
 	if !ok {
@@ -1029,7 +1028,7 @@ func trapIDDelta(before, after map[string]any) (sprung, rebuilt []string) {
 }
 
 // waitDefendersReleased waits until every fight rostering a defender is
-// closed and its defenders undrafted (#939): the recovered ActiveCombat goal closes the fight, so
+// closed and its defenders undrafted: the recovered ActiveCombat goal closes the fight, so
 // the undraft sweep returns each defender to colony work.
 func waitDefendersReleased(ctx context.Context, s *store.Store, first domain.PlanID, prefix string, w na.Wait) (map[string]any, error) {
 	out := map[string]any{}
@@ -1291,7 +1290,7 @@ func assertAccess(reply map[string]any, fenced map[domain.Cell]bool) error {
 
 // assertCover requires every firing cell to see at least one trap-lane cell and
 // a positive cover block chance on at least one line. The lane is a snake
-// (#1544) whose walls hide the mouth from the firing line, so seeing the
+// whose walls hide the mouth from the firing line, so seeing the
 // chokepoint is not asked.
 func assertCover(lines []any, layout store.DefenseLayoutRecord) error {
 	if len(lines) == 0 {
@@ -1326,7 +1325,7 @@ func assertCover(lines []any, layout store.DefenseLayoutRecord) error {
 // dropped it (a letter hold, generation exhaustion), acknowledging clock holds
 // first. A stale observation alone leaves automate mode without disabling
 // control; resuming then would bump the native generation and invalidate the
-// in-flight routine goals (#65), so it is not a trigger.
+// in-flight routine goals, so it is not a trigger.
 type authorityKeepAlive struct {
 	apiCall  apiFunc
 	identity map[string]any
@@ -1341,7 +1340,7 @@ type authorityKeepAlive struct {
 	lastError         string
 }
 
-// resume enters automate mode under the world's own root plan (#55); the
+// resume enters automate mode under the world's own root plan; the
 // state journal is shared by every service the harness launches, so a fresh
 // requestId is used each time rather than replaying an earlier record.
 func (k *authorityKeepAlive) resume(label string) (map[string]any, int, error) {

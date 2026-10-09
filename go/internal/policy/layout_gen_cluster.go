@@ -2,7 +2,7 @@ package policy
 
 import "sort"
 
-// Affinity clusters (#1955, epic #1938). The affinity graph is the weighted
+// Affinity clusters. The affinity graph is the weighted
 // trip table (routeTrips) plus the besideRoles pairs, which want a shared
 // wall and a Link door. Its connected components over the non-housing base
 // rooms are the clusters: kitchen-freezer-dining-butchery, workshop-storage,

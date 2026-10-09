@@ -3,7 +3,7 @@ package domain
 import "testing"
 
 // An assignment names a valid pawn, an assignable thing and the previous
-// assignment of that kind (or none); anything else is refused (#1601).
+// assignment of that kind (or none); anything else is refused.
 func TestAssignValidation(t *testing.T) {
 	known, err := KnownPrevious("Throne_1")
 	if err != nil {

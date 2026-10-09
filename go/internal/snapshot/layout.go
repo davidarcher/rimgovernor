@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// Layout decision points the defensive layout planner records (#744).
+// Layout decision points the defensive layout planner records.
 const (
 	// LayoutPropose is the chokepoint choice: Request carries the lines of
 	// fire the proposal verified, replayed by policy.DefenseLayouts.

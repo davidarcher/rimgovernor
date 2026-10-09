@@ -29,7 +29,7 @@ func TestColonyProductionBoundary(t *testing.T) {
 			v := productionFixture(t)
 			switch change {
 			case "worked-bill":
-				// A worker on the bill reports the ingredients it promised (#1354).
+				// A worker on the bill reports the ingredients it promised.
 				v.Cooking[0].Bills[0].Reservations = []*o.IngredientReservation{{PawnId: proto.String("pawn"), Items: []*o.Quantity{{DefName: proto.String("RawRice"), Units: proto.Int64(10)}}}}
 			case "duplicate-farm":
 				v.Farms = append(v.Farms, proto.Clone(v.Farms[0]).(*o.FarmFacts))

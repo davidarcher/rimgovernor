@@ -16,7 +16,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-// Drafts are plan-owned (#939): a plan drafts the pawns it needs, and the
+// Drafts are plan-owned: a plan drafts the pawns it needs, and the
 // undraft sweep undrafts every drafted colonist no live plan needs. There
 // is no native claim; the journal's plans and fights are the record.
 
@@ -144,7 +144,7 @@ func undraft(ctx context.Context, writer undraftWriter, identity *c.Identity, ti
 	return nil
 }
 
-// sweepDrafts undrafts every drafted colonist no live plan needs (#939).
+// sweepDrafts undrafts every drafted colonist no live plan needs.
 // It reads a fresh frame, holds the pawns against the step's other
 // planners and sends the Draft intents directly: an undraft owns no plan.
 // A reviewer without an actions writer never undrafts.

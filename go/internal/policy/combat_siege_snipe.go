@@ -2,9 +2,9 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// siegeFrame is the frame a sortie's gunners shoot (#919): the job
+// siegeFrame is the frame a sortie's gunners shoot: the job
 // target of a live besieger on a FinishFrame job, the least id; "" with
-// no builder. The first mortar frame ends the sortie (#1154), so these
+// no builder. The first mortar frame ends the sortie, so these
 // are the sandbags.
 func siegeFrame(view CombatView) domain.PawnID {
 	besiegers := liveBesiegers(view)
@@ -18,7 +18,7 @@ func siegeFrame(view CombatView) domain.PawnID {
 }
 
 // siegeSnipe points a sortie's gunners at the frame the besiegers are
-// building (#919), so the mortars never get finished; brawlers keep
+// building, so the mortars never get finished; brawlers keep
 // their besieger. The attack order takes a hostile building.
 func siegeSnipe(view CombatView, m *CombatMemory) {
 	if m.Tactic != TacticSiege || m.SiegeMode != SiegeSortie {

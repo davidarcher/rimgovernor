@@ -33,7 +33,7 @@ type StoreView struct {
 	Rooms     *RoomObservation
 	// Meals is nil when the table meal store's facts are unknown.
 	Meals *MealStore
-	// BenchInputs are the benches consuming stored inputs (#1775), and
+	// BenchInputs are the benches consuming stored inputs, and
 	// Benches the benches standing (unknown holds every bench store); both
 	// are read by the Industry department's stores.
 	BenchInputs []BenchInput
@@ -50,7 +50,7 @@ type StoreView struct {
 	// census is unread (see BurialCensus).
 	Burial *BurialCensus
 	// Incinerator is the planned incinerator room once its walls and door
-	// stand (#1814); nil before. The Sanitation store declares its zone.
+	// stand; nil before. The Sanitation store declares its zone.
 	Incinerator *PlannedRoom
 	// AnimalFeed is the herds' feed and the barn's sleeping spot shape; nil
 	// while either is unread. The People animal store declares the barn feed
@@ -59,22 +59,22 @@ type StoreView struct {
 }
 
 // RoomDemand is the departments' signal to layout that stored goods outgrew
-// the warehouse (#1773, #1774): the armory for weapons and armor, the
+// the warehouse: the armory for weapons and armor, the
 // wardrobe for clothing. The departments never plan the rooms; layout adds them
 // (GearRoomsOwed).
 type RoomDemand struct {
 	Armory, Wardrobe bool
 	// Storage is the storage rooms the plan should hold, 0 for no demand
-	// (a further warehouse, #1772).
+	// (a further warehouse).
 	Storage int
 	// Graveyards is the graveyards the plan should hold, 0 for no demand (a
-	// further graveyard, #2196; see GraveyardsWanted).
+	// further graveyard; see GraveyardsWanted).
 	Graveyards int
 	// Yard is the materials yards the plan should hold, 0 for no demand
-	// (a further yard, #2192; see YardRoomsWanted).
+	// (a further yard; see YardRoomsWanted).
 	Yard int
 	// Known is set when the gear census was read, so a false Armory or
-	// Wardrobe is a reading and not a gap (#1825). StorageIdle is set when a
+	// Wardrobe is a reading and not a gap. StorageIdle is set when a
 	// standing storage room has warehouse space to spare: a true no-demand
 	// reading, unlike a Storage of 0 that waits on a planned room not yet
 	// built.

@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // RemoveRoofIntent on Actions/Apply (#1366): vanilla remove roof, the
+    // RemoveRoofIntent on Actions/Apply: vanilla remove roof, the
     // NoRoof area (Designator_AreaNoRoof, which also clears BuildRoof), over
     // cells, unroofed ones included so nothing roofs them afterwards. A
     // cell already in the NoRoof area applies again; a fogged or out-of-bounds cell or a thick roof refuses

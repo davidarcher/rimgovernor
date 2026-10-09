@@ -8,7 +8,7 @@ import (
 
 // An empty journal (a restarted service before its first review) must not
 // read as restored: shelter/toxic_fallout passed its restore wait on map[]
-// and then found the pawns still in the Safe area (#1560).
+// and then found the pawns still in the Safe area.
 func TestAreasSettledNeedsEvidence(t *testing.T) {
 	pawns := []string{"a", "b"}
 	none := map[string]domain.Tick{}

@@ -1,4 +1,4 @@
-// Package farm holds issue #3's deterministic crop and farm site selection
+// Package farm holds the deterministic crop and farm site selection
 // cases: the live service runs with the field family on and the
 // clock-scheduler trace enabled, the field planner runs, and the site-type
 // selections it traced are asserted -- which kind (outdoor,
@@ -18,7 +18,7 @@
 // rice behind unfinished research and expects potatoes, proving the basin
 // candidate scores every Hydroponic crop and that a built basin is
 // re-cropped from its default rice to the winner through the grower-crop
-// patch (#102).
+// patch.
 package farm
 
 import (
@@ -95,7 +95,7 @@ func (sel selection) register(name string) cases.Case {
 				}
 				// The season must stay closed through the watch, not only at
 				// the save's hour: at the day's peak the planner rightly goes
-				// outdoors once the room is full (#194).
+				// outdoors once the room is full.
 				if t := na.AsNumber(fixture["outdoorPeakTemperatureC"]); t >= 0 {
 					return fmt.Errorf("outdoor peak temperature %.1f C reopens the growing season during the watch: %#v", t, fixture)
 				}

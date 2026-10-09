@@ -27,7 +27,7 @@ func butcherSpotPlan(t *testing.T, id domain.PlanID) domain.PlanSpec {
 
 // The butcher spot is committed under EnsureFoodSupply and, while it is
 // still being built, blocks neither a foraging acquisition nor a field
-// batch (#260); those in turn do not block a spot, a second spot waits for
+// batch; those in turn do not block a spot, a second spot waits for
 // the first, and any other building keeps the ordinary rule.
 func TestCommitButcherSpotExemptFromFieldAndAcquisitionOpenWork(t *testing.T) {
 	t.Parallel()
@@ -95,9 +95,9 @@ func TestCommitButcherSpotOverOpenFieldWork(t *testing.T) {
 	}
 }
 
-// A hunt-only plan is admitted over the food goal's open forage (#260); a
+// A hunt-only plan is admitted over the food goal's open forage; a
 // second forage waits for the first; an open hunt does not block a top-up hunt
-// (the count already nets out the designated ones, #2170).
+// (the count already nets out the designated ones).
 func TestCommitHuntOverOpenForage(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

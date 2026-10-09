@@ -57,7 +57,7 @@ func requireNoClockObligations(ctx context.Context, journal *store.Store) error 
 
 // cleanup joins the owed clock commands: an explicit Manual, a checkpoint
 // save and shutdown. Drafted pawns stay drafted; with authority inactive
-// the game's own auto-undraft applies again (#939).
+// the game's own auto-undraft applies again.
 func (s *sessionSink) cleanup(ctx context.Context) error { return s.drain(ctx) }
 
 // resume is cleanup before a resume in the same world.

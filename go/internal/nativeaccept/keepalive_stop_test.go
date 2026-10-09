@@ -11,7 +11,7 @@ import (
 // Stop waits for the keep-alive loop; the loop's API calls take the
 // process lock for the request counter. Stop must not hold the lock while
 // it waits, or a call in flight when Stop runs deadlocks the harness (seen
-// on shelter/hut run 0, #199).
+// on shelter/hut run 0).
 func TestStopWaitsForKeepAliveWithoutHoldingLock(t *testing.T) {
 	inFlight := make(chan struct{}, 1)
 	release := make(chan struct{})

@@ -8,8 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// StockLayer is the overlay layer the stockpile shortfall tint draws on
-// (#825).
+// StockLayer is the overlay layer the stockpile shortfall tint draws on.
 const StockLayer = "stock"
 
 // stockFood is the food target's name: stored food in days against the
@@ -17,7 +16,7 @@ const StockLayer = "stock"
 const stockFood Resource = "food"
 
 // StockZone is one stockpile zone for the stock overlay: every stockpile on
-// the map (#719). Role and Filter are the colony's claim on it when it
+// the map. Role and Filter are the colony's claim on it when it
 // created the zone (Filter known then); FoodStorage is the zone census'
 // human-food flag; Label is the native zone label.
 type StockZone struct {
@@ -148,7 +147,7 @@ func (z StockZone) medicine() bool {
 }
 
 // holds names what a zone without a target is for: its role, else its
-// native label, ASCII only (#600).
+// native label, ASCII only.
 func (z StockZone) holds() string {
 	text := z.Role
 	if text == "" {

@@ -2,13 +2,13 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Hostility response (#1299, epic #1292): the bot owns every colonist's
+// Hostility response: the bot owns every colonist's
 // Assign-tab hostility response. Attack is the default for anyone capable
 // of violence (Flee drops work at the first rat). Flee is for pawns who
 // cannot fight or should not: violence-incapable, children, and pawns
 // with serious injuries or blood loss. Ignore is task-scoped: while a
 // pawn's work-giver job targets a cell beside a known-passive hostile (a
-// sleeping hive's jelly, #1122) and no engaging hostile is near that cell.
+// sleeping hive's jelly) and no engaging hostile is near that cell.
 // The mapping is stateless, so the restore needs no memory: when the job
 // moves on, the hostiles wake or an engaging hostile comes near, the same
 // mapping returns the pawn's default and the planner writes it back.

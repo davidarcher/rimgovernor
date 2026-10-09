@@ -7,7 +7,7 @@ import (
 )
 
 // cutPlantAction is the DesignateIntent that orders one exact blighted plant
-// cut (#245). Native checks the plant live when it applies; a plant already
+// cut. Native checks the plant live when it applies; a plant already
 // designated applies again.
 func cutPlantAction(action domain.Action) (*op.Action, error) {
 	v, ok := action.CutPlant()

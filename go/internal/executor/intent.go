@@ -11,7 +11,7 @@ import (
 
 // IntentInspection anchors an intent's dispatch to a native read of the
 // current world and tick. It admits nothing: native validates the intent
-// when it applies it (#856).
+// when it applies it.
 type IntentInspection struct {
 	StartedAt, ObservedAt time.Time
 	Current               domain.GenerationSnapshot
@@ -105,7 +105,7 @@ type intentItem struct {
 }
 
 // RunBatch is the executor's one entry point. It dispatches a plan's plain
-// intents in one native Actions/Apply call (#1041): one writer slot, one plan load, one inspection whose
+// intents in one native Actions/Apply call: one writer slot, one plan load, one inspection whose
 // snapshot and tick anchor every action, one journal transaction per stage.
 // An unresolved attempt is settled from the journal. Other kinds run their own
 // flow per action, in input order, before the plain intents dispatch. The returned error is
@@ -203,7 +203,7 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 		fail(live, err)
 		return out
 	}
-	// One bounds read anchors the whole batch (#993).
+	// One bounds read anchors the whole batch.
 	inspection, err := e.boundary.InspectIntent(ctx, Target{items[live[0]].action, expected})
 	if err != nil {
 		fail(live, err)
@@ -249,7 +249,7 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 	for j, r := range dispatched {
 		i, a := ready[j], readyAttempts[j]
 		if errors.Is(r.Err, store.ErrActionVetoed) {
-			// An action Safeguard refused only this action (#1018); record why.
+			// An action Safeguard refused only this action; record why.
 			if held, holdErr := e.journal.Hold(ctx, a.Plan, a.Action, []domain.HeldReason{domain.HeldUnsafeItem}, a.Tick); holdErr == nil {
 				out[i].Result.Progress = held
 			}

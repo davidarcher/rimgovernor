@@ -8,7 +8,7 @@ import (
 
 // TestPlanCoreOffCentre: on a survey whose only ground is the
 // south-west corner, the plan core (the anchor for stockpiles and the
-// cooking campfire, #1534) lies in that corner, not at the map centre.
+// cooking campfire) lies in that corner, not at the map centre.
 func TestPlanCoreOffCentre(t *testing.T) {
 	zones := Zone(zoningSurvey(120, func(x, z int32) SurveyCell {
 		if x < 50 && z < 50 {

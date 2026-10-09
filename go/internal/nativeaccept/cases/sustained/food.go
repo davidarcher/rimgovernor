@@ -1,12 +1,7 @@
-// Package sustained holds issue #1's EnsureFoodSupply diagnostics: the
-// goal-state timeline against the tribal8 baseline save (sustained/food)
-// and the same window across the save variants of manifests/issue-1-matrix.json
-// (sustained/matrix-*). They are diagnostics rather than pass/fail gates:
-// a case fails only when the harness itself could not complete (load,
-// service, authority, a starved step, the startup log), never over a poor
-// food outcome, which is exactly the evidence it exists to surface.
-// sustained/winter is the one pass/fail case here: the seasonal food
-// reserve held across the tile's first non-growing day (#251).
+// Package sustained records EnsureFoodSupply timelines for the baseline colony and save
+// variants. Diagnostic cases fail on harness errors, not poor food outcomes, so unfavorable
+// outcomes remain visible in reports. sustained/winter separately asserts seasonal reserve
+// survival across the first non-growing day.
 package sustained
 
 import (
@@ -25,7 +20,7 @@ import (
 const BaselineSave = "RimGovernor-tribal8-baseline"
 
 // DefaultWindow is the sample window: wall-clock minutes at the serve clock
-// speed, not ticks (#133); the regression-gate length. WindowEnv lengthens
+// speed, not ticks; the regression-gate length. WindowEnv lengthens
 // it for a diagnostic run (the binaries' 20m).
 const DefaultWindow = 8 * time.Minute
 
@@ -49,7 +44,7 @@ func Window() time.Duration {
 // EnsureFoodSupply's own families only (field growing, food storage,
 // harvest/wood acquisition, cooking bills, starting supplies), so
 // the food outcome under diagnosis is not confounded by other families and
-// every family shares one step budget (#103). StepStall fails fast when no
+// every family shares one step budget. StepStall fails fast when no
 // scheduler step admits a clock window.
 func Spec(prefix string) cases.ServeSpec {
 	return cases.ServeSpec{
@@ -59,7 +54,7 @@ func Spec(prefix string) cases.ServeSpec {
 }
 
 // MatrixWindowTicks is the matrix variants' sample window in game ticks
-// (one in-game hour, #133): a variant's watch ends once the live tick has
+// (one in-game hour): a variant's watch ends once the live tick has
 // advanced this far, and Window() only caps a game that stops advancing.
 // The diagnostic sustained/food watches the whole wall-clock window.
 const MatrixWindowTicks = 2500

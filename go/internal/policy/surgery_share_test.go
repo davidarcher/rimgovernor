@@ -21,7 +21,7 @@ func electiveShares(remaining map[PawnID]float64) ElectiveShare {
 	}
 }
 
-// #1843: electives need the part's market value within the colonist's
+// Electives need the part's market value within the colonist's
 // remaining share; served operations never pass the gate.
 func TestElectiveSurgeryUnderShare(t *testing.T) {
 	eye := func(id PawnID) CarePawn { return wholePawn(id, 0, electiveOp("InstallBionicEye", "Eye", 5, 0.97)) }

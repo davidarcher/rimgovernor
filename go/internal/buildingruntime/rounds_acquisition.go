@@ -24,7 +24,7 @@ type RoundsAcquisitionResult struct {
 
 // NewRoundsAcquisitionPlanner plans one acquisition goal: EnsureFoodSupply
 // harvests and hunts toward its food plan; ClearPests
-// (#247) hunts every recognised pest the wild-animal census reports, one
+// hunts every recognised pest the wild-animal census reports, one
 // hunt method per admission, until none remain; MaintainResource chops,
 // forages and hunts toward its ranked floors through the acquisition
 // catalog, beside RoundsResourcePlanner's bills and mines.
@@ -69,14 +69,14 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 	pests := policy.PestCensus(projection.Facts.AnimalUpkeep.WildAnimals)
 	stalledSources := map[string]bool{}
 	// A source a stall rotated away from stays keyed out for its contract's
-	// bounded cooldown (#629): the goal's progress record carries the key,
+	// bounded cooldown: the goal's progress record carries the key,
 	// and RecordProgressCooldown adds one under this review's revision.
 	progress, _ := review.ConcernProgress(r.need)
 	cooled := map[string]bool{}
 	// undispatched holds the goal's admitted acquisitions native has not
 	// designated yet (Pending/Prepared): they block and hold their source
 	// like a designated census row until dispatch, when the census takes
-	// over (#1045). Without it the gap re-admits the same source.
+	// over. Without it the gap re-admits the same source.
 	undispatched := map[string]bool{}
 	cool := func(contract policy.ProgressContract, thing string) error {
 		key := policy.CooldownKey(contract.Method, thing)
@@ -110,13 +110,13 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 			undispatched[thing] = true
 		}
 	}
-	// Stalls are read from the census alone (#1044, #1046): any designated
+	// Stalls are read from the census alone: any designated
 	// row of the goal's kind, untaken past its contract since native first
-	// saw it, the player's own included (#719). Each is withdrawn by its own
+	// saw it, the player's own included. Each is withdrawn by its own
 	// one-action method, admitted before re-selection and using up this
-	// step's admission. A pest hunt follows its animal (#321) and native
+	// step's admission. A pest hunt follows its animal and native
 	// settles it on the animal's death or departure, so the hunt-stall rule
-	// is not its exit (#455): the pest goal withdraws nothing.
+	// is not its exit: the pest goal withdraws nothing.
 	if !pest {
 		mine := func(row policy.AcquisitionSource) bool { return food && row.Food }
 		if stockGoal {
@@ -161,13 +161,12 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 			return cooled[id] || acquisitionCooled(progress, r.reviewer.policy, id, expected.Tick)
 		})
 	}
-	// Blocking reads the census, not the journal (#1045): a designated row
+	// Blocking reads the census, not the journal: a designated row
 	// the goal would plan is its ExistingWork. A source this step cancelled
 	// or cooled still reads designated until native withdraws it, and never
 	// blocks. ClearPests is never blocked: a hunt already designated holds
 	// its own animal (held, below) and counts against the two outstanding
-	// hunts (slots), but does not stop the next animal being planned (run 9
-	// of #247). EnsureFoodSupply's hunts are the exception (#260): a forage
+	// hunts (slots), but does not stop the next animal being planned. EnsureFoodSupply's hunts are the exception: a forage
 	// batch harvests one bush at a time for days while the hunt rows the
 	// butcher spot and bill were placed for wait behind it, so designated
 	// plant harvests leave the hunt slots plannable and only hunts are
@@ -180,8 +179,8 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 		}
 		huntOnly = plants
 	}
-	// A designated or undispatched source is held: it is not planned again
-	// (#1045). Its resource is busy for MaintainResource unless a cooldown
+	// A designated or undispatched source is held: it is not planned again.
+	// Its resource is busy for MaintainResource unless a cooldown
 	// held it.
 	busy := holdWorked(projection.Acquisition, undispatched, held)
 	pending := withoutStalled(projection.PendingFoodNutrition, projection.Acquisition, stalledSources, food)
@@ -231,7 +230,7 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 		// Every admission the goal ever made salts the pest method: a
 		// cancelled hunt of an animal that came back to the same cell in
 		// the same state rehashes to a fresh method instead of reading as
-		// already used (#214).
+		// already used.
 		fmt.Fprintf(hash, "#%d\n", goal.Admitted)
 		prefix = "pest-hunt"
 	}
@@ -280,7 +279,7 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 func resourceSelection(supply *resourceSupply, busy map[string]bool) (_ []policy.AcquisitionSource, existing bool) {
 	for _, resource := range supply.order {
 		// A designated resource is its own existing work; the goal's
-		// other targets still plan (#1045).
+		// other targets still plan.
 		if busy[string(resource)] {
 			existing = true
 			continue
@@ -323,7 +322,7 @@ func foodPlanAcquisition(plan policy.FoodPlan, sources domain.Fact[[]policy.Acqu
 // off the map). The census has to be known: an unknown census is not
 // evidence the pack is gone. A pest that is merely ineligible this step
 // (no free hunter) or has wandered off its planned cell keeps its row in
-// the wild census and its hunt, which follows it (#321).
+// the wild census and its hunt, which follows it.
 func gonePestHunts(progress []domain.Progress, wild domain.Fact[[]policy.UpkeepAnimal]) (gone []domain.ActionID) {
 	animals, known := wild.Value()
 	if !known {
@@ -346,7 +345,7 @@ func gonePestHunts(progress []domain.Progress, wild domain.Fact[[]policy.UpkeepA
 // censusBlocking reads the goal's designated census rows, and the rows of
 // its undispatched acquisitions, skipping held ones: block when a designated row is one the goal would plan, except that
 // for food a designated plant harvest only restricts the goal to hunts
-// (plants, #260). The wood goal counts designated trees yielding wood.
+// (plants). The wood goal counts designated trees yielding wood.
 func censusBlocking(sources domain.Fact[[]policy.AcquisitionSource], food bool, held, undispatched map[string]bool) (block, plants bool) {
 	rows, _ := sources.Value()
 	for _, row := range rows {
@@ -377,7 +376,7 @@ func undispatchedAcquisitions(progress []domain.Progress) map[string]bool {
 }
 
 // acquisitionCooled reports whether a source sits under a stall cooldown of
-// either contract (#629).
+// either contract.
 func acquisitionCooled(progress policy.ConcernProgress, p policy.RoundsPolicy, thing string, tick domain.Tick) bool {
 	return progress.Cooled(policy.CooldownKey(p.HuntProgress().Method, thing), tick) || progress.Cooled(policy.CooldownKey(p.AcquisitionProgress().Method, thing), tick)
 }
@@ -388,7 +387,7 @@ func cooledSources(sources domain.Fact[[]policy.AcquisitionSource], minGrowth fl
 	held := map[string]bool{}
 	if rows, known := sources.Value(); known {
 		for _, row := range rows {
-			// An undesignated plantation tree under the chop gate is not offered (#2292).
+			// An undesignated plantation tree under the chop gate is not offered.
 			if cooled(row.ID) || !row.Designated && row.BelowChopGate(minGrowth) {
 				held[row.ID] = true
 			}
@@ -471,11 +470,11 @@ func huntRows(sources domain.Fact[[]policy.AcquisitionSource]) domain.Fact[[]pol
 // stalledDesignations selects, from the acquisition census, the designated
 // rows of one kind (hunt or not) the goal owns (mine) that no colonist has
 // taken for at least the contract's deadline since native first saw the
-// designation (#1044). No action pairing (#1046): a player's designation of
-// the goal's kind stalls too (#719). The planner withdraws each so the goal
+// designation. No action pairing: a player's designation of
+// the goal's kind stalls too. The planner withdraws each so the goal
 // re-plans from another source. A taken row (reserved, or a colonist's job
 // targets it) is never stalled. Harvests run on
-// RoundsPolicy.AcquisitionProgress (#291), hunts on HuntProgress. A
+// RoundsPolicy.AcquisitionProgress, hunts on HuntProgress. A
 // contract without a deadline, or an unknown census, stalls nothing.
 func stalledDesignations(sources domain.Fact[[]policy.AcquisitionSource], hunt bool, now domain.Tick, contract policy.ProgressContract, mine func(policy.AcquisitionSource) bool) []policy.AcquisitionSource {
 	rows, known := sources.Value()
@@ -491,8 +490,8 @@ func stalledDesignations(sources domain.Fact[[]policy.AcquisitionSource], hunt b
 	return stalled
 }
 
-// stallWithdraw is the one-action withdraw method of one stalled row
-// (#1046). Its method id hashes the source and the designation's first-seen
+// stallWithdraw is the one-action withdraw method of one stalled row.
+// Its method id hashes the source and the designation's first-seen
 // tick: a withdraw not yet read back is not filed twice, and a later
 // re-designation of the same source rehashes.
 func stallWithdraw(row policy.AcquisitionSource) (domain.MethodID, domain.PlanSpec, error) {
@@ -536,8 +535,8 @@ func withoutStalled(pending domain.Fact[float64], sources domain.Fact[[]policy.A
 	return domain.Known(max(0, outstanding))
 }
 
-// acquisitionReason is the admitted method's short why for Operation.intent
-// (#846): the food runway the plan budgets against, the animal a pest hunt
+// acquisitionReason is the admitted method's short why for Operation.intent:
+// the food runway the plan budgets against, the animal a pest hunt
 // targets, or the stock a resource method gathers.
 func acquisitionReason(food, pest bool, runway domain.Fact[float64], selected []policy.AcquisitionSource) string {
 	if len(selected) == 0 {

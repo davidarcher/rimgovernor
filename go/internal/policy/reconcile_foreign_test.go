@@ -141,7 +141,7 @@ func TestReconcileForeignRemovalPrecedesWallInAndBuild(t *testing.T) {
 }
 
 // The id form is vanilla GetUniqueLoadID: the def sits between the prefix and
-// the number, so RefIndex.Thing resolves a foreign claim or cut target (#2293).
+// the number, so RefIndex.Thing resolves a foreign claim or cut target.
 func TestThingLoadIDIsVanillaForm(t *testing.T) {
 	if got := (Thing{ID: 44693, Def: "Husky"}).LoadID(); got != "Thing_Husky44693" {
 		t.Fatalf("LoadID = %q", got)

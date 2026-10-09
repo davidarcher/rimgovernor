@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Read is the list on the main thread under a validated identity: the
-        // reply its tool encodes, and the section the bundle carries (#593).
+        // reply its tool encodes, and the section the bundle carries.
         internal static Obs.ListBuildingsReply Read(Map map, Obs.ListBuildingsRequest parsed, Common.ObservationContext context)
         {
             try
@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
             // target_temperature_c (NativeBuildingTemperature), a
             // humanlike bed's medical flag (NativeBedUse), a
             // plant grower's crop (NativeGrowerCrop) and a claimable
-            // building's faction (NativeClaimBuilding, #459). forbidden/
+            // building's faction (NativeClaimBuilding). forbidden/
             // power/owner remain the "settings" unsupported issue below.
             // A player storage building (shelf) reports its storage token
             // (NativeStockpilePatch, a zone intent settings patch on a building) first.
@@ -138,7 +138,7 @@ namespace HomeBridge.BridgeTools
                 w.Write((int)Status(thing)); w.Write(thing.HitPoints); w.Write(thing.IsBurning());
             });
 
-        // Ref points at a spawned building's row (#1343, #1342): the reference
+        // Ref points at a spawned building's row: the reference
         // every message other than the building table and the list read carries.
         internal static Common.Ref Ref(Thing thing) => new Common.Ref { Id = Id(thing.GetUniqueLoadID()) };
 

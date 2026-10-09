@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The food plan raises ActiveCombat with no hostile (#1617): its occurrence
+// The food plan raises ActiveCombat with no hostile: its occurrence
 // carries the squad prey and recovers when the plan stops opening the hunt.
 func TestRoundsHuntOrigin(t *testing.T) {
 	t.Parallel()

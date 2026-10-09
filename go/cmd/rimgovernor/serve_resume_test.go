@@ -215,7 +215,7 @@ func TestAutoResumeForgivesLossesAfterHealthyPlay(t *testing.T) {
 	}
 }
 
-// TestAutoResumeReacquiresAfterNonPlayerLoss is the #87 controller side: a
+// TestAutoResumeReacquiresAfterNonPlayerLoss checks controller recovery: a
 // world running under a Resume record that loses authority for any reason
 // other than the player's Pause (native DISCONNECT after a GABP drop, a
 // failed observation) is offered one fresh resume cycle per loss, with

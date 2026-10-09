@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ReadConstructionBuildings is the fake colony construction census (#856).
+// ReadConstructionBuildings is the fake colony construction census.
 // Until a test marks buildings built it is unavailable, so the census stays
 // unknown and every applied building stays open work, as before the fake
 // had a census at all.

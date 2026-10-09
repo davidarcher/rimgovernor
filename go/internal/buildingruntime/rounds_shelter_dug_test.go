@@ -34,7 +34,7 @@ func (n *dugShelterNative) ReadExcavationSite(ctx context.Context, _ *c.Identity
 }
 
 // The initial shelter on a planned storeroom the plan marks Dug is mined
-// by plan dig before anything else is placed (#1250): no excavation site
+// by plan dig before anything else is placed: no excavation site
 // is searched, and the dig mines exactly the storeroom's rock.
 func TestRoundsShelterDigsADugPlannedStoreroom(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

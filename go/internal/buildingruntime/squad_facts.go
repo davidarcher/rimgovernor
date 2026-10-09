@@ -11,7 +11,7 @@ import (
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// armament resolves pawn rows' primary weapons (#1723). A gear reference
+// armament resolves pawn rows' primary weapons. A gear reference
 // carries no def name, so a row's primary is found in the frame's things
 // table and its facts are the catalog's rows for that def.
 type armament struct {
@@ -70,7 +70,7 @@ func meleeCapable(equipment *n.PawnEquipment) domain.Fact[bool] {
 }
 
 // squadThreatFacts populates what the shared pawn snapshot carries, including
-// the race's body size from the catalog's race rows (#1722) and the
+// the race's body size from the catalog's race rows and the
 // manhunter mental state exact-matched against Manhunter/ManhunterPermanent.
 func squadThreatFacts(row *n.PawnState, races policy.AnimalRaceCatalog, ranged domain.Fact[bool]) policy.SquadThreatFacts {
 	facts := policy.SquadThreatFacts{ID: policy.PawnID(row.Pawn.GetId()), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed)}
@@ -84,7 +84,7 @@ func squadThreatFacts(row *n.PawnState, races policy.AnimalRaceCatalog, ranged d
 	facts.RangedEquipped = ranged
 	// A wild animal has no equipment tracker (the equipped field reads as a
 	// missing native component); it carries no ranged weapon either way, and
-	// neither does an entity whose attack native read as melee only (#1739).
+	// neither does an entity whose attack native read as melee only.
 	if _, known := facts.RangedEquipped.Value(); !known && (facts.Animal == domain.Known(true) || policy.MeleeEntity(facts)) {
 		facts.RangedEquipped = domain.Known(false)
 	}
@@ -112,7 +112,7 @@ func manhunterFact(state *string, issues []*n.ReadIssue) domain.Fact[bool] {
 
 // squadDefenderFacts reads row's defender facts. needed is plannedDrafts:
 // a drafted pawn a live plan needs is spoken for (DraftOwned); any other
-// drafted pawn is free to take (#939).
+// drafted pawn is free to take.
 func squadDefenderFacts(row *n.PawnState, needed map[domain.PawnID]bool, ranged domain.Fact[bool]) policy.SquadDefenderFacts {
 	facts := policy.SquadDefenderFacts{ID: domain.PawnID(row.Pawn.GetId()), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
 	facts.DraftOwned = domain.Known(needed[facts.ID])

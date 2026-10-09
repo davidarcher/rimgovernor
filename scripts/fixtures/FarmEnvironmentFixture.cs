@@ -10,7 +10,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Private disposable acceptance only. Stages the controlled-environment
-    // precondition for the farm/select-* cases (issue #3 M4): one enclosed roofed
+    // precondition for the farm/select-* cases : one enclosed roofed
     // room with a running sun lamp and heaters, its own fuelled wood-fired
     // generators, a cold snap that closes the outdoor growing season, and
     // parkas so the colonists survive it. Two scenarios:
@@ -172,7 +172,7 @@ namespace HomeBridge.BridgeTools
                 // sized on the day's peak, not the save's hour: the sun cycle
                 // swings +-7C, so a snap that closes a cool morning reopened
                 // the season by afternoon and the planner rightly went
-                // outdoors once the greenhouse was full (#194).
+                // outdoors once the greenhouse was full.
                 var outdoors = map.mapTemperature.OutdoorTemp;
                 var peak = outdoors - GenTemperature.OffsetFromSunCycle(Find.TickManager.TicksAbs, map.Tile) + 7f;
                 var snaps = System.Math.Max(1, System.Math.Min(3, (int)System.Math.Ceiling((peak + 8f) / 20f)));

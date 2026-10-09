@@ -13,7 +13,7 @@ import (
 )
 
 // KeepGameEnv controls whether the RimWorld process stays alive between
-// harness binaries (issue #91). By default (unset, or anything but
+// harness binaries. By default (unset, or anything but
 // 0/false/no) Game.Close returns the game to the main menu instead of
 // stopping it, and the next OpenGame under the same root attaches to the
 // running process (games_start on a running game is an attach) and skips
@@ -50,7 +50,7 @@ type Game struct {
 	// Relaunched is why OpenGame stopped a running process instead of
 	// reusing it ("expansions", "package", "unrecorded"; see
 	// LaunchedMismatch), or "" when nothing was running or the process was
-	// reused (#166, #209).
+	// reused.
 	Relaunched string
 	// Keep is whether Close leaves the process up for the next harness.
 	Keep bool
@@ -70,9 +70,9 @@ type Game struct {
 // returns it to the main menu so the harness starts from the same state a
 // fresh launch would give it (unless cfg.KeepLoaded). A running process launched with a different
 // mod list than cfg prepared (ModsConfig.xml only applies at launch, so a
-// Core-only process cannot load a DLC save, #166) or with a package other
+// Core-only process cannot load a DLC save) or with a package other
 // than the one now installed (a rebuilt mod's fixtures are not in the old
-// DLL's catalog, #209), or one a resumed run (Config.Resumed, #249) or a graphics case
+// DLL's catalog), or one a resumed run (Config.Resumed) or a graphics case
 // (Config.Graphics) must relaunch, is stopped and launched
 // fresh instead; Game.Relaunched and the report's game_reuse.relaunched
 // say so. cfg must have been prepared.
@@ -303,7 +303,7 @@ func StopGame(ctx context.Context, root, gameID string) error {
 
 // StopRenderedGame stops the process the root's windowed profile
 // (root/config, the profile PrepareRendered launches) keeps, so a headless
-// case does not boot beside it (#444): a rendered case leaves its process
+// case does not boot beside it: a rendered case leaves its process
 // at the main menu, and on a small box a window still drawing its menu
 // starves the next headless boot past the connect budget. Nothing is done
 // when the windowed profile carries no launch record (LaunchedModsFile:
@@ -397,11 +397,11 @@ type Warmed struct {
 
 // WarmGame prepares cfg's profile and boots its game to the main menu,
 // leaving the process running for the next OpenGame under the same root
-// to attach (#285). It is the launch a first run would pay, moved to a
+// to attach. It is the launch a first run would pay, moved to a
 // moment nobody is waiting for it (a post-build hook): the launch records
 // the same mods and package snapshots (prepareFreshLaunch), so a mod
 // rebuilt after the warm relaunches on the same "package" check as any
-// kept process (#209) and a stale package is refused before the boot. A
+// kept process and a stale package is refused before the boot. A
 // process already running and matching the profile is left alone. cfg
 // needs Root, GameID and Headless; Output defaults to <Root>/acceptance/warm.
 func WarmGame(ctx context.Context, cfg *Config) (Warmed, error) {

@@ -10,7 +10,7 @@ import (
 )
 
 // TestRebuildFamiliesRoundTripsEachFamily writes each family into one store,
-// rebuilds a second store from its blobs, and expects equal blobs (#1005).
+// rebuilds a second store from its blobs, and expects equal blobs.
 func TestRebuildFamiliesRoundTripsEachFamily(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

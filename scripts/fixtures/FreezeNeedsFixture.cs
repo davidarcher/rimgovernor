@@ -10,7 +10,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Disposable test setup only (issue #92). A colonist that wanders off to
+    // Disposable test setup only. A colonist that wanders off to
     // eat, sleep or break mid-assertion reruns a harness for a reason
     // unrelated to it. Freezing pins every colonist need at its maximum after
     // each needs tick except the ones the scenario keeps live (Food for a

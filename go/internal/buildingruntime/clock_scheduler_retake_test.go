@@ -15,7 +15,7 @@ import (
 
 // retakeFixture starts a window, stops it on an external pause and lets the
 // player run the game by hand to tick 5000: the step that sees the stop
-// settles the epoch and, with the game running, admits nothing (#601). It
+// settles the epoch and, with the game running, admits nothing. It
 // returns with the epoch settled, one start written and no pause issued.
 func retakeFixture(t *testing.T) (*ClockScheduler, *schedulerNative) {
 	t.Helper()
@@ -51,7 +51,7 @@ func retakePlayerRuns(f *schedulerNative, tick int64) {
 // TestClockSchedulerRetakesPlayerDrivenClock: a stopped clock whose tick
 // advances under no owned epoch is the player running the game; after the
 // quiet period the step pauses natively and starts the next window in the
-// same step (#601).
+// same step.
 func TestClockSchedulerRetakesPlayerDrivenClock(t *testing.T) {
 	t.Parallel()
 	s, f := retakeFixture(t)

@@ -9,7 +9,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable acceptance only (issue #2290). Stages two empty
+    // Private disposable acceptance only. Stages two empty
     // growing zones on bare soil: a tree zone (Plant_TreeOak) and, a gap away,
     // a rice zone of the same size. The colonists' Growing priority is raised
     // so they sow both; nothing here sows. The census reports each zone's

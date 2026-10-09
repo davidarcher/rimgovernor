@@ -40,7 +40,7 @@ func TestMiningFollowsTheLayoutPlanTiers(t *testing.T) {
 	}
 }
 
-// TestPlannedDig (#836): a dug cooled room mines its interior, door, cooler
+// TestPlannedDig: a dug cooled room mines its interior, door, cooler
 // cell and shaft ahead of the ring; a standing room digs only its shaft,
 // and nothing while its back wall is still rock.
 func TestPlannedDig(t *testing.T) {
@@ -81,7 +81,7 @@ func TestPlannedDig(t *testing.T) {
 		}
 	}
 	// A rock back wall puts the cooler cell first in the exhaust dig, for
-	// the plan that places the cooler (#874).
+	// the plan that places the cooler.
 	exhaust, _ := p.ExhaustRock(freezer, cells)
 	if len(exhaust.Dig) != len(RectangleCells(shaft))+1 || exhaust.Dig[0] != site.Cell {
 		t.Fatalf("rock back wall exhaust dig %v, want cooler cell %v then %v", exhaust.Dig, site.Cell, shaft)

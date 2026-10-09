@@ -57,7 +57,7 @@ func TestClockPollWatchLatchedIsBenignAndWakes(t *testing.T) {
 // generation authority holds now (the service's own pause, save and
 // resume, as a checkpoint does) acknowledges the interruption hold and does
 // not disable the fresh grant: the stop was answered by that grant, and the
-// answered hold is not left for anyone else to clear (#322). The same stop
+// answered hold is not left for anyone else to clear. The same stop
 // after the grant still disables and holds.
 func TestClockPollStopBeforeTheCurrentGrantKeepsAuthority(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -96,7 +96,7 @@ func TestClockPollStopBeforeTheCurrentGrantKeepsAuthority(t *testing.T) {
 // The grant is remembered across pages: a stop read by one poll and the
 // resume's grant by the next: the poll reading the grant acknowledges the
 // standing hold instead of disabling the new grant, and later polls admit
-// windows again (#322).
+// windows again.
 func TestClockPollStandingHoldBeforeTheRememberedGrantKeepsAuthority(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -138,7 +138,7 @@ func TestClockPollStandingHoldBeforeTheRememberedGrantKeepsAuthority(t *testing.
 // A kept game's backlog read while nothing is enabled is history: a page of
 // stops at or before the watermark the first poll fixed leaves the control
 // epoch (an acquisition in flight) in place, though its holds still stand.
-// A stop past the watermark is fresh evidence and replaces it (#322).
+// A stop past the watermark is fresh evidence and replaces it.
 func TestClockPollBacklogWhileDisabledKeepsAcquireEpoch(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

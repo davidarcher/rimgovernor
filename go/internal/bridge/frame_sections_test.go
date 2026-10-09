@@ -46,7 +46,7 @@ func sectionFrame(base *o.BundleSnapshot, tick int64, seqs map[string]uint64, ca
 	return v
 }
 
-// TestFramesHoldOmittedSections (#1347): sections omitted for many frames
+// TestFramesHoldOmittedSections: sections omitted for many frames
 // are served from the last frame that carried them, stamped with each
 // frame's own tick, so no anchor or staleness check against the frame
 // trips; a routine frame decodes whole.
@@ -90,7 +90,7 @@ func TestFramesHoldOmittedSections(t *testing.T) {
 	}
 }
 
-// TestFramesKeyframeOnSeqGap (#1347): a section omitted at a seq the
+// TestFramesKeyframeOnSeqGap: a section omitted at a seq the
 // stream does not hold changed in a skipped frame. It is not served from
 // the stale copy, and the stream asks native for a keyframe.
 func TestFramesKeyframeOnSeqGap(t *testing.T) {

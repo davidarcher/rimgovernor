@@ -5,7 +5,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// colonyPollution is ManagePollution's read (#1683) from the Biotech colony
+// colonyPollution is ManagePollution's read from the Biotech colony
 // section: each wastepack with the game's verdicts and the count of polluted
 // cells outside the pollution-clear area. Unknown without the section, so the
 // goal has no assessment on a colony without Biotech.

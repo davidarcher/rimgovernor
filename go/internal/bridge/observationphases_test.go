@@ -15,7 +15,7 @@ func response(tool string, timing map[string]any) TimelineRecord {
 		Payload: map[string]any{"tool": "games_call_tool", "native_tool": tool, "timing": timing}}
 }
 
-// nativeTimed is the pre-#642 timing block: gate/call/decode phases plus the
+// nativeTimed is a timing block without observation accounting: gate/call/decode phases plus the
 // companion's queue and execute split, and nothing else.
 func nativeTimed(queueMs, executeMs float64) map[string]any {
 	return map[string]any{"gate_wait_ms": 0.0, "call_ms": executeMs + queueMs, "decode_ms": 0.0,
@@ -23,7 +23,7 @@ func nativeTimed(queueMs, executeMs float64) map[string]any {
 		"native_queue_ms": queueMs, "native_execute_ms": executeMs}
 }
 
-// observed adds the #642 observation account to a timing block.
+// observed adds an observation account to a timing block.
 func observed(timing map[string]any, account map[string]any) map[string]any {
 	timing["native_observation"] = account
 	return timing
@@ -64,7 +64,7 @@ func TestObservationAccountAggregated(t *testing.T) {
 	if obs.Capture.Mean() != 5.5 {
 		t.Fatalf("capture mean %v", obs.Capture.Mean())
 	}
-	// Queue and execute come from the pre-#642 split, so they cover every
+	// Queue and execute come from the queue/execute split, so they cover every
 	// timed hop: executeMs 2..11.
 	if obs.Execute.Samples != 10 || obs.Execute.P50 != 6 || obs.Execute.Max != 11 {
 		t.Fatalf("execute quantiles: %+v", obs.Execute)
@@ -100,7 +100,7 @@ func TestObservationAccountAggregated(t *testing.T) {
 // split it does carry is still summarized.
 func TestObservationAccountAbsentStaysUnknown(t *testing.T) {
 	rows := []TimelineRecord{
-		// Pre-#642: queue/execute only.
+		// Timing without observation accounting: queue/execute only.
 		response("rimgovernor/snapshot_frame_routine", nativeTimed(1, 4)),
 		// An untimed call (a failure before timing existed).
 		{Kind: "native_call", WallTime: 1, Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/clock_read_status"}},
@@ -137,8 +137,8 @@ func TestObservationAccountAbsentStaysUnknown(t *testing.T) {
 }
 
 // TestObservationEncodeBlockSplitsOffThread checks a detached reply's encode
-// block (#644) is summarized apart from the game-thread phases, and that a
-// pre-#644 record beside it keeps formatMs as game-thread formatting with
+// block is summarized apart from the game-thread phases, and that a
+// record without encoder accounting beside it keeps formatMs as game-thread formatting with
 // no encode sample of its own.
 func TestObservationEncodeBlockSplitsOffThread(t *testing.T) {
 	legacy := map[string]any{"captureMs": 4.0, "formatMs": 3.0, "formatPasses": 2.0, "payloadBytes": 500.0, "outcome": "ok"}
@@ -289,7 +289,7 @@ func TestQuantilesNearestRank(t *testing.T) {
 	}
 }
 
-// TestNativeTimingCarriesObservationBlocks checks the reply wrapper's #642
+// TestNativeTimingCarriesObservationBlocks checks the reply wrapper's
 // blocks reach the flight row verbatim, and that a wrapper without them
 // reports none.
 func TestNativeTimingCarriesObservationBlocks(t *testing.T) {
@@ -309,7 +309,7 @@ func TestNativeTimingCarriesObservationBlocks(t *testing.T) {
 	}
 }
 
-// The threat classifier's counters (#646) sum over the hops that ran it and
+// The threat classifier's counters sum over the hops that ran it and
 // print as one line; a recording without them prints none.
 func TestThreatScanAggregated(t *testing.T) {
 	var rows []TimelineRecord
@@ -336,7 +336,7 @@ func TestThreatScanAggregated(t *testing.T) {
 }
 
 // TestFrameIntervalQuantilesFromHistogram checks p95/p99 come from the
-// histogram differenced between the first and last sample (#656): only the
+// histogram differenced between the first and last sample: only the
 // window's intervals count, a quantile reports its bucket's upper edge, and
 // the overflow bucket reports the widest interval.
 func TestFrameIntervalQuantilesFromHistogram(t *testing.T) {

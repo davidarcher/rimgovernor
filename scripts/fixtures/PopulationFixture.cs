@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
                 var workers = map.mapPawns.FreeColonistsSpawned.ToList();
                 if (candidateKind != "Villager" && candidateKind != "SpaceRefugee_Clothed")
                     throw new ArgumentException("Unsupported fixture candidate kind");
-                // The case starts on the blank lab (#733): its colonists stand
+                // The case starts on the blank lab: its colonists stand
                 // on the centre row, so the 16x10 site sits a few rows north
                 // of it on bare Soil, with no site search.
                 var origin = map.Center + new IntVec3(-8, 0, 4);

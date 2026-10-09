@@ -15,7 +15,7 @@ using Obs = RimGovernor.Protocol.Observations;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// Ancient shrines (#456): one row per cryptosleep casket group. The
+    /// Ancient shrines: one row per cryptosleep casket group. The
     /// group id is the native identity a casket opening shares, so it
     /// survives the fogged-to-breached transition that dissolves the room.
     /// Fogged casket rows, and guards while any casket cell is fogged, stay
@@ -113,7 +113,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // Occupant (#460) is any non-player humanlike in the room or its
+        // Occupant is any non-player humanlike in the room or its
         // corpse: what the caskets released, read after the opening. Guards
         // stay the hostile-threat census; a woken hostile ancient is both.
         private static Obs.ShrineOccupant? Occupant(Thing thing, Faction player)

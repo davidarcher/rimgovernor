@@ -19,7 +19,7 @@ func storageRooms(plan LayoutPlan) []PlannedRoom {
 }
 
 // A demanded room no core slot takes is an error naming the room, for the
-// storage and the gear rooms alike (#1799); a placed one is not.
+// storage and the gear rooms alike; a placed one is not.
 func TestUnplaceableRoomDemandFailsLoudly(t *testing.T) {
 	t.Parallel()
 	plan := gearTestPlan()
@@ -216,7 +216,7 @@ func TestSecondWarehouseZoneIsCreated(t *testing.T) {
 	}
 }
 
-// A zone in a further warehouse room is kept (#1798).
+// A zone in a further warehouse room is kept.
 func TestFurtherWarehouseZoneIsKeptAndCountsAsGeneral(t *testing.T) {
 	t.Parallel()
 	second := Rectangle{X: 20, Z: 10, Width: 3, Height: 3}

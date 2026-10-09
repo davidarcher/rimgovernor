@@ -13,7 +13,7 @@ import (
 // the source did not offer, or whose read left the fact unknown, has an
 // empty Source and File skips it. planning_cells is filed apart from
 // colony: an older native lists it in the colony reply, a current one
-// serves it through observations_get_cells with its own tick (#354, #356).
+// serves it through observations_get_cells with its own tick.
 type RoundsSections struct {
 	Colony        facts.Held[ColonyProjection]
 	PlanningCells facts.Held[PlanningCells]

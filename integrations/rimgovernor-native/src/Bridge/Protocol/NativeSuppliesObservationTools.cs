@@ -255,7 +255,7 @@ namespace HomeBridge.BridgeTools
             {
                 entity.Inner = new Common.Ref { Id = Id(mini.InnerThing.GetUniqueLoadID()) };
                 entity.InnerDefName = Id(mini.InnerThing.def.defName);
-                // Art stock (#1194): the trade selector keeps the best pieces.
+                // Art stock: the trade selector keeps the best pieces.
                 if (mini.InnerThing.TryGetQuality(out var quality)) entity.Quality = (int)quality;
                 try { entity.MarketValue = thing.MarketValue; } catch { }
             }

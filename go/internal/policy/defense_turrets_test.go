@@ -129,8 +129,8 @@ func TestDefenseTurretsFlankTheFiringLineAndReachTheNetwork(t *testing.T) {
 	}
 }
 
-// A mini turret takes the shooters' row, a heavier rung the row behind it
-// (#1544): the autocannon's minimum range wants it further back.
+// A mini turret takes the shooters' row, a heavier rung the row behind it:
+// the autocannon's minimum range wants it further back.
 func TestDefenseTurretsHeavierRungsStandFurtherBack(t *testing.T) {
 	r := turretFixture()
 	r.UnitCosts[TurretAutocannon] = []Amount{{Resource: "Steel", Count: 100}, {Resource: "ComponentIndustrial", Count: 4}}

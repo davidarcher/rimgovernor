@@ -35,7 +35,7 @@ func HayNutritionNeed(pens domain.Fact[[]PenGrazing], gap domain.Fact[float64]) 
 }
 
 // PlanHayField sizes a hay field without declaring hay human-edible; the
-// caller sites it in the layout plan's field blocks (#1226). Existing hay capacity is subtracted by the caller; unknown or nonnegative
+// caller sites it in the layout plan's field blocks. Existing hay capacity is subtracted by the caller; unknown or nonnegative
 // grazing balance never opens a field.
 func PlanHayField(need domain.Fact[float64], crop CropChoice, climate CropClimate) (FieldPlan, bool) {
 	n, nk := need.Value()

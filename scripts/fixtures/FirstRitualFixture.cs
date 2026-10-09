@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // Private disposable acceptance only (#1665, epic #1653): a colony with an
+    // Private disposable acceptance only: a colony with an
     // ideoligion holds its first ritual. test/first_ritual_prepare keeps the
     // lab colony's own primary ideoligion and picks the ritual it stages from
     // the game's defs: a ritual precept the ideoligion holds (or, when it holds

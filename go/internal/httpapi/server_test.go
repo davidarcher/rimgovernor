@@ -120,7 +120,7 @@ func TestRoutinesRouteReportsComposedFamiliesAndReviewCursor(t *testing.T) {
 	if status != 200 || !got.ReviewsEnabled || !got.MethodsEnabled || len(got.ActiveFamilies) != 2 || got.LastReviewTick == nil || *got.LastReviewTick != 42 {
 		t.Fatalf("routine status: %s", body)
 	}
-	// The state store's sections ride along with the tick each describes (#354).
+	// The state store's sections ride along with the tick each describes.
 	if len(got.Sections) != 1 || got.Sections[0] != (roundsSectionDTO{Section: "colony", Family: "colony", AsOf: 40, Complete: true, Source: "rimgovernor/observations_read_colony_facts", StoredAt: "2026-09-19T10:00:00Z"}) {
 		t.Fatalf("routine sections: %s", body)
 	}
@@ -432,7 +432,7 @@ func TestRoutinesRouteExposesProgressWithoutCapacity(t *testing.T) {
 	}
 }
 
-// The Governor projection carries every concern's progress record (#629):
+// The Governor projection carries every concern's progress record:
 // method, expected observable, last progress tick, next review tick and
 // blocker, with its bounded cooldowns.
 func TestRoutinesRouteExposesConcernProgress(t *testing.T) {

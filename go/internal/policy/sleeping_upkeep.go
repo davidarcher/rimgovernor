@@ -34,7 +34,7 @@ type SleepingBed struct {
 	// Room is the native room id (RoomQuality.ID); Quality the native
 	// QualityCategory name, unknown for a bed without quality.
 	Room, Quality domain.Fact[string]
-	// Stuff is the native stuff defName (#842), unknown for a stuffless bed.
+	// Stuff is the native stuff defName, unknown for a stuffless bed.
 	Stuff domain.Fact[string]
 	// Cell is the bed's position (its head cell).
 	Cell domain.Cell
@@ -47,14 +47,14 @@ type SleepingObservation struct {
 	// which a free colonist may never own. They are never partnered.
 	Slaves []SleepingPerson
 	// Guests are the hosted guests (HostFaction is the player, quest lodgers
-	// included; #2384), outside Colonists and People: each is offered a vacant
+	// included), outside Colonists and People: each is offered a vacant
 	// suitable bed through Assign, a titled one the beds fitting its title
 	// first. A guest never causes a bed to be built.
 	Guests []SleepingPerson
 	Beds   []SleepingBed
 	// Rooms is the room quality census, unknown when its section is.
 	Rooms domain.Fact[[]UpkeepRoom]
-	// BedBuildable is Bed's native availability (#1181): while it is known
+	// BedBuildable is Bed's native availability: while it is known
 	// false a bedroll is a suitable bed, and while it is true an upgrade
 	// target. Unknown keeps a bedroll suitable. A spot is never suitable.
 	BedBuildable domain.Fact[bool]
@@ -375,8 +375,8 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 }
 
 // sleepingRung reports whether a bed of this definition is a suitable bed
-// on the ladder (#1181): a bedroll only while Bed is unavailable, a spot
-// never, so a spot owner stays a bedroom and bedroll target (#1182).
+// on the ladder: a bedroll only while Bed is unavailable, a spot
+// never, so a spot owner stays a bedroom and bedroll target.
 func sleepingRung(definition Resource, bed domain.Fact[bool]) bool {
 	buildable, known := bed.Value()
 	switch definition {
@@ -396,7 +396,7 @@ func (r SleepingReview) Recovered() domain.Fact[bool] {
 	return domain.Known(len(rows) == 0)
 }
 
-// guestBeds are the vacant beds suitable for guest p (#2384), best first. A
+// guestBeds are the vacant beds suitable for guest p, best first. A
 // titled guest's beds come first by how many of its title's bedroom
 // requirements they meet: the title's bed, a room of the minimum area and
 // impressiveness. The rest, and an untitled guest's, go by bed ID.

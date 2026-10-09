@@ -3,7 +3,7 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // podStrikeToils are the lord toils of a raid that flees or loots and
-// leaves: the pods tactic's wait ends and it strikes (#893).
+// leaves: the pods tactic's wait ends and it strikes.
 var podStrikeToils = map[string]bool{
 	"LordToil_PanicFlee":                true,
 	"LordToil_KidnapCover":              true,
@@ -12,7 +12,7 @@ var podStrikeToils = map[string]bool{
 	"LordToil_ExitMapAndEscortCarriers": true,
 }
 
-// podStrength is the strength comparison of the wait option (#893): ours
+// podStrength is the strength comparison of the wait option: ours
 // is the health fraction summed over the armed, eligible defenders; the
 // pod group's is its live hostile count, or the landing cell count while
 // none is out yet.
@@ -54,7 +54,7 @@ func podStrike(view CombatView, stop StopEvent) bool {
 	return false
 }
 
-// podWait decides the wait option at a pods formation (#893): once the
+// podWait decides the wait option at a pods formation: once the
 // raid flees or loots and leaves the fight strikes for good; until then
 // it waits while our strength is below the pod group's.
 func podWait(view CombatView, stop StopEvent, m *CombatMemory) bool {

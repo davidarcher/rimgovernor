@@ -10,9 +10,9 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Odyssey facts (#1708): the catalog's derived part (each biome's wild
+    // Odyssey facts: the catalog's derived part (each biome's wild
     // animal tables and the stockpile types; the defs themselves ride the def
-    // mirror, #1791), the building row block (hack progress, portal state) and
+    // mirror), the building row block (hack progress, portal state) and
     // the colony map's tile mutators. Everything is read from the game defs and
     // objects, never from name lists, and is absent without Odyssey.
     internal static class NativeOdysseyFacts

@@ -3,7 +3,7 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // RoyaltyFacts are the Empire title ladder, the permit catalog and the
-// colonists' holdings (#1599), decoded from the native royalty read. Every
+// colonists' holdings, decoded from the native royalty read. Every
 // scalar the native read left absent is unknown.
 type RoyaltyFacts struct {
 	// Ladder lists every title by ascending seniority.
@@ -11,18 +11,16 @@ type RoyaltyFacts struct {
 	Permits map[string]RoyalPermit
 	// Holders maps a colonist to its holdings, one per faction.
 	Holders map[PawnID][]RoyalHolding
-	// Psycasts maps a psycaster to its known psycasts (#1600).
+	// Psycasts maps a psycaster to its known psycasts.
 	Psycasts map[PawnID][]Psycast
-	// Casters maps a psycaster to its psyfocus and neural heat at the read
-	// (#1611).
+	// Casters maps a psycaster to its psyfocus and neural heat at the read.
 	Casters map[PawnID]PsycasterState
-	// Neuroformers, Ceremonies and Thrones are the colony section's (#1877,
-	// RoyaltyFacts.WithColony), not the royalty read's. Neuroformers is the
-	// colony's neuroformer stock by def (#1600).
+	// Neuroformers, Ceremonies and Thrones are the colony section's (RoyaltyFacts.WithColony), not the royalty read's. Neuroformers is the
+	// colony's neuroformer stock by def.
 	Neuroformers map[string]Neuroformer
-	// Ceremonies are the pending bestowing ceremonies (#1602), by pawn.
+	// Ceremonies are the pending bestowing ceremonies, by pawn.
 	Ceremonies []BestowingCeremony
-	// Thrones are the standing player thrones and their owners (#1601).
+	// Thrones are the standing player thrones and their owners.
 	Thrones []RoyalThrone
 }
 
@@ -60,7 +58,7 @@ type Psycast struct {
 	Entropy       domain.Fact[float64]
 	Target        PsycastTarget
 	CooldownTicks domain.Fact[int]
-	// CooldownRemaining is the ticks left of the cooldown at the read (#1611).
+	// CooldownRemaining is the ticks left of the cooldown at the read.
 	CooldownRemaining domain.Fact[int]
 }
 
@@ -79,7 +77,7 @@ type Neuroformer struct {
 // RoyalRung is one title on the ladder; FavorNeeded is the favor that earns it.
 //
 // Throne is the title's throne-room requirement read from the def mirror
-// (RoyalTitleDef.throneRoomRequirements, bridge ThroneRequirements #1861):
+// (RoyalTitleDef.throneRoomRequirements, bridge ThroneRequirements):
 // unknown until the mirror is read, and a title that asks for no throne
 // holds a requirement with no Things.
 type RoyalRung struct {
@@ -118,8 +116,7 @@ type RoyalHolding struct {
 	Favor        domain.Fact[int]
 	PermitPoints domain.Fact[int]
 	Permits      []string
-	// Cooldowns is the native cooldown of each held permit, by permit def
-	// (#1607).
+	// Cooldowns is the native cooldown of each held permit, by permit def.
 	Cooldowns map[string]PermitCooldown
 }
 
@@ -150,7 +147,7 @@ func (f *RoyaltyFacts) PermitUsedSince(pawn PawnID, faction, permit string, sinc
 	return false
 }
 
-// RoyaltyColony is the Royalty colony section (#1877): the neuroformer stock,
+// RoyaltyColony is the Royalty colony section: the neuroformer stock,
 // the pending bestowing ceremonies and the standing thrones.
 type RoyaltyColony struct {
 	Neuroformers map[string]Neuroformer

@@ -4292,7 +4292,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Ancient shrines (#456): each sealed or opened ancient-danger room as one
+  /// Ancient shrines: each sealed or opened ancient-danger room as one
   /// unit. Caskets report native hit points and HasAnyContents; the occupant
   /// stays unknown until opened. Guards are the hostile pawns and hives inside
   /// the room rectangle and are complete only once the interior is unfogged.
@@ -4362,7 +4362,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Closed vanilla value sets read off pawns, stock and bills (#1341).
+  /// Closed vanilla value sets read off pawns, stock and bills.
   /// </summary>
   public enum HungerCategory {
     [pbr::OriginalName("HUNGER_CATEGORY_UNSPECIFIED")] Unspecified = 0,
@@ -4544,14 +4544,14 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Psycasts (#1600): psycasts holds each psycaster's known psycasts (Ability
+  /// Psycasts: psycasts holds each psycaster's known psycasts (Ability
   /// defs with IsPsycast). level is the psylink level that unlocks it,
   /// psyfocus_cost the Psyfocus it spends (0-1), entropy the neural heat it adds,
   /// cooldown_ticks the longest cooldown. neuroformers: the psylink neuroformer
   /// and each psycast neurotrainer, with held (unforbidden spawned stacks on the
   /// player's home maps), craftable (a recipe that is available now makes it)
   /// and tradeable (a trader can sell it). teaches_psycast is the trainer's
-  /// ability def. For combat casts (#1611) cooldown_remaining_ticks is the
+  /// ability def. For combat casts cooldown_remaining_ticks is the
   /// psycast's remaining cooldown and the pawn's psyfocus (0-1), entropy and
   /// entropy_max are read at the read's tick; each is absent when unread.
   /// </summary>
@@ -4564,7 +4564,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Raw hunt census (#2144): what Go needs to decide whether a hunt row is offered. Native states
+  /// Raw hunt census: what Go needs to decide whether a hunt row is offered. Native states
   /// facts and keeps only physical validity; butcher readiness, weapon rules, hunter eligibility and
   /// the pending-hunt cap are Go policy (policy.HuntGate).
   /// HuntProjectileKind classifies a verb's default projectile by its ThingDef class: BULLET is
@@ -4579,13 +4579,13 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Routes census (issue #6 slice 5): each colony facility a colonist must
+  /// Routes census: each colony facility a colonist must
   /// reach (bed, work bench, storage, dining surface, defence emplacement) with
   /// per-colonist native reachability from where that colonist stands and the
   /// cost of the path the game itself would walk; a facility no colonist reaches
   /// lists breach candidates: player wall cells of its room whose outer
   /// neighbour a colonist can stand on.
-  /// Traffic (#817) counts cell changes of moving pawns per layer, each layer
+  /// Traffic counts cell changes of moving pawns per layer, each layer
   /// decaying on its own half-life, rebuilt from zero after a load; the
   /// busiest cells are reported per layer with their terrain.
   /// </summary>
@@ -4638,7 +4638,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// A food ThingDef a food policy can allow (#1541): a nutrition-giving
+  /// A food ThingDef a food policy can allow: a nutrition-giving
   /// ingestible that is no drug and no corpse. Meals carry their
   /// FoodPreferability tier (awful, simple, fine, lavish) and ingredients
   /// (FoodUtility.GetFoodKind: meat-only, meat-free or either); raw foods are
@@ -4659,7 +4659,7 @@ namespace RimGovernor.Protocol.Observations {
     [pbr::OriginalName("FOOD_KIND_ANIMAL_PRODUCT")] AnimalProduct = 10,
     [pbr::OriginalName("FOOD_KIND_OTHER")] Other = 11,
     /// <summary>
-    /// Animal feed (#1543): FoodTypeFlags.Kibble foods and hay (FoodTypeFlags.Plant).
+    /// Animal feed: FoodTypeFlags.Kibble foods and hay (FoodTypeFlags.Plant).
     /// </summary>
     [pbr::OriginalName("FOOD_KIND_KIBBLE")] Kibble = 12,
     [pbr::OriginalName("FOOD_KIND_HAY")] Hay = 13,
@@ -4673,7 +4673,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// A food policy holder outside the work census (#1543): a prisoner of the
+  /// A food policy holder outside the work census: a prisoner of the
   /// colony or a tame animal on the colony map with a food policy. A prisoner
   /// carries its diet inputs (trait defNames, its ideoligion's precept
   /// defNames); the food an animal's race can ever eat is its catalog race row's.
@@ -8080,8 +8080,8 @@ namespace RimGovernor.Protocol.Observations {
   /// <summary>
   /// include_salvage asks for salvage evidence on the rows outside Home; a
   /// caller that never reads salvage leaves it false and the native read skips
-  /// the salvage route and storage searches (#984).
-  /// planned_ground (#1365) widens the census on those cells only: player-faction
+  /// the salvage route and storage searches.
+  /// planned_ground widens the census on those cells only: player-faction
   /// buildings touching them become targets (with encloses_room) and their
   /// constructed floors are reported per cell. Empty keeps the non-player census.
   /// </summary>
@@ -9864,7 +9864,7 @@ namespace RimGovernor.Protocol.Observations {
 
   /// <summary>
   /// ShrineOccupant is a humanlike the caskets released, or a corpse of one: any
-  /// non-player humanlike pawn or corpse inside the room (#460).
+  /// non-player humanlike pawn or corpse inside the room.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class ShrineOccupant : pb::IMessage<ShrineOccupant>
@@ -14174,7 +14174,7 @@ namespace RimGovernor.Protocol.Observations {
     private global::RimGovernor.Protocol.Common.Cell targetACell_;
     /// <summary>
     /// target_a_cell: a spawned thing target's cell when the job was read
-    /// (#1342); target_a carries the thing's Ref.
+    /// target_a carries the thing's Ref.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -14917,7 +14917,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private double psyfocus_;
     /// <summary>
-    /// Psyfocus (#1313): Pawn_PsychicEntropyTracker CurrentPsyfocus and
+    /// Psyfocus: Pawn_PsychicEntropyTracker CurrentPsyfocus and
     /// TargetPsyfocus (0-1) and Pawn.GetPsylinkLevel(); all three are absent
     /// when Royalty is inactive or the pawn has no psylink.
     /// </summary>
@@ -17794,7 +17794,7 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForMessage(162, global::RimGovernor.Protocol.Observations.MissingBodyPart.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Observations.MissingBodyPart> missingParts_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Observations.MissingBodyPart>();
     /// <summary>
-    /// Surgery facts (#1161). Native computes every value through vanilla; Go
+    /// Surgery facts. Native computes every value through vanilla; Go
     /// never recomputes them. Absent lists with a read issue are unknown.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -17820,7 +17820,7 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForMessage(178, global::RimGovernor.Protocol.Observations.InstalledPart.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Observations.InstalledPart> installedParts_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Observations.InstalledPart>();
     /// <summary>
-    /// Installed added parts (#1837): every Hediff_AddedPart on the pawn. A read
+    /// Installed added parts: every Hediff_AddedPart on the pawn. A read
     /// failure is a read issue with field "installed_parts", never an empty list.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -19500,7 +19500,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private double yieldMarketValue_;
     /// <summary>
-    /// A harvest's yield (#1169), or an added part's on removal (#1232):
+    /// A harvest's yield, or an added part's on removal:
     /// BaseMarketValue of the spawnThingOnRemoved; absent otherwise.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -19531,7 +19531,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private string addedPartHediff_;
     /// <summary>
-    /// Artificial part removal (#1232): the removed Hediff_AddedPart's def and
+    /// Artificial part removal: the removed Hediff_AddedPart's def and
     /// the thing it spawns; absent unless the target part carries an added part.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -19618,7 +19618,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private double doctorSuccessChance_;
     /// <summary>
-    /// The best eligible doctor's chance with an ideal bed and room (#1240):
+    /// The best eligible doctor's chance with an ideal bed and room:
     /// success_chance with the bed factor replaced by a clean, roofed Bed's;
     /// absent exactly when success_chance is.
     /// </summary>
@@ -19651,7 +19651,7 @@ namespace RimGovernor.Protocol.Observations {
     private bool medicineCareLimited_;
     /// <summary>
     /// True when medicine the recipe accepts is on the map but the patient's
-    /// medical care level forbids all of it (#1239); ingredients_on_map is
+    /// medical care level forbids all of it; ingredients_on_map is
     /// then false.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -19683,7 +19683,7 @@ namespace RimGovernor.Protocol.Observations {
     private readonly pbc::MapField<string, double> doctorChances_ = new pbc::MapField<string, double>();
     /// <summary>
     /// Each eligible doctor's chance on this operation, the same score as
-    /// success_chance, keyed by pawn id (#1253); empty when success_chance is
+    /// success_chance, keyed by pawn id; empty when success_chance is
     /// absent.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -20624,7 +20624,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int ThingSnapshotFieldNumber = 22;
     private global::RimGovernor.Protocol.Observations.SnapshotRef thingSnapshot_;
     /// <summary>
-    /// A loose candidate's supply CAS token (#1342).
+    /// A loose candidate's supply CAS token.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -21342,7 +21342,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private double rangedDps_;
     /// <summary>
-    /// Defense capacity (#1188): the primary ranged verb's damage per second
+    /// Defense capacity: the primary ranged verb's damage per second
     /// (projectile damage x burst over aim-adjusted warmup, cooldown and burst
     /// gaps; 0 without a ranged primary) and the pawn's MeleeDPS stat.
     /// </summary>
@@ -25081,7 +25081,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int PolicyInputsFieldNumber = 20;
     private global::RimGovernor.Protocol.Observations.PawnPolicyInputs policyInputs_;
     /// <summary>
-    /// Per-pawn policy planner inputs (#1297), read with work detail.
+    /// Per-pawn policy planner inputs, read with work detail.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -25548,8 +25548,8 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// The inputs per-pawn outfit/drug/food/reading planners compose from
-  /// (#1297). Traits, mood and break thresholds (biography, needs) and animal
+  /// The inputs per-pawn outfit/drug/food/reading planners compose from.
+  /// Traits, mood and break thresholds (biography, needs) and animal
   /// bonds (social relations, relation_def_name "Bond") are observed elsewhere.
   /// Policy ids are Policy.GetUniqueLoadID(); absent when the pawn has no
   /// tracker for that policy kind. A field the pawn has no source for (no
@@ -25960,7 +25960,7 @@ namespace RimGovernor.Protocol.Observations {
     private double medicalTendQuality_;
     /// <summary>
     /// StatDefOf.MedicalTendQuality of the pawn as a doctor, before vanilla's
-    /// 0.7 self-tend factor (#1305); absent for a pawn that cannot doctor.
+    /// 0.7 self-tend factor; absent for a pawn that cannot doctor.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -25990,7 +25990,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private double ideoCertainty_;
     /// <summary>
-    /// Pawn_IdeoTracker.Certainty (0..1) in the pawn's ideoligion (#1654);
+    /// Pawn_IdeoTracker.Certainty (0..1) in the pawn's ideoligion;
     /// absent without an ideoligion.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -28539,11 +28539,11 @@ namespace RimGovernor.Protocol.Observations {
 
     private bool sick_;
     /// <summary>
-    /// Herd sizing facts (#875): any hediff that makes colonists feel sick, the
+    /// Herd sizing facts: any hediff that makes colonists feel sick, the
     /// player ideo venerates this race (slaughter_barred is no longer written;
-    /// precept effects decide, #1644), and adult age stage. The race's own
+    /// precept effects decide), and adult age stage. The race's own
     /// numbers (body size, life expectancy, minimum handling skill, tame-failure
-    /// manhunter chance) are the catalog's race rows (#1722).
+    /// manhunter chance) are the catalog's race rows.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -28654,7 +28654,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private global::RimGovernor.Protocol.Operations.MedicalCare medicalCare_;
     /// <summary>
-    /// Medical care cap inputs (#1301), for a player animal: its
+    /// Medical care cap inputs, for a player animal: its
     /// MedicalCareCategory name, a Bond relation to any living pawn, and the
     /// same conditions block PopulationPerson.conditions carries.
     /// </summary>
@@ -28898,7 +28898,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private long ticksToBirth_;
     /// <summary>
-    /// Herd growth events (#2379): game ticks until a pregnant animal gives birth
+    /// Herd growth events: game ticks until a pregnant animal gives birth
     /// ((1 - gestation) * gestationPeriodDays * 60000 / BodyResourceGrowthSpeed),
     /// absent without a pregnancy; the index of the current life stage in the
     /// race's lifeStageAges (Pawn_AgeTracker.CurLifeStageIndex) and game ticks until
@@ -30793,7 +30793,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int OwnedBedFieldNumber = 35;
     private global::RimGovernor.Protocol.Common.Ref ownedBed_;
     /// <summary>
-    /// Native draft claims were removed (#939): drafts are plan-owned.
+    /// Native draft claims were removed: drafts are plan-owned.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -30967,7 +30967,7 @@ namespace RimGovernor.Protocol.Observations {
     private global::RimGovernor.Protocol.Observations.PawnTendDoctor tendDoctor_;
     /// <summary>
     /// Doctor-side tend gates, mirroring NativeTendOperations.Prepare so the
-    /// controller never proposes a pair the native gate refuses (#657). Present
+    /// controller never proposes a pair the native gate refuses. Present
     /// only when PawnDetails.tend is requested.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -30988,7 +30988,7 @@ namespace RimGovernor.Protocol.Observations {
     /// Verse.IntVec3.Fogged: the pawn stands in fog the colony has not
     /// discovered. A fogged hostile is undiscovered, unreachable and no
     /// emergency -- the ancient-danger mechanoid behind a sealed wall held
-    /// every window and deselected every development goal for good (#659).
+    /// every window and deselected every development goal for good.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -31018,7 +31018,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private string inspiration_;
     /// <summary>
-    /// Current InspirationDef defName (#1187): empty when the pawn has no
+    /// Current InspirationDef defName: empty when the pawn has no
     /// inspiration; absent from producers that do not read it (unknown).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -31046,7 +31046,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int PawnSnapshotFieldNumber = 45;
     private global::RimGovernor.Protocol.Observations.SnapshotRef pawnSnapshot_;
     /// <summary>
-    /// The pawn control CAS token, on reads that admit a pawn order (#1342).
+    /// The pawn control CAS token, on reads that admit a pawn order.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -31061,7 +31061,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int BiotechFieldNumber = 46;
     private global::RimGovernor.Protocol.Observations.PawnBiotech biotech_;
     /// <summary>
-    /// Biotech pawn facts (#1678); absent without Biotech, so absent is not
+    /// Biotech pawn facts; absent without Biotech, so absent is not
     /// applicable, never a gene-less pawn.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -31077,7 +31077,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int AnomalyFieldNumber = 47;
     private global::RimGovernor.Protocol.Observations.PawnAnomaly anomaly_;
     /// <summary>
-    /// Anomaly facts (#1737); absent without Anomaly.
+    /// Anomaly facts; absent without Anomaly.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -31092,7 +31092,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int RoyaltyFieldNumber = 48;
     private global::RimGovernor.Protocol.Observations.PawnRoyalty royalty_;
     /// <summary>
-    /// Royalty facts of a free colonist (#1876); absent without Royalty or on a pawn with no royalty tracker. A failed read is a ReadIssue named "royalty".
+    /// Royalty facts of a free colonist; absent without Royalty or on a pawn with no royalty tracker. A failed read is a ReadIssue named "royalty".
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -31107,7 +31107,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int StandingFieldNumber = 49;
     private global::RimGovernor.Protocol.Observations.PawnStanding standing_;
     /// <summary>
-    /// Standing of a spawned humanlike pawn among the factions (#2383), colonist
+    /// Standing of a spawned humanlike pawn among the factions, colonist
     /// or not; absent for animals and mechanoids.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -32557,7 +32557,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Faction standing of one humanlike pawn (#2383). faction_def_name is the
+  /// Faction standing of one humanlike pawn. faction_def_name is the
   /// pawn's FactionDef (absent without a faction); royal_title the defName of its
   /// most senior royal title (absent without Royalty or a title); host_faction
   /// the faction holding it as guest, prisoner or slave (absent when none);
@@ -32979,7 +32979,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Biotech facts of one pawn (#1678). Each scalar is absent when native could
+  /// Biotech facts of one pawn. Each scalar is absent when native could
   /// not read it (unknown, not zero); a failed sub-read adds a ReadIssue named
   /// for its field (genes, mechanitor, mech, deathrest). Defs are the
   /// DefinitionCatalog.biotech rows' names.
@@ -35020,7 +35020,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private int xenogermRegrowTicksLeft_;
     /// <summary>
-    /// Gene lifecycle (#1931). xenogerm_regrow_ticks_left and xenogerm_coma_ticks_left are
+    /// Gene lifecycle. xenogerm_regrow_ticks_left and xenogerm_coma_ticks_left are
     /// HediffComp_Disappears.ticksToDisappear of XenogermReplicating and
     /// XenogerminationComa, 0 with no such hediff; in_extractor is a pawn held by a
     /// Building_GeneExtractor (all three failed together: ReadIssue gene_lifecycle).
@@ -37935,7 +37935,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private bool meditateAssignmentAvailable_;
     /// <summary>
-    /// Colony fact (#1313): the Meditate TimeAssignmentDef exists
+    /// Colony fact: the Meditate TimeAssignmentDef exists
     /// (DefDatabase&lt;TimeAssignmentDef>.GetNamedSilentFail("Meditate")); false on Core only.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -37966,7 +37966,7 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForString(50);
     private readonly pbc::RepeatedField<string> removed_ = new pbc::RepeatedField<string>();
     /// <summary>
-    /// Row ids removed since the base table, in a delta section (SectionWatermark.delta, #1348).
+    /// Row ids removed since the base table, in a delta section (SectionWatermark.delta).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -38856,12 +38856,12 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// One stack a stock row counts (#1342): the thing, the cell its units are
+  /// One stack a stock row counts: the thing, the cell its units are
   /// at (its holder's when held), its supply CAS token when it is allowable,
   /// and for a packed (minified) item the building inside it, for a
   /// RelocateIntent install, with that building's quality (QualityCategory
   /// ordinal, 0 Awful .. 6 Legendary; absent without one) and the packed
-  /// item's market value (#1194).
+  /// item's market value.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class StockItem : pb::IMessage<StockItem>
@@ -44523,7 +44523,7 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForMessage(218, global::RimGovernor.Protocol.Observations.IngredientReservation.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Observations.IngredientReservation> reservations_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Observations.IngredientReservation>();
     /// <summary>
-    /// Live bill jobs' promised ingredients (#1354): one row per spawned pawn
+    /// Live bill jobs' promised ingredients: one row per spawned pawn
     /// whose current job works this bill, the spawned things it has queued or
     /// placed. Go's material budget subtracts them from free stock.
     /// </summary>
@@ -45946,7 +45946,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// What a recipe is, costs and needs is its RecipeDef row in the definition catalog (#1721); a frame carries only whether the bench offers it now.
+  /// What a recipe is, costs and needs is its RecipeDef row in the definition catalog; a frame carries only whether the bench offers it now.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class RecipeState : pb::IMessage<RecipeState>
@@ -46729,7 +46729,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private bool playerOwned_;
     /// <summary>
-    /// player_owned is a claimable building's faction reading beside its own CAS snapshot (BuildingPatchIntent.claim, #459).
+    /// player_owned is a claimable building's faction reading beside its own CAS snapshot (BuildingPatchIntent.claim).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -49663,9 +49663,9 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// BuildingState is the canonical building row (#1343), built by one native
+  /// BuildingState is the canonical building row, built by one native
   /// builder: only the bundle's building table and the list read carry it;
-  /// every other message points at a building by Ref (#1342), which the
+  /// every other message points at a building by Ref, which the
   /// reader resolves against the table. service and settings.forbidden are set on
   /// every row.
   /// </summary>
@@ -50113,7 +50113,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int OccupiedFieldNumber = 22;
     private global::RimGovernor.Protocol.Observations.Rectangle occupied_;
     /// <summary>
-    /// The building's occupied rect, inclusive (#1346).
+    /// The building's occupied rect, inclusive.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -50128,7 +50128,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int OdysseyFieldNumber = 23;
     private global::RimGovernor.Protocol.Observations.OdysseyBuilding odyssey_;
     /// <summary>
-    /// Odyssey hack and portal facts (#1708); absent on a building with neither.
+    /// Odyssey hack and portal facts; absent on a building with neither.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -50143,7 +50143,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int AnomalyFieldNumber = 24;
     private global::RimGovernor.Protocol.Observations.AnomalyBuilding anomaly_;
     /// <summary>
-    /// Anomaly containment and study facts (#1737); absent without Anomaly or on
+    /// Anomaly containment and study facts; absent without Anomaly or on
     /// a building with neither.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -51861,7 +51861,7 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForString(82);
     private readonly pbc::RepeatedField<string> removed_ = new pbc::RepeatedField<string>();
     /// <summary>
-    /// Row ids removed since the base table, in a delta section (SectionWatermark.delta, #1348).
+    /// Row ids removed since the base table, in a delta section (SectionWatermark.delta).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -54509,7 +54509,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private string gridRoom_;
     /// <summary>
-    /// The room's key in the whole-map cell grid (CellGrid.room, #1346): the
+    /// The room's key in the whole-map cell grid (CellGrid.room): the
     /// row-major map index of its first unfogged cell; its cells are the grid
     /// cells carrying it. Absent when every cell is fogged.
     /// </summary>
@@ -58855,7 +58855,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// A thing's canonical row (#1343), from one native builder: the cells
+  /// A thing's canonical row, from one native builder: the cells
   /// read's things and the bundle's things table. thing.snapshot is the
   /// thing's own CAS token. The food facts (15-23) are set for an ingestible
   /// item or a corpse: rot_ticks at the current ambient temperature (present
@@ -58864,8 +58864,7 @@ namespace RimGovernor.Protocol.Observations {
   /// thing or any ingredient it was made from (CompIngredients) is humanlike meat;
   /// a corpse adds forbidden, its meat yield (meat_amount), body size and a
   /// one-cell footprint. What the def alone says (class, vegetable, raw meat and
-  /// raw ingredient class, a corpse's humanlike race) is the definition catalog's
-  /// (#1733).
+  /// raw ingredient class, a corpse's humanlike race) is the definition catalog's.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class Thing : pb::IMessage<Thing>
@@ -59458,7 +59457,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int SnapshotFieldNumber = 28;
     private global::RimGovernor.Protocol.Observations.SnapshotRef snapshot_;
     /// <summary>
-    /// The thing's own CAS token (#1342).
+    /// The thing's own CAS token.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -60207,7 +60206,7 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForString(26);
     private readonly pbc::RepeatedField<string> removed_ = new pbc::RepeatedField<string>();
     /// <summary>
-    /// Row ids removed since the base table, in a delta section (SectionWatermark.delta, #1348).
+    /// Row ids removed since the base table, in a delta section (SectionWatermark.delta).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -60394,12 +60393,12 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// One observations_get_cells read (#1346): the map's dimensions and the
+  /// One observations_get_cells read: the map's dimensions and the
   /// requested rectangle as a CellGrid keyframe (mirror.proto's arrays and
   /// sentinels: a fogged cell is not held; glow is artificial light only).
   /// room keys a native room by the whole-map row-major index of its first
   /// held cell inside the read. Things, terrain and foundation affordances ride
-  /// the grid's thing list and tile columns (#2260, #2261, #2272).
+  /// the grid's thing list and tile columns.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class CellsSnapshot : pb::IMessage<CellsSnapshot>
@@ -64601,7 +64600,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// progress_only (#1340) lists only the current projects, with their lock
+  /// progress_only lists only the current projects, with their lock
   /// reasons, and the started unfinished ones, each without the static fields
   /// the definition catalog carries (costs, prerequisites, tab, tech level,
   /// required bench); the other filters are ignored.
@@ -66039,7 +66038,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int PositionFieldNumber = 11;
     private global::RimGovernor.Protocol.Common.Cell position_;
     /// <summary>
-    /// The pawn's cell when the access was read (#1342).
+    /// The pawn's cell when the access was read.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -67827,7 +67826,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private bool foundationRemovalDesignated_;
     /// <summary>
-    /// The cell's foundation (a Bridge) is designated for removal (#954).
+    /// The cell's foundation (a Bridge) is designated for removal.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -67857,7 +67856,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private string edificeStuffDefName_;
     /// <summary>
-    /// The edifice's stuff def (WoodLog, Plasteel), absent for a stuffless one (#1065).
+    /// The edifice's stuff def (WoodLog, Plasteel), absent for a stuffless one.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -67886,7 +67885,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private bool roofed_;
     /// <summary>
-    /// The cell is under any roof (#1122: a burn-out's seal holds its heat).
+    /// The cell is under any roof (a burn-out's seal holds its heat).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -74858,7 +74857,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int TargetSnapshotFieldNumber = 27;
     private global::RimGovernor.Protocol.Observations.SnapshotRef targetSnapshot_;
     /// <summary>
-    /// The target's CAS token for the upgrade's guarded operations (#1342).
+    /// The target's CAS token for the upgrade's guarded operations.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -76821,7 +76820,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private bool buried_;
     /// <summary>
-    /// buried: a supported mine deposit no colonist can reach (usually fogged); a corridor excavation must reach it first (#1072).
+    /// buried: a supported mine deposit no colonist can reach (usually fogged); a corridor excavation must reach it first.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -76849,7 +76848,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int SourceSnapshotFieldNumber = 16;
     private global::RimGovernor.Protocol.Observations.SnapshotRef sourceSnapshot_;
     /// <summary>
-    /// A mine source's CAS token and cell (#1342): rocks are in no frame's things table.
+    /// A mine source's CAS token and cell: rocks are in no frame's things table.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -80888,7 +80887,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Realized consumption (#2441). Native keeps a saved hourly ring (2500-tick
+  /// Realized consumption. Native keeps a saved hourly ring (2500-tick
   /// hours, 60 days) of what colony stock was spent, per (definition, reason). A
   /// read names the last hour Go already holds; the reply carries every
   /// completed hour after it (since_hour absent or negative: the whole window),
@@ -84182,7 +84181,7 @@ namespace RimGovernor.Protocol.Observations {
     private bool everBuriedInSarcophagus_;
     /// <summary>
     /// A corpse's vanilla everBuriedInSarcophagus: set once it has lain in a
-    /// sarcophagus, after which a re-burial fires no memory (#2342).
+    /// sarcophagus, after which a re-burial fires no memory.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -86372,7 +86371,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// pawn refers to the bundle pawn table row (#1343); its snapshot is the
+  /// pawn refers to the bundle pawn table row; its snapshot is the
   /// prisoner custody and interaction settings token.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
@@ -86677,7 +86676,7 @@ namespace RimGovernor.Protocol.Observations {
     private double will_;
     /// <summary>
     /// Prisoner prospect facts MaintainPopulation judges a prisoner's use by
-    /// (#1036): Pawn_GuestTracker.will (Ideology), the pawn's ideoligion load
+    /// Pawn_GuestTracker.will (Ideology), the pawn's ideoligion load
     /// id, Verse.WildManUtility.IsWildMan, and, for prisoners and free
     /// colonists, the skill/trait/age biography and SummaryHealthPercent.
     /// </summary>
@@ -86801,7 +86800,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private bool luciferiumAddicted_;
     /// <summary>
-    /// After combat (#1079), for a hostile: a LuciferiumAddiction hediff (not
+    /// After combat, for a hostile: a LuciferiumAddiction hediff (not
     /// worth capturing: stripped and finished instead) and any worn apparel
     /// (every downed raider is stripped before it is captured).
     /// </summary>
@@ -86858,7 +86857,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int SurgeryFieldNumber = 17;
     private global::RimGovernor.Protocol.Observations.PawnHealth surgery_;
     /// <summary>
-    /// Organ harvest facts (#1169), for a prisoner of the colony only: its
+    /// Organ harvest facts, for a prisoner of the colony only: its
     /// surgery facts (missing_parts, operations and surgery_bills filled as on
     /// the pawn care read, other PawnHealth fields absent), its faction's load
     /// id, and the goodwill change vanilla's Recipe_RemoveBodyPart violation
@@ -86919,8 +86918,8 @@ namespace RimGovernor.Protocol.Observations {
 
     private global::RimGovernor.Protocol.Operations.MedicalCare medicalCare_;
     /// <summary>
-    /// The MedicalCareCategory name (#1239), for a colony prisoner or a guest
-    /// of the colony (#1301).
+    /// The MedicalCareCategory name, for a colony prisoner or a guest
+    /// of the colony.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -86950,7 +86949,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private bool withdrawal_;
     /// <summary>
-    /// Peg-leg control (#1236), for a prisoner of the colony only: it carries a
+    /// Peg-leg control, for a prisoner of the colony only: it carries a
     /// drug addiction (Hediff_Addiction). A prisoner gets no drugs, so an
     /// addiction is withdrawal now or soon, until the addiction clears.
     /// </summary>
@@ -86980,7 +86979,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int ConditionsFieldNumber = 22;
     private global::RimGovernor.Protocol.Observations.PawnHealth conditions_;
     /// <summary>
-    /// Medical care cap inputs (#1301), for a colony prisoner or guest: life
+    /// Medical care cap inputs, for a colony prisoner or guest: life
     /// threat, every hediff (definition, severity, immunity and their rates)
     /// and the completeness; other PawnHealth fields absent.
     /// </summary>
@@ -86997,7 +86996,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int PolicyInputsFieldNumber = 26;
     private global::RimGovernor.Protocol.Observations.PawnPolicyInputs policyInputs_;
     /// <summary>
-    /// Policy inputs (#1554), for a prisoner of the colony only: its current
+    /// Policy inputs, for a prisoner of the colony only: its current
     /// drug policy id and chemical state, as on the work census settings row.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -88007,7 +88006,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private double populationIntent_;
     /// <summary>
-    /// Storyteller population outlook (#1031): StorytellerUtilityPopulation intent and
+    /// Storyteller population outlook: StorytellerUtilityPopulation intent and
     /// adjusted population, and the capture odds that intent sets for a non-colony
     /// humanlike downed by violence (death chance) and for a new prisoner (unrecruitable).
     /// </summary>
@@ -88121,7 +88120,7 @@ namespace RimGovernor.Protocol.Observations {
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Observations.OwnedName> ownedNames_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Observations.OwnedName>();
     /// <summary>
     /// (Organ-use precepts ride the ideology section.)
-    /// Owned-pawn names (#1310): every living named pawn the colony owns --
+    /// Owned-pawn names: every living named pawn the colony owns --
     /// player-faction colonists, slaves and animals, and colony prisoners --
     /// on any map, caravan or transporter; unnamed animals are absent.
     /// </summary>
@@ -120952,7 +120951,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// TradeSession is the adapter's one live trade (#856): the negotiator
+  /// TradeSession is the adapter's one live trade: the negotiator
   /// walking to trader_id to open a session (open false), or the pair holding
   /// the open session (open true). Both ids are absent when neither exists.
   /// </summary>
@@ -127679,7 +127678,7 @@ namespace RimGovernor.Protocol.Observations {
 
   /// <summary>
   /// A food stock references its thing's row in the bundle's things table
-  /// (#1343) and adds what is relative to its eaters: holder when only
+  /// and adds what is relative to its eaters: holder when only
   /// that pawn eats it, the nutrition the stack gives them and who can eat it
   /// (the row's forbidden flag is the stack's; Go decides which forbidden food
   /// is the travel reserve).
@@ -136270,7 +136269,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// permit_cooldowns (#1607): one row per held permit.
+  /// permit_cooldowns: one row per held permit.
   /// last_used_tick is FactionPermit.LastUsedTick (absent when never used) and
   /// cooldown_remaining_ticks the ticks until it can be used again (0 when ready),
   /// both read at the read's tick.
@@ -137947,7 +137946,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// PawnState.royalty (#1876): the pawn is the row's.
+  /// PawnState.royalty: the pawn is the row's.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class PawnRoyalty : pb::IMessage<PawnRoyalty>
@@ -138321,7 +138320,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Pending bestowing ceremonies (#1602): one per colonist holding an ongoing or
+  /// Pending bestowing ceremonies: one per colonist holding an ongoing or
   /// offered bestowing-ceremony quest (RoyalTitleUtility.GetCurrentBestowingCeremonyQuest).
   /// quest is the quest load id the quest census lists. pawn is the colonist to be bestowed, bestower the Empire pawn, title the def
   /// the ceremony awards (GetTitleAwardedWhenUpdating), accepted whether the
@@ -138968,7 +138967,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Throne ownership (#1601): thrones lists every spawned player throne
+  /// Throne ownership: thrones lists every spawned player throne
   /// (Building_Throne) with its assigned owner; owner is absent when none is
   /// assigned. A throne appears once it stands, so a throne missing from the
   /// list was built after the read.
@@ -139278,7 +139277,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Royalty colony facts (#1877), a keyed colony section (#1347): the neuroformer
+  /// Royalty colony facts, a keyed colony section: the neuroformer
   /// stock, the pending bestowing ceremonies and the standing thrones. Absent
   /// without Royalty.
   /// </summary>
@@ -139816,7 +139815,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// pawn refers to the bundle pawn table row (#1343), whose animal_state
+  /// pawn refers to the bundle pawn table row, whose animal_state
   /// carries the herd facts.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
@@ -140327,7 +140326,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private double turretDps_;
     /// <summary>
-    /// A turret gun's damage per second from its own verb and burst timing (#1188); absent for other consumers.
+    /// A turret gun's damage per second from its own verb and burst timing; absent for other consumers.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -146395,7 +146394,7 @@ namespace RimGovernor.Protocol.Observations {
 
   /// <summary>
   /// A sowable crop with an edible product: the map's per-day facts beside
-  /// the catalog's static row (#1340).
+  /// the catalog's static row.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class EdibleCrop : pb::IMessage<EdibleCrop>
@@ -146719,7 +146718,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// The definitions themselves are the definition catalog's (#1340); crops
+  /// The definitions themselves are the definition catalog's; crops
   /// lists every edible crop, sorted by name.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
@@ -147029,7 +147028,7 @@ namespace RimGovernor.Protocol.Observations {
 
   /// <summary>
   /// The static facts of a product (nutrition, rot days, perishability, baby
-  /// edibility) are its def row's in the definition catalog (#1733); the frame
+  /// edibility) are its def row's in the definition catalog; the frame
   /// carries what varies: count, whether a human can eat it, the colony's demand
   /// and the storage room left.
   /// </summary>
@@ -147198,7 +147197,7 @@ namespace RimGovernor.Protocol.Observations {
     private long storable_;
     /// <summary>
     /// storable is the product count roofed, reachable storage accepting it can
-    /// hold: stored stacks plus empty stack slots (#1359). Caps reserve bill targets.
+    /// hold: stored stacks plus empty stack slots. Caps reserve bill targets.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -147895,7 +147894,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private bool autoRefuel_;
     /// <summary>
-    /// auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel, #1180).
+    /// auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -147923,7 +147922,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int BenchSnapshotFieldNumber = 8;
     private global::RimGovernor.Protocol.Observations.SnapshotRef benchSnapshot_;
     /// <summary>
-    /// The bench's CAS token (#1342).
+    /// The bench's CAS token.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -148769,7 +148768,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private bool fogged_;
     /// <summary>
-    /// Raw hunt prey facts (#2144): a hunt row is every wild animal that bears a corpse, whatever
+    /// Raw hunt prey facts: a hunt row is every wild animal that bears a corpse, whatever
     /// policy then decides. fogged and in_mental_state are native's current reading of the animal.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -148827,7 +148826,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private double growth_;
     /// <summary>
-    /// Plant rows (#2292): growth is the plant's growth fraction (0..1) on every plant row.
+    /// Plant rows: growth is the plant's growth fraction (0..1) on every plant row.
     /// plantation marks a sown tree of a harvest-destroys crop standing in a growing zone
     /// (RimWorld's growers fell it only at maturity; Go may fell it earlier); wild trees and
     /// crops in a zone never carry it.
@@ -156973,7 +156972,7 @@ namespace RimGovernor.Protocol.Observations {
 
   /// <summary>
   /// Present geometry is complete and independent of the bounded Home write batch.
-  /// zone is a stockpile target's full native footprint (#719): colony extent
+  /// zone is a stockpile target's full native footprint: colony extent
   /// takes every stockpile from the census, not only zones the autopilot created.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
@@ -159939,7 +159938,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Room stats live on the bundle rooms census (RoomState.stats), not here (#821, #1338).
+  /// Room stats live on the bundle rooms census (RoomState.stats), not here.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class FloorRoom : pb::IMessage<FloorRoom>
@@ -162939,7 +162938,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// storage_cells (5) and protected_cells (10) were never read (#2276).
+  /// storage_cells (5) and protected_cells (10) were never read.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class UpkeepFacts : pb::IMessage<UpkeepFacts>
@@ -163207,7 +163206,7 @@ namespace RimGovernor.Protocol.Observations {
     private bool autoHomeArea_;
     /// <summary>
     /// Find.PlaySettings.autoHomeArea: the game expands the home area around
-    /// new player buildings while true (AutoHomeAreaIntent, #1322).
+    /// new player buildings while true (AutoHomeAreaIntent).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -163237,7 +163236,7 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForMessage(210, global::RimGovernor.Protocol.Common.Cell.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell> homeCells_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell>();
     /// <summary>
-    /// Every cell of the map's home area (#1328), unordered; the home-area
+    /// Every cell of the map's home area, unordered; the home-area
     /// planner diffs its target against it.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -163252,7 +163251,7 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForMessage(218, global::RimGovernor.Protocol.Observations.UpkeepPerson.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Observations.UpkeepPerson> guests_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Observations.UpkeepPerson>();
     /// <summary>
-    /// Hosted guests (HostFaction == player, quest lodgers included; #2384):
+    /// Hosted guests (HostFaction == player, quest lodgers included):
     /// people the colony houses but does not own, in the sleeping census.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -164077,7 +164076,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Threat facts (#395): the colony wealth the storyteller scales raids by
+  /// Threat facts: the colony wealth the storyteller scales raids by
   /// and the raid points a default threat incident would draw right now.
   /// wealth_* are WealthWatcher's lazy recount (items, buildings, pawns,
   /// total); storyteller_wealth is the map's PlayerWealthForStoryteller;
@@ -177119,7 +177118,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int PoliciesFieldNumber = 49;
     private global::RimGovernor.Protocol.Observations.PolicySection policies_;
     /// <summary>
-    /// Every outfit, drug, food and reading policy and every allowed area (#1297).
+    /// Every outfit, drug, food and reading policy and every allowed area.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -177134,7 +177133,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int BiotechFieldNumber = 50;
     private global::RimGovernor.Protocol.Observations.BiotechSection biotech_;
     /// <summary>
-    /// Biotech pollution sources, wastepacks, gestators, chargers and baby care (#1679); absent without Biotech.
+    /// Biotech pollution sources, wastepacks, gestators, chargers and baby care; absent without Biotech.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -177151,8 +177150,7 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForString(410);
     private readonly pbc::RepeatedField<string> tileMutators_ = new pbc::RepeatedField<string>();
     /// <summary>
-    /// TileMutatorDef defNames of the colony map's world tile (Tile.Mutators;
-    /// #1708), e.g. caves or ancient vents. Empty without Odyssey or with none.
+    /// TileMutatorDef defNames of the colony map's world tile (Tile.Mutators), e.g. caves or ancient vents. Empty without Odyssey or with none.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -177164,7 +177162,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int OdysseyFieldNumber = 52;
     private global::RimGovernor.Protocol.Observations.OdysseySection odyssey_;
     /// <summary>
-    /// Odyssey eruption, contamination and underground-site state (#1709); absent without Odyssey.
+    /// Odyssey eruption, contamination and underground-site state; absent without Odyssey.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -177179,7 +177177,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int AnomalyFieldNumber = 53;
     private global::RimGovernor.Protocol.Observations.AnomalySection anomaly_;
     /// <summary>
-    /// Anomaly containment, knowledge and incident state (#1738); absent without Anomaly.
+    /// Anomaly containment, knowledge and incident state; absent without Anomaly.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -177194,7 +177192,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int RoyaltyFieldNumber = 54;
     private global::RimGovernor.Protocol.Observations.RoyaltySection royalty_;
     /// <summary>
-    /// Royalty neuroformer stock, bestowing ceremonies and thrones (#1877); absent without Royalty.
+    /// Royalty neuroformer stock, bestowing ceremonies and thrones; absent without Royalty.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -177224,7 +177222,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int HuntCensusFieldNumber = 56;
     private global::RimGovernor.Protocol.Observations.HuntCensus huntCensus_;
     /// <summary>
-    /// Raw hunt facts for policy.HuntGate (#2144); always present on a native read.
+    /// Raw hunt facts for policy.HuntGate; always present on a native read.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -178674,7 +178672,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Odyssey colony facts (#1709), a keyed colony section (#1347). A scalar
+  /// Odyssey colony facts, a keyed colony section. A scalar
   /// absent is unknown, never zero.
   /// conditions: every GameCondition active on the colony map, whatever its
   /// kind (lava flow, volcanic ash or winter, toxic fallout; the class says
@@ -181527,9 +181525,9 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Anomaly colony facts (#1738), a keyed colony section (#1347). Per-thing
+  /// Anomaly colony facts, a keyed colony section. Per-thing
   /// state (an entity's hold and study, a platform's containment strength)
-  /// rides the pawn and building rows (#1737); this section carries what no
+  /// rides the pawn and building rows; this section carries what no
   /// row holds. A scalar absent is unknown, never zero.
   /// knowledge: one row per KnowledgeCategoryDef. codex: one row per
   /// EntityCategoryDef; discovered_entries are the EntityCodexEntryDef names
@@ -183997,7 +183995,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// The void monolith and the endgame it gates (#2436), present only while the
+  /// The void monolith and the endgame it gates, present only while the
   /// monolith is spawned (absent otherwise: unknown). can_activate is
   /// Building_VoidMonolith.CanActivate. next_level_def is
   /// GameComponent_Anomaly.NextLevelDef (absent when the current level does not
@@ -184016,12 +184014,12 @@ namespace RimGovernor.Protocol.Observations {
   /// void_awakening_stage is 0 with the EndGame_VoidAwakening quest running and no
   /// structure spawned yet, else one more than the highest stageStructure.N quest
   /// tag on a spawned structure; absent when the quest is not running.
-  /// monolith_id is the monolith's GetUniqueLoadID, the thing a give-job targets
-  /// (#2437). pending_void_structure_ids are the spawned VoidStructures on the
+  /// monolith_id is the monolith's GetUniqueLoadID, the thing a give-job targets.
+  /// pending_void_structure_ids are the spawned VoidStructures on the
   /// monolith's map whose CompInteractable.CanInteract() accepts (not yet
   /// activated), sorted; void_node_id is the VoidNode whose CanInteract() accepts
   /// and void_node_pawn_ids the free colonists spawned on the node's map (the
-  /// pawn skipped into the pocket map), sorted (#2438).
+  /// pawn skipped into the pocket map), sorted.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class MonolithState : pb::IMessage<MonolithState>
@@ -184889,10 +184887,10 @@ namespace RimGovernor.Protocol.Observations {
   /// pawns (colonists, prisoners, slaves, tame animals; any map, caravan or
   /// transporter) whose current policy it is, and whether it is the
   /// database default (index 0). allowed_defs is a reading policy's allowed
-  /// book ThingDefs (#1306) or a food policy's allowed food ThingDefs (one of
-  /// PolicyFacts.foods, #1541); empty for the other databases. drug_entries is
+  /// book ThingDefs or a food policy's allowed food ThingDefs (one of
+  /// PolicyFacts.foods); empty for the other databases. drug_entries is
   /// a drug policy's entries that allow anything (joy, addiction, scheduled
-  /// use or a carried count; #1537); every other drug of it is off.
+  /// use or a carried count); every other drug of it is off.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class PolicyEntry : pb::IMessage<PolicyEntry>
@@ -185695,7 +185693,7 @@ namespace RimGovernor.Protocol.Observations {
     private readonly pbc::RepeatedField<string> biomeDiseases_ = new pbc::RepeatedField<string>();
     /// <summary>
     /// HediffDef defNames of the colony map biome's disease incidents
-    /// (BiomeDef.diseases; #1539), e.g. Malaria, Plague.
+    /// (BiomeDef.diseases), e.g. Malaria, Plague.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -186542,7 +186540,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Biotech colony facts (#1679), a keyed colony section (#1347). The pollution
+  /// Biotech colony facts, a keyed colony section. The pollution
   /// cell grid is a separate code; pollution here is its totals plus what makes
   /// and removes it. Every row is a spawned player-map thing; a scalar absent
   /// is unknown, never zero.
@@ -187015,7 +187013,7 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForMessage(82, global::RimGovernor.Protocol.Observations.GeneBankState.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Observations.GeneBankState> geneBanks_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Observations.GeneBankState>();
     /// <summary>
-    /// Gene-building rows (#1930): the banks, assemblers, extractors, genepacks
+    /// Gene-building rows: the banks, assemblers, extractors, genepacks
     /// and xenogerms of the colony map.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -187401,7 +187399,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Gene-building rows (#1930). A pawn or thing reference is a thing id. gene
+  /// Gene-building rows. A pawn or thing reference is a thing id. gene
   /// lists are GeneDef defNames, sorted; complexity, metabolism and archites are
   /// the game's own GeneSet totals (ComplexityTotal, MetabolismTotal,
   /// ArchitesTotal), never summed in Go.
@@ -191029,7 +191027,7 @@ namespace RimGovernor.Protocol.Observations {
     private uint pollutedCells_;
     /// <summary>
     /// polluted_cells counts the pollutable cells PollutionGrid.IsPolluted holds;
-    /// polluted_uncovered_cells those outside the pollution-clear area (#1683).
+    /// polluted_uncovered_cells those outside the pollution-clear area.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -195448,7 +195446,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Current-map WandererJoins offers and creepjoiner offers (creepjoiner true, #1740); the token binds letter, quest, pawn and expiry. expires_tick is the letter's disappearAtTick, negative for no timeout.
+  /// Current-map WandererJoins offers and creepjoiner offers (creepjoiner true); the token binds letter, quest, pawn and expiry. expires_tick is the letter's disappearAtTick, negative for no timeout.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class JoinerLetter : pb::IMessage<JoinerLetter>
@@ -196584,17 +196582,17 @@ namespace RimGovernor.Protocol.Observations {
 
   /// <summary>
   /// Simulation status excludes notifications/UI/clock, exposed by their typed owners.
-  /// ThreatPawn is one living non-colonist pawn's threat facts (#1356): the
+  /// ThreatPawn is one living non-colonist pawn's threat facts: the
   /// native emits facts, Go classifies them (bridge.ClassifyThreat). A row is
   /// emitted for a pawn in a mental state, of a faction hostile to the
-  /// player, breaking out of prison (#1080) or on a PredatorHunt job, and for
+  /// player, breaking out of prison or on a PredatorHunt job, and for
   /// an unowned downed pawn or predator within the requested predator radius
-  /// of a colonist; any other pawn costs one field read and no row (#646).
-  /// pawn references the bundle's pawn table row (#1343); ours is a
+  /// of a colonist; any other pawn costs one field read and no row.
+  /// pawn references the bundle's pawn table row; ours is a
   /// player-faction pawn; faction_id is set with faction_hostile (a held
   /// prisoner is never faction_hostile). prey is a PredatorHunt's target pawn
   /// (a corpse's inner pawn), prey_is_ours a player-owned or player-held prey.
-  /// passive (#948, #1335, on ThreatPawn and ThreatBuilding) is set for
+  /// passive (on ThreatPawn and ThreatBuilding) is set for
   /// faction-hostile insects and hives (dormant, or awake but not engaging)
   /// and other CompCanBeDormant hostiles (asleep); a passive threat is left
   /// alone, never held for or attacked. nearest_colonist_distance is
@@ -197427,9 +197425,9 @@ namespace RimGovernor.Protocol.Observations {
   /// nearest_colonist_distance is Chebyshev cells like a threat pawn's;
   /// occupied is the building's occupied rect (inclusive), the cells a
   /// ranged defender needs a line of fire to.
-  /// mortar (#1148) is a turret whose verb fires mortar shells.
+  /// mortar is a turret whose verb fires mortar shells.
   /// A hostile building's row: building is its head (no table holds hostile
-  /// buildings) and building_snapshot its CAS token (#1342).
+  /// buildings) and building_snapshot its CAS token.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class ThreatBuilding : pb::IMessage<ThreatBuilding>
@@ -198258,7 +198256,7 @@ namespace RimGovernor.Protocol.Observations {
 
   /// <summary>
   /// colonists references every spawned free colonist's pawn table row
-  /// (#1343), complete unless issues name "colonists".
+  /// complete unless issues name "colonists".
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class StatusSnapshot : pb::IMessage<StatusSnapshot>
@@ -199459,7 +199457,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int BuildingsFieldNumber = 10;
     private global::RimGovernor.Protocol.Observations.BuildingsSnapshot buildings_;
     /// <summary>
-    /// The pawn table (35) replaces the colonist detail section (#1343).
+    /// The pawn table (35) replaces the colonist detail section.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -199535,8 +199533,8 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForMessage(162, global::RimGovernor.Protocol.Mirror.CombatPawn.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatPawn> combatPawns_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatPawn>();
     /// <summary>
-    /// The planning window band (17) is cut from grid (#1345).
-    /// Combat state (#851), while the map has an active hostile or a combat
+    /// The planning window band (17) is cut from grid.
+    /// Combat state, while the map has an active hostile or a combat
     /// epoch runs, else empty: every spawned colonist, hostile and colony
     /// animal, and the native's retained event ring (the newest 1024
     /// events, oldest first). A reader merges events by their watermark, so
@@ -199563,11 +199561,11 @@ namespace RimGovernor.Protocol.Observations {
     public const int CombatLinesOfFireFieldNumber = 23;
     private global::RimGovernor.Protocol.Observations.LinesOfFireSnapshot combatLinesOfFire_;
     /// <summary>
-    /// The defense planner's other combat inputs (#853), in the same frame,
+    /// The defense planner's other combat inputs, in the same frame,
     /// while the emergency census lists a threat or a colonist in a mental
     /// state, else unset. The pawn table carries the combat detail (health,
-    /// equipment, biography, animals) of every hostile and hunting predator
-    /// (#1343). combat_lines_of_fire is read_lines_of_fire from every colonist cell
+    /// equipment, biography, animals) of every hostile and hunting predator.
+    /// combat_lines_of_fire is read_lines_of_fire from every colonist cell
     /// with a ranged primary to every hostile building's occupied cells, at
     /// most 64 cells a side, unset when either side is empty.
     /// </summary>
@@ -199586,8 +199584,8 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForMessage(202, global::RimGovernor.Protocol.Mirror.CombatDoorRow.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatDoorRow> combatDoors_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatDoorRow>();
     /// <summary>
-    /// Combat rooms (#897) are read from the rooms census (27).
-    /// Every damaged spawned player door (#900), with the combat inputs, at most
+    /// Combat rooms are read from the rooms census (27).
+    /// Every damaged spawned player door, with the combat inputs, at most
     /// 64: the doors a fight may send a gunner to repair.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -199600,9 +199598,9 @@ namespace RimGovernor.Protocol.Observations {
     public const int RoomsFieldNumber = 27;
     private global::RimGovernor.Protocol.Observations.RoomsSnapshot rooms_;
     /// <summary>
-    /// Planning definitions are the definition catalog's (#1340).
+    /// Planning definitions are the definition catalog's.
     /// list_rooms without outdoor rooms or boundary buildings, with cells:
-    /// the room census temperature, comfort and hospital planning read (#944).
+    /// the room census temperature, comfort and hospital planning read.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -199619,7 +199617,7 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForMessage(226, global::RimGovernor.Protocol.Mirror.CombatMortarRow.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatMortarRow> combatMortars_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatMortarRow>();
     /// <summary>
-    /// Every spawned unroofed player mortar (#931), with the combat inputs, at
+    /// Every spawned unroofed player mortar, with the combat inputs, at
     /// most 16: the guns a fight may crew for counter-battery.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -199634,9 +199632,9 @@ namespace RimGovernor.Protocol.Observations {
 
     private float combatHiveTemperatureC_;
     /// <summary>
-    /// The outdoor temperature a fight shelters from (#1077) is
+    /// The outdoor temperature a fight shelters from is
     /// colony_facts.outdoor_temperature_c.
-    /// The hottest live hive's cell temperature in degrees Celsius (#1073),
+    /// The hottest live hive's cell temperature in degrees Celsius,
     /// with the combat inputs: an infestation's heat-stroke hold and entry check.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -199667,7 +199665,7 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForMessage(250, global::RimGovernor.Protocol.Observations.SectionWatermark.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Observations.SectionWatermark> watermarks_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Observations.SectionWatermark>();
     /// <summary>
-    /// The watermark of every omittable section (#1347), carried or not:
+    /// The watermark of every omittable section, carried or not:
     /// emergency, colony_facts, population, research, traders,
     /// world_progression and ideology. Native omits such a section while its content,
     /// nested context ticks aside, matches the last one published, and the
@@ -199685,7 +199683,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int PawnsFieldNumber = 35;
     private global::RimGovernor.Protocol.Observations.PawnSnapshot pawns_;
     /// <summary>
-    /// The pawn table (#1343): every spawned pawn on the map, the rows every
+    /// The pawn table: every spawned pawn on the map, the rows every
     /// other section's pawn reference resolves against. A free colonist
     /// carries every detail family but tend; a hostile or hunting predator
     /// the emergency census lists the combat detail; another animal its
@@ -199704,7 +199702,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int ThingsFieldNumber = 36;
     private global::RimGovernor.Protocol.Observations.ThingsSnapshot things_;
     /// <summary>
-    /// The things table (#1343): every thing a food stock in colony_facts
+    /// The things table: every thing a food stock in colony_facts
     /// references, the rows those references resolve against.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -199720,7 +199718,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int GridFieldNumber = 32;
     private global::RimGovernor.Protocol.Mirror.CellGrid grid_;
     /// <summary>
-    /// The whole map as a cell grid (#1345), every frame: a keyframe on an
+    /// The whole map as a cell grid, every frame: a keyframe on an
     /// open or keyframe request, on a map change and at least every 30
     /// seconds, else a delta against that keyframe. keyframe_seq numbers
     /// keyframes since the stream opened; a delta whose keyframe_seq is not
@@ -199795,7 +199793,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int IdeologyFieldNumber = 37;
     private global::RimGovernor.Protocol.Observations.IdeologySnapshot ideology_;
     /// <summary>
-    /// The player faction's primary ideoligion as it stands (#1654): the
+    /// The player faction's primary ideoligion as it stands: the
     /// precepts and roles in force, ritual state and building precepts.
     /// Omittable like the singleton sections above (watermark "ideology");
     /// absent, with no watermark, without Ideology or a primary ideoligion.
@@ -199813,7 +199811,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int FailureFieldNumber = 38;
     private global::RimGovernor.Protocol.Common.Failure failure_;
     /// <summary>
-    /// A frame whose section read threw (#1905): the frame carries only this,
+    /// A frame whose section read threw: the frame carries only this,
     /// with the section name, exception type and message in detail. A reader
     /// refuses the read naming the section; the frame is never carried on
     /// with the section omitted.
@@ -199833,7 +199831,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private bool ideologyActive_;
     /// <summary>
-    /// ModsConfig.IdeologyActive (#1922), carried on every frame: false means the
+    /// ModsConfig.IdeologyActive, carried on every frame: false means the
     /// Ideology expansion is not installed, so an absent ideology section is not
     /// an unread ideoligion. Absent stays unknown (unread).
     /// </summary>
@@ -200777,7 +200775,7 @@ namespace RimGovernor.Protocol.Observations {
   /// <summary>
   /// seq counts a section's changes since the stream opened; captured_tick is
   /// the tick of the frame that last carried it.
-  /// A keyed table section (pawns, buildings, things; #1348) is a keyframe,
+  /// A keyed table section (pawns, buildings, things) is a keyframe,
   /// carrying every row, unless delta is set: then it carries only the rows
   /// whose content changed or appeared since the table at base_seq, plus the
   /// ids that left it in removed, and the reader merges it into the table it
@@ -205546,7 +205544,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// The snapshot stream (#858): native publishes whole BundleSnapshot frames
+  /// The snapshot stream: native publishes whole BundleSnapshot frames
   /// into a named shared-memory ring and signals a named event; this request
   /// opens it (or replaces its subscription) and names the ring. A frame carries
   /// every state family whole (no page caps, no field masks) plus the
@@ -205621,7 +205619,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private bool keyframe_;
     /// <summary>
-    /// Only makes the next frame a keyframe, carrying every section (#1347);
+    /// Only makes the next frame a keyframe, carrying every section;
     /// the subscription and the other fields are left as they are. Every
     /// other open is a keyframe too.
     /// </summary>
@@ -205803,8 +205801,8 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// The definition catalog (#1340): the generated def rows and the stat table
-  /// the planning views read (#1731), and every research project with its static
+  /// The definition catalog: the generated def rows and the stat table
+  /// the planning views read, and every research project with its static
   /// facts (costs, prerequisites, tab, tech level, required bench). It is fixed
   /// for a load: the controller reads it once per load token.
   /// </summary>
@@ -205891,7 +205889,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int BiotechFieldNumber = 4;
     private global::RimGovernor.Protocol.Observations.BiotechCatalog biotech_;
     /// <summary>
-    /// Biotech defs (#1678); absent without Biotech.
+    /// Biotech defs; absent without Biotech.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -205906,7 +205904,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int OdysseyFieldNumber = 6;
     private global::RimGovernor.Protocol.Observations.OdysseyCatalog odyssey_;
     /// <summary>
-    /// The Odyssey defs (#1708); absent without Odyssey.
+    /// The Odyssey defs; absent without Odyssey.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -205921,7 +205919,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int AnomalyFieldNumber = 7;
     private global::RimGovernor.Protocol.Observations.AnomalyCatalog anomaly_;
     /// <summary>
-    /// The Anomaly defs (#1737); absent without Anomaly.
+    /// The Anomaly defs; absent without Anomaly.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -205938,7 +205936,7 @@ namespace RimGovernor.Protocol.Observations {
         = pb::FieldCodec.ForMessage(66, global::RimGovernor.Protocol.Defs.ThingDef.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Defs.ThingDef> thingDefs_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Defs.ThingDef>();
     /// <summary>
-    /// Every ThingDef and TerrainDef with all of its fields, by defName (#1730):
+    /// Every ThingDef and TerrainDef with all of its fields, by defName:
     /// the messages of defs.proto, filled by protobuf reflection over the game's
     /// def objects (field name = CLR field name). Unlike `definitions` it is not
     /// filtered to buildable or sowable defs.
@@ -205976,7 +205974,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int StatValuesFieldNumber = 11;
     private global::RimGovernor.Protocol.Observations.DefStatTable statValues_;
     /// <summary>
-    /// The game's own stat values per def and stuff (#1759); absent in a reply
+    /// The game's own stat values per def and stuff; absent in a reply
     /// that carries none.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -205992,7 +205990,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int DefsFieldNumber = 12;
     private global::RimGovernor.Protocol.Defs.DefSets defs_;
     /// <summary>
-    /// Every def of every other concrete Verse.Def class (#1761), one repeated
+    /// Every def of every other concrete Verse.Def class, one repeated
     /// field per class, filled the same way.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -206028,7 +206026,7 @@ namespace RimGovernor.Protocol.Observations {
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Observations.ThingDefFacts> thingFacts_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Observations.ThingDefFacts>();
     /// <summary>
     /// What the game's own code says about every ThingDef, computed once per
-    /// load (#1733); Go reads it and never ports the rule.
+    /// load; Go reads it and never ports the rule.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -206690,7 +206688,7 @@ namespace RimGovernor.Protocol.Observations {
   /// type, else other. `meal_ingredients` is set on meals only
   /// (FoodUtility.GetFoodKind). `raw_meat` is ThingDef.IsMeat and `medicine` is
   /// ThingDef.IsMedicine. `room_roles` are the furniture roles the game's own
-  /// room-role code scores the def for by name (#1731): Toy (ThingDefOf.ToyBox),
+  /// room-role code scores the def for by name: Toy (ThingDefOf.ToyBox),
   /// Decoration (BabyDecoration), Board (Blackboard) and Desk (SchoolDesk), sorted;
   /// the roles the rows derive (baby beds, deathrest) are Go's.
   /// </summary>
@@ -206852,7 +206850,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int RaceFieldNumber = 7;
     private global::RimGovernor.Protocol.Observations.RaceFacts race_;
     /// <summary>
-    /// Set on a def with RaceProperties (#1722).
+    /// Set on a def with RaceProperties.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -207149,7 +207147,7 @@ namespace RimGovernor.Protocol.Observations {
 
   /// <summary>
   /// What the game's own race code says about one race, computed once per load
-  /// (#1722); the race's numbers (body size, life expectancy, predator, the
+  /// the race's numbers (body size, life expectancy, predator, the
   /// manhunter chances, wildness, minimum handling skill, products, meat) are the
   /// def rows and the stat table, not copied here. `animal` is RaceProperties
   /// .Animal, `mechanoid` .IsMechanoid and `insect` .Insect. `trainables` are the
@@ -207281,7 +207279,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int AdultMinAgeTicksFieldNumber = 6;
     private long adultMinAgeTicks_;
     /// <summary>
-    /// Husbandry facts (#2238), the game's own answers for the race def so no
+    /// Husbandry facts, the game's own answers for the race def so no
     /// later round re-reads the race. `adult_min_age_ticks` is
     /// Pawn_AgeTracker.AdultMinAgeTicks (an animal's last life stage; a humanlike
     /// race's first adult stage; biological ticks run one per tick for an animal).
@@ -207461,7 +207459,7 @@ namespace RimGovernor.Protocol.Observations {
     private double adultFeedPerDay_;
     /// <summary>
     /// SimplifiedPastureNutritionSimulator.NutritionConsumedPerDay(def, adult
-    /// life stage) (#2240): the nutrition per day one adult of the race eats, the
+    /// life stage): the nutrition per day one adult of the race eats, the
     /// game's own feed figure for an owned adult, so a colony with none of the
     /// race can price its feed. Absent for a race with no life stages.
     /// </summary>
@@ -207947,7 +207945,7 @@ namespace RimGovernor.Protocol.Observations {
   /// <summary>
   /// GetStatValueAbstract(stat, stuff) of every StatDef the game shows for a def,
   /// for every ThingDef: once per allowed stuff for a def made from stuff, once
-  /// with no stuff otherwise (#1759). Stat rules are game code; Go looks values up
+  /// with no stuff otherwise. Stat rules are game code; Go looks values up
   /// and never recomputes them. `stats` is the shared table of stat defNames.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
@@ -208520,7 +208518,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Game constants read from the game assemblies, never typed in (#1730).
+  /// Game constants read from the game assemblies, never typed in.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class CatalogConstants : pb::IMessage<CatalogConstants>
@@ -208722,7 +208720,7 @@ namespace RimGovernor.Protocol.Observations {
     private string wortDef_ = "";
     /// <summary>
     /// The defName of ThingDefOf.Wort: what Building_FermentingBarrel takes in
-    /// and turns into ThingDefOf.Beer (#1721), so the beer reserve names the
+    /// and turns into ThingDefOf.Beer, so the beer reserve names the
     /// intermediate without typing it.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -208738,7 +208736,7 @@ namespace RimGovernor.Protocol.Observations {
     public const int AnimalInteractTalkTicksFieldNumber = 11;
     private int animalInteractTalkTicks_;
     /// <summary>
-    /// JobDriver_InteractAnimal (#2238): the ticks of one TalkToAnimal toil
+    /// JobDriver_InteractAnimal: the ticks of one TalkToAnimal toil
     /// (TalkDuration, a private const) and of one feed (FeedDuration), the feeds
     /// per interaction (FeedCount), the share of the animal's food need one feed
     /// gives (NutritionPercentagePerFeed) capped at MaxMinNutritionPerFeed, and
@@ -209315,7 +209313,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// The player faction's primary ideoligion (#1654): FactionIdeosTracker.PrimaryIdeo.
+  /// The player faction's primary ideoligion: FactionIdeosTracker.PrimaryIdeo.
   /// Precept ids are Precept.GetUniqueLoadID(); every def name resolves to a
   /// catalog def row (PreceptDef, MemeDef, RitualPatternDef).
   /// </summary>
@@ -210746,7 +210744,7 @@ namespace RimGovernor.Protocol.Observations {
   /// A ritual precept: its PreceptDef and RitualPatternDef (sourcePattern), the
   /// raw Precept_Ritual.lastFinishedTick, the count of active obligations,
   /// whether the repeat penalty applies and whether a LordJob_Ritual of the
-  /// precept is running now (#1660).
+  /// precept is running now.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class IdeoRitual : pb::IMessage<IdeoRitual>
@@ -211590,7 +211588,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// The static Biotech defs, each list sorted by name (#1678). A stat effect is
+  /// The static Biotech defs, each list sorted by name. A stat effect is
   /// a StatModifier of the def: stat is the StatDef name; factor and offset are
   /// set for the side it carries. Scalars are absent when native could not read
   /// them. Effects are the game defs' own (never Go name lists): the controller
@@ -217397,7 +217395,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// One point of a game SimpleCurve (#1932).
+  /// One point of a game SimpleCurve.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class CurvePointRow : pb::IMessage<CurvePointRow>
@@ -217667,7 +217665,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// The Biotech tuning constants the defs do not carry (#1932), read natively
+  /// The Biotech tuning constants the defs do not carry, read natively
   /// from GeneTuning and the gene extractor, a singleton per load.
   /// biostat_min and biostat_max are GeneTuning.BiostatRange (the metabolism
   /// bound of a gene set); base_max_complexity GeneTuning.BaseMaxComplexity;
@@ -218595,7 +218593,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// The Odyssey facts the def mirror (defs.proto) cannot give (#1708, #1791).
+  /// The Odyssey facts the def mirror (defs.proto) cannot give.
   /// Biome, tile mutator, hackable and portal defs are the mirror's BiomeDef,
   /// TileMutatorDef, CompProperties_Hackable and MapPortalProperties rows, and
   /// the biome diseases its BiomeDef.diseases; none is repeated here. What
@@ -219650,7 +219648,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Odyssey facts of one building row (#1708). hackable: a building with
+  /// Odyssey facts of one building row. hackable: a building with
   /// CompHackable; portal: a MapPortal (hatch, pit gate, cave exit). An absent
   /// scalar is unknown; a failed sub-read leaves its block absent and adds a
   /// ReadIssue named hackable or portal.
@@ -220735,7 +220733,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// The static Anomaly definitions (#1737), each read natively from the game
+  /// The static Anomaly definitions, each read natively from the game
   /// defs, sorted by name, fixed for a load: entity and knowledge categories,
   /// codex entries (the entities and what discovers them), the thing defs that
   /// are entities, studiable, held on a platform or hold an entity, and the
@@ -221112,7 +221110,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// The creepjoiner defs (#1740), read from the game defs. The shared fields are
+  /// The creepjoiner defs, read from the game defs. The shared fields are
   /// ICreepJoinerDef's: weight, min_combat_points and can_occur_randomly gate the
   /// random pick and requires and excludes (def names of other creepjoiner
   /// parts) pair a form, benefit and downside. A form is a PawnKindDef.
@@ -227781,13 +227779,13 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Anomaly facts of one pawn row (#1737). entity is Pawn.IsEntity, mutant
+  /// Anomaly facts of one pawn row. entity is Pawn.IsEntity, mutant
   /// Pawn.IsMutant and shambler Pawn.IsShambler (hostility is PawnState.hostile).
   /// min_containment_strength is the pawn's StatDefOf.MinimumContainmentStrength.
   /// held is set for a pawn with a CompHoldingPlatformTarget, study for one with
   /// a CompStudiable. A scalar absent is unknown; a failed sub-read leaves its
   /// block absent and adds a ReadIssue named entity, held or study; a failed threat fact is absent with a ReadIssue named for it.
-  /// Threat facts for defense tactics (#1739), the combat group: hidden_from_player
+  /// Threat facts for defense tactics, the combat group: hidden_from_player
   /// is InvisibilityUtility.IsHiddenFromPlayer (the player cannot see or target the
   /// pawn); psychic_ritual_invoker is a pawn whose role in its lord's psychic ritual
   /// is the ritual def's invoker role (the caster); melee_only is a pawn whose
@@ -228486,7 +228484,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// A creepjoiner's facts (#1740), set for a pawn with a creepjoiner tracker
+  /// A creepjoiner's facts, set for a pawn with a creepjoiner tracker
   /// (a failed read leaves it absent with a ReadIssue named creepjoiner). form and
   /// benefit are CreepJoinerFormKindDef and CreepJoinerBenefitDef names, which a
   /// player sees in the offer letter. downside_triggered is the tracker's
@@ -228815,11 +228813,11 @@ namespace RimGovernor.Protocol.Observations {
   /// Building_HoldingPlatform holding the pawn; mode the ordered containment
   /// mode; escaping the pawn has begun to escape; can_be_captured whether the
   /// game lets the player capture it. needs_tend is Pawn.health
-  /// HasHediffsNeedingTend and bleeding a positive BleedRateTotal (#1743): a
+  /// HasHediffsNeedingTend and bleeding a positive BleedRateTotal: a
   /// held entity is tended like any patient or bleeds out. harvester_attached is
   /// Building_HoldingPlatform.HasAttachedBioferriteHarvester (a powered harvester
   /// linked to the platform, which forces extract_bioferrite false) and
-  /// bioferrite_per_day CompProducesBioferrite.BioferritePerDay (#2434): body size
+  /// bioferrite_per_day CompProducesBioferrite.BioferritePerDay: body size
   /// times the comp's density, 0 for an entity that produces none and while the
   /// BioferriteExtracted hediff stands (8 days after an extraction).
   /// </summary>
@@ -230188,7 +230186,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Anomaly facts of one building row (#1737): holder is a CompEntityHolder
+  /// Anomaly facts of one building row: holder is a CompEntityHolder
   /// (a holding platform), study a CompStudiable. A failed sub-read leaves its
   /// block absent and adds a ReadIssue named holder or study.
   /// </summary>
@@ -230477,7 +230475,7 @@ namespace RimGovernor.Protocol.Observations {
   /// a pawn, held_pawn the pawn it holds. doors are the Building_Door things the
   /// game counts for the holder's room (StatWorker_ContainmentStrength
   /// CalculateDoorStats: the doors in its boundary), read in their own try: a
-  /// failed read leaves them empty with a ReadIssue named doors (#1743).
+  /// failed read leaves them empty with a ReadIssue named doors.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class EntityHolderState : pb::IMessage<EntityHolderState>
@@ -232762,7 +232760,7 @@ namespace RimGovernor.Protocol.Observations {
   }
 
   /// <summary>
-  /// Makes the next frame capture if any applied write is uncaptured (#1274);
+  /// Makes the next frame capture if any applied write is uncaptured;
   /// the reply does not wait for the capture.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]

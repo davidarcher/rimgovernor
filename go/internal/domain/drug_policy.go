@@ -7,7 +7,7 @@ import (
 	"sort"
 )
 
-// DrugPolicyAction writes one drug policy's full contents (#1537): a
+// DrugPolicyAction writes one drug policy's full contents: a
 // DrugPolicyIntent on Actions/Apply. The policy labelled Name (a pawn's
 // short name) carries exactly the entries and every other drug is off;
 // native makes it when missing. PawnSettingsIntent.drug_policy assigns it.

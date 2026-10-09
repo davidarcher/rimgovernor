@@ -8,7 +8,7 @@ import (
 )
 
 // A reported geyser near the core gets its enclosure inside the wall and
-// the planned generator on the geyser (#834).
+// the planned generator on the geyser.
 func TestDeriveLayoutPlanGeothermal(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
@@ -33,7 +33,7 @@ func TestDeriveLayoutPlanGeothermal(t *testing.T) {
 					ring = unionRect(ring, r.Area)
 				}
 			}
-			// The wall never enters the edge margin (#1279), so a geyser
+			// The wall never enters the edge margin, so a geyser
 			// the site leaves that near the edge stays outside it.
 			m := LayoutEdgeMargin + 2*perimeterThick
 			wallable := Rectangle{X: m, Z: m, Width: 200 - 2*m, Height: 200 - 2*m}

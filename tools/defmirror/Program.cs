@@ -175,7 +175,7 @@ internal sealed class Generator
     public int EnumCount => enums.Count;
     public int SkippedCount => skipped.Count;
 
-    // DefinitionCatalog carries these two roots in its own fields (8 and 9, #1730);
+    // DefinitionCatalog carries these two roots in its own fields (8 and 9);
     // every other root is a repeated field of DefSets. They walk first.
     private static readonly string[] CarriedRoots = { "Verse.ThingDef", "Verse.TerrainDef" };
 

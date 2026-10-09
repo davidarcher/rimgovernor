@@ -1,7 +1,7 @@
 package main
 
 // acceptance suite runs a set of cases across N private game copies at
-// once (issue #140, absorbing the former suiteaccept): each worker is its
+// once: each worker is its
 // own disposable root (na.IsolatedRoot off -root, so its own config
 // and profile) launching the same game binary, chains its cases on
 // one kept process (na.KeepGameEnv forced on) and stops it when its queue
@@ -11,17 +11,17 @@ package main
 //
 // The set is the registry (-all), registry names (-cases a,b), a JSON
 // suite file (-suite) whose rows name registry cases, or a tier (-tier
-// nightly|smoke, tier.go, #273; the report records "tier"); every row runs
+// nightly|smoke, tier.go; the report records "tier"); every row runs
 // through `acceptance run`, and a case that hosts a service (Serve or
 // Service) receives -rimgovernor. "acceptance" labels the criterion a row
 // stands for and is echoed into its report row. Every row runs fresh (-fresh, no
 // checkpoint ring) unless -resume, which carries each case's checkpoint
 // ring from -root into its worker (the ring a failed `acceptance run` in
-// that root left, #249) so the row resumes as the run would: the row
+// that root left) so the row resumes as the run would: the row
 // passes and carries resumed_from, and the report lists "resumed". Without
 // -resume a row whose result.json carries resumed_from fails the suite.
 // A resumed pass proves the fix only past the resume point; cmd/land
-// records it in the landing rather than refusing it (#308).
+// records it in the landing rather than refusing it.
 //
 // Scheduling: one shared queue in three tiers. Bridge-only cases that keep
 // the process come first; cases that end or replace it (NoKeep: a
@@ -29,7 +29,7 @@ package main
 // headless worker cannot serve) follow, so the kept process is reused as
 // long as possible; serve-driven cases (Serve or Service) are last, so a
 // worker that has hosted a service never runs a bridge-only case on that
-// process afterwards (#119). Within each tier the queue is longest-first
+// process afterwards. Within each tier the queue is longest-first
 // by the -baseline suite's wall times (untimed cases first, as if long),
 // so a slow case does not land last and idle the other workers.
 //
@@ -40,14 +40,14 @@ package main
 // own) and the report carries the sum of case wall times beside the
 // baseline's.
 //
-// Every row's metrics block (result.json "metrics", #297) is appended by
+// Every row's metrics block (result.json "metrics") is appended by
 // the run to the series at -series (default <output>/../metrics.jsonl,
 // shared by successive suites beside each other), and the metrics past
 // their rule against the series' trailing median (na.Drift) are listed on
 // the row under "drift" and, over all rows, under the suite's "drift".
 //
 // Every row also carries the run's world block ("world": seed, save and
-// fixture hashes, #281) and its flake record ("flake": the share of the
+// fixture hashes) and its flake record ("flake": the share of the
 // case's recent series runs that failed, na.FlakeOf). A suite used as
 // -baseline hands that record on: a regression row shows its baseline's
 // flake beside the ratio, and a failed row prints with its own, so a
@@ -76,7 +76,7 @@ import (
 // RegressionRatio is the run-time growth over the baseline that flags a
 // case as a regression, and RegressionFloorMs the absolute growth it must
 // also exceed: on a ~10s case the peer load of the other workers moves
-// the time by more than 25% run to run (#176).
+// the time by more than 25% run to run.
 const (
 	RegressionRatio   = 1.25
 	RegressionFloorMs = 5000
@@ -122,7 +122,7 @@ type suiteOptions struct {
 	// and lets the row resume from it instead of forcing -fresh.
 	Resume bool
 	// Stages schedules each staged case's declared stages as their own
-	// work items from the bundles cached in Root (stages.go, #527);
+	// work items from the bundles cached in Root (stages.go);
 	// rows that opened on a stage bundle pass and are listed.
 	Stages bool
 }
@@ -427,7 +427,7 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 		report["baseline"] = opts.Baseline
 	}
 	schedule(list, b)
-	// The landing gate never rebuilds the mod on its own (NoHeal, #276);
+	// The landing gate never rebuilds the mod on its own (NoHeal);
 	// the rows' fixture ops still let the preflight name a fixture the
 	// build lacks. Cases go unnamed so no row's output directory counts
 	// as occupied here (each worker checks its own).

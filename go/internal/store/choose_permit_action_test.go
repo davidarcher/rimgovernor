@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A choose_permit pawn setting (#1878) persists its pawn, faction and permit.
+// A choose_permit pawn setting persists its pawn, faction and permit.
 func TestChoosePermitSettingRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

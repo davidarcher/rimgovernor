@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// reviewRituals fills the reading's ritual plans (#1660): the rituals due and
+// reviewRituals fills the reading's ritual plans: the rituals due and
 // ready to begin (policy.PlanRituals over the ideoligion, the pawn rows and
 // the building sites), planned only while the emergency census reads calm.
 // Both the review and the planners' own readings carry them, so the schedule
@@ -27,7 +27,7 @@ func (r *Rounder) reviewRituals(reading *observation.RoundsReading, snapshot dom
 	facts.RitualsOwed = policy.RitualsOwed(facts.RitualPlans)
 }
 
-// RoundsRitualsPlanner is MaintainRituals' planner (#1660, epic #1653): while
+// RoundsRitualsPlanner is MaintainRituals' planner: while
 // a ritual is due and ready (policy.PlanRituals), it commits one Ritual
 // `begin` for it: the organizer, the spot, the role slots and the spectators.
 // The committed plan is the persisted intent on the goal's method. The game

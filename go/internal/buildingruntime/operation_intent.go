@@ -12,7 +12,7 @@ import (
 )
 
 // goalLabels are the in-game names of goal kinds whose split identifier
-// reads poorly; every other kind falls back to its words (#822).
+// reads poorly; every other kind falls back to its words.
 var concernLabels = map[policy.ConcernID]string{
 	policy.EnsureFoodSupply:         "Food supply",
 	policy.MaintainFoodStorage:      "Food storage",
@@ -72,7 +72,7 @@ func methodReason(method domain.MethodID) string {
 
 // OperationIntent is Operation.intent for a method's writes: the
 // planner's admission reason follows the method, "Food supply: acquire,
-// food runway 1.5d" (#846).
+// food runway 1.5d".
 func OperationIntent(method store.PlanMethod) string {
 	why := methodReason(method.Method)
 	if reason := strings.TrimSpace(method.Reason); reason != "" {

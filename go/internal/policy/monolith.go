@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The monolith advance rule (#2437, epic #1694): the colony advances the void
+// The monolith advance rule: the colony advances the void
 // monolith through its activation levels. The rules are the game's, from the
 // decompile:
 //
@@ -25,7 +25,7 @@ import (
 //   - Ambient Horror mode (GameComponent_Anomaly.AmbientHorrorMode) has no
 //     monolith questline; the rule is inert there.
 //
-// The awakening quest that follows (EndGame_VoidAwakening, #2438) is walked
+// The awakening quest that follows (EndGame_VoidAwakening) is walked
 // with one more order, MonolithInteract (JobDefOf.InteractThing): each
 // VoidStructure the quest spawns, then the Gleaming monolith once the game
 // offers its interaction (CompGleamingMonolith.CanInteract, true only at the
@@ -53,7 +53,7 @@ const MonolithLevelVoidAwakened = "VoidAwakened"
 // points the waves are drawn from (DefenseCapacity is in raid-point units).
 const AwakenStrengthFactor = 1.25
 
-// MonolithFacts is the monolith's observed state (#2436): each fact is
+// MonolithFacts is the monolith's observed state: each fact is
 // unknown when native did not read it.
 type MonolithFacts struct {
 	// Spawned, AmbientHorror and Level are GameComponent_Anomaly's.
@@ -71,7 +71,7 @@ type MonolithFacts struct {
 	// Gleaming is whether the Gleaming monolith interaction is available.
 	// PendingStructures are the VoidStructures still to activate, NodeID the
 	// VoidNode that can be touched ("" when none) and NodePawns the colonists
-	// on its map able to touch it (#2438).
+	// on its map able to touch it.
 	Gleaming          domain.Fact[bool]
 	PendingStructures []string
 	NodeID            string

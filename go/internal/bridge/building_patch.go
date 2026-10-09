@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The BuildingPatchIntent kinds (#940): one settings change on one exact
+// The BuildingPatchIntent kinds: one settings change on one exact
 // building -- a cooler or heater target, a bed's medical flag or prisoner
 // use, a grower's crop, a claim. Native checks the building and the game's
 // own rules live; applied means set, and the next building read confirms

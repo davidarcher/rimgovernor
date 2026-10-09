@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// HerdMasterChoice assigns one animal a master by the bond-first rule (#1635):
+// HerdMasterChoice assigns one animal a master by the bond-first rule:
 //  1. A bonded animal is mastered by its bonded colonist: the first by id
 //     among its bond partners on the roster (a roster partner already
 //     mastering is kept); bonds give +5 mood as master, -3 otherwise.

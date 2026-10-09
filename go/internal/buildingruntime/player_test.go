@@ -112,7 +112,7 @@ func playerFixture(t *testing.T) (*Player, *store.Store, *playerFakeSession, *pl
 	// Hang guards only, at the widest bound newPlayer accepts: no test on
 	// this fixture waits for them to expire, and the routine planners'
 	// previews and journal writes have run past every tighter budget under
-	// race detection on a loaded machine (#556). Do not tighten these per
+	// race detection on a loaded machine. Do not tighten these per
 	// test.
 	p, err := newPlayer(context.Background(), PlayerConfig{CallTimeout: time.Minute, JournalTimeout: time.Minute}, db, session, worlds)
 	if err != nil {
@@ -424,7 +424,7 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 		t.Fatal(err)
 	}
 	// A second resume under the same root plan re-grants in place: the
-	// grant this process holds is not revoked first (#259).
+	// grant this process holds is not revoked first.
 	second := q
 	second.RequestID = "second"
 	got, err := p.Resume(ctx, second)
@@ -530,7 +530,7 @@ func TestPlayerCompletionJournalFailureDisablesGrantedLease(t *testing.T) {
 
 // A resume while the session still holds its grant (disabled locally on a
 // clock hold, or live) re-acquires directly; only an observed revocation or
-// an uncertain grant makes it revoke first (#259).
+// an uncertain grant makes it revoke first.
 func TestPlayerResumeWithHeldGrantSkipsManual(t *testing.T) {
 	t.Parallel()
 	p, _, session, _ := playerFixture(t)
@@ -553,7 +553,7 @@ func TestPlayerResumeWithHeldGrantSkipsManual(t *testing.T) {
 	if _, err := p.Resume(context.Background(), store.ControlRequest{RequestID: "acquire-again", Kind: store.ResumeControl, World: acquire.World}); err != nil || session.manuals.Load() != 2 || session.acquires.Load() != 3 {
 		t.Fatal("resume after pause skipped Manual", err, session.manuals.Load(), session.acquires.Load())
 	}
-	// The resume's Manual keeps held drafts (#916); the pause's releases them.
+	// The resume's Manual keeps held drafts; the pause's releases them.
 	if session.resumeManuals.Load() != 1 {
 		t.Fatal("resume after pause released held drafts", session.resumeManuals.Load())
 	}
@@ -563,8 +563,8 @@ func TestPlayerResumeWithHeldGrantSkipsManual(t *testing.T) {
 // fails mid-Resume (a cancelled call under a slow bridge) leaves observation
 // unknown while this process's own Auto grant still stands natively. The next
 // Resume must re-acquire that grant (in place, since it is this process's
-// own held grant, #259) rather than reporting every attempt uncertain
-// because Acquire refuses an Active it once targeted (#328).
+// own held grant) rather than reporting every attempt uncertain
+// because Acquire refuses an Active it once targeted.
 func TestPlayerResumeRevokesOwnGrantAfterFailedObservation(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -611,7 +611,7 @@ func TestPlayerResumeRevokesOwnGrantAfterFailedObservation(t *testing.T) {
 }
 
 // A slow wait for the player gate names the caller holding it and how long
-// it had held the gate (#1267).
+// it had held the gate.
 func TestPlayerGateWaitNamesHolder(t *testing.T) {
 	p, _, _, _ := playerFixture(t)
 	_, _, done, err := p.enter(context.Background(), "rounds_review", false)

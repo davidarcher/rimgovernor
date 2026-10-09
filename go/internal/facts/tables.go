@@ -1,7 +1,7 @@
 package facts
 
-// Keyed tables (#795): per section, the keyed rows of the last whole frame
-// the native answered (#858) and the tick they describe, held in the
+// Keyed tables: per section, the keyed rows of the last whole frame
+// the native answered and the tick they describe, held in the
 // Store beside the decoded sections and emptied with them on a scope
 // change. Tables are immutable once published, and every table goes to
 // the store's Recorder, which turns successive tables into a recording.
@@ -58,7 +58,7 @@ func PutTable[K comparable, R any](s *Store, scope Scope, name string, rows map[
 	return t
 }
 
-// KeyedRows is a section's rows as a persistent table version (#1578):
+// KeyedRows is a section's rows as a persistent table version:
 // the recorder reads what changed since the previous version without
 // walking the rows both versions share. bridge.Table implements it.
 type KeyedRows interface {

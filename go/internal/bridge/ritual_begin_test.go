@@ -7,7 +7,7 @@ import (
 )
 
 // A ritual begin builds a RitualIntent with the spot and the exact
-// assignments (#1659).
+// assignments.
 func TestRitualBeginBuildsIntent(t *testing.T) {
 	value, err := domain.NewRitualBegin("guide", "Precept_12", domain.Cell{X: 40, Z: 41},
 		[]domain.RitualSlot{{Slot: "moralist", Pawns: []domain.PawnID{"guide"}}, {Slot: "candidate", Pawns: []domain.PawnID{"a", "b"}}}, []domain.PawnID{"s1"})

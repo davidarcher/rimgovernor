@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
                 using (var hash = SHA256.Create()) return "plant-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
             }
         }
-        // A plant's token covers only what eligibility reads (#689): the
+        // A plant's token covers only what eligibility reads: the
         // resource, the cell, harvestability and the designation. Growth
         // moves every growth tick, so hashing it refused a harvestable plant
         // that kept growing between the read and the dispatch; YieldNow

@@ -339,7 +339,7 @@ type ScenarioClock struct {
 	CombatTargets []string
 
 	// PolicyEdit, when set, edits every clock_start's watch policy after the
-	// combat-target injection (a case arming combat stop events, #849).
+	// combat-target injection (a case arming combat stop events).
 	PolicyEdit func(policy map[string]any)
 
 	// TestAcceleration opts AdvanceGame into Ultrafast with the native test
@@ -394,9 +394,8 @@ func dig(m map[string]any, path ...string) any {
 	return current
 }
 
-// Acquire grants Auto (SetMode(MODE_AUTO)) at the current native generation
-// and records the granted body as Grant. The name predates #52's collapse of
-// the acquire/renew lease handshake; there is no lease, only the generation.
+// Acquire grants Auto at the current native generation and records the granted body as
+// Grant. Authority has no lease.
 func (s *ScenarioClock) Acquire(ctx context.Context, label string) (map[string]any, error) {
 	grant, err := GrantAuto(ctx, s.Wire, label, s.Identity)
 	if err != nil {
@@ -407,7 +406,7 @@ func (s *ScenarioClock) Acquire(ctx context.Context, label string) (map[string]a
 }
 
 // RenewAuthority proves Grant is still the live authority: Active(Auto) at
-// exactly Grant's generation. Authority no longer lapses on its own (#52), so
+// exactly Grant's generation. Authority no longer lapses on its own, so
 // "renewing" means confirming generation continuity rather than extending a
 // lease; it deliberately does not re-issue SetMode, which would advance the
 // generation and interrupt every attempt admitted under the current one.
@@ -675,7 +674,7 @@ func (s *ScenarioClock) Poll(ctx context.Context) ([]any, error) {
 
 // readSafetyStatus is observations_read_status with colonists and threats
 // on the clock's identity, its colonist references joined to their pawn
-// rows (#1343), with health, under colonistRows; complete is false when a read is not
+// rows, with health, under colonistRows; complete is false when a read is not
 // observed, carries an issue or misses a colonist's row.
 func readSafetyStatus(ctx context.Context, clock *ScenarioClock, label string) (observed map[string]any, complete bool, err error) {
 	reply, err := clock.Wire(ctx, label, "observations_read_status", map[string]any{
@@ -710,7 +709,7 @@ func readSafetyStatus(ctx context.Context, clock *ScenarioClock, label string) (
 }
 
 // activeThreat reports whether status's threat fact rows classify a hostile
-// or a hunting predator (bridge.ClassifyThreat, #1356); unreadable rows count
+// or a hunting predator (bridge.ClassifyThreat); unreadable rows count
 // as a threat.
 func activeThreat(status map[string]any) bool {
 	raw, err := json.Marshal(dig(status, "threats"))
@@ -757,7 +756,7 @@ type ScenarioRuntime struct {
 const DismissLetterTool = "test/dismiss_letter"
 
 // AcknowledgedLetterDefs are the letter defs AdvanceGame acknowledges by
-// default (issue #92): informational events and the choice letters whose
+// default: informational events and the choice letters whose
 // unanswered outcome is harmless to an assertion (a joiner leaves, a quest
 // stays offered). Threat letters are never here: they still need
 // WithExpectedLetters, and the window's own safety checks (no hostiles, no
@@ -831,7 +830,7 @@ const combatHealthStopsPerAdvance = 8
 const pacingStopsPerAdvance = 64
 
 // continuableStop reports whether a clock stop is pacing rather than an
-// interruption (#675). The set is global, not a cases.Case field beside
+// interruption. The set is global, not a cases.Case field beside
 // Letters: notification_batch is the native batching a pending notification,
 // which says nothing about the window in any case, and hostile is the threat
 // watch firing, which is the situation under test exactly when the window
@@ -1047,8 +1046,7 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 			if stopReason == "colonist_health" && len(options.combatTargets) > 0 {
 				// A colonist ordered to engage the committed targets may take
 				// the wounds the combat policy flags; the stop is recorded and
-				// the next window continues so the fight can resolve (issue
-				// #182). Each window baselines health afresh, so a repeat needs
+				// the next window continues so the fight can resolve. Each window baselines health afresh, so a repeat needs
 				// a further drop; the cap keeps a pawn who bleeds out under
 				// the guard from consuming the whole tick budget window by
 				// window. A downed or dead colonist still interrupts.
@@ -1082,7 +1080,7 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 			}
 			if continuableStop(stopReason, len(options.combatTargets) > 0) {
 				// A pacing stop invalidates nothing: record it and run the
-				// rest of the window (#675).
+				// rest of the window.
 				detail["pacing"] = true
 				if err := require(countPacingStop(pacingStops, stopReason), "Pacing stops exhausted: clock stopped on "+stopReason+" past the per-advance bound"); err != nil {
 					return err
@@ -1092,8 +1090,7 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 			// The reason belongs in the message: a case that dies here
 			// reported only "Unexpected native interruption", so nine
 			// nightly rows could not be told apart without the evidence
-			// tree, and two of them turned out to be different stops
-			// (#663, #572).
+			// tree, and two of them turned out to be different stops.
 			if err := require(stopReason == "letter_pause", "Unexpected native interruption: clock stopped on "+namedStopReason(stopReason)); err != nil {
 				return err
 			}

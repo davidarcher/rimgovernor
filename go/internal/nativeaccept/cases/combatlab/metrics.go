@@ -14,11 +14,10 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-// Bundle files a combat-fixture run records (#855). ReadsFile holds every
+// Bundle files a combat-fixture run records. ReadsFile holds every
 // raw test/lab_stage read reply, one JSON object per line, in tick order;
 // MetricsFile is the aggregate; FlightFile, when a run served the planner,
-// carries its clock_stop, combat_order and dispatch flight rows
-// (#849, #2062).
+// carries its clock_stop, combat_order and dispatch flight rows.
 const (
 	ReadsFile   = "combat_reads.jsonl"
 	MetricsFile = "combat_metrics.json"
@@ -55,13 +54,13 @@ type Metrics struct {
 	DamageDropped    int `json:"damageDropped,omitempty"`
 
 	// OrdersIssued and OrdersRefused count combat orders from the flight
-	// rows: combat_order rows (#850) and the routine defense planner's
+	// rows: combat_order rows and the routine defense planner's
 	// actions, issued once one completes, refused when one only ever
 	// carried a refusal.
 	OrdersIssued  int `json:"ordersIssued"`
 	OrdersRefused int `json:"ordersRefused"`
-	// StepLatencyP95Ms is the p95 of the combat stops' resume_latency_ms
-	// (#849), -1 when no planner served the run.
+	// StepLatencyP95Ms is the p95 of the combat stops' resume_latency_ms,
+	// -1 when no planner served the run.
 	StepLatencyP95Ms int64 `json:"stepLatencyP95Ms"`
 }
 
@@ -273,7 +272,7 @@ func StagedSides(s Staged) map[string]string {
 	for _, id := range s.Colonists() {
 		out[id] = Colonist
 	}
-	// Manhunters and mechanoids are the enemy side of their fixtures (#1146).
+	// Manhunters and mechanoids are the enemy side of their fixtures.
 	for _, ids := range [][]string{s.Hostiles(), s.Manhunters(), s.Mechs()} {
 		for _, id := range ids {
 			out[id] = Hostile

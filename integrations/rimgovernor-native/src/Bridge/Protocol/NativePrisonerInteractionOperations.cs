@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
             pawn.guest?.ExclusiveInteractionMode?.defName ?? "", pawn.guest?.Recruitable.ToString() ?? ""));
     }
 
-    // PrisonerInteractionIntent (#941): one colony prisoner's exclusive
+    // PrisonerInteractionIntent: one colony prisoner's exclusive
     // interaction (Recruit, MaintainOnly, ReduceResistance, Release, or
     // Enslave/Convert while Ideology is active), an immediate settings write
     // with no native job. Native checks the prisoner and the mode's

@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// countingSurvey counts the definition reads the layout survey makes (#2272).
+// countingSurvey counts the definition reads the layout survey makes.
 type countingSurvey struct {
 	observation.RoundsSource
 	reads *int
@@ -40,7 +40,7 @@ func openWindow(projection *observation.ColonyProjection, n int32) {
 	}
 }
 
-// #1290: every layout trigger is hourly. An unchanged colony reads the
+// Every layout trigger is hourly. An unchanged colony reads the
 // survey at most once an hour and replans nothing; a new pawn or a new
 // tier replans at the next hourly review.
 func TestLayoutTriggersHourly(t *testing.T) {

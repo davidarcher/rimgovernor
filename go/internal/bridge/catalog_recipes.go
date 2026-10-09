@@ -10,7 +10,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// Recipe rows (#1721). What a recipe does is read from its RecipeDef row, never
+// Recipe rows. What a recipe does is read from its RecipeDef row, never
 // from its defName: the butcher recipe is the one whose worker counter is the
 // game's butcher counter, a sculpture makes an art building, an ordinary meal makes a perishable meal.
 // A recipe the catalog has no row for, or a row the rules cannot classify (a

@@ -8,12 +8,12 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-// checkStartupRows is the closing check every run ends on (#2121): the
+// checkStartupRows is the closing check every run ends on: the
 // mod's startup rows (ModLog, kind mod_log, source "startup") in
 // <output>/flight.jsonl and its rotated segments flight.jsonl.N carry no
 // error, and a windowed run has no "headless mode active" row. The row is
 // not required of a headless run: a long run rotates the recorder and the
-// startup row can be trimmed away (#2135). A run that never started a
+// startup row can be trimmed away. A run that never started a
 // service has no flight.jsonl and no startup guard.
 func checkStartupRows(output string, headless bool) error {
 	base := na.FlightRecorderPath(output)

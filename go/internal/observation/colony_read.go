@@ -19,7 +19,7 @@ type ColonySource interface {
 	Identity(context.Context) (*l.IdentityReply, bridge.Result, error)
 	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 	// FrameTables are the keyed tables the facts' references resolve
-	// against (#1343).
+	// against.
 	FrameTables(context.Context, *c.Identity) (bridge.Tables, error)
 }
 
@@ -34,7 +34,7 @@ type ColonyReading struct {
 
 // sameColonyContext is the rule every routine read applies to a reply's
 // context: the expected load, map and native generation. Its tick never
-// makes it stale; every section of one read comes from one frame (#884).
+// makes it stale; every section of one read comes from one frame.
 func sameColonyContext(actual, expected Identity) bool {
 	a, ak := actual.NativeGeneration.Value()
 	b, bk := expected.NativeGeneration.Value()

@@ -15,7 +15,7 @@ import (
 const starvingPrepareOp, starvingObserveOp = "test/food_starving_prepare", "test/food_starving_observe"
 
 // starvingRoundTicks is the game time between samples (half a day); starvingRounds
-// samples cover three days, the span the epic (#2140) asks about.
+// samples cover three days, the span the epic asks about.
 const (
 	starvingRoundTicks = 30000
 	starvingRounds     = 6

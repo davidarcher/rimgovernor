@@ -35,8 +35,8 @@ func TestMealMoodLeverNeedsObservedExpectationsPressure(t *testing.T) {
 	}
 }
 
-// An older-tier meal bill is retired by the replacement whoever wrote it
-// (#461): a bill edited under Manual is evidence of an old order, not
+// An older-tier meal bill is retired by the replacement whoever wrote it:
+// a bill edited under Manual is evidence of an old order, not
 // authority over the tier Auto plans.
 func TestMealReplacementRetiresOlderTierBills(t *testing.T) {
 	r := tierRequest()
@@ -59,7 +59,7 @@ func TestMealReplacementRetiresOlderTierBills(t *testing.T) {
 }
 
 // A standing bill of the chosen recipe ends the review when it does the
-// work; suspended or undersized, it is replaced with the planned bill (#461).
+// work; suspended or undersized, it is replaced with the planned bill.
 func TestMealBillOfChosenRecipeIsCorrectedNotDuplicated(t *testing.T) {
 	r := tierRequest()
 	r.RawRunwayDays = domain.Known(1.0)

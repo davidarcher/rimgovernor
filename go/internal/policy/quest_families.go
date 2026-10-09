@@ -85,7 +85,7 @@ type QuestProfile struct {
 	NeverAct    bool
 	Disposition QuestDisposition
 	SkipReason  string
-	// ProtectGuests forbids arrest and operations during an open hosted meeting (#2415).
+	// ProtectGuests forbids arrest and operations during an open hosted meeting.
 	ProtectGuests bool
 }
 

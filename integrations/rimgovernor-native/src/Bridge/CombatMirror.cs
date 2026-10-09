@@ -18,7 +18,7 @@ using Observations = RimGovernor.Protocol.Observations;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// Combat state for the snapshot stream (#851, #858): the combat_pawns
+    /// Combat state for the snapshot stream: the combat_pawns
     /// and combat_events sections of every frame.
     ///
     /// Combat is active while the last capture saw a hostile on the map or a
@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
     /// stream captures sooner (MinCombatCompareTicks); a hook that is an
     /// event appends a row to the event ring at a fresh (tick, seq) mark and
     /// stamps the pawns it concerns with that mark, so their row change and
-    /// the event share a watermark. The #849 stop hooks (Supervisor) feed the
+    /// the event share a watermark. The stop hooks (Supervisor) feed the
     /// ring through Record. The pawn rows are projected at capture time and
     /// compared with the previous capture's; the sampled fields are
     /// thresholded in the projection so noise does not change a row.
@@ -71,7 +71,7 @@ namespace HomeBridge.BridgeTools
         // downing's mark.
         private static readonly Dictionary<int, (Mark Mark, int Rank)> Stamped = new Dictionary<int, (Mark, int)>();
         // Each pawn row's hash as last captured (without its changed mark),
-        // by the shared row diff (#1348), and the mark of its last change,
+        // by the shared row diff, and the mark of its last change,
         // keyed by load id.
         private static readonly RowDiff Compared = new RowDiff();
         private static readonly Dictionary<string, Mark> ChangedAt = new Dictionary<string, Mark>();
@@ -119,7 +119,7 @@ namespace HomeBridge.BridgeTools
             Patch("Building_Door.DoorOpen", AccessTools.Method(typeof(Building_Door), "DoorOpen"), nameof(OnDoorPrefix), nameof(OnDoorPostfix));
             Patch("Building_Door.DoorTryClose", AccessTools.Method(typeof(Building_Door), "DoorTryClose"), nameof(OnDoorPrefix), nameof(OnDoorPostfix));
             Patch("CompShield.Reset", AccessTools.Method(typeof(CompShield), "Reset"), null, nameof(OnShieldReset));
-            // Drop-pod arrivals (#870): the pods strategy is the arrival
+            // Drop-pod arrivals: the pods strategy is the arrival
             // mode, not the lord job, so the lord toil rows never carry it.
             foreach (var worker in typeof(PawnsArrivalModeWorker).AllSubclassesNonAbstract().Where(t => t.Name.Contains("Drop") && AccessTools.DeclaredMethod(t, nameof(PawnsArrivalModeWorker.Arrive)) != null))
                 Patch(worker.Name + ".Arrive", AccessTools.DeclaredMethod(worker, nameof(PawnsArrivalModeWorker.Arrive)), null, nameof(OnDropArrival));
@@ -217,12 +217,12 @@ namespace HomeBridge.BridgeTools
                 pawns.Add((p, side));
             }
             // Wild predators and large animals near an undowned hostile
-            // (#1116): the policy may shoot one to enrage it at the raiders.
+            //: the policy may shoot one to enrage it at the raiders.
             var raiders = pawns.Where(e => e.side == Mirror.CombatSide.Hostile && !e.pawn.Downed).Select(e => e.pawn.Position).ToList();
             foreach (var w in wild)
                 if (raiders.Any(c => c.InHorDistOf(w.Position, WildRange))) pawns.Add((w, Mirror.CombatSide.WildAnimal));
             // Raiders still in their drop pods are not spawned: a pods
-            // arrival keeps combat active until its open tick (#876).
+            // arrival keeps combat active until its open tick.
             _active = hostile || Ring.Any(e => e.MapId == map.uniqueID && e.Row.OpenTick > now);
             _dirty = false;
             if (!Active)
@@ -280,7 +280,7 @@ namespace HomeBridge.BridgeTools
                 if (target != null)
                 {
                     row.TargetId = LoadId(target);
-                    // A frame builds its entity def (#1148).
+                    // A frame builds its entity def.
                     var built = target is Frame frame ? frame.def.entityDefToBuild as ThingDef : target.def;
                     if (built?.building?.IsMortar == true) row.TargetMortar = true;
                 }
@@ -300,7 +300,7 @@ namespace HomeBridge.BridgeTools
                 row.MeleePower = Step(pawn.GetStatValue(StatDefOf.MeleeDPS), 0.1);
             }
             catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
-            // Enemy drugs (#1056).
+            // Enemy drugs.
             row.GoJuiceHigh = HasHediff(pawn, "GoJuiceHigh");
             row.LuciferiumAddicted = HasHediff(pawn, "LuciferiumAddiction");
             if (side == Mirror.CombatSide.Colonist)

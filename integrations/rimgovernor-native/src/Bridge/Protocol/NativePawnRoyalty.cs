@@ -13,14 +13,14 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // The title ladder and permit catalog are def-mirror rows (#1875) and the
-    // colony facts are ColonyFactsSnapshot.royalty (#1877); the royalty-specific
-    // read tool is gone (#1879). What remains is each pawn row's royalty block.
+    // The title ladder and permit catalog are def-mirror rows and the
+    // colony facts are ColonyFactsSnapshot.royalty; the royalty-specific
+    // read tool is gone. What remains is each pawn row's royalty block.
     public static class NativePawnRoyalty
     {
-        // A free colonist's royalty facts on its pawn row (#1876): holdings per
+        // A free colonist's royalty facts on its pawn row: holdings per
         // faction with each held permit's cooldown, the known psycasts and the
-        // caster's psyfocus and neural heat (combat casts hold on them, #1611).
+        // caster's psyfocus and neural heat (combat casts hold on them).
         // Absent without Royalty or a royalty tracker; a failed read leaves the
         // block absent next to a ReadIssue named "royalty".
         internal static void Apply(Pawn pawn, Obs.PawnState row)
@@ -48,7 +48,7 @@ namespace HomeBridge.BridgeTools
                 if (title != null) holding.Title = title.defName;
                 holding.Permits.AddRange(royalty.AllFactionPermits.Where(p => p.Faction == faction && p.Permit != null)
                     .Select(p => p.Permit.defName).OrderBy(n => n, StringComparer.Ordinal));
-                // The native cooldown of each held permit (#1607): FactionPermit.LastUsedTick
+                // The native cooldown of each held permit: FactionPermit.LastUsedTick
                 // (-1 until first used) and the ticks left of the permit's cooldown.
                 var now = Find.TickManager.TicksGame;
                 foreach (var held in royalty.AllFactionPermits.Where(p => p.Faction == faction && p.Permit != null && ProtoBoundary.IsIdentifier(p.Permit.defName))

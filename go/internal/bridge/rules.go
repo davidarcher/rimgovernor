@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The native declarative rules (operations.proto Rules, #2152): Go authors
+// The native declarative rules (operations.proto Rules): Go authors
 // every rule and attaches the whole set with a lease each Round; native only
 // executes.
 const (
@@ -106,7 +106,7 @@ var (
 )
 
 // rulesAttachAction is the RulesAttachIntent that replaces every native rule
-// and sets the lease (#2154); the journal holds it before native is written.
+// and sets the lease; the journal holds it before native is written.
 func rulesAttachAction(action domain.Action) (*o.Action, error) {
 	attach, ok := action.RulesAttach()
 	if !ok {

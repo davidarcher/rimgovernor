@@ -16,20 +16,20 @@ type CarePawn struct {
 	LifeThreatening                           domain.Fact[bool]
 	Conditions                                domain.Fact[[]CareCondition]
 	Dead, NeedsRest, NeedsTend, BadConditions domain.Fact[bool]
-	// Surgery facts (#1161) ride on the same health read. Native computes
+	// Surgery facts ride on the same health read. Native computes
 	// every value through vanilla; nothing here is recomputed in Go.
 	MissingParts domain.Fact[[]MissingPart]
 	Operations   domain.Fact[[]SurgeryOperation]
 	// QueuedSurgeries counts the medical bills queued on the patient: the
-	// surgery planner's in-flight evidence (#1164).
+	// surgery planner's in-flight evidence.
 	QueuedSurgeries domain.Fact[int]
 	// QueuedRecipes names each queued bill's recipe; ReserveSurgeryStock
-	// holds their parts back from sale until the surgery runs (#1261).
+	// holds their parts back from sale until the surgery runs.
 	QueuedRecipes []string
 	// QueuedItems are the part items those bills install, by the catalog's
-	// recipe rows (#1721).
+	// recipe rows.
 	QueuedItems []Resource
-	// InstalledParts are the added parts the pawn carries (#1837); unknown when
+	// InstalledParts are the added parts the pawn carries; unknown when
 	// the native read failed.
 	InstalledParts domain.Fact[[]InstalledPart]
 }
@@ -60,30 +60,30 @@ const (
 // it is unknown when no doctor is eligible.
 type SurgeryOperation struct {
 	Recipe, PartDefName domain.Fact[string]
-	// Item is the part item the recipe installs by its catalog row (#1721),
+	// Item is the part item the recipe installs by its catalog row,
 	// "" for a recipe that installs none.
 	Item          Resource
 	PartIndex     domain.Fact[int]
 	Kind          SurgeryKind
 	SuccessChance domain.Fact[float64]
 	// DoctorSuccessChance is the same doctor's chance with an ideal bed
-	// and room (#1240); above SuccessChance when the bed holds it back.
+	// and room; above SuccessChance when the bed holds it back.
 	DoctorSuccessChance         domain.Fact[float64]
 	EligibleDoctors             domain.Fact[int]
 	IngredientsOnMap, Violation domain.Fact[bool]
 	Lethal                      domain.Fact[bool]
 	// YieldValue is the market value in silver of what the removal spawns:
-	// a harvested organ (#1169) or a removed added part (#1232).
+	// a harvested organ or a removed added part.
 	YieldValue domain.Fact[float64]
 	// AddedPart and YieldThing: the added part hediff on a removal's target
-	// and the thing it spawns (#1232); unknown on a natural part.
+	// and the thing it spawns; unknown on a natural part.
 	AddedPart, YieldThing domain.Fact[string]
 	// MedicineValue is the market value of the medicine the operation uses.
 	MedicineValue domain.Fact[float64]
 	// CareLimited: medicine the recipe takes is stocked but the patient's
-	// medical care forbids it (#1239); IngredientsOnMap is then false.
+	// medical care forbids it; IngredientsOnMap is then false.
 	CareLimited domain.Fact[bool]
-	// DoctorChances is each eligible doctor's SuccessChance by pawn (#1253);
+	// DoctorChances is each eligible doctor's SuccessChance by pawn;
 	// nil when unread.
 	DoctorChances map[domain.PawnID]float64
 }
@@ -96,7 +96,7 @@ type CareCondition struct {
 	Tended                                             domain.Fact[bool]
 	TendQuality                                        domain.Fact[float64]
 	// PartIndex is the condition's part in the race body's AllParts;
-	// unknown for a whole-body condition (#1166).
+	// unknown for a whole-body condition.
 	PartIndex domain.Fact[int]
 }
 
@@ -188,7 +188,7 @@ const (
 func (p Phase) Restocks() bool { return p != "" }
 
 // InstalledPart is one installed added part (bionic, prosthetic, peg,
-// archotech) read natively (#1837). Hediff is the added-part hediff def, Part
+// archotech) read natively. Hediff is the added-part hediff def, Part
 // the body part def and PartIndex its index; Item is the thing its removal
 // spawns, which prices it; Tier is PartTier of the hediff def. No price is
 // carried: the spent side prices Item.

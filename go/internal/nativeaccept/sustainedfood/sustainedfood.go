@@ -1,6 +1,6 @@
 // Package sustainedfood holds the watch mechanics behind the serve-driven
 // registry cases (sustained/food, sustained/matrix-*, facility/*, farm/*,
-// medical/stable-patient; issue #1's sustained-matrix
+// medical/stable-patient; the sustained-matrix
 // acceptance first): on a session the runner opened, launch the live Go
 // player service with the routine families under test, acquire player
 // authority, and sample a goal's durable state over a tick-measured window
@@ -24,8 +24,8 @@ import (
 // Checkpoint is a phase boundary the watch checkpoints at: the first
 // sample satisfying When saves the live game as Name (pause, save, resume
 // through the service), copies the save into root/profile/Saves for the
-// commit flow (tools/*-checkpoint) and, under the runner's checkpoint ring
-// (#249), takes a full bundle labelled Name a rerun can resume from.
+// commit flow (tools/*-checkpoint) and, under the runner's checkpoint ring,
+// takes a full bundle labelled Name a rerun can resume from.
 type Checkpoint struct {
 	Name string
 	When func(sample map[string]any) bool
@@ -40,7 +40,7 @@ type WatchConfig struct {
 	// as soon as the live game tick has advanced Window ticks past the
 	// first sampled tick, and Watch becomes the ceiling that ends it
 	// regardless (a paused or starved game never advances). A tick window
-	// ties the sample length to what the assertion needs (issue #133)
+	// ties the sample length to what the assertion needs
 	// instead of a flat diagnostic length: 2500 ticks is one in-game hour,
 	// 60000 one day.
 	Watch  time.Duration
@@ -48,7 +48,7 @@ type WatchConfig struct {
 	// PollTicks is the sample cadence in game ticks: the next sample is
 	// taken as soon as the live tick has advanced PollTicks past the
 	// previous one (probed every na.RunInterval), so the cadence follows
-	// the game's speed instead of the wall clock (#267; default
+	// the game's speed instead of the wall clock (default
 	// DefaultPollTicks). Poll is the wall-clock ceiling between samples
 	// (default DefaultPoll): a paused or starved game is still sampled,
 	// so its stall is visible in the timeline.
@@ -95,8 +95,8 @@ type WatchConfig struct {
 // with a persisted rounds, then samples the goal's durable state
 // at the cadence WatchConfig sets (PollTicks, Poll, Wake) for Watch (or
 // until Until) with the step-stall check from the service's spec. Every sample also carries the service's live colony
-// census (sampleColony) so starvation is visible in the timeline itself
-// (#261). It records timeline, events and timeline_samples on report and
+// census (sampleColony) so starvation is visible in the timeline itself.
+// It records timeline, events and timeline_samples on report and
 // returns the samples; the caller stops the service.
 func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cfg WatchConfig, report na.Report) (timeline []map[string]any, err error) {
 	apiCall := service.API
@@ -123,7 +123,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 	}
 
 	// Resume needs no anchor plan: authority is the world's own root plan,
-	// created on first resume (SIMP02, #55).
+	// created on first resume (SIMP02).
 	if _, err := service.Acquire(); err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 			report["watch_ended_idle"] = sample["tick"]
 			break
 		}
-		// The failed checkpoint bundle (#249) is still taken: the runner
+		// The failed checkpoint bundle is still taken: the runner
 		// captures it on the error path like any other watch failure.
 		if err == nil {
 			if verdict, failed := failFast.check(sample); failed {
@@ -288,7 +288,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 			}
 		}
 		// Between samples is a natural pause for the runner's checkpoint
-		// ring (#249); a capture's own time does not count against Watch.
+		// ring; a capture's own time does not count against Watch.
 		if took := na.CheckpointPause(ctx); took > 0 {
 			watchDeadline = watchDeadline.Add(took)
 			stall.reset(time.Now())
@@ -468,7 +468,7 @@ func SampleStandard(ctx context.Context, s *store.Store, need policy.ConcernID) 
 		return sample, nil
 	}
 	sample["concern_bound"] = true
-	// The mood review's provisioning of this goal (#255): the fraction of
+	// The mood review's provisioning of this goal: the fraction of
 	// reviewed pawns whose dominant thought pressure its facility removes,
 	// which DetectRounds raises the ranked deficit to at least.
 	if pressure, ok := policy.MoodProvisionDeficits(review.MoodHistory())[need]; ok {
@@ -535,7 +535,7 @@ func describeMethod(ctx context.Context, s *store.Store, method domain.MethodID,
 	return described
 }
 
-// sampleProject is SampleGoal for a Project (#1911): the review's current
+// sampleProject is SampleGoal for a Project: the review's current
 // Project row for the kind, its status and need, and its plans.
 func sampleProject(ctx context.Context, s *store.Store, review store.Rounds, kind policy.ConcernID, sample map[string]any) (map[string]any, error) {
 	id, bound := review.ProjectFor(kind)
@@ -573,7 +573,7 @@ func sampleProject(ctx context.Context, s *store.Store, review store.Rounds, kin
 }
 
 // sampleIncident is SampleGoal for a Response whose occurrences are
-// incidents (#1020): the latest occurrence in the review's world, open or
+// incidents: the latest occurrence in the review's world, open or
 // closed, with the need the review binds it at and its plans.
 func sampleIncident(ctx context.Context, s *store.Store, review store.Rounds, kind policy.ConcernID, sample map[string]any) (map[string]any, error) {
 	world := store.World{Colony: review.Snapshot.Colony, Load: review.Snapshot.Load, Map: review.Snapshot.Map}

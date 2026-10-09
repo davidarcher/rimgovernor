@@ -2,7 +2,7 @@ package policy
 
 import "slices"
 
-// Native cover definitions the firing line may build (#868).
+// Native cover definitions the firing line may build.
 const (
 	DefenseSandbags  = "Sandbags"
 	DefenseEmbrasure = "Embrasure"
@@ -10,7 +10,7 @@ const (
 	defenseSandbagStuff = 5
 )
 
-// DefenseCoverChoice picks the firing line's cover (#868). Real Sandbags
+// DefenseCoverChoice picks the firing line's cover. Real Sandbags
 // replace the wooden Barricade stand-in when the definition is available
 // and one fabric or leather stock covers every firing position; the stock
 // the colony holds most of is used. An available Embrasure is named so the

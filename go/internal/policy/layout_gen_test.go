@@ -142,7 +142,7 @@ func TestSiteCoreWrapsRichCourtyard(t *testing.T) {
 }
 
 // TestGenerateHopsRichPatchFromTheEdge seeds the generator on the patch's
-// edge, where the old generator builds over it: with the patch an obstacle
+// edge: with the patch an obstacle
 // no room or hallway cell lands on it and every base room is still placed.
 func TestGenerateHopsRichPatchFromTheEdge(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

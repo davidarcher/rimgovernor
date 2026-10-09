@@ -8,14 +8,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Foreign things in a reconciliation (#2268, epic #2241): the things on the
+// Foreign things in a reconciliation: the things on the
 // room's ground that are not the colony's own (SiteCell.Things) are diffed
 // against the plan by one obstruction policy: claim a ruin as wall where it
 // fits the ring, else minify what packs, else deconstruct a building or cut an
 // impassable plant, and move a haulable item. Natural rock and mineables stay
 // with the dig path. A thing the policy refuses is a hold with a named reason;
 // its cells wait like a cell being cleared. The kinds are operations only: the
-// executor (#2269) maps each to an existing action, and the native placement
+// executor maps each to an existing action, and the native placement
 // preview stays the legality authority.
 
 // ReconcileHold is a foreign thing the policy leaves standing and why:
@@ -37,7 +37,7 @@ type foreignWork struct {
 }
 
 // SlotPlantCuts is the cut wave of a furniture slot the native preview refused
-// naming a plant (#2303): every plant, passable or not, on the slot's footprint
+// naming a plant: every plant, passable or not, on the slot's footprint
 // or interaction cell that the refusal names by def (or any plant when it names
 // only a category). A slot has no outdoor stand-in, so the plant is a foreign
 // obstruction like an impassable one on a room's ground. The preview stays the

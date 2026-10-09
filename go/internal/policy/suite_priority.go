@@ -2,7 +2,7 @@ package policy
 
 import "sort"
 
-// Suite priority (#1217, epic #1200): the suite queue is served most
+// Suite priority: the suite queue is served most
 // unhappy first. A claim's pressure is the current summed negative mood
 // offset of its pawn's bedroom, space and jealousy thoughts; no history is
 // kept. Thoughts only order the queue: which pawns claim a suite and the

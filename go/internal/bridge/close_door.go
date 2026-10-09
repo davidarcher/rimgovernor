@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// doorControlAction is the Actions/Apply arm of one door_control action (#1743):
+// doorControlAction is the Actions/Apply arm of one door_control action:
 // the existing combat_orders door CLOSE order for the cell, so no new native
 // intent. Native refuses a cell that is no player door as a result in the
 // CombatOrdersEffect (refusal not_a_door); the door facts the cell came from

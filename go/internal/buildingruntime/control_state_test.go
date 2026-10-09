@@ -82,7 +82,7 @@ func TestControlDisableInvalidatesBlockedAcquireGrant(t *testing.T) {
 	t.Parallel()
 	control, native, sink, _ := controlFixture(t, nil)
 	// A Disable on every write is persistent: the stale grant is revoked each
-	// time, one fresh Acquire is tried, then the failure (#1140).
+	// time, one fresh Acquire is tried, then the failure.
 	entered := make(chan struct{}, 2)
 	native.onGrant = func(ctx context.Context, _ *a.ControlReply) error {
 		entered <- struct{}{}
@@ -108,7 +108,7 @@ func TestControlDisableInvalidatesBlockedAcquireGrant(t *testing.T) {
 
 // A clock-poll Disable during the SetMode write (our own AuthorityChanged)
 // must not cancel the write and leave a player resume uncertain: the stale
-// grant is revoked and Acquire retries once under the new Episode (#1140).
+// grant is revoked and Acquire retries once under the new Episode.
 func TestControlAcquireRetriesAfterDisableDuringSetMode(t *testing.T) {
 	t.Parallel()
 	control, native, sink, _ := controlFixture(t, nil)

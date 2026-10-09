@@ -55,7 +55,7 @@ func anotherGoal(t *testing.T, s *Store, id domain.ConcernID) StandardState {
 	return v
 }
 
-// A building intent is validated natively when applied (#856): admission
+// A building intent is validated natively when applied: admission
 // neither prices nor sites it, so a method whose previews exceed the stock
 // is admitted and records no admission row.
 func TestBuildingMethodAdmitsWithoutPricing(t *testing.T) {
@@ -83,7 +83,7 @@ func TestBuildingMethodAdmitsWithoutPricing(t *testing.T) {
 }
 
 // A goal rebuilt from the save carries the load it was reviewed under; a
-// later load of the same colony and map still admits its work (#1007).
+// later load of the same colony and map still admits its work.
 func TestBuildingMethodAdmitsUnderNewLoad(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

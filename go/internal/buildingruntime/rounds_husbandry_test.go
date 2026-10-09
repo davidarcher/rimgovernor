@@ -8,7 +8,7 @@ import (
 )
 
 // TestAnimalProductWait: a herd whose products are already delivering
-// lends game time to the clock (#577); an unknown plan or one without an
+// lends game time to the clock; an unknown plan or one without an
 // open animal-product channel lends none.
 func TestAnimalProductWait(t *testing.T) {
 	if got := animalProductWait(domain.Unknown[policy.FoodPlan]()); got != 0 {

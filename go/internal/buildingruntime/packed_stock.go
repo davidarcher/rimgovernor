@@ -8,8 +8,7 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// packedSource is the native half that lists stored packed items (#830,
-// #843, #2104); a source without it builds new pieces instead.
+// packedSource lists stored packed items; a source without it builds new pieces instead.
 type packedSource interface {
 	ReadPackedItems(context.Context, *c.Identity, string) ([]bridge.PackedItem, bridge.Result, error)
 }
@@ -19,7 +18,7 @@ var _ packedSource = (*bridge.Client)(nil)
 // packedStock is one pass's view of the colony's packed stock: each packed
 // definition is read at most once and shared by every owner of the pass.
 // Stock comes first: an owner needing a piece asks Install and builds only
-// when it answers false (#2101). Not safe for concurrent use.
+// when it answers false. Not safe for concurrent use.
 type packedStock struct {
 	source   packedSource // nil: no stock readable
 	identity *c.Identity

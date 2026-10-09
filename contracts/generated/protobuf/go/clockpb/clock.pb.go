@@ -141,7 +141,7 @@ func (ObservedSpeed) EnumDescriptor() ([]byte, []int) {
 	return file_clock_proto_rawDescGZIP(), []int{1}
 }
 
-// How a running Ultrafast epoch paces its ticks (#627). FIXED is the speed's
+// How a running Ultrafast epoch paces its ticks. FIXED is the speed's
 // own rate. PLAYER_ACCELERATED raises Ultrafast's ticks per frame toward the
 // boosted rate while the frame's tick work stays inside native's 30 ms frame
 // budget, so input, rendering and control dispatch keep their share of each
@@ -196,7 +196,7 @@ func (Pacing) EnumDescriptor() ([]byte, []int) {
 	return file_clock_proto_rawDescGZIP(), []int{2}
 }
 
-// What bounds the running epoch's tick rate right now (#627), most binding
+// What bounds the running epoch's tick rate right now, most binding
 // first: the game's forced slowdown, the blind-tick regulator, the owner's
 // max_ticks_per_second (the controller's backoff), the frame budget; else
 // the pacing runs at its ceiling (ACCELERATED) or the speed's own rate
@@ -344,7 +344,7 @@ const (
 	// its options for Operations.AnswerDialog.
 	StopReason_STOP_REASON_DIALOG_PAUSE StopReason = 23
 	// An armed combat event (WatchPolicy.combat_stop_events) happened; the
-	// epoch stopped at the boundary of the tick it happened on (#849).
+	// epoch stopped at the boundary of the tick it happened on.
 	StopReason_STOP_REASON_COMBAT_EVENT StopReason = 24
 )
 
@@ -433,8 +433,8 @@ func (StopReason) EnumDescriptor() ([]byte, []int) {
 	return file_clock_proto_rawDescGZIP(), []int{5}
 }
 
-// The combat events a WATCH_MODE_COMBAT epoch can be armed to stop on
-// (#849). Native hooks see each one on the tick it happens and stop the
+// The combat events a WATCH_MODE_COMBAT epoch can be armed to stop on.
+// Native hooks see each one on the tick it happens and stop the
 // epoch at that tick's boundary. Aim warmup, shots and ordinary damage are
 // never stops.
 type CombatEvent int32
@@ -464,7 +464,7 @@ const (
 	CombatEvent_COMBAT_EVENT_BREACH CombatEvent = 9
 	// A pawn on the map started a mental state (berserk, fleeing).
 	CombatEvent_COMBAT_EVENT_MENTAL_BREAK CombatEvent = 10
-	// A prison break started on the map (#1080).
+	// A prison break started on the map.
 	CombatEvent_COMBAT_EVENT_PRISON_BREAK CombatEvent = 11
 )
 
@@ -710,10 +710,8 @@ type WatchPolicy struct {
 	InjuryStopCooldownMs           *uint32                `protobuf:"varint,8,opt,name=injury_stop_cooldown_ms,json=injuryStopCooldownMs,proto3,oneof" json:"injury_stop_cooldown_ms,omitempty"`
 	SurgicalRecoveryIds            []string               `protobuf:"bytes,9,rep,name=surgical_recovery_ids,json=surgicalRecoveryIds,proto3" json:"surgical_recovery_ids,omitempty"`
 	MedicalRestIds                 []string               `protobuf:"bytes,10,rep,name=medical_rest_ids,json=medicalRestIds,proto3" json:"medical_rest_ids,omitempty"`
-	// Watched attempts only ever named construction operations, which moved
-	// to Actions/Apply (#856).
 	// WATCH_MODE_COMBAT only: the combat events that stop the epoch on the
-	// tick they happen (STOP_REASON_COMBAT_EVENT, #849). Distinct, specified;
+	// tick they happen (STOP_REASON_COMBAT_EVENT). Distinct, specified;
 	// empty arms none. Refused outside combat mode.
 	CombatStopEvents []CombatEvent `protobuf:"varint,13,rep,packed,name=combat_stop_events,json=combatStopEvents,proto3,enum=rimgovernor.clock.v1.CombatEvent" json:"combat_stop_events,omitempty"`
 	unknownFields    protoimpl.UnknownFields
@@ -892,7 +890,7 @@ type StartRequest struct {
 	// refused otherwise. An accelerated epoch cannot change speed, only pause
 	// or change its ceiling.
 	TestAcceleration *bool `protobuf:"varint,6,opt,name=test_acceleration,json=testAcceleration,proto3,oneof" json:"test_acceleration,omitempty"`
-	// Blind-tick regulator (issue #583). Blind ticks are the ticks between the
+	// Blind-tick regulator. Blind ticks are the ticks between the
 	// controller's last read (a status, events or bundle read, or the oldest
 	// journal row it has not yet acknowledged with an after_cursor) and the
 	// current tick. Past this budget native throttles the epoch toward Normal
@@ -1682,7 +1680,7 @@ type Status struct {
 	// Both reset when the loaded game changes.
 	PausedMs  *uint64 `protobuf:"varint,21,opt,name=paused_ms,json=pausedMs,proto3,oneof" json:"paused_ms,omitempty"`
 	RunningMs *uint64 `protobuf:"varint,22,opt,name=running_ms,json=runningMs,proto3,oneof" json:"running_ms,omitempty"`
-	// Supervisor probe accounting (#626), cumulative for the loaded game
+	// Supervisor probe accounting, cumulative for the loaded game
 	// session like paused_ms: wall time the hazard probe (probe_elapsed_ms,
 	// probe_total passes) and the fact-change digests (digest_elapsed_ms,
 	// digest_total passes) took on the main thread, and the widest tick gap
@@ -1693,12 +1691,12 @@ type Status struct {
 	DigestTotal            *uint64  `protobuf:"varint,26,opt,name=digest_total,json=digestTotal,proto3,oneof" json:"digest_total,omitempty"`
 	SessionMaxProbeTickGap *int64   `protobuf:"varint,27,opt,name=session_max_probe_tick_gap,json=sessionMaxProbeTickGap,proto3,oneof" json:"session_max_probe_tick_gap,omitempty"`
 	// Per hazard class: the declared maximum detection gap in ticks and the
-	// widest gap observed this session (#626).
+	// widest gap observed this session.
 	HazardGaps []*HazardGap `protobuf:"bytes,28,rep,name=hazard_gaps,json=hazardGaps,proto3" json:"hazard_gaps,omitempty"`
 	// Game ticks per wall second over the last ten seconds of frames, paused
-	// time included (#627): what the player actually gets.
+	// time included: what the player actually gets.
 	EffectiveTicksPerSecond *float64 `protobuf:"fixed64,29,opt,name=effective_ticks_per_second,json=effectiveTicksPerSecond,proto3,oneof" json:"effective_ticks_per_second,omitempty"`
-	// Player acceleration's frame account (#627), cumulative for the loaded
+	// Player acceleration's frame account, cumulative for the loaded
 	// game session: frames a player-accelerated epoch ticked, those whose
 	// tick work exceeded the epoch's frame budget, and the widest frame's
 	// tick work. A command queued for the main thread waits at most one
@@ -1706,7 +1704,7 @@ type Status struct {
 	PacedFrames           *uint64  `protobuf:"varint,30,opt,name=paced_frames,json=pacedFrames,proto3,oneof" json:"paced_frames,omitempty"`
 	PacedFramesOverBudget *uint64  `protobuf:"varint,31,opt,name=paced_frames_over_budget,json=pacedFramesOverBudget,proto3,oneof" json:"paced_frames_over_budget,omitempty"`
 	MaxPacedFrameMs       *float64 `protobuf:"fixed64,32,opt,name=max_paced_frame_ms,json=maxPacedFrameMs,proto3,oneof" json:"max_paced_frame_ms,omitempty"`
-	// The speed the player last chose in this loaded game (#875): a speed
+	// The speed the player last chose in this loaded game: a speed
 	// set by anything but the supervisor itself, or by a fixture standing in
 	// for the player. Unset until one is chosen; pauses never count. The
 	// owner starts each window at it.

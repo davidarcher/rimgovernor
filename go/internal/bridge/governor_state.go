@@ -6,7 +6,7 @@ import (
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 )
 
-// Governor state (#882) is opaque ASCII blobs Go keeps in the save's
+// Governor state is opaque ASCII blobs Go keeps in the save's
 // GovernorState game component. Native stores them verbatim; a put is
 // durable once the game next saves.
 const (
@@ -25,7 +25,7 @@ func (caller *Client) GovernorState(ctx context.Context) (map[string]string, err
 	return governorStateBlobs(reply, raw)
 }
 
-// PutGovernorStateBatch replaces the whole blob set in one call (#2357): keys
+// PutGovernorStateBatch replaces the whole blob set in one call: keys
 // absent from blobs are removed natively. Native runs it off the game thread
 // and each key is replaced whole, so a save cut lands between blobs.
 func (caller *Client) PutGovernorStateBatch(ctx context.Context, blobs map[string]string) error {

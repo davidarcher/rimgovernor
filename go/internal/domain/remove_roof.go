@@ -6,7 +6,7 @@ import (
 	"sort"
 )
 
-// RemoveRoofAction designates vanilla RemoveRoof over cells (#1366): a
+// RemoveRoofAction designates vanilla RemoveRoof over cells: a
 // RemoveRoofIntent on Actions/Apply. Clearance issues it over an enclosed
 // room's roofed cells before deconstructing the walls holding that roof.
 // Applied means designated; the roof read decides when pawns finished.

@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The ritual start (#1639) is dispatched under the routine worker too.
+// The ritual start is dispatched under the routine worker too.
 func TestRitualIsARoundsExecutableKind(t *testing.T) {
 	t.Parallel()
 	if !roundsExecutableKind(domain.RitualAction) {
@@ -16,7 +16,7 @@ func TestRitualIsARoundsExecutableKind(t *testing.T) {
 
 func TestQuestAcceptIsARoundsExecutableKind(t *testing.T) {
 	t.Parallel()
-	// The joiner answer (#250) is dispatched under the routine worker like
+	// The joiner answer is dispatched under the routine worker like
 	// every other routine method; a kind missing from the allowlist commits
 	// a plan whose action then sits at pending until the offer expires.
 	if !roundsExecutableKind(domain.QuestAcceptAction) {

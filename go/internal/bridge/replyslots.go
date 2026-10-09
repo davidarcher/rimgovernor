@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/snapshotshm"
 )
 
-// Large replies through shared memory (#1344). A client of a game on this
+// Large replies through shared memory. A client of a game on this
 // host asks for encoding=proto-shm: native writes a reply at or above its
 // inline threshold, raw, into a slot of its reply ring and the wrapper
 // carries only {"slot":{"ring","slot","seq","length"}}; smaller replies

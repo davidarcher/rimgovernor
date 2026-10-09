@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The workshop template (#803): one centred row of benches on the back
+// The workshop template: one centred row of benches on the back
 // wall, each facing the entrance with its interaction cell on the open
 // floor in front of it. A tool cabinet stands on end in every one-cell gap
 // between two slots, so each cabinet feeds both neighbours and no bench
@@ -15,7 +15,7 @@ import (
 // shelf sits beside each interaction cell.
 //
 // The benches are the piece being placed when it is a workshop bench (the
-// 3x1 BenchBase benches or the 5x2 FabricationBench, #820), else the
+// 3x1 BenchBase benches or the 5x2 FabricationBench), else the
 // default workshop bench (the cheapest of the role); BenchRow widens every slot to the widest bench standing in
 // the room. Shelves score 1 each toward Storeroom against 27 per bench
 // toward Workshop, and there is one shelf per bench, so the plan never

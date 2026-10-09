@@ -6,7 +6,7 @@ import (
 	"sort"
 )
 
-// FoodPolicyAction writes one food policy's contents (#1541): a
+// FoodPolicyAction writes one food policy's contents: a
 // FoodPolicyIntent on Actions/Apply. The policy labelled Name (a pawn's
 // short name) allows exactly the food definitions; native makes it when
 // missing. PawnSettingsIntent.food_policy assigns it.

@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Every service a run launches is profiled (#301): serve gets --pprof, a
+// Every service a run launches is profiled: serve gets --pprof, a
 // CPU profile runs from launch for the case's budget and is ended at Stop
 // (DELETE /debug/pprof/profile) so it covers the run whatever its length,
 // and Stop takes a heap snapshot before the kill. Both land beside the

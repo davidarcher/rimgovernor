@@ -8,7 +8,7 @@ import (
 )
 
 // reservedGround is the one record of ground a pass has already promised to a
-// zone (#2189): every store sited in a pass claims its cells here, so two
+// zone: every store sited in a pass claims its cells here, so two
 // stores never overlap. A cell is claimed once and never released within the
 // pass.
 type reservedGround map[domain.Cell]bool
@@ -87,7 +87,7 @@ func storeServed(zones []StockpileZone, site StoreSite) bool {
 // zones inside each drag; policy exclusions limit the requested ground.
 func (s StoreSite) Rectangles(open stockpileOpen) []Rectangle {
 	if s.regions == nil {
-		// The zone waits until the interior is settled (#2190): no stand-in
+		// The zone waits until the interior is settled: no stand-in
 		// store covers a room still being dug, unseen or cleared.
 		reading := readInterior(s.Interior, func(c domain.Cell) (SiteCell, bool) { sc, ok := open.cells[c]; return sc, ok })
 		if !reading.Ready() {
@@ -186,7 +186,7 @@ func rectangleSites(open stockpileOpen, anchor domain.Cell, width, height int32,
 
 // storeSiteMoves deletes the zones standing outside every site that serves
 // their role: several sites may share a prefix (the warehouses), and a zone on
-// any of their footprints stays. A move creates before it deletes (#1795):
+// any of their footprints stays. A move creates before it deletes:
 // while no zone serves the new site the delete names the site's role in After,
 // and the review admits it only once that create is admitted, so a deferred or
 // refused create never leaves the role without a zone.

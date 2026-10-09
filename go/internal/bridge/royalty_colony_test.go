@@ -21,7 +21,7 @@ func royaltyColonyRead() *o.RoyaltyColonyFacts {
 	}
 }
 
-// TestDecodeRoyaltyColony (#1877): the neuroformer stock, bestowing ceremony
+// TestDecodeRoyaltyColony: the neuroformer stock, bestowing ceremony
 // and throne owners decode; an absent flag stays unknown rather than zero.
 func TestDecodeRoyaltyColony(t *testing.T) {
 	facts, err := DecodeRoyaltyColony(royaltyColonyRead())
@@ -45,7 +45,7 @@ func TestDecodeRoyaltyColony(t *testing.T) {
 	if _, ok := trainer.Held.Value(); ok {
 		t.Fatal("absent held read as known")
 	}
-	// The throne-owner fact (#1601): an owned throne and an unowned one.
+	// The throne-owner fact: an owned throne and an unowned one.
 	if len(facts.Thrones) != 2 || facts.Thrones[0] != (policy.RoyalThrone{ID: "Throne_1", Def: "Throne", Owner: "Human12"}) || facts.Thrones[1] != (policy.RoyalThrone{ID: "Throne_2", Def: "Throne"}) {
 		t.Fatalf("thrones %+v", facts.Thrones)
 	}

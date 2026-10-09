@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
-// layout/ring (#1271): the expansion-phase MaintainHousing step that raised
+// layout/ring: the expansion-phase MaintainHousing step that raised
 // the Masonry capacity ring, recorded from `acceptance run layout/ring`
 // (tick 15, issue-1271 branch on 8130fd810). The ring is one stuff throughout, the
 // one the shell style picks from the recorded stock, apart from its Door at the
@@ -24,7 +24,7 @@ func TestLayoutRingStepIsMasonry(t *testing.T) {
 	}
 	step := loadStep(t, "layout-ring-step", policy.MaintainHousing)
 	facts := step.Projection
-	// The recording predates the shelter plan role (#2037): its starter room
+	// The recording predates the shelter plan role: its starter room
 	// is a barracks. The shelter stands on that same slot now, so the replay
 	// relabels it rather than hand-editing the recording.
 	recorded, _ := facts.LayoutPlan.Value()
@@ -70,7 +70,7 @@ func TestLayoutRingStepIsMasonry(t *testing.T) {
 			}
 			continue
 		}
-		// The wall stuff is the stock's call (#2127): this recording holds 400
+		// The wall stuff is the stock's call: this recording holds 400
 		// slate blocks, 80 walls' worth, short of the 200-wall shell budget, and
 		// wood is plentiful, so the ring is wood. Stone winning once the stock
 		// covers a shell is TestShellStyleFollowsTheStock's claim.

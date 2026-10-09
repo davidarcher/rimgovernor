@@ -17,7 +17,7 @@ import (
 // under RIMGOVERNOR_ACCEPT_RECORD replaces them with real ones. Each test
 // here runs harness code against one in milliseconds and ends with the
 // transcript fully consumed, so a wait or parser that starts making a
-// different call sequence fails here before a run does (#282).
+// different call sequence fails here before a run does.
 
 func replayHarness(t *testing.T, name string) (*Harness, *bridge.Replay) {
 	t.Helper()

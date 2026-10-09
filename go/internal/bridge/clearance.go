@@ -16,7 +16,7 @@ func (client *Client) ReadClearanceTargets(ctx context.Context, identity *c.Iden
 	return client.ReadClearanceTargetsOnGround(ctx, identity, includeSalvage, nil)
 }
 
-// ReadClearanceTargetsOnGround widens the census to planned ground (#1365):
+// ReadClearanceTargetsOnGround widens the census to planned ground:
 // on those rectangles native also reports the player's own buildings (with
 // encloses_room) and constructed floors, one row per cell.
 func (client *Client) ReadClearanceTargetsOnGround(ctx context.Context, identity *c.Identity, includeSalvage bool, planned []*o.Rectangle) (*o.ClearanceTargetsReply, Result, error) {

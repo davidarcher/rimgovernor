@@ -47,7 +47,7 @@ namespace HomeBridge.BridgeTools
             return request?.Scope?.ExpectedIdentity != null;
         }
 
-        // The population as a frame section: a read that throws fails the frame (#1905).
+        // The population as a frame section: a read that throws fails the frame.
         internal static Obs.PopulationSnapshot Population(Map map, Obs.PopulationRequest request, Common.ObservationContext context)
         {
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
@@ -69,24 +69,24 @@ namespace HomeBridge.BridgeTools
                     if (ModsConfig.IdeologyActive && p.IsPrisoner) person.Will = Number(p.guest.will);
                 }
                 if (p.Ideo != null) person.IdeoId = NativePawnObservationTools.Id(p.Ideo.GetUniqueLoadID());
-                // Prospect facts (#1036): MaintainPopulation weighs a prisoner's
+                // Prospect facts: MaintainPopulation weighs a prisoner's
                 // skills, traits, age and health against the free colonists';
-                // a hostile's skills rank it as a lance target (#1038).
+                // a hostile's skills rank it as a lance target.
                 if (p.IsPrisonerOfColony || person.Admitted || p.HostileTo(player))
                 {
                     person.WildMan = p.IsWildMan();
                     person.Biography = NativePawnDetails.Biography(p);
                     if (p.health?.summaryHealth != null) person.HealthSummary = Number(p.health.summaryHealth.SummaryHealthPercent);
-                    // After combat (#1079): a luciferium addict is stripped and
+                    // After combat: a luciferium addict is stripped and
                     // finished, not captured; every raider is stripped first.
                     person.LuciferiumAddicted = CombatMirror.HasHediff(p, "LuciferiumAddiction");
                     person.WearingApparel = p.apparel?.WornApparel.Count > 0;
                 }
-                // Organ harvest facts (#1169): a colony prisoner's surgery
+                // Organ harvest facts: a colony prisoner's surgery
                 // facts through the care read's own producer, its home faction
                 // and vanilla's harvest goodwill report (Recipe_RemoveBodyPart
                 // reports -70 to HomeFaction when the pawn has a faction).
-                // Medical care cap inputs (#1301): colony prisoners and hosted guests.
+                // Medical care cap inputs: colony prisoners and hosted guests.
                 if (p.IsPrisonerOfColony || (p.HostFaction == player && !p.IsPrisoner && !p.IsSlave))
                 {
                     if (p.playerSettings != null) person.MedicalCare = NativeEnums.Care(p.playerSettings.medCare);
@@ -106,7 +106,7 @@ namespace HomeBridge.BridgeTools
                     NativePawnDetails.Surgery(p, health);
                     person.Surgery = health;
                     if (p.playerSettings != null) person.MedicalCare = NativeEnums.Care(p.playerSettings.medCare);
-                    // Peg-leg control (#1236): an addiction a prisoner cannot feed.
+                    // Peg-leg control: an addiction a prisoner cannot feed.
                     person.Withdrawal = p.health?.hediffSet?.hediffs?.Any(h => h is Hediff_Addiction) == true;
                     person.PolicyInputs = NativePolicyFacts.Inputs(p);
                     var home = p.Faction == null ? null : p.HomeFaction;
@@ -126,7 +126,7 @@ namespace HomeBridge.BridgeTools
                 person.PawnSnapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = person.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) };
                 snapshot.Persons.Add(person);
             }
-            // Owned-pawn names (#1310): the census the unique-name planner reads.
+            // Owned-pawn names: the census the unique-name planner reads.
             foreach (var owned in NativePawnSettings.OwnedNamedPawns())
                 snapshot.OwnedNames.Add(new Obs.OwnedName { PawnId = NativePawnObservationTools.Id(owned.GetUniqueLoadID()), ShortName = NativePawnObservationTools.Text(owned.Name.ToStringShort), ThingId = owned.thingIDNumber });
             snapshot.IdeologyActive = ModsConfig.IdeologyActive;
@@ -145,7 +145,7 @@ namespace HomeBridge.BridgeTools
                 var def = DefDatabase<PrisonerInteractionModeDef>.GetNamedSilentFail(name);
                 if (def != null) snapshot.SupportedInteractions.Add(new Obs.DefinitionRef { DefName = NativePawnObservationTools.Id(def.defName), Label = NativePawnObservationTools.Text(def.label) });
             }
-            // Storyteller population outlook (#1031).
+            // Storyteller population outlook.
             var intent = StorytellerUtilityPopulation.PopulationIntent;
             var difficulty = Find.Storyteller.difficulty;
             snapshot.PopulationIntent = Number(intent);

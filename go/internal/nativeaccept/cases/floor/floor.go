@@ -1,4 +1,4 @@
-// Package floor holds the MaintainFlooring vertical (issue #6 slice 4): a
+// Package floor holds the MaintainFlooring vertical: a
 // live game and a live rimgovernor Go player-control service composed with
 // the flooring family. An enclosed roofed kitchen (a fuelled stove) stands
 // on bare soil, whose terrain cleanliness native measures negative. The

@@ -487,7 +487,7 @@ func clockWire(value proto.Message) error {
 	return walk(value.ProtoReflect())
 }
 
-// clockPacing checks a start's pacing (issue #627): player acceleration is
+// clockPacing checks a start's pacing: player acceleration is
 // Ultrafast without test acceleration.
 func clockPacing(request *k.StartRequest) error {
 	switch request.GetPacing() {

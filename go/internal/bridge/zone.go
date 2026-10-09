@@ -103,7 +103,7 @@ func filterSelectors(rows []domain.FilterSelector) []*op.FilterSelector {
 }
 
 // PreviewZone is a planner's siting preview of one zone; native checks the
-// ground live, so no map census token rides along (#992).
+// ground live, so no map census token rides along.
 func (client *Client) PreviewZone(ctx context.Context, identity *c.Identity, zone domain.ZoneCreate) (*op.ZonePreviewReply, Result, error) {
 	if _, err := domain.ReconstructZone(zone); ValidateIdentity(identity) != nil || err != nil {
 		return nil, Result{}, contract("invalid zone preview")

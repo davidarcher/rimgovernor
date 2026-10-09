@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TestProfileChildStaysOffWorkBelowMinAge (#1682): a child is forbidden each
+// TestProfileChildStaysOffWorkBelowMinAge: a child is forbidden each
 // work type whose catalog minimum age exceeds their age, and no other.
 func TestProfileChildStaysOffWorkBelowMinAge(t *testing.T) {
 	ages := map[WorkType]int{"Hauling": 3, "Cleaning": 5, "Cooking": 10}

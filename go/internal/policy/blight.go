@@ -7,11 +7,11 @@ import (
 )
 
 // RemoveBlight cuts blighted crops before the blight spreads through the
-// colony's growing zones (issue #245). The goal opens while the native
-// blighted-plant census (the planning window's plant things, #2272) is non-empty
+// colony's growing zones. The goal opens while the native
+// blighted-plant census (the planning window's plant things) is non-empty
 // and settles when it is empty again: a cut designation is the method, not
 // the outcome, so a receipt never settles it. It is a Standard whose target
-// is no outstanding work (#1024).
+// is no outstanding work.
 const RemoveBlight ConcernID = "RemoveBlight"
 
 // BlightedPlant is one native census row: a blighted plant standing in a

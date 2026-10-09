@@ -85,7 +85,7 @@ func (ClearanceClass) EnumDescriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{0}
 }
 
-// Ancient shrines (#456): each sealed or opened ancient-danger room as one
+// Ancient shrines: each sealed or opened ancient-danger room as one
 // unit. Caskets report native hit points and HasAnyContents; the occupant
 // stays unknown until opened. Guards are the hostile pawns and hives inside
 // the room rectangle and are complete only once the interior is unfogged.
@@ -331,7 +331,7 @@ func (Passion) EnumDescriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{4}
 }
 
-// Closed vanilla value sets read off pawns, stock and bills (#1341).
+// Closed vanilla value sets read off pawns, stock and bills.
 type HungerCategory int32
 
 const (
@@ -1259,14 +1259,14 @@ func (TradeCurrencyKind) EnumDescriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{20}
 }
 
-// Psycasts (#1600): psycasts holds each psycaster's known psycasts (Ability
+// Psycasts: psycasts holds each psycaster's known psycasts (Ability
 // defs with IsPsycast). level is the psylink level that unlocks it,
 // psyfocus_cost the Psyfocus it spends (0-1), entropy the neural heat it adds,
 // cooldown_ticks the longest cooldown. neuroformers: the psylink neuroformer
 // and each psycast neurotrainer, with held (unforbidden spawned stacks on the
 // player's home maps), craftable (a recipe that is available now makes it)
 // and tradeable (a trader can sell it). teaches_psycast is the trainer's
-// ability def. For combat casts (#1611) cooldown_remaining_ticks is the
+// ability def. For combat casts cooldown_remaining_ticks is the
 // psycast's remaining cooldown and the pawn's psyfocus (0-1), entropy and
 // entropy_max are read at the read's tick; each is absent when unread.
 type PsycastTargetKind int32
@@ -1324,7 +1324,7 @@ func (PsycastTargetKind) EnumDescriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{21}
 }
 
-// Raw hunt census (#2144): what Go needs to decide whether a hunt row is offered. Native states
+// Raw hunt census: what Go needs to decide whether a hunt row is offered. Native states
 // facts and keeps only physical validity; butcher readiness, weapon rules, hunter eligibility and
 // the pending-hunt cap are Go policy (policy.HuntGate).
 // HuntProjectileKind classifies a verb's default projectile by its ThingDef class: BULLET is
@@ -1382,13 +1382,13 @@ func (HuntProjectileKind) EnumDescriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{22}
 }
 
-// Routes census (issue #6 slice 5): each colony facility a colonist must
+// Routes census: each colony facility a colonist must
 // reach (bed, work bench, storage, dining surface, defence emplacement) with
 // per-colonist native reachability from where that colonist stands and the
 // cost of the path the game itself would walk; a facility no colonist reaches
 // lists breach candidates: player wall cells of its room whose outer
 // neighbour a colonist can stand on.
-// Traffic (#817) counts cell changes of moving pawns per layer, each layer
+// Traffic counts cell changes of moving pawns per layer, each layer
 // decaying on its own half-life, rebuilt from zero after a load; the
 // busiest cells are reported per layer with their terrain.
 type TrafficLayer int32
@@ -1572,7 +1572,7 @@ func (DeliverySourceKind) EnumDescriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{25}
 }
 
-// A food ThingDef a food policy can allow (#1541): a nutrition-giving
+// A food ThingDef a food policy can allow: a nutrition-giving
 // ingestible that is no drug and no corpse. Meals carry their
 // FoodPreferability tier (awful, simple, fine, lavish) and ingredients
 // (FoodUtility.GetFoodKind: meat-only, meat-free or either); raw foods are
@@ -1593,7 +1593,7 @@ const (
 	FoodKind_FOOD_KIND_FUNGUS         FoodKind = 9
 	FoodKind_FOOD_KIND_ANIMAL_PRODUCT FoodKind = 10
 	FoodKind_FOOD_KIND_OTHER          FoodKind = 11
-	// Animal feed (#1543): FoodTypeFlags.Kibble foods and hay (FoodTypeFlags.Plant).
+	// Animal feed: FoodTypeFlags.Kibble foods and hay (FoodTypeFlags.Plant).
 	FoodKind_FOOD_KIND_KIBBLE FoodKind = 12
 	FoodKind_FOOD_KIND_HAY    FoodKind = 13
 )
@@ -1713,7 +1713,7 @@ func (MealIngredients) EnumDescriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{27}
 }
 
-// A food policy holder outside the work census (#1543): a prisoner of the
+// A food policy holder outside the work census: a prisoner of the
 // colony or a tame animal on the colony map with a food policy. A prisoner
 // carries its diet inputs (trait defNames, its ideoligion's precept
 // defNames); the food an animal's race can ever eat is its catalog race row's.
@@ -2550,8 +2550,8 @@ func (x *ClearanceChunk) GetDestination() bool {
 
 // include_salvage asks for salvage evidence on the rows outside Home; a
 // caller that never reads salvage leaves it false and the native read skips
-// the salvage route and storage searches (#984).
-// planned_ground (#1365) widens the census on those cells only: player-faction
+// the salvage route and storage searches.
+// planned_ground widens the census on those cells only: player-faction
 // buildings touching them become targets (with encloses_room) and their
 // constructed floors are reported per cell. Empty keeps the non-player census.
 type ClearanceTargetsRequest struct {
@@ -2941,7 +2941,7 @@ func (x *ShrineGuard) GetDead() bool {
 }
 
 // ShrineOccupant is a humanlike the caskets released, or a corpse of one: any
-// non-player humanlike pawn or corpse inside the room (#460).
+// non-player humanlike pawn or corpse inside the room.
 type ShrineOccupant struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EntityId      *string                `protobuf:"bytes,1,opt,name=entity_id,json=entityId,proto3,oneof" json:"entity_id,omitempty"`
@@ -3794,7 +3794,7 @@ type JobEvidence struct {
 	// a job no work giver issued (a forced order, rest, a meal, wandering).
 	WorkTypeDefName *string `protobuf:"bytes,11,opt,name=work_type_def_name,json=workTypeDefName,proto3,oneof" json:"work_type_def_name,omitempty"`
 	// target_a_cell: a spawned thing target's cell when the job was read
-	// (#1342); target_a carries the thing's Ref.
+	// target_a carries the thing's Ref.
 	TargetACell   *commonpb.Cell `protobuf:"bytes,12,opt,name=target_a_cell,json=targetACell,proto3" json:"target_a_cell,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3926,7 +3926,7 @@ type PawnNeeds struct {
 	BreakThresholdMajor   *float64               `protobuf:"fixed64,8,opt,name=break_threshold_major,json=breakThresholdMajor,proto3,oneof" json:"break_threshold_major,omitempty"`
 	BreakThresholdExtreme *float64               `protobuf:"fixed64,9,opt,name=break_threshold_extreme,json=breakThresholdExtreme,proto3,oneof" json:"break_threshold_extreme,omitempty"`
 	Issues                []*ReadIssue           `protobuf:"bytes,10,rep,name=issues,proto3" json:"issues,omitempty"`
-	// Psyfocus (#1313): Pawn_PsychicEntropyTracker CurrentPsyfocus and
+	// Psyfocus: Pawn_PsychicEntropyTracker CurrentPsyfocus and
 	// TargetPsyfocus (0-1) and Pawn.GetPsylinkLevel(); all three are absent
 	// when Royalty is inactive or the pawn has no psylink.
 	Psyfocus       *float64 `protobuf:"fixed64,11,opt,name=psyfocus,proto3,oneof" json:"psyfocus,omitempty"`
@@ -4404,11 +4404,11 @@ type PawnHealth struct {
 	SurgeryBills                 []*SurgeryBill         `protobuf:"bytes,17,rep,name=surgery_bills,json=surgeryBills,proto3" json:"surgery_bills,omitempty"`
 	Issues                       []*ReadIssue           `protobuf:"bytes,18,rep,name=issues,proto3" json:"issues,omitempty"`
 	Snapshot                     *SnapshotRef           `protobuf:"bytes,19,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
-	// Surgery facts (#1161). Native computes every value through vanilla; Go
+	// Surgery facts. Native computes every value through vanilla; Go
 	// never recomputes them. Absent lists with a read issue are unknown.
 	MissingParts []*MissingBodyPart  `protobuf:"bytes,20,rep,name=missing_parts,json=missingParts,proto3" json:"missing_parts,omitempty"`
 	Operations   []*SurgeryOperation `protobuf:"bytes,21,rep,name=operations,proto3" json:"operations,omitempty"`
-	// Installed added parts (#1837): every Hediff_AddedPart on the pawn. A read
+	// Installed added parts: every Hediff_AddedPart on the pawn. A read
 	// failure is a read issue with field "installed_parts", never an empty list.
 	InstalledParts []*InstalledPart `protobuf:"bytes,22,rep,name=installed_parts,json=installedParts,proto3" json:"installed_parts,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -4762,26 +4762,26 @@ type SurgeryOperation struct {
 	IngredientsOnMap *bool                  `protobuf:"varint,7,opt,name=ingredients_on_map,json=ingredientsOnMap,proto3,oneof" json:"ingredients_on_map,omitempty"`
 	Violation        *bool                  `protobuf:"varint,8,opt,name=violation,proto3,oneof" json:"violation,omitempty"`
 	Lethal           *bool                  `protobuf:"varint,9,opt,name=lethal,proto3,oneof" json:"lethal,omitempty"`
-	// A harvest's yield (#1169), or an added part's on removal (#1232):
+	// A harvest's yield, or an added part's on removal:
 	// BaseMarketValue of the spawnThingOnRemoved; absent otherwise.
 	YieldMarketValue *float64 `protobuf:"fixed64,10,opt,name=yield_market_value,json=yieldMarketValue,proto3,oneof" json:"yield_market_value,omitempty"`
-	// Artificial part removal (#1232): the removed Hediff_AddedPart's def and
+	// Artificial part removal: the removed Hediff_AddedPart's def and
 	// the thing it spawns; absent unless the target part carries an added part.
 	AddedPartHediff *string `protobuf:"bytes,11,opt,name=added_part_hediff,json=addedPartHediff,proto3,oneof" json:"added_part_hediff,omitempty"`
 	YieldThingDef   *string `protobuf:"bytes,12,opt,name=yield_thing_def,json=yieldThingDef,proto3,oneof" json:"yield_thing_def,omitempty"`
 	// BaseMarketValue x count of the medicine the operation would use (the
 	// best permitted on the map); absent when it uses none or none is stocked.
 	MedicineMarketValue *float64 `protobuf:"fixed64,13,opt,name=medicine_market_value,json=medicineMarketValue,proto3,oneof" json:"medicine_market_value,omitempty"`
-	// The best eligible doctor's chance with an ideal bed and room (#1240):
+	// The best eligible doctor's chance with an ideal bed and room:
 	// success_chance with the bed factor replaced by a clean, roofed Bed's;
 	// absent exactly when success_chance is.
 	DoctorSuccessChance *float64 `protobuf:"fixed64,14,opt,name=doctor_success_chance,json=doctorSuccessChance,proto3,oneof" json:"doctor_success_chance,omitempty"`
 	// True when medicine the recipe accepts is on the map but the patient's
-	// medical care level forbids all of it (#1239); ingredients_on_map is
+	// medical care level forbids all of it; ingredients_on_map is
 	// then false.
 	MedicineCareLimited *bool `protobuf:"varint,15,opt,name=medicine_care_limited,json=medicineCareLimited,proto3,oneof" json:"medicine_care_limited,omitempty"`
 	// Each eligible doctor's chance on this operation, the same score as
-	// success_chance, keyed by pawn id (#1253); empty when success_chance is
+	// success_chance, keyed by pawn id; empty when success_chance is
 	// absent.
 	DoctorChances map[string]float64 `protobuf:"bytes,16,rep,name=doctor_chances,json=doctorChances,proto3" json:"doctor_chances,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
@@ -4946,7 +4946,7 @@ type GearItem struct {
 	InsulationHeat    *float64               `protobuf:"fixed64,18,opt,name=insulation_heat,json=insulationHeat,proto3,oneof" json:"insulation_heat,omitempty"`
 	BiocodedTo        *string                `protobuf:"bytes,20,opt,name=biocoded_to,json=biocodedTo,proto3,oneof" json:"biocoded_to,omitempty"` // Native pawn ID, only when the coded owner still exists.
 	Biocoded          *bool                  `protobuf:"varint,21,opt,name=biocoded,proto3,oneof" json:"biocoded,omitempty"`                      // True also when the coded owner reference was lost; absent on older producers.
-	// A loose candidate's supply CAS token (#1342).
+	// A loose candidate's supply CAS token.
 	ThingSnapshot *SnapshotRef `protobuf:"bytes,22,opt,name=thing_snapshot,json=thingSnapshot,proto3" json:"thing_snapshot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5097,7 +5097,7 @@ type PawnEquipment struct {
 	InventoryItemCount *uint32                `protobuf:"varint,6,opt,name=inventory_item_count,json=inventoryItemCount,proto3,oneof" json:"inventory_item_count,omitempty"`
 	Armed              *bool                  `protobuf:"varint,7,opt,name=armed,proto3,oneof" json:"armed,omitempty"`
 	Issues             []*ReadIssue           `protobuf:"bytes,8,rep,name=issues,proto3" json:"issues,omitempty"`
-	// Defense capacity (#1188): the primary ranged verb's damage per second
+	// Defense capacity: the primary ranged verb's damage per second
 	// (projectile damage x burst over aim-adjusted warmup, cooldown and burst
 	// gaps; 0 without a ranged primary) and the pawn's MeleeDPS stat.
 	RangedDps     *float64 `protobuf:"fixed64,9,opt,name=ranged_dps,json=rangedDps,proto3,oneof" json:"ranged_dps,omitempty"`
@@ -5815,7 +5815,7 @@ type PawnSettings struct {
 	WorkApplies          *bool                           `protobuf:"varint,15,opt,name=work_applies,json=workApplies,proto3,oneof" json:"work_applies,omitempty"`
 	ManualWorkPriorities *bool                           `protobuf:"varint,16,opt,name=manual_work_priorities,json=manualWorkPriorities,proto3,oneof" json:"manual_work_priorities,omitempty"`
 	FoodRestriction      *FoodRestriction                `protobuf:"bytes,17,opt,name=food_restriction,json=foodRestriction,proto3" json:"food_restriction,omitempty"`
-	// Per-pawn policy planner inputs (#1297), read with work detail.
+	// Per-pawn policy planner inputs, read with work detail.
 	PolicyInputs  *PawnPolicyInputs `protobuf:"bytes,20,opt,name=policy_inputs,json=policyInputs,proto3" json:"policy_inputs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5956,8 +5956,8 @@ func (x *PawnSettings) GetPolicyInputs() *PawnPolicyInputs {
 	return nil
 }
 
-// The inputs per-pawn outfit/drug/food/reading planners compose from
-// (#1297). Traits, mood and break thresholds (biography, needs) and animal
+// The inputs per-pawn outfit/drug/food/reading planners compose from.
+// Traits, mood and break thresholds (biography, needs) and animal
 // bonds (social relations, relation_def_name "Bond") are observed elsewhere.
 // Policy ids are Policy.GetUniqueLoadID(); absent when the pawn has no
 // tracker for that policy kind. A field the pawn has no source for (no
@@ -5992,9 +5992,9 @@ type PawnPolicyInputs struct {
 	PrisonerInteraction *string `protobuf:"bytes,15,opt,name=prisoner_interaction,json=prisonerInteraction,proto3,oneof" json:"prisoner_interaction,omitempty"`
 	SlaveInteraction    *string `protobuf:"bytes,16,opt,name=slave_interaction,json=slaveInteraction,proto3,oneof" json:"slave_interaction,omitempty"`
 	// StatDefOf.MedicalTendQuality of the pawn as a doctor, before vanilla's
-	// 0.7 self-tend factor (#1305); absent for a pawn that cannot doctor.
+	// 0.7 self-tend factor; absent for a pawn that cannot doctor.
 	MedicalTendQuality *float64 `protobuf:"fixed64,17,opt,name=medical_tend_quality,json=medicalTendQuality,proto3,oneof" json:"medical_tend_quality,omitempty"`
-	// Pawn_IdeoTracker.Certainty (0..1) in the pawn's ideoligion (#1654);
+	// Pawn_IdeoTracker.Certainty (0..1) in the pawn's ideoligion;
 	// absent without an ideoligion.
 	IdeoCertainty *float64 `protobuf:"fixed64,18,opt,name=ideo_certainty,json=ideoCertainty,proto3,oneof" json:"ideo_certainty,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -6461,16 +6461,16 @@ type AnimalState struct {
 	FollowFieldwork      *bool   `protobuf:"varint,24,opt,name=follow_fieldwork,json=followFieldwork,proto3,oneof" json:"follow_fieldwork,omitempty"`
 	Obedient             *bool   `protobuf:"varint,25,opt,name=obedient,proto3,oneof" json:"obedient,omitempty"`
 	SupportsAllowedAreas *bool   `protobuf:"varint,26,opt,name=supports_allowed_areas,json=supportsAllowedAreas,proto3,oneof" json:"supports_allowed_areas,omitempty"`
-	// Herd sizing facts (#875): any hediff that makes colonists feel sick, the
+	// Herd sizing facts: any hediff that makes colonists feel sick, the
 	// player ideo venerates this race (slaughter_barred is no longer written;
-	// precept effects decide, #1644), and adult age stage. The race's own
+	// precept effects decide), and adult age stage. The race's own
 	// numbers (body size, life expectancy, minimum handling skill, tame-failure
-	// manhunter chance) are the catalog's race rows (#1722).
+	// manhunter chance) are the catalog's race rows.
 	Sick            *bool `protobuf:"varint,28,opt,name=sick,proto3,oneof" json:"sick,omitempty"`
 	SlaughterBarred *bool `protobuf:"varint,29,opt,name=slaughter_barred,json=slaughterBarred,proto3,oneof" json:"slaughter_barred,omitempty"`
 	Venerated       *bool `protobuf:"varint,30,opt,name=venerated,proto3,oneof" json:"venerated,omitempty"`
 	Adult           *bool `protobuf:"varint,32,opt,name=adult,proto3,oneof" json:"adult,omitempty"`
-	// Medical care cap inputs (#1301), for a player animal: its
+	// Medical care cap inputs, for a player animal: its
 	// MedicalCareCategory name, a Bond relation to any living pawn, and the
 	// same conditions block PopulationPerson.conditions carries.
 	MedicalCare *operationspb.MedicalCare `protobuf:"varint,33,opt,name=medical_care,json=medicalCare,proto3,enum=rimgovernor.operations.v1.MedicalCare,oneof" json:"medical_care,omitempty"`
@@ -6489,7 +6489,7 @@ type AnimalState struct {
 	InMentalState         *bool `protobuf:"varint,40,opt,name=in_mental_state,json=inMentalState,proto3,oneof" json:"in_mental_state,omitempty"`
 	ColonistBonded        *bool `protobuf:"varint,41,opt,name=colonist_bonded,json=colonistBonded,proto3,oneof" json:"colonist_bonded,omitempty"`
 	SlaughterDesignatable *bool `protobuf:"varint,42,opt,name=slaughter_designatable,json=slaughterDesignatable,proto3,oneof" json:"slaughter_designatable,omitempty"`
-	// Herd growth events (#2379): game ticks until a pregnant animal gives birth
+	// Herd growth events: game ticks until a pregnant animal gives birth
 	// ((1 - gestation) * gestationPeriodDays * 60000 / BodyResourceGrowthSpeed),
 	// absent without a pregnancy; the index of the current life stage in the
 	// race's lifeStageAges (Pawn_AgeTracker.CurLifeStageIndex) and game ticks until
@@ -6849,7 +6849,7 @@ type PawnState struct {
 	NearestColonist         *commonpb.Ref          `protobuf:"bytes,31,opt,name=nearest_colonist,json=nearestColonist,proto3" json:"nearest_colonist,omitempty"`
 	NearestColonistDistance *float64               `protobuf:"fixed64,32,opt,name=nearest_colonist_distance,json=nearestColonistDistance,proto3,oneof" json:"nearest_colonist_distance,omitempty"`
 	Issues                  []*ReadIssue           `protobuf:"bytes,33,rep,name=issues,proto3" json:"issues,omitempty"`
-	// Native draft claims were removed (#939): drafts are plan-owned.
+	// Native draft claims were removed: drafts are plan-owned.
 	OwnedBed *commonpb.Ref `protobuf:"bytes,35,opt,name=owned_bed,json=ownedBed,proto3" json:"owned_bed,omitempty"`
 	Snapshot *SnapshotRef  `protobuf:"bytes,36,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	// Native lord evidence for hostile groups: the LordJob and current LordToil
@@ -6865,27 +6865,27 @@ type PawnState struct {
 	// Equipment detail only; absent when there are no live, standing hostiles.
 	RaidArmor *float64 `protobuf:"fixed64,41,opt,name=raid_armor,json=raidArmor,proto3,oneof" json:"raid_armor,omitempty"`
 	// Doctor-side tend gates, mirroring NativeTendOperations.Prepare so the
-	// controller never proposes a pair the native gate refuses (#657). Present
+	// controller never proposes a pair the native gate refuses. Present
 	// only when PawnDetails.tend is requested.
 	TendDoctor *PawnTendDoctor `protobuf:"bytes,42,opt,name=tend_doctor,json=tendDoctor,proto3" json:"tend_doctor,omitempty"`
 	// Verse.IntVec3.Fogged: the pawn stands in fog the colony has not
 	// discovered. A fogged hostile is undiscovered, unreachable and no
 	// emergency -- the ancient-danger mechanoid behind a sealed wall held
-	// every window and deselected every development goal for good (#659).
+	// every window and deselected every development goal for good.
 	Fogged *bool `protobuf:"varint,43,opt,name=fogged,proto3,oneof" json:"fogged,omitempty"`
-	// Current InspirationDef defName (#1187): empty when the pawn has no
+	// Current InspirationDef defName: empty when the pawn has no
 	// inspiration; absent from producers that do not read it (unknown).
 	Inspiration *string `protobuf:"bytes,44,opt,name=inspiration,proto3,oneof" json:"inspiration,omitempty"`
-	// The pawn control CAS token, on reads that admit a pawn order (#1342).
+	// The pawn control CAS token, on reads that admit a pawn order.
 	PawnSnapshot *SnapshotRef `protobuf:"bytes,45,opt,name=pawn_snapshot,json=pawnSnapshot,proto3" json:"pawn_snapshot,omitempty"`
-	// Biotech pawn facts (#1678); absent without Biotech, so absent is not
+	// Biotech pawn facts; absent without Biotech, so absent is not
 	// applicable, never a gene-less pawn.
 	Biotech *PawnBiotech `protobuf:"bytes,46,opt,name=biotech,proto3" json:"biotech,omitempty"`
-	// Anomaly facts (#1737); absent without Anomaly.
+	// Anomaly facts; absent without Anomaly.
 	Anomaly *PawnAnomaly `protobuf:"bytes,47,opt,name=anomaly,proto3" json:"anomaly,omitempty"`
-	// Royalty facts of a free colonist (#1876); absent without Royalty or on a pawn with no royalty tracker. A failed read is a ReadIssue named "royalty".
+	// Royalty facts of a free colonist; absent without Royalty or on a pawn with no royalty tracker. A failed read is a ReadIssue named "royalty".
 	Royalty *PawnRoyalty `protobuf:"bytes,48,opt,name=royalty,proto3" json:"royalty,omitempty"`
-	// Standing of a spawned humanlike pawn among the factions (#2383), colonist
+	// Standing of a spawned humanlike pawn among the factions, colonist
 	// or not; absent for animals and mechanoids.
 	Standing *PawnStanding `protobuf:"bytes,49,opt,name=standing,proto3" json:"standing,omitempty"`
 	// Alive, standing colony builder with native finishing work-type and required
@@ -7254,7 +7254,7 @@ func (x *PawnState) GetConstructionCapable() bool {
 	return false
 }
 
-// Faction standing of one humanlike pawn (#2383). faction_def_name is the
+// Faction standing of one humanlike pawn. faction_def_name is the
 // pawn's FactionDef (absent without a faction); royal_title the defName of its
 // most senior royal title (absent without Royalty or a title); host_faction
 // the faction holding it as guest, prisoner or slave (absent when none);
@@ -7336,7 +7336,7 @@ func (x *PawnStanding) GetQuestLodger() bool {
 	return false
 }
 
-// Biotech facts of one pawn (#1678). Each scalar is absent when native could
+// Biotech facts of one pawn. Each scalar is absent when native could
 // not read it (unknown, not zero); a failed sub-read adds a ReadIssue named
 // for its field (genes, mechanitor, mech, deathrest). Defs are the
 // DefinitionCatalog.biotech rows' names.
@@ -7679,7 +7679,7 @@ type PawnBiotech struct {
 	Mech               *PawnMech              `protobuf:"bytes,10,opt,name=mech,proto3" json:"mech,omitempty"`
 	Deathrest          *PawnDeathrest         `protobuf:"bytes,11,opt,name=deathrest,proto3" json:"deathrest,omitempty"`
 	Issues             []*ReadIssue           `protobuf:"bytes,12,rep,name=issues,proto3" json:"issues,omitempty"`
-	// Gene lifecycle (#1931). xenogerm_regrow_ticks_left and xenogerm_coma_ticks_left are
+	// Gene lifecycle. xenogerm_regrow_ticks_left and xenogerm_coma_ticks_left are
 	// HediffComp_Disappears.ticksToDisappear of XenogermReplicating and
 	// XenogerminationComa, 0 with no such hediff; in_extractor is a pawn held by a
 	// Building_GeneExtractor (all three failed together: ReadIssue gene_lifecycle).
@@ -8238,10 +8238,10 @@ type PawnSnapshot struct {
 	Context      *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	Pawns        []*PawnState                 `protobuf:"bytes,2,rep,name=pawns,proto3" json:"pawns,omitempty"`
 	Completeness *Completeness                `protobuf:"bytes,3,opt,name=completeness,proto3" json:"completeness,omitempty"`
-	// Colony fact (#1313): the Meditate TimeAssignmentDef exists
+	// Colony fact: the Meditate TimeAssignmentDef exists
 	// (DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate")); false on Core only.
 	MeditateAssignmentAvailable *bool `protobuf:"varint,5,opt,name=meditate_assignment_available,json=meditateAssignmentAvailable,proto3,oneof" json:"meditate_assignment_available,omitempty"`
-	// Row ids removed since the base table, in a delta section (SectionWatermark.delta, #1348).
+	// Row ids removed since the base table, in a delta section (SectionWatermark.delta).
 	Removed       []string `protobuf:"bytes,6,rep,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -8470,12 +8470,12 @@ func (*ListPawnsReply_Unavailable) isListPawnsReply_Outcome() {}
 
 func (*ListPawnsReply_Failure) isListPawnsReply_Outcome() {}
 
-// One stack a stock row counts (#1342): the thing, the cell its units are
+// One stack a stock row counts: the thing, the cell its units are
 // at (its holder's when held), its supply CAS token when it is allowable,
 // and for a packed (minified) item the building inside it, for a
 // RelocateIntent install, with that building's quality (QualityCategory
 // ordinal, 0 Awful .. 6 Legendary; absent without one) and the packed
-// item's market value (#1194).
+// item's market value.
 type StockItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Item          *commonpb.Ref          `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
@@ -9491,7 +9491,7 @@ type BillState struct {
 	Blockers           []string                 `protobuf:"bytes,21,rep,name=blockers,proto3" json:"blockers,omitempty"`
 	Ingredients        []*IngredientRequirement `protobuf:"bytes,22,rep,name=ingredients,proto3" json:"ingredients,omitempty"`
 	Issues             []*ReadIssue             `protobuf:"bytes,23,rep,name=issues,proto3" json:"issues,omitempty"`
-	// Live bill jobs' promised ingredients (#1354): one row per spawned pawn
+	// Live bill jobs' promised ingredients: one row per spawned pawn
 	// whose current job works this bill, the spawned things it has queued or
 	// placed. Go's material budget subtracts them from free stock.
 	Reservations  []*IngredientReservation `protobuf:"bytes,27,rep,name=reservations,proto3" json:"reservations,omitempty"`
@@ -9847,7 +9847,7 @@ func (x *BillStack) GetBills() []*BillState {
 	return nil
 }
 
-// What a recipe is, costs and needs is its RecipeDef row in the definition catalog (#1721); a frame carries only whether the bench offers it now.
+// What a recipe is, costs and needs is its RecipeDef row in the definition catalog; a frame carries only whether the bench offers it now.
 type RecipeState struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Recipe           *DefinitionRef         `protobuf:"bytes,1,opt,name=recipe,proto3" json:"recipe,omitempty"`
@@ -9928,7 +9928,7 @@ type BuildingSettings struct {
 	Issues               []*ReadIssue           `protobuf:"bytes,17,rep,name=issues,proto3" json:"issues,omitempty"`
 	// crop_def_name is a plant grower's current crop beside its own CAS snapshot (BuildingPatchIntent.plant_def).
 	CropDefName *string `protobuf:"bytes,18,opt,name=crop_def_name,json=cropDefName,proto3,oneof" json:"crop_def_name,omitempty"`
-	// player_owned is a claimable building's faction reading beside its own CAS snapshot (BuildingPatchIntent.claim, #459).
+	// player_owned is a claimable building's faction reading beside its own CAS snapshot (BuildingPatchIntent.claim).
 	PlayerOwned   *bool `protobuf:"varint,19,opt,name=player_owned,json=playerOwned,proto3,oneof" json:"player_owned,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -10522,9 +10522,9 @@ func (x *BuildingServiceState) GetIssues() []*ReadIssue {
 	return nil
 }
 
-// BuildingState is the canonical building row (#1343), built by one native
+// BuildingState is the canonical building row, built by one native
 // builder: only the bundle's building table and the list read carry it;
-// every other message points at a building by Ref (#1342), which the
+// every other message points at a building by Ref, which the
 // reader resolves against the table. service and settings.forbidden are set on
 // every row.
 type BuildingState struct {
@@ -10548,11 +10548,11 @@ type BuildingState struct {
 	UsesHitPoints    *bool                  `protobuf:"varint,18,opt,name=uses_hit_points,json=usesHitPoints,proto3,oneof" json:"uses_hit_points,omitempty"`
 	Issues           []*ReadIssue           `protobuf:"bytes,19,rep,name=issues,proto3" json:"issues,omitempty"`
 	Snapshot         *SnapshotRef           `protobuf:"bytes,20,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
-	// The building's occupied rect, inclusive (#1346).
+	// The building's occupied rect, inclusive.
 	Occupied *Rectangle `protobuf:"bytes,22,opt,name=occupied,proto3" json:"occupied,omitempty"`
-	// Odyssey hack and portal facts (#1708); absent on a building with neither.
+	// Odyssey hack and portal facts; absent on a building with neither.
 	Odyssey *OdysseyBuilding `protobuf:"bytes,23,opt,name=odyssey,proto3" json:"odyssey,omitempty"`
-	// Anomaly containment and study facts (#1737); absent without Anomaly or on
+	// Anomaly containment and study facts; absent without Anomaly or on
 	// a building with neither.
 	Anomaly       *AnomalyBuilding `protobuf:"bytes,24,opt,name=anomaly,proto3" json:"anomaly,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -10905,7 +10905,7 @@ type BuildingsSnapshot struct {
 	Buildings     []*BuildingState             `protobuf:"bytes,2,rep,name=buildings,proto3" json:"buildings,omitempty"`
 	PowerNetworks []*PowerNetwork              `protobuf:"bytes,3,rep,name=power_networks,json=powerNetworks,proto3" json:"power_networks,omitempty"`
 	Completeness  *Completeness                `protobuf:"bytes,4,opt,name=completeness,proto3" json:"completeness,omitempty"`
-	// Row ids removed since the base table, in a delta section (SectionWatermark.delta, #1348).
+	// Row ids removed since the base table, in a delta section (SectionWatermark.delta).
 	Removed       []string `protobuf:"bytes,10,rep,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -11412,7 +11412,7 @@ type RoomState struct {
 	BedMemberships          []*RoomBedMembership   `protobuf:"bytes,25,rep,name=bed_memberships,json=bedMemberships,proto3" json:"bed_memberships,omitempty"`
 	StockpileMemberships    []*StockpileMembership `protobuf:"bytes,26,rep,name=stockpile_memberships,json=stockpileMemberships,proto3" json:"stockpile_memberships,omitempty"`
 	Doors                   []*RoomDoor            `protobuf:"bytes,27,rep,name=doors,proto3" json:"doors,omitempty"` // Doors in the room's boundary: door cell, the cell it opens onto, and whether that side is outdoors.
-	// The room's key in the whole-map cell grid (CellGrid.room, #1346): the
+	// The room's key in the whole-map cell grid (CellGrid.room): the
 	// row-major map index of its first unfogged cell; its cells are the grid
 	// cells carrying it. Absent when every cell is fogged.
 	GridRoom           *string `protobuf:"bytes,29,opt,name=grid_room,json=gridRoom,proto3,oneof" json:"grid_room,omitempty"`
@@ -12381,7 +12381,7 @@ func (*ListZonesReply_Unavailable) isListZonesReply_Outcome() {}
 
 func (*ListZonesReply_Failure) isListZonesReply_Outcome() {}
 
-// A thing's canonical row (#1343), from one native builder: the cells
+// A thing's canonical row, from one native builder: the cells
 // read's things and the bundle's things table. thing.snapshot is the
 // thing's own CAS token. The food facts (15-23) are set for an ingestible
 // item or a corpse: rot_ticks at the current ambient temperature (present
@@ -12390,8 +12390,7 @@ func (*ListZonesReply_Failure) isListZonesReply_Outcome() {}
 // thing or any ingredient it was made from (CompIngredients) is humanlike meat;
 // a corpse adds forbidden, its meat yield (meat_amount), body size and a
 // one-cell footprint. What the def alone says (class, vegetable, raw meat and
-// raw ingredient class, a corpse's humanlike race) is the definition catalog's
-// (#1733).
+// raw ingredient class, a corpse's humanlike race) is the definition catalog's.
 type Thing struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Thing          *EntityRef             `protobuf:"bytes,1,opt,name=thing,proto3" json:"thing,omitempty"`
@@ -12415,7 +12414,7 @@ type Thing struct {
 	BodySize       *float64               `protobuf:"fixed64,21,opt,name=body_size,json=bodySize,proto3,oneof" json:"body_size,omitempty"`
 	TileFootprint  *int64                 `protobuf:"varint,22,opt,name=tile_footprint,json=tileFootprint,proto3,oneof" json:"tile_footprint,omitempty"`
 	IsHumanMeat    *bool                  `protobuf:"varint,23,opt,name=is_human_meat,json=isHumanMeat,proto3,oneof" json:"is_human_meat,omitempty"`
-	// The thing's own CAS token (#1342).
+	// The thing's own CAS token.
 	Snapshot      *SnapshotRef `protobuf:"bytes,28,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -12609,7 +12608,7 @@ type ThingsSnapshot struct {
 	state   protoimpl.MessageState       `protogen:"open.v1"`
 	Context *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	Things  []*Thing                     `protobuf:"bytes,2,rep,name=things,proto3" json:"things,omitempty"`
-	// Row ids removed since the base table, in a delta section (SectionWatermark.delta, #1348).
+	// Row ids removed since the base table, in a delta section (SectionWatermark.delta).
 	Removed       []string `protobuf:"bytes,3,rep,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -12666,12 +12665,12 @@ func (x *ThingsSnapshot) GetRemoved() []string {
 	return nil
 }
 
-// One observations_get_cells read (#1346): the map's dimensions and the
+// One observations_get_cells read: the map's dimensions and the
 // requested rectangle as a CellGrid keyframe (mirror.proto's arrays and
 // sentinels: a fogged cell is not held; glow is artificial light only).
 // room keys a native room by the whole-map row-major index of its first
 // held cell inside the read. Things, terrain and foundation affordances ride
-// the grid's thing list and tile columns (#2260, #2261, #2272).
+// the grid's thing list and tile columns.
 type CellsSnapshot struct {
 	state         protoimpl.MessageState       `protogen:"open.v1"`
 	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
@@ -13529,7 +13528,7 @@ func (x *ResearchSnapshot) GetFinished() []string {
 	return nil
 }
 
-// progress_only (#1340) lists only the current projects, with their lock
+// progress_only lists only the current projects, with their lock
 // reasons, and the started unfinished ones, each without the static fields
 // the definition catalog carries (costs, prerequisites, tab, tech level,
 // required bench); the other filters are ignored.
@@ -13800,7 +13799,7 @@ type PawnAccess struct {
 	ProjectedOrigin *commonpb.Cell         `protobuf:"bytes,7,opt,name=projected_origin,json=projectedOrigin,proto3" json:"projected_origin,omitempty"`
 	EgressSteps     *uint32                `protobuf:"varint,8,opt,name=egress_steps,json=egressSteps,proto3,oneof" json:"egress_steps,omitempty"`
 	LosesAccess     *bool                  `protobuf:"varint,10,opt,name=loses_access,json=losesAccess,proto3,oneof" json:"loses_access,omitempty"`
-	// The pawn's cell when the access was read (#1342).
+	// The pawn's cell when the access was read.
 	Position      *commonpb.Cell `protobuf:"bytes,11,opt,name=position,proto3" json:"position,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -14152,11 +14151,11 @@ type DefenseCell struct {
 	CoverDefName    *string    `protobuf:"bytes,16,opt,name=cover_def_name,json=coverDefName,proto3,oneof" json:"cover_def_name,omitempty"`
 	CoverKind       *CoverKind `protobuf:"varint,17,opt,name=cover_kind,json=coverKind,proto3,enum=rimgovernor.observations.v1.CoverKind,oneof" json:"cover_kind,omitempty"`
 	CoverDesignated *bool      `protobuf:"varint,19,opt,name=cover_designated,json=coverDesignated,proto3,oneof" json:"cover_designated,omitempty"`
-	// The cell's foundation (a Bridge) is designated for removal (#954).
+	// The cell's foundation (a Bridge) is designated for removal.
 	FoundationRemovalDesignated *bool `protobuf:"varint,20,opt,name=foundation_removal_designated,json=foundationRemovalDesignated,proto3,oneof" json:"foundation_removal_designated,omitempty"`
-	// The edifice's stuff def (WoodLog, Plasteel), absent for a stuffless one (#1065).
+	// The edifice's stuff def (WoodLog, Plasteel), absent for a stuffless one.
 	EdificeStuffDefName *string `protobuf:"bytes,21,opt,name=edifice_stuff_def_name,json=edificeStuffDefName,proto3,oneof" json:"edifice_stuff_def_name,omitempty"`
-	// The cell is under any roof (#1122: a burn-out's seal holds its heat).
+	// The cell is under any roof (a burn-out's seal holds its heat).
 	Roofed        *bool `protobuf:"varint,22,opt,name=roofed,proto3,oneof" json:"roofed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -15672,7 +15671,7 @@ type WallUpgradeSite struct {
 	RightSupport     *commonpb.Ref          `protobuf:"bytes,24,opt,name=right_support,json=rightSupport,proto3" json:"right_support,omitempty"`
 	CompletedBackups []*commonpb.Ref        `protobuf:"bytes,25,rep,name=completed_backups,json=completedBackups,proto3" json:"completed_backups,omitempty"`
 	Replacement      *commonpb.Ref          `protobuf:"bytes,26,opt,name=replacement,proto3" json:"replacement,omitempty"`
-	// The target's CAS token for the upgrade's guarded operations (#1342).
+	// The target's CAS token for the upgrade's guarded operations.
 	TargetSnapshot       *SnapshotRef         `protobuf:"bytes,27,opt,name=target_snapshot,json=targetSnapshot,proto3" json:"target_snapshot,omitempty"`
 	ReplacementMaterials []*StuffOption       `protobuf:"bytes,19,rep,name=replacement_materials,json=replacementMaterials,proto3" json:"replacement_materials,omitempty"`
 	Geometry             *CellsSnapshot       `protobuf:"bytes,20,opt,name=geometry,proto3" json:"geometry,omitempty"`
@@ -16076,9 +16075,9 @@ type ResourceSource struct {
 	PendingYield   *int64                 `protobuf:"varint,12,opt,name=pending_yield,json=pendingYield,proto3,oneof" json:"pending_yield,omitempty"`
 	DesignatedTick *int64                 `protobuf:"varint,13,opt,name=designated_tick,json=designatedTick,proto3,oneof" json:"designated_tick,omitempty"`
 	Taken          *bool                  `protobuf:"varint,14,opt,name=taken,proto3,oneof" json:"taken,omitempty"`
-	// buried: a supported mine deposit no colonist can reach (usually fogged); a corridor excavation must reach it first (#1072).
+	// buried: a supported mine deposit no colonist can reach (usually fogged); a corridor excavation must reach it first.
 	Buried *bool `protobuf:"varint,15,opt,name=buried,proto3,oneof" json:"buried,omitempty"`
-	// A mine source's CAS token and cell (#1342): rocks are in no frame's things table.
+	// A mine source's CAS token and cell: rocks are in no frame's things table.
 	SourceSnapshot *SnapshotRef   `protobuf:"bytes,16,opt,name=source_snapshot,json=sourceSnapshot,proto3" json:"source_snapshot,omitempty"`
 	Cell           *commonpb.Cell `protobuf:"bytes,17,opt,name=cell,proto3" json:"cell,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -16952,7 +16951,7 @@ func (*ResourceSourcesReply_Unavailable) isResourceSourcesReply_Outcome() {}
 
 func (*ResourceSourcesReply_Failure) isResourceSourcesReply_Outcome() {}
 
-// Realized consumption (#2441). Native keeps a saved hourly ring (2500-tick
+// Realized consumption. Native keeps a saved hourly ring (2500-tick
 // hours, 60 days) of what colony stock was spent, per (definition, reason). A
 // read names the last hour Go already holds; the reply carries every
 // completed hour after it (since_hour absent or negative: the whole window),
@@ -17633,7 +17632,7 @@ type WasteItem struct {
 	// A corpse's inner pawn; unset for non-corpses.
 	CorpseClass *commonpb.CorpseClass `protobuf:"varint,11,opt,name=corpse_class,json=corpseClass,proto3,enum=rimgovernor.common.v1.CorpseClass,oneof" json:"corpse_class,omitempty"`
 	// A corpse's vanilla everBuriedInSarcophagus: set once it has lain in a
-	// sarcophagus, after which a re-burial fires no memory (#2342).
+	// sarcophagus, after which a re-burial fires no memory.
 	EverBuriedInSarcophagus *bool `protobuf:"varint,12,opt,name=ever_buried_in_sarcophagus,json=everBuriedInSarcophagus,proto3,oneof" json:"ever_buried_in_sarcophagus,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
@@ -18166,7 +18165,7 @@ func (*RecoveryReply_Unavailable) isRecoveryReply_Outcome() {}
 
 func (*RecoveryReply_Failure) isRecoveryReply_Outcome() {}
 
-// pawn refers to the bundle pawn table row (#1343); its snapshot is the
+// pawn refers to the bundle pawn table row; its snapshot is the
 // prisoner custody and interaction settings token.
 type PopulationPerson struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
@@ -18181,7 +18180,7 @@ type PopulationPerson struct {
 	NutritionPerDay *float64               `protobuf:"fixed64,8,opt,name=nutrition_per_day,json=nutritionPerDay,proto3,oneof" json:"nutrition_per_day,omitempty"`
 	PrisonerTicks   *int64                 `protobuf:"varint,9,opt,name=prisoner_ticks,json=prisonerTicks,proto3,oneof" json:"prisoner_ticks,omitempty"`
 	// Prisoner prospect facts MaintainPopulation judges a prisoner's use by
-	// (#1036): Pawn_GuestTracker.will (Ideology), the pawn's ideoligion load
+	// Pawn_GuestTracker.will (Ideology), the pawn's ideoligion load
 	// id, Verse.WildManUtility.IsWildMan, and, for prisoners and free
 	// colonists, the skill/trait/age biography and SummaryHealthPercent.
 	Will          *float64       `protobuf:"fixed64,10,opt,name=will,proto3,oneof" json:"will,omitempty"`
@@ -18189,12 +18188,12 @@ type PopulationPerson struct {
 	WildMan       *bool          `protobuf:"varint,12,opt,name=wild_man,json=wildMan,proto3,oneof" json:"wild_man,omitempty"`
 	Biography     *PawnBiography `protobuf:"bytes,13,opt,name=biography,proto3" json:"biography,omitempty"`
 	HealthSummary *float64       `protobuf:"fixed64,14,opt,name=health_summary,json=healthSummary,proto3,oneof" json:"health_summary,omitempty"`
-	// After combat (#1079), for a hostile: a LuciferiumAddiction hediff (not
+	// After combat, for a hostile: a LuciferiumAddiction hediff (not
 	// worth capturing: stripped and finished instead) and any worn apparel
 	// (every downed raider is stripped before it is captured).
 	LuciferiumAddicted *bool `protobuf:"varint,15,opt,name=luciferium_addicted,json=luciferiumAddicted,proto3,oneof" json:"luciferium_addicted,omitempty"`
 	WearingApparel     *bool `protobuf:"varint,16,opt,name=wearing_apparel,json=wearingApparel,proto3,oneof" json:"wearing_apparel,omitempty"`
-	// Organ harvest facts (#1169), for a prisoner of the colony only: its
+	// Organ harvest facts, for a prisoner of the colony only: its
 	// surgery facts (missing_parts, operations and surgery_bills filled as on
 	// the pawn care read, other PawnHealth fields absent), its faction's load
 	// id, and the goodwill change vanilla's Recipe_RemoveBodyPart violation
@@ -18203,18 +18202,18 @@ type PopulationPerson struct {
 	Surgery               *PawnHealth   `protobuf:"bytes,17,opt,name=surgery,proto3" json:"surgery,omitempty"`
 	Faction               *commonpb.Ref `protobuf:"bytes,18,opt,name=faction,proto3" json:"faction,omitempty"`
 	HarvestGoodwillChange *int32        `protobuf:"varint,19,opt,name=harvest_goodwill_change,json=harvestGoodwillChange,proto3,oneof" json:"harvest_goodwill_change,omitempty"`
-	// The MedicalCareCategory name (#1239), for a colony prisoner or a guest
-	// of the colony (#1301).
+	// The MedicalCareCategory name, for a colony prisoner or a guest
+	// of the colony.
 	MedicalCare *operationspb.MedicalCare `protobuf:"varint,20,opt,name=medical_care,json=medicalCare,proto3,enum=rimgovernor.operations.v1.MedicalCare,oneof" json:"medical_care,omitempty"`
-	// Peg-leg control (#1236), for a prisoner of the colony only: it carries a
+	// Peg-leg control, for a prisoner of the colony only: it carries a
 	// drug addiction (Hediff_Addiction). A prisoner gets no drugs, so an
 	// addiction is withdrawal now or soon, until the addiction clears.
 	Withdrawal *bool `protobuf:"varint,21,opt,name=withdrawal,proto3,oneof" json:"withdrawal,omitempty"`
-	// Medical care cap inputs (#1301), for a colony prisoner or guest: life
+	// Medical care cap inputs, for a colony prisoner or guest: life
 	// threat, every hediff (definition, severity, immunity and their rates)
 	// and the completeness; other PawnHealth fields absent.
 	Conditions *PawnHealth `protobuf:"bytes,22,opt,name=conditions,proto3" json:"conditions,omitempty"`
-	// Policy inputs (#1554), for a prisoner of the colony only: its current
+	// Policy inputs, for a prisoner of the colony only: its current
 	// drug policy id and chemical state, as on the work census settings row.
 	PolicyInputs      *PawnPolicyInputs `protobuf:"bytes,26,opt,name=policy_inputs,json=policyInputs,proto3" json:"policy_inputs,omitempty"`
 	WillJoinIfRescued *bool             `protobuf:"varint,27,opt,name=will_join_if_rescued,json=willJoinIfRescued,proto3,oneof" json:"will_join_if_rescued,omitempty"`
@@ -18438,7 +18437,7 @@ type PopulationSnapshot struct {
 	IdeologyActive  *bool   `protobuf:"varint,5,opt,name=ideology_active,json=ideologyActive,proto3,oneof" json:"ideology_active,omitempty"`
 	ClassicIdeoMode *bool   `protobuf:"varint,6,opt,name=classic_ideo_mode,json=classicIdeoMode,proto3,oneof" json:"classic_ideo_mode,omitempty"`
 	ColonyIdeoId    *string `protobuf:"bytes,7,opt,name=colony_ideo_id,json=colonyIdeoId,proto3,oneof" json:"colony_ideo_id,omitempty"`
-	// Storyteller population outlook (#1031): StorytellerUtilityPopulation intent and
+	// Storyteller population outlook: StorytellerUtilityPopulation intent and
 	// adjusted population, and the capture odds that intent sets for a non-colony
 	// humanlike downed by violence (death chance) and for a new prisoner (unrecruitable).
 	PopulationIntent    *float64 `protobuf:"fixed64,9,opt,name=population_intent,json=populationIntent,proto3,oneof" json:"population_intent,omitempty"`
@@ -18446,7 +18445,7 @@ type PopulationSnapshot struct {
 	DeathOnDownedChance *float64 `protobuf:"fixed64,11,opt,name=death_on_downed_chance,json=deathOnDownedChance,proto3,oneof" json:"death_on_downed_chance,omitempty"`
 	UnrecruitableChance *float64 `protobuf:"fixed64,12,opt,name=unrecruitable_chance,json=unrecruitableChance,proto3,oneof" json:"unrecruitable_chance,omitempty"`
 	// (Organ-use precepts ride the ideology section.)
-	// Owned-pawn names (#1310): every living named pawn the colony owns --
+	// Owned-pawn names: every living named pawn the colony owns --
 	// player-faction colonists, slaves and animals, and colony prisoners --
 	// on any map, caravan or transporter; unnamed animals are absent.
 	OwnedNames    []*OwnedName `protobuf:"bytes,14,rep,name=owned_names,json=ownedNames,proto3" json:"owned_names,omitempty"`
@@ -25057,7 +25056,7 @@ func (x *TradeLine) GetExtraHostFaction() *commonpb.Ref {
 	return nil
 }
 
-// TradeSession is the adapter's one live trade (#856): the negotiator
+// TradeSession is the adapter's one live trade: the negotiator
 // walking to trader_id to open a session (open false), or the pair holding
 // the open session (open true). Both ids are absent when neither exists.
 type TradeSession struct {
@@ -26424,7 +26423,7 @@ func (x *FoodConsumer) GetHumanMeatAcceptable() bool {
 }
 
 // A food stock references its thing's row in the bundle's things table
-// (#1343) and adds what is relative to its eaters: holder when only
+// and adds what is relative to its eaters: holder when only
 // that pawn eats it, the nutrition the stack gives them and who can eat it
 // (the row's forbidden flag is the stack's; Go decides which forbidden food
 // is the travel reserve).
@@ -28131,7 +28130,7 @@ func (x *RoyalTitleFacts) GetBedroomThings() []*BedroomThingRequirement {
 	return nil
 }
 
-// permit_cooldowns (#1607): one row per held permit.
+// permit_cooldowns: one row per held permit.
 // last_used_tick is FactionPermit.LastUsedTick (absent when never used) and
 // cooldown_remaining_ticks the ticks until it can be used again (0 when ready),
 // both read at the read's tick.
@@ -28447,7 +28446,7 @@ func (x *NeuroformerStock) GetTradeable() bool {
 	return false
 }
 
-// PawnState.royalty (#1876): the pawn is the row's.
+// PawnState.royalty: the pawn is the row's.
 type PawnRoyalty struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Holdings      []*PawnRoyalHolding    `protobuf:"bytes,2,rep,name=holdings,proto3" json:"holdings,omitempty"`
@@ -28524,7 +28523,7 @@ func (x *PawnRoyalty) GetEntropyMax() float64 {
 	return 0
 }
 
-// Pending bestowing ceremonies (#1602): one per colonist holding an ongoing or
+// Pending bestowing ceremonies: one per colonist holding an ongoing or
 // offered bestowing-ceremony quest (RoyalTitleUtility.GetCurrentBestowingCeremonyQuest).
 // quest is the quest load id the quest census lists. pawn is the colonist to be bestowed, bestower the Empire pawn, title the def
 // the ceremony awards (GetTitleAwardedWhenUpdating), accepted whether the
@@ -28649,7 +28648,7 @@ func (x *BestowingCeremony) GetAttendees() []*commonpb.Ref {
 	return nil
 }
 
-// Throne ownership (#1601): thrones lists every spawned player throne
+// Throne ownership: thrones lists every spawned player throne
 // (Building_Throne) with its assigned owner; owner is absent when none is
 // assigned. A throne appears once it stands, so a throne missing from the
 // list was built after the read.
@@ -28713,7 +28712,7 @@ func (x *RoyalThrone) GetOwner() *commonpb.Ref {
 	return nil
 }
 
-// Royalty colony facts (#1877), a keyed colony section (#1347): the neuroformer
+// Royalty colony facts, a keyed colony section: the neuroformer
 // stock, the pending bestowing ceremonies and the standing thrones. Absent
 // without Royalty.
 type RoyaltySection struct {
@@ -28858,7 +28857,7 @@ func (x *RoyaltyColonyFacts) GetThrones() []*RoyalThrone {
 	return nil
 }
 
-// pawn refers to the bundle pawn table row (#1343), whose animal_state
+// pawn refers to the bundle pawn table row, whose animal_state
 // carries the herd facts.
 type AnimalFeed struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -28934,7 +28933,7 @@ type DevelopmentPower struct {
 	StoredWattDays   *float64               `protobuf:"fixed64,3,opt,name=stored_watt_days,json=storedWattDays,proto3,oneof" json:"stored_watt_days,omitempty"`
 	CapacityWattDays *float64               `protobuf:"fixed64,4,opt,name=capacity_watt_days,json=capacityWattDays,proto3,oneof" json:"capacity_watt_days,omitempty"`
 	Roofed           *bool                  `protobuf:"varint,6,opt,name=roofed,proto3,oneof" json:"roofed,omitempty"`
-	// A turret gun's damage per second from its own verb and burst timing (#1188); absent for other consumers.
+	// A turret gun's damage per second from its own verb and burst timing; absent for other consumers.
 	TurretDps     *float64 `protobuf:"fixed64,7,opt,name=turret_dps,json=turretDps,proto3,oneof" json:"turret_dps,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -30107,7 +30106,7 @@ func (x *ControlledEnvironment) GetWeather() string {
 }
 
 // A sowable crop with an edible product: the map's per-day facts beside
-// the catalog's static row (#1340).
+// the catalog's static row.
 type EdibleCrop struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	DefName               *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
@@ -30168,7 +30167,7 @@ func (x *EdibleCrop) GetDietAllowed() bool {
 	return false
 }
 
-// The definitions themselves are the definition catalog's (#1340); crops
+// The definitions themselves are the definition catalog's; crops
 // lists every edible crop, sorted by name.
 type PlanningFacts struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -30239,7 +30238,7 @@ func (x *PlanningFacts) GetCrops() []*EdibleCrop {
 }
 
 // The static facts of a product (nutrition, rot days, perishability, baby
-// edibility) are its def row's in the definition catalog (#1733); the frame
+// edibility) are its def row's in the definition catalog; the frame
 // carries what varies: count, whether a human can eat it, the colony's demand
 // and the storage room left.
 type FoodProduct struct {
@@ -30249,7 +30248,7 @@ type FoodProduct struct {
 	Edible                *bool                  `protobuf:"varint,3,opt,name=edible,proto3,oneof" json:"edible,omitempty"`
 	NutritionDemandPerDay *float64               `protobuf:"fixed64,5,opt,name=nutrition_demand_per_day,json=nutritionDemandPerDay,proto3,oneof" json:"nutrition_demand_per_day,omitempty"`
 	// storable is the product count roofed, reachable storage accepting it can
-	// hold: stored stacks plus empty stack slots (#1359). Caps reserve bill targets.
+	// hold: stored stacks plus empty stack slots. Caps reserve bill targets.
 	Storable      *int64 `protobuf:"varint,8,opt,name=storable,proto3,oneof" json:"storable,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -30388,9 +30387,9 @@ type CookingFacts struct {
 	Bills      []*BillState           `protobuf:"bytes,4,rep,name=bills,proto3" json:"bills,omitempty"`
 	Production []*FoodProduction      `protobuf:"bytes,5,rep,name=production,proto3" json:"production,omitempty"`
 	Room       *commonpb.Ref          `protobuf:"bytes,6,opt,name=room,proto3" json:"room,omitempty"`
-	// auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel, #1180).
+	// auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel).
 	AutoRefuel *bool `protobuf:"varint,7,opt,name=auto_refuel,json=autoRefuel,proto3,oneof" json:"auto_refuel,omitempty"`
-	// The bench's CAS token (#1342).
+	// The bench's CAS token.
 	BenchSnapshot *SnapshotRef `protobuf:"bytes,8,opt,name=bench_snapshot,json=benchSnapshot,proto3" json:"bench_snapshot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -30502,11 +30501,11 @@ type AcquisitionFacts struct {
 	BodySize       *float64               `protobuf:"fixed64,17,opt,name=body_size,json=bodySize,proto3,oneof" json:"body_size,omitempty"`
 	Sleeping       *bool                  `protobuf:"varint,18,opt,name=sleeping,proto3,oneof" json:"sleeping,omitempty"`
 	Predator       *bool                  `protobuf:"varint,19,opt,name=predator,proto3,oneof" json:"predator,omitempty"`
-	// Raw hunt prey facts (#2144): a hunt row is every wild animal that bears a corpse, whatever
+	// Raw hunt prey facts: a hunt row is every wild animal that bears a corpse, whatever
 	// policy then decides. fogged and in_mental_state are native's current reading of the animal.
 	Fogged        *bool `protobuf:"varint,20,opt,name=fogged,proto3,oneof" json:"fogged,omitempty"`
 	InMentalState *bool `protobuf:"varint,21,opt,name=in_mental_state,json=inMentalState,proto3,oneof" json:"in_mental_state,omitempty"`
-	// Plant rows (#2292): growth is the plant's growth fraction (0..1) on every plant row.
+	// Plant rows: growth is the plant's growth fraction (0..1) on every plant row.
 	// plantation marks a sown tree of a harvest-destroys crop standing in a growing zone
 	// (RimWorld's growers fell it only at maturity; Go may fell it earlier); wild trees and
 	// crops in a zone never carry it.
@@ -32293,7 +32292,7 @@ func (*WallRemovalSection_Observed) isWallRemovalSection_Outcome() {}
 func (*WallRemovalSection_Unavailable) isWallRemovalSection_Outcome() {}
 
 // Present geometry is complete and independent of the bounded Home write batch.
-// zone is a stockpile target's full native footprint (#719): colony extent
+// zone is a stockpile target's full native footprint: colony extent
 // takes every stockpile from the census, not only zones the autopilot created.
 type HomeExtentGeometry struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
@@ -32949,7 +32948,7 @@ func (x *FloorCell) GetPending() string {
 	return ""
 }
 
-// Room stats live on the bundle rooms census (RoomState.stats), not here (#821, #1338).
+// Room stats live on the bundle rooms census (RoomState.stats), not here.
 type FloorRoom struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Room          *commonpb.Ref          `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
@@ -33619,12 +33618,12 @@ type UpkeepFacts struct {
 	Routes          *RoutesSection         `protobuf:"bytes,22,opt,name=routes,proto3" json:"routes,omitempty"`
 	Slaves          []*UpkeepPerson        `protobuf:"bytes,24,rep,name=slaves,proto3" json:"slaves,omitempty"`
 	// Find.PlaySettings.autoHomeArea: the game expands the home area around
-	// new player buildings while true (AutoHomeAreaIntent, #1322).
+	// new player buildings while true (AutoHomeAreaIntent).
 	AutoHomeArea *bool `protobuf:"varint,25,opt,name=auto_home_area,json=autoHomeArea,proto3,oneof" json:"auto_home_area,omitempty"`
-	// Every cell of the map's home area (#1328), unordered; the home-area
+	// Every cell of the map's home area, unordered; the home-area
 	// planner diffs its target against it.
 	HomeCells []*commonpb.Cell `protobuf:"bytes,26,rep,name=home_cells,json=homeCells,proto3" json:"home_cells,omitempty"`
-	// Hosted guests (HostFaction == player, quest lodgers included; #2384):
+	// Hosted guests (HostFaction == player, quest lodgers included):
 	// people the colony houses but does not own, in the sleeping census.
 	Guests        []*UpkeepPerson `protobuf:"bytes,27,rep,name=guests,proto3" json:"guests,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -33883,7 +33882,7 @@ func (*UpkeepSection_Observed) isUpkeepSection_Outcome() {}
 
 func (*UpkeepSection_Unavailable) isUpkeepSection_Outcome() {}
 
-// Threat facts (#395): the colony wealth the storyteller scales raids by
+// Threat facts: the colony wealth the storyteller scales raids by
 // and the raid points a default threat incident would draw right now.
 // wealth_* are WealthWatcher's lazy recount (items, buildings, pawns,
 // total); storyteller_wealth is the map's PlayerWealthForStoryteller;
@@ -36383,22 +36382,21 @@ type ColonyFactsSnapshot struct {
 	FoodChannels      *FoodChannelsSection  `protobuf:"bytes,45,opt,name=food_channels,json=foodChannels,proto3" json:"food_channels,omitempty"`
 	DeepResources     *DeepResourcesSection `protobuf:"bytes,46,opt,name=deep_resources,json=deepResources,proto3" json:"deep_resources,omitempty"`
 	FermentingBarrels *uint32               `protobuf:"varint,47,opt,name=fermenting_barrels,json=fermentingBarrels,proto3,oneof" json:"fermenting_barrels,omitempty"`
-	// Every outfit, drug, food and reading policy and every allowed area (#1297).
+	// Every outfit, drug, food and reading policy and every allowed area.
 	Policies *PolicySection `protobuf:"bytes,49,opt,name=policies,proto3" json:"policies,omitempty"`
-	// Biotech pollution sources, wastepacks, gestators, chargers and baby care (#1679); absent without Biotech.
+	// Biotech pollution sources, wastepacks, gestators, chargers and baby care; absent without Biotech.
 	Biotech *BiotechSection `protobuf:"bytes,50,opt,name=biotech,proto3" json:"biotech,omitempty"`
-	// TileMutatorDef defNames of the colony map's world tile (Tile.Mutators;
-	// #1708), e.g. caves or ancient vents. Empty without Odyssey or with none.
+	// TileMutatorDef defNames of the colony map's world tile (Tile.Mutators), e.g. caves or ancient vents. Empty without Odyssey or with none.
 	TileMutators []string `protobuf:"bytes,51,rep,name=tile_mutators,json=tileMutators,proto3" json:"tile_mutators,omitempty"`
-	// Odyssey eruption, contamination and underground-site state (#1709); absent without Odyssey.
+	// Odyssey eruption, contamination and underground-site state; absent without Odyssey.
 	Odyssey *OdysseySection `protobuf:"bytes,52,opt,name=odyssey,proto3" json:"odyssey,omitempty"`
-	// Anomaly containment, knowledge and incident state (#1738); absent without Anomaly.
+	// Anomaly containment, knowledge and incident state; absent without Anomaly.
 	Anomaly *AnomalySection `protobuf:"bytes,53,opt,name=anomaly,proto3" json:"anomaly,omitempty"`
-	// Royalty neuroformer stock, bestowing ceremonies and thrones (#1877); absent without Royalty.
+	// Royalty neuroformer stock, bestowing ceremonies and thrones; absent without Royalty.
 	Royalty *RoyaltySection `protobuf:"bytes,54,opt,name=royalty,proto3" json:"royalty,omitempty"`
 	// Cumulative production-site delivery counters (DeliveryLedgerFacts); absent means unknown.
 	DeliveryLedger *DeliveryLedgerSection `protobuf:"bytes,55,opt,name=delivery_ledger,json=deliveryLedger,proto3" json:"delivery_ledger,omitempty"`
-	// Raw hunt facts for policy.HuntGate (#2144); always present on a native read.
+	// Raw hunt facts for policy.HuntGate; always present on a native read.
 	HuntCensus    *HuntCensus `protobuf:"bytes,56,opt,name=hunt_census,json=huntCensus,proto3" json:"hunt_census,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -36791,7 +36789,7 @@ func (x *ColonyFactsSnapshot) GetHuntCensus() *HuntCensus {
 	return nil
 }
 
-// Odyssey colony facts (#1709), a keyed colony section (#1347). A scalar
+// Odyssey colony facts, a keyed colony section. A scalar
 // absent is unknown, never zero.
 // conditions: every GameCondition active on the colony map, whatever its
 // kind (lava flow, volcanic ash or winter, toxic fallout; the class says
@@ -37369,9 +37367,9 @@ func (x *UndergroundHackable) GetAutohack() bool {
 	return false
 }
 
-// Anomaly colony facts (#1738), a keyed colony section (#1347). Per-thing
+// Anomaly colony facts, a keyed colony section. Per-thing
 // state (an entity's hold and study, a platform's containment strength)
-// rides the pawn and building rows (#1737); this section carries what no
+// rides the pawn and building rows; this section carries what no
 // row holds. A scalar absent is unknown, never zero.
 // knowledge: one row per KnowledgeCategoryDef. codex: one row per
 // EntityCategoryDef; discovered_entries are the EntityCodexEntryDef names
@@ -37876,7 +37874,7 @@ func (x *AnomalyIncidentState) GetMetalhorrorImplantPossible() bool {
 	return false
 }
 
-// The void monolith and the endgame it gates (#2436), present only while the
+// The void monolith and the endgame it gates, present only while the
 // monolith is spawned (absent otherwise: unknown). can_activate is
 // Building_VoidMonolith.CanActivate. next_level_def is
 // GameComponent_Anomaly.NextLevelDef (absent when the current level does not
@@ -37895,12 +37893,12 @@ func (x *AnomalyIncidentState) GetMetalhorrorImplantPossible() bool {
 // void_awakening_stage is 0 with the EndGame_VoidAwakening quest running and no
 // structure spawned yet, else one more than the highest stageStructure.N quest
 // tag on a spawned structure; absent when the quest is not running.
-// monolith_id is the monolith's GetUniqueLoadID, the thing a give-job targets
-// (#2437). pending_void_structure_ids are the spawned VoidStructures on the
+// monolith_id is the monolith's GetUniqueLoadID, the thing a give-job targets.
+// pending_void_structure_ids are the spawned VoidStructures on the
 // monolith's map whose CompInteractable.CanInteract() accepts (not yet
 // activated), sorted; void_node_id is the VoidNode whose CanInteract() accepts
 // and void_node_pawn_ids the free colonists spawned on the node's map (the
-// pawn skipped into the pocket map), sorted (#2438).
+// pawn skipped into the pocket map), sorted.
 type MonolithState struct {
 	state                        protoimpl.MessageState `protogen:"open.v1"`
 	MonolithId                   *string                `protobuf:"bytes,12,opt,name=monolith_id,json=monolithId,proto3,oneof" json:"monolith_id,omitempty"`
@@ -38061,10 +38059,10 @@ func (x *MonolithState) GetVoidAwakeningStage() int32 {
 // pawns (colonists, prisoners, slaves, tame animals; any map, caravan or
 // transporter) whose current policy it is, and whether it is the
 // database default (index 0). allowed_defs is a reading policy's allowed
-// book ThingDefs (#1306) or a food policy's allowed food ThingDefs (one of
-// PolicyFacts.foods, #1541); empty for the other databases. drug_entries is
+// book ThingDefs or a food policy's allowed food ThingDefs (one of
+// PolicyFacts.foods); empty for the other databases. drug_entries is
 // a drug policy's entries that allow anything (joy, addiction, scheduled
-// use or a carried count; #1537); every other drug of it is off.
+// use or a carried count); every other drug of it is off.
 type PolicyEntry struct {
 	state         protoimpl.MessageState          `protogen:"open.v1"`
 	Id            *string                         `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
@@ -38219,7 +38217,7 @@ type PolicyFacts struct {
 	Reading      []*PolicyEntry         `protobuf:"bytes,4,rep,name=reading,proto3" json:"reading,omitempty"`
 	AllowedAreas []*AllowedAreaEntry    `protobuf:"bytes,5,rep,name=allowed_areas,json=allowedAreas,proto3" json:"allowed_areas,omitempty"`
 	// HediffDef defNames of the colony map biome's disease incidents
-	// (BiomeDef.diseases; #1539), e.g. Malaria, Plague.
+	// (BiomeDef.diseases), e.g. Malaria, Plague.
 	BiomeDiseases []string     `protobuf:"bytes,7,rep,name=biome_diseases,json=biomeDiseases,proto3" json:"biome_diseases,omitempty"`
 	FoodEaters    []*FoodEater `protobuf:"bytes,9,rep,name=food_eaters,json=foodEaters,proto3" json:"food_eaters,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -38455,7 +38453,7 @@ func (*PolicySection_Observed) isPolicySection_Outcome() {}
 
 func (*PolicySection_Unavailable) isPolicySection_Outcome() {}
 
-// Biotech colony facts (#1679), a keyed colony section (#1347). The pollution
+// Biotech colony facts, a keyed colony section. The pollution
 // cell grid is a separate code; pollution here is its totals plus what makes
 // and removes it. Every row is a spawned player-map thing; a scalar absent
 // is unknown, never zero.
@@ -38562,7 +38560,7 @@ type BiotechColonyFacts struct {
 	Chargers      []*MechChargerState    `protobuf:"bytes,7,rep,name=chargers,proto3" json:"chargers,omitempty"`
 	Babies        []*BabyCare            `protobuf:"bytes,8,rep,name=babies,proto3" json:"babies,omitempty"`
 	Breastfeeders []string               `protobuf:"bytes,9,rep,name=breastfeeders,proto3" json:"breastfeeders,omitempty"`
-	// Gene-building rows (#1930): the banks, assemblers, extractors, genepacks
+	// Gene-building rows: the banks, assemblers, extractors, genepacks
 	// and xenogerms of the colony map.
 	GeneBanks      []*GeneBankState      `protobuf:"bytes,10,rep,name=gene_banks,json=geneBanks,proto3" json:"gene_banks,omitempty"`
 	GeneAssemblers []*GeneAssemblerState `protobuf:"bytes,11,rep,name=gene_assemblers,json=geneAssemblers,proto3" json:"gene_assemblers,omitempty"`
@@ -38701,7 +38699,7 @@ func (x *BiotechColonyFacts) GetXenogerms() []*XenogermState {
 	return nil
 }
 
-// Gene-building rows (#1930). A pawn or thing reference is a thing id. gene
+// Gene-building rows. A pawn or thing reference is a thing id. gene
 // lists are GeneDef defNames, sorted; complexity, metabolism and archites are
 // the game's own GeneSet totals (ComplexityTotal, MetabolismTotal,
 // ArchitesTotal), never summed in Go.
@@ -39354,7 +39352,7 @@ type PollutionTotals struct {
 	ClearAreaId     *string                `protobuf:"bytes,3,opt,name=clear_area_id,json=clearAreaId,proto3,oneof" json:"clear_area_id,omitempty"`
 	ClearAreaCells  *int32                 `protobuf:"varint,4,opt,name=clear_area_cells,json=clearAreaCells,proto3,oneof" json:"clear_area_cells,omitempty"`
 	// polluted_cells counts the pollutable cells PollutionGrid.IsPolluted holds;
-	// polluted_uncovered_cells those outside the pollution-clear area (#1683).
+	// polluted_uncovered_cells those outside the pollution-clear area.
 	PollutedCells          *uint32 `protobuf:"varint,5,opt,name=polluted_cells,json=pollutedCells,proto3,oneof" json:"polluted_cells,omitempty"`
 	PollutedUncoveredCells *uint32 `protobuf:"varint,6,opt,name=polluted_uncovered_cells,json=pollutedUncoveredCells,proto3,oneof" json:"polluted_uncovered_cells,omitempty"`
 	unknownFields          protoimpl.UnknownFields
@@ -40175,7 +40173,7 @@ func (x *BabyAutofeeder) GetMode() string {
 	return ""
 }
 
-// Current-map WandererJoins offers and creepjoiner offers (creepjoiner true, #1740); the token binds letter, quest, pawn and expiry. expires_tick is the letter's disappearAtTick, negative for no timeout.
+// Current-map WandererJoins offers and creepjoiner offers (creepjoiner true); the token binds letter, quest, pawn and expiry. expires_tick is the letter's disappearAtTick, negative for no timeout.
 type JoinerLetter struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	LetterId      *int32                 `protobuf:"varint,1,opt,name=letter_id,json=letterId,proto3,oneof" json:"letter_id,omitempty"`
@@ -40419,17 +40417,17 @@ func (*ColonyFactsReply_Unavailable) isColonyFactsReply_Outcome() {}
 func (*ColonyFactsReply_Failure) isColonyFactsReply_Outcome() {}
 
 // Simulation status excludes notifications/UI/clock, exposed by their typed owners.
-// ThreatPawn is one living non-colonist pawn's threat facts (#1356): the
+// ThreatPawn is one living non-colonist pawn's threat facts: the
 // native emits facts, Go classifies them (bridge.ClassifyThreat). A row is
 // emitted for a pawn in a mental state, of a faction hostile to the
-// player, breaking out of prison (#1080) or on a PredatorHunt job, and for
+// player, breaking out of prison or on a PredatorHunt job, and for
 // an unowned downed pawn or predator within the requested predator radius
-// of a colonist; any other pawn costs one field read and no row (#646).
-// pawn references the bundle's pawn table row (#1343); ours is a
+// of a colonist; any other pawn costs one field read and no row.
+// pawn references the bundle's pawn table row; ours is a
 // player-faction pawn; faction_id is set with faction_hostile (a held
 // prisoner is never faction_hostile). prey is a PredatorHunt's target pawn
 // (a corpse's inner pawn), prey_is_ours a player-owned or player-held prey.
-// passive (#948, #1335, on ThreatPawn and ThreatBuilding) is set for
+// passive (on ThreatPawn and ThreatBuilding) is set for
 // faction-hostile insects and hives (dormant, or awake but not engaging)
 // and other CompCanBeDormant hostiles (asleep); a passive threat is left
 // alone, never held for or attacked. nearest_colonist_distance is
@@ -40580,9 +40578,9 @@ func (x *ThreatPawn) GetDowned() bool {
 // nearest_colonist_distance is Chebyshev cells like a threat pawn's;
 // occupied is the building's occupied rect (inclusive), the cells a
 // ranged defender needs a line of fire to.
-// mortar (#1148) is a turret whose verb fires mortar shells.
+// mortar is a turret whose verb fires mortar shells.
 // A hostile building's row: building is its head (no table holds hostile
-// buildings) and building_snapshot its CAS token (#1342).
+// buildings) and building_snapshot its CAS token.
 type ThreatBuilding struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	Building                *EntityRef             `protobuf:"bytes,1,opt,name=building,proto3" json:"building,omitempty"`
@@ -40744,7 +40742,7 @@ func (x *ThreatsSnapshot) GetHostileBuildings() []*ThreatBuilding {
 }
 
 // colonists references every spawned free colonist's pawn table row
-// (#1343), complete unless issues name "colonists".
+// complete unless issues name "colonists".
 type StatusSnapshot struct {
 	state         protoimpl.MessageState       `protogen:"open.v1"`
 	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
@@ -40990,46 +40988,46 @@ type BundleSnapshot struct {
 	ColonyFacts *ColonyFactsSnapshot         `protobuf:"bytes,6,opt,name=colony_facts,json=colonyFacts,proto3" json:"colony_facts,omitempty"`
 	Population  *PopulationSnapshot          `protobuf:"bytes,7,opt,name=population,proto3" json:"population,omitempty"`
 	Research    *ResearchSnapshot            `protobuf:"bytes,8,opt,name=research,proto3" json:"research,omitempty"`
-	// The pawn table (35) replaces the colonist detail section (#1343).
+	// The pawn table (35) replaces the colonist detail section.
 	Buildings        *BuildingsSnapshot         `protobuf:"bytes,10,opt,name=buildings,proto3" json:"buildings,omitempty"`
 	Bills            *BillsSnapshot             `protobuf:"bytes,12,opt,name=bills,proto3" json:"bills,omitempty"`
 	Zones            *ZonesSnapshot             `protobuf:"bytes,13,opt,name=zones,proto3" json:"zones,omitempty"`
 	Traders          *TradersSnapshot           `protobuf:"bytes,14,opt,name=traders,proto3" json:"traders,omitempty"`
 	WorldProgression *WorldProgressionSnapshot  `protobuf:"bytes,15,opt,name=world_progression,json=worldProgression,proto3" json:"world_progression,omitempty"`
 	ResourceSources  []*ResourceSourcesSnapshot `protobuf:"bytes,16,rep,name=resource_sources,json=resourceSources,proto3" json:"resource_sources,omitempty"`
-	// The planning window band (17) is cut from grid (#1345).
-	// Combat state (#851), while the map has an active hostile or a combat
+	// The planning window band (17) is cut from grid.
+	// Combat state, while the map has an active hostile or a combat
 	// epoch runs, else empty: every spawned colonist, hostile and colony
 	// animal, and the native's retained event ring (the newest 1024
 	// events, oldest first). A reader merges events by their watermark, so
 	// a lapped or restarted reader resyncs from any frame.
 	CombatPawns  []*mirrorpb.CombatPawn     `protobuf:"bytes,20,rep,name=combat_pawns,json=combatPawns,proto3" json:"combat_pawns,omitempty"`
 	CombatEvents []*mirrorpb.CombatEventRow `protobuf:"bytes,21,rep,name=combat_events,json=combatEvents,proto3" json:"combat_events,omitempty"`
-	// The defense planner's other combat inputs (#853), in the same frame,
+	// The defense planner's other combat inputs, in the same frame,
 	// while the emergency census lists a threat or a colonist in a mental
 	// state, else unset. The pawn table carries the combat detail (health,
-	// equipment, biography, animals) of every hostile and hunting predator
-	// (#1343). combat_lines_of_fire is read_lines_of_fire from every colonist cell
+	// equipment, biography, animals) of every hostile and hunting predator.
+	// combat_lines_of_fire is read_lines_of_fire from every colonist cell
 	// with a ranged primary to every hostile building's occupied cells, at
 	// most 64 cells a side, unset when either side is empty.
 	CombatLinesOfFire *LinesOfFireSnapshot `protobuf:"bytes,23,opt,name=combat_lines_of_fire,json=combatLinesOfFire,proto3" json:"combat_lines_of_fire,omitempty"`
-	// Combat rooms (#897) are read from the rooms census (27).
-	// Every damaged spawned player door (#900), with the combat inputs, at most
+	// Combat rooms are read from the rooms census (27).
+	// Every damaged spawned player door, with the combat inputs, at most
 	// 64: the doors a fight may send a gunner to repair.
 	CombatDoors []*mirrorpb.CombatDoorRow `protobuf:"bytes,25,rep,name=combat_doors,json=combatDoors,proto3" json:"combat_doors,omitempty"`
-	// Planning definitions are the definition catalog's (#1340).
+	// Planning definitions are the definition catalog's.
 	// list_rooms without outdoor rooms or boundary buildings, with cells:
-	// the room census temperature, comfort and hospital planning read (#944).
+	// the room census temperature, comfort and hospital planning read.
 	Rooms *RoomsSnapshot `protobuf:"bytes,27,opt,name=rooms,proto3" json:"rooms,omitempty"`
-	// Every spawned unroofed player mortar (#931), with the combat inputs, at
+	// Every spawned unroofed player mortar, with the combat inputs, at
 	// most 16: the guns a fight may crew for counter-battery.
 	CombatMortars []*mirrorpb.CombatMortarRow `protobuf:"bytes,28,rep,name=combat_mortars,json=combatMortars,proto3" json:"combat_mortars,omitempty"`
-	// The outdoor temperature a fight shelters from (#1077) is
+	// The outdoor temperature a fight shelters from is
 	// colony_facts.outdoor_temperature_c.
-	// The hottest live hive's cell temperature in degrees Celsius (#1073),
+	// The hottest live hive's cell temperature in degrees Celsius,
 	// with the combat inputs: an infestation's heat-stroke hold and entry check.
 	CombatHiveTemperatureC *float32 `protobuf:"fixed32,30,opt,name=combat_hive_temperature_c,json=combatHiveTemperatureC,proto3,oneof" json:"combat_hive_temperature_c,omitempty"`
-	// The watermark of every omittable section (#1347), carried or not:
+	// The watermark of every omittable section, carried or not:
 	// emergency, colony_facts, population, research, traders,
 	// world_progression and ideology. Native omits such a section while its content,
 	// nested context ticks aside, matches the last one published, and the
@@ -41037,16 +41035,16 @@ type BundleSnapshot struct {
 	// with a seq other than the one the reader holds was published in a
 	// frame the reader missed: it asks for a keyframe.
 	Watermarks []*SectionWatermark `protobuf:"bytes,31,rep,name=watermarks,proto3" json:"watermarks,omitempty"`
-	// The pawn table (#1343): every spawned pawn on the map, the rows every
+	// The pawn table: every spawned pawn on the map, the rows every
 	// other section's pawn reference resolves against. A free colonist
 	// carries every detail family but tend; a hostile or hunting predator
 	// the emergency census lists the combat detail; another animal its
 	// animal state; any other pawn the core row.
 	Pawns *PawnSnapshot `protobuf:"bytes,35,opt,name=pawns,proto3" json:"pawns,omitempty"`
-	// The things table (#1343): every thing a food stock in colony_facts
+	// The things table: every thing a food stock in colony_facts
 	// references, the rows those references resolve against.
 	Things *ThingsSnapshot `protobuf:"bytes,36,opt,name=things,proto3" json:"things,omitempty"`
-	// The whole map as a cell grid (#1345), every frame: a keyframe on an
+	// The whole map as a cell grid, every frame: a keyframe on an
 	// open or keyframe request, on a map change and at least every 30
 	// seconds, else a delta against that keyframe. keyframe_seq numbers
 	// keyframes since the stream opened; a delta whose keyframe_seq is not
@@ -41056,17 +41054,17 @@ type BundleSnapshot struct {
 	Grid        *mirrorpb.CellGrid `protobuf:"bytes,32,opt,name=grid,proto3" json:"grid,omitempty"`
 	KeyframeSeq *uint64            `protobuf:"varint,33,opt,name=keyframe_seq,json=keyframeSeq,proto3,oneof" json:"keyframe_seq,omitempty"`
 	SkyGlow     *float64           `protobuf:"fixed64,34,opt,name=sky_glow,json=skyGlow,proto3,oneof" json:"sky_glow,omitempty"`
-	// The player faction's primary ideoligion as it stands (#1654): the
+	// The player faction's primary ideoligion as it stands: the
 	// precepts and roles in force, ritual state and building precepts.
 	// Omittable like the singleton sections above (watermark "ideology");
 	// absent, with no watermark, without Ideology or a primary ideoligion.
 	Ideology *IdeologySnapshot `protobuf:"bytes,37,opt,name=ideology,proto3" json:"ideology,omitempty"`
-	// A frame whose section read threw (#1905): the frame carries only this,
+	// A frame whose section read threw: the frame carries only this,
 	// with the section name, exception type and message in detail. A reader
 	// refuses the read naming the section; the frame is never carried on
 	// with the section omitted.
 	Failure *commonpb.Failure `protobuf:"bytes,38,opt,name=failure,proto3,oneof" json:"failure,omitempty"`
-	// ModsConfig.IdeologyActive (#1922), carried on every frame: false means the
+	// ModsConfig.IdeologyActive, carried on every frame: false means the
 	// Ideology expansion is not installed, so an absent ideology section is not
 	// an unread ideoligion. Absent stays unknown (unread).
 	IdeologyActive *bool `protobuf:"varint,39,opt,name=ideology_active,json=ideologyActive,proto3,oneof" json:"ideology_active,omitempty"`
@@ -41309,7 +41307,7 @@ func (x *BundleSnapshot) GetIdeologyActive() bool {
 
 // seq counts a section's changes since the stream opened; captured_tick is
 // the tick of the frame that last carried it.
-// A keyed table section (pawns, buildings, things; #1348) is a keyframe,
+// A keyed table section (pawns, buildings, things) is a keyframe,
 // carrying every row, unless delta is set: then it carries only the rows
 // whose content changed or appeared since the table at base_seq, plus the
 // ids that left it in removed, and the reader merges it into the table it
@@ -42309,7 +42307,7 @@ func (*ArchitectDesignatorsReply_Unavailable) isArchitectDesignatorsReply_Outcom
 
 func (*ArchitectDesignatorsReply_Failure) isArchitectDesignatorsReply_Outcome() {}
 
-// The snapshot stream (#858): native publishes whole BundleSnapshot frames
+// The snapshot stream: native publishes whole BundleSnapshot frames
 // into a named shared-memory ring and signals a named event; this request
 // opens it (or replaces its subscription) and names the ring. A frame carries
 // every state family whole (no page caps, no field masks) plus the
@@ -42318,7 +42316,7 @@ func (*ArchitectDesignatorsReply_Failure) isArchitectDesignatorsReply_Outcome() 
 type SnapshotStreamRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	ResourceSources []string               `protobuf:"bytes,1,rep,name=resource_sources,json=resourceSources,proto3" json:"resource_sources,omitempty"` // list_resource_sources per named resource, no development
-	// Only makes the next frame a keyframe, carrying every section (#1347);
+	// Only makes the next frame a keyframe, carrying every section;
 	// the subscription and the other fields are left as they are. Every
 	// other open is a keyframe too.
 	Keyframe      *bool `protobuf:"varint,4,opt,name=keyframe,proto3,oneof" json:"keyframe,omitempty"`
@@ -42370,31 +42368,31 @@ func (x *SnapshotStreamRequest) GetKeyframe() bool {
 	return false
 }
 
-// The definition catalog (#1340): the generated def rows and the stat table
-// the planning views read (#1731), and every research project with its static
+// The definition catalog: the generated def rows and the stat table
+// the planning views read, and every research project with its static
 // facts (costs, prerequisites, tab, tech level, required bench). It is fixed
 // for a load: the controller reads it once per load token.
 type DefinitionCatalog struct {
 	state    protoimpl.MessageState       `protogen:"open.v1"`
 	Context  *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	Research []*ResearchProject           `protobuf:"bytes,3,rep,name=research,proto3" json:"research,omitempty"`
-	// Biotech defs (#1678); absent without Biotech.
+	// Biotech defs; absent without Biotech.
 	Biotech *BiotechCatalog `protobuf:"bytes,4,opt,name=biotech,proto3" json:"biotech,omitempty"`
-	// The Odyssey defs (#1708); absent without Odyssey.
+	// The Odyssey defs; absent without Odyssey.
 	Odyssey *OdysseyCatalog `protobuf:"bytes,6,opt,name=odyssey,proto3" json:"odyssey,omitempty"`
-	// The Anomaly defs (#1737); absent without Anomaly.
+	// The Anomaly defs; absent without Anomaly.
 	Anomaly *AnomalyCatalog `protobuf:"bytes,7,opt,name=anomaly,proto3" json:"anomaly,omitempty"`
-	// Every ThingDef and TerrainDef with all of its fields, by defName (#1730):
+	// Every ThingDef and TerrainDef with all of its fields, by defName:
 	// the messages of defs.proto, filled by protobuf reflection over the game's
 	// def objects (field name = CLR field name). Unlike `definitions` it is not
 	// filtered to buildable or sowable defs.
 	ThingDefs   []*defspb.ThingDef   `protobuf:"bytes,8,rep,name=thing_defs,json=thingDefs,proto3" json:"thing_defs,omitempty"`
 	TerrainDefs []*defspb.TerrainDef `protobuf:"bytes,9,rep,name=terrain_defs,json=terrainDefs,proto3" json:"terrain_defs,omitempty"`
 	Constants   *CatalogConstants    `protobuf:"bytes,10,opt,name=constants,proto3" json:"constants,omitempty"`
-	// The game's own stat values per def and stuff (#1759); absent in a reply
+	// The game's own stat values per def and stuff; absent in a reply
 	// that carries none.
 	StatValues *DefStatTable `protobuf:"bytes,11,opt,name=stat_values,json=statValues,proto3" json:"stat_values,omitempty"`
-	// Every def of every other concrete Verse.Def class (#1761), one repeated
+	// Every def of every other concrete Verse.Def class, one repeated
 	// field per class, filled the same way.
 	Defs *defspb.DefSets `protobuf:"bytes,12,opt,name=defs,proto3" json:"defs,omitempty"`
 	// The base classes of every class the def rows name: the class of each
@@ -42403,7 +42401,7 @@ type DefinitionCatalog struct {
 	// matches a family against it (`DefinitionCatalog.ClassIsA`) with no name list.
 	ClassChains []*ClassChain `protobuf:"bytes,13,rep,name=class_chains,json=classChains,proto3" json:"class_chains,omitempty"`
 	// What the game's own code says about every ThingDef, computed once per
-	// load (#1733); Go reads it and never ports the rule.
+	// load; Go reads it and never ports the rule.
 	ThingFacts    []*ThingDefFacts `protobuf:"bytes,14,rep,name=thing_facts,json=thingFacts,proto3" json:"thing_facts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -42584,7 +42582,7 @@ func (x *ClassChain) GetBases() []string {
 // type, else other. `meal_ingredients` is set on meals only
 // (FoodUtility.GetFoodKind). `raw_meat` is ThingDef.IsMeat and `medicine` is
 // ThingDef.IsMedicine. `room_roles` are the furniture roles the game's own
-// room-role code scores the def for by name (#1731): Toy (ThingDefOf.ToyBox),
+// room-role code scores the def for by name: Toy (ThingDefOf.ToyBox),
 // Decoration (BabyDecoration), Board (Blackboard) and Desk (SchoolDesk), sorted;
 // the roles the rows derive (baby beds, deathrest) are Go's.
 type ThingDefFacts struct {
@@ -42595,7 +42593,7 @@ type ThingDefFacts struct {
 	RawMeat         bool                   `protobuf:"varint,4,opt,name=raw_meat,json=rawMeat,proto3" json:"raw_meat,omitempty"`
 	Medicine        bool                   `protobuf:"varint,5,opt,name=medicine,proto3" json:"medicine,omitempty"`
 	RoomRoles       []string               `protobuf:"bytes,6,rep,name=room_roles,json=roomRoles,proto3" json:"room_roles,omitempty"`
-	// Set on a def with RaceProperties (#1722).
+	// Set on a def with RaceProperties.
 	Race          *RaceFacts `protobuf:"bytes,7,opt,name=race,proto3,oneof" json:"race,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -42681,7 +42679,7 @@ func (x *ThingDefFacts) GetRace() *RaceFacts {
 }
 
 // What the game's own race code says about one race, computed once per load
-// (#1722); the race's numbers (body size, life expectancy, predator, the
+// the race's numbers (body size, life expectancy, predator, the
 // manhunter chances, wildness, minimum handling skill, products, meat) are the
 // def rows and the stat table, not copied here. `animal` is RaceProperties
 // .Animal, `mechanoid` .IsMechanoid and `insect` .Insect. `trainables` are the
@@ -42696,7 +42694,7 @@ type RaceFacts struct {
 	Insect     bool                   `protobuf:"varint,3,opt,name=insect,proto3" json:"insect,omitempty"`
 	Trainables []string               `protobuf:"bytes,4,rep,name=trainables,proto3" json:"trainables,omitempty"`
 	EdibleDefs []string               `protobuf:"bytes,5,rep,name=edible_defs,json=edibleDefs,proto3" json:"edible_defs,omitempty"`
-	// Husbandry facts (#2238), the game's own answers for the race def so no
+	// Husbandry facts, the game's own answers for the race def so no
 	// later round re-reads the race. `adult_min_age_ticks` is
 	// Pawn_AgeTracker.AdultMinAgeTicks (an animal's last life stage; a humanlike
 	// race's first adult stage; biological ticks run one per tick for an animal).
@@ -42722,7 +42720,7 @@ type RaceFacts struct {
 	MeatDef    string  `protobuf:"bytes,13,opt,name=meat_def,json=meatDef,proto3" json:"meat_def,omitempty"`
 	MeatAmount float32 `protobuf:"fixed32,14,opt,name=meat_amount,json=meatAmount,proto3" json:"meat_amount,omitempty"`
 	// SimplifiedPastureNutritionSimulator.NutritionConsumedPerDay(def, adult
-	// life stage) (#2240): the nutrition per day one adult of the race eats, the
+	// life stage): the nutrition per day one adult of the race eats, the
 	// game's own feed figure for an owned adult, so a colony with none of the
 	// race can price its feed. Absent for a race with no life stages.
 	AdultFeedPerDay *float64 `protobuf:"fixed64,15,opt,name=adult_feed_per_day,json=adultFeedPerDay,proto3,oneof" json:"adult_feed_per_day,omitempty"`
@@ -42867,7 +42865,7 @@ func (x *RaceFacts) GetAdultFeedPerDay() float64 {
 
 // GetStatValueAbstract(stat, stuff) of every StatDef the game shows for a def,
 // for every ThingDef: once per allowed stuff for a def made from stuff, once
-// with no stuff otherwise (#1759). Stat rules are game code; Go looks values up
+// with no stuff otherwise. Stat rules are game code; Go looks values up
 // and never recomputes them. `stats` is the shared table of stat defNames.
 type DefStatTable struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -43014,7 +43012,7 @@ func (x *DefStatRow) GetCosts() []*Quantity {
 	return nil
 }
 
-// Game constants read from the game assemblies, never typed in (#1730).
+// Game constants read from the game assemblies, never typed in.
 type CatalogConstants struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// GenDate.TicksPerHour, TicksPerDay and DaysPerYear.
@@ -43040,10 +43038,10 @@ type CatalogConstants struct {
 	// before the game collapses it.
 	RoofMaxSupportDistance float32 `protobuf:"fixed32,9,opt,name=roof_max_support_distance,json=roofMaxSupportDistance,proto3" json:"roof_max_support_distance,omitempty"`
 	// The defName of ThingDefOf.Wort: what Building_FermentingBarrel takes in
-	// and turns into ThingDefOf.Beer (#1721), so the beer reserve names the
+	// and turns into ThingDefOf.Beer, so the beer reserve names the
 	// intermediate without typing it.
 	WortDef string `protobuf:"bytes,10,opt,name=wort_def,json=wortDef,proto3" json:"wort_def,omitempty"`
-	// JobDriver_InteractAnimal (#2238): the ticks of one TalkToAnimal toil
+	// JobDriver_InteractAnimal: the ticks of one TalkToAnimal toil
 	// (TalkDuration, a private const) and of one feed (FeedDuration), the feeds
 	// per interaction (FeedCount), the share of the animal's food need one feed
 	// gives (NutritionPercentagePerFeed) capped at MaxMinNutritionPerFeed, and
@@ -43200,7 +43198,7 @@ func (x *CatalogConstants) GetMinTrainIntervalTicks() int32 {
 	return 0
 }
 
-// The player faction's primary ideoligion (#1654): FactionIdeosTracker.PrimaryIdeo.
+// The player faction's primary ideoligion: FactionIdeosTracker.PrimaryIdeo.
 // Precept ids are Precept.GetUniqueLoadID(); every def name resolves to a
 // catalog def row (PreceptDef, MemeDef, RitualPatternDef).
 type IdeologySnapshot struct {
@@ -43487,7 +43485,7 @@ func (x *IdeoRole) GetPawns() []*commonpb.Ref {
 // A ritual precept: its PreceptDef and RitualPatternDef (sourcePattern), the
 // raw Precept_Ritual.lastFinishedTick, the count of active obligations,
 // whether the repeat penalty applies and whether a LordJob_Ritual of the
-// precept is running now (#1660).
+// precept is running now.
 type IdeoRitual struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	Id                  *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
@@ -43641,7 +43639,7 @@ func (x *IdeoBuilding) GetBuilding() string {
 	return ""
 }
 
-// The static Biotech defs, each list sorted by name (#1678). A stat effect is
+// The static Biotech defs, each list sorted by name. A stat effect is
 // a StatModifier of the def: stat is the StatDef name; factor and offset are
 // set for the side it carries. Scalars are absent when native could not read
 // them. Effects are the game defs' own (never Go name lists): the controller
@@ -44777,7 +44775,7 @@ func (x *MechWorkModeRow) GetEscort() bool {
 	return false
 }
 
-// One point of a game SimpleCurve (#1932).
+// One point of a game SimpleCurve.
 type CurvePointRow struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	X             *float64               `protobuf:"fixed64,1,opt,name=x,proto3,oneof" json:"x,omitempty"`
@@ -44830,7 +44828,7 @@ func (x *CurvePointRow) GetY() float64 {
 	return 0
 }
 
-// The Biotech tuning constants the defs do not carry (#1932), read natively
+// The Biotech tuning constants the defs do not carry, read natively
 // from GeneTuning and the gene extractor, a singleton per load.
 // biostat_min and biostat_max are GeneTuning.BiostatRange (the metabolism
 // bound of a gene set); base_max_complexity GeneTuning.BaseMaxComplexity;
@@ -45032,7 +45030,7 @@ func (x *BiotechCatalog) GetGeneTuning() *GeneTuningFacts {
 	return nil
 }
 
-// The Odyssey facts the def mirror (defs.proto) cannot give (#1708, #1791).
+// The Odyssey facts the def mirror (defs.proto) cannot give.
 // Biome, tile mutator, hackable and portal defs are the mirror's BiomeDef,
 // TileMutatorDef, CompProperties_Hackable and MapPortalProperties rows, and
 // the biome diseases its BiomeDef.diseases; none is repeated here. What
@@ -45268,7 +45266,7 @@ func (x *StockpileTypeRow) GetGeneratable() bool {
 	return false
 }
 
-// Odyssey facts of one building row (#1708). hackable: a building with
+// Odyssey facts of one building row. hackable: a building with
 // CompHackable; portal: a MapPortal (hatch, pit gate, cave exit). An absent
 // scalar is unknown; a failed sub-read leaves its block absent and adds a
 // ReadIssue named hackable or portal.
@@ -45480,7 +45478,7 @@ func (x *PortalState) GetLayout() string {
 	return ""
 }
 
-// The static Anomaly definitions (#1737), each read natively from the game
+// The static Anomaly definitions, each read natively from the game
 // defs, sorted by name, fixed for a load: entity and knowledge categories,
 // codex entries (the entities and what discovers them), the thing defs that
 // are entities, studiable, held on a platform or hold an entity, and the
@@ -45586,7 +45584,7 @@ func (x *AnomalyCatalog) GetCreepjoinerDownsides() []*CreepJoinerDownsideRow {
 	return nil
 }
 
-// The creepjoiner defs (#1740), read from the game defs. The shared fields are
+// The creepjoiner defs, read from the game defs. The shared fields are
 // ICreepJoinerDef's: weight, min_combat_points and can_occur_randomly gate the
 // random pick and requires and excludes (def names of other creepjoiner
 // parts) pair a form, benefit and downside. A form is a PawnKindDef.
@@ -46844,13 +46842,13 @@ func (x *AnomalyIncidentRow) GetCodexEntry() string {
 	return ""
 }
 
-// Anomaly facts of one pawn row (#1737). entity is Pawn.IsEntity, mutant
+// Anomaly facts of one pawn row. entity is Pawn.IsEntity, mutant
 // Pawn.IsMutant and shambler Pawn.IsShambler (hostility is PawnState.hostile).
 // min_containment_strength is the pawn's StatDefOf.MinimumContainmentStrength.
 // held is set for a pawn with a CompHoldingPlatformTarget, study for one with
 // a CompStudiable. A scalar absent is unknown; a failed sub-read leaves its
 // block absent and adds a ReadIssue named entity, held or study; a failed threat fact is absent with a ReadIssue named for it.
-// Threat facts for defense tactics (#1739), the combat group: hidden_from_player
+// Threat facts for defense tactics, the combat group: hidden_from_player
 // is InvisibilityUtility.IsHiddenFromPlayer (the player cannot see or target the
 // pawn); psychic_ritual_invoker is a pawn whose role in its lord's psychic ritual
 // is the ritual def's invoker role (the caster); melee_only is a pawn whose
@@ -46980,7 +46978,7 @@ func (x *PawnAnomaly) GetCreepjoiner() *CreepJoinerState {
 	return nil
 }
 
-// A creepjoiner's facts (#1740), set for a pawn with a creepjoiner tracker
+// A creepjoiner's facts, set for a pawn with a creepjoiner tracker
 // (a failed read leaves it absent with a ReadIssue named creepjoiner). form and
 // benefit are CreepJoinerFormKindDef and CreepJoinerBenefitDef names, which a
 // player sees in the offer letter. downside_triggered is the tracker's
@@ -47050,11 +47048,11 @@ func (x *CreepJoinerState) GetDownsideTriggered() bool {
 // Building_HoldingPlatform holding the pawn; mode the ordered containment
 // mode; escaping the pawn has begun to escape; can_be_captured whether the
 // game lets the player capture it. needs_tend is Pawn.health
-// HasHediffsNeedingTend and bleeding a positive BleedRateTotal (#1743): a
+// HasHediffsNeedingTend and bleeding a positive BleedRateTotal: a
 // held entity is tended like any patient or bleeds out. harvester_attached is
 // Building_HoldingPlatform.HasAttachedBioferriteHarvester (a powered harvester
 // linked to the platform, which forces extract_bioferrite false) and
-// bioferrite_per_day CompProducesBioferrite.BioferritePerDay (#2434): body size
+// bioferrite_per_day CompProducesBioferrite.BioferritePerDay: body size
 // times the comp's density, 0 for an entity that produces none and while the
 // BioferriteExtracted hediff stands (8 days after an extraction).
 type HeldState struct {
@@ -47292,7 +47290,7 @@ func (x *StudyState) GetAnomalyKnowledge() float64 {
 	return 0
 }
 
-// Anomaly facts of one building row (#1737): holder is a CompEntityHolder
+// Anomaly facts of one building row: holder is a CompEntityHolder
 // (a holding platform), study a CompStudiable. A failed sub-read leaves its
 // block absent and adds a ReadIssue named holder or study.
 type AnomalyBuilding struct {
@@ -47360,7 +47358,7 @@ func (x *AnomalyBuilding) GetIssues() []*ReadIssue {
 // a pawn, held_pawn the pawn it holds. doors are the Building_Door things the
 // game counts for the holder's room (StatWorker_ContainmentStrength
 // CalculateDoorStats: the doors in its boundary), read in their own try: a
-// failed read leaves them empty with a ReadIssue named doors (#1743).
+// failed read leaves them empty with a ReadIssue named doors.
 type EntityHolderState struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	ContainmentStrength *float64               `protobuf:"fixed64,1,opt,name=containment_strength,json=containmentStrength,proto3,oneof" json:"containment_strength,omitempty"`
@@ -47887,7 +47885,7 @@ func (*SnapshotStreamReply_Unavailable) isSnapshotStreamReply_Outcome() {}
 
 func (*SnapshotStreamReply_Failure) isSnapshotStreamReply_Outcome() {}
 
-// Makes the next frame capture if any applied write is uncaptured (#1274);
+// Makes the next frame capture if any applied write is uncaptured;
 // the reply does not wait for the capture.
 type FlushSnapshotRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`

@@ -18,7 +18,7 @@ func shooterRow(id string, x, z int32) *o.PawnState {
 
 // A ranged-equipped defender has a line of fire on a building when the
 // frame's native lines see one of the building's occupied cells from the defender's cell no
-// further than the weapon's range (#327); melee-armed defenders and
+// further than the weapon's range; melee-armed defenders and
 // out-of-range or blocked shooters are not listed.
 func TestBuildingLinesOfFire(t *testing.T) {
 	t.Parallel()

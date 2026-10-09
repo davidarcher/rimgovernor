@@ -5,7 +5,7 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
-// followPlayerSpeed is start at the speed the player last chose (#875):
+// followPlayerSpeed is start at the speed the player last chose:
 // Ultrafast when native reports none, and player acceleration exactly when
 // that speed is Ultrafast.
 func followPlayerSpeed(start bridge.ClockStart, status *k.Status) bridge.ClockStart {

@@ -11,7 +11,7 @@ import (
 )
 
 // PlanMethod is the method a plan executes and the planner's reason
-// for admitting it, empty when it gave none (#846).
+// for admitting it, empty when it gave none.
 type PlanMethod struct {
 	// Concern is the Concern the method serves: a Standard's own id, an
 	// Incident's or Project's kind.
@@ -30,7 +30,7 @@ type PlanMethod struct {
 // PlanMethod names the method a plan executes, retired or not; ok is
 // false for a plan no goal or incident admitted (a player building
 // submission). An incident's method names its Response kind as Concern and
-// the incident as Incident (#1020).
+// the incident as Incident.
 func (s *Store) PlanMethod(ctx context.Context, plan domain.PlanID) (method PlanMethod, ok bool, err error) {
 	var reason, episode, incidentKind sql.NullString
 	var kind, owner string

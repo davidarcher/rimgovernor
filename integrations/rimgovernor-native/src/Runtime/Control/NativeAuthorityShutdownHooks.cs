@@ -7,7 +7,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// Orderly end of the game (#88): a process exit (Root.Shutdown) or a
+    /// Orderly end of the game: a process exit (Root.Shutdown) or a
     /// game unload (Game.Dispose, which every return to the main menu and
     /// every load of another save calls synchronously on the main thread
     /// before the asynchronous MemoryUtility.ClearAllMapsAndWorld) revokes

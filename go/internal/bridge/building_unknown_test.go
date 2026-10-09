@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// A building row carrying a field this build does not know (#1242) is
+// A building row carrying a field this build does not know is
 // refused, and the failure names the row type and the field number.
 func TestBuildingUnknownNamesField(t *testing.T) {
 	row := &o.BuildingState{}

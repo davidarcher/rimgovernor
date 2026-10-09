@@ -180,7 +180,7 @@ func TestArmoryArmorLadderByTier(t *testing.T) {
 }
 
 // An armor bill is placed with nothing in stock and its materials become
-// demand; the bill never waits on, or is held back by, its own demand (#2373).
+// demand; the bill never waits on, or is held back by, its own demand.
 func TestArmoryArmorBillPlacedBeforeStockBecomesDemand(t *testing.T) {
 	r := armoryArmorFixture()
 	m, err := SelectArmoryArmorMethod(r, ArmoryTierFabrication)

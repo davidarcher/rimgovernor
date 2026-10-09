@@ -15,7 +15,7 @@ import (
 )
 
 // A review read with a catalog carries BedPrice, a func; the recorder drops
-// it so the review still encodes (#2141: starving-tribal recorded none).
+// it so the review still encodes (starving-tribal recorded none).
 func TestFromReviewDropsBedPrice(t *testing.T) {
 	reading := observation.ColonyProjection{BedPrice: func(_, _ policy.Resource) (float64, bool) { return 1, true }}
 	rec, ok := FromReview(domain.GenerationSnapshot{}, 1, store.RoundsResult{Detection: &store.RoundsDetection{}}, reading)
@@ -47,10 +47,10 @@ func TestReplayReproducesTheRecordedReview(t *testing.T) {
 	for _, g := range r.Review.Standards {
 		bound[g.Concern] = true
 	}
-	// AllowStartingSupplies is gone from the catalog (#2188).
+	// AllowStartingSupplies is gone from the catalog.
 	delete(bound, "AllowStartingSupplies")
 	for _, a := range needs.All() {
-		// MaintainSurgery (#1164), MaintainShelter (#1325), MaintainFirebreak (#1536) and MaintainButcherSpot, ManagePollution EnsureMechCharger MaintainGeneBank, MaintainBurial and MaintainIncineration are newer than the recording.
+		// MaintainSurgery, MaintainShelter, MaintainFirebreak and MaintainButcherSpot, ManagePollution EnsureMechCharger MaintainGeneBank, MaintainBurial and MaintainIncineration are newer than the recording.
 		if !bound[a.ID] && a.ID != policy.MaintainSurgery && a.ID != policy.MaintainShelter && a.ID != policy.MaintainFirebreak && a.ID != policy.MaintainPsylink && a.ID != policy.ManageCreepJoiners && a.ID != policy.MaintainPermits && a.ID != policy.MaintainIdeoRoles && a.ID != policy.MaintainRituals && a.ID != policy.ImproveIdeoligion && a.ID != policy.MaintainBabyFeeding && a.ID != policy.MaintainMechs && a.ID != policy.MaintainButcherSpot && a.ID != policy.ManagePollution && a.ID != policy.EnsureMechCharger && a.ID != policy.MaintainGeneBank && a.ID != policy.MaintainBurial && a.ID != policy.MaintainIncineration {
 			t.Error("replay assessed unbound", a.ID)
 		}

@@ -11,8 +11,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// IncidentState is one Response occurrence and the methods bound to it
-// (#1019). Its methods live in methods beside the goals' ones, with
+// IncidentState is one Response occurrence and the methods bound to it.
+// Its methods live in methods beside the goals' ones, with
 // incident_id set instead of standard_id, and go through the same admission.
 type IncidentState struct {
 	Incident domain.Incident
@@ -108,7 +108,7 @@ func openIncident(ctx context.Context, tx *sql.Tx, a IncidentAssessment) (Incide
 
 // CloseIncident ends the occurrence at tick; the next assessment under its
 // key opens a new row. Methods no step dispatched are cancelled, as a
-// recovered goal's are (#290); dispatched work settles through its journal.
+// recovered goal's are; dispatched work settles through its journal.
 func (s *Store) CloseIncident(ctx context.Context, id domain.IncidentID, tick domain.Tick) (IncidentState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
@@ -255,7 +255,7 @@ func (s *Store) CommitIncidentMethod(ctx context.Context, id domain.IncidentID, 
 	return state, tx.Commit()
 }
 
-// fightWork admits the method beside the incident's open fight (#1079):
+// fightWork admits the method beside the incident's open fight:
 // only a plan still open refuses it.
 func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID, method domain.MethodID, reason string, plan domain.PlanSpec, fightWork bool) (IncidentState, error) {
 	state, err := loadIncident(ctx, tx, id)

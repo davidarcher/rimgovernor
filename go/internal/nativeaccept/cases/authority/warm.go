@@ -1,26 +1,9 @@
-// authority/warm (the former warmauthorityaccept) is the native acceptance
-// for #119: a RimWorld process that hosted a controller killed with its
-// authority and typed clock epoch still granted must keep the next
-// controller's authority after the game is unloaded and another save is
-// loaded into the same process, and the next controller must still read
-// the clock journal.
-//
-// Phase 1 plays the killed controller on a bridge session: grant Auto, start
-// a typed epoch, then drop the session with the epoch running and the grant
-// active (Release, exactly as a serve-driven case hands the game to its
-// service, then nothing). Close returns the process to the main menu with
-// the epoch's static state still pointing at the disposed game. Phase 2 is
-// the next controller, a second harness in practice: it prepares the
-// profile again, attaches to the kept process, loads the cached debug start
-// again (a new load token), pages the clock journal from cursor 0 -- the
-// rows phase 1 wrote must still be there, continuity intact -- then grants
-// Auto and must hold it for the whole hold window without any native
-// revocation.
-//
-// The Go side of #119 was the profile preparation wiping the journal
-// directory under the kept process: every clock_read_events then failed
-// cursor continuity, the service's clock inbox died, and its authority
-// refresh went with it. That is what the phase-2 journal read catches.
+// authority/warm verifies authority and clock-journal continuity when a controller dies with
+// Auto granted and a typed epoch running. It releases the first session, unloads its game,
+// prepares the profile again and loads another save into the same process. The next
+// controller must read the first epoch's journal from cursor zero and retain Auto throughout
+// the hold window. This catches profile preparation deleting a kept process's journal and
+// native epoch state retaining a disposed game.
 package authority
 
 import (
@@ -36,7 +19,7 @@ const (
 	warmController = "authority-warm"
 	// warmHoldTicks is how long phase 2's grant must stay active, in game
 	// time: an in-game hour the game actually runs (RunUntil), so the hold
-	// costs seconds at Ultrafast and the same ticks at any speed (#267).
+	// costs seconds at Ultrafast and the same ticks at any speed.
 	warmHoldTicks = na.TicksPerHour
 )
 
@@ -220,7 +203,7 @@ func warmPhase2(ctx context.Context, cfg *na.Config, output, previousLoadToken s
 	return nil
 }
 
-// warmStage loads the lab (#751), pauses it and returns its identity.
+// warmStage loads the lab, pauses it and returns its identity.
 func warmStage(ctx context.Context, cfg *na.Config, h *na.Harness, prefix string) (map[string]any, error) {
 	if _, err := na.StartLab(ctx, cfg, h); err != nil {
 		return nil, err

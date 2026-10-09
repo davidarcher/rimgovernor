@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent options.relieve_need (#939, #1352), EnsureMood-* relief.
+    // GiveJobIntent options.relieve_need, EnsureMood-* relief.
     // Never changes needs, thoughts, timetables, restrictions, traits,
     // ideology or mental states; only offers one ordinary native food, rest
     // or recreation job to an undrafted colonist, checked live at apply. A

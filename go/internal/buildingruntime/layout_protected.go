@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// planCore is the persisted layout plan's core (#1534); false until a plan
+// planCore is the persisted layout plan's core; false until a plan
 // exists.
 func planCore(facts observation.ColonyProjection) (domain.Cell, bool) {
 	if plan, ok := facts.LayoutPlan.Value(); ok {
@@ -44,7 +44,7 @@ func roomAnchor(facts observation.ColonyProjection, role policy.PlannedRole, to 
 }
 
 // layoutFree reports whether a rectangle is observed open ground free of
-// player buildings and zones (#785).
+// player buildings and zones.
 func layoutFree(facts observation.ColonyProjection) func(policy.Rectangle) bool {
 	cells := make(map[domain.Cell]policy.SiteCell, len(facts.Cells))
 	for _, c := range facts.Cells {

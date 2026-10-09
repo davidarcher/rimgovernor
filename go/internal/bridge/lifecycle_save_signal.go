@@ -15,7 +15,7 @@ const (
 	waitSaveSignalMethod = "rimgovernor/lifecycle_wait_save_signal"
 	flushDoneMethod      = "rimgovernor/lifecycle_flush_done"
 
-	// SaveSignalPreSave is the only signal kind native raises (#2358).
+	// SaveSignalPreSave is the only signal kind native raises.
 	SaveSignalPreSave = "pre_save"
 
 	// waitSaveSignalMargin is how far the call deadline outlasts the native
@@ -29,7 +29,7 @@ const (
 // before, or it predates a Go or game restart. It is never an ack.
 var ErrStaleSaveToken = errors.New("stale or unknown save token")
 
-// WaitSaveSignal long-polls native for a vanilla save about to run (#2358).
+// WaitSaveSignal long-polls native for a vanilla save about to run.
 // It returns the pre_save token the moment native raises it, or ok=false
 // when timeout passes (or a newer wait superseded this one) with no signal.
 // While the call is held native parks every non-Go-initiated save until the

@@ -9,15 +9,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Regularity checks for interior templates (#798). Template tests call
+// Regularity checks for interior templates. Template tests call
 // assertInteriorRegular on a plan and assertInteriorRepeatable on a room
-// size; both hold the #798 rules as requirements.
+// size; both hold the interior geometry rules as requirements.
 
-// interiorRegularityViolations lists every #798 rule a plan's canonical
+// interiorRegularityViolations lists every interior geometry rule a plan's canonical
 // pieces break: rows share one line and one rotation with even gaps and are
 // anchored to a corner or centred; pairs are mirror images; centred pieces
-// sit on the centre line; a plan with its room keeps the doors' aisle
-// (#801).
+// sit on the centre line; a plan with its room keeps the doors' aisle.
 func interiorRegularityViolations(plan InteriorPlan) []string {
 	f := plan.Frame
 	var out []string

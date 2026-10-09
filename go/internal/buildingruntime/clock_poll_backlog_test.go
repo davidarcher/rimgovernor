@@ -27,7 +27,7 @@ func (n *backlogNative) ReadClockEvents(ctx context.Context, request *k.EventsRe
 }
 
 // A fresh journal against a long native backlog adopts all but its newest
-// page instead of replaying it a page per poll (#1251).
+// page instead of replaying it a page per poll.
 func TestClockPollAdoptsNativeBacklog(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

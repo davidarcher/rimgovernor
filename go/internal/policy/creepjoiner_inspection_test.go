@@ -22,7 +22,7 @@ func inspectable(pawn PawnID, triggered bool, ops ...SurgeryOperation) CreepJoin
 	}
 }
 
-// TestInspectionOrdersOnlyAnUnrevealedCreepJoiner (#1740): a creepjoiner whose
+// TestInspectionOrdersOnlyAnUnrevealedCreepJoiner: a creepjoiner whose
 // downside is hidden is ordered the inspection the def mirror's recipe names,
 // on its lowest part; a revealed one, a colonist that is none and one already
 // in the record are not.

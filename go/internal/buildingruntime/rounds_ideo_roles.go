@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RoundsIdeoRolesPlanner is MaintainIdeoRoles' planner (#1661, epic #1653):
+// RoundsIdeoRolesPlanner is MaintainIdeoRoles' planner:
 // while an active role has a free place and a fitting believer
 // (policy.RoleAssignments over the ideology section and the pawn rows), it
 // commits one Assign of the role precept to that believer, with no previous

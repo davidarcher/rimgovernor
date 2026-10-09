@@ -15,7 +15,7 @@ import (
 
 // roundsCensus is the review's observation, retained so the planners that
 // step after it plan from the projection it already produced instead of
-// re-observing the world (#795 step 3). The review reads through the
+// re-observing the world. The review reads through the
 // colony mirror and decides at the tick its sections are complete
 // through; a planner of the same colony, load, map and native generation
 // decides there too, on a paused or a running clock, until committed
@@ -50,17 +50,17 @@ type roundsCensusStore struct {
 	// supply is the Round's resource supply plan, built once per supplyKey.
 	supply    *resourceSupply
 	supplyKey resourceSupplyKey
-	// layout is the v2 layout plan the latest review served for layoutScope
-	// (#667): a planner whose read misses the census plans on it too, so a
+	// layout is the v2 layout plan the latest review served for layoutScope:
+	// a planner whose read misses the census plans on it too, so a
 	// fresh read never drops the plan the review already derived.
 	layout      domain.Fact[policy.LayoutPlan]
 	layoutScope observation.Identity
-	// royalty is the royalty read the latest review served for royaltyScope
-	// (#1601), served to planners the same way as the layout plan.
+	// royalty is the royalty read the latest review served for royaltyScope,
+	// served to planners the same way as the layout plan.
 	royalty      domain.Fact[policy.RoyaltyFacts]
 	royaltyScope observation.Identity
 	// worship is the ideoligion's required buildings the latest review
-	// named (#1658), which planners name in their own reads.
+	// named, which planners name in their own reads.
 	worship []string
 	// benches is the mirror version of the bench table the latest review
 	// refreshed (0: it read none), which planners of its census serve.
@@ -169,7 +169,7 @@ func (s *roundsCensusStore) retain(reading observation.RoundsReading, rooms bool
 }
 
 // psycasters is the royalty read and the colonists' rows of the latest
-// census, which a psycast planner reads its casters from (#1612). Both are
+// census, which a psycast planner reads its casters from. Both are
 // unknown without a current census.
 func (s *roundsCensusStore) psycasters() (domain.Fact[policy.RoyaltyFacts], domain.Fact[[]policy.WorkPawn]) {
 	s.mu.Lock()
@@ -268,7 +268,7 @@ func (r *Rounder) observeOwned(ctx context.Context, source observation.RoundsSou
 }
 
 // benchSource is the bench census a work requirement reads through the
-// colony mirror (#795 step 3): the review (fresh) refreshes the bench
+// colony mirror: the review (fresh) refreshes the bench
 // section and remembers the table; a planner serves that table while the
 // review's census serves it and refreshes the section otherwise. Without
 // a mirror (a standalone reviewer) it is native itself.

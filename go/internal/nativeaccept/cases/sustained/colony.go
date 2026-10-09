@@ -39,7 +39,7 @@ func ColonyWindow() uint64 {
 // ColonyGoals are the goals every colony sample reads beside
 // EnsureFoodSupply: the foothold gates and the first maintenance-tier
 // projects, so the timeline shows which one stalls, thrashes or starves the
-// others (#99).
+// others.
 var ColonyConcerns = []policy.ConcernID{
 	policy.MaintainHousing, policy.MaintainFoodStorage, policy.EnsureCooking,
 	policy.EnsureTemperatureSafety, policy.MaintainResource,
@@ -97,11 +97,11 @@ func colony(name string, quiet na.QuietMode, scope string) cases.Case {
 }
 
 // colonyMalnutritionLimit is the worst Malnutrition severity the window may
-// leave on any colonist (#260): 0.3 is "hungry" on the health tab, short of
+// leave on any colonist: 0.3 is "hungry" on the health tab, short of
 // the malnourished tier where work slows and death approaches.
 const colonyMalnutritionLimit = 0.3
 
-// AuditNutrition is the food gate the diagnostic keeps (#260): the tribal8
+// AuditNutrition is the food gate the diagnostic keeps: the tribal8
 // baseline holds under two days of pemmican, so a window that ends with a
 // colonist past hungry means the foothold food methods (butcher spot, bill,
 // hunting, fields) did not stack in time. The report keeps every
@@ -138,7 +138,7 @@ func AuditNutrition(ctx context.Context, h *na.Harness, report na.Report) error 
 // auditReacquisitions is the one gate the colony diagnostic keeps: every
 // keep-alive resume from an acknowledged hold re-acquires in place, one
 // native generation each, not the Manual->Auto pair that rebound every
-// prepared action to a new generation (#259).
+// prepared action to a new generation.
 func auditReacquisitions(_ context.Context, _ *na.Harness, report na.Report) error {
 	keep, ok := na.AsMap(report["authority_reacquisitions"])
 	if !ok {

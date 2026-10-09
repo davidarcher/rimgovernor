@@ -21,7 +21,7 @@ import (
 type stockpileMemory struct {
 	mu sync.Mutex
 	// demand is the storage planner's latest layout demand for demandWorld:
-	// layout reads it to add the armory and wardrobe (#1773).
+	// layout reads it to add the armory and wardrobe.
 	demand      policy.RoomDemand
 	demandWorld string
 	// siteErr is the last storage-plan site report logged, so a standing
@@ -106,7 +106,7 @@ func (r *Rounder) censusStockpileZones(ctx context.Context, snapshot domain.Gene
 	return nil
 }
 
-// reviewStockpiles serves the MaintainStockpiles review (#725) on the
+// reviewStockpiles serves the MaintainStockpiles review on the
 // projection when the method is served; otherwise the fact stays unknown
 // and the goal is never assessed active.
 func (r *Rounder) reviewStockpiles(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
@@ -191,7 +191,7 @@ func (r *Rounder) stockpileRequest(ctx context.Context, snapshot domain.Generati
 	return request, "", nil
 }
 
-// reservedGround is the ground no stockpile site takes (#1795): the
+// reservedGround is the ground no stockpile site takes: the
 // footprints of held building reservations and the unroofed floor inside a
 // shell's wall ring, which belongs to the shell's own furniture until a roof
 // stands. Every sited role reads it as the planner's protected set.
@@ -224,7 +224,7 @@ func (r *Rounder) reservedGround(ctx context.Context, snapshot domain.Generation
 }
 
 // gearStore is the serviceable gear the colony holds for the armory and
-// wardrobe (#1774): the stored apparel the gear census counts, split into
+// wardrobe: the stored apparel the gear census counts, split into
 // armor and clothing by the catalog (ItemFacts.Armor), and the weapons lying
 // on the map. The weapons read is skipped once layout plans the armory, which
 // no longer needs the count. A catalog naming no armor fails with
@@ -301,17 +301,17 @@ func (r *Rounder) benchCensus(ctx context.Context, snapshot domain.GenerationSna
 }
 
 // RoundsStockpilePlanner commits the MaintainStockpiles review's edits
-// (#725) as one plan per cycle, one action per zone under that zone's
+// as one plan per cycle, one action per zone under that zone's
 // fresh CAS token: zone_cell_edit to grow or shrink, stockpile_patch to
 // retarget a zone or configure a shelf like its zone, zone_delete to
-// delete or merge. A missing fixed-role zone (#724) is a zone_create
+// delete or merge. A missing fixed-role zone is a zone_create
 // admitted alone once no other edit stands. A plan still open holds the
 // next cycle.
 type RoundsStockpilePlanner struct {
 	reviewer *Rounder
 	native   RoundsStockpileSource
 	zones    stockpileZones
-	// building shells the planned armory and wardrobe (#1774); nil for a
+	// building shells the planned armory and wardrobe; nil for a
 	// source that cannot preview buildings.
 	building *RoundsBuildingPlanner
 }
@@ -334,8 +334,8 @@ func NewRoundsStockpilePlanner(reviewer *Rounder, native RoundsStockpileSource) 
 }
 
 // raiseRoom raises the shell of the planned room module through the planned-room
-// shell path (the storage planner's rooms, #1774, and the materials yard's
-// ring, #2215). handled is true when the shell was admitted or failed; false
+// shell path (the storage planner's rooms, and the materials yard's
+// ring). handled is true when the shell was admitted or failed; false
 // leaves the zone edits to go on this step (the room stands, its shell was
 // tried this Episode, no space, refused or a fact is missing). Zoning is
 // instant and needs no builder, so a room waiting on its shell never holds the

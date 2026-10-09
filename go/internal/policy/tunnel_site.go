@@ -9,9 +9,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Tunnel siting (#1072): a 1-wide corridor driven into a visible natural
+// Tunnel siting: a 1-wide corridor driven into a visible natural
 // rock face from a walkable access cell, ending beside a buried ore deposit
-// that mining then opens. Dug rooms are the layout plan's (#1250); this
+// that mining then opens. Dug rooms are the layout plan's; this
 // only reaches ore.
 //
 // Fogged cells are unknown, never assumed empty or safe: a corridor may run
@@ -37,7 +37,7 @@ type ExcavationSiteRequest struct {
 	// roof_max_support_distance): every target cell must lie within it of
 	// some non-target cell.
 	RoofSupport float64
-	// Roofs are the load's roof rules (#1890): a roofed cell whose def is not
+	// Roofs are the load's roof rules: a roofed cell whose def is not
 	// in them fails the site read with ErrUnknownRoof.
 	Roofs RoofRules
 }

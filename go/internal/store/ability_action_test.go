@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// An ability (#1607) persists its pawn, source and target through every target
+// An ability persists its pawn, source and target through every target
 // shape the permit source takes.
 func TestAbilityActionRoundTrips(t *testing.T) {
 	t.Parallel()
@@ -29,7 +29,7 @@ func TestAbilityActionRoundTrips(t *testing.T) {
 	thingTarget, _ := domain.AbilityThingTarget("Thing9")
 	var want []domain.Ability
 	var actions []domain.Action
-	// Permit and psycast sources (#1610) share the row; the psycast key is
+	// Permit and psycast sources share the row; the psycast key is
 	// "psycast:<abilityDef>" in the definition column.
 	for i, target := range []domain.AbilityTarget{cell, domain.NoAbilityTarget(), pawnTarget, thingTarget, cell, domain.NoAbilityTarget()} {
 		src := source

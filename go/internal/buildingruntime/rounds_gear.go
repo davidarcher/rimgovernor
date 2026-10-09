@@ -26,7 +26,7 @@ import (
 // (GearProduce): a fresh bench/recipe census, gathered only when no
 // replace-candidate is already pending (SelectGearMethod always prefers
 // wearing an existing item over crafting a new one). The bill is placed
-// whatever the stock; its ingredients are demand (#2373).
+// whatever the stock; its ingredients are demand.
 type RoundsGearSource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
@@ -63,7 +63,7 @@ func gearDefinitions(call context.Context, source any, identity *c.Identity) (ob
 }
 
 // stampCreepjoiners flags the census colonists that are creepjoiners with an
-// unrevealed downside (#1962), from a fresh combat-pawn read the way the
+// unrevealed downside, from a fresh combat-pawn read the way the
 // review does, so the apparel policy this planner writes matches the review's.
 // A source that serves no combat-pawn read leaves the census unflagged.
 func (r *RoundsGearPlanner) stampCreepjoiners(call context.Context, identity *c.Identity, state ControlState, census policy.GearObservation, defs observation.GearDefinitions) (policy.GearObservation, error) {
@@ -176,7 +176,7 @@ func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepAr
 			}
 		}
 	}
-	// A bill whose need is gone (the owner stayed Met) is removed first (#2411).
+	// A bill whose need is gone (the owner stayed Met) is removed first.
 	if plan, err := r.reviewer.removeStaleBill(call, epoch, arbiter, state, goal, policy.MaintainEquipment); err != nil || plan != "" {
 		return RoundsGearResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
 	}
@@ -225,7 +225,7 @@ func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepAr
 		pawn.Candidates = domain.Known(available)
 	}
 	// An apparel or armor bill outside every loadout's replacements goes
-	// whatever the owner's finding (#2433); the armory judges weapons.
+	// whatever the owner's finding; the armory judges weapons.
 	wanted, known, err := policy.GearBillsWanted(domain.Known(observation))
 	if err != nil {
 		return RoundsGearResult{}, err
@@ -263,7 +263,7 @@ func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepAr
 		return policies, nil
 	}
 	// Once every pawn is on its own outfit, every other outfit (vanilla and
-	// player-made included) is pruned (#1302, #1298). The other policy
+	// player-made included) is pruned. The other policy
 	// databases wait for their own per-pawn planners.
 	if drop := observation.OutfitsToPrune(); len(drop) > 0 && !pruning {
 		prune, err := domain.NewPolicyPrune(domain.OutfitPolicies, drop)
@@ -420,7 +420,7 @@ func (r *RoundsGearPlanner) commitPolicyPlan(call, epoch context.Context, state 
 	return RoundsGearResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
-// frameThingsSource serves the newest frame's things table (#1342).
+// frameThingsSource serves the newest frame's things table.
 type frameThingsSource interface {
 	FrameThings(context.Context, *c.Identity) (bridge.Things, error)
 }

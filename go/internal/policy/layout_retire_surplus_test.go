@@ -14,7 +14,7 @@ func surplusRoles(p LayoutPlan, role PlannedRole) []int32 {
 	return xs
 }
 
-// A title that outgrew its throne room leaves one throne room (#1825): an
+// A title that outgrew its throne room leaves one throne room: an
 // unbuilt small one goes at once; a built small one stays until a room
 // holding the title's area is built.
 func TestRetireSurplusThroneRooms(t *testing.T) {

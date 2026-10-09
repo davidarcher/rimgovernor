@@ -46,7 +46,7 @@ type Options struct {
 	// Evidence is the evidence mode (na.EvidenceCapped, na.EvidenceFull);
 	// empty leaves na.CurrentEvidenceMode's default.
 	Evidence na.EvidenceMode
-	// CheckpointEvery is the checkpoint ring's cadence in run phase (#249);
+	// CheckpointEvery is the checkpoint ring's cadence in run phase;
 	// zero turns the ring, and resuming, off.
 	CheckpointEvery time.Duration
 	// Fresh discards the case's ring in this root and starts from scratch;
@@ -54,22 +54,22 @@ type Options struct {
 	Fresh  bool
 	Rewind int
 	// Through ends the run once the named declared stage's bundle is
-	// cached (#527): the Run body is cut there, the case's Postmortem
+	// cached: the Run body is cut there, the case's Postmortem
 	// does not run, and the report carries staged_through. A suite
 	// scheduling stages across workers runs each stage this way; the
 	// run appends no series row.
 	Through string
-	// Restage discards the case's stage bundles in this root (#329) and
+	// Restage discards the case's stage bundles in this root and
 	// stages again; Fresh leaves them, since a stage is deterministic
 	// setup, not the failed attempt.
 	Restage bool
 	// PostmortemOnly runs only the case's Postmortem phase over a staged
-	// bundle (#275): From names the bundle (a ring label such as "t+7m" or
+	// bundle: From names the bundle (a ring label such as "t+7m" or
 	// "failed", or a bundle directory), the ring's failed bundle when
 	// empty. The ring is read, never changed.
 	PostmortemOnly bool
 	From           string
-	// Dev is the `acceptance dev` iteration (#274): the case runs as a
+	// Dev is the `acceptance dev` iteration: the case runs as a
 	// resumed run over the bundle From names (a ring label or a bundle
 	// directory; the ring's next entry, then its failed bundle, by
 	// default), Run and Postmortem both, with the ring read but never
@@ -77,12 +77,12 @@ type Options struct {
 	// iteration: output goes under Output/dev/<n>/<case> and the request
 	// ids carry dev<n>.
 	Dev bool
-	// Seed pins the world seed of a debug or scenario start (#281): the
+	// Seed pins the world seed of a debug or scenario start: the
 	// seed a result.json's world block recorded reproduces that run's
 	// world. A case that starts from a save has no seed to pin and is
 	// refused. Implies Fresh.
 	Seed string
-	// Repeat runs each case this many times on the kept process (#281)
+	// Repeat runs each case this many times on the kept process
 	// and reports the pass rate and per-attempt seeds (cmd/acceptance
 	// runRepeat); 0 or 1 is one run. Every attempt is fresh with the
 	// checkpoint ring off, since a resumed attempt measures nothing.
@@ -103,7 +103,7 @@ type Options struct {
 	// parent already ran it on the shared root).
 	NoDoctor bool
 	// NoHeal makes the preflight refuse a stale or fixture-less install
-	// instead of rebuilding and reinstalling the mod (#276): a landing run
+	// instead of rebuilding and reinstalling the mod: a landing run
 	// never silently rebuilds.
 	NoHeal bool
 	// Healed lists what the preflight healed before this run (the doctor's
@@ -111,7 +111,7 @@ type Options struct {
 	// the report carries it under "healed" so a slow first run is
 	// explained.
 	Healed []string
-	// Break stops the run at a breakpoint (#280): after a declared stage,
+	// Break stops the run at a breakpoint: after a declared stage,
 	// at a game tick or at a run-phase minute. The case is cut there, a
 	// "break" bundle is taken into its ring and the game is left loaded
 	// and paused on the kept process; the ring's Next names the bundle
@@ -147,7 +147,7 @@ func (o Options) CaseOutput(c Case) string {
 // before it opens, or "" when it reuses whatever runs: a rendered case
 // cannot run on the headless process ("headless"), and a headless case
 // after a rendered one would boot beside the windowed process the
-// rendered case kept ("rendered", #444). Without -headless every case
+// rendered case kept ("rendered"). Without -headless every case
 // shares the windowed profile and nothing is stopped.
 func profileToStop(c Case, headless bool) string {
 	switch {
@@ -213,7 +213,7 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	code := func() int {
 		report["wait_stats"] = na.WaitStats()
 		// What this result proves, derived from the case and from what the
-		// run recorded about resume/stage/dev origin (#617).
+		// run recorded about resume/stage/dev origin.
 		Provenance(c, report)
 		if opened {
 			gameLog.Close(output, report)
@@ -296,7 +296,7 @@ var errBroke = errors.New("paused at breakpoint")
 // errBudgetCut is the cause of a Run body cut at the case's budget.
 var errBudgetCut = errors.New("run cut at its wall-clock budget")
 
-// diagnose writes the postmortem digest of a failed case (#278) onto the
+// diagnose writes the postmortem digest of a failed case onto the
 // report ("diagnosis", which Finalize emits first) and to
 // output/diagnosis.txt, read from the evidence the run left behind. The
 // digest is collected under the caller's context, not the run's, which a
@@ -355,7 +355,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	}
 	s := &session{c: c, report: report, binary: opts.Rimgovernor, seed: opts.Seed, stagePlan: staged, stagesDir: opts.StagesDir(c), through: opts.Through}
 	if resumed.resuming() || staged.staged() {
-		// The restored store holds the earlier run's submissions (#307).
+		// The restored store holds the earlier run's submissions.
 		s.resumeSuffix = opts.RunID()
 	}
 	if opts.Dev {
@@ -398,7 +398,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		}
 		report["resumed_from"] = map[string]any{"path": entry.Path, "label": entry.Label, "offset_ms": entry.OffsetMs, "tick": entry.Tick, "source_revision": rev, "save": save}
 	} else if staged.staged() {
-		// A stage bundle opens the way a resume does (#329): its save
+		// A stage bundle opens the way a resume does: its save
 		// replaces the Start, its store is restored.
 		entry := staged.entry
 		save, err := na.StageCheckpoint(opts.Root, entry, filepath.Join(output, "service.sqlite"))
@@ -433,7 +433,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if err := stopOtherProfile(ctx, c, opts, report); err != nil {
 		return err
 	}
-	// na.OpenSession is the shared preamble (#137): stale-package check,
+	// na.OpenSession is the shared preamble: stale-package check,
 	// profile, a kept process, discovery, the start, pause, the fixture op,
 	// frozen needs and the identity, each on the report.
 	opened, err := na.OpenSession(ctx, cfg, report, start, c.Quiet, c.keepNeeds()...)
@@ -473,8 +473,8 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		ring.Activate()
 	}
 	s.ring, s.stages, s.runStarted = ring, newStages(c, opts, s, cfg, output, staged, report), time.Now()
-	// The budget cuts the Run body where Finalize would fail it anyway
-	// (#890): the -timeout safety net sits minutes past it, long enough for
+	// The budget cuts the Run body where Finalize would fail it anyway:
+	// the -timeout safety net sits minutes past it, long enough for
 	// a hung serve loop to run on unseen.
 	bodyCtx := context.Context(runCtx)
 	if deadline, ok := report.BudgetDeadline(); ok {
@@ -495,7 +495,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	through := stagedThrough(runCtx)
 	if through != nil && ctx.Err() == nil {
 		// The stage's bundle is cached: the rest of the chain, its
-		// Postmortem included, is another run's (#527), so nothing failed.
+		// Postmortem included, is another run's, so nothing failed.
 		runErr = nil
 	}
 	if runErr == nil && c.Postmortem != nil && through == nil {
@@ -512,7 +512,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	return runErr
 }
 
-// executePostmortem is the -postmortem-only run (#275): the bundle From
+// executePostmortem is the -postmortem-only run: the bundle From
 // names (the ring's failed bundle by default) is staged and loaded on the
 // kept process, its store copied to <output>/service.sqlite, and only the
 // case's Postmortem runs over it. The ring is left as it was, so the next
@@ -582,7 +582,7 @@ func executePostmortem(ctx context.Context, c Case, opts Options, output string,
 	return checkStartupRows(output, cfg.Headless)
 }
 
-// planDev is the resumption of an `acceptance dev` iteration (#274): the
+// planDev is the resumption of an `acceptance dev` iteration: the
 // bundle From names, or the ring's next entry (what a plain run would
 // resume from) and failing that its failed bundle, checked against this
 // root's fingerprint. The ring index is left out of the resumption so
@@ -631,7 +631,7 @@ func postmortemBundle(c Case, opts Options) (na.Checkpoint, *na.Ring, error) {
 		case ring != nil && ring.Failed != nil:
 			return ring.Failed.Path, nil
 		case ring != nil && ring.Break != nil:
-			// A run paused at a breakpoint (#280) left its state instead.
+			// A run paused at a breakpoint left its state instead.
 			if e, ok := ring.Entry(na.BreakCheckpoint); ok {
 				return e.Path, nil
 			}
@@ -705,7 +705,7 @@ func (s *session) postmortem(ctx context.Context) error {
 }
 
 // seededStart is the case's Start as the lifecycle library's with seed
-// pinned on it (#281); "" leaves the start as declared. Only a debug or
+// pinned on it; "" leaves the start as declared. Only a debug or
 // scenario start (bare or under a Fixture) generates a world to pin.
 func seededStart(start Start, seed string) (na.Start, error) {
 	if seed == "" {
@@ -772,7 +772,7 @@ type session struct {
 	// resumed is the checkpoint entry the run resumed from, nil fresh.
 	resumed *na.Checkpoint
 	// ring is the run's checkpoint ring, nil when it never checkpoints;
-	// stages is the ring stage bundles are captured into (#329), nil when
+	// stages is the ring stage bundles are captured into, nil when
 	// staging is off; runStarted is when Run began, for a stage bundle's
 	// offset without a ring.
 	ring       *na.CheckpointRing
@@ -793,7 +793,7 @@ type session struct {
 	prior map[string]any
 	// runtime is the cached scenario runtime and runtimeHarness the harness
 	// its Query and Clock.Wire bind; Reattach replaces the harness, so a
-	// cached runtime built on an earlier one holds a closed bridge (#597).
+	// cached runtime built on an earlier one holds a closed bridge.
 	runtime        *na.ScenarioRuntime
 	runtimeHarness *na.Harness
 }
@@ -908,7 +908,7 @@ func (s *session) Serve(ctx context.Context, spec na.ServeSpec) (*na.ServiceProc
 		spec.Prefix = s.RequestID(prefix)
 	}
 	// The handle's own request ids (resume, acknowledge, the watch's
-	// commands) carry the run suffix like the case's (#307): a resumed or
+	// commands) carry the run suffix like the case's: a resumed or
 	// staged run's restored store already holds the earlier run's.
 	if spec.Prefix == "" {
 		spec.Prefix = "serve"
@@ -936,7 +936,7 @@ func (s *session) stopServices() {
 // dismiss the letters it acknowledges (checklist item 4). The runtime is
 // cached per harness: Serve releases the bridge and Reattach replaces the
 // harness, so a runtime built before a service ran binds a closed bridge
-// and the next Advance would fail bridge-closed (#597). Once the harness
+// and the next Advance would fail bridge-closed. Once the harness
 // changes the runtime is rebuilt and the clock re-acquired on it.
 func (s *session) Runtime(ctx context.Context) (*na.ScenarioRuntime, error) {
 	h := s.Harness()

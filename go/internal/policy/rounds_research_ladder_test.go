@@ -8,7 +8,7 @@ import (
 
 // The default roadmap: with no operator target and no workshop need the
 // review walks RoundsPolicy.ResearchLadder in order, skipping finished and
-// unlisted rungs, and only under a known census (issue #230).
+// unlisted rungs, and only under a known census.
 func TestResearchGoalWalksTheLadder(t *testing.T) {
 	p := DefaultRoundsPolicy()
 	if len(p.ResearchLadder) == 0 || p.ResearchLadder[0] != "Stonecutting" || p.ResearchLadder[1] != "Electricity" {

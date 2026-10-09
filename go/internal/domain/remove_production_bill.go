@@ -2,8 +2,8 @@ package domain
 
 import "errors"
 
-// RemoveProductionBillAction deletes one idle production bill from a bench
-// (#2410, epic #2385): the bench and the native bill id a placing receipt
+// RemoveProductionBillAction deletes one idle production bill from a bench:
+// the bench and the native bill id a placing receipt
 // journaled (Progress view Bill). Native re-resolves both live and refuses a
 // bill that is gone, being worked or holding an unfinished item; Go does not
 // restate those guards, and the Round retries.

@@ -8,7 +8,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// The roof rule as a Go view of the def mirror (#1870, epic #1764):
+// The roof rule as a Go view of the def mirror:
 // RoofDef.isThickRoof decides whether a roof can be removed and isNatural
 // whether it is a mountain roof. Nothing is read
 // from native and no roof name is listed here.

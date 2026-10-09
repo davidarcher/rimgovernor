@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Mech control (#1687, epic #1667): a mechanitor's mechs are split by role
+// Mech control: a mechanitor's mechs are split by role
 // into control groups and each group is given the work mode its role needs.
 // Workers (a race that does work, MechKindRow.work_mech) and guards (a
 // combat mech) never share a group while the overseer has two or more
@@ -18,10 +18,10 @@ import (
 // Modes, from the wiki and MechWorkModeDefOf (Assembly-CSharp 1.6.4871: Work,
 // SelfShutdown, Escort, Recharge): Work does available work tasks, Escort
 // follows the mechanitor and fights enemies. Recharge is chosen by
-// MechRechargeMode (#1688); SelfShutdown is not chosen here.
+// MechRechargeMode; SelfShutdown is not chosen here.
 //
 // Priority between colonist need and bandwidth, decided from the read:
-//   - Bandwidth is spent only by acquiring mechs (gestation, #1686); control
+//  - Bandwidth is spent only by acquiring mechs (gestation); control
 //     never frees it, so this plan neither dismisses nor re-prices a mech.
 //     A mech with no living overseer holds no group and is left alone.
 //   - Colonist need decides what the next free bandwidth buys: MechRoleNext

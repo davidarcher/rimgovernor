@@ -9,7 +9,7 @@ import (
 )
 
 // A Camp-tier tribe whose five colonists own spots in the starter shell,
-// with Bed locked, owes a bedroom and shells one (#1182): spots are never
+// with Bed locked, owes a bedroom and shells one: spots are never
 // suitable, so the sleeping choice is unavailable and the bedroom ladder
 // answers it ahead of any barracks bed.
 func TestTribalSpotOwnersShellABedroom(t *testing.T) {

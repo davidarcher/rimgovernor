@@ -17,7 +17,7 @@ import (
 // requested unconditionally for the same reason rather than per-consumer.
 // Social (the grouped thought rows) rides the same read: the mood census
 // takes each colonist's negative thought pressure from it so MaintainMood
-// can defer to the upkeep goal whose facility removes it (#255). A native
+// can defer to the upkeep goal whose facility removes it. A native
 // build that skips the block leaves thoughts unknown, never the read failed.
 func (client *Client) ReadRoundsPawns(ctx context.Context, id *c.Identity, ids []string) (*o.ListPawnsReply, Result, error) {
 	return client.readPawnDetails(ctx, id, ids, pawnDetails{Combat: true, Work: true, Care: true, Schedule: true, Social: true})
@@ -29,7 +29,7 @@ func ValidateRoundsPawnSnapshot(snapshot *o.PawnSnapshot, id *c.Identity, ids []
 // validateSettings enforces that PawnSettings carries only the fields the
 // request actually asked for: work priorities and the allowed area under
 // work (the work snapshot token commits to both and WorkSettingsIntent
-// writes both, #167), care policy under care,
+// writes both), care policy under care,
 // timetable slots under schedule. Any subset may be set; unrequested fields
 // are refused.
 func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {

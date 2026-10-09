@@ -51,7 +51,7 @@ func init() {
 			s.Report()["identity_again"] = again
 			// Exercise the typed read against the live game, including the
 			// complete-empty result on a fresh map. This does not admit removal.
-			// The census scopes the scan to Home (#414); on the lab it reads an
+			// The census scopes the scan to Home; on the lab it reads an
 			// empty map.
 			census, err := s.Harness().Call(ctx, "map-census", "test/debug_map_census", map[string]any{})
 			if err != nil {

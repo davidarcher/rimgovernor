@@ -1,8 +1,8 @@
-// The quest/first-title case (#1613, epic #1598) proves the Royalty path from
+// The quest/first-title case proves the Royalty path from
 // an Empire quest to a first royal title, end to end in vanilla: the colony
 // accepts the Empire favor quest through QuestAccept, native grants the favor
-// and generates the bestowing-ceremony quest, the title claim gate (#1605)
-// lets the colony accept it, the bestower waits and the Ritual intent (#1639)
+// and generates the bestowing-ceremony quest, the title claim gate
+// lets the colony accept it, the bestower waits and the Ritual intent
 // starts the ceremony, and the colonist ends up holding the Empire title.
 package quest
 

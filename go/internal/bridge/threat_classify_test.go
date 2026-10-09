@@ -10,8 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The verdicts the native classifier used to give (the
-// native-threat-classifier probe's cases, #646, #1080), now Go's (#1356).
+// Threat classification cases mirror the native-threat-classifier probe.
 func TestClassifyThreat(t *testing.T) {
 	yes := proto.Bool(true)
 	at := proto.Float64
@@ -49,7 +48,7 @@ func TestClassifyThreat(t *testing.T) {
 	}
 }
 
-// The passive fact (#948, #1335) reaches the policy on hostiles only.
+// The passive fact reaches the policy on hostiles only.
 func TestEmergencyPassiveOnHostilesOnly(t *testing.T) {
 	v := emergencyFixture()
 	dormant := emergencyThreat("spider")

@@ -187,7 +187,7 @@ jobs:
         shell: bash
         run: go test -mod=readonly ./...
 
-  # Per-test budget (#2012): under -short every test not marked
+  # Per-test budget: under -short every test not marked
   # slowtest.Skip must finish within 1 s. Own job so the box is quiet
   # and the durations are honest; also reports every test the marker skips
   # (a run summary), so nothing is skipped forever. The parse logic is
@@ -229,7 +229,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # Non-race full test run on Windows (#2012): the race job above is Linux
+  # Non-race full test run on Windows: the race job above is Linux
   # only, and the landing loop runs on Windows with -short. Git is
   # preinstalled on windows-2022 for the git-heavy tests.
   windows-full:

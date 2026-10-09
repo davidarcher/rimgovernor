@@ -20,7 +20,7 @@ type StandardState struct {
 	Methods  []domain.Method // Active plans; retired methods remain in LoadMethod.
 	// Admitted counts every method ever committed for the goal, retired
 	// plans included: a monotonic salt for method identities that must not
-	// collide with a retired plan's row (#214).
+	// collide with a retired plan's row.
 	Admitted int
 	// History lists the current epoch's methods, retired plans included.
 	// Planners that number attempts count it, not Methods: a retired plan
@@ -33,7 +33,7 @@ type StandardState struct {
 const maxActiveStandards = 512
 
 // initializeGoals creates the goal lifecycle tables. goals and rounds
-// are session caches (#1011): RebuildStandards refills goals and projects from the save and
+// are session caches: RebuildStandards refills goals and projects from the save and
 // ResetRounds empties rounds on every world change, and the
 // next review recomputes it. Goal-create request replay is in memory only.
 func initializeStandards(ctx context.Context, tx *sql.Tx) error {
@@ -206,7 +206,7 @@ func standardOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool,
 		}
 		open = open || PlanOpen(p) && !rulesAttachOnly(p.Spec)
 		if !open {
-			// A fight's drafts are its open work (#910).
+			// A fight's drafts are its open work.
 			if open, err = combatFightHolds(ctx, tx, plan); err != nil {
 				return false, err
 			}
@@ -215,7 +215,7 @@ func standardOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool,
 	return open, nil
 }
 
-// rulesAttachOnly reports a plan of native rule attachments alone (#2154): one
+// rulesAttachOnly reports a plan of native rule attachments alone: one
 // in-memory write per Round that holds no pawn work, so it neither waits behind
 // the owner's open work nor counts as open work for its other planners.
 func rulesAttachOnly(plan domain.PlanSpec) bool {
@@ -286,7 +286,7 @@ func (s *Store) CommitMethod(ctx context.Context, id domain.ConcernID, revision 
 
 // CommitMethodReason is CommitMethod with the planner's short reason
 // for admitting it (runway, deficit, target); the dispatcher appends it to
-// Operation.intent (#846). Empty stores none.
+// Operation.intent. Empty stores none.
 func (s *Store) CommitMethodReason(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
 	if err := plan.Validate(); err != nil {
 		return StandardState{}, err
@@ -441,7 +441,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 // counting open work, so a plan admitted for a deficit the colonists (or the
 // player) cleared on their own settles here instead of holding the goal
 // Active and never authorized: the worker refuses a recovered goal's fresh
-// write on every step, and nothing else ever retires the plan (#290). Work
+// write on every step, and nothing else ever retires the plan. Work
 // already dispatched keeps its own settlement path.
 func cancelUndispatchedMethods(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
 	for _, plan := range owner.ownerPlans() {
@@ -536,6 +536,6 @@ func guardStandardWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors
 		return errors.New("maintained standard does not admit current work")
 	}
 	// A prepared plan does not prepare or dispatch while a Safeguard vetoes its
-	// goal (#1017).
+	// goal.
 	return admitRoundsSafeguards(ctx, tx, state)
 }

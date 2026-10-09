@@ -7,10 +7,10 @@ import (
 )
 
 // grenadeScatterClear is how far (Chebyshev cells) a ground target stays
-// from every colonist: a grenade scatters one tile (#1049).
+// from every colonist: a grenade scatters one tile.
 const grenadeScatterClear = 2
 
-// GrenadeTarget is the decision under test for #1049: (carrier, hostiles,
+// GrenadeTarget is the grenade decision: (carrier, hostiles,
 // colonist cells) -> the cell to attack_ground, or none. Candidates are the
 // live hostiles' cells in the carrier's range; each scores the hostiles
 // inside the blast (EMP: only shielded or mech hostiles), and a cell within
@@ -33,7 +33,7 @@ func GrenadeTarget(carrier CombatPawnState, hostiles []CombatPawnState, colonist
 			continue
 		}
 		cells = append(cells, c)
-		// Mechs are immune to fire (#1050): an incendiary never counts one.
+		// Mechs are immune to fire: an incendiary never counts one.
 		if (!emp || empWorth(h)) && !(fire && isMech(h)) {
 			worth = append(worth, c)
 		}
@@ -102,10 +102,10 @@ func abs(v int32) int32 {
 	return v
 }
 
-// grenade aims each hold or squad role whose pawn holds an area primary
-// (#1049): Ground is the cell GrenadeTarget picks, nil when it picks none,
+// grenade aims each hold or squad role whose pawn holds an area primary:
+// Ground is the cell GrenadeTarget picks, nil when it picks none,
 // and the pawn keeps its cell and target for then. It runs after
-// rocketClumps (#1051), which clears Ground and shares its order.
+// rocketClumps, which clears Ground and shares its order.
 func grenade(view CombatView, m *CombatMemory) {
 	if m.Tactic != TacticHold && m.Tactic != TacticSquad {
 		return

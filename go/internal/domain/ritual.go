@@ -23,7 +23,7 @@ const (
 	// waits for it (the bestower's Command_BestowerCeremony gizmo).
 	RitualStart RitualVerb = "start"
 	// RitualBegin starts a held ritual precept with no lord waiting, the way
-	// the game's begin-ritual dialog does (#1659).
+	// the game's begin-ritual dialog does.
 	RitualBegin RitualVerb = "begin"
 )
 
@@ -42,19 +42,10 @@ type ritualAssignments struct {
 	Spectators []PawnID
 }
 
-// Ritual is a player command to one ritual (#1639, epic #1598; #1659, epic
-// #1653).
-//
-// A start (kind bestowing) starts the ritual that is waiting for the command;
-// pawn is the colonist the ritual is for (the one being bestowed). Whether
-// the ritual waits and its preconditions hold (the throne room stands) is
-// native's check when it applies.
-//
-// A begin (kind the held ritual precept's id) starts that precept with no
-// lord waiting: pawn is the organizer, spot the ritual's target cell, slots
-// the exact pawns filling the behavior's role slots and spectators the pawns
-// that attend without a role. Whether the precept may start now and each
-// pawn may fill its slot is native's check when it applies.
+// Ritual commands either a waiting bestowing ceremony or a held ritual precept. For
+// bestowing, Pawn is the recipient. For a precept, Pawn is the organizer, Spot is the
+// target, Slots assigns behavior roles, and Spectators lists other attendees. Native
+// validates start conditions and participant eligibility.
 type Ritual struct {
 	pawn       PawnID
 	ritual     RitualKind

@@ -11,7 +11,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Realized consumption (#2441): what the colony's stock was spent on, counted
+    // Realized consumption: what the colony's stock was spent on, counted
     // into the saved ConsumptionState. Hybrid: per-reason hooks count and set a
     // [ThreadStatic] context; a Thing.Destroy fallback counts only when no
     // context is set (destroyed_other). A hook that misses a path under-counts,

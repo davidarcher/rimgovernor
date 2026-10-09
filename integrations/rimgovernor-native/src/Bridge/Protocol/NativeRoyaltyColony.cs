@@ -10,7 +10,7 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Royalty colony facts (#1877), a keyed colony section: the neuroformer
+    // Royalty colony facts, a keyed colony section: the neuroformer
     // stock, the pending bestowing ceremonies and the standing player thrones
     // of the player's home maps. The section is absent without Royalty.
     internal static class NativeRoyaltyColony
@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // Throne ownership (#1601): every spawned player throne on the home
+        // Throne ownership: every spawned player throne on the home
         // maps with its assigned colonist (Building_Throne.AssignedPawn), so
         // the planner can tell when a throne's assignment is done.
         private static void ReadThrones(Obs.RoyaltyColonyFacts facts)
@@ -46,7 +46,7 @@ namespace HomeBridge.BridgeTools
                 }
         }
 
-        // Pending bestowing ceremonies (#1602): the bestowing quest of each
+        // Pending bestowing ceremonies: the bestowing quest of each
         // colonist and royal faction (the offered or ongoing quest, never an
         // ended one). The lord is the bestower's: its Wait toil is the
         // ceremony waiting for the player's command, its job holds the

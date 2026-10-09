@@ -18,7 +18,7 @@ const (
 // fact; who is inside stays unknown until the casket opens. A casket under
 // 20% hit points explodes, so HitPoints is a safety reading, not trivia.
 // InteractionCell is where a pawn stands to open it and where the ejected
-// occupant lands (#460).
+// occupant lands.
 type ShrineCasket struct {
 	EntityID                string
 	Cell, InteractionCell   domain.Cell
@@ -43,7 +43,7 @@ type ShrineBreachWall struct {
 
 // AncientShrine is one ancient-danger room as observed. Guards is complete
 // only when GuardsKnown; a sealed shrine never knows its guards. Nothing here
-// admits a breach: readiness (#457) and the breach goal (#458) decide.
+// admits a breach: readiness and the breach goal decide.
 type AncientShrine struct {
 	ID               string
 	Minimum, Maximum domain.Cell
@@ -52,7 +52,7 @@ type AncientShrine struct {
 	Caskets          []ShrineCasket
 	Guards           []ShrineGuard
 	BreachWalls      []ShrineBreachWall
-	// Occupants are the humanlikes the caskets released (#460), hostile or
+	// Occupants are the humanlikes the caskets released, hostile or
 	// not, and their corpses; empty while the caskets are sealed.
 	Occupants []ShrineOccupant
 }

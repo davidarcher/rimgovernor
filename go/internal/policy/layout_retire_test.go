@@ -8,7 +8,7 @@ import (
 )
 
 // Nine worship rooms of mixed size and orientation replan to one: the built
-// room when one stands, else the smallest that holds the shape (#1823).
+// room when one stands, else the smallest that holds the shape.
 func TestReplanRetiresDuplicateWorshipRooms(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	need, _ := WorshipRoomNeed(worshipIdeoligion())

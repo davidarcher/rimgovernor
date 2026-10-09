@@ -25,7 +25,7 @@ const (
 
 // Floors copied from policy.RoundsPolicy defaults (policy/rounds.go:155) and
 // the scenario's own steel and component floors (the derived needs a live
-// colony supplies, #2466). Use them in fixtures as Floor values.
+// colony supplies). Use them in fixtures as Floor values.
 const (
 	WoodMin, WoodTarget, WoodMax = 120.0, 350.0, 500.0
 	SteelFloor                   = 200.0

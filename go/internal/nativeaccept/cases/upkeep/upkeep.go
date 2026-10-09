@@ -1,22 +1,7 @@
-// Package upkeep holds issue #2's (B04h) colony-upkeep acceptance. The
-// single-deficit cases (scattered, storage-missing, blocked, fire,
-// medicine, feed, feed-delivered, sleeping, cold, stone-shell) replay as
-// colony snapshots in internal/snapshot since #746; their scenarios here
-// (medicine, feed, sleeping, cold) stage deficits for the cases that
-// chain them:
-//
-//	campaign     -- issue #99: kitchen (test/cleanliness_prepare), feed,
-//	                medicine and cold chained on one colony and one journal
-//	                with a service restart between them; every goal
-//	                recovered earlier must stay closed (campaign.go).
-//	home-coverage, colony-extent -- the sleeping fixture's rooms.
-//	takeover -- the feed fixture's pet.
-//
-// Every case opens on the tribal8 baseline save (the fixture stages its
-// deficit on the loaded map) so a kept process serves the whole family.
-// Needs the native mod built with -Fixture
-// UpkeepFixture,ForecastFixture,RoundsSleepingFixture (the campaign adds
-// CleanlinessFixture).
+// Package upkeep contains native colony-upkeep cases. Fixtures stage deficits on a baseline
+// colony; campaign chains them across a service restart and requires previously recovered
+// Concerns to remain satisfied. Home coverage and colony extent use sleeping-fixture rooms;
+// takeover uses the feed fixture. Planner-only deficit scenarios are covered by snapshots.
 package upkeep
 
 import (
@@ -55,7 +40,7 @@ func scenarios() map[string]*scenario {
 
 	// Every medicine stack destroyed and forty mature healroot within
 	// fifteen cells: eight harvests, all admitted on one stop, recover the
-	// reserve in about a minute of wall time (#129).
+	// reserve in about a minute of wall time.
 	s["medicine"] = &scenario{name: "medicine", fixture: "test/medicine_setup",
 		families: []routinefamily.Family{routinefamily.Medical, routinefamily.Resource, routinefamily.Bill, routinefamily.Acquisition, routinefamily.Work},
 		prepare: func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {

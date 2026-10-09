@@ -13,10 +13,10 @@ import (
 )
 
 // CachedStartEnv controls whether StartDebugGame loads a saved copy of the
-// debug start instead of generating a world and map every time (issue #91:
+// debug start instead of generating a world and map every time (
 // a load is ~2.7s where a generation is far longer). It is on by default. The
 // first start under a given map size, planet coverage and expansion set
-// generates through the new-colony op (#2028), which saves the result as
+// generates through the new-colony op, which saves the result as
 // RimGovernor-debug-<size>-<coverage>[-<expansions>][-<biomes>][-flat]
 // [-seed-<seed>]-quiet|loud (the storyteller is part of the save); it is
 // copied into profile/Saves so every later Prepare carries it, and later
@@ -24,7 +24,7 @@ import (
 // applied after either path where the mode asks. Delete the save to
 // regenerate; a harness that must see a never-before-seen world (world
 // generation itself under test) runs with RIMGOVERNOR_ACCEPT_CACHED_START=0.
-// A start with a pinned seed (#281) caches as its own
+// A start with a pinned seed caches as its own
 // RimGovernor-debug-...-seed-<seed> save, so it never takes the plain
 // roll's world and a repeat under the seed loads instead of generating.
 const CachedStartEnv = "RIMGOVERNOR_ACCEPT_CACHED_START"
@@ -57,7 +57,7 @@ func cachedStartName(start DebugStart, quiet bool) string {
 		name += "-" + strings.ToLower(strings.Join(startCache.expansions, "-"))
 	}
 	// A biome preference is part of what the save satisfies: a start pinned
-	// to a food-bearing biome must not load a plain roll's save (#172).
+	// to a food-bearing biome must not load a plain roll's save.
 	if start.Biomes != "" {
 		name += "-" + strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(start.Biomes, " ", ""), ",", "-"))
 	}
@@ -97,11 +97,8 @@ func cachedStartPath(name string) (string, bool) {
 	return path, err == nil
 }
 
-// cachedStartStale reports whether the cached save at path was recorded
-// under expansions other than the profile's, so the process cannot load it
-// (save.missing_mods) and the start regenerates over it. The saves every
-// root cached before #332 were recorded with every owned DLC active, since
-// the game activated them at boot whatever the profile said.
+// cachedStartStale checks whether the cached save requires different expansions from the
+// active profile. A mismatch prevents loading (save.missing_mods) and requires regeneration.
 func cachedStartStale(path, name string) (bool, error) {
 	recorded, err := saveExpansionsAt(path, name)
 	if err != nil {

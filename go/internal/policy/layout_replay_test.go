@@ -7,14 +7,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
-// Score replay harness (#1953, epic #1938): every fixture survey runs Zone,
+// Score replay harness: every fixture survey runs Zone,
 // SiteCore and Score, and `go test ./internal/policy -run Replay -v` prints
 // one row of per-term values and the tier verdict per fixture, so
 // planWeights are tuned by evidence. A fixture is one replayFixtures entry.
 //
 // The baseline survey is the only real one. To capture another, set
 // RIMGOVERNOR_SURVEY_DUMP to a gzip path before running startersite against
-// a save (the #1280 dump that wrote testdata/baseline-survey.json.gz), copy
+// a save (testdata/baseline-survey.json.gz), copy
 // the file into testdata/ and add an entry that calls loadSurvey. Synthetic
 // surveys are built on zoningSurvey and need no live game.
 
@@ -50,7 +50,7 @@ var replayFixtures = []replayFixture{
 	{name: "all-rich-valley", pawns: 3, mayFail: true, survey: syntheticSurvey(140, func(x, z int32) SurveyCell {
 		return SurveyCell{Walkable: true, Fertility: 1.4}
 	})},
-	// A full SiteCore on 300x300 takes ~24 s (#2091); the case runs only under
+	// A full SiteCore on 300x300 takes ~24 s; the case runs only under
 	// the long tier because this whole test does.
 	{name: "hundred-colonists", pawns: 100, survey: func(testing.TB) MapSurvey { return plusSurvey(300, 80) }},
 	{name: "tiny", pawns: 3, mayFail: true, survey: syntheticSurvey(40, func(x, z int32) SurveyCell {

@@ -266,11 +266,11 @@ namespace RimGovernor.Protocol.Mirror {
     [pbr::OriginalName("COMBAT_SIDE_HOSTILE")] Hostile = 2,
     [pbr::OriginalName("COMBAT_SIDE_COLONY_ANIMAL")] ColonyAnimal = 3,
     /// <summary>
-    /// a prisoner of the colony breaking out (#1080)
+    /// a prisoner of the colony breaking out
     /// </summary>
     [pbr::OriginalName("COMBAT_SIDE_PRISONER")] Prisoner = 4,
     /// <summary>
-    /// a wild predator or large animal near a hostile (#1116)
+    /// a wild predator or large animal near a hostile
     /// </summary>
     [pbr::OriginalName("COMBAT_SIDE_WILD_ANIMAL")] WildAnimal = 5,
   }
@@ -297,7 +297,7 @@ namespace RimGovernor.Protocol.Mirror {
   }
 
   /// <summary>
-  /// What a combat event row records. The #849 stop kinds and the non-stops.
+  /// What a combat event row records. The combat stop kinds and the non-stops.
   /// </summary>
   public enum CombatLogKind {
     [pbr::OriginalName("COMBAT_LOG_KIND_UNSPECIFIED")] Unspecified = 0,
@@ -1107,7 +1107,7 @@ namespace RimGovernor.Protocol.Mirror {
 
     private double armor_;
     /// <summary>
-    /// Colonists (#881): worn sharp armor, the stronger of natural armor and
+    /// Colonists: worn sharp armor, the stronger of natural armor and
     /// the best worn layer (the raid_armor rule per pawn), to 0.05.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1138,7 +1138,7 @@ namespace RimGovernor.Protocol.Mirror {
     /// <summary>
     /// The watermark of the row's last change: when events concerned the pawn
     /// since the last compare, the newest of the highest rank (downing or
-    /// death, then another #849 stop kind, then any), the matching combat_events
+    /// death, then another combat stop kind, then any), the matching combat_events
     /// row's; otherwise the capture's. Not part of the change comparison.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1156,7 +1156,7 @@ namespace RimGovernor.Protocol.Mirror {
 
     private bool shieldBelt_;
     /// <summary>
-    /// Rescuer choice (#867): a worn CompShield apparel (shield belt), and the
+    /// Rescuer choice: a worn CompShield apparel (shield belt), and the
     /// Medicine skill level (absent without skills).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1214,7 +1214,7 @@ namespace RimGovernor.Protocol.Mirror {
 
     private double meleePower_;
     /// <summary>
-    /// Melee strength (#969): the MeleeDPS stat, to 0.1.
+    /// Melee strength: the MeleeDPS stat, to 0.1.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1244,7 +1244,7 @@ namespace RimGovernor.Protocol.Mirror {
 
     private bool goJuiceHigh_;
     /// <summary>
-    /// Enemy drugs (#1056): a GoJuiceHigh hediff (the pawn fights on past
+    /// Enemy drugs: a GoJuiceHigh hediff (the pawn fights on past
     /// the pain that would down it) and a LuciferiumAddiction hediff.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1302,7 +1302,7 @@ namespace RimGovernor.Protocol.Mirror {
 
     private int stunTicksLeft_;
     /// <summary>
-    /// EMP timing (#1050): the stun's ticks left, rounded up to 30, absent when
+    /// EMP timing: the stun's ticks left, rounded up to 30, absent when
     /// not stunned.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1333,7 +1333,7 @@ namespace RimGovernor.Protocol.Mirror {
 
     private bool targetMortar_;
     /// <summary>
-    /// The job target is a mortar, or a frame that will build one (#1148):
+    /// The job target is a mortar, or a frame that will build one:
     /// a turret whose verb fires mortar shells.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2510,7 +2510,7 @@ namespace RimGovernor.Protocol.Mirror {
   }
 
   /// <summary>
-  /// A damaged player door (BundleSnapshot.combat_doors, #900): hit points
+  /// A damaged player door (BundleSnapshot.combat_doors): hit points
   /// below max.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
@@ -2881,7 +2881,7 @@ namespace RimGovernor.Protocol.Mirror {
   }
 
   /// <summary>
-  /// A player mortar (BundleSnapshot.combat_mortars, #931) and its range.
+  /// A player mortar (BundleSnapshot.combat_mortars) and its range.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class CombatMortarRow : pb::IMessage<CombatMortarRow>
@@ -3035,7 +3035,7 @@ namespace RimGovernor.Protocol.Mirror {
 
     private string loadedShell_;
     /// <summary>
-    /// The loaded shell's ThingDef (#1051); absent when unloaded.
+    /// The loaded shell's ThingDef; absent when unloaded.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -3412,7 +3412,7 @@ namespace RimGovernor.Protocol.Mirror {
 
     private global::RimGovernor.Protocol.Clock.CombatEvent stop_;
     /// <summary>
-    /// The #849 stop kind this event is, armed or not; unset for non-stops.
+    /// The combat stop kind this event is, armed or not; unset for non-stops.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -3568,7 +3568,7 @@ namespace RimGovernor.Protocol.Mirror {
     private string raidStrategy_;
     /// <summary>
     /// Lord toil rows: the raid strategy def. Hostile arrived rows from a
-    /// drop-pod arrival mode (#870): "pods".
+    /// drop-pod arrival mode: "pods".
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -3597,7 +3597,7 @@ namespace RimGovernor.Protocol.Mirror {
 
     private int openTick_;
     /// <summary>
-    /// Drop-pod arrival rows (#870): the tick the last pod opens and the
+    /// Drop-pod arrival rows: the tick the last pod opens and the
     /// cells the pods land on.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4023,7 +4023,7 @@ namespace RimGovernor.Protocol.Mirror {
   }
 
   /// <summary>
-  /// rimgovernor/combat_geometry (#851): an on-demand read, not mirrored, that
+  /// rimgovernor/combat_geometry: an on-demand read, not mirrored, that
   /// answers DecideCombat's geometry questions at a stop by the game's own
   /// rules. Caps: at most MaxGeometryCells cells and MaxGeometryHostiles
   /// hostiles (the native's CombatGeometry constants, bridge.CombatGeometry*),
@@ -4115,7 +4115,7 @@ namespace RimGovernor.Protocol.Mirror {
     private readonly pbc::RepeatedField<string> hostileIds_ = new pbc::RepeatedField<string>();
     /// <summary>
     /// 1..cap, distinct pawn load ids; 0..cap for named cells alone (their
-    /// standability, #897), with no propose and no pawn.
+    /// standability), with no propose and no pawn.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -4156,7 +4156,7 @@ namespace RimGovernor.Protocol.Mirror {
     public const int ProposeFieldNumber = 5;
     private global::RimGovernor.Protocol.Mirror.CombatGeometryPropose propose_;
     /// <summary>
-    /// Optional (#871): the native proposes candidate cells for one role and
+    /// Optional: the native proposes candidate cells for one role and
     /// scores them like named cells, in the same read.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4404,7 +4404,7 @@ namespace RimGovernor.Protocol.Mirror {
   }
 
   /// <summary>
-  /// A role and its anchor (#871). Every proposal is a standable, in-bounds
+  /// A role and its anchor. Every proposal is a standable, in-bounds
   /// cell not among the named cells, scored against the request's hostiles,
   /// ranked best first, at most the cells cap minus the named cells (so a
   /// propose request names at most cap-1 cells). Anchor cells are in bounds.
@@ -4810,7 +4810,7 @@ namespace RimGovernor.Protocol.Mirror {
   }
 
   /// <summary>
-  /// The request pawn's route to `to` (#867), from the game pathfinder
+  /// The request pawn's route to `to`, from the game pathfinder
   /// (TraverseParms.For(pawn, Danger.Deadly), touch end), in walking order,
   /// start cell excluded; each cell scored and flagged hostile_line_of_fire
   /// and door. Needs pawn_id. Not ranked and not filtered by standable or the
@@ -5965,7 +5965,7 @@ namespace RimGovernor.Protocol.Mirror {
     /// <summary>
     /// CoverUtility.CalculateOverallBlockChance at the hostile's cell against
     /// a shot from the cell, 0..1: the cover the hostile keeps against a
-    /// shooter here (#862).
+    /// shooter here.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -6367,7 +6367,7 @@ namespace RimGovernor.Protocol.Mirror {
 
     private bool hostileLineOfFire_;
     /// <summary>
-    /// Any request hostile has line of fire to the cell (#867).
+    /// Any request hostile has line of fire to the cell.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -6397,7 +6397,7 @@ namespace RimGovernor.Protocol.Mirror {
 
     private bool door_;
     /// <summary>
-    /// A player door stands on the cell (#867).
+    /// A player door stands on the cell.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -6793,7 +6793,7 @@ namespace RimGovernor.Protocol.Mirror {
         = pb::FieldCodec.ForMessage(34, global::RimGovernor.Protocol.Mirror.CombatGeometryCell.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatGeometryCell> proposed_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatGeometryCell>();
     /// <summary>
-    /// The propose block's cells (#871), ranked best first, scored like
+    /// The propose block's cells, ranked best first, scored like
     /// cells; empty without propose.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -8984,7 +8984,7 @@ namespace RimGovernor.Protocol.Mirror {
   }
 
   /// <summary>
-  /// A cell grid (#795, #1345): one array per policy.SiteCell field over
+  /// A cell grid: one array per policy.SiteCell field over
   /// rect. Sentinels mark a cell the grid does not hold (fogged, or outside
   /// the read) and an unknown fact:
   ///   cell: 0 not held, 1 held;
@@ -9262,8 +9262,7 @@ namespace RimGovernor.Protocol.Mirror {
     public const int TerrainFieldNumber = 23;
     private global::RimGovernor.Protocol.Mirror.FieldArray terrain_;
     /// <summary>
-    /// Columns 23 on carry the per-cell thing list and tile facts (#2260, #2261,
-    /// epic #2241); a keyframe carries every one, things included. A fogged cell
+    /// Columns 23 on carry the per-cell thing list and tile facts; a keyframe carries every one, things included. A fogged cell
     /// (cell code 0) stays unknown, distinct from a held cell with no things.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -10172,7 +10171,7 @@ namespace RimGovernor.Protocol.Mirror {
   }
 
   /// <summary>
-  /// The things on a grid's cells (#2260), sparse over a base: in a keyframe
+  /// The things on a grid's cells, sparse over a base: in a keyframe
   /// every cell has none, in a delta the keyframe's lists (cumulative, never
   /// chained). cells lists, ascending and distinct, the cells whose list
   /// is replaced; offsets (cells.length + 1 prefix sums, from 0, never

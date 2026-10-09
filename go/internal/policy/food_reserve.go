@@ -217,8 +217,8 @@ type targetBillSpec struct {
 // target-count bill of a product family. A recipe whose product another
 // recipe's bill already makes needs no bill of its own (Make_Pemmican and
 // Make_PemmicanBulk are one reserve); the bulk recipe wins over its
-// single-item sibling. The target never exceeds the product's storable count
-// (#1359); matching bills are corrected, unrelated recipes retained.
+// single-item sibling. The target never exceeds the product's storable count;
+// matching bills are corrected, unrelated recipes retained.
 func selectTargetBill(rows []ProductionBench, spec targetBillSpec) (BillSelection, bool) {
 	var options []BillSelection
 	first, bulk := map[string]bool{}, map[string]bool{}
@@ -250,7 +250,7 @@ func selectTargetBill(rows []ProductionBench, spec targetBillSpec) (BillSelectio
 			}
 			target := math.Ceil(spec.target(def, nutrition))
 			// Native cannot finish a bill whose product has nowhere to go:
-			// cap the target at what storage accepting it can hold (#1359).
+			// cap the target at what storage accepting it can hold.
 			if storable, sk := product.Storable.Value(); sk && target > float64(storable) {
 				target = float64(storable)
 			}

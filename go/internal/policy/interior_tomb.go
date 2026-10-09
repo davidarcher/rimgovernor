@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The tomb template (#831, #832): double-sided like the battery room
+// The tomb template: double-sided like the battery room
 // (BatterySlots), a 1-cell aisle straight in from the door with
 // sarcophagi packed along both sides, heads against the side walls and
 // feet on the aisle. A Sarcophagus is a 1x2 Building_Grave

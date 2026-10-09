@@ -1,5 +1,5 @@
 // The wall/upgrade case proves the typed wall-upgrade census behind
-// rimgovernor/observations_list_wall_upgrade_sites (#78) on a loaded save:
+// rimgovernor/observations_list_wall_upgrade_sites on a loaded save:
 // the cleanup census (no target) is complete, and for every colonist wall
 // each per-target replacement row names the target with its CAS token, a
 // normal, both side supports, its backup cells and priced stone materials. At least one wall must yield a

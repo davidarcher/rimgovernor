@@ -14,7 +14,7 @@ const (
 	CoverClearanceDeconstruct = "Deconstruct"
 )
 
-// CoverClearance designates one observed cover thing for removal (#581): the
+// CoverClearance designates one observed cover thing for removal: the
 // exact thing by identity at its cell, with the one designation its kind
 // needs. The designation is the whole write; ordinary work removes the thing.
 type CoverClearance struct {

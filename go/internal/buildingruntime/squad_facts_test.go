@@ -21,7 +21,7 @@ func TestSquadThreatFactsAnimalManhunterBodySize(t *testing.T) {
 		Humanlike:   proto.Bool(false),
 		MentalState: proto.String("ManhunterPermanent"),
 	}
-	// The body size is the race row's (#1722).
+	// The body size is the race row's.
 	races := policy.AnimalRaceCatalog{Races: map[policy.Resource]policy.AnimalRace{"Wolf_Timber": {Def: "Wolf_Timber", BodySize: domain.Known(1.4)}}}
 	facts := squadThreatFacts(row, races, domain.Unknown[bool]())
 	if size, ok := facts.BodySize.Value(); !ok || size != 1.4 {
@@ -42,7 +42,7 @@ func TestSquadThreatFactsAnimalManhunterBodySize(t *testing.T) {
 	}
 }
 
-// TestSquadThreatFactsMeleeEntity (#1739): a melee-only entity carries its
+// TestSquadThreatFactsMeleeEntity: a melee-only entity carries its
 // Anomaly facts and reads as not ranged-equipped, as an animal does; one
 // whose attack native did not read as melee keeps its equipment unknown.
 func TestSquadThreatFactsMeleeEntity(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Isolating a creepjoiner (#1740, epic #1694): until its downside shows the
+// Isolating a creepjoiner: until its downside shows the
 // colony keeps it apart, in the isolation room (isolation_room.go), by
 // restricting its allowed area to the Isolation area. It is released when the
 // downside shows (a visible trait or hediff a downside def adds, or the

@@ -23,7 +23,7 @@ type PackOptions struct {
 }
 
 // GamePaths is the conservative inclusion list. No Core/Unity media is removed.
-// Every official expansion ships: the baseline save records them all (#1260).
+// Every official expansion ships: the baseline save records them all.
 // User profiles, workshop trees and unrelated mods are excluded.
 var GamePaths = []string{"RimWorldWin64.exe", "UnityPlayer.dll", "UnityCrashHandler64.exe", "WinPixEventRuntime.dll", "Version.txt", "EULA.txt", "Licenses.txt", "Data/Core", "Data/Royalty", "Data/Ideology", "Data/Biotech", "Data/Anomaly", "Data/Odyssey", "RimWorldWin64_Data", "MonoBleedingEdge"}
 

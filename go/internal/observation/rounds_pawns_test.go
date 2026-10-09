@@ -34,8 +34,8 @@ func TestRoundsArmedCountsUnarmedFighters(t *testing.T) {
 	}
 }
 
-// Defenders carry the wire's melee DPS scaled by health and ranged DPS
-// (#1188); a missing stat leaves that fact unknown.
+// Defenders carry the wire's melee DPS scaled by health and ranged DPS;
+// a missing stat leaves that fact unknown.
 func TestRoundsDefendersReadObservedDPS(t *testing.T) {
 	row := func(id string, ranged, melee, health *float64) *o.PawnState {
 		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}, Equipment: &o.PawnEquipment{RangedDps: ranged, MeleeDps: melee}, Health: &o.PawnHealth{SummaryFraction: health}, Biography: &o.PawnBiography{}}

@@ -5,7 +5,7 @@ import (
 )
 
 // FirebreakWidth is the Chebyshev width of the firebreak ring around the
-// base footprint (#1536).
+// base footprint.
 const FirebreakWidth int32 = 2
 
 // FirebreakSettleTicks is how long a cell stays in the ring before it may be

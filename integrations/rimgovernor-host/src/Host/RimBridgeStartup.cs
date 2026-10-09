@@ -182,7 +182,7 @@ internal static class RimBridgeStartup
         }
     }
 
-    // The mod's diagnostics channel (#2058): the ring lives in ModLog; the publisher thread owns the emit.
+    // The mod's diagnostics channel: the ring lives in ModLog; the publisher thread owns the emit.
     private static void StartModLogChannel(RimGovernor.Host.Gab.Events.IEventManager events)
     {
         events.RegisterChannel(RimGovernor.Host.Sdk.ModLogPublisher.Channel, RimGovernor.Host.Sdk.ModLogPublisher.Description);
@@ -196,7 +196,7 @@ internal static class RimBridgeStartup
             () => events.GetSubscriberCount(RimGovernor.Host.Sdk.ModLogPublisher.Channel) > 0).Start();
     }
 
-    // The clock journal's announcement channel (#2070): the journal writer calls ClockEventPublisher.Advanced.
+    // The clock journal's announcement channel: the journal writer calls ClockEventPublisher.Advanced.
     private static void StartClockEventChannel(RimGovernor.Host.Gab.Events.IEventManager events)
     {
         events.RegisterChannel(RimGovernor.Host.Sdk.ClockEventPublisher.Channel, RimGovernor.Host.Sdk.ClockEventPublisher.Description);

@@ -9,9 +9,9 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// The containment planner's one catalog lookup (#1741): every def input of
+// The containment planner's one catalog lookup: every def input of
 // policy.ContainmentDefs, read from the generated def rows and the game's own
-// stat values. A later swap to the planning views (#1731) replaces this file.
+// stat values. A later swap to the planning views replaces this file.
 
 // containmentStat is StatDefOf.ContainmentStrength.
 const containmentStat = "ContainmentStrength"
@@ -56,7 +56,7 @@ func (catalog *DefinitionCatalog) ContainmentDefs(wall, wallStuff, door, doorStu
 		}
 	}
 	// The floor is the terrain whose stat table shows the greatest
-	// ContainmentStrength above the plain floor's (#2435); a terrain the table
+	// ContainmentStrength above the plain floor's; a terrain the table
 	// shows no such stat for adds none.
 	terrains := make([]string, 0, len(catalog.TerrainDefs))
 	for name := range catalog.TerrainDefs {
@@ -74,7 +74,7 @@ func (catalog *DefinitionCatalog) ContainmentDefs(wall, wallStuff, door, doorStu
 		case err != nil:
 			return 0, err
 		case v <= 0:
-			// An absent stat reads as 0 (#1782 turns it into an error).
+			// Containment requires a positive hit-point stat.
 			return 0, fmt.Errorf("%s has no %s", def, maxHitPointsStat)
 		}
 		return float64(v), nil

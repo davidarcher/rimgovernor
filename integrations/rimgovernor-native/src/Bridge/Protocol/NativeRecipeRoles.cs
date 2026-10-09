@@ -3,7 +3,7 @@ using System.Linq;
 using RimWorld;
 using Verse;
 namespace HomeBridge.BridgeTools {
- // The roles a recipe plays, read from the recipe def itself (#1721): the
+ // The roles a recipe plays, read from the recipe def itself: the
  // game's own worker class and ingredient/product shape, never a defName.
  internal static class NativeRecipeRoles {
   // Butchering a corpse for its flesh: the recipe the game gives the

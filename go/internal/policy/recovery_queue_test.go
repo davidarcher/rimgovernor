@@ -188,7 +188,7 @@ func TestRecoveryLootThing(t *testing.T) {
 	}
 }
 
-// A native per-building roof verdict no longer holds a ruin (#2301): the
+// A native per-building roof verdict no longer holds a ruin: the
 // mirror's joint check decides in PlanRecoveryBatch, roofs first.
 func TestRecoveryClearanceThingIgnoresNativeRoofBlocker(t *testing.T) {
 	row := ClearanceTarget{EntityID: "x", Deconstructible: true, RoofBlocker: "unsupported", Salvage: &SalvageEvidence{Safe: domain.Known(true)}}

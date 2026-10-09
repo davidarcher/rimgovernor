@@ -16,7 +16,7 @@ func postFightPawn(id string, side mp.CombatSide, x int32, downed bool, target s
 
 // The downed raiders are the downed humanlike hostiles, and the one to
 // finish an addict is its stripper: the colonist whose job targets it,
-// else the nearest standing colonist (#1079).
+// else the nearest standing colonist.
 func TestPostFightRaidersAndStripper(t *testing.T) {
 	hostile, colonist := mp.CombatSide_COMBAT_SIDE_HOSTILE, mp.CombatSide_COMBAT_SIDE_COLONIST
 	combat := bridge.Combat{

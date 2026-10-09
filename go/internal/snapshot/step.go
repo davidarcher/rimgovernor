@@ -14,7 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Step is one planner step's own colony read (#794): the projection a
+// Step is one planner step's own colony read: the projection a
 // building or bill planner decided from, which carries what the review's
 // read lacks (rooms, the step's definitions, fresh benches). A test
 // replays the planner's selector over Projection.

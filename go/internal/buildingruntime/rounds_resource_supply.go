@@ -37,8 +37,8 @@ type resourceSupplyRow struct {
 	open []policy.AcquisitionSource
 	// busy: a census designation of the resource is still in flight.
 	busy bool
-	// fields are the new fields the plan priced (#2284) by candidate ID: the
-	// crop, cells and patches the field step (#2285) places when the plan opened it.
+	// fields are the new fields the plan priced by candidate ID: the
+	// crop, cells and patches the field step places when the plan opened it.
 	fields map[string]policy.FieldPlan
 	// standing is the units the standing fields of the resource's crops deliver.
 	standing int64
@@ -49,17 +49,10 @@ type resourceSupply struct {
 	// order is the unmet floors, worst covered first.
 	order []policy.Resource
 	rows  map[policy.Resource]*resourceSupplyRow
-	// derived are the floors the produce bills' ingredient needs add to the
-	// colony's targets (stock plus the bill's unfunded draw).
-	//
-	// This is the one planner-time exception to the single demand pipeline
-	// (policy.ResourceDemandOf). A produce bill's ingredient need is chosen by
-	// the resource planner (bench census, stock, Seen) and is nonzero only from
-	// the decide round until the bill is placed. Trade, workshop and
-	// acquisition do not see it, so in that window (unbounded: as long as the
-	// mine plan is open) the ingredient can be sold when its item wealth share
-	// exceeds 0.6 and a trader is present. Accepted for now; to be revisited
-	// under #2504 (colony-wide commitments). See #2500.
+	// derived adds produce-bill ingredient demand until placement. This is the
+	// planner-local exception to ResourceDemandOf: trade, workshop and acquisition
+	// cannot reserve these ingredients while the mine plan is open, so trade can
+	// sell them when their wealth share exceeds 0.6 and a trader is present.
 	derived map[policy.Resource]int64
 	// tokens maps each bench id of the census to its write token.
 	tokens map[string]string
@@ -374,7 +367,7 @@ func (s *resourceSupply) openedFields() []policy.FieldPlan {
 
 // fieldRoute is whether a field serves resource and no census row does: the
 // plan opened a new field for it or a standing field already counts toward it,
-// and the plan opened no wild source. The medical reserve (#2286) leaves such
+// and the plan opened no wild source. The medical reserve leaves such
 // a deficit to the field rather than harvest what the plan priced out.
 func (s *resourceSupply) fieldRoute(resource policy.Resource) bool {
 	row := s.rows[resource]

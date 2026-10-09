@@ -38,7 +38,7 @@ func placementOf(t *testing.T, action domain.Action) executor.Placement {
 }
 
 // An applied bill placement's receipt carries the native bill id its evidence
-// names (#2410): BillEffect for an ordinary bill, SurgeryEffect for a medical
+// names: BillEffect for an ordinary bill, SurgeryEffect for a medical
 // one; a removal or evidence without an id carries none.
 func TestDispatchIntentsCarriesTheNativeBillID(t *testing.T) {
 	t.Parallel()

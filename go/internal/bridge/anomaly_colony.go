@@ -4,7 +4,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// validateAnomalyColony checks the Anomaly colony section (#1738): names and
+// validateAnomalyColony checks the Anomaly colony section: names and
 // ids are unique per table, a category's discovered count never exceeds its
 // entries, knowledge and the threat fraction are finite and nonnegative and
 // levels are nonnegative. Absent scalars stay unknown.

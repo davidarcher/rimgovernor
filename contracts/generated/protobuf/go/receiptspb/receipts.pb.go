@@ -336,7 +336,7 @@ func (FieldOutcome) EnumDescriptor() ([]byte, []int) {
 	return file_receipts_proto_rawDescGZIP(), []int{3}
 }
 
-// A queued medical operation bill (#1162): the patient, recipe, part index
+// A queued medical operation bill: the patient, recipe, part index
 // (absent for a whole-body recipe) and the Bill_Medical id.
 type SurgeryState int32
 
@@ -782,8 +782,8 @@ func (x *Uncertain) GetDetail() string {
 // Every evidence branch is concrete; none permits arbitrary named properties.
 type EffectEvidence struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Area and surgery effects went with RecoveryArea and QueueSurgery (#938).
-	// Revoking authority releases owned deconstructions natively (#940).
+	// Area and surgery effects went with RecoveryArea and QueueSurgery.
+	// Revoking authority releases owned deconstructions natively.
 	//
 	// Types that are valid to be assigned to Effect:
 	//
@@ -1677,7 +1677,7 @@ type AcquisitionEffect struct {
 	OutputComplete *bool                  `protobuf:"varint,9,opt,name=output_complete,json=outputComplete,proto3,oneof" json:"output_complete,omitempty"`
 	// Why a still-designated plant harvest has no worker (forbidden, below
 	// harvest growth, no enabled plant cutter, unreachable, cutters busy on
-	// other work); set only on a pending effect (#291).
+	// other work); set only on a pending effect.
 	PendingReason *string `protobuf:"bytes,10,opt,name=pending_reason,json=pendingReason,proto3,oneof" json:"pending_reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3195,7 +3195,7 @@ func (x *SurgeryEffect) GetState() SurgeryState {
 	return SurgeryState_SURGERY_STATE_UNSPECIFIED
 }
 
-// One AreaIntent's result (#1321): the bot area key, home or pollution_clear, the area's load
+// One AreaIntent's result: the bot area key, home or pollution_clear, the area's load
 // id (absent once deleted), whether it stands, and its cell count after the
 // edit.
 type AreaEffect struct {
@@ -3282,7 +3282,7 @@ func (x *AreaEffect) GetPollutionClear() bool {
 	return false
 }
 
-// One PolicyPruneIntent's result (#1298): the database (outfit, drug, food,
+// One PolicyPruneIntent's result: the database (outfit, drug, food,
 // reading or allowed_area), the ids deleted by this apply (ids already gone
 // are absent) and the pawns moved off them first.
 type PolicyPruneEffect struct {
@@ -3345,7 +3345,7 @@ func (x *PolicyPruneEffect) GetReassignedPawnIds() []string {
 	return nil
 }
 
-// One RemoveRoofIntent's result (#1366): cells this apply designated, cells
+// One RemoveRoofIntent's result: cells this apply designated, cells
 // whose RemoveRoof designation already stood, and cells already unroofed.
 // Applied means designated; the roof read decides when pawns finished.
 type RemoveRoofEffect struct {
@@ -3408,7 +3408,7 @@ func (x *RemoveRoofEffect) GetUnroofed() int32 {
 	return 0
 }
 
-// One AreaPlantCutIntent's result (#1547): plants this apply designated
+// One AreaPlantCutIntent's result: plants this apply designated
 // CutPlant, trees it designated chop-wood, and plants whose cut or chop
 // designation already stood. Applied means designated; the plant cut census
 // decides when pawns finished.
@@ -3472,7 +3472,7 @@ func (x *AreaPlantCutEffect) GetAdopted() int32 {
 	return 0
 }
 
-// One RitualIntent's result (#1639): the ritual and verb applied to the pawn
+// One RitualIntent's result: the ritual and verb applied to the pawn
 // and whether the ritual is started afterwards (the bestowing lord job's
 // ceremonyStarted flag).
 type RitualEffect struct {
@@ -3543,7 +3543,7 @@ func (x *RitualEffect) GetStarted() bool {
 	return false
 }
 
-// Evidence of one AbilityIntent (#1607): the pawn that used it and one arm per
+// Evidence of one AbilityIntent: the pawn that used it and one arm per
 // source. PermitUseEffect asserts the native postcondition: the permit's
 // cooldown started at the current tick and the favor cost was spent. Arrival of
 // the aid and the strike's results are separate observed states.
@@ -3725,7 +3725,7 @@ func (x *PermitUseEffect) GetAidThings() int32 {
 	return 0
 }
 
-// The psycast outcome (#1610): the cast order the game accepted. The pawn
+// The psycast outcome: the cast order the game accepted. The pawn
 // holds the ability's cast job (job_def) as its current or queued job; the
 // cast itself, its psyfocus cost and its cooldown follow when the pawn
 // reaches it, so they are observed state, not receipt claims.

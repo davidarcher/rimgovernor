@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Surgical inspection of a creepjoiner (#1740, epic #1694). A creepjoiner's
+// Surgical inspection of a creepjoiner. A creepjoiner's
 // downside is hidden at arrival; a surgical inspection reveals crumbling
 // mind, organ decay and psychic agony early (the hediffs become visible) and
 // nothing else (https://rimworldwiki.com/wiki/Doctoring#Surgical_inspection).

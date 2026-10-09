@@ -8,7 +8,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    /// The real frame boundary behind the update-interval account (#642): a
+    /// The real frame boundary behind the update-interval account: a
     /// prefix on TickManager.TickManagerUpdate, which Game.UpdatePlay calls
     /// once per Unity update for the loaded game before the world and map
     /// update passes. That is the only update-to-update signal available
@@ -85,7 +85,7 @@ namespace HomeBridge.BridgeTools
                 // Never let the account interrupt an update.
             }
             // The one per-frame allowance opens here: it drains hops earlier
-            // frames deferred (#988); paused, hops are not budgeted.
+            // frames deferred; paused, hops are not budgeted.
             try
             {
                 var ticks = Find.TickManager;
@@ -104,7 +104,7 @@ namespace HomeBridge.BridgeTools
             {
                 // A failed confirmation leaves the dialog for the next frame.
             }
-            // Clearance salvage evidence refreshes over frames (#984).
+            // Clearance salvage evidence refreshes over frames.
             try
             {
                 if (Current.Game != null) NativeClearanceObservationTools.RefreshSalvage();

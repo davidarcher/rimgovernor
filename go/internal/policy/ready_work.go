@@ -10,21 +10,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Ready work (#645) is the typed input the worker allocator reads: concrete
-// work that can run next, kept apart from the two facts it is easily
-// confused with. An unmet need is a goal (DevelopmentGoal); an admitted
-// action whose effect is unresolved is progress (a standing bill, a sown
-// field) and occupies no worker by itself; ready work is the stage that
-// would consume a worker's time now.
+// Ready work describes stages that can consume worker time. Unmet needs and
+// unresolved effects alone do not occupy workers.
 //
-// Ownership: this file is the one contract. ProjectReadyWork is pure and
-// value-only: it makes no native writes and reserves nothing, so discovery
-// never needs the optional slot a candidate competes for. The store records
-// the projection beside the development rows as shadow diagnostics
-// (Rounds.ReadyWork); admission does not read it yet. Extension: a
-// family migrates by giving readyActionStage a case for its action kind (or
-// a proposal adapter below) that names the actual stage, work type, claims
-// and parallelism; every other kind stays on the conservative adapter.
+// ProjectReadyWork is a pure projection stored as Rounds.ReadyWork diagnostics;
+// admission does not consume it. Explicit adapters identify stages, work,
+// claims and parallelism. Other action kinds use the conservative adapter.
 
 // ReadyState is what a candidate can do this review.
 type ReadyState string
@@ -49,16 +40,15 @@ type ReadyAdapter string
 
 const (
 	ReadyMigrated ReadyAdapter = "migrated"
-	// ReadyConservative: the action kind is not migrated (ReadyConservativeKinds
-	// is every kind but ReadyMigratedKinds). Its work is the goal's whole
+	// ReadyConservative covers kinds without an explicit stage adapter. Its work
+	// is the goal's whole
 	// labor profile, one worker, and a dispatched action is assumed to be
 	// occupying it: usage is never read as zero.
 	ReadyConservative ReadyAdapter = "conservative"
 )
 
 // ReadyMigratedKinds are the action kinds whose stage, work and claims are
-// described exactly in this slice (startup shelter/building, supply hauling,
-// animal feed, wood).
+// described by explicit stage adapters.
 var ReadyMigratedKinds = []domain.ActionKind{domain.BuildingAction, domain.HaulAction, domain.CutPlantAction, domain.AreaPlantCutAction, domain.ProductionBillAction, domain.GrowerCropAction, domain.ZoneCreateAction, domain.SupplyAllowAction, domain.SupplyForbidAction}
 
 // ReadyClaim is a resource or cell a candidate would use. Candidates with
@@ -134,7 +124,7 @@ type ReadyWorkReport struct {
 	Deferred   []ReadyDeferral `json:",omitempty"`
 	// Continuation is the first input the discovery bound skipped.
 	Continuation string `json:",omitempty"`
-	// Conservative lists the unmigrated action kinds this pass met.
+	// Conservative lists kinds handled without an explicit stage adapter.
 	Conservative []domain.ActionKind `json:",omitempty"`
 }
 
@@ -205,10 +195,10 @@ type ReadyRequest struct {
 	Unserved []ConcernID
 	Bounds   ReadyBounds
 	// Construction is the building census: an applied building intent stays
-	// open, and its dependents wait, until a built row carries its key (#856).
+	// open, and its dependents wait, until a built row carries its key.
 	Construction domain.Fact[CurrentConstruction]
 	// Recipes place a bill's recipe at a work type; a recipe it does not know
-	// reads as an unmigrated action.
+	// uses the conservative adapter.
 	Recipes RecipeFacts
 }
 
@@ -355,7 +345,7 @@ func readyRank(s ReadyState) int {
 	return 4
 }
 
-// readyStage is a migrated kind's concrete stage.
+// readyStage describes an action kind's concrete stage.
 type readyStage struct {
 	stage  string
 	work   WorkType // "" = no pawn work (a settings write)
@@ -388,7 +378,7 @@ func readyActionStage(a domain.Action, recipes RecipeFacts) (readyStage, bool) {
 	}
 	if v, ok := a.ProductionBill(); ok {
 		// A recipe no catalog row places at a bench has no known work: the
-		// action stays unmigrated rather than guessed.
+		// action uses the conservative adapter.
 		if work, known := recipes.BillWorkOf(v.Recipe()); known {
 			return readyStage{stage: "bill:" + v.Recipe(), work: work, claims: []ReadyClaim{{"bench", v.Bench()}}}, true
 		}

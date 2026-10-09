@@ -41,7 +41,7 @@ func heldHPs(h *sectionHold) map[string]int32 {
 	return out
 }
 
-// TestKeyedDeltaMergesAndTombstones (#1348): a delta's changed and new rows
+// TestKeyedDeltaMergesAndTombstones: a delta's changed and new rows
 // replace or join the held table, its removed ids leave it, an omitted
 // unchanged table is the held one at the frame's tick, a delta against a
 // base the hold does not have is a gap that drops the table, and the
@@ -129,7 +129,7 @@ func TestKeyedDeltaMergesPawnsAndThings(t *testing.T) {
 	}
 }
 
-// TestHeldTableDeltaCostIsIndependentOfSize (#1578): applying a one-row
+// TestHeldTableDeltaCostIsIndependentOfSize: applying a one-row
 // delta allocates the same few trie nodes whether the held table has 100
 // rows or 100000, and leaves the earlier version intact.
 func TestHeldTableDeltaCostIsIndependentOfSize(t *testing.T) {
@@ -163,7 +163,7 @@ func rowPawn(id string) *o.PawnState {
 	return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}}
 }
 
-// TestHeldPawnTableValidatesChangedRows (#1578): rows are validated as they
+// TestHeldPawnTableValidatesChangedRows: rows are validated as they
 // arrive and a bad row fails the table until a delta replaces or removes it.
 func TestHeldPawnTableValidatesChangedRows(t *testing.T) {
 	var h sectionHold
@@ -197,7 +197,7 @@ func TestHeldPawnTableValidatesChangedRows(t *testing.T) {
 	}
 }
 
-// TestFramesBuildNothingUnread (#1578): a delta frame encodes no reply
+// TestFramesBuildNothingUnread: a delta frame encodes no reply
 // until a reader asks for it.
 func TestFramesBuildNothingUnread(t *testing.T) {
 	s := &frameStream{}

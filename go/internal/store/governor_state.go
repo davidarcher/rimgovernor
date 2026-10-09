@@ -11,21 +11,21 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/gabp"
 )
 
-// GovernorStateSchemaVersion versions every governor state blob (#882).
+// GovernorStateSchemaVersion versions every governor state blob.
 //
-// Shadow blobs (#974) mirror the store into the save's GovernorState
+// Shadow blobs mirror the store into the save's GovernorState
 // component; the store stays authoritative. Each value is ASCII JSON
 // (non-ASCII escaped as \uXXXX) with a top-level "schemaVersion".
 //
-//	standard/<concern id>     GovernorStandardBlob, one per unretired standard;
-//	                          a retired standard's key is deleted.
-//	project/<project id>      GovernorProjectBlob, one per unretired project
-//	                          (finished ones included: they are the record);
-//	                          a retired project's key is deleted.
-//	family/layout_plan        GovernorFamilyBlob, Record = policy.LayoutPlan
-//	family/defense_layout     GovernorFamilyBlob, Record = DefenseLayoutRecord
-//	family/production_ladder  GovernorFamilyBlob, Record = ProductionLadderRecord
-//	family/soldier_squad      GovernorFamilyBlob, Record = SoldierSquadRecord
+//	standard/<concern id>   GovernorStandardBlob, one per unretired standard;
+//	             a retired standard's key is deleted.
+//	project/<project id>   GovernorProjectBlob, one per unretired project
+//	             (finished ones included: they are the record);
+//	             a retired project's key is deleted.
+//	family/layout_plan    GovernorFamilyBlob, Record = policy.LayoutPlan
+//	family/defense_layout   GovernorFamilyBlob, Record = DefenseLayoutRecord
+//	family/production_ladder GovernorFamilyBlob, Record = ProductionLadderRecord
+//	family/soldier_squad   GovernorFamilyBlob, Record = SoldierSquadRecord
 //
 // The layout plan is a world row: the blob carries the scope
 // (colony, map, tick) of the newest row written. Field names are the
@@ -43,7 +43,7 @@ const (
 )
 
 // GovernorStandardBlob is one goal: its payload and CAS revision. Methods and
-// admission counts are session state, re-planned after a load (#997).
+// admission counts are session state, re-planned after a load.
 type GovernorStandardBlob struct {
 	SchemaVersion int             `json:"schemaVersion"`
 	Standard      domain.Standard `json:"standard"`

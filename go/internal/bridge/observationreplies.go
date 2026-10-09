@@ -1,6 +1,6 @@
 package bridge
 
-// NativeAccount aggregates the observation and frame accounts (#642) carried
+// NativeAccount aggregates the observation and frame accounts carried
 // by raw native reply envelopes, for a caller that has no flight recording to
 // summarize: the speed matrix's governor-off row plays the save with no
 // controller attached, so its only samples are the harness's own replies.

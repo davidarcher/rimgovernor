@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Home clearance converted from the native clearance/* cases (#746), each
+// Home clearance converted from the native clearance/* cases, each
 // recorded at 04b0a98c from `acceptance run clearance/<case>`.
 
 // recovery replays path's clearance census through the recovery queue with a
@@ -68,7 +68,7 @@ func TestReplayAncientHomeWallAdmitted(t *testing.T) {
 }
 
 // clearance/roof-support-refused, ticks 15 and 615: the Home wall holding up a
-// roof is no longer held on native's per-building verdict (#2301); the queue
+// roof is no longer held on native's per-building verdict; the queue
 // works it and PlanRecoveryBatch takes the roofs down first. Supported, it
 // is worked as before.
 func TestReplayRoofBearingWallQueuedForRoofFirstBatch(t *testing.T) {
@@ -143,7 +143,7 @@ func homeShrine(t *testing.T, path string) (policy.AncientShrine, policy.ShrineP
 }
 
 // clearance/shrine-open, ticks 15 and 17246: with the opening gate
-// (#875) recorded ready both filled caskets of the open Home
+// recorded ready both filled caskets of the open Home
 // shrine are open targets (the default policy never opens one), and once
 // the caskets are emptied there is nothing left to open.
 func TestReplayShrineCasketsOpenOnlyWhenReady(t *testing.T) {

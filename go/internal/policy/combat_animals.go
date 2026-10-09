@@ -7,14 +7,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Animal tactics (#1058) order the colony's animals with the #1057 animal
+// Animal tactics order the colony's animals with the animal
 // orders, which need no draft claim. One use per stop, first match wins:
-//   - waiting a manhunter pack out (#902): every animal is zoned to its own
+//  - waiting a manhunter pack out: every animal is zoned to its own
 //     cell, one standing on a door to the nearest floor cell of that door's
 //     room, so no animal opens a door;
-//   - an explosives raid (#1054): each animal is zoned beside an explosive
+//  - an explosives raid: each animal is zoned beside an explosive
 //     hostile, on our side, so its shots and blasts hit its own raiders;
-//   - a manhunter pack without exploders, or pikemen (#926), with a known
+//  - a manhunter pack without exploders, or pikemen, with a known
 //     choke: every animal is zoned onto the choke cell as a body blocker;
 //   - melee raiders: every animal not known untrained is released at the
 //     nearest one.
@@ -23,17 +23,17 @@ import (
 // restores its prior restriction; the fight's close clears the rest
 // (AnimalClears).
 
-// Animal order kinds (#1057).
+// Animal order kinds.
 const (
 	OrderRelease     CombatOrderKind = "release"
 	OrderAnimalArea  CombatOrderKind = "animal_area"
 	OrderAnimalClear CombatOrderKind = "animal_clear"
 )
 
-// ReasonAnimal is an animal tactic's order (#1058).
+// ReasonAnimal is an animal tactic's order.
 const ReasonAnimal CombatOrderReason = "animal"
 
-// AnimalOrder is the last release or zone an animal was given (#1058).
+// AnimalOrder is the last release or zone an animal was given.
 type AnimalOrder struct {
 	Pawn   domain.PawnID
 	Kind   CombatOrderKind
@@ -140,8 +140,8 @@ func animalStep(view CombatView, m *CombatMemory) []CombatOrder {
 	return out
 }
 
-// AnimalClears are the clears for every animal the fight still has zoned
-// (#1058), sent when the fight closes.
+// AnimalClears are the clears for every animal the fight still has zoned,
+// sent when the fight closes.
 func AnimalClears(m CombatMemory) []CombatOrder {
 	var out []CombatOrder
 	for _, a := range m.Animals {
@@ -273,11 +273,11 @@ func meleeRaiders(view CombatView) ([]domain.PawnID, []domain.Cell) {
 	return ids, cells
 }
 
-// ReasonEnrage is a gunner's shot at a wild animal near the raiders
-// (#1116): hurt, it turns on whoever is near it.
+// ReasonEnrage is a gunner's shot at a wild animal near the raiders:
+// hurt, it turns on whoever is near it.
 const ReasonEnrage CombatOrderReason = "enrage"
 
-// Enrage ranges (#1116), squared: a wild animal within 10 cells of a live
+// Enrage ranges, squared: a wild animal within 10 cells of a live
 // raider and beyond 20 of every live colonist is shot.
 const (
 	enrageNear = 10 * 10
@@ -286,7 +286,7 @@ const (
 
 // enrageTarget is the first wild animal by id that is unhurt, near a live
 // humanlike raider and away from every live colonist; the mirror sends
-// only wild predators and large animals near hostiles (#1116).
+// only wild predators and large animals near hostiles.
 func enrageTarget(view CombatView) (CombatPawnState, bool) {
 	humanlike := map[domain.PawnID]bool{}
 	for _, t := range view.Threats {
@@ -336,7 +336,7 @@ func enrageTarget(view CombatView) (CombatPawnState, bool) {
 }
 
 // enrageWild has the nearest live ranged role shoot the enrage target
-// (#1116) with the attack order, in place of that role's own order.
+// with the attack order, in place of that role's own order.
 func enrageWild(view CombatView, orders []CombatOrder, roles []CombatRole, orderable map[domain.PawnID]bool, state map[domain.PawnID]CombatPawnState) []CombatOrder {
 	wild, ok := enrageTarget(view)
 	if !ok {

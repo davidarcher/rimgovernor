@@ -47,18 +47,18 @@ type ClockSchedulerConfig struct {
 	Profile                                                                                                             string
 	Start                                                                                                               bridge.ClockStart
 	// PaceHorizonTicks is the safe horizon player acceleration's backoff
-	// keeps the critical evidence inside (issue #627); zero is
+	// keeps the critical evidence inside; zero is
 	// DefaultPaceHorizonTicks. Unused unless Start.PlayerAccelerated.
 	PaceHorizonTicks domain.Tick
 	// FollowPlayerSpeed starts each window at the speed the player last
-	// chose in the loaded game (Status.player_speed, #875), Ultrafast when
+	// chose in the loaded game (Status.player_speed), Ultrafast when
 	// none was chosen; an Ultrafast window runs player acceleration.
 	// Start.Speed and Start.PlayerAccelerated are then only the fallback.
 	FollowPlayerSpeed bool
 	MaxAge            time.Duration
 	// Worker is set when a routine Worker reconciles and dispatches beside
 	// this scheduler: a review then defers admission while the Worker owes
-	// a latched outcome's reconcile or a successor's dispatch (issue #162).
+	// a latched outcome's reconcile or a successor's dispatch.
 	// Without one nothing would ever settle them, so the review proceeds.
 	Worker bool
 	// CombatMaxTicks bounds each window admitted while the ActiveCombat goal
@@ -70,15 +70,15 @@ type ClockSchedulerConfig struct {
 	FullStepEvery time.Duration
 	// PlayerQuiet is how long after the last Manual authority bump (the
 	// player pressing a speed key) a step waits before it re-takes a clock
-	// the player runs by hand under a stopped epoch (#601). Zero means
+	// the player runs by hand under a stopped epoch. Zero means
 	// DefaultPlayerQuiet.
 	PlayerQuiet time.Duration
-	// Budget bounds the step's planner waves (#623); see StepBudget.
+	// Budget bounds the step's planner waves; see StepBudget.
 	Budget StepBudget
-	// Faults are the acceptance harness's injected failures (#633); the
+	// Faults are the acceptance harness's injected failures; the
 	// zero value injects none.
 	Faults Faults
-	// Store is the decoded state store the steps fill beside Facts (#354):
+	// Store is the decoded state store the steps fill beside Facts:
 	// each review's census sections with the tick they describe, dropped
 	// by the same typed events. nil makes a private one; the HTTP API
 	// reads the shared one.
@@ -153,12 +153,12 @@ type ClockSchedulerConfig struct {
 	RoundsMethods       bool
 	// WorldReady, when set, runs after the step's opening read and before
 	// any review: it rebuilds the store for the observed world if needed
-	// (#1123) and reports whether a rebuild reset the review cache since
+	// and reports whether a rebuild reset the review cache since
 	// the last step, which makes this step review in full.
 	WorldReady func(context.Context, *c.ObservationContext) (bool, error)
 	// Autosave, when set, runs in the stop between windows: the step has
-	// decided to admit a window, the game is paused, and nothing is in flight
-	// (#2360). It gets the observed identity and tick and handles its own
+	// decided to admit a window, the game is paused, and nothing is in flight.
+	// It gets the observed identity and tick and handles its own
 	// failures; a save never fails the step.
 	Autosave func(ctx context.Context, identity *c.Identity, tick int64)
 }
@@ -166,7 +166,7 @@ type ClockSchedulerResult struct {
 	// Immediate marks a protection-only cycle. Ordinary queue entries remain
 	// due until Hands has had a dispatch opportunity and native can advance.
 	Immediate bool
-	// Pacing is what the step's clock status said of the pace (#627).
+	// Pacing is what the step's clock status said of the pace.
 	Pacing                                                                                                              StepPacing
 	CookingBills, PreservationBills, ButcherBills, CookAheadBills, ArtBills, SurgeryPartBills, BabyFoodBills, MechBills *RoundsBillResult
 	Butcher                                                                                                             *RoundsBuildingResult
@@ -244,58 +244,58 @@ type ClockSchedulerResult struct {
 	Running, Reconciled, Cleaned bool
 	// Coupled is set when a coupled order's prerequisite completed under
 	// the step's own running window (domain.ActionDependency.Coupled): the
-	// step plans live for it at once and the window runs on (#584); the
+	// step plans live for it at once and the window runs on; the
 	// order's native CAS evidence refuses a read the world has left behind.
 	Coupled bool
 	// CoupledOrders is how many such orders were ready, the count the
-	// stop-reason breakdown reads from the step row (#584).
+	// stop-reason breakdown reads from the step row.
 	CoupledOrders int
 	// Unwatched counts the dispatched attempts of a watched kind the
 	// running window does not watch: every one under a routine window,
-	// which arms no watches (#244), and those dispatched after a combat
-	// window was armed (#243). They are left to run and the event poll
+	// which arms no watches, and those dispatched after a combat
+	// window was armed. They are left to run and the event poll
 	// carries their outcome; no stop is spent on them.
 	Unwatched int
 	// Deferred is set when the step admitted nothing because the Worker
 	// has yet to reconcile an attempt whose terminal outcome the clock
-	// latched; the step loop steps again at once (issue #162). A step that
+	// latched; the step loop steps again at once. A step that
 	// found the player running the game under a stopped clock and is
-	// waiting out PlayerQuiet before it re-takes it defers too (#601).
+	// waiting out PlayerQuiet before it re-takes it defers too.
 	Deferred bool
 	// Journal is the wall time the step's own obligation reads spent in
 	// the journal: the attempt and epoch catalogs, the review, the current
-	// plan and the active catalog. It is the clock_step row's journal_ms
-	// (#634); a save's retired history must not grow it.
+	// plan and the active catalog. It is the clock_step row's journal_ms;
+	// a save's retired history must not grow it.
 	Journal time.Duration
 	// Retaken is set when the step found the player running the game under
 	// a stopped clock, paused it natively and reviewed from the paused tick
-	// in the same step (#601).
+	// in the same step.
 	Retaken bool
 	// Combat is set while a combat watch window was admitted or is running,
 	// so the worker keeps its short poll instead of backing off.
 	Combat bool
 	// PlannerFailures holds the errors of planners that failed this step, each
 	// wrapped with the planner's name. A failed planner does not abort the
-	// step: its peers still run and the clock window is still evaluated (#62).
+	// step: its peers still run and the clock window is still evaluated.
 	PlannerFailures []error
 	// Planners names the catalog planners this step queued, in catalog order.
 	Planners []string
 	// Waiting names the planners the selection skipped because each still
-	// waits on the open work it reported (plannerQueue.waits, #625); the
+	// waits on the open work it reported (plannerQueue.waits); the
 	// clock_step row reports it as waiting.
 	Waiting []string
-	// Proposals are the migrated planners' proposals in the coordinator's
+	// Proposals are the proposal planners' proposals in the coordinator's
 	// rank order, each admitted with its plan, waiting on the claim a
-	// higher-ranked proposal holds (#622) or expired against this step's
-	// snapshot (#623).
+	// higher-ranked proposal holds or expired against this step's
+	// snapshot.
 	Proposals []ProposalOutcome
 	// MissedCutoff names the optional planners still evaluating when the
-	// admission cycle moved on (#623): their results are discarded, a
+	// admission cycle moved on: their results are discarded, a
 	// proposal among them is carried to the next step's coordinator, and
 	// they run again next step. The clock_step row lists them.
 	MissedCutoff []string
 	// HeldBy names the critical planners still evaluating when the wall
-	// budget ran out (#623): the step admitted no window and the stop
+	// budget ran out: the step admitted no window and the stop
 	// reason names them.
 	HeldBy []string
 	// CriticalWave is the wall time of the admission cycle's wave: the
@@ -303,7 +303,7 @@ type ClockSchedulerResult struct {
 	CriticalWave time.Duration
 	// PlannerMS is each queued planner's wall time in milliseconds (the
 	// elapsed time so far for one that missed the cutoff): the clock_step
-	// row's planner_ms (#1915).
+	// row's planner_ms.
 	PlannerMS map[string]float64
 	// NativeWorkTicks is the native-work window the planners asked for,
 	// the largest of their NativeWorkTicks, before the budget bounds it.
@@ -367,19 +367,19 @@ type ClockScheduler struct {
 	// window, kept across stops so the next window starts with a pace
 	// (seedLiveDrift) instead of the stopped clock's zero.
 	pacePerSecond float64
-	// combatStops measures combat windows' stops (#849), under the player gate.
+	// combatStops measures combat windows' stops, under the player gate.
 	combatStops combatStopMetrics
 	// livePaceTicks is the pace a step projects the tick by (drift):
 	// pacePerSecond while a window runs, zero under a stopped clock. Touched only under the player gate.
 	livePaceTicks float64
 	// validity is the read validity of the latest step whose scope was
-	// fixed (#624): what the Worker's dispatches under that step's window
+	// fixed: what the Worker's dispatches under that step's window
 	// judge their reads by (Validity).
 	validity *atomic.Pointer[domain.ReadValidity]
 	// manualAt is the wall time (unix nanoseconds, zero for none) of the
 	// last Manual authority change a committed page carried: the player
 	// pressing a speed key. Written under the poll gate, read under the
-	// player gate by the re-take decision (#601).
+	// player gate by the re-take decision.
 	manualAt *atomic.Int64
 	// running is the scheduler's belief that a colony window it admitted
 	// is still running: set by the step that dispatched or observed it,
@@ -389,27 +389,27 @@ type ClockScheduler struct {
 	// reported and the Worker has yet to reconcile; see clockLatched.
 	latched *clockLatched
 	// trace is the trace of the latest step (telemetry.Trace); the Worker
-	// nests its dispatches under it (#298).
+	// nests its dispatches under it.
 	trace atomic.Value
 	// grant is the latest AuthorityChanged grant a committed page carried
 	// (generation, cursor): a hold or stop before it was answered by that
-	// grant and does not disable the authority it holds (#322). Touched
+	// grant and does not disable the authority it holds. Touched
 	// only under the poll gate.
 	grant clockGrant
 	// history is the event cursor watermark the first poll read; events at
-	// or before it precede any authority this process holds (#322).
+	// or before it precede any authority this process holds.
 	// Touched only under the poll gate.
 	history clockHistory
 	// readmitOwed is set by a step that settled its own stopped window and
 	// then deferred, so the step that finally admits reports the whole
 	// stop-to-readmit pause; touched only under the player gate.
 	readmitOwed bool
-	// queue is the planners' due queue (#625): what a step selects
+	// queue is the planners' due queue: what a step selects
 	// between full steps, and the waits it skips. Touched only under the
 	// player gate.
 	queue *plannerQueue
 	// late carries proposals that reached a step's arbiter after its
-	// cutoff to the next step's coordinator (#623).
+	// cutoff to the next step's coordinator.
 	late *lateProposals
 	// catalog is the planner table the steps queue from: plannerCatalog,
 	// or a table a test substitutes.
@@ -681,8 +681,8 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 // clears it.
 func (s *ClockScheduler) WindowRunning() bool { return s.running.Load() }
 
-// Validity is the read validity of the latest step whose scope was fixed
-// (#624): the scope and tick its facts describe. The Worker carries
+// Validity is the read validity of the latest step whose scope was fixed:
+// the scope and tick its facts describe. The Worker carries
 // it on each dispatch's context; false before any step fixed one.
 func (s *ClockScheduler) Validity() (domain.ReadValidity, bool) {
 	v := s.validity.Load()
@@ -693,7 +693,7 @@ func (s *ClockScheduler) Validity() (domain.ReadValidity, bool) {
 }
 
 // readValidity fixes the step's validity once its scope and tick
-// are known (#624) and publishes it for the Worker.
+// are known and publishes it for the Worker.
 func (s *ClockScheduler) readValidity(snapshot domain.GenerationSnapshot, tick int64) domain.ReadValidity {
 	v := domain.ValidityOf(snapshot, domain.Tick(tick))
 	s.validity.Store(&v)
@@ -763,7 +763,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	entered := time.Now()
 	var gate gateWait
 	// The step is a trace root (or runs under the caller's): every flight
-	// row it leaves, native or kinded, carries its trace_id (#298).
+	// row it leaves, native or kinded, carries its trace_id.
 	ctx, trace := telemetry.EnsureTrace(ctx)
 	s.trace.Store(trace)
 	// The poll records latched outcomes as it commits them; the reason
@@ -788,7 +788,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	gateWait := time.Since(entered)
 	// A wake's evidence lands on the due queue once, here, so it outlives
 	// a step that runs no planners (a paced live wave, a stopping window)
-	// and selects the same planners on the next (#625).
+	// and selects the same planners on the next.
 	if reason.Cause == StepWake {
 		s.queue.wake(reason, s.facts.kindOf)
 	}
@@ -797,7 +797,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// visible per step: as a debug record and as a clock_step row in the
 	// flight recorder, which `rimgovernor phases` reports as reads/step.
 	call, reads := bridge.WithReadTally(call)
-	// The planning window's refresher (#356): its step scope, tick and
+	// The planning window's refresher: its step scope, tick and
 	// whether this step reviews are fixed once the bundle below is read,
 	// before any planning read asks it.
 	reviews := s.stepReviews(reason)
@@ -812,15 +812,15 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		out.Journal = journal.total
 		// The reason the step acted on (out.Reason once the status read
 		// fixed it, else the caller's) and, for a step woken by a clock
-		// stop, the latency from the native stop stamp to the step
-		// (issue #112); `rimgovernor phases` reports both.
+		// stop, the latency from the native stop stamp to the step;
+		// `rimgovernor phases` reports both.
 		cause := out.Reason.Cause
 		if cause == "" {
 			cause = reason.Cause
 		}
 		extra := map[string]any{"running": out.Running}
 		// The wait for the player gate before the step began: the
-		// Worker's dispatch step, or manual control, holding it (#593).
+		// Worker's dispatch step, or manual control, holding it.
 		if gateWait > 0 {
 			extra["gate_wait_ms"] = float64(gateWait) / float64(time.Millisecond)
 			extra["gate_holder"] = gate.holder
@@ -830,7 +830,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if len(out.Waiting) > 0 {
 			extra["waiting"] = out.Waiting
 		}
-		// The step's budgets (#623) beside what it used: reads against the
+		// The step's budgets beside what it used: reads against the
 		// read budget, the planner waves against the wall budget, the
 		// native-work window against its bound.
 		budget := map[string]any{"wall_ms": float64(s.config.Budget.wall()) / float64(time.Millisecond), "native_ticks": s.nativeWorkBudget()}
@@ -870,7 +870,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			extra["unwatched"] = out.Unwatched
 		}
 		// The coupled orders ready under this step's window, and whether
-		// the step ended the window for them (#584): the stop-reason
+		// the step ended the window for them: the stop-reason
 		// breakdown counts coupled stops from these fields, since the stop
 		// native journals for one is the controller's own cleanup.
 		if out.CoupledOrders > 0 {
@@ -881,7 +881,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 		// The stop-to-readmit pause this step closed: the wall time from
 		// the stop of a window this scheduler owed to the admission it
-		// dispatched (issue #162). Absent when the step admitted nothing or
+		// dispatched. Absent when the step admitted nothing or
 		// the stop was not one of its own windows (a caller's pause).
 		if out.Deferred {
 			s.readmitOwed = s.readmitOwed || readmit
@@ -904,7 +904,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		return out, err
 	}
 	// The step's opening read: the current scope, the owned clock status
-	// and the emergency census (issue #127).
+	// and the emergency census.
 	started := s.clock.Now()
 	loaded, _, err := s.native.ReadStep(call, s.stepRead(reason))
 	if err != nil {
@@ -924,7 +924,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if err != nil {
 		return out, err
 	}
-	// The player runs the game by hand under a stopped clock (#601): every
+	// The player runs the game by hand under a stopped clock: every
 	// fact read while it runs is stale before the review commits, and no
 	// window can be admitted against a running game. Re-take the clock
 	// here, before the facts below are filled, once the player has let go
@@ -1040,7 +1040,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	out.Pacing = stepPacing(status)
 	// The step's scope, tick and pace are fixed: every read and decision
 	// below, and the Worker's dispatches under the window this step may
-	// admit, judge their facts against this validity (#624).
+	// admit, judge their facts against this validity.
 	call = domain.WithReadValidity(call, s.readValidity(state.Snapshot, status.Context.GetTick()))
 	telemetry.ObserveTick(status.Context.GetTick())
 	if reason.Cause == StepTimer && s.fullStepDue() {
@@ -1081,8 +1081,8 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			if len(coupled) > 0 {
 				// A coupled order is written against what its prerequisite
 				// produced, so it was prepared at a stop, against a frozen
-				// read of that result (#244). It no longer stops the epoch
-				// (#584): the prerequisite's own OperationOutcome row is
+				// read of that result. It no longer stops the epoch:
+				// the prerequisite's own OperationOutcome row is
 				// the wake, this step plans live at once, and the native
 				// CAS evidence the dependent's admission carries is what
 				// keeps the order honest against a world that moved since
@@ -1130,7 +1130,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		// The window this step still owes is already stopped: settle it
 		// from the status just read and, once nothing is owed, review in
 		// this same step rather than leave the game paused for another
-		// bundle read and a second pass (issue #162).
+		// bundle read and a second pass.
 		readmit = true
 		if err = s.session.CleanupClockObserved(call, status); err != nil {
 			out.Cleaned = true
@@ -1249,18 +1249,17 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if err != nil {
 		return out, err
 	}
-	// An open fight (#852) is work of its own once its drafts complete:
-	// its next decision waits on the next armed stop, which needs ticks
-	// (#886).
+	// An open fight is work of its own once its drafts complete:
+	// its next decision waits on the next armed stop, which needs ticks.
 	work = work || fightOpen
 	// The defense planner's verdict at this stop: only a reported
-	// no-squad answer lets a hostile building be watched instead of held
-	// (#326); any other outcome, or no planner, keeps the hold.
+	// no-squad answer lets a hostile building be watched instead of held;
+	// any other outcome, or no planner, keeps the hold.
 	squadUnanswered := domain.Unknown[bool]()
 	if out.Defense != nil && !out.Defense.Verdict.IsZero() {
 		squadUnanswered = domain.Known(out.Defense.Verdict == BuildingReasonNoSquad)
 	}
-	// A complete sheltering response lets the threat be waited out (#1560):
+	// A complete sheltering response lets the threat be waited out:
 	// the wait is work of its own, on game time. It reads the review's
 	// facts, so it holds whether or not the recovery planner ran this step.
 	sheltered := clockShelterHeld(out.Rounds)
@@ -1272,7 +1271,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if s.config.FollowPlayerSpeed {
 		start = followPlayerSpeed(start, status)
 	}
-	// A routine window runs the whole budget (#244); a native-work or
+	// A routine window runs the whole budget; a native-work or
 	// combat bound may narrow it below.
 	paused = clockStopSpan(status, s.clock.Now())
 	out.Window = ClockWindowSize{Ticks: start.MaxTicks}
@@ -1283,7 +1282,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.Fields != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Fields.NativeWorkTicks)
 	}
-	// Designated chunks are carried by ordinary hauling (#702, #764).
+	// Designated chunks are carried by ordinary hauling.
 	if out.Clearance != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Clearance.NativeWorkTicks)
 	}
@@ -1298,7 +1297,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		nativeWorkTicks = max(nativeWorkTicks, out.FireSafety.NativeWorkTicks)
 	}
 	// A layout tier waiting on the game's own rebuild blueprint (a sprung
-	// trap's auto-rearm) needs ticks, not a plan (#72).
+	// trap's auto-rearm) needs ticks, not a plan.
 	if out.DefenseLayout != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.DefenseLayout.NativeWorkTicks)
 	}
@@ -1310,7 +1309,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.Husbandry != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Husbandry.NativeWorkTicks)
 	}
-	// A caravan walks to its trade spot on native ticks alone (#234).
+	// A caravan walks to its trade spot on native ticks alone.
 	if out.Trade != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Trade.NativeWorkTicks)
 	}
@@ -1341,13 +1340,13 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.Rescue != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Rescue.NativeWorkTicks)
 	}
-	// A queued surgery bill is native doctor work (#1238).
+	// A queued surgery bill is native doctor work.
 	if out.Surgery != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Surgery.NativeWorkTicks)
 	}
 	// A planner that failed on a native refusal produced neither work nor a
 	// wait, and the same read is refused again next step while the game
-	// stands still; one window lets the world move under it (#219).
+	// stands still; one window lets the world move under it.
 	if wait := plannerRefusalWait(out.PlannerFailures); wait > 0 {
 		nativeWorkTicks = max(nativeWorkTicks, wait)
 	}
@@ -1363,7 +1362,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		out.NativeWorkTicks = max(out.NativeWorkTicks, start.MaxTicks)
 	}
 	// An admitted trade phase keeps the window short: the session's next
-	// phase lands in the stop after it, before the caravan leaves (#1195).
+	// phase lands in the stop after it, before the caravan leaves.
 	if out.Trade != nil && out.Trade.NativeWorkTicks > 0 {
 		start.MaxTicks = min(start.MaxTicks, out.Trade.NativeWorkTicks)
 	}
@@ -1392,11 +1391,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	start.Policy = proto.Clone(start.Policy).(*k.WatchPolicy)
 	// No window watches attempts: a completed order is not a reason to
 	// stop the clock, the event poll carries its outcome to the Worker
-	// under the running window (#243, #244, #856).
+	// under the running window.
 	s.facts.remember(fingerprint)
 	// A colonist already known downed is acknowledged in either mode: the
 	// native watcher otherwise stops every window at zero ticks on the same
-	// casualty and the rescue never gets the ticks it needs (#213).
+	// casualty and the rescue never gets the ticks it needs.
 	start.Policy.AcknowledgedDownedColonistIds = make([]string, 0, len(out.Decision.Downed))
 	for _, id := range out.Decision.Downed {
 		start.Policy.AcknowledgedDownedColonistIds = append(start.Policy.AcknowledgedDownedColonistIds, string(id))
@@ -1412,10 +1411,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			start.Policy.AcknowledgedHostileIds = append(start.Policy.AcknowledgedHostileIds, string(id))
 		}
 		start.MaxTicks = out.Decision.MaxTicks
-		// Native stops the window on the tick an armed event happens
-		// (#849); the combat budget is the backstop when none does. The
-		// list is armed only while an admitted fight plan owns the combat
-		// (#852): its stop is then that plan's next decision and is benign
+		// Native stops the window on the tick an armed event happens;
+		// the combat budget is the backstop when none does. The
+		// list is armed only while an admitted fight plan owns the combat:
+		// its stop is then that plan's next decision and is benign
 		// (clock.BenignStop). A window with no owning fight is disarmed, so
 		// a combat stop never lands without a plan to answer it.
 		start.Policy.CombatStopEvents = armedCombatStops(fightOpen)
@@ -1522,8 +1521,8 @@ func (s *ClockScheduler) warnIdleStall(ctx context.Context, tick int64) {
 		Attrs: map[string]any{"tick": tick, "refusals": s.idleRefusals, "lend_ticks": idleLendTicks, "standing": standing}})
 }
 
-// nativeWorkBudget is the most ticks a step lends as a native-work window
-// (#623): the configured bound, else the window's own MaxTicks.
+// nativeWorkBudget is the most ticks a step lends as a native-work window:
+// the configured bound, else the window's own MaxTicks.
 func (s *ClockScheduler) nativeWorkBudget() uint32 {
 	if s.config.Budget.NativeWork > 0 {
 		return s.config.Budget.NativeWork
@@ -1549,7 +1548,7 @@ func (s *ClockScheduler) optionalWaveGrace(critical time.Duration, pending []str
 // returned loses its mark and one that missed the cutoff gains it. A mark
 // lasts until its planner returns, so a wave that does not run it leaves
 // it alone; wiping it there left a planner due less often than steps run
-// cancelled at the grace every time it was due (#717). A planner that
+// cancelled at the grace every time it was due. A planner that
 // missed the cutoff stays due, so the next step reruns it with the whole
 // wall budget: its discarded result otherwise left a clock that never
 // started on no_work with nothing to rerun it (hunt cases, CI).
@@ -1567,7 +1566,7 @@ func (s *ClockScheduler) markStarved(finished, missed []string) {
 }
 
 // runPlanners runs the rounder and the selected planner wave as an
-// admission cycle and an optional wave (#623). The cycle joins the routine
+// admission cycle and an optional wave. The cycle joins the routine
 // review and the critical planners under the wall budget: past it, the
 // critical planners still pending are named on out.HeldBy and the step
 // admits nothing. The optional planners run on the same snapshot and are
@@ -1576,7 +1575,7 @@ func (s *ClockScheduler) markStarved(finished, missed []string) {
 // cancelled, recorded on out.MissedCutoff, and their results discarded. The
 // coordinator then arbitrates the proposals that made the cutoff, and any
 // carried from an earlier step, against this step's scope. The due queue
-// records the planners that returned (#625): each is due again at its
+// records the planners that returned: each is due again at its
 // cadence, one that found the work of its kinds still open waits on it,
 // and one that missed the cutoff keeps its marks for the next step.
 func (s *ClockScheduler) runPlannerWave(call, epoch context.Context, out *ClockSchedulerResult, sel plannerSelectionResult, status *k.Status, immediate bool) ([]string, error) {
@@ -1666,11 +1665,11 @@ func (s *ClockScheduler) runPlannerWave(call, epoch context.Context, out *ClockS
 	}
 	wave.close()
 	arbiter.close()
-	// The migrated planners proposed instead of committing: rank their
+	// The proposal planners proposed instead of committing: rank their
 	// proposals by (priority, urgency, ID) against the claims the wave
 	// left on the arbiter, the stock the review observed and what the
 	// admitted plans hold of it, revalidate each against this step and
-	// commit the winners (#622, #623, #628). The admission path beneath
+	// commit the winners. The admission path beneath
 	// each commit still checks stock itself.
 	budget, err := s.stepBudget(call, out, arbiter)
 	if err != nil {
@@ -1686,7 +1685,7 @@ func (s *ClockScheduler) runPlannerWave(call, epoch context.Context, out *ClockS
 	wave.merge(out)
 	// A failed planner is reported, not fatal: the step still evaluates the
 	// clock window on what the other planners committed, and the failed
-	// planner retries next step (#62).
+	// planner retries next step.
 	out.PlannerFailures = append(out.PlannerFailures, wave.group.Failures()...)
 	out.PlannerFailures = append(out.PlannerFailures, commitFailures...)
 	// A planner's own failure filed its planner_step row when it returned; a
@@ -1697,7 +1696,7 @@ func (s *ClockScheduler) runPlannerWave(call, epoch context.Context, out *ClockS
 	return planners, nil
 }
 
-// recordWave files a wave on the due queue (plannerQueue.ran, #625):
+// recordWave files a wave on the due queue (plannerQueue.ran):
 // the planners that returned before the cutoff are due again at their
 // cadence, and one that reported existing work of its kinds waits on the
 // open attempts of those kinds. The plans are read once, only when some
@@ -1718,7 +1717,7 @@ func (s *ClockScheduler) recordWave(call context.Context, sel plannerSelectionRe
 	})
 }
 
-// stepBudget is the coordinator's quantity budget for this step (#628): the
+// stepBudget is the coordinator's quantity budget for this step: the
 // stock the rounds's resource runways observed. Nothing is read when no proposal claims a
 // quantity, and a step without a review carries no stock, so every
 // quantity is unbounded here and checked beneath the commit.
@@ -1740,8 +1739,8 @@ func (s *ClockScheduler) stepBudget(call context.Context, out *ClockSchedulerRes
 }
 
 // livePace measures the running window's pace from the previous step's
-// status tick: the pace the step's read validity widens its bounds by
-// (#345, #624), so a live step and the Worker's dispatches under it read
+// status tick: the pace the step's read validity widens its bounds by,
+// so a live step and the Worker's dispatches under it read
 // one plan however fast the game runs. A stopped, stopping or
 // never-started clock, or a pace not yet measured, leaves the pace at
 // zero so a paused step keeps the tick-exact bound.
@@ -1749,7 +1748,7 @@ func (s *ClockScheduler) livePace(status *k.Status, readAt time.Time) {
 	tick := status.Context.GetTick()
 	pace := 0.0
 	// The pace is measured under a running window and, the same way, under
-	// a stopped clock the player runs by hand (#601); only the window
+	// a stopped clock the player runs by hand; only the window
 	// widens the bounds.
 	running := status.GetRunning() != nil
 	if (running || clockPlayerRunning(status)) && s.paceKnown && tick > s.paceTick && readAt.After(s.paceAt) {
@@ -1802,8 +1801,7 @@ func (s *ClockScheduler) previewSelection(reason StepReason) plannerSelectionRes
 
 // stepRead is the step's opening read: the clock status and the emergency
 // census always. The review's census families, entity sections and
-// planning window come from the snapshot stream as the planners read them
-// (#858).
+// planning window come from the snapshot stream as the planners read them.
 func (s *ClockScheduler) stepRead(reason StepReason) bridge.StepRequest {
 	return bridge.StepRequest{ClockStatus: true, Emergency: true}
 }
@@ -1872,8 +1870,7 @@ func (s *ClockScheduler) bundleClockStatus(loaded *o.BundleSnapshot, snapshot do
 // replanAfterFailure makes the next timer step a full one after a planner
 // wave failed with its selection spent (a native generation moved under
 // the review after an authority resume): at a stopped clock no tick
-// re-queues the planners, and the review stays stale until the safety net
-// (#869).
+// re-queues the planners, and the review stays stale until the safety net.
 func (s *ClockScheduler) replanAfterFailure() { s.lastFull = time.Time{} }
 
 func (s *ClockScheduler) fullStepDue() bool {
@@ -1892,7 +1889,7 @@ func (s *ClockScheduler) fullStepDue() bool {
 // queued planner is isolated by the wave and surfaces later, from its
 // failures, without stopping the step. The colony stage's
 // Foothold hold also drops the comfort-class planners and promotes the
-// startup planners into the critical cycle for the step (#658).
+// startup planners into the critical cycle for the step.
 func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, wave *plannerWave, arbiter *stepArbiter, pick func(plannerEntry) bool, immediate bool) ([]string, error) {
 	startup := false
 	if s.config.Rounds != nil {
@@ -1911,7 +1908,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 			// review (a poll hold, a resume in flight): the reviewer
 			// recorded a disabled review that ranks nothing. Admitting a
 			// window on it refuses no_work at every step until something
-			// else re-reviews (#331); fail the step instead, so the next
+			// else re-reviews; fail the step instead, so the next
 			// step reviews with authority or exits on its absence.
 			return nil, fmt.Errorf("routine: %w", executor.ErrAuthority)
 		}
@@ -1926,8 +1923,8 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		// autonomous play. The break stays visible through the pawn's mood
 		// goal and the native hazard supervisor keeps its authority.
 		if stage := review.Review.Stage; stage != nil && stage.NeedsShelter() {
-			// Foothold (#630): the shelter's planner is critical for this
-			// step (#658), its siting reads outlasting the optional grace.
+			// Foothold: the shelter's planner is critical for this
+			// step, its siting reads outlasting the optional grace.
 			// Every other planner still runs.
 			startup = true
 		}
@@ -1945,11 +1942,11 @@ type clockWorkItem struct {
 
 // runningWork reads the current plan under a running epoch and reports two
 // things about it. The count is the dispatched building attempts; the
-// window runs on and the event poll carries their outcome (#243), so the
+// window runs on and the event poll carries their outcome, so the
 // count is step evidence only. The
 // names are the coupled orders whose prerequisite has completed at the
 // epoch's current tick (domain.PlanSpec.CoupledPending), which the step
-// plans live for without ending the window (#584). Both are empty when the plan no longer
+// plans live for without ending the window. Both are empty when the plan no longer
 // matches the admitted snapshot (the admission tail reports that as
 // evidence on its own).
 func (s *ClockScheduler) runningWork(call context.Context, snapshot domain.GenerationSnapshot, status *k.Status, epoch *k.Epoch) (int, []domain.ActionID, error) {
@@ -2020,7 +2017,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		v := p.View()
 		items = append(items, clockWorkItem{v.Action, p.Action().Kind(), v.Stage, v.Attempt, v.Unresolved})
 		// An applied building is pawn work until census-aware retirement
-		// ends its plan (#856): its blueprint or frame needs ticks.
+		// ends its plan: its blueprint or frame needs ticks.
 		if v.Stage == domain.Completed && p.Action().Kind() == domain.BuildingAction && !plan.Retired {
 			work = true
 			continue
@@ -2091,9 +2088,9 @@ func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current
 		return false, false, nil, err
 	}
 	for _, method := range incident.Methods {
-		// A fight (#852) owns the combat: its orders go out at each
+		// A fight owns the combat: its orders go out at each
 		// stop, not as plan work. Closed, it holds the incident until its
-		// claims are released (#910), with no stops armed.
+		// claims are released, with no stops armed.
 		if fight, ok := fights[method.Plan]; ok {
 			// A hunt origin's fight is watched through its live prey.
 			var prey []domain.PawnID
@@ -2144,8 +2141,8 @@ func clockSchedulerKey(admission *store.ClockWindowAdmission, work []clockWorkIt
 }
 
 // clockPlayerRunning reports whether a stopped clock's game is running: the
-// player un-paused after an external pause and drives the speed by hand
-// (#601). Never a running or stopping epoch, which the scheduler paces.
+// player un-paused after an external pause and drives the speed by hand.
+// Never a running or stopping epoch, which the scheduler paces.
 func clockPlayerRunning(status *k.Status) bool {
 	return status.GetStopped() != nil && status.ActualPaused != nil && !status.GetActualPaused()
 }
@@ -2170,7 +2167,7 @@ func (s *ClockScheduler) playerDriven(loaded *o.BundleSnapshot, epochs []store.C
 }
 
 // noteManual records a Manual authority change the poll committed: the
-// player pressed a speed key at that wall time (#601).
+// player pressed a speed key at that wall time.
 func (s *ClockScheduler) noteManual(at time.Time) { s.manualAt.Store(at.UnixNano()) }
 
 // playerQuiet reports how long since the last Manual bump and whether that
@@ -2191,7 +2188,7 @@ func (s *ClockScheduler) playerQuietFor() time.Duration {
 	return DefaultPlayerQuiet
 }
 
-// journalTimer sums the wall time of a step's own journal reads (#634).
+// journalTimer sums the wall time of a step's own journal reads.
 type journalTimer struct{ total time.Duration }
 
 func journalTimed[T any](t *journalTimer, read func() (T, error)) (T, error) {

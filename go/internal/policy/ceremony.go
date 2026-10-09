@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The bestowing ceremony (#1602, epic #1598). Accepting the Empire's
+// The bestowing ceremony. Accepting the Empire's
 // bestowing-ceremony quest sends a bestower, who waits at the throne spot
 // until the player starts the ritual; the ceremony then fails if the
 // bestower or the colonist is lost, drafted out of it or in a mental state.
@@ -15,7 +15,7 @@ import (
 // and holds the colonist and the attendees off the Sleep timetable
 // (CeremonyHold, PlanSchedulesHeld). Once the bestower waits for the
 // player's command (his Wait toil gizmo) CeremonyStart picks the ceremony the
-// colony starts through the generic Ritual action (#1639).
+// colony starts through the generic Ritual action.
 
 // BestowingCeremony is one pending bestowing-ceremony quest, decoded from
 // the royalty read. Quest is the quest census id. Pawn is the colonist to

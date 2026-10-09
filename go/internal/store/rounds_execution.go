@@ -11,11 +11,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// sameRoot compares the root a review, goal or incident recorded with the
-// root a worker authorizes under: same world and root plan revision. The
-// native generation is left out (#1141, as #259): authority toggles bump it
-// with the world unchanged, and the session refuses a disabled or changed
-// grant at dispatch on its own.
+// sameRoot compares world identity and root plan revision across review and worker
+// authority. Native generation is excluded because authority toggles can change it without
+// changing the world; dispatch separately validates the active grant.
 func sameRoot(recorded, root domain.GenerationSnapshot) bool {
 	return recorded.SameWorld(root) && recorded.Plan == root.Plan && recorded.Revision == root.Revision
 }
@@ -73,8 +71,8 @@ func (s *Store) AuthorizeRoundsPlan(ctx context.Context, root, target domain.Gen
 	return tx.Commit()
 }
 
-// authorizeIncidentPlan is AuthorizeRoundsPlan for an incident's method
-// (#1020): the review binds the open occurrence in deficit, no Safeguard vetoes
+// authorizeIncidentPlan is AuthorizeRoundsPlan for an incident's method:
+// the review binds the open occurrence in deficit, no Safeguard vetoes
 // it and the plan is its unretired method.
 func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review Rounds, id domain.IncidentID, root, target domain.GenerationSnapshot) error {
 	binding, bound := review.incidentBinding(id)
@@ -189,7 +187,7 @@ func (r Rounds) projectNeed(project domain.ProjectID) (domain.ConcernID, bool) {
 	return "", false
 }
 
-// Veto asks the policy Safeguards (#1017) whether this review admits a proposal
+// Veto asks the policy Safeguards whether this review admits a proposal
 // for the goal, returning the veto's reason or "". A goal the review does
 // not bind (a player goal) is outside the routine Safeguards.
 
@@ -203,7 +201,7 @@ func (r Rounds) Veto(g domain.Standard) string {
 }
 
 // Workable loads the Standard goal the review binds to need and reports whether a
-// planner may work it: an active deficit the Safeguards admit (#1121). The goal
+// planner may work it: an active deficit the Safeguards admit. The goal
 // is returned whenever the review binds one, workable or not.
 
 func (s *Store) Workable(ctx context.Context, r Rounds, need policy.ConcernID) (StandardState, bool, error) {
@@ -223,7 +221,7 @@ func (s *Store) Workable(ctx context.Context, r Rounds, need policy.ConcernID) (
 	return goal, goal.Standard.Status == domain.StandardOpen && goal.Standard.Finding == domain.FindingUnmet && r.Veto(goal.Standard) == "", nil
 }
 
-// vetoAction asks the action Safeguards (#1018) at dispatch: a vetoed action is
+// vetoAction asks the action Safeguards at dispatch: a vetoed action is
 // ErrActionVetoed with the Safeguard's reason and only that action is refused.
 func vetoAction(ctx context.Context, tx *sql.Tx, a domain.Action) error {
 	review, err := loadRounds(ctx, tx)

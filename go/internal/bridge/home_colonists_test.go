@@ -42,7 +42,7 @@ func TestReadHomeColonistsAcceptsValidObservation(t *testing.T) {
 		}
 		// Native treats an unset detail family as requested and the read
 		// refuses a reply carrying one, so every other family is declined
-		// explicitly (#261 found every live read failing on this).
+		// explicitly.
 		for name, field := range map[string]*bool{"health": q.Details.Health, "equipment": q.Details.Equipment, "biography": q.Details.Biography, "settings": q.Details.Settings, "social": q.Details.Social, "animals": q.Details.Animals, "schedule": q.Details.Schedule} {
 			if field == nil || *field {
 				t.Fatal(name, q.Details)

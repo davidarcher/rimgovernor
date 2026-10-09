@@ -52,7 +52,7 @@ func tierBuildings(record store.DefenseLayoutRecord, keep func(store.DefenseTier
 
 // Marsh across the ring takes a wooden wall and pumps; once the ground has
 // dried the replanned ring wants stone there, so the wooden walls are
-// removed ahead of the new sections, the pumps left standing (#954).
+// removed ahead of the new sections, the pumps left standing.
 
 func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -88,7 +88,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 		t.Fatal("an unchanged plan re-cut")
 	}
 	// No tombs: the plan above was derived with none, and a tomb room the
-	// replan adds grows the core and moves the killbox (#2036).
+	// replan adds grows the core and moves the killbox.
 	dried, changed, _ := policy.ReplanLayoutWithRooms(plan, survey(true), policy.RoomGrowth{}, 0, 3, 0, policy.TechTierCamp, nil, nil)
 	if !changed {
 		t.Fatal("dried ground kept the plan")
@@ -117,7 +117,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 		}
 	}
 	// A removal ahead of the new sections clears a cell they build on; the
-	// rest waits behind them (#983). The dropped pumps go too.
+	// rest waits behind them. The dropped pumps go too.
 	seenFresh, pumpRemoved := false, false
 	for _, tier := range record.Tiers[1:] {
 		if !strings.HasPrefix(string(tier.Name), policy.TierPerimeterPrefix+"r1-") {
@@ -132,7 +132,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 			if tier.Remove && (fresh[defenseBuildingKey(b)] || !wood[defenseBuildingKey(b)]) {
 				t.Fatal("removes", b)
 			}
-			// The killbox fence (#2231) is wood on any ground; it is no wall.
+			// The killbox fence is wood on any ground; it is no wall.
 			if !tier.Remove && b.Stuff == policy.PerimeterLightStuff && b.Definition != defenseDefinitions.Fence {
 				t.Fatal("wood on dried ground", b)
 			}
@@ -144,7 +144,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 }
 
 // A new pump is planned only while spare watts cover its 150 W; one the
-// record already holds costs nothing more (#983).
+// record already holds costs nothing more.
 func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -189,7 +189,7 @@ func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 }
 
 // A replan that moves the killbox opening un-anchors the record, so the
-// layout is proposed afresh on the new one (#983).
+// layout is proposed afresh on the new one.
 func TestDefenseRecutPerimeterMovedKillbox(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -210,7 +210,7 @@ func TestDefenseRecutPerimeterMovedKillbox(t *testing.T) {
 
 // Heavy bridges researched: the wooden wall on each plain bridge is
 // deconstructed, then the bridge lifted, then the heavy bridge and its stone
-// wall laid (#954).
+// wall laid.
 func TestDefenseRecutPerimeterHeavyBridges(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -269,7 +269,7 @@ func TestDefenseRecutPerimeterHeavyBridges(t *testing.T) {
 
 // A removal tier is done, and leaves the record, once none of its targets
 // stands; each standing target is ordered by its kind, a designated one is
-// work in progress and an unidentified one is left out (#954).
+// work in progress and an unidentified one is left out.
 func TestDefenseRemovalTierOrders(t *testing.T) {
 	t.Parallel()
 	wall, door, bridged, lost := domain.Cell{X: 1, Z: 1}, domain.Cell{X: 2, Z: 1}, domain.Cell{X: 3, Z: 1}, domain.Cell{X: 4, Z: 1}

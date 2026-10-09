@@ -53,7 +53,7 @@ func (client *Client) ReadZones(ctx context.Context, identity *c.Identity) (Enti
 func (client *Client) ReadBuildings(ctx context.Context, identity *c.Identity) (EntityRows[*o.BuildingState], Result, error) {
 	if client.frames != nil {
 		// The stream's building table is the list: read the held version,
-		// with no encode round trip (#1641).
+		// with no encode round trip.
 		if err := authorityIdentity(identity); err != nil {
 			return EntityRows[*o.BuildingState]{}, Result{}, err
 		}
@@ -124,7 +124,7 @@ func (client *Client) ReadBillStacks(ctx context.Context, identity *c.Identity) 
 }
 
 // The entity list requests, shared with the bundle's step families so a
-// section the bundle carries is seeded under the key the read uses (#593).
+// section the bundle carries is seeded under the key the read uses.
 func zonesListRequest(identity *c.Identity) *o.ListZonesRequest {
 	return &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeContents: proto.Bool(false), IncludeFilter: proto.Bool(false)}
 }

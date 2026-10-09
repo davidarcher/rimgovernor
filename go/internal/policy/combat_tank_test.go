@@ -77,7 +77,7 @@ func tankCellsOf(m CombatMemory) map[domain.PawnID]domain.Cell {
 }
 
 // {front cell is cover, a covered cell ahead} → the tank takes the
-// covered cell over nearer open ground (#1153).
+// covered cell over nearer open ground.
 func TestTankPrefersCoveredCellAhead(t *testing.T) {
 	reply := GeometryReply{Scored: []ScoredCell{{Cell: domain.Cell{X: 10, Z: 22}, Lines: []CoverLine{{Hostile: "r1", Cover: .4, LineOfFire: true}}}}}
 	_, memory := answerWithout(t, tankView(), reply, domain.Cell{X: 9, Z: 22})
@@ -86,7 +86,7 @@ func TestTankPrefersCoveredCellAhead(t *testing.T) {
 	}
 }
 
-// {mostly melee raiders} or {an EMP carrier} → no tank is placed (#1153).
+// {mostly melee raiders} or {an EMP carrier} → no tank is placed.
 func TestTankGating(t *testing.T) {
 	melee := tankView()
 	for i := range melee.Threats {

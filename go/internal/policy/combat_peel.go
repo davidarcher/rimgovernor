@@ -6,13 +6,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// StopMeleeContact is the #849 stop for a melee job begun between a
+// StopMeleeContact is the combat stop for a melee job begun between a
 // hostile and a colonist: the event's Pawn is the attacker, its Target
 // the victim.
 const StopMeleeContact CombatStopKind = "melee_contact"
 
-// peelerHome is where the peeler waits (#865): one step behind the first
-// gunner's inner-line cell (#860), clear of both lines, or nowhere (it
+// peelerHome is where the peeler waits: one step behind the first
+// gunner's inner-line cell, clear of both lines, or nowhere (it
 // waits where it was drafted) on a layout without an inner line.
 func peelerHome(view CombatView) *domain.Cell {
 	layout, ok := view.Layout.Value()
@@ -27,7 +27,7 @@ func peelerHome(view CombatView) *domain.Cell {
 	return &cell
 }
 
-// peel is the reaction table's peel row (#865). On a melee contact stop
+// peel is the reaction table's peel row. On a melee contact stop
 // by a hostile on a gunner, the peeler leaves its home to attack that
 // hostile; once its target is down or dead it goes home. A peeler already
 // on a live target keeps it.
@@ -48,14 +48,14 @@ func peel(view CombatView, stop StopEvent, m *CombatMemory) {
 	if r.Target != "" && view.hostileDown(r.Target) {
 		r.Target, r.Cell = "", r.Home
 	}
-	// A peeler never melees an exploder (#898).
+	// A peeler never melees an exploder.
 	_, boom := liveExploders(view)[stop.Pawn]
 	if r.Target == "" && stop.Kind == StopMeleeContact && gunner && !boom && !view.hostileDown(stop.Pawn) {
 		r.Target, r.Cell = stop.Pawn, nil
 	}
 }
 
-// peelable is the one melee contact the peeler answers (#881): its live
+// peelable is the one melee contact the peeler answers: its live
 // target; or, when it is free, the stop's attacker on a gunner, else the
 // first hostile in melee on a gunner. Empty without a peeler.
 func peelable(view CombatView, stop StopEvent, m CombatMemory) domain.PawnID {
@@ -87,7 +87,7 @@ func peelable(view CombatView, stop StopEvent, m CombatMemory) domain.PawnID {
 
 // unpeeled is the positional threats less the contact the peeler answers:
 // a melee attacker on a gunner stands on the cover row, and breaking that
-// contact is the peeler's job, not a compromised hold (#881).
+// contact is the peeler's job, not a compromised hold.
 func unpeeled(view CombatView, stop StopEvent, m CombatMemory) []DefensiveThreatFacts {
 	id := peelable(view, stop, m)
 	if id == "" {

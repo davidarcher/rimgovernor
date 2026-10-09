@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Containment upkeep (#1743, epic #1694): keep a held entity's cell closed
+// Containment upkeep: keep a held entity's cell closed
 // and its captive tended. The rules are the game's own, read from the
 // Building_Door and StatWorker_ContainmentStrength decompile:
 //

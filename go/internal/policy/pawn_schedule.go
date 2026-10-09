@@ -52,13 +52,13 @@ func fill(slots []string, from, to int, def string) {
 	}
 }
 
-// scheduleTemplate is the role-based timetable for a profile (#1314): the
+// scheduleTemplate is the role-based timetable for a profile: the
 // native day sleeps 22h-5h; a NightOwl sleeps 10h-17h (the hours the trait
 // penalises being awake) and is free overnight; a QuickSleeper needs half
 // the rest, so its Sleep block loses two hours at the start (and, for a
 // NightOwl, one at each end). Joy is the hour right before sleep and every
 // other hour is Anything. The planner never writes Work: that would suppress
-// rest and recreation and wake sleeping pawns (#1293).
+// rest and recreation and wake sleeping pawns.
 func scheduleTemplate(effects TraitEffects) []string {
 	slots := make([]string, 24)
 	for h := range slots {
@@ -84,7 +84,7 @@ func sleepBlock(effects TraitEffects) (from, to int) {
 	return sleepFrom, sleepTo
 }
 
-// Need bands for resizing the template (#1315). Hysteresis is pure
+// Need bands for resizing the template. Hysteresis is pure
 // thresholds read against the pawn's current timetable, in the style of
 // EnterC/ExitC in cleanliness.go: no carried history, no minimum hold.
 //   - Sleep: rest below RestEnter (Drowsy is < 0.28) on a base-length
@@ -100,7 +100,7 @@ const (
 	JoyEnter       = 0.30
 	JoyExit        = 0.70
 	SleepExtension = 2
-	// PsyfocusExit: a widened Meditate block (#1316) enters when psyfocus is
+	// PsyfocusExit: a widened Meditate block enters when psyfocus is
 	// below its target and stays wide until psyfocus reaches target+PsyfocusExit.
 	PsyfocusExit = 0.10
 )
@@ -134,10 +134,10 @@ func plannedSchedule(effects TraitEffects, rest, joy domain.Fact[float64], curre
 			slots[(to+i)%24] = ScheduleSleep
 		}
 	}
-	// A staggered pawn (#1317) takes its Joy hour, and the widened hour
+	// A staggered pawn takes its Joy hour, and the widened hour
 	// before it, joyOffset hours earlier; Sleep never moves.
 	slots[(from+23)%24] = ScheduleAnything
-	// A psycaster (#1316) meditates in the recreation block instead:
+	// A psycaster meditates in the recreation block instead:
 	// meditation also fills recreation, and low psyfocus widens it too.
 	block := ScheduleJoy
 	if meditate != nil {
@@ -156,14 +156,14 @@ func plannedSchedule(effects TraitEffects, rest, joy domain.Fact[float64], curre
 	return slots
 }
 
-// maxJoyOffset bounds the recreation stagger (#1317) to the evening: a
+// maxJoyOffset bounds the recreation stagger to the evening: a
 // pawn's Joy hours move at most this many hours earlier, which keeps them
 // clear of the Sleep block (and its wake-end extension) even on the
 // shortest (QuickSleeper NightOwl) day.
 const maxJoyOffset = 3
 
 // joyOffsets staggers recreation when the colony has fewer recreation
-// places than people (#1317): scheduled pawns, sorted by ID, fill the
+// places than people: scheduled pawns, sorted by ID, fill the
 // places hour by hour back from sleep (wrapping past maxJoyOffset).
 // Unknown counts, no places at all, or enough places: no stagger.
 func joyOffsets(ids []PawnID, comfort domain.Fact[ComfortObservation]) map[PawnID]int {
@@ -220,15 +220,15 @@ func sameSchedule(a, b []string) bool {
 // needs (plannedSchedule), staggering Joy hours against the recreation
 // census (joyOffsets); a pawn whose timetable is unknown is skipped.
 // meditateAvailable is whether the Meditate TimeAssignmentDef exists
-// (#1313; unknown reads as false): psycasters then meditate in their
-// recreation block (#1316).
+// (unknown reads as false): psycasters then meditate in their
+// recreation block.
 func PlanSchedules(pawns []WorkPawn, comfort domain.Fact[ComfortObservation], meditateAvailable bool) ScheduleDecision {
 	return PlanSchedulesHeld(pawns, comfort, meditateAvailable, nil)
 }
 
 // PlanSchedulesHeld is PlanSchedules with the pawns in hold kept off Sleep
 // (every Sleep hour planned Anything): a pending bestowing ceremony
-// (CeremonyHold, #1602) needs its colonist and attendees awake to join the
+// (CeremonyHold) needs its colonist and attendees awake to join the
 // ritual. Rest below the sleep band still sends them to bed on their own.
 func PlanSchedulesHeld(pawns []WorkPawn, comfort domain.Fact[ComfortObservation], meditateAvailable bool, hold map[PawnID]bool) ScheduleDecision {
 	var decision ScheduleDecision
@@ -246,7 +246,7 @@ func PlanSchedulesHeld(pawns []WorkPawn, comfort domain.Fact[ComfortObservation]
 		}
 		profile := BuildProfile(pawn)
 		want := plannedSchedule(profile.Effects, pawn.Rest, pawn.Joy, current, offsets[pawn.ID], meditation(pawn, meditateAvailable))
-		// A need an active gene removes needs no block for it (#1689).
+		// A need an active gene removes needs no block for it.
 		for h, slot := range want {
 			if slot == ScheduleSleep && profile.Genes.NeedDisabled("Rest") || slot == ScheduleJoy && profile.Genes.NeedDisabled("Joy") {
 				want[h] = ScheduleAnything

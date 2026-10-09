@@ -26,7 +26,7 @@ type FlightRow struct {
 
 // FlightTail follows a service's flight recorder from where it left off,
 // so a harness can wake on what the service just did instead of polling
-// its state on a timer (#267). Each Next opens the active segment, reads
+// its state on a timer. Each Next opens the active segment, reads
 // the complete lines appended since the previous call and closes it
 // again: the file is never held open, so the recorder's rotation (a
 // close-and-rename) is not blocked on Windows. A rotation between two

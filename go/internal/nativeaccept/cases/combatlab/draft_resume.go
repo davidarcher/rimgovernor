@@ -38,7 +38,7 @@ func init() {
 		Start:       cases.Lab{Colonists: 5},
 		RequiredOps: []string{na.LabStartTool, StageTool, pauseModeTool},
 		QuietWorld:  true,
-		// A checkpoint capture pauses the served game mid-fight (#890).
+		// A checkpoint capture pauses the served game mid-fight.
 		NoCheckpoint: true,
 		// Normal speed: the fight must outlast the kill-and-restart window.
 		Serve:  &cases.ServeSpec{Families: metricsFamilies, Resume: true, PlayerSpeed: "Normal", Prefix: "combatlab-resume"},
@@ -118,7 +118,7 @@ func runResumeDrafted(ctx context.Context, s cases.Session) error {
 			return err
 		}
 	}
-	// A MajorThreat letter would pause the game as a player (#890).
+	// A MajorThreat letter would pause the game as a player.
 	if reply, err := s.Harness().Call(ctx, "pause-mode-never", pauseModeTool, map[string]any{"mode": "Never"}); err != nil {
 		return err
 	} else if na.AsString(reply["mode"]) != "Never" {
@@ -211,7 +211,7 @@ func runResumeDrafted(ctx context.Context, s cases.Session) error {
 	return nil
 }
 
-// waitDrafted waits for an open fight with a drafted roster (#939: the
+// waitDrafted waits for an open fight with a drafted roster (the
 // combat_fights row keyed by plan_id is the fight's draft record).
 func waitDrafted(ctx context.Context, journal *store.Store, service *na.ServiceProcess) (domain.PlanID, store.CombatFight, error) {
 	deadline := time.Now().Add(resumeWait)

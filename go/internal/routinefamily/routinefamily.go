@@ -1,7 +1,7 @@
 // Package routinefamily names the routine planner families `rimgovernor
 // serve` composes. Each family is one identifier, so a case that asks for a
 // family the binary no longer has fails to compile instead of failing the
-// service's startup (the haul family outlived its removal that way, #1802).
+// service's startup (the haul family outlived its removal that way).
 package routinefamily
 
 // Family is the name of one routine planner family, as the serve process

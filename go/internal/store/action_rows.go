@@ -95,7 +95,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if floor, ok := a.FloorRemoval(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z) VALUES(?,?,?,'floor_removal',?,?,?)", a.ID(), plan, ordinal, floor.Definition(), floor.Cell().X, floor.Cell().Z)
 	} else if cut, ok := a.Deconstruction(); ok {
-		// zone_payload is the cleared ground (#1366), NULL without it.
+		// zone_payload is the cleared ground, NULL without it.
 		var ground []byte
 		if rects := cut.ClearedGround(); len(rects) > 0 {
 			var encodeErr error
@@ -103,7 +103,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 				return encodeErr
 			}
 		}
-		// stuff 'swap_wall' is the door-to-wall swap (#1245), NULL without it.
+		// stuff 'swap_wall' is the door-to-wall swap, NULL without it.
 		var swap any
 		if cut.ReplacesWithWall() {
 			swap = "swap_wall"
@@ -141,7 +141,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,zone_payload) VALUES(?,?,?,'combat_batch',?,?,?)", a.ID(), plan, ordinal, batch.Fight(), batch.Key(), data)
 		return conflict(err)
 	} else if attach, ok := a.RulesAttach(); ok {
-		// definition is the lease in ticks, zone_payload the encoded rules (#2154).
+		// definition is the lease in ticks, zone_payload the encoded rules.
 		data, encodeErr := json.Marshal(attach.Rules())
 		if encodeErr != nil {
 			return encodeErr
@@ -178,7 +178,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if interaction, ok := a.PrisonerInteraction(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'prisoner_interaction',?,?)", a.ID(), plan, ordinal, interaction.Pawn(), string(interaction.Interaction()))
 	} else if ritual, ok := a.Ritual(); ok {
-		// definition is the ritual, stuff the verb (#1639). A begin (#1659)
+		// definition is the ritual, stuff the verb. A begin
 		// also keeps its spot in x and z and its assignments in the payload.
 		if ritual.Verb() == domain.RitualBegin {
 			data, encodeErr := json.Marshal(ritualPayload{Slots: ritual.Slots(), Spectators: ritual.Spectators()})
@@ -219,7 +219,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if ability, ok := a.Ability(); ok {
 		// definition is the source key ("permit:<faction>:<permit>"); target is
 		// "pawn:<id>" or "thing:<id>", x and z a cell target, none for no
-		// target (#1607).
+		// target.
 		var target sql.NullString
 		var x, z sql.NullInt64
 		switch t := ability.Target(); t.Kind() {
@@ -243,12 +243,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,building_temperature_payload) VALUES(?,?,?,'building_temperature',?,?)", a.ID(), plan, ordinal, temperature.Thing(), data)
 	} else if area, ok := a.Area(); ok {
 		// definition is the operation, target the bot area key (NULL for
-		// home), zone_payload the canonical rects (#1321).
+		// home), zone_payload the canonical rects.
 		data, encodeErr := json.Marshal(area.Rects())
 		if encodeErr != nil {
 			return encodeErr
 		}
-		// stuff 'pollution_clear' names the pollution-clear area (#1683).
+		// stuff 'pollution_clear' names the pollution-clear area.
 		var clear any
 		if area.PollutionClear() {
 			clear = "pollution_clear"
@@ -257,21 +257,21 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if settings, ok := a.PawnSettings(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition) VALUES(?,?,?,'pawn_settings',?,?)", a.ID(), plan, ordinal, string(settings.Pawn()), pawnSettingDefinition(settings))
 	} else if roof, ok := a.RemoveRoof(); ok {
-		// zone_payload is the canonical cells (#1366).
+		// zone_payload is the canonical cells.
 		data, encodeErr := json.Marshal(roof.Cells())
 		if encodeErr != nil {
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,zone_payload) VALUES(?,?,?,'remove_roof',?)", a.ID(), plan, ordinal, data)
 	} else if cut, ok := a.AreaPlantCut(); ok {
-		// zone_payload is the canonical cells (#1547).
+		// zone_payload is the canonical cells.
 		data, encodeErr := json.Marshal(cut.Cells())
 		if encodeErr != nil {
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,zone_payload) VALUES(?,?,?,'area_plant_cut',?)", a.ID(), plan, ordinal, data)
 	} else if prune, ok := a.PolicyPrune(); ok {
-		// definition is the database, zone_payload the canonical ids (#1298).
+		// definition is the database, zone_payload the canonical ids.
 		data, encodeErr := json.Marshal(prune.IDs())
 		if encodeErr != nil {
 			return encodeErr
@@ -312,7 +312,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		// definition carries the wanted crop.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'grower_crop',?,?)", a.ID(), plan, ordinal, crop.Thing(), crop.Crop())
 	} else if medical, ok := a.BedUse(); ok {
-		// definition carries the wanted flag, or "prisoners" (#880).
+		// definition carries the wanted flag, or "prisoners".
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'bed_medical',?,?)", a.ID(), plan, ordinal, medical.Thing(), bedUseDefinition(medical))
 	} else if assign, ok := a.Assign(); ok {
 		// definition carries the expected previous bed; empty means none.
@@ -320,7 +320,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		if !assign.Previous().Clear() {
 			def = assign.Previous().ID()
 		}
-		// stuff carries "swap" for a bedroom swap (#1243).
+		// stuff carries "swap" for a bedroom swap.
 		var swap any
 		if assign.Swap() {
 			swap = "swap"
@@ -391,7 +391,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
-		// A pinned batch (#1190: one art bill per artist) reloads pinned.
+		// A pinned batch (one art bill per artist) reloads pinned.
 		if payload.Mode == domain.GearBatch && payload.Worker != "" {
 			if value, err = value.PinWorker(payload.Worker); err != nil {
 				return domain.Action{}, 0, err
@@ -1350,7 +1350,7 @@ type workPayload struct {
 	HasArea   bool   `json:",omitempty"`
 	AreaClear bool   `json:",omitempty"`
 	Area      string `json:",omitempty"`
-	// Schedule is the 24-hour timetable a schedule write carries (#417);
+	// Schedule is the 24-hour timetable a schedule write carries;
 	// omitted for work-only and area-only rows so older payloads stay
 	// canonical.
 	Schedule []string `json:",omitempty"`
@@ -1432,7 +1432,7 @@ type tradePayload struct {
 	ReceiveQuest          bool
 }
 
-// ritualPayload is a ritual begin's assignments (#1659).
+// ritualPayload is a ritual begin's assignments.
 type ritualPayload struct {
 	Slots      []domain.RitualSlot
 	Spectators []domain.PawnID
@@ -1442,7 +1442,7 @@ type moodReliefPayload struct {
 }
 
 // bedPrisonersUse is a bed_medical row's definition for a bed set for
-// prisoners (#880); the medical rows keep "true" and "false".
+// prisoners; the medical rows keep "true" and "false".
 const bedPrisonersUse = "prisoners"
 
 // bedSlavesUse is a bed_medical row's definition for a bed set for slaves.
@@ -1459,12 +1459,12 @@ func bedUseDefinition(b domain.BedUse) string {
 }
 
 // pawnSettingDefinition is a pawn_settings row's definition column: the
-// hostility mode, "self_tend:<bool>" (#1305), "nickname:<name>" (#1310), a
-// MedicalCareCategory name (#1301), "reading_policy:<name>" (#1306),
-// "drug_policy:<name>" (#1537), "food_policy:<name>" (#1541),
-// "mech_work_mode:<def>" or "mech_control_group:<index>" (#1685) or
-// "choose_permit:<faction def>:<permit def>" (#1878) or
-// "extract_bioferrite:<bool>" (#2434); the names never overlap.
+// hostility mode, "self_tend:<bool>", "nickname:<name>", a
+// MedicalCareCategory name, "reading_policy:<name>",
+// "drug_policy:<name>", "food_policy:<name>",
+// "mech_work_mode:<def>" or "mech_control_group:<index>" or
+// "choose_permit:<faction def>:<permit def>" or
+// "extract_bioferrite:<bool>"; the names never overlap.
 func pawnSettingDefinition(s domain.PawnSettings) string {
 	if s.Kind() == domain.SettingSelfTend {
 		return "self_tend:" + strconv.FormatBool(s.SelfTend())

@@ -9,14 +9,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The layout/rich-soil audit (#1291) over a recorded layout plan, the map
+// The layout/rich-soil audit over a recorded layout plan, the map
 // survey it was planned on and the colony's growing zones.
 
-// richFertility is the fertility above which soil is rich (#1284).
+// richFertility is the fertility above which soil is rich.
 const richFertility = 1.0
 
 // richOverlapBudget is the fraction of the map's rich cells planned rooms
-// and hallways may cover (#1291): the planner prices rich soil as a cost,
+// and hallways may cover: the planner prices rich soil as a cost,
 // not a ban, so a small overlap is allowed.
 const richOverlapBudget = 0.02
 

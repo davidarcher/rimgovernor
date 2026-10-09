@@ -31,7 +31,7 @@ const fireSafetyNativeWorkTicks = 600
 // RoundsFireSafetyPlanner is MaintainFireSafety's method: no plan and no
 // order, only a decision whether the clock may run so colonists fight a
 // home fire natively (policy.EvaluateFireSafety), even one ReviewUpkeep calls
-// unsafe (#715). A blocked fire (no eligible firefighter) keeps the emergency
+// unsafe. A blocked fire (no eligible firefighter) keeps the emergency
 // hold and the clock paused.
 type RoundsFireSafetyPlanner struct {
 	reviewer *Rounder

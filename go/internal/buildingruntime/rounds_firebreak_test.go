@@ -68,7 +68,7 @@ func TestFirebreakGround(t *testing.T) {
 
 // The firebreak reads standing plants from the mirror's thing lists: an
 // undesignated plant on a cut cell stands, a designated one, another
-// category and a cell off the cut list do not (#2273).
+// category and a cell off the cut list do not.
 func TestStandingPlantsReadsMirrorThings(t *testing.T) {
 	plant := policy.Thing{Def: "Plant_Grass", Category: policy.ThingPlant}
 	designated := policy.Thing{Def: "Plant_Grass", Category: policy.ThingPlant, Flags: policy.FlagDesignated}

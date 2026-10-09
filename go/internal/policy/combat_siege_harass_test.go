@@ -90,7 +90,7 @@ func shipPartView(mechs ...combatMech) CombatView {
 
 // TestHitAndRunShipPart: {a ship part, no live mech} -> the gunner stands
 // off the part at 0.9 of its range and targets it; {a live scyther} ->
-// no hit-and-run (#1061).
+// no hit-and-run.
 func TestHitAndRunShipPart(t *testing.T) {
 	_, m := decideStop(t, shipPartView(), StopEvent{}, CombatMemory{})
 	r := role(m, "a")

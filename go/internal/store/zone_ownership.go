@@ -26,7 +26,7 @@ type OwnedZone struct {
 
 // zoneClaims lists every completed autopilot zone_create of the current
 // world scope by the native zone identity its receipt returned; the layout
-// tidy (#611) reads a zone's kind and crop from these when it has one.
+// tidy reads a zone's kind and crop from these when it has one.
 func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]OwnedZone], error) {
 	unknown := domain.Unknown[[]OwnedZone]()
 	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,m.owner_id FROM plan_methods m LEFT JOIN standards g ON g.id=m.owner_id AND m.kind='standard' LEFT JOIN projects pr ON pr.id=m.owner_id AND m.kind='project'

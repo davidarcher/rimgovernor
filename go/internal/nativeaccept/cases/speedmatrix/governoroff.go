@@ -12,7 +12,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-// runGovernorOff is the governor-off row (#621): the same stage reloaded
+// runGovernorOff is the governor-off row: the same stage reloaded
 // and frozen exactly as a governed row, then played natively at the row's
 // speed (the test acceleration where the row asks for it) with no
 // controller attached, until the tick has advanced by the budget. The
@@ -75,7 +75,7 @@ func (m *matrix) runGovernorOff(ctx context.Context, c na.SpeedCase) (err error)
 	lastTick := startTick
 	reads := 0
 	// Nothing records a flight timeline here, so the row's observation and
-	// frame accounts come off its own tick reads' reply envelopes (#642):
+	// frame accounts come off its own tick reads' reply envelopes:
 	// the ungoverned update intervals on the same save and renderer.
 	account := &bridge.NativeAccount{}
 	waitErr := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Interval: 2 * time.Second},
@@ -149,8 +149,8 @@ func readIdentity(ctx context.Context, h *na.Harness) (map[string]any, error) {
 }
 
 // readTickAccounted is readTick over the raw reply envelope, so the reply's
-// companion timing block feeds the row's observation and frame accounts
-// (#642). Harness.Wire unwraps the ProtoJSON payload and drops the block.
+// companion timing block feeds the row's observation and frame accounts.
+// Harness.Wire unwraps the ProtoJSON payload and drops the block.
 func readTickAccounted(ctx context.Context, h *na.Harness, label string, account *bridge.NativeAccount) (uint64, error) {
 	envelope, err := h.Call(ctx, label, "rimgovernor/lifecycle_read_tick", map[string]any{"request": "{}"})
 	if err != nil {

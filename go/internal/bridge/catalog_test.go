@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TestDefinitionCatalogRefusesMalformedRows (#1340): the catalog refuses
+// TestDefinitionCatalogRefusesMalformedRows: the catalog refuses
 // another world's catalog and malformed research rows.
 func TestDefinitionCatalogRefusesMalformedRows(t *testing.T) {
 	context := authorityTestContext(7)

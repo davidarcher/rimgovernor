@@ -7,7 +7,7 @@ import (
 )
 
 // The monolith's two orders ride the recovery-service action as give-jobs
-// named after the game's JobDefs (#2437).
+// named after the game's JobDefs.
 func TestMonolithOrdersAreGiveJobsOnTheMonolith(t *testing.T) {
 	for method, job := range map[domain.RecoveryMethod]string{
 		domain.RecoveryServiceInvestigateMonolith: "InvestigateMonolith",
@@ -36,7 +36,7 @@ func TestMonolithOrdersAreGiveJobsOnTheMonolith(t *testing.T) {
 }
 
 // The awakening quest's interaction rides the same action as an InteractThing
-// give-job on the structure, the monolith or the node (#2438).
+// give-job on the structure, the monolith or the node.
 func TestInteractIsAGiveJobOnTheTarget(t *testing.T) {
 	service, err := domain.NewRecoveryService("Thing_Pawn1", "Thing_VoidNode1", domain.RecoveryServiceInteract)
 	if err != nil {

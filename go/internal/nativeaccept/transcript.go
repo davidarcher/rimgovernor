@@ -13,7 +13,7 @@ import (
 
 // RecordEnv names a directory; when set, every bridge call of the run is
 // recorded to <dir>/transcript.jsonl (bridge.Transcript) so harness code
-// can be exercised against the recording under go test (#282):
+// can be exercised against the recording under go test:
 // ReplayHarness serves it back. The evidence rows (evidence.go) stay the
 // human-readable record; the transcript is the machine-replayable one.
 const RecordEnv = "RIMGOVERNOR_ACCEPT_RECORD"

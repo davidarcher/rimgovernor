@@ -53,7 +53,7 @@ func doctors(colonists int, medicine ...int) PrisonerColony {
 }
 
 // The training step names the lowest-Medicine doctor below the floor whose
-// chance clears RestoreFailureCap (#1253); others keep vanilla's choice.
+// chance clears RestoreFailureCap; others keep vanilla's choice.
 func TestPegTrainingNamesSurgeon(t *testing.T) {
 	colony := doctors(8, 12, 3, 5, 1)
 	for _, c := range []struct {

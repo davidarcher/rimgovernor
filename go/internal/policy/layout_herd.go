@@ -7,8 +7,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Herd sites (#1633, #2122, #2235). The barn and the vet area are reservations
-// sized by the herd plan (#1628), grouped in units: the misc unit holds every
+// Herd sites. The barn and the vet area are reservations
+// sized by the herd plan, grouped in units: the misc unit holds every
 // animal that is no herd's, and each herd (HerdPlan.Herds) gets a unit of its
 // own, sized from its policy ceiling. A unit is a barn (roofed, an animal
 // sleeping spot per animal, an animal flap into the paddock) and a vet area
@@ -16,9 +16,9 @@ import (
 // wall's yard (policy.NextPaddockStep), not a reservation. A reservation never
 // changes or moves: a herd its unit cannot hold gets another reservation of
 // the same kind beside the same room (herd_rooms.go builds and furnishes
-// them), or, boxed in, a whole second unit (#2212).
+// them), or, boxed in, a whole second unit.
 //
-// A unit is matched to its herd by key (#2226): every reservation of a herd's
+// A unit is matched to its herd by key: every reservation of a herd's
 // unit, a second unit and a top-up included, carries LayoutReservation.Herd,
 // the herd's race; the misc unit's carry none. The plan is a saved blob, so
 // the key is stored. Saves regenerate, so a plan without keys is not
@@ -43,7 +43,7 @@ const (
 	penAnimalsFloor = herdUnplannedFloor
 )
 
-// yardCellsPerAnimal is the yard's grazing estimate (#2232): cells of the
+// yardCellsPerAnimal is the yard's grazing estimate: cells of the
 // wall's yard per herd animal. It is a sizing guess only; the paddock's real
 // capacity is the native pen food calculation (PenGrazing, herdPastureRatio).
 const yardCellsPerAnimal = 24
@@ -61,7 +61,7 @@ func (p HerdPlan) YardAnimals() int {
 // YardCells is the grazing yard cells a herd of animals wants.
 func YardCells(animals int) int32 { return int32(max(animals, 0) * yardCellsPerAnimal) }
 
-// PenAnimals is the misc unit's herd (#2122): the plan's ceiling summed over
+// PenAnimals is the misc unit's herd: the plan's ceiling summed over
 // the races that are no herd of their own (founders and companions have none
 // and live elsewhere), at least penAnimalsFloor.
 func (p HerdPlan) PenAnimals() int {
@@ -81,7 +81,7 @@ type HerdCeiling struct {
 	Animals int
 }
 
-// HerdUnits are the herds' units (#2122), one per herd race in name order:
+// HerdUnits are the herds' units, one per herd race in name order:
 // each gets a barn and vet area of its own, sized from its ceiling.
 func (p HerdPlan) HerdUnits() []HerdCeiling {
 	herds := slices.Sorted(slices.Values(p.Herds))
@@ -100,11 +100,11 @@ func VetBeds(animals int) int {
 // walledSide is the outline of a room whose interior is w by h.
 func walledSide(w, h int32) (int32, int32) { return w + 2, h + 2 }
 
-// PlanHerdSites tops plan up with the herd units (#2122): the misc unit for
+// PlanHerdSites tops plan up with the herd units: the misc unit for
 // animals animals and one unit per herds ceiling (HerdPlan.HerdUnits), each
 // with the barn beds and vet beds the unit's existing rooms cannot hold.
 // Nothing placed moves; sites that do not fit are left out. A unit is matched
-// to its race by the key on its reservations (#2226; see the file comment for
+// to its race by the key on its reservations (see the file comment for
 // plans saved without one). Zero animals plans no misc unit. plan holds its
 // core zones.
 func PlanHerdSites(plan LayoutPlan, animals int, herds ...HerdCeiling) LayoutPlan {
@@ -200,7 +200,7 @@ func (p LayoutPlan) capacity(areas []Rectangle, role PlannedRole) int {
 
 // housedUnits are the plan's herd units matched to the primary units (the misc
 // unit, then one per herd): a unit goes to the herd its reservations are keyed
-// to, so a second unit a boxed-in herd founded (#2212) joins its own herd, and
+// to, so a second unit a boxed-in herd founded joins its own herd, and
 // an unkeyed one, or one of a herd no longer planned, joins the misc unit.
 func (p LayoutPlan) housedUnits(herds []HerdCeiling) []herdUnit {
 	out := make([]herdUnit, 1+len(herds))

@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// A deathresting defender (#1690) is in no planner's roster: no stop's
+// A deathresting defender is in no planner's roster: no stop's
 // orders, formation or flank, name it.
 func TestDeathrestingDefenderTakesNoCombatOrder(t *testing.T) {
 	view := flankView(6)

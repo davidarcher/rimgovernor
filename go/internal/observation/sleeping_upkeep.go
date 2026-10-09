@@ -42,7 +42,7 @@ func colonySleeping(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) domain
 	return domain.Known(r)
 }
 
-// upkeepRooms is the room-quality view of the frame's rooms census (#1338):
+// upkeepRooms is the room-quality view of the frame's rooms census:
 // every room holding a colonist bed (humanlike, not medical, not for
 // prisoners) or carrying a common role (dining, rec room) and not fogged,
 // with its native stats. Unknown when a bed's kind or room is unknown; a

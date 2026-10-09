@@ -27,7 +27,7 @@ func TestOwnedSessionWithoutGame(t *testing.T) {
 }
 
 // RequestID is the base on a fresh run; a resumed run suffixes the run id
-// so a replayed submission is a new request to the restored store (#307),
+// so a replayed submission is a new request to the restored store,
 // and the suffix holds still for the run's relaunches.
 func TestRequestIDResumeSuffix(t *testing.T) {
 	fresh := &session{}
@@ -86,7 +86,7 @@ func TestCaseOutputByAttempt(t *testing.T) {
 }
 
 // Under -headless a rendered case ends the kept headless process and a
-// headless case ends a kept rendered one (#444); without -headless every
+// headless case ends a kept rendered one; without -headless every
 // case shares the windowed profile and nothing is stopped.
 func TestProfileToStopEndsTheOtherProfileUnderHeadless(t *testing.T) {
 	for _, tc := range []struct {

@@ -3,7 +3,7 @@ param(
     [Parameter(Mandatory)][string]$Out,
     [datetime]$Since = (Get-Date).AddHours(-7)
 )
-# Records why a game process exited on a remote runner (#1358): the exit
+# Records why a game process exited on a remote runner : the exit
 # status from process-termination audit events (enabled early in
 # the shard job), Application Error / WER events, crash dump inventory and
 # Unity crash-folder text logs. Dumps stay on the runner: they hold process

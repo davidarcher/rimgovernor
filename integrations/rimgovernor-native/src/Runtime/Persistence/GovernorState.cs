@@ -3,13 +3,13 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Governor state (#882): opaque blobs Go owns, saved with the game. Native
+    // Governor state: opaque blobs Go owns, saved with the game. Native
     // stores and returns them verbatim and never interprets them.
     public sealed class GovernorState : GameComponent
     {
         public Dictionary<string, string> Blobs = new Dictionary<string, string>();
 
-        // A batched put (#2357) lands here from a bridge worker thread, never
+        // A batched put lands here from a bridge worker thread, never
         // touching Blobs (main thread only). The staged set replaces Blobs the
         // next time the game thread reads it or saves, so a main thread parked
         // on a save cannot deadlock the flush.

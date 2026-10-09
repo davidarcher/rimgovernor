@@ -1,6 +1,6 @@
 package policy
 
-// The worship room (#1658, epic #1653). An ideoligion that requires buildings
+// The worship room. An ideoligion that requires buildings
 // (Ideoligion.RequiredBuildings: the building precepts' ThingDefs and the
 // held rituals' required buildings, all read from the game) is owed one
 // worship room holding one of each. It is staged exactly like the child

@@ -15,12 +15,12 @@ var surgeryKinds = map[o.SurgeryKind]policy.SurgeryKind{
 	o.SurgeryKind_SURGERY_KIND_OTHER:    policy.SurgeryOther,
 }
 
-// SurgeryFacts maps the native surgery facts (#1161) as observed, for a
-// colonist's care read and a prisoner's population row (#1169). A list
+// SurgeryFacts maps the native surgery facts as observed, for a
+// colonist's care read and a prisoner's population row. A list
 // carrying a read issue is unknown; values are never recomputed here.
 //
 // Each operation carries the part item its recipe installs, read from the
-// catalog's recipe rows (#1721); a recipe the catalog has no row for is an error.
+// catalog's recipe rows; a recipe the catalog has no row for is an error.
 func SurgeryFacts(h *o.PawnHealth, catalog *DefinitionCatalog) (domain.Fact[[]policy.MissingPart], domain.Fact[[]policy.SurgeryOperation], error) {
 	parts, ops := domain.Unknown[[]policy.MissingPart](), domain.Unknown[[]policy.SurgeryOperation]()
 	if !surgeryIssue(h.Issues, "missing_parts") {
@@ -74,8 +74,8 @@ func SurgeryFacts(h *o.PawnHealth, catalog *DefinitionCatalog) (domain.Fact[[]po
 	return parts, ops, nil
 }
 
-// QueuedSurgeryItems lists the part item each queued medical bill installs
-// (#1261), by the catalog's recipe rows; a bill that installs no item adds none.
+// QueuedSurgeryItems lists the part item each queued medical bill installs,
+// by the catalog's recipe rows; a bill that installs no item adds none.
 func QueuedSurgeryItems(recipes []string, catalog *DefinitionCatalog) ([]policy.Resource, error) {
 	var items []policy.Resource
 	for _, recipe := range recipes {
@@ -99,8 +99,8 @@ func QueuedSurgeries(h *o.PawnHealth) domain.Fact[int] {
 	return domain.Known(len(h.SurgeryBills))
 }
 
-// QueuedSurgeryRecipes lists each medical bill's recipe on the patient
-// (#1261); nil when the bill stack carried a read issue.
+// QueuedSurgeryRecipes lists each medical bill's recipe on the patient;
+// nil when the bill stack carried a read issue.
 func QueuedSurgeryRecipes(h *o.PawnHealth) []string {
 	if surgeryIssue(h.Issues, "surgery_bills") {
 		return nil
@@ -137,7 +137,7 @@ func surgeryIssue(issues []*o.ReadIssue, field string) bool {
 	return false
 }
 
-// InstalledParts maps the native installed added parts (#1837). A read issue
+// InstalledParts maps the native installed added parts. A read issue
 // on installed_parts is unknown, never an empty list. The tier comes from the
 // hediff def name; the priced item is the hediff's spawnThingOnRemoved, unknown
 // when the part spawns nothing.

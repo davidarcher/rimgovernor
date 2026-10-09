@@ -9,7 +9,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable acceptance only (#1692, epic #1667): a mechanitor
+    // Private disposable acceptance only: a mechanitor
     // gestates a mech inside its bandwidth and gives it a work order.
     // test/mech_gestation_prepare makes one colonist a mechanitor (a mechlink
     // on the brain), builds a powered mech gestator (a fueled generator on a

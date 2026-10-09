@@ -20,7 +20,7 @@ type ownedArea struct {
 }
 
 // safeAreaMemory holds MaintainShelter's bot area state in memory only: the
-// Safe area (#1325) and the NoDanger area (#1327, #1802), each with the cells last
+// Safe area and the NoDanger area, each with the cells last
 // committed and the latest review's plan. A new world (start, reload)
 // forgets the cells, so the first pass resets each area (delete, then
 // create with the full set).
@@ -30,7 +30,7 @@ type safeAreaMemory struct {
 	areas map[string]*ownedArea
 	// edits is the latest review's plan for world.
 	edits []domain.Area
-	// last is the tick a live hostile was last seen in world (#1327).
+	// last is the tick a live hostile was last seen in world.
 	last      domain.Tick
 	lastKnown bool
 	// danger is the union of the danger seeds seen while the window held
@@ -88,14 +88,14 @@ func (m *safeAreaMemory) review(world string, projection observation.ColonyProje
 		}
 	}
 	// The barn's interior is the area pen animals are sheltered in while
-	// their race is in danger outdoors (AnimalShelterChoice, #1869).
+	// their race is in danger outdoors (AnimalShelterChoice).
 	if len(barn) > 0 {
 		if err := m.plan(policy.BarnAreaKey, barn); err != nil {
 			return domain.Unknown[bool](), err
 		}
 	}
 	// The paddock yard and the map outside it are the areas companions and
-	// predators are kept in (AnimalShelterChoice, #2234).
+	// predators are kept in (AnimalShelterChoice).
 	if plan, ok := projection.LayoutPlan.Value(); ok {
 		if yard := plan.PaddockCells(); len(yard) > 0 {
 			if err := m.plan(policy.CompanionAreaKey, yard); err != nil {
@@ -107,7 +107,7 @@ func (m *safeAreaMemory) review(world string, projection observation.ColonyProje
 		}
 	}
 	// The isolation room's interior is the area a creepjoiner is held in
-	// (ManageCreepJoiners, #1740).
+	// (ManageCreepJoiners).
 	if len(isolation) > 0 {
 		if err := m.plan(policy.IsolationAreaKey, isolation); err != nil {
 			return domain.Unknown[bool](), err

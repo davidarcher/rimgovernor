@@ -25,16 +25,16 @@ type SquadThreatFacts struct {
 	// remains (a hive's insects and a ship part's guards first). Dead is
 	// destroyed; the other pawn facts are irrelevant. A ranged-equipped
 	// defender listed under LinesOfFire shoots it from where it stands (the
-	// native ranged predicates need the target in range now; #327); every
+	// native ranged predicates need the target in range now); every
 	// other defender walks to it in melee.
 	Building bool
-	// Anomaly is the pawn row's Anomaly facts (#1739); unknown without
+	// Anomaly is the pawn row's Anomaly facts; unknown without
 	// Anomaly.
 	Anomaly domain.Fact[PawnAnomaly]
-	// Mech is a Mech_ pawn kind (#970), marked from the combat view.
+	// Mech is a Mech_ pawn kind, marked from the combat view.
 	Mech        bool
 	LinesOfFire map[domain.PawnID]bool
-	// MeleePower is the pawn's MeleeDPS scaled by health (#969).
+	// MeleePower is the pawn's MeleeDPS scaled by health.
 	MeleePower domain.Fact[float64]
 }
 
@@ -44,12 +44,12 @@ type SquadThreatFacts struct {
 type SquadDefenderFacts struct {
 	ID                                               domain.PawnID
 	Dead, Downed, Drafted, MentalState, PlayerForced domain.Fact[bool]
-	// DraftOwned is whether a live plan needs the pawn drafted (#939). A
+	// DraftOwned is whether a live plan needs the pawn drafted. A
 	// drafted pawn a plan needs is busy elsewhere; a drafted pawn no plan
 	// needs is a candidate like any
-	// undrafted colonist and the draft adopts it (#461).
+	// undrafted colonist and the draft adopts it.
 	DraftOwned domain.Fact[bool]
-	// Deathresting is a pawn known to be in deathrest (#1690): never a
+	// Deathresting is a pawn known to be in deathrest: never a
 	// defender.
 	Deathresting                         bool
 	QueuedJobs                           domain.Fact[uint32]
@@ -63,19 +63,19 @@ type SquadDefenderFacts struct {
 	// it orders preference only, never eligibility.
 	FrontLine bool
 	// Armor is the pawn's worn sharp armor rating; it ranks choke
-	// blockers (#864). Unknown ranks after every known rating.
+	// blockers. Unknown ranks after every known rating.
 	Armor domain.Fact[float64]
-	// MeleePower is the pawn's MeleeDPS scaled by health (#969).
+	// MeleePower is the pawn's MeleeDPS scaled by health.
 	MeleePower domain.Fact[float64]
 	// RangedDPS is the primary ranged weapon's damage per second, 0
-	// without one (#1188).
+	// without one.
 	RangedDPS domain.Fact[float64]
 	// Warden is a pawn with Warden work enabled; a prison break ranks it
-	// first (#1080).
+	// first.
 	Warden bool `json:",omitempty"`
 }
 
-// meleeBeats reports whether defenders can win a melee against t (#969):
+// meleeBeats reports whether defenders can win a melee against t:
 // their summed melee power above t's. A gun among them, a building or
 // any unknown power is not a melee this compares.
 func meleeBeats(t SquadThreatFacts, defenders []SquadDefenderFacts) bool {
@@ -119,7 +119,7 @@ const (
 // defender. This proposal covers the general N-opponent case only; the
 // single-raider tribal 3-defender/85%-health sub-case is the caller's
 // separate SelectTribalRaiderDefense preference, and an unarmed defender is
-// never sent to melee (#948) and is not equipped inline (RoundsEquipPlanner arms
+// never sent to melee and is not equipped inline (RoundsEquipPlanner arms
 // colonists on its own independently-scheduled goal).
 //
 // Assignments are a proposal only; native (melee intents) and
@@ -246,7 +246,7 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 	// Buildings wait for the field to clear: a hive's insects and a ship
 	// part's guards are the live danger, the building itself goes nowhere.
 	// Any standing hostile pawn guards it, eligible or not: a hive is not
-	// attacked while its insects still fight (#948).
+	// attacked while its insects still fight.
 	if len(threatPool) == 0 && !standing {
 		threatPool = buildings
 	}
@@ -288,7 +288,7 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 					continue
 				}
 				// Melee needs a weapon in hand: fists lose to anything
-				// worth fighting (#948).
+				// worth fighting.
 				if armed, ak := d.Armed.Value(); !ranged && (!ak || !armed) {
 					continue
 				}

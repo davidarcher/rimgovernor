@@ -33,7 +33,7 @@ func (n *remoteOreNative) ReadResourceSources(_ context.Context, _ *c.Identity, 
 
 // remoteOreStep runs one MaintainResource step for a two-worker colony with
 // a 200-steel target and the given steel stock. It replaces the native
-// mining/remote_ore case (#738).
+// mining/remote_ore case.
 func remoteOreStep(t *testing.T, steel int64) (RoundsResourceResult, *remoteOreNative) {
 	t.Helper()
 	base, _, _, _, sleeping := sleepingFixture(t)

@@ -20,7 +20,7 @@ import (
 // reads to find the next prerequisite-ordered project toward the goal
 // policy.ResearchGoal resolves: the
 // project the workshop ladder recorded as gating a MaintainResource bench,
-// else the next unfinished rung of RoundsPolicy.ResearchLadder (#230).
+// else the next unfinished rung of RoundsPolicy.ResearchLadder.
 // Laboratory/researcher usability
 // (policy.UsableResearchLaboratories/EligibleResearchers) is deliberately not
 // re-derived here: unlike ResearchProjectFacts.{Hidden,Prerequisites,...},
@@ -37,7 +37,7 @@ type RoundsResearchPlanner struct {
 	reviewer *Rounder
 	native   RoundsResearchSource
 	// building is the facility ladder the planner walks when the next rung
-	// is locked only for lack of a research bench (#254): furnish a hosting
+	// is locked only for lack of a research bench: furnish a hosting
 	// room with the simple bench, else stage a starter shell first. Nil
 	// when the source cannot preview placements; the hold is then reported
 	// as BuildingResearchBench instead of built around.
@@ -135,7 +135,7 @@ func (r *RoundsResearchPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	call, recorded := recordPlannerStep(call, policy.EnsureResearch, state.Snapshot, review.Tick)
 	defer recorded()
-	// The ladder is paced by the colony stage (#630): a Foothold colony
+	// The ladder is paced by the colony stage: a Foothold colony
 	// walks its first rungs, a Development colony the whole ladder.
 	staged := r.reviewer.staged()
 	items, err := r.reviewer.itemFacts(call, state.Snapshot)
@@ -194,7 +194,7 @@ func (r *RoundsResearchPlanner) step(call, epoch context.Context, arbiter *stepA
 		// project recovered it (a ladder rung, or a player's own choice).
 		// Unless no bench stands to research it at: the game lets a project
 		// that names no bench be selected, but nobody progresses it, so the
-		// bench is owed first (#254).
+		// bench is owed first.
 		if deficit && policy.ResearchBenchNeeded(read.Projects[read.CurrentProject]) {
 			return r.bench(call, epoch, arbiter, false)
 		}
@@ -217,8 +217,8 @@ func (r *RoundsResearchPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoundsResearchResult{Verdict: reason}, nil
 	}
 	// A rung locked only for lack of a bench is a building need, not a
-	// selection: native refuses the ResearchIntent until the bench stands
-	// (#254). The ladder's plans are this goal's methods, so an open bench
+	// selection: native refuses the ResearchIntent until the bench stands.
+	// The ladder's plans are this goal's methods, so an open bench
 	// build reads as existing work above and the selection follows it.
 	if policy.ResearchBenchNeeded(read.Projects[next]) {
 		return r.bench(call, epoch, arbiter, false)
@@ -263,7 +263,7 @@ func (r *RoundsResearchPlanner) admit(call, epoch context.Context, state Control
 }
 
 // researchKnowledgeNext is the knowledge project the step selects into its
-// category's slot (#1745): the head of the goal's prerequisite queue when
+// category's slot: the head of the goal's prerequisite queue when
 // that head is a knowledge project, else the project an empty knowledge slot
 // should fund (policy.KnowledgePick). Empty with a zero reason when no
 // knowledge selection is owed; a head whose slot already holds another

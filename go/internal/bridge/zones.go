@@ -18,7 +18,7 @@ type ZonesRead struct {
 }
 
 // zoneSectionRequest is the zone census read, shared with the bundle's zones
-// family (#593).
+// family.
 func zoneSectionRequest(identity *c.Identity) *o.ListZonesRequest {
 	return &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
 }

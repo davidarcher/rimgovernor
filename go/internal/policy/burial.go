@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// MaintainBurial (#2196, epic #2176) is the People department's burial: the
+// MaintainBurial is the People department's burial: the
 // tomb's sarcophagus or plain-grave step, the morgue's shell and the graveyard's
 // fence and graves, and the tomb, morgue and graveyard stores. It is a Standard
 // whose target is no human corpse owed a shell, a sarcophagus or a grave. Vanilla

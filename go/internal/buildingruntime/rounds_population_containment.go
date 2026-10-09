@@ -15,17 +15,17 @@ import (
 
 // RoundsCustodySource is what the custody planner reads: the rescue
 // planner's reads and the tend planner's, since a held entity is tended by
-// the same doctor selection a colonist is (#1743).
+// the same doctor selection a colonist is.
 type RoundsCustodySource interface {
 	RoundsRescueSource
 	RoundsTendSource
 }
 
-// stepContainment is the custody step's containment upkeep (#1743), reached
+// stepContainment is the custody step's containment upkeep, reached
 // when no prisoner, capture or rescue work stands: a held entity's cell door
 // held open is closed (the combat door CLOSE order, as one door_control
 // action), then a held entity whose bioferrite pays has its extract flag set
-// (#2434, one extract_bioferrite pawn setting; the game's Doctor work then
+// (one extract_bioferrite pawn setting; the game's Doctor work then
 // runs the job), then a held entity that needs tending is tended through the same
 // SelectTend a colonist patient takes. Facts upkeep cannot read, and a door
 // no order can clear, are logged loudly and are not a pass.

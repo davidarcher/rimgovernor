@@ -5,7 +5,7 @@ import "errors"
 type PawnID string
 type ControllerSessionID string
 
-// OwnedDraft drafts one pawn for the plan that holds it (#939: a DraftIntent
+// OwnedDraft drafts one pawn for the plan that holds it (a DraftIntent
 // with drafted=true). The draft is the plan's: the combat planner undrafts
 // any drafted colonist no live plan needs, so there is no native claim and
 // no per-action cleanup.

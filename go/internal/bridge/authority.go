@@ -79,7 +79,7 @@ func (client *Client) ReadAuthority(ctx context.Context, identity *c.Identity) (
 
 // SetMode is the only way to change authority explicitly: Auto grants the bot
 // authority outright, Manual revokes it. There is no acquire/renew handshake
-// because there is only ever one bot process (see #52).
+// because Auto has one bot owner.
 func (control *AuthorityControl) SetMode(ctx context.Context, request *a.SetMode) (*a.ControlReply, Result, error) {
 	if request == nil {
 		return nil, Result{}, contract("set-mode required")

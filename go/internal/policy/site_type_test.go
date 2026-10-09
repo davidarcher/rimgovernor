@@ -68,7 +68,7 @@ func siteCandidateOf(p SiteTypePlan, kind SiteKind, crop string) SiteTypeCandida
 func TestPlanSiteTypeInSeasonOutdoorBeatsControlledSites(t *testing.T) {
 	r := siteFixture(1.0)
 	// Eight colonists: a need ten basins cannot cover (fields sized by
-	// yield per day since #1252 fit three colonists in the basins).
+	// yield per day for three colonists in the basins).
 	r.Field.Colonists = domain.Known(int64(8))
 	for i := range r.Field.Choices {
 		r.Field.Choices[i].Demand = domain.Known(12.8)
@@ -289,7 +289,7 @@ func TestPlanSiteTypeDarkRoomOnlyForDarkCrops(t *testing.T) {
 	}
 }
 
-// The default weights are RimWorld's own prices (#104): a sun lamp on its
+// The default weights are RimWorld's own prices: a sun lamp on its
 // day schedule costs ~7.4 cells of output; a basin's steel and component make it worth building for
 // rice, which gains from its fertility, but not for potatoes on lit soil.
 func TestPlanSiteTypeDefaultWeightsFollowNativePrices(t *testing.T) {

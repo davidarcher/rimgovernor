@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// A breakpoint (issue #280) stops a run at a named point of its run phase
+// A breakpoint stops a run at a named point of its run phase
 // so the colony can be inspected instead of diagnosed from text: the case
 // is cut, a bundle labelled BreakCheckpoint is taken into its ring, and
 // the game is left loaded and paused on the kept process (visible with

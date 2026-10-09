@@ -13,7 +13,7 @@ import (
 )
 
 // StarterDefinitions are the planning definitions every planning read
-// resolves from the definition catalog (#1340); a read names any other it
+// resolves from the definition catalog; a read names any other it
 // needs.
 var StarterDefinitions = []string{
 	"Barricade", "Battery", "Bed", "ButcherSpot", "Campfire", "ChemfuelPoweredGenerator", "Cooler", "Door",

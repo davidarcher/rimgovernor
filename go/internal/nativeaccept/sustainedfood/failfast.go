@@ -9,8 +9,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// FailFast ends a watch as soon as the journal shows the case cannot pass
-// (#268), instead of running out the wall-clock ceiling and reporting the
+// FailFast ends a watch as soon as the journal shows the case cannot pass,
+// instead of running out the wall-clock ceiling and reporting the
 // same refusal text the run notes say to read first. The zero value is on
 // with the defaults below; a case where one of these shapes is an expected
 // transient sets Disabled or raises the threshold.
@@ -26,12 +26,12 @@ import (
 //     an expiry, a dead target or an unachieved outcome are not);
 //   - refusal: the service's latest scheduler step still carries the same
 //     isolated planner failure on a native refusal after RefusalSamples
-//     consecutive samples (issue #219's shape: the same read refused every
+//     consecutive samples (for example, the same read refused every
 //     step while the world under it cannot move);
 //   - emergency park: the review's development rows report an emergency
 //     holding goals back, the watched goal is suspended, and the live tick
 //     has not moved for ParkSamples
-//     consecutive samples (#319's shape: a downed colonist with no
+//     consecutive samples (for example, a downed colonist with no
 //     tend/rescue family to serve the emergency, the clock refusing every
 //     window as no_work, and the suspended goal waiting for a world that
 //     never moves again).
@@ -57,7 +57,7 @@ type FailFast struct {
 	MethodUnavailableWaits bool
 	// RetryableUnsuccessful lists reasons the unsuccessful shape skips like
 	// interrupted and cancelled: a goal serving several resources retries a
-	// shortfall on one of them (#1136: a MedicineHerbal acquisition ending
+	// shortfall on one of them (a MedicineHerbal acquisition ending
 	// outcome_not_achieved under MaintainResource) without the case failing.
 	RetryableUnsuccessful []domain.UnsuccessfulReason
 	// ParkSamples is how many consecutive samples the watched goal may sit

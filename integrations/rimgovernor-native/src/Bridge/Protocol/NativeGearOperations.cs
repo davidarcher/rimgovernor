@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent Wear (#939), the gear family's wear order: the
+    // GiveJobIntent Wear, the gear family's wear order: the
     // pawn's availability, the apparel's eligibility and a material native
     // gain are checked live, then the exact JobDefOf.Wear job an apparel
     // float-menu order would produce is issued as ordered work so no

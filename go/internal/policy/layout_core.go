@@ -2,31 +2,28 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Core spine and room packing (#779, A3; #2097). The core is a straight 3-wide main
-// hallway along X, crossed by north-south hallways as it fills (#952,
-// layout_spines.go), with rooms hung off both sides. Neighbouring rooms on a
-// side share their side walls; every room's door sits in its hallway wall,
+// The core has a three-cell-wide main hallway along X, crossed by north-south
+// hallways as it grows. Rooms hang off both sides and share side walls; every room's door sits in its hallway wall,
 // so no room is a thoroughfare. The core takes cells only from the core
 // candidates (ZoneCore); a room over rock (ZoneMining) is Dug. The other
 // zones give way to the core wherever they overlap it.
 
-// Room roles the v2 core adds beside the master-plan ones; the jail is
-// PlannedPrison.
+// Core room roles; PlannedPrison identifies the jail.
 const (
 	PlannedBedroom PlannedRole = "bedroom"
-	// PlannedShelter is the temporary starter room (#2037), sited apart from the
+	// PlannedShelter is the temporary starter room, sited apart from the
 	// core (layout_shelter.go) so its ground frees cleanly once it is demolished.
 	PlannedShelter PlannedRole = "shelter"
 	PlannedDining  PlannedRole = "dining"
 	PlannedRec     PlannedRole = "rec"
 	PlannedLab     PlannedRole = "lab"
-	// PlannedTomb is the sarcophagus room (#832), planned from the start in the
+	// PlannedTomb is the sarcophagus room, planned from the start in the
 	// outskirts cluster and shelled only once a colonist lies dead.
 	PlannedTomb PlannedRole = "tomb"
-	// PlannedMorgue is the room for human corpses (#1820), planned from the
+	// PlannedMorgue is the room for human corpses, planned from the
 	// start in the outskirts cluster and shelled only once one lies waiting.
 	PlannedMorgue PlannedRole = "morgue"
-	// PlannedGraveyard is the fenced, unfloored Outdoor room of graves (#2186),
+	// PlannedGraveyard is the fenced, unfloored Outdoor room of graves,
 	// planned from the start in the outskirts cluster.
 	PlannedGraveyard PlannedRole = "graveyard"
 )
@@ -56,7 +53,7 @@ var coreRoomSize = map[PlannedRole][2]int32{
 
 // coreBaseRooms is every colony's essential set, in placement order: pairs
 // that trade goods sit side by side. Each room takes the nearest free slot,
-// so order is centrality: dining lands near the centre (#1535). The bedroom
+// so order is centrality: dining lands near the centre. The bedroom
 // wings are sited with them. Every other room is grown when a need shows
 // (demandCoreRooms), so nothing is dug or reserved for a room that is not
 // up for building.
@@ -74,19 +71,19 @@ const coreHalf = SpineWidth/2 + coreMaxDepth + 2
 
 type coreGrid struct {
 	core, rock map[domain.Cell]bool
-	// soil is each surveyed cell's build cost (#1284); nil costs nothing.
+	// soil is each surveyed cell's build cost; nil costs nothing.
 	soil map[domain.Cell]int
-	// fixed are the interiors of the rooms a replan must not move or change
-	// (#1958): the search operators and the second-door pass leave them be.
+	// fixed are the interiors of the rooms a replan must not move or change:
+	// the search operators and the second-door pass leave them be.
 	fixed map[Rectangle]bool
 	// skip are the room interiors the packer refuses: the slots SiteRoom has scored.
 	skip map[Rectangle]bool
 	// noShelter keeps the generator from siting a shelter: a replan never
-	// regrows one a retirement (#2046) dropped.
+	// regrows one a retirement dropped.
 	noShelter bool
 }
 
-// Soil build costs per cell (#1279/#1284): rich soil costs more than
+// Soil build costs per cell: rich soil costs more than
 // plain soil, which costs more than anything else (bare ground, rock).
 // Rich soil (fertility above zoneRichFertility, e.g. 140%) is the best
 // farmland on the map, so a room over it costs 50x plain soil: still a cost,
@@ -190,7 +187,7 @@ func (g coreGrid) seed() (domain.Cell, bool) {
 		if found && (d > bestD || d == bestD && (c.Z > best.Z || c.Z == best.Z && c.X > best.X)) {
 			continue
 		}
-		// The seed is a hallway end: its one-cell cap needs core too (#1982).
+		// The seed is a hallway end: its one-cell cap needs core too.
 		if g.column(c.X-1, c.Z) && g.column(c.X, c.Z) && g.column(c.X+1, c.Z) {
 			best, found, bestD = c, true, d
 		}

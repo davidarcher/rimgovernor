@@ -64,7 +64,7 @@ func fadingComp(perDay float32) []*d.Opt_HediffCompPropertiesAny {
 	return []*d.Opt_HediffCompPropertiesAny{{Value: &d.HediffCompPropertiesAny{Value: &d.HediffCompPropertiesAny_HediffCompProperties_SeverityPerDay{HediffCompProperties_SeverityPerDay: &d.HediffCompProperties_SeverityPerDay{SeverityPerDay: perDay}}}}}
 }
 
-// TestDefinitionCatalogDrugFacts (#1734): the drugs, their preference order,
+// TestDefinitionCatalogDrugFacts: the drugs, their preference order,
 // which chemicals' addictions fade, the preventive drug and the currency are
 // the def rows', with no name in Go.
 func TestDefinitionCatalogDrugFacts(t *testing.T) {
@@ -118,7 +118,7 @@ func TestDefinitionCatalogDrugFacts(t *testing.T) {
 	}
 }
 
-// TestDefinitionCatalogItemFacts (#1734): the item facts are the catalog's
+// TestDefinitionCatalogItemFacts: the item facts are the catalog's
 // own market values, nutrition, potencies, categories and stuff factors; a
 // stuff the catalog could not price is refused, and a catalog without a stat
 // table gives facts every lookup on which fails.
@@ -171,7 +171,7 @@ func TestDefinitionCatalogItemFacts(t *testing.T) {
 	}
 }
 
-// TestDefinitionCatalogRefusesADifferentCalendar (#1734): Go states the
+// TestDefinitionCatalogRefusesADifferentCalendar: Go states the
 // calendar once; a game whose tick constants differ is not planned against.
 func TestDefinitionCatalogRefusesADifferentCalendar(t *testing.T) {
 	for _, change := range []func(*o.CatalogConstants){

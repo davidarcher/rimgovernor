@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TestPopulationCarriesTheCreepJoinerFacts (#1740): a colony prisoner's row
+// TestPopulationCarriesTheCreepJoinerFacts: a colony prisoner's row
 // says whether it has a creepjoiner tracker and its pawn kind; a failed
 // tracker read leaves the fact unknown.
 func TestPopulationCarriesTheCreepJoinerFacts(t *testing.T) {

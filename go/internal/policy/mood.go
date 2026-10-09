@@ -52,7 +52,7 @@ type MoodState struct {
 type MoodHistory struct{ States []MoodState }
 
 // EnsureMood is the per-pawn mood Response: one incident per pawn, keyed
-// by the pawn as its subject (#1078).
+// by the pawn as its subject.
 const EnsureMood ConcernID = "EnsureMood"
 
 func moodNumber(f domain.Fact[float64]) bool {
@@ -128,7 +128,7 @@ const PsychicDroneThought = "PsychicDrone"
 const psychicDroneEntryMargin = .15
 
 // psychicDroneMargin is the entry margin a pawn under a psychic drone
-// gets (#408): relief starts while the drone's offset would still leave
+// gets: relief starts while the drone's offset would still leave
 // the pawn above the minor-break threshold, instead of once the drone has
 // pushed them across it. Zero without the thought.
 func psychicDroneMargin(thoughts domain.Fact[[]MoodThought]) float64 {

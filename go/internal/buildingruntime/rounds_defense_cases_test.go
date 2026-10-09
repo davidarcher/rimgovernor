@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The defense family's threat responses (#744), replayed from defense
+// The defense family's threat responses, replayed from defense
 // steps recorded with RIMGOVERNOR_SNAPSHOT_DIR on acceptance runs of the
 // retired native cases from the retired defense-layout checkpoint (see
 // docs/developers/testing/colony-snapshots.md). Each file is the step that
@@ -36,7 +36,7 @@ func TestDefenseReplaySapperRaidBypassesTheLine(t *testing.T) {
 }
 
 // defense/siege: a Siege raid still travelling (its supplies not landed)
-// is answered by the siege tactic holding at home (#776): attacking now
+// is answered by the siege tactic holding at home: attacking now
 // makes them flee.
 func TestDefenseReplaySiegeHoldsWhileTravelling(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -53,7 +53,7 @@ func TestDefenseReplaySiegeHoldsWhileTravelling(t *testing.T) {
 
 // meleeStep is defense/raid-bypass with the colonists' weapons read as
 // melee weapons, and the frame's combat rows giving every colonist
-// melee power 5 and every hostile foe (#969).
+// melee power 5 and every hostile foe.
 func meleeStep(t *testing.T, foe float64) (snapshot.Defense, []*mp.CombatPawn) {
 	t.Helper()
 	step, err := snapshot.LoadDefense("testdata/defense/raid-bypass-sappers.json.gz")
@@ -103,8 +103,8 @@ func TestDefenseSnapshotMeleeEngagesOnlyABeatableRaider(t *testing.T) {
 }
 
 // The recorded drop has already become an assault outside the firing line.
-// Position, not arrival history or proximity, determines whether to hold
-// (#2375). The same hostile behind the line must instead receive squad defense.
+// Position, not arrival history or proximity, determines whether to hold.
+// The same hostile behind the line must instead receive squad defense.
 func TestDefenseReplayDropUsesPositionRelativeToLine(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -164,7 +164,7 @@ func TestDefenseReplayDropUsesPositionRelativeToLine(t *testing.T) {
 }
 
 // defense/drop with the raider read as a mechanoid and no layout stored:
-// the mech still gets a squad (#970).
+// the mech still gets a squad.
 func TestDefenseSnapshotMechWithoutLayoutIsSquadDefense(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -199,7 +199,7 @@ func TestDefenseReplayHuntingPredatorIsSquadDefense(t *testing.T) {
 	}
 }
 
-// defense/hive: an insect hive near the colony is an infestation (#1071)
+// defense/hive: an insect hive near the colony is an infestation
 // whose fighters target the hive, melee or ranged from a line of fire.
 func TestDefenseReplayHiveIsTargeted(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -216,7 +216,7 @@ func TestDefenseReplayHiveIsTargeted(t *testing.T) {
 
 // defense/hive with the hive read passive (dormant, or awake with nobody
 // inside its boundary and no insect engaging): the recorded census holds
-// nothing and the fight has no target (#948).
+// nothing and the fight has no target.
 func TestDefenseSnapshotPassiveHiveIsLeftAlone(t *testing.T) {
 	t.Parallel()
 	step, err := snapshot.LoadDefense("testdata/defense/hive.json.gz")
@@ -249,14 +249,14 @@ func TestDefenseReplayShipPartIsShotFromALineOfFire(t *testing.T) {
 	if ranged["Thing_DefoliatorShipPart53021"] == 0 {
 		t.Fatal("no ranged attack on the ship part")
 	}
-	// Destroyed from range (#930): nobody walks up to the part in melee.
+	// Destroyed from range: nobody walks up to the part in melee.
 	if melee["Thing_DefoliatorShipPart53021"] != 0 {
 		t.Fatal("a melee attack on the ship part")
 	}
 }
 
 // defense/shippart with a colony mortar 35 cells from the part: the
-// mortar is crewed and aimed at the part (#930, #931).
+// mortar is crewed and aimed at the part.
 func TestDefenseSnapshotMortarShellsTheShipPart(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -288,8 +288,8 @@ func TestDefenseSnapshotMortarShellsTheShipPart(t *testing.T) {
 // defense/raid-breach: an edge assault is held from the firing line; once
 // a raider is behind the line the hold is dropped. The recording has one
 // free armed colonist and five unarmed ones against four melee raiders: no
-// armed pair per raider, so no squad forms and nobody brawls with fists
-// (#948). With no observed safe shelter geometry, the hold formation is
+// armed pair per raider, so no squad forms and nobody brawls with fists.
+// With no observed safe shelter geometry, the hold formation is
 // dropped without inventing retreat destinations or issuing a squad attack.
 func TestDefenseReplayBreachWithoutArmedPairsFormsNoSquad(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -362,7 +362,7 @@ func TestDefenseReplayTurretsJoinTheLayout(t *testing.T) {
 // defense/layout-stocked: a stocked colony's higher raid-point band raises
 // the turret budget; the same site then proposes more turret positions on
 // an unchanged firing line. The recording's lines of fire were probed for
-// the pre-#1544 slots, so every slot proposed now is given a known line.
+// slots without recorded lines of fire, so every slot proposed now is given a known line.
 func TestDefenseReplayStockedColonyProposesMoreTurrets(t *testing.T) {
 	t.Parallel()
 	l := loadLayout(t, "testdata/defense/layout-turrets.json.gz", snapshot.LayoutTurrets)

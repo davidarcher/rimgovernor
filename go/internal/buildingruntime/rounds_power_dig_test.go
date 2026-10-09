@@ -44,7 +44,7 @@ func rockOn(s *excavationStep, cells ...domain.Cell) {
 }
 
 // A geothermal footprint on listed rock is dug; the generator is placed by
-// the ordinary preview once it reads open (#1896).
+// the ordinary preview once it reads open.
 func TestDigGeothermalMinesListedRockFootprint(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

@@ -15,7 +15,7 @@ import (
 const whyUsage = `
   acceptance why <output>/<area>/<case> [-json]`
 
-// why prints the postmortem digest of a case output directory (#278): the
+// why prints the postmortem digest of a case output directory: the
 // same digest a failed run writes to result.json ("diagnosis") and
 // diagnosis.txt, recomputed from the evidence on disk so it can be re-read
 // after a fix lands or against a peer's run.

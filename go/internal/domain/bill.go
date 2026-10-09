@@ -72,7 +72,7 @@ func NewHumanButcherBill(bench, recipe, worker string) (ProductionBill, error) {
 	return b, nil
 }
 
-// PinWorker restricts a fixed-count batch to one pawn (#1190: one art bill
+// PinWorker restricts a fixed-count batch to one pawn (one art bill
 // per artist). Other modes pin through their own constructors.
 func (b ProductionBill) PinWorker(worker string) (ProductionBill, error) {
 	if b.mode != GearBatch || !validID(worker) {

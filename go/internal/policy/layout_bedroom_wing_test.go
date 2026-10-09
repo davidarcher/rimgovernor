@@ -27,7 +27,7 @@ func wingCounts(p LayoutPlan) []int {
 }
 
 // A plan for N pawns holds ceil(N/10) bedroom wings, each planned at full
-// size when sited; one more pawn sites a new wing and moves nothing (#1950).
+// size when sited; one more pawn sites a new wing and moves nothing.
 func TestBedroomWingsPlannedAtFullSize(t *testing.T) {
 	p := corePlan(coreTestZones(), 25, TechTierCamp)
 	if got := wingCounts(p); len(got) != 3 || got[0] != 10 || got[1] != 10 || got[2] != 10 {
@@ -80,7 +80,7 @@ func TestBedroomWingsPlannedAtFullSize(t *testing.T) {
 	}
 }
 
-// checkWing asserts the wing's shape (#1213): wingMaxRooms rooms, every
+// checkWing asserts the wing's shape: wingMaxRooms rooms, every
 // door in the corridor wall, rooms on a side sharing walls, and no
 // thoroughfare.
 func checkWing(t *testing.T, p LayoutPlan) Wing {
@@ -166,7 +166,7 @@ func TestBedroomWingNeverGrows(t *testing.T) {
 }
 
 // A new wing's rooms take the tier's size; an existing wing keeps its
-// rooms' size at a later tier (#1214).
+// rooms' size at a later tier.
 func TestBedroomWingRoomSizeByTier(t *testing.T) {
 	size := func(t *testing.T, w Wing, want [2]int32) {
 		t.Helper()
@@ -181,7 +181,7 @@ func TestBedroomWingRoomSizeByTier(t *testing.T) {
 		size(t, checkWing(t, p), WingRoomSize(tier))
 	}
 	camp := corePlan(coreTestZones(), 3, TechTierCamp)
-	// A later tier retires the smaller wing and sites a new one (#1219).
+	// A later tier retires the smaller wing and sites a new one.
 	grown := growPlan(camp, 6, 1, TechTierSpacer)
 	size(t, grown.Wings[0], WingRoomSize(TechTierCamp))
 	if grown.Wings[0].Purpose != WingBedroomsRetiring {

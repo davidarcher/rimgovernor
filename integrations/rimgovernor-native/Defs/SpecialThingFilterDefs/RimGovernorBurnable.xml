@@ -2,7 +2,7 @@
 <Defs>
 
   <!--
-    RimGovernorBurnable and RimGovernorNotBurnable (#2181): one worker rule
+    RimGovernorBurnable and RimGovernorNotBurnable: one worker rule
     (BurnableRule in RimGovernor.Runtime) behind a pair of special filters, so
     one dump zone routes waste through RimWorld's own hauling. Burnable is a
     rottable past Fresh, except a colonist's or slave's corpse, or an apparel

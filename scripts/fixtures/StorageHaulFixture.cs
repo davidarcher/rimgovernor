@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
     // The same scanner races the planner for an unforbidden stack the moment
     // the clock runs: under a running window at boosted pace the worker's
     // dispatch lands hundreds of ticks after the window starts, and the idle
-    // hauler has carried the stack off by then (thing_absent, #328). So the
+    // hauler has carried the stack off by then (thing_absent). So the
     // colonists are held on ordinary (not player-forced) Wait jobs whenever
     // an unforbidden stack is waiting for the planner: prepare holds them
     // beside the first stack and allow holds them again beside the released
@@ -213,7 +213,7 @@ namespace HomeBridge.BridgeTools
 
         private static Zone_Stockpile lootZone;
 
-        // Far resource reach (#520) needs six armed colonists, two free
+        // Far resource reach needs six armed colonists, two free
         // haulers and a quiet storyteller: every existing colonist takes a
         // rifle and Hauling, and generated colonists fill the count. Returns
         // a refusal string or the readiness summary.
@@ -267,7 +267,7 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (audit) {
-                    // covered loot (#2302): the stack left its far cell (hauled, merged or gone) and the zone gained its steel.
+                    // covered loot: the stack left its far cell (hauled, merged or gone) and the zone gained its steel.
                     if (remoteStack == null || lootZone == null) return Refuse("No remote stack dropped.");
                     var moved = !remoteStack.Spawned || remoteStack.Destroyed || remoteStack.Position != remoteOrigin;
                     return new { success = true, moved, forbidden = remoteStack.Spawned && remoteStack.IsForbidden(Faction.OfPlayer),
@@ -309,7 +309,7 @@ namespace HomeBridge.BridgeTools
 
         private static int StoredSteel(Map map) => lootZone.Cells.SelectMany(c => c.GetThingList(map)).Where(t => t.def == ThingDefOf.Steel).Sum(t => t.stackCount);
 
-        // Covers Steel demand (the 200 default floor, #2302): unforbidden full
+        // Covers Steel demand (the 200 default floor): unforbidden full
         // stacks fill the loot stockpile, leaving two cells for deliveries. The
         // count is -1 when the zone is too small to cover the floor.
         private static int StockCovered(Map map)
@@ -335,7 +335,7 @@ namespace HomeBridge.BridgeTools
         private static IntVec3 salvageCell;
 
         // A cluster of three foreign steel walls in a row under a thin roof
-        // (#2302): the walls are the only roof holders in range, so removing
+        //: the walls are the only roof holders in range, so removing
         // them first would collapse the roof; recovery takes the roof off,
         // then the walls. The patch is the roofed 5x3 rectangle.
         private static void SpawnWallCluster(Map map)
@@ -412,11 +412,11 @@ namespace HomeBridge.BridgeTools
                     var readiness = RaiseReadiness(map);
                     if (readiness is string reason) return Refuse(reason);
                     // A random start may field a colonist with no work
-                    // settings at all (#716), as RaiseReadiness already allows.
+                    // settings at all, as RaiseReadiness already allows.
                     foreach (var p in map.mapPawns.FreeColonistsSpawned)
                         if (p.workSettings != null && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) p.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
                     // The ruin must pass the same counterfactual roof-support
-                    // check the census applies (#337): a wall the map's roofs
+                    // check the census applies: a wall the map's roofs
                     // lean on is a legitimate hold, not a salvage candidate.
                     salvageWall = null;
                     // A battery's 35 steel outranks the map seed's urns and doors
@@ -440,19 +440,19 @@ namespace HomeBridge.BridgeTools
                     var marker = ThingMaker.MakeThing(ThingDefOf.Table2x2c, ThingDefOf.WoodLog);
                     marker.SetFaction(Faction.OfPlayer);
                     GenSpawn.Spawn(marker, baseCell, map);
-                    // No operator floor any more (#875): with the colony's steel
+                    // No operator floor any more: with the colony's steel
                     // gone, the default Steel floor (200) is the salvage demand.
                     foreach (var steel in map.listerThings.ThingsOfDef(ThingDefOf.Steel).ToList())
                         steel.Destroy(DestroyMode.Vanish);
-                    // scenario=covered (#2302): Steel is above its floor, so the
+                    // scenario=covered: Steel is above its floor, so the
                     // ruin is recovered although nothing is short.
                     salvageStock = 0;
                     if (scenario == "covered") {
                         salvageStock = StockCovered(map);
                         if (salvageStock < 0) return Refuse("Too few free stockpile cells to cover Steel demand.");
                     }
-                    // scenario=probe (#2302): a wild bush beside the ruin, for
-                    // the foreign cut by the Go-built id (#2293).
+                    // scenario=probe: a wild bush beside the ruin, for
+                    // the foreign cut by the Go-built id.
                     salvagePlant = null;
                     if (scenario == "probe") {
                         var bushDef = DefDatabase<ThingDef>.GetNamed("Plant_Bush");
@@ -475,7 +475,7 @@ namespace HomeBridge.BridgeTools
                     homeUnchanged = salvageHomeCount == map.areaManager.Home.ActiveCells.Count() && !map.areaManager.Home[salvageCell],
                     stock = salvageStock,
                     cluster = salvageCluster.Select(w => new { id = w.GetUniqueLoadID(), present = w.Spawned }).ToArray(),
-                    // roofed patch cells left and collapse rubble in the patch (#2302): a removal that
+                    // roofed patch cells left and collapse rubble in the patch: a removal that
                     // beat the roof off leaves rubble; a roof-first batch leaves none.
                     roofed = salvagePatch.Count(c => c.Roofed(map)),
                     rubble = collapseRubble == null ? 0 : salvagePatch.Sum(c => c.GetThingList(map).Count(t => t.def == collapseRubble)),

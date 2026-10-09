@@ -18,18 +18,18 @@ type PlanningWindowNative interface {
 	ReadPlanningWindow(context.Context, *c.Identity, policy.Rectangle) (bridge.PlanningWindow, bridge.Result, error)
 }
 
-// planningWindow is the step's refresher for the planning_cells section
-// (#356): the scheduler attaches one to each step's context
+// planningWindow is the step's refresher for the planning_cells section:
+// the scheduler attaches one to each step's context
 // (observation.WithPlanningWindow) and every planning colony read in the
 // step whose reply carries no cells asks it. Each ask cuts the window from
-// the newest snapshot frame's grid (#1345) and files it; a failed read
+// the newest snapshot frame's grid and files it; a failed read
 // serves the held window of the same region.
 type planningWindow struct {
 	native PlanningWindowNative
 	store  *facts.Store
 	scope  facts.Scope
 	// layout reads the stored layout plan for the step's world (nil
-	// before the step knows it); the window covers its extent (#1282).
+	// before the step knows it); the window covers its extent.
 	layout func(context.Context) (store.LayoutPlanRecord, bool, error)
 }
 
@@ -87,7 +87,7 @@ func sameWindowRows(rows map[domain.Cell]policy.SiteCell, cells []policy.SiteCel
 }
 
 // planningRegionRect is the inclusive cell bounds of a planning region, so
-// an invalidation narrowed to a rectangle (#359) can leave a window it
+// an invalidation narrowed to a rectangle can leave a window it
 // does not touch fresh.
 func planningRegionRect(region policy.Rectangle) facts.Rect {
 	if region.Width <= 0 || region.Height <= 0 {

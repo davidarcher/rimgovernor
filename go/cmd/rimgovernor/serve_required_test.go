@@ -20,7 +20,7 @@ import (
 
 var errUnusedFakeRead = errors.New("fake native read is unused")
 
-// The serve fakes answer every typed read serve requires at startup (#1670)
+// The serve fakes answer every typed read serve requires at startup
 // with an error; tests that exercise a route override it on a wrapper type.
 func (*serviceFake) ReadCamera(context.Context, *p.ReadRequest) (*p.CameraReply, bridge.Result, error) {
 	return nil, bridge.Result{}, errUnusedFakeRead
@@ -137,8 +137,8 @@ type withoutSignals struct {
 
 func (withoutSignals) FlushSnapshot(context.Context) error { return nil }
 
-// Every native or client serve used to treat as optional fails startup with
-// its name (#1670).
+// Missing required native or client capabilities fail startup with
+// its name.
 func TestServeRefusesAClientMissingARequiredNative(t *testing.T) {
 	caps := unusedBuildingCapabilities{}
 	fake := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}

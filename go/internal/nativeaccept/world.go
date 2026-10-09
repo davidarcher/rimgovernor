@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// WorldRecord is a report's "world" block (#281): what decided the world a
+// WorldRecord is a report's "world" block: what decided the world a
 // case ran on, so a failure can be read against the roll that produced it
 // and a run reproduced (-seed). The installed build's hashes stay under
 // package_files.

@@ -60,7 +60,7 @@ func zoneOn(projection *observation.ColonyProjection, id string, stocked bool, c
 	}
 }
 
-// A snapshot over recorded colony facts (#936): with no cold spot and the
+// A snapshot over recorded colony facts: with no cold spot and the
 // colony eating 3+ meals a day, the meal stockpile is one cell of the one
 // meal it cooks beside the table, off the chairs. A 2x2 meal shelf of
 // the role is retargeted to that meal and keeps its size;
@@ -113,7 +113,7 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 	}
 }
 
-// The planned meal closet is zoned whole for every meal at plan time (#2219),
+// The planned meal closet is zoned whole for every meal at plan time,
 // however few the colony eats; the zone by the table retires.
 func TestMealClosetIsZonedFromThePlan(t *testing.T) {
 	t.Parallel()

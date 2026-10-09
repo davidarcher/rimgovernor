@@ -13,7 +13,7 @@ import (
 )
 
 // foodFixture is the committed food supply and the things table rows its
-// stocks reference (#1343).
+// stocks reference.
 func foodFixture(t *testing.T) (*o.FoodSupplyFacts, bridge.Things) {
 	t.Helper()
 	supply, table := &o.FoodSupplyFacts{}, &o.ThingsSnapshot{}
@@ -92,7 +92,7 @@ func TestFoodSupplyProjectionPreservesHolderAndUnknownDeadline(t *testing.T) {
 	}
 }
 
-// A food stock the things table misses leaves the supply unknown (#1343).
+// A food stock the things table misses leaves the supply unknown.
 func TestFoodSupplyUnresolvedStockIsUnknown(t *testing.T) {
 	wire, things := foodFixture(t)
 	things = things.Without("rice")

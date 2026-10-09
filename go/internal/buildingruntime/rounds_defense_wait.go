@@ -13,12 +13,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// defenseWaitTier names the wait hardening's methods and results (#1065).
+// defenseWaitTier names the wait hardening's methods and results.
 const defenseWaitTier policy.DefenseTierName = "wait"
 
 // defenseWaitingFight is the memory of this world's open fight while it
-// waits behind its rooms' doors (#1065) or its burn-out waits on fuel
-// (#1120), nil otherwise.
+// waits behind its rooms' doors or its burn-out waits on fuel,
+// nil otherwise.
 func defenseWaitingFight(ctx context.Context, journal *store.Store, world store.World) (*policy.CombatMemory, error) {
 	fights, err := journal.OpenCombatFights(ctx)
 	if err != nil {
@@ -46,8 +46,8 @@ func defenseWaitRegion(m policy.CombatMemory) bridge.CellRect {
 	return r
 }
 
-// fight builds the waiting fight's needs: the burn-out's fuel (#1120)
-// while it waits on it, else the wait's hardening (#1065).
+// fight builds the waiting fight's needs: the burn-out's fuel
+// while it waits on it, else the wait's hardening.
 func (r *RoundsDefenseLayoutPlanner) fight(call, epoch context.Context, goal store.ProjectState, state ControlState, m policy.CombatMemory) (RoundsDefenseLayoutResult, error) {
 	if m.Burn.Fueling() {
 		return r.fuel(call, epoch, goal, state, *m.Burn)
@@ -92,7 +92,7 @@ func defenseFightCensus(site bridge.DefenseSite) map[domain.Cell]policy.WaitDoor
 	return census
 }
 
-// harden admits the waiting fight's builds (#1065): plasteel over its
+// harden admits the waiting fight's builds: plasteel over its
 // rooms' wooden doors, a wall behind each broken door. One method per
 // stop tick; the open-plan check upstream keeps one in flight.
 func (r *RoundsDefenseLayoutPlanner) harden(call, epoch context.Context, goal store.ProjectState, state ControlState, m policy.CombatMemory) (RoundsDefenseLayoutResult, error) {

@@ -31,7 +31,7 @@ import (
 // stops on its budget (status Stopped, a Stopped event on the journal, the
 // long poll released). Every read observes the tick of the moment it is
 // served, so the scheduler and worker see the same sequence of stops at any
-// tick multiplier, only faster or slower in wall time (issue #112).
+// tick multiplier, only faster or slower in wall time.
 type speedNative struct {
 	mu        sync.Mutex
 	status    *k.Status
@@ -49,7 +49,7 @@ type speedNative struct {
 	receipt *k.ControlReceipt
 	// stops is the wall time of each budget stop, in order.
 	stops []time.Time
-	// The paused account native keeps from its own transitions (#621):
+	// The paused account native keeps from its own transitions:
 	// starts is the wall time of each window start, stoppedAt the last
 	// stop (zero while running or before the first), and the two
 	// accumulators the closed stop->start gaps and start->stop spans.
@@ -61,9 +61,9 @@ type speedNative struct {
 	// reads counts every native read the scheduler's steps issue (the
 	// bundle, the identity, tick, status, attempt and emergency reads
 	// under a step's context), not the worker's poll, for the
-	// reads-per-step bound (#593).
+	// reads-per-step bound.
 	reads atomic.Int64
-	// The blind-tick regulator (#583), modelled as native does it: blind
+	// The blind-tick regulator, modelled as native does it: blind
 	// ticks are those since the controller's last read or its oldest
 	// unacknowledged journal row, whichever is older. A window past its
 	// budget runs throttled (one tick every tickEvery*regulatedRatio)
@@ -575,7 +575,7 @@ func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.Gener
 	}
 	watch := &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}
 	// A fake armed with a blind-tick budget before the fixture is built
-	// regulates every window the scheduler starts (#583).
+	// regulates every window the scheduler starts.
 	start := bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, Policy: watch, LeaseMS: 30_000, MaxTicks: 100, BlindTickBudget: uint32(native.regulator.budget)}
 	scheduler, err := NewClockScheduler(player, session, native, ClockSchedulerConfig{Profile: sessionConfig.Control.ProfileDirectory, Start: start, MaxAge: time.Second}, wallClock{})
 	if err != nil {
@@ -666,13 +666,13 @@ type speedDecision struct {
 // game's ticks, not the wall clock. And every budget stop must reach a
 // step through the wake signal (StepWake), never by waiting out the timer
 // cadence: the long poll and the wake deliver the stop at once, which the
-// step's clock_step row reports as its stop latency (issue #112). The
+// step's clock_step row reports as its stop latency. The
 // wake cause is the assertion; the wall-clock latency is only bounded as
 // a hang guard at MaxBackoff, net of the time another step or a poll was
 // in flight. A step that settles the epoch, or the poll that carries the
 // stop, holds the worker for as long as its SQLite work takes (issues
-// #203, #349), and goroutine scheduling under race detection on a loaded
-// machine adds hundreds of milliseconds more (#557); neither says
+// #203), and goroutine scheduling under race detection on a loaded
+// machine adds hundreds of milliseconds more; neither says
 // anything about wake delivery, so no tighter bound is asserted.
 func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -773,7 +773,7 @@ func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) 
 			if len(decisions) != 2*windows {
 				t.Fatalf("x%d: %d windows admitted: %+v", multiplier, len(epochs), decisions)
 			}
-			// paused_fraction_native (#621) is native's own account of
+			// paused_fraction_native is native's own account of
 			// its stop->start gaps, read from the status the way the
 			// speed matrix reads it, and it agrees with the fraction
 			// the fake's known stop and start times imply to within one
@@ -792,7 +792,7 @@ func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) 
 			if tolerance := float64(config.StepInterval) / float64(wall); got <= 0 || got >= 1 || got < want-tolerance || got > want+tolerance {
 				t.Fatalf("x%d: paused_fraction_native %.3f (paused %d ms, running %d ms) differs from the %.3f the fake's %d stops imply by more than %.3f", multiplier, got, status.GetPausedMs(), status.GetRunningMs(), want, len(stops), tolerance)
 			}
-			// Every step observes through its one bundle (#593): the
+			// Every step observes through its one bundle: the
 			// reads the fake counts under the steps' contexts stay
 			// within two per step, the bundle and the status the clock
 			// coordinator inspects before it commands a window. A
@@ -826,7 +826,7 @@ func (n *speedNative) read(ctx context.Context) {
 }
 
 // TestClockSpeedMatrixRegulatorBoundsBlindTicks drives the scheduler and
-// worker against a speedNative armed with a blind-tick budget (#583) under
+// worker against a speedNative armed with a blind-tick budget under
 // a controller whose reads are spaced by the step cadence and the held
 // poll, far apart in ticks at 1ms a tick. The fake models native's
 // regulator: a window past its budget since the controller's last read

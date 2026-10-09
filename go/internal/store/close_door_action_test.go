@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A door_control (#1743) persists its cell.
+// A door_control persists its cell.
 func TestDoorControlActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	for _, held := range []bool{false, true} {

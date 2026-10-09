@@ -12,7 +12,7 @@ import (
 )
 
 // artBenchSource is the native read MaintainArt's bills need: the art
-// benches come from the gear bench census (#1190).
+// benches come from the gear bench census.
 type artBenchSource interface {
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 }
@@ -41,8 +41,8 @@ func (r *RoundsBillPlanner) artSelection(call context.Context, state ControlStat
 	list := artBenches(reads)
 	art = artBills(list)
 	benches := domain.Known(list)
-	// An inspired artist's large sculpture comes first (#1192).
-	// Sale sculptures (#1193) are asked for while no room is owed.
+	// An inspired artist's large sculpture comes first.
+	// Sale sculptures are asked for while no room is owed.
 	demand := artDemand(projection, profiles)
 	demand.Sale = policy.RoundsArtForSale(projection.Facts, r.reviewer.policy, medicineActive)
 	bills := append(policy.SelectInspiredArtBills(benches, policy.InspiredArtists(profiles), projection.Facts.Items), policy.SelectArtBills(benches, projection.Facts.Colonists, policy.Artists(profiles), demand)...)
@@ -57,7 +57,7 @@ func (r *RoundsBillPlanner) artSelection(call context.Context, state ControlStat
 	return policy.BillSelection{}, BuildingReasonNoDeficit, art, nil
 }
 
-// artBenchState is the art benches' sculpture bills (#1195): sculpting
+// artBenchState is the art benches' sculpture bills: sculpting
 // while one is active (the clock owes it game time), and each worker's
 // finished batches, which stay on the bench and key the next batch's
 // method apart from theirs.
@@ -84,7 +84,7 @@ func artBills(benches []policy.ProductionBench) artBenchState {
 	return out
 }
 
-// artDemand sizes the art bills (#1191) from the same bedroom census as
+// artDemand sizes the art bills from the same bedroom census as
 // sculptureRoomsOwed, the colony stock and the artists' skills; an unknown
 // census leaves only the small sculpture.
 func artDemand(facts observation.ColonyProjection, profiles []policy.PawnProfile) policy.ArtDemand {
@@ -134,5 +134,5 @@ func artBenches(reads []bridge.GearBenchRead) []policy.ProductionBench {
 }
 
 // artNativeWorkTicks is the window an active sculpture bill asks for per
-// step; the review re-reads the bench between windows (#1195).
+// step; the review re-reads the bench between windows.
 const artNativeWorkTicks = 2500

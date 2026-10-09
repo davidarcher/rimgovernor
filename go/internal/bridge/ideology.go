@@ -10,7 +10,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// The Ideology facts (#1654): static defs are rows of the definition catalog
+// The Ideology facts: static defs are rows of the definition catalog
 // (catalog_ideology.go), the primary ideoligion is the frame's ideology section. A row that is not
 // valid fails the whole decode: nothing is skipped or defaulted.
 

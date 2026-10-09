@@ -7,7 +7,7 @@ import (
 )
 
 // A Met owner with a stale bill is filed Unmet and raised so its planner
-// removes the bill (#2411); an Unmet or unknown owner, or another owner's
+// removes the bill; an Unmet or unknown owner, or another owner's
 // stale bill, changes nothing.
 func TestAssessFilesAMetOwnerWithAStaleBillUnmet(t *testing.T) {
 	t.Parallel()
@@ -36,7 +36,7 @@ func TestAssessFilesAMetOwnerWithAStaleBillUnmet(t *testing.T) {
 
 // Food is filed Unmet for no bill (that would start the food machinery) but its
 // hunter-weapon bills are removed once outside the demand; gestation bills are
-// excluded from both rules (#2411, #2433).
+// excluded from both rules.
 func TestStaleBillOwners(t *testing.T) {
 	t.Parallel()
 	for _, id := range []ConcernID{MaintainMechs, EnsureFoodSupply, MaintainFoodStorage} {
@@ -60,8 +60,7 @@ func TestStaleBillOwners(t *testing.T) {
 }
 
 // The gear wanted set is the replacements of every loadout, armor families by
-// rung, and nothing once the census is recovered; an unread census is unknown
-// (#2433).
+// rung, and nothing once the census is recovered; an unread census is unknown.
 func TestGearBillsWanted(t *testing.T) {
 	t.Parallel()
 	parka := loadoutOption("Parka", GearSkinTorso)

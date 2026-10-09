@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
             };
             if (!pawn)
             {
-                // One colony thing and its quality (#1194): a packed
+                // One colony thing and its quality: a packed
                 // sculpture sells line by line, matched to its stock id.
                 Thing? thing; try { thing = t.FirstThingColony; } catch { thing = null; }
                 if (thing != null)
@@ -139,7 +139,7 @@ namespace HomeBridge.BridgeTools
                     var id = SafeText(() => thing.GetUniqueLoadID());
                     if (id != "") line.ThingId = id;
                     try { if (thing.GetInnerIfMinified().TryGetQuality(out var quality)) line.Quality = (int)quality; } catch { }
-                    // Gear sale (#1831): the thing's hit-point fraction and the
+                    // Gear sale: the thing's hit-point fraction and the
                     // stockpile it lies in, so the controller sells only the worn
                     // dump's gear above the incinerator's cap.
                     try { if (thing.def.useHitPoints && thing.MaxHitPoints > 0) line.HitPointsFraction = (double)thing.HitPoints / thing.MaxHitPoints; } catch { }
@@ -154,7 +154,7 @@ namespace HomeBridge.BridgeTools
             if (pawn)
             {
                 line.PawnDescription = SafeText(() => t.Label);
-                // The purchase choice (#1037) reads the pawn's skills, passions
+                // The purchase choice reads the pawn's skills, passions
                 // and violence capability; an unreadable pawn leaves them absent.
                 Pawn? p; try { p = t.AnyThing as Pawn; } catch { p = null; }
                 if (p != null)
@@ -162,7 +162,7 @@ namespace HomeBridge.BridgeTools
                     line.PawnId = SafeText(() => p.GetUniqueLoadID());
                     line.PawnGender = SafeText(() => p.gender.ToString());
                     line.ViolenceCapable = SafeBool(() => !p.WorkTagIsDisabled(WorkTags.Violent));
-                    // A prisoner's sale facts (#1969): what PreTraded charges
+                    // A prisoner's sale facts: what PreTraded charges
                     // (MemberSold goodwill with the extra home or host faction)
                     // and what AllSellableColonyPawns lists on.
                     if (p.guest != null)

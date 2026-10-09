@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Utility reservations (#782, A6). After the core is laid out the plan
+// Utility reservations. After the core is laid out the plan
 // holds:
 //   - a battery room off the spine, a room like any other (PlannedBattery);
 //   - wind turbines in facing north/south pairs whose catch zones overlap
@@ -45,8 +45,8 @@ const (
 )
 
 // coolingRoles are the rooms that need a cooler, most important first;
-// the tomb keeps colonist corpses frozen (#840), the meal closet the
-// dining room's meals (#936).
+// the tomb keeps colonist corpses frozen, the meal closet the
+// dining room's meals.
 var coolingRoles = []PlannedRole{PlannedFreezer, PlannedTomb, PlannedMorgue, PlannedMealCloset}
 
 // UtilityWants is what PlanUtilities reserves: turbine pairs, solar plots,
@@ -59,7 +59,7 @@ type UtilityWants struct {
 	// ThickRoof is the surveyed cells under overhead mountain; non-nil lets
 	// turbines and solar plots be sited on natural rock, dug and unroofed
 	// first, except where a cell is under thick roof (it cannot be
-	// removed). Nil keeps those sites off rock (#1758).
+	// removed). Nil keeps those sites off rock.
 	ThickRoof map[domain.Cell]bool
 	// scorer sites the battery room with the initial siting's costing; nil
 	// takes the nearest slot.
@@ -254,7 +254,7 @@ type PlannedPowerSite struct {
 	Block    Rectangle
 }
 
-// PlannedPowerSites lists the plan's sites for definition (#788):
+// PlannedPowerSites lists the plan's sites for definition:
 // batteries in the battery room's slots (1x2 turned east, or facing north
 // in a room on a crossing), wind turbines on
 // their pair reservations (the southern one facing north), solar on its
@@ -319,7 +319,7 @@ func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 	return out
 }
 
-// PlannedCoolerSite is a cooled room's planned cooler (#791): the cell in
+// PlannedCoolerSite is a cooled room's planned cooler: the cell in
 // its back wall in front of the exhaust reservation, turned so the hot side
 // faces the exhaust and the cold side the room.
 type PlannedCoolerSite struct {

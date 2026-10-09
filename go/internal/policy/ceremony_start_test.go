@@ -7,7 +7,7 @@ import (
 )
 
 // The ritual starts only for an accepted ceremony whose bestower is known to
-// wait and whose ritual is known not to have started (#1639).
+// wait and whose ritual is known not to have started.
 func TestCeremonyStartEmitCondition(t *testing.T) {
 	c, ok := CeremonyStart(pendingCeremony(nil))
 	if !ok || c.Pawn != "Alice" || c.Bestower != "Envoy" {

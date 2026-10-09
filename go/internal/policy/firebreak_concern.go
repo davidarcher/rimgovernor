@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// MaintainFirebreak keeps the firebreak ring (#1536) clear: its cut cells
+// MaintainFirebreak keeps the firebreak ring clear: its cut cells
 // free of standing plants and its wooden ruins taken down. The goal is in
 // deficit while FirebreakOwed finds work; an order is the method, so the
 // goal settles on the census, never on a receipt.

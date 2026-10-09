@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Medicine carry (#1307, epic #1292): the bot owns every colonist's
+// Medicine carry: the bot owns every colonist's
 // Medicine inventory-stock count. Doctors carry 1-3 so they tend without
 // walking to stock; field roles carry 1-2 so a doctor can tend in the
 // field. Everyone else carries none. The tier is the pawn's own medical

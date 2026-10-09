@@ -4,7 +4,7 @@ using System.Diagnostics;
 using HomeBridge.BridgeTools;
 using RimGovernor.Host.Sdk;
 
-// Phase accounting for the observation capture path (#642). Every clock here
+// Phase accounting for the observation capture path. Every clock here
 // is supplied, not measured: FrameAccounting.UpdateAt takes the monotonic
 // timestamp and ObservationWork takes stopwatch tick counts, so the intervals,
 // the slow-threshold counts and the millisecond conversions are exact and no
@@ -78,7 +78,7 @@ internal static class NativeObservationWorkProbe
         Check(ObservationWork.Current == null, "recording outside a hop is dropped");
     }
 
-    // A family that throws (#1337) writes a mod log error row carrying the
+    // A family that throws writes a mod log error row carrying the
     // exception's stack, and the hop's account reports the section as failed, not absent.
     private static void FailedSectionIsReported()
     {
@@ -180,7 +180,7 @@ internal static class NativeObservationWorkProbe
         Check(Near(carried["intervalMs"], 20) && Near(carried["observationMs"], 15), "work charged to its own interval");
         Check((string)carried["trace"] == "trace-a/1", "the most expensive observation names the interval");
         Check((int)carried["tick"] == 101, "the interval carries the tick it opened at");
-        // The cumulative interval histogram (#656): 10 ms, 20 ms and 120 ms
+        // The cumulative interval histogram: 10 ms, 20 ms and 120 ms
         // land in the buckets whose upper edges are 10, 20 and 120; only the
         // 20 ms interval ran observation work.
         var histogram = (Dictionary<string, object>)report["histogram"];

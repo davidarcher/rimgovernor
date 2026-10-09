@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
     // questacceptaccept instead exercises the "this quest does not accept an
     // accepter" refusal branch by supplying one anyway.
     //
-    // test/joiner_quest_prepare (#250) instead generates a real
+    // test/joiner_quest_prepare instead generates a real
     // ThreatReward_Raid_Joiner offer through the native storyteller path
     // (QuestUtility.GenerateQuestAndMakeAvailable at the map's default
     // threat points), plus the spare unowned sleeping spots and food the
@@ -105,7 +105,7 @@ namespace HomeBridge.BridgeTools
                     return Refuse("The generated joiner quest is not a visible not-yet-accepted offer.");
                 // The offer's own window (~0.3 days) ran out while the supervised
                 // windows played the startup days before the planner accepted it
-                // (#717); the case proves the answer, not the race, so hold the
+                //; the case proves the answer, not the race, so hold the
                 // offer open for thirty days.
                 if (quest != null) quest.acceptanceExpireTick = Find.TickManager.TicksGame + 30 * GenDate.TicksPerDay;
 
@@ -178,7 +178,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // test/royal_title_prepare (#1613): the first-title staging. The lab holds
+        // test/royal_title_prepare: the first-title staging. The lab holds
         // no Empire quest and no bedroom, so this generates the Empire when the
         // map has none, keeps it neutral, furnishes one walled, roofed bedroom
         // that meets the first title's bedroom requirements with the first

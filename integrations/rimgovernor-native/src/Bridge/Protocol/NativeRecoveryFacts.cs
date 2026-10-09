@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
                 var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
                 var result = new Obs.RecoverySnapshot { Context = context };
                 // Each building's hit points, fuel and breakdown state is its
-                // row in the bundle's building table (#1343).
+                // row in the bundle's building table.
                 foreach (var building in buildings) result.Buildings.Add(NativeBuildingObservationTools.Ref(building));
                 foreach (var pawn in pawns) {
                     var row = new Obs.RecoveryRestriction { Pawn = NativePawnObservationTools.Ref(pawn) };

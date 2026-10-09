@@ -1,5 +1,5 @@
 // Package dialog holds the dialog/pause case (the former dialogpauseaccept),
-// issue #156 end to end against a live game under the real Go player
+// the dialog lifecycle end to end against a live game under the real Go player
 // service: a force-pausing choice dialog the game opens by itself
 // (Verse.Dialog_NodeTree, the shape of a finished research project's
 // completion dialog or a caravan demand) no longer strands the native
@@ -56,7 +56,7 @@ func init() {
 			Families: []routinefamily.Family{routinefamily.Dialog, routinefamily.Supply, routinefamily.Shelter, routinefamily.Sleeping}, NativeTimeout: 15 * time.Second, Prefix: "dialog-pause",
 		},
 		Budget: 12 * time.Minute,
-		Crew:   cases.Crew{Size: 3}, // A dialog answer took 68s to show in the trace once (#353).
+		Crew:   cases.Crew{Size: 3}, // A dialog answer took 68s to show in the trace once.
 		Stall:  2 * time.Minute,
 		Run:    run,
 	})
@@ -143,7 +143,7 @@ type answered struct {
 }
 
 // dialogAnswers lists every AnswerDialog plan any occurrence admitted (each
-// dialog is its own incident, #1078), keyed by the targeted window.
+// dialog is its own incident), keyed by the targeted window.
 func dialogAnswers(ctx context.Context, st *store.Store) (map[int32]answered, error) {
 	review, err := st.LoadRounds(ctx)
 	if err != nil {

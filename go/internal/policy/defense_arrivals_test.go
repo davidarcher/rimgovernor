@@ -319,7 +319,7 @@ func TestDefenseApproachesFloodFromEntryWhenHomeIsBlocked(t *testing.T) {
 // TestBaitPlacedOnArrivalSector: a raid that arrived from the west edge
 // gets two stools beside its route, at least the standoff from the killbox
 // entry and never on the route; no arrival or no bait definition places
-// none (#1063).
+// none.
 func TestBaitPlacedOnArrivalSector(t *testing.T) {
 	r := defenseFixture()
 	r.Definitions.Bait, r.Definitions.BaitStuff = "Stool", "WoodLog"

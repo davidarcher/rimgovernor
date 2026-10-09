@@ -14,7 +14,7 @@ const siteTravelWeight = 0.015
 // farmSitePatchLimit bounds a new greenhouse's lamps.
 const farmSitePatchLimit = 32
 
-// FarmSiteRequest is the cell census a site kind picks from (#1227: the
+// FarmSiteRequest is the cell census a site kind picks from (the
 // square search is gone; every kind uses the rectangle picker).
 type FarmSiteRequest struct {
 	Bounds Bounds

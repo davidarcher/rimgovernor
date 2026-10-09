@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-// #1352: the GiveJobIntent arm of Actions/Apply. Checks the wire shape, that
+// the GiveJobIntent arm of Actions/Apply. Checks the wire shape, that
 // Actions/Apply maps the arm to a handler, that each job shape reaches its
 // arm, and that malformed intents are refused InvalidRequest before any live
 // game state is read. The live game-rule checks are covered by the

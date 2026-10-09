@@ -13,7 +13,7 @@ import (
 )
 
 // recordedQuestCatalog is the catalog rows recorded from a headless Odyssey
-// game (#1717): every Odyssey QuestScriptDef, one Core quest and the planet
+// game: every Odyssey QuestScriptDef, one Core quest and the planet
 // layers.
 func recordedQuestCatalog(t *testing.T) *DefinitionCatalog {
 	t.Helper()
@@ -42,7 +42,7 @@ func questCatalog(scripts []*d.QuestScriptDef, layers []*d.PlanetLayerDef) *Defi
 	return catalog
 }
 
-// TestQuestClassOfTheRecordedOdysseyScripts (#1717): the Odyssey quests that
+// TestQuestClassOfTheRecordedOdysseyScripts: the Odyssey quests that
 // need a space layer are the ship-only ones, read from the rows' layer
 // references (Root_Gravcore.layer, Root_Asteroid.layerDef, Root_Site
 // layerWhitelist); every other Odyssey script is ground, including the
@@ -92,7 +92,7 @@ func TestQuestClassOfTheRecordedOdysseyScripts(t *testing.T) {
 	}
 }
 
-// TestQuestClassRules (#1717): the rules on built rows. A required space
+// TestQuestClassRules: the rules on built rows. A required space
 // layer or a space-only whitelist needs a ship, a whitelist with a surface
 // layer does not, a blacklist is ignored, a sub-script's layer counts, and
 // an unknown script, sub-script or layer is an error.

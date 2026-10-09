@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-// The squad hunt cases (#1621, epic #1614). Both start on the blank lab
+// The squad hunt cases. Both start on the blank lab
 // with four riflemen (lab-ranged's line) and no raiders, a group of calm
 // wild animals north of them, and the planners a hunt and its aftermath
 // compose: the hunt origin of ActiveCombat (defense), the butcher and haul
@@ -44,7 +44,7 @@ func init() {
 		Start:       cases.Lab{Colonists: 4},
 		RequiredOps: []string{na.LabStartTool, StageTool, pauseModeTool, observeChannelsTool},
 		QuietWorld:  true,
-		// A checkpoint capture pauses the served game mid-hunt (#890).
+		// A checkpoint capture pauses the served game mid-hunt.
 		NoCheckpoint: true,
 		Serve:        &cases.ServeSpec{Families: huntFamilies, PlayerSpeed: metricsSpeed, Prefix: "combatlab-hunt"},
 		Budget:       huntBudget,

@@ -10,7 +10,7 @@ import (
 )
 
 // roundsIncident is the review's open occurrence of a Response kind
-// (#1020) and the need the review assessed it at; ok is false when the
+// and the need the review assessed it at; ok is false when the
 // review binds none.
 func roundsIncident(call context.Context, journal *store.Store, review store.Rounds, kind policy.ConcernID) (state store.IncidentState, need domain.Situation, ok bool, err error) {
 	binding, bound := review.Incident(kind)

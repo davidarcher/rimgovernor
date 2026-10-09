@@ -9,11 +9,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/variantgen"
 )
 
-// Manifest is issue #1's checked-in variant list: Crashlanded at three
-// seeds, a solo rich explorer, LostTribe at five and eight pawns, a
-// scarce-wood desert, a cold tundra, a hot extreme desert and a Hard
-// start. The checked-in artifact is the spec; tools/variantsavegen-* cases
-// generate the saves and sustained/matrix-* cases load them.
+// Manifest defines the sustained colony variants. tools/variantsavegen-* generates their
+// saves; sustained/matrix-* loads them.
 //
 //go:embed manifests/issue-1-matrix.json
 var manifestJSON []byte

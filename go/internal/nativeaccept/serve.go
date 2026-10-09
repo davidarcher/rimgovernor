@@ -26,9 +26,9 @@ import (
 )
 
 // ServeSpec declares the `rimgovernor serve` process a serve-driven harness
-// runs against (issue #138). What every launch shares is fixed here rather
+// runs against. What every launch shares is fixed here rather
 // than per harness: the clock speed comes from ClockSpeedArgs
-// (RIMGOVERNOR_ACCEPT_CLOCK_SPEED, #128), the flight recorder and
+// (RIMGOVERNOR_ACCEPT_CLOCK_SPEED), the flight recorder and
 // --listen 127.0.0.1:0 are always on, --pprof is on unless
 // RIMGOVERNOR_ACCEPT_PPROF opts out (see pprof.go), and
 // the service's profile, state, logs and profiles live under the run's
@@ -53,13 +53,13 @@ type ServeSpec struct {
 	NativeTimeout time.Duration
 	// StepStall, when > 0, is how long the scheduler may go without
 	// admitting a clock window before StepAdmitted reports a StepStallError
-	// (a starved composed step under peer contention, #103).
+	// (a starved composed step under peer contention).
 	StepStall time.Duration
 	// Prefix disambiguates the requestIds the handle issues (resume,
 	// acknowledge); empty means "serve".
 	Prefix string
 	// PlayerSpeed is the speed the harness sets as the player's choice
-	// before the service starts (#875): serve runs its windows at it. Empty
+	// before the service starts: serve runs its windows at it. Empty
 	// is ClockSpeed(); a harness that sets it also owns
 	// --clock-test-acceleration in Extra.
 	PlayerSpeed string
@@ -131,8 +131,7 @@ type ServiceLaunch struct {
 // Serve is the serve-driven family's one lifecycle: it loads spec.Save
 // through the harness's session when asked, reads the loaded identity
 // unless the caller supplies one, releases the session (Game.Release; the
-// process is kept like any other afterwards, its clock journal intact,
-// #119), launches rimgovernor serve, checks
+// process is kept like any other afterwards, its clock journal intact), launches rimgovernor serve, checks
 // its health and player session and waits until the service's own bridge
 // session has attached to the same identity. game may be nil when the
 // caller has already released the slot itself (a GameReuse case), in which
@@ -234,7 +233,7 @@ func ServeArgs(cfg *Config, profileDir, statePath, flightPath string, spec Serve
 		"--state", statePath,
 		"--listen", "127.0.0.1:0",
 		"--timeout", timeout.String(),
-		// The flight recording is the evidence (#2065); stderr keeps the
+		// The flight recording is the evidence; stderr keeps the
 		// startup banner, fatals and panics.
 		"--flight-recorder", flightPath,
 	}
@@ -243,7 +242,7 @@ func ServeArgs(cfg *Config, profileDir, statePath, flightPath string, spec Serve
 	if spec.PlayerSpeed == "" && !slices.Contains(spec.Extra, "--clock-test-acceleration") {
 		argv = append(argv, ClockSpeedArgs()...)
 	} else if spec.PlayerSpeed != "" && !slices.Contains(spec.Extra, "--clock-test-acceleration") {
-		// serve runs Ultrafast unless told to follow the player (#875).
+		// serve runs Ultrafast unless told to follow the player.
 		argv = append(argv, "--follow-player-speed")
 	}
 	if ProfileServices() {
@@ -287,7 +286,7 @@ func launchServe(ctx context.Context, cfg *Config, spec ServeSpec, launch int, r
 	cmd.Env = append(os.Environ(), spec.Env...)
 	if dir := os.Getenv(snapshot.DirEnv); dir != "" {
 		// Each case records into its own <area>/<case> directory, so a
-		// suite's workers never write one another's tick files (#745).
+		// suite's workers never write one another's tick files.
 		cmd.Env = append(cmd.Env, snapshot.DirEnv+"="+filepath.Join(dir, filepath.Base(filepath.Dir(output)), filepath.Base(output)))
 	}
 	if spec.Families != nil {
@@ -299,9 +298,8 @@ func launchServe(ctx context.Context, cfg *Config, spec ServeSpec, launch int, r
 	if err != nil {
 		return nil, err
 	}
-	// stderr.log is for the startup banner, fatals and panics only: nothing
-	// reads it and no report names it (the flight recording is the evidence,
-	// #2065).
+	// stderr.log holds the startup banner, fatal errors and panics. Flight recording supplies report
+	// evidence.
 	stderrFile, err := os.Create(filepath.Join(serviceDir, "stderr.log"))
 	if err != nil {
 		return nil, err
@@ -455,7 +453,7 @@ func (p *ServiceProcess) Stop() map[string]any {
 }
 
 // recordClock summarizes the launch's flight recording into its report
-// entry ("clock": the bridge.ClockSample plus paused_fraction, #266) once
+// entry ("clock": the bridge.ClockSample plus paused_fraction) once
 // the process has exited, so every serve-driven result.json shows how much
 // of the service's wall time the game stood still between windows. A
 // missing or malformed recording leaves the entry alone.

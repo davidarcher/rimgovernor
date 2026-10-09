@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// PawnBiotech is one pawn's Biotech facts (#1678) as the row carries them.
+// PawnBiotech is one pawn's Biotech facts as the row carries them.
 // Every field is unknown when native did not read it; a pointer inside a
 // Known fact is a known absence (a pawn that is no mechanitor, no mech, no
 // deathrester). The defs are the catalog's (bridge.BiotechCatalog).
@@ -21,17 +21,17 @@ type PawnBiotech struct {
 	XenotypeName domain.Fact[string]
 	Hybrid       domain.Fact[bool]
 	// Effects are the active genes' combined typed effects, resolved from
-	// the catalog (#1689); known whenever Genes is.
+	// the catalog; known whenever Genes is.
 	Effects domain.Fact[GeneEffects]
 	// WorkMinAges is the race's minimum age in years per work type, resolved
-	// from the catalog (#1682); known only for a child.
+	// from the catalog; known only for a child.
 	WorkMinAges domain.Fact[map[WorkType]int]
 	Mechanitor  domain.Fact[*PawnMechanitor]
 	Mech        domain.Fact[*PawnMech]
 	Deathrest   domain.Fact[*PawnDeathrest]
 	// XenogermRegrowTicksLeft and XenogermComaTicksLeft are the ticks left on
 	// the pawn's XenogermReplicating and XenogerminationComa hediffs, known 0
-	// with none (#1931). A pawn with regrow ticks left dies if extracted again.
+	// with none. A pawn with regrow ticks left dies if extracted again.
 	XenogermRegrowTicksLeft, XenogermComaTicksLeft domain.Fact[int]
 	// InExtractor is a pawn held by a gene extractor.
 	InExtractor domain.Fact[bool]
@@ -95,7 +95,7 @@ func (b PawnBiotech) IsChild() (child, known bool) {
 }
 
 // IsDeathresting reports whether the pawn is known to be deathresting: a
-// pawn in deathrest takes neither work nor fights (#1690). An unknown
+// pawn in deathrest takes neither work nor fights. An unknown
 // deathrest read counts as not resting.
 func (b PawnBiotech) IsDeathresting() bool {
 	d, ok := b.Deathrest.Value()

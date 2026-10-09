@@ -14,7 +14,7 @@ type ImpressivenessLevels struct {
 	Dull, Mediocre, Decent, SlightlyImpressive float64
 }
 
-// Baseline is the colony-wide floor by tech tier (#610 style), one native
+// Baseline is the colony-wide floor by tech tier, one native
 // stage per tier: Camp asks nothing, Masonry dull, Powered mediocre,
 // Industrial decent, Spacer slightly impressive.
 func (l ImpressivenessLevels) Baseline(tier TechTier) float64 {
@@ -31,8 +31,8 @@ func (l ImpressivenessLevels) Baseline(tier TechTier) float64 {
 	return 0
 }
 
-// RoomTarget is the impressiveness one owned bedroom should reach (#811).
-// Consumers (the #813 ranking, the gap closer) compare it against the
+// RoomTarget is the impressiveness one owned bedroom should reach.
+// Consumers (room ranking, the gap closer) compare it against the
 // room's observed RoomQuality.Impressiveness.
 type RoomTarget struct {
 	Room   string
@@ -50,7 +50,7 @@ type RoomTarget struct {
 	Reasons []string
 }
 
-// CommonRoomTargets returns a RoomTarget per dining and rec room (#816),
+// CommonRoomTargets returns a RoomTarget per dining and rec room,
 // keyed by room id, or nil while the room census is unknown. Every colonist
 // eats and relaxes there, so no one's traits apply: the target is the
 // colony-wide tier baseline (ImpressivenessLevels.Baseline), reason "common". A room
@@ -80,7 +80,7 @@ func CommonRoomTargets(obs SleepingObservation, tier TechTier, levels Impressive
 // a humanlike, non-medical, non-prisoner bed with owners. traits carries each
 // pawn's TraitEffects; a missing entry reads as no relevant trait.
 //
-// Min is the ceiling the room climbs to, not a spend it demands (#1840): the
+// Min is the ceiling the room climbs to, not a spend it demands: the
 // in-place upgrade planners place one piece at a time while the room is below
 // it, and RoomGate refuses a step the owners' remaining personal share does
 // not pay for (a necessity, Baseline(Camp) = 0, is never charged).
@@ -143,7 +143,7 @@ func RoomQualityTargets(obs SleepingObservation, traits map[PawnID]TraitEffects,
 			}
 			// A trait or title names itself only when it asks above the
 			// tier baseline, so a suite claim can tell a raised target
-			// from a tier-only one (#1221).
+			// from a tier-only one.
 			if v > 0 && (why == "tier" || v > levels.Baseline(tier)) {
 				reasons[why] = true
 			}

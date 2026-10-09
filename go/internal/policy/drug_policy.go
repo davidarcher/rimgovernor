@@ -15,7 +15,7 @@ const HighTolerance = 0.5
 // DependencyDays is the dependency drug's schedule, our own tuning: a
 // gene's deficiency starts after five days without the chemical, so a dose
 // every four days keeps it away. The drug of each chemical is the catalog's
-// (ItemFacts.DependencyDrug, #1539).
+// (ItemFacts.DependencyDrug).
 const DependencyDays = 4
 
 // MaintainDays is the days between maintenance doses of a weanable
@@ -60,12 +60,12 @@ func joyEntry(def string) domain.DrugPolicyEntry {
 	return domain.DrugPolicyEntry{Drug: def, Joy: true, DaysFrequency: 1, OnlyIfMoodBelow: 1, OnlyIfJoyBelow: 1}
 }
 
-// DrugEntries is the drug policy pawn should hold (#1537): beer, smokeleaf
+// DrugEntries is the drug policy pawn should hold: beer, smokeleaf
 // and psychite tea for joy, each unless the pawn is addicted to its
 // chemical or its tolerance is high. A child, a teetotaler and a pawn with
 // a chemical interest or fascination (every recreation drug is addictive)
 // get none. Every pawn takes penoxycyline on schedule in a disease biome,
-// and the drug of each chemical-dependency gene on schedule (#1539).
+// and the drug of each chemical-dependency gene on schedule.
 // Everything else is off. Unknown while the pawn's age, traits or chemical
 // state are.
 func DrugEntries(pawn WorkPawn, items ItemFacts, diseaseBiome bool) ([]domain.DrugPolicyEntry, bool) {
@@ -125,10 +125,10 @@ func chemicalRisky(inputs PawnPolicyInputs, chemical string) bool {
 	return false
 }
 
-// CarryDrug is the combat drug a soldier carries (#1540): the preferred
+// CarryDrug is the combat drug a soldier carries: the preferred
 // combat-enhancing drug (ItemFacts.CombatDrugs), or the first of them in
 // stock when the colony's stock is known and the preferred one is out.
-// Ingesting on draft is #1311. false when the game has no combat drug.
+// False when the game has no combat drug.
 func CarryDrug(items ItemFacts, stock map[string]int64) (Drug, bool) {
 	drugs := items.CombatDrugs()
 	if len(drugs) == 0 {
@@ -144,7 +144,7 @@ func CarryDrug(items ItemFacts, stock map[string]int64) (Drug, bool) {
 	return drugs[0], true
 }
 
-// CarryEntries is the combat drug a soldier-squad member carries (#1540):
+// CarryEntries is the combat drug a soldier-squad member carries:
 // one dose of drug taken to inventory, not for joy, under the same
 // exclusions as DrugEntries. Unknown while DrugEntries is.
 func CarryEntries(pawn WorkPawn, items ItemFacts, drug Drug) ([]domain.DrugPolicyEntry, bool) {
@@ -174,7 +174,7 @@ type AddictionDrug struct {
 }
 
 // AddictionDrugs are the addictive chemicals of the catalog's drugs, by
-// chemical name (#1538). A chemical whose addiction does not fade on its own
+// chemical name. A chemical whose addiction does not fade on its own
 // (ItemFacts.Chemicals) is never weaned: it is always maintained.
 func (i ItemFacts) AddictionDrugs() []AddictionDrug {
 	var out []AddictionDrug
@@ -212,7 +212,7 @@ func WeanDoses(a AddictionDrug, severity float64) int64 {
 	return int64(math.Ceil(WeanDays * math.Max(severity, 0) / WeanInterval(a, severity)))
 }
 
-// AddictionEntries are the scheduled doses pawn's addictions owe (#1538),
+// AddictionEntries are the scheduled doses pawn's addictions owe,
 // never cold turkey: an addiction is weaned at a widening interval when the
 // colony's remaining stock (nil while unknown) of its first stocked drug
 // covers the weaning doses, which it then consumes; otherwise maintained at
@@ -263,14 +263,14 @@ func addictionEntries(inputs PawnPolicyInputs, items ItemFacts, stock map[string
 	return out
 }
 
-// DrugPolicyChanges are the per-pawn drug policy writes owed (#1537): each
+// DrugPolicyChanges are the per-pawn drug policy writes owed: each
 // owned pawn with a drug tracker holds the policy labelled with its short
 // name, carrying DrugEntries and AddictionEntries against the colony's
-// drug stock (#1538), allotted to pawns in order, and squad members'
-// CarryEntries (#1540). A pawn whose short name another owned pawn
-// shares (#1310 renames it) or that several policies carry waits.
-// biomeDiseases is the colony map biome's disease hediffs (#1539).
-// Each prisoner holds its own policy too (#1554), allowing no recreation,
+// drug stock, allotted to pawns in order, and squad members'
+// CarryEntries. A pawn whose short name another owned pawn
+// shares or that several policies carry waits.
+// biomeDiseases is the colony map biome's disease hediffs.
+// Each prisoner holds its own policy too, allowing no recreation,
 // only the addiction maintenance and weaning its chemicals owe.
 func DrugPolicyChanges(items ItemFacts, pawns []WorkPawn, prisoners []PrisonerFacts, names []OwnedName, policies []DrugPolicyEntry, stock domain.Fact[[]Amount], biomeDiseases []string, squad SoldierSquad) []DrugPolicyChange {
 	diseaseBiome := DiseaseBiome(items, biomeDiseases)

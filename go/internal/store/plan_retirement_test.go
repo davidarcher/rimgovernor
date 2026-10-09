@@ -12,7 +12,7 @@ import (
 )
 
 // TestRoundsPlanRetirementNoDoubleSpend replays the double-spend the deleted
-// retirement floor blocked (#1008): once a settled plan retires, stock observed
+// retirement floor blocked: once a settled plan retires, stock observed
 // before its evidence must not buy a second method. The goal tick check refuses
 // it without the floor, and the same stock at a fresh tick still admits.
 func TestRoundsPlanRetirementNoDoubleSpend(t *testing.T) {
@@ -183,7 +183,7 @@ func TestRoundsPlanRetirementPinsUnfinishedMethods(t *testing.T) {
 			if _, err := s.Dispatch(ctx, p.ID(), "method-a", current, 10); err != nil {
 				t.Fatal(err)
 			}
-			// An unknown intent receipt leaves it to be sent again (#856).
+			// An unknown intent receipt leaves it to be sent again.
 			receipt := domain.ReceiptAccepted
 			if kind == "unknown" {
 				receipt = domain.ReceiptUnknown

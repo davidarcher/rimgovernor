@@ -318,7 +318,7 @@ func TestSleepingUpkeepBuildsBedInWarmHostingRoom(t *testing.T) {
 		}
 	}
 	complete("sleeping-Bed-1")
-	// The census shows the bed built, so its plan retires (#856).
+	// The census shows the bed built, so its plan retires.
 	markBuilt(t, db, native.roundsNative)
 	if _, err := planner.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
@@ -342,7 +342,7 @@ func TestSleepingUpkeepDoesNotBuildOutsideComfortBand(t *testing.T) {
 	planner, _, native := sleepingUpkeepFixture(t)
 	// A room outside the sleeper's comfortable band is not a site: no bed is
 	// previewed there and the ladder has no site (no shell rung remains: the
-	// planned rooms' rings are the facility planners', #2277).
+	// planned rooms' rings are the facility planners').
 	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Owners = bridge.NewRefs([]string{"other"})
 	native.rooms.GetObserved().Rooms[0].TemperatureC = proto.Float64(-5)
 	planner.reviewer.census.invalidate()

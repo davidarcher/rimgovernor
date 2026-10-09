@@ -15,7 +15,7 @@ import (
 )
 
 // heads is a frame whose things table holds a head-only row for each of
-// refs (#1342).
+// refs.
 func heads(refs ...*o.EntityRef) bridge.Tables {
 	things := bridge.Things{}
 	for _, ref := range refs {
@@ -125,7 +125,7 @@ func TestColonyConditionsReadTheDefRow(t *testing.T) {
 	}
 }
 
-// TestColonyOutdoorsDarkReadsTheBiomeConditions (#1712): darkness is the
+// TestColonyOutdoorsDarkReadsTheBiomeConditions: darkness is the
 // biome's map conditions' class family; no biome read, no catalog and a
 // biome without a row are each a named error.
 func TestColonyOutdoorsDarkReadsTheBiomeConditions(t *testing.T) {

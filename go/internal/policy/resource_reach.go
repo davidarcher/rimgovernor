@@ -39,7 +39,7 @@ type ResourceReachDecision struct {
 // Readiness alone stages reach: an established extent that is known empty (a
 // colony holding no facility or claimed stockpile yet) carries no readiness
 // evidence, so it never caps the stage. Only its geometry is missing, which
-// FilterResourceReach's near margin needs and far or map work does not (#664).
+// FilterResourceReach's near margin needs and far or map work does not.
 func ResourceReach(r ResourceReachRequest) ResourceReachDecision {
 	base := func(reason string) ResourceReachDecision { return ResourceReachDecision{ResourceReachBase, reason} }
 	threat, tk := r.Threat.Value()
@@ -107,7 +107,7 @@ func ResourceReach(r ResourceReachRequest) ResourceReachDecision {
 	return ResourceReachDecision{ResourceReachMap, "ready_map"}
 }
 
-// ResourceReachCandidate is the narrow boundary for an eligibility view (#518).
+// ResourceReachCandidate is the narrow boundary for an eligibility view.
 // Eligible is its complete safety/permission verdict; RouteObservedPassable is
 // native route evidence for this candidate. Neither defaults to permission.
 type ResourceReachCandidate struct {

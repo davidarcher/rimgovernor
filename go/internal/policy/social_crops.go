@@ -14,7 +14,7 @@ func BrewingFinished(research domain.Fact[ResearchFacts]) bool {
 	return false
 }
 
-// SocialCropCells is each social crop's fixed field ceiling (#1226).
+// SocialCropCells is each social crop's fixed field ceiling.
 const SocialCropCells = 9
 
 // socialCropResources are the harvests the social drugs brew or roll from; a
@@ -38,7 +38,7 @@ func IsHayCrop(crop CropChoice) bool {
 
 // PlanSocialCrop is the cells a social crop still needs under its nine-cell
 // ceiling, zero when none or out of season; the caller sites them in the
-// layout plan's field blocks (#1226).
+// layout plan's field blocks.
 func PlanSocialCrop(crop CropChoice, climate CropClimate, existing int) int {
 	if !IsSocialCrop(crop) || existing < 0 || existing >= SocialCropCells {
 		return 0

@@ -44,7 +44,7 @@ type ProcessConfig struct {
 	// It is opt-in: a nil Recorder records nothing and costs nothing.
 	Recorder *FlightRecorder
 	// Transcript, when set, records every call and its raw receipt
-	// so a Replay can serve the session back without a game (#282).
+	// so a Replay can serve the session back without a game.
 	Transcript *Transcript
 }
 
@@ -54,7 +54,7 @@ type Result struct {
 	Envelope   json.RawMessage
 	Structured json.RawMessage
 	Text       []string
-	// slotted is the raw reply read from the native reply ring (#1344)
+	// slotted is the raw reply read from the native reply ring
 	// when the wrapper named a slot.
 	slotted []byte
 }
@@ -67,7 +67,7 @@ type Refusal struct {
 	// says nothing leaves it empty. The tool name alone identified only
 	// the wrapper (games_call_tool on every native read), so nine nightly
 	// cases reported a transport-shaped error for a named native refusal
-	// nobody could read without the evidence tree (#663).
+	// nobody could read without the evidence tree.
 	Cause  string
 	Result Result
 }
@@ -161,7 +161,7 @@ type liveSession struct {
 // flight at once. The GABP connection correlates concurrent requests by id,
 // so calls need not be single-flight; this cap is backpressure against a
 // caller bug flooding the native bridge at once, and the slots are handed
-// out by AdmissionClass (admission.go, #631) so bulk reads never hold every
+// out by AdmissionClass (admission.go) so bulk reads never hold every
 // one against the control path.
 const MaxConcurrentCalls = 8
 
@@ -220,7 +220,7 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	// The snapshot stream (#858) serves the state families of a game on
+	// The snapshot stream serves the state families of a game on
 	// this host; test clients built with open read over GABP only.
 	client.stateDir = launch.StateDir
 	client.clock = clock
@@ -290,7 +290,7 @@ const MaxCallTimeout = 10 * time.Minute
 // the caller explicitly asked to wait longer for: food/fishing spent its
 // 60s session budget waiting on a native start it had given
 // 120s, and reported the cut as "bridge transport failure: games_call_tool:
-// context deadline exceeded" (#663). A caller passing a native timeoutMs
+// context deadline exceeded". A caller passing a native timeoutMs
 // must pass the matching deadline here. Lowering the deadline is not this
 // function's job: a shorter timeout than the session's is ignored, so a
 // caller cannot accidentally tighten a read.
@@ -343,7 +343,7 @@ func (c *Client) Reconnect(ctx context.Context) error {
 		return fmt.Errorf("%w: close old session: %w", ErrTransport, err)
 	}
 	// The new session may be another game process on this host; its
-	// snapshot ring is a different one (#858).
+	// snapshot ring is a different one.
 	c.frames.close()
 	c.mu.Lock()
 	if c.closed {
@@ -503,7 +503,7 @@ func (c *Client) operation(ctx context.Context, class AdmissionClass, run func(c
 	defer stop()
 	// A call outside any traced unit of work (startup, an observer read)
 	// is a trace of its own, so its request, reply and decode rows share
-	// one id instead of each minting a single-row trace (#298).
+	// one id instead of each minting a single-row trace.
 	ctx, _ = telemetry.EnsureTrace(ctx)
 	timing := &callTiming{began: time.Now()}
 	admitted, err := c.gate.acquire(ctx, class)
@@ -521,7 +521,7 @@ func (c *Client) operation(ctx context.Context, class AdmissionClass, run func(c
 
 // snapshotRecordingContext reads the installed recording-context callback (if
 // any) once per call and merges in the trace the caller's step or dispatch
-// attached via telemetry.WithTrace (#298).
+// attached via telemetry.WithTrace.
 func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
 	c.mu.Lock()
 	callback := c.recordingContext
@@ -563,7 +563,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 		raw, err = nil, fmt.Errorf("%w: oversized native result", ErrContract)
 	}
 	// A reply in the native reply ring is read now, before a later reply
-	// can take its slot (#1344).
+	// can take its slot.
 	var slotted []byte
 	if err == nil {
 		raw, slotted, err = c.replies.resolveReplySlot(raw, recording || c.transcript != nil)
@@ -582,7 +582,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 		return out
 	}
 	// One native_call row per completed call; request names the in-flight
-	// marker when the call ran past slowCallMarker (#2057).
+	// marker when the call ran past slowCallMarker.
 	var request uint64
 	if marker != nil {
 		request = marker.finish()
@@ -640,7 +640,7 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 					timing["native_queue_depth"] = native.queueDepth
 				}
 				// The companion's observation capture account and its frame
-				// recorder's session counters (#642), verbatim; the frame
+				// recorder's session counters, verbatim; the frame
 				// account is cumulative, so only one row per
 				// framesSampleEvery carries it.
 				if native.observation != nil {
@@ -702,7 +702,7 @@ func decodeReceipt(name string, envelope json.RawMessage) (Result, error) {
 // DropConnection closes the live session's game connection the way a
 // transport failure would, leaving the game running: Disconnected fires
 // and Reattach restores service. It is for transport-drop acceptance cases
-// (#87) and reports false when no game connection was open.
+// and reports false when no game connection was open.
 func (c *Client) DropConnection() bool {
 	c.mu.Lock()
 	live := c.live

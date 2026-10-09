@@ -5,7 +5,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Player acceleration (issue #627). A PACING_PLAYER_ACCELERATED epoch at
+    // Player acceleration. A PACING_PLAYER_ACCELERATED epoch at
     // Ultrafast ticks faster than the game's own 15x by raising the
     // TickRateMultiplier the tick loop reads once per frame (the same postfix
     // the ceilings use, so no speed ever looks external and the boost static

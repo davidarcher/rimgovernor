@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Pawn deaths drop forbidden items (#1802). Pawn.Kill forbids the corpse when
+// Pawn deaths drop forbidden items. Pawn.Kill forbids the corpse when
 // it falls outside the Home area, and Pawn.DropAndForbidEverything drops the
 // dead pawn's equipment and inventory with forbid: true; apparel stays on
 // the corpse. So a dead colonist's corpse and gear arrive forbidden and are

@@ -1,5 +1,5 @@
 // The recovery/area case exercises the disaster-recovery allowed-area
-// write (G01.07e, issue #27): a WorkSettingsIntent on Actions/Apply (#941,
+// write (G01.07e): a WorkSettingsIntent on Actions/Apply (
 // WorkSettingsActionHandler in NativeWorkSettings.cs) carrying only an
 // allowed area. A colonist restricted to an outdoor Area during a
 // registered ToxicFallout hazard is reassigned to a named roofed refuge
@@ -62,7 +62,7 @@ func runArea(ctx context.Context, s cases.Session) error {
 	report["fixture_outdoor"] = outdoorID
 
 	// The fixture's registered hazard is a timed ToxicFallout, so the
-	// colony-facts environment census (#235) must carry it with its native
+	// colony-facts environment census must carry it with its native
 	// remaining duration: the row Go's disaster review plans against.
 	facts, err := h.Wire(ctx, "environment-census", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
 	if err != nil {
@@ -96,7 +96,7 @@ func runArea(ctx context.Context, s cases.Session) error {
 
 	// pawnArea reads the pawn's current allowedAreaId through
 	// rimgovernor/observations_list_pawns. allowedAreaId is projected only
-	// under the work detail flag (#167).
+	// under the work detail flag.
 	pawnArea := func(label string) (string, error) {
 		reply, err := h.Wire(ctx, label, "observations_list_pawns", map[string]any{
 			"scope":   map[string]any{"expectedIdentity": identity},

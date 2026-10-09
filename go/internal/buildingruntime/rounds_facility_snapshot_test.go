@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Snapshot tests (#750) for the facility and medical cases whose decision
+// Snapshot tests for the facility and medical cases whose decision
 // the rounds's own facts carry; see rounds_snapshot_test.go.
 
 // facility/basic-comfort: the fixture's hut stands bare, so the foothold
@@ -36,7 +36,7 @@ func TestSnapshotComfortBuildsDiningTable(t *testing.T) {
 }
 
 // medical/disease: two Plague patients with industrial medicine in stock.
-// The care cap (#1301) holds both one tier above the colonists' standing
+// The care cap holds both one tier above the colonists' standing
 // cap while the plague lasts.
 func TestSnapshotDiseaseRaisesCareCap(t *testing.T) {
 	t.Parallel()

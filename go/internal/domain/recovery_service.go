@@ -13,11 +13,11 @@ const (
 	RecoveryServiceRepair    RecoveryMethod = "repair"
 	RecoveryServiceBreakdown RecoveryMethod = "breakdown"
 	RecoveryServiceRefuel    RecoveryMethod = "refuel"
-	// The void monolith's two orders (#2437): the Inactive monolith is
+	// The void monolith's two orders: the Inactive monolith is
 	// investigated, every later level activated.
 	RecoveryServiceInvestigateMonolith RecoveryMethod = "investigate_monolith"
 	RecoveryServiceActivateMonolith    RecoveryMethod = "activate_monolith"
-	// RecoveryServiceInteract is the awakening quest's interaction (#2438): a
+	// RecoveryServiceInteract is the awakening quest's interaction: a
 	// void structure, the Gleaming monolith or the void node.
 	RecoveryServiceInteract          RecoveryMethod = "interact_thing"
 	RecoveryServiceInspectGravEngine RecoveryMethod = "inspect_grav_engine"

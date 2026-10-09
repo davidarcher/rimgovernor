@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// An ignite builds one IgniteIntent (#1815) with the pawn and cell.
+// An ignite builds one IgniteIntent with the pawn and cell.
 func TestIgniteBuildsIntent(t *testing.T) {
 	value, err := domain.NewIgnite("Human12", domain.Cell{X: 3, Z: 9})
 	if err != nil {

@@ -48,14 +48,14 @@ type ClockWindowFacts struct {
 	// SquadUnanswered is whether the defense planner, at this tick, found
 	// no eligible squad for the emergency's threats. A hostile building it
 	// cannot answer is then watched like a distant one, so the colony keeps
-	// running around it, instead of holding the clock for good (#326); a
+	// running around it, instead of holding the clock for good; a
 	// hostile pawn still holds, a raid must not auto-advance. Unknown means
 	// the planner has not reported and the building holds.
 	SquadUnanswered domain.Fact[bool]
 	// Sheltered is whether the threat's sheltering response is complete
 	// (ShelterHeld): every undrafted colonist is restricted to the Safe
 	// area. A hostile pawn is then watched in a combat window instead of
-	// refused, so the sheltered colony waits it out (#1560).
+	// refused, so the sheltered colony waits it out.
 	Sheltered domain.Fact[bool]
 	// HuntPrey are the live prey of an open hunt fight (the hunt origin of
 	// ActiveCombat): no hostile stands, so the window is a combat one that
@@ -99,7 +99,7 @@ const (
 // colonists already known downed at admission: the native watcher stops a
 // window for any unacknowledged downed colonist, so an unacknowledged known
 // casualty stopped every window at zero ticks and neither the fight nor the
-// rescue could finish (#213). A colonist who goes down during the window
+// rescue could finish. A colonist who goes down during the window
 // still stops it.
 type ClockWindowDecision struct {
 	Admitted       bool

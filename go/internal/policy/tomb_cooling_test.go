@@ -33,7 +33,7 @@ func TestWarmCoolingRoomsOweCoolingEmptyOrNot(t *testing.T) {
 	}
 }
 
-// The meal closet (#936) is owed a shell while its dining room stands, and
+// The meal closet is owed a shell while its dining room stands, and
 // once it stands it is cooled like a filled tomb, empty or not.
 func TestMealClosetOwedThenCooled(t *testing.T) {
 	dining := PlannedRoom{Role: PlannedDining, Interior: Rectangle{X: 10, Z: 20, Width: 9, Height: 7}, Door: domain.Cell{X: 14, Z: 19}, DoorRot: domain.North}

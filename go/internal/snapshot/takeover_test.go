@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Recordings of the retired takeover/* acceptance cases (#748), taken at
+// Recordings of the retired takeover/* acceptance cases, taken at
 // 04b0a98c: each is the first review Auto ran after the case staged a
 // player's Manual edit. A Manual edit is an ordinary deficit, never a hold.
 
@@ -30,7 +30,7 @@ func deficit(t *testing.T, r Rounds, id policy.ConcernID) {
 	}
 }
 
-// takeover/schedule, tick 15, recorded at 476208aa7 (#769): the player gave
+// takeover/schedule, tick 15, recorded at 476208aa7: the player gave
 // one colonist (Thing_Human728) a Joy hour at noon under Manual. The
 // review's pawn read carries every timetable; the schedule planner replans
 // that colonist's noon to Anything, so the work review is a deficit, and a
@@ -86,11 +86,11 @@ func TestTakeoverHerdRemovalFlagsAreCancelled(t *testing.T) {
 }
 
 // takeover/home-removal and takeover/built-facility, tick 15: the first
-// review after the player's Manual edit, recorded at 476208aa7 (#769).
+// review after the player's Manual edit, recorded at 476208aa7.
 // home-removal removed one Home cell under a player-built bed (every
 // target over that room reads one cell missing); built-facility built the
 // bed room with no Home at all (the room's 49 cells missing). The recordings
-// predate the home-cell read (#1328): with no Home at all, MaintainHomeCoverage
+// predate the home-cell read: with no Home at all, MaintainHomeCoverage
 // opens from the building census alone, and once Home holds the planned
 // footprint it does not.
 func TestTakeoverRemovedHomeOpensHomeCoverage(t *testing.T) {

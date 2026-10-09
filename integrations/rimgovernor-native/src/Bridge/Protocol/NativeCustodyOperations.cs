@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent Capture and Rescue (#939). Both are single fixed
+    // GiveJobIntent Capture and Rescue. Both are single fixed
     // vanilla jobs (Capture, Rescue) that carry a downed patient to a bed -- a
     // prisoner bed for capture, an ordinary or guest bed for rescue. Checked
     // live at apply; a pawn already carrying out the job on the patient
@@ -57,7 +57,7 @@ namespace HomeBridge.BridgeTools
         private static bool Running(JobOrderKind kind, Pawn pawn, Pawn patient) => pawn.CurJob != null && pawn.CurJob.def == Def(kind) && pawn.CurJob.targetA.Thing == patient;
 
         // An entity (a pawn with CompHoldingPlatformTarget) is captured to a
-        // holding platform, not a prisoner bed (#1742): the game's own order
+        // holding platform, not a prisoner bed: the game's own order
         // (StudyUtility.TargetHoldingPlatformForEntity with a carrier) sets the
         // entity's targetHolder and gives the carrier CarryToEntityHolder, the
         // job WorkGiver_TakeEntityToHoldingPlatform builds. The platform is the

@@ -2,7 +2,7 @@ package bridge
 
 import "testing"
 
-// TestBiotechWorkMinAges (#1682): the race's minimums come from the catalog;
+// TestBiotechWorkMinAges: the race's minimums come from the catalog;
 // a race it lacks fails loudly.
 func TestBiotechWorkMinAges(t *testing.T) {
 	cat, err := DecodeBiotechCatalog(biotechCatalogFixture())

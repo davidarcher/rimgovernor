@@ -30,7 +30,7 @@ func groundOrders(orders []CombatOrder) []CombatOrder {
 	return out
 }
 
-// TestRocketClump (#1051): {a rocket carrier, three raiders within 3 cells
+// TestRocketClump: {a rocket carrier, three raiders within 3 cells
 // of each other in range} -> one ground shot at the nearest raider that
 // counts all three;
 // {two raiders} -> none; {a colonist within 5 cells of the clump} -> none;

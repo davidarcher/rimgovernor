@@ -10,7 +10,7 @@ import (
 )
 
 // BenchmarkWorldRebuild times the store half of the per-world rebuild
-// (#1123/#1251) over a save holding one goal blob: goals, families and the
+// over a save holding one goal blob: goals, families and the
 // rounds reset, as serve's worldRebuild.ensure runs them.
 func BenchmarkWorldRebuild(b *testing.B) {
 	ctx := context.Background()

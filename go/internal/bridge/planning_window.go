@@ -32,7 +32,7 @@ type PlanningWindow struct {
 }
 
 // ReadPlanningWindow reads the planning window rect from the snapshot
-// stream's whole-map grid (#1345); a client without a stream serves none
+// stream's whole-map grid; a client without a stream serves none
 // (ErrUnavailable), and the caller falls back to whatever window it holds.
 func (client *Client) ReadPlanningWindow(ctx context.Context, identity *c.Identity, rect policy.Rectangle) (PlanningWindow, Result, error) {
 	if err := authorityIdentity(identity); err != nil {

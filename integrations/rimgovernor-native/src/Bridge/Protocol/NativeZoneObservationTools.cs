@@ -35,7 +35,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Read is the read on the main thread under a validated identity: the
-        // reply its tool encodes, and the section the bundle carries (#593).
+        // reply its tool encodes, and the section the bundle carries.
         internal static Obs.ListZonesReply Read(Map map, Obs.ListZonesRequest parsed, Common.ObservationContext context)
         {
             try

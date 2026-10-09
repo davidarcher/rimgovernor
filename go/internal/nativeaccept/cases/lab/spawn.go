@@ -1,4 +1,4 @@
-// Package lab holds the lab contract runner's cases (#743): each opens on
+// Package lab holds the lab contract runner's cases: each opens on
 // the blank Soil lab (cases.Lab), spawns what it needs with na.LabSpawn and
 // makes one op or read assertion in 10-30 s.
 package lab

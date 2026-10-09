@@ -12,7 +12,7 @@ import (
 )
 
 // MaintainFlooring lays role-appropriate floors in the rooms the colony
-// lives and works in (issue #6 slice 4). It reasons from the measured
+// lives and works in. It reasons from the measured
 // terrain under each room cell and the native stats of that terrain, never
 // from what the controller last ordered: a clean workspace (kitchen,
 // hospital, laboratory) is deficient while any cell's terrain cleanliness is
@@ -25,7 +25,7 @@ import (
 // walk (the routes census samples actual movement; it never projects
 // traffic from layout) where the floor pays for itself: the walking ticks a
 // cell's observed steps save each day against the work and material ticks
-// of laying it, within PaybackDays (#950). The floor is chosen first (the
+// of laying it, within PaybackDays. The floor is chosen first (the
 // tier style when it can be laid, else the cheapest zero-path-cost floor),
 // then cells are kept cheapest payback first up to the first that does not
 // pay.
@@ -46,19 +46,19 @@ const (
 	// FloorTierTraffic covers the most-travelled home cells: every one
 	// needs a laid floor with no path cost.
 	FloorTierTraffic FloorTier = "traffic"
-	// FloorTierEntry covers the dirt entry points (#817): the busiest home
+	// FloorTierEntry covers the dirt entry points: the busiest home
 	// cells where pawns step from soil or sand onto a floor, those leading
 	// into a clean workspace first. Each gets an entry floor (straw
 	// matting: 5% filth acceptance) so tracked dirt stops at the door.
 	FloorTierEntry FloorTier = "entry"
-	// FloorTierFirebreak covers the firebreak ring's settled pave cells
-	// (#1549): the cheapest affordable floor with zero flammability.
+	// FloorTierFirebreak covers the firebreak ring's settled pave cells:
+	// the cheapest affordable floor with zero flammability.
 	FloorTierFirebreak FloorTier = "firebreak"
-	// FloorTierIncinerator covers the standing incinerator's interior
-	// (#1821): every cell needs ground that neither burns nor grows (zero
+	// FloorTierIncinerator covers the standing incinerator's interior:
+	// every cell needs ground that neither burns nor grows (zero
 	// flammability and fertility) so the burn leaves nothing to spread on.
 	FloorTierIncinerator FloorTier = "incinerator"
-	// FloorTierThrone covers the throne room (#1863): every cell needs a
+	// FloorTierThrone covers the throne room: every cell needs a
 	// floor whose terrain carries one of the title's required tags.
 	FloorTierThrone FloorTier = "throne"
 )
@@ -91,7 +91,7 @@ type FlooringPolicy struct {
 	// Weights score a candidate floor for each tier.
 	Clean, Living, Traffic FloorWeights
 	// PaybackDays is the longest a traffic floor may take to repay its build
-	// and material ticks in walking ticks saved (#950); zero disables the
+	// and material ticks in walking ticks saved; zero disables the
 	// traffic tier.
 	PaybackDays float64
 	// MaterialTicksPerUnit prices one unit of a floor's cost list in colony
@@ -107,7 +107,7 @@ type FlooringPolicy struct {
 	EntryFloors []string
 	// EntryMinSteps is how many decayed crossing steps a floor cell needs
 	// before it counts as a dirt entry point; zero, like no entry floors
-	// (a policy saved before #817), disables the tier.
+	// (a saved policy without a style), disables the tier.
 	EntryMinSteps uint32
 }
 
@@ -172,7 +172,7 @@ type FlooringObservation struct {
 	Traffic        []TrafficCell
 	TrafficSamples uint32
 	// Floors is the planning census row of every policy floor the traffic
-	// tier may price (#950), nil when the census was not read: the tier is
+	// tier may price, nil when the census was not read: the tier is
 	// then unknown. Stock is the accessible colony stock and TrafficStyle
 	// the tier style's aisle floor (empty when none), as the selector reads
 	// them.
@@ -193,7 +193,7 @@ type FloorRoom struct {
 	Role  domain.Fact[RoomRole]
 	Cells []FloorCell
 	// RequiredTags, when set, are terrain tags every cell's floor must carry
-	// one of: the throne room's flooring requirement (#1863), read from the
+	// one of: the throne room's flooring requirement, read from the
 	// def mirror. RequiredLabel is the requirement's labelKey.
 	RequiredTags  []string
 	RequiredLabel string
@@ -285,7 +285,7 @@ type FloorDeficit struct {
 	Key, Room string
 	Tier      FloorTier
 	// Role is the room's role as the flooring census reports it, RoomRoleNone
-	// for the traffic deficit's aisles; the tier style reads it (#610).
+	// for the traffic deficit's aisles; the tier style reads it.
 	Role RoomRole
 	// Cells are the deficient cells not yet ordered, in cell order;
 	// Pending counts the deficient cells with a floor already ordered.
@@ -293,7 +293,7 @@ type FloorDeficit struct {
 	Pending int
 	// Tags are the terrain tags a throne deficit's floor must carry one of.
 	Tags []string
-	// Floor is the floor the traffic tier priced its cells on (#950); the
+	// Floor is the floor the traffic tier priced its cells on; the
 	// selector lays exactly it. Unknown marks a traffic latch kept while the
 	// floor could not be priced.
 	Floor   string
@@ -378,7 +378,7 @@ const trafficWarmupSamples = 48
 const colonistTrafficHalfLifeDays = 2.0
 
 // trafficDeficit gathers the natural home cells colonists are observed to
-// walk where a laid floor pays for itself (#950). The floor is chosen
+// walk where a laid floor pays for itself. The floor is chosen
 // before any cell: the tier style when it can be laid, else the available
 // zero-path-cost floor cheapest to lay. Each cell's payback is the floor's
 // one-time ticks (WorkToBuild plus MaterialTicksPerUnit per cost unit)
@@ -690,7 +690,7 @@ type FloorDefinition struct {
 	Cleanliness, Beauty, Flammability domain.Fact[float64]
 	PathCost                          domain.Fact[int32]
 	Costs                             domain.Fact[[]Amount]
-	// WorkToBuild is the native WorkToBuild stat in work ticks (#950).
+	// WorkToBuild is the native WorkToBuild stat in work ticks.
 	WorkToBuild domain.Fact[float64]
 	// Tags are the TerrainDef's tags, for the throne tier's requirement.
 	Tags []string
@@ -707,12 +707,12 @@ type FlooringFacts struct {
 	// Stock is the accessible colony stock by resource; unknown skips the
 	// affordability test and leaves it to admission.
 	Stock domain.Fact[map[Resource]int64]
-	// Style is the tier's floor rule per room role (FloorDef, #610): a
+	// Style is the tier's floor rule per room role (FloorDef): a
 	// styled floor that is known available, meets the tier and pays for
 	// the whole batch is chosen before any scoring. Nil styles nothing.
 	Style func(RoomRole) (string, bool)
 	// ContainmentFloor is the terrain the containment cell is laid with when
-	// the stock pays for it (#2435); zero names none.
+	// the stock pays for it; zero names none.
 	ContainmentFloor ContainmentFloor
 }
 

@@ -9,7 +9,7 @@ import (
 )
 
 // Every result.json carries the run's timing so a slower harness is visible
-// without inferring runtimes from evidence mtimes (#134): NewReport stamps
+// without inferring runtimes from evidence mtimes: NewReport stamps
 // started_at, Finalize adds finished_at, wall_ms, boot_ms (from OpenSession
 // or game_reuse.openMs), ticks_advanced (the game ticks the harness observed
 // pass, see observeTick) and wall_tps, and fails a passing run whose wall
@@ -35,7 +35,7 @@ func (r Report) SetBudget(budget time.Duration) { r[BudgetMsKey] = budget.Millis
 
 // BudgetDeadline is the wall time at which the run's budget is spent
 // (started_at + budget_ms): past it the run fails at Finalize whatever it
-// does, so the runner cuts the case body there (#890) instead of letting a
+// does, so the runner cuts the case body there instead of letting a
 // hung loop run on to the -timeout safety net. False without both fields.
 func (r Report) BudgetDeadline() (time.Time, bool) {
 	started, ok := parseReportTime(r[StartedAtKey])

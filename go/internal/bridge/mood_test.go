@@ -95,7 +95,7 @@ func TestRoundsScheduleDetailValidation(t *testing.T) {
 }
 
 // TestRoundsSocialDetailValidation covers the social block the routine
-// census reads for thought pressure (#255): the routine selection accepts a
+// census reads for thought pressure: the routine selection accepts a
 // bounded PawnSocial and refuses malformed thought rows, while selections
 // that never requested it keep refusing it as unrequested.
 func TestRoundsSocialDetailValidation(t *testing.T) {

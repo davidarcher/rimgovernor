@@ -1,5 +1,5 @@
 // tools/startcost measures what a new-colony start costs and proves a pinned
-// spec reproduces (#2029, epic #2019). It is a diagnostic no tier runs
+// spec reproduces. It is a diagnostic no tier runs
 // (the tools/ prefix): each start needs a fresh main menu, so every row opens
 // and retires its own game, and a failed row is recorded and the sweep goes on
 // (a failed start leaves game state, the next row has a new process).

@@ -9,7 +9,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// TestCapturableEntitiesCarryTheRulesFacts (#1742): an entity row lifts its
+// TestCapturableEntitiesCarryTheRulesFacts: an entity row lifts its
 // downed, held, capturable and needed-strength facts, a pawn that is no
 // entity is left out, an entity with no holding-platform block is a known
 // "cannot be captured", and an unread entity fact keeps the row with the
@@ -41,7 +41,7 @@ func TestCapturableEntitiesCarryTheRulesFacts(t *testing.T) {
 	}
 }
 
-// TestCapturableEntitiesCarryCurrentlyStudiable (#1744): the study block's
+// TestCapturableEntitiesCarryCurrentlyStudiable: the study block's
 // currently-studiable fact is lifted, no study block is a known false and an
 // unread study block stays unknown.
 func TestCapturableEntitiesCarryCurrentlyStudiable(t *testing.T) {

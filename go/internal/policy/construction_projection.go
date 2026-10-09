@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// ConstructionClass is a build material pool the projector tracks (#2365).
+// ConstructionClass is a build material pool the projector tracks.
 type ConstructionClass string
 
 const (

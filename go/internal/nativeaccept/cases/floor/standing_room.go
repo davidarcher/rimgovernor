@@ -13,13 +13,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// floor/standing-room-reconcile (#2118, epic #2101): a planned room that already
+// floor/standing-room-reconcile: a planned room that already
 // stands is reconciled in place and its enclosure is kept. The plan's first
 // bedroom stands finished: wooden walls, a door, a roof and a Concrete floor
 // (beauty -1, which the Living tier fails). Granite blocks are in a stockpile
 // and Stonecutting is known, so the reconciler's per-cell diff has two jobs: the
 // floor_out/floor_in of the Concrete, and the wall_up swap of the wooden walls
-// for stone (#2111). The case runs the controller in bursts and audits the
+// for stone. The case runs the controller in bursts and audits the
 // ground between them. At every audit the room must still be sealed (a wall
 // mid-swap stands as a frame) and none of the staged walls or doors may be a
 // deconstruction target: a standing room is never torn down to be rebuilt. It

@@ -9,12 +9,12 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable acceptance only (#1748, epic #1694): a colony
+    // Private disposable acceptance only: a colony
     // survives a horror incident. test/horror_incident fires the game's own
     // incident worker for an Anomaly threat incident on the paused lab map:
     // the first anomaly threat incident, in def-name order, that the game
     // lets fire now and whose arrivals are exactly what the combat tactics
-    // of #1739 treat as a melee entity pack (every arrival a hostile entity
+    // treat as a melee entity pack (every arrival a hostile entity
     // or mutant whose attack is melee with no offensive ability, none hidden
     // from the player: the same reads NativeAnomalyFacts puts on the pawn
     // row). A candidate that spawns anything else is undone before the next

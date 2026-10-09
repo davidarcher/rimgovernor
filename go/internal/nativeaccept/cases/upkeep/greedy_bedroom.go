@@ -12,7 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// upkeep/greedy-bedroom (#814): a Greedy colonist owns a bare 5x4 bedroom.
+// upkeep/greedy-bedroom: a Greedy colonist owns a bare 5x4 bedroom.
 // The room quality gap closer furnishes it from the bedroom template
 // (end table, dresser, lamp) and MaintainFlooring floors it until the
 // native room reads slightly impressive (50) and the Greedy thought clears.

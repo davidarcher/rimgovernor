@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// withoutFieldSources drops plant sources standing in a growing zone (#1361):
+// withoutFieldSources drops plant sources standing in a growing zone:
 // one observed in the planning window, or one a growing-zone create of this
 // world planned, open or completed (a pending one carries no snapshot yet). Native
 // refuses a plant acquisition inside a growing zone, and the census can

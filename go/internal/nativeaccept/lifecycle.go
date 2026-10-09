@@ -71,7 +71,7 @@ type Save struct {
 	Timeout time.Duration
 	// IgnoreModCompatibility loads a save whose recorded mods are not all
 	// active: a downloaded CI bundle predates mods the build has since dropped
-	// (the retired RimBridgeServer, #2341).
+	// (the retired RimBridgeServer).
 	IgnoreModCompatibility bool
 }
 
@@ -125,9 +125,8 @@ type Fixture struct {
 	Op   string
 	Args map[string]any
 	On   Start
-	// ArgsFrom, when set, computes more arguments from the loaded, paused
-	// game just before the op runs (the controller's own starter site,
-	// #700); they override Args of the same name.
+	// ArgsFrom computes arguments from the loaded, paused game immediately before the operation.
+	// These override Args with the same names.
 	ArgsFrom func(context.Context, *Harness) (map[string]any, error)
 }
 
@@ -197,10 +196,8 @@ func (Loaded) load(ctx context.Context, s *Session, quiet QuietMode) (map[string
 	return map[string]any{"kind": "loaded"}, nil
 }
 
-// Session is one bridge-only harness's hold on a loaded, paused, quiet
-// game with its needs frozen: what every harness's run preamble used to
-// build by hand. Serve-driven harnesses hand the GABP slot to the service
-// with Release and take it back with Reattach.
+// Session holds a loaded, paused, quiet game with frozen needs for bridge-only cases. Serve-
+// driven cases release the sole GABP slot to the service and reattach afterwards.
 type Session struct {
 	Config  *Config
 	Game    *Game
@@ -222,7 +219,7 @@ type Session struct {
 // start, a save load and, for a Fixture, its op), pause, the frozen needs
 // except keep (LiveNeeds skips the freeze), and the initial identity. It
 // records package_files,
-// discovery, start, world (RecordWorld, #281), quiet, prepared,
+// discovery, start, world (RecordWorld), quiet, prepared,
 // frozen_needs and boot_ms on report;
 // Close adds game_reuse. A failure after the game opened closes it before
 // returning.

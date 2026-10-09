@@ -1,40 +1,8 @@
-// Package speedmatrix (issue #111, M4a) runs the same staged colony under
-// rimgovernor serve once per clock speed -- Normal, Fast, Superfast,
-// Ultrafast, uncapped (Ultrafast with the acceptance test acceleration,
-// #109) and regulated (#583) -- with an identical game-tick budget, and
-// requires the pawns to achieve the same outcome at every speed. One row
-// separates the governor's cost from the rest (#621): governor-off plays the
-// same save uncapped with no controller attached (the simulation ceiling;
-// nothing is built, so it is outside the outcome comparison). Every row reports wall TPS
-// including pauses; the governed rows report native's own paused account
-// (paused_fraction_native) beside the status-sample ratio and a per-stop
-// latency split.
-//
-// The stage is test/throughput_prepare (ThroughputFixture.cs) applied once
-// to a quiet debug colony with frozen needs: three or more colonists on
-// Construct/Haul, loose Steel stacks with a stockpile to haul them to, and a
-// contiguous run of legal Wall cells. That game is saved once; every speed
-// reloads the save, so the map, pawns and stacks are the same. Per speed
-// the case releases the game to one serve process (haul + work families)
-// at the row's speed, submits the wall run as building plans,
-// resumes automatic control and waits, stall-bounded, until the serve-side
-// tick has advanced by the budget or the stage has run out of work (every
-// wall plan completed and no storage deficit pending): once the work is done
-// the clock scheduler admits no further window (refused=[no_work]) and the
-// tick stops, so a budget the stage cannot fill would stall the wait (#210).
-// It then stops the service, reads the outcome natively (stored units, walls
-// built, RequireHealthyColonists) and counts unsuccessful plan stages in the
-// service journal. The flight
-// recorder gives wall TPS, paused fraction, steps, reads/step, parent hits,
-// the wall-sized colony window (#126) and the budget-vs-reactive stop split
-// with stop latency, the stop-to-readmit pause each admission closed
-// (#162) and budget stops per 6000 ticks; the #126 throughput thresholds
-// (maxPausedFraction, minUltrafastTPSRatio) are reported, not enforced, at
-// zero.
-//
-// Postconditions must agree within tolerance across speeds and no case may
-// record an unsuccessful plan stage. Reloads go through a plain hold; the
-// GameReuse reset contract (issue #22) is reuseaccept's own subject.
+// Package speedmatrix runs identical staged work at each clock speed and checks equal game
+// outcomes. Governor-off measures the simulation ceiling outside that outcome comparison.
+// Governed rows report wall TPS including pauses, native paused fraction and stop latency;
+// sampled pause ratios are diagnostic only. The throughput fixture provides construction and
+// hauling work in a quiet colony with frozen needs.
 package speedmatrix
 
 import (
@@ -68,7 +36,7 @@ const (
 	// of work first, which every speed does: the controller's cadence is
 	// wall-bound (a step and a dispatch each cost about a second of round
 	// trips), so the ticks the stage's work takes grow with the pace, from
-	// ~2,300 at Normal to ~20,000 at boosted Ultrafast (#265).
+	// ~2,300 at Normal to ~20,000 at boosted Ultrafast.
 	ticks = 30000
 	// items and segments size the stage: Steel stacks spawned and wall
 	// segments laid out.
@@ -77,12 +45,12 @@ const (
 	// tolerance is the allowed spread of each pawn-outcome postcondition
 	// across speeds.
 	tolerance = 1
-	// maxPausedFraction and minUltrafastTPSRatio are the issue #126
+	// maxPausedFraction and minUltrafastTPSRatio are the clock-throughput
 	// throughput expectations (0.5 and 2); at zero they are reported, not
 	// enforced.
 	maxPausedFraction    = 0
 	minUltrafastTPSRatio = 0
-	// maxLiveStepReads is the step-cost bound of issue #593: a step
+	// maxLiveStepReads is the step-cost bound: a step
 	// planning under a running window reads its one review bundle plus at
 	// most the families an event within the step made stale. The step's
 	// wall time is reported, not bounded; it measures the box and the GABP
@@ -90,7 +58,7 @@ const (
 	maxLiveStepReads = 5
 )
 
-// profile is what the matrix cases differ by (#642): the stage the fixture
+// profile is what the matrix cases differ by: the stage the fixture
 // prepares, the save it is kept in, the tick budget each row runs and the
 // rows compared. speedmatrix/plain is the whole speed sweep on a quiet flat
 // debug colony; speedmatrix/observations (observations.go) is the rendered
@@ -99,7 +67,7 @@ type profile struct {
 	items, segments int
 	ticks           uint64
 	save, speeds    string
-	// observations (#642/#656) requires every row to carry the frame and
+	// observations requires every row to carry the frame and
 	// observation accounts, rejecting an empty report.
 	observations bool
 }
@@ -115,7 +83,7 @@ func init() {
 		Start: cases.Fixture{Op: prepareTool, Args: map[string]any{"itemCount": items, "wallSegments": segments},
 			On: cases.DebugStart{Size: na.DebugStart{Flat: true}}},
 		// The stage is hauling and wall building inside the home area; the
-		// wild map is unobserved (#272).
+		// wild map is unobserved.
 		QuietWorld: true,
 		Service:    true,
 		Budget:     cases.MaxBudget,
@@ -143,7 +111,7 @@ func run(p profile) func(ctx context.Context, s cases.Session) error {
 
 func runMatrix(ctx context.Context, s cases.Session, p profile) error {
 	// RIMGOVERNOR_SPEED_MATRIX narrows the rows for a targeted comparison
-	// (a rendered "uncapped,player" pair, #631); the default is every row.
+	// (a rendered "uncapped,player" pair); the default is every row.
 	spec := os.Getenv("RIMGOVERNOR_SPEED_MATRIX")
 	if spec == "" {
 		spec = p.speeds
@@ -156,7 +124,7 @@ func runMatrix(ctx context.Context, s cases.Session, p profile) error {
 	m.report["speeds_spec"] = spec
 	m.report["speeds"] = speedCases
 	m.report["tick_budget"] = p.ticks
-	// What the baseline was measured on (#642): the revision, the world and
+	// What the baseline was measured on: the revision, the world and
 	// mod set, the host, the launch's resolution and the measured interval's
 	// bounds. A row's own wall_seconds and frames block complete it.
 	m.report["provenance"] = m.provenance()
@@ -192,7 +160,7 @@ func runMatrix(ctx context.Context, s cases.Session, p profile) error {
 			outcome.StoredUnits, outcome.StoredUnits+outcome.LooseUnits, outcome.WallsBuilt, outcome.HealthyColonists, outcome.UnsuccessfulStages)
 	}
 	// Every required row is present and advanced the tick before any
-	// comparator, which accept an empty matrix, sees them (#621).
+	// comparator, which accept an empty matrix, sees them.
 	rows, _ := m.report["speed_metrics"].([]map[string]any)
 	metrics := na.SpeedMetricsFromRows(rows)
 	if problems := na.SpeedRowProblems(m.cases, m.outcomes, metrics); len(problems) > 0 {
@@ -368,7 +336,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		return outcome, err
 	}
 	report["root_plan"] = rootPlanID
-	// The observation-load row (#656): concurrent state readers.
+	// The observation-load row: concurrent state readers.
 	var readers *na.ObservationReaders
 	if c.ObservationLoad {
 		readers = na.StartObservationReaders(ctx, service, na.ObservationLoadReaders, na.ObservationLoadInterval)
@@ -389,7 +357,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	// The budget is game time: the wait ends once the tick the service
 	// last observed (its flight recorder's newest clock sample; the routine
 	// review's tick only moves once per full step under a day-long window,
-	// #244) has advanced by -ticks past the reload tick, or earlier once the
+	//  ) has advanced by -ticks past the reload tick, or earlier once the
 	// stage has no work left for the clock to admit. The signature is the
 	// tick itself, so a clock that stops advancing with work pending stalls
 	// the wait.
@@ -447,7 +415,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	stops := na.SummarizeStops(rows, resumedAt.UnixMilli())
 	report["stops"] = stops
 	metrics := caseMetrics(c, phases, stops, startTick, lastTick, wallSeconds)
-	// The observation capture account and the frame recorder (#642), from
+	// The observation capture account and the frame recorder, from
 	// the same recording the clock and step phases come from.
 	for key, value := range observationRow(phases.Observation, phases.Frames) {
 		metrics[key] = value
@@ -461,7 +429,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	report["metrics"] = metrics
 	appendMetrics(m.report, metrics)
 	if c.Player {
-		// Player acceleration's bounds (#627), checked on the row's own
+		// Player acceleration's bounds, checked on the row's own
 		// recording once the outcome below has been read.
 		defer func() {
 			if err != nil {
@@ -534,7 +502,7 @@ func (m *matrix) control(ctx context.Context, h *na.Harness, identity map[string
 }
 
 // submitWalls writes every staged wall segment into the service's journal as
-// its own building plan (no player route exists since #1996) and returns the
+// its own building plan (no player route exists) and returns the
 // plan ids. The service has not resumed yet, so it reads them as the world's
 // standing work.
 func (m *matrix) submitWalls(ctx context.Context, journal *store.Store, prefix string, identity map[string]any, report na.Report) ([]domain.PlanID, error) {
@@ -666,7 +634,7 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 	}
 	// Time-weighted (bridge.ClockSample.PausedFraction): the count ratio
 	// over-represents pauses, when the service issues most of its reads.
-	// A sampling diagnostic since #621; native's own account of its
+	// A sampling diagnostic; native's own account of its
 	// stop/start transitions (paused_fraction_native) is the headline.
 	pausedFraction := phases.Clock.PausedFraction()
 	budgetTPS, budgetStopsPer6000 := 0.0, 0.0
@@ -676,8 +644,8 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 	if lastTick > startTick {
 		budgetStopsPer6000 = float64(stops.BudgetStops) * 6000 / float64(lastTick-startTick)
 	}
-	// The colony windows the service sized by wall time (issue #126) and
-	// the stop-to-readmit pauses its admissions closed (issue #162).
+	// The colony windows the service sized by wall time and
+	// the stop-to-readmit pauses its admissions closed.
 	windowMean, pauseMean := 0.0, 0.0
 	if phases.Steps.Windows > 0 {
 		windowMean = float64(phases.Steps.WindowTicks) / float64(phases.Steps.Windows)
@@ -687,16 +655,16 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 	}
 	return map[string]any{
 		"case": c.Name, "speed": c.Speed, "test_acceleration": c.TestAcceleration, "blind_ticks": c.BlindTicks, "player": c.Player,
-		// Player acceleration's frame account (#627): frames paced, those
+		// Player acceleration's frame account: frames paced, those
 		// over the frame budget and the widest frame's tick work.
 		"paced_frames": phases.Clock.NativePacedFrames, "paced_frames_over_budget": phases.Clock.NativePacedOverBudget, "max_paced_frame_ms": phases.Clock.NativeMaxPacedFrameMs,
-		// The regulator's transitions (#583): SpeedChanged rows and the
+		// The regulator's transitions: SpeedChanged rows and the
 		// widest blind span they reported; zero on an unregulated row.
 		"speed_changes": stops.SpeedChanges, "max_blind_ticks": stops.MaxBlindTicks,
 		"ticks_advanced": lastTick - startTick, "wall_seconds": wallSeconds, "budget_wall_tps": budgetTPS,
 		"wall_tps":  phases.Clock.WallTPS,
 		"paused_ms": phases.Clock.NativePausedMs, "running_ms": phases.Clock.NativeRunningMs, "paused_fraction_native": phases.Clock.PausedFractionNative(), "native_pause_samples": phases.Clock.NativePauseSamples,
-		// The supervisor's probe path split (#626): hazard probe against
+		// The supervisor's probe path split: hazard probe against
 		// the fact-change digests, session-cumulative between the first and
 		// last status samples, and the detection gaps the session reported.
 		"probe_ms": phases.Clock.NativeProbeMs, "digest_ms": phases.Clock.NativeDigestMs, "digest_share": phases.Clock.DigestShare(),
@@ -705,7 +673,7 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 		"paused_fraction": pausedFraction, "paused_fraction_sampling": "status-sample ratio, a sampling diagnostic; paused_fraction_native is the measure",
 		"paused_samples": phases.Clock.PausedSamples, "clock_samples": phases.Clock.ClockSamples, "paused_sampled_seconds": phases.Clock.SampledSecs,
 		"steps": phases.Steps.Steps, "reads_per_step": readsPerStep,
-		// The step cost that bounds throughput at speed (#593): the live
+		// The step cost that bounds throughput at speed: the live
 		// steps apart from the cold and stopped ones, their reads and wall,
 		// and the player-gate wait a step spent queued behind the Worker's
 		// dispatch step. maxLiveStepReads bounds max_live_step_reads.
@@ -716,20 +684,20 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 		"window_ticks_mean": windowMean, "window_ticks_max": phases.Steps.MaxWindowTicks,
 		"stops": stops.Stops, "budget_stops": stops.BudgetStops, "budget_stops_per_6000_ticks": budgetStopsPer6000,
 		"reactive_stops": stops.ReactiveStops, "stop_reasons": stops.Reasons,
-		// The controller's own coupled-order stops (#584): native journals
+		// The controller's own coupled-order stops: native journals
 		// them as its cleanup, so they are counted from the step rows and
 		// stand beside the native reason breakdown.
 		"coupled_stops": phases.Steps.Stops.Coupled, "coupled_orders": phases.Steps.Stops.Orders,
 		"stop_latency_mean_ms": stops.MeanLatencyMs, "stop_latency_max_ms": stops.MaxLatencyMs,
-		// Per stop (#621): detect_ticks, stop_ticks, observe_ms, readmit_ms.
+		// Per stop: detect_ticks, stop_ticks, observe_ms, readmit_ms.
 		"stop_latencies":      stops.Latencies,
 		"readmit_pause_count": phases.Steps.Pauses, "readmit_pause_mean_s": pauseMean, "readmit_pause_max_s": phases.Steps.MaxPauseSecs,
-		// Live dispatch (#243): steps by reason ("live" plans under a running
+		// Live dispatch: steps by reason ("live" plans under a running
 		// window), the worker's native runs made under a running window and
 		// the fraction native refused.
 		"step_reasons": phases.Steps.Reasons, "dispatches": phases.Dispatch.Calls, "live_dispatches": phases.Dispatch.Live,
 		"refused_dispatches": phases.Dispatch.Refused, "live_refused_dispatches": phases.Dispatch.LiveRefused, "refused_fraction": phases.Dispatch.RefusedFraction(),
-		// Dispatches held on stale facts before native ran them (#624).
+		// Dispatches held on stale facts before native ran them.
 		"stale_facts_holds": phases.Dispatch.StaleHolds,
 	}
 }

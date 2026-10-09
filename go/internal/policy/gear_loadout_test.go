@@ -26,7 +26,7 @@ func TestGearQualityMultipliers(t *testing.T) {
 }
 
 // The armory's crafted rifle outscores a worn normal revolver, so gear
-// plans the swap (#1204); quality scales the weapon's worth.
+// plans the swap; quality scales the weapon's worth.
 func TestGearPrimaryWeaponScore(t *testing.T) {
 	p := GearLoadoutInput{}
 	revolver := loadoutOption("Gun_Revolver", GearPrimary)
@@ -86,7 +86,7 @@ func TestGearRoles(t *testing.T) {
 		{"soldier", GearRoleInput{DraftedSquad: true}, GearSoldier},
 		{"hunter", work(WorkHunting), GearHunter},
 		{"crafter", work(WorkCrafting), GearIndoor},
-		// #660: a tribal generalist has every work type at one priority.
+		// A tribal generalist has every work type at one priority.
 		{"generalist", works(WorkConstruction, 3, WorkGrowing, 3, WorkHunting, 3, WorkCrafting, 3, WorkTailoring, 3), GearWorker},
 		{"mostly crafter", works(WorkConstruction, 3, WorkCrafting, 3, WorkTailoring, 3), GearIndoor},
 		{"hunter over crafter tie", works(WorkHunting, 2, WorkCrafting, 2, WorkConstruction, 3), GearHunter},
@@ -391,7 +391,7 @@ func gearShare(remaining float64) PersonalShare {
 }
 
 // A cold colonist wears pants and a shirt; a bill offers a warmer shirt worth
-// 250 more (#1842).
+// 250 more.
 func shareGearInput(shirtCondition float64, share PersonalShare) GearLoadoutInput {
 	pants := loadoutOption("pants", GearSkinLegs)
 	pants.Source, pants.Cost = GearWorn, 40

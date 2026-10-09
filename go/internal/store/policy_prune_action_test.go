@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A policy prune (#1298) persists its database and canonical ids.
+// A policy prune persists its database and canonical ids.
 func TestPolicyPruneActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

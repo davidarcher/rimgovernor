@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Realized consumption (#2441). Native counts what the colony's stock was
+// Realized consumption. Native counts what the colony's stock was
 // spent on, per (definition, reason), into a saved hourly ring; Go holds the
 // hours it was sent and reads a rate over any window as a subtraction.
 

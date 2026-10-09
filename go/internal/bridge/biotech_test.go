@@ -24,7 +24,7 @@ func biotechCatalogFixture() *o.BiotechCatalog {
 	}
 }
 
-// TestGeneTuningFacts (#1932): the singleton passes through the catalog view
+// TestGeneTuningFacts: the singleton passes through the catalog view
 // and a malformed one is refused.
 func TestGeneTuningFacts(t *testing.T) {
 	tuning := func() *o.GeneTuningFacts {
@@ -58,7 +58,7 @@ func TestGeneTuningFacts(t *testing.T) {
 	}
 }
 
-// TestBiotechCatalogDecode (#1678): the section decodes by name and refuses
+// TestBiotechCatalogDecode: the section decodes by name and refuses
 // duplicates, bad references and nonfinite numbers; absent stays nil.
 func TestBiotechCatalogDecode(t *testing.T) {
 	got, err := DecodeBiotechCatalog(biotechCatalogFixture())
@@ -96,7 +96,7 @@ func biotechPawnFixture() *o.PawnBiotech {
 	}
 }
 
-// TestPawnBiotechRow (#1678): the pawn block lifts into typed facts, a
+// TestPawnBiotechRow: the pawn block lifts into typed facts, a
 // field a read issue names stays unknown, and malformed blocks are refused.
 func TestPawnBiotechRow(t *testing.T) {
 	b := biotechPawnFixture()
@@ -146,7 +146,7 @@ func TestPawnBiotechRow(t *testing.T) {
 	}
 }
 
-// TestMechEnergyAndRechargeRole (#1688): the mech block carries energy and
+// TestMechEnergyAndRechargeRole: the mech block carries energy and
 // its group's recharge band, a failed band read stays unknown, and the
 // catalog names exactly one recharge mode from the row flag.
 func TestMechEnergyAndRechargeRole(t *testing.T) {

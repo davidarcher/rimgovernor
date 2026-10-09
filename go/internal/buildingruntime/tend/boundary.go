@@ -63,7 +63,7 @@ func NewTendDoctorFacts(pawn domain.PawnID, row *n.PawnState, token string) poli
 }
 
 // TendReachability collects the pairwise CanReach facts one list_pawns reply
-// carries (#657). A row without the tend detail, or whose reachability read
+// carries. A row without the tend detail, or whose reachability read
 // carried an issue, contributes no fact: the doctor is then never proposed.
 func TendReachability(rows []*n.PawnState) policy.TendReachability {
 	reachable := map[domain.PawnID][]domain.PawnID{}

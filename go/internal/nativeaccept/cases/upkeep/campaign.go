@@ -17,7 +17,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// upkeep/campaign (issue #99) is sustained survival on one colony: the
+// upkeep/campaign is sustained survival on one colony: the
 // deficits the single-deficit cases stage one at a time are chained on one
 // kept world and one durable journal, and every deficit recovered earlier
 // must stay closed while the later ones are handled. A stage stops the
@@ -32,16 +32,16 @@ import (
 // the goal must be recovered again within reopenTicks and before the stage
 // ends; a goal that is rebound, cancelled or invalidated fails at once.
 //
-//	kitchen  -- test/cleanliness_prepare (filthy): blood in an enclosed
-//	            kitchen, every colonist's Cleaning at 0, so only
-//	            MaintainCleanFacilities' forced orders clean it.
+//	kitchen -- test/cleanliness_prepare (filthy): blood in an enclosed
+//	      kitchen, every colonist's Cleaning at 0, so only
+//	      MaintainCleanFacilities' forced orders clean it.
 //	medicine -- test/medicine_setup: no medicine, MaintainMedicalReserves.
-//	cold     -- routine_sleeping_prepare + routine_temperature_prepare
-//	            (coldSnap: days have passed, so ordinary cold snaps bring
-//	            the afternoon under the campfire threshold),
-//	            EnsureTemperatureSafety; last because a campfire's fuel is
-//	            finite and its reopening would be the fixture's, not a
-//	            regression.
+//	cold   -- routine_sleeping_prepare + routine_temperature_prepare
+//	      (coldSnap: days have passed, so ordinary cold snaps bring
+//	      the afternoon under the campfire threshold),
+//	      EnsureTemperatureSafety; last because a campfire's fuel is
+//	      finite and its reopening would be the fixture's, not a
+//	      regression.
 //
 // Calendar time is not the property: a season is 900k ticks, over an hour of
 // wall time at Ultrafast, so a season soak stays a detached diagnostic

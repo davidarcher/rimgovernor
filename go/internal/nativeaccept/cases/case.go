@@ -1,4 +1,4 @@
-// Package cases is the acceptance case registry (issue #135): a Case
+// Package cases is the acceptance case registry: a Case
 // declares what it needs (how the game starts, whether the storyteller is
 // quiet, which needs stay unfrozen, whether a service runs, its budget) and
 // the shared runner (cmd/acceptance) owns boot, keep/reuse, quiet and
@@ -50,7 +50,7 @@ type Fixture struct {
 	Args map[string]any
 	On   Start
 	// ArgsFrom computes more arguments from the loaded game just before
-	// the op runs (StarterSiteArgs: the controller's own hut site, #700).
+	// the op runs (StarterSiteArgs: the controller's own hut site).
 	ArgsFrom func(context.Context, *na.Harness) (map[string]any, error)
 }
 
@@ -65,7 +65,7 @@ type Owned struct {
 	Saves []string
 }
 
-// Lab is the blank lab start (na.LabStart, #729): a fixed-seed 100x100 map
+// Lab is the blank lab start (na.LabStart): a fixed-seed 100x100 map
 // wiped to Soil with fixture-made colonists, locked weather and
 // temperature and a quiet storyteller, cached as a save. A fixture case
 // spawns what it needs at known offsets from the centre the op replies.
@@ -83,7 +83,7 @@ type Scenario struct {
 	Spec na.ScenarioStart
 }
 
-// A lab contract case (#743) runs one op or read assertion on Lab,
+// A lab contract case runs one op or read assertion on Lab,
 // spawning what it needs with na.LabSpawn (list na.LabSpawnTool in
 // RequiredOps), within LabBudget. Use it instead of a staged baseline save
 // when the assertion needs no history.
@@ -142,7 +142,7 @@ func (o Owned) Describe() map[string]any {
 type ServeSpec = na.ServeSpec
 
 // Session is what a case's Run receives: the open, prepared game. The
-// runner implements it over na.OpenSession (lane B, #137).
+// runner implements it over na.OpenSession (lane B).
 type Session interface {
 	// Config is the run's resolved configuration (root, output, profile,
 	// startup log); an Owned case opens its own game with it.
@@ -156,14 +156,14 @@ type Session interface {
 	// Prepared is a Fixture start's reply, nil otherwise.
 	Prepared() map[string]any
 	// RequestID is base on a fresh run and base suffixed with the run's
-	// id on a resumed one (#307): the restored store already holds the
+	// id on a resumed one: the restored store already holds the
 	// fresh run's submissions, and a replay under the resumed world's
 	// identity is a different request the store answers 409 conflict.
 	// Stable within a run, so a relaunch on the same journal still
 	// replays idempotently. Use it for every deterministic requestId a
 	// Run body submits.
 	RequestID(base string) string
-	// Stage runs fn, the staging block of the declared stage name (#329),
+	// Stage runs fn, the staging block of the declared stage name,
 	// unless the run opened on a bundle of that stage or a later one, in
 	// which case fn is skipped and the code after Stage cannot tell the
 	// two apart. fn returns with every service it launched stopped (a
@@ -171,19 +171,19 @@ type Session interface {
 	// for the capture, the state a hit continues from. Stages run in
 	// declared order; an undeclared or out-of-order name fails the run.
 	Stage(ctx context.Context, name string, fn func(ctx context.Context) error) error
-	// Resumed is the checkpoint entry this run resumed from (#249), ok
+	// Resumed is the checkpoint entry this run resumed from, ok
 	// false on a fresh run. Its State is what the case recorded through
 	// na.SetCheckpointState before the capture: a Run body that stages
-	// its own fixture reads it to skip the prep the save carries (#316).
+	// its own fixture reads it to skip the prep the save carries.
 	Resumed() (entry na.Checkpoint, ok bool)
-	// Staged is the stage bundle this run opened on (#329), ok false when
+	// Staged is the stage bundle this run opened on, ok false when
 	// it opened fresh or on a ring checkpoint. Its State is what the
 	// staging run recorded through na.SetCheckpointState before the
 	// capture: a staging block's outcome the code after Stage needs (a
 	// pre-service baseline count, the cells a fixture left unbuilt).
 	Staged() (entry na.Checkpoint, ok bool)
 	// Prior is the failed run's result.json (JSON-typed: slices are []any,
-	// numbers float64) under -postmortem-only (#275), nil on any other run
+	// numbers float64) under -postmortem-only, nil on any other run
 	// or when the ring did not record it: the timeline and the report
 	// fields the watch left, for a Postmortem that reads them.
 	Prior() map[string]any
@@ -248,7 +248,7 @@ type Case struct {
 	// than the default (item 2) or a Budget past MaxBudget (item 6). Lint
 	// requires it for any of the three.
 	Reason string
-	// QuietWorld marks the game quiet-world (na.Config.QuietWorld, #272):
+	// QuietWorld marks the game quiet-world (na.Config.QuietWorld):
 	// under test acceleration, wild plants and animals outside the home
 	// area (and any growing zone) stop ticking and the wild spawners stop.
 	// A case whose assertion watches the wild map (farm, husbandry,
@@ -261,7 +261,7 @@ type Case struct {
 	Serve *ServeSpec
 	// Service marks a case whose Run hosts rimgovernor serve itself
 	// through Session.Launch or Session.Serve (a Serve spec implies it):
-	// the suite schedules it after the bridge-only cases (#119) and passes
+	// the suite schedules it after the bridge-only cases and passes
 	// its -rimgovernor to the run.
 	Service bool
 	// Crew is the colonists the case runs with, declared upfront. The runner
@@ -275,7 +275,7 @@ type Case struct {
 	// net. Every case declares one, at most MaxBudget (checklist item 6).
 	Budget time.Duration
 	// Stall replaces na.DefaultStall for the case's waits: a case whose
-	// passing runs hold a signature longer than the default (#353). Zero
+	// passing runs hold a signature longer than the default. Zero
 	// is the shared budget; the runner's -stall overrides both.
 	Stall time.Duration
 	// Letters are the interruption letters the case expects, as
@@ -286,13 +286,13 @@ type Case struct {
 	// (na.WithExpectedLetters).
 	Letters [][2]string
 	// Stages names, in order, the staging blocks the Run body wraps in
-	// Session.Stage (#329): the runner caches a bundle after each and the
+	// Session.Stage: the runner caches a bundle after each and the
 	// next run opens on the newest one that still matches. Every name is
 	// unique and non-empty; an Owned case declares none.
 	Stages []string
 	// Run is the assertion, or its scenario when Postmortem is set.
 	Run func(ctx context.Context, s Session) error
-	// Postmortem, when set, is the case's read-and-assert phase (#275): the
+	// Postmortem, when set, is the case's read-and-assert phase: the
 	// runner calls it after Run returns nil, with every service the case
 	// launched stopped and the harness reattached, so the durable store
 	// (<output>/service.sqlite) and the live game can be compared. It is
@@ -316,11 +316,11 @@ type Case struct {
 	// screenshots). Unlike Rendered it runs on hosted runners. A kept game
 	// launched without one cannot serve it, so it implies a fresh process.
 	Graphics bool
-	// NoCheckpoint opts the case out of the runner's checkpoint ring
-	// (#249): no periodic bundles, no failed bundle, no resume. The
+	// NoCheckpoint opts the case out of the runner's checkpoint ring:
+	// no periodic bundles, no failed bundle, no resume. The
 	// speedmatrix and tickbudget areas are out regardless.
 	NoCheckpoint bool
-	// Matrix puts the case in the matrix class (#273): a throughput or
+	// Matrix puts the case in the matrix class: a throughput or
 	// scheduler measurement (speedmatrix, tickbudget) or a DLC-save case,
 	// run on demand and whenever the clock scheduler or the native tick
 	// path changes, never by a tier.
@@ -344,7 +344,7 @@ func (c Case) staffed() bool {
 // FixtureOps are the test ops the case's Start calls, outermost last:
 // what the installed build must register for the case to start
 // (Config.FixtureOps; the doctor's fixture coverage and a heal's rebuild
-// read them, #276), followed by RequiredOps used by Run or service hooks.
+// read them), followed by RequiredOps used by Run or service hooks.
 func (c Case) FixtureOps() []string {
 	var ops []string
 	for start := c.Start; start != nil; {
@@ -506,7 +506,7 @@ func Lookup(name string) (Case, bool) {
 }
 
 // LabWood is a Fixture ArgsFrom for a lab case whose op uses existing
-// starting wood and refuses to spawn resources (#751): it lays count WoodLog
+// starting wood and refuses to spawn resources: it lays count WoodLog
 // beside the lab's centre, where a debug start's colonists would find
 // their starting stacks, and adds no arguments.
 func LabWood(count int) func(context.Context, *na.Harness) (map[string]any, error) {

@@ -12,7 +12,7 @@ import (
 )
 
 // DecodeCells is an observations_get_cells reply's observed snapshot (as
-// Outcome returns it) and its grid decoded (#1346).
+// Outcome returns it) and its grid decoded.
 func DecodeCells(observed map[string]any) (*o.CellsSnapshot, *cellgrid.Grid, error) {
 	data, err := json.Marshal(observed)
 	if err != nil {

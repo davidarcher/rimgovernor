@@ -1,4 +1,4 @@
-// Package route holds the MaintainRoutes vertical (issue #6 slice 5): a
+// Package route holds the MaintainRoutes vertical: a
 // live game and a live rimgovernor Go player-control service composed with
 // the routes family. A stockpile zone sits in a roofed room walled on every
 // side with no door. The native reachability census (the game's own pathing
@@ -41,7 +41,7 @@ func init() {
 			"with observed traffic samples.",
 		Start: cases.Fixture{Op: "test/routes_prepare", On: cases.LabStart()},
 		// The census paths between the colonists and a staged room; the wild
-		// map is unobserved (#333).
+		// map is unobserved.
 		QuietWorld: true,
 		Service:    true,
 		Budget:     5 * time.Minute,

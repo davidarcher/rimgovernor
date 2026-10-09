@@ -9,7 +9,7 @@ import (
 )
 
 // A hostility setting builds one PawnSettingsIntent with the
-// hostility_response arm (#1299).
+// hostility_response arm.
 func TestPawnSettingsBuildsHostilityIntent(t *testing.T) {
 	value, err := domain.NewHostilitySetting("Human1", domain.HostilityFlee)
 	if err != nil {
@@ -32,7 +32,7 @@ func TestPawnSettingsBuildsHostilityIntent(t *testing.T) {
 	}
 }
 
-// Every medical care tier builds the medical_care arm (#1301).
+// Every medical care tier builds the medical_care arm.
 func TestPawnSettingsBuildsMedicalCareIntent(t *testing.T) {
 	for _, care := range domain.MedicalCares {
 		value, err := domain.NewMedicalCareSetting("Human1", care)
@@ -54,7 +54,7 @@ func TestPawnSettingsBuildsMedicalCareIntent(t *testing.T) {
 	}
 }
 
-// A self-tend setting builds the self_tend arm (#1305).
+// A self-tend setting builds the self_tend arm.
 func TestPawnSettingsBuildsSelfTendIntent(t *testing.T) {
 	value, err := domain.NewSelfTendSetting("Human1", true)
 	if err != nil {
@@ -73,7 +73,7 @@ func TestPawnSettingsBuildsSelfTendIntent(t *testing.T) {
 	}
 }
 
-// A medicine carry setting builds the medicine_carry arm (#1307), zero included.
+// A medicine carry setting builds the medicine_carry arm, zero included.
 func TestPawnSettingsBuildsMedicineCarryIntent(t *testing.T) {
 	value, err := domain.NewMedicineCarrySetting("Human1", 0)
 	if err != nil {
@@ -92,7 +92,7 @@ func TestPawnSettingsBuildsMedicineCarryIntent(t *testing.T) {
 	}
 }
 
-// The mech settings build the mech_work_mode and mech_control_group arms (#1685).
+// The mech settings build the mech_work_mode and mech_control_group arms.
 func TestPawnSettingsBuildsMechIntents(t *testing.T) {
 	mode, err := domain.NewMechWorkModeSetting("Mech1", "Work")
 	if err != nil {

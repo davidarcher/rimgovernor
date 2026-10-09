@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A surgery action (#1162) persists its patient, recipe, part and
+// A surgery action persists its patient, recipe, part and
 // violation acknowledgment and surgeon, including a whole-body recipe's absent part.
 func TestSurgeryActionRoundTrips(t *testing.T) {
 	t.Parallel()

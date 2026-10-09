@@ -8,7 +8,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Test-build-only staging for schedule/* (#1318): the adaptive timetable
+    // Test-build-only staging for schedule/*: the adaptive timetable
     // planner reads rest and psylink; nothing in production mutates either.
     public sealed class ScheduleFixture
     {

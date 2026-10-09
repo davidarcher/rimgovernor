@@ -6,7 +6,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // The blind-tick regulator (issue #583). Blind ticks are the ticks the
+    // The blind-tick regulator. Blind ticks are the ticks the
     // controller has not observed: those since its last read (a status,
     // events or bundle read) or, when a journal row it has not acknowledged
     // is older, those since that row. Past the epoch's budget the epoch is

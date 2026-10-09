@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// An area action (#1321) persists its operation, bot key (absent for home)
+// An area action persists its operation, bot key (absent for home)
 // and cells, including a delete's empty cell list.
 func TestAreaActionRoundTrips(t *testing.T) {
 	t.Parallel()

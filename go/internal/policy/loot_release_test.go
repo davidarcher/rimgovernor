@@ -12,7 +12,7 @@ func releaseRow(thing, def string, at domain.Cell) LootItem {
 
 // A dead colonist's gear and corpse arrive forbidden (Pawn.Kill,
 // DropAndForbidEverything) and are released; a hive's jelly, forbidden by
-// its spawner, and anything near a live fight or a hive is not (#1802).
+// its spawner, and anything near a live fight or a hive is not.
 func TestReleaseIsSelective(t *testing.T) {
 	gear := releaseRow("rifle", "Gun_BoltActionRifle", domain.Cell{X: 10, Z: 10})
 	corpse := releaseRow("corpse", "Corpse_Human", domain.Cell{X: 12, Z: 10})

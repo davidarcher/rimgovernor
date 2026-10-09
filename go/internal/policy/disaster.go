@@ -107,7 +107,7 @@ func PowerOutageHold(conditions domain.Fact[[]DisasterCondition]) bool {
 
 // EclipseHold reports an active eclipse with a known remaining duration:
 // the sky gives no light by day for as long as it lasts, so an unroofed
-// work cell measured dark is a lighting deficit a torch answers (#408)
+// work cell measured dark is a lighting deficit a torch answers
 // rather than the nightly flap the roofed-only census avoids.
 func EclipseHold(conditions domain.Fact[[]DisasterCondition]) bool {
 	ticks, known := ConditionRemainingTicks(conditions, ConditionEclipse).Value()
@@ -116,7 +116,7 @@ func EclipseHold(conditions domain.Fact[[]DisasterCondition]) bool {
 
 // SkyDarkHold reports that the sky gives no light by day: an eclipse (see
 // EclipseHold) or a biome whose map conditions black the sky out for good
-// (outdoorsDark, #1712). It is unknown while outdoorsDark is: an unread biome
+// (outdoorsDark). It is unknown while outdoorsDark is: an unread biome
 // is never assumed lit.
 func SkyDarkHold(conditions domain.Fact[[]DisasterCondition], outdoorsDark domain.Fact[bool]) domain.Fact[bool] {
 	dark, known := outdoorsDark.Value()

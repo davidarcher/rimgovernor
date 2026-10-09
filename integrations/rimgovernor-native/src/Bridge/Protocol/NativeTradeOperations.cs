@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
             try { return t.AnyThing is Pawn; } catch { return false; }
         }
 
-        // A colony animal row the economic policy may export (#1632): a
+        // A colony animal row the economic policy may export: a
         // player-faction animal with no bond. Humanlike pawns (slaves,
         // prisoners) and bonded animals stay protected; which animal is
         // surplus is the controller's herd plan, and the deal's economic
@@ -115,7 +115,7 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        // A colony prisoner row a favor session may sell (#1969): the pawns
+        // A colony prisoner row a favor session may sell: the pawns
         // TradeUtility.AllSellableColonyPawns lists (secure prisoners; the
         // trader tracker adds not-downed). Slaves, silver sessions and every
         // other humanlike stay protected.
@@ -129,7 +129,7 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        // Gear the controller's gear-sale plan names by thing id (#1831): every
+        // Gear the controller's gear-sale plan names by thing id: every
         // colony thing of the row must be authorized, or the row stays protected.
         private static bool AuthorizedGear(Tradeable t, HashSet<string> authorized)
         {
@@ -260,7 +260,7 @@ namespace HomeBridge.BridgeTools
 
         // A session left by another identity or load (a prior run against a
         // kept game) belongs to nobody who can still end it: close it so the
-        // open proceeds instead of refusing until the game restarts (#1159).
+        // open proceeds instead of refusing until the game restarts.
         // The game's TradeSession is closed only while it is still ours.
         private static void DropForeignSession(Common.Identity identity)
         {
@@ -720,7 +720,7 @@ namespace HomeBridge.BridgeTools
             _sessionId = null; _sessionColonyId = null; _sessionLoadToken = null; _sessionMap = null;
             _sessionDeal = null; _sessionTrader = null; _sessionNegotiator = null; _giftMode = false;
             // A deal the game would not execute still ends the session, but the
-            // accept is refused (#1156): the routine fails the method and replans.
+            // accept is refused: the routine fails the method and replans.
             if (!executed) throw new ApplyRefusedException(Common.FailureCode.NativeFailure, "The game declined to execute the deal; the session is closed.");
             var evidence = new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect
             {

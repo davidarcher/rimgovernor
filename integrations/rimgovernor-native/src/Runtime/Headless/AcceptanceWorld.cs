@@ -6,10 +6,10 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Cheaper fixture worlds for the headless acceptance profiles (#272).
+    // Cheaper fixture worlds for the headless acceptance profiles.
     // Everything here is gated on the -rimgovernor-test-acceleration launch
     // argument, the same gate as the clock's tick boost: a production or
-    // player launch never sees it. Vanilla autosave is skipped in production by SaveHandshake (#2358).
+    // player launch never sees it. Vanilla autosave is skipped in production by SaveHandshake.
     // A game whose QuietWorld marker is set (test/quiet_world,
     // persisted with the save) skips the simulation the cases never
     // observe: wild plants and wild animals outside the home area stop
@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
         public bool QuietWorld;
 
         // LabTemperature is the pinned outdoor temperature of a lab start
-        // (test/lab_start, #730), NaN on every other game. The fixture's
+        // (test/lab_start), NaN on every other game. The fixture's
         // weather and temperature patches read it; nothing else does.
         public float LabTemperature = float.NaN;
 

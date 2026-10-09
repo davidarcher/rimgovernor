@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TacticShelter is the fight with no viable squad (#968): nobody engages;
+// TacticShelter is the fight with no viable squad: nobody engages;
 // every free colonist takes a verified retreat cell, a roofed room no
 // hostile is in, or a verified step away on the defended side.
 const TacticShelter CombatTactic = "shelter"
@@ -184,8 +184,8 @@ func shelterChecks(view CombatView) []domain.Cell {
 	return cells
 }
 
-// keepDefended pulls a fallback move target back onto the defended side
-// (#2376): inside the room the colonist stands in, else, in a layout, no
+// keepDefended pulls a fallback move target back onto the defended side:
+// inside the room the colonist stands in, else, in a layout, no
 // further than the firing line's far side. A colonist already outside both
 // keeps the unclamped target; there is no defended side to hold.
 func keepDefended(view CombatView, from, to domain.Cell) domain.Cell {

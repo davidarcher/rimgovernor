@@ -9,8 +9,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-// defense/site-stuff proves the defense-site census's edifice stuff
-// (#1065): every colonist wall the lighting fixture builds reads back from
+// defense/site-stuff proves the defense-site census's edifice stuff:
+// every colonist wall the lighting fixture builds reads back from
 // observations_read_defense_site with the stuff the building census gives
 // it. The wait hardening tells a wooden door from a plasteel one by this
 // field. Read-only: no orders, no clock.

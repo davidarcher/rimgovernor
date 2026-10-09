@@ -15,7 +15,7 @@ using Mirror = RimGovernor.Protocol.Mirror;
 
 namespace HomeBridge.BridgeTools
 {
-    /// Event-triggered combat stops (#849). A combat epoch carries the armed
+    /// Event-triggered combat stops. A combat epoch carries the armed
     /// list in WatchPolicy.combat_stop_events. A game hook that sees an armed
     /// event records it; the tick-boundary path (TickBody) stops the epoch at
     /// the boundary of the tick it happened on, so the controller decides on
@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
         private static bool _combatScanBaselined;
 
         /// Whether a combat clock epoch is running (the combat mirror is
-        /// active through it, #851).
+        /// active through it).
         internal static bool CombatEpochRunning
         {
             get { var s = _state; return s != null && s.Active && s.Typed != null && s.Typed.Policy.Mode == Clock.WatchMode.Combat; }

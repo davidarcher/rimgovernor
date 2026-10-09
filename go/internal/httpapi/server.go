@@ -27,7 +27,7 @@ type Server struct {
 	config      Config
 	snapshots   SnapshotProvider
 	plans       PlanReader
-	telemetry   *bridge.TimelineReader // the profile's ring, decoded once per byte (#375)
+	telemetry   *bridge.TimelineReader // the profile's ring, decoded once per byte
 }
 
 func New(config Config, snapshots SnapshotProvider, plans PlanReader) (*Server, error) {

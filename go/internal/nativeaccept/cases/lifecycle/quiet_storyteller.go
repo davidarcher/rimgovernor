@@ -1,5 +1,5 @@
 // lifecycle/quiet_storyteller is the native acceptance for the shipped
-// RimGovernorQuiet StorytellerDef (#2023): a colony started through the
+// RimGovernorQuiet StorytellerDef: a colony started through the
 // new-colony op with that storyteller has no storyteller comps, keeps none
 // after a save and reload (RimWorld rebuilds comps from the def by defName),
 // and fires no incident over a day of ticks. Nothing here uses the

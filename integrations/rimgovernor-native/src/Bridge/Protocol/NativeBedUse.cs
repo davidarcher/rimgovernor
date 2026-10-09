@@ -23,12 +23,12 @@ namespace HomeBridge.BridgeTools
     {
 
 
-        // Prisoners reports a for_prisoners write (#880): only true, and
+        // Prisoners reports a for_prisoners write: only true, and
         // through ForOwnerType, never ForPrisoners, whose false arm is a
         // Log.Error (see BuildingConfigTool.cs). It drops every owner.
         internal static bool Prisoners(Operations.BuildingPatchIntent intent) => intent.ChangeCase == Operations.BuildingPatchIntent.ChangeOneofCase.ForPrisoners;
 
-        // Slaves reports a for_slaves write (#1036): ForOwnerType = Slave,
+        // Slaves reports a for_slaves write: ForOwnerType = Slave,
         // which the game's setter accepts only under Ideology. It drops
         // every owner.
         internal static bool Slaves(Operations.BuildingPatchIntent intent) => intent.ChangeCase == Operations.BuildingPatchIntent.ChangeOneofCase.ForSlaves;

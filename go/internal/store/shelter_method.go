@@ -14,10 +14,10 @@ import (
 var shelterBunkMethods = map[domain.MethodID]bool{"shelter-spots": true, "shelter-bedrolls": true, "shelter-beds": true, "shelter-clear-bedrolls": true, "shelter-clear-beds": true}
 
 // shelterOpenWorkExempt admits a method under the initial shelter while its
-// only open work is bunk rungs (#641): the ring is sited around the spots
+// only open work is bunk rungs: the ring is sited around the spots
 // and beds, so walls and door proceed while a bed stalls. The new method
 // must be pure construction on no cell an open bunk stands on (a bed goes on
-// a spot's slot only after the spot is deleted, #2080); any other open method
+// a spot's slot only after the spot is deleted); any other open method
 // (the shell itself) still holds the goal.
 func shelterOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
 	review, err := loadRounds(ctx, tx)
@@ -71,7 +71,7 @@ func IsRoomShellMethod(method domain.MethodID) bool {
 }
 
 // roomShellOpenWorkExempt admits furniture beside an owner's open planned-room
-// ring wave, and a ring wave beside the owner's open furniture (#2303): a ring
+// ring wave, and a ring wave beside the owner's open furniture: a ring
 // runs for days, and the owner's slot on the room's interior (the shelter's
 // campfire or cooler) is admitted with it, not after it. Both sides are pure
 // construction on cells the other does not build on, a single ring wave beside

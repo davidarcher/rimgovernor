@@ -21,15 +21,9 @@ type TendDoctorFacts struct {
 	MedicineSkillDisabled      domain.Fact[bool]
 	DoctorWorkEnabled          domain.Fact[bool]
 	DoctorWorkOverrideDisabled domain.Fact[bool]
-	// The native tend gates the Go predicate used to leave unmodelled, which
-	// burned every CriticalMedical attempt on orders that could not succeed
-	// (#657). ControlEligible is NativePawnControlState's own eligibility
-	// (a drafter exists, spawned, alive, not downed, not mental,
-	// player-controlled) -- the gate behind the refusal "Tend requires an
-	// eligible doctor". TendCapacities is WorkGiver_Tend.MissingRequiredCapacity
-	// coming back empty. ReachesPatient answers CanReach(ClosestTouch, Deadly)
-	// for the one patient this pair names; multi-candidate selection uses
-	// TendReachability instead.
+	// Native control and WorkGiver_Tend capacity gates must both admit the doctor.
+	// ReachesPatient is CanReach(ClosestTouch, Deadly) for this pair;
+	// multi-candidate selection uses TendReachability.
 	ControlEligible domain.Fact[bool]
 	TendCapacities  domain.Fact[bool]
 	ReachesPatient  domain.Fact[bool]
@@ -76,7 +70,7 @@ type TendPatientFacts struct {
 	// InBed with Downed decides whether the patient can be tended at all:
 	// WorkGiver_Tend tends a humanlike only in a bed and the ground tend
 	// needs a downed pawn, so an up patient out of bed is refused natively
-	// however urgent (#618).
+	// however urgent.
 	InBed                        domain.Fact[bool]
 	NeedsTend                    domain.Fact[bool]
 	NoCare                       domain.Fact[bool]
@@ -150,7 +144,7 @@ func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts, reach Te
 	// The drafted fallback is reachability-aware too: an undrafted pool whose
 	// every member is walled off from the patients is no better than an empty
 	// one, so it falls through to the drafted candidates rather than reporting
-	// no pair (#657).
+	// no pair.
 	if !anyReachable(doctorPool, patientPool, reach) {
 		doctorPool = nil
 		for _, d := range doctors {

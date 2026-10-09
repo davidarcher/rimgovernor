@@ -140,7 +140,7 @@ func StopPIDs(ctx context.Context, pids []int) error {
 // StopGames stops every RimWorldWin64.exe running from gameCopy by pid
 // (RunningGames: this worktree's own games, never a peer's, since each
 // worktree launches its private copy) and waits until none is left, so a
-// rebuilt mod can be installed under nobody (#276). It returns the pids it
+// rebuilt mod can be installed under nobody. It returns the pids it
 // stopped; none running is not an error.
 func StopGames(ctx context.Context, gameCopy string) ([]int, error) {
 	pids, err := RunningGames(gameCopy)

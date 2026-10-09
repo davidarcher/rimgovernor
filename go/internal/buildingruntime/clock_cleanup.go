@@ -19,12 +19,8 @@ func (q *ClockCoordinator) Cleanup(ctx context.Context) error {
 	return q.CleanupObserved(ctx, nil)
 }
 
-// CleanupObserved is Cleanup given a clock status the caller has just read
-// and validated (a scheduler step's bundle). An epoch obligation under that
-// status's identity is observed from it instead of re-reading the identity
-// and the status: two round trips that, behind the game host's one-at-a-time
-// tool execution, used to sit between a window's stop and the review that
-// admits the next one (issue #162). A nil status reads as before.
+// CleanupObserved reuses validated status for a matching epoch identity,
+// avoiding redundant native reads. Nil status fetches identity and status.
 func (q *ClockCoordinator) CleanupObserved(ctx context.Context, observed *k.Status) error {
 	select {
 	case q.gate <- struct{}{}:
@@ -186,7 +182,7 @@ func (q *ClockCoordinator) cleanupPauseUncertain(v store.ClockEpochObligation, c
 }
 
 // RepauseObserved pauses a game the player runs by hand under a stopped
-// epoch this process owned (#601). The status is the stopped one the
+// epoch this process owned. The status is the stopped one the
 // caller just read and validated (a scheduler step's bundle); the owned
 // pause names its epoch, so a replacement owner's clock is never touched
 // (ClockWriter.OwnedPause). The epoch is already settled, so nothing is

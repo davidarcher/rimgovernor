@@ -68,7 +68,7 @@ func runOpts(r io.Reader, w io.Writer, opt options) int {
 	failedPackage := map[string]bool{}
 	// cached packages replay a previous run's timings, so a budget breach in
 	// one says nothing about this run: go test prints "(cached)" on the
-	// package's ok line and reports the old Elapsed for every test (#334).
+	// package's ok line and reports the old Elapsed for every test.
 	cached := map[string]bool{}
 
 	scanner := bufio.NewScanner(r)

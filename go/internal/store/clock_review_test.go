@@ -120,13 +120,13 @@ func TestClockReviewEventClassification(t *testing.T) {
 		}
 	}
 	// A game alert is a fact row for the planners and the flight recorder,
-	// not a hold: the native supervisor never stops play for one (#244).
+	// not a hold: the native supervisor never stops play for one.
 	if clock.EventInterrupts(&k.Event{Event: &k.Event_Alert{}}) {
 		t.Fatal("alert interrupts")
 	}
 	// And a notification: native publishes one only for the letter and
 	// message classes it never stops play for; holding on it tore down an
-	// admitted combat plan for a wound-worsening message (#325).
+	// admitted combat plan for a wound-worsening message.
 	for _, source := range []*k.Notification{{Source: &k.Notification_Letter{Letter: &k.Letter{Id: proto.String("letter"), Label: proto.String("warning"), DefName: proto.String("NegativeEvent"), Negative: proto.Bool(true)}}}, {Source: &k.Notification_Message{Message: &k.TransientMessage{Id: proto.String("message"), TypeDef: proto.String("NegativeHealthEvent"), Text: proto.String("known wound worsening"), Negative: proto.Bool(true)}}}} {
 		if clock.EventInterrupts(&k.Event{Event: &k.Event_Notification{Notification: source}}) {
 			t.Fatal("notification interrupts")
@@ -134,12 +134,12 @@ func TestClockReviewEventClassification(t *testing.T) {
 	}
 	// So is an injury observation: sub-threshold combat damage the native
 	// supervisor coalesces without stopping; a threshold crossing is its
-	// own COLONIST_HEALTH stop (#318).
+	// own COLONIST_HEALTH stop.
 	if clock.EventInterrupts(&k.Event{Event: &k.Event_InjuryObserved{}}) {
 		t.Fatal("injury observation interrupts")
 	}
 	// A letter pause is the game's own pause; for an informational letter
-	// (the classes the supervisor never stops for) it holds nothing (#228).
+	// (the classes the supervisor never stops for) it holds nothing.
 	// A threat letter, or a pause with no letter attributed, still holds.
 	letterPause := func(def string) *k.Event {
 		stop := &k.StopEvent{Reason: k.StopReason_STOP_REASON_LETTER_PAUSE.Enum()}
@@ -160,7 +160,7 @@ func TestClockReviewEventClassification(t *testing.T) {
 
 // A kept game's journal carries stops from the world it had loaded before;
 // read on a page whose context is a newly loaded world they interrupt
-// nothing (#887).
+// nothing.
 func TestClockPageInterruptsDropsOlderWorldStop(t *testing.T) {
 	t.Parallel()
 	world := func(colony, load string, mapID int32) *c.ObservationContext {

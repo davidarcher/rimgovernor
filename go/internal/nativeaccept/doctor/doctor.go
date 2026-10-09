@@ -1,4 +1,4 @@
-// Package doctor is the acceptance preflight (#277): every environment
+// Package doctor is the acceptance preflight: every environment
 // pitfall that has cost a run ten minutes before it surfaced, checked in
 // a few seconds against a bridge root. Each check names its fix rather
 // than refusing; only a check that would certainly fail a run is Fail,
@@ -55,11 +55,11 @@ type Check struct {
 	// Detail is what was found; Fix is what to do about it (empty on OK).
 	Detail string
 	Fix    string
-	// Code names a Fail the runner can heal on its own (#276):
+	// Code names a Fail the runner can heal on its own:
 	// HealStaleMod (the installed mod's sources differ from the worktree)
 	// or HealMissingFixture (the build lacks a fixture the run's cases
 	// call), or HealOrphans (harness processes outlive their removed
-	// worktrees, #346; PIDs names them); "" for every other check.
+	// worktrees; PIDs names them); "" for every other check.
 	Code string
 	PIDs []int
 }
@@ -293,7 +293,7 @@ func fixtureFlag(repo string, installed, fixtureOps []string) string {
 	return "-fixture " + strings.Join(flags, ",")
 }
 
-// baseline is the generated baseline save (#2027): missing, the first
+// baseline is the generated baseline save: missing, the first
 // save-driven case generates it through the new-colony op; present, an
 // expansion in its modIds the game copy does not ship fails save.missing_mods
 // at load.
@@ -357,7 +357,7 @@ func saveModIDs(path string) ([]string, error) {
 
 // modsConfig is the profile's ModsConfig.xml Prepare rewrites: it must
 // exist and parse with a core entry; and a kept process launched with a
-// different list or package is relaunched by the next run (#166, #209).
+// different list or package is relaunched by the next run.
 func modsConfig(o Options) Check {
 	c := Check{Name: "mods-config"}
 	path := filepath.Join(o.Root, "profile", "Config", "ModsConfig.xml")
@@ -403,7 +403,7 @@ func modsConfig(o Options) Check {
 // (setup.RunningGameProcesses: executables under the game copy, never a
 // peer's). One with a launch record is the kept process a run reuses;
 // two is a leak; one small and pegged for minutes is a boot that never
-// finished (StuckBoot, #346).
+// finished (StuckBoot).
 func process(o Options, gameCopy string) (int, Check) {
 	c := Check{Name: "game"}
 	procs, err := setup.RunningGameProcesses(gameCopy)
@@ -462,7 +462,7 @@ func gocache() Check {
 }
 
 // runBinary is this very binary against the checkout: a run binary behind
-// main reproduces failures main already fixed (#212). A `go run` build
+// main reproduces failures main already fixed. A `go run` build
 // carries no VCS stamp and is by construction the worktree's HEAD.
 func runBinary(ctx context.Context, o Options) Check {
 	c := Check{Name: "acceptance"}

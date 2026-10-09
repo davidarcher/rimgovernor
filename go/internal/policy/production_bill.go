@@ -13,8 +13,8 @@ const (
 	CookFood     BillPurpose = "cook"
 	PreserveFood BillPurpose = "preserve"
 	ButcherFood  BillPurpose = "butcher"
-	// CookAheadFood is MaintainRefrigeration's answer to a solar flare
-	// (#408): the warm perishable stock the dark coolers cannot save is
+	// CookAheadFood is MaintainRefrigeration's answer to a solar flare:
+	// the warm perishable stock the dark coolers cannot save is
 	// cooked into meals on whichever bench still works (a fuelled stove;
 	// native's usable flag already excludes the unpowered electric one),
 	// so the colony eats it before it rots instead of waiting out the
@@ -29,7 +29,7 @@ type ProductionProduct struct {
 	Edible, Perishable         domain.Fact[bool]
 	// BabyEdible is whether a baby can eat the product (Biotech).
 	BabyEdible domain.Fact[bool]
-	// Kind is the food kind the game gives the product (#1721).
+	// Kind is the food kind the game gives the product.
 	Kind FoodKind
 	// Storable is the count of the product protected, reachable storage
 	// accepting it can hold: stored stock plus empty stack slots.
@@ -37,12 +37,12 @@ type ProductionProduct struct {
 }
 type ProductionRecipe struct {
 	Name string
-	// Role is what the recipe does by its catalog row (#1721).
+	// Role is what the recipe does by its catalog row.
 	Role domain.RecipeRole
 	// Bulk is whether the recipe is the bulk sibling of another recipe: the same
-	// ingredients and products in larger counts (#1721).
+	// ingredients and products in larger counts.
 	Bulk bool
-	// MechKind is the PawnKindDef a gestation recipe makes (#1686), "" otherwise.
+	// MechKind is the PawnKindDef a gestation recipe makes, "" otherwise.
 	MechKind                                   string
 	Available                                  domain.Fact[bool]
 	Products                                   []ProductionProduct
@@ -56,7 +56,7 @@ type ProductionRecipe struct {
 // configured target, not how much of it is already produced: a TargetCount
 // bill reserves that nutrition toward its buffer even while still filling it.
 type ExistingProductionBill struct {
-	// Role is the bill recipe's role by its catalog row (#1721).
+	// Role is the bill recipe's role by its catalog row.
 	Role               domain.RecipeRole
 	DefaultIngredients domain.Fact[bool]
 	Ingredients        domain.Fact[[]string]
@@ -98,12 +98,12 @@ type BillSelection struct {
 type ProductionBillContext struct {
 	Ingredients []string
 	Reserve     *FoodReserveReview
-	// BabyFeeding sizes the BabyFoodBill selection (#1681).
+	// BabyFeeding sizes the BabyFoodBill selection.
 	BabyFeeding *BabyFeeding
 	Meals       *MealTierRequest
-	// Artists is the one artist an ArtBill selection pins (#1190).
+	// Artists is the one artist an ArtBill selection pins.
 	Artists []PawnID
-	// Art sizes the ArtBill selection (#1191); nil chooses a small
+	// Art sizes the ArtBill selection; nil chooses a small
 	// sculpture in any stuff.
 	Art *ArtDemand
 }
@@ -328,7 +328,7 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 	if len(options) == 0 {
 		return BillSelection{}, false
 	}
-	// Butchery belongs away from the cooking workspace (issue #6): a butcher
+	// Butchery belongs away from the cooking workspace: a butcher
 	// bench standing in no cooking bench's room wins over one that shares.
 	separated := map[string]bool{}
 	if purpose == ButcherFood {

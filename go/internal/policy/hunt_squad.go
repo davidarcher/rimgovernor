@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A squad hunt (#1617) takes a group of nearby wild animals, mixed species
+// A squad hunt takes a group of nearby wild animals, mixed species
 // allowed, with 3 to 4 drafted ranged colonists. A group is worth a squad at
 // SquadHuntMinPrey animals, or at any single animal a lone hunter must not
 // designate (Retaliates); the revenge cap (MaxHuntRevengeChance) binds only

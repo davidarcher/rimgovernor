@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A pawn settings action (#1299) persists its pawn and hostility response.
+// A pawn settings action persists its pawn and hostility response.
 func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

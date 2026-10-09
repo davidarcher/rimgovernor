@@ -1,7 +1,7 @@
 package policy
 
-// The incinerator (#1814, epic #1640): a walled, unroofed 3x3 room inside the
-// waste yard (#2187), planned from the start in the outskirts cluster
+// The incinerator: a walled, unroofed 3x3 room inside the
+// waste yard, planned from the start in the outskirts cluster
 // (growOutskirtsRooms). Burnable waste hauls into it from the dump (the Sanitation store
 // of incinerationOwner, a higher priority zone over its floor) and it is
 // burned whole. Its room is a plan room like the tomb's: the walls and door are

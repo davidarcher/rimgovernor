@@ -18,7 +18,7 @@ import (
 // A step read whose planning cells equal the mirror's held cells is
 // recorded without encoding them: its line names the section, its patch
 // carries no cells, and it still materialises exactly what was read. A
-// window that differs stays inline (#1590).
+// window that differs stays inline.
 func TestRecordStepElidesHeldCells(t *testing.T) {
 	base, err := Load(cleanFilthy)
 	if err != nil {

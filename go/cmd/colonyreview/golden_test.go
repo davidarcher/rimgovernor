@@ -12,7 +12,7 @@ import (
 var update = flag.Bool("update", false, "rewrite the golden HTML files")
 
 // goldenSummary is a fixed run with a score (one unknown component) and the
-// given delta, for the rendered-HTML golden files (#1937).
+// given delta, for the rendered-HTML golden files.
 func goldenSummary(date, commit string, scalar float64, delta *Delta) Summary {
 	return Summary{
 		Meta: map[string]string{"date": date, "commit": commit, "seed": "review-x", "biome": "TemperateForest"},

@@ -3,8 +3,8 @@ using System.Runtime.CompilerServices;
 using HarmonyLib;
 using HomeBridge.BridgeTools;
 
-// Live Harmony inventory and method identity for NativeConstructionHookSet (#935), restored from
-// the native-operation-envelope probe deleted in a7d8a122d.
+// Live Harmony inventory and method identity for NativeConstructionHookSet.
+
 internal static class NativeHookSetProbe
 {
     private static int checks;

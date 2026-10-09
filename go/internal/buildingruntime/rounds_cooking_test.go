@@ -51,7 +51,7 @@ func TestRoundsCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.T
 	p, db, native := cookingFixture(t)
 	result, err := p.Step(context.Background())
 	// Two previews: the shelter slot holds the campfire and the ring wave goes
-	// in right after it (#2303).
+	// in right after it.
 	if err != nil || result.Verdict != BuildingReasonAdmitted || native.previews != 2 {
 		t.Fatal(result, err)
 	}
@@ -105,7 +105,7 @@ func TestRoundsCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) {
 
 // A campfire the pawns let burn out leaves the census without a cooking
 // bench in the same Episode; the completed method yields to a numbered
-// successor instead of holding the goal at method_already_used (#217).
+// successor instead of holding the goal at method_already_used.
 func TestRoundsCookingRestagesBurntOutCampfire(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -117,7 +117,7 @@ func TestRoundsCookingRestagesBurntOutCampfire(t *testing.T) {
 	}
 	completeRoundsBuildingMethod(t, db, result)
 	// The census still reports no cooking bench: the campfire burnt out.
-	// Its intent is gone from a known census too (#856).
+	// Its intent is gone from a known census too.
 	native.built = map[domain.ActionID]*o.BuildingState{}
 	if _, err := p.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
@@ -126,7 +126,7 @@ func TestRoundsCookingRestagesBurntOutCampfire(t *testing.T) {
 	if err != nil || again.Verdict != BuildingReasonAdmitted || native.previews != 4 {
 		t.Fatal(again, err, native.previews)
 	}
-	// The burnt-out campfire's plan retired on the census (#856); the
+	// The burnt-out campfire's plan retired on the census; the
 	// goal's history still binds both methods.
 	goal := again.Decision.Project
 	methods, err := db.LoadOwnerMethods(ctx, goal)

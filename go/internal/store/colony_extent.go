@@ -14,7 +14,7 @@ import (
 
 // Colony extent history is an append-only journal of established regions,
 // scoped to one world (colony, map) and load. A new load starts empty and
-// re-establishes its extent from the live world (#1009); another colony or
+// re-establishes its extent from the live world; another colony or
 // map has its own journal.
 
 type EstablishedExtent struct {

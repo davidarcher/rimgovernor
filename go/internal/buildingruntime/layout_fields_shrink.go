@@ -15,7 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// fieldTargets is each crop's full field target in cells (#1309): a food
+// fieldTargets is each crop's full field target in cells: a food
 // crop's FieldTarget for the colony, haygrass for the pens' whole need,
 // and the fixed social ceiling. A crop whose target is unknown is absent
 // and never shrinks.
@@ -42,7 +42,7 @@ func fieldTargets(projection observation.ColonyProjection, field policy.FieldReq
 	return out
 }
 
-// shrink gives up one surplus zone's bare cells with remove-cells (#1309),
+// shrink gives up one surplus zone's bare cells with remove-cells,
 // committed directly like a grow. handled reports a committed edit.
 func (r *RoundsFieldPlanner) shrink(call, epoch context.Context, state ControlState, goal store.StandardState, projection observation.ColonyProjection, read observation.RoundsReading, field policy.FieldRequest) (RoundsFieldResult, bool, error) {
 	plan, ok := planFieldShrink(projection, fieldTargets(projection, field))
@@ -89,7 +89,7 @@ func (r *RoundsFieldPlanner) shrink(call, epoch context.Context, state ControlSt
 	return RoundsFieldResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
 }
 
-// Field shrink hysteresis (#1309): a crop's growing zones shrink only once
+// Field shrink hysteresis: a crop's growing zones shrink only once
 // their cells exceed its full target by fieldShrinkTrigger, and then only
 // down to fieldShrinkFloor of the target, so a small dip in demand never
 // flips a zone between growing and shrinking.
@@ -169,7 +169,7 @@ func planFieldShrink(facts observation.ColonyProjection, targets map[string]int)
 }
 
 // bareCells are the cells of order the mirror holds with no plant standing on
-// them (#1567, #2272): unsown or harvested soil. A fogged cell is not held,
+// them: unsown or harvested soil. A fogged cell is not held,
 // so never bare.
 func bareCells(held []policy.SiteCell, order []domain.Cell) map[domain.Cell]bool {
 	want := make(map[domain.Cell]bool, len(order))

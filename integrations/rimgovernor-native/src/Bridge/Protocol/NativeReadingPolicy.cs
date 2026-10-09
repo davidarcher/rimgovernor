@@ -11,7 +11,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // ReadingPolicyIntent on Actions/Apply (#1306): the ReadingPolicy
+    // ReadingPolicyIntent on Actions/Apply: the ReadingPolicy
     // labelled name (made when missing) allows exactly the given book
     // ThingDefs and every book effect. PawnSettingsIntent.reading_policy
     // assigns it (NativePawnSettings.cs). A policy that already matches

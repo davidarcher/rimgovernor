@@ -9,7 +9,7 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // What the game's own race code says about one race (#1722), carried on the
+    // What the game's own race code says about one race, carried on the
     // race's ThingDefFacts row once per load. The race's numbers and comps are
     // the def rows and the stat table; Go derives its views from those.
     internal static class NativeRaceFacts
@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        // The race's husbandry facts (#2238): game answers about the def that
+        // The race's husbandry facts: game answers about the def that
         // the def rows and the stat table do not carry.
         private static void Husbandry(ThingDef def, RaceProperties race, Obs.RaceFacts row)
         {

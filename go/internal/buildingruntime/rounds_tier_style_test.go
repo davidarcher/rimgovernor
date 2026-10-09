@@ -21,8 +21,7 @@ func styledProjection(tier policy.TechTier, stock map[policy.Resource]int64, fin
 
 // The floor and lamp styles fold the projection into the tier rules: a Camp
 // (or unknown-tier) colony gets no floor or lamp; a Masonry colony stone
-// floors with a torch; Industrial a standing lamp only on a powered colony
-// (#610).
+// floors with a torch; Industrial a standing lamp only on a powered colony.
 func TestTierStylesFollowTheProjection(t *testing.T) {
 	stone := map[policy.Resource]int64{"WoodLog": 200, "BlocksGranite": 300, "Steel": 100}
 	// Unknown tier: the Camp rung.

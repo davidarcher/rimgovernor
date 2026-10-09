@@ -25,7 +25,7 @@ func fieldRequest(fertility float64) FieldRequest {
 
 // Eight colonists on rice (14.08 nutrition/day, 0.3 per cell every 5.6
 // days) need ~263 cells at steady state; the reserve spreads over the
-// harvests left, and an unknown season takes it in one harvest (#1252).
+// harvests left, and an unknown season takes it in one harvest.
 func TestFieldTargetYieldPerCellPerDay(t *testing.T) {
 	crop := fieldCrop("Plant_Rice", 5.6, 0.3, 0.7, 1.0)
 	crop.Demand = domain.Known(14.08)

@@ -7,7 +7,7 @@ import (
 
 // PawnRows is the map's pawn table as the list read answers it (every
 // spawned pawn, every detail family), keyed by pawn id: the canonical rows
-// a section's pawn references resolve against (#1343).
+// a section's pawn references resolve against.
 func (h *Harness) PawnRows(ctx context.Context, label string, identity any) (map[string]map[string]any, error) {
 	reply, err := h.Wire(ctx, label, "observations_list_pawns", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
 	if err != nil {

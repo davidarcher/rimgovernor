@@ -28,7 +28,7 @@ func TestLayoutPlanAnchorFallsBackToReserve(t *testing.T) {
 	}
 }
 
-// A plan saved before the PlannedRoom rename (#2102) loads and saves with the
+// A plan saved before the PlannedRoom rename loads and saves with the
 // same field names and role strings: the rename is type-level only.
 func TestPlannedRoomJSONRoundTripsSavedPlan(t *testing.T) {
 	const saved = `{"Role":"kitchen","Interior":{"X":1,"Z":2,"Width":4,"Height":3},"Door":{"X":5,"Z":3},"DoorRot":"east","Link":null,"Dug":true}`

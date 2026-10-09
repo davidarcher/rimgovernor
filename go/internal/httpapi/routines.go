@@ -25,7 +25,7 @@ type RoundsProvider interface {
 // reviewed tick, known once at least one review has run. Development is the
 // ranking the last review recorded, nil until a review has run. Sections
 // are the state store's held census sections with the tick each describes
-// (facts.Store, #354), so a live serve shows staleness per section.
+// (facts.Store), so a live serve shows staleness per section.
 type RoundsStatus struct {
 	Emergency         []policy.ConcernID
 	ExtentEligibility policy.ExtentEligibilityRequest
@@ -37,23 +37,23 @@ type RoundsStatus struct {
 	ActiveFamilies  []string
 	LastReviewTick  domain.Tick
 	LastReviewKnown bool
-	// Progress is every active concern's progress record from the last review
-	// (#629): method, expected observable, last progress tick, next review
+	// Progress is every active concern's progress record from the last review:
+	// method, expected observable, last progress tick, next review
 	// tick and blocker.
 	Progress []policy.ConcernProgress
-	// Stage is the colony stage the last review derived (#630) with the
+	// Stage is the colony stage the last review derived with the
 	// first unmet condition of the next; nil until an enabled review
 	// filed one.
 	Stage *policy.ColonyStageRecord
-	// Roster is the roster planner's last recorded report (#448), nil until
+	// Roster is the roster planner's last recorded report, nil until
 	// an enabled review planned work.
 	Roster   *policy.WorkRosterReport
 	Sections []facts.Status
 	// NoOps are the inspections that raised nothing in the last enabled
-	// review, with the typed reason (#1909).
+	// review, with the typed reason.
 	NoOps []policy.NoOpRecord
 	// LootHolds are the safe forbidden stacks the last review's reach stage
-	// or demand kept forbidden, with reasons (#522).
+	// or demand kept forbidden, with reasons.
 	LootHolds []policy.LootHold
 }
 
@@ -150,7 +150,7 @@ type roundsSectionDTO struct {
 	StoredAt string `json:"storedAt"`
 }
 
-// colonyStageDTO is the colony stage (#630): its name, the review tick it
+// colonyStageDTO is the colony stage: its name, the review tick it
 // was entered, the first unmet condition of the next stage (blocker,
 // empty at Development) with the measured values in words, and whether
 // the Foothold hold refuses the comfort-class development.
@@ -162,7 +162,7 @@ type colonyStageDTO struct {
 	Held    bool        `json:"held"`
 }
 
-// concernProgressDTO is one concern's progress record on the wire (#629): the
+// concernProgressDTO is one concern's progress record on the wire: the
 // five fields per concern plus the bounded cooldowns keying failed situations
 // out. lastProgress and nextReview are ticks; blocked is empty when the
 // concern is not blocked.

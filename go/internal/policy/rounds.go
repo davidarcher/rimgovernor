@@ -67,7 +67,7 @@ type RoundsPolicy struct {
 	FoodReserveDays                               float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
 	WoodMin, WoodTarget, WoodMax                  int64
-	// ChopMinGrowth (#2292) is the growth fraction a plantation tree must
+	// ChopMinGrowth is the growth fraction a plantation tree must
 	// reach before chop selection offers it; 0 offers every harvestable one.
 	// Wild trees ignore it.
 	ChopMinGrowth float64
@@ -75,7 +75,7 @@ type RoundsPolicy struct {
 	// may sit unresolved before RoundsAcquisitionPlanner abandons it and lets
 	// a fresh SelectAcquisition pass propose something else. Native's own
 	// HuntingSafety.RouteSafe guard can repeatedly interrupt the shared game
-	// clock while a hunter's route stays unsafe (issue #1); that guard stays
+	// clock while a hunter's route stays unsafe; that guard stays
 	// fully authoritative, but without this grace the stuck action reads as
 	// open work forever and blocks the planner from ever trying a different
 	// prey or a non-hunt source. It counts from the last observation, and a
@@ -87,9 +87,9 @@ type RoundsPolicy struct {
 	// acquisition may stay designated with its effect pending (no colonist
 	// has taken the designation) before the acquisition and medical
 	// planners cancel it so the goal re-plans from another source instead
-	// of waiting on one plant (#291: wild healroot pending 120k ticks).
+	// of waiting on one plant (wild healroot pending 120k ticks).
 	AcquisitionStallTicks int64
-	// ConcernStallTicks bounds how long a goal's progress record (#629) may go
+	// ConcernStallTicks bounds how long a goal's progress record may go
 	// without native evidence advancing its expected observable before
 	// ExpireGoalProgress rotates the method (or keys the failed situation
 	// out with a cooldown): GoalProgressContract's default contract and the
@@ -105,7 +105,7 @@ type RoundsPolicy struct {
 	// rung is reached through ResearchPrerequisiteQueue like a target, a
 	// current native project is respected and recovers the goal, and the
 	// planner lends the clock ticks while one is current so the rung
-	// finishes on its own (issue #230).
+	// finishes on its own.
 	ResearchLadder []string
 	// PrisonerReleaseAfterDays is how long MaintainPopulation feeds a
 	// prisoner it has no use for (not worth recruiting, not enslavable)
@@ -113,13 +113,13 @@ type RoundsPolicy struct {
 	// (default 15 days); below the target it releases at once. See
 	// PrisonerPolicy.
 	PrisonerReleaseAfterDays float64
-	// DefensiveLayout is an operator-declared opt-in for EnsureDefensiveLayout
-	// (issue #5): the staged chokepoint/firing-line/funnel/trap-corridor
+	// DefensiveLayout is an operator-declared opt-in for EnsureDefensiveLayout:
+	// the staged chokepoint/firing-line/funnel/trap-corridor
 	// construction RoundsDefenseLayoutPlanner proposes from a fresh native
 	// defense-site census. It is config-only: the review does not derive layout completeness from a
 	// census, the planner decides per tier from its own admitted plans.
 	DefensiveLayout bool
-	// Stage holds the colony stage thresholds (#630); zero fields take the
+	// Stage holds the colony stage thresholds; zero fields take the
 	// defaults RoundsPolicy.Stages derives from the food thresholds.
 	Stage ColonyStagePolicy
 	// ColonyStage is the stage the last review left (StageRoundsPolicy):
@@ -195,31 +195,31 @@ const maxResourceTarget = 10000
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoundsFacts struct {
-	// PersonalShares are the colonists' personal wealth shares (#1846) the
-	// elective surgery gate reads (#1843); nil is ungated, a live reading
+	// PersonalShares are the colonists' personal wealth shares the
+	// elective surgery gate reads; nil is ungated, a live reading
 	// always sets it (an empty map gates every colonist).
 	PersonalShares map[PawnID]PersonalShare `json:",omitzero"`
 	// Items are the catalog's item numbers (market value, nutrition,
 	// medical potency, stuff factors); the zero value without a catalog.
 	Items ItemFacts `json:",omitzero"`
-	// Recipes are the recipe rows' derived facts (#1721): the stuff-made part
+	// Recipes are the recipe rows' derived facts: the stuff-made part
 	// installs peg-leg cycling plans around.
 	Recipes RecipeFacts `json:",omitzero"`
 	// VetRoom is the layout's vet room; unread (the zero value) until
 	// the layout exposes it, which keeps sterilize off.
 	VetRoom VetRoom
-	// BarnArea is the id of the bot-owned Barn allowed area (#1869), "" until
+	// BarnArea is the id of the bot-owned Barn allowed area, "" until
 	// a standing barn has created it.
 	BarnArea domain.Fact[string]
 	// CompanionArea and WildArea are the ids of the bot-owned Companion and
-	// Wild allowed areas (#2234), "" until created.
+	// Wild allowed areas, "" until created.
 	CompanionArea, WildArea domain.Fact[string]
-	// PaddockClosed is the plan's ring closed around the yard (#2233, fed
+	// PaddockClosed is the plan's ring closed around the yard (fed
 	// from the runtime's paddockClosed); unknown leaves animal areas alone.
 	PaddockClosed domain.Fact[bool]
 	FoodPlan      domain.Fact[FoodPlan]
 	FoodReserve   domain.Fact[FoodReserveReview]
-	// BabyFeeding is the babies' food review (#1681); unknown without
+	// BabyFeeding is the babies' food review; unknown without
 	// Biotech baby care or consumer facts.
 	BabyFeeding          domain.Fact[BabyFeeding]
 	TradeMealIngredients domain.Fact[[]FoodIngredientSlot]
@@ -227,7 +227,7 @@ type RoundsFacts struct {
 	RecoverySafety       domain.Fact[RecoverySafety]
 	RecoveryWorkers      domain.Fact[[]RecoveryWorker]
 	DisasterConditions   domain.Fact[[]DisasterCondition]
-	// OutdoorsDark is the colony biome's permanent darkness (#1712): its map
+	// OutdoorsDark is the colony biome's permanent darkness: its map
 	// conditions include a no-sunlight class.
 	OutdoorsDark        domain.Fact[bool]
 	RecoveryBuildings   domain.Fact[[]RecoveryBuilding]
@@ -247,10 +247,10 @@ type RoundsFacts struct {
 	BillReservations  domain.Fact[[]IngredientReservation]
 	Sleeping          domain.Fact[SleepingObservation]
 	SleepingRecovered domain.Fact[bool]
-	// BedroomsOwed: a planned individual bedroom step is due (#786); it
+	// BedroomsOwed: a planned individual bedroom step is due; it
 	// keeps MaintainHousing open once everyone owns a shelter bed.
 	BedroomsOwed domain.Fact[bool]
-	// BurialOwed: a tomb (#832), grave (#2196) or morgue (#1820) step is due; it keeps
+	// BurialOwed: a tomb, grave or morgue step is due; it keeps
 	// MaintainBurial open while a corpse waits on one.
 	BurialOwed domain.Fact[bool]
 	// IncinerationOwed: the waste yard or incinerator shell, a due burn or
@@ -260,50 +260,50 @@ type RoundsFacts struct {
 	// join MaintainRefrigeration's rooms.
 	WarmRooms domain.Fact[[]string]
 	// MealClosetOwed: the planned meal closet waits to be shelled while its
-	// dining room stands (#936); it keeps MaintainRefrigeration open.
+	// dining room stands; it keeps MaintainRefrigeration open.
 	MealClosetOwed domain.Fact[bool]
-	// CampfireRetireOwed: a stove kitchen supersedes a cooking campfire (#1179); it keeps EnsureCooking open.
+	// CampfireRetireOwed: a stove kitchen supersedes a cooking campfire; it keeps EnsureCooking open.
 	CampfireRetireOwed domain.Fact[bool]
 	// TemperatureOwed: a heat campfire's auto-refuel should switch, or a
 	// sleeping room sits unheated below its sleepers' comfort minimum
-	// (TemperatureOwed, #1180/#1199); it holds EnsureTemperatureSafety open.
+	// (TemperatureOwed); it holds EnsureTemperatureSafety open.
 	TemperatureOwed domain.Fact[bool]
 	// SculptureRoomsOwed: a bedroom below target, weakest in beauty, has a
-	// free cell for a sculpture (SculptureRoomsOwed, #1190); with a
+	// free cell for a sculpture (SculptureRoomsOwed); with a
 	// qualifying artist it holds MaintainArt open.
 	SculptureRoomsOwed domain.Fact[bool]
 	// StaleBills are the bills whose owner stayed Met for StaleBillReviews
-	// reviews (#2411); assess files that owner Unmet so its planner removes them.
+	// reviews; assess files that owner Unmet so its planner removes them.
 	StaleBills []StaleBill `json:",omitempty"`
 	// SafeAreaOwed: the Safe allowed area differs from the enclosed roofed
-	// rooms (PlanSafeArea, #1325); it holds MaintainShelter open. Unknown
+	// rooms (PlanSafeArea); it holds MaintainShelter open. Unknown
 	// unless the MaintainShelter method is composed.
 	SafeAreaOwed domain.Fact[bool]
 	// FirebreakOwed: the firebreak ring has a cut cell with a standing
-	// plant or an undesignated wooden ruin (FirebreakOwed, #1548); it holds
+	// plant or an undesignated wooden ruin (FirebreakOwed); it holds
 	// MaintainFirebreak open. Unknown unless the method is composed.
 	FirebreakOwed domain.Fact[bool]
 	// MechGestationOwed: a mechanitor can afford the next mech, a gestator
-	// is idle and no waste is uncleared (MechGestationOwed, #1686); it holds
+	// is idle and no waste is uncleared (MechGestationOwed); it holds
 	// MaintainMechs open. Unknown unless the method is composed.
 	MechGestationOwed domain.Fact[bool]
-	// HerdRoomsOwed: a barn or vet room step is due (NextHerdStep, #1633);
+	// HerdRoomsOwed: a barn or vet room step is due (NextHerdStep);
 	// it holds MaintainAnimalContainment open after the pen stands.
 	HerdRoomsOwed domain.Fact[bool]
 	// PsylinkOwed: a willing colonist has no psylink and a psylink
-	// neuroformer is held (PsylinkOwed, #1609); it holds MaintainPsylink
+	// neuroformer is held (PsylinkOwed); it holds MaintainPsylink
 	// open. Unknown unless the method is composed.
 	PsylinkOwed domain.Fact[bool]
 	// CreepJoinerOwed: a creepjoiner whose downside has not shown holds a
-	// weapon (CreepJoinerDownsides.WeaponDrops, #1740); it holds
+	// weapon (CreepJoinerDownsides.WeaponDrops); it holds
 	// ManageCreepJoiners open. Unknown unless the method is composed.
 	CreepJoinerOwed domain.Fact[bool]
 	// RolesOwed: an active ideoligion role has a free place and a fitting
-	// believer (RolesOwed, #1661); it holds MaintainIdeoRoles open.
+	// believer (RolesOwed); it holds MaintainIdeoRoles open.
 	RolesOwed domain.Fact[bool]
 	// RitualSites are the finished buildings the held rituals' patterns
 	// require (observation, from the frame's building census); RitualPlans
-	// the rituals to begin now (PlanRituals, #1660), whose attendees the
+	// the rituals to begin now (PlanRituals), whose attendees the
 	// schedule planners hold off Sleep (HeldOffSleep); RitualsOwed holds
 	// MaintainRituals open. Unknown unless the method is composed.
 	RitualSites domain.Fact[[]RitualSite]
@@ -311,7 +311,7 @@ type RoundsFacts struct {
 	RitualsOwed domain.Fact[bool]
 	ReformOwed  domain.Fact[bool]
 	// ShelterArea is the Safe allowed area's native load id, "" when the
-	// map has none (PlanSheltering, #1326).
+	// map has none (PlanSheltering).
 	ShelterArea domain.Fact[string]
 	// ShelterCombatants is the squad's draft set during a threat: the
 	// colonists a raid or manhunter pack does not shelter. Unknown shelters
@@ -320,21 +320,21 @@ type RoundsFacts struct {
 	// NoDangerArea is the NoDanger allowed area's native load id, ""
 	// when the map has none; DangerWindow whether haulers are kept out of
 	// the danger cells now (DangerWindowOf); DangerHaulers the pawns with
-	// Hauling enabled (#1327); DangerSeeds the threat census's danger seeds
-	// (DangerSeeds, #1802), unknown with the hostile count.
+	// Hauling enabled; DangerSeeds the threat census's danger seeds
+	// (DangerSeeds), unknown with the hostile count.
 	NoDangerArea  domain.Fact[string]
 	DangerSeeds   domain.Fact[[]domain.Cell]
 	DangerWindow  domain.Fact[bool]
 	DangerHaulers domain.Fact[[]PawnID]
 	// IsolationArea is the Isolation allowed area's native load id, "" when
-	// the map has none (ManageCreepJoiners, #1740).
+	// the map has none (ManageCreepJoiners).
 	IsolationArea domain.Fact[string]
 	// SaleArt counts the packed art no owed room reserves (SaleSculptures);
 	// read only while the wealth headroom is negative, it opens a trade as
-	// the shed_art need (#1247).
+	// the shed_art need.
 	SaleArt domain.Fact[int64]
 	// FabricableParts are the part items a usable gear bench has a researched
-	// recipe for, read only while a medical pawn wants a part (#1255); the
+	// recipe for, read only while a medical pawn wants a part; the
 	// caravan assessment counts only parts no bench can make.
 	FabricableParts   map[Resource]bool
 	AnimalUpkeep      AnimalUpkeepObservation
@@ -355,12 +355,12 @@ type RoundsFacts struct {
 	// uses, broadened past prisoners alone so RoundsPopulationCustodyPlanner
 	// can detect and select a downed hostile or unadmitted guest to dispatch.
 	Custody domain.Fact[[]CustodyFacts]
-	// Containment is the containment cell's inputs (#1741) and the entity
-	// rows the capture rule decides (#1742), set by the routine reading.
+	// Containment is the containment cell's inputs and the entity
+	// rows the capture rule decides, set by the routine reading.
 	Containment ContainmentPlanning
-	// Outlook is the same population read's storyteller outlook (#1031).
+	// Outlook is the same population read's storyteller outlook.
 	Outlook PopulationOutlook
-	// OwnedNames is the same read's owned-pawn short-name census (#1310).
+	// OwnedNames is the same read's owned-pawn short-name census.
 	OwnedNames domain.Fact[[]OwnedName]
 	// QuestOffers carries MaintainPopulation's joiner census: every visible
 	// quest row (rimgovernor/observations_read_world_progression), read per
@@ -368,30 +368,30 @@ type RoundsFacts struct {
 	// to detect and SelectJoinerMethod to answer a joiner offer from.
 	QuestOffers domain.Fact[[]JoinerOffer]
 	QuestSites  domain.Fact[[]WorldSite]
-	// Royalty is the royalty facts (#1599) from the pawn rows, the def mirror
+	// Royalty is the royalty facts from the pawn rows, the def mirror
 	// and the colony section; unknown when Royalty is not applicable or a read
 	// failed.
 	Royalty domain.Fact[RoyaltyFacts]
-	// Ideology is the primary ideoligion (#1654) from the frame's ideology
+	// Ideology is the primary ideoligion from the frame's ideology
 	// section with the catalog's defs; unknown when the frame carries no
 	// section (no Ideology, or no primary ideoligion).
 	Ideology domain.Fact[Ideoligion]
-	// IdeologyInstalled is whether the Ideology expansion is active (#1922);
+	// IdeologyInstalled is whether the Ideology expansion is active;
 	// unknown when the frame does not say.
 	IdeologyInstalled domain.Fact[bool]
 	// TitleClaimQuests are the bestowing-ceremony quests the title claim
-	// gate allows to accept now (ClaimQuests, #1605); the review fills it
+	// gate allows to accept now (ClaimQuests); the review fills it
 	// once the plan, rooms and royalty read are known.
 	TitleClaimQuests []domain.QuestID
 	JoinerLetters    domain.Fact[[]JoinerLetterOffer]
 	RaidPoints       domain.Fact[float64]
-	// Monolith is the void monolith's state (#2437); unknown without Anomaly.
+	// Monolith is the void monolith's state; unknown without Anomaly.
 	Monolith domain.Fact[MonolithFacts]
-	// ShellsShort is the armory shell review (#1207): a built mortar's shell
+	// ShellsShort is the armory shell review: a built mortar's shell
 	// stock below half its target puts MaintainEquipment in deficit.
 	ShellsShort domain.Fact[bool]
 	// DefenseCapacity is the colonists' and powered turrets' observed
-	// combat strength in raid-point units (#1188, DefenseCapacity).
+	// combat strength in raid-point units (DefenseCapacity).
 	DefenseCapacity domain.Fact[float64]
 	// Waste carries the exposed/eligible native item census (the same
 	// WasteReply the generic per-tick colony read already carries) that
@@ -401,23 +401,23 @@ type RoundsFacts struct {
 	// needs; a source without the read leaves it unknown and the goal off.
 	Traders domain.Fact[[]TraderFacts]
 	// Blight carries RemoveBlight's blighted-plant census (the colony read's
-	// plant things of the planning window, #2272), for BlightDeficit to detect and
+	// plant things of the planning window), for BlightDeficit to detect and
 	// SelectBlightCuts to designate from.
 	Blight domain.Fact[[]BlightedPlant]
 	// Pollution carries ManagePollution's wastepack verdicts and the polluted
-	// cells outside the clear area (the Biotech colony section, #1679); unknown
+	// cells outside the clear area (the Biotech colony section); unknown
 	// without Biotech or when the read failed, and then the need is unknown.
 	Pollution domain.Fact[PollutionFacts]
 	// MechChargerOwed is whether the colony owes one more mech charger
-	// (MechChargerNeed, #1688); unknown without Biotech, mechs or chargers
+	// (MechChargerNeed); unknown without Biotech, mechs or chargers
 	// read, and then the EnsureMechCharger need is unknown.
 	MechChargerOwed domain.Fact[bool]
 	// GeneBankOwed is whether more genepacks lie loose than the standing
-	// gene banks have room for (GeneBankNeed, #1933); unknown without
+	// gene banks have room for (GeneBankNeed); unknown without
 	// Biotech or a complete gene-building read, and then MaintainGeneBank
 	// has no assessment.
 	GeneBankOwed domain.Fact[bool]
-	// Stockpiles is the MaintainStockpiles review (#725): this cycle's
+	// Stockpiles is the MaintainStockpiles review: this cycle's
 	// stockpile edits and the planned rooms owed a shell, or why none stands.
 	Stockpiles domain.Fact[StockpileReview]
 	// StockpileZones counts the owned stockpile zones by role kind for the
@@ -426,7 +426,7 @@ type RoundsFacts struct {
 	// AvailableMethods is supplied by the configured runtime, never native facts.
 	AvailableMethods domain.Fact[[]ConcernID]
 	Upkeep           UpkeepObservation
-	// ShrineHolds is each Upkeep.Shrines row's breach judgement (#458) as
+	// ShrineHolds is each Upkeep.Shrines row's breach judgement as
 	// the reviewer read it, journalled beside the review; empty while the
 	// census is unknown.
 	ShrineHolds  []ShrineHold
@@ -446,7 +446,7 @@ type RoundsFacts struct {
 	ComfortDeficit       domain.Fact[float64]
 	EventLoot            domain.Fact[[]LootItem]
 	EventLootPending     domain.Fact[bool]
-	LootReadiness        LootReadiness // the loot census's reach readiness (#522)
+	LootReadiness        LootReadiness // the loot census's reach readiness
 	MapBounds            domain.Fact[Bounds]
 	MedicalPawns         domain.Fact[[]CarePawn]
 	MedicalCareRecovered domain.Fact[bool]
@@ -471,7 +471,7 @@ type RoundsFacts struct {
 	// WorkDecaying is the same plan's skills above 10 that no assignment
 	// exercises (WorkDecision.Decaying) and WorkProfiles every work pawn's
 	// typed profile (Profiles); both are presentation facts the review
-	// records for presentation (#448), never planner inputs.
+	// records for presentation, never planner inputs.
 	WorkDecaying                                                               domain.Fact[[]DecayingSkill]
 	WorkProfiles                                                               domain.Fact[[]PawnProfile]
 	Colonists, HousingTarget, BedCapacity, IndoorCapacity, GrowingCells, Armed domain.Fact[int64]
@@ -479,7 +479,7 @@ type RoundsFacts struct {
 	// weapon; EnsureBasicDefense stays owed while it is positive.
 	Unarmed                 domain.Fact[int64]
 	FoodDays, FieldCoverage domain.Fact[float64]
-	// WorkHelp is the same plan's construction helper record (#653);
+	// WorkHelp is the same plan's construction helper record;
 	// nil when the plan ran without the helper input.
 	WorkHelp *ConstructionHelpRecord
 	// Calendar is the tile's native growing calendar (policy.Calendar).
@@ -488,7 +488,7 @@ type RoundsFacts struct {
 	// an unknown calendar keeps the configured flat targets.
 	Calendar                                                    domain.Fact[Calendar]
 	SleepingMin, SleepingMax, OutdoorTemperature, PowerHeadroom domain.Fact[float64]
-	// Forward are the shadow projector inputs the facts above lack (#1913).
+	// Forward are the shadow projector inputs the facts above lack.
 	Forward ForwardObserved `json:",omitzero"`
 	Wood    domain.Fact[int64]
 	// Fuel are the refuelable buildings of the power census (FuelRunway).
@@ -496,7 +496,7 @@ type RoundsFacts struct {
 
 	// Admitted are the open costs of admitted methods, from the last
 	// review's live records: an open shortfall raises a MaintainResource
-	// floor for the bounded difference (#711).
+	// floor for the bounded difference.
 	Admitted []AdmittedCost
 	// OpenBills are the player's unfinished gear bills with their recipe
 	// slots (OpenBillDemand): ingredient demand ResourceDemandOf counts.
@@ -507,13 +507,13 @@ type RoundsFacts struct {
 	Resources          domain.Fact[[]Amount]
 	ResourceSurfaceOre map[Resource]domain.Fact[int64]
 	// ResourceConsumption is the recurring spend over the rate window, from
-	// native's realized-consumption ring (#2441); unknown when the read failed.
+	// native's realized-consumption ring; unknown when the read failed.
 	ResourceConsumption domain.Fact[ResourceConsumption]
 	ResourceRunways     []ResourceRunway
 	// DrugUsers is the colonists whose drug policy permits each social drug
 	// (DrugUsers); it sets the drug runway's reserve before any dose is observed.
 	DrugUsers map[Resource]int64
-	// Wealth is the colony wealth split (#395) TradeWithCaravan's
+	// Wealth is the colony wealth split TradeWithCaravan's
 	// wealth-driven surplus keys on; unknown leaves that surplus out.
 	Wealth domain.Fact[WealthFacts]
 	// Research is the native research state read inside the same paused
@@ -527,7 +527,7 @@ type RoundsFacts struct {
 	ResearchNeeds []string
 	// ResourceNeeds are derived stock floors other goals' recorded evidence
 	// asks for (the defensive layout's turret fuel the census found no
-	// stock of, #205); ResourceGoalTargets merges them into the operator's
+	// stock of); ResourceGoalTargets merges them into the operator's
 	// MaintainResource targets, never lowering a configured floor.
 	ResourceNeeds map[Resource]int64
 	// DefensiveLayoutStanding is journal evidence for EnsureDefensiveLayout:
@@ -545,23 +545,23 @@ type RoundsFacts struct {
 	UrgentPatients                   domain.Fact[int64]
 	AllPatientsResting, CleanupPawns domain.Fact[bool]
 	// HostilityOwed is a colonist whose hostility response differs from
-	// the one it should hold (#1299); EnsureWorkAssignments writes it.
+	// the one it should hold; EnsureWorkAssignments writes it.
 	HostilityOwed domain.Fact[bool]
-	// MedicalCareOwed is a pawn whose medical care differs from its cap
-	// (#1301); Guests are the colony's guests' cap inputs.
+	// MedicalCareOwed is a pawn whose medical care differs from its cap;
+	// Guests are the colony's guests' cap inputs.
 	MedicalCareOwed domain.Fact[bool]
 	Guests          domain.Fact[[]CarePatient]
 	// MedicineCarryOwed is a colonist whose medicine carry count differs
-	// from the planned one (#1307); EnsureWorkAssignments writes it.
+	// from the planned one; EnsureWorkAssignments writes it.
 	MedicineCarryOwed domain.Fact[bool]
 	// SelfTendOwed is a colonist whose self-tend setting differs from the
-	// one it should hold (#1305); EnsureWorkAssignments writes it.
+	// one it should hold; EnsureWorkAssignments writes it.
 	SelfTendOwed domain.Fact[bool]
 	// NamesOwed is an owned pawn whose short name an older owned pawn
-	// holds (#1310); EnsureWorkAssignments renames it.
+	// holds; EnsureWorkAssignments renames it.
 	NamesOwed domain.Fact[bool]
 	// ChoiceDialog is true while the game is force-paused by a choice dialog
-	// it opened by itself (#156); AnswerDialog is the goal that answers it.
+	// it opened by itself; AnswerDialog is the goal that answers it.
 	ChoiceDialog domain.Fact[bool]
 	// ButcherBenches are the standing butcher benches and the room each stands
 	// in; MaintainButcherSpot is recovered once one stands outside the kitchen.
@@ -643,7 +643,7 @@ type RoundsLatches struct {
 	// RefrigerationSince is the review tick the Refrigeration latch last
 	// engaged, kept while it holds and zero when it is released: the
 	// refrigeration planner lends native cooling time from it when the
-	// goal's epoch has no cooler method of its own (#202).
+	// goal's epoch has no cooler method of its own.
 	RefrigerationSince domain.Tick `json:",omitempty"`
 	// Lighting holds the bench IDs MaintainLighting last measured dark.
 	Lighting []string
@@ -654,8 +654,7 @@ type RoundsLatches struct {
 	Food, Cold, Hot, Wood bool
 	Upkeep                UpkeepHistory
 	// Soldiers latches once the gear census derives a soldier role: the
-	// research roadmap then walks the armor ladder (ArmorResearchLadder,
-	// #470) and keeps walking it when the squad is later undrafted.
+	// research roadmap then walks the armor ladder (ArmorResearchLadder ) and keeps walking it when the squad is later undrafted.
 	Soldiers bool `json:",omitempty"`
 	// Housing is the MaintainHousing phase this review left owed
 	// (reviewHousing); empty once housing recovered. The housing planners
@@ -675,15 +674,15 @@ type RoundsFindings struct {
 	Latches  RoundsLatches
 	Concerns []RoundsConcern
 	// Assessments are the Standard and Project needs the review files rows for;
-	// Incidents are the incident kinds' assessments (#1020, #1121).
+	// Incidents are the incident kinds' assessments.
 	Assessments []RoundsAssessment
 	Incidents   []RoundsAssessment
-	// NoOps is every detector that raised nothing, with the typed reason
-	// (#1909), in registry order.
+	// NoOps is every detector that raised nothing, with the typed reason,
+	// in registry order.
 	NoOps []NoOpRecord `json:",omitempty"`
 	// ResourceDemand is the review's one resource-demand value (Needs are
 	// the effective MaintainResource stock targets the review held the census
-	// to; the stock overlay (#825) tints stockpiles by them).
+	// to; the stock overlay tints stockpiles by them).
 	ResourceDemand DerivedDemand
 }
 
@@ -692,7 +691,7 @@ type RoundsFindings struct {
 type RoundsAssessment struct {
 	ID ConcernID
 	// Subject is the pawn a per-pawn Response (EnsureMood) is assessed
-	// for; empty otherwise. (ID, Subject) keys its incident (#1019).
+	// for; empty otherwise. (ID, Subject) keys its incident.
 	Subject  domain.PawnID `json:",omitempty"`
 	Priority int
 	Finding  domain.Finding
@@ -701,13 +700,13 @@ type RoundsAssessment struct {
 	// records the need, but it must not suspend every other goal: with no
 	// method to clear it and the clock held for it, nothing could ever
 	// resume, which parked a power enclosure build behind an unfought
-	// short-circuit fire (#435).
+	// short-circuit fire.
 	MethodUnavailable bool
 	// StaleBill marks a Met owner filed Unmet because a bill it placed went
-	// stale (#2411); the Rounder counts such an owner as Met.
+	// stale; the Rounder counts such an owner as Met.
 	StaleBill bool `json:",omitempty"`
 	// Hunt is the squad prey of an ActiveCombat deficit raised by the food
-	// plan with no hostile standing (#1617): the incident's hunt origin.
+	// plan with no hostile standing: the incident's hunt origin.
 	Hunt []domain.PawnID `json:",omitempty"`
 }
 
@@ -894,7 +893,7 @@ func InspectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Round
 	}
 	r := c.r
 	// Dominant environment thought pressure raises the owning upkeep goal's
-	// deficit to at least the fraction of pawns under it (#255): the goal's
+	// deficit to at least the fraction of pawns under it: the goal's
 	// own census still decides whether it is active and what it builds, so a
 	// recovered owner is not re-raised, and the pawn's EnsureMood incident
 	// defers to it (MoodProvision) instead of dispatching need relief.
@@ -978,7 +977,7 @@ func criticalMedicinePriority(f RoundsFacts) int {
 }
 
 // cookingMet is EnsureCooking's recovery: cooking ready and no cooking
-// campfire owed its retirement (#1179).
+// campfire owed its retirement.
 func cookingMet(f RoundsFacts) domain.Fact[bool] {
 	if positive(f.CampfireRetireOwed) {
 		return domain.Known(false)
@@ -1002,7 +1001,7 @@ const ButcherTableWood int64 = 120
 // butcherSpotMet is MaintainButcherSpot's recovery: a butcher bench stands
 // that does not share a room with a cooking bench. A butcher bench inside
 // the kitchen keeps the colony fed but not clean, so the goal stays open for
-// a separate table (#2266), wanted whatever the food runway because hunts and
+// a separate table, wanted whatever the food runway because hunts and
 // hides are processed on it.
 func butcherSpotMet(f RoundsFacts) domain.Fact[bool] {
 	benches, known := f.ButcherBenches.Value()

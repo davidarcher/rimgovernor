@@ -1,5 +1,5 @@
 // Package postmortem builds the digest `acceptance why` prints for a failed
-// case (#278): the manual sequence every diagnosis started with, read from
+// case: the manual sequence every diagnosis started with, read from
 // the case's own evidence in a fixed order. Each line names the file and
 // row it came from so the digest is checkable, not a verdict.
 //
@@ -122,7 +122,7 @@ func (d Digest) Write(w io.Writer) error {
 
 // revision compares the run binary's source revision (the installed
 // package manifest on the report) with main: a failure already fixed on
-// main is the cheapest diagnosis there is (#212).
+// main is the cheapest diagnosis there is.
 func revision(ctx context.Context, report map[string]any) Section {
 	s := Section{Name: "revision"}
 	pkg, _ := report["installed_package"].(map[string]any)
@@ -379,7 +379,7 @@ func dispatchRefusal(row flightRow) (string, bool) {
 // nativeCallRefusal reads a native_call row that failed: a transport or
 // refusal error (the text the native side gave, when it gave one), or a
 // reply carrying a {"failure":{"code":...}} payload, a refusal the native
-// side answered rather than raised (#677).
+// side answered rather than raised.
 func nativeCallRefusal(row flightRow) (string, bool) {
 	if !bridge.IsNativeReply(row.rec.Kind) {
 		return "", false
@@ -626,7 +626,7 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("standard %s deficit/open priority %d episode %d: %d live methods", id, goal.Priority, goal.Episode, methods), Evidence: "service.sqlite standards#" + id})
 	}
 	rows.Close()
-	// Projects (#1911) are their own rows: an open Project in deficit with
+	// Projects are their own rows: an open Project in deficit with
 	// no live method is the same symptom.
 	projects, err := db.QueryContext(ctx, "SELECT p.id, p.payload, (SELECT count(*) FROM project_methods m JOIN plans pl ON pl.id=m.plan_id WHERE m.project_id=p.id AND pl.retired=0) FROM projects p WHERE p.retired=0")
 	if err != nil {
@@ -740,8 +740,8 @@ func unsuccessfulStages(ctx context.Context, db *sql.DB, note string) Section {
 
 // jobFailures lists the Worker outcome rows that failed (verdict failed, or
 // an error text): the native refusal or contract failure a pawn order
-// carried (#189), and the pooled-job mismatch a completed order raised when
-// the native record read a pooled Job (#108), grouped by text with a count.
+// carried, and the pooled-job mismatch a completed order raised when
+// the native record read a pooled Job, grouped by text with a count.
 func jobFailures(rows []flightRow) Section {
 	s := Section{Name: "native job failures"}
 	lines := groupRows(rows, func(row flightRow) (string, bool) {
@@ -791,7 +791,7 @@ func authorityMovement(row flightRow) (string, bool) {
 // each distinct Snapshot.Native across transitions in sequence order, the
 // authority rows (changed, lost, retaken) and the Rounder steps that failed
 // on a lost control, and the report's own reacquisition count. A thrashing
-// generation (#119, #213) invalidates every open attempt.
+// generation invalidates every open attempt.
 func authorityGenerations(ctx context.Context, db *sql.DB, note string, rows []flightRow, report map[string]any) Section {
 	s := Section{Name: "authority generations"}
 	if v, ok := report["authority_reacquisitions"]; ok {

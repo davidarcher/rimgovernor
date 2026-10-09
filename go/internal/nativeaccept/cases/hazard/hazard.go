@@ -1,8 +1,8 @@
 // The hazard/* cases prove the supervisor's declared detection bounds
-// (#626, docs/developers/architecture/hazard-detection-bounds.md): each
+// (docs/developers/architecture/hazard-detection-bounds.md): each
 // injects one hazard class into a clock window running at Ultrafast, the
 // speed that carries the most ticks per frame, and asserts the stop's
-// detect_ticks (detected_tick less occurrence_tick, #621) and the gap from
+// detect_ticks (detected_tick less occurrence_tick) and the gap from
 // the injection tick to the detection both lie within the class's bound.
 // The letter case delivers through the real LetterStack callback
 // (test/deliver_letter); the others use test/hazard_inject.
@@ -31,15 +31,15 @@ const (
 	// detection is measured under a moving clock, never at the start
 	// baseline.
 	settleTicks = 300
-	// injurySeverityFloorTicks mirrors Supervisor.InjurySeverityFloorTicks
-	// (#584): a wound whose bleed-out lands inside it still stops the
+	// injurySeverityFloorTicks mirrors Supervisor.InjurySeverityFloorTicks:
+	// a wound whose bleed-out lands inside it still stops the
 	// window, so the demoted case fails if its injection ever grows into
 	// one. 0 on the wire means the pawn is not bleeding out at all.
 	injurySeverityFloorTicks = 5000
 )
 
 // hazardCase is one class: how it is injected and the stop it must raise,
-// or -- for a demoted tier (#584) -- the journal wake it must raise instead
+// or -- for a demoted tier -- the journal wake it must raise instead
 // while the window runs on.
 type hazardCase struct {
 	name    string
@@ -276,7 +276,7 @@ func run(ctx context.Context, s cases.Session, hc hazardCase) error {
 	return nil
 }
 
-// runDemoted proves a tier the supervisor no longer stops for (#584): the
+// runDemoted proves a tier the supervisor no longer stops for: the
 // hazard is detected within the class's bound and published as an
 // observation_invalidated wake naming the pawn families, and the window
 // keeps running -- the review the stop used to buy, without the

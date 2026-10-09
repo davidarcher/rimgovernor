@@ -18,7 +18,7 @@ import (
 )
 
 // Every result.json carries a flat "metrics" block of numbers under stable
-// names (issue #297), so a run's cost is comparable across runs without
+// names, so a run's cost is comparable across runs without
 // reading the nested report: the timing fields, the wait statistics, the
 // native round trips of every flight recording under the output directory
 // (flight.jsonl and each restart's service-N/flight.jsonl), the service
@@ -143,7 +143,7 @@ func (t *recordingTotals) fill(m Metrics) {
 		m["native_exec_ms_mean"] = t.execute / float64(t.timed)
 	}
 	// The share of the sampled wall time the game stood still between
-	// clock windows (#266), time-weighted across every recording.
+	// clock windows, time-weighted across every recording.
 	if t.sampled > 0 {
 		m["paused_fraction"] = t.paused / t.sampled
 	}
@@ -217,7 +217,7 @@ func MetricsOf(r map[string]any) (Metrics, bool) {
 
 // SeriesRow is one line of the append-only series: which case, which run
 // (RunID names the run's output directory), what source it ran from, on
-// which world seed (the report's world block, #281), when, whether it
+// which world seed (the report's world block), when, whether it
 // passed and its block.
 type SeriesRow struct {
 	Case           string    `json:"case"`
@@ -232,7 +232,7 @@ type SeriesRow struct {
 // FlakeWindow is how many prior rows of a case its flake rate spans.
 const FlakeWindow = 10
 
-// Flake is a case's recent pass record over the series (#281): the share
+// Flake is a case's recent pass record over the series: the share
 // of its last FlakeWindow runs that failed, whatever the reason. A rate
 // strictly between 0 and 1 is a case that passes and fails on the same
 // code; the suite prints it beside a failed or flagged row so a known
@@ -336,7 +336,7 @@ func ReadSeries(path string) ([]SeriesRow, error) {
 // DriftRule says when a metric's value has drifted from its trailing
 // median: past Ratio times the median and Floor over it (Lower: below
 // Ratio times the median and Floor under it, for a metric where less is
-// worse). The floor keeps a tiny median from flagging noise (#176).
+// worse). The floor keeps a tiny median from flagging noise.
 type DriftRule struct {
 	Ratio float64
 	Floor float64

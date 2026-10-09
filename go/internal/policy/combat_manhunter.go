@@ -8,12 +8,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TacticManhunter is a manhunter pack's own formation (#898): a fight whose
+// TacticManhunter is a manhunter pack's own formation: a fight whose
 // live hostiles are all manhunter animals picks it instead of the generic
 // squad fallback.
 const TacticManhunter CombatTactic = "manhunter"
 
-// Manhunter classification constants (#898).
+// Manhunter classification constants.
 const (
 	// colonistMoveSpeed is a baseline colonist's MoveSpeed, cells/s; an
 	// animal slower than it is kitable.
@@ -23,9 +23,9 @@ const (
 	exploderRadius = 6.0
 )
 
-// AnimalClass is one manhunter's classification (#898).
+// AnimalClass is one manhunter's classification.
 type AnimalClass struct {
-	// Slow is an animal slower than a colonist: kitable (#901). Unknown
+	// Slow is an animal slower than a colonist: kitable. Unknown
 	// speed is not slow.
 	Slow bool
 	// Exploder explodes on death (boomalope, boomrat): never melee-blocked,
@@ -42,7 +42,7 @@ func classifyAnimal(s CombatPawnState) AnimalClass {
 }
 
 // ManhunterPack reports a fight whose live hostile pawns (at least one) are
-// all known manhunter animals or melee-only entities and mutants (#1739): a
+// all known manhunter animals or melee-only entities and mutants: a
 // pack that charges in is fought alike whatever it is.
 func ManhunterPack(view CombatView) bool {
 	down := downPawns(view)
@@ -110,11 +110,11 @@ func nearExploders(view CombatView) map[domain.PawnID]bool {
 	return out
 }
 
-// manhunterFormation is the manhunter tactic's roles (#898). The hold
+// manhunterFormation is the manhunter tactic's roles. The hold
 // refuses an animal and squad defense mirrors its weapon (none, so it
 // would send riflemen into melee), so the pack gets its own: every armed
 // gunner shoots, from the layout's firing cells (and the game's covered
-// cells) when there is a layout; brawlers take #864's blocking duties when
+// cells) when there is a layout; brawlers take blocking duties when
 // the choke is blocked, and otherwise engage in melee. No melee role holds
 // an exploder as its target.
 func manhunterFormation(view CombatView, geometry GeometryReply, relieved []domain.PawnID) []CombatRole {
@@ -164,7 +164,7 @@ func manhunterFormation(view CombatView, geometry GeometryReply, relieved []doma
 	}
 	var duties []CombatRole
 	if chokes := waveChokes(view); len(chokes) > 0 {
-		// A psychic wave blocks every door it approaches (#899).
+		// A psychic wave blocks every door it approaches.
 		duties = waveBlockers(chokes, rotated(brawlers(rest), relieved))
 	} else {
 		duties = brawlerRoles(view, rest, blocking, geometry, relieved)

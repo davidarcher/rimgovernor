@@ -335,7 +335,7 @@ func TestFlightRecorderCapturesRequestResponseAndError(t *testing.T) {
 }
 
 // A call outstanding past slowCallMarker leaves the native_request marker
-// while it runs and a native_call row naming it once it returns (#2057).
+// while it runs and a native_call row naming it once it returns.
 func TestSlowNativeCallWritesInFlightMarker(t *testing.T) {
 	old := slowCallMarker
 	slowCallMarker = 20 * time.Millisecond
@@ -404,15 +404,8 @@ func TestSlowNativeCallWritesInFlightMarker(t *testing.T) {
 	t.Fatalf("no native_call row names an in-flight marker: %v", markers)
 }
 
-// TestConcurrentNativeCallsDoNotCrossTalk fires overlapping native calls from
-// multiple goroutines and asserts each gets back its own distinct payload.
-// This is the regression test for the bridge no longer forcing calls
-// single-flight: bridge.Client.operation used to hard-serialize every native
-// call via a capacity-1 gate, and receiptConnection tracked exactly one
-// pending request/response at a time. Neither GABP (frame-write atomicity
-// only) nor the gabp client (ID-correlated pending requests) require single-flight; this test exercises
-// the two calls actually overlapping in the handler to prove concurrent
-// requests are correlated correctly rather than cross-talking.
+// Overlapping native calls retain ID-correlated replies. Handler synchronization
+// proves concurrent requests receive their own payloads.
 func TestConcurrentNativeCallsDoNotCrossTalk(t *testing.T) {
 	const n = 6
 	release := make(chan struct{})
@@ -468,7 +461,7 @@ func TestConcurrentNativeCallsDoNotCrossTalk(t *testing.T) {
 }
 
 // TestIndependentCallAnsweredWhileLongPollHeld is the deterministic mirror of
-// the gab-dispatch native probe (#227, #617): with one call established
+// the gab-dispatch native probe: with one call established
 // as held in the handler, an independent call is issued and must be answered
 // before the held one is released. The ordering is decided by synchronization
 // (the handler reports entry, the test releases it only after the independent
@@ -519,7 +512,7 @@ func TestIndependentCallAnsweredWhileLongPollHeld(t *testing.T) {
 	}
 }
 
-// TestReattachAfterLostSession is the #87 recovery: once the game connection is gone the
+// TestReattachAfterLostSession checks session recovery: once the game connection is gone the
 // client is disconnected, Reattach dials a fresh process and re-runs the
 // start/connect handshake against the still-running game, and a client
 // closed meanwhile refuses to reattach.
@@ -553,8 +546,7 @@ func TestReattachAfterLostSession(t *testing.T) {
 
 // A refusal names its own cause. The tool name alone identified only the
 // wrapper, so every native refusal read as "bridge read refused:
-// games_call_tool" and nine nightly cases looked like transport faults
-// (#663).
+// games_call_tool" and nine nightly cases looked like transport faults.
 func TestRefusalNamesItsNativeCause(t *testing.T) {
 	for _, tc := range []struct{ structured, want string }{
 		{`{"reason":"No open reachable area for the fixture hut.","success":false}`,
@@ -594,7 +586,7 @@ func TestRefusalNamesItsNativeCause(t *testing.T) {
 // A caller that asked the native side to wait longer than the session's
 // timeout gets the deadline it asked for: food/fishing spent its 60s session
 // budget on a native start it had given 120s and reported the cut
-// as a transport failure (#663).
+// as a transport failure.
 func TestWithCallTimeoutCoversALongNativeWait(t *testing.T) {
 	released := make(chan struct{})
 	s := &testServer{handler: func(ctx context.Context, _ nativeArgument) (*callResult, error) {
@@ -640,8 +632,8 @@ func TestWithCallTimeoutNeverTightensAReadOrOutrunsTheBound(t *testing.T) {
 
 // A hop that throws comes back from the RimBridge host as success:false with
 // message/exception and an operation envelope, no proto/slot (see
-// docs/developers/contracts/bridge-thrown-hop.md, #1887). A typed read must
-// surface that as a named refusal, never as an empty reply (#1888).
+// docs/developers/contracts/bridge-thrown-hop.md). A typed read must
+// surface that as a named refusal, never as an empty reply.
 func TestThrownHopSurfacesAsNamedRefusalOnTypedRead(t *testing.T) {
 	thrown := `{"success":false,"message":"Pawn is gone","exception":"System.InvalidOperationException: Pawn is gone\r\n   at HomeBridge.Read",` +
 		`"operation":{"OperationId":"op_1","Status":3,"Success":false,"Result":null,` +

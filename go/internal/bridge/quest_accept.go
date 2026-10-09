@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// questAcceptAction is the AcceptQuestIntent of one quest acceptance (#942):
+// questAcceptAction is the AcceptQuestIntent of one quest acceptance:
 // the quest, the accepter when the quest requires one, and the reward
 // option; native checks the game's own acceptance rules when it applies.
 func questAcceptAction(action domain.Action) (*o.Action, error) {

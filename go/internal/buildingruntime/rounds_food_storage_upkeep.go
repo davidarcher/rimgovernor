@@ -41,7 +41,7 @@ type RoundsFoodStorageUpkeepSource interface {
 	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error)
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 	// FrameTables carries the things table the colony census's food stocks
-	// reference (#1343) and the catalog their defs resolve against (#1733).
+	// reference and the catalog their defs resolve against.
 	FrameTables(context.Context, *c.Identity) (bridge.Tables, error)
 }
 type RoundsFoodStorageUpkeepPlanner struct {

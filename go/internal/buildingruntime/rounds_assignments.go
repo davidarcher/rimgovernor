@@ -76,7 +76,7 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	}
 	// Open work no longer gates the fresh decision outright: an undispatched
 	// action whose premise moved (what the policy now wants for the pawn) is cancelled below so the goal can
-	// re-plan instead of holding the stale plan forever (#305).
+	// re-plan instead of holding the stale plan forever.
 	var open []store.PlanState
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -189,7 +189,7 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	for _, assignment := range decision.Assignments {
 		pawn := byID[assignment.Pawn]
 		manual, mk := pawn.Manual.Value()
-		// Native flips numbered priorities on at attach (#1276); a pawn still
+		// Native flips numbered priorities on at attach; a pawn still
 		// reading checkbox mode is unknown this round, never written.
 		if _, ck := pawn.Work.Value(); !mk || !ck || !manual {
 			continue
@@ -213,36 +213,36 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		}
 		work = append(work, w)
 	}
-	// Hostility responses (#1299) ride the same goal: one PawnSettingsIntent
+	// Hostility responses ride the same goal: one PawnSettingsIntent
 	// per colonist whose response differs from the one it should hold.
-	// Self-tend (#1305) rides it too.
+	// Self-tend rides it too.
 	settings := policy.HostilityChanges(hostilityRows(pawns), read.Emergency.Threats)
 	settings = append(settings, policy.SelfTendChanges(selfTendRows(pawns))...)
-	// Medicine carry (#1307) too: counts by role, capped above the reserve.
+	// Medicine carry too: counts by role, capped above the reserve.
 	reserve, err := policy.ReviewMedicalReserve(read.Projection.Facts.MedicalReserve, false, r.reviewer.policy.MedicalReserve)
 	if err != nil {
 		return RoundsWorkResult{}, err
 	}
 	settings = append(settings, policy.MedicineCarryChanges(policy.MedicineCarryRows(pawns), reserve.Stock, reserve.Target)...)
-	// Unique short names (#1310): a newer owned pawn holding an older
+	// Unique short names: a newer owned pawn holding an older
 	// one's short name is renamed from its own name bank.
 	if names, ok := read.Projection.Facts.OwnedNames.Value(); ok {
 		settings = append(settings, policy.NicknameChanges(names)...)
 	}
-	// Medical care caps (#1301) ride it too: colonists, prisoners, guests
+	// Medical care caps ride it too: colonists, prisoners, guests
 	// and animals, at most eight per plan.
 	care := policy.MedicalCareChanges(read.Projection.Facts, r.reviewer.policy.MedicalReserve)
 	if len(care) > 8 {
 		care = care[:8]
 	}
 	settings = append(settings, care...)
-	// Mech control groups and work modes (#1736).
+	// Mech control groups and work modes.
 	mechs, err := roundsMechSettings(read)
 	if err != nil {
 		return RoundsWorkResult{}, err
 	}
 	settings = append(settings, mechs...)
-	// Per-pawn reading policies (#1306): the contents first, then the
+	// Per-pawn reading policies: the contents first, then the
 	// assignment, at most eight pawns per plan.
 	var reading []domain.ReadingPolicy
 	if changes := roundsReadingChanges(read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns); len(changes) > 0 {
@@ -258,7 +258,7 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 			}
 		}
 	}
-	// Per-pawn drug policies (#1537) the same way.
+	// Per-pawn drug policies the same way.
 	var drugs []domain.DrugPolicy
 	if changes := roundsDrugChanges(read.Projection.Facts.Items, read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.Prisoners, read.Projection.Facts.Resources, squad); len(changes) > 0 {
 		if len(changes) > 8 {
@@ -273,7 +273,7 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 			}
 		}
 	}
-	// Per-pawn food policies (#1541) likewise.
+	// Per-pawn food policies likewise.
 	var food []domain.FoodPolicy
 	if changes := roundsDietChanges(read.Projection.Facts.Ideology, read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.FoodReserve); len(changes) > 0 {
 		if len(changes) > 8 {
@@ -315,7 +315,7 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		fmt.Fprintf(hash, "%s/%s\n", w.Pawn(), data)
 		// A timetable is not in Settings(): without it a schedule-only
 		// change repeats an earlier method (a Drowsy extension and its
-		// revert, #1318) and reads as used, so it never applies.
+		// revert) and reads as used, so it never applies.
 		if slots := w.Schedule(); len(slots) > 0 {
 			fmt.Fprintf(hash, "schedule/%q/%d\n", slots, len(goal.Methods))
 		}
@@ -471,7 +471,7 @@ func workActionStale(w domain.WorkAssignment, wanted map[domain.PawnID]domain.Wo
 	return false
 }
 
-// hostilityRows are the work census's hostility inputs (#1299).
+// hostilityRows are the work census's hostility inputs.
 func hostilityRows(pawns []policy.WorkPawn) []policy.HostilityPawn {
 	out := make([]policy.HostilityPawn, 0, len(pawns))
 	for _, p := range pawns {
@@ -480,7 +480,7 @@ func hostilityRows(pawns []policy.WorkPawn) []policy.HostilityPawn {
 	return out
 }
 
-// selfTendRows are the work census's self-tend inputs (#1305).
+// selfTendRows are the work census's self-tend inputs.
 func selfTendRows(pawns []policy.WorkPawn) []policy.SelfTendPawn {
 	out := make([]policy.SelfTendPawn, 0, len(pawns))
 	for _, p := range pawns {
@@ -507,7 +507,7 @@ func hostilityPawns(pawns domain.Fact[[]policy.WorkPawn]) domain.Fact[[]policy.H
 	return domain.Known(hostilityRows(rows))
 }
 
-// roundsReadingChanges is the reading policy planner's input lift (#1306);
+// roundsReadingChanges is the reading policy planner's input lift;
 // none while the policy databases or the owned-pawn names are unknown.
 func roundsReadingChanges(policies domain.Fact[observation.Policies], names domain.Fact[[]policy.OwnedName], pawns []policy.WorkPawn) []policy.ReadingPolicyChange {
 	p, ok := policies.Value()
@@ -522,8 +522,8 @@ func roundsReadingChanges(policies domain.Fact[observation.Policies], names doma
 	return policy.ReadingPolicyChanges(pawns, owned, entries, p.Books)
 }
 
-// roundsDrugChanges is the drug policy planner's input lift (#1537), with
-// the colony item census as drug stock (#1538); none
+// roundsDrugChanges is the drug policy planner's input lift, with
+// the colony item census as drug stock; none
 // while the policy databases or the owned-pawn names are unknown.
 func roundsDrugChanges(items policy.ItemFacts, policies domain.Fact[observation.Policies], names domain.Fact[[]policy.OwnedName], pawns []policy.WorkPawn, prisoners domain.Fact[[]policy.PrisonerFacts], stock domain.Fact[[]policy.Amount], squad policy.SoldierSquad) []policy.DrugPolicyChange {
 	p, ok := policies.Value()
@@ -539,7 +539,7 @@ func roundsDrugChanges(items policy.ItemFacts, policies domain.Fact[observation.
 	return policy.DrugPolicyChanges(items, pawns, held, owned, entries, stock, p.BiomeDiseases, squad)
 }
 
-// roundsDietChanges is the food policy planner's input lift (#1541); none
+// roundsDietChanges is the food policy planner's input lift; none
 // while the policy databases or the owned-pawn names are unknown.
 func roundsDietChanges(ideology domain.Fact[policy.Ideoligion], policies domain.Fact[observation.Policies], names domain.Fact[[]policy.OwnedName], pawns []policy.WorkPawn, reserve domain.Fact[policy.FoodReserveReview]) []policy.FoodPolicyChange {
 	p, ok := policies.Value()

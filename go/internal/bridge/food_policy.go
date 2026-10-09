@@ -7,7 +7,7 @@ import (
 )
 
 // foodPolicyAction is the FoodPolicyIntent of one per-pawn food
-// policy (#1541): the label and the allowed food definitions. Native
+// policy: the label and the allowed food definitions. Native
 // checks the definitions are foods when it applies (NativeFoodPolicy.cs).
 func foodPolicyAction(action domain.Action) (*op.Action, error) {
 	v, ok := action.FoodPolicy()

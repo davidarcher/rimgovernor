@@ -1,5 +1,5 @@
 // Package snapshot records the colony facts a Rounds pass planned
-// against and replays them in go test (#742): a native run (or a
+// against and replays them in go test: a native run (or a
 // checkpoint save served offline) writes testdata, and a test runs the
 // review or a policy planner over it and asserts the chosen goal, method,
 // target or refusal. Re-recording is described in

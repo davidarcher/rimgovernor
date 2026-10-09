@@ -14,12 +14,12 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// tunnelMaxCorridor bounds a corridor-only dig to buried ore (#1074); it
+// tunnelMaxCorridor bounds a corridor-only dig to buried ore; it
 // and the site read stay well inside the 64-cell excavation read.
 const tunnelMaxCorridor = 16
 
 // tunnelMemory remembers, per world and resource, the corridor last sited
-// to a buried deposit (#1124). A sited corridor becomes durable only when
+// to a buried deposit. A sited corridor becomes durable only when
 // its first stage is admitted; a planner cut off before that (an optional
 // planner missing the wave cutoff) would otherwise lose it, and the next
 // review geometry search, bound to a colony window that follows the
@@ -61,7 +61,7 @@ func (m *tunnelMemory) forget(resource policy.Resource) {
 	delete(m.sited, resource)
 }
 
-// tunnelToBuriedOre is MaintainResource's corridor dig (#1074): when no mine
+// tunnelToBuriedOre is MaintainResource's corridor dig: when no mine
 // source could be dispatched directly and the resource's nearest deposit is
 // buried and in resource reach, a corridor-only excavation
 // (policy.CorridorExcavationSites) is driven to it through the
@@ -69,7 +69,7 @@ func (m *tunnelMemory) forget(resource policy.Resource) {
 // the corridor opens, native reports the deposit reachable and the ordinary
 // mine acquisition takes over. A project already under way continues before
 // any new corridor is sited, and so does a sited corridor whose first stage
-// was never admitted (#1124). handled is false when there is no excavation
+// was never admitted. handled is false when there is no excavation
 // read, nothing buried in reach, or a finished corridor and no new one.
 func (r *RoundsResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource) (RoundsResourceResult, bool, error) {
 	source, ok := r.native.(RoundsExcavationSource)

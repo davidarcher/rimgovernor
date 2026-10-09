@@ -9,8 +9,8 @@ import (
 )
 
 // A stream frame carries only the things its re-read sections referenced, so
-// the held pawn rows' primary weapons resolve through the hold's things table
-// (#2353). Tick 1 of lab-base: a rifleman whose pawn row came from the hold
+// the held pawn rows' primary weapons resolve through the hold's things table.
+// Tick 1 of lab-base: a rifleman whose pawn row came from the hold
 // while the frame's own things table held nothing read as an unknown weapon,
 // and the hold refused "no eligible ranged defender among 6".
 func TestCombatFrameResolvesHeldPrimaryWeapons(t *testing.T) {

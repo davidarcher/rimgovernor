@@ -7,7 +7,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// BiotechColony is the Biotech colony section (#1679): pollution makers and
+// BiotechColony is the Biotech colony section: pollution makers and
 // removers, wastepack stacks, mech gestators and chargers, and baby care. An
 // absent scalar is unknown, never zero; a Fact for the whole section is
 // unknown without Biotech or when the read failed.
@@ -16,7 +16,7 @@ type BiotechColony struct {
 	PollutableCells domain.Fact[uint32]
 	ClearAreaID     domain.Fact[string]
 	ClearAreaCells  domain.Fact[int32]
-	// PollutedCells and PollutedUncoveredCells count the polluted pollutable cells, and those outside the clear area (#1683).
+	// PollutedCells and PollutedUncoveredCells count the polluted pollutable cells, and those outside the clear area.
 	PollutedCells, PollutedUncoveredCells domain.Fact[uint32]
 	Polluters                             []Polluter
 	Wastepacks                            []Wastepack
@@ -26,7 +26,7 @@ type BiotechColony struct {
 	Chargers                              []MechCharger
 	Babies                                []BabyCare
 	Breastfeeders                         []string
-	// Gene-building rows (#1930). Genes are GeneDef defNames; the totals are the game's own GeneSet values.
+	// Gene-building rows. Genes are GeneDef defNames; the totals are the game's own GeneSet values.
 	GeneBanks      []GeneBank
 	GeneAssemblers []GeneAssembler
 	GeneExtractors []GeneExtractor
@@ -84,7 +84,7 @@ type Xenogerm struct {
 	TargetPawnID domain.Fact[string]
 	Forbidden    domain.Fact[bool]
 	// ImplantMetabolism is the game's metabolism after implanting this
-	// xenogerm, per pawn it may target (#1931), sorted by pawn id.
+	// xenogerm, per pawn it may target, sorted by pawn id.
 	ImplantMetabolism []ImplantMetabolism
 }
 
@@ -230,7 +230,7 @@ func colonyBiotech(section *o.BiotechSection) domain.Fact[BiotechColony] {
 }
 
 // MechChargerRows are the section's chargers as the recharge policy reads
-// them (#1688): charging is a mech attached.
+// them: charging is a mech attached.
 func (b BiotechColony) MechChargerRows() []policy.MechCharger {
 	out := make([]policy.MechCharger, 0, len(b.Chargers))
 	for _, c := range b.Chargers {
@@ -266,7 +266,7 @@ func MechChargerDefs(defs []PlanningDefinition) []PlanningDefinition {
 }
 
 // GeneBankFacts are the section's banks and packs as MaintainGeneBank reads
-// them (#1933): a pack is loose when it has a map position, held when a bank
+// them: a pack is loose when it has a map position, held when a bank
 // names it, unknown when it reports neither.
 func (b BiotechColony) GeneBankFacts() policy.GeneBankFacts {
 	var out policy.GeneBankFacts

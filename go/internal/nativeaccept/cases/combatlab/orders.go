@@ -190,13 +190,13 @@ func runOrders(ctx context.Context, s cases.Session) error {
 	return nil
 }
 
-// issue sends one combat_orders batch through Actions/Apply (#939) and
+// issue sends one combat_orders batch through Actions/Apply and
 // returns its per-order results.
 func issue(ctx context.Context, h *na.Harness, identity map[string]any, action string, orders []any) ([]map[string]any, error) {
 	return na.ApplyCombatOrders(ctx, h, action, identity, action, orders)
 }
 
-// draftAll drafts every pawn through a DraftIntent (#939).
+// draftAll drafts every pawn through a DraftIntent.
 func draftAll(ctx context.Context, h *na.Harness, identity map[string]any, label string, pawns []string) error {
 	for i, id := range pawns {
 		if _, err := na.ApplyDraft(ctx, h, fmt.Sprintf("%s-%d", label, i), identity, fmt.Sprintf("%s-%s", label, id), id, true); err != nil {

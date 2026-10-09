@@ -81,7 +81,7 @@ func TestReadTallyCountsPerStepAndSummarizes(t *testing.T) {
 }
 
 // The schema fetch before a tool's first call is a session cost, tallied
-// apart from the step's reads (issue #180).
+// apart from the step's reads.
 func TestReadTallyCountsSchemaFetchesApart(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(pbLoaded()), nil

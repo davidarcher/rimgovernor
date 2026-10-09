@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
-// The flight recorder records the tech tier once per change (#604): the
+// The flight recorder records the tech tier once per change: the
 // first known reading, then only a different tier; an unknown tier is silent.
 func TestRounderLogsTechTierOncePerChange(t *testing.T) {
 	rows := telemetrytest.Install(t)

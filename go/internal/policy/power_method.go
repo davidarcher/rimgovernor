@@ -391,7 +391,7 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 		// every ordinary conduit its route crosses is already contiguous with
 		// the live producer: the new cells are HiddenConduit, so connecting
 		// adds no zzztt exposure and the consumer does not wait out the
-		// upgrade plans (#698).
+		// upgrade plans.
 		if p, ok := connectLiveBeforeUpgrade(v, existing, unsafeSeen, route); ok {
 			return p, nil
 		}
@@ -738,7 +738,7 @@ func powerMethodKey(prefix, identity string) domain.MethodID {
 
 // powerRouteBound caps the cells one route search visits: enough to reach a
 // geyser GeothermalReachCells away across open ground, or to cross a
-// map-wide perimeter interior to a moisture pump (#1330).
+// map-wide perimeter interior to a moisture pump.
 const powerRouteBound = 1 << 17
 
 // The generator-to-consumer order allows successive eight-cell methods to

@@ -11,7 +11,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The AcceptQuestIntent arm of Actions/Apply (#942): accept one visible
+    // The AcceptQuestIntent arm of Actions/Apply: accept one visible
     // quest offer under the game's own acceptance rules. An immediate settings
     // write with no native job: Quest.Accept (and a single choice part's
     // Choose) takes effect now or not at all. A quest already accepted is

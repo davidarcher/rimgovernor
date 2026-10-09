@@ -13,7 +13,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The FormCaravanIntent arm of Actions/Apply (#942): form and send one
+    // The FormCaravanIntent arm of Actions/Apply: form and send one
     // crew with its cargo toward a world tile through the game's own
     // Dialog_FormCaravan calculation, without opening the window.
     // TryFormAndSendCaravan starts a LordJob_FormAndSendCaravan that gathers

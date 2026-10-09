@@ -18,7 +18,7 @@ type FreeSiteRequest struct {
 }
 
 // FreeSites returns a bounded, deterministically ordered list of width x height
-// candidate rectangles nearest the colony anchor (a plain grave's 1x2, #857).
+// candidate rectangles nearest the colony anchor (a plain grave's 1x2).
 // It is a proposal only: native placement previews still decide legality.
 // Missing or unknown cells are never treated as free.
 func FreeSites(r FreeSiteRequest, width, height int32) ([]Rectangle, error) {

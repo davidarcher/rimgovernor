@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The SUBDUE pawn order (#939): a colonist beats a standing colonist in
+    // The SUBDUE pawn order: a colonist beats a standing colonist in
     // an aggressive mental break down with blunt melee. Ordinary melee damage
     // applies. This is containment, never execution or custody. The subduer
     // is drafted when it is not; the plan's draft keeps it drafted.

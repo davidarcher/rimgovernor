@@ -23,9 +23,8 @@ func Args(ctx context.Context, h *na.Harness) (map[string]any, error) {
 	return ArgsFor(9)(ctx, h)
 }
 
-// ArgsFor is a Fixture's ArgsFrom for a size x size fixture hut (#700,
-// #709): the south-west corner and door plannedSite puts on the layout
-// plan derived from the loaded game's map survey (#1250), as the
+// ArgsFor is a Fixture's ArgsFrom for a size x size fixture hut: the south-west corner and door plannedSite puts on the layout
+// plan derived from the loaded game's map survey, as the
 // siteX/siteZ/doorX/doorZ arguments FixtureHut takes; an error when the
 // plan holds no shelter.
 func ArgsFor(size int32) func(context.Context, *na.Harness) (map[string]any, error) {
@@ -36,7 +35,7 @@ func ArgsFor(size int32) func(context.Context, *na.Harness) (map[string]any, err
 
 // BedroomArgs is Args plus the layout plan's bedroom-wing rooms as the
 // bedrooms argument (plannedBedrooms), for a start that builds the planned
-// bedrooms itself (#1271).
+// bedrooms itself.
 func BedroomArgs(ctx context.Context, h *na.Harness) (map[string]any, error) {
 	return args(ctx, h, 9, true)
 }
@@ -52,7 +51,7 @@ func Survey(ctx context.Context, h *na.Harness) (*observation.ColonyProjection, 
 		return nil, policy.MapSurvey{}, err
 	}
 	// The colony read decides outdoor darkness from the definition catalog
-	// the client holds for this load (#1712); load it first.
+	// the client holds for this load; load it first.
 	catalog, err := h.Client.DefinitionCatalog(ctx, reply.GetLoaded().GetContext().GetIdentity())
 	if err != nil {
 		return nil, policy.MapSurvey{}, fmt.Errorf("definition catalog: %w", err)
@@ -99,7 +98,7 @@ func args(ctx context.Context, h *na.Harness, size int32, bedrooms bool) (map[st
 }
 
 // dumpSurvey writes survey as gzipped JSON, the capture behind the policy
-// layout benchmarks' fixture (#1280).
+// layout benchmarks' fixture.
 func dumpSurvey(path string, survey policy.MapSurvey) error {
 	f, err := os.Create(path)
 	if err != nil {

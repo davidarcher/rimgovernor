@@ -15,7 +15,7 @@ type FoodRestriction struct {
 	Allowed  []string
 }
 
-// FoodKind is what a food definition is for diets (#1541): a meal tier,
+// FoodKind is what a food definition is for diets: a meal tier,
 // meat by source, a vegetable, fungus, an animal product or other.
 type FoodKind string
 
@@ -80,7 +80,7 @@ type Diet struct {
 	// Fungal: fungus preferred; NoFungus: fungus despised.
 	Fungal, NoFungus  bool
 	Ascetic, Gourmand bool
-	// FineMeals: the mood tier (#1542) allows fine and lavish meals, for a
+	// FineMeals: the mood tier allows fine and lavish meals, for a
 	// pawn near its mental break threshold or with high expectations.
 	FineMeals bool
 	// Reserve: the colony has no other food to eat, so the travel reserve
@@ -89,11 +89,11 @@ type Diet struct {
 }
 
 // moodTierMargin is how far above the minor break threshold a pawn's mood
-// still counts as near a break (#1542).
+// still counts as near a break.
 const moodTierMargin = 0.1
 
 // travelReserve are the foods kept for caravans: not eaten at home while
-// the colony has other food (#1542); when it is short of food (Diet.Reserve)
+// the colony has other food; when it is short of food (Diet.Reserve)
 // they are the food. The one list Go decides it by; native only reports defs
 // and forbidden state.
 var travelReserve = []Resource{"Pemmican", "MealSurvivalPack"}
@@ -110,7 +110,7 @@ func fineMeals(pawn WorkPawn) bool {
 }
 
 // The history events each diet fact reads the ideoligion on (the game's
-// HistoryEventDefOf members), for the shared precept rule (#1656).
+// HistoryEventDefOf members), for the shared precept rule.
 var (
 	humanMeatEvents  = []string{"AteHumanMeat", "AteHumanMeatDirect", "AteHumanMeatAsIngredient"}
 	insectMeatEvents = []string{"AteInsectMeatDirect", "AteInsectMeatAsIngredient"}
@@ -181,12 +181,12 @@ func traitDiet(traits []PawnTrait) Diet {
 	return d
 }
 
-// DietFoods is the food definitions a diet allows (#1541). Everyone gets
+// DietFoods is the food definitions a diet allows. Everyone gets
 // every meal tier and raw food as a fallback, except: human meat only for
 // a cannibal; insect meat only where it is loved; a vegetarian no meat
 // and no meat-only meal; a carnivore no vegetable, no meat-free meal and
 // no fungus unless fungus is preferred; fungus never where it is
-// despised; fine and lavish meals only in the mood tier (#1542), and never
+// despised; fine and lavish meals only in the mood tier, and never
 // for an ascetic (not also a gourmand), whose mood it does not feel; the
 // travel reserve (pemmican, packaged survival meals) only while the colony
 // is short of other food (Diet.Reserve).
@@ -226,7 +226,7 @@ func DietFoods(d Diet, foods []Food) []string {
 	return slices.Compact(defs)
 }
 
-// FoodEater is a food policy holder outside the work census (#1543): a
+// FoodEater is a food policy holder outside the work census: a
 // prisoner with its diet, or a tame animal with the food definitions its
 // race can eat.
 type FoodEater struct {
@@ -244,7 +244,7 @@ var captiveKinds = []FoodKind{FoodKindMealAwful, FoodKindRawMeat, FoodKindHumanM
 // animalKinds is what a tame animal eats: kibble, hay and raw food, never a meal.
 var animalKinds = []FoodKind{FoodKindKibble, FoodKindHay, FoodKindRawMeat, FoodKindHumanMeat, FoodKindInsectMeat, FoodKindVegetable, FoodKindFungus, FoodKindAnimalProduct}
 
-// CaptiveFoods is a prisoner's or slave's foods (#1543): its diet's paste
+// CaptiveFoods is a prisoner's or slave's foods: its diet's paste
 // and raw food.
 func CaptiveFoods(d Diet, foods []Food) []string {
 	var kept []Food
@@ -256,7 +256,7 @@ func CaptiveFoods(d Diet, foods []Food) []string {
 	return DietFoods(d, kept)
 }
 
-// AnimalFoods is a tame animal's foods (#1543): the kibble, hay and raw
+// AnimalFoods is a tame animal's foods: the kibble, hay and raw
 // food its race can eat. Corpses are never foods; native disallows them on
 // every write.
 func AnimalFoods(edible []string, foods []Food) []string {
@@ -270,11 +270,10 @@ func AnimalFoods(edible []string, foods []Food) []string {
 	return slices.Compact(defs)
 }
 
-// DietPolicyChanges are the per-pawn food policy writes owed (#1541,
-// #1543): each owned pawn with a food policy holds the policy labelled with
+// DietPolicyChanges are the per-pawn food policy writes owed: each owned pawn with a food policy holds the policy labelled with
 // its short name, allowing DietFoods for a colonist, CaptiveFoods for a
 // slave or prisoner and AnimalFoods for a tame animal. A pawn whose short
-// name another owned pawn shares (#1310 renames it) or that several
+// name another owned pawn shares or that several
 // policies carry waits.
 func DietPolicyChanges(ideology domain.Fact[Ideoligion], pawns []WorkPawn, eaters []FoodEater, names []OwnedName, policies []FoodPolicyEntry, foods []Food, reserveFood bool) []FoodPolicyChange {
 	type owed struct {

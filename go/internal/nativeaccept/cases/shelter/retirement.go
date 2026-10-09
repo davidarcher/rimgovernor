@@ -16,13 +16,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// shelter/retirement (#2076): the whole shelter lifecycle's last act on a real
+// shelter/retirement: the whole shelter lifecycle's last act on a real
 // game. Everyone sleeps in a built bedroom (the layout grid fixture's
 // expansion start), the planned workshop and laboratory stand (staged on the
 // plan the controller recorded) and the shelter still holds a research table,
 // a sleeping spot, a crafting spot and a butcher spot: ShelterRetirable holds,
-// the shelter leaves the plan (#2046), and its footprint, table and spots
-// included, is cleared through LayoutPlan.RetiredGround (#2075) until the entry
+// the shelter leaves the plan, and its footprint, table and spots
+// included, is cleared through LayoutPlan.RetiredGround until the entry
 // drops; the table is packed, and the laboratory installs it from stock.
 const (
 	retireTableDef = "SimpleResearchBench"

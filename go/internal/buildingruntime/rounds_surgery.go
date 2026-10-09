@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// RoundsSurgeryPlanner composes MaintainSurgery's method (#1164): one plan
+// RoundsSurgeryPlanner composes MaintainSurgery's method: one plan
 // of medical ProductionBillIntents, at most one per patient, from a fresh pawn care read.
 // A patient with a queued bill or an open surgery action is in flight. The
 // goal settles on the health change (the operation leaving the census),
@@ -23,11 +23,11 @@ type RoundsSurgeryResult struct {
 	Verdict
 	Plan  domain.PlanID
 	Wants []policy.SurgeryWant
-	// Harvest is set when the plan carries an organ harvest (#1169)
-	// or an artificial part recovery (#1232), or a peg-leg step (#1236).
+	// Harvest is set when the plan carries an organ harvest
+	// or an artificial part recovery, or a peg-leg step.
 	Harvest bool
-	// NativeWorkTicks lends a window while a surgery bill is queued
-	// (#1238): native doctors carry it, and no plan action stays open.
+	// NativeWorkTicks lends a window while a surgery bill is queued:
+	// native doctors carry it, and no plan action stays open.
 	NativeWorkTicks uint32
 }
 
@@ -70,8 +70,8 @@ func (r *RoundsSurgeryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if err != nil {
 		return RoundsSurgeryResult{}, err
 	}
-	// A queued bill is clock work whether or not the goal still stands
-	// (#1238): an elective's bill settles its goal before the operation.
+	// A queued bill is clock work whether or not the goal still stands:
+	// an elective's bill settles its goal before the operation.
 	var ticks uint32
 	if policy.SurgeryBillsQueued(read.Projection.Facts.MedicalPawns, read.Projection.Facts.Prisoners) {
 		ticks = surgeryNativeWorkTicks
@@ -107,7 +107,7 @@ func (r *RoundsSurgeryPlanner) step(call, epoch context.Context, arbiter *stepAr
 			queue = append(queue, choice)
 		}
 	}
-	// Organ harvest (#1169): at most one, from a prisoner the colony would
+	// Organ harvest: at most one, from a prisoner the colony would
 	// not recruit, for a colonist's part-short organ or a silver runway
 	// deficit, when its gain outweighs the mood and goodwill cost.
 	stock := map[policy.Resource]int64{}
@@ -119,16 +119,16 @@ func (r *RoundsSurgeryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	needs := policy.OrganNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, short, stock)
 	harvest, harvesting := policy.SelectOrganHarvest(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, needs, inFlight)
 	if !harvesting {
-		// Artificial part recovery (#1232): the same one-at-a-time slot.
+		// Artificial part recovery: the same one-at-a-time slot.
 		parts := policy.PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants)
 		harvest, harvesting = policy.SelectPartRecovery(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, parts, inFlight)
 	}
 	if !harvesting {
-		// Prisoners stay on herbal (#1239): a cut only better medicine
+		// Prisoners stay on herbal: a cut only better medicine
 		// could serve is refused; the review asks for herbal instead.
 	}
 	if !harvesting {
-		// Peg-leg cycling (#1236): training, control or a reinstall.
+		// Peg-leg cycling: training, control or a reinstall.
 		facts := read.Projection.Facts
 		harvest, harvesting = policy.SelectPegCycle(facts.Prisoners, facts.PrisonerColony, facts.FoodDays, r.reviewer.policy.Prisoners(), selection.Wants, facts.Recipes, inFlight)
 	}
@@ -178,7 +178,7 @@ func (r *RoundsSurgeryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if harvesting {
 		cut, err := domain.NewSurgery(harvest.Prisoner, harvest.Recipe, harvest.Part, harvest.Violation)
 		if err == nil && harvest.Surgeon != "" {
-			cut, err = cut.WithSurgeon(harvest.Surgeon) // peg-leg training's doctor (#1253)
+			cut, err = cut.WithSurgeon(harvest.Surgeon) // peg-leg training's doctor
 		}
 		if err != nil {
 			return RoundsSurgeryResult{}, err

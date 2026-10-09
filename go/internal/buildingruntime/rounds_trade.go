@@ -34,7 +34,7 @@ type RoundsTradeSource interface {
 	ReadTradeSheet(context.Context, *c.Identity) (bridge.TradeSheetRead, bridge.Result, error)
 }
 
-// RoundsTradePlanner drives TradeWithCaravan (#234) one phase edge per
+// RoundsTradePlanner drives TradeWithCaravan one phase edge per
 // step. RimWorld's trade sheet is session-scoped: the line ids and counts a
 // SetTradeLines action carries do not exist until Open has run, and the
 // deal signature Accept requires does not exist until the lines are staged.
@@ -45,7 +45,7 @@ type RoundsTradeSource interface {
 // receipt completes its method and a refused one fails it, and what followed
 // is read from live state: the trade-session read (who is walking to or
 // trading with whom) and the session sheet. Per
-// caravan and TradeWithCaravan occurrence (#1078) the method ids are fixed, so a restart resumes
+// caravan and TradeWithCaravan occurrence the method ids are fixed, so a restart resumes
 // where it left off. A caravan whose session reached accept or cancel, or
 // whose last open attempt ended without a session, is settled for the
 // occurrence and never reopened: it closes when the caravan leaves or
@@ -167,8 +167,8 @@ func (r *RoundsTradePlanner) tradeSettled(ctx context.Context, incident store.In
 	return end.found && !end.open, nil
 }
 
-// tradeAcceptSpent reports an accept that is over, applied or refused
-// (#1156): native closes the session either way, so the caravan is settled
+// tradeAcceptSpent reports an accept that is over, applied or refused:
+// native closes the session either way, so the caravan is settled
 // for the occurrence and the routine replans rather than reopening it.
 func tradeAcceptSpent(accept tradePhase) bool { return accept.found && !accept.open }
 
@@ -394,7 +394,7 @@ func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlSta
 	switch {
 	case facts.Favor:
 		// The tribute collector pays favor: only gold sells, with no silver
-		// budget, reserve or purchase (#1939).
+		// budget, reserve or purchase.
 		selection = policy.SelectFavorSale(facts, facts.FavorKeep)
 	case len(economic.Targets) == 0 && len(facts.SaleArt)+len(facts.SaleAnimals)+len(facts.SaleGear) == 0:
 		// Nothing to buy or sell by the resource catalog: only a pawn
@@ -404,13 +404,13 @@ func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlSta
 	default:
 		selection = policy.SelectTrade(economic, facts)
 	}
-	// A pawn buy is its own line beside the resource lines (#1037).
+	// A pawn buy is its own line beside the resource lines.
 	if !selection.Refused && facts.SilverKnown && !facts.Favor {
 		if pawn, ok := policy.SelectPawnPurchase(capacity, facts.Rows, facts.ColonySilver, selection.SilverReserve, selection.Selected); ok {
 			selection.Selected = append(selection.Selected, pawn)
 		}
-		// A wanted animal is a second purchase line under the same reserve
-		// (#1636); native needs no allow_pawns to buy a pawn row.
+		// A wanted animal is a second purchase line under the same reserve;
+		// native needs no allow_pawns to buy a pawn row.
 		if animal, ok := policy.SelectAnimalPurchase(facts.HerdWants, facts.Rows, facts.ColonySilver, selection.SilverReserve, selection.Selected); ok {
 			selection.Selected = append(selection.Selected, animal)
 		}
@@ -420,7 +420,7 @@ func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlSta
 			return r.cancel(call, epoch, state, incident, trader, negotiator, started)
 		}
 		// Selling an animal is a pawn give-away native refuses without
-		// allow_pawns (#1632); only a selected pawn sale asks for it.
+		// allow_pawns; only a selected pawn sale asks for it.
 		pawnRows := map[string]bool{}
 		for _, row := range facts.Rows {
 			pawnRows[row.LineID] = row.PawnKnown && row.Pawn
@@ -463,7 +463,7 @@ func traderStacks(traders []policy.TraderFacts, id string) int64 {
 	return 0
 }
 
-// tradeSessionPhase is the next phase of an open session (#999, D1): read
+// tradeSessionPhase is the next phase of an open session (D1): read
 // from the live sheet, not the journal, so a session a save load carried
 // over resumes where native holds it. Lines already staged on the sheet go
 // to accept; a recorded line staging that failed cancels; otherwise the
@@ -540,26 +540,26 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 	// MaintainResource's floors (the wood floor, shortfall edges) are the
 	// catalog's trade demand: a caravan selling one buys it.
 	targets := r.reviewer.resourceTargets(state.Snapshot)
-	// A wealth-driven sale keeps what the review's demand retains (#2488):
+	// A wealth-driven sale keeps what the review's demand retains:
 	// the stock the trade detector held the sale to.
 	retained := r.reviewer.demand.get(state.Snapshot).Retained
-	// Restore parts no bench can fabricate are bought (#1168).
+	// Restore parts no bench can fabricate are bought.
 	parts, benches, err := surgeryPartDemand(call, r.native, identity, projection.Facts.MedicalPawns, projection.SurgeryContext())
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
-	// A harvested organ sells while the silver runway is short (#1169).
+	// A harvested organ sells while the silver runway is short.
 	saleArt, err := r.saleArt(call, identity, state.Snapshot)
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
-	// Unreserved art under negative wealth headroom is shed_art (#1247).
+	// Unreserved art under negative wealth headroom is shed_art.
 	headroom := projection.Facts.WealthBudget()
 	artCount := domain.Unknown[int64]()
 	if saleArt != nil {
 		artCount = domain.Known(int64(len(saleArt)))
 	}
-	// Surplus animals sell while the silver runway is short (#1632); the
+	// Surplus animals sell while the silver runway is short; the
 	// race catalog is the herd plan's, the catalog's race rows the projection
 	// decoded.
 	if tables.Catalog == nil {
@@ -570,7 +570,7 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
 	// The plan counts the animals this trader offers as obtainable, so its
-	// wants (bought below, #1636) and its surplus (sold) agree.
+	// wants (bought below) and its surplus (sold) agree.
 	planInput := projection.Facts.HerdPlanInput()
 	planInput.Offers = policy.HerdOffers(rows, projection.Facts.AnimalUpkeep.AnimalRaces)
 	herd := policy.PlanHerd(planInput)
@@ -580,7 +580,7 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: !known", ErrControl)
 	}
 	// A resource is bought only as far as the supply plan opened this
-	// trader's offer for it (#2168).
+	// trader's offer for it.
 	planned, err := r.plannedPurchases(call, state, review, trader)
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
@@ -625,7 +625,7 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 
 // favorPrisoners reads the prisoner census through the routine reading (the
 // one the negotiator choice uses) and returns the surplus prisoners a favor
-// session sells (#1971).
+// session sells.
 func (r *RoundsTradePlanner) favorPrisoners(call context.Context, state ControlState, review store.Rounds) (map[string]bool, error) {
 	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
@@ -694,7 +694,7 @@ func (r *RoundsTradePlanner) commit(call, epoch context.Context, state ControlSt
 		r.reviewer.tradeOffers.drop(trader)
 	}
 	// The next phase lands in the stop after this window: a session left
-	// open under a full window outlasts the caravan's visit (#1195).
+	// open under a full window outlasts the caravan's visit.
 	var ticks uint32
 	if kind != domain.TradeEnd {
 		ticks = tradeArrivalTicks
@@ -702,7 +702,7 @@ func (r *RoundsTradePlanner) commit(call, epoch context.Context, state ControlSt
 	return RoundsTradeResult{Verdict: BuildingReasonAdmitted, Plan: id, Trader: trader, Phase: kind, NativeWorkTicks: ticks}, nil
 }
 
-// tradeFoodFact classifies a food line from the catalog's rows (#1721); native
+// tradeFoodFact classifies a food line from the catalog's rows; native
 // supplies only the nutrition stat.
 func tradeFoodFact(food *o.TradeFoodFacts, def string, catalog *bridge.DefinitionCatalog) (domain.Fact[policy.TradeFoodGood], error) {
 	if food == nil {
@@ -798,7 +798,7 @@ func sameTradeLines(left, right []domain.TradeLine) bool {
 }
 
 // tradeExportThings are the sale-gear thing ids the selection sells: the accept
-// authorizes them past the native gear protection (#1831).
+// authorizes them past the native gear protection.
 func tradeExportThings(selection policy.TradeSelection, facts policy.TradeSelectionFacts) []string {
 	lines := map[string]bool{}
 	for _, line := range selection.Selected {

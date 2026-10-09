@@ -23,7 +23,7 @@ type EntityNative interface {
 type EntitySection[T proto.Message] = bridge.Table[T]
 
 // refreshEntitySections is the review step's refresher for the buildings
-// and bills sections (#358). It runs once per full review step
+// and bills sections. It runs once per full review step
 // after the bundle has fixed the step's scope, and reads each section
 // whole: the snapshot stream's frame serves them. A failed read keeps the
 // held section: a plan may reason over stale state, apply refuses stale

@@ -42,7 +42,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	firstPID := service.PID
 	// A pending letter would hold the clock; the
-	// keep-alive acknowledges them so the resumed controller plays (#166).
+	// keep-alive acknowledges them so the resumed controller plays.
 	service.KeepAuthority(ctx)
 	journal, err := service.Store(ctx)
 	if err != nil {

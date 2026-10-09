@@ -12,10 +12,9 @@ namespace HomeBridge.BridgeTools
     // Disposable test setup only. Stages a shell the routine has already
     // sited: the named wall cells and the door are spawned as finished
     // player-owned wood buildings, so the controller's next review finds the
-    // ring standing but for the cells left out and has to adopt it (issue
-    // #174). Unforbidden WoodLog beside the door feeds the few walls the
+    // ring standing but for the cells left out and has to adopt it. Unforbidden WoodLog beside the door feeds the few walls the
     // builders still raise; take removes every WoodLog on the map and wood
-    // drops it again, the material shortage of #175. Nothing here
+    // drops it again, a material shortage. Nothing here
     // designates or orders anything.
     public sealed class HutShellFixture
     {
@@ -31,7 +30,7 @@ namespace HomeBridge.BridgeTools
                 if (action == "allow") return Allow(map);
                 if (action == "furniture") {
                     // Wooden beds need ComplexFurniture, which the tribal
-                    // baseline has not researched (#1137).
+                    // baseline has not researched.
                     var furniture = DefDatabase<ResearchProjectDef>.GetNamed("ComplexFurniture");
                     if (!furniture.IsFinished) Find.ResearchManager.FinishProject(furniture, doCompletionDialog: false, researcher: null, doCompletionLetter: false);
                     return new { success = true, finished = furniture.IsFinished };
@@ -53,7 +52,7 @@ namespace HomeBridge.BridgeTools
 
         // Allow unforbids every forbidden item on the map (the starting
         // supplies a fresh load drops forbidden), what the supply routine
-        // would otherwise spend one worker dispatch per stack on (#193).
+        // would otherwise spend one worker dispatch per stack on.
         private static object Allow(Map map)
         {
             var allowed = 0;
@@ -90,13 +89,13 @@ namespace HomeBridge.BridgeTools
         // Vacate moves pawns and items off a cell (beside the ring, off the
         // gaps) and removes its plants, filth, blueprints and frames: a wall
         // cell under brambles waits on plant cutting the tribal baseline's
-        // work priorities never assign (#193 run r2), so the gaps left to the
+        // work priorities never assign , so the gaps left to the
         // builders are cleared like the cells the fixture spawns on.
         private static int Vacate(Map map, IntVec3 cell, HashSet<IntVec3> avoid)
         {
             var moved = 0;
             foreach (var t in cell.GetThingList(map).Where(t => t is Pawn || t.def.category == ThingCategory.Item).ToList()) {
-                // A pocket clearing (#175) has little open ground within a few
+                // A pocket clearing has little open ground within a few
                 // cells of the ring, so the search widens before giving up; a
                 // chunk nothing can carry is destroyed rather than moved.
                 var aside = default(IntVec3);

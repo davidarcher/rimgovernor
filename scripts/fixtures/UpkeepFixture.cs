@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
-        // The cell grid delta probe (#1551): reads the whole-map grid, spawns
+        // The cell grid delta probe: reads the whole-map grid, spawns
         // one player wall at cell, reads it again and encodes the second read
         // against the first as the stream's delta, replying each carried
         // array's form and entry count and both grids' encoded sizes.
@@ -76,7 +76,7 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, wall = wall.GetUniqueLoadID(), keyframeBytes = keyframe.CalculateSize(), deltaBytes = delta.CalculateSize(), arrays };
             }, cancellationToken);
 
-        // The thing list probe (#2261): spawns one of each thing category on a
+        // The thing list probe: spawns one of each thing category on a
         // row of seven cells from cell ("x,z") eastward (item, wall, wall
         // blueprint, wall frame, plant, filth, corpse) and replies the row as
         // a keyframe grid (base64 mirror.CellGrid), for the case to decode on
@@ -175,7 +175,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
-        // Spoilage preference probe (#2520): spawns an old and a fresh stack of
+        // Spoilage preference probe: spawns an old and a fresh stack of
         // raw meat and of simple meals near a colonist, the fresh one closer, and
         // reports which stack a bill ingredient pick and a meal pick choose with
         // the preference off, on, and on with the old stack forbidden.

@@ -97,7 +97,7 @@ func TestContainmentCellIsOwedWhenTheDesignReachesTheEntity(t *testing.T) {
 	}
 }
 
-// TestContainmentCellIsFurnishedWithALamp (#1743): the standing lamp joins the
+// TestContainmentCellIsFurnishedWithALamp: the standing lamp joins the
 // cell once the catalog offers it; until then it is left out and the cell is
 // owed all the same, and the platform's room holds the lamp either way.
 func TestContainmentCellIsFurnishedWithALamp(t *testing.T) {

@@ -16,7 +16,7 @@ import (
 // packShellBed feeds a new bedroom's reconcile from the starter shell's own
 // beds instead of a newly built one: when no packed Bed is stored, a vacant Bed
 // left in the shell is packed (uninstalled) so the reconcile's install from
-// stock takes it on the next pass (#2115; the install itself is reconcileRoom's).
+// stock takes it on the next pass (the install itself is reconcileRoom's).
 // Each bed is packed once per Episode; due is false when bed is not a Bed, one
 // is stored already, or there is none to carry over, so the reconcile goes on.
 func (r *RoundsSleepingUpkeepPlanner) packShellBed(call, epoch context.Context, stock *packedStock, state ControlState, goal store.WorkOwner, reading observation.RoundsReading, bed string) (RoundsBuildingResult, bool, error) {

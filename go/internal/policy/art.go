@@ -7,7 +7,7 @@ import (
 )
 
 // MaintainArt keeps a small sculpture on the way for every room that needs
-// one (#1190, epic #1172): a bedroom below its quality target whose weakest
+// one: a bedroom below its quality target whose weakest
 // stat is beauty. Each qualifying artist gets their own fixed-count bill,
 // pinned to them, at an art bench; the finished sculpture is installed by
 // the bedroom upkeep's sculpture step.
@@ -55,13 +55,13 @@ func SelectArtBills(benches domain.Fact[[]ProductionBench], colonists domain.Fac
 	return out
 }
 
-// InspiredCreativity is the InspirationDef an inspired artist carries
-// (#1192); their next art piece gets a quality boost.
+// InspiredCreativity is the InspirationDef an inspired artist carries;
+// their next art piece gets a quality boost.
 const InspiredCreativity = "Inspired_Creativity"
 
 // inspiredSculpture is the priority bill an inspired artist gets: the
-// second-smallest sculpture, the large one (#1721: read from the catalog's
-// sculpture rows by rank). Grand sculptures wait for the stuff choice (#1191).
+// second-smallest sculpture, the large one (read from the catalog's
+// sculpture rows by rank). Grand sculptures wait for the stuff choice.
 func inspiredSculpture(items ItemFacts) (Sculpture, bool) {
 	if len(items.Sculptures) < 2 {
 		return Sculpture{}, false
@@ -83,7 +83,7 @@ func InspiredArtists(profiles []PawnProfile) []PawnID {
 }
 
 // SelectInspiredArtBills returns one large sculpture bill pinned to every
-// inspired artist lacking an active one (#1192). The caller orders these
+// inspired artist lacking an active one. The caller orders these
 // ahead of SelectArtBills so the inspiration is spent before it expires.
 func SelectInspiredArtBills(benches domain.Fact[[]ProductionBench], inspired []PawnID, items ItemFacts) []BillSelection {
 	rows, known := benches.Value()
@@ -104,7 +104,7 @@ func SelectInspiredArtBills(benches domain.Fact[[]ProductionBench], inspired []P
 }
 
 // selectArtBill picks the art bench, size and stuff for one artist's
-// sculpture bill (#1191), none while the artist already has an active
+// sculpture bill, none while the artist already has an active
 // sculpture bill pinned to them.
 func selectArtBill(benches []ProductionBench, artist PawnID, demand ArtDemand) (BillSelection, bool) {
 	available, pinned := pinnedSculptureOptions(benches, artist)
@@ -177,8 +177,8 @@ func pinnedSculptureOptions(benches []ProductionBench, artist PawnID) (map[strin
 	return available, pinned
 }
 
-// sculptureGate is when an art bill may choose the sculpture of a rank
-// (#1191), rank 0 the smallest in the catalog's rows (ItemFacts.Sculptures):
+// sculptureGate is when an art bill may choose the sculpture of a rank,
+// rank 0 the smallest in the catalog's rows (ItemFacts.Sculptures):
 // the owed room's impressiveness gap, a free square the size of the
 // footprint, stock for it, and an artist skill that expects at least a
 // Normal (rank 1) or Good (rank 2 and up) piece. The smallest sculpture is
@@ -213,10 +213,10 @@ func (i ItemFacts) SculptureSize(def string) (domain.Cell, bool) {
 	return domain.Cell{}, false
 }
 
-// ArtDemand is what an art bill sizes against (#1191): the impressiveness
+// ArtDemand is what an art bill sizes against: the impressiveness
 // gap of the first owed room and the largest square side (1-3) free in it,
 // the colony stock by definition, and each artist's Artistic level. Sale
-// asks for a sculpture to sell (#1193) when no room is owed.
+// asks for a sculpture to sell when no room is owed.
 type ArtDemand struct {
 	Sale  bool
 	Gap   float64

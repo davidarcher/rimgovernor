@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Snapshot tests (#747): each replays a Rounds pass recorded from the
+// Snapshot tests: each replays a Rounds pass recorded from the
 // native case it replaced (docs/developers/testing/colony-snapshots.md) and
 // asserts the planner decision that case asserted live. Every recording
 // here was taken at the commit that deleted its case.
@@ -78,7 +78,7 @@ func loadRecorded(t *testing.T, name string) snapshot.Rounds {
 	return r
 }
 
-// recordedRecipeRows fills the recipe-derived fields (#1721) a recording
+// recordedRecipeRows fills the recipe-derived fields a recording
 // predates. The recorded catalog carries neither the recipe rows nor the meal
 // thing facts, so the food kind, role and bulk sibling are the recorded
 // names, which only this fixture may spell.
@@ -194,8 +194,8 @@ func recordedPlanner(r snapshot.Rounds, goal policy.ConcernID) *RoundsBuildingPl
 	return &RoundsBuildingPlanner{reviewer: &Rounder{policy: r.Policy}, concern: goal}
 }
 
-// loadStep loads testdata/<name>.json.gz, a planner step's own colony read
-// (#794), for a test to replay a select* over in place of the review's.
+// loadStep loads testdata/<name>.json.gz, a planner step's own colony read,
+// for a test to replay a select* over in place of the review's.
 func loadStep(t *testing.T, name string, goal policy.ConcernID) snapshot.Step {
 	t.Helper()
 	s, err := snapshot.LoadStep("testdata/" + name + ".json.gz")
@@ -486,7 +486,7 @@ func TestSnapshotConditionResponse(t *testing.T) {
 	if struck == 0 || struck == len(pawns) {
 		t.Fatalf("%d of %d pawns drone-struck, want some of each", struck, len(pawns))
 	}
-	// The lighting step's own read (#759, #794) requests every policy lamp,
+	// The lighting step's own read requests every policy lamp,
 	// so under the eclipse it finds TorchLamp and admits one for the dark
 	// stove; the review's read holds only StandingLamp.
 	step := loadStep(t, "condition-response-step-lighting", policy.MaintainLighting)

@@ -26,7 +26,7 @@ func defsOf(m proto.Message, rows ...proto.Message) (protoreflect.FullName, map[
 	return m.ProtoReflect().Descriptor().FullName(), out
 }
 
-// TestDisarmSitesComeFromTheBodyAndToolRows (#1740): a race's sites are the
+// TestDisarmSitesComeFromTheBodyAndToolRows: a race's sites are the
 // lowest part holding each melee tool's body part group, except the group of
 // the always-usable tool; a race with no always-usable tool has none; the
 // install price is the explicit-def ingredient slots only.

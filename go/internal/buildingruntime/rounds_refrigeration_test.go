@@ -192,7 +192,7 @@ func TestRefrigerationDefersUnpoweredCoolerToPowerFamily(t *testing.T) {
 	p, _, n, _ := refrigerationFixture(t, true)
 	power := n.reply.GetObserved().Development.GetObserved().Power
 	n.roundsNative.buildings.At(power[len(power)-1].Building.GetId()).Service.PowerOn = proto.Bool(false)
-	// Planners plan from the review's census (#75): refresh it first.
+	// Planners plan from the review's census: refresh it first.
 	if _, err := p.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +205,7 @@ func TestRefrigerationDefersUnpoweredCoolerToPowerFamily(t *testing.T) {
 // A cooler method that just completed reads powerOn=false until the power
 // net ticks once (the supervisor latches the window on the completing tick),
 // so cooler_power_needed lends the cooling allowance instead of parking the
-// clock on no_work (#66).
+// clock on no_work.
 func TestRefrigerationPowerNeededAfterCompletedMethodLendsCoolingAllowance(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -261,7 +261,7 @@ func TestRefrigerationPowerNeededAfterCompletedMethodLendsCoolingAllowance(t *te
 
 // The native generation moves with every window the supervisor stops; a
 // cooler completed under an earlier generation keeps its cooling allowance
-// (same rule as the temperature budget), a reloaded world does not (#66).
+// (same rule as the temperature budget), a reloaded world does not.
 func TestRefrigerationNativeWorkTicksSurviveGenerationMoves(t *testing.T) {
 	t.Parallel()
 	building, _ := domain.NewBuilding("Cooler", domain.Cell{X: 1, Z: 3}, domain.North, "")
@@ -348,7 +348,7 @@ func TestRefrigerationUsedSetpointPatchLendsCoolingTime(t *testing.T) {
 // A freezer that settled in an earlier epoch has no cooler method in the
 // epoch that re-latched when the season warmed, so the allowance is lent
 // from the tick the latch engaged and a second cooler becomes proposable
-// once it elapses (#202).
+// once it elapses.
 func TestRefrigerationEpochWithoutMethodLendsAllowanceFromLatch(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

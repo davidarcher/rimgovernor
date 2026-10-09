@@ -1,5 +1,5 @@
 // The recovery/service case exercises the disaster-recovery service vertical
-// (issue #27) through GiveJobIntent Repair on Actions/Apply (#940,
+// through GiveJobIntent Repair on Actions/Apply (
 // NativeRepairOperations.cs). A genuinely damaged player Wall is repaired
 // by a real native WorkGiver_Repair job ordered for an undrafted colonist,
 // observed via real game ticks and independently confirmed via

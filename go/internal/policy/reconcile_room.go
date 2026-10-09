@@ -6,11 +6,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The build side of the reconciler (#2109, epic #2101): one library an owning
+// The build side of the reconciler: one library an owning
 // concern calls for its own room. The owner decides which room and when; the
 // reconciler decides how: it diffs the room's ring, floor and furniture against
 // the ground and reports the operations ready now, installing from packed stock
-// first (Stock, #2104) and building on site only when none is stored. The
+// first (Stock) and building on site only when none is stored. The
 // plan-wide clear side (PlannedGroundStep) owns the ring's removals, so those
 // kinds are not the owner's.
 
@@ -23,7 +23,7 @@ func ReconcileRoom(in ReconcileInput) []Operation {
 }
 
 // ReconcileRoomHolds is ReconcileRoom with the foreign things the room leaves
-// standing (#2269).
+// standing.
 func ReconcileRoomHolds(in ReconcileInput) ([]Operation, []ReconcileHold) {
 	var out []Operation
 	rec := Reconcile(in)
@@ -58,7 +58,7 @@ func OwnRows(rows []ClearanceTarget, template []WantedPiece, forbidden func(def 
 
 // GroundWithRock is g with the natural rock on the rings of the plan's rooms
 // counted as wall, except where the plan puts a door: rock walls a dug room as
-// it stands (#836) and is no wall to raise.
+// it stands and is no wall to raise.
 func (p LayoutPlan) GroundWithRock(g GroundCensus, rock []domain.Cell) GroundCensus {
 	doors := map[domain.Cell]bool{}
 	for _, r := range p.roomsWithHerd() {

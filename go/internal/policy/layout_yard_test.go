@@ -122,7 +122,7 @@ func TestDerivedPlanHoldsAYard(t *testing.T) {
 }
 
 // The yard's fence ring is owed until every ring cell holds a fence and the
-// gate stands toward the core (#2215); the ring is outside the interior, so
+// gate stands toward the core; the ring is outside the interior, so
 // raising it never breaks the yard's store zone.
 func TestYardRingIsOwedUntilFenceAndGateStand(t *testing.T) {
 	t.Parallel()

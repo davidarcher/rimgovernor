@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Shelves (#721). Core's Shelf (Buildings_Furniture.xml, StorageShelfBase)
+// Shelves. Core's Shelf (Buildings_Furniture.xml, StorageShelfBase)
 // is a 2x1 Building_Storage that holds building.maxItemsInCell = 3 stacks
 // per cell, stops deterioration on top, requires the ComplexFurniture
 // research and cannot overlap zones: when its blueprint spawns on a

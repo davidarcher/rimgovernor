@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Construction helpers (#653): a pawn under the Construction floor (4) is
+// Construction helpers: a pawn under the Construction floor (4) is
 // not a constructor, but while suitable construction is ready and unmet
 // and the pawn has been idle across two reviews, the roster planner enables
 // Construction for it at the lowest rank (4 under manual priorities) beside
@@ -80,7 +80,7 @@ type ConstructionHelpRecord struct {
 	Risky      []string `json:",omitempty"`
 }
 
-// ConstructionHelpDemand reads the ready-work report (#645) for helper
+// ConstructionHelpDemand reads the ready-work report for helper
 // demand: runnable Construction candidates on a conservative definition
 // count their parallelism; any construction candidate outside the set (or
 // a conservative-adapter candidate that may build) is risky, as is any

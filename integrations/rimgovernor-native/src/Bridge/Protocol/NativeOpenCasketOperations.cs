@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent Open (#460, #939): the opener of
+    // GiveJobIntent Open: the opener of
     // ClearAncientShrine's melee lock runs the vanilla Open job on one filled
     // ancient cryptosleep casket. Opening one casket ejects every casket of
     // the shrine group, so a plan carries one order after the drafts and

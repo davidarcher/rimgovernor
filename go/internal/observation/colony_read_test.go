@@ -52,8 +52,7 @@ func TestObserveColonyValidatesFactsByTheirContext(t *testing.T) {
 		want   error
 	}{
 		{"stable", nil, nil},
-		// A running clock is no longer a hold (#243): the facts bind to the
-		// expected world at any tick.
+		// Facts bind to the expected world at any tick, including while the clock runs.
 		{"expected running", func(_ *colonySource, i *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
 			i.Paused = domain.Known(false)
 		}, nil},
@@ -126,7 +125,7 @@ func TestObserveColonyValidatesFactsByTheirContext(t *testing.T) {
 	}
 }
 
-// A row behind the anchor (#306) or ahead of it (#712) is the same world
+// A row behind the anchor or ahead of it is the same world
 // at any tick distance; only another native generation changes it.
 func TestColonyBoundariesIgnoreTickDistance(t *testing.T) {
 	expected := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 10000, NativeGeneration: domain.Known(domain.NativeGeneration(1))}

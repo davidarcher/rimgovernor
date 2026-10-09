@@ -15,7 +15,7 @@ func TestParseSpeedCases(t *testing.T) {
 	if len(cases) != 7 || cases[4].Name != "uncapped" || cases[4].Speed != "Ultrafast" || !cases[4].TestAcceleration || cases[4].BlindTicks != 0 {
 		t.Fatalf("unexpected cases %+v", cases)
 	}
-	// The governor-off row (#621) is uncapped's speed and outside the
+	// The governor-off row is uncapped's speed and outside the
 	// outcome comparison.
 	if cases[6].Name != "governor-off" || !cases[6].GovernorOff || cases[6].Compared() || !cases[6].TestAcceleration || cases[6].Speed != "Ultrafast" {
 		t.Fatalf("unexpected governor-off case %+v", cases[6])
@@ -23,7 +23,7 @@ func TestParseSpeedCases(t *testing.T) {
 	if got := cases[4].ServeArgs(); len(got) != 1 || got[0] != "--clock-test-acceleration" {
 		t.Fatalf("uncapped args %v", got)
 	}
-	// The regulated row (#583) is uncapped under the blind-tick budget.
+	// The regulated row is uncapped under the blind-tick budget.
 	if cases[5].Name != "regulated" || !cases[5].TestAcceleration || cases[5].BlindTicks != RegulatedBlindTicks {
 		t.Fatalf("unexpected regulated case %+v", cases[5])
 	}
@@ -128,7 +128,7 @@ func TestCheckSpeedMetrics(t *testing.T) {
 	}
 }
 
-// The per-stop latency split (#621): ticks from the stop event alone
+// The per-stop latency split: ticks from the stop event alone
 // (occurrence -> detected -> stop), observe_ms from native's own age of
 // the row at reply plus the reply's transport residual, readmit_ms from the
 // carrying reply to the next clock_start receipt on the controller's
@@ -171,7 +171,7 @@ func TestSummarizeStopsLatencySplit(t *testing.T) {
 	}
 }
 
-// SpeedRowProblems is the runner-boundary check (#621): every required
+// SpeedRowProblems is the runner-boundary check: every required
 // row needs a metrics row that advanced the tick, and every compared row
 // an outcome row, each problem naming the row; the comparators accept an
 // empty matrix, so this is what fails an empty run.
@@ -216,7 +216,7 @@ func TestSpeedRowProblems(t *testing.T) {
 }
 
 // The paused threshold bounds native's account where the row sampled it
-// (#621) and the status-sample ratio where it did not.
+// and the status-sample ratio where it did not.
 func TestCheckSpeedMetricsPrefersNativePausedFraction(t *testing.T) {
 	rows := SpeedMetricsFromRows([]map[string]any{
 		{"case": "Ultrafast", "speed": "Ultrafast", "wall_tps": 188.0, "paused_fraction": 0.91, "paused_fraction_native": 0.2, "native_pause_samples": 12.0},
@@ -229,7 +229,7 @@ func TestCheckSpeedMetricsPrefersNativePausedFraction(t *testing.T) {
 }
 
 // CheckLiveStepCost bounds the costliest live step's native reads per row,
-// skips a row that ran no live step, and is off at a zero bound (#593).
+// skips a row that ran no live step, and is off at a zero bound.
 func TestCheckLiveStepCost(t *testing.T) {
 	rows := SpeedMetricsFromRows([]map[string]any{
 		{"case": "Normal", "live_steps": 12.0, "max_live_step_reads": 2.0, "live_step_ms_mean": 120.0},
@@ -249,7 +249,7 @@ func TestCheckLiveStepCost(t *testing.T) {
 	}
 }
 
-// TestObservationLoadRow pins the #656 row: governed, at the uncapped row's
+// TestObservationLoadRow pins the observation-load row: governed, at the uncapped row's
 // speed and acceleration, with the extra load, and compared.
 func TestObservationLoadRow(t *testing.T) {
 	cases, err := ParseSpeedCases("uncapped,observation-load")

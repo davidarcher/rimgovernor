@@ -163,7 +163,7 @@ func minedSource(result RoundsResourceResult, token string) bool {
 	return false
 }
 
-// #595: with herbal medicine and steel tied on proportional deficit, the
+// With herbal medicine and steel tied on proportional deficit, the
 // medicine target wins the tie but has only a harvest source this vertical
 // cannot dispatch; the step must go on to steel and mine its ore rather
 // than surface the medicine selection and admit nothing.

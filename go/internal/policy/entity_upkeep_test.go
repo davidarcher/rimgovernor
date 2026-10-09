@@ -120,7 +120,7 @@ func populationNeed(t *testing.T, f RoundsFacts) domain.Finding {
 	return ""
 }
 
-// TestUpkeepOwedKeepsPopulationInDeficit (#1743): a held-open cell door or a
+// TestUpkeepOwedKeepsPopulationInDeficit: a held-open cell door or a
 // held entity that needs tending keeps MaintainPopulation open.
 func TestUpkeepOwedKeepsPopulationInDeficit(t *testing.T) {
 	quiet := stableRounds()

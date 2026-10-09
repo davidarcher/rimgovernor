@@ -18,7 +18,7 @@ import (
 
 // RoundsDialogSource is the native colony census RoundsDialogPlanner reads
 // to find the exact observed window/options of the force-pausing choice
-// dialog the game opened by itself (#156), the same ReadColonyFacts call
+// dialog the game opened by itself, the same ReadColonyFacts call
 // Rounder itself uses to raise the AnswerDialog goal
 // (observation.colony.go's own r.Facts.ChoiceDialog derivation).
 type RoundsDialogSource interface {
@@ -88,7 +88,7 @@ func (r *RoundsDialogPlanner) step(call, epoch context.Context, arbiter *stepArb
 		// Dialog_NodeTree.delayInteractivity greys the options for a second
 		// of real time after opening; native refuses an answer until then, so
 		// the planner waits for the next review rather than reporting the
-		// dialog unanswerable (#179).
+		// dialog unanswerable.
 		return RoundsDialogResult{Verdict: BuildingReasonNotInteractive}, nil
 	}
 	options := make([]policy.DialogOption, 0, len(dialog.Options))

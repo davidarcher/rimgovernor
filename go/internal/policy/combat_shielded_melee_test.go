@@ -35,7 +35,7 @@ func withRaiders(view CombatView, cells ...domain.Cell) CombatView {
 }
 
 // {lab-choke: a shielded melee charge, one choke, brawlers} -> the hold's
-// #864 blockers just outside the choke.
+// Melee blockers just outside the choke.
 func TestShieldedMeleeBlocks(t *testing.T) {
 	view := shieldAll(withRaiders(chokeView(), domain.Cell{X: 9, Z: 5}, domain.Cell{X: 10, Z: 4}))
 	_, ask, _ := DecideCombat(view, GeometryReply{}, StopEvent{}, CombatMemory{})
@@ -61,7 +61,7 @@ func splitView() CombatView {
 }
 
 // {a shielded melee charge approaching two doors} -> blockers inside each
-// door (the #899 multi-choke rule); unshielded raiders keep one choke.
+// door (the multi-choke rule); unshielded raiders keep one choke.
 func TestShieldedMeleeSplitsChokes(t *testing.T) {
 	west, east := domain.Cell{X: 10, Z: 15}, domain.Cell{X: 29, Z: 15}
 	_, m := decideStop(t, shieldAll(splitView()), StopEvent{}, CombatMemory{})

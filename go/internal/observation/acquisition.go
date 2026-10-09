@@ -32,7 +32,7 @@ func decodeAcquisition(v *o.ColonyFactsSnapshot, tables bridge.Tables) (domain.F
 	var holds []policy.HuntHold
 	for _, row := range v.Acquisition {
 		source := tables.Entity(row.Source)
-		// An inedible hunt is only ever a pest (#247), a race row's flag.
+		// An inedible hunt is only ever a pest, a race row's flag.
 		race, _ := races.Race(policy.Resource(source.GetDefName()))
 		if row.GetHunt() && !row.GetFood() && !race.Pest {
 			continue

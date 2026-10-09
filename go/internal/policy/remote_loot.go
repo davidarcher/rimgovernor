@@ -7,7 +7,7 @@ import (
 )
 
 // LootReadiness is the loot census's own readiness evidence for the resource
-// reach stages (#520): free hauling colonists and storyteller quietness.
+// reach stages: free hauling colonists and storyteller quietness.
 // Absent facts leave reach at its base stage, never widen it.
 type LootReadiness struct {
 	FreeHaulers      domain.Fact[int64]
@@ -25,12 +25,12 @@ type LootHold struct {
 // lootUnitsPerTrip is a colonist's ordinary carrying capacity in item units.
 const lootUnitsPerTrip = 75
 
-// FilterLootReach keeps #336's safety semantics untouched and narrows only the
+// FilterLootReach preserves loot safety and narrows only the
 // Allow side: an unsafe stack still forbids, an already allowed stack is not
 // re-forbidden by reach, and a safe forbidden stack inside the established
 // extent is allowed as before. A safe forbidden stack outside the extent is
-// allowed when the reach stage admits its cell, whatever the colony's demand
-// (#2299, epic #2291): only missing storage headroom and urgent colony work
+// allowed when the reach stage admits its cell, whatever the colony's demand:
+// only missing storage headroom and urgent colony work
 // keep it forbidden, reported as a hold with an explicit reason
 // (RemoteHoldReason). The returned rows are the census the
 // safety review should act on.
@@ -62,7 +62,7 @@ func FilterLootReach(observed domain.Fact[[]LootItem], r RemoteWorkRequest) (dom
 	return domain.Known(kept), holds, nil
 }
 
-// FilterLootReachAdmitted is FilterLootReach for the startup release (#2188):
+// FilterLootReachAdmitted is FilterLootReach for the startup release:
 // the scenario's starting stacks are forbidden before the colony has an
 // extent, so the reach stage would hold them all. A forbidden stack skips the
 // stage on the world's first review (first) and while it stays in the previous

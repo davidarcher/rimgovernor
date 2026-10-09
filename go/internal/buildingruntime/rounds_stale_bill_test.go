@@ -14,7 +14,7 @@ func staleAssessments(finding domain.Finding, stale bool) []policy.RoundsAssessm
 
 // A bill is stale after StaleBillReviews consecutive reviews that found its
 // owner Met; one Unmet review restarts the count, and a bill off the bench is
-// forgotten (#2411).
+// forgotten.
 func TestStaleBillsCountConsecutiveMetReviews(t *testing.T) {
 	t.Parallel()
 	var s staleBills
@@ -61,7 +61,7 @@ func TestStaleBillsCountConsecutiveMetReviews(t *testing.T) {
 // A bill outside its owner's demand is stale after StaleBillReviews reviews
 // whatever the owner's finding; a review counts once however many steps run
 // under it, a wanted bill restarts the count, a bill another planner judges is
-// left alone, and the food owner's bills never count by owner Met (#2433).
+// left alone, and the food owner's bills never count by owner Met.
 func TestStaleBillsCountUnwantedReviews(t *testing.T) {
 	t.Parallel()
 	var s staleBills

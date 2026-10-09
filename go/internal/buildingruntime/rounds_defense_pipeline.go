@@ -12,7 +12,7 @@ import (
 // defensePipeline is the perimeter tiers one layout step keeps in flight: the
 // ones already open from earlier steps and the ones this step admits. A tier
 // joins them while the stock funds it (the ledger) and it claims none of their
-// cells. Native frame completion preserves construction access (#2314).
+// cells. Native frame completion preserves construction access.
 type defensePipeline struct {
 	open    []domain.MethodID
 	cells   map[domain.Cell]bool

@@ -29,19 +29,19 @@ type WakeSignal struct {
 	pending  map[domain.ActionID]WakeOutcome
 	families map[bridge.FactFamily]bool
 	// sections are the store sections the pages' invalidations made
-	// stale, as narrowed as native attributed them (#625); the families
+	// stale, as narrowed as native attributed them; the families
 	// stay the byte cache's whole-family view of the same events.
 	sections  map[facts.Section]bool
 	authority bool
 	// stopAt is the native stamp of the earliest stop still pending for
 	// the step loop, zero when the page carried none; the step that acts
-	// on it publishes the stop-to-step latency (issue #112).
+	// on it publishes the stop-to-step latency.
 	stopAt time.Time
 	// stops counts committed stops; stopsTaken is the count the step loop
 	// last drained, so a step reason reports whether a stop is pending.
 	// No admission waits for a stop: every kind the Worker dispatches is
 	// validated natively at apply time and dispatches under a running
-	// window as readily as between windows (#244).
+	// window as readily as between windows.
 	stops, stopsTaken uint64
 }
 
@@ -171,7 +171,7 @@ func clockPageWakeStopped(page *k.EventsPage) (outcomes []WakeOutcome, families 
 			outcomes = append(outcomes, wakeOutcome(v.OperationOutcome))
 		case *k.Event_Stopped:
 			if clock.OtherWorld(event, page) {
-				continue // a previous load's stop (#887)
+				continue // a previous load's stop
 			}
 			stopped = true
 			if at := event.GetObservedAtUnixMs(); at > 0 && (stopAt.IsZero() || time.UnixMilli(at).Before(stopAt)) {
@@ -202,7 +202,7 @@ func clockPageWakeStopped(page *k.EventsPage) (outcomes []WakeOutcome, families 
 
 // clockPageSections names the store sections the page's
 // ObservationInvalidated events made stale (facts.Invalidation.Sections):
-// the routing key for the planners a wake re-runs (#625). An event whose
+// the routing key for the planners a wake re-runs. An event whose
 // family the controller does not know names nothing here; the wake's
 // authority flag (clockPageWakeStopped) already re-runs everything.
 func clockPageSections(page *k.EventsPage) []facts.Section {

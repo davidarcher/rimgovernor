@@ -10,7 +10,7 @@ import (
 )
 
 // HomeAreaMargin is the Chebyshev margin the home area keeps around the
-// colony extent (#1328).
+// colony extent.
 const HomeAreaMargin int32 = 4
 
 // HomeAreaOutlier is how far (Chebyshev) an extent region may lie from the

@@ -8,7 +8,7 @@ import (
 )
 
 // slowCallMarker is how long a native call runs before core writes the
-// in-flight native_request marker (#2057). A call that finishes sooner writes
+// in-flight native_request marker. A call that finishes sooner writes
 // only its completed native_call row; a hung call leaves the marker as the
 // last thing in the recording, so crash analysis and `trace` still show "no
 // reply recorded". Var so tests can shorten it.

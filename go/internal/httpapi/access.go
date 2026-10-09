@@ -18,7 +18,7 @@ const slowAccess = 250 * time.Millisecond
 // accessComponent names the subsystem on the row.
 const accessComponent = "httpapi"
 
-// Access rows (#2055): Server.Handler wraps the routes so every request
+// Access rows: Server.Handler wraps the routes so every request
 // writes one http_access row to Config.Access, except a successful GET of a
 // frequently polled path under slowAccess, which would otherwise drown the
 // stream. Errors, slow requests and every non-GET are always kept. A pprof

@@ -24,7 +24,7 @@ func TestColonyGearExactRoundsCensus(t *testing.T) {
 }
 
 // The held share lands on each modelled pawn's input without mutating the
-// census it was copied from; a pawn with no held share is gated (#1842).
+// census it was copied from; a pawn with no held share is gated.
 func TestStampGearSharesGatesEachModelledPawn(t *testing.T) {
 	census := policy.GearObservation{Pawns: []policy.GearPawn{
 		{Pawn: "a", LoadoutModel: domain.Known(policy.GearLoadoutInput{})},
@@ -49,7 +49,7 @@ func TestStampGearSharesGatesEachModelledPawn(t *testing.T) {
 }
 
 // An unrevealed creepjoiner's apparel policy state and loadout model carry the
-// flag (#1962); an ordinary colonist, a creepjoiner whose downside fired and a
+// flag; an ordinary colonist, a creepjoiner whose downside fired and a
 // pawn with no row do not, and the source census is not mutated.
 func TestStampGearCreepjoinersFlagsOnlyUnrevealed(t *testing.T) {
 	policyOf := func() domain.Fact[policy.ApparelPolicyState] { return domain.Known(policy.ApparelPolicyState{}) }

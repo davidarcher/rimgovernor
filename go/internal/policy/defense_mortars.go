@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// DefenseMortarRequest is the mortar tier's input (#1206). Available is the
+// DefenseMortarRequest is the mortar tier's input. Available is the
 // native planning definition's availability re-checked against finished
 // research (like the turret gate), Stock the colony's stock census and Max
 // the budget MortarBudget buys from the observed raid points. An unknown

@@ -59,7 +59,7 @@ func TestServeDefaultsToAutonomousComposition(t *testing.T) {
 }
 
 // --clock-test-acceleration pins every window to boosted Ultrafast; without
-// it the windows follow the player's speed under player pacing (#875), and
+// it the windows follow the player's speed under player pacing, and
 // --clock-speed is gone.
 func TestServeClockTestAccelerationPinsUltrafast(t *testing.T) {
 	dir := t.TempDir()
@@ -119,7 +119,7 @@ func TestServeRoundsFamiliesSelection(t *testing.T) {
 		t.Fatal("unknown family accepted")
 	}
 	withRoundsFamilies(t, "", true)
-	// The resource family runs on derived needs; no flag sets floors (#875).
+	// The resource family runs on derived needs; no flag sets floors.
 	c, err = parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
 	if err != nil || !c.resourceTargetsConfigured() {
 		t.Fatal(c, err)
@@ -144,7 +144,7 @@ func TestServeResumeFlag(t *testing.T) {
 }
 
 // The resource family composes by family selection alone: no launch carries a
-// floor (#2466).
+// floor.
 func TestServeResourceFamilyComposition(t *testing.T) {
 	dir := t.TempDir()
 	withRoundsFamilies(t, "", true)

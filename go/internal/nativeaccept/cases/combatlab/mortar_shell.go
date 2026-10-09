@@ -9,7 +9,7 @@ import (
 )
 
 // shellLoadTicks bounds each wait for the crew to fetch and load a shell
-// (a few cells' walk and the load), inside the #845 5,000-tick budget.
+// (a few cells' walk and the load), inside the 5,000-tick budget.
 const shellLoadTicks = 1800
 
 func init() {

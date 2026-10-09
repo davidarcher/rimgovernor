@@ -8,7 +8,7 @@ import (
 )
 
 // PawnFirstSeen is what the pawn table said of a humanlike pawn the first
-// time it appeared in a world (#2383): when, and its faction, royal title and
+// time it appeared in a world: when, and its faction, royal title and
 // guest standing then. Later refreshes never change it.
 type PawnFirstSeen struct {
 	Tick        domain.Tick

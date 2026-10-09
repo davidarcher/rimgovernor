@@ -2,10 +2,10 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Whole-map zoning (#778, A2): every surveyed cell is classified from
+// Whole-map zoning: every surveyed cell is classified from
 // terrain. Zones overlap on purpose: core candidates are every cell a room
 // could stand on (buildable ground or rock to dig out), and fields, mining
-// and wood lie over the same cells; the core planner (A3) takes its
+// and wood lie over the same cells; the core planner takes its
 // footprint out of the candidates and the other zones yield to it. No-go
 // cells belong to no other zone. Unsurveyed (fogged) cells get no zone.
 
@@ -137,7 +137,7 @@ func zoneRuns(w, h int32, in func(int32) bool) []RowRun {
 	return runs
 }
 
-// zoneRichFertility is the fertility above which soil is rich (#1284).
+// zoneRichFertility is the fertility above which soil is rich.
 const zoneRichFertility = 1.0
 
 // FieldCells is every cell of the plan's field zones (turbine lanes

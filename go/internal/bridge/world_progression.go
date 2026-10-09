@@ -239,7 +239,7 @@ type WorldProgressionRead struct {
 }
 
 // worldProgressionRequest is the census read, shared with the bundle's
-// world progression family (#593).
+// world progression family.
 func worldProgressionRequest(identity *c.Identity, includeStorage bool) *o.WorldProgressionRequest {
 	return &o.WorldProgressionRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeStorage: proto.Bool(includeStorage)}
 }

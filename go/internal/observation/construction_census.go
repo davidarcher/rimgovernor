@@ -11,7 +11,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// The construction census is derived from the building table (#1641): a
+// The construction census is derived from the building table: a
 // frame-to-frame state that applies only the rows that changed between two
 // table versions (bridge.Table.Changed), instead of projecting every
 // building each step. Its outputs are rebuilt only when a projection

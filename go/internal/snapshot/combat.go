@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// A combat recording (#853) is a fight in the serve's stream: the #858
+// A combat recording is a fight in the serve's stream: the #858
 // snapshot frames the fight decided from, and one line per stop that wrote
 // to the journal (orders as evidence, a new formation, an admission). A
 // stop that changes nothing writes nothing, as in the plan's evidence.
@@ -52,7 +52,7 @@ type CombatStop struct {
 }
 
 // CombatRecordingMaxStops and CombatRecordingMaxBytes cap a committed
-// combat recording (#853).
+// combat recording.
 const (
 	CombatRecordingMaxStops = 40
 	CombatRecordingMaxBytes = 300 << 10

@@ -15,7 +15,7 @@ import (
 
 // GearFacts decodes the gear census against the frame's definitions: the
 // catalog's apparel rows and stat table give every garment's layers, groups
-// and stats, and the finished research its bill options need (#1732). A frame
+// and stats, and the finished research its bill options need. A frame
 // without a catalog, finished research or outdoor temperature leaves the
 // census unknown; a pawn the loadout model refuses carries the cause in
 // GearPawn.ModelRefusal.
@@ -200,9 +200,9 @@ func GearClimateFacts(gear *o.GearSnapshot) *policy.GearClimate {
 // the apparel a wear order (gear_replace, native GiveJobIntent Wear) can target.
 // A def the catalog does not know as apparel is skipped: the wear operation
 // looks its target up among loose apparel only, so a plan proposing one was
-// refused on every attempt and held its development slot for the run (#339).
+// refused on every attempt and held its development slot for the run.
 // A candidate whose things table row the frame lacks, or whose def the
-// catalog lacks, leaves them unknown (#1342).
+// catalog lacks, leaves them unknown.
 func GearCandidateFacts(p *o.GearLoadout, tables bridge.Tables, catalog *bridge.DefinitionCatalog) domain.Fact[[]policy.GearCandidate] {
 	candidates := []policy.GearCandidate{}
 	for _, c := range p.GetCandidates() {
@@ -292,7 +292,7 @@ func stampGearCreepjoiners(p *ColonyProjection, pawns *o.PawnSnapshot, downsides
 }
 
 // StampGearCreepjoiners flags each census colonist that is a creepjoiner with
-// an unrevealed downside (GearRoleInput.UnrevealedCreepjoiner, #1962), from
+// an unrevealed downside (GearRoleInput.UnrevealedCreepjoiner), from
 // pawn rows, on both the apparel policy state and the loadout model so every
 // reader derives the same constrained role. A pawn with no row is left
 // unflagged; the census is copied, never mutated in place.
@@ -322,8 +322,8 @@ func StampGearCreepjoiners(gear policy.GearObservation, pawns *o.PawnSnapshot, d
 	return gear
 }
 
-// stampGearShares puts each pawn's personal share on its loadout model input
-// (#1842), so PlanGearLoadout drops an upgrade the colonist cannot afford. It
+// stampGearShares puts each pawn's personal share on its loadout model input,
+// so PlanGearLoadout drops an upgrade the colonist cannot afford. It
 // runs after personalShares, which reads the same models' worn gear; the held
 // census is copied, never mutated in place.
 func stampGearShares(p *ColonyProjection) {

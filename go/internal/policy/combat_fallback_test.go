@@ -90,7 +90,7 @@ func TestDecideCombatFallsBackOnBreach(t *testing.T) {
 	}
 }
 
-// A layout without an inner line (a record from before #860) keeps the
+// A layout without an inner line keeps the
 // old reaction: the breach re-forms.
 func TestDecideCombatWithoutInnerLineReforms(t *testing.T) {
 	view, memory := fallbackView(t)

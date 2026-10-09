@@ -6,10 +6,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// DutyTank stands in front of a static gunner (#866).
+// DutyTank stands in front of a static gunner.
 const DutyTank CombatDuty = "tank"
 
-// StopShieldBroken is the #849 stop for a colonist's broken shield.
+// StopShieldBroken is the combat stop for a colonist's broken shield.
 const StopShieldBroken CombatStopKind = "shield_broken"
 
 // splitTanks separates the eligible defenders wearing a charged shield
@@ -32,7 +32,7 @@ func splitTanks(view CombatView) (rest, tanks []SquadDefenderFacts) {
 	return rest, byArmor(tanks)
 }
 
-// tankThreat reports a fight a tank is worth placing in (#866, #1153):
+// tankThreat reports a fight a tank is worth placing in:
 // the live hostiles are mostly ranged (a belt stops bullets, not blades)
 // and none carries an EMP weapon, which breaks the belt at once.
 func tankThreat(view CombatView) bool {
@@ -55,7 +55,7 @@ func tankThreat(view CombatView) bool {
 
 // tankCells are the cells a tank may take ahead of a gunner at g, nearest
 // first: the front cell, then the cells one and two steps toward the
-// approach within one cell sideways (#1153).
+// approach within one cell sideways.
 func tankCells(g, v domain.Cell) []domain.Cell {
 	side := domain.Cell{X: v.Z, Z: v.X}
 	var out []domain.Cell
@@ -67,9 +67,9 @@ func tankCells(g, v domain.Cell) []domain.Cell {
 
 // tankRoles puts one tank ahead of each gunner, toward the approach, in
 // the gunners' line order. The tank takes the cell in front of the gunner
-// when the game reported it standable (#881); when that cell is cover
+// when the game reported it standable; when that cell is cover
 // instead, the nearest standable cell ahead of the gunner, one with cover
-// toward the approach first, else open ground (#1153). Gunners stay put.
+// toward the approach first, else open ground. Gunners stay put.
 // A gunner with no free cell ahead gets no tank. The cell behind the
 // gunner is the tank's Home when standable. Tanks beyond the gunners, and
 // every tank outside a tankThreat fight, get no role.
@@ -113,7 +113,7 @@ func tankRoles(view CombatView, tanks []SquadDefenderFacts, gunners []DefensiveP
 	return roles
 }
 
-// pullBackTank is the reaction table's shield row (#866): on a shield
+// pullBackTank is the reaction table's shield row: on a shield
 // broken stop for a tank, the tank leaves the tank duty and retreats to
 // its Home behind its gunner, or holds where it stands without one.
 func pullBackTank(stop StopEvent, m *CombatMemory) {

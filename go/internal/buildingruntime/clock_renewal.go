@@ -45,7 +45,7 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 		return out, err
 	}
 	if s.config.Faults.DropRenewal {
-		// Injected authority loss (#633): the owned epoch is left to lapse,
+		// Injected authority loss: the owned epoch is left to lapse,
 		// so native stops it lease_expired and revokes at the next generation.
 		return out, nil
 	}
@@ -83,7 +83,7 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	}
 	original := owned.Epoch
 	// The renewal's one native read: the current scope and the owned clock
-	// status from the same hop (issue #127).
+	// status from the same hop.
 	started := s.clock.Now()
 	bundle, _, err := s.native.ReadStep(call, bridge.StepRequest{ClockStatus: true})
 	if err != nil {
@@ -122,7 +122,7 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	if status.GetStopped() != nil {
 		// Any other stop is the poller's to classify: an interruption
 		// disables through the review's hold, a benign stop (the game's
-		// own pause on an informational letter, #228) holds nothing and
+		// own pause on an informational letter) holds nothing and
 		// the next scheduler step retires the epoch. Until the poller has
 		// read the stop row, renewal only waits; once it has and the
 		// review holds nothing, there is nothing to renew or invalidate.
@@ -231,8 +231,8 @@ func clockWindowFinished(status *k.Status, original *k.Epoch) bool {
 			return false
 		}
 	case k.StopReason_STOP_REASON_WATCH_LATCHED, k.StopReason_STOP_REASON_COMBAT_EVENT:
-		// A combat event stop (#849) is armed only while a fight plan owns
-		// the combat (#852), so it ends the window like a latched watch.
+		// A combat event stop is armed only while a fight plan owns
+		// the combat, so it ends the window like a latched watch.
 		if actual.GetLastTick() > original.GetTickDeadline() {
 			return false
 		}

@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A remove_production_bill builds one RemoveProductionBillIntent (#2410) with
+// A remove_production_bill builds one RemoveProductionBillIntent with
 // the bench and the native bill id.
 func TestRemoveProductionBillBuildsIntent(t *testing.T) {
 	value, err := domain.NewRemoveProductionBill("Bench_1", "Bill_Production_77")

@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // ReadCells is the read on the main thread under a validated
-        // identity (#1346): the rectangle as the frame grid reads it.
+        // identity: the rectangle as the frame grid reads it.
         internal static Obs.GetCellsReply ReadCells(Map map, Obs.GetCellsRequest parsed, Common.ObservationContext context)
         {
             try {
@@ -84,7 +84,7 @@ namespace HomeBridge.BridgeTools
 
 
         // Traversal's doorway fact, shared with the planning
-        // window view's capture (#650).
+        // window view's capture.
         internal static bool CellDoorway(Map map, IntVec3 cell) => cell.GetDoor(map) != null || cell.GetThingList(map).Any(t => (t is Blueprint || t is Frame)
             && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass));
         internal static bool ValidateStatus(Obs.StatusRequest request, out Common.Failure failure)
@@ -122,7 +122,7 @@ namespace HomeBridge.BridgeTools
             }
             var spawned = map.mapPawns.AllPawnsSpawned.ToList();
             var colonists = spawned.Where(p => !p.Dead && p.IsFreeColonist).ToList();
-            // Colonists and threats are pawn table references (#1343).
+            // Colonists and threats are pawn table references.
             if (wantColonists) foreach (var pawn in colonists) result.Colonists.Add(NativePawnObservationTools.Ref(pawn));
             else result.Issues.Add(Issue("colonists", Common.UnavailableReason.NotRequested, "Colonist section not requested."));
             if (!wantThreats) { result.Issues.Add(Issue("threats", Common.UnavailableReason.NotRequested, "Threat section not requested.")); return result; }
@@ -147,7 +147,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The cheap facts the threat filter branches on and its rows carry
-        // (#646, #1356); Go classifies them.
+        //; Go classifies them.
         private static ThreatFacts ThreatFactsOf(Pawn pawn, Faction player)
         {
             var ours = pawn.Faction == player; var hunt = pawn.CurJobDef?.defName == "PredatorHunt"; var held = pawn.HostFaction == player;
@@ -161,7 +161,7 @@ namespace HomeBridge.BridgeTools
             if (hunt) { var prey = HuntedPawn(pawn); if (prey != null) { facts.HasPrey = true; facts.PreyOurs = prey.Faction == player || prey.HostFaction == player; } }
             return facts;
         }
-        // Insects and hives (#948): a dormant hive makes jelly but neither
+        // Insects and hives: a dormant hive makes jelly but neither
         // spreads nor spawns, and its insects attack only what trespasses the
         // hive's boundary; leftover insects attack only a colonist that comes
         // very close. So an insect is engaging only while awake and targeting
@@ -169,7 +169,7 @@ namespace HomeBridge.BridgeTools
         // colonist inside its boundary or one of its insects engaging.
         internal const int HiveBoundaryCells = 10;
         private static bool Awake(Thing thing) => thing.TryGetComp<CompCanBeDormant>()?.Awake ?? true;
-        // A dormant mech cluster (#1335): its mechs and buildings sleep under
+        // A dormant mech cluster: its mechs and buildings sleep under
         // CompCanBeDormant until a wake-up comp fires, so each is passive
         // while asleep and engaging once awake. Null without the comp.
         private static bool? Dormant(Thing thing) => thing.TryGetComp<CompCanBeDormant>() is CompCanBeDormant comp ? !comp.Awake : (bool?)null;
@@ -188,13 +188,13 @@ namespace HomeBridge.BridgeTools
         // hive (RimWorld.Hive is a ThingWithComps, so it is read by def, not
         // from the building lister) or any hostile-faction building with hit
         // points and combat power (crashed ship parts, mech-cluster pieces),
-        // or a mortar (a siege's, #931). Walls and other inert hostile
+        // or a mortar (a siege's). Walls and other inert hostile
         // edifices are not threats.
         internal static bool HostileBuilding(Thing thing, Faction player) => HostileThing(thing, player)
             && (thing is Hive || thing.def.building != null && (thing.def.building.combatPower > 0 || thing.def.building.IsMortar));
         private static bool HostileThing(Thing thing, Faction player) => thing.Spawned && !thing.Destroyed && thing.def.useHitPoints
             && thing.Faction != null && thing.Faction != player && thing.Faction.HostileTo(player);
-        // A hostile building thing by load id (#930), what an attack order
+        // A hostile building thing by load id, what an attack order
         // may target beside a pawn: a census building, or any other spawned
         // hostile-faction building or frame with hit points (a ship part's
         // cluster walls, a siege's sandbag or mortar frame).
@@ -222,7 +222,7 @@ namespace HomeBridge.BridgeTools
                 var workType = job.workGiverDef?.workType?.defName;
                 if (workType != null) row.WorkTypeDefName = Identifier(workType);
                 // targetA attributes the job to the thing or cell it works
-                // (#643): a haul for one concern is no evidence for another.
+                //: a haul for one concern is no evidence for another.
                 // A thing target is its Ref and cell; an invalid target reads
                 // unavailable, so an absent field means an older producer.
                 // A delivery (HaulToContainer) carries its material as
@@ -246,7 +246,7 @@ namespace HomeBridge.BridgeTools
             if (constructionCapable.HasValue) row.ConstructionCapable = constructionCapable.Value;
             if (pawn.Faction != null) row.Faction=NativeRef.Of(Identifier(pawn.Faction.GetUniqueLoadID()));
             // Fog is the discovery fact, not a guess at reachability: a hostile
-            // the colony has never seen is no emergency (#659).
+            // the colony has never seen is no emergency.
             row.Fogged = pawn.Spawned && pawn.Map != null && pawn.Position.Fogged(pawn.Map);
             var mental = pawn.MentalState;
             if (mental != null) {
@@ -254,7 +254,7 @@ namespace HomeBridge.BridgeTools
                 row.MentalStateIsAggro=mental.def.IsAggro;
                 row.MentalStateTicks=mental.Age;
             }
-            // Inspiration (#1187): empty is a known "none"; a pawn without a
+            // Inspiration: empty is a known "none"; a pawn without a
             // mind state handler leaves the field absent (unknown).
             if (pawn.mindState?.inspirationHandler != null)
                 row.Inspiration=pawn.mindState.inspirationHandler.CurStateDef?.defName ?? "";
@@ -278,7 +278,7 @@ namespace HomeBridge.BridgeTools
                 if(pawn.needs?.rest != null) needs.Rest=Finite(pawn.needs.rest.CurLevelPercentage); else needs.Issues.Add(Issue("rest",Common.UnavailableReason.NativeComponentMissing,"Rest tracker unavailable."));
                 if(pawn.needs?.joy != null) needs.Joy=Finite(pawn.needs.joy.CurLevelPercentage); else needs.Issues.Add(Issue("joy",Common.UnavailableReason.NativeComponentMissing,"Joy tracker unavailable."));
             }
-            // Psyfocus (#1313): absent without Royalty or a psylink.
+            // Psyfocus: absent without Royalty or a psylink.
             if (ModsConfig.RoyaltyActive && pawn.psychicEntropy != null) { var psylink=pawn.GetPsylinkLevel();
                 if (psylink > 0) { needs.Psyfocus=Finite(pawn.psychicEntropy.CurrentPsyfocus); needs.PsyfocusTarget=Finite(pawn.psychicEntropy.TargetPsyfocus); needs.PsylinkLevel=psylink; } }
             var breaker=pawn.mindState?.mentalBreaker;
@@ -329,7 +329,7 @@ namespace HomeBridge.BridgeTools
                     return "waste-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
             }
         }
-        // ThingRow is the one thing row builder (#1343): the cells read's
+        // ThingRow is the one thing row builder: the cells read's
         // things and the bundle's things table. Each row carries the thing's
         // own CAS token via Token, the self-computed hash a combat order
         // checks.
@@ -342,7 +342,7 @@ namespace HomeBridge.BridgeTools
             };
             // The stuff a thing is made of keys its catalog stat row (def, stuff).
             if (thing.Stuff != null) row.Stuff = Identifier(thing.Stuff.defName);
-            // A plant's growth marks the cell sown (#1567).
+            // A plant's growth marks the cell sown.
             if (thing is Plant plant) { row.Growth = Finite(plant.Growth); row.HarvestableNow = plant.HarvestableNow; }
             if (thing.def.category == ThingCategory.Item && (thing is Corpse || thing.def.IsIngestible)) FoodFacts(thing, row);
             return row;
@@ -368,7 +368,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // The bundle's things table (#1343): the rows of things, each once,
+        // The bundle's things table: the rows of things, each once,
         // in id order.
         internal static Obs.ThingsSnapshot Things(IEnumerable<Thing> things, Common.ObservationContext context)
         {

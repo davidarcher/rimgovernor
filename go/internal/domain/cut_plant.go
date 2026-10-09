@@ -4,7 +4,7 @@ import "errors"
 
 const CutPlantAction ActionKind = "cut_plant"
 
-// CutPlant designates one observed blighted plant for cutting (#245): the
+// CutPlant designates one observed blighted plant for cutting: the
 // exact plant by identity, never everything at a map cell. The designation
 // is the whole write; ordinary plant-cutting work does the cut.
 type CutPlant struct {

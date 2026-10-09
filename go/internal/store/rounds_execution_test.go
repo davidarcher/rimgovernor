@@ -208,7 +208,7 @@ func TestRoundsExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.T
 
 // A dialog answer plan committed under the AnswerDialog incident is a supported
 // routine method: the worker dispatches it under the root authority like
-// any building family (#156).
+// any building family.
 func TestRoundsExecutionAuthorizesDialogAnswerPlan(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -245,7 +245,7 @@ func TestRoundsExecutionAuthorizesDialogAnswerPlan(t *testing.T) {
 
 // An authority toggle bumps the native generation with the world unchanged;
 // the reviewed method still authorizes under the bumped root, and a
-// different load does not (#1141).
+// different load does not.
 func TestRoundsExecutionAuthorizesAfterNativeGenerationBump(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -293,7 +293,7 @@ func TestRoundsExecutionAuthorizesAfterNativeGenerationBump(t *testing.T) {
 // (vanilla hauled the stack, the player mended the wall) is settled by the
 // review that observes the recovery: its never-dispatched actions cancel and
 // the goal satisfies instead of staying Active behind a plan the worker
-// refuses on every step (#290).
+// refuses on every step.
 func TestRoundsRecoverySettlesUndispatchedMethod(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -341,9 +341,8 @@ func TestRoundsRecoverySettlesUndispatchedMethod(t *testing.T) {
 	if err = s.AuthorizeRoundsPlan(ctx, r.Current, target); err == nil {
 		t.Fatal("cancelled method authorized")
 	}
-	// An open fight (#852) keeps its settled plan: retired, it would drop
-	// out of its goal and the clock would stop admitting ticks mid-fight
-	// (#869).
+	// An open fight keeps its settled plan: retired, it would drop
+	// out of its goal and the clock would stop admitting ticks mid-fight.
 	world := World{Colony: r.Current.Colony, Load: r.Current.Load, Map: r.Current.Map}
 	if err = s.OpenCombatFight(ctx, "bill-plan", policy.CombatMemory{}, world, []domain.PawnID{"a"}); err != nil {
 		t.Fatal(err)
@@ -362,7 +361,7 @@ func TestRoundsRecoverySettlesUndispatchedMethod(t *testing.T) {
 	}
 }
 
-// A stone-shell bundle (#293) carries WallRemovalActions beside its Wall
+// A stone-shell bundle carries WallRemovalActions beside its Wall
 // builds; the routine allowlist must authorize the whole bundle, or the
 // Worker never dispatches the demolition its replacement depends on.
 func TestRoundsExecutionAuthorizesWallRemovalBundle(t *testing.T) {

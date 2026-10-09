@@ -7,10 +7,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Mood psycasts (#1612, epic #1598): a colonist whose mood pressure is active
+// Mood psycasts: a colonist whose mood pressure is active
 // and whose measured need relief is spent (or absent) is cast on by a
 // colonist who knows a mood psycast. The mood relief planner owns the call;
-// it is the generic Ability action (#1610), where native owns the cooldown,
+// it is the generic Ability action, where native owns the cooldown,
 // psyfocus, neural heat and range guards. Go holds the cast on every unread
 // fact and keeps a psyfocus reserve back for the casters' other work.
 //

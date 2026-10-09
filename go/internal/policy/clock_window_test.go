@@ -59,7 +59,7 @@ func TestClockWindowCombatPlanWatchesLiveHostiles(t *testing.T) {
 	if !d.Admitted || len(d.Refused) != 0 || d.Mode != ClockWindowCombat || d.MaxTicks != 30 || !reflect.DeepEqual(d.Hostiles, []PawnID{"abe", "wolf", "zed"}) {
 		t.Fatal(d)
 	}
-	// A hostile building (#246) makes the window a combat one but is never
+	// A hostile building makes the window a combat one but is never
 	// acknowledged: the native watcher resolves every acknowledged id as a
 	// spawned pawn. Alone, it still admits a combat window with no ids.
 	threats(live("zed", Hostile), EmergencyThreat{ID: "hive", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}})
@@ -70,7 +70,7 @@ func TestClockWindowCombatPlanWatchesLiveHostiles(t *testing.T) {
 	if d := EvaluateClockWindow(f, l); !d.Admitted || d.Mode != ClockWindowCombat || len(d.Hostiles) != 0 {
 		t.Fatal(d)
 	}
-	// A building no squad can answer (#326) is watched, not held: without
+	// A building no squad can answer is watched, not held: without
 	// a plan the colony window runs around it, and the planner's verdict
 	// has to be a known no-squad answer; a hostile pawn beside it still
 	// holds.
@@ -114,7 +114,7 @@ func TestClockWindowCombatPlanWatchesLiveHostiles(t *testing.T) {
 
 // A colonist the census already knows downed is acknowledged in either mode
 // so the native watcher does not stop the window at zero ticks on the same
-// casualty (#213); a dead, unknown or merely bleeding colonist is not.
+// casualty; a dead, unknown or merely bleeding colonist is not.
 func TestClockWindowAcknowledgesKnownDownedColonists(t *testing.T) {
 	f, l := clockWindowFixture(t)
 	colonist := func(id PawnID, dead, downed, bleeding domain.Fact[bool]) EmergencyPawn {
@@ -288,7 +288,7 @@ func TestClockWindowEmergencyAndTickBudgetBoundaries(t *testing.T) {
 
 // A manhunter or hunting animal DistantThreatCells from every colonist admits
 // an ordinary colony window: the native supervisor's radius stops it on
-// approach. The same animal nearer, or a raider at any distance, refuses (#66).
+// approach. The same animal nearer, or a raider at any distance, refuses.
 func TestClockWindowDistantAnimalThreatAdmitsColonyWindow(t *testing.T) {
 	f, limits := clockWindowFixture(t)
 	threat := func(kind ThreatKind, animal bool, distance float64) EmergencyThreat {

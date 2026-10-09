@@ -18,7 +18,7 @@ import (
 
 // NewRoundsFlooringPlanner composes MaintainFlooring's building method: lay
 // a role-appropriate floor on the cells native measures short of their
-// room's requirement (issue #6 slice 4). Completion is the next measured
+// room's requirement. Completion is the next measured
 // census, not the build receipts: the review releases a room only once no
 // cell of it reads deficient.
 func NewRoundsFlooringPlanner(reviewer *Rounder, native RoundsBuildingSource) (*RoundsBuildingPlanner, error) {
@@ -39,7 +39,7 @@ func (r *RoundsBuildingPlanner) SetFirebreakPave(pave func() []domain.Cell) {
 }
 
 // incineratorFloor reads the terrain under the standing incinerator's
-// interior (#1821): the native flooring census lists only roofed rooms, so
+// interior: the native flooring census lists only roofed rooms, so
 // the nine cells come from one defense-site read. Nil when no incinerator
 // stands, the source cannot read a site, or a cell is fogged or stands on
 // terrain the catalog does not price.
@@ -211,7 +211,7 @@ var trafficFindingsLogged struct {
 }
 
 // logTrafficFindings flags thoroughfares and animals in clean rooms from
-// the traffic layers (#817) in the flight recorder; no planner acts on them yet.
+// the traffic layers in the flight recorder; no planner acts on them yet.
 func logTrafficFindings(fact domain.Fact[policy.FlooringObservation]) {
 	v, known := fact.Value()
 	if !known {
@@ -233,7 +233,7 @@ func logTrafficFindings(fact domain.Fact[policy.FlooringObservation]) {
 }
 
 // trafficFlooringFacts adds what the traffic tier prices its floor from
-// (#950) to the flooring census: every policy floor's planning row, the
+// to the flooring census: every policy floor's planning row, the
 // accessible stock and the tier style's aisle floor. An unknown census
 // stays unknown.
 func trafficFlooringFacts(facts observation.ColonyProjection, p policy.FlooringPolicy) domain.Fact[policy.FlooringObservation] {

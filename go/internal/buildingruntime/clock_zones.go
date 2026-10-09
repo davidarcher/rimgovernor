@@ -9,8 +9,8 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// zoneRefresher is the step's refresher for the policy zone census
-// (#358): planners ask it through observation.WithZones, and a review step
+// zoneRefresher is the step's refresher for the policy zone census:
+// planners ask it through observation.WithZones, and a review step
 // asks it once up front. A review step reads the census whole once; any
 // other ask serves the held census until an invalidation marks it.
 type zoneRefresher struct {

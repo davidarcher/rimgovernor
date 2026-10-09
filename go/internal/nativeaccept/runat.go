@@ -10,7 +10,7 @@ import (
 )
 
 // RunSpeed and RunBoost are how a harness runs the game while it waits for
-// the game to do something (issue #91): Ultrafast with RimWorld's dev
+// the game to do something: Ultrafast with RimWorld's dev
 // tick boost, which drops the per-frame tick cap. Measured on the debug
 // colony: Fast 168 ticks/s, Superfast 348, Ultrafast 899, boosted ~7000,
 // so a wait stated in ticks costs the least wall clock. Neither needs
@@ -40,7 +40,7 @@ func (h *Harness) Tick(ctx context.Context) (uint64, error) {
 	return uint64(AsNumber(loadedContext["tick"])), nil
 }
 
-// PauseCause is why the game stopped ticking under RunUntil (#353): what
+// PauseCause is why the game stopped ticking under RunUntil: what
 // ReadPauseState showed when a probe found the game paused although the
 // harness asked for RunSpeed. Letters are the stack's rows (id, label,
 // letterDef), Windows the open windows that force a pause (type, title).
@@ -268,12 +268,12 @@ func RunUntil(ctx context.Context, h *Harness, label string, ticks uint64, w Wai
 }
 
 // ClockSpeedEnv overrides the clock speed a serve-driven harness runs
-// rimgovernor serve at; the default is Ultrafast (#265). Normal, Fast,
+// rimgovernor serve at; the default is Ultrafast. Normal, Fast,
 // Superfast and Ultrafast are admitted. Ultrafast asks for test
 // acceleration (--clock-test-acceleration, the native dev tick boost),
 // which only a headless.Prepare launch admits: under a rendered profile
 // native refuses the window. A slower speed is set as the player's choice
-// before serve starts (WritePlayerSpeed, #875), and serve follows it.
+// before serve starts (WritePlayerSpeed), and serve follows it.
 const ClockSpeedEnv = "RIMGOVERNOR_ACCEPT_CLOCK_SPEED"
 
 // ClockSpeed is ClockSpeedEnv or Ultrafast.
@@ -294,7 +294,7 @@ func ClockSpeedArgs() []string {
 }
 
 // WritePlayerSpeed sets the speed spec's service will follow as the
-// player's own choice (#875): the speed, then a pause, through the ordinary
+// player's own choice: the speed, then a pause, through the ordinary
 // time controls, so native records it as the player's pre-pause speed. A
 // boosted service (--clock-test-acceleration) ignores it and nothing is
 // written. The identity read first is a typed hop, which installs native's

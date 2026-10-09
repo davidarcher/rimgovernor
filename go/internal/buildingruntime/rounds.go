@@ -65,48 +65,48 @@ type Rounder struct {
 	// census retains the latest review reading for the planners of the same
 	// tick; see roundsCensus.
 	census roundsCensusStore
-	// store receives each review's decoded sections (#354); the scheduler
+	// store receives each review's decoded sections; the scheduler
 	// that steps this reviewer sets it, a standalone reviewer files nowhere.
 	store *facts.Store
 	// demand is the latest review's derived resource demand
 	// (derived state, empty until the first review after a restart); see
 	// resourceDemandMemory.
 	demand resourceDemandMemory
-	// firstSeen is the per-world first-seen record of humanlike pawns
-	// (#2383): derived, in memory only, empty after a restart.
+	// firstSeen is the per-world first-seen record of humanlike pawns:
+	// derived, in memory only, empty after a restart.
 	firstSeen observation.FirstSeenRecord
 	// billAges times the undispatched gear bills toward their expiry.
 	billAges billAges
-	// staleBills counts the reviews each finite bill's owner stayed Met (#2411).
+	// staleBills counts the reviews each finite bill's owner stayed Met.
 	staleBills staleBills
-	// skipsLogged are the quest skips already logged (#1717).
+	// skipsLogged are the quest skips already logged.
 	skipsLogged map[questSkipKey]bool
-	// techTier is the last tech tier logged (#604): the flight recorder
+	// techTier is the last tech tier logged: the flight recorder
 	// records a change once, not every review.
 	techTier domain.Fact[policy.TechTier]
 	// stockpiles remembers since when each owned stockpile sat mostly
-	// empty (#725); see stockpileMemory.
+	// empty; see stockpileMemory.
 	stockpiles stockpileMemory
 	// tunnels remembers the buried-ore corridor each resource last sited
-	// until a stage is admitted under it (#1124); see tunnelMemory.
+	// until a stage is admitted under it; see tunnelMemory.
 	tunnels tunnelMemory
-	// consumption is the realized-consumption ledger of the current load (#2441), in memory only.
+	// consumption is the realized-consumption ledger of the current load, in memory only.
 	consumption consumptionMemory
-	// safeArea is MaintainShelter's Safe area memory (#1325).
+	// safeArea is MaintainShelter's Safe area memory.
 	safeArea safeAreaMemory
-	// firebreak is MaintainFirebreak's review memory (#1548), set when its
+	// firebreak is MaintainFirebreak's review memory, set when its
 	// planner is composed.
 	firebreak *firebreakMemory
-	// psylink is MaintainPsylink's review memory (#1609), set when its
+	// psylink is MaintainPsylink's review memory, set when its
 	// planner is composed.
 	psylink *psylinkMemory
-	// creepJoiners is ManageCreepJoiners's review memory (#1740), set when
+	// creepJoiners is ManageCreepJoiners's review memory, set when
 	// its planner is composed.
 	creepJoiners *creepJoinerMemory
 	// moodCasts is set when the mood relief planner is composed: it casts
-	// mood psycasts (#1612), so the review reads the royalty facts.
+	// mood psycasts, so the review reads the royalty facts.
 	moodCasts bool
-	// stage is the colony stage of the review the last step loaded (#630):
+	// stage is the colony stage of the review the last step loaded:
 	// the stage the store holds that step's review to, so the planners'
 	// targets (staged) agree with the review's. Foothold before any
 	// review filed one.
@@ -117,12 +117,12 @@ type Rounder struct {
 	// foodGapZero is the acceptance fault that pins the food plan's gap to
 	// zero (Faults.FoodGapZero); the scheduler sets it.
 	foodGapZero bool
-	// foodCredit is the delivery credit's factors (#2157), in memory only.
+	// foodCredit is the delivery credit's factors, in memory only.
 	foodCredit policy.DeliveryCredit
-	// huntAdmission is the formation hunts the plan opened (#2163), in memory only.
+	// huntAdmission is the formation hunts the plan opened, in memory only.
 	huntAdmission policy.HuntAdmission
 	// tradeOffers is the caravans' priced offers the supply plan reads as
-	// trade candidates, in memory only (#2168).
+	// trade candidates, in memory only.
 	tradeOffers      tradeOfferBook
 	tradeAcquisition tradeAcquisitionMemory
 	// planChecked is the tick of the last layout survey this process read;
@@ -130,20 +130,20 @@ type Rounder struct {
 	planChecked  domain.Tick
 	planSurveyed bool
 	// planGrownFor is the tier and finished research the saved plan was
-	// last grown for (#1290), in memory only: a restart replans once.
+	// last grown for, in memory only: a restart replans once.
 	planGrownFor string
 	planPawns    int
 	// planInputs is the last replan's survey and inputs; an hourly check
-	// that finds them unchanged skips the replan (#1290).
+	// that finds them unchanged skips the replan.
 	planInputs layoutInputs
-	// suiteClaimsLogged is the last suite claim set logged (#1257).
+	// suiteClaimsLogged is the last suite claim set logged.
 	suiteClaimsLogged string
 	// layoutInvalidLogged: an invalid saved layout plan is logged once.
 	layoutInvalidLogged bool
 	// noRoomLogged is the last unplaced-rooms text logged as layout_plan
 	// refused/no_room, so a full map logs it once.
 	noRoomLogged string
-	// layoutOverlay draws the layout plan as a native overlay (#817); the
+	// layoutOverlay draws the layout plan as a native overlay; the
 	// overlay fields record the last draw. See drawLayoutOverlay.
 	layoutOverlay  bool
 	overlayKey     string
@@ -151,11 +151,11 @@ type Rounder struct {
 	overlayCleared bool
 	heatDrawn      domain.Tick
 	heatCleared    bool
-	// safety is the last safety layer sent (#824); see drawSafetyOverlay.
+	// safety is the last safety layer sent; see drawSafetyOverlay.
 	safety overlayState
 	// spots is the last work-spot layer sent; see drawSpotOverlay.
 	spots overlayState
-	// stock is the last stock layer sent (#825); see drawStockOverlay.
+	// stock is the last stock layer sent; see drawStockOverlay.
 	stock overlayState
 }
 
@@ -247,9 +247,8 @@ func (r *Rounder) seasonal(facts policy.RoundsFacts) policy.RoundsPolicy {
 }
 
 // publishFrame puts the review frame's colony facts, pawn and things
-// tables into the colony mirror (#795), which recordings and planners serve. A
-// section the frame lacks keeps the table the mirror holds, and its tick
-// (#1347).
+// tables into the colony mirror, which recordings and planners serve. A
+// section the frame lacks keeps the table the mirror holds, and its tick.
 func (r *Rounder) publishFrame(expected observation.Identity, frame bridge.RoundsFrame) {
 	seenAt := expected
 	seenAt.Tick = domain.Tick(frame.Context.GetTick())
@@ -272,9 +271,9 @@ func (r *Rounder) publishFrame(expected observation.Identity, frame bridge.Round
 type RoundsCapabilities struct {
 	Methods []policy.ConcernID
 	// LayoutOverlay draws the layout plan as a native overlay layer
-	// (#726, serve --layout-overlay).
+	// (serve --layout-overlay).
 	LayoutOverlay bool
-	// Undraft sends the undraft sweep's Draft intents (#939); nil never
+	// Undraft sends the undraft sweep's Draft intents; nil never
 	// undrafts.
 	Undraft boundary.ActionsWriter
 }
@@ -378,7 +377,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		readDefinitions = append(append([]string(nil), readDefinitions...), policy.RoomBeautyDefinitions()...)
 	}
 	if r.methodEnabled(policy.MaintainFlooring) {
-		// The traffic tier prices its floor in the review (#950).
+		// The traffic tier prices its floor in the review.
 		readDefinitions = append(append([]string(nil), readDefinitions...), r.policy.Flooring.Floors...)
 	}
 	if r.methodEnabled(policy.MaintainAnimalContainment) {
@@ -388,8 +387,8 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		readDefinitions = append(append([]string(nil), readDefinitions...), burialDefinitions...)
 	}
 	if r.methodEnabled(policy.EnsureCooking) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainPopulation) {
-		// The planned kitchen, freezer and jail shells (#835); the jail bed is
-		// a furniture rule's, read with every catalog (#880).
+		// The planned kitchen, freezer and jail shells; the jail bed is
+		// a furniture rule's, read with every catalog.
 		readDefinitions = append(append([]string(nil), readDefinitions...), "Wall", "Door")
 	}
 	claims, err := p.journal.ConstructionClaims(ctx, state.Snapshot, expected.Tick)
@@ -425,7 +424,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		return store.RoundsResult{}, err
 	}
 	// A creepjoiner held apart owes the isolation room, so the census is read
-	// before the child rooms and the layout (#1740).
+	// before the child rooms and the layout.
 	var creepRecord policy.CreepJoinerRecord
 	if r.creepJoiners != nil {
 		if creepRecord, err = creepJoinerRecord(ctx, p.journal); err != nil {
@@ -485,7 +484,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	}
 	// The review's PlanSheltering raises RecoverDisasterServices, so it reads
 	// the same draft set as the recovery planner: unknown, a threat shelters
-	// no colonist and the planner never runs (#1560).
+	// no colonist and the planner never runs.
 	if reading.Projection.Facts.ShelterCombatants, err = shelterCombatants(ctx, p.journal, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}); err != nil {
 		return store.RoundsResult{}, err
 	}
@@ -569,8 +568,8 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	reading.Projection.Facts.UrgentPatients = policy.UrgentPatients(emergency, state.Snapshot, expected.Tick)
 	reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients = policy.AmputationNeeds(emergency, reading.Projection.Facts.MedicalPawns, reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients)
 	// RestoreWorkers stands while a drafted colonist no live plan needs
-	// waits for the undraft sweep (#939). A draft its plan still holds is
-	// working, not stranded (#679).
+	// waits for the undraft sweep. A draft its plan still holds is
+	// working, not stranded.
 	needed, err := plannedDrafts(ctx, p.journal)
 	if err != nil {
 		return store.RoundsResult{}, err
@@ -603,9 +602,9 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		return store.RoundsResult{}, err
 	}
 	reading.Projection.Facts.MedicineCarryOwed = policy.MedicineCarryOwed(reading.Projection.WorkPawns, medicine)
-	// A prisoner surgery blocked only by the herbal care limit (#1239).
+	// A prisoner surgery blocked only by the herbal care limit.
 	reading.Projection.Facts.ResourceNeeds = policy.PrisonerHerbalNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Facts, policy.RoundsSilverShort(reading.Projection.Facts, r.policy, medicine.Active))
-	// A willing colonist's psylink neuroformer, bought or made by the resource ladder (#1609).
+	// A willing colonist's psylink neuroformer, bought or made by the resource ladder.
 	reading.Projection.Facts.ResourceNeeds = policy.NeuroformerNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Royalty, psylinkCandidates)
 	// The work goal's coverage reads the demand the last review derived: the
 	// value the work planner dispatches on.
@@ -651,7 +650,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 					reading.Projection.Facts.WorkCoverage = domain.Known(false)
 				}
 				// A timetable behind its role template is a work
-				// deficit the same review corrects (#417).
+				// deficit the same review corrects.
 				if matches, ok := work.Matches.Value(); ok && matches {
 					meditate, _ := reading.Projection.MeditateAvailable.Value()
 					for _, row := range policy.PlanSchedulesHeld(pawns, reading.Projection.Facts.Comfort, meditate, policy.HeldOffSleep(reading.Projection.Facts)).Schedules {
@@ -720,7 +719,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		if reading.Projection.Facts.Upkeep.Shrines, err = observation.ObserveShrines(ctx, source, expected); err != nil {
 			return store.RoundsResult{}, err
 		}
-		// The breach judgement (#457) is journalled beside the review so the
+		// The breach judgement is journalled beside the review so the
 		// hold reason and the chosen wall are readable; the planner re-reads
 		// before drafting anyone. The reads only happen for a sealed shrine
 		// with a breach wall.
@@ -755,7 +754,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	return result, err
 }
 
-// roundsStageAttrs are the review row's colony stage attrs (#630): the
+// roundsStageAttrs are the review row's colony stage attrs: the
 // stage the review derived and the first unmet condition of the next.
 func roundsStageAttrs(stage *policy.ColonyStageRecord) []any {
 	if stage == nil {
@@ -766,7 +765,7 @@ func roundsStageAttrs(stage *policy.ColonyStageRecord) []any {
 
 // roundsFoodAttrs are the review row's stored-food attrs: the food runway
 // the review read and the seasonal thresholds it held it to, with the
-// calendar they came from (#229). An unknown fact leaves its attr out, so
+// calendar they came from. An unknown fact leaves its attr out, so
 // a sustained run's samples are exactly the reviews that had one.
 func roundsFoodAttrs(f policy.RoundsFacts, seasonal policy.RoundsPolicy) []any {
 	attrs := []any{"food_min_days", seasonal.FoodMinDays, "food_target_days", seasonal.FoodTargetDays}
@@ -810,7 +809,7 @@ func (p *Player) stopRounds(ctx context.Context) (store.RoundsResult, error) {
 }
 
 // recordRoundsSnapshot writes the review's colony snapshot when
-// snapshot.DirEnv names a directory (#742); a failed write is logged, never
+// snapshot.DirEnv names a directory; a failed write is logged, never
 // the review's error.
 func recordRoundsSnapshot(ctx context.Context, current domain.GenerationSnapshot, tick domain.Tick, result store.RoundsResult, reading observation.ColonyProjection) {
 	dir := os.Getenv(snapshot.DirEnv)
@@ -826,8 +825,8 @@ func recordRoundsSnapshot(ctx context.Context, current domain.GenerationSnapshot
 	})
 }
 
-// plannedGround is the ground of the recorded plan's rooms not yet standing
-// (#1245); none while the plan or the room census is unknown, so nothing of
+// plannedGround is the ground of the recorded plan's rooms not yet standing;
+// none while the plan or the room census is unknown, so nothing of
 // the colony's comes down on a guess. The reviewer's upkeep reading and the
 // clearance planner share it.
 func plannedGround(colony observation.ColonyProjection) []policy.Rectangle {
@@ -842,7 +841,7 @@ func plannedGround(colony observation.ColonyProjection) []policy.Rectangle {
 	return policy.PlannedGround(plan, ground)
 }
 
-// retiredGround is the recorded plan's retired ground (#2075) with its kept
+// retiredGround is the recorded plan's retired ground with its kept
 // rooms' walls; empty while the plan is unknown.
 func retiredGround(colony observation.ColonyProjection) policy.RetiredGround {
 	plan, _ := colony.LayoutPlan.Value()
@@ -850,7 +849,7 @@ func retiredGround(colony observation.ColonyProjection) policy.RetiredGround {
 }
 
 // dropClearedRetiredGround records the plan without the retired ground the
-// census found clear (#2075); the projection carries the recorded plan.
+// census found clear; the projection carries the recorded plan.
 func (r *Rounder) dropClearedRetiredGround(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection, player []policy.ClearanceTarget, floors []policy.ClearanceFloor) error {
 	plan, known := projection.LayoutPlan.Value()
 	if !known || len(plan.RetiredGround) == 0 {

@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The outskirts (#2183, epic #2176): one off-core cluster per colony holding
+// The outskirts: one off-core cluster per colony holding
 // the morgue, tomb, graveyard, waste yard and incinerator. It is a reservation
 // sited apart from the core spine: set back outskirtsGap cells from every
 // room (the dump clearance and the corpse-sight radius), off the straight
@@ -16,7 +16,7 @@ import (
 // the core ground each side holds, never stored: the colony grows toward core
 // ground, so the cluster goes where least of it lies. It reuses the shelter's
 // gap test (shelterBlocked) and the pens' grid (utilityGrid.free, inset and
-// outside). The rooms inside it belong to the children of #2176.
+// outside).
 
 // ReserveOutskirts is the outskirts cluster's outline: the region its rooms
 // are sited in, reserved so the packer and later sites leave it whole.

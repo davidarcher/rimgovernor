@@ -7,7 +7,7 @@ import (
 )
 
 // The planner bills the stove's bulk baby food recipe over the single-item one
-// (policy.selectTargetBill), so the case must accept either (#1691).
+// (policy.selectTargetBill), so the case must accept either.
 func TestBabyFoodBillAcceptsAnyBabyEdibleRecipe(t *testing.T) {
 	recipes := []string{"Make_BabyFood", "Make_BabyFoodBulk"}
 	for _, recipe := range []string{"Make_BabyFood", "Make_BabyFoodBulk"} {

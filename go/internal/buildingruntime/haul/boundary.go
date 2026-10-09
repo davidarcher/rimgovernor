@@ -1,4 +1,4 @@
-// Package haul sends the haul action family through Actions/Apply (#856).
+// Package haul sends the haul action family through Actions/Apply.
 package haul
 
 import (

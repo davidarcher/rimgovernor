@@ -1552,7 +1552,7 @@ func (x *RequestStatus) GetExpectedInstanceId() string {
 	return ""
 }
 
-// New colony (#2019): native generates a colony from a spec on a fresh main
+// New colony: native generates a colony from a spec on a fresh main
 // menu and saves it as the last phase, so the spec carries the save name.
 // Unset temperature fields leave the game default. world_temperature is the
 // RimWorld OverallTemperature name; planet_coverage is 0.05..1; map_size is
@@ -2101,7 +2101,7 @@ func (*NewColonyReply_Failure) isNewColonyReply_Outcome() {}
 
 func (*NewColonyReply_Superseded) isNewColonyReply_Outcome() {}
 
-// Governor state (#882): opaque ASCII blobs Go keeps in the save's
+// Governor state: opaque ASCII blobs Go keeps in the save's
 // GovernorState game component. Native stores and returns them verbatim and
 // never interprets them; they persist once the game next saves.
 type GovernorStateRequest struct {
@@ -2282,7 +2282,7 @@ func (*GovernorStateReply_Unavailable) isGovernorStateReply_Outcome() {}
 
 func (*GovernorStateReply_Failure) isGovernorStateReply_Outcome() {}
 
-// PutBatch replaces the whole blob set (#2357): keys absent from blobs are
+// PutBatch replaces the whole blob set: keys absent from blobs are
 // removed. It runs off the game thread; the reply's loaded outcome is empty.
 type PutGovernorStateBatchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2328,7 +2328,7 @@ func (x *PutGovernorStateBatchRequest) GetBlobs() map[string]string {
 	return nil
 }
 
-// Save-time handshake (#2358). Native's SaveGame prefix never cancels a
+// Save-time handshake. Native's SaveGame prefix never cancels a
 // save. When Go holds a WaitSaveSignal call and the save is not Go-initiated,
 // native hands that call a pre_save signal, blocks the game thread until
 // FlushDone acks its token (or ~3 s pass), then lets the save run. Signals

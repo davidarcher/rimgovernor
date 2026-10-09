@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The power/wind-thin-roof acceptance fixture (PowerFixture "mountain", #1873)
+// The power/wind-thin-roof acceptance fixture (PowerFixture "mountain")
 // fills the 100x100 lab with thin-roofed granite around a 30x30 pocket at the
 // centre, a lamp and conduit line in the pocket's north-west corner. The case
 // relies on the layout putting the first turbine on rock beside the pocket,

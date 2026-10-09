@@ -14,7 +14,7 @@ const (
 	// stopsFirstWindow bounds the window the raiders close in: 20 cells of
 	// walking is well under this at Superfast.
 	stopsFirstWindow = 2000
-	// stopsBackstop is the combat backstop (#849): a window with no armed
+	// stopsBackstop is the combat backstop: a window with no armed
 	// event stops on its budget.
 	stopsBackstop = 300
 	// stopsWindows bounds the fight after contact: 20 backstops.

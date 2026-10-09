@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The waste census carries each row's rot stage to policy.WasteItem (#1810).
+// The waste census carries each row's rot stage to policy.WasteItem.
 func TestColonyWasteCarriesRotStage(t *testing.T) {
 	head := func(id string) *o.EntityRef {
 		return &o.EntityRef{Id: proto.String(id), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(4)}}

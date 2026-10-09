@@ -17,10 +17,10 @@ namespace HomeBridge.BridgeTools
     {
         // Every section reads one of four subsets of the visible spawned
         // things. One pass over the colony read's list fills all four
-        // (#1296); each keeps the list's order, so every section's filter
+        //; each keeps the list's order, so every section's filter
         // and sort sees the same rows it saw when it scanned the list
         // itself. SharedPass off rebuilds the list and scans it per subset,
-        // the pre-#1296 path the ColonyFacts equality probe compares against.
+        // the independent path the ColonyFacts equality probe compares against.
         internal static bool SharedPass = true;
 
         internal sealed class ThingSets
@@ -128,9 +128,9 @@ namespace HomeBridge.BridgeTools
                 }).ToList();
                 result.Filth.AddRange(values);
             });
-            // Home-area auto-expand, a save-level setting (#1322).
+            // Home-area auto-expand, a save-level setting.
             Read("auto_home_area", result, () => { if (Find.PlaySettings != null) result.AutoHomeArea = Find.PlaySettings.autoHomeArea; });
-            // Current home cells (#1328): the planner diffs its target against them.
+            // Current home cells: the planner diffs its target against them.
             Read("home_cells", result, () => result.HomeCells.AddRange(map.areaManager.Home.ActiveCells.Select(Cell)));
             Read("home_coverage", result, () => {
                 var state = HomeCoverage.State(map);
@@ -159,7 +159,7 @@ namespace HomeBridge.BridgeTools
                         }
                     } else {
                         // A stockpile's whole footprint, unbatched: colony extent
-                        // takes every census stockpile (#719).
+                        // takes every census stockpile.
                         row.ExtentGeometry.Zone.AddRange(full.OrderBy(c => c.x).ThenBy(c => c.z).Select(Cell));
                     }
                     facts.Targets.Add(row);
@@ -347,7 +347,7 @@ namespace HomeBridge.BridgeTools
                 var traffic = map.GetComponent<TrafficState>();
                 if (traffic != null)
                 {
-                    // The busiest TrafficTop cells of each layer (#817);
+                    // The busiest TrafficTop cells of each layer;
                     // traffic_samples is the colonist layer's decayed total.
                     facts.TrafficSamples = traffic.Counts.Total(TrafficCounts.Colonist);
                     if (traffic.SinceTick >= 0) facts.TrafficSinceTick = traffic.SinceTick;
@@ -375,10 +375,10 @@ namespace HomeBridge.BridgeTools
                 var values = people.Select(Person).ToList();
                 for (var i = 0; i < people.Count; i++) SleepingRelations(people[i], values[i]);
                 result.People.AddRange(values);
-                // Slaves of the colony (#1036): MaintainHousing gives each a
+                // Slaves of the colony: MaintainHousing gives each a
                 // bed set for slaves.
                 result.Slaves.AddRange(map.mapPawns.AllPawnsSpawned.Where(p => p.IsSlaveOfColony && !p.Dead).OrderBy(p => p.thingIDNumber).Select(Person));
-                // Hosted guests (#2384): housed to their title like a colonist;
+                // Hosted guests: housed to their title like a colonist;
                 // a visiting envoy is not hosted and stays out.
                 var guests = map.mapPawns.AllPawnsSpawned.Where(HostedGuest).OrderBy(p => p.thingIDNumber).ToList();
                 var guestRows = guests.Select(Person).ToList();
@@ -411,7 +411,7 @@ namespace HomeBridge.BridgeTools
                     var requiresPen = AnimalPenUtility.NeedsToBeManagedByRope(p);
                     var suitable = requiresPen ? AnimalPenUtility.ClosestSuitablePen(p, false) : null;
                     // The herd facts (pen, training, area, care) ride the
-                    // pawn table row's animal state (#1343).
+                    // pawn table row's animal state.
                     var value = new Obs.AnimalFeed {
                         Pawn = NativePawnObservationTools.Ref(p),
                         Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = requiresPen
@@ -433,7 +433,7 @@ namespace HomeBridge.BridgeTools
             });
         }
 
-        // TrafficTop bounds the cells reported per traffic layer (#817).
+        // TrafficTop bounds the cells reported per traffic layer.
         private const int TrafficTop = 128;
 
         // SleepingRelations fills a colonist's partners (lover, spouse and

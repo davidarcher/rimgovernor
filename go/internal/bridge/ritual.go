@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ritualAction is the RitualIntent of one ritual command (#1639, #1659): a
+// ritualAction is the RitualIntent of one ritual command: a
 // start names the colonist the ritual is for, a begin the organizer, the
 // ritual precept, the spot and the exact role and spectator assignments;
 // native checks the ritual waits for the command, or may begin, when it

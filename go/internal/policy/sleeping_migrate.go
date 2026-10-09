@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Wing migration (#1219, epic #1200). After a tier bump a smaller bedroom
+// Wing migration. After a tier bump a smaller bedroom
 // wing is Retiring (retireWings); its pawns move one at a time into the
 // active wings' rooms. The move is not a bedroom deficit: the unhoused
 // count, BedroomsOwed and the bed research request ignore it.
@@ -93,7 +93,7 @@ func vacantColonistBed(b SleepingBed) bool {
 // a Retiring wing's room to a vacant bed in an active wing's room; with
 // none vacant, reconcile the first standing empty active room, else the
 // first unbuilt one (BedroomReconcile). BedroomNone when no single pawn sleeps in a
-// Retiring room (a couple keeps its double bed, #838). One pawn per step.
+// Retiring room (a couple keeps its double bed). One pawn per step.
 func NextMigrateStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation) BedroomStep {
 	old := retiringBeds(plan, rooms)
 	if len(old) == 0 {

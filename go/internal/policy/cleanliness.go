@@ -9,8 +9,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// CleanlinessPolicy bounds MaintainCleanFacilities' direct cleaning response
-// (issue #6 slice 2). RimWorld's room Cleanliness stat is 0 for a clean
+// CleanlinessPolicy bounds MaintainCleanFacilities' direct cleaning response.
+// RimWorld's room Cleanliness stat is 0 for a clean
 // room and falls with filth; the game's food-poisoning and infection chances
 // read that same stat, so the thresholds are in its units.
 type CleanlinessPolicy struct {
@@ -133,7 +133,7 @@ type CleanlinessReview struct {
 // room's cells (8-way), which is how RimWorld registers a doorway's filth
 // in the regions on both sides of it. Without that a room whose only
 // remaining filth sits in its doorway would stay latched with nothing to
-// target (#324). Other filth -- other rooms, outdoors, inherently dirty
+// target. Other filth -- other rooms, outdoors, inherently dirty
 // rooms -- is never a target. A known empty filth census is a known empty
 // target set whatever the room census says; a known non-empty one needs
 // the room census to decide.
@@ -320,7 +320,7 @@ var sleepingDefinitions = map[Resource]bool{"SleepingSpot": true, "DoubleSleepin
 // SeparationProtectedCells returns every cell of every room holding the
 // benches in set (cooking rooms for a butcher placement, butcher rooms for
 // a cooking placement; a butcher also avoids any room the game already
-// scores a Kitchen, #805), so a placement search never proposes a site that
+// scores a Kitchen), so a placement search never proposes a site that
 // would co-locate the two. Unknown room facts protect nothing: the
 // placement's own native preview still owns legality. Sleeping rooms (the
 // Bedroom role, or any room holding a bed or sleeping spot, so the starter

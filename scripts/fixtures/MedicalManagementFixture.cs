@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
     {
         private static int surgicalId;
 
-        // SurgeryRoom (#1170) raises a roofed 5x5 wood ring at origin (south-west
+        // SurgeryRoom raises a roofed 5x5 wood ring at origin (south-west
         // corner, east door) with sterile tile, a fuelled torch and one medical
         // hospital bed, for prisoners when asked. Returns a free interior cell.
         private static IntVec3 SurgeryRoom(Map map, IntVec3 origin, bool prisoners)
@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
             return origin + new IntVec3(3, 0, 1);
         }
 
-        // Medical-bill probe (#1162): one colonist missing a leg (InstallPegLeg's
+        // Medical-bill probe: one colonist missing a leg (InstallPegLeg's
         // precondition) with an unrelated bill already on it, and one colony
         // prisoner of a non-player faction, on whom RemoveBodyPart is a violation.
         [Tool("test/surgery_intent_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Remove one colonist's leg, queue an unrelated bill on them, and hold one non-player pawn prisoner. Never installs anything.")]
@@ -63,7 +63,7 @@ namespace HomeBridge.BridgeTools
                 GenSpawn.Spawn(prisoner, CellFinder.StandableCellNear(patient.Position, map, 8), map);
                 prisoner.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
                 var kidney = prisoner.health.hediffSet.GetNotMissingParts().First(p => p.def.defName == "Kidney");
-                // #1253: a colonist who can doctor, for the surgeon restriction.
+                // a colonist who can doctor, for the surgeon restriction.
                 var surgeon = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber)
                     .FirstOrDefault(p => p != patient && !p.Dead && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor));
                 if (surgeon == null) return new { success = false, reason = "No second colonist who can doctor." };
@@ -92,7 +92,7 @@ namespace HomeBridge.BridgeTools
                     var plague = HediffMaker.MakeHediff(def, pawn);
                     plague.Severity = .2f;
                     pawn.health.AddHediff(plague);
-                    // Pin the rolled progression factor so the readback rate is exact (#717).
+                    // Pin the rolled progression factor so the readback rate is exact.
                     typeof(HediffComp_Immunizable).GetField("severityPerDayNotImmuneRandomFactor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
                         .SetValue(plague.TryGetComp<HediffComp_Immunizable>(), 1f);
                     // Seed the precondition normally created on the first immunity tick.
@@ -100,7 +100,7 @@ namespace HomeBridge.BridgeTools
                     pawn.health.immunity.GetImmunityRecord(def).immunity = .1f;
                     if (!survival && pawn == people[1]) {
                         plague.Tended(.75f, .75f);
-                        // Tended jitters quality by +-0.25 under the max; pin it so the rate is exact (#762).
+                        // Tended jitters quality by +-0.25 under the max; pin it so the rate is exact.
                         plague.TryGetComp<HediffComp_TendDuration>().tendQuality = .75f;
                     }
                 }

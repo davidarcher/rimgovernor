@@ -6,8 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The armory and wardrobe stockpiles (#1774, epic #1765): once layout's
-// armory (#1773) stands, one zone over its free cells keeps weapons and armor
+// The armory and wardrobe stockpiles: once layout's
+// armory stands, one zone over its free cells keeps weapons and armor
 // there; the same for clothing in the wardrobe. They replace the fixed 2x2
 // weapons and apparel zones: until the rooms stand, gear stays in the general
 // store (the stores are the Military department's, store_military.go). The armor-versus-clothing split is the catalog's (ItemFacts.Armor),

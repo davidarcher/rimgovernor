@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// A census row carries its designation age and taken flag (#1043).
+// A census row carries its designation age and taken flag.
 func TestColonyAcquisitionMapsDesignationAgeAndTaken(t *testing.T) {
 	v := &o.ColonyFactsSnapshot{HuntCensus: huntCensusFacts(true).HuntCensus, Acquisition: []*o.AcquisitionFacts{
 		{Source: bridge.NewRef("deer"), Resource: proto.String("Corpse_Deer"), Hunt: proto.Bool(true), Food: proto.Bool(true), Fogged: proto.Bool(false), InMentalState: proto.Bool(false), Designated: proto.Bool(true), DesignatedTick: proto.Int64(1200), Taken: proto.Bool(true)},

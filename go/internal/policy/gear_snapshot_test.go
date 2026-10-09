@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Replaces the weapon half of the native gear/soldier case (#471, #748):
+// Replaces the weapon half of the native gear/soldier case:
 // two unarmed soldiers, Thing_Human724 at Shooting 12 and Thing_Human726
 // at Shooting 8 (test/gear_area_prepare mode "soldier" on the 11x11
 // starter site), with a bolt-action rifle and a pump shotgun loose. The
@@ -18,7 +18,7 @@ import (
 // the equip step first planned (the case failed: nobody ended armed or
 // armored), so the recording hands the guns to others; the test stands
 // the soldiers back up and asserts the fit the case asserted. The armor
-// half is snapshot.TestGearSoldierDraftedPlansFlakVestAndHelmet (#979).
+// half is snapshot.TestGearSoldierDraftedPlansFlakVestAndHelmet.
 func TestGearSoldierWeaponFitBySkill(t *testing.T) {
 	var in struct {
 		Pawns       []policy.EquipCandidatePawn
@@ -35,7 +35,7 @@ func TestGearSoldierWeaponFitBySkill(t *testing.T) {
 			p.Downed = domain.Known(false)
 		}
 	}
-	// The recording predates the weapon def rows (#1723): state the three
+	// The recording predates the weapon def rows: state the three
 	// defs it holds as the Core XML derives them.
 	facts := map[string]policy.WeaponDef{
 		"Gun_BoltActionRifle": {Ranged: true, Range: 36.9, DPS: 5.625, AP: .27, Precision: true},

@@ -1,7 +1,7 @@
 package main
 
-// Stage scheduling (issue #527, #270 slice B): under `suite -stages` a row
-// whose case declares Stages (#329) is not one work item but a chain of
+// Stage scheduling: under `suite -stages` a row
+// whose case declares Stages is not one work item but a chain of
 // them, one per declared stage still missing from the bundles cached in
 // -root plus the tail that runs the case to its verdict. Each stage item
 // is `acceptance run <case> -through <stage>`: it opens on the newest

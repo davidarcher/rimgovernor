@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The shared precept rule (#1655, epic #1653). One pure function answers:
+// The shared precept rule. One pure function answers:
 // given the ideoligion, does a precept in force allow, approve, penalise or
 // forbid an action, for one pawn or for the colony, and what mood does it
 // cost? Callers name the action by the game's HistoryEventDef (the event the
@@ -67,7 +67,7 @@ type PreceptVerdict struct {
 	Reason          string
 }
 
-// IdeologyRead is what the frame says about Ideology (#1922): the primary
+// IdeologyRead is what the frame says about Ideology: the primary
 // ideoligion fact, and whether the expansion is installed. An unread
 // ideoligion with the expansion installed (or unknown) is unread; with the
 // expansion absent there are no precepts, so nothing is forbidden.
@@ -165,7 +165,7 @@ func (s PreceptStance) costsMood() bool { return s == PreceptPenalised || s == P
 
 // HeldBy is the ideoligion's defs with exactly the named precept defs in
 // force: the ideoligion of a pawn whose row lists its own precepts, which
-// may differ from the colony's primary one (#1656).
+// may differ from the colony's primary one.
 func (i Ideoligion) HeldBy(precepts []string) Ideoligion {
 	held := make([]HeldPrecept, 0, len(precepts))
 	for n, def := range precepts {

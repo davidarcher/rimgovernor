@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// benchInputs are the benches consuming stored inputs (#1775), read from
+// benchInputs are the benches consuming stored inputs, read from
 // the bench census and the built-building census for each bench's cell. The
 // kitchen's and butcher's benches (the projection's production benches) are
 // left to the food stores; with that census or the building census

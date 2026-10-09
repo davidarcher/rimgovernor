@@ -19,7 +19,7 @@ const invalidationWait = 20 * time.Second
 
 // editUnderEpoch runs execute while a supervised clock window plays and
 // returns the observation_invalidated row the native probe journals for
-// the zone (#359): the colony family narrowed to the zone's id and one
+// the zone: the colony family narrowed to the zone's id and one
 // rectangle covering cells. The window is paused afterwards; the caller's
 // later dispatch runs on a paused game as before.
 func editUnderEpoch(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report, zoneID string, cells []map[string]any, execute func() error) (map[string]any, error) {

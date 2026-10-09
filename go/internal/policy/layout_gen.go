@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The new generator (#1955, #1956, epic #1938): obstacles, clusters,
+// Layout generation: obstacles, clusters,
 // packing, housing blocks and corridors. It grows a fresh plan from one
 // seed over a grid whose obstacle cells are already out of the core
 // (layout_gen_obstacles.go), placing the base rooms by affinity cluster
@@ -29,7 +29,7 @@ func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs i
 	g, base := open.clone(), open.clone()
 	spine := []SpineSegment{{From: seed, To: seed}}
 	if len(plan.Spine) > 0 {
-		// A replan keeps the hallways its fixed rooms open onto (#1958).
+		// A replan keeps the hallways its fixed rooms open onto.
 		spine = slices.Clone(plan.Spine)
 	}
 	rooms := append([]PlannedRoom(nil), plan.Rooms...)
@@ -40,7 +40,7 @@ func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs i
 	g.carveBedroomWings(wings)
 	if len(spine) == 1 {
 		if next, ok := g.growSpine(spine, rooms); ok {
-			// The centre crossing is laid first so no room takes its column (#952).
+			// The centre crossing is laid first so no room takes its column.
 			spine = next
 		}
 	}
@@ -69,7 +69,7 @@ func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs i
 	for _, c := range clusters {
 		spine, rooms, _ = g.placeCluster(spine, rooms, wings, c)
 		// The wing is sited right behind the storage room, so it takes the
-		// ground beside it before the later clusters do (#1178).
+		// ground beside it before the later clusters do.
 		for _, role := range c.roles {
 			if role == PlannedStorage {
 				house()

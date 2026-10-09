@@ -154,7 +154,7 @@ func TestPlannedGroundStepBatchesRoomsAndCells(t *testing.T) {
 
 // Packable furniture is packed in one batch, in-use pieces last; a conduit and
 // a wall stay deconstructions; a Deconstruct-designated packable piece is
-// adopted as a deconstruction, never given an uninstall (#2103).
+// adopted as a deconstruction, never given an uninstall.
 func TestPlannedGroundStepPacksPackableFurniture(t *testing.T) {
 	plan, rooms := groundFixture()
 	g, rg := gapGround(plan), RetiredGroundOf(plan)

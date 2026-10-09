@@ -32,8 +32,8 @@ const (
 	CombatSide_COMBAT_SIDE_COLONIST      CombatSide = 1
 	CombatSide_COMBAT_SIDE_HOSTILE       CombatSide = 2
 	CombatSide_COMBAT_SIDE_COLONY_ANIMAL CombatSide = 3
-	CombatSide_COMBAT_SIDE_PRISONER      CombatSide = 4 // a prisoner of the colony breaking out (#1080)
-	CombatSide_COMBAT_SIDE_WILD_ANIMAL   CombatSide = 5 // a wild predator or large animal near a hostile (#1116)
+	CombatSide_COMBAT_SIDE_PRISONER      CombatSide = 4 // a prisoner of the colony breaking out
+	CombatSide_COMBAT_SIDE_WILD_ANIMAL   CombatSide = 5 // a wild predator or large animal near a hostile
 )
 
 // Enum value maps for CombatSide.
@@ -142,7 +142,7 @@ func (CombatStance) EnumDescriptor() ([]byte, []int) {
 	return file_mirror_proto_rawDescGZIP(), []int{1}
 }
 
-// What a combat event row records. The #849 stop kinds and the non-stops.
+// What a combat event row records. The combat stop kinds and the non-stops.
 type CombatLogKind int32
 
 const (
@@ -503,28 +503,28 @@ type CombatPawn struct {
 	Weapon              *string                      `protobuf:"bytes,21,opt,name=weapon,proto3,oneof" json:"weapon,omitempty"` // def name, absent when unarmed
 	WeaponWarmupTicks   *int32                       `protobuf:"varint,23,opt,name=weapon_warmup_ticks,json=weaponWarmupTicks,proto3,oneof" json:"weapon_warmup_ticks,omitempty"`
 	WeaponCooldownTicks *int32                       `protobuf:"varint,24,opt,name=weapon_cooldown_ticks,json=weaponCooldownTicks,proto3,oneof" json:"weapon_cooldown_ticks,omitempty"`
-	// Colonists (#881): worn sharp armor, the stronger of natural armor and
+	// Colonists: worn sharp armor, the stronger of natural armor and
 	// the best worn layer (the raid_armor rule per pawn), to 0.05.
 	Armor *float64 `protobuf:"fixed64,29,opt,name=armor,proto3,oneof" json:"armor,omitempty"`
 	// The watermark of the row's last change: when events concerned the pawn
 	// since the last compare, the newest of the highest rank (downing or
-	// death, then another #849 stop kind, then any), the matching combat_events
+	// death, then another combat stop kind, then any), the matching combat_events
 	// row's; otherwise the capture's. Not part of the change comparison.
 	Changed *Watermark `protobuf:"bytes,26,opt,name=changed,proto3" json:"changed,omitempty"`
-	// Rescuer choice (#867): a worn CompShield apparel (shield belt), and the
+	// Rescuer choice: a worn CompShield apparel (shield belt), and the
 	// Medicine skill level (absent without skills).
 	ShieldBelt   *bool  `protobuf:"varint,27,opt,name=shield_belt,json=shieldBelt,proto3,oneof" json:"shield_belt,omitempty"`
 	MedicalSkill *int32 `protobuf:"varint,28,opt,name=medical_skill,json=medicalSkill,proto3,oneof" json:"medical_skill,omitempty"`
-	// Melee strength (#969): the MeleeDPS stat, to 0.1.
+	// Melee strength: the MeleeDPS stat, to 0.1.
 	MeleePower *float64 `protobuf:"fixed64,30,opt,name=melee_power,json=meleePower,proto3,oneof" json:"melee_power,omitempty"`
-	// Enemy drugs (#1056): a GoJuiceHigh hediff (the pawn fights on past
+	// Enemy drugs: a GoJuiceHigh hediff (the pawn fights on past
 	// the pain that would down it) and a LuciferiumAddiction hediff.
 	GoJuiceHigh        *bool `protobuf:"varint,31,opt,name=go_juice_high,json=goJuiceHigh,proto3,oneof" json:"go_juice_high,omitempty"`
 	LuciferiumAddicted *bool `protobuf:"varint,32,opt,name=luciferium_addicted,json=luciferiumAddicted,proto3,oneof" json:"luciferium_addicted,omitempty"`
-	// EMP timing (#1050): the stun's ticks left, rounded up to 30, absent when
+	// EMP timing: the stun's ticks left, rounded up to 30, absent when
 	// not stunned.
 	StunTicksLeft *int32 `protobuf:"varint,33,opt,name=stun_ticks_left,json=stunTicksLeft,proto3,oneof" json:"stun_ticks_left,omitempty"`
-	// The job target is a mortar, or a frame that will build one (#1148):
+	// The job target is a mortar, or a frame that will build one:
 	// a turret whose verb fires mortar shells.
 	TargetMortar *bool `protobuf:"varint,34,opt,name=target_mortar,json=targetMortar,proto3,oneof" json:"target_mortar,omitempty"`
 	// Present after a complete inventory scan; absent means unknown.
@@ -840,7 +840,7 @@ func (x *CarriedDrugs) GetDefs() []string {
 	return nil
 }
 
-// A damaged player door (BundleSnapshot.combat_doors, #900): hit points
+// A damaged player door (BundleSnapshot.combat_doors): hit points
 // below max.
 type CombatDoorRow struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -910,14 +910,14 @@ func (x *CombatDoorRow) GetMaxHitPoints() int32 {
 	return 0
 }
 
-// A player mortar (BundleSnapshot.combat_mortars, #931) and its range.
+// A player mortar (BundleSnapshot.combat_mortars) and its range.
 type CombatMortarRow struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Id       *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"` // load id
 	Cell     *commonpb.Cell         `protobuf:"bytes,2,opt,name=cell,proto3" json:"cell,omitempty"`
 	MinRange *float32               `protobuf:"fixed32,3,opt,name=min_range,json=minRange,proto3,oneof" json:"min_range,omitempty"`
 	MaxRange *float32               `protobuf:"fixed32,4,opt,name=max_range,json=maxRange,proto3,oneof" json:"max_range,omitempty"`
-	// The loaded shell's ThingDef (#1051); absent when unloaded.
+	// The loaded shell's ThingDef; absent when unloaded.
 	LoadedShell   *string `protobuf:"bytes,5,opt,name=loaded_shell,json=loadedShell,proto3,oneof" json:"loaded_shell,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -993,7 +993,7 @@ type CombatEventRow struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	At    *Watermark             `protobuf:"bytes,1,opt,name=at,proto3" json:"at,omitempty"` // the event's own mark; the row id is "<tick>.<seq>"
 	Kind  *CombatLogKind         `protobuf:"varint,2,opt,name=kind,proto3,enum=rimgovernor.mirror.v1.CombatLogKind,oneof" json:"kind,omitempty"`
-	// The #849 stop kind this event is, armed or not; unset for non-stops.
+	// The combat stop kind this event is, armed or not; unset for non-stops.
 	Stop     *clockpb.CombatEvent `protobuf:"varint,3,opt,name=stop,proto3,enum=rimgovernor.clock.v1.CombatEvent,oneof" json:"stop,omitempty"`
 	ThingId  *string              `protobuf:"bytes,4,opt,name=thing_id,json=thingId,proto3,oneof" json:"thing_id,omitempty"`    // the actor or subject
 	TargetId *string              `protobuf:"bytes,5,opt,name=target_id,json=targetId,proto3,oneof" json:"target_id,omitempty"` // the victim, target or instigator
@@ -1001,9 +1001,9 @@ type CombatEventRow struct {
 	Cell     *commonpb.Cell       `protobuf:"bytes,7,opt,name=cell,proto3" json:"cell,omitempty"`
 	Detail   *string              `protobuf:"bytes,8,opt,name=detail,proto3,oneof" json:"detail,omitempty"`
 	// Lord toil rows: the raid strategy def. Hostile arrived rows from a
-	// drop-pod arrival mode (#870): "pods".
+	// drop-pod arrival mode: "pods".
 	RaidStrategy *string `protobuf:"bytes,9,opt,name=raid_strategy,json=raidStrategy,proto3,oneof" json:"raid_strategy,omitempty"`
-	// Drop-pod arrival rows (#870): the tick the last pod opens and the
+	// Drop-pod arrival rows: the tick the last pod opens and the
 	// cells the pods land on.
 	OpenTick      *int32           `protobuf:"varint,10,opt,name=open_tick,json=openTick,proto3,oneof" json:"open_tick,omitempty"`
 	LandingCells  []*commonpb.Cell `protobuf:"bytes,11,rep,name=landing_cells,json=landingCells,proto3" json:"landing_cells,omitempty"`
@@ -1118,7 +1118,7 @@ func (x *CombatEventRow) GetLandingCells() []*commonpb.Cell {
 	return nil
 }
 
-// rimgovernor/combat_geometry (#851): an on-demand read, not mirrored, that
+// rimgovernor/combat_geometry: an on-demand read, not mirrored, that
 // answers DecideCombat's geometry questions at a stop by the game's own
 // rules. Caps: at most MaxGeometryCells cells and MaxGeometryHostiles
 // hostiles (the native's CombatGeometry constants, bridge.CombatGeometry*),
@@ -1130,10 +1130,10 @@ type CombatGeometryRequest struct {
 	// cells together score at most the cells cap.
 	Cells []*commonpb.Cell `protobuf:"bytes,2,rep,name=cells,proto3" json:"cells,omitempty"`
 	// 1..cap, distinct pawn load ids; 0..cap for named cells alone (their
-	// standability, #897), with no propose and no pawn.
+	// standability), with no propose and no pawn.
 	HostileIds []string `protobuf:"bytes,3,rep,name=hostile_ids,json=hostileIds,proto3" json:"hostile_ids,omitempty"`
 	PawnId     *string  `protobuf:"bytes,4,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"` // optional: path ticks for this pawn to each cell
-	// Optional (#871): the native proposes candidate cells for one role and
+	// Optional: the native proposes candidate cells for one role and
 	// scores them like named cells, in the same read.
 	Propose       *CombatGeometryPropose `protobuf:"bytes,5,opt,name=propose,proto3" json:"propose,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1205,7 +1205,7 @@ func (x *CombatGeometryRequest) GetPropose() *CombatGeometryPropose {
 	return nil
 }
 
-// A role and its anchor (#871). Every proposal is a standable, in-bounds
+// A role and its anchor. Every proposal is a standable, in-bounds
 // cell not among the named cells, scored against the request's hostiles,
 // ranked best first, at most the cells cap minus the named cells (so a
 // propose request names at most cap-1 cells). Anchor cells are in bounds.
@@ -1323,7 +1323,7 @@ func (*CombatGeometryPropose_FiringCells) isCombatGeometryPropose_Role() {}
 
 func (*CombatGeometryPropose_RescuePath) isCombatGeometryPropose_Role() {}
 
-// The request pawn's route to `to` (#867), from the game pathfinder
+// The request pawn's route to `to`, from the game pathfinder
 // (TraverseParms.For(pawn, Danger.Deadly), touch end), in walking order,
 // start cell excluded; each cell scored and flagged hostile_line_of_fire
 // and door. Needs pawn_id. Not ranked and not filtered by standable or the
@@ -1550,7 +1550,7 @@ type CombatSightLine struct {
 	ColonistInPath *bool `protobuf:"varint,4,opt,name=colonist_in_path,json=colonistInPath,proto3,oneof" json:"colonist_in_path,omitempty"`
 	// CoverUtility.CalculateOverallBlockChance at the hostile's cell against
 	// a shot from the cell, 0..1: the cover the hostile keeps against a
-	// shooter here (#862).
+	// shooter here.
 	HostileCover  *float64 `protobuf:"fixed64,5,opt,name=hostile_cover,json=hostileCover,proto3,oneof" json:"hostile_cover,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1628,9 +1628,9 @@ type CombatGeometryCell struct {
 	// Path ticks for the request's pawn; absent without a pawn or a path.
 	PathTicks *int32 `protobuf:"varint,3,opt,name=path_ticks,json=pathTicks,proto3,oneof" json:"path_ticks,omitempty"`
 	Standable *bool  `protobuf:"varint,4,opt,name=standable,proto3,oneof" json:"standable,omitempty"`
-	// Any request hostile has line of fire to the cell (#867).
+	// Any request hostile has line of fire to the cell.
 	HostileLineOfFire *bool `protobuf:"varint,5,opt,name=hostile_line_of_fire,json=hostileLineOfFire,proto3,oneof" json:"hostile_line_of_fire,omitempty"`
-	// A player door stands on the cell (#867).
+	// A player door stands on the cell.
 	Door          *bool `protobuf:"varint,6,opt,name=door,proto3,oneof" json:"door,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1713,7 +1713,7 @@ type CombatGeometry struct {
 	Context      *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	Cells        []*CombatGeometryCell        `protobuf:"bytes,2,rep,name=cells,proto3" json:"cells,omitempty"`                                             // request cell order
 	MainThreadMs *float64                     `protobuf:"fixed64,3,opt,name=main_thread_ms,json=mainThreadMs,proto3,oneof" json:"main_thread_ms,omitempty"` // the read's own main-thread time
-	// The propose block's cells (#871), ranked best first, scored like
+	// The propose block's cells, ranked best first, scored like
 	// cells; empty without propose.
 	Proposed      []*CombatGeometryCell `protobuf:"bytes,4,rep,name=proposed,proto3" json:"proposed,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2250,7 +2250,7 @@ func (x *SparseArray) GetNumber() []float64 {
 	return nil
 }
 
-// A cell grid (#795, #1345): one array per policy.SiteCell field over
+// A cell grid: one array per policy.SiteCell field over
 // rect. Sentinels mark a cell the grid does not hold (fogged, or outside
 // the read) and an unknown fact:
 //
@@ -2286,8 +2286,7 @@ type CellGrid struct {
 	Roof          *FieldArray            `protobuf:"bytes,15,opt,name=roof,proto3" json:"roof,omitempty"`
 	ZoneId        *FieldArray            `protobuf:"bytes,16,opt,name=zone_id,json=zoneId,proto3" json:"zone_id,omitempty"`
 	Room          *FieldArray            `protobuf:"bytes,22,opt,name=room,proto3" json:"room,omitempty"`
-	// Columns 23 on carry the per-cell thing list and tile facts (#2260, #2261,
-	// epic #2241); a keyframe carries every one, things included. A fogged cell
+	// Columns 23 on carry the per-cell thing list and tile facts; a keyframe carries every one, things included. A fogged cell
 	// (cell code 0) stays unknown, distinct from a held cell with no things.
 	Terrain               *FieldArray `protobuf:"bytes,23,opt,name=terrain,proto3" json:"terrain,omitempty"`                                                          // string: the terrain def
 	InHome                *FieldArray `protobuf:"bytes,24,opt,name=in_home,json=inHome,proto3" json:"in_home,omitempty"`                                              // bool codes: inside the home area
@@ -2483,7 +2482,7 @@ func (x *CellGrid) GetThings() *ThingList {
 	return nil
 }
 
-// The things on a grid's cells (#2260), sparse over a base: in a keyframe
+// The things on a grid's cells, sparse over a base: in a keyframe
 // every cell has none, in a delta the keyframe's lists (cumulative, never
 // chained). cells lists, ascending and distinct, the cells whose list
 // is replaced; offsets (cells.length + 1 prefix sums, from 0, never

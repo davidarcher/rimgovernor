@@ -12,7 +12,7 @@ import (
 
 // MechFleet lifts the pawn table's living mechanitors (a colonist with a
 // mechanitor block) and mechs (a mechanoid with a mech block) into the mech
-// planners' inputs (#1736). A row whose biotech read failed is skipped: its
+// planners' inputs. A row whose biotech read failed is skipped: its
 // facts are unknown, so nothing is planned for it.
 func MechFleet(rows iter.Seq[*o.PawnState]) policy.MechFleet {
 	var fleet policy.MechFleet

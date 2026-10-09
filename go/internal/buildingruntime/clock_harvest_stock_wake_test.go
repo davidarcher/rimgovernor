@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TestClockHarvestAndStockRowsWakeTheirPlanners (#670): the native rows
+// TestClockHarvestAndStockRowsWakeTheirPlanners: the native rows
 // for a growing zone turning harvestable (colony, narrowed to zone ids, no
 // rectangle) and for a stock crossing a declared level (colony, whole
 // family) wake a step under the running window. The harvest row marks the

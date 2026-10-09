@@ -12,8 +12,8 @@ enum CombatSide {
   COMBAT_SIDE_COLONIST = 1;
   COMBAT_SIDE_HOSTILE = 2;
   COMBAT_SIDE_COLONY_ANIMAL = 3;
-  COMBAT_SIDE_PRISONER = 4; // a prisoner of the colony breaking out (#1080)
-  COMBAT_SIDE_WILD_ANIMAL = 5; // a wild predator or large animal near a hostile (#1116)
+  COMBAT_SIDE_PRISONER = 4; // a prisoner of the colony breaking out
+  COMBAT_SIDE_WILD_ANIMAL = 5; // a wild predator or large animal near a hostile
 }
 
 // What a combat pawn's stance is doing.
@@ -53,28 +53,28 @@ message CombatPawn {
   optional string weapon = 21; // def name, absent when unarmed
   optional int32 weapon_warmup_ticks = 23;
   optional int32 weapon_cooldown_ticks = 24;
-  // Colonists (#881): worn sharp armor, the stronger of natural armor and
+  // Colonists: worn sharp armor, the stronger of natural armor and
   // the best worn layer (the raid_armor rule per pawn), to 0.05.
   optional double armor = 29;
   // The watermark of the row's last change: when events concerned the pawn
   // since the last compare, the newest of the highest rank (downing or
-  // death, then another #849 stop kind, then any), the matching combat_events
+  // death, then another combat stop kind, then any), the matching combat_events
   // row's; otherwise the capture's. Not part of the change comparison.
   Watermark changed = 26;
-  // Rescuer choice (#867): a worn CompShield apparel (shield belt), and the
+  // Rescuer choice: a worn CompShield apparel (shield belt), and the
   // Medicine skill level (absent without skills).
   optional bool shield_belt = 27;
   optional int32 medical_skill = 28;
-  // Melee strength (#969): the MeleeDPS stat, to 0.1.
+  // Melee strength: the MeleeDPS stat, to 0.1.
   optional double melee_power = 30;
-  // Enemy drugs (#1056): a GoJuiceHigh hediff (the pawn fights on past
+  // Enemy drugs: a GoJuiceHigh hediff (the pawn fights on past
   // the pain that would down it) and a LuciferiumAddiction hediff.
   optional bool go_juice_high = 31;
   optional bool luciferium_addicted = 32;
-  // EMP timing (#1050): the stun's ticks left, rounded up to 30, absent when
+  // EMP timing: the stun's ticks left, rounded up to 30, absent when
   // not stunned.
   optional int32 stun_ticks_left = 33;
-  // The job target is a mortar, or a frame that will build one (#1148):
+  // The job target is a mortar, or a frame that will build one:
   // a turret whose verb fires mortar shells.
   optional bool target_mortar = 34;
   // Present after a complete inventory scan; absent means unknown.
@@ -85,7 +85,7 @@ message CombatPawn {
 // A present empty message establishes that the pawn carries no drugs.
 message CarriedDrugs { repeated string defs = 1; }
 
-// A damaged player door (BundleSnapshot.combat_doors, #900): hit points
+// A damaged player door (BundleSnapshot.combat_doors): hit points
 // below max.
 message CombatDoorRow {
   optional string id = 1; // load id
@@ -94,17 +94,17 @@ message CombatDoorRow {
   optional int32 max_hit_points = 4;
 }
 
-// A player mortar (BundleSnapshot.combat_mortars, #931) and its range.
+// A player mortar (BundleSnapshot.combat_mortars) and its range.
 message CombatMortarRow {
   optional string id = 1; // load id
   rimgovernor.common.v1.Cell cell = 2;
   optional float min_range = 3;
   optional float max_range = 4;
-  // The loaded shell's ThingDef (#1051); absent when unloaded.
+  // The loaded shell's ThingDef; absent when unloaded.
   optional string loaded_shell = 5;
 }
 
-// What a combat event row records. The #849 stop kinds and the non-stops.
+// What a combat event row records. The combat stop kinds and the non-stops.
 enum CombatLogKind {
   COMBAT_LOG_KIND_UNSPECIFIED = 0;
   COMBAT_LOG_KIND_DOWNED = 1;
@@ -127,7 +127,7 @@ enum CombatLogKind {
 message CombatEventRow {
   Watermark at = 1; // the event's own mark; the row id is "<tick>.<seq>"
   optional CombatLogKind kind = 2;
-  // The #849 stop kind this event is, armed or not; unset for non-stops.
+  // The combat stop kind this event is, armed or not; unset for non-stops.
   optional rimgovernor.clock.v1.CombatEvent stop = 3;
   optional string thing_id = 4;  // the actor or subject
   optional string target_id = 5; // the victim, target or instigator
@@ -135,15 +135,15 @@ message CombatEventRow {
   rimgovernor.common.v1.Cell cell = 7;
   optional string detail = 8;
   // Lord toil rows: the raid strategy def. Hostile arrived rows from a
-  // drop-pod arrival mode (#870): "pods".
+  // drop-pod arrival mode: "pods".
   optional string raid_strategy = 9;
-  // Drop-pod arrival rows (#870): the tick the last pod opens and the
+  // Drop-pod arrival rows: the tick the last pod opens and the
   // cells the pods land on.
   optional int32 open_tick = 10;
   repeated rimgovernor.common.v1.Cell landing_cells = 11;
 }
 
-// rimgovernor/combat_geometry (#851): an on-demand read, not mirrored, that
+// rimgovernor/combat_geometry: an on-demand read, not mirrored, that
 // answers DecideCombat's geometry questions at a stop by the game's own
 // rules. Caps: at most MaxGeometryCells cells and MaxGeometryHostiles
 // hostiles (the native's CombatGeometry constants, bridge.CombatGeometry*),
@@ -154,15 +154,15 @@ message CombatGeometryRequest {
   // cells together score at most the cells cap.
   repeated rimgovernor.common.v1.Cell cells = 2;
   // 1..cap, distinct pawn load ids; 0..cap for named cells alone (their
-  // standability, #897), with no propose and no pawn.
+  // standability), with no propose and no pawn.
   repeated string hostile_ids = 3;
   optional string pawn_id = 4; // optional: path ticks for this pawn to each cell
-  // Optional (#871): the native proposes candidate cells for one role and
+  // Optional: the native proposes candidate cells for one role and
   // scores them like named cells, in the same read.
   CombatGeometryPropose propose = 5;
 }
 
-// A role and its anchor (#871). Every proposal is a standable, in-bounds
+// A role and its anchor. Every proposal is a standable, in-bounds
 // cell not among the named cells, scored against the request's hostiles,
 // ranked best first, at most the cells cap minus the named cells (so a
 // propose request names at most cap-1 cells). Anchor cells are in bounds.
@@ -175,7 +175,7 @@ message CombatGeometryPropose {
   }
 }
 
-// The request pawn's route to `to` (#867), from the game pathfinder
+// The request pawn's route to `to`, from the game pathfinder
 // (TraverseParms.For(pawn, Danger.Deadly), touch end), in walking order,
 // start cell excluded; each cell scored and flagged hostile_line_of_fire
 // and door. Needs pawn_id. Not ranked and not filtered by standable or the
@@ -220,7 +220,7 @@ message CombatSightLine {
   optional bool colonist_in_path = 4;
   // CoverUtility.CalculateOverallBlockChance at the hostile's cell against
   // a shot from the cell, 0..1: the cover the hostile keeps against a
-  // shooter here (#862).
+  // shooter here.
   optional double hostile_cover = 5;
 }
 
@@ -230,9 +230,9 @@ message CombatGeometryCell {
   // Path ticks for the request's pawn; absent without a pawn or a path.
   optional int32 path_ticks = 3;
   optional bool standable = 4;
-  // Any request hostile has line of fire to the cell (#867).
+  // Any request hostile has line of fire to the cell.
   optional bool hostile_line_of_fire = 5;
-  // A player door stands on the cell (#867).
+  // A player door stands on the cell.
   optional bool door = 6;
 }
 
@@ -240,7 +240,7 @@ message CombatGeometry {
   rimgovernor.common.v1.ObservationContext context = 1;
   repeated CombatGeometryCell cells = 2; // request cell order
   optional double main_thread_ms = 3; // the read's own main-thread time
-  // The propose block's cells (#871), ranked best first, scored like
+  // The propose block's cells, ranked best first, scored like
   // cells; empty without propose.
   repeated CombatGeometryCell proposed = 4;
 }
@@ -258,7 +258,7 @@ message Watermark {
   optional uint32 seq = 2;
 }
 
-// The whole-map cell grid (#1345): native sends it in every snapshot frame
+// The whole-map cell grid: native sends it in every snapshot frame
 // (BundleSnapshot.grid); the Go snapshot recorder stores planning_cells
 // section lines in it too.
 
@@ -294,7 +294,7 @@ message SparseArray {
   repeated double number = 3;
 }
 
-// A cell grid (#795, #1345): one array per policy.SiteCell field over
+// A cell grid: one array per policy.SiteCell field over
 // rect. Sentinels mark a cell the grid does not hold (fogged, or outside
 // the read) and an unknown fact:
 //   cell: 0 not held, 1 held;
@@ -329,8 +329,7 @@ message CellGrid {
   FieldArray zone_id = 16;
 
   FieldArray room = 22;
-  // Columns 23 on carry the per-cell thing list and tile facts (#2260, #2261,
-  // epic #2241); a keyframe carries every one, things included. A fogged cell
+  // Columns 23 on carry the per-cell thing list and tile facts; a keyframe carries every one, things included. A fogged cell
   // (cell code 0) stays unknown, distinct from a held cell with no things.
   FieldArray terrain = 23;               // string: the terrain def
   FieldArray in_home = 24;               // bool codes: inside the home area
@@ -383,7 +382,7 @@ enum CorpseClass {
   CORPSE_CLASS_ANIMAL = 2;
 }
 
-// The things on a grid's cells (#2260), sparse over a base: in a keyframe
+// The things on a grid's cells, sparse over a base: in a keyframe
 // every cell has none, in a delta the keyframe's lists (cumulative, never
 // chained). cells lists, ascending and distinct, the cells whose list
 // is replaced; offsets (cells.length + 1 prefix sums, from 0, never

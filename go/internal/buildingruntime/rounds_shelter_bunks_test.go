@@ -30,7 +30,7 @@ func bunkAnchors(t *testing.T, plan store.PlanState, definition string) []shelte
 }
 
 // The first review places sleeping spots, the first construction is the
-// beds, and only then is the ring sited around them (#612).
+// beds, and only then is the ring sited around them.
 func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -57,7 +57,7 @@ func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 	if err != nil || !IsShellMethod(shell.Method) || len(shell.Progress) != 32 {
 		t.Fatal(shell, err)
 	}
-	// The first-round shell stands on the planned shelter room (#2043).
+	// The first-round shell stands on the planned shelter room.
 	if !strings.HasPrefix(string(shell.Method), "shelter-shell-1-1-build-") {
 		t.Fatal("shell method", shell.Method)
 	}
@@ -91,7 +91,7 @@ func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 	}
 	// The slots are shared: every spot lies under the bed that replaces it,
 	// after the spot was deleted: no bed was ever previewed over a standing
-	// one (#2080).
+	// one.
 	for _, spot := range spots {
 		if !slices.Contains(beds, spot) {
 			t.Fatal("spot", spot, "has no bed on its slot", beds)
@@ -102,7 +102,7 @@ func TestRoundsShelterSpotsThenBedsThenShell(t *testing.T) {
 	}
 }
 
-// The ladder across tiers (#2080): with Bed locked and bedrolls stocked the
+// The ladder across tiers: with Bed locked and bedrolls stocked the
 // spots are deleted and bedrolls placed on the freed slots; when Bed then
 // becomes buildable the bedrolls are packed to storage (uninstalled, not
 // deconstructed) and the beds go on the same slots. At no step is a bed or
@@ -234,7 +234,7 @@ func TestRoundsShelterBedsRefusedFallsThroughToShell(t *testing.T) {
 	}
 }
 
-// A bed rung admitted and still open does not hold the ring (#641): the
+// A bed rung admitted and still open does not hold the ring: the
 // review after it admits the shell around the pending bunks, and the review
 // after that adds nothing, neither a second shell nor a second bed rung.
 func TestRoundsShelterStalledBedsAdmitShell(t *testing.T) {

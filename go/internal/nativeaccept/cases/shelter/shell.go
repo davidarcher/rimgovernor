@@ -19,7 +19,7 @@ import (
 // The shell helpers shelter/bunks-first runs on: the durable shell plan's
 // geometry and lineage, the service starts, the furnished bed and the
 // native room checks. The staged-ring shelter cases are
-// snapshot tests since #745 (buildingruntime.TestShelterSitingSnapshots).
+// snapshot tests (buildingruntime.TestShelterSitingSnapshots).
 // families: the work family is left out because its planner refuses
 // the tribal8 baseline's work priorities and one failing planner
 // cancels the whole step, and the acquisition family because its food
@@ -185,7 +185,7 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 // allowSupplies has test/hut_shell_fixture unforbid the starting supplies
 // a fresh load drops forbidden, so the shell's WoodLog stock admits its
 // plan without the supply family: that family cost one worker dispatch
-// (3-4s under peer load) per stack, fifteen of them in run 2 (#193).
+// (3-4s under peer load) per stack, fifteen of them in run 2.
 func allowSupplies(ctx context.Context, h *na.Harness, label string, report na.Report) error {
 	result, err := h.Call(ctx, label, "test/hut_shell_fixture", map[string]any{"action": "allow"})
 	if err != nil {

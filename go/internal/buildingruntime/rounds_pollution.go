@@ -10,13 +10,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RoundsPollutionPlanner composes ManagePollution's methods (#1683) from the
+// RoundsPollutionPlanner composes ManagePollution's methods from the
 // reviewer's fresh routine census: allow forbidden wastepacks, haul exposed
 // ones to storage through the wastepack-guarded HAUL designation, and put the
 // polluted ground the window shows into the game's pollution-clear area for
 // the cleanup crew. The goal settles on the game's verdicts (every pack
 // frozen or atomized, no polluted cell outside the area), never on a plan.
-// Where freezer storage stands is #1684's siting; a pack no stockpile takes
+// Where freezer storage stands is pollution-storage siting; a pack no stockpile takes
 // stays exposed and is not re-ordered.
 type RoundsPollutionPlanner struct {
 	reviewer *Rounder

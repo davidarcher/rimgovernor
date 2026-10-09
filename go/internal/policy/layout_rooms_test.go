@@ -33,7 +33,7 @@ func TestPlannedShellsKeepThePlanRectangleAndDoor(t *testing.T) {
 	}
 }
 
-// The initial shelter is the plan's storeroom at Camp (#1177, #1231): its
+// The initial shelter is the plan's storeroom at Camp: its
 // rectangle and spine door, bunks clear of the door aisle.
 func TestShelterBunksStandInThePlannedStoreroomClearOfTheDoorAisle(t *testing.T) {
 	storage := hallRoom(PlannedStorage, 20, 30, 9, 7, true)

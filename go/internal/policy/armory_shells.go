@@ -18,7 +18,7 @@ const (
 
 // MortarShellTargets is the shell stock the armory keeps for the built
 // mortars under assessment a: none without a mortar or an observed threat,
-// and none of a kind the load's shells (#1723) have no def for.
+// and none of a kind the load's shells have no def for.
 func MortarShellTargets(mortars int, a ArmoryAssessment, shells MortarShells) []Amount {
 	if mortars <= 0 || a.Threat == ArmoryTierUnknown {
 		return nil

@@ -13,7 +13,7 @@ using Verse.AI.Group;
 
 namespace HomeBridge.BridgeTools
 {
-    // The blank lab map (#730): a fixture case spawns what it needs at known
+    // The blank lab map: a fixture case spawns what it needs at known
     // coordinates on it instead of searching a random world for a site.
     // Wipe turns the loaded map into flat Soil with nothing on it but N
     // fixture-made adult colonists, pins clear weather and a fixed outdoor
@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
                 map.terrainGrid.SetTerrain(cell, TerrainDefOf.Soil);
             }
             // Despawning the mountains marked their roofs to collapse; the
-            // roofs are gone, so the pending collapse is too (#768).
+            // roofs are gone, so the pending collapse is too.
             map.roofCollapseBuffer.Clear();
             map.fogGrid.ClearAllFog();
             map.areaManager.Home.Clear();
@@ -295,7 +295,7 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // Stages a whole combat lab fixture (#854) on a wiped lab in one call:
+    // Stages a whole combat lab fixture on a wiped lab in one call:
     // the spec (built in Go, internal/nativeaccept/cases/combatlab) lists
     // structures, the lab colonists' cells and gear, and hostiles with fixed
     // weapons, skills and no apparel, spawned under a fixed seed and given an
@@ -325,16 +325,16 @@ namespace HomeBridge.BridgeTools
                     var stuff = def.MadeFromStuff ? (stuffName == "" ? GenStuff.DefaultStuffFor(def) : DefDatabase<ThingDef>.GetNamedSilentFail(stuffName) ?? throw new ArgumentException($"No stuff {stuffName}.")) : null;
                     var cell = Cell(map, t);
                     var thing = ThingMaker.MakeThing(def, stuff);
-                    // hostile (#930): the lab hostiles' faction, e.g. a ship part to attack.
-                    // A hive (#1071) is the insects'; natural rock no one's.
+                    // hostile: the lab hostiles' faction, e.g. a ship part to attack.
+                    // A hive is the insects'; natural rock no one's.
                     if (thing is Hive) thing.SetFaction(Faction.OfInsects);
                     else if (def.category == ThingCategory.Building && def.CanHaveFaction) thing.SetFaction((bool?)t["hostile"] == true ? faction : Faction.OfPlayer);
-                    // hitPoints (#1150): a damaged building, e.g. a door to repair.
+                    // hitPoints: a damaged building, e.g. a door to repair.
                     if ((int?)t["hitPoints"] is int hp && def.useHitPoints) thing.HitPoints = Math.Max(1, Math.Min(hp, thing.MaxHitPoints));
                     GenSpawn.Spawn(thing, cell, map, new Rot4((int?)t["rotation"] ?? 0));
                     things.Add(new { id = thing.GetUniqueLoadID(), def = def.defName, x = cell.x, z = cell.z });
                 }
-                // roof (#1071): a RoofDef over a rectangle, e.g. overhead mountain.
+                // roof: a RoofDef over a rectangle, e.g. overhead mountain.
                 if (spec["roof"] is JObject roof)
                 {
                     var roofDef = DefDatabase<RoofDef>.GetNamedSilentFail((string)roof["def"]) ?? throw new ArgumentException($"No RoofDef {roof["def"]}.");
@@ -342,7 +342,7 @@ namespace HomeBridge.BridgeTools
                         if (cell.InBounds(map)) map.roofGrid.SetRoof(cell, roofDef);
                 }
                 var colonists = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-                // An arrival mode (#870) drops the hostiles in by the game's
+                // An arrival mode drops the hostiles in by the game's
                 // own PawnsArrivalModeWorker, landing around the first
                 // hostile's cell, instead of spawning each at its cell.
                 var arrivalName = (string)spec["arrival"] ?? "";
@@ -372,7 +372,7 @@ namespace HomeBridge.BridgeTools
                         pawn.inventory?.DestroyAll();
                         if ((string)p["side"] == "prisoner")
                         {
-                            // #1080: held by the colony, no lord until it breaks out.
+                            // held by the colony, no lord until it breaks out.
                             GenSpawn.Spawn(pawn, cell, map);
                             pawn.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
                             prisoners.Add(pawn);
@@ -385,7 +385,7 @@ namespace HomeBridge.BridgeTools
                     }
                     else if ((string)p["side"] == "insect")
                     {
-                        // #1071: an insect of the insects' faction, assaulting the colony.
+                        // an insect of the insects' faction, assaulting the colony.
                         var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail((string)p["kind"]) ?? throw new ArgumentException($"No PawnKindDef {p["kind"]}.");
                         pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, Faction.OfInsects, forceGenerateNewPawn: true, canGeneratePawnRelations: false, developmentalStages: DevelopmentalStage.Adult));
                         foreach (var hediff in pawn.health.hediffSet.hediffs.Where(h => h.def.isBad).ToList()) pawn.health.RemoveHediff(hediff);
@@ -394,7 +394,7 @@ namespace HomeBridge.BridgeTools
                     }
                     else if ((string)p["side"] == "mech")
                     {
-                        // #1118: a mechanoid of the mechanoids' faction, assaulting the colony.
+                        // a mechanoid of the mechanoids' faction, assaulting the colony.
                         var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail((string)p["kind"]) ?? throw new ArgumentException($"No PawnKindDef {p["kind"]}.");
                         pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, Faction.OfMechanoids, forceGenerateNewPawn: true, canGeneratePawnRelations: false));
                         GenSpawn.Spawn(pawn, cell, map);
@@ -402,8 +402,8 @@ namespace HomeBridge.BridgeTools
                     }
                     else if ((string)p["side"] == "animal" || (string)p["side"] == "manhunter" || (string)p["side"] == "wild")
                     {
-                        // #1116: "wild" is a factionless animal left calm.
-                        // #1057: a player animal with the named trainables
+                        // "wild" is a factionless animal left calm.
+                        // a player animal with the named trainables
                         // learned, or a wild animal gone permanently manhunter.
                         var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail((string)p["kind"]) ?? throw new ArgumentException($"No PawnKindDef {p["kind"]}.");
                         bool ours = (string)p["side"] == "animal";
@@ -419,7 +419,7 @@ namespace HomeBridge.BridgeTools
                     }
                     else throw new ArgumentException($"Unknown side {p["side"]}.");
                     if (pawn.equipment != null) Arm(pawn, (string)p["weapon"] ?? "", (string)p["weaponStuff"] ?? "");
-                    // apparel (#1049): one worn apparel def, a shield belt for the EMP case or a psychic shock lance (#1038).
+                    // apparel: one worn apparel def, a shield belt for the EMP case or a psychic shock lance.
                     if ((string)p["apparel"] is string apparel && apparel != "")
                     {
                         var apparelDef = DefDatabase<ThingDef>.GetNamedSilentFail(apparel) ?? throw new ArgumentException($"No apparel {apparel}.");
@@ -429,17 +429,17 @@ namespace HomeBridge.BridgeTools
                         if (worn.GetComp<CompShield>() is CompShield shield)
                             Traverse.Create(shield).Field("energy").SetValue(worn.GetStatValue(StatDefOf.EnergyShieldEnergyMax));
                     }
-                    // downed (#867): anesthetic downs the pawn without wounds.
+                    // downed: anesthetic downs the pawn without wounds.
                     if ((bool?)p["downed"] == true) pawn.health.AddHediff(HediffDefOf.Anesthetic);
-                    // hediffs (#1056): extra hediff def names, e.g. a drug high or addiction.
+                    // hediffs: extra hediff def names, e.g. a drug high or addiction.
                     foreach (var name in (p["hediffs"] as JArray)?.Select(t => (string)t) ?? Enumerable.Empty<string>())
                         pawn.health.AddHediff(DefDatabase<HediffDef>.GetNamedSilentFail(name) ?? throw new ArgumentException($"No HediffDef {name}."));
-                    // injured (#1080): a blunt blow bruises without bleeding.
+                    // injured: a blunt blow bruises without bleeding.
                     if ((bool?)p["injured"] == true) pawn.TakeDamage(new DamageInfo(DamageDefOf.Blunt, 8f));
-                    // inventory (#1311): one of each ThingDef name in the pawn's inventory, e.g. a carried go-juice.
+                    // inventory: one of each ThingDef name in the pawn's inventory, e.g. a carried go-juice.
                     foreach (var name in (p["inventory"] as JArray)?.Select(t => (string)t) ?? Enumerable.Empty<string>())
                         pawn.inventory.innerContainer.TryAdd(ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamedSilentFail(name) ?? throw new ArgumentException($"No ThingDef {name}.")));
-                    // stunTicks (#1118): stun the pawn directly for that many ticks.
+                    // stunTicks: stun the pawn directly for that many ticks.
                     if ((int?)p["stunTicks"] is int stun && stun > 0) pawn.stances.stunner.StunFor(stun, null, addBattleLog: false);
                     pawns.Add(pawn);
                     if (arrival != null && pawn.Faction != Faction.OfPlayer && arrivalCenter == null) arrivalCenter = cell;
@@ -451,7 +451,7 @@ namespace HomeBridge.BridgeTools
             {
                 Rand.PopState();
             }
-            // siege (#1147): the hostiles are a real siege lord camped at the
+            // siege: the hostiles are a real siege lord camped at the
             // spot; the game's own LordToil_Siege places the blueprints, drops
             // the supplies and sets the builders to work on the frames.
             if (hostiles.Count > 0 && spec["siege"] is JObject siege)
@@ -462,7 +462,7 @@ namespace HomeBridge.BridgeTools
                 LordMaker.MakeNewLord(Faction.OfInsects, new LordJob_AssaultColony(Faction.OfInsects, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, insects);
             if (mechs.Count > 0)
                 LordMaker.MakeNewLord(Faction.OfMechanoids, new LordJob_AssaultColony(Faction.OfMechanoids, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, mechs);
-            // prisonBreak (#1080): the game's own break, started by the first prisoner.
+            // prisonBreak: the game's own break, started by the first prisoner.
             if ((bool?)spec["prisonBreak"] == true)
             {
                 if (prisoners.Count == 0) throw new ArgumentException("prisonBreak needs a prisoner.");
@@ -528,7 +528,7 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // Every hit on a pawn since the last lab staging (#855): the same
+    // Every hit on a pawn since the last lab staging: the same
     // Thing.TakeDamage edge CombatInjuryHook and NativeCombatCausality patch,
     // attributed by DamageInfo.Instigator's side. A colonist hitting a
     // colonist is friendly fire. Patched by the first staging; bounded.

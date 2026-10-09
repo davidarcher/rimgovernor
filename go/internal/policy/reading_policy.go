@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// BookKind is what reading a book definition does (#1306).
+// BookKind is what reading a book definition does.
 type BookKind string
 
 const (
@@ -43,7 +43,7 @@ type ReadingPolicyChange struct {
 // childAge is the age below which a human is a child (DevelopmentalStage).
 const childAge = 13
 
-// ReadingBooks is the book definitions pawn should be allowed (#1306): a
+// ReadingBooks is the book definitions pawn should be allowed: a
 // child learning books (textbooks) only; an adult novels for joy,
 // textbooks when it has a passion to grow and schematics when it
 // researches. Anomaly tomes are never allowed. Unknown when the pawn's age
@@ -81,10 +81,10 @@ func ReadingBooks(pawn WorkPawn, books []Book) ([]string, bool) {
 	return slices.Compact(defs), true
 }
 
-// ReadingPolicyChanges are the per-pawn reading policy writes owed (#1306):
+// ReadingPolicyChanges are the per-pawn reading policy writes owed:
 // each owned pawn with a reading tracker holds the policy labelled with its
 // short name, allowing ReadingBooks. A pawn whose short name another owned
-// pawn shares (#1310 renames it) or that several policies carry waits.
+// pawn shares or that several policies carry waits.
 func ReadingPolicyChanges(pawns []WorkPawn, names []OwnedName, policies []ReadingPolicyEntry, books []Book) []ReadingPolicyChange {
 	short, count := map[PawnID]string{}, map[string]int{}
 	for _, n := range names {

@@ -83,7 +83,7 @@ func ResourceRunwayTargets(rows []ResourceRunway) map[Resource]int64 {
 // better medicine in use is counted too), the lowest-potency one (herbal)
 // reserved at the medical reserve's TargetPerColonist doses per colonist so a
 // colony never tended still stocks it; once doses are used the observed tend
-// rate takes over (#2378). Without the catalog's medicines it adds nothing; an
+// rate takes over. Without the catalog's medicines it adds nothing; an
 // unread colonist count leaves the reserve zero. Every other resource the
 // consumption ring shows recurring spend on (MaterialRunwayKeys) is a row with
 // no reserve: its protected line is the observed rate over the horizon.

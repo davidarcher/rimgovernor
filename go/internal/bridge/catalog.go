@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// The definition catalog (#1340): the static planning facts of every
+// The definition catalog: the static planning facts of every
 // buildable or sowable definition and every research project. They hold
 // for a whole load, so the client reads the catalog on the first read
 // under a load token and keeps it until the token changes; frames carry
@@ -30,17 +30,17 @@ type DefinitionCatalog struct {
 	LoadToken string
 	// Research is every research project's static facts by name.
 	Research map[string]policy.ResearchProjectFacts
-	// Biotech is the Biotech defs (#1678); nil without Biotech.
+	// Biotech is the Biotech defs; nil without Biotech.
 	Biotech *BiotechCatalog
-	// Odyssey is the Odyssey defs (#1708); nil without Odyssey.
+	// Odyssey is the Odyssey defs; nil without Odyssey.
 	Odyssey *OdysseyCatalog
-	// Anomaly is the Anomaly defs (#1737); nil without Anomaly.
+	// Anomaly is the Anomaly defs; nil without Anomaly.
 	Anomaly *AnomalyCatalog
-	// ThingDefs and TerrainDefs are every def with all its fields (#1730)
+	// ThingDefs and TerrainDefs are every def with all its fields
 	// by defName: the generated messages of defs.proto, unfiltered.
 	ThingDefs   map[string]*d.ThingDef
 	TerrainDefs map[string]*d.TerrainDef
-	// Defs are the defs of every other concrete Def class (#1761): the
+	// Defs are the defs of every other concrete Def class: the
 	// generated rows of defs.proto's DefSets by message full name, then
 	// defName. Read them with DefRow.
 	Defs map[protoreflect.FullName]map[string]proto.Message
@@ -52,13 +52,13 @@ type DefinitionCatalog struct {
 	// Constants are the game constants the native read took from the game
 	// assemblies.
 	Constants *o.CatalogConstants
-	// statValues are the game's own stat values per (def, stuff) (#1759); nil
+	// statValues are the game's own stat values per (def, stuff); nil
 	// in a reply that carries none.
 	statValues *statTable
-	// thingFacts are the game-computed flags of every ThingDef (#1733) by name.
+	// thingFacts are the game-computed flags of every ThingDef by name.
 	thingFacts map[string]*o.ThingDefFacts
 	// items is the planner-facing item facts, built once on first use.
-	// recipes are the recipe facts derived from the rows on first use (#1721).
+	// recipes are the recipe facts derived from the rows on first use.
 	recipes   recipeCache
 	itemsOnce sync.Once
 	items     policy.ItemFacts
@@ -128,7 +128,7 @@ func (catalog *DefinitionCatalog) ThingDef(name string) *d.ThingDef {
 	return catalog.ThingDefs[name]
 }
 
-// Packable is the building defs that pack into a minified item (#2103): those
+// Packable is the building defs that pack into a minified item: those
 // with a minifiedDef, which vanilla uninstalls instead of destroying.
 func (catalog *DefinitionCatalog) Packable() map[string]bool {
 	out := map[string]bool{}
@@ -143,7 +143,7 @@ func (catalog *DefinitionCatalog) Packable() map[string]bool {
 	return out
 }
 
-// SowableCrops are the sowable plants that harvest a thing (#2284), sorted: the
+// SowableCrops are the sowable plants that harvest a thing, sorted: the
 // crops a resource deficit can be planted for, whatever they are eaten as.
 func (catalog *DefinitionCatalog) SowableCrops() []string {
 	if catalog == nil {
@@ -416,7 +416,7 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 		// The catalog does not carry native ResearchProjectDef.hidden (an
 		// anomaly codex state, not a static fact): every project starts as
 		// not hidden and the research read marks a codex-hidden one from
-		// its "hidden" lock reason (#1745).
+		// its "hidden" lock reason.
 		// A project with no prerequisites is an absent repeated field on
 		// the wire, which is known-empty, not unread.
 		if row.GetCategory() != "" && (row.ApparentCost == nil || badNonNegative(row.ApparentCost) || row.GetApparentCost() <= 0) {

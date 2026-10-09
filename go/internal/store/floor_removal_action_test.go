@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A floor removal (epic #1249) persists its floor def and cell.
+// A floor removal persists its floor def and cell.
 func TestFloorRemovalActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

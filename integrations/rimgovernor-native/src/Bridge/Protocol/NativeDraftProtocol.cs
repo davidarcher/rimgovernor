@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
 
         // ValidEntityTokenOptional accepts an entity precondition with or
         // without its snapshot token: the kinds the controller dispatches
-        // under a running clock omit it (#243) and rely on the apply-time
+        // under a running clock omit it and rely on the apply-time
         // rules; a token that is sent must still be well formed.
         internal static bool ValidEntityTokenOptional(Operations.EntityPrecondition? entity) => ValidEntityId(entity)
             && (!TokenSent(entity!) || ProtoBoundary.IsIdentifier(entity!.ExpectedSnapshotToken));

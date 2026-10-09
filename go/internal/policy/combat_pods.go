@@ -7,22 +7,22 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TacticPods is the drop-pod raid's own formation (#891): a pods arrival
+// TacticPods is the drop-pod raid's own formation: a pods arrival
 // picks it instead of the generic squad fallback.
 const TacticPods CombatTactic = "pods"
 
-// DutyEvacuee is a non-combatant moved away from the landing cells (#891).
+// DutyEvacuee is a non-combatant moved away from the landing cells.
 const DutyEvacuee CombatDuty = "evacuee"
 
-// PodArrival is a drop-pod raid's arrival (#870): the cells the pods land
+// PodArrival is a drop-pod raid's arrival: the cells the pods land
 // on and the tick the last pod opens (spawn + 520).
 type PodArrival struct {
 	Landing []domain.Cell
 	Open    domain.Tick
 }
 
-// CombatRoom is one standing room on the map (#897): its floor and the
-// doors in its walls. Roofed is every floor cell roofed (#968).
+// CombatRoom is one standing room on the map: its floor and the
+// doors in its walls. Roofed is every floor cell roofed.
 type CombatRoom struct {
 	Interior Rectangle
 	Doors    []domain.Cell         `json:",omitempty"`
@@ -37,7 +37,7 @@ func (r CombatRoom) contains(c domain.Cell) bool {
 	return c.X >= in.X && c.X < in.X+in.Width && c.Z >= in.Z && c.Z < in.Z+in.Height
 }
 
-// Pod response constants (#891).
+// Pod response constants.
 const (
 	// podRespondersPerPod is how many armed colonists answer each landing cell.
 	podRespondersPerPod = 2
@@ -46,11 +46,11 @@ const (
 	podDangerRadius = 12
 )
 
-// podFormation is the pods tactic's roles (#891): the nearest armed
+// podFormation is the pods tactic's roles: the nearest armed
 // colonists respond, each on the nearest live hostile once one is out;
 // with a landing cell inside the perimeter they take the layout's inner
-// line (#860) instead. Two responders flank each door of a landing room
-// on its far side, the door held open (#892), close-range fighters first.
+// line instead. Two responders flank each door of a landing room
+// on its far side, the door held open, close-range fighters first.
 // Non-combatants in a landing room or near a landing cell move to the
 // landing-free room cell farthest from the pods.
 func podFormation(view CombatView, pods PodArrival, geometry GeometryReply) ([]CombatRole, []PodDoor) {
@@ -125,7 +125,7 @@ func podFormation(view CombatView, pods PodArrival, geometry GeometryReply) ([]C
 	return sortRoles(append(roles, evacuees(view, pods, civilians, at)...)), doors
 }
 
-// DutyDoorway holds a cell beside a landing room's door (#892).
+// DutyDoorway holds a cell beside a landing room's door.
 const DutyDoorway CombatDuty = "doorway"
 
 // PodDoor is a door the pods tactic wants in a mode, and whether that
@@ -135,12 +135,12 @@ type PodDoor struct {
 	Mode DoorMode
 	Sent bool `json:",omitempty"`
 	// Repairer is the door gunner sent to repair the manhunter potshot
-	// door (#900), while it is damaged and no animal is near.
+	// door, while it is damaged and no animal is near.
 	Repairer domain.PawnID `json:",omitempty"`
 	Opener   domain.PawnID `json:",omitempty"`
 }
 
-// closeRange ranks the armed for the doorway slots (#892): melee-only
+// closeRange ranks the armed for the doorway slots: melee-only
 // brawlers first, best armored first, then the ranged by shortest weapon
 // range (a shotgun before a rifle), an unknown range last; nearest the
 // pods on a tie.
@@ -225,7 +225,7 @@ func landingDoors(view CombatView, pods PodArrival) []podDoorway {
 	return out
 }
 
-// podsAsk is a pods formation's geometry ask (#897): every doorway flank
+// podsAsk is a pods formation's geometry ask: every doorway flank
 // cell named for its standability, then the shooters' cells for their
 // lines of fire, against the live hostiles (none before the pods open).
 // Without a landing-room door there is nothing to ask.
@@ -278,7 +278,7 @@ func outward(in Rectangle, door domain.Cell) (domain.Cell, bool) {
 }
 
 // podDoorOrders are the door orders the pods tactic (and the manhunter
-// potshot door, #900) has not sent yet.
+// potshot door) has not sent yet.
 func podDoorOrders(view CombatView, m *CombatMemory) []CombatOrder {
 	var out []CombatOrder
 	m.PodDoors = slices.DeleteFunc(m.PodDoors, func(d PodDoor) bool { return !combatDoorExists(view, d.Cell) })
@@ -465,7 +465,7 @@ func nearestHostile(view CombatView, from domain.Cell) domain.PawnID {
 
 // reformPods is the pods tactic's re-formation row: a responder's target
 // is down, or a responder has none while a hostile is out. A fight
-// waiting behind closed doors (#893) re-forms only on a raid phase change.
+// waiting behind closed doors re-forms only on a raid phase change.
 func reformPods(view CombatView, m CombatMemory) bool {
 	if m.PodWait {
 		return false

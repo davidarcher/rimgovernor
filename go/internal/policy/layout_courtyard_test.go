@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
-// The courtyard acceptance (#1960, epic #1938): a rich patch that is not a
+// The courtyard acceptance: a rich patch that is not a
 // rectangle sits in the middle of the best core ground. The generator keeps
 // off it rather than wrapping it, so the tests assert the invariants the
 // layout/rich-soil case audits natively, not a shape.

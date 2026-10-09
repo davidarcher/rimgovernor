@@ -35,7 +35,7 @@ const (
 )
 
 // SleepingCoupleBedDefinition is staged first when a waiting colonist has a
-// couple partner (#812).
+// couple partner.
 const SleepingCoupleBedDefinition = "DoubleBed"
 
 const (
@@ -50,7 +50,7 @@ var sleepingBedrolls = map[string]bool{SleepingBedrollDefinition: true, Sleeping
 // SleepingDefinition is the best buildable rung of the ladder: the first
 // available definition, a bedroll only when Stocked names it. Unknown is
 // returned when an unknown row precedes it and nothing is buildable. A
-// sleeping spot is never a suitable bed (#1182), so only spot true, a
+// sleeping spot is never a suitable bed, so only spot true, a
 // bedroom furnished to move a spot owner in, walks down to it.
 func SleepingDefinition(furniture RoomFurniture, definitions []BenchDefinition, stocked map[string]bool, couple, spot bool) (string, SleepingMethod) {
 	byName := map[string]BenchDefinition{}
@@ -88,7 +88,7 @@ type SleepingRequest struct {
 	// Stocked names the bedroll definitions whose stuff is on hand.
 	Stocked map[string]bool
 	// RoomTargets (RoomQualityTargets, keyed by room) and Traits order the
-	// beds an assignment offers (#813): a room marked NeverUpgrade is never
+	// beds an assignment offers: a room marked NeverUpgrade is never
 	// left for a more impressive one, and an ascetic takes the plainest bed.
 	// Nil leaves the lowest-bed-ID order.
 	RoomTargets map[string]RoomTarget
@@ -180,7 +180,7 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 		return choice, nil
 	}
 	ordered := append([]SleepingTarget{}, targets...)
-	// A hosted guest (#2384) is assigned after every colonist, and never
+	// A hosted guest is assigned after every colonist, and never
 	// causes a bed to be built.
 	guests := map[PawnID]bool{}
 	if census, ok := r.Sleeping.Value(); ok {

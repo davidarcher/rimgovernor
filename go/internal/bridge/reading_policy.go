@@ -7,7 +7,7 @@ import (
 )
 
 // readingPolicyAction is the ReadingPolicyIntent of one per-pawn reading
-// policy (#1306): the label and the allowed book definitions. Native
+// policy: the label and the allowed book definitions. Native
 // checks the definitions are books when it applies (NativeReadingPolicy.cs).
 func readingPolicyAction(action domain.Action) (*op.Action, error) {
 	v, ok := action.ReadingPolicy()

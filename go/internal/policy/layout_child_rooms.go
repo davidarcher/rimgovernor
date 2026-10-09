@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The child rooms' layout (#1680, epic #1667): nursery, playroom and
+// The child rooms' layout: nursery, playroom and
 // classroom are core rooms sized from the footprints they hold
 // (ChildRoomShape), sited at the nearest core slot like the throne room.
 // Furniture stands in bands of free floor: a band as high as the piece, a

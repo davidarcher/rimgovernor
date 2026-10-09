@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// royaltyPawns is the pawn rows the royalty facts merge with (#1876): Human12
+// royaltyPawns is the pawn rows the royalty facts merge with: Human12
 // carries the holdings, psycasts and psycaster state.
 func royaltyPawns() *o.PawnSnapshot {
 	return &o.PawnSnapshot{Pawns: []*o.PawnState{
@@ -30,7 +30,7 @@ func decodeRoyalty(pawns *o.PawnSnapshot) (*policy.RoyaltyFacts, error) {
 }
 
 // TestWithPawnRoyaltyRefusesMalformedRows: a pawn's royalty block that is
-// invalid, or whose read failed, leaves royalty unknown (#1876).
+// invalid, or whose read failed, leaves royalty unknown.
 func TestWithPawnRoyaltyRefusesMalformedRows(t *testing.T) {
 	for _, change := range []string{"pawn-id", "holding-faction", "holding-permit", "psycast-duplicate", "psycast-cost", "psycast-target", "read-issue", "no-rows"} {
 		t.Run(change, func(t *testing.T) {
@@ -62,7 +62,7 @@ func TestWithPawnRoyaltyRefusesMalformedRows(t *testing.T) {
 	}
 }
 
-// TestDecodeRoyaltyFacts (#1599): recorded facts decode, and an absent
+// TestDecodeRoyaltyFacts: recorded facts decode, and an absent
 // scalar stays unknown rather than zero.
 func TestDecodeRoyaltyFacts(t *testing.T) {
 	facts, err := decodeRoyalty(royaltyPawns())

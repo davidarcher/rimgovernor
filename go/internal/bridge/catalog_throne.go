@@ -9,8 +9,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// The throne room's requirements as a Go view of the def mirror (#1861,
-// epic #1696): RoyalTitleDef.throneRoomRequirements, a list of typed
+// Throne room requirements from the definition mirror: RoyalTitleDef.throneRoomRequirements, a list of typed
 // RoomRequirement messages, decoded into policy.ThroneRequirements. Nothing
 // is read from native and no def name is listed here.
 
@@ -150,7 +149,7 @@ func (catalog *DefinitionCatalog) ThroneRequirements(title string) (policy.Thron
 // forbiddenDefs are the building defs req forbids: those whose
 // building.buildingTags meet ForbiddenBuildingTags (the game's
 // RoomRequirement_ForbiddenBuildings test) and, when altars are forbidden,
-// those with isAltar (RoomRequirement_ForbidAltars), sorted (#1865).
+// those with isAltar (RoomRequirement_ForbidAltars), sorted.
 func (catalog *DefinitionCatalog) forbiddenDefs(req policy.ThroneRequirements) []string {
 	if catalog == nil || len(req.ForbiddenBuildingTags) == 0 && !req.ForbidAltars {
 		return nil

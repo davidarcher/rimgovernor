@@ -8,10 +8,10 @@ import (
 )
 
 // MaintainRituals holds each of the ideoligion's ritual precepts when it is
-// due (#1660, epic #1653): it picks the spot, the organizer and the
+// due: it picks the spot, the organizer and the
 // attendees, holds the attendees off the Sleep timetable (HeldOffSleep, the
-// way the bestowing ceremony does, #1602) and begins the ritual through the
-// Ritual `begin` verb (#1659). Cadence, cooldown, required buildings and role
+// way the bestowing ceremony does) and begins the ritual through the
+// Ritual `begin` verb. Cadence, cooldown, required buildings and role
 // slots are the catalog's ritual defs (IdeologyDefs.Rituals); no ritual,
 // building or role name is listed here.
 const MaintainRituals ConcernID = "MaintainRituals"

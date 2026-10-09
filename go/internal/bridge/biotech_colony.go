@@ -7,7 +7,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// validateBiotechColony checks the Biotech colony section (#1679): every row
+// validateBiotechColony checks the Biotech colony section: every row
 // names a unique thing on the map, counts are nonnegative and a gestator's
 // bill fields agree. Absent scalars stay unknown.
 func validateBiotechColony(v *o.ColonyFactsSnapshot) error {
@@ -119,7 +119,7 @@ func validateBiotechColony(v *o.ColonyFactsSnapshot) error {
 	}
 }
 
-// validateGeneBuilding checks the gene-building rows (#1930): unique ids per
+// validateGeneBuilding checks the gene-building rows: unique ids per
 // table, nonnegative counts and ticks, distinct valid gene and pack ids, and a
 // genepack that is in exactly one place (a listed bank, or a cell on the map).
 func validateGeneBuilding(f *o.BiotechColonyFacts, head func(id, def *string, at *c.Cell) bool, unique func(table, id string) bool) error {

@@ -27,8 +27,7 @@ func TestParseFailureFallbacks(t *testing.T) {
 
 // A fixture op that declines, and one whose game threw, both reply with a
 // successful MCP receipt carrying "success": false. Requiring isError left
-// nine nightly cases reporting a bare "bridge read refused: games_call_tool"
-// (#663).
+// nine nightly cases reporting a bare "bridge read refused: games_call_tool".
 func TestParseClassifiesARefusalWithoutIsError(t *testing.T) {
 	for _, tc := range []struct{ raw, kind, summary string }{
 		{`{"content":[{"text":"{\"reason\":\"No open reachable area for the fixture hut.\",\"success\":false}"}],"structuredContent":{"reason":"No open reachable area for the fixture hut.","success":false}}`,

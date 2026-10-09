@@ -1,5 +1,5 @@
 // reuse (the former
-// reuseaccept) is the native acceptance for issue #22's reusable-game
+// reuseaccept) is the native acceptance for reusable-game
 // lifecycle (nativeaccept.GameReuse). One RimWorld process is launched;
 // the tribal8 baseline is then loaded several times into it, each load a
 // separate case that takes authority, drafts a colonist through
@@ -95,7 +95,7 @@ func runReuse(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["discovery"] = names
-	// The lab (#751) is the reload target: load it once so its cached
+	// The lab is the reload target: load it once so its cached
 	// save exists and is fresh.
 	lab, err := na.StartLab(ctx, cfg, h)
 	if err != nil {

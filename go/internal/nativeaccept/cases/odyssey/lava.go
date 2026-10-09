@@ -1,8 +1,8 @@
-// Package odyssey holds the Odyssey acceptance cases (epic #1707).
+// Package odyssey holds the Odyssey acceptance cases.
 //
-// The odyssey/lava-field case (#1719) proves a colony starts beside a lava
+// The odyssey/lava-field case proves a colony starts beside a lava
 // field and builds clear of it: the harm is the game's own burn terrain, the
-// colony's layout and field planning read it as a hazard (#1710), and the
+// colony's layout and field planning read it as a hazard, and the
 // native postcondition is that no field, pasture or building stands on it
 // and no colonist stands in it.
 package odyssey

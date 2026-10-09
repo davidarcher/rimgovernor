@@ -1,6 +1,6 @@
 package layout
 
-// layout/power-sites (#838): the planned power sites against the native
+// layout/power-sites: the planned power sites against the native
 // footprint. On the layout/grid start the first review records a layout
 // plan; every PlannedPowerSites battery and solar site is previewed at its
 // centre and rotation, and the footprint RimWorld reports must be exactly

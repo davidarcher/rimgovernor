@@ -260,7 +260,7 @@ namespace HomeBridge.BridgeTools
                 p.jobs.StartJob(wait, JobCondition.InterruptForced);
                 if (scenario == "environment")
                 {
-                    // Removable environment pressure (#255): a SleptOutside
+                    // Removable environment pressure: a SleptOutside
                     // memory plus the NeedJoy situational thought the joy
                     // level above triggers, recalculated now so the first
                     // social read already carries it.
@@ -284,7 +284,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
-        // The harnesses run against a fresh debug-start colony (#91/#92) that
+        // The harnesses run against a fresh debug-start colony  that
         // owns no recreation building, and the only building-free joy giver
         // (skygazing) depends on daylight and clear weather, so JobGiver_GetJoy
         // would have nothing deterministic to issue for the joy scenarios. A
@@ -307,7 +307,7 @@ namespace HomeBridge.BridgeTools
 
         // Plants, items and filth get cleared before the pin spawns, so they
         // must not disqualify a cell; only terrain, edifices and non-clearable
-        // impassable things do. The fresh debug-start map (#92) has no
+        // impassable things do. The fresh debug-start map has no
         // guaranteed 7x7 patch of bare standable ground within 30 cells of the
         // pawn, so the search widens in radius and shrinks the rect before
         // falling back to the pawn's own cell rather than throwing.

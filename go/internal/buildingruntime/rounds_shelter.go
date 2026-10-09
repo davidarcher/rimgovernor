@@ -15,7 +15,7 @@ import (
 
 // NewRoundsShelterPlanner prefers furnishing verified indoor space. Only when
 // that whole method has no space does it raise the layout plan's shelter room:
-// the bunk rungs, then the ring through one reconcile (#2277).
+// the bunk rungs, then the ring through one reconcile.
 func NewRoundsShelterPlanner(reviewer *Rounder, native RoundsBuildingSource) (*RoundsBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoundsShelterPlanner: reviewer == nil || native == nil", ErrControl)
@@ -32,16 +32,16 @@ func NewRoundsExpansionPlanner(reviewer *Rounder, native RoundsBuildingSource) (
 	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainHousing, phase: policy.HousingExpansion, definition: "Wall", shelter: true}, nil
 }
 
-// roomModule is the layout module this planner furnishes (#609): a facility
+// roomModule is the layout module this planner furnishes: a facility
 // ladder's room role names it, the shelter and expansion planners raise the
 // shelter.
 func (r *RoundsBuildingPlanner) roomModule() (policy.PlannedRole, bool) {
 	return policy.PlannedRoleOf(r.roomRole())
 }
 
-// roomRole is the room role a planner sites for (#637): a facility
+// roomRole is the room role a planner sites for: a facility
 // ladder's own role, and Shelter for the shelter and expansion planners,
-// which raise the colony's temporary starter room (#2043).
+// which raise the colony's temporary starter room.
 func (r *RoundsBuildingPlanner) roomRole() policy.RoomRole {
 	if r.facility != nil {
 		return r.facility.Role
@@ -55,7 +55,7 @@ func (r *RoundsBuildingPlanner) roomRole() policy.RoomRole {
 // size by shape, so any nonempty fully completed plan qualifies. The budget
 // is scoped to the world and plan revision the walls were completed in, not
 // to the native order generation: an authority re-acquisition between the
-// last dispatch and the review (a cancelled transport call, #174) moves the
+// last dispatch and the review (a cancelled transport call) moves the
 // generation on without touching the standing walls, and nothing else lends
 // the clock the roof needs when the shell is the only work.
 func shelterNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) uint32 {
@@ -149,7 +149,7 @@ func positiveFact(f domain.Fact[bool]) bool {
 }
 
 // shellBatchPreviewer is the batched preview a native source may offer: one
-// call for every placement of a wave instead of one hop per cell (#599).
+// call for every placement of a wave instead of one hop per cell.
 type shellBatchPreviewer interface {
 	PreviewBuildings(context.Context, []domain.Action, domain.GenerationSnapshot) ([]bridge.BuildingPreview, bridge.Result, error)
 }

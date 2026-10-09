@@ -9,7 +9,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// buildDrugFacts reads the drug facts of the def rows (#1734): every def
+// buildDrugFacts reads the drug facts of the def rows: every def
 // carrying a CompProperties_Drug with a chemical, in preference order
 // (social before hard, then the game's listOrder, then name), each chemical
 // with whether its addiction hediff fades by itself, and the drug whose

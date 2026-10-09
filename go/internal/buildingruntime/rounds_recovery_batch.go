@@ -13,7 +13,7 @@ import (
 
 var errNoDefinitions = errors.New("roof rules: the native source serves no definitions")
 
-// recoveryStep plans the recovery queue's roof-first removal batch (#2298) over
+// recoveryStep plans the recovery queue's roof-first removal batch over
 // the fresh census rows and the colony's planning window (the whole map), files
 // it as a recovery_batch row and returns the clearance step to commit: the roof
 // cells to take off first (remove_roof), else the batch to deconstruct together.

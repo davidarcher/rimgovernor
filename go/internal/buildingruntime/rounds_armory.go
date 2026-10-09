@@ -8,11 +8,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// RoundsArmoryPlanner owns military production (#1198). The skeleton
-// (#1201) selects the armory tier from the storyteller's raid points and
+// RoundsArmoryPlanner owns military production. The skeleton
+// selects the armory tier from the storyteller's raid points and
 // finished research and logs it. Weapon bills moved here from the gear
-// planner (#1203) and still bind to MaintainEquipment; the tier picks the
-// weapon and gates upgrades (#1204), and the equip planner's crafting-spot
+// planner and still bind to MaintainEquipment; the tier picks the
+// weapon and gates upgrades, and the equip planner's crafting-spot
 // fallback lives here too.
 type RoundsArmoryPlanner struct {
 	reviewer *Rounder
@@ -74,7 +74,7 @@ func (r *RoundsArmoryPlanner) step(call, epoch context.Context, arbiter *stepArb
 }
 
 // newCraftingSpotPlanner is the EnsureBasicDefense placement the armory
-// falls back to (moved from the equip planner, #1204); nil when the source
+// falls back to (moved from the equip planner); nil when the source
 // cannot serve a building step.
 func newCraftingSpotPlanner(reviewer *Rounder, native RoundsGearSource) *RoundsBuildingPlanner {
 	building, ok := native.(RoundsBuildingSource)

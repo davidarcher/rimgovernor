@@ -1,22 +1,22 @@
 // Package clean holds MaintainCleanFacilities' bounded cleaning response
-// and the kitchen/butcher separation rule (issue #6 slice 2): a live game
+// and the kitchen/butcher separation rule: a live game
 // and a live rimgovernor Go player-control service, one case per scenario:
 //
-//	filthy     -- a kitchen and a butchery each hold blood filth, and every
-//	              colonist has Cleaning at priority 0, so ordinary coverage
-//	              has failed outright. The review must latch only the kitchen
-//	              dirty (the butchery is inherently dirty), respond without
-//	              waiting out the coverage grace period (no cleaners exist to
-//	              wait for), then order the kitchen's filth cleaned one
-//	              player-forced target at a time until the measured room
-//	              cleanliness releases the latch. The butchery's filth must
-//	              survive untouched. (The grace path itself is unit-tested:
-//	              a rested pawn works through Sleep and Joy slots, so no
-//	              fixture can hold coverage back for 30000 ticks.)
+//	filthy   -- a kitchen and a butchery each hold blood filth, and every
+//	       colonist has Cleaning at priority 0, so ordinary coverage
+//	       has failed outright. The review must latch only the kitchen
+//	       dirty (the butchery is inherently dirty), respond without
+//	       waiting out the coverage grace period (no cleaners exist to
+//	       wait for), then order the kitchen's filth cleaned one
+//	       player-forced target at a time until the measured room
+//	       cleanliness releases the latch. The butchery's filth must
+//	       survive untouched. (The grace path itself is unit-tested:
+//	       a rested pawn works through Sleep and Joy slots, so no
+//	       fixture can hold coverage back for 30000 ticks.)
 //
 // The kitchen/butcher separation rule is a snapshot test over the
 // food-supply step's own read (TestSnapshotCleanSeparationAdmitsSeparatedSpot
-// in internal/buildingruntime, #794).
+// in internal/buildingruntime).
 //
 // Uses the private disposable test/cleanliness_prepare fixture
 // (CleanlinessFixture.cs). The case's own bridge session and the
@@ -41,7 +41,7 @@ const prefix = "clean-accept"
 
 func init() {
 	// Passing runs hold a journal signature up to 39s while the routine
-	// cleans (#353).
+	// cleans.
 	scenario := "filthy"
 	cases.Register(cases.Case{
 		Name: "clean/" + scenario,

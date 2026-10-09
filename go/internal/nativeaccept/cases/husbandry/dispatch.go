@@ -1,5 +1,5 @@
 // The husbandry/dispatch case exercises the MaintainHerd-* native husbandry
-// vertical (G01.07e, issues #27, #17 and #941) end to end against a live
+// vertical  end to end against a live
 // game: each direct-write animal order (train, slaughter, tame, release,
 // allowed area, master, following and the designation cancels) is one
 // HusbandryIntent on rimgovernor/operations_apply, the same Actions/Apply
@@ -160,7 +160,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("mother-before: expected the raw pregnant fact on the near-term mother, got %#v", motherAnimal)
 	}
 
-	// apply sends one HusbandryIntent on Actions/Apply (#941) and returns
+	// apply sends one HusbandryIntent on Actions/Apply and returns
 	// the action's result: applied carries the animal evidence, refused
 	// the native reason.
 	apply := func(label, key, animalID, order string, extra map[string]any) (map[string]any, error) {
@@ -295,7 +295,7 @@ func run(ctx context.Context, s cases.Session) error {
 		if na.PawnRef(row) != wildID {
 			continue
 		}
-		// The tame facts ride the pawn table row (#1343).
+		// The tame facts ride the pawn table row.
 		if err := h.JoinPawn(ctx, "colony-facts-wild", identity, row); err != nil {
 			return err
 		}

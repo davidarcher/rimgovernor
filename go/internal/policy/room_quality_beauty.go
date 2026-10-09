@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Beauty levers (#830): an owned bedroom below its target whose weakest
+// Beauty levers: an owned bedroom below its target whose weakest
 // stat is beauty gets, one change at a time,
 //   - a plant pot on free floor (native growers sow its default plant);
 //   - a prettier floor: every cell whose terrain is less beautiful than the
@@ -61,11 +61,11 @@ func NextBeautyUpgrade(obs SleepingObservation, targets map[string]RoomTarget, r
 	return RoomUpgrade{}, false
 }
 
-// The sculpture lever (#830), after pots and floors: a finished packed
+// The sculpture lever, after pots and floors: a finished packed
 // small sculpture installed on free floor in the room. The sculpture itself
-// is MaintainArt's pinned bill (#1190). Sculptures pack as the generic
+// is MaintainArt's pinned bill. Sculptures pack as the generic
 // MinifiedThing (Buildings_Art.xml), so the packed read is filtered by
-// inner definition (#1195).
+// inner definition.
 const PackedSculptureDefinition = "MinifiedThing"
 
 // SculptureStep installs Packed (a packed item's id) at Anchor, Rot.
@@ -78,7 +78,7 @@ type SculptureStep struct {
 
 // PackedSculpture is a packed sculpture in stock: its id, the sculpture
 // definition inside, its quality (QualityCategory ordinal, -1 unknown) and
-// market value (#1194).
+// market value.
 type PackedSculpture struct {
 	ID, Def     string
 	Quality     int
@@ -104,13 +104,13 @@ func rankSculptures(packed []PackedSculpture) []PackedSculpture {
 
 // NextSculpture returns the install due for the first (by room id) bedroom
 // below target whose weakest stat is beauty, of the best packed sculpture
-// (rankSculptures) whose footprint has a free spot there (#1191: a large
+// (rankSculptures) whose footprint has a free spot there (a large
 // sculpture needs a free multi-cell spot); the caller asks only once
 // NextBeautyUpgrade has nothing.
 func NextSculpture(obs SleepingObservation, targets map[string]RoomTarget, rooms []FurnitureRoom, packed []PackedSculpture, items ItemFacts, gate RoomGate) (SculptureStep, bool) {
 	for _, room := range sculptureRooms(obs, targets, rooms) {
 		// The install is charged the sculpture's market value against the
-		// room's owners' share (#1841); the rooms owed and the art sale are
+		// room's owners' share; the rooms owed and the art sale are
 		// not gated.
 		var affordable []PackedSculpture
 		for _, p := range packed {
@@ -140,7 +140,7 @@ func fitSculpture(room FurnitureRoom, ranked []PackedSculpture, taken map[string
 	return PackedSculpture{}, domain.Cell{}, domain.North, false
 }
 
-// SaleSculptures is the packed art the trade selector may sell (#1194):
+// SaleSculptures is the packed art the trade selector may sell:
 // every piece but those NextSculpture would install, one per owed room,
 // best first.
 func SaleSculptures(obs SleepingObservation, targets map[string]RoomTarget, rooms []FurnitureRoom, packed []PackedSculpture, items ItemFacts) map[string]bool {
@@ -215,7 +215,7 @@ func floorUpgrade(id string, room FloorRoom, terrains map[string]FloorTerrain, f
 		}
 	}
 	// A gated room lays only the cells its owners' remaining share pays for,
-	// at the floor's material price (#1840).
+	// at the floor's material price.
 	if gate.Shares != nil && len(owners) > 0 {
 		price, ok := gate.FloorCellPrice(floors.Definitions[best])
 		if !ok {

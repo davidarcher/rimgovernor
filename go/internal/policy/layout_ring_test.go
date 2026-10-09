@@ -8,8 +8,7 @@ import (
 
 // TestRingHallwaysNeedNoMainSpine: a plan whose hallways form a ring (no
 // main line at Spine[0]) goes through Core, PlanUtilities and PlanPerimeter
-// without a panic, and its utility sites stay off the hallway clearance
-// (#1947).
+// without a panic, and its utility sites stay off the hallway clearance.
 func TestRingHallwaysNeedNoMainSpine(t *testing.T) {
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	storage := PlannedRoom{Role: PlannedStorage, Interior: Rectangle{X: 90, Z: 90, Width: 6, Height: 6}, Door: domain.Cell{X: 82, Z: 93}, DoorRot: domain.West}

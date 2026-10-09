@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// roundsProgress records every active goal's progress (#629) from the
+// roundsProgress records every active goal's progress from the
 // evidence this review holds: the goal's open plans (a settled effect or
 // observed construction since the last record is native progress; a
 // dispatched order with no capable available pawn is blocked), the labor

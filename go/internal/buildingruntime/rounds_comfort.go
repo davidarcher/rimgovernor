@@ -60,14 +60,9 @@ func NewRoundsComfortPlanner(reviewer *Rounder, native RoundsBuildingSource) (*R
 	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.EnsureComfort, phase: policy.ComfortRanked}, nil
 }
 
-// A definition needs one available pawn whose observed Construction setting
-// is enabled and whose Construction skill meets the native minimum, in the
-// same native observation bracket. The gate used to demand that the whole
-// colony's settings match a Construction-only allocation, but the work
-// planner applies a different allocation (bench and deficit work shift the
-// owners), so the two only agreed by luck and a cooler could wait forever
-// behind an unrelated pawn's Cooking checkbox (#66). This comparison never
-// writes work settings.
+// Construction requires an available pawn with enabled work and sufficient
+// native skill in the same observation bracket. Other pawns' assignments are
+// independent; this gate never writes work settings.
 func comfortBuilderAvailable(facts observation.ColonyProjection, definition string) bool {
 	return comfortBuilderGate(facts, definition).IsZero()
 }

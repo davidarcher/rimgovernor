@@ -13,12 +13,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// stepMonolith is the custody step's monolith advance (#2437), reached when
+// stepMonolith is the custody step's monolith advance, reached when
 // no custody or containment upkeep stands: while the monolith is in play,
 // policy.MonolithAdvanceOwed decides, and an owed order sends one colonist at
 // the monolith with the investigate or activate job (a recovery-service
 // give-job), or at the awakening quest's next void structure, the Gleaming
-// monolith or the void node with the interact job (#2438). The investigate dialog and the awakening confirmation the job
+// monolith or the void node with the interact job. The investigate dialog and the awakening confirmation the job
 // opens are answered by the dialog planner. A hostile census read here
 // completes the awakening gate; unread facts are logged and hold the order.
 // ok is false when no order was committed and the step goes on.

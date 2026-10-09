@@ -1,4 +1,4 @@
-// Package cellgrid is the mirror.CellGrid format (#795, #1345): one array
+// Package cellgrid is the mirror.CellGrid format: one array
 // per policy.SiteCell field over a rect, with the wire's sentinels (cell 0
 // not held, 1 held; bools 0 unknown, 1 false, 2 true; floats NaN unknown;
 // strings 0 unknown, k for strings[k-1]). A keyframe carries every array;

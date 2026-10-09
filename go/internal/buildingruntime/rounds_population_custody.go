@@ -89,14 +89,14 @@ func (r *RoundsPopulationCustodyPlanner) step(call, epoch context.Context, arbit
 		choice = policy.CustodyChoice{Pawn: arrestTarget}
 	} else if target := policy.LanceCandidate(read.Projection.Facts); target != "" {
 		// A standing recruitable raider goes down alive to a lance
-		// (#1038) before any capture; without an able user the step
+		// before any capture; without an able user the step
 		// goes on to capture and rescue.
 		if result, ok, err := r.stepLance(call, epoch, p, state, started, goal, review.Tick, target, arbiter); err != nil || ok {
 			return result, err
 		}
 	}
 	if choice.Reason == policy.CustodyNoDeficit {
-		// A downed entity the capture rule (#1742) takes goes to a holding
+		// A downed entity the capture rule takes goes to a holding
 		// platform through the same capture order.
 		if entity, ok := policy.EntityCaptureTarget(read.Projection.Facts.Containment); ok {
 			choice = policy.CustodyChoice{Pawn: entity, Decision: policy.CustodyCapture}
@@ -104,7 +104,7 @@ func (r *RoundsPopulationCustodyPlanner) step(call, epoch context.Context, arbit
 	}
 	if choice.Reason == policy.CustodyNoDeficit {
 		// No custody work stands: a held entity's cell door and wounds are
-		// the upkeep left (#1743).
+		// the upkeep left.
 		return r.stepContainment(call, epoch, p, state, started, goal, read.Projection.Facts, arbiter)
 	}
 	switch choice.Reason {

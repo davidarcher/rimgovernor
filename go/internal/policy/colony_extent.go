@@ -20,7 +20,7 @@ const (
 // the same enclosed roofed interiors and internal-door connectivity as Home.
 // A known empty value means only the occupied footprint belongs. Corridors
 // must be observed connecting geometry, never interpolated between facilities.
-// Zone is a stockpile target's whole footprint (#719); a building leaves it empty.
+// Zone is a stockpile target's whole footprint; a building leaves it empty.
 type HomeExtentGeometry struct {
 	EnclosedInterior []domain.Cell
 	Corridor         []domain.Cell
@@ -160,8 +160,8 @@ func DeriveColonyExtent(r ColonyExtentRequest) (domain.Fact[ColonyExtent], error
 			return unknown, invalid
 		}
 	}
-	// Every census stockpile is territory at its whole current footprint
-	// (#719), whoever zoned it. A target that is not a building and carries
+	// Every census stockpile is territory at its whole current footprint,
+	// whoever zoned it. A target that is not a building and carries
 	// no zone geometry (blocked, legacy or batched) adds nothing.
 	facility := map[string]bool{}
 	for _, b := range buildings {

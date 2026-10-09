@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
     // Test-only speed-matrix stage. No pawn stats, simulation ticks or resources are edited.
     public sealed class ThroughputFixture
     {
-        // Speed-matrix stage (issue #111): one staged colony the harness saves
+        // Speed-matrix stage: one staged colony the harness saves
         // once and reloads per clock speed, so every speed plays the same map,
         // pawns, stacks and wall run. Storage and construction only; needs are
         // frozen by test/freeze_needs after each reload (it is per game).

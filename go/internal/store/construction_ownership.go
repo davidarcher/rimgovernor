@@ -16,7 +16,7 @@ import (
 // Only a plan holding a building action with an accepted receipt can carry
 // an applied intent, so the link query excludes the rest before the full
 // plan load; every historical method is otherwise replayed on each routine
-// review (#84).
+// review.
 func constructionClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]policy.ConstructionClaim], error) {
 	unknown := domain.Unknown[[]policy.ConstructionClaim]()
 	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,m.owner_id FROM plan_methods m LEFT JOIN standards g ON g.id=m.owner_id AND m.kind='standard' LEFT JOIN projects pr ON pr.id=m.owner_id AND m.kind='project'

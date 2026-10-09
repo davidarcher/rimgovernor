@@ -16,8 +16,8 @@ import (
 
 // bundleParts are the dedicated reads a fake step read is
 // composed from, so a fake's ReadStep answers exactly what
-// its Tick, ReadClockStatus, ReadEmergency and ReadClockEvents answer
-// (issue #127). A nil part leaves
+// its Tick, ReadClockStatus, ReadEmergency and ReadClockEvents answer.
+// A nil part leaves
 // its section out of the fake's repertoire: a request for it is an error.
 type bundleParts struct {
 	tick      func(context.Context) (*l.TickReply, bridge.Result, error)
@@ -73,7 +73,7 @@ func composeStep(ctx context.Context, request bridge.StepRequest, parts bundlePa
 // emergencySnapshot encodes the facts a fake serves as the status snapshot
 // bridge.BundleEmergency decodes them from.
 func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFacts) (*o.StatusSnapshot, *o.PawnSnapshot) {
-	// The census references its pawns' rows in the pawn table (#1343).
+	// The census references its pawns' rows in the pawn table.
 	table := &o.PawnSnapshot{Context: proto.Clone(context).(*c.ObservationContext), Completeness: &o.Completeness{}}
 	rows := map[string]*o.PawnState{}
 	ref := func(id policy.PawnID, row *o.PawnState) *c.Ref {

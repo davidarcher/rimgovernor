@@ -17,7 +17,7 @@ func pawnTableFixture() *o.PawnSnapshot {
 	}}
 }
 
-// The pawn table (#1343) holds every spawned pawn with the detail its kind
+// The pawn table holds every spawned pawn with the detail its kind
 // carries, and refuses a malformed row of any kind.
 func TestPawnTableValidatesEveryKind(t *testing.T) {
 	pawns, err := PawnTable(pawnTableFixture(), pbIdentity())

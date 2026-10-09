@@ -35,7 +35,7 @@ func pegTraining(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	// A queued bill is clock work (#1238): one service queues the install,
+	// A queued bill is clock work: one service queues the install,
 	// runs it, queues the removal on the peg and runs that.
 	run, err := startSurgeryRun(ctx, s, "peg-training")
 	if err != nil {

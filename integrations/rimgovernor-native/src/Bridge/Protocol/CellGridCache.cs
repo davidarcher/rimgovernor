@@ -7,7 +7,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// The grid read's cached per-cell facts (#1575): walkability, doorway,
+    /// The grid read's cached per-cell facts: walkability, doorway,
     /// empty storage, terrain light, terrain and foundation names and the
     /// cell's room, held per map and recomputed only for a cell the game
     /// reported changed. A cell is dirtied by a non-pawn thing spawning or

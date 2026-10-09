@@ -12,7 +12,7 @@ import (
 )
 
 // TestAdmissionRefusedCarriesReason: a refused decision keeps the
-// shared_admission_refused kind and names its first refusal (#1880).
+// shared_admission_refused kind and names its first refusal.
 func TestAdmissionRefusedCarriesReason(t *testing.T) {
 	t.Parallel()
 	got := admissionRefused(store.BuildingMethodDecision{Refused: []policy.Refusal{{Reason: policy.AlreadyReserved, Resource: "wood"}}})

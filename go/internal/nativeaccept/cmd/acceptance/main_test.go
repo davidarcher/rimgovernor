@@ -72,7 +72,7 @@ func TestParseRunRejects(t *testing.T) {
 	}
 }
 
-// TestRegistryPassesLint is the checklist gate (#139): every registered
+// TestRegistryPassesLint is the checklist gate: every registered
 // case, from every area package the binary imports, satisfies cases.Lint.
 // A case that breaks a rule fails here with the rule and the checklist
 // item named.
@@ -163,7 +163,7 @@ func TestListPrintsRegistry(t *testing.T) {
 func TestParseSetup(t *testing.T) {
 	// -worktree must be a checkout root: a path that only looks like one
 	// (a go/ subdirectory, a Git Bash path the shell did not convert)
-	// would otherwise search the wrong place for peers (#352).
+	// would otherwise search the wrong place for peers.
 	repo := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0755); err != nil {
 		t.Fatal(err)

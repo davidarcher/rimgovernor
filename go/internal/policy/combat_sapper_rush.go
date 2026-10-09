@@ -3,10 +3,10 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // rushRange is how close to the breach, in cells, a hostile sets the
-// posted brawlers on it (#915).
+// posted brawlers on it.
 const rushRange = 4
 
-// sapperRush is the sapper tactic's melee rush (#915). The brawlers posted
+// sapperRush is the sapper tactic's melee rush. The brawlers posted
 // just inside the breach hold with no target, so none walks out to fight
 // in the open, until a live hostile comes within rushRange of the breach
 // cell or a breach stop arrives. Then every posted brawler leaves its cell

@@ -17,7 +17,7 @@ import (
 )
 
 // The scheduler tells the poll loop whether a window it admitted is still
-// running (issue #162): set by the admitting step and by a step that sees
+// running: set by the admitting step and by a step that sees
 // it running, cleared by the step that finds it stopped. That step settles
 // the owed epoch from the status its own bundle carried -- no identity or
 // status round trip -- and reviews in the same step.
@@ -317,10 +317,10 @@ func TestClockWorkerPollsFasterUnderARunningWindow(t *testing.T) {
 	})
 }
 
-// A routine window watches nothing (#244) and work dispatched under it
+// A routine window watches nothing and work dispatched under it
 // cannot stop it: a running step that finds a dispatched attempt in the
 // plan records it as unwatched and leaves the window running; the event
-// poll carries the attempt's outcome to the Worker (#243). The
+// poll carries the attempt's outcome to the Worker. The
 // pause-and-rearm cycle of #207 is gone with the routine watches.
 func TestClockSchedulerLeavesARunningWindowUnderLiveDispatchedWork(t *testing.T) {
 	t.Parallel()
@@ -353,7 +353,7 @@ func TestClockSchedulerLeavesARunningWindowUnderLiveDispatchedWork(t *testing.T)
 }
 
 // A coupled order (domain.ActionDependency.Coupled) no longer stops the
-// running window (#584): once its prerequisite completes under the window
+// running window: once its prerequisite completes under the window
 // the step reports it and plans live, and the order's own native CAS
 // evidence refuses a stale read. An ordering-only dependency reports
 // nothing and leaves the window running just the same.

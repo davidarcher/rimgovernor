@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Organ harvest (#1169, epic #1160): MaintainSurgery harvests an organ from
+// Organ harvest: MaintainSurgery harvests an organ from
 // a prisoner the colony would not recruit (PrisonerFacts.HarvestEligible)
 // only for a concrete need, and only when the gain outweighs the cost, both
 // in silver:
@@ -27,7 +27,7 @@ import (
 // present is taken: never a heart, liver or last lung or kidney, and never
 // a harvest native reports lethal.
 
-// Silver prices of the cost model (#1169).
+// Silver prices of the cost model.
 //
 // SilverPerMoodPoint: one mood point on one colonist for a thought's whole
 // duration (vanilla's harvest thoughts last 8 days). Twenty silver makes a
@@ -160,7 +160,7 @@ func OrganNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant, silverShort 
 }
 
 // OrganHarvest is one prisoner removal to queue as a medical ProductionBillIntent: an
-// organ harvest, or an added part recovery (#1232, Organ the part item).
+// organ harvest, or an added part recovery (Organ names the part item).
 // Violation sets acknowledge_violation.
 type OrganHarvest struct {
 	Prisoner   domain.PawnID
@@ -170,9 +170,9 @@ type OrganHarvest struct {
 	For        PawnID
 	Gain, Cost float64
 	Violation  bool
-	Step       PegCycleStep // a peg-leg cycling step (#1236); zero otherwise
+	Step       PegCycleStep // a peg-leg cycling step; zero otherwise
 	// Surgeon restricts a training step's bill to the doctor who needs the
-	// XP (#1253); empty keeps vanilla's choice.
+	// XP; empty keeps vanilla's choice.
 	Surgeon domain.PawnID
 }
 
@@ -280,7 +280,7 @@ func harvestAcceptable(op SurgeryOperation) bool {
 
 // SaleHarvestWanted reports whether a sale harvest would be queued now: the
 // silver runway is short and some eligible prisoner's organ clears its cost.
-// DetectRounds holds MaintainSurgery open on it (#1169).
+// DetectRounds holds MaintainSurgery open on it.
 func SaleHarvestWanted(f RoundsFacts, silverShort domain.Fact[bool]) bool {
 	if !positive(silverShort) {
 		return false
@@ -295,7 +295,7 @@ func SaleHarvestWanted(f RoundsFacts, silverShort domain.Fact[bool]) bool {
 }
 
 // OrganSaleSurplus adds each harvested organ in stock to the trade need's
-// surplus while the silver runway is short (#1169): the sale path's organ
+// surplus while the silver runway is short: the sale path's organ
 // sells through SelectTrade like any surplus, keeping none.
 func OrganSaleSurplus(items ItemFacts, need domain.Fact[TradeNeed], resources domain.Fact[[]Amount], colonists domain.Fact[int64]) domain.Fact[TradeNeed] {
 	n, nk := need.Value()
@@ -318,12 +318,12 @@ func OrganSaleSurplus(items ItemFacts, need domain.Fact[TradeNeed], resources do
 	return domain.Known(n)
 }
 
-// Artificial part recovery (#1232, epic #1160): MaintainSurgery removes an
+// Artificial part recovery: MaintainSurgery removes an
 // added part (bionic, prosthetic, archotech) from a HarvestEligible
 // prisoner so the colony can install or sell it. The gain is a colonist's
 // capacity the part restores (a surgery_part_short want with an install
 // recipe for it, servedSurgery's weight x SilverPerCapacity) or else the
-// part's market value in stock, where the #1168 part demand and the trade
+// part's market value in stock, where the part demand and the trade
 // surplus use it. The prisoner's own market value is not a cost: vanilla's
 // price already counts the part, and nothing sells prisoners. The cost is
 // the medicine used, plus HarvestCost's mood and goodwill only when native
@@ -456,15 +456,15 @@ func partRecoveryCost(op SurgeryOperation, row PrisonerFacts, c PrisonerColony) 
 }
 
 // PartRecoveryWanted reports whether a stock recovery would be queued now;
-// DetectRounds holds MaintainSurgery open on it (#1232).
+// DetectRounds holds MaintainSurgery open on it.
 func PartRecoveryWanted(f RoundsFacts) bool {
 	_, ok := SelectPartRecovery(f.Prisoners, f.PrisonerColony, nil, nil)
 	return ok
 }
 
 // ReserveSurgeryStock keeps one stocked unit per open colonist restore or
-// install (#1254): each want, each choice this review would queue and each
-// bill already queued (#1261) holds
+// install: each want, each choice this review would queue and each
+// bill already queued holds
 // back its best recipe item still in the surplus, so a harvested organ or
 // recovered part is not sold before its install is queued.
 func ReserveSurgeryStock(need domain.Fact[TradeNeed], pawns domain.Fact[[]CarePawn]) domain.Fact[TradeNeed] {
@@ -486,7 +486,7 @@ func ReserveSurgeryStock(need domain.Fact[TradeNeed], pawns domain.Fact[[]CarePa
 			continue
 		}
 		for _, item := range pawn.QueuedItems {
-			options = append(options, []Resource{item}) // queued bill (#1261)
+			options = append(options, []Resource{item}) // queued bill
 		}
 	}
 	surplus := append([]Amount(nil), n.Surplus...)

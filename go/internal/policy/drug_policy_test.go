@@ -191,7 +191,7 @@ func TestDependencyAndAddictionMerge(t *testing.T) {
 }
 
 // A prisoner holds its own policy that allows no recreation, only the
-// maintenance its addiction owes; one with none holds an empty policy (#1554).
+// maintenance its addiction owes; one with none holds an empty policy.
 func TestDrugPolicyChangesPrisoners(t *testing.T) {
 	inputs := func(chemicals ...ChemicalState) domain.Fact[PawnPolicyInputs] {
 		return domain.Known(PawnPolicyInputs{DrugPolicy: "DrugPolicy_1", GuestStatus: "Prisoner", Chemicals: chemicals})

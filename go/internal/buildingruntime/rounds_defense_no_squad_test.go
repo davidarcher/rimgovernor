@@ -35,7 +35,7 @@ func (n *hiveTestNative) ReadCombatPawns(ctx context.Context, id *c.Identity, id
 
 // A hostile building with every colonist downed is a deficit the planner
 // cannot answer: it reports no eligible squad so the clock scheduler watches
-// the building instead of holding on it (#326).
+// the building instead of holding on it.
 func TestRoundsDefenseReportsNoSquadForAnUnanswerableBuilding(t *testing.T) {
 	t.Parallel()
 	r, db, session, _, n := roundsFixture(t)

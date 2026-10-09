@@ -6,8 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// EnsureMechCharger keeps a recharging station free for the mechs (epic
-// #1667, #1688). A mechanitor's mechs recharge one at a time on a
+// EnsureMechCharger keeps a recharging station free for the mechs. A mechanitor's mechs recharge one at a time on a
 // Building_MechCharger (MechChargerOwed): the goal is in deficit while the
 // colony owes one more charger, and settles once a charger stands idle. It
 // is a Standard whose target is no outstanding work, like ManagePollution.
@@ -15,7 +14,7 @@ import (
 // emptying its waste is ManagePollution's.
 //
 // The charger is a building that produces wastepacks, so it is sited by the
-// polluting-machine rule (PollutionSites, #1684) over free ground, never by a
+// polluting-machine rule (PollutionSites) over free ground, never by a
 // definition name: the catalog's mech_charger flag finds the definition.
 const EnsureMechCharger ConcernID = "EnsureMechCharger"
 

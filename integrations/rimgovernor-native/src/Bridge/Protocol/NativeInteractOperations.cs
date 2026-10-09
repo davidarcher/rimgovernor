@@ -9,7 +9,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent job InteractThing (#2438): order one colonist to interact
+    // GiveJobIntent job InteractThing: order one colonist to interact
     // with a void structure, the Gleaming monolith or the void node, the job
     // CompInteractable.OrderForceTarget gives (JobDefOf.InteractThing). The
     // whitelist is the Anomaly endgame's three comps (CompGleamingMonolith is a

@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Vanilla pathfinder prices the corridor is laid out against (#619):
+// Vanilla pathfinder prices the corridor is laid out against:
 // PathFinderJob's move ticks, the Fence def's pathCost, and
 // Building_Door.TicksToOpenNow (45 / DoorOpenSpeed, 1.2 for wood) which
 // PathUtility.GetDoorCost charges a pawn that can open the door. A spike

@@ -9,7 +9,7 @@ import (
 )
 
 // butcherSpotDefinition is the free, instant bench EnsureFoodSupply builds
-// so a hunt's corpse can be butchered (#260).
+// so a hunt's corpse can be butchered.
 const butcherSpotDefinition = "ButcherSpot"
 
 // foodGoal reports the routine EnsureFoodSupply goal; the routine goal id
@@ -24,7 +24,7 @@ func butcherSpotBuilding(action domain.Action) bool {
 	return ok && building.Definition() == butcherSpotDefinition
 }
 
-// foodFacilityOpenWorkExempt (#260) lets EnsureFoodSupply's butcher spot and
+// foodFacilityOpenWorkExempt lets EnsureFoodSupply's butcher spot and
 // its production bills be committed while the goal's fields, foraging and
 // hunts stay open: those methods run for days and the spot and bill are
 // the hunt row's precondition, so waiting on them would never end. A plan

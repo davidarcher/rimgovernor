@@ -22,7 +22,7 @@ const (
 	// footprint cell: rock there is dug, then built on.
 	RockNeedsFloor
 	// RockNeedsSky is a generator footprint or catch cell: dug like a
-	// floor, and its roof comes off as well (#1758).
+	// floor, and its roof comes off as well.
 	RockNeedsSky
 )
 
@@ -61,12 +61,12 @@ func RockStep(planned []RoleCell, cells []SiteCell) RockStepResult {
 	return out
 }
 
-// RoofRule is what the game's RoofDef row says about a roof (#1870). The
+// RoofRule is what the game's RoofDef row says about a roof. The
 // game refuses to designate a no-roof area under a roof whose isThickRoof
 // is set (Designator_AreaNoRoof.CanDesignateCell, read with ilspycmd) and
 // checks nothing else when a roof is removed: canCollapse does not gate it,
 // so it is not carried. Natural is the RoofDef isNatural flag: a mountain
-// roof (#1890).
+// roof.
 type RoofRule struct{ Thick, Natural bool }
 
 // Removable reports whether the roof can be taken off.

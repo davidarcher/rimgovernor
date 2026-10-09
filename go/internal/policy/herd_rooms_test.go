@@ -22,7 +22,7 @@ func herdTestPlan(t *testing.T, animals int) LayoutPlan {
 
 // boxedInHerdPlan is the herd plan with solar plots hugging its barn and vet
 // area on every side, so nothing fits beside the unit and a herd that
-// outgrows it must found a second unit elsewhere (#2212).
+// outgrows it must found a second unit elsewhere.
 func boxedInHerdPlan(t *testing.T, animals int) LayoutPlan {
 	t.Helper()
 	p := herdTestPlan(t, animals)
@@ -177,7 +177,7 @@ func TestHerdStepReconcilesBarnThenVetRoom(t *testing.T) {
 }
 
 // A ring that lost a wall after the room stood is rebuilt by the same diff that
-// raised it: no dedicated lost-shell step (#2114).
+// raised it: no dedicated lost-shell step.
 func TestHerdStepRebuildsALostWall(t *testing.T) {
 	plan := herdTestPlan(t, 20)
 	barn := plan.HerdRooms(PlannedBarn)[0]

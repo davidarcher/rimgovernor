@@ -5,7 +5,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// MortarShells are the load's mortar shells by kind (#1723): every thing
+// MortarShells are the load's mortar shells by kind: every thing
 // def with a projectileWhenLoaded (the game's ThingDef.IsShell) is classified
 // by the damage def of that projectile, never by its name.
 //

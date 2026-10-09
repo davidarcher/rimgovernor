@@ -37,7 +37,7 @@ func containmentCatalog() *o.DefinitionCatalog {
 	return v
 }
 
-// TestContainmentDefsReadTheFormulaInputsFromDefs (#1741): the holder is the
+// TestContainmentDefsReadTheFormulaInputsFromDefs: the holder is the
 // platform def with the greatest factor ,
 // its base falls back to the stat's default, wall and door hit points are the
 // game's stat values and facilities are the linked defs' ContainmentStrength

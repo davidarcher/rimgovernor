@@ -3,7 +3,7 @@ package speedmatrix
 import "testing"
 
 // TestObservationRowProblems checks an empty or unaccounted observation
-// report is refused (#656): no rows, a row without interval samples, and a
+// report is refused: no rows, a row without interval samples, and a
 // governed row without observation hops; the governor-off row needs no hops.
 func TestObservationRowProblems(t *testing.T) {
 	if len(observationRowProblems(nil)) == 0 {

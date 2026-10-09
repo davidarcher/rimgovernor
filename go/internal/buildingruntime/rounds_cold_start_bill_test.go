@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// coldStartNative serves a steel ore cell for the steel a bill needs (#2487).
+// coldStartNative serves a steel ore cell for the steel a bill needs.
 type coldStartNative struct{ *resourceNative }
 
 func (n *coldStartNative) ReadResourceSources(_ context.Context, _ *c.Identity, resource string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error) {
@@ -77,7 +77,7 @@ func steelRecipe(def string, product policy.Resource, available bool) policy.Gea
 	}
 }
 
-// Cold start (#2487): a component floor stands, the colony holds no steel and
+// Cold start: a component floor stands, the colony holds no steel and
 // the consumption ring has recorded no steel spend, so steel has no runway
 // row. The component bill's steel need must become supply demand on the real
 // planner path: the Round mines steel rather than holding the bill as
@@ -93,7 +93,7 @@ func TestColdStartComponentBillInducesSteelSupply(t *testing.T) {
 // A drug runway row (DrugRunwayReserves keys every catalog social drug) whose
 // recipe the colony cannot make (unresearched, no usable bench) plans no bill
 // and induces no ingredient demand: the planner's producibility refusal
-// covers it without a gate (#2487).
+// covers it without a gate.
 func TestUnproducibleDrugPlansNoBill(t *testing.T) {
 	t.Parallel()
 	result := coldStartStep(t, "SmokeleafJoint", steelRecipe("Make_SmokeleafJoint", "SmokeleafJoint", false))

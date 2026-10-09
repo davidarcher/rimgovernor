@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// MaintainMechs is the mech gestation goal (#1686, epic #1667): a mechanitor
+// MaintainMechs is the mech gestation goal: a mechanitor
 // with bandwidth to spare, an idle mech gestator and no waste left lying
 // about is owed one more mech, queued as a Bill_Mech on the gestator.
 const MaintainMechs ConcernID = "MaintainMechs"
@@ -20,7 +20,7 @@ const mechPriority = 3
 // gestation bill (domain.GearBatch, target 1) on a gestator.
 const MechGestationBill BillPurpose = "mech_gestation"
 
-// Gestation rules (epic #1667 research: Biotech, Mechanitor and wastepack
+// Gestation rules (source: Biotech, Mechanitor and wastepack
 // guides on the wiki; numbers come from the game defs, never from here):
 //   - Bandwidth is the limit. A mech is built only when a mechanitor's free
 //     bandwidth, TotalBandwidth - UsedBandwidth - GestationBandwidth, covers
@@ -34,7 +34,7 @@ const MechGestationBill BillPurpose = "mech_gestation"
 //   - Colonist need decides what the free bandwidth buys (MechRoleNext): a
 //     worker while a work type is short of owners and no mech of the
 //     mechanitor covers it, a guard otherwise.
-//   - Chargers come before more mechs (epic #1667 research: guides recommend a
+//   - Chargers come before more mechs (guides recommend a
 //     recharger before more mechs): no gestation while no charger is ready,
 //     powered and not full of waste (MechChargerReady), so the colony never
 //     builds a mech it cannot charge. EnsureMechCharger builds the charger.

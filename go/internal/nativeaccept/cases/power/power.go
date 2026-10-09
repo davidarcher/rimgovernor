@@ -1,20 +1,7 @@
-// Package power holds the EnsureBasicPower reliability vertical (issue #6
-// slice 1, milestone A) on the lab contract (#747): a live game and a live
-// rimgovernor Go player-control service composed with the power family.
-//
-//	fuel -- a wood-fired generator on the blank lab is out of fuel and its
-//	        one consumer unpowered, with unforbidden wood nearby.
-//	        Refuelling is ordinary colonist work, so the service must hold
-//	        (waiting_for_refuel) and commit no generator or conduit method;
-//	        the native colonists refuel it, and an independent native read
-//	        then shows the generator fuelled and the consumer powered.
-//
-// The reserve, battery, wind and geothermal decisions are snapshot tests
-// over their recorded reviews (internal/buildingruntime, #747).
-//
-// Uses the private disposable test/power_prepare and test/power_observe
-// fixtures (PowerFixture.cs). The case's own bridge session and the
-// service's are used sequentially (one GABP client per game).
+// Package power proves ordinary colonists refuel a generator while the service waits without
+// admitting generator or conduit work. An independent native read must show fuel and power
+// at the consumer. Snapshot tests cover reserve, battery, wind and geothermal decisions. The
+// private PowerFixture and service use the single GABP slot sequentially.
 package power
 
 import (

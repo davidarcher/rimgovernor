@@ -10,7 +10,7 @@ import (
 
 // PollutionSiteRequest asks which candidate footprints best host a building
 // that pollutes or produces wastepacks (a PlanningDefinition with Pollutes
-// known true: CompToxifier, CompPolluteOverTime, CompWasteProducer; #1684).
+// known true: CompToxifier, CompPolluteOverTime, CompWasteProducer).
 // The caller owns candidate legality (free, buildable ground); this rule only
 // ranks them. Cells are map cells inside Bounds; an empty avoid set means the
 // colony has none of it yet.

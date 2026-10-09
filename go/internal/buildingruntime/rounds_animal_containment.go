@@ -13,7 +13,7 @@ import (
 // RoundsAnimalContainmentPlanner composes MaintainAnimalContainment's
 // containment-method decision (policy.SelectAnimalContainmentMethod) with the
 // build side of the reconciler: the one PenMarker that claims the yard inside
-// the defensive wall once it is closed and its lane fenced (stagePaddock, #2233);
+// the defensive wall once it is closed and its lane fenced (stagePaddock);
 // the barn and vet room (stageHerdRooms) are raised meanwhile. It is self-contained the way
 // RoundsFieldPlanner is, on purpose: the shared shelter/cooking/comfort switch
 // is actively edited by parallel building-family slices, and this goal's action
@@ -196,7 +196,7 @@ func (r *RoundsAnimalContainmentPlanner) step(call, epoch context.Context, arbit
 	if _, known := handlerAvailable.Value(); !known {
 		return RoundsAnimalContainmentResult{Verdict: fieldUnavailable("animal_handler")}, nil
 	}
-	// The pen is the yard inside the defensive wall (#2233): the shell stage
+	// The pen is the yard inside the defensive wall: the shell stage
 	// is the ring standing with its lane fenced, the marker the one step
 	// the yard then needs.
 	shellStage, paddock, sited, err := r.paddockStageOf(call, state, facts, penBuilding)

@@ -27,8 +27,8 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.ColonyFactsRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = failure });
-            // Read on the game thread; delta (#773) and format on an
-            // encoder worker (#644), since the delta digests the whole reply.
+            // Read on the game thread; delta and format on an
+            // encoder worker, since the delta digests the whole reply.
             var lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
             if (lease == null) return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted,
                 "Colony facts reply encoders stayed saturated for " + ReplyEncoder.ReserveTimeoutMs + " ms; nothing was read.") });
@@ -58,11 +58,11 @@ namespace HomeBridge.BridgeTools
             return request?.Scope?.ExpectedIdentity != null;
         }
 
-        // The colony facts as a frame section: a read that throws fails the frame (#1905).
+        // The colony facts as a frame section: a read that throws fails the frame.
         internal static Obs.ColonyFactsSnapshot Read(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context)
         {
             // Each span below names where the read's game-thread time went
-            // in a slow snapshot capture line (#1273).
+            // in a slow snapshot capture line.
             var mark = System.Diagnostics.Stopwatch.GetTimestamp();
             void Span(string name) { var now = System.Diagnostics.Stopwatch.GetTimestamp(); ObservationWork.Detail(name, now - mark); mark = now; }
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction unavailable.");
@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
             Span("cf.things");
             // One read asks the same thing or def many times (items, beds,
             // benches, forbidden supplies, loot); each answer is fixed for
-            // the read, so it is computed once (#878).
+            // the read, so it is computed once.
             var reach = new Dictionary<Thing, bool>();
             // A raid drafts or downs every colonist; reach is then asked of them
             // all, or every stock, bed and bench would read as gone until it ends.
@@ -189,7 +189,7 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        // Whether the biome keeps the sky dark for the map's whole life (#1858):
+        // Whether the biome keeps the sky dark for the map's whole life:
         // one of its map conditions is a GameCondition_NoSunlight or a subclass,
         // read from the game defs with no name list. A biome or condition def
         // missing its facts throws, so the food_climate read fails loudly
@@ -219,7 +219,7 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        // Colony wealth and raid points (#395): the WealthWatcher split (its
+        // Colony wealth and raid points: the WealthWatcher split (its
         // own lazy recount; never ForceRecount on a read path), the wealth
         // the storyteller scales by and the points a default threat incident
         // would draw for this map now, with the adaptation and difficulty
@@ -260,7 +260,7 @@ namespace HomeBridge.BridgeTools
             // Traders (consumers and generators) and batteries share one census so
             // Go's power topology sees every network member that matters for
             // coverage and reserve: batteries carry stored/capacity energy; the
-            // base wattage is the def's (Go reads it from the catalog); each member's service state is its building table row (#1343).
+            // base wattage is the def's (Go reads it from the catalog); each member's service state is its building table row.
             var traders = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerTrader>())
                 .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
             var batteries = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerBattery>())
@@ -283,7 +283,7 @@ namespace HomeBridge.BridgeTools
                 var building = (Building)power.parent;
                 var row = new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building),
                     Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) };
-                // A turret's observed damage per second (#1188).
+                // A turret's observed damage per second.
                 var dps = NativeDefenseStats.TurretDps(building); if (dps.HasValue) row.TurretDps = Finite(dps.Value);
                 result.Power.Add(row);
             }
@@ -412,7 +412,7 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        // The roles the game's room-role workers score by ThingDefOf name (#1731),
+        // The roles the game's room-role workers score by ThingDefOf name,
         // sorted: the part of the room roles Go cannot derive from the def rows.
         internal static IEnumerable<string> GameRoomRoles(ThingDef def)
         {
@@ -543,7 +543,7 @@ namespace HomeBridge.BridgeTools
             foreach (var consumer in source.consumers)
                 result.Consumers.Add(new Obs.FoodConsumer { PawnId = consumer.id, NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable });
             foreach (var stock in source.stocks) {
-                // The stock's thing is a things table row (#1343).
+                // The stock's thing is a things table row.
                 var row = new Obs.FoodStock { Item = NativeRef.Thing(stock.thing!), Nutrition = Finite(stock.nutrition) };
                 row.Eaters.Add(NativeRef.All(stock.eaters!));
                 if (stock.holder != null) row.Holder = NativeRef.Of(stock.holder);

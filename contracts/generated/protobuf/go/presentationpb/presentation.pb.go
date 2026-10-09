@@ -946,7 +946,7 @@ type ColonistRosterRequest struct {
 	Identity       *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
 	CurrentMapOnly *bool                  `protobuf:"varint,2,opt,name=current_map_only,json=currentMapOnly,proto3,oneof" json:"current_map_only,omitempty"`
 	// include_dossier asks the controller to attach each colonist's row of
-	// its latest bundle pawn table (#1343); native never fills dossier.
+	// its latest bundle pawn table; native never fills dossier.
 	IncludeDossier *bool `protobuf:"varint,3,opt,name=include_dossier,json=includeDossier,proto3,oneof" json:"include_dossier,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -7190,7 +7190,7 @@ func (*ScreenshotReply_Screenshot) isScreenshotReply_Outcome() {}
 
 func (*ScreenshotReply_Failure) isScreenshotReply_Outcome() {}
 
-// RimGovernor map overlay (#817): a native MapComponent draws named layers
+// RimGovernor map overlay: a native MapComponent draws named layers
 // as meshes and labels. Output only and never saved: each call replaces
 // the one layer it names and leaves the others; the Go side resends after
 // a load. Layer ids group producers: "layout", "heat.colonist", ...

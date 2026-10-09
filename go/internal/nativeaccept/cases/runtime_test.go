@@ -60,7 +60,7 @@ func acquireHarness(t *testing.T, identity map[string]any) (*na.Harness, *bridge
 	return na.NewHarness(client, t.TempDir()), replay
 }
 
-// Runtime caches the scenario runtime per harness (#597): after
+// Runtime caches the scenario runtime per harness: after
 // Serve/Reattach replaces the session's harness, the cached runtime binds
 // a closed bridge, so the next Runtime must rebuild it on the new harness
 // and re-acquire the clock there rather than hand back the stale one.

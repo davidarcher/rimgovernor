@@ -12,7 +12,7 @@ import (
 // without any write of ours to invalidate a cached row.
 const tradeSessionTool = "rimgovernor/observations_read_trade_session"
 
-// TradeSessionRead is native's one live trade (#856): the negotiator walking
+// TradeSessionRead is native's one live trade: the negotiator walking
 // to Trader to open a session (Open false), or the pair holding the open
 // session (Open true). Trader and Negotiator are empty when neither exists.
 type TradeSessionRead struct {

@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The title claim gate (#1605, epic #1598). A higher title raises the
+// The title claim gate. A higher title raises the
 // holder's expectations, so the colony claims the next one only once the
 // holder's bedroom and the next title's throne room already meet their
 // requirements, never before. The gate is a pure decision over recorded

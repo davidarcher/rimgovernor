@@ -4,7 +4,7 @@ import o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 
 // Food completeness counts consumer and stock rows together. Repeated eater IDs
 // are explicit native eligibility, never a default of "every consumer".
-// A stock references its things table row (#1343); JoinFoodSupply checks
+// A stock references its things table row; JoinFoodSupply checks
 // the facts that need the row.
 func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 	if v == nil {

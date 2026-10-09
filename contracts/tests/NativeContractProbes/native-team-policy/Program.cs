@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using HomeBridge.BridgeTools;
 
-// Team-composition policy (#2024) on constructed pawn facts.
+// Team-composition policy on constructed pawn facts.
 internal static class NativeTeamPolicyProbe
 {
     private sealed class Spec

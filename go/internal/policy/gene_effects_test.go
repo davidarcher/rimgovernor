@@ -13,7 +13,7 @@ func genePawn(id string, effects GeneEffects) WorkPawn {
 	return p
 }
 
-// TestGeneStatEffectsFoldIntoProfile (#1689): gene offsets add to the trait
+// TestGeneStatEffectsFoldIntoProfile: gene offsets add to the trait
 // offsets and gene factors scale the sum, for work speed and learning.
 func TestGeneStatEffectsFoldIntoProfile(t *testing.T) {
 	p := testWorkPawn(PawnID("a"), true, false, nil, testTrait("Industrious", 0))
@@ -34,7 +34,7 @@ func TestGeneStatEffectsFoldIntoProfile(t *testing.T) {
 	}
 }
 
-// TestGeneDisabledNeedsShapeSchedule (#1689): an active gene that removes
+// TestGeneDisabledNeedsShapeSchedule: an active gene that removes
 // the Rest or Joy need leaves no Sleep or Joy block; one that gives the need
 // back keeps it.
 func TestGeneDisabledNeedsShapeSchedule(t *testing.T) {

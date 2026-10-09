@@ -8,8 +8,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The butcher table is owed whenever the goal is, whatever the food runway
-// (#260), once the wood and a builder are there; there is no stand-in (#2266),
+// The butcher table is owed whenever the goal is, whatever the food runway,
+// once the wood and a builder are there; there is no stand-in,
 // so without them the goal waits.
 func TestButcherTableSelectionIgnoresArmedCount(t *testing.T) {
 	t.Parallel()
@@ -74,8 +74,8 @@ func TestFieldBlockingWorkIgnoresButcherTable(t *testing.T) {
 	}
 }
 
-// Blocking reads designated census rows (#1045): a designated forage row
-// leaves the hunt rows plannable (#260); a designated hunt, or for wood a
+// Blocking reads designated census rows: a designated forage row
+// leaves the hunt rows plannable; a designated hunt, or for wood a
 // designated tree, is existing work; held (cooled) rows and undesignated
 // ones never block.
 func TestCensusBlocking(t *testing.T) {
@@ -111,7 +111,7 @@ func TestCensusBlocking(t *testing.T) {
 			t.Errorf("%s: block=%v plants=%v", c.name, block, plants)
 		}
 	}
-	// An undispatched admission blocks like its designated row (#1045).
+	// An undispatched admission blocks like its designated row.
 	if block, _ := censusBlocking(domain.Known([]policy.AcquisitionSource{oak}), false, nil, map[string]bool{"oak": true}); !block {
 		t.Error("undispatched tree does not block")
 	}

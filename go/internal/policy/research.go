@@ -30,7 +30,7 @@ type ResearchProjectID string
 // ResearchProjectFacts mirrors the native research snapshot fields
 // prerequisite_queue inspects for one project. Hidden projects and anything
 // with unknown prerequisite lists can never be treated as a selectable
-// prerequisite. A knowledge-category project (Anomaly, #1745) is selectable
+// prerequisite. A knowledge-category project (Anomaly) is selectable
 // like any other: it fills its category's knowledge slot instead of the
 // ordinary one and progresses from study knowledge, not research work.
 type ResearchProjectFacts struct {
@@ -65,7 +65,7 @@ const ResearchLockHidden = "hidden"
 // ResearchBenchNeeded reports whether the bench lock is the only thing
 // keeping the project from starting: its prerequisites are done and no
 // other native requirement holds, so building the bench is what unlocks the
-// selection (#254). A project locked for any other reason is not a bench
+// selection. A project locked for any other reason is not a bench
 // need; the queue owes it a prerequisite first.
 func ResearchBenchNeeded(project ResearchProjectFacts) bool {
 	needed := false

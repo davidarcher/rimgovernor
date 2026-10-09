@@ -21,9 +21,9 @@ namespace HomeBridge.BridgeTools
         // rule. Fogged cells are unknown by default: they can neither support nor
         // be assumed safe. With throughFog the true map is read under fog, as the
         // game does for collapse: fogged rock or ore holds, a fogged open cell
-        // does not (#986). Pending collapse anywhere near the set blocks.
+        // does not. Pending collapse anywhere near the set blocks.
         // Shortcut settles a roof by a holder beside it without the flood;
-        // the result is the same (#1295). test/colony_facts_equality turns it off.
+        // the result is the same. test/colony_facts_equality turns it off.
         internal static bool Shortcut = true;
         internal static Support Check(Map map, ICollection<IntVec3> removed, out int checkedRoofs, out string? blocker, bool throughFog = false)
         {
@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
             // One removed cell whose every nearby roof has a holder beside it
             // is Supported whatever order the roofs are checked in, so the
             // common single-rock check skips the set, the sort and the
-            // floods (#1295); anything else takes the full walk below.
+            // floods; anything else takes the full walk below.
             if (Shortcut && removed.Count == 1 && AllHeldBeside(map, removedSet, radius, throughFog, out checkedRoofs)) return Support.Supported;
             checkedRoofs = 0;
             var roots = new HashSet<IntVec3>();
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
                 if (map.roofCollapseBuffer.IsMarkedToCollapse(root)) { blocker = "Roof collapse is already pending"; return Support.Unsupported; }
                 // The flood's first step alone: a holder beside the root
                 // supports it, the common case under rock, without the
-                // flood's allocations (#1295).
+                // flood's allocations.
                 if (Shortcut && HolderBeside(map, root, radius, removedSet, throughFog)) continue;
                 var queue = new Queue<IntVec3>();
                 var seen = new HashSet<IntVec3>();

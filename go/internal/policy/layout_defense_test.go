@@ -133,7 +133,7 @@ func TestPerimeterSectionsCoverTheWallKillboxFirst(t *testing.T) {
 	}
 }
 
-// Every perimeter gate is an airlock (#1060): a door on each face of the
+// Every perimeter gate is an airlock: a door on each face of the
 // wall, the cell between them unbuilt and walled in on both flanks.
 func TestPerimeterAirlock(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

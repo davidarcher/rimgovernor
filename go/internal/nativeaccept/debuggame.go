@@ -11,14 +11,14 @@ import (
 // (scripts/fixtures/QuietStorytellerFixture.cs); every fixture build carries it.
 const QuietStorytellerTool = "test/quiet_storyteller"
 
-// QuietWorldTool marks the loaded game quiet-world (#272; a second tool in
+// QuietWorldTool marks the loaded game quiet-world (a tool in
 // scripts/fixtures/QuietStorytellerFixture.cs, so every fixture build
 // carries it).
 const QuietWorldTool = "test/quiet_world"
 
 // LabStartTool wipes the loaded map to a blank Soil lab with fixture
-// colonists (#730); LabSpawnTool spawns one building, item or pawn on it
-// (#743). Both are in scripts/fixtures/DebugStartFixture.cs, so every
+// colonists; LabSpawnTool spawns one building, item or pawn on it.
+// Both are in scripts/fixtures/DebugStartFixture.cs, so every
 // fixture build carries them.
 const (
 	LabStartTool = "test/lab_start"
@@ -73,7 +73,7 @@ func LabSpawn(ctx context.Context, h *Harness, t LabThing) (string, map[string]a
 	return id, reply, nil
 }
 
-// The small start (issue #91): most assertions fit a 200x200 map, and a 5%
+// The small start: most assertions fit a 200x200 map, and a 5%
 // planet is what RimWorld's own quick test uses. MapSizeEnv and
 // PlanetCoverageEnv override the defaults for a whole run.
 const (
@@ -88,16 +88,16 @@ const (
 // DebugStart is the map size and planet coverage a start is generated with,
 // and optionally the biomes it settles: Biomes is a comma-separated list of
 // BiomeDef names in preference order, and the start lands on a random valid
-// settlement tile of the first one the generated planet offers (issue #172:
+// settlement tile of the first one the generated planet offers (
 // a case whose assertion needs a food-bearing map cannot leave the biome to
 // the roll, least of all under the cached start, which pins one roll per
-// root). Seed pins the world seed (#281: `acceptance run -seed` reproduces a
+// root). Seed pins the world seed (`acceptance run -seed` reproduces a
 // recorded run; the tile and starting pawns follow it natively); empty draws
 // one, which the report's world block records. A pinned seed caches under its
 // own save. Flat settles a flat tile without rivers, roads or tile mutators
-// when the planet offers one (#272: nothing to path around or bridge in a
+// when the planet offers one (nothing to path around or bridge in a
 // construction-heavy case); it caches under its own save. All of it is the
-// production new-colony op's spec (#2028).
+// production new-colony op's spec.
 type DebugStart struct {
 	MapSize        int
 	PlanetCoverage float64
@@ -144,7 +144,7 @@ func (d DebugStart) Validate() error {
 }
 
 // QuietMode says what StartDebugGame does about the storyteller once the
-// debug colony exists (issue #92).
+// debug colony exists.
 type QuietMode int
 
 const (

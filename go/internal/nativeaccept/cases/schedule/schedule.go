@@ -1,4 +1,4 @@
-// Package schedule holds the adaptive-timetable cases (#1318, epic #1293):
+// Package schedule holds the adaptive-timetable cases:
 // the work family's schedule planner writes each pawn's timetable through
 // the WorkSettingsIntent, and these cases read the written timetables back
 // from native.

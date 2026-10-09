@@ -123,7 +123,7 @@ func TestResourceMethodWaitsForRecordedResearch(t *testing.T) {
 }
 
 // A derived resource need (the defensive layout's turret fuel the census
-// found no stock of, #205) opens MaintainResource without an operator
+// found no stock of) opens MaintainResource without an operator
 // target, and stock at the derived floor recovers it.
 func TestDerivedResourceNeedOpensMaintainResource(t *testing.T) {
 	p := DefaultRoundsPolicy()

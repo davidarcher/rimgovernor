@@ -18,7 +18,7 @@ const (
 	siegeBuildTicks = 10000
 	siegeStepTicks  = 250
 	// siegeFarCells is how far, in cells from the nearest colonist, a
-	// camped besieger counts as far away (#929): the lab camp is ~32
+	// camped besieger counts as far away: the lab camp is ~32
 	// cells out, past the 20-cell hostile watch.
 	siegeFarCells = 25
 )
@@ -96,7 +96,7 @@ func runSiegeStage(ctx context.Context, s cases.Session) error {
 
 // siegeFarOpen reads the next combat frame and reports whether its
 // emergency census lists an engaging besieger at least siegeFarCells from
-// the nearest colonist: the threat the fight opens on (#929).
+// the nearest colonist: the threat the fight opens on.
 func siegeFarOpen(ctx context.Context, frames *combatFrames, hostiles []string, report na.Report) (bool, error) {
 	v, err := frames.snapshot(ctx, 0)
 	if err != nil {
@@ -117,7 +117,7 @@ func siegeFarOpen(ctx context.Context, frames *combatFrames, hostiles []string, 
 }
 
 // attackFrame drafts colonist and orders it to attack the besiegers'
-// frame (#929): the order applies as AttackStatic and, a tick later, the
+// frame: the order applies as AttackStatic and, a tick later, the
 // colonist's job targets the frame.
 func attackFrame(ctx context.Context, s cases.Session, colonist, frame string) error {
 	h, identity, report := s.Harness(), s.Identity(), s.Report()

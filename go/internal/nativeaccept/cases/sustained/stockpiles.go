@@ -11,7 +11,7 @@ import (
 )
 
 // colonyFoodZoneLimit is the most stockpile zones allowing human food a
-// colony window may end with (#1581): the food stockpile, the raw-food
+// colony window may end with: the food stockpile, the raw-food
 // freezer and the larder, with room for the further warehouse a full store
 // asks for. A playtest ended its second day with about twenty.
 const colonyFoodZoneLimit = 6
@@ -19,7 +19,7 @@ const colonyFoodZoneLimit = 6
 // startingSupplyDefs are the tribal start stacks the scenario forbids. Only
 // Pemmican gates: wood stacks outside the base stay forbidden on purpose
 // (ManageSupplySafety, outside_base:insufficient_defense), so wood is only
-// reported (#1581).
+// reported.
 var startingSupplyDefs = []string{"Pemmican", "WoodLog"}
 
 // AuditStockpiles counts the stockpile zones the window ended with, those
@@ -96,13 +96,13 @@ func AuditStockpiles(ctx context.Context, h *na.Harness, s cases.Session, report
 }
 
 // zoneChurn is the zone-count and churn reading of one window: one zone per
-// store, and a delete only when the store's purpose is gone (#2207).
+// store, and a delete only when the store's purpose is gone.
 type zoneChurn struct {
 	// deletes counts the admitted zone deletes by the role they name.
 	deletes map[string]int
 	// creates lists the admitted zone creates in journal order with their
 	// tick and size: the first one is the earliest a store can open, the
-	// order is the per-store creation order (#2224).
+	// order is the per-store creation order.
 	creates []map[string]any
 	// flagged lists the roles created again after a delete in the window:
 	// the delete did not follow a retired purpose.

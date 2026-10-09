@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
                     if (player == null || map.areaManager?.Home == null || map.listerThings == null || map.designationManager == null || map.roofGrid == null || map.roofCollapseBuffer == null)
                         return Missing(Common.UnavailableReason.NativeComponentMissing, "Player, Home, building or roof trackers unavailable.");
                     // Scoped to Home: a hilly map carries tens of thousands of
-                    // natural-rock buildings map-wide (#414), so the census walks
+                    // natural-rock buildings map-wide, so the census walks
                     // the Home cells (bounded by the grid) and collects the
                     // non-player buildings standing in them.
                     var home = map.areaManager.Home;
@@ -43,14 +43,14 @@ namespace HomeBridge.BridgeTools
                     foreach (var cell in home.ActiveCells)
                         foreach (var thing in cell.GetThingList(map)) {
                             if (thing is Building b && b.Spawned && b.Faction != player) buildings[b.thingIDNumber] = b;
-                            // Chunks are hauls, not deconstructions (#394): a
+                            // Chunks are hauls, not deconstructions: a
                             // dumping stockpile clears them, so the census
                             // reports them beside the buildings.
                             else if (thing.Spawned && thing.def.category == ThingCategory.Item && thing.def.IsWithinCategory(ThingCategoryDefOf.Chunks)) chunks[thing.thingIDNumber] = thing;
                         }
                     foreach (var b in map.listerThings.AllThings.OfType<Building>())
                         if (b.Spawned && b.Faction != player && !b.def.IsNonResourceNaturalRock && !b.def.mineable && b.DeconstructibleBy(player)) buildings[b.thingIDNumber] = b;
-                    // Planned ground (#1365): on those cells only, the player's
+                    // Planned ground: on those cells only, the player's
                     // own buildings are targets too and constructed floors are
                     // reported one cell at a time.
                     var planned = PlannedCells(map, parsed.PlannedGround);
@@ -111,7 +111,7 @@ namespace HomeBridge.BridgeTools
                         snapshot.Targets.Add(row);
                     }
                     salvage?.End();
-                    // #984: per-phase main-thread cost of the target rows; the
+                    // per-phase main-thread cost of the target rows; the
                     // row remainder is fog/footprint checks, designations and
                     // proto construction.
                     var targetTicks = Now() - began;
@@ -155,7 +155,7 @@ namespace HomeBridge.BridgeTools
             }
             return result;
         }
-        // Cross-read salvage cache (#984): salvage evidence costs ~1 ms per
+        // Cross-read salvage cache: salvage evidence costs ~1 ms per
         // ruin (colonist path searches, return routes, storage
         // headroom), so it is kept per building thingIDNumber for one map of
         // one game and refreshed over frames by RefreshSalvage (driven from
@@ -375,7 +375,7 @@ namespace HomeBridge.BridgeTools
         internal static bool AncientDanger(Map map, Building building, Faction player) => AncientDanger(map, building, player, TempleTriggers(map));
 
         // TempleTriggers lists the map's ancient-temple approach triggers once so
-        // a census judging many buildings scans AllThings once (#984).
+        // a census judging many buildings scans AllThings once.
         internal static List<RectTrigger> TempleTriggers(Map map) =>
             map.listerThings.AllThings.OfType<RectTrigger>().Where(t => t.destroyIfUnfogged
                 && t.signalTag?.StartsWith("ancientTempleApproached-", StringComparison.Ordinal) == true).ToList();

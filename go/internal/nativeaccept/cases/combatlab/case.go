@@ -79,7 +79,7 @@ func closesIn(ctx context.Context, s cases.Session) (map[string]any, error) {
 	return row, nil
 }
 
-// proposeChoke (#881): adjacent_to_choke on lab-choke's gap, our side
+// proposeChoke: adjacent_to_choke on lab-choke's gap, our side
 // three cells inside, proposes exactly the three floor cells inside the
 // gap, the one straight behind it first; the walls either side and the
 // cells outside are not proposed.

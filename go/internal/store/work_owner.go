@@ -11,7 +11,7 @@ import (
 )
 
 // WorkOwner is the goal or Project a shared building planner binds methods
-// to (#1928). The building ladder is the same code for a Standard goal and
+// to. The building ladder is the same code for a Standard goal and
 // for the Project kinds it serves (cooking, butcher, power, research shelter,
 // defense dig), so those planners hold the owner through this interface
 // instead of a goal handle. StandardState and ProjectState implement it; a
@@ -81,7 +81,7 @@ func (s *Store) WorkableOwner(ctx context.Context, r Rounds, need policy.Concern
 }
 
 // WorkableProject loads the Project the review binds to need and reports
-// whether a planner may work it: an open deficit the Safeguards admit (#1121).
+// whether a planner may work it: an open deficit the Safeguards admit.
 func (s *Store) WorkableProject(ctx context.Context, r Rounds, need policy.ConcernID) (ProjectState, bool, error) {
 	for _, binding := range r.Projects {
 		if binding.Concern != need {

@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Upkeep deficits converted from the native upkeep/* cases (#746), each
+// Upkeep deficits converted from the native upkeep/* cases, each
 // recorded at 04b0a98c from `acceptance run upkeep/<case>`: the review
 // that opened the staged deficit and, where the case followed it to
 // recovery, the review that closed it.

@@ -11,7 +11,7 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    // Issue #607: the layout/grid case proves the tiered colony layout on
+    // the layout/grid case proves the tiered colony layout on
     // the tribal baseline. Prepare finishes Stonecutting so the tech tier
     // reads Masonry, stages the starter hut (FixtureHut) whose south-west
     // corner anchors the layout, and drops wood beside
@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
     // Audit reads every finished player wall ring and growing zone back
     // with their cells so the case checks both footprints,
     // and every wall, door, blueprint and frame with its stuff, so the case
-    // reads the tier's wall stuff and door def back natively (#637).
+    // reads the tier's wall stuff and door def back natively.
     public sealed class LayoutGridFixture
     {
         [Tool("test/layout_grid_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: finish the named research (default Stonecutting) with its prerequisites, build one roofed wood hut with sleepingSpots sleeping spots, drop wood and stoneBlocks blocks of the map's own stone beside its door and move every colonist inside. Plans no field: the field planner sites its own.")]
@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
                 Finish(def);
                 var hut = FixtureHut.Build(map, 9, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ), sleepingSpots, builders ? "Bed" : "SleepingSpot");
                 FixtureHut.DropOutside(map, hut, ThingDefOf.WoodLog, 4 * ThingDefOf.WoodLog.stackLimit);
-                // A bedroom case (#838) starts once everyone owns a hut bed,
+                // A bedroom case starts once everyone owns a hut bed,
                 // with food for the stage to leave Foothold.
                 var owned = 0;
                 if (builders) {
@@ -69,8 +69,8 @@ namespace HomeBridge.BridgeTools
                 string greedyPawn = null;
                 if (greedy && hut.People.Count > 0) {
                     // A colonist with a lover, fiance or spouse is never split
-                    // into a single bedroom (#838), so never qualifies for a
-                    // suite (#1257): the first uncoupled one turns Greedy.
+                    // into a single bedroom, so never qualifies for a
+                    // suite: the first uncoupled one turns Greedy.
                     var p = hut.People.FirstOrDefault(x => !LovePartnerRelationUtility.HasAnyLovePartner(x)) ?? hut.People[0];
                     if (p.story.traits.GetTrait(DefDatabase<TraitDef>.GetNamed("Ascetic")) is Trait ascetic) p.story.traits.RemoveTrait(ascetic);
                     if (!p.story.traits.HasTrait(TraitDefOf.Greedy)) p.story.traits.GainTrait(new Trait(TraitDefOf.Greedy));
@@ -95,7 +95,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // Expand (#1271) stages the colony one review short of MaintainHousing's
+        // Expand stages the colony one review short of MaintainHousing's
         // expansion phase: every single colonist in a bedroom of their own and
         // every couple sharing one with a double bed, each with an end table, on the planned bedroom rooms
         // (so no bedroom step is owed and the plan's other rooms stay free),
@@ -153,7 +153,7 @@ namespace HomeBridge.BridgeTools
                 // One bed per household, head north, farthest from the door,
                 // clear of the door's neighbours: a Bed for a single
                 // colonist, a DoubleBed both partners own for a couple (a
-                // couple without one is packed onto a double bed first, #843).
+                // couple without one is packed onto a double bed first).
                 var def = groups[g].Count == 2 ? doubleBedDef : bedDef;
                 var sites = interior.Cells.Where(c => GenAdj.OccupiedRect(c, Rot4.North, def.size).Cells.All(o => interior.Contains(o) && !o.AdjacentToCardinal(door)))
                     .OrderByDescending(c => c.DistanceToSquared(door)).ToList();
@@ -163,7 +163,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var p in groups[g]) owned.Add(new KeyValuePair<Pawn, Building_Bed>(p, bedThing));
                 // An end table: the only piece a Camp/Masonry 3x4 bedroom's
                 // template holds besides the bed, so no room quality upgrade
-                // (#814) holds MaintainHousing in its bedroom phase.
+                // holds MaintainHousing in its bedroom phase.
                 var bedCells = bedThing.OccupiedRect();
                 var table = interior.Cells.Where(c => !bedCells.Contains(c) && !c.AdjacentToCardinal(door))
                     .OrderBy(c => bedCells.ClosestCellTo(c).DistanceToSquared(c)).ThenByDescending(c => c.DistanceToSquared(door)).FirstOrDefault();
@@ -196,7 +196,7 @@ namespace HomeBridge.BridgeTools
             var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
             map.zoneManager.RegisterZone(zone);
             foreach (var c in hut.Interior.Where(c => c.GetFirstBuilding(map) == null)) zone.AddCell(c);
-            // No spare place (#1271): the expansion step furnishes any free,
+            // No spare place: the expansion step furnishes any free,
             // unzoned indoor cell with a spot before it raises a ring, so the
             // hut is all stockpile and each bedroom's free floor an empty
             // (store-nothing) stockpile.
@@ -221,7 +221,7 @@ namespace HomeBridge.BridgeTools
         }
 
 
-        // Rooms (#2076) stages already-built rooms on the planned rectangles a
+        // Rooms stages already-built rooms on the planned rectangles a
         // running case read from the journal: a wood-walled, roofed room with
         // its door per interior, so the census holds an enclosed room on each
         // planned centre. Nothing is furnished.
@@ -266,7 +266,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // Suite growth (#1221): a royal title raises the pawn's bedroom
+        // Suite growth: a royal title raises the pawn's bedroom
         // target past what their suite was sized for. Needs Royalty; a save
         // recorded without it holds no Empire, so one is generated.
         [Tool("test/layout_grid_title", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: give an exact colonist an Empire royal title (default Baron) without rewards or letters, generating the Empire faction when the save holds none. Requires Royalty.")]
@@ -308,7 +308,7 @@ namespace HomeBridge.BridgeTools
             return granite;
         }
 
-        // InstantShells (#838): once armed, every player wall, door, autodoor
+        // InstantShells: once armed, every player wall, door, autodoor
         // or embrasure blueprint is raised through the game's own path
         // (blueprint to frame, materials in, CompleteConstruction by a
         // colonist) within a tick of being placed, so a bedroom case watches

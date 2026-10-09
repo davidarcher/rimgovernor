@@ -7,7 +7,7 @@ import (
 )
 
 // stripAction is the DesignateIntent that places vanilla's Strip designation
-// on one exact pawn or corpse (#1117). Native refuses a target that is not
+// on one exact pawn or corpse. Native refuses a target that is not
 // spawned, has nothing to strip, or is already designated.
 func stripAction(action domain.Action) (*op.Action, error) {
 	v, ok := action.Strip()

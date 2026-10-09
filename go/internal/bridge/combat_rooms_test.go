@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The frame's rooms census (#897, #1338) decodes as the pods tactic's rooms:
+// The frame's rooms census decodes as the pods tactic's rooms:
 // a proper room whose cells fill its extents, with its boundary doors and
 // whether its roof is whole; an L-shaped room (its count short of its
 // extents), an improper room and one past the size bound are left out.
@@ -39,7 +39,7 @@ func TestDecodeCombatRooms(t *testing.T) {
 	}
 }
 
-// The frame colony facts outdoor temperature (#1077) decodes as a known fact and
+// The frame colony facts outdoor temperature decodes as a known fact and
 // survives the combat read; absent it is unknown; NaN or out of range is
 // a contract failure.
 func TestDecodeCombatOutdoorTemperature(t *testing.T) {
@@ -67,7 +67,7 @@ func TestDecodeCombatOutdoorTemperature(t *testing.T) {
 	}
 }
 
-// The frame's hive temperature (#1073) decodes as a known fact and
+// The frame's hive temperature decodes as a known fact and
 // survives the combat read; absent it is unknown; NaN is a contract
 // failure.
 func TestDecodeCombatHiveTemperature(t *testing.T) {
@@ -96,7 +96,7 @@ func TestDecodeCombatHiveTemperature(t *testing.T) {
 }
 
 // Named cells alone may be asked with no hostile: their standability
-// before drop pods open (#897); a propose still needs one.
+// before drop pods open; a propose still needs one.
 func TestCombatGeometryNamedCellsWithoutHostiles(t *testing.T) {
 	ask := CombatGeometryAsk(pbIdentity(), []*c.Cell{combatCell(1, 1)}, nil, "")
 	if err := ValidateCombatGeometryRequest(ask); err != nil {

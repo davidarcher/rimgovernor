@@ -11,10 +11,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// Non-food field candidates (#2284): for each MaintainResource deficit the
+// Non-food field candidates: for each MaintainResource deficit the
 // supply plan prices a new field of the crop policy.PlanFieldByResource picks,
 // beside the wild rows, mines and trades. The plan it priced stays on the row
-// (resourceSupplyRow.fields) for the executor of the opened field (#2285).
+// (resourceSupplyRow.fields) for the executor of the opened field.
 
 // fieldProtected are the cells a new field never takes: held building
 // reservations, the interiors of the housing shells, and the firebreak ring.
@@ -169,7 +169,7 @@ func (f *resourceFieldPlanner) candidate(resource policy.Resource, need int64) (
 }
 
 // chopMinGrowth is the growth fraction a plantation tree must reach before the
-// chop census offers it (#2289): the fell point of the best tree species the
+// chop census offers it: the fell point of the best tree species the
 // colony can sow now, else the configured gate. Recomputed from the review's
 // own read, never stored.
 func (r *Rounder) chopMinGrowth(projection observation.ColonyProjection) float64 {

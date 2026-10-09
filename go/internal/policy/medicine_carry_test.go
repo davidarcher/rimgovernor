@@ -10,8 +10,8 @@ func carryPawn(id PawnID, doctor, field bool, current int) MedicineCarryPawn {
 	return MedicineCarryPawn{ID: id, Current: domain.Known(current), Care: domain.Known("NormalOrWorse"), Doctor: doctor, Field: field}
 }
 
-// Carry counts by role, capped so colony stock stays at the reserve
-// (#1307): doctors fill first, one unit a round, then field roles.
+// Carry counts by role, capped so colony stock stays at the reserve:
+// doctors fill first, one unit a round, then field roles.
 func TestMedicineCarryPlanByStock(t *testing.T) {
 	pawns := []MedicineCarryPawn{carryPawn("doc", true, false, 0), carryPawn("hunter", false, true, 0), carryPawn("cook", false, false, 2)}
 	for name, c := range map[string]struct {

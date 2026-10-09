@@ -26,7 +26,7 @@ type HomeCoverageObservation struct {
 	Revision int64
 	Targets  []HomeCoverageTarget
 	// Home is every current home-area cell; AutoHome the game's
-	// auto-expand setting (#1328).
+	// auto-expand setting.
 	Home     domain.Fact[[]domain.Cell]
 	AutoHome domain.Fact[bool]
 }
@@ -51,7 +51,7 @@ func facilityCells(cells []domain.Cell) bool {
 }
 
 // ReviewHomeCoverage lists every census target (all colonist buildings and
-// every stockpile, #719: the autopilot owns them whoever built them) still
+// every stockpile: the governor owns them whoever built them) still
 // missing Home, at its current geometry.
 func ReviewHomeCoverage(observed domain.Fact[HomeCoverageObservation]) (domain.Fact[[]HomeCoverageTarget], error) {
 	unknown := domain.Unknown[[]HomeCoverageTarget]()

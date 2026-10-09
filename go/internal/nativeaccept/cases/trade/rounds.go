@@ -1,11 +1,7 @@
-// trade/routine is issue #234's acceptance, restored natively for #1158 after\n// the #749 snapshot conversion left the session/accept path unchecked: a colony with no medicine and
-// one silver stack, a trader caravan arriving from the map edge with herbal
-// medicine, and the live service with the trade family alone. The
-// TradeWithCaravan goal must stand while the caravan walks in, open a
-// session (native walks the negotiator to the arrived trader), stage the
-// observed medicine shortfall against the observed silver, and accept: the native
-// resource census afterwards holds medicine the colony did not have and
-// less silver than the fixture spawned.
+// trade/routine exercises native negotiation and acceptance with a medicine deficit, silver
+// and an arriving herbal-medicine caravan. The live service must keep the Concern open
+// during arrival, negotiate, stage an affordable purchase and accept it. Native resource
+// observations must show gained medicine and spent silver.
 package trade
 
 import (

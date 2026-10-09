@@ -83,7 +83,7 @@ func TestStuffChoiceUnstuffedDefIsPricedFromItsCosts(t *testing.T) {
 }
 
 // A wall or door that holds a fire in is made of the least flammable stuff
-// the game's rows offer, and a def whose every stuff burns is refused (#1814).
+// the game's rows offer, and a def whose every stuff burns is refused.
 func TestFireproofStuff(t *testing.T) {
 	burns := func(f float64) map[string]float64 { return map[string]float64{bridge.StatFlammability: f} }
 	wall := stuffedDef("Wall", option("WoodLog", 5, 2.5, burns(1)), option("Steel", 5, 10, burns(0)), option("BlocksGranite", 5, 3, burns(0)))

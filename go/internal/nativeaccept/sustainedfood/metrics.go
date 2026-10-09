@@ -2,11 +2,8 @@ package sustainedfood
 
 import "time"
 
-// StallWindow is a contiguous span of samples where EnsureFoodSupply had at
-// least one committed method but not a single one of that method's Progress
-// rows had left the zero-value "pending" stage -- the exact shape of issue
-// #1's originally-reported starvation (Attempt stays 0, Snapshot never
-// stamped) generalized to any future recurrence, on this or another variant.
+// StallWindow is a contiguous span of samples where EnsureFoodSupply has a committed method
+// but all its Progress rows remain pending: Attempt is zero and Snapshot is unstamped.
 type StallWindow struct {
 	StartedAt time.Time `json:"started_at"`
 	EndedAt   time.Time `json:"ended_at"`
@@ -14,12 +11,8 @@ type StallWindow struct {
 	Samples   int       `json:"samples"`
 }
 
-// Metrics summarizes one variant's timeline for the matrix report: the
-// per-issue-#1-acceptance-criteria data ("record stock/need trends,
-// interruptions, blockers ... and recovery after initial supplies run
-// down") that is derivable from the goal-state samples sampleFoodGoal
-// already collects, without re-deriving it by hand from a raw timeline in
-// every matrix row.
+// Metrics summarizes stock and need trends, interruptions, blockers and recovery from each
+// variant's collected goal-state samples.
 type Metrics struct {
 	Samples            int            `json:"samples"`
 	NeedCounts         map[string]int `json:"need_counts"`

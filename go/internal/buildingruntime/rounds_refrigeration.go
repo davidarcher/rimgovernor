@@ -84,7 +84,7 @@ func (r *RoundsBuildingPlanner) selectRefrigeration(call context.Context, facts 
 // method of its own (a freezer that settled in an earlier epoch and
 // re-latched when the season warmed, or a cooler the player set) lends the
 // same allowance from the tick the latch engaged, so a second cooler can
-// still be proposed once it elapses (#202); lent reports that case.
+// still be proposed once it elapses; lent reports that case.
 func refrigerationOutputAllowance(ctx context.Context, journal *store.Store, goal store.WorkOwner, current domain.GenerationSnapshot, tick domain.Tick, since domain.Tick) (allowance uint32, exhausted bool, lent bool, err error) {
 	methods, err := journal.LoadOwnerMethods(ctx, goal)
 	if err != nil {
@@ -136,7 +136,7 @@ func refrigerationNativeWorkTicks(plan store.PlanState, current domain.Generatio
 	v := progress.View()
 	// The native generation moves with every window the supervisor stops,
 	// so a cooler dispatched two windows ago never matched the current
-	// generation and its allowance was never lent (#66). Same rule as
+	// generation and its allowance was never lent. Same rule as
 	// temperatureNativeWorkTicks: the dispatch scope, this world, any
 	// generation since.
 	current.Native = v.Snapshot.Native
@@ -163,7 +163,7 @@ func (r *RoundsBuildingPlanner) previewRefrigeration(ctx context.Context, snapsh
 // a policy chose (the refrigeration family for a food store, the
 // temperature family for a sleeping room); there is no fallback cell.
 // overRock previews it as though natural rock on the cell were mined, for
-// the exhaust dig that mines the cell in the same plan (#874).
+// the exhaust dig that mines the cell in the same plan.
 func (r *RoundsBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error, cell domain.Cell, rotation domain.Rotation, overRock bool) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	for _, c := range protected {

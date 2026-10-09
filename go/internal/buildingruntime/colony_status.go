@@ -27,7 +27,7 @@ type ColonyStatusNative interface {
 }
 
 // ColonyStatus is a live, read-only census of the facts a sustained run is
-// judged by (issue #261): the food stock and runway the reviewer sees and
+// judged by: the food stock and runway the reviewer sees and
 // every home colonist's downed state and needs, read under one identity. It
 // claims no plan slot and no player gate: it issues only native reads, so a
 // planner step holding the gate never delays a sample past its timeout.
@@ -43,7 +43,7 @@ type ColonyStatusReport struct {
 	FoodPlan     domain.Fact[policy.FoodPlan]
 	FoodPlanTick domain.Fact[domain.Tick]
 	// PetLabels names the held census's animals for the food plan's
-	// pet shortfalls (#708); an animal without a label is absent.
+	// pet shortfalls; an animal without a label is absent.
 	PetLabels map[policy.PawnID]string
 	// Tick is the colony census's tick; RosterTick the roster read's, equal
 	// under a stopped clock and a few ticks later under a running window.
@@ -55,18 +55,18 @@ type ColonyStatusReport struct {
 	PendingFoodNutrition domain.Fact[float64]
 	// FoodCorpses counts the edible corpses the census listed.
 	FoodCorpses int
-	// Threat is the census's wealth split and raid points (#395); unknown
+	// Threat is the census's wealth split and raid points; unknown
 	// under a native build that does not report the section.
 	Threat bridge.ColonyThreat
-	// Shrines is the ancient shrine census (#456); unknown under a native
+	// Shrines is the ancient shrine census; unknown under a native
 	// build that does not serve it.
 	Shrines domain.Fact[[]policy.AncientShrine]
-	// ShrineReadiness is each shrine's breach judgement (#457), one per
+	// ShrineReadiness is each shrine's breach judgement, one per
 	// Shrines row; empty while the census or its inputs are unknown.
 	ShrineReadiness []ShrineReadinessReport
 	// PlayerTechLevel is the player faction's native TechLevel name and
 	// TechTier the construction tier the last rounds derived from
-	// it and finished research (#604); the tier is unknown until a review
+	// it and finished research; the tier is unknown until a review
 	// with the research census has filed.
 	PlayerTechLevel domain.Fact[string]
 	TechTier        domain.Fact[policy.TechTier]
@@ -87,7 +87,7 @@ type ColonyStatusPawn struct {
 	Downed     domain.Fact[bool]
 	Mood, Food domain.Fact[float64]
 	// Share, Spent and Remaining are the colonist's personal wealth share
-	// from the held colony projection (#1846); unknown when it is missing or
+	// from the held colony projection; unknown when it is missing or
 	// stale or holds no share for the colonist.
 	Share, Spent, Remaining domain.Fact[float64]
 }

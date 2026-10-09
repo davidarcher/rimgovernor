@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A drop-pod raid on its way down (#908) is a threat before any raider is
+// A drop-pod raid on its way down is a threat before any raider is
 // in the census: the ActiveCombat goal opens on it, and the clock admits
 // a combat window with nothing to acknowledge once the fight holds a plan,
 // so the game ticks to the open instead of parking on no_work.

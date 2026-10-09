@@ -9,7 +9,7 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable acceptance only (#639, epic #638). The startup-labor
+    // Private disposable acceptance only. The startup-labor
     // reproduction fixture: eight colonists with mixed construction skill, no
     // completed shelter, reachable building resources, a real animal-feed
     // deficit and scattered unstored supplies -- the startup state the

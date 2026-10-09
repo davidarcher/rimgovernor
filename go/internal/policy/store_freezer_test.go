@@ -36,7 +36,7 @@ func TestFreezerStoresDeclaredFromThePlannedRoom(t *testing.T) {
 }
 
 // A freezer interior still holding rock to dig defers every freezer create
-// until it is settled (#2190); a blocked non-rock cell is kept out of the
+// until it is settled; a blocked non-rock cell is kept out of the
 // perishables cover instead.
 func TestFreezerStoresDeferWhileTheInteriorIsNotOpen(t *testing.T) {
 	t.Parallel()

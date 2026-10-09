@@ -1,18 +1,18 @@
-// Package light holds the MaintainLighting vertical (issue #6 slice 3) on
-// the lab contract (#747): a live game and a live rimgovernor Go
+// Package light holds the MaintainLighting vertical on
+// the lab contract: a live game and a live rimgovernor Go
 // player-control service composed with the lighting family.
 //
 //	dark -- an enclosed roofed room on the blank lab holds a fuelled stove
-//	        whose interaction cell native measures dark, with no lamp in
-//	        reach. The service must latch the bench from the measured glow,
-//	        admit exactly one affordable lamp (a TorchLamp: the colony has
-//	        no power source) on a free cell of the room within the placement
-//	        radius, the colonists build it, and the next measured census
-//	        must release the latch. An independent native read then confirms
-//	        the cell reads lit and the lamp stands where it was admitted.
+//	    whose interaction cell native measures dark, with no lamp in
+//	    reach. The service must latch the bench from the measured glow,
+//	    admit exactly one affordable lamp (a TorchLamp: the colony has
+//	    no power source) on a free cell of the room within the placement
+//	    radius, the colonists build it, and the next measured census
+//	    must release the latch. An independent native read then confirms
+//	    the cell reads lit and the lamp stands where it was admitted.
 //
 // The outage, partial, fungus and repair decisions are snapshot tests over
-// their recorded reviews (internal/buildingruntime, #747).
+// their recorded reviews (internal/buildingruntime).
 //
 // Uses the private disposable test/lighting_prepare fixture
 // (LightingFixture.cs). The case's own bridge session and the service's

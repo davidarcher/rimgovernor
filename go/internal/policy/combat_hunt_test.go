@@ -99,7 +99,7 @@ func TestHuntFocusFiresTargetByTarget(t *testing.T) {
 }
 
 // {the whole group dead} -> no roles and no orders: the plan is over and the
-// undraft sweep (#939) releases the squad.
+// undraft sweep releases the squad.
 func TestHuntEndsWithNoOrdersWhenGroupIsDead(t *testing.T) {
 	view := huntView(wildGroup()...)
 	_, m := decideStop(t, view, StopEvent{}, CombatMemory{})

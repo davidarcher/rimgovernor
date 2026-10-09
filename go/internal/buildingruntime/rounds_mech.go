@@ -18,7 +18,7 @@ func mechCatalog(catalog *bridge.DefinitionCatalog) policy.MechCatalog {
 }
 
 // roundsMechSettings are the mech control group and work mode settings
-// for the routine read's mechs (#1736); none without a mechanitor. A
+// for the routine read's mechs; none without a mechanitor. A
 // living hostile pawn on the map makes a single control group escort.
 func roundsMechSettings(read observation.RoundsReading) ([]domain.PawnSettings, error) {
 	fleet, ok := read.Projection.Mechs.Value()
@@ -39,7 +39,7 @@ func roundsMechSettings(read observation.RoundsReading) ([]domain.PawnSettings, 
 }
 
 // combatMechGuards are the drafts and attack orders for the combat frame's
-// guard mechs at the standing hostiles (#1736); none without a mechanitor.
+// guard mechs at the standing hostiles; none without a mechanitor.
 func combatMechGuards(combat bridge.Combat, hostileIDs []string, rows map[string]*n.PawnState) (policy.MechGuardPlan, error) {
 	fleet := observation.MechFleet(combat.Detail.Values())
 	if len(fleet.Mechanitors) == 0 || len(fleet.Mechs) == 0 {

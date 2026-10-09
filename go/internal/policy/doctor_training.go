@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Peg-leg cycling (#1236, epic #1160): MaintainSurgery installs and removes
+// Peg-leg cycling: MaintainSurgery installs and removes
 // cheap wood parts (peg leg, wooden hand, wooden foot: one pool) on colony
 // prisoners, one surgery at a time in the organ harvest's slot, for:
 //
@@ -38,7 +38,7 @@ import (
 // DoctorTrainingFloor is the Medicine level the colony trains doctors to.
 const DoctorTrainingFloor = 10
 
-// Cycle model and silver prices (#1236).
+// Cycle model and silver prices.
 //
 // SilverPerLaborHour: one colonist hour (2500 ticks) of doctor or warden
 // work. trainingXPValue prices a peg-leg cycle below the floor at 280
@@ -178,7 +178,7 @@ func SelectPegCycle(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[P
 }
 
 // PegCycleWanted reports whether a peg-leg step would be queued now;
-// DetectRounds holds MaintainSurgery open on it (#1236).
+// DetectRounds holds MaintainSurgery open on it.
 func PegCycleWanted(f RoundsFacts, p PrisonerPolicy) bool {
 	_, ok := SelectPegCycle(f.Prisoners, f.PrisonerColony, f.FoodDays, p, SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants, f.Recipes, nil)
 	return ok
@@ -245,7 +245,7 @@ func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64
 		case op.Kind == SurgeryRestore && materialInstallRecipe(facts, body, recipe) && sk && stocked:
 			installs = append(installs, op)
 		case (op.Kind == SurgeryHarvest || op.Kind == SurgeryAmputate) && !ak && hasMaterialInstall(facts, body) && !(body == "Leg" && legsMissing > 0):
-			// #1232's rule: never a second leg.
+			// Never remove the second leg.
 			cuts = append(cuts, op)
 		}
 	}
@@ -335,8 +335,8 @@ func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64
 	return out
 }
 
-// trainingSurgeon is the doctor a training step's bill is restricted to
-// (#1253): the lowest-Medicine doctor below DoctorTrainingFloor whose
+// trainingSurgeon is the doctor a training step's bill is restricted to:
+// the lowest-Medicine doctor below DoctorTrainingFloor whose
 // chance on the operation clears RestoreFailureCap, then pawn id. Empty
 // when none does, which keeps vanilla's choice.
 func trainingSurgeon(op SurgeryOperation, c PrisonerColony) domain.PawnID {

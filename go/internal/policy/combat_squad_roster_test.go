@@ -41,7 +41,7 @@ func downDefender(view *CombatView, id domain.PawnID) {
 }
 
 // A role holder going down mid-fight hands its slot to a reserve colonist at
-// that stop (#2350).
+// that stop.
 func TestDecideCombatSquadReplacesDownedRoleHolder(t *testing.T) {
 	view := squadRosterView()
 	_, memory := decideStop(t, view, StopEvent{}, CombatMemory{})

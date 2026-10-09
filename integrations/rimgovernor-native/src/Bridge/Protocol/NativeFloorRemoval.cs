@@ -8,7 +8,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // RemoveFloorIntent on Actions/Apply (epic #1249): vanilla's RemoveFloor
+    // RemoveFloorIntent on Actions/Apply: vanilla's RemoveFloor
     // designation on one cell whose constructed floor is def_name, so
     // clearance can free planned ground. The game's own designator decides
     // whether the cell takes it; ordinary construction work removes the

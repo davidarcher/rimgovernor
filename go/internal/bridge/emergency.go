@@ -12,7 +12,7 @@ import (
 )
 
 // ReadEmergency observes basic health and the full status threat census,
-// its pawn references joined against the pawn table (#1343). It does not
+// its pawn references joined against the pawn table. It does not
 // bind a controller direction/plan or authorize treatment, combat or building.
 func (client *Client) ReadEmergency(ctx context.Context, id *c.Identity) (EmergencyObservation, Result, error) {
 	var empty EmergencyObservation
@@ -200,7 +200,7 @@ func emergencyStatus(v *o.StatusSnapshot, pawns pawnLookup, id *c.Identity) (Eme
 		}
 		result.Facts.Colonists = append(result.Facts.Colonists, pawn)
 	}
-	// Go classifies the native's threat fact rows (#1356); the threats are
+	// Go classifies the native's threat fact rows; the threats are
 	// listed kind by kind in ThreatKind order, each kind in row order.
 	byKind := map[policy.ThreatKind][]policy.EmergencyThreat{}
 	seen = map[policy.PawnID]bool{}

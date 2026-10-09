@@ -29,8 +29,8 @@ const (
 	letterPauseModeTool = "test/letter_pause_mode"
 )
 
-// defense/siege-mortar serves the routine defense planner on lab-siege
-// (#1208, #1211): three riflemen by an unroofed player mortar with HE and
+// defense/siege-mortar serves the routine defense planner on lab-siege:
+// three riflemen by an unroofed player mortar with HE and
 // EMP shells, four raiders under a real LordJob_Siege camped 35 cells off.
 // The fight must answer the stationary siege with its own mortar: within
 // the wait, its combat evidence records an applied man_mortar order on the
@@ -43,7 +43,7 @@ func init() {
 		Start:       cases.Lab{Colonists: 3},
 		RequiredOps: []string{na.LabStartTool, combatlab.StageTool, letterPauseModeTool},
 		QuietWorld:  true,
-		// A checkpoint capture pauses the served game mid-fight (#890).
+		// A checkpoint capture pauses the served game mid-fight.
 		NoCheckpoint: true,
 		Serve:        &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue}, PlayerSpeed: "Fast", Prefix: "defense-siege-mortar"},
 		Budget:       2 * cases.LabBudget,
@@ -58,7 +58,7 @@ func runSiegeMortar(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	camp := domain.Cell{X: int32(cx), Z: int32(cz + siegeCampNorth)}
-	// A MajorThreat letter would pause the game as a player (#890).
+	// A MajorThreat letter would pause the game as a player.
 	if reply, err := s.Harness().Call(ctx, "pause-mode-never", letterPauseModeTool, map[string]any{"mode": "Never"}); err != nil {
 		return err
 	} else if na.AsString(reply["mode"]) != "Never" {

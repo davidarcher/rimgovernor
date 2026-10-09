@@ -15,7 +15,7 @@ import (
 // values are storage boundaries, not known zero/false domain observations.
 type RoundsRecovery struct {
 	// Incident is the RecoverDisasterServices occurrence the selection
-	// serves (#1078).
+	// serves.
 	Incident  domain.IncidentID
 	Used      []domain.MethodID
 	Safety    *RoundsRecoverySafety

@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
         // the controller treats reachability as unknown.
         internal const int TendRows=64;
 
-        // Doctor-side tend gates for one reply's rows (#657), mirroring
+        // Doctor-side tend gates for one reply's rows, mirroring
         // NativeTendOperations.Prepare: pawn-control eligibility (the gate
         // behind "Tend requires an eligible doctor"), WorkGiver_Tend's required
         // capacities, the Doctor work type, and CanReach(ClosestTouch, Deadly)
@@ -143,7 +143,7 @@ namespace HomeBridge.BridgeTools
                 return item;
             }
 
-        // Medical care cap inputs (#1301): the life threat and every hediff,
+        // Medical care cap inputs: the life threat and every hediff,
         // none filtered; the other PawnHealth fields stay absent.
         internal static Obs.PawnHealth Conditions(Pawn pawn)
         {
@@ -212,7 +212,7 @@ namespace HomeBridge.BridgeTools
             });
         }
 
-        // Surgery facts (#1161), all through vanilla: recipe discovery from the
+        // Surgery facts, all through vanilla: recipe discovery from the
         // retired home/medical_operations tool, success chance from the recipe's
         // own SurgeryOutcomeEffectDef comps. Go never recomputes any of it.
         internal static void Surgery(Pawn pawn,Obs.PawnHealth row)
@@ -256,12 +256,12 @@ namespace HomeBridge.BridgeTools
                     var op=new Obs.SurgeryOperation {Recipe=Definition(def),Kind=Kind(pawn,def,part),
                         EligibleDoctors=(uint)doctors.Count,
                         IngredientsOnMap=others && (!usesMedicine || medicine!=null),
-                        // #1239: medicine is stocked but the care level forbids all of it.
+                        // medicine is stocked but the care level forbids all of it.
                         MedicineCareLimited=careLimited,
                         Violation=def.Worker.IsViolationOnPawn(pawn,part,Faction.OfPlayer),Lethal=Lethal(pawn,def,part)};
                     if(part!=null) {op.PartIndex=parts.IndexOf(part);op.PartDefName=Id(part.def.defName);}
                     if(op.Kind==Obs.SurgeryKind.Harvest && part?.def.spawnThingOnRemoved!=null) op.YieldMarketValue=Number(part.def.spawnThingOnRemoved.BaseMarketValue);
-                    // Artificial part removal (#1232): the added part on the
+                    // Artificial part removal: the added part on the
                     // target and the thing its removal spawns.
                     if(def.Worker is Recipe_RemoveBodyPart && part!=null) {
                         var added=pawn.health.hediffSet.hediffs.OfType<Hediff_AddedPart>().FirstOrDefault(h => h.Part==part);
@@ -277,7 +277,7 @@ namespace HomeBridge.BridgeTools
                     }
                     if(def.surgeryOutcomeEffect!=null && doctors.Count>0) {
                         float? real=pawn.InBed()?(float?)null:bestBed?.GetStatValue(StatDefOf.SurgerySuccessChanceFactor) ?? 1f;
-                        // #1253: each doctor's chance, so training can name one.
+                        // each doctor's chance, so training can name one.
                         foreach(var d in doctors) op.DoctorChances[d.GetUniqueLoadID()]=Number(Chance(def,d,pawn,part,medicine,real));
                         op.SuccessChance=op.DoctorChances.Values.Max();
                         op.DoctorSuccessChance=Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,idealFactor)));
@@ -295,7 +295,7 @@ namespace HomeBridge.BridgeTools
                     && def.ingredients.Any(i => i.filter.Allows(t)))
                 .Select(t => t.def).OrderByDescending(d => d.GetStatValueAbstract(StatDefOf.MedicalPotency)).FirstOrDefault();
 
-        // The pawn-independent surgery facts of one capture (#1575): the
+        // The pawn-independent surgery facts of one capture: the
         // unforbidden medicine stock, the best medical bed, and per recipe
         // its eligible doctors and ingredient availability. Table() opens a
         // scope so every pawn of the frame shares them; a lone Surgery call
@@ -342,7 +342,7 @@ namespace HomeBridge.BridgeTools
                     var f=bed.GetStatValue(StatDefOf.SurgerySuccessChanceFactor);
                     if(BestBed==null || f>BedFactor) {BestBed=bed;BedFactor=f;}
                 }
-                // The ideal bed and room (#1240): a plain Bed's factor off the map
+                // The ideal bed and room: a plain Bed's factor off the map
                 // (as if clean, roofed and lit), never below the neutral 1.
                 IdealFactor=System.Math.Max(1f,ThingDefOf.Bed.GetStatValueAbstract(StatDefOf.SurgerySuccessChanceFactor,GenStuff.DefaultStuffFor(ThingDefOf.Bed)));
             }
@@ -373,7 +373,7 @@ namespace HomeBridge.BridgeTools
         // Vanilla SurgeryOutcomeEffectDef.GetQuality, except a patient not yet
         // in bed is scored in the best colony medical bed it will lie in.
         // bedFactor, when set, replaces the bed and room factor (the best
-        // medical bed's, or the ideal one's, #1240); null keeps vanilla's.
+        // medical bed's, or the ideal one's); null keeps vanilla's.
         private static double Chance(RecipeDef def,Pawn surgeon,Pawn patient,BodyPartRecord? part,ThingDef? medicine,float? bedFactor)
         {
             var bill=new Bill_Medical {recipe=def};
@@ -421,7 +421,7 @@ namespace HomeBridge.BridgeTools
                 var list=pawn.equipment.AllEquipmentListForReading; 
                 foreach(var thing in list) row.Equipped.Add(Gear(thing));
                 row.Armed=pawn.equipment.Primary!=null;
-                // Defense capacity (#1188): observed damage per second.
+                // Defense capacity: observed damage per second.
                 try {row.RangedDps=NativeDefenseStats.PawnRangedDps(pawn);row.MeleeDps=pawn.GetStatValue(StatDefOf.MeleeDPS);} catch {}
                 if(pawn.equipment.Primary!=null) row.PrimaryId=Id(pawn.equipment.Primary.GetUniqueLoadID());
                 else row.Issues.Add(Issue("primary_id",Common.UnavailableReason.NotApplicable,"No equipped primary weapon."));
@@ -495,7 +495,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Populates ONLY the care-policy fields (medical_care, self_tend and
-        // hostility_response, which PawnSettingsIntent writes, #1299) that
+        // hostility_response, which PawnSettingsIntent writes) that
         // go/internal/bridge/work_pawns.go's validateSettings allows through
         // when a caller asks for `care`. The follow flags,
         // master_id and the 24-hour schedule are the wider Assign-tab row --
@@ -528,7 +528,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Projects the pawn's current allowed-area restriction under d.Work
-        // (issue #167): WorkSettingsIntent writes allowed_area alongside the
+        //: WorkSettingsIntent writes allowed_area alongside the
         // priorities, so a work reader (the routine
         // work review, the recovery/area case) must see the
         // area alongside the priorities. Unset when the pawn is unrestricted,
@@ -557,7 +557,7 @@ namespace HomeBridge.BridgeTools
             for(var hour=0;hour<times.Count;hour++) row.Schedule.Add(new Obs.TimetableSlot {Hour=(uint)hour,AssignmentDefName=Id(times[hour].defName)});
         }
 
-        // The one animal state builder (#1343): body, herd and training
+        // The one animal state builder: body, herd and training
         // facts for every animal; for a player animal its pen, area, care
         // and the release/slaughter guards; for a wild one its tame facts.
         internal static Obs.AnimalState Animal(Pawn pawn)
@@ -590,7 +590,7 @@ namespace HomeBridge.BridgeTools
                 var eligible=NativeHusbandryOperations.Eligible(pawn);
                 row.SafeToRelease=eligible && NativeHusbandryOperations.SafeToRelease(pawn);
                 if(eligible) NativeHusbandryOperations.SlaughterFacts(pawn,row);
-                // Medical care cap inputs (#1301).
+                // Medical care cap inputs.
                 if(pawn.playerSettings!=null) row.MedicalCare=NativeEnums.Care(pawn.playerSettings.medCare);
                 var bondPartners=pawn.relations?.DirectRelations.Where(r => r.def==PawnRelationDefOf.Bond && r.otherPawn!=null && !r.otherPawn.Dead && r.otherPawn.RaceProps.Humanlike).Select(r => r.otherPawn.GetUniqueLoadID()).OrderBy(i => i,System.StringComparer.Ordinal).ToList();
                 row.Bonded=pawn.relations?.DirectRelations.Any(r => r.def==PawnRelationDefOf.Bond && r.otherPawn!=null && !r.otherPawn.Dead)==true;
@@ -601,7 +601,7 @@ namespace HomeBridge.BridgeTools
                     row.Contained=pen!=null;
                     if(pen!=null) row.PenId=Id(pen.parent.GetUniqueLoadID());
                 }
-                // Area reconciliation (#500): the saved restriction.
+                // Area reconciliation: the saved restriction.
                 if(eligible) {row.MasterId=NativeHusbandryOperations.MasterId(pawn);row.AllowedAreaId=NativeHusbandryOperations.AreaId(pawn);row.SupportsAllowedAreas=NativeHusbandryOperations.SupportsAllowedAreas(pawn);}
             } else if(pawn.Faction==null) {
                 // The tame target facts a MaintainHerd tame write needs.

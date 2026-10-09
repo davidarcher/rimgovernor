@@ -162,10 +162,10 @@ type ResearchFacts struct {
 	Projects []ResearchProjectID
 	// CurrentBenchMissing: the current project's only native lock is the
 	// research bench nobody has built, so it does not progress and the
-	// goal stays in deficit for the bench (#254).
+	// goal stays in deficit for the bench.
 	CurrentBenchMissing bool
 	// KnowledgePick is the knowledge project an empty Anomaly knowledge
-	// slot should fund now (KnowledgePick, #1745), "" when none is owed.
+	// slot should fund now (KnowledgePick), "" when none is owed.
 	KnowledgePick ResearchProjectID
 }
 

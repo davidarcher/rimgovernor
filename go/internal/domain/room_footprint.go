@@ -226,7 +226,7 @@ func (f RoomFootprint) Placements(wallDef, doorDef, material string) []Building 
 // ShellPart is the part of a shell a wall cell plays: a plain run, a corner
 // (a wall cell whose ring neighbours turn), or a door frame (a wall cell
 // beside the door). A style may accent the corners and frames in another
-// stuff (#610).
+// stuff.
 type ShellPart int
 
 const (

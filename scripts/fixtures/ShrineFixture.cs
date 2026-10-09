@@ -94,7 +94,7 @@ namespace HomeBridge.BridgeTools
                     // profiled as Construction labor and the startup
                     // prerequisites withhold the baseline's only free
                     // construction pawn, so the casket opening was never
-                    // selected at all (labor_unavailable, #659).
+                    // selected at all (labor_unavailable).
                     if (!p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) {
                         p.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
                         p.skills.GetSkill(SkillDefOf.Construction).Level = 16;

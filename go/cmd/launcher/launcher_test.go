@@ -92,7 +92,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 	if got, err := LoadSettings(path); err != nil || !reflect.DeepEqual(got, s) {
 		t.Fatalf("%+v %v", got, err)
 	}
-	// Settings saved before #875 carry the removed speed and herd settings; they load.
+	// Settings with obsolete speed and herd fields still load.
 	if err := os.WriteFile(path, []byte(`{"speed":"Fast","allowSlaughter":true,"allowRelease":true}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +309,7 @@ func TestPortOwners(t *testing.T) {
 	}
 }
 
-// Settings saved before #875 carry the removed shrine switches; they still
+// Settings with obsolete shrine fields still
 // load, and the switches are ignored.
 func TestLoadSettingsIgnoresRemovedShrineSwitches(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")

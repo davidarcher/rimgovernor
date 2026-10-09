@@ -89,7 +89,7 @@ func TestRemoteLootKeepsSafetySemantics(t *testing.T) {
 	}
 }
 
-// A safe stack is released whatever the demand (#2299): covered, unknown or
+// A safe stack is released whatever the demand: covered, unknown or
 // absent demand and an unknown path hold nothing; only storage headroom and
 // urgent colony work throttle it.
 func TestRemoteLootReleasesWithoutDemand(t *testing.T) {
@@ -174,7 +174,7 @@ func TestLootDemandAndReachFromFacts(t *testing.T) {
 	}
 }
 
-// Both nightly loot failures were one shape (#664): a colony whose established
+// Both nightly loot failures were one shape: a colony whose established
 // extent is empty -- it owns no facility, or the only facility anchoring its
 // extent was the trap the case removed -- held every safe forbidden stack on
 // extent geometry, so no readiness could ever allow one.
@@ -205,7 +205,7 @@ func TestRemoteLootEmptyExtentFollowsReadiness(t *testing.T) {
 	}
 }
 
-// The startup release (#2188): 23 starting stacks outside a defended-base
+// The startup release: 23 starting stacks outside a defended-base
 // reach are all pending on the first review, and the stacks left after each
 // 8-action plan stay pending on the following reviews. A stack that first
 // appears later is reach-held; an unsafe stack is never pending.

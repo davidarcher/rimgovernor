@@ -12,12 +12,12 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // CombatOrders (#850): one batch of combat micro orders applied in request
+    // CombatOrders: one batch of combat micro orders applied in request
     // order inside one call, so on one game tick. Validation reuses the attack
     // (NativeCombatOperations.Legal), movement (NativeMovementOperations.Legal)
     // and drafted-pawn (NativeMovementOperations.Owns) rules. A draft order
-    // (#910) drafts the pawn its later orders in the batch need; the fight
-    // plan owns that draft (#939). Per-order refusals are
+    // drafts the pawn its later orders in the batch need; the fight
+    // plan owns that draft. Per-order refusals are
     // results, not call failures. The receipt certifies the orders were
     // taken; observing the fight is the caller's next read.
     internal static class NativeCombatOrders
@@ -91,7 +91,7 @@ namespace HomeBridge.BridgeTools
                 }
                 else if (order.OrderCase == Operations.CombatOrder.OrderOneofCase.Release || order.OrderCase == Operations.CombatOrder.OrderOneofCase.AnimalArea)
                 {
-                    // Animal orders (#1057): a player animal, never drafted.
+                    // Animal orders: a player animal, never drafted.
                     result.PawnId = order.Pawn.EntityId;
                     var admitted = pawns[order.Pawn.EntityId];
                     refusal = admitted.refusal;
@@ -133,12 +133,12 @@ namespace HomeBridge.BridgeTools
         }
 
         // An eligible drafted pawn; rechecked per order. Drafts are
-        // plan-owned (#939): the draft is the plan's, not a native claim's.
+        // plan-owned: the draft is the plan's, not a native claim's.
         private static string Drafted(NativeControlIdentity identity, Pawn pawn) =>
             NativePawnControlState.Observe(identity, pawn, out var snapshot) == NativePawnControlResult.Ready && snapshot != null
                 && NativeMovementOperations.Owns(snapshot) && pawn.drafter != null ? "" : "not_drafted";
 
-        // Draft (#910) drafts an eligible pawn; one already drafted applies.
+        // Draft drafts an eligible pawn; one already drafted applies.
         private static string Draft(NativeControlIdentity identity, Pawn pawn)
         {
             if (NativePawnControlState.Observe(identity, pawn, out var before) != NativePawnControlResult.Ready || before == null || !before.Eligible) return "cannot_draft";
@@ -221,7 +221,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.CombatOrder.OrderOneofCase.Repair:
                 {
                     // The vanilla Repair job on a damaged player building
-                    // (#900); the pawn stays drafted under the fight.
+                    //; the pawn stays drafted under the fight.
                     var cell = new IntVec3(order.Repair.Cell.X, 0, order.Repair.Cell.Z);
                     var building = cell.InBounds(map) ? cell.GetEdifice(map) : null;
                     if (building == null || building.Faction != Faction.OfPlayerSilentFail || !building.def.useHitPoints
@@ -232,7 +232,7 @@ namespace HomeBridge.BridgeTools
                 }
                 case Operations.CombatOrder.OrderOneofCase.ManMortar:
                 {
-                    // Crew the vanilla mortar (#1202): ManTurret, which loads
+                    // Crew the vanilla mortar: ManTurret, which loads
                     // shells by the mortar's filter; the aim is mortar_fire's.
                     var mortar = Mortar(map, order.ManMortar);
                     if (mortar == null) return "not_a_mortar";
@@ -250,7 +250,7 @@ namespace HomeBridge.BridgeTools
             return "native_refused";
         }
 
-        // Animal orders (#1057) on one spawned player-faction animal.
+        // Animal orders on one spawned player-faction animal.
         // Release: the vanilla released animal's melee attack on one pawn.
         // AnimalArea: a one-cell native allowed area, labelled by the animal
         // so it survives a reload and clear still finds it; clear restores
@@ -320,7 +320,7 @@ namespace HomeBridge.BridgeTools
         // The label of the allowed area an animal_area order owns.
         internal const string CombatAreaPrefix = "Combat ";
 
-        // Combat drug (#1311): the carried drug Go chose by def name, by the
+        // Combat drug: the carried drug Go chose by def name, by the
         // vanilla Ingest job from inventory; the def must be a
         // drug. Never a child, a pawn already on the drug's high, or one
         // addicted to (or in withdrawal from) or highly tolerant of its chemical (the Go HighTolerance, 0.5).
@@ -362,7 +362,7 @@ namespace HomeBridge.BridgeTools
                 || mortar.GetComp<CompMannable>() == null || map.roofGrid.Roofed(mortar.Position) ? null : mortar;
         }
 
-        // MortarFire (#1202, the #931 aim and #1051 shell): the attack
+        // MortarFire (aim and shell): the attack
         // gizmo's forced target, no pawn. A different loaded shell is
         // unloaded beside the mortar and the filter allows only the asked
         // one; a pawn manning it retakes ManTurret, whose ammo search
@@ -374,7 +374,7 @@ namespace HomeBridge.BridgeTools
             if (mortar == null) return "not_a_mortar";
             if (order.Target == null)
             {
-                // No target (#1235): the gizmo's stop-forced-attack, the
+                // No target: the gizmo's stop-forced-attack, the
                 // aim gone when the siege breaks camp. An invalid target
                 // resets the forced target (vanilla OrderAttack).
                 mortar.OrderAttack(LocalTargetInfo.Invalid);
@@ -423,7 +423,7 @@ namespace HomeBridge.BridgeTools
             if (door == null || door.Faction != Faction.OfPlayerSilentFail) return "not_a_door";
             if (order.Mode == Operations.CombatDoorMode.Forbid || order.Mode == Operations.CombatDoorMode.Allow)
             {
-                // The vanilla forbid toggle (#867): forbidden doors bar every
+                // The vanilla forbid toggle: forbidden doors bar every
                 // player pawn's path, drafted or not.
                 door.SetForbidden(order.Mode == Operations.CombatDoorMode.Forbid, warnOnFail: false);
                 return "";
@@ -438,7 +438,7 @@ namespace HomeBridge.BridgeTools
 
     }
 
-    // The CombatOrders arm of Actions/Apply (#939). The batch applies when
+    // The CombatOrders arm of Actions/Apply. The batch applies when
     // it is well formed; each order's refusal is a result in the effect.
     internal sealed class CombatOrdersActionHandler : IActionHandler
     {
@@ -452,7 +452,7 @@ namespace HomeBridge.BridgeTools
             NativeCombatOrders.Apply(action.CombatOrders, context);
     }
 
-    // The Draft arm of Actions/Apply (#939): draft or undraft one eligible
+    // The Draft arm of Actions/Apply: draft or undraft one eligible
     // colonist. The wanted state already holding applies without a change.
     internal sealed class DraftActionHandler : IActionHandler
     {

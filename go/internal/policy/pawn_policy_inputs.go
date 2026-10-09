@@ -3,7 +3,7 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // PawnPolicyInputs is what the per-pawn outfit/drug/food/reading planners
-// compose from (#1297). Traits, mood and break thresholds and animal bonds
+// compose from. Traits, mood and break thresholds and animal bonds
 // are read elsewhere on the pawn row. Empty strings are "none".
 type PawnPolicyInputs struct {
 	OutfitPolicy, DrugPolicy, ReadingPolicy string
@@ -21,13 +21,13 @@ type PawnPolicyInputs struct {
 	Precepts []string
 	IdeoRole string
 	// IdeoCertainty is the pawn's certainty (0..1) in Ideo; unknown without
-	// an ideoligion (#1654).
+	// an ideoligion.
 	IdeoCertainty  domain.Fact[float64]
 	RoleApparel    []ApparelRequirement
 	PreceptApparel []string
 	// GuestStatus is Guest, Prisoner or Slave; empty for a free pawn.
 	GuestStatus, PrisonerInteraction, SlaveInteraction string
-	// TendQuality is the MedicalTendQuality stat (#1305); unknown for a
+	// TendQuality is the MedicalTendQuality stat; unknown for a
 	// pawn that cannot doctor.
 	TendQuality domain.Fact[float64]
 }

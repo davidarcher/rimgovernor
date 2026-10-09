@@ -239,7 +239,7 @@ func (s *Server) handleLifecycleSave(w http.ResponseWriter, r *http.Request, ctx
 	}
 	// No expected tick: the snapshot's tick is a cached observation up to a
 	// refresh interval old, so a save posted right after a pause carried the
-	// pre-pause tick and native refused it as moved (#322). The completed
+	// pre-pause tick and native refused it as moved. The completed
 	// reply must report the game paused and the identity above unchanged;
 	// its tick is the checkpoint's.
 	request := &l.SaveRequest{

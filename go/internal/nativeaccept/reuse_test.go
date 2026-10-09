@@ -103,7 +103,7 @@ func TestRetiredLifecycleRefusesCases(t *testing.T) {
 
 // StopRenderedGame costs a headless-only root nothing: without a launch
 // record on the windowed profile (no config, or a profile never launched
-// rendered) it opens no bridge session and reports nothing stopped (#444).
+// rendered) it opens no bridge session and reports nothing stopped.
 func TestStopRenderedGameSkipsRootWithoutRenderedLaunch(t *testing.T) {
 	root := t.TempDir()
 	if stopped, err := StopRenderedGame(context.Background(), root, "rimworld"); err != nil || stopped {

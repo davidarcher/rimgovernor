@@ -9,7 +9,7 @@ using HomeBridge.BridgeTools;
 using RimGovernor.Host.Sdk;
 using Common = RimGovernor.Protocol.Common;
 
-// The detached reply boundary (#644): ProtoBoundary.CaptureOnMainThread reads
+// The detached reply boundary: ProtoBoundary.CaptureOnMainThread reads
 // on the game thread, EncodeDetached formats on a ReplyEncoder worker, and
 // EncodeBounded formats a fitting reply once. The game thread here is this
 // probe's own thread, pumped explicitly (FakeGameThread); worker ordering is
@@ -241,7 +241,7 @@ internal static class NativeReplyEncoderProbe
         Check(MainThreadAdmission.PendingCount() == 0, "no hop is left pending");
     }
 
-    // The per-frame hop allowance (#988): while the clock runs, reads past
+    // The per-frame hop allowance: while the clock runs, reads past
     // the allowance wait for later frame boundaries, none is dropped, and a
     // control hop runs regardless; paused or with a stale boundary, nothing
     // is deferred. Time is a fake clock each hop advances.

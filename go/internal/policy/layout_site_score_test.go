@@ -63,7 +63,7 @@ func TestSiteCoreBaselineScoresNoBelowCentroid(t *testing.T) {
 	}
 }
 
-// TestSoilCostBaselineFixture is soilCost on the real #1280 survey: every
+// TestSoilCostBaselineFixture is soilCost on the recorded survey: every
 // rich cell costs soilCostRich and rock costs nothing.
 func TestSoilCostBaselineFixture(t *testing.T) {
 	s := loadSurvey(t, baselineSurveyPath)
@@ -112,7 +112,7 @@ func TestSiteCoreKeepsOffMapEdge(t *testing.T) {
 
 // A prop footprint (an ancient exostrider's remains) over the rooms a
 // plain map sites lands no room or hallway on the prop once re-sited and
-// grown (#1533).
+// grown.
 func TestSiteCoreAndGrowAvoidProps(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	plain := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
@@ -203,8 +203,8 @@ func mountainSideSurvey() MapSurvey {
 	})
 }
 
-// A mountain-side site beats the equivalent open-centre one on wall cost
-// (#1594): the sited core stands against the rock and walls fewer cells
+// A mountain-side site beats the equivalent open-centre one on wall cost:
+// the sited core stands against the rock and walls fewer cells
 // than the centroid core on the same ground.
 func TestSiteCorePrefersMountainSide(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

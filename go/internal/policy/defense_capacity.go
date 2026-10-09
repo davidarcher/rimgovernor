@@ -9,8 +9,8 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // DPS lines the colony's measure up with the storyteller's raid budget.
 const DefensePointsPerDPS = 5.0
 
-// DefenseCapacity is the colony's combat strength in raid-point units
-// (#1188): each combat-ready colonist (living, not downed, capable of
+// DefenseCapacity is the colony's combat strength in raid-point units:
+// each combat-ready colonist (living, not downed, capable of
 // violence) adds melee power (MeleeDPS times health) plus ranged weapon
 // DPS, and every powered turret adds its DPS. Every input is an observation
 // from the wire; any unknown one a sum needs leaves the result unknown.

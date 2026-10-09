@@ -59,7 +59,7 @@ namespace HomeBridge.BridgeTools
             return zone != null && zone.GetStoreSettings().AllowedToAccept(thing) && DirtyCell(thing.Map, thing.Position);
         }
 
-        // CorpseOf is a corpse's inner pawn class (#832): colonist for the
+        // CorpseOf is a corpse's inner pawn class: colonist for the
         // player faction's humanlike, stranger for any other humanlike,
         // animal otherwise; null for anything that is not a corpse.
         internal static Common.CorpseClass? CorpseOf(Thing thing)
@@ -77,7 +77,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.WasteReply Project(Map map, Common.ObservationContext context)
         {
             var items = new List<Obs.WasteItem>();
-            // Filter before sorting (#1273): the stable sort of the few kept
+            // Filter before sorting: the stable sort of the few kept
             // rows orders them exactly as sorting every thing's load ID did,
             // without building and comparing a string per thing on the map.
             var kept = new List<KeyValuePair<Thing, string?>>();

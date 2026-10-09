@@ -84,7 +84,7 @@ func TestRoundsFireSafetyHoldsWithoutFirefighter(t *testing.T) {
 }
 
 // A fire ReviewUpkeep calls unsafe (size above one) still gets bounded native
-// windows: holding the clock would freeze the emergency forever (#715).
+// windows: holding the clock would freeze the emergency forever.
 func TestRoundsFireSafetyTicksBoundedOnUnsafeFire(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

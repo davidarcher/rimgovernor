@@ -28,8 +28,7 @@ func (n *shellBenchNative) ReadGearBenches(context.Context, *c.Identity) ([]brid
 	return []bridge.GearBenchRead{{Token: "machining-cas", Bench: policy.GearBench{ID: "machining", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known(recipes)}}}, bridge.Result{}, nil
 }
 
-// The armory issues a shell bill once a mortar stands, and none before
-// (#1207).
+// The armory issues a shell bill once a mortar stands, and none before.
 func TestArmoryStocksShellsAfterMortarBuilt(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

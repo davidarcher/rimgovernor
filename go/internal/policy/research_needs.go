@@ -2,7 +2,7 @@ package policy
 
 import "sort"
 
-// KnowledgeSlot is one KnowledgeCategoryDef's research slot (Anomaly, #1745):
+// KnowledgeSlot is one KnowledgeCategoryDef's research slot (Anomaly):
 // the project the research manager funds from that category's knowledge, ""
 // when the slot is empty. Knowledge that arrives for a category with no
 // project is lost unless the category overflows into another, so an empty

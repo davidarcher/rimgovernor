@@ -36,7 +36,7 @@ func init() {
 		RequiredOps: []string{gridAudit},
 		Keep:        []string{string(na.NeedFood)},
 		// The start builds no food economy: the food plan's gap is pinned
-		// to zero so the expansion gate opens (#1271).
+		// to zero so the expansion gate opens.
 		Serve: &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Shelter, routinefamily.Expansion, routinefamily.Sleeping}, NativeTimeout: 30 * time.Second, Prefix: "layout-ring",
 			Env: []string{buildingruntime.FaultsEnv + "=foodgap=zero"}},
 		Budget: 3 * time.Minute,

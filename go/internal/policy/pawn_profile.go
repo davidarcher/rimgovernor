@@ -62,7 +62,7 @@ type TraitEffects struct {
 	// ChemicalInterest is the DrugDesire degree: 1 interest, 2 fascination,
 	// -1 teetotaler.
 	ChemicalInterest int
-	// Room provisioning flags (#286): Undergrounder wants no windows or
+	// Room provisioning flags: Undergrounder wants no windows or
 	// outdoors, Greedy an impressive room, Jealous no better room than his.
 	Undergrounder, Greedy, Jealous bool
 }
@@ -159,26 +159,26 @@ type PawnProfile struct {
 	// unskilled has none.
 	WorkSkill map[WorkType]string
 	// Age is the biological age in years; Child is a pre-adult developmental
-	// stage (Newborn, Baby, Child) read from the Biotech facts (#1784). A
+	// stage (Newborn, Baby, Child) read from the Biotech facts. A
 	// colony without Biotech has no Biotech block and no child pawns: native
 	// never spawns one under 14 there, so Child is false.
 	Age   float64
 	Child bool
-	// Biotech is the pawn's Biotech facts (#1678): life stage, genes and
+	// Biotech is the pawn's Biotech facts: life stage, genes and
 	// the rest; unknown without Biotech.
 	Biotech domain.Fact[PawnBiotech]
-	// Genes are the active genes' typed effects (#1689); zero when unknown.
+	// Genes are the active genes' typed effects; zero when unknown.
 	// Their stat modifiers are already folded into Effects.
 	Genes GeneEffects
 	// WorkMinAge is the race's minimum age per work type for a child; a
-	// work type absent has no minimum (#1682).
+	// work type absent has no minimum.
 	WorkMinAge map[WorkType]int
 	// Ranged is whether the pawn's primary weapon is ranged.
 	Ranged bool
 	// Hunts is whether the primary weapon hunts (WeaponDef.Hunts).
 	Hunts bool
 	// Inspiration is the current InspirationDef defName; known "" is none
-	// and unknown stays distinct from none (#1187).
+	// and unknown stays distinct from none.
 	Inspiration domain.Fact[string]
 }
 

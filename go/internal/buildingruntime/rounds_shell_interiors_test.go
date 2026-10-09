@@ -58,7 +58,7 @@ func TestShellInteriorsCoverThePlannedRingsFloor(t *testing.T) {
 	}
 	b := shell.Bounds()
 	// The same floor is covered once the shelter goal has left the review
-	// and only the completed claims remain (#217: the batch drawn after
+	// and only the completed claims remain (the batch drawn after
 	// the hut stood went inside it).
 	for name, cells := range map[string][]domain.Cell{
 		"pending plan":     shellInteriors([]store.PlanState{{Spec: spec, Progress: progress}}, nil),

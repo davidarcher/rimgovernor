@@ -13,7 +13,7 @@ import (
 )
 
 // RoundsIncident binds a Response the review assessed to its open
-// occurrence (#1020): the incident a planner commits methods to, and the
+// occurrence: the incident a planner commits methods to, and the
 // need the review measured for it. A recovered occurrence stays bound, and
 // open, while its dispatched work (a fight's drafts) settles.
 type RoundsIncident struct {
@@ -24,7 +24,7 @@ type RoundsIncident struct {
 }
 
 // huntPayload is the payload of an ActiveCombat occurrence the food plan
-// raised (#1617): the squad prey it opens on.
+// raised: the squad prey it opens on.
 type huntPayload struct {
 	Prey []domain.PawnID `json:"prey"`
 }
@@ -154,7 +154,7 @@ func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.Round
 		}
 		assessment := IncidentAssessment{Kind: n.ID, Subject: n.Subject, Trigger: fmt.Sprintf("%s deficit", n.ID), Priority: n.Priority, Snapshot: current, Tick: tick}
 		if len(n.Hunt) > 0 && n.Finding == domain.FindingUnmet {
-			// The food plan raised this occurrence: its hunt origin (#1617).
+			// The food plan raised this occurrence: its hunt origin.
 			if assessment.Payload, err = json.Marshal(huntPayload{Prey: n.Hunt}); err != nil {
 				return nil, nil, err
 			}

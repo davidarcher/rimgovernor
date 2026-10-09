@@ -2,7 +2,7 @@ package bridge
 
 import "context"
 
-// The recording facts reader (#1916): every native state read goes through
+// The recording facts reader: every native state read goes through
 // protoRead, which notes the fact family the read draws from on the
 // context's read note. The scheduler hangs a note on each planner's context
 // and compares what it saw with the planner's declared families

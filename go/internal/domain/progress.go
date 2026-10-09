@@ -30,7 +30,7 @@ const (
 // ErrWriteUnsent marks a native write failure that happened before the call
 // was issued. The transport wraps it; executors record ReceiptUnsent instead
 // of an uncertain receipt that could only reconcile through a native ledger
-// entry that never existed (issue #70).
+// entry that never existed.
 var ErrWriteUnsent = errors.New("native write never sent")
 
 type Effect string
@@ -217,7 +217,7 @@ type ProgressView struct {
 	// Zone is the native zone an applied zone_create receipt identifies (the
 	// zone's unique load id, ZoneEffect.zone_id). It is the identity later
 	// native censuses name the zone by, which is how a completed stockpile
-	// method owns its zone for MaintainHomeCoverage (#315).
+	// method owns its zone for MaintainHomeCoverage.
 	Zone       Fact[string]
 	Stockpiles Fact[CreatedZones]
 	Combat     Fact[CombatResults]
@@ -356,8 +356,8 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 	return p, nil
 }
 
-// IntentMode reports an action kind whose actions are idempotent intents
-// (#856): native validates each against live state when it applies, so the
+// IntentMode reports an action kind whose actions are idempotent intents:
+// native validates each against live state when it applies, so the
 // receipt is terminal (applied completes, refused fails, unknown is sent
 // again), with no observation phase, and the routine owning the
 // kind reads its next phase from live facts rather than per-attempt
@@ -458,7 +458,7 @@ func (p Progress) recordReceipt(attempt AttemptID, receipt Receipt) (Progress, e
 }
 
 // Withdraw opens the attempt that withdraws a cancelled, still-pending
-// dispatch natively (#291: a harvest designation nobody took). The action
+// dispatch natively (a harvest designation nobody took). The action
 // stays Cancelled and unresolved under a fresh attempt id, whose receipt and
 // observation settle it the ordinary way; a lost receipt resolves as absent
 // like any other unadmitted attempt.

@@ -34,7 +34,7 @@ func ColonyMedicalReserve(v *o.ColonyFactsSnapshot, tables bridge.Tables) (polic
 	}
 	rows := []policy.MedicineStack{}
 	for _, item := range u.Items {
-		// Whether the def is medicine is the catalog's (#1733).
+		// Whether the def is medicine is the catalog's.
 		medicine, err := tables.Catalog.Medicine(tables.Entity(item.Item).GetDefName())
 		if err != nil {
 			return r, fmt.Errorf("medical reserve census: %w", err)

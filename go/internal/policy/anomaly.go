@@ -13,7 +13,7 @@ const (
 	ContainmentExecute      ContainmentMode = "Execute"
 )
 
-// PawnAnomaly is one pawn's Anomaly facts (#1737) as its row carries them;
+// PawnAnomaly is one pawn's Anomaly facts as its row carries them;
 // every field is unknown when native did not read it. Hostility is the
 // pawn row's own. A pointer inside a Known fact is a known absence (a pawn
 // that is no holding-platform target, nothing studiable). The static facts
@@ -28,12 +28,12 @@ type PawnAnomaly struct {
 	MinContainmentStrength domain.Fact[float64]
 	Held                   domain.Fact[*EntityHeld]
 	Study                  domain.Fact[*StudyState]
-	// Threat facts for defense tactics (#1739): HiddenFromPlayer is a pawn
+	// Threat facts for defense tactics: HiddenFromPlayer is a pawn
 	// the player cannot see or target (an unrevealed sightstealer),
 	// PsychicRitualInvoker the caster of its lord's psychic ritual, and
 	// MeleeOnly a pawn whose attack is melee with no offensive ability.
 	HiddenFromPlayer, PsychicRitualInvoker, MeleeOnly domain.Fact[bool]
-	// CreepJoiner is the pawn's creepjoiner tracker facts (#1740); a nil
+	// CreepJoiner is the pawn's creepjoiner tracker facts; a nil
 	// pointer inside a Known fact is a pawn that is no creepjoiner.
 	CreepJoiner domain.Fact[*CreepJoiner]
 }
@@ -51,12 +51,11 @@ type CreepJoiner struct {
 // on which platform (known "" when on none) and under which order.
 type EntityHeld struct {
 	Held, Escaping, ExtractBioferrite, CanBeCaptured domain.Fact[bool]
-	// NeedsTend is HasHediffsNeedingTend and Bleeding a positive bleed rate
-	// (#1743).
+	// NeedsTend is HasHediffsNeedingTend and Bleeding a positive bleed rate.
 	NeedsTend, Bleeding domain.Fact[bool]
 	// HarvesterAttached is the platform's HasAttachedBioferriteHarvester and
 	// BioferritePerDay CompProducesBioferrite.BioferritePerDay, 0 while the
-	// BioferriteExtracted hediff stands (#2434).
+	// BioferriteExtracted hediff stands.
 	HarvesterAttached domain.Fact[bool]
 	BioferritePerDay  domain.Fact[float64]
 	Platform          domain.Fact[string]
@@ -74,7 +73,7 @@ type StudyState struct {
 	KnowledgeCategory                                          domain.Fact[string]
 }
 
-// BuildingAnomaly is one building's Anomaly facts (#1737): a holding
+// BuildingAnomaly is one building's Anomaly facts: a holding
 // platform's containment and a studiable building's study state. Unknown when
 // the row carries none; a pointer inside a Known fact is a known absence.
 type BuildingAnomaly struct {
@@ -88,7 +87,7 @@ type EntityHolder struct {
 	ContainmentStrength domain.Fact[float64]
 	Available           domain.Fact[bool]
 	HeldPawn            string
-	// Doors are the doors the game counts for the holder's room (#1743);
+	// Doors are the doors the game counts for the holder's room;
 	// unknown when the door read failed, empty for a room with none.
 	Doors domain.Fact[[]ContainmentDoor]
 }

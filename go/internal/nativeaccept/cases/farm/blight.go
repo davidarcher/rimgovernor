@@ -18,7 +18,7 @@ import (
 
 const blightPrefix = "blight-accept"
 
-// farm/blight is the blight responder vertical (#245): a live game and a
+// farm/blight is the blight responder vertical: a live game and a
 // live rimgovernor service composed with the blight family. The private
 // test/blight_prepare fixture sows a small rice zone near the colonists and
 // blights a few plants. The Go projection's blight census (plant things in the planning window) must
@@ -251,7 +251,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	// Ordinary growers must sow the new zone; its creation receipt is not
 	// proof of planting. Advance a bounded window before the native audit,
 	// in steps: an advance never renews its lease, and a Superfast window
-	// under box load (338 tps) outran the 30 s lease on 12000 ticks (#760).
+	// under box load (338 tps) outran the 30 s lease on 12000 ticks.
 	for range 4 {
 		if _, err := s.Advance(ctx, 3000); err != nil {
 			return err
@@ -340,7 +340,7 @@ func sortedKeys[V any](m map[string]V) []string {
 }
 
 // readBlightCensus reads the Go projection's blight census, built from the
-// planning window's plant things (#2272), the way the planner reads it.
+// planning window's plant things, the way the planner reads it.
 func readBlightCensus(ctx context.Context, h *na.Harness, _ map[string]any, label string) (blightSummary, error) {
 	facts, _, err := startersite.Survey(ctx, h)
 	if err != nil {

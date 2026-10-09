@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TradeWithCaravan is the routine trade goal (#234): while a tradeable
+// TradeWithCaravan is the routine trade goal: while a tradeable
 // caravan stands on the map and the colony has something to buy from it
 // (the medicine shortfall MaintainMedicalReserves already reports, or a
 // component shortfall under the derived component need) or to sell
@@ -54,7 +54,7 @@ const TradeItemWealthShare = 0.6
 
 // TradeSilverReserve is the silver a purchase never spends below: 100 per
 // colonist, at least 200. An unknown or empty count reports false and the
-// routine buys nothing (fail closed, #875).
+// routine buys nothing (fail closed).
 func TradeSilverReserve(colonists domain.Fact[int64]) (int64, bool) {
 	n, known := colonists.Value()
 	if !known || n <= 0 {
@@ -72,8 +72,8 @@ func RoundsTradeFloors(p RoundsPolicy, construction map[string]int64) map[string
 	return floors
 }
 
-// WealthFacts is the colony wealth split native's WealthWatcher reports
-// (#395): the market value held as items, buildings and pawns, and their
+// WealthFacts is the colony wealth split native's WealthWatcher reports:
+// the market value held as items, buildings and pawns, and their
 // total. Items count in full toward storyteller wealth where buildings
 // count half, which is why the surplus rule keys on the item share.
 type WealthFacts struct{ Items, Buildings, Pawns, Total float64 }
@@ -148,24 +148,24 @@ type TradeNeed struct {
 	Shortfall []Amount
 	// Population is set while the colony can host one more colonist
 	// (JoinerCapacity): a caravan offering a slave or prisoner is worth
-	// opening for (#1037).
+	// opening for.
 	Population bool
-	// SurgeryParts are the restore parts no bench can fabricate (#1168),
+	// SurgeryParts are the restore parts no bench can fabricate,
 	// highest priority first: a trader selling one is worth opening for.
 	SurgeryParts []SurgeryPart
-	// ShedArt is the shed_art reason (#1247): the count of packed art no
+	// ShedArt is the shed_art reason: the count of packed art no
 	// owed room reserves (SaleSculptures) while the wealth headroom is
 	// known and negative. The selection sells it first (ArtFirst).
 	ShedArt int64
 	// SurplusAnimals is the count of colony animals the herd plan lets go
-	// (HerdSaleAnimals) while the colony wants silver (#1632): a caravan
+	// (HerdSaleAnimals) while the colony wants silver: a caravan
 	// is worth opening for them.
 	SurplusAnimals int64
 	// FavorGold is the gold stock above FavorGoldKeep while a tribute collector
-	// is present (#1939): sold for royal favor.
+	// is present: sold for royal favor.
 	FavorGold int64
 	// FavorPrisoners is the count of surplus prisoners (SurplusPrisoners)
-	// while a tribute collector is present (#1971): sold for royal favor.
+	// while a tribute collector is present: sold for royal favor.
 	FavorPrisoners int64
 }
 

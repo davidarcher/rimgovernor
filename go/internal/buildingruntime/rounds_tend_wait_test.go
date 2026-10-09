@@ -14,7 +14,7 @@ import (
 
 // roundsTendNative serves RoundsTendSource over the colony-core fixture with
 // one bleeding colonist whose bed state is unreadable -- the shape that holds
-// CriticalMedical while no tend order can be built (#636).
+// CriticalMedical while no tend order can be built.
 type roundsTendNative struct {
 	*roundsNative
 }
@@ -31,7 +31,7 @@ func (n *roundsTendNative) ReadEmergency(ctx context.Context, identity *c.Identi
 // A standing CriticalMedical deficit that yields no doctor/patient pair lends a
 // bounded clock window instead of leaving the step with no work: the emergency
 // freezes development and clears only on game time, so a step that reported no
-// work parked the clock at a fixed tick for the rest of the run (#636).
+// work parked the clock at a fixed tick for the rest of the run.
 func TestRoundsTendLendsClockTicksWithoutAnEligiblePair(t *testing.T) {
 	t.Parallel()
 	reviewer, _, _, _, native := roundsFixture(t)

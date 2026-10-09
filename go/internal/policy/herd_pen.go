@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The paddock marker (#2233, epic #2229): the wall's yard is the animal pen,
+// The paddock marker: the wall's yard is the animal pen,
 // claimed by one PenMarker. Pen membership comes from the native enclosed-pen
 // lookup, so a marker standing is not an animal contained.
 
@@ -21,7 +21,7 @@ const (
 	penMarkerSlot = "pen.marker"
 )
 
-// PaddockStep is the one PenMarker the wall's yard is claimed by (#2233).
+// PaddockStep is the one PenMarker the wall's yard is claimed by.
 type PaddockStep struct {
 	// Marker says a marker already stands inside the ring.
 	Marker bool

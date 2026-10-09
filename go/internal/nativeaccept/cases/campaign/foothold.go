@@ -25,12 +25,12 @@ var campaignConcerns = []policy.ConcernID{
 	policy.EnsureBasicDefense,
 }
 
-// foothold is campaign/foothold (#633): the eight tribal colonists, played
+// foothold is campaign/foothold: the eight tribal colonists, played
 // through the player control path for three game days with no harness hand after setup, must end
 // sheltered (indoor sleeping capacity for every colonist), fed (no
 // malnutrition past 0.3, a known food runway) and alive, with a goal
 // progress record advanced on native evidence and none stalled past its
-// review deadline (#629).
+// review deadline.
 func foothold() cases.Case {
 	window := footholdWindow()
 	return campaignCase("campaign/foothold", "Unassisted campaign: shelter and food maintained over three game days on the player control path.",

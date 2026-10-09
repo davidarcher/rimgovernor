@@ -23,7 +23,7 @@ func (f *clockCoreFake) Identity(ctx context.Context) (*l.IdentityReply, bridge.
 }
 
 // Tick is the identity read without the capability list; the poll and
-// renewal loops take it (#125).
+// renewal loops take it.
 func (f *clockCoreFake) Tick(ctx context.Context) (*l.TickReply, bridge.Result, error) {
 	if f.identityError != nil {
 		return nil, bridge.Result{}, f.identityError
@@ -226,7 +226,7 @@ func TestClockCleanupRejectsStatusGenerationBehindIdentity(t *testing.T) {
 
 // A settling step's own bundle status assesses the obligation: an epoch it
 // shows stopped and paused is settled without an identity or status read
-// and without a pause (#200).
+// and without a pause.
 func TestClockCleanupObservedStatusSettlesWithoutReads(t *testing.T) {
 	t.Parallel()
 	q, db, f, intent := clockCleanupStart(t)

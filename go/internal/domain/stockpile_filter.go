@@ -191,7 +191,7 @@ func (f StockpileFilter) Quality() (min, max Quality, ok bool) {
 func FoodFilter() StockpileFilter { return StockpileFilter{base: BaseFood} }
 
 // GeneralFilter is the warehouse's: every storable that is not safe outside,
-// plus packed buildings (#2103), less what burns (#2192): the waste yard takes
+// plus packed buildings, less what burns: the waste yard takes
 // the burnable. A building def cannot deteriorate, so the indoor_only preset
 // never lists one; the Buildings category adds the packed furniture, benches
 // and art clearance leaves behind.
@@ -217,7 +217,7 @@ func CorpseLarderFilter() StockpileFilter {
 }
 
 // RawFoodFilter holds raw meat and raw plant food, never rotten: the
-// freezer's cooking-ingredient stock (#722).
+// freezer's cooking-ingredient stock.
 func RawFoodFilter() StockpileFilter {
 	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("MeatRaw"), CategoryDef("PlantFoodRaw")}, []FilterSelector{SpecialFilter("AllowRotten")})
 	return f
@@ -255,14 +255,14 @@ func PerishablesFilter() StockpileFilter {
 
 // TombCorpsesFilter holds human corpses, fresh or not: the tomb room's stock
 // until they are buried, entombed or butchered. Strangers belong to the
-// morgue (#1820), so a tie at Critical never draws them in.
+// morgue, so a tie at Critical never draws them in.
 func TombCorpsesFilter() StockpileFilter {
 	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike")}, []FilterSelector{SpecialFilter("AllowCorpsesStranger")})
 	return f
 }
 
 // MorgueCorpsesFilter holds every human corpse, colonist, slave or stranger,
-// fresh or rotten (#2196). The morgue ranks below graves and sarcophagi
+// fresh or rotten. The morgue ranks below graves and sarcophagi
 // (MorguePriority), so a colonist corpse waits here only until one has room.
 func MorgueCorpsesFilter() StockpileFilter {
 	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike")}, nil)

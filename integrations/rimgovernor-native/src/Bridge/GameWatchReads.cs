@@ -13,7 +13,7 @@ namespace HomeBridge.BridgeTools
     /// The guarded reads the supervised clock watches between ticks: the
     /// letter stack, live transient messages, active alerts and the spawned
     /// pawns. A native exception propagates to the watch's tool call (the
-    /// host answers it as a named failure, #1887) except one alert's own
+    /// host answers it as a named failure) except one alert's own
     /// getters; none of them recalculates an alert or calls a getter that logs
     /// (Verse.Log.Error pauses the game).
     /// </summary>
@@ -126,7 +126,7 @@ namespace HomeBridge.BridgeTools
             var player = PlayerFaction();
             if (player != null && pawn.HostFaction == player)
             {
-                // A held prisoner is hostile only while breaking out (#1080).
+                // A held prisoner is hostile only while breaking out.
                 if (!PrisonBreakUtility.IsPrisonBreaking(pawn)) return false;
                 reason = "prison_break";
                 return true;

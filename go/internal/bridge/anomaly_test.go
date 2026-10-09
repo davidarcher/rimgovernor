@@ -29,7 +29,7 @@ func anomalyCatalogFixture() *o.AnomalyCatalog {
 	}
 }
 
-// TestAnomalyCatalogDecode (#1737): the section decodes by name and refuses
+// TestAnomalyCatalogDecode: the section decodes by name and refuses
 // duplicates, unknown references and nonfinite numbers; absent
 // stays nil.
 func TestAnomalyCatalogDecode(t *testing.T) {
@@ -88,7 +88,7 @@ func anomalyPawnFixture() *o.PawnState {
 	}}
 }
 
-// TestPawnAnomalyRow (#1737): the row block lifts into typed facts, an absent
+// TestPawnAnomalyRow: the row block lifts into typed facts, an absent
 // field stays unknown, a failed sub-read is named by an issue, and malformed
 // blocks are refused.
 func TestPawnAnomalyRow(t *testing.T) {
@@ -195,7 +195,7 @@ func TestPawnAnomalyRow(t *testing.T) {
 	}
 }
 
-// TestPawnAnomalyThreatFacts (#1739): the threat facts lift as read, a failed
+// TestPawnAnomalyThreatFacts: the threat facts lift as read, a failed
 // read leaves only its own fact unknown, and a fact both known and issued is
 // refused.
 func TestPawnAnomalyThreatFacts(t *testing.T) {
@@ -237,7 +237,7 @@ func anomalyBuildingFixture() *o.BuildingState {
 	}}
 }
 
-// TestBuildingAnomalyDoors (#1743): a holder's room doors lift with their
+// TestBuildingAnomalyDoors: a holder's room doors lift with their
 // four Building_Door facts; a failed door read leaves them unknown without
 // hiding the holder's strength; a door with no cell is refused.
 func TestBuildingAnomalyDoors(t *testing.T) {
@@ -283,7 +283,7 @@ func TestBuildingAnomalyDoors(t *testing.T) {
 	}
 }
 
-// TestBuildingAnomalyRow (#1737): a holding platform's containment strength
+// TestBuildingAnomalyRow: a holding platform's containment strength
 // and held pawn lift into typed facts and a block native could not read
 // stays unknown.
 func TestBuildingAnomalyRow(t *testing.T) {

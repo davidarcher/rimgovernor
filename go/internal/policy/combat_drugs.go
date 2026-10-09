@@ -6,8 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Combat drugs on draft (#1311): a drafted defender takes the combat drug
-// it carries (go-juice, or yayo; #1540) once per fight, when a hostile
+// Combat drugs on draft: a drafted defender takes the combat drug
+// it carries (go-juice, or yayo) once per fight, when a hostile
 // comes within its weapon range plus doseMargin and the fight is worth the
 // drug: the squad is outmatched, or a mech or a go-juiced raider is in it.
 // A lone manhunter rat is fought sober. The order names the preferred

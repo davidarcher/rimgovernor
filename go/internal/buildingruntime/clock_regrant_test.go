@@ -12,7 +12,7 @@ import (
 )
 
 // A player Resume that lands while a window is running (a harness
-// keepalive, #188) revokes and re-grants authority: native stops the epoch
+// keepalive) revokes and re-grants authority: native stops the epoch
 // with an external pause under the new generation. The next step settles
 // that epoch and reviews under the re-granted snapshot instead of failing
 // the same way every backoff.

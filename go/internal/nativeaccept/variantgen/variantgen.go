@@ -1,6 +1,6 @@
 // Package variantgen holds the scenario-start save-generation mechanics
 // behind the tools/variantsavegen and sustained/matrix cases
-// (issue #1's sustained matrix): drive RimWorld's programmatic scenario
+// (the sustained matrix): drive RimWorld's programmatic scenario
 // start through the production new-colony op (na.ScenarioStart,
 // rimgovernor/lifecycle_new_colony), which generates the colony and saves it
 // under the requested name.
@@ -34,7 +34,7 @@ type Variant struct {
 	MinTemperature   float64 `json:"minTemperature"`
 	MaxTemperature   float64 `json:"maxTemperature"`
 	WorldTemperature string  `json:"worldTemperature,omitempty"`
-	// MapSize and PlanetCoverage default to the small start (issue #91:
+	// MapSize and PlanetCoverage default to the small start (
 	// na.DefaultMapSize, na.DefaultPlanetCoverage); a variant that picks a
 	// biome or a temperature band gets ConstrainedPlanetCoverage instead,
 	// since a 5% planet has no guaranteed tundra or extreme-desert tile. A

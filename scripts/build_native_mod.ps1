@@ -19,7 +19,7 @@ $taskHostSource = Join-Path $taskRepo 'integrations/rimgovernor-host'
 $taskHostProject = Join-Path $taskHostSource 'src/Host/RimGovernor.Host.csproj'
 $taskFixtures = @($Fixture | Sort-Object -Unique)
 # Every fixture build carries test/quiet_storyteller: the acceptance harnesses
-# quiet the debug colony through it by default (issue #92).
+# quiet the debug colony through it by default .
 if ($taskFixtures.Count) { $taskFixtures = @(($taskFixtures + 'QuietStorytellerFixture' + 'DebugStartFixture' + 'LetterFixture' + 'FreezeNeedsFixture' + 'ShutdownFixture') | Sort-Object -Unique) }
 $taskRole = if ($taskFixtures.Count) { 'fixture' } else { 'production' }
 if (-not $OutputRoot) {

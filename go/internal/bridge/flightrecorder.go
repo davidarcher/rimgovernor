@@ -1,6 +1,6 @@
 // Flight recorder: a bounded native timeline. Requests reach durable
 // storage before dispatch. Construction is always explicit; there is no hidden
-// global recorder. serve opens one under the profile by default (#299), so a
+// global recorder. serve opens one under the profile by default, so a
 // path may already hold an earlier launch's rows: the sequence continues
 // from them and the run id tells the launches apart.
 package bridge
@@ -21,7 +21,7 @@ import (
 )
 
 // FlightSchemaVersion is the envelope version every row is written with.
-// v2 (#2050) keeps the v1 field names; what changed is the context contract
+// v2 keeps the v1 field names; what changed is the context contract
 // (level, at, tick when known, component, trace_id and span_id on every row)
 // and the decision-row payload shape. Readers never gate on the version: a
 // v1 row decodes as before, and the kind and the contract in
@@ -31,7 +31,7 @@ const FlightSchemaVersion = 2
 const (
 	// DefaultFlightSegmentBytes and DefaultFlightSegments are the retention:
 	// 32 MiB x 16 files (the active one included) = 512 MiB, pruned by count
-	// only (#2072).
+	// only.
 	DefaultFlightSegmentBytes = 32 << 20
 	DefaultFlightSegments     = 16
 
@@ -132,7 +132,7 @@ func NewFlightRecorder(path string, opts ...FlightRecorderOption) (*FlightRecord
 // row carries a trace_id: the one its context names (a scheduler step, a
 // Worker dispatch), else a fresh single-row trace, so `rimgovernor trace`
 // can address any row and a consumer never has to special-case the rows
-// written outside a traced unit of work (#298).
+// written outside a traced unit of work.
 func (r *FlightRecorder) Event(kind string, context map[string]any, durable bool, payload map[string]any) (uint64, error) {
 	if r == nil {
 		return 0, errors.New("flightrecorder: recorder required")

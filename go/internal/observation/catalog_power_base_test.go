@@ -11,7 +11,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// The base wattage a power row states is the def's, not the frame's (#1726):
+// The base wattage a power row states is the def's, not the frame's:
 // for every power building of the recorded catalog the catalog-derived value
 // equals what the retired native base_w carried, -CompProperties_Power
 // .PowerConsumption of the building's comp, which is the base draw times the
@@ -110,11 +110,8 @@ func powerComp(row *d.ThingDef) *powerCompRow {
 	return found[0]
 }
 
-// The flooring census prices every terrain row of the catalog (#1726), which
-// holds every terrain a cell can stand on: the table native used to name was
-// the subset under the rooms' and routes' cells, so each terrain it could have
-// sent is priced here with the identical stat, path cost and natural values.
-// (The natural flag is also pinned by TestCatalogFloorTerrain.)
+// The flooring census prices every catalog terrain using its native stat, path cost and
+// natural flag. TestCatalogFloorTerrain also checks the natural flag.
 func TestRecordedCatalogPricesEveryTerrainNativeCouldName(t *testing.T) {
 	catalog := recordedCatalog(t)
 	table, err := catalog.FloorTerrains()

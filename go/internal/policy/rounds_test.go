@@ -57,7 +57,7 @@ func hasNeed(r RoundsFindings, id ConcernID) bool {
 }
 
 // assessedDeficit reports an unrecovered assessment of id: a Response
-// (#1078) is assessed, never filed as a development goal.
+// is assessed, never filed as a development goal.
 func assessedDeficit(r RoundsFindings, id ConcernID) bool {
 	for _, a := range r.All() {
 		if a.ID == id && a.Finding != domain.FindingMet {
@@ -172,7 +172,7 @@ func TestRoundsRestingMedicalStillRequiresKnownPatients(t *testing.T) {
 
 // A patient who only needs tending keeps CriticalMedicine active at priority
 // 2 (tended, but not suspending the colony); a downed or bleeding patient, or
-// an unknown urgent count, is the priority-1 emergency (#66).
+// an unknown urgent count, is the priority-1 emergency.
 func TestRoundsStablePatientsAreNotAnEmergency(t *testing.T) {
 	f := stableRounds()
 	f.CriticalPatients = domain.Known(int64(1))
@@ -231,7 +231,7 @@ func TestRoundsRepairAndCleanDeficitsStayMethodAvailable(t *testing.T) {
 	}
 }
 
-// An owed meal closet (#936) opens MaintainRefrigeration with no warm food,
+// An owed meal closet opens MaintainRefrigeration with no warm food,
 // at half deficit or more.
 func TestRoundsMealClosetOwedOpensRefrigeration(t *testing.T) {
 	f := stableRounds()
@@ -273,7 +273,7 @@ func TestRoundsSolarFlareSuspendsPowerAndRefrigerationMethods(t *testing.T) {
 		}
 	}
 	// A flare with a remaining-duration read suspends the power method;
-	// refrigeration keeps one (the cook-ahead bill, #408). The goals stay
+	// refrigeration keeps one (the cook-ahead bill). The goals stay
 	// open (not cancelled) and the latch keeps its state.
 	flare := int64(12000)
 	f.DisasterConditions = domain.Known([]DisasterCondition{{ID: "f", Definition: "SolarFlare", DisablesPower: true, TicksLeft: &flare}})

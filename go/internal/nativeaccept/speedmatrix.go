@@ -11,16 +11,16 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
-// SpeedCase is one column of the speed matrix (issue #111): the serve
-// speed it runs at (the player's choice serve follows, #875) and whether the test acceleration (#109)
+// SpeedCase is one column of the speed matrix: the serve
+// speed it runs at (the player's choice serve follows) and whether the test acceleration
 // is on. "uncapped" is Ultrafast with acceleration; both acceptance profiles
 // (headless and rendered) admit it, a player launch does not. "regulated"
-// is uncapped under the native blind-tick regulator (#583), the budget in
+// is uncapped under the native blind-tick regulator, the budget in
 // BlindTicks: the row that must match the capped speeds' outcome while
-// beating their wall time. "governor-off" (#621) is uncapped native play
+// beating their wall time. "governor-off" is uncapped native play
 // with no controller attached, the simulation ceiling on the same save and
 // renderer; it builds nothing, so it is outside the outcome comparison.
-// "player" (#627) is Ultrafast under player acceleration (any Ultrafast without test acceleration, #875): no test
+// "player" is Ultrafast under player acceleration (any Ultrafast without test acceleration): no test
 // acceleration, native paces ticks per frame against its frame budget and
 // the controller backs off before its evidence goes stale, the mode a
 // player launch runs.
@@ -31,7 +31,7 @@ type SpeedCase struct {
 	BlindTicks       uint   `json:"blind_ticks,omitempty"`
 	GovernorOff      bool   `json:"governor_off,omitempty"`
 	Player           bool   `json:"player,omitempty"`
-	// ObservationLoad (#656) adds ObservationLoadReaders concurrent state
+	// ObservationLoad adds ObservationLoadReaders concurrent state
 	// readers beside the governor.
 	ObservationLoad bool `json:"observation_load,omitempty"`
 }
@@ -45,7 +45,7 @@ func (c SpeedCase) Compared() bool { return !c.GovernorOff }
 const DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,uncapped,regulated,governor-off"
 
 // RegulatedBlindTicks is the regulated row's budget: the planning fact
-// tolerance and the combat window already encode this horizon (#583).
+// tolerance and the combat window already encode this horizon.
 const RegulatedBlindTicks = 300
 
 // ParseSpeedCases turns a comma-separated -speeds value into cases, in order,
@@ -86,7 +86,7 @@ func ParseSpeedCases(spec string) ([]SpeedCase, error) {
 }
 
 // ServeArgs are the serve flags a case adds (its speed is the player's
-// choice, c.Speed, written before serve starts, #875): for uncapped the
+// choice, c.Speed, written before serve starts): for uncapped the
 // test-acceleration opt-in and for regulated the blind-tick budget.
 func (c SpeedCase) ServeArgs() []string {
 	var args []string
@@ -99,7 +99,7 @@ func (c SpeedCase) ServeArgs() []string {
 	return args
 }
 
-// The player row's bounds (#627). A command queued for the game's main
+// The player row's bounds. A command queued for the game's main
 // thread waits behind at most one frame's tick work, so the frame budget
 // holding is the dispatch bound: at most MaxPlayerOverBudgetShare of the
 // paced frames may exceed it (the frame that trips the decrease, a long
@@ -259,16 +259,16 @@ type StopSummary struct {
 	MeanLatencyMs float64        `json:"mean_latency_ms"`
 	MaxLatencyMs  float64        `json:"max_latency_ms"`
 	// SpeedChanges counts the SpeedChanged rows the same pages carried:
-	// under the blind-tick regulator (#583) its throttle and release
+	// under the blind-tick regulator its throttle and release
 	// transitions, which end no window. MaxBlindTicks is the widest blind
 	// span a regulator row reported.
 	SpeedChanges  int   `json:"speed_changes"`
 	MaxBlindTicks int64 `json:"max_blind_ticks"`
-	// Latencies is the per-stop split (#621), in cursor order.
+	// Latencies is the per-stop split, in cursor order.
 	Latencies []StopLatency `json:"latencies,omitempty"`
 }
 
-// StopLatency splits one clock stop's latency (#621) along occurrence ->
+// StopLatency splits one clock stop's latency along occurrence ->
 // native detection -> stop -> controller observation -> readmit. Ticks come
 // from the stop event alone (native's context tick, the tick the stop was
 // raised at and, where the hazard carries one, the tick it arose).
@@ -295,14 +295,9 @@ const (
 	clockStartTool  = "rimgovernor/clock_start"
 )
 
-// SummarizeStops scans the timeline's clock_read_events replies and the
-// bundle replies that carry an events page (the service's poll since
-// issue #127; a scan keyed on the events tool alone reported no stops
-// against a bundle-polling service). Events are
-// keyed by cursor so a page re-read after a hold counts once. Events
-// observed before sinceUnixMs are skipped: the native event journal
-// survives a reload in the same process, so a service's first page carries
-// the previous cases' stops too. Zero keeps every event.
+// SummarizeStops reads clock events from direct replies and bundle pages, deduplicating by
+// cursor. Events before sinceUnixMs are skipped because the journal survives game reloads in
+// the same process and can contain previous cases' stops. Zero keeps every event.
 func SummarizeStops(rows []bridge.TimelineRecord, sinceUnixMs int64) StopSummary {
 	summary := StopSummary{Reasons: map[string]int{}}
 	seen := map[string]bool{}
@@ -493,7 +488,7 @@ func int64Value(v any) (int64, bool) {
 // cases/speedmatrix): the fields CheckSpeedMetrics and SpeedRowProblems
 // read, decoded from the report's metrics rows. PausedFraction is the
 // status-sample ratio (a sampling diagnostic); PausedFractionNative is
-// native's own account of its stop/start transitions (#621), the paused
+// native's own account of its stop/start transitions, the paused
 // share the thresholds bound where the row carries it.
 type SpeedMetrics struct {
 	Case                 string
@@ -503,7 +498,7 @@ type SpeedMetrics struct {
 	PausedFraction       float64
 	PausedFractionNative float64
 	NativePauseSamples   float64
-	// The live steps of #593: how many the row ran, the native round trips
+	// The live steps: how many the row ran, the native round trips
 	// the costliest issued and the mean wall of one. A row without a live
 	// step (no running window was planned under) leaves LiveSteps at 0 and
 	// CheckLiveStepCost skips it.
@@ -535,7 +530,7 @@ func SpeedMetricsFromRows(rows []map[string]any) []SpeedMetrics {
 	return out
 }
 
-// SpeedRowProblems is the runner-boundary check (#621) the outcome and
+// SpeedRowProblems is the runner-boundary check the outcome and
 // metric comparators cannot make, since both accept an empty matrix: every
 // required case must have a metrics row that advanced the tick and, when
 // the case is compared, an outcome row. Each problem names the row. An
@@ -566,7 +561,7 @@ func SpeedRowProblems(required []SpeedCase, outcomes []SpeedOutcome, metrics []S
 }
 
 // CheckLiveStepCost lists the rows whose costliest live step issued more
-// than maxReads native round trips, the step-cost bound of issue #593: a
+// than maxReads native round trips, the step-cost bound: a
 // live step plans under a running window off the facts its one review
 // bundle carries, so its round trips are the bundle plus what an event
 // within the step made stale. Rows that ran no live step are skipped, and a
@@ -590,7 +585,7 @@ func CheckLiveStepCost(rows []SpeedMetrics, maxReads float64) []string {
 	return problems
 }
 
-// CheckSpeedMetrics lists the clock-throughput expectations of issue #126
+// CheckSpeedMetrics lists the clock-throughput expectations
 // the matrix missed. maxPausedFraction, when positive, bounds the paused
 // fraction of every case at Superfast or faster (the speeds whose windows
 // the wall-time sizing must widen). minUltrafastRatio, when positive,
@@ -618,7 +613,7 @@ func CheckSpeedMetrics(rows []SpeedMetrics, maxPausedFraction, minUltrafastRatio
 	return problems
 }
 
-// The observation-load row's reader count and polling interval (#656):
+// The observation-load row's reader count and polling interval:
 // several clients' worth of state reads, well above the launcher's own
 // cadence, so readers contend with the controller's refreshes.
 const (
@@ -627,7 +622,7 @@ const (
 )
 
 // CeilingRatio is one governed row's achieved wall TPS against the
-// governor-off ceiling of the same fixture (#635): the number that judges
+// governor-off ceiling of the same fixture: the number that judges
 // how close governed play runs to the simulation's own speed, reported
 // beside paused_fraction_native.
 type CeilingRatio struct {

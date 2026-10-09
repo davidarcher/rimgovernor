@@ -15,7 +15,7 @@ import (
 // ResearchRead is the native research snapshot ReadResearch translates into
 // EnsureResearch's policy shapes: which project (if any) is already current,
 // the finished projects, and every project's facts from the definition
-// catalog (#1340) with the current projects' native lock reasons. It
+// catalog with the current projects' native lock reasons. It
 // reviews only the fields EnsureResearch's dispatch vertical consumes.
 type ResearchRead struct {
 	Context        *c.ObservationContext
@@ -24,7 +24,7 @@ type ResearchRead struct {
 	Finished       []string
 	Researchers    []string
 	// Knowledge is every Anomaly knowledge category's slot, sorted by
-	// category; empty when Anomaly is inactive (#1745).
+	// category; empty when Anomaly is inactive.
 	Knowledge []policy.KnowledgeSlot
 }
 

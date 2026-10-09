@@ -13,7 +13,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-// The Problems tab's recorder half (#1987): the flight recorder under the
+// The Problems tab's recorder half: the flight recorder under the
 // profile read in-process, so the tab still shows the last session after
 // the controller crashed or stopped.
 

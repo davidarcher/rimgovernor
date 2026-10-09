@@ -15,7 +15,7 @@ import (
 )
 
 // The census region is the plan's killbox and approach, inside the native
-// bound; without a plan the layout waits (#789).
+// bound; without a plan the layout waits.
 func TestDefenseKillboxRegionFromThePlan(t *testing.T) {
 	t.Parallel()
 	bounds := policy.Bounds{Width: 250, Height: 250}
@@ -134,7 +134,7 @@ func TestDefenseTierCensusReopensLostBuildings(t *testing.T) {
 	// A raid that breaches a wall or springs a trap (trapDestroyOnSpring)
 	// leaves the tier's cell without its building: the tier drops out of
 	// Built with a fresh retry budget so the planner re-admits it, while a
-	// tier still standing keeps its attempt count (#72).
+	// tier still standing keeps its attempt count.
 	wall, trap := domain.Cell{X: 1, Z: 1}, domain.Cell{X: 2, Z: 2}
 	record := store.DefenseLayoutRecord{Complete: true, Tiers: []store.DefenseTierRecord{
 		{Name: policy.TierFunnel, Built: true, Attempts: 1, Buildings: []store.DefenseBuilding{{Definition: "Wall", Cell: wall}}},
@@ -153,7 +153,7 @@ func TestDefenseTierCensusReopensLostBuildings(t *testing.T) {
 	// The repair is the tier's first re-opening: its method, and so its
 	// plan id, differs from every method that built the tier the first
 	// time (defense-trap_corridor-0/-1), else the repair plan collides on
-	// plans.id and the window refuses no_work at every step (#331).
+	// plans.id and the window refuses no_work at every step.
 	if record.Tiers[1].Reopened != 1 || defenseTierMethodID(record.Tiers[1]) != "defense-trap_corridor-r1-0" {
 		t.Fatalf("%+v %s", record.Tiers[1], defenseTierMethodID(record.Tiers[1]))
 	}
@@ -174,7 +174,7 @@ func TestDefenseTierCensusReopensLostBuildings(t *testing.T) {
 func TestDefenseCensusFloorStandsByTerrain(t *testing.T) {
 	t.Parallel()
 	// The firing line floors each shooter cell so nothing grows onto the
-	// position (#224). A floor is terrain, not an edifice: the tier stands
+	// position. A floor is terrain, not an edifice: the tier stands
 	// by the cell's terrain, and a tree that took an unfloored cell is the
 	// same lost building a breached wall is.
 	cover, shooter := domain.Cell{X: 113, Z: 126}, domain.Cell{X: 113, Z: 127}
@@ -205,7 +205,7 @@ func TestDefenseMissingBuildingsSkipsStanding(t *testing.T) {
 	t.Parallel()
 	// A re-opened tier is repaired by the buildings the census lost, not
 	// the whole tier: previewing a standing trap is refused as an identical
-	// thing, which held the corridor's repair forever after #72's rebuild.
+	// thing, so rebuilding must not retain its repair.
 	trapA, fenceA, trapB := domain.Cell{X: 142, Z: 132}, domain.Cell{X: 143, Z: 132}, domain.Cell{X: 142, Z: 130}
 	var buildings []domain.Building
 	for _, b := range []struct {
@@ -270,7 +270,7 @@ func TestDefenseRecordRegionCoversEveryTier(t *testing.T) {
 	}
 }
 
-// #1360: the tier census is one read; its rectangle holds the killbox and
+// The tier census is one read; its rectangle holds the killbox and
 // every cell of a ring of many perimeter sections.
 func TestDefenseCensusRegionCoversRingInOneRead(t *testing.T) {
 	bounds := policy.Bounds{Width: 250, Height: 250}
@@ -303,7 +303,7 @@ func TestDefenseCensusRegionCoversRingInOneRead(t *testing.T) {
 	}
 }
 
-// #949: water under the wall takes a plain bridge until heavy bridges are
+// Water under the wall takes a plain bridge until heavy bridges are
 // researched; only walls and doors without stuff wait for stone.
 func TestDefensePerimeterBridgeAndStone(t *testing.T) {
 	var projection observation.ColonyProjection

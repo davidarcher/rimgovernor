@@ -57,7 +57,7 @@ func runDraftTakeover(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	// Auto has full control: no plan needs the player's draft, so the
-	// undraft intent releases it (#939).
+	// undraft intent releases it.
 	if err := expectDraft(ctx, h, identity, "auto-undraft", id, false, true); err != nil {
 		return err
 	}

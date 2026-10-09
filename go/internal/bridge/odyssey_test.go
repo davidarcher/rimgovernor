@@ -19,7 +19,7 @@ func odysseyCatalogFixture() *o.OdysseyCatalog {
 	}
 }
 
-// TestOdysseyCatalogDecode (#1708): the section decodes by name and refuses
+// TestOdysseyCatalogDecode: the section decodes by name and refuses
 // duplicates and bad animal rows; absent stays nil.
 func TestOdysseyCatalogDecode(t *testing.T) {
 	got, err := DecodeOdysseyCatalog(odysseyCatalogFixture())
@@ -52,7 +52,7 @@ func odysseyBuildingFixture() *o.BuildingState {
 	}}
 }
 
-// TestBuildingOdysseyRow (#1708): the row block lifts into typed facts, a
+// TestBuildingOdysseyRow: the row block lifts into typed facts, a
 // field absent stays unknown, a failed sub-read is named by an issue, and
 // malformed blocks are refused.
 func TestBuildingOdysseyRow(t *testing.T) {

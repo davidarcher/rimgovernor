@@ -24,7 +24,7 @@ const (
 	plannerComfort     = 4 // comfort and expansion
 )
 
-// plannerClass says whether a clock admission waits on the planner (#623).
+// plannerClass says whether a clock admission waits on the planner.
 // The admission cycle joins the critical class only: authority, emergency
 // evidence and the planners whose verdict the window decision reads. The
 // optional class is the development reviews; they run on the same snapshot
@@ -42,7 +42,7 @@ const (
 // Failures instead of cancelling its peers or failing Wait. One broken planner
 // (a refused native read, a missing tool) must not stop the whole clock step
 // from reaching EvaluateClockWindow, or the clock never starts while that
-// family is composed (#62). The step's own context is the only thing that
+// family is composed. The step's own context is the only thing that
 // aborts the wave: once it is done, every planner fails for the same reason
 // and Wait returns that error.
 //
@@ -51,7 +51,7 @@ const (
 // once, taking a slot before the next planner starts. Native reads execute
 // one at a time on the game's main thread, so the wave overlaps round trips,
 // and the order slots are taken decides which goals' reads go first when the
-// step budget is tight (#76). WaitCritical returns once every critical
+// step budget is tight. WaitCritical returns once every critical
 // planner has returned; WaitUntil joins the rest up to a cutoff.
 type plannerGroup struct {
 	ctx      context.Context

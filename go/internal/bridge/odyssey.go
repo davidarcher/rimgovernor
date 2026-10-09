@@ -8,8 +8,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// OdysseyCatalog is the Odyssey facts the def mirror cannot give (#1708,
-// #1791): each biome's wild animal tables by BiomeDef name, and the stockpile
+// OdysseyCatalog is the Odyssey facts the def mirror cannot give: each biome's wild animal tables by BiomeDef name, and the stockpile
 // types. Biome, tile mutator, hackable and portal defs are the mirror's
 // own rows. Nil without Odyssey. Animal kinds name PawnKindDefs; the races
 // are the catalog's race rows (AnimalRaces).
@@ -62,7 +61,7 @@ func DecodeOdysseyCatalog(v *o.OdysseyCatalog) (*OdysseyCatalog, error) {
 	return out, nil
 }
 
-// validateBuildingOdyssey bounds a building row's Odyssey block (#1708).
+// validateBuildingOdyssey bounds a building row's Odyssey block.
 func validateBuildingOdyssey(b *o.OdysseyBuilding) error {
 	if b == nil {
 		return nil

@@ -10,8 +10,7 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// defenseFuelTier names the burn-out's seal and fuel methods and results
-// (#1120, #1122).
+// defenseFuelTier names the burn-out's seal and fuel methods and results.
 const defenseFuelTier policy.DefenseTierName = "fuel"
 
 // burnRegion is the burn-out's census rectangle around the hive.
@@ -20,7 +19,7 @@ func burnRegion(hive domain.Cell) bridge.CellRect {
 	return bridge.CellRect{Min: lo, Max: hi}
 }
 
-// fuel admits what the burn-out still lacks (#1120, #1122): its stone
+// fuel admits what the burn-out still lacks: its stone
 // seal and corridor doors and its wood stools, on the census around the
 // hive; nothing once all of it stands, or while the seal reads unroofed
 // (the fight then drops the burn).

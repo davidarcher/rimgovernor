@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
             // A door threshold still inside the mountain has no standing
             // cell, but the dig runs from the open front: a miner mines the
             // rock beside any open cell it reaches, then the next cell
-            // (#1671).
+            //.
             if (!snapshot.AccessReachable && mobile.Count > 0)
             {
                 var fronts = cells.Where(c => c.InBounds(map)).SelectMany(c => GenAdj.CardinalDirections.Select(o => c + o))

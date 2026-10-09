@@ -13,7 +13,7 @@ import (
 )
 
 // The planning rows are views over the catalog's generated def rows and stat
-// table (#1731): nothing here is read from a native planning writer. A row a
+// table: nothing here is read from a native planning writer. A row a
 // view needs and the catalog lacks is an error, never a default.
 
 // planningView is name's planning row, ok false when the catalog has no

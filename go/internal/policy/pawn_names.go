@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Unique short names (#1310, epic #1292): per-pawn policies are labelled by
+// Unique short names: per-pawn policies are labelled by
 // a pawn's short name, so every owned pawn (colonists, slaves, prisoners,
 // named animals) holds one no other owned pawn holds. On a collision the
 // oldest holder keeps it and every newer one is renamed; native draws the

@@ -19,7 +19,7 @@ const pruneUsage = `
 // pruneDepth is how deep a run output nests its result.json: <suite>/<area>/<case>/result.json.
 const pruneDepth = 3
 
-// prune deletes old run outputs under one directory (#303): each child
+// prune deletes old run outputs under one directory: each child
 // directory holding a result.json within pruneDepth is a run or suite
 // output, ordered by modification time, and every one past the newest
 // -keep is removed with the <name>.log and <name>.err a background launch

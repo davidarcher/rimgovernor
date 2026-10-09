@@ -228,12 +228,12 @@ func TestRevisionAgainstMain(t *testing.T) {
 	}
 }
 
-// A native_call row answering with a failure payload is a refusal too
-// (#677): rows group by tool, code and detail with a count, the latest
+// A native_call row answering with a failure payload is a refusal too:
+// rows group by tool, code and detail with a count, the latest
 // group first, and a success response stays out.
 func TestRefusalsReportNativeResponseFailures(t *testing.T) {
 	dir := t.TempDir()
-	// Rows as the recorder writes them since #774: the binary "proto" as
+	// Rows as the recorder writes them: the binary "proto" as
 	// received, named by reply_type.
 	row := func(seq int, tool string, reply proto.Message) string {
 		data, err := proto.Marshal(reply)

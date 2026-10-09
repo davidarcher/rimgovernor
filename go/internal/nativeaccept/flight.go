@@ -11,7 +11,7 @@ import (
 
 // FlightSegments lists the recorder at path oldest first: its rotated
 // segments path.N (a higher N is older), then path itself, each only when it
-// exists. A recorder that rotated holds its early rows only there (#2347).
+// exists. A recorder that rotated holds its early rows only there.
 func FlightSegments(path string) []string {
 	type segment struct {
 		index int
@@ -50,7 +50,7 @@ func ReadFlight(path string) ([]FlightRow, error) {
 
 // FlightMessages are the msg payloads of every row of kind in the recorder at
 // path, oldest first: the building planner's placement_refused and
-// foreign_held rows carry what they report there (#2271, #2269).
+// foreign_held rows carry what they report there.
 func FlightMessages(path, kind string) ([]string, error) {
 	rows, err := ReadFlight(path)
 	if err != nil {
@@ -70,7 +70,7 @@ func FlightMessages(path, kind string) ([]string, error) {
 
 // RefusalsNameBlockers returns every placement_refused message in the recorder
 // at path and fails when one names no blocker: a refused furniture cell
-// reports the thing the native preview found in the way (#2271).
+// reports the thing the native preview found in the way.
 func RefusalsNameBlockers(path string) ([]string, error) {
 	refused, err := FlightMessages(path, "placement_refused")
 	if err != nil {

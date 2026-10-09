@@ -167,7 +167,7 @@ func TestExcavationReviewBlockedCorridorNeedsResiting(t *testing.T) {
 	}
 }
 
-// A roof def the rules lack fails the site read loudly (#1890).
+// A roof def the rules lack fails the site read loudly.
 func TestCorridorExcavationSitesUnknownRoof(t *testing.T) {
 	r := mountainSite()
 	r.Roofs = RoofRules{}

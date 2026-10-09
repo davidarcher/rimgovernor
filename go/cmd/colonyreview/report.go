@@ -91,11 +91,11 @@ type Summary struct {
 	Flags          int               `json:"flags"`
 	// Zones is the last reading's owned stockpile zones per role kind and
 	// SuppliesForbidden whether the last reading still had starting supplies
-	// forbidden (#1780, #1581).
+	// forbidden.
 	Zones             []Stockpile `json:"zones,omitempty"`
 	SuppliesForbidden bool        `json:"supplies_forbidden"`
 	Score             Score       `json:"score"`
-	// Delta is the score against the previous run of the same seed (#1936);
+	// Delta is the score against the previous run of the same seed;
 	// nil when no baselines dir was given.
 	Delta *Delta `json:"delta,omitempty"`
 	Thumb string `json:"thumb"`

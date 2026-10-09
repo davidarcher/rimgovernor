@@ -12,7 +12,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The RitualIntent arm of Actions/Apply (#1639, epic #1598): the player
+    // The RitualIntent arm of Actions/Apply: the player
     // command that starts a ritual whose lord waits for it. "bestowing"/"start"
     // is the Empire bestowing ceremony: once the bestower arrives he waits in
     // LordToil_BestowingCeremony_Wait, whose GetPawnGizmos offers
@@ -102,7 +102,7 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // The "begin" verb of the RitualIntent (#1659, epic #1653): starts a held
+    // The "begin" verb of the RitualIntent: starts a held
     // ritual precept with no lord waiting, the way the game's begin-ritual
     // dialog does. ritual is the Precept_Ritual load id the ideology read
     // lists, pawn_id the organizer and spot the target cell. Native takes the

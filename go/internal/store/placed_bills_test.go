@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// PlacedBills (#2411) names a placed bill's owner, bench and mode from the
+// PlacedBills names a placed bill's owner, bench and mode from the
 // receipt's journaled id, only on the load that placed it; a bill never placed
 // by the journal, or placed on another load, is absent.
 func TestPlacedBillsNamesTheOwner(t *testing.T) {

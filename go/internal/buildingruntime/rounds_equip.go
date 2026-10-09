@@ -21,11 +21,11 @@ type RoundsEquipSource interface {
 	ReadCombatPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
 	ReadMapBounds(context.Context, *c.Identity, domain.Cell) (bridge.MapBounds, bridge.Result, error)
 	ReadEquipWeapons(context.Context, *c.Identity, domain.Cell, domain.Cell) (bridge.EquipRead, bridge.Result, error)
-	// DefinitionCatalog is the def rows every weapon is scored from (#1723).
+	// DefinitionCatalog is the def rows every weapon is scored from.
 	DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error)
 }
 
-// equipCandidateWeapon is a loose weapon with its def rows (#1723): a def
+// equipCandidateWeapon is a loose weapon with its def rows: a def
 // the catalog cannot state is an error, never a default weapon.
 func equipCandidateWeapon(catalog *bridge.DefinitionCatalog, w bridge.EquipCandidate) (policy.EquipCandidateWeapon, error) {
 	facts, err := catalog.WeaponOf(w.Definition)
@@ -54,7 +54,7 @@ func NewRoundsEquipPlanner(reviewer *Rounder, native RoundsEquipSource) (*Rounds
 // nextEquipWaveMethod names the next wave after every wave this epoch bound,
 // settled and retired ones included: goal.Methods lists only the unretired
 // plans, so counting it reused "equip-wave-0" once the first wave retired and
-// the goal_methods key refused every later wave (#1674).
+// the goal_methods key refused every later wave.
 func nextEquipWaveMethod(goal store.StandardState) domain.MethodID {
 	return nextWaveMethod(goal, "equip-wave-")
 }
@@ -222,12 +222,11 @@ func (r *RoundsEquipPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoundsEquipResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 		}
 		// Every colonist left is held back from arms (a creepjoiner whose
-		// downside has not shown, #1740): no weapon is owed until it does.
+		// downside has not shown): no weapon is owed until it does.
 		if len(held) > 0 && len(pool) == 0 {
 			return RoundsEquipResult{Verdict: refuse(RefusalNoWorker, "creepjoiner_downside_unrevealed", string(held[0]))}, nil
 		}
-		// No loose weapon fits an unarmed fighter: the armory crafts one
-		// (#1204).
+		// No loose weapon fits an unarmed fighter: the armory crafts one.
 		return RoundsEquipResult{Verdict: waitFor(WaitMethodUsed, "armory_crafts_weapon")}, nil
 	}
 	// A single plan contains independent equip actions: no pawn waits for a

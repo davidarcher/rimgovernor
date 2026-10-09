@@ -4,7 +4,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Overlay v2 (#784, B2; shapes #817) draws the layout plan over the whole
+// The overlay draws the layout plan over the whole
 // map: zones as filled row runs, the spine, each room's outline with its
 // role label, the labelled reservations (the perimeter and killbox as
 // outlines) and a traffic layer for the busiest spine cells (recomputed by

@@ -5,7 +5,7 @@ import "errors"
 const FoundationRemovalAction ActionKind = "foundation_removal"
 
 // FoundationRemoval designates the foundation laid on one cell (a Bridge)
-// for removal (#954): a heavy bridge cannot be laid over a plain one. The
+// for removal: a heavy bridge cannot be laid over a plain one. The
 // designation is the whole write; ordinary construction work lifts it, and
 // a cell whose foundation is already gone or designated applies again.
 type FoundationRemoval struct {

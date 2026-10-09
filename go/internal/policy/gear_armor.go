@@ -7,7 +7,7 @@ import (
 )
 
 // ArmorResearchRungs is the armor ladder a colony with a soldier walks
-// right after Electricity (#470): the simple helmet's smithy, the tailoring
+// right after Electricity: the simple helmet's smithy, the tailoring
 // bench flak cloth needs, flak armor itself, then shield belts.
 var ArmorResearchRungs = []string{"Smithing", "ComplexClothing", "FlakArmor", "Shields"}
 
@@ -75,7 +75,7 @@ func GearSoldierPresent(gear domain.Fact[GearObservation]) bool {
 	return false
 }
 
-// armoryArmorRung is one step of an armor family's ladder (#1205): the
+// armoryArmorRung is one step of an armor family's ladder: the
 // definition and the lowest armory tier that may craft it. Rungs run from
 // the cheapest to the best; a family's need falls back down its rungs when
 // the tier cannot reach the higher one.
@@ -120,7 +120,7 @@ func ArmoryArmor(definition Resource) bool {
 }
 
 // SelectArmoryArmorMethod proposes one demand-sized armor bill for the
-// loadout gaps the gear model filled from a bill (#1205). Each need is
+// loadout gaps the gear model filled from a bill. Each need is
 // capped at tier and falls back down its family's rungs to the best one a
 // bench recipe makes. The bill is placed with nothing in stock; its materials
 // become demand (OpenBillDemand). A pending wear candidate defers the bill.

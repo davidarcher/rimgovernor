@@ -14,7 +14,7 @@ import (
 )
 
 // A deferred context sends defer_snapshot on Actions/Apply; a plain one
-// leaves it unset, and the flush is its own control-class call (#1274).
+// leaves it unset, and the flush is its own control-class call.
 func TestDeferredApplyAndFlush(t *testing.T) {
 	var deferred []bool
 	var flushes int

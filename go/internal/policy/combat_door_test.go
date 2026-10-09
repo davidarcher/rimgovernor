@@ -179,7 +179,7 @@ func TestDecideCombatManhunterDoorNoRepairUnderThreat(t *testing.T) {
 }
 
 // {a humanoid raid on squad defense, no killbox layout, a planned-room
-// door} -> the same potshot (#1059): two gunners inside the door, the door
+// door} -> the same potshot: two gunners inside the door, the door
 // held open; a raider within 3 cells closes it.
 func TestDoorPotshotRaid(t *testing.T) {
 	view := holdView()

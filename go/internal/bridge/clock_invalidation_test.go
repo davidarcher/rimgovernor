@@ -17,7 +17,7 @@ func clockTestInvalidated(o *k.ObservationInvalidated) *k.Event {
 	return &k.Event{Owner: clockTestEpoch().Owner, Event: &k.Event_ObservationInvalidated{ObservationInvalidated: o}}
 }
 
-// An ObservationInvalidated (#359) is accepted with families alone (an
+// An ObservationInvalidated is accepted with families alone (an
 // older native), with entity ids up to the bound, and with one ordered
 // rectangle; the ids must be distinct identifiers and the rectangle's
 // corners present, nonnegative and ordered.

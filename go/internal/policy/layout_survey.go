@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The map survey (#727) is the whole-map read the layout plan (#771) is
+// The map survey is the whole-map read the layout plan is
 // derived from, and PlannedRole names a planned room's role.
 
 // SurveyCell is one map cell of the settle-time survey. Absent cells are
@@ -13,7 +13,7 @@ type SurveyCell struct {
 	// natural rock a module is mined out of. Built is a player edifice on
 	// the cell (a wall, a door): the perimeter plans as though the colony's
 	// own buildings were not there, so a standing wall reads as the ground
-	// under it (#954).
+	// under it.
 	Walkable, Rock, Built bool
 	// Footing is what the natural ground holds, under any floor or bridge;
 	// walkable ground short of firm is soft and carries no module.
@@ -30,11 +30,11 @@ type SurveyCell struct {
 	// Fertility is the soil's growing multiplier (0 for rock and floors).
 	Fertility float64
 	// Ore is rock holding a mineable resource; Tree is a cell under a
-	// tree (#778).
+	// tree.
 	Ore, Tree bool
 	// Prop is a structure the colony neither owns nor clears as a ruin (an
 	// ancient exostrider's remains, a blueprint): no core room or hallway is
-	// sited over it (#1533).
+	// sited over it.
 	Prop bool
 	// Ruin is a clearable ruin: not walkable yet, but home clearance
 	// deconstructs it, so core rooms may be sited over it.

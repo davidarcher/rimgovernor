@@ -8,7 +8,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Private disposable acceptance only. Builds the dark work room
-    // lightaccept needs to exercise MaintainLighting (issue #6 slice 3):
+    // lightaccept needs to exercise MaintainLighting :
     //
     //   dark   -- an enclosed roofed room holding a fuelled stove whose
     //             interaction cell is measured dark, no lamp anywhere in
@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
     //             must never latch it nor place a lamp.
     //
     // test/lighting_disrupt is the layout change of the repair case
-    // (light/repair, issue #161): it removes the lamp standing on a cell
+    // (light/repair): it removes the lamp standing on a cell
     // once the controller has lit the room, so the next census measures the
     // bench dark again and the controller must replace the lamp.
     //

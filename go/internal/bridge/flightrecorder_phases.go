@@ -25,7 +25,7 @@ const liveStepReason = "live"
 // inner rimgovernor/* method for games_call_tool and games_tool_detail rows,
 // so describe round trips for a method appear under the same name with
 // Wrapper "games_tool_detail". CacheHits are reads of the method the
-// snapshot stream served from a frame without a round trip (#858);
+// snapshot stream served from a frame without a round trip;
 // they are not counted in Calls.
 type ToolPhases struct {
 	NativeTool      string  `json:"native_tool"`
@@ -42,12 +42,12 @@ type ToolPhases struct {
 	NativeTimed     uint64  `json:"native_timed"`
 	NativeQueueMs   float64 `json:"native_queue_ms"`
 	NativeExecuteMs float64 `json:"native_execute_ms"`
-	// The companion's split of the execute leg (#642), summed over the
+	// The companion's split of the execute leg, summed over the
 	// ObservationHops whose reply carried the observation account: reading
 	// game state, then ProtoJSON formatting and its UTF-8 size checks, the
 	// formatting passes and the payload bytes they produced. Zero
 	// ObservationHops means absent, not free. FormatMs is always formatting
-	// on the game thread; a detached reply's worker formatting (#644) is
+	// on the game thread; a detached reply's worker formatting is
 	// EncodeMs over EncodeHops, outside the execute leg.
 	ObservationHops uint64  `json:"observation_hops"`
 	CaptureMs       float64 `json:"capture_ms"`
@@ -58,7 +58,7 @@ type ToolPhases struct {
 	EncodeMs        float64 `json:"encode_ms,omitempty"`
 }
 
-// SnapshotSample aggregates the "native_frame" rows (#858): one per
+// SnapshotSample aggregates the "native_frame" rows: one per
 // snapshot stream frame the controller decoded, with its size and the
 // native capture (game thread), encode and write costs beside the
 // controller's decode, in microseconds, summed and at most. Skipped counts
@@ -106,7 +106,7 @@ type PhaseSummary struct {
 	Clock    ClockSample    `json:"clock"`
 	Steps    StepSample     `json:"steps"`
 	Dispatch DispatchSample `json:"dispatch"`
-	// The observation capture account and the frame recorder (#642). Both
+	// The observation capture account and the frame recorder. Both
 	// are unknown rather than zero against a companion without them:
 	// Observation.Hops and Frames.Samples say whether anything was read.
 	Observation ObservationSample `json:"observation"`
@@ -120,12 +120,12 @@ type PhaseSummary struct {
 // from its ReadTally: how many steps the timeline covers, the native round
 // trips they issued in total and at most, and the
 // round trips per tool summed over all steps (divide by Steps for a
-// per-step mean), plus the colony windows the steps sized by wall time
-// (issue #126): how many steps reached the admission tail (Windows), the
+// per-step mean), plus the colony windows the steps sized by wall time:
+// how many steps reached the admission tail (Windows), the
 // ticks they asked for in total and at most, and the largest wall target;
 // the steps by the reason they acted on (timer, wake, settled, full) and
-// the clock stops the wake steps answered (issue #112); and the
-// stop-to-readmit pauses the admitting steps closed (issue #162): how many
+// the clock stops the wake steps answered; and the
+// stop-to-readmit pauses the admitting steps closed: how many
 // admissions followed a stopped window, the wall seconds those pauses
 // summed to and the longest. Rows are absent when the controller ran
 // without a scheduler, leaving Steps at 0.
@@ -143,20 +143,20 @@ type StepSample struct {
 	Reasons        map[string]uint64 `json:"reasons,omitempty"`
 	Stops          StopSample        `json:"stops"`
 	// JournalMs sums the steps' journal_ms, the wall time each step's own
-	// obligation reads spent in the journal (#634); MaxJournalMs is the
+	// obligation reads spent in the journal; MaxJournalMs is the
 	// slowest step's.
 	JournalMs    float64 `json:"journal_ms"`
 	MaxJournalMs float64 `json:"max_journal_ms"`
 	// The step's own wall time (clock_step "elapsed_ms") summed and at
 	// most, and the wait for the player gate before it began
-	// ("gate_wait_ms", #593): a step whose wall is mostly gate wait was
+	// ("gate_wait_ms"): a step whose wall is mostly gate wait was
 	// queued behind the Worker's dispatch step, not slow itself.
 	ElapsedMs     float64 `json:"elapsed_ms"`
 	MaxElapsedMs  float64 `json:"max_elapsed_ms"`
 	GateWaitMs    float64 `json:"gate_wait_ms"`
 	MaxGateWaitMs float64 `json:"max_gate_wait_ms"`
 	// The live steps alone (reason "live": planning under a running
-	// window, the steps whose cost bounds throughput at speed, #593).
+	// window, the steps whose cost bounds throughput at speed).
 	// Cold and stopped steps read whole families and are not comparable.
 	LiveSteps        uint64  `json:"live_steps"`
 	LiveReads        uint64  `json:"live_reads"`
@@ -166,7 +166,7 @@ type StepSample struct {
 }
 
 // LiveReadsPerStep is the native round trips a live step issued on average,
-// the reads-per-step measure of #593; 0 without a live step.
+// the reads-per-step measure; 0 without a live step.
 func (s StepSample) LiveReadsPerStep() float64 {
 	if s.LiveSteps == 0 {
 		return 0
@@ -191,10 +191,10 @@ func (s StepSample) StepMs() float64 {
 }
 
 // DispatchSample aggregates the native-run "dispatch" rows the routine Worker
-// publishes for each run that reached native (#243): how many there were,
+// publishes for each run that reached native: how many there were,
 // how many began while the scheduler's window was running (Live), how many
 // left a refused receipt (Refused, LiveRefused of those live), how many
-// were held on stale facts before dispatch (StaleHolds, #624) and the
+// were held on stale facts before dispatch (StaleHolds) and the
 // receipts by kind. RefusedFraction is Refused over Calls.
 type DispatchSample struct {
 	Calls       uint64            `json:"calls"`
@@ -226,7 +226,7 @@ type StopSample struct {
 	// ended the window for them ("coupled_stop"). Native journals such a
 	// stop as the controller's own cleanup, so the step row is the only
 	// place a coupled stop is distinguishable; a ready order with no stop
-	// was prepared live (#584).
+	// was prepared live.
 	Coupled        uint64  `json:"coupled"`
 	Orders         uint64  `json:"coupled_orders"`
 	LatencySamples uint64  `json:"latency_samples"`
@@ -248,7 +248,7 @@ type ClockSample struct {
 	// LastTick is the tick of the newest sample, the game time the service
 	// last observed; a harness waiting out a game-time budget under a
 	// running window reads it, since the rounds's tick only moves
-	// once per full step (#244).
+	// once per full step.
 	LastTick      int64   `json:"last_tick"`
 	WallSecs      float64 `json:"wall_seconds"`
 	WallTPS       float64 `json:"wall_tps"`
@@ -258,7 +258,7 @@ type ClockSample struct {
 	PausedSecs    float64 `json:"paused_seconds"`
 	SampledSecs   float64 `json:"sampled_seconds"`
 	// NativePausedMs and NativeRunningMs are native's own account of the
-	// wall time between the first and last status samples (issue #621):
+	// wall time between the first and last status samples:
 	// the supervisor's stop-to-start gaps and its epochs' running time,
 	// measured on native's monotonic clock across every transition,
 	// polled or not. The sample ratio above is a sampling diagnostic;
@@ -267,7 +267,7 @@ type ClockSample struct {
 	NativeRunningMs    uint64 `json:"native_running_ms"`
 	NativePauseSamples uint64 `json:"native_pause_samples"`
 	// NativeProbeMs and NativeDigestMs split the supervisor's main-thread
-	// time between the same first and last status samples (#626): the
+	// time between the same first and last status samples: the
 	// hazard probe and the fact-change digests, with the passes each
 	// took; NativeMaxProbeTickGap is the widest tick gap between
 	// consecutive probes the session reported and NativeHazardGaps the
@@ -278,7 +278,7 @@ type ClockSample struct {
 	NativeDigests         uint64      `json:"native_digests"`
 	NativeMaxProbeTickGap int64       `json:"native_max_probe_tick_gap"`
 	NativeHazardGaps      []HazardGap `json:"native_hazard_gaps,omitempty"`
-	// Player acceleration's frame account (#627) between the same
+	// Player acceleration's frame account between the same
 	// samples: frames paced, those over the frame budget, and the widest
 	// frame's tick work the session reported.
 	NativePacedFrames     uint64  `json:"native_paced_frames,omitempty"`
@@ -287,7 +287,7 @@ type ClockSample struct {
 }
 
 // HazardGap is one hazard class's detection gap as the native clock status
-// reports it (#626): the declared bound in ticks, the widest gap observed
+// reports it: the declared bound in ticks, the widest gap observed
 // this game session and whether a direct game hook backs the class.
 type HazardGap struct {
 	HazardClass string `json:"hazard_class"`
@@ -494,7 +494,7 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 				}
 				steps.Reasons[reason]++
 				// The live steps carry the cost that bounds throughput at
-				// speed (#593); keep their reads and wall apart from the
+				// speed; keep their reads and wall apart from the
 				// cold and stopped steps, which read whole families.
 				if reason == liveStepReason {
 					steps.LiveSteps++
@@ -629,16 +629,16 @@ func number(value any) (float64, bool) {
 // reply is decoded by RecordedReply; the tick
 // lives at <reply>.<outcome>.context.tick for observation replies and at
 // <reply>.status.context.tick for clock status.
-// nativePause is one status sample's native pause account (issue #621):
+// nativePause is one status sample's native pause account:
 // cumulative paused and running milliseconds on native's clock.
 type nativePause struct {
 	paused, running uint64
-	// The probe account (#626), cumulative like the pause account.
+	// The probe account, cumulative like the pause account.
 	probeMs, digestMs float64
 	probes, digests   uint64
 	maxProbeTickGap   int64
 	hazardGaps        []HazardGap
-	// The player pacing frame account (#627).
+	// The player pacing frame account.
 	pacedFrames, overBudget uint64
 	maxFrameMs              float64
 }
@@ -694,7 +694,7 @@ func statusPause(status map[string]any) (nativePause, bool) {
 		return nativePause{}, false
 	}
 	sample := nativePause{paused: uint64(pausedMs), running: uint64(runningMs)}
-	// The probe account (#626) is absent on a native build without it.
+	// The probe account is absent on a native build without it.
 	sample.probeMs, _ = number(status["probeElapsedMs"])
 	sample.digestMs, _ = number(status["digestElapsedMs"])
 	if probes, ok := tickValue(status["probeTotal"]); ok && probes >= 0 {
@@ -731,7 +731,7 @@ func statusPause(status map[string]any) (nativePause, bool) {
 // its actual-paused flag when present, else its running/stopped state. A
 // start's applied status is the one sample taken while a window runs, so
 // counting it keeps the time-weighted paused share honest under polls that
-// only return once the window has stopped (issue #162).
+// only return once the window has stopped.
 func statusPaused(status map[string]any) (bool, bool) {
 	if value, ok := status["actualPaused"].(bool); ok {
 		return value, true
@@ -856,14 +856,14 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 
 // ClockStatusPausedFraction is PausedFractionNative over one typed clock
 // status: native's cumulative paused_ms / (paused_ms + running_ms) for the
-// loaded session (issue #621). A status from a native build without the
+// loaded session. A status from a native build without the
 // account reads as 0.
 func ClockStatusPausedFraction(status *k.Status) float64 {
 	return NativePausedFraction(status.GetPausedMs(), status.GetRunningMs())
 }
 
 // writeObservationReport prints the observation capture account and the
-// frame recorder (#642). Both sections are omitted entirely when the
+// frame recorder. Both sections are omitted entirely when the
 // recording carried none of the account, so absent never reads as zero.
 func writeObservationReport(w io.Writer, summary PhaseSummary) {
 	if obs := summary.Observation; obs.Hops > 0 || obs.Queue.Samples > 0 {
@@ -931,7 +931,7 @@ func writeObservationReport(w io.Writer, summary PhaseSummary) {
 		fmt.Fprintf(w, ", >%.1fms %d", bucket.ThresholdMs, bucket.Count)
 	}
 	fmt.Fprintln(w)
-	// The interval tails (#656), whole recording and only the updates that
+	// The interval tails, whole recording and only the updates that
 	// ran observation work, from the companion's interval histogram.
 	for _, tail := range []struct {
 		name string

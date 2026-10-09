@@ -8,7 +8,7 @@ import (
 )
 
 // surgeryAction is the medical ProductionBillIntent of one patient, one recipe and one
-// body part (#1162). Native re-checks the patient, the recipe, the part and
+// body part. Native re-checks the patient, the recipe, the part and
 // a violation's acknowledgment live, and queues the vanilla Bill_Medical;
 // the same recipe and part already queued applies again (NativeSurgery.cs).
 func surgeryAction(action domain.Action) (*o.Action, error) {

@@ -10,7 +10,7 @@ import (
 func TestCausalTerminalOutcomesReplayAfterRestart(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	// A building intent's receipt is its terminal outcome (#856).
+	// A building intent's receipt is its terminal outcome.
 	for _, receipt := range []domain.Receipt{domain.ReceiptAccepted, domain.ReceiptRefused} {
 		t.Run(string(receipt), func(t *testing.T) {
 			s, path := fixture(t)

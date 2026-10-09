@@ -95,7 +95,7 @@ func TestCasketDecisionAndClaimTargets(t *testing.T) {
 	if got := ShrineClearanceTargets([]AncientShrine{done}, ShrinePolicy{}); len(got) != 0 {
 		t.Fatal(got)
 	}
-	// Under the opening policy (#460) the filled casket keeps the shrine a
+	// Under the opening policy the filled casket keeps the shrine a
 	// target and is decided open; the other decisions do not move.
 	opening := ShrinePolicy{Opening: map[string]string{"open": CasketOpen, "guarded": CasketOpen}}
 	if got := ShrineClearanceTargets([]AncientShrine{done}, opening); len(got) != 1 || got[0] != "open" {

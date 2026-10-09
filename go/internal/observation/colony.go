@@ -18,7 +18,7 @@ type PlanningDefinition struct {
 	Available                                                       domain.Fact[bool]
 	ConstructionSkill                                               domain.Fact[int32]
 	NeedsPower                                                      domain.Fact[bool]
-	// MechCharger is true for a Building_MechCharger definition (#1688).
+	// MechCharger is true for a Building_MechCharger definition.
 	MechCharger domain.Fact[bool]
 	// Pollutes is true for a building with a pollution or wastepack comp
 	// (CompToxifier, CompPolluteOverTime, CompWasteProducer); unknown when
@@ -34,7 +34,7 @@ type PlanningDefinition struct {
 	HarvestRotDays    domain.Fact[float64]
 	HarvestPerishable domain.Fact[bool]
 	// HarvestedThingDef and HarvestYield are what one harvest of the plant
-	// yields (#2282); SowMinSkill is the sowing skill floor and
+	// yields; SowMinSkill is the sowing skill floor and
 	// HarvestDestroysPlant whether a harvest removes the plant (a tree is felled,
 	// a rice stand is cut). Unknown for a plant that names no product.
 	HarvestedThingDef    domain.Fact[string]
@@ -42,7 +42,7 @@ type PlanningDefinition struct {
 	SowMinSkill          domain.Fact[int32]
 	HarvestDestroysPlant domain.Fact[bool]
 	// BlockAdjacentSow, MustBeWildToSow, HarvestMinGrowth, SowWork and
-	// WildBiomes are the sowing facts a tree plantation prices (#2289): the
+	// WildBiomes are the sowing facts a tree plantation prices: the
 	// native sower leaves the cells beside a sown tree empty, the game offers
 	// only wild species to sow, a tree is harvestable from HarvestMinGrowth,
 	// one sowing costs SowWork ticks, and WildBiomes are the biome defNames the
@@ -55,15 +55,15 @@ type PlanningDefinition struct {
 	SowTags                                                           domain.Fact[[]string]
 	GrowMinGlow, PowerW, GrowerFertility, GlowRadius, ExplosiveRadius domain.Fact[float64]
 	SowTag                                                            domain.Fact[string]
-	// Floor definition facts (issue #6 slice 4): Terrain marks a TerrainDef
+	// Floor definition facts: Terrain marks a TerrainDef
 	// and the stats are what a laid floor carries.
 	Terrain                           domain.Fact[bool]
 	Cleanliness, Beauty, Flammability domain.Fact[float64]
 	PathCost                          domain.Fact[int32]
 	// WorkToBuild is the native WorkToBuild stat (work ticks) for the row's
-	// stuff (#950).
+	// stuff.
 	WorkToBuild domain.Fact[float64]
-	// FloorTags are a TerrainDef's tags (the throne floor requirement, #1863).
+	// FloorTags are a TerrainDef's tags (the throne floor requirement).
 	FloorTags []string
 	// Stuffed is whether the def is made from stuff (it has stuff
 	// categories). A stuffed def has no single cost list: Costs is unknown
@@ -99,11 +99,11 @@ type ColonyProjection struct {
 	Biotech       domain.Fact[BiotechColony]
 	Odyssey       domain.Fact[OdysseyColony]
 	Anomaly       domain.Fact[AnomalyColony]
-	// RoyaltyColony is the Royalty colony section (#1877); unknown without Royalty or when the read failed.
+	// RoyaltyColony is the Royalty colony section; unknown without Royalty or when the read failed.
 	RoyaltyColony domain.Fact[policy.RoyaltyColony]
-	// Isolation is the creepjoiner isolation room's inputs (#1740), set by the rounds.
+	// Isolation is the creepjoiner isolation room's inputs, set by the rounds.
 	Isolation policy.IsolationPlanning
-	// Strangers is what the tomb reads to stage stranger corpses (#2336), set by
+	// Strangers is what the tomb reads to stage stranger corpses, set by
 	// the rounds; the zero value stages none.
 	Strangers policy.StrangerTomb
 	// Shapes are the catalog's piece shapes and the furniture its rules choose
@@ -117,10 +117,9 @@ type ColonyProjection struct {
 	FoodAtRiskNutrition domain.Fact[float64]
 	CropClimate         policy.CropClimate
 	// ColdMap is whether the seasonal outdoor temperature curve dips below
-	// freezing (policy.ColdMapCurve, #2044); unknown without the curve.
+	// freezing (policy.ColdMapCurve); unknown without the curve.
 	ColdMap domain.Fact[bool]
-	// HotMap is whether the curve peaks above HotEnter (policy.HotMapCurve,
-	// #2044); unknown without the curve.
+	// HotMap is whether the curve peaks above HotEnter (policy.HotMapCurve); unknown without the curve.
 	HotMap domain.Fact[bool]
 
 	PendingHunts domain.Fact[int]
@@ -132,12 +131,12 @@ type ColonyProjection struct {
 	HuntHolds                              []policy.HuntHold `json:",omitempty"`
 	PendingFoodNutrition, PendingWoodUnits domain.Fact[float64]
 	WorkPawns                              domain.Fact[[]policy.WorkPawn]
-	// MechCatalog is the Biotech catalog's mech kinds (#1686); the zero value without Biotech.
+	// MechCatalog is the Biotech catalog's mech kinds; the zero value without Biotech.
 	MechCatalog policy.MechCatalog
-	// Mechs are the colony's mechanitors and mechs from the pawn table
-	// (#1736); unknown without a table.
+	// Mechs are the colony's mechanitors and mechs from the pawn table;
+	// unknown without a table.
 	Mechs              domain.Fact[policy.MechFleet]
-	MeditateAvailable  domain.Fact[bool] // Meditate TimeAssignmentDef exists (#1313)
+	MeditateAvailable  domain.Fact[bool] // Meditate TimeAssignmentDef exists
 	FieldCrops         domain.Fact[[]policy.FieldCrop]
 	FieldCapacityCrops domain.Fact[[]policy.FieldCrop]
 	CookingBenches     domain.Fact[[]CookingBench]
@@ -154,29 +153,29 @@ type ColonyProjection struct {
 	// (the Impressiveness RoomStatDef's score stages).
 	Impressiveness policy.ImpressivenessLevels
 	// DefenseTurrets is every built turret gun in the power census with its
-	// observed damage per second (#1188).
+	// observed damage per second.
 	DefenseTurrets domain.Fact[[]policy.DefenseTurretFacts]
 	Rooms          domain.Fact[policy.RoomObservation]
 	Identity       Identity
 	// PlayerTechLevel is the player faction's native TechLevel name, the
 	// faction's tech level.
 	PlayerTechLevel domain.Fact[string]
-	// Packable is the catalog's building defs that pack (minifiedDef, #2103);
+	// Packable is the catalog's building defs that pack (minifiedDef);
 	// empty without a catalog.
 	Packable map[string]bool
 	// TechTier is the construction tier derived from finished research
-	// with PlayerTechLevel as its floor (#604); unknown until a routine
+	// with PlayerTechLevel as its floor; unknown until a routine
 	// reading served the research census.
 	TechTier domain.Fact[policy.TechTier]
-	// LayoutPlan is the persisted v2 layout (#783), served by the routine
-	// review; unknown until one is derived. layoutAnchor reads it (#785).
+	// LayoutPlan is the persisted v2 layout, served by the routine
+	// review; unknown until one is derived. layoutAnchor reads it.
 	LayoutPlan domain.Fact[policy.LayoutPlan]
-	// Royalty is the Empire ladder, permits and holdings (#1599); unknown
+	// Royalty is the Empire ladder, permits and holdings; unknown
 	// without Royalty or a royalty source.
 	Royalty domain.Fact[policy.RoyaltyFacts]
 	Facts   policy.RoundsFacts
 	// BedPrice prices a bed by (def, stuff) from the catalog's MarketValue
-	// rows (#1840); nil without a catalog.
+	// rows; nil without a catalog.
 	BedPrice policy.BedPrice
 	Workers  domain.Fact[int]
 	Bounds   policy.Bounds
@@ -198,7 +197,7 @@ type ColonyProjection struct {
 	// Resources is the accessible colony stock census by definition; a
 	// definition absent from a known census is known zero.
 	Resources domain.Fact[map[policy.Resource]int64]
-	// Threat is the census's wealth split and raid points (#395); every
+	// Threat is the census's wealth split and raid points; every
 	// reading is unknown under a native build without the section.
 	Threat bridge.ColonyThreat
 }
@@ -255,7 +254,7 @@ func (r ColonyProjection) StockedStuff(name string) (string, int64, bool) {
 }
 
 // StuffFunded reports whether the colony stock, net of holds, covers one allowed
-// stuff's cost list for one of the definition (the next sarcophagus, #2336).
+// stuff's cost list for one of the definition (the next sarcophagus).
 // An unknown stock census is not funded.
 func (r ColonyProjection) StuffFunded(name string, holds map[policy.Resource]int64) bool {
 	stock, known := r.Resources.Value()
@@ -318,13 +317,13 @@ type CookingBench struct {
 	// Room is the native room census identity the bench stands in, unknown
 	// for a bench outdoors or when the native read left it out.
 	Room domain.Fact[string]
-	// AutoRefuel is a refuelable bench's auto-refuel toggle (#1180),
+	// AutoRefuel is a refuelable bench's auto-refuel toggle,
 	// unknown for a bench without one.
 	AutoRefuel domain.Fact[bool]
 }
 
 // resolved reports whether buildings holds the building every row refers
-// to (#1343).
+// to.
 func resolved[R any, F bridge.Reference](buildings bridge.Buildings, rows []R, ref func(R) F) bool {
 	for _, row := range rows {
 		if _, ok := buildings.Row(ref(row)); !ok {
@@ -341,7 +340,7 @@ type entities interface {
 }
 
 // headed reports whether tables hold the head every row refers to: the
-// def and position a family reads from the table (#1342).
+// def and position a family reads from the table.
 func headed[R any, F bridge.Reference](tables entities, rows []R, ref func(R) F) bool {
 	for _, row := range rows {
 		if tables.Entity(ref(row)) == nil {
@@ -388,7 +387,7 @@ func nativePresence(value *string, issues []*o.ReadIssue, field string) domain.F
 // cannot stand in for the diet/rot/competing-feed forecast needed by FoodDays.
 //
 // tables are the frame's keyed tables every building and pawn reference
-// resolves against (#1343); a family with a reference they do not hold is
+// resolves against; a family with a reference they do not hold is
 // unknown until a later frame.
 func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Tables) (ColonyProjection, error) {
 	buildings := tables.Buildings
@@ -414,7 +413,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		return ColonyProjection{}, err
 	}
 	// The colony facts row may come from the step's fact cache at any
-	// earlier tick (#306); only another generation changes its world.
+	// earlier tick; only another generation changes its world.
 	if generation, known := expected.NativeGeneration.Value(); known {
 		if actual, observed := identity.NativeGeneration.Value(); observed && actual != generation {
 			return ColonyProjection{}, ErrChanged
@@ -453,7 +452,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 			}
 		}
 	}
-	// The biome's permanent darkness is its map conditions' (#1712), read
+	// The biome's permanent darkness is its map conditions', read
 	// only where something decides on it (sowing climate, a lighting census):
 	// there a frame without a biome read or a catalog fails, never counts as lit.
 	var outdoorsDark domain.Fact[bool]
@@ -502,7 +501,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		for _, row := range development.Power {
 			b, _ := buildings.Row(row.Building)
 			s := b.Service
-			// Whether rain shorts the building is its def's, not the frame's (#1733).
+			// Whether rain shorts the building is its def's, not the frame's.
 			rainVulnerable := domain.Unknown[bool]()
 			if def := b.GetBuilding().DefName; def != nil && tables.Catalog != nil {
 				vulnerable, err := tables.Catalog.RainVulnerable(*def)
@@ -655,7 +654,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		return ColonyProjection{}, medicalErr
 	}
 	// The dialog section is present exactly while a force-pausing choice
-	// dialog is open (#156); native omits it otherwise.
+	// dialog is open; native omits it otherwise.
 	r.Facts.ChoiceDialog = domain.Known(v.Dialog != nil)
 	letters := make([]policy.JoinerLetterOffer, 0, len(v.JoinerLetters))
 	for _, row := range v.JoinerLetters {
@@ -670,7 +669,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		r.CookingBenches = domain.Known(benches)
 	}
 	// A food supply whose stock the things table misses stays unknown
-	// until a later frame (#1343).
+	// until a later frame.
 	if food := v.GetFoodSupply().GetObserved(); food != nil {
 		supply, known, err := DecodeFoodSupply(food, tables.Things, tables.Catalog)
 		if err != nil {
@@ -753,7 +752,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		}
 		r.Environment = domain.Known(environment)
 	}
-	// r.Facts.Gear needs the catalog: ObserveColony fills it (#1732).
+	// r.Facts.Gear needs the catalog: ObserveColony fills it.
 	return r, nil
 }
 

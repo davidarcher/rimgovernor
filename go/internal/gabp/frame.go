@@ -24,7 +24,7 @@ var ErrFrameTooLarge = errors.New("gabp: frame exceeds size cap")
 // any JSON parser. RimBridgeServer's reader (Lib.GAB TcpTransport) counts
 // Content-Length in bytes but slices the decoded frame in chars, so one
 // multi-byte character short-reads the frame and wedges every later call on
-// the connection (#600). Valid JSON never carries non-ASCII outside a
+// the connection. Valid JSON never carries non-ASCII outside a
 // string, so the text is walked without parsing.
 func ASCIIJSON(text []byte) []byte {
 	i := 0

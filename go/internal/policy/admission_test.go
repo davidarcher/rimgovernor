@@ -145,7 +145,7 @@ func TestDependencies(t *testing.T) {
 	reason(t, request(issued), NotReady)
 }
 
-// No work spends a stock budget: frames hold natively for materials (#602).
+// No work spends a stock budget: frames hold natively for materials.
 func TestAdmissionSkipsStock(t *testing.T) {
 	c := candidate(t, "a", 1, 150)
 	r := request(c)
@@ -317,7 +317,7 @@ func TestPreparedRestartRevalidatesWithoutDoubleReservation(t *testing.T) {
 	// The native generation moved after preparation: an attempt-0 Prepared
 	// action has no write outstanding, so it is re-prepared under the
 	// current snapshot and its own stale hold is superseded, not double
-	// counted (#101).
+	// counted.
 	stale := request(c)
 	stale.Current.Native++
 	stale.Stock.Snapshot = stale.Current

@@ -32,7 +32,7 @@ func campfireSearchRefused(t *testing.T, cold bool, refused func(domain.Cell) bo
 
 // campfireSearchBlocked is campfireSearchRefused with the refusal's blockers
 // and an edit of the observed facts; it also returns the planner, whose
-// slotCuts the refused slot leaves (#2303).
+// slotCuts the refused slot leaves.
 func campfireSearchBlocked(t *testing.T, cold bool, refused func(domain.Cell) bool, blockers []policy.PlacementBlocker, edit func(*observation.ColonyProjection)) (chosen domain.Cell, slots []domain.Cell, interior policy.Rectangle, wait Verdict, planner *RoundsBuildingPlanner) {
 	t.Helper()
 	ctx := context.Background()
@@ -62,7 +62,7 @@ func campfireSearchBlocked(t *testing.T, cold bool, refused func(domain.Cell) bo
 	door := domain.Cell{X: 2, Z: 4}
 	facts := reading.Projection
 	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Cold: cold, Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Interior: interior, Door: door, DoorRot: domain.North}}})
-	// No wall stands: the planned interior alone holds the slots (#2264).
+	// No wall stands: the planned interior alone holds the slots.
 	facts.Shapes = testPieceShapes
 	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes})
 	if edit != nil {
@@ -99,7 +99,7 @@ func campfireSearchBlocked(t *testing.T, cold bool, refused func(domain.Cell) bo
 
 // A plant on the only accepted campfire slot is a foreign obstruction: the
 // refused slot names it, the step's cut wave takes it, and once it is gone the
-// slot is placed (#2303). A passable bush counts, and so does one on the
+// slot is placed. A passable bush counts, and so does one on the
 // campfire's interaction cell rather than its footprint.
 func TestShelterSlotRefusedOnAPlantLeavesItsCutWave(t *testing.T) {
 	t.Parallel()
@@ -138,7 +138,7 @@ func TestShelterSlotRefusedOnAPlantLeavesItsCutWave(t *testing.T) {
 }
 
 // A cold map's cooking campfire stands indoors on a shelter template slot,
-// and the template holds two (#2044).
+// and the template holds two.
 func TestCookingCampfireTakesTheShelterSlotOnAColdMap(t *testing.T) {
 	t.Parallel()
 	got, slots, _, _ := campfireSearch(t, true)
@@ -152,7 +152,7 @@ func TestCookingCampfireTakesTheShelterSlotOnAColdMap(t *testing.T) {
 
 // A cold map's cooking campfire whose slots the native refuses (the ring's
 // blueprints are in the way) waits, naming the blocker; it is never placed
-// outside the shelter by the unrestricted search (#2303).
+// outside the shelter by the unrestricted search.
 func TestCookingCampfireWaitsOnARefusedShelterSlot(t *testing.T) {
 	t.Parallel()
 	got, slots, _, wait := campfireSearchRefused(t, true, func(domain.Cell) bool { return true })
@@ -174,7 +174,7 @@ func TestCookingCampfireWaitsOnARefusedShelterSlot(t *testing.T) {
 }
 
 // On a normal map the template holds no campfire slot and no kitchen stands:
-// the cooking campfire has no outdoor stand-in and waits for the room (#2266).
+// the cooking campfire has no outdoor stand-in and waits for the room.
 func TestCookingCampfireWaitsForTheKitchenOnANormalMap(t *testing.T) {
 	t.Parallel()
 	got, slots, _, wait := campfireSearch(t, false)
@@ -187,7 +187,7 @@ func TestCookingCampfireWaitsForTheKitchenOnANormalMap(t *testing.T) {
 }
 
 // Loose sleeping spots keep off the shelter's campfire slots: a spot on one
-// left a cold map's cooking campfire to fall through to the kitchen (#2138).
+// left a cold map's cooking campfire to fall through to the kitchen.
 func TestShelterFurnitureCellsCoverTheCampfireSlotsNotTheBunks(t *testing.T) {
 	t.Parallel()
 	facts := observation.ColonyProjection{}

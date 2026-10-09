@@ -91,7 +91,7 @@ func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 
 // A zone preview native evaluated but refused (littered or occupied ground)
 // is a reply the planner moves past to its next candidate, not a contract
-// violation; a failure outcome or a missing verdict still rejects (#223).
+// violation; a failure outcome or a missing verdict still rejects.
 func TestPreviewZoneReturnsARefusedSiteAsAnEvaluation(t *testing.T) {
 	zone, _ := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, stockpileTestRectangle([]domain.Cell{{X: 1, Z: 1}}))
 	valid := &op.ZonePreviewReply{Outcome: &op.ZonePreviewReply_Evaluated{Evaluated: &op.ZonePreview{Context: pbContext(), Accepted: proto.Bool(true), Components: []*op.CellList{{Cells: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(1)}}}}}}}

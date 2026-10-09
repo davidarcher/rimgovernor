@@ -18,7 +18,7 @@ internal static class NativePawnControlStateProbe
     private static object? Call(object value,string method,params object?[] args) => value.GetType().GetMethod(method,Flags)!.Invoke(value,args);
     private static void Check(bool value,string label) { if (!value) throw new Exception(label); count++; }
     private static object Copy(object value) => typeof(object).GetMethod("MemberwiseClone",Flags)!.Invoke(value,null)!;
-    // Drafts are plan-owned (#939): the record carries a snapshot token and
+    // Drafts are plan-owned: the record carries a snapshot token and
     // an order revision, and no draft claim.
     private static object Facts(bool drafted=false,ulong revision=0)
     {

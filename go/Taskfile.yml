@@ -26,16 +26,8 @@ tasks:
 
   test:
     desc: Unit tests with a 60s per-test hang guard (not a latency gate)
-    # The 60s hang guard catches a test that has structurally hung, not one
-    # that lands a few seconds late while ./... saturates the machine: a
-    # 10s gate over tests that idle at 8-9s failed on load alone
-    # (#546, #551-#554).
-    # The -race pass is not part of the landing gate: it is several times
-    # slower on Windows, and every race-related commit in the history fixed
-    # a timing flake the pass itself caused rather than a data race it found.
-    # Run `task go:test:race` when a change touches shared-state concurrency
-    # (clock, bridge, buildingruntime, ownership), or `go test -race` on that
-    # package alone.
+    # This is a hang guard, not a latency gate. Whole-module race runs belong
+    # to the nightly; concurrency changes use focused package race tests.
     cmds:
       - go test -json ./... | go run ./internal/testkit/cmd/checktesttimes -hang 60s
 

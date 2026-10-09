@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
         internal bool HasBedId => BedId != null;
     }
 
-    // The GiveJobIntent arm of Actions/Apply (#1352): one pawn, one vanilla
+    // The GiveJobIntent arm of Actions/Apply: one pawn, one vanilla
     // job, its targets in job target order. Go chose the pawn and the
     // targets; native checks the game rules live and builds the game's job.
     internal static class NativeGiveJob
@@ -55,7 +55,7 @@ namespace HomeBridge.BridgeTools
             var pawn = Id(intent?.Pawn);
             if (intent == null || pawn == null) { refusal = "Give job requires a pawn."; return Arm.Invalid; }
             var targets = intent.Targets.Select(Id).ToList();
-            // UseItem alone may target its own user: [item, pawn] is the self-use of a usable item (#1609).
+            // UseItem alone may target its own user: [item, pawn] is the self-use of a usable item.
             var selfOk = intent.Job == UseItem;
             if (targets.Any(t => t == null || t == pawn && !selfOk)) { refusal = "Give job targets must be exact and distinct from the pawn."; return Arm.Invalid; }
             var options = intent.Options;
@@ -158,7 +158,7 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // options.prioritized (#1352): the vanilla "Prioritize" float-menu order
+    // options.prioritized: the vanilla "Prioritize" float-menu order
     // for any job a work giver builds on one thing, such as FinishFrame,
     // HaulToContainer to a blueprint or frame, or Deconstruct. The first work
     // giver whose work type the pawn may do and is assigned that builds

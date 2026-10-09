@@ -7,7 +7,7 @@ import (
 )
 
 // methodFlushSnapshot makes native capture the next frame when an applied
-// write is uncaptured (#1274); the reply does not wait for the capture.
+// write is uncaptured; the reply does not wait for the capture.
 const methodFlushSnapshot = "rimgovernor/observations_flush_snapshot"
 
 type deferSnapshotKey struct{}

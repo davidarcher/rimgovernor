@@ -38,8 +38,8 @@ const (
 // already produces for the MaintainFireSafety UpkeepNeed. An unsafe fire
 // (more than three home fires, or one bigger than size 1) still waits on
 // native firefighting when a worker is eligible: MaintainFireSafety deselects
-// development, so holding the clock there would freeze the colony forever
-// (#715); the planner's bounded windows re-evaluate between runs.
+// development, so holding the clock there would freeze the colony forever;
+// the planner's bounded windows re-evaluate between runs.
 func EvaluateFireSafety(active, known bool, pawns []FireSafetyPawnFacts) FireSafetyOutcome {
 	if !active {
 		return FireSafetyRecovered

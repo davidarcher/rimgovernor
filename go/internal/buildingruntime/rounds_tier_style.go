@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Tier-styled buildings (#610): the shell, flooring and lighting planners
+// Tier-styled buildings: the shell, flooring and lighting planners
 // read their definitions and stuff from policy's tier rules, each
 // f(tier, role, stock) with one stock rung of fallback. Every helper here
 // folds the projection into the rule's inputs: the tech tier, the stock

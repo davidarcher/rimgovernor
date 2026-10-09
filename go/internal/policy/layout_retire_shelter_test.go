@@ -72,7 +72,7 @@ func (f shelterRetireFixture) replan(t *testing.T, retire bool, inFlight map[Rec
 }
 
 // The shelter retires through the real replan only when every colonist owns
-// a bed in a built bedroom and the workshop and laboratory stand (#2046).
+// a bed in a built bedroom and the workshop and laboratory stand.
 func TestShelterRetiresWhenBedroomsWorkshopAndLabStand(t *testing.T) {
 	f := newShelterRetireFixture(t)
 	if !ShelterRetirable(f.plan, f.rooms, f.sleeping) {
@@ -161,7 +161,7 @@ func TestInFlightRoomsKeysByInteriorOrigin(t *testing.T) {
 // The retired shelter's footprint is recorded by the real replan and survives
 // the next one; clearance then takes the furniture, the walls and the floor
 // down, and the entry is dropped once the
-// ground is clear (#2075).
+// ground is clear.
 func TestRetiredShelterGroundIsDemolishedThenDropped(t *testing.T) {
 	f := newShelterRetireFixture(t)
 	next, _ := f.replan(t, true, nil)

@@ -13,7 +13,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // One intent kind of Actions/Apply (#856): validated against live state,
+    // One intent kind of Actions/Apply: validated against live state,
     // then applied under native authority on the game thread.
     internal interface IActionHandler
     {
@@ -151,7 +151,7 @@ namespace HomeBridge.BridgeTools
     }
 
     // Thrown from Apply when native state already changed but the intent's
-    // effect did not happen (#1156): the action is refused, not failed.
+    // effect did not happen: the action is refused, not failed.
     internal sealed class ApplyRefusedException : Exception
     {
         internal Common.FailureCode Code { get; }
@@ -169,7 +169,7 @@ namespace HomeBridge.BridgeTools
     // BuildingIntent: place one ordinary blueprint (or an instant building)
     // through NativeConstructionPlan, validated against the live map. A
     // matching blueprint, frame or building already on the cell is applied
-    // as it stands. Go matches what stands by geometry (#1355).
+    // as it stands. Go matches what stands by geometry.
     internal sealed class BuildingActionHandler : IActionHandler
     {
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)

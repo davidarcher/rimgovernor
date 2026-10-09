@@ -90,7 +90,7 @@ func TestPlanSafeAreaResetThenDiffs(t *testing.T) {
 }
 
 // The lab hut is the only roofed room and its door faces the killbox: the
-// Safe area keeps it rather than end empty, which sheltered no one (#1560).
+// Safe area keeps it rather than end empty, which sheltered no one.
 func TestSafeAreaCellsKeepsExposedRoomWhenNoOther(t *testing.T) {
 	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{safeRoom("hut", 0, 0, 2, 1, true, RoomDoor{EnemyFacing: true})}}
 	if got := SafeAreaCells(rooms, nil); len(got) != 2 {

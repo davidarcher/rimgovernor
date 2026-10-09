@@ -29,11 +29,11 @@ type roundsNative struct {
 	reads     int
 	planning  bool
 	pawnReply *o.ListPawnsReply
-	// pawnReads and populationReads count the held-section reads (#625).
+	// pawnReads and populationReads count the held-section reads.
 	pawnReads, populationReads int
 	// identityTick, when set, pins the identity read behind the colony
 	// reply's tick the way the step's fact cache serves it under a running
-	// window (#662).
+	// window.
 	identityTick *int64
 	// built is the fake construction census (rounds_built_census_test.go).
 	built map[domain.ActionID]*o.BuildingState
@@ -42,13 +42,13 @@ type roundsNative struct {
 	// cells is the planning window the fake serves (ReadPlanningWindow);
 	// nil serves an empty window.
 	cells *bridge.PlanningWindow
-	// catalog is the definition catalog's rows (#1340); finished, when
+	// catalog is the definition catalog's rows; finished, when
 	// set, is the frame's finished research.
 	catalog  []bridge.FixtureDef
 	finished []string
 	// recipes are the def mirror's RecipeDef rows.
 	recipes []*d.RecipeDef
-	// buildings, pawns and things are the frame's keyed tables (#1343).
+	// buildings, pawns and things are the frame's keyed tables.
 	buildings bridge.Buildings
 	pawns     bridge.Pawns
 	things    bridge.Things
@@ -96,7 +96,7 @@ type itemDef struct {
 // frame's things and buildings tables hold (a corpse's source race is a
 // humanlike "Human"), each with its game-computed flags and a base
 // deterioration from n.itemDefs: the def rows and stat values a food stock
-// and an upkeep item join to (#1733). A building def is a powered one too, so
+// and an upkeep item join to. A building def is a powered one too, so
 // a power row of any building resolves.
 func (n *roundsNative) thingCatalog() *bridge.DefinitionCatalog {
 	id := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
@@ -192,7 +192,7 @@ func (n *roundsNative) thing(row *o.Thing) *c.Ref {
 
 // entity puts a things table row with only ref's head in the frame,
 // unless the frame already holds one, and returns the reference a section
-// carries to it (#1342).
+// carries to it.
 func (n *roundsNative) entity(ref *o.EntityRef) *c.Ref {
 	if _, ok := n.things.Get(ref.GetId()); !ok {
 		n.thing(&o.Thing{Thing: ref})
@@ -216,7 +216,7 @@ func (n *roundsNative) building(row *o.BuildingState) *o.EntityRef {
 
 // head puts a building row with only ref's head in the frame's building
 // table, unless it already holds one, and returns the reference a section
-// carries to it (#1342).
+// carries to it.
 func (n *roundsNative) head(ref *o.EntityRef) *c.Ref {
 	if _, ok := n.buildings.Get(ref.GetId()); !ok {
 		n.building(&o.BuildingState{Building: ref})
@@ -260,7 +260,7 @@ func (n *roundsNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*br
 			defs = append(defs, g)
 		}
 	}
-	// The Core weapons every weapon score reads its rows from (#1723).
+	// The Core weapons every weapon score reads its rows from.
 	for _, w := range bridge.CoreWeaponFixtures() {
 		if !named[w.Name] {
 			defs = append(defs, w)
@@ -772,7 +772,7 @@ func TestRounderUsesSameTickMedicalCensus(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// A deficit opens the CriticalMedical incident (#1020); an
+			// A deficit opens the CriticalMedical incident; an
 			// unknown census opens none.
 			binding, ok := got.Review.Incident(policy.CriticalMedicine)
 			if kind == "unknown" {

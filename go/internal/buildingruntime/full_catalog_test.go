@@ -15,7 +15,7 @@ import (
 
 // fullCatalogRows are the rows of the def classes a fake catalog takes from
 // the whole game's recording (observation/testdata/full_catalog.pb.gz): the
-// traits, thoughts and work types a pawn's trait effects and work rows read (#1724).
+// traits, thoughts and work types a pawn's trait effects and work rows read.
 var fullCatalogRows = sync.OnceValues(func() (map[protoreflect.FullName]map[string]proto.Message, error) {
 	file, err := os.Open("../observation/testdata/full_catalog.pb.gz")
 	if err != nil {

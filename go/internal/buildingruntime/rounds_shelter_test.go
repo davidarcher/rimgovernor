@@ -16,7 +16,7 @@ import (
 )
 
 // shelterSiteFixture is the open 9x9 site before any sleeping work: the
-// first Step places the sleeping spots (#612).
+// first Step places the sleeping spots.
 func shelterSiteFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sleepingNative) {
 	t.Helper()
 	r, db, _, _, n := sleepingFixture(t)
@@ -75,7 +75,7 @@ func shelterSiteFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sl
 
 // recordStoreroom records a layout plan whose only room is a storeroom
 // with the given interior and a south door mid-wall: the initial shelter's
-// planned room (#1231).
+// planned room.
 func recordStoreroom(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, interior policy.Rectangle) policy.PlannedRoom {
 	t.Helper()
 	room := policy.PlannedRoom{Role: policy.PlannedShelter, Interior: interior, Door: domain.Cell{X: interior.X + interior.Width/2, Z: interior.Z - 1}, DoorRot: domain.South}
@@ -122,7 +122,7 @@ func shellMethod(goal store.StandardState) domain.Method {
 }
 
 // The shell is one wave: the door leads the dispatch order and no wall is
-// gated on it completing, since a door blueprint seals nothing (#602).
+// gated on it completing, since a door blueprint seals nothing.
 func TestRoundsShelterAdmitsWholeShellInOneWave(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -158,7 +158,7 @@ func TestRoundsShelterAdmitsWholeShellInOneWave(t *testing.T) {
 }
 
 // A shell is admitted without a stock check: RimWorld places its blueprints
-// regardless and the frames hold natively for materials (#602).
+// regardless and the frames hold natively for materials.
 func TestRoundsShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 	t.Parallel()
 	for _, change := range []string{"stock-short", "stock-zero", "stock-unknown"} {
@@ -202,7 +202,7 @@ func TestRoundsShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 	}
 }
 
-// An adopted shell holds through a wood shortage (#758): once the ring is
+// An adopted shell holds through a wood shortage: once the ring is
 // on record, a step that reads no wood (or none at all) keeps the plan,
 // previews nothing and sites no second shell; the frames wait natively for
 // the wood MaintainResource chops (TestReplayWoodShortageKeepsTheShelterOwed).
@@ -257,7 +257,7 @@ func TestRoundsShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 			switch change {
 			case "definition":
 				// Any shell piece wider than one cell is refused; the wall, since
-				// the Core door row now states its own 1x1 size (#2122).
+				// the Core door row now states its own 1x1 size.
 				n.catalogRow("Wall").Width = 2
 			}
 			result, err := r.Step(context.Background())
@@ -338,7 +338,7 @@ func TestShelterRoofingBudgetCountsFromTheApplyReceiptAndDoesNotRenew(t *testing
 		}
 	}
 	// A native order generation moved on by an authority re-acquisition
-	// leaves the standing walls and their roofing budget alone (#174); a
+	// leaves the standing walls and their roofing budget alone; a
 	// different world does not.
 	current.Native++
 	if shelterNativeWorkTicks(plan, current, 100) != 10000 {
@@ -414,7 +414,7 @@ func completeRoundsBuildingMethod(t *testing.T, db *store.Store, result RoundsBu
 	}
 }
 
-// stageShelterBunks walks the initial shelter's bunk rungs (#612): every
+// stageShelterBunks walks the initial shelter's bunk rungs: every
 // bunk method the planner admits (the spots, then the beds) is completed in
 // the journal, so the next Step sites the ring around them. It returns the
 // bunk plans in the order admitted and resets the fixture's preview

@@ -27,9 +27,9 @@ import (
 type RoundsDefenseSource interface {
 	CombatGeometry(context.Context, *mirrorpb.CombatGeometryRequest) (*mirrorpb.CombatGeometry, bridge.Result, error)
 	// ReadCombat is the newest snapshot frame's combat state and the
-	// fight's other inputs (#851, #853, #858).
+	// fight's other inputs.
 	ReadCombat(context.Context, *c.Identity) (bridge.Combat, error)
-	// ReadDefenseSite censuses a burn-out's fuel (#1120).
+	// ReadDefenseSite censuses a burn-out's fuel.
 	burnFuelSource
 }
 type CombatHands interface {
@@ -88,18 +88,18 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 		// worker prepared but never dispatched, and the moves and attacks
 		// waiting on it or on a target that is now dead, would hold the
 		// epoch open forever, so the goal could never satisfy and the next
-		// raid could never open a fresh epoch (#226). Nothing native was
+		// raid could never open a fresh epoch. Nothing native was
 		// ordered for an unissued action, so cancelling it settles it.
 		if err = r.settleUnissuedWork(call, incident); err != nil {
 			return RoundsDefenseResult{}, err
 		}
 		// Its downed raiders are stripped, and the ones not worth
-		// capturing finished, before it closes (#1079).
+		// capturing finished, before it closes.
 		if result, held, err := r.postFight(call, epoch, incident, state, review.Tick, arbiter); err != nil || held {
 			return result, err
 		}
 		// The fight is over: closing it lets the undraft sweep undraft its
-		// defenders (#939).
+		// defenders.
 		for _, method := range incident.Methods {
 			if strings.HasPrefix(string(method.Method), combatMethodPrefix) {
 				if err = r.clearFightDoors(call, state, method.Plan); err != nil {
@@ -115,7 +115,7 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 	if !found || need != domain.SituationActive || review.VetoIncident(incident.Incident) != "" {
 		return RoundsDefenseResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	// One ActiveCombat plan owns the fight (#852): its combat method whose
+	// One ActiveCombat plan owns the fight: its combat method whose
 	// fight is open is the fight the stop decides for. Any other open work
 	// waits.
 	var fight *store.CombatFight
@@ -148,7 +148,7 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
-	// The fight decides from one frame (#853): the census, the combat
+	// The fight decides from one frame: the census, the combat
 	// detail rows, the building lines of fire and the combat pawns and
 	// events are all as of its tick.
 	combat, err := r.native.ReadCombat(call, identity)
@@ -189,7 +189,7 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 		combatLayout := policy.CombatLayout{Firing: layout.Firing, Retreat: layout.Retreat, Toward: layout.Toward}
 		if n := len(layout.TrapLane); n > 0 {
 			// The snake runs entry to exit; its last cell is the mouth
-			// into the kill zone, where blockers hold (#864, #1544).
+			// into the kill zone, where blockers hold.
 			combatLayout.Choke = domain.Known(layout.TrapLane[n-1])
 		}
 		held = domain.Known(combatLayout)
@@ -227,7 +227,7 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 		telemetry.Decide(call, telemetry.Decision{Kind: "admission", Component: "routine-defense", Verdict: "held", Reason: reason, Target: string(incident.Incident.ID), Attrs: map[string]any{"combat_plan": fightPlan, "tactic": next.Tactic}})
 	}
 	if next.Formed == tick && next.Refusal != "" && next.Tactic != policy.TacticHold {
-		// Squad defense follows; say which gate refused the hold (#714).
+		// Squad defense follows; say which gate refused the hold.
 		defenseAction(call, "routine-defense", slog.LevelInfo, "refused", "hold_refused", string(incident.Incident.ID), map[string]any{"incident": string(incident.Incident.ID), "gate": next.Refusal})
 	}
 	if fight == nil {
@@ -241,12 +241,12 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 	id := fightPlan
 	recorded.Plan = id
 	// A role pawn that is not a drafted defender (a later formation's
-	// evacuee or responder, #911) is drafted in this stop's batch, and the
+	// evacuee or responder) is drafted in this stop's batch, and the
 	// stop decides as it will be once drafted, as the admission does.
 	var drafts []domain.PawnID
 	unclaimed := undraftedRoles(next, orderable, view)
 	if len(unclaimed) > 0 {
-		// A pawn still taking its loadout (#1115) drafts once it settles.
+		// A pawn still taking its loadout drafts once it settles.
 		plan, err := p.journal.LoadPlan(call, id)
 		if err != nil {
 			return RoundsDefenseResult{}, err
@@ -273,13 +273,13 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 		}
 		recorded.MemoryOut = next
 	}
-	// The stop's permit calls (#1608) are Ability actions on a method of
+	// The stop's permit calls are Ability actions on a method of
 	// their own; the memory marking them called is saved with the stop.
 	orders, permits := splitPermitCalls(orders)
 	if err = r.commitPermitCalls(call, epoch, incident, permits); err != nil {
 		return RoundsDefenseResult{}, err
 	}
-	// Guard mechs fight with the fight's stop (#1736): their drafts join the
+	// Guard mechs fight with the fight's stop: their drafts join the
 	// roster like any draft, so the undraft sweep releases them.
 	guards, err := combatMechGuards(combat, in.hostileIDs, in.rows)
 	if err != nil {
@@ -326,7 +326,7 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 	return RoundsDefenseResult{Verdict: BuildingReasonCombatOrders, Plan: id}, nil
 }
 
-// fightOrderable is the fight's orderable defenders (#939): its roster
+// fightOrderable is the fight's orderable defenders: its roster
 // pawns the frame shows drafted, sorted.
 func fightOrderable(fight store.CombatFight, rows map[string]*n.PawnState) []domain.PawnID {
 	var orderable []domain.PawnID
@@ -347,16 +347,16 @@ type combatInputs struct {
 	hunting    map[string]bool
 	buildings  []policy.EmergencyThreat
 	rows       map[string]*n.PawnState
-	// prey are a hunt origin's live squad prey (#1617), read only while no
+	// prey are a hunt origin's live squad prey, read only while no
 	// hostile stands: wild animals the threat census does not call hostile.
 	prey []string
-	// needed is plannedDrafts, set by the planner (#939).
+	// needed is plannedDrafts, set by the planner.
 	needed map[domain.PawnID]bool
-	// weapons are the def rows' facts (#1723) of every weapon the frame's
+	// weapons are the def rows' facts of every weapon the frame's
 	// combat pawns hold.
 	weapons map[string]policy.WeaponDef
 	// ranged is each detail row's ranged-weapon fact and reach the range of
-	// its primary ranged weapon, read from the weapon's def rows (#1723);
+	// its primary ranged weapon, read from the weapon's def rows;
 	// a row whose primary is not yet resolved has neither.
 	ranged map[string]domain.Fact[bool]
 	reach  map[string]float64
@@ -388,7 +388,7 @@ func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatIn
 	}
 	var in combatInputs
 	in.hostileIDs, in.hunting, in.buildings = defenseTargets(facts.Threats)
-	// A hunt origin (#1617) is a fight with no hostile: its prey are the
+	// A hunt origin is a fight with no hostile: its prey are the
 	// targets while the frame shows none.
 	if len(in.hostileIDs)+len(in.buildings) == 0 && !hasAggressiveBreak(facts) && facts.PodsOpen == 0 {
 		for _, id := range huntPrey {
@@ -397,8 +397,8 @@ func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatIn
 			}
 		}
 	}
-	// Raiders still in their pods (#908) are a fight with no hostile yet:
-	// the pods tactic drafts the nearest armed before the open (#891).
+	// Raiders still in their pods are a fight with no hostile yet:
+	// the pods tactic drafts the nearest armed before the open.
 	if len(facts.Colonists) == 0 || len(in.hostileIDs)+len(in.buildings)+len(in.prey) == 0 && !hasAggressiveBreak(facts) && facts.PodsOpen == 0 {
 		return combatInputs{}, waitFor(WaitMethodUsed, "no_fight"), nil
 	}
@@ -457,10 +457,10 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	for _, id := range orderable {
 		owned[id] = true
 	}
-	// The frame's colonist rows carry worn armor (#881), which ranks
+	// The frame's colonist rows carry worn armor, which ranks
 	// blockers and tanks.
 	armor := map[domain.PawnID]float64{}
-	// Melee power (#969) is the MeleeDPS stat scaled by health.
+	// Melee power is the MeleeDPS stat scaled by health.
 	melee := map[domain.PawnID]domain.Fact[float64]{}
 	for _, row := range combat.Pawns {
 		if row.Armor != nil {
@@ -510,7 +510,7 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 		threats = append(threats, facts)
 		positional = append(positional, defensiveThreatFacts(row))
 	}
-	// A hunt origin's prey are threats the squad answers (#1617).
+	// A hunt origin's prey are threats the squad answers.
 	for _, id := range in.prey {
 		threats = append(threats, squadThreatFacts(in.rows[id], races, in.ranged[id]))
 	}
@@ -553,8 +553,8 @@ func preyStates(states []policy.CombatPawnState, in combatInputs, catalog *bridg
 	return states
 }
 
-// podArrival is the frame's newest drop-pod arrival row (#870), for the
-// pods tactic (#891).
+// podArrival is the frame's newest drop-pod arrival row, for the
+// pods tactic.
 func podArrival(combat bridge.Combat) domain.Fact[policy.PodArrival] {
 	var newest *mirrorpb.CombatEventRow
 	for _, row := range combat.Events {
@@ -577,7 +577,7 @@ func podArrival(combat bridge.Combat) domain.Fact[policy.PodArrival] {
 // the frame's native line of sight from the defender's cell to one of the
 // building's occupied cells no further than the defender's weapon range.
 // The native attack preview decides the shot itself; this only keeps a
-// defender who could not shoot from being planned as a shooter (#327).
+// defender who could not shoot from being planned as a shooter.
 // The frame carries at most 64 cells a side; a defender or building cell
 // it leaves out has no line, and that defender walks in.
 func buildingLinesOfFire(read []bridge.LineOfFire, buildings []policy.EmergencyThreat, defenders []policy.SquadDefenderFacts, rows map[string]*n.PawnState, reaches map[string]float64) map[policy.PawnID]map[domain.PawnID]bool {
@@ -660,7 +660,7 @@ func defensiveThreatFacts(row *n.PawnState) policy.DefensiveThreatFacts {
 // admits a new method instead of colliding with the retired one's key.
 // The active method count is not that salt: it falls when a plan retires,
 // and the same assignments then rehash to a plan id the journal still
-// holds (#214).
+// holds.
 func defenseMethodID(prefix string, admitted int, hash hash.Hash) domain.MethodID {
 	fmt.Fprintf(hash, "#%d\n", admitted)
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, hash.Sum(nil)[:16]))
@@ -674,7 +674,7 @@ func (r *RoundsDefensePlanner) settleUnissuedWork(call context.Context, incident
 	p := r.reviewer.player
 	for _, method := range incident.Methods {
 		if strings.HasPrefix(string(method.Method), stripMethodPrefix) {
-			continue // the post-fight strip waits for its own dispatch (#1079)
+			continue // the post-fight strip waits for its own dispatch
 		}
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -743,7 +743,7 @@ func orphanedDraftDependents(spec domain.PlanSpec, progress []domain.Progress) [
 // a predator hunting a colonist that the emergency holds the clock for (a
 // distant one is watched by the native supervisor instead), reported in the
 // hunting set, and, returned apart since they are not pawns to read, the
-// standing hostile buildings (#246). Without the predator here the hold has
+// standing hostile buildings. Without the predator here the hold has
 // no planner and autonomous play parks until the hunt ends on its own.
 func defenseTargets(threats []policy.EmergencyThreat) ([]string, map[string]bool, []policy.EmergencyThreat) {
 	var ids []string
@@ -752,7 +752,7 @@ func defenseTargets(threats []policy.EmergencyThreat) ([]string, map[string]bool
 	for _, threat := range threats {
 		switch {
 		case !threat.Engaging():
-			// A dormant hive or idle insect is left alone (#948).
+			// A dormant hive or idle insect is left alone.
 		case threat.Building():
 			if dead, known := threat.Dead.Value(); known && !dead {
 				buildings = append(buildings, threat)

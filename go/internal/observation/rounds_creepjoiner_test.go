@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TestRoundsArmedOwesNoWeaponToAHeldBackCreepJoiner (#1740): an unarmed
+// TestRoundsArmedOwesNoWeaponToAHeldBackCreepJoiner: an unarmed
 // creepjoiner whose downside has not shown is no fighter to arm, so it does
 // not hold EnsureBasicDefense open; once the downside shows it counts again.
 func TestRoundsArmedOwesNoWeaponToAHeldBackCreepJoiner(t *testing.T) {

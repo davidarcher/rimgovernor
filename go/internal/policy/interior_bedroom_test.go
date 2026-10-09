@@ -135,7 +135,7 @@ func plannedSpace(plan InteriorPlan) float64 {
 	return bedroomSpace(plan.Frame.Width, plan.Frame.Depth, blocked)
 }
 
-// The standard room by tech tier (#1214): its size, its furniture set, and
+// The standard room by tech tier: its size, its furniture set, and
 // planned space at or above bedroomMinSpace.
 func TestBedroomStandardRoomByTier(t *testing.T) {
 	cases := []struct {

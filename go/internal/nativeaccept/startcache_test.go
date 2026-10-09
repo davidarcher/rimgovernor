@@ -44,7 +44,7 @@ func TestCachedStartName(t *testing.T) {
 	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Biomes: "TemperateForest, TropicalRainforest"}, true); got != "RimGovernor-debug-200-0_05-temperateforest-tropicalrain-cf435fbc" {
 		t.Errorf("name = %q", got)
 	}
-	// A flat start never loads a plain roll's save (#272), and a pinned
+	// A flat start never loads a plain roll's save, and a pinned
 	// seed on it keeps its own name.
 	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Flat: true}, true); got != "RimGovernor-debug-200-0_05-flat-quiet" {
 		t.Errorf("name = %q", got)
@@ -79,9 +79,8 @@ func TestCachedStartStale(t *testing.T) {
 	}
 	core := write("core", "<li>ludeon.rimworld</li><li>brrainz.harmony</li>")
 	dlc := write("dlc", "<li>ludeon.rimworld</li><li>Ludeon.RimWorld.Royalty</li><li>ludeon.rimworld.biotech</li>")
-	// A save every DLC was active for (every root cached before #332) is
-	// stale under the Core-only profile; the matching set, in any order or
-	// case and by short name, is current.
+	// A save recorded with every DLC is stale under a Core-only profile. Matching expansion
+	// sets are current regardless of order, case or short names.
 	for _, tc := range []struct {
 		path       string
 		expansions []string

@@ -23,7 +23,7 @@ func researchReadRow(name string, current bool, locks ...string) *o.ResearchProj
 }
 
 // The ordinary slot's project is the current project; a knowledge slot's
-// project is its category's, never a second current project (#1745). Rows
+// project is its category's, never a second current project. Rows
 // the census computed locks for carry them, and a hidden project is marked
 // hidden for the prerequisite queue.
 func TestReadResearchSnapshotSeparatesKnowledgeSlotsFromTheCurrentProject(t *testing.T) {

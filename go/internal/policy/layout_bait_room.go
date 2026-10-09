@@ -4,8 +4,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Infestation bait room (#1069, epic #845). Hives pick dark open ground
-// under overhead mountain; once #1067 walls off the pockets and lights
+// Infestation bait room. Hives pick dark open ground
+// under overhead mountain; once mountain hardening walls off the pockets and lights
 // the base, one dark room far from the base is left for them, stocked
 // with cheap flammables and an incendiary IED (or spike traps when insect
 // jelly is wanted) so the hive burns or bleeds where no colonist lives.
@@ -104,7 +104,7 @@ func PlanBaitRoom(plan LayoutPlan, s MapSurvey) LayoutPlan {
 }
 
 // baitNear reports whether any cell of r lies within baitGap of the ring
-// or its inside: the traced ring, not its bounds (#1287).
+// or its inside: the traced ring, not its bounds.
 func baitNear(r Rectangle, near func(domain.Cell) int32) bool {
 	for _, c := range rectCells(r) {
 		if near(c) >= 0 {

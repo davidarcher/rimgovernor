@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A remove roof (#1366) persists its canonical cells.
+// A remove roof persists its canonical cells.
 func TestRemoveRoofActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

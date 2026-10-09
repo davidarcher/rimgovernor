@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Planning cells as a grid (#795). A planning_cells section line holds the
+// Planning cells as a grid. A planning_cells section line holds the
 // window as the wire's CellGrid (mirror.proto) rather than a row per cell:
 //
 //	{"Section": {"Name": "planning_cells", ..., "Key": true, "Grid": "<base64 proto>"}}

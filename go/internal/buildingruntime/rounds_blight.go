@@ -12,7 +12,7 @@ import (
 )
 
 // RoundsBlightSource is the colony read the planner takes its census from:
-// the blighted plants of the planning window's thing lists (#2272), the
+// the blighted plants of the planning window's thing lists, the
 // undesignated ones proposed for a cut.
 type RoundsBlightSource interface {
 	observation.ColonySource

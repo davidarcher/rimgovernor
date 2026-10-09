@@ -108,7 +108,7 @@ func TestSelectTendUsesForcedAndQueuedDoctorAsFallback(t *testing.T) {
 }
 
 // An up patient out of bed is refused natively ("WorkGiver_Tend makes no job
-// and ground tending needs a downed patient", #618): selection skips them and
+// and ground tending needs a downed patient"): selection skips them and
 // admission refuses them, while a downed or bedded patient still qualifies.
 func TestTendSkipsUpPatientOutOfBed(t *testing.T) {
 	up := tendPatient("up", 2)
@@ -126,7 +126,7 @@ func TestTendSkipsUpPatientOutOfBed(t *testing.T) {
 	}
 }
 
-// Each native doctor gate #657 added: pawn-control eligibility, WorkGiver_Tend's
+// Native doctor eligibility gates: pawn-control eligibility, WorkGiver_Tend's
 // required capacities and reachability. Selection must skip a doctor failing any
 // of them -- and skip one whose fact is simply unobserved -- and admission must
 // refuse the same pair rather than spend an attempt on an order native refuses.

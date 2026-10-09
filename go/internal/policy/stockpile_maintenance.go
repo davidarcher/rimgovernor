@@ -9,14 +9,14 @@ import (
 )
 
 // MaintainStockpiles applies the stockpile zones the departments declare
-// (#725, DeclareStores): a zone is created once at its store's size, a zone
+// (DeclareStores): a zone is created once at its store's size, a zone
 // whose role's desired filter or priority changed is patched, a zone whose
-// role's purpose is gone is deleted, and a store no zone serves is created
-// (#724, #917). Whole-footprint stores grow over cleared ground and consolidate
+// role's purpose is gone is deleted, and a store no zone serves is created.
+// Whole-footprint stores grow over cleared ground and consolidate
 // compatible owned fragments. It acts on the zones the colony
 // created (store.OwnedZone), role-keyed; a role-less legacy claim stands as
 // created. It is a Standard whose target is no outstanding work: no zone edit
-// due (#1024).
+// due.
 const MaintainStockpiles ConcernID = "MaintainStockpiles"
 
 // stockpilePriority ranks MaintainStockpiles with the other upkeep goals.
@@ -33,7 +33,7 @@ const StockpileFurtherRoomFill = 0.85
 
 // StockpileZone is one owned stockpile as the census holds it now: its
 // cells (the planning cells naming it), the cells holding things (Stored:
-// the census' storage-empty flag false) and the settings the autopilot last
+// the census' storage-empty flag false) and the settings the governor last
 // applied.
 type StockpileZone struct {
 	ID       string
@@ -94,21 +94,21 @@ type StockpileRequest struct {
 	Cells     []SiteCell
 	Bounds    Bounds
 	Protected []domain.Cell
-	// Shelves are the built shelves inside the zones (#721): each carries
+	// Shelves are the built shelves inside the zones: each carries
 	// its zone's desired settings, patched until it does.
 	Shelves []StockpileShelf
 	// Stores are the declared stores of the departments that own stockpiles
 	// (DeclareStores): each store's filter and priority are defined once, on
 	// the store.
 	Stores []Store
-	// RoomDemand is the departments' room demand for layout (#1773); the
+	// RoomDemand is the departments' room demand for layout; the
 	// review itself does not read it.
 	RoomDemand RoomDemand
 	// SiteErr is the departments' report of stores they could not make usable
 	// (StoreDeclaration.Err); the review itself does not read it.
 	SiteErr error
 	// Rooms are the planned storage rooms (storage, armory and wardrobe,
-	// #1774; the materials yard's fence ring, #2215) not yet standing: the
+	// the materials yard's fence ring) not yet standing: the
 	// planner raises their shells (StockpileReview.Rooms).
 	Rooms []PlannedRole
 }
@@ -124,7 +124,7 @@ type StockpileShelf struct {
 	Priority domain.StockpilePriority
 }
 
-// StockpileShelfPatch configures a shelf like its zone (#721): Zone names
+// StockpileShelfPatch configures a shelf like its zone: Zone names
 // the shelf building, Role is shelf:<buildingID>.
 const StockpileShelfPatch StockpileEditKind = "shelf"
 
@@ -185,7 +185,7 @@ type StockpileRoleCount struct {
 // foodStorageRoles are the role kinds of the department-owned food store.
 var foodStorageRoles = map[string]bool{"meals": true, "rawfood": true, "rawmeat": true, "rawveg": true, "perishables": true, "ingredients": true}
 
-// FoodStorageStanding is "food storage exists" (#2226): at least one standing
+// FoodStorageStanding is "food storage exists": at least one standing
 // owned zone of a food role kind (a zone the player flagged as food storage
 // does not count). Unknown until the zone claims are read, never "missing".
 func FoodStorageStanding(f RoundsFacts) domain.Fact[bool] {

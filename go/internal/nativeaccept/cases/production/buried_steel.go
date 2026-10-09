@@ -12,13 +12,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// production/buried-steel (#1075, epic #986) mines compacted steel under a
+// production/buried-steel mines compacted steel under a
 // thick mountain roof. test/buried_steel raises a granite block east of the
 // lab colonists with one two-cell steel deposit on the face (bordering open
 // ground) and one buried five cells in, fogged. The steel
-// runway target (#2466; recurring spend over the horizon) is short from zero,
+// runway target (recurring spend over the horizon) is short from zero,
 // both deposits together hold less than it, so MaintainResource must mine the face deposit as
-// supported_roof and tunnel to the buried one (#1074) and mine it too.
+// supported_roof and tunnel to the buried one and mine it too.
 //
 // Why not a snapshot test: the roof-support verdict is native
 // ExcavationSafety.Check reading the true map through fog, and the roof
@@ -36,7 +36,7 @@ func init() {
 		Budget: 14 * time.Minute,
 		Crew:   cases.Crew{Size: 3}, Run: func(ctx context.Context, s cases.Session) error { return runBuriedSteel(ctx, s, false) },
 	})
-	// The stockpile against the face deposit (#1133): ore is always mined,
+	// The stockpile against the face deposit: ore is always mined,
 	// and each face cell beside colony space is followed by a wall.
 	cases.Register(cases.Case{
 		Name:        "production/buried-steel-stockpile",

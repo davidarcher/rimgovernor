@@ -19,7 +19,7 @@ func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, 
 	if len(plan.Actions()) == 0 {
 		return false, nil
 	}
-	// A stall withdraw (#1046) is admitted over any open work: it only
+	// A stall withdraw is admitted over any open work: it only
 	// removes a designation nobody took.
 	if _, ok := plan.Actions()[0].AcquisitionWithdraw(); ok && len(plan.Actions()) == 1 {
 		return true, nil
@@ -31,10 +31,10 @@ func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, 
 	}
 	pest := pestConcern(goal)
 	// EnsureFoodSupply's hunt-only plan passes the goal's open plant
-	// harvests (#260): a forage batch runs for days and the hunt rows
+	// harvests: a forage batch runs for days and the hunt rows
 	// the butcher spot and bill were placed for would otherwise wait
 	// behind it. The hunt count already nets out the designated hunts
-	// (pending nutrition, the hunters' budget; #2170), so open acquisition
+	// (pending nutrition, the hunters' budget), so open acquisition
 	// work of any kind does not block a hunt plan.
 	hunts := foodConcern(goal)
 	for _, action := range plan.Actions() {
@@ -68,7 +68,7 @@ func huntAcquisition(action domain.Action) bool {
 	return ok && acquisition.Hunt()
 }
 
-// pestGoal reports the routine ClearPests goal (#247), whose hunts are
+// pestGoal reports the routine ClearPests goal, whose hunts are
 // planned animal by animal: a hunt still awaiting its kill never blocks
 // the next animal's method. The routine goal id names its need.
 func pestConcern(goal WorkOwner) bool {
@@ -77,7 +77,7 @@ func pestConcern(goal WorkOwner) bool {
 
 // acquisitionIndependentWork reports the action kinds whose open progress does
 // not block a fresh acquisition method for the same goal: a bill, a growing
-// zone, or the butcher spot being built for the hunt's corpse (#260).
+// zone, or the butcher spot being built for the hunt's corpse.
 func acquisitionIndependentWork(action domain.Action) bool {
 	if action.Kind() == domain.ProductionBillAction || action.Kind() == domain.CommsTradeRequestAction || butcherSpotBuilding(action) {
 		return true

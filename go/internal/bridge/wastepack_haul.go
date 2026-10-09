@@ -8,7 +8,7 @@ import (
 )
 
 // wastepackHaulAction is the DesignateIntent HAUL of one exact wastepack
-// under the wastepack guard (#1683). Native checks the pack and the guard
+// under the wastepack guard. Native checks the pack and the guard
 // live when it applies; a designation already standing applies again.
 func wastepackHaulAction(action domain.Action) (*o.Action, error) {
 	v, ok := action.WastepackHaul()

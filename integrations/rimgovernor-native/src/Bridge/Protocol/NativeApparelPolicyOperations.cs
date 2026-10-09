@@ -62,7 +62,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var r in role) if (r.requirement != null) yield return r.requirement;
         }
 
-        // The pawn's own outfit, found through its assignment (#1302): its
+        // The pawn's own outfit, found through its assignment: its
         // current outfit when no other pawn holds it, else an unheld outfit
         // already carrying its name, else a new one.
         private static ApparelPolicy Own(Pawn p, string name)

@@ -137,7 +137,7 @@ func MatchesIdentity(v, want map[string]any) bool {
 }
 
 // Resume enters automate mode without an anchor plan: authority is the
-// world's own root plan, created on first resume (SIMP02, #55). It returns
+// world's own root plan, created on first resume (SIMP02). It returns
 // that root plan id. The request ID is unique per call: a run resumed from
 // a checkpoint restores the store, whose earlier resume under the same
 // prefix names another load and would replay as a conflict.
@@ -189,7 +189,7 @@ type AuthorityKeepAlive struct {
 	// each resume cost: the grant's generation less the one the service
 	// reported before it. A resume from a plain clock hold costs one;
 	// generationsOverOne counts those that cost more (a revoke first, the
-	// Manual->Auto pair #259 removed, or a native revocation in between).
+	// redundant Manual->Auto pair, or a native revocation in between).
 	generationAdvance  uint64
 	generationsOverOne int
 	lastError          string
@@ -234,14 +234,14 @@ func (k *AuthorityKeepAlive) fail(message string) {
 
 // KeepAliveInterval is how often a keep-alive checks the service is still
 // in automate mode: a lapse costs the colony that many ticks of no
-// governor, so the check is cheap (/api/state) and frequent (#267).
+// governor, so the check is cheap (/api/state) and frequent.
 const KeepAliveInterval = 500 * time.Millisecond
 
 // keepAliveStaleGrace is how long a keep-alive tolerates the service
 // reporting that it holds authority but waits for current observations: a
 // long planner step on a loaded box leaves the snapshot older than its max
 // age while the game is frozen, and a resume then bumps the native
-// generation under that very step, failing it (#1266).
+// generation under that very step, failing it.
 const keepAliveStaleGrace = 3 * time.Minute
 
 func (k *AuthorityKeepAlive) run(ctx context.Context) {
@@ -577,7 +577,7 @@ func waitPlanTerminal(ctx context.Context, s *store.Store, w Wait, planID domain
 				// the executor's own no-effect rule (executor/accounting.go).
 				effect, known := view.Effect.Value()
 				if !view.Unresolved && (view.Attempt == 0 || known && effect == domain.EffectAbsent) {
-					// Incidental, but a sibling action may still be running (#760).
+					// Incidental, but a sibling action may still be running.
 					incidental = true
 					continue
 				}

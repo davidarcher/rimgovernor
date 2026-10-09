@@ -16,7 +16,7 @@ func cell(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32
 
 // A fixture-shaped gene-building message projects every row, keeps absent
 // scalars unknown (an idle assembler has no run facts, a banked pack no
-// cell) and refuses contract violations (#1930).
+// cell) and refuses contract violations.
 func TestBiotechGeneBuildingProjection(t *testing.T) {
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 	if err != nil {

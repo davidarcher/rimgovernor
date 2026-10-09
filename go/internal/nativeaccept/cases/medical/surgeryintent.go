@@ -74,7 +74,7 @@ func surgeryIntent(ctx context.Context, s cases.Session) error {
 	if again != first {
 		return fmt.Errorf("re-apply queued a second bill %s beside %s", again, first)
 	}
-	// #1253: a surgeon restricts the queued bill; the same surgeon again
+	// a surgeon restricts the queued bill; the same surgeon again
 	// applies again with the same bill.
 	for _, key := range []string{"surgery-surgeon", "surgery-surgeon-again"} {
 		bill, err := queued(key, surgeon)

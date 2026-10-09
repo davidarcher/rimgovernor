@@ -12,7 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Full-map recovery acceptance (#2302, epic #2291). The cases extend the
+// Full-map recovery acceptance. The cases extend the
 // clearance/salvage-remote fixtures (test/loot_remote_drop,
 // test/salvage_remote); each proves one decision of the one recovery queue.
 func init() {

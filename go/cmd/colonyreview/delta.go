@@ -7,7 +7,7 @@ import (
 	"sort"
 )
 
-// The nightly comparison (#1936, epic #1852): a run's score against the
+// The nightly comparison: a run's score against the
 // previous night's stored score for the same seed. The store is the earlier
 // run dirs (run.json each) that the workflow fetches from the previous
 // reports, the same ones the Pages site is built from. One run per seed

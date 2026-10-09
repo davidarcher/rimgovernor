@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
                     typeof(CompScanner).GetField("lastUserSpeed", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(scanner, 2f);
                     typeof(CompScanner).GetField("lastScanTick", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(scanner, -1f);
                 }
-                // Two unpowered colonist drills (#538): one on the seeded lump that
+                // Two unpowered colonist drills: one on the seeded lump that
                 // still reads its deposit, and one over cleared ground that reads
                 // as depleted; both cells are clear and unroofed.
                 var drillDef = DefDatabase<ThingDef>.GetNamed("DeepDrill");

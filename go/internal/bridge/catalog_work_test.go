@@ -10,7 +10,7 @@ import (
 )
 
 // retiredWorkSkills is policy.WorkSkillName as it stood before the rows
-// replaced it (#1724): the skill each Core work type was scored by, typed by
+// replaced it: the skill each Core work type was scored by, typed by
 // hand.
 var retiredWorkSkills = map[string]string{
 	"Doctor": "Medicine", "Warden": "Social", "Handling": "Animals", "Fishing": "Animals",

@@ -4,7 +4,7 @@ import (
 	"errors"
 )
 
-// A department that owns stockpiles is an entity (epic #2176, #2191): it
+// A department that owns stockpiles is an entity: it
 // declares its Stores and publishes its RoomDemand, and MaintainStockpiles
 // applies every declaration in one pass. A department that owns no store stays
 // a grouping tag. A store is declared here once, and the one definition serves create,

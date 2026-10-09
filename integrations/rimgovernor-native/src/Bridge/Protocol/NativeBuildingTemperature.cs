@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // BuildingPatchIntent on Actions/Apply (#940): one settings change on one
+    // BuildingPatchIntent on Actions/Apply: one settings change on one
     // exact building, routed by the change arm. Native checks the building
     // and the game's own rules live; no snapshot token.
     internal sealed class BuildingPatchActionHandler : IActionHandler

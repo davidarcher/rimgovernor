@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // AssignIntent (#941, #1601): one free colonist's ownership of one
+    // AssignIntent: one free colonist's ownership of one
     // assignable thing, a synchronous CompAssignableToPawn.TryAssignPawn
     // write. A throne or a grave is refused when owned by someone else; a thing
     // without CompAssignableToPawn is refused. Native checks the pawn, the
@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
                 return "Bed unavailable: not a spawned player-owned humanlike bed.";
             if (bed.Medical || bed.ForPrisoners) return "Bed unavailable: medical or prisoner bed.";
             // A willing love partner may join a partner's bed with a free
-            // slot (#812); a bedroom swap evicts the owners (#1243); nobody
+            // slot; a bedroom swap evicts the owners; nobody
             // else is ever put in an owned bed.
             if (!swap && bed.OwnersForReading.Any() && (!bed.AnyUnownedSleepingSlot || bed.OwnersForReading.Any(o => o == pawn
                     || !LovePartnerRelationUtility.LovePartnerRelationExists(pawn, o) || !BedUtility.WillingToShareBed(pawn, o))))
@@ -88,7 +88,7 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Assignment requires an exact pawn, thing and expected previous assignment.");
             var map = ProtoBoundary.ResolveMap(context);
             if (map == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current map required.");
-            // A hosted guest owns a bed like a colonist (#2384).
+            // A hosted guest owns a bed like a colonist.
             var found = map.mapPawns.FreeColonistsSpawned.ById(intent!.PawnId)
                 ?? map.mapPawns.AllPawnsSpawned.Where(NativeUpkeepFacts.HostedGuest).ById(intent.PawnId);
             var target = RefIndex.Thing<ThingWithComps>(map, intent!.ThingId);
@@ -96,7 +96,7 @@ namespace HomeBridge.BridgeTools
             if (found != null && target != null && comp != null && comp.AssignedPawnsForReading.Contains(found))
             { pawn = found; thing = target; return null; }
             // Assigning interrupts no job, so the pawn's current order,
-            // whoever gave it, is no reason to refuse (#461).
+            // whoever gave it, is no reason to refuse.
             if (found == null || found.Dead || found.Downed || found.Drafted || found.InMentalState || found.ownership == null
                 || found.health.HasHediffsNeedingTend())
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Pawn unavailable for assignment.");
@@ -116,7 +116,7 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        // The ideology role the intent targets, when its thing id names one (#1661).
+        // The ideology role the intent targets, when its thing id names one.
         private static Precept_Role? RoleTarget(Operations.AssignIntent? intent) => Valid(intent) ? IdeoRoleAssignment.Find(intent!.ThingId) : null;
 
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) =>

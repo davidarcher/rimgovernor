@@ -44,7 +44,7 @@ func joinerPrisoner(id string, ops []SurgeryOperation, missing ...int) PrisonerF
 	}
 }
 
-// TestDisarmOrdersInstallTheCheapestThenRemove (#1740): an arrested
+// TestDisarmOrdersInstallTheCheapestThenRemove: an arrested
 // creepjoiner is ordered, one bill at a time, the cheapest install that is no
 // violation on a site (item plus medicine), the removal of an installed part
 // before any further install, and nothing once every site is missing.

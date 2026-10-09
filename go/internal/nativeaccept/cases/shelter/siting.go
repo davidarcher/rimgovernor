@@ -13,8 +13,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// shelter/siting (#2048): the first real-game read of the shelter room the
-// layout plan carries at the start (#2041, #2044). The plan alone is the
+// shelter/siting: the first real-game read of the shelter room the
+// layout plan carries at the start. The plan alone is the
 // assertion, so the run stops after the first recorded plan.
 
 func init() {

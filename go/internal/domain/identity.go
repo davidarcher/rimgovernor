@@ -75,8 +75,8 @@ func (s GenerationSnapshot) sameWorld(other GenerationSnapshot) bool {
 	return s.Colony == other.Colony && s.Map == other.Map && s.Load == other.Load
 }
 
-// sameColonyMap is the goal world check: goals belong to the save (#998), so
-// a load change keeps them (#1082).
+// sameColonyMap is the goal world check: goals belong to the save, so
+// a load change keeps them.
 func (s GenerationSnapshot) sameColonyMap(other GenerationSnapshot) bool {
 	return s.Colony == other.Colony && s.Map == other.Map
 }
@@ -84,8 +84,8 @@ func validID(s string) bool {
 	return utf8.ValidString(s) && strings.TrimSpace(s) != "" && len(s) <= 256 && !strings.ContainsRune(s, '\x00')
 }
 
-// MintPlanID mints a fresh plan id at admission (#985): a bare random
-// version-4 UUID (#987). Nothing re-derives it; a plan is found again by
+// MintPlanID mints a fresh plan id at admission: a bare random
+// version-4 UUID. Nothing re-derives it; a plan is found again by
 // its stored (goal, epoch, method) key.
 func MintPlanID() PlanID {
 	var b [16]byte

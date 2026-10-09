@@ -11,14 +11,14 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable acceptance only (#242, #252). Stages one target per
+    // Private disposable acceptance only. Stages one target per
     // routine write kind and reports the exact snapshot token the controller
     // would have read for each, then moves the world under those tokens on
     // request so apply/refusal can execute each write with a token that was
     // valid when read and assert the named apply-time refusal.
     //
     // prepare (clutter: plant grass over every bare cell around the colonist
-    // first, so the map cannot supply an untouched interior, #441): a
+    // first, so the map cannot supply an untouched interior): a
     // roofed, walled, empty 2x3 interior (a stockpile zone over its
     // first 2x2, the remaining two cells free roofed ground; one of its walls
     // is the deconstruction target), one forbidden WoodLog stack and one
@@ -59,7 +59,7 @@ namespace HomeBridge.BridgeTools
                 // Ground is any standable heavy-affordance cell without an
                 // edifice or zone; whatever wild plants, items and filth
                 // stand on it are cleared before the fixture uses it, so a
-                // grassy debug map still yields the interior (#441). With
+                // grassy debug map still yields the interior. With
                 // clutter, every such cell around the colonist is planted
                 // first, so the initial map cannot supply a bare interior
                 // and the clearing is what the case exercises.
@@ -156,7 +156,7 @@ namespace HomeBridge.BridgeTools
                     .OrderBy(p => p.Position.DistanceTo(pawn.Position)).FirstOrDefault();
                 if (plant == null)
                 {
-                    // The wiped lab has no wild plants (#768): stage a mature
+                    // The wiped lab has no wild plants: stage a mature
                     // berry bush away from home ground.
                     var bushDef = DefDatabase<ThingDef>.GetNamedSilentFail("Plant_Berry");
                     var bushCell = GenRadial.RadialCellsAround(pawn.Position, 30, true).FirstOrDefault(c => c.DistanceTo(pawn.Position) > 10

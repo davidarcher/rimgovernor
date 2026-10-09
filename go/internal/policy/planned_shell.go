@@ -21,11 +21,10 @@ type SiteCell struct {
 	Roof domain.Fact[string]
 	// ZoneID names the native zone covering the cell when Zone is true.
 	ZoneID domain.Fact[string]
-	// Room names the native room holding the cell (#1224): growing-room
+	// Room names the native room holding the cell: growing-room
 	// kinds pick a block per room interior.
 	Room domain.Fact[string]
-	// The per-cell thing list and the tile columns that join it (#2260, epic
-	// #2241). Terrain names the terrain def; InHome is inside the home area;
+	// The per-cell thing list and the tile columns that join it. Terrain names the terrain def; InHome is inside the home area;
 	// FoundationAffordances is the comma-joined, sorted affordances a
 	// foundation may stand on; SnowDepth and TopLayerRemovable read the
 	// ground. Things lists the cell's non-pawn things in native order: a

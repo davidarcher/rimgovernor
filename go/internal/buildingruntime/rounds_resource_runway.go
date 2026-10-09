@@ -15,7 +15,7 @@ type resourceRunwaySource interface {
 	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error)
 }
 
-// consumptionSource is native's saved realized-consumption ring (#2441).
+// consumptionSource is native's saved realized-consumption ring.
 type consumptionSource interface {
 	ReadConsumption(ctx context.Context, sinceHour int) (policy.ConsumptionPage, error)
 }

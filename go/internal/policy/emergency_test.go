@@ -75,9 +75,9 @@ func TestEmergencyKnownAndMedicalFacts(t *testing.T) {
 				continue
 			}
 			if (field == "tend" || field == "downed") && known {
-				// Needing tending alone is the tend planner's patient
-				// (#66), and downed with nothing to tend is the rescue
-				// planner's (#304): neither holds every dispatch.
+				// Needing tending alone is the tend planner's patient,
+				// and downed with nothing to tend is the rescue
+				// planner's: neither holds every dispatch.
 				if !d.Clear {
 					t.Fatal(field, d)
 				}
@@ -110,7 +110,7 @@ func TestEmergencyKnownAndMedicalFacts(t *testing.T) {
 // A hostile the colony has not discovered is no emergency: the ancient-danger
 // mechanoid sealed behind a shrine wall held the clock on unsafe_colony and
 // deselected every development goal, the ClearAncientShrine breach that would
-// have released it included (#659).
+// have released it included.
 func TestEmergencyUndiscoveredThreatNeitherHoldsNorCounts(t *testing.T) {
 	for _, kind := range []ThreatKind{Hostile, HuntingPredator, HostileBuilding} {
 		f := completeEmergency()
@@ -144,7 +144,7 @@ func TestEmergencyUndiscoveredThreatNeitherHoldsNorCounts(t *testing.T) {
 	}
 }
 
-// #948: a dormant ruin hive or an idle insect next to a colonist is left
+// A dormant ruin hive or an idle insect next to a colonist is left
 // alone; only an engaging one (or one with no passive fact) holds.
 func TestEmergencyPassiveInsectOrHiveDoesNotHold(t *testing.T) {
 	for _, kind := range []ThreatKind{Hostile, HostileBuilding} {
@@ -285,12 +285,12 @@ func TestEmergencyDistantAnimalThreatIsWatchedNotHeld(t *testing.T) {
 		{"race unknown far", live(Hostile, domain.Unknown[bool](), far), true},
 		{"distance unknown animal", live(Hostile, domain.Known(true), domain.Unknown[float64]()), true},
 		{"legacy row", live(Hostile, domain.Unknown[bool](), domain.Unknown[float64]()), true},
-		// A hostile building within the band holds like a hostile pawn (#246);
+		// A hostile building within the band holds like a hostile pawn;
 		// one at the animal watch distance, or of unknown distance, is a
-		// squad target only (#340).
+		// squad target only.
 		{"hive near", EmergencyThreat{ID: "t", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), Distance: domain.Known(3.0), SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}}, true},
 		{"hive far", EmergencyThreat{ID: "t", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), Distance: far, SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}}, false},
-		// A crashed ship part holds at any distance (#1174).
+		// A crashed ship part holds at any distance.
 		{"defoliator far", EmergencyThreat{ID: "t", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), Distance: far, SnapshotToken: "cas", Definition: "DefoliatorShipPart", Cells: []domain.Cell{{X: 5, Z: 5}}}, true},
 		{"psychic droner far", EmergencyThreat{ID: "t", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), Distance: far, SnapshotToken: "cas", Definition: "PsychicDronerShipPart", Cells: []domain.Cell{{X: 5, Z: 5}}}, true},
 		{"hive distance unknown", EmergencyThreat{ID: "t", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}}, true},
@@ -325,8 +325,8 @@ func TestEmergencyDistantAnimalThreatIsWatchedNotHeld(t *testing.T) {
 	}
 }
 
-// A bleeding colonist still on their feet and out of bed is nobody's patient
-// (#618): WorkGiver_Tend tends a humanlike in bed only and the ground tend
+// A bleeding colonist still on their feet and out of bed is nobody's patient:
+// WorkGiver_Tend tends a humanlike in bed only and the ground tend
 // needs a downed pawn, so the hold would suspend every goal, including the
 // one that builds the bed. The hold returns once they lie down or drop, and
 // an unknown InBed keeps it.

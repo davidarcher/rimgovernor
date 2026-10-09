@@ -7,7 +7,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// PersonalShareOf is the colonist's personal wealth share (#1846): the one
+// PersonalShareOf is the colonist's personal wealth share: the one
 // accessor the bedroom, gear and surgery gates read to ask whether their
 // remaining share covers an upgrade (PersonalShare.Allows). A colonist the
 // projection holds no share for (no routine reading, an unread roster, a
@@ -34,7 +34,7 @@ func (r ColonyProjection) SurgeryContext() policy.SurgeryContext {
 }
 
 // personalShares fills p.Facts.PersonalShares from the reading's wealth, roster,
-// gear and sleeping census (#1846). Soldiers are the pawns whose gear role
+// gear and sleeping census. Soldiers are the pawns whose gear role
 // derives to soldier; doctors are policy.ShareDoctors. Spent is unknown for
 // everyone while the sleeping census is, and for a colonist whose worn gear
 // or equipped weapon was not read. Nothing here calls native.

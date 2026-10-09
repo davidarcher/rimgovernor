@@ -113,7 +113,7 @@ func HunterFor(profiles []PawnProfile) (PawnID, bool) {
 	return bestRole(candidates)
 }
 
-// HuntsPerHunter is the prey one hunter keeps designated at once (#2170).
+// HuntsPerHunter is the prey one hunter keeps designated at once.
 const HuntsPerHunter = 3
 
 // MaxHuntRows bounds the hunt rows of one acquisition method, whatever the
@@ -138,8 +138,8 @@ func Hunters(profiles []PawnProfile) int {
 	return n
 }
 
-// UpgradeRoleWeight scales a body part's surgery value by the pawn's role
-// (#1167): shooters' eyes by Shooting, workers' arms and hands by their
+// UpgradeRoleWeight scales a body part's surgery value by the pawn's role:
+// shooters' eyes by Shooting, workers' arms and hands by their
 // best manual skill (Construction, Mining, Crafting), haulers' legs and
 // feet by half again. Any other part, or a pawn outside the role, is 1.
 func UpgradeRoleWeight(p PawnProfile, part string) float64 {

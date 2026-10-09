@@ -6,15 +6,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// MaintainPsylink gives willing colonists a psylink (#1609, epic #1598) and
+// MaintainPsylink gives willing colonists a psylink and
 // raises untitled psycasters below MaxPsylinkLevel from neuroformers already
-// in stock (#1940, PsylinkLevelUps; Deserter route out of scope): the
+// in stock (PsylinkLevelUps; Deserter route excluded): the
 // psylink neuroformer is used by the colonist on itself (UseItem with the
 // pawn as its own target). Acquiring the neuroformer is MaintainResource's:
 // NeuroformerNeeds raises a stock floor of one, which the resource ladder
 // meets with a production bill when the recipe is available and a trade buy
 // when a trader sells it. Psyfocus is kept at target by the meditation
-// schedule (PlanSchedulesHeld, #1316), not by this goal.
+// schedule (PlanSchedulesHeld), not by this goal.
 const MaintainPsylink ConcernID = "MaintainPsylink"
 
 // PsylinkNeuroformer is the ThingDef that grants a psylink (or a level) to
@@ -62,7 +62,7 @@ func PsylinkCandidates(royalty domain.Fact[RoyaltyFacts], pawns domain.Fact[[]Wo
 const MaxPsylinkLevel = 6
 
 // PsylinkLevelUps are the colonists a neuroformer already in stock raises a
-// level (#1940): available, read with a needs block, holding a psylink below
+// level: available, read with a needs block, holding a psylink below
 // MaxPsylinkLevel and with no royal title in any faction (the Empire title
 // caps the psylink level, and exceeding it breaks the rules). The royalty
 // read's holdings carry every free colonist's titles, so a colonist with no

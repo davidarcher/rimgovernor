@@ -21,7 +21,7 @@ const (
 	DefaultLabColonist = 3
 )
 
-// LabStart is the blank lab (#729): a fixed-seed LabMapSize map wiped to
+// LabStart is the blank lab: a fixed-seed LabMapSize map wiped to
 // Soil with Colonists fixture-made colonists (zero: DefaultLabColonist),
 // clear weather, a pinned temperature and a quiet storyteller. It caches
 // as RimGovernor-lab-<size>[-<expansions>][-c<n>] beside a .stamp file
@@ -190,7 +190,7 @@ func (l LabStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[st
 	return row, nil
 }
 
-// StartLab loads the default lab into an Owned case's own game (#751):
+// StartLab loads the default lab into an Owned case's own game:
 // the same cached save and stamp a Lab start uses.
 func StartLab(ctx context.Context, cfg *Config, h *Harness) (map[string]any, error) {
 	game, err := cfg.GameSection()

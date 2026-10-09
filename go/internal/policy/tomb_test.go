@@ -168,7 +168,7 @@ func TestTombStepGravesInTheGraveyardWithoutASarcophagus(t *testing.T) {
 }
 
 // No grave is placed outside a graveyard: with no graveyard planned, or none of
-// its slots free, the body waits (#2196).
+// its slots free, the body waits.
 func TestNoGraveOutsideTheGraveyard(t *testing.T) {
 	dead := []WasteItem{{ID: "Corpse_1", State: WasteExposed, CorpseOf: domain.CorpseColonist}}
 	tombPlan, _ := tombFixture()
@@ -194,7 +194,7 @@ func TestNoGraveOutsideTheGraveyard(t *testing.T) {
 }
 
 // A further graveyard is asked for when the empty graves run out, or the
-// graveyard is 0.85 used, and only while no sarcophagus can be had (#2196).
+// graveyard is 0.85 used, and only while no sarcophagus can be had.
 func TestFurtherGraveyardWhenEmptyGravesRunOut(t *testing.T) {
 	plan, yard := graveyardPlan(t)
 	slots := GraveyardSlots(yard.Interior)

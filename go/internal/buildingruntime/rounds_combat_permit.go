@@ -11,8 +11,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// splitPermitCalls separates a stop's permit calls (#1608) and psycast casts
-// (#1611) from its combat orders: each is a generic Ability action, not a
+// splitPermitCalls separates a stop's permit calls and psycast casts
+// from its combat orders: each is a generic Ability action, not a
 // combat.orders entry.
 func splitPermitCalls(orders []policy.CombatOrder) (rest, calls []policy.CombatOrder) {
 	for _, order := range orders {

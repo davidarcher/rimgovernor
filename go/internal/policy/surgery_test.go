@@ -183,7 +183,7 @@ func electiveOp(recipe, part string, index int, chance float64) SurgeryOperation
 	return op
 }
 
-// Replaces the native medical/elective-bionic case (#1565): which pawn an
+// Replaces the native medical/elective-bionic case: which pawn an
 // elective upgrade goes to is a planner decision over the care facts.
 func TestElectiveSurgery(t *testing.T) {
 	shooter := PawnProfile{ID: "a", Ranged: true, Skills: map[string]ProfileSkill{"Shooting": {Name: "Shooting", Level: 12}, "Construction": {Name: "Construction", Level: 2}}}
@@ -243,7 +243,7 @@ func TestHospitalBedReady(t *testing.T) {
 	}
 }
 
-// #1240: a doctor who passes the cap with an ideal bed, held back by the
+// A doctor who passes the cap with an ideal bed, held back by the
 // colony's bed, records surgery_bed_short and asks the hospital planner
 // for a Bed ward, never a sleeping spot.
 func TestSurgeryBedShort(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Firebreak is one MaintainFirebreak review as recorded (#1548): the ring
+// Firebreak is one MaintainFirebreak review as recorded: the ring
 // request it planned from, the dwell clock it carried in, and the plant cut
 // census and open wooden ruins it read over the plan. Request.Ground is
 // cell-keyed, which the codec cannot carry, so it is recorded as Ground.

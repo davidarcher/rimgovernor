@@ -1,6 +1,6 @@
 package policy
 
-// WeaponDef is what a weapon's def rows say about how it fights (#1723):
+// WeaponDef is what a weapon's def rows say about how it fights:
 // derived once per load from the ThingDef, its verbs and projectile, the
 // projectile's DamageDef and the melee tools' maneuvers. The zero value is
 // no weapon (an unarmed pawn).

@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
                     if (rocks.Count != 2) throw new InvalidOperationException("Two stone chunk definitions required.");
                     rocks.Add(DefDatabase<ThingDef>.GetNamed("ChunkSlagSteel"));
                     // No store may take the fixture chunks, or the census reads them as
-                    // hauling rather than pending (#764): every haul destination, shelves
+                    // hauling rather than pending: every haul destination, shelves
                     // and other storage buildings as well as stockpile zones.
                     foreach (var store in map.haulDestinationManager.AllHaulDestinationsListForReading.OfType<IStoreSettingsParent>())
                         foreach (var def in rocks) store.GetStoreSettings()?.filter.SetAllow(def, false);

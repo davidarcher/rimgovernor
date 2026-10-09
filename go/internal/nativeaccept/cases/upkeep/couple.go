@@ -12,7 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// upkeep/couple (#812): two bedless lovers beside one vacant double bed.
+// upkeep/couple: two bedless lovers beside one vacant double bed.
 // MaintainHousing must assign both to it through AssignIntents and recovers
 // only once each is observed sleeping there, so neither sleeps alone.
 func init() {

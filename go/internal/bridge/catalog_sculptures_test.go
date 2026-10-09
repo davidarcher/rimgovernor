@@ -9,7 +9,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// TestSculpturesComeFromTheRows (#1721): every art recipe is a sculpture with
+// TestSculpturesComeFromTheRows: every art recipe is a sculpture with
 // its building's footprint and stuff cost and its work (the recipe's own, else
 // the product's WorkToMake), smallest first by cost.
 func TestSculpturesComeFromTheRows(t *testing.T) {

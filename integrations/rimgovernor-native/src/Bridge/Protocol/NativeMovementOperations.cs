@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeMovementOperations
     {
-        // Drafts are plan-owned (#939): an eligible drafted pawn takes orders;
+        // Drafts are plan-owned: an eligible drafted pawn takes orders;
         // the controller undrafts pawns no live plan needs.
         internal static bool Owns(NativePawnSnapshot snapshot)=>snapshot.Eligible && snapshot.Drafted;
         internal static bool Legal(Pawn pawn,IntVec3 cell)=>cell.InBounds(pawn.Map) && cell.Standable(pawn.Map) && !cell.Fogged(pawn.Map)

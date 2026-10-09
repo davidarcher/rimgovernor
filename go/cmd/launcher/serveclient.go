@@ -14,7 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/spectator"
 )
 
-// The launcher's client for serve's read API (#1984). The page never
+// The launcher's client for serve's read API. The page never
 // fetches serve itself (its SetHtml origin is opaque and serve rejects a
 // foreign Origin), so the views read these Readings through Bind. Each feed
 // keeps its last good value: a failed refresh returns that value marked

@@ -13,7 +13,7 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// sculptureRoomsOwed is the review's MaintainArt room input (#1190): a
+// sculptureRoomsOwed is the review's MaintainArt room input: a
 // bedroom below target, weakest in beauty, with a free cell.
 func sculptureRoomsOwed(facts observation.ColonyProjection, stage policy.ColonyStage) domain.Fact[bool] {
 	rooms, rk := facts.Rooms.Value()
@@ -27,8 +27,8 @@ func sculptureRoomsOwed(facts observation.ColonyProjection, stage policy.ColonyS
 	return policy.SculptureRoomsOwed(facts.Facts.Sleeping, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), stage), policy.FurnitureRooms(rooms, census, facts.Cells))
 }
 
-// sculptBedroom is the beauty lever after pots and floors (#830): a
-// finished packed sculpture (MaintainArt's pinned bill, #1190) installed (a
+// sculptBedroom is the beauty lever after pots and floors: a
+// finished packed sculpture (MaintainArt's pinned bill) installed (a
 // RelocateIntent on the packed item's inner building) on free floor in the
 // room, once per Episode. due is false when the lever has nothing to do.
 func (r *RoundsSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context, stock *packedStock, state ControlState, goal store.WorkOwner, reading observation.RoundsReading) (RoundsBuildingResult, bool, error) {
@@ -102,11 +102,11 @@ func packedSculptures(items []bridge.PackedItem, facts policy.ItemFacts) []polic
 	return out
 }
 
-// saleArt is the packed art the trade selector may sell (#1194): every
+// saleArt is the packed art the trade selector may sell: every
 // packed sculpture but those the install lever would put in owed rooms.
 // The trade's colony read carries no rooms, construction census or work
 // pawns, so the room inputs come from the routine read the install lever
-// uses (#1195). Nil (no art sale) when the source cannot read packed items
+// uses. Nil (no art sale) when the source cannot read packed items
 // or a room input is unknown.
 func (r *RoundsTradePlanner) saleArt(call context.Context, identity *c.Identity, snapshot domain.GenerationSnapshot) (map[string]bool, error) {
 	native, ok := r.native.(packedSource)
@@ -146,7 +146,7 @@ func saleSculptures(call context.Context, native packedSource, identity *c.Ident
 	return policy.SaleSculptures(obs, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), policy.FurnitureRooms(rooms, census, facts.Cells), packedSculptures(items, facts.Facts.Items), facts.Facts.Items), nil
 }
 
-// reviewSaleArt is the review's shed_art input (#1247): the unreserved
+// reviewSaleArt is the review's shed_art input: the unreserved
 // packed art count, read only while the wealth headroom is known and
 // negative (unknown otherwise, so the need adds nothing).
 func reviewSaleArt(call context.Context, source any, identity *c.Identity, facts observation.ColonyProjection) (domain.Fact[int64], error) {

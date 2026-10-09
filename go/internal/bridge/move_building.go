@@ -10,9 +10,9 @@ import (
 
 var moveRotations = map[domain.Rotation]p.Rotation{domain.North: p.Rotation_ROTATION_NORTH, domain.East: p.Rotation_ROTATION_EAST, domain.South: p.Rotation_ROTATION_SOUTH, domain.West: p.Rotation_ROTATION_WEST}
 
-// relocateAction is the RelocateIntent of a move (#808: the game's
+// relocateAction is the RelocateIntent of a move (the game's
 // reinstall blueprint, or its install blueprint for a packed item's inner
-// id, #830) or an uninstall (#843: the Uninstall designation where the
+// id) or an uninstall (the Uninstall designation where the
 // building stands). Native checks every rule live; applied means ordered
 // and the next building read decides progress (NativeMoveBuilding.cs).
 func relocateAction(action domain.Action) (*o.Action, error) {

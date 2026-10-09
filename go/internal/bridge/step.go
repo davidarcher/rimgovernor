@@ -22,7 +22,7 @@ type StepRequest struct {
 
 // ReadStep composes the step's snapshot: the live tick (scope and pause
 // state), then the clock status the controller owns, then the emergency
-// census, served from the snapshot stream (#858). The sections are read in
+// census, served from the snapshot stream. The sections are read in
 // that order, so the clock status and the census never predate the scope.
 func (client *Client) ReadStep(ctx context.Context, request StepRequest) (*o.BundleSnapshot, Result, error) {
 	if request.Identity != nil {
@@ -62,7 +62,7 @@ func (client *Client) ReadStep(ctx context.Context, request StepRequest) (*o.Bun
 		}
 		switch value := reply.Outcome.(type) {
 		case *o.StatusReply_Observed:
-			// The census references resolve against the pawn table (#1343).
+			// The census references resolve against the pawn table.
 			table, err := client.framePawnSnapshot(ctx, identity)
 			if err != nil {
 				return nil, emergencyRaw, err
@@ -83,7 +83,7 @@ func (client *Client) ReadStep(ctx context.Context, request StepRequest) (*o.Bun
 			return nil, emergencyRaw, contract("emergency status outcome missing")
 		}
 		// A drop-pod raid's raiders are in no census row until the pods
-		// open; the stream's arrival rows carry it (#908).
+		// open; the stream's arrival rows carry it.
 		if client.frames != nil {
 			combat := &o.BundleSnapshot{}
 			if _, err := client.frameReadKey(ctx, combatFrameMethod, readCacheKey{method: combatFrameMethod}, identity, true, combat); err != nil {

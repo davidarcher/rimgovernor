@@ -25,9 +25,9 @@ const (
 	// frameWait bounds the wait for a frame after a step.
 	frameWait = 10 * time.Second
 	// mirrorFightTicks bounds the lab-ranged firefight until a pawn goes
-	// down (the #845 case budget is 5,000 ticks).
+	// down (the case budget is 5,000 ticks).
 	mirrorFightTicks = 4800
-	// geometryBudgetMs is the #851 main-thread budget of one geometry read
+	// geometryBudgetMs is the main-thread budget of one geometry read
 	// at the caps.
 	geometryBudgetMs = 50.0
 )
@@ -78,8 +78,8 @@ func typedIdentity(identity map[string]any) (*c.Identity, error) {
 	return out, protojson.Unmarshal(raw, out)
 }
 
-// combatFrames reads the combat sections of the snapshot stream's frames
-// (#858): the case maps the ring the way the controller's bridge does.
+// combatFrames reads the combat sections of the snapshot stream's frames:
+// the case maps the ring the way the controller's bridge does.
 type combatFrames struct {
 	identity *c.Identity
 	reader   *snapshotshm.Reader
@@ -157,7 +157,7 @@ func runMirror(ctx context.Context, s cases.Session) error {
 	}
 	report := s.Report()
 	// Geometry reads the staged layout before any tick: the undrafted
-	// colonists wander off their cells once the clock runs (#876).
+	// colonists wander off their cells once the clock runs.
 	if err := geometry(ctx, h, identity, staged, report); err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func runMirror(ctx context.Context, s cases.Session) error {
 	for _, row := range state.Pawns {
 		rows[row.GetId()] = row
 	}
-	// The weapon's range and class are the def rows' (#1723), not the frame's.
+	// The weapon's range and class are the def rows', not the frame's.
 	catalog, err := h.Client.DefinitionCatalog(ctx, identity)
 	if err != nil {
 		return err
@@ -204,7 +204,7 @@ func runMirror(ctx context.Context, s cases.Session) error {
 	return dropPods(ctx, h, frames, report)
 }
 
-// dropPods (#870) stages lab-pods: the center drop's arrival is a
+// dropPods stages lab-pods: the center drop's arrival is a
 // combat_events hostile_arrived row with strategy pods, its landing cells
 // and an open tick after the arrival, and by that tick every raider is out.
 func dropPods(ctx context.Context, h *na.Harness, frames *combatFrames, report na.Report) error {
@@ -314,7 +314,7 @@ func geometry(ctx context.Context, h *na.Harness, identity *c.Identity, staged S
 	return propose(ctx, h, identity, staged, rifleman, report)
 }
 
-// propose (#871): cover_behind_line on the sandbag line returns every cell
+// propose: cover_behind_line on the sandbag line returns every cell
 // behind it (the riflemen's row), and a firing_cells proposal at the
 // radius cap, 64 cells scored against every staged pawn, stays in budget.
 func propose(ctx context.Context, h *na.Harness, identity *c.Identity, staged Staged, rifleman Pawn, report na.Report) error {

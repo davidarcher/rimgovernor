@@ -16,7 +16,7 @@ import (
 
 // A shell sweep of PlacementBatchLimit+6 cells is two native hops, the
 // previews come back in action order each bound to its own cell, and one
-// failed row fails the whole read (#599).
+// failed row fails the whole read.
 func TestBuildingPreviewsBatchesOneHopPerLimit(t *testing.T) {
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Native: domain.NativeGeneration(^uint64(0))}
 	const cells = PlacementBatchLimit + 6
@@ -74,7 +74,7 @@ func TestBuildingPreviewsBatchesOneHopPerLimit(t *testing.T) {
 	}
 }
 
-// Only the over-rock preview asks native to ignore natural rock (#874); a
+// Only the over-rock preview asks native to ignore natural rock; a
 // plain preview leaves the field absent.
 func TestBuildingPreviewOverRockSetsIgnoreNaturalRock(t *testing.T) {
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Native: domain.NativeGeneration(^uint64(0))}

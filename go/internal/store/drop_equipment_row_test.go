@@ -9,7 +9,7 @@ import (
 )
 
 // TestDropEquipmentActionRowRoundTrips proves the actions CHECK clause
-// accepts a drop_equipment row and that it decodes back (#1740).
+// accepts a drop_equipment row and that it decodes back.
 func TestDropEquipmentActionRowRoundTrips(t *testing.T) {
 	db := open(t, memoryPath(t))
 	defer db.Close()

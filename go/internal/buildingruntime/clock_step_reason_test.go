@@ -35,7 +35,7 @@ func selectedPlannersAt(reason StepReason, kindOf func(domain.ActionID) (domain.
 
 // TestPlannerSelectionByReason: a full or settled step selects the whole
 // catalog; a timer step selects only the planners due on the queue at its
-// tick (#625); a wake selects the planners of the latched outcomes' kinds
+// tick; a wake selects the planners of the latched outcomes' kinds
 // and the readers of the invalidated families or sections, and everything
 // when an outcome's kind is unknown or authority changed.
 func TestPlannerSelectionByReason(t *testing.T) {
@@ -77,7 +77,7 @@ func TestPlannerSelectionByReason(t *testing.T) {
 		t.Fatal(planners, got)
 	}
 	// A building wake selects every construction planner (research stages
-	// its bench through one, #254) and no pawn-only one.
+	// its bench through one) and no pawn-only one.
 	_, building := selectedPlanners(StepReason{Cause: StepWake, Events: []WakeOutcome{{Action: "wall-1", Attempt: 1, Terminal: true}}}, kindOf)
 	set := map[string]bool{}
 	for _, name := range building {
@@ -103,7 +103,7 @@ func TestClockSchedulerTimerStepSkipsPlannersUntilTickMoves(t *testing.T) {
 		t.Fatal(first, err)
 	}
 	// The window ran out under our epoch; the next step retires it and,
-	// the tick having moved, reviews in the same step (issue #162).
+	// the tick having moved, reviews in the same step.
 	epoch := f.status.GetRunning().GetEpoch()
 	f.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: epoch, Reason: k.StopReason_STOP_REASON_TICK_BUDGET.Enum(), ActualPaused: proto.Bool(true), PauseVerified: proto.Bool(true), PauseRequested: proto.Bool(false), StoppedAtUnixMs: proto.Int64(1)}}
 	f.status.Context.Tick = proto.Int64(f.status.Context.GetTick() + 100)

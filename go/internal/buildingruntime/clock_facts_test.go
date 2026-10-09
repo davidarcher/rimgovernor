@@ -78,7 +78,7 @@ func clockFactsInvalidated(o *k.ObservationInvalidated) *k.Event {
 	return &k.Event{Event: &k.Event_ObservationInvalidated{ObservationInvalidated: o}}
 }
 
-// TestClockPageInvalidationNarrowed (#359): an ObservationInvalidated that
+// TestClockPageInvalidationNarrowed: an ObservationInvalidated that
 // names entity ids or a rectangle reaches the store as a narrowed
 // invalidation, so a planning window
 // the rectangle misses stays fresh and the zone rows keep their value

@@ -12,34 +12,11 @@ using Verse.AI.Group;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable acceptance only (issue #5 M4). Ops: terrain (a rock
-    // band around the colony with one straight corridor gap), stock (wood),
-    // ranged (rifles for existing colonists), raid (a real RaidEnemy incident
-    // with the chosen strategy/arrival), predator (a wild predator spawned
-    // inside the band already hunting a colonist, #157), damage (one wall
-    // hit), breach (the game's auto-rebuild off, one trap gone, #117),
-    // inspect (colonists on trap cells, trap ids and cells, sprung traps,
-    // hostiles, the fixture predator, turrets with their power and last
-    // attack tick, conduits, generators, the wealth split and raid points,
-    // #395), power (#61: turret and electricity
-    // research finished, a fuelled wood generator with a conduit stub near
-    // x,z, steel and components in stock), depower (one conduit at x,z
-    // vanishes with the game's auto-rebuild off), empty (#205: the turret at
-    // x,z has its barrel emptied and its auto-refuel switched off, so any
-    // later fuel in it came from a rearm order), hostile (#246: one insect
-    // hive or crashed ship part of def kind spawned in the open near a
-    // colonist under its native hostile faction, its pawn and child-hive
-    // spawning switched off so the building itself is the only threat),
-    // wealth (#395: the wealth watcher recounted now, so stock just placed
-    // counts, then the same wealth split and raid points inspect reads),
-    // intrude (#118: arms DefenseBreachFixture, which teleports one live
-    // raider to the cell near x,z once a colonist has stood drafted for
-    // grace ticks -- the breach of a held line staged without a second
-    // bridge session), ieds (#1211: IEDs researched, HE shells near x,z),
-    // armory (#1211: raid points raised to points by the difficulty threat
-    // scale, Smithing/Machining/HeavyTurrets finished, a fuelled smithy and
-    // turret stock near x,z). No completed-work injection: construction, movement
-    // and combat stay native.
+    // Private disposable defense acceptance fixture. It stages terrain, supplies, equipment,
+    // threats and damage, and reads independent native evidence. Breach and depower disable
+    // automatic rebuilding; empty disables automatic refueling, so recovery proves governor-
+    // issued work. Intrusion waits for drafted colonists before moving a raider behind the held
+    // line. Construction, movement and combat remain native.
     public sealed class DefenseFixture
     {
         private const int Half = 22;
@@ -57,7 +34,7 @@ namespace HomeBridge.BridgeTools
             if (fixturePredator == null || fixturePredatorWorld != Find.World) { fixturePredator = null; fixturePredatorWorld = null; }
             return fixturePredator;
         }
-        // The hostile building the fixture spawned (#246), guarded by its
+        // The hostile building the fixture spawned, guarded by its
         // world the same way; a destroyed thing keeps answering Destroyed,
         // so it is remembered, not cleared, once it is gone.
         private static Thing fixtureHostile;
@@ -67,7 +44,7 @@ namespace HomeBridge.BridgeTools
             if (fixtureHostile == null || fixtureHostileWorld != Find.World) { fixtureHostile = null; fixtureHostileWorld = null; }
             return fixtureHostile;
         }
-        // The cover things the fixture staged ahead of the line (#581),
+        // The cover things the fixture staged ahead of the line,
         // guarded by their world the same way; a removed thing keeps
         // answering Destroyed, so the list is remembered until the world
         // changes.
@@ -153,7 +130,7 @@ namespace HomeBridge.BridgeTools
                     if (cell.GetThingList(map).Any(t => t is Pawn p && p.Faction == Faction.OfPlayer)) { open.Add(new { x = cell.x, z = cell.z, edifice = "pawn" }); continue; }
                     // A non-destroyable feature (a steam geyser) cannot be
                     // cleared; destroying it only logs an error RimBridge
-                    // raises as a blocking attention (#316). Its cell stays.
+                    // raises as a blocking attention. Its cell stays.
                     if (cell.GetThingList(map).Any(t => !t.def.destroyable)) { skipped++; continue; }
                     foreach (var thing in cell.GetThingList(map).Where(t => t.def.category != ThingCategory.Filth).ToList()) thing.Destroy();
                     GenSpawn.Spawn(ThingMaker.MakeThing(granite), cell, map);
@@ -270,7 +247,7 @@ namespace HomeBridge.BridgeTools
         // A strategy with a required pawn kind (sappers need canBeSapper) must
         // draw a combat group maker that carries one; the tribal faction's
         // ranged-only maker (commonality 60 of 225) has none, and the raid
-        // then generates no pawns and refuses (#347). The seed pins the
+        // then generates no pawns and refuses. The seed pins the
         // maker draw to one the strategy can use.
         private static int? RequiredKindGroupMakerSeed(IncidentParms parms)
         {
@@ -304,10 +281,10 @@ namespace HomeBridge.BridgeTools
         // walk-in arrival starts at the standable map-edge cell closest to it
         // that reaches it (the raid's own worker otherwise picks any edge,
         // and a raid that walks in behind the colony never meets the
-        // corridor the #61 turrets cover); a drop arrival lands its pods on
-        // the near cell itself (#118). A side restricts the walk-in edge to
+        // corridor the turrets cover); a drop arrival lands its pods on
+        // the near cell itself. A side restricts the walk-in edge to
         // that map side: the nearest edge to the corridor entry can be a
-        // flank one cell closer than the edge the corridor faces (#714).
+        // flank one cell closer than the edge the corridor faces.
         // The faction is the lowest-tech
         // hostile humanlike faction the chosen strategy and arrival accept
         // natively (a siege needs canSiege, a centre drop an industrial
@@ -365,7 +342,7 @@ namespace HomeBridge.BridgeTools
                 added, tick = Find.TickManager.TicksGame };
         }
 
-        // Intrude arms the breach observer (#118): once any colonist has
+        // Intrude arms the breach observer: once any colonist has
         // stood drafted for grace ticks -- the hold plan is dispatched and
         // the line is held -- one live raider is teleported to a standable
         // cell near x,z, behind the firing line. The observer is a map
@@ -382,7 +359,7 @@ namespace HomeBridge.BridgeTools
             return new { success = true, x = cell.x, z = cell.z, grace = fixture.Grace, tick = Find.TickManager.TicksGame };
         }
 
-        // Predator stages the #157 precondition directly: a wild predator of
+        // Predator stages the predator precondition directly: a wild predator of
         // the given kind spawned inside the band, a few cells from the first
         // colonist, already running the game's own PredatorHunt job on that
         // colonist (the job a hungry cougar starts by itself; RimWorld's
@@ -418,7 +395,7 @@ namespace HomeBridge.BridgeTools
                 job = predator.CurJobDef.defName, faction = predator.Faction?.def.defName, tick = Find.TickManager.TicksGame };
         }
 
-        // Hostile stages the #246 threat: one hostile building (an insect
+        // Hostile stages the building threat: one hostile building (an insect
         // hive, or a crashed ship part) in open ground 8-14 cells from a
         // standing colonist, with two cells of clearance on every side so
         // it never sits in the corridor gap or against the hut. The hive's
@@ -440,7 +417,7 @@ namespace HomeBridge.BridgeTools
             // The building goes 8-14 cells from a standing colonist, a
             // ranged-armed one first, in that colonist's line of sight: a
             // shooter with a line of fire from where it stands is what the
-            // ranged assignment on a building needs (#327).
+            // ranged assignment on a building needs.
             var near = colonists.FirstOrDefault(p => !p.Dead && !p.Downed && p.equipment?.Primary?.def.IsRangedWeapon == true)
                 ?? colonists.FirstOrDefault(p => !p.Dead && !p.Downed);
             if (near == null) return Refuse("No standing colonist to threaten.");
@@ -479,7 +456,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Cover stages raider cover inside the firing line's engagement zone
-        // (#581, #620): a line of trees and a pair of stone chunks on the
+        //: a line of trees and a pair of stone chunks on the
         // approach ahead of Entry (away from Home, along direction d), two to
         // nine cells out, on open standable cells, then one lone granite
         // rock and one unowned wall segment (a ruin) farther out, each on a
@@ -591,7 +568,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Breach stages the repair precondition so the layout planner's own
-        // rebuild is what restores the trap corridor (#117): the game's
+        // rebuild is what restores the trap corridor: the game's
         // auto-rebuild is switched off (the play setting and every trap's
         // auto-rearm), its pending spike-trap blueprints and frames are
         // removed, and one standing trap (if any survived) vanishes. Every
@@ -648,14 +625,14 @@ namespace HomeBridge.BridgeTools
         // resumed from a checkpoint save calls this op again.
         // The quiet marker (QuietStoryteller) is re-applied rather than the
         // comps merely cleared: it is what keeps the storyteller tick and the
-        // pawns' inspiration rolls off in this process after a reload (#228).
+        // pawns' inspiration rolls off in this process after a reload.
         private static object Quiet()
         {
             QuietStoryteller.ApplyDifficulty(Find.Storyteller);
             return new { success = true, quiet = QuietStoryteller.IsQuiet(Find.Storyteller) };
         }
 
-        // Power stages the turret tier's observed gates (#61) without placing
+        // Power stages the turret tier's observed gates without placing
         // any turret: the research the turret and conduit definitions require
         // is finished natively (no completion letter, so nothing pauses the
         // clock), a fuelled wood-fired generator with a three-cell conduit
@@ -740,7 +717,7 @@ namespace HomeBridge.BridgeTools
                 output = plant?.PowerOutput ?? 0f, network = plant?.PowerNet != null }, conduits, spawned, tick = Find.TickManager.TicksGame };
         }
 
-        // IedGates stages the IED tier's observed gates (#1211) without
+        // IedGates stages the IED tier's observed gates without
         // placing any IED: the IEDs research and its prerequisites are
         // finished natively and high-explosive shells for the traps (two a
         // trap, spares for the rebuild) are dropped near x,z. Where the IEDs
@@ -754,7 +731,7 @@ namespace HomeBridge.BridgeTools
             return new { success = true, finished, shells = 24, tick = Find.TickManager.TicksGame };
         }
 
-        // Armory stages a threat-tier rise (#1211): the storyteller's
+        // Armory stages a threat-tier rise: the storyteller's
         // difficulty threat scale steps up until DefaultThreatPointsNow
         // reaches points, Smithing, Machining and HeavyTurrets are finished,
         // a fuelled smithy stands on a reachable cell near x,z with steel,
@@ -832,7 +809,7 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        // Ieds are the colony's IED traps (#1211): a sprung IED explodes and
+        // Ieds are the colony's IED traps: a sprung IED explodes and
         // is gone, so a later inspect tells a sprung one by its missing id.
         private static List<object> Ieds(Map map) =>
             map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName.StartsWith("TrapIED_")).OrderBy(b => b.thingIDNumber)
@@ -860,7 +837,7 @@ namespace HomeBridge.BridgeTools
             return new { success = true, x = cell.x, z = cell.z, turrets = Turrets(map), autoRebuild = Find.PlaySettings.autoRebuild, tick = Find.TickManager.TicksGame };
         }
 
-        // Empty stages the rearm precondition (#205): the turret's barrel is
+        // Empty stages the rearm precondition: the turret's barrel is
         // consumed to nothing and the game's own auto-refuel is switched off
         // for it, so the only way fuel returns is a forced refuel order, the
         // controller's rearm.
@@ -878,11 +855,11 @@ namespace HomeBridge.BridgeTools
                 autoRefuel = fuel.allowAutoRefuel, fuelDefs = fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).ToList(), tick = Find.TickManager.TicksGame };
         }
 
-        // Turrets reads every player turret gun with the evidence the #61
+        // Turrets reads every player turret gun with the evidence the
         // acceptance needs: power, hit points, the tick the turret last took
         // aim and its ranged-fire entries in the battle log (each burst the
         // turret starts is logged with the turret as the initiator), and
-        // the barrel's fuel and auto-refuel setting (#205).
+        // the barrel's fuel and auto-refuel setting.
         private static List<object> Turrets(Map map)
         {
             var shots = Find.BattleLog?.Battles?.SelectMany(b => b.Entries).OfType<BattleLogEntry_RangedFire>().ToList() ?? new List<BattleLogEntry_RangedFire>();
@@ -910,7 +887,7 @@ namespace HomeBridge.BridgeTools
         // jobs. The layout checkpoint was saved with the colonists parked
         // inside the corridor they had been building; a raid staged from it
         // reached them before the hold plan's one-action-per-window drafts
-        // and moves had got them behind the firing line (#222), so a
+        // and moves had got them behind the firing line, so a
         // from-checkpoint raid musters them there first.
         private static object Muster(Map map, List<Pawn> colonists, string cells)
         {
@@ -973,7 +950,7 @@ namespace HomeBridge.BridgeTools
                 predator = new { id = p.GetUniqueLoadID(), spawned = p.Spawned && p.Map == map, dead = p.Dead, downed = p.Downed,
                     job = p.CurJobDef?.defName, huntingColonist, x = p.Position.x, z = p.Position.z };
             }
-            // The fixture hostile building's fate (#246): destroyed, or still
+            // The fixture hostile building's fate: destroyed, or still
             // spawned with its hit points; plus every hostile-faction pawn on
             // the map so a run can tell an insect that slipped past the
             // spawner switch from the building itself.
@@ -995,7 +972,7 @@ namespace HomeBridge.BridgeTools
                 .Select(b => new { id = b.GetUniqueLoadID(), def = b.def.defName, x = b.Position.x, z = b.Position.z, output = b.TryGetComp<CompPowerPlant>().PowerOutput,
                     fuel = b.TryGetComp<CompRefuelable>()?.Fuel ?? -1f }).ToList();
             var breach = map.GetComponent<DefenseBreachFixture>()?.Report();
-            // The staged cover's fate (#581): gone (destroyed, harvested,
+            // The staged cover's fate: gone (destroyed, harvested,
             // hauled away from its cell), or still there and whether the
             // game holds a designation on it.
             object cover = null;
@@ -1007,7 +984,7 @@ namespace HomeBridge.BridgeTools
                 ieds = Ieds(map), turrets = Turrets(map), conduits, generators, threat = Threat(map), breach, cover, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
         }
 
-        // The wealth split and raid points the game itself computes (#395),
+        // The wealth split and raid points the game itself computes,
         // read the same way the typed colony facts read them, so a case can
         // hold the projected threat section to the native figure on a paused
         // map at one tick.
@@ -1030,7 +1007,7 @@ namespace HomeBridge.BridgeTools
         private static object Refuse(string reason) => new { success = false, reason };
     }
 
-    // Test-only breach stimulus (#118): armed by the intrude op, it waits
+    // Test-only breach stimulus: armed by the intrude op, it waits
     // for a colonist to have stood drafted for Grace ticks and then moves
     // one live hostile humanlike pawn (the highest id, so the hold plan's
     // first target keeps walking the corridor) onto Target. The raider

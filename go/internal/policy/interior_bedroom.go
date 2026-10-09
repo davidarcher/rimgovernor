@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The bedroom template (#802): one bed on the centre line with its head
+// The bedroom template: one bed on the centre line with its head
 // against the back wall, an end table beside the head, a dresser on the
 // other side of the head, and a standing lamp in a back corner. Everything
 // hugs the back wall so the rest of the room stays clear floor, which is
@@ -22,7 +22,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // that order when they fit and keep the room walkable, so a cramped room
 // gets a bare bed rather than no plan.
 //
-// Sizing by tier (#1214): the Camp/Masonry standard room is 3x4 and holds
+// Sizing by tier: the Camp/Masonry standard room is 3x4 and holds
 // the bed and end table only; the 4x4 and 4x5 rooms of later tiers hold the
 // full set. The set follows the room's size, so a wing that keeps its old
 // size keeps its old set. No optional piece is placed that would take the

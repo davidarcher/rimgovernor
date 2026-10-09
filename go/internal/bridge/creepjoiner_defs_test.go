@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// TestSurgicalInspectionRecipesComeFromTheWorkerClass (#1740): the recipes are
+// TestSurgicalInspectionRecipesComeFromTheWorkerClass: the recipes are
 // the mirror's RecipeDefs whose worker class is the inspection's, whatever
 // they are named; a catalog without recipes or a nil catalog has none.
 func TestSurgicalInspectionRecipesComeFromTheWorkerClass(t *testing.T) {

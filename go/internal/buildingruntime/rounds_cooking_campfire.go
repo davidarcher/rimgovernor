@@ -13,7 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
-// campfireRetirement is the cooking campfire to deconstruct (#1179): any once
+// campfireRetirement is the cooking campfire to deconstruct: any once
 // a usable stove stands in a kitchen. A campfire the temperature family claimed is room heat and
 // stays. Unknown rooms, benches or census retire nothing.
 func campfireRetirement(facts observation.ColonyProjection, claims []policy.ConstructionClaim) (policy.CurrentBuilding, bool) {
@@ -52,7 +52,7 @@ func campfireRetirement(facts observation.ColonyProjection, claims []policy.Cons
 }
 
 // heatCampfireCells are the cells of every campfire the temperature family
-// claimed: the marker of a campfire standing as room heat (#1179, #1180).
+// claimed: the marker of a campfire standing as room heat.
 func heatCampfireCells(claims []policy.ConstructionClaim) map[domain.Cell]bool {
 	heat := map[domain.Cell]bool{}
 	for _, claim := range claims {
@@ -66,7 +66,7 @@ func heatCampfireCells(claims []policy.ConstructionClaim) map[domain.Cell]bool {
 }
 
 // heatCampfires are the standing campfires the temperature family claimed,
-// with the room and auto-refuel toggle the cooking census reads (#1180).
+// with the room and auto-refuel toggle the cooking census reads.
 func heatCampfires(facts observation.ColonyProjection) []policy.HeatCampfire {
 	claims, _ := facts.Facts.ConstructionClaims.Value()
 	benches, bk := facts.CookingBenches.Value()

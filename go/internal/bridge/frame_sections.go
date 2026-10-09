@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Unchanged singleton sections (#1347). Native leaves a section out of a
+// Unchanged singleton sections. Native leaves a section out of a
 // frame while its content matches the last one it published, and lists
 // every such section's watermark in every frame. The stream holds the last
 // carried copy of each, so every frame the table is built from is whole: an
@@ -74,7 +74,7 @@ var elidedSections = map[string]elidedSection{
 	},
 }
 
-// keyedTable is one held keyed table (#1348, #1578): pawns, buildings or
+// keyedTable is one held keyed table: pawns, buildings or
 // things. Native carries it as a keyframe, every row, or as a delta
 // against the table published at the watermark's base_seq: the rows whose
 // hash changed and the ids that left. The hold keeps one persistent Table

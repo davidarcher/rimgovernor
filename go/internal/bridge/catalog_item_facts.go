@@ -8,8 +8,8 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// Stat names the item facts read from the catalog's stat table (#1759) and
-// def rows (#1730).
+// Stat names the item facts read from the catalog's stat table and
+// def rows.
 const (
 	statMarketValue    = "MarketValue"
 	statNutrition      = "Nutrition"
@@ -17,7 +17,7 @@ const (
 	statBeauty         = "Beauty"
 )
 
-// ItemFacts are the planner-facing item numbers of the catalog (#1734): the
+// ItemFacts are the planner-facing item numbers of the catalog: the
 // game's market value and nutrition of every item def, the potency of every
 // medicine, the stuff factors, the currency and the drugs. Categories carry
 // every thing category a def sits within, parents included. A catalog without a stat table gives the

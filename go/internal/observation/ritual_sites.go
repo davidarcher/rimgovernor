@@ -10,7 +10,7 @@ import (
 )
 
 // ritualSites are the finished buildings of the frame's building table whose
-// ThingDef a held ritual's pattern requires (#1660): the cells the game
+// ThingDef a held ritual's pattern requires: the cells the game
 // offers the begin command at. The required defs are the catalog's ritual
 // defs, never a list here. Unknown without the ideoligion or the building
 // table.

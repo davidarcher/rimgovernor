@@ -7,7 +7,7 @@ import (
 )
 
 // A bill selector that chose nothing reports why, never nothing_to_do for a
-// cause that is not an absent deficit (#1882).
+// cause that is not an absent deficit.
 func TestBillGapVerdictNamesEachCause(t *testing.T) {
 	for _, c := range []struct {
 		gap  policy.BillGap

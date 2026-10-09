@@ -19,8 +19,8 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// RoundsShrineSource is the shrine census plus the readiness reads (#457)
-// the breach goal judges from, and the claim target read (#459) that
+// RoundsShrineSource is the shrine census plus the readiness reads
+// the breach goal judges from, and the claim target read that
 // gives each empty casket its CAS token.
 type RoundsShrineSource interface {
 	observation.ColonySource
@@ -30,14 +30,14 @@ type RoundsShrineSource interface {
 }
 
 // RoundsShrinePlanner composes the ClearAncientShrine goal's methods:
-// the breach (#458), when readiness reads Ready for a sealed shrine
+// the breach, when readiness reads Ready for a sealed shrine
 // touching Home it drafts the squad to standing cells behind the trap
 // line and designates the chosen wall for an in-place deconstruction (the
 // wall falling is the method's end: the plan has no open work, the worker
 // releases the owned drafts and ActiveCombat answers the guards); and the
-// claim (#459), once the shrine is open and guard-free every empty casket
-// the player does not own is claimed in one method; and the opening
-// (#460), once the review's opening gate holds (#875), the melee lock: one
+// claim, once the shrine is open and guard-free every empty casket
+// the player does not own is claimed in one method; and the opening,
+// once the review's opening gate holds, the melee lock: one
 // violence-capable melee colonist drafted at each filled casket and one
 // OpenCasket order, held lock_understaffed while the squad cannot cover
 // every casket. While the gate holds back, filled caskets stay sealed.
@@ -52,7 +52,7 @@ type RoundsShrineResult struct {
 	// and Shrine the shrine it judged.
 	Hold, Shrine string
 	// Skipped is every candidate the step judged and passed over, with its
-	// own reason, beside the one Shrine names (#680).
+	// own reason, beside the one Shrine names.
 	Skipped         []policy.ShrineHold
 	NativeWorkTicks uint32
 }
@@ -81,7 +81,7 @@ func (r *RoundsShrinePlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	call, recorded := recordPlannerStep(call, policy.ClearAncientShrine, state.Snapshot, review.Tick)
 	defer recorded()
-	// The step's own answer goes on the review it planned under (#680), so
+	// The step's own answer goes on the review it planned under, so
 	// the journal names the shrine it held on rather than leaving the
 	// advisory ShrineHolds, in identity order, to read as the cause. A
 	// review filed since is the newer answer; the record yields to it.
@@ -106,7 +106,7 @@ func (r *RoundsShrinePlanner) step(call, epoch context.Context, arbiter *stepArb
 	// A pause or authority change between the draft and the move releases
 	// the draft; the moves riding on it and the open waiting on them can
 	// then never dispatch, and while they stay open the goal never re-plans
-	// and the clock holds on work that cannot run (#707). Settle every
+	// and the clock holds on work that cannot run. Settle every
 	// shrine plan so orphaned, including those of a goal a reload
 	// invalidated, before the active goal is read.
 	if err = r.settleOrphanedPlans(call); err != nil {
@@ -152,7 +152,7 @@ func (r *RoundsShrinePlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !known {
 		return RoundsShrineResult{Verdict: fieldUnavailable("shrines")}, nil
 	}
-	// The opening gate (#875) was judged at the review; a casket it decided
+	// The opening gate was judged at the review; a casket it decided
 	// open there is owed an opening now. The lock is re-staffed below.
 	opening := shrineOpeningFromHolds(review.ShrineHolds)
 	targets := map[string]bool{}
@@ -372,7 +372,7 @@ func (r *RoundsShrinePlanner) breach(call, epoch context.Context, state ControlS
 	return RoundsShrineResult{Verdict: BuildingReasonAdmitted, Plan: id, Shrine: shrine.ID}, nil
 }
 
-// open commits one open, guard-free shrine's melee lock (#460): an owned
+// open commits one open, guard-free shrine's melee lock: an owned
 // draft and a move to the casket's interaction cell for each locker, then
 // one OpenCasket by the opener on the lowest casket, which ejects every
 // casket of the group. The lockers stand where the ancients drop and their
@@ -457,7 +457,7 @@ func (r *RoundsShrinePlanner) open(call, epoch context.Context, state ControlSta
 }
 
 // shrineMethod reports a method the shrine planner admits (claim, breach or
-// open), read from the plan's stored method (#987).
+// open), read from the plan's stored method.
 func shrineMethod(method domain.MethodID) bool {
 	for _, prefix := range []string{"claim-", "breach-", "open-"} {
 		if strings.HasPrefix(string(method), prefix) {

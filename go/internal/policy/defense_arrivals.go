@@ -229,7 +229,7 @@ func (s defenseSite) sectors(origin domain.Cell) ([]DefenseSector, []string) {
 // DefenseApproachesFor recomputes the approaches of an accepted layout
 // against a fresh census: the layout's tiers, lanes and firing cells stay
 // protected, and the request's arrivals and cover threshold decide the
-// cover demand (#581). It validates the request as DefenseLayouts does.
+// cover demand. It validates the request as DefenseLayouts does.
 func DefenseApproachesFor(r DefenseRequest, l DefenseLayout) (DefenseApproaches, error) {
 	s, err := newDefenseSite(r)
 	if err != nil {
@@ -395,7 +395,7 @@ func (s defenseSite) defenseApproaches(l DefenseLayout) DefenseApproaches {
 }
 
 // TierBait is cheap furniture on the arrival sector's approach, outside the
-// killbox (#1063): looters break off to grab it, splitting the raid before
+// killbox: looters break off to grab it, splitting the raid before
 // it reaches the corridor.
 const TierBait DefenseTierName = "bait"
 

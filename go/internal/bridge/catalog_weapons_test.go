@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// TestWeaponOfReadsTheDefRows (#1723): the area weapons, the EMP and fire
+// TestWeaponOfReadsTheDefRows: the area weapons, the EMP and fire
 // projectiles, the rockets and the blunt melee weapons come from the rows.
 func TestWeaponOfReadsTheDefRows(t *testing.T) {
 	catalog := FixtureCatalog("load", CoreWeaponFixtures()...)
@@ -52,7 +52,7 @@ func TestWeaponOfReadsTheDefRows(t *testing.T) {
 	}
 }
 
-// TestWeaponOfThroughput (#1723): DPS, AP, Precision and ForcedMiss come from
+// TestWeaponOfThroughput: DPS, AP, Precision and ForcedMiss come from
 // the verb, tool, projectile and stat rows. Before the rows, a table stated
 // Minigun 30/0 (area fire), sniper 4/.38, club 6/.18, charge rifle 11/.35.
 func TestWeaponOfThroughput(t *testing.T) {

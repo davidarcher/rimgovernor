@@ -8,7 +8,7 @@ import (
 
 // With every generator unavailable and the research it requires unfinished,
 // the power goal reports the project it waits on rather than
-// no_affordable_generator: EnsureResearch's roadmap is the method (#230).
+// no_affordable_generator: EnsureResearch's roadmap is the method.
 func TestRoundsPowerReportsTheResearchItWaitsOn(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

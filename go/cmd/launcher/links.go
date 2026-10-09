@@ -3,7 +3,7 @@ package main
 import "fmt"
 
 // playerGuideURL is the one address the launcher page may open in the
-// browser (#2327). The bind is an allowlist, not a general open-URL: page
+// browser. The bind is an allowlist, not a general open-URL: page
 // content must not be able to launch arbitrary URLs.
 const playerGuideURL = "https://github.com/davidarcher/rimgovernor/blob/main/docs/players/README.md"
 

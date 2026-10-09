@@ -1,25 +1,7 @@
-// Observation baseline (#642, head of #640). speedmatrix/observations is the
-// reproducible rendered workload the observation-cost measurements are read
-// against: the committed tribal8 baseline -- eight tribal colonists, the map's
-// wildlife, its loose items and its standing buildings -- with the throughput
-// stage applied on top (a Steel stockpile to haul to and a contiguous wood
-// wall run to build), played through rimgovernor serve in a windowed launch.
-// The rows, in order: governor-off (native play at the same speed with no
-// controller attached, the ungoverned update-interval ceiling), uncapped (the
-// ordinary governed run), observation-load (the same governed run with
-// concurrent state readers) and player. Every row asks for the same clock
-// speed and the same useful work, so the difference between them is the
-// governor's observation cost, not a different workload.
-//
-// The planning window the controller reads over that colony is the nontrivial
-// one the issue asks for: the tribal colony's home area, not a bare debug
-// patch, so planningWindow appears in the per-section split with a candidate
-// count (the requested rectangle's cells) beside its returned rows.
-//
-// Nothing here is a benchmark framework of its own: it is one more
-// registration in the matrix tier reusing the speed matrix's staging, rows,
-// outcome comparison and reporting, with its own fixture start, its own stage
-// save and its own row list.
+// speedmatrix/observations compares the same staged colony at the same clock speed and
+// useful-work budget across governor-off, ordinary governed, concurrent-reader and player
+// runs. Frame and observation distributions separate controller observation cost from
+// simulation work; absent timing samples remain unknown.
 package speedmatrix
 
 import (
@@ -60,7 +42,7 @@ func init() {
 	})
 }
 
-// observationRow is the #642 half of a metrics row: the companion's own
+// observationRow is the observation half of a metrics row: the companion's own
 // account of where an observation hop's main-thread time went, and of the
 // update intervals it ran between. The nested blocks carry the full
 // distributions (a Samples of 0 inside one means the recording carried none
@@ -76,7 +58,7 @@ func observationRow(obs bridge.ObservationSample, frames bridge.FrameSample) map
 		"format_passes": obs.FormatPasses, "payload_bytes": obs.PayloadBytes,
 		"frame_updates": frames.Updates, "frame_updates_per_second": frames.UpdatesPerSecond(),
 		"frame_max_interval_ms": frames.MaxIntervalMs,
-		// Interval tails (#656): all updates, then only those that ran
+		// Interval tails: all updates, then only those that ran
 		// main-thread observation work, so a tail is attributable.
 		"frame_interval_samples": frames.Intervals.Samples, "frame_p95_ms": frames.Intervals.P95, "frame_p99_ms": frames.Intervals.P99,
 		"observed_frame_samples": frames.Observed.Samples, "observed_frame_p95_ms": frames.Observed.P95,
@@ -90,7 +72,7 @@ func observationRow(obs bridge.ObservationSample, frames bridge.FrameSample) map
 	}
 }
 
-// provenance is what the baseline was measured on (#642): what a rerun would
+// provenance is what the baseline was measured on: what a rerun would
 // have to match for the numbers to be comparable. The world (seed, save and
 // its hash, fixture hash) and the installed build's hashes are the report's
 // own "world" and "package_files" blocks; this names the rest.
@@ -133,7 +115,7 @@ func (m *matrix) provenance() map[string]any {
 }
 
 // observationRowProblems rejects an observation report that cannot support
-// a comparison (#656): every row must carry update-interval samples, and
+// a comparison: every row must carry update-interval samples, and
 // every governed row observation hops, so an absent frame hook or an
 // unaccounted controller reads as a failure rather than as zero cost.
 func observationRowProblems(rows []map[string]any) []string {

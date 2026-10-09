@@ -5,7 +5,7 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    // The attack rules of a combat order's attack (#939): melee or ranged is
+    // The attack rules of a combat order's attack: melee or ranged is
     // the vanilla float menu's choice for the pawn's weapon, and the job is
     // the one the vanilla attack order builds. There is no standalone attack.
     internal static class NativeCombatOperations

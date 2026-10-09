@@ -6,7 +6,7 @@ using System.Diagnostics;
 namespace HomeBridge.BridgeTools
 {
     /// Wall time the supervisor's own stop/start transitions account for
-    /// (issue #621): the paused time from each epoch's stop to the next
+    ///: the paused time from each epoch's stop to the next
     /// start, gaps no controller observed included, and the running time of
     /// each epoch, both on the monotonic Stopwatch clock. Clock.Status
     /// reports them as paused_ms / running_ms; a throughput report takes the

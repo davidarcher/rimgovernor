@@ -7,7 +7,7 @@ import (
 )
 
 // A race is a herd with a unit of its own at a fertile pair or herdMinAnimals
-// animals (#2122) when it has a ceiling to size a unit from; fewer unpaired
+// animals when it has a ceiling to size a unit from; fewer unpaired
 // animals stay with the misc unit, which is sized from the other ceilings.
 func TestHerdRacesAreAPairOrFiveAnimals(t *testing.T) {
 	pair := []UpkeepAnimal{planAnimal("c1", "Cow", "Male"), planAnimal("c2", "Cow", "Female")}

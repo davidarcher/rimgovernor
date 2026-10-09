@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// The full throne requirement set end to end (#1866): the Knight row of the
+// The full throne requirement set end to end: the Knight row of the
 // recorded def mirror (area, impressiveness, throne, floors, two braziers, two
 // columns, an instrument, glowing, forbidden buildings) becomes the need
 // through the review's own path (WithTitleDefs, NextThroneNeed), and
@@ -206,7 +206,7 @@ func TestThroneRoomFloorTierPlansTheRequiredTerrain(t *testing.T) {
 }
 
 // A forbidden building in the room is packed by the reconcile, not a block; one
-// elsewhere is no intrusion (#2109).
+// elsewhere is no intrusion.
 func TestThroneRoomForbiddenBuildingIsPackedNotBlocking(t *testing.T) {
 	facts, room, _ := knightSnapshot(t)
 	furnish(t, &facts)

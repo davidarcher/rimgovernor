@@ -7,7 +7,7 @@ import (
 )
 
 // Remote work (loot recovery, ruin salvage, surface mining outside the base
-// extent) is held for one of four explicit reasons (#525). Selection reports
+// extent) is held for one of four explicit reasons. Selection reports
 // them on the review's hold rows; dispatch mirrors them as the pending
 // action's HeldReason through the executor's refusal table. Every other
 // selection reason (the reach stage, demand) keeps its own text.
@@ -22,7 +22,7 @@ const (
 	// deposit is not an open-surface rock.
 	RemoteHoldRoofSupport = "roof_support_risk"
 	// RemoteHoldBuried: a supported deposit no colonist can reach yet; the
-	// corridor dig (#1074) opens it. Not a roof risk (#1075).
+	// corridor dig opens it. Not a roof risk.
 	RemoteHoldBuried = "buried"
 	// RemoteHoldMissingStorage: no accepting storage headroom for the yield.
 	RemoteHoldMissingStorage = "missing_storage"
@@ -55,14 +55,14 @@ type RemoteWorkHold struct {
 }
 
 // RemoteWorkRequest carries what every remote selection filters against: the
-// reach readiness (#520), the demand (#521) and the urgent work competing for
-// the colonists (#525). Extent geometry decides which candidates are base
+// reach readiness, the demand and the urgent work competing for
+// the colonists. Extent geometry decides which candidates are base
 // scope; the rest are remote.
 type RemoteWorkRequest struct {
 	Reach       ResourceReachRequest
 	Demand      domain.Fact[[]ResourceDemand]
 	Competition AcquisitionCompetition
-	// Plan orders mine sources by LayoutPlan.MineTier (#792).
+	// Plan orders mine sources by LayoutPlan.MineTier.
 	Plan domain.Fact[LayoutPlan]
 }
 

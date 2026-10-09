@@ -6,10 +6,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// CoverLine is combat.geometry's cover for one (cell, hostile) pair (#851):
+// CoverLine is combat.geometry's cover for one (cell, hostile) pair:
 // the game's CoverUtility block chance at the cell against the hostile's
 // shot, and the block chance the hostile keeps against a shot from the
-// cell (#862). Straight past one sandbag is 0.40, diagonal past two 0.48,
+// cell. Straight past one sandbag is 0.40, diagonal past two 0.48,
 // sandbag and wall at a right angle 0.83-0.9675; Go only compares them.
 type CoverLine struct {
 	Hostile      domain.PawnID
@@ -24,7 +24,7 @@ type ScoredCell struct {
 	Lines []CoverLine
 }
 
-// CoverScore is a firing cell's worth against the approach (#862): the
+// CoverScore is a firing cell's worth against the approach: the
 // mean cover the cell gets against the hostiles it can shoot, less the
 // mean cover those hostiles keep against it (the enemy's diagonal cover
 // near the approach). A cell with no line of fire scores on every hostile.
@@ -46,7 +46,7 @@ func CoverScore(s ScoredCell) float64 {
 
 // aroundLine are the in-bounds cells within one step (8-way) of the line,
 // not on it: the cells cover_behind_line considers, named instead when the
-// stop's proposal goes to the choke (#881).
+// stop's proposal goes to the choke.
 func aroundLine(line []domain.Cell) []domain.Cell {
 	var out []domain.Cell
 	for _, l := range line {

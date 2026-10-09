@@ -1,4 +1,4 @@
-// Command acceptance is the shared runner over the case registry (#135):
+// Command acceptance is the shared runner over the case registry:
 //
 //	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier nightly|smoke] [<case>|<area>/...]...
 //	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -restage -no-doctor -no-heal -repeat N -seed s -postmortem-only [-from bundle] -break stage=<name>|tick=<n>|minute=<m> -through <stage>]
@@ -15,28 +15,28 @@
 //	acceptance dev <area>/<case> -root <dir> [-from <bundle> -watch]
 //
 // It replaces the per-harness binaries' preamble with one loop: resolve the
-// shared configuration, run the doctor preflight (doctor.go, #277; only
+// shared configuration, run the doctor preflight (doctor.go; only
 // its failing checks print and a Fail refuses the run, except a stale or
 // fixture-less install, which the run rebuilds and reinstalls unless
-// -no-heal; heal.go, #276), open the game, bring it to the case's Start, quiet
+// -no-heal; heal.go), open the game, bring it to the case's Start, quiet
 // the storyteller, freeze needs, run the case, write result.json with the
 // run's timing and metrics block, append the block to the metrics series
 // and flag drift (nativeaccept/metrics.go). `suite` (suite.go) runs a set
 // across N private game copies with regression and drift flagging, a
-// tier (tier.go, #273) being the landing lane's, the nightly or the
+// tier (tier.go) being the landing lane's, the nightly or the
 // on-demand matrix set. A run
 // checkpoints its case into the root's ring and resumes a case whose last
-// run there failed (#249; -fresh starts over, -rewind steps back,
+// run there failed (-fresh starts over, -rewind steps back,
 // -checkpoint-every 0 turns it off); suite runs fresh unless -resume. A
 // case that declares Stages opens on its newest cached stage bundle in
-// the root (#329; -restage stages again, RIMGOVERNOR_ACCEPT_STAGES=0
+// the root (-restage stages again, RIMGOVERNOR_ACCEPT_STAGES=0
 // turns the cache off); a fresh suite restages, and `suite -stages`
-// (stages.go, #527) instead schedules each declared stage as its own
+// (stages.go) instead schedules each declared stage as its own
 // work item (`run -through <stage>`) from the bundles cached in -root.
-// -postmortem-only (#275)
+// -postmortem-only
 // reloads the case's failed bundle (or -from) on the kept process and
 // runs only its Postmortem phase, leaving the ring as it was. Every
-// result.json carries a world block (na.RecordWorld, #281: the seed, the
+// result.json carries a world block (na.RecordWorld: the seed, the
 // loaded save and its hash, the fixture op and its arguments' hash);
 // -repeat N runs a case N times fresh on the kept process and writes
 // <output>/<case>.repeat.json with the pass rate and each attempt's seed,
@@ -46,12 +46,12 @@
 // root keeps between runs (na.KeepGameEnv) through games_stop: the
 // PID-owned launch recorded by that root's own bridge configuration, never
 // a process matched by image name; warm (warm.go) boots that kept process
-// ahead of the first run (#285). fixture (fixture.go) runs one
+// ahead of the first run. fixture (fixture.go) runs one
 // fixture op against the root's kept game and leaves the world loaded
-// for the next call (#284). dev (dev.go, #274) is the edit loop: build
+// for the next call. dev (dev.go) is the edit loop: build
 // rimgovernor, reload a checkpoint bundle on the kept process, run the
 // case's Run and Postmortem from there, wait for Enter or a source
-// change, repeat. -break (#280) cuts a run at a declared stage, a game
+// change, repeat. -break cuts a run at a declared stage, a game
 // tick or a run-phase minute, bundles it into the ring as "break" and
 // leaves the game loaded and paused on the kept process (visible with
 // -headless=false); resume (resume.go) continues the paused case from
@@ -339,7 +339,7 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 // attempts); the exit code is non-zero when any case failed, 2 when the
 // preflight refused the run, na.ExitBreak when a case paused at its
 // breakpoint (the cases after it do not run). A stale or fixture-less install is healed
-// by the preflight (heal.go, #276) unless -no-heal, and every case's
+// by the preflight (heal.go) unless -no-heal, and every case's
 // result.json says so under "healed".
 func runCases(ctx context.Context, selected []cases.Case, opts cases.Options, stdout io.Writer) int {
 	if !opts.NoDoctor {
@@ -416,7 +416,7 @@ func printCase(stdout io.Writer, c cases.Case, opts cases.Options, report na.Rep
 // stop is the former gamesstop tool: games_stop through the root's own
 // bridge configuration (config-headless first), with -takeover taking the
 // attachment from a stalled controller of that same root first. A
-// breakpoint the root holds paused (#280) is discarded first, whether or
+// breakpoint the root holds paused is discarded first, whether or
 // not the game is still up.
 func stop(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("stop", flag.ContinueOnError)

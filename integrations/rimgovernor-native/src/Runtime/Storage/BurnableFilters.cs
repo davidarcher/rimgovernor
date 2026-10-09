@@ -4,7 +4,7 @@ using Verse;
 
 namespace RimGovernor.Runtime
 {
-    // The one definition of "burnable" (epic #2176, #2181), shared by the two
+    // The one definition of "burnable", shared by the two
     // special filters below so a dump zone routes waste through native hauling:
     // a rottable past Fresh, except a colonist's or slave's corpse (those are
     // buried or entombed), or an apparel or weapon worth less than SilverCutoff.

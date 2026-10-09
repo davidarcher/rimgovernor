@@ -7,7 +7,7 @@ import (
 )
 
 // A campfire with an interaction cell takes a slot whose cell stays on the
-// floor, so the ring's walls never block it (#2303).
+// floor, so the ring's walls never block it.
 func TestShelterCampfireInteractionCellStaysInside(t *testing.T) {
 	shapes := PieceShapes{Defs: map[string]InteriorPieceDef{}, Furniture: testShapes.Furniture}
 	for name, def := range testShapes.Defs {

@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// TestDefRowKeepsAbsentListEntryPosition (#1781): the game uses a null list
+// TestDefRowKeepsAbsentListEntryPosition: the game uses a null list
 // entry positionally (ThoughtDef.stages), so the wrapped entry stays in place
 // through the wire and reads as nil.
 func TestDefRowKeepsAbsentListEntryPosition(t *testing.T) {
@@ -33,8 +33,8 @@ func TestDefRowKeepsAbsentListEntryPosition(t *testing.T) {
 	}
 }
 
-// TestDefMirrorShapes pins the generator's rules in the generated bindings
-// (#1785): a private field the game's XML loader fills is mirrored
+// TestDefMirrorShapes pins the generator's rules in the generated bindings:
+// a private field the game's XML loader fills is mirrored
 // (ThingDef.verbs), a field that closes a reference cycle is a recursive message
 // (quest node children), and every Def message ends with the derived, optional
 // modPackageId carrying the clr_path of its source.
@@ -99,7 +99,7 @@ func TestDefMirrorShapes(t *testing.T) {
 	}
 }
 
-// TestClassIsAFollowsBaseChains (#1785): a family is a base class, matched
+// TestClassIsAFollowsBaseChains: a family is a base class, matched
 // through the chains the catalog carries, with a mod's subclass included and
 // an unknown class an error rather than false.
 func TestClassIsAFollowsBaseChains(t *testing.T) {
@@ -170,7 +170,7 @@ func catalogConstants() *o.CatalogConstants {
 	return &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver", WortDef: "Wort"}
 }
 
-// TestDefinitionCatalogCarriesGeneratedDefRows (#1730): the generated rows
+// TestDefinitionCatalogCarriesGeneratedDefRows: the generated rows
 // and constants decode into the cache keyed by def name, a thing and a
 // terrain may share a name, and a malformed row or constant is refused.
 func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
@@ -305,7 +305,7 @@ func fillDef(m protoreflect.Message, depth, stride int, seed *int) {
 }
 
 // syntheticCatalog is a reply sized like the game's: about 2900 thing defs and
-// 120 terrain defs plus perClass defs of each of the other def classes (#1761),
+// 120 terrain defs plus perClass defs of each of the other def classes,
 // each filled in every stride-th field to a depth of three messages. The game
 // is not available to the test; the numbers are an estimate of the order, not a
 // measurement of the real reply.
@@ -341,7 +341,7 @@ func syntheticCatalog(stride, perClass int) *o.DefinitionCatalog {
 	return v
 }
 
-// TestDefinitionCatalogDecodeTime (#1730) decodes a synthesized catalog reply:
+// TestDefinitionCatalogDecodeTime decodes a synthesized catalog reply:
 // the binary reply is parsed, validated and indexed within the accepted
 // maximum, and the size and time are logged for the commit record.
 func TestDefinitionCatalogDecodeTime(t *testing.T) {

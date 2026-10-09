@@ -71,7 +71,7 @@ func TestHoldTheLineActionKindsAreRoundsExecutable(t *testing.T) {
 	t.Parallel()
 	// The hold plan drafts, moves to the firing cell and then fires; the
 	// worker must be able to dispatch each kind or the plan sits pending
-	// forever (M4, #5; movement restored under #68).
+	// forever.
 	for _, kind := range []domain.ActionKind{domain.OwnedDraftAction, domain.MovementAction, domain.SubdueAction} {
 		if !roundsExecutableKind(kind) {
 			t.Fatalf("%s is not routine-executable", kind)
@@ -80,7 +80,7 @@ func TestHoldTheLineActionKindsAreRoundsExecutable(t *testing.T) {
 }
 
 // A hold plan whose owned drafts were released by a Manual cycle keeps its
-// unissued moves and attacks open forever otherwise (#5 scenario 2): the
+// unissued moves and attacks open forever otherwise: the
 // helper names exactly those, never an action still dispatched natively.
 func TestOrphanedDraftDependentsAfterDraftRelease(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -186,9 +186,9 @@ func TestDefenseTargetsIncludeANearHuntingPredator(t *testing.T) {
 
 // A raid that ends after one squad draft was issued but before the other
 // was dispatched leaves that draft prepared and every attack pending. A
-// review only settles wholly undispatched plans (#290), so the recovered
-// goal could not satisfy and the next raid could never open a fresh epoch
-// (#226). The planner settles the unissued work once the goal is recovered.
+// review only settles wholly undispatched plans, so the recovered
+// goal could not satisfy and the next raid could never open a fresh epoch.
+// The planner settles the unissued work once the goal is recovered.
 func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

@@ -7,7 +7,7 @@ import (
 )
 
 // wingFixture is bedroomFixture with its two bedrooms replaced by a wing of n
-// rooms (#2133); both colonists sleep in the barracks, so both are unhoused.
+// rooms; both colonists sleep in the barracks, so both are unhoused.
 func wingFixture(n int, purpose WingPurpose) (LayoutPlan, RoomObservation, SleepingObservation) {
 	plan, rooms, sleeping := bedroomFixture()
 	plan.Rooms = plan.Rooms[:1]
@@ -29,7 +29,7 @@ func wingInteriors(rooms []PlannedRoom) []int32 {
 }
 
 // A wing of unbuilt bedrooms is one step carrying every room in plan order,
-// ahead of need: unhoused colonists owe the whole wing (#2133).
+// ahead of need: unhoused colonists owe the whole wing.
 func TestBedroomStepCarriesTheWholeWing(t *testing.T) {
 	plan, rooms, sleeping := wingFixture(4, WingBedrooms)
 	got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{})
@@ -62,7 +62,7 @@ func TestBedroomStepWingBatchSkipsBuiltRooms(t *testing.T) {
 }
 
 // With nobody unhoused nothing is owed, however empty the wing; a Retiring
-// wing is never built out (#1219).
+// wing is never built out.
 func TestBedroomStepWingOwedOnlyByNeedAndNeverRetiring(t *testing.T) {
 	plan, rooms, sleeping := wingFixture(4, WingBedrooms)
 	// Both colonists sleep in a bedroom elsewhere: nobody is unhoused.
@@ -88,8 +88,7 @@ func TestBedroomStepSpineRoomStandsAlone(t *testing.T) {
 }
 
 // The batched wing is the first in plan order that owes a bedroom: a standing
-// empty room in a later wing does not jump ahead of an unbuilt earlier wing
-// (#2139).
+// empty room in a later wing does not jump ahead of an unbuilt earlier wing.
 func TestBedroomStepChoosesWingInPlanOrder(t *testing.T) {
 	plan, rooms, sleeping := wingFixture(3, WingBedrooms)
 	second := Wing{Purpose: WingBedrooms, Rooms: []PlannedRoom{{Role: PlannedBedroom, Interior: Rectangle{X: 50, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 52, Z: 5}, DoorRot: domain.North}}}

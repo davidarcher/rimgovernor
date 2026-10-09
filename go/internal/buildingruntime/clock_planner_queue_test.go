@@ -15,7 +15,7 @@ import (
 
 // TestClockSchedulerSectionWakeRunsDeclaringPlanners: a fact change in one
 // section (buildings, published under the colony family) wakes only the
-// planners declaring it (#625), and the step reads the colony anew. A
+// planners declaring it, and the step reads the colony anew. A
 // pawns wake selects the pawn readers and no building planner.
 func TestClockSchedulerSectionWakeRunsDeclaringPlanners(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -56,7 +56,7 @@ func TestClockSchedulerSectionWakeRunsDeclaringPlanners(t *testing.T) {
 // TestClockSchedulerWaitingPlannerSkipsUntilOutcomeOrDeadline: a planner
 // that found the work of its kinds still open (the sleeping planner over
 // its own pending blueprint, existing_work) is not evaluated again until
-// that attempt's outcome row or its deadline (#625); a step that skips it
+// that attempt's outcome row or its deadline; a step that skips it
 // reports it as waiting, and a full step clears every wait.
 func TestClockSchedulerWaitingPlannerSkipsUntilOutcomeOrDeadline(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -179,11 +179,11 @@ func TestPlannerQueueRanRecordsCadenceAndWaits(t *testing.T) {
 // A wait's deadline is a tick, so on a stopped clock it never passes: a
 // step whose tick did not advance drops the waits and a dirty planner
 // re-examines its open work, and a planner refused admission is marked
-// again, its cadence tick being unreachable too (#692).
+// again, its cadence tick being unreachable too.
 func TestSelectPlannersDropsWaitsOnStoppedClock(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	// The verdict may carry the admission decision's real reason (#1880):
+	// The verdict may carry the admission decision's real reason:
 	// recovery keys on the kind, not the whole verdict.
 	for _, refused := range []Verdict{refuse(RefusalSharedAdmission, "candidates_left_unadmitted", ""), refuse(RefusalSharedAdmission, "already_reserved", "wood")} {
 		t.Run(refused.String(), func(t *testing.T) { stoppedClockRecovers(t, refused) })

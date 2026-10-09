@@ -6,8 +6,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// drugPolicyAction is the DrugPolicyIntent of one per-pawn drug policy
-// (#1537): the label and the entries that allow anything. Native checks the
+// drugPolicyAction is the DrugPolicyIntent of one per-pawn drug policy:
+// the label and the entries that allow anything. Native checks the
 // drugs are the policy's when it applies (NativeDrugPolicy.cs).
 func drugPolicyAction(action domain.Action) (*op.Action, error) {
 	v, ok := action.DrugPolicy()

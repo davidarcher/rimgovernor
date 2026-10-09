@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Shelter retirement (#2046, epic #2037): the temporary shelter leaves the
+// Shelter retirement: the temporary shelter leaves the
 // plan once every colonist owns a bed in a built bedroom and the workshop and
 // laboratory rooms stand. It is re-evaluated every review with no latch, so a
 // joiner without a bed brings it back into the gate. A research table still

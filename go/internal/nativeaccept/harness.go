@@ -43,7 +43,7 @@ func (h *Harness) Call(ctx context.Context, label, tool string, arguments any) (
 
 func (h *Harness) call(ctx context.Context, label, tool string, arguments any, retry bool) (map[string]any, error) {
 	// Every native call of a bridge-only case is a natural pause for the
-	// checkpoint ring (#249); a capture in progress is not re-entered.
+	// checkpoint ring; a capture in progress is not re-entered.
 	checkpointPause(ctx)
 	args, err := json.Marshal(arguments)
 	if err != nil {
@@ -79,13 +79,9 @@ func (h *Harness) call(ctx context.Context, label, tool string, arguments any, r
 	}
 	if callErr != nil {
 		if errors.Is(callErr, bridge.ErrClosed) {
-			// A harness bridge session is only ever closed by Release (a
-			// service is taking the sole GABP slot) or by Close. So a call
-			// through a closed one is a case still holding the Harness from
-			// before its Serve: shelter/bunks-first called a fixture op
-			// mid-service and failed with a bare "bridge closed", which
-			// reads as a transport fault (#663, and #597 for the same
-			// staleness in ScenarioRuntime).
+			// Release hands the sole GABP slot to the service; Close also closes the session. Calls
+			// through that closed Harness indicate a stale case reference. Reattach returns the
+			// replacement Harness after the service stops.
 			callErr = &toolFailure{cause: callErr, message: fmt.Sprintf(
 				"%s: %s: this harness session was released to a service; Reattach after the service stops, and take the Harness the case's Reattach returns", bridge.ErrClosed, tool)}
 		}
@@ -278,7 +274,7 @@ const nativeWaitMargin = 30 * time.Second
 // loading a save or generating a fresh world takes longer than an ordinary
 // read, and up to three minutes on a loaded CI runner. Cutting the call at
 // the session timeout instead reported a real, bounded wait as a transport
-// failure and failed the case (#663). The native timeout stays the one that
+// failure and failed the case. The native timeout stays the one that
 // decides the outcome; this only stops the bridge from ending the call first.
 func coverNativeWait(ctx context.Context, args []byte) context.Context {
 	var wire struct {

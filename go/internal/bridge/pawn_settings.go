@@ -14,8 +14,8 @@ var medicalCareWire = map[domain.MedicalCare]o.MedicalCare{
 	domain.CareBest:   o.MedicalCare_MEDICAL_CARE_BEST,
 }
 
-// pawnSettingsAction is the PawnSettingsIntent of one pawn and one setting
-// (#1299). Native re-checks the pawn and the setting live; a setting that
+// pawnSettingsAction is the PawnSettingsIntent of one pawn and one setting.
+// Native re-checks the pawn and the setting live; a setting that
 // already holds applies again (NativePawnSettings.cs).
 func pawnSettingsAction(action domain.Action) (*o.Action, error) {
 	v, ok := action.PawnSettings()

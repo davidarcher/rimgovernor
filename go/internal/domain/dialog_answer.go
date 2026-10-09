@@ -7,7 +7,7 @@ const DialogAnswerAction ActionKind = "dialog_answer"
 // DialogAnswer is explicit intent to activate one exact observed option of
 // the single force-pausing choice dialog (Verse.Dialog_NodeTree) the game
 // opened by itself: a caravan demand or meeting, a quest dialog, a finished
-// research project's completion dialog (#156). WindowID plus the option's
+// research project's completion dialog. WindowID plus the option's
 // native list position and label stand in for an EntityPrecondition: the
 // native AnswerDialog operation refuses on any drift from these exact
 // observed values (NativeChoiceDialogOperations.cs), so a dialog that moved

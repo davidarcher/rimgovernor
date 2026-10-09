@@ -10,7 +10,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Disposable test setup only (#1075). On the blank lab it raises a
+    // Disposable test setup only. On the blank lab it raises a
     // granite block under thick rock roof east of the colonists, holding two
     // compacted steel deposits: one on the face, bordering open ground, and
     // one buried five cells in, fogged with the rest of the interior. A steel
@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
             map.zoneManager.RegisterZone(zone);
             // The stockpile (the colony extent) sits west of the colonists,
             // away from the face: colony space next to a deposit protects it.
-            // stockpile=face (#1133) puts it against the face deposit instead:
+            // stockpile=face puts it against the face deposit instead:
             // ore is still mined, followed by a replacement wall.
             var zoneRect = besideFace ? new CellRect(center.x + FaceOffset - 3, center.z - 4, 3, 4) : new CellRect(center.x - 7, center.z - 2, 4, 4);
             foreach (var c in zoneRect.Cells) zone.AddCell(c);

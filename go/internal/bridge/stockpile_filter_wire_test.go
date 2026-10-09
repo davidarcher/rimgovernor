@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// legacyZone is a zone the retired preset constructors (#932) built, with
+// legacyZone is a zone the retired preset constructors built, with
 // the preset and canonical allow-list they named it by.
 type legacyZone struct {
 	domain.ZoneCreate

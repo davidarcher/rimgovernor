@@ -83,7 +83,7 @@ func TestPsylinkReviewOwesAUseOnlyForAHeldItem(t *testing.T) {
 
 // A colonist who already holds a psylink is a level-up: a held neuroformer owes
 // a use, but the candidates the resource needs read stay empty, so the colony
-// never buys a neuroformer for a level-up (#1940).
+// never buys a neuroformer for a level-up.
 func TestPsylinkReviewLevelsUpWithoutRaisingTheAcquisitionTarget(t *testing.T) {
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0}
 	source := &fakePsylinkSource{items: []string{"PsychicAmplifier3"}}

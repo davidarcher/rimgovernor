@@ -4,8 +4,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Spines and crossings (#952). The generator lays Spine[0] as the main
-// east-west hallway (nothing else may assume it, #1947); every later segment
+// Spines and crossings. The generator lays Spine[0] as the main
+// east-west hallway (nothing else may assume it); every later segment
 // is a north-south crossing laid through it, so the core grows from a line into a + and then an H (a crossing at each end of the main
 // hallway). A crossing always runs out on both sides of the main hallway,
 // never one, so no branch turns into an L or U. The line beyond each

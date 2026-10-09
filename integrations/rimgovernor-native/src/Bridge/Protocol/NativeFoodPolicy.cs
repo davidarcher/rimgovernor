@@ -11,17 +11,17 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // Food policies (#1541): the food kinds the definition catalog classifies (#1733),
+    // Food policies: the food kinds the definition catalog classifies,
     // FoodPolicyIntent on Actions/Apply (the FoodPolicy labelled name, made
     // when missing, allows exactly the given foods; special filters keep
-    // their values; corpses are always disallowed, #1543) and the pawn's current policy read. PawnSettingsIntent
+    // their values; corpses are always disallowed) and the pawn's current policy read. PawnSettingsIntent
     // .food_policy assigns it (NativePawnSettings.cs). Native suitability,
     // title, veneration and ingestion rules stay authoritative.
     internal static class NativeFoodPolicy
     {
         internal static bool IsFood(ThingDef d) => d.IsNutritionGivingIngestible && d.ingestible != null && !d.IsDrug && !d.IsCorpse;
 
-        // The colonists that can ever eat a food, judged per eater class (#1752):
+        // The colonists that can ever eat a food, judged per eater class:
         // a baby is an eater only of a food that babiesCanIngest (the game's
         // FoodUtility.FoodIsSuitable), so a colony with a baby still has meal
         // eaters. A food is human food when every such eater WillEat it and
@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The game's own classification of one ThingDef, computed once per load
-        // for the definition catalog (#1733): the food kind and meal ingredients
+        // for the definition catalog: the food kind and meal ingredients
         // of a food a policy can allow, ThingDef.IsMeat and ThingDef.IsMedicine.
         internal static Obs.ThingDefFacts Facts(ThingDef d)
         {
@@ -118,7 +118,7 @@ namespace HomeBridge.BridgeTools
                 if (!Allowed(policy).SequenceEqual(want)) throw new InvalidOperationException("Native food policy requires readback.");
                 outcome = Receipts.FieldOutcome.Applied;
             }
-            // No bot policy lets an animal eat a corpse, a colony pet's least of all (#1543).
+            // No bot policy lets an animal eat a corpse, a colony pet's least of all.
             foreach (var corpse in DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.IsCorpse && policy.filter.Allows(d)).ToList()) {
                 policy.filter.SetAllow(corpse, false);
                 outcome = Receipts.FieldOutcome.Applied;

@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The slot packer (#2097, epic #2092). packRoom puts one room on the nearest
+// The slot packer. packRoom puts one room on the nearest
 // free slot of the core: a hallway is worked in its own frame (u along it, a
 // across it), so a north-south crossing is packed by the same code as the
 // main hallway and no grid is cloned or transposed. A room's door sits in its
@@ -314,7 +314,7 @@ func (p *packer) against(rooms []PlannedRoom, role PlannedRole) (PlannedRoom, bo
 // behind places role against its neighbour's back wall, the one opposite the
 // hallway, entered only through a Link door in that wall. The butchery sits
 // behind the freezer: the butcher walks through the freezer, and carcasses
-// stay in the cold. A gear room (#1773) takes the back wall when the side
+// stay in the cold. A gear room takes the back wall when the side
 // walls are taken. The room's own Door is the Link.
 func (p *packer) behind(rooms []PlannedRoom, k Rectangle, role PlannedRole, rule relationSpec) (PlannedRoom, bool) {
 	w, d := coreRoomSize[role][0], coreRoomSize[role][1]
@@ -350,7 +350,7 @@ func (p *packer) behind(rooms []PlannedRoom, k Rectangle, role PlannedRole, rule
 
 // packRoom places one room of role on the nearest free slot, trying every
 // hallway and laying a crossing while no slot fits. fit reports that some
-// slot fit the role (a room that makes a thoroughfare, #780, still counts as
+// slot fit the role (a room that makes a thoroughfare, still counts as
 // fit); placed that a room was added.
 func (g coreGrid) packRoom(spine []SpineSegment, rooms []PlannedRoom, wings []Wing, role PlannedRole, size [2]int32) (_ []SpineSegment, _ []PlannedRoom, placed, fit bool) {
 	for !placed {
@@ -368,7 +368,7 @@ func (g coreGrid) packRoom(spine []SpineSegment, rooms []PlannedRoom, wings []Wi
 				continue
 			}
 			fit = true
-			// A room that makes a thoroughfare (#780) is left out; the
+			// A room that makes a thoroughfare is left out; the
 			// next hallway (or role) tries its slot.
 			trial := append(append([]PlannedRoom(nil), rooms...), room)
 			grown := append([]SpineSegment(nil), spine...)

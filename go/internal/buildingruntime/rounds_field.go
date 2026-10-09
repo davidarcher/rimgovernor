@@ -79,7 +79,7 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoundsFieldResult{}, err
 	}
 	// Every sowable crop is read, so a deficit of any harvested resource can
-	// be planted for (#2285); the lamp, basin and heater are the infrastructure.
+	// be planted for; the lamp, basin and heater are the infrastructure.
 	crops, err := r.reviewer.sowableCrops(call, state.Snapshot)
 	if err != nil {
 		return RoundsFieldResult{}, err
@@ -108,7 +108,7 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if err != nil {
 		return RoundsFieldResult{}, err
 	}
-	// The cross-crop ledger (#1308): hay and social shortfalls compete with
+	// The cross-crop ledger: hay and social shortfalls compete with
 	// the food block for the plan's field patches in one ranked order.
 	others, err := r.otherFieldShortfalls(call, state, review, projection)
 	if err != nil {
@@ -165,7 +165,7 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return placeOthers(wait, BuildingReasonExistingWork)
 	}
 	// A crop whose zones outgrew its full target gives up bare cells
-	// first (#1309): the shortfall planners go quiet once covered.
+	// first: the shortfall planners go quiet once covered.
 	if result, handled, err := r.shrink(call, epoch, state, goal, projection, read, request.Field); err != nil || handled {
 		return result, err
 	}
@@ -186,8 +186,8 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			break
 		}
 		attempts++
-		// Outdoor soil fields fill the plan's field blocks (#1223), ranked
-		// against the hay and social shortfalls (#1308).
+		// Outdoor soil fields fill the plan's field blocks, ranked
+		// against the hay and social shortfalls.
 		var result RoundsFieldResult
 		var tried bool
 		var err error
@@ -207,9 +207,9 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 }
 
 // otherFieldShortfalls is the hay and social field demand of this step's
-// read (#1308), all under MaintainResource: hay, the pasture the pens lack
-// (#2379), social crops once brewing is researched, and the new fields the
-// resource supply plan opened (#2285).
+// read, all under MaintainResource: hay, the pasture the pens lack,
+// social crops once brewing is researched, and the new fields the
+// resource supply plan opened.
 // A goal with open work waits for it.
 func (r *RoundsFieldPlanner) otherFieldShortfalls(call context.Context, state ControlState, review store.Rounds, projection observation.ColonyProjection) ([]fieldShortfall, error) {
 	p := r.reviewer.player
@@ -269,7 +269,7 @@ func (r *RoundsFieldPlanner) otherFieldShortfalls(call context.Context, state Co
 }
 
 // placeLedger places the next field block of the heaviest shortfall that
-// still fits (#1308); tried reports a block reached commitment.
+// still fits; tried reports a block reached commitment.
 func (r *RoundsFieldPlanner) placeLedger(call, epoch context.Context, state ControlState, projection observation.ColonyProjection, read observation.RoundsReading, wait uint32, ledger []fieldShortfall, anchor domain.Cell, protected []domain.Cell) (RoundsFieldResult, bool, error) {
 	result := RoundsFieldResult{Verdict: BuildingReasonNoDeficit, NativeWorkTicks: wait}
 	for _, s := range rankFieldShortfalls(ledger) {
@@ -443,7 +443,7 @@ func (r *RoundsFieldPlanner) admit(call, epoch context.Context, state ControlSta
 
 const fieldBatchPatches = 6
 
-// enactBlock takes the next plan field block step (#1223): create the
+// enactBlock takes the next plan field block step: create the
 // block's growing zone, or grow it with add-cells until the block is full.
 // No plan field blocks is a refusal with its reason; nothing is sited
 // outside the plan.
@@ -554,7 +554,7 @@ func (r *RoundsFieldPlanner) recrop(call, epoch context.Context, state ControlSt
 		return RoundsFieldResult{}, false, err
 	}
 	// Native checks the grower and crop live when the BuildingPatchIntent
-	// applies (#940); a refusal comes back on the plan, not here.
+	// applies; a refusal comes back on the plan, not here.
 	if !arbiter.tryClaim(nil, "grower:"+choice.Grower) {
 		return RoundsFieldResult{Verdict: waitFor(WaitMethodUsed, "grower_claim"), NativeWorkTicks: wait}, false, nil
 	}
@@ -610,7 +610,7 @@ func fieldBlockingWork(progress []domain.Progress) bool {
 		_, grow := p.Action().ZoneCellEdit()
 		zone = zone || grow
 		building, isBuilding := p.Action().Building()
-		// The butcher table shares the goal but not the field (#260).
+		// The butcher table shares the goal but not the field.
 		if isBuilding && building.Definition() == "TableButcher" {
 			continue
 		}
@@ -729,8 +729,8 @@ func fieldSiteRequest(projection observation.ColonyProjection, protected []domai
 	return request, choices
 }
 
-// firebreakRing is the firebreak band around the base and its growing zones
-// (#1550): new fields never take it, whatever its treatment. An unknown ring
+// firebreakRing is the firebreak band around the base and its growing zones:
+// new fields never take it, whatever its treatment. An unknown ring
 // protects nothing.
 func firebreakRing(projection observation.ColonyProjection) ([]domain.Cell, error) {
 	ring, err := policy.FirebreakRing(firebreakRequest(projection))
@@ -746,8 +746,8 @@ func fieldEdit(ctx context.Context, verdict, reason, target string, attrs map[st
 	telemetry.Decide(ctx, telemetry.Decision{Kind: "layout_edit", Component: "clock-scheduler", Verdict: verdict, Reason: reason, Target: target, Attrs: attrs})
 }
 
-// withHarvestFacts adds a plant definition's harvest facts to a crop choice
-// (#2282): the resource a harvest yields, its units per cell, the sowing
+// withHarvestFacts adds a plant definition's harvest facts to a crop choice:
+// the resource a harvest yields, its units per cell, the sowing
 // skill floor and whether a harvest destroys the plant. Unknown stays unknown.
 func withHarvestFacts(crop policy.CropChoice, d observation.PlanningDefinition) policy.CropChoice {
 	if name, ok := d.HarvestedThingDef.Value(); ok {

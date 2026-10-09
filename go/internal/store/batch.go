@@ -32,7 +32,7 @@ type BatchResult struct {
 	Err      error
 }
 
-// PrepareBatch prepares every attempt in one transaction (#1040).
+// PrepareBatch prepares every attempt in one transaction.
 func (s *Store) PrepareBatch(ctx context.Context, attempts []BatchAttempt) ([]BatchResult, error) {
 	return s.advanceBatch(ctx, len(attempts), func(i int) (domain.PlanID, domain.ActionID, transition) {
 		a := attempts[i]

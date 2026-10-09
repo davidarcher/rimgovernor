@@ -7,7 +7,7 @@ using RimGovernor.Host.Sdk;
 
 namespace HomeBridge.BridgeTools
 {
-    // Orders ProtoBoundary.OnMainThread hops by admission class (#631). The
+    // Orders ProtoBoundary.OnMainThread hops by admission class. The
     // host runs queued main-thread invocations in arrival order once per
     // frame, so a renew or stop queued behind a burst of bundle reads waited
     // for every one of them. Every hop is queued here instead and the host
@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
     // observation, arrival order within a class) rather than
     // its own. Pumps equal hops, so every hop runs exactly once; a hop
     // whose caller cancelled while queued is completed cancelled and
-    // skipped. A pump that finds the frame's allowance spent (#988) runs
+    // skipped. A pump that finds the frame's allowance spent runs
     // nothing unless control is queued, and the frame boundary (Frame)
     // drains what stays queued, so every hop still runs exactly once.
     internal static class MainThreadAdmission
@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools
             internal readonly TaskCompletionSource<object> Completion = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
             internal readonly CancellationToken Token;
             internal readonly int QueueDepth;
-            // When it was queued, on the allowance's clock (#988).
+            // When it was queued, on the allowance's clock.
             internal readonly long QueuedAt = Clock();
             internal Hop(int rank, Func<object> body, CancellationToken token, int queueDepth)
             { Rank = rank; Body = body; Token = token; QueueDepth = queueDepth; }
@@ -118,7 +118,7 @@ namespace HomeBridge.BridgeTools
         // Runs on the game thread once per queued hop: executes the best
         // pending hop that is still wanted. While the clock runs and the
         // frame's allowance is spent, a non-control hop stays queued for the
-        // frame boundary to drain (#988).
+        // frame boundary to drain.
         private static object Pump()
         {
             while (true)
@@ -127,7 +127,7 @@ namespace HomeBridge.BridgeTools
                 var hop = Take();
                 if (hop == null) return null!;
                 // Cancelled while queued: counted so the observation report
-                // separates work never done from work that ran (#642).
+                // separates work never done from work that ran.
                 if (hop.Completion.Task.IsCompleted) { FrameAccounting.Cancelled(); continue; }
                 Run(hop);
                 return null!;
@@ -135,7 +135,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The per-frame main-thread allowance for bridge hops while the
-        // clock runs (#988). Hops that do not fit wait for a later frame
+        // clock runs. Hops that do not fit wait for a later frame
         // instead of stacking into one; control hops always run and are
         // charged, so reads defer behind them. Paused, or with no frame
         // boundary seen for StaleMs (hook missing, game unloading), nothing

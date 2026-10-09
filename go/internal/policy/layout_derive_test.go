@@ -27,7 +27,7 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 	if _, changed := replanTest(plan, s, 3, 0, TechTierCamp, nil, nil); changed {
 		t.Fatal("a sound plan replanned")
 	}
-	// The outskirts cluster plans the first tomb from the start (#2185): one
+	// The outskirts cluster plans the first tomb from the start: one
 	// dead colonist grows nothing, a second grows the next tomb.
 	if plan.TombRooms() != 1 {
 		t.Fatal("the plan holds no first tomb", plan.TombRooms())
@@ -54,7 +54,7 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 }
 
 // The perimeter replans when the ground under the ring dries; its own walls
-// standing on the ring change nothing; the opening and rooms stay (#954).
+// standing on the ring change nothing; the opening and rooms stay.
 func TestReplanPerimeterOnDriedGround(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	survey := func(dried bool, walls map[domain.Cell]bool) MapSurvey {

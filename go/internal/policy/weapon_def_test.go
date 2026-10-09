@@ -1,6 +1,6 @@
 package policy
 
-// coreWeapons is test data: the def rows' facts (#1723) of the weapons the
+// coreWeapons is test data: the def rows' facts of the weapons the
 // planning tests name, stated as bridge.CoreWeaponFixtures derives them.
 var coreWeapons = map[string]WeaponDef{
 	"Weapon_GrenadeFrag":         {Ranged: true, Range: 12.9, Explosive: true, Blast: 1.9, DPS: 12.019, AP: .1, ForcedMiss: true},

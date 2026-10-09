@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Plan scoring (#1952, epic #1938): one generator-independent score for a
+// Plan scoring: one generator-independent score for a
 // core plan, read by every siting search. It is tiered. The hard tier is
 // pass or fail: every base room placed (coreBaseRooms), CheckRoutes valid,
 // and no rich soil under a room or hallway. A plan failing it ranks below
@@ -15,7 +15,7 @@ import (
 // the lower tier and the soft score picks among them. The soft tier is the
 // sum of per-term values, higher better, every weight in planWeights.
 
-// planWeights is the one weight table. The replay harness (#1953) tunes it.
+// planWeights is the one weight table. The replay harness tunes it.
 var planWeights = struct {
 	// Hard tier, charged once per failure so failing plans still rank
 	// (more missing rooms lower) inside their tier.
@@ -40,7 +40,7 @@ var planWeights = struct {
 	// at most ExpansionCap cells counted.
 	Expansion, ExpansionReach, ExpansionCap int
 	// ReplanGain is the score a replan's candidate must beat the saved
-	// plan's by before the unbuilt rooms are sited again (#1958): about a
+	// plan's by before the unbuilt rooms are sited again: about a
 	// room's worth of plain soil, so near-equal layouts never flicker.
 	ReplanGain int
 	// FieldGain is the score a plan built on field ground must beat the best

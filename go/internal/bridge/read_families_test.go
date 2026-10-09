@@ -7,7 +7,7 @@ import (
 
 // Every reviewed native read is either a read of one fact family or
 // explicitly not a fact read, so a new read method cannot slip past the
-// recording facts reader unclassified (#1916).
+// recording facts reader unclassified.
 func TestEveryNativeReadIsClassified(t *testing.T) {
 	t.Parallel()
 	for name := range reviewedNativeMethods {

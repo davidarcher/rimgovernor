@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Recorded from acceptance run supply/loot-safety at 04b0a98c (#749): a
+// Recorded from acceptance run supply/loot-safety at 04b0a98c: a
 // 25-steel stack dropped 45 cells out, first on a trap, then with the trap
 // removed. Both reviews ran at the case's paused tick 21.
 const (
@@ -49,10 +49,10 @@ func pendingLoot(loot policy.EventLootHistory, thing string) (policy.StartingSup
 	return policy.StartingSupply{}, false
 }
 
-// Recorded from acceptance run supply/starting at 04b0a98c (#749) on the
+// Recorded from acceptance run supply/starting at 04b0a98c on the
 // tribal8 baseline: the load review (tick 15, 23 forbidden starting stacks),
 // and the review after the last was allowed (tick 95886). ManageSupplySafety releases them from the
-// loot census like any other safe forbidden stack (#2188).
+// loot census like any other safe forbidden stack.
 const (
 	startingLoad       = "testdata/supply-starting-load-census.json"
 	startingAllAllowed = "testdata/supply-starting-all-allowed.json"
@@ -103,7 +103,7 @@ func TestSupplySafetyRecoversOnceEveryStartingStackIsAllowed(t *testing.T) {
 	}
 }
 
-// Recorded from acceptance run supply/loot-remote at 04b0a98c (#749): a
+// Recorded from acceptance run supply/loot-remote at 04b0a98c: a
 // forbidden, safe Steel stack near the far map edge under a Steel:2000
 // target, first with one free hauler (base reach), then after the fixture
 // raised readiness to five. Both reviews ran at the case's paused tick 21.
@@ -181,7 +181,7 @@ func TestLootIsAllowedOnceItsTrapIsGone(t *testing.T) {
 }
 
 // The recorded safe stack, with a hive recorded beside it, stays forbidden:
-// the danger gate holds it back (#1802).
+// the danger gate holds it back.
 func TestLootNextToAHiveStaysForbidden(t *testing.T) {
 	r, err := Load(lootTrapRemoved)
 	if err != nil {

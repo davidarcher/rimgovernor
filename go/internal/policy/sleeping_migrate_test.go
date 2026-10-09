@@ -7,7 +7,7 @@ import (
 )
 
 // A tier bump retires the smaller wing and sites a new wing at the new
-// size, keeping every old room in place (#1219).
+// size, keeping every old room in place.
 func TestTierBumpRetiresWingAndSitesNewOne(t *testing.T) {
 	p := corePlan(coreTestZones(), 4, TechTierCamp)
 	old := testBedroomWing(t, p)
@@ -75,7 +75,7 @@ func migrateFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 }
 
 // Pawns leave a Retiring wing one at a time; the move is no bedroom
-// deficit (#1219).
+// deficit.
 func TestMigrateStepMovesOnePawnAtATime(t *testing.T) {
 	plan, rooms, sleeping := migrateFixture()
 	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomNone || got.Unhoused != 0 {

@@ -8,7 +8,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-// A policy prune builds one PolicyPruneIntent (#1298) with its database and
+// A policy prune builds one PolicyPruneIntent with its database and
 // the canonical ids.
 func TestPolicyPruneBuildsIntent(t *testing.T) {
 	for db, want := range policyDatabases {

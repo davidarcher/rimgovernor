@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A ritual command builds one RitualIntent (#1639).
+// A ritual command builds one RitualIntent.
 func TestRitualBuildsIntent(t *testing.T) {
 	value, err := domain.NewRitual("pawn-7", domain.RitualBestowing, domain.RitualStart)
 	if err != nil {

@@ -2,7 +2,7 @@ package policy
 
 import "errors"
 
-// The gear rooms (#1773, epic #1765): an armory for weapons and armor and a
+// The gear rooms: an armory for weapons and armor and a
 // wardrobe for clothing are core rooms layout adds only when the storage
 // planner signals that stored gear of the kind outgrew its zone
 // (RoomDemand); with no demand neither is planned. The armory stands beside

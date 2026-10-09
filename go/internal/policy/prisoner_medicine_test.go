@@ -7,7 +7,7 @@ import (
 )
 
 // careLimitedPrisoner holds only industrial medicine: every harvest reads
-// ingredients off the map because herbal care forbids it (#1239).
+// ingredients off the map because herbal care forbids it.
 func careLimitedPrisoner(id string) PrisonerFacts {
 	var ops []SurgeryOperation
 	for _, op := range []SurgeryOperation{harvestOp("Kidney", 20, false), harvestOp("Kidney", 21, false), harvestOp("Lung", 18, false), harvestOp("Lung", 19, false)} {

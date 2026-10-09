@@ -45,7 +45,7 @@ func TestMaintainedGoalUnknownRenewalAndInvalidation(t *testing.T) {
 // A recovery measured while the method's effects were still open (the
 // lamp stands, the plan not yet observed) never reaches satisfaction; the
 // next deficit after that work settles still opens a new episode so the
-// same method can repair the regression (#161).
+// same method can repair the regression.
 func TestMaintainedGoalRecoveredWithOpenWorkThenDeficitRenewsEpoch(t *testing.T) {
 	_, scope := fixture(t)
 	g, e := NewStandard("lighting", 3, scope)

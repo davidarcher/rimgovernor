@@ -66,10 +66,10 @@ func ConcernLabor(id ConcernID) LaborProfile {
 		return LaborProfile{WorkFirefighter}
 	case MaintainFirebreak:
 		// Plants are cut by plant cutters, wooden ruins taken down by
-		// builders (#1548).
+		// builders.
 		return LaborProfile{WorkPlantCutting, WorkConstruction}
 	case MaintainStockpiles:
-		// A resized or retargeted stockpile is refilled by haulers (#725).
+		// A resized or retargeted stockpile is refilled by haulers.
 		return LaborProfile{WorkHauling}
 	case MaintainMedicalReserves:
 		// A medicine bill at a crafting bench, or a wild healroot harvest

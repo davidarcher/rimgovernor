@@ -12,7 +12,7 @@ import (
 )
 
 // An owner's open ring wave of a planned room (the shelter's 23 walls) must
-// not hold the furniture raised on that room's interior (#2303): the cooking
+// not hold the furniture raised on that room's interior: the cooking
 // step reaches its own placement (here it then waits on the missing layout plan), and the ring's reconcile reads the open
 // wave as already tried.
 func TestOpenRingWaveDoesNotHoldTheFurnitureSlot(t *testing.T) {
@@ -60,7 +60,7 @@ func TestOpenRingWaveDoesNotHoldTheFurnitureSlot(t *testing.T) {
 		t.Fatalf("the campfire waited behind the ring wave: %+v err=%v", result.Verdict, err)
 	}
 	// The store admits the slot's method and a second ring wave beside the open
-	// one, but nothing on a cell the open wave builds on (#2315).
+	// one, but nothing on a cell the open wave builds on.
 	commit := func(method string, cell domain.Cell) error {
 		b, err := domain.NewBuilding("Campfire", cell, domain.North, "")
 		if err != nil {
@@ -91,7 +91,7 @@ func TestOpenRingWaveDoesNotHoldTheFurnitureSlot(t *testing.T) {
 	}
 }
 
-// The slot is admitted first and the ring wave after it (#2303): the store
+// The slot is admitted first and the ring wave after it: the store
 // admits a ring wave beside the owner's open furniture on cells the furniture
 // is not on, and still not a second open furnishing method or a ring wave on the
 // slot's own cell.
@@ -142,7 +142,7 @@ func TestRingWaveIsAdmittedBesideOpenFurnitureSlot(t *testing.T) {
 }
 
 // A cold map's cooking campfire stands on the shelter's template slot, not the
-// planned kitchen's interior; on a normal map the kitchen hosts it (#2303).
+// planned kitchen's interior; on a normal map the kitchen hosts it.
 func TestColdCookingCampfireIsNotHostedByTheKitchen(t *testing.T) {
 	t.Parallel()
 	r := &RoundsBuildingPlanner{concern: policy.EnsureCooking, definition: "Campfire"}

@@ -27,8 +27,8 @@ const (
 	// StepFull runs every planner regardless of evidence; it is also the
 	// FullStepEvery safety net a timer step is promoted to.
 	StepFull StepCause = "full"
-	// StepLive is a step that planned while its own window was running
-	// (#243): the planners read the bundle's tick-consistent snapshot and
+	// StepLive is a step that planned while its own window was running:
+	// the planners read the bundle's tick-consistent snapshot and
 	// commit plans the Worker dispatches live; nothing is admitted. A timer
 	// step is promoted to it when FullStepEvery has passed, a wake or a
 	// full step at once; the selection is the underlying cause's.
@@ -38,13 +38,13 @@ const (
 // DefaultFullStepEvery bounds how long the due queue may drive the
 // planners before a timer step is promoted to a full one: the coarse
 // reconciliation that re-runs every planner in case an invalidation was
-// missed (#625). Between full steps a timer step runs only the planners
+// missed. Between full steps a timer step runs only the planners
 // due at the game tick (plannerEntry.reviewEvery) or dirtied by a wake.
 const DefaultFullStepEvery = 2 * time.Minute
 
 // DefaultPlayerQuiet is how long after the player's last speed-key press (a
 // Manual authority change) a step waits before it re-takes a clock the
-// player runs by hand under a stopped epoch (#601): long enough not to
+// player runs by hand under a stopped epoch: long enough not to
 // fight a player still pressing keys, short enough that the next window
 // and the test-acceleration boost return within a few seconds.
 const DefaultPlayerQuiet = 3 * time.Second
@@ -58,7 +58,7 @@ type StepReason struct {
 	Events []WakeOutcome
 	// Families are the fact families a wake's ObservationInvalidated
 	// events named; Sections the store sections the same events narrowed
-	// to (clockPageSections, #625). A reason carrying families alone is
+	// to (clockPageSections). A reason carrying families alone is
 	// taken to dirty every section of theirs.
 	Families []bridge.FactFamily
 	Sections []facts.Section
@@ -69,7 +69,7 @@ type StepReason struct {
 	TickAdvanced bool
 	// Stopped is set when the wake's committed pages stopped the clock;
 	// StopAt is the earliest such stop's native stamp (zero when unknown),
-	// from which the step publishes its stop latency (issue #112).
+	// from which the step publishes its stop latency.
 	Stopped bool
 	StopAt  time.Time
 }
@@ -102,7 +102,7 @@ func (r StepReason) String() string {
 }
 
 // plannerSelection decides which catalog planners a step for reason runs
-// at tick, over a copy of the due queue q (#625): a full step runs every
+// at tick, over a copy of the due queue q: a full step runs every
 // planner; a settled step (a window just ran) marks every planner and
 // runs those not waiting on a dependency; a timer step runs the planners
 // dirty or due at tick; a wake or live step folds its evidence first (the

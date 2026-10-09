@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace HomeBridge.BridgeTools
 {
     /// The hazard classes the supervisor's Probe covers and the detection
-    /// bound each one declares (#626): the most game ticks a hazard of that
+    /// bound each one declares: the most game ticks a hazard of that
     /// class can exist before a probe evaluates it, at every production
     /// TimeSpeed. The probe is tick-paced (ProbeIntervalTicks, checked at the
     /// tick boundary) as well as wall-paced (ProbeIntervalMs, checked per
@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
     /// the typed clock runtime.
     internal static partial class Supervisor
     {
-        /// The stop tier's severity floor for a new wound (#584): a colonist
+        /// The stop tier's severity floor for a new wound: a colonist
         /// whose blood loss kills them within this many game ticks, or who
         /// carries a life-threatening hediff stage, still stops the window;
         /// any lighter new wound is journaled and the medical planner reviews
@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
         /// probe.
         internal const int MedicalWakeIntervalTicks = 600;
 
-        /// Whether a new wound is severe enough to keep the stop (#584).
+        /// Whether a new wound is severe enough to keep the stop.
         internal static bool InjurySeverityFloorReached(int bleedOutTicks, bool lifeThreatening)
         {
             return lifeThreatening || bleedOutTicks <= InjurySeverityFloorTicks;

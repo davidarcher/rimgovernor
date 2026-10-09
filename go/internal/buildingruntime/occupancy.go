@@ -12,7 +12,7 @@ import (
 )
 
 // layoutOccupied is occupiedCells plus the walls of the planned rooms an
-// open journal plan is working on (roomMethodOrigins, #1958). Unknown when
+// open journal plan is working on (roomMethodOrigins). Unknown when
 // the census or the plan catalog is. It also returns the interior origins of
 // those rooms.
 func (r *Rounder) layoutOccupied(ctx context.Context, projection observation.ColonyProjection, plan policy.LayoutPlan) (map[domain.Cell]bool, map[domain.Cell]bool, bool) {

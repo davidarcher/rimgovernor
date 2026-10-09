@@ -30,7 +30,7 @@ func (f *planningWindowFake) ReadPlanningWindow(_ context.Context, _ *c.Identity
 	return bridge.PlanningWindow{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Region: rect, Cells: []policy.SiteCell{{Cell: domain.Cell{X: rect.X, Z: rect.Z}, Walkable: domain.Known(true)}}}, bridge.Result{}, nil
 }
 
-// Every ask cuts the window from the frame grid and files it (#1345); a
+// Every ask cuts the window from the frame grid and files it; a
 // failed read serves the held window of the same region, else fails.
 func TestPlanningWindowReadsEveryAsk(t *testing.T) {
 	store := facts.NewStore()

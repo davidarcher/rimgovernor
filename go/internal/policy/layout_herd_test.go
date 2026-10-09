@@ -73,7 +73,7 @@ func TestVetBedsScaleWithTheHerd(t *testing.T) {
 
 // A unit boxed in by the core has no room beside it: the outgrown herd founds
 // one second unit (barn and vet area), the nearest unit takes it as its
-// own, and a repeat top-up is a no-op (#2212).
+// own, and a repeat top-up is a no-op.
 func TestBoxedInUnitFoundsASecondUnit(t *testing.T) {
 	small := boxedInHerdPlan(t, 10)
 	grown := PlanHerdSites(small, 30)

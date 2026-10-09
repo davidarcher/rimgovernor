@@ -11,7 +11,7 @@ import (
 
 // A room whose ring holds a claimable ruin and whose interior holds an
 // impassable tree and a haulable item commits the claim first, then the cut,
-// then the haul (#2269): each pass commits the first kind still owed, as one
+// then the haul: each pass commits the first kind still owed, as one
 // method named for the room and carrying the existing action kinds.
 func TestCommitObstructionsCommitsTheFirstKindOwed(t *testing.T) {
 	target := func(id, def string, x, z int32) policy.ClearanceTarget {

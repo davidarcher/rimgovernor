@@ -2,8 +2,8 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Medicine runway (#2378, epic #1856). Medicine is spent where a colonist is
-// tended; the realized-consumption ring (#2441) counts each dose and
+// Medicine runway. Medicine is spent where a colonist is
+// tended; the realized-consumption ring counts each dose and
 // ForecastResourceRunway turns the observed rate and the stock into days left.
 // Every catalog medicine has a row, so a better medicine in use counts. The
 // shortfall is the projector's Medicine domain; the stock to hold is the

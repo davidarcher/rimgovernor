@@ -1,10 +1,10 @@
 // The bills/census case proves the typed bench census behind
-// rimgovernor/observations_read_bills and observations_read_recipes (#77)
+// rimgovernor/observations_read_bills and observations_read_recipes
 // on a loaded save: every player bench appears once with a CAS token, each
 // bill names its recipe, the census token
 // agrees with the colony-facts production token for the same bench, and each
 // bench's recipe list carries the availability of every recipe (what a recipe
-// is, costs and needs is read from the definition catalog, #1721).
+// is, costs and needs is read from the definition catalog).
 // A fixture build's test/routine_production_prepare seeds a fueled campfire
 // with a food bill so a bench-less save still exercises the census.
 package bills

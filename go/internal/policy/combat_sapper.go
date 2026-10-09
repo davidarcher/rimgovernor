@@ -6,12 +6,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TacticSapper answers a sapper or breacher raid (#913): the raid ignores
+// TacticSapper answers a sapper or breacher raid: the raid ignores
 // the killbox and digs or blasts toward the rooms, so the defenders post
 // inside the wall it is about to break instead of holding the line.
 const TacticSapper CombatTactic = "sapper"
 
-// Sapper formation constants (#913).
+// Sapper formation constants.
 const (
 	// sapperInset is how far inside the breach, in cells, the gunners stand.
 	sapperInset = 3
@@ -19,7 +19,7 @@ const (
 	sapperSpread = 2
 )
 
-// SapperBreach is a predicted breach (#913): the wall cell the sappers
+// SapperBreach is a predicted breach: the wall cell the sappers
 // will open and the room behind it.
 type SapperBreach struct {
 	// Wall is the room's wall cell nearest the sappers; Inside the floor
@@ -40,7 +40,7 @@ func liveSappers(view CombatView) []CombatPawnState {
 	return out
 }
 
-// predictBreach predicts where the sappers break in (#913). They head for
+// predictBreach predicts where the sappers break in. They head for
 // the base's rooms, so the target is the frame's room whose centre is
 // nearest the live sappers' centroid, and the breach is that room's wall
 // cell nearest the centroid (a corner moves onto the nearer side). No
@@ -139,9 +139,9 @@ func breachPosts(b SapperBreach, depth, stride int32, n int) []domain.Cell {
 	return out
 }
 
-// sapperFormation posts the defenders at the predicted breach (#913):
+// sapperFormation posts the defenders at the predicted breach:
 // gunners on cells sapperInset inside it, sapperSpread apart along the
-// wall, on the top-ranked hostile (a sapper, by #863's score); brawlers
+// wall, on the top-ranked hostile (a sapper, by threat score); brawlers
 // on the cells just inside it as blockers with no target, so none walks
 // out to fight in the open.
 func sapperFormation(view CombatView, b SapperBreach) []CombatRole {
@@ -182,7 +182,7 @@ func sapperFormation(view CombatView, b SapperBreach) []CombatRole {
 	return sortRoles(roles)
 }
 
-// reformSapper is the sapper row of the reaction table (#913): a sapper
+// reformSapper is the sapper row of the reaction table: a sapper
 // raid whose predicted breach is not the one the formation guards (a new
 // raid, or the sappers turned toward another wall) re-forms, as does a
 // sapper formation whose raid no longer predicts a breach or whose target

@@ -9,7 +9,7 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Anomaly colony facts (#1738): the knowledge the research manager holds
+    // Anomaly colony facts: the knowledge the research manager holds
     // per category, codex discovery, the entities held on the colony map and
     // the GameComponent_Anomaly state that gates and times Anomaly threats.
     // Per-thing facts ride the pawn and building rows (NativeAnomalyFacts).
@@ -51,7 +51,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // The monolith and the endgame it gates (#2436); null (unknown) unless
+        // The monolith and the endgame it gates; null (unknown) unless
         // it is spawned. Every verdict is the game's own: CanActivate, the next
         // level def's requirement, the Gleaming comp's CanInteract and the
         // spawned void things on the monolith's map. The block reasons repeat

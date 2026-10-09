@@ -1,5 +1,5 @@
-// Package supplysim is a day-by-day stock-flow simulator for colony supply
-// (epic #2140). It models flows and constraints, never pawn behaviour: goods
+// Package supplysim is a day-by-day stock-flow simulator for colony supply.
+// It models flows and constraints, never pawn behaviour: goods
 // have stock, consumers draw them down, sources deliver while opened and within
 // a labor budget, and shocks change capacity or destroy stock. A Planner opens
 // and closes sources each day; Run returns a deterministic Report.

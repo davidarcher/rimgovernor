@@ -77,7 +77,7 @@ func TestResearchPrerequisiteQueueRejectsHiddenProjects(t *testing.T) {
 	}
 }
 
-// A knowledge-category project is an ordinary node of the graph (#1745): the
+// A knowledge-category project is an ordinary node of the graph: the
 // queue orders it after its ordinary and knowledge prerequisites alike.
 func TestResearchPrerequisiteQueueAcceptsKnowledgeProjects(t *testing.T) {
 	extraction := researchProject("BioferriteExtraction", nil, nil)

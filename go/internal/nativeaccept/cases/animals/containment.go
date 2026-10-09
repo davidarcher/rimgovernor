@@ -1,9 +1,9 @@
 // The animals/containment case exercises the MaintainAnimalContainment
-// native dispatch vertical (G01.07e, issue #27) end to end against a live
-// game: one rimgovernor/operations_apply batch of BuildingIntents (#856)
+// native dispatch vertical (G01.07e) end to end against a live
+// game: one rimgovernor/operations_apply batch of BuildingIntents
 // authors a durable Fence/FenceGate enclosure and one PenMarker inside it, the
 // native shape of the paddock the planner claims with a single marker once the
-// defensive wall is closed and its lane fenced (policy.NextPaddockStep, #2233;
+// defensive wall is closed and its lane fenced (policy.NextPaddockStep;
 // the fixture's fenced room stands in for the wall's yard), then real game ticks build it and carry a genuinely uncontained,
 // pen-requiring herd animal into that pen -- observed via
 // rimgovernor/observations_read_colony_facts's native AnimalFeed/AnimalState
@@ -36,7 +36,7 @@ func init() {
 			"pen-requiring herd animal carried into that pen by real native ticks (observed via " +
 			"observations_read_colony_facts, not just a receipt), while a non-pen-requiring pet is left alone.",
 		// Sited on the audited baseline: an unpinned debug start draws a
-		// fresh world each run and may offer no legal pen room (#716).
+		// fresh world each run and may offer no legal pen room.
 		Start:  cases.Fixture{Op: "test/containment_construct_prepare", On: cases.LabStart()},
 		Keep:   []string{string(na.LiveNeeds)},
 		Budget: 5 * time.Minute,
@@ -82,7 +82,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	// Author the whole pen in one Actions/Apply batch (#856): 19 Fence + 1
+	// Author the whole pen in one Actions/Apply batch: 19 Fence + 1
 	// FenceGate matching the pen ring's perimeter/door layout (door
 	// anchoring the south wall's center, Fence elsewhere), and the PenMarker
 	// at the shell's nearest-northwest interior corner.
@@ -171,7 +171,7 @@ func run(ctx context.Context, s cases.Session) error {
 		for _, raw := range na.AsSlice(upkeep["animals"]) {
 			row, _ := na.AsMap(raw)
 			if na.PawnRef(row) == id {
-				// The herd facts ride the pawn table row (#1343).
+				// The herd facts ride the pawn table row.
 				return row, h.JoinPawn(ctx, label, identity, row)
 			}
 		}

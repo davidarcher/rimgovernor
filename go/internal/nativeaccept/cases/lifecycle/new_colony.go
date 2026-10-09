@@ -1,11 +1,11 @@
 // lifecycle/new_colony is the native acceptance for the production new-colony
-// start (#2019, #2021): rimgovernor/lifecycle_new_colony generates a colony
+// start: rimgovernor/lifecycle_new_colony generates a colony
 // from a spec on a fresh main menu and rimgovernor/lifecycle_read_new_colony
 // reports its phases. The case runs on a game it launches itself (Owned),
 // because it needs a fresh main menu, and twice: the second launch proves the
 // same pinned spec gives the same tile, biome, colonist names and skills.
 //
-// Native finishes the start (#2022): pause, confirm the naming dialog and save
+// Native finishes the start: pause, confirm the naming dialog and save
 // under the spec's save name into profile/Saves. The first launch asserts the
 // completed reply, the save file, and that lifecycle_load restores the same
 // colony (colonists, tick, paused); two more launches force a save failure (a

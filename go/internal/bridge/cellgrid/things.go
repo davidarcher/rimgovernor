@@ -7,7 +7,7 @@ import (
 	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 )
 
-// The per-cell thing list (#2260). A Grid holds it CSR style: offsets (one
+// The per-cell thing list. A Grid holds it CSR style: offsets (one
 // per cell plus one) cut a single slab of decoded records into each cell's
 // list, and a record's building state and its owed-material and casket
 // lists point into three more slabs, so a decode allocates a handful of

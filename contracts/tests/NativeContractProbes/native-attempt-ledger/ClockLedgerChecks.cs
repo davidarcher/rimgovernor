@@ -32,7 +32,7 @@ internal static class ClockLedgerChecks
         var request = Request();
         var fresh = ledger.InspectClock(Start, request);
         Check(fresh.Kind == Kind.New && fresh.Reply == null && fresh.Handle == null && ledger.Count == 0, "clock inspection never admits");
-        // Owner guard removed by #52: the admission context identity is the remaining guard.
+        // Admission validates the context identity and native generation.
         var badIdentity = Context(); badIdentity.Identity.LoadToken = "different";
         Check(ledger.AdmitClock(Start, request, badIdentity).Kind == Kind.Refused && ledger.Count == 0, "clock identity guard consumes no capacity");
         var badContext = Context(); badContext.NativeGeneration++;

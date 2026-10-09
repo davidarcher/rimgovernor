@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// HerdJob is the one reason the colony keeps a race (#1628).
+// HerdJob is the one reason the colony keeps a race.
 type HerdJob string
 
 const (
@@ -44,7 +44,7 @@ type HerdPlanInput struct {
 	Pens          domain.Fact[[]PenGrazing]
 	Food          domain.Fact[FoodPlan]
 	// Offers are races a trader offers or a quest rewards now; they count
-	// as obtainable (the buying and reward hooks, #1636).
+	// as obtainable (the buying and reward hooks).
 	Offers []Resource
 	// Handlers are the colony's pawn profiles; an unread roster plans no
 	// leveling.
@@ -63,10 +63,10 @@ func (f RoundsFacts) HerdPolicy() HerdPolicy { return PlanHerd(f.HerdPlanInput()
 // PenAnimals is the herd the layout's pens, barn and vet room are sized for.
 func (f RoundsFacts) PenAnimals() int { return PlanHerd(f.HerdPlanInput()).PenAnimals() }
 
-// YardAnimals is the herd the defensive wall's yard is sized for (#2232).
+// YardAnimals is the herd the defensive wall's yard is sized for.
 func (f RoundsFacts) YardAnimals() int { return PlanHerd(f.HerdPlanInput()).YardAnimals() }
 
-// HerdUnits are the herds the layout gives units of their own (#2122).
+// HerdUnits are the herds the layout gives units of their own.
 func (f RoundsFacts) HerdUnits() []HerdCeiling { return PlanHerd(f.HerdPlanInput()).HerdUnits() }
 
 // HerdRole is one race's place in the plan. Consumers (taming, training,
@@ -107,13 +107,13 @@ type HerdPlan struct {
 	Roles  map[Resource]HerdRole
 	Jobs   map[HerdJob]HerdJobPlan
 	Policy HerdPolicy
-	// Herds are the races that are herds (#2122): a fertile breeding pair or
+	// Herds are the races that are herds: a fertile breeding pair or
 	// herdMinAnimals animals kept, with a policy ceiling to size a unit from
 	// (a founder or companion has none and stays with the misc animals).
 	Herds []Resource
 	// Leveling is the easy race tamed (and trained) to raise the best
 	// handler's Animals skill while a wanted race needs more than any
-	// handler has (#1634); empty when none is needed or available.
+	// handler has; empty when none is needed or available.
 	Leveling Resource
 }
 
@@ -237,10 +237,10 @@ const herdSpare = herdPairSize
 const herdUnplannedFloor = 6
 
 // herdMinAnimals is the headcount at which a race with no breeding pair is
-// still a herd with a unit of its own (#2122).
+// still a herd with a unit of its own.
 const herdMinAnimals = 5
 
-// PlanHerd derives each race's job from the colony facts (#1628). A job is
+// PlanHerd derives each race's job from the colony facts. A job is
 // wanted while any kept animal holds it: a yield (milk, wool, chemfuel,
 // eggs) or a learned training (haul, war). Its candidates are the catalog
 // races able to hold it that the colony can obtain (owned, tameable wild,

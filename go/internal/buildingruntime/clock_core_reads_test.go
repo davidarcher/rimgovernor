@@ -13,7 +13,7 @@ import (
 // The scheduler requires the zone, planning-window and entity reads
 // (ClockWindowNative): the core fake answers them empty at its status tick.
 // The speed matrix native serves them at the tick of the moment without
-// counting them: its reads-per-step bound (#593) is about the bundle and the
+// counting them: its reads-per-step bound is about the bundle and the
 // coordinator's status read, not the review's section refreshes.
 func (n *speedNative) observedNow() *c.ObservationContext {
 	n.mu.Lock()

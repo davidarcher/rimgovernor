@@ -256,7 +256,7 @@ func TestSelectFlooringRefusesUglyFloorsForLivingRooms(t *testing.T) {
 }
 
 // trafficFloors is the policy floors' planning rows with their native
-// WorkToBuild, as the traffic tier prices them (#950).
+// WorkToBuild, as the traffic tier prices them.
 func trafficFloors() map[string]FloorDefinition {
 	floors := flooringDefinitions().Definitions
 	for name, work := range map[string]float64{"WoodPlankFloor": 85, "Concrete": 50, "SterileTile": 800} {
@@ -268,7 +268,7 @@ func trafficFloors() map[string]FloorDefinition {
 }
 
 // The traffic tier keeps a cell only while the priced floor repays its
-// work and material ticks within PaybackDays (#950). A wood floor costs
+// work and material ticks within PaybackDays. A wood floor costs
 // 85 work + 3 logs x 30 = 175 ticks; a colonist cell of s samples is
 // stepped s*ln2/2 times a day.
 func TestFlooringTrafficTierPaysBack(t *testing.T) {
@@ -445,7 +445,7 @@ func TestFlooringFirebreakTier(t *testing.T) {
 }
 
 // A settled Development colony with stone blocks paves its ring in
-// non-flammable floor although wood is cheaper (#1549).
+// non-flammable floor although wood is cheaper.
 func TestFlooringFirebreakPavesSettledRing(t *testing.T) {
 	r := firebreakFixture(t, domain.Cell{X: 30, Z: 30})
 	stone := firebreakFloorDef(0, 4, 10)

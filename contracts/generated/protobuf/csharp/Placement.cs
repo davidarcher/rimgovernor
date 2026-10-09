@@ -566,7 +566,7 @@ namespace RimGovernor.Protocol.Placement {
     /// <summary>
     /// Previews the placement as though natural rock at the cell were already
     /// mined, for a planned building whose excavation the same plan orders
-    /// first (#874). Dispatch never sets it.
+    /// first. Dispatch never sets it.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

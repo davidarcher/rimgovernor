@@ -26,12 +26,12 @@ type CustodyFacts struct {
 	Dead, Downed, Guest, Admitted, Prisoner, Hostile domain.Fact[bool]
 	// Recruitable is the game's guest.Recruitable, rolled at pawn generation
 	// (PawnGenerator.GeneratePawn -> SetupRecruitable), so a downed raider
-	// already carries it before capture. It orders captures only (#1034).
+	// already carries it before capture. It orders captures only.
 	Recruitable domain.Fact[bool]
 	// Prospect is the pawn's biography: skills rank a standing hostile as
-	// a lance target (#1038).
+	// a lance target.
 	Prospect domain.Fact[PrisonerProspect]
-	// Luciferium is a LuciferiumAddiction hediff (#1079): the raider is
+	// Luciferium is a LuciferiumAddiction hediff: the raider is
 	// not CaptureWorthy, so the fight strips and finishes it instead.
 	// WearingApparel gates a capture on the fight's strip: every downed
 	// raider is stripped before it is taken.
@@ -111,7 +111,7 @@ func CustodyDeficit(rows domain.Fact[[]CustodyFacts]) domain.Fact[bool] {
 
 // SelectCustodyMethod picks the next eligible candidate to dispatch. A
 // capture of a raider not known to be recruitable ranks after every other
-// candidate (#1034); within a rank the lowest pawn ID wins, mirroring
+// candidate; within a rank the lowest pawn ID wins, mirroring
 // SelectPrisonerInteractionMethod's determinism. Rescues are never demoted,
 // and an unrecruitable raider is still captured once nothing outranks it.
 func SelectCustodyMethod(rows domain.Fact[[]CustodyFacts]) CustodyChoice {

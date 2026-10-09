@@ -103,7 +103,7 @@ func main() {
 			fatal(err.Error())
 		}
 	}
-	// The Now tab (#1986): the page polls these at the serve client's
+	// The Now tab: the page polls these at the serve client's
 	// cadences while the tab is visible; no timer lives here.
 	serve := NewServeClient(a.serveURL)
 	for name, f := range map[string]any{
@@ -128,7 +128,7 @@ func main() {
 	w.Run()
 }
 
-// openLink opens an allowlisted URL in the default browser (#2327).
+// openLink opens an allowlisted URL in the default browser.
 func openLink(url string) error {
 	if err := allowedLink(url); err != nil {
 		return err

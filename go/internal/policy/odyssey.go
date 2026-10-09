@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Hack is one building's hack state (#1708) as its row carries it; every
+// Hack is one building's hack state as its row carries it; every
 // field is unknown when native did not read it. The static facts (defence,
 // skill prerequisite, lockout) are the catalog's (bridge.OdysseyCatalog).
 type Hack struct {

@@ -6,7 +6,7 @@ import (
 )
 
 // blightCensus lists the blighted plants on colony ground from the planning
-// window's thing lists (#245, #2272): a plant thing with blighted state on a
+// window's thing lists: a plant thing with blighted state on a
 // growing zone or the home area. It is unknown (never "no blight") until the
 // window and the zone section are both held. A cell the window does not hold
 // (fogged) has no plant to see.

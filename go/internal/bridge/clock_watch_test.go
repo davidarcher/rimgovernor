@@ -64,7 +64,7 @@ func TestClockWatchEventsAndOwnerlessAuthority(t *testing.T) {
 	}
 }
 
-// Combat stop events (#849) are armed only on a combat policy, each
+// Combat stop events are armed only on a combat policy, each
 // specified and distinct.
 func TestClockPolicyCombatStopEvents(t *testing.T) {
 	combat := clockTestPolicy()

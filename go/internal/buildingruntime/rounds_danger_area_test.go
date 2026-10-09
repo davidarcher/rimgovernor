@@ -9,7 +9,7 @@ import (
 )
 
 // The NoDanger area leaves out the cells a fight covered for the whole
-// cooldown, then takes them back (#1802).
+// cooldown, then takes them back.
 func TestNoDangerAreaFollowsTheDangerWindow(t *testing.T) {
 	home := []domain.Cell{{X: 1, Z: 1}, {X: 2, Z: 1}, {X: 200, Z: 1}}
 	room := policy.Room{ID: "1", Enclosed: domain.Known(true), Roofed: domain.Known(true), Cells: home[:1]}

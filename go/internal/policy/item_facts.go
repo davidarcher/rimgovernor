@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// ItemFacts are the game's item numbers from the definition catalog (#1734),
+// ItemFacts are the game's item numbers from the definition catalog,
 // read once per load: planners look prices, nutrition, potency and stuff
 // factors up here instead of carrying tables of their own. The zero value is
 // a frame without a catalog; every lookup on it is an error and the planners
@@ -36,7 +36,7 @@ type ItemFacts struct {
 	// def Tradeable.IsCurrency tests (ThingDefOf.Silver).
 	Currency Resource
 	// Wort is what the fermenting barrel takes in and turns into beer
-	// (ThingDefOf.Wort): the intermediate the beer reserve produces (#1721).
+	// (ThingDefOf.Wort): the intermediate the beer reserve produces.
 	Wort Resource
 	// Drugs are the catalog's drug defs (a CompProperties_Drug with a
 	// chemical) in preference order: social drugs before hard ones, then the
@@ -48,7 +48,7 @@ type ItemFacts struct {
 	// Prevention is the drug that makes its taker immune to diseases, nil
 	// when the game has none.
 	Prevention *Prevention
-	// Sculptures are the art recipes (RoleSculpture), smallest first (#1721).
+	// Sculptures are the art recipes (RoleSculpture), smallest first.
 	Sculptures []Sculpture
 	// DeepResources are the defs the game generates as deep deposits (a
 	// positive ThingDef.deepCommonality): what a deep drill can yield, sorted.

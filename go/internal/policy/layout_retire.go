@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Duplicate add-on rooms (#1823, epic #1819): the planner only ever added
+// Duplicate add-on rooms: the planner only ever added
 // rooms, so a room it grew twice (nine worship rooms after a transposed
 // frame) stayed in the plan. A role's rooms reduce to one; the rest leave
 // the plan, and a built one is no longer planned ground, so clearance
@@ -52,7 +52,7 @@ func FixedRooms(plan LayoutPlan, ground GroundCensus, occupied map[domain.Cell]b
 
 // InFlightRoomCells are the walls of the plan's rooms an open journal plan
 // is working on, keyed by the room's interior origin as the plan's method
-// ids are (#1958): added to the occupied cells, they make such a room fixed
+// ids are: added to the occupied cells, they make such a room fixed
 // before any building of it is accepted.
 func InFlightRoomCells(plan LayoutPlan, origins map[domain.Cell]bool) map[domain.Cell]bool {
 	out := map[domain.Cell]bool{}
@@ -163,9 +163,9 @@ func withoutRooms(rooms []PlannedRoom, drop map[Rectangle]bool) []PlannedRoom {
 	return out
 }
 
-// Ended needs (#1824, epic #1819): an unbuilt planned child, worship,
+// Ended needs: an unbuilt planned child, worship,
 // deathrest or containment room whose need has ended leaves the plan. A built
-// room stays (only #1823's duplicate rule retires one); an unknown fact is
+// room stays (only duplicate-room retirement removes one); an unknown fact is
 // never an ended need.
 
 // EndedRoomRoles are the add-on roles whose need is known to be gone: every
@@ -254,7 +254,7 @@ func dropRooms(plan LayoutPlan, drop map[Rectangle]bool) (LayoutPlan, bool) {
 	return plan, true
 }
 
-// Surplus rooms (#1825, epic #1819): a throne room the title outgrew, a gear
+// Surplus rooms: a throne room the title outgrew, a gear
 // room whose demand is gone and an extra storage room with no demand leave
 // the plan while unbuilt. Rooms are never shrunk; a smaller built throne room
 // stays until a room holding the title's area is itself built, then goes to

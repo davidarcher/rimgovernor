@@ -11,7 +11,7 @@ import (
 )
 
 // The census's skills reach DeriveGearRole, so a work-count tie splits on the
-// pawn's best skill (#660).
+// pawn's best skill.
 func TestApparelPolicySkillsBreakRoleTie(t *testing.T) {
 	skill := func(name string, level int32) *o.Skill {
 		return &o.Skill{DefName: proto.String(name), Level: proto.Int32(level), Passion: o.Passion_PASSION_NONE.Enum(), Disabled: proto.Bool(false)}

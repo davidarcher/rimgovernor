@@ -136,7 +136,7 @@ func TestSpatialAccessUnavailable(t *testing.T) {
 }
 
 // A wall that strands cells outside the perimeter is accepted while every
-// pawn keeps the targets it reaches now; losing one of those refuses (#1570).
+// pawn keeps the targets it reaches now; losing one of those refuses.
 func TestSpatialAccessRefusesOnTargetsNotCells(t *testing.T) {
 	target := func(native, projected bool) AccessTarget {
 		return AccessTarget{Cell: domain.Cell{X: 9, Z: 0}, NativeReachable: native, ProjectedReachable: projected}

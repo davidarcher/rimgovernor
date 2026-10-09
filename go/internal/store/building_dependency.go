@@ -11,14 +11,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// checkDependencies is every admission's prerequisite gate (#937):
+// checkDependencies is every admission's prerequisite gate:
 // domain.CheckDependencies, then the last rounds's census for each
 // prerequisite whose receipt does not mean the work is done. An accepted
 // building intent completes once its blueprint is placed, so a dependent (a
 // bed on a floor) waits for the building to stand built (Rounds.Built).
 // An accepted wall removal completes once its demolition is designated, so a
 // dependent (the replacement wall on the same cell) waits for the census to
-// show no wall left in that cell (Rounds.WallCells, #989).
+// show no wall left in that cell (Rounds.WallCells).
 func checkDependencies(ctx context.Context, tx *sql.Tx, state PlanState, action domain.ActionID, current domain.GenerationSnapshot, tick domain.Tick) error {
 	if err := state.Spec.CheckDependencies(action, state.Progress, current, tick); err != nil {
 		return err
@@ -127,7 +127,7 @@ func wallCells(ctx context.Context, tx *sql.Tx, census policy.CurrentConstructio
 }
 
 // abandonStuckWallRemovals is the census-side give-up for a wall removal
-// native never carries out (#1001): once a completed removal's wall still
+// native never carries out: once a completed removal's wall still
 // stands in the census more than domain.TicksPerDay after its
 // dispatch, the removal and every action waiting on it are cancelled, so
 // the plan settles and its goal re-plans instead of checkDependencies
@@ -194,8 +194,8 @@ func abandonStuckWallRemovals(ctx context.Context, tx *sql.Tx, cells []WallCell,
 }
 
 // builtActions is every live plan's building action whose building stands
-// built in the census, matched by definition, stuff, anchor and rotation
-// (#1355), sorted.
+// built in the census, matched by definition, stuff, anchor and rotation,
+// sorted.
 func builtActions(ctx context.Context, tx *sql.Tx, census policy.CurrentConstruction) ([]domain.ActionID, error) {
 	rows, err := tx.QueryContext(ctx, "SELECT a.id,a.definition,a.x,a.z,a.rotation,a.stuff FROM actions a JOIN plans p ON p.id=a.plan_id WHERE a.kind='building' AND p.retired=0")
 	if err != nil {

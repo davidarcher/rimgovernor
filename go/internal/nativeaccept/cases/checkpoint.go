@@ -15,7 +15,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-// The checkpoint ring (issue #249): every case's run phase is bundled
+// The checkpoint ring: every case's run phase is bundled
 // (save, store, sidecar) every Options.CheckpointEvery at a
 // natural pause into <root>/checkpoints/<area>/<case>/<label>/, the last
 // na.CheckpointKeep entries kept, plus a final "failed" bundle when the
@@ -25,7 +25,7 @@ import (
 
 // ringExcluded says why c never checkpoints, or "" when it may: a case
 // that owns its process, opts out (NoCheckpoint), or measures the paused
-// fraction the capture would perturb (speedmatrix, tickbudget; #200).
+// fraction the capture would perturb (speedmatrix, tickbudget).
 func ringExcluded(c Case) string {
 	if _, owned := c.Start.(Owned); owned {
 		return "the case owns its process lifecycle"
@@ -237,7 +237,7 @@ func newRing(c Case, opts Options, s *session, cfg *na.Config, output string, re
 	return ring
 }
 
-// newStages is the ring stage bundles are captured into (#329): never
+// newStages is the ring stage bundles are captured into: never
 // activated (no periodic captures, no failed bundle), keyed on the run's
 // stage key; nil when the run stages nothing or staging is off
 // (report["staging"] says why).
@@ -372,7 +372,7 @@ func mergeEntries(entries []na.Checkpoint, resumed resumption) []na.Checkpoint {
 	return merged
 }
 
-// checkBreak validates opts.Break against c before the game opens (#280):
+// checkBreak validates opts.Break against c before the game opens:
 // the case must checkpoint, the ring must be on, and a stage breakpoint
 // must name a declared stage.
 func checkBreak(c Case, opts *Options) error {
@@ -399,7 +399,7 @@ func checkBreak(c Case, opts *Options) error {
 	return nil
 }
 
-// breakRun ends a run its breakpoint cut (#280): the case's services are
+// breakRun ends a run its breakpoint cut: the case's services are
 // stopped, the harness takes the game back, the break bundle is taken
 // (which pauses the game) and the ring is written with the bundle as its
 // next entry (breakRing), and the game is left loaded and paused on the

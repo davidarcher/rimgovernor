@@ -37,7 +37,7 @@ func listWorktrees(repo string) ([]worktree, error) {
 }
 
 // dirtyPath is one uncommitted path in the main checkout with what land
-// could learn about who put it there (#965).
+// could learn about who put it there.
 type dirtyPath struct {
 	Status   string    // porcelain XY
 	Path     string    // repository-relative, slash-separated

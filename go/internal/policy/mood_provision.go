@@ -49,7 +49,7 @@ var moodProvisionOwners = map[string][]ConcernID{
 // moodUnownedThoughts are the removable environment thoughts no goal owns
 // a facility for: a private bedroom would clear SleptInBarracks, but no
 // goal builds bedrooms (MaintainHousing stages hosted beds and the game
-// scores the room by count; #286). When they dominate a pawn's pressure
+// scores the room by count). When they dominate a pawn's pressure
 // the mood goal records them (MoodState.Unowned) and, with no measured
 // relief left, proposes the explicit MoodUnowned blocker instead of
 // reporting no cause.

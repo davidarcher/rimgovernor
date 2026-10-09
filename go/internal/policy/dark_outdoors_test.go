@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TestPlanSiteTypeDarkBiomeNeverSowsOutdoors (#1712): in a permanently dark
+// TestPlanSiteTypeDarkBiomeNeverSowsOutdoors: in a permanently dark
 // biome the season says sow, but no outdoor candidate is plantable; the sun
 // lamp greenhouse is the plan. An unknown darkness plans no outdoor
 // field; a lit biome plans the outdoor field as before.
@@ -44,7 +44,7 @@ func TestPlanSiteTypeDarkBiomeNeverSowsOutdoors(t *testing.T) {
 	}
 }
 
-// TestDarkBiomeBlocksOutdoorHaySocialAndFieldPlans (#1712): every outdoor
+// TestDarkBiomeBlocksOutdoorHaySocialAndFieldPlans: every outdoor
 // sowing planner reads the same fact.
 func TestDarkBiomeBlocksOutdoorHaySocialAndFieldPlans(t *testing.T) {
 	climate := CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(30.0), OutdoorsDark: domain.Known(true)}
@@ -92,7 +92,7 @@ func TestDarkBiomeBlocksOutdoorHaySocialAndFieldPlans(t *testing.T) {
 	}
 }
 
-// TestSkyDarkLightsUnroofedBenchInDarkBiome (#1712): a permanently dark
+// TestSkyDarkLightsUnroofedBenchInDarkBiome: a permanently dark
 // biome measures unroofed work cells like an eclipse, with no condition
 // active; an unknown darkness is an error.
 func TestSkyDarkLightsUnroofedBenchInDarkBiome(t *testing.T) {

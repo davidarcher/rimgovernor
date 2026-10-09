@@ -95,7 +95,7 @@ func TestCoupleBedIgnoresSinglesAndOthersBeds(t *testing.T) {
 
 // Packing the couple's beds empties their room, which native then reads as
 // RoomRoleNone; the install step still finds it from the packed cell
-// (#1557: the couple stayed unhoused and the DoubleBed was never placed).
+// (the couple stayed unhoused and the DoubleBed was never placed).
 func TestCoupleBedInstallsInTheRoomPackingEmptied(t *testing.T) {
 	interior := Rectangle{X: 0, Z: 0, Width: 5, Height: 4}
 	door := domain.Cell{X: 0, Z: -1}

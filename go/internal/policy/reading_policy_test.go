@@ -20,7 +20,7 @@ func reader(id string, age float64, passion string, research int) WorkPawn {
 }
 
 // A researcher is allowed schematics; a child learning books only; nobody
-// tomes (#1306).
+// tomes.
 func TestReadingBooks(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -65,7 +65,7 @@ func TestReadingPolicyChanges(t *testing.T) {
 		t.Fatalf("Ann assign: %+v", got[0].Assign)
 	}
 	// Bo's policy matches; only the assignment is owed. Cy holds its own
-	// matching policy; the duplicate short names wait for #1310.
+	// matching policy; duplicate short names require name reconciliation.
 	if got[1].Write != nil || got[1].Assign == nil || got[1].Assign.Pawn() != "B" {
 		t.Fatalf("Bo: %+v", got[1])
 	}

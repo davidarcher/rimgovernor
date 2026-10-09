@@ -2,7 +2,7 @@
 <Defs>
 
   <!--
-    RimGovernorQuiet (#2023): a storyteller with no comps, so nothing fires:
+    RimGovernorQuiet: a storyteller with no comps, so nothing fires:
     no raids, no weather or condition events, no visitors, no quests. RimWorld
     rebuilds the storyteller from this def by defName on load, so a colony
     started with it stays quiet across save and load without a patch or a

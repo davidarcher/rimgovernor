@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
-// The baseline survey (#1280) is the world layout/rich-soil runs on.
+// The baseline survey is the world layout/rich-soil runs on.
 func baselineSurvey(t *testing.T) policy.MapSurvey {
 	t.Helper()
 	f, err := os.Open("../../../policy/testdata/baseline-survey.json.gz")
@@ -31,7 +31,7 @@ func baselineSurvey(t *testing.T) policy.MapSurvey {
 }
 
 // The fresh plan the case's colony derives passes the plan assertions
-// offline, and one more colonist outgrows it (#1291).
+// offline, and one more colonist outgrows it.
 func TestRichSoilBaselinePlan(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := baselineSurvey(t)
@@ -129,7 +129,7 @@ func plusSurvey(n int32) policy.MapSurvey {
 }
 
 // The courtyard plan on a plus-shaped rich patch passes the audit: the
-// patch is one field zone, nothing is built on it (#1960).
+// patch is one field zone, nothing is built on it.
 func TestAuditSoilCourtyardPlan(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := plusSurvey(140)

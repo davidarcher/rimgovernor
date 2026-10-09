@@ -9,35 +9,26 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// plannerEntry is one routine planner the clock step can queue. The table
-// replaces the inline per-planner blocks Step used to carry: the same set,
-// priorities and queue order, now selectable by step reason.
+// plannerEntry declares a queued planner's priority, dependencies and wake conditions.
 type plannerEntry struct {
 	name string
-	// goal is the single goal the planner serves: the record its refusal is
-	// filed on (GoalProgress.Planner). Planners serving several goals or
-	// none leave it empty and file nothing.
+	// concern receives this planner's refusal. Multi-concern planners leave it empty.
 	concern policy.ConcernID
-	// class says whether the admission cycle waits on the planner (#623):
+	// class says whether the admission cycle waits on the planner:
 	// critical for the preempt and critical priority classes and the
 	// emergency evidence (fire safety), optional for the development
 	// reviews. TestPlannerCatalogClasses holds the rule.
 	class    plannerClass
 	priority int
-	// startup promotes the planner into the critical wave while the colony
-	// stage holds development (the shelter every other goal waits for is
-	// unmet, ColonyStageRecord.NeedsShelter). Its work is the hold
-	// itself, not a development review, so the one-second optional grace
-	// must not discard it: siting a starter shell walks the bunk rungs and
-	// previews a ring, seconds of native round trips, and every step
-	// dropping it left the goal without a live method for good (#658).
+	// startup keeps shelter planning in the critical wave while NeedsShelter
+	// holds development. Optional-wave grace must not discard this work.
 	startup bool
 	// kinds are the action kinds the planner dispatches. A terminal outcome
 	// of one of these kinds is the planner's own work completing, so a wake
 	// carrying it re-runs the planner (and only planners of that kind).
 	kinds []domain.ActionKind
-	// sections are the review census sections the planner consumes
-	// (#625): a wake whose invalidations dirty one re-runs the planner,
+	// sections are the review census sections the planner consumes:
+	// a wake whose invalidations dirty one re-runs the planner,
 	// and a step that selects a subset reads only what its planners
 	// declare (the rest is served held). families names the sectionless
 	// families the planner plans from (world); see factFamilies.
@@ -53,12 +44,8 @@ type plannerEntry struct {
 	run func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error)
 }
 
-// The section sets planners consume from the review's census
-// (snapshot frame sections, facts.Section). Of the seven family
-// lists the catalog used to carry, only the building planners' needed the
-// whole colony read (the colony facts, the planning cells, the entity
-// sections and the room census); every other colony reader consumes the
-// colony facts section alone, or that plus its own entity section.
+// Census dependencies let each planner read only its required sections.
+// Building planners need spatial facts as well as the colony summary.
 var (
 	sectionsBuilding = []facts.Section{facts.Colony, facts.PlanningCells, facts.Zones, facts.Buildings, facts.Rooms}
 	// sectionsThrone adds the colonists the throne light refuel picks a
@@ -66,7 +53,7 @@ var (
 	sectionsThrone = []facts.Section{facts.Colony, facts.PlanningCells, facts.Zones, facts.Buildings, facts.Rooms, facts.Pawns}
 	sectionsColony = []facts.Section{facts.Colony}
 	// sectionsRituals: the ritual plan reads the ideoligion, the building
-	// sites, the colonists and the emergency census (#1660).
+	// sites, the colonists and the emergency census.
 	sectionsRituals = []facts.Section{facts.Colony, facts.Pawns, facts.Emergency, facts.Buildings, facts.Ideology}
 	sectionsBills   = []facts.Section{facts.Colony, facts.Bills}
 	sectionsZones   = []facts.Section{facts.Colony, facts.Zones}
@@ -74,8 +61,8 @@ var (
 	sectionsMedical = []facts.Section{facts.Pawns, facts.Colony}
 	sectionsThreat  = []facts.Section{facts.Pawns, facts.Emergency}
 	// sectionsWork adds the population census for the owned-pawn names
-	// (#1310) and the colony facts for the reading (#1306), drug (#1537) and
-	// food (#1541) policies.
+	// and the colony facts for the reading, drug and
+	// food policies.
 	sectionsWork     = []facts.Section{facts.Pawns, facts.Population, facts.Emergency, facts.Colony, facts.Buildings}
 	sectionsRecovery = []facts.Section{facts.Pawns, facts.Emergency, facts.Colony}
 	sectionsCustody  = []facts.Section{facts.Pawns, facts.Population, facts.Emergency, facts.Colony}
@@ -83,7 +70,7 @@ var (
 	sectionsFire     = []facts.Section{facts.Emergency, facts.Colony}
 	sectionsResource = []facts.Section{facts.Colony, facts.Bills, facts.Buildings, facts.Zones}
 	// sectionsArmory is the bills and threat sets plus the research census
-	// the armory tier is capped by (#1201).
+	// the armory tier is capped by.
 	sectionsArmory = []facts.Section{facts.Colony, facts.Bills, facts.Pawns, facts.Emergency, facts.Research}
 )
 
@@ -97,7 +84,7 @@ var (
 
 // Review cadences, in game ticks (2500 an hour): how long a planner's last
 // evaluation stands before the due queue re-runs it without evidence
-// (plannerEntry.every, #625). Evidence (an outcome of its kinds, a dirty
+// (plannerEntry.every). Evidence (an outcome of its kinds, a dirty
 // section it declares) re-runs it sooner.
 const (
 	reviewEveryUrgent  domain.Tick = domain.TicksPerHour
@@ -892,7 +879,7 @@ func (s *ClockScheduler) queuePlanners(ctx, epoch context.Context, wave *planner
 }
 
 // declared is the fact families the planner may read: the family of each
-// census section it consumes plus its sectionless families (#1916). The
+// census section it consumes plus its sectionless families. The
 // wake step re-runs a planner on exactly these invalidations, so a read
 // outside them would plan on facts nothing wakes it for. Two families are
 // ambient and declared by no one: definitions (the load's catalog, fixed

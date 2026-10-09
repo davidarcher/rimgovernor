@@ -60,7 +60,7 @@ func TestFoodForecastExpiryInventoryDietAndCompetingDemand(t *testing.T) {
 // A squad-kill corpse lies where the animal fell: no roof, room or stockpile
 // facts. The food supply still counts it (the butcher bill and haulers fetch
 // it from anywhere reachable) and its rot clock bounds the usable share; a
-// forbidden corpse does not extend the runway (#1620).
+// forbidden corpse does not extend the runway.
 func TestFoodForecastCountsFarSquadKillCorpse(t *testing.T) {
 	corpse := func(forbidden bool) FoodStock {
 		return FoodStock{ID: "kill", DefName: "Corpse_Elk", Holder: domain.Known(PawnID("")), Nutrition: domain.Known(6.), Eaters: []PawnID{"a", "b"}, Perishable: domain.Known(true), RotTicks: domain.Known(int64(120000)), Corpse: true, Forbidden: domain.Known(forbidden), MeatAmount: domain.Known(120.)}
@@ -140,7 +140,7 @@ func TestFoodForecastUnknownAndInvalidInputsNeverCertifyRunway(t *testing.T) {
 	}
 }
 
-// #708: a carnivore pet with no meat must not read the colony as 0 days.
+// A carnivore pet with no meat must not read the colony as 0 days.
 func TestFoodForecastGateOnColonistsReportsPetShortfall(t *testing.T) {
 	s := FoodSupply{Complete: domain.Known(true), Consumers: []FoodConsumer{
 		{ID: "colonist", NutritionPerDay: domain.Known(1.6)}, {ID: "dog", NutritionPerDay: domain.Known(0.5)}, {ID: "cat", NutritionPerDay: domain.Known(0.3)},

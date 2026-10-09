@@ -9,7 +9,7 @@ import (
 // ClockWindowSize is the colony window one step admitted, published as the
 // clock_step row's window_ticks. A routine window runs the whole budget
 // (ClockSchedulerConfig.Start.MaxTicks, one game day by default) unless a
-// native work allowance or the combat bound narrows it (#244): the planners
+// native work allowance or the combat bound narrows it: the planners
 // review and the Worker dispatches under the running window, so nothing
 // routine waits for a stop, and the stop tier (danger, coupled orders,
 // player input) ends a window early.
@@ -24,7 +24,7 @@ const clockStopSpanLimit = 10 * time.Minute
 
 // clockStopSpan is the wall time since status's native stop, zero when
 // status carries no usable stop; the admitting step publishes it as the
-// stop-to-readmit pause (stop_pause_s, #162).
+// stop-to-readmit pause (stop_pause_s).
 func clockStopSpan(status *k.Status, now time.Time) time.Duration {
 	stopped := status.GetStopped()
 	if stopped == nil || stopped.StoppedAtUnixMs == nil {

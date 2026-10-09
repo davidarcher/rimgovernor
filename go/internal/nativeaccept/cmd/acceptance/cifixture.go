@@ -1,6 +1,6 @@
 package main
 
-// The save-fixture factory (#1376): .github/workflows/fixture-factory.yml
+// The save-fixture factory:.github/workflows/fixture-factory.yml
 // runs sustained/colony weekly on a Windows runner and uploads its
 // checkpoint ring as the run artifact colony-checkpoints-<commit>.
 // `-from latest-ci` (profile-capture) and `acceptance fetch-fixture`

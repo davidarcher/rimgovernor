@@ -75,7 +75,7 @@ var ErrStalePackage = errors.New("installed native build is stale for this workt
 // enclosing checkout, no usable git, or AllowStaleModEnv is set. fixtureOps
 // are the test ops the run's Start calls (Config.FixtureOps): the rebuild
 // hint names their fixtures beside the installed build's, so following it
-// cannot leave the case's own fixture out (#208).
+// cannot leave the case's own fixture out.
 func RequireCurrentPackage(pkg string, fixtureOps ...string) (map[string]any, error) {
 	summary := map[string]any{"path": pkg, "checked": false}
 	installedPackage = summary
@@ -150,7 +150,7 @@ func staleError(pkg string, manifest *PackageManifest, repo string, fixtureOps [
 
 // FixtureFlags is the sorted -Fixture list a rebuild for this run needs:
 // installed (the manifest's fixtures, so the build keeps serving the
-// cases it already did, minus any the checkout no longer has: #775) plus the fixtures under repo/scripts/fixtures that
+// cases still present in the checkout) plus the fixtures under repo/scripts/fixtures that
 // register fixtureOps (inputs.FixtureClasses). Ops no fixture registers,
 // or an unreadable fixture root, add nothing.
 func FixtureFlags(repo string, installed, fixtureOps []string) []string {

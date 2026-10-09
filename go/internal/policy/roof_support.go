@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Roof support over the cell mirror (#2296, epic #2291): a pure port of the
+// Roof support over the cell mirror: a pure port of the
 // native RoofSupportGeometry.Blocker, so a batch of removals is validated as
 // one joint counterfactual without a native call. A roofed cell stays up while
 // a connected run of roofed cells (cardinal steps, each within Radius of the

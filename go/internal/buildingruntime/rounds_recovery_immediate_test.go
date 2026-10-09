@@ -26,7 +26,7 @@ func TestImmediateAreaProtectionBypassesPendingService(t *testing.T) {
 		Context:      v.Context,
 		Restrictions: []*o.RecoveryRestriction{{Pawn: bridge.NewRef(entity.GetId()), AreaId: proto.String("manual")}},
 	}}}
-	// "manual" is the Safe area and no sheltering trigger holds (#1326).
+	// "manual" is the Safe area and no sheltering trigger holds.
 	v.Policies = &o.PolicySection{Outcome: &o.PolicySection_Observed{Observed: &o.PolicyFacts{AllowedAreas: []*o.AllowedAreaEntry{{Id: proto.String("manual"), Label: proto.String(policy.SafeAreaLabel)}}}}}
 	ctx := context.Background()
 	if _, err := r.Step(ctx); err != nil {
@@ -68,7 +68,7 @@ func TestImmediateAreaProtectionBypassesPendingService(t *testing.T) {
 	if !ok || !w.AreaClear() {
 		t.Fatal(w)
 	}
-	// The correction is the RecoverDisasterServices incident's method (#1078).
+	// The correction is the RecoverDisasterServices incident's method.
 	review, err := journal.LoadRounds(ctx)
 	if err != nil {
 		t.Fatal(err)

@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
                     Quality = group.Key.Quality, HpBand = group.Key.Band, Count = group.Sum(a => a.stackCount) });
             ObservationWork.Detail("cf.gear.stored", Lap());
             // The census carries each candidate's supply token the way the
-            // supply census does (issue #233); the WEAR pawn order (#939)
+            // supply census does; the WEAR pawn order
             // does not check it.
             foreach (var pawn in people) {
                 Lap();
@@ -65,13 +65,13 @@ namespace HomeBridge.BridgeTools
                 if (refusal != null) row.Blocker = Text(refusal);
                 if (refusal == null) {
                     // Every eligible loose item is offered, best gain first
-                    // (issue #769: a bound offered every pawn the same few shirts).
+                    // (truncation biases every pawn toward the same few shirts).
                     // Candidates are apparel only: they feed the wear order
                     // (NativeGearOperations, JobDefOf.Wear), which looks its
                     // target up among loose apparel. Loose weapons are the
                     // equip family's (PAWN_ORDER_KIND_EQUIP); listing them
                     // here had a WoodLog admitted as apparel wear and refused
-                    // on every attempt (issue #339).
+                    // on every attempt.
                     // Pathing is the costly check, so it runs only for an
                     // item whose gain already qualifies.
                     var candidates = GearUpkeepTools.WithGainScorer(pawn, score => {

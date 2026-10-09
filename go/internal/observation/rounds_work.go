@@ -71,7 +71,7 @@ func WorkPawnRow(row *o.PawnState, catalog *bridge.DefinitionCatalog, things bri
 	w := workPawnRow(row)
 	// Native writes the Biotech block on every pawn when Biotech is active and
 	// always names the developmental stage; a row without one is a contract
-	// break, not an adult (#1784).
+	// break, not an adult.
 	if b := row.Biotech; b != nil && b.DevelopmentalStage == nil {
 		return policy.WorkPawn{}, fmt.Errorf("pawn %s has a Biotech block without a developmental stage", row.Pawn.GetId())
 	}
@@ -242,7 +242,7 @@ func workPawnRow(row *o.PawnState) policy.WorkPawn {
 	return w
 }
 
-// jobTarget reads a job's targetA (#643). An absent field is an older
+// jobTarget reads a job's targetA. An absent field is an older
 // producer (unknown); an unavailable target is a job with none.
 func jobTarget(t *o.TargetRef, at *c.Cell) domain.Fact[policy.JobTarget] {
 	switch {

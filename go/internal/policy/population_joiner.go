@@ -115,7 +115,7 @@ type JoinerChoice struct {
 // colonists, guests and prisoners, from the same population census
 // CustodyFacts reads), the sleeping census for a spare non-medical bed and
 // the food runway in days. The target is the bot's own
-// domain.PopulationTarget; there is no player knob (#1032).
+// domain.PopulationTarget; there is no player knob.
 type JoinerCapacityFacts struct {
 	Custody  domain.Fact[[]CustodyFacts]
 	Sleeping domain.Fact[SleepingObservation]
@@ -124,7 +124,7 @@ type JoinerCapacityFacts struct {
 
 // JoinerFoodFloorDays is the food runway one more colonist is admitted
 // against: 3 days for a colony of one, rising linearly to 15 days at 20 or
-// more hosted people (#1032).
+// more hosted people.
 func JoinerFoodFloorDays(hosted int64) float64 {
 	const lowPop, highPop, lowDays, highDays = 1, 20, 3.0, 15.0
 	n := min(max(hosted, lowPop), highPop)
@@ -283,7 +283,7 @@ func (f RoundsFacts) JoinerCapacity() JoinerCapacityFacts {
 }
 
 // JoinerLetterOffer is a pending current-map WandererJoins or creepjoiner
-// letter (#1740). Its opaque token binds the native pawn, quest, map,
+// letter. Its opaque token binds the native pawn, quest, map,
 // expiry and choices. Expires is the letter's disappearAtTick verbatim,
 // negative for a letter with no timeout (the game's own sentinel).
 type JoinerLetterOffer struct {

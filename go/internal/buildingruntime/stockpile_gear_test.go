@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// A snapshot over a recorded colony (#1774): layout planned an armory over
+// A snapshot over a recorded colony: layout planned an armory over
 // (2..6, 2..6). Until its room stands the review owes its shell and plans no
 // zone; once the room stands the armory zone fills it.
 func TestArmoryShellsThenFillsItsRoom(t *testing.T) {
@@ -60,7 +60,7 @@ func TestArmoryShellsThenFillsItsRoom(t *testing.T) {
 }
 
 // A catalog that names no armor fails the stockpile review with the named
-// error instead of quietly planning no gear storage (#1804).
+// error instead of quietly planning no gear storage.
 func TestGearStoreFailsWithoutCatalogArmor(t *testing.T) {
 	t.Parallel()
 	projection, _ := mealSpotColony(1.6)
@@ -71,7 +71,7 @@ func TestGearStoreFailsWithoutCatalogArmor(t *testing.T) {
 	}
 }
 
-// The materials yard is a plan reservation viewed as an Outdoor room (#2215):
+// The materials yard is a plan reservation viewed as an Outdoor room:
 // until its fence ring stands the stockpile review owes its shell.
 func TestYardShellIsOwedUntilItsRingStands(t *testing.T) {
 	t.Parallel()

@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A ritual begin (#1659) persists its organizer, precept, spot and exact
+// A ritual begin persists its organizer, precept, spot and exact
 // assignments, and a row that breaks the shape is refused by the schema.
 func TestRitualBeginActionRoundTrips(t *testing.T) {
 	t.Parallel()

@@ -7,7 +7,7 @@ import (
 )
 
 // LanceDefs are the worn items whose target verb downs a pawn with a
-// hediff rather than violent damage (#1038): the psychic shock lance adds
+// hediff rather than violent damage: the psychic shock lance adds
 // PsychicShock, so the target skips the death-on-downed roll a gun or blade
 // would risk. The insanity lance drives a pawn berserk instead, so it is not
 // a capture tool.
@@ -49,8 +49,8 @@ func LanceTarget(f RoundsFacts) domain.PawnID {
 }
 
 // LanceCandidate is the standing hostile humanlike a lance should down
-// while the colony is below domain.PopulationTarget: known recruitable
-// (#1034), not downed, not a prisoner, and the best skills; ties go to the
+// while the colony is below domain.PopulationTarget: known recruitable,
+// not downed, not a prisoner, and the best skills; ties go to the
 // lowest pawn ID. It is "" when the colony is at target, its size is
 // unknown or no row qualifies. Who wears a lance is the planner's combat
 // read (SelectLanceUse).

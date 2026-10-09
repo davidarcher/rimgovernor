@@ -7,14 +7,14 @@ import (
 )
 
 // lure is the hold's lure step against any outranging ranged raid:
-// mechs (#922) or sniper parties (#1052). While a live hostile outranges
+// mechs or sniper parties. While a live hostile outranges
 // our longest gunner and no live hostile is within that range of any
 // firing cell, each gunner on a firing cell waits in cover on its
 // inner-line cell with no target, so the raiders walk in instead of
 // shooting from beyond our reach. Once a hostile comes within our range
 // of the line, the lured gunners return to their firing cells and focus
 // fire picks their targets. A raid we outrange never triggers it. Roles
-// already fallen back (#860) are left alone.
+// already fallen back are left alone.
 func lure(view CombatView, m *CombatMemory) {
 	layout, ok := view.Layout.Value()
 	if m.Tactic != TacticHold || !ok || len(layout.Retreat) != len(layout.Firing) || len(layout.Retreat) == 0 {

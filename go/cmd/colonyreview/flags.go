@@ -14,8 +14,7 @@ const (
 	lowMood     = 0.25 // near a minor break
 	lowFoodDays = 2.0
 	stuckHours  = 12 // a concern in deficit this long
-	// forbiddenHours is how long starting supplies may stay forbidden: the
-	// playtest that found them still forbidden was a day and a half in (#1581).
+	// forbiddenHours bounds how long starting supplies may remain forbidden.
 	forbiddenHours = 24
 )
 

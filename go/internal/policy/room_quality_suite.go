@@ -6,7 +6,7 @@ import (
 	"sort"
 )
 
-// Suites for qualifying pawns (#1216, epic #1200). Where the gap closer
+// Suites for qualifying pawns. Where the gap closer
 // and the bed ladder skip a room whose weakest stat is space, the pawn is
 // given a suite instead: the plan sites a suite block holding one suite
 // sized for the pawn's target (SuiteTargets into the suite blocks), the bedroom ladder
@@ -21,7 +21,7 @@ type SuiteClaim struct {
 	Pawn   PawnID
 	Bed    string
 	Target float64
-	// Reason is why the pawn qualifies, for the claim log line (#1257).
+	// Reason is why the pawn qualifies, for the claim log line.
 	Reason SuiteClaimReason
 }
 
@@ -35,7 +35,7 @@ const (
 	// SuiteClaimFloor: the target needs more floor than the room has.
 	SuiteClaimFloor SuiteClaimReason = "target_outgrows_room"
 	// SuiteClaimTooSmall: the pawn's suite is smaller than its target needs;
-	// a suite never grows (#1951), so it is owed a new one.
+	// a suite never grows, so it is owed a new one.
 	SuiteClaimTooSmall SuiteClaimReason = "suite_too_small"
 )
 
@@ -71,12 +71,12 @@ func SuiteRoomIDs(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 	return out
 }
 
-// SuiteClaims is every pawn owed a suite, most suite pressure first (#1217): the sole owner of a
+// SuiteClaims is every pawn owed a suite, most suite pressure first: the sole owner of a
 // standing planned standard bedroom below its target's Min whose space is
 // the weakest stat, or whose target needs more floor than the room has
 // (Greedy, Jealous of a suite, a title), and the owner of a suite smaller than
-// its target (#1951). An ascetic never gets one. A claim
-// the owner's remaining share cannot furnish is dropped (#1841, RoomGate).
+// its target. An ascetic never gets one. A claim
+// the owner's remaining share cannot furnish is dropped (RoomGate).
 func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, targets map[string]RoomTarget, traits map[PawnID]TraitEffects, pressure map[PawnID]float64, gate RoomGate) []SuiteClaim {
 	census, ok := sleeping.Rooms.Value()
 	if !ok {
@@ -98,7 +98,7 @@ func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 			continue
 		}
 		// A suite below its owner's target is left for a larger new one; a
-		// built suite never grows (#1951).
+		// built suite never grows.
 		if r, ok := suites[s.room]; ok {
 			area := r.Interior.Width * r.Interior.Height
 			w, d := SuiteSize(t.Min)
@@ -114,7 +114,7 @@ func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 		}
 		reason := SuiteClaimSpace
 		// Only a trait or title raises a target past what space alone must
-		// reach in a standard room (#1221); a tier-only target upgrades in
+		// reach in a standard room; a tier-only target upgrades in
 		// place and claims only when space is its weakest stat.
 		if raisedTarget(t) && suiteCells(t.Min) > r.Interior.Width*r.Interior.Height {
 			reason = SuiteClaimFloor
@@ -135,8 +135,7 @@ func raisedTarget(t RoomTarget) bool {
 	})
 }
 
-// UpgradeTargets is targets without the rooms claims are leaving (#1257,
-// suite first): a pawn owed a suite gets no in-place quality upgrade of its
+// UpgradeTargets is targets without the rooms claims are leaving (suite first): a pawn owed a suite gets no in-place quality upgrade of its
 // standard room; the suite steps walk it out instead.
 func UpgradeTargets(targets map[string]RoomTarget, sleeping SleepingObservation, claims []SuiteClaim) map[string]RoomTarget {
 	if len(claims) == 0 {

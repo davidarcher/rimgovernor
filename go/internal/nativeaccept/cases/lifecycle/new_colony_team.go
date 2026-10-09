@@ -1,5 +1,5 @@
 // lifecycle/new_colony_team is the native acceptance for the built-in
-// team-composition policy (#2024, epic #2019): three seeds each start a
+// team-composition policy: three seeds each start a
 // four-colonist colony whose team meets the policy (no hard-rejected trait, no
 // colonist incapable of Construction or Hauling, coverage of Plants, Cooking,
 // Construction, Medicine and Mining, two Shooting-passion and one

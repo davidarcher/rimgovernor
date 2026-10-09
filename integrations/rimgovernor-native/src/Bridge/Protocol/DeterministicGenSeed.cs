@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
     // Vanilla seeds several map-generation Rand blocks with System.HashCode.Combine,
     // whose result differs per process (the runtime salts it at start). The same spec
     // on a fresh game therefore generated different ruins, shrines and group
-    // contents each time (#2034). The seeds are replaced here with a fixed hash so a
+    // contents each time. The seeds are replaced here with a fixed hash so a
     // spec reproduces its map on one install.
     internal static class DeterministicGenSeed
     {

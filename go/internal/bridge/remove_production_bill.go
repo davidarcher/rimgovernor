@@ -8,7 +8,7 @@ import (
 )
 
 // removeProductionBillAction is the Actions/Apply remove_production_bill arm
-// of one remove_production_bill action (#2410): native deletes the idle bill
+// of one remove_production_bill action: native deletes the idle bill
 // or refuses.
 func removeProductionBillAction(action domain.Action) (*o.Action, error) {
 	removal, ok := action.RemoveProductionBill()

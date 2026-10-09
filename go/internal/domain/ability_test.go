@@ -104,7 +104,7 @@ func TestAbilityRefusals(t *testing.T) {
 	}
 }
 
-// The psycast source (#1610) is keyed "psycast:<abilityDef>" and takes every
+// The psycast source is keyed "psycast:<abilityDef>" and takes every
 // target arm; native decides which arm one ability needs.
 func TestAbilityPsycastSource(t *testing.T) {
 	source, err := PsycastSource("Skip")

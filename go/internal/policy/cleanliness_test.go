@@ -125,7 +125,7 @@ func TestCleanlinessOrderAndBound(t *testing.T) {
 }
 
 // A latched room whose census filth is gone but whose stat stays below the
-// exit threshold because of doorway filth targets that filth (#324); filth
+// exit threshold because of doorway filth targets that filth; filth
 // two cells away, in another room or outside the home area does not count.
 func TestCleanlinessTargetsFilthTouchingTheRoom(t *testing.T) {
 	p := DefaultCleanlinessPolicy()

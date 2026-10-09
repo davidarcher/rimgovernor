@@ -10,7 +10,7 @@ using Lifecycle = RimGovernor.Protocol.Lifecycle;
 
 namespace HomeBridge.BridgeTools
 {
-    // Save-time handshake (#2358). Go owns saves; a vanilla save (menu,
+    // Save-time handshake. Go owns saves; a vanilla save (menu,
     // permadeath save-and-quit) must first let Go flush its blobs. The
     // SaveGame prefix never cancels: when Go holds a lifecycle_wait_save_signal
     // call and the save is not Go-initiated, it hands that call a pre_save

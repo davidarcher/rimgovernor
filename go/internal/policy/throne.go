@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Staging the throne room (#1601, epic #1598). A colonist who holds an
+// Staging the throne room. A colonist who holds an
 // Empire title, or has the favor to claim the next one, is owed the throne
 // room of the next title that asks for one (RoyalRung.Throne*): the plan
 // grows a ThroneRoomSizes room (GrowThroneRoom, layout_throne.go), the
@@ -75,7 +75,7 @@ type ThroneRequirements struct {
 	ForbidAltars          bool
 	// ForbiddenDefs are the building definitions those tags (and altars,
 	// when forbidden) name in the def catalog (ThingDef.building.buildingTags,
-	// ThingDef.isAltar), sorted: the set the room may hold none of (#1865).
+	// ThingDef.isAltar), sorted: the set the room may hold none of.
 	// Resolved with the ladder (bridge WithThroneRequirements), not read from
 	// the title row.
 	ForbiddenDefs []string
@@ -197,7 +197,7 @@ const (
 	ThroneRefuel ThroneStepKind = "refuel"
 	// ThroneUnavailable: a requirement still unmet has no definition the
 	// catalog makes available with a known size (Missing). The step names the
-	// failure (Detail) and is not Owed (#1874).
+	// failure (Detail) and is not Owed.
 	ThroneUnavailable ThroneStepKind = "unavailable"
 )
 
@@ -390,7 +390,7 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, ground GroundCensus,
 	}
 	def, dok := throneDefinition(need, defs)
 	// An unmet requirement no available definition serves is a named
-	// failure, not a silent skip (#1874).
+	// failure, not a silent skip.
 	var missing []string
 	if !stands && !dok && len(need.Things) > 0 {
 		missing = append(missing, strings.Join(need.Things, " or "))

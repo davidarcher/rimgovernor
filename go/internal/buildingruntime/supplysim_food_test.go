@@ -751,7 +751,7 @@ func foodScenarios(t testing.TB) []foodScenario {
 			out = append(out, sc)
 		}
 	}
-	// Crop only, with and without a cook bench (#2159).
+	// Crop only, with and without a cook bench.
 	crop := []policy.CandidateKind{policy.CandidateCrop}
 	bare := mixScenario("crop/only/no-cook-bench/n8", 8, 1, foodShare, crop)
 	kitchen := mixScenario("crop/only/cook-bench/n8", 8, 1, foodShare, crop)
@@ -883,7 +883,7 @@ func TestFoodMatrixLongHorizon(t *testing.T) {
 // A hunt whose corpses are never butchered credits each kill at its potential
 // yield, which its rot clock then takes to zero: the group's factor falls to the
 // floor, the plan stops counting on the hunt and holds its rows while the gap
-// stays open (#2161).
+// stays open.
 func TestFoodMatrixHuntOnlyButcherBillMissing(t *testing.T) {
 	sc := butcherBillMissing(8)
 	a := &foodAdapter{sc: sc}

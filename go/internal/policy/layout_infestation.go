@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Infestation prevention (#1067, epic #845). Insects dig out of open
+// Infestation prevention. Insects dig out of open
 // ground under overhead mountain that is dark: a small unused pocket of
 // such ground beside the base is walled solid, and every planned room
 // gets lamps lighting its whole floor above the darkness threshold.

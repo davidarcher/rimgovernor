@@ -10,7 +10,7 @@ import (
 )
 
 // ReadNeuroformerItems lists the exact ids of the player's unforbidden stacks
-// of def lying on the map (#1609), sorted: the item a colonist uses on
+// of def lying on the map, sorted: the item a colonist uses on
 // itself (UseItem). The royalty read carries only the count and lags this
 // read. A stack with any forbidden unit is left out, since the supplies row
 // counts forbidden units without naming them.

@@ -50,7 +50,7 @@ func recordedCatalog(t *testing.T) *o.DefinitionCatalog {
 }
 
 // retiredTraitTable is policy's trait table as it stood before the rows
-// replaced it (#1724): every effect typed by hand from Core/Defs/TraitDefs.
+// replaced it: every effect typed by hand from Core/Defs/TraitDefs.
 var retiredTraitTable = map[traitDegree]policy.TraitEffects{
 	{"Industriousness", 2}:   {WorkSpeed: 0.35},
 	{"Industriousness", 1}:   {WorkSpeed: 0.20},
@@ -90,7 +90,7 @@ var retiredTraitTable = map[traitDegree]policy.TraitEffects{
 }
 
 // retiredButcherNames are the traits policy.HumanButcherEligible matched by
-// name before the rows replaced the check (#1724).
+// name before the rows replaced the check.
 var retiredButcherNames = map[string]bool{"Psychopath": true, "Bloodlust": true, "Cannibal": true}
 
 type traitDegree struct {
@@ -135,7 +135,7 @@ func TestTraitEffectsMatchTheRetiredTable(t *testing.T) {
 			// The one recorded difference: the organ-harvest thought is
 			// nullified by Bloodlust as well as Psychopath, so a Bloodlust
 			// surgeon derives SurgeonSafe where the retired table had only
-			// Psychopath (the game's own rule, #1724).
+			// Psychopath (the game's own rule).
 			if key.Name == "Bloodlust" && got.SurgeonSafe {
 				got.SurgeonSafe = false
 			}

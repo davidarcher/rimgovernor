@@ -13,7 +13,7 @@ import (
 )
 
 // Orphan is a harness process (setup.HarnessImages) launched under a
-// `.claude/worktrees/<name>/` that git no longer lists (#346): the
+// `.claude/worktrees/<name>/` that git no longer lists: the
 // worktree went with its root, so `acceptance stop -root` cannot reach
 // it, and the game runs detached from the run that launched it.
 type Orphan struct {
@@ -125,7 +125,7 @@ func FindOrphans(ctx context.Context) ([]Orphan, error) {
 
 // Stuck-boot bounds: a game that has run longer than StuckBootAge with a
 // working set under StuckBootWorkingSet while spending StuckBootCPUShare
-// of its wall time on a core never loaded a world (#346: ~100 MB, one
+// of its wall time on a core never loaded a world (~100 MB, one
 // core pegged for hours). A loaded colony sits at 700 MB and above.
 const (
 	StuckBootAge        = 5 * time.Minute

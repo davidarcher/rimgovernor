@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// reviewSoldierSquad keeps the persistent soldier squad (#1558) current:
+// reviewSoldierSquad keeps the persistent soldier squad current:
 // sticky members, gaps filled with the best fighters, saved only on change.
 // Unknown pawn facts keep the stored squad. It returns the squad in force.
 func reviewSoldierSquad(ctx context.Context, journal *store.Store, snapshot domain.GenerationSnapshot, pawns []policy.WorkPawn) (policy.SoldierSquad, error) {

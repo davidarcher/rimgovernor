@@ -38,7 +38,7 @@ func FreezeNeeds(ctx context.Context, h *Harness, names []string, keep ...string
 // RecordFrozenNeeds freezes every colonist need but keep and records the
 // reply under report["frozen_needs"]: the one call every serve-driven
 // harness makes once its save is loaded and staged, so colonists never
-// eat, sleep or break through an assertion that is not about them (#131).
+// eat, sleep or break through an assertion that is not about them.
 // LiveNeeds in keep skips the freeze and leaves frozen_needs unset.
 func RecordFrozenNeeds(ctx context.Context, h *Harness, names []string, report Report, keep ...NeedDef) error {
 	kept := make([]string, 0, len(keep))

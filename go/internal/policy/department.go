@@ -1,6 +1,6 @@
 package policy
 
-// Department is the colony area a Concern belongs to, like a Civ advisor (#1027).
+// Department is the colony area a Concern belongs to, like a Civ advisor.
 // It is a tag for grouping goals in panels only; it never ranks goals or
 // budgets labor. The table matches the department table in
 // docs/developers/architecture/control-loop.md.
@@ -25,7 +25,7 @@ func DepartmentOf(id ConcernID) Department { return inspectionIndex[id].Departme
 
 // StockpileZoneLimit is the number of stockpile-zone creations one method of
 // concern may carry; zero means the concern owns no store. A department's
-// concerns own their stores (epic #2176): ClearHomeObstructions keeps its chunk
+// concerns own their stores: ClearHomeObstructions keeps its chunk
 // dump until that zone goes, and MaintainStockpiles applies every declaration
 // of the storage planner in one batch.
 func StockpileZoneLimit(concern ConcernID) int {

@@ -96,8 +96,7 @@ func runWinter(ctx context.Context, s cases.Session) error {
 // nutrition demand: the precondition of a colony that filled its larder
 // before the frost, so the window tests the winter and not the summer. The
 // census's non-growing stretch must be the fixture's own walk to re-entry,
-// and the last growing day's thresholds must already be the winter's
-// (#317).
+// and the last growing day's thresholds must already be the winter's.
 func stockWinterLarder(ctx context.Context, h *na.Harness, identity, prepared map[string]any, report na.Report) error {
 	facts, err := h.Wire(ctx, "colony-facts", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
 	if err != nil {
@@ -251,7 +250,7 @@ func auditWinter(output string, report na.Report) error {
 		return fmt.Errorf("the reviews did not straddle the first non-growing day (growing %d, waiting %d over %d reviews; window %v)", growing, waiting, len(samples), report["window"])
 	}
 	// The thresholds do not jump at the flip: the last growing review and
-	// the first waiting one hold the colony to the same figures (#317).
+	// the first waiting one hold the colony to the same figures.
 	if lastGrowing != nil && firstWaiting != nil {
 		report["review_flip"] = map[string]any{"last_growing": *lastGrowing, "first_waiting": *firstWaiting}
 		if math.Abs(lastGrowing.MinDays-firstWaiting.MinDays) > 1e-6 || math.Abs(lastGrowing.TargetDays-firstWaiting.TargetDays) > 1e-6 {

@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// barricadeDefinitions is the runtime's wooden stand-in (#868's fallback).
+// barricadeDefinitions is the runtime's wooden fallback.
 func barricadeDefinitions() DefenseDefinitions {
 	d := defenseFixture().Definitions
 	d.Sandbag, d.SandbagStuff = "Barricade", "WoodLog"

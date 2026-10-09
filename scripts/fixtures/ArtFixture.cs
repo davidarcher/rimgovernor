@@ -10,7 +10,7 @@ using Verse.AI.Group;
 
 namespace HomeBridge.BridgeTools
 {
-    // Disposable test setup only (#1195). On the blank lab with two colonists
+    // Disposable test setup only. On the blank lab with two colonists
     // it builds two walled, roofed bedrooms north of the centre. Room A, the
     // one artist's (colonist 0, Artistic 8, the other at 3), holds a jade
     // bed, a plant pot, an end table, a dresser and an unpowered lamp, so

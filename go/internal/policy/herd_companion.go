@@ -5,8 +5,8 @@ import (
 	"strconv"
 )
 
-// Companion beds (#1633). A bonded animal's master is its first bond partner
-// by id on the roster (HerdMasterChoice, #1635). Each master with a solo
+// Companion beds. A bonded animal's master is its first bond partner
+// by id on the roster (HerdMasterChoice). Each master with a solo
 // bedroom gets one animal sleeping spot in it per animal they master, on
 // free floor that keeps the room walkable; the bedroom closer places one per
 // review, through the same room upgrade path as the title furniture. A

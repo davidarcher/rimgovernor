@@ -6,10 +6,8 @@ import (
 	"math"
 )
 
-// Predicted containment strength (#1741, epic #1694). The game computes the
-// ContainmentStrength stat of a holder in StatWorker_ContainmentStrength
-// (decompile, Assembly-CSharp, read by David 2026-10-03; recorded in the
-// comments of #1741):
+// Containment strength follows the decompiled Assembly-CSharp
+// StatWorker_ContainmentStrength calculation:
 //
 //	strength = holder stat base + facility statOffsets
 //	         + (lighting + wallHp + doorHp + floor, each *= 0.9 per other
@@ -82,8 +80,8 @@ type ContainmentDefs struct {
 	// room stands on: the stat's default base for plain terrain.
 	FloorStrength float64
 	// Floor is the terrain def with the greatest ContainmentStrength stat above
-	// the plain floor's, the strength a floored room's floor term takes
-	// (#2435); its Def is empty when the catalog has none.
+	// the plain floor's, the strength a floored room's floor term takes;
+	// its Def is empty when the catalog has none.
 	Floor      ContainmentFloor
 	Facilities []ContainmentFacility
 }
@@ -105,7 +103,7 @@ type ContainmentRoom struct {
 	OpenRoof bool
 	// OtherHolders counts the other holders in or beside the room.
 	OtherHolders int
-	// Floored is a room whose every tile is laid with the defs' Floor (#2435).
+	// Floored is a room whose every tile is laid with the defs' Floor.
 	Floored bool
 	// Facilities is how many of each facility def (by name) stand within the
 	// def's MaxDistance of the holder.

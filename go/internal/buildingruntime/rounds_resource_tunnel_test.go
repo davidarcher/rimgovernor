@@ -266,7 +266,7 @@ func TestBuriedSteelUnsupportedCorridorHoldsTheDig(t *testing.T) {
 }
 
 // A tunnel sited under a planner cut off before its first stage was
-// admitted (#1124: the optional resource planner missed the wave cutoff)
+// admitted (the optional resource planner missed the wave cutoff)
 // resumes on the next review, even once the face has left the colony
 // window and the geometry search proposes nothing.
 func TestBuriedSteelResumesADroppedFirstStage(t *testing.T) {

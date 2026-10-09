@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A floor removal builds one RemoveFloorIntent (epic #1249) on its cell.
+// A floor removal builds one RemoveFloorIntent on its cell.
 func TestFloorRemovalBuildsIntent(t *testing.T) {
 	value, err := domain.NewFloorRemoval("WoodPlankFloor", domain.Cell{X: 3, Z: 9})
 	if err != nil {

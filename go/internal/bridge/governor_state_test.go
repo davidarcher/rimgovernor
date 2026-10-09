@@ -12,7 +12,7 @@ import (
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 )
 
-// TestPutGovernorStateBatch covers the batch adapter (#2357): the whole set
+// TestPutGovernorStateBatch covers the batch adapter: the whole set
 // travels in one call (an empty batch included, which clears every key), the
 // request carries exactly the given keys so absent keys are deleted natively,
 // and a non-ASCII key or blob never reaches native.
@@ -74,7 +74,7 @@ func TestPutGovernorStateBatch(t *testing.T) {
 
 // TestGovernorState covers the read and put adapters: blobs come back by
 // key, a missing outcome is a contract error, an unloaded game is
-// ErrUnavailable, and a non-ASCII put never reaches native (#600).
+// ErrUnavailable, and a non-ASCII put never reaches native.
 func TestGovernorState(t *testing.T) {
 	var reply *l.GovernorStateReply
 	var tools []string

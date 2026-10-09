@@ -8,14 +8,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The barn and the vet room as real rooms (#1633). Each ReserveBarn and
+// The barn and the vet room as real rooms. Each ReserveBarn and
 // ReserveVetRoom reservation is a walled room: its interior is the
 // reservation without the ring, its door faces the colony core. The barn also
-// takes an animal flap beside its door, into the paddock (#2229). The room is derived from the reservation, never stored
+// takes an animal flap beside its door, into the paddock. The room is derived from the reservation, never stored
 // (HerdRooms). The animal-bed planner (NextHerdStep) reconciles each room: its
 // ring and door, then animal sleeping spots in the barn, up to one per kept animal, and
 // animal beds in the vet room, VetBeds per herd, nearest the door first, through
-// the build-side reconciler (ReconcileRoom, #2114). A
+// the build-side reconciler (ReconcileRoom). A
 // herd the rooms cannot hold gets another reservation of the same kind
 // (PlanHerdSites); a placed room never moves or shrinks.
 //
@@ -29,7 +29,7 @@ const (
 	// PlannedBarn is the barn's plan role, PlannedVetRoom the vet room's.
 	PlannedBarn    PlannedRole = "barn"
 	PlannedVetRoom PlannedRole = "vet_room"
-	// PlannedPen is the paddock marker's plan role (#2233): the outdoor room the
+	// PlannedPen is the paddock marker's plan role: the outdoor room the
 	// build side reconciles the one PenMarker through. It is no part of
 	// roomsWithHerd and no reservation holds one.
 	PlannedPen PlannedRole = "pen"
@@ -76,7 +76,7 @@ func planBedGrid(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool
 	return out, len(out) > 0
 }
 
-// herdHeaterSlot is the barn's climate slot (#1867): the heater the
+// herdHeaterSlot is the barn's climate slot: the heater the
 // temperature planner counts as conditioning the room and the power planner
 // connects like any other unpowered consumer. It is no bed.
 const herdHeaterSlot = "climate.heater"
@@ -202,7 +202,7 @@ func (p LayoutPlan) roomsWithHerd() []PlannedRoom {
 	return append(append(slices.Clone(p.AllRooms()), p.HerdRooms(PlannedBarn)...), p.HerdRooms(PlannedVetRoom)...)
 }
 
-// barnFlap is the cell of a barn's ring that takes its animal flap (#2229):
+// barnFlap is the cell of a barn's ring that takes its animal flap:
 // beside the barn's own door, so it opens onto the same ground, the paddock.
 // The flap lets animals through but no colonist; the door is the colonists'.
 // The cell is on the wall's straight run (never a corner), no other
@@ -421,7 +421,7 @@ const (
 	// HerdReconcile: Room differs from the plan or from Template (the animal
 	// beds, and the barn's heater): the build side reconciles it
 	// (ReconcileRoom). The room's state is whatever the diff leaves; there is
-	// no shell or place step (#2114).
+	// no shell or place step.
 	HerdReconcile HerdStepKind = "reconcile"
 	// HerdMedical: flag Bed, a standing vet room bed, medical.
 	HerdMedical HerdStepKind = "medical"

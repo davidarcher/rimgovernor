@@ -170,7 +170,7 @@ namespace HomeBridge.BridgeTools
                 catch (Exception) { stat.ClearValue(); stat.ClearDisplay(); stat.Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Native room stat unavailable."); }
                 row.Stats.Add(stat);
             }
-            // Doors in the boundary (#1323): the door cell, the cell across it
+            // Doors in the boundary: the door cell, the cell across it
             // from this room, and whether that far side is outdoors. A far side
             // with no room (map edge, impassable) leaves outdoors unknown.
             foreach (var door in things.OfType<Building_Door>().OrderBy(d => d.Position.z).ThenBy(d => d.Position.x))

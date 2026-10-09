@@ -1,16 +1,15 @@
-// Package anomaly holds the Anomaly acceptance cases (epic #1694).
+// Package anomaly holds the Anomaly acceptance cases.
 //
-// The anomaly/hold-study case (#1747) proves a colony captures a downed
+// The anomaly/hold-study case proves a colony captures a downed
 // entity into its containment cell, holds it and studies it.
 //
-// The anomaly/monolith-disrupt case (#2439) proves a colony awakens the void
+// The anomaly/monolith-disrupt case proves a colony awakens the void
 // monolith, activates the structures the quest spawns and disrupts at the
 // void node.
 //
-// The anomaly/horror-incident case (#1748) proves a colony survives a horror
+// The anomaly/horror-incident case proves a colony survives a horror
 // incident: the game's own Anomaly threat incident arrives at the staged
-// colony, the served defense planner answers it with the combat tactics of
-// #1739, and natively every colonist is alive and no arrival is left on its
+// colony, the served defense planner answers it with combat tactics, and natively every colonist is alive and no arrival is left on its
 // feet.
 package anomaly
 

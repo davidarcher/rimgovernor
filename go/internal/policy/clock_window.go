@@ -10,7 +10,7 @@ import (
 // EvaluateClockWindow admits a finite window. Live hostiles refuse it unless
 // the ActiveCombat goal holds an admitted plan; then the window is a combat
 // watch acknowledging exactly those hostile pawns under the combat budget
-// (a hostile building, #246, makes the window a combat one but is never
+// (a hostile building, makes the window a combat one but is never
 // acknowledged: the native watcher resolves acknowledged ids as pawns), and
 // it returns to colony mode once every hostile is dead, downed or, for a
 // building, destroyed. The returned
@@ -59,7 +59,7 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 			case !combatKnown:
 				hold(ClockWindowUnknown)
 			case combatPlan && h.Pawn != "" && buildings[h.Pawn]:
-				// A hostile building (#246) makes the window a combat one
+				// A hostile building makes the window a combat one
 				// but is never acknowledged: the native watcher stops for
 				// unacknowledged hostile pawns only and resolves every
 				// acknowledged id as a pawn.
@@ -67,13 +67,13 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 			case h.Pawn != "" && buildings[h.Pawn] && unansweredKnown && unanswered:
 				// No squad can be assigned (every colonist downed or
 				// incapable of violence): the building goes nowhere, so
-				// it is watched rather than held (#326). The planner
+				// it is watched rather than held. The planner
 				// reports again at every stop and a plan it admits later
 				// makes the next window a combat one.
 			case combatPlan && h.Pawn != "":
 				hostiles = append(hostiles, h.Pawn)
 			case sheltered && h.Pawn != "" && !buildings[h.Pawn]:
-				// Every undrafted colonist is in the Safe area (#1560):
+				// Every undrafted colonist is in the Safe area:
 				// the threat is waited out, watched like a fight's.
 				hostiles = append(hostiles, h.Pawn)
 			default:
@@ -92,7 +92,7 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 		}
 	}
 	if f.Emergency.PodsPending() {
-		// A drop-pod raid on its way down (#908): with the fight's plan
+		// A drop-pod raid on its way down: with the fight's plan
 		// the window is a combat one with nothing to acknowledge until the
 		// pods open (the watcher stops on the raiders then); without it
 		// the raid must not auto-advance.

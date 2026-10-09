@@ -18,7 +18,7 @@ type callTiming struct {
 	began    time.Time
 	gateWait time.Duration
 	// admission is the class the call was admitted under and what it saw
-	// of the queue (#631).
+	// of the queue.
 	admission admissionOutcome
 }
 
@@ -43,7 +43,7 @@ func millis(d time.Duration) float64 { return float64(d) / float64(time.Millisec
 // queueDepth -1 when the call sent none or the companion predates them.
 //
 // observation and frames are the observation capture account and the frame
-// recorder's session counters (#642), copied through verbatim so the phase
+// recorder's session counters, copied through verbatim so the phase
 // report reads the companion's own field names; both are nil when the
 // companion reported none.
 type nativeTimingReport struct {
@@ -67,7 +67,7 @@ func nativeTiming(structured json.RawMessage) (nativeTimingReport, bool) {
 			ExecuteMs  *float64 `json:"executeMs"`
 			Trace      string   `json:"trace"`
 			QueueDepth *int     `json:"queueDepth"`
-			// #642, both absent on a companion without the account.
+			// Both are absent when the companion supplies no observation account.
 			Observation map[string]any `json:"observation"`
 			Frames      map[string]any `json:"frames"`
 		} `json:"timing"`

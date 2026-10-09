@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// TestRecordedChickenEggFacts (#1897): the fertilized egg, the fertilization
+// TestRecordedChickenEggFacts: the fertilized egg, the fertilization
 // count, the hatch time and the mate interval come from the recorded Chicken
 // defs; a fertilized egg with no hatcher comp is a contract error.
 func TestRecordedChickenEggFacts(t *testing.T) {

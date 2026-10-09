@@ -1,5 +1,5 @@
-// Package combatlab holds the standard combat fixtures (#854, epic #845):
-// fixed layouts on the blank lab (cases.Lab, #729) that every combat
+// Package combatlab holds the standard combat fixtures:
+// fixed layouts on the blank lab (cases.Lab) that every combat
 // tactic case and recording stages instead of playing a colony into a
 // raid. A fixture is plain data built relative to the lab's centre cell;
 // Stage wipes the lab to the fixture's colonist count and applies it in
@@ -23,9 +23,9 @@ type Thing struct {
 	Stuff string `json:"stuff,omitempty"`
 	X     int    `json:"x"`
 	Z     int    `json:"z"`
-	// Hostile stages a building under the lab hostiles' faction (#930).
+	// Hostile stages a building under the lab hostiles' faction.
 	Hostile bool `json:"hostile,omitempty"`
-	// HitPoints, when set, stages the building damaged (#1150).
+	// HitPoints, when set, stages the building damaged.
 	HitPoints int `json:"hitPoints,omitempty"`
 }
 
@@ -39,21 +39,21 @@ type Pawn struct {
 	Z           int    `json:"z"`
 	Weapon      string `json:"weapon,omitempty"`
 	WeaponStuff string `json:"weaponStuff,omitempty"`
-	// Downed stages the pawn downed under anesthetic (#867).
+	// Downed stages the pawn downed under anesthetic.
 	Downed bool `json:"downed,omitempty"`
 	// Hediffs are extra HediffDef names added at staging, e.g. a drug
-	// high or addiction (#1056).
+	// high or addiction.
 	Hediffs []string `json:"hediffs,omitempty"`
-	// Apparel is one worn apparel def, staged charged if a shield (#1049).
+	// Apparel is one worn apparel def, staged charged if a shield.
 	Apparel string `json:"apparel,omitempty"`
-	// Trained names the TrainableDefs an Animal has learned (#1057).
+	// Trained names the TrainableDefs an Animal has learned.
 	Trained []string `json:"trained,omitempty"`
-	// Injured stages the pawn with a blunt bruise (#1080).
+	// Injured stages the pawn with a blunt bruise.
 	Injured bool `json:"injured,omitempty"`
 	// Inventory are ThingDef names put one each in the pawn's inventory,
-	// e.g. a carried go-juice (#1311).
+	// e.g. a carried go-juice.
 	Inventory []string `json:"inventory,omitempty"`
-	// StunTicks stuns the pawn directly for that many ticks (#1118).
+	// StunTicks stuns the pawn directly for that many ticks.
 	StunTicks int `json:"stunTicks,omitempty"`
 }
 
@@ -65,22 +65,21 @@ type Fixture struct {
 	Things    []Thing `json:"things"`
 	Pawns     []Pawn  `json:"pawns"`
 	// Arrival, when set, is a PawnsArrivalModeDef that drops the hostiles
-	// in around the first hostile's cell instead of spawning each (#870).
+	// in around the first hostile's cell instead of spawning each.
 	Arrival string `json:"arrival,omitempty"`
-	// Roof, when set, roofs a rectangle (#1071: overhead mountain).
+	// Roof, when set, roofs a rectangle (overhead mountain).
 	Roof *Roof `json:"roof,omitempty"`
 	// Siege, when set, puts the hostiles under a real siege lord
-	// (LordJob_Siege) camped at its cell instead of an assault lord
-	// (#1147): the game places the camp's blueprints and drops its supplies.
+	// (LordJob_Siege) camped at its cell instead of an assault lord:
+	// the game places the camp's blueprints and drops its supplies.
 	Siege *Siege `json:"siege,omitempty"`
-	// PrisonBreak starts a prison break by the first prisoner once staged
-	// (#1080).
+	// PrisonBreak starts a prison break by the first prisoner once staged.
 	PrisonBreak bool `json:"prisonBreak,omitempty"`
 	// Sappers stages the hostiles' assault lord as a sapper raid: it digs
-	// a path through the walls to the colony (#1149).
+	// a path through the walls to the colony.
 	Sappers bool `json:"sappers,omitempty"`
 	// Layout, when set, is the complete defense layout record the metrics
-	// run stores before serving (#890), so the planner holds this
+	// run stores before serving, so the planner holds this
 	// fixture's line instead of refusing the hold for want of one.
 	Layout *Layout `json:"-"`
 }
@@ -106,7 +105,7 @@ type Roof struct {
 	MaxZ int    `json:"maxZ"`
 }
 
-// Siege is a siege lord's camp spot and blueprint points (#1147).
+// Siege is a siege lord's camp spot and blueprint points.
 type Siege struct {
 	X      int     `json:"x"`
 	Z      int     `json:"z"`
@@ -120,18 +119,18 @@ const (
 	Colonist = "colonist"
 	Hostile  = "hostile"
 	// Animal is a generated player animal of Kind; Manhunter a wild Kind
-	// gone permanently manhunter (#1057).
+	// gone permanently manhunter.
 	Animal    = "animal"
 	Manhunter = "manhunter"
-	// Wild is a calm factionless animal of Kind (#1116).
+	// Wild is a calm factionless animal of Kind.
 	Wild = "wild"
 	// Prisoner is a generated hostile Kind held as the colony's prisoner.
 	Prisoner = "prisoner"
 	// Insect is an insect Kind of the insects' faction under an assault
-	// lord (#1071).
+	// lord.
 	Insect = "insect"
 	// Mech is a mechanoid Kind of the mechanoids' faction under an assault
-	// lord (#1118).
+	// lord.
 	Mech = "mech"
 
 	rifle     = "Gun_AssaultRifle"
@@ -141,11 +140,8 @@ const (
 	slasher   = "Mercenary_Slasher"
 )
 
-// Names are the fixtures in landing order; #854 lands the first three,
-// lab-pods (#870) joins with its rooms (#897), lab-breach with its sapper
-// raid (#1149), lab-siege with its siege lord (#1154), lab-manhunter and
-// lab-mech with #1146, lab-ranged-shield with #1153, lab-mech-line with #1184. lab-infestation (#1071) builds but has no metrics
-// baseline yet.
+// Names lists fixtures with committed metrics baselines. lab-infestation can be built but
+// has no metrics baseline.
 var Names = []string{"lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach", "lab-siege", "lab-manhunter", "lab-mech", "lab-ranged-shield", "lab-mech-line", "lab-base"}
 
 // Build returns the named fixture around the lab centre (cx, cz).
@@ -183,7 +179,7 @@ func Build(name string, cx, cz int) (Fixture, error) {
 	return Fixture{}, fmt.Errorf("combatlab: no fixture %q", name)
 }
 
-// horror (#1748): lab-ranged's four riflemen behind its sandbag line and no
+// horror: lab-ranged's four riflemen behind its sandbag line and no
 // hostile; the case fires an Anomaly incident at the staged colony.
 func horror(cx, cz int) Fixture {
 	f := ranged(cx, cz)
@@ -193,7 +189,7 @@ func horror(cx, cz int) Fixture {
 	return f
 }
 
-// mech (#1118): one rifleman and a scyther 25 cells north, stunned for
+// mech: one rifleman and a scyther 25 cells north, stunned for
 // mechStunTicks at staging.
 func mech(cx, cz int) Fixture {
 	return Fixture{Name: "lab-mech", Colonists: 1, Pawns: []Pawn{
@@ -202,9 +198,9 @@ func mech(cx, cz int) Fixture {
 	}}
 }
 
-// mechLine (#1184): lab-ranged's four riflemen and held line against two
+// mechLine: lab-ranged's four riflemen and held line against two
 // lancers 25 cells north, a mech fight the squad takes on (lab-mech is the
-// shelter case), so the first attacks' target (#863) is checked on mechs.
+// shelter case), so the first attacks' target is checked on mechs.
 func mechLine(cx, cz int) Fixture {
 	f := ranged(cx, cz)
 	f.Name = "lab-mech-line"
@@ -215,14 +211,14 @@ func mechLine(cx, cz int) Fixture {
 	return f
 }
 
-// Breach room (#1149): an 11x11 granite wall ring with no door around the
+// Breach room: an 11x11 granite wall ring with no door around the
 // centre; the sappers wait breachRaid cells north of it.
 const (
 	breachHalf = 5
 	breachRaid = 15
 )
 
-// breach (#1149): three riflemen sealed in a doorless walled room and three
+// breach: three riflemen sealed in a doorless walled room and three
 // club slashers (a sapper-capable kind, mining 8) north of it under a
 // sapper assault lord: with no path in they mine through the north wall.
 // The staging is seeded, so the raid is the same every run.
@@ -344,7 +340,7 @@ func choke(cx, cz int) Fixture {
 	return f
 }
 
-// Pod rooms (#897): the landing room is a 13x13 granite ring around the
+// Pod rooms: the landing room is a 13x13 granite ring around the
 // drop centre, 10 cells north, with a door in the middle of its south
 // wall; the safe room a 7x7 ring 13 cells south with a door in its north
 // wall.
@@ -357,7 +353,7 @@ const (
 
 // pods: four riflemen on an open field between two walled rooms, an
 // unarmed colonist inside the landing room, and four rifle raiders dropped
-// by center drop pods around the landing room's centre (#870, #897). For
+// by center drop pods around the landing room's centre. For
 // the drop-pod tactics (draft before the open tick, evacuate, doorway
 // pairs, wait and strike) and the pods strategy in combat_events.
 func pods(cx, cz int) Fixture {
@@ -374,7 +370,7 @@ func pods(cx, cz int) Fixture {
 	return f
 }
 
-// Siege offsets (#1051): our mortar 15 cells south of the centre, the
+// Siege offsets: our mortar 15 cells south of the centre, the
 // siege camp spot 20 north, 35 apart (past the vanilla mortar's 29.9-cell
 // minimum range).
 const (
@@ -387,9 +383,9 @@ const (
 
 // siege: three riflemen by an unroofed player mortar with one HE and one
 // EMP shell beside it, and four raiders under a real siege lord at the camp
-// spot 20 cells north (#1147): the game places the camp's blueprints,
+// spot 20 cells north: the game places the camp's blueprints,
 // drops its supplies, and the raiders build the frames. For the
-// counter-battery shell op (#1051) and the siege tactics.
+// counter-battery shell op and the siege tactics.
 func siege(cx, cz int) Fixture {
 	f := Fixture{Name: "lab-siege", Colonists: 3}
 	f.Things = append(f.Things,
@@ -443,7 +439,7 @@ func ranged(cx, cz int) Fixture {
 	return f
 }
 
-// rangedShield (#866, #1153): lab-ranged plus a fifth colonist, a
+// rangedShield: lab-ranged plus a fifth colonist, a
 // longsword fighter in a charged shield belt, two cells behind the line's
 // middle. The four riflemen are unchanged (a belted pawn cannot fire).
 // The belt makes it the fight's tank: its formation cell lies ahead of a
@@ -457,7 +453,7 @@ func rangedShield(cx, cz int) Fixture {
 	return f
 }
 
-// manhunter (#1057): one colonist, a release-trained husky beside her and
+// manhunter: one colonist, a release-trained husky beside her and
 // an untrained one, two permanent-manhunter wargs 15 cells north.
 func manhunter(cx, cz int) Fixture {
 	return Fixture{Name: "lab-manhunter", Colonists: 1, Pawns: []Pawn{
@@ -469,7 +465,7 @@ func manhunter(cx, cz int) Fixture {
 	}}
 }
 
-// Infestation room (#1071): an 11x11 granite ring (natural rock) 10 cells
+// Infestation room: an 11x11 granite ring (natural rock) 10 cells
 // north of the centre, roofed thick (overhead mountain) wall to wall, with
 // one opening, the tunnel, in the middle of its south wall.
 const (
@@ -477,7 +473,7 @@ const (
 	infestHalf = 5
 )
 
-// infestation (#1071): a hive in a mountain room with three insects around
+// infestation: a hive in a mountain room with three insects around
 // it; two longsword brawlers south of the tunnel, two riflemen behind them
 // and a frag grenadier in line with the tunnel and in throw range of the
 // hive. The line holds the tunnel, the brawlers block it.
@@ -513,7 +509,7 @@ func infestation(cx, cz int) Fixture {
 	return f
 }
 
-// prison (#1080): two prisoners, one bruised, break out of a 7x7 granite
+// prison: two prisoners, one bruised, break out of a 7x7 granite
 // cell 8 cells north with a door in its south wall; four wardens wait
 // south of it: two unarmed, one with a mace, one with a revolver.
 func prison(cx, cz int) Fixture {

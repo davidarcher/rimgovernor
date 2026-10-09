@@ -183,7 +183,7 @@ func activeModsAfter(t *testing.T, expansions ...string) []string {
 		t.Fatalf("rewritten ModsConfig.xml did not parse: %v", err)
 	}
 	// Every requested expansion is known afterwards, so RimWorld does not
-	// treat it as newly installed; the profile's own entries stay (#332).
+	// treat it as newly installed; the profile's own entries stay.
 	known := root.find("knownExpansions").li()
 	if len(known) < 4 || strings.Join(known[:4], ",") != "ludeon.rimworld.royalty,ludeon.rimworld.ideology,ludeon.rimworld.biotech,ludeon.rimworld.odyssey" {
 		t.Fatalf("knownExpansions = %v, want the profile's four first", known)
@@ -205,7 +205,7 @@ func TestPrepareNativeModConfigKnowsInstalledExpansions(t *testing.T) {
 	// A game copy with every DLC installed: each one lands in
 	// knownExpansions (once, casefolded, the profile's own entries first)
 	// while activeMods stays Core-only, so RimWorld's boot-time "newly
-	// installed expansion" activation never fires (#332). A missing
+	// installed expansion" activation never fires. A missing
 	// knownExpansions element is created.
 	path := filepath.Join(t.TempDir(), "ModsConfig.xml")
 	if err := os.WriteFile(path, []byte("<ModsConfigData><activeMods><li>ludeon.rimworld</li><li>Ludeon.RimWorld.Royalty</li></activeMods></ModsConfigData>"), 0644); err != nil {
@@ -264,7 +264,7 @@ func TestPrepareNativeModConfigDropsExpansionsByDefault(t *testing.T) {
 
 func TestPrepareNativeModConfigKeepsRequestedExpansions(t *testing.T) {
 	// Short names and full IDs both work, duplicates collapse, and the kept
-	// expansions load directly after the core game in release order (#1264:
+	// expansions load directly after the core game in release order (
 	// Odyssey inherits Royalty parents) even when the profile had them inactive.
 	got := activeModsAfter(t, "biotech", "ludeon.rimworld.royalty", "Biotech", "anomaly")
 	want := []string{"brrainz.harmony", "ludeon.rimworld", "ludeon.rimworld.royalty", "ludeon.rimworld.biotech", "ludeon.rimworld.anomaly", "redeyedev.rimapi", NativePackage}
@@ -656,7 +656,7 @@ func TestSaveExpansions(t *testing.T) {
 
 // A kept process runs with the ModsConfig.xml it was launched with, so
 // OpenGame compares the snapshot a fresh launch records against what the
-// current Prepare wrote and relaunches on a difference (#166).
+// current Prepare wrote and relaunches on a difference.
 func TestLaunchedMismatchOnExpansions(t *testing.T) {
 	source := writeSourceRoot(t)
 	root, err := IsolatedRoot(source, filepath.Join(t.TempDir(), "worker"))
@@ -714,7 +714,7 @@ func TestLaunchedMismatchOnExpansions(t *testing.T) {
 
 // A kept process serves the DLLs it loaded, so a rebuilt package installed
 // under it (new fixtures, say) must relaunch rather than fail discovery
-// against the old catalog (#209).
+// against the old catalog.
 func TestLaunchedMismatchOnPackage(t *testing.T) {
 	source := writeSourceRoot(t)
 	root, err := IsolatedRoot(source, filepath.Join(t.TempDir(), "worker"))

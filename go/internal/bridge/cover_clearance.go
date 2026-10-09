@@ -8,7 +8,7 @@ import (
 )
 
 // coverDesignations maps the census's cover designation to the Designate
-// designation and guard that removes the thing (#581, #1350).
+// designation and guard that removes the thing.
 var coverDesignations = map[string]struct {
 	designation o.ThingDesignation
 	guard       o.DesignationGuard
@@ -19,7 +19,7 @@ var coverDesignations = map[string]struct {
 	"Deconstruct": {o.ThingDesignation_THING_DESIGNATION_DECONSTRUCT, o.DesignationGuard_DESIGNATION_GUARD_ENCLOSURE},
 }
 
-// coverAction is the Designate of one raider-cover clearance (#581): the
+// coverAction is the Designate of one raider-cover clearance: the
 // designation that removes the exact cover thing the defense census named
 // (DefenseCell.Cover) standing at its cell. Native checks the thing and the
 // guard live when it applies; one already standing applies again.

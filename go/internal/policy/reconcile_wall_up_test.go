@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A standing wall of a lower ranked stuff is swapped in place (#2111), one cell
+// A standing wall of a lower ranked stuff is swapped in place, one cell
 // of an otherwise complete ring per pass, never while the ring has other work.
 func TestReconcileSwapsOneWallOfLowerStuffAtATime(t *testing.T) {
 	in, _ := reconFixture()

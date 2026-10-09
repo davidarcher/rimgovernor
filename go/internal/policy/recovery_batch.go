@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Roof-first batch sequencing (#2298, epic #2291), executed by the clearance
+// Roof-first batch sequencing, executed by the clearance
 // planner. The recovery queue's
 // admitted and queued removals come down as one batch, not one building per
 // review: when the batch's joint roof check (RoofSupportGrid.RoofBlocker)
@@ -18,7 +18,7 @@ import (
 // unknown cell) trims the batch, one holding the roof_support_risk word.
 //
 // The native roof-collapse buffer (IsMarkedToCollapse) is not in the mirror,
-// so RoofSupportGrid.CollapsePending stays nil here (#2296 left this to #2298):
+// so RoofSupportGrid.CollapsePending stays nil here:
 // a short-lived guard, since native re-runs its own counterfactual roof check
 // at admission and refuses a removal that would collapse, so a pending
 // collapse costs a refused removal, not a collapse.

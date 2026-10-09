@@ -19,7 +19,7 @@ func tiers(built, pending int) store.DefenseLayoutRecord {
 
 // A tier whose blueprints are placed is built over game hours with every
 // stage already completed, and a raid between two tiers parks the layout with
-// no plan open (#2134): the advancing tick is progress either way, bounded by
+// no plan open: the advancing tick is progress either way, bounded by
 // layoutBuildTicks after the open plans or the built tiers last changed.
 func TestBuildProgressCountsTicksUntilTheLayoutStopsMoving(t *testing.T) {
 	var b buildProgress

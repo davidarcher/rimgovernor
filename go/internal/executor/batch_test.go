@@ -83,7 +83,7 @@ func (f *batchFixture) views(t *testing.T) map[domain.ActionID]domain.ProgressVi
 	return out
 }
 
-// 32 building intents cost one bounds read and one Apply (#1041).
+// 32 building intents cost one bounds read and one Apply.
 func TestRunBatchOneInspectOneApply(t *testing.T) {
 	f := newBatchFixture(t, 32)
 	for _, item := range f.run(t) {

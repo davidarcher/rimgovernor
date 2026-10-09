@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The capture rule (#1742, epic #1694, David 2026-10-03): capture a downed
+// Capture a downed
 // entity only when the cell's containment strength reaches what the entity
 // needs with a margin, and kill the rest. What the entity needs is its own
 // MinimumContainmentStrength (the pawn row), the strength is a standing
@@ -18,8 +18,8 @@ import (
 //
 // The margin is the strength the cell loses when a lapse of upkeep opens its
 // door: a door forced open (ContainmentBreached) zeroes the door term of
-// StatWorker_ContainmentStrength (decompile, #1741), the one term the game
-// models as a breach and the one #1743's upkeep keeps closed. Requiring
+// StatWorker_ContainmentStrength (decompile), the one term the game
+// models as a breach and upkeep keeps closed. Requiring
 // need + that loss means an entity stays safely contained (strength >=
 // MinimumContainmentStrength, the game's own test) through such a lapse.
 // Light, roof and facilities are not margin: native strength already
@@ -36,7 +36,7 @@ func CaptureMargin(defs ContainmentDefs) (float64, error) {
 	return defs.DoorHP / containmentDoorHPDivisor * defs.HolderFactor, nil
 }
 
-// CapturableEntity is one entity pawn row's capture facts (#1737): each is
+// CapturableEntity is one entity pawn row's capture facts: each is
 // unknown when native did not read it.
 type CapturableEntity struct {
 	Pawn domain.PawnID
@@ -45,15 +45,15 @@ type CapturableEntity struct {
 	// CurrentlyHeldOnPlatform); Need is MinimumContainmentStrength.
 	Dead, Downed, CanBeCaptured, Held domain.Fact[bool]
 	Need                              domain.Fact[float64]
-	// NeedsTend and Bleeding are the held entity's health (#1743).
+	// NeedsTend and Bleeding are the held entity's health.
 	NeedsTend, Bleeding domain.Fact[bool]
-	// Escaping is the held entity's EscapeChance flag (#2437).
+	// Escaping is the held entity's EscapeChance flag.
 	Escaping domain.Fact[bool]
-	// CurrentlyStudiable is CompStudiable.CurrentlyStudiable (#1744); a
+	// CurrentlyStudiable is CompStudiable.CurrentlyStudiable; a
 	// known false for an entity with no study block.
 	CurrentlyStudiable domain.Fact[bool]
 	// Mode, ExtractBioferrite, HarvesterAttached and BioferritePerDay are
-	// the held entity's bioferrite harvest facts (#2434).
+	// the held entity's bioferrite harvest facts.
 	Mode                                 domain.Fact[ContainmentMode]
 	ExtractBioferrite, HarvesterAttached domain.Fact[bool]
 	BioferritePerDay                     domain.Fact[float64]

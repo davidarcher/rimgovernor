@@ -27,7 +27,7 @@ var marketHealthCurve = [...][2]float64{{0, 0}, {.5, .1}, {.6, .5}, {.9, 1}}
 // and full hit points (GearOption.Cost, the catalog's (def, stuff) row), its
 // quality (Awful=0 through Legendary=6) and its hit-point fraction. Unknown
 // for a quality outside the range, a condition outside 0..1 or a base that
-// is not finite and non-negative (#1838).
+// is not finite and non-negative.
 func ItemMarketValue(base float64, quality int, condition float64) domain.Fact[float64] {
 	if quality < 0 || quality >= len(marketQualityFactor) || !finiteUnit(condition) || !finite(base) || base < 0 {
 		return domain.Unknown[float64]()
@@ -79,7 +79,7 @@ type PersonalSpendPawn struct {
 	// Free is a free colonist; slaves and prisoners are never charged.
 	Free bool
 	Gear domain.Fact[[]PersonalItem]
-	// Parts are the installed added parts (#1839). The zero value is a pawn
+	// Parts are the installed added parts. The zero value is a pawn
 	// with none; PartsUnread marks a failed native read, which leaves the
 	// pawn's spent Unknown.
 	Parts       []InstalledPart
@@ -123,11 +123,11 @@ func (s spendSum) fact() domain.Fact[float64] {
 	return domain.Known(s.total)
 }
 
-// PersonalSpent derives what each free colonist holds now (#1838): their
+// PersonalSpent derives what each free colonist holds now: their
 // share of the owned bed, of the contents of the bedroom they own, and their
 // worn apparel and equipped weapon, each at its quality and condition price.
 // Nothing is persisted, so a lost item frees budget. Installed parts add their
-// market price at a tier discount (#1839: PartDiscount). Keyed by free colonists only; a slave or prisoner has no
+// market price at a tier discount (PartDiscount). Keyed by free colonists only; a slave or prisoner has no
 // entry, and a colonist whose bed, room or gear is unread is Unknown (never
 // zero) so a gate on it refuses upgrades instead of guessing.
 //
@@ -234,7 +234,7 @@ func (in PersonalSpendInput) bedValue(bed SleepingBed) domain.Fact[float64] {
 }
 
 // A hediff cannot tell a restore from an upgrade, so an installed part
-// counts only a fraction of its item's market price (#1839). PartBionicTier
+// counts only a fraction of its item's market price. PartBionicTier
 // is the PartTier from which a part is bionic or better: prosthetics, pegs
 // and unrecognised parts (tier <= 1) pay PartRestoreDiscount, bionic and
 // archotech parts (tier > 1) pay PartUpgradeDiscount. An installed part also

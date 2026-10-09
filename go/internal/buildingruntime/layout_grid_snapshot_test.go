@@ -8,12 +8,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 )
 
-// Replaces the native layout/grid case's field half (#603, #982): recorded
+// Replaces the native layout/grid case's field half: recorded
 // from `acceptance run layout/grid` at 1caf938d9 on the tribal baseline
 // with Stonecutting finished and a fixture hut standing, the first field
 // step's own read (tick 15) and the review it planned under. The case's
-// row-partner assertion (#608) is gone with the colony grid (#1175): fields
-// now fill the layout plan's field blocks (#1223, #1227), which this test
+// row-partner assertion is gone with the colony grid: fields
+// now fill the layout plan's field blocks, which this test
 // asserts.
 func TestLayoutGridFieldFillsPlanFieldBlocks(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

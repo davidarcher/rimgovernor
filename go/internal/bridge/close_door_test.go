@@ -7,7 +7,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-// A door_control (#1743) is the existing combat_orders door CLOSE order for its
+// A door_control is the existing combat_orders door CLOSE order for its
 // cell: no pawn, one door order.
 func TestDoorControlBuildsCombatDoorClose(t *testing.T) {
 	for _, held := range []bool{false, true} {

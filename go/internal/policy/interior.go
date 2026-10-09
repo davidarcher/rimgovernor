@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Interior plans (#798, #800) lay furniture out inside one rectangular room.
+// Interior plans lay furniture out inside one rectangular room.
 // A plan is derived, never persisted: PlanInterior is a pure function of the
 // room's role, interior rectangle and door cells, so two rooms of the same
 // role and size get the same layout turned to face their doors.
@@ -44,15 +44,15 @@ type InteriorRoom struct {
 	// definition and shape the catalog gave it.
 	Required []RequiredPiece
 	// Occupants is how many sleepers a template that packs bunks plans for
-	// (the shelter, #2042); 0 fills every bunk that fits. Derived and never
+	// (the shelter); 0 fills every bunk that fits. Derived and never
 	// persisted, like the rest of the plan input.
 	Occupants int
-	// Campfires is how many campfire slots the shelter template plans (#2044):
+	// Campfires is how many campfire slots the shelter template plans:
 	// two on a cold map, none elsewhere. Derived from the layout plan's
 	// latched climate, never persisted.
 	Campfires int
 	// Coolers is how many passive cooler floor slots the shelter template
-	// plans (#2044): one on a hot map, none elsewhere, from the plan's latch.
+	// plans: one on a hot map, none elsewhere, from the plan's latch.
 	Coolers int
 	// Reserved are floor cells (world) a template must keep clear: ground
 	// another plan holds, like the starter stockpile patch or rock yet to be
@@ -124,7 +124,7 @@ func (p InteriorPiece) Interaction() (domain.Cell, bool) {
 	return domain.Cell{X: a.X + o.X, Z: a.Z + o.Z}, true
 }
 
-// InteriorTemplate plans one role's room for the piece being placed (#820):
+// InteriorTemplate plans one role's room for the piece being placed:
 // a template whose family holds the piece plans its slots for that
 // definition's footprint, and any other piece gets the template's default
 // layout. Plan returns false when the frame does not fit the template.
@@ -255,7 +255,7 @@ func InteriorRoomFromCensus(room Room, role RoomRole, doorways []domain.Cell, sh
 	return out, len(out.Doors) > 0
 }
 
-// moduleRoomRoles maps a v2 layout module to the census role its
+// moduleRoomRoles maps a layout module to the census role its
 // furniture gives it.
 var moduleRoomRoles = map[PlannedRole]RoomRole{
 	PlannedBedroom:          RoomRoleBedroom,
@@ -284,7 +284,7 @@ var moduleRoomRoles = map[PlannedRole]RoomRole{
 	PlannedVetRoom:          RoomRoleVetRoom,
 }
 
-// InteriorRoomFromLayout reads a v2 layout room as a plan input.
+// InteriorRoomFromLayout reads a layout room as a plan input.
 func InteriorRoomFromLayout(r PlannedRoom, shapes PieceShapes) (InteriorRoom, bool) {
 	role, ok := moduleRoomRoles[r.Role]
 	if !ok || r.Interior.Width <= 0 || r.Interior.Height <= 0 {
@@ -412,7 +412,7 @@ type interiorTransform struct {
 
 // newInteriorTransform faces the frame to the room's entrance and mirrors
 // it so the entrance sits on the wall's left half. The entrance is the
-// first door in cell order that opens onto a hallway or outdoors (#820),
+// first door in cell order that opens onto a hallway or outdoors,
 // or the first door when every door leads into another room; the frame
 // lists it first, the other doors after it in cell order.
 func newInteriorTransform(room InteriorRoom) (interiorTransform, bool) {
@@ -579,7 +579,7 @@ func InteriorRoomsFor(f FacilityRequirement, rooms RoomObservation, cells []Site
 }
 
 // InteriorSnapAnchors are the cells the fallback search tries before any
-// other free cell of the room (#798): the wall bands, the centre lines and
+// other free cell of the room: the wall bands, the centre lines and
 // the mirror images of occupied cells across both centre lines.
 func InteriorSnapAnchors(room InteriorRoom, occupied []domain.Cell) []domain.Cell {
 	r := room.Interior

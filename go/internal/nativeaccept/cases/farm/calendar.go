@@ -12,10 +12,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// farm/calendar reads the typed colony facts' growing calendar (#229) and
+// farm/calendar reads the typed colony facts' growing calendar and
 // holds its seasonal-temperature walks (days remaining, days until, the
 // non-growing stretch) to agree with each other and at the frost: the harvest gap the last growing day phases in is
-// the gap the first non-growing day reads (#317). The report records the
+// the gap the first non-growing day reads. The report records the
 // seasonal food and wood thresholds a review would derive from it.
 // Read-only: no game orders and no clock advance.
 func init() {
@@ -90,7 +90,7 @@ func runCalendar(ctx context.Context, s cases.Session) error {
 	// not grow, a positive stretch while they do unless the tile never
 	// leaves the range. The gap the last growing day phases in must be the
 	// gap the first non-growing day reads, so the seasonal thresholds do
-	// not jump at the frost (#317).
+	// not jump at the frost.
 	stretch := calendar.NonGrowingDays
 	switch {
 	case until > 0 && stretch != until:

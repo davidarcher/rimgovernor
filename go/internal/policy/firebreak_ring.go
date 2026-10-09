@@ -10,7 +10,7 @@ import (
 // within FirebreakWidth of the base footprint (the home base of the colony
 // extent with no margin, plus GrowingZones) and outside it, whatever its ground or treatment. It reads
 // only Bounds, Construction, Claims, Home and GrowingZones; field siting
-// protects these cells so new fields never take the ring (#1550).
+// protects these cells so new fields never take the ring.
 func FirebreakRing(r FirebreakRequest) (domain.Fact[[]domain.Cell], error) {
 	unknown := domain.Unknown[[]domain.Cell]()
 	bounds, bk := r.Bounds.Value()

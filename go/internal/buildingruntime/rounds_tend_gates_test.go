@@ -90,7 +90,7 @@ func (n *tendGateNative) ReadEmergency(ctx context.Context, identity *c.Identity
 	return v, receipt, err
 }
 
-// The tend detail reaches the planner end to end (#657): a doctor whose native
+// The tend detail reaches the planner end to end: a doctor whose native
 // gates pass and who can reach the patient is ordered, and the same doctor
 // walled off from that patient yields no pair at all rather than an order the
 // native gate refuses, so the episode stops burning its eight attempts.

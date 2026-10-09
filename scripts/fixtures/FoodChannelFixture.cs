@@ -162,7 +162,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
-        // What the starving-tribal recovery case (#2173) reads natively: meat the
+        // What the starving-tribal recovery case reads natively: meat the
         // colonists ingested, wild kills by a colonist, and the killer's job two
         // ticks after each (vanilla hauls the corpse; the hunt-chain rule leaves a Hunt).
         private sealed class WildKill { internal int Tick; internal Pawn Killer; internal string Prey = ""; internal bool Recorded; }

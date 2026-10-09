@@ -45,7 +45,7 @@ func (c Calendar) Valid() bool {
 // larder fills as the frost nears instead of the whole summer reading as a
 // deficit. The phase-in is complete on the last growing day (one day
 // remaining), so the thresholds the frost brings are the ones the colony
-// already held (#317). Either way one grow cycle of the fastest starter
+// already held. Either way one grow cycle of the fastest starter
 // crop is added, because a harvest lags the first growing day, and the
 // whole is capped at one year. Unknown while the calendar is unknown or
 // invalid.

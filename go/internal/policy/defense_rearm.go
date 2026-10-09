@@ -12,7 +12,7 @@ type DefenseTurretFacts struct {
 	ID         string
 	Definition string
 	Cell       domain.Cell
-	// DPS is the turret's observed damage per second (#1188).
+	// DPS is the turret's observed damage per second.
 	DPS       domain.Fact[float64]
 	Powered   domain.Fact[bool]
 	OutOfFuel domain.Fact[bool]
@@ -48,7 +48,7 @@ type DefenseTurretUpkeep struct {
 // priority; the order is a forced one, so the game's own auto-refuel
 // setting and threshold do not gate it. Under a solar flare (blackout)
 // every turret is dark for the outage and none is a power deficit: the
-// tier is absent, not unserviced (#408); an empty barrel is still rearmed
+// tier is absent, not unserviced; an empty barrel is still rearmed
 // so the line is whole when the flare ends.
 func DefenseRearmTurrets(turrets []DefenseTurretFacts, workers []WorkPawn, stock domain.Fact[map[Resource]int64], blackout bool) DefenseTurretUpkeep {
 	var out DefenseTurretUpkeep

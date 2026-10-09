@@ -13,7 +13,7 @@ using Lifecycle = RimGovernor.Protocol.Lifecycle;
 
 namespace HomeBridge.BridgeTools
 {
-    // New-colony start (#2019/#2021): from a fresh main menu, run RimWorld's
+    // New-colony start : from a fresh main menu, run RimWorld's
     // own init sequence directly (no Harmony on Root_Play.SetupForQuickTestPlay)
     // up to a live map. The tool returns NewColonyPending at once; the work
     // runs as consecutive synchronous long events, one per phase, so the poll
@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
     // phase, so the same spec on the same install gives the same world, tile
     // and colonists (per-install determinism only: DLC and mods shift draws).
     //
-    // Live map (#2022): OnMapLive pauses; polls then confirm the colony-naming
+    // Live map: OnMapLive pauses; polls then confirm the colony-naming
     // dialog (FINISHING), report SAVING, and save through the same native save
     // path as lifecycle_save into the game's Saves folder under the spec's save
     // name, ending the entry with NewColonyCompleted. A phase exception, a failed
@@ -218,7 +218,7 @@ namespace HomeBridge.BridgeTools
             Game.ClearCaches();
             // The Game constructor draws from Rand (UniqueIDsManager starts thing ids at
             // Rand.Range(0, 1000)); thing ids seed pawn and plant randomness, so an
-            // unseeded start shifts the whole world and map (#2034).
+            // unseeded start shifts the whole world and map.
             Rand.PushState(GenText.StableStringHash(entry.Seed));
             try
             {
@@ -303,7 +303,7 @@ namespace HomeBridge.BridgeTools
             finally { Rand.PopState(); }
         }
 
-        // Team-composition policy (#2024, NativeTeamPolicy): runs on the freshly
+        // Team-composition policy (NativeTeamPolicy): runs on the freshly
         // generated starting pawns, inside the seeded Rand scope, rerolling from
         // that stream and counting rerolls into the reported reroll_count. An
         // exhausted budget refuses, naming the unmet requirement.

@@ -6,7 +6,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // RulesAttachIntent on Actions/Apply (#2154): the replace-all of rules_attach as a journaled intent. The
+    // RulesAttachIntent on Actions/Apply: the replace-all of rules_attach as a journaled intent. The
     // lease is relative (apply tick + lease_ticks), so a resent key never carries a stale absolute tick. A
     // refused rule refuses the whole action and changes nothing; an empty list clears.
     internal static class NativeRulesAttach

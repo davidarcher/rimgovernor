@@ -7,7 +7,7 @@ import (
 )
 
 // Bindings are validated against the stored review itself, not a second
-// derivation from empty facts (#1763): a review that assessed fewer goals
+// derivation from empty facts: a review that assessed fewer goals
 // than the empty-facts universe (a conditionally assessed goal left out)
 // still loads, while a binding naming no routine goal does not.
 func TestRoundsBindingsValidateAgainstTheStoredReview(t *testing.T) {

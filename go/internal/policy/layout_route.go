@@ -6,14 +6,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Route check and traffic (#780, A4). Pawns walk the planned core: spine
+// Route checks and traffic. Pawns walk the planned core: spine
 // hallways, room floors and doors; walls block. The entrances are the plan's
 // Entrances. Every trip pair gets a shortest path, and a path through a
 // private or clean room that is not one of its ends rejects the layout.
 
 // routeTrips are the room pairs pawns travel between; PlannedRole("") is
 // the entrance.
-// weight is the trip's frequency, the affinity between the two ends (#1952):
+// weight is the trip's frequency, the affinity between the two ends:
 // plan scoring weights each walking distance by it.
 var routeTrips = []routeTrip{
 	{PlannedBedroom, PlannedDining, 3},

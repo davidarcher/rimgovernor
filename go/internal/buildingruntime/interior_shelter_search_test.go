@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The research bench stages in the shelter (#2043): a room the game scores a
+// The research bench stages in the shelter: a room the game scores a
 // Barracks, standing on the layout plan's shelter interior, is planned as the
 // shelter, so the bench takes the shelter template's research slot.
 func TestResearchBenchTakesTheShelterTemplateSlot(t *testing.T) {
@@ -46,7 +46,7 @@ func TestResearchBenchTakesTheShelterTemplateSlot(t *testing.T) {
 	door := domain.Cell{X: 2, Z: 4}
 	facts := reading.Projection
 	facts.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Interior: interior, Door: door, DoorRot: domain.North}}})
-	// No wall stands: the planned interior alone holds the bench row (#2264).
+	// No wall stands: the planned interior alone holds the bench row.
 	facts.Shapes = testPieceShapes
 	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes})
 	rooms := plannedShelterRooms(facts)

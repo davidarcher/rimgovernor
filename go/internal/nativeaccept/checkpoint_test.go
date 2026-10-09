@@ -220,7 +220,7 @@ func TestCheckpointRingCapturesAndPrunes(t *testing.T) {
 
 // A sub-second cadence past the one-second mark still labels every
 // capture distinctly, so no capture overwrites a live bundle and the
-// pruned ring matches its directory (#596).
+// pruned ring matches its directory.
 func TestCheckpointRingLabelsPastOneSecond(t *testing.T) {
 	ring, _ := ringFixture(t, time.Millisecond)
 	ring.Base = time.Second
@@ -418,8 +418,8 @@ func TestServiceSaveResumesAfterFailedSave(t *testing.T) {
 }
 
 // The case's own progress record (SetCheckpointState) rides every later
-// capture's sidecar, so a resumed run can skip the prep the save carries
-// (#316); it is a no-op with no ring active.
+// capture's sidecar, so a resumed run can skip the prep the save carries;
+// it is a no-op with no ring active.
 func TestCheckpointStateRidesCaptures(t *testing.T) {
 	SetCheckpointState("orphan", 1)
 	ring, _ := ringFixture(t, time.Hour)
@@ -455,7 +455,7 @@ func TestCheckpointStateRidesCaptures(t *testing.T) {
 }
 
 // A capped ring takes no further entry, periodic or named, but still
-// takes the failed bundle, so a resume replays from before the cap (#330).
+// takes the failed bundle, so a resume replays from before the cap.
 func TestCapCheckpointsStopsEntries(t *testing.T) {
 	CapCheckpoints("orphan")
 	ring, _ := ringFixture(t, time.Nanosecond)
@@ -492,7 +492,7 @@ func TestCapCheckpointsStopsEntries(t *testing.T) {
 }
 
 // A periodic service capture waits until the service automates with a
-// fresh game read; a state without a known tick would 503 the save (#309).
+// fresh game read; a state without a known tick would 503 the save.
 func TestServiceCanCapture(t *testing.T) {
 	t.Parallel()
 	game := func(stale bool, tick any) map[string]any {

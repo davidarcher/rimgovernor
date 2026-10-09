@@ -99,7 +99,7 @@ func TestRoundsBuildingNativeUseBudgetCountsFromTheApplyReceipt(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// The apply receipt settles the building (#856).
+			// The apply receipt settles the building.
 			state.Progress[0] = p
 			for _, row := range []struct {
 				tick domain.Tick
@@ -149,7 +149,7 @@ func TestComfortBuilderHonorsNativeSkill(t *testing.T) {
 	}
 	skills[0].Level = 4
 	// An unrelated pawn whose checkboxes match no allocation (every work
-	// type on at 3) must not hold the qualified builder (#66).
+	// type on at 3) must not hold the qualified builder.
 	other := policy.WorkPawn{ID: "cook", Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(true), Ranged: domain.Known(false), Skills: domain.Known([]policy.WorkSkill{{Name: "Construction", Level: 0}})}
 	var everything []policy.WorkPriority
 	for _, name := range []policy.WorkType{"Construction", "Growing", "Cooking", "Doctor", "PlantCutting", "Hunting", "Crafting", "Smithing"} {
@@ -199,7 +199,7 @@ func TestComfortCompilerResolvesNativeMaterialAndDiningAdjacency(t *testing.T) {
 	}
 }
 
-// A facility furnishes only the planned room of its role (#2267): with the
+// A facility furnishes only the planned room of its role: with the
 // room's cells set the furniture goes inside them, with no planned room it waits.
 func TestComfortFurnishingOnlyPreviewsPlannedRoom(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

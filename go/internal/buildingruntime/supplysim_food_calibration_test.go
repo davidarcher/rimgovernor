@@ -138,7 +138,7 @@ func harvestDays(rep supplysim.Report, id string) []int {
 
 // farm/calendar: crops grow only inside the growing period and the harvest gap
 // the calendar phases in before the frost is the gap it reads on the first
-// non-growing day (#317), which is the drought the field then lives through.
+// non-growing day, which is the drought the field then lives through.
 func TestFoodCalibrationFarmCalendar(t *testing.T) {
 	const grow = 3 // policy's first harvest cycle (rice)
 	window := supplysim.Window{Period: policy.YearDays, From: 0, To: 45}

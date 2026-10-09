@@ -10,7 +10,7 @@ import (
 
 const consumptionMethod = "rimgovernor/observations_read_consumption"
 
-// ReadConsumption reads native's saved realized-consumption ring (#2441):
+// ReadConsumption reads native's saved realized-consumption ring:
 // every completed hour after sinceHour (negative: the whole 60-day window),
 // sparse. The ring is game-scoped, not map-scoped, so the request carries no
 // identity; the caller keys what it keeps by the load it read under.

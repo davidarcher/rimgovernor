@@ -14,7 +14,7 @@ import (
 )
 
 // craftWeapons admits one demand-sized weapon bill under MaintainEquipment
-// for the colonists no loose weapon arms (#1203). It moved here from the
+// for the colonists no loose weapon arms. It moved here from the
 // gear planner unchanged: the gear planner still wears and replaces, and a
 // pending wear candidate or any open bill holds the armory back.
 //
@@ -57,7 +57,7 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 		}
 	}
 	if workable {
-		// A bill whose need is gone (the owner stayed Met) is removed first (#2411).
+		// A bill whose need is gone (the owner stayed Met) is removed first.
 		if plan, err := r.reviewer.removeStaleBill(call, epoch, arbiter, state, goal, policy.MaintainEquipment); err != nil || plan != "" {
 			return RoundsArmoryResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
 		}
@@ -120,7 +120,7 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 		return RoundsArmoryResult{}, err
 	}
 	// A weapon bill the demand no longer names goes whatever the owner's
-	// finding (#2433): equipment's own, and the hunter weapons filed under
+	// finding: equipment's own, and the hunter weapons filed under
 	// food, removed under the food Standard so that no food step starts.
 	wantedWeapons := policy.WeaponsWanted(weapons, hunters)
 	judge := func(b policy.StaleBill) (bool, bool) {
@@ -171,7 +171,7 @@ func (r *RoundsArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter 
 	if err != nil {
 		return RoundsArmoryResult{}, err
 	}
-	// Armed colonists next get the armor ladder the tier allows (#1205).
+	// Armed colonists next get the armor ladder the tier allows.
 	if choice.Kind != policy.GearProduce && !hunting {
 		if choice, err = policy.SelectArmoryArmorMethod(request, tier); err != nil {
 			return RoundsArmoryResult{}, err
@@ -247,7 +247,7 @@ func (r *RoundsArmoryPlanner) weaponDemand(ctx context.Context, state ControlSta
 	// filtered == 0 here refused every real colony (a single animal or
 	// visitor is enough) and failed the whole gear step with ErrControl, so
 	// MaintainEquipment never planned a wear or bill method past its apparel
-	// policies and never recovered (#660).
+	// policies and never recovered.
 	if len(observed.Pawns) != len(ids) {
 		return nil, nil, 0, fmt.Errorf("%w: weaponDemand: len(observed.Pawns) != len(ids)", ErrControl)
 	}
@@ -294,7 +294,7 @@ func (r *RoundsArmoryPlanner) weaponDemand(ctx context.Context, state ControlSta
 		candidates = append(candidates, candidate)
 	}
 	recipes := []policy.GearRecipe{}
-	// The def rows of each ladder weapon a recipe makes (#1723).
+	// The def rows of each ladder weapon a recipe makes.
 	products := map[policy.Resource]policy.WeaponDef{}
 	for _, b := range benches {
 		rows, known := b.Recipes.Value()

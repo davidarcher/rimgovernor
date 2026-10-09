@@ -2,12 +2,9 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Art for sale (#1193, epic #1172): while the colony wants silver it lacks,
-// MaintainArt's artists sculpt for sale; no raid-headroom gate applies (#1849:
-// raid points follow what the colony holds and sold art leaves). "Wants silver" is stock and need combined: a purchase need exists
-// (food, medicine, components or a MaintainResource shortfall) and the
-// silver on hand is below that need's rough price plus the trade silver
-// reserve. The sculpture sells through SelectTrade like any surplus.
+// MaintainArt produces sale sculptures when purchase needs exceed available
+// silver after its reserve. Sold art leaves colony wealth, so raid headroom
+// does not gate this work. SelectTrade sells the sculptures as surplus.
 
 // SilverStock is the colony's silver from the resource census; unknown
 // while the census or the catalog's currency is.
@@ -68,9 +65,9 @@ func (n TradeNeed) PurchasePrice(items ItemFacts) (float64, bool, error) {
 	return price, any, nil
 }
 
-// SilverShort is the silver runway deficit (#1169): a purchase need exists
+// SilverShort is the silver runway deficit: a purchase need exists
 // and the silver on hand is below its rough price plus TradeSilverReserve.
-// Sale sculptures (#1193) and sale organ harvests (#1169) answer it; unknown
+// Sale sculptures and sale organ harvests answer it; unknown
 // while any input is.
 func SilverShort(items ItemFacts, need domain.Fact[TradeNeed], silver, colonists domain.Fact[int64]) domain.Fact[bool] {
 	n, nk := need.Value()

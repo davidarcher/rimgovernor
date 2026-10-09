@@ -1,6 +1,6 @@
 package main
 
-// acceptance profile-capture (#1320): the loop for native snapshot
+// acceptance profile-capture: the loop for native snapshot
 // performance work. It runs the test/profile_capture op (WasteFixture.cs),
 // which calls SnapshotFrames.Capture back to back on the game thread,
 // paused, and prints p50/p90/max per family and ObservationWork.Detail
@@ -226,7 +226,7 @@ func profileCapture(ctx context.Context, args []string, stdout, stderr io.Writer
 		}
 		fmt.Fprintf(info, "profile-capture: %s from %s (saved %s ago)\n", p.Case, bundle, age)
 		o.Save = profileSave
-		// A CI bundle may record mods since retired from the build (#2341).
+		// A CI bundle may record mods since retired from the build.
 		o.IgnoreMods = true
 	}
 	opts := cases.Options{Root: o.Root, Output: o.Output, GameID: o.GameID, Headless: o.Headless, NoHeal: p.NoHeal}

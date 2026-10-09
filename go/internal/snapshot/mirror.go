@@ -178,7 +178,7 @@ func recordSection(dir string, p facts.Published) {
 }
 
 // recordKeyed is recordSection for a section published as a persistent
-// table version (facts.PutKeyed, #1578): after the keyframe, only the rows
+// table version (facts.PutKeyed): after the keyframe, only the rows
 // that changed since the held version are encoded, so a line costs the
 // rows that changed, not the table. The lines are those recordSection
 // writes for the same rows.

@@ -11,7 +11,7 @@ import (
 )
 
 // An absent target_a is an older producer (unknown); an unavailable one is
-// a job with no target (#643).
+// a job with no target.
 func TestJobTarget(t *testing.T) {
 	i := func(v int32) *int32 { return &v }
 	id := "Thing_Steel1"

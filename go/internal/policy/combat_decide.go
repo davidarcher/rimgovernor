@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// DecideCombat (#852) is the fight's per-stop decision: the live combat view
+// DecideCombat is the fight's per-stop decision: the live combat view
 // at a stop, at most one geometry answer, the stop that woke it and the
 // fight's memory in; the changed orders, a geometry ask and the next memory
 // out. It is pure and deterministic: no clock, no IO, and every input is
@@ -23,7 +23,7 @@ import (
 // Drafted pawns on fire-at-will pick their own targets once in place.
 func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memory CombatMemory) ([]CombatOrder, *GeometryRequest, CombatMemory) {
 	view = view.sorted()
-	// Contained raiders who will bleed down are left to go down (#1035).
+	// Contained raiders who will bleed down are left to go down.
 	spared := sparedBleeders(view)
 	view = view.spare(spared)
 	next := memory.clone()
@@ -31,7 +31,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	next.CannotHit = keepHitRefusals(view, next.CannotHit)
 	live := view.live()
 	// A downed or dead defender keeps no role; its rescue is rescueStep's
-	// (#867, combat_rescue.go).
+	// (combat_rescue.go).
 	next.Roles = slices.DeleteFunc(next.Roles, func(r CombatRole) bool { return !live[r.Pawn] })
 	orderable := map[domain.PawnID]bool{}
 	for _, id := range view.Orderable {
@@ -50,25 +50,25 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		return orders, nil, next
 	}
 	if orders, ok := prisonBreakTurn(view, &next, state, orderable); ok {
-		// A prison break picks its own tactic (#1080) and answers every stop
+		// A prison break picks its own tactic and answers every stop
 		// itself: no geometry, no raid reactions.
 		for _, o := range orders {
 			next.issue(o, view.Tick)
 		}
 		return orders, nil, next
 	}
-	formed := false // a formation this stop picks the potshot door (#900, #1059)
+	formed := false // a formation this stop picks the potshot door
 	waitTurn(view, &next)
 	siegeTurn(view, &next)
 	if pods, ok := view.Pods.Value(); ok && next.Pods == nil {
-		// The arrival row may leave a later frame; the fight keeps it (#891).
+		// The arrival row may leave a later frame; the fight keeps it.
 		next.Pods = &pods
 	}
 	if next.Pods != nil && (next.Tactic != TacticPods || reform(view, stop, next)) {
-		// A pods arrival picks its own tactic (#891), not the squad fallback.
+		// A pods arrival picks its own tactic, not the squad fallback.
 		if ask := podsAsk(view, *next.Pods); ask != nil && !geometry.Answered {
 			// The doorway flank cells are used only where the game finds
-			// them standable (#897), asked in the stop's one round trip.
+			// them standable, asked in the stop's one round trip.
 			return nil, ask, memory
 		}
 		var doors []PodDoor
@@ -90,26 +90,26 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			next.Tactic, next.Roles, next.Refusal = TacticDoorChoke, meleeDoorFormation(view, geometry, door, next.Relieved), ""
 			next.ChokeDoor = &PodDoor{Cell: door.Cell, Mode: DoorClose}
 		} else if Infestation(view) {
-			// An infestation picks its own tactic (#1071).
+			// An infestation picks its own tactic.
 			next.Tactic, next.Roles, next.Refusal = TacticInfestation, infestationFormation(view, geometry, next.Relieved), ""
 		} else if ManhunterPack(view) {
-			// A manhunter pack picks its own tactic (#898).
+			// A manhunter pack picks its own tactic.
 			next.Tactic, next.Roles, next.Refusal = TacticManhunter, manhunterFormation(view, geometry, next.Relieved), ""
 			if len(next.Roles) == 0 {
 				// With no armed defender the pack is sheltered from as
-				// #968's squadless fight is; that plan admits the combat
-				// window instead of parking the clock (#1146).
+				// a squadless fight is; that plan admits the combat
+				// window instead of parking the clock.
 				next.Tactic, next.Roles = TacticShelter, shelterRoles(view, geometry, next.Unreachable)
 			}
 		} else if view.Hunt {
-			// A squad hunt picks its own tactic (#1616).
+			// A squad hunt picks its own tactic.
 			next.Tactic, next.Roles, next.Refusal = TacticHunt, huntFormation(view), ""
 		} else if mode := siegeMode(view, next); mode != "" {
-			// A siege picks its own tactic (#776).
+			// A siege picks its own tactic.
 			next.Tactic, next.Roles, next.Refusal = TacticSiege, siegeFormation(view, mode), ""
 			next.SiegeMode = mode
 		} else if b, ok := predictBreach(view); ok {
-			// A sapper or breacher raid posts inside its predicted breach (#913).
+			// A sapper or breacher raid posts inside its predicted breach.
 			next.Tactic, next.Roles, next.Refusal = TacticSapper, sapperFormation(view, b), ""
 			next.SapperBreach = &b.Wall
 			next.Rushing = false
@@ -117,7 +117,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			next.SapperBreach = nil
 			formGeometry := geometry
 			if geometry.Role == RoleFiringCells {
-				// A flank answer (#1062) holds no cover candidates.
+				// A flank answer holds no cover candidates.
 				formGeometry = GeometryReply{Answered: true, Lines: geometry.Lines}
 			}
 			next.Tactic, next.Roles, next.Refusal = formation(view, formGeometry, next.Relieved, next.Unreachable)
@@ -138,7 +138,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		next.Groups = nil
 	}
 	if ask := flankAsk(view, next); ask != nil {
-		// The flank detachment's cells take a later stop's round trip (#1062).
+		// The flank detachment's cells take a later stop's round trip.
 		if !geometry.Answered {
 			return nil, ask, memory
 		}
@@ -147,7 +147,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			geometry.Role = ""
 		}
 	} else if ask := groupAsk(view, next); ask != nil {
-		// Each side group's squad cells take a stop's round trip (#1064).
+		// Each side group's squad cells take a stop's round trip.
 		if !geometry.Answered {
 			return nil, ask, memory
 		}
@@ -159,7 +159,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	peel(view, stop, &next)
 	pullBackTank(stop, &next)
 	if !next.PodWait {
-		// A pods fight waiting behind closed doors engages no one (#893).
+		// A pods fight waiting behind closed doors engages no one.
 		next.Roles = focusFire(view, next.Roles, memory.Roles)
 	}
 	next.Roles = dropMissingTargets(view, next.Roles)
@@ -189,7 +189,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	heatEntry(view, &next)
 	drillEvacuate(view, &next, orderable)
 	mechDisengage(view, &next)
-	// Contained raiders who will not bleed down are finished in melee (#1036).
+	// Contained raiders who will not bleed down are finished in melee.
 	finishContained(view, &next)
 	rescue, ask := rescueStep(view, geometry, stop, &next, orderable, state)
 	if ask != nil {
@@ -199,7 +199,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	targetExcluded := len(spared) > 0 || len(nearExploders(view)) > 0
 	suppressNativeFire := map[domain.PawnID]bool{}
 	for i, role := range next.Roles {
-		// A defender still ingesting its combat drug (#1311) finishes it.
+		// A defender still ingesting its combat drug finishes it.
 		if !orderable[role.Pawn] || next.Rescue.carrying(role.Pawn) || state[role.Pawn].Job == "Ingest" {
 			continue
 		}
@@ -243,7 +243,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			continue
 		}
 		if want.Kind == OrderManMortar {
-			// The pawnless aim leads its crew order (#1202): it sets the
+			// The pawnless aim leads its crew order: it sets the
 			// shell filter the crew's ManTurret then loads by.
 			orders = append(orders, CombatOrder{Kind: OrderMortarFire, Cell: want.Cell, Aim: want.Aim, Shell: want.Shell, Reason: ReasonCounterBattery})
 		}
@@ -254,25 +254,25 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		return next.Rescue.carrying(r.Pawn) || next.Flank.waiting(r.Pawn)
 	}), orders, memory, onlySpared(view, spared), suppressNativeFire)
 	if !geometry.Answered {
-		// The attacks' lines of fire (#861) take the stop's geometry round
+		// The attacks' lines of fire take the stop's geometry round
 		// trip when Formation did not.
 		if ask := lineAsk(view, orders, next); ask != nil {
 			return nil, ask, memory
 		}
 	}
 	orders, next.Roles, next.CannotHit = clearLines(view, orders, geometry, next.Roles, next)
-	// One gunner shoots a wild animal near the raiders (#1116).
+	// One gunner shoots a wild animal near the raiders.
 	orders = enrageWild(view, orders, next.Roles, orderable, state)
-	// A defender with no other order this stop takes its combat drug (#1311).
+	// A defender with no other order this stop takes its combat drug.
 	orders = append(orders, doseOrders(view, &next, orders, orderable, state)...)
-	// An outmatched fight calls its held permits (#1608); a call names no
+	// An outmatched fight calls its held permits; a call names no
 	// drafted pawn and leaves its holder's other orders alone.
 	orders = append(orders, permitCalls(view, &next)...)
-	// A psycaster casts its ready combat psycast (#1611), one per caster.
+	// A psycaster casts its ready combat psycast, one per caster.
 	orders = append(orders, castCalls(view, &next)...)
-	// The rescue's orders (#867) lead; a door order names no pawn to issue.
+	// The rescue's orders lead; a door order names no pawn to issue.
 	orders = append(append(rescue, podDoorOrders(view, &next)...), orders...)
-	// The colony animals' orders (#1058) name no drafted pawn.
+	// The colony animals' orders name no drafted pawn.
 	orders = append(orders, animalStep(view, &next)...)
 	for _, o := range orders {
 		if o.Pawn != "" && o.Kind != OrderPermit && o.Kind != OrderCast {
@@ -294,7 +294,7 @@ const (
 	StanceMelee    CombatStance = "melee"
 )
 
-// CombatPawnState is one combatant's live state at the stop (the #851
+// CombatPawnState is one combatant's live state at the stop (the combat geometry
 // SECTION_COMBAT_PAWNS row). Unknown fields stay zero; a zero stance never
 // guards an order and a zero cell never proves arrival.
 type CombatPawnState struct {
@@ -305,50 +305,50 @@ type CombatPawnState struct {
 	Stance       CombatStance
 	// FireMode is FireAtWill or HoldFire for a drafted colonist, else "".
 	FireMode string
-	// Threat facts (#863): the equipped weapon def and its range (0
+	// Threat facts: the equipped weapon def and its range (0
 	// unknown), the pawn kind def, and a sapper or breacher at work.
 	Weapon      string
 	WeaponRange float64
-	// WeaponFacts is the weapon def's rows (#1723): its blast, EMP, fire and
+	// WeaponFacts is the weapon def's rows: its blast, EMP, fire and
 	// rocket facts.
 	WeaponFacts WeaponDef
 	Kind        string
 	Sapper      bool
-	// Rescuer facts (#867): the current job def, a worn shield belt and
+	// Rescuer facts: the current job def, a worn shield belt and
 	// the Medicine skill level.
 	Job string
 	// TargetMortar is the native fact that the job target is a mortar, or
-	// a frame that will build one (#1148).
+	// a frame that will build one.
 	TargetMortar bool
 	ShieldBelt   bool
 	MedicalSkill int
-	// Shield is the worn shield's charge, a fraction of max (#866);
+	// Shield is the worn shield's charge, a fraction of max;
 	// unknown without a shield.
 	Shield domain.Fact[float64]
-	// MoveSpeed is the pawn's MoveSpeed stat in cells/s, 0 unknown (#898).
+	// MoveSpeed is the pawn's MoveSpeed stat in cells/s, 0 unknown.
 	MoveSpeed float64
-	// Enemy drugs (#1056): a go-juice high (fights on past the pain that
+	// Enemy drugs: a go-juice high (fights on past the pain that
 	// would down it) and a luciferium addiction.
 	GoJuice, Luciferium bool
 	// CarriedDrugs is the complete observed inventory drug definition set.
 	// Unknown inventory cannot authorize a dose.
 	CarriedDrugs domain.Fact[[]string] `json:",omitzero"`
-	// Animal is a colony animal (mirror side colony_animal, #1058).
+	// Animal is a colony animal (mirror side colony_animal).
 	Animal bool `json:",omitempty"`
-	// Health summary (#1035): BloodLoss severity, the bleed rate per day
+	// Health summary: BloodLoss severity, the bleed rate per day
 	// and the hours until blood loss kills; unknown when unread.
 	BloodLoss, BleedRatePerDay, HoursUntilBleedDeath domain.Fact[float64]
-	// Prisoner is a prison-breaking prisoner (COMBAT_SIDE_PRISONER, #1080);
+	// Prisoner is a prison-breaking prisoner (COMBAT_SIDE_PRISONER);
 	// Health its summary health fraction.
 	Prisoner bool                 `json:",omitempty"`
 	Health   domain.Fact[float64] `json:",omitzero"`
-	// Wild is a wild animal near hostiles (COMBAT_SIDE_WILD_ANIMAL, #1116).
+	// Wild is a wild animal near hostiles (COMBAT_SIDE_WILD_ANIMAL).
 	Wild bool `json:",omitempty"`
-	// StunTicks is a stunned pawn's ticks left (#1050), 0 awake.
+	// StunTicks is a stunned pawn's ticks left, 0 awake.
 	StunTicks int `json:",omitempty"`
 	// Mech and Insect are the game's own flags of the pawn's race
 	// (RaceProperties.IsMechanoid, .Insect), read off the catalog's race
-	// rows (#1722).
+	// rows.
 	Mech   bool `json:",omitempty"`
 	Insect bool `json:",omitempty"`
 }
@@ -356,12 +356,12 @@ type CombatPawnState struct {
 // CombatLayout is the stored, complete defense layout's line.
 type CombatLayout struct {
 	Firing []domain.Cell
-	// Retreat is the inner line (#860): Retreat[i] is Firing[i]'s fall-back
+	// Retreat is the inner line: Retreat[i] is Firing[i]'s fall-back
 	// cell, one step further toward Home. Empty on a record that predates it.
 	Retreat []domain.Cell
 	Toward  domain.Rotation
-	// Choke is the corridor's exit cell on our side, where blockers hold
-	// (#864); unknown without a corridor.
+	// Choke is the corridor's exit cell on our side, where blockers hold;
+	// unknown without a corridor.
 	Choke domain.Fact[domain.Cell]
 }
 
@@ -379,34 +379,34 @@ type CombatView struct {
 	Positional []DefensiveThreatFacts
 	Layout     domain.Fact[CombatLayout]
 	Orderable  []domain.PawnID
-	// Pods is the frame's drop-pod arrival (#870, #891); Rooms the map's
-	// standing rectangular rooms from the frame (#897).
+	// Pods is the frame's drop-pod arrival; Rooms the map's
+	// standing rectangular rooms from the frame.
 	Pods       domain.Fact[PodArrival]
 	Rooms      []CombatRoom
 	DoorStates domain.Fact[[]RoomDoor] `json:",omitzero"`
-	// DamagedDoors are the frame's player doors below max hit points (#900).
+	// DamagedDoors are the frame's player doors below max hit points.
 	DamagedDoors []domain.Cell `json:",omitempty"`
-	// Mortars are the colony's unroofed mortars (#931); Structures the
-	// census's standing hostile buildings (#930).
+	// Mortars are the colony's unroofed mortars; Structures the
+	// census's standing hostile buildings.
 	Mortars    []CombatMortar     `json:",omitempty"`
 	Structures []HostileStructure `json:",omitempty"`
-	// Shells are the load's mortar shell defs by kind (#1723).
+	// Shells are the load's mortar shell defs by kind.
 	Shells MortarShells `json:",omitempty"`
 	// Population is the colony's colonist count; below
-	// domain.PopulationTarget the fight spares contained bleeders (#1035).
+	// domain.PopulationTarget the fight spares contained bleeders.
 	Population domain.Fact[int]
 	// OutdoorTemperatureC is the map outdoor temperature in degrees
-	// Celsius from the frame (#1077); extreme cold or heat waits indoors.
+	// Celsius from the frame; extreme cold or heat waits indoors.
 	OutdoorTemperatureC domain.Fact[float64] `json:",omitzero"`
 	// HiveTemperatureC is the hottest live hive's temperature in degrees
-	// Celsius from the frame (#1073): the heat-stroke hold and entry check.
+	// Celsius from the frame: the heat-stroke hold and entry check.
 	HiveTemperatureC domain.Fact[float64] `json:",omitzero"`
 	// Burn is a burn-out's census from the combat step while it is
-	// active (#1122): what it lacks, its roof and its fuel.
+	// active: what it lacks, its roof and its fuel.
 	Burn domain.Fact[BurnSite] `json:",omitzero"`
-	// Hunt marks a squad hunt (#1616): Threats are wild prey, not raiders.
+	// Hunt marks a squad hunt: Threats are wild prey, not raiders.
 	Hunt bool `json:",omitempty"`
-	// Royalty is the slow-refresh royalty read (#1608); unknown holds every
+	// Royalty is the slow-refresh royalty read; unknown holds every
 	// permit call.
 	Royalty domain.Fact[RoyaltyFacts] `json:",omitzero"`
 	// Drugs are the catalog's combat drug definitions in preference order.
@@ -414,7 +414,7 @@ type CombatView struct {
 	Drugs []string `json:",omitempty"`
 }
 
-// CombatStopKind is the #849 event that stopped the clock, lower-cased
+// CombatStopKind is the combat event that stopped the clock, lower-cased
 // (downed, raid_phase, ...); empty for the first decision or the backstop.
 type CombatStopKind string
 
@@ -431,7 +431,7 @@ type StopEvent struct {
 }
 
 // FormationRole names a candidate-cell role Formation asks the game to
-// propose (#871): cells with cover behind the line, cells adjacent to the
+// propose: cells with cover behind the line, cells adjacent to the
 // choke, and firing cells.
 type FormationRole string
 
@@ -441,26 +441,26 @@ const (
 	RoleFiringCells     FormationRole = "firing_cells"
 )
 
-// GeometryRequest is DecideCombat's one geometry ask per stop (#871): the
+// GeometryRequest is DecideCombat's one geometry ask per stop: the
 // game proposes candidate cells for one role, scored against the named
 // hostiles (bridge.CombatGeometryMaxHostiles at most). Line is the
 // cover_behind_line role's anchor.
 type GeometryRequest struct {
 	Propose FormationRole
-	// Cells are named cells to score: the shooters' cells (#861), their
+	// Cells are named cells to score: the shooters' cells, their
 	// lines of fire answered in GeometryReply.Lines, and Formation's
-	// Go-computed cells (#881: tank, peeler and blocking-hold cover cells),
+	// Go-computed cells (tank, peeler and blocking-hold cover cells),
 	// their standability answered in GeometryReply.Standable.
 	Cells    []domain.Cell
 	Line     []domain.Cell
 	Hostiles []domain.PawnID
-	// Pawn and To are the rescue_path role's walker and goal (#867).
+	// Pawn and To are the rescue_path role's walker and goal.
 	Pawn domain.PawnID
 	To   domain.Cell
-	// Choke and OurSide anchor the adjacent_to_choke role (#864).
+	// Choke and OurSide anchor the adjacent_to_choke role.
 	Choke, OurSide domain.Cell
 	// From and Targets anchor the firing_cells role: a walled-in gunner's
-	// cell and the hostiles' cells it needs a line to (#967).
+	// cell and the hostiles' cells it needs a line to.
 	From    domain.Cell
 	Targets []domain.Cell
 }
@@ -472,17 +472,17 @@ type GeometryRequest struct {
 type GeometryReply struct {
 	Answered  bool
 	Proposals []domain.Cell
-	// Role is the answered ask's role; Route is a rescue_path answer (#867).
+	// Role is the answered ask's role; Route is a rescue_path answer.
 	Role  FormationRole
 	Route []RouteCell
 	// Lines are the named and proposed cells' sight lines to the ask's
 	// hostiles.
 	Lines []SightLine
-	// Scored is the game's cover for the named and proposed cells (#862);
+	// Scored is the game's cover for the named and proposed cells;
 	// Formation ranks its candidate cells by it.
 	Scored []ScoredCell `json:",omitempty"`
 	// Standable are the named cells the game reported standable, and every
-	// proposal (#881). A Go-computed cell is used only when it is here.
+	// proposal. A Go-computed cell is used only when it is here.
 	Standable []domain.Cell `json:",omitempty"`
 }
 
@@ -504,24 +504,24 @@ type CombatRole struct {
 	Cell   *domain.Cell `json:",omitempty"`
 	Target domain.PawnID
 	Ranged bool
-	// Duty is a brawler's formation duty (#864).
+	// Duty is a brawler's formation duty.
 	Duty CombatDuty `json:",omitempty"`
-	// Retreat marks a role pulled back to its inner-line cell (#860), or
-	// a hurt blocker relieved by the reserve (#864).
+	// Retreat marks a role pulled back to its inner-line cell, or
+	// a hurt blocker relieved by the reserve.
 	Retreat bool `json:",omitempty"`
-	// Home is a checked standby cell (#881): where a peeler waits between
+	// Home is a checked standby cell: where a peeler waits between
 	// targets, or where a tank pulls back to when its shield breaks.
 	Home *domain.Cell `json:",omitempty"`
 	// Mortar is the colony mortar the pawn crews and Aim the cell it fires
-	// at (#931); set, they win over Cell and Target.
+	// at; set, they win over Cell and Target.
 	Mortar *domain.Cell `json:",omitempty"`
 	Aim    *domain.Cell `json:",omitempty"`
-	// Shell is the shell the mortar fires (#1051), "" whatever is loaded.
+	// Shell is the shell the mortar fires, "" whatever is loaded.
 	Shell string `json:",omitempty"`
-	// Ground is the cell a rocket carrier fires at (#1051); set, it wins
+	// Ground is the cell a rocket carrier fires at; set, it wins
 	// over Cell and Target.
 	Ground *domain.Cell `json:",omitempty"`
-	// Repair is a damaged door queued at a line collapse (#1077); set, the
+	// Repair is a damaged door queued at a line collapse; set, the
 	// pawn repairs it.
 	Repair *domain.Cell `json:",omitempty"`
 }
@@ -546,10 +546,10 @@ const (
 	ReasonRetreat   CombatOrderReason = "retreat"
 	ReasonRescue    CombatOrderReason = "rescue"
 	// ReasonHoldFire is a fire-mode toggle (and its stop) for a hostile in
-	// melee with our blockers (#861).
+	// melee with our blockers.
 	ReasonHoldFire CombatOrderReason = "hold_fire"
 	// ReasonFinish is a stripped downed raider not worth capturing,
-	// finished by its stripper (#1079).
+	// finished by its stripper.
 	ReasonFinish CombatOrderReason = "finish"
 )
 
@@ -562,23 +562,23 @@ type CombatOrder struct {
 	// FireMode is a fire_mode order's FireAtWill or HoldFire.
 	FireMode string `json:",omitempty"`
 	Reason   CombatOrderReason
-	// Door is a door order's mode (#867); a door order names no pawn.
+	// Door is a door order's mode; a door order names no pawn.
 	Door DoorMode `json:",omitempty"`
-	// Aim is a mortar_fire order's target cell (#931, #1202); Cell is the
+	// Aim is a mortar_fire order's target cell; Cell is the
 	// mortar's. Its man_mortar crew order carries the same Aim and Shell,
 	// so a new aim sends the pair again; only mortar_fire puts them on the
 	// wire.
 	Aim domain.Cell `json:",omitzero"`
-	// Clear is a mortar_fire order with no target (#1235): it clears the
+	// Clear is a mortar_fire order with no target: it clears the
 	// mortar's forced target; Aim and Shell are unset.
 	Clear bool `json:",omitempty"`
-	// Shell is a mortar order's shell def (#1051), "" whatever is loaded.
+	// Shell is a mortar order's shell def, "" whatever is loaded.
 	Shell string `json:",omitempty"`
-	// Faction and Permit name a permit_call order's permit (#1608); Cell is
+	// Faction and Permit name a permit_call order's permit; Cell is
 	// its target and Pawn the holder.
 	Faction string `json:",omitempty"`
 	Permit  string `json:",omitempty"`
-	// A psycast_cast order (#1611) names the psycast in Permit and the arm
+	// A psycast_cast order names the psycast in Permit and the arm
 	// it takes in Arm: self (no target), pawn (Target) or cell (Cell).
 	Arm PsycastTarget `json:",omitempty"`
 	// Drug is a drug order's carried drug def, selected from CombatView.Drugs;
@@ -599,102 +599,102 @@ type CombatMemory struct {
 	// Refusal is why the last Formation did not hold the line, when it did not.
 	Refusal string      `json:",omitempty"`
 	Formed  domain.Tick `json:",omitempty"`
-	// Relieved are the blockers the reserve relieved (#864), in relief
-	// order; a re-formation ranks them last among the brawlers (#881), so
+	// Relieved are the blockers the reserve relieved, in relief
+	// order; a re-formation ranks them last among the brawlers, so
 	// it keeps the rotation.
 	Relieved []domain.PawnID `json:",omitempty"`
 	Issued   []IssuedOrder   `json:",omitempty"`
 	Tick     domain.Tick     `json:",omitempty"`
-	// Rescue is the rescue under way (#867).
+	// Rescue is the rescue under way.
 	Rescue *CombatRescue `json:",omitempty"`
-	// Pods is the drop-pod arrival this fight answers (#891).
+	// Pods is the drop-pod arrival this fight answers.
 	Pods *PodArrival `json:",omitempty"`
-	// PodDoors are the doors the pods tactic holds open or shut (#892).
+	// PodDoors are the doors the pods tactic holds open or shut.
 	PodDoors []PodDoor `json:",omitempty"`
 	// PodWait is a pods fight holding behind closed doors, outmatched;
-	// PodStruck one that struck when the raid fled or looted (#893).
+	// PodStruck one that struck when the raid fled or looted.
 	PodWait   bool `json:",omitempty"`
 	PodStruck bool `json:",omitempty"`
-	// PotshotDoor is the potshot door of a manhunter pack (#900) or a
-	// squad-defense raid (#1059).
+	// PotshotDoor is the potshot door of a manhunter pack or a
+	// squad-defense raid.
 	PotshotDoor *PodDoor      `json:",omitempty"`
 	ChokeDoor   *PodDoor      `json:",omitempty"`
 	HeldDoors   []domain.Cell `json:",omitempty"`
 	// Kiter is the manhunter tactic's kiter, Leading once it leads the
-	// chaser past the line (#901).
+	// chaser past the line.
 	Kiter   domain.PawnID `json:",omitempty"`
 	Leading bool          `json:",omitempty"`
 	// Driller is the colonist that worked the deep drill a deep-drill
-	// infestation tunnelled up by; it evacuates (#1076).
+	// infestation tunnelled up by; it evacuates.
 	Driller domain.PawnID `json:",omitempty"`
 	// Wait is a manhunter fight or humanoid raid sheltering, outmatched,
-	// behind the doors WaitDoors closes and forbids (#902, #1065), since
+	// behind the doors WaitDoors closes and forbids, since
 	// WaitSince.
 	Wait      bool        `json:",omitempty"`
 	WaitSince domain.Tick `json:",omitempty"`
 	WaitDoors []PodDoor   `json:",omitempty"`
 	// WaitRooms pairs each sheltering room door with its floor cell
-	// behind it, for the layout planner's hardening (#1065).
+	// behind it, for the layout planner's hardening.
 	WaitRooms []WaitDoor `json:",omitempty"`
-	// Scattered is a hold whose line collapsed (#1077): every defender
+	// Scattered is a hold whose line collapsed: every defender
 	// runs away from the raid. Repairs are the damaged doors queued at the
 	// collapse, repaired once it clears.
 	Scattered bool          `json:",omitempty"`
 	Repairs   []domain.Cell `json:",omitempty"`
 	// LineHeld is the most hold-the-line cells defenders stood on at once
-	// this fight (#1077), the base a collapse is judged against.
+	// this fight, the base a collapse is judged against.
 	LineHeld int `json:",omitempty"`
-	// SapperBreach is the wall cell a sapper formation guards (#913).
+	// SapperBreach is the wall cell a sapper formation guards.
 	SapperBreach *domain.Cell `json:",omitempty"`
-	// Intercept is a sapper fight whose gunners went out to the diggers (#914).
+	// Intercept is a sapper fight whose gunners went out to the diggers.
 	Intercept bool `json:",omitempty"`
 	// MechLure is a hold whose gunners wait on the inner line for
-	// outranging raiders to close (#922, #1052). The name predates #1052.
+	// outranging raiders to close.
 	MechLure bool `json:",omitempty"`
-	// Rushing is a sapper fight whose posted brawlers rush the breach (#915).
+	// Rushing is a sapper fight whose posted brawlers rush the breach.
 	Rushing bool `json:",omitempty"`
 	// SiegeCamp is the tick a siege camp was first seen; SiegeMode the
-	// siege tactic's mode at its last formation (#776).
+	// siege tactic's mode at its last formation.
 	SiegeCamp domain.Tick `json:",omitempty"`
 	SiegeMode SiegeMode   `json:",omitempty"`
-	// SiegeMortar latches the first hostile mortar frame (#1154): the
+	// SiegeMortar latches the first hostile mortar frame: the
 	// sortie ends there.
 	SiegeMortar bool `json:",omitempty"`
-	// CannotHit are the attacks native refused cannot_hit (#912), kept
+	// CannotHit are the attacks native refused cannot_hit, kept
 	// while the shooter stands on the cell it was refused from, so the
 	// fight retargets or waits instead of re-sending them every stop.
 	CannotHit []HitRefusal `json:",omitempty"`
 	// Unreachable are the cells native refused a move to as unreachable: the
 	// fight re-forms around them instead of sending the same order each stop.
 	Unreachable []domain.Cell `json:",omitempty"`
-	// Flank is the hold's flanking detachment (#1062).
+	// Flank is the hold's flanking detachment.
 	Flank *CombatFlank `json:",omitempty"`
-	// Animals are the colony animals' last release or zone (#1058);
+	// Animals are the colony animals' last release or zone;
 	// Untrained the animals native refused a release as untrained.
 	Animals   []AnimalOrder   `json:",omitempty"`
 	Untrained []domain.PawnID `json:",omitempty"`
-	// Groups are the split raid's side-group squads (#1064).
+	// Groups are the split raid's side-group squads.
 	Groups []CombatGroup `json:",omitempty"`
-	// NoShells are the shells native refused a mortar order for (#1051):
+	// NoShells are the shells native refused a mortar order for:
 	// none in reach, or not a shell the mortar takes.
 	NoShells []string `json:",omitempty"`
 	// Dosed are defenders whose combat drug order was attempted this fight,
 	// including native refusals; it limits attempts, not observed ingestion.
 	Dosed []domain.PawnID `json:",omitempty"`
-	// Permitted are the permits called this fight, "pawn/faction/permit"
-	// (#1608): the royalty read is slow, so a call is not repeated.
+	// Permitted are the permits called this fight, "pawn/faction/permit":
+	// the royalty read is slow, so a call is not repeated.
 	Permitted []string `json:",omitempty"`
-	// Casts are the psycasts cast this fight (#1611).
+	// Casts are the psycasts cast this fight.
 	Casts []CastMark `json:",omitempty"`
 	// EMPAdapted are the mechs seen stunned, each until its EMP adaptation
-	// ends (#1050), sorted by pawn.
+	// ends, sorted by pawn.
 	EMPAdapted []EMPAdaptation `json:",omitempty"`
-	// Burn is an infestation's burn-out (#1120).
+	// Burn is an infestation's burn-out.
 	Burn *CombatBurn `json:",omitempty"`
 }
 
-// RefuseShell is Forget for a mortar order native refused for its shell
-// (#1051): the shell is not asked for again this fight.
+// RefuseShell is Forget for a mortar order native refused for its shell:
+// the shell is not asked for again this fight.
 func (m CombatMemory) RefuseShell(order CombatOrder) CombatMemory {
 	m = m.Forget(order.Pawn)
 	if order.Shell != "" && !slices.Contains(m.NoShells, order.Shell) {
@@ -703,7 +703,7 @@ func (m CombatMemory) RefuseShell(order CombatOrder) CombatMemory {
 	return m
 }
 
-// RefuseFire is a mortar_fire order native refused (#1202): the crew of
+// RefuseFire is a mortar_fire order native refused: the crew of
 // its mortar is forgotten so the next stop sends the pair again, and a
 // shell refusal is RefuseShell.
 func (m CombatMemory) RefuseFire(order CombatOrder, shell bool) CombatMemory {
@@ -728,7 +728,7 @@ type HitRefusal struct {
 }
 
 // RefuseHit is Forget for an attack native refused cannot_hit from the
-// shooter's cell from (#912): the pair is remembered until the shooter
+// shooter's cell from: the pair is remembered until the shooter
 // moves or the target is gone.
 func (m CombatMemory) RefuseHit(order CombatOrder, from domain.Cell) CombatMemory {
 	m = m.Forget(order.Pawn)
@@ -913,7 +913,7 @@ func interruptsAim(s CombatPawnState) bool {
 // phase change or breach, a hold the raid has crossed, or a squad whose
 // target is down or whose roster changed (a holder down or badly hurt, a fit
 // defender without a role; combat_squad_roster.go). Every other stop kind keeps the formation; their own
-// responses (pull back when hurt #860, peel #865, rescue #867, scatter)
+// responses (pull back when hurt, peel, rescue, scatter)
 // are later rows.
 func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 	if len(m.Roles) == 0 || stop.Kind == StopRaidPhase || stop.Kind == StopBreach {
@@ -956,7 +956,7 @@ func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 
 // dropMissingTargets clears a role's target that is gone from the view's
 // threats (fled, despawned): native refuses an attack on it as not_found,
-// and re-ordering it every stop only gets refused again (#904). The pawn
+// and re-ordering it every stop only gets refused again. The pawn
 // keeps its cell and picks its own target on fire-at-will.
 func dropMissingTargets(view CombatView, roles []CombatRole) []CombatRole {
 	present := map[domain.PawnID]bool{}
@@ -1017,7 +1017,7 @@ func formationAsk(view CombatView, memory CombatMemory) *GeometryRequest {
 	if choke, ourSide, ok := blockingChoke(view); ok {
 		// A blocking formation spends the stop's one proposal on blocker
 		// cells and names the cells around the line instead, so the game
-		// scores their cover for the riflemen (#881).
+		// scores their cover for the riflemen.
 		ask.Propose, ask.Choke, ask.OurSide = RoleAdjacentToChoke, choke, ourSide
 		named = append(named, aroundLine(layout.Firing)...)
 		limit = maxGeometryCells - 8 - len(ask.Line)
@@ -1027,7 +1027,7 @@ func formationAsk(view CombatView, memory CombatMemory) *GeometryRequest {
 			ask.Cells = append(ask.Cells, c)
 		}
 	}
-	// The top-scored hostiles first (#863), so the cap drops the least urgent.
+	// The top-scored hostiles first, so the cap drops the least urgent.
 	for _, h := range rankThreats(view) {
 		if len(ask.Hostiles) < maxGeometryHostiles {
 			ask.Hostiles = append(ask.Hostiles, h.ID)
@@ -1037,9 +1037,9 @@ func formationAsk(view CombatView, memory CombatMemory) *GeometryRequest {
 }
 
 // formationChecks are the cells Formation computes itself and names for
-// the game to check (#881): the peeler's home, the cell in front of each
+// the game to check: the peeler's home, the cell in front of each
 // firing cell (every cell a tank may take ahead of it when a pawn wears a
-// shield, #1153) and the one behind it (its pull-back cell).
+// shield) and the one behind it (its pull-back cell).
 func formationChecks(view CombatView, layout CombatLayout) []domain.Cell {
 	var out []domain.Cell
 	add := func(c domain.Cell) {
@@ -1073,7 +1073,7 @@ const maxGeometryHostiles = 16
 // formation is the one-shot planner's choice as the first tactic: hold the
 // layout's firing line against an ordinary edge assault, otherwise tribal
 // or squad defense. The hold's candidate cells are the layout's firing
-// cells first, then the game's covered cells behind the line (#871), so a
+// cells first, then the game's covered cells behind the line, so a
 // defender the line has no room for still gets a covered cell.
 func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID, unreachable []domain.Cell) (CombatTactic, []CombatRole, string) {
 	refusal := "no complete defense layout"
@@ -1084,7 +1084,7 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 		if blocking {
 			// The proposals are blocker cells; the riflemen's covered
 			// cells are the named cells around the line the game found
-			// standable and covered (#881).
+			// standable and covered.
 			candidates = coveredAround(layout.Firing, geometry)
 		}
 		for _, c := range candidates {
@@ -1094,7 +1094,7 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 		}
 		var positions []DefensivePosition
 		if explosive := explosiveHostiles(view); len(explosive) > 0 {
-			// Room to move over cover, out of the blasts' reach (#1054).
+			// Room to move over cover, out of the blasts' reach.
 			cells = explosiveCells(view, cells, explosive)
 		} else {
 			cells = RankByCover(cells, geometry.Scored)
@@ -1111,7 +1111,7 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 			}
 			if chokes := chargeChokes(view); len(chokes) > 0 {
 				// A shielded melee charge is split across every door it
-				// approaches (#1053, the #899 rule).
+				// approaches (the multi-choke rule).
 				roles = append(roles, waveBlockers(chokes, rotated(brawlers(defenders), relieved))...)
 			} else {
 				roles = append(roles, brawlerRoles(view, defenders, blocking, geometry, relieved)...)
@@ -1162,7 +1162,7 @@ func sortRoles(roles []CombatRole) []CombatRole {
 	return slices.CompactFunc(roles, func(a, b CombatRole) bool { return a.Pawn == b.Pawn })
 }
 
-// live is every defender neither dead, downed nor deathresting (#1690) in
+// live is every defender neither dead, downed nor deathresting in
 // the live state or the formation facts. With the orderable set (which
 // DecideCombat strips of deathresters) it is the one fight availability
 // gate every planner draws its roster through.

@@ -1,4 +1,4 @@
-// Package startuplabor is the startup-labor diagnosis (#639, epic #638):
+// Package startuplabor is the startup-labor diagnosis:
 // the bounded, structured evidence that tells planner starvation apart
 // from a missing material, a missing worker, an admitted-but-unworked
 // action and ordinary non-work activity, plus the idle-pawn tick

@@ -107,7 +107,7 @@ func TestAdmissionReservesAControlSlot(t *testing.T) {
 }
 
 // TestControlCallDispatchesAheadOfObservationCalls is the issue's
-// acceptance (#631): with eight observation calls in flight through a
+// acceptance: with eight observation calls in flight through a
 // Client, a control call reaches the transport next, not behind them.
 func TestControlCallDispatchesAheadOfObservationCalls(t *testing.T) {
 	const observations = 8

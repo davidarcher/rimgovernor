@@ -75,7 +75,7 @@ func TestRoundsDialogGoalAndPlannerAnswerPreferredOption(t *testing.T) {
 }
 
 // A dialog still inside its interactivity delay is not unanswerable: the
-// planner waits for the next review instead of reporting exhaustion (#179).
+// planner waits for the next review instead of reporting exhaustion.
 func TestRoundsDialogPlannerWaitsForInteractivity(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

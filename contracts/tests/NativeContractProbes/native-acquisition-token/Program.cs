@@ -2,7 +2,7 @@ using System;
 using HomeBridge.BridgeTools;
 using Common = RimGovernor.Protocol.Common;
 
-// A plant's acquisition token covers only what eligibility reads (#689):
+// A plant's acquisition token covers only what eligibility reads:
 // resource, cell, harvestability and designation. Growth is not an input,
 // so a harvestable plant that grows between the read and the dispatch keeps
 // its token; each eligibility fact that moves changes it.

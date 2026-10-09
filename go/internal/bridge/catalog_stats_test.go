@@ -25,7 +25,7 @@ func statTestCatalog() *o.DefinitionCatalog {
 	return v
 }
 
-// TestDefinitionCatalogStatValues (#1759): the game's stat values decode into
+// TestDefinitionCatalogStatValues: the game's stat values decode into
 // the cache by (def, stuff, stat); a stat the game did not show, a missing
 // row and a missing table are errors, and a malformed table is refused.
 func TestDefinitionCatalogStatValues(t *testing.T) {
@@ -103,7 +103,7 @@ func TestDefinitionCatalogStatValues(t *testing.T) {
 	}
 }
 
-// TestDefinitionCatalogStatTableSize (#1759) sizes a synthesized stat table
+// TestDefinitionCatalogStatTableSize sizes a synthesized stat table
 // like the game's: 270 stats, 450 stuffed defs with 25 allowed stuffs each and
 // 2450 defs without stuff, 40 shown stats and 3 cost entries per row. The game is not available;
 // the shape is an estimate of the order, not a measurement of the real reply.

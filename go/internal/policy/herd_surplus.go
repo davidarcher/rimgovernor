@@ -23,8 +23,8 @@ func herdFertile(a UpkeepAnimal) bool {
 	return !sterilized
 }
 
-// HerdFacts are the per-animal facts MaintainHerd sizes and culls by
-// (#875). The census fills age, life expectancy, sickness, adulthood,
+// HerdFacts are the per-animal facts MaintainHerd sizes and culls by.
+// The census fills age, life expectancy, sickness, adulthood,
 // veneration and tame danger natively; MeatNutrition, FeedPerDay and Product
 // merge in from the colony food channels by animal ID; SlaughterBarred and
 // EatingBarred merge in from the ideoligion (ApplyHerdPrecepts). Unknown age
@@ -34,14 +34,13 @@ func herdFertile(a UpkeepAnimal) bool {
 type HerdFacts struct {
 	AgeYears, LifeExpectancy, ManhunterOnTameFail, MeatNutrition, FeedPerDay domain.Fact[float64]
 	Sick, Adult, SlaughterBarred, EatingBarred, Venerated                    domain.Fact[bool]
-	// Predator is RaceProps.predator; Product is true for a milk, wool,
-	// chemfuel or egg producer (no longer read by the herd plan; kept so
-	// recorded snapshots still decode).
+	// Predator and Product retain recorded snapshot fields; herd sizing does not
+	// consume them. Product identifies milk, wool, chemfuel or egg producers.
 	Predator, Product bool
 	// TicksToBirth is the game ticks until a pregnant animal gives birth;
 	// LifeStageIndex the index of its current life stage in the race's
 	// LifeStages and TicksToNextLifeStage the ticks until the next one begins,
-	// unknown in the last stage (#2379).
+	// unknown in the last stage.
 	TicksToBirth, TicksToNextLifeStage domain.Fact[int64]
 	LifeStageIndex                     domain.Fact[int32]
 }
@@ -54,7 +53,7 @@ const herdOldFraction = 0.8
 const herdMalesPerFemales = 5
 
 // HerdLayer is the breeding rule of one egg-laying race whose eggs can be
-// fertilized (#1898), derived from the catalog: HensPerRooster is the hens
+// fertilized, derived from the catalog: HensPerRooster is the hens
 // one rooster keeps laying fertilized eggs, from how often he mates
 // (24/mateMtbHours a day) against the fertilized eggs one hen lays a day
 // (count/layInterval, each mating fertilizing eggFertilizationCountMax of
@@ -219,7 +218,7 @@ func herdFeedPerMeat(a UpkeepAnimal) float64 {
 // then trained adults; juveniles only when juveniles is set (feed short).
 // Ties go to the lowest ID. An animal whose removal would leave its race
 // under a breeding pair of its own sex (or whose sex is unknown) is kept, except in
-// a retired race (the plan's, #1628), which keeps no pair.
+// a retired race (the plan's), which keeps no pair.
 // A sterilized animal is no part of the pair and is removed freely.
 // Any tracked animal with an unknown designation or eligibility fact makes
 // the result unknown.

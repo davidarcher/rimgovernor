@@ -10,11 +10,11 @@ import (
 )
 
 // removedProjectConcerns are Project Concerns the catalog no longer holds
-// (AllowStartingSupplies folded into ManageSupplySafety, #2188).
+// (AllowStartingSupplies folded into ManageSupplySafety).
 var removedProjectConcerns = map[policy.ConcernID]bool{"AllowStartingSupplies": true}
 
 // removedStandardConcerns are Standard Concerns the catalog no longer holds
-// (MaintainWaste, #2202).
+// (MaintainWaste).
 var removedStandardConcerns = map[policy.ConcernID]bool{"MaintainWaste": true}
 
 // migrateRounds drops what an older rounds row held for removed Concerns: the

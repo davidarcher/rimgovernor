@@ -9,7 +9,7 @@ import (
 )
 
 // A crop choice carries the definition's harvest facts and keeps unknown
-// ones unknown (#2282).
+// ones unknown.
 func TestWithHarvestFacts(t *testing.T) {
 	d := observation.PlanningDefinition{HarvestedThingDef: domain.Known("Cloth"), HarvestYield: domain.Known(7.0), SowMinSkill: domain.Known(int32(6)), HarvestDestroysPlant: domain.Known(true)}
 	got := withHarvestFacts(policy.CropChoice{Name: "Plant_Cotton"}, d)

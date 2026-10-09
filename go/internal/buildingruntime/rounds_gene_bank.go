@@ -15,7 +15,7 @@ import (
 // geneBankSiteTries bounds the free footprints a bank previews.
 const geneBankSiteTries = 8
 
-// RoundsGeneBankPlanner composes MaintainGeneBank's method (#1933): one gene
+// RoundsGeneBankPlanner composes MaintainGeneBank's method: one gene
 // bank, found by the genepack container comp in the catalog and sited on the
 // free footprint nearest the colony's gene assemblers (a bank links to an
 // assembler within a dozen cells), else its other banks, else the production

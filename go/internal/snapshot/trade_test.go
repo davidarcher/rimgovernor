@@ -42,7 +42,7 @@ func loadTrade(t *testing.T, path string) Rounds {
 	return r
 }
 
-// Recorded from acceptance run trade/routine (issue #234) at 04b0a98cb,
+// Recorded from acceptance run trade/routine at 04b0a98cb,
 // tick 7521: the fixture's colony has no medicine and a trader caravan
 // has arrived. The review opens TradeWithCaravan on the medicine
 // shortfall; once the caravan leaves the goal recovers.
@@ -60,7 +60,7 @@ func TestReplayCaravanOpensTradeOnMedicineShortfall(t *testing.T) {
 // Recorded from acceptance run trade/routine-stocked at 04b0a98cb, tick
 // 9655: 2000 steel, recorded under the since-deleted
 // --routine-item-wealth-share 0.01; the item share is raised past the
-// constant 0.6 (#875), and a consumed steel runway is set. The wealth rule sells exactly stock minus the
+// constant 0.6, and a consumed steel runway is set. The wealth rule sells exactly stock minus the
 // steel runway's protected line (100 a day over the 5-day horizon).
 func TestReplaySteelHoardSellsDownToTheFloor(t *testing.T) {
 	r := loadTrade(t, "testdata/trade-steel-hoard-wealth-surplus.json")

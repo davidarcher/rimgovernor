@@ -14,7 +14,7 @@ import (
 )
 
 // shrineReadinessNative is what judging a breach needs beyond the shrine
-// census (#457): the colonists' combat facts, the built traps around the
+// census: the colonists' combat facts, the built traps around the
 // breach wall and the emergency census. A native that lacks any of them
 // leaves every shrine's readiness unknown.
 type shrineReadinessNative interface {
@@ -44,8 +44,7 @@ type ShrineReadinessReport struct {
 // ThreatHolds): a live, standing, discovered hostile, hunting predator or
 // hostile building that is not distant. The census also carries watch rows --
 // a wild boar fifteen cells out, a downed animal, an ignored hunt -- and a
-// sealed shrine's own undiscovered guard, none of which a breach waits on
-// (#659).
+// sealed shrine's own undiscovered guard, none of which a breach waits on.
 func emergencyActive(facts policy.EmergencyFacts) bool {
 	for _, threat := range facts.Threats {
 		if policy.ThreatHolds(threat) {
@@ -129,10 +128,10 @@ func shrineReadiness(ctx context.Context, native shrineReadinessNative, identity
 }
 
 // roundsShrineHolds judges every shrine the review's census lists for the
-// journal (#458): the readiness reason, guards_alive after a breach, or
+// journal: the readiness reason, guards_alive after a breach, or
 // ready with the chosen wall, then one row per casket naming its
-// CasketDecisionUnder (#459, #460, #875) so a sealed filled casket is not silence,
-// and one per released occupant naming its OccupantDecision (#460). A native
+// CasketDecisionUnder so a sealed filled casket is not silence,
+// and one per released occupant naming its OccupantDecision. A native
 // without the readiness reads leaves every shrine row readiness_unknown;
 // an unknown census leaves no rows.
 func roundsShrineHolds(ctx context.Context, native any, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) ([]policy.ShrineHold, policy.ShrinePolicy, error) {
@@ -168,7 +167,7 @@ func roundsShrineHolds(ctx context.Context, native any, snapshot domain.Generati
 }
 
 // casketHolds names each casket decision under the opening policy and,
-// after an opening, each released occupant decision (#460); custody is
+// after an opening, each released occupant decision; custody is
 // JoinerCapacity: an unknown reading captures nobody.
 func casketHolds(shrine policy.AncientShrine, shrinePolicy policy.ShrinePolicy, custody domain.Fact[bool]) []policy.ShrineHold {
 	out := make([]policy.ShrineHold, 0, len(shrine.Caskets)+len(shrine.Occupants))
@@ -188,7 +187,7 @@ const ShrineHoldReadinessUnknown = "readiness_unknown"
 
 // shrineSquad reads the combat facts of the named colonists (every colonist
 // of the emergency census when nil) as shrine defenders: the breach squad
-// and the melee lock (#460) staff from it.
+// and the melee lock staff from it.
 func shrineSquad(ctx context.Context, native shrineReadinessNative, identity *c.Identity, colonists []string, needed map[domain.PawnID]bool) ([]policy.ShrineDefenderFacts, error) {
 	if colonists == nil {
 		observed, _, err := native.ReadEmergency(ctx, identity)
@@ -229,7 +228,7 @@ func shrineSquad(ctx context.Context, native shrineReadinessNative, identity *c.
 	return squad, nil
 }
 
-// shrineOpening judges the opening gate (#875) for every shrine with filled
+// shrineOpening judges the opening gate for every shrine with filled
 // caskets owed an opening: the squad, the emergency census and the review's
 // custody, medicine, doctor and raid-point readings. A shrine it judges not
 // ready keeps its caskets sealed under the hold reason.

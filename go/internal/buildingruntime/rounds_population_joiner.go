@@ -181,7 +181,7 @@ func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbite
 }
 
 // admitCeremonyStart commands the bestowing ritual of a ceremony whose
-// bestower waits (policy.CeremonyStart, #1639) through the generic Ritual
+// bestower waits (policy.CeremonyStart) through the generic Ritual
 // write; native refuses while the game offers no start command.
 func (r *RoundsPopulationJoinerPlanner) admitCeremonyStart(call, epoch context.Context, state ControlState, goal store.StandardState, ceremony policy.BestowingCeremony, started time.Time) (RoundsPopulationJoinerResult, error) {
 	p := r.reviewer.player

@@ -1,10 +1,9 @@
-// Package planstage stages a plan the controller has already derived (#2118,
-// epic #2101): a native case reads the layout plan from the journal of a
+// Package planstage stages a plan the controller has already derived: a native case reads the layout plan from the journal of a
 // first, inert service run, puts a room of that plan on the ground finished
 // (walls and doors of a chosen stuff, a roof, a constructed floor, furniture
 // of a fixed quality and hit points, stock and a warehouse stockpile through
 // test/plan_stage) and lets the real controller reconcile the ground to the
-// plan. The controller holds the GABP slot while it runs (#676), so staging
+// plan. The controller holds the GABP slot while it runs, so staging
 // and native readbacks happen between service runs; a Phase is one run.
 package planstage
 
@@ -277,7 +276,7 @@ func (r Ring) Cells() []Cell {
 // door cell holding a building, in a, naming the first failure.
 //
 // A ring cell holding Frame_Wall is an in-place wall swap in progress (the
-// reconciler's wall_up, #2111): it counts as a wall, and the enclosure check is
+// reconciler's wall_up): it counts as a wall, and the enclosure check is
 // skipped while any frame stands, since a frame does not seal the room.
 func (r Ring) Sealed(a Audit) error {
 	framed := false

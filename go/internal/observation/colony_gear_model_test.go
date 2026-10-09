@@ -124,11 +124,9 @@ func gearModelCensus() *o.ColonyFactsSnapshot {
 	return &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(3), OutdoorTemperatureC: proto.Float64(21), Planning: &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: &o.PlanningFacts{Gear: gear}}}}
 }
 
-// A native census carrying the loadout model plans both soldiers a flak vest
-// and a helmet (#956, the gear/soldier armour half of #769): PlanColonyGear
-// no longer returns unknown demand, plate armour is refused for its speed,
-// the marine helmet for its unfinished research, and the grower is planned
-// no armour.
+// The loadout model plans both soldiers a flak vest and helmet, refuses plate armor for its
+// speed penalty and marine helmets for unfinished research, and assigns no armor to the
+// grower.
 func TestColonyGearLoadoutModelPlansSoldierArmour(t *testing.T) {
 	gear := GearFacts(gearModelCensus(), gearModelTables(), gearModelDefs(t))
 	v, known := gear.Value()
@@ -208,8 +206,8 @@ func TestColonyGearLoadoutModelPlansSoldierArmour(t *testing.T) {
 	}
 }
 
-// The apparel policy's definitions are the apparel rows the pawn can wear
-// (#1732): its gender, its single developmental stage and a present part in
+// The apparel policy's definitions are the apparel rows the pawn can wear:
+// its gender, its single developmental stage and a present part in
 // one of the garment's body part groups; armor is the Soldier outfit tag
 // alone, and covers-body a Torso or Legs group.
 func TestApparelPolicyDefinitionsAreTheWearableRows(t *testing.T) {

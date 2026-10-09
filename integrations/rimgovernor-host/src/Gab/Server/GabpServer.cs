@@ -542,7 +542,7 @@ namespace RimGovernor.Host.Gab.Server
                 object arguments = null;
                 var paramsObject = JObject.Parse(paramsJson);
 
-                // Respect the GABS compatibility path from PR #10:
+                // Preserve the GABS compatibility path:
                 // prefer "parameters" when present, then fall back to canonical "arguments".
                 if (paramsObject.TryGetValue("parameters", out var parametersToken) &&
                     parametersToken.Type != JTokenType.Null)

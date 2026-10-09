@@ -2,18 +2,9 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// MaintainGeneBank keeps every genepack in a gene bank (epic #1693, #1933).
-// A Genepack deteriorates unless it sits in a powered GeneBank (4 packs
-// each, the design note on #1693), so the goal is in deficit while more packs
-// lie loose on the map than the standing banks have room for, and settles
-// once every pack has a slot. It is a Standard whose target is no
-// outstanding work, like EnsureMechCharger. The method is one bank
-// construction; powering it is not this goal's: native lists every
-// CompPowerTrader building and EnsureBasicPower wires an unpowered consumer
-// by its draw alone, never by definition.
-//
-// A bank is found by its CompProperties_GenepackContainer comp, never by a
-// definition name. Harvesting, assembly and implanting are other goals.
+// MaintainGeneBank adds capacity for loose genepacks, which deteriorate outside
+// powered banks. Capacity comes from native bank facts; EnsureBasicPower owns
+// power supply. Banks are identified by CompProperties_GenepackContainer.
 const MaintainGeneBank ConcernID = "MaintainGeneBank"
 
 // GeneBankSlot is one standing bank: its capacity as the game reports it and

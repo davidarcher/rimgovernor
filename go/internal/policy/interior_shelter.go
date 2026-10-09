@@ -6,11 +6,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The shelter template (#2042, epic #2037): the temporary starter room holds
+// The shelter template: the temporary starter room holds
 // a research table, a crafting spot, f.Campfires campfires (two on a cold map,
-// none elsewhere, #2044) and one
+// none elsewhere) and one
 // sleeping bunk per occupant. It also decides how bunks pack (it folds
-// ShelterBunks, #612), so one place owns the entrance-aisle rules.
+// ShelterBunks), so one place owns the entrance-aisle rules.
 //
 // The research table is the only piece with a fixed place: centred on the
 // back wall, its front interaction cell kept clear (the bench row of the
@@ -38,7 +38,7 @@ const (
 )
 
 // ShelterCoolerSlotPrefix names the passive cooler slots ("cooler.1", ...), a
-// hot map's floor slot for the temperature planner (#2044).
+// hot map's floor slot for the temperature planner.
 const ShelterCoolerSlotPrefix = "cooler."
 
 // shelterBunkSize is a bunk's North footprint: the 1x2 of a SleepingSpot, a
@@ -158,7 +158,7 @@ func planShelter(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool
 		}
 		// A piece with an interaction cell faces a rotation whose cell stays on
 		// the floor: the corner's first rotation would put it in the wall, and the
-		// native refuses the slot once the ring stands (#2303).
+		// native refuses the slot once the ring stands.
 		rots := []domain.Rotation{domain.North}
 		if shape.Interaction != nil {
 			rots = []domain.Rotation{domain.North, domain.East, domain.South, domain.West}

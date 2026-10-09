@@ -26,10 +26,10 @@ var innerEnclosed = map[ReservationKind]bool{ReserveYard: true, ReserveBarn: tru
 // positions skip reports (an opening, bare terrain, soft ground), and returns
 // each run's gates on the perimeterGatePitch: a run shorter than the pitch
 // (a step of a squared-off diagonal) gives step gates, kept by pitchGates.
-// Raiders neither mine nor attack natural rock (#1592): a run is walled only
+// Raiders neither mine nor attack natural rock: a run is walled only
 // on its open cells, and not behind a rock row that spans the column and both
 // neighbours, which no raider can reach round. axes are the positions of
-// hallways meeting the side, which the pitch lines up with (#952).
+// hallways meeting the side, which the pitch lines up with.
 func wallRuns(sd ringSide, impassable func(domain.Cell) bool, walls map[domain.Cell]bool, axes []int32, skip func(p int32) bool) (gates []Rectangle, stepGates []stepGate) {
 	sealed := func(p, t int32) bool {
 		for u := int32(0); u < t; u++ {
@@ -117,7 +117,7 @@ func (g stepGate) opensOut(blocked func(domain.Cell) bool) bool {
 
 // pitchGates adds to gates the step gates a pitch clear of every other that
 // lead outside, so a staircase is gated about as often as a straight side
-// (#1287) and never into a jog.
+// and never into a jog.
 func pitchGates(gates []Rectangle, stepGates []stepGate, blocked func(domain.Cell) bool) []Rectangle {
 	for _, step := range stepGates {
 		g := step.area
@@ -136,7 +136,7 @@ func pitchGates(gates []Rectangle, stepGates []stepGate, blocked func(domain.Cel
 // room's interior with its walls, each hallway padded by SpineWidth/2, the
 // pen, barn, vet room and turbine pairs beside them, and any
 // geothermal crowding that footprint. It follows the plan's real outline,
-// not its bounding rectangle (#1945).
+// not its bounding rectangle.
 func coreFootprint(plan LayoutPlan, w, h int32) []bool {
 	fp := coreBaseFootprint(plan, w, h)
 	gap := yardGap(fp, w, h, plan.YardCells)
@@ -203,7 +203,7 @@ const outerClear = perimeterGap + perimeterThick + perimeterOuterGap + perimeter
 // perimeterGapMax caps how far the herd grows the yard past perimeterGap.
 const perimeterGapMax = perimeterGap + 12
 
-// yardGap is the yard between the core footprint fp and the wall (#2232): the
+// yardGap is the yard between the core footprint fp and the wall: the
 // smallest gap from perimeterGap up whose ring of cells around fp holds
 // grazing cells, capped at perimeterGapMax. grazing 0 keeps perimeterGap.
 func yardGap(fp []bool, w, h int32, grazing int32) int32 {
@@ -243,8 +243,8 @@ func crowdsCore(fp []bool, w, h int32, area Rectangle, gap int32) bool {
 
 // outerKeepOut marks the cells of a w x h map the core ring will occupy or
 // crowd: the core's enclosure and everything the outer ring must stand
-// clear of it. A unit sited off these is enclosed by the outer ring whole
-// (#1597); PlanUtilities runs before PlanPerimeter, so the core's
+// clear of it. A unit sited off these is enclosed by the outer ring whole;
+// PlanUtilities runs before PlanPerimeter, so the core's
 // footprint stands in for the ring.
 func outerKeepOut(plan LayoutPlan, w, h int32) []bool {
 	out := make([]bool, max(w, 0)*max(h, 0))

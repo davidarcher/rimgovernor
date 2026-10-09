@@ -14,10 +14,10 @@ namespace HomeBridge.BridgeTools
     // QuestPart_Dialog (a quest's own dialog signal), ResearchManager's
     // finished-project completion dialog, ScenPart_GameStartDialog and
     // GenGameEnd. Every one of them holds TickManager.ForcePaused until an
-    // option is chosen, and headless play has no UI to choose with (#156).
+    // option is chosen, and headless play has no UI to choose with.
     // This is the exact native lookup the colony facts census, the clock's
     // dialog_pause stop and Operations.AnswerDialog share. The one other window
-    // it answers is the void awakening confirmation (#2437), a force-pausing
+    // it answers is the void awakening confirmation, a force-pausing
     // Dialog_MessageBox that ActivateMonolith opens: its two buttons read as
     // options 0 (Confirm) and 1 (GoBack) so DialogIntent drives it alike.
     internal static class ChoiceDialogTools
@@ -55,7 +55,7 @@ namespace HomeBridge.BridgeTools
         // and one that either closes the tree or links to a further node. An
         // option doing neither runs an action that opens another window
         // (CaravanMeeting's Trade opens Dialog_Trade) which the controller does
-        // not drive, so it stays with the player (#179).
+        // not drive, so it stays with the player.
         internal static bool Selectable(DiaOption option) =>
             !option.disabled && option.hyperlink.def == null && (option.resolveTree || option.link != null || option.linkLateBind != null);
 

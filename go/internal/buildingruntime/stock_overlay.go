@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// drawStockOverlay pushes the stockpile shortfall tint (#825) after a
+// drawStockOverlay pushes the stockpile shortfall tint after a
 // review, gated by the layout overlay flag like the other layers: every
 // stockpile the zone census lists, tinted by the review's resource targets
 // and the food runway, sent when it changes or an hour passed, and cleared
@@ -58,7 +58,7 @@ func (r *Rounder) drawStockOverlay(ctx context.Context, snapshot domain.Generati
 	r.stock = overlayState{key: key, drawn: tick}
 }
 
-// stockZones is every stockpile the zone census lists (#719), its cells
+// stockZones is every stockpile the zone census lists, its cells
 // from the projection's planning cells (else its census bounds), with the
 // colony's claim role and settings, the latest patch superseding them,
 // when the colony created it.

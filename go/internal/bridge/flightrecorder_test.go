@@ -162,7 +162,7 @@ func TestRejectsBoundsBelowMinimums(t *testing.T) {
 }
 
 // A recorder opened on a path that already holds rows continues their
-// sequence (#299: the ring under a profile outlives each launch), so the
+// sequence (the ring under a profile outlives each launch), so the
 // timeline reads without a gap and the run id alone separates launches.
 func TestSequenceContinuesAcrossLaunches(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "flight.jsonl")

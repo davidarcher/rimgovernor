@@ -20,7 +20,7 @@ func roundsProject(t *testing.T, r RoundsResult, need domain.ConcernID) ProjectS
 }
 
 // A finished Project stays finished through an unknown measurement and,
-// once broken, opens a new Project row instead of bumping its epoch (#1022).
+// once broken, opens a new Project row instead of bumping its epoch.
 func TestRoundsProjectFinishesAndRegressionOpensNewRow(t *testing.T) {
 	t.Parallel()
 	s := open(t, memoryPath(t))

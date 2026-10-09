@@ -7,10 +7,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TacticHunt is a squad hunt (#1616): the view's threats are wild prey the
+// TacticHunt is a squad hunt: the view's threats are wild prey the
 // threat census does not call hostile, and the squad stages in a half circle
 // at weapon range and focus-fires them down. Once the prey are all manhunter
-// the fight is the manhunter tactic's (#898).
+// the fight is the manhunter tactic's.
 const TacticHunt CombatTactic = "hunt"
 
 // huntDefaultRange is the staging reach when no gunner's weapon range is
@@ -117,7 +117,7 @@ func huntFormation(view CombatView) []CombatRole {
 
 // reformHunt is the hunt's re-formation row: a role's target is down, or the
 // prey turned into a manhunter pack, or some prey turned on the squad and
-// the hunt has no potshot door yet (#1618).
+// the hunt has no potshot door yet.
 func reformHunt(view CombatView, m CombatMemory) bool {
 	return squadTargetDown(view, m) || ManhunterPack(view) || m.PotshotDoor == nil && provokedPrey(view)
 }

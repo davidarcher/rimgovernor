@@ -1,4 +1,4 @@
-// Command rimgovernor exposes the gated Go migration tools.
+// Command rimgovernor runs the governor service and its operator tools.
 package main
 
 import (

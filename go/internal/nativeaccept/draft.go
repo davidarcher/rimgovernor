@@ -2,10 +2,9 @@ package nativeaccept
 
 import "fmt"
 
-// Controller is the fixed attempt controllerSessionId used by the
-// draft/combat/movement acceptance binaries. Since #52 there is no authority
-// owner token on the wire (authority is SetMode(Auto|Manual) plus generation
-// continuity); this only keys attempts and typed clock epochs.
+// Controller identifies attempts and typed clock epochs in draft, combat and movement
+// acceptance. It is not an authority ownership token; authority uses mode and native-
+// generation continuity.
 const Controller = "native-draft-acceptance"
 
 // PawnRow asserts an observations_list_pawns reply is a single complete, exact-match

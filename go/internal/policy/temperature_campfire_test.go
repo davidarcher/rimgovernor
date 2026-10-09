@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A heat campfire in a sleeping room (#1180): a cold room gets a campfire,
+// A heat campfire in a sleeping room: a cold room gets a campfire,
 // the warm room switches its refuel off instead of proposing a cooler,
 // and a cold room again switches it back on.
 func TestTemperatureMethodHeatCampfireRefuel(t *testing.T) {
@@ -59,7 +59,7 @@ func TestTemperatureMethodHeatCampfireRefuel(t *testing.T) {
 	}
 }
 
-// The heat campfire reads its sleepers' own comfortable range (#1199):
+// The heat campfire reads its sleepers' own comfortable range:
 // the intersection of every bed owner's band in the room.
 func TestTemperatureMethodSleeperComfortBand(t *testing.T) {
 	sleeper := func(id, bed string, min, max float64) SleepingPerson {

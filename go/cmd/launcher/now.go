@@ -11,12 +11,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/spectator"
 )
 
-// The Now tab's view-model builders (#1986): each turns one serve-client
+// The Now tab's view-model builders: each turns one serve-client
 // Reading into the strings the page prints, so the page holds no labels or
 // ordering. A stale Reading renders its last good value with a notice; a
 // 404 (Observe mode) renders one line and no value. The label maps are the
 // launcher's own. reportView joins the Now and
-// routines readings into the four-section report (#2033).
+// routines readings into the four-section report.
 
 // Feed says how current a panel is. Notice is empty for a fresh reading.
 type Feed struct {
@@ -158,7 +158,7 @@ type ReportSection struct {
 
 // ReportView is the Now tab's report on the colony: a headline and the four
 // sections in reading order, built from the spectator Now and the routines
-// feed (#2033). The page prints them as given. Feed is the Now feed's: with
+// feed. The page prints them as given. Feed is the Now feed's: with
 // no value the page shows its Notice alone (Observe mode serves neither).
 type ReportView struct {
 	Feed

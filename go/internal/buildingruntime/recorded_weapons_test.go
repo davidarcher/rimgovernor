@@ -10,7 +10,7 @@ import (
 )
 
 // recordedWeapons adapts recordings made before the weapon facts left the
-// gear rows (#1723). Those carried each gear item's class and range inline;
+// gear rows. Those carried each gear item's class and range inline;
 // a live frame names the item's def in the things table and the catalog's row
 // says the rest. upgrade strips the legacy keys from a recorded pawn reply
 // and keeps, per gear item, a def row standing in for what the item said:

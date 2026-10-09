@@ -36,14 +36,14 @@ type PrisonerCensus struct {
 	// Custody carries the same read's capture/rescue candidate census: every
 	// observed humanlike, not only prisoners. See ReadRoundsPopulation.
 	Custody domain.Fact[[]policy.CustodyFacts]
-	// Outlook is the snapshot's storyteller population outlook (#1031).
+	// Outlook is the snapshot's storyteller population outlook.
 	Outlook policy.PopulationOutlook
 	// Colony is the colony side of each prisoner's use: the free
 	// colonists' best skills and the snapshot's Ideology facts.
 	Colony domain.Fact[policy.PrisonerColony]
-	// Guests are the colony guests' care cap inputs (#1301).
+	// Guests are the colony guests' care cap inputs.
 	Guests domain.Fact[[]policy.CarePatient]
-	// Names is the owned-pawn short-name census (#1310).
+	// Names is the owned-pawn short-name census.
 	Names domain.Fact[[]policy.OwnedName]
 }
 
@@ -98,7 +98,7 @@ func (client *Client) ReadRoundsPopulation(ctx context.Context, identity *c.Iden
 }
 
 // decodePopulation is a population snapshot's prisoner and custody census,
-// each person joined to its pawn table row (#1343). A person the table
+// each person joined to its pawn table row. A person the table
 // does not hold leaves the person facts (prisoners, custody, colony,
 // guests) unknown until a later frame.
 func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns, catalog *DefinitionCatalog) (PrisonerCensus, error) {

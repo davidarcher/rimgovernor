@@ -4,7 +4,7 @@ import "errors"
 
 // ProjectID names one Project row: "project-<hex8 world digest>-<kind>-<gen>",
 // minted per world and kind like a routine goal id. A regression mints the
-// next generation rather than reopening the completed row (#1925, epic #1911).
+// next generation rather than reopening the completed row.
 type ProjectID string
 
 type ProjectStatus string

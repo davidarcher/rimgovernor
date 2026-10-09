@@ -7,7 +7,7 @@ import (
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-// An extract_bioferrite setting builds one PawnSettingsIntent arm (#2434); a
+// An extract_bioferrite setting builds one PawnSettingsIntent arm; a
 // false flag still sets the arm.
 func TestExtractBioferriteBuildsPawnSettingsIntent(t *testing.T) {
 	for _, want := range []bool{true, false} {

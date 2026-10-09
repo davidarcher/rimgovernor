@@ -42,7 +42,7 @@ func (s *siteCombatSource) CombatGeometry(ctx context.Context, request *mp.Comba
 
 // A selected destination map uses the same recorded combat frame, decision,
 // geometry and order path as home defense. Entry and control reacquisition are
-// separate expedition work (#2461); this test begins with acquired site scope.
+// separate expedition work; this test begins with acquired site scope.
 func TestSelectedSiteMapUsesSharedCombat(t *testing.T) {
 	stops, err := replayCombat("testdata/combat/lab-choke.json.gz")
 	if err != nil || len(stops) == 0 {

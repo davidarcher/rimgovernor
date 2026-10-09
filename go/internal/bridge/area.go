@@ -14,7 +14,7 @@ var areaOperations = map[domain.AreaOperation]op.AreaOperation{
 }
 
 // areaAction is the AreaIntent of one bot-owned allowed area or the home
-// area (#1321). Native resolves the bot area by its key
+// area. Native resolves the bot area by its key
 // label and never touches a player's area (NativeAreaIntent.cs).
 func areaAction(action domain.Action) (*op.Action, error) {
 	v, ok := action.Area()

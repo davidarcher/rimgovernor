@@ -9,7 +9,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Disposable test setup only (#1329). Stages the shelter/* sheltering
+    // Disposable test setup only. Stages the shelter/* sheltering
     // cases on the blank lab: a roofed hut at the map centre (the room the
     // controller's Safe area covers), the colonists and one tame pen-free
     // dog standing outside it, and the trigger: a long ToxicFallout

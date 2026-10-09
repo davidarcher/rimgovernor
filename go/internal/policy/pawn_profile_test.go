@@ -94,8 +94,8 @@ func TestSituationalRoles(t *testing.T) {
 	}
 }
 
-// TestProfileChildFromDevelopmentalStage (#1678): a known developmental
-// stage decides Child; age never does (#1784).
+// TestProfileChildFromDevelopmentalStage: a known developmental
+// stage decides Child; age never does.
 func TestProfileChildFromDevelopmentalStage(t *testing.T) {
 	stage := func(name string) domain.Fact[PawnBiotech] {
 		return domain.Known(PawnBiotech{DevelopmentalStage: domain.Known(name)})

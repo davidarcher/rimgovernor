@@ -6,10 +6,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The room-bound stockpile roles (#917). The meal closet, the table cell and the
+// The room-bound stockpile roles. The meal closet, the table cell and the
 // medicine store are declared by their departments from the
 // layout plan (policy.foodOwner, policy.medicalOwner); the one still reading a
-// built fact is the table cell (tableMeal). The raw-food role (#722) is a 2x2
+// built fact is the table cell (tableMeal). The raw-food role is a 2x2
 // Critical stockpile of raw meat and raw plant food inside the planned freezer:
 // Critical because vanilla ranks Preferred below Important, and only a rank
 // above the starter Important food zone hauls raw food into the cold.
@@ -28,7 +28,7 @@ func allowOnly(definitions ...string) domain.StockpileFilter {
 	return f
 }
 
-// tableMeal is the one-cell meal store by the dining table (#936), nil while a
+// tableMeal is the one-cell meal store by the dining table, nil while a
 // fact it needs is unknown: a spot in the planned dining room holding the
 // table, while the colony eats at least mealSpotMinPerDay meals a day, else a
 // retirement of the zone. The cell sits off the chairs, nearest where they are.

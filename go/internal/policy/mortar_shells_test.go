@@ -7,7 +7,7 @@ import (
 )
 
 // A load with no shell def of the aimed kind fires what the mortar holds
-// instead of naming a shell (#1723).
+// instead of naming a shell.
 func TestMortarFiresLoadedWhenTheKindHasNoShell(t *testing.T) {
 	view := mortarView()
 	view.Shells = MortarShells{}

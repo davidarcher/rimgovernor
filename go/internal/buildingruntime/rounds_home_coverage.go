@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RoundsHomeCoveragePlanner owns the home area (#1328): it turns the game's
+// RoundsHomeCoveragePlanner owns the home area: it turns the game's
 // auto-expand off and edits home to the base footprint policy.PlanHomeArea
 // derives, reading the reviewer's routine census.
 type RoundsHomeCoveragePlanner struct {

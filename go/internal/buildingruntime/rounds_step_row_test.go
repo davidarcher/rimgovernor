@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry/telemetrytest"
 )
 
-// One planner_step row per Rounder step (#2066): ok when the review ran,
+// One planner_step row per Rounder step: ok when the review ran,
 // failed with the error as an attr, reason control_lost for ErrControl.
 func TestRoundsStepDecisionShape(t *testing.T) {
 	ok := roundsStepDecision(nil, 2*time.Millisecond, true)

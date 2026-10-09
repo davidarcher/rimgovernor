@@ -9,14 +9,14 @@ import (
 )
 
 // MaxOperationIntent caps Action.purpose: one short line for the in-game
-// "activity" overlay (#822, #1129).
+// "activity" overlay.
 const MaxOperationIntent = 80
 
 type operationIntentKey struct{}
 
 // WithOperationIntent names why the writes under ctx are issued. Actions/Apply
 // stamps it as the purpose of every action that carries none, so the
-// dispatcher sets it once instead of every action builder (#822, #1129).
+// dispatcher sets it once instead of every action builder.
 func WithOperationIntent(ctx context.Context, intent string) context.Context {
 	if intent == "" {
 		return ctx

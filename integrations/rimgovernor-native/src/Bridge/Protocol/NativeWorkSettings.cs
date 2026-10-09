@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // WorkSettingsIntent (#941): one free colonist's work priorities, allowed
+    // WorkSettingsIntent: one free colonist's work priorities, allowed
     // area and timetable together. Native checks the pawn and
     // each field live when it applies; settings that already hold apply again.
     internal sealed class WorkSettingsActionHandler : IActionHandler

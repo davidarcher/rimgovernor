@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Prison layout (#1081, epic #845 prison break): mini-turrets stand just
+// Prison layout: mini-turrets stand just
 // outside the prison doors, and no weapon stockpile stands near a prison,
 // so an escapee finds neither an open exit nor a weapon. Layout keeps the
 // armory and every prison that far apart (weaponClearance).
@@ -136,7 +136,7 @@ func PrisonCells(plan LayoutPlan) []domain.Cell {
 }
 
 // weaponClearance is the ground a new room of role keeps off so the armory
-// and the prisons stay prisonWeaponClearance apart (#1805): round every
+// and the prisons stay prisonWeaponClearance apart: round every
 // prison for an armory (its walls included, as PrisonCells), round every
 // armory interior for a prison.
 func weaponClearance(plan LayoutPlan, role PlannedRole) []Rectangle {

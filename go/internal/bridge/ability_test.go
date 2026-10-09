@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// A permit ability builds one AbilityIntent (#1607): the permit source arm and
+// A permit ability builds one AbilityIntent: the permit source arm and
 // the target arm that matches the domain target.
 func TestAbilityBuildsIntent(t *testing.T) {
 	source, err := domain.PermitSource("Empire", "CallMilitaryAidSmall")
@@ -70,7 +70,7 @@ func TestAbilityRefusals(t *testing.T) {
 	}
 }
 
-// The royalty read decodes each held permit's cooldown (#1607), and an absent
+// The royalty read decodes each held permit's cooldown, and an absent
 // last use stays unknown rather than zero.
 func TestDecodeRoyaltyPermitCooldowns(t *testing.T) {
 	facts, err := decodeRoyalty(royaltyPawns())
@@ -112,7 +112,7 @@ func TestDecodeRoyaltyPermitCooldowns(t *testing.T) {
 	}
 }
 
-// A psycast ability builds the psycast source arm with every target arm (#1610).
+// A psycast ability builds the psycast source arm with every target arm.
 func TestAbilityBuildsPsycastIntent(t *testing.T) {
 	source, err := domain.PsycastSource("Skip")
 	if err != nil {

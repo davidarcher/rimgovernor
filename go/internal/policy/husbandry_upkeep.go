@@ -35,7 +35,7 @@ type HerdPolicy struct {
 	// for a policy not built by PlanHerd.
 	Roles map[Resource]HerdRole
 	// Layers is the breeding rule of each fertilizable egg-laying race the
-	// plan observed (#1898); a race absent keeps herdMalesPerFemales.
+	// plan observed; a race absent keeps herdMalesPerFemales.
 	Layers map[Resource]HerdLayer
 }
 
@@ -169,7 +169,7 @@ func AnimalHerdDeficit(animals, wild domain.Fact[[]UpkeepAnimal], feedShort doma
 // tame-designation fact, or a player row with unknown designation facts,
 // makes the result unknown.
 //
-// The shortfall stops at the race's max (pen and feed room, #875), and a
+// The shortfall stops at the race's max (pen and feed room), and a
 // dangerous race (herdDangerous) is tamed only as the war target.
 func herdTameCandidates(rows, wild []UpkeepAnimal, herd HerdPolicy) ([]UpkeepAnimal, bool) {
 	populationMin := herd.PopulationMin

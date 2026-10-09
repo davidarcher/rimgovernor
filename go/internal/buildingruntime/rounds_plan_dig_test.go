@@ -18,7 +18,7 @@ import (
 )
 
 // rockCoolerNative is the refrigeration fixture with natural rock on the
-// planned cooler cell and its shaft, and a preview over rock (#874).
+// planned cooler cell and its shaft, and a preview over rock.
 type rockCoolerNative struct {
 	*refrigerationNative
 	rock      map[domain.Cell]bool
@@ -110,7 +110,7 @@ func rockCoolerStep(t *testing.T) (p *RoundsBuildingPlanner, db *store.Store, n 
 
 // A standing freezer whose planned cooler cell is rock mines that cell and
 // the shaft and places the cooler in one plan, the cooler waiting on every
-// excavation and previewed over rock (#874).
+// excavation and previewed over rock.
 func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -191,7 +191,7 @@ func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
 }
 
 // A dig plan that settled with rock still standing refuses at once, naming
-// the rock: no follow-up rounds (#1588).
+// the rock: no follow-up rounds.
 func TestDigPlannedRefusesLoudlyWhenADigSettlesWithRockStanding(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

@@ -8,8 +8,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 )
 
-// defense/perimeter (run 36991368938, #1560): the killbox's fence bar runs
-// wall to wall across the kill zone (#1544), so an access audit that held
+// defense/perimeter (run 36991368938): the killbox's fence bar runs
+// wall to wall across the kill zone, so an access audit that held
 // fences impassable cut the colonists off from the snake and every cell
 // beyond the opening (all 8 colonists lost 2636 cells) and refused the
 // firing line on every review. Raiders climb that bar, and so do

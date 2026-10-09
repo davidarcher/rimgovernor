@@ -1,7 +1,7 @@
-// The mech/gestation case (#1692, epic #1667) proves a mechanitor gestates a
+// The mech/gestation case proves a mechanitor gestates a
 // mech inside its bandwidth and the controller gives it a work order: the
-// MaintainMechs goal (#1686) queues a gestation bill on the gestator, the game
-// forms the mech, and the routine's mech control (#1687) sets the mech's
+// MaintainMechs goal queues a gestation bill on the gestator, the game
+// forms the mech, and the routine's mech control sets the mech's
 // control group to the mode its kind calls for.
 package child
 

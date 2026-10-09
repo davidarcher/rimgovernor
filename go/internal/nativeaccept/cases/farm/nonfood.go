@@ -14,10 +14,10 @@ import (
 
 const nonFoodOp = "test/nonfood_field"
 
-// nonFoodField is one end-to-end non-food field case (#2288): the lab colony
+// nonFoodField is one end-to-end non-food field case: the lab colony
 // has no stock of the product, no wild plant harvesting it, and a standing
 // MaintainResource demand for it, so the only way to serve the demand is the
-// generic field path (#2221): the supply plan prices a field, the field step
+// generic field path: the supply plan prices a field, the field step
 // places the growing zone, the colonists sow it and, once the fixture has
 // matured the crop (its grow days are not what is under test), harvest it.
 type nonFoodField struct {

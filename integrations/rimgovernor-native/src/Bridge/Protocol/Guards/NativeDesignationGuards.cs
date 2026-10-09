@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
         internal WallRemovalRecord? Wall;
     }
 
-    // The game's named tick guards (#1350, #1351) and the hooks that hold guarded
+    // The game's named tick guards and the hooks that hold guarded
     // designations to them. Admission runs Registry.Admit; the deconstruct
     // and mine job hooks re-check every open GuardState record before the
     // work lands: a failed check drops the designation and ends the job, a
@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
             .Register(GuardNames.WallUpgrade, s => s.Wall == null ? "The wall_upgrade guard holds a wall-upgrade site." : WallUpgradeSafety.Check(s.Wall))
             .Register(GuardNames.Wastepack, Wastepack);
 
-        // ---- wastepack (#1683) ----
+        // ---- wastepack ----
         // A thing with the game's CompDissolution that is neither frozen nor
         // inside an atomizer: hauling it to storage is what stops it
         // deteriorating into pollution.
@@ -110,7 +110,7 @@ namespace HomeBridge.BridgeTools
             if (target.IsForbidden(Faction.OfPlayer) || target.IsBurning()) return "Target is forbidden or burning.";
             // Colony enclosure demolition must use RemoveWall's replacement
             // guards. A wall with an enclosed room on every open side only
-            // joins rooms (#1218), so it is no enclosure.
+            // joins rooms, so it is no enclosure.
             var cleared = ClearedRooms(target, ground);
             if (ground != null && target.Faction == Faction.OfPlayer && (target.def == ThingDefOf.Wall || target.def.IsDoor) && cleared == null)
                 return "A room this wall or door encloses extends outside the cleared ground.";
@@ -301,7 +301,7 @@ namespace HomeBridge.BridgeTools
         {
             if (__state == null || !target.Destroyed) return;
             __state.Finished = Find.TickManager.TicksGame; __state.Cancelled = false;
-            // An acquisition mine that opens protected colony space is walled (#1133).
+            // An acquisition mine that opens protected colony space is walled.
             if (__state.Guard == GuardNames.Acquisition && MapOf(__state) is Map map) ResourceAcquisitionTools.ReplaceWall(CellOf(__state), map);
         }
     }

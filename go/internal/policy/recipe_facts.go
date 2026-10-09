@@ -5,7 +5,7 @@ import (
 )
 
 // RecipeFacts are what the catalog's RecipeDef rows say about the recipes the
-// planners treat specially (#1721). Names are the recipes' defNames; every
+// planners treat specially. Names are the recipes' defNames; every
 // fact is derived from the rows, never from a name.
 type RecipeFacts struct {
 	// MaterialInstalls are the install recipes of parts made straight from a

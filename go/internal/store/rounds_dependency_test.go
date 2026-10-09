@@ -10,7 +10,7 @@ import (
 
 // A shelter shell admitted short of wood records its open costs; the next
 // review admits MaintainResource and carries them while the shortfall stays open, and
-// drops them when the shell's actions settle (#651).
+// drops them when the shell's actions settle.
 func TestShelterShortfallAdmitsMaintainResourceUntilSatisfied(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

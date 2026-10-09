@@ -43,7 +43,7 @@ func TestBasicComfortUnknownCensus(t *testing.T) {
 	}
 }
 
-// TestComfortFootholdComesFromTheCensus (#1796): a recreation build without a
+// TestComfortFootholdComesFromTheCensus: a recreation build without a
 // foothold in the census is an error, never a default def.
 func TestComfortFootholdComesFromTheCensus(t *testing.T) {
 	v := comfortFacilities()

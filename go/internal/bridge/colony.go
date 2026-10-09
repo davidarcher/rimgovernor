@@ -316,10 +316,9 @@ func validSeason(name string) bool {
 	return false
 }
 
-// validateColonyThreat accepts an absent threat section (a native build
-// without #395 reports nothing, and the projection stays unknown), an
-// unavailable one, or observed facts whose every number is finite and
-// non-negative and whose completeness is the single colony row.
+// validateColonyThreat preserves absent or unavailable threat as unknown.
+// Observed values must be finite and non-negative, with completeness on the
+// single colony row.
 func validateColonyThreat(v *o.ThreatSection) error {
 	if v == nil {
 		return nil
@@ -350,7 +349,7 @@ func validateColonyThreat(v *o.ThreatSection) error {
 }
 
 // ColonyThreat is the threat section of one colony census as facts: the
-// wealth split and the raid points the storyteller would draw now (#395).
+// wealth split and the raid points the storyteller would draw now.
 // A section native did not observe (absent, unavailable, or a field it
 // withheld) leaves the fact unknown, never zero.
 type ColonyThreat struct {

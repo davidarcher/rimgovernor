@@ -15,7 +15,7 @@ import (
 // A native call drops the operation's families from the worker's fact
 // store itself: with no admitted window no clock events page ever arrives
 // to drop them, and the next decision would replan from the rows before
-// our own write (#694). A dispatch that never reached native keeps them.
+// our own write. A dispatch that never reached native keeps them.
 func TestWorkerNativeCallDropsWrittenFamilies(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

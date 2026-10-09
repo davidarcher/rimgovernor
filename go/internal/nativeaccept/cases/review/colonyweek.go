@@ -29,7 +29,7 @@ const SeedEnv = "RIMGOVERNOR_REVIEW_SEED"
 // DaysEnv overrides the in-game length in days (default SeasonDays).
 const DaysEnv = "RIMGOVERNOR_REVIEW_DAYS"
 
-// PinnedSeed is the nightly's fixed world seed (#1935): one run per seed, so
+// PinnedSeed is the nightly's fixed world seed: one run per seed, so
 // a night's result compares with the last. It picks the biome (biomes).
 const PinnedSeed = "review-pinned-1"
 

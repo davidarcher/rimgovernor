@@ -9,8 +9,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// plannerQueue is the scheduler's due queue over the planner catalog
-// (#625): per planner, the game tick its last evaluation stands until
+// plannerQueue is the scheduler's due queue over the planner catalog:
+// per planner, the game tick its last evaluation stands until
 // (plannerEntry.reviewEvery), the wake evidence it has yet to act on, and
 // the dependency it reported waiting on. A step selects the planners that
 // are dirty or due at its tick and skips those still waiting; the full
@@ -37,7 +37,7 @@ type plannerQueue struct {
 	waits map[string]plannerWait
 	// refused are the planners whose last run was refused admission: they
 	// are due again at a tick, which a stopped clock never reaches, so
-	// stalled re-marks them (#692).
+	// stalled re-marks them.
 	refused map[string]bool
 	// configured filters the catalog to the planners the scheduler runs
 	// (plannerEntry.configured); nil admits every entry. An unconfigured
@@ -296,7 +296,7 @@ func (q *plannerQueue) ran(sel plannerSelectionResult, names []string, reasonOf 
 // stalled is the step on a stopped clock (the last window refused no_work
 // and the tick did not move): no tick deadline or cadence can pass, so the
 // waits are dropped and the refused planners marked, each re-examining its
-// own work instead of parking the colony for good (#692).
+// own work instead of parking the colony for good.
 func (q *plannerQueue) stalled() {
 	q.waits = map[string]plannerWait{}
 	for name := range q.refused {
@@ -304,7 +304,7 @@ func (q *plannerQueue) stalled() {
 	}
 }
 
-// combatStopped is the step on a stopped combat window (#890): the stop
+// combatStopped is the step on a stopped combat window: the stop
 // is the open fight's next decision, so the defense planner runs even
 // though it waits on its own fight's open drafts, which stay open for the
 // whole fight and would otherwise park it until the fight is over.

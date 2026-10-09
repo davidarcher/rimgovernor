@@ -51,7 +51,7 @@ func creepJoinerFixture(t *testing.T, edit func(*o.PawnState), goal policy.Conce
 	return reviewer, n
 }
 
-// TestEquipPlannerLeavesAHiddenDownsideCreepJoinerUnarmed (#1740): with two
+// TestEquipPlannerLeavesAHiddenDownsideCreepJoinerUnarmed: with two
 // colonists and two bows, the creepjoiner whose downside has not shown is
 // given none and the other colonist is armed.
 func TestEquipPlannerLeavesAHiddenDownsideCreepJoinerUnarmed(t *testing.T) {
@@ -103,7 +103,7 @@ func TestEquipPlannerArmsACreepJoinerOnceTheDownsideShows(t *testing.T) {
 	}
 }
 
-// TestCreepJoinerPlannerDropsTheHeldWeapon (#1740): the review owes a drop
+// TestCreepJoinerPlannerDropsTheHeldWeapon: the review owes a drop
 // for a creepjoiner holding a weapon before its downside shows, and the
 // planner orders exactly that colonist to drop exactly that weapon.
 func TestCreepJoinerPlannerDropsTheHeldWeapon(t *testing.T) {
@@ -136,7 +136,7 @@ func TestCreepJoinerPlannerDropsTheHeldWeapon(t *testing.T) {
 	}
 }
 
-// TestCreepJoinerPlannerHoldsAndReleasesByAreaMove (#1740): the review's
+// TestCreepJoinerPlannerHoldsAndReleasesByAreaMove: the review's
 // isolation moves ride the creepjoiner plan as allowed-area assignments, a
 // hold naming the Isolation area and a release clearing it.
 func TestCreepJoinerPlannerHoldsAndReleasesByAreaMove(t *testing.T) {
@@ -170,7 +170,7 @@ func TestCreepJoinerPlannerHoldsAndReleasesByAreaMove(t *testing.T) {
 	}
 }
 
-// TestCreepJoinerPlannerQueuesTheDisarmSurgery (#1740): an arrested
+// TestCreepJoinerPlannerQueuesTheDisarmSurgery: an arrested
 // creepjoiner's disarm order rides the plan as the surgery it names, install
 // or removal, on the part index it names.
 func TestCreepJoinerPlannerQueuesTheDisarmSurgery(t *testing.T) {
@@ -231,7 +231,7 @@ func inspectableRow(row *o.PawnState, queued bool) {
 	}
 }
 
-// TestCreepJoinerPlannerInspectsOnceAndRecordsIt (#1740): a creepjoiner whose
+// TestCreepJoinerPlannerInspectsOnceAndRecordsIt: a creepjoiner whose
 // downside is hidden is queued the surgical inspection the def mirror's
 // recipe names, the goal's record says it was ordered, and once the bill is
 // gone the record says it was inspected; nothing is ordered twice.

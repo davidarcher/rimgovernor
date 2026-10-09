@@ -7,8 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// MaintainIdeoRoles keeps the ideoligion's role precepts filled (#1661, epic
-// #1653): each active role with a free place is given to the believer who
+// MaintainIdeoRoles keeps the ideoligion's role precepts filled: each active role with a free place is given to the believer who
 // best fits it, through the shared Assign intent (the role precept's id is
 // the assignable thing). Which skills a role asks for, how many pawns it
 // takes and when it is active are the catalog's role defs

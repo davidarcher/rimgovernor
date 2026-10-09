@@ -29,7 +29,7 @@ func TestEndedRoomRolesIsolation(t *testing.T) {
 	}
 }
 
-// An ended need is only ever read from known facts (#1824).
+// An ended need is only ever read from known facts.
 func TestEndedRoomRolesNeedKnownFacts(t *testing.T) {
 	adult := WorkPawn{Biotech: domain.Known(PawnBiotech{DevelopmentalStage: domain.Known("Adult"), Deathrest: domain.Known[*PawnDeathrest](nil)})}
 	noStage := WorkPawn{Biotech: domain.Known(PawnBiotech{Deathrest: domain.Known[*PawnDeathrest](nil)})}
@@ -67,7 +67,7 @@ func TestEndedRoomRolesNeedKnownFacts(t *testing.T) {
 }
 
 // Each role's unbuilt room leaves the plan once its need is gone; a standing
-// or furnished room and a role with no ended need keep theirs (#1824).
+// or furnished room and a role with no ended need keep theirs.
 func TestReplanRetiresUnbuiltEndedRooms(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })

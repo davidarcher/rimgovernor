@@ -3,7 +3,7 @@ package domain
 import "errors"
 
 // WastepackHaulAction designates one exact unprotected wastepack for hauling
-// to storage (#1683): DesignateIntent HAUL on the pack under the wastepack
+// to storage: DesignateIntent HAUL on the pack under the wastepack
 // guard, which native holds to a pack that is neither frozen nor inside an
 // atomizer. The designation is the whole write; a hauler carries the pack to
 // a stockpile that accepts it, and the goal settles on the pack being frozen

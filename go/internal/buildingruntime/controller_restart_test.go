@@ -327,7 +327,7 @@ func assertNoDuplicateEffect(t *testing.T, rig *controllerRig, plan store.PlanSt
 }
 
 // TestControllerRestartResendsLostIntentWithoutDuplicateEffect is the
-// vertical controller scenario (#616, #856): the sleeping planner persists
+// vertical controller scenario: the sleeping planner persists
 // intent through the production admission path, the worker dispatches it
 // through the real executor and intent writer, native places both
 // blueprints and loses both replies, and the controller is restarted

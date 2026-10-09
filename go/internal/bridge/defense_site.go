@@ -38,7 +38,7 @@ type DefenseCell struct {
 	Fogged                  bool
 	Terrain, EdificeDefName string
 	// EdificeStuff is the edifice's stuff def, empty for a stuffless one
-	// (#1065: a wooden door is upgraded to plasteel).
+	// (a wooden door is upgraded to plasteel).
 	EdificeStuff                   string
 	Walkable, Passable             bool
 	CoverFill                      float64
@@ -47,9 +47,9 @@ type DefenseCell struct {
 	// Cover names the thing whose fill CoverFill reports, when the census
 	// can identify one the game's designators could remove.
 	Cover *DefenseCover
-	// Unbridging is a foundation removal designated on the cell (#954).
+	// Unbridging is a foundation removal designated on the cell.
 	Unbridging bool
-	// Roofed is the cell under any roof (#1122).
+	// Roofed is the cell under any roof.
 	Roofed bool
 }
 

@@ -19,7 +19,7 @@ import (
 )
 
 // The routine trader facts carry native's arrival verdict: a caravan still
-// walking in is neither tradeable nor absent (#234).
+// walking in is neither tradeable nor absent.
 func TestRoundsTraderFactsCarryTravelling(t *testing.T) {
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 	if err != nil {

@@ -5,7 +5,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // The open guarded designations (#1350): which designation a Designate
+    // The open guarded designations: which designation a Designate
     // placed under which named guard. The guard's own rule is native code;
     // this is only the membership the job hooks consult. It follows the save
     // so a reload keeps the designation guarded.
@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
         public int MapId, X, Z, Finished = -1;
         public bool Cancelled;
         public List<IntVec3>? Ground;
-        // The wall_upgrade guard's site (#989): the wall-upgrade geometry and
+        // The wall_upgrade guard's site: the wall-upgrade geometry and
         // identities its re-check holds the demolition to.
         public WallRemovalRecord? Wall;
         public bool Open => Finished < 0 && !Cancelled;
@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // A wall-upgrade site (#989): target, the original wall, its left and right
+    // A wall-upgrade site: target, the original wall, its left and right
     // supports, the completed backups or the permanent wall, and the material.
     public sealed class WallRemovalRecord : IExposable
     {

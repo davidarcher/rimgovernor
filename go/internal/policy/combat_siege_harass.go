@@ -8,8 +8,8 @@ import (
 )
 
 // DutyHarasser shoots a static target from range (hit-and-run): a siege
-// camp from beyond its guns (#920), a crashed ship part (#1061), tribal
-// archers from beyond their bows (#1055).
+// camp from beyond its guns, a crashed ship part, tribal
+// archers from beyond their bows.
 const DutyHarasser CombatDuty = "harasser"
 
 // harassReach is the share of its weapon range a harasser stands off its
@@ -44,7 +44,7 @@ func harassTarget(r *CombatRole, at domain.Cell, reach float64, targets []Combat
 }
 
 // harassRoles turns the siege gunners that outrange the camp into
-// harassers (#920): each moves to the cell on the line from its nearest
+// harassers: each moves to the cell on the line from its nearest
 // besieger toward itself at harassReach of its range and attacks that
 // besieger. The harm makes the lord assault, and the raid_phase stop
 // re-forms onto the killbox. Gunners that do not outrange keep their
@@ -78,7 +78,7 @@ func harassRoles(view CombatView, roles []CombatRole) []CombatRole {
 	return roles
 }
 
-// tribalStandoff is the siege stand-off generalized to tribals (#1055):
+// tribalStandoff is the siege stand-off generalized to tribals:
 // while every live hostile with a known cell is a Tribal_ pawn, each free
 // gunner whose gun reaches loadoutTribalRange and, at harassReach, still
 // clears every tribal's range stands off its nearest tribal and shoots
@@ -120,7 +120,7 @@ func tribalStandoff(view CombatView, m *CombatMemory) {
 	}
 }
 
-// shipPartHitAndRun is hit-and-run on a crashed ship part (#1061): once
+// shipPartHitAndRun is hit-and-run on a crashed ship part: once
 // no mech is left alive, every free gunner stands off the nearest ship
 // part at harassReach of its range and shoots it. The part has no guns,
 // so there is no outrange check; the stand-off keeps the gunner clear of

@@ -80,7 +80,7 @@ func TestConstructionHelpersRespectRestrictions(t *testing.T) {
 		return ConstructionHelpDemand(wallReport(6), helpWorld, 700, []string{"Wall"}, prev)
 	}
 	// A player who switched Construction off does not keep a pawn from
-	// helping: Autopilot owns every priority (#719).
+	// helping: Governor owns every priority.
 	pawns := helpTeam()
 	setObservedWork(pawns[1], WorkConstruction, 0)
 	d := planHelp(t, pawns, help())
@@ -145,7 +145,7 @@ func TestConstructionHelpersWithheldForRiskyOrUnknownWork(t *testing.T) {
 }
 
 // Demand clearing keeps helpers through the hold, then restores the
-// governor's ordinary priority, over any player edit (#719).
+// governor's ordinary priority, over any player edit.
 func TestConstructionHelpersHoldThenRestore(t *testing.T) {
 	pawns := helpTeam()
 	prev := &ConstructionHelpRecord{Tick: 700, Idle: []PawnID{"a", "b"}, Helpers: []PawnID{"a", "b"}, DemandTick: 700}

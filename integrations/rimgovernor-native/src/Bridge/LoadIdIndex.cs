@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// A loadId to object map over one live source (#1339). A hit is trusted only while the entry
+    /// A loadId to object map over one live source. A hit is trusted only while the entry
     /// still carries that id and is live in the source; a miss or a stale hit rebuilds once from
     /// the source, so a lookup never answers from an outdated view and never costs more than the
     /// linear scan it replaces. Main thread only. Verse-free so the contract probes exercise it.

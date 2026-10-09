@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// The replay score gate (#2094, epic #2092): testdata/layout-replay-scores.json
+// The replay score gate: testdata/layout-replay-scores.json
 // records, per replayFixtures entry, the score terms, total, hard-tier verdict
 // and room count. TestReplayScoreFixtures fails when a fixture's total drops by
 // more than replayTolerance of the recorded one or its verdict flips; a plan

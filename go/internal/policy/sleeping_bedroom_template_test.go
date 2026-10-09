@@ -7,7 +7,7 @@ import (
 )
 
 // A bedroom step's template is the bed in the bedroom template's bed slot, for
-// a suite as for a bedroom (#2115); a room without a door has none.
+// a suite as for a bedroom; a room without a door has none.
 func TestBedroomTemplateIsTheBedSlot(t *testing.T) {
 	for _, role := range []PlannedRole{PlannedBedroom, PlannedSuite, PlannedShelter} {
 		room := PlannedRoom{Role: role, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}, Door: domain.Cell{X: 0, Z: -1}}

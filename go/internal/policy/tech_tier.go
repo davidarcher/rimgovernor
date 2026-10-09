@@ -2,8 +2,8 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// TechTier is how far the colony's construction technology has come
-// (#604): the one ordered fact every layout decision reads instead of
+// TechTier is how far the colony's construction technology has come:
+// the one ordered fact every layout decision reads instead of
 // research or the faction tech level directly. It is derived from finished
 // research with the player faction's tech level as a floor, because
 // RimWorld never advances a faction's techLevel with research: a tribe that

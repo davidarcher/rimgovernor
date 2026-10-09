@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The incinerator interior (#1821): bare ground that grows plants (soil) or
+// The incinerator interior: bare ground that grows plants (soil) or
 // burns gets a non-flammable floor; rock floor needs none. Fertility and
 // flammability come from the terrain stats, not def names.
 func TestFlooringIncineratorTier(t *testing.T) {

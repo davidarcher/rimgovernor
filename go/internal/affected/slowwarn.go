@@ -11,7 +11,7 @@ import (
 )
 
 // slowBudget is the duration past which a test that ran under -short should
-// carry the slowtest.Skip marker (#2011). It is a warning only: under load
+// carry the slowtest.Skip marker. It is a warning only: under load
 // durations inflate, so cmd/test never fails on it; the nightly enforces it.
 const slowBudget = time.Second
 

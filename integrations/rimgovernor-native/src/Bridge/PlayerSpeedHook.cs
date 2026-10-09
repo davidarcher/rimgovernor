@@ -7,7 +7,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    /// <summary>The speed the player last chose in the loaded game (#875):
+    /// <summary>The speed the player last chose in the loaded game:
     /// every non-paused CurTimeSpeed assignment except the supervisor's own
     /// (Owned). The owner starts each clock window at it, so the bot plays at
     /// the speed the player picked before the owner paused between windows.

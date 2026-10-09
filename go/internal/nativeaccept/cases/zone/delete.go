@@ -1,22 +1,8 @@
-// The zone/delete case exercises the native zone intents (N01.04, issues
-// #34 and #941) in one run, each one Action on rimgovernor/operations_apply,
-// the same Actions/Apply call Go's plain intent path sends: the one
-// ZoneIntent (#1353) in each shape -- create (NativeStockpilePlacement.cs),
-// settings (NativeStockpilePatch.cs), cells (NativeZoneCellEdit.cs, both
-// directions) and delete (NativeZoneDeletion.cs) -- read back through the native
-// rimgovernor/observations_list_zones tool (NativeZoneObservationTools.cs).
-//
-// A real stockpile zone is created over a disposable fixture's roofed,
-// walled, empty 2x2 interior with the allow-list body the Go covered-storage
-// planners send (Nothing preset plus an explicit thing_def allow list) and a
-// hit-point/quality range; its filter is read back through ListZones (not
-// just inferred from the applied evidence). The priority and ranges are then
-// changed through the settings shape, with an unresolvable selector refused.
-// One corner cell is removed (leaving a contiguous 3-cell L-shape, and
-// returning that cell to genuinely free ground), that same cell is added
-// back (restoring the original 2x2), and the exact zone is then deleted.
-// Native validates each intent against live state at apply. A stockpile
-// placement resends its immutable key to recover every original created ID.
+// The zone/delete case applies native create, settings, cell-edit and delete intents to a
+// fixture stockpile. Native ListZones reads verify filters, priority, quality and hit-point
+// ranges; an unresolvable selector must be refused. Removing and restoring one corner
+// verifies zone cells and free ground before deletion. Each intent is revalidated at apply,
+// and placement retries reuse the immutable key to recover all original created IDs.
 package zone
 
 import (
@@ -305,7 +291,7 @@ func run(ctx context.Context, s cases.Session) error {
 
 	// --- presets ---
 	//
-	// indoor_only and outdoor_safe partition the nonperishables (#1768): each
+	// indoor_only and outdoor_safe partition the nonperishables: each
 	// preset is patched on and its allowed defs read back from the live game.
 	presetDefs := func(preset string) (map[string]bool, error) {
 		label := "preset-" + preset
@@ -399,7 +385,7 @@ func run(ctx context.Context, s cases.Session) error {
 
 	// The add runs under a playing clock window so the native probe sees
 	// the zone change and journals an observation_invalidated narrowed to
-	// this zone and its rectangle (#359); the window is paused again before
+	// this zone and its rectangle; the window is paused again before
 	// the readbacks below.
 	var addEffect map[string]any
 	if _, err := editUnderEpoch(ctx, h, identity, report, zoneID, cells, func() error {

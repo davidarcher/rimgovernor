@@ -157,7 +157,7 @@ func drillRow(depleted, designated bool) *o.DeepDrillState {
 
 // Only a drill whose seam the native census reads as depleted is removed, and
 // only through a Hands-dispatched drill Deconstruction; every other drill
-// (still yielding, already designated) holds placement exactly as before (#538).
+// (still yielding, already designated) holds placement exactly as before.
 func TestDeepDrillRemovesOnlyExhaustedDrills(t *testing.T) {
 	for _, tc := range []struct {
 		name                 string

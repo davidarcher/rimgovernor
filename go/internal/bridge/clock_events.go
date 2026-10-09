@@ -205,7 +205,7 @@ func clockEvent(event *k.Event) error {
 const ClockInvalidationEntitiesMax = 64
 
 // clockInvalidationScope accepts the optional narrowing of an
-// ObservationInvalidated (#359): distinct entity ids and one
+// ObservationInvalidated: distinct entity ids and one
 // rectangle of inclusive cell bounds. An old native omits both.
 func clockInvalidationScope(o *k.ObservationInvalidated) error {
 	seen := map[string]bool{}
@@ -390,8 +390,8 @@ func clockStopEvent(v *k.StopEvent) error {
 		}
 		return clockOperationOutcome(e.Watch.Outcome)
 	case *k.StopEvent_Combat:
-		// An armed combat event (#849): the event is required, the thing
-		// and reason are descriptive (#886).
+		// An armed combat event: the event is required, the thing
+		// and reason are descriptive.
 		if e.Combat == nil || e.Combat.GetEvent() == k.CombatEvent_COMBAT_EVENT_UNSPECIFIED {
 			return contract("clock combat stop evidence")
 		}

@@ -10,10 +10,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/variantgen"
 )
 
-// The tribal8 baseline's spec is na.BaselineStart (#2027). Any harness that
+// The tribal8 baseline's spec is na.BaselineStart. Any harness that
 // loads sustained.BaselineSave generates it into profile/Saves on first use
 // (Config.EnsureSave); this case regenerates it on demand, under the run's
-// default profile (every installed DLC since #1260), and stamps the result as
+// default profile (every installed DLC), and stamps the result as
 // current.
 func init() {
 	cases.Register(cases.Case{

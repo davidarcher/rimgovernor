@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Flanking (#1062): a hold with at least flankMinDefenders defenders and a
+// Flanking: a hold with at least flankMinDefenders defenders and a
 // layout choke detaches flankSize gunners to cells beside the approach,
 // just inside the choke, square to the main line (the L). They hold fire
 // while the raid walks in, and open fire once the lead hostile has passed
@@ -23,7 +23,7 @@ const (
 	flankDepth   = 1
 )
 
-// CombatFlank is the hold's flanking detachment (#1062). An empty Pawns
+// CombatFlank is the hold's flanking detachment. An empty Pawns
 // means the game proposed no cells: the fight does not ask again until
 // it re-forms.
 type CombatFlank struct {
@@ -106,7 +106,7 @@ func flankAsk(view CombatView, m CombatMemory) *GeometryRequest {
 
 // firingCellsAsk is a firing_cells ask for cells near from with a line to
 // target, naming the shooters and the top hostiles too, so the stop's
-// attacks still get their lines (#1062, #1064).
+// attacks still get their lines.
 func firingCellsAsk(view CombatView, from, target domain.Cell) *GeometryRequest {
 	ask := &GeometryRequest{Propose: RoleFiringCells, From: from, Targets: []domain.Cell{target}, Cells: shooterCells(view)}
 	if len(ask.Cells) > maxGeometryCells/2 {
@@ -225,5 +225,5 @@ func flankHoldFire(view CombatView, orderable map[domain.PawnID]bool, m *CombatM
 	return out
 }
 
-// ReasonFlank is a flanker's hold-fire while it waits (#1062).
+// ReasonFlank is a flanker's hold-fire while it waits.
 const ReasonFlank CombatOrderReason = "flank"

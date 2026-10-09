@@ -9,7 +9,7 @@ import (
 )
 
 // setFloors makes the fake colony spend enough of each resource that its
-// runway target is at least floor (#2466). A resource whose stock covers fewer
+// runway target is at least floor. A resource whose stock covers fewer
 // than ProjectionHorizonDays of the daily spend is short and its target is the
 // spend over the horizon, so a floor of N is a daily spend of N over the
 // horizon.

@@ -40,7 +40,7 @@ func craftingSpotSearch(t *testing.T, shelterPlanned bool) (chosen, slot domain.
 	if shelterPlanned {
 		facts.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: policy.PlannedShelter, Interior: interior, Door: door, DoorRot: domain.North}}})
 	}
-	// No wall stands: the planned interior alone holds the slot (#2264).
+	// No wall stands: the planned interior alone holds the slot.
 	facts.Shapes = testPieceShapes
 	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes})
 	interiorRoom, ok := policy.InteriorRoomFromLayout(policy.PlannedRoom{Role: policy.PlannedShelter, Interior: interior, Door: door, DoorRot: domain.North}, testPieceShapes)
@@ -73,7 +73,7 @@ func craftingSpotSearch(t *testing.T, shelterPlanned bool) (chosen, slot domain.
 }
 
 // With a shelter standing the crafting spot lands on the template's crafting
-// slot (#2074); without one the placement is the scored search's.
+// slot; without one the placement is the scored search's.
 func TestCraftingSpotTakesTheShelterTemplateSlot(t *testing.T) {
 	t.Parallel()
 	got, slot := craftingSpotSearch(t, true)

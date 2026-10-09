@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using RimGovernor.Host.Sdk;
 
-// The mod's diagnostic log (#2058): a bounded ring that holds entries until a
+// The mod's diagnostic log: a bounded ring that holds entries until a
 // subscriber exists, replays them in order as late, counts what it dropped,
 // rate limits per call site, refuses reentrant writes and never makes a
 // caller wait on the publisher. The last block drives the real GabpServer and

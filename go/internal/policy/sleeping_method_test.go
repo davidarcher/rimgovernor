@@ -111,7 +111,7 @@ func TestSelectSleepingMethodBuildsInRoomWithinComfortBand(t *testing.T) {
 	}
 }
 
-// The bed ladder (#1181): Bed, then a bedroll with its stuff on hand, then a
+// The bed ladder: Bed, then a bedroll with its stuff on hand, then a
 // sleeping spot; a couple's double of each rung first.
 func TestSelectSleepingMethodBedLadder(t *testing.T) {
 	targets := domain.Known([]SleepingTarget{{Pawn: "p1", Kind: SleepingUpgrade}})

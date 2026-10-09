@@ -5,7 +5,7 @@ import (
 )
 
 // validateColonyAcquisition binds the acquisition census: a hunt row is a
-// hunt of one unit of something edible, or of a recognised pest (#247),
+// hunt of one unit of something edible, or of a recognised pest,
 // which is inedible with no nutrition.
 func validateColonyAcquisition(v *o.ColonyFactsSnapshot) error {
 	if v.GetPendingHunts() > 65536 {
@@ -30,7 +30,7 @@ func validateColonyAcquisition(v *o.ColonyFactsSnapshot) error {
 			return contract("hunt row without the hunt census or its fogged and mental-state facts")
 		}
 		// A designated row carries the tick native first saw it; an
-		// undesignated row none (#1043). taken is always reported.
+		// undesignated row none. taken is always reported.
 		if row.Taken == nil || row.GetDesignated() != (row.DesignatedTick != nil) || row.DesignatedTick != nil && (row.GetDesignatedTick() < 0 || row.GetDesignatedTick() > v.Context.GetTick()) {
 			return contract("invalid acquisition designation age or taken")
 		}

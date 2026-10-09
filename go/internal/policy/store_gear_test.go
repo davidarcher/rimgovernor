@@ -146,7 +146,7 @@ func TestStoresArmoryKeepsAwayFromPrisons(t *testing.T) {
 }
 
 // An armory whose every free cell is within the weapon clearance of a prison
-// is a named failure of the plan, not a silent absence of the zone (#1805).
+// is a named failure of the plan, not a silent absence of the zone.
 func TestStoresNamesAnArmoryNearAPrison(t *testing.T) {
 	t.Parallel()
 	prison := PlannedRoom{Role: PlannedPrison, Interior: Rectangle{X: 58, Z: 40, Width: 3, Height: 3}}

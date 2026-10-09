@@ -5,7 +5,7 @@ using Google.Protobuf;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// The per-row compare of a keyed family (#1348): an 8-byte hash of each
+    /// The per-row compare of a keyed family: an 8-byte hash of each
     /// row's encoding, nested context ticks cleared, kept per row id. Step
     /// names the rows whose hash differs from the previous step (or that are
     /// new) and the ids that left the family. Shared by the keyed snapshot

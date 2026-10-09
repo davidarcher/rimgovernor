@@ -18,7 +18,7 @@ var nativeToolGaps = map[string]string{}
 
 // TestEveryBridgeToolExistsNatively guards the bridge's call sites against
 // the native tool table: a read the mod refuses fails every clock step of
-// the routine families that depend on it (#77).
+// the routine families that depend on it.
 func TestEveryBridgeToolExistsNatively(t *testing.T) {
 	root := filepath.Join("..", "..", "..")
 	native := filepath.Join(root, "integrations", "rimgovernor-native", "src")

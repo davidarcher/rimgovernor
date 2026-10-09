@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The throne room's floor (#1863): a room carrying RequiredTags is measured
+// The throne room's floor: a room carrying RequiredTags is measured
 // against the terrain tags, so natural ground and a coarse floor are both
 // deficient, and the floor chosen is any known available terrain carrying one
 // of the tags (here "FineFloor"), whatever its name.

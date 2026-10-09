@@ -6,9 +6,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Tree plantations (#2289): a standing wood demand sows a rectangular growing
+// Tree plantations: a standing wood demand sows a rectangular growing
 // zone of one tree species, one tree per domain.TreeCellsPerTree cells (the
-// native lattice, #2290). Trees are always felled early, at the first
+// native lattice). Trees are always felled early, at the first
 // harvestable growth (the species' harvestMinGrowth), when a tree yields
 // harvestYield * 0.5 wood (Plant.YieldNow at growth == harvestMinGrowth).
 // Species rank by wood per cell-day of land at lattice density.

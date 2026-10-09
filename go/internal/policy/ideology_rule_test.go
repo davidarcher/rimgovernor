@@ -32,7 +32,7 @@ func unwilling(event string, chance *float64, traits ...string) PreceptEffect {
 	return e
 }
 
-// TestActionStanceFamilies (#1655): one precept set answers each action
+// TestActionStanceFamilies: one precept set answers each action
 // family from its typed effects; events are fixture data, not a policy list.
 func TestActionStanceFamilies(t *testing.T) {
 	half := 0.5

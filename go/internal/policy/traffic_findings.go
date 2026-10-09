@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Traffic findings (#817) check the layout rules against where pawns really
+// Traffic findings check the layout rules against where pawns really
 // walk. They have no action of their own yet: the flight recorder carries them
 // so a flagged room is visible before a planner acts on it.
 

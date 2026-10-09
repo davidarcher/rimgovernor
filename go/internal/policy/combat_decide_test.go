@@ -75,8 +75,8 @@ func TestDecideCombatFormationHoldsTheLine(t *testing.T) {
 	}
 }
 
-// Formation asks the game for covered cells behind the layout's line
-// (#871); a defender the line has no room for takes the best proposal.
+// Formation asks the game for covered cells behind the layout's line;
+// a defender the line has no room for takes the best proposal.
 func TestDecideCombatFormationTakesProposedCover(t *testing.T) {
 	view := holdView()
 	layout, _ := view.Layout.Value()
@@ -87,7 +87,7 @@ func TestDecideCombatFormationTakesProposedCover(t *testing.T) {
 		t.Fatalf("%+v", ask)
 	}
 	orders, _, memory := DecideCombat(view, GeometryReply{Answered: true, Proposals: []domain.Cell{{X: 9, Z: 23}, {X: 11, Z: 24}}}, StopEvent{}, CombatMemory{})
-	// Spaced first (#861): the proposal a tile from (9,23) comes before (8,23).
+	// Spaced first: the proposal a tile from (9,23) comes before (8,23).
 	if memory.Tactic != TacticHold || len(orders) != 3 || orders[1].Cell != (domain.Cell{X: 11, Z: 24}) {
 		t.Fatalf("%+v %+v", orders, memory)
 	}
@@ -167,11 +167,11 @@ func TestDecideCombatWarmupGuard(t *testing.T) {
 }
 
 // With no defense layout there is no geometry to ask: Formation forms squad
-// defense in the first call (#853: lab-open never formed).
+// defense in the first call (lab-open never formed).
 func TestDecideCombatFormsSquadWithoutALayout(t *testing.T) {
 	view := holdView()
 	view.Layout = domain.Fact[CombatLayout]{}
-	// The only ask is the attacks' lines of fire (#861), not Formation's.
+	// The only ask is the attacks' lines of fire, not Formation's.
 	if _, ask, _ := DecideCombat(view, GeometryReply{}, StopEvent{}, CombatMemory{}); ask != nil && ask.Propose != "" {
 		t.Fatalf("formation asked %+v without a layout", ask)
 	}

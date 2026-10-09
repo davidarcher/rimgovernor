@@ -132,7 +132,7 @@ func TestMain(m *testing.M) {
 }
 
 // answerTick serves the game side of the tick read in the binary reply form
-// the bridge asks for (#757).
+// the bridge asks for.
 func answerTick(r *gabptest.Request) {
 	var call struct {
 		Name string `json:"name"`

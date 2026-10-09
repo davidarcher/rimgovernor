@@ -16,7 +16,7 @@ type LootItem struct {
 	// def mirror); such a stack is never released (FilterLootRelease).
 	SpawnForbidden bool
 	// Count, PathLength and StorageHeadroom feed remote loot's reach and
-	// demand filter (#522); unknown cost or storage holds a remote stack.
+	// demand filter; unknown cost or storage holds a remote stack.
 	Count           int64
 	PathLength      domain.Fact[float64]
 	StorageHeadroom domain.Fact[int64]
@@ -25,7 +25,7 @@ type LootItem struct {
 // EventLootHistory is the latest complete safety census's work, not a
 // first-seen cohort. The controller owns both forbidding and allowing items.
 // Held lists the safe forbidden stacks the reach stage or demand kept
-// forbidden, with reasons (#522).
+// forbidden, with reasons.
 type EventLootHistory struct {
 	Pending []StartingSupply
 	Held    []LootHold `json:",omitempty"`
@@ -77,7 +77,7 @@ func ReviewEventLoot(observed domain.Fact[[]LootItem], previous EventLootHistory
 }
 
 // supplySafetyPriority is a Standard's: UnsafeLootSafeguard refuses allowing
-// unsafe loot at dispatch, so unsafe loot raises no emergency (#1018).
+// unsafe loot at dispatch, so unsafe loot raises no emergency.
 func supplySafetyPriority(f RoundsFacts) int {
 	if _, known := f.EventLoot.Value(); known {
 		return 2

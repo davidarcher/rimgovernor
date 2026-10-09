@@ -1,6 +1,6 @@
 package layout
 
-// layout/rich-soil (#1291, epic #1279): a fresh colony on the baseline
+// layout/rich-soil: a fresh colony on the baseline
 // world, whose map holds rich soil beside the centre, derives its own
 // layout plan. The audit reads the plan from the journal, the map survey
 // and the growing zones natively: no planned room or hallway on rich
@@ -26,7 +26,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// replanWithin is the hourly layout trigger's bound (#1290).
+// replanWithin is the hourly layout trigger's bound.
 const replanWithin = 2500
 
 func init() {

@@ -1,4 +1,4 @@
-// The mapscope/isolation case is the native-acceptance run for #35 M2: typed reads
+// The mapscope/isolation case is a native acceptance case for typed reads
 // and operations are scoped to the map their identity names, not to whichever
 // map the player is viewing. A fixture-generated second player map makes the
 // distinction observable. Requires a build with -Fixture MapScopeFixture for

@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The frame's colonist armor (#881) fills SquadDefenderFacts.Armor; a
+// The frame's colonist armor fills SquadDefenderFacts.Armor; a
 // row without it leaves the fact unknown.
 func TestCombatViewFillsDefenderArmorFromFrame(t *testing.T) {
 	var combat bridge.Combat

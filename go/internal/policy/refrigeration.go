@@ -178,7 +178,7 @@ type RefrigerationObservation struct {
 	// while it is true, so no cooler method is proposed. Unknown when the
 	// environment census was not read; the method then proceeds as before.
 	Blackout domain.Fact[bool]
-	// Planned are the layout plan's cooler sites (#791); a room whose back
+	// Planned are the layout plan's cooler sites; a room whose back
 	// wall holds one takes it over any other vented wall once its hot side
 	// is open (the outer face, or a dug exhaust shaft).
 	Planned []PlannedCoolerSite
@@ -436,8 +436,8 @@ func plannedWall(room Room, planned []PlannedCoolerSite, cells map[domain.Cell]S
 		} else if walkable, known := w.Walkable.Value(); !known || walkable {
 			continue
 		} else if w.NaturalRock() {
-			// No cooler stands on rock (#836); the exhaust dig mines the
-			// cell and places this planned cooler in one plan (#874).
+			// No cooler stands on rock; the exhaust dig mines the
+			// cell and places this planned cooler in one plan.
 			continue
 		}
 		if o, ok := cells[cooler.Hot()]; !ok {

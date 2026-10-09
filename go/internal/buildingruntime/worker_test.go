@@ -148,7 +148,7 @@ func TestWorkerDisabledFairScanAndPausedBackoff(t *testing.T) {
 
 // A selected action that leaves the candidate set (here: observed complete
 // after its run) must not send the rotation back to the catalog's head;
-// the next step continues past its position (#322).
+// the next step continues past its position.
 func TestWorkerRotationResumesPastADepartedCursor(t *testing.T) {
 	t.Parallel()
 	w, f, db := workerFixture(t)
@@ -222,7 +222,7 @@ func TestWorkerActualPermissionAndWrongWorld(t *testing.T) {
 // A step-budget cancel between durable preparation and dispatch leaves an
 // Attempt-0 Prepared action with no receipt. Once the native generation moves
 // it must stay eligible so the next run re-prepares it under the current
-// authority instead of stranding the plan (#101).
+// authority instead of stranding the plan.
 func TestWorkerStalePreparedIsReDriven(t *testing.T) {
 	t.Parallel()
 	w, _, db := workerFixture(t)
@@ -258,7 +258,7 @@ func TestWorkerStalePreparedIsReDriven(t *testing.T) {
 func TestWorkerRefusedIntentIsTerminalAndUnknownWaitsForNewDirection(t *testing.T) {
 	t.Parallel()
 	w, _, db := workerFixture(t)
-	// A refused intent is settled Unsuccessful (#856): no direction retries it.
+	// A refused intent is settled Unsuccessful: no direction retries it.
 	v := workerPending(t, w, "refusal", true)
 	progress, err := db.RecordReceipt(context.Background(), v.Plan, v.Action, v.Attempt, domain.ReceiptRefused)
 	if err != nil {
@@ -455,7 +455,7 @@ func TestWorkerRealSessionResendsAFailedApplyCall(t *testing.T) {
 	fixture.PlaceErr = &bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}
 	// A failed Actions/Apply call leaves the receipt unknown, so the intent
 	// goes back to Pending; the same activation does not resend it, a new
-	// explicit direction does (#856).
+	// explicit direction does.
 	if err = w.step(ctx, time.Now()); err == nil {
 		t.Fatal("a failed apply call reported no error")
 	}
@@ -662,7 +662,7 @@ func TestWorkerBackoffIgnoresTickAndStretchesForUnknownEffects(t *testing.T) {
 // A dispatch runs under a span of its own beneath the worker step's span,
 // which nests under the scheduler's latest step (WorkerConfig.Trace), so
 // the rows it leaves join that step's trace; without a scheduler trace the
-// step is a root of its own (#298).
+// step is a root of its own.
 func TestWorkerDispatchNestsUnderTheSchedulerTrace(t *testing.T) {
 	t.Parallel()
 	w, f, db := workerFixture(t)
@@ -694,7 +694,7 @@ func TestWorkerDispatchNestsUnderTheSchedulerTrace(t *testing.T) {
 // The rotation is by plan: a long plan sorted first takes one step per
 // round, so a short plan behind it (the work assignments behind a
 // forty-action shell) has its turn every round rather than after the long
-// plan's last action (#322).
+// plan's last action.
 func TestWorkerRotationAlternatesPlans(t *testing.T) {
 	t.Parallel()
 	w, f, db := workerFixture(t)
@@ -747,7 +747,7 @@ func TestWorkerRotationAlternatesPlans(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// A plan's building actions go out as one batch, one dispatch (#1042):
+	// A plan's building actions go out as one batch, one dispatch:
 	// the long plan's batch takes the first step and the short plan the next.
 	want := []domain.ActionID{"0-long-0", "0-long-1", "0-long-2", short.Action}
 	if fmt.Sprint(order) != fmt.Sprint(want) || f.batches.Load() != 2 {
@@ -757,7 +757,7 @@ func TestWorkerRotationAlternatesPlans(t *testing.T) {
 
 // Every eligible plan's batch dispatches in the step that finds it, in
 // catalog order, up to the dispatch budget; one per step cost a scheduler round per
-// wall segment (#593). Actions on their backoff are skipped, and the budget
+// wall segment. Actions on their backoff are skipped, and the budget
 // leaves the rest for the next step past the rotation cursor.
 func TestWorkerDispatchesEveryEligibleActionPerStep(t *testing.T) {
 	t.Parallel()
@@ -861,7 +861,7 @@ func workerBatchRecorder(f *workerFake, db *store.Store) *[][]domain.ActionID {
 	return &calls
 }
 
-// A 32-wall shell plan goes out in one step as one batched Apply (#1042).
+// A 32-wall shell plan goes out in one step as one batched Apply.
 func TestWorkerShellPlanIsOneBatch(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -882,7 +882,7 @@ func TestWorkerShellPlanIsOneBatch(t *testing.T) {
 }
 
 // Two plans give two batches per step, and the rotation cursor still moves
-// by plan when the budget admits only one (#1042).
+// by plan when the budget admits only one.
 func TestWorkerTwoPlansTwoBatchesRotate(t *testing.T) {
 	t.Parallel()
 	w, f, db := workerFixture(t)

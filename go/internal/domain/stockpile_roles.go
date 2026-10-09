@@ -1,9 +1,9 @@
 package domain
 
-// Stockpile role keys (#724). A planner claims the zones it creates by role;
+// Stockpile role keys. A planner claims the zones it creates by role;
 // parameterized roles append ":<key>".
 const (
-	// GeneralRole is the warehouse: the roofed general store (#1770).
+	// GeneralRole is the warehouse: the roofed general store.
 	GeneralRole           = "general"
 	IngredientsPrefix     = "ingredients:"
 	MealsRolePrefix       = "meals:"
@@ -14,13 +14,13 @@ const (
 	PerishablesRolePrefix = "perishables:"
 	TombRolePrefix        = "tomb:"
 	MorgueRolePrefix      = "morgue:"
-	YardRole              = "yard" // the materials yard (#1771): unroofed, Low priority
+	YardRole              = "yard" // the materials yard: unroofed, Low priority
 	MedicineRolePrefix    = "medicine:"
-	ArmoryRolePrefix      = "armory:"   // the armory (#1774): weapons and armor, filling its room
-	WardrobeRolePrefix    = "wardrobe:" // the wardrobe (#1774): clothing, filling its room
+	ArmoryRolePrefix      = "armory:"   // the armory: weapons and armor, filling its room
+	WardrobeRolePrefix    = "wardrobe:" // the wardrobe: clothing, filling its room
 	// DumpRole is the waste yard's one dump zone, a Sanitation store.
 	DumpRole = "wastedump"
-	// IncineratorRole is the walled incinerator's zone (#1814), a Sanitation store.
+	// IncineratorRole is the walled incinerator's zone, a Sanitation store.
 	IncineratorRole = "incinerator"
 )
 
@@ -75,7 +75,7 @@ func hasSelector(rows []FilterSelector, s FilterSelector) bool {
 
 // ArmoryFilter is usable weapons and armor: no biocoded weapons or apparel,
 // no tainted (dead man's) apparel, nothing burnable (the sell and burn
-// boundary, #2176), hit points and quality above the gear
+// boundary), hit points and quality above the gear
 // floors. armor names the apparel defs that count as armor (the catalog's
 // ItemFacts.Armor); every other apparel def is the wardrobe's.
 func ArmoryFilter(armor []string) (StockpileFilter, error) {

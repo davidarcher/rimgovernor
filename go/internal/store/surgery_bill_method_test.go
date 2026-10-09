@@ -8,8 +8,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// MaintainSurgery's part bills (#1168) are ProductionBillIntents committed
-// as a method of the goal, so the bill admission must bind that goal (#1755).
+// MaintainSurgery's part bills are ProductionBillIntents committed
+// as a method of the goal, so the bill admission must bind that goal.
 func TestCommitSurgeryPartBillMethod(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

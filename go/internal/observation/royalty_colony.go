@@ -7,7 +7,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// colonyRoyalty projects a validated Royalty section (#1877); an absent or
+// colonyRoyalty projects a validated Royalty section; an absent or
 // unavailable one is an unknown fact.
 func colonyRoyalty(section *o.RoyaltySection) (domain.Fact[policy.RoyaltyColony], error) {
 	f := section.GetObserved()
@@ -34,8 +34,8 @@ func (p ColonyProjection) WithRoyaltyColony(f policy.RoyaltyFacts) domain.Fact[p
 }
 
 // RoyaltyOf is the royalty fact: the colonists' own holdings and psycasts
-// from their pawn rows (#1876), the ladder and permits from the def mirror
-// (#1875) and the colony section's neuroformers, ceremonies and thrones. The
+// from their pawn rows, the ladder and permits from the def mirror
+// and the colony section's neuroformers, ceremonies and thrones. The
 // colony section's presence is the Royalty-applicable gate, as for the other
 // DLC sections: without it the fact is unknown and nothing is read. A pawn
 // row or def the read cannot use is an error and the fact stays unknown.

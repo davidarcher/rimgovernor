@@ -689,7 +689,7 @@ namespace RimGovernor.Protocol.Operations {
   }
   #region Enums
   /// <summary>
-  /// Batched combat micro (#850), the Actions/Apply combat_orders arm (#939):
+  /// Batched combat micro, the Actions/Apply combat_orders arm:
   /// every order applies in request order within one apply, so on one game
   /// tick. Each pawn's snapshot token, when sent, is checked once, before any
   /// order runs; a pawn may carry several orders (fire mode then move). A pawn
@@ -704,7 +704,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// FORBID and ALLOW (#867) set the door's forbidden flag, which every player
+  /// FORBID and ALLOW set the door's forbidden flag, which every player
   /// pawn's path respects, drafted or not (ForbidUtility.IsForbiddenToPass).
   /// </summary>
   public enum CombatDoorMode {
@@ -728,11 +728,11 @@ namespace RimGovernor.Protocol.Operations {
     [pbr::OriginalName("THING_DESIGNATION_CUT_PLANT")] CutPlant = 6,
     /// <summary>
     /// Strip on one exact spawned pawn or corpse wearing or carrying
-    /// strippable gear (#1117); colonists strip it through Hauling work.
+    /// strippable gear; colonists strip it through Hauling work.
     /// </summary>
     [pbr::OriginalName("THING_DESIGNATION_STRIP")] Strip = 7,
     /// <summary>
-    /// Removal designations (#1350), on DesignateIntent target or cell.
+    /// Removal designations, on DesignateIntent target or cell.
     /// </summary>
     [pbr::OriginalName("THING_DESIGNATION_MINE")] Mine = 8,
     [pbr::OriginalName("THING_DESIGNATION_HAUL")] Haul = 9,
@@ -835,8 +835,8 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Create, edit or delete one bot-owned allowed area, or edit the home area
-  /// (#1321). A bot area is the Area_Allowed labelled with its key;
+  /// Create, edit or delete one bot-owned allowed area, or edit the home area.
+  /// A bot area is the Area_Allowed labelled with its key;
   /// native never touches an area the player made. home and key are exclusive;
   /// home takes set_cells and clear_cells only. create refuses when the map
   /// cannot make another allowed area, applies again on an existing bot area,
@@ -854,7 +854,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Delete policies no pawn should keep (#1298): each delete_ids entry is a
+  /// Delete policies no pawn should keep: each delete_ids entry is a
   /// Policy.GetUniqueLoadID() in the named outfit, drug, food or reading
   /// database, or an Area_Allowed load id. Every live pawn still holding the
   /// policy first moves onto its own per-pawn policy (the one labelled with its
@@ -872,7 +872,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// The tick-level safety a guarded designation keeps (#1350). Native checks
+  /// The tick-level safety a guarded designation keeps. Native checks
   /// the guard at admission and re-checks it before the job's work lands until
   /// the job finishes: a failed check cancels the job and drops the designation.
   /// </summary>
@@ -892,7 +892,7 @@ namespace RimGovernor.Protocol.Operations {
     /// </summary>
     [pbr::OriginalName("DESIGNATION_GUARD_MINE_SAFETY")] MineSafety = 2,
     /// <summary>
-    /// Stone-shell wall upgrade (DECONSTRUCT on cell, #989): native resolves
+    /// Stone-shell wall upgrade (DECONSTRUCT on cell): native resolves
     /// the wall-upgrade site from the colonist wall at cell (the original a
     /// replacement rebuilds, or a backup that held the shell open; several
     /// admissible sites refuse) and holds the demolition to the site's
@@ -903,7 +903,7 @@ namespace RimGovernor.Protocol.Operations {
     /// </summary>
     [pbr::OriginalName("DESIGNATION_GUARD_WALL_UPGRADE")] WallUpgrade = 3,
     /// <summary>
-    /// Resource acquisition (#1046): HUNT, HARVEST_PLANT or MINE on one census
+    /// Resource acquisition: HUNT, HARVEST_PLANT or MINE on one census
     /// source (target, cell, expected_def the resource it yields), the
     /// designation the source takes. Native checks the source's census rules
     /// live (a hunt follows the animal wherever it is, cell the hint); a
@@ -914,7 +914,7 @@ namespace RimGovernor.Protocol.Operations {
     /// </summary>
     [pbr::OriginalName("DESIGNATION_GUARD_ACQUISITION")] Acquisition = 4,
     /// <summary>
-    /// Wastepack hauling (#1683): HAUL on one exact wastepack (a thing with the
+    /// Wastepack hauling: HAUL on one exact wastepack (a thing with the
     /// game's CompDissolution) that is neither frozen nor inside an atomizer, so
     /// a hauler carries it to storage that stops its deterioration. The guard
     /// is accepted on HAUL only; a forbidden pack is refused (allow it first).
@@ -2799,7 +2799,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Rescue (#867): the pawn carries the downed colonist to a bed by the
+  /// Rescue: the pawn carries the downed colonist to a bed by the
   /// vanilla rescue job, under the pawn-target rescue order's eligibility
   /// (HealthAIUtility.CanRescueNow, a non-hostile patient) and bed search.
   /// dest, when set, is the bed's cell; absent, the vanilla bed search picks.
@@ -3059,7 +3059,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Repair (#900): the drafted pawn repairs the damaged player building on
+  /// Repair: the drafted pawn repairs the damaged player building on
   /// cell (a door the fight uses) by the vanilla Repair job, staying drafted.
   /// Refusals: cannot_repair (no damaged player building there, or the pawn
   /// cannot construct), unreachable.
@@ -3272,16 +3272,16 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// MortarFire (#1202) names no pawn: the unroofed player mortar on mortar
+  /// MortarFire names no pawn: the unroofed player mortar on mortar
   /// force-targets target, as the vanilla attack gizmo (OrderAttack); a
   /// man_mortar order crews it. Refusals: not_a_mortar, cannot_hit (inside
-  /// the minimum or past the maximum range). shell (#1051), when set, is the
+  /// the minimum or past the maximum range). shell, when set, is the
   /// shell ThingDef to fire: a different loaded shell is unloaded beside the
   /// mortar, the mortar's shell filter allows only shell, and a pawn manning
   /// it retakes ManTurret to load it. Refusals: unknown_shell (not a shell
   /// this mortar accepts), no_shell (no unforbidden stack of it, in the
   /// manning pawn's reach when one mans it).
-  /// No target (#1235) clears the mortar's forced target, as the vanilla
+  /// No target clears the mortar's forced target, as the vanilla
   /// stop-forced-attack gizmo; it names no shell. Refusal: not_a_mortar.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
@@ -3589,7 +3589,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Animal orders (#1057) name a player-faction animal, not a drafted pawn:
+  /// Animal orders name a player-faction animal, not a drafted pawn:
   /// no draft claim is needed, and the animal carries no snapshot token.
   /// Refusals: not_ours (not a spawned player animal), untrained (release
   /// without the Release training).
@@ -4272,11 +4272,11 @@ namespace RimGovernor.Protocol.Operations {
     /// <summary>Field number for the "attack" field.</summary>
     public const int AttackFieldNumber = 3;
     /// <summary>
-    /// A spawned pawn or a hostile building thing (#930): any spawned
+    /// A spawned pawn or a hostile building thing: any spawned
     /// hostile-faction building or frame with hit points (a crashed ship
     /// part, its cluster buildings, a siege mortar or its frame). Native
     /// picks melee or ranged as the vanilla float menu does for the pawn's
-    /// weapon (#939); there is no other attack order.
+    /// weapon; there is no other attack order.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -4392,8 +4392,8 @@ namespace RimGovernor.Protocol.Operations {
     /// <summary>Field number for the "draft" field.</summary>
     public const int DraftFieldNumber = 11;
     /// <summary>
-    /// Draft (#910): draft an eligible pawn; one already drafted applies
-    /// again. The controller undrafts pawns no live plan needs (#939).
+    /// Draft: draft an eligible pawn; one already drafted applies
+    /// again. The controller undrafts pawns no live plan needs.
     /// Refusal: cannot_draft (not eligible).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4409,7 +4409,7 @@ namespace RimGovernor.Protocol.Operations {
     /// <summary>Field number for the "man_mortar" field.</summary>
     public const int ManMortarFieldNumber = 15;
     /// <summary>
-    /// ManMortar (#1202): the drafted pawn mans the unroofed player mortar
+    /// ManMortar: the drafted pawn mans the unroofed player mortar
     /// on the cell (vanilla ManTurret, which loads shells from stock); one
     /// already manning it applies. Refusals: not_a_mortar, unreachable.
     /// </summary>
@@ -4438,7 +4438,7 @@ namespace RimGovernor.Protocol.Operations {
     /// <summary>Field number for the "release" field.</summary>
     public const int ReleaseFieldNumber = 13;
     /// <summary>
-    /// Release (#1057): a release-trained player animal attacks one spawned
+    /// Release: a release-trained player animal attacks one spawned
     /// pawn by the vanilla melee attack job, as a released animal does.
     /// Refusals: not_ours, untrained, not_found, cannot_hit, unreachable.
     /// </summary>
@@ -4467,7 +4467,7 @@ namespace RimGovernor.Protocol.Operations {
     /// <summary>Field number for the "combat_drug" field.</summary>
     public const int CombatDrugFieldNumber = 17;
     /// <summary>
-    /// CombatDrug (#1311): the drafted pawn ingests the carried drug of this
+    /// CombatDrug: the drafted pawn ingests the carried drug of this
     /// def name (Go chooses it; native validates) by the vanilla Ingest job.
     /// Refusals: not_a_drug (the def is not a drug), no_drug (none carried),
     /// child, already_high, drug_risk (addicted to, in withdrawal from or
@@ -7542,7 +7542,7 @@ namespace RimGovernor.Protocol.Operations {
 
     private global::RimGovernor.Protocol.Common.CorpseClass corpseClass_;
     /// <summary>
-    /// Corpse bill ingredient filter (#833): whose corpses a corpse recipe
+    /// Corpse bill ingredient filter: whose corpses a corpse recipe
     /// (ButcherCorpseFlesh) takes. Required on corpse recipes,
     /// refused on others; a butcher bill with a pinned worker is humanlike.
     /// </summary>
@@ -9082,7 +9082,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// The one zone write (#1353). Its shape selects the edit; each applies again
+  /// The one zone write. Its shape selects the edit; each applies again
   /// once the map already holds it:
   /// - create: kind set, zone empty; stockpiles take an add_cells rectangle drag
   ///   and create every free vanilla-zoneable cardinal component. Growing and
@@ -9748,7 +9748,7 @@ namespace RimGovernor.Protocol.Operations {
 
   /// <summary>
   /// Vanilla's RemoveFloor designation on one cell whose constructed floor is
-  /// def_name (epic #1249). A cell already designated, or without that floor,
+  /// def_name. A cell already designated, or without that floor,
   /// applies again.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
@@ -12344,7 +12344,7 @@ namespace RimGovernor.Protocol.Operations {
 
     private bool deferSnapshot_;
     /// <summary>
-    /// Record the write without capturing a snapshot frame for it (#1274):
+    /// Record the write without capturing a snapshot frame for it:
     /// the next frame after observations_flush_snapshot, or 1 s after the
     /// oldest uncaptured deferred write, captures it. Unset captures at once.
     /// </summary>
@@ -12766,7 +12766,7 @@ namespace RimGovernor.Protocol.Operations {
     private string purpose_;
     /// <summary>
     /// Why the controller applies this action, one short ASCII line such as
-    /// "Food supply: hunt, food runway 1.5d" (#822, #1129). Native keeps it with
+    /// "Food supply: hunt, food runway 1.5d". Native keeps it with
     /// the jobs, blueprints and designations the apply places and the
     /// "activity" overlay shows it over the pawn; it never changes the apply.
     /// </summary>
@@ -16018,7 +16018,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// One drafted colonist throws a molotov at one cell (#1815, epic #1640): the
+  /// One drafted colonist throws a molotov at one cell: the
   /// CombatOrder attack_ground force-fire with the molotov in the pawn's
   /// primary slot. Native refuses while any pawn stands in the cell's room, and
   /// when the pawn is not drafted, holds no molotov or cannot hit the cell. Applied means the throw order
@@ -16283,7 +16283,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Use one ability of one pawn (#1607, epic #1598): one generic shape for every
+  /// Use one ability of one pawn: one generic shape for every
   /// ability source. source names where the ability comes from and native's
   /// guard for that source decides eligibility by calling the game's own
   /// validation (never trusting Go for favor, cooldown or range); target is what
@@ -16407,7 +16407,7 @@ namespace RimGovernor.Protocol.Operations {
     /// <summary>Field number for the "psycast" field.</summary>
     public const int PsycastFieldNumber = 3;
     /// <summary>
-    /// A psycast the pawn knows (#1610).
+    /// A psycast the pawn knows.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -17160,7 +17160,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// The psycast source (#1610): the AbilityDef defName of a psycast the pawn
+  /// The psycast source: the AbilityDef defName of a psycast the pawn
   /// knows. Native guards, in order, named in the refusal text: pawn, ability
   /// (a defined psycast the pawn knows), cooldown, casting (the pawn is not
   /// already ordered to cast it), target (the arm the ability takes: none for a
@@ -17546,41 +17546,40 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic
-  /// #1292): exactly one arm per intent. hostility_response is the
+  /// Set one per-pawn Assign-tab setting on one colony pawn: exactly one arm per intent. hostility_response is the
   /// pawn's HostilityResponseMode; native refuses a
   /// violence-incapable pawn set to Attack. A setting that already holds
   /// applies again. Evidence is a SettingsEffect on the pawn with the arm's
-  /// field. self_tend (#1305) is playerSettings.selfTend, refused for a pawn
-  /// that cannot doctor. nickname (#1310) names the short name an owned pawn
+  /// field. self_tend is playerSettings.selfTend, refused for a pawn
+  /// that cannot doctor. nickname names the short name an owned pawn
   /// must leave: native draws a fresh name from the pawn's own name bank
   /// (never a numbered one) that no other owned pawn holds, and applies
   /// unchanged once the pawn no longer holds that name. medicine_carry
-  /// (#1307) is the pawn's Medicine inventory-stock count (0-3); native stocks
+  /// is the pawn's Medicine inventory-stock count (0-3); native stocks
   /// the best medicine the pawn's own medical care allows and refuses a
-  /// positive count when it allows none. reading_policy (#1306) is the label
+  /// positive count when it allows none. reading_policy is the label
   /// of the ReadingPolicy the pawn should hold (its short name; a
   /// ReadingPolicyIntent writes the contents), refused when no policy or
-  /// several carry it. drug_policy (#1537) is the label of
+  /// several carry it. drug_policy is the label of
   /// the DrugPolicy the pawn should hold (its short name; a DrugPolicyIntent
   /// writes the contents), refused when no policy or several carry it.
-  /// food_policy (#1541) is the label of the FoodPolicy the pawn should hold,
+  /// food_policy is the label of the FoodPolicy the pawn should hold,
   /// likewise written by a FoodPolicyIntent and refused when no policy or
-  /// several carry it. medical_care (#1301) is
+  /// several carry it. medical_care is
   /// the pawn's MedicalCareCategory, any of the five tiers, on a living
   /// colonist, slave, prisoner, guest or tame animal of the colony that has
-  /// medical care settings. mech_work_mode (#1685) is the MechWorkModeDef the
-  /// pawn's control group runs, and mech_control_group (#1685) the index of the
+  /// medical care settings. mech_work_mode is the MechWorkModeDef the
+  /// pawn's control group runs, and mech_control_group the index of the
   /// overseer's control group the pawn belongs to. Both take a mechanoid the
   /// colony owns whose overseer is a living colonist with a mechanitor tracker;
   /// native refuses any other pawn, an unknown mode or an index past the
-  /// overseer's control groups, and reads the group back. choose_permit (#1878)
+  /// overseer's control groups, and reads the group back. choose_permit
   /// takes one permit def of one faction def for a colonist of any map through
   /// Pawn_RoyaltyTracker.AddPermit after the checks the game's permit window
   /// applies (the permit belongs to the faction, the colonist's title reaches its
   /// minimum, its prerequisite is held, the faction's permit points cover its
   /// cost); native reads the held permit back, UNCHANGED when it was already held.
-  /// extract_bioferrite (#2434) is a held entity's extractBioferrite flag, which
+  /// extract_bioferrite is a held entity's extractBioferrite flag, which
   /// the game's own Doctor work giver reads to extract; it takes the entity on a
   /// holding platform and reads the flag back, UNCHANGED when it already held.
   /// Native refuses an entity whose platform has an attached bioferrite harvester
@@ -18744,7 +18743,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// pollution_clear (#1683) names the game's pollution-clear area
+  /// pollution_clear names the game's pollution-clear area
   /// (map.areaManager.PollutionClear), the cells the cleanup crew cleans; like
   /// home it is exclusive with key and takes set_cells and clear_cells only.
   /// rects are inclusive cell rectangles; the area edit applies to their union.
@@ -19758,7 +19757,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Write one reading policy's contents (#1306): the ReadingPolicy labelled
+  /// Write one reading policy's contents: the ReadingPolicy labelled
   /// name (made when missing) allows exactly allowed_defs, book ThingDefs
   /// (CompProperties_Book), and every book effect. Empty allowed_defs allows
   /// no book. Native refuses a name several policies carry. A policy that
@@ -20005,7 +20004,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Write one drug policy's full contents (#1537): the DrugPolicy labelled
+  /// Write one drug policy's full contents: the DrugPolicy labelled
   /// name (made when missing) carries exactly entries; every drug the intent
   /// does not name is off (no joy, addiction or scheduled use, nothing
   /// carried). An entry names a drug ThingDef the policy lists, at most once.
@@ -20831,7 +20830,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Write one food policy's contents (#1541): the FoodPolicy labelled name
+  /// Write one food policy's contents: the FoodPolicy labelled name
   /// (made when missing) allows exactly allowed_defs among the food ThingDefs
   /// (PolicyFacts.foods); special filters keep their values. Native refuses a name
   /// several policies carry or a definition that is not a food. A policy that
@@ -21079,7 +21078,7 @@ namespace RimGovernor.Protocol.Operations {
 
   /// <summary>
   /// Set the game's home-area auto-expand (Find.PlaySettings.autoHomeArea, a
-  /// save-level setting; #1322). Evidence is a SettingsEffect with the
+  /// save-level setting). Evidence is a SettingsEffect with the
   /// AUTO_HOME_AREA field: APPLIED when it changed, UNCHANGED when it already
   /// held. The colony read reports the value (UpkeepFacts.auto_home_area).
   /// </summary>
@@ -21299,7 +21298,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Draft or undraft one eligible colonist (#939). Drafts are plan-owned: the
+  /// Draft or undraft one eligible colonist. Drafts are plan-owned: the
   /// controller drafts for a plan and undrafts any drafted colonist no live plan
   /// needs. A pawn already in the wanted state applies again.
   /// </summary>
@@ -21570,7 +21569,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Give one pawn one job (#1352): job names a vanilla JobDef, targets the
+  /// Give one pawn one job: job names a vanilla JobDef, targets the
   /// things it acts on in JobDef target order (targetA, targetB, ...). Go
   /// chooses the pawn and the targets; native checks the game rules
   /// (reservation, reachability, CanDoJob, the job's own preconditions) live
@@ -21587,7 +21586,7 @@ namespace RimGovernor.Protocol.Operations {
   ///   UseItem: targets [item, target pawn]; the target verb of an item the
   ///   pawn wears or equips (Verb_CastTargetEffect) or the use job of a
   ///   CompTargetable item, each with its own target checks. The pawn as its
-  ///   own target (#1609) uses a CompUsable item without a target comp (a
+  ///  own target uses a CompUsable item without a target comp (a
   ///   neuroformer) through CanBeUsedBy and its use job.
   ///   FixBrokenDownBuilding, Refuel: targets [colony building]; an undrafted
   ///   colonist services it with the game's own WorkGiver job (the turret
@@ -22280,7 +22279,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Place one designation (#1350). With thing_id: allow or forbid one exact
+  /// Place one designation. With thing_id: allow or forbid one exact
   /// colony supply item, cut one exact blighted plant (CUT_PLANT) or strip one
   /// pawn (STRIP). With target or cell: the removal designations DECONSTRUCT,
   /// MINE, CUT_PLANT (chop-wood on a harvestable tree), HAUL and
@@ -22484,7 +22483,7 @@ namespace RimGovernor.Protocol.Operations {
         = pb::FieldCodec.ForMessage(58, global::RimGovernor.Protocol.Operations.Rectangle.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Operations.Rectangle> clearedGround_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Operations.Rectangle>();
     /// <summary>
-    /// The enclosure guard's cleared ground (#1366): a player wall or door whose
+    /// The enclosure guard's cleared ground: a player wall or door whose
     /// every enclosed room lies inside it is allowed (a room reaching outside
     /// stays refused); while those rooms keep any roof the designation stands
     /// but pawns wait (DeconstructEffect.waiting_for_roof).
@@ -22501,7 +22500,7 @@ namespace RimGovernor.Protocol.Operations {
 
     private bool replaceWithWall_;
     /// <summary>
-    /// DECONSTRUCT only (#1245): swap a 1x1 player door for a Wall of its own
+    /// DECONSTRUCT only: swap a 1x1 player door for a Wall of its own
     /// stuff, ordering the nearest capable builder (player-forced work).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -22532,7 +22531,7 @@ namespace RimGovernor.Protocol.Operations {
 
     private bool withdraw_;
     /// <summary>
-    /// ACQUISITION only (#1046): remove the designation instead (the planner's
+    /// ACQUISITION only: remove the designation instead (the planner's
     /// stall withdraw); a hunter already on the prey is stopped and a plant's
     /// CutPlant goes too. A source that is gone applies.
     /// </summary>
@@ -23894,7 +23893,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Mark cells in the vanilla remove-roof (NoRoof) area (#1366): clearance issues it over an
+  /// Mark cells in the vanilla remove-roof (NoRoof) area: clearance issues it over an
   /// enclosed room's roofed cells before deconstructing its walls. Native
   /// refuses a fogged or out-of-bounds cell and a thick (overhead mountain)
   /// roof; a cell already unroofed or already designated applies again.
@@ -24087,7 +24086,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Order every non-crop plant on cells cut (#1547): wild plants get CutPlant,
+  /// Order every non-crop plant on cells cut: wild plants get CutPlant,
   /// a harvestable tree gets chop-wood (HarvestPlant). Plants in a growing zone,
   /// on a plant grower and sown crops are never touched. Native refuses an
   /// out-of-bounds or repeated cell; a fogged cell, a cell with nothing to cut
@@ -24708,7 +24707,7 @@ namespace RimGovernor.Protocol.Operations {
   /// replace_owned_bill the named bill (same recipe on this bench, or an
   /// ordinary meal tier on this map) is deleted in the same apply.
   ///
-  /// A medical bill (#1162) sets patient instead of bench_id and settings: it
+  /// A medical bill sets patient instead of bench_id and settings: it
   /// queues the recipe on the patient's body part at part_index in the race
   /// body's AllParts (absent for a whole-body recipe). Native re-checks the
   /// patient, the recipe and the part live and refuses a recipe that is a
@@ -24718,7 +24717,7 @@ namespace RimGovernor.Protocol.Operations {
   /// Bill_Medical id; the same recipe and part already queued applies again.
   /// Native doctor jobs choose the surgeon; applied means queued, and the
   /// health read decides success. surgeon, when set, restricts the bill to
-  /// that colonist (Bill_Medical pawn restriction, #1253).
+  /// that colonist (Bill_Medical pawn restriction).
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class ProductionBillIntent : pb::IMessage<ProductionBillIntent>
@@ -25274,7 +25273,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Delete one idle production bill from a player bench (#2410, epic #2385).
+  /// Delete one idle production bill from a player bench.
   /// Native re-resolves the bench and the bill live and refuses when either is
   /// gone, when a spawned pawn's current job works the bill, or when an unfinished
   /// item is bound to it. Applied evidence is the BillEffect naming the deleted
@@ -28800,7 +28799,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Command one ritual (#1639, epic #1598; #1659, epic #1653): a closed verb set.
+  /// Command one ritual: a closed verb set.
   /// verb "start" begins a ritual whose lord waits for the player. ritual
   /// "bestowing" is the Empire bestowing ceremony of pawn_id (the colonist being
   /// bestowed): native finds the waiting bestower and runs the action of its
@@ -30004,7 +30003,7 @@ namespace RimGovernor.Protocol.Operations {
   /// placement against live state and refuses with the placement reason; a
   /// matching blueprint, frame or building already on the cell counts as
   /// applied. Go reads what stands from the building census by definition,
-  /// stuff, anchor and rotation (#1355); nothing is stamped or saved.
+  /// stuff, anchor and rotation; nothing is stamped or saved.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class BuildingIntent : pb::IMessage<BuildingIntent>
@@ -33562,7 +33561,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// Rules attach as a journaled intent (#2154): the same replace-all as Rules/Attach,
+  /// Rules attach as a journaled intent: the same replace-all as Rules/Attach,
   /// with the lease relative to the apply tick (expiry = tick + lease_ticks) so a
   /// resent key never carries a stale absolute tick. An empty rules list clears. Any
   /// refused rule refuses the whole action and changes nothing. Evidence is a

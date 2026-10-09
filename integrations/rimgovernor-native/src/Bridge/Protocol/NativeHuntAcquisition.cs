@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
             && !prey.InMentalState
             && prey.RaceProps.meatDef?.IsNutritionGivingIngestible == true && prey.RaceProps.corpseDef != null;
         // A pest is a wild animal hunted for what it destroys, not for meat
-        // (#247): a race that eats trees (RaceProperties.Eats(Tree), the
+        //: a race that eats trees (RaceProperties.Eats(Tree), the
         // alphabeaver) defoliates the map and no census otherwise answers it
         // (wild, factionless, not hostile, not a predator). Go reads the same
         // rule off the race rows (AnimalRace.Pest).
@@ -49,14 +49,14 @@ namespace HomeBridge.BridgeTools
         // to answer, not a reason to leave the trees to them.
         internal static bool Pest(Pawn prey) => prey.Faction == null && prey.RaceProps.Animal && !prey.InMentalState
             && prey.RaceProps.corpseDef != null && PestRace(prey.RaceProps);
-        // Meleeable prey (#260): safe prey no bigger than the hunter, which
+        // Meleeable prey: safe prey no bigger than the hunter, which
         // flees rather than fights back, so a colonist with a melee weapon
         // or bare hands can run it down. This is the wiki's day-one interim
         // food; it never covers a pest or anything the safe-prey rule rejects.
         internal static bool Meleeable(Pawn prey) => SafePrey(prey) && !prey.RaceProps.predator && (prey.Downed || prey.RaceProps.manhunterOnDamageChance == 0 && prey.BodySize <= 1.0f);
         private static double Nutrition(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount)) * prey.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition);
         private static Obs.SnapshotRef Snapshot(Pawn prey, Common.ObservationContext context) => new Obs.SnapshotRef {
-            // A hunt follows its animal (#321): the token binds the animal,
+            // A hunt follows its animal: the token binds the animal,
             // its corpse and its designation, not the cell or health the
             // census read, which move every tick under a running clock.
             Context = context.Clone(), EntityId = prey.GetUniqueLoadID(), Token = NativeAcquisitionToken.Token(context.Identity,
@@ -178,7 +178,7 @@ namespace HomeBridge.BridgeTools
         // validity of the exact animal (spawned, alive, not fogged, not designated, the native
         // designator accepts it) plus the request's resource, one rule at a time. Whether a hunt is
         // wanted (butcher bill, hunter, weapon, pending cap) is Go policy (policy.HuntGate). The
-        // request's cell is a hint only: the hunt follows the animal by identity (#321).
+        // request's cell is a hint only: the hunt follows the animal by identity.
         internal static bool Prepare(AcquireRequest command, Common.ObservationContext context, out Pawn? prey, out Common.Failure failure)
         {
             prey = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey (or pest) snapshot.");

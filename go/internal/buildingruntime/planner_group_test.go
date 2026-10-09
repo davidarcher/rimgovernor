@@ -19,7 +19,7 @@ import (
 )
 
 // failingBuildingSource refuses every native read, standing in for a planner
-// whose bridge tool is missing or refused (#62).
+// whose bridge tool is missing or refused.
 type failingBuildingSource struct{ err error }
 
 func (f failingBuildingSource) Identity(context.Context) (*l.IdentityReply, bridge.Result, error) {
@@ -37,7 +37,7 @@ func (f failingBuildingSource) PreviewBuilding(context.Context, domain.Action, d
 
 // A planner whose native read fails is reported in PlannerFailures, but the
 // step still evaluates the clock window and starts it on what the other
-// planners committed (#62).
+// planners committed.
 func TestClockSchedulerIsolatesFailingPlanner(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -67,7 +67,7 @@ func TestClockSchedulerIsolatesFailingPlanner(t *testing.T) {
 		t.Fatal(second, err)
 	}
 	// A live review under the running window isolates the failure the same
-	// way and leaves the window running (#243).
+	// way and leaves the window running.
 	live, err := s.Step(context.Background())
 	if err != nil || !live.Running || live.Reason.Cause != StepLive || len(live.PlannerFailures) != 1 || !errors.Is(live.PlannerFailures[0], refused) {
 		t.Fatal(live, err)
@@ -101,7 +101,7 @@ func TestPlannerGroupIsolatesFailuresUntilContextEnds(t *testing.T) {
 
 // Planners run lowest priority class first, queue order breaking ties, so a
 // tight step budget reaches naming/combat and critical medicine before
-// comfort and expansion (#76).
+// comfort and expansion.
 func TestPlannerGroupAdmitsByPriorityThenQueueOrder(t *testing.T) {
 	t.Parallel()
 	g := newPlannerGroup(context.Background(), 1)
@@ -164,7 +164,7 @@ func TestPlannerGroupHoldsLowPriorityUntilASlotFrees(t *testing.T) {
 // A planner that fails on a native refusal leaves no work and no wait; with
 // nothing else to do the clock would park on no_work while the same read is
 // refused every step. The step lends one stock-sized window instead, and a
-// failure that is not a native refusal still does not (#219).
+// failure that is not a native refusal still does not.
 func TestClockSchedulerLendsWindowToPlannerRefusedNatively(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

@@ -11,7 +11,7 @@ import (
 
 // Combat order refusal reasons, one per CombatOrderResult.refusal.
 const (
-	// NotDrafted: a pawn order for a pawn that is not drafted (#939).
+	// NotDrafted: a pawn order for a pawn that is not drafted.
 	CombatRefusalNotDrafted    = "not_drafted"
 	CombatRefusalStaleSnapshot = "stale_snapshot"
 	CombatRefusalNotFound      = "not_found"
@@ -20,21 +20,21 @@ const (
 	CombatRefusalNoGroundVerb  = "no_ground_verb"
 	CombatRefusalNotADoor      = "not_a_door"
 	CombatRefusalNativeRefused = "native_refused"
-	// Rescue refusals (#867): the rescue eligibility or bed search failed.
+	// Rescue refusals: the rescue eligibility or bed search failed.
 	CombatRefusalCannotRescue = "cannot_rescue"
 	CombatRefusalNoBed        = "no_bed"
-	// Repair refusal (#900): no damaged player building on the cell, or
+	// Repair refusal: no damaged player building on the cell, or
 	// the pawn cannot construct.
 	CombatRefusalCannotRepair = "cannot_repair"
-	// Draft refusal (#910): the pawn is not eligible.
+	// Draft refusal: the pawn is not eligible.
 	CombatRefusalCannotDraft = "cannot_draft"
-	// Mortar refusal (#931): no unroofed player mortar on the cell.
+	// Mortar refusal: no unroofed player mortar on the cell.
 	CombatRefusalNotAMortar = "not_a_mortar"
-	// Mortar shell refusals (#1051): the mortar does not accept the shell,
+	// Mortar shell refusals: the mortar does not accept the shell,
 	// or no unforbidden stack of it is in reach.
 	CombatRefusalUnknownShell = "unknown_shell"
 	CombatRefusalNoShell      = "no_shell"
-	// Animal order refusals (#1057): not a spawned player animal, or a
+	// Animal order refusals: not a spawned player animal, or a
 	// release order to an animal without the Release training.
 	CombatRefusalNotOurs   = "not_ours"
 	CombatRefusalUntrained = "untrained"
@@ -68,7 +68,7 @@ type CombatOrderResult struct {
 }
 
 // optionalTokenEntity is an exact entity whose snapshot token may be
-// omitted (orders dispatched under a running clock, as #243).
+// omitted (orders dispatched under a running clock).
 func optionalTokenEntity(v *o.EntityPrecondition) error {
 	if v == nil {
 		return contract("combat order entity missing")
@@ -161,7 +161,7 @@ func ValidateCombatOrders(command *o.CombatOrders) error {
 				return contract("combat order %d man_mortar: %v", i, err)
 			}
 		case *o.CombatOrder_MortarFire:
-			// No target clears the forced target (#1235), and names no shell.
+			// No target clears the forced target, and names no shell.
 			if v.MortarFire == nil || movementCell(v.MortarFire.Mortar) != nil ||
 				(v.MortarFire.Target != nil && movementCell(v.MortarFire.Target) != nil) ||
 				(v.MortarFire.Target == nil && v.MortarFire.Shell != nil) {

@@ -1,11 +1,7 @@
-// Package tools holds the cases that produce fixtures rather than assert on
-// them: tools/variantsavegen-<save> generates one save variant of issue
-// #1's sustained matrix through a programmatic scenario start
-// (the production new-colony op) and persists it under
-// root/profile/Saves, where the sustained/matrix-<save> case loads it. A
-// run regenerates the save even when one exists. The generated map is not
-// checked against its intended stressor (that a "scarce wood" biome really
-// has few trees): inspect colony facts before trusting a new variant.
+// Package tools generates fixture saves through the production new-colony operation. Each
+// run overwrites its variant under root/profile/Saves for sustained/matrix-* to load. Map
+// generation does not verify the intended stressor, such as scarce wood; inspect colony
+// facts before trusting a new variant.
 package tools
 
 import (

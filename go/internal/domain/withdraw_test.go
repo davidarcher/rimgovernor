@@ -3,7 +3,7 @@ package domain
 import "testing"
 
 // pendingCancelled is a dispatched action whose receipt was accepted and
-// whose effect stayed pending, then cancelled by its planner (#291).
+// whose effect stayed pending, then cancelled by its planner.
 func pendingCancelled(t *testing.T) (Progress, GenerationSnapshot) {
 	t.Helper()
 	p, s := dispatched(t)

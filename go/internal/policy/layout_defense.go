@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The defense layout builds on the layout plan (#789, C5): the corridor,
+// The defense layout builds on the layout plan: the corridor,
 // firing line and turrets stand in the plan's killbox, and the perimeter
 // tier raises the plan's 3-thick wall with its gates in staged sections.
 
@@ -26,7 +26,7 @@ func IsPerimeterTier(name DefenseTierName) bool {
 	return len(name) > len(TierPerimeterPrefix) && string(name[:len(TierPerimeterPrefix)]) == TierPerimeterPrefix
 }
 
-// The perimeter's footings on soft ground (#949): a plain bridge holds a
+// The perimeter's footings on soft ground: a plain bridge holds a
 // wooden wall only; a heavy bridge, once researched, holds stone.
 const (
 	PerimeterBridge        = "Bridge"
@@ -119,9 +119,9 @@ func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rec
 
 // PerimeterSections cuts the plan's wall into sections of about 60 blocks,
 // nearest the killbox first: walls, with a door at each end of every gate
-// and the cell between left open, an airlock (#1060). The geothermal site's
+// and the cell between left open, an airlock. The geothermal site's
 // shell, when the plan holds one, is its own section with a doorway of doors facing the
-// core. A wall on water stands on bridge (#949), laid by a section of its
+// core. A wall on water stands on bridge, laid by a section of its
 // own just before the wall's; a wall on light footing or on a plain Bridge
 // is WoodLog. Other stuff is left empty; the planner fills in the stone at
 // admission.
@@ -133,7 +133,7 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 	for _, r := range plan.Reservations {
 		switch r.Kind {
 		case ReserveGate:
-			// An airlock (#1060): a door on each face of the wall, the
+			// An airlock: a door on each face of the wall, the
 			// cells between left open, enclosed by the wall beside them.
 			ends := r.Area.Width
 			if r.Area.Height > ends {
@@ -276,10 +276,10 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 }
 
 // TierPumpPrefix names the moisture pump sections under the perimeter's
-// prefix: one per pump site, with its conduit run (#954).
+// prefix: one per pump site, with its conduit run.
 const TierPumpPrefix = TierPerimeterPrefix + "pump-"
 
-// PerimeterPumps is one section per moisture pump site (#954): the pump
+// PerimeterPumps is one section per moisture pump site: the pump
 // and the conduit run bringing a transmitter within connector reach,
 // chained over the ring's interior clear of the killbox. A run laid for an
 // earlier pump carries the later ones. Nothing without a transmitter to
@@ -334,7 +334,7 @@ func PerimeterPumps(plan LayoutPlan, pump, conduit string, transmitters []domain
 }
 
 // TierFencePrefix names the killbox opening's fence section under the
-// perimeter's prefix (#2231).
+// perimeter's prefix.
 const TierFencePrefix = TierPerimeterPrefix + "fence-"
 
 // FenceSections is one section for the fence cells across the killbox

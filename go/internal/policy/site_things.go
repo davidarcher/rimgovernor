@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-// ThingCategory is what a Thing is (the mirror wire's ThingCategory, #2260).
+// ThingCategory is what a Thing is (the mirror wire's ThingCategory).
 // Spawned pawns are never listed.
 type ThingCategory uint8
 
@@ -77,7 +77,7 @@ type CorpseState struct {
 	Rot   float32
 }
 
-// Thing is one thing on a cell (#2260): a header every category shares and
+// Thing is one thing on a cell: a header every category shares and
 // the typed state of its category. Only the state matching Category is
 // meaningful (Building is non-nil exactly for ThingBuilding).
 type Thing struct {
@@ -139,7 +139,7 @@ func (c SiteCell) Equal(o SiteCell) bool {
 // ThingsEqual reports whether two thing lists are identical.
 func ThingsEqual(a, b []Thing) bool { return slices.EqualFunc(a, b, Thing.Equal) }
 
-// edifice is the cell's edifice (#2262): the thing the native edifice grid
+// edifice is the cell's edifice: the thing the native edifice grid
 // holds there.
 func (c SiteCell) edifice() (Thing, bool) {
 	for _, t := range c.Things {
@@ -150,7 +150,7 @@ func (c SiteCell) edifice() (Thing, bool) {
 	return Thing{}, false
 }
 
-// Occupied reports a building, blueprint or frame on the cell (#2263): the
+// Occupied reports a building, blueprint or frame on the cell: the
 // native CellOccupied. Plants, items and filth never occupy a cell.
 func (c SiteCell) Occupied() bool {
 	for _, t := range c.Things {
@@ -161,9 +161,8 @@ func (c SiteCell) Occupied() bool {
 	return false
 }
 
-// NaturalRock reports the cell's edifice is natural rock (#700, #2263): a
-// planned ring on it keeps it as wall; inside the room plan dig mines it
-// (#836).
+// NaturalRock reports the cell's edifice is natural rock: a
+// planned ring on it keeps it as wall; inside the room plan dig mines it.
 func (c SiteCell) NaturalRock() bool {
 	t, ok := c.edifice()
 	return ok && t.Has(FlagNaturalRock)
@@ -185,7 +184,7 @@ func (c SiteCell) Cleared() SiteCell {
 
 // OccupantThings is the thing list of a cell holding an unremarkable
 // edifice when on, none otherwise: the tests' stand-in for the old occupied
-// flag (#2263).
+// flag.
 func OccupantThings(on bool) []Thing {
 	if !on {
 		return nil
@@ -194,7 +193,7 @@ func OccupantThings(on bool) []Thing {
 }
 
 // RockThings is the thing list of a cell of natural rock when on, none
-// otherwise (tests, #2263).
+// otherwise (tests).
 func RockThings(on bool) []Thing {
 	if !on {
 		return nil
@@ -203,19 +202,19 @@ func RockThings(on bool) []Thing {
 }
 
 // SetOccupied makes the cell hold an unremarkable edifice, or none of its
-// occupants when off (tests, #2263). It replaces the list, never edits it.
+// occupants when off (tests). It replaces the list, never edits it.
 func (c *SiteCell) SetOccupied(on bool) {
 	c.Things = append(c.Cleared().Things, OccupantThings(on)...)
 }
 
 // SetNaturalRock makes the cell natural rock, or removes its edifice when
-// off (tests, #2263).
+// off (tests).
 func (c *SiteCell) SetNaturalRock(on bool) {
 	c.Things = append(c.Cleared().Things, RockThings(on)...)
 }
 
 // PlayerEdifice names the definition of the player-owned edifice on the
-// cell, empty for none (#709): a ring of that wall kind stands on it.
+// cell, empty for none: a ring of that wall kind stands on it.
 func (c SiteCell) PlayerEdifice() string {
 	if t, ok := c.edifice(); ok && t.Faction == FactionPlayer {
 		return t.Def
@@ -224,14 +223,14 @@ func (c SiteCell) PlayerEdifice() string {
 }
 
 // Ruin reports an unowned edifice the player may deconstruct, outside any
-// ancient danger (#709).
+// ancient danger.
 func (c SiteCell) Ruin() bool {
 	t, ok := c.edifice()
 	return ok && t.Faction != FactionPlayer && t.Has(FlagDeconstructible) && !t.Has(FlagAncientDanger)
 }
 
 // ClaimableRuin names the definition of a ruin the player may claim, empty
-// for none (#718): a ring of that wall kind claims it and keeps it as wall
+// for none: a ring of that wall kind claims it and keeps it as wall
 // instead of clearing it.
 func (c SiteCell) ClaimableRuin() string {
 	if t, ok := c.edifice(); ok && c.Ruin() && t.Has(FlagClaimable) {
@@ -241,7 +240,7 @@ func (c SiteCell) ClaimableRuin() string {
 }
 
 // RuinHold is the hold on the unowned building covering the cell that a
-// claim honours, empty for none (#718): "ancient_danger", or "casket" for a
+// claim honours, empty for none: "ancient_danger", or "casket" for a
 // casket still holding contents. A ring claims a ruin only where the claim
 // would act on it.
 func (c SiteCell) RuinHold() string {

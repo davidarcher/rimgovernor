@@ -68,7 +68,7 @@ func TestRoundsProjectWorkTracksSharedLifecycleAndWorld(t *testing.T) {
 	}
 	plans[0].Progress[0] = p
 	check("HospitalBed", "Wall")
-	// An apply receipt settles the intent either way (#856).
+	// An apply receipt settles the intent either way.
 	for _, receipt := range []domain.Receipt{domain.ReceiptAccepted, domain.ReceiptRefused} {
 		settled, err := dispatched.RecordReceipt(1, receipt)
 		if err != nil {

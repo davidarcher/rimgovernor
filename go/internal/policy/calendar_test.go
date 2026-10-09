@@ -27,11 +27,11 @@ func TestHarvestGapDaysBridgesTheNonGrowingYear(t *testing.T) {
 		{"a year-round tile has no gap", Calendar{Season: "PermanentSummer", GrowingDays: 60, GrowingDaysRemaining: 60, NonGrowingDays: 0, Sowing: true}, 0},
 		{"a tile that never grows is capped at one year", Calendar{Season: "PermanentWinter", GrowingDays: 0, GrowingDaysRemaining: 0, GrowingDaysUntil: 60, NonGrowingDays: 60}, 60},
 		// The growing-period label (twelfths, 5-day steps) is not the walk:
-		// the walk's stretch is the gap, so the label cannot move it (#317).
+		// the walk's stretch is the gap, so the label cannot move it.
 		{"the walk's stretch outranks the growing-period label", Calendar{Season: "Fall", GrowingDays: 30, GrowingDaysRemaining: 1, NonGrowingDays: 33, Sowing: true}, 36},
 	}
 	// The gap the last growing day phases in is the gap the first frost day
-	// reads, so the seasonal thresholds do not jump at the flip (#317).
+	// reads, so the seasonal thresholds do not jump at the flip.
 	last := Calendar{Season: "Fall", GrowingDays: 30, GrowingDaysRemaining: 1, NonGrowingDays: 33, Sowing: true}
 	first := Calendar{Season: "Fall", GrowingDays: 30, GrowingDaysRemaining: 0, GrowingDaysUntil: 33, NonGrowingDays: 33}
 	before, _ := HarvestGapDays(domain.Known(last), noConditions).Value()

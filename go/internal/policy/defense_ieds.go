@@ -6,8 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TierIEDs is the IED traps on the approach ahead of the killbox corridor
-// (#1209): the trap lane extended outward from Entry toward the map edge.
+// TierIEDs is the IED traps on the approach ahead of the killbox corridor:
+// the trap lane extended outward from Entry toward the map edge.
 const TierIEDs DefenseTierName = "ieds"
 
 const (

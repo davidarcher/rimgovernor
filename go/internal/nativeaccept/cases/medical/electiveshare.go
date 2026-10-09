@@ -11,15 +11,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// medical/surgery-elective-rich and medical/surgery-elective-poor (#1848,
-// epic #1829): the same hospital, doctors and stock run twice, once in a
+// medical/surgery-elective-rich and medical/surgery-elective-poor: the same hospital, doctors and stock run twice, once in a
 // colony holding 6000 gold and once in one stripped of every loose item but
 // wood, medicine, the prosthetic leg, the two bionic parts and eight meals
 // (test/medical_management_setup condition elective, wealth rich or poor).
 // The third colonist is missing a leg with a SimpleProstheticLeg stocked (the
 // one served operation); a BionicEye and a BionicArm are stocked for healthy
 // colonists (the electives). The pair diverges only through the colonists'
-// personal shares (#1843): the rich colony installs an elective, the poor one
+// personal shares: the rich colony installs an elective, the poor one
 // installs none and MaintainSurgery recovers once the leg is served.
 //
 // Shared asserts: served operations win (no elective intent exists before the

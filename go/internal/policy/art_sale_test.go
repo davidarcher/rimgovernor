@@ -36,7 +36,7 @@ func TestSaleArtBills(t *testing.T) {
 	if len(got) != 2 || got[0].Recipe != "Make_SculptureLarge" || got[0].Ingredients[0] != "Gold" || got[1].Recipe != SculptureRecipe || got[1].Ingredients[0] != "Gold" {
 		t.Fatalf("sale bills = %+v", got)
 	}
-	// Raid headroom does not gate sale art (#1849): a silver shortfall alone wants it.
+	// Raid headroom does not gate sale art: a silver shortfall alone wants it.
 	needFacts := domain.Known(TradeNeed{ComponentShortfall: 5})
 	if !ArtSaleWanted(CoreItemFacts(), needFacts, domain.Known[int64](0), domain.Known[int64](2)) {
 		t.Fatal("silver shortfall wants no sale")

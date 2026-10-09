@@ -16,13 +16,13 @@ type DefenseCell struct {
 	Walkable, Passable, PlayerOwned, NaturalRock, EdgeReachable domain.Fact[bool]
 	Door                                                        domain.Fact[bool]
 	// Roofed is the cell under any roof; the mortar tier needs it known
-	// false (#1206).
+	// false.
 	Roofed domain.Fact[bool]
 	// WallSupport is whether the cell's terrain carries the funnel wall's
 	// affordance (a wooden wall needs Light, which water and marsh lack).
 	// Unknown leaves the cell sited; the native preview is the backstop.
 	WallSupport domain.Fact[bool]
-	// TrapSupport is the same for the spike trap (#2130).
+	// TrapSupport is the same for the spike trap.
 	TrapSupport domain.Fact[bool]
 	CoverFill   domain.Fact[float64]
 	Edifice     string
@@ -38,18 +38,18 @@ type DefenseLine struct {
 // DefenseDefinitions names the native buildings each tier places. Stuff
 // empty requests the native default material. Door is the safe lane's
 // colonist-only passage; its stuff must be wood, the corridor's pricing
-// (#619) assumes a wooden door's opening time. Floor is the constructed
+// assumes a wooden door's opening time. Floor is the constructed
 // terrain the firing line lays on each shooter cell: nothing grows on a
 // built floor, and a blueprint over a plant has the constructor cut it, so
-// the firing position stays standable for the hold plan's move (#224).
+// the firing position stays standable for the hold plan's move.
 // Embrasure, when the game has it (Ideology/1.4+), is the cover a firing
-// position gets where its cover cell is the perimeter wall (#868); empty,
+// position gets where its cover cell is the perimeter wall; empty,
 // such positions are skipped. It takes WallStuff.
 type DefenseDefinitions struct {
 	Sandbag, SandbagStuff, Wall, WallStuff, Fence, FenceStuff, Trap, TrapStuff, Door, DoorStuff, Floor string
 	Embrasure                                                                                          string
 	// Bait is the cheap furniture the bait tier places on the arrival
-	// sector's approach (#1063); empty places none.
+	// sector's approach; empty places none.
 	Bait, BaitStuff string
 }
 
@@ -87,7 +87,7 @@ type DefenseRequest struct {
 	CoverThreshold domain.Fact[float64]
 	// Killbox is the layout plan's opening the corridor stands in.
 	Killbox DefenseKillbox
-	// IEDs are the IED traps the approach tier may place (#1209), in
+	// IEDs are the IED traps the approach tier may place, in
 	// preference order; empty places none.
 	IEDs []DefenseIED
 	// FlammableStorage is every storage cell the IED tier's blast must not
@@ -95,7 +95,7 @@ type DefenseRequest struct {
 	FlammableStorage domain.Fact[[]domain.Cell]
 }
 
-// DefenseKillbox is the layout plan's killbox opening (#789): Entry is the
+// DefenseKillbox is the layout plan's killbox opening: Entry is the
 // centre cell of the opening's outer face, Toward points inward through it,
 // Width is the opening's width. Walled cells are the perimeter tier's wall;
 // the funnel leaves them to it. Depth is the killbox's rows inward of the
@@ -160,7 +160,7 @@ const (
 	defenseMaxDefenders = 8
 )
 
-// The killbox (#1544, after the RimWorld wiki's defense structures), in
+// The killbox (following the RimWorld wiki's defense structures), in
 // rows inward from the ring's inner face and columns across the opening
 // (column 0 is the 1-tile entrance). The corridor is a snake of zigzag
 // legs: each leg a hallway killboxLegWidth wide across the kill zone's
@@ -419,10 +419,10 @@ func defenseShape(r DefenseRequest) (half, legs int32, err error) {
 }
 
 // DefenseRockCells is the killbox's role cells for the shared rock step
-// (#1701, RockStep): the raiders' lane from the ring opening to the kill
+// (RockStep): the raiders' lane from the ring opening to the kill
 // zone and the defenders' ground below it (kill row, fence bar, firing
 // cells and the doorway through the back wall) need a floor, so rock on them
-// is dug before the layout stands (#1588); the walls beside the lane and
+// is dug before the layout stands; the walls beside the lane and
 // around the kill zone block, so rock there stays (raiders do not mine, and
 // the funnel leaves rock cells unwalled). Cells outside the site, passable
 // cells, and cells the site reads as a wall or building rather than natural
@@ -493,7 +493,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	if err != nil {
 		return DefenseLayout{}, err
 	}
-	// The layout anchors on the layout plan's killbox opening (#789): the
+	// The layout anchors on the layout plan's killbox opening: the
 	// corridor runs inward from the opening's outer face, across the
 	// opening's width, and the wall ring beside it is the perimeter tier's.
 	kb := r.Killbox
@@ -589,7 +589,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 		}
 		// Terrain that cannot carry the wall is left open, not closed: the
 		// raider route check below refuses the layout if the gap lets them
-		// round the corridor, instead of the native preview holding it (#2119).
+		// round the corridor, instead of the native preview holding it.
 		if supported, known := s.cells[c].WallSupport.Value(); known && !supported {
 			continue
 		}
@@ -647,7 +647,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	for _, st := range sites {
 		t := st.cell
 		// Terrain that cannot carry the trap is skipped for the next
-		// corridor cell; native would refuse it every round (#2130).
+		// corridor cell; native would refuse it every round.
 		if supported, known := s.cells[t].TrapSupport.Value(); known && !supported {
 			unsupportedTrap = true
 			continue
@@ -715,7 +715,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 				continue
 			}
 			// A cover cell on the perimeter wall is an embrasure in the
-			// wall rather than wall plus sandbag (#868).
+			// wall rather than wall plus sandbag.
 			coverDef, coverStuff := r.Definitions.Sandbag, r.Definitions.SandbagStuff
 			if walled[cover] {
 				if r.Definitions.Embrasure == "" {

@@ -9,7 +9,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// Item facts the generated def rows state (#1733). A frame carries what
+// Item facts the generated def rows state. A frame carries what
 // varies; what a def says about itself is read here, once per load, from its
 // ThingDef row. A def without a row is a contract error, never a default.
 
@@ -167,7 +167,7 @@ func (catalog *DefinitionCatalog) RawFoodClass(name string) (policy.FoodIngredie
 }
 
 // TradeFood is what a food def's rows say about buying it as a routine
-// ingredient (#1721): the raw class by thing category, a meal food type as
+// ingredient: the raw class by thing category, a meal food type as
 // the prepared "any" class, whether it never rots, and whether it is a raw
 // crop (the vegetable class). ok is false for a def that is neither raw
 // ingredient nor meal, and for human meat. Nutrition is the caller's (a stat).
@@ -278,7 +278,7 @@ var mealIngredients = map[o.MealIngredients]policy.MealIngredients{
 	o.MealIngredients_MEAL_INGREDIENTS_NON_MEAT: policy.MealNonMeat,
 }
 
-// decodeThingFacts indexes the game-computed ThingDef flags (#1733): a row
+// decodeThingFacts indexes the game-computed ThingDef flags: a row
 // names a known ThingDef once, a food kind and meal ingredients are known
 // enum values, and the ingredients are set on meals only. An absent list
 // stays nil.

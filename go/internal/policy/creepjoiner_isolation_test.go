@@ -13,7 +13,7 @@ func isolatable(pawn PawnID, triggered bool, area string, hungry bool) CreepJoin
 	return h
 }
 
-// TestIsolatedAreTheCreepJoinersHeldApart (#1740): a creepjoiner is held
+// TestIsolatedAreTheCreepJoinersHeldApart: a creepjoiner is held
 // apart while its downside is known hidden and the record holds no finished
 // inspection of it; a revealed one, an inspected one and a colonist that is no
 // creepjoiner are not; an unread downside leaves the census unknown.

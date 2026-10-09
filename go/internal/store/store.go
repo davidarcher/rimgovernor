@@ -36,7 +36,7 @@ const applicationID = 0x52474f31
 var ErrConflict = core.ErrConflict
 var ErrNotAdmitted = core.ErrNotAdmitted
 
-// ErrActionVetoed is an action Safeguard's dispatch refusal (#1018).
+// ErrActionVetoed is an action Safeguard's dispatch refusal.
 var ErrActionVetoed = errors.New("action vetoed")
 var ErrNotFound = core.ErrNotFound
 
@@ -52,7 +52,7 @@ type PlanState struct {
 	Retired      bool
 	SupersededBy domain.PlanID
 	// Method is the goal or incident method id the plan was admitted
-	// under (#987), empty for a plan no method binds. It outlives the
+	// under, empty for a plan no method binds. It outlives the
 	// methods row, which RebuildStandards clears on a world's first round.
 	Method     domain.MethodID
 	Spec       domain.PlanSpec

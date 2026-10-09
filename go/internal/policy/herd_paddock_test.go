@@ -40,7 +40,7 @@ func penRing(t *testing.T, plan LayoutPlan, room PlannedRoom) []CurrentBuilding 
 
 // The paddock marker goes on a free cell of the wall's yard: inside the
 // ring, under no reservation, nothing built on it; a standing marker makes
-// the next pass a no-op (#2233).
+// the next pass a no-op.
 func TestPaddockMarkerOnFreeYardCell(t *testing.T) {
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	step, ok := NextPaddockStep(p, GroundOf(nil), nil, testPenMarker)

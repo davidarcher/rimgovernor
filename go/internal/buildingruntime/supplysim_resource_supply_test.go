@@ -6,7 +6,7 @@ import (
 )
 
 // A short clothing material opens its own source: the deer for leather, the
-// field for cotton, each exactly once and the floor restored (#2169).
+// field for cotton, each exactly once and the floor restored.
 func TestClothingScenariosOpenTheirSource(t *testing.T) {
 	t.Parallel()
 	want := map[string]policy.CandidateKind{"Leather/leather short, deer available/none": policy.CandidateHunt, "Cotton/cotton field/none": policy.CandidateHarvest}

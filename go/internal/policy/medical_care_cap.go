@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Medical care cap (#1301, epic #1292): every pawn the colony cares for
+// Medical care cap: every pawn the colony cares for
 // holds a standing MedicalCareCategory by what it is worth, raised one tier
 // while a serious condition lasts. EnsureWorkAssignments writes the caps
 // through PawnSettingsIntent.

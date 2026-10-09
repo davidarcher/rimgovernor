@@ -5,8 +5,8 @@ import "errors"
 const StripAction ActionKind = "strip"
 
 // Strip places vanilla's Strip designation on one exact spawned pawn or
-// corpse (#1117); colonists strip it through ordinary Hauling work. Who to
-// strip is the caller's decision (#1079); native validates the target live.
+// corpse; colonists strip it through ordinary Hauling work. Who to
+// strip is the caller's decision; native validates the target live.
 type Strip struct {
 	target string
 }

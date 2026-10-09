@@ -27,15 +27,15 @@ type AcquisitionSource struct {
 	// Products are what butchering the animal yields besides meat (leather),
 	// from its race row.
 	Products []SourceProduct `json:",omitempty"`
-	// Pest is the source's race row flag (AnimalRace.Pest, #1722).
+	// Pest is the source's race row flag (AnimalRace.Pest).
 	Pest bool `json:",omitempty"`
 	// DesignatedTick is the tick native first saw the designation (reset on
 	// load); set only when Designated. Taken: a pawn's reservation or a
-	// colonist's current job targets the source (#1043).
+	// colonist's current job targets the source.
 	DesignatedTick domain.Tick
 	Taken          bool
 	// Growth is a plant row's growth fraction (0..1). Plantation marks a sown
-	// tree of a harvest-destroys crop in a growing zone (#2292): the only
+	// tree of a harvest-destroys crop in a growing zone: the only
 	// zone plant chop acquisition may offer, and only at or above the chop
 	// gate (BelowChopGate). Wild trees ignore growth.
 	Growth     float64
@@ -134,7 +134,7 @@ func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 			continue
 		}
 		// The row cap bounds the non-hunt rows; hunts are bounded by the
-		// hunters' budget (#2170), so their count follows the nutrition gap.
+		// hunters' budget, so their count follows the nutrition gap.
 		if !row.Hunt && others == MaxCatalogSelection {
 			continue
 		}

@@ -2,10 +2,10 @@ package domain
 
 import "errors"
 
-// UseItem orders one colonist to use one item (#1038): a worn or equipped
+// UseItem orders one colonist to use one item: a worn or equipped
 // item's target verb on a pawn (the psychic shock and insanity lances'
 // Verb_CastTargetEffect), a CompTargetable item's use job on a pawn, or,
-// when the pawn is its own target (#1609), the use job of a CompUsable item
+// when the pawn is its own target, the use job of a CompUsable item
 // without a target comp (a neuroformer). Native validates the user, the
 // item's verb or use comp and the target live when the GiveJobIntent
 // UseItem applies.

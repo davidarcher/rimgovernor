@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The Biotech child rooms (#1680, epic #1667): MaintainHousing's sleeping
+// The Biotech child rooms: MaintainHousing's sleeping
 // planner reconciles the planned nursery, playroom or classroom a baby,
 // toddler or child owes with the furniture the game scores the role from
 // (policy.NextChildRoomStep, reconcileRoom). The layout review grows the rooms
@@ -29,7 +29,7 @@ func worshipDefinitions(facts observation.ColonyProjection) []string {
 
 // reviewChildRooms adds the worship room's required buildings to the
 // projection's definitions so the planners size and place them from the
-// catalog, and remembers the buildings for the planners' own reads (#1658).
+// catalog, and remembers the buildings for the planners' own reads.
 // Room-role furniture rides every routine reading (the catalog names it).
 func (r *Rounder) reviewChildRooms(reading *observation.RoundsReading) error {
 	worship := worshipDefinitions(reading.Projection)
@@ -58,14 +58,14 @@ func containmentCellNeed(facts observation.ColonyProjection) (policy.ChildRoomNe
 	return policy.ContainmentCellNeed(facts.Facts.Containment, furnitureDefinitions(facts), flooringFacts(facts))
 }
 
-// isolationRoomNeed is the room the isolated creepjoiners owe (#1740).
+// isolationRoomNeed is the room the isolated creepjoiners owe.
 func isolationRoomNeed(facts observation.ColonyProjection) (policy.ChildRoomNeed, bool) {
 	return policy.IsolationRoomNeed(facts.Isolation, furnitureDefinitions(facts))
 }
 
 // childRoomNeeds are the rooms the projection owes: the child rooms its
 // pawns owe (unknown pawns owe none) and the ideoligion's worship room
-// (#1658; an unknown ideoligion owes none).
+// (an unknown ideoligion owes none).
 func childRoomNeeds(facts observation.ColonyProjection) []policy.ChildRoomNeed {
 	var needs []policy.ChildRoomNeed
 	if pawns, known := facts.WorkPawns.Value(); known {

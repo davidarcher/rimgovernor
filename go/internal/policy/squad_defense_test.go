@@ -221,9 +221,9 @@ func TestSelectSquadDefensePrefersTheLineByOpponent(t *testing.T) {
 	}
 }
 
-// A drafted pawn is busy only while a live plan needs it (#939); a standing
+// A drafted pawn is busy only while a live plan needs it; a standing
 // draft no plan needs is a candidate the draft adopts, and a draft whose
-// owner cannot be read is not (#461).
+// owner cannot be read is not.
 func TestSquadDefenderEligibleDistinguishesOwnedDrafts(t *testing.T) {
 	owned := squadDefender("a", false)
 	owned.Drafted, owned.DraftOwned = domain.Known(true), domain.Known(true)
@@ -240,7 +240,7 @@ func TestSquadDefenderEligibleDistinguishesOwnedDrafts(t *testing.T) {
 	}
 }
 
-// #948: an unarmed colonist never melees, and a hive is not engaged while
+// An unarmed colonist never melees, and a hive is not engaged while
 // one of its insects (an ineligible animal) still stands.
 func TestSelectSquadDefenseNeverMeleesUnarmedOrAGuardedHive(t *testing.T) {
 	unarmed := func(id domain.PawnID) SquadDefenderFacts {

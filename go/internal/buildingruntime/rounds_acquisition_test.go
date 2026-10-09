@@ -198,7 +198,7 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
-	// Once dispatched the census takes over (#1045): the grass reads
+	// Once dispatched the census takes over: the grass reads
 	// designated and holds Hay with no open journal work behind it.
 	for _, row := range v.Acquisition {
 		row.Designated = proto.Bool(row.GetResource() == "Hay")

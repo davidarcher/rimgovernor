@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Room construction to plan shapes (#787, C3): a room builder raises the
+// Room construction to plan shapes: a room builder raises the
 // planned room's exact rectangle and door instead of searching.
 
 // PlannedRoleFor is the v2 plan role a builder's room role fills; false for
@@ -64,7 +64,7 @@ type GroundCensus struct {
 	walls, doors map[domain.Cell]bool
 	// fences and gates are the ring of an outdoor room (PlannedRoom.Outdoor).
 	fences, gates map[domain.Cell]bool
-	// flaps are the animal flaps standing (#2122), kept apart from doors: a
+	// flaps are the animal flaps standing, kept apart from doors: a
 	// barn's wall takes one where a room's ring takes a door.
 	flaps map[domain.Cell]bool
 	// stuff is the stuff of each standing wall, where the census names one.
@@ -117,7 +117,7 @@ func withCells(set map[domain.Cell]bool) map[domain.Cell]bool {
 
 // ring is the standing walls and doors r's ring is matched against: an
 // outdoor room's fences and gates; a barn's flap cells count as a door where a
-// flap stands (#2122).
+// flap stands.
 func (p LayoutPlan) ring(r PlannedRoom, g GroundCensus) (walls, doors map[domain.Cell]bool) {
 	if r.Outdoor {
 		return g.fences, g.gates
@@ -213,8 +213,8 @@ func (p LayoutPlan) PlannedShells(role RoomRole) []domain.RoomFootprint {
 }
 
 // NextPlannedRoom is the plan's first open-ground room of role with no
-// ring standing yet (#835): the kitchen, freezer or jail its owning
-// goal shells before furnishing. A dug room is mined out first (#836).
+// ring standing yet: the kitchen, freezer or jail its owning
+// goal shells before furnishing. A dug room is mined out first.
 func (p LayoutPlan) NextPlannedRoom(role PlannedRole, ground GroundCensus) (PlannedRoom, bool) {
 	rooms := p.AllRooms()
 	if role == PlannedYard {
@@ -234,8 +234,8 @@ func (p LayoutPlan) NextPlannedRoom(role PlannedRole, ground GroundCensus) (Plan
 
 // ShellDoors is the cells of r's ring that take a door rather than a
 // wall: its own doors, its Link, and any other room's Link that lies in
-// r's ring (the kitchen's side of the freezer door, #835; the barn's side of the
-// vet room's, which is no AllRooms room, #2114).
+// r's ring (the kitchen's side of the freezer door; the barn's side of the
+// vet room's, which is no AllRooms room).
 func (p LayoutPlan) ShellDoors(r PlannedRoom) []domain.Cell {
 	doors := []domain.Cell{r.Door}
 	for _, d := range r.Doors {

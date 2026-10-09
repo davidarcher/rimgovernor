@@ -14,7 +14,7 @@ using RimGovernor.Host.Gab.Server;
 // The vendored GABP server must keep reading while a tool runs: a tool handler
 // is synchronous in the host (it blocks until the call completes), so a held
 // clock_read_events long poll would otherwise stall the connection's reader and
-// every call behind it (#115, #227). The claim is an ordering, not a latency:
+// every call behind it. The claim is an ordering, not a latency:
 // a second call issued while the first is held is answered before the first is
 // released. The held call blocks on a gate the probe opens, so nothing here
 // waits on a wall-clock bound; the waits are hang guards only.

@@ -8,7 +8,7 @@ import (
 )
 
 // wallRemovalAction is the wall_upgrade-guarded Deconstruct Designate of one
-// stone-shell wall removal (#989, #1351): the wall's cell, and for the
+// stone-shell wall removal: the wall's cell, and for the
 // original demolition the wall identity the proposal observed. Native
 // resolves the site live.
 func wallRemovalAction(action domain.Action) (*o.Action, error) {

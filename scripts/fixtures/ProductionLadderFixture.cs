@@ -10,7 +10,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Issue #4 M4: the multi-stage production ladder (research -> bench ->
+    // the multi-stage production ladder (research -> bench ->
     // ingredient storage -> bill) proved on the Core tribal baseline. Prepare
     // stages what the ladder does not build itself: the room the bench rung
     // furnishes (FixtureHut: a roofed wood hut with a sleeping spot per
@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     // for the bench and its ingredient stockpile), a simple research bench
     // inside it, ingredients beside its door, and Fabrication research a few
     // points short of done so the derived EnsureResearch target finishes
-    // within a minute-scale watch (#344). Audit reads the same native state
+    // within a minute-scale watch. Audit reads the same native state
     // back.
     public sealed class ProductionLadderFixture
     {
@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
         // HutSize is the ring the production fixtures stage: 9x9 inside, so
         // eight sleeping spots, the research bench, a fabrication bench or stonecutter's
         // table and an ingredient stockpile all fit without the workshop
-        // ladder siting a second shell (#218).
+        // ladder siting a second shell.
         const int HutSize = 11;
 
         [Tool("test/production_ladder_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: build one roofed wood hut with a sleeping spot per colonist with a simple research bench and a fueled wood-fired generator inside, move every colonist in, drop steel, wood and the fabrication bench's 12 components beside its door, finish Fabrication's prerequisites and advance Fabrication research to 97% of its base cost (IsFinished compares real progress to baseCost; a tribal colony still owes the tech-level factor on the rest).")]
@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
                 // component bill steel; the bench ladder may pay wood. The
                 // tribal baseline holds none of them. The components lie loose
                 // outside storage, so the native stock (ResourceCounter) reads
-                // 0 against the default floor of 10 (#875).
+                // 0 against the default floor of 10.
                 var steel = FixtureHut.DropOutside(map, hut, ThingDefOf.Steel, 300);
                 var wood = FixtureHut.DropOutside(map, hut, ThingDefOf.WoodLog, 150);
                 FixtureHut.DropOutside(map, hut, ThingDef.Named("ComponentIndustrial"), 12);

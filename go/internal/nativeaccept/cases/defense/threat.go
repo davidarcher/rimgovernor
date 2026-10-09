@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 )
 
-// defense/threat holds the typed colony facts' threat section (#395) to the
+// defense/threat holds the typed colony facts' threat section to the
 // game's own figures: on the paused baseline the projected raid points and
 // wealth split equal what the defense fixture reads from WealthWatcher and
 // StorytellerUtility.DefaultThreatPointsNow at the same tick, and after the

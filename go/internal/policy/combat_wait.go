@@ -6,12 +6,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// raidGiveUpTicks bounds a humanoid raid's wait (#1065): raiders give up
+// raidGiveUpTicks bounds a humanoid raid's wait: raiders give up
 // and leave 26k-38k ticks after they arrive (sappers 33k-38k), so a raid
 // still here past the window's end is not leaving and the fight re-forms.
 const raidGiveUpTicks = 38000
 
-// outmatched is the wait-it-out comparison (#902, #1065): ours is the
+// outmatched is the wait-it-out comparison: ours is the
 // health fraction summed over the armed, eligible defenders; theirs is
 // the live hostiles' body sizes. Unknown health or size counts 1.
 func outmatched(view CombatView) bool {
@@ -39,7 +39,7 @@ func outmatched(view CombatView) bool {
 	return ours < theirs
 }
 
-// Extreme outdoor temperatures (#1077): past these a fight shelters
+// Extreme outdoor temperatures: past these a fight shelters
 // indoors and lets hypothermia or heatstroke wear the raiders down.
 const (
 	extremeColdC = -20.0
@@ -55,8 +55,8 @@ func extremeWeather(view CombatView) bool {
 
 // humanoidRaid reports a fight whose live hostile pawns (at least one) are
 // all known humanlike, with no pods arrival and no siege lord (those wait
-// by their own tactics, #893, #776), and no complete hold-the-line layout:
-// a killbox keeps fighting; only the squad fallback waits (#1065).
+// by their own tactics), and no complete hold-the-line layout:
+// a killbox keeps fighting; only the squad fallback waits.
 func humanoidRaid(view CombatView, m CombatMemory) bool {
 	if _, held := view.Layout.Value(); held {
 		return false
@@ -70,7 +70,7 @@ func humanoidRaid(view CombatView, m CombatMemory) bool {
 		if t.Building || positive(t.Dead) || positive(t.Downed) || down[domain.PawnID(t.ID)] {
 			continue
 		}
-		// A shambler is humanlike but fights as a pack of its own (#1739).
+		// A shambler is humanlike but fights as a pack of its own.
 		if !positive(t.Humanlike) || anomalous(t) {
 			return false
 		}
@@ -79,7 +79,7 @@ func humanoidRaid(view CombatView, m CombatMemory) bool {
 	return n > 0
 }
 
-// waitTurn runs before formation (#902, #1065, #1077): it decides whether a
+// waitTurn runs before formation: it decides whether a
 // manhunter fight or a humanoid raid waits this stop: outmatched, or in
 // extreme outdoor cold or heat. A raid waits at most
 // raidGiveUpTicks from its first waiting stop. A fight that stops waiting
@@ -90,8 +90,8 @@ func waitTurn(view CombatView, m *CombatMemory) {
 	if !ManhunterPack(view) && !insects && !raid {
 		return
 	}
-	// An outmatched infestation evacuates (#1076), a lit burn-out waits
-	// out its fire (#1120); insects under the mountain do not feel the
+	// An outmatched infestation evacuates, a lit burn-out waits
+	// out its fire; insects under the mountain do not feel the
 	// weather.
 	wait := outmatched(view) || !insects && extremeWeather(view) || burnWaiting(*m)
 	if wait && !m.Wait {
@@ -113,14 +113,14 @@ func waitTurn(view CombatView, m *CombatMemory) {
 	m.Wait = wait
 }
 
-// shelter applies the wait after formation (#902, #1065): nobody engages
+// shelter applies the wait after formation: nobody engages
 // or goes out (no kiter, potshot door, intercept, rush or lure), every
 // role takes an inner-line cell when the layout has one (else holds where
 // it stands), and every planned room door is closed and forbidden, so
 // colony animals cannot open it and nobody paths out through it.
 func shelter(view CombatView, m *CombatMemory) {
 	if !m.Wait || m.Tactic == TacticShelter {
-		// A fight with no armed defender already shelters (#968).
+		// A fight with no armed defender already shelters.
 		return
 	}
 	m.Kiter, m.Leading, m.PotshotDoor = "", false, nil
@@ -161,7 +161,7 @@ func shelter(view CombatView, m *CombatMemory) {
 }
 
 // WaitDoor is one sheltering room's door and the room's floor cell
-// directly behind it (#1065).
+// directly behind it.
 type WaitDoor struct{ Door, Inside domain.Cell }
 
 // behindDoor is the room floor cell orthogonally next to door.
@@ -181,15 +181,15 @@ type WaitDoorCell struct {
 	Walkable, Roofed bool
 }
 
-// Wait hardening's stuff (#1065): a plasteel door holds far longer than a
+// Wait hardening's stuff: a plasteel door holds far longer than a
 // wooden one; plasteelDoorCost is a Door's stuff cost.
 const (
 	WaitDoorStuff    = "Plasteel"
 	plasteelDoorCost = 25
 )
 
-// WaitHardening is the layout planner's builds for a waiting fight
-// (#1065): each standing door of a sheltering room not already plasteel is
+// WaitHardening is the layout planner's builds for a waiting fight:
+// each standing door of a sheltering room not already plasteel is
 // rebuilt in plasteel while the stock holds 25 plasteel for it, and each
 // door the census no longer shows (broken) gets a wall of wallStuff on
 // the open floor cell behind it. A cell the census does not carry is left

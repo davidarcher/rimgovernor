@@ -23,7 +23,7 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	if g = roundsGoal(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardSettled {
 		t.Fatal("unissued plan invented a deficit", g)
 	}
-	// The unissued method settles with the recovery (#290); the renewed
+	// The unissued method settles with the recovery; the renewed
 	// deficit opens a new Episode and binds a fresh method.
 	if p, err := db.LoadPlan(ctx, "p"); err != nil || p.Progress[0].View().Stage != domain.Cancelled {
 		t.Fatal("recovery left the unissued method open", p, err)
@@ -57,7 +57,7 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	if _, err := db.RecordReceipt(ctx, "p2", "a2", 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
-	// An applied building closes once the census shows it built (#856).
+	// An applied building closes once the census shows it built.
 	r.Facts.CurrentConstruction = builtCensus(t, "wall")
 	if g = roundsGoal(t, reviewRounds(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingMet {
 		t.Fatal(g)

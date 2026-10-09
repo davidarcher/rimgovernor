@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// pikemenCharge is the pikemen's last charge (#926): once every live
+// pikemenCharge is the pikemen's last charge: once every live
 // hostile is a pikeman (Mech_Pikeman), every defender wearing a shield belt
 // leaves its cell and attacks the nearest pikeman in melee; the belt stops
 // the pikemen's long shots on the way in. Before that nothing changes.

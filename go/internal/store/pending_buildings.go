@@ -8,7 +8,7 @@ import (
 )
 
 // PendingBuildingAnchors are the anchor cells of building intents not yet
-// applied in current's world on plans other than own (#943): nothing on the
+// applied in current's world on plans other than own: nothing on the
 // map shows them, so siting keeps off them. The store knows no definition
 // sizes; native validation refuses a placement over the rest of a
 // multi-cell footprint. An applied, refused or cancelled intent holds

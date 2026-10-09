@@ -11,7 +11,7 @@ using static HomeBridge.BridgeTools.NativePawnObservationTools;
 namespace HomeBridge.BridgeTools
 {
     // The primary ideoligion's current state for the snapshot frame's
-    // "ideology" section (#1654); absent without Ideology. The static defs
+    // "ideology" section; absent without Ideology. The static defs
     // (memes, precepts, ritual patterns and behaviors) are rows of the
     // definition catalog's generated def mirror.
     internal static class NativeIdeologyObservation

@@ -20,7 +20,7 @@ func hayCrop(p observation.ColonyProjection) (policy.CropChoice, bool) {
 }
 
 // hayTarget is the hay crop and the cells the pens' whole need takes, before
-// standing hay zones (#1309); false when unknown or out of season.
+// standing hay zones; false when unknown or out of season.
 func hayTarget(p observation.ColonyProjection) (string, int, bool) {
 	need, known := policy.HayNutritionNeed(p.Facts.PenGrazing, policy.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions)).Value()
 	if !known || need <= 0 {
@@ -35,7 +35,7 @@ func hayTarget(p observation.ColonyProjection) (string, int, bool) {
 }
 
 // hayShortfall is the hay cells the pens still need after standing hay
-// zones (#1308): pure demand; RoundsFieldPlanner places the block.
+// zones: pure demand; RoundsFieldPlanner places the block.
 func hayShortfall(p observation.ColonyProjection) (policy.FieldBlockOption, bool) {
 	need, known := policy.HayNutritionNeed(p.Facts.PenGrazing, policy.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions)).Value()
 	if !known || need <= 0 {

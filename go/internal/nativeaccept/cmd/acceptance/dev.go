@@ -1,11 +1,11 @@
 package main
 
-// acceptance dev (#274): the edit loop over one serve-driven case from a
+// acceptance dev: the edit loop over one serve-driven case from a
 // checkpoint bundle. The expensive part of iterating on planner or policy
 // code is replaying the colony to the state under test, not the Go
 // build, so each iteration builds rimgovernor, reloads the bundle's save
 // on the kept process (its store and journal restored beside it, never a
-// fresh store: #119) and runs the case's Run and Postmortem as a resumed
+// fresh store) and runs the case's Run and Postmortem as a resumed
 // run, then waits for Enter (or, with -watch, for a change under the Go
 // module) and goes again. The ring is read and never written, no stage
 // bundle is captured and no series row is appended; every iteration's

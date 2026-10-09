@@ -17,11 +17,10 @@ import (
 // also lets the runner discover and heal the fixture package before launch.
 func init() {
 	// clearance/shrine-claim (claim=true) replays as a colony snapshot
-	// instead (internal/snapshot, #746).
+	// instead (internal/snapshot).
 	// The repair family composes because the fight damages buildings: the
 	// breach waits on repairs (ClearAncientShrine is method_unavailable
-	// while the repairs latch holds), so without it recovery never comes
-	// (#1145).
+	// while the repairs latch holds), so without it recovery never comes.
 	for _, claim := range []bool{false} {
 		name := "clearance/shrine-breach"
 		if claim {
@@ -241,5 +240,5 @@ func holdReasons(holds []policy.ShrineHold) []string {
 }
 
 // shrinePlanMethods match the shrine planner's claim, breach and open
-// methods (#987: plans are found by method, not plan id).
+// methods (plans are found by method, not plan id).
 var shrinePlanMethods = []string{"claim-*", "breach-*", "open-*"}

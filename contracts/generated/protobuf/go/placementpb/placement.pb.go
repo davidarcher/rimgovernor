@@ -196,7 +196,7 @@ type PlacementCandidate struct {
 	Stuff *string `protobuf:"bytes,5,opt,name=stuff,proto3,oneof" json:"stuff,omitempty"`
 	// Previews the placement as though natural rock at the cell were already
 	// mined, for a planned building whose excavation the same plan orders
-	// first (#874). Dispatch never sets it.
+	// first. Dispatch never sets it.
 	IgnoreNaturalRock *bool `protobuf:"varint,6,opt,name=ignore_natural_rock,json=ignoreNaturalRock,proto3,oneof" json:"ignore_natural_rock,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache

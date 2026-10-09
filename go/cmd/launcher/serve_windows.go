@@ -95,7 +95,7 @@ func (a *app) play() { a.playWith(nil) }
 // playWith is Play over override instead of the saved settings (nil: those).
 func (a *app) playWith(override *Settings) {
 	// Serve only the finished rimgovernor.exe: a rebuild in flight would
-	// otherwise leave the old binary running (#1132).
+	// otherwise leave the old binary running.
 	for deadline := time.Now().Add(5 * time.Minute); a.isBusy(jobController) && time.Now().Before(deadline); {
 		a.setController(ctrlStopped, "Waiting for the controller rebuild")
 		time.Sleep(250 * time.Millisecond)
@@ -242,8 +242,8 @@ func (a *app) start(s Settings) error {
 	return fmt.Errorf("the controller did not answer within 60 s; see %s", errPath)
 }
 
-// reload puts the colony the continued state DB was running back in play
-// (#1143): its newest save, found by the control record's colony id.
+// reload puts the colony the continued state DB was running back in play:
+// its newest save, found by the control record's colony id.
 func (a *app) reload(url, state, saves string) {
 	colony, err := ControlColony(state)
 	if err != nil {

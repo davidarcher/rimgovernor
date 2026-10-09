@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The dining/rec template (#804): tables on the room's centre line, running
+// The dining/rec template: tables on the room's centre line, running
 // away from the entrance, each with a chair on every edge; a horseshoes pin
 // against the back wall with its throw lane kept clear. A dining room and a
 // rec room host each other's furniture, so one template serves both and
@@ -80,8 +80,8 @@ func planDiningRec(f InteriorFrame, recFirst bool) ([]InteriorPiece, bool) {
 		p.Centred = true
 		out = append(out, p)
 	}
-	// A standing lamp in a back corner is the common-room quality lever
-	// (#816): the gap closer places it only for a room below its target.
+	// A standing lamp in a back corner is the common-room quality lever:
+	// the gap closer places it only for a room below its target.
 	// It is left out when the corner would cut a path.
 	blocked := map[domain.Cell]bool{}
 	for _, p := range out {

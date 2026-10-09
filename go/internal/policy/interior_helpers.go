@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Shared canonical-frame geometry for interior templates (#798 regularity:
+// Shared canonical-frame geometry for interior templates (regularity:
 // rows, centre line, mirror pairs). Every helper works in the frame of
 // interior.go: u along the entrance wall, v away from it.
 
@@ -75,12 +75,12 @@ func NewInteriorPiece(slot, def string, size domain.Cell, rot domain.Rotation, c
 	return InteriorPiece{Slot: slot, Def: def, Size: size, Rot: rot, Rect: Rectangle{X: corner.X, Z: corner.Z, Width: w, Height: h}}
 }
 
-// standingLampDef is the lamp beside a bed or throne (#802). It is no
+// standingLampDef is the lamp beside a bed or throne. It is no
 // facility (no row links it), so the catalog has no rule that names it.
 const standingLampDef = "StandingLamp"
 
 // furnishings are the shapes of the furnishing levers beside a bed or
-// throne (#802): an end table and a dresser, the bed's facilities
+// throne: an end table and a dresser, the bed's facilities
 // (RoomFurniture), and a standing lamp.
 type furnishings struct{ EndTable, Dresser, Lamp InteriorPieceDef }
 
@@ -118,8 +118,8 @@ func frontInteraction(def InteriorPieceDef) bool {
 }
 
 // BenchRow lays def's benches in one centred row against the back wall,
-// facing the entrance, with their interaction cells on the floor in front
-// (#820). Every slot is pitch wide, the widest of def and the family
+// facing the entrance, with their interaction cells on the floor in front.
+// Every slot is pitch wide, the widest of def and the family
 // members standing in the room, and each bench stands centred in its slot,
 // so a room holding mixed widths keeps one back line, one rotation and
 // even spacing. The row needs its interaction row and one open row before

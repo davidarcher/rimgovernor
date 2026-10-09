@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// lab-siege (#1147, #1154): three riflemen and a crewed mortar against
+// lab-siege: three riflemen and a crewed mortar against
 // four rifle raiders under a real LordJob_Siege camped ~32 cells out.
 // The fight opens on the far camp: the first stop holds (the camp not yet
 // set), then the siege sorties with the camp still building, every

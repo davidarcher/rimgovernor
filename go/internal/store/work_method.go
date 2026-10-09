@@ -26,7 +26,7 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	bound := false
 	areaOnly := false
 	// A creepjoiner's isolation is an area move among its drops and
-	// inspections (#1740): the other actions pass, each assignment is
+	// inspections: the other actions pass, each assignment is
 	// area-only.
 	isolation := false
 	need := policy.EnsureWorkAssignments
@@ -39,7 +39,7 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 		return ErrConflict
 	}
 	// The EnsureWorkAssignments plan also carries the pawn settings and
-	// per-pawn policies that ride its goal (#1299, #1306, #1537, #1541);
+	// per-pawn policies that ride its goal;
 	// the eight-pawn cap and one-assignment-per-pawn rule bind only the
 	// work assignments. A disaster area plan carries assignments alone.
 	pawns := map[domain.PawnID]bool{}

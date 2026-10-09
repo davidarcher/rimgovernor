@@ -99,7 +99,7 @@ func validateWallUpgradeSites(v *o.WallUpgradeSnapshot, identity *c.Identity, bu
 			return nil, contract("invalid wall upgrade site")
 		}
 		site := WallUpgradeSite{Blocker: row.GetBlocker(), NX: row.Normal.GetX(), NZ: row.Normal.GetZ(), LeftSupport: row.LeftSupport != nil, RightSupport: row.RightSupport != nil}
-		// The original wall's cell is its building row's (#1342).
+		// The original wall's cell is its building row's.
 		if original, ok := buildings.Row(row.Original); ok {
 			if pos := original.GetBuilding().GetPosition(); pos != nil {
 				site.X, site.Z = pos.GetX(), pos.GetZ()

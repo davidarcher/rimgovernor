@@ -16,7 +16,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
-// The build side of the reconciler as a shared library (#2109, epic #2101): an
+// The build side of the reconciler as a shared library: an
 // owning concern calls reconcileRoom for its own room and the reconciler decides
 // how. It reads the room's ground (clearance census on the room's rectangle, the
 // packed stock), asks the flooring review for the wanted floor, diffs
@@ -64,7 +64,7 @@ func roomRingInput(facts observation.ColonyProjection, plan policy.LayoutPlan, r
 }
 
 // cellsOn is the mirror cells inside ground: the room's foreign things are read
-// from them (#2269).
+// from them.
 func cellsOn(cells []policy.SiteCell, ground policy.Rectangle) []policy.SiteCell {
 	var out []policy.SiteCell
 	for _, c := range cells {
@@ -102,7 +102,7 @@ func flooringFacts(facts observation.ColonyProjection) policy.FlooringFacts {
 	return flooring
 }
 
-// clearFloors is the clear side's wanted floor per planned room (#2107): the
+// clearFloors is the clear side's wanted floor per planned room: the
 // flooring review's choice, with the throne room's title tags.
 func (r *Rounder) clearFloors(facts observation.ColonyProjection) policy.RoomFloors {
 	var throne policy.PlannedRoom
@@ -143,7 +143,7 @@ func roomWaiting(name string, refused ...refusedPlacement) RoundsBuildingResult 
 }
 
 // refusedPlacement is a furniture cell the native preview refused and the
-// thing it reported in the way (#2271).
+// thing it reported in the way.
 type refusedPlacement struct {
 	def     string
 	cell    domain.Cell
@@ -190,8 +190,8 @@ type roomWork struct {
 	holds []policy.ReconcileHold
 }
 
-// holdKey names the first held foreign thing for a wait key and logs every one
-// (#2269): the blocker rides in the wait, not a new enum.
+// holdKey names the first held foreign thing for a wait key and logs every one:
+// the blocker rides in the wait, not a new enum.
 func holdKey(ctx context.Context, works []roomWork) string {
 	var first string
 	for _, w := range works {
@@ -220,7 +220,7 @@ func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state
 	return b.reconcileRooms(call, epoch, state, review, goal, reading, stock, []roomReconcile{rr})
 }
 
-// reconcileRooms reconciles several rooms of one owner together (#2133, a
+// reconcileRooms reconciles several rooms of one owner together (a
 // wing's bedrooms): each room is diffed on its own, then the next wave is
 // committed across all of them in plan order, so twelve rooms' walls are one
 // wall batch. The first room names the methods. A removal is the first room's
@@ -234,7 +234,7 @@ func (b *RoundsBuildingPlanner) reconcileRooms(call, epoch context.Context, stat
 		return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
 	}
 	// A ring-only room whose wave the owner still has open is not diffed again:
-	// its owner goes on to its own placement (#2303).
+	// its owner goes on to its own placement.
 	for _, rr := range rrs {
 		if rr.ringOnly {
 			open, err := b.ringWaveOpen(call, goal)
@@ -398,8 +398,8 @@ func (b *RoundsBuildingPlanner) commitRemoval(call, epoch context.Context, state
 // obstructionKinds are the foreign-thing waves in the order they are committed.
 var obstructionKinds = []policy.OpKind{policy.OpClaim, policy.OpCut, policy.OpHaulOut}
 
-// commitObstructions commits the next foreign-thing wave across every room
-// (#2269): ruins claimed as wall, impassable plants cut and haulable items
+// commitObstructions commits the next foreign-thing wave across every room:
+// ruins claimed as wall, impassable plants cut and haulable items
 // moved, one method per kind whose name carries the targets, so an order the
 // game has not finished is not repeated. Packing and deconstruction of foreign
 // buildings go through commitRemoval like the room's own. A wave already
@@ -533,10 +533,9 @@ var roomBuildKinds = []policy.OpKind{policy.OpDoorIn, policy.OpWallIn, policy.Op
 // a time across the rooms in plan order (twelve rooms' walls are one batch),
 // and admits those native accepts as one method; a refused placement is left
 // for a later pass. The first room with work to do is admitted whole, as a
-// single room always was (a shell short of a material records the shortfall,
-// #602); the rooms after it take only what the stock still funds after it,
+// single-room admission records any material shortfall; the rooms after it take only what the stock still funds after it,
 // walls, doors, floors and furniture alike, and the rest follows in the next
-// wave (#2133). There is no cap on rooms or cells: the stock is the limit.
+// wave. There is no cap on rooms or cells: the stock is the limit.
 func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, plan policy.LayoutPlan, works []roomWork) (RoundsBuildingResult, error) {
 	facts := reading.Projection
 	wantWalls := make([]bool, len(works))
@@ -567,7 +566,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 					flaps := plan.FlapCells(rr.room)
 					for _, c := range op.Cells {
 						if slices.Contains(flaps, c) {
-							// The shared wall of a pen and its barn takes the animal flap (#2122).
+							// The shared wall of a pen and its barn takes the animal flap.
 							flap := facts.Shapes.Furniture.AnimalFlap
 							if flap == "" {
 								return RoundsBuildingResult{}, fmt.Errorf("%w: commitBuilds: the catalog names no animal flap", ErrControl)
@@ -614,8 +613,8 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 		}
 		return nil
 	}
-	// A room planned into rock is mined out before its ring (#836), a dug
-	// store room first: its zone waits on the dig (#2190).
+	// A room planned into rock is mined out before its ring, a dug
+	// store room first: its zone waits on the dig.
 	for _, stores := range []bool{true, false} {
 		for i, w := range works {
 			if wantWalls[i] && w.rr.room.Dug && policy.IsStoreRoom(w.rr.room.Role) == stores {
@@ -674,7 +673,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 			if build.ring && (rr.room.Outdoor || rr.ringOnly) {
 				// The planner sited this ring: a cell the native refuses is
 				// reported and left to the plan's replan, never moved to
-				// another site (#2120).
+				// another site.
 				return RoundsBuildingResult{Verdict: noSpace("pen_enclosure")}, nil
 			}
 			if !build.ring {

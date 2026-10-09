@@ -28,7 +28,7 @@ func TestAcquisitionCensusBindsSourceSnapshotAndYield(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, change := range []func(*o.ColonyFactsSnapshot){
-		// #1043: a designated row without its first-seen tick, a tick on an
+		// A designated row without its first-seen tick, a tick on an
 		// undesignated row, a tick past the read, and a missing taken.
 		func(v *o.ColonyFactsSnapshot) { v.Acquisition[0].Designated = proto.Bool(true) },
 		func(v *o.ColonyFactsSnapshot) { v.Acquisition[0].DesignatedTick = proto.Int64(0) },
@@ -36,7 +36,7 @@ func TestAcquisitionCensusBindsSourceSnapshotAndYield(t *testing.T) {
 			v.Acquisition[0].Designated, v.Acquisition[0].DesignatedTick = proto.Bool(true), proto.Int64(v.Context.GetTick()+1)
 		},
 		func(v *o.ColonyFactsSnapshot) { v.Acquisition[0].Taken = nil },
-		// #2292: a plantation row needs a tree and an in-range growth; growth is bounded on every row.
+		// A plantation row needs a tree and an in-range growth; growth is bounded on every row.
 		func(v *o.ColonyFactsSnapshot) { v.Acquisition[0].Plantation = proto.Bool(true) },
 		func(v *o.ColonyFactsSnapshot) {
 			v.Acquisition[0].Plantation, v.Acquisition[0].Growth = proto.Bool(true), proto.Float64(1.5)

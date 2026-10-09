@@ -12,9 +12,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// cellsRead is one validated observations_get_cells read (#1346): the
+// cellsRead is one validated observations_get_cells read: the
 // map's bounds and the rect as a decoded grid. The grid carries each cell's
-// things, terrain and foundation affordances (#2260, #2272).
+// things, terrain and foundation affordances.
 type cellsRead struct {
 	Context *c.ObservationContext
 	Bounds  policy.Bounds

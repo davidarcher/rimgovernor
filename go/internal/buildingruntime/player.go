@@ -44,7 +44,7 @@ type Player struct {
 	stopLifetime    func() bool
 	closing, closed bool
 	workerAttached  bool
-	// holder names the caller holding the gate and when it took it (#1267),
+	// holder names the caller holding the gate and when it took it,
 	// so a slow wait can name what it queued behind.
 	holder      string
 	holderSince time.Time
@@ -85,7 +85,7 @@ func newPlayer(ctx context.Context, config PlayerConfig, journal *store.Store, s
 func (p *Player) State() ControlState { return p.session.State() }
 
 // gateWait describes one caller's wait for the player gate: how long it
-// waited and who held the gate when the wait began (#1267).
+// waited and who held the gate when the wait began.
 type gateWait struct {
 	wait       time.Duration
 	holder     string
@@ -119,11 +119,8 @@ func (p *Player) enterTimed(ctx context.Context, label string, manual bool) (con
 	holder, holderSince := p.holder, p.holderSince
 	p.mu.Unlock()
 	began := time.Now()
-	// The wait for the gate and the call under it are budgeted apart, each
-	// by CallTimeout: a caller queued behind a long scheduler step (its
-	// planner reads run 5-11 s under peer load, up to serviceClockStepTimeout)
-	// used to enter with a budget the wait had spent and lose its first
-	// native call to that deadline (#410). Both waits end with the epoch.
+	// Queueing and the native call each receive CallTimeout, so waiting cannot
+	// consume the call's budget. Both end with the epoch.
 	wait, cancelWait := context.WithTimeout(ctx, p.config.CallTimeout)
 	stopWait := context.AfterFunc(epoch, cancelWait)
 	if p.queued != nil {
@@ -285,14 +282,14 @@ func (p *Player) completeResumeHeld(call, epoch context.Context, record store.Co
 	// A grant this process still holds for that scope as far as it has
 	// observed (disabled locally on a clock hold, or live) is re-acquired in
 	// place by Acquire: one native generation per resume, not the Manual->Auto
-	// pair that rebinds every prepared action (#259). Manual first stays for
+	// pair that rebinds every prepared action. Manual first stays for
 	// a genuine switch: an observed revocation or an uncertain grant.
 	// Manual also revokes a grant left standing by a failed status read
-	// (observation unknown, #328); the held-grant check answers that case
+	// (observation unknown); the held-grant check answers that case
 	// by re-acquiring it in place instead.
 	// That Manual keeps the drafts a plan or an open fight still holds, as
 	// the Acquire drain does: a player pause and resume mid-raid must not
-	// undraft the defenders (#916).
+	// undraft the defenders.
 	if p.session.TargetsWorld(request.World) && !p.session.HoldsGrant(snapshot) {
 		if err = p.session.ManualForResume(call); err != nil {
 			return p.uncertain(record, err)
@@ -355,7 +352,7 @@ func (p *Player) Pause(ctx context.Context, request store.ControlRequest) (store
 	// observation is known, and also when a failed status read left the
 	// observation unknown while the grant still stands natively -- Acquire
 	// refuses an Active it once targeted, so without the revoke every later
-	// request would end uncertain (#328).
+	// request would end uncertain.
 	if p.session.TargetsWorld(request.World) {
 		if err = p.session.Manual(call); err != nil {
 			return p.uncertain(record, err)

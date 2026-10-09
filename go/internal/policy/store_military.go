@@ -7,8 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The Military department owns the armory and wardrobe stores (#2195, epic
-// #2176): each standing gear room is one store over its free cells, and the
+// The Military department owns the armory and wardrobe stores: each standing gear room is one store over its free cells, and the
 // gear RoomDemand is its capacity reading: a gear room is asked for while none
 // stands and serviceable gear of its kind is held, and again when every store
 // of its kind is full. Until the rooms stand, gear stays in the general store.

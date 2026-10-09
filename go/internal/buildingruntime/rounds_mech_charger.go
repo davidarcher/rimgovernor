@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RoundsMechChargerPlanner composes EnsureMechCharger's method (#1688): one
+// RoundsMechChargerPlanner composes EnsureMechCharger's method: one
 // mech charger, found by the catalog's mech_charger flag and sited by the
 // polluting-machine rule (policy.MechChargerSites over PollutionSites) on the
 // first footprint native previews as legal, safe and reachable. The goal

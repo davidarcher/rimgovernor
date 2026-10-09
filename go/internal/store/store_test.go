@@ -133,7 +133,7 @@ func TestRetryAttemptsAndReceiptsSurviveRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	first := p.View().Attempt
-	// A building intent is idempotent (#856): an unknown receipt sends it again.
+	// A building intent is idempotent: an unknown receipt sends it again.
 	if _, err = s.RecordReceipt(ctx, "p", "a", first, domain.ReceiptUnknown); err != nil {
 		t.Fatal(err)
 	}

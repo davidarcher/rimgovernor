@@ -25,7 +25,7 @@ const (
 	RoomRoleWorkshop   RoomRole = "Workshop"
 	RoomRoleStoreroom  RoomRole = "Storeroom"
 	RoomRoleBarracks   RoomRole = "Barracks"
-	// RoomRoleShelter is a plan role only (#2041): the temporary starter room,
+	// RoomRoleShelter is a plan role only: the temporary starter room,
 	// scored by the game as whatever its furniture makes it.
 	RoomRoleShelter        RoomRole = "Shelter"
 	RoomRolePrisonBarracks RoomRole = "PrisonBarracks"
@@ -44,7 +44,7 @@ const (
 	// Anomaly
 	RoomRoleContainmentCell   RoomRole = "ContainmentCell"
 	RoomRoleCeremonialChamber RoomRole = "CeremonialChamber"
-	// RoomRoleIsolationRoom is a plan role only (#1740), no game RoomRoleDef:
+	// RoomRoleIsolationRoom is a plan role only, no game RoomRoleDef:
 	// the game scores the furnished room a bedroom, so it has no facility row.
 	RoomRoleIsolationRoom RoomRole = "IsolationRoom"
 )
@@ -66,7 +66,7 @@ type Room struct {
 	Cells       []domain.Cell
 	// Roofed is every cell roofed (native open roof count zero).
 	Roofed domain.Fact[bool]
-	// Doors are the doors in the room's boundary (#1323).
+	// Doors are the doors in the room's boundary.
 	Doors                                           []RoomDoor
 	Burning, TemperatureControl, PerishableContents domain.Fact[bool]
 	Pawns                                           []domain.PawnID
@@ -218,55 +218,55 @@ func FacilityCatalog() []FacilityRequirement {
 		{Role: RoomRoleBedroom, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBarracks}, generic...), FurnitureFromGame: true},
 		{Role: RoomRoleBarracks, Status: FacilityPending},
 		{Role: RoomRoleShelter, Status: FacilityPending},
-		// A jail is its own planned room (#880): MaintainPopulation shells it
+		// A jail is its own planned room: MaintainPopulation shells it
 		// while a prisoner is held and keeps a prisoner bed per prisoner.
 		{Role: RoomRolePrisonCell, Status: FacilityImplemented, FurnitureFromGame: true},
 		{Role: RoomRolePrisonBarracks, Status: FacilityPending},
 		// A hospital is a hosted medical bed, not a dedicated room: the game
 		// scores a room holding any ordinary bed a Bedroom or Barracks, and a
 		// bed flagged medical inside it still draws patients, doctors and the
-		// room's cleanliness into tending (issue #4 M3). Doctor coverage is
+		// room's cleanliness into tending. Doctor coverage is
 		// AssignWork's standing requirement; medicine is MaintainMedicalReserves.
 		{Role: RoomRoleHospital, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBedroom, RoomRoleBarracks}, generic...), FurnitureFromGame: true},
 		// A laboratory is a hosted research bench: EnsureResearch stages the
-		// simple bench in the shelter (scored a Barracks once the bunks stand) when a ladder rung waits on it (#254).
+		// simple bench in the shelter (scored a Barracks once the bunks stand) when a ladder rung waits on it.
 		{Role: RoomRoleLaboratory, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleWorkshop, RoomRoleBarracks}, generic...), FurnitureFromGame: true},
 		// A workshop shares the shelter: the ladder furnishes the first
 		// enclosed room rather than siting a second ring (rounds_sleeping.go),
 		// and once the sleeping spots move indoors the game scores that room a
-		// Barracks while the bench keeps working (issue #4 M2 runs 24-25).
+		// Barracks while the bench keeps working.
 		{Role: RoomRoleWorkshop, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBarracks}, generic...), FurnitureFromGame: true},
 		{Role: RoomRoleStoreroom, Status: FacilityPending},
-		// A kitchen is its own planned room (#835): EnsureCooking shells it
+		// A kitchen is its own planned room: EnsureCooking shells it
 		// at Masonry and above and holds the stove to its interior.
 		{Role: RoomRoleKitchen, Status: FacilityImplemented, FurnitureFromGame: true},
-		// A tomb is its own planned room (#832): MaintainBurial shells it and
+		// A tomb is its own planned room: MaintainBurial shells it and
 		// places a sarcophagus while a dead colonist has none waiting.
 		{Role: RoomRoleTomb, Status: FacilityImplemented, FurnitureFromGame: true},
-		// A barn is a planned room beside the pen (#1633): the animal planner
+		// A barn is a planned room beside the pen: the animal planner
 		// shells it and places an animal sleeping spot per kept animal.
 		{Role: RoomRoleBarn, Status: FacilityImplemented, FurnitureFromGame: true},
-		// A throne room is its own planned room (#1601): MaintainHousing shells
+		// A throne room is its own planned room: MaintainHousing shells
 		// it sized to the next title's area, places a throne and furnishes it to
 		// the title's impressiveness; assigning the throne awaits an action kind.
 		{Role: RoomRoleThroneRoom, Status: FacilityImplemented, Content: "Royalty", Furniture: []string{"Throne", "GrandThrone"}},
-		// A worship room is its own planned room (#1658), staged like the child
+		// A worship room is its own planned room, staged like the child
 		// rooms: MaintainHousing shells it and places the buildings the
 		// ideoligion requires, which the game's defs name (the ideology
 		// section), not this row.
 		{Role: RoomRoleWorshipRoom, Status: FacilityImplemented, Content: "Ideology", FurnitureFromGame: true},
-		// The child rooms are their own planned rooms (#1680): MaintainHousing
+		// The child rooms are their own planned rooms: MaintainHousing
 		// shells each while a baby (nursery), baby or child (playroom) or child
 		// (classroom) lives and places the furniture the game scores the role
 		// from (ChildRoomNeeds); a nursery room holds no other bed.
 		{Role: RoomRoleNursery, Status: FacilityImplemented, Content: "Biotech", Roles: []FurnitureRole{RoleBabyBed}},
 		{Role: RoomRolePlayroom, Status: FacilityImplemented, Content: "Biotech", Roles: []FurnitureRole{RoleToy, RoleDecoration}},
 		{Role: RoomRoleClassroom, Status: FacilityImplemented, Content: "Biotech", Roles: []FurnitureRole{RoleBoard, RoleDesk}},
-		// A deathrest chamber is its own planned room (#1690): MaintainHousing
+		// A deathrest chamber is its own planned room: MaintainHousing
 		// shells it while a deathrester lives and places a casket per
 		// deathrester and the accelerators its capacity allows.
 		{Role: RoomRoleDeathrestChamber, Status: FacilityImplemented, Content: "Biotech", Roles: []FurnitureRole{RoleDeathrestCasket, RoleDeathrestAccelerator}},
-		// A containment cell is its own planned room (#1741): MaintainHousing
+		// A containment cell is its own planned room: MaintainHousing
 		// shells it while a capturable entity has no platform able to hold it
 		// and places the holding platform the game's defs name, once the
 		// predicted containment strength reaches what the entity needs.

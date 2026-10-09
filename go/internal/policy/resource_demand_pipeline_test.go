@@ -24,7 +24,7 @@ func demandFacts() RoundsFacts {
 
 // The review's detectors and every planner read one value: the findings
 // carry exactly what ResourceDemandOf computes for the review's facts and
-// latches, with every source in it (#2494).
+// latches, with every source in it.
 func TestInspectRoundsPublishesResourceDemandOfTheSameFacts(t *testing.T) {
 	p, f := DefaultRoundsPolicy(), demandFacts()
 	findings, err := InspectRounds(f, RoundsLatches{}, p)

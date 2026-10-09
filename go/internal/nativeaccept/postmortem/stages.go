@@ -7,10 +7,10 @@ import (
 
 // --- stage graph -------------------------------------------------------
 
-// stageGraph reads the run's declared stages (result.json "stages", #329)
+// stageGraph reads the run's declared stages (result.json "stages")
 // as a graph: the bundle the run opened on (staged_from), each stage's
 // outcome (hit, captured, uncached, failed) and the stage a -through run
-// ended on (staged_through, #527). A run whose failure sits past a hit
+// ended on (staged_through). A run whose failure sits past a hit
 // stage never replayed that stage's block, which is the first thing to
 // know before reading the colony.
 func stageGraph(report map[string]any) Section {

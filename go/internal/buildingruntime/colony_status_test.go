@@ -168,7 +168,7 @@ func TestColonyStatusReadTolerantOfTickBetweenReads(t *testing.T) {
 	}
 }
 
-// The held projection's personal shares ride the roster rows (#1846); a
+// The held projection's personal shares ride the roster rows; a
 // colonist it holds none for stays unknown.
 func TestColonyStatusReadPersonalSharesFromHeldProjection(t *testing.T) {
 	status, native := colonyStatusFixture(t)

@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace HomeBridge.BridgeTools
 {
-    // Starting-team composition policy (#2024). Pure: every criterion is a
+    // Starting-team composition policy. Pure: every criterion is a
     // function of the pawn facts, so the result depends only on the seeded
     // Rand stream the caller rerolls from. The game adapter
     // (ProtoLifecycleNewColonyTools) reads PawnFacts off the real pawns.
@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
 
     internal static class NativeTeamPolicy
     {
-        // Total rerolls across the team, not per pawn. #2029 measured 40-80 ms a
+        // Total rerolls across the team, not per pawn. Measured 40-80 ms per
         // reroll and 5-17 rerolls to accept a team, so 1,000 caps a failure near a minute.
         internal const int RerollBudget = 1000;
 

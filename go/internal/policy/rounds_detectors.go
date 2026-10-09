@@ -38,7 +38,7 @@ type roundsRun struct {
 	stoneActive    bool
 }
 
-// raise appends an autopilot goal and returns it for the detector to adjust.
+// raise appends a Concern and returns it for the detector to adjust.
 func (c *roundsRun) raise(id ConcernID, priority int) *RoundsConcern {
 	c.r.Concerns = append(c.r.Concerns, RoundsConcern{ID: id, Priority: priority, Deficit: RoundsDeficit(id, c.f, c.p)})
 	return &c.r.Concerns[len(c.r.Concerns)-1]
@@ -53,7 +53,7 @@ func (c *roundsRun) assess(id ConcernID, priority int, recovered domain.Fact[boo
 		if value {
 			need = domain.FindingMet
 			// A Met owner with a stale bill is Unmet until its planner
-			// removes the bill (#2411).
+			// removes the bill.
 			if stale = HasStaleBill(c.f.StaleBills, id); stale {
 				need = domain.FindingUnmet
 			}
@@ -175,7 +175,7 @@ func inspectTemperatureSafety(c *roundsRun) error {
 	temperatureMet := footholdTemperature(f, p)
 	if positive(f.TemperatureOwed) {
 		// A refuel switch or a room below its sleepers' band holds the
-		// goal open (#1180, #1199).
+		// goal open.
 		temperatureMet = domain.Known(false)
 	}
 	if slices.ContainsFunc(DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes, p), func(d DoorChange) bool { return d.Heat }) {
@@ -247,7 +247,7 @@ func inspectComfort(c *roundsRun) error {
 	}
 	// A table with a seat and a recreation source are provided with the
 	// starter hut, at foothold priority: the two cheapest mood debuffs to
-	// remove should not wait for the ranked comfort project (#232). While the
+	// remove should not wait for the ranked comfort project. While the
 	// initial shelter is still owed there is no room to furnish, so the goal
 	// holds no method and neither extends the startup hold nor competes.
 	comfortRanked := c.p.ColonyStage >= StageDevelopment
@@ -276,8 +276,7 @@ func inspectComfort(c *roundsRun) error {
 }
 
 func inspectPests(c *roundsRun) error {
-	// A recognised pest on the map (an alphabeaver pack eating the trees,
-	// #247) is a foothold deficit answered by hunting, priority 2: it is
+	// A recognised pest on the map (an alphabeaver pack eating the trees ) is a foothold deficit answered by hunting, priority 2: it is
 	// not an emergency (the census never holds the clock for a docile
 	// animal) but it outranks every ranked project while it lasts. Only a
 	// known census with a pest opens the goal: an unknown wild census
@@ -319,7 +318,7 @@ func inspectResearch(c *roundsRun) error {
 	researchTarget, researchDerived := ResearchConcern(ArmorResearchPolicy(p, c.l.Soldiers), researchNeeds, f.Research)
 	researchRecovered, researchDeficit := ResearchTargetNeed(researchTarget, researchDerived, f.Research)
 	// An empty Anomaly knowledge slot with a project to fund is a spending
-	// need of its own (#1745); a disabled goal (no target, empty ladder)
+	// need of its own; a disabled goal (no target, empty ladder)
 	// funds none.
 	if facts, known := f.Research.Value(); known && facts.KnowledgePick != "" && (len(researchNeeds) != 0 || len(ArmorResearchPolicy(p, c.l.Soldiers).ResearchLadder) != 0) {
 		deficit, _ := researchDeficit.Value()
@@ -363,7 +362,7 @@ func inspectResource(c *roundsRun) error {
 		g.Deficit = resourceDeficit
 		// The ladder's research rung: while a project the workshop recorded
 		// as gating the bench is unfinished, the goal has no method of its
-		// own and holds no slot, so EnsureResearch can take one (#4 M4).
+		// own and holds no slot, so EnsureResearch can take one.
 		// Construction demand is chopped or mined meanwhile.
 		g.MethodUnavailable = ResearchConcernTarget("", f.ResearchNeeds, f.Research) != "" && len(c.demand.Works) == 0
 	}
@@ -371,11 +370,11 @@ func inspectResource(c *roundsRun) error {
 	return nil
 }
 
-// detectTrade: TradeWithCaravan is a Response (#1078): an incident per
+// detectTrade: TradeWithCaravan is a Response: an incident per
 // caravan visit, never a development goal. It needs a negotiator's
 // conversation, not a development slot, and recovers by itself when the
 // caravan leaves or nothing is left worth trading. Restore parts a bench
-// could make do not stand the goal (#1255).
+// could make do not stand the goal.
 func inspectTrade(c *roundsRun) error {
 	f, p := c.f, c.p
 	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(f.Items, c.medicine, f.Resources, c.demand.Needs, RoundsTradeFloors(p, nil), f.Wealth, c.demand.Retained, RoundsTradeFood(f, p)), f.Resources, f.Colonists), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
@@ -436,7 +435,7 @@ func holdFireSafety(*roundsRun) bool { return true }
 
 // Clearance ranks below repairs and above direct cleaning. Safety goals
 // already suspend all development work through the shared emergency gate.
-// While the shrine breach (#458) is issued, obstruction clearance waits so
+// While the shrine breach is issued, obstruction clearance waits so
 // the construction hand is the breacher, not a wanderer past the trap line.
 func holdClearance(c *roundsRun) bool {
 	return c.upkeep.History.Repairs || c.f.UpkeepIssued[ClearAncientShrine]
@@ -526,18 +525,18 @@ func inspectMedicalReserves(c *roundsRun) error {
 	return nil
 }
 
-// detectSurgery (#1164): an operation the planner serves stands on a living
+// detectSurgery: an operation the planner serves stands on a living
 // colonist until the health change removes it.
 func inspectSurgery(c *roundsRun) error {
 	f, p := c.f, c.p
-	// An actionable elective upgrade (#1167) keeps it open too.
+	// An actionable elective upgrade keeps it open too.
 	recovered := allFacts(SurgeryRecovered(f.MedicalPawns), measured(ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContext(), f.FabricableParts), func(owed bool) bool { return !owed }))
-	// A sale organ harvest (#1169) holds it open while the silver runway
+	// A sale organ harvest holds it open while the silver runway
 	// is short and a prisoner's organ clears its cost; a prisoner's
-	// recoverable artificial part (#1232) too, and a peg-leg step: doctor
+	// recoverable artificial part too, and a peg-leg step: doctor
 	// training below the Medicine floor, prisoner control or a reinstall
-	// before release (#1236). A prisoner whose care allows better than herbal
-	// (#1239) too.
+	// before release. A prisoner whose care allows better than herbal
+	// too.
 	if SaleHarvestWanted(f, reviewSilverShort(f, p, c.medicine, c.demand)) || PartRecoveryWanted(f) || PegCycleWanted(f, p.Prisoners()) {
 		recovered = domain.Known(false)
 	}
@@ -548,7 +547,7 @@ func inspectSurgery(c *roundsRun) error {
 	return nil
 }
 
-// detectBabyFeeding (#1681): owed while babies have no breastfeeder and too
+// detectBabyFeeding: owed while babies have no breastfeeder and too
 // little baby-edible food; unknown raises nothing.
 func inspectBabyFeeding(c *roundsRun) error {
 	recovered := measured(c.f.BabyFeeding, func(b BabyFeeding) bool { return !b.Short })
@@ -567,7 +566,7 @@ func inspectFoodStorage(c *roundsRun) error {
 	reserve, reserveKnown := f.FoodReserve.Value()
 	reserveAccess := reserveKnown && (len(reserve.Hold) > 0 || len(reserve.Release) > 0)
 	reserveRefill := reserveKnown && !reserve.Emergency && reserve.DeficitNutrition > 0
-	// Unread claims are not yet known, never "missing" (#2226).
+	// Unread claims are not yet known, never "missing".
 	stockpileOwed := negative(FoodStorageStanding(f))
 	active := c.foodStorage.Active || f.UpkeepIssued[MaintainFoodStorage] || reserveAccess || reserveRefill
 	recovered := domain.Unknown[bool]()
@@ -616,7 +615,7 @@ func inspectRefrigeration(c *roundsRun) error {
 		g := c.raise(MaintainRefrigeration, refrigerationPriority)
 		// A cooler cannot run under a solar flare either (the cooler
 		// planner reports solar_flare), but the goal keeps a method: the
-		// warm stock is cooked ahead on a bench that still works (#408).
+		// warm stock is cooked ahead on a bench that still works.
 		if nutrition, known := refrigeration.WarmNutrition.Value(); known && c.p.FoodStorage.AtRiskNutritionThreshold > 0 {
 			g.Deficit = domain.Known(min(1, nutrition/c.p.FoodStorage.AtRiskNutritionThreshold))
 		}
@@ -698,13 +697,13 @@ func inspectRoutes(c *roundsRun) error {
 	return nil
 }
 
-// detectArt is a ranked upkeep project too (#1190): owed only while a room
+// detectArt is a ranked upkeep project too: owed only while a room
 // needs a sculpture and a qualifying artist exists; unknown raises nothing.
 func inspectArt(c *roundsRun) error {
 	f := c.f
 	recovered := domain.Unknown[bool]()
-	// An inspired artist holds it open without a room (#1192). Sale demand
-	// (#1193) holds it open the same way while an artist exists.
+	// An inspired artist holds it open without a room. Sale demand
+	// holds it open the same way while an artist exists.
 	if profiles, pk := f.WorkProfiles.Value(); pk && (len(InspiredArtists(profiles)) > 0 || len(Artists(profiles)) > 0 && artForSale(f, c.p, c.medicine, c.demand)) {
 		recovered = domain.Known(false)
 	} else if owed, known := f.SculptureRoomsOwed.Value(); known && !owed {
@@ -719,7 +718,7 @@ func inspectArt(c *roundsRun) error {
 	return nil
 }
 
-// detectShelter (#1325): a Safe area edit is owed. A settings write, ranked
+// detectShelter: a Safe area edit is owed. A settings write, ranked
 // with the upkeep projects; unknown raises nothing. While a sheltering
 // trigger holds it is ShelterPriority, so a threat's emergency cannot veto
 // the Safe area that PlanSheltering moves pawns into.
@@ -732,35 +731,35 @@ func inspectShelter(c *roundsRun) error {
 	return nil
 }
 
-// MaintainFirebreak (#1548): ring work is owed.
+// MaintainFirebreak: ring work is owed.
 func inspectFirebreak(c *roundsRun) error {
 	c.owed(MaintainFirebreak, 3, c.f.FirebreakOwed)
 	return nil
 }
 
-// MaintainMechs (#1686): a mech is owed inside the bandwidth.
+// MaintainMechs: a mech is owed inside the bandwidth.
 func inspectMechs(c *roundsRun) error {
 	c.owed(MaintainMechs, mechPriority, c.f.MechGestationOwed)
 	return nil
 }
 
-// MaintainPsylink (#1609): a held neuroformer waits for a willing colonist.
+// MaintainPsylink: a held neuroformer waits for a willing colonist.
 func inspectPsylink(c *roundsRun) error { c.owed(MaintainPsylink, 3, c.f.PsylinkOwed); return nil }
 
-// MaintainIdeoRoles (#1661): a role place and a fitting believer.
+// MaintainIdeoRoles: a role place and a fitting believer.
 func inspectIdeoRoles(c *roundsRun) error { c.owed(MaintainIdeoRoles, 3, c.f.RolesOwed); return nil }
 
-// MaintainRituals (#1660): a ritual is due, calm and ready to begin.
+// MaintainRituals: a ritual is due, calm and ready to begin.
 func inspectRituals(c *roundsRun) error { c.owed(MaintainRituals, 3, c.f.RitualsOwed); return nil }
 
-// ManageCreepJoiners (#1740): a creepjoiner holds a weapon before its
+// ManageCreepJoiners: a creepjoiner holds a weapon before its
 // downside has shown.
 func inspectCreepJoiners(c *roundsRun) error {
 	c.owed(ManageCreepJoiners, 3, c.f.CreepJoinerOwed)
 	return nil
 }
 
-// detectPermits (#1606): a colonist holds permit points for a permit worth
+// detectPermits: a colonist holds permit points for a permit worth
 // taking. Unknown without the royalty read raises nothing.
 func inspectPermits(c *roundsRun) error {
 	c.assess(MaintainPermits, 3, PermitsSpent(c.f.Royalty))
@@ -891,7 +890,7 @@ func inspectBlight(c *roundsRun) error {
 	return nil
 }
 
-// detectPollution (#1683): without the Biotech read the need is unknown and
+// detectPollution: without the Biotech read the need is unknown and
 // raises no goal. It is always assessed so the stored bindings match the set
 // the review loader derives from empty facts.
 func inspectPollution(c *roundsRun) error {
@@ -906,7 +905,7 @@ func inspectPollution(c *roundsRun) error {
 	return nil
 }
 
-// detectMechCharger (#1688): unknown without the charger read, and then it
+// detectMechCharger: unknown without the charger read, and then it
 // raises no goal. Always assessed, like ManagePollution.
 func inspectMechCharger(c *roundsRun) error {
 	c.assess(EnsureMechCharger, 3, notFact(c.f.MechChargerOwed))
@@ -916,7 +915,7 @@ func inspectMechCharger(c *roundsRun) error {
 	return nil
 }
 
-// detectGeneBank (#1933): unknown without the gene-building read, and then
+// detectGeneBank: unknown without the gene-building read, and then
 // it raises no goal. Always assessed, like EnsureMechCharger.
 func inspectGeneBank(c *roundsRun) error {
 	c.assess(MaintainGeneBank, 3, notFact(c.f.GeneBankOwed))
@@ -926,7 +925,7 @@ func inspectGeneBank(c *roundsRun) error {
 	return nil
 }
 
-// detectStockpiles (#725): a standing stockpile edit is the deficit;
+// detectStockpiles: a standing stockpile edit is the deficit;
 // availability is gated through AvailableMethods.
 func inspectStockpiles(c *roundsRun) error {
 	recovered := domain.Unknown[bool]()
@@ -940,8 +939,8 @@ func inspectStockpiles(c *roundsRun) error {
 	return nil
 }
 
-// detectMood: a pawn's mood is an EnsureMood incident keyed by the pawn
-// (#1078), never a development goal. Its relief is optional and a mental
+// detectMood: a pawn's mood is an EnsureMood incident keyed by the pawn,
+// never a development goal. Its relief is optional and a mental
 // break ends only as ticks pass, so it never suspends other work.
 func inspectMood(c *roundsRun) error {
 	if err := c.f.Mood.Validate(); err != nil {

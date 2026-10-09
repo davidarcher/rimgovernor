@@ -10,13 +10,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// Individual bedrooms (#786). The review keeps MaintainHousing open while a
+// Individual bedrooms. The review keeps MaintainHousing open while a
 // bedroom step is due; the sleeping planner answers it once every colonist
 // owns a bed: move, furnish, then shell (policy.NextBedroomStep).
 
 // bedroomStep is the projection's next bedroom step: none without the
 // layout plan, the room census or the sleeping census. A tribe builds its
-// wood bedrooms at Camp tier too (#1182).
+// wood bedrooms at Camp tier too.
 func bedroomStep(facts observation.ColonyProjection, stage policy.ColonyStage) policy.BedroomStep {
 	plan, pk := facts.LayoutPlan.Value()
 	rooms, rk := facts.Rooms.Value()
@@ -27,7 +27,7 @@ func bedroomStep(facts observation.ColonyProjection, stage policy.ColonyStage) p
 	return policy.NextBedroomStep(plan, rooms, sleeping, bedroomTargets(facts), sleepingTraits(facts), suitePressure(facts), bedroomGate(facts, stage))
 }
 
-// migrateStep is the projection's next wing migration step (#1219): none
+// migrateStep is the projection's next wing migration step: none
 // without the layout plan, the room census or the sleeping census.
 func migrateStep(facts observation.ColonyProjection) policy.BedroomStep {
 	plan, pk := facts.LayoutPlan.Value()
@@ -40,7 +40,7 @@ func migrateStep(facts observation.ColonyProjection) policy.BedroomStep {
 }
 
 // bedroomTargets is the rooms' quality targets, so a bedroom move leaves an
-// ascetic's NeverUpgrade room alone (#826); nil while the census is unknown.
+// ascetic's NeverUpgrade room alone; nil while the census is unknown.
 func bedroomTargets(facts observation.ColonyProjection) map[string]policy.RoomTarget {
 	obs, known := facts.Facts.Sleeping.Value()
 	traits := sleepingTraits(facts)
@@ -51,7 +51,7 @@ func bedroomTargets(facts observation.ColonyProjection) map[string]policy.RoomTa
 	return policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)
 }
 
-// suiteTargets is the suites the generator keeps and adds for plan (#1216) and the
+// suiteTargets is the suites the generator keeps and adds for plan and the
 // claims behind them; nil while the room, sleeping or work census is
 // unknown.
 func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan, stage policy.ColonyStage) ([]float64, []policy.SuiteClaim) {
@@ -66,8 +66,8 @@ func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan, st
 	return policy.SuiteTargets(plan, rooms, sleeping, claims), claims
 }
 
-// upgradeTargets is targets less the rooms of pawns owed a suite (#1257,
-// suite first): those rooms get no in-place quality upgrade.
+// upgradeTargets excludes pawns awaiting a suite; their current rooms receive
+// no in-place quality upgrade.
 func upgradeTargets(facts observation.ColonyProjection, targets map[string]policy.RoomTarget, stage policy.ColonyStage) map[string]policy.RoomTarget {
 	plan, pk := facts.LayoutPlan.Value()
 	rooms, rk := facts.Rooms.Value()
@@ -81,7 +81,7 @@ func upgradeTargets(facts observation.ColonyProjection, targets map[string]polic
 }
 
 // bedroomsOwed is the review's BedroomsOwed fact for the projection.
-// A due room quality swap (#813) or wing migration (#1244) owes a bedroom
+// A due room quality swap or wing migration owes a bedroom
 // too, so MaintainHousing stays open until it is done.
 func bedroomsOwed(facts observation.ColonyProjection, stage policy.ColonyStage) domain.Fact[bool] {
 	owed := policy.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, bedroomTargets(facts), sleepingTraits(facts), suitePressure(facts), bedroomGate(facts, stage))
@@ -112,14 +112,14 @@ func bedroomReconcileName(room policy.PlannedRoom) string {
 	return fmt.Sprintf("bedroom-shell-%d-%d", room.Interior.X, room.Interior.Z)
 }
 
-// reconcileBedroom answers a BedroomReconcile through the shared build side
-// (#2115): the room's ring, doors and floor and its bed are reconciled to the
+// reconcileBedroom answers a BedroomReconcile through the shared build side:
+// the room's ring, doors and floor and its bed are reconciled to the
 // plan and the bedroom template, the bed installed from packed stock first and
 // built on site only when none is stored. A vacant bed left in the starter
 // shell is packed to become that stock; a placement native refuses means wait.
 func (r *RoundsSleepingUpkeepPlanner) reconcileBedroom(call, epoch context.Context, stock *packedStock, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, step policy.BedroomStep) (RoundsBuildingResult, error) {
 	facts := reading.Projection
-	// A suite is only started with its whole ring in stock (#1216).
+	// A suite is only started with its whole ring in stock.
 	if step.Room.Role == policy.PlannedSuite {
 		in := step.Room.Interior
 		_, walls, _ := facts.StockedStuff("Wall")
@@ -142,7 +142,7 @@ func (r *RoundsSleepingUpkeepPlanner) reconcileBedroom(call, epoch context.Conte
 	if !known {
 		return RoundsBuildingResult{Verdict: fieldUnavailable("room_census")}, nil
 	}
-	// A wing's bedrooms are reconciled together (#2133); a suite or a migration
+	// A wing's bedrooms are reconciled together; a suite or a migration
 	// step names its one room.
 	batch := step.Rooms
 	if len(batch) == 0 {
@@ -176,7 +176,7 @@ func (r *RoundsSleepingUpkeepPlanner) reconcileBedroom(call, epoch context.Conte
 }
 
 // bedroomShellReason is a bedroom shell's short why: the colonists still
-// outside a bedroom (#846).
+// outside a bedroom.
 func bedroomShellReason(step policy.BedroomStep) string {
 	if step.Unhoused <= 0 {
 		return ""
@@ -199,7 +199,7 @@ func sharedShellStuff(facts observation.ColonyProjection, wall, door observation
 }
 
 // suitePressure orders the suite queue by the pawns' current bedroom,
-// space and jealousy thoughts (#1217); nil (pawn-id order) while the mood
+// space and jealousy thoughts; nil (pawn-id order) while the mood
 // census is unknown.
 func suitePressure(facts observation.ColonyProjection) map[policy.PawnID]float64 {
 	pawns, known := facts.Facts.MoodPawns.Value()

@@ -15,7 +15,7 @@ func squadBuilding(id PawnID, lines ...domain.PawnID) SquadThreatFacts {
 }
 
 // A building waits for the field to clear, then takes the shooters with a
-// line of fire on it in ranged mode and the rest in melee (#327).
+// line of fire on it in ranged mode and the rest in melee.
 func TestSelectSquadDefenseShootsABuildingAlongALineOfFire(t *testing.T) {
 	building := squadBuilding("ship", "b", "c")
 	// The line only matters for a ranged-equipped defender: "c" holds a

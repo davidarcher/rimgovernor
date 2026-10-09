@@ -214,7 +214,7 @@ func TestFoodPlanEmergencyOpensChannelsInParallel(t *testing.T) {
 	if !open["moose"] || !open["berries"] || !open["fish"] || open["turkey"] {
 		t.Fatalf("emergency budget: %s", p.Explain())
 	}
-	// Above the line the old accounting holds.
+	// Above the emergency threshold, ordinary supply covers demand.
 	r.Demand.RunwayDays = domain.Known(3.0)
 	if p, err = SupplyFoodPlan(r); err != nil || p.Portfolio[0].Channel.ID != "moose" || p.GapPerDay > 0 {
 		t.Fatalf("above the line: %s %v", p.Explain(), err)

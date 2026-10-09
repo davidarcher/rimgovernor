@@ -206,7 +206,7 @@ func TestCombatOrdersIssue(t *testing.T) {
 	if _, err := issue(combatTestOrders()); err != nil {
 		t.Fatal(err)
 	}
-	// combatlab metrics (#855) count these rows by verdict.
+	// combatlab metrics count these rows by verdict.
 	var outcomes []string
 	for _, row := range rows.Of("combat_order") {
 		outcomes = append(outcomes, row.Payload["verdict"].(string))
@@ -219,7 +219,7 @@ func TestCombatOrdersIssue(t *testing.T) {
 	}
 }
 
-// TestValidateCombatRescueAndDoorModes covers the #867 additions: the
+// TestValidateCombatRescueAndDoorModes covers the
 // rescue order and the door forbid/allow modes.
 func TestValidateCombatRescueAndDoorModes(t *testing.T) {
 	rescue := func() *o.CombatOrders {
@@ -258,7 +258,7 @@ func TestValidateCombatRescueAndDoorModes(t *testing.T) {
 	}
 }
 
-// TestValidateCombatRepair covers the #900 repair order.
+// TestValidateCombatRepair covers the repair order.
 func TestValidateCombatRepair(t *testing.T) {
 	repair := func() *o.CombatOrders {
 		return &o.CombatOrders{Orders: []*o.CombatOrder{
@@ -288,7 +288,7 @@ func TestValidateCombatRepair(t *testing.T) {
 	}
 }
 
-// TestValidateCombatMortar covers the #1202 man_mortar (a pawn) and
+// TestValidateCombatMortar covers man_mortar (a pawn) and
 // mortar_fire (no pawn) orders.
 func TestValidateCombatMortar(t *testing.T) {
 	mortar := func() *o.CombatOrders {
@@ -327,7 +327,7 @@ func TestValidateCombatMortar(t *testing.T) {
 	}
 }
 
-// TestValidateCombatAnimalOrders covers the #1057 release and animal_area orders.
+// TestValidateCombatAnimalOrders covers release and animal_area orders.
 func TestValidateCombatAnimalOrders(t *testing.T) {
 	animal := func() *o.CombatOrders {
 		return &o.CombatOrders{Orders: []*o.CombatOrder{

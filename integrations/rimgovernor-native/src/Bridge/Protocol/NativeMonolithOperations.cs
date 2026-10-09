@@ -8,7 +8,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent jobs InvestigateMonolith and ActivateMonolith (#2437): order
+    // GiveJobIntent jobs InvestigateMonolith and ActivateMonolith: order
     // one colonist to the void monolith with the job the game's own float menu
     // gives (Building_VoidMonolith.GetFloatMenuOptions). Investigate is the
     // Inactive level's order, Activate every later level's; the game's own

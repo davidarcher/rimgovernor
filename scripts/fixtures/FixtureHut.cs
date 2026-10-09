@@ -31,9 +31,9 @@ namespace HomeBridge.BridgeTools
 
         // Build raises a size x size ring (size-2 square inside) and
         // furnishes it as above. site is the south-west corner the
-        // controller's own starter search chose (#700) and door the door cell
+        // controller's own starter search chose and door the door cell
         // it chose on the ring, or mid east wall when null; the fixture never
-        // searches for a site of its own (#732). Natural rock on the ring
+        // searches for a site of its own. Natural rock on the ring
         // stays as wall, rock inside is cleared as mining would, and plants
         // and items anywhere in the square are removed. spots caps the
         // sleeping spots laid: negative is one per colonist, a smaller count

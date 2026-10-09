@@ -218,7 +218,7 @@ func recoverySelectionVerdict(reason policy.RecoverySelectionReason) Verdict {
 	}
 }
 
-// shelterCombatants is the squad's draft set for sheltering (#1367): the
+// shelterCombatants is the squad's draft set for sheltering: the
 // rosters of this world's open combat fights, the pawns ActiveCombat drafted
 // from SelectSquadDefense's assignments. It is known and empty while no fight
 // is open, so a threat the squad does not fight (a manhunter pack waited out)

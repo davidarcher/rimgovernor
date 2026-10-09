@@ -7,7 +7,7 @@ import (
 )
 
 // AreaAction creates, edits or deletes one bot-owned allowed area, or edits
-// the home area (#1321): an AreaIntent on Actions/Apply. A bot-owned area is
+// the home area: an AreaIntent on Actions/Apply. A bot-owned area is
 // the Area_Allowed labelled with its key; native never touches an
 // area the player made.
 const AreaAction ActionKind = "area"
@@ -96,7 +96,7 @@ func NewArea(op AreaOperation, key string, cells []Cell) (Area, error) {
 	return newArea(op, key, false, cells)
 }
 
-// NewPollutionClearArea edits the game's pollution-clear area (#1683), the
+// NewPollutionClearArea edits the game's pollution-clear area, the
 // cells the cleanup crew cleans: set_cells and clear_cells only, like home.
 func NewPollutionClearArea(op AreaOperation, cells []Cell) (Area, error) {
 	if op != AreaSetCells && op != AreaClearCells {

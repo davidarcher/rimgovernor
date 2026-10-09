@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// The warehouse takes packed buildings (#2103): the indoor_only preset never
+// The warehouse takes packed buildings: the indoor_only preset never
 // lists a building def (it cannot deteriorate, so it is outdoor-safe), so the
 // Buildings category, which holds a chair's def, carries the minified chair.
 func TestWarehouseFilterAcceptsPackedFurniture(t *testing.T) {
@@ -16,7 +16,7 @@ func TestWarehouseFilterAcceptsPackedFurniture(t *testing.T) {
 	if got := f.Allow(); len(got) != 1 || got[0] != CategoryDef("Buildings") {
 		t.Fatalf("allow %v", got)
 	}
-	// The burnable belongs to the waste yard (#2192).
+	// The burnable belongs to the waste yard.
 	if got := f.Disallow(); len(got) != 1 || got[0] != SpecialFilter(BurnableFilterDef) {
 		t.Fatalf("disallow %v, want only the burnable special", got)
 	}

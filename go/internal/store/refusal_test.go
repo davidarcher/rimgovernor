@@ -27,7 +27,7 @@ func TestTrustedRefusalSurvivesReopen(t *testing.T) {
 		t.Fatal(err)
 	}
 	v := state.Progress[0].View()
-	// A refused intent is over (#856): the owning routine replans from live state.
+	// A refused intent is over: the owning routine replans from live state.
 	if v.Unresolved || v.Stage != domain.Unsuccessful || v.Attempt != 1 {
 		t.Fatal(v)
 	}

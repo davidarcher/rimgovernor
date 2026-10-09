@@ -11,7 +11,7 @@ import (
 )
 
 // The mood relief planner commits a pawn's relief to that pawn's EnsureMood
-// incident (#1078).
+// incident.
 func TestRoundsMoodReliefPlannerCommitsToPawnIncident(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

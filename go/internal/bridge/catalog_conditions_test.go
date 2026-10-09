@@ -2,7 +2,7 @@ package bridge
 
 import "testing"
 
-// TestWeatherAndConditionRows (#1723): the weather accuracy and the power
+// TestWeatherAndConditionRows: the weather accuracy and the power
 // outage come from the def rows, and a def with no row is an error.
 func TestWeatherAndConditionRows(t *testing.T) {
 	catalog := FixtureCatalog("load")
@@ -30,7 +30,7 @@ func TestWeatherAndConditionRows(t *testing.T) {
 	}
 }
 
-// TestOutdoorsPermanentlyDark (#1712): a biome is dark when a map condition's
+// TestOutdoorsPermanentlyDark: a biome is dark when a map condition's
 // class derives from the no-sunlight family (a mod's subclass counts, no name
 // list), lit otherwise; a biome with no row is an error.
 func TestOutdoorsPermanentlyDark(t *testing.T) {

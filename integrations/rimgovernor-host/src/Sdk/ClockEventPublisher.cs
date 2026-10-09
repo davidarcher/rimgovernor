@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 namespace RimGovernor.Host.Sdk
 {
     /// <summary>
-    /// Announces clock journal advances on the <see cref="Channel"/> GABP channel (#2070). The
+    /// Announces clock journal advances on the <see cref="Channel"/> GABP channel. The
     /// journal stays the source of truth: an event says "the journal now ends at cursor N" and
     /// carries no rows, so the controller reads the page after its own cursor with an unheld
     /// clock_read_events and gap/loss evidence is exactly what that read proves. Advances are

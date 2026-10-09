@@ -264,12 +264,12 @@ namespace HomeBridge.BridgeTools
                 s.LastTick = tm.TicksGame;
                 CaptureTypedContext(s);
                 if (StopInvalidTypedAuthority(s)) return;
-                // An armed combat event (#849) stops at this tick's boundary.
+                // An armed combat event stops at this tick's boundary.
                 if (StopOnCombatEvent(s)) return;
                 // Preserve player and letter attribution if the final tick also
                 // changed the clock. The frame watcher handles those stops.
                 if (tm.CurTimeSpeed != s.RequestedSpeed) return;
-                // The tick-paced hazard probe (#626): at every production speed
+                // The tick-paced hazard probe: at every production speed
                 // consecutive probes are at most ProbeIntervalTicks apart, however
                 // many ticks the frame carries. The accelerated path ran it above.
                 if (!s.TestAcceleration && !s.PlayerPaced)
@@ -388,7 +388,7 @@ namespace HomeBridge.BridgeTools
             return false;
         }
 
-        /// The fact-change digests on their own cadence (#626): a game hook
+        /// The fact-change digests on their own cadence: a game hook
         /// marked one dirty (SupervisedPlayHooks.cs) or DigestIntervalTicks
         /// elapsed. Never part of the probe.
         private static void RunDigestIfDue(State s, TickManager tm)
@@ -458,7 +458,7 @@ namespace HomeBridge.BridgeTools
                 var dialog = ChoiceDialogTools.Pending();
                 // A choice dialog the game opened by itself is answered through
                 // Operations.AnswerDialog once the controller has read its
-                // options (#156); it is named so the stop is actionable headless.
+                // options; it is named so the stop is actionable headless.
                 Stop(s, naming ? "colony_naming" : dialog != null ? "dialog_pause" : "force_paused",
                     naming ? "RimWorld requests initial faction and settlement names."
                         : dialog != null ? "Game is force-paused by " + dialog.GetType().FullName + " (" + (ChoiceDialogTools.Title(dialog) ?? "") + "); read the colony facts dialog section and answer it."
@@ -579,7 +579,7 @@ namespace HomeBridge.BridgeTools
         /// families, coalesced per probe. A zone edit (cells added or removed,
         /// a zone created or deleted) appends its own row narrowed to the
         /// changed zones' ids and the one rectangle their old and new cells
-        /// span (#359), so a controller store keeps the rest of the colony
+        /// span, so a controller store keeps the rest of the colony
         /// family; past the id bound the row names the family alone.
         private static void PublishFactChanges(State s)
         {
@@ -600,7 +600,7 @@ namespace HomeBridge.BridgeTools
         }
         /// A growing zone turning ripe (any sown plant harvestable now) or
         /// fully harvested appends one colony row narrowed to those zones
-        /// (#670), so the grower review runs without waiting for a stop.
+        ///, so the grower review runs without waiting for a stop.
         private static void PublishHarvestChanges(State s)
         {
             var ripe = RipeZones(s.Map);
@@ -844,7 +844,7 @@ namespace HomeBridge.BridgeTools
                 var payload = new Dictionary<string, object?> { { "letters", newLetters },
                         { "messages", newMessages }, { "letterCount", newLetters.Count },
                         { "messageCount", newMessages.Count } };
-                // The newest arrival is the hazard's occurrence (#626): the
+                // The newest arrival is the hazard's occurrence: the
                 // older ones were already stopping play had they been seen.
                 var arrived = newLetters.Select(x => x["arrivalTick"]).Concat(newMessages.Select(x => x["startingTick"]))
                     .Where(t => t != null).Select(t => Convert.ToInt64(t)).Where(t => t >= 0).ToList();
@@ -858,7 +858,7 @@ namespace HomeBridge.BridgeTools
             var pawns = GameWatchReads.SpawnedPawns(Find.CurrentMap);
             var colonists = pawns.Where(GameWatchReads.SafeIsColonist).ToList();
             // A resting patient who is no longer eligible needs a fresh
-            // medical review, not a stopped clock (#584): the watch is
+            // medical review, not a stopped clock: the watch is
             // discharged, the medical facts are invalidated and the planner
             // reviews under the running window.
             foreach (var identity in s.MedicalRest.ToList())
@@ -874,8 +874,8 @@ namespace HomeBridge.BridgeTools
             {
                 string why;
                 // A hostile in fog is undiscovered, as the emergency view
-                // reads it (#659): a sealed shrine's dormant guard stopped
-                // every window at zero ticks, so the breach never ran (#1141).
+                // reads it: a sealed shrine's dormant guard stopped
+                // every window at zero ticks, so the breach never ran.
                 if (!GameWatchReads.SafeIsColonist(p)
                     && !GameWatchReads.SafeDowned(p) && !GameWatchReads.SafeDead(p)
                     && !(p.Spawned && p.Map != null && p.Position.Fogged(p.Map))
@@ -926,9 +926,9 @@ namespace HomeBridge.BridgeTools
                     // when the epoch started is not news: the stop that put
                     // them there was already reported, and re-stopping every
                     // window at zero ticks would pin the clock while the
-                    // raider who hurt them still stands (issue #154).
+                    // raider who hurt them still stands.
                     // A combat epoch an open fight owns (SeriousInjury and
-                    // Downed armed, #849/#852) stops on those benign events
+                    // Downed armed/#852) stops on those benign events
                     // instead: a colonist_health stop there is a hold that
                     // revokes authority mid-fight, the 2-3 s stop latency
                     // of #890.
@@ -986,7 +986,7 @@ namespace HomeBridge.BridgeTools
                         if (after.Count > before.Count && after.NewestWoundAgeTicks != int.MaxValue && Find.TickManager != null)
                             payload["occurrenceTick"] = Find.TickManager.TicksGame - after.NewestWoundAgeTicks;
                         // A new wound stops the window only past the native
-                        // severity floor (#584): bleeding out inside
+                        // severity floor: bleeding out inside
                         // InjurySeverityFloorTicks, or a life-threatening
                         // hediff stage. Anything lighter is a journal row and a
                         // medical review under the running window, which is
@@ -1112,7 +1112,7 @@ namespace HomeBridge.BridgeTools
         }
 
         /// Journals the medical facts as stale so the medical planner
-        /// reviews under the running window (#584), at most once per pawn per
+        /// reviews under the running window, at most once per pawn per
         /// MedicalWakeIntervalTicks unless the caller forces it. This is the
         /// wake the demoted health tiers are worth: every reader of the pawn
         /// and emergency families replans, and no window is spent.
@@ -1167,7 +1167,7 @@ namespace HomeBridge.BridgeTools
             var payload = new Dictionary<string, object?> { { "pawnId", pawn.thingIDNumber },
                     { "pawnName", GameWatchReads.SafeName(pawn) }, { "position", Position(pawn) },
                     { "reason", reason } };
-            // The tick the hazard arose where the game records one (#626), for
+            // The tick the hazard arose where the game records one, for
             // the stop's detect_ticks; absent when it does not.
             if (occurrenceTick.HasValue && occurrenceTick.Value >= 0) payload["occurrenceTick"] = occurrenceTick.Value;
             return new Hit(kind, GameWatchReads.SafeName(pawn) + " (" + reason + ")", payload);
@@ -1391,9 +1391,9 @@ namespace HomeBridge.BridgeTools
         private static long NowMs() { return (DateTime.UtcNow.Ticks - 621355968000000000L) / TimeSpan.TicksPerMillisecond; }
 
         // Where an epoch's wall time went, per epoch, for the acceptance
-        // speed work (#265): game ticks and frames, the tick-boundary hook,
+        // speed work: game ticks and frames, the tick-boundary hook,
         // the periodic hazard probe and, apart
-        // from it (#626), the fact-change digests. Logged once per stop, only
+        // from it, the fact-change digests. Logged once per stop, only
         // under the acceptance test-acceleration launch flag.
         private sealed class EpochTiming
         {
@@ -1431,7 +1431,7 @@ namespace HomeBridge.BridgeTools
             public int Count; public float Severity; public float BleedRate; public float BloodLoss; public float Health;
             // Age in ticks of the youngest injury, for the stop's occurrence tick.
             public int NewestWoundAgeTicks = int.MaxValue;
-            // The severity floor the stop tier reads (#584): RimWorld's own
+            // The severity floor the stop tier reads: RimWorld's own
             // estimate of the ticks left before this pawn dies of blood loss
             // (int.MaxValue when they are not bleeding out) and whether any
             // hediff stage is life-threatening on its own (an infection, a
@@ -1479,7 +1479,7 @@ namespace HomeBridge.BridgeTools
             public int LastReadTick; public long AckedCursor; public readonly List<KeyValuePair<long, int>> Unacked = new List<KeyValuePair<long, int>>();
             public long LastRampMs; public int MaxBlindTicks; public int RegulatorThrottles;
             public int LastProbeTick; public int MaxProbeTickGap; public int ProbeCount;
-            // The digest cadence (#626) and the probe requests direct game
+            // The digest cadence and the probe requests direct game
             // hooks raised (hazard class -> tick), served at the next probe.
             public int LastDigestTick; public bool ProbeRequested;
             public readonly List<KeyValuePair<string, int>> ProbeRequests = new List<KeyValuePair<string, int>>();
@@ -1505,7 +1505,7 @@ namespace HomeBridge.BridgeTools
             public readonly List<Dictionary<string, object?>> BaselineAlerts = new List<Dictionary<string, object?>>();
             // null until the first probe of this epoch has counted.
             public int? ConsciousHostiles; public bool HostilesCleared;
-            /// Game tick of each pawn's last demoted-injury invalidation (#584).
+            /// Game tick of each pawn's last demoted-injury invalidation.
             public readonly Dictionary<int, int> MedicalWakes = new Dictionary<int, int>();
             public HashSet<int> IgnoredHostiles = new HashSet<int>(); public HashSet<int> IgnoredDowned = new HashSet<int>(); public HashSet<int> SurgicalRecovery = new HashSet<int>(); public HashSet<int> MedicalRest = new HashSet<int>();
             public HashSet<int> IgnoredInjured = new HashSet<int>(); public int InjuryStopCooldownMs;

@@ -47,7 +47,7 @@ func firebreakColony(t *testing.T) (policy.FirebreakRequest, map[domain.Cell]boo
 
 // The ring's cut cells with standing grass produce one area cut over
 // exactly those cells: grass standing in the base or the growing zone is
-// never ordered (#1548).
+// never ordered.
 func TestFirebreakCutsStandingGrassInTheRingOnly(t *testing.T) {
 	request, base, zone := firebreakColony(t)
 	grass := []domain.Cell{{X: 9, Z: 12}, {X: 8, Z: 8}, {X: 19, Z: 11}, {X: 12, Z: 16}}

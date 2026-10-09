@@ -99,7 +99,7 @@ func (client *Client) ReadColonistRoster(ctx context.Context, request *p.Colonis
 	return reply, raw, nil
 }
 
-// joinDossiers attaches each colonist's pawn table row (#1343) without its
+// joinDossiers attaches each colonist's pawn table row without its
 // settings and animal detail. A colonist the table does not hold leaves
 // the roster unavailable until a later frame.
 func (client *Client) joinDossiers(ctx context.Context, roster *p.ColonistRoster, identity *c.Identity) error {

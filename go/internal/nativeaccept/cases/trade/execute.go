@@ -1,4 +1,4 @@
-// The trade/execute case (#1157) drives a whole native trade on
+// The trade/execute case drives a whole native trade on
 // test/trade_fixture: the negotiator teleported beside a spawned caravan
 // trader opens a session, stages one buy line and one sell line, and accepts
 // the signed deal. It asserts the accept executed and closed the session with
@@ -288,7 +288,7 @@ func runExecute(ctx context.Context, s cases.Session) error {
 	}
 	refusal, ok := na.AsMap(refused["refused"])
 	// Validation catches the shortfall first (INVALID_REQUEST); a deal that
-	// slips past it and the game declines is the #1156 NATIVE_FAILURE.
+	// slips past it and the game declines is NATIVE_FAILURE.
 	if code := na.AsString(refusal["code"]); !ok || code != "FAILURE_CODE_INVALID_REQUEST" && code != "FAILURE_CODE_NATIVE_FAILURE" {
 		return fmt.Errorf("dear-accept: expected a refusal, got %#v", refused)
 	}

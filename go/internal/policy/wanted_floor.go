@@ -3,7 +3,7 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // WantedFloors is the flooring review's decision read per cell of a
-// PlannedRoom (#2107, epic #2101), the reconciler's WantedFloor: the floor def
+// PlannedRoom, the reconciler's WantedFloor: the floor def
 // each interior cell wants, "" for none. The floor choice stays flooring's
 // (chooseFloor, the one the review's selector lays): the throne room takes the
 // floor its title's tags name (tags are ThroneRequirements.FloorTags), any other
@@ -58,7 +58,7 @@ func roomFloorDeficit(room PlannedRoom, tags []string) (FloorDeficit, bool) {
 }
 
 // FloorKept reports whether the constructed floor have stands in for the wanted
-// floor want of a PlannedRoom (#2109): any floor that meets the room's tier
+// floor want of a PlannedRoom: any floor that meets the room's tier
 // does, so a different adequate floor is never torn up. The throne room's title
 // tags are the exception: the floor must carry one. A floor the mirror does not
 // describe is kept, never torn up on a missing fact.

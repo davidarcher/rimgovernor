@@ -69,7 +69,7 @@ func TestDecideCombatPodDoorwayPrefersCloseRange(t *testing.T) {
 }
 
 // The flank cells are asked for their standability with no hostile out
-// yet (#897), and a flank cell the game did not find standable takes no
+// yet, and a flank cell the game did not find standable takes no
 // responder: only (9,10) is manned.
 func TestDecideCombatPodDoorwayChecksStandable(t *testing.T) {
 	view := doorwayView()

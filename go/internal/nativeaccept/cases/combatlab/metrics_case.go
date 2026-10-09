@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	// metricsTicks is a fixture run's game-tick budget (#845 ground rule 3).
+	// metricsTicks is a fixture run's game-tick budget .
 	metricsTicks = 5000
-	// metricsSpeed is the player speed the served clock follows (#875):
+	// metricsSpeed is the player speed the served clock follows:
 	// Fast keeps the fight well inside the case budget while the
 	// service's 1 s state refresh lags the game by a few hundred ticks.
 	metricsSpeed = "Fast"
@@ -42,7 +42,7 @@ const (
 var metricsFamilies = []routinefamily.Family{routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue}
 
 // Baselines are each fixture's metrics recorded from main before any
-// Phase 1 tactic (#855), with the routine defense planner serving the run:
+// Phase 1 tactic, with the routine defense planner serving the run:
 // a tactic child reports its delta against them.
 //
 //go:embed baselines/*.json
@@ -76,7 +76,7 @@ func init() {
 			QuietWorld:  true,
 			// A checkpoint capture pauses the served game mid-fight: the
 			// external pause revokes authority and drops the fight plan
-			// (#890, lab-open at t+2m).
+			// (lab-open at t+2m).
 			NoCheckpoint: true,
 			Serve:        &cases.ServeSpec{Families: metricsFamilies, PlayerSpeed: metricsSpeed, Prefix: "combatlab"},
 			Budget:       cases.LabBudget,
@@ -116,7 +116,7 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 	}
 	// A MajorThreat letter mid-fight (a berserk colonist) pauses the game
 	// as the player would; the authority flip then drops the fight plan
-	// (#890, lab-open at tick 1057). The metrics measure the fight.
+	// (lab-open at tick 1057). The metrics measure the fight.
 	if reply, err := s.Harness().Call(ctx, "pause-mode-never", pauseModeTool, map[string]any{"mode": "Never"}); err != nil {
 		return err
 	} else if na.AsString(reply["mode"]) != "Never" {
@@ -192,7 +192,7 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 // hooked them (a served game's stream is open long before a raid), so one
 // frame is captured before staging. The served run starts with the
 // raiders still in their pods: the pending arrival is the threat the
-// fight forms on (#908).
+// fight forms on.
 func stagePods(ctx context.Context, s cases.Session, name string) (Staged, error) {
 	identity, err := typedIdentity(s.Identity())
 	if err != nil {
@@ -229,7 +229,7 @@ func stagePods(ctx context.Context, s cases.Session, name string) (Staged, error
 // serveUntil polls the service's state until the game tick reaches until,
 // until the service records the end of the combat (a combat_summary row at
 // flight; the colony window after it would otherwise run the quiet lab to
-// the budget, #890), or until the served clock has sat still for
+// the budget), or until the served clock has sat still for
 // metricsIdle, and returns the last tick it saw.
 func serveUntil(ctx context.Context, service *na.ServiceProcess, flight string, until int) (int, error) {
 	tick, moved := -1, time.Now()
@@ -267,7 +267,7 @@ func combatEnded(row na.FlightRow) bool {
 }
 
 // writeCombatFlight copies the combat rows ScanFlight reads from the rotated
-// segments (oldest first, #2347) and the live file of the
+// segments (oldest first) and the live file of the
 // service's flight recorder into the bundle, one wire line each.
 func writeCombatFlight(from, to string) error {
 	segments := na.FlightSegments(from)
@@ -291,10 +291,10 @@ func writeCombatFlight(from, to string) error {
 
 // storeLayout puts the fixture's layout, as a complete, verified defense
 // layout record for the staged world, into the save's governor state: the
-// service rebuilds its family tables from the save on the world change
-// (#1005), so combat reads it as the colony's standing layout
+// service rebuilds its family tables from the save on the world change,
+// so combat reads it as the colony's standing layout
 // (rounds_defense.go, LoadDefenseLayout). A row written into the journal
-// before the serve was wiped by that rebuild (#1152).
+// before the serve was wiped by that rebuild.
 func storeLayout(ctx context.Context, h *na.Harness, identity map[string]any, l Layout) (store.DefenseLayoutRecord, error) {
 	typed, err := typedIdentity(identity)
 	if err != nil {
@@ -318,7 +318,7 @@ func storeLayout(ctx context.Context, h *na.Harness, identity map[string]any, l 
 		Complete: true, Anchored: true,
 	}
 	if l.Choke != nil {
-		// Combat's choke is the trap lane's last cell (#864, #1544).
+		// Combat's choke is the trap lane's last cell.
 		record.TrapLane = []domain.Cell{{X: int32(l.Choke.X), Z: int32(l.Choke.Z)}}
 		record.Chokepoint = record.TrapLane[0]
 	}

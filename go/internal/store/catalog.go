@@ -91,7 +91,7 @@ func (s *Store) SeedPlanMethod(ctx context.Context, plan domain.PlanID, method d
 
 // PlanHistoryWithMethods returns the most recently committed plans, retired
 // or not, admitted under a method id matching one of the GLOB patterns
-// (#987: the stored method, never the minted plan id), newest first and at
+// (the stored method, never the minted plan id), newest first and at
 // most limit of them.
 // Unlike LoadPlans this is a window over history, not complete accounting: a
 // shell planner reads the rings it ordered earlier in this world so it can

@@ -58,7 +58,7 @@ func FromReview(current domain.GenerationSnapshot, tick domain.Tick, result stor
 	review := result.Review
 	// Facts ride once; the zone read holds native protobuf messages and
 	// the window only repeats Region and Cells, so neither is recorded. The
-	// bed price is a func over the catalog and cannot be (#2141: its
+	// bed price is a func over the catalog and cannot be (its
 	// presence made every review fail to record); a replay prices no bed.
 	var none observation.ColonyProjection
 	reading.Facts, reading.Zones, reading.Window, reading.BedPrice = none.Facts, none.Zones, none.Window, none.BedPrice
@@ -97,7 +97,7 @@ func Load(path string) (Rounds, error) {
 	if err != nil {
 		return Rounds{}, fmt.Errorf("%s: %w", path, err)
 	}
-	// A recording from before the item facts (#1734) carries none: it
+	// A recording from before the item facts carries none: it
 	// replays with Core's numbers, the game it was recorded on.
 	if r.Facts.Items.Market == nil {
 		r.Facts.Items = policy.CoreItemFacts()

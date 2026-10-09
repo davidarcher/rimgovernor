@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// A colony prisoner's organ harvest facts (#1169) ride on its population
+// A colony prisoner's organ harvest facts ride on its population
 // row; the snapshot carries the OrganUse precept.
 func TestPopulationDecodesHarvestFacts(t *testing.T) {
 	prisoner := prisonerPerson("p", "MaintainOnly")
@@ -53,7 +53,7 @@ func TestPopulationDecodesHarvestFacts(t *testing.T) {
 }
 
 // The population read carries each prisoner's prospect and the colony side
-// MaintainPopulation weighs it against (#1036).
+// MaintainPopulation weighs it against.
 func TestPopulationDecodesProspectAndColony(t *testing.T) {
 	skill := func(name string, level int32) *o.Skill {
 		return &o.Skill{DefName: proto.String(name), Level: proto.Int32(level), Passion: o.Passion_PASSION_MAJOR.Enum()}

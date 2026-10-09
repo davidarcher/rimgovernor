@@ -67,12 +67,12 @@ func batchOrders(batch *op.CombatOrders) map[string]string {
 	return out
 }
 
-// One ActiveCombat plan owns the fight (#852): it holds the defenders'
+// One ActiveCombat plan owns the fight: it holds the defenders'
 // drafts, and each stop sends only the changed orders, recorded as its
 // evidence. The hold-the-line formation moves the riflemen to the firing
 // cells; a steady stop orders and records nothing; once a live raider is
 // past the cover row the formation re-forms as squad defense on the
-// intruder (#118 breach fallback) in the same plan.
+// intruder (breach fallback) in the same plan.
 func TestRoundsDefenseAbandonsACrossedHoldForSquadDefense(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -80,7 +80,7 @@ func TestRoundsDefenseAbandonsACrossedHoldForSquadDefense(t *testing.T) {
 }
 
 // crossedHoldFight plays the crossed-hold fight; the combat replay harness
-// records it (#853).
+// records it.
 func crossedHoldFight(t *testing.T) {
 	r, db, session, _, n := roundsFixture(t)
 	ctx := context.Background()
@@ -115,7 +115,7 @@ func crossedHoldFight(t *testing.T) {
 	if err != nil || !ok || !fight.Open || fight.Memory.Tactic != policy.TacticHold || len(fight.Memory.Roles) != 2 {
 		t.Fatalf("%+v %v %v", fight, ok, err)
 	}
-	// The fight's plan has no actions (#910): the admission stop's one
+	// The fight's plan has no actions: the admission stop's one
 	// batch drafts both defenders and moves them to the firing cells, and
 	// the fight holds the claims the drafts made.
 	if state, err := db.LoadPlan(ctx, plan); err != nil || len(state.Spec.Actions()) != 0 {

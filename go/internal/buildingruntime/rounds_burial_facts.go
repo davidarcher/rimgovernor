@@ -12,7 +12,7 @@ import (
 // and stuff for.
 var burialDefinitions = []string{"Wall", "Door", policy.GraveDefinition}
 
-// reviewStrangers sets the projection's stranger staging (#2336): the live
+// reviewStrangers sets the projection's stranger staging: the live
 // KnowBuriedInSarcophagus stacks from the mood census and whether the next
 // sarcophagus is funded from stock net of the MaintainResource floors. Unread
 // thoughts leave the zero value, which stages no stranger.
@@ -23,7 +23,7 @@ func (r *Rounder) reviewStrangers(ctx context.Context, snapshot domain.Generatio
 		return nil
 	}
 	// At the cap nothing is staged, but the live count still proves the memory
-	// fired for the disposal (#2337).
+	// fired for the disposal.
 	if live >= policy.StrangerTombStackCap {
 		projection.Strangers.Live = live
 		return nil
@@ -33,7 +33,7 @@ func (r *Rounder) reviewStrangers(ctx context.Context, snapshot domain.Generatio
 	return nil
 }
 
-// tombStep is the projection's next tomb or grave step (#832, #857, #2196); none while a
+// tombStep is the projection's next tomb or grave step; none while a
 // fact is unknown.
 func tombStep(facts observation.ColonyProjection) policy.TombStep {
 	if owed, known := tombOwed(facts).Value(); !known || !owed {
@@ -52,7 +52,7 @@ func tombOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 }
 
 // sarcophagusAvailable is the sarcophagus's availability, false when
-// native reports no stuff to make one from (#857).
+// native reports no stuff to make one from.
 func sarcophagusAvailable(facts observation.ColonyProjection) domain.Fact[bool] {
 	for _, d := range facts.Definitions {
 		if d.Name != facts.Shapes.Furniture.Sarcophagus {
@@ -67,7 +67,7 @@ func sarcophagusAvailable(facts observation.ColonyProjection) domain.Fact[bool] 
 }
 
 // tombsFull reports every planned tomb's sarcophagus slots taken while a
-// dead colonist waits (#857): the layout owes another tomb room.
+// dead colonist waits: the layout owes another tomb room.
 func tombsFull(plan policy.LayoutPlan, facts observation.ColonyProjection) bool {
 	available, ak := sarcophagusAvailable(facts).Value()
 	waste, wk := facts.Facts.Waste.Value()
@@ -78,8 +78,8 @@ func tombsFull(plan policy.LayoutPlan, facts observation.ColonyProjection) bool 
 	return policy.NextTombStep(plan, waste, built.Buildings, facts.Shapes, true, facts.Strangers).Kind == policy.TombFull
 }
 
-// plannedMorgue is the planned morgue a waiting human corpse owes a shell
-// (#1820); false while the plan, rooms or waste census is unread.
+// plannedMorgue is the planned morgue a waiting human corpse owes a shell;
+// false while the plan, rooms or waste census is unread.
 func plannedMorgue(facts observation.ColonyProjection) (policy.PlannedRoom, bool) {
 	plan, pk := facts.LayoutPlan.Value()
 	waste, wk := facts.Facts.Waste.Value()
@@ -116,7 +116,7 @@ func burialCensus(facts observation.ColonyProjection) *policy.BurialCensus {
 }
 
 // plannedMealCloset is the planned meal closet MaintainRefrigeration owes a
-// shell (#936), once the colony can build coolers; known false without
+// shell, once the colony can build coolers; known false without
 // coolers, unknown while the plan or room census is.
 func plannedMealCloset(facts observation.ColonyProjection) (policy.PlannedRoom, domain.Fact[bool]) {
 	available, ak := facts.DefinitionAvailable("Cooler").Value()

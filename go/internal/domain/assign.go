@@ -39,7 +39,7 @@ type Assign struct {
 	swap     bool
 }
 
-// AsSwap flags the assignment as a bedroom swap (#1243): native evicts the
+// AsSwap flags the assignment as a bedroom swap: native evicts the
 // bed's current owner instead of refusing an owned bed.
 func (a Assign) AsSwap() Assign { a.swap = true; return a }
 func (a Assign) Swap() bool     { return a.swap }

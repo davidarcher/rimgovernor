@@ -1,4 +1,4 @@
-// Package spectator projects the "now" panel (#632): what the colony is
+// Package spectator projects the "now" panel: what the colony is
 // trying to do, what it last achieved, what holds it and why the governor
 // paced or stopped the clock. Every field is a read of state the controller
 // already keeps — the last review's records and the flight-recorder rows —
@@ -39,7 +39,7 @@ const (
 	// ReasonStopped: something interrupted the window (a hazard, a letter,
 	// a requested pause) and Detail names the stop reason.
 	ReasonStopped PacingReason = "stopped"
-	// The reasons a running player-accelerated window (#627) holds the
+	// The reasons a running player-accelerated window holds the
 	// rate it does, from native's pacing reason on the step's status:
 	// full acceleration, the frame budget keeping input and rendering
 	// responsive, the game's own forced slowdown, the blind-tick
@@ -112,7 +112,7 @@ type Pacing struct {
 	PacedTPS float64 `json:"pacedTps"`
 }
 
-// Stop is one clock stop and its latency split (#621): the ticks between
+// Stop is one clock stop and its latency split: the ticks between
 // the hazard arising, the supervisor raising the stop and the stop landing,
 // then the wall legs — how long it sat unobserved in native (ObserveMs, on
 // native's clock) and how long the controller took to readmit a window
@@ -260,7 +260,7 @@ func pacing(in Input, out Now, refused string, admitted, running, haveStep bool)
 }
 
 // runningPace refines a running window's reason by native's pacing
-// reason (#627); a fixed-speed window, or none reported, stays running.
+// reason; a fixed-speed window, or none reported, stays running.
 func runningPace(native string) (PacingReason, string) {
 	switch native {
 	case "accelerated":

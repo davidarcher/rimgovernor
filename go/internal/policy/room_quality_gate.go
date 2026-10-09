@@ -1,8 +1,8 @@
 package policy
 
-// RoomGate is the personal-share gate on in-place bedroom upgrades (#1840).
+// RoomGate is the personal-share gate on in-place bedroom upgrades.
 // RoomTarget.Min is the tier ceiling a room climbs to; the gate decides
-// whether an owner's remaining share (#1836) pays for the next step. The
+// whether an owner's remaining share pays for the next step. The
 // zero value (no Shares) is ungated, so callers that carry no share keep
 // working.
 //
@@ -24,7 +24,7 @@ type RoomGate struct {
 	BedPrice   BedPrice
 	PiecePrice func(def string) (float64, bool)
 	// SuiteBed and SuiteBedStuff are the bed a new suite is furnished with and
-	// SuitePieces the template pieces it takes (#1841); a gated gate with no
+	// SuitePieces the template pieces it takes; a gated gate with no
 	// SuiteBed prices no suite and refuses its claims.
 	SuiteBed      Resource
 	SuiteBedStuff Resource
@@ -53,7 +53,7 @@ func (g RoomGate) furnishPrice(owned SleepingBed) (float64, bool) {
 }
 
 // gateSuiteClaims drops the claims whose owner's remaining share does not pay
-// the furnishing left to do (#1841), keeping the order. The claims take the
+// the furnishing left to do, keeping the order. The claims take the
 // vacant suites in order, so a claim is priced against the suite it would
 // take: one with a bed standing has only the move left (free), any other,
 // including a suite still to be built, is charged its furnishing. A gated

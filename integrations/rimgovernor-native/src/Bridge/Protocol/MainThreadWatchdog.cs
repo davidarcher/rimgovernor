@@ -8,7 +8,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Names a main-thread hop that has stalled (#600). Every
+    // Names a main-thread hop that has stalled. Every
     // ProtoBoundary.OnMainThread hop registers here when queued, marks itself
     // started when the game thread picks it up, and unregisters when its body
     // returns. A background timer scans the live hops once a second and logs,
@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
     // controller's trace ("<trace_id>/<span_id>") so the line joins the
     // service's flight log. Without it a hung call shows only as a Go-side
     // deadline, indistinguishable from a dead game. The lines go through
-    // ModLog (the rimgovernor.log channel, #2058), not Unity's log: they reach
+    // ModLog (the rimgovernor.log channel), not Unity's log: they reach
     // the flight recorder as mod_log rows carrying the same trace.
     internal static class MainThreadWatchdog
     {
@@ -68,7 +68,7 @@ namespace HomeBridge.BridgeTools
             var now = Stopwatch.GetTimestamp();
             if (!hop.Reported)
             {
-                // A hop over the live-play frame budget (#984) but under the
+                // A hop over the live-play frame budget but under the
                 // stall line still names itself, so a choppy session shows
                 // which op held the game thread.
                 var executeMs = Millis(hop.Started == 0 ? 0 : now - hop.Started);

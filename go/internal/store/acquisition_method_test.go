@@ -120,7 +120,7 @@ func TestCommitAcquisitionMethodNotExemptFromNonBillOpenWork(t *testing.T) {
 }
 
 // ClearPests is served through the same acquisition method as the food and
-// wood goals (#247): the store admits its hunt plans; every other autopilot
+// wood goals: the store admits its hunt plans; every other autopilot
 // goal is still refused one.
 func TestCommitAcquisitionMethodAdmitsClearPests(t *testing.T) {
 	t.Parallel()

@@ -9,7 +9,7 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable acceptance only (issue #2288). One op, three actions,
+    // Private disposable acceptance only. One op, three actions,
     // for the non-food field cases (farm/cotton-field, farm/healroot-field):
     //
     //   prepare -- empties the shortage the case names: every loose item of

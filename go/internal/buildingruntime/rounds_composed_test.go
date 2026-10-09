@@ -78,7 +78,7 @@ func composedRoundsFixture(t *testing.T) (*Rounder, *store.Store, *playerFakeSes
 	reviewer.native = &healthyWorkNative{roundsMedicalNative: &roundsMedicalNative{roundsNative: native}}
 	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainResource})
 	// A player switched the only builder's Construction off; the work
-	// planner switches it back on (#719), which gives that family a plan.
+	// planner switches it back on, which gives that family a plan.
 	native.pawnReply.GetObserved().Pawns[0].Settings.Work[0].Priority = proto.Int32(0)
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)

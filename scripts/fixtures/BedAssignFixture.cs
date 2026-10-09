@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
                 if (wallDef == null || !wallDef.MadeFromStuff || !GenStuff.AllowedStuffsFor(wallDef).Contains(ThingDefOf.WoodLog))
                     return Refuse("Wall def unavailable or WoodLog is not an allowed stuff in this ruleset.");
                 if (doorDef == null) return Refuse("Door def unavailable in this ruleset.");
-                // The case starts on the blank lab (#732): its colonists
+                // The case starts on the blank lab: its colonists
                 // stand on the centre row, so the bedroom sits a few rows
                 // north of it on bare Soil, with no site search.
                 var origin = map.Center + new IntVec3(-3, 0, 4);
@@ -88,7 +88,7 @@ namespace HomeBridge.BridgeTools
                 // middle of the colonist's comfy band. AssignBed refuses beds
                 // outside that band (and CanReach at Danger.None refuses
                 // extreme cells), and a fresh debug world's outdoor
-                // temperature is not guaranteed to be comfortable (#96).
+                // temperature is not guaranteed to be comfortable.
                 map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
                 var room = newBed.GetRoom();
                 if (room == null || room.TouchesMapEdge || room.OpenRoofCount > 0)

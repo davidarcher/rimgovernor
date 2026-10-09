@@ -7,7 +7,7 @@ import (
 )
 
 // A refused slot's cut wave takes the plants on its footprint and interaction
-// cell that the refusal names, passable or not, and nothing else (#2303).
+// cell that the refusal names, passable or not, and nothing else.
 func TestSlotPlantCutsTakeFootprintAndInteractionPlants(t *testing.T) {
 	t.Parallel()
 	offset := domain.Cell{X: 0, Z: 1}

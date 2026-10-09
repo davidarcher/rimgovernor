@@ -1,6 +1,6 @@
-// Package production holds issue #4 M4's multi-stage production case
+// Package production holds the multi-stage production case
 // (production/ladder): on the Core tribal baseline, the colony's component
-// need (construction demand or recurring spend, #2466) asks for an item
+// need (construction demand or recurring spend) asks for an item
 // only a research-gated bench produces (components on a fabrication bench),
 // and the ladder walks research -> bench -> workstation stockpile -> bill. The
 // fixture stages what the ladder does not build: a roofed starter hut whose
@@ -8,7 +8,7 @@
 // colonist, so the initial shelter is met), a simple research bench and a
 // fueled generator inside it, steel, wood and the bench's components loose
 // beside its door (outside storage, so the stock reads 0), and Fabrication
-// research a few points short of done (#344).
+// research a few points short of done.
 //
 // Passing needs live native evidence, never the journal alone: Fabrication
 // finished natively, a fabrication bench standing in a Workshop-hosting room
@@ -44,27 +44,19 @@ const (
 	resource = policy.ComponentResource
 	recipe   = "Make_ComponentIndustrial"
 	project  = "Fabrication"
-	// target is policy.DefaultResourceTargets()'s component floor (#875).
+	// target is policy.DefaultResourceTargets()'s component floor.
 	target = 10
 )
 
-// ladderFamilies is facility/workshop's composition plus the research and
-// stockpiles (the workstation stockpile rung) M4 adds, and the emergency responders: an injury
-// (a social fight is enough) holds every development goal until tended, a
-// predator hunting a colonist holds the clock until defense answers it, and
-// a choice dialog the DLC save opens by itself (Verse.Dialog_NodeTree)
-// force-pauses the game and holds every development row as an emergency
-// until the dialog planner answers it (#156). The sleeping and shelter
-// families (both serve MaintainHousing with sleeping spots) stay off
-// for time: the fixture hut already holds a sleeping spot per colonist, and
-// with them on the workshop ladder once staged a second shell before its
-// bench (#218, a 16 minute run whose ingredient stockpile then had no clean
-// floor, #223). An unserved priority-2 shelter goal gates only comfort,
-// never MaintainResource.
+// ladderFamilies includes the workshop, research and ingredient-stockpile stages plus
+// emergency responders: injury, predators and choice dialogs can block development until
+// handled. Shelter and sleeping stay off because the fixture already provides a hut and
+// sleeping spots; additional shells compete with the workshop for floor space. An unserved
+// priority-2 shelter goal gates comfort, never MaintainResource.
 var ladderFamilies = []routinefamily.Family{routinefamily.Temperature, routinefamily.Comfort, routinefamily.Work, routinefamily.Power, routinefamily.Supply, routinefamily.Defense, routinefamily.Tend, routinefamily.Rescue, routinefamily.Medical, routinefamily.Field, routinefamily.Stockpiles, routinefamily.Acquisition, routinefamily.Cooking, routinefamily.Resource, routinefamily.Workshop, routinefamily.Research, routinefamily.Gear, routinefamily.Armory, routinefamily.Dialog}
 
 // benchWindow is how long the ladder gets to finish the research rung and
-// raise its bench (the "bench-built" stage, cached across runs, #329);
+// raise its bench (the "bench-built" stage, cached across runs);
 // window is how long the staged colony then gets to land its first
 // product. Each watch ends early on its rung.
 const (
@@ -87,8 +79,8 @@ const benchStage = "bench-built"
 //
 // MaintainResource also keeps other resources (medicine) stocked, and one of
 // those acquisitions falling short (outcome_not_achieved) is retried, not
-// the ladder failing (#1136); so is an acquisition native refused on a stale
-// census (#1361).
+// the ladder failing; so is an acquisition native refused on a stale
+// census.
 var ladderFailFast = sustainedfood.FailFast{
 	MethodUnavailableWaits: true,
 	RetryableUnsuccessful:  []domain.UnsuccessfulReason{domain.OutcomeNotAchieved, domain.IntentRefused},
@@ -201,7 +193,7 @@ func benchBuilt(sample map[string]any) bool {
 }
 
 // planCompleted reports a plan match accepts (by its method, action kinds
-// and count; #987), active or retired, with every action completed.
+// and count; ), active or retired, with every action completed.
 func planCompleted(sample map[string]any, match func(method string, kinds map[string]int, actions int) bool) bool {
 	plans, _ := sample["plans"].([]map[string]any)
 	retired, _ := sample["retired_plans"].([]map[string]any)
@@ -247,7 +239,7 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 		return err
 	}
 	report[strings.ToLower(string(policy.MaintainResource))+"_standard"] = map[string]any{"status": string(goal.Standard.Status), "need": string(goal.Standard.Finding), "methods": len(goal.Methods)}
-	// EnsureResearch is a Project (#1911): its own row, not a goal.
+	// EnsureResearch is a Project: its own row, not a goal.
 	projectID, ok := review.ProjectFor(policy.EnsureResearch)
 	if !ok {
 		return fmt.Errorf("%s was never bound in the rounds", policy.EnsureResearch)

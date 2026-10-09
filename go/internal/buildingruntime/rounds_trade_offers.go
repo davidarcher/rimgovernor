@@ -18,7 +18,7 @@ import (
 // at each sheet read, the Round's supply plan reads the fresh ones as trade
 // candidates, and a record is dropped when its trader leaves the census or
 // the world changes. The food plan reads the same records to present traders
-// as trade candidates (#2166).
+// as trade candidates.
 type tradeOfferBook struct {
 	mu       sync.Mutex
 	snapshot domain.GenerationSnapshot

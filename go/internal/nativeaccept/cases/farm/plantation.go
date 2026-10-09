@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-// farm/plantation-rows (#2292): the private test/plantation_prepare fixture
+// farm/plantation-rows: the private test/plantation_prepare fixture
 // sows an oak (growth 0.8) and a rice plant (growth 0.9) in an oak growing
 // zone. The colony read's acquisition census must list the sown oak as a
 // plantation row carrying its growth fraction, the fixture must report it

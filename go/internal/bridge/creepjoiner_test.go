@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TestPawnAnomalyCreepJoiner (#1740): a creepjoiner's form, benefit and
+// TestPawnAnomalyCreepJoiner: a creepjoiner's form, benefit and
 // whether its downside has fired lift as read; a pawn with no tracker is
 // known not to be one; a failed read leaves the block unknown; the row has
 // no field for the hidden downside def.
@@ -50,7 +50,7 @@ func TestPawnAnomalyCreepJoiner(t *testing.T) {
 	}
 }
 
-// TestCreepJoinerCatalogDecode (#1740): the defs index by name; duplicates,
+// TestCreepJoinerCatalogDecode: the defs index by name; duplicates,
 // nonfinite numbers and inverted skill ranges are refused; the def's -1
 // sentinel decodes verbatim.
 func TestCreepJoinerCatalogDecode(t *testing.T) {
@@ -82,7 +82,7 @@ func TestCreepJoinerCatalogDecode(t *testing.T) {
 	}
 }
 
-// A creepjoiner letter (#1740) may have no timeout: its expiry is the game's
+// A creepjoiner letter may have no timeout: its expiry is the game's
 // negative sentinel, mirrored; a missing expiry is still refused.
 func TestJoinerLetterCensusCreepJoinerWithoutTimeout(t *testing.T) {
 	row := &o.JoinerLetter{LetterId: proto.Int32(3), SnapshotToken: proto.String("creepjoiner-token"), PawnId: proto.String("Pawn_4"), AcceptLabel: proto.String("Accept"),

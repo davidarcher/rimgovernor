@@ -1,4 +1,4 @@
-// The quest/joiner case proves MaintainPopulation's joiner answer (#250)
+// The quest/joiner case proves MaintainPopulation's joiner answer
 // end to end: a real ThreatReward_Raid_Joiner offer generated through the
 // native storyteller path reads back in the quest census with its root
 // script_def and, since the colony has capacity (spare unowned beds and a
@@ -194,7 +194,7 @@ func runJoiner(ctx context.Context, s cases.Session) error {
 	}
 
 	// MaintainPopulation admits one QuestAccept for the offer against the
-	// bot's own population target (#1032) and the executor completes it
+	// bot's own population target and the executor completes it
 	// against the live quest.
 	answers, err := waitFor("phase2", func(a map[domain.QuestID]joinerAnswer, found bool) (bool, error) {
 		for quest, answer := range a {

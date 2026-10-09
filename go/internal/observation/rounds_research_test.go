@@ -70,7 +70,7 @@ func TestRoundsResearchAndResourceFactsReadTheFrame(t *testing.T) {
 	if facts := out.Projection.Facts.Research; !reflect.DeepEqual(facts, domain.Known(want)) {
 		t.Fatal(facts)
 	}
-	// The tech tier follows the census (#604): Stonecutting finished on
+	// The tech tier follows the census: Stonecutting finished on
 	// the fixture's Neolithic faction is Masonry, filed with the section.
 	if tier := out.Projection.TechTier; tier != domain.Known(policy.TechTierMasonry) || out.Sections.Colony.Value.TechTier != tier {
 		t.Fatal(tier, out.Sections.Colony.Value.TechTier)

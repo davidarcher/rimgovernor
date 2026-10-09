@@ -142,7 +142,7 @@ func TestRemotePlanMatrixDependencies(t *testing.T) {
 	for _, v := range sustained.Variants {
 		suffix := sustained.Short(v.Save)
 		generator, consumer := "tools/variantsavegen-"+suffix, "sustained/matrix-"+suffix
-		// Both are off-tier (#739): the full plan carries neither, but a
+		// Both are off-tier: the full plan carries neither, but a
 		// hand-picked selection still pairs them.
 		if seen[consumer]+seen[generator] != 0 {
 			t.Fatalf("nightly plan carries off-tier %s or %s", consumer, generator)

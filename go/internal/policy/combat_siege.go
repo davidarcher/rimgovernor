@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// TacticSiege answers a siege (#776): the raid camps at range and shells
+// TacticSiege answers a siege: the raid camps at range and shells
 // the base, so the fight sorties onto the camp only in the window after
 // its supplies land and before its sandbags are up, and otherwise stays
 // home.
@@ -15,10 +15,10 @@ const (
 	// SiegeHold keeps everyone home: before the supplies land (attacking
 	// then makes them flee), or once the sandbags are up.
 	SiegeHold SiegeMode = "hold"
-	// SiegeSortie attacks the camp while it builds (#776).
+	// SiegeSortie attacks the camp while it builds.
 	SiegeSortie SiegeMode = "sortie"
 	// SiegeHarass sends the gunners that outrange the camp to shoot it
-	// once the sandbags are up, until the lord assaults (#920).
+	// once the sandbags are up, until the lord assaults.
 	SiegeHarass SiegeMode = "harass"
 )
 
@@ -48,8 +48,8 @@ func liveBesiegers(view CombatView) map[domain.PawnID]string {
 	return out
 }
 
-// siegeTurn records the tick the siege camp is first seen (#776) and
-// latches the first hostile mortar frame (#1154): the builders start on
+// siegeTurn records the tick the siege camp is first seen and
+// latches the first hostile mortar frame: the builders start on
 // the mortars once the sandbags are up, so the sortie ends there.
 func siegeTurn(view CombatView, m *CombatMemory) {
 	besiegers := liveBesiegers(view)

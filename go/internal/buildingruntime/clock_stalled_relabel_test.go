@@ -9,7 +9,7 @@ import (
 )
 
 // Only a genuine admission refusal is re-marked when the clock stalls. The
-// exits relabelled from it (#1881: the development ranking passing a goal
+// exits relabelled from it (the development ranking passing a goal
 // over, a lost arbiter claim, a blocked paste site, no buildable bed) wait
 // on something that changes with a review or another planner's step, not on
 // the tick, so a stalled clock leaves them unmarked and they run again when

@@ -12,7 +12,7 @@ using Verse.AI;
 namespace HomeBridge.BridgeTools
 {
     // Disposable setup and read-back for the burnable / not-burnable special
-    // filters (#2181; RimGovernorBurnable and RimGovernorNotBurnable, the
+    // filters (RimGovernorBurnable and RimGovernorNotBurnable, the
     // worker rule in RimGovernor.Runtime BurnableRule). On a blank lab it
     // builds two adjacent stockpiles, a Low "dump" disallowing not-burnable
     // and a Normal "store" disallowing burnable, stages loose items outside

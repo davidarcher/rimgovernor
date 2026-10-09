@@ -26,7 +26,7 @@ func TestHotMapCurve(t *testing.T) {
 
 // A hot map's survey latches Hot on the plan through the real derive path, the
 // shelter is sized for the passive cooler slot, a replan keeps both, and the
-// template plans the slot on the floor only when hot (#2044).
+// template plans the slot on the floor only when hot.
 func TestHotMapShelterHoldsAPassiveCoolerSlot(t *testing.T) {
 	slowtest.Skip(t, "two full layout derives on a 120-cell map; runs under cmd/test -full and nightly")
 	t.Parallel()

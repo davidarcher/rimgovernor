@@ -29,7 +29,7 @@ namespace HomeBridge.BridgeTools
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (mode == "share_setup" || mode == "share_read") {
-                    // upkeep/personal-share-rich and -poor (#1847, epic #1829).
+                    // upkeep/personal-share-rich and -poor.
                     var map = Find.CurrentMap;
                     if (mode == "share_setup") {
                         if (wealth != "rich" && wealth != "poor") return new { success = false, error = "wealth must be rich or poor" };
@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
                         worn = Worn(subject), bareWorn = Worn(shareBare), wealthItems = map.wealthWatcher.WealthItems, wealthBuildings = map.wealthWatcher.WealthBuildings };
                 }
                 if (mode == "prune_setup" || mode == "prune_read") {
-                    // apply/policy-prune (#1298): an extra outfit and an extra
+                    // apply/policy-prune: an extra outfit and an extra
                     // allowed area, the subject assigned to both.
                     var map = Find.CurrentMap;
                     if (mode == "prune_setup") {
@@ -110,7 +110,7 @@ namespace HomeBridge.BridgeTools
                         areas = map.areaManager.AllAreas.OfType<Area_Allowed>().Select(a => a.GetUniqueLoadID()).ToArray() };
                 }
                 if (mode == "outfits") {
-                    // production/per-pawn-outfits (#1302): every free colonist's
+                    // production/per-pawn-outfits: every free colonist's
                     // outfit and the whole outfit database.
                     return new { success = true,
                         pawns = Find.CurrentMap.mapPawns.FreeColonistsSpawned.Select(p => new { pawn = p.GetUniqueLoadID(), shortName = NativeApparelPolicyOperations.ShortName(p),
@@ -188,7 +188,7 @@ namespace HomeBridge.BridgeTools
                     }
                     // Vanilla's apparel optimizer would dress the subject in the produced garment on its own
                     // within an in-game hour or two; hold it off so the controller's wear order is what dresses
-                    // the pawn and the case proves the whole produce-then-equip path (issue #233).
+                    // the pawn and the case proves the whole produce-then-equip path.
                     subject.mindState.nextApparelOptimizeTick = Find.TickManager.TicksGame + 600000;
                     return new { success = true, pawn = subject.GetUniqueLoadID(), bench = bench?.GetUniqueLoadID(), cloth = cloth.GetUniqueLoadID(), material = cloth.def.defName,
                         worn = subject.apparel.WornApparel.Select(a => new { thingId = a.GetUniqueLoadID(), defName = a.def.defName, stuff = a.Stuff?.defName, hitPoints = a.HitPoints, maxHitPoints = a.MaxHitPoints }).ToList() };

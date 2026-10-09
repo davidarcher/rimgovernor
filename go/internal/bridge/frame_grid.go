@@ -11,7 +11,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// The whole-map cell grid (#1345). Every frame carries the map as a
+// The whole-map cell grid. Every frame carries the map as a
 // mirror.CellGrid: a keyframe (every array) or a delta against the last
 // keyframe, cumulative rather than chained, so a reader that skips frames
 // holds only the keyframe and applies each delta it reads to it. A delta

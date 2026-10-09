@@ -27,7 +27,7 @@ func TestChooseDialogOptionPrefersInOrderThenFirstSelectable(t *testing.T) {
 // A translated game selects by the Keyed translation key, never by the
 // English label; a key pattern is exact while a label pattern stays a
 // substring, and the fallback prefers an option that closes the dialog over
-// one that only links onward (#179).
+// one that only links onward.
 func TestChooseDialogOptionMatchesTranslationKeysAndPrefersResolving(t *testing.T) {
 	meeting := []DialogOption{
 		{Index: 0, Label: "Handeln", Keys: []string{"CaravanMeeting_Trade", "CommandTrade"}, Selectable: true, Resolves: true},
@@ -57,7 +57,7 @@ func TestChooseDialogOptionMatchesTranslationKeysAndPrefersResolving(t *testing.
 }
 
 // The void node's choice is answered by key, never by position and never by
-// embracing (#2438).
+// embracing.
 func TestVoidNodeDialogDisruptsPostponesAndNeverEmbraces(t *testing.T) {
 	prefer := DialogAnswerPolicy{Prefer: DefaultDialogAnswerPrefer}
 	option := func(i int32, key string, selectable bool) DialogOption {
@@ -80,7 +80,7 @@ func TestVoidNodeDialogDisruptsPostponesAndNeverEmbraces(t *testing.T) {
 	}
 }
 
-// The monolith's dialogs answer by key (#2437): the investigate node tree
+// The monolith's dialogs answer by key: the investigate node tree
 // takes its first option, the awakening confirmation confirms rather than goes
 // back, and the level letter closes instead of opening a main tab.
 func TestDefaultPolicyAnswersTheMonolithDialogs(t *testing.T) {

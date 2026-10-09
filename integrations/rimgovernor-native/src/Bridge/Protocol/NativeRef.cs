@@ -8,7 +8,7 @@ using Common = RimGovernor.Protocol.Common;
 namespace HomeBridge.BridgeTools
 {
     // The one way a message points at a thing, pawn, building, zone, bill,
-    // room or faction (#1342): its load id, nothing else. The reader takes
+    // room or faction: its load id, nothing else. The reader takes
     // definition, label and position from the row the id resolves to.
     internal static class NativeRef
     {
@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
         internal static Common.Ref Room(Room room) => new Common.Ref { Id = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture) };
 
         // The things a frame's sections reference while it is captured
-        // (#1342): its things table. Null outside a capture. Main thread only.
+        //: its things table. Null outside a capture. Main thread only.
         private static List<Thing>? referenced;
 
         // Thing points at a thing's row: during a frame capture a thing

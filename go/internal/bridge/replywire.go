@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
-// The companion answers the controller in one wrapper field (#757): "proto",
+// The companion answers the controller in one wrapper field: "proto",
 // base64 of the gzip-compressed binary protobuf reply. Every call asks for
 // it with the encoding argument; a companion that answers ProtoJSON
 // "payload" instead is refused as a contract error. Callers that omit the
@@ -168,7 +168,7 @@ func refuseUnknown(m protoreflect.Message) error {
 
 // The reply type a protoCall decodes into rides the call's context so the
 // recorded native_call row names it ("reply_type"): the row keeps the
-// wrapper's binary "proto" as received (#774) and readers decode it with
+// wrapper's binary "proto" as received and readers decode it with
 // RecordedReply.
 type recordedReplyKey struct{}
 
@@ -183,7 +183,7 @@ func recordedReplyType(ctx context.Context) string {
 
 // RecordedReplyJSON renders a recorded native_call row payload's reply
 // as ProtoJSON text: the binary "proto" decoded by the row's "reply_type",
-// (or "proto_raw", a reply read from the reply ring, #1344), or the
+// (or "proto_raw", a reply read from the reply ring), or the
 // ProtoJSON "payload" a call without the encoding argument received.
 func RecordedReplyJSON(row map[string]any) (string, bool) {
 	result, ok := row["result"].(map[string]any)

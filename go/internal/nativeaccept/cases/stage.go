@@ -18,7 +18,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-// Staged run-phase bundles (issue #329): a case whose Run body plays the
+// Staged run-phase bundles: a case whose Run body plays the
 // colony into its precondition (a shell sited and roofed, research and a
 // bench built, rooms on the baseline) declares those stages (Case.Stages)
 // and wraps each staging block in Session.Stage. The first run captures a
@@ -181,7 +181,7 @@ func planStage(c Case, opts Options, resumed resumption, log io.Writer) (staging
 	current, err := fingerprint(c, opts.configDir(c))
 	if errors.Is(err, os.ErrNotExist) {
 		// A root nothing has prepared yet (a suite worker the bundles were
-		// carried into, #527) still names the installed game in its base
+		// carried into) still names the installed game in its base
 		// config; CachedStage planned from the same fallback.
 		current, err = fingerprint(c, filepath.Join(opts.Root, "config"))
 	}
@@ -226,7 +226,7 @@ func stageMismatch(entry na.Checkpoint, name string, current na.Fingerprint, key
 
 // CachedStage is the newest declared stage of c whose bundle under
 // opts.Root a run would open on (the fingerprint and stage key match),
-// "" when none: what a suite scheduling stages (#527) plans from. It
+// "" when none: what a suite scheduling stages plans from. It
 // reads only; the run itself discards what it finds stale.
 func CachedStage(c Case, opts Options) string {
 	if len(c.Stages) == 0 || !stagesEnabled() {
@@ -366,7 +366,7 @@ func stagedThrough(ctx context.Context) *throughError {
 }
 
 // endThrough ends the run after the named stage when it is the run's
-// -through stage (#527): the Run body is cut through its context and the
+// -through stage: the Run body is cut through its context and the
 // report says which stage the run ended on and whether its bundle was
 // taken by this run or found cached.
 func (s *session) endThrough(name, outcome string) error {
@@ -402,7 +402,7 @@ func checkThrough(c Case, opts Options) error {
 	return nil
 }
 
-// tripStage fires the run's stage breakpoint (#280) once the named stage
+// tripStage fires the run's stage breakpoint once the named stage
 // is done, whether its block ran or a bundle covered it.
 func (s *session) tripStage(name string) {
 	if s.ring != nil && s.ring.Break.Stage == name {

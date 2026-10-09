@@ -264,7 +264,7 @@ func TestWorkshopSelectStagesFirstUnpoweredBenchInWorkshopRoom(t *testing.T) {
 	}
 }
 
-// A facility furnishes only the planned room of its role (#2267): with the
+// A facility furnishes only the planned room of its role: with the
 // room's cells set the bench goes inside them, with no planned room it waits.
 func TestWorkshopFurnishingOnlyPreviewsPlannedRoom(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

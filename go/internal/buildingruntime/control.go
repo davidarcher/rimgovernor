@@ -20,10 +20,8 @@ import (
 
 var ErrControl = errors.New("planner read stale or control unavailable")
 
-// liveToken is an opaque non-empty sentinel returned by Lease while the bot
-// holds Auto-mode authority. There is no negotiated lease ID any more (see
-// #52); callers only ever check it for presence/validity, never compare it
-// against a value the native side returned.
+// liveToken marks Auto-mode authority. Callers check presence and validity;
+// native authority does not negotiate a lease ID.
 const liveToken = "auto"
 
 // NativeAuthority combines the separately held read client and trusted authority
@@ -51,7 +49,7 @@ type ControlConfig struct {
 	CleanupWrites func(context.Context) error
 	// ResumeWrites is CleanupWrites before an acquisition: it keeps the
 	// owned drafts a suspended plan still holds, since a resume in the same
-	// world continues that plan (#228). Nil falls back to CleanupWrites.
+	// world continues that plan. Nil falls back to CleanupWrites.
 	ResumeWrites func(context.Context) error
 	// Worlds reads actual native identity without entering the control gate.
 	// Without it, shutdown cannot retire a target by proving world replacement.
@@ -131,7 +129,7 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 
 // errEpochReplacedMidWrite marks an Acquire whose SetMode succeeded after a
 // concurrent Disable replaced the epoch; the stale grant was revoked and one
-// fresh Acquire is allowed (#1140).
+// fresh Acquire is allowed.
 var errEpochReplacedMidWrite = fmt.Errorf("%w: Acquire: epoch replaced during SetMode", ErrControl)
 
 func (control *Control) acquireOnce(ctx context.Context, requested domain.GenerationSnapshot) (domain.GenerationSnapshot, error) {
@@ -155,10 +153,10 @@ func (control *Control) acquireOnce(ctx context.Context, requested domain.Genera
 		// is what a killed controller leaves behind. This process owns the
 		// profile lock, so it is the only author: reclaim by revoking at the
 		// observed generation and acquiring fresh, rather than staying
-		// unresumable until a local player interrupts the game (#67). Its own
+		// unresumable until a local player interrupts the game. Its own
 		// grant, disabled locally on a clock hold and still Auto at the
 		// generation it accepted, is re-acquired in place: one SetMode, one
-		// generation, no Manual round trip (#259). Once this process has
+		// generation, no Manual round trip. Once this process has
 		// targeted the world, any other Active is its own uncertain grant,
 		// which only Manual reconciles.
 		active := status.GetStatus().GetActive()
@@ -192,7 +190,7 @@ func (control *Control) acquireOnce(ctx context.Context, requested domain.Genera
 	// The write runs under the caller's context and the call timeout, not the
 	// epoch: the SetMode itself is the AuthorityChanged the clock poll ingests,
 	// and the poll's Disable on it cancelled the in-flight call and left the
-	// resume uncertain (#1140). The gate stays held.
+	// resume uncertain. The gate stays held.
 	write, cancel := context.WithTimeout(ctx, control.config.CallTimeout)
 	defer cancel()
 	reply, _, err := control.native.SetMode(write, &a.SetMode{Identity: controlIdentity(requested), ExpectedGeneration: proto.Uint64(generation), Mode: a.Mode_MODE_AUTO.Enum()})
@@ -235,7 +233,7 @@ func (control *Control) holdsGrant(requested domain.GenerationSnapshot, generati
 // world and still stands as far as it has observed: authority may be
 // disabled locally (a clock hold) but no read or revoke has shown the native
 // side off since. A player resume in that state re-acquires directly
-// instead of revoking first (#259).
+// instead of revoking first.
 func (control *Control) HoldsGrant(scope domain.GenerationSnapshot) bool {
 	if control == nil {
 		return false
@@ -254,7 +252,7 @@ const acquireObservationRetries = 3
 // called outside the gate (the clock poll on a gap, an interrupting event or
 // a pending hold; the renewal loop) and cancels the epoch the read runs
 // under, which surfaced as a `context canceled` authority_read_status and a
-// 503 uncertain resume at generation 0 (#206). Nothing has been written at
+// 503 uncertain resume at generation 0. Nothing has been written at
 // that point, so an epoch cancelled while the caller's context is still live
 // is not an uncertain outcome: start over under the next epoch, a bounded
 // number of times, and only report the failure once it persists.
@@ -320,15 +318,15 @@ func (control *Control) Lease(snapshot domain.GenerationSnapshot) (string, error
 // Its native revoke and owned cleanup run under the gate but not under the
 // control epoch: the revoke itself is the AuthorityChanged event the clock
 // poll ingests, and the poll's Disable on that fresh evidence replaces the
-// epoch (#206). Authority is already off when Manual starts, so a concurrent
+// epoch. Authority is already off when Manual starts, so a concurrent
 // Disable has nothing to protect here; tying the call to the epoch cancelled
 // the cleanup's clock read mid-flight and reported every player pause
-// uncertain under a held poll (#322).
+// uncertain under a held poll.
 func (control *Control) Manual(ctx context.Context) error { return control.manual(ctx, false) }
 
 // ManualForResume is the Manual a player resume runs after an observed
 // revocation, before it re-acquires: it drains like Acquire (ResumeWrites),
-// so the drafts a plan or an open fight still holds stay owned (#916).
+// so the drafts a plan or an open fight still holds stay owned.
 func (control *Control) ManualForResume(ctx context.Context) error { return control.manual(ctx, true) }
 
 func (control *Control) manual(ctx context.Context, resume bool) error {
@@ -619,7 +617,7 @@ func (control *Control) ObserveTarget(ctx context.Context, requested domain.Gene
 	requested.Native = domain.NativeGeneration(reply.GetStatus().Context.GetNativeGeneration())
 	// The target plan is only a read scope; the grant this process holds is
 	// world-scoped and still stands while native reports it Auto at the
-	// generation it accepted (the worker retargets reads under a hold, #259).
+	// generation it accepted (the worker retargets reads under a hold).
 	still := control.granted && control.haveTarget && control.snapshot.SameWorld(requested) && control.snapshot.Native == requested.Native && reply.GetStatus().GetActive() != nil
 	control.snapshot, control.haveTarget, control.granted = requested, true, still
 	control.observationKnown = true

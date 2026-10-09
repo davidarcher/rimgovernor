@@ -22,7 +22,7 @@ import (
 // prisoner: Recruit, Convert, Enslave or Release; never execution.
 type RoundsPrisonerInteractionPlanner struct {
 	reviewer *Rounder
-	// building shells the planned jail while a prisoner is held (#835);
+	// building shells the planned jail while a prisoner is held;
 	// nil for a source that cannot preview buildings.
 	building *RoundsBuildingPlanner
 }
@@ -132,7 +132,7 @@ func (r *RoundsPrisonerInteractionPlanner) step(call, epoch context.Context, arb
 	return RoundsPrisonerInteractionResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
-// stageJail takes the next jail step (#835, #880) while a prisoner is
+// stageJail takes the next jail step while a prisoner is
 // held: shell a planned jail, set a bed standing in one for prisoners, or
 // place the next template bed. handled is false when nothing is due, the
 // step was already tried this epoch, or native refuses it, so the

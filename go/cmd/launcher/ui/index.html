@@ -558,7 +558,7 @@ $('pbCopyAll').onclick = async () => { copyText((await allProblems()) || 'No pro
 $('toLog').onclick = e => { e.preventDefault(); $('tab-log').click(); };
 document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', pollProblems));
 setInterval(pollProblems, 1500);
-// Now tab (#1986, #2033): the header and the report poll their own Binds at the
+// Now tab: the header and the report poll their own Binds at the
 // serve client's cadences while the tab is showing. A call still in flight skips the tick.
 function setNote(id, f) {
   $(id).hidden = !f.Notice;
@@ -650,7 +650,7 @@ $('acStop').onclick = async () => {
   pollAcceptRun();
 };
 
-// New colony panel (#2026): renders getNewColony() verbatim; the Go view model
+// New colony panel: renders getNewColony() verbatim; the Go view model
 // owns every label, order, default and range. The page polls only while the
 // Launch tab is showing, skips a tick while a call is in flight, and ticks the
 // timer from its own clock between polls (anchored on progress.elapsedMs).

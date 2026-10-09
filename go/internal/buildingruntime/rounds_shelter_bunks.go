@@ -14,20 +14,20 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The initial shelter is raised around its bunks (#612). A fresh starter
+// The initial shelter is raised around its bunks. A fresh starter
 // shell is three rungs under the one goal, each a method of its epoch:
 //
 //  1. shelter-spots: sleeping spots on the shelter template's bunk slots
-//     (policy.PlanShelterBunks, #2042), placed before anything is roofed.
+//     (policy.PlanShelterBunks), placed before anything is roofed.
 //     They are an interim only: a pawn on a spot still sleeps on the ground.
 //  2. shelter-beds: the beds, the first construction on the site, on the
 //     same slots, which keep off the ring's corners, the entrance aisle and
 //     the starter storage patch. The native refuses a bed blueprint over a
 //     standing spot, so the standing spots are deleted first (the clearing
 //     method, upgradeBunks; a bedroll is packed to storage instead) and the
-//     beds go on the freed cells (#2080).
+//     beds go on the freed cells.
 //  3. the ring itself, at the next review whether or not the beds stand
-//     (#641): the planned room's ring through one reconcile (#2277). The
+//     : the planned room's ring through one reconcile. The
 //     ring stands on the plan's footprint, which the bunk slots lie inside
 //     and keep off the corners of.
 //
@@ -97,8 +97,8 @@ func shelterBunkSlots(room policy.PlannedRoom, facts observation.ColonyProjectio
 	return out
 }
 
-// shelterBeds is the bed rung's definition and slots on the ladder
-// (#1181): Bed when it is buildable, else as many bedrolls as the stock of
+// shelterBeds is the bed rung's definition and slots on the ladder:
+// Bed when it is buildable, else as many bedrolls as the stock of
 // their first stocked stuff covers, else Bed (which admitBunks refuses).
 func shelterBeds(facts observation.ColonyProjection, slots []shelterBunk) (string, []shelterBunk) {
 	if available, known := facts.DefinitionAvailable(shelterBedDefinition).Value(); known && available {
@@ -114,7 +114,7 @@ func shelterBeds(facts observation.ColonyProjection, slots []shelterBunk) (strin
 
 // IsShellMethod reports a planned room's ring method: a build wave of a
 // "<role>-shell-<x>-<z>" reconcile (plannedRoomMethod), for acceptance tooling
-// reading the journal (#987).
+// reading the journal.
 func IsShellMethod(method domain.MethodID) bool {
 	return store.IsRoomShellMethod(method)
 }
@@ -124,7 +124,7 @@ func IsShellMethod(method domain.MethodID) bool {
 func ShelterSpotsMethod() domain.MethodID { return shelterSpotsMethod }
 func ShelterBedsMethod() domain.MethodID  { return shelterBedsMethod }
 
-// ShelterClearBedsMethod names the spot deletion the bed rung runs first (#2080).
+// ShelterClearBedsMethod names the spot deletion the bed rung runs first.
 func ShelterClearBedsMethod() domain.MethodID { return shelterClearBedsMethod }
 
 // shelterSite is one review's context for siting the initial shelter.
@@ -179,8 +179,8 @@ func (r *RoundsBuildingPlanner) shelterBunks(call context.Context, goal store.Wo
 	return record, nil
 }
 
-// stepShelterRoom raises the layout plan's shelter room for this review
-// (#2277). The owed ring goes through one reconcile of the planned room,
+// stepShelterRoom raises the layout plan's shelter room for this review.
+// The owed ring goes through one reconcile of the planned room,
 // after the initial shelter's bunk rungs when no ring is begun: a bunk rung
 // admitted (or refused) this review is the result. A standing ring waits on
 // its roof: the window the completed wave lends, else the earlier-shell
@@ -278,7 +278,7 @@ func (r *RoundsBuildingPlanner) stepShelterBunks(call, epoch context.Context, s 
 		}
 	}
 	// The upgrade deletes the spots and places the bed (or bedroll) on the
-	// freed slots, never over a standing spot (#2080).
+	// freed slots, never over a standing spot.
 	definition, bunks := shelterBeds(s.facts, slots)
 	if place, _ := shelterRung(definition); !record.bound(place) {
 		result, err := r.upgradeBunks(call, epoch, s, record, definition, bunks)
@@ -293,7 +293,7 @@ func (r *RoundsBuildingPlanner) stepShelterBunks(call, epoch context.Context, s 
 }
 
 // upgradeBunks swaps the standing lower-rung bunks on the bed rung's slots
-// for the target definition (#2080): a sleeping spot is free and is
+// for the target definition: a sleeping spot is free and is
 // deconstructed, a bedroll is packed to storage (uninstalled), each as one
 // clearing method, and the bed or bedroll is placed on the freed cells once
 // none stands. It returns nil to leave the rung to a later review and go on

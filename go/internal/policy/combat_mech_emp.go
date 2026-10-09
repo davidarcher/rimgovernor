@@ -11,7 +11,7 @@ import (
 const (
 	// empAdaptAfterStun is how long a mech stays EMP-adapted once its stun
 	// ends: vanilla adapts it for 2200 ticks from the hit, and an EMP
-	// grenade (50 damage x 30 ticks) stuns it for 1500 (#1050).
+	// grenade (50 damage x 30 ticks) stuns it for 1500.
 	empAdaptAfterStun = 700
 	// empDisengageTicks is how early blockers leave a stunned mech: time
 	// to step back to the inner line before it wakes.
@@ -22,7 +22,7 @@ const (
 	empNearBlocker = 2
 )
 
-// EMPAdaptation is a mech EMP no longer stuns until Until (#1050).
+// EMPAdaptation is a mech EMP no longer stuns until Until.
 type EMPAdaptation struct {
 	Pawn  domain.PawnID
 	Until domain.Tick
@@ -47,7 +47,7 @@ func empAdapted(m CombatMemory, id domain.PawnID) bool {
 }
 
 // grenadeAim is the grenade step's ground cell. Against mechs an EMP only
-// stuns scythers already in the choke, awake and not adapted (#1050); the
+// stuns scythers already in the choke, awake and not adapted; the
 // blockers hold the choke, so when every hostile cell is too near them it
 // aims at any cell whose blast still reaches such a scyther. Otherwise it
 // is GrenadeTarget.
@@ -90,8 +90,8 @@ func grenadeAim(view CombatView, m CombatMemory, carrier CombatPawnState, hostil
 	return bestGround(from, reach, blast, around, scythers, colonists)
 }
 
-// mechDisengage pulls each blocker back to the inner line (#860) before a
-// mech on it wakes from a stun (#1050): the stun ends within
+// mechDisengage pulls each blocker back to the inner line before a
+// mech on it wakes from a stun: the stun ends within
 // empDisengageTicks, or it already woke EMP-adapted, when a second EMP
 // would not hold it. A pulled-back blocker stays on the inner line.
 func mechDisengage(view CombatView, m *CombatMemory) {

@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-// starvingRecoveryDays is the day budget (#2173): the colony is sampled each
+// starvingRecoveryDays is the day budget: the colony is sampled each
 // game day and the case fails when the chain below has not completed by the
 // last. starvingRecoveryMalnutrition is the severity the recovered colony
 // must be at or under; starvingHunger the food level the colonists start at,

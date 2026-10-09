@@ -20,7 +20,7 @@ type RoundsStandard struct {
 }
 
 // RoundsProject binds a Project need to the Project row the review filed for
-// it (#1927): Projects are never goal rows.
+// it: Projects are never goal rows.
 type RoundsProject struct {
 	Concern domain.ConcernID
 	Project domain.ProjectID
@@ -40,18 +40,18 @@ type Rounds struct {
 	Emergency []policy.ConcernID `json:",omitempty"`
 	// Unsafe lists the loose things the last known safety census reported
 	// unsafe to haul; policy.UnsafeLootSafeguard refuses allowing them at
-	// dispatch (#1018).
+	// dispatch.
 	Unsafe          []string                `json:",omitempty"`
 	BrewingFinished bool                    `json:",omitempty"`
 	ResourceRunways []ResourceRunwayRecord  `json:",omitempty"`
 	ReserveSupplies []ReserveSupply         `json:",omitempty"`
 	LarderSupplies  []policy.StartingSupply `json:",omitempty"`
-	// RecoveryQueue is the one recovery queue (#2297): the clearance planner
+	// RecoveryQueue is the one recovery queue: the clearance planner
 	// executes its removals against a fresh native census, and its held
 	// entries are the journalled hold reasons.
 	RecoveryQueue *policy.RecoveryQueue `json:",omitempty"`
 	ShrineHolds   []policy.ShrineHold   `json:",omitempty"`
-	// ShrineStep is the shrine planner's last step (#680): the shrine it
+	// ShrineStep is the shrine planner's last step: the shrine it
 	// held on and why, and the candidates it passed over. A world change
 	// clears it; otherwise a review keeps the last one.
 	ShrineStep  *RoundsShrineStep       `json:",omitempty"`
@@ -77,43 +77,42 @@ type Rounds struct {
 	Standards []RoundsStandard
 	Projects  []RoundsProject `json:",omitempty"`
 	// Incidents binds the Responses this review assessed to their open
-	// occurrences (#1020); those needs have no entry in Goals.
+	// occurrences; those needs have no entry in Goals.
 	Incidents []RoundsIncident `json:",omitempty"`
 
-	// Roster is the roster planner's last recorded report (#448): coverage,
+	// Roster is the roster planner's last recorded report: coverage,
 	// decaying skills and pawn profiles as of its Tick. A disabled review
 	// keeps the last one; absent until an enabled review planned work.
 	Roster *policy.WorkRosterReport `json:",omitempty"`
-	// Progress is every active goal's progress record (#629), keyed by
+	// Progress is every active goal's progress record, keyed by
 	// need: method, expected observable, last progress tick, next review
 	// tick, blocked reason and the bounded cooldowns its rotations keyed.
 	Progress []policy.ConcernProgress `json:",omitempty"`
-	// Stage is the colony stage (#630) the review derived from its facts
+	// Stage is the colony stage the review derived from its facts
 	// and progress records, with the first unmet condition of the next
 	// stage; a disabled review keeps the last one. Absent before any
 	// enabled review filed one.
 	Stage *policy.ColonyStageRecord `json:",omitempty"`
-	// ReadyWork is the shadow ready-work projection (#645) of this
+	// ReadyWork is the shadow ready-work projection of this
 	// enabled review's plans and unserved goals, bounded by
 	// policy.DefaultReadyBounds. Diagnostics only: no admission reads it.
 	ReadyWork *policy.ReadyWorkReport `json:",omitempty"`
 	// Built is every live building action standing built, by geometry, in the
-	// last complete construction census (builtActions, #1355), sorted; a review without a
+	// last complete construction census (builtActions), sorted; a review without a
 	// complete census keeps the last one. Admission reads it for building
-	// prerequisites (checkDependencies, #937).
+	// prerequisites (checkDependencies).
 	Built []domain.ActionID `json:",omitempty"`
 	// WallCells is, for every cell a live plan's wall removal names, whether
 	// the last complete construction census still had a colony Wall on it,
 	// sorted by cell; a review without a complete census keeps the last one.
-	// Admission reads it for wall-removal prerequisites (checkDependencies,
-	// #989): an applied removal is only designated, so a dependent (the
+	// Admission reads it for wall-removal prerequisites (checkDependencies): an applied removal is only designated, so a dependent (the
 	// replacement wall on the same cell) waits for the wall to be gone.
 	WallCells []WallCell `json:",omitempty"`
-	// Dependencies are the live shortfall edges (#651) planners recorded
+	// Dependencies are the live shortfall edges planners recorded
 	// (RecordDependency); each review drops the settled or stale ones.
 	Dependencies []DependencyRecord `json:",omitempty"`
 	// NoOps is every inspection that raised nothing in the last enabled
-	// review, with its typed reason (#1909); a disabled review keeps the last.
+	// review, with its typed reason; a disabled review keeps the last.
 	NoOps []policy.NoOpRecord `json:",omitempty"`
 }
 
@@ -133,7 +132,7 @@ type RoundsResult struct {
 	Standards []StandardState
 	// Projects are the Project rows Review.Projects binds.
 	Projects []ProjectState
-	// Incidents are the occurrences Review.Incidents binds (#1020).
+	// Incidents are the occurrences Review.Incidents binds.
 	Incidents []IncidentState
 	// Emergency findings guide response planning and reporting.
 	Emergency []policy.ConcernID
@@ -276,7 +275,7 @@ func loadRounds(ctx context.Context, tx *sql.Tx) (Rounds, error) {
 	}
 	// The stored review is the fact: a binding is valid when it names a
 	// routine goal the table knows, not when a second derivation from empty
-	// facts would also have assessed it (#1763). Response kinds live in the
+	// facts would also have assessed it. Response kinds live in the
 	// incidents table and Project kinds in the projects table; Goals binds
 	// Standards only.
 	seen := map[domain.ConcernID]bool{}
@@ -832,7 +831,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 
 // reviewProject files and reviews one Project need: it reuses the world's
 // Project row, opens a new one when none stands or the finished one regressed
-// with no work open (the finished row stays as its record, #1022), and reviews
+// with no work open (the finished row stays as its record), and reviews
 // it against the assessment.
 func reviewProject(ctx context.Context, tx *sql.Tx, old map[domain.ConcernID]ProjectState, n policy.RoundsAssessment, current domain.GenerationSnapshot, tick domain.Tick) (ProjectState, error) {
 	p, exists := old[n.ID]

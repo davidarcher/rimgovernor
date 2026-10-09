@@ -6,7 +6,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Why colony stock was spent (#2441). The numeric values are saved: append
+    // Why colony stock was spent. The numeric values are saved: append
     // only. Wire names are Names[(int)reason].
     public enum ConsumptionReason : byte
     {
@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
         Rot = 11, Deterioration = 12, Fire = 13, Sold = 14, Stolen = 15, DestroyedOther = 16,
     }
 
-    // Realized consumption (#2441): a ring of hourly increments per
+    // Realized consumption: a ring of hourly increments per
     // (ThingDef, reason) (2500-tick hours, 60 days), saved with the game as one
     // packed, versioned string so the save stays small. A count may be negative (an ejected refuel or a removed
     // shell subtracts). Hooks (ConsumptionHooks) add on the game thread; reads

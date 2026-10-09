@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The throne room template (#1601): the throne centred against the back
+// The throne room template: the throne centred against the back
 // wall facing the entrance, then the bedroom's furnishing levers (end
 // table and dresser beside it, a standing lamp in a back corner) in the
 // slots the room quality closer fills. The throne's footprint is the piece

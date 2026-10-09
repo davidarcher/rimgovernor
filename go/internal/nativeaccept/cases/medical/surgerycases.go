@@ -16,7 +16,7 @@ import (
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-// Surgery planner fixture cases (#1170, epic #1160). Each opens on
+// Surgery planner fixture cases. Each opens on
 // test/medical_management_setup (three Medicine 20 doctors, the third
 // colonist missing a leg with a SimpleProstheticLeg stocked, a sterile lit
 // surgery room with a medical hospital bed) plus one condition on the
@@ -311,8 +311,8 @@ func surgeryRestore(ctx context.Context, s cases.Session) error {
 const surgeryServedTicks = 15000
 
 // served keeps the service running until its review tick has moved
-// surgeryServedTicks past the first read: a queued bill is clock work
-// (#1238), so a clock parked on it stalls the wait. It then stops the
+// surgeryServedTicks past the first read: a queued bill is clock work,
+// so a clock parked on it stalls the wait. It then stops the
 // service and reads the patient's health once for the operation.
 func (r *surgeryRun) served(ctx context.Context, s cases.Session, label, patient string, done func(health map[string]any) bool) error {
 	waitCtx, cancel := context.WithTimeout(ctx, 4*time.Minute)
@@ -456,7 +456,7 @@ func transferPart(ctx context.Context, s cases.Session, label, prisoner, patient
 		return err
 	}
 	report["removal_intent"] = map[string]any{"prisoner": prisoner, "part": cut.Part()}
-	// The queued cut is clock work (#1238): the same service runs it and
+	// The queued cut is clock work: the same service runs it and
 	// then sees the part in stock.
 	return run.until(ctx, 6*time.Minute, func(ctx context.Context, surgeries []domain.Surgery) (string, bool, error) {
 		_, ok := findSurgery(surgeries, patient, part, recipe)
@@ -467,7 +467,7 @@ func transferPart(ctx context.Context, s cases.Session, label, prisoner, patient
 	})
 }
 
-// harvestFacts checks the population read's #1169 fields on the prisoner:
+// harvestFacts checks the population read's fields on the prisoner:
 // a harvest operation on a kidney, its faction id and goodwill change,
 // and its harvest goodwill change.
 func harvestFacts(ctx context.Context, s cases.Session, prisoner string) error {

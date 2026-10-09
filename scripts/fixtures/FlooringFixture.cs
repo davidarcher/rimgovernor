@@ -8,7 +8,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Private disposable acceptance only. Builds the unfloored kitchen
-    // flooraccept needs to exercise MaintainFlooring (issue #6 slice 4): an
+    // flooraccept needs to exercise MaintainFlooring : an
     // enclosed roofed room holding a fuelled stove whose interior stands on
     // bare soil (terrain cleanliness -1), with enough wood outside for a plank
     // floor over every interior cell. The controller must choose a floor it

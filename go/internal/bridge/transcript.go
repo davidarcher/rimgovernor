@@ -12,7 +12,7 @@ import (
 )
 
 // A transcript is the call sequence of one bridge session, recorded so a
-// Replay can serve it back without a game (#282): one JSON line per wrapper
+// Replay can serve it back without a game: one JSON line per wrapper
 // tools/call with the raw MCP receipt the client decoded, plus a session
 // row per connect carrying the wrapper catalog the client discovered. It is
 // the recording the acceptance harnesses make under

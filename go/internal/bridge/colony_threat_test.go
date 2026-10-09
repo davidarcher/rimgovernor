@@ -17,7 +17,7 @@ func threatFacts() *o.ThreatFacts {
 	}
 }
 
-// The threat section (#395) is optional on the wire: an absent or
+// The threat section is optional on the wire: an absent or
 // unavailable section validates and projects to unknown facts, an observed
 // one carries every number, and a non-finite or negative number is refused
 // the way combatNumber refuses one anywhere else.

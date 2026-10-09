@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent Repair (#939), the bounded repair response of
+    // GiveJobIntent Repair, the bounded repair response of
     // MaintainEssentialRepairs: an exact damaged player building, an
     // undrafted eligible worker who can reach it and needs no tending,
     // WorkGiver_Repair's own HasJobOnThing (home area, reservable, not

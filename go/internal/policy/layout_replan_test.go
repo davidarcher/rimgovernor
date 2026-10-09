@@ -11,7 +11,7 @@ import (
 )
 
 // replanBudget is the paused-map time one hourly replan should stay well
-// under on the baseline fixture (#1958).
+// under on the baseline fixture.
 const replanBudget = time.Second
 
 func replanFixture(t testing.TB) (MapSurvey, LayoutPlan) {
@@ -31,7 +31,7 @@ type fixedRoom struct {
 	link  *domain.Cell
 }
 
-// #1958: for any sequence of pawn growth, research (the tier) and terrain
+// for any sequence of pawn growth, research (the tier) and terrain
 // changes, no fixed room ever changes its Interior, Door or Doors, and no
 // room sited again lands on something of ours.
 func TestReplanNeverChangesFixedRooms(t *testing.T) {
@@ -125,7 +125,7 @@ func replanNeverChangesFixedRooms(t *testing.T) {
 	}
 }
 
-// #1958: a plan replanned again with the same inputs is byte-identical, and
+// a plan replanned again with the same inputs is byte-identical, and
 // a gain under the threshold leaves it so however many times it is checked.
 func TestReplanHysteresisKeepsThePlan(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -141,7 +141,7 @@ func TestReplanHysteresisKeepsThePlan(t *testing.T) {
 	}
 }
 
-// #1958: a gain above the threshold re-sites the unbuilt rooms only.
+// a gain above the threshold re-sites the unbuilt rooms only.
 func TestReplanAboveThresholdMovesOnlyUnbuiltRooms(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s, plan := replanFixture(t)
@@ -172,7 +172,7 @@ func TestReplanAboveThresholdMovesOnlyUnbuiltRooms(t *testing.T) {
 	}
 }
 
-// #1958: with the census unknown (Fixed nil) no room is known to be
+// with the census unknown (Fixed nil) no room is known to be
 // unbuilt, so nothing is re-sited however large the gain.
 func TestReplanWithUnknownCensusKeepsEveryRoom(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

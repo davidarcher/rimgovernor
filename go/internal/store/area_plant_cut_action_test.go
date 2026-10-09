@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A area plant cut (#1547) persists its canonical cells.
+// A area plant cut persists its canonical cells.
 func TestAreaPlantCutActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

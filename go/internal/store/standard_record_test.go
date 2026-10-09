@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TestGoalRecordRidesTheGoalBlobAndRebuilds (#1740): a goal's record is saved
+// TestGoalRecordRidesTheGoalBlobAndRebuilds: a goal's record is saved
 // at the goal's revision, replaced atomically with a method, bounded, and
 // comes back from the save's goal blob.
 func TestGoalRecordRidesTheGoalBlobAndRebuilds(t *testing.T) {

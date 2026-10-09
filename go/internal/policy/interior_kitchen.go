@@ -2,14 +2,14 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The kitchen template (#805): stoves in one row against a wall, each
+// The kitchen template: stoves in one row against a wall, each
 // worker cell on open floor in front of it. A kitchen's second door is read
-// as the door to its freezer (a kitchen is no thoroughfare, #780), so the
+// as the door to its freezer (a kitchen is no thoroughfare), so the
 // row lines the wall holding that door, anchored to the corner beyond it:
 // the cook steps from the freezer straight to the stoves. A kitchen with
 // only its entrance lines the back wall, centred. The frame takes the door
-// onto a hallway or outdoors as the entrance (#820), so a door into the
-// freezer reads as the freezer's; v2 layout kitchens have one door (freezer beside it on
+// onto a hallway or outdoors as the entrance, so a door into the
+// freezer reads as the freezer's; layout kitchens have one door (freezer beside it on
 // the spine) and get the back row. Butchering never comes
 // here: SeparationProtectedCells keeps butcher placement out of kitchens.
 

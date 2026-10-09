@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
 
         // assumedHolders are open cells counted as roof holders the removal
         // would find standing: the stone-shell census lists a fresh candidate
-        // only when its backups, once built, keep every roof up (#293).
+        // only when its backups, once built, keep every roof up.
         internal static string? Blocker(Building building, ICollection<IntVec3>? assumedHolders, out int checkedRoofs,
             ICollection<IntVec3>? structuralCells = null)
         {

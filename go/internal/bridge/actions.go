@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ActionsApplyMethod is Actions/Apply (#856): a batch of idempotent intents
+// ActionsApplyMethod is Actions/Apply: a batch of idempotent intents
 // that native applies in order, each validated against live state and
 // applied or refused on its own. A resent key returns its first result.
 const ActionsApplyMethod = "rimgovernor/operations_apply"
@@ -121,7 +121,7 @@ func movementAction(action domain.Action) (*o.Action, error) {
 }
 
 // foundationRemovalAction is the Actions/Apply remove_foundation arm of one
-// foundation_removal (#954).
+// foundation_removal.
 func foundationRemovalAction(action domain.Action) (*o.Action, error) {
 	f, ok := action.FoundationRemoval()
 	if !ok {
@@ -135,7 +135,7 @@ func foundationRemovalAction(action domain.Action) (*o.Action, error) {
 }
 
 // floorRemovalAction is the Actions/Apply remove_floor arm of one
-// floor_removal (epic #1249).
+// floor_removal.
 func floorRemovalAction(action domain.Action) (*o.Action, error) {
 	f, ok := action.FloorRemoval()
 	if !ok {

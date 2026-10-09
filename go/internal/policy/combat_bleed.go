@@ -8,10 +8,10 @@ import (
 )
 
 // bleedDownSeverity is the BloodLoss severity whose consciousness loss
-// downs a pawn (#1035); death is at 1.0.
+// downs a pawn; death is at 1.0.
 const bleedDownSeverity = 0.6
 
-// Contained reports a hostile the fight can leave alone (#1035): it is
+// Contained reports a hostile the fight can leave alone: it is
 // fleeing or its raid is leaving, or no colonist is inside its weapon
 // range, or every other hostile is downed, dead or fleeing. A hostile
 // targeting a colonist is never contained: colonist safety wins.
@@ -62,7 +62,7 @@ func Contained(view CombatView, id domain.PawnID) bool {
 
 // willBleedDown reports a hostile whose blood loss crosses the downing
 // point before it kills: the game's death-on-downed roll does not run on
-// a blood-loss downing, so it survives to be captured (#1035). Unknown
+// a blood-loss downing, so it survives to be captured. Unknown
 // health is false.
 func willBleedDown(s CombatPawnState) bool {
 	loss, lk := s.BloodLoss.Value()
@@ -74,7 +74,7 @@ func willBleedDown(s CombatPawnState) bool {
 	return max(0, (bleedDownSeverity-loss)/rate*24) < death
 }
 
-// sparedBleeders are the hostiles the fight holds fire on (#1035): below
+// sparedBleeders are the hostiles the fight holds fire on: below
 // the population target, a live humanlike that is contained and will
 // bleed down.
 func sparedBleeders(view CombatView) map[domain.PawnID]bool {
@@ -111,7 +111,7 @@ func (v CombatView) spare(spared map[domain.PawnID]bool) CombatView {
 }
 
 // finishContained sends melee at the contained raiders who will not bleed
-// down (#1036): below the population target, low-damage hits make a pain
+// down: below the population target, low-damage hits make a pain
 // downing likelier than a lethal wound. The attackers are the free
 // defenders without a gun (unarmed or melee-armed; nobody is unequipped),
 // lowest melee power first, dealt round-robin over the raiders so several

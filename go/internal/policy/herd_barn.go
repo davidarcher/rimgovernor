@@ -8,7 +8,7 @@ import (
 )
 
 // BarnAreaKey is the bot area key of the Barn allowed area: the interior of
-// the plan's standing barns (#1869). AnimalShelterChoice moves pen animals
+// the plan's standing barns. AnimalShelterChoice moves pen animals
 // into it while their race is in danger outdoors (AnimalExposures).
 const BarnAreaKey = "Barn"
 
@@ -38,7 +38,7 @@ func (p LayoutPlan) BarnCells(rooms RoomObservation) []domain.Cell {
 // restriction or the Barn area; one in any other area (the vet room's) is left
 // to the flow that put it there, as is one marked for removal or with an unread
 // area, support or removal fact. With the ring's closure unread nothing is
-// chosen (#2234, epic #2229):
+// chosen:
 //   - a predator is kept in the Wild area (the map minus the paddock), a tamed
 //     warg (a roamer) included, except a bonded non-roamer predator (a cat),
 //     which is a companion;
@@ -46,7 +46,7 @@ func (p LayoutPlan) BarnCells(rooms RoomObservation) []domain.Cell {
 //     the ring is closed the paddock holds it unrestricted, and it is let into
 //     the Barn only while its race is in danger outdoors (a hostile threat,
 //     RoundsFacts.Hostiles > 0, endangers every race and skips the weather
-//     reads; otherwise AnimalExposures) and released once that passes (#1869);
+//     reads; otherwise AnimalExposures) and released once that passes;
 //   - a bonded non-roamer is kept in the Companion area, the paddock yard.
 //
 // A kind whose area is not standing chooses nothing; an unread hostile count,

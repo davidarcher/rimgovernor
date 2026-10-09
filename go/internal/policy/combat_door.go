@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Door potshot constants (#900, #1059), in cells.
+// Door potshot constants, in cells.
 const (
 	// doorCloseRange: a hostile this close to the door shuts it.
 	doorCloseRange = 3
@@ -17,15 +17,15 @@ const (
 	doorGunners = 2
 )
 
-// OrderRepair sends a drafted pawn to repair a damaged door (#900).
+// OrderRepair sends a drafted pawn to repair a damaged door.
 const OrderRepair CombatOrderKind = "repair"
 
-// ReasonRepair is a door repair order (#900).
+// ReasonRepair is a door repair order.
 const ReasonRepair CombatOrderReason = "repair"
 
 // doorPotshot is the hit-and-run from a perimeter door, for a manhunter
-// pack (#900), a humanoid raid on squad defense (#1059) and a hunt once
-// its prey turns manhunter or hunts a colonist (#1618; the door stays once
+// pack, a humanoid raid on squad defense and a hunt once
+// its prey turns manhunter or hunts a colonist (the door stays once
 // chosen); a killbox hold fights from its firing line instead.
 // On a formation without blockers, the planned-room door nearest the hostiles
 // becomes the potshot door: the doorGunners gunners nearest it take the
@@ -90,7 +90,7 @@ func combatDoorExists(view CombatView, cell domain.Cell) bool {
 }
 
 // provokedPrey is a live prey that turned manhunter or is hunting a
-// colonist: the hunt falls back to the door loop (#1618).
+// colonist: the hunt falls back to the door loop.
 func provokedPrey(view CombatView) bool {
 	live := map[domain.PawnID]bool{}
 	for _, p := range rankThreats(view) {
@@ -149,8 +149,8 @@ func potshotDoor(view CombatView, roles []CombatRole) *PodDoor {
 			at[p.ID] = c
 		}
 	}
-	// A gunner is a ranged role or, on squad defense against melee raiders
-	// (#1059), a defender carrying a ranged weapon: it shoots from the door
+	// A gunner is a ranged role or, on squad defense against melee raiders,
+	// a defender carrying a ranged weapon: it shoots from the door
 	// instead of charging.
 	armed := map[domain.PawnID]bool{}
 	for _, d := range view.Defenders {

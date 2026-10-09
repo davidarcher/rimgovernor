@@ -176,7 +176,7 @@ func run(opts options) (err error) {
 
 // privateEnv keeps the plugin binary inside the run and preserves the user's
 // build and module caches (go.sum verifies the modules). A run-local module
-// cache is read-only on disk and blocks git worktree remove on Windows (#907).
+// cache is read-only on disk and blocks git worktree remove on Windows.
 func privateEnv(output string) []string {
 	env := os.Environ()
 	set := func(key, value string) {

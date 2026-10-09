@@ -5,7 +5,7 @@ import "errors"
 const FloorRemovalAction ActionKind = "floor_removal"
 
 // FloorRemoval designates the constructed floor laid on one cell for removal
-// (vanilla RemoveFloor, epic #1249) so clearance can free planned ground. The
+// (vanilla RemoveFloor) so clearance can free planned ground. The
 // designation is the whole write; ordinary construction work removes the
 // floor, and a cell whose floor is already gone or designated applies again.
 type FloorRemoval struct {

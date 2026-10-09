@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Bed replacement (#829): a solo bedroom below its RoomTarget whose owned
+// Bed replacement: a solo bedroom below its RoomTarget whose owned
 // bed is of poor quality (Awful or Poor) gets a new bed of the same
 // definition. The game never places a bed over a standing one, so the
 // replacement is one change walked across reviews, each step read back
@@ -12,7 +12,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 //   - remove: the old bed, now unowned and worse, is deconstructed; so
 //     is a new bed that came out no better (the next epoch rebuilds).
 //
-// Material (#842): a room whose weakest stat is wealth or beauty gets its
+// Material: a room whose weakest stat is wealth or beauty gets its
 // bed rebuilt in a better stuff the colony has stock for, judged by the
 // stuff's beauty and market value factors (ItemFacts.StuffScore). A quality
 // rebuild never builds in a worse stuff than the owned bed's.
@@ -32,8 +32,8 @@ type BedMaterials struct {
 	Stock map[Resource]int64
 	Cost  map[Resource]int64
 	Items ItemFacts
-	// Gate is the personal-share gate on a quality or material rebuild
-	// (#1840); the zero value is ungated.
+	// Gate is the personal-share gate on a quality or material rebuild;
+	// the zero value is ungated.
 	Gate RoomGate
 }
 
@@ -187,14 +187,14 @@ func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, 
 			continue
 		}
 		if want != owned.Definition {
-			// A royal title's bed requirement (#815) holds regardless of
+			// A royal title's bed requirement holds regardless of
 			// the target.
 			if cell, rot, ok := bedSpot(room, want); ok {
 				return BedReplacement{Step: BedReplaceBuild, Room: s.room, Def: string(want), Cell: cell, Rot: rot}, true
 			}
 			continue
 		}
-		// A room short of space is its owner's suite claim (#1216), not a
+		// A room short of space is its owner's suite claim, not a
 		// bigger bed's.
 		if !tk || !qk || t.NeverUpgrade || t.Min <= 0 || q.Impressiveness >= t.Min || (t.Max > 0 && q.Impressiveness >= t.Max) || WeakestRoomStat(q) == RoomStatSpace {
 			continue
@@ -248,7 +248,7 @@ func freeSpot(room FurnitureRoom, size domain.Cell) (domain.Cell, domain.Rotatio
 }
 
 // freeSpotFacing is freeSpot over the given rotations only: a sculpture is
-// not rotatable, so it faces North (#1195).
+// not rotatable, so it faces North.
 func freeSpotFacing(room FurnitureRoom, size domain.Cell, rots ...domain.Rotation) (domain.Cell, domain.Rotation, bool) {
 	in := room.Room.Interior
 	blocked := map[domain.Cell]bool{}
@@ -279,7 +279,7 @@ func freeSpotFacing(room FurnitureRoom, size domain.Cell, rots ...domain.Rotatio
 	return domain.Cell{}, domain.South, false
 }
 
-// titleBed is the bed a royal title requires (#815) when the owned bed
+// titleBed is the bed a royal title requires when the owned bed
 // does not meet it: the first buildable bed of the title's bed entry.
 func titleBed(title *RoyalTitle, owned Resource, available func(string) bool) (Resource, bool) {
 	if title == nil {

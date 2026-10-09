@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// MaintainBabyFeeding keeps babies fed (#1681, epic #1667). The game feeds a
+// MaintainBabyFeeding keeps babies fed. The game feeds a
 // baby itself: a lactating pawn breastfeeds any baby, otherwise a colonist on
 // Childcare work (the mother is Urgent and every other pawn Childcare by
 // default; Rimworld wiki, Baby > Food) bottle-feeds it food it can eat, which is
@@ -15,7 +15,7 @@ import (
 // pawn already, so the one thing the colony owes is the food: with no
 // breastfeeder and too little baby-edible stock, the goal places a standing
 // target-count bill for a baby-edible recipe through the existing production
-// bill write. No other write is owed; beds and play are the nursery's (#1680).
+// bill write. No other write is owed; beds and play are the nursery's.
 const MaintainBabyFeeding ConcernID = "MaintainBabyFeeding"
 
 // BabyFoodBill is MaintainBabyFeeding's bill purpose.

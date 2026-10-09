@@ -9,7 +9,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // Vanilla enums onto their proto counterparts, one mapping each so
-    // reads and writes share the same vocabulary (#1341).
+    // reads and writes share the same vocabulary.
     internal static partial class NativeEnums
     {
         internal static Obs.Passion Passion(RimWorld.Passion passion) => passion switch
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
             _ => Obs.HungerCategory.Unspecified
         };
 
-        // The Anomaly enums (#1737) fail loudly on a value the wire does not
+        // The Anomaly enums fail loudly on a value the wire does not
         // name: the caller turns the exception into a ReadIssue.
         internal static Obs.EntityDiscoveryKind Discovery(EntityDiscoveryType type) => type switch
         {

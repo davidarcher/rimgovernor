@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// SafetyLayer is the overlay layer the safety assessment draws on (#824).
+// SafetyLayer is the overlay layer the safety assessment draws on.
 const SafetyLayer = "safety"
 
 // ThreatReachCells is the drawn reach around a holding threat: the serve
@@ -16,8 +16,7 @@ const SafetyLayer = "safety"
 const ThreatReachCells int32 = 20
 
 // RaidEdgeCells is the native RaidArrivalState edge margin: a hostile lord
-// whose first pawn spawns this close to the map edge arrived on the ground
-// (#620).
+// whose first pawn spawns this close to the map edge arrived on the ground.
 const RaidEdgeCells int32 = 14
 
 var (
@@ -25,7 +24,7 @@ var (
 	vetoHue   = overlayHue{1, 0.55, 0.1}
 )
 
-// SafetyOverlay draws what the bot considers dangerous (#824): a red fill
+// SafetyOverlay draws what the bot considers dangerous: a red fill
 // and outline around every threat that holds the emergency (ThreatHolds),
 // with the raid-arrival edge margin while a raid holds, and an orange
 // outline over each stack the loot census vetoed as unsafe to haul. One

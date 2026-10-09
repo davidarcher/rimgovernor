@@ -43,7 +43,7 @@ func TestHumanBillCoexistsWithAnimalBill(t *testing.T) {
 	}
 }
 
-// TestHumanButcherRespectsPrecepts (#1657): a precept that makes members
+// TestHumanButcherRespectsPrecepts: a precept that makes members
 // refuse butchering humans never yields a human bill, a trait that cancels
 // the refusal still qualifies its holder, and an accepting or unread
 // ideoligion keeps today's choice.
@@ -189,14 +189,9 @@ func TestHumanFoodLedgerAndCookingFilters(t *testing.T) {
 	}
 }
 
-// Converted from the native case food/human-butchery (removed for #749 at
-// 04b0a98c), which staged six raider corpses on the EmptyChannels start with
-// one psychopath cook, an ordinary colonist, a two-animal herd, rice and a
-// survival-meal recipe. Its planner decisions: the psychopath gets the
-// pinned human bill beside the animal bill; the finite human meat routes to
-// the herd first and the rest to protected survival-meal trade, never to
-// ordinary meals when a diner refuses it; the survival bill names only human
-// meat and vegetables.
+// Human butchery routes meat to animals first, then protected survival-meal
+// trade. Ordinary meals remain restricted by diner policy; the psychopath's
+// human bill is separate from the animal bill.
 func TestHumanButcheryFixtureDecisions(t *testing.T) {
 	butcher := ProductionBench{ID: "butcher", Butcher: true, Usable: domain.Known(true), Token: domain.Known("bt"),
 		HumanButchers: []HumanButcherCandidate{
@@ -242,7 +237,7 @@ func TestHumanButcheryFixtureDecisions(t *testing.T) {
 	}
 }
 
-// noIdeology is a colony without the Ideology expansion (#1922): nothing is
+// noIdeology is a colony without the Ideology expansion: nothing is
 // forbidden.
 var noIdeology = IdeologyRead{Installed: domain.Known(false)}
 
@@ -250,7 +245,7 @@ var noIdeology = IdeologyRead{Installed: domain.Known(false)}
 // butchering a human.
 var horribleButchery = IdeologyRead{Ideology: domain.Known(ruleIdeoligion(PreceptDef{Name: "Butcher_Horrible", Effects: []PreceptEffect{took(ButcheredHumanEvent, -4)}})), Installed: domain.Known(true)}
 
-// TestPreceptAcceptable (#1924): per-pawn acceptability from the pawn's own
+// TestPreceptAcceptable: per-pawn acceptability from the pawn's own
 // precepts and the mirrored defs.
 func TestPreceptAcceptable(t *testing.T) {
 	held := func(ideo string, defs ...string) domain.Fact[HeldPrecepts] {

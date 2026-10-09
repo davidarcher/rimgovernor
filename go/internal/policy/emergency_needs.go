@@ -15,14 +15,13 @@ func EmergencyNeeds(snapshot EmergencySnapshot, current domain.GenerationSnapsho
 			threats++
 		}
 	}
-	// Raiders still in their pods are a threat no census row names yet
-	// (#908).
+	// Raiders still in their pods are a threat no census row names yet.
 	if snapshot.PodsPending() {
 		threats++
 	}
 	// Patients are counted from the census, not the holds: a colonist who
 	// only needs tending is the tend planner's patient although the
-	// emergency no longer holds dispatch for them (#66).
+	// emergency no longer holds dispatch for them.
 	return domain.Known(threats), domain.Known(countPatients(snapshot, true))
 }
 
@@ -30,8 +29,7 @@ func EmergencyNeeds(snapshot EmergencySnapshot, current domain.GenerationSnapsho
 // a tend outstanding: the ones whose care cannot wait for ordinary work. A
 // living colonist who merely needs tending (a chronic condition, a minor
 // wound the native doctors reach in their own time) or who is downed with
-// nothing to tend (malnutrition, exhaustion; a bed and ticks are the care,
-// #304) is a patient but not an urgent one. Uncertainty is unknown, exactly
+// nothing to tend (malnutrition, exhaustion; a bed and ticks are the care ) is a patient but not an urgent one. Uncertainty is unknown, exactly
 // as EmergencyNeeds reports it.
 func UrgentPatients(snapshot EmergencySnapshot, current domain.GenerationSnapshot, tick domain.Tick) domain.Fact[int64] {
 	if _, patients := EmergencyNeeds(snapshot, current, tick); !known(patients) {
@@ -61,7 +59,7 @@ func countPatients(snapshot EmergencySnapshot, tending bool) int64 {
 }
 
 // AmputationNeeds adds the colonists a life-saving amputation would save
-// (LifeSavingAmputations, #1166) to the critical and urgent patient counts
+// (LifeSavingAmputations) to the critical and urgent patient counts
 // EmergencyNeeds and UrgentPatients report, never counting a colonist either
 // already includes. Losing an immunity race is an emergency: the amputation
 // runs at CriticalMedical's priority. Unknown care facts add nobody; an

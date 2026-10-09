@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Mech recharging (#1688, epic #1667). Mechs spend Need_MechEnergy working
+// Mech recharging. Mechs spend Need_MechEnergy working
 // and refill it on a charger (Building_MechCharger, one mech at a time).
 // Each control group carries its own recharge band (mechRechargeThresholds,
 // read natively per mech as PawnMech.RechargeBelow/RechargeAbove): the game
@@ -16,8 +16,8 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 //     mode PlanMechControl would give it.
 //
 // Chargers come before more mechs: MechChargerOwed answers whether the
-// colony needs one more before gestation (#1686) adds a mech. Charger waste
-// disposal is #1683's.
+// colony needs one more before gestation adds a mech. Charger waste
+// disposal belongs to waste management.
 
 // MechRechargeMode is the mode a planned group should run: the catalog's
 // Recharge mode while the group is low (or still charging up), the group's
@@ -72,7 +72,7 @@ func MechChargerReady(chargers []MechCharger) bool {
 // mechanitor exists and every standing charger is charging a mech (none
 // standing counts as all busy). An unread charger list or charging state
 // owes nothing, and neither does a charger full of waste: emptying it is
-// #1683's, not a reason to build. An idle unpowered charger owes nothing
+// owned by waste management, not a reason to build. An idle unpowered charger owes nothing
 // either, though MechChargerReady does not count it ready: the power planner
 // covers every power consumer (PowerCoverage, connectLiveBeforeUpgrade), so
 // wiring it is the power goal's and a second charger would stand unpowered

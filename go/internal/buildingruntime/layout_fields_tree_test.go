@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// A tree zone and a crop zone never touch (#2289): the native sower leaves a
+// A tree zone and a crop zone never touch: the native sower leaves a
 // crop beside a sown tree and a tree beside a sown crop unsown, so each kind
 // keeps a cell clear of the other, and a food field never adopts a tree zone.
 func TestFieldBlocksKeepTreesApartFromCrops(t *testing.T) {

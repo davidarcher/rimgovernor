@@ -9,7 +9,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // HaulIntent on Actions/Apply (#856): order one undrafted colonist to haul
+    // HaulIntent on Actions/Apply: order one undrafted colonist to haul
     // one loose item with the job a player's "Prioritize hauling" click would
     // give, the real Hauling WorkGiver picking the storage. Native checks the
     // pawn and the item against live state and refuses with a reason. The

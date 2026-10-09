@@ -21,7 +21,7 @@ type EquipCandidatePawn struct {
 	Current *EquipCandidateWeapon
 	// NoArms is the plain-English reason the pawn must not hold a weapon
 	// yet, "" when nothing holds it back (a creepjoiner whose downside has
-	// not shown, #1740; CreepJoinerDownsides.ArmsHold). Every weapon decision
+	// not shown; CreepJoinerDownsides.ArmsHold). Every weapon decision
 	// leaves such a pawn unarmed.
 	NoArms string
 }
@@ -33,7 +33,7 @@ type EquipCandidateWeapon struct {
 	Class             WeaponClass
 	BiocodedTo        domain.PawnID
 	Biocoded          bool
-	// Facts is the weapon def's rows (#1723).
+	// Facts is the weapon def's rows.
 	Facts WeaponDef
 }
 
@@ -41,7 +41,7 @@ type EquipCandidateWeapon struct {
 // "weapons" census is ThingDef.IsWeapon, which includes anything a pawn can
 // swing (a wood log, a beer): colony-6 handed a colonist the wood log at its
 // feet with two short bows a few cells away. The class is the definition's
-// observed flags (#287), never its name: IsMeleeWeapon is true of every
+// observed flags, never its name: IsMeleeWeapon is true of every
 // equippable that is not ranged, so a melee weapon by trade is one the
 // Weapons thing category lists.
 type WeaponClass int

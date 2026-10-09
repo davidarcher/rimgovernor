@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Read is the read on the main thread under a validated identity: the
-        // reply its tool encodes, and the section the bundle carries (#593).
+        // reply its tool encodes, and the section the bundle carries.
         internal static Obs.BillsReply Read(Map map, Obs.BillsRequest parsed, Common.ObservationContext context)
         {
             try
@@ -118,7 +118,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Only what a frame alone knows: whether the game offers the recipe now
-        // and on this bench. The rest is the recipe's catalog row (#1721).
+        // and on this bench. The rest is the recipe's catalog row.
         private static Obs.RecipeState Recipe(Thing bench, RecipeDef recipe)
             => new Obs.RecipeState { Recipe = new Obs.DefinitionRef { DefName = Id(recipe.defName), Label = PlacementPreviewOperation.Diagnostic(recipe.LabelCap) },
                 AvailableNow = recipe.AvailableNow, AvailableOnBench = recipe.AvailableOnNow(bench) };

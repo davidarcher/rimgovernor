@@ -13,7 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 )
 
-// Undeclared planner reads (#1916): the recording facts reader notes every
+// Undeclared planner reads: the recording facts reader notes every
 // family a planner draws on (bridge.NoteRead from the native read seam and
 // facts.Read), the queue compares each against the entry's declared
 // families, and this binary fails when any read in any test was undeclared.

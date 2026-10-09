@@ -36,7 +36,7 @@ func (f *fakeGovernorState) PutGovernorStateBatch(_ context.Context, blobs map[s
 	return nil
 }
 
-// A second world in the same process re-reads its save (#994); the same
+// A second world in the same process re-reads its save; the same
 // world does not.
 func TestWorldRebuildRereadsSaveOnWorldChange(t *testing.T) {
 	ctx := context.Background()
@@ -73,7 +73,7 @@ func governorStandardBlob(t *testing.T, id domain.ConcernID, colony domain.Colon
 	return string(data)
 }
 
-// A world change rebuilds the family tables from the save (#1005): the
+// A world change rebuilds the family tables from the save: the
 // store's layout plan goes, and a saved production ladder is not written
 // back.
 func TestWorldRebuildRebuildsFamiliesOnWorldChange(t *testing.T) {
@@ -106,8 +106,8 @@ func TestWorldRebuildRebuildsFamiliesOnWorldChange(t *testing.T) {
 	}
 }
 
-// Loading world 2 replaces world 1's goals with world 2's saved goals
-// (#998): the save wins over the store.
+// Loading world 2 replaces world 1's goals with world 2's saved goals:
+// the save wins over the store.
 func TestWorldRebuildRebuildsGoalsOnWorldChange(t *testing.T) {
 	ctx := context.Background()
 	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
@@ -181,7 +181,7 @@ func (f *fakeOrphanNative) Apply(_ context.Context, _ *c.Identity, actions []*o.
 }
 
 // Loading a world with a committed method cancels the open trade
-// session no rebuilt goal owns (#1000, D3); with no session nothing is sent.
+// session no rebuilt goal owns; with no session nothing is sent.
 func TestWorldRebuildCancelsOrphanTrade(t *testing.T) {
 	ctx := context.Background()
 	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "s.db"))
@@ -233,7 +233,7 @@ func TestWorldRebuildCancelsOrphanTrade(t *testing.T) {
 	}
 }
 
-// The clock worker's first step in a world rebuilds before it reviews (#1123),
+// The clock worker's first step in a world rebuilds before it reviews,
 // and a later step in the same world leaves the review alone; a rebuild after
 // the review makes the worker's next step re-review.
 func TestWorldRebuildRunsBeforeTheWorkerReview(t *testing.T) {

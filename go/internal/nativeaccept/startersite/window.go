@@ -11,7 +11,7 @@ import (
 )
 
 // window serves the colony read its planning cells straight from the
-// native read (#838): a current native's colony facts list none, and the
+// native read: a current native's colony facts list none, and the
 // harness has no scheduler step to attach its refresher, so without this
 // the start-site search saw an empty map.
 type window struct {

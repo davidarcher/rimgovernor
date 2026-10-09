@@ -1,9 +1,9 @@
 package policy
 
-// SiegeSneak attacks a sleeping camp with everyone (#921).
+// SiegeSneak attacks a sleeping camp with everyone.
 const SiegeSneak SiegeMode = "sneak"
 
-// campAsleep reports a siege camp at least half asleep (#921): of the
+// campAsleep reports a siege camp at least half asleep: of the
 // live camped besiegers, half or more on a LayDown job.
 func campAsleep(view CombatView) bool {
 	besiegers := liveBesiegers(view)

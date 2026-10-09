@@ -103,8 +103,7 @@ func checkEmpty(audit, observed, prepared map[string]any, units int) error {
 // paused -- the service's own clock window was running -- so a case that
 // reattaches and probes must pause first. The former food/meal-tiers and food/reserve
 // did not, and the refused probe reported itself as "bridge read refused:
-// games_call_tool" with the fixture exception only in the evidence tree
-// (#663).
+// games_call_tool" with the fixture exception only in the evidence tree.
 func pauseForProbe(ctx context.Context, h *na.Harness, label string) error {
 	_, err := h.Call(ctx, label+"-pause", "rimgovernor/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false})
 	return err

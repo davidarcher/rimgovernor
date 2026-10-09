@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Self-tend (#1305, epic #1292). Vanilla's WorkGiver_TendSelf is Doctor
+// Self-tend. Vanilla's WorkGiver_TendSelf is Doctor
 // work gated on playerSettings.selfTend; it tends the pawn where it stands,
 // while other doctors only tend a humanlike patient in bed
 // (WorkGiver_Tend.GoodLayingStatusForTend), so an up-and-about pawn with

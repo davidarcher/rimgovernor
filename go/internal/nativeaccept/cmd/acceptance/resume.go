@@ -1,6 +1,6 @@
 package main
 
-// acceptance resume (#280): continue the case a root holds paused at a
+// acceptance resume: continue the case a root holds paused at a
 // breakpoint. A run cut by -break leaves its ring with a "break" bundle as
 // the next entry and Ring.Break set; resume finds those rings under
 // <root>/checkpoints (or checks the cases named) and runs them, which

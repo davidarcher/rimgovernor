@@ -14,7 +14,7 @@ import (
 )
 
 // mintRoundsStandardID names a routine need's goal by world and need, so every
-// review revision in one world reuses the row (#1021). A live binding is
+// review revision in one world reuses the row. A live binding is
 // reused before minting, so a mint happens only after an invalidation (tick
 // rewind, need dropping out); the generation advances past every existing
 // row, so a terminal row is never reopened.

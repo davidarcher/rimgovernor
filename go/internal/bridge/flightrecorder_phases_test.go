@@ -208,7 +208,7 @@ func TestSummarizePhasesHandlesLegacyRowsGapsAndResets(t *testing.T) {
 // start receipt's applied status counts as a running sample: polls held
 // under a window only return once it has stopped, so without it every
 // window's wall time would be charged to the paused status read before
-// its admission (issue #162).
+// its admission.
 func TestSummarizePhasesWeighsPausedTimeAndCountsAppliedStarts(t *testing.T) {
 	sample := func(wall float64, payload string) TimelineRecord {
 		return TimelineRecord{Kind: "native_call", WallTime: wall, Payload: map[string]any{"request": wall, "tool": "games_call_tool", "native_tool": "x", "timing": map[string]any{}, "result": map[string]any{"payload": payload}}}
@@ -233,8 +233,7 @@ func TestSummarizePhasesWeighsPausedTimeAndCountsAppliedStarts(t *testing.T) {
 
 // Wake-reason clock_step rows carry the stop they answered and the latency
 // from the native stop stamp to the step; the summary counts stops, means
-// the samples that carried a latency and drops a skewed negative one
-// (issue #112).
+// the samples that carried a latency and drops a skewed negative one.
 func TestSummarizePhasesStopLatency(t *testing.T) {
 	rows := []TimelineRecord{
 		stepRow(1, map[string]any{"reads": 2.0, "reason": "full"}),
@@ -261,7 +260,7 @@ func TestSummarizePhasesStopLatency(t *testing.T) {
 	}
 }
 
-// Native's own pause account (issue #621) is the difference between the
+// Native's own pause account is the difference between the
 // first and last status samples' cumulative paused_ms / running_ms, read
 // from the status, a bundle's clock section or an applied start's status;
 // a sample without it (an older native build) leaves the account at zero.
@@ -292,7 +291,7 @@ func TestSummarizePhasesNativePauseAccount(t *testing.T) {
 
 // The step sample splits the live steps out of the timeline with their own
 // reads and wall, and carries the player-gate wait a step spent queued
-// behind the Worker's dispatch step (#593).
+// behind the Worker's dispatch step.
 // The v2 kinds read the same as the legacy ones they replace: a clock_step
 // decision row, a dispatch decision row, a native_call event row and a
 // native_frame outcome row.

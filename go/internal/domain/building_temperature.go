@@ -10,7 +10,7 @@ const maxTemperatureCelsius = 1000
 
 // BuildingTemperature is an immutable, comparable value: a one-shot patch of
 // a temperature-controlled building's target setpoint (CompTempControl on
-// the native side; a BuildingPatchIntent since #940). There
+// the native side; a BuildingPatchIntent). There
 // is no pawn/Job involved -- see NativeBuildingTemperature.cs and
 // bridge/building_temperature_target.go for the native and read-side halves.
 type BuildingTemperature struct {

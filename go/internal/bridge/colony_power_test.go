@@ -56,7 +56,7 @@ func TestColonyEnvironmentRejectsUnavailablePopulatedAndDuplicateConditions(t *t
 		t.Fatal("duplicate condition accepted")
 	}
 	v.Environment = v.Environment[:1]
-	// An active cold snap arrives with every field native fills (#362).
+	// An active cold snap arrives with every field native fills.
 	cold := &o.EnvironmentCondition{Id: proto.String("1"), DefName: proto.String("ColdSnap"), Implementation: proto.String("RimWorld.GameCondition_ColdSnap"), Label: proto.String("Cold snap"), Permanent: proto.Bool(false), TicksLeft: proto.Int64(240000)}
 	v.Environment = append(v.Environment, cold)
 	if err := validateColonyEnvironment(v); err != nil {

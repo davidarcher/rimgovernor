@@ -1,4 +1,4 @@
-// Package startup is the startup-labor reproduction (#639, epic #638):
+// Package startup is the startup-labor reproduction:
 // the eight-colonist fixture and the bounded diagnosis that makes startup
 // starvation visible. The case is diagnostic infrastructure, not the
 // scheduling fix -- it asserts the fixture's preconditions and that the

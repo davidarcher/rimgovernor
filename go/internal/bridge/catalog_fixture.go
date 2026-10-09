@@ -13,13 +13,13 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// FixtureDef states one buildable or sowable def of a test catalog (#1731):
+// FixtureDef states one buildable or sowable def of a test catalog:
 // the facts a planner's test cares about, written the way the game's rows
 // carry them, so that FixtureCatalog can lay them out as the def rows, stat
 // table and thing facts the planning views read.
 type FixtureDef struct {
 	Name string
-	// Shell makes the def a mortar shell (projectileWhenLoaded) (#1723).
+	// Shell makes the def a mortar shell (projectileWhenLoaded).
 	Shell *FixtureShell
 	// Terrain makes the def a TerrainDef (buildable); the floor stats apply.
 	Terrain  bool
@@ -78,20 +78,20 @@ type FixtureDef struct {
 	// their Comfort stat. Sarcophagus makes it a Building_Sarcophagus.
 	Animal, Sarcophagus bool
 	// Door makes the def a Building_Door; AnimalFlap one roaming animals can
-	// open (BuildingProperties.roamerCanOpen), the animal flap (#2122).
+	// open (BuildingProperties.roamerCanOpen), the animal flap.
 	Door, AnimalFlap bool
 	// Facility makes the def a facility (CompProperties_Facility); Links lists
 	// the facilities its CompProperties_AffectedByFacilities may link.
 	Facility *FixtureFacility
 	Links    []string
 	// Weapon makes the def a weapon with the verb, projectile and tools it
-	// states (#1723).
+	// states.
 	Weapon *FixtureWeapon
 	// Race makes the def a pawn race with the RaceProperties it states and
-	// the game-computed race facts (#1722).
+	// the game-computed race facts.
 	Race *FixtureRace
 	// BillWork makes the def a player-buildable bill giver (a Building_WorkTable
-	// building) that a DoBill work giver of this work type serves (#1721).
+	// building) that a DoBill work giver of this work type serves.
 	BillWork string
 }
 
@@ -167,7 +167,7 @@ type FixtureTool struct {
 }
 
 // CoreWeaponFixtures are the Core weapons the planning tests name, stated the
-// way the game's XML does (#1723).
+// way the game's XML does.
 func CoreWeaponFixtures() []FixtureDef {
 	shoot, oneUse, thrown := "Verse.Verb_Shoot", "RimWorld.Verb_ShootOneUse", "Verse.Verb_LaunchProjectile"
 	return []FixtureDef{
@@ -709,7 +709,7 @@ func FixtureEnvironmentDefs(v *o.DefinitionCatalog) {
 }
 
 // fixtureDamageDefs adds the Core damage defs a weapon's projectile or melee
-// maneuver names, and a maneuver for each melee tool capacity (#1723).
+// maneuver names, and a maneuver for each melee tool capacity.
 func fixtureDamageDefs(v *o.DefinitionCatalog) {
 	v.Defs.DamageDefs = append(v.Defs.DamageDefs, []*d.DamageDef{
 		{DefName: "Bomb", HarmsHealth: true, IsExplosive: true, DefaultDamage: 50, DefaultArmorPenetration: 0.1, ArmorCategory: "Sharp"},

@@ -7,7 +7,7 @@ import (
 // DialogOption is one option of the force-pausing choice dialog the colony
 // census observed (ColonyFactsSnapshot.dialog), in native order. Keys are
 // the language-neutral Keyed translation keys native recovered for the
-// label (#179); Selectable already excludes disabled rows, hyperlinks and
+// label; Selectable already excludes disabled rows, hyperlinks and
 // options that open another window instead of resolving or linking.
 type DialogOption struct {
 	Index      int32
@@ -18,7 +18,7 @@ type DialogOption struct {
 }
 
 // DialogAnswerPolicy decides which option answers a choice dialog the game
-// opened by itself (#156). Prefer is an ordered list of patterns; a pattern
+// opened by itself. Prefer is an ordered list of patterns; a pattern
 // matches an option when it equals one of the option's translation keys
 // (case-insensitive, so the same policy holds in every game language) or is
 // a case-insensitive substring of its label (a mod's literal text). The first
@@ -34,7 +34,7 @@ type DialogAnswerPolicy struct{ Prefer []string }
 // met caravan rather than trade or attack, keep watching past a game-over
 // prompt, and pay a demand rather than fight a caravan the colony did not
 // choose to arm. Close dismisses a monolith level letter without opening a
-// main tab (#2437).
+// main tab.
 var DefaultDialogAnswerPrefer = []string{"OK", "Close", "Ignore", "CaravanMeeting_MoveOn", "GameOverKeepWatching", "CaravanDemand_Give"}
 
 // DialogPatternMatches reports whether one Prefer pattern names the option.
@@ -51,7 +51,7 @@ func DialogPatternMatches(pattern string, option DialogOption) bool {
 	return strings.Contains(strings.ToLower(option.Label), strings.ToLower(needle))
 }
 
-// The void node's choice (CompVoidNode.OpenDialog, #2438): VoidNodeDisrupt
+// The void node's choice (CompVoidNode.OpenDialog): VoidNodeDisrupt
 // ends the awakening quest by collapsing the monolith, VoidNodeEmbrace is the
 // irreversible alternative the colony never takes, VoidNodePostpone closes the
 // dialog and leaves the node touchable.

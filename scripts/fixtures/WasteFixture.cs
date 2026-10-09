@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
                 //
                 // Candidate cells hold no item already: Direct placement
                 // absorbs a fixture stack into an existing stack of the same
-                // def at the cell (the debug start's own starting Steel, #185),
+                // def at the cell (the debug start's own starting Steel),
                 // leaving the fixture's Thing destroyed and its Position
                 // off-map. The pool is filtered up front and the placement is
                 // checked afterwards so the returned item is the one spawned.
@@ -115,7 +115,7 @@ namespace HomeBridge.BridgeTools
                     protectedCell = BridgeCommon.Pos(protectedCell) };
             }, cancellationToken);
 
-        // Burial ranking acceptance (#2196): a morgue zone at MorguePriority
+        // Burial ranking acceptance: a morgue zone at MorguePriority
         // holding a fresh colonist corpse and a fresh stranger corpse, one free
         // grave a few cells off, and a hauling colonist. Vanilla hauling must
         // carry the colonist into the grave (a higher storage priority than the
@@ -191,7 +191,7 @@ namespace HomeBridge.BridgeTools
                 return (object)new { success = true, tick = Find.TickManager.TicksGame, things };
             }, cancellationToken);
 
-        // Stranger sarcophagus loop acceptance (#2338): one fresh Sarcophagus
+        // Stranger sarcophagus loop acceptance: one fresh Sarcophagus
         // accepting any humanlike corpse, a fresh stranger corpse (a humanlike
         // pawn of no faction) a few cells away, and every colonist hauling.
         [Tool("test/tomb_stage", Description = "Disposable fixture (#2338): a fresh sarcophagus and a fresh stranger corpse near the first colonist. Test builds only.")]
@@ -289,7 +289,7 @@ namespace HomeBridge.BridgeTools
                     holds = grave?.HasAnyContents ?? false, colonists, corpses };
             }, cancellationToken);
 
-        // Corpse disposal acceptance (#1817), staged on the tribal baseline
+        // Corpse disposal acceptance, staged on the tribal baseline
         // colony: a rotten animal corpse, a rotten and a fresh stranger
         // corpse, one worn apparel and stone blocks for the walls, each on its
         // own free open cell near the first colonist. Strangers are humanlike
@@ -385,7 +385,7 @@ namespace HomeBridge.BridgeTools
                 return (object)new { success = true, ids };
             }, cancellationToken);
 
-        // The incinerator as the game sees it (#1817): each listed thing, the
+        // The incinerator as the game sees it: each listed thing, the
         // interior cells with the room cell.GetRoom resolves them to, the
         // walled ring's edifices with their flammability, the ash and the
         // fires. door is the ring's door cell; the cell beyond it is outside.
@@ -427,7 +427,7 @@ namespace HomeBridge.BridgeTools
                     beyondDoorRoom = beyond.InBounds(map) ? (beyond.GetRoom(map)?.ID ?? -1) : -1, doorRoom = door.GetRoom(map)?.ID ?? -1 };
             }, cancellationToken);
 
-        // The permanent ColonyFacts equality probe (#1296): the snapshot read
+        // The permanent ColonyFacts equality probe: the snapshot read
         // with every read optimization off and then on, in one game-thread
         // call so no tick passes between them, must be byte-identical (row
         // order included). Add each new optimization's switch here.
@@ -458,7 +458,7 @@ namespace HomeBridge.BridgeTools
                 var offBytes = Google.Protobuf.MessageExtensions.ToByteArray(off);
                 var onBytes = Google.Protobuf.MessageExtensions.ToByteArray(on);
                 var upkeep = on.Upkeep?.Observed;
-                // ResourceSources (#1295): each resource's reply with the
+                // ResourceSources: each resource's reply with the
                 // cheap census and support shortcut off and on. Plant yields
                 // round at random per read, so non-mine yields are blanked.
                 var resourcesEqual = true; long resourceRows = 0; double offMs = 0, onMs = 0;
@@ -492,7 +492,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // The snapshot capture profiling loop (#1320): SnapshotFrames.Capture
+        // The snapshot capture profiling loop: SnapshotFrames.Capture
         // count times back to back on the game thread, paused, with the
         // stream's current subscription. Each capture's total and every
         // ObservationWork section (families and their Detail spans) come back
@@ -532,7 +532,7 @@ namespace HomeBridge.BridgeTools
                 finally { tickManager.CurTimeSpeed = speed; }
             }, cancellationToken);
 
-        // The cell grid cache's equality probe (#1575): the cached whole-map
+        // The cell grid cache's equality probe: the cached whole-map
         // read must encode to the same bytes as a read from scratch after the
         // cache has been warmed and then each kind of map change is made and
         // undone (wall, item, door blueprint, terrain, roof).
@@ -595,7 +595,7 @@ namespace HomeBridge.BridgeTools
                 return (object)new { success = true, equal = steps.All(s => (bool)s.GetType().GetProperty("equal")!.GetValue(s)!), steps };
             }, cancellationToken);
 
-        // The gear census memo's equality probe (#1575): the colony's gear
+        // The gear census memo's equality probe: the colony's gear
         // snapshot read with the per-read memo on and then off, in one
         // game-thread call, must be byte-identical.
         [Tool("test/gear_memo_equality", Description = "Compare the gear census bytes with the read memo on and off.")]

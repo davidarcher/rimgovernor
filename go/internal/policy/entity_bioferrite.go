@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The bioferrite harvest rule (#2434, epic #1694): a held entity's
+// The bioferrite harvest rule: a held entity's
 // extract-bioferrite flag is set when extracting pays, and the game's own
 // Doctor work giver (WorkGiver_ExtractBioferrite) then runs the extraction job
 // (JobDriver_ExtractBioferrite). Every rule is the game's, from the decompile:

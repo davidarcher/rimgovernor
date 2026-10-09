@@ -27,7 +27,7 @@ func admission(t *testing.T, first combatReplayStop) []policy.CombatOrder {
 	return orders
 }
 
-// noColonistInLine (#861): no attack order goes out from a cell whose
+// noColonistInLine: no attack order goes out from a cell whose
 // answered line to its target crosses a colonist.
 func noColonistInLine(s combatReplayStop, orders []policy.CombatOrder) error {
 	cells := map[domain.PawnID]domain.Cell{}
@@ -46,13 +46,13 @@ func noColonistInLine(s combatReplayStop, orders []policy.CombatOrder) error {
 	return nil
 }
 
-// lab-ranged (#854, #1152): four riflemen behind a seven-cell sandbag
+// lab-ranged: four riflemen behind a seven-cell sandbag
 // line, four rifle raiders 25 cells north, served with the fixture's
 // layout (recorded on 71e1045c1). The hold forms at once on the layout's
 // firing cells, the game's cover scores ranking them; the raiders flee.
 // A serious injury retreating is staged in policy
 // (TestDecideCombatPullsBackHurtDefender), not asserted here: a recording
-// holds one only by luck (#1196).
+// holds one only by luck.
 func TestCombatReplayLabRanged(t *testing.T) {
 	t.Parallel()
 	stops := checkCombat(t, "testdata/combat/lab-ranged.json.gz",
@@ -71,7 +71,7 @@ func TestCombatReplayLabRanged(t *testing.T) {
 	if err := noColonistInLine(first, orders); err != nil {
 		t.Error(err)
 	}
-	// #862: every formation cell is top-scored: no scored cell the
+	// Every formation cell is top-scored: no scored cell the
 	// formation left free, spaced off every formation cell, outscores one.
 	score := map[domain.Cell]float64{}
 	for _, s := range first.Reply.Scored {
@@ -152,10 +152,10 @@ func firstHoldsOrAttacksTopScored(t *testing.T, first combatReplayStop, orders [
 	}
 }
 
-// lab-mech-line (#1184): lab-ranged's riflemen and held line against two
+// lab-mech-line: lab-ranged's riflemen and held line against two
 // lancers. The squad takes the mechs on (lab-mech is the shelter case):
 // the hold forms at once and its first attacks name the top-scored
-// target (#863).
+// target.
 func TestCombatReplayLabMechLine(t *testing.T) {
 	t.Parallel()
 	stops := checkCombat(t, "testdata/combat/lab-mech-line.json.gz",
@@ -168,7 +168,7 @@ func TestCombatReplayLabMechLine(t *testing.T) {
 	firstHoldsOrAttacksTopScored(t, stops[0], admission(t, stops[0]))
 }
 
-// lab-mech (#1118, #1146, #1152): one rifleman against a scyther stunned
+// lab-mech: one rifleman against a scyther stunned
 // at staging (recorded on 71e1045c1). No squad is viable against the
 // mech. This old recording has no shelter standability read: initial admission
 // must hold instead of sending its unchecked vector, and never attack. Verified
@@ -196,7 +196,7 @@ func TestCombatReplayLabMech(t *testing.T) {
 	)
 }
 
-// lab-ranged-shield (#866, #1153): lab-ranged plus a fifth colonist, a
+// lab-ranged-shield: lab-ranged plus a fifth colonist, a
 // longsword fighter in a charged shield belt. The belt makes it the
 // fight's tank: its formation cell lies between the gunners and the
 // approach, within two cells ahead of a gunner (the sandbags fill the

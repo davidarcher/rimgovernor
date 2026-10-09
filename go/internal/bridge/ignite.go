@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// igniteAction is the Actions/Apply ignite arm of one ignite action (#1815):
+// igniteAction is the Actions/Apply ignite arm of one ignite action:
 // the pawn throws a molotov at the cell. Native refuses an occupied room.
 func igniteAction(action domain.Action) (*o.Action, error) {
 	ignite, ok := action.Ignite()

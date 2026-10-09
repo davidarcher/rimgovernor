@@ -15,7 +15,7 @@ import (
 // refused as ErrUnauthorizedPlan: still store.ErrConflict for every caller
 // that matches the sentinel, but named as an authorization refusal rather
 // than the sentinel's identity-collision text, which the worker's debug log
-// otherwise reports for every retired or recovered method (#214).
+// otherwise reports for every retired or recovered method.
 func TestPlanAuthorizerNamesTheRefusal(t *testing.T) {
 	db, err := store.Open(context.Background(), storetest.Path(t))
 	if err != nil {

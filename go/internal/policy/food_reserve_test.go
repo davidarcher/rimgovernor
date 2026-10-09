@@ -124,7 +124,7 @@ func TestDropReserveHeldKeepsSuppliesOffReserveFood(t *testing.T) {
 }
 
 // A full stockpile caps the bill at what storage can hold, so native can
-// satisfy it instead of stalling on product with nowhere to go (#1359).
+// satisfy it instead of stalling on product with nowhere to go.
 func TestReserveBillCapsAtStorableProduct(t *testing.T) {
 	r, err := ReviewFoodReserve(reserveFixture(), nil, 5, 3, domain.Known([]float64{}))
 	if err != nil {

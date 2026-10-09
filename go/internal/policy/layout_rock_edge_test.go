@@ -10,7 +10,7 @@ import (
 // rockEdgeMaps are 200x200 maps with mountain along an edge, a corner, a
 // band across the middle and a pocket at the south: the shapes where the
 // site scorer seeds beside rock and the perimeter ring and its killbox
-// meet it (#1588).
+// meet it.
 var rockEdgeMaps = map[string]func(x, z int32) bool{
 	"east mountain":    func(x, z int32) bool { return x >= 150 },
 	"north-west slope": func(x, z int32) bool { return x+z < 120 },
@@ -65,7 +65,7 @@ func siteCellsOver(cells []DefenseCell) []SiteCell {
 // layout agree before anything reaches the game: the plan keeps its walls,
 // gates and killbox off rock; the defense layout never stands on rock or
 // reports a corridor it cannot walk; and rock across the killbox corridor
-// (the #1588 shape, "corridor is not passable end to end") is either a dig
+// ("corridor is not passable end to end") is either a dig
 // the rock step lists or a refusal in Go, and once dug the corridor is
 // walkable from its entry to the kill zone.
 func TestRockEdgeMapsPlanWalkableAndBuildableLayouts(t *testing.T) {
@@ -127,7 +127,7 @@ func TestRockEdgeMapsPlanWalkableAndBuildableLayouts(t *testing.T) {
 	}
 }
 
-// The #1588 shape on a plan from the site scorer: rock laid across the first
+// A plan from the site scorer has rock laid across the first
 // cells of the planned corridor lane makes the layout refuse in Go
 // ("corridor is not passable end to end"), the rock step lists exactly that
 // rock to dig, and the layout stands and walks once it is open.

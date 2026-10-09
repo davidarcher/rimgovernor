@@ -12,7 +12,7 @@ using Presentation = RimGovernor.Protocol.Presentation;
 
 namespace HomeBridge.BridgeTools
 {
-    // The controller's map overlay (#817): one named layer per call, drawn by
+    // The controller's map overlay: one named layer per call, drawn by
     // GovernorOverlay. Output only; nothing reads it back.
     public sealed class ProtoOverlayTools
     {

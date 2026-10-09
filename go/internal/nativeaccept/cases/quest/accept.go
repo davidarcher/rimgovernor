@@ -1,5 +1,5 @@
 // The quest/accept case exercises the AcceptQuestIntent arm of
-// Actions/Apply (#942) end to end against a live game: a real
+// Actions/Apply end to end against a live game: a real
 // not-yet-accepted quest carrying a two-option native reward-choice part,
 // native acceptance (an actual Quest.Accept settings write and its
 // QuestPart_Choice.Choose call) through the same rimgovernor/operations_apply

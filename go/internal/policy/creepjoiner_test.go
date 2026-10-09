@@ -17,7 +17,7 @@ func hiddenJoiner(triggered domain.Fact[bool], traits, hediffs domain.Fact[[]str
 
 func defNames(v ...string) domain.Fact[[]string] { return domain.Known(append([]string{}, v...)) }
 
-// TestCreepJoinerDownsideRevealed (#1740): a downside shows when the game
+// TestCreepJoinerDownsideRevealed: a downside shows when the game
 // fired it or the pawn carries a trait or visible hediff a downside def adds
 // (the catalog's defs, no names written here); otherwise it is hidden, and
 // unknown while a fact it rests on is unread.
@@ -45,7 +45,7 @@ func TestCreepJoinerDownsideRevealed(t *testing.T) {
 	}
 }
 
-// TestCreepJoinerUnrevealed (#1962): only a known creepjoiner whose downside
+// TestCreepJoinerUnrevealed: only a known creepjoiner whose downside
 // has not shown, or cannot be read to have shown, is flagged for the gear
 // constraint; a non-creepjoiner or an unread tracker is not.
 func TestCreepJoinerUnrevealed(t *testing.T) {
@@ -103,7 +103,7 @@ func hand(id PawnID, p CreepJoinerPawn, available bool, weapon domain.Fact[strin
 }
 
 // TestCreepJoinerWeaponDrops is the goal's decision over recorded colonist
-// facts (#1740): a drop is owed for each available colonist held back from
+// facts: a drop is owed for each available colonist held back from
 // arms who holds a weapon, and for none else.
 func TestCreepJoinerWeaponDrops(t *testing.T) {
 	no, yes := domain.Known(false), domain.Known(true)
@@ -161,7 +161,7 @@ func TestCreepJoinerOwedRaisesTheGoal(t *testing.T) {
 	}
 }
 
-// TestHeldBackColonistIsNeverArmed (#1740): NoArms keeps a colonist out of
+// TestHeldBackColonistIsNeverArmed: NoArms keeps a colonist out of
 // every weapon decision: the equip assignment, the unarmed count the armory
 // crafts for, the armory's fighter count and the fight loadout.
 func TestHeldBackColonistIsNeverArmed(t *testing.T) {

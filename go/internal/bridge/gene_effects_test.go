@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TestBiotechGeneEffects (#1689): active genes combine their typed stat and
+// TestBiotechGeneEffects: active genes combine their typed stat and
 // need effects from the catalog rows; an inactive gene adds nothing and an
 // undefined gene fails.
 func TestBiotechGeneEffects(t *testing.T) {

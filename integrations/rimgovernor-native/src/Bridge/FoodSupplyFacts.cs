@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
                 // better is reachable, so it is no planned colonist food (the held
                 // and colony-stock reads exclude it the same way) and counting
                 // colonists as its eaters diluted a pet's share seventeen-fold
-                // under a delivered feed stockpile (#311).
+                // under a delivered feed stockpile.
                 var kibble = thing.def.ingestible != null && (thing.def.ingestible.foodType & FoodTypeFlags.Kibble) != 0;
                 var eaters = people.Where(p => p.needs?.food != null && !p.Downed && !p.InMentalState
                     && !(kibble && p.RaceProps.Humanlike)
@@ -125,7 +125,7 @@ namespace HomeBridge.BridgeTools
                 && thing.def.IsNutritionGivingIngestible && !thing.def.IsDrug && thing.IngestibleNow
                 && (thing.Faction == null || thing.Faction.IsPlayer));
 
-        // A stock's own facts are its thing's row (#1343); these are the
+        // A stock's own facts are its thing's row; these are the
         // ones relative to its eaters.
         private static StockFacts Stock(Thing thing, List<Pawn> eaters, string? holder)
             => new StockFacts { id = thing.GetUniqueLoadID(), thing = thing, holder = holder,

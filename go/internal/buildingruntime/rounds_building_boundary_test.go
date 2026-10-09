@@ -15,7 +15,7 @@ import (
 // anchored on the colony read that followed it: under a running window the
 // row sits behind the anchor, and demanding row >= anchor refused every
 // building planner with ErrControl ("planner read stale or control unavailable") for
-// hundreds of consecutive steps (#662).
+// hundreds of consecutive steps.
 func TestRoundsBuildingBoundaryAcceptsAnIdentityReadBehindTheReviewAnchor(t *testing.T) {
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Native: 1, Plan: "plan"}
 	identity := func(tick domain.Tick) observation.Identity {

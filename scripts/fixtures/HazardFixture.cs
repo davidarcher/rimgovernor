@@ -10,11 +10,11 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    // Disposable test setup only (#626). Injects one hazard of a declared
+    // Disposable test setup only. Injects one hazard of a declared
     // class into a running colony so the hazard/* acceptance cases can
     // measure the supervisor's detection gap at Ultrafast against the bound
     // docs/developers/architecture/hazard-detection-bounds.md declares. Every
-    // op reports the game tick it acted on: the stop's detect_ticks (#621)
+    // op reports the game tick it acted on: the stop's detect_ticks
     // measures from the hazard's own occurrence tick, the case's inject gap
     // from this one. The ops run while the clock runs (main-thread
     // invocation lands between frames); cleanup vanishes what was spawned
@@ -78,7 +78,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // One cut on a standing colonist, deliberately under the stop tier's
-        // severity floor (#584): polled by the injury snapshot; the wound's
+        // severity floor: polled by the injury snapshot; the wound's
         // age is the occurrence. bleedOutTicks reports the game's own
         // estimate (int.MaxValue when the pawn is not bleeding out, reported
         // as 0) so the case can assert the wound is a demoted tier, not a
@@ -89,7 +89,7 @@ namespace HomeBridge.BridgeTools
             if (pawn == null) return Refuse("No standing colonist to injure.");
             var part = pawn.health.hediffSet.GetNotMissingParts().FirstOrDefault(p => p.def == BodyPartDefOf.Torso) ?? pawn.RaceProps.body.corePart;
             var before = pawn.health.hediffSet.hediffs.Count(h => h is Hediff_Injury);
-            // Small on purpose (#584): a 6-damage cut dropped summary health
+            // Small on purpose: a 6-damage cut dropped summary health
             // past the watch's healthDropFraction and stopped the window as a
             // combat threshold crossing, which is a different tier. This one
             // is a new wound and nothing else.

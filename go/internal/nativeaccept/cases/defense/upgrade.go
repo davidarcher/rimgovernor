@@ -31,8 +31,7 @@ const (
 	gearRounds     = 3
 )
 
-// defense/tier-upgrade raises the threat tier under a built layout (#1204,
-// #1210, #1211). On the baseline the fixture opens the turret tier's power
+// defense/tier-upgrade raises the threat tier under a built layout. On the baseline the fixture opens the turret tier's power
 // gates and the perimeter layout is built with the storyteller's raid
 // points on the quiet 35-point floor, so its turret tier holds mini
 // turrets. The fixture then raises the difficulty threat scale until the

@@ -9,7 +9,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable acceptance only (#1747, epic #1694): a colony holds
+    // Private disposable acceptance only: a colony holds
     // and studies an entity. test/entity_hold_prepare stages a finished
     // containment cell (walls and a door of the strongest stuff the game
     // allows, fully roofed, one holding platform the defs name) and, outside
@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     // on a platform and lets the colony capture once downed; the platform is
     // the def with the greatest containmentFactor, as the controller's
     // catalog lookup picks it. No entity, platform or stuff name is listed
-    // here. The cell's construction is #1741's planner (policy tests); what
+    // here. The planner owns cell construction (policy tests); what
     // is left to the controller and the game is the capture rule, the
     // carrying, the held entity's upkeep and the study work.
     public sealed class EntityHoldFixture

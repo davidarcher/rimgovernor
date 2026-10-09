@@ -125,7 +125,7 @@ func TestHoldCompromisedNeedsProof(t *testing.T) {
 }
 
 // TestExplainDefensivePositionsNamesTheGate pins the refusal text the
-// planner logs when it falls back to squad defense (#714).
+// planner logs when it falls back to squad defense.
 func TestExplainDefensivePositionsNamesTheGate(t *testing.T) {
 	firing := cells(9, 23)
 	defenders := []SquadDefenderFacts{defensiveDefender("colonist-a", true)}

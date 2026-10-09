@@ -28,7 +28,7 @@ func defenseWallAffordance(catalog *bridge.DefinitionCatalog, wall, stuff string
 }
 
 // markWallSupport sets each visible cell's WallSupport from the catalog's
-// terrain affordances (#2119): the funnel then leaves cells the native
+// terrain affordances: the funnel then leaves cells the native
 // preview would refuse ("requires terrain that supports: Light") unsited.
 // A source without the catalog, a wall with no stated need or a terrain the
 // catalog lacks leaves the fact unknown.

@@ -118,7 +118,7 @@ func TestRoundsAnimalMethodAvailability(t *testing.T) {
 // A home fire is a priority-1 emergency only when the fire family is
 // declared: undeclared, the assessment is marked method-unavailable so the
 // review records the need without suspending the colony behind a method it
-// does not have (#435). Unknown capabilities leave the emergency intact.
+// does not have. Unknown capabilities leave the emergency intact.
 func TestRoundsFireEmergencyFollowsDeclaredCapability(t *testing.T) {
 	f := stableRounds()
 	f.Upkeep.Fires = domain.Known([]UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})

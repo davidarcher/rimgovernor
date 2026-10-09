@@ -11,7 +11,7 @@ import (
 // open work when that work is pure construction on other cells: building plans
 // that touch disjoint cells cannot conflict, so there is nothing to observe
 // first. Planners fund such plans against their own stock ledger; the native
-// side validates each footprint when the intent is applied (#856).
+// side validates each footprint when the intent is applied.
 func buildingOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
 	taken := map[domain.Cell]bool{}
 	for _, m := range goal.OwnerMethods() {

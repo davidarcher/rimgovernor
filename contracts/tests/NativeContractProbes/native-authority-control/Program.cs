@@ -12,7 +12,7 @@ using Wire = RimGovernor.Protocol.Authority;
 
 // Drives the production authority_control adapter end to end (parser, identity,
 // hook initialization, state). Control is SetMode(Auto|Manual) or Revoke under
-// an exact generation (#52): Auto grants outright, Manual/Revoke revoke, and
+// an exact generation: Auto grants outright, Manual/Revoke revoke, and
 // every accepted operation advances the generation by exactly one.
 internal static class NativeAuthorityControlProbe
 {
@@ -36,7 +36,7 @@ internal static class NativeAuthorityControlProbe
     private static Wire.ControlReply Decode(object value)
     {
         var envelope = (Dictionary<string, object>)value;
-        // payload plus, from a main-thread hop, the companion's timing split (#81); nothing else.
+        // payload plus, from a main-thread hop, the companion's timing split; nothing else.
         Check(envelope["payload"] is string && envelope.Count == (envelope.ContainsKey(ProtoBoundary.TimingField) ? 2 : 1), "payload envelope");
         var reply = Wire.ControlReply.Parser.ParseJson((string)envelope["payload"]);
         Check(reply.Equals(Wire.ControlReply.Parser.ParseFrom(reply.ToByteArray())), "binary preserves reply");

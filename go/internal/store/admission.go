@@ -15,7 +15,7 @@ import (
 // Admission is a zone's footprint record, written once at method admission
 // (AdmitBuildingMethod); the zone_create intent prepares only under it.
 // Building intents carry none: native validates a placement when it applies
-// the intent (#856).
+// the intent.
 type Admission struct {
 	Snapshot  domain.GenerationSnapshot
 	Tick      domain.Tick

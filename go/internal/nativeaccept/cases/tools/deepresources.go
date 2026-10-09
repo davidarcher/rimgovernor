@@ -87,7 +87,7 @@ func init() {
 				}
 			}
 			// The drill on the lump reads its deposit; the drill over cleared
-			// ground reads depleted with no deposit (#538).
+			// ground reads depleted with no deposit.
 			drills := map[[2]int32]*o.DeepDrillState{}
 			for _, row := range f.Drills {
 				if row.GetDefName() != "DeepDrill" || row.Depleted == nil || row.Designated == nil || row.GetDesignated() {

@@ -1,4 +1,4 @@
-// Package snapshotshm reads the snapshot stream (#858): the ring of
+// Package snapshotshm reads the snapshot stream: the ring of
 // BundleSnapshot frames the native SnapshotStream publishes
 // (integrations/rimgovernor-native/src/Bridge/Protocol/SnapshotStream.cs)
 // into named shared memory. Reads never lock: each slot is a seqlock, so a
@@ -35,7 +35,7 @@ import (
 const (
 	magic   = 0x53534752
 	version = 2
-	// The reply ring (#1344) shares the slot layout under its own magic
+	// The reply ring shares the slot layout under its own magic
 	// "RGRR"; its slots hold raw contract replies and nothing reads its head.
 	replyMagic      = 0x52524752
 	replyVersion    = 1
@@ -108,7 +108,7 @@ func Open(name string) (*Reader, error) {
 	return newReader(m)
 }
 
-// OpenReplies maps the named native reply ring (#1344): large contract
+// OpenReplies maps the named native reply ring: large contract
 // replies the native side wrote into a slot instead of the GABP reply.
 func OpenReplies(name string) (*Reader, error) {
 	m, err := openMapping(name, false)

@@ -271,7 +271,7 @@ func checkStock(row map[string]any, identity map[string]any, includeHeld bool) e
 }
 
 // checkWeaponClasses proves the "weapons" census carries each definition's
-// Weapons-category membership and IsRangedWeapon/IsMeleeWeapon (#287): the
+// Weapons-category membership and IsRangedWeapon/IsMeleeWeapon: the
 // category is IsWeapon, so a wood log lists as a melee equippable that is no
 // weapon by trade, and the Core def naming (Bow_/Gun_/Pila ranged,
 // MeleeWeapon_ melee) that the planner used to infer from is here only the

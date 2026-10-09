@@ -110,7 +110,7 @@ type serveConfig struct {
 	pprof                          bool
 }
 
-// Fixed serve settings that were flags until #875.
+// Fixed service settings.
 const (
 	serveRefresh = 3 * time.Second // observation refresh interval (tests shorten serveConfig.refresh)
 )
@@ -189,7 +189,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 		return c, errors.New("--flight-recorder requires an absolute path")
 	}
 	// The flight recorder is the only log, so it is always on: by default
-	// under the profile (#299), where a player launch keeps the evidence the
+	// under the profile, where a player launch keeps the evidence the
 	// acceptance runner reads, or beside the state database when --observe
 	// has no profile. Acceptance names its per-case path explicitly.
 	if c.flightRecorder == "" {
@@ -314,7 +314,7 @@ func (c serveConfig) footholdComposed() bool {
 }
 
 // researchPlans reports whether EnsureResearch is composed: with the research
-// family, which always has the default research ladder (#230).
+// family, which always has the default research ladder.
 func (c serveConfig) researchPlans() bool {
 	return c.roundsResearchPlans
 }
@@ -349,7 +349,7 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 		return 2
 	}
 	// The flight recorder is the only log: kinded service records become
-	// rows in sequence with the bridge's native_call rows (#295, #2071).
+	// rows in sequence with the bridge's native_call rows.
 	// diagnostics (stderr) carries only the banner, fatals and panics.
 	recorder, err := bridge.NewFlightRecorder(config.flightRecorder)
 	if err != nil {

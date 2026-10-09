@@ -11,7 +11,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The wall_upgrade guard's resolver (#989, #1351): a DECONSTRUCT
+    // The wall_upgrade guard's resolver: a DECONSTRUCT
     // Designate on a wall cell admits one native deconstruct designation
     // held by the wall_upgrade guard (WallUpgradeSafety.Check), which the
     // designation-guard hooks keep re-checking against the site's enclosure,
@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
         {
             if (site == null) return null;
             // A standing demolition designation no record claims is no veto:
-            // admission adopts it under this ledger's record (#461).
+            // admission adopts it under this ledger's record.
             if (site.HasBlocker) { lastBlocker = site.Blocker; return null; }
             var candidate = new Candidate { Record = record, Site = site, Reread = reread };
             var blocker = WallUpgradeSafety.Prepare(record, out candidate.Workers);

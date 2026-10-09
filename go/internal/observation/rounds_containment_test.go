@@ -19,7 +19,7 @@ func entityRow(min float64, held, capturable bool) *o.PawnState {
 	}}
 }
 
-// TestContainmentDemandCountsCapturableUnheldEntities (#1741): only a living
+// TestContainmentDemandCountsCapturableUnheldEntities: only a living
 // entity the game lets the colony capture that no platform holds asks for a
 // cell, at the strength the most demanding needs; an unread fact makes the
 // whole demand unknown.
@@ -50,7 +50,7 @@ func platformRow(strength float64, available bool) *o.BuildingState {
 	return &o.BuildingState{Anomaly: &o.AnomalyBuilding{Holder: &o.EntityHolderState{ContainmentStrength: proto.Float64(strength), Available: proto.Bool(available)}}}
 }
 
-// TestBuiltHoldersCarryTheHeldPawnAndDoors (#1743): the held pawn and the
+// TestBuiltHoldersCarryTheHeldPawnAndDoors: the held pawn and the
 // room's doors ride the holder into the planning facts.
 func TestBuiltHoldersCarryTheHeldPawnAndDoors(t *testing.T) {
 	row := platformRow(180, false)

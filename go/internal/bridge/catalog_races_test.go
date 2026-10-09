@@ -34,7 +34,7 @@ func racesReply() *o.DefinitionCatalog {
 	return v
 }
 
-// TestCatalogAnimalRaces (#1722): the animal races derive from the catalog's
+// TestCatalogAnimalRaces: the animal races derive from the catalog's
 // race rows, the stat table and the game's race facts; only animals get a
 // race, a pest is a tree eater, and the flag lookup reads the facts.
 func TestCatalogAnimalRaces(t *testing.T) {
@@ -80,7 +80,7 @@ func TestCatalogAnimalRaces(t *testing.T) {
 	}
 }
 
-// TestCatalogAnimalRacesFailLoudly (#1722): race facts on a def without race
+// TestCatalogAnimalRacesFailLoudly: race facts on a def without race
 // properties and an animal without a stat table are errors, never an empty
 // or defaulted race.
 func TestCatalogAnimalRacesFailLoudly(t *testing.T) {
@@ -102,7 +102,7 @@ func TestCatalogAnimalRacesFailLoudly(t *testing.T) {
 	}
 }
 
-// TestCatalogAnimalRaceHusbandryFacts (#2238): the game-computed husbandry
+// TestCatalogAnimalRaceHusbandryFacts: the game-computed husbandry
 // facts of a race and the animal interaction constants reach the policy race
 // catalog; an absent life stage and a race with no meat stay unknown.
 func TestCatalogAnimalRaceHusbandryFacts(t *testing.T) {
@@ -180,7 +180,7 @@ func TestCatalogAnimalRaceHusbandryFacts(t *testing.T) {
 	}
 }
 
-// TestCatalogAnimalRaceHerdGrowth (#2379): a race carries its life stages with
+// TestCatalogAnimalRaceHerdGrowth: a race carries its life stages with
 // the tick each begins and its hunger rate factor, and the mean litter of its
 // litterSizeCurve as Rand.ByCurveAverage reads it.
 func TestCatalogAnimalRaceHerdGrowth(t *testing.T) {

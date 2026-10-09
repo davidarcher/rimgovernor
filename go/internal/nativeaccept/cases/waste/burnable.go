@@ -1,5 +1,5 @@
 // The waste/burnable-filters case verifies the RimGovernorBurnable and
-// RimGovernorNotBurnable special filters (#2181, epic #2176) against real
+// RimGovernorNotBurnable special filters against real
 // stockpile semantics and RimWorld's own hauling.
 package waste
 

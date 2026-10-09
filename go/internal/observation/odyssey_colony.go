@@ -5,7 +5,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// OdysseyColony is the Odyssey colony section (#1709): active game
+// OdysseyColony is the Odyssey colony section: active game
 // conditions, hazardous terrain, lava emergences and underground sites. An
 // absent scalar is unknown, never zero; the whole section is unknown without
 // Odyssey or when the read failed.

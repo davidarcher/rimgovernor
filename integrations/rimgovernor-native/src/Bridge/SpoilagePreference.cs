@@ -9,7 +9,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Spoilage preference (#2520): when the supervisor is active, the colony uses
+    // Spoilage preference: when the supervisor is active, the colony uses
     // its oldest stock first. Both patches only reorder or re-weigh candidates
     // vanilla already accepts (allowed, reachable, unforbidden, policy and filter
     // satisfied); neither makes a pawn use something vanilla would reject.

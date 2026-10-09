@@ -9,7 +9,7 @@ import (
 )
 
 // pendingWork is open work on one action, counting an applied building
-// whose blueprint or frame may still stand (#856): only census-aware plan
+// whose blueprint or frame may still stand: only census-aware plan
 // retirement settles it.
 func pendingWork(progress domain.Progress) bool {
 	return domain.StandardWorkOpen([]domain.Progress{progress}) || policy.AppliedBuildingOpen(progress, domain.Unknown[policy.CurrentConstruction]())
@@ -46,8 +46,8 @@ func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (i
 		if r.definition != "TableButcher" {
 			return 0, "", fieldUnavailable("butcher_table_definition")
 		}
-		// The butcher bill is the hunt row's precondition (#260), so the real
-		// table is owed whenever the goal is: there is no stand-in (#2266),
+		// The butcher bill is the hunt row's precondition, so the real
+		// table is owed whenever the goal is: there is no stand-in,
 		// the table waits for wood and a builder and goes into the planned
 		// butchery. A standing table, shared with the kitchen or not, is the
 		// facility.
@@ -219,7 +219,7 @@ func butchersAllColocated(benches []observation.CookingBench, rooms domain.Fact[
 }
 
 // campfireIntentStanding is true when a complete census shows a campfire
-// blueprint or frame placed by any recorded claim (#1534). The cooking bench
+// blueprint or frame placed by any recorded claim. The cooking bench
 // census holds only built benches and the pending-work gate reads only open
 // plans, so a retired plan's standing blueprint otherwise let the planner
 // stage another campfire, up to sleepingBedsPerEpoch of them.

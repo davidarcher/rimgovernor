@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The Go material budget is the native one it replaced (#1354): free
+// The Go material budget is the native one it replaced: free
 // stock less every blueprint's and frame's undelivered material and every
 // other pawn's live bill-job ingredients.
 func TestMaterialBudgetFromFrameRows(t *testing.T) {

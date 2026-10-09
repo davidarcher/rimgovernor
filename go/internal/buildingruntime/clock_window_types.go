@@ -16,7 +16,7 @@ import (
 // pre-dispatch inspection checks that status instead of reading
 // clock_read_status again: the bundle was the step's last native round trip
 // and every call to the game host is serial, so a second read would answer
-// with the same paused tick a few tens of milliseconds later (#200). A nil
+// with the same paused tick a few tens of milliseconds later. A nil
 // Status, or one older than MaxAge, keeps the native read.
 type ClockWindowRequest struct {
 	Intent         store.ClockIntent

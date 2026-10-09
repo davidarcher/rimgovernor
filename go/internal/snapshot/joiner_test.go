@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Recorded from acceptance run quest/wanderer at 04b0a98c (#749): a native
+// Recorded from acceptance run quest/wanderer at 04b0a98c: a native
 // WandererJoin letter pending on the joiner baseline at tick 15. The player
 // had declared no population policy; since #1032 the bot owns the target and
 // beds plus food alone admit the joiner.

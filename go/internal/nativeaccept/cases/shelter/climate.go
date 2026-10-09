@@ -15,12 +15,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The shelter climate cases (#2076, #2278) prove the shelter's campfires and
+// The shelter climate cases prove the shelter's campfires and
 // cooler, and a mild map's cooking campfire, follow the real map's temperature
-// curve (#2044) and the plan: the plan latches Cold or Hot from the live gear
+// curve and the plan: the plan latches Cold or Hot from the live gear
 // snapshot, and the building the planner then places stands on the planned
 // interior of the room that owns it, its ring raised with it rather than
-// before it (#2264, #2266): the cold map's campfires and the hot map's passive
+// before it: the cold map's campfires and the hot map's passive
 // cooler in the shelter, a mild map's cooking campfire in the kitchen. A
 // snapshot test over recorded facts proves the placement search
 // (buildingruntime campfire_climate_test.go); only a real map reads the curve,
@@ -102,8 +102,8 @@ func runClimate(ctx context.Context, s cases.Session, c climate) error {
 	if got, want := policy.ShelterCampfires(plan.Cold), map[bool]int{true: 2, false: 0}[plan.Cold]; got != want {
 		return fmt.Errorf("the shelter template plans %d campfire slots, want %d", got, want)
 	}
-	// The temperature building waits for no standing shelter (#2265) and the
-	// shelter's slots are keyed on the planned interior (#2264): no stage is
+	// The temperature building waits for no standing shelter and the
+	// shelter's slots are keyed on the planned interior: no stage is
 	// needed, and a placement outside the room that owns it fails the case.
 	journal, err := service.Store(ctx)
 	if err != nil {
@@ -118,7 +118,7 @@ func runClimate(ctx context.Context, s cases.Session, c climate) error {
 	report["placement"] = map[string]any{"definition": c.build, "cell": cell}
 	if c.cold {
 		// The crafting spot, when the armory family asked for one, takes the
-		// shelter's slot too (#2264).
+		// shelter's slot too.
 		spots, err := placements(ctx, journal, craftingSpot)
 		if err != nil {
 			return err

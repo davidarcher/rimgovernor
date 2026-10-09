@@ -15,7 +15,7 @@ const FeedRolePrefix = "feed:"
 // barn's free floor, never resized.
 const FeedStoreWidth, FeedStoreHeight = 1, 2
 
-// AnimalFeedStore is the herds' feed store (#2379): the feed their races eat
+// AnimalFeedStore is the herds' feed store: the feed their races eat
 // and the animal sleeping spot the barn's template is planned with, which the
 // store is sited beside.
 type AnimalFeedStore struct {
@@ -50,7 +50,7 @@ func AnimalFeedFilterOf(animals []UpkeepAnimal, races AnimalRaceCatalog) []Resou
 
 // animalOwner is the People department's animal store: the barn's feed
 // stockpile, a small feed-filtered zone at Important priority in each planned
-// barn's free floor beside the sleeping spots (#2379). A herd with no barn
+// barn's free floor beside the sleeping spots. A herd with no barn
 // has none: its feed is held by the warehouse or the freezer.
 type animalOwner struct{}
 

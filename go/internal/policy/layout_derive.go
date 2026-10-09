@@ -10,19 +10,18 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Derive and replan v2 (#783, B1). The plan is built from the survey once
-// and afterwards only grown: a replan re-zones the map, drops rooms the
-// terrain no longer carries, and sites what it lacks. The core candidates are a
-// planning input, not part of the saved plan.
+// Layout plans grow from a survey. Replanning re-zones the map, drops rooms
+// unsupported by terrain and sites missing rooms. Core candidates are derived
+// planning input and are not saved.
 
 // layoutUtilities is what a fresh plan reserves beside its core; the pens,
-// barn and vet room are sized by the herd plan's target herd (#1633).
+// barn and vet room are sized by the herd plan's target herd.
 var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1}
 
-// DeriveLayoutPlan lays a fresh v2 plan over the survey for pawns
+// DeriveLayoutPlan lays a fresh plan over the survey for pawns
 // colonists, with a geothermal enclosure on each reported steam geyser
-// (#834) and pens, a barn and a vet room for a herd of animals
-// (HerdPlan.PenAnimals), and a wall yard that holds yardAnimals (HerdPlan.YardAnimals, 0 keeps the floor, #2232). Unknown when the survey holds no room for a core.
+// and pens, a barn and a vet room for a herd of animals
+// (HerdPlan.PenAnimals), and a wall yard that holds yardAnimals (HerdPlan.YardAnimals, 0 keeps the floor). Unknown when the survey holds no room for a core.
 func DeriveLayoutPlan(s MapSurvey, pawns int, tier TechTier, geysers []PowerGeyser, animals, yardAnimals int) domain.Fact[LayoutPlan] {
 	zones := Zone(s)
 	footprints := geyserFootprints(geysers)
@@ -45,13 +44,13 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier TechTier, geysers []PowerGeys
 }
 
 // RoomGrowth is the rooms the plan is asked to add beyond the core: a throne
-// room of at least ThroneArea cells (#1601; 0 asks for none), the Child
-// rooms (#1680) the plan lacks and the gear rooms Gear asks for (#1773).
+// room of at least ThroneArea cells (0 asks for none), the Child
+// rooms the plan lacks and the gear rooms Gear asks for.
 type RoomGrowth struct {
 	ThroneArea int
 	// ThroneMin is the title's minimum throne room area, 0 when nobody is
 	// owed a throne room: smaller throne rooms retire once a room holding it
-	// exists (#1825).
+	// exists.
 	ThroneMin int
 	Child     []ChildRoomShape
 	Demand    RoomDemand
@@ -59,44 +58,44 @@ type RoomGrowth struct {
 	// needs: each the plan lacks is sited (layout_demand_rooms.go).
 	Core []PlannedRole
 	// Shapes are every resolved child-room need and Built the planned rooms
-	// standing: the duplicates of one role reduce to one (#1823) once Built is
+	// standing: the duplicates of one role reduce to one once Built is
 	// set (the census is known).
 	Shapes []ChildRoomShape
 	Built  map[Rectangle]bool
 	// Ended are the roles whose need is gone and InUse the planned rooms
 	// standing or furnished: an ended role's rooms outside InUse leave the
-	// plan (#1824). InUse is set only when an ended role has a room.
+	// plan. InUse is set only when an ended role has a room.
 	Ended []PlannedRole
 	InUse map[Rectangle]bool
 	// Fixed are the interiors of every planned room with anything of ours
-	// on it (FixedRooms, #1943), set on every replan once the census is
+	// on it (FixedRooms), set on every replan once the census is
 	// known (nil while it is not: every room is then kept). A replan
-	// re-sites only the rooms outside it (#1958).
+	// re-sites only the rooms outside it.
 	Fixed map[Rectangle]bool
 	// Occupied are the cells of ours a new or re-sited room must stay off
 	// (the census, sites, claims and in-flight rooms' walls).
 	Occupied map[domain.Cell]bool
-	// RetireShelter is ShelterRetirable at this review (#2046); InFlight are
+	// RetireShelter is ShelterRetirable at this review; InFlight are
 	// the planned rooms an open journal plan works on, which a retirement
 	// leaves in the plan.
 	RetireShelter bool
 	InFlight      map[Rectangle]bool
-	// HerdUnits are the herds' units (HerdPlan.HerdUnits, #2122): each gets a
+	// HerdUnits are the herds' units (HerdPlan.HerdUnits): each gets a
 	// pen, barn and vet area of its own beside the misc unit's.
 	HerdUnits []HerdCeiling
 	// Outskirts is the outline (width, height) of the off-core cluster the
-	// plan is asked to hold (#2183, OutskirtsSize); zero asks for none, and a
+	// plan is asked to hold (OutskirtsSize); zero asks for none, and a
 	// cluster the plan holds never moves. Its tomb and morgue are placed in
-	// their slots (#2185).
+	// their slots.
 	Outskirts [2]int32
 }
 
 // ReplanLayoutWithRooms grows plan for pawns colonists and tombs tomb rooms
 // over a fresh survey, with the suites: rooms now on no-go ground are
 // dropped, the plan grows what it lacks, and the unbuilt rooms are sited
-// again when that scores clearly better (layout_replan.go, #1958); a room
+// again when that scores clearly better (layout_replan.go); a room
 // with anything of ours on it never moves. With the rooms unchanged the
-// perimeter alone is replanned (#954), which changes the plan when the
+// perimeter alone is replanned, which changes the plan when the
 // ground on or near the ring did (ground a moisture pump dried, a mined-out
 // ring cell). It reports whether the plan changed. An emptied Retiring wing
 // (emptied, keyed by its corridor's hallway cell) is dropped only when a
@@ -104,8 +103,8 @@ type RoomGrowth struct {
 // rooms and before the perimeter is replanned around them. A herd of
 // animals (HerdPlan.PenAnimals; 0 leaves the herd sites as they are) gets
 // animals (HerdPlan.PenAnimals; 0 leaves the herd sites as they are) gets
-// the pens, barn and vet room it lacks (PlanHerdSites, #1633). The error
-// joins the rooms growth asked for that no core slot took (#1799); the plan
+// the pens, barn and vet room it lacks (PlanHerdSites). The error
+// joins the rooms growth asked for that no core slot took; the plan
 // returned is still the best one, so the caller reports it and carries on.
 func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawns, tombs int, tier TechTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool, error) {
 	zones := Zone(s)
@@ -212,7 +211,7 @@ func topUpSites(plan LayoutPlan, core []LayoutZone, add func(LayoutPlan) LayoutP
 	sitePlan := plan
 	sitePlan.Zones, sitePlan.Reservations = core, inner
 	topped := add(sitePlan)
-	// A top-up also keys the units of a plan saved without keys (#2226).
+	// A top-up also keys the units of a plan saved without keys.
 	plan.Reservations = slices.Clone(plan.Reservations)
 	changed := false
 	for i, j := 0, 0; i < len(plan.Reservations); i++ {
@@ -288,7 +287,7 @@ func samePerimeter(a, b LayoutPlan) bool {
 }
 
 // LayoutOutgrown reports fewer bedrooms than colonists: another wing is
-// needed (#1950); wings never grow.
+// needed; wings never grow.
 func (p LayoutPlan) LayoutOutgrown(pawns int) bool {
 	n := 0
 	for _, r := range p.AllRooms() {

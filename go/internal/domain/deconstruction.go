@@ -13,18 +13,18 @@ type Deconstruction struct {
 	target, definition string
 	cell               Cell
 	ground             string // canonical JSON []GroundRect, empty without cleared ground
-	wall               bool   // swap the door for a wall (#1245)
+	wall               bool   // swap the door for a wall
 }
 
 // WithWallReplacement returns the deconstruction swapping its door for a
-// wall of the door's stuff (#1245): native places the wall blueprint and
+// wall of the door's stuff: native places the wall blueprint and
 // orders a builder through both jobs.
 func (c Deconstruction) WithWallReplacement() Deconstruction { c.wall = true; return c }
 
 // ReplacesWithWall reports a door-to-wall swap.
 func (c Deconstruction) ReplacesWithWall() bool { return c.wall }
 
-// GroundRect is one rectangle of cleared ground (#1366): Width x Height
+// GroundRect is one rectangle of cleared ground: Width x Height
 // cells from Origin.
 type GroundRect struct {
 	Origin        Cell
@@ -32,7 +32,7 @@ type GroundRect struct {
 }
 
 // WithClearedGround returns the deconstruction carrying the ground clearance
-// is emptying (#1366): native then allows a player wall or door whose every
+// is emptying: native then allows a player wall or door whose every
 // enclosed room lies inside it, and holds the pawns while those rooms keep
 // roof. Rectangles keep their order; none clears the ground.
 func (c Deconstruction) WithClearedGround(rects []GroundRect) (Deconstruction, error) {

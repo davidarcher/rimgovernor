@@ -226,7 +226,7 @@ func (r bedRanks) animalBeds() (spot, bed string, err error) {
 // animalFlap is the buildable door roaming animals can open (a Building_Door
 // whose building properties say roamerCanOpen), by name when several. A catalog
 // with none is an error: nothing stands in for the flap between a pen and its
-// barn (#2122).
+// barn.
 func (catalog *DefinitionCatalog) animalFlap() (string, error) {
 	var best string
 	for name, row := range catalog.ThingDefs {

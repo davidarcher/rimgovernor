@@ -4,14 +4,14 @@ using Common = RimGovernor.Protocol.Common;
 
 namespace HomeBridge.BridgeTools
 {
-    // Apply-time preconditions for routine writes (#242). Execute runs on the
+    // Apply-time preconditions for routine writes. Execute runs on the
     // main thread and applies its effect in the same call, so the rules a
     // Prepare evaluates here hold at the tick the write lands; nothing ticks
     // between the check and the effect. Rules run in order and the first one
     // that fails names the refusal, so a world that moved under the order
     // reports the fact that moved. The snapshot-token comparison is always
     // the last rule: it still refuses a changed world the rules did not
-    // catch. A kind the controller dispatches under a running clock (#243)
+    // catch. A kind the controller dispatches under a running clock
     // may omit the token, since the world it hashes moves every tick; the
     // rules above it are then the whole check (Token with a sent flag).
     //

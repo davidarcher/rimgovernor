@@ -22,9 +22,9 @@ func socialCrops(projection observation.ColonyProjection) []policy.CropChoice {
 }
 
 // socialShortfalls is each social crop's missing cells under the fixed
-// nine-cell ceiling (#1226), counting existing player fields without
-// changing them: pure demand; RoundsFieldPlanner places the blocks
-// (#1308). known is false while a social field's size is unobserved.
+// nine-cell ceiling, counting existing player fields without
+// changing them: pure demand; RoundsFieldPlanner places the blocks.
+// known is false while a social field's size is unobserved.
 func socialShortfalls(projection observation.ColonyProjection) ([]policy.FieldBlockOption, bool) {
 	var out []policy.FieldBlockOption
 	for _, crop := range socialCrops(projection) {

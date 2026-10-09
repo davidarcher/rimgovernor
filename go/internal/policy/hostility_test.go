@@ -45,7 +45,7 @@ func hive(cell domain.Cell, passive bool) EmergencyThreat {
 	return EmergencyThreat{ID: "Hive1", Kind: HostileBuilding, Dead: domain.Known(false), Passive: domain.Known(passive), Cells: []domain.Cell{cell}, Distance: domain.Known(10.0)}
 }
 
-// Ignore is task-scoped (#1299): set while a work job sits beside a
+// Ignore is task-scoped: set while a work job sits beside a
 // sleeping hive, restored when the job ends, the hive wakes or an engaging
 // hostile comes near.
 func TestHostilityIgnoreAndRestore(t *testing.T) {
@@ -97,7 +97,7 @@ func TestHostilityOwedUnknownOwesNothing(t *testing.T) {
 	}
 }
 
-// A dormant mech cluster is a sleeping hostile like a hive (#1335): a
+// A dormant mech cluster is a sleeping hostile like a hive: a
 // salvage haul within reach of its sleeping mech gets Ignore, and the pawn
 // reverts to Attack once the cluster wakes.
 func TestHostilityDormantMechCluster(t *testing.T) {

@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
     }
 
     /// <summary>
-    /// The controller's map overlay (#817): named layers drawn as flat
+    /// The controller's map overlay: named layers drawn as flat
     /// transparent meshes plus text labels. A request replaces one layer by
     /// id; nothing reads it back and nothing is saved, so a reload starts
     /// blank until the controller redraws.
@@ -47,7 +47,7 @@ namespace HomeBridge.BridgeTools
 
         public int Count => layers.Count;
 
-        // Code-drawn groups (#822 "activity"): drawn every frame on the
+        // Code-drawn groups (activity): drawn every frame on the
         // current map and toggled like request-fed layers.
         private static readonly List<(string Group, Action<Map> Draw)> drawers = new List<(string, Action<Map>)>();
 

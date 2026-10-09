@@ -12,7 +12,7 @@ import (
 // statWorkToMake is the work a thing takes to make when its recipe names none.
 const statWorkToMake = "WorkToMake"
 
-// sculptures are the art recipes of the catalog (#1721): each recipe whose role
+// sculptures are the art recipes of the catalog: each recipe whose role
 // is RoleSculpture, with the building it makes, the building's footprint and
 // stuff cost, and the work the recipe takes (its own workAmount, else the
 // product's WorkToMake). Smallest first: by stuff cost, then work, then name.

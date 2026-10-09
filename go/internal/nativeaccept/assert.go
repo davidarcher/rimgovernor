@@ -23,7 +23,7 @@ func AsString(v any) string {
 	return s
 }
 
-// RefID is a JSON Ref's id (#1342), empty without one.
+// RefID is a JSON Ref's id, empty without one.
 func RefID(v any) string {
 	m, _ := v.(map[string]any)
 	return AsString(m["id"])
@@ -39,7 +39,7 @@ func AsNumber(v any) float64 {
 	case int:
 		return float64(n)
 	// The sized integers a case's own in-memory rows carry (a metrics row
-	// read back before it was ever JSON-encoded, #621).
+	// read back before it was ever JSON-encoded).
 	case int64:
 		return float64(n)
 	case uint64:

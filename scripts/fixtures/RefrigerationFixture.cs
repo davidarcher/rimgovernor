@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
     // stockpile room holding warm raw meat, a fuelled wood-fired generator
     // outside it with conduits under the room's wall ring, finishes the
     // Cooler research and forces a hot room so refrigerationaccept can
-    // exercise MaintainRefrigeration (issue #6 slice 1) deterministically:
+    // exercise MaintainRefrigeration  deterministically:
     // the room's measured temperature and the meat's rot runway are what the
     // Go review latches on, one stack starts part-way to rotting so the case
     // can watch native cooling stop its rot progress (test/refrigeration_rot),
@@ -22,13 +22,13 @@ namespace HomeBridge.BridgeTools
     // with or without a conduit run back to the generator (the "hot-weather
     // freezer failure" power hand-off path). A disconnected ring is
     // HiddenConduit: energizing a plain ring is zzztt exposure the power
-    // planner upgrades away first (#405, #698), a detour that outlives the
-    // meat (#690).
+    // planner upgrades away first, a detour that outlives the
+    // meat.
     // With season, the storeroom starts settled cold and the heat waves ramp
     // in from the current tick instead of arriving fully ramped: the harness
     // runs the game through the warming (an inactive family asks for no
     // clock window) and the live controller then meets warm stock the
-    // settled freezer's warm setpoint no longer covers (#160).
+    // settled freezer's warm setpoint no longer covers.
     // Nothing here places, sets or cools anything on the controller's behalf.
     public sealed class RefrigerationFixture
     {
@@ -217,7 +217,7 @@ namespace HomeBridge.BridgeTools
                 // the first 12000 ticks and the cold room follows it up.
                 // A lab start pins the outdoor temperature, which would cancel
                 // the waves: release the pin so the tile's own climate and the
-                // waves drive the room (#751).
+                // waves drive the room.
                 AcceptanceWorld.SetLab(float.NaN);
                 var heat = DefDatabase<GameConditionDef>.GetNamedSilentFail("HeatWave");
                 var heatWaves = 0;
@@ -229,7 +229,7 @@ namespace HomeBridge.BridgeTools
                     {
                         var wave = GameConditionMaker.MakeCondition(heat, 4 * 60000 + 12000);
                         // RegisterCondition clamps startTick to now, so the wave is
-                        // backdated after registration (#437).
+                        // backdated after registration.
                         map.gameConditionManager.RegisterCondition(wave);
                         wave.startTick = Find.TickManager.TicksGame - (season ? 0 : 12000);
                     }

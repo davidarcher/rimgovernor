@@ -49,7 +49,7 @@ func completedStockpile(t *testing.T, created []domain.CreatedZone) (*Store, str
 }
 
 // A zone claim carries the native zone identity the creation receipt
-// returned, the form the Home coverage census names stockpiles by (#315);
+// returned, the form the Home coverage census names stockpiles by;
 // the action ID never matched a census row.
 func TestZoneClaimsCarryTheReceiptZoneIdentity(t *testing.T) {
 	t.Parallel()

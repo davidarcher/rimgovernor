@@ -62,7 +62,7 @@ func (s StockReader) Census(targets map[Resource]int64) domain.Fact[[]Amount] {
 }
 
 // AdmittedCost is one still-open action of an admitted method (a shelter
-// shell is admitted without a stock check, #602) and the units of Resource
+// shell is admitted without a stock check) and the units of Resource
 // its preview costs.
 type AdmittedCost struct {
 	Resource Resource

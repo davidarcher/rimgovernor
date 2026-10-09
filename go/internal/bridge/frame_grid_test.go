@@ -47,7 +47,7 @@ func gridTestMap() []nativeCell {
 	cells[6] = nativeCell{walkable: true, occupied: true, doorway: true, light: true, room: "", glow: 0.6}                            // (2,1) door, art > sky
 	cells[7] = nativeCell{occupied: true, naturalRock: true, roof: "RoofRockThick"}                                                   // (3,1)
 	cells[10] = nativeCell{occupied: true, polluted: true, fertility: 0.7, room: "1"}                                                 // (2,2) ruin
-	// The old occupied and natural-rock flags are things now (#2263).
+	// The old occupied and natural-rock flags are things now.
 	for j := range cells {
 		switch {
 		case cells[j].naturalRock:
@@ -206,7 +206,7 @@ func gridFrame(base *o.BundleSnapshot, tick int64, grid *mp.CellGrid, seq uint64
 	return v
 }
 
-// TestFrameGridMatchesTheBand is #1552's equivalence: the planning window
+// TestFrameGridMatchesTheBand checks that the planning window
 // served from a frame's grid, keyframe and then a cumulative delta, is
 // the site cells native's cells hold over the window's rect,
 // glow compared as artificial light raised to the sky on unroofed cells.

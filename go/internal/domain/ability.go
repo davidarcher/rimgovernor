@@ -6,13 +6,9 @@ import (
 	"strings"
 )
 
-// AbilityAction is explicit intent to use one ability of one pawn (#1607, epic
-// #1598): an AbilityIntent on Actions/Apply, one generic shape for every
-// source. Native owns eligibility (favor, cooldown, range, hostility, the
-// game's own worker validation) through a guard per source; Go never trusts or
-// restates those values. Applied means the ability was used and its native
-// cooldown started; whether the aid arrived or the strike landed is a separate
-// observed state.
+// AbilityAction invokes one pawn ability through Actions/Apply. Native guards own
+// eligibility, including favor, cooldown, range and hostility. Applied proves use and
+// cooldown start; arrivals and combat effects require separate observations.
 const AbilityAction ActionKind = "ability"
 
 // AbilitySourceKind names where an ability comes from.
@@ -22,7 +18,7 @@ const (
 	// AbilityPermit is an acting royal permit (royalAid) the pawn holds with a
 	// faction.
 	AbilityPermit AbilitySourceKind = "permit"
-	// AbilityPsycast is a psycast (AbilityDef) the pawn knows (#1610).
+	// AbilityPsycast is a psycast (AbilityDef) the pawn knows.
 	AbilityPsycast AbilitySourceKind = "psycast"
 )
 

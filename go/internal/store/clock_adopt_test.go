@@ -6,7 +6,7 @@ import (
 )
 
 // A fresh journal adopts the native backlog as reviewed history, reads on
-// from its cursor across a reopen, and refuses once it holds history (#1251).
+// from its cursor across a reopen, and refuses once it holds history.
 func TestAdoptClockBacklog(t *testing.T) {
 	ctx := context.Background()
 	s, path, profile := boundInbox(t)

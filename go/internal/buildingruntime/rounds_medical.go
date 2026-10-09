@@ -118,10 +118,10 @@ func (r *RoundsMedicalPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if err != nil {
 		return RoundsMedicalResult{Verdict: fieldUnavailable("medicine_catalog")}, nil
 	}
-	// Stalls are read from the acquisition census (#1044): a designated,
+	// Stalls are read from the acquisition census: a designated,
 	// untaken plant past AcquisitionStallTicks since native first saw it.
 	sources := observation.ColonyAcquisition(observed, tables)
-	// Each is withdrawn by its own one-action method (#1046), admitted
+	// Each is withdrawn by its own one-action method, admitted
 	// before anything else and using up this step's admission.
 	stalledSources := map[string]bool{}
 	medicine := func(row policy.AcquisitionSource) bool {
@@ -247,7 +247,7 @@ func (r *RoundsMedicalPlanner) harvestMedicine(call, epoch context.Context, stat
 	if replenish <= 0 {
 		return RoundsMedicalResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	// The herbal floor is also a MaintainResource demand (#2286): when its
+	// The herbal floor is also a MaintainResource demand: when its
 	// supply plan serves it with a cultivated field (opened or standing) and
 	// priced out every wild plant, the field is the route.
 	review, err := p.journal.LoadRounds(call)
@@ -270,7 +270,7 @@ func (r *RoundsMedicalPlanner) harvestMedicine(call, epoch context.Context, stat
 	if !known {
 		return RoundsMedicalResult{Verdict: fieldUnavailable("acquisition_sources")}, nil
 	}
-	// A designation this step cancelled as stalled (#291) is still on the
+	// A designation this step cancelled as stalled is still on the
 	// plant; counting its yield as pending would leave nothing to replenish.
 	pending := 0.0
 	for _, row := range rows {
@@ -370,7 +370,7 @@ func medicineChoiceVerdict(kind policy.MedicineMethodKind, resource policy.Resou
 	return waitFor(WaitMethodUsed, "medicine_method")
 }
 
-// planAmputation is CriticalMedical's life-saving amputation (#1166): while
+// planAmputation is CriticalMedical's life-saving amputation: while
 // the deficit stands, the first colonist whose limb infection is losing its
 // immunity race gets one surgery bill on the infected part. Native doctor
 // jobs choose the surgeon. Queueing is idempotent natively, and a failed

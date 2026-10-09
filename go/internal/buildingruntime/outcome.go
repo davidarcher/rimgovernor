@@ -23,11 +23,11 @@ const (
 	OutcomeNoReview Outcome = "no_current_review"
 	// OutcomeExpired: the proposal went stale before it could be admitted.
 	OutcomeExpired Outcome = "expired"
-	// OutcomeOrdersSent: the fight's stop sent changed orders (#852),
+	// OutcomeOrdersSent: the fight's stop sent changed orders,
 	// recorded as its plan's evidence.
 	OutcomeOrdersSent Outcome = "combat_orders"
 	// OutcomeHoldFallback: the fight's hold-the-line formation was re-formed
-	// as squad defense because the raid crossed the line (#118).
+	// as squad defense because the raid crossed the line.
 	OutcomeHoldFallback Outcome = "hold_fallback"
 	// OutcomeWaiting: the goal waits on something that is not a failure; the
 	// Refusal names what with a wait kind.
@@ -77,7 +77,7 @@ const (
 	// WaitExistingWork: earlier work stands and the goal moves with it.
 	WaitExistingWork RefusalKind = "already_working_on_it"
 	// WaitBunksOpen: the initial shelter's indoor furnishing waits on its open
-	// bunk rungs, which do not hold the ring itself (#641).
+	// bunk rungs, which do not hold the ring itself.
 	WaitBunksOpen RefusalKind = "shelter_bunks_open"
 	// WaitBreachHeld: the shrine planner holds while every target shrine holds;
 	// RoundsShrineResult.Hold carries the reason.
@@ -178,7 +178,7 @@ func awaitingMethod[M ~string](method M) Verdict { return awaitingPlan(string(me
 
 // researchWait is the refusal of a method that needs a native research
 // project the census has not finished; EnsureResearch's roadmap is what gets
-// there (#230).
+// there.
 func researchWait(project string) Verdict { return awaitingPlan("research", project) }
 
 // awaitingFoodPlan is the refusal of a method the food plan does not yet
@@ -390,7 +390,7 @@ var (
 	BuildingReasonExpired      = Verdict{Outcome: OutcomeExpired}
 	BuildingReasonExistingWork = waitOn(WaitExistingWork)
 	// BuildingBunksOpen: the initial shelter's indoor furnishing waits on
-	// its open bunk rungs, which do not hold the ring itself (#641).
+	// its open bunk rungs, which do not hold the ring itself.
 	BuildingBunksOpen          = waitOn(WaitBunksOpen)
 	BuildingReasonHoldFallback = Verdict{Outcome: OutcomeHoldFallback}
 	BuildingReasonCombatOrders = Verdict{Outcome: OutcomeOrdersSent}
@@ -400,7 +400,7 @@ var (
 	// BuildingReasonNotInteractive: the choice dialog's own interactivity
 	// delay has not elapsed; the next review re-reads it.
 	BuildingReasonNotInteractive = waitOn(WaitDialog)
-	// BuildingReasonWaiting is a migrated planner's result when the
+	// BuildingReasonWaiting is a proposal planner's result when the
 	// coordinator gave a claim it needs to a higher-ranked proposal; the step
 	// row's proposal outcome names the claim.
 	BuildingReasonWaiting = waitOn(WaitClaim)
@@ -426,7 +426,7 @@ var (
 	// plan until one exists: nothing is sited on where the colonists stand.
 	BuildingNoLayoutPlan  = awaitingPlan("layout_plan", "")
 	BuildingNoWeaponBench = awaitingPlan("weapon_bench", "")
-	// BuildingReasonDemand is a migrated planner's result when the step's
+	// BuildingReasonDemand is a proposal planner's result when the step's
 	// stock, less the quantities earlier proposals claimed and admitted
 	// plans hold, does not cover a quantity it needs and no less urgent
 	// commitment could be preempted to release it; the outcome's Demand is

@@ -12,7 +12,7 @@ type BedUseTarget struct {
 	Context *c.ObservationContext
 	Thing   string
 	Medical bool
-	// Prisoners is the bed set for prisoners (#880).
+	// Prisoners is the bed set for prisoners.
 	Prisoners bool
 	Owners    []string
 }

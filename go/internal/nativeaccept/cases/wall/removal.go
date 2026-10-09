@@ -1,4 +1,4 @@
-// The wall/removal case proves the wall_upgrade-guarded Designate on Actions/Apply (#989, #1351)
+// The wall/removal case proves the wall_upgrade-guarded Designate on Actions/Apply
 // on a loaded save: NativeWallRemovalOperations resolves the guarded
 // demolition site from the wall at the named cell, refuses a wall without
 // completed stone backups, applies the original's demolition once same-stuff
@@ -198,7 +198,7 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	report["site_stuff"] = chosen.stuff
 	report["site_backup_cells"] = strings.Join(chosen.cells, ";")
 
-	// acquire sets Auto mode at the current generation (#52: no lease
+	// acquire sets Auto mode at the current generation (no lease
 	// handshake); it is repeated before every dispatch that follows a
 	// supervised run, since player-visible activity may bump the generation.
 	// The clock keeps the grant, so its windows start at the same generation.

@@ -6,7 +6,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// validateOdysseyColony checks the Odyssey colony section (#1709): ids are
+// validateOdysseyColony checks the Odyssey colony section: ids are
 // unique per table, cells lie on the map, counts and ticks are nonnegative
 // and a hackable's progress is a fraction. Absent scalars stay unknown.
 func validateOdysseyColony(v *o.ColonyFactsSnapshot) error {

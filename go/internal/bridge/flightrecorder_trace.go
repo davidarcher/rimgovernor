@@ -34,7 +34,7 @@ func (t TraceSummary) SpanMs() float64 {
 }
 
 // SummarizeTraces groups a recording's rows by trace_id, in order of first
-// appearance. Rows without one (a recording that predates #298) are left
+// appearance. Rows without one are left
 // out; ReadTimeline's gap records too.
 func SummarizeTraces(records []TimelineRecord) []TraceSummary {
 	var out []TraceSummary

@@ -7,8 +7,8 @@ import (
 )
 
 // A tribal start sleeps on spots and bedrolls, so no standing bed room exists
-// when the hot map owes its cooler: the planned shelter keys the proposal
-// (#2303), and nothing is proven until a roofed enclosed room stands.
+// when the hot map owes its cooler: the planned shelter keys the proposal,
+// and nothing is proven until a roofed enclosed room stands.
 func TestTemperatureCoolerKeysOnPlannedShelterWithoutBeds(t *testing.T) {
 	cells := []domain.Cell{{X: 5, Z: 6}, {X: 4, Z: 6}, {X: 4, Z: 7}, {X: 5, Z: 7}}
 	bedless := domain.Known(RoomObservation{Shapes: testShapes, EligibleBeds: domain.Known([]string{})})

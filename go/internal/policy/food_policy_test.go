@@ -68,7 +68,7 @@ func without(defs ...string) []string {
 	return out
 }
 
-// Each diet allows its own foods (#1541): human meat only for cannibals,
+// Each diet allows its own foods: human meat only for cannibals,
 // insect meat only where loved.
 func TestDietFoods(t *testing.T) {
 	for _, tc := range []struct {
@@ -129,7 +129,7 @@ func TestDietPolicyChanges(t *testing.T) {
 }
 
 // Prisoners and slaves get paste and raw food within their diet; a tame
-// animal kibble, hay and the raw food its race eats, never a meal (#1543).
+// animal kibble, hay and the raw food its race eats, never a meal.
 func TestDietPolicyChangesNonColonists(t *testing.T) {
 	foods := append(append([]Food(nil), testFoods...), Food{"Kibble", FoodKindKibble, ""}, Food{"Hay", FoodKindHay, ""})
 	slave := eater("S", nil, "MeatEating_Abhorrent")
@@ -159,7 +159,7 @@ func TestDietPolicyChangesNonColonists(t *testing.T) {
 	}
 }
 
-// The mood tier (#1542): a pawn near its break threshold or under high
+// The mood tier: a pawn near its break threshold or under high
 // expectations gets fine and lavish meals, a content pawn simple meals and
 // paste; the travel reserve is never allowed.
 func TestDietMoodTier(t *testing.T) {

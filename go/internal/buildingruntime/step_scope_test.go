@@ -26,8 +26,8 @@ func (f *stepScopeTickFake) Tick(ctx context.Context) (*l.TickReply, bridge.Resu
 	return &l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: f.context, Paused: proto.Bool(false)}}}, bridge.Result{}, ctx.Err()
 }
 
-// The scope read is lifecycle_read_tick, which the step's bundle seeds (#200);
-// the source must offer it, so there is no identity fallback (#1670).
+// The scope read is lifecycle_read_tick, which the step's bundle seeds;
+// the source must offer it, so there is no identity fallback.
 func TestStepScopeReadsTheTick(t *testing.T) {
 	t.Parallel()
 	context_ := &c.ObservationContext{Identity: &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(1)}, Tick: proto.Int64(12), NativeGeneration: proto.Uint64(3)}

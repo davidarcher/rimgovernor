@@ -501,7 +501,7 @@ func TestLetterApproval(t *testing.T) {
 
 func TestAdvanceGameCombatContinuesPastColonistHealthStop(t *testing.T) {
 	attempt := map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"}
-	// The census references the colonist; its row is a list read (#1343).
+	// The census references the colonist; its row is a list read.
 	standing := map[string]any{"observed": map[string]any{"colonists": []any{map[string]any{"id": "c"}}}}
 	rows := map[string]any{"observed": map[string]any{
 		"pawns": []any{map[string]any{"dead": false, "downed": false, "health": map[string]any{"bleeding": true}}},
@@ -623,7 +623,7 @@ func TestAdvanceGameFreshEpochDiagnosesFromStartReceipt(t *testing.T) {
 
 // The stop reason belongs in the message. Nine nightly rows reported only
 // "Unexpected native interruption", and two of them turned out to be
-// different stops -- "hostile" and "notification_batch" (#663, #572).
+// different stops -- "hostile" and "notification_batch".
 func TestNamedStopReasonNamesTheStop(t *testing.T) {
 	for reason, want := range map[string]string{
 		"hostile":            "hostile",

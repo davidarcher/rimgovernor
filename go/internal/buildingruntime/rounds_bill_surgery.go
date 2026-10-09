@@ -9,11 +9,11 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// surgeryPartDemand is MaintainSurgery's part demand (#1168): the
+// surgeryPartDemand is MaintainSurgery's part demand: the
 // part-short restore wants from the pawn care facts, and the gear benches
 // that could fabricate them. A native without the gear bench census, or a
 // bench whose recipes or bills are unknown, fabricates nothing. The chosen
-// elective (#1844) adds its part after the served ones when a bench can
+// elective adds its part after the served ones when a bench can
 // fabricate it; ctx gates it.
 func surgeryPartDemand(call context.Context, native any, identity *c.Identity, pawns domain.Fact[[]policy.CarePawn], ctx policy.SurgeryContext) ([]policy.SurgeryPart, []policy.ProductionBench, error) {
 	parts := policy.SurgeryParts(policy.SelectSurgery(pawns, nil, policy.SurgeryContext{}).Wants)

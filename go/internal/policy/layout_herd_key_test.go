@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// A herd's second unit belongs to that herd by key (#2226): with units [misc,
+// A herd's second unit belongs to that herd by key: with units [misc,
 // A, A2], a new herd B sorting after A founds its own unit and does not take
 // A2, and A does not found a third unit.
 func TestHerdKeyKeepsASecondUnitWithItsHerd(t *testing.T) {
@@ -21,7 +21,7 @@ func TestHerdKeyKeepsASecondUnitWithItsHerd(t *testing.T) {
 			t.Fatal("the misc unit is unkeyed", r)
 		}
 	}
-	// A boxed-in unit founds a second one (#2212): key both units A, as a herd
+	// A boxed-in unit founds a second one: key both units A, as a herd
 	// that founded its second unit is, so the plan holds [A, A2].
 	grown := PlanHerdSites(boxedInHerdPlan(t, 10), 30)
 	if len(grown.herdUnits()) != 2 {

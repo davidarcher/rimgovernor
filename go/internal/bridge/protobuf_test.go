@@ -369,9 +369,8 @@ func TestDescribeOncePerSession(t *testing.T) {
 }
 
 // A hop that throws is answered by the host as success:false with the
-// exception text and no proto field (docs/developers/contracts/bridge-thrown-hop.md,
-// #1887). Every typed read and call must surface it as a named refusal, never
-// as an empty reply (#1889).
+// exception text and no proto field (docs/developers/contracts/bridge-thrown-hop.md). Every typed read and call must surface it as a named refusal, never
+// as an empty reply.
 func TestThrownHopReplyIsANamedRefusal(t *testing.T) {
 	thrown := `{"success":false,"message":"Pause before drain","exception":"System.InvalidOperationException: Pause before drain\r\n   at HomeBridge","operation":{"Success":false,"Status":3,"Result":null,"Error":{"Code":"capability.failed","Message":"Pause before drain","ExceptionType":"System.InvalidOperationException"}}}`
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {

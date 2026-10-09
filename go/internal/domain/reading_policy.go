@@ -6,7 +6,7 @@ import (
 	"sort"
 )
 
-// ReadingPolicyAction writes one reading policy's contents (#1306): a
+// ReadingPolicyAction writes one reading policy's contents: a
 // ReadingPolicyIntent on Actions/Apply. The policy labelled Name (a pawn's
 // short name) allows exactly the book definitions; native makes it when
 // missing. PawnSettingsIntent.reading_policy assigns it.

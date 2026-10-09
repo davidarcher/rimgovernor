@@ -14,7 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// clearance/pack-reinstall (#2118, epic #2101): a standing furnished room is
+// clearance/pack-reinstall: a standing furnished room is
 // reconciled to a different plan and its packable piece makes the round trip.
 // The plan's starter shelter stands finished with one Bed in it (quality
 // Excellent, 60 percent hit points) and the plan's first bedroom stands

@@ -6,12 +6,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// StockpileCreate places the zone of a declared store no zone serves (#724).
+// StockpileCreate places the zone of a declared store no zone serves.
 const StockpileCreate StockpileEditKind = "create"
 
 // isWarehouseRole reports a warehouse zone's role: every warehouse site is a
 // general store, the first planned room's "general" or a further one's
-// "general:<room id>" (#1772, #1798).
+// "general:<room id>".
 func isWarehouseRole(role string) bool { return stockpileRolePrefix(role) == domain.GeneralRole }
 
 func stockpileRolePrefix(role string) string {

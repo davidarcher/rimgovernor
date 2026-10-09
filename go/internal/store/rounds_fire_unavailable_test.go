@@ -13,7 +13,7 @@ import (
 // goal for it parks the clock on no_work and the fire is never fought. The
 // undeclared emergency is recorded without the suspension, so an admitted
 // power method stays authorized across the injury stop and the authority
-// regeneration that follows (#435). Declared, the fire suspends as before.
+// regeneration that follows. Declared, the fire suspends as before.
 func TestRoundsUndeclaredFireEmergencyKeepsMethodsAuthorized(t *testing.T) {
 	t.Parallel()
 	for _, declared := range []bool{false, true} {

@@ -5,7 +5,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The StatDefs of a race's comfortable temperature range (#1868).
+// The StatDefs of a race's comfortable temperature range.
 const (
 	StatComfyTemperatureMin = "ComfyTemperatureMin"
 	StatComfyTemperatureMax = "ComfyTemperatureMax"
@@ -14,7 +14,7 @@ const (
 // animalComfort is the race's comfortable outdoor temperature range from the
 // stat table (the game's GetStatValueAbstract of ComfyTemperatureMin/Max):
 // unknown when the game shows neither stat for it, never a default (the
-// exposure view then fails for that race, #1869). A single shown stat or an
+// exposure view then fails for that race). A single shown stat or an
 // inverted range is a contract breach.
 func (catalog *DefinitionCatalog) animalComfort(race string) (domain.Fact[policy.AnimalComfort], error) {
 	lo, loShown, err := catalog.ShownStatValue(race, "", StatComfyTemperatureMin)

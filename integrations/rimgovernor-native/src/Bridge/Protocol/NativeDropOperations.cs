@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent DropWeapon (#1740): the colonist drops the weapon in its
+    // GiveJobIntent DropWeapon: the colonist drops the weapon in its
     // hands, the job a player's float-menu "Drop" click on a held weapon
     // gives. DropWeapon is this protocol's own token, not a
     // JobDef name: the JobDef is found at runtime as the one whose driver is

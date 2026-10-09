@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A bedroom swap carries the swap flag native evicts the owner on (#1243);
+// A bedroom swap carries the swap flag native evicts the owner on;
 // a plain assignment leaves it unset.
 func TestAssignCarriesSwapFlag(t *testing.T) {
 	previous, err := domain.KnownPrevious("Bed1")

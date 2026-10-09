@@ -5,14 +5,14 @@ import (
 	"sort"
 )
 
-// Observation capture accounting (#642): the companion reports, beside each
+// Observation capture accounting: the companion reports, beside each
 // main-thread hop's queue and execute time, where that hop's execute time
 // went -- reading game state (capture), ProtoJSON formatting and the UTF-8
 // size checks that precede it (format), the bytes it returned and the rows
 // each requested section produced -- and, cumulatively for the loaded game
 // session, the update-to-update intervals its frame recorder measured.
 //
-// A detached reply (#644) is captured on the game thread and formatted on an
+// A detached reply is captured on the game thread and formatted on an
 // encoder worker: its account adds an "encode" block (the worker's queue
 // wait, its wall, and its own formatting passes and time), and its formatMs
 // and formatPasses then count only formatting that still ran on the game
@@ -101,7 +101,7 @@ type SectionPhases struct {
 }
 
 // ObservationSample aggregates the companion's per-hop observation account
-// over one recording (#642): how many hops reported one, the capture and
+// over one recording: how many hops reported one, the capture and
 // format phases as quantiles and sums, the formatting passes and payload
 // bytes they paid for, the per-section split, and the outcomes -- so a slow
 // bundle can be attributed to reading the colony or to encoding the reply.
@@ -114,7 +114,7 @@ type ObservationSample struct {
 	FormatMs     float64 `json:"format_ms"`
 	// Capture, Format, Queue and Execute are the per-hop distributions over
 	// the hops that reported each. Queue and Execute come from the queueMs
-	// and executeMs the companion has reported since #631, so they cover
+	// and executeMs reported by the companion, so they cover
 	// every timed hop, not only the ones carrying an observation account.
 	Capture  Quantiles         `json:"capture"`
 	Format   Quantiles         `json:"format"`
@@ -122,7 +122,7 @@ type ObservationSample struct {
 	Execute  Quantiles         `json:"execute"`
 	Sections []SectionPhases   `json:"sections,omitempty"`
 	Outcomes map[string]uint64 `json:"outcomes,omitempty"`
-	// The detached encode (#644), over the EncodeHops whose account carried
+	// The detached encode, over the EncodeHops whose account carried
 	// the encode block: worker queue wait and wall per hop, and the passes
 	// and time the worker spent formatting. None of it ran on the game
 	// thread, so none of it is in Execute.
@@ -131,13 +131,13 @@ type ObservationSample struct {
 	EncodeFormatMs     float64   `json:"encode_format_ms,omitempty"`
 	EncodeQueue        Quantiles `json:"encode_queue"`
 	Encode             Quantiles `json:"encode"`
-	// Threats is the status read's threat classification work (#646),
+	// Threats is the status read's threat classification work,
 	// absent when no hop reported one.
 	Threats *ThreatScan `json:"threat_scan,omitempty"`
 }
 
 // ThreatScan sums the threat classifier's counters over the hops that ran
-// it (#646): pawns examined, those kept as threat rows, full pawn/control
+// it: pawns examined, those kept as threat rows, full pawn/control
 // projections paid for and nearest-colonist distance scans run. Projections
 // above Candidates would mean discarded pawns were projected.
 type ThreatScan struct {
@@ -168,8 +168,8 @@ type SlowFrame struct {
 	Trace         string  `json:"trace,omitempty"`
 }
 
-// FrameSample is the companion's frame recorder as one recording sees it
-// (#642). Updates, ElapsedMs, ObservationMs, Observations, Cancelled,
+// FrameSample is the companion's frame recorder as one recording sees it.
+// Updates, ElapsedMs, ObservationMs, Observations, Cancelled,
 // RecorderMs and the Slow counts are cumulative for the loaded game session
 // and differenced between the recording's first and last sample, so they
 // describe this recording; MaxIntervalMs is the widest the samples reported
@@ -525,7 +525,7 @@ func spanMs(last, first float64) float64 {
 
 // histogramQuantiles is the nearest-rank p50/p95/p99 of the update
 // intervals between two samples, differenced from the companion's
-// cumulative interval histogram (#656). A quantile reports its bucket's
+// cumulative interval histogram. A quantile reports its bucket's
 // upper edge, so it overstates by at most one bucket width (1 ms below
 // 50 ms); Max is the top
 // occupied bucket, and the overflow bucket reports maxMs, the widest

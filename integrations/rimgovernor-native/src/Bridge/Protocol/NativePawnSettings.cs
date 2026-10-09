@@ -10,33 +10,33 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // PawnSettingsIntent on Actions/Apply (#1299, epic #1292): one per-pawn
+    // PawnSettingsIntent on Actions/Apply: one per-pawn
     // Assign-tab setting on one spawned colony pawn. hostility_response is
     // the pawn's playerSettings.hostilityResponse, where the Assign tab
     // offers it (UsesConfigurableHostilityResponse); Attack is refused for a
-    // violence-incapable pawn, as the tab refuses it. self_tend (#1305) is
+    // violence-incapable pawn, as the tab refuses it. self_tend is
     // playerSettings.selfTend, refused for a pawn that cannot doctor (the
-    // tab hides the checkbox). nickname (#1310) is the short name an owned
+    // tab hides the checkbox). nickname is the short name an owned
     // pawn must leave: a fresh name from the pawn's own name bank
     // (PawnBioAndNameGenerator), never a numbered one, that no other owned
-    // pawn holds. medicine_carry (#1307) is the Medicine inventory-stock
-    // count (ResolveCarry). medical_care (#1301) is playerSettings.medCare,
+    // pawn holds. medicine_carry is the Medicine inventory-stock
+    // count (ResolveCarry). medical_care is playerSettings.medCare,
     // any of the five tiers, on a living pawn of the colony or hosted by it
     // (colonist, slave, prisoner, guest, tame animal). reading_policy
-    // (#1306) assigns the one ReadingPolicy carrying that label to a spawned
-    // pawn of the colony with a reading tracker; drug_policy (#1537) the one
+    // assigns the one ReadingPolicy carrying that label to a spawned
+    // pawn of the colony with a reading tracker; drug_policy the one
     // DrugPolicy carrying that label to one with a drug tracker; food_policy
-    // (#1541) the one FoodPolicy carrying that label to one with a food
-    // restriction tracker. mech_work_mode and mech_control_group (#1685) take
+    // the one FoodPolicy carrying that label to one with a food
+    // restriction tracker. mech_work_mode and mech_control_group take
     // a controllable mechanoid of the colony whose overseer is a living
     // colonist with a mechanitor tracker (never a wild, hostile or
     // unoverseen mech): the first sets the MechWorkModeDef of the mech's
     // control group, the second moves the mech into one of its overseer's
-    // control groups; both read the group back. choose_permit (#1878) spends
+    // control groups; both read the group back. choose_permit spends
     // a colonist's permit points on one permit of a faction through
     // Pawn_RoyaltyTracker.AddPermit after the checks the game's permit window
     // (PermitsCardUtility) applies, and reads the held permit back.
-    // extract_bioferrite (#2434) is a held entity's
+    // extract_bioferrite is a held entity's
     // CompHoldingPlatformTarget.extractBioferrite, the flag the game's own
     // Doctor work giver reads; it takes an entity a holding platform holds on
     // the map and reads the flag back.
@@ -166,7 +166,7 @@ namespace HomeBridge.BridgeTools
                 Fields = { field } } };
         }
 
-        // medicine_carry (#1307): the colonist's Medicine inventory-stock
+        // medicine_carry: the colonist's Medicine inventory-stock
         // count, stocking the best medicine the pawn's own medical care
         // allows; a positive count is refused when that care allows none.
         private static Common.Failure? ResolveCarry(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn, out ThingDef? medicine)
@@ -203,7 +203,7 @@ namespace HomeBridge.BridgeTools
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
         }
 
-        // reading_policy (#1306): the one ReadingPolicy labelled with the
+        // reading_policy: the one ReadingPolicy labelled with the
         // intent's name, on a spawned pawn of the colony that reads.
         private static Common.Failure? ResolveReading(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn, out ReadingPolicy? policy)
         {
@@ -235,7 +235,7 @@ namespace HomeBridge.BridgeTools
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
         }
 
-        // drug_policy (#1537): the one DrugPolicy labelled with the intent's
+        // drug_policy: the one DrugPolicy labelled with the intent's
         // name, on a spawned pawn of the colony with a drug tracker.
         private static Common.Failure? ResolveDrug(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn, out DrugPolicy? policy)
         {
@@ -267,7 +267,7 @@ namespace HomeBridge.BridgeTools
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
         }
 
-        // food_policy (#1541): the one FoodPolicy labelled with the intent's
+        // food_policy: the one FoodPolicy labelled with the intent's
         // name, on a spawned pawn of the colony with a food restriction.
         private static Common.Failure? ResolveFood(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn, out FoodPolicy? policy)
         {
@@ -299,7 +299,7 @@ namespace HomeBridge.BridgeTools
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
         }
 
-        // mech_work_mode and mech_control_group (#1685): a controllable
+        // mech_work_mode and mech_control_group: a controllable
         // mechanoid of the colony that a living colonist mechanitor oversees.
         // The mode def must exist and the group index must be one of the
         // overseer's control groups.
@@ -372,7 +372,7 @@ namespace HomeBridge.BridgeTools
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
         }
 
-        // choose_permit (#1878): a free colonist on any map takes one permit of
+        // choose_permit: a free colonist on any map takes one permit of
         // a faction when the permit belongs to that faction, the colonist's
         // title reaches its minimum, its prerequisite is held and the
         // faction's permit points cover its cost. A permit already held is
@@ -425,7 +425,7 @@ namespace HomeBridge.BridgeTools
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
         }
 
-        // extract_bioferrite (#2434): the entity a holding platform of the
+        // extract_bioferrite: the entity a holding platform of the
         // map holds (a held pawn is in the platform's container, not among the
         // spawned pawns). The game's work giver offers the extraction only for
         // a true flag, and the platform's powered bioferrite harvester forces

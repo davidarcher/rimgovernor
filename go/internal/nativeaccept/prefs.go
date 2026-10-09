@@ -8,8 +8,7 @@ import (
 	"strings"
 )
 
-// HeadlessPrefs is what a headless profile's Prefs.xml is set to (issue
-// #91): no autosaves in practice (a harness never wants the pause and disk
+// HeadlessPrefs is what a headless profile's Prefs.xml is set to: no autosaves in practice (a harness never wants the pause and disk
 // write; the interval is game-days and must stay under ~35791 so that
 // (int)(days * 60000f) does not overflow -- overflowed, the autosaver's
 // threshold goes negative and it saves every tick, observed as a long

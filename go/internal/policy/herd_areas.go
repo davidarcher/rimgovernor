@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The allowed areas of animal kinds beyond the Barn (#2234, epic #2229):
+// The allowed areas of animal kinds beyond the Barn:
 // companions live in the paddock yard, predators roam the map outside it.
 
 // CompanionAreaKey is the bot area key of the Companion allowed area: the

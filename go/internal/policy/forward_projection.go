@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// ProjectionHorizonDays is the first-pass look-ahead (#1912, decided on #1856).
+// ProjectionHorizonDays bounds the shared forecast.
 const ProjectionHorizonDays = 5.0
 
 // ForwardInputs are the facts one projection reads. Shadow only: nothing in

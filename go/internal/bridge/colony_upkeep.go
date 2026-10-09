@@ -222,7 +222,7 @@ func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32) erro
 			cells[key] = true
 		}
 	}
-	// A cell appears once per traffic layer (#817).
+	// A cell appears once per traffic layer.
 	cells := map[[3]int32]bool{}
 	for _, t := range f.Traffic {
 		if t == nil || !colonyCell(t.Cell, size) || t.Layer < o.TrafficLayer_TRAFFIC_LAYER_COLONIST || t.Layer > o.TrafficLayer_TRAFFIC_LAYER_HOSTILE || t.Terrain != nil && validID(t.GetTerrain()) != nil || t.Pending != nil && validID(t.GetPending()) != nil || !proto.Equal(t, &o.TrafficCell{Cell: t.Cell, Samples: t.Samples, Terrain: t.Terrain, Home: t.Home, Pending: t.Pending, Layer: t.Layer}) {

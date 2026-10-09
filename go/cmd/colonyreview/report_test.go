@@ -109,7 +109,7 @@ func TestSparseSamplesKeepEveryHour(t *testing.T) {
 	}
 }
 
-// Zone counts per role show in the report; supplies forbidden for a day are flagged (#1780).
+// Zone counts per role show in the report; supplies forbidden for a day are flagged.
 func TestStorageFlags(t *testing.T) {
 	dir := caseOutput(t, 30)
 	data, _ := os.ReadFile(filepath.Join(dir, "result.json"))

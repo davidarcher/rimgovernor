@@ -95,7 +95,7 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 			if zone.Kind() != domain.GrowingZone {
 				return ErrConflict
 			}
-			// Any resource crop may be sown (#2285); the planner holds the social
+			// Any resource crop may be sown; the planner holds the social
 			// crops to their brewing gate and ceiling.
 		}
 		for _, cell := range zone.Cells() {

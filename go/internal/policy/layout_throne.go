@@ -4,7 +4,7 @@ import (
 	"sort"
 )
 
-// The throne room (#1601, epic #1598): one core room sized from the
+// The throne room: one core room sized from the
 // next title's minimum area (RoyalRung.ThroneMinArea), sited only once a
 // colonist holds or can claim a title that asks for one. It is the
 // sleeping planner's under MaintainHousing (NextThroneStep).

@@ -39,7 +39,7 @@ func pendingHunt(t *testing.T, action domain.ActionID, thing string, cell domain
 	return p
 }
 
-// A hunt follows its animal (#321): only an animal the wild census no
+// A hunt follows its animal: only an animal the wild census no
 // longer lists cancels its unissued hunt; one that wandered off its
 // planned cell keeps it.
 func TestGonePestHuntsCancelsGoneAnimalsOnly(t *testing.T) {
@@ -82,7 +82,7 @@ func pestFixture(t *testing.T) (*RoundsAcquisitionPlanner, *Rounder, *store.Stor
 }
 
 // pestFixtureRoster is pestFixture with its one colonist, whose pawn row it
-// returns, bow-armed or not. The hunting budget (#2170) is the hunters the
+// returns, bow-armed or not. The hunting budget is the hunters the
 // pawn roster names times hunts per hunter, so an unread roster has none.
 func pestFixtureRoster(t *testing.T, armed bool) (*RoundsAcquisitionPlanner, *Rounder, *store.Store, *o.ColonyFactsSnapshot, *roundsNative, *o.PawnState) {
 	t.Helper()
@@ -137,7 +137,7 @@ func addPest(native *roundsNative, v *o.ColonyFactsSnapshot, id string, x, z int
 	upkeep.WildAnimals = append(upkeep.WildAnimals, &o.AnimalFeed{Pawn: &c.Ref{Id: proto.String(id)}, Diet: proto.String("DendrovoreAnimal"), RequiresPen: proto.Bool(false)})
 	v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Taken: proto.Bool(false), Source: &c.Ref{Id: beaver.Id}, SourceSnapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}, RevengeChance: proto.Float64(0.1), HerdSize: proto.Uint32(3), MeleeOnly: proto.Bool(false), Downed: proto.Bool(false), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Fogged: proto.Bool(false), InMentalState: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)})
 	// The hunt census names a bow-armed colonist with a safe route to the
-	// pest; policy's hunt gate (#2144) offers the row only with one.
+	// pest; policy's hunt gate offers the row only with one.
 	if v.HuntCensus == nil {
 		v.HuntCensus = &o.HuntCensus{Hunters: []*o.HunterFacts{{
 			PawnId: proto.String("hunter"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}, Downed: proto.Bool(false), InMentalState: proto.Bool(false),
@@ -193,7 +193,7 @@ func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
 	}
 }
 
-// A hunt follows its animal (#321): beavers wandering off their planned
+// A hunt follows its animal: beavers wandering off their planned
 // cells leave both hunts open and nothing re-planned; a dispatched hunt of
 // a dispatched hunt is never stall-cancelled, the kill is its exit.
 func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
@@ -233,7 +233,7 @@ func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 		}
 	}
 	// The first hunt is dispatched and its beaver still alive on the map:
-	// the hunt-stall grace passes and the hunt stays dispatched (#455), and
+	// the hunt-stall grace passes and the hunt stays dispatched, and
 	// so it does once the beaver is downed.
 	plan, err := db.LoadPlan(ctx, first.Plan)
 	if err != nil {
@@ -302,7 +302,7 @@ func retick(m protoreflect.Message, tick int64) {
 	})
 }
 
-// A hunt needs a hunter (#447): with the roster known and nobody holding a
+// A hunt needs a hunter: with the roster known and nobody holding a
 // ranged weapon, the hunting budget is zero and the pest goes unplanned;
 // arming the colonist with a bow admits the hunt.
 func TestPestAcquisitionPlannerNeedsARangedHunter(t *testing.T) {

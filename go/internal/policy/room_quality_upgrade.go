@@ -6,14 +6,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Room quality gap closer (#814, B3/B4 of #799): an owned bedroom (or a
-// dining or rec room, #816, against CommonRoomTargets) below its
-// RoomTarget.Min gets one furniture piece at a time from the #802 bedroom
+// Room quality gap closer: an owned bedroom (or a
+// dining or rec room, against CommonRoomTargets) below its
+// RoomTarget.Min gets one furniture piece at a time from the bedroom
 // template's optional slots. The weakest of wealth, beauty, space and
 // cleanliness decides whether a piece helps at all:
 //   - space weakest: nothing is added, since every furniture tile costs the
 //     room 0.9 space and the weakest stat carries about half the score;
-//     the owner is given a suite instead (SuiteClaims, #1216);
+//   the owner is given a suite instead (SuiteClaims);
 //   - otherwise the slots go in lever order (end table, dresser, then the
 //     lamp), each adding wealth.
 //
@@ -60,7 +60,7 @@ var roomUpgradeSlots = []string{"end_table", "dresser", "lamp"}
 
 // RoomBeautyDefinitions are the definitions the closer may place beside the
 // furniture rules' (RoomFurniture.Definitions, read with every catalog): the
-// standing lamp, the plant pot and the floors, the beauty levers (#830). The
+// standing lamp, the plant pot and the floors, the beauty levers. The
 // planning census must read them for availability and stuff.
 func RoomBeautyDefinitions() []string {
 	return append([]string{standingLampDef, PlantPotDefinition}, DefaultFlooringPolicy().Floors...)
@@ -74,9 +74,9 @@ type RoomUpgrade struct {
 	Anchor  domain.Cell
 	Rot     domain.Rotation
 	Weakest RoomStat
-	// Cells, when set, places Def at each cell (a floor, #830).
+	// Cells, when set, places Def at each cell (a floor).
 	Cells []domain.Cell
-	// Stuff, when set, overrides the definition's default stuff (#842).
+	// Stuff, when set, overrides the definition's default stuff.
 	Stuff string
 }
 
@@ -145,7 +145,7 @@ func roomPieceOverlaps(pieces []FurniturePiece, r Rectangle) bool {
 }
 
 // BedroomUpgradePieces are the definitions the closer's slots place in a
-// bedroom: end table, dresser and the standing lamp (#1841 prices a suite's
+// bedroom: end table, dresser and the standing lamp (a suite's
 // furnishing by them).
 func (f RoomFurniture) BedroomUpgradePieces() []string {
 	return []string{f.EndTable.Def, f.Dresser.Def, standingLampDef}

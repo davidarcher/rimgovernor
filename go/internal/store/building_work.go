@@ -5,7 +5,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// PlanWorkOpen is policy.PlanWorkOpen for a stored plan (#856): an applied
+// PlanWorkOpen is policy.PlanWorkOpen for a stored plan: an applied
 // building intent is terminal in the journal, but its plan stays open while
 // the census still shows its blueprint or frame (or cannot say). Only
 // census-aware retirement ends it; a retired plan's applied buildings are

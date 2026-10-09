@@ -104,7 +104,7 @@ func TestPowerRouteExtendsFromProducerAndSkipsNativeFootprints(t *testing.T) {
 	}
 }
 
-// A mech charger (#1688) is an ordinary power consumer: native lists every
+// A mech charger is an ordinary power consumer: native lists every
 // CompPowerTrader building, and the planner wires it by its negative BaseW
 // alone, never by definition, so no charger-specific power goal exists.
 func TestPowerRouteWiresAnUnpoweredMechChargerLikeAnyConsumer(t *testing.T) {
@@ -122,7 +122,7 @@ func TestPowerRouteWiresAnUnpoweredMechChargerLikeAnyConsumer(t *testing.T) {
 	}
 }
 
-// A gene bank (#1933) is an ordinary 40 W consumer too: MaintainGeneBank
+// A gene bank is an ordinary 40 W consumer too: MaintainGeneBank
 // places it and the power planner wires it, with no gene-bank power goal.
 func TestPowerRouteWiresAnUnpoweredGeneBankLikeAnyConsumer(t *testing.T) {
 	bank := powerSite("bank", 1, -40, 0, "")

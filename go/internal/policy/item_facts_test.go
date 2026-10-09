@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TestTradeCurrencyIsTheSheetsCurrencyRow (#1734): the coin is whatever the
+// TestTradeCurrencyIsTheSheetsCurrencyRow: the coin is whatever the
 // sheet flags as its currency, and a sheet with none flagged (or the flag
 // unread) has no coin, so no selection is made against a guessed "Silver".
 func TestTradeCurrencyIsTheSheetsCurrencyRow(t *testing.T) {
@@ -33,7 +33,7 @@ func TestTradeCurrencyIsTheSheetsCurrencyRow(t *testing.T) {
 	}
 }
 
-// TestObservedMealIsWhatTheActiveBillCooks (#1734): the meal and its
+// TestObservedMealIsWhatTheActiveBillCooks: the meal and its
 // nutrition come from the recipe row of an active bill, the best mood
 // first; nothing cooked is no meal.
 func TestObservedMealIsWhatTheActiveBillCooks(t *testing.T) {

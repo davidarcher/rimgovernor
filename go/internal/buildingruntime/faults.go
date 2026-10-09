@@ -8,13 +8,13 @@ import (
 )
 
 // Faults are the acceptance harness's fault injections into a live
-// scheduler (#633): a named catalog planner that fails every step, one
+// scheduler: a named catalog planner that fails every step, one
 // that never returns (blocks until its step context ends) and an epoch
 // renewal that silently does nothing so the native lease lapses. They
 // show which failures leave safe play running (an optional planner) and
 // which stop it (a critical planner held past the wall budget, authority
 // revoked after the lease expired); faults_test.go proves each. A staged
-// start may also pin the food plan's gap to zero (#1271), standing in for a
+// start may also pin the food plan's gap to zero, standing in for a
 // food economy the fixture does not build. Parsed from
 // FaultsEnv by serve; never set in ordinary play.
 type Faults struct {

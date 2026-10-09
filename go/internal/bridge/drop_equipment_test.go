@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TestDropEquipmentIntentWire (#1740): a drop is a give-job of the DropWeapon
+// TestDropEquipmentIntentWire: a drop is a give-job of the DropWeapon
 // token on the held weapon, with no options and no second target.
 func TestDropEquipmentIntentWire(t *testing.T) {
 	drop, err := domain.NewDropEquipment("Human1", "Gun_Revolver7")

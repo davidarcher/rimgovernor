@@ -1,4 +1,4 @@
-// The needs/freeze case proves test/freeze_needs (issue #92): with every need
+// The needs/freeze case proves test/freeze_needs: with every need
 // but Rest frozen, a tenth of a day at accelerated Ultrafast leaves each free colonist's
 // frozen needs at maximum while Rest keeps moving; release lets them fall
 // again.

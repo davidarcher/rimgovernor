@@ -8,7 +8,7 @@ import (
 
 // A rock face cutting across the ring closes its own cells: the wall covers
 // only the open ones, none on rock, and gates and the killbox stay on open
-// ground (#1592).
+// ground.
 func TestPerimeterSnapsOntoRockFace(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ring := plainsRing(t)

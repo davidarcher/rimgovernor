@@ -4,7 +4,7 @@ import "errors"
 
 // GrowerCrop is an immutable, comparable value: a one-shot patch of the crop
 // one exact plant grower sows (Building_PlantGrower.SetPlantDefToGrow on
-// the native side; a BuildingPatchIntent since #940); there is no pawn/Job involved -- see
+// the native side; a BuildingPatchIntent); there is no pawn/Job involved -- see
 // NativeGrowerCrop.cs and bridge/grower_crop.go.
 type GrowerCrop struct {
 	thing string

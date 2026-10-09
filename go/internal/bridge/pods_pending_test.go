@@ -11,7 +11,7 @@ import (
 )
 
 // A drop-pod arrival whose pods are still closed at the frame's tick
-// (#908) reaches every emergency census the frame decodes to, the combat
+// reaches every emergency census the frame decodes to, the combat
 // read's, the routine frame's and the clock step's, as PodsOpen; an
 // opened arrival and other events do not.
 func TestPendingPodsReachEveryEmergencyCensus(t *testing.T) {

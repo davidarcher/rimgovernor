@@ -40,7 +40,7 @@ type MealTierRequest struct {
 
 type MealRecipeChoice struct {
 	Bench, Recipe string
-	// Bulk is whether the recipe is a bulk sibling (#1721).
+	// Bulk is whether the recipe is a bulk sibling.
 	Bulk                                       bool
 	Mood, NutrientEfficiency, WorkPerNutrition float64
 }
@@ -335,7 +335,7 @@ func selectMealBill(benches domain.Fact[[]ProductionBench], colonists domain.Fac
 		}
 	}
 	// A standing bill of a chosen recipe that already does the work ends the
-	// review; a suspended or undersized one is replaced (#461). Whoever wrote
+	// review; a suspended or undersized one is replaced. Whoever wrote
 	// the bill, Auto plans the tier fresh: an older-tier meal bill on any
 	// cooking bench is retired by the same replacement, ownership or not.
 	count, ck := colonists.Value()

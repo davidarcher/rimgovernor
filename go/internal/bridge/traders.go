@@ -52,7 +52,7 @@ const tradersMaximumRows = 4096
 // reply whose completeness reports filtered or unreadable rows is refused: a
 // partial trader census is not a usable basis for deciding not to trade.
 // tradersRequest is the trader census read, shared with the bundle's
-// traders family (#593).
+// traders family.
 func tradersRequest(identity *c.Identity) *o.TradersRequest {
 	return &o.TradersRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
 }

@@ -7,7 +7,7 @@ import (
 )
 
 // PolicyPruneAction deletes outfit, drug, food or reading policies, or
-// allowed areas, that no bot planner assigned (#1298): a PolicyPruneIntent
+// allowed areas, that no bot planner assigned: a PolicyPruneIntent
 // on Actions/Apply. Native first moves every player pawn still holding one
 // onto its own per-pawn policy (or unrestricted), then deletes it; an id
 // already gone applies again.

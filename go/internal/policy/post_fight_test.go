@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A luciferium addict is never captured (#1079), and no downed raider is
+// A luciferium addict is never captured, and no downed raider is
 // captured before it is stripped.
 func TestCaptureWorthKeeping(t *testing.T) {
 	addict := downedRaider("1", true)

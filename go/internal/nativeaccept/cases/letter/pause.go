@@ -1,10 +1,10 @@
-// The letter/pause case proves AdvanceGame's letter handling (issue #92):
+// The letter/pause case proves AdvanceGame's letter handling:
 // an informational letter that pauses the clock is acknowledged, dismissed
 // through test/dismiss_letter and the window completes; an informational
 // letter that does not pause under the profile's AutomaticPauseMode leaves
 // the window untouched; an unexpected threat letter still interrupts, and a
 // strict window (WithExpectedLetters()) interrupts on an informational one.
-// It also checks rimgovernor/presentation_notifications (#79) while a
+// It also checks rimgovernor/presentation_notifications while a
 // letter is up.
 package letter
 
@@ -74,7 +74,7 @@ func notificationsMatch(ctx context.Context, h *na.Harness, identity map[string]
 		return nil, fmt.Errorf("typed alerts lack a snapshot fingerprint: %#v", alerts)
 	}
 	// A fresh debug colony always has at least "Need colonist beds"; an empty
-	// list here means the headless alert readout stopped running (#94).
+	// list here means the headless alert readout stopped running.
 	if len(na.AsSlice(alerts["alerts"])) == 0 {
 		return nil, fmt.Errorf("typed alerts are empty on a fresh colony: the headless AlertsReadout is not updating")
 	}
@@ -280,7 +280,7 @@ func run(ctx context.Context, s cases.Session) error {
 	} else if !stacked {
 		return fmt.Errorf("strict window dismissed letter %s", strictID)
 	}
-	// 5. The typed notifications read (#79) lists the letter under test
+	// 5. The typed notifications read lists the letter under test
 	// and answers every section; an explicit include_letters:false omits only
 	// the letter section.
 	typed, err := notificationsMatch(ctx, h, identity, strictID)

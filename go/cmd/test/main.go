@@ -1,7 +1,7 @@
 // Command test runs the Go checks a change owes: gofmt on the changed files,
 // go vet and staticcheck on the module, then go test -short ./... (Go's test
 // cache replays unchanged packages), plus the native contract probes build
-// when its inputs changed (#334).
+// when its inputs changed.
 //
 //	go run ./cmd/test [-base main] [-full]
 //

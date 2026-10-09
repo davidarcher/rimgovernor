@@ -11,7 +11,7 @@ import (
 
 // NewRoundsLightingPlanner composes MaintainLighting's building method:
 // light the roofed work cells native measures dark by placing an affordable
-// lamp beside them (issue #6 slice 3). Completion is the next measured
+// lamp beside them. Completion is the next measured
 // census, not the build receipt: the review releases a bench only once its
 // interaction cell reads lit.
 func NewRoundsLightingPlanner(reviewer *Rounder, native RoundsBuildingSource) (*RoundsBuildingPlanner, error) {

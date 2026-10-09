@@ -17,10 +17,10 @@ const (
 	affordanceBridgeable = "Bridgeable"
 )
 
-// SurveyFromCells is the whole-map survey the layout plan is derived from
-// (#727), read off the cell mirror's planning window (#2272): terrain and
+// SurveyFromCells is the whole-map survey the layout plan is derived from,
+// read off the cell mirror's planning window: terrain and
 // foundation affordances from the columns, ore and trees from the thing list
-// and the catalog's defs, roofs from the catalog's roof rules (#1890). A
+// and the catalog's defs, roofs from the catalog's roof rules. A
 // fogged cell is not held; it reads as solid rock to mine out, since the fog
 // hides mountain far more often than a cavern, and the excavation steps
 // check the cell once it is seen.
@@ -69,7 +69,7 @@ func unseenRock(held []policy.SurveyCell, bounds policy.Bounds) []policy.SurveyC
 	return out
 }
 
-// surveyCell decodes one held cell. A thick roof is the roof rules' (#1890);
+// surveyCell decodes one held cell. A thick roof is the roof rules';
 // a roof def they lack is an error wrapping policy.ErrUnknownRoof.
 func surveyCell(cell policy.SiteCell, roofs policy.RoofRules, catalog *DefinitionCatalog) (policy.SurveyCell, error) {
 	affordances := strings.Split(value(cell.FoundationAffordances), ",")
@@ -118,7 +118,7 @@ func surveyCell(cell policy.SiteCell, roofs policy.RoofRules, catalog *Definitio
 		Ore:        ore,
 		Tree:       tree,
 		// Occupied off rock, player edifice and clearable ruin is a
-		// standing prop (#1533).
+		// standing prop.
 		Prop: cell.Occupied() && !rock && edifice == "" && !ruin,
 		Ruin: ruin,
 	}, nil

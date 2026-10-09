@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Replay is a fake game session that serves a recorded transcript (#282):
+// Replay is a fake game session that serves a recorded transcript:
 // its catalog is the transcript's session row and every call answers with
 // the next recorded receipt, provided the call is the one recorded. A call the recording never saw, or one
 // past its end, is a ReplayMismatch: the reply is an error, the mismatch

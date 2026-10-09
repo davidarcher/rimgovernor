@@ -6,8 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// ManageCreepJoiners keeps a creepjoiner unarmed until its downside shows
-// (#1740, epic #1694): the colonist drops the weapon it holds with the game's
+// ManageCreepJoiners keeps a creepjoiner unarmed until its downside shows:
+// the colonist drops the weapon it holds with the game's
 // own drop job (domain.DropEquipment), and the equipment planner arms it only
 // once the downside is revealed (EquipCandidatePawn.NoArms). A creepjoiner's
 // downside is hidden at arrival, so an armed one is a risk until it shows.
@@ -56,7 +56,7 @@ func (d CreepJoinerDownsides) Revealed(p CreepJoinerPawn) domain.Fact[bool] {
 // Unrevealed is whether the pawn is a creepjoiner whose downside has not shown
 // (or cannot be read to have shown). A pawn that is no creepjoiner, or whose
 // creepjoiner status is unread, is not: the gear census flags only a known
-// creepjoiner (GearRoleInput.UnrevealedCreepjoiner, #1962).
+// creepjoiner (GearRoleInput.UnrevealedCreepjoiner).
 func (d CreepJoinerDownsides) Unrevealed(p CreepJoinerPawn) bool {
 	if joiner, known := p.CreepJoiner.Value(); !known || joiner == nil {
 		return false

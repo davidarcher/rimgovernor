@@ -23,9 +23,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// maxReplyProtoBytes bounds one gunzipped reply, live or recorded (a
-// decompression-bomb guard under the 50 MiB GABP frame); #320 removed every
-// smaller payload budget.
+// maxReplyProtoBytes bounds decompressed replies below the 50 MiB GABP frame.
 const maxReplyProtoBytes = 48 << 20
 
 var ErrUnavailable = errors.New("native observation unavailable")
@@ -321,7 +319,7 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	ctx = withRecordedReply(ctx, reply)
 	invoked := false
 	// The call's native_call row waits here for the reply decode below, so a
-	// typed call is still one row (#2057).
+	// typed call is still one row.
 	ctx, parked := withDeferredCall(ctx)
 	var decodeExtra map[string]any
 	defer func() { parked.flush(decodeExtra) }()
@@ -336,9 +334,9 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		// The trace the call runs under (the caller's step or dispatch,
 		// else the operation's own) rides beside the request; the
 		// companion echoes it in its timing object, so its main-thread
-		// phases join the same trace as the bridge's own (#298). The
+		// phases join the same trace as the bridge's own. The
 		// admission class rides with it so the companion services queued
-		// control hops first within a frame (#631).
+		// control hops first within a frame.
 		args := encode(struct {
 			Request  string `json:"request"`
 			Trace    string `json:"trace,omitempty"`
@@ -481,15 +479,15 @@ func validID(value string) error {
 	return nil
 }
 
-// Reference is anything a table row is looked up by: a Ref (#1342).
+// Reference is anything a table row is looked up by: a Ref.
 type Reference interface{ GetId() string }
 
-// validRef reports a reference with a valid id and nothing else (#1342).
+// validRef reports a reference with a valid id and nothing else.
 func validRef(ref *c.Ref) bool {
 	return ref != nil && validID(ref.GetId()) == nil && len(ref.ProtoReflect().GetUnknown()) == 0
 }
 
-// refSnapshot reports snapshot as ref's CAS token read under ctx (#1342).
+// refSnapshot reports snapshot as ref's CAS token read under ctx.
 func refSnapshot(snapshot *o.SnapshotRef, ref *c.Ref, ctx *c.ObservationContext) bool {
 	return snapshot != nil && ref != nil && snapshot.GetEntityId() == ref.GetId() && validID(snapshot.GetToken()) == nil && proto.Equal(snapshot.Context, ctx)
 }

@@ -7,7 +7,7 @@ import (
 )
 
 // TestRoundsArmoryPlannerAssessesWithoutActions: after a review the armory
-// skeleton reads the colony, selects a tier and admits no plan (#1201).
+// skeleton reads the colony, selects a tier and admits no plan.
 func TestRoundsArmoryPlannerAssessesWithoutActions(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

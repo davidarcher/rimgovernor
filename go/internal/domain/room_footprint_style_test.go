@@ -4,7 +4,7 @@ import "testing"
 
 // A styled rectangle: the four corners and the two cells beside the door
 // take the accent stuff, every other wall cell the run stuff, and the door
-// its own stuff (#610).
+// its own stuff.
 func TestStyledPlacementsAccentsCornersAndDoorFrame(t *testing.T) {
 	bounds := RoomBounds{X: 10, Z: 10, Width: 5, Height: 4}
 	f, err := RectangleFootprint(bounds, South)

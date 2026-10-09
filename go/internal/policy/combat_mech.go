@@ -19,7 +19,7 @@ func mechRaid(view CombatView) bool {
 }
 
 // markMechs is the view's positional facts with each mechanoid marked,
-// so a mech raid's assault lord gets the hold (#922).
+// so a mech raid's assault lord gets the hold.
 func markMechs(view CombatView) []DefensiveThreatFacts {
 	mech := mechKinds(view)
 	out := slices.Clone(view.Positional)
@@ -30,7 +30,7 @@ func markMechs(view CombatView) []DefensiveThreatFacts {
 }
 
 // markSquadMechs is the view's squad threats with each mechanoid marked,
-// so a mech raid without a hold still forms a squad (#970).
+// so a mech raid without a hold still forms a squad.
 func markSquadMechs(view CombatView) []SquadThreatFacts {
 	mech := mechKinds(view)
 	out := slices.Clone(view.Threats)

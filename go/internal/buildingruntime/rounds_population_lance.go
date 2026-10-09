@@ -37,8 +37,8 @@ func lanceUsers(rows []*n.PawnState, things bridge.Things) []policy.LanceUser {
 	return out
 }
 
-// stepLance proposes one UseItem of a worn psychic shock lance on target
-// (#1038), read from the same emergency colonist pool and combat pawn read
+// stepLance proposes one UseItem of a worn psychic shock lance on target,
+// read from the same emergency colonist pool and combat pawn read
 // the capture path uses. ok is false when no colonist can use one now, so
 // the step goes on to capture and rescue.
 func (r *RoundsPopulationCustodyPlanner) stepLance(call, epoch context.Context, p *Player, state ControlState, started time.Time, goal store.StandardState, reviewTick domain.Tick, target domain.PawnID, arbiter *stepArbiter) (RoundsPopulationCustodyResult, bool, error) {

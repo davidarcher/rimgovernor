@@ -7,10 +7,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Recorded from acceptance run shelter/excavation-round at 4528e874f
-// (#745), every routine family on: the colony's first review (tick 15) and
+// Recorded from acceptance run shelter/excavation-round at 4528e874f,
+// every routine family on: the colony's first review (tick 15) and
 // the first after its shelter recovered (tick 159570). They replace the
-// startup/composed-* cases' planner decision (#655): shelter does not hold
+// startup/composed-* cases' planner decision: shelter does not hold
 // the colony alone. While the initial shelter is owed, the wood it is
 // built from and the upkeep families open beside it, and once it recovers
 // the upkeep goals stay open without it.
@@ -68,7 +68,7 @@ func TestReplayUpkeepOutlivesTheRecoveredShelter(t *testing.T) {
 	}
 }
 
-// A wood shortage does not retire the owed shelter (#758): with the
+// A wood shortage does not retire the owed shelter: with the
 // recorded review's wood census emptied, the initial shelter stays open
 // and MaintainResource opens beside it to chop the wood back, so the
 // adopted shell holds (TestRoundsShelterHoldsThroughWoodShortage) rather

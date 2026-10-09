@@ -10,7 +10,7 @@ import (
 
 // ErrAnimalExposure marks an exposure view that could not be answered: a
 // race with no comfort range, an unread condition census or an unread outdoor
-// temperature. The wrapped text names what is missing (#1868, epic #1646).
+// temperature. The wrapped text names what is missing.
 var ErrAnimalExposure = errors.New("animal exposure")
 
 // ExposureCause is why a race is in danger now.

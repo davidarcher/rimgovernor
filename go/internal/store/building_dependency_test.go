@@ -38,7 +38,7 @@ func reviewCensus(t *testing.T, s *Store, current domain.GenerationSnapshot, tic
 }
 
 // An accepted building intent completes at its blueprint; its dependent
-// waits until the census reports the building built (#937).
+// waits until the census reports the building built.
 func TestBuildingDependencyWaitsForCensusBuilt(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -112,7 +112,7 @@ func reviewWalls(t *testing.T, s *Store, tick domain.Tick, walls ...domain.Cell)
 }
 
 // An applied wall removal is only designated; the replacement wall on the
-// same cell waits until the census shows no wall left there (#989).
+// same cell waits until the census shows no wall left there.
 func TestWallReplacementWaitsForCensusRemoval(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -169,7 +169,7 @@ func TestWallReplacementWaitsForCensusRemoval(t *testing.T) {
 }
 
 // A removal whose wall still stands a stall bound after dispatch is given
-// up with its replacement, so the goal can re-plan (#1001).
+// up with its replacement, so the goal can re-plan.
 func TestStuckWallRemovalWithdrawsReplacement(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

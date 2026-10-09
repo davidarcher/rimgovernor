@@ -15,7 +15,7 @@ import (
 
 // The Royalty colony section projects the neuroformer stock, ceremonies and
 // thrones; WithRoyaltyColony joins them to the royalty read, and a section
-// that is absent or unavailable leaves the royalty fact unknown (#1877).
+// that is absent or unavailable leaves the royalty fact unknown.
 func TestRoyaltyColonyProjection(t *testing.T) {
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 	if err != nil {

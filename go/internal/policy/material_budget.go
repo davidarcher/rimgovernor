@@ -44,7 +44,7 @@ func MaterialHolds(deficit domain.Fact[map[Resource]int64], reservations domain.
 	return out
 }
 
-// MaterialBudget is free stock per definition (#1354): the reachable,
+// MaterialBudget is free stock per definition: the reachable,
 // unforbidden item census less MaterialHolds. A held definition absent
 // from the census goes negative: it is owed more than exists. Unknown
 // while the stock census is.

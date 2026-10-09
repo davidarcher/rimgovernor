@@ -89,7 +89,7 @@ namespace HomeBridge.BridgeTools
                     }
                     // The bedless pair sleep on claimed spots: indoor capacity meets
                     // the initial shelter, which otherwise sites SleepingSpots in both
-                    // chambers first on a bare map (#763), while a spot still owes a Bed.
+                    // chambers first on a bare map, while a spot still owes a Bed.
                     if (connectedRooms)
                         foreach (var (pawn, index) in people.Take(2).Select((pawn, index) => (pawn, index))) {
                             var spot = (Building_Bed)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("SleepingSpot"));
@@ -97,7 +97,7 @@ namespace HomeBridge.BridgeTools
                             GenSpawn.Spawn(spot, slots[owned.Count + index], map, Rot4.North);
                             if (!pawn.ownership.ClaimBedIfNonMedical(spot) || pawn.ownership.OwnedBed != spot) throw new InvalidOperationException("Colonist could not claim a fixture sleeping spot.");
                         }
-                    // Couple (#812): the first two colonists are lovers with no
+                    // Couple: the first two colonists are lovers with no
                     // bed; one vacant 2x2 double bed stands in the top-left
                     // corner (columns 1-2, rows 6-7). Only the controller's
                     // AssignBed may put both in it.
@@ -134,7 +134,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Two 1x3 bed chambers have only one legal Bed footprint each (the
-        // cell beside the door is a doorway aisle, #763). The
+        // cell beside the door is a doorway aisle). The
         // roofed corridor joins them through doors, independently of the
         // existing dormitory. No controller-owned facility is fixture-spawned.
         private static void PrepareHomeRooms(Map map, IntVec3 origin, CellRect dormitory)
@@ -157,7 +157,7 @@ namespace HomeBridge.BridgeTools
                     GenSpawn.Spawn(wall, c, map);
                     // Like the dormitory ring, standing walls are already Home: every
                     // colonist building is a coverage target, so only the chambers
-                    // and corridor are left for the controller (#763).
+                    // and corridor are left for the controller.
                     map.areaManager.Home[c] = true;
                 }
                 map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
@@ -167,14 +167,14 @@ namespace HomeBridge.BridgeTools
                 if (c.GetRoom(map) is Room room && !room.TouchesMapEdge) room.Temperature = 21f;
         }
 
-        // Greedy bedroom (#814): the fixture pawn turns Greedy and owns a
+        // Greedy bedroom: the fixture pawn turns Greedy and owns a
         // wooden bed in a bare 5x4 room east of the dormitory (door south),
         // with the end table, dresser and lamp research done and wood and
         // steel beside it. Only the controller's upgrades raise the room.
         private static string PrepareGreedyBedroom(Map map, IntVec3 origin, Pawn pawn) =>
             PrepareBedroom(map, origin, pawn, TraitDefOf.Greedy, 0, true).GetUniqueLoadID();
 
-        // Jealous and ascetic (#839): the fixture pawn turns Jealous and owns
+        // Jealous and ascetic: the fixture pawn turns Jealous and owns
         // the bare greedy-bedroom site; the second colonist turns Ascetic and
         // owns the 5x4 room above it (shared wall, door north) with a wooden
         // end table already standing, so the ascetic room starts the more

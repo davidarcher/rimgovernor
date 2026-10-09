@@ -28,7 +28,7 @@ type RoundsRescueResult struct {
 	Plan domain.PlanID
 	// NativeWorkTicks is a bounded window the step may lend when the
 	// CriticalMedical deficit stands but no rescue method can run
-	// (medicalWaitTicks, #636).
+	// (medicalWaitTicks).
 	NativeWorkTicks uint32
 }
 
@@ -113,7 +113,7 @@ func (r *RoundsRescuePlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	if !ok {
 		// No pair to order: only game time frees a rescuer or resolves
-		// the casualty, so the step lends a window (#636).
+		// the casualty, so the step lends a window.
 		return RoundsRescueResult{Verdict: waitFor(WaitMethodUsed, "rescue_pairing"), NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	rescue, err := domain.NewRescue(rescuer, patient)
@@ -127,7 +127,7 @@ func (r *RoundsRescuePlanner) step(call, epoch context.Context, arbiter *stepArb
 	attempt := incidentAttemptCount(incident.Methods, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		// The attempts are spent and the deficit stays visible; the
-		// clock must still advance under it (#636).
+		// clock must still advance under it.
 		return RoundsRescueResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))

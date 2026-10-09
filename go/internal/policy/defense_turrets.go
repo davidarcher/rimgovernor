@@ -21,14 +21,14 @@ type DefenseTurretRequest struct {
 	Stock                      domain.Fact[map[Resource]int64]
 	// Max bounds the turrets placed; zero or negative places none.
 	Max int
-	// Size is the definition's North footprint (#1210); zero is 1x1.
+	// Size is the definition's North footprint; zero is 1x1.
 	Size Bounds
 }
 
-// The turret ladder (#1210): the rung is the armory tier (AssessArmory),
+// The turret ladder: the rung is the armory tier (AssessArmory),
 // Machining allowing the autocannon and Fabrication the uranium slug
 // turret. Each rung's own research and content still gate it through its
-// planning definition's availability. The foam turret is not a rung (#1228).
+// planning definition's availability. The foam turret is not a rung.
 const (
 	TurretMini       = "Turret_MiniTurret"
 	TurretAutocannon = "Turret_Autocannon"
@@ -106,7 +106,7 @@ type DefenseGeometry struct {
 	Lanes    []domain.Cell
 	Reserved []domain.Cell
 	// Turrets are the turret tier's cells; the mortar tier keeps off and
-	// clear of them (#1206).
+	// clear of them.
 	Turrets []domain.Cell `json:",omitempty"`
 	// Walls are the funnel tier's walls and doorway: no turret stands on
 	// one, but a conduit may run beneath it out of the walled kill zone.
@@ -220,7 +220,7 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 	var chosen [][]domain.Cell
 	// Every occupied cell must be free and off the lanes and reservations,
 	// and the footprint keeps turret spacing edge to edge from the shooters
-	// and every other turret (#1210).
+	// and every other turret.
 	clear := func(c domain.Cell) bool {
 		fp := TurretFootprint(c, q.Size)
 		for _, x := range fp {
@@ -241,7 +241,7 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 	// Slots flank the firing span, kept turretSpacing apart by clear, on
 	// the shooters' row and the row behind it: a mini turret takes the
 	// front row first, a heavier rung (the autocannon's minimum range) the
-	// back row (#1544).
+	// back row.
 	// A row's slots end at the kill zone's side wall.
 	rows := []domain.Cell{origin, addCell(origin, d)}
 	if TurretRank(q.Definition) > 0 {
@@ -469,7 +469,7 @@ type StandingTurret struct {
 }
 
 // TurretReplacement picks the one standing turret to replace in place with
-// the request's higher rung (#1210): the first below the rung whose new
+// the request's higher rung: the first below the rung whose new
 // footprint, anchored on the same cell, covers only its own cells or free
 // ground off the lanes and reservations, keeps turret spacing from the
 // shooters and every other turret, and whose gates (availability, spare

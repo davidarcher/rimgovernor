@@ -24,7 +24,7 @@ func emergencyRow(id string) *o.PawnState {
 	return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}, Dead: proto.Bool(false), Downed: proto.Bool(false), InBed: proto.Bool(true), Health: &o.PawnHealth{Bleeding: proto.Bool(false), NeedsTend: proto.Bool(false)}}
 }
 
-// emergencyRef is a census reference into the pawn table (#1343).
+// emergencyRef is a census reference into the pawn table.
 func emergencyRef(id string) *c.Ref { return &c.Ref{Id: proto.String(id)} }
 
 // emergencyThreat is a faction-hostile threat fact row referencing id.
@@ -123,7 +123,7 @@ func TestEmergencyPartialMedicalAndCategories(t *testing.T) {
 }
 
 // A census reference the pawn table lacks is a known member with unknown
-// facts until a later frame (#1343).
+// facts until a later frame.
 func TestEmergencyUnresolvedReferenceIsUnknown(t *testing.T) {
 	v := emergencyFixture()
 	v.Colonists = []*c.Ref{emergencyRef("gone")}
@@ -207,7 +207,7 @@ func TestEmergencyUnavailableAndRefusal(t *testing.T) {
 
 // A threat's race comes from its pawn table row and its nearest-colonist
 // distance from the threat row, so a distant animal can be watched rather
-// than held; a pawn without them stays unknown, which the policy holds (#66).
+// than held; a pawn without them stays unknown, which the policy holds.
 func TestEmergencyThreatCarriesRaceAndDistance(t *testing.T) {
 	v := emergencyFixture()
 	far := emergencyRow("far")

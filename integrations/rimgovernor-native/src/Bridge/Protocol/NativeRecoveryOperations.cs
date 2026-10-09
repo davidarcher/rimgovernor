@@ -14,7 +14,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent jobs FixBrokenDownBuilding and Refuel (#940, #1351):
+    // GiveJobIntent jobs FixBrokenDownBuilding and Refuel:
     // order one undrafted colonist to fix a breakdown on or refuel one colony
     // building with the job the
     // game's own WorkGiver builds (the one a player's prioritize click
@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
         // the controller's own refuel threshold (policy.RecoveryWork orders a
         // refuel below 25%, the defensive layout's rearm on an empty barrel).
         // One refuel job carries at most a pawn's load (75 steel fills a mini
-        // turret barrel to 56 of 60, #205), so a full-barrel criterion would
+        // turret barrel to 56 of 60), so a full-barrel criterion would
         // read a successful order as interrupted and never re-issue it.
         internal const float RefuelSatisfiedFraction = 0.25f;
 
@@ -54,7 +54,7 @@ namespace HomeBridge.BridgeTools
 
         // The giver is matched by class assignability: Core rearms a turret
         // barrel through WorkGiver_Refuel_Turret, a WorkGiver_Refuel subclass
-        // on the RearmTurrets def, while the base class skips turrets (#205).
+        // on the RearmTurrets def, while the base class skips turrets.
         private static Type? WorkGiverType(JobOrderKind method) => method switch
         {
             JobOrderKind.FixBreakdown => typeof(WorkGiver_FixBrokenDownBuilding),

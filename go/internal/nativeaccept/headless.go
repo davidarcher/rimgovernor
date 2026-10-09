@@ -121,7 +121,7 @@ func ExpansionPackage(name string) (string, error) {
 }
 
 // ExpansionsFromEnv parses ExpansionsEnv; unset or empty returns nil, which the profile preparers
-// read as every installed expansion (#1258).
+// read as every installed expansion.
 func ExpansionsFromEnv() ([]string, error) {
 	raw := strings.TrimSpace(os.Getenv(ExpansionsEnv))
 	if raw == "" {
@@ -156,7 +156,7 @@ func expansionRank(id string) int {
 // only the requested expansions, and exactly brrainz.harmony and
 // NativePackage, removing every other official
 // expansion plus legacy or duplicate entries first. The profile
-// preparers pass every installed expansion when a run names none (#1258).
+// preparers pass every installed expansion when a run names none.
 //
 // knownExpansions is extended with installed (the official expansions the
 // game copy ships, InstalledExpansions) and the requested ones. RimWorld
@@ -164,7 +164,7 @@ func expansionRank(id string) int {
 // knownExpansions is its record of which it has -- and rewrites
 // ModsConfig.xml with them, so a profile whose list leaves one out runs
 // every DLC the game owns whatever activeMods says, and a kept process's
-// launch snapshot no longer matches the file (#332).
+// launch snapshot no longer matches the file.
 func PrepareNativeModConfig(modsConfigXMLPath string, installed []string, expansions ...string) error {
 	data, err := os.ReadFile(modsConfigXMLPath)
 	if err != nil {
@@ -202,7 +202,7 @@ func PrepareNativeModConfig(modsConfigXMLPath string, installed []string, expans
 	// expansion's defs inherit from an earlier one's abstract parents
 	// (Odyssey's VacskinGland from Royalty's BodyPartBionicImperialBase),
 	// and loaded out of order the child keeps a null thingClass and every
-	// new Game() NREs in ReadingPolicyDatabase (#1264).
+	// new Game() NREs in ReadingPolicyDatabase.
 	sort.SliceStable(wanted, func(i, j int) bool { return expansionRank(wanted[i]) < expansionRank(wanted[j]) })
 	item := func(id string) xmlItem {
 		return xmlItem{elem: &xmlElem{name: xml.Name{Local: "li"}, kids: []xmlItem{{text: id}}}}
@@ -353,7 +353,7 @@ func SaveDataFolder(configDir string) (string, error) {
 // LaunchedModsFile is the snapshot of the profile's ModsConfig.xml taken
 // right before a fresh games_start, in the save-data folder. ModsConfig.xml only applies at launch and every Prepare
 // rewrites it, so this copy is the one record of which mods a kept process
-// is actually running with (#166).
+// is actually running with.
 const LaunchedModsFile = "RimGovernorLaunchedMods.xml"
 
 // RecordLaunchedMods snapshots the profile's ModsConfig.xml to
@@ -394,7 +394,7 @@ func ActiveMods(path string) ([]string, error) {
 // LaunchedPackageFile is the snapshot of the installed package's file
 // hashes (PackageFiles) taken right before a fresh games_start, beside
 // LaunchedModsFile. The process runs the DLLs it loaded at launch, so this
-// is the record of which native build a kept process serves (#209).
+// is the record of which native build a kept process serves.
 const LaunchedPackageFile = "RimGovernorLaunchedPackage.json"
 
 // RecordLaunchedPackage snapshots the installed package's hashes to
@@ -440,9 +440,9 @@ func launchedPackageFiles(configDir string) (map[string]string, error) {
 // returns "" when both match, so the process can be reused, or a short
 // reason to relaunch: "expansions" when the mod lists differ (a Core-only
 // process cannot load a save recorded with DLC and fails save.missing_mods
-// at once, #166), "package" when the installed package's hashes changed
+// at once), "package" when the installed package's hashes changed
 // (a rebuilt mod installed under a kept process still serves the old
-// DLL's tool catalog, #209) and "unrecorded" when either snapshot is
+// DLL's tool catalog) and "unrecorded" when either snapshot is
 // missing (a process an older binary or a hand launch started). The mod
 // comparison is on the whole load order, since that is what the process
 // is bound to.

@@ -25,14 +25,14 @@ const (
 	woodRecoveredDeficit = float64(woodTarget-woodMin) / float64(woodTarget)
 )
 
-// recovery is campaign/recovery (#633): after half a day of settled play
+// recovery is campaign/recovery: after half a day of settled play
 // the harness takes every wood log on the map (the wood-floor breach) and
 // resumes; the colony must acknowledge the breach (MaintainResource binds) and
 // restock to the policy floor on its own. A staged raid follows
 // (test/defense_setup, an edge walk-in at the storyteller's floor points,
-// #347's sapper-capable group maker); after a day of play the colony must
+// the sapper-capable group maker); after a day of play the colony must
 // have no live hostile standing, every initial colonist alive, shelter and
-// food intact, and goal progress still advancing (#629). Each fixture op is
+// food intact, and goal progress still advancing. Each fixture op is
 // an injection, not assistance: the harness never touches the colony's own
 // work.
 func recovery() cases.Case {

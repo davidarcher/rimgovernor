@@ -15,10 +15,10 @@ import (
 )
 
 // staleBills counts, per bill on a bench, the consecutive reviews its owner
-// stayed Met (#2411): derived state the Rounder keeps in memory beside
+// stayed Met: derived state the Rounder keeps in memory beside
 // billAges, so a restart restarts every count and removal is merely delayed.
 //
-// A bill an owner no longer wants is counted apart (#2433): the planner that
+// A bill an owner no longer wants is counted apart: the planner that
 // built the owner's demand notes, once per review, which of the owner's bills
 // that demand does not name, whatever the owner's finding.
 type staleBills struct {
@@ -198,7 +198,7 @@ func (r *Rounder) staleBillCandidates(ctx context.Context, snapshot domain.Gener
 }
 
 // removeUnwantedBill is removeStaleBill after the planner that built concern's
-// demand notes which of its bills the demand names (#2433): a bill outside it
+// demand notes which of its bills the demand names: a bill outside it
 // for StaleBillReviews reviews goes whatever the owner's finding.
 func (r *Rounder) removeUnwantedBill(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, owner store.WorkOwner, concern policy.ConcernID, judge func(policy.StaleBill) (judged, wanted bool)) (domain.PlanID, error) {
 	r.staleBills.noteWanted(review.Revision, concern, judge)

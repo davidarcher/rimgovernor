@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The barn plan carries the climate slot (#1867): one heater on the free
+// The barn plan carries the climate slot: one heater on the free
 // floor, never counted as a bed, with every bed left a free neighbour.
 func TestBarnPlanIncludesTheClimateHeater(t *testing.T) {
 	plan := herdTestPlan(t, 20)
@@ -84,7 +84,7 @@ func TestHerdStepWantsTheBarnHeaterInItsSlot(t *testing.T) {
 	}
 }
 
-// A barn holding a powered heater is a conditioned room (#1867); an unpowered
+// A barn holding a powered heater is a conditioned room; an unpowered
 // one, another room's heater, or no heater in the catalog is not.
 func TestTemperaturePlannerTreatsAPoweredHeaterRoomAsConditioned(t *testing.T) {
 	room := Room{ID: "barn", Cells: []domain.Cell{{X: 1, Z: 1}, {X: 2, Z: 1}}}

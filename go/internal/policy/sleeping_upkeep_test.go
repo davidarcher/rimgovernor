@@ -94,8 +94,8 @@ func TestSleepingUpgradeOwnershipAndUnknownCensus(t *testing.T) {
 	}
 }
 
-// A bedroll or spot is a suitable bed only while Bed is unavailable
-// (#1181); once Bed is buildable its owner is an upgrade target.
+// A bedroll or spot is a suitable bed only while Bed is unavailable;
+// once Bed is buildable its owner is an upgrade target.
 func TestSleepingBedrollSuitableUntilBedBuildable(t *testing.T) {
 	for _, c := range []struct {
 		definition Resource

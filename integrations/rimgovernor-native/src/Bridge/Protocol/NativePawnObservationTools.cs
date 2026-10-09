@@ -25,8 +25,8 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_list_pawns", request!, Obs.ListPawnsRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListPawnsReply { Failure = failure });
-            // Read on the game thread; delta (#773) and format on an encoder
-            // worker (#644), since the delta digests the whole reply.
+            // Read on the game thread; delta and format on an encoder
+            // worker, since the delta digests the whole reply.
             var lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
             if (lease == null) return ProtoBoundary.Encode(new Obs.ListPawnsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted,
                 "Pawn reply encoders stayed saturated for " + ReplyEncoder.ReserveTimeoutMs + " ms; nothing was read.") });
@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
             source = source.Distinct().ToList();
             var colonists = source.Where(p => !p.Dead && p.IsColonist && p.Spawned).ToList();
             // An id filter picks its pawns before any row is built: a frame asks
-            // for the colonists by id, and the map holds every animal too (#858).
+            // for the colonists by id, and the map holds every animal too.
             var wanted = parsed.Filter != null && parsed.Filter.Ids.Count > 0 ? new HashSet<string>(parsed.Filter.Ids, StringComparer.Ordinal) : null;
             var selected = new List<KeyValuePair<Pawn, Obs.PawnState>>();
             foreach (var pawn in source) {
@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        // The bundle's pawn table (#1343): every spawned pawn on the map,
+        // The bundle's pawn table: every spawned pawn on the map,
         // each built by the one row builder with the detail its kind needs;
         // combat names the pawns the defense planner reads combat detail of.
         internal static Obs.PawnSnapshot Table(Map map, Common.ObservationContext context, ISet<string> combat)
@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
         private static readonly Obs.PawnDetails AnimalDetail = new Obs.PawnDetails { Needs = false, Health = false, Equipment = false, Biography = false, Settings = false, Social = false, Animals = true };
         private static readonly Obs.PawnDetails CoreDetail = new Obs.PawnDetails { Needs = false, Health = false, Equipment = false, Biography = false, Settings = false, Social = false, Animals = false };
 
-        // Detail is the one pawn row builder (#1343): the core row with the
+        // Detail is the one pawn row builder: the core row with the
         // requested detail families and the row's snapshot token.
         private static Obs.PawnState Detail(Pawn pawn, List<Pawn> colonists, Obs.PawnState row, Obs.PawnDetails details, double? raidArmor, Common.ObservationContext context)
         {
@@ -120,7 +120,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // A reference to a pawn's table row: every other message names a
-        // pawn this way (#1343).
+        // pawn this way.
         internal static Common.Ref Ref(Pawn pawn) => new Common.Ref { Id = Id(pawn.GetUniqueLoadID()) };
 
         internal static bool Validate(Obs.ListPawnsRequest request, out Common.Failure failure)
@@ -191,7 +191,7 @@ namespace HomeBridge.BridgeTools
             }
             return row;
         }
-        // Faction standing of a humanlike pawn, colonist or not (#2383).
+        // Faction standing of a humanlike pawn, colonist or not.
         private static Obs.PawnStanding Standing(Pawn pawn)
         {
             var standing=new Obs.PawnStanding { QuestLodger=pawn.IsQuestLodger() };

@@ -9,7 +9,7 @@ using Mirror = RimGovernor.Protocol.Mirror;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// One thing on a cell as the grid read holds it (#2261): the mirror's
+    /// One thing on a cell as the grid read holds it: the mirror's
     /// Thing with its strings still strings, so reads compare against the
     /// keyframe's without a string table. Encode turns it into the wire
     /// message. Fractions are held to 1/100 so a growing plant or rotting
@@ -76,7 +76,7 @@ namespace HomeBridge.BridgeTools
     }
 
     /// <summary>
-    /// Reads the things on a map's cells for CellGridEncoder (#2261). One
+    /// Reads the things on a map's cells for CellGridEncoder. One
     /// instance serves one read: it caches the per-thing record (a building
     /// is listed on each cell it covers) and the map-wide sets (designated,
     /// reserved things, ancient-temple triggers) a per-thing query would

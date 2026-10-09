@@ -43,7 +43,7 @@ type TradeSheetRow struct {
 	// Favor marks the favor currency row, which has no ThingDef (empty DefName).
 	Favor bool
 
-	// A pawn row's purchase facts (#1037): the offered pawn's load id,
+	// A pawn row's purchase facts: the offered pawn's load id,
 	// skills with passions, and whether it can do violence. Absent on
 	// every other row, and on a pawn native could not read.
 	PawnID               string
@@ -51,7 +51,7 @@ type TradeSheetRow struct {
 	Skills               []TradeSheetSkill
 	ViolenceCapable      bool
 	ViolenceCapableKnown bool
-	// A prisoner row's sale facts (#1969), read from the game: guest status
+	// A prisoner row's sale facts, read from the game: guest status
 	// (Guest, Prisoner, Slave), AllSellableColonyPawns' secure test, downed,
 	// and the extra home / host faction ids a sale (MemberSold) angers.
 	// Absent on a pawn without a guest tracker or faction.
@@ -63,13 +63,13 @@ type TradeSheetRow struct {
 	ExtraHomeFaction    string
 	ExtraHostFaction    string
 
-	// A non-pawn row's first colony thing and its quality (#1194): a
+	// A non-pawn row's first colony thing and its quality: a
 	// packed sculpture's row matches its packed item by ThingID.
 	ThingID      string
 	Quality      int32
 	QualityKnown bool
 	// HitPoints is the thing's hit-point fraction and ZoneID the stockpile
-	// it lies in (#1831): what a gear sale reads.
+	// it lies in: what a gear sale reads.
 	HitPoints      float64
 	HitPointsKnown bool
 	ZoneID         string

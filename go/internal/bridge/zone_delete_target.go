@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ZoneDeleteTarget refreshes one exact zone's presence (#611) through the zone
+// ZoneDeleteTarget refreshes one exact zone's presence through the zone
 // listing filtered to the one id. Present is false once the zone
 // is gone from the census, which is what a completed deletion looks like.
 type ZoneDeleteTarget struct {

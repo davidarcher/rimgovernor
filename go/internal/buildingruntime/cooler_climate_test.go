@@ -78,7 +78,7 @@ func coolerSearch(t *testing.T, hot bool) (chosen domain.Cell, slots []domain.Ce
 }
 
 // On a hot map the shelter template holds a passive cooler floor slot and the
-// temperature planner's cooler stands on it (#2044).
+// temperature planner's cooler stands on it.
 func TestPassiveCoolerTakesTheShelterSlotOnAHotMap(t *testing.T) {
 	t.Parallel()
 	got, slots := coolerSearch(t, true)

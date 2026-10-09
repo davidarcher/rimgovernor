@@ -36,8 +36,7 @@ func (caller *Client) PreviewBuilding(ctx context.Context, action domain.Action,
 }
 
 // PreviewBuildings evaluates every action in one native call per
-// PlacementBatchLimit placements (a planner sweeping a shell pays one
-// main-thread hop, not one per cell; #599). Previews come back in action
+// PlacementBatchLimit placements (one main-thread hop per batch). Previews come back in action
 // order, each bound to its own action exactly as PreviewBuilding binds one;
 // a failed row fails the whole read. Later chunks of an oversized sweep are
 // separate hops, and each must observe the same native generation.
@@ -46,7 +45,7 @@ func (caller *Client) PreviewBuildings(ctx context.Context, actions []domain.Act
 }
 
 // PreviewBuildingOverRock previews one action as though natural rock on its
-// footprint were already mined (#874): a planned building whose excavation
+// footprint were already mined: a planned building whose excavation
 // the same plan orders first. Dispatch never previews this way; the
 // executor re-previews plainly once the rock is gone.
 func (caller *Client) PreviewBuildingOverRock(ctx context.Context, action domain.Action, snapshot domain.GenerationSnapshot) (BuildingPreview, Result, error) {
@@ -152,10 +151,8 @@ func buildingPreviewRow(action domain.Action, snapshot domain.GenerationSnapshot
 		costs = append(costs, policy.Amount{Resource: policy.Resource(cost.GetDefName()), Count: int64(cost.GetCount())})
 	}
 	out.Preview.Costs = domain.Known(costs)
-	// The footprint is the placement's claim: its occupied cells plus the
-	// interaction cell a worker must stand on, so a rival placement there is
-	// refused instead of blocking the bench for good (a campfire on a
-	// crafting spot's interaction cell held run 16 of #4 M2 forever).
+	// Claim occupied and interaction cells so later placements cannot block
+	// the worker's access to this building.
 	cells := make([]domain.Cell, 0, len(orientation.OccupiedCells)+len(orientation.InteractionCells))
 	seen := map[domain.Cell]bool{}
 	for _, cell := range append(append([]*c.Cell(nil), orientation.OccupiedCells...), orientation.InteractionCells...) {

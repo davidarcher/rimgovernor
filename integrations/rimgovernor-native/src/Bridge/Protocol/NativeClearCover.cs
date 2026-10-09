@@ -11,9 +11,9 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // Raider-cover census (#581): the kind of thing whose fill gives a cell
+    // Raider-cover census: the kind of thing whose fill gives a cell
     // its cover and whether a removal designation already stands on it. The
-    // clearance itself is a Designate on the thing (NativeDesignate, #1350).
+    // clearance itself is a Designate on the thing (NativeDesignate).
     internal static class NativeClearCover
     {
         internal const string Mine = "Mine", CutPlant = "CutPlant", Haul = "Haul", Deconstruct = "Deconstruct";

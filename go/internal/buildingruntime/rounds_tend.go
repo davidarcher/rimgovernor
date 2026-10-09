@@ -26,7 +26,7 @@ type RoundsTendResult struct {
 	Plan domain.PlanID
 	// NativeWorkTicks is a bounded window the step may lend when the
 	// CriticalMedical deficit stands but no tend method can run
-	// (medicalWaitTicks, #636).
+	// (medicalWaitTicks).
 	NativeWorkTicks uint32
 }
 
@@ -112,7 +112,7 @@ func (r *RoundsTendPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	if !ok {
 		// No pair to order: the patient is up and out of bed, or every
 		// doctor is ineligible, busy or walled off from the patients. Only game time changes that, so
-		// the step lends a window rather than reporting no work (#636).
+		// the step lends a window rather than reporting no work.
 		return RoundsTendResult{Verdict: waitFor(WaitMethodUsed, "medical_pair"), NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	tend, err := domain.NewTend(doctor, patient)
@@ -126,7 +126,7 @@ func (r *RoundsTendPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	attempt := incidentAttemptCount(incident.Methods, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		// The attempts are spent and the deficit stays visible; the
-		// clock must still advance under it (#636).
+		// clock must still advance under it.
 		return RoundsTendResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))

@@ -73,7 +73,7 @@ func TestColonyComfortStrictCensusAndAdjacency(t *testing.T) {
 	if err := validateColonyUpkeep(v, size); err != nil {
 		t.Fatal("explicit unavailable comfort rejected", err)
 	}
-	// The lighting section (issue #6 slice 3) rides the same projection.
+	// The lighting section rides the same projection.
 	v = comfortWire()
 	v.Lighting = lightingWire()
 	if err := validateColonyUpkeep(v, size); err != nil {

@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-// The door-hold room (#1155): a granite ring around the lab-manhunter
+// The door-hold room: a granite ring around the lab-manhunter
 // colonist and huskies, one door in its north wall facing the wargs.
 const (
 	doorHoldHalfX = 3

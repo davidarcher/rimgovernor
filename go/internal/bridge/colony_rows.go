@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
-// Colony facts as mirror rows (#795 step 3). A ColonyFactsSnapshot splits
+// Colony facts as mirror rows. A ColonyFactsSnapshot splits
 // into sections of native rows, one section per sub-section:
 //
 //   - "colony.<field>" for each top-level field that holds keyed rows: a
@@ -64,7 +64,7 @@ func (r ColonyRow) Equal(x ColonyRow) bool {
 	return slices.Equal(r.Order, x.Order)
 }
 
-// colonyFallbackKeys are the element fields a list keys on when the #773
+// colonyFallbackKeys are the element fields a list keys on when the default
 // rule (an id, or a singular reference's id) finds none: resources by
 // definition.
 var colonyFallbackKeys = []protoreflect.Name{"def_name"}

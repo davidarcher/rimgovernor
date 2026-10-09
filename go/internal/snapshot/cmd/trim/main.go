@@ -1,7 +1,7 @@
-// Command trim copies one recorded rounds, or a planner step read
-// (#794), into testdata as gzipped compact JSON without its planning cells
+// Command trim copies one recorded rounds, or a planner step read,
+// into testdata as gzipped compact JSON without its planning cells
 // (-keep-cells keeps them for a site-search test). The input is a serve's
-// recorded stream (#756), with -tick naming the review (-seq one of
+// recorded stream, with -tick naming the review (-seq one of
 // several at that tick, default the last) or -step naming a step read
 // (step-<planner>-<goal>-<tick>-<seq>, as -list prints it), or a
 // single-frame recording or per-step file (step-*.json) recorded before
@@ -16,7 +16,7 @@
 // newer recording of that case.
 //
 // -combat <name> promotes one fight of a stream (the first, or -plan's)
-// into the combat replay testdata (#853), trimmed to its stops with the
+// into the combat replay testdata, trimmed to its stops with the
 // combat sections keyed at its first; run it from go/:
 //
 //	go run ./internal/snapshot/cmd/trim -combat <name> [-plan <id>] <routine-stream-*.jsonl>

@@ -12,7 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// Defense is one RoundsDefensePlanner step as recorded (#744): the native
+// Defense is one RoundsDefensePlanner step as recorded: the native
 // replies the step read (the emergency census, the combat pawn rows and,
 // for a hostile building, the lines of fire), the layout record it held
 // the line against, and what it decided. A threat response is not a

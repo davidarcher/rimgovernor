@@ -23,7 +23,7 @@ func healthIssue(issues []*o.ReadIssue, field string) bool {
 }
 
 // CareConditions decodes a health row's conditions and life threat, the
-// inputs of the care planners (#1301). A visible-only or incomplete hediff
+// inputs of the care planners. A visible-only or incomplete hediff
 // list leaves the conditions unknown: it cannot prove a condition absent.
 func CareConditions(h *o.PawnHealth) (domain.Fact[[]policy.CareCondition], domain.Fact[bool]) {
 	unknown := domain.Unknown[[]policy.CareCondition]()

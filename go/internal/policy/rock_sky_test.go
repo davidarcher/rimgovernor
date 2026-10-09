@@ -23,7 +23,7 @@ func thinOpen(x, z int32) SiteCell {
 }
 
 // A needs-sky cell is dug when rock, unroofed when its roof is removable,
-// and unfit when unseen or under thick roof (#1758).
+// and unfit when unseen or under thick roof.
 func TestRockStepNeedsSky(t *testing.T) {
 	cell := func(x, z int32) domain.Cell { return domain.Cell{X: x, Z: z} }
 	sites := []SiteCell{openSite(0, 0), thinRock(1, 0), thinOpen(2, 0), rockSite(3, 0)}
@@ -62,7 +62,7 @@ func TestUtilityGridSkyRock(t *testing.T) {
 }
 
 // A turbine's catch zone is its own 7x16 wind path, inside the pair's lanes;
-// the other turbine's back zone is not in it (#1871).
+// the other turbine's back zone is not in it.
 func TestTurbineCatchZoneIsTheTurbinesOwnWindPath(t *testing.T) {
 	p := PlanUtilities(corePlan(utilityTestZones(), 3, TechTierCamp), UtilityWants{TurbinePairs: 1})
 	sites := PlannedPowerSites(p, WindTurbineDefinition)
@@ -105,7 +105,7 @@ func TestTurbineCatchZoneIsTheTurbinesOwnWindPath(t *testing.T) {
 // natural roof, a thin natural one and a constructed one.
 var testRoofs = RoofRules{"RoofRockThick": {Thick: true}, "RoofRockThin": {}, "RoofConstructed": {}}
 
-// The removable-roof rule reads the roof rows (#1870): thick is unfit, thin
+// The removable-roof rule reads the roof rows: thick is unfit, thin
 // natural and constructed roofs come off, no roof needs nothing, and a def
 // the rules lack fails loudly while the other cells are still classified.
 func TestRockStepRoofRules(t *testing.T) {

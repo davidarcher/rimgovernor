@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent Arrest (#939): the arrester's owned draft (the
+    // GiveJobIntent Arrest: the arrester's owned draft (the
     // plan couples a draft intent ahead of it) takes JobDefOf.Arrest onto the
     // exact prisoner bed. Checked live at apply; an arrester already running
     // the arrest applies again.

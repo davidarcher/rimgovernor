@@ -1,6 +1,6 @@
 // The temperature/building case exercises the SetBuildingTemperature vertical
 // (G01.08) through BuildingPatchIntent's target_temperature arm on
-// Actions/Apply (#940): an existing player-owned building with a native
+// Actions/Apply: an existing player-owned building with a native
 // CompTempControl, an out-of-range refusal, the real write confirmed by an
 // independent building read, and key replay. Uses a private disposable
 // fixture (test/building_temperature_prepare) since a fresh baseline colony

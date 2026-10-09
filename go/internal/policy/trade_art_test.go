@@ -7,8 +7,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The owed room keeps the best packed sculpture; the rest is for sale
-// (#1194), and NextSculpture installs that same best piece.
+// The owed room keeps the best packed sculpture; the rest is for sale,
+// and NextSculpture installs that same best piece.
 func TestSaleSculpturesReserveTheBest(t *testing.T) {
 	obs, rooms, _ := upgradeFixture(t, RoomQuality{Wealth: 3000, Beauty: -1, Space: 25, Impressiveness: 35})
 	targets := map[string]RoomTarget{"Room_1": {Room: "Room_1", Min: ImpressivenessSlightlyImpressive}}
@@ -72,8 +72,8 @@ func TestSelectTradeSellsSurplusArt(t *testing.T) {
 	}
 }
 
-// Unreserved art under known negative headroom is the shed_art need
-// (#1247); positive or unknown headroom, or no unreserved art, is none.
+// Unreserved art under known negative headroom is the shed_art need;
+// positive or unknown headroom, or no unreserved art, is none.
 func TestShedArtNeed(t *testing.T) {
 	base := ReviewTradeNeed(CoreItemFacts(), MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), noRetained)
 	cases := []struct {

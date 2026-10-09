@@ -6,10 +6,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// DutyInterceptor goes out to shoot a digging sapper (#914).
+// DutyInterceptor goes out to shoot a digging sapper.
 const DutyInterceptor CombatDuty = "interceptor"
 
-// Intercept constants (#914).
+// Intercept constants.
 const (
 	// interceptReach is the share of its weapon range an interceptor
 	// stands off the digger.
@@ -18,7 +18,7 @@ const (
 	interceptDefaultRange = 20.0
 )
 
-// sapperIntercept is the sapper tactic's intercept step (#914). Sappers
+// sapperIntercept is the sapper tactic's intercept step. Sappers
 // use no cover while they dig, so while a live humanlike sapper is
 // digging (a Mine job) and our gunners are at least as many as the live
 // hostiles, every gunner goes out: it moves to the cell on the line from

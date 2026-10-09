@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TestDefinitionCatalogValidatesRoomRoles (#1728): a def's game-named
+// TestDefinitionCatalogValidatesRoomRoles: a def's game-named
 // room-role furniture roles are known, unique and sorted.
 func TestDefinitionCatalogValidatesRoomRoles(t *testing.T) {
 	ok := factsReply()

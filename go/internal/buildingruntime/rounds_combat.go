@@ -27,9 +27,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// combatMethodPrefix names the ActiveCombat method that owns a fight
-// (#852): one plan with no actions, its fight row holding the defenders'
-// roster (#939). Its orders are DecideCombat's, sent through
+// combatMethodPrefix names the ActiveCombat method that owns a fight:
+// one plan with no actions, its fight row holding the defenders'
+// roster. Its orders are DecideCombat's, sent through
 // combat_orders at each stop and recorded as the plan's evidence
 // (store.RecordCombatStop).
 const combatMethodPrefix = "combat-"
@@ -46,11 +46,11 @@ type fightAdmission struct {
 	memory policy.CombatMemory
 }
 
-// admitFight commits the fight (#910): its empty plan and open fight row
+// admitFight commits the fight: its empty plan and open fight row
 // rostering every defender the formation gave a role, then one
 // combat_orders batch on this stop that drafts them all and gives the
 // formation's orders. Once the fight closes the undraft sweep undrafts
-// its roster (#939).
+// its roster.
 func (r *RoundsDefensePlanner) admitFight(call, epoch context.Context, incident store.IncidentState, state ControlState, started time.Time, arbiter *stepArbiter, a fightAdmission) (RoundsDefenseResult, error) {
 	p := r.reviewer.player
 	memory := a.memory
@@ -67,7 +67,7 @@ func (r *RoundsDefensePlanner) admitFight(call, epoch context.Context, incident 
 	if !arbiter.tryClaim(pawns) {
 		return RoundsDefenseResult{Verdict: waitFor(WaitMethodUsed, "combat_pawn_claim")}, nil
 	}
-	// The threat loadout (#1115) is the fight plan's own equip and wear
+	// The threat loadout is the fight plan's own equip and wear
 	// actions, committed before the first combat.orders batch; its pawns
 	// draft once their action settles.
 	loadout := r.fightLoadout(call, state, combatView(a.combat, a.in, pawns, a.held), a.in.rows, pawns, a.combat.Catalog)
@@ -112,7 +112,7 @@ func (r *RoundsDefensePlanner) admitFight(call, epoch context.Context, incident 
 	if ask != nil {
 		orders, next = nil, memory
 	}
-	// The admission stop makes no permit call (#1608): its first stop does.
+	// The admission stop makes no permit call: its first stop does.
 	orders, _ = splitPermitCalls(orders)
 	next = withoutPermitMarks(next, memory)
 	if len(drafts)+len(orders) == 0 {
@@ -152,7 +152,7 @@ func (r *RoundsDefensePlanner) clearFightDoors(call context.Context, state Contr
 }
 
 // recordDrafts records a batch's leading draft results on the fight's
-// roster (#939): an applied draft joins it, a refused one leaves it with its
+// roster: an applied draft joins it, a refused one leaves it with its
 // orders forgotten. It returns the remaining (order) results; an uncertain
 // receipt (nil results) leaves the roster alone for the next stop's rows.
 func (r *RoundsDefensePlanner) recordDrafts(call context.Context, plan domain.PlanID, pawns []domain.PawnID, results []bridge.CombatOrderResult, memory policy.CombatMemory) ([]bridge.CombatOrderResult, policy.CombatMemory, error) {
@@ -172,8 +172,8 @@ func (r *RoundsDefensePlanner) recordDrafts(call context.Context, plan domain.Pl
 }
 
 // undraftedRoles are the live role pawns not among the fight's drafted
-// defenders (orderable), sorted: a later formation's evacuee or responder
-// (#911), or a defender undrafted since.
+// defenders (orderable), sorted: a later formation's evacuee or responder,
+// or a defender undrafted since.
 func undraftedRoles(m policy.CombatMemory, orderable []domain.PawnID, view policy.CombatView) []domain.PawnID {
 	down := map[domain.PawnID]bool{}
 	for _, p := range view.Pawns {
@@ -189,7 +189,7 @@ func undraftedRoles(m policy.CombatMemory, orderable []domain.PawnID, view polic
 	return out
 }
 
-// issueCombatOrders sends one stop's batch, drafting drafts (#911) and
+// issueCombatOrders sends one stop's batch, drafting drafts and
 // giving orders, and returns the stop's evidence and the memory without
 // the refused orders, which the next stop gives again.
 func (r *RoundsDefensePlanner) issueCombatOrders(call context.Context, state ControlState, plan domain.PlanID, view policy.CombatView, drafts []domain.PawnID, orders []policy.CombatOrder, memory policy.CombatMemory) (store.CombatStopRecord, policy.CombatMemory, error) {
@@ -208,7 +208,7 @@ func (r *RoundsDefensePlanner) issueCombatOrders(call context.Context, state Con
 
 // combatStopRecord is a stop's evidence from its orders' results and the
 // memory without the refused ones; an attack refused cannot_hit is
-// remembered from the shooter's cell (#912). An uncertain receipt carries
+// remembered from the shooter's cell. An uncertain receipt carries
 // no results: the orders stay issued and the next mirror read shows what
 // took.
 func combatStopRecord(view policy.CombatView, orders []policy.CombatOrder, results []bridge.CombatOrderResult, memory policy.CombatMemory) (store.CombatStopRecord, policy.CombatMemory) {
@@ -247,7 +247,7 @@ func combatStopRecord(view policy.CombatView, orders []policy.CombatOrder, resul
 }
 
 // sendCombatBatch sends one combat.orders batch under action: a draft
-// order for each of drafts (#910), then orders.
+// order for each of drafts, then orders.
 // It returns every order's result in that order (nil for an uncertain
 // receipt) and the orders sent.
 func combatBatchCommands(drafts []domain.PawnID, orders []policy.CombatOrder) []domain.CombatCommand {
@@ -339,8 +339,8 @@ func (r *RoundsDefensePlanner) sendCombatBatch(call context.Context, state Contr
 }
 
 // answerGeometry answers DecideCombat's geometry ask with one
-// combat.geometry read: the ask's named cells scored (#861) and cells
-// proposed for its role (#871). A failed or refused read is an answer with
+// combat.geometry read: the ask's named cells scored and cells
+// proposed for its role. A failed or refused read is an answer with
 // no proposals and no lines: Formation keeps the layout's firing line and
 // attacks go out unchecked.
 func (r *RoundsDefensePlanner) answerGeometry(ctx context.Context, identity *c.Identity, ask *policy.GeometryRequest) policy.GeometryReply {
@@ -349,7 +349,7 @@ func (r *RoundsDefensePlanner) answerGeometry(ctx context.Context, identity *c.I
 		return r.answerRescuePath(ctx, identity, ask)
 	}
 	// Named cells alone are asked with no hostile: their standability
-	// (#897, before drop pods open).
+	// (before drop pods open).
 	if ask == nil || len(ask.Hostiles) == 0 && (ask.Propose != "" || len(ask.Cells) == 0) {
 		return reply
 	}
@@ -368,7 +368,7 @@ func (r *RoundsDefensePlanner) answerGeometry(ctx context.Context, identity *c.I
 	case policy.RoleAdjacentToChoke:
 		propose = &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_AdjacentToChoke{AdjacentToChoke: &mp.CombatAdjacentToChoke{Choke: wire(ask.Choke), OurSide: wire(ask.OurSide)}}}
 	case policy.RoleFiringCells:
-		// A walled-in gunner's firing cells (#967).
+		// A walled-in gunner's firing cells.
 		targets := make([]*c.Cell, 0, len(ask.Targets))
 		for _, cell := range ask.Targets {
 			targets = append(targets, wire(cell))
@@ -382,8 +382,8 @@ func (r *RoundsDefensePlanner) answerGeometry(ctx context.Context, identity *c.I
 	}
 	reply.Role = ask.Propose
 	// The line is named, so its cells carry the game's cover and Formation
-	// ranks line and proposals alike (#862); so are the shooters' cells, so
-	// their attacks carry lines of fire (#861).
+	// ranks line and proposals alike; so are the shooters' cells, so
+	// their attacks carry lines of fire.
 	named := slices.Clone(ask.Line)
 	for _, cell := range ask.Cells {
 		if !slices.Contains(named, cell) {
@@ -416,7 +416,7 @@ func (r *RoundsDefensePlanner) answerGeometry(ctx context.Context, identity *c.I
 		return reply
 	}
 	// Every proposal is standable by contract; a named cell is when the
-	// game says so (#881).
+	// game says so.
 	for _, row := range geometry.GetCells() {
 		if cell := row.GetCell(); cell != nil && row.GetStandable() {
 			reply.Standable = append(reply.Standable, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
@@ -440,7 +440,7 @@ func (r *RoundsDefensePlanner) answerGeometry(ctx context.Context, identity *c.I
 	return reply
 }
 
-// answerRescuePath answers a rescue_path ask (#867) with the rescuer's
+// answerRescuePath answers a rescue_path ask with the rescuer's
 // route, each cell flagged for hostile line of fire and a door. A failed
 // read is an answer with no route: the rescue waits.
 func (r *RoundsDefensePlanner) answerRescuePath(ctx context.Context, identity *c.Identity, ask *policy.GeometryRequest) policy.GeometryReply {
@@ -467,7 +467,7 @@ func (r *RoundsDefensePlanner) answerRescuePath(ctx context.Context, identity *c
 }
 
 // combatPawnStates is the fight's live state: the frame's combat pawns
-// (#851, #858) when the frame carries them, else the detail rows
+// when the frame carries them, else the detail rows
 // (position, downed, dead; no stance or target).
 func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState, weapons map[string]policy.WeaponDef) []policy.CombatPawnState {
 	var out []policy.CombatPawnState
@@ -513,7 +513,7 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState, weapon
 }
 
 // recordCombatStop appends a stop that wrote to the fight's journal, and
-// the frame it decided from, to the serve's snapshot stream (#853) when
+// the frame it decided from, to the serve's snapshot stream when
 // recording is on. A failed write is logged.
 func recordCombatStop(ctx context.Context, combat bridge.Combat, s snap.CombatStop) {
 	dir := os.Getenv(snap.DirEnv)
@@ -525,14 +525,14 @@ func recordCombatStop(ctx context.Context, combat bridge.Combat, s snap.CombatSt
 	}
 }
 
-// threatFacts adds the census row's threat facts (#863): the pawn kind,
+// threatFacts adds the census row's threat facts: the pawn kind,
 // and a sapper or breacher by its lord toil or a mining job.
 func threatFacts(s policy.CombatPawnState, row *n.PawnState, catalog *bridge.DefinitionCatalog) policy.CombatPawnState {
 	if row == nil {
 		return s
 	}
 	s.Kind = row.GetKindDefName()
-	// The race flags are the game's own, off the catalog's race rows (#1722).
+	// The race flags are the game's own, off the catalog's race rows.
 	_, s.Mech, s.Insect = catalog.RaceFlags(row.GetPawn().GetDefName())
 	if h := row.GetHealth(); h != nil {
 		if h.BloodLoss != nil {
@@ -567,7 +567,7 @@ func combatStance(s mp.CombatStance) policy.CombatStance {
 }
 
 // combatStop is the stop being answered: the newest framed combat event
-// (#851, #858) of a #849 stop kind after the fight's last decision, or none (the
+// of a combat stop kind after the fight's last decision, or none (the
 // first decision, or the tick-budget backstop).
 func combatStop(combat bridge.Combat, since domain.Tick) policy.StopEvent {
 	var newest *mp.CombatEventRow

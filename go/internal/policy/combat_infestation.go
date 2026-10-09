@@ -6,10 +6,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TacticInfestation is an infestation's own formation (#1071): a fight with
+// TacticInfestation is an infestation's own formation: a fight with
 // a live hive, or whose live hostile pawns are all insects, picks it.
 // Every fighter commits at once, brawlers block the tunnel or door with
-// relief (#864), grenadiers throw at the hive (#1049), and no mortar is
+// relief, grenadiers throw at the hive, and no mortar is
 // crewed: hives only spawn under overhead mountain, which shells cannot
 // reach.
 const TacticInfestation CombatTactic = "infestation"
@@ -42,7 +42,7 @@ func Infestation(view CombatView) bool {
 // infestationFormation commits every armed fighter at once: gunners on the
 // line, brawlers blocking the choke with a relief reserve. These are the
 // manhunter formation's roles (insects hold no exploder), less the peeler
-// waiting at home (#865): it charges the top insect, never a trickle.
+// waiting at home: it charges the top insect, never a trickle.
 func infestationFormation(view CombatView, geometry GeometryReply, relieved []domain.PawnID) []CombatRole {
 	roles := manhunterFormation(view, geometry, relieved)
 	// The top insect, else (no insect out) the hive itself.
@@ -64,7 +64,7 @@ func infestationFormation(view CombatView, geometry GeometryReply, relieved []do
 }
 
 // hiveGrenade aims each infestation role holding a frag or molotov primary
-// at the nearest live hive in its range and clear of colonists (#1049's
+// at the nearest live hive in its range and clear of colonists (the grenade
 // scatter rule); with none it falls back to GrenadeTarget on the insects.
 // Every mortar role is dropped: the hive is under overhead mountain.
 func hiveGrenade(view CombatView, m *CombatMemory) {
@@ -92,7 +92,7 @@ func hiveGrenade(view CombatView, m *CombatMemory) {
 		}
 		carrier := state[r.Pawn]
 		if carrier.WeaponFacts.Burner() {
-			// Molotovs belong to the burn-out alone (#1122): flame on an
+			// Molotovs belong to the burn-out alone: flame on an
 			// insect may send the hive to assault.
 			r.Ground = nil
 			continue
@@ -155,7 +155,7 @@ func heatEntry(view CombatView, m *CombatMemory) {
 // deepDrillJob is a colonist's job while it works a deep drill.
 const deepDrillJob = "OperateDeepDrill"
 
-// drillEvacuate is the deep-drill spawn (#1076): insects tunnel up near a
+// drillEvacuate is the deep-drill spawn: insects tunnel up near a
 // working drill, with no hive. The colonist working the drill when the
 // fight starts is latched as the driller and evacuates: it drops its
 // target and duty and retreats to the rearmost inner-line cell, else

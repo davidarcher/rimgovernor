@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
             return new Obs.LootSection { Observed = census };
         }
 
-        // Reach readiness (#520) reads the storyteller as quiet at zero threat
+        // Reach readiness reads the storyteller as quiet at zero threat
         // scale (peaceful) or with no incident generators at all.
         internal static bool StorytellerQuiet()
         {
@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
             // The colony's own traps are exposed cells, but a pawn walks over
             // them at will (no path cost, a 0.5% spring chance), so the
             // shortest route through a trapped corridor always crosses the
-            // trap lane and every item beyond it read as unsafe (#581). The
+            // trap lane and every item beyond it read as unsafe. The
             // safety route is measured with the trap cells priced out, the
             // way the layout's safe lane is meant to be used.
             private TrapAvoidance? trapAvoidance;
@@ -106,7 +106,7 @@ namespace HomeBridge.BridgeTools
             internal double PathLength = -1;
             internal readonly long FreeHaulers;
             // What the verdicts depend on beyond the building itself, for the
-            // cross-read salvage cache's validity signature (#984).
+            // cross-read salvage cache's validity signature.
             internal int HazardCount => hazards.Count;
             internal IReadOnlyList<Pawn> People => people;
             internal HaulingSafety(Map map)
@@ -151,7 +151,7 @@ namespace HomeBridge.BridgeTools
             // it but every route is exposed; unknown when nobody reaches it.
             // One colonist's exposed route (standing in the trap lane at the
             // moment of the census) does not veto the item for the rest
-            // (#581): the verdict is the best route, not the worst.
+            //: the verdict is the best route, not the worst.
             internal bool? Safe(Thing item)
             {
                 PathLength = -1;
@@ -180,7 +180,7 @@ namespace HomeBridge.BridgeTools
             // exposed or no hauler reaches the source at all (a route hold, not a
             // storage one), and null when a hauler reaches the source but finds
             // no store cell: the counted headroom is reserved by hauls in flight or out of reach,
-            // a storage shortfall rather than an unsafe route (#797).
+            // a storage shortfall rather than an unsafe route.
             internal bool? SalvageReturn(Building source, Thing output)
             {
                 output.Position = source.Position;

@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The AbilityIntent arm of Actions/Apply (#1607): one pawn uses one ability
+    // The AbilityIntent arm of Actions/Apply: one pawn uses one ability
     // of one source on one target. The shared part checks the pawn and the
     // target arm's shape; each source has a registered IAbilitySource whose
     // named guards decide eligibility from live state through the game's own
@@ -211,7 +211,7 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // The psycast source (#1610): a psycast the pawn knows, aimed at the arm the
+    // The psycast source: a psycast the pawn knows, aimed at the arm the
     // ability takes. The guards run in the order listed; target, cast, range and
     // confirmation call the game's own validation (CanApplyOn,
     // Verb.ValidateTarget, Ability.CanCast, GizmoDisabled, Verb.CanHitTarget),

@@ -10,7 +10,7 @@ import (
 // ProvenanceKey is the report block Provenance fills.
 const ProvenanceKey = "provenance"
 
-// Execution is how much of a case a result covers (#617). A full run drove
+// Execution is how much of a case a result covers. A full run drove
 // the case from its declared precondition; the other three opened on
 // something an earlier run left behind and therefore prove less.
 type Execution string

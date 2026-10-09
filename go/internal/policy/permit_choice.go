@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// MaintainPermits spends permit points (#1606, epic #1598). A colonist with
+// MaintainPermits spends permit points. A colonist with
 // permit points takes the permit that is worth most to this colony: aid
 // first, then trade and drop-pod access, then psycast permits (more so once
 // a colonist is a psycaster). The choice is a pure ranking over the royalty

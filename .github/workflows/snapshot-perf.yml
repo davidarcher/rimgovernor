@@ -1,7 +1,7 @@
 name: Snapshot perf
 
-# Nightly SnapshotFrames.Capture timings (#1378): profile-capture on the
-# fixture factory's newest sustained/colony bundle (#1376), recorded as
+# Nightly SnapshotFrames.Capture timings: profile-capture on the
+# fixture factory's newest sustained/colony bundle , recorded as
 # snapshot-perf-<commit> and compared with the median p90 of the last
 # seven successful runs; a regressed family opens or updates one issue.
 

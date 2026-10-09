@@ -1,7 +1,7 @@
 package domain
 
 // CorpseOf is a corpse's inner pawn class, as the waste census reports it
-// (#832) and a corpse bill's ingredient filter names it (#833).
+// and a corpse bill's ingredient filter names it.
 type CorpseOf string
 
 const (
@@ -19,7 +19,7 @@ func (c CorpseOf) Valid() bool {
 }
 
 // RotStage is a thing's rot stage, as the waste census reports it and a
-// corpse bill's minimum names it (#1810). Empty is unknown (or, on a bill,
+// corpse bill's minimum names it. Empty is unknown (or, on a bill,
 // any stage).
 type RotStage string
 

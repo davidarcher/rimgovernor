@@ -9,7 +9,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// containmentPlanning is the containment cell's inputs (#1741) from the
+// containmentPlanning is the containment cell's inputs from the
 // frame: the entities' demand from the pawn table, the standing holders from
 // the building table and the prediction's def inputs from the catalog. All
 // stay unknown without Anomaly.

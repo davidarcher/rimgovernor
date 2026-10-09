@@ -9,7 +9,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // BuildingPatchIntent's auto_refuel arm (#1180): the game's auto-refuel
+    // BuildingPatchIntent's auto_refuel arm: the game's auto-refuel
     // toggle (CompRefuelable.allowAutoRefuel) on one exact player building
     // whose refuelable shows that toggle. A setting that already holds
     // applies again. The colony read reports the flag on a cooking bench

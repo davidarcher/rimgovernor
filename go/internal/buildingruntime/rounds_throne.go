@@ -12,7 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The throne room (#1601, epic #1598): MaintainHousing's sleeping planner
+// The throne room: MaintainHousing's sleeping planner
 // shells the planned room, places the title's throne and furnishes it to the
 // title's impressiveness (policy.NextThroneStep, policy.ThroneRoomTargets).
 // The layout review grows the room from the title's minimum area
@@ -30,8 +30,8 @@ func (r *Rounder) reviewRoyalty(ctx context.Context, snapshot domain.GenerationS
 		return nil
 	}
 	// The colony section gates Royalty; the ladder and permits come from the
-	// def mirror (#1861, #1875) and the colonists' own holdings from their
-	// pawn rows (#1876). A read that cannot be used leaves royalty unknown.
+	// def mirror and the colonists' own holdings from their
+	// pawn rows. A read that cannot be used leaves royalty unknown.
 	royalty, err := projection.RoyaltyOf(reading.Frame.Pawns, reading.Frame.Catalog)
 	if err != nil {
 		return nil
@@ -165,7 +165,7 @@ func withThroneTargets(facts observation.ColonyProjection, targets map[string]po
 }
 
 // withThroneFloor marks the standing throne room in the flooring census with
-// the title's flooring requirement (#1863), so the flooring review measures
+// the title's flooring requirement, so the flooring review measures
 // it against the required terrain tags. The census rooms are copied: the
 // projection's own stay untouched. No requirement, no standing room or an
 // unlisted room leaves the census as read.

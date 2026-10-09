@@ -7,7 +7,7 @@ import (
 )
 
 // ManagePollution keeps wastepacks out of the open and the cleanup crew's
-// area on the polluted ground (epic #1667, #1683). Wastepacks that are
+// area on the polluted ground. Wastepacks that are
 // neither frozen nor inside an atomizer deteriorate into pollution (Biotech
 // CompDissolution); a forbidden pack cannot be hauled at all. The goal is in
 // deficit while any wastepack is exposed or forbidden, or the game counts a

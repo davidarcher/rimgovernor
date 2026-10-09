@@ -15,7 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
-// StepBudget bounds one clock step's planner waves (#623), each part
+// StepBudget bounds one clock step's planner waves, each part
 // reported on the step's clock_step row beside what the step used.
 type StepBudget struct {
 	// Reads is the most native round trips a step may spend; zero leaves
@@ -65,7 +65,7 @@ func (b StepBudget) optionalGrace() time.Duration {
 	return b.OptionalGrace
 }
 
-// plannerWave is one step's planner wave (#623): the group that runs the
+// plannerWave is one step's planner wave: the group that runs the
 // planners, the optional planners' cancellable context, each planner's
 // private result and which of them returned before the cutoff. Planners
 // write their result into a private ClockSchedulerResult, so an optional
@@ -80,17 +80,17 @@ type plannerWave struct {
 	results        map[string]*ClockSchedulerResult
 	finished       []string
 	// reasons is each returned planner's reason (its run's, or for a
-	// migrated planner its proposal's outcome): what the due queue reads
-	// to tell a planner waiting on open work from one that is due (#625).
+	// proposal planner its proposal's outcome): what the due queue reads
+	// to tell a planner waiting on open work from one that is due.
 	reasons map[string]Verdict
 	// goals is the goal each queued planner files its verdict on.
 	concerns map[string]policy.ConcernID
 	// critical records the class each planner was queued under, which is
-	// the entry's own class or a startup promotion of it (#658).
+	// the entry's own class or a startup promotion of it.
 	critical map[string]bool
 	closed   bool
 	// began and took are each planner's queue time and, once it returns,
-	// its wall time: the per-planner cost the clock_step row reports (#1915).
+	// its wall time: the per-planner cost the clock_step row reports.
 	began map[string]time.Time
 	took  map[string]time.Duration
 }
@@ -207,7 +207,7 @@ func (w *plannerWave) done(name string, reason Verdict, err error) error {
 }
 
 // decided records a reason decided after the planner returned: a
-// migrated planner's proposal outcome from the coordinator.
+// proposal planner's proposal outcome from the coordinator.
 func (w *plannerWave) decided(name string, reason Verdict) {
 	w.mu.Lock()
 	defer w.mu.Unlock()

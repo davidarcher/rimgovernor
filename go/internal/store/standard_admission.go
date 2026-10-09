@@ -23,7 +23,7 @@ type BuildingMethodRequest struct {
 	Stock    policy.StockObservation
 	Previews []policy.Preview
 	Purpose  policy.Purpose
-	// Reason is the planner's short why, stored with the method (#846).
+	// Reason is the planner's short why, stored with the method.
 	Reason string
 }
 
@@ -60,7 +60,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 	if len(actions) == 0 {
 		return BuildingMethodDecision{}, errors.New("method actions required")
 	}
-	// A building intent is validated natively when it is applied (#856):
+	// A building intent is validated natively when it is applied:
 	// admission neither prices nor sites it, so a planner's siting preview
 	// of one is not admission evidence. Zones keep their footprint check.
 	previews := map[domain.ActionID]policy.Preview{}
@@ -110,7 +110,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 			candidates = append(candidates, policy.Candidate{Action: a, Progress: progress, Priority: int32(4 - owner.ownerPriority()), Purpose: r.Purpose, Preview: preview})
 		case domain.WallRemovalAction, domain.ExcavationAction, domain.DeconstructionAction, domain.UninstallBuildingAction, domain.ClaimBuildingAction, domain.RemoveRoofAction:
 			// Guarded demolition, staged excavation and a shell ring's ruin
-			// clearance and claims, and the shelter bunks' packed bedrolls (#2080),
+			// clearance and claims, and the shelter bunks' packed bedrolls,
 			// carry no cost/footprint preview; they are
 			// admitted as part of the bundle's dependency graph but excluded
 			// from policy.Admit's candidate list, and re-checked at dispatch

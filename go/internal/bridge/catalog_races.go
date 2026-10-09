@@ -11,7 +11,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// The StatDefs of an animal race row (#1722).
+// The StatDefs of an animal race row.
 const (
 	StatCarryingCapacity     = "CarryingCapacity"
 	StatWildness             = "Wildness"
@@ -19,7 +19,7 @@ const (
 	StatLeatherAmount        = "LeatherAmount"
 )
 
-// AnimalRaces is every animal race of the catalog (#1722): a ThingDef with
+// AnimalRaces is every animal race of the catalog: a ThingDef with
 // RaceProperties that the game's own race code calls an animal
 // (ThingDefFacts.race), built once from the def rows, the stat table and the
 // game-computed race facts. A catalog without race facts has no races; one
@@ -189,7 +189,7 @@ func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts
 }
 
 // raceLifeStages is the race's lifeStageAges with each stage's hunger rate
-// factor (#2379); nil when an entry or its LifeStageDef row is absent.
+// factor; nil when an entry or its LifeStageDef row is absent.
 func (catalog *DefinitionCatalog) raceLifeStages(props *d.RaceProperties) []policy.RaceLifeStage {
 	var out []policy.RaceLifeStage
 	for _, entry := range props.GetLifeStageAges() {
@@ -203,7 +203,7 @@ func (catalog *DefinitionCatalog) raceLifeStages(props *d.RaceProperties) []poli
 	return out
 }
 
-// litterSizeMean is the mean litter of a birth (#2379), as Hediff_Pregnant
+// litterSizeMean is the mean litter of a birth, as Hediff_Pregnant
 // rolls it: one child without a curve, else Rand.ByCurveAverage of the curve,
 // never below the one child a birth gives. Unknown for a curve Rand.ByCurve
 // rejects (fewer than three points, or ends not at y = 0).
@@ -232,7 +232,7 @@ func litterSizeMean(curve *d.SimpleCurve) domain.Fact[float64] {
 	return domain.Known(math.Max(1, moment/area/3))
 }
 
-// animalInteraction is the game's animal interaction job constants (#2238); a
+// animalInteraction is the game's animal interaction job constants; a
 // constant a catalog does not carry stays unknown.
 func (catalog *DefinitionCatalog) animalInteraction() policy.AnimalInteraction {
 	var out policy.AnimalInteraction

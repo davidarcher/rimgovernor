@@ -61,7 +61,7 @@ func TestBillTakeoverProjectionPreservesDriftAndUnknowns(t *testing.T) {
 	if _, k := got.UnrestrictedWorker.Value(); k {
 		t.Fatal("missing restriction became known")
 	}
-	// No worker reference is an unrestricted bill (#1342).
+	// No worker reference is an unrestricted bill.
 	if v, k := got.Worker.Value(); !k || v != "" {
 		t.Fatal("absent worker is not unrestricted")
 	}

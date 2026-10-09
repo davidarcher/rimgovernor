@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Staging the Biotech child rooms (#1680, epic #1667): the nursery,
+// Staging the Biotech child rooms: the nursery,
 // playroom and classroom. A room role is the game's own score over the
 // room's contents (Rooms wiki, Roles): a Nursery needs at least two baby
 // beds (a crib or a baby sleeping spot) and no other bed, a Playroom scores
@@ -49,7 +49,7 @@ const (
 	PlannedNursery   PlannedRole = "nursery"
 	PlannedPlayroom  PlannedRole = "playroom"
 	PlannedClassroom PlannedRole = "classroom"
-	// PlannedDeathrestChamber is the deathrest chamber's plan role (#1690).
+	// PlannedDeathrestChamber is the deathrest chamber's plan role.
 	PlannedDeathrestChamber PlannedRole = "deathrest-chamber"
 )
 

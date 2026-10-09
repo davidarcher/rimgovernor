@@ -47,37 +47,37 @@ type WorkPawn struct {
 	Schedule        domain.Fact[[]string]
 	FoodRestriction domain.Fact[FoodRestriction]
 	// MedicalCare is the MedicalCareCategory name from the settings block
-	// (#1307 carry tier); unknown when the read did not carry it.
+	// (carry tier); unknown when the read did not carry it.
 	MedicalCare domain.Fact[string]
-	// PolicyInputs are the per-pawn policy planner inputs (#1297).
+	// PolicyInputs are the per-pawn policy planner inputs.
 	PolicyInputs domain.Fact[PawnPolicyInputs]
 	// Job is the pawn's current job; unknown when the read carried no job
 	// block.
 	Job domain.Fact[PawnJob]
-	// Inspiration is the current InspirationDef defName (#1187); known "" is
+	// Inspiration is the current InspirationDef defName; known "" is
 	// no inspiration, unknown is a read that did not carry it.
 	Inspiration domain.Fact[string]
-	// Biotech is the pawn's Biotech facts (#1678); unknown without Biotech.
+	// Biotech is the pawn's Biotech facts; unknown without Biotech.
 	Biotech domain.Fact[PawnBiotech]
-	// Hostility inputs (#1299): the Assign-tab response (unknown where the
+	// Hostility inputs: the Assign-tab response (unknown where the
 	// pawn has none to configure), violence from the disabled work tags,
 	// BloodLoss severity and summary health.
 	Hostility       domain.Fact[domain.HostilityResponse]
 	ViolenceCapable domain.Fact[bool]
 	BloodLoss       domain.Fact[float64]
 	Health          domain.Fact[float64]
-	// SelfTend is playerSettings.selfTend (#1305); unknown when the read
+	// SelfTend is playerSettings.selfTend; unknown when the read
 	// carried no care settings.
 	SelfTend domain.Fact[bool]
 	// Rest, Joy and Mood are need levels from the pawn needs block; unknown
-	// when the read carried no readable needs (#1312).
+	// when the read carried no readable needs.
 	Rest, Joy, Mood domain.Fact[float64]
 	// BreakThreshold is the minor mental break threshold from the needs
 	// block; HighExpectations the social block's expectations pressure
-	// (#1542 mood tier).
+	// (mood tier).
 	BreakThreshold   domain.Fact[float64]
 	HighExpectations domain.Fact[bool]
-	// Psyfocus and PsyfocusTarget (0-1) and PsylinkLevel (#1313): known
+	// Psyfocus and PsyfocusTarget (0-1) and PsylinkLevel: known
 	// only for a psycaster; unknown without Royalty, a psylink or needs.
 	Psyfocus, PsyfocusTarget domain.Fact[float64]
 	PsylinkLevel             domain.Fact[int]
@@ -101,7 +101,7 @@ type JobTarget struct {
 type PawnJob struct {
 	Def  string
 	Work WorkType
-	// Target is the thing or cell the job works (#643); unknown from a
+	// Target is the thing or cell the job works; unknown from a
 	// producer that carried none, a known zero JobTarget for a job with no
 	// target.
 	Target domain.Fact[JobTarget]
@@ -134,7 +134,7 @@ type DecayingSkill struct {
 }
 
 // WorkRosterReport is what a Rounds pass records of the roster planner
-// for presentation (#448): the coverage census, the decaying
+// for presentation: the coverage census, the decaying
 // skills and every work pawn's typed profile as of Tick. Presentation only;
 // no planner reads it back.
 type WorkRosterReport struct {
@@ -142,7 +142,7 @@ type WorkRosterReport struct {
 	Coverage []WorkCoverage
 	Decaying []DecayingSkill `json:",omitempty"`
 	Profiles []PawnProfile
-	// Help is the construction helper record (#653): helpers, unmet ready
+	// Help is the construction helper record: helpers, unmet ready
 	// work and the reason spare capacity is or is not used. The next
 	// review reads it back for hysteresis.
 	Help *ConstructionHelpRecord `json:",omitempty"`
@@ -170,23 +170,23 @@ type WorkDemand struct {
 	Construction bool
 	// Prisoners is the prisoner count; a warden is wanted only with one.
 	Prisoners int
-	// Help enables construction helpers (#653); nil plans none.
+	// Help enables construction helpers; nil plans none.
 	Help *ConstructionHelp
-	// HaulBacklog raises Hauling and Cleaning from 4 to 3 (#1278).
+	// HaulBacklog raises Hauling and Cleaning from 4 to 3.
 	HaulBacklog bool
 	// Handling is whether the herd plan holds a milk or wool job: a kept animal
 	// yields only to a handler, and the gather speed and yield stats scale with
-	// the Animals skill (#1650), so the best Animals pawn owns Handling.
+	// the Animals skill, so the best Animals pawn owns Handling.
 	Handling bool
 	// Arming is whether the food plan opened a hunt that waits on a hunter's
 	// weapon (HuntArming): Hunting is then assignable to an unarmed colonist
-	// before the weapon exists (#2162), so the hunter-aware armory demand
+	// before the weapon exists, so the hunter-aware armory demand
 	// sees whom to arm.
 	Arming bool
 }
 
 // haulBacklogStacks is the loot census count of unforbidden, safe stacks
-// with storage headroom that makes a haul backlog (#1278).
+// with storage headroom that makes a haul backlog.
 const haulBacklogStacks = 20
 
 const (
@@ -289,7 +289,7 @@ type workWorker struct {
 // secondaries (a passion within five levels of the weakest owner) and, under
 // numbered priorities, every capable pawn at 3 or 4, never what a trait
 // forbids. A temporary disease rest hold zeroes a resting pawn's work.
-// Autopilot owns every priority (#719): no player edit is exempt.
+// Governor owns every priority: no player edit is exempt.
 // This is a proposal/readback comparison,
 // never permission to change pawn settings.
 func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (WorkDecision, error) {
@@ -331,7 +331,7 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 		skills, sk := pawn.Skills.Value()
 		work, wk := pawn.Work.Value()
 		_, rk := pawn.Ranged.Value()
-		// A checkbox-mode readback (native not yet flipped, #1276) is unknown.
+		// A checkbox-mode readback (native not yet flipped) is unknown.
 		if !mk || !manual || !sk || !wk || !rk {
 			known = false
 			continue
@@ -649,7 +649,7 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 				}
 			case basicWork(name):
 				// Hauling and Cleaning sit below skilled work at 4, and
-				// rise to 3 only during a haul backlog (#1278); the
+				// rise to 3 only during a haul backlog; the
 				// research owner keeps them at 4.
 				priority = 3
 				if name != WorkBasic && (!demand.HaulBacklog || w.owns[WorkResearch] == 1) {
@@ -722,7 +722,7 @@ func RoundsWorkDemand(facts RoundsFacts, building bool) WorkDemand {
 // WorkChanges is the WorkSettingsIntent work rows an assignment needs on a pawn:
 // the exact priorities the readback does not already hold. ok is false when
 // the pawn's readback lacks a planned work type or native has not yet
-// switched the pawn to numbered priorities (#1276): unknown, wait.
+// switched the pawn to numbered priorities: unknown, wait.
 func WorkChanges(pawn WorkPawn, assignment PawnWorkAssignment) (changed []domain.WorkSetting, ok bool) {
 	manual, mk := pawn.Manual.Value()
 	current, ck := pawn.Work.Value()

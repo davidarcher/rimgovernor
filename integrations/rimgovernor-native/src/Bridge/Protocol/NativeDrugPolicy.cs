@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // DrugPolicyIntent on Actions/Apply (#1537): the DrugPolicy labelled name
+    // DrugPolicyIntent on Actions/Apply: the DrugPolicy labelled name
     // (made when missing) carries exactly the given entries and every other
     // drug is off. PawnSettingsIntent.drug_policy assigns it
     // (NativePawnSettings.cs). A policy that already matches applies again.

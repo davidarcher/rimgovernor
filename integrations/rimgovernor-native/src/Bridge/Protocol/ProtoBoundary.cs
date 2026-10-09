@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The SDK recognizes this concrete envelope; generated CLR properties are not its wire format.
-        // Every pass is charged to the open observation hop (#642), including
+        // Every pass is charged to the open observation hop, including
         // the repeated passes a size check pays for.
         internal static string Format(IMessage reply, bool compact = false)
         {
@@ -106,7 +106,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // The Go controller always sends encoding=proto-gzip (#757) and accepts
+        // The Go controller always sends encoding=proto-gzip and accepts
         // only field "proto": base64 of the gzip-compressed binary protobuf
         // message; it refuses a ProtoJSON reply. ProtoJSON in field "payload"
         // remains solely for callers that omit the argument: the acceptance
@@ -120,7 +120,7 @@ namespace HomeBridge.BridgeTools
         // encode inherits it), since the main thread and encoder workers do
         // not share the caller's flow.
         //
-        // encoding=proto-shm (#1344) is proto-gzip for a controller on this
+        // encoding=proto-shm is proto-gzip for a controller on this
         // host: a reply of ReplyRing.InlineBytes or more goes raw into a
         // ReplyRing slot and field "slot" names it.
         internal const string EncodingArgument = "encoding";
@@ -192,7 +192,7 @@ namespace HomeBridge.BridgeTools
 
         // Inside an OnMainThread body on the game thread, Encode only records
         // the reply; OnMainThread encodes it on a worker once the hop ends
-        // (#1344), so no reply is formatted on the game thread. The reply
+        //, so no reply is formatted on the game thread. The reply
         // must not be mutated after the body returns it.
         [ThreadStatic] private static bool deferEncode;
         private const string PendingField = "\u0000pending";
@@ -215,7 +215,7 @@ namespace HomeBridge.BridgeTools
         private static Dictionary<string, object?> Envelope(string field, object payload)
             => new Dictionary<string, object?>(StringComparer.Ordinal) { [field] = payload };
 
-        // The payload's UTF-8 length, recorded as the bytes the hop returns (#642).
+        // The payload's UTF-8 length, recorded as the bytes the hop returns.
         private static int Measure(string payload)
         {
             var began = Stopwatch.GetTimestamp();
@@ -232,7 +232,7 @@ namespace HomeBridge.BridgeTools
         // detached hop's formatting runs on an encoder worker instead and is
         // reported apart, in the observation account's encode block),
         // class is the admission class the hop ran under and queueDepth how
-        // many hops were pending when it was queued (#631). It
+        // many hops were pending when it was queued. It
         // covers every tool whose single main-thread hop goes through
         // OnMainThread. The
         // caller's trace argument ("<trace_id>/<span_id>", the controller's
@@ -269,7 +269,7 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>
-        /// A value captured on the game thread for an encoder to own (#644),
+        /// A value captured on the game thread for an encoder to own,
         /// with the hop that captured it. The value must not reference live
         /// game objects, engine collections, deferred iterators or state that
         /// anything else mutates: it is read on another thread after the game
@@ -283,7 +283,7 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>
-        /// The first half of a detached hop (#644): capture runs on the game
+        /// The first half of a detached hop: capture runs on the game
         /// thread under the hop's admission class, watchdog and observation
         /// account, and must only read (no formatting, no byte counting, no
         /// waiting on a worker). Its main-thread time is the hop's executeMs.
@@ -348,7 +348,7 @@ namespace HomeBridge.BridgeTools
             {
                 MainThreadWatchdog.Start(hop);
 #if !NATIVE_CONTRACT_PROBES
-                // The frame boundary's patch installs on the first hop (#642):
+                // The frame boundary's patch installs on the first hop:
                 // nothing runs a startup constructor in this assembly. The
                 // contract probes build has no game boundary to patch, so the
                 // install is gated out of it rather than faked.
@@ -374,7 +374,7 @@ namespace HomeBridge.BridgeTools
                 catch (Exception)
                 {
                     // A hop that threw still spent its main-thread time and
-                    // still belongs in the account (#642).
+                    // still belongs in the account.
                     ObservationWork.Outcome("error");
                     FrameAccounting.Observed(Stopwatch.GetTimestamp() - started, trace);
                     ObservationWork.End();
@@ -435,12 +435,12 @@ namespace HomeBridge.BridgeTools
             if (cls != null) timing[MainThreadAdmission.ClassArgument] = cls;
             if (queueDepth >= 0) timing["queueDepth"] = queueDepth;
             // The hop's own observation account and the session's update
-            // intervals (#642); both absent when nothing recorded them.
+            // intervals; both absent when nothing recorded them.
             var observation = ObservationWork.Report(work);
             if (observation != null) timing["observation"] = observation;
             var frames = FrameAccounting.Report();
             if (frames != null) timing["frames"] = frames;
-            // The per-frame allowance's account (#988), once it deferred a hop.
+            // The per-frame allowance's account, once it deferred a hop.
             var budget = MainThreadAdmission.BudgetReport();
             if (budget != null) timing["mainThreadBudget"] = budget;
             envelope[TimingField] = timing;

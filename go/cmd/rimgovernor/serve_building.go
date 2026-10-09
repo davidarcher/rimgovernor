@@ -268,13 +268,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	// One wake signal joins the clock poll loop to the step loop and the
 	// worker: committed journal evidence steps both at once.
 	wake := buildingruntime.NewWakeSignal()
-	// The decoded state store (#354): the scheduler's reviews
+	// The decoded state store: the scheduler's reviews
 	// file their census sections, /api/routines reports them.
 	var sections *factsstore.Store
 	var advanced, windowRunning = func() {}, func() bool { return false }
 	var stepTrace func() telemetry.Trace
 	var validity func() (domain.ReadValidity, bool)
-	// The per-world store rebuild (#1123): the clock worker's gate and the save
+	// The per-world store rebuild: the clock worker's gate and the save
 	// flusher share it, so it runs before either acts in a new world.
 	stateNative := natives.state
 	rebuild := &worldRebuild{database: database, out: out, orphans: struct {
@@ -311,7 +311,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return err
 	}
 	_ = reads.Refresh(lifetime)
-	// Every Go-made save and every pre_save signal flushes the same way (#2359).
+	// Every Go-made save and every pre_save signal flushes the same way.
 	flusher := &stateFlusher{native: stateNative, world: currentGovernorWorld(reads), database: database, rebuild: rebuild}
 	if client.lifecycle.flushedSave != nil {
 		client.lifecycle.flushedSave.flush = flusher.Flush
@@ -324,7 +324,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if config.roundsEnabled {
 		routines = serviceRoundsDiagnostics{journal: database, reviewsEnabled: config.roundsEnabled, methodsEnabled: config.roundsMethods, families: config.activeRoundsFamilies(), sections: sections}
 	}
-	// The live colony census route is a plain read every serve exposes (#261).
+	// The live colony census route is a plain read every serve exposes.
 	colonyStatus, err := buildingruntime.NewColonyStatus(player, natives.colony, sections)
 	if err != nil {
 		return err
@@ -360,7 +360,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 }
 
 // serveNatives are the typed capabilities the player service cannot run
-// without (#1670): each is asserted once at startup so a client missing one
+// without: each is asserted once at startup so a client missing one
 // fails serve with the capability's name instead of a route that quietly
 // does not exist.
 type serveNatives struct {

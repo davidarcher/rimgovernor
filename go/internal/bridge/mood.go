@@ -14,7 +14,7 @@ func validateMoodNeeds(v *o.PawnNeeds) error {
 	if v.HungerCategory != nil && o.HungerCategory_name[int32(v.GetHungerCategory())] == "" || v.BreakRisk != nil && o.BreakRisk_name[int32(v.GetBreakRisk())] == "" {
 		return contract("invalid pawn need category")
 	}
-	// Psyfocus (#1313): all three or none (no Royalty, no psylink).
+	// Psyfocus: all three or none (no Royalty, no psylink).
 	if (v.Psyfocus == nil) != (v.PsyfocusTarget == nil) || (v.Psyfocus == nil) != (v.PsylinkLevel == nil) {
 		return contract("partial psyfocus facts")
 	}

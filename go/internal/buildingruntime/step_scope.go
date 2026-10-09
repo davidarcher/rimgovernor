@@ -16,7 +16,7 @@ type stepScopeSource interface {
 // stepScope reads the observation scope (load, map, tick, generation, pause
 // state) a Rounds pass or planner validates its reads against through
 // lifecycle_read_tick, which the scheduler step's bundle seeds into the step
-// read cache, so a review after a stop costs no identity round trip (#200).
+// read cache, so a review after a stop costs no identity round trip.
 func stepScope(ctx context.Context, native stepScopeSource) (observation.Identity, error) {
 	reply, _, err := native.Tick(ctx)
 	if err != nil {

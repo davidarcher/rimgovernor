@@ -316,7 +316,7 @@ func TestFramesServeTheStateFamilies(t *testing.T) {
 	}
 }
 
-// TestFrameSectionFailureIsANamedRefusal (#1905): a frame that carries only
+// TestFrameSectionFailureIsANamedRefusal: a frame that carries only
 // native's Failure for a section that threw refuses the read with the
 // section named, instead of serving a frame with the section missing.
 func TestFrameSectionFailureIsANamedRefusal(t *testing.T) {
@@ -340,7 +340,7 @@ func TestFrameSectionFailureIsANamedRefusal(t *testing.T) {
 	}
 }
 
-// TestFramesServeColonyFactsWithoutPlanning (#984): a colony facts read
+// TestFramesServeColonyFactsWithoutPlanning: a colony facts read
 // without planning (acquisition, blight, resource, trade) is served from the
 // frame with the planning section unrequested, never a native hop.
 func TestFramesServeColonyFactsWithoutPlanning(t *testing.T) {
@@ -360,7 +360,7 @@ func TestFramesServeColonyFactsWithoutPlanning(t *testing.T) {
 	}
 }
 
-// TestSnapshotFramesSummarize (#858): the native_frame rows fold into the
+// TestSnapshotFramesSummarize: the native_frame rows fold into the
 // phases report's frame size and cost line.
 func TestSnapshotFramesSummarize(t *testing.T) {
 	rows := []TimelineRecord{
@@ -430,7 +430,7 @@ func TestFramesWaitPastAWrite(t *testing.T) {
 	}
 }
 
-// TestFramesServeCombat (#851): the combat sections are read from the
+// TestFramesServeCombat: the combat sections are read from the
 // newest frame, whole, and a frame's rows must be valid; without a stream
 // the read is unavailable.
 func TestFramesServeCombat(t *testing.T) {
@@ -446,7 +446,7 @@ func TestFramesServeCombat(t *testing.T) {
 	if err != nil || len(state.Pawns) != 1 || len(state.Events) != 2 || CombatEventID(state.Events[1]) != "10.1" {
 		t.Fatalf("%+v %v", state, err)
 	}
-	// Enemy drug facts (#1056) ride the row: absent reads false.
+	// Enemy drug facts ride the row: absent reads false.
 	if state.Pawns[0].GoJuiceHigh != nil || state.Pawns[0].GetLuciferiumAddicted() {
 		t.Fatalf("drug facts on a clean row: %v", state.Pawns[0])
 	}
@@ -466,7 +466,7 @@ func TestFramesServeCombat(t *testing.T) {
 	}
 }
 
-// TestFramesResolveAgainstTheCatalog (#1340): the routine frame carries
+// TestFramesResolveAgainstTheCatalog: the routine frame carries
 // the load's definition catalog, read over the bridge once per load token,
 // and its research section joins the catalog's project facts to the
 // frame's progress rows and finished list.

@@ -9,7 +9,7 @@ namespace HomeBridge.BridgeTools
     // player's "quit to main menu" does (GenScene.GoToMainMenu: Game.Dispose
     // now, then a queued MemoryUtility.ClearAllMapsAndWorld and a null
     // Current.Game), so the lifecycle/shutdown acceptance case can observe native authority's
-    // Shutdown revocation (#88) through authority_read_status once no game
+    // Shutdown revocation through authority_read_status once no game
     // is loaded. The process stays up; nothing here saves, orders or
     // changes game state.
     public sealed class ShutdownFixture

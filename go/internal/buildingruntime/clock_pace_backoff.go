@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Player acceleration's controller side (issue #627). Native paces a
+// Player acceleration's controller side. Native paces a
 // PACING_PLAYER_ACCELERATED window up to the boosted rate; the controller
 // keeps its critical evidence (the admission cycle's critical wave) current
 // by lowering the window's tick-rate ceiling before that evidence can age
@@ -59,7 +59,7 @@ const (
 	// one (live play runs without --clock-blind-ticks). When
 	// --clock-blind-ticks arms #583's native regulator, that budget is the
 	// horizon instead, since native throttles past it anyway. Without it
-	// the hazard bounds are native's every-tick safety check (#627: every
+	// the hazard bounds are native's every-tick safety check (every
 	// tick of an accelerated epoch runs it), not planner evidence age, so
 	// the default only has to keep planning roughly current: ~40 game
 	// seconds. 300 made every ordinary wave outrun the margin at 60-100
@@ -279,7 +279,7 @@ func (s *ClockScheduler) requestCeiling(ctx context.Context, ceiling uint32) err
 	return err
 }
 
-// StepPacing is the pace a step's clock status reported (#627): the
+// StepPacing is the pace a step's clock status reported: the
 // running epoch's pacing reason, the rate it holds and its ceiling, and
 // native's effective speed (ticks per wall second, pauses included).
 type StepPacing struct {

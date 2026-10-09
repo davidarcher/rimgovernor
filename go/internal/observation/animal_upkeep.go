@@ -8,7 +8,7 @@ import (
 )
 
 // colonyAnimals decodes the player herd, each animal joined to its pawn
-// table row (#1343); an animal the table does not hold, or holds without
+// table row; an animal the table does not hold, or holds without
 // its animal state, leaves the herd unknown until a later frame.
 func colonyAnimals(v *o.ColonyFactsSnapshot, pawns bridge.Pawns, races policy.AnimalRaceCatalog) domain.Fact[[]policy.UpkeepAnimal] {
 	u := v.GetUpkeep().GetObserved()
@@ -83,8 +83,8 @@ func raceOf(pawn *o.PawnState, races policy.AnimalRaceCatalog) policy.AnimalRace
 	return race
 }
 
-// herdFacts decodes the native herd sizing facts (#875) with the race's own
-// numbers from the catalog's race row (#1722); food-channel costs and
+// herdFacts decodes the native herd sizing facts with the race's own
+// numbers from the catalog's race row; food-channel costs and
 // products merge in later through mergeHerdFoodFacts.
 func herdFacts(pawn *o.PawnState, races policy.AnimalRaceCatalog) policy.HerdFacts {
 	state := pawn.GetAnimalState()

@@ -9,7 +9,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// Buildings is a frame's building table by id (#1343): the canonical rows
+// Buildings is a frame's building table by id: the canonical rows
 // every other section's building reference resolves against. A reference
 // the table does not hold waits for the next frame: the fact it feeds is
 // unknown until then.

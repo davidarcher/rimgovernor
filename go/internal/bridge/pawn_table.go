@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Pawns is a frame's pawn table by id (#1343): every spawned pawn on the
+// Pawns is a frame's pawn table by id: every spawned pawn on the
 // map, the canonical rows every other section's pawn reference resolves
 // against. A reference the table does not hold waits for the next frame:
 // the fact it feeds is unknown until then.
@@ -55,19 +55,19 @@ type pawnLookup interface {
 	Row(ref Reference) (*o.PawnState, bool)
 }
 
-// Tables are a frame's keyed row tables (#1343), what every reference in
+// Tables are a frame's keyed row tables, what every reference in
 // its other sections resolves against.
 type Tables struct {
 	Buildings Buildings
 	Pawns     Pawns
 	Things    Things
 	// Catalog is the load's definition catalog, which resolves a row's def
-	// name to what the def says (#1733); nil where none is held, and the
+	// name to what the def says; nil where none is held, and the
 	// facts that need it stay unknown.
 	Catalog *DefinitionCatalog
 	// FinishedResearch is the finished research projects of the frame's
 	// research census; unknown where the frame carries none. Power rows read
-	// it for the def's finished upgrades (#1726).
+	// it for the def's finished upgrades.
 	FinishedResearch domain.Fact[[]string]
 }
 
@@ -84,7 +84,7 @@ func (caller *Client) heldCatalog(identity *c.Identity) *DefinitionCatalog {
 
 // Entity is the head (def, label, position) of the row ref points at in
 // any of the tables, nil when none holds it: the one place a reference
-// reaches its def, label and position (#1342).
+// reaches its def, label and position.
 func (t Tables) Entity(ref Reference) *o.EntityRef {
 	if ref == nil {
 		return nil

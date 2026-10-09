@@ -9,7 +9,7 @@ import (
 
 // A serve composing only recovery and sheltering must still read the room
 // census: without it SafeAreaOwed stays unknown, no Safe area is drawn and
-// sheltering never moves a pawn (CI run 36957589404, #1560).
+// sheltering never moves a pawn (CI run 36957589404).
 func TestRoomsEnabledForMaintainShelter(t *testing.T) {
 	r := &Rounder{methods: domain.Known([]policy.ConcernID{policy.RecoverDisasterServices, policy.MaintainShelter})}
 	if !r.roomsEnabled() {

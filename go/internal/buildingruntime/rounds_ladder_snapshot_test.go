@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 )
 
-// Snapshot tests (#894) for the planner cases whose decision comes from a
+// Snapshot tests for the planner cases whose decision comes from a
 // read the planner makes at step time: the hospital step's room census, the
 // research step's research census, the resource, workshop and gear steps'
 // bench and recipe censuses. Each replaces the native case it names; the

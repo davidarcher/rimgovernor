@@ -45,7 +45,7 @@ func recordedRoyalTitles(t *testing.T) *DefinitionCatalog {
 	return catalog
 }
 
-// TestThroneRequirementsOfTheRecordedTitles (#1861): Knight and Baron decode
+// TestThroneRequirementsOfTheRecordedTitles: Knight and Baron decode
 // into the area, impressiveness, throne, floor, braziers, columns,
 // instrument, glowing and forbidden-building requirements; Yeoman's empty
 // list asks for no throne.
@@ -80,7 +80,7 @@ func TestThroneRequirementsOfTheRecordedTitles(t *testing.T) {
 	}
 }
 
-// TestWithTitleDefsFillsTheLadder (#1875): the ladder is every title row by
+// TestWithTitleDefsFillsTheLadder: the ladder is every title row by
 // seniority with its favor, bedroom and throne requirements, the permits are
 // every permit row, and the holdings of the read are untouched; NextThroneNeed
 // then names the title worked toward with that title's requirements.
@@ -216,7 +216,7 @@ func TestThroneForbiddenTagsMergeTheSet(t *testing.T) {
 
 // TestForbiddenDefsFollowBuildingTagsAndAltars: the defs a title forbids are
 // those whose building tags meet the requirement's tags, plus altars only
-// when altars are forbidden (#1865).
+// when altars are forbidden.
 func TestForbiddenDefsFollowBuildingTagsAndAltars(t *testing.T) {
 	building := func(tags ...string) *d.ThingDef {
 		return &d.ThingDef{Building: &d.BuildingProperties{BuildingTags: tags}}

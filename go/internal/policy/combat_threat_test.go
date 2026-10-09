@@ -39,7 +39,7 @@ func threatView() CombatView {
 }
 
 // The threat score orders grenadier, melee-on-colonist, inferno
-// centipede, scyther, termite (#927); a raider sapping by toil ranks
+// centipede, scyther, termite; a raider sapping by toil ranks
 // ahead of the mechs, an ordinary one after them.
 func TestThreatScoreOrder(t *testing.T) {
 	view := threatView()
@@ -56,7 +56,7 @@ func TestThreatScoreOrder(t *testing.T) {
 	}
 }
 
-// {scyther, termite, lancer} -> scyther, termite, lancer (#927); a
+// {scyther, termite, lancer} -> scyther, termite, lancer; a
 // breaching termite keeps the sapper tier, ahead of the scyther.
 func TestRankThreatsTermiteAfterScyther(t *testing.T) {
 	view := holdView()
@@ -118,7 +118,7 @@ func TestDecideCombatRetargetsOnlyWhenTargetGone(t *testing.T) {
 		view.Pawns[i].Target, view.Pawns[i].Stance = "h4", StanceIdle
 	}
 	orders, memory := decideStop(t, view, StopEvent{Kind: "entered_range"}, memory)
-	// The settled, outmatched gunners take their combat drugs (#1311).
+	// The settled, outmatched gunners take their combat drugs.
 	orders = slices.DeleteFunc(orders, func(o CombatOrder) bool { return o.Kind == OrderDrug })
 	if len(orders) != 0 {
 		t.Fatalf("retargeted a live focus: %+v", orders)
@@ -141,7 +141,7 @@ func TestDecideCombatRetargetsOnlyWhenTargetGone(t *testing.T) {
 	}
 }
 
-// Five plain raiders, one on go-juice (#1056): it ranks first, not the
+// Five plain raiders, one on go-juice: it ranks first, not the
 // lowest id, since pain will not down it.
 func TestGoJuiceFocus(t *testing.T) {
 	view := threatView()
@@ -158,7 +158,7 @@ func TestGoJuiceFocus(t *testing.T) {
 	}
 }
 
-// A luciferium addict (#1056) is not worth capturing; anyone else is.
+// A luciferium addict is not worth capturing; anyone else is.
 func TestLuciferiumNotCaptured(t *testing.T) {
 	if CaptureWorthy(CombatPawnState{ID: "h1", Downed: true, Luciferium: true}) {
 		t.Fatal("luciferium addict marked worth capturing")

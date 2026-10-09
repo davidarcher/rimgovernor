@@ -57,7 +57,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(ctx.Err())
 	}
 	defer func() { <-s.pollGate }()
-	// One trace per poll: its read and the events it publishes (#298).
+	// One trace per poll: its read and the events it publishes.
 	ctx, _ = telemetry.EnsureTrace(ctx)
 	call, cancel := context.WithTimeout(ctx, s.session.control.config.CallTimeout)
 	defer cancel()
@@ -109,8 +109,8 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	read()
 	// A journal that never read this profile (a controller started on a
 	// fresh state file) adopts the native backlog but its newest page as
-	// history instead of replaying every earlier session a page per poll
-	// (#1251): the watermark below treats those rows as history anyway.
+	// history instead of replaying every earlier session a page per poll:
+	// the watermark below treats those rows as history anyway.
 	if first := reply.GetPage(); err == nil && review.InboxCursor == 0 && !s.history.known && !first.GetGap() && first.GetNewestCursor()-int64(limit) > 0 && first.GetNewestCursor() > clockPollLastCursor(first) {
 		skip := first.GetNewestCursor() - int64(limit)
 		adopted, e := s.player.journal.AdoptClockBacklog(call, s.config.Profile, skip)
@@ -165,7 +165,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	// at or before it is not fresh evidence: a kept game's backlog of stops
 	// from before this process started interrupts no authority it holds,
 	// and disabling for it page by page cancelled the first resume's
-	// acquisition in flight (#322). The events are still captured and
+	// acquisition in flight. The events are still captured and
 	// their holds still stand until acknowledged.
 	if !s.history.known {
 		s.history = clockHistory{cursor: page.GetNewestCursor(), known: true, unowned: !state.Enabled}
@@ -208,7 +208,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	// An interruption the page carries before the grant of the generation
 	// authority holds now was answered by that grant: the service's own
 	// pause revoked, stopped the clock and re-acquired (a checkpoint), and
-	// disabling on the stop would revoke the new grant again (#322). The
+	// disabling on the stop would revoke the new grant again. The
 	// hold it leaves still keeps a window from opening until acknowledged,
 	// and the poll reports it held without disabling. The grant is
 	// remembered, so a hold that stands from an earlier page (the stop
@@ -256,7 +256,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		// Recorded here, not only through the step's wake reason: a step
 		// already past taking its reason (waiting on the player gate
 		// behind the Worker) must still see an outcome this page carried
-		// before it admits a window (issue #162).
+		// before it admits a window.
 		s.latched.remember(out.Wake)
 		// The reviewer's retained census observed through the same facts:
 		// whatever the page made stale retires it too.
@@ -275,7 +275,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	if len(out.Review.Holds) > 0 && answered && !out.Interrupted && s.grant.answers(latest, out.Review.Holds, granted) {
 		// Holds the grant answers are acknowledged here: the player's own
 		// resume granted this generation after every interruption they cover,
-		// and nothing else would clear them while authority stands (#322).
+		// and nothing else would clear them while authority stands.
 		ack := store.ClockAcknowledgement{RequestID: fmt.Sprintf("clock-ack-%d-%d", out.Review.Revision, out.Review.ReviewedCursor), ExpectedRevision: out.Review.Revision, ThroughCursor: out.Review.ReviewedCursor}
 		if out.Review, err = s.player.journal.AcknowledgeClockEvents(call, s.config.Profile, ack); err != nil {
 			return fail(err)
@@ -306,7 +306,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 // unacknowledged hold, an empty page, a failed read while nothing is
 // enabled) is not applied again: authority is already off, and every
 // Control.Disable replaces the control epoch, which cancels an Acquire's
-// SetMode in flight and reports the resume uncertain at generation 0 (#253).
+// SetMode in flight and reports the resume uncertain at generation 0.
 // The hold still keeps a window from opening (clock.Window) until it is
 // acknowledged; the grant itself is safe under it.
 func (s *ClockScheduler) disableOnEvidence(fresh bool) error {
@@ -343,7 +343,7 @@ func clockPollEventKinds(page *k.EventsPage) string {
 // clockPollEvents publishes the typed service events a committed page
 // carries: "clock_stop" for each Stopped event (reason, detail, the
 // native stop stamp), "authority" (change "changed") for each
-// AuthorityChanged event, and "alert" for each game alert (#256). Every other event kind is the
+// AuthorityChanged event, and "alert" for each game alert. Every other event kind is the
 // step reason's business and writes no row.
 func clockPollEvents(ctx context.Context, page *k.EventsPage) {
 	for _, event := range page.GetEvents() {
@@ -360,7 +360,7 @@ func clockPollEvents(ctx context.Context, page *k.EventsPage) {
 	}
 }
 
-// ruleDecision is the "rule" row of a native rule event (#2154). A firing is
+// ruleDecision is the "rule" row of a native rule event. A firing is
 // verdict fired, reason the trigger word, target the actor; attrs name the
 // rule, the prey it resolved and its parameters. A lapsed lease is verdict
 // expired, reason lease_expired, target the rule runtime.
@@ -387,7 +387,7 @@ func ruleDecision(event *k.Event) telemetry.Decision {
 // hazard arose (when the evidence carries one) and how long the stop sat
 // unobserved in native before the page that carried it was composed. Ticks
 // are native's own; the age is native's own span, so nothing subtracts one
-// process's clock from another's. The spectator panel (#632) reads them
+// process's clock from another's. The spectator panel reads them
 // beside the readmit leg the following clock_step row records.
 func clockStopLegs(event *k.Event, stop *k.StopEvent) []any {
 	attrs := []any{"tick", event.GetContext().GetTick()}
@@ -513,7 +513,7 @@ func (g clockGrant) answers(state ControlState, holds []clock.Hold, granted int6
 
 // clockPollManual reports whether the page carries a Manual authority
 // change: the player pressed a speed key, which revokes authority before
-// the service re-acquires it (#601).
+// the service re-acquires it.
 func clockPollManual(page *k.EventsPage, after int64) bool {
 	for _, event := range page.GetEvents() {
 		if event.GetCursor() <= after {

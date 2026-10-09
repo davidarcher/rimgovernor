@@ -1,4 +1,4 @@
-// Package sleeping holds the individual-bedroom case (#786). sleeping/bedrooms
+// Package sleeping holds the individual-bedroom case. sleeping/bedrooms
 // starts from the layout/grid fixture (tribal baseline, Stonecutting
 // finished so the tier reads Masonry, a fixture hut with sleeping spots and
 // stone blocks beside it): the sleeping planner first beds everyone in the
@@ -29,7 +29,7 @@ import (
 
 // bedroomShellPrefix starts a bedroom room reconcile's methods (buildingruntime
 // bedroomReconcileName); other bedroom- and sleeping- methods stage and assign
-// beds (#987: plans are recognised by method, not plan id).
+// beds (plans are recognised by method, not plan id).
 const bedroomShellPrefix = "bedroom-shell-"
 
 // sleepingBedMethod reports a bed staging or assignment method.

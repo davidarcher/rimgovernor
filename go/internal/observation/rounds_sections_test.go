@@ -24,7 +24,7 @@ import (
 // read, each stamped with the frame tick and the method behind it;
 // a section the source did not offer (pawns under an unknown colonist
 // census, rooms with rooms off) is left out, and the store's as-of
-// bookkeeping reports no spread: one frame has one tick (#884).
+// bookkeeping reports no spread: one frame has one tick.
 func TestRoundsReadingSections(t *testing.T) {
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 	if err != nil {
@@ -104,7 +104,7 @@ func (s *extentSource) PlanExtent(context.Context) (policy.Rectangle, error) { r
 
 // TestRoundsReadingFillsPlanningWindowFromSource: a colony reply that
 // observed planning facts without listing the cells (a native that serves
-// the window through observations_get_cells, #356) takes its window from
+// the window through observations_get_cells) takes its window from
 // the source the context carries, asked for the centre +/- 22 rect clipped
 // to the map, and files the section with the source's own tick and
 // method; without a source the window stays empty.
@@ -138,8 +138,7 @@ func TestRoundsReadingFillsPlanningWindowFromSource(t *testing.T) {
 	if got := out.Sections.PlanningCells; got.AsOf != tick-5 || got.Source != "rimgovernor/observations_get_cells" || !reflect.DeepEqual(got.Value.Cells, cells) {
 		t.Fatalf("planning cells section = %+v", got)
 	}
-	// A source that knows the layout plan's extent still reads the whole map
-	// (#1282).
+	// A source that knows the layout plan's extent still reads the whole map.
 	planned := &extentSource{windowSource: windowSource{window: source.window}, extent: policy.Rectangle{X: 40, Z: 3, Width: 5, Height: 5}}
 	if _, err := observeRoundsUnowned(WithPlanningWindow(context.Background(), planned), &projectSource{colonySource: &colonySource{reply: base}}, testkit.NewManualClock(time.Now()), expected, time.Second); err != nil {
 		t.Fatal(err)

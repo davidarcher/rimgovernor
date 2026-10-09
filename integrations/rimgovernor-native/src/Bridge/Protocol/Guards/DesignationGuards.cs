@@ -7,7 +7,7 @@ namespace HomeBridge.BridgeTools
     // What the in-progress re-check of a guarded designation decides.
     internal enum GuardVerdict { Proceed, Wait, Cancel }
 
-    // The registry of named tick guards a Designate selects (#1350). A guard
+    // The registry of named tick guards a Designate selects. A guard
     // is a Check, the safety rule refused at admission and re-checked before
     // the job's work lands until it finishes (a failure cancels the job and
     // drops the designation), and an optional Wait, a condition that holds

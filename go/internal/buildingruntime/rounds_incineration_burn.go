@@ -13,7 +13,7 @@ import (
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// Burning the incinerator (#1816): once the room holds a batch
+// Burning the incinerator: once the room holds a batch
 // (policy.BurnStoredCells interior cells in use) MaintainIncineration picks a
 // burner, checks a firefighting standby, and commits one plan of equip (a
 // loose molotov, unless the burner holds one), the plan's draft and the
@@ -21,7 +21,7 @@ import (
 // same equip and draft actions the fight loadout uses; the combat planner's
 // undraft releases it when the plan settles, and the equip planner re-arms
 // it. A burned room leaves ash, which the planner then has cleaned with the
-// ordinary Clean action. Nothing here extends the wire: ignite (#1815)
+// ordinary Clean action. Nothing here extends the wire: ignite
 // already refuses an occupied room natively.
 
 // incineratorStored counts the interior cells holding things.

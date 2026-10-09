@@ -25,7 +25,7 @@ func moodIncident(r RoundsResult, pawn policy.PawnID) (RoundsIncident, bool) {
 	return RoundsIncident{}, false
 }
 
-// A pawn's mood is an EnsureMood incident keyed by the pawn (#1078): it
+// A pawn's mood is an EnsureMood incident keyed by the pawn: it
 // opens on a deficit, stays open while the pawn is unobserved, closes on
 // recovery and the next deficit opens a new occurrence.
 func TestRoundsMoodDurableLifecycleAndRetirement(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 )
 
 // A standing wall is swapped only for a stuff that ranks strictly above it and
-// is in stock (#2111): wood for stone with blocks in hand, never with none,
+// is in stock: wood for stone with blocks in hand, never with none,
 // never a downgrade when the ladder falls back, never a stuff for itself.
 func TestWallUpgradeIsUpgradeOnlyAndStockInHand(t *testing.T) {
 	budget := policy.ShellWallBudget

@@ -7,7 +7,7 @@ import (
 )
 
 // unpinnedStartExempt are the fixture cases allowed to start on an
-// unpinned random debug world (#729), each with its reason. Every other
+// unpinned random debug world, each with its reason. Every other
 // fixture case starts on cases.LabStart() and spawns what it needs at
 // known coordinates.
 var unpinnedStartExempt = map[string]string{
@@ -40,7 +40,7 @@ func unpinnedFixtureStart(start cases.Start) bool {
 	return false
 }
 
-// TestFixtureCasesStartPinned (#734): a new fixture case cannot start on
+// TestFixtureCasesStartPinned: a new fixture case cannot start on
 // an unpinned random world by default.
 func TestFixtureCasesStartPinned(t *testing.T) {
 	seen := map[string]bool{}

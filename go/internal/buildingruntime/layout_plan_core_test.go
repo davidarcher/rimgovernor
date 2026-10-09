@@ -9,7 +9,7 @@ import (
 )
 
 // TestPlanCoreAnchorsOnPlan: stockpiles and the cooking campfire anchor on
-// the stored plan's storeroom, not the colonists' centroid (#1534).
+// the stored plan's storeroom, not the colonists' centroid.
 func TestPlanCoreAnchorsOnPlan(t *testing.T) {
 	plan := policy.LayoutPlan{
 		Spine: []policy.SpineSegment{{From: domain.Cell{X: 10, Z: 20}, To: domain.Cell{X: 30, Z: 20}}},

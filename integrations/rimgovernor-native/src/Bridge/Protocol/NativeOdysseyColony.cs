@@ -9,7 +9,7 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Odyssey colony facts (#1709): the colony map's active game conditions,
+    // Odyssey colony facts: the colony map's active game conditions,
     // the terrain that hurts or contaminates by its own def flags, lava
     // emergences, and each ancient hatch's pocket (underground) map with its
     // hackables. Every verdict is the game's own; nothing is a def-name list.

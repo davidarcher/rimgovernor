@@ -13,7 +13,7 @@ var policyDatabases = map[domain.PolicyDatabase]op.PolicyDatabase{
 	domain.AllowedAreas:    op.PolicyDatabase_POLICY_DATABASE_ALLOWED_AREA,
 }
 
-// policyPruneAction is the PolicyPruneIntent of one database (#1298):
+// policyPruneAction is the PolicyPruneIntent of one database:
 // native reassigns holders to their own per-pawn policy, then deletes
 // (NativePolicyPrune.cs).
 func policyPruneAction(action domain.Action) (*op.Action, error) {

@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The uninstall half of RelocateIntent (#843, #940): the game's
+    // The uninstall half of RelocateIntent: the game's
     // Uninstall designation on one exact installed player building, the
     // write Designator_Uninstall makes. Ordinary construction work
     // (WorkGiver_Uninstall) then minifies the piece where it stands; it needs

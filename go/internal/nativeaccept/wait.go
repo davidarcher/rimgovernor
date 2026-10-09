@@ -16,7 +16,7 @@ const StallEnv = "RIMGOVERNOR_ACCEPT_STALL"
 // DefaultStall is the shared stall budget: long enough for a wall segment or
 // a haul under the serve clock, short enough that a lost service or a plan
 // the executor never moves ends the run soon after it stops moving. Across
-// 406 passing rows the longest quiet span was p90 6s, p99 39s (#353); a
+// 406 passing rows the longest quiet span was p90 6s, p99 39s; a
 // case whose passing runs hold a signature longer declares its own
 // cases.Case.Stall rather than inflating this. A wait that needs the game
 // to do more than a minute of work is bounded in ticks (Wait.Ticks,
@@ -37,7 +37,7 @@ func StallBudget() time.Duration {
 	return DefaultStall
 }
 
-// Wait bounds a poll loop two ways (issue #91): a ceiling on the whole wait
+// Wait bounds a poll loop two ways: a ceiling on the whole wait
 // and, tighter, a stall budget on the time since the probe's signature last
 // changed. A broken run stops changing long before it reaches the ceiling, so
 // the stall budget is what ends it; the ceiling is the safety net for a run
@@ -55,7 +55,7 @@ type Wait struct {
 	// the wait immediately (a serve subprocess that exited, an interrupted
 	// scenario, a plan in a failed state).
 	Terminal func() error
-	// Ticks, with Tick set, is the game-time budget (issue #91): the wait
+	// Ticks, with Tick set, is the game-time budget: the wait
 	// fails once the game has advanced more than Ticks past the tick Tick
 	// reported at the first probe. A wait for something the game itself must
 	// do (a haul, a surgery, a pen) is bounded this way, so the bound means
@@ -255,8 +255,8 @@ func WaitProgress(ctx context.Context, w Wait, probe Probe) error {
 		if w.Ceiling > 0 && now.Sub(start) >= w.Ceiling {
 			return &WaitError{Outcome: WaitCeiling, Signature: last, Quiet: quiet, Elapsed: now.Sub(start), Rounds: rounds, TicksElapsed: ticksElapsed}
 		}
-		// Between probes is a natural pause for the checkpoint ring
-		// (#249); the time a capture takes is not the wait's quiet time.
+		// Between probes is a natural pause for the checkpoint ring;
+		// the time a capture takes is not the wait's quiet time.
 		if took := checkpointPause(ctx); took > 0 {
 			start, lastChange = start.Add(took), lastChange.Add(took)
 		}

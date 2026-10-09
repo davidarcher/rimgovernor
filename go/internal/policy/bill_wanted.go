@@ -16,7 +16,7 @@ func WeaponBill(products []Resource) bool {
 
 // BillWanted reports whether any product of a bill is in wanted: a finite bill
 // matching none of an owner's current demand is stale whatever the owner's
-// finding (#2433).
+// finding.
 func BillWanted(products []Resource, wanted map[Resource]bool) bool {
 	for _, p := range products {
 		if wanted[p] {

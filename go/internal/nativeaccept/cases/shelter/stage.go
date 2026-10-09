@@ -12,7 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The staging helpers of the retirement and climate cases (#2076): both read
+// The staging helpers of the retirement and climate cases: both read
 // the layout plan the running controller recorded, stop the service, raise
 // finished rooms on the planned rectangles (test/layout_rooms_stage) and
 // restart it on the same journal. Staging on the recorded plan, not on a plan

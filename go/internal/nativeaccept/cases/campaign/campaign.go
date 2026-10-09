@@ -1,4 +1,4 @@
-// Package campaign is the proof of autonomy (#633, epic #613): an
+// Package campaign is the proof of autonomy: an
 // unassisted campaign on a declared fixture, seed and mod set, driven
 // through the player control path, where the harness assists only during
 // setup and every later hand is
@@ -6,9 +6,9 @@
 // campaign/recovery) share one shape: launch rimgovernor serve over the tribal8 baseline, watch a
 // tick-measured phase, stop, inject the next disturbance through a fixture
 // op, relaunch. Every assertion is native end state or an advancing
-// GoalProgress record (#629), never a plan count.
+// GoalProgress record, never a plan count.
 //
-// The player control path is Ultrafast under #627's player pacing.
+// The player control path is Ultrafast under the player pacing.
 package campaign
 
 import (
@@ -59,11 +59,11 @@ func footholdWindow() uint64 {
 
 // serveSpec is the campaign's serve process: every routine family (nil
 // Families; the supply family must be in, or ManageSupplySafety parks
-// every concern after a raid, #620), the player control path's clock flags
+// every concern after a raid), the player control path's clock flags
 // and the campaign's own request prefix.
 func serveSpec(prefix string) (cases.ServeSpec, error) {
 	// The player control path: the player's Ultrafast, which serve runs
-	// under #627's player pacing (#875).
+	// under the player pacing.
 	return cases.ServeSpec{NativeTimeout: 15 * time.Second, StepStall: 90 * time.Second, Prefix: prefix, PlayerSpeed: "Ultrafast"}, nil
 }
 
@@ -269,7 +269,7 @@ func (c *campaign) play(ctx context.Context, label string, opts playOptions) (*p
 }
 
 // progressRecord is one concern's GoalProgress record as /api/routines
-// renders it (#629).
+// renders it.
 type progressRecord struct {
 	Concern      string `json:"concern"`
 	Method       string `json:"method"`
@@ -299,7 +299,7 @@ func readProgress(service *na.ServiceProcess) ([]progressRecord, error) {
 	return records, nil
 }
 
-// assertProgress is the sustained-progress gate (#629): at least one concern
+// assertProgress is the sustained-progress gate: at least one concern
 // record advanced on native evidence during the phase (LastProgress at or
 // past its first tick), and no unblocked record sat past its NextReview
 // deadline without progress or a named blocker (the contract rotates or

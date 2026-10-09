@@ -14,8 +14,8 @@ func init() {
 	}
 }
 
-// Acquisition, mine acquisition and a stall withdraw are plain intents
-// (#1046): the applied receipt is terminal, with no admission and no
+// Acquisition, mine acquisition and a stall withdraw are plain intents:
+// the applied receipt is terminal, with no admission and no
 // observation.
 func TestAcquireIntentAppliedIsTerminal(t *testing.T) {
 	value, err := domain.NewAcquisition("plant-1", "WoodLog", domain.Cell{X: 4, Z: 5})

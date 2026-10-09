@@ -34,10 +34,10 @@ type DefenseTierRecord struct {
 	// Reopened counts the times the census cleared Built after the tier
 	// stood. Each repair restarts Attempts, and the tier's methods (and so
 	// its plan ids) are keyed by both, so a repair never reuses the id of
-	// the plan that built the tier the first time (#331).
+	// the plan that built the tier the first time.
 	Reopened int
 	// Remove marks a perimeter tier of buildings the replanned ring no
-	// longer wants (#954): it is built once none of them stands, and then
+	// longer wants: it is built once none of them stands, and then
 	// leaves the record.
 	Remove bool `json:",omitempty"`
 }
@@ -55,13 +55,11 @@ type DefenseLayoutRecord struct {
 	Toward     domain.Rotation
 	Width      int
 	TrapLane   []domain.Cell
-	// SafeLane is the civilian lane of records written before #1544;
-	// layouts since leave it empty.
+	// SafeLane holds the civilian lane in legacy records; new layouts leave it empty.
 	SafeLane []domain.Cell
 	Firing   []domain.Cell
-	// Retreat is the inner line (#860): Retreat[i] is Firing[i]'s fall-back
-	// cell. Empty on a record written before it; combat then has no line
-	// to fall back to.
+	// Retreat is the inner line: Retreat[i] is Firing[i]'s fallback cell. Legacy records can
+	// omit it, leaving combat without a fallback line.
 	Retreat []domain.Cell `json:",omitempty"`
 	// Entrances are the colony doors whose access the audit keeps.
 	Entrances []domain.Cell
@@ -79,14 +77,14 @@ type DefenseLayoutRecord struct {
 	// against the stored geometry while it had nothing to place; the
 	// planner re-probes once per reverify interval, not every step.
 	TurretsProbedTick domain.Tick `json:",omitempty"`
-	// MortarsProbedTick is TurretsProbedTick for the mortar tier (#1206).
+	// MortarsProbedTick is TurretsProbedTick for the mortar tier.
 	MortarsProbedTick domain.Tick `json:",omitempty"`
 	// Anchored marks a layout proposed on the layout plan's killbox with
-	// the perimeter's sections (#789); an older record is proposed afresh.
+	// the perimeter's sections; an older record is proposed afresh.
 	Anchored bool `json:",omitempty"`
 	// PerimeterKey digests the perimeter the tiers were last cut from, and
 	// PerimeterRevision counts the times a changed plan or finished
-	// research re-cut them (#954); it names the new tiers so their methods
+	// research re-cut them; it names the new tiers so their methods
 	// never reuse an earlier section's plan ids.
 	PerimeterKey      string `json:",omitempty"`
 	PerimeterRevision int    `json:",omitempty"`

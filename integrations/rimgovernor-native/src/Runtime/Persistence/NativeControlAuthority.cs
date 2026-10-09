@@ -18,8 +18,8 @@ namespace HomeBridge.BridgeTools
         None, Unavailable, StaleIdentity, StaleGeneration, AuthorityRequired, GenerationExhausted
     }
 
-    // There is only ever one bot process (see #52): mode replaces the negotiated
-    // lease. Auto grants the bot outright; Manual is the local player's own mode.
+    // Auto grants control to the single bot process; Manual reserves control for the local
+    // player.
     public enum NativeControlMode { Auto, Manual }
 
     public sealed class NativeControlIdentity
@@ -176,7 +176,7 @@ namespace HomeBridge.BridgeTools
 
         // The only way to change authority explicitly: Auto grants the bot
         // authority outright, Manual revokes it. There is no acquire/renew
-        // handshake because there is only ever one bot process (see #52).
+        // handshake because there is only ever one bot process.
         public NativeControlResult SetMode(ulong expectedGeneration, NativeControlMode mode)
         {
             Refresh();
@@ -226,7 +226,7 @@ namespace HomeBridge.BridgeTools
         public static NativeControlShutdown? LastShutdown { get; private set; }
 
         /// <summary>
-        /// Orderly exit or game unload (#88): an Active authority is revoked as
+        /// Orderly exit or game unload: an Active authority is revoked as
         /// Shutdown so a controller can tell it from a lease lapse (Disconnect);
         /// an already inactive one keeps its reason. Either way the final state
         /// is retained as <see cref="LastShutdown"/> at the given game tick.
@@ -265,7 +265,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>
         /// Cleanup attribution only, never write permission. Since there is only
-        /// ever one bot process (see #52), causal-scope attribution no longer
+        /// ever one bot process, causal-scope attribution no longer
         /// needs a caller-supplied owner token: it is proven purely by generation
         /// continuity within the same Owned() scope.
         /// </summary>

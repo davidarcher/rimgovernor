@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// TestTableMatchesMapAndKeepsVersions (#1578): a random run of sets and
+// TestTableMatchesMapAndKeepsVersions: a random run of sets and
 // deletes agrees with a plain map at every step, and every earlier
 // version still reads as it did.
 func TestTableMatchesMapAndKeepsVersions(t *testing.T) {

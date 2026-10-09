@@ -13,15 +13,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The sheltering cases (#1329) prove MaintainShelter's Safe area and the
-// sheltering planner (#1325, #1326) end to end on the lab: the
+// The sheltering cases prove MaintainShelter's Safe area and the
+// sheltering planner end to end on the lab: the
 // ShelterFixture hut at the centre is the only roofed room, so the Safe
 // area covers it. A snapshot test cannot cover them: the assertion is the
 // native allowed-area writes landing on colonists and a tame animal, the
 // Safe area the game holds and the pawns physically sheltering from a real
 // condition or a real manhunter pack.
 //
-// The controller holds the GABP slot while it runs (#676), so the trigger
+// The controller holds the GABP slot while it runs, so the trigger
 // ends between two service runs: the planner keeps no history, so the
 // restarted service restores from the facts alone.
 var shelteringFamilies = []routinefamily.Family{routinefamily.Recovery, routinefamily.Sheltering}

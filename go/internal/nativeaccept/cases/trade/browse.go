@@ -1,9 +1,6 @@
-// trade/browse is #2168's acceptance: the negotiator's session is also the
-// look at a caravan's priced goods. With a medicine shortfall the caravan's
-// session opens, the planner records the sheet's offers and either stages and
-// accepts lines or cancels without trading; the journal must show the open
-// and a terminal phase, and silver may leave the colony only through an
-// accept. Open, read, cancel-without-trading is the path this case proves.
+// trade/browse proves that a negotiator opens a session to inspect priced goods. The journal
+// must show an open and a terminal phase; silver can leave only through an accepted trade.
+// This case exercises reading and cancelling without trading.
 package trade
 
 import (

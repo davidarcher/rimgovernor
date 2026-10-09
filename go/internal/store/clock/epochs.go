@@ -125,7 +125,7 @@ func LoadEpochs(ctx context.Context, tx *sql.Tx, limit int) ([]EpochObligation, 
 	// The sequence head is loaded once: it has already checked that the
 	// catalog's rows are exactly the retained sequences, so each attempt is
 	// read unchecked rather than re-verifying the head per row, which made
-	// this read quadratic in the retained tail (#634).
+	// this read quadratic in the retained tail.
 	session, head, err := loadClockSequence(ctx, tx)
 	if err != nil {
 		return nil, err

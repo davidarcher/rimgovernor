@@ -147,11 +147,7 @@ namespace RimGovernor.Protocol.Authority {
     [pbr::OriginalName("REVOCATION_REASON_HOOKS_UNAVAILABLE")] HooksUnavailable = 8,
     [pbr::OriginalName("REVOCATION_REASON_GENERATION_EXHAUSTED")] GenerationExhausted = 9,
     /// <summary>
-    /// Kept despite the lease going away: overflow/clock-unavailable style failures
-    /// that used to end a timed lease still need a terminal "no longer active,
-    /// and not because of a specific detected player action" reason. Genuinely
-    /// unsure whether callers still need this distinct from GENERATION_EXHAUSTED,
-    /// so it is kept rather than silently folded away.
+    /// Authority ended because its control prerequisites became unavailable.
     /// </summary>
     [pbr::OriginalName("REVOCATION_REASON_UNAVAILABLE")] Unavailable = 10,
   }
@@ -3884,13 +3880,9 @@ namespace RimGovernor.Protocol.Authority {
   }
 
   /// <summary>
-  /// A new write requires these preconditions atomically on the game thread: the
-  /// identity is still current, the attempt is admitted at most once, and the
-  /// generation has not moved past what the caller computed its command against
-  /// (a local-player interruption bumps the generation even though there is no
-  /// lease to expire). Identity is a colony/load/map staleness check, not part
-  /// of the authority-ownership ceremony this message used to also carry; owner
-  /// and lease_id are dropped because there is only ever one bot holding Auto.
+  /// Writes atomically require current colony/load/map identity, a fresh attempt,
+  /// and the generation used to plan the command. Player interruptions advance
+  /// the generation; Auto has a single bot owner.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class WritePrecondition : pb::IMessage<WritePrecondition>

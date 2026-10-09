@@ -19,7 +19,7 @@ import (
 )
 
 // Every catalog entry carries a class, and the class follows the rule the
-// admission cycle relies on (#623): the preempt and critical priority
+// admission cycle relies on: the preempt and critical priority
 // classes and the emergency evidence (fire safety) are critical, every
 // development review is optional.
 func TestPlannerCatalogClasses(t *testing.T) {
@@ -68,7 +68,7 @@ func quickPlanner(name string, class plannerClass) plannerEntry {
 }
 
 // An optional planner blocked on a read that is never answered does not
-// hold admission (#623): the step admits its window once the critical wave
+// hold admission: the step admits its window once the critical wave
 // has returned and the grace has passed, lists the planner under
 // missed_cutoff, discards its result and cancels it, and does not report
 // the cancellation as a failure. It runs again next step.
@@ -131,7 +131,7 @@ func TestClockSchedulerJoinsStarvedOptionalPlanner(t *testing.T) {
 	if grace := s.optionalWaveGrace(5*time.Millisecond, []string{"lighting"}); grace != 20*time.Millisecond {
 		t.Fatalf("other planner grace %v, want the floor", grace)
 	}
-	// A wave that does not run it keeps the mark; its own return clears it (#717).
+	// A wave that does not run it keeps the mark; its own return clears it.
 	s.markStarved([]string{"rooms"}, nil)
 	if grace := s.optionalWaveGrace(5*time.Millisecond, []string{"defenseLayout"}); grace != 5*time.Second {
 		t.Fatalf("starved planner grace %v after a wave without it, want the wall budget", grace)
@@ -142,7 +142,7 @@ func TestClockSchedulerJoinsStarvedOptionalPlanner(t *testing.T) {
 	}
 }
 
-// A critical planner blocked the same way holds admission (#623): past the
+// A critical planner blocked the same way holds admission: past the
 // wall budget the step admits no window, reports the planner under
 // held_by, and the next step evaluates again.
 func TestClockSchedulerHoldsOnBlockedCriticalPlanner(t *testing.T) {
@@ -180,7 +180,7 @@ func TestClockSchedulerHoldsOnBlockedCriticalPlanner(t *testing.T) {
 }
 
 // A proposal that reached its step's arbiter after the cutoff is carried to
-// the next step's coordinator and revalidated there (#623): against a
+// the next step's coordinator and revalidated there: against a
 // newer snapshot it is refused with the stale dependency named and its
 // commit never runs; against the same one it commits.
 func TestClockSchedulerRefusesLateProposalAgainstNewerSnapshot(t *testing.T) {
@@ -253,7 +253,7 @@ func TestStepArbiterDropsLateResultsWithoutCarry(t *testing.T) {
 	}
 }
 
-// The shelter's planner is the one startup planner (#658): optional by
+// The shelter's planner is the one startup planner: optional by
 // class, so a healthy colony's shell review never holds admission, and
 // promoted into the critical cycle while the stage waits for the shelter.
 func TestPlannerCatalogStartupPlanners(t *testing.T) {
@@ -274,7 +274,7 @@ func TestPlannerCatalogStartupPlanners(t *testing.T) {
 }
 
 // While the colony stage holds development because the shelter is unmet,
-// the shelter's own planner runs in the critical cycle (#658): siting a
+// the shelter's own planner runs in the critical cycle: siting a
 // starter shell walks the bunk rungs and previews a ring, which outlasts
 // the optional grace, and a step that drops that work admits nothing for
 // the goal at all. A step whose shelter planner has not returned holds
@@ -315,7 +315,7 @@ func TestClockSchedulerPromotesTheShelterPlannerUnderTheFootholdHold(t *testing.
 
 // Without the hold the same planner is optional: the shell review of a
 // colony that already has its shelter is cut off at the grace and the step
-// admits its window (#658).
+// admits its window.
 func TestClockSchedulerCutsOffTheShelterPlannerWithoutTheHold(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)

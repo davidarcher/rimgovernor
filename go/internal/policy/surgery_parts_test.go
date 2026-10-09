@@ -103,7 +103,7 @@ func TestSurgeryPartTradeFallsBackToCarriedItem(t *testing.T) {
 	}
 }
 
-// A part a bench can fabricate opens no caravan; one no bench can make does (#1255).
+// A part a bench can fabricate opens no caravan; one no bench can make does.
 func TestSurgeryPartCaravanSkipsFabricable(t *testing.T) {
 	f := stableRounds()
 	f.Resources = domain.Known([]Amount{})
@@ -125,7 +125,7 @@ func missingElective(recipe, part string, index int, stocked bool) SurgeryOperat
 	return op
 }
 
-// #1844: the single chosen affordable elective creates part demand until it
+// The single chosen affordable elective creates part demand until it
 // is stocked or installed; served demand is unchanged.
 func TestChosenElectivePartDemand(t *testing.T) {
 	eye := func(id PawnID, stocked bool) CarePawn {

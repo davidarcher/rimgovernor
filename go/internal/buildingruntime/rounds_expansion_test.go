@@ -22,7 +22,7 @@ func TestExpansionSelectionReusesFurnishingAndWholeShell(t *testing.T) {
 		t.Fatal(n, id, reason)
 	}
 	// The shelter planner counts the same shortfall; its ring names its own
-	// methods through the planned room's reconcile (#2277).
+	// methods through the planned room's reconcile.
 	r.shelter = true
 	n, id, reason = r.selection(f)
 	if n != 1 || id != "" || !reason.IsZero() {
@@ -104,7 +104,7 @@ func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The expansion builds the planned barracks (#1231).
+	// The expansion builds the planned barracks.
 	barracks, _ := policy.PlannedRoleFor(policy.RoomRoleShelter)
 	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.PlannedRoom{{Role: barracks, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South}}})
 	got, err := r.Step(context.Background())

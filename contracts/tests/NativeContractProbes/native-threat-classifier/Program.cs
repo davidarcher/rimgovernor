@@ -4,7 +4,7 @@ using System.Linq;
 using HomeBridge.BridgeTools;
 using Obs = RimGovernor.Protocol.Observations;
 
-// Filter-first threat fact rows (#646, #1356). Which pawns get a row, its
+// Filter-first threat fact rows. Which pawns get a row, its
 // facts and its nearest-colonist distance are written out here case by case
 // and the production filter runs against them with counted projectors, so
 // the expected results never come from the filter itself. The call counts,
@@ -112,7 +112,7 @@ internal static class NativeThreatClassifierProbe
         Check(projected == 2 && scan.ProximityChecks == 0, "no projection or scan for the unplaceable");
     }
 
-    // The passive fact (#948, #1335) rides on the rows that carry it.
+    // The passive fact rides on the rows that carry it.
     private static void Passive()
     {
         var pawns = new List<P> {
@@ -139,7 +139,7 @@ internal static class NativeThreatClassifierProbe
         Check(projected == 1 && scan.ProximityChecks == 1, "zero radius skips the proximity scan");
     }
 
-    // A prison-breaking prisoner (#1080) carries its own fact; a held
+    // A prison-breaking prisoner carries its own fact; a held
     // prisoner of a hostile faction arrives with FactionHostile false.
     private static void PrisonBreak()
     {

@@ -6,28 +6,21 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Site scoring (#1285, epic #1279). A fresh plan no longer grows from the
-// one centroid seed: SiteCore grows a full plan from each of a fixed,
-// deterministic set of candidate seeds and keeps the best-scoring one.
-// Replans extend the saved plan and never re-site.
+// SiteCore compares plans grown from a deterministic set of candidate seeds.
+// Replans extend the saved plan without moving existing sites.
 
-// siteCandidates is N, the most seeds a fresh siting pass grows. On the
-// #1280 baseline fixture one generate takes ~40-50 ms; the map is paused while
-// the first plan is sited, so ~780 seeds (the fixture yields that many) over the
-// serial pass take tens of seconds on one thread (it took ~4 s over 32 threads before policy dropped goroutines, rule 2).
+// siteCandidates bounds the number of seeds evaluated during fresh siting.
 var siteCandidates = 1000
 
-// Search budgets (#1957, layout_gen_search.go). siteSearchTop is how many of
-// the best sites by core score are searched; siteSearchIters is the operators
-// each runs (on the baseline fixture 40 adds ~0.6 s, and 100 found nothing
-// more). The count is the budget: wall time never changes a plan. The
-// hourly-replan budget (#1958) is a separate, much smaller constant.
+// Search the best siteSearchTop candidates for at most siteSearchIters moves
+// each. Iteration counts keep results deterministic; hourly replans use a
+// separate, smaller budget.
 const (
 	siteSearchTop   = 8
 	siteSearchIters = 40
 )
 
-// siteScore is one candidate's result, scored by Score's terms (#1952).
+// siteScore is one candidate's result, scored by Score's terms.
 type siteScore struct {
 	seed  domain.Cell
 	score PlanScore
@@ -57,7 +50,7 @@ func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier TechTier, sea
 	// plan beats the kept one by fieldGain: farmland is worth a core a little
 	// off the best ground, not a core crammed against the map border because
 	// the middle is all field. The last level has no obstacle (rich soil at
-	// cost, #1921) and runs only when no level held.
+	// cost) and runs only when no level held.
 	held := false
 	for _, level := range obstacleLevels {
 		if held && level == obstacleNone {
@@ -84,7 +77,7 @@ func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier TechTier, sea
 	if len(scores) == 0 {
 		return plan
 	}
-	// The wall terms (#1288) need PlanPerimeter, far dearer than generate, so
+	// The wall terms need PlanPerimeter, far dearer than generate, so
 	// only the best siteWallCandidates by core score are walled and reranked.
 	// The best sites by core score are searched (layout_gen_search.go); the
 	// searched plans join the walled pool beside the unsearched ones, so the
@@ -211,11 +204,8 @@ func stepped(cs []domain.Cell, k int) []domain.Cell {
 	return out
 }
 
-// siteWallCandidates is K, how many of the best sites by core score are
-// walled with PlanPerimeter and rescored (#1288). One PlanPerimeter call
-// on the #1280 fixture costs ~250-300 ms and ~250 MB; walling 8 in
-// parallel took the whole pass from ~0.5 s to ~0.86 s at 96 seeds (32 threads,
-// quiet box).
+// siteWallCandidates bounds perimeter construction and rescoring for the
+// candidates with the best core scores.
 const siteWallCandidates = 16
 
 // siteGround is the map's size, its impassable cells and every cell's

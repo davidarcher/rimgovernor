@@ -7,9 +7,9 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // DialogIntent (#941): activates one exact observed option of the single
-    // force-pausing Verse.Dialog_NodeTree the game opened by itself (#156), or
-    // the void awakening confirmation box (#2437).
+    // DialogIntent: activates one exact observed option of the single
+    // force-pausing Verse.Dialog_NodeTree the game opened by itself, or
+    // the void awakening confirmation box.
     // The exact window/index/label stand in for an entity precondition and
     // any drift is a refusal, never a different answer. An intent carrying a
     // joiner letter token goes to NativeJoinerLetters instead.

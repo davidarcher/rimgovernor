@@ -230,7 +230,7 @@ func ForecastFood(supply FoodSupply, selected []PawnID) (FoodForecast, error) {
 }
 
 // GateOnColonists returns the forecast with RunwayDays taken over the
-// colonists' rows only (#708): one unfed pet must not read the colony as
+// colonists' rows only: one unfed pet must not read the colony as
 // starving. Every other row whose runway falls below minDays is reported in
 // PetShortfalls as its own need. The allocation itself is unchanged, so pets
 // still compete for shared stock. An empty census keeps the all-consumer

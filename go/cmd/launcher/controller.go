@@ -22,7 +22,7 @@ type Owner struct {
 }
 
 // winPath folds a Windows path for comparison on any GOOS: the nightly race
-// job runs on Linux, where filepath ignores backslashes (#1142).
+// job runs on Linux, where filepath ignores backslashes.
 func winPath(p string) string {
 	return strings.ToLower(path.Clean(strings.ReplaceAll(p, `\`, "/")))
 }

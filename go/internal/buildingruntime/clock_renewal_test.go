@@ -33,7 +33,7 @@ func TestClockRenewalDefersCompletedBudgetToScheduler(t *testing.T) {
 	for _, reason := range []k.StopReason{k.StopReason_STOP_REASON_TICK_BUDGET, k.StopReason_STOP_REASON_WATCH_LATCHED, k.StopReason_STOP_REASON_EXTERNAL_PAUSE} {
 		// A stop the renewal cannot recognize as the window's own end is
 		// the poller's to classify: renewal waits for it rather than
-		// disabling on a stop the review may hold nothing for (#228).
+		// disabling on a stop the review may hold nothing for.
 		waits := reason == k.StopReason_STOP_REASON_EXTERNAL_PAUSE
 		t.Run(reason.String(), func(t *testing.T) {
 			s, n, w, start := renewalFixture(t)
@@ -58,7 +58,7 @@ func TestClockRenewalDefersCompletedBudgetToScheduler(t *testing.T) {
 
 // Once the poller has read a stop row the renewal cannot recognize, the
 // review decides: a stop it holds nothing for (an informational letter's
-// pause, #228) leaves the epoch to the scheduler step with authority
+// pause) leaves the epoch to the scheduler step with authority
 // standing; an interruption it holds disables.
 func TestClockRenewalStoppedEpochFollowsReview(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -165,7 +165,7 @@ func TestClockRenewalBudgetFinishesDuringPreflight(t *testing.T) {
 				if err != nil || retained.Phase != store.ClockPrepared {
 					t.Fatal(retained, err)
 				}
-				// The step retires the epoch and reviews at once (#162);
+				// The step retires the epoch and reviews at once;
 				// the fixture's status facts refuse the next window.
 				cleaned, err := s.Step(context.Background())
 				if !errors.Is(err, executor.ErrHeld) || cleaned.Cleaned || !s.session.State().Enabled || w.renews != 0 {
@@ -315,8 +315,8 @@ func TestClockRenewalOriginalDeadlineAndIndependentPlayerGate(t *testing.T) {
 
 // A step that outlives the lease-bound renew budget must not stall renewal:
 // Step holds the Player gate for its whole planner census, RenewEpoch only
-// takes renewGate. The worker's step budget is independent of the lease
-// (issue #73), so the loop-level split is exercised against the real
+// takes renewGate. The worker's step budget is independent of the lease,
+// so the loop-level split is exercised against the real
 // scheduler here with a step blocked inside the Player gate.
 //
 // The renewals are not held to a wall-clock budget: a renewal that waited on

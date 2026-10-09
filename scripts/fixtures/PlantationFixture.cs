@@ -9,7 +9,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable acceptance only (#2292). Stages a small growing zone
+    // Private disposable acceptance only. Stages a small growing zone
     // that grows oak near the colonists with one sown oak at growth 0.8 and
     // one rice plant (a crop) at growth 0.9 standing in it, so the colony
     // read's acquisition census can be checked: the oak is a plantation row

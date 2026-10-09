@@ -7,7 +7,7 @@ import (
 )
 
 // A stranger corpse goes to the butcher while it is fresh and the butchery
-// is open, and to the incinerator otherwise; never anywhere else (#1822).
+// is open, and to the incinerator otherwise; never anywhere else.
 func TestStrangerCorpseRouting(t *testing.T) {
 	for _, open := range []bool{true, false} {
 		for _, rot := range []domain.RotStage{domain.RotFresh, domain.RotRotting, domain.RotDessicated, ""} {

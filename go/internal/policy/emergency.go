@@ -25,7 +25,7 @@ type EmergencyPawn struct {
 	Dead, Downed, Bleeding, NeedsTend domain.Fact[bool]
 	// InBed decides whether a bleeding colonist who is still on their feet
 	// is anyone's patient: WorkGiver_Tend tends a humanlike only in a bed
-	// and the ground tend needs a downed pawn (#618).
+	// and the ground tend needs a downed pawn.
 	InBed domain.Fact[bool]
 }
 type ThreatKind uint8
@@ -43,10 +43,10 @@ const (
 	// unsafe-threat hold like a hostile pawn, so the fight is planned under
 	// a stopped clock and run under watched combat windows (the draft and
 	// attack executors bind their reads by tick and are not safe under a
-	// running colony window; live 2026-09-18, #246). A building further
+	// running colony window; live 2026-09-18). A building further
 	// out is watched like a distant animal: a map-gen hive in a cave the
 	// colony never reaches held every window and every development goal
-	// for good (#340).
+	// for good.
 	HostileBuilding
 )
 
@@ -64,23 +64,23 @@ type EmergencyThreat struct {
 	Distance     domain.Fact[float64]
 	// SnapshotToken, Definition and Cells are set on HostileBuilding rows
 	// only; Cells is the building's occupied rect, the cells a ranged
-	// defender needs a line of fire to (#327).
+	// defender needs a line of fire to.
 	SnapshotToken, Definition string
 	Cells                     []domain.Cell
 	// Fogged is the native discovery fact: the pawn stands in fog the colony
 	// has not explored. Unknown counts as discovered.
 	Fogged domain.Fact[bool]
-	// Passive is set on insects and hives (#948) and on hostiles that can
-	// sleep, such as dormant mech clusters (#1335): true when the thing
+	// Passive is set on insects and hives and on hostiles that can
+	// sleep, such as dormant mech clusters: true when the thing
 	// is dormant, or awake but not engaging the colony (no insect targets
 	// anything of ours, no colonist inside the hive's boundary). A dormant
 	// ruin hive makes jelly but neither spreads nor spawns; it is left
 	// alone, never held for or attacked. Unknown counts as engaging.
 	Passive domain.Fact[bool]
 	// Position is a pawn threat's cell, when the census row carried one;
-	// the safety overlay (#824) draws its reach around it.
+	// the safety overlay draws its reach around it.
 	Position domain.Fact[domain.Cell]
-	// Mortar is set on HostileBuilding rows only (#1148): the native def
+	// Mortar is set on HostileBuilding rows only: the native def
 	// fact, a turret whose verb fires mortar shells.
 	Mortar bool
 }
@@ -101,12 +101,12 @@ func (t EmergencyThreat) Building() bool { return t.Kind == HostileBuilding }
 // band, so the approach re-enters the emergency before it can reach anyone.
 // A humanlike or mechanoid threat holds at any distance: a raid is planned
 // for from the map edge, not from twenty cells out. A hostile building
-// (#246) goes nowhere, so the same band applies to it (#340).
+// goes nowhere, so the same band applies to it.
 const DistantThreatCells = 50.0
 
 // DistantThreat reports a hostile or hunting animal, or a hostile building,
 // known to be at least DistantThreatCells from every colonist. A crashed
-// ship part is never distant (#1174): a defoliator's radius grows until it
+// ship part is never distant: a defoliator's radius grows until it
 // reaches the fields and a psychic droner's drone covers the whole map, so
 // waiting for either to come closer loses the crops or the mood.
 func (t EmergencyThreat) DistantThreat() bool {
@@ -117,7 +117,7 @@ func (t EmergencyThreat) DistantThreat() bool {
 
 // ShipPart reports a crashed ship part's definition (DefoliatorShipPart,
 // PsychicDronerShipPart): a gunless hostile building that harms the colony
-// from wherever it lands until destroyed (#1061, #1174).
+// from wherever it lands until destroyed.
 func ShipPart(definition string) bool {
 	return strings.Contains(definition, "ShipPart")
 }
@@ -128,7 +128,7 @@ func ShipPart(definition string) bool {
 // behind a shrine wall is the case that matters: holding for it parked the
 // clock on unsafe_colony and deselected every development goal, including the
 // ClearAncientShrine goal whose breach is the only thing that could ever
-// clear it (#659, the #340 shape).
+// clear it.
 func (t EmergencyThreat) Undiscovered() bool {
 	fogged, known := t.Fogged.Value()
 	return known && fogged
@@ -137,7 +137,7 @@ func (t EmergencyThreat) Undiscovered() bool {
 // ThreatHolds reports whether one census row is an emergency the colony must
 // answer before anything else: a live, standing hostile, hunting predator or
 // hostile building it has discovered, that is not distant and that is not a
-// passive insect or hive (#948). A nearby wild
+// passive insect or hive. A nearby wild
 // predator or downed animal is a watch row, never a hold.
 func ThreatHolds(t EmergencyThreat) bool {
 	if t.Kind != Hostile && t.Kind != HuntingPredator && t.Kind != HostileBuilding {
@@ -155,8 +155,8 @@ type EmergencyFacts struct {
 	ColonistsComplete domain.Fact[bool]
 	Colonists         []EmergencyPawn
 	Threats           []EmergencyThreat
-	// PodsOpen is the open tick of the newest drop-pod arrival (#870) still
-	// closed at the census tick, zero with none (#908): its raiders are in
+	// PodsOpen is the open tick of the newest drop-pod arrival still
+	// closed at the census tick, zero with none: its raiders are in
 	// their pods, so no census row names them yet.
 	PodsOpen domain.Tick
 }
@@ -231,7 +231,7 @@ func NewEmergencySnapshot(current domain.GenerationSnapshot, tick domain.Tick, f
 	return EmergencySnapshot{current: current, tick: tick, facts: facts, valid: true}, nil
 }
 
-// PodsPending reports a drop-pod raid on its way down (#908): an arrival
+// PodsPending reports a drop-pod raid on its way down: an arrival
 // whose pods have not opened by the census tick. It is a threat for the
 // ActiveCombat goal and a combat window with nothing to acknowledge until
 // the open, so the fight forms on the arrival.
@@ -285,11 +285,11 @@ func EvaluateEmergency(snapshot EmergencySnapshot, current domain.GenerationSnap
 		// medical work the colony must do now. A colonist who only needs
 		// tending (a chronic condition, a scratch a doctor or the pawn
 		// tends natively while ticks pass) is the tend planner's patient,
-		// not a reason to hold every dispatch until nobody can clear it
-		// (#66). A colonist downed with nothing to tend (malnutrition,
+		// not a reason to hold every dispatch until nobody can clear it.
+		// A colonist downed with nothing to tend (malnutrition,
 		// exhaustion, a tended wound) is the rescue planner's patient: a
 		// bed and ticks are the only care, and holding every other order
-		// parked the colony until the watch expired (#304). Every health
+		// parked the colony until the watch expired. Every health
 		// fact still has to be known.
 		if !allKnown(pawn.Downed, pawn.Bleeding, pawn.NeedsTend) {
 			hold(EmergencyUnknownFacts, pawn.ID)
@@ -305,7 +305,7 @@ func EvaluateEmergency(snapshot EmergencySnapshot, current domain.GenerationSnap
 			continue
 		}
 		// A threat the colony has not discovered is nobody's deficit, and its
-		// unread health is nothing to hold for either (#659).
+		// unread health is nothing to hold for either.
 		if threat.Undiscovered() {
 			continue
 		}
@@ -315,7 +315,7 @@ func EvaluateEmergency(snapshot EmergencySnapshot, current domain.GenerationSnap
 		// A distant animal is watched by the native supervisor's radius,
 		// not held: no planner answers a manhunter or a hunting predator a
 		// hundred cells out, and holding for one parked the clock for good;
-		// nor is a hostile building that far out (#340).
+		// nor is a hostile building that far out.
 		if ThreatHolds(threat) {
 			hold(EmergencyUnsafeThreat, threat.ID)
 		}
@@ -348,7 +348,7 @@ func allKnown(facts ...domain.Fact[bool]) bool {
 // established that every health fact is known.
 // urgentPatient is the CriticalMedical test: a bleeding colonist, or one
 // downed with a tend outstanding. A bleeding colonist who is up and not in
-// a bed is excluded (#618): no doctor can tend them (WorkGiver_Tend wants a
+// a bed is excluded: no doctor can tend them (WorkGiver_Tend wants a
 // humanlike in bed, the ground tend a downed pawn), and on a colony without
 // a bed the hold suspended the very goal that would build one. Native sends
 // them to a bed on its own when there is one, and the hold returns the
@@ -390,13 +390,13 @@ func LosingImmunityRace(c CareCondition) (losing, known bool) {
 	return ir <= 0 || (1-severity)/sr <= (1-immunity)/ir, true
 }
 
-// woundInfection is the limb infection an amputation removes (#1166);
+// woundInfection is the limb infection an amputation removes;
 // non-limb infections are out of scope.
 const woundInfection = "WoundInfection"
 
 // LifeSavingAmputations lists, for a living colonist, the amputation of the
-// part carrying each wound infection that is losing its immunity race
-// (#1166). The infected part itself is the smallest part whose removal
+// part carrying each wound infection that is losing its immunity race.
+// The infected part itself is the smallest part whose removal
 // takes the infection with it; a part native offers no amputation on (a
 // torso, an organ) is not a limb and yields nothing. A projected loss is a
 // projected death, so the operation needs no failure cap beyond a failure

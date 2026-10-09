@@ -1,9 +1,9 @@
-// Package ideology holds the Ideology acceptance cases (epic #1653).
+// Package ideology holds the Ideology acceptance cases.
 //
-// The ideology/first-ritual case (#1665) proves the colony holds a ritual of
-// its ideoligion on its own: MaintainRituals (#1660) finds the staged ritual
+// The ideology/first-ritual case proves the colony holds a ritual of
+// its ideoligion on its own: MaintainRituals finds the staged ritual
 // due, plans its organizer and attendees at the finished building and commits
-// the Ritual `begin` (#1659); native runs the begin dialog's confirm action,
+// the Ritual `begin`; native runs the begin dialog's confirm action,
 // and the game's own lord job holds the ritual to its end.
 package ideology
 

@@ -56,7 +56,7 @@ type GearObservation struct {
 	Pawns  []GearPawn
 	Stored domain.Fact[[]GearStock]
 	// Outfits is every outfit policy's load id; one no pawn keeps (OutfitKeep)
-	// is owed a prune (#1302).
+	// is owed a prune.
 	Outfits domain.Fact[[]string]
 }
 
@@ -242,7 +242,7 @@ func ReviewGear(f domain.Fact[GearObservation]) (GearReview, error) {
 			uncovered++
 		}
 	}
-	// Outfits owed a prune keep the goal open for the prune (#1302).
+	// Outfits owed a prune keep the goal open for the prune.
 	if missing == 0 && len(v.OutfitsToPrune()) > 0 {
 		missing++
 	}
@@ -313,26 +313,26 @@ type GearMethod struct {
 }
 type GearBill struct {
 	ID, Recipe string
-	// Role is the recipe's role by its catalog row (#1721).
+	// Role is the recipe's role by its catalog row.
 	Role   domain.RecipeRole
 	Active domain.Fact[bool]
-	// Worker is the pinned pawn, known "" when unrestricted (#1190).
+	// Worker is the pinned pawn, known "" when unrestricted.
 	Worker   domain.Fact[string]
 	Products []Resource
 	// Finite is whether the bill repeats a count (neither Forever nor a
-	// stock target), the only bills a stale-bill removal may name (#2411).
+	// stock target), the only bills a stale-bill removal may name.
 	Finite domain.Fact[bool]
 }
 type GearRecipe struct {
 	Definition string
-	// Role is what the recipe does by its catalog row (#1721).
+	// Role is what the recipe does by its catalog row.
 	Role                   domain.RecipeRole
 	Products               []Resource
 	Available, AvailableOn domain.Fact[bool]
 	Ingredients            domain.Fact[[][]Amount]
 	RequiredWork           domain.Fact[[]WorkRequirement]
-	// MechKind is the PawnKindDef of the mech a gestation recipe makes
-	// (#1686), "" for every other recipe.
+	// MechKind is the PawnKindDef of the mech a gestation recipe makes,
+	// "" for every other recipe.
 	MechKind string
 }
 type GearBench struct {
@@ -459,7 +459,7 @@ func selectGear(r GearPlanningRequest, review GearReview, v GearObservation) (Ge
 			return GearMethod{Kind: GearUnknown}, nil
 		}
 		for _, n := range ns {
-			// The armory crafts body armor and helmets (#1205).
+			// The armory crafts body armor and helmets.
 			if !ArmoryArmor(n.Definition) {
 				needs = append(needs, gearNeed{p, n})
 			}
@@ -652,8 +652,8 @@ func validateGearProduction(benches []GearBench) error {
 // names them: the currency and the favor-sale gold.
 var gearValuables = map[Resource]bool{"Silver": true, FavorSaleResource: true}
 
-// gearFilter is the ingredient filter of a bill placed with nothing in stock
-// (#2373). A slot holding the loadout's stuff admits it and the stuffs
+// gearFilter is the ingredient filter of a bill placed with nothing in stock.
+// A slot holding the loadout's stuff admits it and the stuffs
 // sharing a catalog category with it (never a valuable); any other slot
 // admits only its cheapest non-valuable alternative (fewest units, then
 // name), the member OpenBillDemand asks for. ok is false when a slot has no

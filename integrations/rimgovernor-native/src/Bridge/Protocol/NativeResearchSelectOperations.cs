@@ -8,9 +8,9 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // ResearchIntent (#941): the project's research slot's current project, set
+    // ResearchIntent: the project's research slot's current project, set
     // through ResearchManager.SetCurrentProject. An ordinary project fills the
-    // ordinary slot; an anomaly knowledge project (#1745) fills its category's
+    // ordinary slot; an anomaly knowledge project fills its category's
     // knowledge slot, which SetCurrentProject picks by knowledgeCategory.
     // Native judges the project against live research state when it applies
     // (CanStartNow also refuses a project the entity codex still hides); a

@@ -674,8 +674,7 @@ func siteUnroofed(s SiteCell) SiteCell {
 	return s
 }
 
-// sitePick sites a growing-room kind with the rectangle picker (#1224,
-// epic #1212): candidates are the free soil cells keep accepts that meet the
+// sitePick sites a growing-room kind with the rectangle picker: candidates are the free soil cells keep accepts that meet the
 // crop's fertility floor. byRoom groups them by native room so each block
 // stays inside one room interior, rooms nearest the anchor first; otherwise
 // (a new lamp's growth circle) they form one set. Picked cells merge into

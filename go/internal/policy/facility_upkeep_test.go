@@ -16,7 +16,7 @@ func facilityClaim(t *testing.T, id, def, stuff string) ConstructionClaim {
 	return ConstructionClaim{Plan: "method", Action: domain.ActionID(id), Concern: "goal", Identity: domain.ConstructionIdentity{Origin: "blueprint-" + id, Current: id}, Building: b}
 }
 
-// Every census target missing Home is listed, player-built ones included (#719).
+// Every census target missing Home is listed, player-built ones included.
 func TestHomeCoverageRestoresMissingCellsOnEveryTarget(t *testing.T) {
 	row := HomeCoverageTarget{ID: "wall", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(1)), Cells: []domain.Cell{{X: 3, Z: 7}}}
 	player := HomeCoverageTarget{ID: "player-wall", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{{X: 4, Z: 7}}}
@@ -73,7 +73,7 @@ func TestHomeCoverageUnknownsAndMalformedGeometry(t *testing.T) {
 }
 
 // An edited stockpile is reconciled at its current geometry, never
-// blocked as a player edit (#719).
+// blocked as a player edit.
 func TestHomeCoverageReconcilesChangedOwnedStockpileFootprint(t *testing.T) {
 	row := HomeCoverageTarget{ID: "zone", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{{X: 3, Z: 8}}}
 	got, err := ReviewHomeCoverage(domain.Known(HomeCoverageObservation{Targets: []HomeCoverageTarget{row}}))

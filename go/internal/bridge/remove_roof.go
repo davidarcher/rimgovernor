@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// removeRoofAction is the RemoveRoofIntent over canonical cells (#1366).
+// removeRoofAction is the RemoveRoofIntent over canonical cells.
 // Native designates vanilla RemoveRoof live (NativeRemoveRoof.cs).
 func removeRoofAction(action domain.Action) (*op.Action, error) {
 	v, ok := action.RemoveRoof()

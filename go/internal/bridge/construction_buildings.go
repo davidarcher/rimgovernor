@@ -10,7 +10,7 @@ import (
 )
 
 // constructionBuildingsRequest is the built census read (nil ids), shared
-// with the bundle's built buildings family (#593), or the exact targets.
+// with the bundle's built buildings family, or the exact targets.
 func constructionBuildingsRequest(identity *c.Identity, ids []string) *o.ListBuildingsRequest {
 	limit := len(ids)
 	if limit == 0 {

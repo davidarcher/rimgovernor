@@ -20,7 +20,7 @@ type DefensiveThreatFacts struct {
 	// corridor direction it says whether the raid is still in front of the
 	// line or already past it.
 	Position domain.Fact[domain.Cell]
-	// Mech is a mechanoid (#922): a mechanoid assault lord holds like a
+	// Mech is a mechanoid: a mechanoid assault lord holds like a
 	// humanlike raid.
 	Mech bool `json:",omitempty"`
 }
@@ -50,7 +50,7 @@ func SelectDefensivePositions(firing []domain.Cell, toward domain.Rotation, thre
 
 // ExplainDefensivePositions is SelectDefensivePositions with the reason it
 // refused the hold: empty when positions were chosen, otherwise the gate
-// that fell through and the evidence it saw (#714), so a squad fallback in
+// that fell through and the evidence it saw, so a squad fallback in
 // a run log names the hostile or defender fact that decided it.
 func ExplainDefensivePositions(firing []domain.Cell, toward domain.Rotation, threats []DefensiveThreatFacts, defenders []SquadDefenderFacts) ([]DefensivePosition, string) {
 	return explainDefensivePositions(firing, toward, nil, nil, threats, defenders)
@@ -60,8 +60,8 @@ func ExplainDefensivePositions(firing []domain.Cell, toward domain.Rotation, thr
 // room (a hostile there is engaged, whatever its distance), and held, which
 // reports a hostile cell the hold's blockers stop at the choke: that hostile
 // is the blockers' fight, the hold doing its job, not a raider loose inside
-// the line (#905). A hostile outside the walls, however close, is not
-// engaged; only position counts (#2375).
+// the line. A hostile outside the walls, however close, is not
+// engaged; only position counts.
 func explainDefensivePositions(firing []domain.Cell, toward domain.Rotation, inside, held func(domain.Cell) bool, threats []DefensiveThreatFacts, defenders []SquadDefenderFacts) ([]DefensivePosition, string) {
 	if len(firing) == 0 {
 		return nil, "no firing cells"

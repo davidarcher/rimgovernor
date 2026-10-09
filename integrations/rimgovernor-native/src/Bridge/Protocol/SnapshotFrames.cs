@@ -8,17 +8,17 @@ using Obs = RimGovernor.Protocol.Observations;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// One snapshot stream frame (#858): every state family, plus the
+    /// One snapshot stream frame: every state family, plus the
     /// subscription's parameterized ones, each read exactly as its dedicated tool answers
     /// the request shape the controller issues, all in one game-thread hop
     /// so they describe one tick. A family that fails to read is omitted
     /// and the controller waits for a frame that carries it. Each section's
-    /// read is timed into the observation account (#642) under its
+    /// read is timed into the observation account under its
     /// BundleSnapshot name.
     /// </summary>
     internal static class SnapshotFrames
     {
-        /// A frame section's read threw (#1905). The stream publishes a frame
+        /// A frame section's read threw. The stream publishes a frame
         /// carrying only the Failure, never the frame with the section omitted.
         internal sealed class SnapshotSectionException : System.Exception
         {
@@ -43,12 +43,12 @@ namespace HomeBridge.BridgeTools
 
         private static long Now() { return System.Diagnostics.Stopwatch.GetTimestamp(); }
 
-        // On the main thread: one snapshot stream frame (#858), every state
+        // On the main thread: one snapshot stream frame, every state
         // family plus the subscription's, or null when the map has no
         // readable context.
         internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request) => Capture(map, request, out _);
 
-        // Capture, with the whole-map cell grid read (#1345) that
+        // Capture, with the whole-map cell grid read that
         // CellGridEncoder.Attach encodes off the game thread; null when it
         // failed to read.
         internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request, out CellGridEncoder.GridRead? grid)
@@ -70,7 +70,7 @@ namespace HomeBridge.BridgeTools
 
         // On the main thread: every section of the frame but its things
         // table and grid, false when the status census fails. The things
-        // the sections reference become the things table (#1342).
+        // the sections reference become the things table.
         private static bool ReadSections(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
         {
             var status = new Obs.StatusRequest { Scope = new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() },
@@ -93,9 +93,9 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        // The census pawns the pawn table carries combat detail for (#1343):
+        // The census pawns the pawn table carries combat detail for:
         // every engaged threat row, a superset of what Go classifies as a
-        // hostile or hunting predator (#1356).
+        // hostile or hunting predator.
         private static ISet<string> CombatSet(Obs.StatusSnapshot? census)
         {
             var ids = new HashSet<string>(System.StringComparer.Ordinal);
@@ -108,7 +108,7 @@ namespace HomeBridge.BridgeTools
         private static bool Engaged(Obs.ThreatPawn row) => row.HasMentalState || row.FactionHostile || row.PrisonBreak || row.PredatorHunt;
 
         // On the main thread. The defense planner's other combat inputs
-        // (#853), the pawn detail being the pawn table's: the hive
+        //, the pawn detail being the pawn table's: the hive
         // temperature, damaged doors, mortars and the lines of fire from
         // ranged colonists to hostile buildings, while the census lists a
         // threat or a colonist in a mental state. Each is omitted when it
@@ -123,14 +123,14 @@ namespace HomeBridge.BridgeTools
             var colonists = table.Pawns.Where(p => colonistIds.Contains(p.Pawn?.Id ?? "")).ToList();
             if (!threats.Pawns.Any(Engaged) && threats.HostileBuildings.Count == 0
                 && !colonists.Any(p => p.HasMentalState)) return;
-            // The hottest live hive's temperature (#1073), for the heat-stroke hold.
+            // The hottest live hive's temperature, for the heat-stroke hold.
             foreach (var hive in map.listerThings.ThingsOfDef(RimWorld.ThingDefOf.Hive))
             {
                 if (!hive.Spawned || hive.Destroyed) continue;
                 var t = hive.Position.GetTemperature(map);
                 if (!observed.HasCombatHiveTemperatureC || t > observed.CombatHiveTemperatureC) observed.CombatHiveTemperatureC = t;
             }
-            // The damaged player doors (#900), for a fight's door repair.
+            // The damaged player doors, for a fight's door repair.
             foreach (var door in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_Door>())
             {
                 if (observed.CombatDoors.Count >= 64) break;
@@ -138,7 +138,7 @@ namespace HomeBridge.BridgeTools
                 observed.CombatDoors.Add(new RimGovernor.Protocol.Mirror.CombatDoorRow { Id = door.GetUniqueLoadID(),
                     Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z }, HitPoints = door.HitPoints, MaxHitPoints = door.MaxHitPoints });
             }
-            // The unroofed player mortars (#931), for counter-battery.
+            // The unroofed player mortars, for counter-battery.
             foreach (var mortar in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_TurretGun>())
             {
                 if (observed.CombatMortars.Count >= 16) break;
@@ -146,7 +146,7 @@ namespace HomeBridge.BridgeTools
                 observed.CombatMortars.Add(new RimGovernor.Protocol.Mirror.CombatMortarRow { Id = mortar.GetUniqueLoadID(),
                     Cell = new Common.Cell { X = mortar.Position.x, Z = mortar.Position.z },
                     MinRange = mortar.AttackVerb.verbProps.minRange, MaxRange = mortar.AttackVerb.verbProps.range });
-                // The loaded shell (#1051), for the shell the fight asks for.
+                // The loaded shell, for the shell the fight asks for.
                 var loaded = mortar.gun?.TryGetComp<RimWorld.CompChangeableProjectile>()?.LoadedShell;
                 if (loaded != null) observed.CombatMortars[observed.CombatMortars.Count - 1].LoadedShell = loaded.defName;
             }
@@ -155,7 +155,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (row.Pawn?.Position == null || row.Equipment == null || !row.Equipment.HasPrimaryId) continue;
                 // The shooter's primary weapon is the live one: the wire rows no
-                // longer carry its class or range (#1723), the catalog does.
+                // longer carry its class or range, the catalog does.
                 var shooter = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == row.Pawn.Id);
                 var weapon = shooter?.equipment?.Primary;
                 if (weapon == null || weapon.GetUniqueLoadID() != row.Equipment.PrimaryId || !weapon.def.IsRangedWeapon) continue;
@@ -179,7 +179,7 @@ namespace HomeBridge.BridgeTools
 
         // On the main thread. Adds the census families to observed, each
         // keyed as its dedicated read. A section that throws fails the frame
-        // (SnapshotSectionException, #1905); none is omitted.
+        // (SnapshotSectionException); none is omitted.
         private static void ReadFamilies(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed)
         {
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
@@ -205,7 +205,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // On the main thread. Adds the step families (#593), each the exact
+        // On the main thread. Adds the step families, each the exact
         // read its dedicated tool answers for the request shape the
         // controller issues, omitting any that fails or is not observed.
         private static void ReadStepFamilies(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed)

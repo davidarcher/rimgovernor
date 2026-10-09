@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// SoldierSquadRecord is the persistent soldier squad (#1558): bot intent,
+// SoldierSquadRecord is the persistent soldier squad: bot intent,
 // kept in the save as the family/soldier_squad blob. Members are sorted.
 type SoldierSquadRecord struct {
 	World   World

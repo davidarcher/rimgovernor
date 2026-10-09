@@ -19,7 +19,7 @@ const (
 	FishingZone   ZoneKind = "fishing"
 )
 
-// StockpilePriority spans vanilla's five storage priorities (#720): a
+// StockpilePriority spans vanilla's five storage priorities: a
 // Normal general store holds the colony's stock, Important/Critical working
 // stockpiles at benches and the kitchen pull from it, and Low is the dump.
 type StockpilePriority string
@@ -114,7 +114,7 @@ const FishingPopulationFloor = 0.6
 // tree): the native sower offers only cells whose offsets from the growing
 // zone's minimum corner are both multiples of the pitch, so a zone holds one
 // tree per TreeLatticePitch^2 cells and fills completely. Mirrors
-// TreeLatticeSowing.Pitch in the native mod (a test compares them, #2290).
+// TreeLatticeSowing.Pitch in the native mod (a test compares them).
 const TreeLatticePitch = 2
 
 // TreeCellsPerTree is the zone area one lattice tree takes.

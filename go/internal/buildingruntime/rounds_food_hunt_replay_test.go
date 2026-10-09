@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 )
 
-// The starving tribal colony (#2141) replayed through the hunt channel (#2158):
+// The starving tribal colony replayed through the hunt channel:
 // the recording holds no hunt row because its native gates refused the wild
 // deer. With a bow hunter the Go gate offers them (reach 25.9), and the plan
 // opens a lone Hunt; a group worth a squad is a formation that Holds with
@@ -60,7 +60,7 @@ func TestStarvingTribalHuntsWithBowsAndHoldsFormations(t *testing.T) {
 	}
 }
 
-// The same colony with a deer held only for want of a hunter's weapon (#2162):
+// The same colony with a deer held only for want of a hunter's weapon:
 // the plan prices the craft into the hunt and opens it, which is the arming the
 // work planner reads; a deer held for another reason prices nothing.
 func TestStarvingTribalOpensHunterWeaponPrerequisite(t *testing.T) {

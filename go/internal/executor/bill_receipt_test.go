@@ -9,7 +9,7 @@ import (
 )
 
 // An applied production_bill receipt that names a native bill journals the id
-// on the action's progress (#2410); one that names none journals none.
+// on the action's progress; one that names none journals none.
 func TestAppliedBillReceiptJournalsTheBillID(t *testing.T) {
 	for _, tc := range []struct{ name, bill string }{{"named", "Bill_Production_77"}, {"unnamed", ""}} {
 		bill, err := domain.NewProductionBill("Bench_1", "Make_Pemmican", domain.StockTarget, 20)

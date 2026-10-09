@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The cross-crop ledger (#1308): with rice 400 urgent and hay 200 in one
+// The cross-crop ledger: with rice 400 urgent and hay 200 in one
 // patch, rice ranks first and its block covers the patch's rich cells
 // before hay gets any; swapping the urgencies swaps who gets them.
 func TestFieldLedgerRichSoilToHighestDemand(t *testing.T) {
@@ -66,7 +66,7 @@ func TestFieldLedgerRichSoilToHighestDemand(t *testing.T) {
 
 // A courtyard plan on a non-rectangular (plus-shaped) rich patch is still
 // farmed: planFieldBlock returns cells of the patch, rich ones first, none
-// of them under a room or hallway (#1960).
+// of them under a room or hallway.
 func TestFieldBlockFarmsCourtyardPatch(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	const n = 140
@@ -122,7 +122,7 @@ func blockFacts() observation.ColonyProjection {
 
 // One 40x30 fertile patch with demand for three crops holds three adjacent
 // growing zones with no gap between them, each sized to its demand; more
-// demand grows one zone in place and leaves the others (#1283).
+// demand grows one zone in place and leaves the others.
 func TestFieldPatchCropBlocksByDemand(t *testing.T) {
 	plan := policy.LayoutPlan{Zones: []policy.LayoutZone{{Kind: policy.ZoneField}}}
 	facts := observation.ColonyProjection{TechTier: domain.Known(policy.TechTierCamp)}
@@ -215,7 +215,7 @@ func rice(n int) []policy.FieldBlockOption {
 }
 
 // A new block next to a rice zone opens with the next viable crop; with
-// rice the sole viable crop it still opens rice (#1225).
+// rice the sole viable crop it still opens rice.
 func TestFieldBlockAvoidsNeighbourCrop(t *testing.T) {
 	facts := blockFacts()
 	anchor := domain.Cell{X: 0, Z: 0}
@@ -291,7 +291,7 @@ func TestFieldBlockNextOnlyWhenFull(t *testing.T) {
 
 // A block whose free soil is split by a rock column still creates one
 // connected zone, in its largest free part, even when the need exceeds
-// the block (#1252).
+// the block.
 func TestFieldBlockCreateIsConnected(t *testing.T) {
 	facts := blockFacts()
 	for i := range facts.Cells {
@@ -320,9 +320,9 @@ func TestFieldBlockRefusesWithoutBlocks(t *testing.T) {
 	}
 }
 
-// Hay and social crops claim their own crop blocks (#1226): neither they
+// Hay and social crops claim their own crop blocks: neither they
 // nor food grow into the other's zone; the new block sits in the same
-// patch against the standing zone (#1283).
+// patch against the standing zone.
 func TestFieldBlockHayClaimsItsOwnBlock(t *testing.T) {
 	facts := blockFacts()
 	anchor := domain.Cell{X: 0, Z: 0}

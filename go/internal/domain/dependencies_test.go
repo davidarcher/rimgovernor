@@ -91,7 +91,7 @@ func TestDependenciesRequireObservedOutcomeAndPreserveIntent(t *testing.T) {
 
 // A coupled dependency names its action as ready exactly once every
 // prerequisite has completed in the current world and the action itself is
-// still undispatched (#244); an ordering-only dependency never does.
+// still undispatched; an ordering-only dependency never does.
 func TestCoupledPendingNamesReadyCoupledOrders(t *testing.T) {
 	p := dependencyPlan(t, ActionDependency{Action: "walls", Requires: "foundation", Coupled: true}, ActionDependency{Action: "furniture", Requires: "walls"})
 	s := GenerationSnapshot{Colony: "colony", Load: "load", Map: 1, Plan: p.ID(), Revision: p.Revision()}

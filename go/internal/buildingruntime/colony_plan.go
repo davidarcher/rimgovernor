@@ -18,12 +18,12 @@ import (
 )
 
 // layoutReplanEvery is the fewest ticks between survey reads for any
-// layout trigger (one game hour, #1290): a colony the grown plan still
+// layout trigger (one game hour): a colony the grown plan still
 // cannot house waits an hour instead of re-reading the map every review.
 const layoutReplanEvery domain.Tick = 2500
 
 // layoutTerrainCheckEvery is the terrain check: every game hour a review
-// re-reads the survey and replans the layout when it changed (#1290).
+// re-reads the survey and replans the layout when it changed.
 const layoutTerrainCheckEvery domain.Tick = 2500
 
 // layoutInputs is what an incremental replan reads; a survey whose inputs
@@ -51,7 +51,7 @@ func grownFor(projection observation.ColonyProjection) string {
 }
 
 // layoutSurvey is the whole-map survey behind the layout plan, read off the
-// projection's planning window and the load's definition catalog (#2272). A
+// projection's planning window and the load's definition catalog. A
 // reviewer whose native serves no definitions, or a projection without a
 // window, plans nothing.
 func (r *Rounder) layoutSurvey(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) (policy.MapSurvey, error) {
@@ -66,9 +66,9 @@ func (r *Rounder) layoutSurvey(ctx context.Context, snapshot domain.GenerationSn
 	return bridge.SurveyFromCells(projection.Cells, projection.Bounds, catalog)
 }
 
-// reviewLayoutPlan serves the saved v2 layout plan (#783) on the
+// reviewLayoutPlan serves the saved v2 layout plan on the
 // projection. It derives one at once when none is saved (then at most
-// once an hour) and re-reads the survey every hour (#1290), growing the
+// once an hour) and re-reads the survey every hour, growing the
 // plan when a pawn, tier, research, need or the terrain changed since the
 // last replan. The replan is incremental: built rooms never move.
 func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
@@ -89,23 +89,23 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	hourly := !r.planSurveyed || tick-checked >= layoutReplanEvery
 	missing := !haveLayout && hourly
 	terrain := haveLayout && tick-checked >= layoutTerrainCheckEvery
-	// The pens, barn and vet room follow the herd plan's target herd (#1633).
+	// The pens, barn and vet room follow the herd plan's target herd.
 	animals := projection.Facts.PenAnimals()
-	// New research or a new tier (#1290): other research unlocks rooms too.
+	// New research or a new tier: other research unlocks rooms too.
 	grown := grownFor(*projection)
 	research := haveLayout && grown != r.planGrownFor && hourly
-	// Every tomb full (#857): grow one more, at most once an hour.
+	// Every tomb full: grow one more, at most once an hour.
 	tombs := 0
 	tomb := haveLayout && tombsFull(layout.Plan, *projection)
 	if tomb {
 		tombs = layout.Plan.TombRooms() + 1
 	}
 	tomb = tomb && hourly
-	// A pawn owed a suite no planned suite answers (#1216) is planned a new
-	// suite block, sized at siting (#1951); suites already planned never
+	// A pawn owed a suite no planned suite answers is planned a new
+	// suite block, sized at siting; suites already planned never
 	// change. No trigger of its own: the hourly terrain check re-reads the
 	// survey and the suites are in the replan's inputs key, so a new claim
-	// is planned within the hour (#1958).
+	// is planned within the hour.
 	var suites []float64
 	if haveLayout {
 		var claims []policy.SuiteClaim
@@ -114,7 +114,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	}
 	suite := haveLayout && len(suites) > layout.Plan.SuiteRooms()
 	// A colonist who holds or can claim a title that asks for a throne room
-	// the plan lacks (#1601): grow one sized to the title's area.
+	// the plan lacks: grow one sized to the title's area.
 	var growth policy.RoomGrowth
 	growth.HerdUnits = projection.Facts.HerdUnits()
 	if need, owed := throneNeed(*projection); haveLayout {
@@ -126,7 +126,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	demand := r.stockpiles.layoutDemand(stockpileWorld(snapshot))
 	throne := growth.ThroneArea > 0 && hourly
 	// A baby, toddler or child owed a nursery, playroom or classroom the
-	// plan lacks (#1680): grow it, sized to its furniture.
+	// plan lacks: grow it, sized to its furniture.
 	if haveLayout {
 		needs, defs := childRoomNeeds(*projection), furnitureDefinitions(*projection)
 		growth.Child = policy.ChildRoomsOwed(layout.Plan, needs, defs)
@@ -134,7 +134,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 			growth.Shapes, growth.Built = policy.ChildRoomShapes(needs, defs), policy.BuiltRooms(layout.Plan, ground)
 		}
 	}
-	// An unbuilt room whose need has ended (#1824) leaves the plan.
+	// An unbuilt room whose need has ended leaves the plan.
 	if haveLayout {
 		construction, ck := projection.Facts.CurrentConstruction.Value()
 		if ck && construction.Colony {
@@ -147,7 +147,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	}
 	children := (len(growth.Child) > 0 || growth.Built != nil || growth.InUse != nil) && hourly
 	// Bedrooms, workshop and laboratory stand and every colonist is housed:
-	// the shelter leaves the plan (#2046). Re-read every review, no latch.
+	// the shelter leaves the plan. Re-read every review, no latch.
 	if haveLayout {
 		census, rk := projection.Rooms.Value()
 		sleeping, sk := projection.Facts.Sleeping.Value()
@@ -155,7 +155,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 		growth.RetireShelter = rk && sk && ck && construction.Colony && policy.ShelterRetirable(layout.Plan, census, sleeping)
 	}
 	retireShelter := growth.RetireShelter && hourly
-	// Stored gear outgrew its zone (#1773): the storage planner's demand adds
+	// Stored gear outgrew its zone: the storage planner's demand adds
 	// the armory or wardrobe the plan lacks, at most once an hour.
 	if haveLayout && (len(policy.GearRoomsOwed(layout.Plan, demand)) > 0 || policy.StorageRoomsOwed(layout.Plan, demand) > 0 || policy.YardRoomsOwed(layout.Plan, demand) > 0 || policy.GraveyardsOwed(layout.Plan, demand) > 0 || policy.SurplusRoomsPossible(layout.Plan, growth.ThroneMin, demand)) {
 		growth.Demand = demand
@@ -167,13 +167,13 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 		growth.Core = policy.CoreRoomsOwed(layout.Plan, coreRoomsWanted(*projection))
 	}
 	core := len(growth.Core) > 0 && hourly
-	// The outskirts cluster holds the tomb, morgue, waste yard and incinerator from the start (#2185, #2187); a
+	// The outskirts cluster holds the tomb, morgue, waste yard and incinerator from the start; a
 	// plan that predates it is grown one, at most once an hour.
 	if haveLayout && policy.OutskirtsOwed(layout.Plan) {
 		growth.Outskirts = policy.OutskirtsSize()
 	}
 	outskirts := growth.Outskirts != [2]int32{} && hourly
-	// The materials yard is planned from the start (#2192); a plan that predates
+	// The materials yard is planned from the start; a plan that predates
 	// it, or a full yard (RoomDemand.Yard), is grown one.
 	yard := haveLayout && policy.YardRoomsOwed(layout.Plan, demand) > 0 && hourly
 	if outgrown || missing || terrain || research || tomb || throne || children || retireShelter || gear || core || outskirts || yard {
@@ -182,7 +182,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 			_ = err // a failed survey retries on the next review
 		} else {
 			r.planChecked, r.planSurveyed = tick, true
-			// A fresh plan latches the map's climate (#2044); unknown reads warm.
+			// A fresh plan latches the map's climate; unknown reads warm.
 			survey.Cold, _ = projection.ColdMap.Value()
 			survey.Hot, _ = projection.HotMap.Value()
 			topology, _ := projection.PowerPlanning.Value()
@@ -190,7 +190,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), layoutTier(*projection), topology.Geysers, animals, projection.Facts.YardAnimals())
 				r.planGrownFor, r.planPawns, r.planInputs = grown, int(pawns), layoutInputs{}
 			} else {
-				// Fixed rooms are what the replan keeps (#1958): read here, with
+				// Fixed rooms are what the replan keeps: read here, with
 				// the journal's open plans, only once a replan is due. Nil while
 				// the census or the plan catalog is unknown keeps every room.
 				if occupied, origins, ok := r.layoutOccupied(ctx, *projection, layout.Plan); ok {
@@ -245,7 +245,7 @@ const (
 )
 
 // LayoutOverlayNative draws the layout plan as a native overlay layer
-// (#817, bridge.Client.DrawOverlay).
+// (bridge.Client.DrawOverlay).
 type LayoutOverlayNative interface {
 	DrawOverlay(context.Context, *c.Identity, string, policy.LayoutOverlay, bool) (*p.OverlayApplied, bridge.Result, error)
 }
@@ -287,7 +287,7 @@ func (r *Rounder) drawLayoutOverlay(ctx context.Context, snapshot domain.Generat
 	r.overlayKey, r.overlayDrawn, r.overlayCleared = key, tick, false
 }
 
-// layoutPlan reads the v2 layout plan (#783). A saved plan that no longer
+// layoutPlan reads the v2 layout plan. A saved plan that no longer
 // decodes or validates reads as none, logged once per process, so the next
 // survey derives a fresh one.
 func (r *Rounder) layoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick) (store.LayoutPlanRecord, bool, error) {
@@ -371,7 +371,7 @@ func layoutReasons(fired map[string]bool) string {
 }
 
 // logSuiteClaims logs the suite claims (pawn, reason, target) whenever the
-// set changes (#1257), so a run shows who is owed a suite and why.
+// set changes, so a run shows who is owed a suite and why.
 func (r *Rounder) logSuiteClaims(ctx context.Context, claims []policy.SuiteClaim) {
 	line := "none"
 	if len(claims) > 0 {
@@ -395,7 +395,7 @@ func (r *Rounder) logSuiteClaims(ctx context.Context, claims []policy.SuiteClaim
 const heatRedrawEvery domain.Tick = 2500
 
 // drawHeatOverlay redraws a "heat.<layer>" overlay layer per traffic layer
-// (#817) from the census's busiest cells, on its own hourly cadence; with
+// from the census's busiest cells, on its own hourly cadence; with
 // the overlay off it removes them once. Output only, like the layout.
 func (r *Rounder) drawHeatOverlay(ctx context.Context, native LayoutOverlayNative, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) {
 	census, known := projection.Facts.Upkeep.Flooring.Value()
@@ -419,7 +419,7 @@ func (r *Rounder) drawHeatOverlay(ctx context.Context, native LayoutOverlayNativ
 	r.heatDrawn, r.heatCleared = tick, !on
 }
 
-// layoutTier is the tech tier new bedroom wings are sized for (#1214); an
+// layoutTier is the tech tier new bedroom wings are sized for; an
 // unknown tier reads Camp.
 func layoutTier(projection observation.ColonyProjection) policy.TechTier {
 	tier, _ := projection.TechTier.Value()

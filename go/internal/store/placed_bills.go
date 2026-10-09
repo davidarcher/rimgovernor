@@ -7,8 +7,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// PlacedBill is a native bill a Standard's production_bill action placed
-// (#2411): the receipt's journaled bill id with the action's bench and mode.
+// PlacedBill is a native bill a Standard's production_bill action placed:
+// the receipt's journaled bill id with the action's bench and mode.
 // Standard is the owning standard's row id; Rounds.Need names its concern.
 type PlacedBill struct {
 	Standard domain.ConcernID

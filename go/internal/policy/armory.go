@@ -8,8 +8,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// ArmoryTier is how far up the military ladder the armory planner reaches
-// (#1198): the threat the storyteller's raid points call for, capped by the
+// ArmoryTier is how far up the military ladder the armory planner reaches:
+// the threat the storyteller's raid points call for, capped by the
 // research the colony has finished. Higher tiers include the lower ones.
 type ArmoryTier int
 
@@ -105,7 +105,7 @@ func AssessArmory(raidPoints domain.Fact[float64], research domain.Fact[Research
 }
 
 // SelectArmoryMethod proposes one demand-sized weapon bill for the colonists
-// no loose weapon arms (#1203): the armory owns military crafting, the gear
+// no loose weapon arms: the armory owns military crafting, the gear
 // planner only wears and replaces. weapons is ArmoryWeaponDemand. A
 // pending wear candidate defers the bill, as gear always wears an existing
 // item before anything is crafted.
@@ -146,7 +146,7 @@ func SelectArmoryMethod(r GearPlanningRequest, weapons []Amount) (GearMethod, er
 	return produceGear(needs, v, review, seen, r)
 }
 
-// armoryWeaponTiers is the ladder rung each modelled weapon sits on (#1204):
+// armoryWeaponTiers is the ladder rung each modelled weapon sits on:
 // crafting-spot neolithic arms, forged melee and the greatbow, machined
 // guns, fabricated charge weapons. A weapon off the table is never planned.
 var armoryWeaponTiers = map[string]ArmoryTier{
@@ -185,11 +185,11 @@ type ArmoryPrimary struct {
 	Definition string
 	Ranged     bool
 	Quality    int
-	// Facts is the primary's def rows (#1723).
+	// Facts is the primary's def rows.
 	Facts WeaponDef
 }
 
-// ArmoryWeaponDemand is the armory's bill target (#1204): per colonist, the
+// ArmoryWeaponDemand is the armory's bill target: per colonist, the
 // best weapon a hosted, researched recipe at or under the tier makes. An
 // unarmed colonist the loose weapons cannot arm wants one (an unknown tier
 // arms at neolithic: arming the unarmed is never held on a guess); an armed

@@ -70,7 +70,7 @@ func (TradeRequestKind) EnumDescriptor() ([]byte, []int) {
 	return file_common_proto_rawDescGZIP(), []int{0}
 }
 
-// Whose corpse a thing is (#832/#833): the player faction's humanlike
+// Whose corpse a thing is: the player faction's humanlike
 // (colonists and slaves), any other humanlike, or an animal.
 type CorpseClass int32
 
@@ -820,7 +820,7 @@ func (x *AttemptKey) GetAttemptId() uint64 {
 }
 
 // A pointer at a thing, pawn, building, zone, bill, room or faction by its
-// load id (#1342). Definition, label and position come from the row it
+// load id. Definition, label and position come from the row it
 // resolves to (the frame's tables) and the definition catalog, never from
 // the reference.
 type Ref struct {

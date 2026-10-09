@@ -1,5 +1,5 @@
 // Package authority holds the authority lifecycle cases. disconnect (the
-// former disconnectaccept, #35 M1): a bot that vanishes mid-epoch loses
+// former disconnectaccept M1): a bot that vanishes mid-epoch loses
 // authority. The only native-observable sign of a dropped controller is a
 // typed clock lease lapsing, so the case grants Auto, starts a typed epoch
 // with the shortest admissible lease and never renews it. Native must stop
@@ -8,7 +8,7 @@
 // fresh SetMode(Auto) at that generation exactly as a reconnecting
 // controller would issue it.
 //
-// The final case is the Go transport side (#87): the case drops its own
+// The final case is the Go transport side: the case drops its own
 // game connection mid-epoch, the bridge client must report the loss and fail
 // fast, Reattach must restore service against the game that kept running,
 // and the re-observed authority must be the DISCONNECT revocation that a
@@ -143,7 +143,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["case_regrant"] = map[string]any{"generation": regranted}
 
-	// Case 3 (#87): the GABP connection itself drops mid-epoch. The typed lease
+	// Case 3: the GABP connection itself drops mid-epoch. The typed lease
 	// is again the only native-observable sign; on the Go side the bridge
 	// client must notice the loss without a call, fail fast, and reattach.
 	transport, err := transportDrop(ctx, s, h, identity, regranted)

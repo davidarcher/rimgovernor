@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// #1845: the one chosen affordable elective whose part is off the map feeds
+// The one chosen affordable elective whose part is off the map feeds
 // the trade when nothing can fabricate it; served parts win, fabrication
 // wins, an unaffordable elective never.
 func TestElectivePartPurchase(t *testing.T) {

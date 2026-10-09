@@ -6,8 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Furnishing the jail (#880). While a prisoner is held, MaintainPopulation
-// keeps one bed set for prisoners in a planned jail (#835) per held prisoner:
+// Furnishing the jail. While a prisoner is held, MaintainPopulation
+// keeps one bed set for prisoners in a planned jail per held prisoner:
 // it sets an unflagged bed standing in a jail for prisoners first, and
 // otherwise reconciles the room (ReconcileRoom) to the next free template
 // bed: the ring, the floor and the bed, installed from packed stock first. A
@@ -18,7 +18,7 @@ func init() {
 	RegisterInteriorTemplate(RoomRolePrisonCell, InteriorTemplate{Name: "jail", Plan: planJail})
 }
 
-// planJail lays beds the tomb's way (#831): a 1-cell aisle straight in
+// planJail lays beds the tomb's way: a 1-cell aisle straight in
 // from the door, beds on both sides, heads to the side walls.
 func planJail(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
 	bed, ok := f.Shapes.Get(f.Shapes.Furniture.PrimaryBed())

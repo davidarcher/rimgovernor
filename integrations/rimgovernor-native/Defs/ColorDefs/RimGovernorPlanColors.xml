@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Planning colors the layout overlay (#726) needs beyond the nine vanilla ones.
+<!-- Planning colors the layout overlay needs beyond the nine vanilla ones.
      They load with the mod, before any save, so a saved plan always resolves its color. -->
 <Defs>
   <ColorDef ParentName="PlanningColorDefBase">

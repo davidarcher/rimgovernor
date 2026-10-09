@@ -22,12 +22,12 @@ const (
 	// TemperatureCoolPowered places one powered Cooler through a vented
 	// wall of the hottest sleeping room, its cold side facing the room;
 	// it outranks the passive cooler when the research is done and a
-	// power network has the spare capacity to run it (#406).
+	// power network has the spare capacity to run it.
 	TemperatureCoolPowered TemperatureMethod = "Cooler"
 	// TemperatureRefuelOff and TemperatureRefuelOn switch a heat
-	// campfire's auto-refuel (#1180): off once its sleeping room reaches
+	// campfire's auto-refuel: off once its sleeping room reaches
 	// its sleepers' comfort maximum, so the fire burns out, and on again
-	// below their comfort minimum (sleepersBand, #1199).
+	// below their comfort minimum (sleepersBand).
 	TemperatureRefuelOff TemperatureMethod = "campfire_refuel_off"
 	TemperatureRefuelOn  TemperatureMethod = "campfire_refuel_on"
 )
@@ -64,16 +64,16 @@ type TemperatureCooling struct {
 	Power           domain.Fact[PowerTopology]
 	Cells           []SiteCell
 	// HeatCampfires are the campfires standing as room heat, whose
-	// auto-refuel the method switches (#1180).
+	// auto-refuel the method switches.
 	HeatCampfires []HeatCampfire
 	// Sleepers are the colonists and slaves whose owned beds and
-	// comfortable ranges band each sleeping room (#1199).
+	// comfortable ranges band each sleeping room.
 	Sleepers []SleepingPerson
 	// Heater is the catalog's heater definition (RoomFurniture.Heater), the
-	// climate piece of the barn (#1867); empty when the catalog has none.
+	// climate piece of the barn; empty when the catalog has none.
 	Heater string
 	// PlannedShelters are the layout plan's shelter rooms, read from the
-	// planned interior alone (#2303): a shelter template holds the sleeping
+	// planned interior alone: a shelter template holds the sleeping
 	// places (spots, bedrolls, beds), so it is the room people will sleep in
 	// before any bed stands.
 	PlannedShelters []ThermalShelter
@@ -89,7 +89,7 @@ type ThermalShelter struct {
 	Hot bool
 }
 
-// Conditioned reports whether room holds a working climate piece (#1867): a
+// Conditioned reports whether room holds a working climate piece: a
 // powered heater of the catalog's heater definition standing on its floor, or
 // a wall cooler beside it. The barn's heater is the first; a room that holds
 // one needs no second.
@@ -120,7 +120,7 @@ func (c TemperatureCooling) heaterIn(room Room) bool {
 }
 
 // sleepersBand is the intersection of the comfortable ranges of the people
-// owning a bed in room (#1199): apparel, traits and genes shift each one.
+// owning a bed in room: apparel, traits and genes shift each one.
 // Without a sleeper whose range is known banded is false and the band is
 // unknown: nothing is judged against a range the game did not state.
 func sleepersBand(room Room, sleepers []SleepingPerson) (low, high float64, banded bool) {
@@ -145,9 +145,8 @@ func sleepersBand(room Room, sleepers []SleepingPerson) (low, high float64, band
 }
 
 // TemperatureOwed holds EnsureTemperatureSafety open past the fixed
-// thresholds: a heat campfire owes its refuel switch (#1180), or a sleeping
-// room with no campfire or heater sits below its sleepers' comfort minimum
-// (#1199).
+// thresholds: a heat campfire owes its refuel switch, or a sleeping
+// room with no campfire or heater sits below its sleepers' comfort minimum.
 func TemperatureOwed(fact domain.Fact[RoomObservation], cooling TemperatureCooling) bool {
 	if _, owed := CampfireRefuel(fact, cooling); owed {
 		return true
@@ -175,9 +174,9 @@ func TemperatureOwed(fact domain.Fact[RoomObservation], cooling TemperatureCooli
 }
 
 // CampfireRefuel is the auto-refuel switch a heat campfire in a sleeping
-// room owes (#1180): off at its sleepers' comfort maximum or warmer while
+// room owes: off at its sleepers' comfort maximum or warmer while
 // it refuels, on below their comfort minimum while it does not
-// (sleepersBand, #1199). A campfire whose room, temperature or toggle is
+// (sleepersBand). A campfire whose room, temperature or toggle is
 // unknown owes nothing.
 func CampfireRefuel(fact domain.Fact[RoomObservation], cooling TemperatureCooling) (TemperatureProposal, bool) {
 	v, known := fact.Value()
@@ -350,7 +349,7 @@ func (v RoomObservation) Validate() error {
 }
 
 // ProvesTemperature is whether the room's native temperature is evidence of
-// recovery: the room is enclosed and every cell is roofed (#2265).
+// recovery: the room is enclosed and every cell is roofed.
 // UsesOutdoorTemperature holds at 25% open roof and Indoors does not mean
 // roofed, so enclosure alone proves nothing.
 func (r Room) ProvesTemperature() bool {
@@ -463,7 +462,7 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 			unknown = true
 			continue
 		}
-		// Placement is not gated on enclosure or a roof (#2265); only a room
+		// Placement is not gated on enclosure or a roof; only a room
 		// with no cells has nowhere to place.
 		if len(room.Cells) == 0 {
 			missing = true
@@ -471,7 +470,7 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 		}
 		method := TemperatureNoMethod
 		// Known sleepers' comfort minimum replaces the fixed cold
-		// thresholds (#1199): a parka wearer needs no heat at 10 C.
+		// thresholds: a parka wearer needs no heat at 10 C.
 		cold := temperature < limits.ColdEnter || latches.Cold && temperature < limits.ColdExit
 		if low, _, banded := sleepersBand(room, cooling.Sleepers); banded {
 			cold = temperature < low
@@ -570,7 +569,7 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling Temperat
 }
 
 // plannedShelterCooler keys the hot map's cooler on the planned shelter
-// instead of a standing bed room (#2303): a tribal start sleeps on spots and
+// instead of a standing bed room: a tribal start sleeps on spots and
 // bedrolls first, so waiting for a bed would serialize the cooler behind the
 // housing. The shelter template always holds sleeping places, which is why the
 // rule reads the shelter role and no other planned room. Once the cooler

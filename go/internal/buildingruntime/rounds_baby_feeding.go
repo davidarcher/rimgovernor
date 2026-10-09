@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// reviewBabyFeeding sets the babies' food review (#1681) from the Biotech
+// reviewBabyFeeding sets the babies' food review from the Biotech
 // colony section's baby care and the food supply. It is unknown without
 // either, or when a baby has no consumer row; a colony with no babies reviews
 // as not short.

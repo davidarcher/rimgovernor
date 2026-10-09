@@ -33,7 +33,7 @@ func init() {
 type salvageRun struct {
 	scenario string
 	// covered: the ruin's Steel is not short, so the queue must rank it in the
-	// last tier and still recover it (#2291: demand never holds a thing).
+	// last tier and still recover it (demand never holds a thing).
 	covered bool
 	// cluster: every wall goes, roof first, and no roof collapses.
 	cluster bool

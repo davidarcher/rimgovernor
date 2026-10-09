@@ -33,13 +33,9 @@ namespace HomeBridge.BridgeTools {
   });
   internal static Obs.SnapshotRef Snapshot(Thing bench,IBillGiver giver,Common.ObservationContext context)=>new Obs.SnapshotRef{Context=context.Clone(),EntityId=bench.GetUniqueLoadID(),Token=Hash(w=>{w.Write(context.Identity.ColonyId);w.Write(context.Identity.LoadToken);w.Write(context.Identity.MapId);w.Write(bench.GetUniqueLoadID());w.Write(giver.BillStack.Count);if(giver.BillStack.Count>15)throw new InvalidOperationException("Bill stack bound");foreach(var b in giver.BillStack.Bills){w.Write(Configuration(b));w.Write(b is Bill_Production p&&p.paused);}})};
   internal static bool Usable(Thing bench)=>bench.Spawned&&ProtoBoundary.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is IBillGiver g&&g.CurrentlyUsableForBills();
-  // Adding a bill is the player's act of queuing work, and the game lets a
-  // player queue it on an empty fueled bench: haulers refuel the bench on
-  // their own once a bill waits there. Building_WorkTable.CurrentlyUsableForBills
-  // is false without fuel, so a freshly built smithy could never receive
-  // its first bill (#155 M4: the production ladder stalled on the bench
-  // rung's own product). Only the fuel condition is relaxed; a bench that
-  // is unusable for any other reason still refuses.
+  // Players can queue work on an empty fueled bench; haulers refuel it once a bill waits.
+  // CurrentlyUsableForBills rejects an unfueled bench, so admission relaxes only that condition.
+  // Every other usability check still applies.
   internal static bool UsableForNewBill(Thing bench)=>Usable(bench)||bench.Spawned&&ProtoBoundary.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is Building_WorkTable table&&table.UsableForBillsAfterFueling();
   // Ordinary production: every product is a spawnable item (food, kibble,
   // blocks, weapons, apparel alike); corpse butchering keeps its special case.
@@ -68,7 +64,7 @@ namespace HomeBridge.BridgeTools {
    foreach(var special in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.Where(f=>f.parentCategory?.defName=="CorpsesHumanlike"))
     bill.ingredientFilter.SetAllow(special,allowed.Contains(special.defName));
   }
-  // An item, or a piece of art (a sculpture): vanilla makes it packed (#1195).
+  // An item, or a piece of art (a sculpture): vanilla makes it packed.
   internal static bool Product(ThingDef d)=>d!=null&&(d.category==ThingCategory.Item&&!d.IsCorpse||d.category==ThingCategory.Building&&d.Minifiable&&d.HasComp(typeof(CompArt)));
   internal static Obs.BillState BillRow(Bill bill,int index){
    var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Recipe=new Obs.DefinitionRef{DefName=bill.recipe.defName},Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill)};
@@ -94,7 +90,7 @@ namespace HomeBridge.BridgeTools {
    return row;
   }
   // Each spawned pawn whose current job works this bill: the spawned things
-  // it has queued (targetQueueB/countQueue) or placed (#1354).
+  // it has queued (targetQueueB/countQueue) or placed.
   private static void Reservations(Bill bill,Obs.BillState row){
    if(!(bill.billStack?.billGiver is Thing bench)||!bench.Spawned)return;
    foreach(var pawn in bench.Map.mapPawns.AllPawnsSpawned){
@@ -129,15 +125,14 @@ namespace HomeBridge.BridgeTools {
   }
   internal static bool Valid(Operations.ProductionBillIntent? intent)=>NativeProductionBillSettings.Valid(intent);
   // A bench carries at most one bill per recipe (and corpse class, and
-  // pinned worker when the intent pins one, #1190): the one a resent or
+  // pinned worker when the intent pins one): the one a resent or
   // replanned intent finds standing.
   internal static bool Matching(IBillGiver giver,Bill? except,Operations.ProductionBillIntent intent)=>giver.BillStack.Bills.Any(b=>b!=except && Matches(b,intent));
-  // A finished "do X times" bill is spent, not standing: the next batch is a new bill (#1195).
+  // A finished "do X times" bill is spent, not standing: the next batch is a new bill.
   internal static bool Matches(Bill b,Operations.ProductionBillIntent intent)=>b.recipe.defName==intent.RecipeDef && !BillCommon.IsFinished(b as Bill_Production) &&(!CorpseRecipe(intent.RecipeDef) || CorpseClass(b)==intent.Settings.CorpseClass) && (intent.Settings.Worker==null || b.PawnRestriction?.GetUniqueLoadID()==intent.Settings.Worker.EntityId);
   internal static bool Skilled(Pawn p,Thing bench,RecipeDef recipe,WorkTypeDef work)=>p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work)&&!bench.IsForbidden(p)&&p.Position.DistanceTo(bench.Position)<=40&&p.CanReach(bench,PathEndMode.InteractionCell,Danger.None)&&(recipe.skillRequirements==null||recipe.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel));
-  // Each reason names the condition that failed: the production ladder's
-  // bill rung reads only this message back (#155 M4 run 9 stalled on the
-  // one-line summary), and each check below is a different repair.
+  // Each reason identifies the failed condition so the production ladder can choose the
+  // corresponding repair from this diagnostic.
   internal static string NoWorker(Map map,Thing bench,RecipeDef recipe,WorkTypeDef work,List<Pawn> colonists){
    var assigned=colonists.Count(p=>p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work));
    var reaching=colonists.Count(p=>!bench.IsForbidden(p)&&p.Position.DistanceTo(bench.Position)<=40&&p.CanReach(bench,PathEndMode.InteractionCell,Danger.None));
@@ -218,7 +213,7 @@ namespace HomeBridge.BridgeTools {
    return new Receipts.EffectEvidence{Bill=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},Bill=NativeRef.Of(standing.GetUniqueLoadID()),RecipeDef=standing.recipe.defName}};
   }
  }
- // Actions/Apply remove_production_bill (#2410, epic #2385): delete one idle
+ // Actions/Apply remove_production_bill: delete one idle
  // bill from a player bench. Bench and bill are re-resolved live; a bill that
  // is gone, that a spawned pawn's current job works, or that an unfinished item
  // is bound to is refused and the Round retries. Only ordinary production

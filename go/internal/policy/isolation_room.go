@@ -4,7 +4,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The creepjoiner isolation room (#1740, epic #1694): one planned room
+// The creepjoiner isolation room: one planned room
 // holding one bed, owed while a creepjoiner whose downside has not shown and
 // whose inspection the colony has not finished lives in the colony. It is
 // staged like the containment cell (containment_cell.go): the layout review

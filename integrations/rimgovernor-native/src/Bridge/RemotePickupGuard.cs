@@ -10,7 +10,7 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    // Straight-line batching rules for construction delivery (#2517). Pure math,
+    // Straight-line batching rules for construction delivery. Pure math,
     // no Verse types: a stack at distance d from the first stack is worth a
     // detour when d < n * D / capacity, where D is the source-to-site distance
     // and n is how many of its items fit in the remaining carry capacity.

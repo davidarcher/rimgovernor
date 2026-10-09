@@ -17,7 +17,7 @@ const warmUsage = `
   acceptance warm -root <dir> [-game <id> -headless=false -background]`
 
 // warm prepares the root's profile and boots its game to the main menu so
-// the next run attaches instead of launching (#285). -background hands
+// the next run attaches instead of launching. -background hands
 // the work to a detached copy of this command, logging to
 // <root>/acceptance/warm/warm.log, and returns at once with its pid; a
 // post-build hook uses it after the native mod is installed.

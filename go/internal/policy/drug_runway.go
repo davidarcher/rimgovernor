@@ -8,8 +8,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Drug runway (#2380, epic #1856). A social drug is spent where a colonist
-// takes it; the realized-consumption ring (#2441) counts each dose, and
+// Drug runway. A social drug is spent where a colonist
+// takes it; the realized-consumption ring counts each dose, and
 // ForecastResourceRunway turns the observed rate and the stock into days left.
 // The shortfall is the projector's Drugs domain; the stock to hold is the
 // runway's own Target, raised into the resource ladder like any other

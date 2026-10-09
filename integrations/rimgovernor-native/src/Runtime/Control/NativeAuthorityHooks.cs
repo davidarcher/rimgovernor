@@ -200,7 +200,7 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>
-        /// The autopilot plays with numbered work priorities (#1276): without
+        /// The autopilot plays with numbered work priorities: without
         /// useWorkPriorities, WorkSettings.GetPriority masks every active job
         /// as 3. Idempotent; runs on grant and on every poll while control is
         /// active, so a loaded save that stored checkbox mode flips back.
@@ -265,7 +265,7 @@ namespace HomeBridge.BridgeTools
         {
             if (__state == __instance.Drafted) return;
             // The game undrafts a pawn that breaks, falls or dies; that is
-            // the fight, not the player (#890).
+            // the fight, not the player.
             var pawn = __instance.pawn;
             if (!__instance.Drafted && pawn != null && (pawn.InMentalState || pawn.Downed || pawn.Dead || !pawn.Spawned)) return;
             Revoke(NativeControlRevocationReason.PlayerControl, () => Describe(__instance.pawn, __instance.Drafted ? "draft" : "undraft"));

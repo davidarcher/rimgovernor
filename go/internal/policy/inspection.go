@@ -23,7 +23,7 @@ func FactFamilies() []FactFamily {
 }
 
 // Inspection checks one Concern: its type, its department, the fact
-// families its check reads (#1907) and the check itself (#1908).
+// families its check reads and the check itself.
 // The registry is the only place a Concern is classified.
 type Inspection struct {
 	Concern    ConcernID
@@ -40,7 +40,7 @@ type Inspection struct {
 }
 
 // inspections lists every inspection in evaluation order. Inputs name the
-// fact families the inspection's body reads (traced in #1908); a Concern that
+// fact families the inspection's body reads; a Concern that
 // reads only configuration declares an explicit empty list.
 var inspections = []Inspection{
 	{AnswerDialog, IncidentConcern, DepartmentSystem, []FactFamily{FactEmergency}, inspectAnswerDialog},

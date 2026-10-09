@@ -8,8 +8,7 @@ import (
 )
 
 // The paddock is closed only with every core ring section standing and, when
-// the plan fences the killbox lane, the fence too; a ring gap never closes it
-// (#2233).
+// the plan fences the killbox lane, the fence too; a ring gap never closes it.
 func TestPaddockClosed(t *testing.T) {
 	fenced := policy.LayoutPlan{Reservations: []policy.LayoutReservation{{Kind: policy.ReserveKillboxFence}}}
 	unfenced := policy.LayoutPlan{}

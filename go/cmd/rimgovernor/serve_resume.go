@@ -58,7 +58,7 @@ type autoResumeControls interface {
 // other reason -- native revoked it (DISCONNECT after a GABP drop, hooks or
 // clock unavailable) or a failed observation invalidated it locally -- is
 // re-offered once per loss while the journal's current control intent is
-// still a running Resume for that world (#87): Manual is the only thing that
+// still a running Resume for that world: Manual is the only thing that
 // pauses the controller.
 type autoResumer struct {
 	snapshots httpapi.SnapshotProvider

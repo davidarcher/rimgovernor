@@ -5,7 +5,7 @@ using HomeBridge.BridgeTools;
 using Verse;
 
 // Exercises the production NativeControlAuthority with an injected clock and
-// context. Authority is Mode + generation (#52): SetMode(Auto) grants the bot
+// context. Authority is Mode + generation: SetMode(Auto) grants the bot
 // outright, SetMode(Manual)/Revoke/external events revoke, and every
 // transition advances the generation so a write computed against an older
 // colony state is refused as StaleGeneration. There is no lease to expire.

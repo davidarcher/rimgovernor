@@ -49,7 +49,7 @@ func sleepingSite(r *Rounder, _ domain.Cell) {
 }
 
 // coldShelterSite records a cold map's plan over the roofed site: one planned
-// shelter, whose template slot holds the cooking campfire (#2303).
+// shelter, whose template slot holds the cooking campfire.
 func coldShelterSite(r *Rounder, _ domain.Cell) {
 	plan := policy.LayoutPlan{Cold: true, Rooms: []policy.PlannedRoom{
 		{Role: policy.PlannedShelter, Interior: policy.Rectangle{Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 5}, DoorRot: domain.North},
@@ -60,7 +60,7 @@ func coldShelterSite(r *Rounder, _ domain.Cell) {
 }
 
 // roomSite records a plan holding one room of role over the roofed site: the
-// facility ladder furnishes the planned room of its role (#2267).
+// facility ladder furnishes the planned room of its role.
 func roomSite(role policy.PlannedRole) func(*Rounder, domain.Cell) {
 	return func(r *Rounder, _ domain.Cell) {
 		plan := policy.LayoutPlan{Rooms: []policy.PlannedRoom{
@@ -155,7 +155,7 @@ func TestPlannedRoleOfInvertsRoomRoles(t *testing.T) {
 			t.Fatalf("storeroom is %v", m)
 		}
 	}
-	// Barracks is the census role only: nothing plans one (#2045).
+	// Barracks is the census role only: nothing plans one.
 	if _, ok := policy.PlannedRoleOf(policy.RoomRoleBarracks); ok {
 		t.Fatal("the census Barracks role has a planned module")
 	}

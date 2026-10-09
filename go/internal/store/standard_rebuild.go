@@ -12,12 +12,12 @@ import (
 )
 
 // StandardOrphanPass sees the plans a goal rebuild is about to retire, before
-// they are retired (#998). The #1000 reconcile pass cancels their native
+// they are retired. The reconcile pass cancels their native
 // side effects here; nil skips it.
 type StandardOrphanPass func(context.Context, []PlanState) error
 
 // RebuildStandards replaces the store's goals and projects with the save's goal/*
-// and project/* blobs (#998, #1926): the save wins. Goals and projects absent
+// and project/* blobs: the save wins. Goals and projects absent
 // from the save are deleted with their session-only create submissions; every
 // goal and project method row is deleted and its plan retired after one
 // orphans pass sees them all, so methods start empty and are re-planned. A

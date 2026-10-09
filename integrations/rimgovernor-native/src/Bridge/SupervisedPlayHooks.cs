@@ -10,7 +10,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    /// The direct game hooks behind the hazard bounds (#626): a hook that
+    /// The direct game hooks behind the hazard bounds: a hook that
     /// sees a hazard arise requests a probe at the next tick boundary, and a
     /// hook that sees a fact the digests report change marks the digest
     /// dirty. Neither does any work itself; the supervisor's tick path
@@ -115,7 +115,7 @@ namespace HomeBridge.BridgeTools
             catch { }
         }
 
-        /// A prisoner joined a prison break (#1080): it is hostile from now
+        /// A prisoner joined a prison break: it is hostile from now
         /// on (GenHostility), with no spawn to see it by. The colony window
         /// probes for it and a combat window stops on it.
         private static void OnPrisonBreakout(Pawn __instance)

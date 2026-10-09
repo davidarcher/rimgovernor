@@ -112,7 +112,7 @@ func TestReconcileRoomLeavesTheRingRemovalsToTheClearSide(t *testing.T) {
 
 // A planned bedroom standing finished with an unowned tree on one interior cell
 // and a filled ancient casket on its bed slot (the retired
-// clearance/room-obstruction case, #2304): the room's reconcile cuts the tree,
+// clearance/room-obstruction case): the room's reconcile cuts the tree,
 // reports the casket as a held foreign thing and does not build the bed over it.
 func TestReconcileRoomHoldsCutsTheTreeAndHoldsTheCasketOnTheBedSlot(t *testing.T) {
 	in, _ := reconFixture()

@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- NativeConstructionHookSet against real Harmony (#935). Separate from NativeContractProbes
-       because that project's Harmony-gated build does not compile (its shared fakes collide with
-       the retired native-authority-hooks stubs), and these checks need real Harmony, not FakeHarmonyStub. -->
+  <!-- NativeConstructionHookSet requires real Harmony. Keep this probe separate
+       from NativeContractProbes, which supplies fake Harmony types. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net472</TargetFramework>

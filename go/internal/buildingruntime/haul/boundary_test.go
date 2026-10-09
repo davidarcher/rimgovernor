@@ -38,7 +38,7 @@ type wallClock struct{}
 func (wallClock) Now() time.Time { return time.Now() }
 
 // The haul inspect reads the pawn only for its Context, so it skips the
-// read-after-write frame wait (#1274).
+// read-after-write frame wait.
 func TestInspectHaulReadsAnyFrame(t *testing.T) {
 	native := &anyFrameNative{}
 	b, err := NewHaulBoundary(native, noWrites{}, noLeases{}, wallClock{})

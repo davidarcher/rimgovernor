@@ -66,8 +66,8 @@ func TestPlannedRoomInteriorIsTheWholeRoom(t *testing.T) {
 	}
 }
 
-// Each facility's furniture goes in the layout plan's room of its role
-// (#2267): into the interior of the standing room, with no census room
+// Each facility's furniture goes in the layout plan's room of its role:
+// into the interior of the standing room, with no census room
 // hosting it. Without a planned room of the role, or a facility, the planner
 // is left alone.
 func TestPlannedFacilityFurnishingUsesThePlannedRoom(t *testing.T) {

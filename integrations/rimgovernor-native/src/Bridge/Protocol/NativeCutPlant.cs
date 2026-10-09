@@ -10,8 +10,8 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The blight responder's native half (#245): the CutPlant designation on
-    // one exact blighted plant (the census is the cell mirror's plant state, #2272;
+    // The blight responder's native half: the CutPlant designation on
+    // one exact blighted plant (the census is the cell mirror's plant state;
     // DesignateIntent with THING_DESIGNATION_CUT_PLANT). The
     // designation is the whole write; ordinary plant-cutting work cuts the
     // plant afterwards, and the census emptying is what settles the concern.
@@ -74,7 +74,7 @@ namespace HomeBridge.BridgeTools
     }
 
     // DesignateIntent dispatches by designation: CUT_PLANT to the blight
-    // responder, STRIP to NativeStrip (#1117), ALLOW/FORBID to the supply census's item rules.
+    // responder, STRIP to NativeStrip, ALLOW/FORBID to the supply census's item rules.
     internal sealed class DesignateActionHandler : IActionHandler
     {
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)

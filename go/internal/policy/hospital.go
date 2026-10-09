@@ -48,7 +48,7 @@ type HospitalRequest struct {
 	// nobody could treat a patient in the ward, so no hospital work runs.
 	Doctors domain.Fact[int]
 	// Surgical are patients whose operation waits on a better bed or room
-	// (SurgeryBedShortPatients, #1240): each needs a hosted medical bed,
+	// (SurgeryBedShortPatients): each needs a hosted medical bed,
 	// and while any waits a sleeping spot neither counts nor is staged.
 	Surgical []PawnID
 }

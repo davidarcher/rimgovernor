@@ -8,8 +8,8 @@ import (
 )
 
 // CombatOrders applies one combat_orders batch as an Actions/Apply intent
-// under key (#939) and decodes its per-order results: the fight's orders at
-// a stop (#852). A refused or failed action returns an error.
+// under key and decodes its per-order results: the fight's orders at
+// a stop. A refused or failed action returns an error.
 func (client *Client) CombatOrders(ctx context.Context, identity *c.Identity, key string, command *o.CombatOrders) ([]CombatOrderResult, error) {
 	if err := ValidateCombatOrders(command); err != nil {
 		return nil, err

@@ -122,7 +122,7 @@ func TestWorkPawnRowJob(t *testing.T) {
 	}
 }
 
-// TestWorkPawnRowPsyfocus: a psycaster's needs carry psyfocus (#1313); a
+// TestWorkPawnRowPsyfocus: a psycaster's needs carry psyfocus; a
 // pawn without a psylink (or without Royalty) leaves all three unknown.
 func TestWorkPawnRowPsyfocus(t *testing.T) {
 	caster := workRow(t, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("pawn-1")}, Needs: &o.PawnNeeds{Psyfocus: proto.Float64(.4), PsyfocusTarget: proto.Float64(.7), PsylinkLevel: proto.Int32(2)}})
@@ -145,7 +145,7 @@ func TestWorkPawnRowPsyfocus(t *testing.T) {
 }
 
 // censusRow is id's row in a captured pawn list, the table the status
-// census references (#1343); empty when the capture lacks it.
+// census references; empty when the capture lacks it.
 func censusRow(p *o.PawnSnapshot, id string) *o.PawnState {
 	for _, row := range p.GetPawns() {
 		if row.GetPawn().GetId() == id {
@@ -155,7 +155,7 @@ func censusRow(p *o.PawnSnapshot, id string) *o.PawnState {
 	return &o.PawnState{}
 }
 
-// TestWorkPawnRowBiotech (#1678): the row's Biotech block reaches the work
+// TestWorkPawnRowBiotech: the row's Biotech block reaches the work
 // pawn and the profile's Child flag; a Core-only row stays unknown.
 func TestWorkPawnRowBiotech(t *testing.T) {
 	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("kid")}, Biotech: &o.PawnBiotech{DevelopmentalStage: proto.String("Child"), LifeStage: proto.String("HumanlikeChild"),
@@ -173,7 +173,7 @@ func TestWorkPawnRowBiotech(t *testing.T) {
 	}
 }
 
-// TestWorkPawnRowBiotechStageRequired (#1784): a Biotech block without a
+// TestWorkPawnRowBiotechStageRequired: a Biotech block without a
 // developmental stage fails the lift instead of reading as an adult.
 func TestWorkPawnRowBiotechStageRequired(t *testing.T) {
 	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("kid")}, Biotech: &o.PawnBiotech{LifeStage: proto.String("HumanlikeChild")}}
@@ -182,7 +182,7 @@ func TestWorkPawnRowBiotechStageRequired(t *testing.T) {
 	}
 }
 
-// TestWorkPawnRowDeathrestingUnavailable (#1690): a deathresting pawn takes
+// TestWorkPawnRowDeathrestingUnavailable: a deathresting pawn takes
 // no work; an awake deathrester does.
 func TestWorkPawnRowDeathrestingUnavailable(t *testing.T) {
 	row := func(resting bool) *o.PawnState {

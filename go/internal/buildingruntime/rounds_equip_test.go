@@ -252,7 +252,7 @@ func TestEquipPlannerOneWave(t *testing.T) {
 	}
 }
 
-// The live run (#1674) retired the first wave's plan; the goal then listed no
+// The live run retired the first wave's plan; the goal then listed no
 // methods, so the next wave reused "equip-wave-0" and the store refused it on
 // every step while colonists stayed disarmed.
 func TestNextEquipWaveMethodSkipsRetiredWaves(t *testing.T) {

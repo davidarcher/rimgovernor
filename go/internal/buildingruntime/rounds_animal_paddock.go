@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The paddock (#2233, epic #2229): the yard inside the defensive wall is the
+// The paddock: the yard inside the defensive wall is the
 // pen. One PenMarker on a free yard cell claims it once the core ring stands
 // and the killbox lane is fenced; until then roamers stay barn-bound. A ring
 // that can never close (ReservePerimeterGap) never gets a marker.

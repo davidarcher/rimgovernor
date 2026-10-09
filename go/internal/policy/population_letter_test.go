@@ -17,7 +17,7 @@ func TestJoinerLettersNeedKnownCapacityAndChooseOneOffer(t *testing.T) {
 	if !ok || chosen.ID != 2 {
 		t.Fatal(chosen, ok)
 	}
-	// A creepjoiner offer (#1740, David: accept them) takes the same path.
+	// A creepjoiner offer takes the same path.
 	creep := domain.Known([]JoinerLetterOffer{{ID: 4, CanAccept: true, CreepJoiner: true}})
 	if chosen, ok := SelectJoinerLetter(creep, domain.Known(true)); !ok || !chosen.CreepJoiner {
 		t.Fatal("creepjoiner letter not chosen", chosen, ok)

@@ -3,7 +3,7 @@ name: Fixture factory
 # Runs sustained/colony on the remote-acceptance runner setup and publishes
 # its checkpoint ring as the run artifact colony-checkpoints-<commit>, also
 # when the case fails (the run stays red)
-# (#1376). `acceptance profile-capture -from latest-ci` and `acceptance
+# . `acceptance profile-capture -from latest-ci` and `acceptance
 # fetch-fixture` download the newest completed run's artifact. Gate,
 # planning and bootstrap are remote_workflow.ps1's, as in remote-acceptance.
 

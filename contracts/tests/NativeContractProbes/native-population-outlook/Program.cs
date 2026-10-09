@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-// #1031: NativePopulationObservation's capture odds against the game's own
+// NativePopulationObservation's capture odds against the game's own
 // HealthTuning curves. args[0] is the built bridge DLL; further args are
 // dependency directories (game Managed, SDK, Harmony).
 internal static class NativePopulationOutlookProbe

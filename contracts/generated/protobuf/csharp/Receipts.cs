@@ -557,7 +557,7 @@ namespace RimGovernor.Protocol.Receipts {
   }
 
   /// <summary>
-  /// A queued medical operation bill (#1162): the patient, recipe, part index
+  /// A queued medical operation bill: the patient, recipe, part index
   /// (absent for a whole-body recipe) and the Bill_Medical id.
   /// </summary>
   public enum SurgeryState {
@@ -5608,7 +5608,7 @@ namespace RimGovernor.Protocol.Receipts {
     /// <summary>
     /// Why a still-designated plant harvest has no worker (forbidden, below
     /// harvest growth, no enabled plant cutter, unreachable, cutters busy on
-    /// other work); set only on a pending effect (#291).
+    /// other work); set only on a pending effect.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -13371,7 +13371,7 @@ namespace RimGovernor.Protocol.Receipts {
   }
 
   /// <summary>
-  /// One AreaIntent's result (#1321): the bot area key, home or pollution_clear, the area's load
+  /// One AreaIntent's result: the bot area key, home or pollution_clear, the area's load
   /// id (absent once deleted), whether it stands, and its cell count after the
   /// edit.
   /// </summary>
@@ -13849,7 +13849,7 @@ namespace RimGovernor.Protocol.Receipts {
   }
 
   /// <summary>
-  /// One PolicyPruneIntent's result (#1298): the database (outfit, drug, food,
+  /// One PolicyPruneIntent's result: the database (outfit, drug, food,
   /// reading or allowed_area), the ids deleted by this apply (ids already gone
   /// are absent) and the pawns moved off them first.
   /// </summary>
@@ -14118,7 +14118,7 @@ namespace RimGovernor.Protocol.Receipts {
   }
 
   /// <summary>
-  /// One RemoveRoofIntent's result (#1366): cells this apply designated, cells
+  /// One RemoveRoofIntent's result: cells this apply designated, cells
   /// whose RemoveRoof designation already stood, and cells already unroofed.
   /// Applied means designated; the roof read decides when pawns finished.
   /// </summary>
@@ -14442,7 +14442,7 @@ namespace RimGovernor.Protocol.Receipts {
   }
 
   /// <summary>
-  /// One AreaPlantCutIntent's result (#1547): plants this apply designated
+  /// One AreaPlantCutIntent's result: plants this apply designated
   /// CutPlant, trees it designated chop-wood, and plants whose cut or chop
   /// designation already stood. Applied means designated; the plant cut census
   /// decides when pawns finished.
@@ -14767,7 +14767,7 @@ namespace RimGovernor.Protocol.Receipts {
   }
 
   /// <summary>
-  /// One RitualIntent's result (#1639): the ritual and verb applied to the pawn
+  /// One RitualIntent's result: the ritual and verb applied to the pawn
   /// and whether the ritual is started afterwards (the bestowing lord job's
   /// ceremonyStarted flag).
   /// </summary>
@@ -15140,7 +15140,7 @@ namespace RimGovernor.Protocol.Receipts {
   }
 
   /// <summary>
-  /// Evidence of one AbilityIntent (#1607): the pawn that used it and one arm per
+  /// Evidence of one AbilityIntent: the pawn that used it and one arm per
   /// source. PermitUseEffect asserts the native postcondition: the permit's
   /// cooldown started at the current tick and the favor cost was spent. Arrival of
   /// the aid and the strike's results are separate observed states.
@@ -15970,7 +15970,7 @@ namespace RimGovernor.Protocol.Receipts {
   }
 
   /// <summary>
-  /// The psycast outcome (#1610): the cast order the game accepted. The pawn
+  /// The psycast outcome: the cast order the game accepted. The pawn
   /// holds the ability's cast job (job_def) as its current or queued job; the
   /// cast itself, its psyfocus cost and its cooldown follow when the pawn
   /// reaches it, so they are observed state, not receipt claims.

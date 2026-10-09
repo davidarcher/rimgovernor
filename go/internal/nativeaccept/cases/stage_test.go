@@ -137,7 +137,7 @@ func TestPlanStagePicksNewestMatchingStage(t *testing.T) {
 
 // A suite worker root the bundles were carried into has no config-headless
 // until its first run prepares it; the stage still opens off the base
-// config, as CachedStage planned it (#527).
+// config, as CachedStage planned it.
 func TestPlanStageOpensOnUnpreparedRoot(t *testing.T) {
 	opts := ringRoot(t)
 	seedStage(t, opts, "shell", "", 3*time.Minute)

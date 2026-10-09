@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RoundsPermitsPlanner is MaintainPermits' planner (#1606, epic #1598):
+// RoundsPermitsPlanner is MaintainPermits' planner:
 // while a colonist holds permit points for a permit worth taking
 // (policy.NextPermit over the royalty read), it commits one
 // choose_permit pawn setting for that colonist, faction and permit. The committed

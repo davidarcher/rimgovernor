@@ -7,7 +7,7 @@ import (
 )
 
 // autoHomeAreaAction is the AutoHomeAreaIntent that sets the game's
-// home-area auto-expand (#1322). A value that already holds applies again.
+// home-area auto-expand. A value that already holds applies again.
 func autoHomeAreaAction(action domain.Action) (*o.Action, error) {
 	enabled, ok := action.AutoHomeArea()
 	if !ok {

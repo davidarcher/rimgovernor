@@ -2,14 +2,14 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Staging the tomb (#832, #2196). A dead colonist in a sarcophagus gives every
+// Staging the tomb. A dead colonist in a sarcophagus gives every
 // colonist KnowBuriedInSarcophagus (+4 mood, 8 days, stacking), so once
 // ComplexFurniture makes the sarcophagus available, a colonist corpse
 // with no empty grave waiting raises a planned tomb's shell and then
 // reconciles its room (ReconcileRoom) to the next free template sarcophagus:
 // the ring, the floor and the piece, installed from packed stock first. The memory comes only from a
 // sarcophagus's first burial, so a filled one is never reused: when every
-// planned tomb is full the plan grows another (#857). Where no sarcophagus
+// planned tomb is full the plan grows another. Where no sarcophagus
 // can be had (research or stuff) a plain Grave takes the body instead, placed
 // only in the next free slot of a planned graveyard (GraveyardSlots); the
 // graveyard's fence and gate are raised with the grave. When the graveyard
@@ -17,7 +17,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // for a further graveyard (GraveyardsWanted). Vanilla haulers inter colonist
 // corpses in any empty grave on their own; nothing here hauls.
 //
-// Stranger corpses (raiders, visitors, prisoners; #2336) feed the tomb too, for
+// Stranger corpses (raiders, visitors, prisoners) feed the tomb too, for
 // the mood memory alone: a stranger is owed a fresh sarcophagus only while
 // fewer than StrangerTombStackCap KnowBuriedInSarcophagus stacks are live across
 // the colonists and the next sarcophagus is funded from stock (StrangerTomb).
@@ -25,7 +25,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // morgue path; the plain grave never takes one.
 //
 // A stranger's burial in a fresh sarcophagus is its first body ever, so the
-// memory has fired (#2337): while the memory is live the filled sarcophagus is
+// memory has fired: while the memory is live the filled sarcophagus is
 // deconstructed (TombDispose, StrangerDisposals). Native ejects the corpse next
 // to the cell, where the incinerator's burnable filter takes it, and the cell is
 // a free tomb slot again. Only a sarcophagus in a planned tomb that holds
@@ -127,7 +127,7 @@ type TombStep struct {
 	Disposal []CurrentBuilding
 }
 
-// StrangerDisposals is the standing sarcophagi to deconstruct (#2337): in a
+// StrangerDisposals is the standing sarcophagi to deconstruct: in a
 // planned tomb, holding a buried stranger and no colonist, while the memory is
 // live (strangers.Live > 0; unread thoughts leave it zero). Graves and any
 // sarcophagus outside the plan are never listed.
@@ -187,7 +187,7 @@ func tombCensus(waste []WasteItem, built []CurrentBuilding, sarcophagus string, 
 		case item.CorpseOf == domain.CorpseColonist:
 			step.Dead++
 		case item.EverBuriedInSarcophagus:
-			// Vanilla fires no memory on a re-burial (#2342): the morgue's.
+			// Vanilla fires no memory on a re-burial: the morgue's.
 		default:
 			stranded++
 		}

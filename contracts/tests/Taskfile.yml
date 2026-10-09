@@ -17,7 +17,7 @@ tasks:
       # Defs.cs is gitignored; observations and the probes depend on it.
       - 'go -C {{.REPO}}/go run ./internal/protobufgen/cmd/generatecsharp'
       - dotnet build NativeContractProbes.csproj -c Release -v minimal -nologo -p:RestoreLockedMode=true "-p:OutputPath={{.EVIDENCE}}/bin/" "-p:BaseIntermediateOutputPath={{.EVIDENCE}}/obj/"
-      # NativeConstructionHookSet needs real Harmony (#935); skipped when it is not installed.
+      # NativeConstructionHookSet needs real Harmony; skipped when it is not installed.
       - |
         if [ ! -f "{{.HARMONY_ASSEMBLY}}" ]; then
           echo "native-hook-set: unavailable (missing {{.HARMONY_ASSEMBLY}})"
@@ -45,7 +45,7 @@ tasks:
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe mod-log'
       # Binds against the host RimGovernor.Host.dll that native:build staged;
       # reports unavailable only when native:build never ran. A staged native build
-      # without the host at HOST_ASSEMBLY_DIR is a wrong path and fails (#2465).
+      # without the host at HOST_ASSEMBLY_DIR is a wrong path and fails.
       - |
         server="{{.HOST_ASSEMBLY_DIR}}/RimGovernor.Host.dll"
         if [ ! -f "$server" ]; then

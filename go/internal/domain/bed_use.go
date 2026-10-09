@@ -2,12 +2,9 @@ package domain
 
 import "errors"
 
-// BedUse is an immutable, comparable value: a one-shot patch of a
-// bed's use -- its medical flag (Building_Bed.Medical on the
-// native side), or, for a prisoners patch (#880), setting it for
-// prisoners (a BuildingPatchIntent since #940; native revalidates at
-// apply, #991), or, for a slaves patch (#1036), setting it for slaves. There is no pawn/Job involved -- see NativeBedUse.cs and
-// bridge/bed_use.go.
+// BedUse is an immutable one-shot patch of a bed's medical, prisoner or slave use.
+// BuildingPatchIntent revalidates legality at apply; no pawn job is involved. See
+// NativeBedUse.cs and bridge/bed_use.go.
 type BedUse struct {
 	thing     string
 	medical   bool
@@ -22,7 +19,7 @@ func NewBedMedical(thing string, medical bool) (BedUse, error) {
 	return BedUse{thing: thing, medical: medical}, nil
 }
 
-// NewBedPrisoners sets one exact bed for prisoners (#880); there is no
+// NewBedPrisoners sets one exact bed for prisoners; there is no
 // patch back to colonists.
 func NewBedPrisoners(thing string) (BedUse, error) {
 	b, err := NewBedMedical(thing, false)
@@ -30,8 +27,8 @@ func NewBedPrisoners(thing string) (BedUse, error) {
 	return b, err
 }
 
-// NewBedSlaves sets one exact bed for slaves (#1036, Ideology); like the
-// prisoners patch there is no patch back.
+// NewBedSlaves sets one exact bed for slaves (Ideology); like the prisoners patch, there is
+// no patch back to colonists.
 func NewBedSlaves(thing string) (BedUse, error) {
 	b, err := NewBedMedical(thing, false)
 	b.slaves = err == nil

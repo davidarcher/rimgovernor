@@ -77,12 +77,12 @@ func TestIncidentMethodCommit(t *testing.T) {
 	}
 	id := state.Incident.ID
 	p := plan(t, "incident-plan", "incident-action")
-	// The Safeguards veto an incident's method as they do a goal's (#1017).
+	// The Safeguards veto an incident's method as they do a goal's.
 	if _, err = s.CommitIncidentMethod(ctx, id, "fight", "", p); !errors.Is(err, ErrNotAdmitted) {
 		t.Fatal("pause admitted an incident method", err)
 	}
 	// The enabled review asserts the occurrence: it re-triggers the open
-	// row rather than opening another (#1020).
+	// row rather than opening another.
 	r.Enabled = true
 	r.Tick++
 	r.Facts.Hostiles = domain.Known(int64(3))
@@ -133,7 +133,7 @@ func TestIncidentMethodCommit(t *testing.T) {
 	}
 }
 
-// The review owns the incident kinds' occurrences (#1020): a deficit opens
+// The review owns the incident kinds' occurrences: a deficit opens
 // one and files no goal; a recovered one closes once its work settles; the
 // next deficit opens a new row; a world change abandons an open one.
 func TestRoundsIncidentLifecycle(t *testing.T) {

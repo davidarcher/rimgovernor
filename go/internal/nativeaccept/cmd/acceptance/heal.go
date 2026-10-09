@@ -67,7 +67,7 @@ func preflight(ctx context.Context, selected []cases.Case, opts cases.Options, s
 }
 
 // stopOrphans stops the harness processes the orphans check found
-// running from removed worktrees (#346): nobody's game, so a preflight
+// running from removed worktrees: nobody's game, so a preflight
 // ends them without asking. It returns how many it stopped.
 func stopOrphans(ctx context.Context, checks []doctor.Check, log io.Writer) int {
 	for _, c := range checks {
@@ -103,7 +103,7 @@ func healable(checks []doctor.Check) []string {
 }
 
 // heal rebuilds and reinstalls the mod a preflight found stale or short
-// of a fixture (#276), the way the by-hand recipe went: the fixture set
+// of a fixture, the way the by-hand recipe went: the fixture set
 // is the installed build's plus the classes registering ops (the run's
 // cases' fixture ops, na.FixtureFlags); the root's own kept game is
 // stopped first, through its bridge configuration and then by pid under

@@ -36,7 +36,7 @@ type ResourceSourceRow = policy.ResourceSource
 // storage branch (material-storage zoning) reads it whenever
 // a selected source is a "mine" source -- see policy.SelectResourceStorageZone.
 // resourceSourcesRequest is the per-resource read, shared with the bundle's
-// resource sources family (#593).
+// resource sources family.
 func resourceSourcesRequest(identity *c.Identity, resource string) *o.ResourceSourcesRequest {
 	return &o.ResourceSourcesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
 		Resource: proto.String(resource), IncludeDevelopment: proto.Bool(false)}

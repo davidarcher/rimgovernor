@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Spacing and friendly fire (#861): firing cells a tile apart, no attack
+// Spacing and friendly fire: firing cells a tile apart, no attack
 // along a line a colonist stands on, and hold fire on a hostile locked in
 // melee with one of our blockers.
 
@@ -41,7 +41,7 @@ func within(a, b domain.Cell, d int32) bool {
 
 func adjacent8(a, b domain.Cell) bool { return within(a, b, 1) }
 
-// SightLine is combat.geometry's answer for one (cell, hostile) pair (#851).
+// SightLine is combat.geometry's answer for one (cell, hostile) pair.
 type SightLine struct {
 	Cell           domain.Cell
 	Hostile        domain.PawnID
@@ -75,7 +75,7 @@ func shooterCells(view CombatView) []domain.Cell {
 // lineAsk is the stop's geometry ask when its attack orders have no lines
 // yet: the shooters' cells against the top-scored hostiles. When an
 // attacker's every line from its cell was blocked or refused before
-// (walled in, #967), it also asks firing cells around that attacker.
+// (walled in), it also asks firing cells around that attacker.
 func lineAsk(view CombatView, orders []CombatOrder, m CombatMemory) *GeometryRequest {
 	if !slices.ContainsFunc(orders, func(o CombatOrder) bool { return o.Kind == OrderAttack }) {
 		return nil
@@ -117,14 +117,14 @@ func lineAsk(view CombatView, orders []CombatOrder, m CombatMemory) *GeometryReq
 const maxGeometryCells = 64
 
 // clearLines drops or retargets an attack order that cannot hit from the
-// shooter's cell: its line of fire crosses a colonist (#861), a ranged
-// role's line is blocked (a wall, #912), or native refused it cannot_hit
-// from this cell before (#912). It retargets to the top-scored hostile with
+// shooter's cell: its line of fire crosses a colonist, a ranged
+// role's line is blocked (a wall), or native refused it cannot_hit
+// from this cell before. It retargets to the top-scored hostile with
 // a clear, answered line from that cell not refused from it, else gives no
 // order. An unanswered pair keeps the order. A retarget becomes the role's
 // target, so the focus holds on it.
 //
-// A ranged attacker with no clear line is walled in (#967): its walled
+// A ranged attacker with no clear line is walled in: its walled
 // lines are remembered as refused hits, so the next stop asks firing cells
 // around it, and once proposed firing cells are answered it moves to the
 // nearest free one with a clear line; that cell becomes its role's cell.
@@ -216,7 +216,7 @@ func keepInFormation(out []CombatOrder, roles []CombatRole, i int, from domain.C
 	return append(out, CombatOrder{Pawn: roles[i].Pawn, Kind: OrderMove, Cell: *cell, Reason: ReasonFormation})
 }
 
-// firingCell is the proposed firing cell (#967) nearest from, free, with a
+// firingCell is the proposed firing cell nearest from, free, with a
 // clear line to a ranked hostile, and that hostile (the top-scored one).
 func firingCell(from domain.Cell, geometry GeometryReply, sight map[sightKey]SightLine, ranked []CombatPawnState, taken map[domain.Cell]bool) (domain.Cell, domain.PawnID, bool) {
 	if geometry.Role != RoleFiringCells {
@@ -240,7 +240,7 @@ func firingCell(from domain.Cell, geometry GeometryReply, sight map[sightKey]Sig
 
 // inMelee reports p fighting its target hand to hand: in the melee stance,
 // or between swings (warmup, cooldown) standing next to it. A melee
-// attacker reports cooldown after each swing (#903); reading that as the
+// attacker reports cooldown after each swing; reading that as the
 // melee's end flipped hold fire every other stop.
 func inMelee(p, target CombatPawnState) bool {
 	if p.Stance == StanceMelee {
@@ -294,7 +294,7 @@ func meleeLocked(view CombatView, roles []CombatRole) map[domain.PawnID]bool {
 // back to a held gunner once that melee ends. A pawn whose fire mode is
 // unknown counts as held when its last order was hold-fire.
 //
-// quiet (#1035) holds every gunner: the only hostiles left are spared
+// quiet holds every gunner: the only hostiles left are spared
 // bleeders, whom fire-at-will would otherwise shoot.
 // suppressNativeFire holds an ordinary autonomous holder with target exclusions
 // and no safe target; cancelling its job alone cannot prevent reacquisition.
@@ -320,7 +320,7 @@ func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m Comba
 		}
 		held := s.FireMode == HoldFire || s.FireMode == "" && lastHold[r.Pawn]
 		mine := func(o CombatOrder) bool { return o.Pawn == r.Pawn }
-		// A pawn mid-aim keeps its fire mode (#903) unless its shot is at
+		// A pawn mid-aim keeps its fire mode unless its shot is at
 		// the hostile our blocker is fighting.
 		if interruptsAim(s) && !locked[s.Target] && !quietPawn {
 			continue

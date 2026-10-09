@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// evidence is a prepare scope at tick; building intents carry no cost (#856).
+// evidence is a prepare scope at tick; building intents carry no cost.
 func evidence(tick domain.Tick, _ int64) Admission {
 	return Admission{Snapshot: scope(), Tick: tick}
 }
@@ -95,7 +95,7 @@ func TestCatalogCorruptionNeverReturnsEarlierPlans(t *testing.T) {
 	if _, err := s.Prepare(ctx, "p", "a", evidence(10, 40).Snapshot, evidence(10, 40).Tick); err != nil {
 		t.Fatal(err)
 	}
-	// A building intent records no admission row (#856): corrupt its transition.
+	// A building intent records no admission row: corrupt its transition.
 	if _, err := s.db.Exec("UPDATE transitions SET payload='{}' WHERE action_id='a'"); err != nil {
 		t.Fatal(err)
 	}

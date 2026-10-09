@@ -153,7 +153,7 @@ func TestThroneTargetsJoinTheRoomQualityTargets(t *testing.T) {
 }
 
 // An unfloored throne room is marked with the title's floor tags and plans
-// floors of a terrain the mirror tags so (#1863), whatever its name.
+// floors of a terrain the mirror tags so, whatever its name.
 func TestThroneRoomFlooringPlansTheRequiredTag(t *testing.T) {
 	facts, _ := throneProjection(true)
 	royalty, _ := facts.Royalty.Value()
@@ -238,7 +238,7 @@ func TestLayoutGrowsAThroneRoomForTheNextTitle(t *testing.T) {
 }
 
 // The throne step commits one Assign of the throne to its holder, once per
-// holder and throne per Episode (#1601).
+// holder and throne per Episode.
 func TestAssignThroneCommitsOneGenericAssign(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

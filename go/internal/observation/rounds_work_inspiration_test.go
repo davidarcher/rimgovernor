@@ -9,7 +9,7 @@ import (
 )
 
 // TestWorkPawnInspiration keeps unknown (field absent) distinct from none
-// (known "") and carries a defName into the pawn profile (#1187).
+// (known "") and carries a defName into the pawn profile.
 func TestWorkPawnInspiration(t *testing.T) {
 	for _, tc := range []struct {
 		name  string

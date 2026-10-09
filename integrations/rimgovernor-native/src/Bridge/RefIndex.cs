@@ -9,7 +9,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// The one resolver from a wire loadId to the live native object (#1339): spawned Things,
+    /// The one resolver from a wire loadId to the live native object: spawned Things,
     /// the inner Thing of a spawned MinifiedThing, Zones and Bills, indexed per map through
     /// <see cref="LoadIdIndex{T}"/>. Small owned collections (a map's pawns, a pawn's apparel,
     /// areas, quests) resolve through <see cref="ById{T}"/>, which keeps the comparison here.

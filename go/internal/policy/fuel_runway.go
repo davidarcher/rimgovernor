@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Fuel runway (#2377, epic #1856). A refuelable building (a generator, a
+// Fuel runway. A refuelable building (a generator, a
 // turret barrel) holds fuel units and burns them at its def's rate; the
 // runway is the fuel it holds and the stock behind it over that burn, against
 // ProjectionHorizonDays. The shortfall is a forward-projector domain and the

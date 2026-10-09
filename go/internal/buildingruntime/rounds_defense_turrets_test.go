@@ -41,7 +41,7 @@ func turretReading() observation.RoundsReading {
 }
 
 // TestDefenseTurretRequestBudgetsObservedRaidPoints proves the census's
-// raid-point reading reaches the request as the turret budget (#341): the
+// raid-point reading reaches the request as the turret budget: the
 // bands step 2/4/6 through policy.TurretBudget, an unknown or NaN reading
 // keeps the base budget, and no other gate of the request moves with it.
 func TestDefenseTurretRequestBudgetsObservedRaidPoints(t *testing.T) {
@@ -197,7 +197,7 @@ func TestDefenseCensusStandsConduitsAndPower(t *testing.T) {
 		t.Fatalf("%+v", u)
 	}
 	// An empty barrel is a deficit with a rearm order on the turret's
-	// census identity (#205); the facts carry the census fuel definitions.
+	// census identity; the facts carry the census fuel definitions.
 	site.Powered, site.OutOfFuel, site.Fuel = domain.Known(true), domain.Known(true), domain.Known(0.0)
 	census.consumers[turret] = site
 	facts := defenseTurretFacts(record, census)
@@ -288,7 +288,7 @@ func TestDefenseRearmAttemptsCountTheTurretWithinTheWindow(t *testing.T) {
 }
 
 // TestDefenseMortarRequestOpensAfterResearchAtRaidPoints proves the mortar
-// tier's gates (#1206): closed before mortar research or below the raid
+// tier's gates: closed before mortar research or below the raid
 // points' budget, open with both, and the geometry carries the turret cells.
 func TestDefenseMortarRequestOpensAfterResearchAtRaidPoints(t *testing.T) {
 	t.Parallel()

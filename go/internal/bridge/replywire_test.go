@@ -129,7 +129,7 @@ func TestProtoCallAlwaysAsksForBinaryReplies(t *testing.T) {
 	}
 }
 
-// The flight recorder keeps a binary reply as received (#774); readers
+// The flight recorder keeps a binary reply as received; readers
 // decode it by the row's reply_type.
 func TestRecordedReplyDecodesBinaryRow(t *testing.T) {
 	data, _ := proto.Marshal(pbLoaded())

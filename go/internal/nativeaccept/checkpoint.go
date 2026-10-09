@@ -18,7 +18,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// A checkpoint bundle (issue #249) is one directory holding everything a
+// A checkpoint bundle is one directory holding everything a
 // later run needs to resume a case where this one was: the game save
 // (CheckpointSaveName + ".rws"), the service's durable state
 // (CheckpointStoreFile, serve-driven cases only) and the CheckpointSidecar
@@ -63,7 +63,7 @@ type Checkpoint struct {
 	// State is what the case itself recorded about its progress up to the
 	// capture (SetCheckpointState): the fixture prep it ran in its Run
 	// body, the coordinates it chose. A resumed run reads it back through
-	// Session.Resumed and skips the work the save already carries (#316).
+	// Session.Resumed and skips the work the save already carries.
 	State map[string]any `json:"state,omitempty"`
 	// Serve is the case's declared serve spec at capture, for the record.
 	Serve map[string]any `json:"serve,omitempty"`
@@ -77,7 +77,7 @@ type Checkpoint struct {
 	// Start hashes the case's Start (its kind, save, fixture op and args).
 	Start      string   `json:"start"`
 	Expansions []string `json:"expansions"`
-	// Stage and StageKey mark a staged run-phase bundle (#329): the stage
+	// Stage and StageKey mark a staged run-phase bundle: the stage
 	// the case declared and the hash of the staging code it was taken
 	// under (a change to the case's area package invalidates it).
 	Stage    string `json:"stage,omitempty"`
@@ -183,9 +183,9 @@ type Ring struct {
 	// SourceRevision is the failed run's.
 	SourceRevision string `json:"source_revision"`
 	// FailedOutput is the failed run's output directory (its result.json
-	// holds the timeline a postmortem-only rerun reads back, #275).
+	// holds the timeline a postmortem-only rerun reads back).
 	FailedOutput string `json:"failed_output,omitempty"`
-	// Break is set when the last run paused at a breakpoint (#280): Next
+	// Break is set when the last run paused at a breakpoint: Next
 	// then names its BreakCheckpoint bundle, which `acceptance resume`
 	// continues from and `acceptance stop` discards.
 	Break *BreakRecord `json:"break,omitempty"`
@@ -276,7 +276,7 @@ func (r *Ring) Rewind(n int) string {
 	return label
 }
 
-// Plan decides what the run that just ended leaves for the next one (#249):
+// Plan decides what the run that just ended leaves for the next one:
 // a passing run clears the ring; a failing run resumes from its last
 // entry, unless it was itself a resumed run that failed at the tick the
 // previous attempt failed at, in which case the next run steps back one
@@ -338,7 +338,7 @@ type CheckpointRing struct {
 	// (SetCheckpointState adds to it; a resumed run starts from the
 	// entry's).
 	State map[string]any
-	// StageKey, when set, marks every capture a stage bundle (#329) of the
+	// StageKey, when set, marks every capture a stage bundle of the
 	// stage its label names, under this staging-code hash.
 	StageKey string
 	// Prior are the entries of the timeline this run resumed into (the
@@ -349,7 +349,7 @@ type CheckpointRing struct {
 	// leaves the game saved as name and returns the save's path, tick and
 	// identity (tests only).
 	Saver func(ctx context.Context, name, label string, force bool) (path string, tick uint64, identity map[string]any, err error)
-	// Break is the run's breakpoint (#280), zero when none; OnBreak runs
+	// Break is the run's breakpoint, zero when none; OnBreak runs
 	// once when it trips (Trip), with the reason.
 	Break   Breakpoint
 	OnBreak func(reason string)
@@ -438,7 +438,7 @@ func (r *CheckpointRing) offset() time.Duration {
 // whole minutes, "t+1m30s" or "t+45s" otherwise. An offset that is not a
 // whole second (a sub-second cadence, which rounds its offsets to the
 // cadence) keeps its milliseconds, so two captures a few milliseconds
-// apart never share a label (#596).
+// apart never share a label.
 func OffsetLabel(d time.Duration) string {
 	if d%time.Second != 0 {
 		return "t+" + d.String()
@@ -510,7 +510,7 @@ func SetCheckpointState(key string, value any) {
 // or named, so a resume of a later failure replays from the last entry
 // before the cap: a case calls it at a point of no return its Run body
 // cannot resume after (defense/perimeter at its raid, whose sprung traps fail
-// the pre-raid audit a resume replays; #330). The failed bundle is still
+// the pre-raid audit a resume replays; ). The failed bundle is still
 // taken. reason goes on the report. Nothing happens when no ring is active.
 func CapCheckpoints(reason string) {
 	r := activeRing.Load()
@@ -792,7 +792,7 @@ func (r *CheckpointRing) serviceSave(ctx context.Context, p *ServiceProcess, nam
 	}
 	// A service that is not automating yet (its first resume still in
 	// flight), that a case holds in manual, or that has not observed a
-	// tick yet (its save would 503 "Controller data is unavailable", #309)
+	// tick yet (its save would 503 "Controller data is unavailable")
 	// cannot be paused for a save; a periodic capture waits for the next
 	// cadence, a forced one tries.
 	if st, status, err := p.API("GET", "/api/state", nil, ""); !force && (err != nil || status != 200 || !serviceCanCapture(st)) {

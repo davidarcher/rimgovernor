@@ -45,7 +45,7 @@ namespace HomeBridge.BridgeTools
                         faction = parms.faction.Name, traderIds };
                 };
                 if (action == "incident" || action == "visitor_incident") return incident(action == "incident", "Caravan_Outlander_BulkGoods");
-                // The routine trade case (#234): a colony with no medicine
+                // The routine trade case: a colony with no medicine
                 // and unforbidden silver inside the home area (a caravan
                 // buys only home-area or stored items), then an arriving
                 // neolithic bulk-goods caravan (the kind that trades herbal

@@ -10,7 +10,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// The in-game connection line (#1991): one label in the top-right corner,
+    /// The in-game connection line: one label in the top-right corner,
     /// below vanilla's learning helper and dev-mode row when they share it.
     /// "Bot connected" means the bot holds native authority (Active and
     /// Available, or Manual for any reason but a disconnect), not that a

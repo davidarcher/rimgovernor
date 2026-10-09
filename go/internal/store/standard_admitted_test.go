@@ -10,7 +10,7 @@ import (
 
 // StandardState.Admitted counts every method the goal ever committed, so a
 // planner that salts its method identity with it never rehashes to a
-// retired plan's id once the active method list shrinks (#214).
+// retired plan's id once the active method list shrinks.
 func TestLoadGoalAdmittedCountsRetiredMethods(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

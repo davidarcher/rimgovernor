@@ -11,9 +11,9 @@ import (
 )
 
 // What a recipe is, costs and needs at a bench is read from its RecipeDef row
-// and the rows it joins (#1721); a frame carries only whether a bench offers
-// the recipe now. Every derivation here mirrors the game code the native
-// census used to run, and a row the rules cannot read is a named error.
+// and the rows it joins; a frame carries only whether a bench offers
+// the recipe now. Derivations mirror native game rules; unreadable rows
+// return named errors.
 
 // The game classes the recipe view matches by base class.
 const (

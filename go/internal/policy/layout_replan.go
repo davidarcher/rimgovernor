@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Replans on the new generator (#1958, epic #1938). A replan runs the
+// Replans on the new generator. A replan runs the
 // generator twice over the saved plan.
 //
 // Growth: every room and wing the plan holds is pinned, so the generator
@@ -19,7 +19,7 @@ import (
 // budget. The candidate replaces the plan only when its score gain clears
 // planWeights.ReplanGain, or when it passes the hard tier and the plan does
 // not, so a plan does not flicker between near-equal layouts every hour.
-// Pinned rooms (FixedRooms, #1943) keep their Interior, Door and Doors.
+// Pinned rooms (FixedRooms) keep their Interior, Door and Doors.
 
 // replanSearchIters is the local-search operators one hourly replan runs
 // (siteSearchIters is the fresh-siting budget). The count is the budget:

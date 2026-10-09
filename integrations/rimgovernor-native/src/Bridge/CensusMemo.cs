@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// Facts one gear census reads many times over (#1575): a policy's sorted
+    /// Facts one gear census reads many times over: a policy's sorted
     /// def lists and signature, the outfit database's joined signatures and a
     /// pawn's identity are the same for every pawn and every call within one
     /// read. Open a scope around the read; outside one, Of just computes.

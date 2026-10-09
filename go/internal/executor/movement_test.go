@@ -123,7 +123,7 @@ func TestMovementHeldWithoutDraft(t *testing.T) {
 }
 
 // The hold-the-line move belongs to a routine method plan, so it dispatches
-// under the root authority exactly like the draft it depends on (#70).
+// under the root authority exactly like the draft it depends on.
 func TestMovementDispatchesRoundsPlanUnderRootAuthority(t *testing.T) {
 	f, m := newMovementFixture(t)
 	root := f.authority

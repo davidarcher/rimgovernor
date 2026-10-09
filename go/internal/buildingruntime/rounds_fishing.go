@@ -27,7 +27,7 @@ func fishingWork(p observation.ColonyProjection) []policy.WorkRequirement {
 	return nil
 }
 
-// studyWork is the DarkStudy owner the held entities owe (#1744); an unread
+// studyWork is the DarkStudy owner the held entities owe; an unread
 // held or studiable fact is logged loudly and leaves the requirement unknown,
 // so the work planner waits.
 func studyWork(ctx context.Context, p observation.ColonyProjection) domain.Fact[[]policy.WorkRequirement] {
@@ -39,7 +39,7 @@ func studyWork(ctx context.Context, p observation.ColonyProjection) domain.Fact[
 }
 
 // censusResearchNeeds adds the research the latest census asks for: the
-// fishing request and, once everyone has a bedroom, ComplexFurniture (#1183).
+// fishing request and, once everyone has a bedroom, ComplexFurniture.
 func (r *Rounder) censusResearchNeeds(needs []string) []string {
 	r.census.mu.Lock()
 	defer r.census.mu.Unlock()

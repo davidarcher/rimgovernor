@@ -8,7 +8,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Disposable test setup only (issue #92). The native surface reads the
+    // Disposable test setup only. The native surface reads the
     // letter stack but never removes from it; the acceptance advance loop
     // acknowledges informational letters and takes them off the stack here so
     // a run's letters are the ones its own fixtures delivered. Removing a

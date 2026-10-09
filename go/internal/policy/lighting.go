@@ -10,8 +10,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// MaintainLighting keeps the cells colonists stand on while working lit
-// (issue #6 slice 3). It reasons from the measured native glow at each
+// MaintainLighting keeps the cells colonists stand on while working lit.
+// It reasons from the measured native glow at each
 // bench's interaction cell rather than from fixture counts: a roofed work
 // cell whose ground glow is below LitGlow is dark whatever lamps sit nearby.
 // The method first looks for an existing lamp that should cover the cell and
@@ -117,8 +117,8 @@ type LightingReview struct {
 // ReviewLighting measures every roofed work cell against LitGlow. There is
 // no hysteresis: a lamp within reach lifts the cell well above the
 // threshold, and unroofed cells are skipped because sky glow would flap the
-// latch with the day, except while the sky is dark (an eclipse, #408, or a
-// permanently dark biome, #1712), when the day is as dark as the night and
+// latch with the day, except while the sky is dark (an eclipse, or a
+// permanently dark biome), when the day is as dark as the night and
 // every work cell is measured. A light-sensitive
 // cell (its room grows cave fungus) is never dark: lighting it would kill
 // the crop. An unknown census keeps the previous dark set. An unknown sky
@@ -189,7 +189,7 @@ type LightingFacts struct {
 	// PoweredSource reports whether any power network currently has an
 	// active source; unknown defers powered lamps.
 	PoweredSource domain.Fact[bool]
-	// Styled is the fixture the tier style names (PlannedLighting, #610):
+	// Styled is the fixture the tier style names (PlannedLighting):
 	// chosen ahead of the policy's lamps when it is known available, empty
 	// when the tier styles none.
 	Styled string

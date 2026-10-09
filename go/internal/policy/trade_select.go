@@ -36,16 +36,16 @@ type TradeSheetRowFact struct {
 	ProtectedExport      bool
 	ProtectedExportKnown bool
 
-	// Pawn rows only (#1037): what SelectPawnPurchase ranks.
+	// Pawn rows only: what SelectPawnPurchase ranks.
 	Skills               []ProfileSkill
 	ViolenceCapable      bool
 	ViolenceCapableKnown bool
 
-	// ThingID is a non-pawn row's first colony thing (#1194): a packed
+	// ThingID is a non-pawn row's first colony thing: a packed
 	// sculpture's row names its packed item.
 	ThingID string
 	// HitPoints is a gear row's hit-point fraction and ZoneID the stockpile
-	// its thing lies in (#1831); what SaleGear matches.
+	// its thing lies in; what SaleGear matches.
 	HitPoints      float64
 	HitPointsKnown bool
 	// Quality is a gear row's native QualityCategory index (Awful 0 ..
@@ -55,14 +55,14 @@ type TradeSheetRowFact struct {
 	ZoneID       string
 
 	// PawnID is a pawn row's load id (the animal census id for a colony
-	// animal): the key a live-animal sale matches (#1632) and a purchase
-	// can name (#1636).
+	// animal): the key a live-animal sale matches and a purchase
+	// can name.
 	PawnID string
 	// PawnGender is a pawn row's gender ("Male"/"Female"), as an animal's
 	// census gender: what a purchase of a founder's missing sex matches.
 	PawnGender string
 
-	// A prisoner row's sale facts (#1969): guest status, the secure and downed
+	// A prisoner row's sale facts: guest status, the secure and downed
 	// tests, and the extra home / host faction ids a sale angers.
 	GuestStatus         string
 	PrisonerSecure      bool
@@ -96,30 +96,28 @@ type TradeSelectionFacts struct {
 	MaxSilverSpend    int64
 
 	// SaleArt is the packed art the colony may sell (SaleSculptures, by
-	// packed item id, #1194); ArtFirst sells it before the targets, when
+	// packed item id); ArtFirst sells it before the targets, when
 	// the wealth headroom is negative.
 	SaleArt  map[string]bool
 	ArtFirst bool
 
-	// SaleAnimals are the colony animals the herd plan lets go (#1632,
-	// HerdSaleAnimals), by pawn id, set only while the colony wants silver.
+	// SaleAnimals are the colony animals the herd plan lets go (HerdSaleAnimals), by pawn id, set only while the colony wants silver.
 	// Each sells through its own pawn row.
 	SaleAnimals map[string]bool
 
-	// SaleGear is the worn-dump gear the colony sells (SaleGear, by thing id,
-	// #1831): protected natively, so the accept names these ids.
+	// SaleGear is the worn-dump gear the colony sells (SaleGear, by thing id ): protected natively, so the accept names these ids.
 	SaleGear map[string]bool
 
-	// HerdWants are the animals the herd plan lacks (HerdWants, #1636),
+	// HerdWants are the animals the herd plan lacks (HerdWants),
 	// best first: the pawn-purchase line buys the first affordable one.
 	HerdWants []HerdWant
 
-	// Favor marks a favor-currency session (the tribute collector, #1939):
+	// Favor marks a favor-currency session (the tribute collector):
 	// SelectFavorSale decides it, selling gold above FavorKeep.
 	Favor     bool
 	FavorKeep int64
 	// FavorPrisoners are the surplus prisoners (RoundsFacts.SurplusPrisoners,
-	// by pawn id) a favor session sells (#1971).
+	// by pawn id) a favor session sells.
 	FavorPrisoners map[string]bool
 }
 
@@ -192,7 +190,7 @@ const (
 // buildingruntime/trade_economy.go).
 func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeSelection {
 	refuse := func(reason string) TradeSelection { return TradeSelection{Refused: true, Reason: reason} }
-	// Art or animals alone (#1194, #1632) sell without a catalog target.
+	// Art or animals alone sell without a catalog target.
 	if len(p.Targets) > 0 || len(facts.SaleArt)+len(facts.SaleAnimals)+len(facts.SaleGear) == 0 {
 		if err := p.Validate(); err != nil {
 			return refuse(err.Error())
@@ -310,7 +308,7 @@ func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeS
 	return out
 }
 
-// sellArt is the art-sale step (#1194): each row whose thing is sale art
+// sellArt is the art-sale step: each row whose thing is sale art
 // sells that one piece, line by line, under the same rules as a surplus
 // sale -- a tradeable unprotected row, a known positive price (surplus
 // MinSellPrice) and the trader's remaining cash. A line already selected
@@ -324,7 +322,7 @@ func sellArt(out *TradeSelection, facts TradeSelectionFacts, stopped map[string]
 	})
 }
 
-// sellAnimals is the live-animal sale step (#1632): each pawn row whose
+// sellAnimals is the live-animal sale step: each pawn row whose
 // pawn id is a sale animal sells that one animal under the same rules. A
 // pawn row is always ProtectedExport natively; the herd plan that chose the
 // animal is the authorization, so the flag is not read.
@@ -337,7 +335,7 @@ func sellAnimals(out *TradeSelection, facts TradeSelectionFacts, stopped map[str
 	})
 }
 
-// sellGear is the gear-sale step (#1831): each row whose thing is sale gear
+// sellGear is the gear-sale step: each row whose thing is sale gear
 // sells that one piece under the same rules. Gear is ProtectedExport natively;
 // the accept names the thing ids it authorizes, so the flag is not read.
 func sellGear(out *TradeSelection, facts TradeSelectionFacts, stopped map[string]bool, traderCash *float64) {
@@ -410,7 +408,7 @@ const artMinSellPrice = math.SmallestNonzeroFloat64
 
 // TradeReserveFacts is what EconomicReserves folds into economic floors: the
 // player's own per-resource reserves and spending restrictions
-// (the autopilot's configured production policy) and
+// (the governor's configured production policy) and
 // native's outstanding construction commitments
 // (bridge.ReadConstructionDeficits, Python's buildings['resourceDeficit']).
 type TradeReserveFacts struct {

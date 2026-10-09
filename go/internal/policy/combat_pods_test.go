@@ -108,7 +108,7 @@ func TestDecideCombatPodsEvacuateNonCombatants(t *testing.T) {
 }
 
 // Pods landing behind the firing line (inside the perimeter) send the
-// responders to #860's inner line.
+// responders to the inner line.
 func TestDecideCombatPodsInsidePerimeterTakeInnerLine(t *testing.T) {
 	view := podsView()
 	view.Layout = domain.Known(CombatLayout{Firing: []domain.Cell{{X: 9, Z: 5}, {X: 11, Z: 5}}, Retreat: []domain.Cell{{X: 9, Z: 6}, {X: 11, Z: 6}}, Toward: domain.North})

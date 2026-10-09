@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TestContainmentCellCountsTheBioferriteFloorWhenStockPaysForIt (#2435): the
+// TestContainmentCellCountsTheBioferriteFloorWhenStockPaysForIt: the
 // floor term takes the containment floor only when the stock covers every
 // tile of the room, the capture verdict flips with it, and WantedFloors lays
 // the same floor under the same test.

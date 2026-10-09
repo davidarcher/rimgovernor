@@ -1,6 +1,6 @@
 package policy
 
-// A further warehouse (#1772, epic #1765): when every warehouse zone is at
+// A further warehouse: when every warehouse zone is at
 // or over StockpileFurtherRoomFill, the Storage department asks layout for one more
 // storage room (RoomDemand.Storage). It never plans the room; once the room
 // stands its warehouse zone is created and the demand clears until that zone

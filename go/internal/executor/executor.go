@@ -38,7 +38,7 @@ type Journal interface {
 	Observe(context.Context, domain.PlanID, domain.Observation, domain.GenerationSnapshot) (domain.Progress, error)
 	Cancel(context.Context, domain.PlanID, domain.ActionID) (domain.Progress, error)
 	Hold(context.Context, domain.PlanID, domain.ActionID, []domain.HeldReason, domain.Tick) (domain.Progress, error)
-	// The batch forms advance many actions in one transaction (#1040);
+	// The batch forms advance many actions in one transaction;
 	// results are in input order, one per item.
 	PrepareBatch(context.Context, []store.BatchAttempt) ([]store.BatchResult, error)
 	DispatchBatch(context.Context, []store.BatchAttempt) ([]store.BatchResult, error)

@@ -5,10 +5,8 @@ import (
 	"slices"
 )
 
-// Disarming an arrested creepjoiner (#1740, epic #1694; David 2026-10-03:
-// "use the community meta to make them less dangerous: dentures and wooden
-// hands, then remove them so they can only headbutt"). The game's rules, from
-// the decompile:
+// Disarm arrested creepjoiners by installing and removing replacements for
+// removable melee-tool body parts. The decompiled game rules require:
 //
 //   - A natural Hand or Jaw is offered no removal: Recipe_RemoveBodyPart
 //     offers a part only when it carries an added part, is clean and its def

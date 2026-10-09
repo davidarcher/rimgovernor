@@ -2,10 +2,10 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Material runway (#2381, epic #1856): every runway row that is neither a
+// Material runway: every runway row that is neither a
 // drug nor a medicine (steel and components among them) against the
 // fabrication, construction and gear burn the realized-consumption ring
-// (#2441) counts. The stock to hold is the runway's own Target; PlanSupply
+// counts. The stock to hold is the runway's own Target; PlanSupply
 // prices a bill's steel draw against the line the runway protects.
 
 // PlanMaterialRunway reads every runway row that is neither a drug nor a

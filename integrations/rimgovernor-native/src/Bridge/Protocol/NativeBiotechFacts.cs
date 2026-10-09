@@ -9,7 +9,7 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Biotech facts (#1678): the static defs of the definition catalog
+    // Biotech facts: the static defs of the definition catalog
     // (life stages, genes, xenotypes, mech kinds, mech work modes) and the
     // per-pawn row block. Effects come from the game defs themselves, never
     // from name lists. Everything is absent without Biotech.
@@ -53,7 +53,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The game's own GeneTuning constants and the extractor's private
-        // ones (#1932); an unreadable private constant stays absent.
+        // ones; an unreadable private constant stays absent.
         private static Obs.GeneTuningFacts GeneTuningRow()
         {
             var row = new Obs.GeneTuningFacts { BiostatMin = GeneTuning.BiostatRange.min, BiostatMax = GeneTuning.BiostatRange.max,

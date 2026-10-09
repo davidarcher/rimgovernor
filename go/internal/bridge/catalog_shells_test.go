@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// TestMortarShellsFromDamageRows (#1723): the eight shell defs of Core,
+// TestMortarShellsFromDamageRows: the eight shell defs of Core,
 // Biotech and Anomaly (every def with a projectileWhenLoaded) classify by
 // their projectile's damage def; smoke, firefoam, tox, deadlife and the
 // antigrain warhead (a 14.9 blast, past the safe radius) are skipped.

@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Vanilla JobDef names a GiveJobIntent orders (#1352).
+// Vanilla JobDef names a GiveJobIntent orders.
 const (
 	JobInspectGravEngine = "InspectGravEngine"
 	JobRepair            = "Repair"
@@ -15,7 +15,7 @@ const (
 	JobTendPatient       = "TendPatient"
 	JobEquip             = "Equip"
 	// JobDropWeapon is this protocol's token, not a JobDef name: native drops the weapon the pawn holds with the game's own
-	// drop job, which it finds by its driver class (#1740).
+	// drop job, which it finds by its driver class.
 	JobDropWeapon  = "DropWeapon"
 	JobWear        = "Wear"
 	JobRescue      = "Rescue"
@@ -23,14 +23,14 @@ const (
 	JobArrest      = "Arrest"
 	JobAttackMelee = "AttackMelee"
 	JobUseItem     = "UseItem"
-	// Recovery service and waste hauling (#1351).
+	// Recovery service and waste hauling.
 	JobFixBrokenDownBuilding = "FixBrokenDownBuilding"
 	JobRefuel                = "Refuel"
-	// The void monolith's orders (#2437): the Inactive monolith is
+	// The void monolith's orders: the Inactive monolith is
 	// investigated, every later level activated.
 	JobInvestigateMonolith = "InvestigateMonolith"
 	JobActivateMonolith    = "ActivateMonolith"
-	// JobInteractThing is the awakening quest's interaction (#2438).
+	// JobInteractThing is the awakening quest's interaction.
 	JobInteractThing = "InteractThing"
 )
 
@@ -42,7 +42,7 @@ func giveJob(pawn domain.PawnID, job string, targets ...string) (*o.Action, erro
 }
 
 // giveJobTo is giveJob; self admits the pawn among the targets, for the one
-// job that may target its own user (UseItem, #1609).
+// job that may target its own user (UseItem).
 func giveJobTo(pawn domain.PawnID, job string, self bool, targets ...string) (*o.Action, error) {
 	if validID(string(pawn)) != nil || validID(job) != nil || len(targets) == 0 {
 		return nil, contract("give job intent requires a pawn, a job and a target")
@@ -56,7 +56,7 @@ func giveJobTo(pawn domain.PawnID, job string, self bool, targets ...string) (*o
 		Pawn: NewRef(string(pawn)), Job: proto.String(job), Targets: NewRefs(targets)}}}, nil
 }
 
-// PrioritizedJob is the vanilla "Prioritize" order (#1352): pawn takes job
+// PrioritizedJob is the vanilla "Prioritize" order: pawn takes job
 // (a JobDef name such as FinishFrame, HaulToContainer or Deconstruct) on
 // target as a player-forced order, built by the first work giver the pawn
 // may do that makes exactly that job.
@@ -68,7 +68,7 @@ func PrioritizedJob(pawn domain.PawnID, job, target string) (*o.Action, error) {
 	return out, err
 }
 
-// draftAction drafts one plan-owned pawn (#939).
+// draftAction drafts one plan-owned pawn.
 func draftAction(action domain.Action) (*o.Action, error) {
 	v, ok := action.OwnedDraft()
 	if !ok || validID(string(v.Pawn())) != nil {
@@ -78,7 +78,7 @@ func draftAction(action domain.Action) (*o.Action, error) {
 }
 
 // UndraftAction is the wire intent that undrafts one pawn no live plan
-// needs (#939).
+// needs.
 func UndraftAction(key string, pawn domain.PawnID) (*o.Action, error) {
 	if validID(key) != nil || validID(string(pawn)) != nil {
 		return nil, contract("undraft requires a key and a pawn")
@@ -178,9 +178,9 @@ func wearAction(action domain.Action) (*o.Action, error) {
 	return giveJob(v.Pawn(), JobWear, v.Thing())
 }
 
-// useItemAction (#1038): one colonist uses one targetable item (a worn
+// useItemAction: one colonist uses one targetable item (a worn
 // lance's verb, a CompTargetable item) on one pawn, or its own CompUsable
-// item on itself (#1609, a neuroformer: the target is the colonist); native
+// item on itself (a neuroformer: the target is the colonist); native
 // validates the verb or use comp against the target live.
 func useItemAction(action domain.Action) (*o.Action, error) {
 	v, ok := action.UseItem()

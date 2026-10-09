@@ -17,8 +17,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// waste/incineration (#1817, epic #1640; #2197 moved it from waste/disposal
-// onto MaintainIncineration): corpse disposal end to end on the tribal
+// waste/incineration proves MaintainIncineration: corpse disposal end to end on the tribal
 // baseline colony. The fixture lays a rotten animal corpse, a rotten and a
 // fresh stranger corpse and a worn apparel in the open, plus stone blocks for
 // the walls. MaintainStockpiles creates the waste yard's one dump zone from
@@ -354,7 +353,7 @@ func (r disposalReading) gone(id string) bool {
 }
 
 // checkFreshStranger proves a stranger corpse that is still fresh is not in
-// the incinerator: it waits for the butcher or the morgue (#1811, #1820).
+// the incinerator: it waits for the butcher or the morgue.
 func checkFreshStranger(read disposalReading, id string, report na.Report, when string) error {
 	row := read.things[id]
 	inside, _ := na.AsBool(row["inside"])

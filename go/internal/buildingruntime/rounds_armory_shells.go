@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// mortarsBuilt counts the layout's mortars (#1206) once the tier stood in
+// mortarsBuilt counts the layout's mortars once the tier stood in
 // the latest census; a colony without a layout or a built tier has none.
 func mortarsBuilt(ctx context.Context, journal *store.Store, snapshot domain.GenerationSnapshot) (int, error) {
 	record, ok, err := journal.LoadDefenseLayout(ctx, store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map})
@@ -25,7 +25,7 @@ func mortarsBuilt(ctx context.Context, journal *store.Store, snapshot domain.Gen
 	return len(tier.Buildings), nil
 }
 
-// loadMortarShells is the load's mortar shells by kind (#1723); a source that
+// loadMortarShells is the load's mortar shells by kind; a source that
 // serves no definitions has none, so the armory stocks no shells.
 func loadMortarShells(ctx context.Context, native any, snapshot domain.GenerationSnapshot) (policy.MortarShells, error) {
 	source, ok := native.(observation.DefinitionSource)
@@ -53,7 +53,7 @@ func shellTargets(ctx context.Context, native any, journal *store.Store, snapsho
 }
 
 // stockShells admits one stock-target shell bill under MaintainEquipment
-// for the first shell no bench bill produces (#1207). Native keeps the
+// for the first shell no bench bill produces. Native keeps the
 // stock from then on; the planner only adds missing bills.
 func (r *RoundsArmoryPlanner) stockShells(call, epoch context.Context, state ControlState, review store.Rounds, projection observation.ColonyProjection) (RoundsArmoryResult, error) {
 	p := r.reviewer.player

@@ -20,7 +20,7 @@ func progressRecord(t *testing.T, r Rounds, id domain.ConcernID) policy.ConcernP
 }
 
 // The food goal's record surfaces a known-missing cooking bench as its
-// prerequisite (#629); the record persists with the review. With no
+// prerequisite; the record persists with the review. With no
 // cooking method in flight nobody is building the bench, so the one builder
 // is not withheld from optional development (a withheld builder waiting on
 // work nobody proposed deadlocked Foothold).
@@ -121,7 +121,7 @@ func TestRoundsProgressDesignationWithoutWorkerIsBlocked(t *testing.T) {
 	if _, err := s.Dispatch(ctx, "wood", "wood-action", target, r.Tick); err != nil {
 		t.Fatal(err)
 	}
-	// The applied intent is the order's settlement (#856): the review that
+	// The applied intent is the order's settlement: the review that
 	// sees it counts it as progress once, and the building stays open work
 	// until the census shows it built.
 	if _, err := s.RecordReceipt(ctx, "wood", "wood-action", 1, domain.ReceiptAccepted); err != nil {

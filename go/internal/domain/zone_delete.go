@@ -3,7 +3,7 @@ package domain
 import "errors"
 
 // ZoneDelete is an immutable, comparable value: a one-shot deletion of one
-// exact zone (native DeleteZone, #611); native checks the zone
+// exact zone (native DeleteZone); native checks the zone
 // when the intent applies.
 type ZoneDelete struct {
 	zone string

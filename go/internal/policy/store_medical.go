@@ -1,6 +1,6 @@
 package policy
 
-// medicalOwner is the Medical department's stockpile (#2193): the hospital's
+// medicalOwner is the Medical department's stockpile: the hospital's
 // medicine store, a 2x2 beside the medical beds, declared once and sized once.
 type medicalOwner struct{}
 

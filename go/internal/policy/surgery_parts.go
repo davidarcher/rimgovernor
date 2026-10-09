@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// SurgeryPartBill is MaintainSurgery's bill purpose (#1168): one batch bill
+// SurgeryPartBill is MaintainSurgery's bill purpose: one batch bill
 // fabricating a part a restore operation lacks, at a bench whose recipe is
 // researched and usable. ProductionBillContext.Parts carries the wants.
 const SurgeryPartBill BillPurpose = "surgery_part"
@@ -15,7 +15,7 @@ const SurgeryPartBill BillPurpose = "surgery_part"
 // surgeryPartPriceCeiling bounds a part purchase's unit price. Bionics
 // price near 1500 silver in vanilla. It is a sanity cap on one unit, not the
 // spend bound: served parts spend under the trade's silver reserve, and an
-// elective (#1845) additionally has to fit the colonist's personal share
+// elective additionally has to fit the colonist's personal share
 // (ElectiveShare) before ChosenElective demands it at all.
 const surgeryPartPriceCeiling = 5000.0
 
@@ -104,7 +104,7 @@ func TradeSurgeryParts(parts []SurgeryPart, fabricable map[Resource]bool) []Surg
 	return out
 }
 
-// SurgeryPurchaseParts are the parts a trader must supply (#1845): the served
+// SurgeryPurchaseParts are the parts a trader must supply: the served
 // parts no bench can fabricate (TradeSurgeryParts) and, when none of those is
 // pending, the chosen elective's part provided no item of it can be fabricated
 // (the bill path, ElectiveParts, takes it otherwise). One elective at a time:
@@ -186,8 +186,8 @@ func SelectSurgeryPartBill(benches []ProductionBench, parts []SurgeryPart) (Bill
 	return BillSelection{}, gap
 }
 
-// ChosenElective is the one elective colony-wide whose part is missing
-// (#1844): the best affordable elective upgrade (ctx.Elective, the same gate
+// ChosenElective is the one elective colony-wide whose part is missing:
+// the best affordable elective upgrade (ctx.Elective, the same gate
 // and slack as SelectSurgery) a doctor can perform within ElectiveFailureCap,
 // ranked as SelectSurgery ranks (gain over the natural part x part weight x
 // role weight, ties by pawn id then part) but over every elective, stocked or
@@ -195,7 +195,7 @@ func SelectSurgeryPartBill(benches []ProductionBench, parts []SurgeryPart) (Bill
 // part's affordable recipes, best first. Nothing is chosen while electives are
 // not allowed (no hospital bed, a queued bill or a served operation anywhere,
 // so served demand never conflicts) or once some option of the chosen part is
-// on the map: SelectSurgery then queues it. The purchase path (#1845) and
+// on the map: SelectSurgery then queues it. The purchase path and
 // ElectiveParts both read this.
 func ChosenElective(pawns domain.Fact[[]CarePawn], ctx SurgeryContext) (SurgeryWant, bool) {
 	rows, _ := pawns.Value()
@@ -271,9 +271,9 @@ func fabricableItems(items []Resource, fabricable map[Resource]bool) []Resource 
 	return out
 }
 
-// ElectiveParts is the chosen elective's part demand for the bill path
-// (#1844): one SurgeryPart of its fabricable items, or none. A part nothing
-// fabricates yields none here (the purchase path, #1845, supplies it). Callers
+// ElectiveParts is the chosen elective's part demand for the bill path:
+// one SurgeryPart of its fabricable items, or none. A part nothing
+// fabricates yields none here (the purchase path, supplies it). Callers
 // append it after the served parts, which win any conflict.
 func ElectiveParts(want SurgeryWant, chosen bool, fabricable map[Resource]bool) []SurgeryPart {
 	if !chosen {

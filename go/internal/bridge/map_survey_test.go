@@ -9,7 +9,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// TestSurveyFromCellsReadsTheMirror is #2272: the survey cell comes from the
+// TestSurveyFromCellsReadsTheMirror checks that the survey cell comes from the
 // mirror's tile columns, thing list and the catalog's terrain, thing and roof
 // defs; a fogged cell reads as plain rock.
 func TestSurveyFromCellsReadsTheMirror(t *testing.T) {

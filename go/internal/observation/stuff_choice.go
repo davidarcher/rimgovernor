@@ -11,8 +11,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// StuffCriterion is the stat a planner ranks the allowed stuffs of a def by
-// (#1731). Every criterion reads the stuff options' stat values from the
+// StuffCriterion is the stat a planner ranks the allowed stuffs of a def by.
+// Every criterion reads the stuff options' stat values from the
 // game's stat table, so no stuff is named in Go.
 type StuffCriterion int
 
@@ -76,7 +76,7 @@ func (d PlanningDefinition) StuffChoice(criterion StuffCriterion, stock map[poli
 var ErrFlammableStuff = errors.New("every allowed stuff of the definition is flammable")
 
 // FireproofStuff is the allowed stuff with the least Flammability, read from
-// the game's stat table (#1814), and refused when that stuff still burns: a
+// the game's stat table, and refused when that stuff still burns: a
 // wall or door that must hold a fire in is never wood. A def not made from
 // stuff has no stuff to choose and no flammability to read, so it is refused
 // as ErrNoStuffData.
@@ -295,7 +295,7 @@ func (d PlanningDefinition) ordinaryStuff() func(StuffOption) bool {
 // BuildStuff is the stuff an ordinary placement builds the def from: the best
 // ranked allowed stuff the colony stocks (BuildCriteria), else the best ranked
 // allowed stuff whatever the stock (RimWorld places the frame and holds it
-// natively for material, #602). A def not made from stuff, an unknown stock and
+// natively for material). A def not made from stuff, an unknown stock and
 // a def the rows cannot choose for yield the empty stuff.
 func (r ColonyProjection) BuildStuff(name string) string {
 	if stuff, ok := r.StockedBuildStuff(name); ok {
@@ -375,7 +375,7 @@ func (r ColonyProjection) BulkBuildStuff(name string, units int64) string {
 }
 
 // StuffUpgrade is whether replacing a built def made of have by want is an
-// upgrade the colony can afford (#2111): want ranks strictly above have under
+// upgrade the colony can afford: want ranks strictly above have under
 // the def's build criteria (equal ranks are no upgrade, so the tie-break by name
 // never swaps a wall back and forth) and the stock covers one of it. False when
 // either stuff is not an allowed option or the stock is unknown.

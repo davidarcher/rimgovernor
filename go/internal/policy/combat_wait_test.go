@@ -169,7 +169,7 @@ func TestDecideCombatManhunterWaitEndsWhenStronger(t *testing.T) {
 // {a raid waiting behind room doors (15,19) wooden and (20,25) broken,
 // 30 plasteel} -> a plasteel door over (15,19) and a wall on the floor
 // cell behind (20,25), (19,25); {10 plasteel} -> the wall only; {not
-// waiting} -> nothing (#1065).
+// waiting} -> nothing.
 func TestWallBehindBrokenDoor(t *testing.T) {
 	view := raidView(5)
 	view.Tick = 1000

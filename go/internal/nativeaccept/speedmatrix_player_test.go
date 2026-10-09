@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
-// The player row (#627) passes inside its bounds and names each bound a run
+// The player row passes inside its bounds and names each bound a run
 // breaks.
 func TestPlayerRowProblems(t *testing.T) {
 	good := PlayerRow{HazardGaps: []bridge.HazardGap{{HazardClass: "fire", MaxTickGap: 250, BoundTicks: 300}},

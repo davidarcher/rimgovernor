@@ -11,8 +11,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// bedroomGate is the personal-share gate on in-place bedroom upgrades
-// (#1840): charged steps begin at Reserves and must fit the owners' remaining
+// bedroomGate is the personal-share gate on in-place bedroom upgrades:
+// charged steps begin at Reserves and must fit the owners' remaining
 // share. stage is the review's colony stage.
 func bedroomGate(facts observation.ColonyProjection, stage policy.ColonyStage) policy.RoomGate {
 	gate := policy.RoomGate{Stage: stage, Shares: facts.PersonalShareOf, Items: facts.Facts.Items, BedPrice: facts.BedPrice}
@@ -25,7 +25,7 @@ func bedroomGate(facts observation.ColonyProjection, stage policy.ColonyStage) p
 		return facts.BedPrice(policy.Resource(def), policy.Resource(pieceStuff(facts, def)))
 	}
 	// A suite is furnished with the bed the furnish step stages and the
-	// template pieces the closer fills (#1841), priced in their stuffs.
+	// template pieces the closer fills, priced in their stuffs.
 	definitions := make([]policy.BenchDefinition, 0, len(facts.Definitions))
 	for _, d := range facts.Definitions {
 		definitions = append(definitions, policy.BenchDefinition{Name: d.Name, Available: d.Available})
@@ -55,7 +55,7 @@ func pieceStuff(facts observation.ColonyProjection, def string) string {
 	return stuff
 }
 
-// roomUpgrade is the next room quality upgrade (#814): one template piece
+// roomUpgrade is the next room quality upgrade: one template piece
 // for an owned bedroom below its target.
 func roomUpgrade(facts observation.ColonyProjection, stage policy.ColonyStage) (policy.RoomUpgrade, bool) {
 	obs, sk := facts.Facts.Sleeping.Value()
@@ -80,7 +80,7 @@ func roomUpgrade(facts observation.ColonyProjection, stage policy.ColonyStage) (
 	return policy.NextRoomUpgrade(obs, upgradeTargets(facts, targets, stage), policy.FurnitureRooms(rooms, census, facts.Cells), available, bedroomGate(facts, stage))
 }
 
-// bedReplacement is the next bed replacement step (#829), read from the
+// bedReplacement is the next bed replacement step, read from the
 // same census as roomUpgrade.
 func bedReplacement(facts observation.ColonyProjection, stage policy.ColonyStage) (policy.BedReplacement, bool) {
 	obs, sk := facts.Facts.Sleeping.Value()
@@ -99,7 +99,7 @@ func bedReplacement(facts observation.ColonyProjection, stage policy.ColonyStage
 	materials.Stock, _ = facts.Resources.Value()
 	for _, d := range facts.Definitions {
 		// A bed's stuff is the allowed stocked one with the best rest
-		// effectiveness (#1731); a def with no rest effectiveness is no bed.
+		// effectiveness; a def with no rest effectiveness is no bed.
 		price, err := d.StuffChoice(observation.MaxRestEffectiveness, materials.Stock)
 		if err != nil || price.Stuff == "" {
 			continue
@@ -113,7 +113,7 @@ func bedReplacement(facts observation.ColonyProjection, stage policy.ColonyStage
 	return policy.NextBedReplacement(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), stage), policy.FurnitureRooms(rooms, census, facts.Cells), available, materials)
 }
 
-// titleFurniture is the next unmet royal bedroom thing (#815).
+// titleFurniture is the next unmet royal bedroom thing.
 func titleFurniture(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) {
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()
@@ -129,7 +129,7 @@ func titleFurniture(facts observation.ColonyProjection) (policy.RoomUpgrade, boo
 }
 
 // companionBed is the next animal sleeping spot for a master's solo
-// bedroom (#1633): none while the definition is unavailable or unsized.
+// bedroom: none while the definition is unavailable or unsized.
 func companionBed(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) {
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()
@@ -148,7 +148,7 @@ func companionBed(facts observation.ColonyProjection) (policy.RoomUpgrade, bool)
 	return policy.NextCompanionBed(obs, animals, policy.FurnitureRooms(rooms, census, facts.Cells), facts.Shapes.Furniture, spot, available)
 }
 
-// beautyUpgrade is the next beauty lever (#830): a plant pot or a
+// beautyUpgrade is the next beauty lever: a plant pot or a
 // prettier floor for a bedroom whose weakest stat is beauty.
 func beautyUpgrade(facts observation.ColonyProjection, stage policy.ColonyStage) (policy.RoomUpgrade, bool) {
 	obs, sk := facts.Facts.Sleeping.Value()

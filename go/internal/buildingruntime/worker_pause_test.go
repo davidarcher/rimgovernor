@@ -16,7 +16,7 @@ import (
 // A committed Stopped event reaches the step loop as a pending stop, once,
 // beside the ordinary wake evidence; a page without one leaves the reason
 // clear. Nothing else waits on it: no admission needs the stop between
-// windows (#244).
+// windows.
 func TestWakeSignalCarriesStop(t *testing.T) {
 	t.Parallel()
 	page := &k.EventsPage{Events: []*k.Event{
@@ -49,9 +49,9 @@ func TestWakeSignalCarriesStop(t *testing.T) {
 }
 
 // A dispatch held on stale_facts is retried at once, off its backoff,
-// before the game's own work scanner takes the order's target (#288); the
+// before the game's own work scanner takes the order's target; the
 // clock is not held for it, since every routine kind dispatches under the
-// running window (#244). One retry per hold: a hold that survives it backs
+// running window. One retry per hold: a hold that survives it backs
 // off, and the next hold after a dispatch is a new one.
 func TestWorkerStaleHoldRetriesOnce(t *testing.T) {
 	t.Parallel()

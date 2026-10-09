@@ -8,7 +8,7 @@ namespace HomeBridge.BridgeTools
 {
     /// The threat facts of one living non-colonist pawn: cheap field reads
     /// only, gathered before any pawn reference or distance scan is paid
-    /// for (#646).
+    /// for.
     internal struct ThreatFacts
     {
         internal bool Ours;
@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
         internal string? Mental;
         /// A non-player faction hostile to the player.
         internal bool FactionHostile;
-        /// A prisoner of the colony breaking out (#1080); a held prisoner
+        /// A prisoner of the colony breaking out; a held prisoner
         /// is never FactionHostile.
         internal bool PrisonBreak;
         internal string? FactionId;
@@ -28,18 +28,17 @@ namespace HomeBridge.BridgeTools
         internal bool Downed;
         internal bool Predator;
         internal int X, Z;
-        /// Insects (#948): dormant, or awake but targeting nothing of the
-        /// player's. Other hostiles with CompCanBeDormant (mech clusters,
-        /// #1335): asleep. Null for every other pawn.
+        /// Insects: dormant, or awake but targeting nothing of the
+        /// player's. Other hostiles with CompCanBeDormant (such as mech clusters): asleep. Null for every other pawn.
         internal bool? Passive;
     }
 
-    /// Filter-first threat fact rows (#646, #1356): the native emits facts,
+    /// Filter-first threat fact rows: the native emits facts,
     /// Go classifies them (bridge.ClassifyThreat). A pawn is kept when any
     /// fact a threat rule reads is set (a mental state, faction hostility, a
     /// prison break, a predator hunt), or when it is an unowned downed pawn
     /// or predator within the radius of a colonist; only a kept pawn gets
-    /// its pawn table reference (#1343) and nearest-colonist distance.
+    /// its pawn table reference and nearest-colonist distance.
     /// Healthy non-predator wildlife costs one facts read and nothing else;
     /// the worst case stays O(pawns * colonists).
     ///

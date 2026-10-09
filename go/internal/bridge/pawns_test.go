@@ -153,7 +153,7 @@ func TestPawnsIdleNativeJobAndEmergencyProjection(t *testing.T) {
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		switch arg.Tool {
 		case "rimgovernor/observations_list_pawns":
-			// The unfiltered read is the pawn table the census joins (#1343).
+			// The unfiltered read is the pawn table the census joins.
 			if !strings.Contains(string(arg.Arguments), "pawn-1") {
 				return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: table}}), nil
 			}
@@ -191,7 +191,7 @@ func TestPawnsIdleNativeJobAndEmergencyProjection(t *testing.T) {
 			t.Fatal("idle job obscured healthy facts")
 		}
 	}
-	// The row's in_bed flag reaches the emergency pawn (#618).
+	// The row's in_bed flag reaches the emergency pawn.
 	if inBed, known := pawn.InBed.Value(); !known || !inBed {
 		t.Fatal("in_bed lost", pawn.InBed)
 	}

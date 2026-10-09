@@ -30,7 +30,7 @@ func siteTestRow(id string, status o.BuildingStatus, hp int32, need int64) *o.Bu
 	return row
 }
 
-// TestConstructionStateMatchesWholeTable (#1641): the census derived frame
+// TestConstructionStateMatchesWholeTable: the census derived frame
 // to frame from the changed rows is the census projected from the whole
 // table, whatever the edits (status changes, removals, need changes).
 func TestConstructionStateMatchesWholeTable(t *testing.T) {
@@ -97,7 +97,7 @@ func slicesSort(s []string) {
 	}
 }
 
-// TestConstructionStateCostIsIndependentOfSize (#1641): a frame that
+// TestConstructionStateCostIsIndependentOfSize: a frame that
 // changes one building's hit points, which no projection reads, costs the
 // same few allocations at 100 buildings and at 10000, and rebuilds no
 // list.

@@ -4,7 +4,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Defense capacity facts (#1188): damage per second read from the game's
+    // Defense capacity facts: damage per second read from the game's
     // own verbs and stats, never from a fixed table.
     internal static class NativeDefenseStats
     {

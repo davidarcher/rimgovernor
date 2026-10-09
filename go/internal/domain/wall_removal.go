@@ -13,7 +13,7 @@ const WallRemovalAction ActionKind = "wall_removal"
 // Wall BuildingAction, whose cell is Cell; Original empty). It is an
 // Actions/Apply intent: native resolves the wall-upgrade site from the wall
 // live, and applied means the guarded demolition is designated. Work that
-// needs the cell clear waits on the census (store checkDependencies, #989).
+// needs the cell clear waits on the census (store checkDependencies).
 type WallRemoval struct {
 	original string
 	backupOf ActionID

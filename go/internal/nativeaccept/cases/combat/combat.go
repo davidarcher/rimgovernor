@@ -1,6 +1,6 @@
 // Package combat holds the Loud combat cases (the former combataccept):
 // a colonist drafted by a DraftIntent attacks through one combat_orders
-// intent (#939), native picking melee or ranged from its weapon; the
+// intent, native picking melee or ranged from its weapon; the
 // same key replays the receipt; the scenario clock's WATCH_MODE_COMBAT
 // policy runs bounded windows until the target is down, and the undraft
 // intent releases the attacker. No damage or completion injection.
@@ -200,7 +200,7 @@ func run(ctx context.Context, s cases.Session, ranged, explosive bool) error {
 	if err != nil {
 		return err
 	}
-	// Drafts are plan-owned intents (#939): draft, then one combat_orders
+	// Drafts are plan-owned intents: draft, then one combat_orders
 	// attack; native picks melee or ranged from the attacker's weapon.
 	if job, err := na.ApplyDraft(ctx, h, "draft", identity, "combat-draft", actorID, true); err != nil {
 		return err

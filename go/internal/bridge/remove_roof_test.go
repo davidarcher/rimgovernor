@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A remove roof builds one RemoveRoofIntent (#1366) with canonical cells.
+// A remove roof builds one RemoveRoofIntent with canonical cells.
 func TestRemoveRoofBuildsIntent(t *testing.T) {
 	value, err := domain.NewRemoveRoof([]domain.Cell{{X: 5, Z: 2}, {X: 1, Z: 9}})
 	if err != nil {

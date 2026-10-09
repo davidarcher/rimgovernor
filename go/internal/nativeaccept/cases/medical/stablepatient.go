@@ -1,4 +1,4 @@
-// Package medical holds issue #1's stable-patient diagnostic: a fresh debug
+// Package medical holds the stable-patient diagnostic: a fresh debug
 // game seeded with the disposable test/medical_management_setup fixture
 // (two tendable Flu patients plus a fourth colonist forced into
 // GoJuiceAddiction's withdrawal stage) and test/routine_production_prepare
@@ -87,7 +87,7 @@ func init() {
 						return err
 					}
 					report["medical_final"] = medical
-					// #657's evidence: a CriticalMedical episode that cannot be
+					// Native evidence: a CriticalMedical episode that cannot be
 					// served should leave no tend methods at all, not eight
 					// spent on pairs the native gate refuses. The tally names
 					// how many of this goal's methods ended unsuccessful.

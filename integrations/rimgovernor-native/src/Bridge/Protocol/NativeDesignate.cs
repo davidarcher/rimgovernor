@@ -11,12 +11,12 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // Generic Designate (#1350): one removal designation (Deconstruct, Mine,
+    // Generic Designate: one removal designation (Deconstruct, Mine,
     // CutPlant, Haul, RemoveFoundation) on a Ref target or a cell, placed
     // through the game's own designator and held by the named guard the
     // intent selects (NativeDesignationGuards). A designation already
     // standing (a player one is adopted) or a cell already cleared applies
-    // again. A Deconstruct may swap a door for a wall (#1245); one under the
+    // again. A Deconstruct may swap a door for a wall; one under the
     // wall_upgrade guard resolves its site in NativeWallRemovalOperations,
     // and the acquisition guard's designations resolve in NativeAcquire.
     internal static class NativeDesignate
@@ -124,7 +124,7 @@ namespace HomeBridge.BridgeTools
             // Guard: the one the designation needs, and only that one.
             plan.Guard = GuardFor(intent.Designation);
             var named = intent.HasGuard ? NativeDesignationGuards.Name(intent.Guard) : null;
-            // A HAUL takes no guard, or the wastepack guard (#1683).
+            // A HAUL takes no guard, or the wastepack guard.
             if (intent.Designation == Operations.ThingDesignation.Haul && named == GuardNames.Wastepack) plan.Guard = named;
             if (named != plan.Guard) return plan.Guard == null ? "this designation takes no guard" : "this designation requires the " + plan.Guard + " guard";
             plan.Ground = Ground(intent, out var groundRefusal);
@@ -184,7 +184,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static bool WallUpgrade(Operations.DesignateIntent intent) => intent.HasGuard && intent.Guard == Operations.DesignationGuard.WallUpgrade;
-        // The acquisition designations (#1046): HUNT, HARVEST_PLANT or MINE of
+        // The acquisition designations: HUNT, HARVEST_PLANT or MINE of
         // a census source, and their withdraw.
         private static bool Acquisition(Operations.DesignateIntent intent) => intent.HasGuard && intent.Guard == Operations.DesignationGuard.Acquisition;
         private static string? AcquisitionPairing(Operations.DesignateIntent intent) =>
@@ -229,7 +229,7 @@ namespace HomeBridge.BridgeTools
             {
                 // A swap whose wall blueprint already stands applies again; a
                 // swap the game lets the blueprint replace in place is one
-                // build (the construct giver deconstructs the door, #1245).
+                // build (the construct giver deconstructs the door).
                 var standing = plan.Cell.GetThingList(plan.Map).FirstOrDefault(t => t is Blueprint_Build b && b.def.entityDefToBuild == ThingDefOf.Wall);
                 if (standing != null) { record!.ReplacementId = standing.GetUniqueLoadID(); return Evidence(plan, record, adopted); }
                 if (GenConstruct.CanPlaceBlueprintAt(ThingDefOf.Wall, plan.Cell, Rot4.North, plan.Map, false, null, null, plan.WallStuff).Accepted)
@@ -282,7 +282,7 @@ namespace HomeBridge.BridgeTools
                 Present = p.Cleared || Standing(p), ResourceDef = p.ExpectedDef, Cell = cell } };
         }
 
-        // ---- door-to-wall swap (#1245) ----
+        // ---- door-to-wall swap ----
         // The wall blueprint goes on the door's cell under the game's own
         // placement rule; the builder is ordered to build it as player-forced
         // work. queued runs inside the builder's finishing deconstruct job.

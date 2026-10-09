@@ -8,11 +8,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Royal permits in the fight (#1608, epic #1598): an outmatched fight calls
+// Royal permits in the fight: an outmatched fight calls
 // the aid and strike permits its colonists hold, once per fight each. A
 // call is a permit_call order, not a pawn job: the holder keeps its other
 // orders, and the defense planner sends the call as the generic Ability
-// action (#1607), where native owns the permit's own guards.
+// action, where native owns the permit's own guards.
 const (
 	OrderPermit  CombatOrderKind   = "permit_call"
 	ReasonPermit CombatOrderReason = "permit"

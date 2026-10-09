@@ -64,7 +64,7 @@ func TestOutdoorCampfireStaysUntilAStoveKitchen(t *testing.T) {
 	}
 }
 
-// A heat campfire (#1180) is the claimed one; its warm sleeping room owes
+// A heat campfire is the claimed one; its warm sleeping room owes
 // the refuel switch, which the review reads as TemperatureOwed.
 func TestHeatTemperatureOwed(t *testing.T) {
 	fire := campfireBuilding(t, "fire1", domain.Cell{X: 1, Z: 1})
@@ -92,7 +92,7 @@ func TestHeatTemperatureOwed(t *testing.T) {
 }
 
 // A campfire blueprint from an earlier (retired) cooking plan still standing
-// is the camp's campfire: the planner stages no other (#1534).
+// is the camp's campfire: the planner stages no other.
 func TestCookingSelectionCountsStandingCampfireBlueprint(t *testing.T) {
 	t.Parallel()
 	building, err := domain.NewBuilding("Campfire", domain.Cell{X: 10, Z: 10}, domain.North, "")

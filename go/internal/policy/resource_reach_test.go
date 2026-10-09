@@ -129,7 +129,7 @@ func TestResourceReachDoesNotBridgeExtentIslands(t *testing.T) {
 
 // An empty established extent is a colony without facilities or claimed
 // stockpiles, not missing readiness: it must not cap the stage at base, and a
-// ready colony still reaches a distant cell it holds no geometry near (#664).
+// ready colony still reaches a distant cell it holds no geometry near.
 func TestResourceReachEmptyExtentStagesOnReadiness(t *testing.T) {
 	r := tribal8Reach()
 	r.Extent = domain.Known(ColonyExtent{})
@@ -151,7 +151,7 @@ func TestResourceReachEmptyExtentStagesOnReadiness(t *testing.T) {
 }
 
 // A buried deposit is tunnelled to only when the reach would let a miner
-// work it once opened (#1124); a nearer one outside the reach is skipped.
+// work it once opened; a nearer one outside the reach is skipped.
 func TestBuriedResourceSourceRespectsReach(t *testing.T) {
 	outside := ResourceSource{ThingID: "outside", Method: ResourceSourceMine, Buried: true, Yield: 40, Safety: "supported_roof", Distance: 5, Cell: domain.Cell{X: 33, Z: 20}}
 	inside := ResourceSource{ThingID: "inside", Method: ResourceSourceMine, Buried: true, Yield: 40, Safety: "supported_roof", Distance: 9, Cell: domain.Cell{X: 20, Z: 20}}
@@ -165,7 +165,7 @@ func TestBuriedResourceSourceRespectsReach(t *testing.T) {
 }
 
 // A buried deposit native reports as supported is held as buried, never as
-// a roof support risk (#1075).
+// a roof support risk.
 func TestBuriedSourceHeldAsBuried(t *testing.T) {
 	buried := ResourceSource{ThingID: "ore", Method: ResourceSourceMine, Buried: true, Yield: 40, Safety: "supported_roof", Distance: 5, Cell: domain.Cell{X: 20, Z: 20}, Reachable: domain.Known(false)}
 	selected, holds := SelectReachableResourceSources([]ResourceSource{buried}, 200, 0, RemoteWorkRequest{Reach: tribal8Reach()})

@@ -76,7 +76,7 @@ func TestRefrigerationReviewLatchesOnWarmRoofedStock(t *testing.T) {
 }
 
 // The chill thresholds stand in for the spoilage recovery the deleted
-// refrigeration/setpoint and season cases measured live (#765): the patch
+// refrigeration/setpoint and season cases measured live: the patch
 // target freezes (RimWorld's rot rate is zero at or below 0 C), the review
 // enters only above ChilledMaxC and, once latched, holds above ChilledExitC
 // and releases exactly at it. refrigeration/build keeps the live check.
@@ -256,7 +256,7 @@ func TestRefrigerationReviewIgnoresHeldStock(t *testing.T) {
 
 func TestRefrigerationReviewIgnoresNonPerishableStockWithoutRotRunway(t *testing.T) {
 	p := DefaultFoodStoragePolicy()
-	// Native reports no rot runway for a survival meal (#446): the row is
+	// Native reports no rot runway for a survival meal: the row is
 	// known non-perishable, so it neither counts nor blanks the review.
 	reserve := FoodStorageStock{Stock: FoodStock{ID: "meals", Nutrition: domain.Known(9.0), Perishable: domain.Known(false),
 		Roofed: domain.Known(false), TemperatureC: domain.Known(14.0), Room: domain.Known("235")}}

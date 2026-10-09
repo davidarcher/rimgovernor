@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// waveMinAnimals is the smallest pack that counts as a psychic wave (#899):
+// waveMinAnimals is the smallest pack that counts as a psychic wave:
 // fewer animals come through one door at a time.
 const waveMinAnimals = 6
 
@@ -20,7 +20,7 @@ type waveChoke struct {
 	nearest domain.PawnID
 }
 
-// waveChokes are the doors a psychic wave approaches (#899): at least
+// waveChokes are the doors a psychic wave approaches: at least
 // waveMinAnimals animals and no exploder, then spreadChokes.
 func waveChokes(view CombatView) []waveChoke {
 	ranked := rankThreats(view)
@@ -30,7 +30,7 @@ func waveChokes(view CombatView) []waveChoke {
 	return spreadChokes(view, ranked)
 }
 
-// chargeChokes are the doors a shielded melee charge approaches (#1053):
+// chargeChokes are the doors a shielded melee charge approaches:
 // when most live hostiles are melee with a worn shield, every door they
 // approach is a choke, so the charge splits across them. Nil otherwise.
 func chargeChokes(view CombatView) []waveChoke {

@@ -16,7 +16,7 @@ import (
 
 // fullCatalog is the whole game's recording (observation/testdata). The
 // workers/* recordings predate the work rows' skill and order, which the
-// census resolves from the catalog at read time (#1724), so loadPawns does
+// census resolves from the catalog at read time, so loadPawns does
 // the same.
 var fullCatalog = sync.OnceValues(func() (*bridge.DefinitionCatalog, error) {
 	file, err := os.Open("../observation/testdata/full_catalog.pb.gz")

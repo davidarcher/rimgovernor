@@ -11,8 +11,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The incinerator (#1814): the layout plan holds it from the start inside the
-// waste yard (#2187), and MaintainIncineration shells the yard's fence and
+// The incinerator: the layout plan holds it from the start inside the
+// waste yard, and MaintainIncineration shells the yard's fence and
 // gate, then the incinerator like the tomb with the least flammable wall and
 // door the game's stuff data offers, refusing a wall or door that would burn.
 // The Sanitation store (policy.incinerationOwner) then zones its interior. It

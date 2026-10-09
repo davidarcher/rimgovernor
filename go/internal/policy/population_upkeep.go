@@ -8,7 +8,7 @@ import (
 
 // MaintainPopulation names Population-*'s prisoner interaction deficit: any
 // observed, living colony prisoner whose exclusive interaction is not the
-// use the colony has for it (prisonerUse). The autopilot chooses each
+// use the colony has for it (prisonerUse). The governor chooses each
 // prisoner's use itself -- recruit, convert, enslave or release -- with no
 // player-only exemption; execution and the non-exclusive toggles are never
 // proposed. Native eligibility (recruitable, alive, prisoner, not a wild man
@@ -27,7 +27,7 @@ type PrisonerPolicy struct {
 }
 
 // PopulationOutlook is the storyteller's colony-level population state read
-// with the population census (#1031): StorytellerUtilityPopulation's intent
+// with the population census: StorytellerUtilityPopulation's intent
 // and adjusted population, the chance a non-colony humanlike downed by
 // violence dies now, and the chance a new prisoner is unrecruitable.
 type PopulationOutlook struct {
@@ -69,13 +69,13 @@ type PrisonerColony struct {
 	// Ideo is the player faction's primary ideoligion id; empty without
 	// Ideology.
 	Ideo string
-	// Ideology is the frame's ideoligion fact (#1654): slavery and organ
-	// use read it through the shared precept rule (#1656). The routine
+	// Ideology is the frame's ideoligion fact: slavery and organ
+	// use read it through the shared precept rule. The routine
 	// reading fills it; unknown without Ideology.
 	Ideology domain.Fact[Ideoligion]
 	// Medicine is each free colonist's Medicine level by pawn, doctors only
-	// (the skill not disabled): the doctor training floor counts it (#1236)
-	// and the training step names its surgeon from it (#1253).
+	// (the skill not disabled): the doctor training floor counts it
+	// and the training step names its surgeon from it.
 	Medicine map[domain.PawnID]int
 }
 
@@ -108,31 +108,30 @@ type PrisonerFacts struct {
 	Ideo     string
 	WildMan  bool
 	Prospect domain.Fact[PrisonerProspect]
-	// Organ harvest facts (#1169): the prisoner's operations and queued
+	// Organ harvest facts: the prisoner's operations and queued
 	// medical bills, its home faction's id (empty for none) and the goodwill
 	// change vanilla's harvest violation would make with it (<= 0).
-	// MissingParts: the prisoner's missing parts (#1232 keeps a second leg).
+	// MissingParts: the prisoner's missing parts; removal must retain one leg.
 	MissingParts    domain.Fact[[]MissingPart]
 	Operations      domain.Fact[[]SurgeryOperation]
 	QueuedSurgeries domain.Fact[int]
 	Faction         string
 	HarvestGoodwill domain.Fact[int]
-	// MedicalCare is the prisoner's MedicalCareCategory name (#1239).
+	// MedicalCare is the prisoner's MedicalCareCategory name.
 	MedicalCare domain.Fact[string]
 	// Withdrawal: the prisoner carries a drug addiction it cannot feed, so
-	// it is in or near withdrawal (#1236 peg-leg control).
+	// it is in or near withdrawal.
 	Withdrawal domain.Fact[bool]
-	// Care cap inputs (#1301): conditions and life threat, the queued
+	// Care cap inputs: conditions and life threat, the queued
 	// bills' recipes and an Execution interaction.
 	Conditions      domain.Fact[[]CareCondition]
 	LifeThreatening domain.Fact[bool]
 	QueuedRecipes   []string
 	Executing       bool
-	// PolicyInputs is the prisoner's current drug policy and chemicals
-	// (#1554).
+	// PolicyInputs is the prisoner's current drug policy and chemicals.
 	PolicyInputs domain.Fact[PawnPolicyInputs]
 	// CreepJoiner: the prisoner has a creepjoiner tracker (unknown while that
-	// read failed); Kind is its PawnKindDef name (#1740 disarming).
+	// read failed); Kind is its PawnKindDef name.
 	CreepJoiner domain.Fact[bool]
 	Kind        string
 }
@@ -177,7 +176,7 @@ var (
 // +1 per good and -2 per bad trait, -0.5 per incapable work type, -1 under
 // 16 or over 60, -1 below half health, and -1 per 10 points of native recruit
 // resistance still to break (0 when unknown). Recruiting needs
-// RecruitThreshold; organ harvest (#1169) considers only prisoners below it.
+// RecruitThreshold; organ harvest considers only prisoners below it.
 func PrisonerWorth(p PrisonerProspect, resistance float64, c PrisonerColony) float64 {
 	score := -resistance / 10
 	for _, s := range p.Skills {
@@ -249,7 +248,7 @@ func (row PrisonerFacts) worthRecruiting(p PrisonerProspect, c PrisonerColony) b
 
 // HarvestEligible reports whether a living prisoner is one the colony would
 // not recruit: unrecruitable, or worth below RecruitThreshold. It only
-// gates organ harvest (#1169); Unknown when a needed fact is missing.
+// gates organ harvest; Unknown when a needed fact is missing.
 func (row PrisonerFacts) HarvestEligible(c PrisonerColony) domain.Fact[bool] {
 	dead, dk := row.Dead.Value()
 	recruitable, rk := row.Recruitable.Value()
@@ -269,8 +268,8 @@ func canLabor(p PrisonerProspect) bool {
 // prisonerUse is the interaction one living prisoner should have, or ""
 // when the row is settled: prisonerIntent's use when the prisoner does not
 // already have it. A legless prisoner is not released: vanilla cannot
-// release a downed pawn, and MaintainSurgery puts a peg leg back first
-// (#1236). unknown reports a fact the decision needed but the census did
+// release a downed pawn, and MaintainSurgery puts a peg leg back first.
+// unknown reports a fact the decision needed but the census did
 // not carry; an unknown fact is never evidence of a settled prisoner.
 func prisonerUse(row PrisonerFacts, colony PrisonerColony, food domain.Fact[float64], p PrisonerPolicy) (want domain.PrisonerInteractionMode, unknown bool) {
 	intent, unknown := prisonerIntent(row, colony, food, p)

@@ -13,7 +13,7 @@ const (
 	StatFlammability = "Flammability"
 )
 
-// FloorTerrains prices every TerrainDef row (#1726): the table a flooring
+// FloorTerrains prices every TerrainDef row: the table a flooring
 // census scores its cells against, built once per catalog. The caller must not
 // modify the map. A terrain the stat table does not show a floor stat for fails
 // the whole table.
@@ -36,7 +36,7 @@ func (catalog *DefinitionCatalog) FloorTerrains() (map[string]policy.FloorTerrai
 	return catalog.floorTerrains, catalog.floorErr
 }
 
-// FloorTerrain is what a TerrainDef says about the floor it lays (#1733): its
+// FloorTerrain is what a TerrainDef says about the floor it lays: its
 // cleanliness, beauty and flammability stat values from the stat table, and its
 // path cost and natural flag from its def row. A terrain without a row or
 // without one of the stats is a contract error, never a default.
@@ -60,7 +60,7 @@ func (catalog *DefinitionCatalog) FloorTerrain(name string) (policy.FloorTerrain
 }
 
 // TerrainsWithTags lists, sorted, every TerrainDef carrying any of tags: the
-// floors that satisfy a TerrainWithTags requirement (#1863).
+// floors that satisfy a TerrainWithTags requirement.
 func (catalog *DefinitionCatalog) TerrainsWithTags(tags []string) []string {
 	if catalog == nil {
 		return nil

@@ -10,7 +10,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Private disposable acceptance only. Stages the late-summer precondition
-    // for sustained/winter (#251): the loaded colony's calendar is moved to
+    // for sustained/winter: the loaded colony's calendar is moved to
     // the last hours of the tile's growing season, and its larder is stocked
     // to a nutrition the case names, so a serve run opens on a colony that
     // has done its summer's work and the winter that follows is the

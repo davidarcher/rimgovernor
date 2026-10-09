@@ -83,7 +83,7 @@ func commitFurniture(t *testing.T, refuse string) (RoundsBuildingResult, string)
 }
 
 // A furniture cell the preview refuses keeps the existing-work wait but names
-// the def, the cell and the blocking thing (#2271).
+// the def, the cell and the blocking thing.
 func TestRefusedFurnitureCellNamesItsBlocker(t *testing.T) {
 	result, logs := commitFurniture(t, "PenMarker")
 	if result.Verdict.Refusal.Kind != WaitExistingWork || result.Verdict.Refusal.Subject != "kitchen_reconcile:blocked:PenMarker@1,1" {

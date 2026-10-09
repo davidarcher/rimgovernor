@@ -10,7 +10,7 @@ import (
 )
 
 // A tree inside a growing zone the fields plan just created, or one the
-// planning window observes, is never selected (#1361).
+// planning window observes, is never selected.
 func TestWithoutFieldSourcesDropsZonedPlants(t *testing.T) {
 	zone, err := domain.NewZoneCreate(domain.GrowingZone, "Plant_Potato", []domain.Cell{{X: 119, Z: 124}})
 	if err != nil {

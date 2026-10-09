@@ -6,7 +6,7 @@ import (
 	"slices"
 )
 
-// Table is a persistent map from row id to row (#1578): a hash-array
+// Table is a persistent map from row id to row: a hash-array
 // mapped trie with structural sharing. Set and Delete return a new
 // version in O(log n) that shares every untouched node with the old one,
 // and a version is never modified, so a consumer may keep one across

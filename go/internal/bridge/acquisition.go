@@ -9,7 +9,7 @@ import (
 
 // acquireAction is the acquisition-guarded Designate of an acquisition or a
 // mine acquisition (designate the source), or of a stall withdraw
-// (withdraw=true, #1046, #1351). The designation is the one the source
+// (withdraw=true). The designation is the one the source
 // takes: MINE for a mine acquisition, HUNT for a corpse resource, otherwise
 // HARVEST_PLANT. Native checks the source live; a designation already in
 // the requested state applies again, and the next census reads progress.

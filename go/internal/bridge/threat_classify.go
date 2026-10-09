@@ -16,9 +16,9 @@ import (
 const ThreatProximityRadius = 30.0
 
 // ClassifyThreat is the threat rule over one native threat fact row
-// (#1356; the native emits facts, Go decides):
+// (native emits facts, Go decides):
 //   - a pawn in a Manhunter mental state, of a faction hostile to the
-//     player, or breaking out of prison (#1080) is Hostile; hostility
+//     player, or breaking out of prison is Hostile; hostility
 //     precedes every other rule;
 //   - else a PredatorHunt is an IgnoredHunter when the predator is ours or
 //     its prey resolves to a pawn that is not ours, and a HuntingPredator

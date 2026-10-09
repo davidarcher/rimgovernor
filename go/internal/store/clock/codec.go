@@ -29,13 +29,13 @@ type clockIntentRecord struct {
 	Window            *WindowAdmission
 	// Omitted when false so records written before the field stay canonical.
 	TestAcceleration bool `json:",omitempty"`
-	// Likewise omitted at zero (issue #583).
+	// Likewise omitted at zero.
 	BlindTickBudget   uint32 `json:",omitempty"`
 	MaxTicksPerSecond uint32 `json:",omitempty"`
 	// A speed change that carries a ceiling, even one it cannot omit at
 	// zero (the ceiling is 1..60000, so presence is the record).
 	CeilingSet bool `json:",omitempty"`
-	// Player acceleration (issue #627), omitted when fixed.
+	// Player acceleration, omitted when fixed.
 	PlayerAccelerated bool `json:",omitempty"`
 }
 

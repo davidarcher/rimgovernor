@@ -172,7 +172,7 @@ func TestGridRoundTripsLiveStream(t *testing.T) {
 }
 
 // A planning window holding things records as a grid and rebuilds its rows
-// byte for byte through added, replaced and cleared lists (#2260).
+// byte for byte through added, replaced and cleared lists.
 func TestGridRoundTripsThings(t *testing.T) {
 	wall := policy.Thing{Def: "Wall", Category: policy.ThingBuilding, Faction: policy.FactionPlayer, Flags: policy.FlagEdifice | policy.FlagImpassable, ID: 1, Count: 1,
 		Building: &policy.BuildingState{HitPoints: 300, Needed: []policy.Material{{Def: "Steel", Count: 5}}}}

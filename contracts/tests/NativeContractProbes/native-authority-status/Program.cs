@@ -50,7 +50,7 @@ internal static class NativeAuthorityStatusProbe
     {
         var fields = (Dictionary<string, object>)envelope;
         // The envelope carries the payload plus, from a main-thread hop, the
-        // companion's own timing split (#81); nothing else.
+        // companion's own timing split; nothing else.
         Check(fields["payload"] is string && fields.Count == (fields.ContainsKey(ProtoBoundary.TimingField) ? 2 : 1), "Exact typed payload envelope");
         return Wire.StatusReply.Parser.ParseJson((string)fields["payload"]);
     }
@@ -95,7 +95,7 @@ internal static class NativeAuthorityStatusProbe
         Check(known.Status.StateCase == Wire.Status.StateOneofCase.Unavailable
             && !existing.Status().Available && !existing.Status().Active, "Read enabled unverified authority");
     }
-    // Orderly exit (#88): an unloaded game's final authority stays readable for
+    // Orderly exit: an unloaded game's final authority stays readable for
     // its own identity once no game is loaded, as Inactive(SHUTDOWN) at the
     // revoking generation; an already inactive authority keeps its reason, and
     // any other identity still fails as before.

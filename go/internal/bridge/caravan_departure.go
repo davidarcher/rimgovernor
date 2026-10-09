@@ -8,8 +8,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// caravanDepartureAction is the FormCaravanIntent of one caravan departure
-// (#942): the crew, the whole pack by definition (journey food included)
+// caravanDepartureAction is the FormCaravanIntent of one caravan departure:
+// the crew, the whole pack by definition (journey food included)
 // and the destination tile; native checks formation when it applies.
 func caravanDepartureAction(action domain.Action) (*o.Action, error) {
 	departure, ok := action.CaravanDeparture()

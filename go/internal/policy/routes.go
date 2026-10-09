@@ -10,7 +10,7 @@ import (
 )
 
 // MaintainRoutes keeps every colony facility reachable by the colonists
-// who use it (issue #6 slice 5). It reasons only from observed travel: the
+// who use it. It reasons only from observed travel: the
 // native census answers, for each bed, work bench, storage, dining surface
 // and defence emplacement, whether each mobile colonist can reach it from
 // where that colonist stands right now (the game's own pathing with the
@@ -73,7 +73,7 @@ type RouteBreach struct {
 }
 type TrafficCell struct {
 	Cell domain.Cell
-	// Layer is the pawn class the count belongs to (#817).
+	// Layer is the pawn class the count belongs to.
 	Layer   TrafficLayer
 	Samples uint32
 	Terrain string
@@ -82,7 +82,7 @@ type TrafficCell struct {
 	Pending string
 }
 
-// TrafficLayer names a traffic counter layer (#817): each counts cell
+// TrafficLayer names a traffic counter layer: each counts cell
 // changes of one pawn class and decays on its own half-life.
 type TrafficLayer string
 
@@ -102,7 +102,7 @@ type trafficCellKey struct {
 	Cell  domain.Cell
 }
 
-// The empty layer is a census recorded before #817 (snapshot replays):
+// Snapshot replays may carry an empty layer:
 // the old sampler counted colonists only.
 func (l TrafficLayer) valid() bool {
 	switch l {
@@ -328,5 +328,5 @@ func SelectRoutesMethod(review RoutesReview, facts RoutesFacts, p RoutesPolicy) 
 	return RoutesProposal{Method: deferred}, nil
 }
 
-// colonist reports a colonist-layer row, the pre-#817 unlayered ones too.
+// colonist reports a colonist-layer row, including unlayered snapshot rows.
 func (l TrafficLayer) colonist() bool { return l == TrafficColonist || l == "" }

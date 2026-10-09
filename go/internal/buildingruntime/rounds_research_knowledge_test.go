@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// An empty Anomaly knowledge slot is a research need of its own (#1745): the
+// An empty Anomaly knowledge slot is a research need of its own: the
 // planner fills it with the cheapest startable project of that category even
 // while the ordinary slot is busy (the two slots are independent), and
 // never from another category.

@@ -13,7 +13,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // BuildingPatchIntent's claim arm (#459): the game's Claim gizmo
+    // BuildingPatchIntent's claim arm: the game's Claim gizmo
     // (Building.ClaimableBy(player) requires def.Claimable, no faction or a
     // non-player one, a spawned building, and refuses a cryptosleep casket
     // that holds anything or is under a raid's spawn lock; then

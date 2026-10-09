@@ -13,7 +13,7 @@ import (
 // A combat's stops are logged by event kind, the tick-budget backstop
 // among them, with resume latency and ticks between stops; the summary
 // is written when a colony window follows and a stop outside combat is
-// not counted (#849).
+// not counted.
 func TestCombatStopMetrics(t *testing.T) {
 	rows := telemetrytest.Install(t)
 	ctx := context.Background()
@@ -39,7 +39,7 @@ func TestCombatStopMetrics(t *testing.T) {
 		stops[1].Payload["event"] != "tick_budget" || stops[1].Payload["ticks_since_stop"] != int64(300) ||
 		stops[1].Payload["resume_latency_ms"] != int64(200) ||
 		// The stop ending the combat resumes into the colony window: its
-		// latency is the review's, not a combat reaction (#890).
+		// latency is the review's, not a combat reaction.
 		stops[2].Payload["event"] != "downed" || stops[2].Payload["resume_latency_ms"] != nil {
 		t.Fatal(stops)
 	}

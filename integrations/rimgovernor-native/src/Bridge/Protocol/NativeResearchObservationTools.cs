@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // The research state as a frame section: a read that throws fails the frame (#1905).
+        // The research state as a frame section: a read that throws fails the frame.
         internal static Obs.ResearchSnapshot Section(Map map, Obs.ResearchRequest request, Common.ObservationContext context)
         {
             var manager = Find.ResearchManager;
@@ -125,7 +125,7 @@ namespace HomeBridge.BridgeTools
                     // started ones; the static fields are the catalog's. Every
                     // unfinished anomaly knowledge project is listed with its
                     // lock reasons too (hidden ones carry "hidden"): the
-                    // knowledge slots are filled from this list (#1745).
+                    // knowledge slots are filled from this list.
                     var selectedRow = selected.Contains(def);
                     var knowledgeRow = anomaly && def.knowledgeCategory != null && !finished;
                     if (hidden && !knowledgeRow || finished && !selectedRow || !selectedRow && !knowledgeRow && reached <= 0) { filtered++; continue; }
@@ -190,7 +190,7 @@ namespace HomeBridge.BridgeTools
             if (def.requiredResearchBuilding != null) row.RequiredBuilding = Id(def.requiredResearchBuilding.defName);
             // Native CanStartNow only demands a bench for a project that names
             // one, yet no project progresses without a bench the researcher can
-            // work at: the lock is reported whenever none stands (#254).
+            // work at: the lock is reported whenever none stands.
             // A knowledge project accrues from study, not bench work, so it
             // needs a bench only when it names one (native CanStartNow).
             if ((def.knowledgeCategory == null || def.requiredResearchBuilding != null) && !def.PlayerHasAnyAppropriateResearchBench) row.LockReasons.Add("research_building_or_facilities");
@@ -209,7 +209,7 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        // A project's static row for the definition catalog (#1340): what
+        // A project's static row for the definition catalog: what
         // holds for the whole load, no progress or lock state.
         internal static Obs.ResearchProject Static(ResearchProjectDef def, Faction player)
         {

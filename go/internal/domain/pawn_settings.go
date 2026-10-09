@@ -5,17 +5,9 @@ import (
 	"strings"
 )
 
-// PawnSettingsAction sets one per-pawn Assign-tab setting on one colony pawn
-// (#1299, epic #1292): a PawnSettingsIntent on Actions/Apply, one setting
-// per intent: hostility response (#1299), self-tend (#1305), nickname
-// (#1310), medicine carry (#1307), the medical care cap (#1301) and the
-// reading policy (#1306), the drug policy (#1537), the food policy
-// (#1541), a mech's work mode and control group (#1685, the one arm pair
-// whose pawn is a mechanoid, not a colonist), a royal permit (#1878) and a
-// held entity's extract-bioferrite flag (#2434, the other arm whose pawn is
-// not a colonist).
-// Native treats a setting that
-// already holds as applied.
+// PawnSettingsAction changes one pawn setting through Actions/Apply. The selected arm
+// determines whether the target is a colonist, mechanoid or held entity. Native validates
+// eligibility and treats an already-matching setting as applied.
 const PawnSettingsAction ActionKind = "pawn_settings"
 
 // HostilityResponse is a vanilla HostilityResponseMode name.
@@ -38,34 +30,33 @@ type SettingKind string
 const (
 	SettingHostility SettingKind = "hostility"
 	SettingSelfTend  SettingKind = "self_tend"
-	// SettingMedicineCarry is the Medicine inventory-stock count (#1307).
+	// SettingMedicineCarry is the Medicine inventory-stock count.
 	SettingMedicineCarry SettingKind = "medicine_carry"
 	// SettingNickname renames an owned pawn away from a short name an older
-	// owned pawn holds (#1310); native draws the new name.
+	// owned pawn holds; native draws the new name.
 	SettingNickname SettingKind = "nickname"
-	// SettingMedicalCare caps the medicine a doctor may use (#1301).
+	// SettingMedicalCare caps the medicine a doctor may use.
 	SettingMedicalCare SettingKind = "medical_care"
 	// SettingReadingPolicy assigns the reading policy labelled with the
-	// pawn's short name (#1306).
+	// pawn's short name.
 	SettingReadingPolicy SettingKind = "reading_policy"
 	// SettingDrugPolicy assigns the drug policy labelled with the pawn's
-	// short name (#1537).
+	// short name.
 	SettingDrugPolicy SettingKind = "drug_policy"
 	// SettingFoodPolicy assigns the food policy labelled with the pawn's
-	// short name (#1541).
+	// short name.
 	SettingFoodPolicy SettingKind = "food_policy"
 	// SettingMechWorkMode sets the MechWorkModeDef a mech's control group
-	// runs (#1685).
+	// runs.
 	SettingMechWorkMode SettingKind = "mech_work_mode"
 	// SettingMechControlGroup moves a mech into one of its overseer's
-	// control groups (#1685).
+	// control groups.
 	SettingMechControlGroup SettingKind = "mech_control_group"
-	// SettingChoosePermit spends permit points on one permit of a faction
-	// (#1878).
+	// SettingChoosePermit spends permit points on one permit of a faction.
 	SettingChoosePermit SettingKind = "choose_permit"
 	// SettingExtractBioferrite sets a held entity's CompHoldingPlatformTarget
 	// extractBioferrite flag, which the game's own Doctor work giver
-	// (WorkGiver_ExtractBioferrite) reads (#2434).
+	// (WorkGiver_ExtractBioferrite) reads.
 	SettingExtractBioferrite SettingKind = "extract_bioferrite"
 )
 
@@ -130,7 +121,7 @@ type PawnSettings struct {
 }
 
 // NewExtractBioferriteSetting sets the extract-bioferrite flag of the held
-// entity pawn (#2434). Native refuses a pawn that is no entity on a holding
+// entity pawn. Native refuses a pawn that is no entity on a holding
 // platform.
 func NewExtractBioferriteSetting(pawn PawnID, on bool) (PawnSettings, error) {
 	if !validID(string(pawn)) {
@@ -146,7 +137,7 @@ func (s PawnSettings) ExtractBioferrite() (on, ok bool) {
 
 // NewChoosePermitSetting has the colonist take permit (a RoyalTitlePermitDef
 // name) with faction (a FactionDef name) through the game's own permit
-// checks (#1878). The faction def carries no ':' (the store joins the two).
+// checks. The faction def carries no ':' (the store joins the two).
 func NewChoosePermitSetting(pawn PawnID, faction, permit string) (PawnSettings, error) {
 	if !validID(string(pawn)) || !validID(faction) || strings.Contains(faction, ":") || !validID(permit) {
 		return PawnSettings{}, errors.New("a choose permit setting requires a colonist, a faction def and a permit def")
@@ -160,7 +151,7 @@ func (s PawnSettings) ChoosePermit() (faction, permit string, ok bool) {
 }
 
 // NewMechWorkModeSetting sets the work mode (a MechWorkModeDef name) of the
-// control group the mech pawn belongs to (#1685). Native refuses a pawn that
+// control group the mech pawn belongs to. Native refuses a pawn that
 // is no mech, has no colonist overseer or names no such mode.
 func NewMechWorkModeSetting(pawn PawnID, mode string) (PawnSettings, error) {
 	if !validID(string(pawn)) || !validID(mode) {
@@ -175,7 +166,7 @@ func (s PawnSettings) MechWorkMode() (string, bool) {
 }
 
 // NewMechControlGroupSetting moves the mech pawn into its overseer's control
-// group with the given index (#1685). Native refuses an index the overseer
+// group with the given index. Native refuses an index the overseer
 // has no group for.
 func NewMechControlGroupSetting(pawn PawnID, group int) (PawnSettings, error) {
 	if !validID(string(pawn)) || group < 0 {
@@ -189,7 +180,7 @@ func (s PawnSettings) MechControlGroup() (int, bool) {
 	return s.mechGroup, s.kind == SettingMechControlGroup
 }
 
-// NewDrugPolicySetting assigns the drug policy labelled name (#1537).
+// NewDrugPolicySetting assigns the drug policy labelled name.
 func NewDrugPolicySetting(pawn PawnID, name string) (PawnSettings, error) {
 	if !validID(string(pawn)) || !validID(name) || len(name) > 80 {
 		return PawnSettings{}, errors.New("a drug policy setting requires a pawn and a policy name")
@@ -200,7 +191,7 @@ func NewDrugPolicySetting(pawn PawnID, name string) (PawnSettings, error) {
 // DrugPolicy is the policy label, and whether this is the drug arm.
 func (s PawnSettings) DrugPolicy() (string, bool) { return s.drug, s.kind == SettingDrugPolicy }
 
-// NewReadingPolicySetting assigns the reading policy labelled name (#1306).
+// NewReadingPolicySetting assigns the reading policy labelled name.
 func NewReadingPolicySetting(pawn PawnID, name string) (PawnSettings, error) {
 	if !validID(string(pawn)) || !validID(name) || len(name) > 80 {
 		return PawnSettings{}, errors.New("a reading policy setting requires a pawn and a policy name")
@@ -213,7 +204,7 @@ func (s PawnSettings) ReadingPolicy() (string, bool) {
 	return s.reading, s.kind == SettingReadingPolicy
 }
 
-// NewFoodPolicySetting assigns the food policy labelled name (#1541).
+// NewFoodPolicySetting assigns the food policy labelled name.
 func NewFoodPolicySetting(pawn PawnID, name string) (PawnSettings, error) {
 	if !validID(string(pawn)) || !validID(name) || len(name) > 80 {
 		return PawnSettings{}, errors.New("a food policy setting requires a pawn and a policy name")
@@ -224,8 +215,8 @@ func NewFoodPolicySetting(pawn PawnID, name string) (PawnSettings, error) {
 // FoodPolicy is the policy label, and whether this is the food arm.
 func (s PawnSettings) FoodPolicy() (string, bool) { return s.food, s.kind == SettingFoodPolicy }
 
-// NewMedicineCarrySetting is the pawn's Medicine inventory-stock count
-// (#1307), 0 to MaxMedicineCarry.
+// NewMedicineCarrySetting is the pawn's Medicine inventory-stock count,
+// 0 to MaxMedicineCarry.
 func NewMedicineCarrySetting(pawn PawnID, count int) (PawnSettings, error) {
 	if !validID(string(pawn)) || count < 0 || count > MaxMedicineCarry {
 		return PawnSettings{}, errors.New("a medicine carry setting requires a pawn and a count of 0-3")
@@ -243,7 +234,7 @@ func NewHostilitySetting(pawn PawnID, mode HostilityResponse) (PawnSettings, err
 	return PawnSettings{pawn: pawn, kind: SettingHostility, hostility: mode}, nil
 }
 
-// NewSelfTendSetting sets playerSettings.selfTend (#1305).
+// NewSelfTendSetting sets playerSettings.selfTend.
 func NewSelfTendSetting(pawn PawnID, on bool) (PawnSettings, error) {
 	if !validID(string(pawn)) {
 		return PawnSettings{}, errors.New("a self-tend setting requires a pawn")
@@ -252,7 +243,7 @@ func NewSelfTendSetting(pawn PawnID, on bool) (PawnSettings, error) {
 }
 
 // NewNicknameSetting renames an owned pawn away from leave, its colliding
-// short name (#1310).
+// short name.
 func NewNicknameSetting(pawn PawnID, leave string) (PawnSettings, error) {
 	if !validID(string(pawn)) || strings.TrimSpace(leave) == "" || len(leave) > 256 {
 		return PawnSettings{}, errors.New("a nickname setting requires a pawn and the short name it leaves")
@@ -260,7 +251,7 @@ func NewNicknameSetting(pawn PawnID, leave string) (PawnSettings, error) {
 	return PawnSettings{pawn: pawn, kind: SettingNickname, leaveName: leave}, nil
 }
 
-// NewMedicalCareSetting caps the pawn's medical care (#1301).
+// NewMedicalCareSetting caps the pawn's medical care.
 func NewMedicalCareSetting(pawn PawnID, care MedicalCare) (PawnSettings, error) {
 	if !validID(string(pawn)) || !care.Valid() {
 		return PawnSettings{}, errors.New("a medical care setting requires a pawn and a MedicalCareCategory")

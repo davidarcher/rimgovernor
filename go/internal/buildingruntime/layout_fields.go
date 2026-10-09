@@ -9,10 +9,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// Outdoor food fields fill the layout plan's field blocks at every tier
-// (#1223, epic #1212). A plan field zone is a whole fertile patch (#1281);
+// Outdoor food fields fill the layout plan's field blocks at every tier.
+// A plan field zone is a whole fertile patch;
 // inside it each crop takes its own adjacent crop block, sized by its
-// demand, and grows in place with add-cells (#1283).
+// demand, and grows in place with add-cells.
 
 // layoutFieldCells is the plan's field cells; false with no plan or no
 // field zones.
@@ -38,7 +38,7 @@ type fieldBlockEdit struct {
 // growing zone in the patch that options[0] adopts by its need, or create
 // a new crop block against the patch's standing zones. A new block takes
 // the first option, in policy.BlockCropOrder, not growing within
-// FieldBlockNeighbourRadius of that block (#1225). options are the viable
+// FieldBlockNeighbourRadius of that block. options are the viable
 // crops in preference order. reason explains a refusal: no field blocks,
 // or every block full.
 func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, options []policy.FieldBlockOption, protected []domain.Cell) (fieldBlockEdit, string, bool) {
@@ -81,7 +81,7 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, opti
 		}
 	}
 	// The native sower leaves a crop beside a sown tree and a tree beside a
-	// sown crop unsown (#2289), so a zone keeps one cell clear of every zone of
+	// sown crop unsown, so a zone keeps one cell clear of every zone of
 	// the other kind; tree zones never grow by adoption either (adoptsZone).
 	treeZone, cropZone := map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	for _, c := range facts.Cells {
@@ -135,10 +135,10 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, opti
 				}
 			}
 		}
-		// A patch holds adjacent crop blocks, one growing zone each (#1283):
+		// A patch holds adjacent crop blocks, one growing zone each:
 		// options[0] grows the largest zone it adopts in place, a ring of
 		// free cells around it; hay and social crops never share a food
-		// zone (#1226). Zones never move.
+		// zone. Zones never move.
 		zone := ""
 		occupied := map[domain.Cell]bool{}
 		for id, cells := range zoneCells {
@@ -159,7 +159,7 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, opti
 		}
 		// A new crop block sits against the patch's standing blocks, with no
 		// gap; its crop avoids one growing within FieldBlockNeighbourRadius
-		// of the block itself (#1225), not of the whole patch.
+		// of the block itself, not of the whole patch.
 		if first := connectedPick(freeFor(block, options[0].Crop), occupied, rich, anchor, options[0].Needed); len(first) > 0 {
 			around := make(map[domain.Cell]bool, len(first))
 			for _, c := range first {
@@ -180,11 +180,11 @@ func planFieldBlock(facts observation.ColonyProjection, anchor domain.Cell, opti
 }
 
 // fieldRichFertility is the fertility above which soil is rich, the
-// policy survey's line (#1284).
+// policy survey's line.
 const fieldRichFertility = 1.0
 
 // fieldShortfall is one goal's open field-block demand in the cross-crop
-// ledger (#1308): options lead with the goal's own crop and cells.
+// ledger: options lead with the goal's own crop and cells.
 type fieldShortfall struct {
 	Standard store.StandardState
 	Options  []policy.FieldBlockOption
@@ -251,7 +251,7 @@ func fieldBlockNeighbours(cells []policy.SiteCell, block map[domain.Cell]bool, g
 
 // adoptsZone reports whether a field of crop grows a zone of zoneCrop: its
 // own crop always; a food field also adopts any food zone, keeping the
-// zone's crop, but never a hay or social crop's zone (#1226).
+// zone's crop, but never a hay or social crop's zone.
 func adoptsZone(crop policy.CropChoice, zoneCrop string, inedible map[string]bool) bool {
 	if zoneCrop == crop.Name {
 		return true
@@ -295,14 +295,14 @@ func connectedAdds(zone, set map[domain.Cell]bool, want int) []domain.Cell {
 }
 
 // connectedPick picks up to want cells of free for a new growing zone as one
-// 4-connected footprint (#1252): native refuses a disconnected zone, and a
+// 4-connected footprint: native refuses a disconnected zone, and a
 // patch's free soil is often split by rock, trees or buildings. It picks
 // inside free's largest component (ties to the one nearest anchor). The
-// block is sized to want and roughly square (#1283): it seeds at the free
+// block is sized to want and roughly square: it seeds at the free
 // cell touching a standing block (occupied) nearest anchor, or the free
 // cell nearest anchor when none touches, and takes the fullest of the four
 // sqrt(want)-wide rectangles cornered at the seed, topped up by rings.
-// Rich soil (#1308) breaks those ties: the seed prefers a rich cell, and
+// Rich soil breaks those ties: the seed prefers a rich cell, and
 // the rectangle holding the most rich cells wins, so the block the field
 // ledger places first takes the patch's richest free cells.
 func connectedPick(free, occupied, rich map[domain.Cell]bool, anchor domain.Cell, want int) []domain.Cell {

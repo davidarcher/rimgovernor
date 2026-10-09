@@ -10,7 +10,7 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// Two pieces of one definition in one pass each get their own stored item (#2109).
+// Two pieces of one definition in one pass each get their own stored item.
 func TestPackedStockHandsEachStoredItemOutOnce(t *testing.T) {
 	src := &countingPacked{items: map[string][]bridge.PackedItem{
 		policy.PackedFurnitureDefinition: {{ID: "m1", Inner: "b1", InnerDef: "Brazier"}, {ID: "m2", Inner: "b2", InnerDef: "Brazier"}},

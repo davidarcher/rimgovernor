@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// UpkeepRoom is one row of the upkeep room census (#810): a room holding a
+// UpkeepRoom is one row of the upkeep room census: a room holding a
 // colonist bed or carrying a common role (DiningRoom, RecRoom), with its
 // native quality stats (unknown when the read omitted any of them). Beds
 // lists the colonist beds (humanlike, not medical, not for prisoners)

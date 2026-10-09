@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TestCombatPawnStatesWildSide (#1116): a COMBAT_SIDE_WILD_ANIMAL row,
+// TestCombatPawnStatesWildSide: a COMBAT_SIDE_WILD_ANIMAL row,
 // appended as 5, is a wild pawn, neither colony animal nor prisoner.
 func TestCombatPawnStatesWildSide(t *testing.T) {
 	if mp.CombatSide_COMBAT_SIDE_WILD_ANIMAL != 5 {

@@ -9,7 +9,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Disposable test setup only (issue #92). Acceptance scenarios rerun for
+    // Disposable test setup only. Acceptance scenarios rerun for
     // reasons unrelated to their assertion: a raid, a manhunter pack, a cold
     // snap or a mental break that holds the clock for as long as it lasts.
     // Apply quiets the storyteller at the source so only the fixture's own
@@ -59,8 +59,8 @@ namespace HomeBridge.BridgeTools
         }
 
         // A map-gen insect hive is a hostile building the census lists as a
-        // combat target (#246) and a spawner of the very insects RemoveStrangers
-        // just removed, so every hive leaves the map too (#340). A case that
+        // combat target and a spawner of the very insects RemoveStrangers
+        // just removed, so every hive leaves the map too. A case that
         // wants a hive spawns its own after this.
         public static int RemoveHives(Map map)
         {
@@ -101,7 +101,7 @@ namespace HomeBridge.BridgeTools
 
         // No inspiration rolls either: an inspiration comes from the pawn's
         // own handler, not the storyteller, and its PositiveEvent letter was
-        // the one event a quiet colony still delivered mid-raid (#228).
+        // the one event a quiet colony still delivered mid-raid.
         private static bool SkipInspiration() => !IsQuiet(Find.Storyteller);
 
         // Social fights roll during pawn interactions, independently of mood
@@ -114,7 +114,7 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // Disposable test setup only (#272). Sets the loaded game's QuietWorld
+    // Disposable test setup only. Sets the loaded game's QuietWorld
     // marker (AcceptanceWorld, persisted with the save): under a game
     // launched with -rimgovernor-test-acceleration, wild plants and wild
     // animals outside the home area (and outside any growing zone) stop

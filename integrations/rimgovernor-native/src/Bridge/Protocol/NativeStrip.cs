@@ -9,10 +9,10 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The generic strip op (#1117): vanilla's Strip designation on one exact
+    // The generic strip op: vanilla's Strip designation on one exact
     // spawned pawn or corpse (DesignateIntent with THING_DESIGNATION_STRIP).
     // The designation is the whole write; colonists strip through ordinary
-    // Hauling work. Who to strip is decided in Go (#1079).
+    // Hauling work. Who to strip is decided in Go.
     internal static class NativeStrip
     {
         internal const string Kind = "Strip";

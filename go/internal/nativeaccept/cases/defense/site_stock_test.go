@@ -2,7 +2,7 @@ package defense
 
 import "testing"
 
-// The funnel, trap corridor, fences and doors are wood (#2134) and the case
+// The funnel, trap corridor, fences and doors are wood and the case
 // serves no resource family to cut any: the site stock must carry the wood
 // (the 78-wall funnel alone is 5 a wall) or the layout waits on it forever.
 func TestSiteStockCarriesWoodForTheWoodenTiers(t *testing.T) {

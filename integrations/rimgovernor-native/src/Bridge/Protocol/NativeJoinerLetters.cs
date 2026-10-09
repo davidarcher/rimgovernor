@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
 {
     // Only the Core walk-in offer is supported: its signal admits exactly one
     // pawn immediately. Other AcceptJoiner quest families remain player choices.
-    // A creepjoiner offer (#1740) is answered through the letter's accept
+    // A creepjoiner offer is answered through the letter's accept
     // signal, the one the game's own Accept option sends, never by option
     // index or label.
     internal static class NativeJoinerLetters

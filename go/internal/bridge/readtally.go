@@ -23,7 +23,7 @@ import (
 // The one-off schema fetches (games_tool_detail) the Client issues before
 // a tool's first call are counted apart, as Schema: they are a session's
 // startup cost, not a step's reads, and would otherwise make the first
-// full step look several reads heavier than any other (issue #180).
+// full step look several reads heavier than any other.
 type ReadTally struct {
 	mu     sync.Mutex
 	counts map[string]uint64

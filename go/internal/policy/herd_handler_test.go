@@ -7,7 +7,7 @@ import (
 )
 
 // Milking and shearing are Handling work givers whose speed and yield stats
-// scale with the Animals skill (#1650): a milk or wool job gives Handling an
+// scale with the Animals skill: a milk or wool job gives Handling an
 // owner even when nobody is a natural specialist.
 func TestRoundsWorkDemandHandlingFollowsMilkOrWoolJob(t *testing.T) {
 	wool := AnimalRace{Def: "Sheep", BodySize: domain.Known(1.0), Products: []RaceProduct{{Kind: "wool", Def: "WoolSheep", Amount: domain.Known(30.0), IntervalDays: domain.Known(10.0)}}}

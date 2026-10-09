@@ -9,7 +9,7 @@ import (
 
 // A wastepack haul is the HAUL designation under the wastepack guard on the
 // exact pack; the pollution-clear area edit carries pollution_clear and no
-// home or key (#1683).
+// home or key.
 func TestWastepackHaulAndPollutionClearIntents(t *testing.T) {
 	haul, err := domain.NewWastepackHaul("Wastepack12", "Wastepack", domain.Cell{X: 7, Z: 8})
 	if err != nil {

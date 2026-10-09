@@ -13,7 +13,7 @@ import (
 // as the game compares package ids.
 const odysseyPackageID = "ludeon.rimworld.odyssey"
 
-// The quest tree fields that name a PlanetLayerDef (decompiled, #1717):
+// The quest tree fields that name a PlanetLayerDef (decompiled):
 // QuestNode_Root_Gravcore.layer and QuestNode_Root_Asteroid.layerDef are one
 // required layer; QuestScriptDef.layerWhitelist and the layerWhitelist of
 // QuestNode_Root_Site, QuestNode_GetMap, QuestNode_GetNearbySettlement and

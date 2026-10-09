@@ -4,7 +4,7 @@ import "errors"
 
 // ClaimBuilding is an immutable, comparable value: a one-shot claim of one
 // exact claimable building for the player (Building.ClaimableBy(player)
-// then SetFaction(player) on the native side, #459; a BuildingPatchIntent since #940); no pawn or Job is involved.
+// then SetFaction(player) on the native side; a BuildingPatchIntent); no pawn or Job is involved.
 type ClaimBuilding struct {
 	thing string
 }

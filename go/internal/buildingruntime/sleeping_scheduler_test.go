@@ -51,7 +51,7 @@ func schedulerSleepingAt(t *testing.T, s *ClockScheduler, f *schedulerNative, pl
 
 // The scheduler compiles the sleeping method at the review and never
 // executes it; a timer step under the window it started reads nothing until
-// the full step is due (#243).
+// the full step is due.
 func TestSchedulerCompilesSleepingAtTheReview(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -78,7 +78,7 @@ func TestSchedulerCompilesSleepingAtTheReview(t *testing.T) {
 }
 
 // A failed sleeping preview commits nothing for that planner, but no longer
-// blocks the clock: the failure is isolated and the window still starts (#62).
+// blocks the clock: the failure is isolated and the window still starts.
 func TestSchedulerFailedSleepingPreviewIsIsolated(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

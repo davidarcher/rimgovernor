@@ -19,8 +19,8 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-// governorStateNative is the save's governor state component (#882): read on
-// a world change, written whole at save time (#2359).
+// governorStateNative is the save's governor state component: read on
+// a world change, written whole at save time.
 type governorStateNative interface {
 	GovernorState(context.Context) (map[string]string, error)
 	PutGovernorStateBatch(context.Context, map[string]string) error
@@ -54,11 +54,9 @@ func currentGovernorWorld(reads httpapi.SnapshotProvider) func(context.Context) 
 	}
 }
 
-// worldRebuild is the per-world rebuild (#998/#1005/#1011): the save's
-// goals and families replace the store's and rounds_review empties. The
-// clock worker's gate and the save flusher both call ensure before they act
-// in a world, so it runs once per world ahead of the first review (#1123).
-// orphans, when set, is the native the #1000 orphan pass sweeps.
+// worldRebuild restores save-owned intent into the session store and clears
+// derived Round state once per loaded world, before review or save flushing.
+// orphans cancels native effects whose methods were discarded by the rebuild.
 type worldRebuild struct {
 	mu       sync.Mutex
 	world    governorWorld
@@ -69,7 +67,7 @@ type worldRebuild struct {
 }
 
 // ensure rebuilds the store for world unless it was the last one rebuilt.
-// The native generation is not a new world (#1141): authority toggles
+// The native generation is not a new world: authority toggles
 // (resume, Manual, a reason=None bump) raise it with the save unchanged,
 // and rebuilding on each one wiped every method and the review.
 func (r *worldRebuild) ensure(ctx context.Context, world governorWorld, native governorStateNative) error {
@@ -79,7 +77,7 @@ func (r *worldRebuild) ensure(ctx context.Context, world governorWorld, native g
 	if r.count != 0 && sameWorld {
 		return nil
 	}
-	// Start and end are logged with each phase's wall time (#1251): the
+	// Start and end are logged with each phase's wall time: the
 	// rebuild runs before the first review, so a slow one reads as a hang.
 	began := time.Now()
 	log := slog.With(telemetry.ComponentKey, "world-rebuild")
@@ -129,19 +127,16 @@ func (r *worldRebuild) workerGate(native governorStateNative) func(context.Conte
 	}
 }
 
-// orphanNative lists and cancels the Autopilot's native side effects
-// (#1000). Only the trade session has a "list mine" read today; every other
+// orphanNative lists and cancels governor-owned native side effects.
+// Only the trade session has a "list mine" read today; every other
 // intent kind is a filed follow-up.
 type orphanNative interface {
 	buildingruntime.TradeNative
 	boundary.ActionsWriter
 }
 
-// orphanSweep is the #1000 orphan pass for one world. A rebuild deletes
-// every method (#998), so no rebuilt goal owns a native side effect and
-// each one listed is cancelled (D3: the Autopilot has full control). A read
-// or transport error aborts the rebuild so the next round retries; a native
-// refusal is logged.
+// orphanSweep cancels native effects left without an owner after rebuilding
+// methods. Read or transport errors abort rebuilding; native refusals are logged.
 func orphanSweep(native orphanNative, world governorWorld, out io.Writer) store.StandardOrphanPass {
 	return func(ctx context.Context, plans []store.PlanState) error {
 		identity := boundary.Identity(domain.GenerationSnapshot{Colony: world.Colony, Map: world.Map, Load: world.Load})

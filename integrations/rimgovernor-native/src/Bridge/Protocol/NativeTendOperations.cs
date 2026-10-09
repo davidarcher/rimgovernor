@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent TendPatient (#939), the doctor dispatch of
+    // GiveJobIntent TendPatient, the doctor dispatch of
     // MaintainMedicalCare and CriticalMedical. First WorkGiver_Tend's own
     // JobOnThing, which is what "Prioritize tending X" issues for a patient
     // in a bed and chooses the medicine; when that yields nothing and the

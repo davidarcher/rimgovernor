@@ -18,7 +18,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// A recording is one stream per serve (#756): routine-stream-<tick>-<pid>.jsonl
+// A recording is one stream per serve: routine-stream-<tick>-<pid>.jsonl
 // in DirEnv's directory, one JSON line per enabled review. A line is
 //
 //	{"Tick": t, "Seq": s, "Key": <tree>}   a keyframe: the whole encoded review

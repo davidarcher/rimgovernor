@@ -2,9 +2,8 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Layout plan v2 (#771, A1) replaces the module grid with a spine of
-// hallways, concrete rooms hung off it, whole-map zones and reserved
-// infrastructure sites.
+// LayoutPlan combines hallway spines, concrete rooms, whole-map zones and
+// reserved infrastructure sites.
 
 // SpineWidth is a spine hallway's width in cells.
 const SpineWidth int32 = 3
@@ -34,13 +33,13 @@ type PlannedRoom struct {
 	// hallway. Nil for a single-door room, never empty.
 	Doors []Door `json:",omitempty"`
 	// Link, when set, is a second door in a wall shared with a neighbour:
-	// the freezer's door into the kitchen (#819). Plans saved before it
+	// the freezer's door into the kitchen. Plans saved before it
 	// have none.
 	Link *domain.Cell
 	// Dug is a room mined out of natural rock.
 	Dug bool
 	// Outdoor is an open ring: a fence and a gate (RingDefs), no roof and no
-	// floor owed (the animal pen, #2120).
+	// floor owed (the animal pen).
 	Outdoor bool `json:",omitempty"`
 }
 
@@ -64,7 +63,7 @@ type RowRun struct {
 type LayoutZone struct {
 	Kind ZoneKind
 	Runs []RowRun
-	// Ore marks the mining zone over ore-bearing rock (#837).
+	// Ore marks the mining zone over ore-bearing rock.
 	Ore bool
 }
 
@@ -93,7 +92,7 @@ type LayoutReservation struct {
 	// Facing is the side a walled reservation's door faces (the incinerator).
 	Facing domain.Rotation `json:",omitempty"`
 	// Herd is the race of the herd whose unit a pen, barn or vet room belongs
-	// to (#2226); empty for the misc unit and for plans saved before it.
+	// to; empty for the misc unit and for plans saved before it.
 	Herd string `json:",omitempty"`
 }
 
@@ -101,27 +100,27 @@ type LayoutReservation struct {
 type LayoutPlan struct {
 	Spine []SpineSegment
 	// Entrances are the hallway cells traffic enters the base from; empty
-	// until the plan is grown (#1946).
+	// until the plan is grown.
 	Entrances []domain.Cell `json:",omitempty"`
-	// Rooms are the rooms hung off the spine; a wing holds its own (#1213).
+	// Rooms are the rooms hung off the spine; a wing holds its own.
 	Rooms        []PlannedRoom
 	Wings        []Wing `json:",omitempty"`
 	Zones        []LayoutZone
 	Reservations []LayoutReservation
 	// RetiredGround is the walled footprint of each room the plan retired
-	// while its building stands (#2075): planned-ground clearance demolishes
+	// while its building stands: planned-ground clearance demolishes
 	// it, then the entry is dropped.
 	RetiredGround []Rectangle `json:",omitempty"`
-	// Cold latches the map's climate when the plan is derived (#2044): the
+	// Cold latches the map's climate when the plan is derived: the
 	// seasonal curve dips below ColdMapBelowC. The shelter is sized for it,
 	// so a replan never resizes or re-sites the room.
 	Cold bool `json:",omitempty"`
-	// Hot latches the other end of the climate the same way (#2044): the
+	// Hot latches the other end of the climate the same way: the
 	// seasonal curve peaks above HotEnter, so the shelter holds a floor slot
 	// for a passive cooler.
 	Hot bool `json:",omitempty"`
 	// YardCells latches the grazing the wall's yard is sized for when the
-	// plan is derived (#2232, YardCells(herd)); 0 keeps the floor, perimeterGap.
+	// plan is derived (YardCells(herd)); 0 keeps the floor, perimeterGap.
 	// A replan never resizes the yard.
 	YardCells int32 `json:",omitempty"`
 }
@@ -144,7 +143,7 @@ func (p LayoutPlan) Anchor(want PlannedRole, free func(room Rectangle) bool) (do
 
 // Core is the cell the base clusters around: the first storeroom's
 // interior centre, else the centre of the footprint, every hallway and room
-// wall (#1534, #1947). Stockpiles and
+// wall. Stockpiles and
 // the cooking campfire anchor here rather than on the colonists' centroid,
 // which on a fresh landing is the map centre. False means an empty plan.
 func (p LayoutPlan) Core() (domain.Cell, bool) {
@@ -166,7 +165,7 @@ func (p LayoutPlan) Center() (domain.Cell, bool) {
 	return domain.Cell{X: fp.X + fp.Width/2, Z: fp.Z + fp.Height/2}, true
 }
 
-// CoreBounds is the bounding box of the plan's hallways and room walls (#2040);
+// CoreBounds is the bounding box of the plan's hallways and room walls;
 // false for a plan with neither.
 func (p LayoutPlan) CoreBounds() (Rectangle, bool) {
 	var fp Rectangle
@@ -239,7 +238,7 @@ func (p LayoutPlan) Valid() bool {
 }
 
 // Extent is the bounding rectangle of what the plan builds: every room
-// with its walls, every hallway and every reserved site (#1282). The
+// with its walls, every hallway and every reserved site. The
 // whole-map zones are left out; false means the plan holds none of these.
 func (p LayoutPlan) Extent() (Rectangle, bool) {
 	var rects []Rectangle

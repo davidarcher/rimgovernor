@@ -8,7 +8,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Language-neutral names for a choice dialog's options (#179). RimWorld
+    // Language-neutral names for a choice dialog's options. RimWorld
     // translates an option's key before the DiaOption is built ("OK".Translate(),
     // "CaravanDemand_Give".Translate()) and keeps only the text, so the census
     // recovers the key by reverse lookup over the loaded Keyed translations:

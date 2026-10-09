@@ -164,7 +164,7 @@ func TestMonolithAdvanceIsAPopulationDeficit(t *testing.T) {
 	}
 }
 
-// The awakening quest is walked in the game's order (#2438): void structures,
+// The awakening quest is walked in the game's order: void structures,
 // the Gleaming monolith, then the void node touched by the colonist skipped
 // there; nothing is owed outside the quest.
 func TestVoidAwakeningQuestIsWalkedStageByStage(t *testing.T) {

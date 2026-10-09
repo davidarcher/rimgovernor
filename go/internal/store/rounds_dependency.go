@@ -18,7 +18,7 @@ type DependencyCost struct {
 	Count  int64
 }
 
-// DependencyRecord is one admitted method's shortfall (#651) a planner
+// DependencyRecord is one admitted method's shortfall a planner
 // observed at admission: the dependent Episode and method, the resource its
 // open actions cost, each action's cost, and the stock it was measured
 // against. It is the one persisted source of admitted-method construction
@@ -54,7 +54,7 @@ func (d DependencyRecord) validate() error {
 
 // ShortfallDependency is the record for a method admitted under stock
 // that does not cover its costs in resource, or false when the stock
-// covers them: a shelter shell is admitted without a stock check (#602), and
+// covers them: a shelter shell is admitted without a stock check, and
 // its frames then wait for the difference.
 func ShortfallDependency(need domain.ConcernID, goal domain.Standard, method domain.MethodID, plan domain.PlanID, previews []policy.Preview, stock policy.StockObservation, resource policy.Resource, tick domain.Tick) (DependencyRecord, bool) {
 	available := int64(-1)
@@ -192,7 +192,7 @@ func roundsDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRec
 
 // priorAdmitted is the last review's still-live admitted-method costs
 // against its goal bindings, read before DetectRounds so an open shortfall
-// raises its MaintainResource floor (#711).
+// raises its MaintainResource floor.
 func priorAdmitted(ctx context.Context, tx *sql.Tx, previous Rounds, tick domain.Tick) ([]policy.AdmittedCost, error) {
 	if len(previous.Dependencies) == 0 {
 		return nil, nil

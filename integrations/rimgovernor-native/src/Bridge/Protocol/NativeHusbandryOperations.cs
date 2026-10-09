@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
             && !Designated(animal, DesignationDefOf.Tame) && !Designated(animal, DesignationDefOf.Hunt)
             && new Designator_Tame().CanDesignateThing(animal).Accepted;
 
-        // Herd sizing facts (#875) MaintainHerd reads from the colony census:
+        // Herd sizing facts MaintainHerd reads from the colony census:
         // age against RaceProps.lifeExpectancy, sickness, adulthood, tame
         // danger, and whether the player's primary ideo venerates the race.
         // What precepts make of slaughter and eating comes from the catalog's
@@ -82,7 +82,7 @@ namespace HomeBridge.BridgeTools
             state.AgeYears = animal.ageTracker.AgeBiologicalYearsFloat;
             state.Adult = animal.ageTracker.Adult;
             state.Gender = animal.gender.ToString();
-            // The next life stage (#2379): its index and the ticks until
+            // The next life stage: its index and the ticks until
             // Pawn_AgeTracker reaches the next stage's minAge, absent in the last.
             var tracker = animal.ageTracker;
             state.LifeStageIndex = tracker.CurLifeStageIndex;
@@ -105,7 +105,7 @@ namespace HomeBridge.BridgeTools
             var pregnancy = animal.health.hediffSet.hediffs.OfType<Hediff_Pregnant>().FirstOrDefault();
             state.Pregnant = pregnancy != null;
             // Hediff_Pregnant.Tick's own progress rate: BodyResourceGrowthSpeed over
-            // gestationPeriodDays * 60000 per tick (#2379).
+            // gestationPeriodDays * 60000 per tick.
             var speed = PawnUtility.BodyResourceGrowthSpeed(animal);
             if (pregnancy != null && speed > 0f)
                 state.TicksToBirth = Math.Max(0L, (long)Math.Ceiling((1.0 - pregnancy.GestationProgress) * animal.RaceProps.gestationPeriodDays * 60000.0 / speed));
@@ -137,7 +137,7 @@ namespace HomeBridge.BridgeTools
             .ById(entityId) is Pawn p && !p.Dead ? p : null;
     }
 
-    // HusbandryIntent (#941): one animal's training request, slaughter, tame
+    // HusbandryIntent: one animal's training request, slaughter, tame
     // or release-to-wild designation (or its cancel), a sterilize surgery bill
     // (queued on the animal, whose recipe is found live), or Animals-tab setting;
     // an immediate settings write with no native job. Native checks the

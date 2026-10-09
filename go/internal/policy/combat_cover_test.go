@@ -8,7 +8,7 @@ import (
 )
 
 // Cover values below are the game's CoverUtility numbers as combat.geometry
-// reports them (#851): straight past one sandbag 0.40, diagonal past two
+// reports them: straight past one sandbag 0.40, diagonal past two
 // 0.48, sandbag and wall at a right angle 0.83-0.9675.
 
 func scored(x, z int32, cover, hostileCover float64) ScoredCell {
@@ -63,7 +63,7 @@ func TestDecideCombatPicksBestCoverCells(t *testing.T) {
 	orders, _, memory := DecideCombat(view, reply, StopEvent{}, CombatMemory{})
 	want := []CombatOrder{
 		{Pawn: "a", Kind: OrderMove, Cell: domain.Cell{X: 11, Z: 24}, Reason: ReasonFormation},
-		// Spacing (#861) outranks cover: (10,23) is a tile from the corner,
+		// Spacing outranks cover: (10,23) is a tile from the corner,
 		// so the spaced (8,23) comes before it.
 		{Pawn: "b", Kind: OrderMove, Cell: domain.Cell{X: 8, Z: 23}, Reason: ReasonFormation},
 		{Pawn: "c", Kind: OrderMove, Cell: domain.Cell{X: 10, Z: 23}, Reason: ReasonFormation},

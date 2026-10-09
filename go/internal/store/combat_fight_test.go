@@ -45,7 +45,7 @@ func TestCombatFightEvidence(t *testing.T) {
 	if fight.World != world || len(fight.Roster) != 2 || !fight.Roster["a"] {
 		t.Fatal("roster", fight)
 	}
-	// The admission batch's results (#910): b's draft refused.
+	// The admission batch's results: b's draft refused.
 	if err = s.UpdateCombatRoster(ctx, "fight", nil, []domain.PawnID{"b"}); err != nil {
 		t.Fatal(err)
 	}

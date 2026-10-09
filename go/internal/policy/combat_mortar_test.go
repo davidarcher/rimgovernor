@@ -31,7 +31,7 @@ func mortarOrders(orders []CombatOrder) []CombatOrder {
 }
 
 // {our mortar, an enemy mortar and a ship part in range} -> the nearest
-// pawn crews it against the enemy mortar (#931); once manning it, no
+// pawn crews it against the enemy mortar; once manning it, no
 // order again.
 func TestDecideCombatCounterBatteryCrewsTheMortar(t *testing.T) {
 	view := mortarView()
@@ -40,7 +40,7 @@ func TestDecideCombatCounterBatteryCrewsTheMortar(t *testing.T) {
 	if got := mortarOrders(orders); len(got) != 1 || got[0] != want {
 		t.Fatalf("%+v", got)
 	}
-	// The pawnless aim (#1202) leads its crew order.
+	// The pawnless aim leads its crew order.
 	fire := CombatOrder{Kind: OrderMortarFire, Cell: want.Cell, Aim: want.Aim, Shell: testShellEMP, Reason: ReasonCounterBattery}
 	if i := slices.Index(orders, fire); i < 0 || i+1 >= len(orders) || orders[i+1] != want {
 		t.Fatalf("no mortar_fire before the crew: %+v", orders)
@@ -58,7 +58,7 @@ func TestDecideCombatCounterBatteryCrewsTheMortar(t *testing.T) {
 
 // {a crewed mortar whose aim disappears} -> a pawnless mortar_fire with no
 // target clears the forced target, and the crew is released: moved on by
-// its role, or stopped off ManTurret when the role orders nothing (#1235).
+// its role, or stopped off ManTurret when the role orders nothing.
 // A later stop sends neither again.
 func TestDecideCombatMortarStandsDownWhenTheAimGoes(t *testing.T) {
 	view := mortarView()
@@ -88,7 +88,7 @@ func TestDecideCombatMortarStandsDownWhenTheAimGoes(t *testing.T) {
 }
 
 // {the aim gone, the crew's role orders nothing} -> standDown stops the
-// crew still manning (#1235); a crew already ordered is left alone.
+// crew still manning; a crew already ordered is left alone.
 func TestStandDownStopsIdleCrew(t *testing.T) {
 	stood := []mortarStand{{Cell: domain.Cell{X: 5, Z: 30}, Crew: "m"}}
 	orderable := map[domain.PawnID]bool{"m": true}
@@ -104,7 +104,7 @@ func TestStandDownStopsIdleCrew(t *testing.T) {
 }
 
 // {only the ship part in range, no siege} -> the mortar fires HE at the
-// part (#930).
+// part.
 func TestDecideCombatMortarShellsTheShipPart(t *testing.T) {
 	view := mortarView()
 	view.Structures = view.Structures[:1]
@@ -132,7 +132,7 @@ func TestDecideCombatMortarHoldsInsideMinimumRange(t *testing.T) {
 }
 
 // {a ship part the only threat, a rifleman and a brawler} -> the rifleman
-// shoots it and the brawler is not sent to it in melee (#930).
+// shoots it and the brawler is not sent to it in melee.
 func TestDecideCombatShipPartIsDestroyedFromRange(t *testing.T) {
 	part := SquadThreatFacts{ID: "Thing_ShipPart2", Dead: domain.Known(false), Building: true, LinesOfFire: map[domain.PawnID]bool{"a": true}}
 	view := withBrawlers(CombatView{
@@ -150,7 +150,7 @@ func TestDecideCombatShipPartIsDestroyedFromRange(t *testing.T) {
 	}
 }
 
-// TestMortarCounterBattery (#1051): {two mortars, the camped siege of r1
+// TestMortarCounterBattery: {two mortars, the camped siege of r1
 // and r2, an enemy mortar} -> EMP on the enemy mortar, HE on the camp from
 // the other; {no enemy mortar} -> HE on the camp, then incendiary from the
 // second mortar; {HE refused no_shell} -> the loaded shell.
@@ -187,7 +187,7 @@ func TestMortarCounterBattery(t *testing.T) {
 	}
 }
 
-// TestMortarSiegeFire (#1208): {the siege camped, no structure} -> HE on
+// TestMortarSiegeFire: {the siege camped, no structure} -> HE on
 // the camp; {the siege still travelling in} -> no mortar order; {a
 // colonist within 10 cells of the camp} -> no mortar order; {a camp of
 // mechs} -> EMP.
@@ -226,7 +226,7 @@ func TestMortarSiegeFire(t *testing.T) {
 	}
 }
 
-// TestMortarHECentipede (#1051): {a centipede walking in 50 cells out, no
+// TestMortarHECentipede: {a centipede walking in 50 cells out, no
 // structure, no siege} -> HE on it; {the centipede within 10 cells of a
 // colonist} -> no mortar order.
 func TestMortarHECentipede(t *testing.T) {

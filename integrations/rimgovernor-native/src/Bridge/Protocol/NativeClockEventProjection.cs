@@ -127,7 +127,7 @@ namespace HomeBridge.BridgeTools
                 case "observation_invalidated":
                     result.ObservationInvalidated = new Clock.ObservationInvalidated { Reason = Text(String(P(), "reason")) };
                     result.ObservationInvalidated.Families.Add(FamilyNames(P()));
-                    // Narrowing (#359): the changed rows' ids and the one rectangle
+                    // Narrowing: the changed rows' ids and the one rectangle
                     // the change touched; a probe that cannot attribute a change
                     // sends the families alone.
                     object? ids, cells;
@@ -175,7 +175,7 @@ namespace HomeBridge.BridgeTools
                     else if (kind == "colonist_health") stop.Health = new Clock.HealthThreshold { Pawn = Pawn(P(), resolvePawn), HealthAtStart = Real(P(), "healthAtStart"), HealthNow = Real(P(), "healthNow"), MinHealthFraction = Real(P(), "minHealthFraction"), HealthDropFraction = Real(P(), "healthDropFraction") };
                     else if (payload != null && payload.ContainsKey("pawnId")) stop.Pawn = Pawn(P(), resolvePawn);
                     else stop.Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved, Detail = "Stop reason and diagnostic were observed; additional structured evidence was not captured." };
-                    // Latency split (#621): the tick the stop was raised at and,
+                    // Latency split: the tick the stop was raised at and,
                     // where the hazard carries one, the tick it arose.
                     object? detected, occurrence;
                     if (payload != null && payload.TryGetValue("detectedTick", out detected) && detected != null) stop.DetectedTick = Convert.ToInt64(detected);

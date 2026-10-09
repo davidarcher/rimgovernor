@@ -12,7 +12,7 @@ import (
 // TestRoundsWorkAdmitsAssignmentsWithPawnSettings: a work assignment and a
 // hostility change for the same pawn ride one EnsureWorkAssignments plan;
 // the store admits the mixed plan instead of refusing it as a conflict
-// (pawn/hostility and pawn/reading-policy stalled on that refusal, #1560).
+// (pawn/hostility and pawn/reading-policy stalled on that refusal).
 func TestRoundsWorkAdmitsAssignmentsWithPawnSettings(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

@@ -190,7 +190,7 @@ func TestDecideCombatMechKitesBreachersInside(t *testing.T) {
 }
 
 // TestKiterEligibility: a kiter needs 1.2x the fastest chaser (1.4x
-// against a fast animal), a long-range gun and light armor (#1061).
+// against a fast animal), a long-range gun and light armor.
 func TestKiterEligibility(t *testing.T) {
 	rifle := CombatRole{Pawn: "b", Ranged: true}
 	for _, c := range []struct {

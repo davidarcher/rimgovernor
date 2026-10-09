@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// RoundsShrineStep is the shrine planner's last step (#680) as it judged
+// RoundsShrineStep is the shrine planner's last step as it judged
 // it, not the review's advisory ShrineHolds: Reason is the step's answer,
 // Shrine and Hold the shrine it held on (or acted on) and why, and Skipped
 // every candidate it judged and passed over before or after that one, with

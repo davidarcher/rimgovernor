@@ -19,7 +19,7 @@ internal static class NativeMovementOperationsProbe
         var dirs=args.Skip(1).Concat(new[]{Path.GetDirectoryName(Path.GetFullPath(args[0]))!}).ToArray();
         AppDomain.CurrentDomain.AssemblyResolve+=(_,e)=>{var path=dirs.Select(d=>Path.Combine(d,new AssemblyName(e.Name).Name+".dll")).FirstOrDefault(File.Exists);return path==null?null:Assembly.LoadFrom(path);};
         bridge=Assembly.LoadFrom(Path.GetFullPath(args[0]));foreach(var reference in bridge.GetReferencedAssemblies())Assembly.Load(reference);
-        // Drafts are plan-owned (#939): Owns() is an eligible drafted pawn, with no native claim.
+        // Drafts are plan-owned: Owns() is an eligible drafted pawn, with no native claim.
         var facts=New("NativePawnFacts");Field(facts,"Spawned",true);Field(facts,"PlayerControlled",true);Field(facts,"Drafted",true);
         Field(facts,"Drafter",System.Runtime.Serialization.FormatterServices.GetUninitializedObject(
             AppDomain.CurrentDomain.GetAssemblies().Single(a=>a.GetName().Name=="Assembly-CSharp").GetType("RimWorld.Pawn_DraftController",true)!));

@@ -10,7 +10,7 @@ import (
 )
 
 // The flight recorder names each skipped Odyssey offer once per quest and
-// reason (#1717), as a WARN routine_skip row (#2066; the quest detail rides in
+// reason, as a WARN routine_skip row (the quest detail rides in
 // the row attrs).
 func TestRounderLogsQuestSkipsOncePerQuest(t *testing.T) {
 	rows := telemetrytest.Install(t)

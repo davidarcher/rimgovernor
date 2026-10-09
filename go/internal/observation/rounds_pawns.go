@@ -43,7 +43,7 @@ func roundsArmed(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 			continue
 		}
 		// A colonist held back from arms (a creepjoiner whose downside has not
-		// shown, #1740) is owed no weapon: counting it would hold
+		// shown) is owed no weapon: counting it would hold
 		// EnsureBasicDefense open for good.
 		if downsides.ArmsHold(bridge.CreepJoinerPawn(row)) != "" {
 			continue
@@ -67,7 +67,7 @@ func roundsArmed(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 }
 
 // roundsDefenders is each census colonist's defense capacity facts
-// (#1188) from the same pawn rows roundsArmed compares: dead and downed
+// from the same pawn rows roundsArmed compares: dead and downed
 // from the emergency census, violence from the biography, melee power as
 // the observed MeleeDPS times summary health and the observed ranged DPS.
 // A row the census does not match leaves the roster unknown; a missing

@@ -48,7 +48,7 @@ func TestAutonomousConstructionClaimsSurviveRetirementAndManual(t *testing.T) {
 	if _, err = s.RecordReceipt(ctx, "method", "placed", 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
-	// Retirement reads the census: the intent's building stands built (#856).
+	// Retirement reads the census: the intent's building stands built.
 	request.Facts.CurrentConstruction = builtCensus(t, "wall")
 	reviewRounds(t, s, &request)
 	retired, err := s.LoadPlan(ctx, "method")

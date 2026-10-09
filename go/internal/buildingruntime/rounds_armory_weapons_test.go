@@ -39,10 +39,10 @@ func (n *clubBenchNative) ReadSupplyStock(context.Context, *c.Identity, []string
 	return []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(500))}}, bridge.Result{}, nil
 }
 
-// The armory, not gear, crafts weapons for unarmed colonists (#1203), still
+// The armory, not gear, crafts weapons for unarmed colonists, still
 // under MaintainEquipment. Its exact-ID combat census counts every other pawn
 // on the map as filtered; treating that as incomplete failed the step with
-// ErrControl and MaintainEquipment never recovered (#660).
+// ErrControl and MaintainEquipment never recovered.
 func TestArmoryPlannerCraftsWeaponsPastFilteredCensus(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

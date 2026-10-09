@@ -1,4 +1,4 @@
-// Package facts is the controller-side state store (#354): the decoded
+// Package facts is the controller-side state store: the decoded
 // colony state a scheduler step planned against, held per section with the
 // tick each section describes, so a later step can ask what is held and
 // how old it is instead of reconstituting everything from a fresh bundle,
@@ -194,7 +194,7 @@ func Get[T any](s *Store, section Section) (Held[T], bool) {
 // Read is Get for a planner's read: it notes the section's family on the
 // context's read note (bridge.NoteRead) whether or not a section is held,
 // so a read served from the store counts the same as one served by a native
-// call (#1916).
+// call.
 func Read[T any](ctx context.Context, s *Store, section Section) (Held[T], bool) {
 	bridge.NoteRead(ctx, section.Family(), "held:"+string(section))
 	return Get[T](s, section)
@@ -251,7 +251,7 @@ func (s *Store) InvalidateFamily(families ...bridge.FactFamily) {
 	}
 }
 
-// Invalidation is one decoded ObservationInvalidated (#359): the families
+// Invalidation is one decoded ObservationInvalidated: the families
 // that changed and, when native could attribute the change, the entity
 // ids and the one rectangle of cells it touched.
 type Invalidation struct {
@@ -265,7 +265,7 @@ type Invalidation struct {
 func (inv Invalidation) Narrowed() bool { return len(inv.IDs) > 0 || inv.Rect != nil }
 
 // Sections names the sections the invalidation makes stale, the rows a
-// scheduler routes to the planners declaring them (#625): every section of
+// scheduler routes to the planners declaring them: every section of
 // each family when nothing narrows it; the entity sections when entity
 // ids do; the cell section when a rectangle does. A family without a
 // section of the narrowed shape (ids against pawns) is dirty whole.
@@ -335,8 +335,7 @@ func InvalidationFromWire(o *k.ObservationInvalidated) (Invalidation, bool) {
 
 // Apply takes one invalidation: it drops every section of its families,
 // except a cell section whose region a narrowing rectangle misses, which
-// is unchanged, value and version both, so proposals planned from it hold
-// (#656).
+// is unchanged, value and version both, so proposals planned from it hold.
 func (s *Store) Apply(inv Invalidation) {
 	if s == nil {
 		return

@@ -1,11 +1,10 @@
-// The custody/population case exercises population custody (G01.07e, issue
-// #27): the Capture and Rescue GiveJobIntents on Actions/Apply (#939), the
+// The custody/population case exercises population custody: the Capture and Rescue GiveJobIntents on Actions/Apply, the
 // same intents bridge's captureAction and rescueAction send. A downed
 // hostile is actually captured into prisoner custody and a downed,
 // unadmitted friendly guest is actually rescued into an ordinary bed --
 // real native roster/status change observed via ticks, not just a receipt.
 // Between the two, the captured prisoner takes PrisonerInteractionIntents
-// on Actions/Apply (issues #95, #941): the ReduceResistance and
+// on Actions/Apply: the ReduceResistance and
 // AttemptRecruit modes apply and read back, and once the fixture recruits
 // the prisoner a further intent is refused against live custody state.
 // Uses the disposable test/population_setup fixture (PopulationFixture.cs)
@@ -193,7 +192,7 @@ func run(ctx context.Context, s cases.Session) error {
 	report["candidate_captured"] = true
 
 	// =================================================================
-	// Prisoner interaction: the captured candidate (issue #95).
+	// Prisoner interaction: the captured candidate.
 	// =================================================================
 
 	if err := acquire("re-acquire-before-interaction"); err != nil {
@@ -219,7 +218,7 @@ func run(ctx context.Context, s cases.Session) error {
 		for _, entry := range na.AsSlice(observed["persons"]) {
 			person, _ := na.AsMap(entry)
 			if na.PawnRef(person) == candidateID {
-				// The custody facts ride the pawn table row (#1343).
+				// The custody facts ride the pawn table row.
 				return person, supported, h.JoinPawn(ctx, label, identity, person)
 			}
 		}
@@ -239,7 +238,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if prisoner, _ := na.AsBool(prisonerPawn["prisoner"]); !prisoner {
 		return fmt.Errorf("prisoner-before: expected the captured candidate to be a prisoner: %#v", prisonerBefore)
 	}
-	// The routine release path's facts (#236): a current prisoner carries
+	// The routine release path's facts: a current prisoner carries
 	// native's recruit resistance and the TimeAsPrisoner record, which
 	// ProtoJSON renders as a decimal string for int64.
 	if _, ok := prisonerBefore["resistance"]; !ok {
@@ -250,7 +249,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["prisoner_ticks"] = prisonerBefore["prisonerTicks"]
 	// applyInteraction sends one PrisonerInteractionIntent on Actions/Apply
-	// (#941) and returns the action's result: applied carries the prisoner
+	// and returns the action's result: applied carries the prisoner
 	// evidence, refused the native reason.
 	applyInteraction := func(label, key, pawn, mode string) (map[string]any, error) {
 		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{

@@ -26,7 +26,7 @@ type Bounds struct{ Width, Height int32 }
 
 // Purpose is the spending class a building candidate is admitted under,
 // recorded with the admission. RimWorld places every frame regardless of
-// stock and holds it natively for materials (#602), so admission never
+// stock and holds it natively for materials, so admission never
 // refuses for stock: the game settles materials when the work happens.
 type Purpose string
 
@@ -63,10 +63,8 @@ type Preview struct {
 	WindBlockedCells domain.Fact[int32]
 	Footprint        domain.Fact[[]domain.Cell]
 	Costs            domain.Fact[[]Amount]
-	// Blockers lists what native reports the placement would disturb, so a
-	// method that replaces a building on purpose (a door cut into a wall,
-	// issue #6 slice 5) can tell that deliberate replacement from an
-	// accidental one. Admission itself still reads SafeToPlace.
+	// Blockers distinguishes deliberate replacement, such as a door in a wall,
+	// from accidental destruction. Admission still requires SafeToPlace.
 	Blockers []PlacementBlocker
 }
 
@@ -374,7 +372,7 @@ func Admit(input Input) Decision {
 				cv, hv := c.Progress.View(), h.Progress.View()
 				// A Prepared attempt 0 has no write outstanding (dispatch is
 				// journaled before the native call), so its own earlier hold
-				// -- current or left behind by a generation that moved (#101)
+				// -- current or left behind by a generation that moved
 				// -- is superseded by this fresh admission.
 				if c.Action == h.Action && cv.Stage == domain.Prepared &&
 					cv.Attempt == 0 && !cv.Unresolved && (hv.Stage == domain.Pending || hv.Stage == domain.Prepared) &&
@@ -414,7 +412,7 @@ func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool,
 	v := c.Progress.View()
 	// A Prepared action prepared under an older snapshot is not ready to
 	// dispatch as it stands, but an attempt 0 has no write outstanding and is
-	// re-prepared under the current one (#101); only a later attempt's stale
+	// re-prepared under the current one; only a later attempt's stale
 	// preparation waits.
 	if (v.Stage != domain.Pending && v.Stage != domain.Prepared) || v.Unresolved || v.Tick > r.CurrentTick ||
 		v.Stage == domain.Prepared && v.Attempt > 0 && !v.Snapshot.Matches(r.Current) {

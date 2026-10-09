@@ -35,7 +35,7 @@ func (n podLoadoutNative) ReadEquipWeapons(ctx context.Context, id *c.Identity, 
 	return n.weapons.ReadEquipWeapons(ctx, id, from, to)
 }
 
-// A pod fight (#1115) commits its threat loadout as the fight plan's own
+// A pod fight commits its threat loadout as the fight plan's own
 // equip actions before the first combat.orders batch; the batch leaves the
 // loadout pawn undrafted, and it drafts once its equip settles.
 func TestPodFightCommitsLoadoutBeforeFirstCombatBatch(t *testing.T) {

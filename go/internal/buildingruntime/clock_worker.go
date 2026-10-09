@@ -50,7 +50,7 @@ type ClockWorker struct {
 	signal *bridge.ClockSignal
 }
 
-// Mirror poll transport-error backoff (#795): from pollBackoffMin,
+// Mirror poll transport-error backoff: from pollBackoffMin,
 // doubling to pollBackoffMax, reset by a successful poll.
 const (
 	pollBackoffMin = 250 * time.Millisecond
@@ -153,7 +153,7 @@ func (w *ClockWorker) wait(delay time.Duration) bool {
 
 // Nudge wakes the step loop without evidence: the Worker calls it after a
 // step that advanced a plan, so a review deferred on the latched outcome it
-// just reconciled runs as soon as the successor is dispatched (issue #162).
+// just reconciled runs as soon as the successor is dispatched.
 func (w *ClockWorker) Nudge() {
 	w.wake.Notify(nil, false)
 }
@@ -166,7 +166,7 @@ func (w *ClockWorker) WindowRunning() bool { return w.held != nil && w.held() }
 func (w *ClockWorker) Trace() telemetry.Trace { return w.trace() }
 
 // Validity is the read validity of the scheduler's latest step
-// (ClockScheduler.Validity, #624).
+// (ClockScheduler.Validity).
 func (w *ClockWorker) Validity() (domain.ReadValidity, bool) {
 	if w.validity == nil {
 		return domain.ReadValidity{}, false
@@ -189,7 +189,7 @@ func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (wok
 	}
 }
 
-// pollLoop reads the native journal through clock_read_events (#858): one
+// pollLoop reads the native journal through clock_read_events: one
 // unheld read per round, answered at once. With the clock channel's signal
 // (SignalWait > 0) the loop reads again when the mod announces a journal
 // advance on rimgovernor.clock, so a stop is seen near-push, or after
@@ -288,7 +288,7 @@ func clockWorkerKey(result ClockSchedulerResult, err error) clockStepKey {
 		key.failure = err.Error()
 	}
 	if len(result.PlannerFailures) > 0 {
-		// Isolated planner failures do not fail the step (#62) but are still a
+		// Isolated planner failures do not fail the step but are still a
 		// state change: a changed set logs once more.
 		key.failure += "; " + errors.Join(result.PlannerFailures...).Error()
 	}
@@ -401,7 +401,7 @@ func (w *ClockWorker) stepLoop() {
 	reason := StepReason{Cause: StepFull}
 	for w.ctx.Err() == nil {
 		// The loop mints the step's trace so the planner_step row below
-		// shares it with every row the step wrote (#298).
+		// shares it with every row the step wrote.
 		call, cancel := context.WithTimeout(telemetry.WithTrace(w.ctx, telemetry.NewTrace()), w.config.StepTimeout)
 		result, err := w.step(call, reason)
 		cancel()
@@ -413,7 +413,7 @@ func (w *ClockWorker) stepLoop() {
 		// StepInterval, and the next change carries the repeat count.
 		// stepPlanners wraps each planner's error with its own name
 		// (clock_scheduler.go), so the failure is diagnosable from this
-		// line alone; the stall diagnosis reads it (issues #45, #100).
+		// line alone; the stall diagnosis reads it (issues #45).
 		if changed {
 			clockWorkerStepEvent(call, result, err, repeats)
 			repeats = 0
@@ -433,14 +433,14 @@ func (w *ClockWorker) stepLoop() {
 		// A step that only reconciled or cleaned up an epoch (a window that
 		// stopped on its tick budget, or a dispatch to reconcile) has left
 		// the planners for the next step: run it now rather than idle a
-		// StepInterval with the game paused (issue #91). Never twice in a
+		// StepInterval with the game paused. Never twice in a
 		// row: a cleanup that keeps succeeding without settling is a
 		// backoff case, not a hot loop.
 		// A step deferred on work the Worker owes does not step again at
 		// once: the Worker is waiting on the player gate this step just
 		// released, and an immediate step would take it back for another
 		// round of reads that can only defer again. It waits for the
-		// Worker's advance instead (issue #162).
+		// Worker's advance instead.
 		if err == nil && (result.Reconciled || result.Cleaned) && !result.Deferred && !skipped {
 			skipped = true
 			reason = StepReason{Cause: StepSettled}

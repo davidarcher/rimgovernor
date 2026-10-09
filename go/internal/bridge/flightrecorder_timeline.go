@@ -22,7 +22,7 @@ type TimelineRecord struct {
 	Sequence uint64
 	HasSeq   bool
 	// Run is the recorder run the row belongs to. A ring kept under a
-	// profile outlives the process that wrote it (#299), so the rows of
+	// profile outlives the process that wrote it, so the rows of
 	// successive launches share one file; the sequence continues across
 	// them and Run tells them apart.
 	Run string
@@ -46,7 +46,7 @@ func ReadTimeline(path string) ([]TimelineRecord, error) {
 	return NewTimelineReader(path).Read()
 }
 
-// TimelineReader reads one ring repeatedly, decoding each byte once (#375).
+// TimelineReader reads one ring repeatedly, decoding each byte once.
 // A rotated segment never changes, so its rows are kept by content identity
 // (size, modification time and leading bytes, which survive the rename
 // chain a rotation performs); the active file only grows, so each Read

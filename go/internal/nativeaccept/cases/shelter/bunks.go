@@ -51,13 +51,13 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 	}
 	// The precondition must not already satisfy the outcome: the colony
 	// starts with no roofed room holding a bed, so every bed the final
-	// census counts was built during this run (#615).
+	// census counts was built during this run.
 	colonists, beside, err := unhousedColony(ctx, s, report)
 	if err != nil {
 		return err
 	}
 	// Wood for the ring, dropped before the service takes the sole GABP
-	// slot (no fixture op can run while it holds it, #676): beside a
+	// slot (no fixture op can run while it holds it): beside a
 	// colonist, near where the spots will be sited, since a restart to
 	// drop it later would cancel the shelter plan this run asserts on.
 	dropped, err := s.Harness().Call(ctx, "drop-wood", "test/hut_shell_fixture", map[string]any{
@@ -68,7 +68,7 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 	}
 	report["dropped_wood"] = dropped
 	// The baseline has not researched ComplexFurniture, so the beds rung
-	// would be refused and the shell admitted without it (#1137).
+	// would be refused and the shell admitted without it.
 	furniture, err := s.Harness().Call(ctx, "finish-furniture", "test/hut_shell_fixture", map[string]any{"action": "furniture"})
 	if err != nil {
 		return err
@@ -96,8 +96,8 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	// 2. Once the spots stand they are deleted (the native refuses a bed over
-	// a standing spot, #2080), then the beds are admitted on the freed slots;
-	// the shell is sited around them whether or not they stand yet (#641).
+	// a standing spot), then the beds are admitted on the freed slots;
+	// the shell is sited around them whether or not they stand yet.
 	deleted, err := waitSpotsCleared(ctx, st, w.wait(w.build, service))
 	if err != nil {
 		service.Stop()
@@ -126,7 +126,7 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 	}
 	report["shell"] = sh.describe()
 	// The spots and beds were furnished from the plan before any wall: every
-	// one stands on the planned interior the ring is raised around (#2264).
+	// one stands on the planned interior the ring is raised around.
 	planned := map[domain.Cell]bool{}
 	for _, c := range sh.footprint.Interior() {
 		planned[c] = true
@@ -203,7 +203,7 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 // unhousedColony reads the colony before the controller starts and returns
 // its colonist count and the first colonist's cell, refusing a baseline that already meets the outcome:
 // no native room may be a proper roofed indoor room holding a bed. Without
-// this the run could pass on shelter it never built (#615).
+// this the run could pass on shelter it never built.
 func unhousedColony(ctx context.Context, s cases.Session, report na.Report) (int, domain.Cell, error) {
 	h := s.Harness()
 	reply, err := h.Wire(ctx, "rooms-before", "observations_list_rooms", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}})
@@ -315,7 +315,7 @@ func noShellYet(ctx context.Context, st *store.Store, after string) error {
 }
 
 // waitSpotsCleared polls the store until the shelter goal has bound the
-// spot deletion the bed rung runs first (#2080) and returns the cells of
+// spot deletion the bed rung runs first and returns the cells of
 // the spots it deletes: the native refuses a bed over a standing spot, so
 // the beds go on the freed slots.
 func waitSpotsCleared(ctx context.Context, st *store.Store, w na.Wait) ([]domain.Cell, error) {

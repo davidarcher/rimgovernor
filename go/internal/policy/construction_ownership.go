@@ -65,7 +65,7 @@ const (
 )
 
 // WorkOpen classifies an applied building intent against the census by
-// geometry (#1355): whatever stands with its definition, stuff, anchor and
+// geometry: whatever stands with its definition, stuff, anchor and
 // rotation is its work, whoever placed it. A match placed by someone else
 // is the same end state, so no lineage is kept.
 func WorkOpen(building domain.Building, observed domain.Fact[CurrentConstruction]) BuildingWork {

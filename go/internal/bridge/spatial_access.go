@@ -29,7 +29,7 @@ type AccessTarget struct {
 // PawnAccess is one mobile colonist's audit row. LosesAccess is true when
 // some cell reachable now (other than the blocked cells themselves) is not
 // reachable in the projection; it is informational, since cells stranded
-// outside a perimeter wall do not matter (#1570). OriginKnown is false when the pawn stands on
+// outside a perimeter wall do not matter. OriginKnown is false when the pawn stands on
 // a blocked cell and no safe exit exists.
 type PawnAccess struct {
 	ID              string
@@ -51,7 +51,7 @@ type SpatialAccess struct {
 // Accepted is true when every colonist keeps a safe exit and every target
 // it reaches now, and every target stays reachable both natively and in
 // the projection for at least one colonist. Losing other cells is allowed:
-// the targets name the access the caller needs (#1570).
+// the targets name the access the caller needs.
 func (s SpatialAccess) Accepted() bool { return s.Refusal() == "" }
 
 // Refusal names why the audit is not accepted, or "" when it is.

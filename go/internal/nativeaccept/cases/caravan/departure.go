@@ -1,5 +1,5 @@
 // The caravan/departure case exercises the FormCaravanIntent arm of
-// Actions/Apply (#942) end to end against a live game: a fixed pack
+// Actions/Apply end to end against a live game: a fixed pack
 // (WoodLog trade cargo, the forbidden pemmican reserve and survival meals,
 // simple meals left home) applied through rimgovernor/operations_apply, and
 // native's own caravan inventory census, which must carry exactly that pack.

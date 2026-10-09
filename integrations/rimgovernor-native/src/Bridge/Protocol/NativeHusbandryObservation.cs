@@ -64,8 +64,8 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.AnimalState AnimalRow(Pawn animal)
         {
-            // Gender, age and the other herd facts (#875) come only from the
-            // colony upkeep census (NativeHusbandryOperations.HerdFacts, #885).
+            // Gender, age and the other herd facts come only from the
+            // colony upkeep census (NativeHusbandryOperations.HerdFacts).
             var row = new Obs.AnimalState();
             if (animal.training != null)
             {

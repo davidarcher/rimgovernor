@@ -35,7 +35,7 @@ type Settings struct {
 
 	ExtraArgs string `json:"extraArgs"`
 
-	// NewColony is the last New colony form (#2025); nil until one is
+	// NewColony is the last New colony form; nil until one is
 	// generated, then the form opens on it.
 	NewColony *NewColonySpec `json:"newColony,omitempty"`
 }
@@ -153,7 +153,7 @@ func SplitArgs(text string) ([]string, error) {
 
 // StatePath is the state database to serve and a plain line saying why:
 // the newest state-*.sqlite in dir when continuing and the last session
-// left the bot running there (a live control record, #1132), else a fresh
+// left the bot running there (a live control record), else a fresh
 // stamped name. The controller must be stopped: live opens the database.
 func StatePath(dir string, continueState bool, now time.Time, live func(path string) (bool, error)) (string, string) {
 	fresh := filepath.Join(dir, "state-"+now.Format("20060102-150405")+".sqlite")
@@ -184,7 +184,7 @@ func LiveControl(path string) (bool, error) {
 }
 
 // ControlColony is the colony id on the state database's current control
-// record, "" when it has none (#1143).
+// record, "" when it has none.
 func ControlColony(path string) (string, error) {
 	r, err := currentControl(path)
 	return string(r.Request.World.Colony), err

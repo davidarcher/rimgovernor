@@ -9,7 +9,7 @@ import (
 )
 
 // plannedSite is the size x size fixture hut on the layout plan's shelter
-// room (#1250, #2048): the square shares the shelter ring's south-west
+// room: the square shares the shelter ring's south-west
 // corner, pulled back inside the map, and keeps the planned door when it
 // lands on the square's ring off a corner (else the hut's mid east wall).
 // ok is false when the plan holds no shelter.

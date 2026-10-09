@@ -12,7 +12,7 @@ import (
 )
 
 // An unroof-only plan reads no rock, so a native with no excavation source
-// still admits it: the roof comes off, then the building is placed (#1872).
+// still admits it: the roof comes off, then the building is placed.
 // Once the roof job was designated for excavationStallTicks and the roof is
 // still on, roofStalled names it.
 func TestUnroofOnlyPlanNeedsNoExcavationSourceAndStallIsNamed(t *testing.T) {

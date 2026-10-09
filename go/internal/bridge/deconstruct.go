@@ -7,16 +7,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// designate wraps one DesignateIntent as an Actions/Apply action (#1350).
+// designate wraps one DesignateIntent as an Actions/Apply action.
 func designate(intent *o.DesignateIntent) *o.Action {
 	return &o.Action{Intent: &o.Action_Designate{Designate: intent}}
 }
 
 // deconstructAction is the DECONSTRUCT Designate of one exact building under
-// the enclosure guard (#1350). Native checks the target's safety and the game
+// the enclosure guard. Native checks the target's safety and the game
 // designator live when it applies; a designation already standing applies
 // again, and revoking authority releases every guarded designation natively.
-// Cleared ground (#1366) rides along for the enclosure guard's roof-wait rule.
+// Cleared ground rides along for the enclosure guard's roof-wait rule.
 func deconstructAction(action domain.Action) (*o.Action, error) {
 	v, ok := action.Deconstruction()
 	if !ok {

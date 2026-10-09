@@ -73,7 +73,7 @@ func TestFishingAllocationUsesAnimalsWithoutRangedWeapon(t *testing.T) {
 }
 
 // An unarmed colonist is never assigned Hunting, unless the plan is arming
-// one (#2162): then the best Shooting colonist owns it before the weapon
+// one: then the best Shooting colonist owns it before the weapon
 // exists, and an armed colonist already covers the demand.
 func TestWorkAssignmentHuntingBeforeTheWeaponExists(t *testing.T) {
 	hunting := func(team []WorkPawn, arming bool) (owners []PawnID) {
@@ -435,7 +435,7 @@ func TestWorkAssignmentConstructionApprentice(t *testing.T) {
 	}
 }
 
-// Autopilot owns every priority (#719): a player who switched a planned
+// Governor owns every priority: a player who switched a planned
 // owner's work off gets it back on the next plan.
 func TestWorkAssignmentOverridesPlayerEdits(t *testing.T) {
 	team := workTeam(true)
@@ -454,7 +454,7 @@ func TestWorkAssignmentOverridesPlayerEdits(t *testing.T) {
 	}
 }
 
-// Numbered priorities are the only mode (#1277): planned 1/2/4 go out as
+// Numbered priorities are the only mode: planned 1/2/4 go out as
 // exactly those numbers, and a checkbox-mode readback yields no write.
 func TestWorkChangesExactNumbers(t *testing.T) {
 	pawn := testWorkPawn("p", true, false, nil)

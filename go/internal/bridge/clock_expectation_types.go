@@ -21,7 +21,7 @@ type ClockStart struct {
 	// SPEED_ULTRAFAST and a game launched with test acceleration (headless
 	// acceptance profiles only), which native refuses otherwise.
 	TestAcceleration bool
-	// BlindTickBudget arms the native blind-tick regulator (issue #583):
+	// BlindTickBudget arms the native blind-tick regulator:
 	// past this many ticks since the controller's last read or oldest
 	// unacknowledged journal row, native throttles the epoch toward Normal
 	// and ramps back once the controller catches up, journaling both as
@@ -29,7 +29,7 @@ type ClockStart struct {
 	// a continuous ceiling under the speed's own rate; zero is none.
 	BlindTickBudget   uint32
 	MaxTicksPerSecond uint32
-	// PlayerAccelerated asks for player acceleration (issue #627): an
+	// PlayerAccelerated asks for player acceleration: an
 	// Ultrafast epoch, without test acceleration, whose ticks per frame
 	// native adapts to its frame budget (30 ms)
 	// toward the boosted rate. Any launch admits it.

@@ -40,7 +40,7 @@ const (
 // GearRoleInput reuses the work planner's priorities, skills and trait facts.
 // Explicit social/developmental status and squad membership take precedence.
 // Prisoner and UnrevealedCreepjoiner (a creepjoiner whose downside is not yet
-// revealed) dress under the same constraint mode as a slave (#1859).
+// revealed) dress under the same constraint mode as a slave.
 type GearRoleInput struct {
 	Work                                            WorkPawn
 	Child, Slave, IncapableOfViolence, DraftedSquad bool
@@ -161,7 +161,7 @@ type GearOption struct {
 	// Psychic marks a psychic foil helmet, Smokepop a smokepop belt: utility
 	// gear the model plans only on evidence (a psychic-drone letter) or never.
 	Psychic, Smokepop bool
-	// Weapon is a primary option's def rows (#1723).
+	// Weapon is a primary option's def rows.
 	Weapon WeaponDef
 	// Research names the ResearchProjectDefs the option's recipe requires;
 	// Ingredients its materials for a bill source (the armor ladder's steel,
@@ -179,7 +179,7 @@ type GearLoadoutInput struct {
 	Research []string
 	// PsychicDrone is whether a psychic-drone letter has been seen.
 	PsychicDrone bool
-	// Share is the colonist's personal wealth share (#1842): an upgrade gap
+	// Share is the colonist's personal wealth share: an upgrade gap
 	// whose market-value delta it does not cover is dropped from the plan.
 	// The zero value is ungated; necessities are never charged.
 	Share                                   PersonalShare
@@ -231,7 +231,7 @@ func GearGapThreshold(role GearRole) float64 {
 }
 
 // gearConstrained is the constraint mode for pawns whose downside or standing
-// the bot does not weigh: slaves, prisoners and unrevealed creepjoiners (#1859).
+// the bot does not weigh: slaves, prisoners and unrevealed creepjoiners.
 // The pick covers legs and torso, meets min(thermal need, item capacity), then
 // takes the lowest cost; see gearConstrainedScore.
 func gearConstrained(role GearRole) bool {
@@ -391,7 +391,7 @@ func gearItemScore(p GearLoadoutInput, o GearOption) float64 {
 	thermal := math.Min(math.Max(0, p.ComfortableMin-low), o.Cold*i) + math.Min(math.Max(0, high-p.ComfortableMax), o.Heat*i)
 	score := armor + thermal + o.MoveSpeed*10 - o.Cost*.001
 	if o.Slot == GearPrimary {
-		// A primary is worth its quality-scaled damage (#1204), so the
+		// A primary is worth its quality-scaled damage, so the
 		// armory's crafted upgrade outscores the worn weapon and GearReplace
 		// swaps it in.
 		score += o.Weapon.DPS * WeaponQualityMultiplier(o.Quality) * o.Condition
@@ -716,8 +716,8 @@ func PlanGearLoadout(p GearLoadoutInput) (GearLoadout, error) {
 	return out, nil
 }
 
-// gearGapAffordable is whether the colonist's remaining share covers the gap
-// (#1842), decided once at gap-build time so every GearGapThreshold reader
+// gearGapAffordable is whether the colonist's remaining share covers the gap,
+// decided once at gap-build time so every GearGapThreshold reader
 // agrees and an unaffordable upgrade holds nothing open. Necessities are never
 // charged: the slot is empty (no worn item conflicts), a replaced item is
 // tattered, or the gap supplies the legs (or a woman's chest) coverage the

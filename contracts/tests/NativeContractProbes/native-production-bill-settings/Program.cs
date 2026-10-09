@@ -34,7 +34,7 @@ internal static class NativeProductionBillSettingsProbe
         batch.Settings.TargetCount = 2;
         Check(!NativeProductionBillSettings.Valid(batch), "finite batch with a target accepted");
         batch.Settings.ClearTargetCount();
-        // A batch may pin one artist (#1190).
+        // A batch may pin one artist.
         batch.Settings.Worker = new Operations.Assignment { EntityId = "Pawn_Artist" };
         Check(NativeProductionBillSettings.Valid(batch), "pinned finite batch rejected");
         batch.Settings.Worker.EntityId = "";

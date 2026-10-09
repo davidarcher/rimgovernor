@@ -15,7 +15,7 @@ var installedRoomRoles = map[RoomRole]string{
 	RoomRoleBedroom: "", RoomRolePrisonCell: "", RoomRoleDiningRoom: "", RoomRoleRecRoom: "", RoomRoleHospital: "",
 	RoomRoleLaboratory: "", RoomRoleWorkshop: "", RoomRoleStoreroom: "", RoomRoleBarracks: "", RoomRolePrisonBarracks: "",
 	RoomRoleKitchen: "", RoomRoleTomb: "", RoomRoleBarn: "",
-	// RoomRoleShelter is a plan role only (#2041): the game has no def for it.
+	// RoomRoleShelter is a plan role only: the game has no def for it.
 	RoomRoleShelter:    "",
 	RoomRoleThroneRoom: "Royalty", RoomRoleWorshipRoom: "Ideology",
 	RoomRoleNursery: "Biotech", RoomRolePlayroom: "Biotech", RoomRoleClassroom: "Biotech", RoomRoleDeathrestChamber: "Biotech",

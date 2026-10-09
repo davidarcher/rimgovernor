@@ -7,7 +7,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // threat.
 const wealthBudgetMinRaidPoints = 35.0
 
-// WealthBudget is the wealth headroom the colony's defense affords (#1189).
+// WealthBudget is the wealth headroom the colony's defense affords.
 // Raid points scale with wealth, so the wealth the defense capacity can hold
 // is wealth × capacity / raidPoints; the headroom is that minus wealth:
 // positive means wealth may grow by that much, negative means shed it. Raid

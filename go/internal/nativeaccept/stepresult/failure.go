@@ -21,7 +21,7 @@ type Failure struct {
 // declines reports a successful receipt carrying "success": false and its
 // own reason, and a fixture whose game threw reports the exception the same
 // way; requiring isError left both as a bare "bridge read refused:
-// games_call_tool" with the cause only in the evidence tree (#663). The gate
+// games_call_tool" with the cause only in the evidence tree. The gate
 // here matches the one the bridge itself refuses on.
 func Parse(raw json.RawMessage) (Failure, bool) {
 	var result struct {

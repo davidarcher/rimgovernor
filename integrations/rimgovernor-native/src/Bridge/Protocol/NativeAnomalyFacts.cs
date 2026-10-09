@@ -11,7 +11,7 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Anomaly facts (#1737): the static defs of the definition catalog
+    // Anomaly facts: the static defs of the definition catalog
     // (entity and knowledge categories, codex entries, entity, studiable and
     // holder thing defs, anomaly incidents) and the pawn, building and thing
     // row blocks (entity state, held state, study state, containment

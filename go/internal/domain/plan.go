@@ -187,18 +187,13 @@ type PlanSpec struct {
 	dependencies []ActionDependency
 }
 
-// ActionDependency requires observed completion of another action in this plan.
-// It orders work; current native legality and colony invariants are still checked
-// at dispatch. It does not assert that an old completed object still exists.
-//
-// Coupled marks a dependency whose order is written against the result of
-// the required one: an id the earlier write produced, a position it
-// reached. Ordering alone is not coupling, and the count of orders in a
-// step never is: an ordered-only dependent dispatches live once its
-// prerequisite's outcome arrives, while a coupled one is planned at the
-// first step after that outcome, ahead of the planner wave's own cadence,
-// and relies on the native CAS evidence of its admission rather than on a
-// stopped clock (#584; it stopped the epoch until then, #244).
+// ActionDependency requires observed completion of another action in this plan. Dispatch
+// still checks native legality and colony invariants; prior completion does not prove the
+// resulting object still exists.
+// Coupled means the dependent order uses a result of its prerequisite, such as a created
+// identity or reached position. It is planned at the first step after that outcome, ahead of
+// the planner cadence, and admitted against native CAS evidence. Ordering alone is not
+// coupling.
 type ActionDependency struct {
 	Action, Requires ActionID
 	Coupled          bool
@@ -494,7 +489,7 @@ var ErrDependency = errors.New("action prerequisite has not completed in the cur
 // CoupledPending names the actions of this plan's coupled dependencies that
 // are ready to dispatch: every prerequisite has completed in the current
 // world and the action itself has not been dispatched. They are the orders
-// a running clock window plans live for at once (#584); a plan without
+// a running clock window plans live for at once; a plan without
 // coupled dependencies never has any.
 func (p PlanSpec) CoupledPending(progress []Progress, current GenerationSnapshot, tick Tick) []ActionID {
 	var ready []ActionID

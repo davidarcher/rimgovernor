@@ -6,7 +6,7 @@ import (
 )
 
 // PawnRoyaltyFacts reads each colonist's own royalty facts (PawnState.royalty,
-// #1876; the ladder and permits are def-mirror rows, the neuroformers,
+// the ladder and permits are def-mirror rows, the neuroformers,
 // ceremonies and thrones the colony section). A colonist with neither a holding nor a psycast is not
 // listed. A row whose royalty read failed (ReadIssue "royalty") or whose block
 // is invalid is an error: royalty stays unknown rather than read as empty.

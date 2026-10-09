@@ -95,7 +95,7 @@ func TestAggregateUnresolved(t *testing.T) {
 	}
 }
 
-// Every #854 fixture has a committed baseline (#855 done-when).
+// Every metrics fixture has a committed baseline.
 func TestBaselinesCommitted(t *testing.T) {
 	for _, name := range Names {
 		m, err := Baseline(name)

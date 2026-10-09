@@ -192,7 +192,7 @@ func (r *RoundsStoneShellPlanner) propose(call, epoch context.Context, goal stor
 		return RoundsStoneShellResult{}, false, nil
 	}
 	// The backups and the permanent wall are funded from free stock, after
-	// construction and live bill jobs (#1354): the first stone the budget
+	// construction and live bill jobs: the first stone the budget
 	// covers. Without a stock census the first stone is proposed.
 	material, funded := site.ReplacementMaterials[0], true
 	if budget, known := policy.MaterialBudget(projection.Facts.Resources, projection.Facts.ConstructionDeficit, projection.Facts.BillReservations, "").Value(); known {
@@ -344,7 +344,7 @@ func (r *RoundsStoneShellPlanner) previewWall(ctx context.Context, action domain
 		return bridge.BuildingPreview{}, false, nil
 	}
 	// A Wall is a stuffed building: the preview of one that is not made
-	// from stuff is a contract mismatch, not a placeable site (#293).
+	// from stuff is a contract mismatch, not a placeable site.
 	if !made || len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
 		return bridge.BuildingPreview{}, false, nil
 	}

@@ -12,7 +12,7 @@ import (
 // The workers/* recordings are the three seeded debug-start colonists as
 // the routine census's pawn read lifted them (observation.WorkPawnRow),
 // captured from the native acceptance cases workers/passion, traits,
-// coverage, nightowl and helpers at 04b0a98c (#748) before those cases
+// coverage, nightowl and helpers at 04b0a98c before those cases
 // were retired. "before" is WorkersFixture's seeded sheet; "after" is the
 // readback once the planned matrix (and, for nightowl, the timetables)
 // went through native work settings writes. Role order (A, B, C) is the fixture's.
@@ -226,7 +226,7 @@ func countSlots(slots []string, def string) int {
 
 // workers/nightowl: a NightOwl sleeps by day, a QuickSleeper gets a
 // six-hour sleep, and a hand-edited timetable (Joy at hour 12) is
-// replanned (#461); the written work rows match.
+// replanned; the written work rows match.
 func TestWorkersNightOwlSchedules(t *testing.T) {
 	const owl, quick, edited = roleA, roleB, roleC
 	before := loadPawns(t, "workers-nightowl-before")
@@ -264,7 +264,7 @@ func TestWorkersNightOwlSchedules(t *testing.T) {
 	}
 }
 
-// workers/helpers (#653): beside six ready wood walls, two reviews of
+// workers/helpers: beside six ready wood walls, two reviews of
 // planning (spare capacity, then assignment) enable both sub-floor pawns
 // at Construction 4 beside the skilled builder's 1. The native half (a
 // helper finishing a wall with the builder drafted) is vanilla job

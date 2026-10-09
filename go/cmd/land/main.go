@@ -15,15 +15,15 @@
 //     conflict aborts the merge and leaves the resolution to the caller,
 //     and a merged tree that puts a path back to its content before one
 //     of main's recent landings is refused, naming the paths and the
-//     landings (#889, #946);
-//  3. with -test, runs the Go tests as cmd/test does (off by default: the//     branch runs cmd/test before landing, and the lane does not repeat it);
+//     landings;
+//  3. optionally runs tests with -test; callers normally run cmd/test before landing;
 //  4. commits the merged branch's tree onto main as one squash commit and
 //     moves the main ref only if main has not moved since step 2, with a
 //     message built from the branch's commits (-m or -F overrides the
 //     subject and body) carrying the branch's Co-Authored-By trailers. No
 //     checkout of main is needed; a worktree that has main checked out
 //     must be clean (a refusal names each dirty path, its mtime, main's
-//     last landing on it and the worktrees holding the same content, #965)
+//     last landing on it and the worktrees holding the same content)
 //     and is brought along after the move;
 //  5. resets the branch to the new main when its tree is identical, so
 //     the next task starts from main rather than re-landing the same diff;
@@ -400,8 +400,7 @@ var hashToken = regexp.MustCompile(`\b[0-9a-f]{7,40}\b`)
 // content it had before one of main's last revertWindow landings touched
 // it: a stale tree committed over a newer main. The fork point alone
 // cannot see this, since a stale tree re-parented onto main (git reset
-// --soft main, then commit) forks at main itself; that is how 6cbe9d337
-// undid 981ab0b9a (#946) after the fork-point check of #889 passed.
+// --soft main, then commit) forks at main itself.
 // Deleting a file counts only for files main added after the branch
 // forked (the oldest main landing any branch commit has as a parent;
 // later merges of main do not move it), so the branch's own deletions of

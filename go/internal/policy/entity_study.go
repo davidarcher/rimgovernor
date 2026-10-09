@@ -11,7 +11,7 @@ import (
 // relevant skill Intellectual, from the work type row native reports).
 const WorkDarkStudy WorkType = "DarkStudy"
 
-// The study rule (#1744, epic #1694): a held entity is studied by the
+// The study rule: a held entity is studied by the
 // game's own WorkGiver_DarkStudyInteract, which offers a job only while
 // CompStudiable.CurrentlyStudiable holds (decompile): the thing is ever
 // studiable, its study is enabled, the holding target's containment mode is

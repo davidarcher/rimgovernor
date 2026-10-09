@@ -6,12 +6,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Mine tiers order mining designations along the plan's mining zone (#792):
+// Mine tiers order mining designations along the plan's mining zone:
 // ore first, then the rock under dug rooms (walls included) and the cooler
 // exhaust shafts so the core's footprint is cleared ahead of growth, then the remaining stone as demand
 // calls for it. A dug store room (storeRoom) ranks between ore and the other
 // dug rooms: its zone waits on the dig and no stand-in store holds supplies
-// meanwhile (#2190). A cell off the plan, or no plan, is MineTierStone.
+// meanwhile. A cell off the plan, or no plan, is MineTierStone.
 const (
 	MineTierOre   = 0
 	MineTierStore = 1
@@ -51,7 +51,7 @@ func inRoomRing(in Rectangle, cell domain.Cell) bool {
 }
 
 // RoomRock is the shared rock step (RockStep) over the cells a planned
-// room's shell waits on (#836): its door and interior and, for a cooled
+// room's shell waits on: its door and interior and, for a cooled
 // room, its cooler's wall cell and exhaust shaft, mined before the ring so
 // the ring walls the cooler cell and the room is never left open, then the
 // cell outside the door and the corridor outward from it. All of them are
@@ -139,9 +139,9 @@ func manhattan(a, b domain.Cell) int32 {
 }
 
 // ExhaustRock is the shared rock step over a standing room's planned cooler
-// wall cell and exhaust shaft (#836). The cooler cell is in Dig while the
+// wall cell and exhaust shaft. The cooler cell is in Dig while the
 // room's back wall is still rock: mining it would open the room, so the
-// caller mines it only in the plan that places the cooler there (#874).
+// caller mines it only in the plan that places the cooler there.
 func (p LayoutPlan) ExhaustRock(room PlannedRoom, cells []SiteCell) (RockStepResult, bool) {
 	site, area, ok := p.CoolerExhaust(room)
 	if !ok {

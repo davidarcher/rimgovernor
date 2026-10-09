@@ -11,7 +11,7 @@ namespace HomeBridge.BridgeTools {
    if(command==null||!command.HasBenchId||!ProtoBoundary.IsIdentifier(command.BenchId)||!command.HasRecipeDef||!ProtoBoundary.IsIdentifier(command.RecipeDef)||s==null)return false;
    var expected=new Operations.BillSettings{RepeatMode=s.RepeatMode,TargetCount=s.TargetCount,UnpauseThreshold=s.UnpauseThreshold,PauseWhenSatisfied=s.PauseWhenSatisfied,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Ingredients=s.Ingredients?.Clone()};
    if(s.HasBeerReserve){if(!s.BeerReserve)return false;expected.BeerReserve=true;}
-   // Corpse bill (#833): a corpse recipe plus whose corpses it takes. A
+   // Corpse bill: a corpse recipe plus whose corpses it takes. A
    // humanlike butcher bill pins its worker.
    if(CorpseRecipe(command.RecipeDef)){
     if(!s.HasCorpseClass||!Enum.IsDefined(typeof(Common.CorpseClass),s.CorpseClass)||s.CorpseClass==Common.CorpseClass.Unspecified)return false;
@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools {
     return s.Equals(corpse);
    }
    // A finite batch (gear, sculpture): repeat a count of times, no target.
-   // It may pin one worker (#1190: an art bill per artist).
+   // It may pin one worker (an art bill per artist).
    if(s.RepeatMode==Operations.RepeatMode.Count)
     return !s.HasBeerReserve&&s.HasRepeatCount&&s.RepeatCount>=1&&s.RepeatCount<=10000&&(s.Worker==null||s.Worker.ValueCase==Operations.Assignment.ValueOneofCase.EntityId&&ProtoBoundary.IsIdentifier(s.Worker.EntityId))&&s.Equals(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Count,RepeatCount=s.RepeatCount,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Ingredients=s.Ingredients?.Clone(),Worker=s.Worker?.Clone()});
    return s.Equals(expected)&&s.RepeatMode==Operations.RepeatMode.Target&&s.HasTargetCount&&s.TargetCount>=1&&s.TargetCount<=10000&&s.HasUnpauseThreshold&&s.UnpauseThreshold==Math.Max(1,s.TargetCount/2)&&s.HasPauseWhenSatisfied&&s.PauseWhenSatisfied;

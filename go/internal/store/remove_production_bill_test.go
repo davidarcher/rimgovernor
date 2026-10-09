@@ -33,7 +33,7 @@ func billPlan(t *testing.T) (domain.PlanSpec, domain.RemoveProductionBill) {
 	return p, removal
 }
 
-// A remove_production_bill (#2410) persists its bench and native bill id.
+// A remove_production_bill persists its bench and native bill id.
 func TestRemoveProductionBillRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -56,7 +56,7 @@ func TestRemoveProductionBillRoundTrips(t *testing.T) {
 }
 
 // An applied bill placement journals the native bill id against its action
-// and the id survives a reopen (#2410); an action never placed carries none.
+// and the id survives a reopen; an action never placed carries none.
 func TestBillReceiptJournalsNativeBillID(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

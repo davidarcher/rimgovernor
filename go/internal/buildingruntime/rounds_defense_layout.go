@@ -26,30 +26,30 @@ import (
 // the first layout affordable (native Sandbags need fabric or leather, which
 // a young colony rarely holds; a wooden Barricade gives the same 0.55 cover;
 // policy.DefenseCoverChoice swaps in Sandbags once the stock covers them and
-// names the Embrasure where the game has one, #868);
+// names the Embrasure where the game has one);
 // MaintainStoneShell upgrades flammable walls afterwards through its own goal.
 // The wood floor under each shooter needs no research and keeps the firing
-// cell free of the trees that grew onto it before (#224).
+// cell free of the trees that grew onto it before.
 var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Barricade", SandbagStuff: "WoodLog", Wall: "Wall", WallStuff: "WoodLog", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog", Door: "Door", DoorStuff: "WoodLog", Floor: "WoodPlankFloor", Bait: "Stool", BaitStuff: "WoodLog"}
 
-// The powered turret tier (#61): the mini turret needs no rearming, and a
+// The powered turret tier: the mini turret needs no rearming, and a
 // conduit chain connects it to the network. Both are planning definitions
 // the reviewer's census is asked for, so availability (research, content),
 // draw and cost are observed, never assumed. policy.TurretBudget bounds the
-// tier by the observed raid points (#396); each turret costs steel and
+// tier by the observed raid points; each turret costs steel and
 // components the colony may need first.
 const (
 	// defenseTurretDefinition is the ladder's bottom rung; the tier places
-	// the highest rung the armory tier allows and its gates open (#1210).
+	// the highest rung the armory tier allows and its gates open.
 	defenseTurretDefinition  = policy.TurretMini
 	defenseConduitDefinition = "HiddenConduit"
-	// defenseMortarDefinition is the mortar tier (#1206): research-gated
+	// defenseMortarDefinition is the mortar tier: research-gated
 	// through its planning definition, unpowered, budgeted by
 	// policy.MortarBudget.
 	defenseMortarDefinition = "Turret_Mortar"
 )
 
-// The approach IEDs (#1209), each gated on its own research and content.
+// The approach IEDs, each gated on its own research and content.
 const (
 	defenseIEDHighExplosive = "TrapIED_HighExplosive"
 	defenseIEDIncendiary    = "TrapIED_Incendiary"
@@ -84,7 +84,7 @@ func defenseDefinitionAvailable(read observation.RoundsReading, name string) boo
 var defenseTierOrder = []policy.DefenseTierName{policy.TierChokepoint, policy.TierFiringLine, policy.TierFunnel, policy.TierTrapCorridor, policy.TierTurrets, policy.TierMortars, policy.TierBait, policy.TierIEDs}
 
 // defenseRoamerOwned reports a roamer (a race that needs a pen) in the animal
-// census. An unknown census or row is not one: ordering stays unchanged (#2230).
+// census. An unknown census or row is not one: ordering stays unchanged.
 func defenseRoamerOwned(projection observation.ColonyProjection) bool {
 	animals, known := projection.Facts.AnimalUpkeep.Animals.Value()
 	if !known {
@@ -101,7 +101,7 @@ func defenseRoamerOwned(projection observation.ColonyProjection) bool {
 // defenseTierSequence is the order tiers are built in: the fixed tiers, then
 // the perimeter sections, with a replacement's removal before the turret
 // tier. With a roamer owned, the core ring's unbuilt sections (and so its
-// gates) come first, so the paddock closes sooner (#2230).
+// gates) come first, so the paddock closes sooner.
 func defenseTierSequence(record store.DefenseLayoutRecord, roamerOwned bool) []policy.DefenseTierName {
 	order := append([]policy.DefenseTierName{}, defenseTierOrder...)
 	var ring []policy.DefenseTierName
@@ -167,7 +167,7 @@ func NewRoundsDefenseLayoutPlanner(reviewer *Rounder, native RoundsDefenseLayout
 // with a fresh method rather than counted as built, up to a small bound per
 // repair. A tier the census re-opened after it stood (a sprung trap, a
 // breached wall) restarts its attempts under the next repair number, so
-// the repair's plan id never collides with the plan that built it (#331).
+// the repair's plan id never collides with the plan that built it.
 const maxDefenseTierAttempts = 4
 
 func defenseTierPrefix(tier policy.DefenseTierName) string { return "defense-" + string(tier) + "-" }
@@ -213,7 +213,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	if !found || goal.Project.Status != domain.ProjectOpen {
 		return RoundsDefenseLayoutResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	// A fight waiting behind its rooms' doors (#1065) hardens them whether
+	// A fight waiting behind its rooms' doors hardens them whether
 	// or not the layout itself is short.
 	wait, err := defenseWaitingFight(call, p.journal, world)
 	if err != nil {
@@ -223,7 +223,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		return RoundsDefenseLayoutResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// Open perimeter tiers do not hold the layout: more of the wall is admitted
-	// beside them while the stock funds it (#2316). Any other open plan, or a
+	// beside them while the stock funds it. Any other open plan, or a
 	// fight, still does.
 	pipe, pipelinable, err := defenseOpenTiers(goal, func(id domain.PlanID) (store.PlanState, error) { return p.journal.LoadPlan(call, id) })
 	if err != nil {
@@ -239,7 +239,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	if err != nil {
 		return RoundsDefenseLayoutResult{}, err
 	}
-	// A layout from before the plan's killbox (#789) is proposed afresh.
+	// A layout from before the plan's killbox is proposed afresh.
 	stored = stored && record.Anchored
 	if stored && record.World != world {
 		// A reload of the same colony: the geometry is on the map, but which
@@ -320,7 +320,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	} else if recut, err := defensePerimeterTiers(&record, read); err != nil {
 		return RoundsDefenseLayoutResult{}, err
 	} else if recut {
-		// The plan's perimeter changed (#954): the new cut is built
+		// The plan's perimeter changed: the new cut is built
 		// behind removals of what it no longer wants.
 		defenseAction(call, "defense-layout", slog.LevelInfo, "applied", "perimeter_recut", "perimeter", map[string]any{"revision": record.PerimeterRevision})
 		if err = p.journal.SaveDefenseLayout(call, record); err != nil {
@@ -352,7 +352,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		}
 	}
 	// The mortar tier follows the same way once mortar research and the
-	// raid points' budget open its gates (#1206).
+	// raid points' budget open its gates.
 	if !pipe.piped() && len(definitions) > 0 && defenseMortarsDue(record, expected.Tick) {
 		if request := defenseMortarRequest(read); request.MortarGatesOpen() {
 			if err = r.proposeMortars(call, state, read, &record); err != nil {
@@ -361,7 +361,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		}
 	}
 	// A standing turret below the armory's rung is replaced in place, one
-	// at a time (#1210).
+	// at a time.
 	if !pipe.piped() && len(definitions) > 0 && stored && defenseReplaceDue(record, expected.Tick) {
 		if err = r.replaceTurret(call, state, read, &record); err != nil {
 			return RoundsDefenseLayoutResult{}, err
@@ -468,7 +468,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 	// lost conduit is re-placed above once the census misses it; an empty
 	// barrel is rearmed below, or its fuel raised as a resource need). A
 	// solar flare darkens every turret for the outage: the tier is absent
-	// for its duration, not a deficit (#408).
+	// for its duration, not a deficit.
 	workers, _ := read.Projection.WorkPawns.Value()
 	upkeep := policy.DefenseRearmTurrets(defenseTurretFacts(record, census), workers, read.Projection.Resources, policy.PowerOutageHold(read.Projection.Facts.DisasterConditions))
 	if err = p.journal.SaveDefenseLayout(call, record); err != nil {
@@ -485,7 +485,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		return RoundsDefenseLayoutResult{Verdict: awaitingPlan(subject, ""), Tier: policy.TierTurrets}, nil
 	}
 	// The line stands: raider cover inside its engagement zone is the
-	// remaining deficit (#581).
+	// remaining deficit.
 	if result, handled, err := r.clearCover(call, epoch, goal, review, state, read, record); handled || err != nil {
 		return result, err
 	}
@@ -630,7 +630,7 @@ func defenseMortarRequest(read observation.RoundsReading) policy.DefenseRequest 
 	return request
 }
 
-// defenseUnitPrice prices a defense unit (#1731): a def not made from stuff
+// defenseUnitPrice prices a defense unit: a def not made from stuff
 // from its cost list, a stuffed one from the allowed stocked stuff with the
 // most hit points per cost (a rich colony's plasteel falls out of this). Not
 // ok when a stuffed def has nothing stocked (an unknown stock stocks nothing)
@@ -700,7 +700,7 @@ type defenseCensus struct {
 	conduits  map[domain.Cell]bool
 	consumers map[domain.Cell]policy.PowerSite
 	// cover identifies the removable thing on each cell, unbridging the
-	// cells whose foundation is designated for removal (#954).
+	// cells whose foundation is designated for removal.
 	cover      map[domain.Cell]*bridge.DefenseCover
 	unbridging map[domain.Cell]bool
 	// fogged is the cells the census could not see: their facts are unknown, so a tier
@@ -725,8 +725,8 @@ func (c *defenseCensus) standing(definition string, cell domain.Cell) bool {
 // routine reading: the turret and conduit planning definitions (availability
 // re-checked against the research snapshot's finished projects), the
 // network with the most spare watts and the conduits that carry it, the
-// stock census, and the budget the census's observed raid points buy
-// (#341); an unknown reading keeps the base budget.
+// stock census, and the budget the census's observed raid points buy;
+// an unknown reading keeps the base budget.
 func defenseTurretRequest(read observation.RoundsReading) policy.DefenseRequest {
 	projection := read.Projection
 	request := policy.DefenseRequest{Definitions: defenseDefinitions, UnitCosts: map[string][]policy.Amount{}}
@@ -787,7 +787,7 @@ func defenseTurretRequest(read observation.RoundsReading) policy.DefenseRequest 
 	return request
 }
 
-// defenseTurretRung is the turret definition the tier places (#1210): the
+// defenseTurretRung is the turret definition the tier places: the
 // highest rung the armory tier (raid points capped by research) allows
 // whose planning definition is observed available, else the mini turret.
 func defenseTurretRung(read observation.RoundsReading) string {
@@ -812,7 +812,7 @@ func defenseTurretSize(read observation.RoundsReading, definition string) policy
 }
 
 // defenseTurretReplacePrefix names the removal tier that deconstructs one
-// standing turret for a higher rung rebuilt on its cell (#1210); the name
+// standing turret for a higher rung rebuilt on its cell; the name
 // carries the cell and the new rung so each replacement's methods are
 // keyed apart.
 const defenseTurretReplacePrefix = "turrets-replace-"
@@ -834,7 +834,7 @@ func defenseReplaceDue(record store.DefenseLayoutRecord, tick domain.Tick) bool 
 }
 
 // defenseReplaceTurret replaces one standing turret below the current rung
-// in place (#1210): never while a hostile is on the map (combat or a raid
+// in place: never while a hostile is on the map (combat or a raid
 // on its way in), one at a time. The chosen turret goes into a removal tier
 // ordered before the turret tier, and the turret tier records the new rung
 // on the same anchor, so the census re-opens it and the missing building is
@@ -1047,7 +1047,7 @@ func defenseReverifyDue(record store.DefenseLayoutRecord, tick domain.Tick, comb
 }
 
 // defenseCombatKey identifies the world's latest ActiveCombat incident, open
-// or closed (#1020): each raid opens a new one, so a changed key marks a
+// or closed: each raid opens a new one, so a changed key marks a
 // combat whose aftermath the layout has not verified. Empty before the
 // first combat.
 func defenseCombatKey(ctx context.Context, p *Player, review store.Rounds) (string, error) {
@@ -1062,7 +1062,7 @@ func defenseCombatKey(ctx context.Context, p *Player, review store.Rounds) (stri
 // defenseTierCensus applies one census to the record: a tier whose
 // buildings all stand is Built; a Built tier that lost a building is
 // re-opened with a fresh retry budget. A removal tier none of whose
-// buildings stands any more is done and leaves the record (#954). It
+// buildings stands any more is done and leaves the record. It
 // reports whether anything changed.
 func defenseTierCensus(record *store.DefenseLayoutRecord, census *defenseCensus) bool {
 	gone := len(record.Tiers)
@@ -1105,7 +1105,7 @@ func (r *RoundsDefenseLayoutPlanner) observeTiers(call context.Context, state Co
 		cover: map[domain.Cell]*bridge.DefenseCover{}, unbridging: map[domain.Cell]bool{}, fogged: map[domain.Cell]bool{}}
 	// One read covers the killbox and every perimeter section: each native
 	// read costs a frame on a running clock, so a read per section outlasts
-	// the optional planner cutoff and the ring is never admitted (#1360).
+	// the optional planner cutoff and the ring is never admitted.
 	site, _, err := r.native.ReadDefenseSite(call, boundary.Identity(state.Snapshot), defenseCensusRegion(*record, projection.Bounds))
 	if err != nil {
 		return nil, err
@@ -1190,7 +1190,7 @@ func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal s
 	request := defenseTurretRequest(read)
 	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
 	// Observed arrivals rank the sectors; the bait tier stands only on a
-	// sector a raid used (#1063).
+	// sector a raid used.
 	request.Arrivals, request.Tick = defenseArrivals(site.Raids, region), projection.Identity.Tick
 	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
 	for _, cell := range site.Cells {
@@ -1215,7 +1215,7 @@ func (r *RoundsDefenseLayoutPlanner) propose(call, epoch context.Context, goal s
 		return policy.DefenseLayout{}, nil, Verdict{}, false, err
 	}
 	// Rock on the corridor and the defenders' ground is mined first through
-	// the shared rock step (#1701, #1588); the layout waits on that dig.
+	// the shared rock step; the layout waits on that dig.
 	if rock, digErr := policy.DefenseRockCells(request); digErr == nil {
 		result, handled, err := r.digKillbox(call, epoch, goal, review, state, read, request.Home, rock)
 		if err != nil || handled {
@@ -1302,7 +1302,7 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 	priceUnknown := false
 	// One native call per placement batch previews the whole tier: a
 	// perimeter tier is over a hundred cells, and a preview per cell
-	// outlasted the optional wave's wall on a slow runner every step (#1248).
+	// outlasted the optional wave's wall on a slow runner every step.
 	candidates := make([]domain.Action, 0, len(buildings))
 	for i, building := range buildings {
 		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), building)
@@ -1384,7 +1384,7 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 	}
 	// The audit blocks every placement of the whole layout that colonists
 	// cannot pass (defenseAuditBlocks). Colonists price their known traps
-	// and the hallway keeps them a trap-free route (#619, #1544); trap
+	// and the hallway keeps them a trap-free route; trap
 	// cells are kept off their resting positions separately.
 	blocked := map[domain.Cell]bool{}
 	var blockedCells []domain.Cell
@@ -1400,7 +1400,7 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 		}
 	}
 	// Perimeter blueprints and frames are walkable; native completion guards
-	// unfinished neighbours and colonist access (#2314). Gates belong to the layout.
+	// unfinished neighbours and colonist access. Gates belong to the layout.
 	if !policy.IsPerimeterTier(tier.Name) {
 		targets := append([]domain.Cell{record.Entry}, record.Entrances...)
 		access, _, err := r.native.ReadSpatialAccess(call, boundary.Identity(state.Snapshot), blockedCells, targets, nil)
@@ -1529,7 +1529,7 @@ const (
 
 // defensePerimeterBridge is what water under the wall takes: a heavy
 // bridge (and a stone wall) once researched, else a plain bridge (and a
-// wooden wall) (#949).
+// wooden wall).
 func defensePerimeterBridge(projection observation.ColonyProjection) string {
 	if research, known := projection.Facts.Research.Value(); known && slices.Contains(research.Finished, policy.ResearchProjectID(policy.PerimeterHeavyResearch)) {
 		return policy.PerimeterHeavyBridge
@@ -1548,11 +1548,11 @@ func defenseNeedsStone(buildings []domain.Building) bool {
 }
 
 // defenseTerrain is a definition laid as terrain, not an edifice: the
-// firing-line floor and the perimeter's bridges (#949).
+// firing-line floor and the perimeter's bridges.
 // defenseAuditBlocks reports whether a layout placement is impassable to
 // colonists in the access audit: walls and turrets are. A spike trap is
 // walked, a fence or a barricade climbed (the killbox's fence bar is on
-// the raiders' route too, priced by pathFenceCost, #1544), a colonist
+// the raiders' route too, priced by pathFenceCost), a colonist
 // opens the colony's own door, and a conduit or a floor lies under the
 // pawn.
 func defenseAuditBlocks(definition string) bool {
@@ -1596,7 +1596,7 @@ func defensePerimeterStone(projection observation.ColonyProjection, buildings []
 	return best, best != "" && most >= need
 }
 
-// defenseKillbox reads the layout plan's killbox opening (#789): the anchor
+// defenseKillbox reads the layout plan's killbox opening: the anchor
 // the corridor stands in, the census region around it and the home cell
 // deep inside. ok is false until the plan (B1) holds an opening; the layout
 // waits for it.
@@ -1693,7 +1693,7 @@ func defenderRange(rows []*o.PawnState, arms armament) (int, domain.Fact[float64
 	return count, domain.Known(shortest), nil
 }
 
-// defenseIEDRequest adds the approach IEDs (#1209) the census allows, each
+// defenseIEDRequest adds the approach IEDs the census allows, each
 // gated independently and carrying its native explosive radius, and every
 // stockpile cell as the flammable storage their blast must avoid. A zone
 // census not yet held leaves storage unknown, which places no IED.

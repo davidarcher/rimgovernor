@@ -13,8 +13,8 @@ import (
 // ColonyStatus is the read-only live colony census this route fronts
 // (buildingruntime.ColonyStatus): the food stock and runway the routine
 // reviewer judges from plus every living home colonist's state, so a
-// sustained run's harness can sample the colony beside the concern it watches
-// (issue #261). It never accepts a request body.
+// sustained run's harness can sample the colony beside the concern it watches.
+// It never accepts a request body.
 type ColonyStatus interface {
 	Read(context.Context) (buildingruntime.ColonyStatusReport, error)
 }
@@ -22,9 +22,9 @@ type ColonyStatus interface {
 // colonyStatusDTO is one census; unknown facts are null. downed and
 // moodMean are derived from the roster (moodMean over the colonists whose
 // mood was readable, null when none was). raidPoints and the wealth split
-// are the census's threat section (#395). playerTechLevel is the faction's
+// are the census's threat section. playerTechLevel is the faction's
 // native TechLevel name and techTier the research-derived construction
-// tier (#604), null until a Rounds pass with the research census filed.
+// tier, null until a Rounds pass with the research census filed.
 type colonyStatusDTO struct {
 	FoodPlan             *foodPlanDTO      `json:"foodPlan"`
 	FoodPlanTick         *domain.Tick      `json:"foodPlanTick"`
@@ -63,7 +63,7 @@ type colonyStockpileDTO struct {
 	Used  int    `json:"used"`
 }
 
-// colonyShrineDTO is one ancient shrine (#456): the casket group, whether
+// colonyShrineDTO is one ancient shrine: the casket group, whether
 // its room is still sealed and, once seen inside, whether guards survive.
 type colonyShrineDTO struct {
 	ID            string `json:"id"`
@@ -74,7 +74,7 @@ type colonyShrineDTO struct {
 	GuardsKnown   bool   `json:"guardsKnown"`
 	GuardsAlive   bool   `json:"guardsAlive"`
 	BreachWalls   int    `json:"breachWalls"`
-	// Ready and Reason are the breach judgement (#457); Reason is empty when
+	// Ready and Reason are the breach judgement; Reason is empty when
 	// ready and null when the judgement was not made.
 	Ready  *bool   `json:"ready"`
 	Reason *string `json:"reason"`
@@ -88,8 +88,8 @@ type colonyStatusPawnDTO struct {
 	Downed *bool         `json:"downed"`
 	Mood   *float64      `json:"mood"`
 	Food   *float64      `json:"food"`
-	// Share, Spent and Remaining are the colonist's personal wealth share
-	// (#1846), what they have attributed to them now and what is left; null
+	// Share, Spent and Remaining are the colonist's personal wealth share,
+	// what they have attributed to them now and what is left; null
 	// when the held colony facts are missing or stale, or the colonist has no
 	// share (a slave) or an input is unread.
 	Share     *float64 `json:"share"`
@@ -174,8 +174,8 @@ type foodPlanDTO struct {
 	DemandPerDay    float64            `json:"demandPerDay"`
 	GapPerDay       float64            `json:"gapPerDay"`
 	Explain         string             `json:"explain"`
-	// PetShortfalls are the non-colonist consumers below the minimum runway
-	// (#708); the colony runway no longer carries their need.
+	// PetShortfalls are the non-colonist consumers below the minimum runway;
+	// the colony runway no longer carries their need.
 	PetShortfalls []petShortfallDTO `json:"petShortfalls"`
 }
 

@@ -41,7 +41,7 @@ type serviceRoundsDiagnostics struct {
 	reviewsEnabled bool
 	methodsEnabled bool
 	families       []string
-	// sections is the state store the clock scheduler fills (#354); nil
+	// sections is the state store the clock scheduler fills; nil
 	// without clock control.
 	sections *facts.Store
 }
@@ -94,7 +94,7 @@ func (s serviceRoundsDiagnostics) RoundsStatus(ctx context.Context) (httpapi.Rou
 				for _, b := range buildings.Buildings {
 					ids = append(ids, b.ID)
 				}
-				// Every census stockpile (#719): a target with zone geometry.
+				// Every census stockpile: a target with zone geometry.
 				for _, t := range home.Targets {
 					if g, known := t.ExtentGeometry.Value(); known && len(g.Zone) > 0 {
 						ids = append(ids, t.ID)
@@ -121,24 +121,10 @@ type serviceClockReads interface {
 	buildingruntime.ClockEventNative
 }
 
-// Window policy. A routine window runs defaultClockWindowTicks (one game
-// day, the review guarantee of #126) unless danger or player input stops it
-// earlier (#244, #584): the planners review and the Worker dispatches under
-// the running window, so the stop between windows is the exception, not the
-// review cadence. (The --clock-window-ticks override was removed in #875.)
-//
-// The default stays at a day. The review inputs that once reached the
-// controller only through a review now have journal rows: the native
-// digests cover research, faction relations, game conditions and zone
-// edits (#626), a growing zone turning harvestable and a stock crossing a
-// MaintainResource floor (#670). Raising the default is #669.
-//
-// A raid runs in combat windows that stop natively on the tick an armed
-// combat event happens (#849); combatBackstopTicks bounds a window in which
-// none does. 300 ticks is five game seconds at Normal: about one aimed
-// shot cycle plus a few cells of a charge, so a fight that produced no
-// event is still re-decided before it can drift far from the last plan,
-// while a quiet siege does not stop more often than the planners take.
+// Routine windows run for up to one game day; native events or player input stop
+// them earlier. Planners review and dispatch while the window runs.
+// Combat events stop raid windows immediately; the 300-tick backstop keeps
+// uneventful fights within roughly one shot cycle of their last decision.
 const (
 	defaultClockWindowTicks = 60000
 	combatBackstopTicks     = 300
@@ -148,16 +134,12 @@ const (
 
 func serviceClockConfig(profile string, testAcceleration bool, windowTicks, blindTicks uint32) buildingruntime.ClockSchedulerConfig {
 	return buildingruntime.ClockSchedulerConfig{
-		// MaxAge bounds how stale the admission reads (status, emergency)
-		// may be by the time EvaluateClockWindow admits a window. The
-		// planner facts are bound by tick instead (FactsTick), so the step
-		// budget no longer constrains it; it stays at the step timeout so
-		// a slow admission read under peer load still admits.
+		// MaxAge bounds admission-read staleness; planner facts use FactsTick.
 		Profile: profile, MaxAge: serviceClockStepTimeout,
 		CombatMaxTicks: min(combatBackstopTicks, windowTicks),
 		// Every window runs at Ultrafast whatever the native speed controls say;
-		// serve --follow-player-speed opts back into the player's own speed
-		// (#875); the dev tick boost makes every window boosted Ultrafast.
+		// serve --follow-player-speed opts back into the player's own speed;
+		// the dev tick boost makes every window boosted Ultrafast.
 		FollowPlayerSpeed: false,
 		Start: bridge.ClockStart{Speed: k.Speed_SPEED_ULTRAFAST, TestAcceleration: testAcceleration, PlayerAccelerated: !testAcceleration, LeaseMS: 30000, MaxTicks: windowTicks, BlindTickBudget: blindTicks,
 			Policy: &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(),
@@ -166,12 +148,8 @@ func serviceClockConfig(profile string, testAcceleration bool, windowTicks, blin
 	}
 }
 
-// serviceClockStepTimeout budgets one scheduler step: the rounds
-// census plus every composed planner's native reads. It matches the Player's
-// CallTimeout (serve_building.go) and is independent of the epoch lease. Under
-// peer load (several headless RimWorld instances on one machine) a planner
-// read alone can exceed the lease-bound 7s renew budget, which used to time
-// out every step so no clock window was ever admitted (issue #73).
+// serviceClockStepTimeout budgets census and composed planner reads independently
+// of epoch renewal. It matches Player.CallTimeout.
 const serviceClockStepTimeout = time.Minute
 
 // serviceClockTimeouts sizes the worker loops. Poll and renew share the
@@ -180,11 +158,8 @@ const serviceClockStepTimeout = time.Minute
 // enough to let the native epoch lapse. The step has no lease constraint.
 func serviceClockTimeouts(callTimeout time.Duration) serviceClockTimeoutConfig {
 	lease := min(callTimeout, 7*time.Second)
-	// The journal read is never held: the mod announces journal advances on
-	// the rimgovernor.clock channel and the poll reads the page after each
-	// (#2070). SignalWait only bounds how long a lost announcement waits;
-	// the held read's #115 serialization stall cannot recur, so the
-	// side-effect gate it needed is gone.
+	// Journal announcements trigger page reads. SignalWait bounds recovery from
+	// a lost announcement without holding a native read open.
 	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout, SignalWait: serviceClockSignalWait, RunningPoll: 0}
 }
 
@@ -226,7 +201,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	config.Worker = true
 	config.WorldReady = worldReady
 	config.Autosave = autosave
-	// Acceptance fault injection (#633): a failing or hanging planner, a
+	// Acceptance fault injection: a failing or hanging planner, a
 	// dropped renewal. Off unless the environment names one.
 	faults, err := buildingruntime.ParseFaults(os.Getenv(buildingruntime.FaultsEnv))
 	if err != nil {
@@ -249,7 +224,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			return nil, errors.New("rounds require typed colony and emergency observations")
 		}
 		thresholds, capabilities := roundsCapabilities(sc)
-		// The undraft sweep releases drafts no live plan needs (#939).
+		// The undraft sweep releases drafts no live plan needs.
 		if client, ok := reads.(*bridge.Client); ok {
 			if capabilities.Undraft, err = bridge.NewActionsWriter(client); err != nil {
 				return nil, err
@@ -291,7 +266,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 		}
 		if sc.roundsArtPlans {
-			// MaintainArt's pinned sculpture bills (#1190) are their own
+			// MaintainArt's pinned sculpture bills are their own
 			// family, apart from the food bills.
 			nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
 			if !ok {
@@ -303,7 +278,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 		}
 		if sc.roundsMechPlans {
-			// MaintainMechs' gestation bills (#1686) are their own bill family.
+			// MaintainMechs' gestation bills are their own bill family.
 			nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
 			if !ok {
 				return nil, errors.New("mech bills require typed preview")
@@ -383,7 +358,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
-		// Shelves (#721) serve the stockpiles the methods create.
+		// Shelves serve the stockpiles the methods create.
 		if stockpiles {
 			if shelvesNative, ok := reads.(buildingruntime.RoundsStorageShelvesSource); ok {
 				if config.StorageShelves, err = buildingruntime.NewRoundsStorageShelvesPlanner(reviewer, shelvesNative); err != nil {
@@ -505,7 +480,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if err != nil {
 				return nil, err
 			}
-			// Parts a restore lacks are fabricated where researched (#1168).
+			// Parts a restore lacks are fabricated where researched.
 			if nativeBills, ok := reads.(buildingruntime.BillPlannerNative); ok {
 				config.SurgeryPartBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.SurgeryPartBill)
 				if err != nil {
@@ -592,19 +567,19 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 		}
 		if sc.roundsPermitPlans {
-			// MaintainPermits (#1606) plans from the review's royalty read.
+			// MaintainPermits plans from the review's royalty read.
 			if config.Permits, err = buildingruntime.NewRoundsPermitsPlanner(reviewer); err != nil {
 				return nil, err
 			}
 		}
 		if sc.roundsIdeoRolePlans {
-			// MaintainIdeoRoles (#1661) plans from the review's ideology section and pawn rows.
+			// MaintainIdeoRoles plans from the review's ideology section and pawn rows.
 			if config.IdeoRoles, err = buildingruntime.NewRoundsIdeoRolesPlanner(reviewer); err != nil {
 				return nil, err
 			}
 		}
 		if sc.roundsRitualPlans {
-			// MaintainRituals (#1660) plans from the review's ideology section, pawn rows, building table and emergency census.
+			// MaintainRituals plans from the review's ideology section, pawn rows, building table and emergency census.
 			if config.Rituals, err = buildingruntime.NewRoundsRitualsPlanner(reviewer); err != nil {
 				return nil, err
 			}
@@ -615,13 +590,13 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 		}
 		if sc.roundsCreepJoinerPlans {
-			// ManageCreepJoiners (#1740) plans from the review's frame; no read of its own.
+			// ManageCreepJoiners plans from the review's frame; no read of its own.
 			if config.CreepJoiners, err = buildingruntime.NewRoundsCreepJoinerPlanner(reviewer); err != nil {
 				return nil, err
 			}
 		}
 		if sc.roundsShelteringPlans {
-			// MaintainShelter (#1325) plans from the review's rooms; no read of its own.
+			// MaintainShelter plans from the review's rooms; no read of its own.
 			if config.MaintainShelter, err = buildingruntime.NewMaintainShelterPlanner(reviewer); err != nil {
 				return nil, err
 			}
@@ -758,7 +733,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 					return nil, err
 				}
 				// The solar-flare cook-ahead bill is the refrigeration
-				// goal's own method (#408), wired with its family rather than
+				// goal's own method, wired with its family rather than
 				// the cooking bills so a refrigeration-only service serves it.
 				nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
 				if !ok {
@@ -837,7 +812,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	}
 	if config.Flooring != nil && config.Firebreak != nil {
 		// MaintainFlooring paves the settled ring cells the firebreak
-		// review found (#1549).
+		// review found.
 		config.Flooring.SetFirebreakPave(config.Firebreak.Pave)
 	}
 	scheduler, err := buildingruntime.NewClockScheduler(player, session, reads, config, wallClock{})

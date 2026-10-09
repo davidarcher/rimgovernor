@@ -9,7 +9,7 @@ import (
 
 // clockLatchedOutcome is one terminal outcome the native clock latched for
 // an attempt the journal still shows in flight. The scheduler defers
-// admission while the Worker reconciles it (issue #162): the stop that
+// admission while the Worker reconciles it: the stop that
 // carried the outcome wakes the Worker and the step loop alike, and a
 // review that wins the player gate first would otherwise watch the settled
 // attempt again while its successor is still undispatched.
@@ -73,7 +73,7 @@ func (l *clockLatched) progressed(items []clockWorkItem) bool {
 // or prepared while none of that kind is dispatched, counting one hold on
 // each: the successor a planner just queued (or the Worker just unblocked)
 // has yet to be dispatched, and a window admitted first would run out its
-// whole budget watching nothing (issue #162). Each action is held at most
+// whole budget watching nothing. Each action is held at most
 // clockLatchedHoldMax steps over its life, so work the Worker cannot
 // dispatch (materials, a blocked cell) never parks the clock; the count
 // is forgotten once the action leaves those stages.
@@ -134,7 +134,7 @@ func (l *clockLatched) remember(events []WakeOutcome) {
 // outcome has been held its bound, and none while any other watched
 // attempt is in flight: that one is fresh to the native clock, so a window
 // admitted now has an outcome to latch, and the settled attempt reconciles
-// under it (issue #162).
+// under it.
 func (l *clockLatched) pending(items []clockWorkItem) []domain.ActionID {
 	l.mu.Lock()
 	defer l.mu.Unlock()

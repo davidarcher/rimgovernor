@@ -88,7 +88,7 @@ namespace HomeBridge.BridgeTools
                 if (stuff == null || stuff.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) != true
                     || !GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Contains(stuff)
                     || r.Backup.Any(id => Wall(map, id)?.Stuff != stuff)) return "Native stone replacement material changed";
-                // Go's material budget admitted the upgrade (#1354); live, only the stone itself is checked.
+                // Go's material budget admitted the upgrade; live, only the stone itself is checked.
                 var required = ThingDefOf.Wall.CostListAdjusted(stuff).Where(c => c.thingDef == stuff).Sum(c => c.count);
                 var available = map.listerThings.ThingsOfDef(stuff).Where(t => t.Spawned && !t.IsForbidden(Faction.OfPlayer)).Sum(t => t.stackCount);
                 if (available < required)
@@ -125,7 +125,7 @@ namespace HomeBridge.BridgeTools
             if (blocker != null) return blocker;
             // A demolition designation no record of this ledger claims (the
             // player's, placed under Manual) is adopted rather than preserved
-            // (#461): the game already accepted it, so the designator is
+            //: the game already accepted it, so the designator is
             // consulted only while the wall is still undesignated. A record
             // of this ledger on the wall is the caller's replay, refused upstream.
             if (map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null

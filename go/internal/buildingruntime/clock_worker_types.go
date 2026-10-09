@@ -36,7 +36,7 @@ type ClockPollResult struct {
 	Wake        []WakeOutcome
 	Invalidated []bridge.FactFamily
 	// InvalidatedSections are the store sections the same events
-	// narrowed to (clockPageSections, #625).
+	// narrowed to (clockPageSections).
 	InvalidatedSections []facts.Section
 	AuthorityChanged    bool
 	// Stopped reports that the committed page stopped the clock: the game

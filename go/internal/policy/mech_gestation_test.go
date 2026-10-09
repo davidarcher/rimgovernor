@@ -8,7 +8,7 @@ import (
 
 // Snapshot tests over recorded Biotech facts: the gestation goal stays
 // inside the mechanitor's free bandwidth (Total - Used - Gestation) and holds
-// while waste is uncleared (#1686).
+// while waste is uncleared.
 
 func gestCatalog() MechCatalog {
 	return MechCatalog{Kinds: map[string]MechKind{

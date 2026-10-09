@@ -7,8 +7,8 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// DecodeFoodSupply joins v's stocks to their things table rows (#1343) and
-// to their def rows in the definition catalog (#1733); known is false when
+// DecodeFoodSupply joins v's stocks to their things table rows and
+// to their def rows in the definition catalog; known is false when
 // the table misses a stock or no catalog is held, and the supply is then
 // unknown until a later frame. A stock whose def the catalog lacks is a
 // contract error.
@@ -24,7 +24,7 @@ func DecodeFoodSupply(v *o.FoodSupplyFacts, things bridge.Things, catalog *bridg
 	return supply, true, nil
 }
 
-// foodDef is what a food stock's def says about it (#1733): its raw
+// foodDef is what a food stock's def says about it: its raw
 // ingredient class (a raw meat is the meat class), whether its food type
 // includes vegetable or fruit, and for a corpse whether its race is humanlike.
 type foodDef struct {

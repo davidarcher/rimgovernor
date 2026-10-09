@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
             ? t.Map.designationManager.DesignationAt(t.Position, DesignationDefOf.Mine) != null
             : t.Map.designationManager.DesignationOn(t, DesignationDefOf.HarvestPlant) != null
                 || t.Map.designationManager.DesignationOn(t, DesignationDefOf.CutPlant) != null;
-        // Census designation age (#1043): the tick a designation was first
+        // Census designation age: the tick a designation was first
         // seen, per thing, dropped when the designation goes. Not persisted:
         // a new Game (load) starts it empty, so designations read fresh.
         private static Game? designationGame;
@@ -33,16 +33,16 @@ namespace HomeBridge.BridgeTools
             if (!designationSeen.TryGetValue(id, out var tick)) designationSeen[id] = tick = Find.TickManager.TicksGame;
             return tick;
         }
-        // Taken (#1043): any pawn's reservation, or a colonist's current job, targets the thing.
+        // Taken: any pawn's reservation, or a colonist's current job, targets the thing.
         internal static bool Taken(Thing t) => Taken(t, null);
         // reserved, when given, is the map's reserved things read once for a
-        // whole census instead of per row (#1295).
+        // whole census instead of per row.
         internal static bool Taken(Thing t, HashSet<Thing>? reserved) => (reserved != null ? reserved.Contains(t) : t.Map.reservationManager.AllReservedThings().Contains(t))
             || t.Map.mapPawns.FreeColonistsSpawned.Any(p => p.CurJob is Job job && (job.targetA.Thing == t || job.targetB.Thing == t || job.targetC.Thing == t
                 || job.targetQueueA?.Any(q => q.Thing == t) == true || job.targetQueueB?.Any(q => q.Thing == t) == true));
         internal static Designator DesignatorFor(Thing t) => t is Mineable ? (Designator)new Designator_Mine() :
             t.def.plant.IsTree ? new Designator_PlantsHarvestWood() : new Designator_PlantsHarvest();
-        // Plantation (#2292): a sown tree of a harvest-destroys crop standing in a growing zone. It is the one
+        // Plantation: a sown tree of a harvest-destroys crop standing in a growing zone. It is the one
         // growing-zone plant chop acquisition may take (early felling); crops and wild trees stay as they were.
         internal static bool Plantation(Plant plant) => plant.sown && plant.def.plant.IsTree && plant.def.plant.HarvestDestroys
             && plant.Map.zoneManager.ZoneAt(plant.Position) is Zone_Growing;
@@ -59,11 +59,11 @@ namespace HomeBridge.BridgeTools
         }
 
         // A deposit may be mined under roof when it is not the last holder of
-        // any roof cell (#986). The check reads the true map through fog, as
+        // any roof cell. The check reads the true map through fog, as
         // the game does for collapse. A pending collapse is transient and
         // map-wide, so it is a wait (CollapsePending), never a blocker, and
         // support is judged only while none is pending (MineSafetyRule). Ore
-        // is always mineable (#1133): a building, blueprint or frame beside
+        // is always mineable: a building, blueprint or frame beside
         // the rock does not protect it. The roof rule covers what its removal
         // can bring down, and ReplaceWall walls what it opens.
         internal static string? MiningBlocker(Thing t, Map map)
@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
 
         // A mined cell that borders a zone or Home opens protected colony
         // space, so the mine is followed by an ordinary wall blueprint on it
-        // in the most-stocked wall material (#1133).
+        // in the most-stocked wall material.
         internal static bool OpensProtectedSpace(IntVec3 cell, Map map) => GenAdj.CellsAdjacent8Way(new TargetInfo(cell, map)).Concat(new[] { cell })
             .Any(c => c.InBounds(map) && (map.zoneManager.ZoneAt(c) != null || map.areaManager.Home[c]));
         internal static void ReplaceWall(IntVec3 cell, Map map)
@@ -92,7 +92,7 @@ namespace HomeBridge.BridgeTools
             GenConstruct.PlaceBlueprintForBuild(ThingDefOf.Wall, cell, map, Rot4.North, Faction.OfPlayer, stuff);
         }
 
-        // Buried ore (#1072): a mineable deposit whose roof support holds and
+        // Buried ore: a mineable deposit whose roof support holds and
         // that no colonist can reach, usually because it sits in fog. It is
         // not mined directly; Go tunnels a corridor to it first, and the
         // excavation re-checks support per cell at dispatch.

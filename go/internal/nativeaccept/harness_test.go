@@ -73,8 +73,7 @@ func TestOutcomeRequiresExactlyOneNamedCase(t *testing.T) {
 
 // A lifecycle call's own timeoutMs sizes the bridge deadline: loading a save
 // or generating a world legitimately outlasts an ordinary read, and cutting
-// it at the session timeout reported a bounded wait as a transport failure
-// (#663).
+// it at the session timeout reported a bounded wait as a transport failure.
 func TestCoverNativeWaitRaisesTheDeadlineToTheRequestedWait(t *testing.T) {
 	for _, tc := range []struct {
 		args string

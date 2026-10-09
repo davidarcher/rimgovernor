@@ -22,7 +22,7 @@ func TestEventLootRestartAdmissionAndReset(t *testing.T) {
 	cell := domain.Cell{X: 70, Z: 80}
 	row := policy.LootItem{Supply: supplyCohort(1, cell)[0], Forbidden: true, SafeToHaul: true, SafetyKnown: true}
 	// A safe forbidden stack outside any known extent is a reach hold, not
-	// an Allow (#522); the base extent covering its cell admits it.
+	// an Allow; the base extent covering its cell admits it.
 	r.Facts.EventLoot = domain.Known([]policy.LootItem{row})
 	out := reviewRounds(t, s, &r)
 	if len(out.Review.EventLoot.Pending) != 0 || len(out.Review.EventLoot.Held) != 1 || out.Review.EventLoot.Held[0].Reason != "bounds_unknown" {
@@ -100,7 +100,7 @@ func TestSafetyForbidPersistsAsDistinctAction(t *testing.T) {
 }
 
 // An item the safety census later reports unsafe is no longer cohort work, so
-// the plan that allows it is refused (#1018). Unsafe loot raises no
+// the plan that allows it is refused. Unsafe loot raises no
 // emergency.
 func TestUnsafeItemAllowRefusedAfterCensus(t *testing.T) {
 	t.Parallel()
@@ -133,7 +133,7 @@ func TestUnsafeItemAllowRefusedAfterCensus(t *testing.T) {
 	}
 	snapshot := request.Current
 	snapshot.Plan, snapshot.Revision = plan.ID(), plan.Revision()
-	// The action Safeguard (#1018) vetoes at dispatch, after a prepare the
+	// The action Safeguard vetoes at dispatch, after a prepare the
 	// goal's own admission accepts.
 	for _, action := range plan.Actions() {
 		if _, err := s.Prepare(ctx, plan.ID(), action.ID(), snapshot, request.Tick); err != nil {

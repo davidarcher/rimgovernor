@@ -2,7 +2,7 @@ package domain
 
 import "errors"
 
-// SurgeryAction queues one medical operation bill on one patient (#1162): a
+// SurgeryAction queues one medical operation bill on one patient: a
 // medical ProductionBillIntent on Actions/Apply. Native re-checks the patient, recipe and
 // part live; native doctor jobs choose the surgeon. Applied means queued.
 const SurgeryAction ActionKind = "surgery"
@@ -14,7 +14,7 @@ const NoSurgeryPart = -1
 // defName, the body part index in the race body's AllParts (NoSurgeryPart
 // for a whole-body recipe) and whether the planner accepted that the recipe
 // is a violation on the patient (organ harvest). surgeon, when set, restricts
-// the bill to that colonist (#1253); empty keeps vanilla's choice.
+// the bill to that colonist; empty keeps vanilla's choice.
 type Surgery struct {
 	pawn        PawnID
 	recipe      string

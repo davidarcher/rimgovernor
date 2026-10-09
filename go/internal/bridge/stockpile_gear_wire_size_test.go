@@ -9,7 +9,7 @@ import (
 )
 
 // The armory and wardrobe filters list every armor thingDef, so the settings
-// message grows with the catalog (#1806). Measured on the 31 armor defs of
+// message grows with the catalog. Measured on the 31 armor defs of
 // Core and all five DLCs (the game's Soldier-without-Worker apparel, see
 // ApparelIsArmor): about 0.9 KB per store, one patch when a gear zone is
 // created or its filter changes. The real ceiling is the transport frame

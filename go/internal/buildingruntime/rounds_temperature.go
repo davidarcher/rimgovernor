@@ -30,8 +30,8 @@ func (r *Rounder) temperatureEnabled() bool {
 // cleaning plans need each room's measured cleanliness.
 func (r *Rounder) roomsEnabled() bool {
 	// MaintainHousing: suite claims and the plan's suite wing read the
-	// census's standing bedrooms (#1221). MaintainShelter: the Safe area
-	// covers the census's enclosed roofed rooms (#1325).
+	// census's standing bedrooms. MaintainShelter: the Safe area
+	// covers the census's enclosed roofed rooms.
 	return r.temperatureEnabled() || r.methodEnabled(policy.MaintainShelter) || r.methodEnabled(policy.MaintainHousing) || r.methodEnabled(policy.EnsureComfort) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainCleanFacilities) || r.methodEnabled(policy.MaintainLighting) || r.methodEnabled(policy.MaintainFlooring) || r.methodEnabled(policy.MaintainRoutes) || r.methodEnabled(policy.MaintainBurial) || r.methodEnabled(policy.MaintainIncineration) || r.methodEnabled(policy.MaintainStockpiles)
 }
 
@@ -88,7 +88,7 @@ func temperatureGap(rooms domain.Fact[policy.RoomObservation]) string {
 // temperatureCooling assembles the powered cooler evidence from the rooms
 // reading: the Cooler planning definition (availability, draw), the colony
 // power topology, the site cells the vented-wall search walks, and the
-// sleepers whose comfortable ranges band each room (#1199).
+// sleepers whose comfortable ranges band each room.
 func temperatureCooling(facts observation.ColonyProjection) policy.TemperatureCooling {
 	cooling := policy.TemperatureCooling{CoolerAvailable: domain.Unknown[bool](), CoolerDrawW: domain.Unknown[float64](), Power: facts.PowerPlanning, Cells: facts.Cells, HeatCampfires: heatCampfires(facts), Heater: facts.Shapes.Furniture.Heater}
 	if sleeping, known := facts.Facts.Sleeping.Value(); known {

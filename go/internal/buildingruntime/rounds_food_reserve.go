@@ -22,7 +22,7 @@ func (r *Rounder) reviewReserve(p *observation.ColonyProjection) {
 	if !known || staged.FoodReserveDays == 0 {
 		return
 	}
-	// The reserve target is staged (#630): the configured days below
+	// The reserve target is staged: the configured days below
 	// Stable, half as much again at Stable, doubled at Development.
 	reserve, err := policy.ReviewFoodReserve(supply, nil, staged.FoodReserveDays, r.seasonal(p.Facts).FoodMinDays, foodDeliveryDays(p.Facts.FoodPlan))
 	if err == nil {

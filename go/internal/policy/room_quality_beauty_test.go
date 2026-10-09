@@ -19,7 +19,7 @@ func TestSculptureInstall(t *testing.T) {
 	}
 	// A packed sculpture in stock: install it on free floor.
 	s, ok := NextSculpture(obs, targets, rooms, []PackedSculpture{{ID: "Thing_MinifiedSculpture1", Def: SculptureDefinition}}, CoreItemFacts(), RoomGate{})
-	// Sculptures are not rotatable: the install faces North (#1195).
+	// Sculptures are not rotatable: the install faces North.
 	if !ok || s.Room != "Room_1" || s.Packed != "Thing_MinifiedSculpture1" || s.Rot != domain.North || roomPieceOverlaps(rooms[0].Pieces, Rectangle{s.Anchor.X, s.Anchor.Z, 1, 1}) {
 		t.Fatalf("install = %+v %v", s, ok)
 	}
@@ -33,7 +33,7 @@ func TestSculptureInstall(t *testing.T) {
 	}
 }
 
-// A grand sculpture installs only on a free multi-cell spot (#1191); one
+// A grand sculpture installs only on a free multi-cell spot; one
 // that fits nowhere gives way to a smaller one in stock.
 func TestSculptureInstallNeedsItsFootprint(t *testing.T) {
 	obs, rooms, _ := upgradeFixture(t, RoomQuality{Wealth: 3000, Beauty: -1, Space: 25, Impressiveness: 35})

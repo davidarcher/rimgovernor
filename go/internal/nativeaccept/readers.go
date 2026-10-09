@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-// ObservationReaders are the observation-load row's concurrent readers
-// (#656): Count clients each polling /api/state every Interval for the whole
+// ObservationReaders are the observation-load row's concurrent readers:
+// Count clients each polling /api/state every Interval for the whole
 // row, the way several open clients read the service's published view.
 // They add read pressure beside the controller's own reads; they never
 // change anything. Latencies are recorded so a reader starved by the

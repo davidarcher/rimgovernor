@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TestRecordKeyedMatchesRows (#1578): a section published as a persistent
+// TestRecordKeyedMatchesRows: a section published as a persistent
 // table version records the same lines as the same rows published as a
 // map: keyframe, upserts, removals, unchanged tables and a scope change.
 func TestRecordKeyedMatchesRows(t *testing.T) {

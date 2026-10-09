@@ -1,11 +1,11 @@
 package power
 
-// power/wind-thin-roof (#1873, epic #1764): EnsureBasicPower on a lab that
+// power/wind-thin-roof: EnsureBasicPower on a lab that
 // is solid granite under thin mountain roof except a 30x30 pocket holding
 // one unpowered lamp. The layout plan's turbine pair stands on rock beside
 // the pocket, so the one plan the family admits digs the rock of the
 // turbine's wind path and removes the roof over it in dig waves holding no
-// building (#1896); the ordinary plan then places a WindTurbine once the
+// building; the ordinary plan then places a WindTurbine once the
 // site reads clear, and a follow-up connects it. Confirmed natively: the turbine stands on a
 // planned site with no roofed or wind-blocking cell on its wind path and is
 // on the lamp's network.
@@ -131,7 +131,7 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["planned_turbines"] = sites
-	// The sky dig and unroof waves come first (#1896), each its own plan
+	// The sky dig and unroof waves come first, each its own plan
 	// holding no building; the turbine is the ordinary plan placed once the
 	// site reads clear. Walk the plans until the turbine's settles.
 	seen := map[domain.PlanID]bool{}
@@ -304,7 +304,7 @@ func plannedAt(sites []string, row map[string]any) bool {
 	return na.Contains(sites, fmt.Sprintf("%d,%d", int(na.AsNumber(row["x"])), int(na.AsNumber(row["z"]))))
 }
 
-// checkSkyPlan classifies a plan of the sky method (#1896): a dig wave of excavations and a
+// checkSkyPlan classifies a plan of the sky method: a dig wave of excavations and a
 // roof removal, or the one WindTurbine build alone. It returns
 // the excavation count and the cells to unroof.
 func checkSkyPlan(actions []domain.Action) (excavations, roofCells int, turbine bool, err error) {
@@ -336,7 +336,7 @@ func checkSkyPlan(actions []domain.Action) (excavations, roofCells int, turbine 
 // followUpPlanBound bounds the connect follow-ups. The family lays at most 8
 // conduit cells per plan (connectLiveBeforeUpgrade), and the lab's lamp lies
 // about 42 route cells from the turbine site, so the connection takes six plans
-// (#2334: a bound of four stopped the case 5 cells short of the lamp).
+// (a bound of four stopped the case 5 cells short of the lamp).
 const followUpPlanBound = 8
 
 // followUps lets the family connect the new turbine: a bounded number of

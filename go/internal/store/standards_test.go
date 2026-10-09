@@ -15,7 +15,7 @@ func goalFixture(t *testing.T) (*Store, string, StandardState) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "goals.db")
 	s := open(t, path)
-	// A Standard routine identity, so a regress re-arms its epoch (#1024).
+	// A Standard routine identity, so a regress re-arms its epoch.
 	g, e := domain.NewStandard("routine-0000000000000000-MaintainHousing-0", 2, scope())
 	if e != nil {
 		t.Fatal(e)
@@ -114,8 +114,8 @@ func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 	if e != nil || g.Standard.Status == domain.StandardSettled {
 		t.Fatal(g, e)
 	}
-	// An applied building stays open work until retirement reads the census
-	// (#856), so settle the method with a refusal to close it here.
+	// An applied building stays open work until retirement reads the census,
+	// so settle the method with a refusal to close it here.
 	if _, e = s.RecordReceipt(ctx, "p", "a", 1, domain.ReceiptRefused); e != nil {
 		t.Fatal(e)
 	}

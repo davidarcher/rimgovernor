@@ -7,7 +7,7 @@ import (
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-// A pinned batch (#1190) sends its worker with the count settings, and its
+// A pinned batch sends its worker with the count settings, and its
 // claim key names the worker.
 func TestPinnedBatchBillCarriesTheWorker(t *testing.T) {
 	batch, err := domain.NewProductionBill("TableSculpting_1", "Make_SculptureSmall", domain.GearBatch, 1)

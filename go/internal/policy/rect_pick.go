@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Rectangle picker (#1222, epic #1212): one picker over a candidate cell
+// Rectangle picker: one picker over a candidate cell
 // set (a plan field block, or a room interior) replaces the square patch
 // search. It grows a solid run row by row nearest the anchor.
 

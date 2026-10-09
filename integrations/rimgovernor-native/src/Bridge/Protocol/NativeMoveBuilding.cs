@@ -11,7 +11,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // RelocateIntent on Actions/Apply (#808, #830, #843, #940). A reinstall
+    // RelocateIntent on Actions/Apply. A reinstall
     // places the game's reinstall blueprint at the destination through
     // GenConstruct.PlaceBlueprintForReinstall, the Reinstall gizmo's write,
     // without its WipeExistingThings (a blocked cell is a refusal). Ordinary

@@ -8,7 +8,7 @@ import (
 
 // The tier style decides the floor when its floor can be laid now; a styled
 // floor the colony cannot afford for the whole batch, or that fails the
-// tier, leaves the scored list to decide (#610).
+// tier, leaves the scored list to decide.
 func TestSelectFlooringPrefersTheTierStyle(t *testing.T) {
 	p := flooringPolicy()
 	p.Floors = append(p.Floors, "TileGranite")

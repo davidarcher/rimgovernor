@@ -140,8 +140,8 @@ func rescuePath(ctx context.Context, h *na.Harness, s cases.Session, rescuer str
 	to := &c.Cell{X: proto.Int32(int32(downed.X)), Z: proto.Int32(int32(downed.Z))}
 	propose := &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_RescuePath{RescuePath: &mp.CombatRescuePath{To: to}}}
 	request := bridge.CombatGeometryProposeAsk(identity, propose, hostiles, rescuer)
-	// Two reads (#881): the first on a fresh game pays one-time costs; the
-	// second, warm, must fit the #851 main-thread budget.
+	// Two reads: the first on a fresh game pays one-time costs; the
+	// second, warm, must fit the main-thread budget.
 	var g *mp.CombatGeometry
 	var ms []float64
 	for i, label := range []string{"combat-rescue-path", "combat-rescue-path-warm"} {

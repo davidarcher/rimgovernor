@@ -13,7 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// production/art (#1195, epic #1172) runs the art family end to end on the
+// production/art runs the art family end to end on the
 // lab. test/art builds the artist's furnished bedroom A below its build
 // tier's impressiveness target (policy.ImpressivenessLevels.Baseline) with beauty its
 // weakest stat, and an ascetic neighbour's plain room B. Jade, a sculpting
@@ -24,7 +24,7 @@ import (
 // artist, the sleeping upkeep installs the packed piece in room A until it
 // reaches its target, and art for sale leaves surplus packed art. Phase 2: an
 // exotic caravan arrives and TradeWithCaravan sells the surplus sculpture
-// through SelectTrade's art step, matched by packed item id (#1194).
+// through SelectTrade's art step, matched by packed item id.
 //
 // Why not a snapshot test: the sculpture is vanilla production (a packed
 // MinifiedThing with a quality roll), the install is a native relocate

@@ -97,7 +97,7 @@ func TestTemperatureRoomsDecodesCleanlinessStat(t *testing.T) {
 }
 
 // A roofed room with a door east onto the outdoors, one north into another
-// room and one with an unread far side, beside an unroofed room (#1323).
+// room and one with an unread far side, beside an unroofed room.
 func TestTemperatureRoomsMapsRoofAndDoors(t *testing.T) {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	rooms := &o.RoomsSnapshot{Rooms: []*o.RoomState{

@@ -104,7 +104,7 @@ func TestTameFoodChannelRefusals(t *testing.T) {
 	}
 }
 
-// TestAcquisitionPricesFeedWithNoOwnedAnimal (#2240): the race's own feed
+// TestAcquisitionPricesFeedWithNoOwnedAnimal: the race's own feed
 // prices a first tame and a first purchase for a colony that owns none.
 func TestAcquisitionPricesFeedWithNoOwnedAnimal(t *testing.T) {
 	t.Parallel()

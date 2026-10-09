@@ -14,7 +14,7 @@ import (
 // settledRetirementOutcome is dispatched evidence that settles an action for
 // retirement: a completed effect, a
 // building that ended unsuccessful, or a building intent native refused
-// (#856: a refusal is terminal, Unsuccessful with an absent effect).
+// (a refusal is terminal, Unsuccessful with an absent effect).
 func settledRetirementOutcome(progress domain.Progress) bool {
 	w := progress.View()
 	effect, known := w.Effect.Value()
@@ -87,10 +87,10 @@ func retireRoundsPlans(ctx context.Context, tx *sql.Tx, current domain.Generatio
 		if PlanWorkOpen(p, census) {
 			continue
 		}
-		// A fight (#852) owns its empty plan while open or rostering a
-		// drafted defender (#939): retiring it would hide the fight from its
+		// A fight owns its empty plan while open or rostering a
+		// drafted defender: retiring it would hide the fight from its
 		// goal, and the clock scheduler would stop admitting ticks
-		// mid-fight (#869).
+		// mid-fight.
 		held, err := combatFightHolds(ctx, tx, v.plan)
 		if err != nil {
 			return err
@@ -174,7 +174,7 @@ func (s *Store) LoadMethod(ctx context.Context, goal domain.ConcernID, epoch uin
 }
 
 // LatestMethodPlan finds the plan a goal last bound to method in any
-// epoch (#985): plan ids are minted, so planners whose work outlives an
+// epoch: plan ids are minted, so planners whose work outlives an
 // epoch turnover (tidy re-sites, zone shelves) load it by this stored key.
 func (s *Store) LatestMethodPlan(ctx context.Context, goal domain.ConcernID, method domain.MethodID) (domain.PlanID, error) {
 	var id domain.PlanID
@@ -239,10 +239,10 @@ type retirementWorld struct {
 }
 
 // retirementFloors holds, per world, the newest tick of settled evidence a
-// retired plan carried (#1008 follow-up): stock observed before it was
+// retired plan carried: stock observed before it was
 // already spent by that plan, so it does not buy a second method. It is
 // session-only, shared by every handle on one database path, and resets on a
-// goal rebuild (#998) and a process restart.
+// goal rebuild and a process restart.
 type retirementFloors struct {
 	mu    sync.Mutex
 	ticks map[retirementWorld]domain.Tick

@@ -2,7 +2,7 @@ package policy
 
 import "slices"
 
-// The materials yard (#2192, epic #2176): a planned Outdoor room beside the
+// The materials yard: a planned Outdoor room beside the
 // core, inside the core ring like the animal pen. Its ring is a fence and a
 // gate toward the core, its interior open ground with no roof or floor owed,
 // and the Storage department's one yard store covers the whole interior. It

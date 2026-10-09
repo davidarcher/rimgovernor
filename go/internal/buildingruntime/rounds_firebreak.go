@@ -18,7 +18,7 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// MaintainFirebreak (#1548): each review classifies the firebreak ring's
+// MaintainFirebreak: each review classifies the firebreak ring's
 // ground from defense-site reads, plans the ring (policy.PlanFirebreak) and
 // reads the plant cut census over its cut cells; the goal is in deficit
 // while a cut cell holds a standing plant or a wooden ruin stands
@@ -40,7 +40,7 @@ type RoundsFirebreakSource interface {
 	ReadDefenseSite(context.Context, *c.Identity, bridge.CellRect) (bridge.DefenseSite, bridge.Result, error)
 }
 
-// firebreakMemory is the firebreak review's state, in memory only (#1536):
+// firebreakMemory is the firebreak review's state, in memory only:
 // the dwell clock (each ring cell's first tick in the ring) and the latest
 // review's work, ruins and pave cells for one world. A new world (start,
 // reload) restarts the clock.
@@ -161,7 +161,7 @@ func firebreakTiles(cells []domain.Cell) []bridge.CellRect {
 // firebreakClaimed is the material queued construction claims, priced by
 // each claimed definition's planning cost list at the claim's own stuff; a
 // claim with no stuff of a stuffed definition is priced at its lowest
-// flammability stuff (#1731); an unpriced one adds none.
+// flammability stuff; an unpriced one adds none.
 func firebreakClaimed(projection observation.ColonyProjection) map[policy.Resource]int64 {
 	claimed := map[policy.Resource]int64{}
 	claims, _ := projection.Facts.ConstructionClaims.Value()
@@ -289,7 +289,7 @@ func (m *firebreakMemory) review(ctx context.Context, identity *c.Identity, curr
 }
 
 // standingPlants are the cut cells holding a plant no cut designation covers
-// yet, read from the mirror's thing lists (#2273). It approximates what the
+// yet, read from the mirror's thing lists. It approximates what the
 // native designator would accept (growing zones are not in the ring; a wild
 // food plant native leaves standing is not told apart); the native refusal
 // of the AreaPlantCut action is the backstop. A cell the mirror does not

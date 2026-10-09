@@ -20,7 +20,7 @@ func odysseyOffer(id, script string, scope QuestScope, edit func(*JoinerOffer)) 
 	return offer
 }
 
-// TestSelectOdysseyQuestMethodAcceptsGroundSkipsShipOnly (#1717): a ground
+// TestSelectOdysseyQuestMethodAcceptsGroundSkipsShipOnly: a ground
 // Odyssey offer is accepted (the lowest quest ID first, reward index -1
 // without a choice part), a ship-only one is skipped with its reason and
 // layer, and a ship-only quest is no population deficit.
@@ -59,7 +59,7 @@ func TestSelectOdysseyQuestMethodAcceptsGroundSkipsShipOnly(t *testing.T) {
 	}
 }
 
-// TestSelectOdysseyQuestMethodRefusesWithAReason (#1717): every offer the
+// TestSelectOdysseyQuestMethodRefusesWithAReason: every offer the
 // colony does not accept is a named skip or waits on the game, never a
 // silent accept.
 func TestSelectOdysseyQuestMethodRefusesWithAReason(t *testing.T) {
@@ -102,7 +102,7 @@ func TestSelectOdysseyQuestMethodRefusesWithAReason(t *testing.T) {
 	}
 }
 
-// A ship-only quest is never accepted for Empire favor either (#1717).
+// A ship-only quest is never accepted for Empire favor either.
 func TestEmpireSelectorSkipsShipOnlyQuests(t *testing.T) {
 	t.Parallel()
 	offers := domain.Known([]JoinerOffer{empireOffer("Quest_4", func(o *JoinerOffer) {

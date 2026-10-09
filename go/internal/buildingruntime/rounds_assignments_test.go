@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Autopilot owns every priority (#719): a player who switched the only
+// Governor owns every priority: a player who switched the only
 // builder's Construction off gets it switched back on.
 func TestWorkPlannerRestoresPlayerDisabledWork(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -67,7 +67,7 @@ func TestWorkPlannerRestoresPlayerDisabledWork(t *testing.T) {
 }
 
 // A pawn whose readback still says checkbox mode (native has not flipped
-// numbered priorities on yet, #1276) is unknown this round: no write.
+// numbered priorities on yet) is unknown this round: no write.
 func TestWorkPlannerSkipsPawnInCheckboxMode(t *testing.T) {
 	t.Parallel()
 	r, db, _, _, n := roundsFixture(t)
@@ -105,7 +105,7 @@ func TestWorkPlannerSkipsPawnInCheckboxMode(t *testing.T) {
 }
 
 // A pending work assignment whose premise moved is cancelled by the next
-// planner step instead of gating re-planning forever (#305): the armed
+// planner step instead of gating re-planning forever: the armed
 // shooter's Hunting proposal is dropped once the pawn disarms.
 func TestWorkPlannerCancelsStalePendingAssignments(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

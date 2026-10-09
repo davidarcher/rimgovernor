@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A choose_permit setting builds one PawnSettingsIntent arm (#1878).
+// A choose_permit setting builds one PawnSettingsIntent arm.
 func TestChoosePermitBuildsPawnSettingsIntent(t *testing.T) {
 	value, err := domain.NewChoosePermitSetting("pawn-7", "Empire", "CallMilitaryAidSmall")
 	if err != nil {

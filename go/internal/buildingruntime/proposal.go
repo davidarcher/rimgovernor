@@ -12,7 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// PlanResultKind classifies what a planner's step produced (#622). Only a
+// PlanResultKind classifies what a planner's step produced. Only a
 // proposal competes for the step's shared claims; every other kind is the
 // planner reporting why it has nothing to admit this step.
 type PlanResultKind string
@@ -34,10 +34,8 @@ const (
 	PlanUnsupported PlanResultKind = "unsupported"
 )
 
-// PlanResult is what a migrated planner returns instead of committing: the
-// proposal it wants admitted, or the reason it has none. Reason is the
-// planner family's own outcome vocabulary, kept so the step row and the
-// family's result type read as before the migration.
+// PlanResult carries a proposal or the reason no work can be admitted.
+// Verdict uses the planner family's outcome vocabulary.
 type PlanResult struct {
 	Kind            PlanResultKind
 	Proposal        *Proposal
@@ -59,7 +57,7 @@ type ResourceClaims struct {
 
 // Proposal is one planner's admissible plan for this step, with everything
 // the coordinator needs to rank it and check it against its peers before
-// anything is committed (#622). The commit itself stays with the planner:
+// anything is committed. The commit itself stays with the planner:
 // commit runs the family's existing admission path (authority, staleness,
 // native validation, plan and attempt identities, generation checks) and
 // the coordinator only decides whether and in which order it runs.
@@ -94,20 +92,20 @@ type ProposalOutcome struct {
 	// Waiting names the claim that refused the proposal and who holds it.
 	Waiting string
 	// Stale names the dependency the coordinator found changed since the
-	// proposal was evaluated (#623): the snapshot's scope, its native
+	// proposal was evaluated: the snapshot's scope, its native
 	// generation or plan revision, or the tick it was planned from.
 	Stale string
 	Verdict
 	// Demand is the quantity the step could not cover for the proposal:
 	// what it claimed beyond the stock left after the step's earlier
-	// claims and the admitted plans' commitments (#628). Nil unless Reason
+	// claims and the admitted plans' commitments. Nil unless Reason
 	// is BuildingReasonDemand.
 	Demand []policy.Amount
 }
 
 // proposalScope is the step the coordinator commits under: the read
-// validity the step fixed (#624), which every proposal must still hold
-// under. A proposal evaluated late, on an earlier step's facts (#623), is
+// validity the step fixed, which every proposal must still hold
+// under. A proposal evaluated late, on an earlier step's facts, is
 // revalidated against it before its commit; the zero validity revalidates
 // nothing.
 type proposalScope = domain.ReadValidity
@@ -130,7 +128,7 @@ func proposalStale(scope proposalScope, p *Proposal) string {
 }
 
 // lateProposals carries the proposals that reached their step's arbiter
-// after its cutoff (#623) to the next step's coordinator, which revalidates
+// after its cutoff to the next step's coordinator, which revalidates
 // them against its own scope: a still-valid one commits there, an expired
 // one is refused with the stale dependency named.
 type lateProposals struct {
@@ -156,7 +154,7 @@ func (l *lateProposals) drain() []proposalArrival {
 }
 
 // stepBudget is what the coordinator checks a proposal's quantity claims
-// against (#628): Stock is the count the rounds observed for each
+// against: Stock is the count the rounds observed for each
 // bounded resource (a resource absent from it is unbounded here and checked
 // by the admission path beneath the commit).
 type stepBudget struct {
@@ -171,7 +169,7 @@ type proposalArrival struct {
 	settle  func(ProposalOutcome)
 }
 
-// propose records a migrated planner's result for the coordinator. The
+// propose records a planner's result for the coordinator. The
 // planner has already finished every read; nothing is claimed here.
 func (a *stepArbiter) propose(planner string, result PlanResult, settle func(ProposalOutcome)) {
 	a.mu.Lock()
@@ -215,12 +213,9 @@ func proposalRank(a, b *Proposal) bool {
 	return a.ID < b.ID
 }
 
-// claimIndex is the coordinator's view of what this step holds: the
-// arbiter's own pawn and entity claims (so un-migrated planners' first-
-// arrival claims are honoured) and a quantity ledger against the budget's
-// stock (#628). A resource absent
-// from the stock is unbounded: the admission path beneath the commit still
-// checks it.
+// claimIndex combines existing pawn/entity claims with the proposal quantity
+// ledger. Resources absent from the budget are unbounded here; the underlying
+// admission path still checks them.
 type claimIndex struct {
 	arbiter *stepArbiter
 	budget  stepBudget
@@ -300,11 +295,10 @@ func (c *claimIndex) take(p *Proposal) {
 // against scope and take their claims against the step's index in that
 // order, and a proposal whose claims are free commits through its
 // planner's own admission path. A proposal whose dependencies changed
-// since it was evaluated (a late proposal carried from an earlier step,
-// #623) is reported expired with the stale dependency named and never
+// since evaluation is reported expired with the stale dependency named and never
 // commits. One that loses a pawn or entity is reported waiting on it,
 // never failed. A quantity the stock left after earlier claims cannot
-// cover is refused as demand with the shortfall on its outcome (#628).
+// cover is refused as demand with the shortfall on its outcome.
 // Non-proposal results settle as they were reported. The outcomes are
 // returned in rank order; commit errors are returned beside them for the
 // step to isolate.

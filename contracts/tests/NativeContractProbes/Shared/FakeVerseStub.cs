@@ -27,7 +27,7 @@ namespace Verse
     {
         public static Map CurrentMap; public static TickManager TickManager;
         public static List<Map> LoadedMaps;
-        // Real Verse exposes the game's loaded maps; the fixtures load one map, the current one (#35 M2).
+        // Real Verse exposes the game's loaded maps; the fixtures load one map, the current one.
         public static List<Map> Maps => LoadedMaps ?? (CurrentMap == null ? null : new List<Map> { CurrentMap });
     }
     public enum TimeSpeed { Paused, Normal, Fast, Superfast, Ultrafast }
@@ -54,7 +54,7 @@ namespace Verse
 }
 namespace Verse
 {
-    // The recipe shapes NativeRecipeRoles reads (#1721): products, special products, ingredient
+    // The recipe shapes NativeRecipeRoles reads: products, special products, ingredient
     // filters over corpse defs, and the worker counter.
     public class ThingDef { public string defName; public bool IsCorpse; }
     public class ThingDefCountClass { public ThingDef thingDef; }
@@ -129,7 +129,7 @@ namespace HomeBridge.BridgeTools
         { var progress = Next.Clone(); progress.Attempt = attempt.Clone(); progress.Context = context.Clone(); return progress; }
     }
     // Haul double with the same Observe shape; the clock watch resolves a
-    // watched key against both record tables (#108) and the probe only ever
+    // watched key against both record tables and the probe only ever
     // arms construction keys, so no haul is ever recorded here.
     internal sealed class NativeHaulRecord
     {
@@ -159,10 +159,10 @@ namespace HomeBridge.BridgeTools
         internal static long WallTime = 1700000000000;
         internal static bool RefusePause;
         internal static string InitialStop;
-        // The hazard hooks (#626) are Verse-bound; the fake reports them installed.
+        // The hazard hooks are Verse-bound; the fake reports them installed.
         internal static bool HazardHooksInstalled = true;
         // The production partial reads TickManager.UltraSpeedBoost by reflection
-        // (#109); the fake TickManager has no boost, so test acceleration is
+        //; the fake TickManager has no boost, so test acceleration is
         // never available to the probe.
         private static readonly System.Reflection.FieldInfo BoostField = null;
         private static long NowMs() => WallTime;
@@ -228,11 +228,11 @@ namespace HomeBridge.BridgeTools
             internal bool PlayerPaced; internal int FrameBudgetMs;
             internal List<Dictionary<string, object>> BaselineAlerts = new List<Dictionary<string, object>>(), SuppressedInjuries = new List<Dictionary<string, object>>();
         }
-        // The blind-tick regulator (#583) lives in the production
+        // The blind-tick regulator lives in the production
         // SupervisedPlayRegulator.cs partial, outside this project; the probe
         // only records what the typed runtime reports of it.
         private static void NoteControllerRead(State s) { }
-        // Player acceleration (#627) lives in the production
+        // Player acceleration lives in the production
         // SupervisedPlayPacing.cs partial, outside this project; the fake
         // reports a pacing epoch at Ultrafast's own rate with no frames.
         internal const int DefaultFrameBudgetMs = 30;

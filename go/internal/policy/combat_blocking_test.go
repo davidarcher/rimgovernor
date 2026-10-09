@@ -44,7 +44,7 @@ func decideChoke(t *testing.T, view CombatView, stop StopEvent, memory CombatMem
 		return orders, next
 	}
 	layout, _ := view.Layout.Value()
-	// Named: Formation's own cells, the cells around the line (#881), then
+	// Named: Formation's own cells, the cells around the line, then
 	// the shooters'.
 	var cells []domain.Cell
 	for _, c := range append(append(formationChecks(view.sorted(), layout), aroundLine(layout.Firing)...), shooterCells(view.sorted())...) {
@@ -142,7 +142,7 @@ func TestDecideCombatNoBrawlerNoBlocking(t *testing.T) {
 	}
 }
 
-// #905: a raid_phase stop re-forms with raiders in melee with the blockers
+// A raid_phase stop re-forms with raiders in melee with the blockers
 // at the choke; the hold is doing its job and stays. A raider loose past
 // the blockers' row is still engaged and drops the hold for squad.
 func TestHoldSurvivesBlockerMeleeAtChoke(t *testing.T) {
@@ -181,7 +181,7 @@ func TestHoldSurvivesBlockerMeleeAtChoke(t *testing.T) {
 	if next := restage(); next.Tactic != TacticHold {
 		t.Fatalf("hurt blockers at the choke dropped the hold: %+v", next)
 	}
-	// Loose inside a standing room: engaged by position (#2375).
+	// Loose inside a standing room: engaged by position.
 	view.Rooms = []CombatRoom{{Interior: Rectangle{X: 8, Z: 19, Width: 3, Height: 3}}}
 	view.Positional[0].Position = domain.Known(domain.Cell{X: 9, Z: 20})
 	if next := restage(); next.Tactic == TacticHold {

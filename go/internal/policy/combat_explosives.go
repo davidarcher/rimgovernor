@@ -7,8 +7,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Heavy explosives raids (#1054): once any live hostile carries an
-// explosive weapon (threat tier 0, #863) the line spreads two tiles apart
+// Heavy explosives raids: once any live hostile carries an
+// explosive weapon (threat tier 0) the line spreads two tiles apart
 // (firingGap), takes its cells for room to move rather than cover, and
 // posts outside the explosives' reach first, so gunners with the longer
 // weapon focus the grenadiers from beyond their range. Shield-belt melee

@@ -10,8 +10,7 @@ import (
 )
 
 // templateRepo is main with one commit, built once per package run; newRepo
-// copies it instead of paying for init, config, add and commit in every test
-// (#2015).
+// copies it instead of paying for init, config, add and commit in every test.
 var templateRepo string
 
 func TestMain(m *testing.M) {

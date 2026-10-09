@@ -86,7 +86,7 @@ func armoryArmorRecipe(t *testing.T, plasteelFloor int64) string {
 }
 
 // A MaintainResource floor on the armor's own plasteel never holds the bill
-// back (#2373): it is placed before any stock exists and its ingredients are
+// back: it is placed before any stock exists and its ingredients are
 // the demand that fills the floor.
 func TestArmoryArmorBillIgnoresItsOwnFloor(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

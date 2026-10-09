@@ -33,13 +33,13 @@ type ClearanceSource interface {
 	ReadClearanceTargets(context.Context, *c.Identity, bool) (*o.ClearanceTargetsReply, bridge.Result, error)
 }
 
-// GroundClearanceSource widens the census to planned ground (#1365).
+// GroundClearanceSource widens the census to planned ground.
 type GroundClearanceSource interface {
 	ReadClearanceTargetsOnGround(context.Context, *c.Identity, bool, []*o.Rectangle) (*o.ClearanceTargetsReply, bridge.Result, error)
 }
 
 // ObserveClearanceCensusOnGround also reads the player's buildings (Player
-// rows) and constructed floors on planned ground (#1245). A source without
+// rows) and constructed floors on planned ground. A source without
 // the planned-ground read is a contract error when ground is requested.
 func ObserveClearanceCensusOnGround(ctx context.Context, source ClearanceSource, expected Identity, includeSalvage bool, ground []policy.Rectangle) (domain.Fact[ClearanceCensus], error) {
 	unknown := domain.Unknown[ClearanceCensus]()

@@ -2,8 +2,8 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Prisoner medicine (#1239, epic #1160): a harvest target holds herbal care
-// at most (the #1301 care cap, MedicalCareChanges). A harvest or part recovery that
+// Prisoner medicine: a harvest target holds herbal care
+// at most (the care cap, MedicalCareChanges). A harvest or part recovery that
 // only the care limit blocks (better medicine stocked, no herbal) is refused
 // with a reason naming the limit, and asks MaintainResource for herbal
 // medicine through ResourceNeeds (healroot growing, trade buys).

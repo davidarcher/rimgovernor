@@ -7,7 +7,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// The creepjoiner planner's def lookups (#1740), all in this file: each reads
+// The creepjoiner planner's def lookups, all in this file: each reads
 // the def mirror (DefinitionCatalog.Defs) and names no def.
 
 // surgicalInspectionWorker is the worker class of the game's surgical

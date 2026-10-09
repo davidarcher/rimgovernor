@@ -12,7 +12,7 @@ import (
 
 // admitMethod runs a planner's building-method admission and files one
 // admission row per outcome that matters: why a refused one was refused
-// (#1233: planners map every refusal to shared_admission_refused, which
+// (planners map every refusal to shared_admission_refused, which
 // alone hides a development gate from a footprint clash) and an admitted
 // one, which commits the method to the plan. An error from the store files
 // nothing: the planner's own step row carries it.
@@ -62,7 +62,7 @@ func refusalSummary(refused []policy.Refusal) string {
 // admissionRefused is the verdict of a method the shared admission check
 // turned down: it keeps the shared_admission_refused kind and carries the
 // decision's first refusal, reason as the subject and resource as the
-// detail, so the status line and the journal name why (#1880). A decision
+// detail, so the status line and the journal name why. A decision
 // with no refusal listed means the policy admitted fewer candidates than it
 // was given without refusing any; that names itself.
 func admissionRefused(decision store.BuildingMethodDecision) Verdict {

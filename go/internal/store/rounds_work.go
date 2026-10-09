@@ -44,7 +44,7 @@ func roundsPlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnaps
 			concernID = p.Project.Kind
 			world = World{Colony: p.Project.Snapshot.Colony, Load: p.Project.Snapshot.Load, Map: p.Project.Snapshot.Map}
 		} else if err == nil && kind == "incident" {
-			// An incident's method serves its Response kind (#1020).
+			// An incident's method serves its Response kind.
 			i, e := loadIncident(ctx, tx, domain.IncidentID(ownerID))
 			if e != nil {
 				return nil, e
@@ -83,7 +83,7 @@ func roundsPlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnaps
 	return result, nil
 }
 
-// readyWorkOf is the shadow ready-work projection (#645) of the review's
+// readyWorkOf is the shadow ready-work projection of the review's
 // plans: diagnostics only, read by no admission.
 // Stage inputs (bill ingredients, crop readiness) are not observed here
 // yet, so staged work reads awaiting_observation rather than ready.

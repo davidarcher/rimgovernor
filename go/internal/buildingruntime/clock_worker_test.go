@@ -185,7 +185,7 @@ func TestClockWorkerUnchangedDecisionBacksOff(t *testing.T) {
 }
 
 // A step that cleaned or reconciled an epoch is followed by the next step at
-// once (issue #91): the window that stopped on its tick budget is replanned
+// once: the window that stopped on its tick budget is replanned
 // without a StepInterval idle. Never twice in a row, so a cleanup that keeps
 // succeeding still backs off instead of spinning.
 func TestClockWorkerStepsAgainAtOnceAfterSettlingAnEpoch(t *testing.T) {

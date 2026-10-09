@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// AdmissionClass is the priority a native call is admitted under (#631).
+// AdmissionClass is the priority a native call is admitted under.
 // The bridge's MaxConcurrentCalls slots are shared by the control path
 // (clock renew and stop, dispatch, authority), bulk observation (bundle and
 // list reads of hundreds of kilobytes). Without classes a burst of reads

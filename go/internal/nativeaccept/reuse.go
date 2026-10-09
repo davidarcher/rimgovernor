@@ -18,7 +18,7 @@ import (
 var ErrReuseRetired = errors.New("reusable game retired")
 
 // GameReuse keeps one owned RimWorld process alive across several
-// acceptance cases (issue #22). Every case begins with a reload of its save
+// acceptance cases. Every case begins with a reload of its save
 // into the same process and a reset check (ResetState/CheckReset) that the
 // reload actually gave the case a clean baseline; a case that fails, or that
 // leaves ownership behind, retires the whole game rather than letting the next

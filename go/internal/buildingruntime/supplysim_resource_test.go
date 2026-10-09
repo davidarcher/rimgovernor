@@ -15,7 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/supplysim"
 )
 
-// The resource matrix (epic #2140, issue #2151) runs wood, stone, steel,
+// The resource matrix runs wood, stone, steel,
 // components and plasteel over source mixes and shocks through
 // resPlanner and asserts direction and ordering. A scenario check that fails
 // today is recorded in testdata/resource-matrix-baseline.json; the baseline
@@ -304,7 +304,7 @@ func resScenarios() []resScenario {
 	return append(out, clothingScenarios()...)
 }
 
-// clothingScenarios are the clothing runway (#2374): five colonists wearing
+// clothingScenarios are the clothing runway: five colonists wearing
 // tattered shirts (40) and pants (30) of fabric or leather, so the short
 // stuff's demand is 350. The other category is held, so only the
 // short one asks.

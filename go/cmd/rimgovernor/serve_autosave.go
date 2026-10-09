@@ -17,13 +17,13 @@ import (
 
 const (
 	// autosaveIntervalTicks is the game time between Go saves: one in-game
-	// day (#2360), the same span as a routine clock window.
+	// day, the same span as a routine clock window.
 	autosaveIntervalTicks = 60000
 	// autosaveSlots is how many rotating Autosave-N files Go keeps.
 	autosaveSlots = 5
 )
 
-// goAutosaver is the Go-owned autosave (#2360), run in the clock scheduler's
+// goAutosaver is the Go-owned autosave, run in the clock scheduler's
 // stop between windows now that native skips vanilla autosave. The last-save
 // tick and the slot are runtime state, not persisted: the first stop of a
 // process or of a rewound tick (a load) only sets the baseline.

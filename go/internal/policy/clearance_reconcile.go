@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The clear side of the reconciler (#2108, epic #2101): every planned room
+// The clear side of the reconciler: every planned room
 // whose ground does not match the plan, standing or not, is reconciled, and the
 // operations that take things down are batched by kind across rooms. The build
 // side (wall, door, floor in, install, build) belongs to the owning concerns.
@@ -17,8 +17,8 @@ import (
 // walls, the floors last.
 var clearKinds = []OpKind{OpFurnitureOut, OpPack, OpPackInUse, OpDoorOut, OpRoofOff, OpWallOut, OpFloorOut}
 
-// groundRooms are the plan's open-ground rooms, barns and vet rooms included
-// (#2116), whose ring or doors differ from the plan.
+// groundRooms are the plan's open-ground rooms, barns and vet rooms included,
+// whose ring or doors differ from the plan.
 func (p LayoutPlan) groundRooms(g GroundCensus) []PlannedRoom {
 	var out []PlannedRoom
 	for _, r := range p.roomsWithHerd() {
@@ -35,7 +35,7 @@ type clearedRoom struct {
 }
 
 // reconcileGround reconciles every ground room against the flooring review's
-// wanted floors (#2107): a floor is owed removal only where it is not the wanted
+// wanted floors: a floor is owed removal only where it is not the wanted
 // one nor one that stands in for it. Without a decision the floors are left.
 func reconcileGround(plan LayoutPlan, g GroundCensus, rows []ClearanceTarget, floors []ClearanceFloor, rooms RoomObservation, wants RoomFloors) []clearedRoom {
 	var out []clearedRoom

@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A sterilize order (#1631) persists as a husbandry action with no argument
+// A sterilize order persists as a husbandry action with no argument
 // and, as it puts a doctor to work, holds a development slot.
 func TestHusbandrySterilizeActionRoundTrips(t *testing.T) {
 	t.Parallel()

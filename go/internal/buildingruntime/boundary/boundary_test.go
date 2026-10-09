@@ -47,7 +47,7 @@ func writeOne(b *Boundary, p executor.Placement) (executor.Receipt, error) {
 }
 
 // An unknown ledger lookup is the trace of a dispatch that timed out before
-// native admission (#71): it resolves as complete absence at the lookup's
+// native admission: it resolves as complete absence at the lookup's
 // own tick. An admitted in-flight entry still holds, and a lookup context
 // from before the dispatch or another native generation is never evidence.
 func TestUnadmittedResolvesOnlyAnUnknownLedgerLookup(t *testing.T) {

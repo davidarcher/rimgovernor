@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// An ignite (#1815) persists its pawn and cell.
+// An ignite persists its pawn and cell.
 func TestIgniteActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

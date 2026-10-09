@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// foodOwner is the Food department's stockpiles (#2193, #2219): the meal
+// foodOwner is the Food department's stockpiles: the meal
 // closet, the table cell, the freezer's shelves and perishables catch-all. Each is declared once and sited from the layout plan at plan
 // time, at its real priority, sized once; only the table cell reads a built
 // fact (the table).

@@ -9,14 +9,14 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // A medical ProductionBillIntent (patient set) on Actions/Apply (#1162): queue one medical operation
+    // A medical ProductionBillIntent (patient set) on Actions/Apply: queue one medical operation
     // bill on one patient (a colonist, slave or colony prisoner) through
     // HealthCardUtility.CreateSurgeryBill, the bill a player's operations tab
     // queues. Native re-checks the patient, the recipe on the part and the
     // part's current hediffs live; a recipe that is a violation on the
     // patient needs acknowledge_violation. Other bills never block. The same
     // recipe already queued on the same part applies again. Native doctor
-    // jobs choose the surgeon unless surgeon names one (#1253): the bill's
+    // jobs choose the surgeon unless surgeon names one: the bill's
     // pawn restriction, set on an already queued bill too. Applied means queued.
     internal static class NativeSurgery
     {

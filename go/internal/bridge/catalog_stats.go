@@ -8,7 +8,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// statTable is the decoded stat table (#1759): the rows of every ThingDef by
+// statTable is the decoded stat table: the rows of every ThingDef by
 // (def, stuff) and of every TerrainDef by name, then stat name.
 type statTable struct {
 	things   map[defStuff]*statRow

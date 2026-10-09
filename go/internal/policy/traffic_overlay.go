@@ -3,7 +3,7 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // TrafficLayers is every counted layer in overlay order: the heat layers
-// (#817) draw as "heat.<layer>".
+// draw as "heat.<layer>".
 var TrafficLayers = []TrafficLayer{TrafficColonist, TrafficCrossing, TrafficAnimal, TrafficVisitor, TrafficHostile}
 
 var heatColor = map[TrafficLayer]OverlayColor{

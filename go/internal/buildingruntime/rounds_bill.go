@@ -23,7 +23,7 @@ type RoundsBillResult struct {
 	Verdict
 	Plan domain.PlanID
 	// NativeWorkTicks asks for game time while a claimed art bill is still
-	// being sculpted: a placed bill is no work to the clock (#1195).
+	// being sculpted: a placed bill is no work to the clock.
 	NativeWorkTicks uint32
 }
 
@@ -33,9 +33,9 @@ type BillPlannerNative interface{}
 
 // NewRoundsBillPlanner composes one bill purpose: cooking serves
 // EnsureCooking, preservation MaintainFoodStorage, butchery EnsureFoodSupply, the
-// cook-ahead bill MaintainRefrigeration under a solar flare (#408), and the
-// pinned sculpture bills MaintainArt (#1190), the part bills
-// MaintainSurgery (#1168), the baby food bill MaintainBabyFeeding (#1681), and the mech gestation bills MaintainMechs (#1686).
+// cook-ahead bill MaintainRefrigeration under a solar flare, and the
+// pinned sculpture bills MaintainArt, the part bills
+// MaintainSurgery, the baby food bill MaintainBabyFeeding, and the mech gestation bills MaintainMechs.
 func NewRoundsBillPlanner(reviewer *Rounder, native BillPlannerNative, purpose policy.BillPurpose) (*RoundsBillPlanner, error) {
 	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood && purpose != policy.ArtBill && purpose != policy.SurgeryPartBill && purpose != policy.BabyFoodBill && purpose != policy.MechGestationBill) {
 		return nil, fmt.Errorf("%w: NewRoundsBillPlanner: reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpos", ErrControl)
@@ -90,7 +90,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		}
 		if r.need == policy.EnsureFoodSupply {
 			// Fields, foraging and hunts share the goal and stay open for
-			// days; only an open bill is this planner's own work (#260).
+			// days; only an open bill is this planner's own work.
 			for _, progress := range plan.Progress {
 				if progress.Action().Kind() == domain.ProductionBillAction && domain.StandardWorkOpen([]domain.Progress{progress}) {
 					if b, ok := progress.Action().ProductionBill(); ok && r.purpose == policy.ButcherFood && b.Mode() == domain.ButcherForever {
@@ -107,7 +107,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	}
 	if r.purpose == policy.ArtBill || r.purpose == policy.SurgeryPartBill {
 		// A sculpture or part bill whose need is gone (the owner stayed Met)
-		// is removed first (#2411).
+		// is removed first.
 		if plan, err := r.reviewer.removeStaleBill(call, epoch, arbiter, state, goal, r.need); err != nil || plan != "" {
 			return RoundsBillResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
 		}
@@ -143,7 +143,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	recordStepRead("bill", r.need, state.Snapshot, projection)
 	if r.purpose == policy.ArtBill {
 		// A sculpture pinned to someone who is no longer an artist can never be
-		// worked: removed whatever the owner's finding (#2433).
+		// worked: removed whatever the owner's finding.
 		if pawns, known := projection.WorkPawns.Value(); known {
 			artists := map[string]bool{}
 			for _, id := range policy.Artists(policy.Profiles(pawns)) {
@@ -156,7 +156,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		}
 		selected, missing, art, err := r.artSelection(call, state, projection, review.Latches.MedicalReserve)
 		// A placed sculpture bill is no work to the clock, but the
-		// sculpture takes days of game time (#1195).
+		// sculpture takes days of game time.
 		var ticks uint32
 		if art.sculpting {
 			ticks = artNativeWorkTicks
@@ -186,7 +186,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 			return RoundsBillResult{}, err
 		}
 		// A part bill no waiting operation names goes whatever the owner's
-		// finding (#2433).
+		// finding.
 		wanted := policy.SurgeryPartsWanted(parts)
 		judge := func(b policy.StaleBill) (bool, bool) { return true, policy.BillWanted(b.Products, wanted) }
 		if plan, err := r.reviewer.removeUnwantedBill(call, epoch, arbiter, state, review, goal, r.need, judge); err != nil || plan != "" {
@@ -213,7 +213,7 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		return RoundsBillResult{Verdict: awaitingFoodPlan("cooking-capacity")}, nil
 	}
 	if r.purpose == policy.ButcherFood {
-		// Owed on the food runway alone (#260): native offers no hunt row
+		// Owed on the food runway alone: native offers no hunt row
 		// until a usable bench carries this bill, so waiting for an armed
 		// colonist would serialise spot, bill and hunt behind the equip family.
 		days, dk := projection.Facts.FoodDays.Value()
@@ -373,7 +373,7 @@ func (r *RoundsBillPlanner) admit(call, epoch context.Context, arbiter *stepArbi
 	}
 	// The bill planners of one step run concurrently and read the same
 	// bench token; the second bill on a bench would hold forever on the
-	// first's write (#408). One bill per bench per step.
+	// first's write. One bill per bench per step.
 	if arbiter != nil && !arbiter.tryClaim(nil, "bench:"+selected.Bench) {
 		return RoundsBillResult{Verdict: claimHeld("bench")}, nil
 	}
@@ -383,7 +383,7 @@ func (r *RoundsBillPlanner) admit(call, epoch context.Context, arbiter *stepArbi
 		fmt.Fprintf(hash, "/%s", selected.Worker)
 	}
 	// A finished sculpture batch stays on the bench, inactive; the next
-	// piece of the same shape (a sale sculpture after the room's, #1195)
+	// piece of the same shape (a sale sculpture after the room's)
 	// is a new method, keyed by the finished batches before it.
 	if round > 0 {
 		fmt.Fprintf(hash, "/round%d", round)

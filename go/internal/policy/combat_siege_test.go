@@ -68,7 +68,7 @@ func TestDecideCombatSiegeSortiesOnceCampIsSet(t *testing.T) {
 
 // {a besieger starts a mortar frame, no weapon ranges known} -> harass
 // mode with no harasser: no attack, riflemen to the line; the latch holds
-// once the builder moves off the frame (#1154).
+// once the builder moves off the frame.
 func TestDecideCombatSiegeHoldsAfterFirstMortarFrame(t *testing.T) {
 	view := siegeView(siegeCampToil)
 	_, m := decideStop(t, view, StopEvent{}, CombatMemory{})

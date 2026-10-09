@@ -9,7 +9,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Private disposable acceptance only. Deterministic power-reliability
-    // starting conditions for poweraccept (issues #6 slice 1 and #418):
+    // starting conditions for poweraccept :
     //
     //   fuel       -- one wood-fired generator with its fuel drained, conduits
     //                 to one electric consumer, and unforbidden wood nearby.
@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
     //                 stock. EnsureBasicPower must add a WindTurbine whose
     //                 catch zone is clear, then connect it.
     //   mountain   -- the wind scenario inside a thin-roofed granite mountain
-    //                 (#1873): the lab is solid rock under RoofRockThin except
+    //: the lab is solid rock under RoofRockThin except
     //                 a 30x30 pocket at the map centre holding one lamp on a
     //                 conduit line, with Stonecutting, Electricity and
     //                 Batteries researched and no wood in stock. The layout's
@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
                 if (scenario == "geothermal") Finish(DefDatabase<ResearchProjectDef>.GetNamed("GeothermalPower"));
                 var generatorDef = DefDatabase<ThingDef>.GetNamedSilentFail("WoodFiredGenerator");
                 var solarDef = DefDatabase<ThingDef>.GetNamedSilentFail("SolarGenerator");
-                // Ordinary conduits short-circuit in the wet (#405): every scenario but rain
+                // Ordinary conduits short-circuit in the wet: every scenario but rain
                 // wires with hidden ones so the controller has nothing to replace.
                 var conduitDef = DefDatabase<ThingDef>.GetNamedSilentFail(scenario == "rain" ? "PowerConduit" : "HiddenConduit");
                 var batteryDef = DefDatabase<ThingDef>.GetNamedSilentFail("Battery");

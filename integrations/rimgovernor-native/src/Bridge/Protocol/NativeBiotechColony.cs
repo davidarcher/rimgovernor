@@ -9,7 +9,7 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Biotech colony facts (#1679): what makes and removes pollution, the mech
+    // Biotech colony facts: what makes and removes pollution, the mech
     // gestators and chargers that produce wastepacks, and baby care. Every
     // verdict is the game's own (comps, buildings, ChildcareUtility); nothing
     // is a def-name list. The section is absent without Biotech.

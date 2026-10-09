@@ -23,7 +23,7 @@ import (
 )
 
 // clockPollNative serves the poll's bundle: the scope from the scheduler
-// fake's Tick, the events page from this fake (issue #127).
+// fake's Tick, the events page from this fake.
 type clockPollNative struct {
 	core    *clockCoreFake
 	page    *k.EventsPage
@@ -212,7 +212,7 @@ func TestClockPollGapExistingHoldEmptyAndDisabled(t *testing.T) {
 // A poll that only re-finds a standing hold (nothing enabled, an empty
 // page) must not replace the control epoch: the harness restarts the
 // service per speed, the poll loop runs before the resume's Acquire
-// finishes, and each replacement cancelled the SetMode in flight (#253).
+// finishes, and each replacement cancelled the SetMode in flight.
 func TestClockPollStandingHoldKeepsAcquireEpoch(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()

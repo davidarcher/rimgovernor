@@ -28,7 +28,7 @@ func hediff(def string, visible bool) *o.Hediff {
 	return &o.Hediff{DefName: proto.String(def), Visible: proto.Bool(visible)}
 }
 
-// TestCreepJoinerPawnAndHandLift (#1740): the downside check's facts come
+// TestCreepJoinerPawnAndHandLift: the downside check's facts come
 // from a recorded colonist row: traits, visible hediffs only, the tracker's
 // flag, availability and the weapon in hand; a row with no Anomaly block is
 // no creepjoiner, and an unread read stays unknown.

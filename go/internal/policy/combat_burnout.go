@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The burn-out (#1120, #1122) is the infestation's one heat tactic: it
+// The burn-out is the infestation's one heat tactic: it
 // cooks every insect down together in its own sealed, roofed room. Every
 // open cell of a square ring around the hive is walled but one, and from
 // that gap a 1-wide corridor of burnCorridorDoors stone doors in series
@@ -24,7 +24,7 @@ import (
 // before the stroke kills. The doors hold any straggler.
 const (
 	// BurnFuelDef and BurnFuelStuff are the fuel: cheap wood furniture,
-	// the #1063 bait stool.
+	// the bait stool.
 	BurnFuelDef   = "Stool"
 	BurnFuelStuff = "WoodLog"
 	// BurnWallDef and BurnDoorDef are the seal's walls and corridor doors,
@@ -68,7 +68,7 @@ const (
 	heatStrokeTicks domain.Tick = 11100
 )
 
-// BurnSite is the combat step's census of a burn-out (#1122): how many
+// BurnSite is the combat step's census of a burn-out: how many
 // seal walls, corridor doors and stools it still lacks, whether its sealed
 // room is roofed, and the stools standing.
 type BurnSite struct {
@@ -174,7 +174,7 @@ func cellOrder(a, b domain.Cell) int {
 	return int(a.Z - b.Z)
 }
 
-// BurnRoofed reports every census cell inside the seal roofed (#1122): an
+// BurnRoofed reports every census cell inside the seal roofed: an
 // open sky vents the heat. A cell the census does not carry is not read.
 func BurnRoofed(hive domain.Cell, census map[domain.Cell]WaitDoorCell) bool {
 	for c, at := range census {
@@ -198,7 +198,7 @@ func BurnSurvey(b CombatBurn, census map[domain.Cell]WaitDoorCell, items ItemFac
 	return BurnSite{Missing: len(missing), Roofed: BurnRoofed(b.Hive, census), Fuel: BurnFuelStanding(b.Hive, census)}, nil
 }
 
-// BurnSeal is the seal and corridor still to build (#1122): a stone wall
+// BurnSeal is the seal and corridor still to build: a stone wall
 // on every open (walkable, edifice-free) cell of the ring burnSealRadius
 // around the hive except the corridor's gap, a wall on each open flank
 // cell beside the doors past the gap, and a stone door on each corridor
@@ -347,14 +347,14 @@ func burnInsects(view CombatView) ([]domain.Cell, bool) {
 	return cells, down
 }
 
-// burnOut runs the burn-out on an infestation fight with a live hive
-// (#1120, #1122). It plans the burn once a molotov carrier has the hive
+// burnOut runs the burn-out on an infestation fight with a live hive.
+// It plans the burn once a molotov carrier has the hive
 // in reach, its corridor leading out of the seal toward the carrier.
 // While the census is unread, or any seal wall, corridor door or stool is
 // missing, no molotov is thrown; a room that reads unroofed ends the
 // burn. With all of it standing the carrier lights a stool clear of the
 // insects, everyone else takes the retreat past the last door, behind the
-// corridor's closed, forbidden doors (the #1065 wait), and the carrier
+// corridor's closed, forbidden doors (while waiting), and the carrier
 // follows after burnThrowTicks. While the hive reads under burnTopUpC, at
 // most one molotov per burnFireTicks tops the fire up. The retreat holds
 // until every insect reads downed (or a fire with no fuel left has

@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools {
   }catch(Exception e){ModLog.Error("production", "Production tracking unavailable: "+e);}}
   internal static bool Ready=>target!=null&&Harmony.GetPatchInfo(target)?.Postfixes.Any(h=>h.owner==Owner)==true;
   internal static bool ManagedUnchanged(Bill bill)=>Current.Game!=null&&States.TryGetValue(Current.Game,out var state)&&state.Bills.TryGetValue(bill,out var r)&&!r.Retired&&OrdinaryMeal(bill.recipe)&&r.Giver.BillStack.Bills.Contains(bill)&&r.Index==r.Giver.BillStack.IndexOf(bill)&&r.Config==NativeProductionBills.Configuration(bill);
-  // Replacement adopts any ordinary meal bill on the map by id, whoever wrote it (#461): a bill edited under Manual is
+  // Replacement adopts any ordinary meal bill on the map by id, whoever wrote it: a bill edited under Manual is
   // evidence of an old order, not authority over the tier Auto plans. A tracked one is retired when replaced.
   internal static bool OrdinaryMeal(RecipeDef recipe)=>recipe.products.Count==1&&recipe.products[0].thingDef.ingestible!=null&&recipe.products[0].thingDef.ingestible.preferability>=FoodPreferability.MealSimple&&recipe.products[0].thingDef.ingestible.preferability<=FoodPreferability.MealLavish;
   internal static Bill? ReplaceableBill(string id,Thing bench,string recipe)=>bench.Map.listerThings.AllThings.OfType<IBillGiver>().SelectMany(g=>g.BillStack.Bills).FirstOrDefault(b=>b.GetUniqueLoadID()==id && (b.recipe.defName==recipe && b.billStack==(bench as IBillGiver)?.BillStack || b.recipe.defName!=recipe && OrdinaryMeal(b.recipe)));

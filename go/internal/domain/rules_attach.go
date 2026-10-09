@@ -5,7 +5,7 @@ import (
 	"errors"
 )
 
-// RulesAttachAction attaches the native declarative rules (#2154): a
+// RulesAttachAction attaches the native declarative rules: a
 // RulesAttachIntent on Actions/Apply that replaces every active native rule and
 // sets the lease. It is an intent kind, so the attachment has a receipt and
 // sits in the session journal before native is written.

@@ -64,7 +64,7 @@ func sleepingRequest(facts observation.ColonyProjection, review store.Rounds) (p
 }
 
 // sleepingTraits is each colonist's trait effects from the work census,
-// nil while it is unknown (#813).
+// nil while it is unknown.
 func sleepingTraits(facts observation.ColonyProjection) map[policy.PawnID]policy.TraitEffects {
 	pawns, known := facts.WorkPawns.Value()
 	if !known {
@@ -77,7 +77,7 @@ func sleepingTraits(facts observation.ColonyProjection) map[policy.PawnID]policy
 	return out
 }
 
-// bedroomSwap is the next room quality swap (#813): a jealous colonist into
+// bedroomSwap is the next room quality swap: a jealous colonist into
 // the best solo bedroom, an ascetic into the plainest.
 func bedroomSwap(facts observation.ColonyProjection) (policy.BedroomSwap, bool) {
 	obs, known := facts.Facts.Sleeping.Value()
@@ -92,8 +92,8 @@ func bedroomSwap(facts observation.ColonyProjection) (policy.BedroomSwap, bool) 
 
 // bedroomsFirst reports whether the bedroom ladder answers a sleeping
 // choice: with no demand, and ahead of a barracks bed while colonists own
-// only spots or no bed is buildable (#1182, bedrooms before bedrolls).
-// A colonist owning no bed is unhoused there too (#1197).
+// only spots or no bed is buildable (bedrooms before bedrolls).
+// A colonist owning no bed is unhoused there too.
 func bedroomsFirst(method policy.SleepingMethod) bool {
 	return method == policy.SleepingNoDemand || method == policy.SleepingBuild || method == policy.SleepingUnavailable
 }
@@ -143,7 +143,7 @@ func (r *RoundsBuildingPlanner) resolveSleeping(facts observation.ColonyProjecti
 }
 
 // bedStuff is the stuff a bed step builds definition from: a bedroll's
-// first stuff option in stock (#1181), else the cheapest the rows allow.
+// first stuff option in stock, else the cheapest the rows allow.
 func bedStuff(facts observation.ColonyProjection, definition string) string {
 	if definition == policy.SleepingBedrollDefinition || definition == policy.SleepingCoupleBedrollDefinition {
 		if stuff, _, ok := facts.StockedStuff(definition); ok {
@@ -270,9 +270,9 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	// swapping flags a bedroom swap: native evicts the bed's owner (#1243).
+	// swapping flags a bedroom swap: native evicts the bed's owner.
 	swapping := false
-	// A couple's double bed comes before any other bed change (#843).
+	// A couple's double bed comes before any other bed change.
 	if choice.Method != policy.SleepingUnknown {
 		if result, due, err := r.coupleBed(call, epoch, stock, state, review, goal, reading); due || err != nil {
 			return result, err
@@ -285,7 +285,7 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 	case policy.SleepingUnknown:
 		return RoundsBuildingResult{Verdict: fieldUnavailable(choice.Missing)}, nil
 	case policy.SleepingNoDemand:
-		// A bed replacement under way finishes first (#829): its new bed
+		// A bed replacement under way finishes first: its new bed
 		// stands unowned until the owner moves.
 		if rep, due := bedReplacement(facts, r.reviewer.stage); due && rep.Step == policy.BedReplaceAssign {
 			choice = policy.SleepingChoice{Method: policy.SleepingAssign, Pawn: rep.Pawn, Bed: rep.Bed, PreviousBed: rep.PreviousBed}
@@ -293,10 +293,10 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 		} else if due && rep.Step == policy.BedReplaceRemove {
 			return r.removeOldBed(call, epoch, state, review, goal, reading, rep)
 		}
-		// Everyone owns a bed: walk them into planned bedrooms (#786).
+		// Everyone owns a bed: walk them into planned bedrooms.
 		step := bedroomStep(facts, r.reviewer.stage)
 		if step.Kind == policy.BedroomNone {
-			// Then pawns leave a Retiring wing, one per step (#1219).
+			// Then pawns leave a Retiring wing, one per step.
 			step = migrateStep(facts)
 		}
 		switch step.Kind {
@@ -305,22 +305,22 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 		case policy.BedroomReconcile:
 			// The room's ring, floor and bed through the shared build side; a
 			// bed left empty in the starter shell is packed and reinstalled
-			// rather than built again (#2115).
+			// rather than built again.
 			return r.reconcileBedroom(call, epoch, stock, state, review, goal, reading, step)
 		case policy.BedroomClear:
 			return r.removeOldBed(call, epoch, state, review, goal, reading, policy.BedReplacement{Room: "shell", Bed: step.Bed, Def: policy.SleepingSpotDefinition, Cell: step.Cells[0]})
 		default:
 			// The title's throne room: reconciled to the plan and its template,
-			// then furnished through the room upgrade below (#1601, #2109).
+			// then furnished through the room upgrade below.
 			if throne := throneStep(facts); throne.Owed() {
 				return r.stageThrone(call, epoch, arbiter, stock, state, review, goal, reading, throne)
 			} else if throne.Failed() {
 				// A requirement without an available definition is a named
-				// failure (#1874); forbidden buildings are packed (#2109).
+				// failure; forbidden buildings are packed.
 				return RoundsBuildingResult{Verdict: siteBlocked("throne room", throne.Detail())}, nil
 			}
 			// The Biotech child rooms, worship room and containment cell:
-			// reconciled to the plan and the role's template (#1680, #2112).
+			// reconciled to the plan and the role's template.
 			if child := childRoomStep(facts); child.Owed() {
 				return r.stageChildRoom(call, epoch, stock, state, review, goal, reading, child)
 			}
@@ -354,7 +354,7 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 	case policy.SleepingMarkSlaves:
 		return r.markSlaveBed(call, epoch, state, goal, choice.Bed)
 	case policy.SleepingBuild:
-		// A stored bed is reinstalled before a new one is built (#843).
+		// A stored bed is reinstalled before a new one is built.
 		if result, due, err := r.reinstallStoredBed(call, epoch, stock, state, goal, reading, choice); due || err != nil {
 			return result, err
 		}
@@ -464,7 +464,7 @@ func sleepingAssignUnadmitted(progress []domain.Progress) bool {
 	return true
 }
 
-// markSlaveBed commits one patch setting bed for slaves (#1036), once per
+// markSlaveBed commits one patch setting bed for slaves, once per
 // bed per Episode; the next review assigns the waiting slave to it.
 func (r *RoundsSleepingUpkeepPlanner) markSlaveBed(call, epoch context.Context, state ControlState, goal store.WorkOwner, bed string) (RoundsBuildingResult, error) {
 	p := r.reviewer.player

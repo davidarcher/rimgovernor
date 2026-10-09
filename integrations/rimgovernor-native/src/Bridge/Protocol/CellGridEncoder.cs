@@ -12,7 +12,7 @@ using Obs = RimGovernor.Protocol.Observations;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// The whole-map cell grid every snapshot frame carries (#1345): one
+    /// The whole-map cell grid every snapshot frame carries: one
     /// array per policy.SiteCell field, with the sentinels and string table
     /// the CellGrid comment (mirror.proto) defines. Read reads the map on
     /// the game thread; Attach encodes it on the encoder worker, a keyframe

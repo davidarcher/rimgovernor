@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
     //    walls; target is the first remaining backup in backup-cell order so
     //    successive reads name each backup in turn.
     // A standing deconstruct designation no removal record claims is adopted by
-    // the RemoveWall operation (#461); designated and removal_id report it.
+    // the RemoveWall operation; designated and removal_id report it.
     // Workers, stock, geometry and the roof-support
     // snapshot are not projected: builders are checked at admission, stock
     // through ListSupplies and cells through GetCells.
@@ -124,7 +124,7 @@ namespace HomeBridge.BridgeTools
             // candidate is judged with them standing: a wall whose removal
             // would still drop a roof (a fixture-laid or distant-held roof
             // within support range) is not a site, and no backups are ever
-            // committed to it (#293).
+            // committed to it.
             else blocker = RoofSupportSafety.Blocker(wall, backups == null ? cells : null, out _);
             var row = Site(map, wall, wall, normal, cells, context, backups);
             if (blocker != null) row.Blocker = blocker;

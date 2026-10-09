@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
             {
                 // The game this identity names has exited or been unloaded: its
                 // retained final authority is the only thing left to report,
-                // and is how a controller sees REVOCATION_REASON_SHUTDOWN (#88).
+                // and is how a controller sees REVOCATION_REASON_SHUTDOWN.
                 if (Current.Game == null && ProtoBoundary.Complete(parsed.Identity)
                     && NativeControlAuthority.LastShutdown is NativeControlShutdown shutdown
                     && shutdown.Matches(parsed.Identity.ColonyId, parsed.Identity.LoadToken, parsed.Identity.MapId))

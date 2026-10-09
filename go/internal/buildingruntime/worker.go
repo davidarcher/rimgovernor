@@ -34,7 +34,7 @@ type WorkerConfig struct {
 	// MaxDispatches bounds the actions one step runs before it yields the
 	// player gate; zero means no count bound: the step budget (StepTimeout,
 	// and the longest dispatch so far) ends a step, not a number. Every eligible
-	// independent action is dispatched in the step that finds it (#593):
+	// independent action is dispatched in the step that finds it:
 	// one per step cost a scheduler-step round trip per wall segment. A
 	// dependent action still waits for its prerequisite's outcome, which
 	// Hands enforces.
@@ -44,33 +44,33 @@ type WorkerConfig struct {
 	// ticker cadence.
 	Wake *WakeSignal
 	// Advanced, when set, is called after a step that moved an action to a
-	// new stage, so the clock step loop reviews at once (issue #162).
+	// new stage, so the clock step loop reviews at once.
 	Advanced func()
 	// Store is the scheduler's decoded state store. A dispatch native
 	// refuses for a map-consuming kind (a placement or zone whose CAS token
 	// no longer matches) asks it to resync the planning window in full on
-	// its next refresh instead of trusting a delta (#357); nil asks nothing.
+	// its next refresh instead of trusting a delta; nil asks nothing.
 	Store *facts.Store
 	// WindowRunning, when set, reports the scheduler's hint that its window
 	// is running; each native call the worker issues is recorded with it
-	// as a "dispatch" flight row (#243), so a run can count the
+	// as a "dispatch" flight row, so a run can count the
 	// dispatches made live and the fraction native refused.
 	WindowRunning func() bool
 	// Trace, when set, is the trace of the scheduler's latest step
 	// (ClockWorker.Trace). Each worker step is a span under it and each
 	// dispatch a span under the step, so every row a dispatch leaves joins
-	// the trace of the step that admitted the window it ran in (#298).
+	// the trace of the step that admitted the window it ran in.
 	// Nil starts a trace per worker step.
 	Trace func() telemetry.Trace
 	// Validity, when set, is the read validity of the scheduler's latest
-	// step (ClockScheduler.Validity, #624): each dispatch runs under it, so
+	// step (ClockScheduler.Validity): each dispatch runs under it, so
 	// its boundaries judge their reads by age class (a dispatch
 	// precondition within one dispatch's reads at the window's pace, the
 	// cached emergency census within the step's) instead of the global
 	// drift. Nil leaves the dispatches on the compatibility shim.
 	Validity func() (domain.ReadValidity, bool)
 	// Flush, when set, asks native to capture the snapshot frame the
-	// step's writes deferred (bridge.FlushSnapshot, #1274): a step's
+	// step's writes deferred (bridge.FlushSnapshot): a step's
 	// dispatches send defer_snapshot and the step flushes once at its end,
 	// so a dispatch wave pays one frame capture instead of one per apply.
 	// Nil leaves every dispatch capturing its own frame.
@@ -164,7 +164,7 @@ type workerWait struct {
 	// the next stop is a new observation, so it is retried there at once.
 	stale bool
 	// cancelled counts consecutive steps whose dispatch of this undispatched
-	// action lost its own call context while the step's was live (#671).
+	// action lost its own call context while the step's was live.
 	cancelled int
 }
 
@@ -175,7 +175,7 @@ type workerWait struct {
 func workerOutcome(after domain.ProgressView, result executor.Result, err error) string {
 	reasons := workerRefusedReasons(result)
 	// The receipt and effect name why an attempt is unresolved: an unknown
-	// receipt is a native call that timed out on the controller side (#71),
+	// receipt is a native call that timed out on the controller side,
 	// and with the attempt number it identifies the native ledger entry.
 	receipt, effect := "-", "-"
 	if v, known := after.Receipt.Value(); known {
@@ -269,7 +269,7 @@ func (w *Worker) steps() {
 		// so each of them is reconciled without waiting a StepInterval, and
 		// a step that advanced an action steps again so the successor it
 		// unblocked dispatches before the clock readmits a window rather
-		// than a StepInterval or its own backoff later (issue #162).
+		// than a StepInterval or its own backoff later.
 		if (len(w.focus) > 0 || w.advanced) && burst < workerBurstMax {
 			continue
 		}
@@ -319,7 +319,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	// StepTimeout budgets the dispatches, not the wait for the player
 	// gate: a scheduler step holds the gate for its whole planner wave, and
 	// a budget that started before the wait left the step 0-3 s for its
-	// actions and killed the last one at the deadline (#410).
+	// actions and killed the last one at the deadline.
 	call, epoch, done, err := w.player.enter(call, "worker", false)
 	if err != nil {
 		return err
@@ -339,8 +339,8 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	if worldErr != nil {
 		// A read that ran out of the step's budget (a scheduler step held
 		// the gate for most of it) or failed in transport says nothing
-		// about the world: the step fails and the next one reads again
-		// (#342). Only a world that reads back unavailable or different
+		// about the world: the step fails and the next one reads again.
+		// Only a world that reads back unavailable or different
 		// is evidence against the authority.
 		if call.Err() != nil || errors.Is(worldErr, context.DeadlineExceeded) || errors.Is(worldErr, context.Canceled) || errors.Is(worldErr, bridge.ErrTransport) {
 			return worldErr
@@ -421,7 +421,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	// action gave a forty-action shell plan every step until its last
 	// action and restarted at the catalog's head whenever the selected
 	// action completed, so the work-assignment plan sorted after the shell
-	// never had a turn (#322). Within a plan the first candidate is its
+	// never had a turn. Within a plan the first candidate is its
 	// earliest action, so a sequential plan still progresses in order.
 	// Woken actions come first: the native clock latched their outcome, so
 	// reconciling them is the reason this step runs; they leave the
@@ -449,7 +449,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	}
 	// Every candidate off its backoff dispatches in this step, up to the
 	// dispatch budget, so a plan's independent actions reach native in one
-	// gate hold rather than one per scheduler round (#593). A dependent
+	// gate hold rather than one per scheduler round. A dependent
 	// action Hands holds until its prerequisite's outcome stays a held
 	// result here and backs off like any other.
 	var dispatched int
@@ -465,11 +465,11 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	// A dispatch that starts with less of the step's budget left than the
 	// longest dispatch so far took would lose its native call to the
 	// deadline with the receipt unknown (a reconcile round trip later);
-	// the step yields instead and the next one starts it whole (#410).
+	// the step yields instead and the next one starts it whole.
 	var longest time.Duration
 	deadline, bounded := call.Deadline()
-	// A plan's building candidates go out together as one batched Apply
-	// (#1042): the batch is one dispatch against the budget and the longest
+	// A plan's building candidates go out together as one batched Apply:
+	// the batch is one dispatch against the budget and the longest
 	// estimate, and takes every eligible building candidate of its plan.
 	taken := make(map[domain.ActionID]bool)
 	for at, lead := range ordered {
@@ -558,8 +558,8 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			// A dispatch held on stale facts (the authority or tick moved under
 			// its inspection) clears on the next observation, so it is retried
 			// at once, off its backoff, before the game's own work scanner takes
-			// the order's target (#288); the clock is not held for it, since
-			// every routine kind dispatches under the running window (#244). One
+			// the order's target; the clock is not held for it, since
+			// every routine kind dispatches under the running window. One
 			// retry per hold: a hold that survives it backs off as usual.
 			if stale && !wait.stale {
 				if w.focus == nil {
@@ -570,7 +570,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			// One line per change of outcome, in either log: a refusal that
 			// repeats verbatim on every retry (a CAS token that never matches, a
 			// native read refused for the same reason) would otherwise dominate
-			// the run's log without adding anything a reader can act on (#100).
+			// the run's log without adding anything a reader can act on.
 			outcome := workerOutcome(after, result, err)
 			repeats := wait.repeats
 			changed := outcome != wait.outcome
@@ -592,7 +592,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			}
 			// An undispatched action whose dispatch is cancelled step after step
 			// never reaches native; parked at attempt 0 it would hold its goal
-			// for ever (#671). It settles cancelled, so the goal re-plans.
+			// for ever. It settles cancelled, so the goal re-plans.
 			if cancelled >= workerCancelledSettle {
 				if _, cancelErr := w.player.journal.Cancel(call, v.Plan, v.Action); cancelErr != nil {
 					errs = append(errs, cancelErr)
@@ -608,7 +608,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			if err != nil {
 				errs = append(errs, err)
 				// A step that ran out of budget or lost its transport says
-				// nothing about the next candidate either (#342); one dispatch
+				// nothing about the next candidate either; one dispatch
 				// cancelled by its own context says nothing about its siblings.
 				if !own && (call.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.Is(err, bridge.ErrTransport)) {
 					stop = true
@@ -639,7 +639,7 @@ func (w *Worker) flush(call context.Context) {
 }
 
 // workerBatched reports whether candidate joins its plan's other plain
-// intents in one batched Apply (#1042); other kinds
+// intents in one batched Apply; other kinds
 // each dispatch alone.
 func workerBatched(candidate workerCandidate) bool {
 	return executor.PlainIntent(candidate.kind)
@@ -647,7 +647,7 @@ func workerBatched(candidate workerCandidate) bool {
 
 // runBatch sends group, one plan's candidates, as one RunBatch and
 // returns each member's result and error in group order. A batch cancelled
-// by its own context while the step's is live retries once, whole (#671).
+// by its own context while the step's is live retries once, whole.
 func (w *Worker) runBatch(call, run context.Context, plan domain.PlanID, group []workerCandidate) ([]executor.Result, []error) {
 	ids := make([]domain.ActionID, len(group))
 	for i, member := range group {
@@ -676,7 +676,7 @@ func (w *Worker) runBatch(call, run context.Context, plan domain.PlanID, group [
 
 // workerCancelledSettle is how many consecutive steps an undispatched
 // action's dispatch may be cancelled by its own context before the worker
-// settles it cancelled (#671).
+// settles it cancelled.
 const workerCancelledSettle = 3
 
 // workerOwnCancel reports whether err is the dispatch's own context
@@ -697,14 +697,14 @@ func (w *Worker) backedOff(candidate workerCandidate, scope ControlState, now ti
 // reached native or whose outcome changed. A native run carries the receipt
 // the run left (accepted, refused, unknown; "-" when the write was not a
 // dispatch), whether the scheduler's window was running when the run began
-// (#243) and the read tally (`rimgovernor phases` sums those rows,
+// and the read tally (`rimgovernor phases` sums those rows,
 // bridge.DispatchSample); an outcome change carries `changed` and how many
 // unrecorded runs restated the previous outcome, so a refusal that repeats
-// verbatim on every retry writes once (#100). An action waiting on a
+// verbatim on every retry writes once. An action waiting on a
 // prerequisite that has not completed is the plan sequencing itself, not a
 // failure, so only another error is WARN. stale marks a run held on stale
 // facts (workerHeldStale) so a run can count the holds the read bounds
-// refused (#624).
+// refused.
 func workerDispatchRow(ctx context.Context, tally *bridge.ReadTally, before, after domain.ProgressView, result executor.Result, running, stale bool, err error, changed bool, repeats int) {
 	refused := workerRefusedReasons(result)
 	d := telemetry.Decision{Kind: "dispatch", Component: "worker", Target: string(before.Action), Verdict: "waiting", Reason: string(after.Stage),
@@ -828,7 +828,7 @@ func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlSt
 	// the native call), so one whose snapshot went stale -- the step budget
 	// cancelled its dispatch and the native generation then moved -- is
 	// re-prepared under the current scope by the next run rather than
-	// stranded behind an authority it can never dispatch against (#101).
+	// stranded behind an authority it can never dispatch against.
 	if v.Attempt == 0 {
 		return true
 	}
@@ -838,7 +838,7 @@ func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlSt
 	// nothing, so the same generation may retry it.
 	receipt, known := v.Receipt.Value()
 	// An intent whose Apply receipt came back unknown is back at Pending
-	// for a resend (#856). Like a refusal, only a later resume (a newer
+	// for a resend. Like a refusal, only a later resume (a newer
 	// native generation) resends it; native answers applied if the first
 	// write landed, so the resend cannot duplicate the building.
 	if known && receipt == domain.ReceiptUnknown && v.Stage == domain.Pending {
@@ -873,7 +873,7 @@ func workerScope(scope ControlState) ControlState {
 // draft that native is still executing holds it outright: a recovered goal
 // cancels the plan's unissued orders (settleUnissuedWork) and leaves the
 // dispatched ones to close on their own, which they cannot once the pawn
-// is undrafted under them. A completed subdue order (#856) stands
+// is undrafted under them. A completed subdue order stands
 // on its draft the same way: its intent receipt is terminal while native
 // keeps fighting, so the draft is held until the planner cancels the order
 // (releaseBreakWork, once the victim is downed or out of the break).

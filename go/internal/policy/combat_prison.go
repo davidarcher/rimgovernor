@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TacticPrisonBreak answers a prison break (#1080): the escapees are
+// TacticPrisonBreak answers a prison break: the escapees are
 // subdued, not killed. Armored wardens body-block them, one brawler per
 // injured escapee and two unarmed wardens per healthy one; ranged wardens
 // with guns hold fire until an escapee is blocked, then shoot it.

@@ -33,8 +33,7 @@ func TestLootSafetyTracksBothDirections(t *testing.T) {
 	}
 }
 
-// Unsafe loot is refused at dispatch by UnsafeLootSafeguard, never an emergency
-// (#1018).
+// Unsafe loot is refused at dispatch by UnsafeLootSafeguard, never an emergency.
 func TestUnsafeLootIsNotEmergencyPriority(t *testing.T) {
 	for _, tc := range []struct {
 		forbidden, safe, known bool

@@ -53,7 +53,7 @@ func TestMedicalCareSettingTiers(t *testing.T) {
 	}
 }
 
-// The mech arms (#1685) take a mech pawn and a def or a non-negative group,
+// The mech arms take a mech pawn and a def or a non-negative group,
 // and stay distinct values.
 func TestMechSettingsValidate(t *testing.T) {
 	if _, err := NewMechWorkModeSetting("", "Work"); err == nil {

@@ -3,7 +3,7 @@ package domain
 import "errors"
 
 // OpenCasket is explicit intent to have one pawn open one filled ancient
-// cryptosleep casket (#460). Opening one casket ejects every casket of its
+// cryptosleep casket. Opening one casket ejects every casket of its
 // shrine group at once, so a plan carries a single OpenCasket after the
 // drafts and moves that stand a melee colonist in front of each filled
 // casket. The pawn may be drafted: the vanilla Open job is an ordered job

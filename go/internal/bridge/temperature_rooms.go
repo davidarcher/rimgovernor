@@ -10,8 +10,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// RoomCells resolves each room of v to its cells in the frame grid
-// (#1346): the held cells carrying its grid_room key, row-major. A room
+// RoomCells resolves each room of v to its cells in the frame grid:
+// the held cells carrying its grid_room key, row-major. A room
 // without a key, or whose key the grid does not carry, is absent.
 func RoomCells(v *o.RoomsSnapshot, grid *cellgrid.Grid) map[string][]domain.Cell {
 	out := map[string][]domain.Cell{}

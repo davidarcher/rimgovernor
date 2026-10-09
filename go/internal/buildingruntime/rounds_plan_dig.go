@@ -44,7 +44,7 @@ func (b *RoundsBuildingPlanner) admitRockStep(call, epoch context.Context, s exc
 	return b.digPlannedSky(call, epoch, s, step.Dig, step.Unroof, access, method, buildings, check)
 }
 
-// roofRulesFor is the load's roof rules (#1870) when planned has a needs-sky
+// roofRulesFor is the load's roof rules when planned has a needs-sky
 // cell, the only role that asks what a roof is; nil otherwise. A source that
 // serves no definitions is an error: the roof is not guessed.
 func (b *RoundsBuildingPlanner) roofRulesFor(ctx context.Context, snapshot domain.GenerationSnapshot, planned []policy.RoleCell) (policy.RoofRules, error) {
@@ -73,7 +73,7 @@ func (b *RoundsBuildingPlanner) digPlanned(call, epoch context.Context, s excava
 // sky. The roof comes off after the rock is mined and before the building;
 // when the plan settles with the building still unplaced the roof is
 // standing and the method refuses (rock_not_dug, roof_standing) instead of
-// retrying (#1758).
+// retrying.
 func (b *RoundsBuildingPlanner) digPlannedSky(call, epoch context.Context, s excavationStep, rock, unroof []domain.Cell, access domain.Cell, method domain.MethodID, buildings []domain.Building, check func() error) (RoundsBuildingResult, bool, error) {
 	if len(rock) == 0 && len(unroof) == 0 {
 		return RoundsBuildingResult{}, false, nil
@@ -219,8 +219,7 @@ func (b *RoundsBuildingPlanner) digPlannedSky(call, epoch context.Context, s exc
 }
 
 // overRockPreviewer is the native preview of a building as though natural
-// rock on its footprint were mined (bridge.Client.PreviewBuildingOverRock,
-// #874).
+// rock on its footprint were mined (bridge.Client.PreviewBuildingOverRock).
 type overRockPreviewer interface {
 	PreviewBuildingOverRock(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error)
 }
@@ -254,7 +253,7 @@ func exposedFirst(excavations []domain.Excavation, cells []policy.SiteCell) []do
 	return out
 }
 
-// digMethod is the per-epoch method that mines what for room (#836).
+// digMethod is the per-epoch method that mines what for room.
 func digMethod(what string, room policy.PlannedRoom) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("plan-dig-%s-%s-%d-%d", what, room.Role, room.Interior.X, room.Interior.Z))
 }
@@ -279,9 +278,9 @@ func (b *RoundsBuildingPlanner) digPlannedRoom(call, epoch context.Context, s ex
 }
 
 // digExhaust mines the planned exhaust shaft of the room the refrigeration
-// proposal cools (#836), reached from inside the room; until it is open
+// proposal cools, reached from inside the room; until it is open
 // the proposal falls back to any vented wall. A cooler wall cell still in
-// rock is mined in the same plan that places the planned cooler (#874),
+// rock is mined in the same plan that places the planned cooler,
 // when the native source can preview over rock.
 func (b *RoundsBuildingPlanner) digExhaust(call, epoch context.Context, s excavationStep, check func() error) (RoundsBuildingResult, bool, error) {
 	plan, pk := s.facts.LayoutPlan.Value()

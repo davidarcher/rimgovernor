@@ -10,7 +10,7 @@ import (
 )
 
 // The orphan pass sees the committed method's plan before the rebuild
-// deletes the method row and retires the plan (#998/#1000); a pass error
+// deletes the method row and retires the plan; a pass error
 // aborts the rebuild with both intact.
 func TestRebuildStandardsHandsOldPlansToOrphanPass(t *testing.T) {
 	t.Parallel()

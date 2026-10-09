@@ -14,7 +14,7 @@ func animalWire() *o.UpkeepFacts {
 	return v
 }
 
-// An upkeep animal is a reference into the pawn table (#1343); its herd
+// An upkeep animal is a reference into the pawn table; its herd
 // facts are the table row's.
 func TestAnimalUpkeepBoundary(t *testing.T) {
 	size := &o.MapSize{Width: proto.Uint32(50), Height: proto.Uint32(50)}

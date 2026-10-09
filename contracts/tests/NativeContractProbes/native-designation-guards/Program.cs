@@ -2,7 +2,7 @@
 using System;
 using HomeBridge.BridgeTools;
 
-// The guard registry contract (#1350): every named guard refuses at
+// The guard registry contract: every named guard refuses at
 // admission when its rule fails, and its in-progress re-check cancels the
 // job once the rule fails mid-work; a wait holds the job without
 // cancelling. Fake subjects stand in for the game's rules, which are
@@ -33,7 +33,7 @@ internal static class NativeDesignationGuardsProbe
         Require(registry.Recheck(GuardNames.Enclosure, held, out var wait) == GuardVerdict.Wait && wait == "roof still up", "a wait holds without cancelling");
         held.Unsafe = "enclosing wall";
         Require(registry.Recheck(GuardNames.Enclosure, held, out _) == GuardVerdict.Cancel, "a failed check outranks a wait");
-        // mine_safety as the game registers it (#1588): a pending roof collapse
+        // mine_safety as the game registers it: a pending roof collapse
         // holds the dig and keeps the designation; a real blocker cancels.
         var mine = new GuardRegistry<MineSite>().Register(GuardNames.MineSafety,
             s => MineSafetyRule.Check(s.Collapse, () => s.CellBlocker, () => s.Support), s => MineSafetyRule.Wait(s.Collapse));

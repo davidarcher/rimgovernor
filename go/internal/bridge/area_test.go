@@ -7,7 +7,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-// An area action builds one AreaIntent (#1321): a bot area carries its key,
+// An area action builds one AreaIntent: a bot area carries its key,
 // the home area carries home and no key.
 func TestAreaBuildsAreaIntent(t *testing.T) {
 	for _, tc := range []struct {

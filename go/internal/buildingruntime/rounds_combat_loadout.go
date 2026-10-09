@@ -15,18 +15,18 @@ import (
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// shieldBeltDef is the stocked apparel a melee defender wears (#1048).
+// shieldBeltDef is the stocked apparel a melee defender wears.
 const shieldBeltDef = "Apparel_ShieldBelt"
 
-// loadoutWeaponSource is the loose-weapon read a fight's loadout takes
-// (#1115); a source without it gets no weapon swaps.
+// loadoutWeaponSource is the loose-weapon read a fight's loadout takes;
+// a source without it gets no weapon swaps.
 type loadoutWeaponSource interface {
 	ReadMapBounds(context.Context, *c.Identity, domain.Cell) (bridge.MapBounds, bridge.Result, error)
 	ReadEquipWeapons(context.Context, *c.Identity, domain.Cell, domain.Cell) (bridge.EquipRead, bridge.Result, error)
 }
 
-// fightLoadout is the threat loadout (#1048) for the defenders a fight
-// admits (#1115): policy.ThreatLoadout over the frame's defender rows, the
+// fightLoadout is the threat loadout for the defenders a fight
+// admits: policy.ThreatLoadout over the frame's defender rows, the
 // map's loose weapons and the stocked shield belts the gear census offers.
 // A loadout is optional: a failed read is logged and leaves that half out.
 func (r *RoundsDefensePlanner) fightLoadout(call context.Context, state ControlState, view policy.CombatView, rows map[string]*n.PawnState, pawns []domain.PawnID, catalog *bridge.DefinitionCatalog) []policy.LoadoutOrder {
@@ -55,7 +55,7 @@ func (r *RoundsDefensePlanner) fightLoadout(call context.Context, state ControlS
 				d.Primary = p.Weapon
 			}
 		}
-		// The primary's def rows (#1723): a def the catalog cannot state
+		// The primary's def rows: a def the catalog cannot state
 		// leaves the loadout out, as any failed read does.
 		if d.PrimaryFacts, err = catalog.WeaponOf(d.Primary); err != nil {
 			defenseAction(call, "routine-defense", slog.LevelWarn, "failed", "loadout_primary", string(pawn), map[string]any{"error": err})
@@ -163,7 +163,7 @@ func primaryDef(row *n.PawnState, things bridge.Things) string {
 	return ""
 }
 
-// loadoutActions are the fight plan's equip and wear actions (#1115),
+// loadoutActions are the fight plan's equip and wear actions,
 // committed before its first combat.orders batch, and the pawns they hold
 // back from drafting: a drafted pawn's wear is refused natively
 // (GearUpkeepTools.Available), so a loadout pawn equips before it drafts.

@@ -151,7 +151,7 @@ jobs:
           path: C:\rg\evidence\s1
           if-no-files-found: ignore
           retention-days: 7
-      # The previous nights' reports are the score baseline store (#1936):
+      # The previous nights' reports are the score baseline store:
       # the same artifacts the pages job builds the site from. Only run.json
       # is read; a failed download just leaves no baseline (unknown).
       - name: Fetch earlier reports for the score baseline

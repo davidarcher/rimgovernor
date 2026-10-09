@@ -4,7 +4,7 @@ import "errors"
 
 const MoveBuildingAction ActionKind = "move_building"
 
-// MoveBuilding re-sites one exact installed player building (#808) through
+// MoveBuilding re-sites one exact installed player building through
 // the game's Reinstall: a reinstall blueprint at the destination, then
 // ordinary construction work uninstalls the piece and installs it there.
 // The piece keeps its identity, quality and hit points; the uninstall waits
@@ -51,7 +51,7 @@ func (a Action) MoveBuilding() (MoveBuilding, bool) {
 
 const UninstallBuildingAction ActionKind = "uninstall_building"
 
-// UninstallBuilding packs one exact installed player building (#843)
+// UninstallBuilding packs one exact installed player building
 // through the game's Uninstall designation: ordinary work minifies it where
 // it stands and vanilla hauling takes the packed item to storage. Its value
 // is the building's current placement (MoveBuilding's shape), which the

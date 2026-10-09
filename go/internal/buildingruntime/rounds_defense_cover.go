@@ -16,7 +16,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// Cover clearance (#581): once every tier of the accepted layout stands,
+// Cover clearance: once every tier of the accepted layout stands,
 // the planner re-reads the census around the colony, recomputes the
 // layout's approaches (raid arrival sectors from the native raid trails,
 // each sector's route to Entry) and designates the cover things the policy
@@ -53,7 +53,7 @@ func defenseCoverAttempts(history []domain.Method, tick domain.Tick) int {
 // defenseRecordLayout rebuilds the accepted geometry the approaches keep
 // protected: lanes, firing cells and every tier's placements and reserved
 // cells. A firing position's cover cell is a tier placement, so the firing
-// cell stands for it; its retreat cell is the recorded inner line (#860),
+// cell stands for it; its retreat cell is the recorded inner line,
 // the firing cell on a record that predates it.
 func defenseRecordLayout(record store.DefenseLayoutRecord) (policy.DefenseLayout, error) {
 	l := policy.DefenseLayout{Chokepoint: record.Chokepoint, Toward: record.Toward, Width: record.Width, Entry: record.Entry,

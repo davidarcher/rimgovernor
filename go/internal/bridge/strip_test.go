@@ -7,7 +7,7 @@ import (
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-// TestStripIntentWire is the bridge contract for #1117: a strip action is a
+// TestStripIntentWire is the bridge contract: a strip action is a
 // DesignateIntent with STRIP on the exact target.
 func TestStripIntentWire(t *testing.T) {
 	strip, err := domain.NewStrip("Corpse_Human12")

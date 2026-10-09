@@ -1,7 +1,7 @@
 package domain
 
 // RecipeRole is what a recipe does, read from its RecipeDef row rather than
-// its defName (#1721): the catalog derives it, facts and bills carry it.
+// its defName: the catalog derives it, facts and bills carry it.
 type RecipeRole string
 
 const (

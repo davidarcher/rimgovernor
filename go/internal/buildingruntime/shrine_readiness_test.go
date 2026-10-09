@@ -96,7 +96,7 @@ func TestShrineReadinessReadsOnlyForBreachableShrines(t *testing.T) {
 	if err != nil || got[0].Readiness.Ready || got[0].Readiness.Reason != policy.ShrineHoldEmergency {
 		t.Fatalf("%+v %v", got, err)
 	}
-	// The census rows a breach never waits on (#659): the shrine's own
+	// The census rows a breach never waits on: the shrine's own
 	// undiscovered guard, a wild predator near the colony and a downed animal.
 	for _, row := range []policy.EmergencyThreat{
 		{ID: "guard", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false), Fogged: domain.Known(true)},

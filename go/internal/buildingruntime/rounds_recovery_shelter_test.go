@@ -12,7 +12,7 @@ import (
 )
 
 // TestShelterCombatantsProjectsOpenFightRosters: the draft set is this
-// world's open fight rosters, known and empty with no fight (#1367).
+// world's open fight rosters, known and empty with no fight.
 func TestShelterCombatantsProjectsOpenFightRosters(t *testing.T) {
 	ctx := context.Background()
 	db, err := store.Open(ctx, storetest.Path(t))

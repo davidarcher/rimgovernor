@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-// #2410: the RemoveProductionBillIntent arm of Actions/Apply. Checks the wire
+// the RemoveProductionBillIntent arm of Actions/Apply. Checks the wire
 // shape, that Actions/Apply maps the arm to a handler, and that a malformed
 // intent is refused InvalidRequest before any live game state is read. The
 // live rules (bill gone, bill worked, unfinished item bound, idle bill

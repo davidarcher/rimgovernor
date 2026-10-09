@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Royal bedroom requirements (#815): a titled owner's solo bedroom must
+// Royal bedroom requirements: a titled owner's solo bedroom must
 // hold the title's BedroomThings, each met by Count things of any one of
 // its definitions. The bed entry is the bed replacement's (titleBed); every
 // other entry is placed here, one piece at a time, at its bedroom template

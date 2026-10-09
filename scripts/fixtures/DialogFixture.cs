@@ -8,7 +8,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Disposable test setup only (issue #156). Opens the same kind of
+    // Disposable test setup only. Opens the same kind of
     // force-pausing Verse.Dialog_NodeTree the game opens by itself (a finished
     // research project's completion dialog, a caravan demand, a quest dialog),
     // built the way ResearchManager.FinishProject builds its own: a text node

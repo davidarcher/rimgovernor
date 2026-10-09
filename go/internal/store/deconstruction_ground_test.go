@@ -7,8 +7,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A deconstruction persists its cleared ground (#1366) and door-to-wall
-// swap (#1245); one without keeps none.
+// A deconstruction persists its cleared ground and door-to-wall
+// swap; one without keeps none.
 func TestDeconstructionClearedGroundRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

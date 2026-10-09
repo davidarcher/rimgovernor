@@ -10,11 +10,11 @@ import (
 // (the combat.orders attack_ground order).
 const OrderAttackGround CombatOrderKind = "attack_ground"
 
-// ReasonRocketClump is a rocket carrier's ground shot at a clump (#1051).
+// ReasonRocketClump is a rocket carrier's ground shot at a clump.
 const ReasonRocketClump CombatOrderReason = "rocket_clump"
 
 // A clump is rocketClumpMin live hostiles within rocketClumpRadius cells of
-// a hostile's cell (#1051): a sapper team at its wall, a siege camp. No
+// a hostile's cell: a sapper team at its wall, a siege camp. No
 // colonist may stand within rocketSafeRadius of the aim.
 const (
 	rocketClumpMin    = 3
@@ -26,7 +26,7 @@ const (
 func rocketLauncher(weapon WeaponDef) bool { return weapon.OneUse }
 
 // rocketClumps gives every orderable rocket carrier a ground shot at the
-// densest hostile clump in its range (#1051), nearest on a tie; a carrier
+// densest hostile clump in its range, nearest on a tie; a carrier
 // with no clump in range keeps its role. A mortar crew or a rescuer is left
 // alone.
 func rocketClumps(view CombatView, m *CombatMemory) {

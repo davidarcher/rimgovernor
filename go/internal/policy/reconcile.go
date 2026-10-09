@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Plan-vs-ground reconciliation (#2106, epic #2101): the operations a
+// Plan-vs-ground reconciliation: the operations a
 // PlannedRoom still owes, from a per-cell diff of the wanted ring, floor and
 // furniture against what stands. A room's state is whatever the diff leaves;
 // the old clearance phases (GroundPhase) label operations, they are not stages.
@@ -36,7 +36,7 @@ const (
 	OpDoorOut      OpKind = "door_out" // a ring door swapped for a wall in place
 	OpWallOut      OpKind = "wall_out"
 	OpWallIn       OpKind = "wall_in"
-	OpWallUp       OpKind = "wall_up" // a standing wall swapped in place for a better stuff (#2111)
+	OpWallUp       OpKind = "wall_up" // a standing wall swapped in place for a better stuff
 	OpDoorIn       OpKind = "door_in"
 	OpPack         OpKind = "pack"
 	OpFurnitureOut OpKind = "furniture_out" // deconstruct what cannot pack
@@ -45,7 +45,7 @@ const (
 	OpFloorIn      OpKind = "floor_in"
 	OpInstall      OpKind = "install"
 	OpBuild        OpKind = "build"
-	// The foreign-thing kinds (#2268): claim a ruin as ring wall, cut an
+	// The foreign-thing kinds: claim a ruin as ring wall, cut an
 	// impassable plant, move a haulable item off the ground.
 	OpClaim        OpKind = "claim"
 	OpCut          OpKind = "cut"
@@ -91,7 +91,7 @@ type Operation struct {
 type ReconcileInput struct {
 	Plan LayoutPlan
 	Room PlannedRoom
-	// Ground is the colony census's walls and doors (GroundOf, #2105).
+	// Ground is the colony census's walls and doors (GroundOf).
 	Ground GroundCensus
 	// Rows are the census's player buildings on the room's ground and Floors
 	// its constructed floors, as planned-ground clearance reads them.
@@ -103,19 +103,19 @@ type ReconcileInput struct {
 	Furniture   []WantedPiece
 	WantedFloor func(domain.Cell) string
 	// FloorKept says an existing constructed floor stands in for the wanted
-	// one (FloorKept, #2109); nil keeps only the exact def. A floor that stands
+	// one (FloorKept); nil keeps only the exact def. A floor that stands
 	// in is no operation: no tear-up for a different adequate floor.
 	FloorKept func(have, want string) bool
 	// WallUpgrade says a standing wall of stuff have is replaced in place by the
-	// wanted stuff (#2111): the wanted stuff ranks strictly above it in the
+	// wanted stuff: the wanted stuff ranks strictly above it in the
 	// ladder and is in stock. Nil never swaps a wall. A wall whose stuff the
 	// census does not name is left.
 	WallUpgrade func(have string) bool
 	// Cells are the mirror's cells on the room's ground: their foreign things
-	// are cleared, claimed or held by the obstruction policy (#2268). Nil sees
+	// are cleared, claimed or held by the obstruction policy. Nil sees
 	// none.
 	Cells []SiteCell
-	// Stock counts the packed pieces in storage by def (#2104).
+	// Stock counts the packed pieces in storage by def.
 	Stock map[string]int
 }
 
@@ -134,7 +134,7 @@ type reconcileItem struct {
 	floor  ClearanceFloor
 	piece  WantedPiece
 	fed    bool // an install fed by a piece this pass packs
-	// foreign is a thing that is not the colony's (#2268): it feeds no install.
+	// foreign is a thing that is not the colony's: it feeds no install.
 	foreign bool
 	ready   bool
 }

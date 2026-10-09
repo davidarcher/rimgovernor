@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The shelter (#2041, epic #2037): one temporary starter room holding a
+// The shelter: one temporary starter room holding a
 // sleeping spot per colonist, campfires on a cold map, a crafting spot and a
 // research table. It is sited apart from the other rooms so its ground frees cleanly
 // when it is demolished, and sized from those contents. Its interior is the
@@ -37,7 +37,7 @@ const (
 	shelterResearchCell = 6
 )
 
-// ColdMapBelowC is the seasonal minimum below which a map is cold (#2044): a
+// ColdMapBelowC is the seasonal minimum below which a map is cold: a
 // pinned constant, not the room latches' ColdEnter.
 const ColdMapBelowC = 0.0
 
@@ -55,7 +55,7 @@ func ColdMapCurve(curve []float64) bool {
 	return false
 }
 
-// ShelterCampfires is how many campfires the shelter holds indoors (#2044):
+// ShelterCampfires is how many campfires the shelter holds indoors:
 // two on a cold map, none elsewhere, where the cooking campfire stands outside.
 func ShelterCampfires(cold bool) int {
 	if cold {
@@ -65,7 +65,7 @@ func ShelterCampfires(cold bool) int {
 }
 
 // HotMapCurve reports whether a seasonal outdoor temperature curve peaks above
-// the temperature planner's HotEnter (#2044). An empty curve is not hot.
+// the temperature planner's HotEnter. An empty curve is not hot.
 func HotMapCurve(curve []float64) bool {
 	hot := DefaultRoundsPolicy().HotEnter
 	for _, t := range curve {
@@ -77,7 +77,7 @@ func HotMapCurve(curve []float64) bool {
 }
 
 // ShelterCoolers is how many passive coolers the shelter template holds on its
-// floor (#2044): one on a hot map, none elsewhere. A powered Cooler is
+// floor: one on a hot map, none elsewhere. A powered Cooler is
 // wall-mounted and needs no floor, but a tribal-tier shelter has none.
 func ShelterCoolers(hot bool) int {
 	if hot {
@@ -88,7 +88,7 @@ func ShelterCoolers(hot bool) int {
 
 // ShelterInteriorArea is the interior cells a shelter for colonists needs:
 // its contents plus half again for the aisle and the door's approach. The
-// research bench is counted at its 3x2 footprint (#2042).
+// research bench is counted at its 3x2 footprint.
 func ShelterInteriorArea(colonists, campfires, coolers int) int {
 	contents := shelterBunkCells*max(colonists, 1) + shelterCampfireCell*max(campfires, 0) + shelterCoolerCell*max(coolers, 0) + shelterCraftCells + shelterResearchCell
 	return (contents*3 + 1) / 2

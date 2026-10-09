@@ -134,8 +134,7 @@ func TestSourcesForSatisfiedDemandDoesNotReadOrSelectOre(t *testing.T) {
 
 // A deposit designated by a completed mine method still owes a colonist's
 // labor: the selection reports it, so the planner lends a window instead of
-// parking the clock on no_work beside a buried neighbour it cannot reach
-// (#1075).
+// parking the clock on no_work beside a buried neighbour it cannot reach.
 func TestSourcesForDeficitReportsDesignatedMine(t *testing.T) {
 	native := &fakeResourceSourceNative{rows: []bridge.ResourceSourceRow{
 		{ThingID: "ore1", Yield: 40, Distance: 5, Method: policy.ResourceSourceMine, Safety: "supported_roof", Designated: true, Reachable: domain.Known(true)},

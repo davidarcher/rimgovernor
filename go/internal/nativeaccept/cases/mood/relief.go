@@ -1,6 +1,6 @@
 // The mood/relief case exercises EnsureMood need relief (G01.07e) end to
 // end against a live game: a disposable fixture pawn with a genuinely
-// deficient need, the GiveJobIntent relieve_need on Actions/Apply (#939, the intent
+// deficient need, the GiveJobIntent relieve_need on Actions/Apply (the intent
 // bridge's moodReliefAction sends) starting an actual JobGiver_GetJoy job,
 // and real game ticks carrying the need back above the native recovery
 // threshold. Uses a private disposable fixture (test/mood_setup) since a
@@ -143,7 +143,7 @@ func run(ctx context.Context, s cases.Session) error {
 	report["needs_joy_after"] = joy(after)
 
 	// --- Ordered work: a player-forced current job is interruption evidence,
-	// not an eligibility veto (#474), so relief is applied over it. ---
+	// not an eligibility veto, so relief is applied over it. ---
 	forcedPawnID, err := setup("setup-forced", "forced")
 	if err != nil {
 		return err

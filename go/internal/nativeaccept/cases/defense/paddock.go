@@ -25,8 +25,7 @@ const (
 	paddockTicks = 3 * 60000
 )
 
-// defense/paddock is the perimeter campaign with a roamer in the colony (epic
-// #2229, #2236): the core ring comes first and the roamer is held in the
+// defense/paddock is the perimeter campaign with a roamer in the colony: the core ring comes first and the roamer is held in the
 // barn while it is open, the closed ring with its lane fenced lets the one
 // pen marker claim the yard and the roamer graze in it, and the edge raid
 // still funnels through the fenced killbox lane.

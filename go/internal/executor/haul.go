@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// runHaul sends one haul intent (#856). The only read is the tick the
+// runHaul sends one haul intent. The only read is the tick the
 // dispatch is journaled at; native checks the pawn and the item when it
 // applies, and the receipt settles the attempt.
 func (e *Executor) runHaul(ctx context.Context, action domain.Action, p domain.Progress, authority Authority, generation context.Context) (Result, error) {

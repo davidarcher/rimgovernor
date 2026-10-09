@@ -1,6 +1,6 @@
 package main
 
-// acceptance run -repeat N (#281): a case runs N times fresh on the kept
+// acceptance run -repeat N: a case runs N times fresh on the kept
 // process, each attempt with its own output directory
 // (cases.Options.CaseOutput), and the summary beside the first attempt's
 // directory says how many passed and which world each attempt ran on, so

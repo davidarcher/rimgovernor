@@ -7,7 +7,7 @@ import (
 )
 
 // The wall's yard grows with the herd the plan is sized for and never drops
-// below perimeterGap (#2232).
+// below perimeterGap.
 func TestYardGrowsWithTheHerdAndKeepsItsFloor(t *testing.T) {
 	t.Parallel()
 	plan := LayoutPlan{Rooms: []PlannedRoom{footprintRoom(PlannedWorkshop, 60, 60, 10, 10), footprintRoom(PlannedStorage, 72, 60, 10, 10)}}

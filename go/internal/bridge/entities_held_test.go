@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TestReadBuildingsServesTheHeldTable (#1641): through the stream the
+// TestReadBuildingsServesTheHeldTable: through the stream the
 // building list read is the held table version, so no list reply is
 // encoded for it.
 func TestReadBuildingsServesTheHeldTable(t *testing.T) {

@@ -91,7 +91,7 @@ type legacyDefense interface {
 }
 
 // framed serves a legacyDefense's replies as the one frame native
-// captures (#853), decoded as ReadCombat decodes it: the census, the detail
+// captures, decoded as ReadCombat decodes it: the census, the detail
 // rows of its colonists and the threats the fight answers, and the lines
 // of fire from its ranged colonists to hostile buildings. It carries no
 // combat pawns or events.
@@ -148,7 +148,7 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 		return bridge.Combat{}, err
 	}
 	// Native captures the combat families into the pawn table rows,
-	// scoped to the frame (#1343); the census facts stay the fake's.
+	// scoped to the frame; the census facts stay the fake's.
 	var detailRows []*o.PawnState
 	if reply.GetObserved() != nil {
 		detail := proto.Clone(reply.GetObserved()).(*o.PawnSnapshot)

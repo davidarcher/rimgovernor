@@ -7,7 +7,7 @@ using System.Diagnostics;
 
 namespace HomeBridge.BridgeTools
 {
-    /// Where one main-thread observation hop's time went (#642): reading game
+    /// Where one main-thread observation hop's time went: reading game
     /// state (the capture spans a bundle's sections declare), ProtoJSON
     /// formatting and the UTF-8 size checks that precede it, how many
     /// formatting passes the hop paid for, the bytes it returned, the rows
@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
     /// without any per-pawn logging.
     ///
     /// The scope is thread-static. A hop's capture runs to completion on the
-    /// game thread; a detached reply (#644) is then encoded on one encoder
+    /// game thread; a detached reply is then encoded on one encoder
     /// worker, which resumes the same hop after the game thread has closed it,
     /// so the two never record at once and no locking is needed. Formatting
     /// on the game thread stays formatMs/formatPasses, the meaning it has
@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
             internal long Ticks;
             internal long Rows, Candidates;
             internal int Failures;
-            // A span inside a Captured family (Detail, #1273), not a family.
+            // A span inside a Captured family (Detail), not a family.
             internal bool Detail;
             internal Section(string name) { Name = name; }
         }
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
             internal string? Outcome;
             internal readonly List<Section> Sections = new List<Section>();
             internal ulong Frame;
-            // The detached encode (#644): set once a worker resumed the hop.
+            // The detached encode: set once a worker resumed the hop.
             internal bool Detached, Encoding;
             internal long EncodeQueueTicks, EncodeTicks, EncodeFormatTicks;
             internal int EncodeFormatPasses;
@@ -82,7 +82,7 @@ namespace HomeBridge.BridgeTools
         }
 
         /// Opens a scope for work that is not a bridge hop (a snapshot frame
-        /// capture, #858): no frame accounting, only the capture spans.
+        /// capture): no frame accounting, only the capture spans.
         internal static Hop BeginCapture()
         {
             var hop = new Hop();
@@ -105,13 +105,13 @@ namespace HomeBridge.BridgeTools
         internal static void Captured(string section, long stopwatchTicks, long rows = 0, long candidates = 0)
             => Record(section, stopwatchTicks, rows, candidates, true);
 
-        /// A span inside a section already Captured (#1273): listed beside the
+        /// A span inside a section already Captured: listed beside the
         /// families so a slow capture line breaks the family down, but not
         /// added to the hop's capture total a second time.
         internal static void Detail(string section, long stopwatchTicks, long rows = 0)
             => Record(section, stopwatchTicks, rows, 0, false);
 
-        /// The named section threw and is missing from the frame (#1337): the
+        /// The named section threw and is missing from the frame: the
         /// hop's account reports it as failed rather than absent. Logs an
         /// error row with the exception's stack, keyed per section so a sustained failure is rate-limited.
         internal static void Failed(string section, Exception ex)
@@ -143,7 +143,7 @@ namespace HomeBridge.BridgeTools
             entry.Candidates += Math.Max(0, candidates);
         }
 
-        /// One threat classification pass (#646): pawns examined, those kept
+        /// One threat classification pass: pawns examined, those kept
         /// as threat rows, full pawn projections paid for and nearest-colonist
         /// scans run. Summed across the hop's passes.
         internal static void ThreatScan(long examined, long candidates, long projections, long proximityChecks)
@@ -239,7 +239,7 @@ namespace HomeBridge.BridgeTools
     }
 
     /// The game's update-to-update intervals and the observation work that
-    /// ran inside them (#642), cumulative for the loaded game session like
+    /// ran inside them, cumulative for the loaded game session like
     /// ClockProbeAccounting. ObservationFrameHook calls Update once per Unity
     /// update, from a prefix on the TickManagerUpdate boundary the game
     /// drives every update; everything here is bounded: four
@@ -275,7 +275,7 @@ namespace HomeBridge.BridgeTools
         /// Upper edges (ms) of the cumulative interval histogram: 1 ms steps
         /// to 50, 5 ms to 250, 50 ms to 1000; a last bucket holds the rest.
         /// Cumulative counts let a reader difference two samples and take
-        /// p95/p99 of the window between them (#656).
+        /// p95/p99 of the window between them.
         internal static readonly double[] HistogramEdgesMs = BuildEdges();
         private static readonly ulong[] Histogram = new ulong[HistogramEdgesMs.Length + 1];
         // The same histogram over only the intervals that ran main-thread

@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-// TestPortedLoudLifecycleRenderedCases pins the #145 cases' declarations: the
+// TestPortedLoudLifecycleRenderedCases pins the cases' declarations: the
 // Loud ones say why, the lifecycle ones stop the process, the rendered one
 // opens the windowed profile, and the two that own their process do both.
 func TestPortedLoudLifecycleRenderedCases(t *testing.T) {
@@ -56,7 +56,7 @@ func TestStopNeedsRoot(t *testing.T) {
 }
 
 // TestLastPortedCases pins the two cases that retired the last per-harness
-// binaries (#146): dialog/pause hosts a service on the lab (#751), and
+// binaries: dialog/pause hosts a service on the lab, and
 // authority/warm owns its process (two controllers on one kept process)
 // and retires it.
 func TestLastPortedCases(t *testing.T) {

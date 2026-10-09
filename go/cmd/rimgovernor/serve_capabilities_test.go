@@ -84,7 +84,7 @@ func TestRoundsCapabilitiesDeclareEachGoalOnce(t *testing.T) {
 
 // A serve composing every family must pass the reviewer's startup
 // validation: every declared method is a goal DetectRounds recognizes on
-// empty facts (#766, service/development died at serve start).
+// empty facts.
 func TestRoundsCapabilitiesValidateAtStartup(t *testing.T) {
 	t.Parallel()
 	var c serveConfig
@@ -99,7 +99,7 @@ func TestRoundsCapabilitiesValidateAtStartup(t *testing.T) {
 
 // A composition without the Foothold families cannot climb the stage, so
 // its staged families apply at every stage (light/dark stalled at Foothold
-// with MaintainLighting never raised); the full autopilot keeps the ladder.
+// with MaintainLighting never raised); the full governor keeps the ladder.
 func TestRoundsCapabilitiesStageFloor(t *testing.T) {
 	t.Parallel()
 	lighting := serveConfig{roundsLightingPlans: true, roundsWorkPlans: true}

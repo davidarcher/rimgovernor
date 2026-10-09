@@ -55,7 +55,7 @@ function Stop-Progress($Observer) {
     } catch { Write-Warning 'Live progress did not finish; verdict will sweep it' }
     finally { $Observer.Dispose() }
 }
-# Soak repetitions (#1377): repetition 1 is the verdict run; the rest only feed
+# Soak repetitions: repetition 1 is the verdict run; the rest only feed
 # the per-case pass rate. Only the cases tier repeats.
 function Repeat-Value($Event) {
     $text = Input-Value $Event.inputs 'repeat'
@@ -85,7 +85,7 @@ function Resolve-Source($Event) {
             $head = (Invoke-API "repos/$env:GITHUB_REPOSITORY/commits/$encoded").sha
         }
     }
-    # The fixture factory (fixture-factory.yml, #1376) pins its own case list.
+    # The fixture factory (fixture-factory.yml) pins its own case list.
     if ($env:FACTORY_CASES) { $tier = 'cases'; $shards = 1; $cases = @($env:FACTORY_CASES -split ',') }
     if ($head -cnotmatch '^[0-9a-f]{40}$' -or $head -eq ('0'*40) -or $tier -notin @('smoke','nightly','cases') -or
         $shards -lt 1 -or $shards -gt 32) { throw 'Invalid source, tier or shard limit' }
@@ -239,7 +239,7 @@ switch ($Phase) {
         if ($bad) { throw 'One or more native cases failed; export retains their diagnostics' }
     }
     'profile' {
-        # snapshot-perf.yml (#1378): time SnapshotFrames.Capture on a fetched
+        # snapshot-perf.yml: time SnapshotFrames.Capture on a fetched
         # fixture-factory bundle on a fixture-role layout.
         $run = Read-JSON (Join-Path $Evidence 'run.json')
         if ($run.workflow_commit -cne $env:GITHUB_WORKFLOW_SHA -or $run.bundle.sha256 -cne $env:REMOTE_BUNDLE_SHA256 -or

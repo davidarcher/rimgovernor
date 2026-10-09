@@ -62,8 +62,8 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 	if err != nil || !result.NativeCalled {
 		t.Fatal("upfront reservation could not enter Hands", result, err)
 	}
-	// The applied receipt is terminal (#856), but the successor waits for
-	// the census to report the building built, not its blueprint (#937).
+	// The applied receipt is terminal, but the successor waits for
+	// the census to report the building built, not its blueprint.
 	if result.Progress.View().Stage != domain.Completed {
 		t.Fatal("applied intent did not complete", result)
 	}

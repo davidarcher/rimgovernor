@@ -9,8 +9,8 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// capturableEntities are the entity pawn rows the capture rule decides
-// (#1742): every row the game marks an entity, or whose entity fact is
+// capturableEntities are the entity pawn rows the capture rule decides:
+// every row the game marks an entity, or whose entity fact is
 // unread, with the facts the rule reads. A pawn with no holding-platform
 // target block is one the colony cannot capture, a known absence.
 func capturableEntities(rows iter.Seq[*o.PawnState]) domain.Fact[[]policy.CapturableEntity] {

@@ -4,7 +4,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Deterministic local search (#1957, epic #1938). A generated base plan is
+// Deterministic local search. A generated base plan is
 // varied by a fixed number of operators and a variation is kept when its
 // core score (planScorer.core) is strictly better, so the searched plan
 // never scores below the plan it started from. Every choice comes from a

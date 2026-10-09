@@ -10,8 +10,7 @@ import (
 )
 
 // NewRoundsRoutesPlanner composes MaintainRoutes' building method: cut a
-// door into the wall enclosing a facility no colonist can reach (issue #6
-// slice 5). The deficit and its release are the native reachability census,
+// door into the wall enclosing a facility no colonist can reach. The deficit and its release are the native reachability census,
 // never a flood fill: the latch opens only once a measured census reads the
 // facility reachable by some colonist.
 func NewRoundsRoutesPlanner(reviewer *Rounder, native RoundsBuildingSource) (*RoundsBuildingPlanner, error) {

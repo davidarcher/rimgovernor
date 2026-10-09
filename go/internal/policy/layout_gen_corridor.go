@@ -4,7 +4,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// layoutCounters tally growth events for the replay score gate (#2094), which
+// layoutCounters tally growth events for the replay score gate, which
 // logs them per fixture. They only count and never steer the plan.
 var layoutCounters struct {
 	routed, spineFallbacks, rings, secondDoors layoutCounter
@@ -17,7 +17,7 @@ func (c *layoutCounter) Add(n int64)   { *c += layoutCounter(n) }
 func (c *layoutCounter) Store(n int64) { *c = layoutCounter(n) }
 func (c *layoutCounter) Load() int64   { return int64(*c) }
 
-// Corridors for the new generator (#1956, epic #1938). Once the rooms and
+// Layout corridors. Once the rooms and
 // housing blocks stand, the hallway network is finished in three passes,
 // each kept only where the weighted walk (planWalk, the routeTrips edges
 // each weighted by its affinity) shrinks:
@@ -250,7 +250,7 @@ func (g coreGrid) ringPath(a, b hallEnd, blocked, bands map[domain.Cell]bool) []
 // addSecondDoors gives every pass-through room a second door where it
 // touches a hallway other than the one its first door opens on, when that
 // shortens the weighted walk. Rooms that are noThroughfare never get one: a
-// second door makes a thoroughfare of them, and a fixed room (#1958) keeps
+// second door makes a thoroughfare of them, and a fixed room keeps
 // the doors it has.
 func (p LayoutPlan) addSecondDoors(fixed map[Rectangle]bool) LayoutPlan {
 	halls := p.Hallways()

@@ -34,8 +34,7 @@ func medicalAttemptCount(methods []domain.Method, epoch uint64, prefix string) i
 // select, or the per-patient attempts spent. The emergency freezes development
 // (every goal "not selected: emergency") and the tend planner contributes no
 // plan, so without a lent window the step reports no work and the clock parks
-// on no_work for as long as the emergency stands -- an hour of wall time at a
-// fixed tick in #636. What clears such a deficit is game time: a doctor
+// on no_work for as long as the emergency stands. Progress needs game time: a doctor
 // finishing the job it is on, a patient reaching a bed, or the injury tending
 // itself out. Lending the same bound the stock waits use keeps the world moving
 // under the emergency without pretending a method ran.

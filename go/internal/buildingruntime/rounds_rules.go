@@ -15,8 +15,8 @@ import (
 // method per Round, its id the observed tick so the goal's history sorts by time.
 const rulesMethodPrefix = "rules-"
 
-// RoundsRulesPlanner attaches the native declarative rules the food plan needs
-// (#2154): each Round it derives the rule set from the hunt plan
+// RoundsRulesPlanner attaches the native declarative rules the food plan needs:
+// each Round it derives the rule set from the hunt plan
 // (policy.HuntChainRules) and commits one rules_attach action under
 // EnsureFoodSupply, so the attachment has a receipt and sits in the session
 // journal before native is written. The lease (policy.RuleLeaseTicks) is

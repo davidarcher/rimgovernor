@@ -11,7 +11,7 @@ import (
 
 // moodCastReason reports whether a mood proposal leaves the pawn's pressure
 // to a psycast: measured need relief is spent or absent and no facility goal
-// owns the pressure (#1612).
+// owns the pressure.
 func moodCastReason(reason policy.MoodMethodReason) bool {
 	return reason == policy.MoodNoCause || reason == policy.MoodExhausted || reason == policy.MoodUnowned
 }

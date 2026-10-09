@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Snapshot tests for the #881 follow-ups to the blocking, peel and tank
+// Snapshot tests for follow-up responses to the blocking, peel and tank
 // roles. Item 1 (frame armor) is buildingruntime's
 // TestCombatViewFillsDefenderArmorFromFrame.
 
@@ -38,7 +38,7 @@ func TestFormationChecksGoComputedCells(t *testing.T) {
 	}
 	// (9,22), in front of a, is cover and (9,24), behind a, is not
 	// standable: the first tank takes the nearest standable cell ahead of
-	// a, (8,22), with no pull-back cell (#1153); b's front cell is then
+	// a, (8,22), with no pull-back cell; b's front cell is then
 	// taken, so the second stands at (7,22) with (8,24) behind b.
 	_, memory := answerWithout(t, view, GeometryReply{}, domain.Cell{X: 9, Z: 22}, domain.Cell{X: 9, Z: 24})
 	tanks := map[domain.PawnID]CombatRole{}

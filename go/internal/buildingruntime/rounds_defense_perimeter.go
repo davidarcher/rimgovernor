@@ -14,7 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// Perimeter upgrades (#954): the record's perimeter tiers are re-cut from
+// Perimeter upgrades: the record's perimeter tiers are re-cut from
 // the layout plan whenever what the plan asks for changes: the ring
 // straightened over ground a moisture pump dried, heavy bridges researched,
 // moisture pumps researched or first powered. The buildings the new cut no
@@ -22,21 +22,20 @@ import (
 // conduits deconstructed (a wooden wall the ring now wants in stone
 // included, the census being stuff-blind), then plain bridges lifted. The
 // new sections are built before the removals, so the old stretch stands
-// until its replacement does (#983); only a removal on a cell the new cut
+// until its replacement does; only a removal on a cell the new cut
 // builds on (a wall re-stuffed, a bridge swapped for a heavy one, laid
 // only where no foundation is) goes first.
 const (
 	defenseMoisturePump     = "MoisturePump"
 	defenseMoistureResearch = "MoisturePump"
-	// defenseMoisturePumpW is a moisture pump's draw (#983).
+	// defenseMoisturePumpW is a moisture pump's draw.
 	defenseMoisturePumpW = 150.0
-	// defenseRoomLamp lights the planned rooms against infestations
-	// (#1067).
+	// defenseRoomLamp lights the planned rooms against infestations.
 	defenseRoomLamp = "StandingLamp"
 )
 
 // defensePerimeterTiers anchors a fresh record on the layout plan's
-// perimeter (#789) and re-cuts a stored one's when the plan changed.
+// perimeter and re-cuts a stored one's when the plan changed.
 func defensePerimeterTiers(record *store.DefenseLayoutRecord, read observation.RoundsReading) (bool, error) {
 	record.Anchored = true
 	projection := read.Projection
@@ -54,8 +53,8 @@ func defensePerimeterTiers(record *store.DefenseLayoutRecord, read observation.R
 	return defenseRecutPerimeter(record, plan, projection.Bounds, defensePerimeterBridge(projection), transmitters, spare, defensePrisonTurrets(plan, q)...)
 }
 
-// defensePrisonTurrets are the mini-turrets outside the prison doors
-// (#1081), planned only while the turret is available and the network's
+// defensePrisonTurrets are the mini-turrets outside the prison doors,
+// planned only while the turret is available and the network's
 // spare watts carry every one.
 func defensePrisonTurrets(plan policy.LayoutPlan, q policy.DefenseTurretRequest) []policy.PerimeterSection {
 	available, ak := q.Available.Value()
@@ -92,7 +91,7 @@ func defenseBuildingKey(b store.DefenseBuilding) string {
 // for what the old ones built that the new ones do not want. Unchanged
 // (same key) it does nothing. A killbox the plan has moved off the
 // record's entry un-anchors the record, so the layout is proposed afresh
-// on the new one (#983). A pump not already in the record is planned only
+// on the new one. A pump not already in the record is planned only
 // while spare watts cover it.
 func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.LayoutPlan, bounds policy.Bounds, bridge string, transmitters []domain.Cell, spare float64, prison ...policy.PerimeterSection) (bool, error) {
 	var kept, old []store.DefenseTierRecord
@@ -123,7 +122,7 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.Layout
 	if err != nil {
 		return false, err
 	}
-	// Infestation prevention (#1067): small overhead-mountain pockets
+	// Infestation prevention: small overhead-mountain pockets
 	// walled solid and every planned room lit, with the wall.
 	pockets, err := policy.PocketSections(plan, defenseDefinitions.Wall)
 	if err != nil {
@@ -133,12 +132,12 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.Layout
 	if err != nil {
 		return false, err
 	}
-	// The fence across the killbox opening (#2231) stops roamers only.
+	// The fence across the killbox opening stops roamers only.
 	fences, err := policy.FenceSections(plan, defenseDefinitions.Fence, defenseDefinitions.FenceStuff)
 	if err != nil {
 		return false, err
 	}
-	// The dark bait room away from the base (#1069): stools around an
+	// The dark bait room away from the base: stools around an
 	// incendiary IED; jelly (spike traps) is not wanted yet.
 	bait, err := policy.BaitRoomSections(plan, defenseDefinitions.Wall, defenseDefinitions.Door, defenseDefinitions.Bait, false)
 	if err != nil {
@@ -160,7 +159,7 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.Layout
 		spare -= defenseMoisturePumpW
 	}
 	// A cell a killbox tier already builds on (a firing-line embrasure in
-	// the wall, #868) is that tier's, not the perimeter's.
+	// the wall) is that tier's, not the perimeter's.
 	taken := map[domain.Cell]bool{}
 	for _, t := range kept {
 		for _, b := range t.Buildings {

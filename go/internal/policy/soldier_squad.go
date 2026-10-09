@@ -5,7 +5,7 @@ import (
 	"sort"
 )
 
-// SoldierSquad is the bot's persistent soldier squad (#1558): the colony's
+// SoldierSquad is the bot's persistent soldier squad: the colony's
 // best fighters, about a third of the colonists. Membership is sticky; the
 // store keeps it in the save. GearSoldier (drafted only) is separate.
 type SoldierSquad struct {

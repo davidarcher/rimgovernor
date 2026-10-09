@@ -11,7 +11,7 @@ import (
 // journal owns the hold across restarts; world replacement and rewind discard
 // it just as ReviewRounds discards the medical history.
 //
-// The same demand carries the construction helper input (#653): the
+// The same demand carries the construction helper input: the
 // review's recorded ready work and helper record, and every open plan's
 // building definition, so assessment and assignment plan the same helpers.
 func roundsDiseaseDemand(facts observation.ColonyProjection, definitions []string, previous store.Rounds, current domain.GenerationSnapshot) (policy.WorkDemand, error) {

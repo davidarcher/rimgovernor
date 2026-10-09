@@ -79,7 +79,7 @@ func TestRoomFurnitureFacilitiesAreChosenFromTheLinks(t *testing.T) {
 	}
 }
 
-// The climate heater is the cheapest def that heats from a power draw (#1867):
+// The climate heater is the cheapest def that heats from a power draw:
 // a cooler (negative energy) and an unpowered def never match, whatever the names.
 func TestRoomFurnitureHeaterIsChosenByTempControlRule(t *testing.T) {
 	if got := furnitureOf(t, CoreFurnitureFixtures()...).Heater; got != "Heater" {
@@ -92,7 +92,7 @@ func TestRoomFurnitureHeaterIsChosenByTempControlRule(t *testing.T) {
 }
 
 // The animal flap is the door roamers can open, by that property and never by
-// name (#2122); a plain door is none.
+// name; a plain door is none.
 func TestRoomFurnitureAnimalFlapIsTheDoorRoamersCanOpen(t *testing.T) {
 	if got := furnitureOf(t, CoreFurnitureFixtures()...).AnimalFlap; got != "AnimalFlap" {
 		t.Errorf("animal flap %q", got)

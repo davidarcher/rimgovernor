@@ -27,7 +27,7 @@ func constrainedPick(t *testing.T, p GearLoadoutInput) map[string]bool {
 	return got
 }
 
-// #1859: slaves, prisoners and unrevealed creepjoiners cover legs and torso,
+// Slaves, prisoners and unrevealed creepjoiners cover legs and torso,
 // meet the thermal need, then pay the least. The old slave score left a cold
 // slave in the cheapest shirt and pants.
 func TestGearConstraintModeDressesWarmAtMinimumCost(t *testing.T) {

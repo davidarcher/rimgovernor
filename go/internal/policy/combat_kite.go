@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Kiting constants (#901, #1061).
+// Kiting constants.
 const (
 	// kiteSpeedRatio is how much faster than the fastest chaser a kiter
 	// must be (the wiki's 120% Moving); kiteFastRatio against a pack with
@@ -21,10 +21,10 @@ const (
 	kiteLeadRange = 8
 )
 
-// DutyKiter baits a slow pack and leads it past the line (#901).
+// DutyKiter baits a slow pack and leads it past the line.
 const DutyKiter CombatDuty = "kiter"
 
-// kite is the one kiting step (#901, #923, #1061): a manhunter pack, and
+// kite is the one kiting step: a manhunter pack, and
 // an unsupported mech raid under the hold or the sapper tactic. When
 // kiteLead finds the chasers kitable, the fastest eligible gunner
 // (kiterEligible) is the kiter. It baits the nearest hostile from where
@@ -91,7 +91,7 @@ func kite(view CombatView, m *CombatMemory) {
 	}
 }
 
-// kiterEligible is the wiki's kiter (#1061): a gunner with a long-range
+// kiterEligible is the wiki's kiter: a gunner with a long-range
 // gun, no more than light armor, and a MoveSpeed of at least need.
 func kiterEligible(r CombatRole, s CombatPawnState, armor domain.Fact[float64], need float64) bool {
 	if a, known := armor.Value(); known && a > kiteMaxArmor {
@@ -104,7 +104,7 @@ func kiterEligible(r CombatRole, s CombatPawnState, armor domain.Fact[float64], 
 // needs, ok false when the fight is not kited. A manhunter pack of known
 // speeds is led to the inner-line cell farthest behind the firing line;
 // the kiter needs kiteSpeedRatio of the fastest animal (an infestation's
-// insects are lured out and kited alike, #1076), kiteFastRatio
+// insects are lured out and kited alike), kiteFastRatio
 // when any animal is at least a colonist's speed. A mech raid takes
 // mechKiteLead.
 func kiteLead(view CombatView, m CombatMemory) (domain.Cell, float64, bool) {
@@ -128,7 +128,7 @@ func kiteLead(view CombatView, m CombatMemory) (domain.Cell, float64, bool) {
 	return lure, ratio * fastest, true
 }
 
-// mechKiteLead is kiteLead for a mech raid (#923): unsupported slow mechs
+// mechKiteLead is kiteLead for a mech raid: unsupported slow mechs
 // (centipedes, breachers) are kited like a slow pack. Every live mech must
 // be slower than a colonist, so a raid with fast support (scythers) is
 // never kited. Under the hold the lead cell is the inner-line cell

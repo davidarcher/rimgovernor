@@ -41,8 +41,8 @@ namespace HomeBridge.BridgeTools
             && ReferenceEquals(a.Map, b.Map) && a.MapId == b.MapId && a.ColonyId == b.ColonyId && a.LoadToken == b.LoadToken;
         // Position is observed but never part of the token, and the current
         // job is not observed at all: the clock runs during combat windows
-        // (#69), so a walking colonist or a re-issued Wait_Combat would
-        // otherwise turn the token over between a read and its order (#70).
+        //, so a walking colonist or a re-issued Wait_Combat would
+        // otherwise turn the token over between a read and its order.
         // Orders still bump OrderRevision.
         internal bool Same(NativePawnFacts other) => SameIdentity(other) && ReferenceEquals(Drafter, other.Drafter)
             && ReferenceEquals(Faction, other.Faction) && Dead == other.Dead && Downed == other.Downed
@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
             && Drafted == other.Drafted && DraftRevision == other.DraftRevision && OrderRevision == other.OrderRevision;
     }
 
-    // One current pawn snapshot. Drafts are plan-owned (#939): native keeps
+    // One current pawn snapshot. Drafts are plan-owned: native keeps
     // no draft claim; the controller undrafts pawns no live plan needs.
     internal sealed class NativePawnControlRecord
     {
@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
                 Add(harmony, AccessTools.PropertySetter(typeof(Current), "Game"), nameof(BeforeGame), nameof(AfterGame));
                 Add(harmony, AccessTools.PropertySetter(typeof(Game), "CurrentMap"), nameof(BeforeMap), nameof(AfterMap));
                 // Under active authority the controller owns every draft
-                // (#939): vanilla auto-undraft would drop a pawn a live plan
+                //: vanilla auto-undraft would drop a pawn a live plan
                 // drafted, and the controller's sweep undrafts the rest.
                 Add(harmony, AccessTools.Method(typeof(AutoUndrafter), "AutoUndraftTickInterval"), nameof(AutoUndraft), null);
                 initialized = true;
@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
             Targets.Add(Tuple.Create(target,before,after));
         }
         // The hook audit walks Harmony's patch registry, 15-50 ms a pass, and
-        // every pawn row asked it (#858: most of a snapshot frame). On the
+        // every pawn row asked it (most of a snapshot frame). On the
         // game thread it is re-run at most once per AuditMillis; another mod
         // unpatching a hook is caught within that window. A failed audit is
         // never cached.

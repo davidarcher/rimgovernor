@@ -1,5 +1,4 @@
-// The bed/assign case exercises the AssignIntent on Actions/Apply
-// (issues #34, #941): AssignActionHandler
+// The bed/assign case exercises the AssignIntent on Actions/Apply. AssignActionHandler
 // (integrations/rimgovernor-native/src/Bridge/Protocol/
 // NativeAssignOperations.cs) drives the same
 // CompAssignableToPawn.TryAssignPawn write the Assign tab uses. A
@@ -31,7 +30,7 @@ func init() {
 			"unclaimed compliant bed, a drifted previous-bed expectation is refused without mutation, the real " +
 			"bed-ownership change is observed via native readback (not just a result), and a resent intent " +
 			"applies again.",
-		// Sited on the audited baseline, not a fresh random world (#716).
+		// Sited on the audited baseline, not a fresh random world.
 		Start:  cases.Fixture{Op: "test/bed_assign_prepare", On: cases.LabStart()},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
@@ -159,7 +158,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["bed_reassigned"] = true
 
-	// Swap (#1243): another colonist's plain claim on the now-owned bed is
+	// Swap: another colonist's plain claim on the now-owned bed is
 	// refused as already assigned; flagged as a swap it evicts the owner.
 	reply, err := h.Wire(ctx, "list-colonists", "observations_list_pawns", map[string]any{
 		"scope":   map[string]any{"expectedIdentity": identity},

@@ -31,7 +31,7 @@ func ScoreWeapon(p EquipCandidatePawn, w EquipCandidateWeapon) float64 {
 	if incapable, known := p.IncapableOfViolence.Value(); !known || incapable {
 		return 0
 	}
-	// The weapon's def rows (#1723): a weapon the producer gave none (zero
+	// The weapon's def rows: a weapon the producer gave none (zero
 	// Facts) has no damage and scores nothing.
 	profile := w.Facts
 	if p.Role == WeaponRoleHunter && (w.Class != WeaponRanged || !profile.Hunts()) {

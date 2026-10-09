@@ -7,7 +7,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// The creepjoiner disarming's def lookups (#1740), see policy.CreepJoinerDisarm
+// The creepjoiner disarming's def lookups, see policy.CreepJoinerDisarm
 // for the game rules. They read the def mirror and name no def.
 
 // CreepJoinerDisarm is the catalog's disarming input: each pawn kind's race

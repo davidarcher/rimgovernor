@@ -81,7 +81,7 @@ func sizedArtBench() ProductionBench {
 	return b
 }
 
-// The art bill's size and stuff (#1191): Grand only with the gap, the
+// The art bill's size and stuff: Grand only with the gap, the
 // space, the stock and the skill for it; otherwise the largest that fits,
 // in the best stocked stuff.
 func TestArtBillSizeAndStuff(t *testing.T) {

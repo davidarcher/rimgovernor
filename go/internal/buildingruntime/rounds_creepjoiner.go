@@ -13,7 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// ManageCreepJoiners (#1740, epic #1694): a creepjoiner's downside is hidden
+// ManageCreepJoiners: a creepjoiner's downside is hidden
 // until it shows, so until then the colonist holds no weapon and gets a
 // surgical inspection. Each review reads the frame's colonist rows
 // (policy.CreepJoinerDownsides.WeaponDrops and Inspections) and journals

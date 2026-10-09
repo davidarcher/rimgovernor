@@ -2,7 +2,7 @@ package bridge
 
 import o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 
-// validatePolicies checks the colony's policy databases (#1297): each
+// validatePolicies checks the colony's policy databases: each
 // database has unique ids, at most one default, and a pawn is the current
 // holder of at most one policy per database and one allowed area.
 func validatePolicies(v *o.ColonyFactsSnapshot) error {
@@ -84,7 +84,7 @@ func uniquePawns(ids []string, seen map[string]bool) error {
 	return nil
 }
 
-// validatePolicyInputs checks the per-pawn policy inputs row (#1297).
+// validatePolicyInputs checks the per-pawn policy inputs row.
 func validatePolicyInputs(p *o.PawnPolicyInputs) error {
 	if p == nil {
 		return nil

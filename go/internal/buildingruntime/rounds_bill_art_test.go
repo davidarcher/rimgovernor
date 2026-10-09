@@ -9,7 +9,7 @@ import (
 )
 
 // Art benches are the gear benches offering the small sculpture; their
-// bills carry the pinned worker into the art selection (#1190).
+// bills carry the pinned worker into the art selection.
 func TestArtBenchesFromGearBenches(t *testing.T) {
 	sculpt := policy.GearRecipe{Definition: "Make_SculptureSmall", Role: domain.RoleSculpture, Available: domain.Known(true), AvailableOn: domain.Known(true)}
 	club := policy.GearRecipe{Definition: "Make_MeleeWeapon_Club", Available: domain.Known(true), AvailableOn: domain.Known(true)}

@@ -102,7 +102,7 @@ func shrineTestRow(id string, sealed bool) *o.AncientShrine {
 		BreachWalls: []*o.ShrineBreachWall{{EntityId: proto.String("wall"), DefName: proto.String("Wall"), Cell: cell(30, 35), Outside: cell(29, 35)}}}
 }
 
-// #680: the journal names the shrine the planner acted on, not the first
+// The journal names the shrine the planner acted on, not the first
 // shrine in identity order. A map-generated shrine that sorts first and
 // holds no_traps forever is marked skipped, the trapped one it breaches is
 // the step's shrine, and a later step that holds on it marks it held.
@@ -280,7 +280,7 @@ func TestRoundsShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 		}
 	}
 	// Guard down, caskets inside: the filled one stays sealed on the opening
-	// gate (#875, no prisoner bed here) and the
+	// gate (no prisoner bed here) and the
 	// empty ones are claimed in one method under fresh CAS tokens; a casket
 	// the target read already shows as the player's is skipped.
 	opened.Guards[0].Dead = proto.Bool(true)
@@ -337,7 +337,7 @@ func TestRoundsShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 }
 
 // An open, guard-free shrine with filled caskets opens only once the gate
-// (#875) holds: until then the review journals the hold and the caskets stay
+// holds: until then the review journals the hold and the caskets stay
 // sealed. Ready, it is one melee-lock method: an owned draft and a move to
 // the casket's interaction cell for one melee colonist per filled casket,
 // then the opener's OpenCasket on the lowest casket depending on all of

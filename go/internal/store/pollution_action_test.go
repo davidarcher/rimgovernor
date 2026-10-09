@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The pollution-clear area edit and the wastepack haul (#1683) persist and
+// The pollution-clear area edit and the wastepack haul persist and
 // reload as themselves, the pollution-clear area distinct from home.
 func TestPollutionActionsRoundTrip(t *testing.T) {
 	t.Parallel()

@@ -5,7 +5,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The one zone write (#1353). Its shape selects the edit (operations.proto
+    // The one zone write. Its shape selects the edit (operations.proto
     // ZoneIntent): delete, create (kind set), cells (add or remove cells) or
     // settings (a stockpile body alone); each shape's handler refuses a field
     // that belongs to another.

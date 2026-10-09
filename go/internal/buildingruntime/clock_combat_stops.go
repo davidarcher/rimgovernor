@@ -9,7 +9,7 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
-// combatStopEvents is the armed list a combat window carries (#849):
+// combatStopEvents is the armed list a combat window carries:
 // native stops the epoch on the tick one of these happens. Aim warmup,
 // shots and ordinary damage are never armed; stopping on them would keep
 // the clock from running. A window arms them only while an admitted fight
@@ -29,8 +29,8 @@ var combatStopEvents = []k.CombatEvent{
 	k.CombatEvent_COMBAT_EVENT_PRISON_BREAK,
 }
 
-// combatStopMetrics measures one combat's stops for the flight recorder
-// (#849): stops by event kind (the tick budget is the backstop), the wall
+// combatStopMetrics measures one combat's stops for the flight recorder:
+// stops by event kind (the tick budget is the backstop), the wall
 // latency from a stop to the next window's admission, and the ticks
 // between stops. A combat is the run of consecutive combat windows; its
 // summary is logged when a colony window follows. Touched only under the
@@ -65,7 +65,7 @@ func (m *combatStopMetrics) admitted(ctx context.Context, stopped *k.Stopped, ti
 		m.byKind[kind]++
 		attrs := []any{"event", kind, "tick", tick}
 		// The stop that ends the combat resumes into a colony window after
-		// the full review; its latency is not a combat reaction (#890).
+		// the full review; its latency is not a combat reaction.
 		if at := stopped.GetStoppedAtUnixMs(); at > 0 && combat {
 			latency := now.Sub(time.UnixMilli(at))
 			m.latencies = append(m.latencies, latency)

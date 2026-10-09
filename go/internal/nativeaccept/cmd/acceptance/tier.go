@@ -1,11 +1,11 @@
 package main
 
-// Tiers (#273) name the two shapes an acceptance pass takes:
+// Tiers name the two shapes an acceptance pass takes:
 //
-//   - smoke: the committed suites/smoke.json: runner-proving bridge-only
-//     cases over a kept debug game and one short serve-driven case.
-//   - nightly: the end-to-end cases (#738 bucket C); the scheduled loop
-//     against main on CI, a signal rather than a gate (#752).
+//  - smoke: the committed suites/smoke.json: runner-proving bridge-only
+//   cases over a kept debug game and one short serve-driven case.
+//  - nightly: the end-to-end cases; the scheduled loop
+//  against main on CI, a signal rather than a gate.
 //
 // Every other case runs on demand by name (acceptance run, or the remote
 // workflow's cases tier). `acceptance list -tier <name>` prints a tier;
@@ -91,7 +91,7 @@ func smokeCases(all []cases.Case) ([]cases.Case, error) {
 	return out, nil
 }
 
-// endToEnd is the nightly tier (#738 bucket C, #752): whole-colony
+// endToEnd is the nightly tier: whole-colony
 // proofs, a signal rather than a gate.
 var endToEnd = map[string]bool{
 	"combatlab/native-hold": true,
@@ -103,7 +103,7 @@ var endToEnd = map[string]bool{
 	"layout/ring": true, "layout/rich-soil": true,
 }
 
-// offTier names the cases no tier runs (#739): fixture generators, which
+// offTier names the cases no tier runs: fixture generators, which
 // `acceptance setup generate` runs, and diagnostics, which gate nothing
 // and stay runnable by hand with `acceptance run`.
 func offTier(name string) bool {

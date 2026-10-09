@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
                 // and doubles the herd lookups.
                 foreach (var own in map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Animal && p.Faction == Faction.OfPlayer).ToList()) own.Destroy(DestroyMode.Vanish);
                 // The debug-start map is random and a natural 11x11
-                // heavy-affordance clearing is not guaranteed (#185). Take
+                // heavy-affordance clearing is not guaranteed. Take
                 // the nearest 13x11 site (enclosure plus the column the wild
                 // muffalo stands in) that is unfogged, dry, and free of pawns,
                 // player buildings and work in progress, then level it: clear

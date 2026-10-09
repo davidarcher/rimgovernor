@@ -7,7 +7,7 @@ import (
 )
 
 // NoOpReason says why a inspection raised nothing in a review: a closed
-// vocabulary, so a silent no-op is never read as "satisfied" (#1909).
+// vocabulary, so a silent no-op is never read as "satisfied".
 type NoOpReason string
 
 const (

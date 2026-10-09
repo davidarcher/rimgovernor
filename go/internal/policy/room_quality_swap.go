@@ -2,7 +2,7 @@ package policy
 
 import "sort"
 
-// Room quality ranking (#813, B2 of #799): a Jealous colonist holds the
+// Room quality ranking: a Jealous colonist holds the
 // colony's best bedroom and an Ascetic colonist the plainest. Both are met
 // by swapping existing bedrooms one AssignIntent at a time: the mover takes the
 // other room's bed, the native claim evicts its owner, and the sleeping
@@ -67,7 +67,7 @@ type BedroomSwap struct {
 // to the colonist who wants it, so the ranking settles; two jealous
 // colonists are never displaced for each other.
 //
-// Suites (the census ids in suites, #1216) never swap: each is its
+// Suites (the census ids in suites) never swap: each is its
 // claimant's, so a Jealous colonist outdone by a suite earns a suite of
 // their own (SuiteClaims) and an ascetic is never moved into one.
 func NextBedroomSwap(obs SleepingObservation, traits map[PawnID]TraitEffects, suites map[string]bool) (BedroomSwap, bool) {

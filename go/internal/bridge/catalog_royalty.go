@@ -11,7 +11,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// The royalty static defs as a Go view of the def mirror (#1875, epic #1677):
+// The royalty static defs as a Go view of the def mirror:
 // the title ladder from every RoyalTitleDef row and the permit catalog from
 // every RoyalTitlePermitDef row. The native royalty read carries only the
 // colonists' holdings; nothing here is read from native and no def name is

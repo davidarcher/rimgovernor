@@ -1,6 +1,6 @@
 package main
 
-// acceptance profile-compare (#1378): the nightly snapshot-capture perf
+// acceptance profile-compare: the nightly snapshot-capture perf
 // check. snapshot-perf.yml times profile-capture on the fixture factory's
 // newest bundle; this command records the stats with their commit as the
 // run's artifact, compares each family's p90 to the median p90 of the last

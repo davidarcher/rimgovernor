@@ -11,7 +11,7 @@ import (
 
 // FixtureRoot holds the test fixture sources (scripts/fixtures/<Name>Fixture.cs)
 // (no saves are committed; the harness generates them). Which fixture
-// source a case depends on follows from the case's Go sources (#170): it
+// source a case depends on follows from the case's Go sources: it
 // feeds a case when the case names one of its [Tool("test/...")] ops, while
 // any other file directly under it feeds every case.
 const FixtureRoot = "scripts/fixtures"

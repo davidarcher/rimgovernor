@@ -158,7 +158,7 @@ func (j *hookedJournal) DispatchBatch(ctx context.Context, attempts []store.Batc
 }
 
 // A building intent is dispatched durably before native is called, and its
-// applied receipt completes the action without an observation (#856).
+// applied receipt completes the action without an observation.
 func TestDurableDispatchThenAppliedIntentCompletes(t *testing.T) {
 	f := newFixture(t)
 	f.env.onPlace = func(_ context.Context, p Placement) (Receipt, error) {

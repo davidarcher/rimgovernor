@@ -150,7 +150,7 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoundsResourceResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// A tunnel stage held against geometry that changed under it closes so
-	// the corridor is reviewed instead of waited on (#1074).
+	// the corridor is reviewed instead of waited on.
 	if err := cancelStalledExcavation(call, p.journal, goal, review.Tick); err != nil {
 		return RoundsResourceResult{}, err
 	}
@@ -201,8 +201,8 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	// Worst-covered floor first, but a floor whose only sources are ones
 	// this vertical cannot dispatch (a harvest-only selection, nothing
-	// reachable) must not starve the next demanded resource behind it
-	// (#595): keep going until a target admits a plan, lends a window, or
+	// reachable) must not starve the next demanded resource behind it:
+	// keep going until a target admits a plan, lends a window, or
 	// reports a real block. When nothing at all is dispatchable the first
 	// target's outcome stands, so its selected sources stay observable.
 	have := policy.StockReader{Resources: stock}
@@ -444,7 +444,7 @@ func (r *RoundsResourcePlanner) acquireFromSources(call, epoch context.Context, 
 		return result, true, nil
 	}
 	// A deposit designated by an earlier, completed mine method is mined
-	// by a colonist on game time alone (#1075): lend a window rather than
+	// by a colonist on game time alone: lend a window rather than
 	// park the clock on no_work beside it.
 	if pre.designated {
 		return RoundsResourceResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks, Sources: selected}, false, nil

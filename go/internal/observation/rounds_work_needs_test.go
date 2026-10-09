@@ -9,7 +9,7 @@ import (
 )
 
 // TestWorkPawnNeeds lifts rest, joy and mood onto WorkPawn and leaves them
-// unknown when the read omits the needs block or flags it (#1312).
+// unknown when the read omits the needs block or flags it.
 func TestWorkPawnNeeds(t *testing.T) {
 	id := &o.EntityRef{Id: proto.String("Human1")}
 	w := workRow(t, &o.PawnState{Pawn: id, Needs: &o.PawnNeeds{Rest: proto.Float64(0.2), Joy: proto.Float64(0.4), Mood: proto.Float64(0.6)}})

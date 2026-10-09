@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
     {
         internal PlacementQuery(string defName, int x, int z, string rotation, string? stuff, bool ignoreNaturalRock = false)
         { DefName = defName; X = x; Z = z; Rotation = rotation; Stuff = stuff; IgnoreNaturalRock = ignoreNaturalRock; }
-        // Previews as though natural rock in the footprint were mined (#874):
+        // Previews as though natural rock in the footprint were mined:
         // a planned building whose excavation the same plan orders first.
         internal bool IgnoreNaturalRock { get; }
         internal string DefName { get; }
@@ -216,7 +216,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // Natural rock the plan mines before the building (#874).
+        // Natural rock the plan mines before the building.
         private static bool NaturalRock(Thing thing) => thing.def.building?.isNaturalRock == true;
 
         internal static PlacementRotation EvaluateRotation(Map map, BuildableDef definition, ThingDef? blueprint,

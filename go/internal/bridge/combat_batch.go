@@ -31,7 +31,7 @@ func combatBatchAction(action domain.Action) (*op.Action, error) {
 			wire.Pawn = nil
 			fire := &op.CombatMortarFire{Mortar: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}
 			if !order.Clear {
-				// No target clears the forced target (#1235).
+				// No target clears the forced target.
 				fire.Target = &c.Cell{X: proto.Int32(order.Aim.X), Z: proto.Int32(order.Aim.Z)}
 			}
 			if order.Shell != "" {

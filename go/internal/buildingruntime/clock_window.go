@@ -19,7 +19,7 @@ func (q *ClockCoordinator) CommandWindow(ctx context.Context, request ClockWindo
 	}
 	// Either mode acknowledges only the downed colonists the window decision
 	// names below; combat mode also its hostile pawns (none when the fight
-	// is against a hostile building alone, #246). Medical suppression never.
+	// is against a hostile building alone). Medical suppression never.
 	p := intent.Command.Start.Policy
 	if p == nil || len(p.AcknowledgedInjuredColonistIds)+len(p.SurgicalRecoveryIds)+len(p.MedicalRestIds) != 0 || p.GetInjuryStopCooldownMs() != 0 {
 		return store.ClockAttempt{}, executor.ErrHeld

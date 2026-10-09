@@ -5,10 +5,8 @@ import (
 	"fmt"
 )
 
-// This file is the post-#52 authority ceremony shared by the acceptance
-// binaries: authority is SetMode(Auto|Manual)/Revoke plus native generation
-// continuity. There is no acquire/renew handshake and no lease; the only thing
-// a caller carries forward is the generation its grant was admitted at.
+// Acceptance authority uses SetMode(Auto|Manual) and Revoke with native-generation
+// continuity. Callers retain the granted generation; authority has no acquire/renew lease.
 
 // WireFunc is the rimgovernor/* ProtoJSON transport (ordinarily Harness.Wire).
 type WireFunc func(ctx context.Context, label, method string, request map[string]any) (map[string]any, error)

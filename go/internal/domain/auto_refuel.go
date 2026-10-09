@@ -3,7 +3,7 @@ package domain
 import "errors"
 
 // AutoRefuelAction switches one exact refuelable building's auto-refuel
-// (CompRefuelable.allowAutoRefuel, #1180): a BuildingPatchIntent arm; no
+// (CompRefuelable.allowAutoRefuel): a BuildingPatchIntent arm; no
 // pawn or Job is involved. The temperature family lets a heat campfire burn
 // out once its sleeping room is warm and refuels it when the room is cold.
 const AutoRefuelAction ActionKind = "auto_refuel"

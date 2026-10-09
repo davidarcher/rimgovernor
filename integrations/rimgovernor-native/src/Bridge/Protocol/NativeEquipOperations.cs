@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent Equip (#939): FloatMenuOptionProvider_Equip's
+    // GiveJobIntent Equip: FloatMenuOptionProvider_Equip's
     // gates in order, then the exact JobDefOf.Equip job a player's float-menu
     // click would produce. Equip applies no draft gate, so this checks pawn
     // eligibility but not Drafted. Checked live at apply; a pawn already

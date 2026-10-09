@@ -19,7 +19,7 @@ import (
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 )
 
-// Combat replays (#853): a fight recorded from a fixture run
+// Combat replays: a fight recorded from a fixture run
 // (RIMGOVERNOR_SNAPSHOT_DIR on a served combat case, promoted with
 // `trim -combat <name>`) replayed stop by stop through DecideCombat with
 // no game in the loop. Each stop rebuilds the view from the recorded frame
@@ -70,11 +70,11 @@ func replayCombat(path string) ([]combatReplayStop, error) {
 		}
 		orders, ask, memory := policy.DecideCombat(view, policy.GeometryReply{}, s.Stop, s.MemoryIn)
 		if !replayGeometryCompatible(ask, s.Ask) {
-			// Recordings older than sparing contained bleeders (#1035)
+			// Recordings older than sparing contained bleeders
 			// answer asks that still name them: replay those with the
 			// population unknown. The rule itself is proven on a recorded
 			// frame by TestCombatFrameSparesFleeingBleeder; lab-ranged
-			// (#1152) is recorded after it and spares.
+			// is recorded after it and spares.
 			view.Population = domain.Unknown[int]()
 			orders, ask, memory = policy.DecideCombat(view, policy.GeometryReply{}, s.Stop, s.MemoryIn)
 		}
@@ -154,7 +154,7 @@ func firstStop(s combatReplayStop) bool { return s.Index == 0 }
 func withOrders(s combatReplayStop) bool { return len(s.Orders) > 0 }
 
 // attacksOnPresentHostiles: no attack names a hostile gone from the view's
-// threats, the order native refuses as not_found (#904).
+// threats, the order native refuses as not_found.
 func attacksOnPresentHostiles() combatAssertion {
 	return combatAssertion{name: "attacks name present hostiles", check: func(s combatReplayStop) error {
 		for _, o := range s.Orders {
@@ -254,7 +254,7 @@ func containsPawn(ids []domain.PawnID, id domain.PawnID) bool {
 	return false
 }
 
-// Every committed combat recording stays within the #853 cap.
+// Every committed combat recording stays within the combat budget cap.
 func TestCombatRecordingsSizeCap(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -313,7 +313,7 @@ func TestCombatReplayHarness(t *testing.T) {
 		combatAssertion{name: "a stop sends orders", at: withOrders, check: func(combatReplayStop) error { return nil }},
 	)
 	// The admission stop (its formation; the drafts and first orders
-	// ride its batch, #910) and the squad re-formation: the steady stop
+	// ride its batch) and the squad re-formation: the steady stop
 	// between them records nothing.
 	if len(stops) != 2 {
 		t.Fatalf("%d stops", len(stops))
@@ -384,7 +384,7 @@ func gunzipLines(data []byte) ([][]byte, error) {
 	return bytes.Split(bytes.TrimSpace(raw), []byte("\n")), nil
 }
 
-// lab-open (#854): three riflemen against three melee raiders on an open
+// lab-open: three riflemen against three melee raiders on an open
 // field, served by the routine defense planner. With no defense layout the
 // formation is squad defense on every raider, and its orders are changes
 // only, to owned drafts, never throwing a shot away.
@@ -397,18 +397,18 @@ func TestCombatReplayLabOpen(t *testing.T) {
 		changesOnly(),
 		noAimInterrupt(),
 	)
-	// Every combat stop steps DecideCombat since #890, but on an open field
+	// Every combat stop steps DecideCombat, but on an open field
 	// the drafted riflemen are already on the squad's targets, so the stops
 	// change nothing and send no orders; lab-choke's do.
 }
 
-// lab-choke (#854, #890): two longsword blockers and a reserve at the gap
+// lab-choke: two longsword blockers and a reserve at the gap
 // of a walled room, two riflemen behind, six club raiders, served with
 // the fixture's defense layout. The hold forms at once with its blocker
 // and reserve duties, later stops send orders (fire mode), and the
-// raid_phase re-formation with raiders in melee at the choke keeps the hold (#905). A serious
+// raid_phase re-formation with raiders in melee at the choke keeps the hold. A serious
 // injury retreating is staged in policy (TestDecideCombatSwapsHurtBlocker),
-// not asserted here: a recording holds one only by luck (#1196).
+// not asserted here: a recording holds one only by luck.
 func TestCombatReplayLabChoke(t *testing.T) {
 	t.Parallel()
 	checkCombat(t, "testdata/combat/lab-choke.json.gz",
@@ -429,8 +429,8 @@ func TestCombatReplayLabChoke(t *testing.T) {
 		attacksOnPresentHostiles(),
 		noAimInterrupt(),
 		// Hold fire holds while the raider fights our blocker between
-		// swings (#903): no fire-at-will at stops 2 and 5, except for a
-		// gunner passed on to a raider not on a blocker (#978).
+		// swings: no fire-at-will at stops 2 and 5, except for a
+		// gunner passed on to a raider not on a blocker.
 		combatAssertion{name: "hold fire holds", at: func(s combatReplayStop) bool { return s.Index == 2 || s.Index == 5 }, check: func(s combatReplayStop) error {
 			for _, o := range s.Orders {
 				if o.Kind != policy.OrderFireMode || o.FireMode != policy.FireAtWill {
@@ -469,14 +469,14 @@ func TestCombatReplayLabChoke(t *testing.T) {
 	)
 }
 
-// lab-pods (#870, #897): four riflemen between a walled landing room and a
+// lab-pods: four riflemen between a walled landing room and a
 // safe room, an unarmed colonist inside the landing room, four rifle
 // raiders dropped into it. The pods tactic forms at the first stop with
 // the landing room from the frame's standing rooms: the civilian's
-// evacuee cell is outside the landing room (moved there once drafted, #911), two
+// evacuee cell is outside the landing room (moved there once drafted), two
 // riflemen take the doorway flanks (standable per the
 // geometry read) and the landing door is held open. Not asserted:
-// drafting before the open tick (the recording predates #908 and starts
+// drafting before the open tick (the recording starts
 // at the open) and a strike (no raider fled, looted or went down in the
 // recording, and four against four never waits).
 func TestCombatReplayLabPods(t *testing.T) {
@@ -510,7 +510,7 @@ func TestCombatReplayLabPods(t *testing.T) {
 		changesOnly(),
 		// The raiders stand behind the landing room's walls: no attack goes
 		// out along a line the game answered blocked, the order native
-		// refused cannot_hit at every stop of the recording (#912).
+		// refused cannot_hit at every stop of the recording.
 		combatAssertion{name: "no attack along a blocked line", check: func(s combatReplayStop) error {
 			cells := map[domain.PawnID]domain.Cell{}
 			for _, p := range s.View.Pawns {
@@ -528,10 +528,10 @@ func TestCombatReplayLabPods(t *testing.T) {
 			return nil
 		}},
 	)
-	// The evacuee's cell is the safe room's (the recording predates #910,
-	// so the fight never drafted it); the admission batch drafts every
+	// The evacuee starts in the safe room and is undrafted in the recording.
+	// The admission batch drafts every
 	// role pawn, and decides as they will be once drafted: the evacuee's
-	// move out of the landing room goes out with it (#911).
+	// move out of the landing room goes out with it.
 	for _, r := range stops[0].Memory.Roles {
 		if r.Pawn == evacuee && (r.Cell == nil || inside(*r.Cell)) {
 			t.Fatalf("evacuee %s sent to %v, inside the landing room", evacuee, r.Cell)

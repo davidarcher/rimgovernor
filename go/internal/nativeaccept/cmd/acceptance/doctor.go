@@ -13,10 +13,10 @@ import (
 const doctorUsage = `
   acceptance doctor -root <dir> [-rimgovernor <binary> -output <dir> -game <id> -worktree <dir> -heal]`
 
-// runDoctor is the preflight on its own (#277): every check with its fix,
+// runDoctor is the preflight on its own: every check with its fix,
 // exit 1 only when one would certainly fail a run. -heal stops the
 // harness processes the orphans check finds running from removed
-// worktrees (#346) and reports again.
+// worktrees and reports again.
 func runDoctor(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	fs.SetOutput(stderr)

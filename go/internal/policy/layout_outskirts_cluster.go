@@ -6,10 +6,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The outskirts cluster's composition (#2185, epic #2176). The one
+// The outskirts cluster's composition. The one
 // ReserveOutskirts outline holds four rooms in fixed slots, so the tomb and
-// morgue (#2185), the graveyard (#2186) and the waste yard with its incinerator
-// (#2187) never collide. Every rectangle below is an outline: the room's
+// morgue, the graveyard and the waste yard with its incinerator
+// never collide. Every rectangle below is an outline: the room's
 // interior plus its one-cell ring (walls, or the yards' fence). Rooms stand
 // apart, one cell of ground between neighbours, and every door faces
 // the lane: a one-cell strip along the cluster's middle, open at both ends of
@@ -42,11 +42,11 @@ import (
 // holds for every room.
 
 const (
-	// GraveyardW and GraveyardH are the graveyard's interior (#2186): the
+	// GraveyardW and GraveyardH are the graveyard's interior: the
 	// 12-grave template of GraveyardSlots fills it.
 	GraveyardW int32 = 11
 	GraveyardH int32 = 7
-	// WasteYardW and WasteYardH are the waste yard's interior (#2187): 77
+	// WasteYardW and WasteYardH are the waste yard's interior: 77
 	// cells, the incinerator room takes a corner, the dump the rest.
 	WasteYardW int32 = 11
 	WasteYardH int32 = 7
@@ -55,7 +55,7 @@ const (
 	IncineratorOutline int32 = 5
 )
 
-// PlannedWasteYard is the waste yard's plan role (#2187): an Outdoor room that
+// PlannedWasteYard is the waste yard's plan role: an Outdoor room that
 // holds the dump zone's ground and the incinerator room.
 const PlannedWasteYard PlannedRole = "waste_yard"
 
@@ -94,7 +94,7 @@ func OutskirtsSize() [2]int32 {
 
 // OutskirtsSlots is the slots of the outskirts outline area, anchored at its
 // south-west corner; false when area is smaller than OutskirtsSize. It is the
-// one place the cluster is composed: the rooms #2185 to #2187 place stand in
+// one place the cluster is composed: its rooms stand in
 // these slots.
 func OutskirtsSlots(area Rectangle) (OutskirtsLayout, bool) {
 	size := OutskirtsSize()

@@ -13,7 +13,7 @@ import (
 )
 
 // defense/ied-lane is the perimeter campaign with the IED tier's gates
-// open (#1209, #1211): before the layout is built the fixture finishes the
+// open: before the layout is built the fixture finishes the
 // IEDs research and drops high-explosive shells, so the layout planner
 // extends the trap lane outward from the killbox entry with IEDs whose
 // blast keeps off doors, the safe lane, colonist routes and storage. The

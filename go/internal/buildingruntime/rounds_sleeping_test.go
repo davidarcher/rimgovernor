@@ -20,7 +20,7 @@ import (
 type sleepingNative struct {
 	*roundsNative
 	// previews counts placements evaluated; calls counts native hops, so a
-	// batched sweep shows as many previews as cells and one call (#599).
+	// batched sweep shows as many previews as cells and one call.
 	previews  int
 	calls     int
 	onPreview func(context.Context, *bridge.BuildingPreview)
@@ -58,7 +58,7 @@ func (n *sleepingNative) previewOne(ctx context.Context, a domain.Action, s doma
 		n.onPreview(ctx, &v)
 	}
 	// The native refuses a bed or bedroll blueprint over a standing sleeping
-	// piece (#2080); overlays counts the attempts.
+	// piece; overlays counts the attempts.
 	if b.Definition() == "Bed" || b.Definition() == policy.SleepingBedrollDefinition {
 		for _, cell := range policy.BunkCells(anchor, b.Rotation()) {
 			if n.standing[cell] {
@@ -257,7 +257,7 @@ func TestRoundsSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 }
 
 // A building intent admitted on another plan but not yet applied holds its
-// anchor from siting (#943): nothing on the map shows it yet.
+// anchor from siting: nothing on the map shows it yet.
 func TestRoundsSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -363,7 +363,7 @@ func TestRoundsSleepingKeepsDoorwayAislesClear(t *testing.T) {
 		t.Fatal(err)
 	}
 	aisle := map[domain.Cell]bool{{X: 2, Z: 1}: true, {X: 1, Z: 0}: true, {X: 3, Z: 0}: true, {X: 2, Z: 0}: true}
-	// Building admissions are no longer recorded (#856); the placed cells are.
+	// Building admissions are no longer recorded; the placed cells are.
 	for _, action := range compiled.Spec.Actions() {
 		b, _ := action.Building()
 		for _, cell := range []domain.Cell{b.Cell()} {

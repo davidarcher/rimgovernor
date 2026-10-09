@@ -9,7 +9,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// The Ideology defs (#1760): policy.IdeologyDefs is a view over the catalog's
+// The Ideology defs: policy.IdeologyDefs is a view over the catalog's
 // generated rows (PreceptDef with its typed PreceptComps, RitualPatternDef,
 // RitualBehaviorDef and the rows they name); nothing is read separately.
 

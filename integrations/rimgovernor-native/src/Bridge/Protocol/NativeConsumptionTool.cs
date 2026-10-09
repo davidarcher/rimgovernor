@@ -8,7 +8,7 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Realized consumption (#2441): the completed hourly entries after the hour
+    // Realized consumption: the completed hourly entries after the hour
     // Go already holds, from the saved ConsumptionState ring.
     public sealed class NativeConsumptionTool
     {

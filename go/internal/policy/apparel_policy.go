@@ -16,7 +16,7 @@ type ApparelDefinition struct {
 // ApparelPolicyState is the pawn's outfit census: its short name (the
 // outfit's label), current outfit (PolicyID, Current), the definitions it
 // can wear, those its title, ideoligion role and apparel precepts require,
-// and whether it goes nude (#1302).
+// and whether it goes nude.
 type ApparelPolicyState struct {
 	Token           string
 	PawnName        string
@@ -41,7 +41,7 @@ const (
 	qualityLegendary int32 = 6
 )
 
-// RoleApparelPolicy is the pawn's own outfit (#1302), labelled with its short
+// RoleApparelPolicy is the pawn's own outfit, labelled with its short
 // name: the definitions its role permits (stage-compatible; combat armor for
 // soldiers only; nothing covering torso or legs for a nude pawn) plus every
 // definition its title, role or precepts require. All roles exclude tainted
@@ -138,7 +138,7 @@ func DesiredApparelPolicy(p GearPawn) (domain.ApparelPolicy, bool) {
 	return desired, true
 }
 
-// OutfitKeep is the outfit prune's keep set (#1298): every pawn's own outfit
+// OutfitKeep is the outfit prune's keep set: every pawn's own outfit
 // load id, known only once every pawn is observed, unblocked and already on
 // its desired outfit, so the prune never deletes an outfit a pending write
 // would reuse.

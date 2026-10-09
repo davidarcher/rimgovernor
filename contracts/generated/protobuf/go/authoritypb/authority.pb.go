@@ -93,11 +93,7 @@ const (
 	RevocationReason_REVOCATION_REASON_SHUTDOWN             RevocationReason = 7
 	RevocationReason_REVOCATION_REASON_HOOKS_UNAVAILABLE    RevocationReason = 8
 	RevocationReason_REVOCATION_REASON_GENERATION_EXHAUSTED RevocationReason = 9
-	// Kept despite the lease going away: overflow/clock-unavailable style failures
-	// that used to end a timed lease still need a terminal "no longer active,
-	// and not because of a specific detected player action" reason. Genuinely
-	// unsure whether callers still need this distinct from GENERATION_EXHAUSTED,
-	// so it is kept rather than silently folded away.
+	// Authority ended because its control prerequisites became unavailable.
 	RevocationReason_REVOCATION_REASON_UNAVAILABLE RevocationReason = 10
 )
 
@@ -1021,13 +1017,9 @@ func (*ControlReply_Failure) isControlReply_Outcome() {}
 
 func (*ControlReply_FocusedMap) isControlReply_Outcome() {}
 
-// A new write requires these preconditions atomically on the game thread: the
-// identity is still current, the attempt is admitted at most once, and the
-// generation has not moved past what the caller computed its command against
-// (a local-player interruption bumps the generation even though there is no
-// lease to expire). Identity is a colony/load/map staleness check, not part
-// of the authority-ownership ceremony this message used to also carry; owner
-// and lease_id are dropped because there is only ever one bot holding Auto.
+// Writes atomically require current colony/load/map identity, a fresh attempt,
+// and the generation used to plan the command. Player interruptions advance
+// the generation; Auto has a single bot owner.
 type WritePrecondition struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Identity           *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`

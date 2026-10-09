@@ -9,7 +9,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable acceptance only (#2439, epic #1694): the colony
+    // Private disposable acceptance only: the colony
     // awakens the void monolith and disrupts it at the void node.
     // test/monolith_awaken_prepare stages the precondition the controller's
     // awaken gate (policy/monolith.go) asks for: a void monolith spawned on the

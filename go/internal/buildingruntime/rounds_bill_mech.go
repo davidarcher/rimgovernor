@@ -20,7 +20,7 @@ type mechSource interface {
 
 var _ mechSource = (*bridge.Client)(nil)
 
-// mechGestation assembles the gestation goal's inputs (#1686) from the
+// mechGestation assembles the gestation goal's inputs from the
 // projection: the colonist mechanitors (pawn rows), the gestators and
 // wastepacks (Biotech colony section), the mech catalog and the work roster,
 // and the mechs the mechanitors control (one read by id). known is false

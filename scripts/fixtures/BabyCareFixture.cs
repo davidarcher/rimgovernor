@@ -9,7 +9,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable acceptance only (#1691, epic #1667): a colony raises
+    // Private disposable acceptance only: a colony raises
     // its first child. test/baby_care_prepare stages one baby a day or two short
     // of its first childhood birthday in a colony with no breastfeeder, and the
     // only baby-edible food the colony can get is what its stove cooks: a

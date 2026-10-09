@@ -89,8 +89,8 @@ message ClearanceChunk {
 }
 // include_salvage asks for salvage evidence on the rows outside Home; a
 // caller that never reads salvage leaves it false and the native read skips
-// the salvage route and storage searches (#984).
-// planned_ground (#1365) widens the census on those cells only: player-faction
+// the salvage route and storage searches.
+// planned_ground widens the census on those cells only: player-faction
 // buildings touching them become targets (with encloses_room) and their
 // constructed floors are reported per cell. Empty keeps the non-player census.
 message ClearanceTargetsRequest {
@@ -110,7 +110,7 @@ message ClearanceTargetsReply { oneof outcome {
   rimgovernor.common.v1.Failure failure = 3;
 } }
 
-// Ancient shrines (#456): each sealed or opened ancient-danger room as one
+// Ancient shrines: each sealed or opened ancient-danger room as one
 // unit. Caskets report native hit points and HasAnyContents; the occupant
 // stays unknown until opened. Guards are the hostile pawns and hives inside
 // the room rectangle and are complete only once the interior is unfogged.
@@ -141,7 +141,7 @@ message ShrineGuard {
   optional bool dead = 4;
 }
 // ShrineOccupant is a humanlike the caskets released, or a corpse of one: any
-// non-player humanlike pawn or corpse inside the room (#460).
+// non-player humanlike pawn or corpse inside the room.
 message ShrineOccupant {
   optional string entity_id = 1;
   optional bool hostile = 2;
@@ -204,7 +204,7 @@ message JobEvidence {
   // a job no work giver issued (a forced order, rest, a meal, wandering).
   optional string work_type_def_name = 11;
   // target_a_cell: a spawned thing target's cell when the job was read
-  // (#1342); target_a carries the thing's Ref.
+  // target_a carries the thing's Ref.
   rimgovernor.common.v1.Cell target_a_cell = 12;
 }
 message PawnNeeds {
@@ -212,7 +212,7 @@ message PawnNeeds {
   optional HungerCategory hunger_category = 5; optional BreakRisk break_risk = 6;
   optional double break_threshold_minor = 7; optional double break_threshold_major = 8; optional double break_threshold_extreme = 9;
   repeated ReadIssue issues = 10;
-  // Psyfocus (#1313): Pawn_PsychicEntropyTracker CurrentPsyfocus and
+  // Psyfocus: Pawn_PsychicEntropyTracker CurrentPsyfocus and
   // TargetPsyfocus (0-1) and Pawn.GetPsylinkLevel(); all three are absent
   // when Royalty is inactive or the pawn has no psylink.
   optional double psyfocus = 11; optional double psyfocus_target = 12; optional int32 psylink_level = 13;
@@ -239,10 +239,10 @@ message PawnHealth {
   optional bool urgent_medical_rest = 15; optional string bed_id = 16; repeated SurgeryBill surgery_bills = 17;
   repeated ReadIssue issues = 18;
   SnapshotRef snapshot = 19;
-  // Surgery facts (#1161). Native computes every value through vanilla; Go
+  // Surgery facts. Native computes every value through vanilla; Go
   // never recomputes them. Absent lists with a read issue are unknown.
   repeated MissingBodyPart missing_parts = 20; repeated SurgeryOperation operations = 21;
-  // Installed added parts (#1837): every Hediff_AddedPart on the pawn. A read
+  // Installed added parts: every Hediff_AddedPart on the pawn. A read
   // failure is a read issue with field "installed_parts", never an empty list.
   repeated InstalledPart installed_parts = 22;
 }
@@ -269,25 +269,25 @@ message SurgeryOperation {
   DefinitionRef recipe = 1; optional int32 part_index = 2; optional string part_def_name = 3; SurgeryKind kind = 4;
   optional double success_chance = 5; optional uint32 eligible_doctors = 6; optional bool ingredients_on_map = 7;
   optional bool violation = 8; optional bool lethal = 9;
-  // A harvest's yield (#1169), or an added part's on removal (#1232):
+  // A harvest's yield, or an added part's on removal:
   // BaseMarketValue of the spawnThingOnRemoved; absent otherwise.
   optional double yield_market_value = 10;
-  // Artificial part removal (#1232): the removed Hediff_AddedPart's def and
+  // Artificial part removal: the removed Hediff_AddedPart's def and
   // the thing it spawns; absent unless the target part carries an added part.
   optional string added_part_hediff = 11; optional string yield_thing_def = 12;
   // BaseMarketValue x count of the medicine the operation would use (the
   // best permitted on the map); absent when it uses none or none is stocked.
   optional double medicine_market_value = 13;
-  // The best eligible doctor's chance with an ideal bed and room (#1240):
+  // The best eligible doctor's chance with an ideal bed and room:
   // success_chance with the bed factor replaced by a clean, roofed Bed's;
   // absent exactly when success_chance is.
   optional double doctor_success_chance = 14;
   // True when medicine the recipe accepts is on the map but the patient's
-  // medical care level forbids all of it (#1239); ingredients_on_map is
+  // medical care level forbids all of it; ingredients_on_map is
   // then false.
   optional bool medicine_care_limited = 15;
   // Each eligible doctor's chance on this operation, the same score as
-  // success_chance, keyed by pawn id (#1253); empty when success_chance is
+  // success_chance, keyed by pawn id; empty when success_chance is
   // absent.
   map<string, double> doctor_chances = 16;
 }
@@ -300,14 +300,14 @@ message GearItem {
   optional double insulation_cold = 17; optional double insulation_heat = 18;
   optional string biocoded_to = 20; // Native pawn ID, only when the coded owner still exists.
   optional bool biocoded = 21; // True also when the coded owner reference was lost; absent on older producers.
-  // A loose candidate's supply CAS token (#1342).
+  // A loose candidate's supply CAS token.
   SnapshotRef thing_snapshot = 22;
 }
 message PawnEquipment {
   optional string primary_id = 1; repeated GearItem equipped = 2; repeated GearItem apparel = 3;
   repeated GearItem inventory_weapons = 4; optional string carried_thing_id = 5; optional uint32 inventory_item_count = 6;
   optional bool armed = 7; repeated ReadIssue issues = 8;
-  // Defense capacity (#1188): the primary ranged verb's damage per second
+  // Defense capacity: the primary ranged verb's damage per second
   // (projectile damage x burst over aim-adjusted warmup, cooldown and burst
   // gaps; 0 without a ranged primary) and the pawn's MeleeDPS stat.
   optional double ranged_dps = 9; optional double melee_dps = 10;
@@ -335,11 +335,11 @@ message PawnSettings {
   repeated ReadIssue issues = 14;
   optional bool work_applies = 15; optional bool manual_work_priorities = 16;
   FoodRestriction food_restriction = 17;
-  // Per-pawn policy planner inputs (#1297), read with work detail.
+  // Per-pawn policy planner inputs, read with work detail.
   PawnPolicyInputs policy_inputs = 20;
 }
-// The inputs per-pawn outfit/drug/food/reading planners compose from
-// (#1297). Traits, mood and break thresholds (biography, needs) and animal
+// The inputs per-pawn outfit/drug/food/reading planners compose from.
+// Traits, mood and break thresholds (biography, needs) and animal
 // bonds (social relations, relation_def_name "Bond") are observed elsewhere.
 // Policy ids are Policy.GetUniqueLoadID(); absent when the pawn has no
 // tracker for that policy kind. A field the pawn has no source for (no
@@ -365,9 +365,9 @@ message PawnPolicyInputs {
   // interaction mode defNames; absent for a pawn that is no guest.
   optional string guest_status = 14; optional string prisoner_interaction = 15; optional string slave_interaction = 16;
   // StatDefOf.MedicalTendQuality of the pawn as a doctor, before vanilla's
-  // 0.7 self-tend factor (#1305); absent for a pawn that cannot doctor.
+  // 0.7 self-tend factor; absent for a pawn that cannot doctor.
   optional double medical_tend_quality = 17;
-  // Pawn_IdeoTracker.Certainty (0..1) in the pawn's ideoligion (#1654);
+  // Pawn_IdeoTracker.Certainty (0..1) in the pawn's ideoligion;
   // absent without an ideoligion.
   optional double ideo_certainty = 18;
 }
@@ -392,14 +392,14 @@ message AnimalState {
   // whether native lets this animal carry an allowed area at all.
   optional string allowed_area_id = 21; optional string master_id = 22; optional bool follow_drafted = 23; optional bool follow_fieldwork = 24;
   optional bool obedient = 25; optional bool supports_allowed_areas = 26;
-  // Herd sizing facts (#875): any hediff that makes colonists feel sick, the
+  // Herd sizing facts: any hediff that makes colonists feel sick, the
   // player ideo venerates this race (slaughter_barred is no longer written;
-  // precept effects decide, #1644), and adult age stage. The race's own
+  // precept effects decide), and adult age stage. The race's own
   // numbers (body size, life expectancy, minimum handling skill, tame-failure
-  // manhunter chance) are the catalog's race rows (#1722).
+  // manhunter chance) are the catalog's race rows.
   optional bool sick = 28; optional bool slaughter_barred = 29;
   optional bool venerated = 30; optional bool adult = 32;
-  // Medical care cap inputs (#1301), for a player animal: its
+  // Medical care cap inputs, for a player animal: its
   // MedicalCareCategory name, a Bond relation to any living pawn, and the
   // same conditions block PopulationPerson.conditions carries.
   optional rimgovernor.operations.v1.MedicalCare medical_care = 33; optional bool bonded = 34; PawnHealth conditions = 35;
@@ -413,7 +413,7 @@ message AnimalState {
   // acceptance (false while a slaughter designation stands).
   optional bool downed = 39; optional bool in_mental_state = 40;
   optional bool colonist_bonded = 41; optional bool slaughter_designatable = 42;
-  // Herd growth events (#2379): game ticks until a pregnant animal gives birth
+  // Herd growth events: game ticks until a pregnant animal gives birth
   // ((1 - gestation) * gestationPeriodDays * 60000 / BodyResourceGrowthSpeed),
   // absent without a pregnancy; the index of the current life stage in the
   // race's lifeStageAges (Pawn_AgeTracker.CurLifeStageIndex) and game ticks until
@@ -436,7 +436,7 @@ message PawnState {
   PawnSettings settings = 26; PawnSocial social = 27; AnimalState animal_state = 28;
   rimgovernor.common.v1.Ref nearest_colonist = 31;
   optional double nearest_colonist_distance = 32; repeated ReadIssue issues = 33;
-  // Native draft claims were removed (#939): drafts are plan-owned.
+  // Native draft claims were removed: drafts are plan-owned.
   rimgovernor.common.v1.Ref owned_bed = 35;
   SnapshotRef snapshot = 36;
   // Native lord evidence for hostile groups: the LordJob and current LordToil
@@ -450,34 +450,34 @@ message PawnState {
   // Equipment detail only; absent when there are no live, standing hostiles.
   optional double raid_armor = 41;
   // Doctor-side tend gates, mirroring NativeTendOperations.Prepare so the
-  // controller never proposes a pair the native gate refuses (#657). Present
+  // controller never proposes a pair the native gate refuses. Present
   // only when PawnDetails.tend is requested.
   PawnTendDoctor tend_doctor = 42;
   // Verse.IntVec3.Fogged: the pawn stands in fog the colony has not
   // discovered. A fogged hostile is undiscovered, unreachable and no
   // emergency -- the ancient-danger mechanoid behind a sealed wall held
-  // every window and deselected every development goal for good (#659).
+  // every window and deselected every development goal for good.
   optional bool fogged = 43;
-  // Current InspirationDef defName (#1187): empty when the pawn has no
+  // Current InspirationDef defName: empty when the pawn has no
   // inspiration; absent from producers that do not read it (unknown).
   optional string inspiration = 44;
-  // The pawn control CAS token, on reads that admit a pawn order (#1342).
+  // The pawn control CAS token, on reads that admit a pawn order.
   SnapshotRef pawn_snapshot = 45;
-  // Biotech pawn facts (#1678); absent without Biotech, so absent is not
+  // Biotech pawn facts; absent without Biotech, so absent is not
   // applicable, never a gene-less pawn.
   PawnBiotech biotech = 46;
-  // Anomaly facts (#1737); absent without Anomaly.
+  // Anomaly facts; absent without Anomaly.
   PawnAnomaly anomaly = 47;
-  // Royalty facts of a free colonist (#1876); absent without Royalty or on a pawn with no royalty tracker. A failed read is a ReadIssue named "royalty".
+  // Royalty facts of a free colonist; absent without Royalty or on a pawn with no royalty tracker. A failed read is a ReadIssue named "royalty".
   PawnRoyalty royalty = 48;
-  // Standing of a spawned humanlike pawn among the factions (#2383), colonist
+  // Standing of a spawned humanlike pawn among the factions, colonist
   // or not; absent for animals and mechanoids.
   PawnStanding standing = 49;
   // Alive, standing colony builder with native finishing work-type and required
   // capacities. Jobs, draft, schedule and skill level do not change this fact.
   optional bool construction_capable = 50;
 }
-// Faction standing of one humanlike pawn (#2383). faction_def_name is the
+// Faction standing of one humanlike pawn. faction_def_name is the
 // pawn's FactionDef (absent without a faction); royal_title the defName of its
 // most senior royal title (absent without Royalty or a title); host_faction
 // the faction holding it as guest, prisoner or slave (absent when none);
@@ -487,7 +487,7 @@ message PawnStanding {
   optional string faction_def_name = 1; optional string royal_title = 2; rimgovernor.common.v1.Ref host_faction = 3;
   optional string guest_status = 4; optional bool quest_lodger = 5;
 }
-// Biotech facts of one pawn (#1678). Each scalar is absent when native could
+// Biotech facts of one pawn. Each scalar is absent when native could
 // not read it (unknown, not zero); a failed sub-read adds a ReadIssue named
 // for its field (genes, mechanitor, mech, deathrest). Defs are the
 // DefinitionCatalog.biotech rows' names.
@@ -523,7 +523,7 @@ message PawnBiotech {
   repeated PawnGene genes = 5; optional string xenotype = 6; optional string xenotype_name = 7; optional bool hybrid = 8;
   PawnMechanitor mechanitor = 9; PawnMech mech = 10; PawnDeathrest deathrest = 11;
   repeated ReadIssue issues = 12;
-  // Gene lifecycle (#1931). xenogerm_regrow_ticks_left and xenogerm_coma_ticks_left are
+  // Gene lifecycle. xenogerm_regrow_ticks_left and xenogerm_coma_ticks_left are
   // HediffComp_Disappears.ticksToDisappear of XenogermReplicating and
   // XenogerminationComa, 0 with no such hediff; in_extractor is a pawn held by a
   // Building_GeneExtractor (all three failed together: ReadIssue gene_lifecycle).
@@ -571,15 +571,15 @@ message PawnDetails {
   optional bool tend = 11;
 }
 message PawnSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnState pawns = 2; Completeness completeness = 3;
-  // Colony fact (#1313): the Meditate TimeAssignmentDef exists
+  // Colony fact: the Meditate TimeAssignmentDef exists
   // (DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate")); false on Core only.
   optional bool meditate_assignment_available = 5;
-  // Row ids removed since the base table, in a delta section (SectionWatermark.delta, #1348).
+  // Row ids removed since the base table, in a delta section (SectionWatermark.delta).
   repeated string removed = 6; }
 message ListPawnsRequest { ReadScope scope = 1; PawnFilter filter = 2; PawnDetails details = 3; }
 message ListPawnsReply { oneof outcome { PawnSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
-// Closed vanilla value sets read off pawns, stock and bills (#1341).
+// Closed vanilla value sets read off pawns, stock and bills.
 enum HungerCategory { HUNGER_CATEGORY_UNSPECIFIED = 0; HUNGER_CATEGORY_FED = 1; HUNGER_CATEGORY_HUNGRY = 2; HUNGER_CATEGORY_URGENTLY_HUNGRY = 3; HUNGER_CATEGORY_STARVING = 4; }
 // BreakRisk is the mental-break band the mood sits in.
 enum BreakRisk { BREAK_RISK_UNSPECIFIED = 0; BREAK_RISK_NONE = 1; BREAK_RISK_MINOR = 2; BREAK_RISK_MAJOR = 3; BREAK_RISK_EXTREME = 4; }
@@ -590,12 +590,12 @@ enum HolderKind { HOLDER_KIND_UNSPECIFIED = 0; HOLDER_KIND_CONTAINER = 1; HOLDER
 enum WasteKind { WASTE_KIND_UNSPECIFIED = 0; WASTE_KIND_CORPSE = 1; WASTE_KIND_SPOILED = 2; }
 // BenchUnusableReason is why a bench takes no bills.
 enum BenchUnusableReason { BENCH_UNUSABLE_REASON_UNSPECIFIED = 0; BENCH_UNUSABLE_REASON_NOT_PLAYER_OWNED = 1; BENCH_UNUSABLE_REASON_FORBIDDEN = 2; BENCH_UNUSABLE_REASON_BURNING = 3; BENCH_UNUSABLE_REASON_NOT_USABLE_FOR_BILLS = 4; BENCH_UNUSABLE_REASON_OTHER = 5; }
-// One stack a stock row counts (#1342): the thing, the cell its units are
+// One stack a stock row counts: the thing, the cell its units are
 // at (its holder's when held), its supply CAS token when it is allowable,
 // and for a packed (minified) item the building inside it, for a
 // RelocateIntent install, with that building's quality (QualityCategory
 // ordinal, 0 Awful .. 6 Legendary; absent without one) and the packed
-// item's market value (#1194).
+// item's market value.
 message StockItem {
   rimgovernor.common.v1.Ref item = 1; rimgovernor.common.v1.Cell cell = 2; SnapshotRef snapshot = 3;
   rimgovernor.common.v1.Ref inner = 4; optional string inner_def_name = 5; optional int32 quality = 6; optional double market_value = 7;
@@ -639,14 +639,14 @@ message BillState {
   rimgovernor.common.v1.Ref worker = 13; optional int32 skill_min = 14; optional int32 skill_max = 15; optional double ingredient_radius = 16;
   StockpileFilter ingredient_filter = 17; optional rimgovernor.operations.v1.StoreMode store_mode = 18; rimgovernor.common.v1.Ref store_zone = 19;
   optional bool can_run_now = 20; repeated string blockers = 21; repeated IngredientRequirement ingredients = 22; repeated ReadIssue issues = 23;
-  // Live bill jobs' promised ingredients (#1354): one row per spawned pawn
+  // Live bill jobs' promised ingredients: one row per spawned pawn
   // whose current job works this bill, the spawned things it has queued or
   // placed. Go's material budget subtracts them from free stock.
   repeated IngredientReservation reservations = 27;
 }
 message IngredientReservation { optional string pawn_id = 1; repeated Quantity items = 2; }
 message BillStack { SnapshotRef snapshot = 1; rimgovernor.common.v1.Ref bench = 2; optional bool usable = 3; optional BenchUnusableReason unusable_reason = 4; optional uint32 capacity = 5; repeated BillState bills = 6; }
-// What a recipe is, costs and needs is its RecipeDef row in the definition catalog (#1721); a frame carries only whether the bench offers it now.
+// What a recipe is, costs and needs is its RecipeDef row in the definition catalog; a frame carries only whether the bench offers it now.
 message RecipeState {
   DefinitionRef recipe = 1; optional bool available_now = 2; optional bool available_on_bench = 3;
 }
@@ -658,7 +658,7 @@ message BuildingSettings {
   optional bool room_can_be_prison_cell = 16; repeated ReadIssue issues = 17;
   // crop_def_name is a plant grower's current crop beside its own CAS snapshot (BuildingPatchIntent.plant_def).
   optional string crop_def_name = 18;
-  // player_owned is a claimable building's faction reading beside its own CAS snapshot (BuildingPatchIntent.claim, #459).
+  // player_owned is a claimable building's faction reading beside its own CAS snapshot (BuildingPatchIntent.claim).
   optional bool player_owned = 19;
 }
 message MaterialDeficit { optional string def_name = 1; optional int64 need = 2; optional int64 have = 3; optional int64 still_needed = 4; }
@@ -678,9 +678,9 @@ message BuildingServiceState {
 }
 // BuildingStatus is the native construction stage of a building row.
 enum BuildingStatus { BUILDING_STATUS_UNSPECIFIED = 0; BUILDING_STATUS_BLUEPRINT = 1; BUILDING_STATUS_FRAME = 2; BUILDING_STATUS_BUILT = 3; }
-// BuildingState is the canonical building row (#1343), built by one native
+// BuildingState is the canonical building row, built by one native
 // builder: only the bundle's building table and the list read carry it;
-// every other message points at a building by Ref (#1342), which the
+// every other message points at a building by Ref, which the
 // reader resolves against the table. service and settings.forbidden are set on
 // every row.
 message BuildingState {
@@ -691,11 +691,11 @@ message BuildingState {
   repeated ThermalSide thermal_sides = 14; BillStack bills = 15; optional string inspect_text = 16;
   optional bool burning = 17; optional bool uses_hit_points = 18; repeated ReadIssue issues = 19;
   SnapshotRef snapshot = 20;
-  // The building's occupied rect, inclusive (#1346).
+  // The building's occupied rect, inclusive.
   Rectangle occupied = 22;
-  // Odyssey hack and portal facts (#1708); absent on a building with neither.
+  // Odyssey hack and portal facts; absent on a building with neither.
   OdysseyBuilding odyssey = 23;
-  // Anomaly containment and study facts (#1737); absent without Anomaly or on
+  // Anomaly containment and study facts; absent without Anomaly or on
   // a building with neither.
   AnomalyBuilding anomaly = 24;
 }
@@ -707,7 +707,7 @@ message PowerNetwork {
   repeated string member_ids = 15;
 }
 message BuildingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated BuildingState buildings = 2; repeated PowerNetwork power_networks = 3; Completeness completeness = 4;
-  // Row ids removed since the base table, in a delta section (SectionWatermark.delta, #1348).
+  // Row ids removed since the base table, in a delta section (SectionWatermark.delta).
   repeated string removed = 10; }
 message ListBuildingsRequest { ReadScope scope = 1; repeated string ids = 2; repeated string def_names = 3; repeated string statuses = 4; optional string category = 5; optional bool player_only = 6; optional double damaged_below_fraction = 7; optional bool inspect = 9; optional bool bill_ingredients = 10; }
 message ListBuildingsReply { oneof outcome { BuildingsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -724,7 +724,7 @@ message RoomState {
   repeated ReadIssue issues = 23;
   SnapshotRef snapshot = 24; repeated RoomBedMembership bed_memberships = 25; repeated StockpileMembership stockpile_memberships = 26;
   repeated RoomDoor doors = 27; // Doors in the room's boundary: door cell, the cell it opens onto, and whether that side is outdoors.
-  // The room's key in the whole-map cell grid (CellGrid.room, #1346): the
+  // The room's key in the whole-map cell grid (CellGrid.room): the
   // row-major map index of its first unfogged cell; its cells are the grid
   // cells carrying it. Absent when every cell is fogged.
   optional string grid_room = 29;
@@ -755,7 +755,7 @@ message ZoneState {
 message ZonesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ZoneState zones = 2; Completeness completeness = 3; }
 message ListZonesRequest { ReadScope scope = 1; repeated string ids = 2; optional string name_contains = 3; Rectangle region = 4; optional bool include_contents = 6; optional bool include_filter = 7; }
 message ListZonesReply { oneof outcome { ZonesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-// A thing's canonical row (#1343), from one native builder: the cells
+// A thing's canonical row, from one native builder: the cells
 // read's things and the bundle's things table. thing.snapshot is the
 // thing's own CAS token. The food facts (15-23) are set for an ingestible
 // item or a corpse: rot_ticks at the current ambient temperature (present
@@ -764,23 +764,22 @@ message ListZonesReply { oneof outcome { ZonesSnapshot observed = 1; rimgovernor
 // thing or any ingredient it was made from (CompIngredients) is humanlike meat;
 // a corpse adds forbidden, its meat yield (meat_amount), body size and a
 // one-cell footprint. What the def alone says (class, vegetable, raw meat and
-// raw ingredient class, a corpse's humanlike race) is the definition catalog's
-// (#1733).
+// raw ingredient class, a corpse's humanlike race) is the definition catalog's.
 message Thing { EntityRef thing = 1; optional int64 stack_count = 3; optional string stuff = 4; optional int32 hit_points = 5; optional bool forbidden = 6; repeated rimgovernor.common.v1.Ref owners = 7; optional bool medical = 8; optional double growth = 9; optional bool harvestable_now = 10; optional string build_def_name = 11; optional bool blueprint = 12; optional bool frame = 13;
   optional int64 rot_ticks = 15; optional double temperature_c = 16; optional bool roofed = 17; rimgovernor.common.v1.Ref room = 18;
   optional bool corpse = 19; optional double meat_amount = 20; optional double body_size = 21; optional int64 tile_footprint = 22;
   optional bool is_human_meat = 23;
-  // The thing's own CAS token (#1342).
+  // The thing's own CAS token.
   SnapshotRef snapshot = 28; }
 message ThingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated Thing things = 2;
-  // Row ids removed since the base table, in a delta section (SectionWatermark.delta, #1348).
+  // Row ids removed since the base table, in a delta section (SectionWatermark.delta).
   repeated string removed = 3; }
-// One observations_get_cells read (#1346): the map's dimensions and the
+// One observations_get_cells read: the map's dimensions and the
 // requested rectangle as a CellGrid keyframe (mirror.proto's arrays and
 // sentinels: a fogged cell is not held; glow is artificial light only).
 // room keys a native room by the whole-map row-major index of its first
 // held cell inside the read. Things, terrain and foundation affordances ride
-// the grid's thing list and tile columns (#2260, #2261, #2272).
+// the grid's thing list and tile columns.
 message CellsSnapshot {
 
   rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2;
@@ -811,7 +810,7 @@ message ResearchBench { rimgovernor.common.v1.Ref building = 4; repeated Researc
 message ResearchSlot { optional string category = 1; optional string current_project = 2; }
 // finished names every finished project, whatever the request filters.
 message ResearchSnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef snapshot = 2; repeated ResearchSlot slots = 3; repeated ResearchProject projects = 4; repeated ResearchBench benches = 5; repeated Researcher researchers = 6; optional bool anomaly_active = 7; optional string player_tech_level = 8; Completeness completeness = 9; repeated string finished = 10; }
-// progress_only (#1340) lists only the current projects, with their lock
+// progress_only lists only the current projects, with their lock
 // reasons, and the started unfinished ones, each without the static fields
 // the definition catalog carries (costs, prerequisites, tab, tech level,
 // required bench); the other filters are ignored.
@@ -820,7 +819,7 @@ message ResearchReply { oneof outcome { ResearchSnapshot observed = 1; rimgovern
 
 message AccessTarget { rimgovernor.common.v1.Cell cell = 1; optional bool native_reachable = 2; optional bool projected_reachable = 3; optional uint32 projected_steps = 4; }
 message PawnAccess { rimgovernor.common.v1.Ref pawn = 1; optional uint32 current_cells = 2; optional uint32 projected_cells = 3; repeated AccessTarget targets = 6; rimgovernor.common.v1.Cell projected_origin = 7; optional uint32 egress_steps = 8; optional bool loses_access = 10;
-  // The pawn's cell when the access was read (#1342).
+  // The pawn's cell when the access was read.
   rimgovernor.common.v1.Cell position = 11; }
 message SpatialAccessSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnAccess pawns = 2; optional uint32 map_cells = 3; optional uint32 observed_walkable_cells = 4; }
 message SpatialAccessRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell blocked_cells = 2; repeated rimgovernor.common.v1.Cell target_cells = 3; repeated string pawn_ids = 4; }
@@ -840,11 +839,11 @@ message DefenseCell {
   // Absent when the cell is open.
   optional string cover_thing_id = 15; optional string cover_def_name = 16; optional CoverKind cover_kind = 17;
   optional bool cover_designated = 19;
-  // The cell's foundation (a Bridge) is designated for removal (#954).
+  // The cell's foundation (a Bridge) is designated for removal.
   optional bool foundation_removal_designated = 20;
-  // The edifice's stuff def (WoodLog, Plasteel), absent for a stuffless one (#1065).
+  // The edifice's stuff def (WoodLog, Plasteel), absent for a stuffless one.
   optional string edifice_stuff_def_name = 21;
-  // The cell is under any roof (#1122: a burn-out's seal holds its heat).
+  // The cell is under any roof (a burn-out's seal holds its heat).
   optional bool roofed = 22;
 }
 // How the game's own designators would remove a cover thing.
@@ -907,7 +906,7 @@ message WallUpgradeSite {
   SnapshotRef snapshot = 12; rimgovernor.common.v1.Cell normal = 13;
   rimgovernor.common.v1.Ref original = 22; rimgovernor.common.v1.Ref left_support = 23; rimgovernor.common.v1.Ref right_support = 24;
   repeated rimgovernor.common.v1.Ref completed_backups = 25; rimgovernor.common.v1.Ref replacement = 26;
-  // The target's CAS token for the upgrade's guarded operations (#1342).
+  // The target's CAS token for the upgrade's guarded operations.
   SnapshotRef target_snapshot = 27;
   repeated StuffOption replacement_materials = 19;
   CellsSnapshot geometry = 20; RoofSupportSnapshot roof_support = 21;
@@ -920,9 +919,9 @@ message ResourceSource {
   optional bool designated = 5; optional string risk = 6; optional string safety = 7; optional string blocker = 8;
   optional double distance = 9; optional bool depleted = 10; optional int64 remaining = 11; optional int64 pending_yield = 12;
   optional int64 designated_tick = 13; optional bool taken = 14;
-  // buried: a supported mine deposit no colonist can reach (usually fogged); a corridor excavation must reach it first (#1072).
+  // buried: a supported mine deposit no colonist can reach (usually fogged); a corridor excavation must reach it first.
   optional bool buried = 15;
-  // A mine source's CAS token and cell (#1342): rocks are in no frame's things table.
+  // A mine source's CAS token and cell: rocks are in no frame's things table.
   SnapshotRef source_snapshot = 16; rimgovernor.common.v1.Cell cell = 17;
 }
 message StorageCapacity { optional string resource = 1; optional int64 capacity = 2; optional int64 stored = 3; optional int32 stack_limit = 4; repeated rimgovernor.common.v1.Ref haulers = 5; repeated string blockers = 6; repeated ReadIssue issues = 7; repeated rimgovernor.common.v1.Cell candidates = 8; }
@@ -933,7 +932,7 @@ message ExtractionDevelopment { repeated ResourceSource deposits = 3; repeated D
 message ResourceSourcesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; optional string resource = 2; repeated ResourceSource sources = 3; StorageCapacity storage = 4; ExtractionDevelopment development = 5; Completeness completeness = 6; }
 message ResourceSourcesRequest { ReadScope scope = 1; optional string resource = 2; optional bool include_development = 3; }
 message ResourceSourcesReply { oneof outcome { ResourceSourcesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-// Realized consumption (#2441). Native keeps a saved hourly ring (2500-tick
+// Realized consumption. Native keeps a saved hourly ring (2500-tick
 // hours, 60 days) of what colony stock was spent, per (definition, reason). A
 // read names the last hour Go already holds; the reply carries every
 // completed hour after it (since_hour absent or negative: the whole window),
@@ -955,7 +954,7 @@ message WasteItem { rimgovernor.common.v1.Ref thing = 1; optional int64 count = 
   // A corpse's inner pawn; unset for non-corpses.
   optional rimgovernor.common.v1.CorpseClass corpse_class = 11;
   // A corpse's vanilla everBuriedInSarcophagus: set once it has lain in a
-  // sarcophagus, after which a re-burial fires no memory (#2342).
+  // sarcophagus, after which a re-burial fires no memory.
   optional bool ever_buried_in_sarcophagus = 12; }
 message WasteSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated WasteItem items = 2; }
 message WasteReply { oneof outcome { WasteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -963,38 +962,38 @@ message RecoveryRestriction { rimgovernor.common.v1.Ref pawn = 1; optional strin
 message RecoverySnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated RecoveryRestriction restrictions = 4; repeated rimgovernor.common.v1.Ref buildings = 7; }
 message RecoveryRequest { ReadScope scope = 1; }
 message RecoveryReply { oneof outcome { RecoverySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-// pawn refers to the bundle pawn table row (#1343); its snapshot is the
+// pawn refers to the bundle pawn table row; its snapshot is the
 // prisoner custody and interaction settings token.
 message PopulationPerson { rimgovernor.common.v1.Ref pawn = 24; SnapshotRef pawn_snapshot = 25; optional bool admitted = 2; optional bool guest = 3; optional bool recruitable = 4; optional double resistance = 5; optional string interaction = 6; rimgovernor.common.v1.Ref owned_bed = 23; optional double nutrition_per_day = 8; optional int64 prisoner_ticks = 9;
   // Prisoner prospect facts MaintainPopulation judges a prisoner's use by
-  // (#1036): Pawn_GuestTracker.will (Ideology), the pawn's ideoligion load
+  // Pawn_GuestTracker.will (Ideology), the pawn's ideoligion load
   // id, Verse.WildManUtility.IsWildMan, and, for prisoners and free
   // colonists, the skill/trait/age biography and SummaryHealthPercent.
   optional double will = 10; optional string ideo_id = 11; optional bool wild_man = 12;
   PawnBiography biography = 13; optional double health_summary = 14;
-  // After combat (#1079), for a hostile: a LuciferiumAddiction hediff (not
+  // After combat, for a hostile: a LuciferiumAddiction hediff (not
   // worth capturing: stripped and finished instead) and any worn apparel
   // (every downed raider is stripped before it is captured).
   optional bool luciferium_addicted = 15; optional bool wearing_apparel = 16;
-  // Organ harvest facts (#1169), for a prisoner of the colony only: its
+  // Organ harvest facts, for a prisoner of the colony only: its
   // surgery facts (missing_parts, operations and surgery_bills filled as on
   // the pawn care read, other PawnHealth fields absent), its faction's load
   // id, and the goodwill change vanilla's Recipe_RemoveBodyPart violation
   // report (-70) would make with it after CalculateAdjustedGoodwillChange and
   // the -100 floor; 0 when the faction's goodwill cannot change or none.
   PawnHealth surgery = 17; rimgovernor.common.v1.Ref faction = 18; optional int32 harvest_goodwill_change = 19;
-  // The MedicalCareCategory name (#1239), for a colony prisoner or a guest
-  // of the colony (#1301).
+  // The MedicalCareCategory name, for a colony prisoner or a guest
+  // of the colony.
   optional rimgovernor.operations.v1.MedicalCare medical_care = 20;
-  // Peg-leg control (#1236), for a prisoner of the colony only: it carries a
+  // Peg-leg control, for a prisoner of the colony only: it carries a
   // drug addiction (Hediff_Addiction). A prisoner gets no drugs, so an
   // addiction is withdrawal now or soon, until the addiction clears.
   optional bool withdrawal = 21;
-  // Medical care cap inputs (#1301), for a colony prisoner or guest: life
+  // Medical care cap inputs, for a colony prisoner or guest: life
   // threat, every hediff (definition, severity, immunity and their rates)
   // and the completeness; other PawnHealth fields absent.
   PawnHealth conditions = 22;
-  // Policy inputs (#1554), for a prisoner of the colony only: its current
+  // Policy inputs, for a prisoner of the colony only: its current
   // drug policy id and chemical state, as on the work census settings row.
   PawnPolicyInputs policy_inputs = 26; optional bool will_join_if_rescued = 27; }
 message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2; repeated DefinitionRef supported_interactions = 3;
@@ -1002,13 +1001,13 @@ message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 
   // primary ideoligion load id;
   // absent without Ideology; precepts ride the ideology section.
   optional bool ideology_active = 5; optional bool classic_ideo_mode = 6; optional string colony_ideo_id = 7;
-  // Storyteller population outlook (#1031): StorytellerUtilityPopulation intent and
+  // Storyteller population outlook: StorytellerUtilityPopulation intent and
   // adjusted population, and the capture odds that intent sets for a non-colony
   // humanlike downed by violence (death chance) and for a new prisoner (unrecruitable).
   optional double population_intent = 9; optional double adjusted_population = 10;
   optional double death_on_downed_chance = 11; optional double unrecruitable_chance = 12;
   // (Organ-use precepts ride the ideology section.)
-  // Owned-pawn names (#1310): every living named pawn the colony owns --
+  // Owned-pawn names: every living named pawn the colony owns --
   // player-faction colonists, slaves and animals, and colony prisoners --
   // on any map, caravan or transporter; unnamed animals are absent.
   repeated OwnedName owned_names = 14; }
@@ -1270,7 +1269,7 @@ message TradeLine { optional uint32 index = 1; DefinitionRef definition = 2; opt
 // an empty definition; its transfer_count is the favor the negotiator gains),
 // and absent reads as silver.
 enum TradeCurrencyKind { TRADE_CURRENCY_KIND_UNSPECIFIED = 0; TRADE_CURRENCY_KIND_SILVER = 1; TRADE_CURRENCY_KIND_FAVOR = 2; }
-// TradeSession is the adapter's one live trade (#856): the negotiator
+// TradeSession is the adapter's one live trade: the negotiator
 // walking to trader_id to open a session (open false), or the pair holding
 // the open session (open true). Both ids are absent when neither exists.
 message TradeSession { rimgovernor.common.v1.ObservationContext context = 1; rimgovernor.common.v1.TradeTarget target = 2; optional string negotiator_id = 3; optional bool open = 4; }
@@ -1325,7 +1324,7 @@ message TradeAcquisitionReply { oneof outcome { TradeAcquisition observed = 1; r
 
 message FoodConsumer { optional string pawn_id = 1; optional double nutrition_per_day = 2; optional bool human_meat_acceptable = 3; }
 // A food stock references its thing's row in the bundle's things table
-// (#1343) and adds what is relative to its eaters: holder when only
+// and adds what is relative to its eaters: holder when only
 // that pawn eats it, the nutrition the stack gives them and who can eat it
 // (the row's forbidden flag is the stack's; Go decides which forbidden food
 // is the travel reserve).
@@ -1361,28 +1360,28 @@ message UpkeepPerson { rimgovernor.common.v1.Ref pawn = 9; rimgovernor.common.v1
 // things: each row is one requirement met by count of any listed def.
 message BedroomThingRequirement { repeated string any_of = 1; optional int32 count = 2; }
 message RoyalTitleFacts { optional string def_name = 1; optional int32 seniority = 2; optional int32 bedroom_min_area = 3; optional int32 bedroom_min_impressiveness = 4; optional bool bedroom_floored = 5; repeated BedroomThingRequirement bedroom_things = 6; }
-// permit_cooldowns (#1607): one row per held permit.
+// permit_cooldowns: one row per held permit.
 // last_used_tick is FactionPermit.LastUsedTick (absent when never used) and
 // cooldown_remaining_ticks the ticks until it can be used again (0 when ready),
 // both read at the read's tick.
 message PermitCooldown { optional string permit = 1; optional int32 last_used_tick = 2; optional int32 cooldown_remaining_ticks = 3; }
 message PawnRoyalHolding { optional string faction_def = 1; optional string title = 2; optional int32 favor = 3; optional int32 permit_points = 4; repeated string permits = 5; repeated PermitCooldown permit_cooldowns = 6; }
-// Psycasts (#1600): psycasts holds each psycaster's known psycasts (Ability
+// Psycasts: psycasts holds each psycaster's known psycasts (Ability
 // defs with IsPsycast). level is the psylink level that unlocks it,
 // psyfocus_cost the Psyfocus it spends (0-1), entropy the neural heat it adds,
 // cooldown_ticks the longest cooldown. neuroformers: the psylink neuroformer
 // and each psycast neurotrainer, with held (unforbidden spawned stacks on the
 // player's home maps), craftable (a recipe that is available now makes it)
 // and tradeable (a trader can sell it). teaches_psycast is the trainer's
-// ability def. For combat casts (#1611) cooldown_remaining_ticks is the
+// ability def. For combat casts cooldown_remaining_ticks is the
 // psycast's remaining cooldown and the pawn's psyfocus (0-1), entropy and
 // entropy_max are read at the read's tick; each is absent when unread.
 enum PsycastTargetKind { PSYCAST_TARGET_KIND_UNSPECIFIED = 0; PSYCAST_TARGET_KIND_SELF = 1; PSYCAST_TARGET_KIND_PAWN = 2; PSYCAST_TARGET_KIND_THING = 3; PSYCAST_TARGET_KIND_CELL = 4; }
 message PawnPsycast { optional string def_name = 1; optional int32 level = 2; optional double psyfocus_cost = 3; optional double entropy = 4; PsycastTargetKind target_kind = 5; optional int32 cooldown_ticks = 6; optional int32 cooldown_remaining_ticks = 7; }
 message NeuroformerStock { optional string def_name = 1; optional string teaches_psycast = 2; optional int32 held = 3; optional bool craftable = 4; optional bool tradeable = 5; }
-// PawnState.royalty (#1876): the pawn is the row's.
+// PawnState.royalty: the pawn is the row's.
 message PawnRoyalty { repeated PawnRoyalHolding holdings = 2; repeated PawnPsycast psycasts = 3; optional double psyfocus = 4; optional double entropy = 5; optional double entropy_max = 6; }
-// Pending bestowing ceremonies (#1602): one per colonist holding an ongoing or
+// Pending bestowing ceremonies: one per colonist holding an ongoing or
 // offered bestowing-ceremony quest (RoyalTitleUtility.GetCurrentBestowingCeremonyQuest).
 // quest is the quest load id the quest census lists. pawn is the colonist to be bestowed, bestower the Empire pawn, title the def
 // the ceremony awards (GetTitleAwardedWhenUpdating), accepted whether the
@@ -1392,21 +1391,21 @@ message PawnRoyalty { repeated PawnRoyalHolding holdings = 2; repeated PawnPsyca
 // (the throne spot) and attendees the lord's colonist participants. Each
 // scalar is absent when native could not read it.
 message BestowingCeremony { optional string quest = 10; rimgovernor.common.v1.Ref pawn = 1; rimgovernor.common.v1.Ref bestower = 2; optional string faction_def = 3; optional string title = 4; optional bool accepted = 5; optional bool bestower_waiting = 6; optional bool started = 7; rimgovernor.common.v1.Cell spot = 8; repeated rimgovernor.common.v1.Ref attendees = 9; }
-// Throne ownership (#1601): thrones lists every spawned player throne
+// Throne ownership: thrones lists every spawned player throne
 // (Building_Throne) with its assigned owner; owner is absent when none is
 // assigned. A throne appears once it stands, so a throne missing from the
 // list was built after the read.
 message RoyalThrone { rimgovernor.common.v1.Ref thing = 1; optional string def_name = 2; rimgovernor.common.v1.Ref owner = 3; }
-// Royalty colony facts (#1877), a keyed colony section (#1347): the neuroformer
+// Royalty colony facts, a keyed colony section: the neuroformer
 // stock, the pending bestowing ceremonies and the standing thrones. Absent
 // without Royalty.
 message RoyaltySection { oneof outcome { RoyaltyColonyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message RoyaltyColonyFacts { repeated NeuroformerStock neuroformers = 1; repeated BestowingCeremony ceremonies = 2; repeated RoyalThrone thrones = 3; }
-// pawn refers to the bundle pawn table row (#1343), whose animal_state
+// pawn refers to the bundle pawn table row, whose animal_state
 // carries the herd facts.
 message AnimalFeed { reserved 5, 6, 7, 8; rimgovernor.common.v1.Ref pawn = 9; optional string diet = 2; optional bool requires_pen = 3; rimgovernor.common.v1.Ref suitable_pen = 4; }
 message DevelopmentPower { rimgovernor.common.v1.Ref building = 8; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; optional bool roofed = 6;
-  // A turret gun's damage per second from its own verb and burst timing (#1188); absent for other consumers.
+  // A turret gun's damage per second from its own verb and burst timing; absent for other consumers.
   optional double turret_dps = 7; }
 message DevelopmentFurniture { rimgovernor.common.v1.Ref building = 1; optional bool indoors = 2; optional uint32 slots = 3; }
 // One steam geyser on the map: geyser is the Building_SteamGeyser with its
@@ -1454,37 +1453,37 @@ message GrowRoom { rimgovernor.common.v1.Ref room = 1; optional double temperatu
 message PowerHeadroom { optional string id = 1; optional double generation_w = 2; optional double solar_w = 3; optional double wind_w = 4; optional double consumption_w = 5; optional double stored_watt_days = 6; optional double capacity_watt_days = 7; optional bool has_active_source = 8; }
 message ControlledEnvironment { repeated GrowLight lights = 1; repeated PlantGrower growers = 2; repeated GrowRoom rooms = 3; repeated PowerHeadroom networks = 4; optional bool daylight = 6; repeated ReadIssue issues = 8; optional string weather = 9; /* current WeatherDef defName, absent when unread */ }
 // A sowable crop with an edible product: the map's per-day facts beside
-// the catalog's static row (#1340).
+// the catalog's static row.
 message EdibleCrop { optional string def_name = 1; optional double nutrition_demand_per_day = 2;
   optional bool diet_allowed = 3; // No colonist ideology penalises this crop product.
 }
-// The definitions themselves are the definition catalog's (#1340); crops
+// The definitions themselves are the definition catalog's; crops
 // lists every edible crop, sorted by name.
 message PlanningFacts { GearSnapshot gear = 3; repeated ReadIssue issues = 5; ControlledEnvironment environment = 7; repeated EdibleCrop crops = 8; }
 // The static facts of a product (nutrition, rot days, perishability, baby
-// edibility) are its def row's in the definition catalog (#1733); the frame
+// edibility) are its def row's in the definition catalog; the frame
 // carries what varies: count, whether a human can eat it, the colony's demand
 // and the storage room left.
 message FoodProduct { optional string def_name = 1; optional int64 count = 2; optional bool edible = 3; optional double nutrition_demand_per_day = 5;
   // storable is the product count roofed, reachable storage accepting it can
-  // hold: stored stacks plus empty stack slots (#1359). Caps reserve bill targets.
+  // hold: stored stacks plus empty stack slots. Caps reserve bill targets.
   optional int64 storable = 8; }
 message FoodProduction { optional string recipe = 1; optional bool available = 2; repeated FoodProduct products = 3; }
 message CookingFacts { rimgovernor.common.v1.Ref bench = 1; optional bool usable = 2; repeated RecipeState recipes = 3; repeated BillState bills = 4; repeated FoodProduction production = 5; rimgovernor.common.v1.Ref room = 6;
-  // auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel, #1180).
+  // auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel).
   optional bool auto_refuel = 7;
-  // The bench's CAS token (#1342).
+  // The bench's CAS token.
   SnapshotRef bench_snapshot = 8; }
 message AcquisitionFacts { rimgovernor.common.v1.Ref source = 1; SnapshotRef source_snapshot = 16; optional string resource = 2; optional bool tree = 3; optional bool food = 4; optional double yield = 5; optional double nutrition_yield = 6; optional bool designated = 7; optional bool hunt = 8; optional double revenge_chance = 9; optional uint32 herd_size = 10; optional bool melee_only = 11; optional bool downed = 12; optional int64 designated_tick = 14; optional bool taken = 15; optional double body_size = 17; optional bool sleeping = 18; optional bool predator = 19;
-  // Raw hunt prey facts (#2144): a hunt row is every wild animal that bears a corpse, whatever
+  // Raw hunt prey facts: a hunt row is every wild animal that bears a corpse, whatever
   // policy then decides. fogged and in_mental_state are native's current reading of the animal.
   optional bool fogged = 20; optional bool in_mental_state = 21;
-  // Plant rows (#2292): growth is the plant's growth fraction (0..1) on every plant row.
+  // Plant rows: growth is the plant's growth fraction (0..1) on every plant row.
   // plantation marks a sown tree of a harvest-destroys crop standing in a growing zone
   // (RimWorld's growers fell it only at maturity; Go may fell it earlier); wild trees and
   // crops in a zone never carry it.
   optional double growth = 22; optional bool plantation = 23; }
-// Raw hunt census (#2144): what Go needs to decide whether a hunt row is offered. Native states
+// Raw hunt census: what Go needs to decide whether a hunt row is offered. Native states
 // facts and keeps only physical validity; butcher readiness, weapon rules, hunter eligibility and
 // the pending-hunt cap are Go policy (policy.HuntGate).
 // HuntProjectileKind classifies a verb's default projectile by its ThingDef class: BULLET is
@@ -1547,7 +1546,7 @@ message WallRemovalRecord { optional string id = 1; optional string target_id = 
 message WallRemovalFacts { repeated WallRemovalRecord records = 1; SnapshotRef snapshot = 3; }
 message WallRemovalSection { oneof outcome { WallRemovalFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Present geometry is complete and independent of the bounded Home write batch.
-// zone is a stockpile target's full native footprint (#719): colony extent
+// zone is a stockpile target's full native footprint: colony extent
 // takes every stockpile from the census, not only zones the autopilot created.
 message HomeExtentGeometry { repeated rimgovernor.common.v1.Cell enclosed_interior = 1; repeated rimgovernor.common.v1.Cell corridor = 2; repeated rimgovernor.common.v1.Cell zone = 3; }
 message HomeCoverageTarget { optional string id = 1; optional string shape_token = 2; optional uint32 missing_cells = 3; optional uint32 excluded_cells = 4; optional string blocker = 5; repeated rimgovernor.common.v1.Cell cells = 6; SnapshotRef snapshot = 7; HomeExtentGeometry extent_geometry = 8; }
@@ -1572,18 +1571,18 @@ message LightingSection { oneof outcome { LightingFacts observed = 1; rimgoverno
 // whose floor is already ordered carries the pending floor definition so the
 // planner never doubles an open blueprint or frame.
 message FloorCell { rimgovernor.common.v1.Cell cell = 1; optional string terrain = 2; optional string pending = 3; }
-// Room stats live on the bundle rooms census (RoomState.stats), not here (#821, #1338).
+// Room stats live on the bundle rooms census (RoomState.stats), not here.
 message FloorRoom { rimgovernor.common.v1.Ref room = 1; optional string role = 2; repeated FloorCell cells = 3; }
 // Every terrain a cell can stand on is a catalog TerrainDef row; the frame names none.
 message FlooringFacts { repeated FloorRoom rooms = 1; }
 message FlooringSection { oneof outcome { FlooringFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
-// Routes census (issue #6 slice 5): each colony facility a colonist must
+// Routes census: each colony facility a colonist must
 // reach (bed, work bench, storage, dining surface, defence emplacement) with
 // per-colonist native reachability from where that colonist stands and the
 // cost of the path the game itself would walk; a facility no colonist reaches
 // lists breach candidates: player wall cells of its room whose outer
 // neighbour a colonist can stand on.
-// Traffic (#817) counts cell changes of moving pawns per layer, each layer
+// Traffic counts cell changes of moving pawns per layer, each layer
 // decaying on its own half-life, rebuilt from zero after a load; the
 // busiest cells are reported per layer with their terrain.
 enum TrafficLayer {
@@ -1602,7 +1601,7 @@ message TrafficCell { rimgovernor.common.v1.Cell cell = 1; optional uint32 sampl
 message RoutesFacts { repeated RouteFacility facilities = 1; repeated string pawn_ids = 2; repeated TrafficCell traffic = 3; optional uint32 traffic_samples = 4; optional int32 traffic_since_tick = 5; }
 message RoutesSection { oneof outcome { RoutesFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message UpkeepFacts {
-  // storage_cells (5) and protected_cells (10) were never read (#2276).
+  // storage_cells (5) and protected_cells (10) were never read.
 
   ComfortSection comfort = 1; repeated UpkeepItem items = 3;
   repeated UpkeepBed beds = 4; repeated ItemStorageCapacity storage_capacity = 6;
@@ -1612,17 +1611,17 @@ message UpkeepFacts {
   WallRemovalSection wall_removal = 17; HomeCoverageSection home_coverage = 18; LightingSection lighting = 19;
   repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21; RoutesSection routes = 22; /* rooms: the bundle rooms census */ repeated UpkeepPerson slaves = 24;
   // Find.PlaySettings.autoHomeArea: the game expands the home area around
-  // new player buildings while true (AutoHomeAreaIntent, #1322).
+  // new player buildings while true (AutoHomeAreaIntent).
   optional bool auto_home_area = 25;
-  // Every cell of the map's home area (#1328), unordered; the home-area
+  // Every cell of the map's home area, unordered; the home-area
   // planner diffs its target against it.
   repeated rimgovernor.common.v1.Cell home_cells = 26;
-  // Hosted guests (HostFaction == player, quest lodgers included; #2384):
+  // Hosted guests (HostFaction == player, quest lodgers included):
   // people the colony houses but does not own, in the sleeping census.
   repeated UpkeepPerson guests = 27;
 }
 message UpkeepSection { oneof outcome { UpkeepFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
-// Threat facts (#395): the colony wealth the storyteller scales raids by
+// Threat facts: the colony wealth the storyteller scales raids by
 // and the raid points a default threat incident would draw right now.
 // wealth_* are WealthWatcher's lazy recount (items, buildings, pawns,
 // total); storyteller_wealth is the map's PlayerWealthForStoryteller;
@@ -1757,25 +1756,24 @@ message ColonyFactsSnapshot {
   FoodChannelsSection food_channels = 45;
   DeepResourcesSection deep_resources = 46;
   optional uint32 fermenting_barrels = 47;
-  // Every outfit, drug, food and reading policy and every allowed area (#1297).
+  // Every outfit, drug, food and reading policy and every allowed area.
   PolicySection policies = 49;
-  // Biotech pollution sources, wastepacks, gestators, chargers and baby care (#1679); absent without Biotech.
+  // Biotech pollution sources, wastepacks, gestators, chargers and baby care; absent without Biotech.
   BiotechSection biotech = 50;
-  // TileMutatorDef defNames of the colony map's world tile (Tile.Mutators;
-  // #1708), e.g. caves or ancient vents. Empty without Odyssey or with none.
+  // TileMutatorDef defNames of the colony map's world tile (Tile.Mutators), e.g. caves or ancient vents. Empty without Odyssey or with none.
   repeated string tile_mutators = 51;
-  // Odyssey eruption, contamination and underground-site state (#1709); absent without Odyssey.
+  // Odyssey eruption, contamination and underground-site state; absent without Odyssey.
   OdysseySection odyssey = 52;
-  // Anomaly containment, knowledge and incident state (#1738); absent without Anomaly.
+  // Anomaly containment, knowledge and incident state; absent without Anomaly.
   AnomalySection anomaly = 53;
-  // Royalty neuroformer stock, bestowing ceremonies and thrones (#1877); absent without Royalty.
+  // Royalty neuroformer stock, bestowing ceremonies and thrones; absent without Royalty.
   RoyaltySection royalty = 54;
   // Cumulative production-site delivery counters (DeliveryLedgerFacts); absent means unknown.
   DeliveryLedgerSection delivery_ledger = 55;
-  // Raw hunt facts for policy.HuntGate (#2144); always present on a native read.
+  // Raw hunt facts for policy.HuntGate; always present on a native read.
   HuntCensus hunt_census = 56;
 }
-// Odyssey colony facts (#1709), a keyed colony section (#1347). A scalar
+// Odyssey colony facts, a keyed colony section. A scalar
 // absent is unknown, never zero.
 // conditions: every GameCondition active on the colony map, whatever its
 // kind (lava flow, volcanic ash or winter, toxic fallout; the class says
@@ -1813,9 +1811,9 @@ message UndergroundHackable {
   optional string thing_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3;
   optional double progress_percent = 4; optional double defence = 5; optional bool hacked = 6; optional bool locked_out = 7; optional bool autohack = 8;
 }
-// Anomaly colony facts (#1738), a keyed colony section (#1347). Per-thing
+// Anomaly colony facts, a keyed colony section. Per-thing
 // state (an entity's hold and study, a platform's containment strength)
-// rides the pawn and building rows (#1737); this section carries what no
+// rides the pawn and building rows; this section carries what no
 // row holds. A scalar absent is unknown, never zero.
 // knowledge: one row per KnowledgeCategoryDef. codex: one row per
 // EntityCategoryDef; discovered_entries are the EntityCodexEntryDef names
@@ -1850,7 +1848,7 @@ message AnomalyIncidentState {
   optional bool anomaly_study_enabled = 8; optional double anomaly_threat_fraction_now = 9; optional bool void_awakening_active = 10;
   optional bool awoken_corpse_active = 11; optional bool metalhorror_implant_possible = 12;
 }
-// The void monolith and the endgame it gates (#2436), present only while the
+// The void monolith and the endgame it gates, present only while the
 // monolith is spawned (absent otherwise: unknown). can_activate is
 // Building_VoidMonolith.CanActivate. next_level_def is
 // GameComponent_Anomaly.NextLevelDef (absent when the current level does not
@@ -1869,12 +1867,12 @@ message AnomalyIncidentState {
 // void_awakening_stage is 0 with the EndGame_VoidAwakening quest running and no
 // structure spawned yet, else one more than the highest stageStructure.N quest
 // tag on a spawned structure; absent when the quest is not running.
-// monolith_id is the monolith's GetUniqueLoadID, the thing a give-job targets
-// (#2437). pending_void_structure_ids are the spawned VoidStructures on the
+// monolith_id is the monolith's GetUniqueLoadID, the thing a give-job targets.
+// pending_void_structure_ids are the spawned VoidStructures on the
 // monolith's map whose CompInteractable.CanInteract() accepts (not yet
 // activated), sorted; void_node_id is the VoidNode whose CanInteract() accepts
 // and void_node_pawn_ids the free colonists spawned on the node's map (the
-// pawn skipped into the pocket map), sorted (#2438).
+// pawn skipped into the pocket map), sorted.
 message MonolithState {
   optional string monolith_id = 12;
   repeated string pending_void_structure_ids = 13; optional string void_node_id = 14; repeated string void_node_pawn_ids = 15;
@@ -1887,13 +1885,13 @@ message MonolithState {
 // pawns (colonists, prisoners, slaves, tame animals; any map, caravan or
 // transporter) whose current policy it is, and whether it is the
 // database default (index 0). allowed_defs is a reading policy's allowed
-// book ThingDefs (#1306) or a food policy's allowed food ThingDefs (one of
-// PolicyFacts.foods, #1541); empty for the other databases. drug_entries is
+// book ThingDefs or a food policy's allowed food ThingDefs (one of
+// PolicyFacts.foods); empty for the other databases. drug_entries is
 // a drug policy's entries that allow anything (joy, addiction, scheduled
-// use or a carried count; #1537); every other drug of it is off.
+// use or a carried count); every other drug of it is off.
 message PolicyEntry { optional string id = 1; optional string label = 2; repeated string pawn_ids = 3; optional bool default = 4; repeated string allowed_defs = 5;
   repeated rimgovernor.operations.v1.DrugPolicyEntry drug_entries = 6; }
-// A food ThingDef a food policy can allow (#1541): a nutrition-giving
+// A food ThingDef a food policy can allow: a nutrition-giving
 // ingestible that is no drug and no corpse. Meals carry their
 // FoodPreferability tier (awful, simple, fine, lavish) and ingredients
 // (FoodUtility.GetFoodKind: meat-only, meat-free or either); raw foods are
@@ -1903,7 +1901,7 @@ enum FoodKind {
   FOOD_KIND_UNSPECIFIED = 0; FOOD_KIND_MEAL_AWFUL = 1; FOOD_KIND_MEAL_SIMPLE = 2; FOOD_KIND_MEAL_FINE = 3; FOOD_KIND_MEAL_LAVISH = 4;
   FOOD_KIND_RAW_MEAT = 5; FOOD_KIND_HUMAN_MEAT = 6; FOOD_KIND_INSECT_MEAT = 7; FOOD_KIND_VEGETABLE = 8; FOOD_KIND_FUNGUS = 9;
   FOOD_KIND_ANIMAL_PRODUCT = 10; FOOD_KIND_OTHER = 11;
-  // Animal feed (#1543): FoodTypeFlags.Kibble foods and hay (FoodTypeFlags.Plant).
+  // Animal feed: FoodTypeFlags.Kibble foods and hay (FoodTypeFlags.Plant).
   FOOD_KIND_KIBBLE = 12; FOOD_KIND_HAY = 13;
 }
 enum MealIngredients { MEAL_INGREDIENTS_UNSPECIFIED = 0; MEAL_INGREDIENTS_ANY = 1; MEAL_INGREDIENTS_MEAT = 2; MEAL_INGREDIENTS_NON_MEAT = 3; }
@@ -1914,18 +1912,18 @@ message PolicyFacts {
   repeated PolicyEntry outfit = 1; repeated PolicyEntry drug = 2; repeated PolicyEntry food = 3; repeated PolicyEntry reading = 4;
   repeated AllowedAreaEntry allowed_areas = 5;
   // HediffDef defNames of the colony map biome's disease incidents
-  // (BiomeDef.diseases; #1539), e.g. Malaria, Plague.
+  // (BiomeDef.diseases), e.g. Malaria, Plague.
   repeated string biome_diseases = 7;
   repeated FoodEater food_eaters = 9;
 }
-// A food policy holder outside the work census (#1543): a prisoner of the
+// A food policy holder outside the work census: a prisoner of the
 // colony or a tame animal on the colony map with a food policy. A prisoner
 // carries its diet inputs (trait defNames, its ideoligion's precept
 // defNames); the food an animal's race can ever eat is its catalog race row's.
 enum FoodEaterKind { FOOD_EATER_KIND_UNSPECIFIED = 0; FOOD_EATER_KIND_PRISONER = 1; FOOD_EATER_KIND_ANIMAL = 2; }
 message FoodEater { optional string pawn_id = 1; optional FoodEaterKind kind = 2; repeated string precepts = 4; repeated Trait pawn_traits = 6; }
 message PolicySection { oneof outcome { PolicyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
-// Biotech colony facts (#1679), a keyed colony section (#1347). The pollution
+// Biotech colony facts, a keyed colony section. The pollution
 // cell grid is a separate code; pollution here is its totals plus what makes
 // and removes it. Every row is a spawned player-map thing; a scalar absent
 // is unknown, never zero.
@@ -1946,12 +1944,12 @@ message BiotechColonyFacts {
   repeated WastepackAtomizer atomizers = 4; repeated PollutionPump pumps = 5;
   repeated MechGestatorState gestators = 6; repeated MechChargerState chargers = 7;
   repeated BabyCare babies = 8; repeated string breastfeeders = 9;
-  // Gene-building rows (#1930): the banks, assemblers, extractors, genepacks
+  // Gene-building rows: the banks, assemblers, extractors, genepacks
   // and xenogerms of the colony map.
   repeated GeneBankState gene_banks = 10; repeated GeneAssemblerState gene_assemblers = 11; repeated GeneExtractorState gene_extractors = 12;
   repeated GenepackState genepacks = 13; repeated XenogermState xenogerms = 14;
 }
-// Gene-building rows (#1930). A pawn or thing reference is a thing id. gene
+// Gene-building rows. A pawn or thing reference is a thing id. gene
 // lists are GeneDef defNames, sorted; complexity, metabolism and archites are
 // the game's own GeneSet totals (ComplexityTotal, MetabolismTotal,
 // ArchitesTotal), never summed in Go.
@@ -2003,7 +2001,7 @@ message PollutionTotals {
   optional int32 total_pollution = 1; optional uint32 pollutable_cells = 2;
   optional string clear_area_id = 3; optional int32 clear_area_cells = 4;
   // polluted_cells counts the pollutable cells PollutionGrid.IsPolluted holds;
-  // polluted_uncovered_cells those outside the pollution-clear area (#1683).
+  // polluted_uncovered_cells those outside the pollution-clear area.
   optional uint32 polluted_cells = 5; optional uint32 polluted_uncovered_cells = 6;
 }
 // polluting is CompToxifier.CanPolluteNow; cells_per_day is
@@ -2048,23 +2046,23 @@ message BabyCare {
   optional bool in_bed = 5; repeated BabyAutofeeder autofeeders = 6;
 }
 message BabyAutofeeder { optional string pawn_id = 1; optional string mode = 2; }
-// Current-map WandererJoins offers and creepjoiner offers (creepjoiner true, #1740); the token binds letter, quest, pawn and expiry. expires_tick is the letter's disappearAtTick, negative for no timeout.
+// Current-map WandererJoins offers and creepjoiner offers (creepjoiner true); the token binds letter, quest, pawn and expiry. expires_tick is the letter's disappearAtTick, negative for no timeout.
 message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; optional bool creepjoiner = 7; }
 message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 // Simulation status excludes notifications/UI/clock, exposed by their typed owners.
-// ThreatPawn is one living non-colonist pawn's threat facts (#1356): the
+// ThreatPawn is one living non-colonist pawn's threat facts: the
 // native emits facts, Go classifies them (bridge.ClassifyThreat). A row is
 // emitted for a pawn in a mental state, of a faction hostile to the
-// player, breaking out of prison (#1080) or on a PredatorHunt job, and for
+// player, breaking out of prison or on a PredatorHunt job, and for
 // an unowned downed pawn or predator within the requested predator radius
-// of a colonist; any other pawn costs one field read and no row (#646).
-// pawn references the bundle's pawn table row (#1343); ours is a
+// of a colonist; any other pawn costs one field read and no row.
+// pawn references the bundle's pawn table row; ours is a
 // player-faction pawn; faction_id is set with faction_hostile (a held
 // prisoner is never faction_hostile). prey is a PredatorHunt's target pawn
 // (a corpse's inner pawn), prey_is_ours a player-owned or player-held prey.
-// passive (#948, #1335, on ThreatPawn and ThreatBuilding) is set for
+// passive (on ThreatPawn and ThreatBuilding) is set for
 // faction-hostile insects and hives (dormant, or awake but not engaging)
 // and other CompCanBeDormant hostiles (asleep); a passive threat is left
 // alone, never held for or attacked. nearest_colonist_distance is
@@ -2078,13 +2076,13 @@ message ThreatPawn { rimgovernor.common.v1.Ref prey = 2; optional bool prey_is_o
 // nearest_colonist_distance is Chebyshev cells like a threat pawn's;
 // occupied is the building's occupied rect (inclusive), the cells a
 // ranged defender needs a line of fire to.
-// mortar (#1148) is a turret whose verb fires mortar shells.
+// mortar is a turret whose verb fires mortar shells.
 // A hostile building's row: building is its head (no table holds hostile
-// buildings) and building_snapshot its CAS token (#1342).
+// buildings) and building_snapshot its CAS token.
 message ThreatBuilding { EntityRef building = 1; SnapshotRef building_snapshot = 10; optional string hostile_reason = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional int32 nearest_colonist_distance = 5; optional bool passive = 7; optional bool mortar = 8; Rectangle occupied = 9; }
 message ThreatsSnapshot { repeated ThreatPawn pawns = 8; repeated ThreatBuilding hostile_buildings = 7; }
 // colonists references every spawned free colonist's pawn table row
-// (#1343), complete unless issues name "colonists".
+// complete unless issues name "colonists".
 message StatusSnapshot { rimgovernor.common.v1.ObservationContext context = 1; ThreatsSnapshot threats = 3; repeated ReadIssue issues = 4; repeated rimgovernor.common.v1.Ref colonists = 5; }
 message StatusRequest { ReadScope scope = 1; optional bool colonists = 2; optional bool threats = 3; optional double predator_radius = 5; }
 message StatusReply { oneof outcome { StatusSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -2098,46 +2096,46 @@ message BundleSnapshot {
   ColonyFactsSnapshot colony_facts = 6;
   PopulationSnapshot population = 7;
   ResearchSnapshot research = 8;
-  // The pawn table (35) replaces the colonist detail section (#1343).
+  // The pawn table (35) replaces the colonist detail section.
   BuildingsSnapshot buildings = 10;
   BillsSnapshot bills = 12;
   ZonesSnapshot zones = 13;
   TradersSnapshot traders = 14;
   WorldProgressionSnapshot world_progression = 15;
   repeated ResourceSourcesSnapshot resource_sources = 16;
-  // The planning window band (17) is cut from grid (#1345).
-  // Combat state (#851), while the map has an active hostile or a combat
+  // The planning window band (17) is cut from grid.
+  // Combat state, while the map has an active hostile or a combat
   // epoch runs, else empty: every spawned colonist, hostile and colony
   // animal, and the native's retained event ring (the newest 1024
   // events, oldest first). A reader merges events by their watermark, so
   // a lapped or restarted reader resyncs from any frame.
   repeated rimgovernor.mirror.v1.CombatPawn combat_pawns = 20;
   repeated rimgovernor.mirror.v1.CombatEventRow combat_events = 21;
-  // The defense planner's other combat inputs (#853), in the same frame,
+  // The defense planner's other combat inputs, in the same frame,
   // while the emergency census lists a threat or a colonist in a mental
   // state, else unset. The pawn table carries the combat detail (health,
-  // equipment, biography, animals) of every hostile and hunting predator
-  // (#1343). combat_lines_of_fire is read_lines_of_fire from every colonist cell
+  // equipment, biography, animals) of every hostile and hunting predator.
+  // combat_lines_of_fire is read_lines_of_fire from every colonist cell
   // with a ranged primary to every hostile building's occupied cells, at
   // most 64 cells a side, unset when either side is empty.
   LinesOfFireSnapshot combat_lines_of_fire = 23;
-  // Combat rooms (#897) are read from the rooms census (27).
-  // Every damaged spawned player door (#900), with the combat inputs, at most
+  // Combat rooms are read from the rooms census (27).
+  // Every damaged spawned player door, with the combat inputs, at most
   // 64: the doors a fight may send a gunner to repair.
   repeated rimgovernor.mirror.v1.CombatDoorRow combat_doors = 25;
-  // Planning definitions are the definition catalog's (#1340).
+  // Planning definitions are the definition catalog's.
   // list_rooms without outdoor rooms or boundary buildings, with cells:
-  // the room census temperature, comfort and hospital planning read (#944).
+  // the room census temperature, comfort and hospital planning read.
   RoomsSnapshot rooms = 27;
-  // Every spawned unroofed player mortar (#931), with the combat inputs, at
+  // Every spawned unroofed player mortar, with the combat inputs, at
   // most 16: the guns a fight may crew for counter-battery.
   repeated rimgovernor.mirror.v1.CombatMortarRow combat_mortars = 28;
-  // The outdoor temperature a fight shelters from (#1077) is
+  // The outdoor temperature a fight shelters from is
   // colony_facts.outdoor_temperature_c.
-  // The hottest live hive's cell temperature in degrees Celsius (#1073),
+  // The hottest live hive's cell temperature in degrees Celsius,
   // with the combat inputs: an infestation's heat-stroke hold and entry check.
   optional float combat_hive_temperature_c = 30;
-  // The watermark of every omittable section (#1347), carried or not:
+  // The watermark of every omittable section, carried or not:
   // emergency, colony_facts, population, research, traders,
   // world_progression and ideology. Native omits such a section while its content,
   // nested context ticks aside, matches the last one published, and the
@@ -2145,16 +2143,16 @@ message BundleSnapshot {
   // with a seq other than the one the reader holds was published in a
   // frame the reader missed: it asks for a keyframe.
   repeated SectionWatermark watermarks = 31;
-  // The pawn table (#1343): every spawned pawn on the map, the rows every
+  // The pawn table: every spawned pawn on the map, the rows every
   // other section's pawn reference resolves against. A free colonist
   // carries every detail family but tend; a hostile or hunting predator
   // the emergency census lists the combat detail; another animal its
   // animal state; any other pawn the core row.
   PawnSnapshot pawns = 35;
-  // The things table (#1343): every thing a food stock in colony_facts
+  // The things table: every thing a food stock in colony_facts
   // references, the rows those references resolve against.
   ThingsSnapshot things = 36;
-  // The whole map as a cell grid (#1345), every frame: a keyframe on an
+  // The whole map as a cell grid, every frame: a keyframe on an
   // open or keyframe request, on a map change and at least every 30
   // seconds, else a delta against that keyframe. keyframe_seq numbers
   // keyframes since the stream opened; a delta whose keyframe_seq is not
@@ -2164,24 +2162,24 @@ message BundleSnapshot {
   rimgovernor.mirror.v1.CellGrid grid = 32;
   optional uint64 keyframe_seq = 33;
   optional double sky_glow = 34;
-  // The player faction's primary ideoligion as it stands (#1654): the
+  // The player faction's primary ideoligion as it stands: the
   // precepts and roles in force, ritual state and building precepts.
   // Omittable like the singleton sections above (watermark "ideology");
   // absent, with no watermark, without Ideology or a primary ideoligion.
   IdeologySnapshot ideology = 37;
-  // A frame whose section read threw (#1905): the frame carries only this,
+  // A frame whose section read threw: the frame carries only this,
   // with the section name, exception type and message in detail. A reader
   // refuses the read naming the section; the frame is never carried on
   // with the section omitted.
   optional rimgovernor.common.v1.Failure failure = 38;
-  // ModsConfig.IdeologyActive (#1922), carried on every frame: false means the
+  // ModsConfig.IdeologyActive, carried on every frame: false means the
   // Ideology expansion is not installed, so an absent ideology section is not
   // an unread ideoligion. Absent stays unknown (unread).
   optional bool ideology_active = 39;
 }
 // seq counts a section's changes since the stream opened; captured_tick is
 // the tick of the frame that last carried it.
-// A keyed table section (pawns, buildings, things; #1348) is a keyframe,
+// A keyed table section (pawns, buildings, things) is a keyframe,
 // carrying every row, unless delta is set: then it carries only the rows
 // whose content changed or appeared since the table at base_seq, plus the
 // ids that left it in removed, and the reader merges it into the table it
@@ -2210,7 +2208,7 @@ message ArchitectDesignatorsSnapshot { rimgovernor.common.v1.ObservationContext 
 message ArchitectDesignatorsRequest { ReadScope scope = 1; optional string category_id = 2; optional bool include_hidden = 3; }
 message ArchitectDesignatorsReply { oneof outcome { ArchitectDesignatorsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
-// The snapshot stream (#858): native publishes whole BundleSnapshot frames
+// The snapshot stream: native publishes whole BundleSnapshot frames
 // into a named shared-memory ring and signals a named event; this request
 // opens it (or replaces its subscription) and names the ring. A frame carries
 // every state family whole (no page caps, no field masks) plus the
@@ -2218,36 +2216,36 @@ message ArchitectDesignatorsReply { oneof outcome { ArchitectDesignatorsSnapshot
 // cell grid. Clock status stays a dedicated read.
 message SnapshotStreamRequest {
   repeated string resource_sources = 1; // list_resource_sources per named resource, no development
-  // Only makes the next frame a keyframe, carrying every section (#1347);
+  // Only makes the next frame a keyframe, carrying every section;
   // the subscription and the other fields are left as they are. Every
   // other open is a keyframe too.
   optional bool keyframe = 4;
 }
-// The definition catalog (#1340): the generated def rows and the stat table
-// the planning views read (#1731), and every research project with its static
+// The definition catalog: the generated def rows and the stat table
+// the planning views read, and every research project with its static
 // facts (costs, prerequisites, tab, tech level, required bench). It is fixed
 // for a load: the controller reads it once per load token.
 message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1; repeated ResearchProject research = 3;
-  // Biotech defs (#1678); absent without Biotech.
+  // Biotech defs; absent without Biotech.
   BiotechCatalog biotech = 4;
   // The Ideology defs are rows of `defs` (MemeDef, PreceptDef, RitualPatternDef,
   // RitualBehaviorDef); field 5 carried the hand-written IdeologyCatalog.
 
-  // The Odyssey defs (#1708); absent without Odyssey.
+  // The Odyssey defs; absent without Odyssey.
   OdysseyCatalog odyssey = 6;
-  // The Anomaly defs (#1737); absent without Anomaly.
+  // The Anomaly defs; absent without Anomaly.
   AnomalyCatalog anomaly = 7;
-  // Every ThingDef and TerrainDef with all of its fields, by defName (#1730):
+  // Every ThingDef and TerrainDef with all of its fields, by defName:
   // the messages of defs.proto, filled by protobuf reflection over the game's
   // def objects (field name = CLR field name). Unlike `definitions` it is not
   // filtered to buildable or sowable defs.
   repeated rimgovernor.defs.v1.ThingDef thing_defs = 8;
   repeated rimgovernor.defs.v1.TerrainDef terrain_defs = 9;
   CatalogConstants constants = 10;
-  // The game's own stat values per def and stuff (#1759); absent in a reply
+  // The game's own stat values per def and stuff; absent in a reply
   // that carries none.
   DefStatTable stat_values = 11;
-  // Every def of every other concrete Verse.Def class (#1761), one repeated
+  // Every def of every other concrete Verse.Def class, one repeated
   // field per class, filled the same way.
   rimgovernor.defs.v1.DefSets defs = 12;
   // The base classes of every class the def rows name: the class of each
@@ -2256,7 +2254,7 @@ message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1
   // matches a family against it (`DefinitionCatalog.ClassIsA`) with no name list.
   repeated ClassChain class_chains = 13;
   // What the game's own code says about every ThingDef, computed once per
-  // load (#1733); Go reads it and never ports the rule.
+  // load; Go reads it and never ports the rule.
   repeated ThingDefFacts thing_facts = 14;
 }
 // A class by CLR full name and its base classes, nearest first, up to but not
@@ -2269,7 +2267,7 @@ message ClassChain { string name = 1; repeated string bases = 2; }
 // type, else other. `meal_ingredients` is set on meals only
 // (FoodUtility.GetFoodKind). `raw_meat` is ThingDef.IsMeat and `medicine` is
 // ThingDef.IsMedicine. `room_roles` are the furniture roles the game's own
-// room-role code scores the def for by name (#1731): Toy (ThingDefOf.ToyBox),
+// room-role code scores the def for by name: Toy (ThingDefOf.ToyBox),
 // Decoration (BabyDecoration), Board (Blackboard) and Desk (SchoolDesk), sorted;
 // the roles the rows derive (baby beds, deathrest) are Go's.
 message ThingDefFacts {
@@ -2279,11 +2277,11 @@ message ThingDefFacts {
   bool raw_meat = 4;
   bool medicine = 5;
   repeated string room_roles = 6;
-  // Set on a def with RaceProperties (#1722).
+  // Set on a def with RaceProperties.
   optional RaceFacts race = 7;
 }
 // What the game's own race code says about one race, computed once per load
-// (#1722); the race's numbers (body size, life expectancy, predator, the
+// the race's numbers (body size, life expectancy, predator, the
 // manhunter chances, wildness, minimum handling skill, products, meat) are the
 // def rows and the stat table, not copied here. `animal` is RaceProperties
 // .Animal, `mechanoid` .IsMechanoid and `insect` .Insect. `trainables` are the
@@ -2297,7 +2295,7 @@ message RaceFacts {
   bool insect = 3;
   repeated string trainables = 4;
   repeated string edible_defs = 5;
-  // Husbandry facts (#2238), the game's own answers for the race def so no
+  // Husbandry facts, the game's own answers for the race def so no
   // later round re-reads the race. `adult_min_age_ticks` is
   // Pawn_AgeTracker.AdultMinAgeTicks (an animal's last life stage; a humanlike
   // race's first adult stage; biological ticks run one per tick for an animal).
@@ -2323,14 +2321,14 @@ message RaceFacts {
   string meat_def = 13;
   float meat_amount = 14;
   // SimplifiedPastureNutritionSimulator.NutritionConsumedPerDay(def, adult
-  // life stage) (#2240): the nutrition per day one adult of the race eats, the
+  // life stage): the nutrition per day one adult of the race eats, the
   // game's own feed figure for an owned adult, so a colony with none of the
   // race can price its feed. Absent for a race with no life stages.
   optional double adult_feed_per_day = 15;
 }
 // GetStatValueAbstract(stat, stuff) of every StatDef the game shows for a def,
 // for every ThingDef: once per allowed stuff for a def made from stuff, once
-// with no stuff otherwise (#1759). Stat rules are game code; Go looks values up
+// with no stuff otherwise. Stat rules are game code; Go looks values up
 // and never recomputes them. `stats` is the shared table of stat defNames.
 message DefStatTable {
   repeated string stats = 1;
@@ -2353,7 +2351,7 @@ message DefStatRow {
   repeated float value = 4;
   repeated Quantity costs = 5;
 }
-// Game constants read from the game assemblies, never typed in (#1730).
+// Game constants read from the game assemblies, never typed in.
 message CatalogConstants {
   // GenDate.TicksPerHour, TicksPerDay and DaysPerYear.
   int32 ticks_per_hour = 1;
@@ -2378,10 +2376,10 @@ message CatalogConstants {
   // before the game collapses it.
   float roof_max_support_distance = 9;
   // The defName of ThingDefOf.Wort: what Building_FermentingBarrel takes in
-  // and turns into ThingDefOf.Beer (#1721), so the beer reserve names the
+  // and turns into ThingDefOf.Beer, so the beer reserve names the
   // intermediate without typing it.
   string wort_def = 10;
-  // JobDriver_InteractAnimal (#2238): the ticks of one TalkToAnimal toil
+  // JobDriver_InteractAnimal: the ticks of one TalkToAnimal toil
   // (TalkDuration, a private const) and of one feed (FeedDuration), the feeds
   // per interaction (FeedCount), the share of the animal's food need one feed
   // gives (NutritionPercentagePerFeed) capped at MaxMinNutritionPerFeed, and
@@ -2393,7 +2391,7 @@ message CatalogConstants {
   float animal_feed_nutrition_cap = 15;
   int32 min_train_interval_ticks = 16;
 }
-// The player faction's primary ideoligion (#1654): FactionIdeosTracker.PrimaryIdeo.
+// The player faction's primary ideoligion: FactionIdeosTracker.PrimaryIdeo.
 // Precept ids are Precept.GetUniqueLoadID(); every def name resolves to a
 // catalog def row (PreceptDef, MemeDef, RitualPatternDef).
 message IdeologySnapshot { rimgovernor.common.v1.ObservationContext context = 1; optional string ideo_id = 2; repeated string memes = 3;
@@ -2412,11 +2410,11 @@ message IdeoRole { optional string id = 1; optional string def_name = 2; optiona
 // A ritual precept: its PreceptDef and RitualPatternDef (sourcePattern), the
 // raw Precept_Ritual.lastFinishedTick, the count of active obligations,
 // whether the repeat penalty applies and whether a LordJob_Ritual of the
-// precept is running now (#1660).
+// precept is running now.
 message IdeoRitual { optional string id = 1; optional string def_name = 2; optional string pattern = 3; optional int32 last_finished_tick = 4; optional int32 active_obligations = 5; optional bool repeat_penalty_active = 6; optional bool running = 7; }
 // A building precept: the ThingDef it takes.
 message IdeoBuilding { optional string id = 1; optional string def_name = 2; optional string building = 3; }
-// The static Biotech defs, each list sorted by name (#1678). A stat effect is
+// The static Biotech defs, each list sorted by name. A stat effect is
 // a StatModifier of the def: stat is the StatDef name; factor and offset are
 // set for the side it carries. Scalars are absent when native could not read
 // them. Effects are the game defs' own (never Go name lists): the controller
@@ -2487,9 +2485,9 @@ message MechWorkModeRow {
   optional string def_name = 1; optional string label = 2; optional int32 ui_order = 3; optional bool ignore_group_charge_limits = 4;
   optional bool recharge = 5; optional bool work = 6; optional bool escort = 7;
 }
-// One point of a game SimpleCurve (#1932).
+// One point of a game SimpleCurve.
 message CurvePointRow { optional double x = 1; optional double y = 2; }
-// The Biotech tuning constants the defs do not carry (#1932), read natively
+// The Biotech tuning constants the defs do not carry, read natively
 // from GeneTuning and the gene extractor, a singleton per load.
 // biostat_min and biostat_max are GeneTuning.BiostatRange (the metabolism
 // bound of a gene set); base_max_complexity GeneTuning.BaseMaxComplexity;
@@ -2510,7 +2508,7 @@ message BiotechCatalog {
   repeated MechKindRow mech_kinds = 5; repeated MechWorkModeRow mech_work_modes = 6;
   GeneTuningFacts gene_tuning = 7;
 }
-// The Odyssey facts the def mirror (defs.proto) cannot give (#1708, #1791).
+// The Odyssey facts the def mirror (defs.proto) cannot give.
 // Biome, tile mutator, hackable and portal defs are the mirror's BiomeDef,
 // TileMutatorDef, CompProperties_Hackable and MapPortalProperties rows, and
 // the biome diseases its BiomeDef.diseases; none is repeated here. What
@@ -2531,7 +2529,7 @@ message BiomeAnimals {
 // One value of the stockpile type enum an ancient hatch carries;
 // generatable: the world generator may place it.
 message StockpileTypeRow { optional string name = 1; optional bool generatable = 2; }
-// Odyssey facts of one building row (#1708). hackable: a building with
+// Odyssey facts of one building row. hackable: a building with
 // CompHackable; portal: a MapPortal (hatch, pit gate, cave exit). An absent
 // scalar is unknown; a failed sub-read leaves its block absent and adds a
 // ReadIssue named hackable or portal.
@@ -2542,7 +2540,7 @@ message HackableState { optional double progress_percent = 1; optional double de
 // an ancient hatch adds its stockpile type (StockpileTypeRow.name) and
 // layout (LayoutDef name).
 message PortalState { optional bool pocket_map_exists = 1; optional int32 pocket_map_id = 2; optional string stockpile_type = 3; optional string layout = 4; }
-// The static Anomaly definitions (#1737), each read natively from the game
+// The static Anomaly definitions, each read natively from the game
 // defs, sorted by name, fixed for a load: entity and knowledge categories,
 // codex entries (the entities and what discovers them), the thing defs that
 // are entities, studiable, held on a platform or hold an entity, and the
@@ -2553,7 +2551,7 @@ message AnomalyCatalog {
   repeated AnomalyThingRow things = 4; repeated AnomalyIncidentRow incidents = 5;
   repeated CreepJoinerFormRow creepjoiner_forms = 6; repeated CreepJoinerBenefitRow creepjoiner_benefits = 7; repeated CreepJoinerDownsideRow creepjoiner_downsides = 8;
 }
-// The creepjoiner defs (#1740), read from the game defs. The shared fields are
+// The creepjoiner defs, read from the game defs. The shared fields are
 // ICreepJoinerDef's: weight, min_combat_points and can_occur_randomly gate the
 // random pick and requires and excludes (def names of other creepjoiner
 // parts) pair a form, benefit and downside. A form is a PawnKindDef.
@@ -2641,13 +2639,13 @@ enum EntityContainmentModeKind {
   ENTITY_CONTAINMENT_MODE_KIND_UNSPECIFIED = 0; ENTITY_CONTAINMENT_MODE_KIND_MAINTAIN_ONLY = 1; ENTITY_CONTAINMENT_MODE_KIND_STUDY = 2;
   ENTITY_CONTAINMENT_MODE_KIND_RELEASE = 3; ENTITY_CONTAINMENT_MODE_KIND_EXECUTE = 4;
 }
-// Anomaly facts of one pawn row (#1737). entity is Pawn.IsEntity, mutant
+// Anomaly facts of one pawn row. entity is Pawn.IsEntity, mutant
 // Pawn.IsMutant and shambler Pawn.IsShambler (hostility is PawnState.hostile).
 // min_containment_strength is the pawn's StatDefOf.MinimumContainmentStrength.
 // held is set for a pawn with a CompHoldingPlatformTarget, study for one with
 // a CompStudiable. A scalar absent is unknown; a failed sub-read leaves its
 // block absent and adds a ReadIssue named entity, held or study; a failed threat fact is absent with a ReadIssue named for it.
-// Threat facts for defense tactics (#1739), the combat group: hidden_from_player
+// Threat facts for defense tactics, the combat group: hidden_from_player
 // is InvisibilityUtility.IsHiddenFromPlayer (the player cannot see or target the
 // pawn); psychic_ritual_invoker is a pawn whose role in its lord's psychic ritual
 // is the ritual def's invoker role (the caster); melee_only is a pawn whose
@@ -2659,7 +2657,7 @@ message PawnAnomaly {
   optional bool hidden_from_player = 8; optional bool psychic_ritual_invoker = 9; optional bool melee_only = 10;
   CreepJoinerState creepjoiner = 11;
 }
-// A creepjoiner's facts (#1740), set for a pawn with a creepjoiner tracker
+// A creepjoiner's facts, set for a pawn with a creepjoiner tracker
 // (a failed read leaves it absent with a ReadIssue named creepjoiner). form and
 // benefit are CreepJoinerFormKindDef and CreepJoinerBenefitDef names, which a
 // player sees in the offer letter. downside_triggered is the tracker's
@@ -2670,11 +2668,11 @@ message CreepJoinerState { optional string form = 1; optional string benefit = 2
 // Building_HoldingPlatform holding the pawn; mode the ordered containment
 // mode; escaping the pawn has begun to escape; can_be_captured whether the
 // game lets the player capture it. needs_tend is Pawn.health
-// HasHediffsNeedingTend and bleeding a positive BleedRateTotal (#1743): a
+// HasHediffsNeedingTend and bleeding a positive BleedRateTotal: a
 // held entity is tended like any patient or bleeds out. harvester_attached is
 // Building_HoldingPlatform.HasAttachedBioferriteHarvester (a powered harvester
 // linked to the platform, which forces extract_bioferrite false) and
-// bioferrite_per_day CompProducesBioferrite.BioferritePerDay (#2434): body size
+// bioferrite_per_day CompProducesBioferrite.BioferritePerDay: body size
 // times the comp's density, 0 for an entity that produces none and while the
 // BioferriteExtracted hediff stands (8 days after an extraction).
 message HeldState {
@@ -2691,7 +2689,7 @@ message StudyState {
   optional double anomaly_knowledge_gained = 5; optional int32 study_interactions = 6; optional bool ever_studiable = 7; optional bool currently_studiable = 8;
   optional string knowledge_category = 9; optional double anomaly_knowledge = 10;
 }
-// Anomaly facts of one building row (#1737): holder is a CompEntityHolder
+// Anomaly facts of one building row: holder is a CompEntityHolder
 // (a holding platform), study a CompStudiable. A failed sub-read leaves its
 // block absent and adds a ReadIssue named holder or study.
 message AnomalyBuilding { EntityHolderState holder = 1; StudyState study = 2; repeated ReadIssue issues = 3; }
@@ -2700,7 +2698,7 @@ message AnomalyBuilding { EntityHolderState holder = 1; StudyState study = 2; re
 // a pawn, held_pawn the pawn it holds. doors are the Building_Door things the
 // game counts for the holder's room (StatWorker_ContainmentStrength
 // CalculateDoorStats: the doors in its boundary), read in their own try: a
-// failed read leaves them empty with a ReadIssue named doors (#1743).
+// failed read leaves them empty with a ReadIssue named doors.
 message EntityHolderState { optional double containment_strength = 1; optional bool available = 2; rimgovernor.common.v1.Ref held_pawn = 3; repeated AnomalyDoor doors = 4; }
 // One door of a holder's room: its cell, Building_Door.Open and HoldOpen,
 // ContainmentBreached (open for 600 or more ticks, Building_Door
@@ -2718,7 +2716,7 @@ message SnapshotStreamOpened {
   uint32 slot_bytes = 3;
 }
 message SnapshotStreamReply { oneof outcome { SnapshotStreamOpened opened = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-// Makes the next frame capture if any applied write is uncaptured (#1274);
+// Makes the next frame capture if any applied write is uncaptured;
 // the reply does not wait for the capture.
 message FlushSnapshotRequest {}
 message FlushSnapshotReply { oneof outcome { bool flushed = 1; rimgovernor.common.v1.Failure failure = 2; } }
@@ -2760,7 +2758,7 @@ service Observations {
   rpc ReadPawnSettings(PawnSettingsRequest) returns (PawnSettingsReply);
   rpc ResolveTarget(ResolveTargetRequest) returns (ResolveTargetReply);
   rpc ReadGear(GearRequest) returns (GearReply);
-  // ReadMedicalCatalog retired (#1161): surgery facts ride on PawnHealth.
+  // ReadMedicalCatalog retired: surgery facts ride on PawnHealth.
   rpc ListTraders(TradersRequest) returns (TradersReply);
   rpc ReadTradeSheet(TradeSheetRequest) returns (TradeSheetReply);
   rpc ReadTradeSession(TradeSessionRequest) returns (TradeSessionReply);

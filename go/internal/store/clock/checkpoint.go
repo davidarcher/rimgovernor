@@ -187,7 +187,7 @@ func CompactHistory(ctx context.Context, tx *sql.Tx, profile string) (HistoryCom
 // AdoptBacklog starts a journal that has never read the profile at cursor:
 // native rows through it are history this journal records as compacted,
 // reviewed and acknowledged, so a fresh journal against a long-lived native
-// profile reads one page instead of replaying every earlier session (#1251).
+// profile reads one page instead of replaying every earlier session.
 // It reports false, changing nothing, once the journal holds any history.
 func AdoptBacklog(ctx context.Context, tx *sql.Tx, profile string, cursor int64) (bool, error) {
 	path, err := canonicalClockProfile(profile)

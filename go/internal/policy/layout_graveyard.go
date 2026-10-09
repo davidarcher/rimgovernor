@@ -7,10 +7,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The graveyard (#2186, epic #2176): a planned Outdoor room in the outskirts
+// The graveyard: a planned Outdoor room in the outskirts
 // cluster. Its ring is a fence and a gate, its interior has no roof and owes
 // no floor (graves need diggable soil, not a constructed floor), and it never
-// grows: a full graveyard asks for a further one (#2196).
+// grows: a full graveyard asks for a further one.
 //
 // The interior template packs GraveyardGraves plain graves (GraveDefinition,
 // 1x2) in two bands of GraveyardColumns columns. Graves stand on even columns,
@@ -111,7 +111,7 @@ func GravesStanding(plan LayoutPlan, built []CurrentBuilding) (standing, slots i
 	return standing, slots
 }
 
-// GraveyardsOwed is the graveyards demand asks for that plan lacks (#2217).
+// GraveyardsOwed is the graveyards demand asks for that plan lacks.
 func GraveyardsOwed(plan LayoutPlan, demand RoomDemand) int {
 	return max(demand.Graveyards-len(plan.roomsOf(PlannedGraveyard)), 0)
 }

@@ -38,7 +38,7 @@ const (
 )
 
 // excavationStageMethod names stage n of the project on target. The target
-// key rides on the method id (#987), the goal_methods key, so an
+// key rides on the method id, the goal_methods key, so an
 // in-progress project is recovered from the journal alone; plan ids are
 // bare UUIDs.
 func excavationStageMethod(stage int, target policy.ExcavationTarget) domain.MethodID {
@@ -339,7 +339,7 @@ func cancelStalledExcavation(ctx context.Context, journal *store.Store, goal sto
 // handing the bundle to the shared admission transaction.
 func (r *RoundsBuildingPlanner) admitExcavation(call, epoch context.Context, s excavationStep, snapshot domain.GenerationSnapshot, method domain.MethodID, plan domain.PlanSpec, previews []policy.Preview, stock policy.StockObservation, check func() error) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
-	// The reviewer's identity: a MaintainResource tunnel (#1074) runs this
+	// The reviewer's identity: a MaintainResource tunnel runs this
 	// without a building source of its own.
 	last, _, err := r.reviewer.native.Identity(call)
 	if err != nil {

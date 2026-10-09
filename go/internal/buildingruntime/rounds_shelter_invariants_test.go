@@ -14,7 +14,7 @@ import (
 )
 
 // The invariants every shell the planner admits must hold, whatever shape
-// the site and the style lead it to (#615). The named-shape expectations
+// the site and the style lead it to. The named-shape expectations
 // live in rounds_shelter_test.go; this check is shape-blind, so it covers
 // a change to the planned ring without a native run. The
 // interior is flood-filled from the staged beds rather than read from the
@@ -190,7 +190,7 @@ func offeredSite(n *sleepingNative) (map[domain.Cell]bool, domain.Cell) {
 }
 
 // Bunks staged from one review's layout are still enclosed by the ring a
-// later review raises (#672). The colony centre is the plan's, so the pawns
+// later review raises. The colony centre is the plan's, so the pawns
 // walking off between reviews no longer moves it.
 func TestRoundsShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

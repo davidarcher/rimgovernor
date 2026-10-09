@@ -13,7 +13,7 @@ const (
 )
 
 type UpkeepAnimal struct {
-	// Pest is the race row's flag (AnimalRace.Pest, #1722): a wild animal
+	// Pest is the race row's flag (AnimalRace.Pest): a wild animal
 	// ClearPests hunts for what it destroys.
 	Pest          bool `json:",omitempty"`
 	SupportsAreas domain.Fact[bool]
@@ -40,9 +40,9 @@ type UpkeepAnimal struct {
 	// needs (native's TrainableUtility.MinimumHandlingSkill); TamerFor
 	// answers whether the roster has it.
 	MinimumHandlingSkill domain.Fact[int]
-	// Herd carries the sizing facts MaintainHerd culls and tames by (#875).
+	// Herd carries the sizing facts MaintainHerd culls and tames by.
 	Herd HerdFacts
-	// Care cap inputs (#1301): MedicalCareCategory name, a bond to a
+	// Care cap inputs: MedicalCareCategory name, a bond to a
 	// living pawn, conditions and life threat.
 	Care   domain.Fact[string]
 	Bonded domain.Fact[bool]
@@ -51,7 +51,7 @@ type UpkeepAnimal struct {
 	BondedPawns []string
 	// Master is the colonist id mastering the animal ("" unassigned);
 	// Obedient is learned Obedience, which native requires to master or
-	// follow (#1635).
+	// follow.
 	Master domain.Fact[string]
 	// Sterilized is the Sterilized hediff; SterilizeQueued a sterilize
 	// surgery bill waiting on the animal.
@@ -73,7 +73,7 @@ type AnimalUpkeepObservation struct {
 	// WildAnimals is the factionless census MaintainHerd tames from; it
 	// carries no feed or pen facts.
 	WildAnimals domain.Fact[[]UpkeepAnimal]
-	// AnimalRaces is the load's race catalog (#1625), read with every
+	// AnimalRaces is the load's race catalog, read with every
 	// routine reading.
 	AnimalRaces   AnimalRaceCatalog
 	Food          domain.Fact[FoodSupply]
@@ -151,7 +151,7 @@ const (
 	ContainmentMarkerExhausted AnimalContainmentReason = "marker_placed_awaiting_native_pen"
 )
 
-// AnimalContainmentShellStage is the pen ring's state (#2120): its fences and
+// AnimalContainmentShellStage is the pen ring's state: its fences and
 // gate do not match the plan (a lost fence is rebuilt by the diff, the same
 // as a first ring), an open plan is still building it, or it stands. Only a
 // standing ring receives a marker.
@@ -233,7 +233,7 @@ func SelectAnimalContainmentMethod(animals []UpkeepAnimal, handlerAvailable doma
 	return AnimalContainmentMethod{Reason: ContainmentPlaceMarker, Animals: ids}, nil
 }
 
-// RaceProduct is one periodic yield of a race (#1625): Kind is milk, wool,
+// RaceProduct is one periodic yield of a race: Kind is milk, wool,
 // eggs or spawner (chemfuel and other periodic spawns), Amount the items per
 // yield and IntervalDays the days between yields at full growth.
 type RaceProduct struct {
@@ -244,7 +244,7 @@ type RaceProduct struct {
 	// NutritionPerUnit is the Nutrition stat of Def (catalog def stat table);
 	// unknown for a def the game shows none for, wool.
 	NutritionPerUnit domain.Fact[float64]
-	// Eggs only (#1897), from the egg layer and hatcher comp defs:
+	// Eggs only, from the egg layer and hatcher comp defs:
 	// FertilizedDef is the egg a fertilized hen lays (empty when the layer
 	// cannot be fertilized), FertilizationCountMax the eggs one mating
 	// fertilizes, FemaleOnly whether only females lay, HatchDays and
@@ -263,7 +263,7 @@ type SourceProduct struct {
 	Amount float64
 }
 
-// AnimalRace is the static facts of one animal race (#1625), the same for
+// AnimalRace is the static facts of one animal race, the same for
 // every animal of it and fixed for a map load. An unread value is unknown,
 // never zero.
 type AnimalRace struct {
@@ -287,7 +287,7 @@ type AnimalRace struct {
 	// by definition name): the feed a bench can make for it.
 	FeedItems []RaceFeedItem
 	// LifeExpectancy is RaceProperties.lifeExpectancy in years,
-	// ManhunterOnTameFail and ManhunterOnDamage the manhunter chances (#1722).
+	// ManhunterOnTameFail and ManhunterOnDamage the manhunter chances.
 	LifeExpectancy, ManhunterOnTameFail, ManhunterOnDamage domain.Fact[float64]
 	// Predator is RaceProperties.predator; Pest is a wild animal that eats
 	// trees (RaceProperties.Eats(Tree)), hunted for what it destroys, not for
@@ -296,13 +296,13 @@ type AnimalRace struct {
 	// Edible are the foods the race can ever eat (RaceProperties.CanEverEat),
 	// sorted.
 	Edible []string
-	// Comfort is the comfortable outdoor temperature range (#1869); unknown
+	// Comfort is the comfortable outdoor temperature range; unknown
 	// when the game shows neither comfort stat for the race.
 	Comfort domain.Fact[AnimalComfort]
 	// MateMtbHours is RaceProperties.mateMtbHours: the mean hours between
-	// mating attempts of an eligible pair (#1897).
+	// mating attempts of an eligible pair.
 	MateMtbHours domain.Fact[float64]
-	// Husbandry facts the game computes for the race def (#2238).
+	// Husbandry facts the game computes for the race def.
 	// AdultMinAgeTicks is Pawn_AgeTracker.AdultMinAgeTicks: the lead of a young
 	// animal before it is adult; ReproductiveMinAgeTicks, MilkableMinAgeTicks
 	// and ShearableMinAgeTicks are the first life stage that breeds, gives milk
@@ -321,18 +321,16 @@ type AnimalRace struct {
 	// MeatAmount the MeatAmount stat of the race def, before butcher efficiency.
 	MeatDef    Resource
 	MeatAmount domain.Fact[float64]
-	// AdultFeedPerDay is the nutrition per day one adult of the race eats
-	// (#2240): the game's own feed figure, the one an owned adult's
-	// Herd.FeedPerDay carries.
+	// AdultFeedPerDay is native adult nutrition demand, matching Herd.FeedPerDay.
 	AdultFeedPerDay domain.Fact[float64]
 	// MeatNutritionPerUnit is the Nutrition stat of MeatDef (the catalog's
 	// def stat table, no native read).
 	MeatNutritionPerUnit domain.Fact[float64]
 	// LifeStages are RaceProperties.lifeStageAges in order, each with the tick
-	// it begins and its LifeStageDef's hungerRateFactor (#2379); nil when a
+	// it begins and its LifeStageDef's hungerRateFactor; nil when a
 	// stage or its def is missing from the catalog.
 	LifeStages []RaceLifeStage
-	// LitterSize is the mean litter of a birth (#2379): Rand.ByCurveAverage of
+	// LitterSize is the mean litter of a birth: Rand.ByCurveAverage of
 	// RaceProperties.litterSizeCurve, one child without a curve, never below
 	// the one child a birth always gives. Unknown for a curve the game cannot
 	// roll (fewer than three points).
@@ -351,7 +349,7 @@ type RaceLifeStage struct {
 // (taming, training): per interaction three talks of TalkTicks and Feeds feeds
 // of FeedTicks; a feed is FeedNutritionFraction of the animal's food need,
 // capped at FeedNutritionCap nutrition; MinTrainIntervalTicks separate two
-// training jobs on one animal (#2238). The job's three talk toils are game code
+// training jobs on one animal. The job's three talk toils are game code
 // structure, not a value the game exposes.
 type AnimalInteraction struct {
 	TalkTicks, FeedTicks, Feeds, MinTrainIntervalTicks domain.Fact[int]

@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// A long-running save's journal (#634): the scheduler step reads bounded
+// A long-running save's journal: the scheduler step reads bounded
 // catalogs (LoadPlans 256, LoadClockAttempts and LoadClockEpochs 4096), so
 // the history a colony accumulates -- retired plans, settled attempts and
 // their terminal epochs -- must stay out of them, and the step's journal
@@ -294,7 +294,7 @@ func TestClockSchedulerHistoryKeepsActiveObligationsVisible(t *testing.T) {
 // ten times the catalog bounds of retired history against the same reads
 // with nothing retired: an empty journal, and one holding just the attempt
 // tail maintenance keeps (clockHistoryTail), which every colony carries
-// after its first windows. History must stay within 2x of the tail (#634);
+// after its first windows. History must stay within 2x of the tail;
 // the empty journal is reported for the tail's own cost.
 func BenchmarkClockSchedulerHistoryJournal(b *testing.B) {
 	measure := func(b *testing.B, plans, attempts int) time.Duration {

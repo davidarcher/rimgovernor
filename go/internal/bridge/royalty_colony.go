@@ -6,7 +6,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// validateRoyaltyColony checks the Royalty colony section (#1877): every row
+// validateRoyaltyColony checks the Royalty colony section: every row
 // decodes (unique, well-formed ids, nonnegative counts). Absent scalars stay
 // unknown.
 func validateRoyaltyColony(v *o.ColonyFactsSnapshot) error {

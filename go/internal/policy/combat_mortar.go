@@ -11,27 +11,27 @@ import (
 
 // OrderManMortar sends a drafted pawn to man the colony mortar on Cell;
 // OrderMortarFire, which names no pawn, aims that mortar at Aim with
-// Shell (#931, #1202).
+// Shell.
 const (
 	OrderManMortar  CombatOrderKind = "man_mortar"
 	OrderMortarFire CombatOrderKind = "mortar_fire"
 )
 
-// ReasonCounterBattery is a mortar order (#931).
+// ReasonCounterBattery is a mortar order.
 const ReasonCounterBattery CombatOrderReason = "counter_battery"
 
-// CombatMortar is an unroofed player mortar the fight may crew (#931),
+// CombatMortar is an unroofed player mortar the fight may crew,
 // with its verb's range in cells.
 type CombatMortar struct {
 	ID                 string
 	Cell               domain.Cell
 	MinRange, MaxRange float64
-	// Loaded is the loaded shell's def (#1051), "" when unloaded.
+	// Loaded is the loaded shell's def, "" when unloaded.
 	Loaded string `json:",omitempty"`
 }
 
 // ShellKind is what a mortar shell does when it lands, the kinds the
-// counter-battery fires (#1051): blast, burn or stun.
+// counter-battery fires: blast, burn or stun.
 type ShellKind int
 
 const (
@@ -40,8 +40,8 @@ const (
 	ShellEMP
 )
 
-// MortarShells are the shell defs of the load that do each kind of damage
-// (#1723), classified from their projectile's damage def rows
+// MortarShells are the shell defs of the load that do each kind of damage,
+// classified from their projectile's damage def rows
 // (bridge.DefinitionCatalog.MortarShells says how). A kind the load has no
 // shell for, or states ambiguously, is "": the counter-battery fires what
 // the mortar holds instead and the armory stocks none.
@@ -66,15 +66,14 @@ func (s MortarShells) Def(kind ShellKind) string {
 // clump around a besieger the mortar aims at.
 const campClumpRadius = 5.0
 
-// MortarSafeRadius is the friendly danger radius (#1051, #1208): a target
+// MortarSafeRadius is the friendly danger radius: a target
 // with a colonist this close has arrived, and a mortar's scatter would
 // land on our own.
 const MortarSafeRadius = 10.0
 
-// HostileStructure is a standing hostile building in the census (#930,
-// #931): a crashed ship part, a mech-cluster piece, a siege or mech
+// HostileStructure is a standing hostile building in the census: a crashed ship part, a mech-cluster piece, a siege or mech
 // mortar, a hive. Def is its ThingDef; Cell one occupied cell; Mortar the
-// native def fact (#1148), a turret whose verb fires mortar shells (a
+// native def fact, a turret whose verb fires mortar shells (a
 // siege's or a mech cluster's).
 type HostileStructure struct {
 	ID     domain.PawnID
@@ -85,8 +84,8 @@ type HostileStructure struct {
 
 func (s HostileStructure) hive() bool { return s.Def == "Hive" }
 
-// fromRange drops a melee target on a hostile structure other than a hive
-// (#930): a crashed ship part and its cluster buildings are destroyed
+// fromRange drops a melee target on a hostile structure other than a hive:
+// a crashed ship part and its cluster buildings are destroyed
 // from range, so the mechs they wake walk into the line instead of
 // catching a brawler at the part. Gunners keep theirs.
 func fromRange(view CombatView, m *CombatMemory) {
@@ -101,8 +100,8 @@ func fromRange(view CombatView, m *CombatMemory) {
 	}
 }
 
-// counterBattery crews each colony mortar with a target in its range
-// (#931, #930, #1051): EMP on the nearest enemy mortar (a siege's or a
+// counterBattery crews each colony mortar with a target in its range:
+// EMP on the nearest enemy mortar (a siege's or a
 // mech cluster's), else HE on the siege camp's densest clump (incendiary
 // from a second mortar on the same camp, to tie them up firefighting),
 // else HE on the nearest approaching centipede, else HE on the nearest
@@ -110,13 +109,13 @@ func fromRange(view CombatView, m *CombatMemory) {
 // the pawn that manned it at the last stop while still orderable, else
 // the nearest orderable free pawn; its role keeps its cell and target
 // for when the mortar has nothing to shoot. It returns the mortars crewed
-// at the last stop that now have nothing to aim at (#1235), each with its
+// at the last stop that now have nothing to aim at, each with its
 // last crew, so the fight clears their forced target and releases the crew.
 func counterBattery(view CombatView, prev []CombatRole, m *CombatMemory) []mortarStand {
 	crewed := map[domain.Cell]domain.PawnID{}
 	for _, r := range prev {
 		// The last stop's crews, which a re-formation this stop (a siege
-		// breaking camp) has already dropped from m (#1235).
+		// breaking camp) has already dropped from m.
 		if r.Mortar != nil {
 			crewed[*r.Mortar] = r.Pawn
 		}
@@ -181,7 +180,7 @@ func counterBattery(view CombatView, prev []CombatRole, m *CombatMemory) []morta
 			shelled[aim] = true
 		}
 		// A kind the load has no shell for, or one refused for want of it,
-		// fires what is loaded (#1051).
+		// fires what is loaded.
 		shell := view.Shells.Def(kind)
 		if shell == "" || slices.Contains(m.NoShells, shell) {
 			shell = mortar.Loaded
@@ -198,7 +197,7 @@ func counterBattery(view CombatView, prev []CombatRole, m *CombatMemory) []morta
 	return stood
 }
 
-// mortarStand is a mortar stood down (#1235): its aim is gone (the siege
+// mortarStand is a mortar stood down: its aim is gone (the siege
 // broke camp, the target died), so its forced target is cleared and Crew,
 // its last crew, is released to its role.
 type mortarStand struct {
@@ -206,7 +205,7 @@ type mortarStand struct {
 	Crew domain.PawnID
 }
 
-// standDown is the orders of the mortars stood down (#1235): a pawnless
+// standDown is the orders of the mortars stood down: a pawnless
 // mortar_fire with no target clears each forced target, and a crew still
 // manning it with no other order this stop is stopped, ending ManTurret;
 // its role (the Mortar fields cleared by counterBattery) orders it on.
@@ -222,7 +221,7 @@ func standDown(stood []mortarStand, orders []CombatOrder, orderable map[domain.P
 }
 
 // mortarAim is the cell mortar fires at and the shell: EMP on the nearest
-// enemy mortar in its range, else HE on a psychic ritual's caster (#1739),
+// enemy mortar in its range, else HE on a psychic ritual's caster,
 // else HE on the camp clump, else HE on the
 // nearest centipede, else HE on the nearest other non-hive structure.
 func mortarAim(view CombatView, mortar CombatMortar) (domain.Cell, ShellKind, bool) {
@@ -270,8 +269,8 @@ func mortarAim(view CombatView, mortar CombatMortar) (domain.Cell, ShellKind, bo
 	return domain.Cell{}, 0, false
 }
 
-// besiegerCells are the cells of the live besiegers camped at the siege
-// (#776, #1208): a siege still travelling in is a moving raid the mortar
+// besiegerCells are the cells of the live besiegers camped at the siege:
+// a siege still travelling in is a moving raid the mortar
 // leaves alone, and one that breaks camp to assault drops out, so the
 // crew stops. A besieger within MortarSafeRadius of a colonist is never
 // aimed at.
@@ -317,7 +316,7 @@ func campAim(view CombatView, aim domain.Cell) bool {
 	return slices.Contains(besiegerCells(view), aim)
 }
 
-// approachingCentipedes are the live centipedes' cells (#1051): shelled
+// approachingCentipedes are the live centipedes' cells: shelled
 // while they walk in, before they reach the line inside the mortar's
 // minimum range.
 func approachingCentipedes(view CombatView) []domain.Cell {
@@ -357,7 +356,7 @@ func nearAny(ours []domain.Cell, c domain.Cell) bool {
 	return slices.ContainsFunc(ours, func(o domain.Cell) bool { return dist(o, c) <= MortarSafeRadius })
 }
 
-// mechAt reports a mechanoid standing on c (#1208): EMP, not HE, on a
+// mechAt reports a mechanoid standing on c: EMP, not HE, on a
 // camp of mechs.
 func mechAt(view CombatView, c domain.Cell) bool {
 	return slices.ContainsFunc(view.Pawns, func(p CombatPawnState) bool {

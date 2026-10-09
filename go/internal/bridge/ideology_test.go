@@ -19,7 +19,7 @@ func ideologySnapshot() *o.IdeologySnapshot {
 		ObligationsActive: proto.Bool(true), Believers: proto.Int32(4), MinBelieversForObligations: proto.Int32(3)}
 }
 
-// TestIdeologySectionDecodesAgainstCatalog (#1654): the held precepts, roles,
+// TestIdeologySectionDecodesAgainstCatalog: the held precepts, roles,
 // rituals and buildings resolve in the catalog and reach policy as facts.
 func TestIdeologySectionDecodesAgainstCatalog(t *testing.T) {
 	ideology, err := DecodeIdeology(ideologySnapshot(), pbIdentity(), ideologyCatalogRows())
@@ -95,7 +95,7 @@ func TestRoundsFrameCarriesTheIdeology(t *testing.T) {
 	}
 }
 
-// TestRoundsFrameSaysWhetherIdeologyIsInstalled (#1922): the frame's
+// TestRoundsFrameSaysWhetherIdeologyIsInstalled: the frame's
 // ideology_active is its own fact, unknown when absent, and an ideology
 // section from a colony without the expansion is a contract failure.
 func TestRoundsFrameSaysWhetherIdeologyIsInstalled(t *testing.T) {
@@ -120,7 +120,7 @@ func TestRoundsFrameSaysWhetherIdeologyIsInstalled(t *testing.T) {
 	}
 }
 
-// TestIdeologySectionIsHeldWhileOmitted (#1347): native omits an unchanged
+// TestIdeologySectionIsHeldWhileOmitted: native omits an unchanged
 // ideology section; the hold serves the last carried one at each frame's
 // tick, and a seq it does not hold is a gap that asks for a keyframe.
 func TestIdeologySectionIsHeldWhileOmitted(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// HaulConsumer is one place hauled stock is carried to (#723): a bench, a
+// HaulConsumer is one place hauled stock is carried to: a bench, a
 // hospital bed. Cells are the consumer's own footprint, which need not be
 // walkable (a bench is an edifice); Weight is its expected traffic, the
 // number of trips per unit of stock relative to the other consumers.

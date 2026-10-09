@@ -65,7 +65,7 @@ func factsReply() *o.DefinitionCatalog {
 	return v
 }
 
-// TestCatalogThingFacts (#1733): the game-computed food kind, meal
+// TestCatalogThingFacts: the game-computed food kind, meal
 // ingredients, raw-meat and medicine flags decode per def; a def without a
 // row and a malformed row are errors.
 func TestCatalogThingFacts(t *testing.T) {
@@ -110,7 +110,7 @@ func TestCatalogThingFacts(t *testing.T) {
 	}
 }
 
-// TestCatalogFloorTerrain (#1733): a floor's stats come from the terrain stat
+// TestCatalogFloorTerrain: a floor's stats come from the terrain stat
 // rows and its path cost and natural flag from its def row; a stat the game
 // does not show for it, a terrain without rows and a malformed row are errors.
 func TestCatalogFloorTerrain(t *testing.T) {
@@ -140,7 +140,7 @@ func TestCatalogFloorTerrain(t *testing.T) {
 	}
 }
 
-// TestCatalogJoyBuildingsRankByJoyThenCost (#1733): joy buildings are the
+// TestCatalogJoyBuildingsRankByJoyThenCost: joy buildings are the
 // buildable defs that give a joy kind, ranked by the joy one session gives,
 // then by cost, then by name; none is chosen by name.
 func TestCatalogJoyBuildingsRankByJoyThenCost(t *testing.T) {
@@ -181,7 +181,7 @@ func TestCatalogJoyBuildingsRankByJoyThenCost(t *testing.T) {
 	}
 }
 
-// TestCatalogRecreationFootholdAndWatchBuildings (#1796): the foothold is the
+// TestCatalogRecreationFootholdAndWatchBuildings: the foothold is the
 // cheapest joy building drawing no power and needing no research, and the
 // watch buildings are those a watch-building giver offers; neither is named.
 func TestCatalogRecreationFootholdAndWatchBuildings(t *testing.T) {

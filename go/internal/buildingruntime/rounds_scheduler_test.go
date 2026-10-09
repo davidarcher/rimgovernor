@@ -57,7 +57,7 @@ func (w windowedScheduler) ReadPlanningWindow(ctx context.Context, id *c.Identit
 }
 
 // TestClockSchedulerReviewsRoundsUnderARunningWindow: the rounds
-// is no longer bound to the stop between windows (#243). A timer step under
+// is no longer bound to the stop between windows. A timer step under
 // the window it started reviews nothing until the full step is due; a full
 // step reviews live, reported with the "live" cause, and admits nothing
 // (the window is already running: no write, no pause).
@@ -116,7 +116,7 @@ func TestClockSchedulerRejectsDifferentRoundsOwner(t *testing.T) {
 }
 
 // TestClockSchedulerFilesReviewSectionsInTheStore: a reviewing step files
-// the census it decoded in the state store (#354), every section stamped
+// the census it decoded in the state store, every section stamped
 // with the bundle's tick, and the review row records the same as-of map
 // with a zero spread: nothing drifts while everything comes from one
 // bundle. The admission's emergency census is filed from the bundle read
@@ -160,7 +160,7 @@ func TestClockSchedulerFilesReviewSectionsInTheStore(t *testing.T) {
 // between the step's state read and the rounds (a poll hold, a
 // resume in flight) leaves a disabled review that ranks nothing. The step
 // must not evaluate a window on it -- that refuses no_work at every step
-// until something else re-reviews (#331) -- and the first step with
+// until something else re-reviews -- and the first step with
 // authority back reviews again.
 func TestClockSchedulerDisabledReviewFailsTheStep(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

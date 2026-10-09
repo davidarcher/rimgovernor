@@ -190,7 +190,7 @@ func TestPresentationMCPErrorPreservesOnlyTypedFailure(t *testing.T) {
 	}
 }
 
-// The roster dossier is the colonist's pawn table row (#1343), joined by
+// The roster dossier is the colonist's pawn table row, joined by
 // the controller without its settings and animal detail; a colonist the
 // table lacks leaves the roster unavailable.
 func TestRosterJoinsDossierFromPawnTable(t *testing.T) {

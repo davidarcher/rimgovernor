@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent Clean (#939), the bounded cleaning response of
+    // GiveJobIntent Clean, the bounded cleaning response of
     // MaintainCleanFacilities: exact spawned filth inside the home area, an
     // undrafted worker who can reach it and needs no tending, plus
     // WorkGiver_CleanFilth's own HasJobOnThing (reservable, thickened at

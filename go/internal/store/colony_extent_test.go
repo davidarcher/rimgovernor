@@ -104,7 +104,7 @@ func TestColonyExtentPersistsAcrossReopenWithProvenance(t *testing.T) {
 	}
 }
 
-// A new load starts empty and re-establishes from the live world (#1009);
+// A new load starts empty and re-establishes from the live world;
 // ticks past the read are not visible.
 func TestColonyExtentIsEmptiedOnAWorldChange(t *testing.T) {
 	t.Parallel()

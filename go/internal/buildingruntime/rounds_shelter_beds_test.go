@@ -9,7 +9,7 @@ import (
 )
 
 // A tribal start with leather and Bed locked stages bedrolls on the
-// shelter-beds rung (#1181), as many as the leather covers, in the first
+// shelter-beds rung, as many as the leather covers, in the first
 // stuff option in stock.
 func TestShelterBedsStageBedrollsFromStockedLeather(t *testing.T) {
 	bedroll := observation.PlanningDefinition{Name: "Bedroll", Available: domain.Known(true), Stuffed: true, StuffOptions: []observation.StuffOption{

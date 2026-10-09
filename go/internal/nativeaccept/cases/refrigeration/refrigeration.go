@@ -1,26 +1,10 @@
-// Package refrigeration holds the MaintainRefrigeration vertical (issue #6
-// slice 1, milestone B) on the lab contract (#747): a live game and a live
-// rimgovernor Go player-control service composed with the refrigeration
-// family.
-//
-//	build -- an enclosed roofed stockpile room on the blank lab holds warm
-//	         raw meat and has no cooler. The service must admit exactly one
-//	         Cooler on a wall cell of that room with its hot side outdoors,
-//	         the colonists build it, and native cooling then takes the
-//	         measured room temperature under the review's exit threshold.
-//
-// The case ends with spoilage recovery: the fixture seeds one meat stack
-// part-way to rotting, and once the room is chilled the case advances the
-// game until that stack measures under 0 C and then over a further window
-// in which its CompRottable progress must not move (issue #159).
-//
-// The setpoint, power and season decisions are snapshot tests over their
-// recorded reviews (internal/buildingruntime, #747).
-//
-// Uses the private disposable test/refrigeration_prepare fixture
-// (RefrigerationFixture.cs). The case's own bridge session and the
-// service's are used sequentially, never concurrently (one GABP client per
-// game).
+// Package refrigeration proves native cooler construction, cooling and spoilage recovery. A
+// roofed room starts with warm meat and no cooler. The service must admit one wall cooler
+// with its hot side outdoors; colonists build it and the room cools below the review exit
+// threshold. A partially rotted meat stack must then remain below 0 C without further rot
+// progress over a measured window. Snapshot tests cover setpoint, power and season
+// decisions. The private RefrigerationFixture and service use the single GABP slot
+// sequentially.
 package refrigeration
 
 import (
@@ -447,7 +431,7 @@ func (f foodSummary) evidence() map[string]any {
 // readFoodStorage probes each of the fixture's meat stacks (the ids
 // test/refrigeration_prepare returned) for ambient temperature and rot
 // runway. The colony-facts stock rows carry only item, nutrition and eaters
-// since #2226, so the fixture probe is the source of warmth; the room is
+// so the fixture probe is the source of warmth; the room is
 // enclosed and roofed by construction.
 func readFoodStorage(ctx context.Context, h *na.Harness, identity map[string]any, meat []any, label string) (foodSummary, error) {
 	p := policy.DefaultFoodStoragePolicy()

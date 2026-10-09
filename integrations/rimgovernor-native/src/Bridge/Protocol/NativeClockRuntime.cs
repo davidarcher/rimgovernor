@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
             { Owner = owner; Origin = origin; LastObservation = origin.Clone(); Authority = authority; Policy = policy; LeaseMs = leaseMs; }
             internal bool PauseRequested;
             internal bool StopPauseVerified;
-            // The armed combat event that stopped this epoch (#849), else unset.
+            // The armed combat event that stopped this epoch, else unset.
             internal Clock.CombatEvent CombatEvent { get; set; }
         }
         private static TypedEpoch? pendingTyped;
@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
             if (result.Success && TypedHooksReadyThisFrame()) return false;
             var reason = result.Snapshot.Reason;
             // Shutdown is the old game unloading under a load: the session
-            // changed, not a pause (#751; a small map's fast frames reach this
+            // changed, not a pause (a small map's fast frames reach this
             // check before the swapped game does).
             var kind = reason == NativeControlRevocationReason.IdentityChanged || reason == NativeControlRevocationReason.Shutdown ? "session_changed"
                 : reason == NativeControlRevocationReason.HooksUnavailable || reason == NativeControlRevocationReason.GenerationExhausted
@@ -248,7 +248,7 @@ namespace HomeBridge.BridgeTools
                     // The epoch is stopped but the game runs: the player un-paused
                     // after an external pause and drove the speed by hand. The
                     // owner re-takes the clock before admitting the next window
-                    // (#601): pause here, so the stopped status it reads next
+                    //: pause here, so the stopped status it reads next
                     // verifies the pause a start needs.
                     Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
                     var paused = Find.TickManager.CurTimeSpeed == TimeSpeed.Paused;
@@ -351,7 +351,7 @@ namespace HomeBridge.BridgeTools
                         // A row whose canonical event does not parse reads as
                         // cursor loss: the page reports the gap and advances
                         // past it, so a controller holds once instead of every
-                        // read across the row refusing (#661).
+                        // read across the row refusing.
                         if (!row.TryGetValue("canonicalClockEvent", out var encoded) || !(encoded is string canonical)
                             || !TryParseStoredEvent(canonical, out var observed))
                         {
@@ -363,7 +363,7 @@ namespace HomeBridge.BridgeTools
                         if (!ValidStoredEvent(observed) || observed.Cursor <= previous
                             || observed.Cursor != Convert.ToInt64(row["cursor"])) throw new InvalidOperationException("Event identity mismatch");
                         // Native's own clock on both sides: the unobserved age of
-                        // the row when this page was composed (#621).
+                        // the row when this page was composed.
                         if (observed.HasObservedAtUnixMs) observed.AgeAtReplyMs = (ulong)Math.Max(0, NowMs() - observed.ObservedAtUnixMs);
                         page.Events.Add(observed); previous = observed.Cursor;
                     }
@@ -377,7 +377,7 @@ namespace HomeBridge.BridgeTools
         private static bool TryParseStoredEvent(string canonical, out Clock.Event observed)
         {
             try { observed = Clock.Event.Parser.ParseJson(canonical); return true; }
-            catch (Google.Protobuf.InvalidProtocolBufferException) { observed = new Clock.Event(); return false; } // a stored row that is not valid ProtoJSON is the caller's reported cursor gap (#661)
+            catch (Google.Protobuf.InvalidProtocolBufferException) { observed = new Clock.Event(); return false; } // a stored row that is not valid ProtoJSON is the caller's reported cursor gap
         }
         private static ulong _publishedGeneration;
         private static void OnAuthorityChanged(NativeControlAuthority authority, NativeControlSnapshot snapshot, ulong previous)
@@ -481,7 +481,7 @@ namespace HomeBridge.BridgeTools
                 && ValidInvalidationScope(value.ObservationInvalidated);
             return true;
         }
-        // The narrowing of an invalidation (#359): at most 64 distinct entity
+        // The narrowing of an invalidation: at most 64 distinct entity
         // ids and one rectangle with present, nonnegative, ordered corners.
         internal const int InvalidationEntitiesMax = 64;
         private static bool ValidInvalidationScope(Clock.ObservationInvalidated value)

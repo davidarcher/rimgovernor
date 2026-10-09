@@ -74,8 +74,8 @@ func TestApplyEntityIDs(t *testing.T) {
 }
 
 // TestApplyRectangle: a rectangle drops the cell section when it
-// intersects its region and leaves it when it does not
-// (#656); an unknown region intersects every rectangle.
+// intersects its region and leaves it when it does not;
+// an unknown region intersects every rectangle.
 func TestApplyRectangle(t *testing.T) {
 	s := fullColonyStore(t)
 	outside := Rect{MinX: 30, MinZ: 30, MaxX: 31, MaxZ: 31}

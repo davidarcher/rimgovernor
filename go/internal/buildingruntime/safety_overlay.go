@@ -21,7 +21,7 @@ type overlayState struct {
 	cleared bool
 }
 
-// drawSafetyOverlay pushes the safety layer (#824) after a review, gated by
+// drawSafetyOverlay pushes the safety layer after a review, gated by
 // the layout overlay flag like the other layers: the holding threats'
 // reach, the raid edge and the vetoed loot, sent when they change or an
 // hour passed, and cleared once when nothing holds. Output only: a failure

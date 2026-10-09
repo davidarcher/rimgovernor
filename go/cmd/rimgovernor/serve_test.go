@@ -342,8 +342,8 @@ func TestServePresentationReadsUseTheAttachedClient(t *testing.T) {
 	}
 }
 
-// The routine window budget is one game day (#584, fixed since #875); the
-// retired --clock-window-seconds is refused (#244).
+// The routine window budget is one game day; the
+// retired --clock-window-seconds is refused.
 func TestServeClockWindowTicksFlag(t *testing.T) {
 	dir := t.TempDir()
 	withRoundsFamilies(t, "", false)
@@ -355,7 +355,7 @@ func TestServeClockWindowTicksFlag(t *testing.T) {
 	if config.Start.MaxTicks != 200 || config.CombatMaxTicks != 200 || config.Start.BlindTickBudget != 0 {
 		t.Fatal(config.Start.MaxTicks, config.CombatMaxTicks, config.Start.BlindTickBudget)
 	}
-	// The blind-tick regulator (#583) is armed per window from the flag.
+	// The blind-tick regulator is armed per window from the flag.
 	if c, err := parseServe(append(append([]string(nil), base...), "--clock-blind-ticks", "300"), io.Discard); err != nil || c.clockBlindTicks != 300 {
 		t.Fatalf("blind ticks: %+v %v", c, err)
 	} else if config = serviceClockConfig(dir, c.clockTestAcceleration, defaultClockWindowTicks, uint32(c.clockBlindTicks)); config.Start.BlindTickBudget != 300 {

@@ -25,7 +25,7 @@ enum ObservedSpeed {
   OBSERVED_SPEED_SUPERFAST = 4;
   OBSERVED_SPEED_ULTRAFAST = 5;
 }
-// How a running Ultrafast epoch paces its ticks (#627). FIXED is the speed's
+// How a running Ultrafast epoch paces its ticks. FIXED is the speed's
 // own rate. PLAYER_ACCELERATED raises Ultrafast's ticks per frame toward the
 // boosted rate while the frame's tick work stays inside native's 30 ms frame
 // budget, so input, rendering and control dispatch keep their share of each
@@ -36,7 +36,7 @@ enum Pacing {
   PACING_FIXED = 1;
   PACING_PLAYER_ACCELERATED = 2;
 }
-// What bounds the running epoch's tick rate right now (#627), most binding
+// What bounds the running epoch's tick rate right now, most binding
 // first: the game's forced slowdown, the blind-tick regulator, the owner's
 // max_ticks_per_second (the controller's backoff), the frame budget; else
 // the pacing runs at its ceiling (ACCELERATED) or the speed's own rate
@@ -86,12 +86,12 @@ enum StopReason {
   // its options for Operations.AnswerDialog.
   STOP_REASON_DIALOG_PAUSE = 23;
   // An armed combat event (WatchPolicy.combat_stop_events) happened; the
-  // epoch stopped at the boundary of the tick it happened on (#849).
+  // epoch stopped at the boundary of the tick it happened on.
   STOP_REASON_COMBAT_EVENT = 24;
 }
 
-// The combat events a WATCH_MODE_COMBAT epoch can be armed to stop on
-// (#849). Native hooks see each one on the tick it happens and stop the
+// The combat events a WATCH_MODE_COMBAT epoch can be armed to stop on.
+// Native hooks see each one on the tick it happens and stop the
 // epoch at that tick's boundary. Aim warmup, shots and ordinary damage are
 // never stops.
 enum CombatEvent {
@@ -119,7 +119,7 @@ enum CombatEvent {
   COMBAT_EVENT_BREACH = 9;
   // A pawn on the map started a mental state (berserk, fleeing).
   COMBAT_EVENT_MENTAL_BREAK = 10;
-  // A prison break started on the map (#1080).
+  // A prison break started on the map.
   COMBAT_EVENT_PRISON_BREAK = 11;
 }
 
@@ -134,10 +134,8 @@ message WatchPolicy {
   optional uint32 injury_stop_cooldown_ms = 8;
   repeated string surgical_recovery_ids = 9;
   repeated string medical_rest_ids = 10;
-  // Watched attempts only ever named construction operations, which moved
-  // to Actions/Apply (#856).
   // WATCH_MODE_COMBAT only: the combat events that stop the epoch on the
-  // tick they happen (STOP_REASON_COMBAT_EVENT, #849). Distinct, specified;
+  // tick they happen (STOP_REASON_COMBAT_EVENT). Distinct, specified;
   // empty arms none. Refused outside combat mode.
   repeated CombatEvent combat_stop_events = 13;
 }
@@ -158,7 +156,7 @@ message StartRequest {
   // refused otherwise. An accelerated epoch cannot change speed, only pause
   // or change its ceiling.
   optional bool test_acceleration = 6;
-  // Blind-tick regulator (issue #583). Blind ticks are the ticks between the
+  // Blind-tick regulator. Blind ticks are the ticks between the
   // controller's last read (a status, events or bundle read, or the oldest
   // journal row it has not yet acknowledged with an after_cursor) and the
   // current tick. Past this budget native throttles the epoch toward Normal
@@ -267,7 +265,7 @@ message Status {
   // Both reset when the loaded game changes.
   optional uint64 paused_ms = 21;
   optional uint64 running_ms = 22;
-  // Supervisor probe accounting (#626), cumulative for the loaded game
+  // Supervisor probe accounting, cumulative for the loaded game
   // session like paused_ms: wall time the hazard probe (probe_elapsed_ms,
   // probe_total passes) and the fact-change digests (digest_elapsed_ms,
   // digest_total passes) took on the main thread, and the widest tick gap
@@ -278,12 +276,12 @@ message Status {
   optional uint64 digest_total = 26;
   optional int64 session_max_probe_tick_gap = 27;
   // Per hazard class: the declared maximum detection gap in ticks and the
-  // widest gap observed this session (#626).
+  // widest gap observed this session.
   repeated HazardGap hazard_gaps = 28;
   // Game ticks per wall second over the last ten seconds of frames, paused
-  // time included (#627): what the player actually gets.
+  // time included: what the player actually gets.
   optional double effective_ticks_per_second = 29;
-  // Player acceleration's frame account (#627), cumulative for the loaded
+  // Player acceleration's frame account, cumulative for the loaded
   // game session: frames a player-accelerated epoch ticked, those whose
   // tick work exceeded the epoch's frame budget, and the widest frame's
   // tick work. A command queued for the main thread waits at most one
@@ -291,7 +289,7 @@ message Status {
   optional uint64 paced_frames = 30;
   optional uint64 paced_frames_over_budget = 31;
   optional double max_paced_frame_ms = 32;
-  // The speed the player last chose in this loaded game (#875): a speed
+  // The speed the player last chose in this loaded game: a speed
   // set by anything but the supervisor itself, or by a fixture standing in
   // for the player. Unset until one is chosen; pauses never count. The
   // owner starts each window at it.

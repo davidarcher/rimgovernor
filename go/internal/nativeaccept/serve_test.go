@@ -69,7 +69,7 @@ func TestServeArgsFixesTheSharedFlags(t *testing.T) {
 	}
 	// Without RIMGOVERNOR_ACCEPT_CLOCK_SPEED the boosted Ultrafast default
 	// applies once; a slower speed is the player's choice written before
-	// serve starts (#875), so no flag. A harness naming its own PlayerSpeed
+	// serve starts, so no flag. A harness naming its own PlayerSpeed
 	// owns the boost flag, and one passing ClockSpeedArgs gets it once.
 	t.Setenv(ClockSpeedEnv, "")
 	if got := strings.Join(ServeArgs(cfg, "p", "s", "f", ServeSpec{}), " "); strings.Count(got, "--clock-test-acceleration") != 1 || strings.Contains(got, "--clock-speed") {
@@ -93,7 +93,7 @@ func TestServeArgsFixesTheSharedFlags(t *testing.T) {
 
 // A launch profiles the service for the report's budget and Stop ends the
 // CPU profile and takes the heap snapshot before the kill, both on disk
-// and on the launch's entry (#301).
+// and on the launch's entry.
 func TestLaunchServeCapturesProfilesAtStop(t *testing.T) {
 	slowtest.Skip(t, "launches a serve process and captures profiles; runs under cmd/test -full and nightly")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

@@ -19,8 +19,8 @@ func census(rows ...policy.AcquisitionSource) domain.Fact[[]policy.AcquisitionSo
 func anyRow(policy.AcquisitionSource) bool { return true }
 
 // A designated plant nobody took past AcquisitionStallTicks, measured from
-// native's first sight of the designation, is withdrawn (#1044), with no
-// plan action paired to it (#1046).
+// native's first sight of the designation, is withdrawn, with no
+// plan action paired to it.
 func TestStalledDesignationsWithdrawUntakenHarvest(t *testing.T) {
 	t.Parallel()
 	rows := census(censusRow("healroot", false, false, 500))
@@ -79,7 +79,7 @@ func TestStalledDesignationsHuntGracePeriod(t *testing.T) {
 }
 
 // A withdraw is one AcquisitionWithdrawAction whose method id hashes the
-// source and the designation's first-seen tick (#1046).
+// source and the designation's first-seen tick.
 func TestStallWithdrawIsOneHashedWithdrawAction(t *testing.T) {
 	t.Parallel()
 	row := censusRow("deer", true, false, 100)

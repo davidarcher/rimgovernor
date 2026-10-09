@@ -46,7 +46,7 @@ func defenseFixture() DefenseRequest {
 }
 
 // Fog inside the mass between the corridor's legs is unseen mountain, not
-// an unbuildable wall cell: the layout leaves it rather than refusing (#1588).
+// an unbuildable wall cell: the layout leaves it rather than refusing.
 func TestDefenseLayoutLeavesUnseenMountainBesideTheLane(t *testing.T) {
 	r := defenseFixture()
 	whole, err := DefenseLayouts(r)
@@ -82,7 +82,7 @@ func TestDefenseLayoutLeavesUnseenMountainBesideTheLane(t *testing.T) {
 	}
 }
 
-// Rock across the corridor is dug, not routed around (#1588, #1701): the
+// Rock across the corridor is dug, not routed around: the
 // killbox's role cells through the shared rock step list the rock on the
 // lane and the defenders' ground, the layout waits on it, and proceeds once
 // it is open. Open ground needs no dig; rock on a wall cell stays.
@@ -159,7 +159,7 @@ func placed(t *testing.T, tier DefenseTier) map[domain.Cell]string {
 	return out
 }
 
-// The fixture's killbox (#1544): 3 defenders and no turret size the kill
+// The fixture's killbox: 3 defenders and no turret size the kill
 // zone to columns -4..4 (x 11..19, side walls at x 10 and 20), and its
 // 19-row depth holds two legs. The ring narrows to the 1-tile entrance at
 // x 15; leg 0 (z 8..10) runs to x 11, the U-turn (z 11..13) leads into leg
@@ -241,7 +241,7 @@ func TestDefenseLayoutKillboxShape(t *testing.T) {
 	if len(layout.Firing) != 3 || len(firing.Buildings) != 6 || layout.LinesVerified {
 		t.Fatalf("%+v", layout.Firing)
 	}
-	// Each shooter cell is floored so nothing grows onto the position (#224).
+	// Each shooter cell is floored so nothing grows onto the position.
 	got := placed(t, firing)
 	want := map[domain.Cell]string{}
 	for _, c := range cells(15, 22, 14, 22, 16, 22) {
@@ -642,8 +642,7 @@ func TestDefenseLayoutLeavesThePerimeterWall(t *testing.T) {
 
 // A funnel wall cell whose terrain cannot carry the wall (native: "requires
 // terrain that supports: Light") is not sited: the layout leaves it open (or
-// refuses at siting when that opens a route), never asks native to place it
-// (#2119).
+// refuses at siting when that opens a route), never asks native to place it.
 func TestDefenseLayoutFunnelSkipsUnsupportedTerrain(t *testing.T) {
 	slowtest.Skip(t, "layout search over a full defense fixture; runs under cmd/test -full and nightly")
 	base, err := DefenseLayouts(defenseFixture())
@@ -684,7 +683,7 @@ func TestDefenseLayoutFunnelSkipsUnsupportedTerrain(t *testing.T) {
 
 // A trap cell whose terrain cannot carry the trap is skipped for another
 // corridor cell; when every candidate is unsupported the layout refuses at
-// siting instead of asking native for the same cell every round (#2130).
+// siting instead of asking native for the same cell every round.
 func TestDefenseLayoutTrapsSkipUnsupportedTerrain(t *testing.T) {
 	base, err := DefenseLayouts(defenseFixture())
 	if err != nil {

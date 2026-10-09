@@ -125,7 +125,7 @@ func TestBuildRefusesUnknownFixture(t *testing.T) {
 	}
 }
 
-// lab-ranged-shield (#1153) is lab-ranged unchanged plus a fifth,
+// lab-ranged-shield is lab-ranged unchanged plus a fifth,
 // melee-armed colonist in a shield belt.
 func TestRangedShieldAddsBeltedBrawler(t *testing.T) {
 	cx, cz := labCenter()

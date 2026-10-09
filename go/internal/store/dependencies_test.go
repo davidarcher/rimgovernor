@@ -42,7 +42,7 @@ func TestDependencyPersistenceAndGuardedExecution(t *testing.T) {
 	if _, e = s.Prepare(ctx, "p", "b", scope(), 11); !errors.Is(e, domain.ErrDependency) {
 		t.Fatal("dispatch advanced work", e)
 	}
-	// An applied intent's receipt completes it (#856).
+	// An applied intent's receipt completes it.
 	if _, e = s.RecordReceipt(ctx, "p", "a", 1, domain.ReceiptAccepted); e != nil {
 		t.Fatal(e)
 	}

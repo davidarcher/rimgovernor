@@ -155,7 +155,7 @@ func TestNewZoneCreateActionRejectsNonCanonicalZone(t *testing.T) {
 	}
 }
 
-// TestStockpilePrioritiesSpanVanilla pins #720: every vanilla storage
+// TestStockpilePrioritiesSpanVanilla pins: every vanilla storage
 // priority reaches native, not just Important and Low.
 func TestStockpilePrioritiesSpanVanilla(t *testing.T) {
 	cells := []Cell{{X: 1, Z: 1}}

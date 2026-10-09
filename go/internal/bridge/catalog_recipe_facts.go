@@ -8,7 +8,7 @@ import (
 )
 
 // RecipeFacts are the recipe facts the planners read, derived from the
-// RecipeDef rows once per catalog (#1721). A nil catalog has none.
+// RecipeDef rows once per catalog. A nil catalog has none.
 func (catalog *DefinitionCatalog) RecipeFacts() (policy.RecipeFacts, error) {
 	if catalog == nil {
 		return policy.RecipeFacts{}, nil

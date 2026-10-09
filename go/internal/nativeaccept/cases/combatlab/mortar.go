@@ -88,7 +88,7 @@ func runMortar(ctx context.Context, s cases.Session) error {
 	if p := after.pawns[colonists[1]]; na.AsString(p["job"]) != "ManTurret" || na.AsString(p["jobThing"]) != things[len(things)-2] {
 		return fmt.Errorf("crew does not man the mortar: %v", p)
 	}
-	// A mortar_fire with no target clears the forced target (#1235).
+	// A mortar_fire with no target clears the forced target.
 	cleared, err := issue(ctx, h, identity, "combat-mortar-2", []any{
 		map[string]any{"mortarFire": map[string]any{"mortar": mortar}},
 		map[string]any{"mortarFire": map[string]any{"mortar": chunk}}})

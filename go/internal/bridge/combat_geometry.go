@@ -11,24 +11,24 @@ import (
 
 const combatGeometryMethod = "rimgovernor/combat_geometry"
 
-// The combat.geometry caps (#851), the native's
+// The combat.geometry caps, the native's
 // NativeCombatGeometryTools.MaxCells and MaxHostiles: measured on
 // lab-ranged (combatlab/mirror) under the 50 ms main-thread budget:
 // 64 cells x 8 pawns took 1.3-6.6 ms, about 13 ms projected at 64 x 16.
-// Named plus proposed cells (#871) share the cells cap.
+// Named plus proposed cells share the cells cap.
 const (
 	CombatGeometryMaxCells    = 64
 	CombatGeometryMaxHostiles = 16
 	// CombatGeometryMaxRadius bounds a firing_cells proposal's search
-	// square around its from cell (#871): at most 25x25 cells scanned.
+	// square around its from cell: at most 25x25 cells scanned.
 	CombatGeometryMaxRadius = 12
 )
 
-// CombatGeometry is DecideCombat's one geometry read per stop (#851): for
+// CombatGeometry is DecideCombat's one geometry read per stop: for
 // candidate cells and hostiles, cover, line of fire and colonist-in-path
 // by the game's own rules, and pawnID's path ticks to each cell when
 // pawnID is set. The reply's cells and lines are in request order; with
-// a propose block (#871) its proposed cells follow, ranked, scored alike.
+// a propose block its proposed cells follow, ranked, scored alike.
 func (client *Client) CombatGeometry(ctx context.Context, request *mp.CombatGeometryRequest) (*mp.CombatGeometry, Result, error) {
 	if err := ValidateCombatGeometryRequest(request); err != nil {
 		return nil, Result{}, err
@@ -72,7 +72,7 @@ func ValidateCombatGeometryRequest(request *mp.CombatGeometryRequest) error {
 	if err := geometryCells(request.Cells, min); err != nil {
 		return err
 	}
-	// Named cells alone need no hostile: their standability (#897).
+	// Named cells alone need no hostile: their standability.
 	hostiles := 1
 	if request.Propose == nil && request.PawnId == nil {
 		hostiles = 0
@@ -118,7 +118,7 @@ func geometryCell(cell *c.Cell) bool {
 	return cell != nil && cell.X != nil && cell.Z != nil && cell.GetX() >= 0 && cell.GetZ() >= 0
 }
 
-// validatePropose checks one role and its anchor (#871).
+// validatePropose checks one role and its anchor.
 func validatePropose(p *mp.CombatGeometryPropose) error {
 	switch role := p.Role.(type) {
 	case *mp.CombatGeometryPropose_CoverBehindLine:
@@ -231,7 +231,7 @@ func CombatGeometryAsk(identity *c.Identity, cells []*c.Cell, hostiles []string,
 }
 
 // CombatGeometryProposeAsk is a request whose cells are all proposed by
-// the native for propose's role (#871), scored against hostiles.
+// the native for propose's role, scored against hostiles.
 func CombatGeometryProposeAsk(identity *c.Identity, propose *mp.CombatGeometryPropose, hostiles []string, pawnID string) *mp.CombatGeometryRequest {
 	request := CombatGeometryAsk(identity, nil, hostiles, pawnID)
 	request.Propose = propose

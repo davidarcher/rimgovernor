@@ -12,7 +12,7 @@ import (
 )
 
 // RebuildFamilies replaces the family record tables with the save's family/*
-// blobs on a world change (#1005, U1a): the tables are session caches of the
+// blobs on a world change: the tables are session caches of the
 // save. A missing blob leaves its table empty.
 func (s *Store) RebuildFamilies(ctx context.Context, saved map[string]string) error {
 	blobs := map[string]GovernorFamilyBlob{}
@@ -101,7 +101,7 @@ func (s *Store) RebuildFamilies(ctx context.Context, saved map[string]string) er
 }
 
 // ResetRounds empties the rounds session cache on a world
-// change (#1011); the next review recomputes it from revision zero.
+// change; the next review recomputes it from revision zero.
 func (s *Store) ResetRounds(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM rounds")
 	return err

@@ -10,7 +10,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// TestMaterialInstallsComeFromTheRows (#1721): a part made straight from a stuff
+// TestMaterialInstallsComeFromTheRows: a part made straight from a stuff
 // is the install whose hediff gives back, on removal, the one def the recipe
 // consumes; a bionic part (a body part item) and a denture (no stuff) are not.
 func TestMaterialInstallsComeFromTheRows(t *testing.T) {
@@ -43,7 +43,7 @@ func TestMaterialInstallsComeFromTheRows(t *testing.T) {
 	}
 }
 
-// TestInstallItemComesFromTheRecipeRow (#1721): an install recipe's item is the
+// TestInstallItemComesFromTheRecipeRow: an install recipe's item is the
 // body part its ingredient names, natural or artificial; a peg leg made of
 // logs installs no item, and a recipe the catalog lacks is an error.
 func TestInstallItemComesFromTheRecipeRow(t *testing.T) {

@@ -16,7 +16,7 @@ func preyRow(id string, x, z int32) *n.PawnState {
 	return &n.PawnState{Pawn: &n.EntityRef{Id: proto.String(id), Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}}, Animal: proto.Bool(true)}
 }
 
-// A hunt origin (#1617) is a fight with no hostile: the live squad prey are
+// A hunt origin is a fight with no hostile: the live squad prey are
 // the view's targets, each at its cell, and the view is a hunt.
 func TestCombatFrameInputsHuntOriginTargetsPrey(t *testing.T) {
 	t.Parallel()

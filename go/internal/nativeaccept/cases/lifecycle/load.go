@@ -59,7 +59,7 @@ func runLoad(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("missing colony id or load token before setup save")
 	}
 
-	// Governor state (#882): a fresh game carries none, and a put blob rides
+	// Governor state: a fresh game carries none, and a put blob rides
 	// the setup save. The save-size delta of that blob is reported.
 	if blobs, err := governorState(ctx, h, "governor-state-fresh", "lifecycle_read_governor_state", map[string]any{}); err != nil || len(blobs) != 0 {
 		return fmt.Errorf("governor-state-fresh: want no blobs, got %v %v", blobs, err)
@@ -68,7 +68,7 @@ func runLoad(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	// Save handshake (#2358): the client serializes calls, so a held wait
+	// Save handshake: the client serializes calls, so a held wait
 	// cannot overlap a save here. With no signal the wait returns its timeout
 	// (and the Go-initiated saves above raised none), and a token native never
 	// issued is rejected rather than acked.
@@ -87,7 +87,7 @@ func runLoad(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("save-signal-stale: want failure: %w", err)
 	}
 	governorBlob := `{"probe":[` + strings.Repeat(`{"id":"p","payload":{}},`, 200) + `{}]}`
-	// The batched off-thread put (#2357) replaces the whole set: a second key
+	// The batched off-thread put replaces the whole set: a second key
 	// goes in with the probe, then a batch without it removes it by absence.
 	if _, err := governorState(ctx, h, "governor-state-batch-add", "lifecycle_put_governor_state_batch", map[string]any{"blobs": map[string]string{"probe": governorBlob, "stale": "x"}}); err != nil {
 		return fmt.Errorf("governor-state-batch-add: %w", err)

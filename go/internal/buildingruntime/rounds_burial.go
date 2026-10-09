@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// Staging the tomb, the graveyard and the morgue (#832, #2196): MaintainBurial
+// Staging the tomb, the graveyard and the morgue: MaintainBurial
 // raises the planned tomb and places one sarcophagus at a time while a dead
 // colonist has none waiting (policy.NextTombStep). With every tomb full the
 // layout review grows another. Where no sarcophagus can be had one plain grave
@@ -122,7 +122,7 @@ func (r *RoundsBurialPlanner) step(call, epoch context.Context, _ *stepArbiter) 
 	return RoundsBurialResult{Verdict: result.Verdict}, err
 }
 
-// dispose deconstructs one filled stranger sarcophagus (#2337) with the plain
+// dispose deconstructs one filled stranger sarcophagus with the plain
 // Deconstruction action, once per sarcophagus per Episode: native ejects the
 // corpse beside the cell for the incineration concern to burn.
 func (r *RoundsBurialPlanner) dispose(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, b policy.CurrentBuilding) (RoundsBurialResult, error) {

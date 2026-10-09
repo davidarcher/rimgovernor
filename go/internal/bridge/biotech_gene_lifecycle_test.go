@@ -15,7 +15,7 @@ func readFailed(field string) []*o.ReadIssue {
 	return []*o.ReadIssue{{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}
 }
 
-// TestPawnGeneLifecycle (#1931): each gene-lifecycle field round-trips to its
+// TestPawnGeneLifecycle: each gene-lifecycle field round-trips to its
 // typed fact, a known zero stays known, an absent field or a named read issue
 // stays unknown, and malformed values are refused.
 func TestPawnGeneLifecycle(t *testing.T) {

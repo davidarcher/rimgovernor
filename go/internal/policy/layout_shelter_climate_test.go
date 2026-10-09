@@ -26,7 +26,7 @@ func TestColdMapCurve(t *testing.T) {
 
 // The cold flag reaches the generator on the plan: a cold map's shelter is
 // sized for its two campfires, a normal map's for none, and a later generate
-// over the plan keeps the shelter and the latch (#2044).
+// over the plan keeps the shelter and the latch.
 func TestShelterIsSizedByTheLatchedClimate(t *testing.T) {
 	t.Parallel()
 	zones := coreTestZones()
@@ -61,7 +61,7 @@ func TestShelterIsSizedByTheLatchedClimate(t *testing.T) {
 }
 
 // On a hot map the shelter is a sleeping room the base-wide temperature
-// planner serves like any other (#2044): it picks the powered cooler through
+// planner serves like any other: it picks the powered cooler through
 // a vented wall of the planned shelter, or the passive cooler on its floor
 // when no power can run one. The shelter template reserves no cell for it.
 func TestTemperaturePlannerCoolsTheShelter(t *testing.T) {

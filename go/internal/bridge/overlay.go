@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// DrawOverlay replaces the named overlay layer (#817): the native drops
+// DrawOverlay replaces the named overlay layer: the native drops
 // layerID's shapes and labels and draws the overlay's; enabled=false only
 // removes the layer. Output only, never read back or persisted.
 func (client *Client) DrawOverlay(ctx context.Context, identity *c.Identity, layerID string, overlay policy.LayoutOverlay, enabled bool) (*p.OverlayApplied, Result, error) {

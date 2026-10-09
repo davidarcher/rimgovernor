@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// #1943: a planned room with a standing shell or anything of ours on its
+// A planned room with a standing shell or anything of ours on its
 // ring or floor is fixed; an untouched one is not.
 func TestFixedRoomsAreTheTouchedOnes(t *testing.T) {
 	room := func(x int32) PlannedRoom {

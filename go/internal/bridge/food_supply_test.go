@@ -12,7 +12,7 @@ import (
 )
 
 // foodFixture is the committed food supply and the things table rows its
-// stocks reference (#1343).
+// stocks reference.
 func foodFixture(t *testing.T) (*o.FoodSupplyFacts, Things) {
 	t.Helper()
 	supply, table := &o.FoodSupplyFacts{}, &o.ThingsSnapshot{}
@@ -88,7 +88,7 @@ func TestFoodSupplyContractRejectsIncompleteAndContradictoryInputs(t *testing.T)
 	}
 }
 
-// A thing row's food facts are consistent with its kind (#1343).
+// A thing row's food facts are consistent with its kind.
 func TestThingRowValidatesFoodFacts(t *testing.T) {
 	_, things := foodFixture(t)
 	ctx := pbContext()

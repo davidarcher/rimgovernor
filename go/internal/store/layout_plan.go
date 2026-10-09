@@ -10,8 +10,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The v2 layout plan (#777) is a session cache per world (colony, map),
-// rebuilt from the save on a world change (#1005, #1009): a read sees the
+// The v2 layout plan is a session cache per world (colony, map),
+// rebuilt from the save on a world change: a read sees the
 // newest plan recorded at or before the tick.
 
 // LayoutPlanRecord is a persisted layout plan with the tick that recorded

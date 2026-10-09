@@ -248,10 +248,8 @@ func TestLandRefusesABranchThatRevertsMainWork(t *testing.T) {
 	}
 }
 
-// The #946 shape: the branch merged main, main then landed a whole-file
-// CRLF rewrite of a.txt (981ab0b9a), and the branch re-parented its stale
-// tree onto the new main (git reset --soft main; commit), so its fork
-// point is main itself and nothing main landed looks newer than it.
+// Reparenting a stale tree after a whole-file CRLF rewrite makes its fork point
+// equal main, so the fork point alone cannot detect the replay.
 func TestLandRefusesAStaleTreeReparentedOntoMain(t *testing.T) {
 	root, wt := newRepo(t)
 	write(t, filepath.Join(wt, "b.txt"), "b\n")

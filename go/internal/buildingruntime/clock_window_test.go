@@ -273,7 +273,7 @@ func TestClockWindowCombatPolicyMustMatchDecision(t *testing.T) {
 			}
 		})
 	}
-	// A hostile building alone (#246) admits a combat window that
+	// A hostile building alone admits a combat window that
 	// acknowledges no pawn at all; acknowledging the building is held.
 	t.Run("building alone", func(t *testing.T) {
 		q, _, f, request := combat(t)
@@ -294,7 +294,7 @@ func TestClockWindowCombatPolicyMustMatchDecision(t *testing.T) {
 }
 
 // A window over a colonist already known downed must acknowledge exactly
-// that colonist, in colony and combat mode alike (#213); an unacknowledged or
+// that colonist, in colony and combat mode alike; an unacknowledged or
 // different acknowledgement holds.
 func TestClockWindowDownedPolicyMustMatchDecision(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
@@ -338,7 +338,7 @@ func TestClockWindowDownedPolicyMustMatchDecision(t *testing.T) {
 }
 
 // The admitting step's bundle status stands in for the pre-dispatch native
-// clock_read_status while it is within MaxAge (#200); it is still checked,
+// clock_read_status while it is within MaxAge; it is still checked,
 // and a stale one falls back to the native read.
 func TestClockWindowAdmittingStatusReplacesNativeRead(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")

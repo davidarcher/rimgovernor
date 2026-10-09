@@ -53,7 +53,7 @@ func readyProgress(t *testing.T, spec domain.PlanSpec, id domain.ActionID, stage
 		p, err = p.MarkDispatched(snap, 10)
 	}
 	if p.Action().Kind().IntentMode() {
-		// An intent's receipt is terminal (#856): "dispatched" is the attempt
+		// An intent's receipt is terminal: "dispatched" is the attempt
 		// in flight, "completed" its applied receipt.
 		if err == nil && stage == "completed" {
 			p, err = p.RecordReceipt(1, domain.ReceiptAccepted)
@@ -128,7 +128,7 @@ func TestReadyWorkExposesIndependentWallBesideBlockedBed(t *testing.T) {
 	if c := got["building:Wall"]; c.State != ReadyRunnable || c.Parallelism != 1 || c.Work[0] != WorkConstruction {
 		t.Fatalf("wall %+v", c)
 	}
-	// A building intent in flight awaits its receipt (#856).
+	// A building intent in flight awaits its receipt.
 	if c := got["building:WoodPlankFloor"]; c.State != ReadyAwaiting {
 		t.Fatalf("floor blueprint %+v", c)
 	}
@@ -151,7 +151,7 @@ func TestReadyWorkExposesIndependentWallBesideBlockedBed(t *testing.T) {
 	}
 }
 
-// A bill intent in flight awaits its receipt and claims no cook (#941):
+// A bill intent in flight awaits its receipt and claims no cook:
 // once applied it is done, and the bench's work is native's.
 func TestReadyWorkBillIntentInFlightClaimsNoCook(t *testing.T) {
 	bill := readyBill(t, "bill")

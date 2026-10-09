@@ -11,18 +11,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// CombatEvidenceStops is how many stops of combat orders one fight's plan
-// keeps as evidence (#852): the newest ones. The full history is the
-// #853 recording's.
+// CombatEvidenceStops bounds retained fight evidence to the newest stops; flight recordings
+// retain the full history.
 const CombatEvidenceStops = 32
 
-// A combat fight is the one ActiveCombat plan that owns a whole fight
-// (#852). Its plan has no actions: the defenders are drafted by draft
-// orders in the fight's first combat_orders batch (#910) and every later
-// stop's orders go out the same way, recorded here as the plan's evidence,
-// the single record of combat orders. The fight's roster is the pawns it
-// drafted: while the fight is open the undraft sweep leaves them drafted
-// (#939). An open fight is its goal's open work.
+// An ActiveCombat fight owns its roster and tactical batches. While it is open, the undraft
+// sweep preserves its roster drafts. Each stop retains native results as evidence; an open
+// fight counts as Incident work.
 
 // CombatOrderRecord is one order of a stop and its native outcome.
 type CombatOrderRecord struct {
@@ -69,7 +64,7 @@ func checkCombatFightsSchema(ctx context.Context, tx *sql.Tx) error {
 	return err
 }
 
-// CommitCombatFight admits a fight (#910): the ActiveCombat incident's
+// CommitCombatFight admits a fight: the ActiveCombat incident's
 // method on plan, whose actions are its threat loadout's equip and
 // wear actions or a guarded subdue response, and its open fight row with roster in one
 // transaction (the admission batch drafts them; a loadout pawn drafts
@@ -102,7 +97,7 @@ func (s *Store) CommitCombatFight(ctx context.Context, incident domain.IncidentI
 }
 
 // CommitFightStrip admits a strip of a downed raider beside the incident's
-// open fight (#1079): a method whose plan holds only strip actions, which
+// open fight: a method whose plan holds only strip actions, which
 // the fight's own open work does not refuse.
 func (s *Store) CommitFightStrip(ctx context.Context, incident domain.IncidentID, method domain.MethodID, plan domain.PlanSpec) (IncidentState, error) {
 	if err := plan.Validate(); err != nil {

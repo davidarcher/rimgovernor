@@ -17,7 +17,7 @@ import (
 // every other power site is chosen over open ground and needs no dig. The
 // footprint is the native definition's, so it is read from a preview of the
 // generator on its geyser, then handed to the shared rock step
-// (admitRockStep), which admits the digs alone (#1896); the ordinary site
+// (admitRockStep), which admits the digs alone; the ordinary site
 // preview places the generator once the footprint reads open. Not handled when the footprint is open ground or the
 // preview names none (the ordinary site preview reports that).
 func (r *RoundsBuildingPlanner) digGeothermal(call, epoch context.Context, s excavationStep, protected []domain.Cell, check func() error) (RoundsBuildingResult, bool, error) {
@@ -64,7 +64,7 @@ func (r *RoundsBuildingPlanner) digGeothermal(call, epoch context.Context, s exc
 }
 
 // digSky mines and unroofs a wind turbine or solar site laid out over
-// natural rock (#1758), ahead of the generator. The layout takes rock only
+// natural rock, ahead of the generator. The layout takes rock only
 // where no cell is under thick roof; a turbine's lanes (its catch zone) are
 // cleared with it. If any planned site is already clear the ordinary site
 // preview places that one and nothing is dug. A turbine clears only its own
@@ -72,7 +72,7 @@ func (r *RoundsBuildingPlanner) digGeothermal(call, epoch context.Context, s exc
 // no more blocked cells than the step digs or unroofs there; once the work
 // is done the ordinary preview must report none. Otherwise the first untaken
 // site is handed to the shared rock step as a dig plus remove_roof wave and
-// nothing else (#1896): the plan's dependencies cannot wait on the rock
+// nothing else: the plan's dependencies cannot wait on the rock
 // being mined, so the generator is not in it. The routine replans from the
 // live frame every cycle; once the site reads clear this returns unhandled
 // and the ordinary site preview places the generator. Not handled when no
@@ -157,7 +157,7 @@ func skyMethod(definition string, area policy.Rectangle) domain.MethodID {
 // roofStalled reports whether the sky method's remove_roof action was
 // designated at least excavationStallTicks ago: a placed generator whose
 // roof is still on is then a named refusal, not a site skipped as taken
-// forever (#1872). A site without a journaled sky method was not ours.
+// forever. A site without a journaled sky method was not ours.
 func (r *RoundsBuildingPlanner) roofStalled(call context.Context, s excavationStep, method domain.MethodID) (bool, error) {
 	journal := r.reviewer.player.journal
 	prior, err := journal.LoadOwnerMethod(call, s.owner, method)

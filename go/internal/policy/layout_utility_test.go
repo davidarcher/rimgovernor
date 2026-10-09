@@ -50,7 +50,7 @@ func TestPlannedPowerSites(t *testing.T) {
 	}
 }
 
-// TestBatteryRoomOnCrossing (#1265): with bedroom wings filling the main
+// TestBatteryRoomOnCrossing: with bedroom wings filling the main
 // hallway the battery room still gets a site, on a crossing when needed,
 // its slots nearest the door first and every block beside its battery.
 func TestBatteryRoomOnCrossing(t *testing.T) {
@@ -99,8 +99,8 @@ func TestBatterySlotsCrossing(t *testing.T) {
 }
 
 // TestPlannedCoolerSites: each cooled room's cooler stands in its back wall
-// with the cold side in the room and the hot side on the exhaust (#791),
-// on either hallway (#952): the freezer and the soil tomb both get one.
+// with the cold side in the room and the hot side on the exhaust,
+// on either hallway: the freezer and the soil tomb both get one.
 func TestPlannedCoolerSites(t *testing.T) {
 	p := PlanUtilities(growPlan(corePlan(coreTestZones(), 0, TechTierCamp), 0, 1, TechTierCamp), UtilityWants{})
 	sites := PlannedCoolerSites(p)
@@ -171,7 +171,7 @@ func TestRefrigerationPrefersPlannedCooler(t *testing.T) {
 		case domain.Cell{X: 2, Z: 5}:
 			obs.Cells[i].Walkable = domain.Known(true) // shaft dug
 		case domain.Cell{X: 2, Z: 4}:
-			obs.Cells[i].SetNaturalRock(true) // back wall still rock (#836)
+			obs.Cells[i].SetNaturalRock(true) // back wall still rock
 		}
 	}
 	got, err = SelectRefrigerationMethod(review, domain.Known(obs), FoodStoragePolicy{}, false)
@@ -326,7 +326,7 @@ func TestPlanUtilitiesHerdUnit(t *testing.T) {
 	if p.herdCapacity(PlannedBarn) < 30 {
 		t.Fatal("barn too small", barn.Area)
 	}
-	// A herd unit's rooms share one wall line by design (#2122): the barn and
+	// A herd unit's rooms share one wall line by design: the barn and
 	// its vet room overlap in exactly that line, never in an interior.
 	for _, r := range p.Reservations {
 		if _, shared := sharedWallLink(r.Area, barn.Area); r.Kind != ReserveBarn && rectsOverlap(r.Area, barn.Area) && !shared {

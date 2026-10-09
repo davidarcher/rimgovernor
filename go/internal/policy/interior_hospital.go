@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The hospital template (#806): beds in one row, heads against the back
+// The hospital template: beds in one row, heads against the back
 // wall, in pairs that share a vitals monitor between their heads. A
 // VitalsMonitor must stand adjacent to the bed it serves (mustBePlacedAdjacent
 // in Buildings_Misc.xml) and one monitor links every adjacent bed, so each

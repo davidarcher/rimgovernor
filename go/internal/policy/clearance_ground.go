@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Planned-ground clearance (#1245, epic #1249): when a planned room needs
+// Planned-ground clearance: when a planned room needs
 // ground, every building and constructed floor on that ground the plan does
 // not hold is cleared, the colony's own included. Per room the order is
 // furniture and other non-wall buildings, then each door standing on the
@@ -16,7 +16,7 @@ import (
 // the enclosure holds), then the roof and the walls and doors holding it,
 // then the floors once the cells are clear.
 
-// ClearanceFloor is one constructed floor cell on planned ground (#1365).
+// ClearanceFloor is one constructed floor cell on planned ground.
 type ClearanceFloor struct {
 	Cell       domain.Cell
 	DefName    string
@@ -28,7 +28,7 @@ type GroundPhase string
 
 const (
 	GroundFurniture GroundPhase = "furniture"
-	// GroundPack packs the room's packable furniture in one batch (#2103).
+	// GroundPack packs the room's packable furniture in one batch.
 	GroundPack   GroundPhase = "pack"
 	GroundDoors  GroundPhase = "doors"
 	GroundWalls  GroundPhase = "walls"
@@ -58,7 +58,7 @@ func roomGround(in Rectangle) Rectangle {
 	return g
 }
 
-// RetiredGround is the ground of rooms the plan retired (#2075) among the
+// RetiredGround is the ground of rooms the plan retired among the
 // ground planned clearance is given, with the wall rectangles of the rooms the
 // plan still holds: a building on a retired room's ring that also lies in a
 // kept room's walls is that room's and stays. Nothing on retired ground is
@@ -211,7 +211,7 @@ func retiredGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 				furniture = append(furniture, row)
 			}
 		}
-		// Pieces in use go after every other piece in the room (#2103).
+		// Pieces in use go after every other piece in the room.
 		sort.SliceStable(packs, func(i, j int) bool { return !packs[i].InUse && packs[j].InUse })
 		switch {
 		case len(furniture) > 0:
@@ -275,7 +275,7 @@ func groundCovered(c domain.Cell, rows []ClearanceTarget) bool {
 
 // enclosedRoof is the cells of every enclosed census room a wall target
 // bounds that lies wholly inside the cleared ground: the roof the native
-// deconstruct guard waits on (#1366). A room reaching outside is the
+// deconstruct guard waits on. A room reaching outside is the
 // guard's refusal, not a roof to remove.
 func enclosedRoof(walls []ClearanceTarget, ground []Rectangle, rooms RoomObservation) []domain.Cell {
 	seen := map[domain.Cell]bool{}

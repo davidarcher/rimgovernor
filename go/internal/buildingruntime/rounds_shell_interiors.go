@@ -11,7 +11,7 @@ import (
 // shellInteriors lists every cell inside the bounds of each wall ring a
 // plan raises, built or not: the floor a shell encloses (or will enclose
 // once its walls stand) belongs to the room's own furniture, and a planner
-// that only avoids the walls' footprints would site over it (#217: the first
+// that only avoids the walls' footprints would site over it (the first
 // field patch was laid across the hut's interior while the shell still
 // waited for wood, and the stockpile and sleeping spots then found the
 // room already zoned). Completed claims alone are too late for that, so the

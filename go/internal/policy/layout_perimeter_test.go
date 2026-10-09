@@ -102,7 +102,7 @@ func TestPerimeterOpenPlains(t *testing.T) {
 	}
 }
 
-// The opening carries a fence flush with the wall (#2231): three cells
+// The opening carries a fence flush with the wall: three cells
 // across the lane, the killbox's width in the wall, and nothing else of the
 // plan changes. The census reads a Fence cell as Passable (PassThroughOnly,
 // not Impassable), so the arrival flood and LayoutKillbox, which read the
@@ -180,7 +180,7 @@ func TestPerimeterKillboxWhereApproachesConverge(t *testing.T) {
 
 // perimeterLeak floods from the map edge over walkable cells, the wall and
 // killbox closed and no corner cut between two closed cells, and reports
-// a room cell it reaches: the ring leaks there (#949).
+// a room cell it reaches: the ring leaks there.
 func perimeterLeak(p LayoutPlan, s MapSurvey) (domain.Cell, bool) {
 	open := map[domain.Cell]bool{}
 	for _, c := range s.Cells {
@@ -241,7 +241,7 @@ func wetPerimeter(t *testing.T, soft func(x, z int32) (SurveyCell, bool)) (Layou
 		if c, ok := soft(x, z); ok {
 			return c
 		}
-		// Plain ground, not field soil: an all-fertile map is one field (#1281)
+		// Plain ground, not field soil: an all-fertile map is one field
 		// and would pull the ring out to the map edge.
 		return SurveyCell{Walkable: true, Fertility: 0.7}
 	}
@@ -338,7 +338,7 @@ func TestPerimeterMarshySoilTakesWood(t *testing.T) {
 var marsh = SurveyCell{Walkable: true, Footing: FootingLight, Bridgeable: true, Dries: true, Fertility: 1}
 
 // Moisture pump sites stand inside the wall on firm ground and cover every
-// soft ring cell that dries; ground that never dries gets none (#954).
+// soft ring cell that dries; ground that never dries gets none.
 func TestPerimeterPumpsCoverDryingRing(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ring := plainsRing(t)
@@ -517,7 +517,7 @@ func TestPerimeterSectionsBridgeBeforeWall(t *testing.T) {
 
 // A gate stands on each hallway's axis where the wall meets it: the main
 // hallway's row on the east and west sides, each crossing's column on the
-// north and south sides (#952).
+// north and south sides.
 func TestPerimeterGatesOnHallwayAxes(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
@@ -542,7 +542,7 @@ func TestPerimeterGatesOnHallwayAxes(t *testing.T) {
 
 // A rich patch beside the core stays outside the ring: the ring bounds are
 // the core, its yard and the killbox only, and no inner wall or gate is
-// planned (#1591).
+// planned.
 func TestPerimeterLeavesRichPatchOutside(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ground := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true} }

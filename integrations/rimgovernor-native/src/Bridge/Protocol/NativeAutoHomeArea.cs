@@ -8,7 +8,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // AutoHomeAreaIntent on Actions/Apply (#1322): the game's home-area
+    // AutoHomeAreaIntent on Actions/Apply: the game's home-area
     // auto-expand (Find.PlaySettings.autoHomeArea), a save-level setting. A
     // value that already holds applies again (UNCHANGED). The colony read
     // reports the value (UpkeepFacts.auto_home_area).

@@ -84,7 +84,7 @@ func validateColonyEnvironment(v *o.ColonyFactsSnapshot) error {
 			return contract("invalid environment condition")
 		}
 		// Native fills implementation (the GameCondition type name), label,
-		// permanent and, for a timed condition, ticks_left >= 0 (#362).
+		// permanent and, for a timed condition, ticks_left >= 0.
 		if (row.Implementation != nil && validID(row.GetImplementation()) != nil) || !diagnostic(row.Label) {
 			return contract("invalid environment condition")
 		}

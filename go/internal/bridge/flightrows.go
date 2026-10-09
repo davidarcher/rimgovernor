@@ -6,13 +6,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
-// Readers of the flight stream understand a kind under both its legacy name
-// and the v2 name that replaces it (docs/developers/contracts/flight-rows.md)
-// until the producer's piece moves. Each legacy branch below names the issue
-// whose landing deletes it.
+// Canonical flight-row readers follow docs/developers/contracts/flight-rows.md.
 
-// IsNativeReply reports whether kind is a completed native call: the
-// native_call row (#2057).
+// IsNativeReply identifies completed native calls.
 func IsNativeReply(kind string) bool { return kind == "native_call" }
 
 // NativeReplyFailed reports whether a native_call row records a failure: ok

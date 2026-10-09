@@ -8,7 +8,7 @@ import (
 )
 
 // A threat's sheltering response is complete only once every undrafted
-// colonist is restricted to the Safe area (#1560).
+// colonist is restricted to the Safe area.
 func TestShelterHeldNeedsEveryUndraftedColonistInSafe(t *testing.T) {
 	f := shelterFacts("safe")
 	f.Hostiles = domain.Known(int64(3))
@@ -52,7 +52,7 @@ func TestShelterHeldNeedsEveryUndraftedColonistInSafe(t *testing.T) {
 	}
 }
 
-// David Archer's decision on #1560: a threat that only needs sheltering lets
+// A threat that only needs sheltering lets
 // the clock run once every undrafted colonist is in the Safe area. The
 // window is a combat watch acknowledging the hostile pawns; without the
 // shelter it is still refused unsafe_colony.

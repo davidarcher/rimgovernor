@@ -2,8 +2,8 @@ package domain
 
 import "errors"
 
-// IgniteAction is explicit intent to have one pawn throw a molotov at one cell
-// (#1815, epic #1640): the pawn is drafted, carries the molotov and force-fires
+// IgniteAction is explicit intent to have one pawn throw a molotov at one cell:
+// the pawn is drafted, carries the molotov and force-fires
 // it at the cell. Native refuses while any pawn stands in the target cell's
 // room; Go does not restate that. Applied means the throw order was taken;
 // whether the fire caught is a separate observed state.

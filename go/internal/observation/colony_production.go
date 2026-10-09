@@ -194,7 +194,7 @@ func colonyProduction(v *o.ColonyFactsSnapshot, facts *policy.RoundsFacts) {
 
 // productionProduct is a recipe product: the frame's varying facts (count,
 // demand, storage room) joined to what its def row says (nutrition from the
-// stat table, rot days, baby edibility; #1733). Without a catalog the
+// stat table, rot days, baby edibility). Without a catalog the
 // static facts stay unknown. The game shows no Nutrition stat for a def
 // that gives none: that nutrition stays unknown, it is not zero.
 func productionProduct(product *o.FoodProduct, catalog *bridge.DefinitionCatalog) (policy.ProductionProduct, error) {

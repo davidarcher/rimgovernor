@@ -10,7 +10,7 @@ using Verse.AI;
 namespace HomeBridge.BridgeTools
 {
     // Funding is unrestricted. Completion must retain reachable work cells
-    // beside unfinished neighbours and an escape for nearby colonists (#2314).
+    // beside unfinished neighbours and an escape for nearby colonists.
     internal static class WallLayerGuard
     {
         private static bool patched;

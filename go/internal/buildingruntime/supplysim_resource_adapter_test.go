@@ -10,7 +10,7 @@ import (
 )
 
 // The resource adapter drives today's MaintainResource acquisition path
-// through a supplysim world (epic #2140): demand from the real policy
+// through a supplysim world: demand from the real policy
 // functions, candidates from the real catalog constructors and ranking by
 // policy.PlanSupply over every unmet floor.
 // It stands in for native reads and the journal only: a source the world
@@ -305,8 +305,8 @@ func (p *resPlanner) resource(v supplysim.WorldView, row policy.ResourceTarget, 
 		case resField:
 			// The zone and the sowing are upfront work; the first harvest is
 			// the crop's grow time away.
-			// The candidate is the production pricing of a planned field
-			// (#2284); the crop's harvest work gives the world's daily labor.
+			// The candidate is the production pricing of a planned field;
+			// the crop's harvest work gives the world's daily labor.
 			c, cells := s.Crop, int(s.Crop.Cells)
 			crop := policy.CropChoice{Name: id, GrowDays: domain.Known(float64(c.GrowDays)), UnitsPerCell: domain.Known(s.Yields[0].PerUnit),
 				HarvestWork: domain.Known(s.Labor * float64(c.GrowDays) / float64(cells))}

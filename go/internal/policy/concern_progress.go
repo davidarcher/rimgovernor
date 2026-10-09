@@ -9,8 +9,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// GoalProgress is the one progress contract every active goal reports
-// (#629): the method it is working, the native observable that proves the
+// GoalProgress is the one progress contract every active goal reports:
+// the method it is working, the native observable that proves the
 // method is advancing, the last tick that observable moved, the tick by
 // which it must move again and why it is not moving now. Progress is
 // measured from native outcomes (a settled effect, a deficit that shrank,
@@ -214,14 +214,14 @@ func (c ProgressContract) cooldown() domain.Tick {
 	return min(max(d, 0), ProgressCooldownMax)
 }
 
-// CooldownUntil is the tick a situation failed at now stays keyed out to.
+// CooldownUntil is the retry deadline for a failed situation.
 func (c ProgressContract) CooldownUntil(now domain.Tick) domain.Tick {
 	return now + c.cooldown()
 }
 
 // HuntProgress is the hunt stall policy as a contract: a hunt designation
 // the census reports untaken for HuntStallTicks since native first saw it
-// (#1044) is withdrawn, so the planner tries other prey or a non-hunt
+// is withdrawn, so the planner tries other prey or a non-hunt
 // source.
 func (p RoundsPolicy) HuntProgress() ProgressContract {
 	return ProgressContract{Method: "hunt", Expected: "designated animal killed or the hunt settled", Deadline: domain.Tick(p.HuntStallTicks)}
@@ -229,8 +229,8 @@ func (p RoundsPolicy) HuntProgress() ProgressContract {
 
 // AcquisitionProgress is the designation stall policy: a plant harvest
 // the census reports designated and untaken for AcquisitionStallTicks
-// since native first saw it (#291, #1044) is cancelled so the goal re-plans from another
-// source (#291).
+// since native first saw it is cancelled so the goal re-plans from another
+// source.
 func (p RoundsPolicy) AcquisitionProgress() ProgressContract {
 	return ProgressContract{Method: "harvest", Expected: "designation taken and the yield hauled", Deadline: domain.Tick(p.AcquisitionStallTicks)}
 }
@@ -426,7 +426,7 @@ func ValidateConcernProgress(p ConcernProgress, tick domain.Tick) error {
 // EnsureCooking's bench, storing needs MaintainFoodStorage's zone. The
 // cooking prerequisite is surfaced whenever the bench is known missing,
 // whichever rung is current, because the ladder cannot pass "cook" without
-// it and the builder placing it is the colony's scarce worker (#629). An
+// it and the builder placing it is the colony's scarce worker. An
 // unknown gate is no evidence of a missing bench and blocks nothing. The
 // observable is the food runway's shortfall against FoodTargetDays, so a
 // day of food gained reads as progress whichever rung is current.

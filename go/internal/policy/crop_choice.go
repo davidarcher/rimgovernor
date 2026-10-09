@@ -11,17 +11,17 @@ import (
 )
 
 // ErrOutdoorsDarkUnknown refuses a decision that needs the biome's darkness
-// when it was not read (#1712): lit is never assumed.
+// when it was not read: lit is never assumed.
 var ErrOutdoorsDarkUnknown = errors.New("cannot tell whether the biome keeps the sky dark: the colony frame carried no biome or no definition catalog was loaded")
 
 type CropClimate struct {
 	Sowing        domain.Fact[bool]
 	DaysRemaining domain.Fact[float64]
-	// OutdoorsDark is the biome's permanent darkness (#1712): the sky never
+	// OutdoorsDark is the biome's permanent darkness: the sky never
 	// lights the ground, so no crop that needs light grows outdoors whatever
 	// the season says. Unknown refuses: nothing is sown outdoors on a guess.
 	OutdoorsDark domain.Fact[bool]
-	// Biome is the colony map's biome defName (#2289): a species the game only
+	// Biome is the colony map's biome defName: a species the game only
 	// lets a player sow wild (MustBeWildToSow) is planted only where it is native.
 	Biome domain.Fact[string]
 }
@@ -42,7 +42,7 @@ func (c CropClimate) SowingOutdoors() domain.Fact[bool] {
 
 type CropChoice struct {
 	// Harvests is the resource one harvest yields and UnitsPerCell the units
-	// per cell per harvest (#2282); unknown stays unknown, never zero.
+	// per cell per harvest; unknown stays unknown, never zero.
 	// SowMinSkill is the sowing skill floor; HarvestDestroys is true when a
 	// harvest removes the plant (a tree is felled), so the cell is empty after.
 	Harvests        domain.Fact[Resource]
@@ -50,7 +50,7 @@ type CropChoice struct {
 	SowMinSkill     domain.Fact[int32]
 	HarvestDestroys domain.Fact[bool]
 	// BlockAdjacentSow, MustBeWildToSow, HarvestMinGrowth, SowWork and
-	// WildBiomes price a tree plantation (#2289).
+	// WildBiomes price a tree plantation.
 	BlockAdjacentSow, MustBeWildToSow                                      domain.Fact[bool]
 	HarvestMinGrowth, SowWork                                              domain.Fact[float64]
 	WildBiomes                                                             domain.Fact[[]string]
@@ -98,8 +98,8 @@ type FieldCandidate struct {
 	Urgent bool
 	Reason string
 	Terms  []FarmSiteTerm
-	// Price is a tree species' wood per labor tick over its land and work
-	// (#2289), zero for every other crop.
+	// Price is a tree species' wood per labor tick over its land and work,
+	// zero for every other crop.
 	Price float64
 }
 
@@ -143,9 +143,9 @@ type viableCrop struct {
 	days   float64
 	needed int
 	// units is the resource units one cell yields per harvest when the crop is
-	// planned for a resource deficit (#2283); zero plans it for nutrition.
+	// planned for a resource deficit; zero plans it for nutrition.
 	units float64
-	// price is the tree species' wood per labor tick (#2289), zero otherwise.
+	// price is the tree species' wood per labor tick, zero otherwise.
 	price float64
 }
 
@@ -319,7 +319,7 @@ type FieldBlockOption struct {
 // new block for its crop to count as a neighbour.
 const FieldBlockNeighbourRadius = 11
 
-// BlockCropOrder orders the viable crops for a new field block (#1225):
+// BlockCropOrder orders the viable crops for a new field block:
 // options keep their preference order, so urgency's fastest crop still
 // leads the first block, but a crop growing in a neighbouring zone moves
 // behind every other crop. A sole viable crop is still allowed.
@@ -341,7 +341,7 @@ func BlockCropOrder(options []FieldBlockOption, neighbours map[string]bool) []Fi
 // fieldYearDays is a RimWorld year: an indoor field's reserve spreads over it.
 const fieldYearDays float64 = domain.DaysPerYear
 
-// FieldTarget is the cells of crop that feed the colony (#1252): each cell
+// FieldTarget is the cells of crop that feed the colony: each cell
 // harvests yield every GrowDays, so steady state is demand*days/yield
 // cells, and the reserve stock is spread over the harvests left in the
 // season (one harvest when the season is unknown or shorter than a cycle).

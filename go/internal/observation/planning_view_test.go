@@ -53,7 +53,7 @@ func recordedCatalog(t *testing.T) *bridge.DefinitionCatalog {
 // TestPlanningViewsMatchTheRecordedGolden pins every planning view over a
 // catalog recorded from the game. The golden was written when the views were
 // compared field by field with the rows of the retired native planning
-// writer on this same catalog and matched (#1731); RG_UPDATE_GOLDEN=1
+// writer on this same catalog and matched; RG_UPDATE_GOLDEN=1
 // rewrites it after a deliberate change to a view.
 func TestPlanningViewsMatchTheRecordedGolden(t *testing.T) {
 	catalog := recordedCatalog(t)

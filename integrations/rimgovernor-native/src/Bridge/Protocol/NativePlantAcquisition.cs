@@ -95,7 +95,7 @@ namespace HomeBridge.BridgeTools
         internal bool Withdraw;
     }
 
-    // The acquisition guard's resolver (#1046, #1351): a Designate of
+    // The acquisition guard's resolver: a Designate of
     // HARVEST_PLANT, HUNT or MINE on one census source (target, cell,
     // expected_def the resource), checked live by the per-kind Prepare
     // rules; with withdraw, that designation removed (the planner's stall

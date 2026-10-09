@@ -167,7 +167,7 @@ func TestProjectWireShapeWithoutAReview(t *testing.T) {
 	}
 }
 
-// A running player-accelerated window (#627) shows native's pacing reason
+// A running player-accelerated window shows native's pacing reason
 // and effective speed from the step's clock_step row; a stop clears them.
 func TestProjectPlayerPacing(t *testing.T) {
 	rows := []bridge.TimelineRecord{

@@ -19,7 +19,7 @@ func TestRoundsGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	r := roundsRequest()
 	first := reviewRounds(t, s, &r)
 	old := roundsGoal(t, first, policy.MaintainResource)
-	n := len(first.Standards) // the catalog size moves with the catalog (TidyLayout left it at 42, #2117)
+	n := len(first.Standards) // the catalog size moves with the catalog (TidyLayout left it at 42)
 	for i := 0; i < 32; i++ {
 		r.Current.Load = domain.LoadID(fmt.Sprintf("load-%d", i))
 		out := reviewRounds(t, s, &r)

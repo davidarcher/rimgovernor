@@ -53,7 +53,7 @@ func TestEmergencyNeedsCountPatientsAndThreatsWithoutDoubleCounting(t *testing.T
 	}
 }
 
-// A downed colonist with nothing to tend (malnutrition, #304) is a patient
+// A downed colonist with nothing to tend (malnutrition) is a patient
 // (rescue serves them) but not an urgent one; downed with a tend outstanding
 // or bleeding is.
 func TestUrgentPatientsCountsBleedingOrDownedUntendedOnly(t *testing.T) {

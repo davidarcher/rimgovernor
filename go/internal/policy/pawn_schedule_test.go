@@ -107,8 +107,8 @@ func TestPlanSchedules(t *testing.T) {
 	if d.Schedules[2].Pawn != "plain" || !d.Schedules[2].Matches {
 		t.Fatal(d)
 	}
-	// A timetable edited by hand (under Manual) is replanned like any other
-	// (#461): provenance is not authority over fresh planning.
+	// A timetable edited by hand (under Manual) is replanned like any other:
+	// provenance is not authority over fresh planning.
 	if d.Schedules[0].Pawn != "edited" || d.Schedules[0].Matches || !sameSchedule(d.Schedules[0].Slots, scheduleTemplate(TraitEffects{})) {
 		t.Fatal(d.Schedules[0])
 	}
@@ -216,7 +216,7 @@ func TestPlanSchedulesMeditate(t *testing.T) {
 			t.Fatalf("%s wrote Meditate without the def", name)
 		}
 	}
-	// Staggering moves the Meditate slot like Joy (#1317).
+	// Staggering moves the Meditate slot like Joy.
 	a, b := caster(0.3, 1), caster(0.9, 1)
 	a.ID, b.ID = "a", "b"
 	a.Schedule, b.Schedule = domain.Known(nativeDefaultSchedule()), domain.Known(nativeDefaultSchedule())

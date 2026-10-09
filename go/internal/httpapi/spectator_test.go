@@ -177,7 +177,7 @@ func viewerAPI(t *testing.T) (*Server, *presentationMediaFake, *playerFixture, *
 }
 
 // A viewer connecting, watching, disconnecting and reconnecting must not change the
-// simulation contract (#632): against the fake native, the whole viewer path
+// simulation contract: against the fake native, the whole viewer path
 // — the render lease, the presentation reads and the spectator panel — issues
 // no control operation (no speed request, no submission) and writes no
 // journal row.

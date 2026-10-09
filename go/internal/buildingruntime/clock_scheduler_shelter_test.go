@@ -9,7 +9,7 @@ import (
 )
 
 // The clock's shelter fact comes from the rounds's facts, so it
-// holds on steps where the recovery planner never runs (#1569).
+// holds on steps where the recovery planner never runs.
 func TestClockShelterHeldReadsReviewFacts(t *testing.T) {
 	if _, known := clockShelterHeld(nil).Value(); known {
 		t.Fatal("no review: unknown")

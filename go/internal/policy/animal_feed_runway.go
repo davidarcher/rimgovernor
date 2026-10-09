@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Animal feed runway (#2379, epic #1856). Each race group of the kept herd
+// Animal feed runway. Each race group of the kept herd
 // eats NutritionPerDay (the food forecast's per-animal rate); the pasture of
 // the pens feeds part of it and the unheld stock every animal of the group can
 // eat the rest. The runway is that stock over the net daily consumption,
@@ -16,7 +16,7 @@ import (
 // Rounder's construction memory, like FuelRunway. Unknown consumption, pasture,
 // stock or feed leaves the projection unknown, never defaulted.
 //
-// Herd growth from known events (#2379 part 2) is in it: a pregnant animal adds
+// Herd growth from known events is in it: a pregnant animal adds
 // the catalog's mean litter, eating as a newborn from the due tick and stepping
 // up each life stage after it, and a young animal steps up at its next life
 // stage tick, both by the stages' hunger rate factors. A new conception stays
@@ -46,7 +46,7 @@ type AnimalFeedGroupRunway struct {
 	Animals                                        []PawnID
 	NutritionPerDay, PasturePerDay, StockNutrition float64
 	// Steps are the known changes of the group's consumption within the
-	// horizon: births and life stages (#2379).
+	// horizon: births and life stages.
 	Steps         []FeedStep
 	ShortfallDays float64
 	Feed          Resource
@@ -61,7 +61,7 @@ type FeedStep struct {
 }
 
 // growthSteps are the consumption steps a pregnancy and the next life stages
-// of one animal eating need a day make (#2379). Not known when the race, a
+// of one animal eating need a day make. Not known when the race, a
 // stage, the litter or the event ticks are not.
 func growthSteps(a UpkeepAnimal, need float64, races AnimalRaceCatalog) ([]FeedStep, bool) {
 	race, in := races.Race(a.Definition)

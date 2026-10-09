@@ -15,7 +15,7 @@ const listUsage = `  acceptance list [-cost [-baseline <result.json|metrics.json
 
 // list prints the registry, the named cases and areas (`<area>/...`) or a
 // tier (-tier, tier.go), one per line with its scope. -cost adds each case's baseline wall and
-// boot time (#283) and a total for the set; without a baseline row a case
+// boot time and a total for the set; without a baseline row a case
 // is "untimed". The baseline is a suite result.json or a metrics series.
 func list(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("list", flag.ContinueOnError)

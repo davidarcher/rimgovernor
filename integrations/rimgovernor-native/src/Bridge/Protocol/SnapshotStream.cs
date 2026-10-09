@@ -17,7 +17,7 @@ using Obs = RimGovernor.Protocol.Observations;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// The snapshot stream (#858): whole BundleSnapshot frames published into
+    /// The snapshot stream: whole BundleSnapshot frames published into
     /// a named shared-memory ring, read lock-free by the controller
     /// (go/internal/snapshotshm). The game thread captures a frame right after
     /// a frame's ticks (Supervisor.OnFrame) every PeriodTicks, on a pause
@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
     /// writes it into the next slot under a per-slot seqlock, so the game
     /// thread never waits on a reader. Nothing is captured until the
     /// controller opens the stream. The encoder leaves out unchanged
-    /// singleton sections (SnapshotSections, #1347); an open is a keyframe.
+    /// singleton sections (SnapshotSections); an open is a keyframe.
     ///
     /// Layout (little-endian):
     ///   header, 64 bytes:
@@ -98,12 +98,12 @@ namespace HomeBridge.BridgeTools
         private static Obs.SnapshotStreamRequest subscription = new Obs.SnapshotStreamRequest();
 
         /// The shape the stream captures now (the default request until a
-        /// controller subscribes); test/profile_capture profiles it (#1320).
+        /// controller subscribes); test/profile_capture profiles it.
         internal static Obs.SnapshotStreamRequest Subscription { get { lock (Gate) return subscription.Clone(); } }
         // Game-thread state: what the last capture saw.
         private static long writes, capturedWrites = -1;
         // due: the write count the next frame must reflect. A deferred
-        // write (#1274) leaves it behind writes until a flush, a later
+        // write leaves it behind writes until a flush, a later
         // undeferred write, or DeferredSeconds after the oldest uncaptured
         // deferred write (deferredAt, game thread; 0: none).
         private static long due;
@@ -146,14 +146,14 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 // Frames are captured from the supervised-play frame hook; a
-                // stream opened before any clock start (a lab case, #876)
+                // stream opened before any clock start (a lab case)
                 // installs it itself.
                 try { Supervisor.EnsurePatched(); ring ??= new Ring(); }
                 catch (Exception e)
                 {
                     return new Obs.SnapshotStreamReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "Snapshot ring could not be created: " + e.Message } };
                 }
-                // A keyframe request (#1347) keeps the subscription; every
+                // A keyframe request keeps the subscription; every
                 // open makes the next frame carry every section.
                 if (!request.Keyframe) subscription = request.Clone();
                 Interlocked.Exchange(ref keyframeDue, 1);
@@ -179,12 +179,12 @@ namespace HomeBridge.BridgeTools
             var period = CombatMirror.Dirty ? CombatMirror.MinCombatCompareTicks : PeriodTicks;
             var periodic = needed <= capturedWrites && paused == capturedPaused && tick >= capturedTick;
             // A paused game advances no tick, so the period is wall time
-            // there (#838): a change no native write made (a fixture op, a
+            // there: a change no native write made (a fixture op, a
             // player edit while paused) is otherwise never captured.
             if (periodic && (paused ? Stopwatch.GetTimestamp() - capturedAt < PausedPeriodSeconds * Stopwatch.Frequency : tick - capturedTick < period)) return;
             // A periodic frame waits out DutyCycle times the last capture's
             // cost, so the stream holds the game thread at most ~1/DutyCycle
-            // of wall time (#858: a capture is ~200 ms, a period at
+            // of wall time (a capture is ~200 ms, a period at
             // Ultrafast ~150 ms). Writes and pause edges capture at once.
             if (periodic && Stopwatch.GetTimestamp() - capturedAt < (long)lastCaptureMicros * DutyCycle * Stopwatch.Frequency / 1_000_000) return;
             // One frame in flight at a time: a slow encode delays the next
@@ -200,7 +200,7 @@ namespace HomeBridge.BridgeTools
             try { frame = SnapshotFrames.Capture(map, shape, out grid); }
             catch (SnapshotFrames.SnapshotSectionException e)
             {
-                // A section threw (#1905): the frame is the failure alone, so the
+                // A section threw: the frame is the failure alone, so the
                 // reader refuses its reads with the section named.
                 frame = e.Frame(); grid = null; failed = true;
             }
@@ -240,7 +240,7 @@ namespace HomeBridge.BridgeTools
         private static int slowLoggedTick = -SlowLogTicks;
 
         // NoteSlowCapture logs where a slow frame capture's game-thread time
-        // went, family by family (#858), so the capture can be profiled from
+        // went, family by family, so the capture can be profiled from
         // the flight stream.
         private static void NoteSlowCapture(uint micros, int tick, ObservationWork.Hop? hop)
         {

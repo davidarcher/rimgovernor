@@ -11,7 +11,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent UseItem (#1038, #1352): one player-controlled
+    // GiveJobIntent UseItem: one player-controlled
     // colonist uses one item. Three native shapes are generic here:
     //  - an item the pawn wears or equips whose verb is a
     //    Verb_CastTargetEffect (the psychic shock and insanity lances): the
@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
     //    OrderForceTarget, which is exactly the worn gizmo's order;
     //  - a CompTargetable item with CompUsable: CanBeUsedBy and the comp's
     //    own target check, then the use job the float menu starts.
-    //  - the pawn as its own target (#1609): a CompUsable item without a
+    //  - the pawn as its own target: a CompUsable item without a
     //    CompTargetable (a neuroformer, a psycast neurotrainer): CanBeUsedBy,
     //    then the comp's use job on the item alone, as the float menu does.
     // A pawn already running the job on that target with that item applies

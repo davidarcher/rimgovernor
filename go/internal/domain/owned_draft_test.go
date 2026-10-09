@@ -26,7 +26,7 @@ func TestOwnedDraftFlatIntentAndCoverage(t *testing.T) {
 	_ = map[Action]bool{a: true}
 }
 
-// A draft is an intent (#939): its receipt settles it, with no claim and
+// A draft is an intent: its receipt settles it, with no claim and
 // no cleanup phase.
 func TestOwnedDraftReceiptIsTerminal(t *testing.T) {
 	RegisterIntentKind(OwnedDraftAction)

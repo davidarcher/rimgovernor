@@ -2,7 +2,7 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The Storage department's stores (#2192, epic #2176): the warehouse over the
+// The Storage department's stores: the warehouse over the
 // whole interior of each planned storage room, and the materials yard over the
 // whole interior of each planned yard. Each is one zone, sized once; a full
 // store asks layout for a further room through RoomDemand.

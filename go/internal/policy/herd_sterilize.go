@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// VetRoom is what the layout exposes of the vet room (#1633) to the herd
+// VetRoom is what the layout exposes of the vet room to the herd
 // plan. Ready is a vet room reservation with a built medical animal bed;
 // Area is the allowed-area id covering the room, the area an animal is let
 // into for surgery. Either unknown (or Ready false) means no sterilize.

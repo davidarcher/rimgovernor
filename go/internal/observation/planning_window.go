@@ -10,20 +10,16 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// PlanningWindowSource serves the planning window (the site cells around
-// the colony centre) to a colony read whose reply no longer carries
-// planning.cells: a current native serves the window on demand through
-// observations_get_cells and the scheduler decides, per step, whether the
-// window it holds still serves or is read again (#356). The Held it returns
-// names the tick the window describes and the method that produced it, so
-// the reading's sections file it with its own provenance.
+// PlanningWindowSource reads site cells through observations_get_cells. The scheduler
+// decides whether its held window remains usable or needs refreshing. Returned Held evidence
+// preserves the observed tick and producing method for section provenance.
 type PlanningWindowSource interface {
 	PlanningWindow(ctx context.Context, identity *c.Identity, region policy.Rectangle) (facts.Held[PlanningCells], error)
 }
 
 // PlanExtentSource is a PlanningWindowSource that also knows the stored
 // layout plan's extent (policy.LayoutPlan.Extent): the window then covers
-// the plan as well as the colonists (#1282). An empty rect means no plan.
+// the plan as well as the colonists. An empty rect means no plan.
 type PlanExtentSource interface {
 	PlanExtent(ctx context.Context) (policy.Rectangle, error)
 }

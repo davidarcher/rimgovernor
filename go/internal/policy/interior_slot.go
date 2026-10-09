@@ -4,7 +4,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // InteriorPieceDef is the shape of a definition a template can plan: its
 // size and interaction cell offset at rotation North, and the slot family it
-// shares slots with (#819, #820). A family is the room role the game scores
+// shares slots with. A family is the room role the game scores
 // the building into: kitchen stoves, workshop benches, laboratory benches,
 // the beds of a bedroom. The catalog rows put a building in its family
 // (PieceShapes); a building in no family, like a butchery, whose blood filth

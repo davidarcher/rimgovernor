@@ -42,7 +42,7 @@ func (r *RoundsSleepingUpkeepPlanner) couplePacked(call context.Context, goal st
 	return out, nil
 }
 
-// coupleBed is the couple bed lever (#843): pack the couple's single beds,
+// coupleBed is the couple bed lever: pack the couple's single beds,
 // then install a DoubleBed (a stored one first) in the couple's room's
 // bedroom slot; each step once per Episode. due is false when nothing
 // is to do, so the ordinary sleeping choice goes on.
@@ -102,7 +102,7 @@ func (r *RoundsSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, sto
 		return r.commitCouple(call, epoch, state, goal, method, id, actions)
 	case policy.CoupleInstall:
 		// The couple's room is reconciled to the DoubleBed in its bed slot: a
-		// stored one is installed, else one is built (#2115).
+		// stored one is installed, else one is built.
 		in := step.Planned.Interior
 		result, err := r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{
 			room: step.Planned, template: step.Template,

@@ -3,7 +3,7 @@ package domain
 import "errors"
 
 // AutoHomeAreaAction sets the game's home-area auto-expand
-// (Find.PlaySettings.autoHomeArea, a save-level setting; #1322): an
+// (Find.PlaySettings.autoHomeArea, a save-level setting): an
 // AutoHomeAreaIntent on Actions/Apply. No pawn, map cell or Job is involved.
 const AutoHomeAreaAction ActionKind = "auto_home_area"
 

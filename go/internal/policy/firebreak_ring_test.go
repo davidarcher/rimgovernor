@@ -7,7 +7,7 @@ import (
 )
 
 // A field next to the base takes ring cells without protection and none
-// once the ring is protected (#1550).
+// once the ring is protected.
 func TestFieldSitingAvoidsFirebreakRing(t *testing.T) {
 	r := firebreakFixture(t, squarePoints(17, 17, 23, 23)...)
 	r.Bounds = domain.Known(Bounds{Width: 40, Height: 40})

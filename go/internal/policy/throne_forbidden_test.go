@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// TestThroneForbiddenClassIsPacked (#1865, #2109): a building of a forbidden
+// TestThroneForbiddenClassIsPacked: a building of a forbidden
 // class inside the room is packed by the reconcile instead of blocking the step,
 // one outside is left alone, and planning never places a forbidden throne
 // definition.
@@ -41,7 +41,7 @@ func TestThroneForbiddenClassIsPacked(t *testing.T) {
 	if step := NextThroneStep(plan, tombStanding(room), ground, []CurrentBuilding{outside}, need, defs, nil); step.Kind != ThroneReconcile || len(step.Template) != 1 {
 		t.Fatalf("a bed outside the room is no intrusion: %+v", step)
 	}
-	// A throne definition of a forbidden class is never placed; it fails by name (#1874).
+	// A throne definition of a forbidden class is never placed; it fails by name.
 	need.ForbiddenDefs = []string{"Throne"}
 	if step := NextThroneStep(plan, tombStanding(room), ground, nil, need, defs, nil); step.Kind != ThroneUnavailable {
 		t.Fatalf("forbidden throne placed: %+v", step)

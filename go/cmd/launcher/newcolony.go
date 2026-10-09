@@ -21,8 +21,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// New colony (#2025): the launcher's orchestration of POST /api/lifecycle/new
-// (#2020). The page holds no labels, ordering or ranges: it renders
+// New colony: the launcher's orchestration of POST /api/lifecycle/new.
+// The page holds no labels, ordering or ranges: it renders
 // NewColonyView and calls Generate / Cancel.
 
 // NewColonySpec is the form: the wire spec with the seed optional ("" asks

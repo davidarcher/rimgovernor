@@ -7,7 +7,7 @@ import (
 )
 
 // PawnPurchaseFraction is the share of the colony's current silver one pawn
-// purchase may spend (#1037).
+// purchase may spend.
 const PawnPurchaseFraction = 0.5
 
 // PawnPurchaseValue scores an offered pawn from its skills and passions: each
@@ -24,7 +24,7 @@ func PawnPurchaseValue(skills []ProfileSkill) float64 {
 }
 
 // SelectPawnPurchase picks the slave or prisoner a caravan offers that the
-// colony buys (#1037): only while capacity (JoinerCapacity) is known true,
+// colony buys: only while capacity (JoinerCapacity) is known true,
 // only a violence-capable pawn with readable skills, at most
 // min(PawnPurchaseFraction of colony silver, colony silver - reserve - spent)
 // where spent is what the resource lines already selected will cost, and

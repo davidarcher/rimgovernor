@@ -87,7 +87,7 @@ func recipeFixture() *DefinitionCatalog {
 	}
 }
 
-// TestRecipeRolesComeFromTheRows (#1721): the butcher recipe is the one with
+// TestRecipeRolesComeFromTheRows: the butcher recipe is the one with
 // the butcher counter, a sculpture makes an art building and an
 // ordinary meal is a perishable meal; a meal that never rots is a reserve.
 func TestRecipeRolesComeFromTheRows(t *testing.T) {
@@ -114,7 +114,7 @@ func TestRecipeRolesComeFromTheRows(t *testing.T) {
 	}
 }
 
-// TestFilterAcceptsReadsTheFourVanillaFields (#1721): listed defs and
+// TestFilterAcceptsReadsTheFourVanillaFields: listed defs and
 // categories (parents included) allow, disallowed categories and defs veto,
 // and a filter with a field the evaluator does not model is refused.
 func TestFilterAcceptsReadsTheFourVanillaFields(t *testing.T) {

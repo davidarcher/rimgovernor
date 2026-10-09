@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The bedroom swap flag (#1243) survives a plan round trip.
+// The bedroom swap flag survives a plan round trip.
 func TestAssignSwapRoundTrips(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))

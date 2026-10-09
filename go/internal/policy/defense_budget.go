@@ -6,12 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The turret tier is the defense lever that scales with threat: the firing
-// line is as long as the armed colonists, so raid points cannot lengthen
-// it, but they can buy turrets (#396). The budget is a step function over
-// the storyteller's raid points; an unknown reading keeps the pre-#341
-// constant so the tier is unchanged until the observation lands. Power and
-// stock gates still decide how many of the budget are placed.
+// Turret budgets scale with observed raid points; unknown threat keeps the
+// base budget. Power and stock gates decide how many turrets can be placed.
 const (
 	turretBaseBudget = 2
 	turretMidBudget  = 4

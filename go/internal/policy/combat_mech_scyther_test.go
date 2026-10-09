@@ -47,7 +47,7 @@ func decideAny(t *testing.T, view CombatView, stop StopEvent, memory CombatMemor
 // best-armored brawlers block just outside the choke and every gunner
 // focuses the first scyther. Once scyther r1 is in melee with blocker e,
 // the gunners stay focused on it and never drift to r2; they hold fire
-// while the blocker fights it (#861), and shoot it again once it breaks off.
+// while the blocker fights it, and shoot it again once it breaks off.
 func TestDecideCombatScythersBlockedAndFocused(t *testing.T) {
 	view := scytherView()
 	orders, memory := decideAny(t, view, StopEvent{}, CombatMemory{})
@@ -96,8 +96,8 @@ func TestDecideCombatScythersBlockedAndFocused(t *testing.T) {
 	if memory.Tactic != TacticHold {
 		t.Fatalf("the scyther at the choke dropped the hold: %+v", memory)
 	}
-	// r1 is locked with e (#861 holds fire on it): the gunners fire down
-	// the choke at r2 (#978).
+	// r1 is locked with e (gunners hold fire on it): the gunners fire down
+	// the choke at r2.
 	for _, r := range memory.Roles {
 		if r.Ranged && r.Target != "r2" {
 			t.Fatalf("gunner %s not on the scyther behind the choke: %+v", r.Pawn, memory.Roles)

@@ -19,7 +19,7 @@ type ControlState struct {
 // the world this process last acquired or observed, kept while observation is
 // unknown. A status read that failed or was cancelled leaves the process's own
 // Auto grant standing natively; the player's next Resume or Pause revokes it
-// through this target before acquiring again (#328). The target itself stays
+// through this target before acquiring again. The target itself stays
 // private: this authorizes nothing but that cleanup.
 func (control *Control) TargetsWorld(world store.World) bool {
 	if control == nil {

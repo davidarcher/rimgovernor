@@ -10,7 +10,7 @@ import (
 
 // A cotton field is priced from the crop's catalog facts, standing fields of
 // the crop count against the deficit, and the plan it priced stays readable by
-// candidate ID for the executor (#2284).
+// candidate ID for the executor.
 func TestResourceFieldPlannerPricesAndCountsStandingFields(t *testing.T) {
 	cotton := policy.CropChoice{Name: "Plant_Cotton", Available: domain.Known(true), Edible: domain.Known(false),
 		GrowDays: domain.Known(5.8), FertilityMin: domain.Known(0.5), FertilitySensitivity: domain.Known(1.0), HarvestWork: domain.Known(200.0),
@@ -80,7 +80,7 @@ func TestResourceSupplyOpenedFields(t *testing.T) {
 	}
 }
 
-// The medical reserve (#2286) leaves an herbal deficit to a field only when
+// The medical reserve leaves an herbal deficit to a field only when
 // the plan opened one (or one stands) and opened no wild source: a wild plant
 // the plan priced cheaper keeps the harvest.
 func TestResourceSupplyFieldRoute(t *testing.T) {

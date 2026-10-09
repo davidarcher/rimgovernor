@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A ritual command (#1639) persists its pawn, ritual and verb.
+// A ritual command persists its pawn, ritual and verb.
 func TestRitualActionRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

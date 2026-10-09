@@ -6,7 +6,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// AnomalyColony is the Anomaly colony section (#1738): knowledge and codex
+// AnomalyColony is the Anomaly colony section: knowledge and codex
 // progress, the entities held on the colony map and the state that gates and
 // times Anomaly threats. Per-thing facts are the pawn and building rows'
 // (policy.PawnAnomaly, policy.BuildingAnomaly). An absent scalar is unknown,
@@ -23,11 +23,11 @@ type AnomalyColony struct {
 	// platform can take an entity on the colony map.
 	HoldingPlatformAvailable domain.Fact[bool]
 	Incidents                domain.Fact[AnomalyIncidents]
-	// Monolith is unknown unless the monolith is spawned (#2436).
+	// Monolith is unknown unless the monolith is spawned.
 	Monolith domain.Fact[MonolithState]
 }
 
-// MonolithState is the void monolith and the endgame it gates (#2436), every
+// MonolithState is the void monolith and the endgame it gates, every
 // verdict the game's own. CanActivate is Building_VoidMonolith.CanActivate.
 // The next level's requirement is the codex category and count its def lists
 // (unknown when it lists none, or no level follows); CodexShortfall is the
@@ -46,12 +46,12 @@ type MonolithState struct {
 	VoidStructuresActivated      domain.Fact[uint32]
 	VoidNodeExists               domain.Fact[bool]
 	VoidAwakeningStage           domain.Fact[int32]
-	// MonolithID is the thing a give-job targets (#2437).
+	// MonolithID is the thing a give-job targets.
 	MonolithID domain.Fact[string]
 	// PendingVoidStructureIDs are the VoidStructures that can still be
 	// interacted with; VoidNodeID is the VoidNode that can be touched ("" when
-	// none) and VoidNodePawnIDs the colonists on its map able to touch it
-	// (#2438). VoidNodeExists is true for a node on any loaded map.
+	// none) and VoidNodePawnIDs the colonists on its map able to touch it.
+	// VoidNodeExists is true for a node on any loaded map.
 	PendingVoidStructureIDs []string
 	VoidNodeID              string
 	VoidNodePawnIDs         []string
@@ -87,7 +87,7 @@ type AnomalyIncidents struct {
 	ThreatFractionNow                                                       domain.Fact[float64]
 }
 
-// monolithFacts is the monolith rule's input (#2437): the level state of
+// monolithFacts is the monolith rule's input: the level state of
 // GameComponent_Anomaly and the monolith's own read; unknown without the
 // Anomaly section.
 func monolithFacts(section domain.Fact[AnomalyColony]) domain.Fact[policy.MonolithFacts] {

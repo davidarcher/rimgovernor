@@ -7,11 +7,11 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// PolicyEntry is one row of a native policy database (#1297): the policy's
+// PolicyEntry is one row of a native policy database: the policy's
 // load id, label, the player pawns currently holding it and whether it is
 // the database default. Allowed is a reading policy's allowed book
-// definitions (#1306) or a food policy's allowed foods (#1541); Drugs a
-// drug policy's entries that allow anything (#1537).
+// definitions or a food policy's allowed foods; Drugs a
+// drug policy's entries that allow anything.
 type PolicyEntry struct {
 	ID, Label string
 	Pawns     []policy.PawnID
@@ -32,15 +32,15 @@ type AllowedArea struct {
 type Policies struct {
 	Outfit, Drug, Food, Reading []PolicyEntry
 	AllowedAreas                []AllowedArea
-	// Books is every book definition and its kind (#1306), read from the
-	// definition catalog by DecodeColony (#1733); empty without one.
+	// Books is every book definition and its kind, read from the
+	// definition catalog by DecodeColony; empty without one.
 	Books []policy.Book
-	// BiomeDiseases is the colony map biome's disease hediffs (#1539).
+	// BiomeDiseases is the colony map biome's disease hediffs.
 	BiomeDiseases []string
-	// Foods is every food definition and its kind (#1541), read from the
-	// definition catalog by DecodeColony (#1733); empty without one.
+	// Foods is every food definition and its kind, read from the
+	// definition catalog by DecodeColony; empty without one.
 	Foods []policy.Food
-	// FoodEaters are the prisoners and tame animals holding food policies (#1543).
+	// FoodEaters are the prisoners and tame animals holding food policies.
 	FoodEaters []policy.FoodEater
 }
 
@@ -84,7 +84,7 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 }
 
 // animalFoodEaters gives each animal food eater the foods its race can ever
-// eat, from the catalog's race row (#1722). An animal whose pawn row or race
+// eat, from the catalog's race row. An animal whose pawn row or race
 // the frame does not hold is dropped: no diet is written for it. A
 // prisoner's traits are resolved against the catalog.
 func animalFoodEaters(eaters []policy.FoodEater, pawns bridge.Pawns, races policy.AnimalRaceCatalog, catalog *bridge.DefinitionCatalog) ([]policy.FoodEater, error) {

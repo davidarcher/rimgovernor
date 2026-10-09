@@ -93,8 +93,8 @@ func BenignStop(reason k.StopReason) bool {
 	case k.StopReason_STOP_REASON_TICK_BUDGET, k.StopReason_STOP_REASON_REQUESTED_PAUSE, k.StopReason_STOP_REASON_WATCH_LATCHED:
 		return true
 	case k.StopReason_STOP_REASON_COMBAT_EVENT:
-		// Armed only while an admitted fight plan owns the combat (#852,
-		// armedCombatStops): the stop is that plan's next decision.
+		// Armed only while an admitted fight plan owns the combat
+		// (armedCombatStops): the stop is that plan's next decision.
 		return true
 	}
 	return false
@@ -105,7 +105,7 @@ func BenignStop(reason k.StopReason) bool {
 // an announcement, not a threat, a death or a decision. The game may still
 // pause on one under the player's automatic-pause preference; that pause
 // stops the window like any other, but it is the game's own, not a reason
-// to hand control back (#228: an inspiration letter mid-raid released the
+// to hand control back (an inspiration letter mid-raid released the
 // hold plan's drafts). Every other letter class still holds.
 var InformationalLetterDefs = map[string]bool{"NeutralEvent": true, "PositiveEvent": true, "NegativeEvent": true}
 
@@ -123,16 +123,16 @@ func BenignStopEvent(stop *k.StopEvent) bool {
 // controller reacts to, not holds; so is a game alert (a High-priority
 // alert such as "Need colonist beds" is routine planning evidence, and the
 // native supervisor never stops play for one; the stop tier is danger, a
-// coupled order and player input, #244), and so is an injury observation:
+// coupled order and player input), and so is an injury observation:
 // the native supervisor coalesces sub-threshold combat damage into that
 // row precisely so it never stops play for it, and a threshold crossing
-// arrives as its own COLONIST_HEALTH stop (#318). A notification is the
+// arrives as its own COLONIST_HEALTH stop. A notification is the
 // same tier: native publishes one only for the letter and message classes
 // it never stops play for (SupervisedPlayTool.NonStoppingLetterDefs and
 // NonStoppingMessageTypes: a neutral, positive or negative announcement, a
 // known wound worsening, a situation resolved), so holding on it disabled
 // the session under an admitted combat plan and re-planned the squad for
-// an announcement that carried no threat (#325); a letter class that
+// an announcement that carried no threat; a letter class that
 // stops arrives as its own LETTER_PAUSE or NOTIFICATION_BATCH stop. It is
 // A force-pause wait is the same tier: native raises it for an autosave or a
 // transient force pause, states that play is not stopped, and waits a grace
@@ -151,8 +151,7 @@ func EventInterrupts(event *k.Event) bool {
 }
 
 // PageInterrupts is EventInterrupts for an event read on a page: a stop
-// taken in another world than the page's (a kept game's previous load,
-// #887) interrupts nothing in the world read now.
+// taken in another world than the page's (a kept game's previous load) interrupts nothing in the world read now.
 func PageInterrupts(event *k.Event, page *k.EventsPage) bool {
 	return EventInterrupts(event) && !OtherWorld(event, page)
 }
