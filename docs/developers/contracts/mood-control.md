@@ -68,6 +68,29 @@ Thoughts without a measured eligible corrective method produce an explicit block
 including relationship and ideology choices requiring player direction. A facility
 placement is never a mood or need postcondition.
 
+### Thought trigger table
+
+`go/internal/policy/thought_triggers.tsv` lists every vanilla ThoughtDef (all installed
+packs) with how the game grants it and the game state it reads. `go run ./cmd/thoughtaudit`
+(from `go/`) regenerates it from the installed game: it decompiles `Assembly-CSharp.dll`
+with the global `ilspycmd` tool (`dotnet tool install -g ilspycmd`; not pinned in the repo)
+and reads the defs under `Data/*/Defs`. Columns:
+
+- `def`.
+- `kind`: `situational` when the def has a `workerClass`, else `memory`.
+- `grant`: the worker class, or the memory trigger categories (`ingest`, `sleep`, `social`,
+  `ritual`, `other`) with the code and XML sites that grant it.
+- `dependency`: sorted `;` tokens (`room_stat:<Stat>`, `room`, `room_role:<Role>`,
+  `need:<need>`, `apparel`, `temperature`, `hediff`, `light`, `other`) read from the worker,
+  or from the granting method body, so a method granting several thoughts lists the state
+  of all of them.
+- `owner`: the concern that can remove the thought. Hand-kept: regeneration preserves it
+  and leaves new defs unowned.
+
+There is no check mode; a stale row shows as unowned. Modded thoughts are out of scope.
+`moodProvisionOwners` keys `HighExpectations`, `SkyHighExpectations` and `AteAwfulMeal`
+are not ThoughtDefs in the installed game, so the table has no rows for them.
+
 ## Relief jobs
 
 A `GiveJobIntent` with `relieve_need` on Actions/Apply offers one ordinary food, rest
