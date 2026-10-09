@@ -15,9 +15,8 @@ func init() {
 		Name: "production/gear-ledger",
 		Scope: "MaintainEquipment and the armory declare their gear batches to the work ledger (#2597): the lab colony's " +
 			"missing apparel or weapons become a gear_batch bill the ledger planner places under a ledger-* method, and the " +
-			"journal records it completed. Nightly tier: the bill finishing and an undeclared bill of a migrated owner being " +
-			"removed after policy.OrphanGraceRounds are pinned by the buildingruntime ledger tests; the unmigrated-owner " +
-			"keep rule by policy and runtime tests.",
+			"journal records it completed. Nightly tier: the bill finishing and an undeclared bill being " +
+			"removed after policy.OrphanGraceRounds are pinned by the buildingruntime ledger tests.",
 		Start:  cases.LabStart(),
 		Serve:  &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Gear, routinefamily.Armory, routinefamily.Bill}},
 		Budget: 6 * time.Minute,

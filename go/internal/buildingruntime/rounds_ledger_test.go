@@ -135,8 +135,7 @@ func (f *ledgerFixture) settle(plan domain.PlanID) []domain.Action {
 }
 
 // place completes the plan's first action the way an accepted receipt would,
-// journaling the native bill id it placed: the record that makes the bill a
-// migrated owner's (store.PlacedBills).
+// journaling the native bill id it placed: the record the ledger's plan progress holds.
 func (f *ledgerFixture) place(plan domain.PlanID, bill string) {
 	f.t.Helper()
 	ctx := context.Background()
@@ -302,22 +301,32 @@ func TestLedgerRemovesOrphansAfterGraceAndRebuildsOnRestart(t *testing.T) {
 	}
 }
 
-// A bill the journal never placed (a player's, another load's, an unmigrated
-// owner's whose Standard the review does not bind) is kept however long no
-// planner declares it: orphan removal covers a migrated owner's bills only.
-func TestLedgerKeepsABillNoMigratedOwnerPlaced(t *testing.T) {
+// A bill the journal never placed (a player's, another load's, one placed
+// before a restart) is an orphan like any other: kept through the grace
+// rounds, then removed, while the declared bill beside it stays.
+func TestLedgerRemovesAnUnjournaledOrphanAfterGrace(t *testing.T) {
 	f := newLedgerFixture(t)
 	f.declare(ledgerOrder("Make_Vest"))
 	f.native.benches = []policy.GearBench{ledgerBenchRow(fakeBill("Bill_Hat", ledgerOrder("Make_Hat")), fakeBill("Bill_Vest", ledgerOrder("Make_Vest")))}
-	for round := 0; round < 3*policy.OrphanGraceRounds; round++ {
+	for round := 1; round < policy.OrphanGraceRounds; round++ {
 		if r := f.round(); r.Plan != "" {
 			t.Fatalf("round %d committed %s", round, r.Plan)
 		}
 	}
+	removal := f.round()
+	if removal.Plan == "" {
+		t.Fatalf("orphan not removed after grace: %+v", removal.Verdict)
+	}
+	actions := f.settle(removal.Plan)
+	if len(actions) != 1 {
+		t.Fatalf("actions = %d", len(actions))
+	}
+	if r, ok := actions[0].RemoveProductionBill(); !ok || r.Bill() != "Bill_Hat" {
+		t.Fatalf("removal = %+v %v", r, ok)
+	}
 }
 
-// A bill the ledger itself placed (a migrated owner's, so removable in
-// general) is never removed when its recipe is declare-only: the surgery part,
+// A bill of a declare-only recipe kind is never removed: the surgery part,
 // medicine, baby food and mech gestation bills of #2604, however long the
 // planner has declared nothing. It also satisfies its declared order, so the
 // ledger does not place a second one.
@@ -392,7 +401,7 @@ func TestLedgerActionsClaimBenchesAndBills(t *testing.T) {
 	if _, removal := actions[0].RemoveProductionBill(); !removal {
 		t.Fatal("removals come first")
 	}
-	if got := strings.Join(claims, ","); got != "bench:Bench_2,stale-bill:Bill_9,bench:"+ledgerBench {
+	if got := strings.Join(claims, ","); got != "bench:Bench_2,remove-bill:Bill_9,bench:"+ledgerBench {
 		t.Fatalf("claims = %s", got)
 	}
 	ids := map[domain.ActionID]bool{}

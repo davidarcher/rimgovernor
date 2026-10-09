@@ -340,9 +340,8 @@ func TestGearModelMethodsUseNativeAdmissionAndModelGain(t *testing.T) {
 	v.Pawns[0].LoadoutModel = domain.Known(GearLoadoutInput{Female: true, Worn: []GearOption{worn}, Options: []GearOption{strong}})
 	v.Pawns[0].Candidates = domain.Known([]GearCandidate{})
 	r.Observation = domain.Known(v)
-	m, err = SelectGearMethod(r)
-	if err != nil || m.Kind != GearProduce || m.Need.Stuff != "Cloth" {
-		t.Fatal(m, err)
+	if got, err := DeclareGearOrders(r); err != nil || got.Abstain || len(got.Orders) != 1 || got.Orders[0].Ingredients[0] != "Cloth" {
+		t.Fatal(got, err)
 	}
 	if got, err := GearReplacementNeeds(r.Observation); err != nil || !reflect.DeepEqual(got, []Resource{"Parka"}) {
 		t.Fatal(got)

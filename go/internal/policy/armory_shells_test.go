@@ -52,28 +52,3 @@ func TestShellsShort(t *testing.T) {
 		t.Fatal("at half is not short")
 	}
 }
-
-func TestSelectShellBill(t *testing.T) {
-	t.Parallel()
-	recipe := func(def string, p Resource) GearRecipe {
-		return GearRecipe{Definition: def, Products: []Resource{p}, Available: domain.Known(true), AvailableOn: domain.Known(true)}
-	}
-	bench := GearBench{ID: "machining", Bills: domain.Known([]GearBill{}), Recipes: domain.Known([]GearRecipe{recipe("Make_Shell_HighExplosive", testShellHE), recipe("Make_Shell_Incendiary", testShellIncendiary)})}
-	targets := MortarShellTargets(1, ArmoryAssessment{Threat: ArmoryTierFabrication, Tier: ArmoryTierMachining}, testShells)
-	if _, ok := SelectShellBill([]GearBench{bench}, nil); ok {
-		t.Fatal("no targets must issue no bill")
-	}
-	got, ok := SelectShellBill([]GearBench{bench}, targets)
-	if !ok || got.Recipe != "Make_Shell_HighExplosive" || got.Target != 10 || got.Bench != "machining" {
-		t.Fatal("first bill", got, ok)
-	}
-	bench.Bills = domain.Known([]GearBill{{ID: "b1", Recipe: "Make_Shell_HighExplosive", Products: []Resource{testShellHE}}})
-	got, ok = SelectShellBill([]GearBench{bench}, targets)
-	if !ok || got.Recipe != "Make_Shell_Incendiary" || got.Target != 5 {
-		t.Fatal("second bill", got, ok)
-	}
-	bench.Bills = domain.Known([]GearBill{{Products: []Resource{testShellHE}}, {Products: []Resource{testShellIncendiary}}})
-	if got, ok := SelectShellBill([]GearBench{bench}, targets); ok {
-		t.Fatal("EMP has no recipe; nothing to bill", got)
-	}
-}

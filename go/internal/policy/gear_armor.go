@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"sort"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -117,65 +115,4 @@ func armoryArmorRungs(definition Resource, tier ArmoryTier) (rungs []Resource, o
 func ArmoryArmor(definition Resource) bool {
 	_, ok := armoryArmorRungs(definition, ArmoryTierFabrication)
 	return ok
-}
-
-// SelectArmoryArmorMethod proposes one demand-sized armor bill for the
-// loadout gaps the gear model filled from a bill. Each need is
-// capped at tier and falls back down its family's rungs to the best one a
-// bench recipe makes. The bill is placed with nothing in stock; its materials
-// become demand (OpenBillDemand). A pending wear candidate defers the bill.
-func SelectArmoryArmorMethod(r GearPlanningRequest, tier ArmoryTier) (GearMethod, error) {
-	review, err := ReviewGear(r.Observation)
-	if err != nil {
-		return GearMethod{}, err
-	}
-	if _, known := review.Recovered.Value(); !known || tier == ArmoryTierUnknown {
-		return GearMethod{Kind: GearUnknown}, nil
-	}
-	seen, err := gearSeen(r.Seen)
-	if err != nil {
-		return GearMethod{}, err
-	}
-	if err := validateGearProduction(nil); err != nil {
-		return GearMethod{}, err
-	}
-	v, _ := r.Observation.Value()
-	v = modeledGearObservation(v, review.Loadouts)
-	demand := map[Resource]int{}
-	for _, p := range v.Pawns {
-		if candidates, _ := p.Candidates.Value(); len(candidates) > 0 {
-			return GearMethod{Kind: GearBlocked}, nil
-		}
-		if p.Blocked {
-			continue
-		}
-		needs, _ := p.Replacements.Value()
-		for _, n := range needs {
-			if ArmoryArmor(n.Definition) {
-				demand[n.Definition]++
-			}
-		}
-	}
-	if len(demand) == 0 {
-		return GearMethod{Kind: GearRecovered}, nil
-	}
-	definitions := make([]Resource, 0, len(demand))
-	for d := range demand {
-		definitions = append(definitions, d)
-	}
-	sort.Slice(definitions, func(i, j int) bool { return definitions[i] < definitions[j] })
-	for _, d := range definitions {
-		rungs, _ := armoryArmorRungs(d, tier)
-		for _, rung := range rungs {
-			needs := make([]gearNeed, demand[d])
-			for i := range needs {
-				needs[i] = gearNeed{GearPawn{Pawn: "armor-batch", Loadout: "colony"}, GearReplacement{Definition: rung, Reason: "armory"}}
-			}
-			choice, err := produceGear(needs, v, review, seen, r)
-			if err != nil || choice.Kind != GearBlocked {
-				return choice, err
-			}
-		}
-	}
-	return GearMethod{Kind: GearBlocked}, nil
 }

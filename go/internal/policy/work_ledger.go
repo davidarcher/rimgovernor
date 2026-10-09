@@ -91,10 +91,6 @@ type ActualBill struct {
 	// Spent marks a finished bill: native does not count it as standing, so it
 	// never satisfies a wanted spec and is an orphan like any other.
 	Spent bool
-	// Migrated is whether the journal says a migrated owner placed the bill
-	// (LedgerMigratedOwner). Until the old bill machinery is deleted only such
-	// a bill can be an orphan: any other is kept, uncounted.
-	Migrated bool
 }
 
 // LedgerPlan is one Round's reconcile result. Orphans is the next Round's
@@ -127,8 +123,6 @@ func ReconcileLedger(declared []Declared, actual []ActualBill, orphans map[strin
 			matched[k]++
 			plan.Keep = append(plan.Keep, b)
 		case b.Kind != LedgerProduction:
-			plan.Keep = append(plan.Keep, b)
-		case !b.Migrated:
 			plan.Keep = append(plan.Keep, b)
 		case abstain:
 			plan.Keep = append(plan.Keep, b)

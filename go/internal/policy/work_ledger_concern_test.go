@@ -69,7 +69,7 @@ func TestOrderSpecKeyIsWireClass(t *testing.T) {
 
 func TestReconcileLedgerSpentBillNeverSatisfies(t *testing.T) {
 	spec := ledgerSpec("vest")
-	plan := ReconcileLedger([]Declared{{Orders: []OrderSpec{spec}}}, []ActualBill{{ID: "1", Bench: "b", Spec: spec, Spent: true, Migrated: true}}, nil, nil)
+	plan := ReconcileLedger([]Declared{{Orders: []OrderSpec{spec}}}, []ActualBill{{ID: "1", Bench: "b", Spec: spec, Spent: true}}, nil, nil)
 	if len(plan.Place) != 1 || len(plan.Keep) != 1 || plan.Orphans["1"] != 1 {
 		t.Fatalf("plan = %+v", plan)
 	}

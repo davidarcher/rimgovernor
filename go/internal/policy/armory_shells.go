@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"slices"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -59,56 +57,4 @@ func ShellsShort(targets []Amount, stock domain.Fact[map[Resource]int64]) domain
 		}
 	}
 	return domain.Known(false)
-}
-
-// ShellBill is one stock-target shell bill.
-type ShellBill struct {
-	Bench, Recipe string
-	Target        int64
-}
-
-// SelectShellBill picks the first target, in priority order, that no bench
-// bill already produces, on the first bench (by ID) with an available
-// recipe making it, whatever the stock: the bill's ingredients are demand. ok
-// is false when every shell has a bill or none can be made; unknown bench
-// rows count as unable.
-func SelectShellBill(benches []GearBench, targets []Amount) (ShellBill, bool) {
-	billed := map[Resource]bool{}
-	for _, b := range benches {
-		bills, _ := b.Bills.Value()
-		for _, bill := range bills {
-			for _, p := range bill.Products {
-				billed[p] = true
-			}
-		}
-	}
-	sorted := slices.Clone(benches)
-	slices.SortFunc(sorted, func(a, b GearBench) int {
-		if a.ID < b.ID {
-			return -1
-		}
-		if a.ID > b.ID {
-			return 1
-		}
-		return 0
-	})
-	for _, t := range targets {
-		if billed[t.Resource] || t.Count <= 0 {
-			continue
-		}
-		for _, b := range sorted {
-			recipes, known := b.Recipes.Value()
-			if !known {
-				continue
-			}
-			for _, r := range recipes {
-				available, ak := r.Available.Value()
-				on, ok := r.AvailableOn.Value()
-				if ak && available && ok && on && slices.Contains(r.Products, t.Resource) {
-					return ShellBill{Bench: b.ID, Recipe: r.Definition, Target: t.Count}, true
-				}
-			}
-		}
-	}
-	return ShellBill{}, false
 }

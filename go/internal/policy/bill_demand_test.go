@@ -47,9 +47,3 @@ func TestOpenBillDemandSumsBillsAndKeepsUnknownUnknown(t *testing.T) {
 		t.Fatalf("unknown census = %v", got)
 	}
 }
-
-func TestOpenBillExpired(t *testing.T) {
-	if OpenBillExpired(100, 100+OpenBillExpiry) || !OpenBillExpired(100, 101+OpenBillExpiry) || OpenBillExpired(500, 100) {
-		t.Fatal("expiry boundary")
-	}
-}

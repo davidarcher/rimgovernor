@@ -85,7 +85,7 @@ func TestBillMethodRefusesRepeatedBenchRecipe(t *testing.T) {
 }
 
 // A lost StockTarget bill is placed again by a later attempt method: the
-// accepted first placement left no claim behind.
+// accepted first placement is no obstacle.
 func TestLostStockTargetBillReplaces(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -105,9 +105,6 @@ func TestLostStockTargetBillReplaces(t *testing.T) {
 	}
 	if _, err := s.RecordReceipt(ctx, "attempt1", "attempt1-p0", 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
-	}
-	if claimed, err := s.BillClaimed(ctx, snap, "bench0", "Make_0"); err != nil || claimed {
-		t.Fatal("stock target bill left a claim", claimed, err)
 	}
 	g = batchGoal(t, s, &r)
 	second := batchPlan(t, "attempt2", domain.StockTarget, 1, 0)

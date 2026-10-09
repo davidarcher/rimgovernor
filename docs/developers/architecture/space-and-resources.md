@@ -84,22 +84,12 @@ open; the planners do not rank:
   measured by one stock reader (`policy.StockReader`). The review computes the
   demand and the Rounder keeps it in memory (empty until the first review after
   a restart).
-- Open-bill demand (`policy.OpenBillDemand`): the journal's open gear-batch bills
-  (bill filter, batch count, catalog slot counts) raise each slot's cheapest
-  filtered member where stock is short, merged into the construction demand. A
-  bill left undispatched for a day (`policy.OpenBillExpiry`, timed in memory) is
-  cancelled; its planner places it again while the need stands.
-- Stale finite bills (`policy.StaleBillReviews` = 4 reviews, counted in memory by
-  `staleBills`) are removed with `remove_production_bill`, journaled under the
-  owner's Standard, in two cases. An owner that stayed Met (equipment, art,
-  surgery) is filed Unmet for the bill. A bill outside what its owner currently
-  wants is removed whatever the owner's finding: gear and armory weapons judge
-  products against the loadout replacements and the weapon demand, art against
-  the qualifying artists (the pinned worker), surgery against the part demand.
-  The armory also removes hunter-weapon bills under the food Standard without
-  filing food Unmet. Gestation bills (`MaintainMechs`) are excluded from both: a
-  started gestation is the mech being formed, which the native handler cannot
-  see as work, and the owner reads Met for exactly that stretch.
+- Open-bill demand (`policy.OpenBillDemand`): the work ledger's declared gear-batch
+  orders (bill filter, batch count, catalog slot counts) raise each slot's cheapest
+  filtered member where stock is short, merged into the construction demand. An
+  order stands from its declaration, placed or not; an order no planner declares
+  any more is removed by the ledger after its grace rounds (the work ledger section
+  of `work-assignment.md`).
 
 Higher-priority urgent work (`policy.RemoteCompetition`) holds acquisition in the
 plan (`UrgentPriority`); remote loot and salvage rank through the recovery queue

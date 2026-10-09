@@ -310,7 +310,6 @@ type GearMethod struct {
 	Need            GearReplacement
 	Bench, Recipe   string
 	Filter          []Resource
-	RequiredWork    []WorkRequirement
 	// Bill is the standing bill a GearWait found already making Need.
 	Bill GearBill
 }
@@ -322,9 +321,6 @@ type GearBill struct {
 	// Worker is the pinned pawn, known "" when unrestricted.
 	Worker   domain.Fact[string]
 	Products []Resource
-	// Finite is whether the bill repeats a count (neither Forever nor a
-	// stock target), the only bills a stale-bill removal may name.
-	Finite domain.Fact[bool]
 	// Spec is the bill as the work ledger identifies it (recipe, ingredient
 	// filter, worker pin, wire mode and count, bench definition); unknown
 	// when the readback lacked the repeat mode or count.
@@ -412,9 +408,8 @@ func containsResource(values []Resource, want Resource) bool {
 	return false
 }
 
-// SelectGearMethod proposes one exact replacement or one demand-sized bill.
-// It issues no game orders and does not reserve resources. The shared method
-// admission must recheck these costs against concurrent plans before committing.
+// SelectGearMethod proposes one exact replacement: wearing an item already
+// observed. Crafting is the ledger's (DeclareGearOrders).
 func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 	review, err := ReviewGear(r.Observation)
 	if err != nil {
@@ -427,17 +422,14 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 		return GearMethod{Kind: GearRecovered}, nil
 	}
 	v, _ := r.Observation.Value()
-	return selectGear(r, review, modeledGearObservation(v, review.Loadouts))
+	return selectGear(r, modeledGearObservation(v, review.Loadouts))
 }
 
 // selectGear chooses the method for a census already projected from the
 // loadout model (modeledGearObservation).
-func selectGear(r GearPlanningRequest, review GearReview, v GearObservation) (GearMethod, error) {
+func selectGear(r GearPlanningRequest, v GearObservation) (GearMethod, error) {
 	seen, err := gearSeen(r.Seen)
 	if err != nil {
-		return GearMethod{}, err
-	}
-	if err := validateGearProduction(nil); err != nil {
 		return GearMethod{}, err
 	}
 	type choice struct {
@@ -445,10 +437,8 @@ func selectGear(r GearPlanningRequest, review GearReview, v GearObservation) (Ge
 		candidate GearCandidate
 	}
 	choices := []choice{}
-	existing := false
 	for _, p := range v.Pawns {
 		candidates, _ := p.Candidates.Value()
-		existing = existing || len(candidates) > 0
 		if !p.Blocked {
 			for _, c := range candidates {
 				choices = append(choices, choice{p, c})
@@ -471,26 +461,7 @@ func selectGear(r GearPlanningRequest, review GearReview, v GearObservation) (Ge
 			return GearMethod{Kind: GearReplace, ID: id, Pawn: c.pawn.Pawn, Loadout: c.pawn.Loadout, Target: c.candidate.Target}, nil
 		}
 	}
-	if existing {
-		return GearMethod{Kind: GearBlocked}, nil
-	}
-	needs := []gearNeed{}
-	for _, p := range v.Pawns {
-		if p.Blocked {
-			continue
-		}
-		ns, known := p.Replacements.Value()
-		if !known {
-			return GearMethod{Kind: GearUnknown}, nil
-		}
-		for _, n := range ns {
-			// The armory crafts body armor and helmets.
-			if !ArmoryArmor(n.Definition) {
-				needs = append(needs, gearNeed{p, n})
-			}
-		}
-	}
-	return produceGear(needs, v, review, seen, r)
+	return GearMethod{Kind: GearBlocked}, nil
 }
 
 // gearSeen indexes a goal's method history, refusing a malformed one.
@@ -510,34 +481,6 @@ func gearSeen(ids []domain.MethodID) (map[domain.MethodID]bool, error) {
 type gearNeed struct {
 	pawn GearPawn
 	need GearReplacement
-}
-
-// produceGear proposes one demand-sized bill for the first need a funded
-// recipe covers after netting stored stock, or waits on an existing bill.
-func produceGear(needs []gearNeed, v GearObservation, review GearReview, seen map[domain.MethodID]bool, r GearPlanningRequest) (GearMethod, error) {
-	if len(needs) == 0 {
-		return GearMethod{Kind: GearBlocked}, nil
-	}
-	sortGearNeeds(needs)
-	benches, demand, known, err := gearProductionDemand(needs, v, review, r)
-	if err != nil || !known {
-		return GearMethod{Kind: GearUnknown}, err
-	}
-	for _, n := range needs {
-		count := demand[gearStockKey{n.need.Definition, n.need.Stuff}]
-		if count == 0 {
-			continue
-		}
-		id := gearMethodID("produce", n.pawn, "", n.need)
-		if seen[id] {
-			return GearMethod{Kind: GearWait, ID: id, Pawn: n.pawn.Pawn, Loadout: n.pawn.Loadout, Need: n.need}, nil
-		}
-		method, resolved, err := produceNeed(n, count, benches, r)
-		if err != nil || resolved {
-			return method, err
-		}
-	}
-	return GearMethod{Kind: GearBlocked}, nil
 }
 
 // gearProductionDemand is the bench census sorted by id and, per definition
@@ -616,8 +559,7 @@ func produceNeed(n gearNeed, count int, benches []GearBench, r GearPlanningReque
 			if !ak || !ok {
 				return GearMethod{Kind: GearUnknown}, true, nil
 			}
-			work, known := recipe.RequiredWork.Value()
-			if !known {
+			if _, known := recipe.RequiredWork.Value(); !known {
 				return GearMethod{Kind: GearUnknown}, true, nil
 			}
 			slots, known := recipe.Ingredients.Value()
@@ -626,8 +568,7 @@ func produceNeed(n gearNeed, count int, benches []GearBench, r GearPlanningReque
 			}
 			slots = gearBatchIngredients(slots, count)
 			if filter, ok := gearFilter(slots, n.need.Stuff, r.StuffCategories); ok {
-				id := gearMethodID("produce", n.pawn, "", n.need)
-				return GearMethod{Kind: GearProduce, Count: int32(count), ID: id, Pawn: n.pawn.Pawn, Loadout: n.pawn.Loadout, Need: n.need, Bench: b.ID, Recipe: recipe.Definition, Filter: filter, RequiredWork: append([]WorkRequirement(nil), work...)}, true, nil
+				return GearMethod{Kind: GearProduce, Count: int32(count), Bench: b.ID, Recipe: recipe.Definition, Filter: filter}, true, nil
 			}
 		}
 	}

@@ -75,10 +75,6 @@ type Rounder struct {
 	// firstSeen is the per-world first-seen record of humanlike pawns:
 	// derived, in memory only, empty after a restart.
 	firstSeen observation.FirstSeenRecord
-	// billAges times the undispatched gear bills toward their expiry.
-	billAges billAges
-	// staleBills counts the reviews each finite bill's owner stayed Met.
-	staleBills staleBills
 	// ledger is the work ledger's memory: declarers, orphan counters and the
 	// latest reconcile plan.
 	ledger workLedger
@@ -743,16 +739,11 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		}
 	}
 	reading.Projection.Facts.AvailableMethods = r.methods
-	staleCandidates, err := r.staleBillCandidates(ctx, state.Snapshot, expected, previous)
-	if err != nil {
-		return store.RoundsResult{}, err
-	}
-	reading.Projection.Facts.StaleBills = r.staleBills.stale(staleCandidates)
-	if reading.Projection.Facts.LedgerOwed, err = r.reviewLedger(ctx, state.Snapshot, expected, previous, reading.Projection); err != nil {
+	if reading.Projection.Facts.LedgerOwed, err = r.reviewLedger(ctx, state.Snapshot, expected, reading.Projection); err != nil {
 		return store.RoundsResult{}, err
 	}
 	// The ledger's declared batches are read after the declaration above.
-	reading.Projection.Facts.OpenBills, err = r.openBills(ctx, state.Snapshot, reading.Projection.Identity.Tick, plans)
+	reading.Projection.Facts.OpenBills, err = r.openBills(ctx, state.Snapshot)
 	if err != nil {
 		return store.RoundsResult{}, err
 	}
@@ -762,7 +753,6 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	r.planFoodAcquisition(ctx, state.Snapshot, reading.Projection)
 	result, err := p.journal.ReviewRounds(ctx, store.RoundsRequest{Revision: previous.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts})
 	if err == nil {
-		r.staleBills.observe(staleCandidates, result.Needs.Assessments)
 		r.demand.set(result.Review.Snapshot, result.Needs.ResourceDemand)
 		clockEvent(ctx, "routine", "rounds_review", "rounds ran", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "concerns", len(result.Standards) + len(result.Projects), "emergency", roundsEmergencyNames(result.Emergency)}, roundsStageAttrs(result.Review.Stage)...), roundsFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
 		r.logColonyStage(ctx, result.Review)

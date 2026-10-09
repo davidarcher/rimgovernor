@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"errors"
 	"math"
 	"sort"
 
@@ -102,48 +101,6 @@ func AssessArmory(raidPoints domain.Fact[float64], research domain.Fact[Research
 	a := ArmoryAssessment{Threat: ArmoryThreatTier(raidPoints), Research: ArmoryResearchTier(research)}
 	a.Tier = min(a.Threat, a.Research)
 	return a
-}
-
-// SelectArmoryMethod proposes one demand-sized weapon bill for the colonists
-// no loose weapon arms: the armory owns military crafting, the gear
-// planner only wears and replaces. weapons is ArmoryWeaponDemand. A
-// pending wear candidate defers the bill, as gear always wears an existing
-// item before anything is crafted.
-func SelectArmoryMethod(r GearPlanningRequest, weapons []Amount) (GearMethod, error) {
-	review, err := ReviewGear(r.Observation)
-	if err != nil {
-		return GearMethod{}, err
-	}
-	if _, known := review.Recovered.Value(); !known {
-		return GearMethod{Kind: GearUnknown}, nil
-	}
-	if len(weapons) == 0 {
-		return GearMethod{Kind: GearRecovered}, nil
-	}
-	seen, err := gearSeen(r.Seen)
-	if err != nil {
-		return GearMethod{}, err
-	}
-	if err := validateGearProduction(nil); err != nil {
-		return GearMethod{}, err
-	}
-	v, _ := r.Observation.Value()
-	v = modeledGearObservation(v, review.Loadouts)
-	for _, p := range v.Pawns {
-		if candidates, _ := p.Candidates.Value(); len(candidates) > 0 {
-			return GearMethod{Kind: GearBlocked}, nil
-		}
-	}
-	needs := []gearNeed{}
-	for _, d := range weapons {
-		if !validResource(d.Resource) || d.Count <= 0 || d.Count > 256 {
-			return GearMethod{}, errors.New("invalid weapon demand")
-		}
-		for i := int64(0); i < d.Count; i++ {
-			needs = append(needs, gearNeed{GearPawn{Pawn: "weapon-batch", Loadout: "colony"}, GearReplacement{Definition: d.Resource, Reason: "unarmed"}})
-		}
-	}
-	return produceGear(needs, v, review, seen, r)
 }
 
 // armoryWeaponTiers is the ladder rung each modelled weapon sits on:

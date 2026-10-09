@@ -13,7 +13,7 @@ import (
 // the census is read without its bills, so the same selection that once chose
 // the next bill to place now chooses the order that should stand, every Round.
 // A bill that already does the work is declared as it stands (adequateOrder),
-// which keeps it; any other food bill of a migrated owner is an orphan.
+// which keeps it; any other food bill is an orphan.
 
 // FoodOrderGap says why a food declaration chose no order.
 type FoodOrderGap string

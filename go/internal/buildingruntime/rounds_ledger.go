@@ -26,8 +26,6 @@ import (
 // stops orphan removal for that Round. It writes nothing; a facts-only native
 // read for what the projection lacks is allowed, and a read that fails is an
 // abstain, not an error.
-//
-// A planner joins policy.LedgerMigratedOwner in the change that registers it.
 type OrderDeclarer interface {
 	DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error)
 }
@@ -90,7 +88,7 @@ func (r *Rounder) AddOrderDeclarer(d OrderDeclarer) {
 // declarations, reads every bench's bills through the bench census, reconciles
 // them and keeps the plan for the ledger planner. The finding is the diff:
 // owed while it places or removes anything, unknown when the readback is.
-func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSnapshot, expected observation.Identity, review store.Rounds, projection observation.ColonyProjection) (domain.Fact[bool], error) {
+func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSnapshot, expected observation.Identity, projection observation.ColonyProjection) (domain.Fact[bool], error) {
 	l := &r.ledger
 	l.mu.Lock()
 	declarers := append([]OrderDeclarer(nil), l.declarers...)
@@ -129,11 +127,6 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 		declared = append(declared, one)
 	}
 	actual, known := policy.LedgerActuals(benches)
-	if known {
-		if err = r.markMigrated(ctx, snapshot, review, actual); err != nil {
-			return domain.Unknown[bool](), err
-		}
-	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.noteBatches(declared)
@@ -251,7 +244,7 @@ func (l *RoundsLedgerPlanner) step(call, epoch context.Context, arbiter *stepArb
 // ledgerActions builds the plan's actions, removals first so their slots free
 // before the placements, at most store.MaxBillPlanActions of them (the rest is
 // next Round's diff). The claims are every bench the plan touches and the id
-// of each bill it removes, the key removeStaleBill claims by. The key names
+// of each bill it removes. The key names
 // the plan's content for its method id.
 func ledgerActions(plan domain.PlanID, p *ledgerPending) (actions []domain.Action, claims []string, key string, _ error) {
 	seen := map[string]bool{}
@@ -276,7 +269,7 @@ func ledgerActions(plan domain.PlanID, p *ledgerPending) (actions []domain.Actio
 		}
 		actions = append(actions, action)
 		claim("bench:" + b.Bench)
-		claim("stale-bill:" + b.ID)
+		claim("remove-bill:" + b.ID)
 		keys = append(keys, "remove/"+b.Bench+"/"+b.ID)
 	}
 	for _, placement := range p.place {

@@ -192,9 +192,6 @@ func gearBillsFromStack(stack *o.BillStack, benchDef string, recipes []policy.Ge
 		if bill.Suspended != nil && bill.Finished != nil {
 			row.Active = domain.Known(!bill.GetSuspended() && !bill.GetFinished())
 		}
-		if bill.RepeatMode != nil {
-			row.Finite = domain.Known(RepeatModeName(bill.GetRepeatMode()) == "RepeatCount")
-		}
 		// An unrestricted bill carries no worker reference.
 		if optionalRef(bill.Worker) {
 			row.Worker = domain.Known(bill.GetWorker().GetId())

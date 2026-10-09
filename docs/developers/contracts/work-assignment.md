@@ -363,10 +363,9 @@ reason, also `no_bench` when the model wants more benches than exist and
 `bench_slots_full` for an unplaced copy with capable benches), the demand signal the
 facilities ladder reads. A finished bill is spent and never satisfies an order.
 
-Orphan removal covers only bills the journal (`store.PlacedBills`) says a migrated
-owner placed (`policy.LedgerMigratedOwner` sets `ActualBill.Migrated`): a bill an
-unmigrated owner placed, one no plan placed and a player's are kept until the
-cleanup child (#2605). The first migration (#2597) is `MaintainEquipment`:
+Orphan removal covers every bill of a production recipe kind: one no plan placed (a
+player's, or placed before a restart) is an orphan like any other, and the journal
+keeps no placement record. The first migration (#2597) is `MaintainEquipment`:
 `RoundsGearPlanner` declares the apparel batches and `RoundsArmoryPlanner` the
 weapon batches, armor ladder and mortar-shell stock (`policy.DeclareGearOrders`,
 `DeclareArmoryOrders`); both keep only their non-bill work (wear orders, apparel
@@ -382,9 +381,8 @@ MaintainMedicalReserves' stock-target medicine bill (`policy.DeclareMedicine`) a
 (`policy.DeclareSelection` over the unchanged selectors), each only while its concern
 is workable; the old `RoundsBillPlanner` purposes are deleted. These bills are
 placed and kept but never removed in the first pass (a gestation bill is the mech
-being formed, a part or medicine bill serves a patient). `LedgerMigratedOwner` is
-unchanged: a bill the ledger places is owned by `MaintainWorkLedger` and so would be
-removable, so removability is decided by the recipe instead. The bench census sets
+being formed, a part or medicine bill serves a patient). Removability is
+decided by the recipe kind, not by who placed the bill. The bench census sets
 `GearBill.Kind` from `DefinitionCatalog.RecipeLedgerKind` (mech gestation, medicine,
 a body part item, baby-edible food), restart-safe, and `ReconcileLedger` keeps such
 a bill whatever its owner while still letting it satisfy a declared order. The census
@@ -395,7 +393,7 @@ and the replacement of an inadequate baby food bill (an adequate new bill is pla
 beside it), both waiting for orphan removal of these kinds.
 
 The food bills (#2602) are the second migration: `EnsureCooking`, `MaintainFoodStorage`,
-`EnsureFoodSupply` and `MaintainRefrigeration` are migrated owners. The cooking,
+`EnsureFoodSupply` and `MaintainRefrigeration` declare to the ledger. The cooking,
 reserve (preserve), butcher and cook-ahead `RoundsBillPlanner`s and the food-storage
 upkeep planner declare through `policy.DeclareFoodOrders` (`food_orders.go`): the
 same selectors that once chose the next bill now run over the bench census read

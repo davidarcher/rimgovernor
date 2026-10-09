@@ -17,29 +17,16 @@ func TestGearBatchNetsStoredMaterialAndQuality(t *testing.T) {
 	}
 	v.Stored = domain.Known([]GearStock{{"Parka", "Cloth", 2, 9, 1}, {"Parka", "Cloth", 1, 9, 8}, {"Parka", "Synthread", 2, 9, 8}})
 	r.Observation = domain.Known(v)
-	m, err := SelectGearMethod(r)
-	if err != nil || m.Kind != GearProduce || m.Count != 3 || !reflect.DeepEqual(m.Filter, []Resource{"Cloth"}) {
+	r = withBenchDef(r, "TableTailor")
+	m, err := DeclareGearOrders(r)
+	if err != nil || m.Abstain || len(m.Orders) != 1 || m.Orders[0].Target != 3 || !reflect.DeepEqual(m.Orders[0].Ingredients, []string{"Cloth"}) {
 		t.Fatal(m, err)
 	}
 	v.Stored = domain.Known([]GearStock{{"Parka", "Cloth", 2, 9, 4}})
 	r.Observation = domain.Known(v)
-	m, err = SelectGearMethod(r)
-	if err != nil || m.Kind == GearProduce {
+	m, err = DeclareGearOrders(r)
+	if err != nil || len(m.Orders) != 0 {
 		t.Fatal("stored items produced twice", m, err)
-	}
-}
-
-func TestGearWeaponBatch(t *testing.T) {
-	r := gearModelFixture()
-	v, _ := r.Observation.Value()
-	v.Pawns[0] = gearDressedPawn("pawn", loadoutOption("Parka", GearSkinTorso))
-	r.Observation = domain.Known(v)
-	if m, err := SelectGearMethod(r); err != nil || m.Kind == GearProduce {
-		t.Fatal("gear planned weapon work", m, err)
-	}
-	m, err := SelectArmoryMethod(r, []Amount{{"Parka", 3}})
-	if err != nil || m.Kind != GearProduce || m.Count != 3 {
-		t.Fatal(m, err)
 	}
 }
 

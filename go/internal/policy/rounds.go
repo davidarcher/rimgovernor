@@ -278,9 +278,6 @@ type RoundsFacts struct {
 	// free cell for a sculpture (SculptureRoomsOwed); with a
 	// qualifying artist it holds MaintainArt open.
 	SculptureRoomsOwed domain.Fact[bool]
-	// StaleBills are the bills whose owner stayed Met for StaleBillReviews
-	// reviews; assess files that owner Unmet so its planner removes them.
-	StaleBills []StaleBill `json:",omitempty"`
 	// LedgerOwed: the work ledger's reconcile diff is non-empty
 	// (LedgerDiffOwed); it holds MaintainWorkLedger open. Unknown unless the
 	// ledger has declarers and read every bench's bills.
@@ -722,9 +719,6 @@ type RoundsAssessment struct {
 	// resume, which parked a power enclosure build behind an unfought
 	// short-circuit fire.
 	MethodUnavailable bool
-	// StaleBill marks a Met owner filed Unmet because a bill it placed went
-	// stale; the Rounder counts such an owner as Met.
-	StaleBill bool `json:",omitempty"`
 	// Hunt is the squad prey of an ActiveCombat deficit raised by the food
 	// plan with no hostile standing: the incident's hunt origin.
 	Hunt []domain.PawnID `json:",omitempty"`

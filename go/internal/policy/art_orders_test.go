@@ -54,9 +54,6 @@ func TestDeclareArtOrdersDropsASculptureOfAFormerArtist(t *testing.T) {
 	if !known {
 		t.Fatal("benches unread")
 	}
-	for i := range actual {
-		actual[i].Migrated = LedgerMigratedOwner(MaintainArt)
-	}
 	orphans := map[string]int{}
 	var plan LedgerPlan
 	for round := 0; round < OrphanGraceRounds; round++ {
@@ -89,32 +86,6 @@ func TestDeclareArtOrdersFollowsTheNeed(t *testing.T) {
 	request.Demand.Sale, request.Demand.Stock, request.Demand.Skill = true, map[Resource]int64{"Gold": 200, "Steel": 1000}, map[PawnID]int{"a": 8}
 	if got := DeclareArtOrders(request); len(got.Orders) != 1 || got.Orders[0].Worker != "a" || got.Orders[0].BenchKind != artBenchKind {
 		t.Fatalf("sale: %+v", got)
-	}
-}
-
-// A bill an unmigrated owner placed is kept however long no planner declares
-// it; the same bill under a migrated owner is an orphan.
-func TestLedgerKeepsAnUnmigratedOwnersBill(t *testing.T) {
-	benches := artGearBench(sculptureBill("Bill_x", "x", true))
-	actual, _ := LedgerActuals(benches)
-	for _, owner := range []ConcernID{MaintainSurgery, MaintainMechs, MaintainBabyFeeding} {
-		if LedgerMigratedOwner(owner) {
-			t.Fatalf("%s is not migrated", owner)
-		}
-	}
-	for _, owner := range []ConcernID{MaintainArt, MaintainPopulation, MaintainResource, EnsureCooking, MaintainFoodStorage, EnsureFoodSupply, MaintainRefrigeration} {
-		if !LedgerMigratedOwner(owner) {
-			t.Fatalf("%s is migrated", owner)
-		}
-	}
-	orphans := map[string]int{}
-	for round := 0; round < 3*OrphanGraceRounds; round++ {
-		actual[0].Migrated = LedgerMigratedOwner(MaintainSurgery)
-		plan := ReconcileLedger([]Declared{{}}, actual, orphans, nil)
-		orphans = plan.Orphans
-		if len(plan.Remove) != 0 {
-			t.Fatalf("round %d removed an unmigrated owner's bill", round)
-		}
 	}
 }
 

@@ -45,8 +45,7 @@ func TestDeclareMedicine(t *testing.T) {
 }
 
 // A bill of a declare-only kind is never an orphan, whoever placed it and
-// however long it has gone undeclared, and an unmigrated owner's bill is kept
-// whatever its kind: removal is only ever for a migrated owner's production
+// however long it has gone undeclared: removal is only ever for a production
 // bill.
 func TestDeclareOnlyBillsAreNeverRemoved(t *testing.T) {
 	spec := OrderSpec{Recipe: "Make_X", Mode: domain.StockTarget, Target: 3, BenchKind: "B"}
@@ -55,20 +54,20 @@ func TestDeclareOnlyBillsAreNeverRemoved(t *testing.T) {
 	orphans := map[string]int{}
 	for i, k := range kinds {
 		id := string(k)
-		actual = append(actual, ActualBill{ID: id, Bench: "b", Kind: k, Spec: spec, Migrated: true}, ActualBill{ID: id + "-spent", Bench: "b", Kind: k, Spec: spec, Migrated: true, Spent: true})
+		actual = append(actual, ActualBill{ID: id, Bench: "b", Kind: k, Spec: spec}, ActualBill{ID: id + "-spent", Bench: "b", Kind: k, Spec: spec, Spent: true})
 		orphans[id], orphans[id+"-spent"] = OrphanGraceRounds*10+i, OrphanGraceRounds*10
 	}
-	actual = append(actual, ActualBill{ID: "legacy", Bench: "b", Spec: spec}, ActualBill{ID: "ledger", Bench: "b", Spec: spec, Migrated: true})
-	orphans["legacy"], orphans["ledger"] = OrphanGraceRounds*10, OrphanGraceRounds*10
+	actual = append(actual, ActualBill{ID: "ledger", Bench: "b", Spec: spec})
+	orphans["ledger"] = OrphanGraceRounds * 10
 	for rounds := 0; rounds < 2*OrphanGraceRounds; rounds++ {
 		plan := ReconcileLedger(nil, actual, orphans, nil)
 		for _, b := range plan.Remove {
 			if b.ID != "ledger" {
-				t.Fatalf("round %d removed %s (%s), only a migrated production orphan may go", rounds, b.ID, b.Kind)
+				t.Fatalf("round %d removed %s (%s), only a production orphan may go", rounds, b.ID, b.Kind)
 			}
 		}
 		if rounds == 0 && len(plan.Remove) != 1 {
-			t.Fatalf("the control (a migrated production orphan) was not removed: %+v", plan.Remove)
+			t.Fatalf("the control (a production orphan) was not removed: %+v", plan.Remove)
 		}
 		orphans = plan.Orphans
 	}

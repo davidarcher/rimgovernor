@@ -6,18 +6,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// OpenBillExpiry is how long a journaled bill may wait undispatched before
-// the review cancels it: the need that placed it may be gone (its colonist
-// died), native has no stock check to retire it, and a bill still wanted is
-// placed again by its planner.
-const OpenBillExpiry = domain.Tick(domain.TicksPerDay)
-
-// OpenBillExpired reports whether a bill admitted at admitted has waited
-// longer than OpenBillExpiry at now.
-func OpenBillExpired(admitted, now domain.Tick) bool {
-	return now > admitted && now-admitted > OpenBillExpiry
-}
-
 // OpenBill is one open production bill of the journal: its recipe, the batch
 // count, the bill's ingredient filter (the loadout's stuff and the
 // substitutes the planner treats as equivalent; empty allows every member)
@@ -82,51 +70,4 @@ func (b OpenBill) picks() []Amount {
 		}
 	}
 	return out
-}
-
-// StaleBillReviews is how many consecutive reviews a finite bill's owner
-// must stay Met before the bill is stale; a restart restarts the count.
-const StaleBillReviews = 4
-
-// StaleBill is a finite (gear_batch) bill still on its bench whose journaled
-// owner placed it: the id RemoveProductionBill names. Products and Worker are
-// the bench census's read of the bill, what an owner's wanted set is matched
-// against; Worker is "" unless the census knew the pinned colonist.
-type StaleBill struct {
-	Owner     ConcernID
-	Bench, ID string
-	Products  []Resource
-	Worker    string
-}
-
-// UnwantedBillOwner reports whether id's planners remove a bill that matches
-// nothing the owner currently wants, whatever its finding: the owners
-// of StaleBillOwner plus EnsureFoodSupply, whose hunter-weapon bills the armory
-// planner removes under the food Standard without filing it Unmet.
-//
-// MaintainMechs is excluded from both rules. A gestation is a Bill_Mech: once
-// a gestator starts it the bill is the mech being formed, which neither a pawn
-// job nor an unfinished item shows the native handler, so removing it destroys
-// the mech; and MechGestationOwed reads not-owed for exactly that stretch, so
-// the owner stays Met while the bill is legitimately working and a Met-streak
-// rule would name it stale mid-gestation.
-func UnwantedBillOwner(id ConcernID) bool {
-	return StaleBillOwner(id) || id == EnsureFoodSupply
-}
-
-// StaleBillOwner reports whether id is filed Unmet for a bill it placed once it
-// stayed Met for StaleBillReviews. EnsureFoodSupply is excluded:
-// filing it Unmet would start the food machinery.
-func StaleBillOwner(id ConcernID) bool {
-	return id == MaintainEquipment || id == MaintainArt || id == MaintainSurgery
-}
-
-// HasStaleBill reports whether any of bills belongs to owner.
-func HasStaleBill(bills []StaleBill, owner ConcernID) bool {
-	for _, b := range bills {
-		if b.Owner == owner {
-			return true
-		}
-	}
-	return false
 }

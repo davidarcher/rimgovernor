@@ -45,7 +45,7 @@ type reconcileCase struct {
 func TestReconcileLedger(t *testing.T) {
 	vest, hat := ledgerSpec("vest"), ledgerSpec("hat")
 	bill := func(id string, s OrderSpec, k LedgerBillKind) ActualBill {
-		return ActualBill{ID: id, Bench: "b1", Kind: k, Spec: s, Migrated: true}
+		return ActualBill{ID: id, Bench: "b1", Kind: k, Spec: s}
 	}
 	want := func(o ...OrderSpec) []Declared { return []Declared{{Orders: o}} }
 	last := OrphanGraceRounds - 1
@@ -61,17 +61,12 @@ func TestReconcileLedger(t *testing.T) {
 		{name: "duplicate of a wanted spec is an orphan", declared: want(vest), actual: []ActualBill{bill("1", vest, LedgerProduction), bill("2", vest, LedgerProduction)}, in: map[string]int{"2": last}, keep: []string{"1"}, remove: []string{"2"}, out: map[string]int{}},
 		{name: "redeclared orphan resets", declared: want(vest), actual: []ActualBill{bill("1", vest, LedgerProduction)}, in: map[string]int{"1": 2}, keep: []string{"1"}, out: map[string]int{}},
 	}
-	foreign := ActualBill{ID: "9", Bench: "b1", Spec: vest}
-	tests = append(tests,
-		reconcileCase{name: "unmigrated owner's bill is kept and never counted", declared: want(), actual: []ActualBill{foreign}, in: map[string]int{"9": 99}, keep: []string{"9"}, out: map[string]int{}},
-		reconcileCase{name: "unmigrated duplicate of a wanted spec is kept", declared: want(vest), actual: []ActualBill{bill("1", vest, LedgerProduction), foreign}, keep: []string{"1", "9"}, out: map[string]int{}},
-	)
 	for _, k := range []LedgerBillKind{LedgerMechGestation, LedgerSurgery, LedgerMedical, LedgerBabyFood} {
 		tests = append(tests,
 			reconcileCase{name: "excluded " + string(k) + " never removed", declared: want(), actual: []ActualBill{bill("1", vest, k)}, in: map[string]int{"1": 99}, keep: []string{"1"}, out: map[string]int{}},
 			reconcileCase{name: "excluded " + string(k) + " never removed as a duplicate", declared: want(vest), actual: []ActualBill{bill("1", vest, LedgerProduction), bill("2", vest, k)}, in: map[string]int{"2": 99}, keep: []string{"1", "2"}, out: map[string]int{}},
 			reconcileCase{name: "excluded " + string(k) + " satisfies its declared order", declared: want(vest), actual: []ActualBill{bill("1", vest, k)}, keep: []string{"1"}, out: map[string]int{}},
-			reconcileCase{name: "spent excluded " + string(k) + " is kept and does not satisfy", declared: want(vest), actual: []ActualBill{{ID: "1", Bench: "b1", Kind: k, Spec: vest, Migrated: true, Spent: true}}, in: map[string]int{"1": 99}, place: []OrderSpec{vest}, keep: []string{"1"}, out: map[string]int{}},
+			reconcileCase{name: "spent excluded " + string(k) + " is kept and does not satisfy", declared: want(vest), actual: []ActualBill{{ID: "1", Bench: "b1", Kind: k, Spec: vest, Spent: true}}, in: map[string]int{"1": 99}, place: []OrderSpec{vest}, keep: []string{"1"}, out: map[string]int{}},
 		)
 	}
 	for _, tc := range tests {
@@ -94,7 +89,7 @@ func TestReconcileLedger(t *testing.T) {
 // An undeclared bill survives until it has been undeclared for the whole
 // grace period of consecutive Rounds, feeding each Round's counters forward.
 func TestReconcileLedgerGraceAcrossRounds(t *testing.T) {
-	actual := []ActualBill{{ID: "1", Spec: ledgerSpec("vest"), Migrated: true}}
+	actual := []ActualBill{{ID: "1", Spec: ledgerSpec("vest")}}
 	counters := map[string]int(nil)
 	for round := 1; round < OrphanGraceRounds; round++ {
 		plan := ReconcileLedger(nil, actual, counters, nil)

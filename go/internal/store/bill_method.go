@@ -12,11 +12,6 @@ import (
 // MaxBillPlanActions bounds one batched bill plan to a Round's reconcile.
 const MaxBillPlanActions = 64
 
-// billModeClaims reports whether a bill of the mode records a durable
-// bench+recipe claim. The ledger owns the standing and target modes, which
-// native readback re-places, so only the human butcher bill still claims.
-func billModeClaims(m domain.BillMode) bool { return m == domain.HumanButcherForever }
-
 func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
 	has := false
 	for _, a := range plan.Actions() {
@@ -56,52 +51,6 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 			return fmt.Errorf("%w: bill method mixes action kinds or repeats a bench and recipe", ErrConflict)
 		}
 		placed[key] = true
-		if !billModeClaims(b.Mode()) {
-			continue
-		}
-		var n int
-		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM bill_claims WHERE colony=? AND load_token=? AND map_id=? AND bench=? AND recipe=?", owner.ownerSnapshot().Colony, owner.ownerSnapshot().Load, owner.ownerSnapshot().Map, b.Bench(), b.ClaimRecipe()).Scan(&n); err != nil {
-			return err
-		}
-		if n != 0 && b.Replaces() == "" {
-			return fmt.Errorf("%w: bench %s already has a claimed %s bill", ErrConflict, b.Bench(), b.Recipe())
-		}
 	}
 	return nil
-}
-
-func (s *Store) BillClaimed(ctx context.Context, current domain.GenerationSnapshot, bench, recipe string) (bool, error) {
-	if current.Validate() != nil || submissionID(bench) != nil || submissionID(recipe) != nil {
-		return false, ErrConflict
-	}
-	var count int
-	err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM bill_claims WHERE colony=? AND load_token=? AND map_id=? AND bench=? AND recipe=?", current.Colony, current.Load, current.Map, bench, recipe).Scan(&count)
-	return count != 0, err
-}
-
-// BillPending reports an unfinished bill on an unretired plan for the bench and recipe.
-// Claims are recorded after receipts, so pending plans must also prevent two planners from
-// selecting the same bench token.
-func (s *Store) BillPending(ctx context.Context, bench, recipe string) (bool, error) {
-	if submissionID(bench) != nil || submissionID(recipe) != nil {
-		return false, ErrConflict
-	}
-	plans, err := s.LoadPlans(ctx)
-	if err != nil {
-		return false, err
-	}
-	for _, plan := range plans {
-		for i, a := range plan.Spec.Actions() {
-			b, ok := a.ProductionBill()
-			if !ok || b.Bench() != bench || b.Recipe() != recipe || i >= len(plan.Progress) {
-				continue
-			}
-			switch plan.Progress[i].View().Stage {
-			case domain.Completed, domain.Cancelled, domain.Unsuccessful:
-			default:
-				return true, nil
-			}
-		}
-	}
-	return false, nil
 }

@@ -162,8 +162,8 @@ func TestSnapshotApparelBuildsBenchThenProducesShirt(t *testing.T) {
 		census.Pawns[i].LoadoutModel = domain.Known(policy.GearLoadoutInput{Female: true, Options: options})
 	}
 	gearReq.Observation = domain.Known(census)
-	method, err := policy.SelectGearMethod(gearReq)
-	if err != nil || method.Kind != policy.GearProduce || method.Bench == "" || method.Recipe != "Make_Apparel_BasicShirt" {
-		t.Fatalf("gear: method %+v err %v, want a shirt produced on the bench", method, err)
+	declared, err := policy.DeclareGearOrders(gearReq)
+	if err != nil || declared.Abstain || len(declared.Orders) == 0 || declared.Orders[0].Recipe != "Make_Apparel_BasicShirt" {
+		t.Fatalf("gear: declared %+v err %v, want a shirt order for the bench", declared, err)
 	}
 }

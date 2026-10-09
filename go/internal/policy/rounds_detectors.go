@@ -47,25 +47,14 @@ func (c *roundsRun) raise(id ConcernID, priority int) *RoundsConcern {
 // assess appends id's assessment and returns it for the detector to adjust.
 func (c *roundsRun) assess(id ConcernID, priority int, recovered domain.Fact[bool]) *RoundsAssessment {
 	need := domain.FindingUnclear
-	stale := false
 	if value, known := recovered.Value(); known {
 		need = domain.FindingUnmet
 		if value {
 			need = domain.FindingMet
-			// A Met owner with a stale bill is Unmet until its planner
-			// removes the bill.
-			if stale = HasStaleBill(c.f.StaleBills, id); stale {
-				need = domain.FindingUnmet
-			}
 		}
 	}
-	c.r.Assessments = append(c.r.Assessments, RoundsAssessment{ID: id, Priority: priority, Finding: need, StaleBill: stale})
-	assessed := len(c.r.Assessments) - 1
-	if stale {
-		// Zero deficit ranks by age alone, as EnsureDefensiveLayout's does.
-		c.raise(id, priority).Deficit = domain.Known(0.0)
-	}
-	return &c.r.Assessments[assessed]
+	c.r.Assessments = append(c.r.Assessments, RoundsAssessment{ID: id, Priority: priority, Finding: need})
+	return &c.r.Assessments[len(c.r.Assessments)-1]
 }
 
 // owed assesses a goal that is recovered unless its fact says a step is
