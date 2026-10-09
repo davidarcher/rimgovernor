@@ -22,10 +22,6 @@ import (
 // offers (tradeOfferBook) are candidates too, and RoundsTradePlanner buys only
 // the resources the plan opened for its trader.
 
-// unboundedLabor stands for a work budget the review could not read: the
-// workers are unknown, so the plan does not ration labor.
-const unboundedLabor = 1e12
-
 // resourceSupplyRow is the facts behind one resource's candidates, kept so the
 // executing planners act on exactly what the plan priced.
 type resourceSupplyRow struct {
@@ -267,7 +263,11 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 		input.Candidates = append(input.Candidates, policy.TradeOfferCandidates(resource, offers, deficit, spendable, reserve)...)
 		inputs = append(inputs, input)
 	}
-	if out.plan, err = policy.PlanResourceSupply(inputs, resourceLabor(projection)); err != nil {
+	labor, err := resourceLabor(projection)
+	if err != nil {
+		return nil, fmt.Errorf("%w: buildResourceSupply: %w", ErrControl, err)
+	}
+	if out.plan, err = policy.PlanResourceSupply(inputs, labor); err != nil {
 		return nil, fmt.Errorf("%w: buildResourceSupply: %w", ErrControl, err)
 	}
 	r.planTradeAcquisition(call, state.Snapshot, "resources", projection, out.plan.Plan.Demands, nil)
@@ -297,27 +297,13 @@ func (d *deepDrillReading) candidates(resource policy.Resource, deficit int64, r
 	return out
 }
 
-// resourceLabor is the daily work budget the food plan leaves: workers *
-// 20000 ticks less the work of every channel food keeps open.
-func resourceLabor(p observation.ColonyProjection) domain.Fact[float64] {
-	workers, known := p.Workers.Value()
+// resourceLabor selects the authoritative worker facts for pure policy.
+func resourceLabor(p observation.ColonyProjection) (domain.Fact[float64], error) {
+	workers := p.Workers
 	if pawns, ok := p.WorkPawns.Value(); ok {
-		workers, known = policy.RoundsWorkers(pawns).Value()
+		workers = policy.RoundsWorkers(pawns)
 	}
-	if !known {
-		return domain.Known(unboundedLabor)
-	}
-	budget := float64(workers) * 20000
-	if plan, ok := p.Facts.FoodPlan.Value(); ok {
-		for _, e := range plan.Portfolio {
-			open, _ := e.Channel.Open().Value()
-			if e.Decision == policy.FoodPlanOpen || open && e.Decision != policy.FoodPlanClose {
-				work, _ := e.Channel.LaborPerDay.Value()
-				budget -= work
-			}
-		}
-	}
-	return domain.Known(math.Max(0, budget))
+	return policy.ResidualSupplyLabor(workers, p.Facts.FoodPlan)
 }
 
 // huntSlots is the hunts a goal may still admit: policy.HuntsPerHunter in

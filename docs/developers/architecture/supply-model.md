@@ -108,6 +108,21 @@ charged once however many yields it has: a deer's meat counts toward Nutrition
 and its leather toward Leather under one charge. The labor budget
 (`workers * 20000` ticks per day) is shared by every demand.
 
+Unknown labor returns a usable plan: new commitments Hold with
+`unknown_capacity`, including candidates with zero estimated cost. Existing
+designations remain committed without gaining delivery credit; observed delivery
+and independently established surplus closure remain available. Labor-excess
+terms require a known budget. Known zero is an exhausted budget, not uncertainty.
+
+Resource supply uses pure `ResidualSupplyLabor`: effective workers times 20000,
+less each selected or retained food commitment's `LaborPerDay`, floored at zero
+only when known. Newly selected, designated and delivering work is charged once
+per kind and ID across the food plan's portfolio and unknown entries, regardless
+of yield count. Closed or unselected closed candidates consume nothing. Missing
+workers, food plan, committed labor or commitment state leaves the residual
+unknown; a known empty plan reserves nothing. Known pawn observations take
+precedence over the aggregate worker fact, including a known empty pawn list.
+
 ### Order
 
 Flow demands rank before stock demands. Among flow candidates **lead is the

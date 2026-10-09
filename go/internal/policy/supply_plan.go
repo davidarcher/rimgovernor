@@ -284,12 +284,14 @@ func supplyLess(a, b SupplyCandidate) bool {
 // Delivering candidates keep their observed contribution even over the labor
 // budget (the excess is a Hold with a labor_excess term), and a strict surplus
 // closes the least efficient first. Closed candidates over budget add nothing.
+// Unknown labor holds new commitments without changing observed delivery or
+// reporting numeric labor excess; independently established surplus still closes.
 func PlanSupply(r SupplyPlanRequest) (SupplyPlan, error) {
 	fail := func() (SupplyPlan, error) { return SupplyPlan{}, ErrSupplyPlanFacts }
 	rows, known := r.Candidates.Value()
 	labor, lk := r.Labor.Value()
 	demands, dk := r.Demands.Value()
-	if !known || !lk || !foodNumber(labor) || r.UrgentPriority < 0 || r.UrgentPriority > 100 {
+	if !known || lk && !foodNumber(labor) || r.UrgentPriority < 0 || r.UrgentPriority > 100 {
 		return fail()
 	}
 	demands = append([]SupplyDemand(nil), demands...)
@@ -370,9 +372,11 @@ func PlanSupply(r SupplyPlanRequest) (SupplyPlan, error) {
 	}
 	for _, c := range cands {
 		if c.open {
-			if c.entry.Decision != SupplyClose && used > labor {
+			if c.entry.Decision != SupplyClose && lk && used > labor {
 				c.entry.Terms = append(c.entry.Terms, CandidateTerm{"labor_excess", used - labor})
 			}
+		} else if !lk {
+			c.entry.Reason = "unknown_capacity"
 		} else {
 			used += c.consider(demands, remaining, delivered, finite, usable, used, labor, r.UrgentPriority)
 		}

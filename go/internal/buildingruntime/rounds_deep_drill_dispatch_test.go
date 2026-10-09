@@ -85,6 +85,7 @@ func deepDrillDispatchFixture(t *testing.T, existing bool, drills []*o.DeepDrill
 	if err != nil {
 		t.Fatal(err)
 	}
+	base.reviewer.census.latest.reading.Projection.Facts.FoodPlan = domain.Known(policy.FoodPlan{})
 	var goal store.StandardState
 	for _, binding := range review.Review.Standards {
 		if binding.Concern == policy.MaintainResource {

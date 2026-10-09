@@ -139,3 +139,72 @@ func TestPlanSupplyHoldWordsForDemand(t *testing.T) {
 		}
 	}
 }
+
+func TestSupplyUnknownCapacityPreservesEvidence(t *testing.T) {
+	for _, state := range []CandidateState{CandidateClosed, CandidateDesignated, CandidateDelivering} {
+		t.Run(string(state), func(t *testing.T) {
+			c := foodPlanChannel("food", 5, 0, 0, false)
+			c.State = domain.Known(state)
+			r := SupplyPlanRequest{Demands: domain.Known([]SupplyDemand{{Good: NutritionKey, PerDay: 10, Priority: 100, HorizonDays: 1}}), Candidates: domain.Known([]SupplyCandidate{c})}
+			p, err := PlanSupply(r)
+			if err != nil || len(p.Portfolio) != 1 {
+				t.Fatal(p, err)
+			}
+			e := p.Portfolio[0]
+			if e.Decision != SupplyHold {
+				t.Fatal(p.Explain())
+			}
+			want := 0.0
+			if state == CandidateDelivering {
+				want = 5
+			} else if e.Reason != "unknown_capacity" {
+				t.Fatal(p.Explain())
+			}
+			if p.Delivered(NutritionKey) != want {
+				t.Fatal(p.Explain())
+			}
+			for _, term := range e.Terms {
+				if term.Name == "labor_excess" {
+					t.Fatal(p.Explain())
+				}
+			}
+			for _, invalid := range []float64{-1, math.NaN(), math.Inf(1)} {
+				r.Labor = domain.Known(invalid)
+				if _, err := PlanSupply(r); err == nil {
+					t.Fatal("invalid budget accepted")
+				}
+			}
+		})
+	}
+	a := foodPlanChannel("a", 11, 100, 0, true)
+	b := foodPlanChannel("b", 10, 200, 0, true)
+	p, err := PlanSupply(SupplyPlanRequest{Demands: domain.Known([]SupplyDemand{{Good: NutritionKey, PerDay: 10, Priority: 100, HorizonDays: 1}}), Candidates: domain.Known([]SupplyCandidate{a, b})})
+	if err != nil || p.Delivered(NutritionKey) != 11 {
+		t.Fatal(p, err)
+	}
+	closed := 0
+	for _, e := range p.Portfolio {
+		if e.Decision == SupplyClose {
+			closed++
+		}
+	}
+	if closed != 1 {
+		t.Fatal(p.Explain())
+	}
+}
+
+func TestFoodPlanUnknownCapacity(t *testing.T) {
+	r := foodPlanRequest(foodPlanChannel("food", 5, 0, 0, false))
+	r.Labor = domain.Unknown[float64]()
+	p, err := SupplyFoodPlan(r)
+	if err != nil || len(p.Portfolio) != 1 || p.Portfolio[0].Decision != FoodPlanHold || p.Portfolio[0].Reason != "unknown_capacity" || p.DeliveredPerDay != 0 {
+		t.Fatal(p, err)
+	}
+}
+
+func TestResourceSupplyUnknownCapacity(t *testing.T) {
+	p, err := PlanResourceSupply([]ResourceSupplyInput{{Resource: "Steel", Deficit: 100, Candidates: supplyTestCandidates()[:1]}}, domain.Unknown[float64]())
+	if err != nil || len(p.Opened("Steel")) != 0 || len(p.Plan.Portfolio) != 1 || p.Plan.Portfolio[0].Reason != "unknown_capacity" {
+		t.Fatal(p, err)
+	}
+}

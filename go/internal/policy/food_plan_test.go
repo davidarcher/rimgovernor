@@ -254,7 +254,6 @@ func TestFoodPlanUnknownAndInvalid(t *testing.T) {
 		change func(*FoodPlanRequest)
 	}{
 		{"channels unknown", func(r *FoodPlanRequest) { r.Channels = domain.Unknown[[]SupplyCandidate]() }},
-		{"labor unknown", func(r *FoodPlanRequest) { r.Labor = domain.Unknown[float64]() }},
 		{"runway unknown", func(r *FoodPlanRequest) { r.Demand.RunwayDays = domain.Unknown[float64]() }},
 		{"negative labor", func(r *FoodPlanRequest) { r.Labor = domain.Known(-1.0) }},
 		{"invalid thresholds", func(r *FoodPlanRequest) { r.TargetDays = r.MinDays }},

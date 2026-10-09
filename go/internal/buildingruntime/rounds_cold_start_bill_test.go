@@ -53,6 +53,7 @@ func coldStartStep(t *testing.T, floor policy.Resource, recipe policy.GearRecipe
 		t.Fatal(err)
 	}
 	facts := &base.reviewer.census.latest.reading.Projection.Facts
+	facts.FoodPlan = domain.Known(policy.FoodPlan{})
 	facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: wall, Cells: []domain.Cell{{X: 2, Z: 2}}}}})
 	facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{ID: "wall", Shape: domain.Known("shape"), Cells: []domain.Cell{{X: 2, Z: 2}}, Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)), ExtentGeometry: domain.Known(policy.HomeExtentGeometry{})}}})
 	facts.MapBounds = domain.Known(policy.Bounds{Width: 100, Height: 100})

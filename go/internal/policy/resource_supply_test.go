@@ -62,3 +62,23 @@ func TestResourceSupplyCoveredFloorOpensNothing(t *testing.T) {
 		t.Fatal(plan.Plan.Explain(), err)
 	}
 }
+
+func TestResourceSupplyCapacityStates(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		labor    domain.Fact[float64]
+		decision SupplyDecision
+		reason   string
+	}{
+		{"unknown", domain.Unknown[float64](), SupplyHold, "unknown_capacity"},
+		{"zero", domain.Known(0.0), SupplyHold, "labor budget"},
+		{"positive", domain.Known(2000.0), SupplyOpen, "close steel gap"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, err := PlanResourceSupply([]ResourceSupplyInput{{Resource: "Steel", Deficit: 100, Candidates: supplyTestCandidates()[:1]}}, tc.labor)
+			if err != nil || len(p.Plan.Portfolio) != 1 || p.Plan.Portfolio[0].Decision != tc.decision || p.Plan.Portfolio[0].Reason != tc.reason {
+				t.Fatal(p, err)
+			}
+		})
+	}
+}

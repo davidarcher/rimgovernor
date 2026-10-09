@@ -1,6 +1,5 @@
 # Rule 5 (numbers): file|func|token in policy and buildingruntime. Delete a line when fixed; never add one.
 internal/buildingruntime/rounds_armory_shells.go|RoundsArmoryPlanner.stockShells|10000 clamp
-internal/buildingruntime/rounds_resource_supply.go|-|sentinel 1e+12
 internal/buildingruntime/trade_mission.go|PrepareTradeMission|math.MaxFloat64
 internal/buildingruntime/trade_mission_driver.go|RoundsTradePlanner.missionPurchases|math.MaxFloat64
 internal/buildingruntime/trade_mission_options.go|Rounder.settlementAcquisitionOptions|math.MaxFloat64
