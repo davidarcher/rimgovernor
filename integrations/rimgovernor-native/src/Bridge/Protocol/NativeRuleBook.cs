@@ -47,6 +47,8 @@ namespace HomeBridge.BridgeTools
             if (!rule.HasJob || rule.Job != HuntJob) return Operations.RuleRefusalReason.UnsupportedJob;
             if (!rule.HasTarget || rule.Target != Operations.RuleTargetSelector.NearestDesignatedPrey) return Operations.RuleRefusalReason.UnsupportedTarget;
             if (!rule.HasRadius || rule.Radius < 1 || rule.Radius > MaxRadius) return Operations.RuleRefusalReason.InvalidRadius;
+            if (!rule.HasPredatorMarginCells || float.IsNaN(rule.PredatorMarginCells) || float.IsInfinity(rule.PredatorMarginCells) || rule.PredatorMarginCells <= 0)
+                return Operations.RuleRefusalReason.InvalidPredatorMargin;
             return Operations.RuleRefusalReason.Unspecified;
         }
 

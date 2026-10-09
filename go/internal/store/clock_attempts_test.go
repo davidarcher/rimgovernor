@@ -18,7 +18,7 @@ import (
 func clockIntent(id string) ClockIntent {
 	s := scope()
 	s.Native = 7
-	return ClockIntent{RequestID: id, Snapshot: s, Command: bridge.ClockCommand{Start: &bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, LeaseMS: 1000, MaxTicks: 100, Policy: &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}}}}
+	return ClockIntent{RequestID: id, Snapshot: s, Command: bridge.ClockCommand{Start: &bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, LeaseMS: 1000, MaxTicks: 100, Policy: bridge.WithHazardThresholds(&k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)})}}}
 }
 func clockApplied(v ClockAttempt) *k.ControlReply {
 	e := clock.Expectation(v)

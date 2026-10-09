@@ -27,28 +27,12 @@ namespace HomeBridge.BridgeTools
     /// (combatBackstopTicks in go/cmd/rimgovernor/serve_clock.go).
     internal static partial class Supervisor
     {
-        /// One blow dealing at least this much damage is a serious injury:
-        /// above every common automatic or semi-automatic round (charge rifle
-        /// 15, heavy SMG 12, assault rifle 11), so ordinary fire never stops,
-        /// but a pila (26), a sniper round (25), a rocket, a grenade or a heavy
-        /// melee weapon does.
-        internal const float SeriousSingleHitDamage = 20f;
-        /// Summary health crossing under this is serious: a colonist at half
-        /// health has lost the margin to take one more burst standing.
-        internal const float SeriousSummaryHealthFloor = 0.5f;
-        /// A total bleed rate crossing over this (fraction of blood per day)
-        /// is serious: the colonist bleeds out in well under a day and needs a
-        /// doctor during the fight, not after it.
-        internal const float SeriousBleedRateFloor = 1.0f;
-        /// A vital part (heart, lungs, brain...) hit to under this fraction of
-        /// its health is serious whatever the damage was.
-        internal const float SeriousVitalPartFloor = 0.5f;
-        /// An explosive landing within its blast radius plus this many cells
-        /// of a colonist is launched "near" them: a grenade's scatter is about
-        /// three cells at typical throw range.
-        internal const float ExplosiveNearMarginCells = 3f;
-        /// Range assumed for a pawn without a ranged weapon: melee reach.
-        internal const float MeleeReachCells = 1.5f;
+        /// The thresholds below are Go-authored WatchPolicy fields (serious_*,
+        /// explosive_near_margin_cells, melee_reach_cells); native holds no
+        /// literal for them. They read from the last epoch's policy, so a
+        /// colonist's damage is classified serious only once Go has started
+        /// an epoch, and the combat log records Unspecified before that.
+        private static Clock.WatchPolicy? EpochPolicy => _state?.Policy;
 
         private const string CombatHarmonyId = "homebridge.supervised-play.combat";
         private static int _combatHooked;
@@ -222,8 +206,9 @@ namespace HomeBridge.BridgeTools
         private static bool InRange(Thing a, Thing b, float range) => (a.Position - b.Position).LengthHorizontalSquared <= range * range;
         private static float PawnRange(Pawn p)
         {
-            try { var verb = p.equipment?.PrimaryEq?.PrimaryVerb; return verb != null && !verb.IsMeleeAttack ? verb.verbProps.range : MeleeReachCells; }
-            catch { return MeleeReachCells; }
+            var reach = EpochPolicy?.MeleeReachCells ?? 0f;
+            try { var verb = p.equipment?.PrimaryEq?.PrimaryVerb; return verb != null && !verb.IsMeleeAttack ? verb.verbProps.range : reach; }
+            catch { return reach; }
         }
         private static float TurretRange(Building_Turret t) { try { return t.AttackVerb?.verbProps.range ?? 0f; } catch { return 0f; } }
         private static string SafeLoadId(Thing t) { try { return t.GetUniqueLoadID(); } catch { return t.thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture); } }
@@ -259,18 +244,20 @@ namespace HomeBridge.BridgeTools
         private static string? SeriousWhy(Pawn pawn, DamageInfo dinfo, float totalDamageDealt, Vector2 __state)
         {
             {
+                var policy = EpochPolicy;
+                if (policy == null) return null;
                 var health = pawn.health.summaryHealth.SummaryHealthPercent;
                 var bleed = pawn.health.hediffSet.BleedRateTotal;
                 string? why = null;
-                if (totalDamageDealt >= SeriousSingleHitDamage) why = "single hit of " + totalDamageDealt.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
-                else if (__state.x > SeriousSummaryHealthFloor && health <= SeriousSummaryHealthFloor) why = "summary health under " + SeriousSummaryHealthFloor;
-                else if (__state.y < SeriousBleedRateFloor && bleed >= SeriousBleedRateFloor) why = "bleed rate over " + SeriousBleedRateFloor;
+                if (totalDamageDealt >= policy.SeriousSingleHitDamage) why = "single hit of " + totalDamageDealt.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+                else if (__state.x > policy.SeriousSummaryHealthFloor && health <= policy.SeriousSummaryHealthFloor) why = "summary health under " + policy.SeriousSummaryHealthFloor;
+                else if (__state.y < policy.SeriousBleedRateFloor && bleed >= policy.SeriousBleedRateFloor) why = "bleed rate over " + policy.SeriousBleedRateFloor;
                 else
                 {
                     var part = dinfo.HitPart;
                     if (part != null && part.def.tags.Any(t => t.vital) && !pawn.health.hediffSet.PartIsMissing(part)
-                        && pawn.health.hediffSet.GetPartHealth(part) / part.def.GetMaxHealth(pawn) < SeriousVitalPartFloor)
-                        why = "vital part " + part.def.defName + " under " + SeriousVitalPartFloor;
+                        && pawn.health.hediffSet.GetPartHealth(part) / part.def.GetMaxHealth(pawn) < policy.SeriousVitalPartFloor)
+                        why = "vital part " + part.def.defName + " under " + policy.SeriousVitalPartFloor;
                 }
                 return why;
             }
@@ -298,15 +285,16 @@ namespace HomeBridge.BridgeTools
                 if (CombatMirror.Active && launcher != null)
                 {
                     var target = ___destination.ToIntVec3();
-                    var explosiveNear = radius > 0f && launcher.HostileTo(Faction.OfPlayer) && launcher.Map != null
-                        && launcher.Map.mapPawns.FreeColonistsSpawned.Any(c => (c.Position - target).LengthHorizontalSquared <= (radius + ExplosiveNearMarginCells) * (radius + ExplosiveNearMarginCells));
+                    var margin = EpochPolicy?.ExplosiveNearMarginCells;
+                    var explosiveNear = margin.HasValue && radius > 0f && launcher.HostileTo(Faction.OfPlayer) && launcher.Map != null
+                        && launcher.Map.mapPawns.FreeColonistsSpawned.Any(c => (c.Position - target).LengthHorizontalSquared <= (radius + margin.Value) * (radius + margin.Value));
                     CombatMirror.Record(Mirror.CombatLogKind.ProjectileLaunched, explosiveNear ? Clock.CombatEvent.ExplosiveLaunched : Clock.CombatEvent.Unspecified,
                         launcher, __instance.intendedTarget.Thing, __instance.def?.defName, radius > 0f ? "explosive radius " + radius.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) : null, target);
                 }
                 if (radius <= 0f || launcher == null || !OnEpochMap(launcher) || !launcher.HostileTo(Faction.OfPlayer)) return;
                 if (!CombatArmed(Clock.CombatEvent.ExplosiveLaunched)) return;
                 var at = ___destination.ToIntVec3();
-                var near = radius + ExplosiveNearMarginCells;
+                var near = radius + _state!.Policy!.ExplosiveNearMarginCells;
                 var colonist = _state!.Map.mapPawns.FreeColonistsSpawned.FirstOrDefault(c => (c.Position - at).LengthHorizontalSquared <= near * near);
                 if (colonist != null) NoteCombatEvent(Clock.CombatEvent.ExplosiveLaunched, launcher, __instance.def!.defName + " launched at " + SafeLoadId(colonist));
             }

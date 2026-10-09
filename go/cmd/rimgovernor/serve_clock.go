@@ -142,9 +142,9 @@ func serviceClockConfig(profile string, testAcceleration bool, windowTicks, blin
 		// the dev tick boost makes every window boosted Ultrafast.
 		FollowPlayerSpeed: false,
 		Start: bridge.ClockStart{Speed: k.Speed_SPEED_ULTRAFAST, TestAcceleration: testAcceleration, PlayerAccelerated: !testAcceleration, LeaseMS: 30000, MaxTicks: windowTicks, BlindTickBudget: blindTicks,
-			Policy: &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(),
+			Policy: bridge.WithHazardThresholds(&k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(),
 				HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.5),
-				HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}},
+				HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)})},
 	}
 }
 

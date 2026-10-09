@@ -1,7 +1,6 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
@@ -32,7 +31,10 @@ namespace HomeBridge.BridgeTools
             return withdrawn;
         }
 
-        internal static bool RouteSafe(Pawn hunter, Pawn prey)
+        /// True when the hunter can reach the prey by a Danger.None touch route
+        /// that never passes within predatorMarginCells (Chebyshev) of a wild
+        /// predator. Go authors the margin on every caller's request or rule.
+        internal static bool RouteSafe(Pawn hunter, Pawn prey, float predatorMarginCells)
         {
             if (hunter == null || prey == null || !hunter.Spawned || !prey.Spawned
                 || hunter.Map != prey.Map || prey.IsForbidden(hunter)
@@ -45,32 +47,7 @@ namespace HomeBridge.BridgeTools
                 TraverseParms.For(hunter, Danger.None), peMode: PathEndMode.Touch))
             {
                 return path.Found && path.NodesReversed.All(cell => !predators.Any(p =>
-                    Math.Max(Math.Abs(p.Position.x - cell.x), Math.Abs(p.Position.z - cell.z)) <= 25));
-            }
-        }
-
-        internal static object Read(Pawn prey)
-        {
-            try
-            {
-                var hunters = new List<string>();
-                if (prey.Spawned && !prey.Dead && !prey.Downed && prey.Faction == null
-                    && prey.RaceProps.Animal && !prey.RaceProps.predator
-                    && prey.RaceProps.meatDef?.IsNutritionGivingIngestible == true
-                    && prey.RaceProps.manhunterOnDamageChance == 0)
-                    foreach (var pawn in prey.Map.mapPawns.FreeColonistsSpawned)
-                        if (!pawn.Downed && !pawn.Drafted && !pawn.InMentalState
-                            && pawn.workSettings != null && pawn.workSettings.WorkIsActive(WorkTypeDefOf.Hunting)
-                            && pawn.equipment?.Primary?.def.IsRangedWeapon == true
-                            && pawn.Position.DistanceToSquared(prey.Position) <= 10000
-                            && RouteSafe(pawn, prey)) hunters.Add(pawn.GetUniqueLoadID());
-                return new { readable = true, hunters, meatDef = prey.RaceProps.meatDef?.defName,
-                    deathAction = prey.RaceProps.DeathActionWorker?.GetType().FullName,
-                    scope = "Ordinary native death action and current Danger.None touch route avoiding wild predators by 25 cells; future movement and shooting positions can change." };
-            }
-            catch (Exception error)
-            {
-                return new { readable = false, error = error.GetType().Name };
+                    Math.Max(Math.Abs(p.Position.x - cell.x), Math.Abs(p.Position.z - cell.z)) <= predatorMarginCells));
             }
         }
     }

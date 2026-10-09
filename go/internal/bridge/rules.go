@@ -120,7 +120,7 @@ func rulesAttachAction(action domain.Action) (*o.Action, error) {
 		if !triggerOK || !actionOK || !targetOK {
 			return nil, contract("unsupported rule %s", rule.ID)
 		}
-		wire := &o.Rule{Id: proto.String(rule.ID), Trigger: trigger.Enum(), Action: kind.Enum(), Job: proto.String(rule.Job), Target: target.Enum(), Radius: proto.Uint32(rule.Radius)}
+		wire := &o.Rule{Id: proto.String(rule.ID), Trigger: trigger.Enum(), Action: kind.Enum(), Job: proto.String(rule.Job), Target: target.Enum(), Radius: proto.Uint32(rule.Radius), PredatorMarginCells: proto.Float32(rule.PredatorMarginCells)}
 		for _, predicate := range rule.Predicates {
 			value, ok := rulePredicates[predicate]
 			if !ok {

@@ -573,7 +573,7 @@ func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.Gener
 	if _, err = session.Acquire(context.Background(), snapshot); err != nil {
 		t.Fatal(err)
 	}
-	watch := &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}
+	watch := bridge.WithHazardThresholds(&k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)})
 	// A fake armed with a blind-tick budget before the fixture is built
 	// regulates every window the scheduler starts.
 	start := bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, Policy: watch, LeaseMS: 30_000, MaxTicks: 100, BlindTickBudget: uint32(native.regulator.budget)}

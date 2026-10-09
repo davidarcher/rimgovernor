@@ -40775,8 +40775,10 @@ type ColonyFactsRequest struct {
 	Planning          *bool                  `protobuf:"varint,2,opt,name=planning,proto3,oneof" json:"planning,omitempty"`
 	HerdRadius        *uint32                `protobuf:"varint,3,opt,name=herd_radius,json=herdRadius,proto3,oneof" json:"herd_radius,omitempty"`
 	HuntRouteBudgetMs *uint32                `protobuf:"varint,4,opt,name=hunt_route_budget_ms,json=huntRouteBudgetMs,proto3,oneof" json:"hunt_route_budget_ms,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Cells from a wild predator a hunt route must stay outside; absent, no pair is evaluated (all report skipped).
+	HuntPredatorMarginCells *float32 `protobuf:"fixed32,5,opt,name=hunt_predator_margin_cells,json=huntPredatorMarginCells,proto3,oneof" json:"hunt_predator_margin_cells,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ColonyFactsRequest) Reset() {
@@ -40833,6 +40835,13 @@ func (x *ColonyFactsRequest) GetHerdRadius() uint32 {
 func (x *ColonyFactsRequest) GetHuntRouteBudgetMs() uint32 {
 	if x != nil && x.HuntRouteBudgetMs != nil {
 		return *x.HuntRouteBudgetMs
+	}
+	return 0
+}
+
+func (x *ColonyFactsRequest) GetHuntPredatorMarginCells() float32 {
+	if x != nil && x.HuntPredatorMarginCells != nil {
+		return *x.HuntPredatorMarginCells
 	}
 	return 0
 }
@@ -42844,8 +42853,9 @@ type SnapshotStreamRequest struct {
 	// past it report RouteTravel.path_skipped. Absent: measure every pair.
 	RoutePathBudgetMs *uint32 `protobuf:"varint,5,opt,name=route_path_budget_ms,json=routePathBudgetMs,proto3,oneof" json:"route_path_budget_ms,omitempty"`
 	// The ColonyFactsRequest herd_radius and hunt_route_budget_ms of each frame's colony facts read.
-	HerdRadius        *uint32 `protobuf:"varint,6,opt,name=herd_radius,json=herdRadius,proto3,oneof" json:"herd_radius,omitempty"`
-	HuntRouteBudgetMs *uint32 `protobuf:"varint,7,opt,name=hunt_route_budget_ms,json=huntRouteBudgetMs,proto3,oneof" json:"hunt_route_budget_ms,omitempty"`
+	HerdRadius              *uint32  `protobuf:"varint,6,opt,name=herd_radius,json=herdRadius,proto3,oneof" json:"herd_radius,omitempty"`
+	HuntRouteBudgetMs       *uint32  `protobuf:"varint,7,opt,name=hunt_route_budget_ms,json=huntRouteBudgetMs,proto3,oneof" json:"hunt_route_budget_ms,omitempty"`
+	HuntPredatorMarginCells *float32 `protobuf:"fixed32,9,opt,name=hunt_predator_margin_cells,json=huntPredatorMarginCells,proto3,oneof" json:"hunt_predator_margin_cells,omitempty"`
 	// The LinesOfFireRequest budget_ms of each frame's combat lines of fire.
 	LinesOfFireBudgetMs *uint32 `protobuf:"varint,8,opt,name=lines_of_fire_budget_ms,json=linesOfFireBudgetMs,proto3,oneof" json:"lines_of_fire_budget_ms,omitempty"`
 	unknownFields       protoimpl.UnknownFields
@@ -42913,6 +42923,13 @@ func (x *SnapshotStreamRequest) GetHerdRadius() uint32 {
 func (x *SnapshotStreamRequest) GetHuntRouteBudgetMs() uint32 {
 	if x != nil && x.HuntRouteBudgetMs != nil {
 		return *x.HuntRouteBudgetMs
+	}
+	return 0
+}
+
+func (x *SnapshotStreamRequest) GetHuntPredatorMarginCells() float32 {
+	if x != nil && x.HuntPredatorMarginCells != nil {
+		return *x.HuntPredatorMarginCells
 	}
 	return 0
 }
@@ -51831,16 +51848,18 @@ const file_observations_proto_rawDesc = "" +
 	"\r_expires_tickB\x0f\n" +
 	"\r_accept_labelB\r\n" +
 	"\v_can_acceptB\x0e\n" +
-	"\f_creepjoiner\"\x85\x02\n" +
+	"\f_creepjoiner\"\xe6\x02\n" +
 	"\x12ColonyFactsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x1f\n" +
 	"\bplanning\x18\x02 \x01(\bH\x00R\bplanning\x88\x01\x01\x12$\n" +
 	"\vherd_radius\x18\x03 \x01(\rH\x01R\n" +
 	"herdRadius\x88\x01\x01\x124\n" +
-	"\x14hunt_route_budget_ms\x18\x04 \x01(\rH\x02R\x11huntRouteBudgetMs\x88\x01\x01B\v\n" +
+	"\x14hunt_route_budget_ms\x18\x04 \x01(\rH\x02R\x11huntRouteBudgetMs\x88\x01\x01\x12@\n" +
+	"\x1ahunt_predator_margin_cells\x18\x05 \x01(\x02H\x03R\x17huntPredatorMarginCells\x88\x01\x01B\v\n" +
 	"\t_planningB\x0e\n" +
 	"\f_herd_radiusB\x17\n" +
-	"\x15_hunt_route_budget_ms\"\xf1\x01\n" +
+	"\x15_hunt_route_budget_msB\x1d\n" +
+	"\x1b_hunt_predator_margin_cells\"\xf1\x01\n" +
 	"\x10ColonyFactsReply\x12N\n" +
 	"\bobserved\x18\x01 \x01(\v20.rimgovernor.observations.v1.ColonyFactsSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -52065,19 +52084,21 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v29.rimgovernor.observations.v1.ArchitectDesignatorsSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\x9b\x03\n" +
+	"\aoutcome\"\xfc\x03\n" +
 	"\x15SnapshotStreamRequest\x12)\n" +
 	"\x10resource_sources\x18\x01 \x03(\tR\x0fresourceSources\x12\x1f\n" +
 	"\bkeyframe\x18\x04 \x01(\bH\x00R\bkeyframe\x88\x01\x01\x124\n" +
 	"\x14route_path_budget_ms\x18\x05 \x01(\rH\x01R\x11routePathBudgetMs\x88\x01\x01\x12$\n" +
 	"\vherd_radius\x18\x06 \x01(\rH\x02R\n" +
 	"herdRadius\x88\x01\x01\x124\n" +
-	"\x14hunt_route_budget_ms\x18\a \x01(\rH\x03R\x11huntRouteBudgetMs\x88\x01\x01\x129\n" +
-	"\x17lines_of_fire_budget_ms\x18\b \x01(\rH\x04R\x13linesOfFireBudgetMs\x88\x01\x01B\v\n" +
+	"\x14hunt_route_budget_ms\x18\a \x01(\rH\x03R\x11huntRouteBudgetMs\x88\x01\x01\x12@\n" +
+	"\x1ahunt_predator_margin_cells\x18\t \x01(\x02H\x04R\x17huntPredatorMarginCells\x88\x01\x01\x129\n" +
+	"\x17lines_of_fire_budget_ms\x18\b \x01(\rH\x05R\x13linesOfFireBudgetMs\x88\x01\x01B\v\n" +
 	"\t_keyframeB\x17\n" +
 	"\x15_route_path_budget_msB\x0e\n" +
 	"\f_herd_radiusB\x17\n" +
-	"\x15_hunt_route_budget_msB\x1a\n" +
+	"\x15_hunt_route_budget_msB\x1d\n" +
+	"\x1b_hunt_predator_margin_cellsB\x1a\n" +
 	"\x18_lines_of_fire_budget_ms\"\x96\x06\n" +
 	"\x11DefinitionCatalog\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12H\n" +

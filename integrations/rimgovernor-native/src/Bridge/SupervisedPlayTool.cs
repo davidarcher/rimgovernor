@@ -864,7 +864,7 @@ namespace HomeBridge.BridgeTools
             foreach (var identity in s.MedicalRest.ToList())
             {
                 var patient = colonists.FirstOrDefault(p => p.thingIDNumber == identity);
-                if (patient != null && MedicalRestSafety.Eligible(patient)) continue;
+                if (patient != null && MedicalRestSafety.Eligible(patient, s.Policy!.SeriousSummaryHealthFloor)) continue;
                 s.MedicalRest.Remove(identity);
                 InvalidateMedicalFacts(s, identity, "resting patient " + identity + " requires a fresh medical review", true);
             }
@@ -887,7 +887,7 @@ namespace HomeBridge.BridgeTools
                     && (GameWatchReads.SafeDowned(p) || GameWatchReads.SafeDead(p))
                     && !s.IgnoredDowned.Contains(p.thingIDNumber)
                     && !SafeSurgicalRecovery(s, p)
-                    && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p)))
+                    && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p, s.Policy!.SeriousSummaryHealthFloor)))
                     return PawnHit("colonist_downed", p, GameWatchReads.SafeDead(p) ? "dead" : "downed", DownedTick(p));
                 if (ThreateningPredatorHunt(p)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
@@ -904,7 +904,7 @@ namespace HomeBridge.BridgeTools
                         // speed and the hunter shot anyway. The vanished
                         // designation settles the controller's hunt action
                         // and the invalidated colony facts replan at once.
-                        if (prey != null && !prey.Dead && !HuntingSafety.RouteSafe(p, prey)
+                        if (prey != null && !prey.Dead && !HuntingSafety.RouteSafe(p, prey, s.Policy!.PredatorMarginCells)
                             && HuntingSafety.Withdraw(p, prey))
                             Add("observation_invalidated", "Observed facts changed: unsafe hunt of "
                                 + GameWatchReads.SafeName(prey) + " withdrawn.", s,
@@ -986,17 +986,18 @@ namespace HomeBridge.BridgeTools
                         if (after.Count > before.Count && after.NewestWoundAgeTicks != int.MaxValue && Find.TickManager != null)
                             payload["occurrenceTick"] = Find.TickManager.TicksGame - after.NewestWoundAgeTicks;
                         // A new wound stops the window only past the native
-                        // severity floor: bleeding out inside
-                        // InjurySeverityFloorTicks, or a life-threatening
+                        // severity floor: bleeding out inside the policy's
+                        // injury_severity_floor_ticks, or a life-threatening
                         // hediff stage. Anything lighter is a journal row and a
                         // medical review under the running window, which is
                         // what every stop bought anyway at the price of a
                         // stop-to-readmit pause. A combat threshold crossing
                         // still stops.
-                        var severe = InjurySeverityFloorReached(after.BleedOutTicks, after.LifeThreatening);
+                        var severityFloorTicks = (int)s.Policy!.InjurySeverityFloorTicks;
+                        var severe = InjurySeverityFloorReached(after.BleedOutTicks, after.LifeThreatening, severityFloorTicks);
                         payload["bleedOutTicks"] = after.BleedOutTicks == int.MaxValue ? null : (object)after.BleedOutTicks;
                         payload["lifeThreatening"] = after.LifeThreatening;
-                        payload["severityFloorTicks"] = InjurySeverityFloorTicks;
+                        payload["severityFloorTicks"] = severityFloorTicks;
                         var demoted = s.Mode == "colony" && newWound && !suppressed && !severe && !threshold;
                         payload["demoted"] = demoted;
                         if (((s.Mode == "colony" && newWound && severe) || threshold) && !suppressed)
@@ -1462,6 +1463,8 @@ namespace HomeBridge.BridgeTools
         private sealed class State
         {
             public TypedEpoch? Typed;
+            /// The Go-authored policy this epoch runs under; every hazard threshold reads from it.
+            public RimGovernor.Protocol.Clock.WatchPolicy? Policy => Typed?.Policy;
             public State(object session, Map map) { Session = session; Map = map; }
             public bool Active; public long Epoch; public string? Owner; public readonly object Session; public readonly Map Map; public TimeSpeed RequestedSpeed;
             public string? Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;

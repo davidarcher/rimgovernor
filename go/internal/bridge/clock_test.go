@@ -16,7 +16,7 @@ import (
 )
 
 func clockTestPolicy() *k.WatchPolicy {
-	return &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}
+	return WithHazardThresholds(&k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)})
 }
 func clockTestPre() *a.WritePrecondition {
 	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(7), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("clock-start"), AttemptId: proto.Uint64(1)}}

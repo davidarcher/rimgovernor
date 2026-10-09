@@ -276,6 +276,18 @@ func clockPolicy(p *k.WatchPolicy, budget int64) error {
 	if p.GetHealthDropFraction() < 0.01 || p.GetHealthDropFraction() > 1 || p.GetMinHealthFraction() < 0.01 || p.GetMinHealthFraction() > 1 || p.GetHostileWithin() < 1 || p.GetHostileWithin() > 250 {
 		return contract("clock policy numeric bounds")
 	}
+	if p.SeriousSingleHitDamage == nil || p.SeriousSummaryHealthFloor == nil || p.SeriousBleedRateFloor == nil || p.SeriousVitalPartFloor == nil ||
+		p.ExplosiveNearMarginCells == nil || p.MeleeReachCells == nil || p.InjurySeverityFloorTicks == nil || p.PredatorMarginCells == nil {
+		return contract("clock policy hazard thresholds missing")
+	}
+	for _, v := range []float32{p.GetSeriousSingleHitDamage(), p.GetSeriousSummaryHealthFloor(), p.GetSeriousBleedRateFloor(), p.GetSeriousVitalPartFloor(), p.GetExplosiveNearMarginCells(), p.GetMeleeReachCells(), p.GetPredatorMarginCells()} {
+		if !(v > 0) || math.IsInf(float64(v), 0) {
+			return contract("clock policy hazard threshold not finite and positive")
+		}
+	}
+	if p.GetInjurySeverityFloorTicks() == 0 || p.GetInjurySeverityFloorTicks() > math.MaxInt32 {
+		return contract("clock policy injury severity floor bounds")
+	}
 	for _, ids := range [][]string{p.AcknowledgedHostileIds, p.AcknowledgedDownedColonistIds, p.AcknowledgedInjuredColonistIds, p.SurgicalRecoveryIds, p.MedicalRestIds} {
 		seen := map[string]bool{}
 		for _, id := range ids {

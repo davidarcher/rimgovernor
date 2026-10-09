@@ -51,11 +51,40 @@ reports every class unhooked and the polled interval bound still holds.
 | `colonist_downed` | a colonist downed or dead | `Pawn_HealthTracker.MakeDowned` and `Pawn.Kill` hooks request the next-tick probe | 1 | the tick the hook fired; a corpse's `timeOfDeath` | `hazard/downed` |
 | `predator_hunt` | a predator hunting within 40 cells of a colonist | polled | 30 | the predator's `PredatorHunt` job `startTick` | `hazard/predator` |
 | `hunting_route_unsafe` | a colonist hunting prey along an unsafe route | polled | 30 | the hunter's `Hunt` job `startTick` | (hunting/* areas) |
-| `colonist_injury` | a new wound past the severity floor (colony mode): a life-threatening hediff stage, or blood loss killing the pawn within `InjurySeverityFloorTicks` (5000) | polled | 30 | the newest wound's age (`ageTicks`) | (a lighter wound is demoted; `hazard/injury` proves the demotion) |
+| `colonist_injury` | a new wound past the severity floor (colony mode): a life-threatening hediff stage, or blood loss killing the pawn within the policy's `injury_severity_floor_ticks` (Go sends 5000) | polled | 30 | the newest wound's age (`ageTicks`) | (a lighter wound is demoted; `hazard/injury` proves the demotion) |
 | `colonist_health` | a combat health threshold crossed | polled | 30 | the newest wound's age | (defense/* areas) |
 
 Non-stopping observations (`alert_new`, `hostiles_cleared`,
 `injury_observed`) ride the same probe and carry the same 30-tick bound.
+
+## Go-authored thresholds
+
+Native holds no literal for a hazard threshold. `WatchPolicy` carries each one
+(values from `policy/hazard_thresholds.go`, attached by
+`bridge.WithHazardThresholds`); `NativeClockRuntime.ValidPolicy` and the Go
+`clockPolicy()` both refuse a policy missing any or holding one that is not
+finite and positive (`injury_severity_floor_ticks` is 1 to int32 max). Only
+`hostile_within` (1 to 250) and the cooldown (0 to 1800000 ms) keep proto
+bounds, as real limits. The probe, digest and wake intervals above stay
+constants.
+
+| Field | Go sends | Used for |
+| --- | --- | --- |
+| `serious_single_hit_damage` | 20 | one blow at least this heavy is a serious injury (combat mode) |
+| `serious_summary_health_floor` | 0.5 | summary health crossing under it is a serious injury; the same value is the floor a resting patient must stay over (`MedicalRestSafety.Eligible`) |
+| `serious_bleed_rate_floor` | 1.0 | total bleed rate crossing over it is a serious injury |
+| `serious_vital_part_floor` | 0.5 | a vital part hit under this fraction of its health is a serious injury |
+| `explosive_near_margin_cells` | 3 | an explosive within blast radius plus this of a colonist is launched near them |
+| `melee_reach_cells` | 1.5 | range assumed for a pawn without a ranged weapon |
+| `injury_severity_floor_ticks` | 5000 | a new wound bleeding out inside this many ticks keeps the stop |
+| `predator_margin_cells` | 25 | a hunt route within this many cells of a wild predator is unsafe (`HuntingSafety.RouteSafe`) |
+
+`RouteSafe` takes the margin from its caller: the policy (the supervisor's
+hunt withdrawal), `ColonyFactsRequest` / `SnapshotStreamRequest`
+`hunt_predator_margin_cells` (the hunt census; absent, every pair reports
+`skipped`), and `Rule.predator_margin_cells` (native rules). Damage and
+explosive classification read the last epoch's policy, so before Go has
+started an epoch the combat log records those rows unclassified.
 
 A wound under the severity floor, and a resting patient who lost their
 eligibility, are demoted tiers, not stops: the probe journals the observation
@@ -106,7 +135,7 @@ A `WATCH_MODE_COMBAT` epoch also stops on the armed events in
 lands on the boundary of the tick the event happened on
 (`STOP_REASON_COMBAT_EVENT`, `occurrence_tick` = the stop tick). A game hook
 records the event and `TickBody` stops right after the watch checks
-(`SupervisedPlayCombatStops.cs`, which also holds the thresholds):
+(`SupervisedPlayCombatStops.cs`):
 
 | Event | Source |
 | --- | --- |

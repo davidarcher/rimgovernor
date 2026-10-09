@@ -182,6 +182,7 @@ namespace HomeBridge.BridgeTools
             var colony = new Obs.ColonyFactsRequest { Scope = scope, Planning = true };
             if (request.HasHerdRadius) colony.HerdRadius = request.HerdRadius;
             if (request.HasHuntRouteBudgetMs) colony.HuntRouteBudgetMs = request.HuntRouteBudgetMs;
+            if (request.HasHuntPredatorMarginCells) colony.HuntPredatorMarginCells = request.HuntPredatorMarginCells;
             return colony;
         }
 

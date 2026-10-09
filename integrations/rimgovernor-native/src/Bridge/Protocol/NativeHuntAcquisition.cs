@@ -96,7 +96,8 @@ namespace HomeBridge.BridgeTools
                 if (tick.HasValue) row.DesignatedTick = tick.Value;
                 result.Acquisition.Add(row);
             }
-            result.HuntCensus = Census(map, prey, request.HasHuntRouteBudgetMs ? request.HuntRouteBudgetMs : (uint?)null);
+            result.HuntCensus = Census(map, prey, request.HasHuntRouteBudgetMs ? request.HuntRouteBudgetMs : (uint?)null,
+                request.HasHuntPredatorMarginCells ? request.HuntPredatorMarginCells : (float?)null);
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
         }
         internal static Obs.HuntProjectileKind ProjectileKind(ThingDef? projectile)
@@ -133,7 +134,7 @@ namespace HomeBridge.BridgeTools
         // Raw facts per free colonist and per butcher bench. Route evidence is skipped for a colonist
         // who is downed, in a mental state or has Hunting off: policy refuses each of those before it
         // reads a route, so the skip loses nothing.
-        private static Obs.HuntCensus Census(Map map, List<Pawn> prey, uint? routeBudgetMs)
+        private static Obs.HuntCensus Census(Map map, List<Pawn> prey, uint? routeBudgetMs, float? predatorMarginCells)
         {
             var census = new Obs.HuntCensus();
             var pairs = new List<(Pawn pawn, Obs.HunterFacts hunter, Pawn animal)>();
@@ -180,11 +181,12 @@ namespace HomeBridge.BridgeTools
             foreach (var (pawn, hunter, animal) in pairs.OrderBy(p => PestRace(p.animal.RaceProps) ? 0 : 1).ThenBy(p => p.pawn.Position.DistanceToSquared(p.animal.Position)))
             {
                 var route = new Obs.HuntRoute { PreyId = animal.GetUniqueLoadID() };
-                if (spent >= budgetTicks) route.Skipped = true;
+                // No margin from Go is an unevaluated pair, never a guessed margin.
+                if (spent >= budgetTicks || !predatorMarginCells.HasValue) route.Skipped = true;
                 else
                 {
                     var began = System.Diagnostics.Stopwatch.GetTimestamp();
-                    route.Safe = HuntingSafety.RouteSafe(pawn, animal);
+                    route.Safe = HuntingSafety.RouteSafe(pawn, animal, predatorMarginCells.Value);
                     spent += System.Diagnostics.Stopwatch.GetTimestamp() - began;
                 }
                 hunter.Routes.Add(route);

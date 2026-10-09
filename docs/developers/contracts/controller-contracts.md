@@ -385,7 +385,7 @@ the primary weapon (ranged, verb range, projectile kind bullet / arrow / other, 
 radius, damage def and worker, warmup), the game's own `HasHuntingWeapon` and
 `HasShieldAndRangedWeapon` answers, the butcher benches reachable, and one `HuntRoute` per
 unfogged hunt row for each colonist with Hunting active who is neither downed nor in a mental
-state: `safe` true or false (a Danger.None path avoiding predators by 25 cells and an ordinary
+state: `safe` true or false (a Danger.None path avoiding predators by the request's `hunt_predator_margin_cells` (Go sends `policy.HuntPredatorMarginCells`, 25) and an ordinary
 death action, `RouteSafe`), or `skipped` once the frame's `hunt_route_budget_ms` (Go sets
 `bridge.HuntRouteBudgetMS`, 50; absent evaluates every pair) is spent. Native applies no reach:
 pairs are evaluated pests first then nearest first, so the pairs a spent budget skips are the

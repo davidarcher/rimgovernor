@@ -21,7 +21,7 @@ func TestRulesJournaledIncludesRetiredCompletedAttachments(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer st.Close()
-	rule := domain.Rule{ID: chainID, Trigger: domain.RulePreyKilled, Predicates: []domain.RulePredicate{domain.RuleActorUndrafted, domain.RuleActorHuntingWorkActive, domain.RuleTargetAvailable}, Action: domain.RuleGiveJob, Job: "Hunt", Target: domain.RuleNearestDesignatedPrey, Radius: 80}
+	rule := domain.Rule{ID: chainID, Trigger: domain.RulePreyKilled, Predicates: []domain.RulePredicate{domain.RuleActorUndrafted, domain.RuleActorHuntingWorkActive, domain.RuleTargetAvailable}, Action: domain.RuleGiveJob, Job: "Hunt", Target: domain.RuleNearestDesignatedPrey, Radius: 80, PredatorMarginCells: 25}
 	for i, tick := range []domain.Tick{56, 1306} {
 		id := domain.PlanID(fmt.Sprintf("plan-%d", i))
 		actionID := domain.ActionID(fmt.Sprintf("action-%d", i))

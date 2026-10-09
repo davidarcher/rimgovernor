@@ -12,7 +12,7 @@ Go keeps the policy. Native never decides what to do beyond the rule it was give
 |---|---|
 | Trigger | `PREY_KILLED`: a player pawn killed a wild animal. Fired from the kill hook the [delivery ledger](forecast-contracts.md#delivery-ledger) shares (`Pawn.Kill`); no ring is read. The actor is the killer. |
 | Predicates | `ACTOR_UNDRAFTED`, `ACTOR_HUNTING_WORK_ACTIVE`, `TARGET_AVAILABLE` (the selector's own search: no target, no firing). |
-| Action | `GIVE_JOB` `Hunt` on `NEAREST_DESIGNATED_PREY` within `radius` cells (1 to 100): a hunt-designated wild animal the actor can reach by a route clear of predators and that a work giver the actor may do builds the job on. Built and taken by the path `GiveJobIntent`'s prioritized arm uses (`NativePrioritizedJob.TryTake`), as a player-forced order. |
+| Action | `GIVE_JOB` `Hunt` on `NEAREST_DESIGNATED_PREY` within `radius` cells (1 to 100): a hunt-designated wild animal the actor can reach by a route clear of predators by `predator_margin_cells` (Go-authored, finite, above 0; `INVALID_PREDATOR_MARGIN` otherwise) and that a work giver the actor may do builds the job on. Built and taken by the path `GiveJobIntent`'s prioritized arm uses (`NativePrioritizedJob.TryTake`), as a player-forced order. |
 | Not in v1 | Draft and undraft (drafts stay plan-owned, `buildingruntime/draft_needs.go`), any other job, any other trigger. A rule outside the whitelist is refused with a reason. |
 
 The firing runs at the end of the tick of the kill, never inside the kill, so the hunter's own

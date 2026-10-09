@@ -63,7 +63,7 @@ internal static class NativeClockProbe
     private static Authority.WritePrecondition Pre() => new() { Identity = Identity, ExpectedGeneration = grant.Generation,
         Attempt = new Common.AttemptKey { ControllerSessionId = "controller", ActionId = "clock/" + ++nextAttempt, AttemptId = 1 } };
     private static Clock.StartRequest Request() => new() { Authority = Pre(), Speed = Clock.Speed.Normal, LeaseMs = 1000, MaxTicks = 10,
-        Policy = new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = .1f, MinHealthFraction = .5f, HostileWithin = 30, InjuryStopCooldownMs = 0 } };
+        Policy = new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = .1f, MinHealthFraction = .5f, HostileWithin = 30, InjuryStopCooldownMs = 0, SeriousSingleHitDamage = 20, SeriousSummaryHealthFloor = .5f, SeriousBleedRateFloor = 1, SeriousVitalPartFloor = .5f, ExplosiveNearMarginCells = 3, MeleeReachCells = 1.5f, InjurySeverityFloorTicks = 5000, PredatorMarginCells = 25 } };
     private static void Reset()
     {
         Current.Game = new Game(); Find.CurrentMap = new Map(); Find.TickManager = new TickManager();
@@ -91,7 +91,7 @@ internal static class NativeClockProbe
         Check(Events(long.MaxValue, 128).Failure != null, "cursor past the journal admitted");
         foreach (Action<Clock.StartRequest> mutation in new Action<Clock.StartRequest>[] { r => r.Speed = Clock.Speed.Unspecified, r => r.LeaseMs = 999,
             r => r.LeaseMs = 30001, r => r.MaxTicks = 0, r => r.Policy = null, r => r.Policy.HealthDropFraction = float.NaN,
-            r => r.Policy.ClearHostileWithin(), r => r.Policy.Mode = (Clock.WatchMode)99, r => r.Policy.InjuryStopCooldownMs = 1800001 })
+            r => r.Policy.ClearHostileWithin(), r => r.Policy.Mode = (Clock.WatchMode)99, r => r.Policy.InjuryStopCooldownMs = 1800001, r => r.Policy.ClearSeriousSingleHitDamage(), r => r.Policy.MeleeReachCells = float.NaN, r => r.Policy.InjurySeverityFloorTicks = 0, r => r.Policy.ClearPredatorMarginCells() })
         { var r = Request(); mutation(r); Check(Start(r).Failure != null && !Supervisor.IsActiveForFixture(), "invalid Start affected clock"); }
     }
     private static void OwnedLifecycle()
@@ -272,11 +272,11 @@ internal static class NativeClockProbe
         // The new-wound stop tier's severity floor (#584): a life-threatening
         // stage or a bleed-out inside the floor keeps the stop, a lighter
         // wound is demoted to a journal wake.
-        Check(Supervisor.InjurySeverityFloorReached(int.MaxValue, true), "a life-threatening stage does not reach the severity floor");
-        Check(Supervisor.InjurySeverityFloorReached(Supervisor.InjurySeverityFloorTicks, false)
-            && !Supervisor.InjurySeverityFloorReached(Supervisor.InjurySeverityFloorTicks + 1, false)
-            && !Supervisor.InjurySeverityFloorReached(int.MaxValue, false), "the bleed-out severity floor is not the boundary it declares");
-        Check(Supervisor.MedicalWakeIntervalTicks > 0 && Supervisor.MedicalWakeIntervalTicks < Supervisor.InjurySeverityFloorTicks, "the medical wake interval is not inside the severity floor");
+        Check(Supervisor.InjurySeverityFloorReached(int.MaxValue, true, 5000), "a life-threatening stage does not reach the severity floor");
+        Check(Supervisor.InjurySeverityFloorReached(5000, false, 5000)
+            && !Supervisor.InjurySeverityFloorReached(5001, false, 5000)
+            && !Supervisor.InjurySeverityFloorReached(int.MaxValue, false, 5000), "the bleed-out severity floor is not the boundary it declares");
+        Check(Supervisor.MedicalWakeIntervalTicks > 0 && Supervisor.MedicalWakeIntervalTicks < 5000, "the medical wake interval is not inside the severity floor");
         // The production Probe body contains no digest call: the digests left
         // the probe path (source scan of the Verse-bound partial).
         var root = AppContext.BaseDirectory;

@@ -1335,43 +1335,46 @@ func (RuleTargetSelector) EnumDescriptor() ([]byte, []int) {
 type RuleRefusalReason int32
 
 const (
-	RuleRefusalReason_RULE_REFUSAL_REASON_UNSPECIFIED           RuleRefusalReason = 0
-	RuleRefusalReason_RULE_REFUSAL_REASON_INVALID_ID            RuleRefusalReason = 1
-	RuleRefusalReason_RULE_REFUSAL_REASON_DUPLICATE_ID          RuleRefusalReason = 2
-	RuleRefusalReason_RULE_REFUSAL_REASON_TOO_MANY_RULES        RuleRefusalReason = 3
-	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_TRIGGER   RuleRefusalReason = 4
-	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_PREDICATE RuleRefusalReason = 5
-	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_ACTION    RuleRefusalReason = 6
-	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_JOB       RuleRefusalReason = 7
-	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_TARGET    RuleRefusalReason = 8
-	RuleRefusalReason_RULE_REFUSAL_REASON_INVALID_RADIUS        RuleRefusalReason = 9
+	RuleRefusalReason_RULE_REFUSAL_REASON_UNSPECIFIED             RuleRefusalReason = 0
+	RuleRefusalReason_RULE_REFUSAL_REASON_INVALID_ID              RuleRefusalReason = 1
+	RuleRefusalReason_RULE_REFUSAL_REASON_DUPLICATE_ID            RuleRefusalReason = 2
+	RuleRefusalReason_RULE_REFUSAL_REASON_TOO_MANY_RULES          RuleRefusalReason = 3
+	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_TRIGGER     RuleRefusalReason = 4
+	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_PREDICATE   RuleRefusalReason = 5
+	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_ACTION      RuleRefusalReason = 6
+	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_JOB         RuleRefusalReason = 7
+	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_TARGET      RuleRefusalReason = 8
+	RuleRefusalReason_RULE_REFUSAL_REASON_INVALID_RADIUS          RuleRefusalReason = 9
+	RuleRefusalReason_RULE_REFUSAL_REASON_INVALID_PREDATOR_MARGIN RuleRefusalReason = 10
 )
 
 // Enum value maps for RuleRefusalReason.
 var (
 	RuleRefusalReason_name = map[int32]string{
-		0: "RULE_REFUSAL_REASON_UNSPECIFIED",
-		1: "RULE_REFUSAL_REASON_INVALID_ID",
-		2: "RULE_REFUSAL_REASON_DUPLICATE_ID",
-		3: "RULE_REFUSAL_REASON_TOO_MANY_RULES",
-		4: "RULE_REFUSAL_REASON_UNSUPPORTED_TRIGGER",
-		5: "RULE_REFUSAL_REASON_UNSUPPORTED_PREDICATE",
-		6: "RULE_REFUSAL_REASON_UNSUPPORTED_ACTION",
-		7: "RULE_REFUSAL_REASON_UNSUPPORTED_JOB",
-		8: "RULE_REFUSAL_REASON_UNSUPPORTED_TARGET",
-		9: "RULE_REFUSAL_REASON_INVALID_RADIUS",
+		0:  "RULE_REFUSAL_REASON_UNSPECIFIED",
+		1:  "RULE_REFUSAL_REASON_INVALID_ID",
+		2:  "RULE_REFUSAL_REASON_DUPLICATE_ID",
+		3:  "RULE_REFUSAL_REASON_TOO_MANY_RULES",
+		4:  "RULE_REFUSAL_REASON_UNSUPPORTED_TRIGGER",
+		5:  "RULE_REFUSAL_REASON_UNSUPPORTED_PREDICATE",
+		6:  "RULE_REFUSAL_REASON_UNSUPPORTED_ACTION",
+		7:  "RULE_REFUSAL_REASON_UNSUPPORTED_JOB",
+		8:  "RULE_REFUSAL_REASON_UNSUPPORTED_TARGET",
+		9:  "RULE_REFUSAL_REASON_INVALID_RADIUS",
+		10: "RULE_REFUSAL_REASON_INVALID_PREDATOR_MARGIN",
 	}
 	RuleRefusalReason_value = map[string]int32{
-		"RULE_REFUSAL_REASON_UNSPECIFIED":           0,
-		"RULE_REFUSAL_REASON_INVALID_ID":            1,
-		"RULE_REFUSAL_REASON_DUPLICATE_ID":          2,
-		"RULE_REFUSAL_REASON_TOO_MANY_RULES":        3,
-		"RULE_REFUSAL_REASON_UNSUPPORTED_TRIGGER":   4,
-		"RULE_REFUSAL_REASON_UNSUPPORTED_PREDICATE": 5,
-		"RULE_REFUSAL_REASON_UNSUPPORTED_ACTION":    6,
-		"RULE_REFUSAL_REASON_UNSUPPORTED_JOB":       7,
-		"RULE_REFUSAL_REASON_UNSUPPORTED_TARGET":    8,
-		"RULE_REFUSAL_REASON_INVALID_RADIUS":        9,
+		"RULE_REFUSAL_REASON_UNSPECIFIED":             0,
+		"RULE_REFUSAL_REASON_INVALID_ID":              1,
+		"RULE_REFUSAL_REASON_DUPLICATE_ID":            2,
+		"RULE_REFUSAL_REASON_TOO_MANY_RULES":          3,
+		"RULE_REFUSAL_REASON_UNSUPPORTED_TRIGGER":     4,
+		"RULE_REFUSAL_REASON_UNSUPPORTED_PREDICATE":   5,
+		"RULE_REFUSAL_REASON_UNSUPPORTED_ACTION":      6,
+		"RULE_REFUSAL_REASON_UNSUPPORTED_JOB":         7,
+		"RULE_REFUSAL_REASON_UNSUPPORTED_TARGET":      8,
+		"RULE_REFUSAL_REASON_INVALID_RADIUS":          9,
+		"RULE_REFUSAL_REASON_INVALID_PREDATOR_MARGIN": 10,
 	}
 )
 
@@ -8620,16 +8623,18 @@ func (x *ApplyReply) GetBatchFailure() *commonpb.Failure {
 // actor. The selector skips prey that fail TARGET_AVAILABLE's checks; with no
 // target the rule does not fire.
 type Rule struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
-	Trigger       *RuleTrigger           `protobuf:"varint,2,opt,name=trigger,proto3,enum=rimgovernor.operations.v1.RuleTrigger,oneof" json:"trigger,omitempty"`
-	Predicates    []RulePredicate        `protobuf:"varint,3,rep,packed,name=predicates,proto3,enum=rimgovernor.operations.v1.RulePredicate" json:"predicates,omitempty"`
-	Action        *RuleAction            `protobuf:"varint,4,opt,name=action,proto3,enum=rimgovernor.operations.v1.RuleAction,oneof" json:"action,omitempty"`
-	Job           *string                `protobuf:"bytes,5,opt,name=job,proto3,oneof" json:"job,omitempty"`
-	Target        *RuleTargetSelector    `protobuf:"varint,6,opt,name=target,proto3,enum=rimgovernor.operations.v1.RuleTargetSelector,oneof" json:"target,omitempty"`
-	Radius        *uint32                `protobuf:"varint,7,opt,name=radius,proto3,oneof" json:"radius,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Id         *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
+	Trigger    *RuleTrigger           `protobuf:"varint,2,opt,name=trigger,proto3,enum=rimgovernor.operations.v1.RuleTrigger,oneof" json:"trigger,omitempty"`
+	Predicates []RulePredicate        `protobuf:"varint,3,rep,packed,name=predicates,proto3,enum=rimgovernor.operations.v1.RulePredicate" json:"predicates,omitempty"`
+	Action     *RuleAction            `protobuf:"varint,4,opt,name=action,proto3,enum=rimgovernor.operations.v1.RuleAction,oneof" json:"action,omitempty"`
+	Job        *string                `protobuf:"bytes,5,opt,name=job,proto3,oneof" json:"job,omitempty"`
+	Target     *RuleTargetSelector    `protobuf:"varint,6,opt,name=target,proto3,enum=rimgovernor.operations.v1.RuleTargetSelector,oneof" json:"target,omitempty"`
+	Radius     *uint32                `protobuf:"varint,7,opt,name=radius,proto3,oneof" json:"radius,omitempty"`
+	// Cells from a wild predator a hunt route must stay outside; finite, >= 0.
+	PredatorMarginCells *float32 `protobuf:"fixed32,8,opt,name=predator_margin_cells,json=predatorMarginCells,proto3,oneof" json:"predator_margin_cells,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Rule) Reset() {
@@ -8707,6 +8712,13 @@ func (x *Rule) GetTarget() RuleTargetSelector {
 func (x *Rule) GetRadius() uint32 {
 	if x != nil && x.Radius != nil {
 		return *x.Radius
+	}
+	return 0
+}
+
+func (x *Rule) GetPredatorMarginCells() float32 {
+	if x != nil && x.PredatorMarginCells != nil {
+		return *x.PredatorMarginCells
 	}
 	return 0
 }
@@ -10211,7 +10223,7 @@ const file_operations_proto_rawDesc = "" +
 	"\n" +
 	"ApplyReply\x12A\n" +
 	"\aresults\x18\x01 \x03(\v2'.rimgovernor.operations.v1.ActionResultR\aresults\x12C\n" +
-	"\rbatch_failure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureR\fbatchFailure\"\xac\x03\n" +
+	"\rbatch_failure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureR\fbatchFailure\"\xff\x03\n" +
 	"\x04Rule\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12E\n" +
 	"\atrigger\x18\x02 \x01(\x0e2&.rimgovernor.operations.v1.RuleTriggerH\x01R\atrigger\x88\x01\x01\x12H\n" +
@@ -10221,14 +10233,16 @@ const file_operations_proto_rawDesc = "" +
 	"\x06action\x18\x04 \x01(\x0e2%.rimgovernor.operations.v1.RuleActionH\x02R\x06action\x88\x01\x01\x12\x15\n" +
 	"\x03job\x18\x05 \x01(\tH\x03R\x03job\x88\x01\x01\x12J\n" +
 	"\x06target\x18\x06 \x01(\x0e2-.rimgovernor.operations.v1.RuleTargetSelectorH\x04R\x06target\x88\x01\x01\x12\x1b\n" +
-	"\x06radius\x18\a \x01(\rH\x05R\x06radius\x88\x01\x01B\x05\n" +
+	"\x06radius\x18\a \x01(\rH\x05R\x06radius\x88\x01\x01\x127\n" +
+	"\x15predator_margin_cells\x18\b \x01(\x02H\x06R\x13predatorMarginCells\x88\x01\x01B\x05\n" +
 	"\x03_idB\n" +
 	"\n" +
 	"\b_triggerB\t\n" +
 	"\a_actionB\x06\n" +
 	"\x04_jobB\t\n" +
 	"\a_targetB\t\n" +
-	"\a_radius\"\x8d\x01\n" +
+	"\a_radiusB\x18\n" +
+	"\x16_predator_margin_cells\"\x8d\x01\n" +
 	"\vRuleRefusal\x12\x1c\n" +
 	"\arule_id\x18\x01 \x01(\tH\x00R\x06ruleId\x88\x01\x01\x12I\n" +
 	"\x06reason\x18\x02 \x01(\x0e2,.rimgovernor.operations.v1.RuleRefusalReasonH\x01R\x06reason\x88\x01\x01B\n" +
@@ -10432,7 +10446,7 @@ const file_operations_proto_rawDesc = "" +
 	"\x14RULE_ACTION_GIVE_JOB\x10\x01*l\n" +
 	"\x12RuleTargetSelector\x12$\n" +
 	" RULE_TARGET_SELECTOR_UNSPECIFIED\x10\x00\x120\n" +
-	",RULE_TARGET_SELECTOR_NEAREST_DESIGNATED_PREY\x10\x01*\xaf\x03\n" +
+	",RULE_TARGET_SELECTOR_NEAREST_DESIGNATED_PREY\x10\x01*\xe0\x03\n" +
 	"\x11RuleRefusalReason\x12#\n" +
 	"\x1fRULE_REFUSAL_REASON_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eRULE_REFUSAL_REASON_INVALID_ID\x10\x01\x12$\n" +
@@ -10443,7 +10457,9 @@ const file_operations_proto_rawDesc = "" +
 	"&RULE_REFUSAL_REASON_UNSUPPORTED_ACTION\x10\x06\x12'\n" +
 	"#RULE_REFUSAL_REASON_UNSUPPORTED_JOB\x10\a\x12*\n" +
 	"&RULE_REFUSAL_REASON_UNSUPPORTED_TARGET\x10\b\x12&\n" +
-	"\"RULE_REFUSAL_REASON_INVALID_RADIUS\x10\t2n\n" +
+	"\"RULE_REFUSAL_REASON_INVALID_RADIUS\x10\t\x12/\n" +
+	"+RULE_REFUSAL_REASON_INVALID_PREDATOR_MARGIN\x10\n" +
+	"2n\n" +
 	"\x05Zones\x12e\n" +
 	"\aPreview\x12-.rimgovernor.operations.v1.ZonePreviewRequest\x1a+.rimgovernor.operations.v1.ZonePreviewReply2b\n" +
 	"\aActions\x12W\n" +

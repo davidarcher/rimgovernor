@@ -13,7 +13,7 @@ internal static class NativeRuleRuntimeProbe
         var rule = new Operations.Rule
         {
             Id = id, Trigger = Operations.RuleTrigger.PreyKilled, Action = Operations.RuleAction.GiveJob, Job = "Hunt",
-            Target = Operations.RuleTargetSelector.NearestDesignatedPrey, Radius = 40,
+            Target = Operations.RuleTargetSelector.NearestDesignatedPrey, Radius = 40, PredatorMarginCells = 25,
         };
         rule.Predicates.Add(Operations.RulePredicate.ActorUndrafted);
         rule.Predicates.Add(Operations.RulePredicate.ActorHuntingWorkActive);
@@ -47,6 +47,8 @@ internal static class NativeRuleRuntimeProbe
             ("selector", Hunt("s", r => r.Target = Operations.RuleTargetSelector.Unspecified), Operations.RuleRefusalReason.UnsupportedTarget),
             ("radius zero", Hunt("r0", r => r.Radius = 0), Operations.RuleRefusalReason.InvalidRadius),
             ("radius over", Hunt("r1", r => r.Radius = NativeRuleBook.MaxRadius + 1), Operations.RuleRefusalReason.InvalidRadius),
+            ("margin zero", Hunt("m0", r => r.PredatorMarginCells = 0), Operations.RuleRefusalReason.InvalidPredatorMargin),
+            ("margin absent", Hunt("m1", r => r.ClearPredatorMarginCells()), Operations.RuleRefusalReason.InvalidPredatorMargin),
         };
         foreach (var c in cases)
         {

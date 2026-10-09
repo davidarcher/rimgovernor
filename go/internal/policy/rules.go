@@ -61,6 +61,8 @@ func HuntChainRules(sources domain.Fact[[]AcquisitionSource], hunters domain.Fac
 		Job:        "Hunt",
 		Target:     domain.RuleNearestDesignatedPrey,
 		Radius:     huntChainRadius,
+
+		PredatorMarginCells: HuntPredatorMarginCells,
 	}}}, true
 }
 

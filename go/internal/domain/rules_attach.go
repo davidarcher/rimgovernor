@@ -3,6 +3,7 @@ package domain
 import (
 	"encoding/json"
 	"errors"
+	"math"
 )
 
 // RulesAttachAction attaches the native declarative rules: a
@@ -45,6 +46,9 @@ type Rule struct {
 	Job        string
 	Target     RuleTarget
 	Radius     uint32
+	// PredatorMarginCells is how far the hunt route must stay from a wild
+	// predator; Go authors it, native has no default.
+	PredatorMarginCells float32
 }
 
 // RulesAttach is an immutable, comparable value: the canonical encoded rules
@@ -61,7 +65,7 @@ func NewRulesAttach(rules []Rule, leaseTicks int64) (RulesAttach, error) {
 	}
 	seen := map[string]bool{}
 	for _, rule := range rules {
-		if !validID(rule.ID) || seen[rule.ID] || rule.Trigger == "" || rule.Action == "" || !validID(rule.Job) || rule.Target == "" || rule.Radius == 0 {
+		if !validID(rule.ID) || seen[rule.ID] || rule.Trigger == "" || rule.Action == "" || !validID(rule.Job) || rule.Target == "" || rule.Radius == 0 || !(rule.PredatorMarginCells > 0) || math.IsInf(float64(rule.PredatorMarginCells), 0) {
 			return RulesAttach{}, errors.New("invalid rule")
 		}
 		for _, predicate := range rule.Predicates {

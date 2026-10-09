@@ -30,16 +30,16 @@ namespace HomeBridge.BridgeTools
         /// it under the running window. Two in-game hours -- long enough for
         /// a controller running at Ultrafast to reach a doctor's order, short
         /// enough that a bleed-out is never left to a review cadence.
-        internal const int InjurySeverityFloorTicks = 5000;
+        /// Go authors the floor (WatchPolicy.injury_severity_floor_ticks).
         /// Ticks a pawn's demoted injury waits before it invalidates the
         /// medical facts again, so a brawl cannot replan the colony every
         /// probe.
         internal const int MedicalWakeIntervalTicks = 600;
 
         /// Whether a new wound is severe enough to keep the stop.
-        internal static bool InjurySeverityFloorReached(int bleedOutTicks, bool lifeThreatening)
+        internal static bool InjurySeverityFloorReached(int bleedOutTicks, bool lifeThreatening, int floorTicks)
         {
-            return lifeThreatening || bleedOutTicks <= InjurySeverityFloorTicks;
+            return lifeThreatening || bleedOutTicks <= floorTicks;
         }
 
         /// Ticks between tick-paced hazard probes, at every speed.

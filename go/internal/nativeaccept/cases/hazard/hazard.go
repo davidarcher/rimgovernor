@@ -31,7 +31,7 @@ const (
 	// detection is measured under a moving clock, never at the start
 	// baseline.
 	settleTicks = 300
-	// injurySeverityFloorTicks mirrors Supervisor.InjurySeverityFloorTicks:
+	// injurySeverityFloorTicks mirrors policy.InjurySeverityFloorTicks, the floor Go sends:
 	// a wound whose bleed-out lands inside it still stops the
 	// window, so the demoted case fails if its injection ever grows into
 	// one. 0 on the wire means the pawn is not bleeding out at all.

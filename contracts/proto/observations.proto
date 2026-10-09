@@ -2103,7 +2103,9 @@ message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_to
 // absent, herd_size is unknown (omitted). hunt_route_budget_ms: main-thread milliseconds the
 // hunt census may spend on RouteSafe pairs (about 0.2-0.45 ms each); pairs past it report
 // HuntRoute.skipped. Absent: evaluate every pair.
-message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; optional uint32 herd_radius = 3; optional uint32 hunt_route_budget_ms = 4; }
+message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; optional uint32 herd_radius = 3; optional uint32 hunt_route_budget_ms = 4;
+  // Cells from a wild predator a hunt route must stay outside; absent, no pair is evaluated (all report skipped).
+  optional float hunt_predator_margin_cells = 5; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 // Simulation status excludes notifications/UI/clock, exposed by their typed owners.
@@ -2282,6 +2284,7 @@ message SnapshotStreamRequest {
   // The ColonyFactsRequest herd_radius and hunt_route_budget_ms of each frame's colony facts read.
   optional uint32 herd_radius = 6;
   optional uint32 hunt_route_budget_ms = 7;
+  optional float hunt_predator_margin_cells = 9;
   // The LinesOfFireRequest budget_ms of each frame's combat lines of fire.
   optional uint32 lines_of_fire_budget_ms = 8;
 }

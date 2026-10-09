@@ -138,6 +138,25 @@ message WatchPolicy {
   // tick they happen (STOP_REASON_COMBAT_EVENT). Distinct, specified;
   // empty arms none. Refused outside combat mode.
   repeated CombatEvent combat_stop_events = 13;
+  // Go-authored hazard thresholds; all required, each finite and positive.
+  // One blow of at least serious_single_hit_damage, summary health crossing
+  // under serious_summary_health_floor (also the floor a resting patient must
+  // stay over to remain eligible), a total bleed rate crossing over
+  // serious_bleed_rate_floor, or a vital part hit under serious_vital_part_floor
+  // of its health is a serious injury. An explosive landing within its blast
+  // radius plus explosive_near_margin_cells of a colonist is near them;
+  // melee_reach_cells is the range assumed for a pawn with no ranged weapon.
+  // A new wound keeps the stop when it bleeds the colonist out within
+  // injury_severity_floor_ticks or is life-threatening. A hunt is unsafe when
+  // its route passes within predator_margin_cells of a wild predator.
+  optional float serious_single_hit_damage = 14;
+  optional float serious_summary_health_floor = 15;
+  optional float serious_bleed_rate_floor = 16;
+  optional float serious_vital_part_floor = 17;
+  optional float explosive_near_margin_cells = 18;
+  optional float melee_reach_cells = 19;
+  optional uint32 injury_severity_floor_ticks = 20;
+  optional float predator_margin_cells = 21;
 }
 
 // Epoch ownership is distinct from automation authority and viewer/input leases.

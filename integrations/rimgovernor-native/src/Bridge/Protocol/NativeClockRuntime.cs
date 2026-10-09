@@ -535,12 +535,21 @@ namespace HomeBridge.BridgeTools
                 && policy.HasHealthDropFraction && Fraction(policy.HealthDropFraction) && policy.HasMinHealthFraction && Fraction(policy.MinHealthFraction)
                 && policy.HasHostileWithin && !float.IsNaN(policy.HostileWithin) && policy.HostileWithin >= 1 && policy.HostileWithin <= 250
                 && policy.HasInjuryStopCooldownMs && policy.InjuryStopCooldownMs <= 1800000
+                && policy.HasSeriousSingleHitDamage && Positive(policy.SeriousSingleHitDamage)
+                && policy.HasSeriousSummaryHealthFloor && Positive(policy.SeriousSummaryHealthFloor)
+                && policy.HasSeriousBleedRateFloor && Positive(policy.SeriousBleedRateFloor)
+                && policy.HasSeriousVitalPartFloor && Positive(policy.SeriousVitalPartFloor)
+                && policy.HasExplosiveNearMarginCells && Positive(policy.ExplosiveNearMarginCells)
+                && policy.HasMeleeReachCells && Positive(policy.MeleeReachCells)
+                && policy.HasInjurySeverityFloorTicks && policy.InjurySeverityFloorTicks > 0 && policy.InjurySeverityFloorTicks <= int.MaxValue
+                && policy.HasPredatorMarginCells && Positive(policy.PredatorMarginCells)
                 && (policy.MedicalRestIds.Count == 0 || maxTicks <= 600)
                 && (policy.CombatStopEvents.Count == 0 || policy.Mode == Clock.WatchMode.Combat)
                 && policy.CombatStopEvents.All(e => e != Clock.CombatEvent.Unspecified && Enum.IsDefined(typeof(Clock.CombatEvent), e))
                 && policy.CombatStopEvents.Distinct().Count() == policy.CombatStopEvents.Count
                 && PolicyIds(policy).All(ids => ids.Count() <= 256 && ids.All(ProtoBoundary.IsIdentifier) && ids.Distinct(StringComparer.Ordinal).Count() == ids.Count());
         }
+        private static bool Positive(float value) => !float.IsNaN(value) && !float.IsInfinity(value) && value > 0;
         private static bool Fraction(float value) => !float.IsNaN(value) && value >= 0.01f && value <= 1;
         private static Common.Unavailable Unavailable(string detail) => new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved, Detail = detail };
         private static string Text(string? text) => NativeClockEventProjection.Text(text ?? "");

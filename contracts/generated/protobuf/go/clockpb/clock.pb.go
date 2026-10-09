@@ -714,8 +714,27 @@ type WatchPolicy struct {
 	// tick they happen (STOP_REASON_COMBAT_EVENT). Distinct, specified;
 	// empty arms none. Refused outside combat mode.
 	CombatStopEvents []CombatEvent `protobuf:"varint,13,rep,packed,name=combat_stop_events,json=combatStopEvents,proto3,enum=rimgovernor.clock.v1.CombatEvent" json:"combat_stop_events,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Go-authored hazard thresholds; all required, each finite and positive.
+	// One blow of at least serious_single_hit_damage, summary health crossing
+	// under serious_summary_health_floor (also the floor a resting patient must
+	// stay over to remain eligible), a total bleed rate crossing over
+	// serious_bleed_rate_floor, or a vital part hit under serious_vital_part_floor
+	// of its health is a serious injury. An explosive landing within its blast
+	// radius plus explosive_near_margin_cells of a colonist is near them;
+	// melee_reach_cells is the range assumed for a pawn with no ranged weapon.
+	// A new wound keeps the stop when it bleeds the colonist out within
+	// injury_severity_floor_ticks or is life-threatening. A hunt is unsafe when
+	// its route passes within predator_margin_cells of a wild predator.
+	SeriousSingleHitDamage    *float32 `protobuf:"fixed32,14,opt,name=serious_single_hit_damage,json=seriousSingleHitDamage,proto3,oneof" json:"serious_single_hit_damage,omitempty"`
+	SeriousSummaryHealthFloor *float32 `protobuf:"fixed32,15,opt,name=serious_summary_health_floor,json=seriousSummaryHealthFloor,proto3,oneof" json:"serious_summary_health_floor,omitempty"`
+	SeriousBleedRateFloor     *float32 `protobuf:"fixed32,16,opt,name=serious_bleed_rate_floor,json=seriousBleedRateFloor,proto3,oneof" json:"serious_bleed_rate_floor,omitempty"`
+	SeriousVitalPartFloor     *float32 `protobuf:"fixed32,17,opt,name=serious_vital_part_floor,json=seriousVitalPartFloor,proto3,oneof" json:"serious_vital_part_floor,omitempty"`
+	ExplosiveNearMarginCells  *float32 `protobuf:"fixed32,18,opt,name=explosive_near_margin_cells,json=explosiveNearMarginCells,proto3,oneof" json:"explosive_near_margin_cells,omitempty"`
+	MeleeReachCells           *float32 `protobuf:"fixed32,19,opt,name=melee_reach_cells,json=meleeReachCells,proto3,oneof" json:"melee_reach_cells,omitempty"`
+	InjurySeverityFloorTicks  *uint32  `protobuf:"varint,20,opt,name=injury_severity_floor_ticks,json=injurySeverityFloorTicks,proto3,oneof" json:"injury_severity_floor_ticks,omitempty"`
+	PredatorMarginCells       *float32 `protobuf:"fixed32,21,opt,name=predator_margin_cells,json=predatorMarginCells,proto3,oneof" json:"predator_margin_cells,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *WatchPolicy) Reset() {
@@ -823,6 +842,62 @@ func (x *WatchPolicy) GetCombatStopEvents() []CombatEvent {
 		return x.CombatStopEvents
 	}
 	return nil
+}
+
+func (x *WatchPolicy) GetSeriousSingleHitDamage() float32 {
+	if x != nil && x.SeriousSingleHitDamage != nil {
+		return *x.SeriousSingleHitDamage
+	}
+	return 0
+}
+
+func (x *WatchPolicy) GetSeriousSummaryHealthFloor() float32 {
+	if x != nil && x.SeriousSummaryHealthFloor != nil {
+		return *x.SeriousSummaryHealthFloor
+	}
+	return 0
+}
+
+func (x *WatchPolicy) GetSeriousBleedRateFloor() float32 {
+	if x != nil && x.SeriousBleedRateFloor != nil {
+		return *x.SeriousBleedRateFloor
+	}
+	return 0
+}
+
+func (x *WatchPolicy) GetSeriousVitalPartFloor() float32 {
+	if x != nil && x.SeriousVitalPartFloor != nil {
+		return *x.SeriousVitalPartFloor
+	}
+	return 0
+}
+
+func (x *WatchPolicy) GetExplosiveNearMarginCells() float32 {
+	if x != nil && x.ExplosiveNearMarginCells != nil {
+		return *x.ExplosiveNearMarginCells
+	}
+	return 0
+}
+
+func (x *WatchPolicy) GetMeleeReachCells() float32 {
+	if x != nil && x.MeleeReachCells != nil {
+		return *x.MeleeReachCells
+	}
+	return 0
+}
+
+func (x *WatchPolicy) GetInjurySeverityFloorTicks() uint32 {
+	if x != nil && x.InjurySeverityFloorTicks != nil {
+		return *x.InjurySeverityFloorTicks
+	}
+	return 0
+}
+
+func (x *WatchPolicy) GetPredatorMarginCells() float32 {
+	if x != nil && x.PredatorMarginCells != nil {
+		return *x.PredatorMarginCells
+	}
+	return 0
 }
 
 // Epoch ownership is distinct from automation authority and viewer/input leases.
@@ -5307,7 +5382,7 @@ var File_clock_proto protoreflect.FileDescriptor
 
 const file_clock_proto_rawDesc = "" +
 	"\n" +
-	"\vclock.proto\x12\x14rimgovernor.clock.v1\x1a\fcommon.proto\x1a\x0fauthority.proto\x1a\x0ereceipts.proto\"\x81\x06\n" +
+	"\vclock.proto\x12\x14rimgovernor.clock.v1\x1a\fcommon.proto\x1a\x0fauthority.proto\x1a\x0ereceipts.proto\"\xde\v\n" +
 	"\vWatchPolicy\x128\n" +
 	"\x04mode\x18\x01 \x01(\x0e2\x1f.rimgovernor.clock.v1.WatchModeH\x00R\x04mode\x88\x01\x01\x125\n" +
 	"\x14health_drop_fraction\x18\x02 \x01(\x02H\x01R\x12healthDropFraction\x88\x01\x01\x123\n" +
@@ -5320,12 +5395,29 @@ const file_clock_proto_rawDesc = "" +
 	"\x15surgical_recovery_ids\x18\t \x03(\tR\x13surgicalRecoveryIds\x12(\n" +
 	"\x10medical_rest_ids\x18\n" +
 	" \x03(\tR\x0emedicalRestIds\x12O\n" +
-	"\x12combat_stop_events\x18\r \x03(\x0e2!.rimgovernor.clock.v1.CombatEventR\x10combatStopEventsB\a\n" +
+	"\x12combat_stop_events\x18\r \x03(\x0e2!.rimgovernor.clock.v1.CombatEventR\x10combatStopEvents\x12>\n" +
+	"\x19serious_single_hit_damage\x18\x0e \x01(\x02H\x05R\x16seriousSingleHitDamage\x88\x01\x01\x12D\n" +
+	"\x1cserious_summary_health_floor\x18\x0f \x01(\x02H\x06R\x19seriousSummaryHealthFloor\x88\x01\x01\x12<\n" +
+	"\x18serious_bleed_rate_floor\x18\x10 \x01(\x02H\aR\x15seriousBleedRateFloor\x88\x01\x01\x12<\n" +
+	"\x18serious_vital_part_floor\x18\x11 \x01(\x02H\bR\x15seriousVitalPartFloor\x88\x01\x01\x12B\n" +
+	"\x1bexplosive_near_margin_cells\x18\x12 \x01(\x02H\tR\x18explosiveNearMarginCells\x88\x01\x01\x12/\n" +
+	"\x11melee_reach_cells\x18\x13 \x01(\x02H\n" +
+	"R\x0fmeleeReachCells\x88\x01\x01\x12B\n" +
+	"\x1binjury_severity_floor_ticks\x18\x14 \x01(\rH\vR\x18injurySeverityFloorTicks\x88\x01\x01\x127\n" +
+	"\x15predator_margin_cells\x18\x15 \x01(\x02H\fR\x13predatorMarginCells\x88\x01\x01B\a\n" +
 	"\x05_modeB\x17\n" +
 	"\x15_health_drop_fractionB\x16\n" +
 	"\x14_min_health_fractionB\x11\n" +
 	"\x0f_hostile_withinB\x1a\n" +
-	"\x18_injury_stop_cooldown_ms\"\x84\x01\n" +
+	"\x18_injury_stop_cooldown_msB\x1c\n" +
+	"\x1a_serious_single_hit_damageB\x1f\n" +
+	"\x1d_serious_summary_health_floorB\x1b\n" +
+	"\x19_serious_bleed_rate_floorB\x1b\n" +
+	"\x19_serious_vital_part_floorB\x1e\n" +
+	"\x1c_explosive_near_margin_cellsB\x14\n" +
+	"\x12_melee_reach_cellsB\x1e\n" +
+	"\x1c_injury_severity_floor_ticksB\x18\n" +
+	"\x16_predator_margin_cells\"\x84\x01\n" +
 	"\n" +
 	"EpochOwner\x127\n" +
 	"\x15controller_session_id\x18\x01 \x01(\tH\x00R\x13controllerSessionId\x88\x01\x01\x12\x19\n" +

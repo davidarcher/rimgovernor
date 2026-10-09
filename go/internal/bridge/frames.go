@@ -744,7 +744,7 @@ func (caller *Client) frameReader(ctx context.Context) frameReader {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if (s.reader == nil || s.stale || s.keyframe) && !s.opening && (s.stale || s.keyframe || time.Since(s.attempted) >= frameRetry) {
-		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources), RoutePathBudgetMs: proto.Uint32(RoutePathBudgetMS), HuntRouteBudgetMs: proto.Uint32(HuntRouteBudgetMS), HerdRadius: proto.Uint32(HerdRadius), LinesOfFireBudgetMs: proto.Uint32(LinesOfFireBudgetMS)}
+		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources), RoutePathBudgetMs: proto.Uint32(RoutePathBudgetMS), HuntRouteBudgetMs: proto.Uint32(HuntRouteBudgetMS), HuntPredatorMarginCells: proto.Float32(policy.HuntPredatorMarginCells), HerdRadius: proto.Uint32(HerdRadius), LinesOfFireBudgetMs: proto.Uint32(LinesOfFireBudgetMS)}
 		if s.reader != nil && !s.stale {
 			// Only a keyframe: the subscription stands.
 			request = &o.SnapshotStreamRequest{Keyframe: proto.Bool(true)}

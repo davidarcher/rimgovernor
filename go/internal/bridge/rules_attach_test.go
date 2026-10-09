@@ -11,7 +11,7 @@ import (
 // action is a journaled intent whose wire arm carries the rules and a relative lease.
 func TestRulesAttachIntentWire(t *testing.T) {
 	rule := domain.Rule{ID: "hunt-chain", Trigger: domain.RulePreyKilled, Predicates: []domain.RulePredicate{domain.RuleActorUndrafted, domain.RuleActorHuntingWorkActive, domain.RuleTargetAvailable},
-		Action: domain.RuleGiveJob, Job: "Hunt", Target: domain.RuleNearestDesignatedPrey, Radius: 80}
+		Action: domain.RuleGiveJob, Job: "Hunt", Target: domain.RuleNearestDesignatedPrey, Radius: 80, PredatorMarginCells: 25}
 	attach, err := domain.NewRulesAttach([]domain.Rule{rule}, 2500)
 	if err != nil {
 		t.Fatal(err)

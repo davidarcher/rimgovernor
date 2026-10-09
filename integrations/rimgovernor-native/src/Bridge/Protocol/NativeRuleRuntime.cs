@@ -120,7 +120,7 @@ namespace HomeBridge.BridgeTools
                 if (!state.Book.ActorReady(actorId, now)) return;
                 if (!ActorQualifies(entry.Rule, actor)) continue;
                 var def = DefDatabase<JobDef>.GetNamedSilentFail(entry.Rule.Job);
-                var target = def == null ? null : Nearest(actor, def, entry.Rule.Radius, kill.Prey);
+                var target = def == null ? null : Nearest(actor, def, entry.Rule.Radius, entry.Rule.PredatorMarginCells, kill.Prey);
                 if (target == null) continue;
                 Fire(authority, state, entry, actor, target, def!, now);
                 return;
@@ -141,7 +141,7 @@ namespace HomeBridge.BridgeTools
 
         // The nearest designated wild prey in the radius that the hunter can reach by a route clear of
         // predators and that a work giver the hunter may do builds the job on.
-        private static Pawn? Nearest(Pawn actor, JobDef def, uint radius, Pawn killed)
+        private static Pawn? Nearest(Pawn actor, JobDef def, uint radius, float predatorMarginCells, Pawn killed)
         {
             var limit = (long)radius * radius;
             var candidates = actor.Map.mapPawns.AllPawnsSpawned
@@ -149,7 +149,7 @@ namespace HomeBridge.BridgeTools
                     && actor.Position.DistanceToSquared(p.Position) <= limit)
                 .OrderBy(p => actor.Position.DistanceToSquared(p.Position)).ThenBy(p => p.thingIDNumber)
                 .Take(MaxRouteChecks);
-            return candidates.FirstOrDefault(p => HuntingSafety.RouteSafe(actor, p) && NativePrioritizedJob.CanTake(actor, p, def));
+            return candidates.FirstOrDefault(p => HuntingSafety.RouteSafe(actor, p, predatorMarginCells) && NativePrioritizedJob.CanTake(actor, p, def));
         }
 
         private static void Fire(NativeControlAuthority authority, State state, NativeRuleBook.Entry entry, Pawn actor, Pawn target, JobDef def, int now)

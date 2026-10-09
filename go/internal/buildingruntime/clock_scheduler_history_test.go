@@ -89,7 +89,7 @@ func seedClockHistoryAttempts(tb testing.TB, db *store.Store, path string, attem
 		tb.Fatal(err)
 	}
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 7}
-	policy := &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}
+	policy := bridge.WithHazardThresholds(&k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)})
 	for i := 0; i < attempts; i++ {
 		id, err := head.NextRequestID()
 		if err != nil {

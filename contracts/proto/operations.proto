@@ -904,6 +904,8 @@ message Rule {
   optional string job = 5;
   optional RuleTargetSelector target = 6;
   optional uint32 radius = 7;
+  // Cells from a wild predator a hunt route must stay outside; finite, >= 0.
+  optional float predator_margin_cells = 8;
 }
 enum RuleRefusalReason {
   RULE_REFUSAL_REASON_UNSPECIFIED = 0;
@@ -916,6 +918,7 @@ enum RuleRefusalReason {
   RULE_REFUSAL_REASON_UNSUPPORTED_JOB = 7;
   RULE_REFUSAL_REASON_UNSUPPORTED_TARGET = 8;
   RULE_REFUSAL_REASON_INVALID_RADIUS = 9;
+  RULE_REFUSAL_REASON_INVALID_PREDATOR_MARGIN = 10;
 }
 message RuleRefusal { optional string rule_id = 1; optional RuleRefusalReason reason = 2; }
 service Rules {

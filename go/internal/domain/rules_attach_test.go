@@ -3,7 +3,7 @@ package domain
 import "testing"
 
 func huntRule(id string) Rule {
-	return Rule{ID: id, Trigger: RulePreyKilled, Predicates: []RulePredicate{RuleActorUndrafted, RuleTargetAvailable}, Action: RuleGiveJob, Job: "Hunt", Target: RuleNearestDesignatedPrey, Radius: 80}
+	return Rule{ID: id, Trigger: RulePreyKilled, Predicates: []RulePredicate{RuleActorUndrafted, RuleTargetAvailable}, Action: RuleGiveJob, Job: "Hunt", Target: RuleNearestDesignatedPrey, Radius: 80, PredatorMarginCells: 25}
 }
 
 func TestRulesAttachActionIsAnIntentWithComparableValue(t *testing.T) {

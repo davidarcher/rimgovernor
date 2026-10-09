@@ -28,7 +28,7 @@ func rulesAttachPlan(t *testing.T, plan, action string, rules []domain.Rule) dom
 func TestRulesAttachActionRoundTrips(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "rules.sqlite"))
-	rule := domain.Rule{ID: "hunt-chain", Trigger: domain.RulePreyKilled, Predicates: []domain.RulePredicate{domain.RuleActorUndrafted}, Action: domain.RuleGiveJob, Job: "Hunt", Target: domain.RuleNearestDesignatedPrey, Radius: 80}
+	rule := domain.Rule{ID: "hunt-chain", Trigger: domain.RulePreyKilled, Predicates: []domain.RulePredicate{domain.RuleActorUndrafted}, Action: domain.RuleGiveJob, Job: "Hunt", Target: domain.RuleNearestDesignatedPrey, Radius: 80, PredatorMarginCells: 25}
 	for name, rules := range map[string][]domain.Rule{"attach": {rule}, "clear": nil} {
 		spec := rulesAttachPlan(t, name, name+"-0", rules)
 		if err := s.CreatePlan(ctx, spec); err != nil {
