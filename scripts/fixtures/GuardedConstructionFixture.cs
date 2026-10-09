@@ -264,7 +264,61 @@ namespace HomeBridge.BridgeTools
             },cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/bench_cleaning", Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab: stages a fuelled bench with a startable bill and eight old filth near it, then asks the patched WorkGiver_DoBill.JobOnThing for a normal, a Cleaning-priority-0 and a drafted pawn (#2515). Reports the job each would take; changes no pawn orders.")]
+        // Sites A..D sit in one column six cells apart so no site is a nearby needer of another (#2523).
+        private static IntVec3 TierCell(Map map, int index) => map.Center + new IntVec3(6, 0, -12 + 6 * index);
+
+        [Tool("test/construction_tier_gate", Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab: prepare stages five steel (limited) and fifty wood plus four wall blueprints (A steel tier 0, B steel tier 5, C wood tier 5, D steel untiered); query asks the patched delivery work-giver whether one colonist is handed a delivery job for each; enclose walls in A so it is unreachable. Re-tiering goes through Actions/Apply. No production caller.")]
+        public async Task<object> ConstructionTierGateFixture(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "query")
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || (action != "query" && !Find.TickManager.Paused) || map.Size.x != 100 || map.Size.z != 100) return Refuse("Paused lab required for fixture writes.");
+                var pawn = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.skills != null && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction))
+                    .OrderBy(p => p.thingIDNumber).FirstOrDefault();
+                if (pawn == null) return Refuse("A capable colonist is required.");
+                if (action == "prepare") {
+                    for (var i = 0; i < 4; i++)
+                        foreach (var cell in GenAdj.CellsAdjacent8Way(new TargetInfo(TierCell(map, i), map)).Concat(new[] { TierCell(map, i) })) ClearWallCell(map, cell);
+                    var stock = map.Center + new IntVec3(-3, 0, 0);
+                    foreach (var offset in new[] { 0, 2 }) ClearWallCell(map, stock + new IntVec3(0, 0, offset));
+                    pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                    pawn.Position = map.Center; pawn.Notify_Teleported(true, true);
+                    var steel = ThingMaker.MakeThing(ThingDefOf.Steel); steel.stackCount = ThingDefOf.Wall.CostStuffCount;
+                    var wood = ThingMaker.MakeThing(ThingDefOf.WoodLog); wood.stackCount = 50;
+                    GenSpawn.Spawn(steel, stock, map); GenSpawn.Spawn(wood, stock + new IntVec3(0, 0, 2), map);
+                    var sites = new List<object>();
+                    var tiers = new[] { 0, 5, 5, ConstructionSkillSetting.None };
+                    for (var i = 0; i < 4; i++) {
+                        var cell = TierCell(map, i);
+                        if (!GenConstruct.CanPlaceBlueprintAt(ThingDefOf.Wall, cell, Rot4.North, map, false, null, null, i == 2 ? ThingDefOf.WoodLog : ThingDefOf.Steel).Accepted)
+                            return Refuse("Wall site " + i + " is not placeable.");
+                        var bp = GenConstruct.PlaceBlueprintForBuild(ThingDefOf.Wall, cell, map, Rot4.North, Faction.OfPlayer, i == 2 ? ThingDefOf.WoodLog : ThingDefOf.Steel);
+                        if (tiers[i] != ConstructionSkillSetting.None) ConstructionSkillGuard.SetTier(bp, tiers[i]);
+                        sites.Add(new { x = cell.x, z = cell.z, target = bp.GetUniqueLoadID() });
+                    }
+                    map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+                    return new { success = true, sites };
+                }
+                if (action == "enclose") {
+                    foreach (var cell in GenAdj.CellsAdjacent8Way(new TargetInfo(TierCell(map, 0), map))) {
+                        var wall = ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.Steel);
+                        wall.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(wall, cell, map);
+                    }
+                    map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+                } else if (action != "query") return Refuse("Unknown action.");
+                var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d => d.giverClass == typeof(WorkGiver_ConstructDeliverResourcesToBlueprints)).Worker as WorkGiver_Scanner;
+                var rows = new List<object>();
+                for (var i = 0; i < 4; i++) {
+                    var site = TierCell(map, i).GetThingList(map).FirstOrDefault(t => t is Blueprint_Build);
+                    if (site == null) return Refuse("Site " + i + " is gone.");
+                    var job = giver.JobOnThing(pawn, site, true);
+                    rows.Add(new { job = job?.def.defName, tier = ConstructionSkillGuard.Setting(site)?.Tier, reachable = pawn.CanReach(site, PathEndMode.Touch, Danger.Deadly) });
+                }
+                return new { success = true, supervisorActive = Supervisor.IsActive, a = rows[0], b = rows[1], c = rows[2], d = rows[3] };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/bench_cleaning",Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab: stages a fuelled bench with a startable bill and eight old filth near it, then asks the patched WorkGiver_DoBill.JobOnThing for a normal, a Cleaning-priority-0 and a drafted pawn (#2515). Reports the job each would take; changes no pawn orders.")]
         public async Task<object> BenchCleaning(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {

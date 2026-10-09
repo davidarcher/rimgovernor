@@ -2,8 +2,8 @@
 
 [Contracts](README.md) · Epic #2510. Tier is a per-target integer that native
 remembers while a building is unfinished. This page covers the field and its
-lifecycle (#2522) and which builds carry which tier (#2524); nothing reads the
-tier yet. The delivery gate (#2523), the remaining admit paths (#2525) and
+lifecycle (#2522), which builds carry which tier (#2524) and the native
+delivery gate that reads it (#2523). The remaining admit paths (#2525) and
 promotion (#2527) extend it.
 
 ## Ladder
@@ -85,3 +85,33 @@ completion drops the tier; it is not carried onto the finished building.
 
 Native case `wall/construction-skill` covers tier through conversion and
 save/load, set-tier, the stale target refusal and the unchanged floor.
+
+## Delivery gate
+
+`ConstructionTierGate` (Harmony postfix on
+`WorkGiver_ConstructDeliverResources.ResourceDeliverJobFor`, installed with the
+other bridge guards) runs only under `Supervisor.IsActive`. It gates material
+delivery, not labor: a frame needs every material before work starts, so
+withholding delivery withholds work.
+
+Rule, per resource: a tier-t site may receive material M only if no site of
+strictly lower tier on the map still needs M. A site needs M when its
+`TotalMaterialCost` lists M and `ThingCountNeeded(M) > 0` (stuff-based costs are
+already concrete on the blueprint or frame). Equal tiers are not ordered against
+each other. Untiered sites are never gated and never gate others. A material
+nobody of lower tier wants flows freely, so unrelated shortages idle no one.
+
+Mechanics: the vanilla job is `HaulToContainer` (`targetA` resource, `targetC`
+the site it was found for, `targetB`/`targetQueueB` the sites it will deliver
+to, including nearby needers). A blocked `targetC` returns no job with fail
+reason "a lower construction tier still needs this material"; a blocked nearby
+needer is dropped from the delivery list. The per-map list of tiered sites with
+unmet materials is rebuilt once per game tick.
+
+Deadlock guard: a lower-tier site blocks the delivering pawn only if that pawn
+could itself deliver to it: same map, not forbidden, reachable (`Touch`,
+`Danger.Deadly`) and the pawn's Construction level meets the def's prerequisite.
+An unreachable tier-0 site cannot starve everything else. The comparison itself
+is `ConstructionTierGatePolicy` (no Verse types), covered by probe
+`native-construction-tier-gate`; the work-giver patch by native case
+`wall/tier-gate`.
