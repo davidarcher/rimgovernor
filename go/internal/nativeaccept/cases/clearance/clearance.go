@@ -139,7 +139,6 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 	if err != nil {
 		return err
 	}
-	designated := false
 	err = na.WaitProgress(ctx, wait(service), func(ctx context.Context) (string, bool, error) {
 		review, err := journal.LoadRounds(ctx)
 		if err != nil {
@@ -153,15 +152,9 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 			if err != nil {
 				return "", false, err
 			}
-			// A store alone never moves a chunk (#702): the haul plan designates
-			// them, so the service must run until it is admitted.
-			hauls, err := journal.PlanHistoryWithMethods(ctx, 256, "chunk-haul-*")
-			if err != nil {
-				return "", false, err
-			}
-			designated = designated || len(hauls) > 0
 			s.Report()["chunk_standard"] = goal.Standard
-			return na.Signature(goal.Standard.Finding, len(goal.Methods), designated), designated && goal.Standard.Finding == domain.FindingMet, nil
+			// No Haul designation is ever ordered (#2513): the native mod marks chunks always haulable.
+			return na.Signature(goal.Standard.Finding, len(goal.Methods)), goal.Standard.Finding == domain.FindingMet, nil
 		}
 		return "waiting for chunk standard", false, nil
 	})

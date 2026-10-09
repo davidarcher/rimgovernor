@@ -2,10 +2,7 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -119,7 +116,7 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 		}
 		prefix, actions, err = groundStepMethod(id, step)
 	} else {
-		return r.dump(call, epoch, state, goal, review.Tick, census, started)
+		return r.dump(census), nil
 	}
 	if err != nil {
 		return RoundsClearanceResult{}, err
@@ -338,103 +335,11 @@ func groundActions(id domain.PlanID, step policy.GroundStep, cleared []domain.Gr
 // deconstructions. A pending stack (in Home, allowed, unstored, no store will
 // take it) has no store yet: the materials yard takes chunks and slag, so the
 // planner makes no zone and refuses no_space until one stands. Once a store
-// takes every stack, ordinary hauling clears them under a Haul designation.
-func (r *RoundsClearancePlanner) dump(call, epoch context.Context, state ControlState, goal store.StandardState, reviewTick domain.Tick, census policy.ClearanceCensus, started time.Time) (RoundsClearanceResult, error) {
+// takes a stack, ordinary hauling moves it: the native mod marks chunk defs
+// always haulable (#2513), so no designation is ordered.
+func (r *RoundsClearancePlanner) dump(census policy.ClearanceCensus) RoundsClearanceResult {
 	if len(policy.PendingChunks(census.Chunks)) == 0 {
-		return r.haulChunks(call, epoch, state, goal, census, started)
+		return RoundsClearanceResult{Verdict: waitFor(WaitMethodUsed, "chunk_haul_chunks")}
 	}
-	return RoundsClearanceResult{Verdict: noSpace("chunk_dump_site")}, nil
-}
-
-// chunkHaulWorkTicks bounds one clock window spent letting ordinary hauling
-// carry designated chunks; the next review re-reads which are stored.
-const chunkHaulWorkTicks = 2500
-
-// maxChunkHaulBatch bounds one chunk-haul method; the next review designates
-// the rest.
-const maxChunkHaulBatch = 8
-
-// haulChunks designates the chunks a store now takes for hauling (#702): an
-// unstored chunk is haulable in vanilla only under a Haul designation, so the
-// dump alone never moves it. The method is content-addressed by the chunks
-// and their cells, so a batch is ordered once; a chunk still standing where
-// it was designated is ordinary hauling's to finish.
-func (r *RoundsClearancePlanner) haulChunks(call, epoch context.Context, state ControlState, goal store.StandardState, census policy.ClearanceCensus, started time.Time) (RoundsClearanceResult, error) {
-	p := r.reviewer.player
-	// A chunk an earlier batch of this epoch ordered is ordinary hauling's
-	// (#1234): one that never moves must not hold the batch after it.
-	ordered := map[string]domain.Cell{}
-	for _, m := range goal.History {
-		if !strings.HasPrefix(string(m.Method), "chunk-haul-") {
-			continue
-		}
-		plan, err := p.journal.LoadPlan(call, m.Plan)
-		if err != nil {
-			return RoundsClearanceResult{}, err
-		}
-		for _, a := range plan.Spec.Actions() {
-			if c, ok := a.CoverClearance(); ok {
-				ordered[c.Thing()] = c.Cell()
-			}
-		}
-	}
-	var chunks []policy.ClearanceChunk
-	waiting := false
-	for _, chunk := range policy.HaulableChunks(census.Chunks) {
-		if cell, ok := ordered[chunk.EntityID]; ok && cell == chunk.Cell {
-			waiting = true
-			continue
-		}
-		chunks = append(chunks, chunk)
-	}
-	if len(chunks) == 0 && waiting {
-		return RoundsClearanceResult{Verdict: waitFor(WaitMethodUsed, "chunk_haul_ordered"), NativeWorkTicks: chunkHaulWorkTicks}, nil
-	}
-	if len(chunks) > maxChunkHaulBatch {
-		chunks = chunks[:maxChunkHaulBatch]
-	}
-	if len(chunks) == 0 {
-		return RoundsClearanceResult{Verdict: waitFor(WaitMethodUsed, "chunk_haul_chunks")}, nil
-	}
-	var key strings.Builder
-	for _, chunk := range chunks {
-		fmt.Fprintf(&key, "%s@%d,%d;", chunk.EntityID, chunk.Cell.X, chunk.Cell.Z)
-	}
-	hash := sha256.Sum256([]byte(key.String()))
-	method := domain.MethodID(fmt.Sprintf("chunk-haul-%x", hash[:16]))
-	// History, not Methods: the ordered batch's plan retires as soon as the
-	// designations land, and re-committing the same method is a conflict.
-	for _, m := range goal.History {
-		if m.Method == method {
-			return RoundsClearanceResult{Verdict: waitFor(WaitMethodUsed, "chunk_haul_method"), NativeWorkTicks: chunkHaulWorkTicks}, nil
-		}
-	}
-	id := domain.MintPlanID()
-	actions := make([]domain.Action, 0, len(chunks))
-	for i, chunk := range chunks {
-		clearance, err := domain.NewCoverClearance(chunk.EntityID, chunk.DefName, domain.CoverClearanceHaul, chunk.Cell)
-		if err != nil {
-			return RoundsClearanceResult{}, err
-		}
-		action, err := domain.NewCoverClearanceAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), clearance)
-		if err != nil {
-			return RoundsClearanceResult{}, err
-		}
-		actions = append(actions, action)
-	}
-	plan, err := domain.NewPlan(id, 1, actions)
-	if err != nil {
-		return RoundsClearanceResult{}, err
-	}
-	if err = p.current(call, epoch); err != nil {
-		return RoundsClearanceResult{}, err
-	}
-	elapsed := r.reviewer.clock.Now().Sub(started)
-	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoundsClearanceResult{}, fmt.Errorf("%w: haulChunks: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
-	}
-	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
-		return RoundsClearanceResult{}, err
-	}
-	return RoundsClearanceResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
+	return RoundsClearanceResult{Verdict: noSpace("chunk_dump_site")}
 }

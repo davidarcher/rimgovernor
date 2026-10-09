@@ -92,7 +92,7 @@ func TestChunkHoldsAndPendingDeficit(t *testing.T) {
 		t.Fatal(r, err)
 	}
 	// A chunk a store takes stays a deficit until stored: it still needs
-	// the Haul designation ordinary hauling waits for (#702, #764).
+	// ordinary hauling to carry it (#702, #764, #2513).
 	r, err = ReviewUpkeep(UpkeepObservation{Clearance: domain.Known([]ClearanceTarget{}), Chunks: domain.Known(rows[3:4])}, UpkeepHistory{}, nil)
 	if err != nil || !r.History.Clearance {
 		t.Fatal(r, err)
@@ -103,19 +103,5 @@ func TestChunkHoldsAndPendingDeficit(t *testing.T) {
 	}
 	if _, err = ReviewUpkeep(UpkeepObservation{Clearance: domain.Known([]ClearanceTarget{{EntityID: "a", InHome: true, Deconstructible: true}}), Chunks: domain.Known(rows)}, UpkeepHistory{}, nil); err == nil {
 		t.Fatal("duplicate identity across buildings and chunks")
-	}
-}
-
-func TestHaulableChunksNeedADestination(t *testing.T) {
-	rows := []ClearanceChunk{
-		{EntityID: "b", Destination: true},
-		{EntityID: "pending"},
-		{EntityID: "forbidden", Forbidden: true, Destination: true},
-		{EntityID: "stored", Stored: true},
-		{EntityID: "a", Destination: true},
-	}
-	got := HaulableChunks(rows)
-	if len(got) != 2 || got[0].EntityID != "a" || got[1].EntityID != "b" {
-		t.Fatal(got)
 	}
 }

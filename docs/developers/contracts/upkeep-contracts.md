@@ -215,7 +215,9 @@ Home at a time, nearest the colony center first.
   `RecoveryQueue` entry.
 - Chunks are hauls: an allowed, unstored chunk stack in Home with no store cell
   ordinary hauling would use is a clearance deficit; no stockpile is created for it.
-  Forbidden chunks are the supply safety policy's.
+  Forbidden chunks are the supply safety policy's. Once a store takes a chunk, ordinary
+  hauling carries it: the native mod sets `alwaysHaulable` on the chunk defs at startup
+  (#2513), so no Haul designation is ordered and the clearance goal only waits.
 - `ClearAncientShrine` (the `shrine` family) holds the clearance concern while it has work
   (see the breach concern in `controller-contracts.md`).
 - Unknown observations preserve the previous need. Recovery needs no eligible candidate
