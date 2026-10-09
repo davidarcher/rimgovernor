@@ -263,6 +263,15 @@ Home at a time, nearest the colony center first.
   filth-age threshold. Admission uses the live preview tick (native revalidates tokens;
   the executor bounds inspection age in wall time; tick advance between pawn read and
   preview alone does not stale a preview).
+- Opportunistic bench cleaning is native and needs no Go data (`BenchCleaningGuard`, #2515):
+  under `Supervisor.IsActive`, a Harmony postfix on `WorkGiver_DoBill.JobOnThing` replaces an
+  unforced bill job with one `Clean` job when home-area filth the clean WorkGiver accepts and
+  the pawn can reach lies within 6 cells of the bench, so a pawn cleans before starting a bill.
+  Caps: at most 5 filth per trip; never for a pawn whose Cleaning work type is disabled or at
+  priority 0; never for a drafted, downed, mentally broken, bleeding, tend-needy,
+  player-forced or priority-work pawn; forced bill orders are untouched. The same
+  `CleanJob` helper is meant to serve the after-tending and before-surgery triggers.
+  It overlaps the Go `MaintainCleanFacilities` planners only in effect; neither consults the other.
 - Butcher placements never share a room with a cooking bench; a colony whose every butcher
   bench shares a cooking room is admitted one more `ButcherSpot` outside. The spot and its
   `ButcherCorpseFlesh` bill are foothold work owed whenever the food runway is under

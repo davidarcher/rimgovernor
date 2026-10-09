@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
     // apply; a pawn already cleaning the filth applies again.
     internal static class NativeCleanOperations
     {
-        private static WorkGiver_CleanFilth? Giver() => DefDatabase<WorkGiverDef>.AllDefsListForReading
+        internal static WorkGiver_CleanFilth? Giver() => DefDatabase<WorkGiverDef>.AllDefsListForReading
             .Where(d => d.giverClass != null && typeof(WorkGiver_CleanFilth).IsAssignableFrom(d.giverClass))
             .Select(d => d.Worker as WorkGiver_CleanFilth).FirstOrDefault(w => w != null);
 

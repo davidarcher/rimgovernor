@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using HarmonyLib;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
@@ -261,6 +262,78 @@ namespace HomeBridge.BridgeTools
                 return new {success=true,minimum=setting?.Minimum,lowRefused,highAllowed=ConstructionSkillGuard.Allows(bed,high),
                     wallProgress=wallCell.GetEdifice(map)?.def==ThingDefOf.Wall || wallCell.GetThingList(map).OfType<Frame>().Any(f=>f.workDone>0), bedPending=bed.Spawned};
             },cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/bench_cleaning", Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab: stages a fuelled bench with a startable bill and eight old filth near it, then asks the patched WorkGiver_DoBill.JobOnThing for a normal, a Cleaning-priority-0 and a drafted pawn (#2515). Reports the job each would take; changes no pawn orders.")]
+        public async Task<object> BenchCleaning(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused || map.Size.x != 100 || map.Size.z != 100) return Refuse("A paused 100x100 disposable lab is required.");
+                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.workSettings != null && p.drafter != null
+                    && !p.WorkTypeIsDisabled(WorkTypeDefOf.Cleaning)).OrderBy(p => p.thingIDNumber).Take(3).ToList();
+                if (pawns.Count < 3) return Refuse("Three colonists able to clean are required.");
+                var blood = DefDatabase<ThingDef>.GetNamedSilentFail("Filth_Blood");
+                if (blood == null) return Refuse("Filth_Blood unavailable.");
+                var origin = map.Center + new IntVec3(-14, 0, 0);
+                foreach (var cell in new CellRect(origin.x - 6, origin.z - 6, 13, 13).Cells) {
+                    ClearWallCell(map, cell);
+                    map.areaManager.Home[cell] = true;
+                    map.roofGrid.SetRoof(cell, null);
+                }
+                foreach (var pawn in pawns) {
+                    pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                    pawn.drafter.Drafted = false;
+                    pawn.Position = origin + new IntVec3(0, 0, -3); pawn.Notify_Teleported(true, true);
+                    pawn.workSettings.SetPriority(WorkTypeDefOf.Cleaning, 1);
+                }
+                map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+                Thing bench = null; Bill staged = null; WorkGiver_DoBill giver = null;
+                foreach (var name in new[] { "CraftingSpot", "FueledStove", "TableButcher" }) {
+                    var def = DefDatabase<ThingDef>.GetNamedSilentFail(name);
+                    if (def == null) continue;
+                    var made = ThingMaker.MakeThing(def, def.MadeFromStuff ? ThingDefOf.WoodLog : null);
+                    made.SetFaction(Faction.OfPlayer);
+                    GenSpawn.Spawn(made, origin, map);
+                    var fuel = made.TryGetComp<CompRefuelable>(); if (fuel != null) fuel.Refuel(fuel.Props.fuelCapacity);
+                    map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+                    var worker = DefDatabase<WorkGiverDef>.AllDefsListForReading.Where(w => typeof(WorkGiver_DoBill).IsAssignableFrom(w.giverClass)
+                        && w.fixedBillGiverDefs != null && w.fixedBillGiverDefs.Contains(def)).Select(w => w.Worker as WorkGiver_DoBill).FirstOrDefault(w => w != null);
+                    if (worker != null && made is IBillGiver giverThing) {
+                        foreach (var recipe in def.AllRecipes) {
+                            var bill = recipe.MakeNewBill();
+                            giverThing.BillStack.AddBill(bill);
+                            if (worker.JobOnThing(pawns[0], made, false)?.def == JobDefOf.DoBill) { staged = bill; break; }
+                            giverThing.BillStack.Delete(bill);
+                        }
+                    }
+                    if (staged != null) { bench = made; giver = worker; break; }
+                    made.Destroy();
+                }
+                if (bench == null) return Refuse("No fixture bench has a startable bill with the lab's stock.");
+                var interaction = bench.def.hasInteractionCell ? bench.InteractionCell : bench.Position;
+                string Job(Pawn p) { var job = giver.JobOnThing(p, bench, false); return job == null ? "none" : job.def.defName; }
+                int Targets(Pawn p) { var job = giver.JobOnThing(p, bench, false); return job?.def == JobDefOf.Clean ? job.GetTargetQueue(TargetIndex.A).Count : 0; }
+                var cleanBefore = Job(pawns[0]);
+                var spawned = 0;
+                foreach (var cell in GenRadial.RadialCellsAround(interaction, 4, true).Where(c => c != bench.Position && c != interaction && c.Standable(map))) {
+                    if (spawned == 8) break;
+                    if (!FilthMaker.TryMakeFilth(cell, map, blood, 1, FilthSourceFlags.None)) continue;
+                    var filth = cell.GetThingList(map).OfType<Filth>().FirstOrDefault(f => f.def == blood);
+                    if (filth == null) continue;
+                    AccessTools.Field(typeof(Filth), "growTick").SetValue(filth, Find.TickManager.TicksGame - 1000);
+                    spawned++;
+                }
+                if (spawned < 8) return Refuse("Only " + spawned + " filth spawned.");
+                pawns[1].workSettings.SetPriority(WorkTypeDefOf.Cleaning, 0);
+                pawns[2].drafter.Drafted = true;
+                var normal = Job(pawns[0]); var normalTargets = Targets(pawns[0]);
+                var disabled = Job(pawns[1]); var disabledTargets = Targets(pawns[1]);
+                var drafted = Job(pawns[2]); var draftedTargets = Targets(pawns[2]);
+                pawns[2].drafter.Drafted = false;
+                return new { success = true, supervisorActive = Supervisor.IsActive, filth = spawned, cleanBefore,
+                    normal, normalTargets, disabled, disabledTargets, drafted, draftedTargets };
+            }, cancellationToken).ConfigureAwait(false);
         }
 
         private static void ClearWallCell(Map map, IntVec3 cell)
