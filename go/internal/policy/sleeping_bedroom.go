@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -55,13 +54,8 @@ type BedroomStep struct {
 	Kind             BedroomStepKind
 	Pawn             PawnID
 	Bed, PreviousBed string
-	// Room is the step's room; for a BedroomReconcile from NextBedroomStep it
-	// is Rooms[0].
+	// Room is the step's room.
 	Room PlannedRoom
-	// Rooms is a BedroomReconcile's batch: every unbuilt or empty bedroom of
-	// the first owed room's wing, in plan order. Empty for the suite and
-	// migration steps, whose one room is Room.
-	Rooms []PlannedRoom
 	// Cells is a BedroomClear's one cell.
 	Cells    []domain.Cell
 	Unhoused int
@@ -69,7 +63,7 @@ type BedroomStep struct {
 
 // NextBedroomStep picks the next bedroom step from the plan, the room census
 // and the sleeping census. Move comes first (it costs nothing), then a room
-// with no bed to reconcile (in the first wing in plan order that owes one, a standing empty room leading), only while the
+// with no bed to reconcile (the first in plan order that owes one), only while the
 // standing bedrooms cannot take every colonist still outside one; a room dug
 // into rock is a shell too, whose builder mines it first. It reports BedroomNone whenever a
 // fact it needs is unknown.
@@ -191,7 +185,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	}
 	// Census: beds and roof, read off the room.
 	standing := func(r PlannedRoom) (Room, bool) { return CensusRoomIn(r, rooms) }
-	var owed, empty []PlannedRoom
+	var owed []PlannedRoom
 	retiring := retiringRooms(plan)
 	for _, r := range plan.AllRooms() {
 		// A Retiring wing is never built out further.
@@ -205,45 +199,14 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		}
 		if len(room.Beds) == 0 {
 			owed = append(owed, r)
-			empty = append(empty, r)
 		}
 	}
 	if len(owed) > 0 {
-		// The wing is the first in plan order with a bedroom owed, and the
-		// whole wing is owed once one of its rooms is. Inside
-		// it a standing empty room leads (it owes the least).
-		batch := wingBedrooms(plan, owed[0], owed)
-		head := batch[0]
-		for _, r := range batch {
-			if slices.ContainsFunc(empty, r.Same) {
-				head = r
-				break
-			}
-		}
-		return BedroomStep{Kind: BedroomReconcile, Room: head, Rooms: batch, Unhoused: len(unhoused)}
+		// One bedroom per step: the first owed in plan order.
+		return BedroomStep{Kind: BedroomReconcile, Room: owed[0], Unhoused: len(unhoused)}
 	}
 	// No slot left: Unhoused still counts who stays outside a bedroom.
 	return suiteStep()
-}
-
-// wingBedrooms is the rooms of owed that share head's bedroom wing, in the
-// wing's plan order: a wing's bedrooms are built together, ahead of need.
-// A head outside any wing (a spine bedroom) stands alone. A Retiring
-// wing never reaches here (NextBedroomStep skips its rooms).
-func wingBedrooms(plan LayoutPlan, head PlannedRoom, owed []PlannedRoom) []PlannedRoom {
-	for _, w := range plan.Wings {
-		if w.Purpose != WingBedrooms || !slices.ContainsFunc(w.Rooms, head.Same) {
-			continue
-		}
-		var batch []PlannedRoom
-		for _, r := range w.Rooms {
-			if r.Role == PlannedBedroom && slices.ContainsFunc(owed, r.Same) {
-				batch = append(batch, r)
-			}
-		}
-		return batch
-	}
-	return []PlannedRoom{head}
 }
 
 // BedroomTemplate is the furniture template of a BedroomReconcile's room: bed

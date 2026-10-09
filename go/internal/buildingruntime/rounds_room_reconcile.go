@@ -215,78 +215,57 @@ func waitingHeld(ctx context.Context, name string, works []roomWork, refused ...
 	return result
 }
 
-// reconcileRoom reconciles one owner's room (see reconcileRooms).
+// reconcileRoom reconciles one owner's room: it is diffed, then the next wave
+// is committed: foreign obstructions, removals, installs from packed stock,
+// then the on-site builds (commitBuilds).
 func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, stock *packedStock, rr roomReconcile) (RoundsBuildingResult, error) {
-	return b.reconcileRooms(call, epoch, state, review, goal, reading, stock, []roomReconcile{rr})
-}
-
-// reconcileRooms reconciles several rooms of one owner together (a
-// wing's bedrooms): each room is diffed on its own, then the next wave is
-// committed across all of them in plan order, so twelve rooms' walls are one
-// wall batch. The first room names the methods. A removal is the first room's
-// that owes one (it ends the pass), installs from packed stock are one method
-// for every room (each stored piece goes to one room), and the builds are one
-// method that admits what the stock funds (commitBuilds).
-func (b *RoundsBuildingPlanner) reconcileRooms(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, stock *packedStock, rrs []roomReconcile) (RoundsBuildingResult, error) {
 	facts := reading.Projection
 	plan, known := facts.LayoutPlan.Value()
-	if !known || len(rrs) == 0 {
+	if !known {
 		return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
 	}
-	// The packed stock the rooms share: a room takes what its predecessors left.
 	var left map[string]int
-	works := make([]roomWork, 0, len(rrs))
-	for _, rr := range rrs {
-		in, ground := roomRingInput(facts, plan, rr.room)
-		if !ground {
+	in, ground := roomRingInput(facts, plan, rr.room)
+	if !ground {
+		return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
+	}
+	if !rr.ringOnly {
+		in.Cells = cellsOn(facts.Cells, rr.room.RoomGround())
+		source, ok := b.native.(observation.ClearanceSource)
+		if !ok {
 			return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
 		}
-		if !rr.ringOnly {
-			in.Cells = cellsOn(facts.Cells, rr.room.RoomGround())
-			source, ok := b.native.(observation.ClearanceSource)
-			if !ok {
-				return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
-			}
-			read, err := observation.ObserveClearanceCensusOnGround(call, source, facts.Identity, false, []policy.Rectangle{rr.room.RoomGround()})
-			if err != nil {
+		read, err := observation.ObserveClearanceCensusOnGround(call, source, facts.Identity, false, []policy.Rectangle{rr.room.RoomGround()})
+		if err != nil {
+			return RoundsBuildingResult{}, err
+		}
+		census, known := read.Value()
+		if !known {
+			return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
+		}
+		_, player := policy.SplitGroundRows(census.Targets)
+		in.Rows, in.Floors, in.Furniture = policy.OwnRows(stampPacking(player, facts), rr.template, rr.forbidden), census.Floors, rr.template
+		if want := shellStyle(facts).WallStuff(domain.ShellRun); want != "" && !rr.room.Outdoor {
+			in.WallUpgrade = func(have string) bool { return facts.StuffUpgrade(policy.ShellWallDefinition, have, want) }
+		}
+		if !rr.room.Outdoor {
+			in.WantedFloor, in.FloorKept = policy.FlooringRoomFloors(func(policy.PlannedRoom) []string { return rr.tags }, flooringFacts(facts), b.reviewer.policy.Flooring)(rr.room)
+		}
+		if left == nil {
+			if items, readable, err := stock.Items(call, policy.PackedFurnitureDefinition); err != nil {
 				return RoundsBuildingResult{}, err
-			}
-			census, known := read.Value()
-			if !known {
-				return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
-			}
-			_, player := policy.SplitGroundRows(census.Targets)
-			in.Rows, in.Floors, in.Furniture = policy.OwnRows(stampPacking(player, facts), rr.template, rr.forbidden), census.Floors, rr.template
-			if want := shellStyle(facts).WallStuff(domain.ShellRun); want != "" && !rr.room.Outdoor {
-				in.WallUpgrade = func(have string) bool { return facts.StuffUpgrade(policy.ShellWallDefinition, have, want) }
-			}
-			if !rr.room.Outdoor {
-				in.WantedFloor, in.FloorKept = policy.FlooringRoomFloors(func(policy.PlannedRoom) []string { return rr.tags }, flooringFacts(facts), b.reviewer.policy.Flooring)(rr.room)
-			}
-			if left == nil {
-				if items, readable, err := stock.Items(call, policy.PackedFurnitureDefinition); err != nil {
-					return RoundsBuildingResult{}, err
-				} else if readable {
-					left = map[string]int{}
-					for _, item := range items {
-						left[item.InnerDef]++
-					}
+			} else if readable {
+				left = map[string]int{}
+				for _, item := range items {
+					left[item.InnerDef]++
 				}
 			}
-			in.Stock = left
 		}
-		ops, holds := policy.ReconcileRoomHolds(in)
-		for _, op := range ops {
-			if op.Kind != policy.OpInstall || left == nil {
-				continue
-			}
-			for _, piece := range op.Pieces {
-				left[piece.DefName] = max(0, left[piece.DefName]-1)
-			}
-		}
-		works = append(works, roomWork{rr: rr, ops: ops, holds: holds})
+		in.Stock = left
 	}
-	// Foreign obstructions first (claim, cut, haul), one wave across the rooms,
+	ops, holds := policy.ReconcileRoomHolds(in)
+	works := []roomWork{{rr: rr, ops: ops, holds: holds}}
+	// Foreign obstructions first (claim, cut, haul),
 	// then removals, then installs from stock, then what is built on site.
 	if result, done, err := b.commitObstructions(call, epoch, state, goal, works); done || err != nil {
 		return result, err

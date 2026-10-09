@@ -142,37 +142,17 @@ func (r *RoundsSleepingUpkeepPlanner) reconcileBedroom(call, epoch context.Conte
 	if !known {
 		return RoundsBuildingResult{Verdict: fieldUnavailable("room_census")}, nil
 	}
-	// A wing's bedrooms are reconciled together; a suite or a migration
-	// step names its one room.
-	batch := step.Rooms
-	if len(batch) == 0 {
-		batch = []policy.PlannedRoom{step.Room}
-	}
-	var rrs []roomReconcile
-	var anyStanding bool
-	for _, room := range batch {
-		template, ok := policy.BedroomTemplate(room, rooms.Shapes, bed)
-		if !ok {
-			// A room the template does not fit is left out of the batch.
-			continue
-		}
-		// Census: the shelter bed packs only once a room is roofed.
-		if _, standing := policy.CensusRoomIn(room, rooms); standing {
-			anyStanding = true
-		}
-		rrs = append(rrs, roomReconcile{room: room, template: template, name: bedroomReconcileName(room), reason: bedroomShellReason(step)})
-	}
-	if len(rrs) == 0 {
+	template, ok := policy.BedroomTemplate(step.Room, rooms.Shapes, bed)
+	if !ok {
 		return RoundsBuildingResult{Verdict: noSpace("bedroom_template")}, nil
 	}
-	// Only once a room stands: until then the shelter's bed keeps its sleeper.
-	// One bed is packed for the whole batch, never one per room.
-	if anyStanding {
+	// Only once the room stands: until then the shelter's bed keeps its sleeper.
+	if _, standing := policy.CensusRoomIn(step.Room, rooms); standing {
 		if result, due, err := r.packShellBed(call, epoch, stock, state, goal, reading, bed); due || err != nil {
 			return result, err
 		}
 	}
-	return r.building.reconcileRooms(call, epoch, state, review, goal, reading, stock, rrs)
+	return r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{room: step.Room, template: template, name: bedroomReconcileName(step.Room), reason: bedroomShellReason(step)})
 }
 
 // bedroomShellReason is a bedroom shell's short why: the colonists still

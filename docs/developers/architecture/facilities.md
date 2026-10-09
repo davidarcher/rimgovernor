@@ -330,15 +330,10 @@ pass installs it instead of building another. The couple's double bed is the
 same: the pack step takes the two single beds up, the install is a
 reconcile of the couple's planned room to a `DoubleBed` template
 (`CoupleBed.Template`), and a couple whose room is outside the plan is never
-packed for. A wing's bedrooms are built together: `NextBedroomStep`
-carries every unbuilt or empty bedroom of the first wing in plan order that
-owes one (#2139; a standing empty room in a later wing waits its wing's turn),
-in plan order (`BedroomStep.Rooms`; `Room` is the standing empty room inside
-the batch if any, else the first), ahead of need; a Retiring wing is never carried, and a bedroom outside a wing, the
-suite step and the migration step stay one room. `reconcileBedroom` hands the
-batch to `reconcileRooms`, the shared build side's multi-room entry: each room
-is diffed alone, the packed stock is shared in plan order, the installs are one
-method, and the on-site builds are one admission of every ready building, doors, walls, floors then furniture across the rooms in plan order (no cap on rooms, cells or stock: the native tier gate orders delivery, see [construction tiers](../contracts/construction-tiers.md)). Suites keep their own ring-stock
+packed for. `NextBedroomStep` yields one bedroom per step, the first owed room in
+plan order (a Retiring wing is never carried); bedrooms are not batched by
+wing, and the native tier gate orders delivery across them (see
+[construction tiers](../contracts/construction-tiers.md)). Suites keep their own ring-stock
 gate. Move, clear and the bed replacement, sculpture and upgrade levers
 are unchanged. The starter shelter's bunk rungs (`rounds_shelter_bunks.go`)
 and the stand-in `SleepingSpot` keep their own guard (`standInBed`): the
