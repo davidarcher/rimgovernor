@@ -149,7 +149,64 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/construction_skill", Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab: prepare stages a material-filled wall and quality bed blueprint with a low-skill helper and drafted skilled builder; convert tests exact blueprint-to-frame setting transfer; audit/controls observe vanilla completion and finishing eligibility. No production caller.")]
+        [Tool("test/remote_pickup", Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab (#2517). remote stages an unfunded wall frame at the map centre and three WoodLog stacks 40 cells east inside a stockpile strip (15, then 20 at 8 cells and 20 at 14 cells from the first); local stages a frame 30 cells west with two loose stacks near it and removes the stockpile; audit reads the delivered wood, loose stacks and carriers. Construction priority 1 and Hauling off for every colonist; all other wood is forbidden.")]
+        public async Task<object> RemotePickup(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "audit")
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || (action != "audit" && !Find.TickManager.Paused) || map.Size.x != 100 || map.Size.z != 100)
+                    return Refuse("A paused 100x100 disposable lab is required.");
+                var centre = map.Center;
+                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed
+                    && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && p.workSettings != null).ToList();
+                if (pawns.Count == 0) return Refuse("No capable lab builder.");
+                var site = action == "local" ? centre + new IntVec3(-30, 0, 0) : centre;
+                if (action == "remote" || action == "local") {
+                    foreach (var wood in map.listerThings.ThingsOfDef(ThingDefOf.WoodLog).ToList()) wood.SetForbidden(true, false);
+                    foreach (var zone in map.zoneManager.AllZones.OfType<Zone_Stockpile>().ToList()) zone.Delete();
+                    foreach (var pawn in pawns) {
+                        pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                        pawn.Position = site + new IntVec3(0, 0, -2);
+                        pawn.Notify_Teleported(true, true);
+                        pawn.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
+                        pawn.workSettings.SetPriority(WorkTypeDefOf.Hauling, 0);
+                        for (var hour = 0; hour < 24; hour++) pawn.timetable.SetAssignment(hour, TimeAssignmentDefOf.Work);
+                    }
+                    ClearWallCell(map, site);
+                    var frame = (Frame)ThingMaker.MakeThing(ThingDefOf.Wall.frameDef, ThingDefOf.WoodLog);
+                    frame.SetFaction(Faction.OfPlayer);
+                    GenSpawn.Spawn(frame, site, map);
+                    map.areaManager.Home[site] = true;
+                    var stacks = action == "remote"
+                        ? new[] { (centre + new IntVec3(40, 0, 0), 15), (centre + new IntVec3(40, 0, 8), 20), (centre + new IntVec3(40, 0, -14), 20) }
+                        : new[] { (site + new IntVec3(4, 0, 0), 30), (site + new IntVec3(4, 0, 4), 20) };
+                    foreach (var (cell, count) in stacks) {
+                        ClearWallCell(map, cell);
+                        var stack = ThingMaker.MakeThing(ThingDefOf.WoodLog);
+                        stack.stackCount = count;
+                        GenSpawn.Spawn(stack, cell, map);
+                        map.areaManager.Home[cell] = true;
+                    }
+                    if (action == "remote") {
+                        var strip = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+                        map.zoneManager.RegisterZone(strip);
+                        for (var z = -14; z <= 8; z++) strip.AddCell(centre + new IntVec3(40, 0, z));
+                    }
+                } else if (action != "audit") return Refuse("Unknown remote_pickup action.");
+                var built = site.GetThingList(map).OfType<Frame>().FirstOrDefault();
+                var cost = ThingDefOf.Wall.CostStuffCount;
+                var delivered = built != null ? built.resourceContainer.TotalStackCountOfDef(ThingDefOf.WoodLog)
+                    : site.GetEdifice(map)?.def == ThingDefOf.Wall ? cost : 0;
+                var loose = map.listerThings.ThingsOfDef(ThingDefOf.WoodLog).Where(t => t.Spawned && !t.IsForbidden(Faction.OfPlayer))
+                    .Select(t => new { x = t.Position.x, z = t.Position.z, count = t.stackCount }).ToList();
+                return new { success = true, delivered, cost, loose,
+                    carrying = map.mapPawns.FreeColonistsSpawned.Count(p => p.carryTracker?.CarriedThing?.def == ThingDefOf.WoodLog),
+                    capacity = pawns[0].carryTracker.MaxStackSpaceEver(ThingDefOf.WoodLog),
+                    site = new { x = site.x, z = site.z }, centre = new { x = centre.x, z = centre.z } };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/construction_skill",Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab: prepare stages a material-filled wall and quality bed blueprint with a low-skill helper and drafted skilled builder; convert tests exact blueprint-to-frame setting transfer; audit/controls observe vanilla completion and finishing eligibility. No production caller.")]
         public async Task<object> ConstructionSkill(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "audit")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {

@@ -57,6 +57,28 @@ Bounds: 262144 map cells, 32 mobile colonists, 16384 projected cells, 128 target
 Unsupported or unreadable evidence blocks admission. Future danger, door locking and
 actual pawn labor remain simulation outcomes.
 
+### Remote construction pickup
+
+Under supervised play, `RemotePickupGuard` (a postfix on
+`WorkGiver_ConstructDeliverResources.ResourceDeliverJobFor`, frames and
+blueprints) enlarges the finished `HaulToContainer` job; player-forced orders and
+bill ingredients (whose placed things are consumed whole) are untouched. All
+distances are straight-line `LengthHorizontal`, with no path or region search.
+
+- A delivery is remote when the first stack is farther from the site (D) than
+  from the nearest cell of storage that accepts it (zero when already stored,
+  infinite when no storage accepts it). A remote job takes a full carry load
+  (`MaxStackSpaceEver`) instead of the site's need; vanilla drops the surplus
+  beside the frame, where it stays the nearest stack for the next delivery.
+- A remote job also queues same-def stacks, nearest the first stack first. A
+  stack at distance d is worth the detour when `d < n * D / capacity`, with n the
+  items of that stack that fit in the remaining capacity, and `d <= D / 2`.
+  Stacks vanilla already queued (5 cells) are kept.
+- A local job keeps vanilla's exact-need pickup and 5-cell radius.
+
+`wall/remote_pickup` covers the full-load trip, the radius, local behaviour and
+that every item is counted once. The formula is `HaulBatching` (no Verse types).
+
 ## Room footprints
 
 Wall-frame definitions are standable so thick perimeter sections can place and
