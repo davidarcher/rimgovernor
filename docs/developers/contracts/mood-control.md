@@ -87,6 +87,15 @@ and reads the defs under `Data/*/Defs`. Columns:
 - `owner`: the concern that can remove the thought. Hand-kept: regeneration preserves it
   and leaves new defs unowned.
 
+`policy.ThoughtAuditRow` embeds the table (it stays beside the policy package that owns the
+owner column, so neither policy nor the bridge imports the other for it). The bridge's
+`DefinitionCatalog.ThoughtFacts` joins a catalog `ThoughtDef` row with that row into
+`policy.ThoughtFacts`: `WorstOffset` (lowest stage `BaseMoodEffect`; null stages skipped),
+`NullifyingTraits`, `NullifyingPrecepts`, `RequiredTraits`, `MinExpectation`, `Dependency` and
+`Owner`. A def with no table row (modded, or new since the last regeneration) gets the
+dependency `unclassified` and no owner. Policy stays catalog-free; nothing reads the facts
+until the mood ledger.
+
 There is no check mode; a stale row shows as unowned. Modded thoughts are out of scope.
 `moodProvisionOwners` keys `HighExpectations`, `SkyHighExpectations` and `AteAwfulMeal`
 are not ThoughtDefs in the installed game, so the table has no rows for them.
