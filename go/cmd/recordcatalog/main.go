@@ -75,7 +75,7 @@ func run(ctx context.Context, root, game, out, defsProto string, stdout io.Write
 	if err != nil {
 		return fmt.Errorf("read the definition catalog: %w", err)
 	}
-	if wire.GetBiotech() == nil || wire.GetOdyssey() == nil || wire.GetAnomaly() == nil {
+	if wire.GetBiotech() == nil || wire.GetOdyssey() == nil || len(wire.GetDefs().GetEntityCategoryDefs()) == 0 {
 		return errors.New("the catalog lacks a Biotech, Odyssey or Anomaly section: not every expansion loaded")
 	}
 	zipped, err := encode(wire)

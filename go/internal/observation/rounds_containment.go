@@ -15,7 +15,7 @@ import (
 // stay unknown without Anomaly.
 func containmentPlanning(frame bridge.RoundsFrame, definitions []PlanningDefinition) policy.ContainmentPlanning {
 	out := policy.ContainmentPlanning{Demand: domain.Unknown[policy.ContainmentDemand](), Holders: domain.Unknown[[]policy.BuiltHolder](), Defs: domain.Unknown[policy.ContainmentDefs](), Entities: domain.Unknown[[]policy.CapturableEntity]()}
-	if frame.Catalog == nil || frame.Catalog.Anomaly == nil {
+	if !frame.Catalog.HasAnomaly() {
 		return out
 	}
 	out.Demand = containmentDemand(frame.Tables.Pawns.Values())

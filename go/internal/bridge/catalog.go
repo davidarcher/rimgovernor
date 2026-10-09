@@ -34,8 +34,6 @@ type DefinitionCatalog struct {
 	Biotech *BiotechCatalog
 	// Odyssey is the Odyssey defs; nil without Odyssey.
 	Odyssey *OdysseyCatalog
-	// Anomaly is the Anomaly defs; nil without Anomaly.
-	Anomaly *AnomalyCatalog
 	// ThingDefs and TerrainDefs are every def with all its fields
 	// by defName: the generated messages of defs.proto, unfiltered.
 	ThingDefs   map[string]*d.ThingDef
@@ -405,9 +403,6 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 	out := &DefinitionCatalog{LoadToken: identity.GetLoadToken(), Research: make(map[string]policy.ResearchProjectFacts, len(v.Research))}
 	var err error
 	if out.Odyssey, err = DecodeOdysseyCatalog(v.Odyssey); err != nil {
-		return nil, err
-	}
-	if out.Anomaly, err = DecodeAnomalyCatalog(v.Anomaly); err != nil {
 		return nil, err
 	}
 	if out.ThingDefs, err = defRows(v.ThingDefs, (*d.ThingDef).GetDefName, "thing"); err != nil {

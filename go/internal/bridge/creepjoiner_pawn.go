@@ -6,34 +6,6 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// Downsides is what the catalog's creepjoiner downside defs add: the trait
-// and hediff def names over every downside def. A nil catalog (the
-// game has no Anomaly) adds none.
-func (c *AnomalyCatalog) Downsides() policy.CreepJoinerDownsides {
-	out := policy.CreepJoinerDownsides{Traits: map[string]bool{}, Hediffs: map[string]bool{}}
-	if c == nil {
-		return out
-	}
-	for _, row := range c.CreepJoinerDownsides {
-		for _, t := range row.Traits {
-			out.Traits[t] = true
-		}
-		for _, h := range row.Hediffs {
-			out.Hediffs[h] = true
-		}
-	}
-	return out
-}
-
-// CreepJoinerDownsides is the catalog's downside defs; none without a catalog
-// or without Anomaly.
-func (catalog *DefinitionCatalog) CreepJoinerDownsides() policy.CreepJoinerDownsides {
-	if catalog == nil {
-		return (*AnomalyCatalog)(nil).Downsides()
-	}
-	return catalog.Anomaly.Downsides()
-}
-
 // CreepJoinerPawn lifts a combat-detail pawn row into the downside check's
 // facts. A row with no Anomaly block is a game without Anomaly: no
 // creepjoiner. A failed creepjoiner read stays unknown. The hediffs are the

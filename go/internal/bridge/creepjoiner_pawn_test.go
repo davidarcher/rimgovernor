@@ -5,8 +5,10 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func joinerRow(triggered bool, traits []string, hediffs ...*o.Hediff) *o.PawnState {
@@ -33,8 +35,13 @@ func hediff(def string, visible bool) *o.Hediff {
 // flag, availability and the weapon in hand; a row with no Anomaly block is
 // no creepjoiner, and an unread read stays unknown.
 func TestCreepJoinerPawnAndHandLift(t *testing.T) {
-	catalog := &DefinitionCatalog{Anomaly: &AnomalyCatalog{CreepJoinerDownsides: map[string]*o.CreepJoinerDownsideRow{
-		"A": {Traits: []string{"TraitX"}}, "B": {Hediffs: []string{"HediffY"}, Traits: []string{"TraitZ"}}}}}
+	trait := func(def string) *d.Opt_BackstoryTrait {
+		return &d.Opt_BackstoryTrait{Value: &d.BackstoryTrait{Def: def}}
+	}
+	catalog := &DefinitionCatalog{Defs: map[protoreflect.FullName]map[string]proto.Message{
+		(&d.CreepJoinerDownsideDef{}).ProtoReflect().Descriptor().FullName(): {
+			"A": &d.CreepJoinerDownsideDef{Traits: []*d.Opt_BackstoryTrait{trait("TraitX")}},
+			"B": &d.CreepJoinerDownsideDef{Hediffs: []string{"HediffY"}, Traits: []*d.Opt_BackstoryTrait{trait("TraitZ")}}}}}
 	downsides := catalog.CreepJoinerDownsides()
 	if !downsides.Traits["TraitX"] || !downsides.Traits["TraitZ"] || !downsides.Hediffs["HediffY"] || len(downsides.Traits) != 2 {
 		t.Fatal("downside defs not indexed", downsides)
@@ -129,5 +136,21 @@ func TestCreepJoinerPawnAndHandLift(t *testing.T) {
 	}
 	if _, known := CreepJoinerHand(hidden).Hungry.Value(); known {
 		t.Fatal("a row with no needs has known hunger")
+	}
+}
+
+// TestRecordedCatalogAnomalyFromMirror: the recorded all-DLC catalog reports
+// Anomaly and its downside defs' traits and hediffs from the def mirror; a
+// catalog without the rows reports neither.
+func TestRecordedCatalogAnomalyFromMirror(t *testing.T) {
+	catalog := fullCatalog(t)
+	if !catalog.HasAnomaly() {
+		t.Fatal("the recorded catalog has no Anomaly")
+	}
+	if downsides := catalog.CreepJoinerDownsides(); len(downsides.Traits)+len(downsides.Hediffs) == 0 {
+		t.Fatal("the recorded catalog has no creepjoiner downside traits or hediffs")
+	}
+	if (&DefinitionCatalog{}).HasAnomaly() || (*DefinitionCatalog)(nil).HasAnomaly() {
+		t.Fatal("a catalog with no EntityCategoryDef rows has Anomaly")
 	}
 }

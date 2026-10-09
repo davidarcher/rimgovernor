@@ -2301,8 +2301,9 @@ message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1
 
   // The Odyssey defs; absent without Odyssey.
   OdysseyCatalog odyssey = 6;
-  // The Anomaly defs; absent without Anomaly.
-  AnomalyCatalog anomaly = 7;
+  // The Anomaly defs are rows of `defs` (EntityCategoryDef, KnowledgeCategoryDef,
+  // EntityCodexEntryDef, CreepJoiner*Def, IncidentDef, ThingDef comps); field 7
+  // carried the hand-written AnomalyCatalog.
   // Every ThingDef and TerrainDef with all of its fields, by defName:
   // the messages of defs.proto, filled by protobuf reflection over the game's
   // def objects (field name = CLR field name). Unlike `definitions` it is not
@@ -2539,100 +2540,6 @@ message HackableState { optional double progress_percent = 1; optional double de
 // an ancient hatch adds its stockpile type (StockpileTypeRow.name) and
 // layout (LayoutDef name).
 message PortalState { optional bool pocket_map_exists = 1; optional int32 pocket_map_id = 2; optional string stockpile_type = 3; optional string layout = 4; }
-// The static Anomaly definitions, each read natively from the game
-// defs, sorted by name, fixed for a load: entity and knowledge categories,
-// codex entries (the entities and what discovers them), the thing defs that
-// are entities, studiable, held on a platform or hold an entity, and the
-// incidents the game marks as Anomaly incidents. A def name is the key every
-// other Anomaly message refers by.
-message AnomalyCatalog {
-  repeated EntityCategoryRow entity_categories = 1; repeated KnowledgeCategoryRow knowledge_categories = 2; repeated EntityCodexRow codex_entries = 3;
-  repeated AnomalyThingRow things = 4; repeated AnomalyIncidentRow incidents = 5;
-  repeated CreepJoinerFormRow creepjoiner_forms = 6; repeated CreepJoinerBenefitRow creepjoiner_benefits = 7; repeated CreepJoinerDownsideRow creepjoiner_downsides = 8;
-}
-// The creepjoiner defs, read from the game defs. The shared fields are
-// ICreepJoinerDef's: weight, min_combat_points and can_occur_randomly gate the
-// random pick and requires and excludes (def names of other creepjoiner
-// parts) pair a form, benefit and downside. A form is a PawnKindDef.
-message CreepJoinerFormRow {
-  optional string def_name = 1; optional string label = 2; optional double weight = 3; optional double min_combat_points = 4; optional bool can_occur_randomly = 5;
-  repeated string requires = 6; repeated string excludes = 7;
-}
-// CreepJoinerBenefitDef: the traits, skills, hediffs and abilities it grants
-// (def names; a skill carries its level range).
-message CreepJoinerBenefitRow {
-  optional string def_name = 1; optional string label = 2; optional double weight = 3; optional double min_combat_points = 4; optional bool can_occur_randomly = 5;
-  repeated string requires = 6; repeated string excludes = 7;
-  repeated string traits = 8; repeated string hediffs = 9; repeated string abilities = 10; repeated CreepJoinerSkillRange skills = 11;
-}
-message CreepJoinerSkillRange { optional string skill = 1; optional int32 min = 2; optional int32 max = 3; }
-// CreepJoinerDownsideDef: what it adds when it fires, when it can fire and
-// the class of its worker. surgical_inspection_hint is whether the def has
-// a surgical inspection letter text (the game reveals it only through an
-// inspection). The pawn rows never carry which downside a creepjoiner has.
-message CreepJoinerDownsideRow {
-  optional string def_name = 1; optional string label = 2; optional double weight = 3; optional double min_combat_points = 4; optional bool can_occur_randomly = 5;
-  repeated string requires = 6; repeated string excludes = 7;
-  repeated string traits = 8; repeated string hediffs = 9; repeated string abilities = 10;
-  optional bool repeats = 11; optional double triggers_after_days_min = 12; optional double triggers_after_days_max = 13; optional double trigger_mtb_days = 14;
-  optional double trigger_min_days_min = 15; optional double trigger_min_days_max = 16;
-  optional bool can_occur_when_imprisoned = 17; optional bool can_occur_while_downed = 18; optional bool must_be_conscious = 19; optional string worker = 20;
-  optional bool surgical_inspection_hint = 21;
-}
-// EntityCategoryDef: a codex grouping of entities.
-message EntityCategoryRow { optional string def_name = 1; optional string label = 2; optional int32 list_order = 3; }
-// KnowledgeCategoryDef: a kind of anomaly knowledge; overflow_category is the
-// category knowledge spills into when this one is full.
-message KnowledgeCategoryRow { optional string def_name = 1; optional string label = 2; optional string overflow_category = 3; }
-// EntityDiscoveryType: when a codex entry counts as discovered.
-enum EntityDiscoveryKind { ENTITY_DISCOVERY_KIND_UNSPECIFIED = 0; ENTITY_DISCOVERY_KIND_SPAWN = 1; ENTITY_DISCOVERY_KIND_UNFOG = 2; ENTITY_DISCOVERY_KIND_BECAME_VISIBLE = 3; }
-// EntityCodexEntryDef: category and linked_things (ThingDef names) are the
-// entity the entry describes; provocation_incidents are IncidentDef names
-// and discovered_research_projects ResearchProjectDef names.
-message EntityCodexRow {
-  optional string def_name = 1; optional string label = 2; optional string category = 3; optional bool start_discovered = 4;
-  optional EntityDiscoveryKind discovery_type = 5; optional bool allow_discovery_while_map_generating = 6; optional int32 order_in_category = 7;
-  repeated string linked_things = 8; repeated string provocation_incidents = 9; repeated string discovered_research_projects = 10;
-}
-// A ThingDef that is an Anomaly entity (RaceProperties.IsAnomalyEntity), has
-// a codex entry, is studiable, can be held on a holding platform or holds an
-// entity. entity is the race flag; race_knowledge_category and
-// race_anomaly_knowledge are the race's own study yield;
-// min_containment_strength is the def's StatDefOf.MinimumContainmentStrength
-// base value (absent when the def declares none); the blocks mirror the
-// def's comp properties and are absent when the def has no such comp.
-message AnomalyThingRow {
-  optional string def_name = 1; optional string label = 2; optional string codex_entry = 3; optional bool entity = 4;
-  optional string race_knowledge_category = 5; optional int32 race_anomaly_knowledge = 6; optional double min_containment_strength = 7;
-  StudiableProps studiable = 8; HoldingTargetProps holding_target = 9; EntityHolderProps holder = 10;
-}
-// CompProperties_Studiable: comp is the properties' class name (the monolith
-// has its own); anomaly_knowledge and knowledge_category are the comp's own
-// values, absent when the def leaves them to the race.
-message StudiableProps {
-  optional string comp = 1; optional int32 frequency_ticks = 2; optional double study_amount_to_complete = 3; optional bool show_toggle_gizmo = 4;
-  optional bool study_enabled_by_default = 5; optional bool can_be_activity_deactivated = 6; optional double anomaly_knowledge = 7;
-  optional string knowledge_category = 8; optional double knowledge_factor_outdoors = 9; optional int32 min_monolith_level_for_study = 10;
-  optional bool requires_holding_platform = 11; optional bool requires_imprisonment = 12;
-}
-// CompProperties_HoldingPlatformTarget: held_pawn_kind is a PawnKindDef name.
-message HoldingTargetProps {
-  optional string held_pawn_kind = 1; optional double base_escape_interval_mtb_days = 2; optional bool look_for_target_on_escape = 3;
-  optional bool can_be_executed = 4; optional bool gets_cold_containment_bonus = 5;
-}
-// CompProperties_EntityHolder: comp is the properties' class name (a holding
-// platform has its own); containment_factor scales the containment strength
-// the holder provides.
-message EntityHolderProps { optional string comp = 1; optional double containment_factor = 2; }
-// An IncidentDef the game marks IsAnomalyIncident. category is the
-// IncidentCategoryDef name; threat is true for the ThreatSmall and ThreatBig
-// categories; worker is the IncidentWorker class name and codex_entry the
-// entity the incident discovers.
-message AnomalyIncidentRow {
-  optional string def_name = 1; optional string label = 2; optional string category = 3; optional bool threat = 4; optional string worker = 5;
-  repeated string target_tags = 6; optional double base_chance = 7; optional int32 earliest_day = 8; optional bool points_scaleable = 9;
-  optional double min_threat_points = 10; optional int32 min_anomaly_threat_level = 11; optional string codex_entry = 12;
-}
 // EntityContainmentMode: what the player has ordered done with a held entity.
 enum EntityContainmentModeKind {
   ENTITY_CONTAINMENT_MODE_KIND_UNSPECIFIED = 0; ENTITY_CONTAINMENT_MODE_KIND_MAINTAIN_ONLY = 1; ENTITY_CONTAINMENT_MODE_KIND_STUDY = 2;

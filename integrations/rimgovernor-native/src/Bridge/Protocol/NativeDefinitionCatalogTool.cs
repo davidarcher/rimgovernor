@@ -90,7 +90,6 @@ namespace HomeBridge.BridgeTools
                 catalog.ThingFacts.Add(NativeFoodPolicy.Facts(def));
             catalog.Biotech = NativeBiotechFacts.Catalog();
             catalog.Odyssey = NativeOdysseyFacts.Catalog();
-            catalog.Anomaly = NativeAnomalyFacts.Catalog();
             return catalog;
         }
 

@@ -33,3 +33,32 @@ func (catalog *DefinitionCatalog) SurgicalInspectionRecipes() policy.InspectionR
 	}
 	return out
 }
+
+// HasAnomaly is whether the game runs Anomaly: the def mirror carries
+// EntityCategoryDef rows only with the expansion. False for a nil catalog.
+func (catalog *DefinitionCatalog) HasAnomaly() bool {
+	return catalog != nil && len(catalog.Defs[(&d.EntityCategoryDef{}).ProtoReflect().Descriptor().FullName()]) > 0
+}
+
+// CreepJoinerDownsides is what the creepjoiner downside defs add: the trait
+// and hediff def names over every CreepJoinerDownsideDef row. A nil catalog or
+// a game without Anomaly adds none.
+func (catalog *DefinitionCatalog) CreepJoinerDownsides() policy.CreepJoinerDownsides {
+	out := policy.CreepJoinerDownsides{Traits: map[string]bool{}, Hediffs: map[string]bool{}}
+	if catalog == nil {
+		return out
+	}
+	for _, row := range catalog.Defs[(&d.CreepJoinerDownsideDef{}).ProtoReflect().Descriptor().FullName()] {
+		def, ok := row.(*d.CreepJoinerDownsideDef)
+		if !ok {
+			continue
+		}
+		for _, t := range def.GetTraits() {
+			out.Traits[t.GetValue().GetDef()] = true
+		}
+		for _, h := range def.GetHediffs() {
+			out.Hediffs[h] = true
+		}
+	}
+	return out
+}

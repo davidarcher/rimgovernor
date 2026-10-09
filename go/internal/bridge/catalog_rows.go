@@ -26,16 +26,3 @@ func catalogNumbers(kind string, values ...*float64) error {
 	}
 	return nil
 }
-
-func catalogIDs(kind string, lists ...[]string) error {
-	for _, list := range lists {
-		seen := map[string]bool{}
-		for _, id := range list {
-			if validID(id) != nil || seen[id] {
-				return contract("invalid or duplicate %s reference", kind)
-			}
-			seen[id] = true
-		}
-	}
-	return nil
-}
