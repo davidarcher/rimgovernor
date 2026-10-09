@@ -1,0 +1,2 @@
+# Rule 4 (no swallowed errors): file|func with an empty `if err != nil`. Delete a line when fixed; never add one.
+internal/buildingruntime/rounds.go|Rounder.reviewStep

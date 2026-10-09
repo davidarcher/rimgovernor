@@ -1,10 +1,7 @@
 package policy
 
 import (
-	"runtime"
 	"sort"
-	"sync"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -17,7 +14,7 @@ import (
 // siteCandidates is N, the most seeds a fresh siting pass grows. On the
 // #1280 baseline fixture one generate takes ~40-50 ms; the map is paused while
 // the first plan is sited, so ~780 seeds (the fixture yields that many) over the
-// worker pool take ~4 s (32 threads).
+// serial pass take tens of seconds on one thread (it took ~4 s over 32 threads before policy dropped goroutines, rule 2).
 var siteCandidates = 1000
 
 // Search budgets (#1957, layout_gen_search.go). siteSearchTop is how many of
@@ -29,10 +26,6 @@ const (
 	siteSearchTop   = 8
 	siteSearchIters = 40
 )
-
-// siteSearchHang cuts a search short when it runs this long: a hang guard,
-// never part of the result on a healthy box.
-const siteSearchHang = 50 * time.Second
 
 // siteScore is one candidate's result, scored by Score's terms (#1952).
 type siteScore struct {
@@ -100,7 +93,7 @@ func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, se
 	if searchIters > 0 {
 		start := scores[:min(siteSearchTop, len(scores))]
 		searched := make([]siteScore, len(start))
-		eachParallel(len(start), func(i int) {
+		eachIndex(len(start), func(i int) {
 			seed := start[i].seed
 			p := lg.generateBase(plan, seed, pawns, tombs, tier)
 			p = lg.finish(lg.search(scorer, p, seed, searchIters))
@@ -108,7 +101,7 @@ func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, se
 		})
 		walled = append(walled, searched...)
 	}
-	eachParallel(len(walled), func(i int) {
+	eachIndex(len(walled), func(i int) {
 		walled[i].score = scorer.walled(walled[i].plan, walled[i].score)
 	})
 	rankSites(walled)
@@ -125,7 +118,7 @@ func siteLevel(g coreGrid, scorer planScorer, plan LayoutPlan, level obstacleLev
 	}
 	seeds := lg.siteSeeds(siteCandidates)
 	scores := make([]siteScore, len(seeds))
-	eachParallel(len(seeds), func(i int) {
+	eachIndex(len(seeds), func(i int) {
 		p := lg.generate(plan, seeds[i], pawns, tombs, tier)
 		scores[i] = siteScore{seed: seeds[i], score: scorer.core(p), plan: p}
 	})
@@ -293,24 +286,14 @@ func (g siteGround) walkDist(c domain.Cell) int {
 	return int(g.walk[c.Z*g.w+c.X])
 }
 
-// eachParallel runs f for 0..n-1 over the worker pool.
-func eachParallel(n int, f func(i int)) {
-	work := make(chan int)
-	var wg sync.WaitGroup
-	for range min(runtime.GOMAXPROCS(0), n) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range work {
-				f(i)
-			}
-		}()
-	}
+// eachIndex runs f for 0..n-1 in order. policy is pure (rule 2,
+// docs/developers/architecture/rules.md): no goroutines, so a fresh siting
+// pass is serial; each f writes only its own slot, so a caller may fan out
+// elsewhere without changing the result.
+func eachIndex(n int, f func(i int)) {
 	for i := range n {
-		work <- i
+		f(i)
 	}
-	close(work)
-	wg.Wait()
 }
 
 // rankSites orders scores best first, ties by seed (Z, X).

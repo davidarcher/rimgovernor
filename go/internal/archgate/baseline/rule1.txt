@@ -1,0 +1,6 @@
+# Rule 1 (layers): import edges that exist today and are forbidden. Delete a line when the edge goes; never add one.
+bridge->policy
+executor->store
+httpapi->buildingruntime
+store->bridge
+store->gabp

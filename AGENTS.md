@@ -98,7 +98,9 @@ parallel path), check whether an earlier layer that should not exist causes the
 problem; if so, propose removing it. Cite the issue text or user message that
 asks for new behaviour; otherwise it is an assumption: flag it. When a second
 fix for one symptom would add another guard, explain why the first failed.
-Every landing report ends with
+Every landing report answers the
+[review items](docs/developers/architecture/rules.md#review-items) (rules 6-8)
+in a line each and ends with
 `Complexity: added X / removed Y / deletion candidate: Z` (or `none`).
 
 ## Never
@@ -226,7 +228,9 @@ no compat shims, and Go and C# regenerate together. State placement is one
 table in [persistence contracts](docs/developers/contracts/persistence-contracts.md)
 (Go intent in the save, session journal in SQLite, derived state in memory,
 telemetry in `flight.jsonl`); a second copy of a fact or a new store amends that
-table first. Manual control: [control loop guide](docs/developers/architecture/control-loop.md#manual-control).
+table first. [Architecture rules](docs/developers/architecture/rules.md):
+five are gates in `cmd/test` with shrink-only baselines, three are review items.
+Manual control: [control loop guide](docs/developers/architecture/control-loop.md#manual-control).
 
 ## Logging
 

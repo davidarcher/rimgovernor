@@ -737,8 +737,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	r.census.retain(reading, r.roomsEnabled(), claims)
 	r.planFoodAcquisition(ctx, state.Snapshot, reading.Projection)
 	result, err := p.journal.ReviewRounds(ctx, store.RoundsRequest{Revision: previous.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts})
-	if err != nil {
-	} else {
+	if err == nil {
 		r.staleBills.observe(staleCandidates, result.Needs.Assessments)
 		clothing := reading.Projection.Facts.ClothingRunway()
 		r.construction.set(result.Review.Snapshot, policy.ResourceConcernTargets(policy.ResourceConcernTargets(policy.ConstructionDemandOf(reading.Projection.Facts, r.seasonal(reading.Projection.Facts), result.Review.Latches), billDemand), clothing.Needs), clothing.Serves)

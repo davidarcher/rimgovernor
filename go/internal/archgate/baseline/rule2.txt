@@ -1,0 +1,2 @@
+# Rule 2 (policy is pure): file|import. Delete a line when the import goes; never add one.
+internal/policy/clock_window_types.go|import time

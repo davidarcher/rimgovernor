@@ -1,0 +1,18 @@
+# Rule 3 (one owner per exported type): names declared in two or more of domain, policy, bridge, observation. Delete a line when one owner remains; never add one.
+Amount
+AncientShrine
+ClearanceCensus
+ClearanceChunk
+ClearanceTarget
+ConcernID
+DefenseCell
+DefenseCover
+DrugPolicyEntry
+FactFamily
+MechCharger
+PawnID
+RecoveryMethod
+Refusal
+RoomDoor
+Wastepack
+ZoneKind

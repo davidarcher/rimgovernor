@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"time"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -12,7 +10,7 @@ import (
 // never scores below the plan it started from. Every choice comes from a
 // splitmix64 stream seeded by the site's seed cell, so the same input gives
 // the same plan on any box and at any thread count; the iteration count is
-// the budget, and wall time (siteSearchHang) only cuts a hung run short.
+// the whole budget; wall time never enters (rule 2).
 //
 // Operators:
 //   - moveCluster: an affinity cluster (layout_gen_cluster.go) is lifted
@@ -48,11 +46,7 @@ func (r *searchRand) intn(n int) int { return int(r.next() % uint64(n)) }
 func (g coreGrid) search(sc planScorer, plan LayoutPlan, seed domain.Cell, iters int) LayoutPlan {
 	rng := newSearchRand(seed)
 	cur, curScore := plan, sc.core(plan)
-	deadline := time.Now().Add(siteSearchHang)
 	for range iters {
-		if time.Now().After(deadline) {
-			break
-		}
 		cand, ok := g.vary(cur, &rng)
 		if !ok {
 			continue
