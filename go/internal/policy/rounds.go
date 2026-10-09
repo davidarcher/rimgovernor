@@ -225,11 +225,14 @@ type RoundsFacts struct {
 	DisasterConditions   domain.Fact[[]DisasterCondition]
 	// OutdoorsDark is the colony biome's permanent darkness: its map
 	// conditions include a no-sunlight class.
-	OutdoorsDark        domain.Fact[bool]
-	RecoveryBuildings   domain.Fact[[]RecoveryBuilding]
-	Disaster            *DisasterHistory
-	DisasterTick        domain.Tick
-	MoodPawns           domain.Fact[[]MoodPawn]
+	OutdoorsDark      domain.Fact[bool]
+	RecoveryBuildings domain.Fact[[]RecoveryBuilding]
+	Disaster          *DisasterHistory
+	DisasterTick      domain.Tick
+	MoodPawns         domain.Fact[[]MoodPawn]
+	// MoodLedger is where the colony loses mood, built each review from the
+	// mood census and the catalog thought facts; unknown with the census.
+	MoodLedger          domain.Fact[MoodLedger]
 	Mood                MoodHistory
 	HomeCoverage        domain.Fact[HomeCoverageObservation]
 	StoneStructures     domain.Fact[[]StoneStructure]

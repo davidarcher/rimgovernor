@@ -177,8 +177,14 @@ func observeRounds(ctx context.Context, source RoundsSource, clock Clock, expect
 			return RoundsReading{}, err
 		}
 		p.Facts.MoodPawns = roundsMood(colony, emergency, pawns)
+		var thoughtFacts map[string]policy.ThoughtFacts
+		if frame.Catalog != nil {
+			thoughtFacts = frame.Catalog.AllThoughtFacts()
+		}
+		p.Facts.MoodLedger = roundsMoodLedger(p.Facts.MoodPawns, pawns, thoughtFacts)
 	} else if complete, known := emergency.ColonistsComplete.Value(); known && complete && len(emergency.Colonists) == 0 && colony.ColonistCount != nil && colony.GetColonistCount() == 0 {
 		p.Facts.MoodPawns = domain.Known([]policy.MoodPawn{})
+		p.Facts.MoodLedger = domain.Known(policy.BuildMoodLedger(nil, nil))
 	}
 	p.Mechs = domain.Unknown[policy.MechFleet]()
 	if frame.Tables.Pawns.Len() > 0 {

@@ -123,9 +123,17 @@ expectations reach the review only through the pawn's `HighExpectations` flag.
 - the expectation levels by pawn count, shown only (no concern fixes it).
 
 An unknown attribute or a def without facts never drops or zeroes a loss: the observed
-row counts and the source's `Unverified` count rises. The review still runs on the audit
-table alone; production does not yet pass `ThoughtFacts` or pawn traits, precepts and
-expectation to the ledger.
+row counts and the source's `Unverified` count rises.
+
+Every Round builds the ledger in `observation/rounds_mood_ledger.go` and publishes it as
+`RoundsFacts.MoodLedger` (unknown whenever the mood census is). Inputs: the census thought
+rows, `AllThoughtFacts()` from the load's catalog (none without a catalog, so every source
+is unverified), each pawn's biography traits and the ideology precepts from its policy
+inputs. A pawn whose biography or policy block was skipped has unknown traits or precepts.
+The expectation level is not observed yet, so it is always unknown: `MinExpectation`
+thoughts stay unverified and the ledger's expectation list is empty. Later children
+(display, the colony aggregate, the gathering trigger) read this fact; the ledger itself
+changes no relief or provisioning decision.
 
 ## Relief jobs
 
