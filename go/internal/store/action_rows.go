@@ -208,6 +208,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'give_item',?,?,?)", a.ID(), plan, ordinal, gift.Hauler(), gift.Recipient(), string(data))
 	} else if ignite, ok := a.Ignite(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,x,z) VALUES(?,?,?,'ignite',?,?,?)", a.ID(), plan, ordinal, ignite.Pawn(), ignite.Cell().X, ignite.Cell().Z)
+	} else if gathering, ok := a.Gathering(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition) VALUES(?,?,?,'gathering',?,?)", a.ID(), plan, ordinal, gathering.Organizer(), gathering.Def())
 	} else if removal, ok := a.RemoveProductionBill(); ok {
 		// target is the bench, definition the native bill id.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'remove_production_bill',?,?)", a.ID(), plan, ordinal, removal.Bench(), removal.Bill())
@@ -1187,6 +1189,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewIgniteAction(id, ignite)
+		return a, ordinal, err
+	}
+	if kind == "gathering" && pawn.Valid && def.Valid && !target.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid && work == nil && zone == nil {
+		gathering, err := domain.NewGathering(def.String, domain.PawnID(pawn.String))
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewGatheringAction(id, gathering)
 		return a, ordinal, err
 	}
 	if kind == "remove_production_bill" && target.Valid && def.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone == nil {

@@ -213,6 +213,12 @@ and the game chooses it. Game code read with ilspycmd:
 chose. Applied means the lord was created, not that guests attended. A refusal is
 final for the attempt; the owning routine replans from live state.
 
+Go dispatches `gathering` as a plain intent (`executor.plainIntents`, bridge
+encoder `bridge/gathering.go`), persists it as an `actions` row (`pawn` =
+organizer, `definition` = gathering def) and admits it in routine execution
+(`roundsExecutableKind`, `roundsActionsSupported`, the clock window kind switch);
+tests fail if one registration is missing. The native handler is #2546.
+
 ## Observations
 
 **Active mental state.** The colonist status and pawn list reads carry the native
