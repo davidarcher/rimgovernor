@@ -13,7 +13,7 @@ package policy
 // declarer.
 func LedgerMigratedOwner(id ConcernID) bool {
 	switch id {
-	case MaintainWorkLedger, MaintainEquipment:
+	case MaintainWorkLedger, MaintainEquipment, MaintainArt, MaintainPopulation:
 		return true
 	}
 	return false

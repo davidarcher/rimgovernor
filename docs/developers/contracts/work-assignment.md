@@ -371,6 +371,19 @@ stands (so its spec key never drifts), a new batch is declared only while no wea
 candidate is pending, and the declared batches are the ingredient demand of
 `openBills`. `production/gear-ledger` is the nightly signal.
 
+`MaintainArt` (#2603) migrates the worker-pinned sculpture batches:
+`RoundsArtPlanner.DeclareOrders` (`policy.DeclareArtOrders`) declares, while an
+inspired artist, an owed bedroom or a sale need is open, every active sculpture
+bill pinned to a current artist as it stands plus the bill the art selectors
+choose for each artist lacking one. A sculpture pinned to someone who is no longer an
+artist, or any sculpture once the need is known gone, is undeclared and so
+removed after the grace rounds; an unread need or artist abstains. The planner
+keeps only the game time a sculpture takes (`artNativeWorkTicks`). The produce-item quest
+decrees of `MaintainPopulation` declare through
+`RoundsPopulationJoinerPlanner.DeclareOrders` (`policy.DeclareDecreeOrders`): the
+funded batch, or the bill already making the item as it stands; the planner keeps
+the crafting game time and the harvest and hunt decrees.
+
 Beer reserve and human
 butcher bills read back as plain target and forever bills until native reports a
 bill class.

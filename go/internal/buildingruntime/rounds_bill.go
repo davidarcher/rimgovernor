@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
 type RoundsBillPlanner struct {
@@ -31,13 +33,21 @@ type RoundsBillResult struct {
 // butcher purpose asserts it to RoundsResourceSource for a corpse storage zone.
 type BillPlannerNative interface{}
 
+// artBenchSource is the native read the part and gestation bills need: the
+// benches' recipes and bills from the gear bench census.
+type artBenchSource interface {
+	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
+}
+
+var _ artBenchSource = (*bridge.Client)(nil)
+
 // NewRoundsBillPlanner composes one bill purpose: cooking serves
 // EnsureCooking, preservation MaintainFoodStorage, butchery EnsureFoodSupply, the
 // cook-ahead bill MaintainRefrigeration under a solar flare, and the
 // pinned sculpture bills MaintainArt, the part bills
 // MaintainSurgery, the baby food bill MaintainBabyFeeding, and the mech gestation bills MaintainMechs.
 func NewRoundsBillPlanner(reviewer *Rounder, native BillPlannerNative, purpose policy.BillPurpose) (*RoundsBillPlanner, error) {
-	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood && purpose != policy.ArtBill && purpose != policy.SurgeryPartBill && purpose != policy.BabyFoodBill && purpose != policy.MechGestationBill) {
+	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood && purpose != policy.SurgeryPartBill && purpose != policy.BabyFoodBill && purpose != policy.MechGestationBill) {
 		return nil, fmt.Errorf("%w: NewRoundsBillPlanner: reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpos", ErrControl)
 	}
 	need := policy.EnsureFoodSupply
@@ -48,8 +58,6 @@ func NewRoundsBillPlanner(reviewer *Rounder, native BillPlannerNative, purpose p
 		need = policy.MaintainFoodStorage
 	case policy.CookAheadFood:
 		need = policy.MaintainRefrigeration
-	case policy.ArtBill:
-		need = policy.MaintainArt
 	case policy.SurgeryPartBill:
 		need = policy.MaintainSurgery
 	case policy.BabyFoodBill:
@@ -105,9 +113,9 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 			return RoundsBillResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
-	if r.purpose == policy.ArtBill || r.purpose == policy.SurgeryPartBill {
-		// A sculpture or part bill whose need is gone (the owner stayed Met)
-		// is removed first.
+	if r.purpose == policy.SurgeryPartBill {
+		// A part bill whose need is gone (the owner stayed Met) is removed
+		// first.
 		if plan, err := r.reviewer.removeStaleBill(call, epoch, arbiter, state, goal, r.need); err != nil || plan != "" {
 			return RoundsBillResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
 		}
@@ -141,33 +149,6 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	}
 	projection := read.Projection
 	recordStepRead("bill", r.need, state.Snapshot, projection)
-	if r.purpose == policy.ArtBill {
-		// A sculpture pinned to someone who is no longer an artist can never be
-		// worked: removed whatever the owner's finding.
-		if pawns, known := projection.WorkPawns.Value(); known {
-			artists := map[string]bool{}
-			for _, id := range policy.Artists(policy.Profiles(pawns)) {
-				artists[string(id)] = true
-			}
-			judge := func(b policy.StaleBill) (bool, bool) { return b.Worker != "", artists[b.Worker] }
-			if plan, err := r.reviewer.removeUnwantedBill(call, epoch, arbiter, state, review, goal, r.need, judge); err != nil || plan != "" {
-				return RoundsBillResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
-			}
-		}
-		selected, missing, art, err := r.artSelection(call, state, projection, review.Latches.MedicalReserve)
-		// A placed sculpture bill is no work to the clock, but the
-		// sculpture takes days of game time.
-		var ticks uint32
-		if art.sculpting {
-			ticks = artNativeWorkTicks
-		}
-		if err != nil || !missing.IsZero() {
-			return RoundsBillResult{Verdict: missing, NativeWorkTicks: ticks}, err
-		}
-		result, err := r.admit(call, epoch, arbiter, state, goal, read, selected, art.finished[selected.Worker])
-		result.NativeWorkTicks = max(result.NativeWorkTicks, ticks)
-		return result, err
-	}
 	if r.purpose == policy.MechGestationBill {
 		selected, verdict, err := r.mechSelection(call, state, projection)
 		if err != nil {

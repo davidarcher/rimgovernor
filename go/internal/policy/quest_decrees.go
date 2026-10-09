@@ -61,9 +61,12 @@ type DecreeRecipe struct {
 	Ingredients   domain.Fact[[][]Amount]
 	// Stuff lists the recipe alternatives that determine its output's stuff.
 	Stuff map[Resource]bool
-	// Existing tracks a finite bill with the required ingredient filter.
+	// Existing tracks a finite bill with the required ingredient filter;
+	// Standing are the specs of those bills as the bench reads them back.
 	Existing bool
-	Replace  string
+	Standing []OrderSpec
+	// BenchKind is the bench definition the bill is declared against.
+	BenchKind string
 }
 
 // PlanDecreeProduction funds a repeat-count batch from the outstanding crafted
@@ -141,12 +144,6 @@ func PlanDecreeProduction(objective QuestObjective, remaining int64, recipes []D
 		bill, err := domain.NewProductionBill(recipe.Bench, recipe.Recipe, domain.GearBatch, int32(iterations), filter...)
 		if err != nil {
 			continue
-		}
-		if recipe.Replace != "" {
-			bill, err = bill.ReplaceOwnedBill(recipe.Replace)
-			if err != nil {
-				continue
-			}
 		}
 		return bill, ""
 	}

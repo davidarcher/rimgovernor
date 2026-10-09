@@ -235,7 +235,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			return nil, err
 		}
 		config.Rounds = reviewer
-		if bills || gear || armory {
+		if bills || gear || armory || sc.roundsArtPlans || sc.roundsPopulationJoinerPlans {
 			if config.Ledger, err = buildingruntime.NewRoundsLedgerPlanner(reviewer); err != nil {
 				return nil, err
 			}
@@ -271,16 +271,11 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 		}
 		if sc.roundsArtPlans {
-			// MaintainArt's pinned sculpture bills are their own
-			// family, apart from the food bills.
-			nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
-			if !ok {
-				return nil, errors.New("art bills require typed preview")
-			}
-			config.ArtBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.ArtBill)
-			if err != nil {
+			// MaintainArt's pinned sculpture bills are the ledger's.
+			if config.ArtBills, err = buildingruntime.NewRoundsArtPlanner(reviewer); err != nil {
 				return nil, err
 			}
+			reviewer.AddOrderDeclarer(config.ArtBills)
 		}
 		if sc.roundsMechPlans {
 			// MaintainMechs' gestation bills are their own bill family.
@@ -549,6 +544,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if err != nil {
 				return nil, err
 			}
+			reviewer.AddOrderDeclarer(config.PopulationJoiner)
 		}
 		if populationCustody {
 			custodyNative, ok := reads.(buildingruntime.RoundsCustodySource)
@@ -869,7 +865,7 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 	if sc.roundsBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainButcherSpot, policy.MaintainBabyFeeding)
 	}
-	if sc.roundsBillPlans || sc.roundsGearPlans || sc.roundsArmoryPlans {
+	if sc.roundsBillPlans || sc.roundsGearPlans || sc.roundsArmoryPlans || sc.roundsArtPlans || sc.roundsPopulationJoinerPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainWorkLedger)
 	}
 	if sc.roundsBillPlans || sc.roundsFoodStorageUpkeepPlans {

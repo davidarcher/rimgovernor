@@ -6,13 +6,11 @@ import (
 	"sort"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
@@ -25,6 +23,7 @@ func (r *RoundsPopulationJoinerPlanner) admitDecree(call, epoch context.Context,
 		return RoundsPopulationJoinerResult{}, false, nil
 	}
 	sort.Slice(offers, func(i, j int) bool { return offers[i].Quest < offers[j].Quest })
+	lending := false
 	for _, offer := range offers {
 		objective, remaining, owed := policy.DecreeObjective(offer)
 		if !owed {
@@ -38,6 +37,12 @@ func (r *RoundsPopulationJoinerPlanner) admitDecree(call, epoch context.Context,
 			r.decreeSkip(call, offer, "deadline")
 			continue
 		}
+		if objective.Kind == o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_PRODUCE_ITEM {
+			// The ledger places the bill (DeclareOrders); the clock owes the
+			// crafting game time while one is declared.
+			lending = lending || r.decreeLending()
+			continue
+		}
 		id := domain.MintPlanID()
 		snapshot := state.Snapshot
 		snapshot.Plan = id
@@ -46,25 +51,6 @@ func (r *RoundsPopulationJoinerPlanner) admitDecree(call, epoch context.Context,
 		var previews []policy.Preview
 		reason := ""
 		switch objective.Kind {
-		case o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_PRODUCE_ITEM:
-			if r.reviewer.resourceNative == nil || read.Frame.Catalog == nil {
-				reason = "production_unknown"
-				break
-			}
-			census, _, err := r.reviewer.resourceNative.ReadGearBenches(call, boundary.Identity(state.Snapshot))
-			if err != nil {
-				return RoundsPopulationJoinerResult{}, false, err
-			}
-			recipes := decreeRecipes(census, read.Projection, read.Frame.Catalog, objective)
-			bill, why := policy.PlanDecreeProduction(objective, remaining, recipes, f.Resources)
-			reason = why
-			if reason == "" {
-				action, err := domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill)
-				if err != nil {
-					return RoundsPopulationJoinerResult{}, false, err
-				}
-				actions = append(actions, action)
-			}
 		case o.QuestObjectiveKind_QUEST_OBJECTIVE_KIND_HARVEST_PLANT:
 			field := r.reviewer.newResourceFieldPlanner(call, state, review, read.Projection.Identity, read.Projection)
 			site, sited, err := field.siteOf()
@@ -187,101 +173,14 @@ func (r *RoundsPopulationJoinerPlanner) admitDecree(call, epoch context.Context,
 		}
 		return RoundsPopulationJoinerResult{Verdict: BuildingReasonAdmitted, Plan: id, NativeWorkTicks: stockWaitTicks}, true, nil
 	}
+	if lending {
+		return RoundsPopulationJoinerResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks}, true, nil
+	}
 	return RoundsPopulationJoinerResult{}, false, nil
 }
 
 func (r *RoundsPopulationJoinerPlanner) decreeSkip(ctx context.Context, offer policy.JoinerOffer, reason string) {
 	r.reviewer.logQuestSkip(ctx, policy.QuestSkip{Quest: offer.Quest, ScriptDef: offer.ScriptDef, Reason: policy.QuestSkipReason(reason)})
-}
-
-func decreeRecipes(census []bridge.GearBenchRead, projection observation.ColonyProjection, catalog *bridge.DefinitionCatalog, objective policy.QuestObjective) []policy.DecreeRecipe {
-	var out []policy.DecreeRecipe
-	benches, _ := projection.ProductionBenches.Value()
-	for _, bench := range census {
-		recipes, known := bench.Bench.Recipes.Value()
-		if !known {
-			continue
-		}
-		for _, recipe := range recipes {
-			row := bridge.DefRow[*d.RecipeDef](catalog, recipe.Definition)
-			if row == nil {
-				continue
-			}
-			units := int64(0)
-			for _, product := range row.GetProducts() {
-				if product.GetValue().GetThingDef() == objective.Def {
-					units += int64(product.GetValue().GetCount())
-				}
-			}
-			if units <= 0 {
-				continue
-			}
-			available, ak := recipe.Available.Value()
-			on, ok := recipe.AvailableOn.Value()
-			candidate := policy.DecreeRecipe{Bench: bench.Bench.ID, Recipe: recipe.Definition, Product: policy.Resource(objective.Def), Units: units, Ingredients: recipe.Ingredients, Stuff: map[policy.Resource]bool{}}
-			if ak && ok {
-				candidate.Available = domain.Known(available && on)
-			}
-			groups, _ := recipe.Ingredients.Value()
-			for _, group := range groups {
-				for _, alternative := range group {
-					def := bridge.DefRow[*d.ThingDef](catalog, string(alternative.Resource))
-					if def != nil && def.GetStuffProps() != nil && row.GetProductHasIngredientStuff() {
-						candidate.Stuff[alternative.Resource] = true
-					}
-				}
-			}
-			detailed := false
-			for _, observed := range benches {
-				if observed.ID != bench.Bench.ID {
-					continue
-				}
-				for _, bill := range observed.Bills {
-					if bill.Recipe != recipe.Definition {
-						continue
-					}
-					detailed = true
-					active, known := bill.Active.Value()
-					if !known {
-						candidate.Available = domain.Unknown[bool]()
-						continue
-					}
-					if !active {
-						candidate.Replace = bill.ID
-						continue
-					}
-					mode, mk := bill.RepeatMode.Value()
-					filter, fk := bill.Ingredients.Value()
-					if mk && mode == "Count" && (objective.Stuff == "" || fk && containsString(filter, objective.Stuff)) {
-						candidate.Existing = true
-					} else {
-						candidate.Available = domain.Known(false)
-					}
-				}
-			}
-			if !detailed {
-				candidate.Existing = decreeCensusWork(bench.Bench, recipe.Definition)
-			}
-			out = append(out, candidate)
-		}
-	}
-	return out
-}
-
-// Missing specialized bill detail must not turn an active generic bill into a
-// second production order. Native objective progress decides when it finishes.
-func decreeCensusWork(bench policy.GearBench, recipe string) bool {
-	rows, known := bench.Bills.Value()
-	if !known {
-		return false
-	}
-	for _, bill := range rows {
-		active, known := bill.Active.Value()
-		if bill.Recipe == recipe && known && active {
-			return true
-		}
-	}
-	return false
 }
 
 func containsString(values []string, want string) bool {

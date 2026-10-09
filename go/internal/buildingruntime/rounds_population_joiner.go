@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -22,6 +23,10 @@ import (
 // and the dialog-answer executor. Offers the colony cannot host expire.
 type RoundsPopulationJoinerPlanner struct {
 	reviewer *Rounder
+	mu       sync.Mutex
+	// decreeWork is whether the latest review declared a produce-decree bill: the
+	// ledger places it, and the clock owes the crafting game time.
+	decreeWork bool
 }
 type RoundsPopulationJoinerResult struct {
 	Verdict
@@ -33,7 +38,7 @@ func NewRoundsPopulationJoinerPlanner(reviewer *Rounder) (*RoundsPopulationJoine
 	if reviewer == nil {
 		return nil, fmt.Errorf("%w: NewRoundsPopulationJoinerPlanner: reviewer == nil", ErrControl)
 	}
-	return &RoundsPopulationJoinerPlanner{reviewer}, nil
+	return &RoundsPopulationJoinerPlanner{reviewer: reviewer}, nil
 }
 
 func (r *RoundsPopulationJoinerPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoundsPopulationJoinerResult, error) {

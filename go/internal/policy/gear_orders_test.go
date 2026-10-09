@@ -169,7 +169,7 @@ func TestDeclareArmoryOrdersShellsAreStockTargets(t *testing.T) {
 }
 
 func TestLedgerMigratedOwner(t *testing.T) {
-	for id, want := range map[ConcernID]bool{MaintainWorkLedger: true, MaintainEquipment: true, MaintainResource: false, EnsureFoodSupply: false, MaintainArt: false, MaintainSurgery: false, "": false} {
+	for id, want := range map[ConcernID]bool{MaintainWorkLedger: true, MaintainEquipment: true, MaintainResource: false, EnsureFoodSupply: false, MaintainArt: true, MaintainPopulation: true, MaintainSurgery: false, "": false} {
 		if LedgerMigratedOwner(id) != want {
 			t.Errorf("LedgerMigratedOwner(%q) != %v", id, want)
 		}
