@@ -40,7 +40,7 @@ them (a thought names every concern providing it):
 | Thought | Concern |
 | --- | --- |
 | `AteWithoutTable`, `NeedJoy` | `EnsureComfort` |
-| `SleptOutside`, `SleptOnGround`, `NeedRoomSize` | `MaintainHousing` |
+| `SleptOutside`, `SleptOnGround`, `SleptInBarracks`, `NeedRoomSize` | `MaintainHousing` |
 | `EnvironmentDark` | `MaintainLighting` |
 | `EnvironmentCold`, `EnvironmentHot` | `EnsureTemperatureSafety` |
 | `NeedBeauty` | `MaintainCleanFacilities` |
@@ -54,6 +54,11 @@ and what it builds. A recovered owner is never re-raised; when no owner concern 
 active with a deficit the planner falls back to the measured need method. An
 unreadable social block keeps the previous provisioning; a readable one with no such
 pressure clears it.
+
+`SleptInBarracks` is answered by the existing bedroom builders (`NextBedroomStep`):
+barracks sleepers are unhoused, so the planned private bedrooms are built within the
+housing budget and research gates; the thought only raises the deficit that activates
+`MaintainHousing`, and adds no new builder.
 
 The owner of a thought is the audit table's `owner` column (see below); there is no
 second table in code. Every negative thought with an empty owner, or no table row at

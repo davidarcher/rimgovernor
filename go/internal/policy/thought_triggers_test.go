@@ -45,7 +45,7 @@ func TestThoughtTriggerTableOwnsProvisionedThoughts(t *testing.T) {
 			t.Errorf("%s became a ThoughtDef; give it a dependency check", def)
 		}
 	}
-	for _, def := range []string{"SleptInBarracks", "Insulted"} {
+	for _, def := range []string{"Slighted", "Insulted"} {
 		if _, ok := ThoughtAuditRow(def); !ok || len(thoughtOwners(def)) != 0 {
 			t.Errorf("%s should be an audited thought with no owner", def)
 		}

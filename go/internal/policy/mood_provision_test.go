@@ -98,14 +98,14 @@ func TestMoodProvisionValidation(t *testing.T) {
 			}
 		}
 	}
-	if len(thoughtOwners("SleptInBarracks")) > 0 {
-		t.Fatal("bedrooms have no owner goal")
+	if len(thoughtOwners("Slighted")) > 0 {
+		t.Fatal("Slighted has no owner goal")
 	}
 	s = MoodState{Pawn: moodPawn(), Active: true, Unowned: []MoodThought{{"NeedJoy", -5}}}
 	if err := (MoodHistory{States: []MoodState{s}}).Validate(); err == nil {
 		t.Fatal("owned thought accepted as unowned pressure")
 	}
-	s.Unowned = []MoodThought{{"SleptInBarracks", -5}}
+	s.Unowned = []MoodThought{{"Slighted", -5}}
 	s.Provision = []MoodProvision{{EnsureComfort, -20}}
 	if err := (MoodHistory{States: []MoodState{s}}).Validate(); err == nil {
 		t.Fatal("state both provisioned and unowned accepted")
@@ -115,13 +115,13 @@ func TestMoodProvisionValidation(t *testing.T) {
 func TestMoodUnownedThoughtBlocker(t *testing.T) {
 	p := moodPawn()
 	p.Food = domain.Known(.8)
-	p.Thoughts = domain.Known([]MoodThought{{"SleptInBarracks", -5}, {"Insulted", -3}})
+	p.Thoughts = domain.Known([]MoodThought{{"Slighted", -5}, {"Insulted", -3}})
 	h := moodReview(t, p, MoodHistory{})
 	if len(h.States) != 1 {
 		t.Fatal(h)
 	}
 	s := h.States[0]
-	if len(s.Provision) != 0 || len(s.Unowned) != 2 || s.Unowned[0] != (MoodThought{"SleptInBarracks", -5}) || s.Unowned[1] != (MoodThought{"Insulted", -3}) {
+	if len(s.Provision) != 0 || len(s.Unowned) != 2 || s.Unowned[0] != (MoodThought{"Slighted", -5}) || s.Unowned[1] != (MoodThought{"Insulted", -3}) {
 		t.Fatalf("unowned pressure not recorded: %+v", s)
 	}
 	if MoodProvisionDeficits(h) != nil {
@@ -131,7 +131,7 @@ func TestMoodUnownedThoughtBlocker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proposal.Reason != MoodUnowned || proposal.Thought != "SleptInBarracks" || proposal.Need != "" {
+	if proposal.Reason != MoodUnowned || proposal.Thought != "Slighted" || proposal.Need != "" {
 		t.Fatalf("no explicit unowned blocker: %+v", proposal)
 	}
 
@@ -150,14 +150,14 @@ func TestMoodUnownedThoughtBlocker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proposal.Reason != MoodUnowned || proposal.Thought != "SleptInBarracks" {
+	if proposal.Reason != MoodUnowned || proposal.Thought != "Slighted" {
 		t.Fatalf("exhausted relief did not surface the blocker: %+v", proposal)
 	}
 
 	// Owned provisioning wins over unowned pressure; non-dominant unowned
 	// pressure records nothing; unknown thoughts retain it.
 	p.Joy = domain.Known(.8)
-	p.Thoughts = domain.Known([]MoodThought{{"SleptInBarracks", -5}, {"NeedJoy", -20}})
+	p.Thoughts = domain.Known([]MoodThought{{"Slighted", -5}, {"NeedJoy", -20}})
 	h = moodReview(t, p, MoodHistory{})
 	if len(h.States[0].Provision) == 0 || len(h.States[0].Unowned) != 0 {
 		t.Fatalf("provisioned pawn also marked unowned: %+v", h.States[0])
@@ -166,7 +166,7 @@ func TestMoodUnownedThoughtBlocker(t *testing.T) {
 	if h = moodReview(t, p, MoodHistory{}); len(h.States[0].Unowned) != 1 || h.States[0].Unowned[0].Def != "Insulted" {
 		t.Fatal("social memory missing from the unowned bucket", h.States[0].Unowned)
 	}
-	p.Thoughts = domain.Known([]MoodThought{{"SleptInBarracks", -5}})
+	p.Thoughts = domain.Known([]MoodThought{{"Slighted", -5}})
 	h = moodReview(t, p, MoodHistory{})
 	p.Thoughts = domain.Unknown[[]MoodThought]()
 	if h = moodReview(t, p, h); len(h.States[0].Unowned) != 1 {

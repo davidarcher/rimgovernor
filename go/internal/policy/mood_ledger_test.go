@@ -12,14 +12,14 @@ func ledgerPawn(id string, thoughts ...MoodThought) MoodLedgerPawn {
 
 func TestMoodLedgerRanksColonySourcesAndUnownedBucket(t *testing.T) {
 	pawns := []MoodLedgerPawn{
-		ledgerPawn("a", MoodThought{"SleptInBarracks", -4}, MoodThought{"NeedJoy", -6}, MoodThought{"KnowBuriedInSarcophagus", 5}),
-		ledgerPawn("b", MoodThought{"SleptInBarracks", -4}, MoodThought{"Insulted", -3}),
+		ledgerPawn("a", MoodThought{"Slighted", -4}, MoodThought{"NeedJoy", -6}, MoodThought{"KnowBuriedInSarcophagus", 5}),
+		ledgerPawn("b", MoodThought{"Slighted", -4}, MoodThought{"Insulted", -3}),
 		ledgerPawn("c", MoodThought{"NeedJoy", -2}),
 	}
 	l := BuildMoodLedger(pawns, nil)
 	want := []MoodLedgerSource{
 		{Def: "NeedJoy", Pawns: 2, Lost: -8, Owners: []ConcernID{EnsureComfort}, Unverified: 2},
-		{Def: "SleptInBarracks", Pawns: 2, Lost: -8, Unverified: 2},
+		{Def: "Slighted", Pawns: 2, Lost: -8, Unverified: 2},
 		{Def: "Insulted", Pawns: 1, Lost: -3, Unverified: 1},
 	}
 	if len(l.Sources) != 3 {
@@ -31,7 +31,7 @@ func TestMoodLedgerRanksColonySourcesAndUnownedBucket(t *testing.T) {
 			t.Fatalf("source %d = %+v, want %+v", i, g, w)
 		}
 	}
-	if len(l.Unowned) != 2 || l.Unowned[0].Def != "SleptInBarracks" || l.Unowned[1].Def != "Insulted" {
+	if len(l.Unowned) != 2 || l.Unowned[0].Def != "Slighted" || l.Unowned[1].Def != "Insulted" {
 		t.Fatalf("unowned bucket = %+v", l.Unowned)
 	}
 	lost, known := l.Pawns[0].Lost.Value()

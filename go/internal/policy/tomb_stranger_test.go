@@ -80,7 +80,7 @@ func TestKnowBuriedStacks(t *testing.T) {
 }
 
 func TestPositiveThoughtsAreCarriedButNeverPressure(t *testing.T) {
-	thoughts := domain.Known([]MoodThought{{Def: "EnvironmentDark", Offset: -4}, {Def: "SleptInBarracks", Offset: -1}, {Def: KnowBuriedInSarcophagusThought, Offset: 20}})
+	thoughts := domain.Known([]MoodThought{{Def: "EnvironmentDark", Offset: -4}, {Def: "Slighted", Offset: -1}, {Def: KnowBuriedInSarcophagusThought, Offset: 20}})
 	if err := validateMoodThoughts(thoughts); err != nil {
 		t.Fatal(err)
 	}

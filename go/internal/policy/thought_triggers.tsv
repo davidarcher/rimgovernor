@@ -802,7 +802,7 @@ Slavery_Honorable_SlavesInColony	situational	ThoughtWorker_Precept_SlavesInColon
 Slavery_Horrible_SlavesInColony	situational	ThoughtWorker_Precept_SlavesInColony	other	
 SleepDisturbed	memory	sleep Pawn.CheckForDisturbedSleep	other	
 SleepSuppressor	situational	ThoughtWorker_SleepSuppressor	other	
-SleptInBarracks	memory	other+sleep ThoughtUtility.RemovePositiveBedroomThoughts,Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	
+SleptInBarracks	memory	other+sleep ThoughtUtility.RemovePositiveBedroomThoughts,Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	MaintainHousing
 SleptInBedroom	memory	other+sleep ThoughtUtility.RemovePositiveBedroomThoughts,Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	
 SleptInCold	memory	sleep Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	
 SleptInHeat	memory	sleep Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	
