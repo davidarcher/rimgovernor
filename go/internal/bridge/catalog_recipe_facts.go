@@ -54,6 +54,7 @@ func (catalog *DefinitionCatalog) recipeFacts() (policy.RecipeFacts, error) {
 			}
 		}
 	}
+	facts.HarvestOrgans, facts.VitalParts = catalog.bodyPartFacts()
 	return facts, nil
 }
 

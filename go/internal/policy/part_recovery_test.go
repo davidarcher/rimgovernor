@@ -27,7 +27,7 @@ func recoveryPrisoner(id string, missing []string, ops ...SurgeryOperation) Pris
 func TestSelectPartRecovery(t *testing.T) {
 	arm := removeAddedOp("Shoulder", 10, "BionicArm", "BionicArm", 1400)
 	missingArm := surgeryPawn("c", 0, restoreOp("InstallBionicArm", "Shoulder", 10, 0.9, 1, false))
-	needs := PartRecoveryNeeds(domain.Known([]CarePawn{missingArm}), SelectSurgery(domain.Known([]CarePawn{missingArm}), nil, SurgeryContext{}).Wants)
+	needs := PartRecoveryNeeds(domain.Known([]CarePawn{missingArm}), SelectSurgery(domain.Known([]CarePawn{missingArm}), nil, SurgeryContext{}).Wants, testRecipeFacts)
 	if len(needs) != 1 || needs[0].Organ != "BionicArm" || needs[0].For != "c" || needs[0].Gain <= 0 {
 		t.Fatalf("needs %+v", needs)
 	}
@@ -75,7 +75,7 @@ func TestSelectPartRecovery(t *testing.T) {
 			return row
 		}()}, nil, nil, ""},
 	} {
-		got, ok := SelectPartRecovery(domain.Known(c.prisoners), domain.Known(five), c.needs, c.inFlight)
+		got, ok := SelectPartRecovery(domain.Known(c.prisoners), domain.Known(five), c.needs, c.inFlight, testRecipeFacts)
 		key := ""
 		if ok {
 			key = fmt.Sprintf("%s/%d/%s/%v", got.Prisoner, got.Part, got.For, got.Violation)

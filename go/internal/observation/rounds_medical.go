@@ -38,7 +38,9 @@ func roundsMedical(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFact
 				return unknown, err
 			}
 			p.QueuedSurgeries = bridge.QueuedSurgeries(h)
-			p.InstalledParts = bridge.InstalledParts(h)
+			if p.InstalledParts, err = bridge.InstalledParts(h, catalog); err != nil {
+				return unknown, err
+			}
 			p.QueuedRecipes = bridge.QueuedSurgeryRecipes(h)
 			if p.QueuedItems, err = bridge.QueuedSurgeryItems(p.QueuedRecipes, catalog); err != nil {
 				return unknown, err

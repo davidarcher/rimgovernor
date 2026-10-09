@@ -116,12 +116,12 @@ func (r *RoundsSurgeryPlanner) step(call, epoch context.Context, arbiter *stepAr
 		stock[row.Resource] += row.Count
 	}
 	short, _ := policy.RoundsSilverShort(read.Projection.Facts, r.reviewer.policy, review.Latches.MedicalReserve).Value()
-	needs := policy.OrganNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, short, stock)
+	needs := policy.OrganNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, short, stock, read.Projection.Facts.Recipes)
 	harvest, harvesting := policy.SelectOrganHarvest(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, needs, inFlight)
 	if !harvesting {
 		// Artificial part recovery: the same one-at-a-time slot.
-		parts := policy.PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants)
-		harvest, harvesting = policy.SelectPartRecovery(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, parts, inFlight)
+		parts := policy.PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, read.Projection.Facts.Recipes)
+		harvest, harvesting = policy.SelectPartRecovery(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, parts, inFlight, read.Projection.Facts.Recipes)
 	}
 	if !harvesting {
 		// Prisoners stay on herbal: a cut only better medicine

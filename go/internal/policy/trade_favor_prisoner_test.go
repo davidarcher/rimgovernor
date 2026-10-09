@@ -70,6 +70,7 @@ func TestSelectFavorSaleHoldsAnIneligiblePrisonerRow(t *testing.T) {
 func prisonerRounds(ideology *Ideoligion, rows ...PrisonerFacts) RoundsFacts {
 	f := stableRounds()
 	f.Prisoners = domain.Known(rows)
+	f.Recipes = testRecipeFacts
 	colony := PrisonerColony{Colonists: 3, BestSkill: core.BestSkill}
 	f.IdeologyInstalled = domain.Known(false)
 	if ideology != nil {

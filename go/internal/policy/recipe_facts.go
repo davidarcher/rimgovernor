@@ -15,6 +15,24 @@ type RecipeFacts struct {
 	// recipe: that of the first bench (by name) whose DoBill giver serves it.
 	// A recipe no bench hosts has none.
 	BillWork map[string]WorkType
+	// HarvestOrgans are the paired vital organs a harvest takes, by body part
+	// defName (each spawns the item of the same defName): a vital part whose
+	// body carries two, so one survives the cut.
+	HarvestOrgans []string
+	// VitalParts are the body parts whose removal kills: a vital tag no
+	// other part of the body provides.
+	VitalParts map[string]bool
+}
+
+// HarvestOrgan reports whether the body part is a paired organ harvest takes.
+func (f RecipeFacts) HarvestOrgan(part string) bool {
+	return slices.Contains(f.HarvestOrgans, part)
+}
+
+// keptPart reports whether an added part on the body part stays on a
+// prisoner: its removal kills (VitalParts) or is a keptBodyParts judgment.
+func (f RecipeFacts) keptPart(body string) bool {
+	return f.VitalParts[body] || keptBodyParts[body]
 }
 
 // BillWorkOf is the work type of a bill on the recipe, false when no bench

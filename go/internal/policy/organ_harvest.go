@@ -61,19 +61,6 @@ const (
 	soldOrganEvent      = "SoldOrgan"
 )
 
-// HarvestOrgans are the paired organs harvest takes, by body part defName
-// (each spawns the item of the same defName).
-var HarvestOrgans = []string{"Kidney", "Lung"}
-
-func harvestOrgan(part string) bool {
-	for _, organ := range HarvestOrgans {
-		if organ == part {
-			return true
-		}
-	}
-	return false
-}
-
 // HarvestMood is the colony mood points a harvest costs: the precept rule's
 // verdict on the HarvestedOrgan event, plus SoldOrgan when the organ is
 // sold; the doer's cost once, the witnesses' on every colonist. ok is false
@@ -119,7 +106,7 @@ type OrganNeed struct {
 // organ while silver is short and none of it is stocked. A colonist's need
 // is a part-short want whose natural recipe installs a harvestable organ
 // none of which is stocked.
-func OrganNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant, silverShort bool, stock map[Resource]int64) []OrganNeed {
+func OrganNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant, silverShort bool, stock map[Resource]int64, facts RecipeFacts) []OrganNeed {
 	rows, _ := pawns.Value()
 	byID := map[PawnID]CarePawn{}
 	for _, row := range rows {
@@ -138,7 +125,7 @@ func OrganNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant, silverShort 
 			organ, _ := op.PartDefName.Value()
 			// The natural install of the organ is the recipe that consumes the
 			// organ itself.
-			if !pk || part != want.Part || !harvestOrgan(organ) || op.Item != Resource(organ) || stock[Resource(organ)] > 0 {
+			if !pk || part != want.Part || !facts.HarvestOrgan(organ) || op.Item != Resource(organ) || stock[Resource(organ)] > 0 {
 				continue
 			}
 			if weight, _ := servedSurgery(pawn, op); weight*SilverPerCapacity > best.Gain {
@@ -150,7 +137,7 @@ func OrganNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant, silverShort 
 		}
 	}
 	if silverShort {
-		for _, organ := range HarvestOrgans {
+		for _, organ := range facts.HarvestOrgans {
 			if stock[Resource(organ)] == 0 {
 				out = append(out, OrganNeed{Organ: organ})
 			}
@@ -209,7 +196,7 @@ func SelectOrganHarvest(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fa
 		}
 		for _, op := range ops {
 			organ, _ := op.PartDefName.Value()
-			if op.Kind != SurgeryHarvest || !harvestOrgan(organ) || pairs[organ] < 2 || !harvestAcceptable(op) {
+			if op.Kind != SurgeryHarvest || pairs[organ] < 2 || !harvestAcceptable(op) {
 				continue
 			}
 			recipe, _ := op.Recipe.Value()
@@ -290,14 +277,14 @@ func SaleHarvestWanted(f RoundsFacts, silverShort domain.Fact[bool]) bool {
 	for _, row := range rows {
 		stock[row.Resource] += row.Count
 	}
-	_, ok := SelectOrganHarvest(f.Prisoners, f.PrisonerColony, OrganNeeds(domain.Unknown[[]CarePawn](), nil, true, stock), nil)
+	_, ok := SelectOrganHarvest(f.Prisoners, f.PrisonerColony, OrganNeeds(domain.Unknown[[]CarePawn](), nil, true, stock, f.Recipes), nil)
 	return ok
 }
 
 // OrganSaleSurplus adds each harvested organ in stock to the trade need's
 // surplus while the silver runway is short: the sale path's organ
 // sells through SelectTrade like any surplus, keeping none.
-func OrganSaleSurplus(items ItemFacts, need domain.Fact[TradeNeed], resources domain.Fact[[]Amount], colonists domain.Fact[int64]) domain.Fact[TradeNeed] {
+func OrganSaleSurplus(items ItemFacts, need domain.Fact[TradeNeed], resources domain.Fact[[]Amount], colonists domain.Fact[int64], facts RecipeFacts) domain.Fact[TradeNeed] {
 	n, nk := need.Value()
 	rows, rk := resources.Value()
 	if !nk || !rk || !positive(SilverShort(items, need, SilverStock(items, resources), colonists)) {
@@ -307,7 +294,7 @@ func OrganSaleSurplus(items ItemFacts, need domain.Fact[TradeNeed], resources do
 	for _, row := range rows {
 		stock[row.Resource] += row.Count
 	}
-	organs := append([]string{}, HarvestOrgans...)
+	organs := append([]string{}, facts.HarvestOrgans...)
 	sort.Strings(organs)
 	for _, organ := range organs {
 		if count := stock[Resource(organ)]; count > 0 {
@@ -338,13 +325,14 @@ var unrecoveredParts = map[string]bool{
 	"Joywire": true, "DeathAcidifier": true, "Mindscrew": true,
 }
 
-// keptBodyParts are body parts whose added part stays: a heart kills and a
+// keptBodyParts are body parts whose added part stays although no vital tag
+// rides on it (RecipeFacts.VitalParts holds the rest, a heart among them): a
 // spine leaves the prisoner helpless.
-var keptBodyParts = map[string]bool{"Heart": true, "Spine": true}
+var keptBodyParts = map[string]bool{"Spine": true}
 
 // PartRecoveryNeeds lists the colonists' part-short wants an added part
 // could serve: one need per install option, Organ the part item.
-func PartRecoveryNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant) []OrganNeed {
+func PartRecoveryNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant, facts RecipeFacts) []OrganNeed {
 	rows, _ := pawns.Value()
 	byID := map[PawnID]CarePawn{}
 	for _, row := range rows {
@@ -360,7 +348,7 @@ func PartRecoveryNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant) []Org
 		for _, op := range ops {
 			part, pk := op.PartIndex.Value()
 			item := op.Item
-			if !pk || part != want.Part || item == "" || !validResource(item) || harvestOrgan(string(item)) {
+			if !pk || part != want.Part || item == "" || !validResource(item) || facts.HarvestOrgan(string(item)) {
 				continue
 			}
 			if weight, _ := servedSurgery(pawn, op); weight > 0 {
@@ -376,7 +364,7 @@ func PartRecoveryNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant) []Org
 // less cost, then prisoner id. A removal is skipped when its part is in
 // unrecoveredParts, sits on a keptBodyParts part, is a leg on a prisoner
 // already missing one, or fails harvestAcceptable (lethal included).
-func SelectPartRecovery(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[PrisonerColony], needs []OrganNeed, inFlight map[PawnID]bool) (OrganHarvest, bool) {
+func SelectPartRecovery(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[PrisonerColony], needs []OrganNeed, inFlight map[PawnID]bool, facts RecipeFacts) (OrganHarvest, bool) {
 	rows, rk := prisoners.Value()
 	c, ck := colony.Value()
 	if !rk || !ck || surgeryInFlight(rows, inFlight) {
@@ -405,7 +393,7 @@ func SelectPartRecovery(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fa
 			value, vk := op.YieldValue.Value()
 			body, _ := op.PartDefName.Value()
 			if op.Kind != SurgeryAmputate || !hk || !ik || !vk || !finite(value) || unrecoveredParts[hediff] ||
-				keptBodyParts[body] || (body == "Leg" && legless) || !harvestAcceptable(op) {
+				facts.keptPart(body) || (body == "Leg" && legless) || !harvestAcceptable(op) {
 				continue
 			}
 			cost, ok := partRecoveryCost(op, row, c)
@@ -458,7 +446,7 @@ func partRecoveryCost(op SurgeryOperation, row PrisonerFacts, c PrisonerColony) 
 // PartRecoveryWanted reports whether a stock recovery would be queued now;
 // DetectRounds holds MaintainSurgery open on it.
 func PartRecoveryWanted(f RoundsFacts) bool {
-	_, ok := SelectPartRecovery(f.Prisoners, f.PrisonerColony, nil, nil)
+	_, ok := SelectPartRecovery(f.Prisoners, f.PrisonerColony, nil, nil, f.Recipes)
 	return ok
 }
 

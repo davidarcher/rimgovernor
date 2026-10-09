@@ -56,6 +56,9 @@ func SurgeryFacts(h *o.PawnHealth, catalog *DefinitionCatalog) (domain.Fact[[]po
 						return parts, ops, err
 					}
 					row.Item = item
+					if row.Tier, err = catalog.PartTier(op.Recipe.GetDefName()); err != nil {
+						return parts, ops, err
+					}
 				}
 			}
 			if op.EligibleDoctors != nil {
@@ -138,26 +141,30 @@ func surgeryIssue(issues []*o.ReadIssue, field string) bool {
 }
 
 // InstalledParts maps the native installed added parts. A read issue
-// on installed_parts is unknown, never an empty list. The tier comes from the
-// hediff def name; the priced item is the hediff's spawnThingOnRemoved, unknown
-// when the part spawns nothing.
-func InstalledParts(h *o.PawnHealth) domain.Fact[[]policy.InstalledPart] {
+// on installed_parts is unknown, never an empty list. The tier is the hediff
+// def's partEfficiency from the catalog; the priced item is the hediff's
+// spawnThingOnRemoved, unknown when the part spawns nothing.
+func InstalledParts(h *o.PawnHealth, catalog *DefinitionCatalog) (domain.Fact[[]policy.InstalledPart], error) {
 	if surgeryIssue(h.Issues, "installed_parts") {
-		return domain.Unknown[[]policy.InstalledPart]()
+		return domain.Unknown[[]policy.InstalledPart](), nil
 	}
 	rows := make([]policy.InstalledPart, 0, len(h.InstalledParts))
 	for _, p := range h.InstalledParts {
 		if p == nil || p.GetDefinition().GetDefName() == "" {
 			continue
 		}
+		tier, err := catalog.HediffPartTier(p.GetDefinition().GetDefName())
+		if err != nil {
+			return domain.Unknown[[]policy.InstalledPart](), err
+		}
 		row := policy.InstalledPart{
 			Hediff: p.GetDefinition().GetDefName(), Part: surgeryFact(p.PartDefName), PartIndex: surgeryInt(p.PartIndex),
-			Tier: policy.PartTier(p.GetDefinition().GetDefName()),
+			Tier: tier,
 		}
 		if p.SpawnThingDefName != nil {
 			row.Item = domain.Known(policy.Resource(p.GetSpawnThingDefName()))
 		}
 		rows = append(rows, row)
 	}
-	return domain.Known(rows)
+	return domain.Known(rows), nil
 }

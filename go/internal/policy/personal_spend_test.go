@@ -197,7 +197,7 @@ func TestPartDiscountConstantsPinned(t *testing.T) {
 func TestPersonalSpentInstalledPartsTierDiscount(t *testing.T) {
 	prices := map[Resource]float64{"Peg": 100, "Prosthetic": 200, "Bionic": 400, "Archotech": 1000}
 	part := func(hediff string, item Resource) InstalledPart {
-		return InstalledPart{Hediff: hediff, Item: domain.Known(item), Tier: PartTier(hediff)}
+		return InstalledPart{Hediff: hediff, Item: domain.Known(item), Tier: testPartTier(hediff)}
 	}
 	for _, c := range []struct {
 		name  string

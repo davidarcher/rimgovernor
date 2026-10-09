@@ -91,6 +91,10 @@ func WorkPawnRow(row *o.PawnState, catalog *bridge.DefinitionCatalog, things bri
 			}
 		}
 	}
+	var err error
+	if w.SeriousBloodLoss, err = catalog.SeriousBloodLoss(); err != nil {
+		return policy.WorkPawn{}, err
+	}
 	if traits, ok := w.Traits.Value(); ok {
 		for i := range traits {
 			if err := resolveTrait(catalog, &traits[i]); err != nil {

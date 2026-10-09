@@ -7,7 +7,7 @@ import (
 )
 
 func hostilityPawn(current domain.HostilityResponse) HostilityPawn {
-	return HostilityPawn{ID: "p", Current: domain.Known(current), ViolenceCapable: domain.Known(true), Age: domain.Known(30.0), Health: domain.Known(1.0)}
+	return HostilityPawn{ID: "p", Current: domain.Known(current), ViolenceCapable: domain.Known(true), Age: domain.Known(30.0), Health: domain.Known(1.0), SeriousBloodLoss: domain.Known(0.3)}
 }
 
 func TestDefaultHostility(t *testing.T) {

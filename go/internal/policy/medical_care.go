@@ -62,7 +62,11 @@ type SurgeryOperation struct {
 	Recipe, PartDefName domain.Fact[string]
 	// Item is the part item the recipe installs by its catalog row,
 	// "" for a recipe that installs none.
-	Item          Resource
+	Item Resource
+	// Tier is the capacity the recipe's part gives back relative to a natural
+	// part (1): the added part hediff's partEfficiency, 1 for a natural
+	// install, 0 for a recipe that installs no replacement part (an implant).
+	Tier          float64
 	PartIndex     domain.Fact[int]
 	Kind          SurgeryKind
 	SuccessChance domain.Fact[float64]
@@ -190,7 +194,7 @@ func (p Phase) Restocks() bool { return p != "" }
 // InstalledPart is one installed added part (bionic, prosthetic, peg,
 // archotech) read natively. Hediff is the added-part hediff def, Part
 // the body part def and PartIndex its index; Item is the thing its removal
-// spawns, which prices it; Tier is PartTier of the hediff def. No price is
+// spawns, which prices it; Tier is the hediff def's partEfficiency. No price is
 // carried: the spent side prices Item.
 type InstalledPart struct {
 	Hediff    string

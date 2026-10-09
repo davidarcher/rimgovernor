@@ -377,7 +377,7 @@ func inspectResource(c *roundsRun) error {
 // could make do not stand the goal.
 func inspectTrade(c *roundsRun) error {
 	f, p := c.f, c.p
-	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(f.Items, c.medicine, f.Resources, c.demand.Needs, RoundsTradeFloors(p, nil), f.Wealth, c.demand.Retained, RoundsTradeFood(f, p)), f.Resources, f.Colonists), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
+	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(f.Items, c.medicine, f.Resources, c.demand.Needs, RoundsTradeFloors(p, nil), f.Wealth, c.demand.Retained, RoundsTradeFood(f, p)), f.Resources, f.Colonists, f.Recipes), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
 	tradeNeed = FavorGoldNeed(tradeNeed, f.Traders, f.Resources, c.demand.Needs, RoundsTradeFloors(p, nil), c.demand.Retained)
 	short, _ := RoundsSilverShort(f, p, c.medicine.Active).Value()
 	tradeNeed = FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(short))

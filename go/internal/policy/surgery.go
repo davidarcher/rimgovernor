@@ -155,7 +155,7 @@ func servedSurgery(pawn CarePawn, op SurgeryOperation) (weight float64, known bo
 		return partWeight(name), true
 	case SurgeryCure:
 	case SurgeryInstall:
-		if recipe, _ := op.Recipe.Value(); PartTier(recipe) <= 0.5 {
+		if op.Tier == 0 {
 			return 0, true // an implant, not a replacement part
 		}
 	default:
@@ -216,9 +216,9 @@ func electivesAllowed(rows []CarePawn, hospital bool) bool {
 // electiveUpgrade: an install on a healthy part whose part beats a natural
 // one (bionic, archotech); implants and lesser parts are never electives.
 func electiveUpgrade(op SurgeryOperation) bool {
-	recipe, known := op.Recipe.Value()
+	_, known := op.Recipe.Value()
 	_, pk := op.PartIndex.Value()
-	return op.Kind == SurgeryInstall && known && pk && PartTier(recipe) > 1
+	return op.Kind == SurgeryInstall && known && pk && op.Tier > 1
 }
 
 // ElectiveSurgeryOwed: an elective upgrade could be queued now (stocked,
@@ -398,7 +398,7 @@ func selectPartSurgery(pawn PawnID, part int, weight float64, ops []SurgeryOpera
 	sort.SliceStable(ops, func(i, j int) bool { return opTier(ops[i]) > opTier(ops[j]) })
 	top, _ := ops[0].Recipe.Value()
 	topPart, _ := ops[0].PartDefName.Value()
-	want := SurgeryWant{Pawn: pawn, Part: part, Recipe: top, Reason: SurgeryPartShort, Value: PartTier(top) * partWeight(topPart)}
+	want := SurgeryWant{Pawn: pawn, Part: part, Recipe: top, Reason: SurgeryPartShort, Value: ops[0].Tier * partWeight(topPart)}
 	for _, op := range ops {
 		recipe, _ := op.Recipe.Value()
 		want.Options = append(want.Options, recipe)
@@ -434,8 +434,7 @@ func opTier(op SurgeryOperation) float64 {
 	if op.Kind == SurgeryCure {
 		return 1
 	}
-	recipe, _ := op.Recipe.Value()
-	return PartTier(recipe)
+	return op.Tier
 }
 
 // surgeryAcceptable: some eligible doctor performs it within the failure
@@ -472,24 +471,6 @@ func SurgeryBedShortPatients(pawns domain.Fact[[]CarePawn]) []PawnID {
 		}
 	}
 	return ids
-}
-
-// PartTier is the capacity a restore recipe's part gives back, relative to
-// a natural part (1), read from vanilla's recipe naming; an added-part hediff def (BionicArm, PegLeg) carries the same words.
-func PartTier(recipe string) float64 {
-	switch {
-	case strings.Contains(recipe, "Archotech"):
-		return 1.5
-	case strings.Contains(recipe, "Bionic"):
-		return 1.25
-	case strings.Contains(recipe, "Natural"):
-		return 1
-	case strings.Contains(recipe, "Prosthetic"):
-		return 0.85
-	case strings.Contains(recipe, "Peg"), strings.Contains(recipe, "Wooden"), strings.Contains(recipe, "Denture"):
-		return 0.6
-	}
-	return 0.5
 }
 
 // partWeight is how much of a colonist's capacities the part carries; the

@@ -231,7 +231,7 @@ func ChosenElective(pawns domain.Fact[[]CarePawn], ctx SurgeryContext) (SurgeryW
 				weight *= UpgradeRoleWeight(profile, name)
 			}
 			top, _ := group[0].Recipe.Value()
-			value := (PartTier(top) - 1) * weight
+			value := (group[0].Tier - 1) * weight
 			if found && (value < best.Value || value == best.Value && (pawn.ID > best.Pawn || pawn.ID == best.Pawn && part > best.Part)) {
 				continue
 			}

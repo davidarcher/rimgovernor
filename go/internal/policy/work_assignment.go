@@ -65,7 +65,9 @@ type WorkPawn struct {
 	Hostility       domain.Fact[domain.HostilityResponse]
 	ViolenceCapable domain.Fact[bool]
 	BloodLoss       domain.Fact[float64]
-	Health          domain.Fact[float64]
+	// SeriousBloodLoss is the catalog's serious BloodLoss severity; unknown without a catalog.
+	SeriousBloodLoss domain.Fact[float64]
+	Health           domain.Fact[float64]
 	// SelfTend is playerSettings.selfTend; unknown when the read
 	// carried no care settings.
 	SelfTend domain.Fact[bool]
@@ -85,7 +87,7 @@ type WorkPawn struct {
 
 // HostilityPawn is the pawn's hostility inputs.
 func (w WorkPawn) HostilityPawn() HostilityPawn {
-	return HostilityPawn{ID: w.ID, Current: w.Hostility, ViolenceCapable: w.ViolenceCapable, Age: w.Age, BloodLoss: w.BloodLoss, Health: w.Health, Job: w.Job}
+	return HostilityPawn{ID: w.ID, Current: w.Hostility, ViolenceCapable: w.ViolenceCapable, Age: w.Age, BloodLoss: w.BloodLoss, SeriousBloodLoss: w.SeriousBloodLoss, Health: w.Health, Job: w.Job}
 }
 
 // JobTarget is the native thing or cell a pawn's job works on.

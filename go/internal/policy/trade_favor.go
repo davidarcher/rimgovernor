@@ -98,8 +98,8 @@ func (f RoundsFacts) SurplusPrisoners(silverShort bool) map[string]bool {
 		stock[row.Resource] += row.Count
 	}
 	wants := SelectSurgery(f.MedicalPawns, nil, f.SurgeryContext()).Wants
-	needs := OrganNeeds(f.MedicalPawns, wants, silverShort, stock)
-	parts := PartRecoveryNeeds(f.MedicalPawns, wants)
+	needs := OrganNeeds(f.MedicalPawns, wants, silverShort, stock, f.Recipes)
+	parts := PartRecoveryNeeds(f.MedicalPawns, wants, f.Recipes)
 	out := map[string]bool{}
 	for _, row := range rows {
 		if !surplusPrisoner(row, colony) {
@@ -107,7 +107,7 @@ func (f RoundsFacts) SurplusPrisoners(silverShort bool) map[string]bool {
 		}
 		one, col := domain.Known([]PrisonerFacts{row}), domain.Known(colony)
 		_, harvest := SelectOrganHarvest(one, col, needs, nil)
-		_, recovery := SelectPartRecovery(one, col, parts, nil)
+		_, recovery := SelectPartRecovery(one, col, parts, nil, f.Recipes)
 		if !harvest && !recovery {
 			out[string(row.Pawn)] = true
 		}

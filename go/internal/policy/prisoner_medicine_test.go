@@ -21,19 +21,19 @@ func careLimitedPrisoner(id string) PrisonerFacts {
 
 func TestPrisonerCareLimitedHarvest(t *testing.T) {
 	five := domain.Known(PrisonerColony{Colonists: 5, BestSkill: core.BestSkill})
-	sale := OrganNeeds(domain.Known([]CarePawn{}), nil, true, nil)
+	sale := OrganNeeds(domain.Known([]CarePawn{}), nil, true, nil, testRecipeFacts)
 	limited := domain.Known([]PrisonerFacts{careLimitedPrisoner("p")})
 	if _, ok := SelectOrganHarvest(limited, five, sale, nil); ok {
 		t.Fatal("care-limited harvest queued")
 	}
-	h, ok := CareLimitedHarvest(limited, five, sale, nil, nil)
+	h, ok := CareLimitedHarvest(limited, five, sale, nil, nil, testRecipeFacts)
 	if !ok || h.Prisoner != "p" || h.Part != 18 {
 		t.Fatalf("care-limited harvest %+v %v", h, ok)
 	}
-	if _, ok := CareLimitedHarvest(domain.Known([]PrisonerFacts{harvestPrisoner("p", 0)}), five, sale, nil, nil); ok {
+	if _, ok := CareLimitedHarvest(domain.Known([]PrisonerFacts{harvestPrisoner("p", 0)}), five, sale, nil, nil, testRecipeFacts); ok {
 		t.Fatal("stocked harvest read as care-limited")
 	}
-	f := RoundsFacts{Items: CoreItemFacts(), Prisoners: limited, PrisonerColony: five, Resources: domain.Known([]Amount{{Resource: "MedicineIndustrial", Count: 5}})}
+	f := RoundsFacts{Items: CoreItemFacts(), Prisoners: limited, PrisonerColony: five, Recipes: testRecipeFacts, Resources: domain.Known([]Amount{{Resource: "MedicineIndustrial", Count: 5}})}
 	needs := PrisonerHerbalNeeds(map[Resource]int64{"Steel": 10}, f, domain.Known(true))
 	if needs["MedicineHerbal"] != PrisonerSurgeryHerbal || needs["Steel"] != 10 {
 		t.Fatalf("herbal want %v", needs)

@@ -17,12 +17,10 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // DevelopmentalStage.Child ends at 13).
 const ChildAge = 13.0
 
-// SeriousBloodLoss is the BloodLoss severity of vanilla's "moderate" stage;
-// SeriousInjuryHealth the summary health below which a pawn is badly hurt.
-const (
-	SeriousBloodLoss    = 0.3
-	SeriousInjuryHealth = 0.6
-)
+// SeriousInjuryHealth is the summary health below which a pawn is badly hurt.
+// The serious BloodLoss severity is the minSeverity of the BloodLoss
+// hediff's "moderate" stage, read from the catalog (HostilityPawn.SeriousBloodLoss).
+const SeriousInjuryHealth = 0.6
 
 // StealthCells is the Chebyshev reach around a job's target inside which a
 // passive hostile makes the job stealth work, and an engaging hostile
@@ -38,8 +36,11 @@ type HostilityPawn struct {
 	ViolenceCapable domain.Fact[bool]
 	Age             domain.Fact[float64]
 	BloodLoss       domain.Fact[float64]
-	Health          domain.Fact[float64]
-	Job             domain.Fact[PawnJob]
+	// SeriousBloodLoss is the BloodLoss severity from which a pawn flees;
+	// unknown without a catalog, which leaves blood loss undecided.
+	SeriousBloodLoss domain.Fact[float64]
+	Health           domain.Fact[float64]
+	Job              domain.Fact[PawnJob]
 }
 
 // DefaultHostility is the pawn's standing response: Flee for a pawn that
@@ -53,7 +54,8 @@ func DefaultHostility(p HostilityPawn) (domain.HostilityResponse, bool) {
 	if age, ok := p.Age.Value(); ok && age < ChildAge {
 		return domain.HostilityFlee, true
 	}
-	if loss, ok := p.BloodLoss.Value(); ok && loss >= SeriousBloodLoss {
+	loss, ok := p.BloodLoss.Value()
+	if serious, known := p.SeriousBloodLoss.Value(); ok && known && loss >= serious {
 		return domain.HostilityFlee, true
 	}
 	if health, ok := p.Health.Value(); ok && health < SeriousInjuryHealth {

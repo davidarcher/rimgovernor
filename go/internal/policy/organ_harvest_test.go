@@ -61,11 +61,11 @@ func TestHarvestCost(t *testing.T) {
 
 func TestSelectOrganHarvest(t *testing.T) {
 	missingKidney := surgeryPawn("c", 0, restoreOp("InstallNaturalKidney", "Kidney", 20, 0.9, 1, false), restoreOp("InstallBionicKidney", "Kidney", 20, 0.9, 1, false))
-	colonistNeed := OrganNeeds(domain.Known([]CarePawn{missingKidney}), SelectSurgery(domain.Known([]CarePawn{missingKidney}), nil, SurgeryContext{}).Wants, false, nil)
+	colonistNeed := OrganNeeds(domain.Known([]CarePawn{missingKidney}), SelectSurgery(domain.Known([]CarePawn{missingKidney}), nil, SurgeryContext{}).Wants, false, nil, testRecipeFacts)
 	if len(colonistNeed) != 1 || colonistNeed[0] != (OrganNeed{Organ: "Kidney", For: "c", Gain: SilverPerCapacity}) {
 		t.Fatalf("colonist need %+v", colonistNeed)
 	}
-	sale := OrganNeeds(domain.Known([]CarePawn{}), nil, true, map[Resource]int64{"Lung": 1})
+	sale := OrganNeeds(domain.Known([]CarePawn{}), nil, true, map[Resource]int64{"Lung": 1}, testRecipeFacts)
 	if len(sale) != 1 || sale[0] != (OrganNeed{Organ: "Kidney"}) {
 		t.Fatalf("sale need %+v", sale)
 	}
@@ -79,9 +79,9 @@ func TestSelectOrganHarvest(t *testing.T) {
 		want      string // "prisoner/part/for", "" for none
 	}{
 		{"failing kidney harvested from a low-worth prisoner", []PrisonerFacts{harvestPrisoner("p", -70)}, five, colonistNeed, nil, "p/20/c"},
-		{"silver deficit sells a lung (market value beats the kidney)", []PrisonerFacts{harvestPrisoner("p", 0)}, five, OrganNeeds(domain.Known([]CarePawn{}), nil, true, nil), nil, "p/18/"},
+		{"silver deficit sells a lung (market value beats the kidney)", []PrisonerFacts{harvestPrisoner("p", 0)}, five, OrganNeeds(domain.Known([]CarePawn{}), nil, true, nil, testRecipeFacts), nil, "p/18/"},
 		{"sale refused when mood and goodwill outweigh the organ", []PrisonerFacts{harvestPrisoner("p", -70)}, PrisonerColony{Colonists: 7, BestSkill: core.BestSkill}, sale, nil, ""},
-		{"colonist need before sale", []PrisonerFacts{harvestPrisoner("p", 0)}, five, append(OrganNeeds(domain.Known([]CarePawn{}), nil, true, nil), colonistNeed...), nil, "p/20/c"},
+		{"colonist need before sale", []PrisonerFacts{harvestPrisoner("p", 0)}, five, append(OrganNeeds(domain.Known([]CarePawn{}), nil, true, nil, testRecipeFacts), colonistNeed...), nil, "p/20/c"},
 		{"abhorrent precept refuses", []PrisonerFacts{harvestPrisoner("p", 0)}, PrisonerColony{Colonists: 1, BestSkill: core.BestSkill, IdeologyActive: true, Ideology: organUse(unwilling("HarvestedOrgan", nil))}, colonistNeed, nil, ""},
 		{"acceptable precept prices only goodwill", []PrisonerFacts{harvestPrisoner("p", -70)}, PrisonerColony{Colonists: 30, BestSkill: core.BestSkill, IdeologyActive: true, Ideology: organUse()}, sale, nil, "p/20/"},
 		{"recruitable worthy prisoner is not harvested", []PrisonerFacts{func() PrisonerFacts {
@@ -129,12 +129,12 @@ func itoa(n int) string {
 func TestOrganSaleSurplus(t *testing.T) {
 	need := domain.Known(TradeNeed{MedicineReplenish: 10})
 	stock := domain.Known([]Amount{{Resource: "Kidney", Count: 1}, {Resource: "Silver", Count: 0}})
-	got, _ := OrganSaleSurplus(CoreItemFacts(), need, stock, domain.Known[int64](3)).Value()
+	got, _ := OrganSaleSurplus(CoreItemFacts(), need, stock, domain.Known[int64](3), testRecipeFacts).Value()
 	if len(got.Surplus) != 1 || got.Surplus[0] != (Amount{Resource: "Kidney", Count: 1}) || got.Retained["Kidney"] != 0 {
 		t.Fatalf("short silver: %+v", got)
 	}
 	rich := domain.Known([]Amount{{Resource: "Kidney", Count: 1}, {Resource: "Silver", Count: 100000}})
-	if got, _ := OrganSaleSurplus(CoreItemFacts(), need, rich, domain.Known[int64](3)).Value(); len(got.Surplus) != 0 {
+	if got, _ := OrganSaleSurplus(CoreItemFacts(), need, rich, domain.Known[int64](3), testRecipeFacts).Value(); len(got.Surplus) != 0 {
 		t.Fatalf("silver held: %+v", got)
 	}
 }
@@ -142,7 +142,7 @@ func TestOrganSaleSurplus(t *testing.T) {
 func TestReserveSurgeryStockHoldsQueuedInstallPart(t *testing.T) {
 	need := domain.Known(TradeNeed{MedicineReplenish: 10})
 	stock := domain.Known([]Amount{{Resource: "Kidney", Count: 1}, {Resource: "Silver", Count: 0}})
-	sale := OrganSaleSurplus(CoreItemFacts(), need, stock, domain.Known[int64](3))
+	sale := OrganSaleSurplus(CoreItemFacts(), need, stock, domain.Known[int64](3), testRecipeFacts)
 	pawn := surgeryPawn("a", 1, restoreOp("InstallNaturalKidney", "Kidney", 20, 0.9, 0, true))
 	pawn.QueuedRecipes = []string{"InstallNaturalKidney"}
 	pawn.QueuedItems = []Resource{"Kidney"}
@@ -155,7 +155,7 @@ func TestReserveSurgeryStockHoldsQueuedInstallPart(t *testing.T) {
 func TestReserveSurgeryStockKeepsOneKidneyPerWant(t *testing.T) {
 	need := domain.Known(TradeNeed{MedicineReplenish: 10})
 	stock := domain.Known([]Amount{{Resource: "Kidney", Count: 2}, {Resource: "Silver", Count: 0}})
-	sale := OrganSaleSurplus(CoreItemFacts(), need, stock, domain.Known[int64](3))
+	sale := OrganSaleSurplus(CoreItemFacts(), need, stock, domain.Known[int64](3), testRecipeFacts)
 	pawns := domain.Known([]CarePawn{surgeryPawn("a", 0, restoreOp("InstallNaturalKidney", "Kidney", 20, 0.9, 0, true))})
 	got, _ := ReserveSurgeryStock(sale, pawns).Value()
 	if len(got.Surplus) != 1 || got.Surplus[0] != (Amount{Resource: "Kidney", Count: 1}) || got.Retained["Kidney"] != 1 {

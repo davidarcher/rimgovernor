@@ -20,7 +20,7 @@ const PrisonerSurgeryHerbal int64 = 2
 // SelectOrganHarvest or SelectPartRecovery would choose were every
 // care-limited operation stocked, when the chosen operation is care-limited.
 // ok is false when nothing is chosen or the choice is not blocked by care.
-func CareLimitedHarvest(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[PrisonerColony], needs, parts []OrganNeed, inFlight map[PawnID]bool) (OrganHarvest, bool) {
+func CareLimitedHarvest(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[PrisonerColony], needs, parts []OrganNeed, inFlight map[PawnID]bool, facts RecipeFacts) (OrganHarvest, bool) {
 	rows, known := prisoners.Value()
 	if !known {
 		return OrganHarvest{}, false
@@ -47,10 +47,10 @@ func CareLimitedHarvest(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fa
 	if len(limited) == 0 {
 		return OrganHarvest{}, false
 	}
-	facts := domain.Known(relaxed)
-	h, ok := SelectOrganHarvest(facts, colony, needs, inFlight)
+	relaxedFacts := domain.Known(relaxed)
+	h, ok := SelectOrganHarvest(relaxedFacts, colony, needs, inFlight)
 	if !ok {
-		h, ok = SelectPartRecovery(facts, colony, parts, inFlight)
+		h, ok = SelectPartRecovery(relaxedFacts, colony, parts, inFlight, facts)
 	}
 	return h, ok && limited[careOp{h.Prisoner, h.Recipe, h.Part}]
 }
@@ -70,8 +70,8 @@ func PrisonerHerbalNeeds(needs map[Resource]int64, f RoundsFacts, silverShort do
 	for _, row := range rows {
 		stock[row.Resource] += row.Count
 	}
-	sale := OrganNeeds(domain.Unknown[[]CarePawn](), nil, positive(silverShort), stock)
-	if _, ok := CareLimitedHarvest(f.Prisoners, f.PrisonerColony, sale, nil, nil); !ok {
+	sale := OrganNeeds(domain.Unknown[[]CarePawn](), nil, positive(silverShort), stock, f.Recipes)
+	if _, ok := CareLimitedHarvest(f.Prisoners, f.PrisonerColony, sale, nil, nil, f.Recipes); !ok {
 		return needs
 	}
 	herbal, err := f.Items.MedicineAt(0)
