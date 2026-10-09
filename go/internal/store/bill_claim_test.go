@@ -20,11 +20,14 @@ func billStoreFixture(t *testing.T, modes ...domain.BillMode) (*Store, string, b
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "bill.db")
 	s := open(t, path)
-	mode := domain.FoodTarget
+	mode := domain.HumanButcherForever
 	if len(modes) > 0 {
 		mode = modes[0]
 	}
 	bill, _ := domain.NewProductionBill("bench", "recipe", mode, 10)
+	if mode == domain.HumanButcherForever {
+		bill, _ = domain.NewHumanButcherBill("bench", "recipe", "worker")
+	}
 	a, _ := domain.NewProductionBillAction("bill", bill)
 	plan, err := domain.NewPlan("plan", 1, []domain.Action{a})
 	if err != nil {
@@ -74,7 +77,7 @@ func TestBillClaimNotRecordedOnRefusal(t *testing.T) {
 	if _, err := s.RecordReceipt(ctx, "plan", "bill", 1, domain.ReceiptRefused); err != nil {
 		t.Fatal(err)
 	}
-	claimed, err := s.BillClaimed(ctx, v.Snapshot, "bench", "recipe")
+	claimed, err := s.BillClaimed(ctx, v.Snapshot, "bench", "recipe/humanlike")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +103,7 @@ func TestBillClaimRecordedOnAcceptedOrUncertain(t *testing.T) {
 			if _, err := s.RecordReceipt(ctx, "plan", "bill", 1, receipt); err != nil {
 				t.Fatal(err)
 			}
-			claimed, err := s.BillClaimed(ctx, v.Snapshot, "bench", "recipe")
+			claimed, err := s.BillClaimed(ctx, v.Snapshot, "bench", "recipe/humanlike")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -136,7 +139,7 @@ func TestBillClaimResendAfterUnknownDoesNotConflict(t *testing.T) {
 	if _, err := s.RecordReceipt(ctx, "plan", "bill", 2, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
-	claimed, err := s.BillClaimed(ctx, v.Snapshot, "bench", "recipe")
+	claimed, err := s.BillClaimed(ctx, v.Snapshot, "bench", "recipe/humanlike")
 	if err != nil {
 		t.Fatal(err)
 	}

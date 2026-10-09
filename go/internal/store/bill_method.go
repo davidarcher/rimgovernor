@@ -9,6 +9,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
+// maxBillPlanActions bounds one batched bill plan to a Round's reconcile.
+const maxBillPlanActions = 64
+
+// billModeClaims reports whether a bill of the mode records a durable
+// bench+recipe claim. The ledger owns the standing and target modes, which
+// native readback re-places, so only the human butcher bill still claims.
+func billModeClaims(m domain.BillMode) bool { return m == domain.HumanButcherForever }
+
 func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
 	has := false
 	for _, a := range plan.Actions() {
@@ -21,8 +29,8 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || len(plan.Actions()) > 4 {
-		return fmt.Errorf("%w: bill method needs a current autopilot review and at most four actions", ErrConflict)
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || len(plan.Actions()) > maxBillPlanActions {
+		return fmt.Errorf("%w: bill method needs a current autopilot review and at most %d actions", ErrConflict, maxBillPlanActions)
 	}
 	// Bills serve the cooking/food goals, the resource-target goals whose
 	// production path (RoundsResourcePlanner.dispatchResourceConcern) stages a
@@ -36,20 +44,25 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	if !bound {
 		return fmt.Errorf("%w: %s does not admit production bills", ErrConflict, owner.ownerLabel())
 	}
-	benches := map[string]bool{}
+	placed := map[[2]string]bool{}
 	for _, a := range plan.Actions() {
-		b, ok := a.ProductionBill()
-		if !ok || benches[b.Bench()] {
-			return fmt.Errorf("%w: bill method mixes action kinds or repeats a bench", ErrConflict)
+		if a.Kind() == domain.RemoveProductionBillAction {
+			continue
 		}
-		benches[b.Bench()] = true
+		b, ok := a.ProductionBill()
+		key := [2]string{b.Bench(), b.ClaimRecipe()}
+		if !ok || placed[key] {
+			return fmt.Errorf("%w: bill method mixes action kinds or repeats a bench and recipe", ErrConflict)
+		}
+		placed[key] = true
+		if !billModeClaims(b.Mode()) {
+			continue
+		}
 		var n int
 		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM bill_claims WHERE colony=? AND load_token=? AND map_id=? AND bench=? AND recipe=?", owner.ownerSnapshot().Colony, owner.ownerSnapshot().Load, owner.ownerSnapshot().Map, b.Bench(), b.ClaimRecipe()).Scan(&n); err != nil {
 			return err
 		}
-		// Finite batches expire. Fresh stack CAS and active-bill census guard
-		// them; a historical standing-bill claim must not prohibit renewal.
-		if n != 0 && b.Replaces() == "" && b.Mode() != domain.GearBatch {
+		if n != 0 && b.Replaces() == "" {
 			return fmt.Errorf("%w: bench %s already has a claimed %s bill", ErrConflict, b.Bench(), b.Recipe())
 		}
 	}

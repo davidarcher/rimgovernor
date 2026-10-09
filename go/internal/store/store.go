@@ -659,7 +659,7 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 	if current.Action().Kind() == domain.ProductionBillAction {
 		// A trusted refusal proves no bill was created, leaving the bench+recipe pair
 		// claimable again; only an accepted or uncertain write may have produced one.
-		if production, _ := current.Action().ProductionBill(); event.Kind == "receipt" && event.Receipt != domain.ReceiptRefused && event.Receipt != domain.ReceiptUnsent && production.Mode() != domain.GearBatch {
+		if production, _ := current.Action().ProductionBill(); event.Kind == "receipt" && event.Receipt != domain.ReceiptRefused && event.Receipt != domain.ReceiptUnsent && billModeClaims(production.Mode()) {
 			bill, _ := current.Action().ProductionBill()
 			snapshot := current.View().Snapshot
 			// A reopened retry (e.g. an uncertain write later observed absent) claims the
