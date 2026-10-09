@@ -48,7 +48,7 @@ func PlanHayField(need domain.Fact[float64], crop CropChoice, climate CropClimat
 		return FieldPlan{}, false
 	}
 	crop.Edible = domain.Known(false)
-	return FieldPlan{Crop: crop, Needed: int(math.Min(4096, math.Ceil(n/yield)))}, true
+	return FieldPlan{Crop: crop, Needed: int(math.Ceil(n / yield))}, true
 }
 
 // SlaughterFacts are native's raw per-animal flags the slaughter exclusion

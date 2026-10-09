@@ -177,3 +177,11 @@ func TestSafeToSlaughterExclusions(t *testing.T) {
 		t.Fatal("known blocker did not decide")
 	}
 }
+
+func TestPlanHayFieldSizeFollowsNeedWithoutCap(t *testing.T) {
+	crop := CropChoice{Name: "Plant_Haygrass", Harvests: domain.Known(HayResource), Available: domain.Known(true), Edible: domain.Known(false), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(0.5)}
+	plan, ok := PlanHayField(domain.Known(5000.0), crop, CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(30.0), OutdoorsDark: domain.Known(false)})
+	if !ok || plan.Needed != 10000 {
+		t.Fatal(plan, ok)
+	}
+}
