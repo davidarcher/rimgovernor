@@ -888,9 +888,11 @@ namespace RimGovernor.Protocol.Operations {
     [pbr::OriginalName("DESIGNATION_GUARD_UNSPECIFIED")] Unspecified = 0,
     /// <summary>
     /// Building removal (DECONSTRUCT): player deconstructible, visible, not
-    /// forbidden or burning, no enclosing colony wall (cleared_ground aside),
-    /// no pending wall upgrade and proven roof support. Rooms of cleared ground
-    /// still roofed hold the job without cancelling it.
+    /// forbidden or burning and no pending wall upgrade; an enclosing wall is
+    /// admitted. A removal that would collapse a roof (unproven roof support, or
+    /// rooms of cleared ground still roofed) holds at the work giver without
+    /// cancelling the designation or losing progress, and releases when the
+    /// support is proven (waiting_for_roof).
     /// </summary>
     [pbr::OriginalName("DESIGNATION_GUARD_ENCLOSURE")] Enclosure = 1,
     /// <summary>
@@ -22544,10 +22546,9 @@ namespace RimGovernor.Protocol.Operations {
         = pb::FieldCodec.ForMessage(58, global::RimGovernor.Protocol.Operations.Rectangle.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Operations.Rectangle> clearedGround_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Operations.Rectangle>();
     /// <summary>
-    /// The enclosure guard's cleared ground: a player wall or door whose
-    /// every enclosed room lies inside it is allowed (a room reaching outside
-    /// stays refused); while those rooms keep any roof the designation stands
-    /// but pawns wait (DeconstructEffect.waiting_for_roof).
+    /// The enclosure guard's cleared ground: while a player wall or door's
+    /// every enclosed room lies inside it and keeps any roof, the designation
+    /// stands but pawns wait (DeconstructEffect.waiting_for_roof).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

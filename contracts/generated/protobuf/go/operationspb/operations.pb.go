@@ -955,9 +955,11 @@ type DesignationGuard int32
 const (
 	DesignationGuard_DESIGNATION_GUARD_UNSPECIFIED DesignationGuard = 0
 	// Building removal (DECONSTRUCT): player deconstructible, visible, not
-	// forbidden or burning, no enclosing colony wall (cleared_ground aside),
-	// no pending wall upgrade and proven roof support. Rooms of cleared ground
-	// still roofed hold the job without cancelling it.
+	// forbidden or burning and no pending wall upgrade; an enclosing wall is
+	// admitted. A removal that would collapse a roof (unproven roof support, or
+	// rooms of cleared ground still roofed) holds at the work giver without
+	// cancelling the designation or losing progress, and releases when the
+	// support is proven (waiting_for_roof).
 	DesignationGuard_DESIGNATION_GUARD_ENCLOSURE DesignationGuard = 1
 	// Rock removal (MINE): no pending roof collapse, an unowned visible rock
 	// with no structure on the cell, away from the map edge, and counterfactual
@@ -6437,10 +6439,9 @@ type DesignateIntent struct {
 	Cell        *commonpb.Cell         `protobuf:"bytes,4,opt,name=cell,proto3" json:"cell,omitempty"`
 	Guard       *DesignationGuard      `protobuf:"varint,5,opt,name=guard,proto3,enum=rimgovernor.operations.v1.DesignationGuard,oneof" json:"guard,omitempty"`
 	ExpectedDef *string                `protobuf:"bytes,6,opt,name=expected_def,json=expectedDef,proto3,oneof" json:"expected_def,omitempty"`
-	// The enclosure guard's cleared ground: a player wall or door whose
-	// every enclosed room lies inside it is allowed (a room reaching outside
-	// stays refused); while those rooms keep any roof the designation stands
-	// but pawns wait (DeconstructEffect.waiting_for_roof).
+	// The enclosure guard's cleared ground: while a player wall or door's
+	// every enclosed room lies inside it and keeps any roof, the designation
+	// stands but pawns wait (DeconstructEffect.waiting_for_roof).
 	ClearedGround []*Rectangle `protobuf:"bytes,7,rep,name=cleared_ground,json=clearedGround,proto3" json:"cleared_ground,omitempty"`
 	// DECONSTRUCT only: swap a 1x1 player door for a Wall of its own
 	// stuff, ordering the nearest capable builder (player-forced work).

@@ -125,13 +125,17 @@ colony walls only.
 
 `Designate` DECONSTRUCT on a building `target` under the `enclosure` guard clears one exact
 building through `Designator_Deconstruct`; native rechecks deconstructibility, visible
-geometry, remaining roof support and any pending wall upgrade at apply.
+geometry, forbidden or burning state and any pending wall upgrade at apply; an enclosing
+wall is admitted.
 
-- Enclosing colony walls require the `wall_upgrade` guard. Otherwise `cleared_ground` allows
-  a player wall or door whose every enclosed room (eight neighbours) lies inside the ground;
-  a room reaching outside is refused; while those rooms keep a roof the designation stands
-  with pawns held (`DeconstructEffect.waiting_for_roof`). Clearance first issues
-  `remove_roof` over the rooms.
+- Roof collapse is a hold at the work giver, not an admission refusal: the
+  `WorkGiver_Deconstruct.HasJobOnThing` postfix keeps pawns off a standing designation while
+  removal would drop a roof (unproven roof support, unknown support geometry, or, with
+  `cleared_ground`, a player wall or door whose every enclosed room (eight neighbours) lies
+  inside the ground and still has roof), reporting `DeconstructEffect.waiting_for_roof`. A
+  completion-time check in `FinishedRemoving` is the backstop. The removal job resets its
+  work on every start, so a hold at the work giver loses no progress; the hold lifts when the
+  support is proven. Clearance first issues `remove_roof` over the rooms.
 - `replace_with_wall` (no cleared ground) swaps a 1x1 player door for a Wall of the door's
   stuff when the door stands on a planned room's wall ring with no planned door: if
   `GenConstruct.CanPlaceBlueprintAt` accepts the wall over the door, native places it and the

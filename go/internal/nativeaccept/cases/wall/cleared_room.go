@@ -16,7 +16,7 @@ func init() {
 		Scope: "Cleared-ground deconstruction (#1366, epic #1249): a small walled, roofed player room inside the " +
 			"cleared ground ends unroofed with its walls and door gone, through a remove_roof intent and " +
 			"DECONSTRUCT Designate.cleared_ground whose walls wait (designated, waitingForRoof) until pawns remove the roof; " +
-			"a wall of a room straddling the ground's edge is refused. A Go snapshot test cannot see vanilla room " +
+			"a wall of a room straddling the ground's edge is admitted and held by the roof-support wait. A Go snapshot test cannot see vanilla room " +
 			"geometry, the NoRoof area work or the native job guard.",
 		Start:       cases.LabStart(),
 		RequiredOps: []string{na.LabSpawnTool, "test/roof_cells", "test/deconstruct_target"},
@@ -119,13 +119,14 @@ func runClearedRoom(ctx context.Context, s cases.Session) error {
 		result, _ := na.AsMap(results[0])
 		return result, nil
 	}
-	// The straddling room's west wall (x0, cz) is refused.
+	// The straddling room's west wall (x0, cz) is admitted (no room-extent
+	// refusal); the work giver holds it while its removal would drop a roof.
 	straddle, err := apply("straddle", deconstructIntent("straddle", bIDs[2], map[string]any{"clearedGround": ground}))
 	if err != nil {
 		return err
 	}
-	if _, ok := na.AsMap(straddle["refused"]); !ok || !strings.Contains(fmt.Sprint(straddle), "outside the cleared ground") {
-		return fmt.Errorf("straddling room wall not refused for its room outside the ground: %#v", straddle)
+	if _, ok := na.AsMap(straddle["applied"]); !ok {
+		return fmt.Errorf("straddling room wall not admitted: %#v", straddle)
 	}
 	report["straddle"] = straddle
 	// Room A: designate its walls first, which wait on the roof, then the roof.

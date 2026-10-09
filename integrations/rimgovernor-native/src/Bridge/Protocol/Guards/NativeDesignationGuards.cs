@@ -27,12 +27,12 @@ namespace HomeBridge.BridgeTools
     // designations to them. Admission runs Registry.Admit; the deconstruct
     // and mine job hooks re-check every open GuardState record before the
     // work lands: a failed check drops the designation and ends the job, a
-    // wait (cleared-ground roof still up) holds pawns off it. Revoking
+    // wait (roof collapse, see RoofWait) holds pawns off it. Revoking
     // authority releases every open guarded designation.
     internal static class NativeDesignationGuards
     {
         internal static readonly GuardRegistry<GuardSubject> Registry = new GuardRegistry<GuardSubject>()
-            .Register(GuardNames.Enclosure, s => s.Target is Building b ? Enclosure(b, s.Ground) : "The enclosure guard holds a building.",
+            .Register(GuardNames.Enclosure, s => s.Target is Building b ? Enclosure(b) :"The enclosure guard holds a building.",
                 s => s.Target is Building b ? RoofWait(b, s.Ground) : null)
             .Register(GuardNames.MineSafety, MineSafety, s => MineSafetyRule.Wait(CollapsePending(s.Map)))
             .Register(GuardNames.Acquisition, s => s.Target is Mineable rock ? ResourceAcquisitionTools.MiningBlocker(rock, s.Map) : null,
@@ -71,12 +71,13 @@ namespace HomeBridge.BridgeTools
             () => ExcavationSafety.Check(s.Map, new[] { s.Cell }, out _, out var support, throughFog: true) == ExcavationSafety.Support.Supported ? null : support ?? "Roof support is unproven.");
 
         // ---- enclosure ----
-        private static string? Enclosure(Building target, HashSet<IntVec3>? ground) =>
-            Safety(target, ground) ?? (WallUpgradeSafety.Pending(target) != null ? "A pending wall upgrade owns the target." : null);
+        private static string? Enclosure(Building target) =>
+            Safety(target) ?? (WallUpgradeSafety.Pending(target) != null ? "A pending wall upgrade owns the target." : null);
 
         // The indoor rooms a player wall or door bounds, when every one lies
         // inside the cleared ground; null when there is no ground, the target
-        // is not a player wall or door, or a room reaches outside.
+        // is not a player wall or door, or a room reaches outside (then only
+        // the support wait applies).
         private static List<Room>? ClearedRooms(Building target, HashSet<IntVec3>? ground)
         {
             if (ground == null || target.Faction != Faction.OfPlayer || !(target.def == ThingDefOf.Wall || target.def.IsDoor)) return null;
@@ -90,46 +91,38 @@ namespace HomeBridge.BridgeTools
         private static IEnumerable<IntVec3> Footprint(Room room, Map map) => room.Cells
             .SelectMany(c => GenAdj.AdjacentCellsAndInside.Select(d => c + d)).Where(c => c.InBounds(map)).Distinct();
         private static bool Roofed(List<Room> rooms, Map map) => rooms.Any(r => Footprint(r, map).Any(c => c.Roofed(map)));
-        // A cleared-ground wall or door waits (designated, pawns held) while
-        // any room it bounds still has roof over its cells or walls;
-        // clearance removes it first. Roof left over a wall cell would
-        // otherwise hang on the last wall standing, whose removal the
-        // support check then refuses for good.
+        // The roof-collapse guard, held at the work giver (Eligible) with a
+        // completion-time backstop (BeforeRemoval): the designation stands
+        // and pawns wait, losing no progress (the removal job resets its work
+        // on every start), while taking the building down would collapse a
+        // roof. A cleared-ground wall or door waits for the roof over the
+        // rooms it bounds to come off first (clearance removes it); any
+        // other roof-holder waits until its support is proven.
         internal static string? RoofWait(Building target, HashSet<IntVec3>? ground)
         {
             if (!target.Spawned) return null;
             var rooms = ClearedRooms(target, ground);
-            return rooms != null && Roofed(rooms, target.Map) ? "Waiting for the enclosed rooms' roof removal." : null;
+            if (rooms != null && Roofed(rooms, target.Map)) return "Waiting for the enclosed rooms' roof removal.";
+            return SupportWait(target);
         }
-        private static string? Safety(Building target, HashSet<IntVec3>? ground)
+        private static string? SupportWait(Building target)
         {
-            if (!target.Spawned || !target.DeconstructibleBy(Faction.OfPlayer))
-                return "Target must be a spawned building deconstructible by the player.";
-            if (target.OccupiedRect().Cells.Any(c => !c.InBounds(target.Map) || c.Fogged(target.Map))) return "Unknown target geometry.";
-            if (target.IsForbidden(Faction.OfPlayer) || target.IsBurning()) return "Target is forbidden or burning.";
-            // Colony enclosure demolition must use RemoveWall's replacement
-            // guards. A wall with an enclosed room on every open side only
-            // joins rooms, so it is no enclosure.
-            var cleared = ClearedRooms(target, ground);
-            if (ground != null && target.Faction == Faction.OfPlayer && (target.def == ThingDefOf.Wall || target.def.IsDoor) && cleared == null)
-                return "A room this wall or door encloses extends outside the cleared ground.";
-            if (cleared == null && target.Faction == Faction.OfPlayer && target.def == ThingDefOf.Wall)
-            {
-                var rooms = GenAdj.CardinalDirections.Select(d => target.Position + d)
-                    .Where(c => c.InBounds(target.Map)).Select(c => c.GetRoom(target.Map)).OfType<Room>().ToList();
-                bool Enclosed(Room r) => r.ProperRoom && !r.TouchesMapEdge;
-                if (rooms.Any(Enclosed) && !rooms.All(Enclosed))
-                    return "Enclosing colony walls require the wall_upgrade guard.";
-            }
             if (!target.def.holdsRoof) return null;
-            // The roof the cleared rooms still carry comes off first (RoofWait).
-            if (cleared != null && Roofed(cleared, target.Map)) return null;
             var shrineStructure = NativeShrineBreachSafety.StructuralCells(target);
             if (shrineStructure != null)
                 return RoofSupportSafety.Blocker(target, null, out _, shrineStructure);
             var cells = target.OccupiedRect().Cells.ToList();
             if (cells.Any(c => !RoofSupportSafety.GeometryKnown(target.Map, c))) return "Unknown roof support geometry.";
             return ExcavationSafety.Check(target.Map, cells, out _, out var blocker) == ExcavationSafety.Support.Supported ? null : blocker ?? "Roof support is unproven.";
+        }
+        // The permanent blockers only; roof collapse is RoofWait's transient hold.
+        private static string? Safety(Building target)
+        {
+            if (!target.Spawned || !target.DeconstructibleBy(Faction.OfPlayer))
+                return "Target must be a spawned building deconstructible by the player.";
+            if (target.OccupiedRect().Cells.Any(c => !c.InBounds(target.Map) || c.Fogged(target.Map))) return "Unknown target geometry.";
+            if (target.IsForbidden(Faction.OfPlayer) || target.IsBurning()) return "Target is forbidden or burning.";
+            return null;
         }
 
         // ---- ledger ----

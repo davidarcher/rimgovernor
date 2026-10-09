@@ -340,18 +340,6 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	// Generic Designate cannot demolish an enclosing wall while its outer side is open (the shell has no backups yet).
-	unsafeReply, err := h.Wire(ctx, "generic-enclosure-refusal", "operations_apply", map[string]any{
-		"identity": identity, "actions": []any{deconstructIntent("generic-enclosure-refusal", chosen.wall, nil)}})
-	if err != nil {
-		return err
-	}
-	if results := na.AsSlice(unsafeReply["results"]); len(results) != 1 {
-		return fmt.Errorf("generic demolition: expected one result: %#v", unsafeReply)
-	} else if result, _ := na.AsMap(results[0]); result["refused"] == nil {
-		return fmt.Errorf("generic demolition bypassed enclosure guards: %#v", result)
-	}
-
 	// Completed backups: the target row now lists them and admits demolition.
 	backups, err := spawn("spawn-backups", strings.Join(chosen.cells, ";"))
 	if err != nil {
