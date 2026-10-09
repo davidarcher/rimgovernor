@@ -321,26 +321,15 @@ namespace HomeBridge.BridgeTools
         internal const string CombatAreaPrefix = "Combat ";
 
         // Combat drug: the carried drug Go chose by def name, by the
-        // vanilla Ingest job from inventory; the def must be a
-        // drug. Never a child, a pawn already on the drug's high, or one
-        // addicted to (or in withdrawal from) or highly tolerant of its chemical (the Go HighTolerance, 0.5).
+        // vanilla Ingest job from inventory; the def must be a drug.
+        // Go owns who may dose; vanilla's refusal is native_refused.
         private static string CombatDrug(Pawn pawn, string defName, out string? job)
         {
             job = null;
-            if (!pawn.DevelopmentalStage.Adult()) return "child";
             var def = DefDatabase<ThingDef>.GetNamedSilentFail(defName);
             if (def?.GetCompProperties<CompProperties_Drug>() == null) return "not_a_drug";
             var drug = pawn.inventory?.innerContainer.FirstOrDefault(t => t.def == def);
             if (drug == null) return "no_drug";
-            var outcomes = drug.def.ingestible?.outcomeDoers;
-            if (outcomes != null && outcomes.OfType<IngestionOutcomeDoer_GiveHediff>().Any(o => o.hediffDef != null && pawn.health.hediffSet.HasHediff(o.hediffDef)))
-                return "already_high";
-            var chemical = drug.def.GetCompProperties<CompProperties_Drug>()?.chemical;
-            if (chemical != null)
-            {
-                var tolerance = chemical.toleranceHediff == null ? null : pawn.health.hediffSet.GetFirstHediffOfDef(chemical.toleranceHediff);
-                if (AddictionUtility.IsAddicted(pawn, chemical) || tolerance != null && tolerance.Severity >= 0.5f) return "drug_risk";
-            }
             var made = JobMaker.MakeJob(JobDefOf.Ingest, drug);
             made.count = 1;
             return Take(pawn, made, out job);

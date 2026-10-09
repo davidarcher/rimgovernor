@@ -13,8 +13,8 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "combatlab/combat_drug",
 		Scope: "The combat_drug order (#1311), a native op contract no snapshot can prove: on lab-open with colonist 0 carrying go-juice, colonist 1 " +
-			"carrying nothing and colonist 2 carrying go-juice while already GoJuiceHigh, all drafted, one combat.orders call orders combat_drug for each; " +
-			"colonist 0's applies as Ingest, colonist 1 refuses no_drug and colonist 2 already_high, and 300 ticks later colonist 0 is GoJuiceHigh.",
+			"carrying nothing and colonist 2 carrying nothing, all drafted, one combat.orders call orders combat_drug for each; " +
+			"colonist 0's applies as Ingest, colonists 1 and 2 refuse no_drug, and 300 ticks later colonist 0 is GoJuiceHigh.",
 		Start:       cases.Lab{Colonists: 3},
 		RequiredOps: []string{na.LabStartTool, StageTool},
 		QuietWorld:  true,
@@ -33,8 +33,6 @@ func runCombatDrug(ctx context.Context, s cases.Session) error {
 			switch f.Pawns[i].Index {
 			case 0:
 				f.Pawns[i].Inventory = []string{"GoJuice"}
-			case 2:
-				f.Pawns[i].Inventory, f.Pawns[i].Hediffs = []string{"GoJuice"}, []string{"GoJuiceHigh"}
 			}
 		}
 	})
@@ -66,9 +64,9 @@ func runCombatDrug(ctx context.Context, s cases.Session) error {
 	if applied, _ := na.AsBool(results[0]["applied"]); !applied || na.AsString(results[0]["jobDef"]) != "Ingest" {
 		return fmt.Errorf("colonist 0: want applied Ingest, got %v", results[0])
 	}
-	for i, want := range map[int]string{1: "no_drug", 2: "already_high"} {
-		if applied, _ := na.AsBool(results[i]["applied"]); applied || na.AsString(results[i]["refusal"]) != want {
-			return fmt.Errorf("colonist %d: want refusal %s, got %v", i, want, results[i])
+	for _, i := range []int{1, 2} {
+		if applied, _ := na.AsBool(results[i]["applied"]); applied || na.AsString(results[i]["refusal"]) != "no_drug" {
+			return fmt.Errorf("colonist %d: want refusal no_drug, got %v", i, results[i])
 		}
 	}
 	after, err := tickReadN(ctx, h, 300)

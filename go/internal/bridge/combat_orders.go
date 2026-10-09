@@ -38,12 +38,10 @@ const (
 	// release order to an animal without the Release training.
 	CombatRefusalNotOurs   = "not_ours"
 	CombatRefusalUntrained = "untrained"
-	// Combat drug refusals: eligibility, inventory and chemical safety checks.
-	CombatRefusalChild       = "child"
-	CombatRefusalNotADrug    = "not_a_drug"
-	CombatRefusalNoDrug      = "no_drug"
-	CombatRefusalAlreadyHigh = "already_high"
-	CombatRefusalDrugRisk    = "drug_risk"
+	// Combat drug refusals: the def is not a drug, or none is carried.
+	// Legality (age, high, addiction) is the game's: native_refused.
+	CombatRefusalNotADrug = "not_a_drug"
+	CombatRefusalNoDrug   = "no_drug"
 )
 
 var combatRefusals = map[string]bool{
@@ -54,8 +52,7 @@ var combatRefusals = map[string]bool{
 	CombatRefusalCannotDraft: true, CombatRefusalNotAMortar: true,
 	CombatRefusalUnknownShell: true, CombatRefusalNoShell: true,
 	CombatRefusalNotOurs: true, CombatRefusalUntrained: true,
-	CombatRefusalChild: true, CombatRefusalNotADrug: true, CombatRefusalNoDrug: true,
-	CombatRefusalAlreadyHigh: true, CombatRefusalDrugRisk: true,
+	CombatRefusalNotADrug: true, CombatRefusalNoDrug: true,
 }
 
 // CombatOrderResult is one order's outcome, in request order.

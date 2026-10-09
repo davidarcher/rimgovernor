@@ -686,8 +686,10 @@ other work for that pawn. Checkbox mode enables only those rest work types.
 **Combat drugs.** A threatened defender receives a dose order only for a combat
 drug in its observed carried inventory, with catalog preference breaking ties.
 The combat pawn row carries a complete drug definition set; absent inventory
-facts hold dosing and a present empty set orders no dose. Native rechecks carried
-stock and chemical safety when applying the order. The fight's `Dosed` memory
+facts hold dosing and a present empty set orders no dose. Native checks only that the def is a
+drug and is carried (`not_a_drug`, `no_drug`); age, an active high, addiction and
+tolerance are Go policy (carry planning excludes children and risky chemicals)
+and vanilla's own refusal of the Ingest job surfaces as `native_refused`. The fight's `Dosed` memory
 limits each pawn to one attempted dose, including refused attempts; it does not
 assert ingestion. Unavailable inventory produces neither an order nor an attempt
 mark. Policy and runtime tests cover selection; `combatlab/drugs` covers the

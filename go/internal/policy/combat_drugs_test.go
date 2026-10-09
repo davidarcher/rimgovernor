@@ -117,3 +117,35 @@ func TestDoseOrdersRequireCarriedDrug(t *testing.T) {
 		})
 	}
 }
+
+// Only a carrier is dosed, and CarryEntries plans no carried dose for a child
+// or a pawn addicted to, withdrawing from or highly tolerant of the chemical,
+// so the native order needs no child, tolerance or addiction veto of its own.
+func TestCarryEntriesExcludeChildAndRiskyPawns(t *testing.T) {
+	drug, ok := CarryDrug(CoreItemFacts(), nil)
+	if !ok {
+		t.Fatal("no combat drug")
+	}
+	carries := func(pawn WorkPawn) bool {
+		entries, known := CarryEntries(pawn, CoreItemFacts(), drug)
+		if !known {
+			t.Fatal("unknown")
+		}
+		return len(entries) == 1 && entries[0].TakeToInventory == 1
+	}
+	if !carries(drugPawn("adult", 30, nil)) {
+		t.Fatal("plain adult does not carry")
+	}
+	if carries(drugPawn("child", 9, nil)) {
+		t.Fatal("child carries")
+	}
+	for name, c := range map[string]ChemicalState{
+		"tolerant":   {Chemical: drug.Chemical, Tolerance: domain.Known(HighTolerance)},
+		"addicted":   {Chemical: drug.Chemical, Addiction: domain.Known(0.3)},
+		"withdrawal": {Chemical: drug.Chemical, Withdrawal: true},
+	} {
+		if carries(drugPawn(name, 30, nil, c)) {
+			t.Fatalf("%s carries", name)
+		}
+	}
+}

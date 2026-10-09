@@ -4477,10 +4477,9 @@ namespace RimGovernor.Protocol.Operations {
     public const int CombatDrugFieldNumber = 17;
     /// <summary>
     /// CombatDrug: the drafted pawn ingests the carried drug of this
-    /// def name (Go chooses it; native validates) by the vanilla Ingest job.
+    /// def name (Go chooses it) by the vanilla Ingest job.
     /// Refusals: not_a_drug (the def is not a drug), no_drug (none carried),
-    /// child, already_high, drug_risk (addicted to, in withdrawal from or
-    /// highly tolerant of the drug's chemical).
+    /// native_refused (vanilla declined the ordered job).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

@@ -152,7 +152,7 @@ func TestCombatOrderResultsDecode(t *testing.T) {
 
 func TestCombatDrugRefusalsPreserveBatch(t *testing.T) {
 	// Use the native strings independently of the bridge constants.
-	for _, reason := range []string{"child", "not_a_drug", "no_drug", "already_high", "drug_risk"} {
+	for _, reason := range []string{"not_a_drug", "no_drug"} {
 		t.Run(reason, func(t *testing.T) {
 			orders := &o.CombatOrders{Orders: []*o.CombatOrder{
 				{Pawn: combatPawn("p0"), Order: &o.CombatOrder_Move{Move: combatCell(7, 8)}},

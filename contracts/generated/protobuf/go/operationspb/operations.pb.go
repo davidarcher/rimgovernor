@@ -2409,10 +2409,9 @@ type CombatOrder_AnimalArea struct {
 
 type CombatOrder_CombatDrug struct {
 	// CombatDrug: the drafted pawn ingests the carried drug of this
-	// def name (Go chooses it; native validates) by the vanilla Ingest job.
+	// def name (Go chooses it) by the vanilla Ingest job.
 	// Refusals: not_a_drug (the def is not a drug), no_drug (none carried),
-	// child, already_high, drug_risk (addicted to, in withdrawal from or
-	// highly tolerant of the drug's chemical).
+	// native_refused (vanilla declined the ordered job).
 	CombatDrug string `protobuf:"bytes,17,opt,name=combat_drug,json=combatDrug,proto3,oneof"`
 }
 
