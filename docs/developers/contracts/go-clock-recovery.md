@@ -353,6 +353,29 @@ merged only if they made the cutoff.
 An unmet startup shelter promotes startup planners (`plannerEntry.startup`)
 into the critical cycle. Other configured planners remain eligible.
 
+**Latched-hold escape.** While a Worker is attached, admission defers a step on a
+latched terminal outcome the Worker has not reconciled, or on queued watched-kind
+work not yet dispatched. `clockLatchedHoldMax = 3` bounds those deferrals (per
+outcome, per queued action, and for a run of consecutive deferrals). It is a
+liveness escape, not a policy cap: a Worker that cannot reconcile or dispatch must
+not park the clock. When the bound lets a review through while work is still owed,
+the step journals one `admission` decision, verdict `admitted`, reason
+`latched_hold_escape`, attrs `actions` (the released action ids) and `hold_max`,
+once per action until it leaves the queue.
+
+**Wall-clock regulators.** These are kept sim-health tuning, not policy limits, and
+are deliberately not Go-configurable:
+
+| Regulator | Why it is kept |
+|---|---|
+| `StepBudget` (`Reads`, `Wall`, `NativeWork`, `OptionalGrace`) | Bounds one step's planner waves; an overrun is reported on the `clock_step` row, and a wave past `Wall` holds admission naming its planners instead of failing the step. |
+| `DefaultStepWall = 40s` | Under the 60 s step call so a wedged wave is named, not a context deadline. |
+| `DefaultOptionalGrace = 1s` | Lets optional reviews finish after a quick critical wave. |
+| `clockStopSpanLimit = 10 min` | Discards stop spans that cannot be one review's wait (a long-stopped clock, wall-clock skew). |
+| `ConstructionHelpHoldTicks` (one game hour) | Keeps construction helpers across a brief gap in suitable work so they do not flap. |
+| `TradeOffersMaxAgeTicks` (three game hours) | Rereads a trader's offers once the record is stale; a freshness bound, not a veto. |
+| `ProgressCooldownMax` (three game days) | A failed situation is retried, never banned; it is the retry ceiling of every progress cooldown. |
+
 **Proposals.** Migrated planners return proposals; the coordinator arbitrates them
 after the cutoff by `(priority, urgency, id)` against the step's claim index. Before
 commit a proposal is revalidated against the step's read validity

@@ -751,6 +751,18 @@ func windowRefusedDecision(refused []string, attrs map[string]any) telemetry.Dec
 	return telemetry.Decision{Kind: "admission", Component: "clock-scheduler", Verdict: "refused", Reason: reason, Target: "window", Attrs: attrs}
 }
 
+// journalHoldEscape journals once per action the hold bound that let the
+// review through while the Worker still owed the action (a liveness escape,
+// not a policy cap), so a silent pass-through is visible in flight.jsonl.
+func (s *ClockScheduler) journalHoldEscape(ctx context.Context) {
+	escapes := s.latched.takeEscapes()
+	if !s.config.Worker || len(escapes) == 0 {
+		return
+	}
+	telemetry.Decide(ctx, telemetry.Decision{Kind: "admission", Component: "clock-scheduler", Level: slog.LevelWarn, Verdict: "admitted", Reason: "latched_hold_escape", Target: "window",
+		Attrs: map[string]any{"actions": escapes, "hold_max": clockLatchedHoldMax}})
+}
+
 // StepWithReason performs at most one scheduling decision for reason. It
 // never acquires authority, renews an epoch, acknowledges events, or starts
 // a background loop. Which planners run is the reason's plannerSelection;
@@ -1236,7 +1248,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		out.Deferred = true
 		return out, nil
 	}
-	if pending := s.latched.pending(fingerprint); s.config.Worker && len(pending) > 0 {
+	pending := s.latched.pending(fingerprint)
+	s.journalHoldEscape(call)
+	if s.config.Worker && len(pending) > 0 {
 		// The window just stopped on a latched outcome the Worker has not
 		// reconciled: a window admitted now would watch that attempt again
 		// (the native clock never re-latches a settled one) and run out
@@ -1244,7 +1258,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		out.Deferred = true
 		return out, nil
 	}
-	if waiting := s.latched.undispatched(fingerprint); s.config.Worker && len(waiting) > 0 {
+	waiting := s.latched.undispatched(fingerprint)
+	s.journalHoldEscape(call)
+	if s.config.Worker && len(waiting) > 0 {
 		// Likewise while the successor is queued but not yet dispatched.
 		out.Deferred = true
 		return out, nil

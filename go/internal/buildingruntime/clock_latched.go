@@ -19,6 +19,8 @@ type clockLatchedOutcome struct {
 	// clockLatchedHoldMax the review proceeds so a Worker that cannot
 	// reconcile the attempt never parks the clock.
 	Holds int
+	// Escaped marks an outcome whose forced pass-through was already taken.
+	Escaped bool
 }
 
 const clockLatchedHoldMax = 3
@@ -47,10 +49,37 @@ type clockLatched struct {
 	// of a running window). An action that vanished (a replaced plan) is
 	// not progress, so planner churn cannot park the clock.
 	queued map[domain.ActionID]bool
+	// escaped is the queued actions whose forced pass-through was already
+	// reported, forgotten when the action leaves those stages; escapes is
+	// the passes not yet taken by the scheduler.
+	escaped map[domain.ActionID]bool
+	escapes []domain.ActionID
 }
 
 func newClockLatched() *clockLatched {
-	return &clockLatched{outcomes: map[domain.ActionID]clockLatchedOutcome{}, waiting: map[domain.ActionID]int{}, queued: map[domain.ActionID]bool{}}
+	return &clockLatched{outcomes: map[domain.ActionID]clockLatchedOutcome{}, waiting: map[domain.ActionID]int{}, queued: map[domain.ActionID]bool{}, escaped: map[domain.ActionID]bool{}}
+}
+
+// escape queues, once per action, the queued actions a bound just let
+// through to review; the caller holds the lock.
+func (l *clockLatched) escape(seen map[domain.ActionID]bool) {
+	for id := range seen {
+		if !l.escaped[id] {
+			l.escaped[id] = true
+			l.escapes = append(l.escapes, id)
+		}
+	}
+}
+
+// takeEscapes returns, in order, the actions whose hold bound forced the
+// review through since the last call.
+func (l *clockLatched) takeEscapes() []domain.ActionID {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := l.escapes
+	l.escapes = nil
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
 }
 
 // progressed records the queued set and reports whether an action the
@@ -83,6 +112,7 @@ func (l *clockLatched) undispatched(items []clockWorkItem) []domain.ActionID {
 	if l.progressed(items) {
 		l.deferrals = 0
 		clear(l.waiting)
+		clear(l.escaped)
 	}
 	var waiting []domain.ActionID
 	seen := map[domain.ActionID]bool{}
@@ -105,6 +135,14 @@ func (l *clockLatched) undispatched(items []clockWorkItem) []domain.ActionID {
 		if !seen[id] {
 			delete(l.waiting, id)
 		}
+	}
+	for id := range l.escaped {
+		if !seen[id] {
+			delete(l.escaped, id)
+		}
+	}
+	if !dispatched && len(seen) > 0 && (len(waiting) == 0 || l.deferrals >= clockLatchedHoldMax) {
+		l.escape(seen)
 	}
 	if dispatched || len(waiting) == 0 || l.deferrals >= clockLatchedHoldMax {
 		return nil
@@ -155,11 +193,19 @@ func (l *clockLatched) pending(items []clockWorkItem) []domain.ActionID {
 	}
 	var pending []domain.ActionID
 	for id, latched := range l.outcomes {
+		if inFlight[id] && !fresh && latched.Holds >= clockLatchedHoldMax {
+			l.escapes = append(l.escapes, id)
+		}
 		if !inFlight[id] || latched.Holds >= clockLatchedHoldMax {
 			delete(l.outcomes, id)
 			continue
 		}
 		if fresh || l.deferrals >= clockLatchedHoldMax {
+			if !fresh && !latched.Escaped {
+				latched.Escaped = true
+				l.outcomes[id] = latched
+				l.escapes = append(l.escapes, id)
+			}
 			continue
 		}
 		latched.Holds++

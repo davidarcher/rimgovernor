@@ -1,9 +1,12 @@
 package buildingruntime
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -287,6 +290,38 @@ func TestClockSchedulerDefersAdmissionForUndispatchedWork(t *testing.T) {
 	}
 	if got, err := s.Step(ctx); err != nil || got.Deferred || got.Attempt == nil || got.Attempt.Phase != store.ClockApplied {
 		t.Fatal(got, err)
+	}
+}
+
+// The hold bound that lets the review through journals the escape once,
+// and stays silent while it holds and on the steps after it.
+func TestClockSchedulerJournalsHoldEscapeOnce(t *testing.T) {
+	s, _ := schedulerFixture(t)
+	s.config.Worker = true
+	var logs bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	defer slog.SetDefault(old)
+	ctx := context.Background()
+	for i := 0; i < clockLatchedHoldMax; i++ {
+		if got, err := s.Step(ctx); err != nil || !got.Deferred {
+			t.Fatal(i, got, err)
+		}
+	}
+	if n := strings.Count(logs.String(), "admitted latched_hold_escape window"); n != 0 {
+		t.Fatal("holding is not an escape", n, logs.String())
+	}
+	if got, err := s.Step(ctx); err != nil || got.Deferred {
+		t.Fatal(got, err)
+	}
+	if n := strings.Count(logs.String(), "admitted latched_hold_escape window"); n != 1 {
+		t.Fatal("the escape journals once", n, logs.String())
+	}
+	if _, err := s.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(logs.String(), "admitted latched_hold_escape window"); n != 1 {
+		t.Fatal("no repeat", n)
 	}
 }
 
