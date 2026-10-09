@@ -117,10 +117,6 @@ namespace HomeBridge.BridgeTools
                 .Select(g => Id(g.defName)).OrderBy(n => n, StringComparer.Ordinal).ToList();
         }
 
-        // The Go loadout model's catalog is at most 64 unworn options; loose
-        // or stored candidates take up to half, best native gain first.
-        private const int ModelOptions = 64, ModelPhysical = 32;
-
         // Producible apparel: one recipe per definition whose research is
         // finished, in stable definition order.
         private static List<RecipeDef> Catalog() => DefDatabase<RecipeDef>.AllDefsListForReading
@@ -140,11 +136,10 @@ namespace HomeBridge.BridgeTools
                     option.Locked = pawn.apparel.IsLocked(worn) || pawn.outfits?.forcedHandler.AllowedToAutomaticallyDrop(worn) == false;
                     model.Worn.Add(option);
                 }
-            foreach (var candidate in row.Candidates.Take(ModelPhysical))
+            foreach (var candidate in row.Candidates)
                 if (things.TryGetValue(candidate.Item.Thing.Id, out var apparel))
                     model.Options.Add(Physical(apparel, apparel.IsInValidStorage() ? "stored" : "loose"));
             foreach (var recipe in catalog) {
-                if (model.Options.Count >= ModelOptions) break;
                 var def = recipe.ProducedThingDef;
                 if (!def.apparel.CorrectGenderForWearing(pawn.gender) || !def.apparel.developmentalStageFilter.Has(pawn.DevelopmentalStage)
                     || !ApparelUtility.HasPartsToWear(pawn, def)) continue;

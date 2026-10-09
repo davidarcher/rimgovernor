@@ -203,6 +203,9 @@ type GearLoadout struct {
 	Target []GearOption
 	Gaps   []GearGap
 	Score  float64
+	// SearchBudgetExhausted is set when the exact search hit GearSearchBudget:
+	// Target is the best ensemble found within it, not a proven optimum.
+	SearchBudgetExhausted bool
 }
 
 type GearDemand struct {
@@ -504,12 +507,6 @@ func (p GearLoadoutInput) Validate() error {
 	if err := p.Climate.Validate(); err != nil {
 		return err
 	}
-	// Not a payload cap: PlanGearLoadout's exact search is exponential in
-	// the per-slot option counts, so native truncates the catalog to 64
-	// (NativeGearFacts.ModelOptions) and this guard keeps the search bounded.
-	if len(p.Options) > 64 {
-		return errors.New("gear loadout exceeds bound")
-	}
 	for _, n := range []float64{p.Ambient, p.ComfortableMin, p.ComfortableMax} {
 		if math.IsNaN(n) || math.IsInf(n, 0) {
 			return errors.New("invalid gear temperature")
@@ -585,6 +582,13 @@ func (p GearLoadoutInput) Validate() error {
 	return nil
 }
 
+// GearSearchBudget is the most search nodes one PlanGearLoadout visits. The
+// pruned exact search is exponential in per-slot option counts, so a large
+// wardrobe is searched until the budget is spent and the best ensemble found
+// is returned with SearchBudgetExhausted set; no option is dropped. Counting
+// nodes (not time) keeps the result deterministic.
+const GearSearchBudget = 200000
+
 // PlanGearLoadout searches compatible ensembles, retaining forced/locked items.
 // Equal scores retain worn gear, then stable item identity. No input is mutated.
 func PlanGearLoadout(p GearLoadoutInput) (GearLoadout, error) {
@@ -627,8 +631,16 @@ func PlanGearLoadout(p GearLoadoutInput) (GearLoadout, error) {
 		}
 		upper[i] = upper[i+1] + m
 	}
+	nodes, exhausted := 0, false
 	var visit func(int, []GearOption, float64)
 	visit = func(index int, chosen []GearOption, raw float64) {
+		if exhausted {
+			return
+		}
+		if nodes++; nodes > GearSearchBudget {
+			exhausted = true
+			return
+		}
 		if raw+upper[index] < bestScore {
 			return
 		}
@@ -677,7 +689,7 @@ func PlanGearLoadout(p GearLoadoutInput) (GearLoadout, error) {
 		}
 	}
 	visit(0, nil, 0)
-	out := GearLoadout{Role: role, Target: best, Score: bestScore}
+	out := GearLoadout{Role: role, Target: best, Score: bestScore, SearchBudgetExhausted: exhausted}
 	for _, o := range best {
 		if o.Source != GearWorn {
 			// Compare the ensemble with this slot left as currently worn.

@@ -113,7 +113,7 @@ catalog and worn gear. The native gear census supplies it per pawn
 (`GearLoadout.loadout_model`, with the outdoor temperature): traits, every
 worn garment, the eligible loose or stored candidates and the producible
 definitions whose recipe research is finished (one stuff each, the most
-stocked), at most 64 unworn options, each an id, def, stuff, quality,
+stocked), every unworn option uncapped, each an id, def, stuff, quality,
 condition and flags (tainted, locked, smoke-pop). Everything def-static is
 the catalog's: Go takes each option's layers and body-part groups,
 shield, psychic and move-speed offsets from the ThingDef row, and armor,
@@ -196,7 +196,7 @@ Each target purchase produces a gap with slot, exact product, source
 Gaps sort by descending gain then slot. Recovery means no gap above the role
 threshold: soldier 0.05, hunter 0.1, slave and prisoner 0.5, others 0.2. Equal scores retain
 worn gear and minimize purchases; otherwise supply preference is loose, stored,
-then bill, with stable item IDs. `PlanColonyGear` visits pawn IDs in order and
+then bill, with stable item IDs. The pruned exact search visits at most `policy.GearSearchBudget` (200000) nodes per pawn; past it the best ensemble found is kept (`GearLoadout.SearchBudgetExhausted`), no option is dropped, and the review journals a `gear_search` row. `PlanColonyGear` visits pawn IDs in order and
 allocates each physical supply once. `GearProductionDemand` sums only actionable
 bill gaps by definition and stuff; quality does not split demand. These are
 product quantities, not ingredient reservations or promises of crafted quality.

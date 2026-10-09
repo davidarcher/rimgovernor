@@ -89,6 +89,7 @@ the first native protective effect.
 | Kind | Shape and fields |
 |---|---|
 | `rounds_review` | event row. `revision`, `previous_revision`, `concerns`, `emergency`, the stage and food attrs of `roundsStageAttrs` and `roundsFoodAttrs` |
+| `gear_search` (decision) | `verdict` `ok`, `reason` `best_found_within_budget`, `target` the pawn, level `WARN`; attr `budget_nodes` (`policy.GearSearchBudget`). One per pawn per rounds review whose loadout search spent its node budget and kept the best ensemble found. Reader: the launcher Problems and Log tabs (every WARN) and `rimgovernor log` |
 | `colony_stage` | event row. `stage`, `since`, `blocker`, `reason`, `held` |
 | `tech_tier` | event row. `tier`, `evidence` |
 | `layout_plan` (decision) | `verdict` `planned`/`replanned`/`claimed`/`refused` (`reason` `no_room`: a replan left rooms unplaced, attr `unplaced`, once per distinct set), `reason` replan reason, attrs `colonists`, `summary`, `claims`, and on a replan `tomb_short`; `skipped`/`no_core` when the survey holds no core; a suite-claims change is `claimed` with target `suites`. |

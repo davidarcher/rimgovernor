@@ -701,6 +701,9 @@ type RoundsFindings struct {
 	// the effective MaintainResource stock targets the review held the census
 	// to; the stock overlay tints stockpiles by them).
 	ResourceDemand DerivedDemand
+	// GearBudgetPawns are the pawns whose gear loadout search spent
+	// GearSearchBudget and kept the best ensemble found (journaled as gear_search).
+	GearBudgetPawns []PawnID `json:",omitempty"`
 }
 
 // Assessments cover recovered and unknown needs as well as actionable deficits.

@@ -756,12 +756,23 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		r.demand.set(result.Review.Snapshot, result.Needs.ResourceDemand)
 		clockEvent(ctx, "routine", "rounds_review", "rounds ran", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "concerns", len(result.Standards) + len(result.Projects), "emergency", roundsEmergencyNames(result.Emergency)}, roundsStageAttrs(result.Review.Stage)...), roundsFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
 		r.logColonyStage(ctx, result.Review)
+		r.logGearSearch(ctx, result.Needs.GearBudgetPawns)
 		recordRoundsSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)
 		r.drawSafetyOverlay(ctx, state.Snapshot, &reading.Projection, reading.Emergency)
 		r.drawStockOverlay(ctx, state.Snapshot, &reading.Projection, result)
 		r.drawSpotOverlay(ctx, state.Snapshot, &reading.Projection)
 	}
 	return result, err
+}
+
+// logGearSearch journals a gear_search row for each pawn whose loadout search
+// spent policy.GearSearchBudget: its target is the best ensemble found within
+// the budget, not a proven optimum.
+func (r *Rounder) logGearSearch(ctx context.Context, pawns []policy.PawnID) {
+	for _, pawn := range pawns {
+		telemetry.Decide(ctx, telemetry.Decision{Kind: "gear_search", Component: "equipment", Level: slog.LevelWarn, Verdict: "ok", Reason: "best_found_within_budget", Target: string(pawn),
+			Attrs: map[string]any{"budget_nodes": policy.GearSearchBudget}})
+	}
 }
 
 // roundsStageAttrs are the review row's colony stage attrs: the

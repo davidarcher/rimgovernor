@@ -296,6 +296,11 @@ func inspectEquipment(c *roundsRun) error {
 	if err != nil {
 		return err
 	}
+	for _, l := range gear.Loadouts {
+		if l.SearchBudgetExhausted {
+			c.r.GearBudgetPawns = append(c.r.GearBudgetPawns, l.Pawn)
+		}
+	}
 	if !positive(gear.Recovered) {
 		c.raise(MaintainEquipment, 3).Deficit = gear.Deficit
 	}

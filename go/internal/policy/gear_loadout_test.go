@@ -1,12 +1,40 @@
 package policy
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
+
+// A wardrobe far past the old 64-option bound is planned without error or a
+// dropped option; equal scores defeat pruning, so the node budget is what
+// ends the search, and the loadout says so.
+func TestGearLoadoutLargeWardrobeSearchBudget(t *testing.T) {
+	slots := []GearSlot{GearSkinTorso, GearSkinLegs, GearMiddleTorso, GearOuter, GearBelt, GearHeadgear}
+	var options []GearOption
+	for i := 0; i < 240; i++ {
+		options = append(options, loadoutOption(fmt.Sprintf("garment%03d", i), slots[i%len(slots)]))
+	}
+	started := time.Now()
+	l, err := PlanGearLoadout(GearLoadoutInput{Options: options})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if took := time.Since(started); took > 10*time.Second {
+		t.Fatalf("planning %d options took %s, bound 10s", len(options), took)
+	}
+	if !l.SearchBudgetExhausted || len(l.Target) == 0 {
+		t.Fatalf("budget exhausted = %v, target %d", l.SearchBudgetExhausted, len(l.Target))
+	}
+	small, err := PlanGearLoadout(GearLoadoutInput{Options: options[:6]})
+	if err != nil || small.SearchBudgetExhausted {
+		t.Fatal(small, err)
+	}
+}
 
 func TestGearQualityMultipliers(t *testing.T) {
 	for q, want := range []struct{ armor, thermal float64 }{{.6, .8}, {.8, .9}, {1, 1}, {1.15, 1.1}, {1.3, 1.2}, {1.45, 1.5}, {1.8, 1.8}} {
