@@ -1,44 +1,34 @@
-# The launcher and controls
+# Launcher and controls
 
 [Player guide](README.md)
 
-Everything you do happens in the launcher window.
-
 | Tab | Use it to |
 | --- | --- |
-| Launch | Play, stop or restart the controller, pick a saved game, change settings, and change settings. |
-| Now | Read the governor's last report on the colony: what it is doing, pursuing, worried about and waiting on. |
-| Problems | Read the controller's problem log; copy rows to share. |
+| Launch | Start, stop or restart the controller; select a save; generate a colony; change settings. |
+| Now | See the governor's current work, Concerns and blockers. |
+| Acceptance | Run a native test case visibly on this checkout's private game. Stop the controller and close its game first. |
+| Problems | Inspect problems and copy diagnostic rows. |
+| Log | Read current-run events and build/start diagnostics. |
 
-## Speed and the bot
+## Speed and manual control
 
-Pressing Play runs the autopilot on whatever colony loads, and again after every
-load. The bot always runs the game at maximum speed; the speed buttons inside
-RimWorld do not change it. If you pause the game natively, the bot waits.
+**Play** enables automatic control on the loaded colony and after each load.
+The default uses adaptive Ultrafast pacing. Pause in RimWorld to take manual
+control; once Auto resumes, the governor can adjust work and settings again.
 
 ## Read the Now tab
 
-**Now** opens with the connection strip and a one-line headline (the colony stage,
-whether the governor is running and how long ago it last reviewed the colony),
-then four sections:
+The connection strip shows the colony, control state and freshness of the last
+review. Below it:
 
-- **Doing**: the method the most urgent concern is using, the in-game number it
-  should move and how long ago that number last moved. When nothing is being
-  worked it says why: governor off, held for a review, stopped, or between
-  windows.
-- **Pursuing**: the colony stage, what the next stage is waiting on, and the
-  Concern methods currently in progress.
-- **Concerns**: the active concerns with their method, status and review
-  deadline, most urgent first; an emergency is marked. The last clock stop and
-  how long it took to land close the section.
-- **Waiting**: the Concerns waiting on prerequisites, unavailable methods,
-  native blockers. Pawn work priorities schedule queued
-  work; the governor does not allocate exclusive development slots.
+- **Doing** identifies current work, the measurement it should change and its
+  last progress.
+- **Pursuing** shows the colony stage, prerequisites and Methods in progress.
+- **Concerns** lists active needs, methods, status and review deadlines.
+- **Waiting** explains unavailable methods, prerequisites and native blockers.
 
-In Observe mode the controller serves no colony readings, so the tab shows a
-single notice instead of the report.
+A stale reading retains its last good value and is marked stale. Observe mode
+shows its limited read-only status instead of an autonomous report.
 
-If a reading goes stale the tab keeps the last good value and says so.
-
-Use **Stop** after pausing before ending an owned session. See
-[save and resume](save-and-resume.md) for restarting it.
+Save before ending a session you want to keep. **Stop** ends the controller;
+**Close game** ends its RimWorld process. See [save and resume](save-and-resume.md).

@@ -1,4 +1,4 @@
-# Architecture assessment for expert play
+# Expert-play architecture roadmap
 
 [Documentation map](../../README.md) · [Current architecture](overview.md) ·
 [Architecture rules](rules.md)
@@ -17,11 +17,10 @@ outcome, not a description of implemented behavior. It retains Concerns,
 Methods, Rounds, Safeguards, Hands and vanilla pawn scheduling. It adds no
 second governor, model dependency, workflow engine or persistent world model.
 
-Source assessment: `5451e21f098f49e94eb1a8a1e0bd1fb9f7a8b741`. Evidence is
-code, test definitions, contracts and the linked issue reports. No live colony,
-performance capture or human comparison was run for this assessment. A test
-definition establishes intended coverage; it does not establish current native
-success. Gameplay effects described as risks are hypotheses to measure.
+The proposed guarantees need source tests and measured gameplay evidence.
+No expert-play or end-to-end latency claim follows from this document alone.
+A test definition identifies intended coverage; retained results establish what
+actually ran. Risks below are hypotheses for the named scenarios to test.
 
 ## What is already worth preserving
 
@@ -103,21 +102,21 @@ resource/labor conflict.
 
 **Assessment:** supply decisions already include lead and labor. The missing
 guarantee is that all competing commitments fit the same meaningful capacity
-estimate. `resourceLabor` subtracts food channel labor from `workers * 20000`;
+estimate. `policy.ResidualSupplyLabor` subtracts food commitments from `workers * 20000`;
 it does not deduct all construction, medical and recovery commitments.
 `stepBudget` in [ClockScheduler](../../../go/internal/buildingruntime/clock_scheduler.go)
 supplies resource stock to proposal arbitration, not a work-type/time model.
 This creates a risk of overcommitment; this assessment does not claim a measured
 starvation or development regression from it.
 
-There is also a direct contract violation: `resourceLabor` returns
-`Known(1e12)` for unknown workers, explicitly grandfathered in the
-[rule 5 baseline](../../../go/internal/archgate/baseline/rule5.txt).
-Track its removal in [#2501](https://github.com/davidarcher/rimgovernor/issues/2501).
-The existing [#2494](https://github.com/davidarcher/rimgovernor/issues/2494)
-already owns inconsistent demand assembly; [#2500](https://github.com/davidarcher/rimgovernor/issues/2500)
-owns where decided-but-unplaced bill ingredients belong. Complete those before
-introducing a broader commitment calculation.
+Residual supply labor preserves unknown workers, food commitments and costs.
+Keep that behavior when broadening capacity accounting; an unknown budget must
+not become a numeric allowance for optional work.
+
+`policy.ResourceDemandOf` supplies shared demand to detectors and planners.
+Produce-bill ingredients remain planner-local between decision and placement,
+so trade and other acquisition consumers can use those ingredients in that
+interval. This explicit exception belongs in the broader capacity work below.
 
 The [food matrix](../../../go/internal/buildingruntime/supplysim_food_test.go)
 and [resource matrix](../../../go/internal/buildingruntime/supplysim_resource_test.go)
@@ -173,9 +172,8 @@ prove expert tactical results.
 | Finding | Confidence and consequence | Work owner |
 | --- | --- | --- |
 | Combat has a planner-owned write path | Confirmed call path; inconsistent write-ahead/recovery ownership | [#2502](https://github.com/davidarcher/rimgovernor/issues/2502) |
-| Unknown capacity becomes a number | Confirmed code and baseline; optional work may be planned without known capacity | [#2501](https://github.com/davidarcher/rimgovernor/issues/2501) |
 | Critical planners wait for the shared review | `stepPlanners` runs Rounds first; `runPlanners` starts its wave budget afterward. Structural latency exposure, not a measured timing failure | [#2503](https://github.com/davidarcher/rimgovernor/issues/2503) |
-| Coordination is partial across work types | Supply labor and proposal stock claims exist; inspected interfaces do not establish a colony-wide completion budget | [#2504](https://github.com/davidarcher/rimgovernor/issues/2504), after #2494/#2500 |
+| Coordination is partial across work types | Supply labor and proposal stock claims exist; inspected interfaces do not establish a colony-wide completion budget | [#2504](https://github.com/davidarcher/rimgovernor/issues/2504), after shared demand/ingredient ownership |
 | Continuation rules differ by family | Concrete combat cases above; generalization to a shared contract is proposed | [#2505](https://github.com/davidarcher/rimgovernor/issues/2505), with #2354/#2355 |
 | Expert-level quality lacks a demonstrated reference here | Existing metrics are reusable; no matched expert comparison was inspected or produced | [#2351 evaluation requirements](https://github.com/davidarcher/rimgovernor/issues/2351#issuecomment-6072514979) |
 
@@ -291,8 +289,8 @@ create another benchmark service.
 
 | Milestone | Concrete result and exit criterion | Removal and risk control |
 | --- | --- | --- |
-| 1. Restore existing contracts | #2501 preserves unknown labor; #2502 puts exact combat batches through journaled Hands. Existing replay and interruption tests pass; batching is retained | Delete numeric fallback and planner-owned writer. Preserve native replay identity and authority guards |
-| 2. Complete shared inputs | #2494/#2500 settle one demand calculation and the ownership of planned ingredients. Detector, planner and trade retention consume the same result | Delete duplicate merges; no additional demand store |
+| 1. Restore existing contracts | #2502 puts exact combat batches through journaled Hands. Existing replay and interruption tests pass; batching is retained | Delete the planner-owned writer. Preserve native replay identity and authority guards |
+| 2. Complete shared inputs | Build on `ResourceDemandOf` and explicit residual labor; include the accepted planned-ingredient exception when #2504 coordinates commitments | Delete duplicate merges; no additional demand store |
 | 3. Protect the response path | #2503 declares response stages and narrows unrelated review dependencies. A blocked development read cannot block the critical protective intent; native timing is measured | Keep one scheduler, one writer and lease supervision; do not use tighter test deadlines as proof |
 | 4. Make continuation explicit | #2354/#2355 and #2505 establish combat-shelter and recovery transitions, including unknown/refused observations and recovery to normal work | Replace duplicated family guards where the shared rule applies; preserve stable useful orders |
 | 5. Coordinate scarce capacity | #2504 proves the cooking/construction/recovery conflict through existing admission. Optional work resumes after the constraint clears | Derive capacity from existing work; no exclusive routine-worker slots or general solver |
@@ -302,8 +300,7 @@ Begin baseline/report work with milestone 1 so later changes have a comparison.
 Milestones 3 and 4 can be implemented as separate coherent slices once their
 shared interfaces are understood; milestone 5 depends on shared inputs. Each
 slice changes one existing owner, lands independently, and removes the old
-path when its replacement is complete. This deliverable authorizes no runtime
-migration by itself: implementation scope is in the linked issues.
+path when its replacement is complete. Implementation scope and completion criteria are in the linked issues.
 
 For each implementation milestone, run the required `cmd/test` once and follow
 [choose-tests](../testing/choose-tests.md). Native acceptance remains nightly

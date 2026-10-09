@@ -1,39 +1,43 @@
 # Developer guide
 
-[All docs](../README.md) · [Working agreement](../../AGENTS.md)
+[Documentation](../README.md) · [Agent rules](../../AGENTS.md)
 
-Start with the [architecture](architecture/overview.md) and
-[source map](source-map.md), then read the contracts for the
-component you will change. Keep work in small verified slices using the
-[development workflow](development-process.md).
+Read the [architecture](architecture/overview.md), find the owner in the
+[source map](source-map.md), then open the affected
+[contract](contracts/README.md). Use the [workflow](development-process.md) to
+verify and land the change.
 
-| Task | Start here |
+## Start working
+
+| Task | Reference |
 | --- | --- |
-| Set up locally | [Windows setup](../players/setup.md) |
-| Work beside other agent sessions on one machine | [Agent runbook](agent-runbook.md) |
-| Run checks without game files | `go run ./cmd/test` under `go/` (see [Go module](../../go/README.md)) |
-| Change game behavior | [Subsystem contracts](contracts/README.md) |
-| Change deployment names | [Project identity](project-identity.md) |
-| Work on the Go controller | [Go module](../../go/README.md) and [wire contracts](../../contracts/README.md) |
-| Pick up unfinished work | [Backlog issues](https://github.com/davidarcher/rimgovernor/issues) |
-| Choose which checks to run | [Testing pyramid and evidence rules](testing/choose-tests.md) |
-| Measure controller throughput or find where bridge time goes | [Measure throughput](testing/measure-throughput.md) |
-| Run or add native acceptance | [go/internal/nativeaccept](../../go/internal/nativeaccept) cases through `cmd/acceptance`; [choose-tests.md](testing/choose-tests.md#adding-a-case) says how to add one and lists the [available checks](testing/choose-tests.md#available-checks) |
-
-[testing/choose-tests.md](testing/choose-tests.md) covers the checks that exist
-today; [issue #38](https://github.com/davidarcher/rimgovernor/issues/38) tracks
-native acceptance coverage and [issue #47](https://github.com/davidarcher/rimgovernor/issues/47)
-the multi-instance colony directory.
+| Local machine and private game setup | [Runbook](agent-runbook.md) |
+| Go build and execution | [Module guide](../../go/README.md) |
+| Test selection | [Choose tests](testing/choose-tests.md) |
+| Native case authoring and iteration | [Acceptance guide](testing/acceptance-guide.md) |
+| Planner replay | [Colony snapshots](testing/colony-snapshots.md) |
+| Performance diagnosis | [Measure throughput](testing/measure-throughput.md) |
+| Schema changes | [Wire contracts](../../contracts/README.md) and [generation](../../contracts/schema-generation.md) |
+| Deployment names | [Project identity](project-identity.md) |
+| Architectural constraints | [Rules](architecture/rules.md) |
+| Terms | [Glossary](glossary.md) |
 
 ## Component guides
 
-- [Control loop](architecture/control-loop.md): observations, priorities and scheduling.
-- [Hazard detection bounds](architecture/hazard-detection-bounds.md): the native supervisor's probe cadence, per-hazard-class bound in ticks and digest cadence.
-- [Combat in the game](architecture/combat-game-ai.md): RimWorld's own hit, targeting and raid rules, what a combat stop costs, and where a native layer would fit.
-- [Plans and Hands](architecture/plans-and-hands.md): admission, execution and completion.
-- [Space and resources](architecture/space-and-resources.md): placement and shared budgets.
-- [Facilities](architecture/facilities.md): the room-function ladder and per-role matrix.
-- [Storage](architecture/storage.md): department-owned stores (warehouse, yard, workstation, meal, medicine, gear, burial and waste stockpiles).
-- [Sessions and recovery](architecture/sessions-and-recovery.md): authority, checkpoints and cleanup.
-- [Launcher](architecture/launcher.md): the player UI, its serve client and controls.
-- [World progression](architecture/world-progression.md): caravans, quests and world outcomes.
+| Guide | Responsibility |
+| --- | --- |
+| [Control loop](architecture/control-loop.md) | Rounds, planner scheduling, events and Manual control |
+| [Plans and Hands](architecture/plans-and-hands.md) | Admission, dispatch, receipts and outcomes |
+| [Sessions and recovery](architecture/sessions-and-recovery.md) | Authority, save/load, reconnect and uncertainty |
+| [Space and resources](architecture/space-and-resources.md) | Placement and material accounting |
+| [Supply model](architecture/supply-model.md) | Demand, acquisition and forecasts |
+| [Facilities](architecture/facilities.md) | Room functions and construction prerequisites |
+| [Storage](architecture/storage.md) | Department-owned stockpiles |
+| [Combat](architecture/combat-game-ai.md) | Native combat behavior and Go tactics |
+| [Hazard bounds](architecture/hazard-detection-bounds.md) | Detection cadence and clock stops |
+| [Launcher](architecture/launcher.md) | UI, session controls and serve client |
+| [World progression](architecture/world-progression.md) | Caravans, quests and world outcomes |
+
+The [expert-play roadmap](architecture/expert-play-assessment.md) defines proposed
+stronger guarantees and the evidence needed to claim improvement. Open work lives
+in the [backlog](https://github.com/davidarcher/rimgovernor/issues).

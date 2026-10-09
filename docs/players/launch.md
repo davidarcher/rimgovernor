@@ -1,4 +1,4 @@
-# Launch a prepared colony
+# Launch a colony
 
 [Documentation](../README.md)
 

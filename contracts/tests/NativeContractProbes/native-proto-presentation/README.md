@@ -23,7 +23,7 @@ game state is created.
 Camera reads follow the audited native driver facts: position, root/zoom sizes,
 configuration bounds, current zoom range and view rect. The zoom-extension flag is
 always false: the host's zoom-extension tool was removed with the unused host tools
-(#2056), so nothing can enable it. Headless camera and selection return
+, so nothing can enable it. Headless camera and selection return
 Failure.Unavailable.
 
 Graphical selection projects all native Thing, Zone and Plan IDs/maps up to4096;

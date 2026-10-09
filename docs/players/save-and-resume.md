@@ -2,33 +2,37 @@
 
 [Player guide](README.md)
 
-The launcher's **Saved game** picker loads a normal RimWorld save
-(`POST /api/lifecycle/load`); saves are the same files the game itself produces. Controller
-state (standards, projects, incidents and progress) lives separately, in the Go controller's own
-SQLite database under `.rimgovernor/go/`.
+Save normally in RimWorld. The save contains the governor's intent as well as
+the colony, so loading it restores that timeline. Keep the native mod enabled.
+You do not need to pair the save with a controller database.
 
 ## New colony saves
 
-The launcher's [New colony](launch.md#new-colony) panel writes its colony as an
-ordinary save named by the form (letters, digits, `_` and `-`, up to 64) and
-selects it in the picker when generation finishes. The seed it used is shown in
-the completion notice; the same spec and seed regenerate the same world.
+The launcher's [New colony](launch.md#new-colony) panel names its save
+automatically: `RimGovernor-<scenario>-<biome>-<seed>`. It adds a numeric suffix
+if the name exists. After generation, the new save is selected in **Saved game**.
 
 ## Restart a session
 
-Press **Stop** (or **Restart**) in the launcher, then **Play**. With the State
-setting on **Continue last state** (the default), the controller reopens the
-newest `.rimgovernor\go\state-<timestamp>.sqlite`; **Fresh state** starts a new
-one.
+Save before stopping if you want to keep current progress.
 
-The bot runs for the loaded colony at startup and again after every load.
+- **Stop** ends the controller and leaves RimWorld running.
+- **Restart** restarts the controller with current settings.
+- **Close game** closes the launcher's private game.
+- **Play** starts the controller and loads the selected save, if any.
 
-Loading a save (from the launcher or in-game) starts a fresh review of the
-loaded colony; concerns are re-derived from what the controller observes, and
-only orders that were already issued but never confirmed are followed up.
-Keep the installed game DLLs unchanged until all sessions have closed.
+The launcher enables Auto at startup and after each load. Pause in RimWorld
+to take manual control.
+
+**Continue last state** selects the latest controller journal only when it
+records a running session; otherwise the launcher selects a fresh journal.
+This setting does not select a colony timeline: the loaded RimWorld save does.
+
+The controller flushes its intent when the game saves. If it is disconnected,
+a save keeps the last flushed intent; unsaved controller intent can be lost
+with a crash. On load, the controller rechecks the world before issuing work.
 
 ## Attached sessions
 
-An attached controller with a known private profile uses the same launcher, but
-reconnects to the unchanged, paused external game. Keep that game running.
+An attached controller reconnects to the same external game and private
+profile. Keep that game running if you intend to reconnect to it.

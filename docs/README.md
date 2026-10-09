@@ -1,47 +1,45 @@
-# RimGovernor docs
+# Documentation
 
-## For players
+## Play
 
-[Player guide](players/README.md): set up a colony, use the launcher, direct
-automation and save your session.
+Start with the [player guide](players/README.md).
 
-- [Setup](players/setup.md) and [launch options](players/launch.md)
-- [Launcher and controls](players/controls.md)
-- [Save and resume](players/save-and-resume.md)
+| Task | Guide |
+| --- | --- |
+| Install and prepare the game | [Setup](players/setup.md) |
+| Start a save or generate a colony | [Launch](players/launch.md) |
+| Understand the launcher and take control | [Controls](players/controls.md) |
+| Save, stop and resume | [Save and resume](players/save-and-resume.md) |
 
-## For developers
+## Develop
 
-[Developer guide](developers/README.md): find the owner of a change, understand
-its contracts and run the relevant checks.
+Start with the [architecture](developers/architecture/overview.md) and
+[source map](developers/source-map.md). The [developer guide](developers/README.md)
+links the component guides; the [glossary](developers/glossary.md) defines terms.
 
-- [Architecture](developers/architecture/overview.md) (including [storage](developers/architecture/storage.md)), [supply model](developers/architecture/supply-model.md) and [source map](developers/source-map.md)
-- [Expert-play architecture assessment](developers/architecture/expert-play-assessment.md): source evidence, proposed contracts and migration sequence
-- [Development workflow](developers/development-process.md) and the
-  [agent runbook](developers/agent-runbook.md) (shared machine, private game copy, running harnesses)
-- [Durable policy and Auto control](developers/contracts/durable-policy.md)
-- [Controllable trade contracts](developers/contracts/controllable-trade.md)
-- [Quest classification and execution](developers/contracts/quests.md)
-- [Subsystem contracts](developers/contracts/README.md) and
-  [wire contracts](../contracts/README.md)
-- [Remote acceptance contract](developers/contracts/remote-acceptance.md), example manifests and
-  [evidence aggregation/import](developers/testing/remote-evidence.md)
-- [Remote acceptance handoff](developers/testing/remote-handoff.md), maintainer publication,
-  dispatch, diagnostic retrieval, cancellation and evidence reuse
-- [Remote Windows workflow](developers/testing/remote-workflow.md), activation and artifact diagnostics
-- [Encrypted bundles and Windows bootstrap](developers/remote-bundles.md)
-- [Generated wire contracts](../contracts/schema-generation.md)
-- [Choose tests](developers/testing/choose-tests.md) (which check a change owes,
-  what a result proves, and full/cached/resumed provenance),
-  [shelter coverage map](developers/testing/shelter-coverage.md) (which check owns which claim),
-  [colony snapshots](developers/testing/colony-snapshots.md) (record a review's facts natively, replay planners in `go test`),
-  [colony review](developers/testing/colony-review.md) (nightly week on a random map, hourly screenshots published to Pages) and
-  [measure throughput](developers/testing/measure-throughput.md) (flight recorder, `rimgovernor phases`, `rimgovernor trace`, speed matrix)
-- [Go controller development](../go/README.md), including its testing pyramid;
-  native acceptance tooling is tracked in
-  [issue #38](https://github.com/davidarcher/rimgovernor/issues/38)
-- [Backlog issues](https://github.com/davidarcher/rimgovernor/issues): unfinished
-  features and acceptance, labeled by priority (`priority:P0`/`P1`/`P2`)
-  or area (`area:G01`/`N01`/`simplify`/`tooling`)
+| Task | Guide |
+| --- | --- |
+| Make and land a change | [Workflow](developers/development-process.md), [agent rules](../AGENTS.md) |
+| Build or run the Go controller | [Go module](../go/README.md) |
+| Work safely on the shared machine | [Runbook](developers/agent-runbook.md) |
+| Choose evidence for a change | [Choose tests](developers/testing/choose-tests.md) |
+| Write or iterate on a native case | [Acceptance guide](developers/testing/acceptance-guide.md) |
+| Replay planner decisions | [Colony snapshots](developers/testing/colony-snapshots.md) |
+| Measure performance | [Throughput](developers/testing/measure-throughput.md), [hazard bounds](developers/architecture/hazard-detection-bounds.md) |
+| Improve expert play | [Architecture roadmap](developers/architecture/expert-play-assessment.md) |
+| Change a subsystem | [Behavior contracts](developers/contracts/README.md) |
+| Change the native boundary | [Wire contracts](../contracts/README.md), [schema generation](../contracts/schema-generation.md) |
 
-Keep docs close to the reader's task: current behavior, the commands or
-contracts needed, links to detail. Unfinished work belongs in the backlog.
+## Gameplay and remote evidence
+
+- [Shelter coverage](developers/testing/shelter-coverage.md): which check proves each claim.
+- [Colony review](developers/testing/colony-review.md): nightly colony runs and screenshots.
+- [Remote handoff](developers/testing/remote-handoff.md): prepare, dispatch, diagnose and import.
+- [Remote Windows workflow](developers/testing/remote-workflow.md) and
+  [encrypted bundles](developers/remote-bundles.md): runner setup and artifacts.
+- [Remote acceptance contract](developers/contracts/remote-acceptance.md) and
+  [evidence aggregation](developers/testing/remote-evidence.md): manifests and verdicts.
+
+[GitHub issues](https://github.com/davidarcher/rimgovernor/issues) hold unfinished
+work and decisions. Documentation describes current behavior and explicit
+proposals; Git and result artifacts retain implementation history and run evidence.

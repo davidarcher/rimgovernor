@@ -8,7 +8,7 @@ Current routine-control rules and completion gates. For the reasoning, read
 
 ## Observation
 
-Pause and read native state; sequential observations are not an atomic snapshot.
+Read a coherent native frame. Independently fetched observations still require world and authority checks.
 `rimgovernor/observations_read_colony_facts` reports shared-diet nutrition and fed
 consumption, viable crop cells, indoor sleeping, temperatures, cooking, safe nearby
 wild-plant access, starter terrain/support affordances and actual definition costs.
@@ -39,65 +39,20 @@ observed need recovery.
   seating and recreation access; each kind needs capacity for every eligible person and
   observed use of a still-accessible facility. Use history survives Manual and restart,
   resets on world change or tick rewind, and replacement furniture inherits nothing. The
-  opt-in compiler builds a table, adjacent chair or recreation furniture through shared
+  compiler builds a table, adjacent chair or recreation furniture through shared
   building admission; existing inaccessible furniture blocks duplicates; a finite wait
   after construction allows use without asserting need recovery.
 - **Food warehouse** is the planned freezer (shelves and perishables catch-all, from plan time);
   the kitchen keeps only its bench ingredient stockpiles. Siting, sizing and deletion rules:
   [storage](../architecture/storage.md).
 
-Optional concerns (classes 3 and 4: basic equipment defense, wood, comfort, expansion,
-maintained research and resource targets) share a deterministic admission order.
-Score = 0-100 observed deficit fraction + 100 player-target preference + 1 per 1,000
-waiting ticks + 20 selection hysteresis - bottleneck penalty (up to 30) - risk penalty
-(up to 40) (`policy.DefaultDevelopmentWeights`); stable concern IDs break ties. These are
-ordering weights, not benefit or time estimates. Emergencies keep precedence; comfort
-waits for startup-survival concerns until each is served or monitoring-only.
+Routine Concerns queue work through shared admission; vanilla pawn priorities
+schedule it. There are no exclusive development slots or generic weighted
+development queue. The planner catalog and due queue control review scheduling;
+see the [control loop](../architecture/control-loop.md).
 
-- **Starvation bound:** an eligible optional concern overtakes any persistently larger
-  deficit within 100,000 waiting ticks (committed work resets the incumbent's age).
-  Proves bounded admission and retained waiting identities, not completion times
-  (`policy/development_simulation_test.go`).
-- **Bottleneck penalty** is lead-time evidence: how contested the concern's labor profile
-  is (free pawns of its work types after commitments vs eligible concerns sharing them).
-- **Risk** is observed outdoor exposure: an active cold or hot latch halves that work's
-  priority weight; an outdoor hazard such as toxic fallout defers it with
-  `risk_deferred`. Neither is a safety guard; native danger checks and dispatch guards
-  still apply.
-- **Deficits** come from the review's native facts. A research target is a full deficit
-  while the research tab is idle and the target unfinished (any current project or a
-  finished target is recovered). A resource target's deficit is the worst-covered
-  target's shortfall against the reachable, unforbidden census. Unknown stock or
-  research never admits a project or counts as recovery.
-- **Capacity:** `max_development_projects` (default 2, 1-8, player settings API) bounded
-  by freshly observed undrafted, living, non-downed workers without a mental state.
-  Each concern declares a labor profile of native work types; committed work occupies one
-  pawn of its profile; a candidate whose every profile type is occupied defers with
-  `labor_unavailable` naming the bottleneck work type. An unknown work-settings census
-  leaves only the coarse bound; an empty profile is never labor-gated. Accepted player
-  projects and unfinished or unresolved development actions consume slots; completed
-  actions release them. Falling capacity never deletes accepted orders, and explicit
-  player work is not rejected by this limit.
-- **Yield:** a selected concern whose planner has no method left (retry bound spent or all
-  fallbacks refused: `MaintainCleanFacilities`, `EnsureDefensiveLayout`) yields its slot
-  to the next capacity-deferred candidate in the same review. The yielder reads
-  `method_unavailable` and is idle for the next ranking; the recipient is selected but
-  not judged idle next review. Labor-deferred candidates wait for the next census.
-- **History:** waiting age advances only with native ticks and resets for committed work;
-  world changes and tick rewinds reset it. A review without authority (Manual, player
-  interruption, restart) keeps the last ranking with nothing selected and
-  `control_disabled` on un-selected rows.
-
-`GET /api/routines` (rendered by the launcher):
-
-| Key | Content |
-| --- | --- |
-| `development` | Null until a review has ranked: tick, capacity, nullable worker count, free-labor rows, committed concern IDs, and one row per optional concern (score, nullable deficit and risk, `waitingSince`, selection/commitment flags, deferral reason, bottleneck work type for `labor_unavailable`). |
-| `roster` | Last `policy.WorkRosterReport` (null until an enabled review planned work; kept across a disabled review or unknown census): coverage, decaying skills, every work pawn's `PawnProfile`. |
-| `progress` | Concern progress records (below). |
-| `stage` | Colony stage record (below). |
-| `lootHolds` | Held remote loot, see [Remote loot and resource reach](#remote-loot-and-resource-reach). |
-
+`GET /api/routines` exposes the last review, roster, progress, stage and remote
+loot holds. The [player API contract](go-player-api.md) owns its response shape.
 **Concern progress** (`policy.ConcernProgress`): each active concern carries the method in play,
 the observable it should move, the tick native evidence last moved it, the blocker
 inspection tick and the blocker. Progress is native outcome, never dispatch. Blocker
@@ -527,57 +482,21 @@ storyteller inputs, not a raid prediction.
   `WealthBudget` headroom is negative.
 - [Joiner admission](population-contracts.md) uses its own optional raid threshold.
 
-## Bounded combat response
+## Combat response
 
-A bounded squad method assigns at least two capable defenders per observed opponent, up
-to four opponents and eight defenders. It covers manhunters, confirmed hunting
-predators up to body size four and humanlike opponents; ranged opponents require ranged
-defenders and the [line split](work-assignment.md#situational-roles) orders who takes
-which. Native previews decide attack legality. The clock acknowledges only the exact
-inspected opponents after dispatch; new threats and severe injury keep their guards.
-Medical triage runs alongside defense. Blocked emergencies stop routine waiting work
-from restarting time; unsupported encounters stay explicit holds. Automatic rescue,
-firefighting and heat-escape orders need a danger-aware route method and are outside
-these methods; explicit player rescue goes through its own directed action.
+`policy.DecideCombat` selects formation and reaction orders from the current
+combat view and retained fight memory. Go owns tactics; native owns job legality,
+pathing and weapon execution. See [combat responsibilities](../architecture/combat-game-ai.md)
+and [hazard bounds](../architecture/hazard-detection-bounds.md).
 
-- One melee-only humanlike raider requires three capable equipped colonists at health
-  >= 85% with no tending need. While the enemy is distant an unarmed defender may fetch a
-  native-approved ground weapon within 12 cells (the action waits for the equipped
-  identity; held weapons are preserved; missing equipment near the threat holds).
-  Selection prefers equipped defenders and relevant skills.
-- Confirmed downed raiders remain hostile in the native census but need no combat: only
-  exact observed incapacitated identities are subtracted; unknown and unlisted threats
-  keep risk. Supervised play ignores incapacitated enemies for pauses and rechecks them
-  if they stand. Downed permanent manhunters do not hold combat open.
-- **Hostile buildings** (insect hives, hostile-faction buildings with hit points and
-  combat power) appear under `hostileBuildings` with definition, hit points, occupied
-  cells and a token from the thing. Within `policy.DistantThreatCells` (50) of a
-  colonist: active-combat deficit stays open and the clock holds, exactly like a hostile
-  pawn (planned stopped, run under watched windows). Further out: neither deficit nor
-  hold, only a squad target while the concern is open for other reasons. The building id is
-  never acknowledged to the native watcher (a lone building admits a combat window with
-  an empty list). If no one can answer it (`no_worker:squad`) it is watched, not held; a
-  hostile pawn with no squad still holds. Buildings are assigned only once no eligible
-  hostile pawn remains. A defender with native line of fire to a building cell within
-  weapon range is a shooter (`RangedAttack`, from where it stands); the rest walk in
-  with `MeleeAttack`. Both use the census token and complete on destruction.
-- Combat compilation, dispatch and clock admission inspect colonist health: unknown
-  health or a colonist at the native half-health limit holds explicitly, and an
-  unchanged injury cannot repeatedly rearm the combat clock. Autonomous orders also
-  request the native main-thread health guard.
+The fight retains its roster and acknowledged threats. New threats, changed
+authority and severe injury still require current evidence. Stationary ranged
+holders may use native `Wait_Combat` targeting; specialized roles keep explicit
+orders. Combat extensions below cover drugs, hunting, permits and psycasts.
 
-Development methods use completed furniture, electrical topology, research prerequisites
-and observed placement cells: generators and bounded conduit batches, basic laboratories
-through the shared research controller, indoor beds and dining furniture, outdoor
-recreation, and shelter capacity via the shared room-shell method. Native previews and
-shared material admission govern every construction action; only completed buildings,
-powered connected loads, observed research and indoor capacity establish outcomes, never
-blueprint receipts. Changed prerequisites can release a blocker without discarding
-projects. Placement needs an available builder meeting the definition's construction
-skill (no-skill definitions need one available pawn with Construction enabled); the
-strongest skill is assigned first. Research assignment weighs Intellectual skill and, in
-checkbox mode, removes routine hauling and cleaning from the researcher. Explicit work
-overrides retain authority.
+Combat batches currently dispatch directly through the bridge; routing the exact
+batch through journaled Hands is tracked in
+[#2502](https://github.com/davidarcher/rimgovernor/issues/2502).
 
 ### Shrine breach readiness
 
@@ -654,7 +573,7 @@ unowned haulable items, including later event drops. A complete `event_loot` cen
 reports each item's identity, cell, forbid flag and native hauling safety. There is no
 first-seen or player-forbid exemption; unknown or over-limit censuses authorize nothing.
 The scenario's starting stacks are in that census and are released like any other safe
-forbidden stack. The reach and demand stage (#522) is skipped for a forbidden stack on the
+forbidden stack. The reach and demand stage is skipped for a forbidden stack on the
 world's first review and while it stays in the previous review's pending cohort, so the
 starting stacks (forbidden before the colony has an extent) are released over the following
 reviews, eight actions per plan; later forbids pass the stage. Danger and spawner holds still apply.
@@ -711,7 +630,7 @@ resource planner's log:
 | --- | --- |
 | `threat_present` | Known hostile on the map (reported ahead of the route verdict it causes). |
 | `urgent_competing_work` | Urgent patient or disrupting disaster (`policy.UrgentWorkCompeting`); outranks every demand priority in `PlanSupply`. |
-| `roof_support_risk` | The deposit is not open surface, or a recovery removal the mirror roof check still refuses after the thin roofs are down (thick roof, unknown cell). A ruin whose removal merely drops a thin roof is not held: `PlanRecoveryBatch` removes the roofs first, then the ruin (#2301); native's per-building roof verdict no longer holds it in the queue and native re-checks at admission. |
+| `roof_support_risk` | The deposit is not open surface, or a recovery removal the mirror roof check still refuses after the thin roofs are down (thick roof, unknown cell). A ruin whose removal merely drops a thin roof is not held: `PlanRecoveryBatch` removes the roofs first, then the ruin; native's per-building roof verdict no longer holds it in the queue and native re-checks at admission. |
 | `route_unsafe` | Native walked no safe route to the target and back to storage. |
 | `missing_storage` | No accepting headroom. |
 
@@ -728,3 +647,74 @@ admitted dispatch, which designates exactly once: the plan stays open while held
 clearance planner admits no second method, and a restarted service observes the
 in-flight attempt through the native ledger. A designation released with lapsed authority
 ends its plan unsuccessfully and the next review admits one replacement.
+
+## Disease care
+
+Disease care projects game days to lethal severity and full immunity from the
+native per-day rates. When immunity loses or leads by less than one day, the
+work planner enables Patient and bed rest at highest priority and disables
+other work for that pawn. Checkbox mode enables only those rest work types.
+
+- The durable medical history holds rest until every triggering disease is
+  observed immune or absent from a complete census; missing reads and improved
+  forecasts do not release it. World replacement and tick rewind reset the hold.
+- On recovery, normal roster allocation resumes, including saved player work
+  preferences. The temporary hold never rewrites those preferences.
+- RimWorld selects a reachable medical bed for medical rest, falling back to the
+  pawn's ordinary bed under native rules. Medical beds cannot be assigned by the
+  bed-ownership operation. The hospital planner supplies them (the Medical
+  department declares their medicine store); the sleeping planner assigns ordinary beds.
+
+
+## Combat extensions
+
+**Combat drugs.** A threatened defender receives a dose order only for a combat
+drug in its observed carried inventory, with catalog preference breaking ties.
+The combat pawn row carries a complete drug definition set; absent inventory
+facts hold dosing and a present empty set orders no dose. Native rechecks carried
+stock and chemical safety when applying the order. The fight's `Dosed` memory
+limits each pawn to one attempted dose, including refused attempts; it does not
+assert ingestion. Unavailable inventory produces neither an order nor an attempt
+mark. Policy and runtime tests cover selection; `combatlab/drugs` covers the
+native inventory projection and `combatlab/combat_drug` covers ingestion.
+
+**Squad hunt.** A squad hunt is the `ActiveCombat` incident's hunt origin: while no
+hostile stands and the food plan opens a formation `Hunt` candidate (a group of three or
+more wild animals, or any animal a lone hunter must not designate, with three colonists
+wielding a hunting weapon (`WeaponDef.Hunts`, the one predicate for the candidate's gunner count and the formation) able to form the squad; with fewer it Holds as `needs_gunners`), the review asserts the deficit with the channel's
+prey as the occurrence's payload (`store.HuntPrey`). The fight runs through
+`admitFight` with `CombatView.Hunt` set and the prey as its threats; the frame's
+detail rows cover the open hunt census rows. A hostile in the frame, or the plan no
+longer opening the hunt, ends the origin. An open hunt fight runs in combat windows
+with the live prey as the window's acknowledged ids (`ClockWindowFacts.HuntPrey`),
+so the combat budget backstop wakes its next decision; no hostile exists to make
+the window a combat one otherwise.
+
+**Royal permits** (`combat_permit.go`). An outmatched fight calls the permits its
+colonists hold. With the royalty read known (`CombatView.Royalty`, the review's
+`RoundsFacts.Royalty`), a held acting aid or strike permit that is off cooldown and
+affordable (favor at least its cost) yields a `permit_call` order, once per holder
+and permit per fight (`CombatMemory.Permitted`). Aid lands on the defender nearest
+the squad's centre; a strike lands on the densest hostile clump no colonist stands
+within the mortar safe radius of. Unread favor, cooldown or royalty facts hold the
+call. The order is no `combat.orders` entry: the defense planner commits it as an
+`ability` action (permit source, cell target) on its own incident method, and the
+fight's stops wait while it is open. The admission stop makes no call.
+
+**Psycasts** (`combat_cast.go`). With the royalty read known and a live hostile,
+each standing colonist yields at most one `psycast_cast` order per stop: the ready
+psycast of the highest family (heal, then stun, burst, defensive).
+
+- Ready means its psyfocus cost fits the caster's psyfocus, its neural heat fits
+  under the ceiling and its cooldown has run out, all from the royalty read
+  (`PsycasterState`, `Psycast.CooldownRemaining`); an unread fact holds the cast.
+- The read is slow, so each cast is remembered for the fight (`CombatMemory.Casts`):
+  its cooldown, psyfocus cost and heat count against the caster until the fight ends.
+- The read carries no effect category, so `psycastFamilies` classifies by vanilla def
+  name and never casts an unlisted def.
+- Targets (within reach of the caster): heal a defender under 60% health; stun and
+  pawn-targeted burst the nearest hostile; area burst the densest hostile clump no
+  colonist stands near (the strike rule); defensive the caster while a hostile is
+  in reach.
+- The order is no `combat.orders` entry: it commits as an `ability` action (psycast
+  source) on the permit calls' incident method, native owning the guards.

@@ -150,7 +150,7 @@ census stock; an ingredient with a runway row keeps that row's protected line
 census blocks the bill, and an existing active component bill prevents a
 duplicate. An ingredient the colony cannot spare for the bill (cost less usable
 stock) becomes a floor of its own in the same supply plan, so a cold start with
-no recorded spend mines the steel (#2487).
+no recorded spend mines the steel.
 
 The durable review retains both materials' stock, ore, rate, window, reserve,
 target and deficit. `/api/routines` exposes them as `resourceRunways`, with
@@ -188,7 +188,7 @@ Stone blocks ride the same ladder without the operator naming the stone:
 the target is the construction demand for blocks (a blueprint's owed material
 and the admitted open costs) and the observed recurring spend, merged into the
 derived resource needs each review and planner step. No constant floor is kept
-for steel, components or blocks (#2466). The ladder then researches Stonecutting, stages a stonecutter's table in the
+for steel, components or blocks. The ladder then researches Stonecutting, stages a stonecutter's table in the
 Workshop room and keeps a do-until bill on it fed from the map's chunks —
 the block supply `MaintainStoneShell` and the stone flooring and defense
 tiers spend. A map without stone chunks derives no target; the ladder does

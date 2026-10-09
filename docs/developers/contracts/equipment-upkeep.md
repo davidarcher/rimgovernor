@@ -95,7 +95,7 @@ demand ranks below the food plan, which has already taken its labor, and is
 wanted within `ClothingHorizonDays`, so a field with a lead of days serves it
 (`policy.FieldHarvestCandidate`: zone and sowing as upfront work, grow days as
 lead, the crop as stock cap) and trade stays a candidate. Sowing a cotton field
-is not yet an executed method (#2221).
+is not yet an executed method.
 
 ## Loadout model
 

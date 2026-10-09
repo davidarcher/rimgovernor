@@ -231,7 +231,7 @@ open plan holds it. Powering the charger is the power concern's; emptying its wa
 `ManagePollution`'s. Biotech concerns are bound only when assessed, so the store
 counts `policy.BiotechConcerns` apart from the concerns every colony has.
 
-`MaintainGeneBank` (`gene_bank_concern.go`, `rounds_gene_bank.go`, epic #1693) keeps every genepack in a
+`MaintainGeneBank` (`gene_bank_concern.go`, `rounds_gene_bank.go`) keeps every genepack in a
 gene bank: a Genepack deteriorates unless it
 sits in a powered bank (4 packs each). A Standard in the
 Upkeep domain over the Colony fact family, assessed from the keyed Biotech

@@ -60,7 +60,7 @@ actual pawn labor remain simulation outcomes.
 ## Room footprints
 
 Wall-frame definitions are standable so thick perimeter sections can place and
-fund all depths together (#2314). Under Auto, native completion projects the
+fund all depths together. Under Auto, native completion projects the
 finished wall as blocked: neighbouring unfinished walls need a reachable
 standable touch cell, and reachable colonists must retain access to the builder's
 component or an escape from the completing footprint. Completed-work frames
@@ -109,7 +109,7 @@ On a fresh site the initial shelter runs three rungs under one Episode:
    and the storage patch. The native refuses a bed over a standing spot, so the bed rung
    first deletes the standing spots (`shelter-clear-beds`; a bedroll being upgraded is
    packed to storage instead, never deleted), and places the beds once none stands
-   (#2080). The rung waits, holding the ring, while the spots are unbuilt or the
+  . The rung waits, holding the ring, while the spots are unbuilt or the
    deletion is open.
 3. The ring around them.
 
@@ -183,7 +183,7 @@ on the colony centre when the plan has no free cell there.
 
 ### Layout generator
 
-`policy.SiteCore` sites a fresh plan (`go/internal/policy/layout_gen*.go`, epic #1938):
+`policy.SiteCore` sites a fresh plan (`go/internal/policy/layout_gen*.go`):
 
 - **Obstacles.** Core candidates lose their obstacle cells first (rich soil, ore rock,
   field zones), level by level; a level holds only if some plan places every base room
@@ -393,8 +393,8 @@ The occupant of a filled casket is unknown until it opens; a casket under 20% hi
 points explodes, so hit points are a safety reading. The census is bounded to 64
 shrines, 32 caskets, 256 guards and 64 breach walls per shrine; overflow or an
 unreadable scan is unavailable, never sampled. Nothing in this read admits a breach,
-a casket order or a claim: readiness (#457), the breach concern (#458) and casket
-handling (#459) decide.
+a casket order or a claim: readiness, the breach concern and casket
+handling decide.
 
 Optional heat facts (visible roof-connected interior of at most 256 cells,
 independent of building ownership: measured temperatures, enclosure, colonist

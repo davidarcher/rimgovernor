@@ -37,4 +37,3 @@ leaves a colonist at home and requires at least one native food day. It refuses
 unavailable crew, excessive mass and ineligible routes. Unsupported quest choice
 structures require the ordinary quest interface. The bounded evaluation does not
 establish every caravan composition, quest family or full-game survival.
-

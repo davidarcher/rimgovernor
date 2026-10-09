@@ -78,26 +78,22 @@ See the wiki's [hidden conduit](https://rimworldwiki.com/wiki/Hidden_conduit) an
 [battery](https://rimworldwiki.com/wiki/Battery) mechanics, and
 [disaster recovery](../contracts/disaster-planning.md) for incident evidence.
 
-## The matrix
+## Room capabilities
 
-| Role | Status | Hosts | Furniture |
-| --- | --- | --- | --- |
-| DiningRoom | implemented | RecRoom, Room | Table1x2c, DiningChair |
-| RecRoom | implemented | DiningRoom, Room | HorseshoesPin |
-| Hospital | implemented (hosted bed) | Bedroom, Barracks, Room | medical bed / sleeping spot |
-| Workshop | implemented | Barracks, Room | the bench the recipe catalog names for the deficit |
-| Laboratory | implemented | Workshop, Barracks, Room | SimpleResearchBench |
-| ThroneRoom (Royalty) | implemented (own planned room) | | the title's throne definitions, then bedroom furnishing |
-| Barn | implemented (own planned room) | | AnimalSleepingSpot and a powered heater; its interior is the `Barn` area pen animals shelter in during exposure; the vet room (a controller role, natively scored Barn) takes AnimalBed |
-| Bedroom, Barracks, PrisonCell, PrisonBarracks, Storeroom, Kitchen, Tomb | pending | | |
-| Nursery (Biotech) | implemented (own planned room) | | catalog role BabyBed |
-| Playroom (Biotech) | implemented (own planned room) | | catalog roles Toy, Decoration |
-| Classroom (Biotech) | implemented (own planned room) | | catalog roles Board, Desk |
-| WorshipRoom (Ideology) | implemented (own planned room) | | the buildings the ideoligion requires, read from the game |
-| DeathrestChamber (Biotech) | implemented (own planned room) | | catalog roles DeathrestCasket, DeathrestAccelerator |
-| ContainmentCell (Anomaly) | implemented (own planned room) | | the holding platform the defs name |
-| IsolationRoom (Anomaly) | implemented (own planned room) | | plan role only; the bed is the `bed_humanlike` def |
-| CeremonialChamber (Anomaly) | pending, content-gated | | |
+`policy.FacilityCatalog` is the authoritative per-role capability matrix.
+Installed definitions and DLC determine which facilities exist. The sections
+below describe their planning contracts; they are not an implementation-status
+checklist.
+
+```mermaid
+flowchart LR
+    Need[Observed facility deficit] --> Reuse[Reuse suitable room or furniture]
+    Reuse --> Research[Resolve research prerequisite]
+    Research --> Supply[Resolve power and material needs]
+    Supply --> Build[Furnish room or stage shell]
+    Build --> Observe[Observe function and use]
+    Observe --> Need
+```
 
 ### Child rooms (Biotech)
 
@@ -282,7 +278,7 @@ a mode. A held entity whose held or studiable fact is unread makes the
 requirement unknown: the work review reports `study_work` unavailable and
 files a `routine_skip` row (`entity_study_unread`) at warn.
 
-**Monolith rule (#2437).** `policy.MonolithAdvanceOwed` advances the void
+**Monolith rule.** `policy.MonolithAdvanceOwed` advances the void
 monolith inside MaintainPopulation's custody step, after custody and
 containment upkeep. The game's own `CanActivate` (codex requirement, blocking
 conditions) decides every level: an Inactive monolith is investigated
@@ -297,7 +293,7 @@ awakening's confirmation `Dialog_MessageBox` is answered as a dialog; the
 rule is inert in Ambient Horror mode, and an unread fact is a
 `monolith_advance_unread` row, never a guess.
 
-**Awakening quest (#2438).** The same step walks the `EndGame_VoidAwakening`
+**Awakening quest.** The same step walks the `EndGame_VoidAwakening`
 quest with one more recovery-service give-job, `InteractThing`
 (`MonolithInteract`): each `VoidStructure` still interactable
 (`pending_void_structure_ids`, 2160 ticks), the Gleaming monolith once
@@ -326,7 +322,7 @@ pass installs it instead of building another. The couple's double bed is the
 same: the pack step takes the two single beds up, the install is a
 reconcile of the couple's planned room to a `DoubleBed` template
 (`CoupleBed.Template`), and a couple whose room is outside the plan is never
-packed for. A wing's bedrooms are built together (#2133): `NextBedroomStep`
+packed for. A wing's bedrooms are built together: `NextBedroomStep`
 carries every unbuilt or empty bedroom of the first wing in plan order that
 owes one (#2139; a standing empty room in a later wing waits its wing's turn),
 in plan order (`BedroomStep.Rooms`; `Room` is the standing empty room inside
@@ -363,7 +359,7 @@ planner raises it under MaintainHousing, like the tomb:
    forbidden building stands in it. The step carries the template: the
    title's throne at the back-wall slot and each required piece, standing
    ones wanted where they stand. The shared build side then does the work
-   (`reconcileRoom`, `policy.ReconcileRoom`, epic #2101): a room's state is
+   (`reconcileRoom`, `policy.ReconcileRoom`): a room's state is
    whatever the diff against the ground leaves, so there is no shell, place
    or blocked step. Per pass it commits one wave: removals first (pack,
    deconstruct, remove floor), then installs from packed stock
@@ -424,7 +420,7 @@ The royalty read reaches the projection through the optional
 `RoyaltyNative` source (like `MapSurveyNative`); without it, or without
 Royalty, no throne room is owed.
 
-### Tomb, jail and morgue (#2113)
+### Tomb, jail and morgue
 
 The tomb and the morgue are planned from the start in the outskirts cluster
 (`layout_outskirts_cluster.go`, #2185): one `ReserveOutskirts` outline of
@@ -451,14 +447,14 @@ graveyards are 0.85 used. `PlannedRole.IsOutdoor` lists the Outdoor roles.
 body waits in the morgue. The morgue holds every human corpse, fresh or rotten, at
 `MorguePriority` (Normal), below the graves and sarcophagi that take a colonist
 corpse by vanilla hauling (acceptance case `burial/grave_over_morgue`). Stranger
-corpses (#2336) are owed a fresh sarcophagus too, for the mood memory only, while
+corpses are owed a fresh sarcophagus too, for the mood memory only, while
 fewer than 4 `KnowBuriedInSarcophagus` stacks are live across the colonists (read
 from the mood census, `policy.KnowBuriedStacks`) and the next sarcophagus is
 funded (`StrangerTomb`: accessible stock net of the MaintainResource floors covers
 one allowed stuff's cost list). Over the cap, unfunded or with the thoughts
 unread, a stranger waits in the morgue and stays on the butcher-or-incinerate
 route (`RouteStranger`); the plain grave never takes one. Once a stranger lies in
-a planned tomb's sarcophagus and the memory is live (#2337), `NextTombStep` returns
+a planned tomb's sarcophagus and the memory is live, `NextTombStep` returns
 `TombDispose` and MaintainBurial raises the plain Deconstruction of that
 sarcophagus (once per sarcophagus per Episode; `StrangerDisposals`): native ejects
 the corpse beside the cell, the incinerator's burnable filter takes it once it is
@@ -466,9 +462,9 @@ past Fresh, and the slot is free in the plan. A sarcophagus holding a colonist, 
 grave or one outside the planned tomb is never touched. The native physics (one
 memory per colonist from the first body ever, none from a second burial, the
 ejected corpse beside the cell) is acceptance case `burial/stranger_sarcophagus`
-(#2338).
+.
 
-The waste yard (#2187) is an Outdoor plan room (`PlannedWasteYard`: fence and
+The waste yard is an Outdoor plan room (`PlannedWasteYard`: fence and
 gate, no roof, no floor owed) of 11x7 interior, planned with the cluster. The
 incinerator is a walled, unroofed 3x3 room in its far corner (`PlannedIncinerator`,
 fireproof ring, permanent, never moved), leaving 52 cells for the dump; it is no
@@ -490,7 +486,7 @@ is empty. There are no shell or place steps: the ring, floors and pieces are
 whatever the diff leaves, installed from packed stock first. A refused
 placement means wait: the jail and the morgue let their concern go on, the tomb
 returns the wait. The isolation room is a child-room need (`IsolationRoomNeed`)
-and converts with the child rooms (#2112).
+and converts with the child rooms.
 
 ### Bestowing ceremony and title claim
 

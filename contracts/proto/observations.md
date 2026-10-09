@@ -45,7 +45,7 @@ unless the section validates (`bridge.ValidDeliveryLedger`).
 
 ## Realized consumption
 
-`ReadConsumption` (#2441) reads the saved `ConsumptionState` ring: per (ThingDef, reason)
+`ReadConsumption` reads the saved `ConsumptionState` ring: per (ThingDef, reason)
 cumulative counters plus hourly increments (2500-tick hours, 60 days), packed into one
 versioned base64 string in the save. A request names `since_hour`; the reply lists every
 completed hour after it, sparse (`current_hour` is still filling and never listed;
@@ -154,7 +154,7 @@ a depleted drill for removal from the deep drill step's recorded read.
   harvestable acquisition items, hunt rows (every wild animal bearing a corpse, with
   fogged and mental-state flags) and the raw `hunt_census` (per colonist: Hunting
   and Cooking work state, primary weapon verbs, shield and route-safe prey; per
-  butcher bench: usability and bills) that policy decides hunts from (#2144),
+  butcher bench: usability and bills) that policy decides hunts from,
   food corpses, Boolean qualifying food storage,
   forbidden supply cells, the player faction's tech level (`player_tech_level`,
   which selects the starter shelter's shape), and planning definitions/cells
@@ -621,7 +621,7 @@ whether the Gleaming interaction (`CompGleamingMonolith.CanInteract`) is
 available; spawned and activated `VoidStructure` counts, the ids of the structures
 still interactable, and whether a `VoidNode` exists on any loaded map (it stands in
 the pocket map once the Gleaming monolith is used) with its id and the free
-colonists spawned there (#2438); and the void awakening stage, derived from the
+colonists spawned there; and the void awakening stage, derived from the
 `stageStructure.N` quest tags of the spawned structures and absent while the
 `EndGame_VoidAwakening` quest is not running). Level effects and requirements
 come from the game defs through the native read, not Go tables. A held entity's strength and need stay on its rows
@@ -802,6 +802,6 @@ IDs catalog-scoped; neither is derived from labels or definition names.
 
 Clearance: `GetClearanceTargets` reads visible, deconstructible non-player buildings touching Home. Salvage evidence on the rows outside Home is read only when the request sets `include_salvage`; the rounds and the planner that execute remote salvage set it, the shelter ruin holds and claims do not. It retains partial Home overlap, sealed ancient-danger membership, counterfactual roof blockers, faction and a standing deconstruct designation (no ownership flag). The same read lists the chunk stacks standing in Home (`chunks`: forbidden, stored, hauling destination). `ClearHomeObstructions` consumes both.
 
-Shrines: `GetAncientShrines` reads each ancient-danger room as one unit: sealed state, Home overlap, caskets with hit points and contents, guards once the interior is unfogged, and the perimeter walls that can be deconstructed without a roof-support blocker. No readiness judgement, breach or casket order consumes this census yet (#456).
+Shrines: `GetAncientShrines` reads each ancient-danger room as one unit: sealed state, Home overlap, caskets with hit points and contents, guards once the interior is unfogged, and the perimeter walls that can be deconstructed without a roof-support blocker. No readiness judgement, breach or casket order consumes this census yet.
 
 Trade session and sheet headers carry one `common.TradeTarget`, whose settlement arm names the player caravan. `ReadTradeAcquisition` exposes native request prerequisites, all passing ships, queued arrivals/comms work and optional exact-crew packing estimates. Presence remains significant; [controllable trade](../../docs/developers/contracts/controllable-trade.md) defines eligibility and reconciliation.

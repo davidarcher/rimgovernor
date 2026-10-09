@@ -123,10 +123,11 @@ The public projection omits leases, native tokens and controller-session ownersh
 `owned_draft` action is plan-owned: the undraft sweep undrafts its pawn once no live plan needs it, so
 drafts carry no cleanup progress and are not a persistent toggle.
 
-## Launcher behavior
+## Control API and launcher
 
-The launcher's Resume runs the bot for the observed world and Pause stops it
-([launcher](../architecture/launcher.md)). An unresolved Resume (pending or uncertain) blocks another
+The Resume API enables control for the observed world and Pause stops it.
+The [launcher](../architecture/launcher.md) starts with `--resume`; it exposes
+no Resume/Pause buttons. An unresolved Resume (pending or uncertain) blocks another
 Resume until a later journaled Pause supersedes it; Pause is always available. Background refresh
 preserves request IDs and last-good data. Session/world changes exclude stale permission and responses
 without silently resubmitting either intent. The UI has no draft, undraft or native-token input.
@@ -136,7 +137,7 @@ Draft and undraft through the draft intent are covered by native acceptance `dra
 ## Concern JSON names
 
 Read routes name the watched kind `concern` (a Concern id string such as `EnsureFoodSupply`):
-`GET /api/routines` carries `progress[].concern`, `noOps[].concern` and `development.rows[].concern`;
+`GET /api/routines` carries `progress[].concern` and `noOps[].concern`;
 `GET /api/spectator/now` carries `concerns[]` with `concerns[].concern`. Other fields (`method`,
 `expected`, `lastProgress`, `nextReview`, `blocked`, `cooldowns`, `prerequisite`, ...) are as named.
 

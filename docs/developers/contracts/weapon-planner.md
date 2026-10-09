@@ -43,7 +43,7 @@ planning estimates, with conservative class defaults for other defs.
   work assignment gives them Hunting: a hunt row held only for want of a hunter's weapon is priced by
   the food plan as a hunt candidate with the craft as upfront work and a `needs_weapon` term
   (`HuntPrerequisiteCandidates`); the plan opening it is `WorkDemand.Arming`, which lets the best unarmed
-  Shooting colonist own Hunting before the weapon exists (#2162). The butcher bill and butcher spot are
+  Shooting colonist own Hunting before the weapon exists. The butcher bill and butcher spot are
   owed on the food runway by their own planners and are not repriced.
 - Native gear items carry a biocoded flag and, when retained, their owner's pawn ID. Supply weapon
   details use exact item identities.

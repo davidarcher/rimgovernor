@@ -161,7 +161,7 @@ anywhere, a stocked part and a failure chance within 5% (`ElectiveFailureCap`). 
 part's market value (`ItemFacts.MarketValue(op.Item)`) must also fit the colonist's
 remaining personal share (`SurgeryContext.Elective`, read through
 `observation.ColonyProjection.PersonalShareOf`, see
-[upkeep contracts](upkeep-contracts.md#personal-wealth-shares-1829-1836)): an
+[upkeep contracts](upkeep-contracts.md#personal-wealth-shares)): an
 unknown share or unpriced part is necessities only, so no elective. The gate carries
 `ElectiveShareSlack` (10%) of stateless hysteresis, since the part is already on the
 map and wealth jitter near its price must not strand it. Affordable electives from

@@ -25,7 +25,9 @@ created native objects, uncertainty and completion. Stable step identities conne
 them across reviews and restarts. Partially ordered construction retains known
 blueprints and sends only the remaining admissible work.
 
-Admission checks geometry, native placement, resources and existing commitments.
+Admission applies the action-specific ownership, dependency and resource checks.
+Building intent-mode can defer cost and placement checks to execution; it does not
+reserve every future cost atomically. Native dispatch validates current legality.
 Acknowledging a request establishes acceptance; completion requires the
 [action's native postcondition](../contracts/action-contracts.md).
 

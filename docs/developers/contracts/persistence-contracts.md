@@ -2,7 +2,7 @@
 
 [Documentation](../../README.md)
 
-Vocabulary follows the [glossary](../agent-runbook.md#vocabulary-glossary-epic-1964). Stored names: tables
+Vocabulary follows the [glossary](../glossary.md). Stored names: tables
 `standards`, `methods` (`standard_id`, `episode`) and `rounds`; blob keys `standard/<id>`; the
 `standard` and `episode` JSON keys; status words `open`/`settled`/`voided` (Standards) and
 `open`/`completed`/`voided` (Projects). Finding strings are `unclear`/`unmet`/`met` (Incident bindings
@@ -26,7 +26,7 @@ and that intent commit atomically. After a load, native comms work, request tick
 queue and seller facts reconcile it; the saved record never resends an order.
 Goodwill and cooldown remain native facts; action attempts remain the session journal.
 
-The blobs reach the save only when it is made (#2352): every vanilla save, whether the player's,
+The blobs reach the save only when it is made: every vanilla save, whether the player's,
 vanilla's or Go's own, parks in native's `pre_save` handshake while Go flushes all blobs in one batched
 put, and every Go-made save (the lifecycle save route, Go autosave) flushes first through the same path.
 There is no continuous mirror. A save made while no Go is connected keeps the last flush, so it can lack
@@ -78,7 +78,7 @@ the save holds. The rest of this page details the session journal.
   state, not player vetoes. Ownership and consumer contract: [colony extent](colony-extent.md).
 - **Pawn first-seen record (memory only).** The Rounder remembers, per world (colony, map, load),
   the tick, faction def, royal title, host faction and guest status at which each humanlike pawn
-  (colonist, visitor, envoy, lodger) first appeared in the pawn table (#2383). It is not saved: a
+  (colonist, visitor, envoy, lodger) first appeared in the pawn table. It is not saved: a
   restart or a world change empties it, and a pawn present at reload looks new once.
 
 ## What is re-derived

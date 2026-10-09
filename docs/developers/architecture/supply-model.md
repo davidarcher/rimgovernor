@@ -1,10 +1,9 @@
 # Supply model
 
-Epic [#2140](https://github.com/davidarcher/rimgovernor/issues/2140). One type,
+One type,
 `policy.SupplyCandidate` (`go/internal/policy/candidate.go`), describes every
 way the colony obtains a good: a food channel, a loot, salvage or mining
-source, a bench bill, a trader. The flow ranker and every channel migration
-build on it.
+source, a bench bill or a trader. The shared flow ranker consumes these candidates.
 
 ## SupplyCandidate
 

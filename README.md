@@ -1,33 +1,33 @@
 # RimGovernor
 
-A local RimWorld colony controller. Autopilot handles routine colony needs and
-routine player control. The launcher shows what the colony is doing and what
-is going wrong while RimWorld runs the simulation.
+A local RimWorld colony controller. Deterministic policy manages colony needs;
+RimWorld applies its normal rules and runs the simulation. Routine play needs
+no language model.
 
 ## Play
 
-Double-click `RimGovernor.cmd` and press Play (see [setup](docs/players/setup.md)).
+Double-click `RimGovernor.cmd`, then press **Play**. The launcher builds the
+controller and native mod and starts automatic control. Pause in RimWorld to take
+manual control.
 
-The controller starts paused; choose Resume in the launcher to enable routine
-control. Autopilot needs no model.
-
-This is a development setup requiring licensed RimWorld files, native mods
-and a prepared save. See the [player guide](docs/players/README.md) for
-controls, saving and troubleshooting. Open work is in
-[GitHub issues](https://github.com/davidarcher/rimgovernor/issues).
+A licensed RimWorld installation is required. Start with
+[setup](docs/players/setup.md), then the [player guide](docs/players/README.md)
+for launch options, controls and saving.
 
 ## Develop
 
-Use the [developer guide](docs/developers/README.md) to find the architecture,
-source and checks for your change. Go runs the production controller
-(started by `RimGovernorLauncher.exe`, built from `go/cmd/launcher`, which is also the player UI), and C#
-supplies native game tools through its GABP host (a vendored fork of RimBridgeServer) over GABP. See
-[the Go module guide](go/README.md) for building, running and testing it.
+The controller and launcher are Go; the game host and native bridge are C#.
+Start with the [architecture](docs/developers/architecture/overview.md) and
+[source map](docs/developers/source-map.md).
 
-You can run checks without installing the game from `go/`:
+From `go/`, the development check needs no game installation:
 
 ```powershell
-go vet ./... && go test ./...
+go run ./cmd/test > ../test.out 2>&1
 ```
 
-[All docs](docs/README.md) · [Working agreement](AGENTS.md)
+See the [workflow](docs/developers/development-process.md) for landing changes
+and [choose-tests](docs/developers/testing/choose-tests.md) for additional checks.
+
+[Documentation](docs/README.md) · [Agent rules](AGENTS.md) ·
+[Backlog](https://github.com/davidarcher/rimgovernor/issues)

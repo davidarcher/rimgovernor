@@ -1,7 +1,7 @@
 # Architecture rules
 
-Five rules are mechanical gates, three are review questions (#2497, epic
-#1856). The gates live in `go/internal/archgate`, run inside `go run ./cmd/test`
+Five rules are mechanical gates; three are review questions. The gates live in
+`go/internal/archgate`, run inside `go run ./cmd/test`
 (as an ordinary Go test) and compare against checked-in baselines in
 `go/internal/archgate/baseline/rule<n>.txt`. A baseline may only shrink: a new
 violation fails, and so does a baseline entry that no longer occurs (delete
@@ -40,12 +40,9 @@ The landing report answers each in a line.
 6. **Orchestrators sequence, they do not compute.** Math on domain quantities
    is a policy function tested without a runtime.
 7. **Resource demand is one pipeline.** Detectors and planners read the same
-   value (scope of #2494). The sole exception is a produce bill's ingredient
-   need between the decide round and the bill being placed: the resource
-   planner chooses it, so trade, workshop and acquisition do not see it and may
-   sell the ingredient meanwhile (accepted; #2500, revisited under #2504).
+   value from the shared demand calculation. Produce-bill ingredients remain
+   planner-local between decision and placement; trade, workshop and acquisition
+   can therefore sell or consume them in that interval. This is the explicit
+   exception considered by [capacity coordination](https://github.com/davidarcher/rimgovernor/issues/2504).
 8. **Unknown is never a number.** Use `domain.Known`/unknown, not a sentinel,
    a zero or a clamp.
-
-Deferred: file and function size ratchets, table-row registries (planner
-catalog), comment-staleness grep.

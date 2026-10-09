@@ -54,7 +54,7 @@ not enable a coordinator.
 
 ## Explicit command coordinator
 
-The gated runtime coordinator serializes commands and receipt recovery. It starts
+The runtime coordinator serializes commands and receipt recovery. It starts
 disabled, binds each command to the complete current authority snapshot and obtains
 a fresh lease immediately before dispatch. Authority changes cancel active and
 queued calls; shutdown joins journal completion. Renewal and speed changes require
@@ -310,8 +310,8 @@ that ordering).
 
 **Critical and optional planners.** The admission cycle waits on the critical class
 only. Each catalog entry is `critical` (preempt and critical priority classes and
-fire safety) or `optional` (the development reviews). The step joins the routine
-review and the critical planners under `StepBudget.Wall`; past it, planners still
+fire safety) or `optional` (the development reviews). The Rounder review completes first; `StepBudget.Wall` bounds the subsequent
+planner wave; past it, planners still
 evaluating are named on `ClockSchedulerResult.HeldBy` (`held_by` on the row) and the
 step admits nothing (an `admission` row, verdict `refused`, reason `critical_wave_budget`). Optional
 planners run on the same snapshot, started after the critical ones, and are joined
@@ -320,9 +320,8 @@ past the wall budget); those still evaluating are cancelled, listed under
 `missed_cutoff`, and their results discarded. Planners write into a private result
 merged only if they made the cutoff.
 
-While the colony stage holds development for an unmet shelter
-(`ColonyStageRecord.HoldsDevelopment`), the step drops the comfort-class planners
-and promotes the startup planners (`plannerEntry.startup`) into the critical cycle.
+An unmet startup shelter promotes startup planners (`plannerEntry.startup`)
+into the critical cycle. Other configured planners remain eligible.
 
 **Proposals.** Migrated planners return proposals; the coordinator arbitrates them
 after the cutoff by `(priority, urgency, id)` against the step's claim index. Before

@@ -2,10 +2,19 @@
 
 [Documentation](../../README.md) · [Architecture](overview.md) · [Weapon planner](../contracts/weapon-planner.md) · [Native rules](../contracts/native-rules.md)
 
-What RimWorld's own combat AI does, read from the shipped assembly with `ilspycmd` (reading only; nothing
-here is copied code), what that means for `policy.DecideCombat`, what a combat stop costs, and where a
-native-resident layer would fit. Class names are the game's; numbers are 1.6. Re-check them with the
-decompiler before building on one.
+RimWorld owns targeting, pathing, weapon execution and raid state. Go owns squad
+composition, positions and tactical transitions. The game constants below are
+from the shipped 1.6 assembly; verify them against the installed version before
+changing policy. This page describes behavior, not a performance benchmark.
+
+```mermaid
+flowchart LR
+    View[Combat facts and geometry] --> Policy[Go: formation and reaction]
+    Policy --> Order[Guarded native orders]
+    Order --> Job[RimWorld pawn jobs]
+    Job --> Outcome[Shots, movement, injury and downing]
+    Outcome --> View
+```
 
 ## Hit chance (`Verse.ShotReport`)
 
@@ -71,40 +80,17 @@ fight owns the response; the health pause thresholds are unchanged.
 - The 8-second shooting-position window and the +40 target stickiness are things focus-fire and
   repositioning tactics can lean on: a raider keeps shooting its current target and does not re-plan for
   several seconds.
-- `explainDefensivePositions` treats a hostile inside a standing room or at or behind the firing line as engaged. A hostile outside the walls does not prevent holding solely because it is nearby (#2375).
+- `explainDefensivePositions` treats a hostile inside a standing room or at or behind the firing line as engaged. A hostile outside the walls does not prevent holding solely because it is nearby.
 
-## What a combat stop costs
+## Measure the response path
 
-From one `combatlab/metrics-lab-base` run (6 colonists, 8 raiders, 4,480 ticks), on a box with another
-RimWorld process running, so times are upper bounds:
+Keep detection, stop-to-step, order dispatch and native effect as separate
+measurements. A quick wake proves neither a useful tactical decision nor timely
+protection. Compare retained flight artifacts under the same scenario and build;
+see [throughput](../testing/measure-throughput.md) and
+[expert-play evaluation](expert-play-assessment.md#evidence-needed-to-claim-improvement).
 
-| Part of a stop | Measured |
-|---|---|
-| Whole stop, `clock_stop` to `clock_step` wake | 430 to 530 ms wall; the game is paused for it |
-| `combat_geometry` | one call per stop, 46 ms in the sampled stop, mean 101 ms over the run |
-| Orders (`operations_apply`) | 86 ms in the sampled stop, mean 69 ms |
-| `lifecycle_put_governor_state` | about 12 per stop, mean 34 ms each, 2,526 in the run (#2349); the continuous mirror that made them is gone (#2361), blobs flush at save time |
-| Rounds review | 88 ms of planner time in the sampled stop |
-
-The geometry caps (64 cells, 16 hostiles, one ask per stop) are not what makes a stop slow. The code puts
-native compute at 1 to 13 ms; the rest is per-call overhead, so a bigger batch costs little extra. Raising
-the caps buys decision quality, not latency.
-
-Game-time reaction is the stop cadence, not the wall time of a stop. Order batches in that run came 12, 86,
-48, 25, 19, 24, 55, 47, 17, 11, 6 and 32 ticks apart, then 491. Wall latency slows a run without delaying the
-bot in game time, as long as the game really is paused during a stop (the flight rows say it is; not checked
-further).
-
-Cadence was not what lost that fight. The six colonist downs (ticks 544, 712, 944, 1225, 1465, 1893) each
-stopped the clock on the same tick, so the planner was woken with zero detection delay. Orders reached the
-game in ticks 1 to 389 and once at 880, and after tick 389 every defense step reported
-`already_working_on_it`, which `rounds_defense.go` returns when a stop's decision has no orders and no drafts.
-Four batches in the first 330 ticks failed outright on #2344. One run, so a lead and not a conclusion: the
-loss is in what `DecideCombat` decides at those stops (#2345 held the hold gate shut for a hostile 11 to 12
-cells away through a wall), not in how fast the stops come. A native contingency layer would not have changed
-it unless the policy first learns to react to a down or an injury.
-
-## Where a native layer fits
+## Native execution responsibilities
 
 The game gives every non-drafted colonist a configurable hostility response, `Ignore`, `Attack` or `Flee`
 (`pawn.playerSettings.hostilityResponse`). `JobGiver_ConfigurableHostilityResponse` reads it from the Humanlike
@@ -123,13 +109,12 @@ bleeders and nearby exploding animals require targeted control because native
 acquisition cannot honor those target exclusions.
 
 Arrival installs the hold once. An observed `Wait_Combat` at the assigned cell
-keeps it valid across target changes. Existing formation and safety decisions
-replace it when the line is compromised, a breach or serious injury requires
-retreat, the layout disappears or a cell becomes unreachable. Owned-draft and
+keeps it valid across target changes. Formation and safety decisions may replace
+it with another order; the current implementation does not establish a complete
+role-specific response to every breach or unreachable cell (see the roadmap). Owned-draft and
 Manual authority gates still govern every order and cleanup.
 
-The fresh `combatlab/native-hold` proof at `92d174d1c` passed stationary target
-acquisition and switching without further Go combat orders. Recorded-facts Go
-tests cover production assignment, deduplication and tactical invalidation;
-production gameplay remains a nightly claim. This contract does not include
-local repositioning, pursuit or squad coordination.
+Recorded-fact tests cover production assignment and deduplication.
+`combatlab/native-hold` covers stationary acquisition and target switching;
+its retained result establishes whether a run passed. It does not prove local
+repositioning, pursuit, squad coordination or expert tactical quality.

@@ -149,7 +149,7 @@ creepjoiner.
   - A site is done when its part or an ancestor is missing, so the work carries no record. A recruited
     prisoner is a colonist again and normal surgery care applies.
 
-Open: valuable apparel has no expressible rule yet (#1859). A downside trait or hediff that the
+Open: valuable apparel has no expressible rule yet. A downside trait or hediff that the
 colonist's benefit or form also grants counts as shown (the catalog rows do not tell the two apart).
 The drop job, inspection and disarm are unverified in game (no acceptance run).
 

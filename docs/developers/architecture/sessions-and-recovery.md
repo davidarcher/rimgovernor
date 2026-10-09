@@ -1,86 +1,69 @@
 # Sessions and recovery
 
-[Architecture](overview.md)
+[Architecture](overview.md) · [Persistence contract](../contracts/persistence-contracts.md)
 
-Colony identity and map scope durable intent; a load token identifies the loaded
-instance. Reloading can preserve concerns while invalidating old in-flight operations.
-There is one author of orders, so no per-request direction counter or compare-and-swap
-exists: authority is the load token (which world instance), the native tick (no rewind)
-and the native order generation (no native order-history drift), plus a pause flag.
-Control intents are `resume` and `pause` for an exact world; resume runs the bot under
-that world's empty root plan (`root/<colony>/<load>/<map>`), and routine methods and
-player submissions dispatch under it once authorized. "Manual" in contract text
-means the paused state.
-Observation revisions and native context are separate from authority: background
-refreshes cannot authorize new work. Recheck load token, tick and generation before
-writes.
+Colony and map identity scope intent; the load token identifies the current
+world instance. Authority also checks native tick, order generation and whether
+control is paused. Observation refreshes do not grant authority.
 
 ## Save, load and restart
 
-Saving (`POST /api/lifecycle/save`) is a plain pause-gated native save. The
-save carries concerns and family plans in its `GovernorState` blobs, so loading
-it restores that timeline's intent; the SQLite session journal is not paired
-with it. Where each fact lives is in
-[persistence contracts](../contracts/persistence-contracts.md).
+Ordinary RimWorld saves carry Go intent in opaque `GovernorState` blobs.
+Before a save, native's `pre_save` handshake lets Go flush the blobs in one
+batch. A save made while Go is disconnected retains the last flushed intent.
+The SQLite journal is not a paired player save.
 
-Loading (`POST /api/lifecycle/load`, or the player loading in-game) issues a
-new load token. The next rounds sees the world change, invalidates
-the previous bindings, cancels their non-uncertain pending work and starts
-fresh under the new world's root plan; uncertain dispatched work keeps its
-recovery requirement. A restarted controller does the same with an empty
-database, and reclaims Auto authority a killed controller left in native
-(one revoke at the observed generation, then a fresh grant) because the
-profile lock makes it the only author. With `serve --resume` the bot runs for the observed world at
-startup and again after every load without a launcher click; otherwise it
-waits for **Resume**. Attached sessions have a separate unchanged-game
-reconnect contract.
+```mermaid
+stateDiagram-v2
+    [*] --> Observing: Connect or restart
+    Observing --> Auto: Resume for this world
+    Auto --> Manual: Player pause
+    Manual --> Auto: Resume
+    Auto --> Observing: Load or world replacement
+    Manual --> Observing: Load or world replacement
+    Auto --> Disconnected: Transport loss
+    Disconnected --> Observing: Reconnect and reconcile
+```
 
-The controller launches RimWorld itself (`go/internal/gamehost`, from
-`games.<id>` in `<config>/config.json`) with `GABP_SERVER_PORT`, `GABP_TOKEN`
-and `GABS_GAME_ID` in its environment, records the endpoint in
-`<config>/<id>/endpoint.json` (pid plus start time, so a reused pid is never
-mistaken for the game) and speaks GABP to the GABP host directly
-(`go/internal/gabp`). The GABP connection correlates concurrent requests by
-id, so a slow call never stalls planner reads behind it. The game is spawned detached and keeps running when
-the controller ends; a restarted controller reattaches through the endpoint
-record. The vendored GABP server runs every tools/call off its reader thread
-(`GabpServer.HandleToolsCallAsync`), so a journal read never delays the routine
-worker's dispatch or the lease renew. Journal reads are never held; the
-service reads on each `rimgovernor.clock` advance announcement.
+A load creates a new token. Go rebuilds views from the save before reviewing,
+invalidates old bindings and cancels undispatched work; uncertain dispatched work
+retains its recovery requirement. Methods are planned against the loaded world.
 
-A game connection lost while the service runs (the GABP connection
-dropping) is recovered in-process: the bridge client drops the session as
-soon as it observes the end of its transport, later native calls fail
-fast as disconnected, and a supervisor reattaches with bounded backoff --
-the same start/connect handshake a restarted
-controller uses against the game that kept running. Nothing is retried across
-the gap. Native meanwhile revokes authority as `DISCONNECT` once the typed
-clock lease lapses; because that is not the player's Pause, `--resume`
-re-acquires it (one bounded resume cycle per loss) while the journal's current
-control intent is still a running Resume for that world. A player's Pause
-record stands.
+`serve --resume` enables Auto at startup and after loads; the launcher passes
+it. Bare serve waits for Resume. A profile lock permits only one controller
+author. Restart can revoke stale native authority and grant a fresh lease.
 
-See [save and resume](../../players/save-and-resume.md).
+## Game process and connection
 
-## Cleanup
+The controller launches the configured game through `internal/gamehost`, passing
+the GABP port/token/game ID and recording PID plus process start time in
+`<config>/<id>/endpoint.json`. The detached game can outlive the controller;
+a replacement controller can reattach to the endpoint.
 
-Workers own their controller, private profile, database and game process. Cleanup
-stops owned processes only. Windows workers share installed DLLs, so all games must
-stop before replacing them.
+GABP correlates concurrent requests by ID. Tool calls do not block the host's
+reader thread; main-thread game operations remain scheduled by native code.
+Clock-journal reads are unheld and follow advance announcements.
+
+On transport loss, calls fail as disconnected while the supervisor reconnects
+with bounded backoff. Native revokes authority when its lease lapses.
+`--resume` can reacquire after a disconnect only while the recorded control
+intent still requests running in that world; a player's Pause stands.
 
 ## Uncertain writes and read retries
 
-Recovery operates on the existing action identity and requires fresh evidence.
-A lost reply after dispatch may conceal an accepted order: the receipt is
-retained as uncertain and the game is inspected before any retry; ambiguous
-non-idempotent writes are never replayed automatically. A reload (new load
-token) or a tick rewind invalidates an interrupted attempt; completed or
-resumed work is observed without another order. Retired flags on plans and
-concerns bound the working set (see
-[persistence contracts](../contracts/persistence-contracts.md)).
+A lost reply may conceal an accepted order. Retain its action identity and
+inspect the world before deciding what remains; never automatically replay an
+ambiguous non-idempotent mutation. A new load or tick rewind invalidates the old
+attempt's context.
 
-Launch collisions (a live endpoint record) and endpoint-record faults permit a
-bounded number of retries for reads and explicit previews only; mutations do
-not retry. Requests within one bridge session are serialized, cancellation while
-queued sends no request, and a lost mutation response still requires
-observation before the plan moves on.
+Read/preview retries are bounded. Transport recovery is not mutation retry.
+Prepared but undispatched work can be prepared under fresh authority because
+it has no outstanding native write.
+
+## Cleanup
+
+Each worker owns its controller, private root and game process. Stop by root or
+verified PID. Stop games using a private copy before replacing its DLLs; never
+modify Steam or a peer's copy. See the [runbook](../agent-runbook.md).
+
+Player instructions: [save and resume](../../players/save-and-resume.md).

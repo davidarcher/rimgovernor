@@ -366,7 +366,7 @@ count as pending; plants below harvest growth are not sources). Unavailable sour
 recipes are blockers. Patient care, drug policies and player bills are preserved;
 designations and bill receipts never prove replenishment.
 
-Medicine is also a resource runway (#2378): the herbal definition is forecast with a zero
+Medicine is also a resource runway: the herbal definition is forecast with a zero
 reserve beside the configured resource targets (`RoundsPolicy.RunwayReserves`), its rate
 the observed `medicine_tend` spend over the 15-day window. Below five days of runway
 the resource ladder is asked for five days of use; an unread rate or stock leaves the
@@ -378,7 +378,7 @@ floor beyond the reserve latch above.
 `MaintainAnimalContainment` observes pen membership for eligible starting animals. Pets and
 animals marked for release or slaughter get no pen request. Suitable existing pens are
 reused through native handling (Handling joins shared allocation without overriding disabled
-work); with none, one pen marker claims the yard inside the defensive wall once it is closed (#2233, #2235), built through
+work); with none, one pen marker claims the yard inside the defensive wall once it is closed, built through
 the supply-room enclosure checks. Fences or a marker do not complete the concern: the animal
 must be observed in a suitable pen. No breeding, bonding, master or removal setting changes.
 
@@ -625,7 +625,7 @@ rotten corpses are excluded.
 `snapshot.TestCorpseLarderReleasesOneFrozenCorpse` replays the release decision over a
 recorded snapshot.
 
-## Personal wealth shares (#1829, #1836)
+## Personal wealth shares
 
 `policy.PersonalShares` answers how much a colonist may still direct at their own bedroom,
 gear and bionics. Nothing is persisted; it is recomputed from the wealth fact each review.
