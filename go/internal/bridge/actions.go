@@ -225,7 +225,7 @@ func (writer *ActionsWriter) Apply(ctx context.Context, identity *c.Identity, ac
 				return reply, raw, err
 			}
 		case *o.ActionResult_Refused:
-			if v.Refused == nil || !diagnostic(v.Refused.Reason) {
+			if v.Refused == nil || !diagnostic(v.Refused.Reason) || v.Refused.GetRefusalClass() < c.RefusalClass_REFUSAL_CLASS_UNSPECIFIED || v.Refused.GetRefusalClass() > c.RefusalClass_REFUSAL_CLASS_UNKNOWN {
 				return reply, raw, contract("action refusal invalid")
 			}
 		case *o.ActionResult_Failed:

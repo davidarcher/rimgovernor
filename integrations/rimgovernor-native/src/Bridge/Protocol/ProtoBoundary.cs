@@ -450,9 +450,41 @@ namespace HomeBridge.BridgeTools
         private static double Millis(long ticks)
             => ticks <= 0 ? 0.0 : Math.Round(ticks * 1000.0 / Stopwatch.Frequency, 3);
 
-        internal static Common.Failure Fail(Common.FailureCode code, string detail)
+        // refusalClass names how RimWorld answers the same request again; left
+        // unspecified, RefusalClassOf(code) classifies it where it is sent.
+        internal static Common.Failure Fail(Common.FailureCode code, string detail, Common.RefusalClass refusalClass = Common.RefusalClass.Unspecified)
         {
-            return new Common.Failure { Code = code, Detail = detail };
+            var failure = new Common.Failure { Code = code, Detail = detail };
+            if (refusalClass != Common.RefusalClass.Unspecified) failure.RefusalClass = refusalClass;
+            return failure;
+        }
+
+        // RefusalClassOf is the class a refusal carries when its site names
+        // none: a code that says the world moved (stale identity or
+        // generation, lost authority, a busy owner) is transient, an
+        // unsupported request is permanent, and the catch-all codes stay
+        // unknown on purpose, since the game's own reason is what separates
+        // them.
+        internal static Common.RefusalClass RefusalClassOf(Common.FailureCode code)
+        {
+            switch (code)
+            {
+                case Common.FailureCode.Unavailable:
+                case Common.FailureCode.StaleIdentity:
+                case Common.FailureCode.StaleGeneration:
+                case Common.FailureCode.AuthorityRequired:
+                case Common.FailureCode.LeaseExpired:
+                case Common.FailureCode.OwnerConflict:
+                case Common.FailureCode.AttemptConflict:
+                case Common.FailureCode.CapacityExhausted:
+                case Common.FailureCode.Cancelled:
+                case Common.FailureCode.DeadlineExceeded:
+                    return Common.RefusalClass.Transient;
+                case Common.FailureCode.Unsupported:
+                    return Common.RefusalClass.Permanent;
+                default:
+                    return Common.RefusalClass.Unknown;
+            }
         }
 
         internal static bool IsIdentifier([NotNullWhen(true)] string? value)

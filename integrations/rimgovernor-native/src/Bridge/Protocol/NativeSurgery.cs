@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.ProductionBillIntent intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var recipe, out var part, out var surgeon);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             var bill = Queued(pawn!, recipe!, part);
             if (bill == null)
             {

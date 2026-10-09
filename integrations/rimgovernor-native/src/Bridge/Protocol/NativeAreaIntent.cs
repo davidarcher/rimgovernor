@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.AreaIntent intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var map, out var area, out var cells);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             switch (intent.Operation)
             {
                 case Operations.AreaOperation.Create:

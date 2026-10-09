@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.AutoHomeAreaIntent intent)
         {
             var failure = Validate(intent);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             var settings = Find.PlaySettings;
             var changed = settings.autoHomeArea != intent.Enabled;
             settings.autoHomeArea = intent.Enabled;

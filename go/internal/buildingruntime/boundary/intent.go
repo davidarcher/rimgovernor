@@ -128,8 +128,10 @@ func DispatchIntents(ctx context.Context, leases LeaseSource, placements []execu
 			}
 		case result.GetRefused() != nil:
 			out[i].Kind = domain.ReceiptRefused
+			out[i].Refusal = nativeRefusal(result.GetRefused().GetCode(), result.GetRefused().GetReason(), result.GetRefused().GetRefusalClass())
 		case result.GetFailed() != nil && result.GetFailed().GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT:
 			out[i].Kind = domain.ReceiptRefused
+			out[i].Refusal = nativeRefusal(result.GetFailed().GetCode(), result.GetFailed().GetDetail(), result.GetFailed().GetRefusalClass())
 		}
 	}
 	return out, nil
@@ -142,4 +144,18 @@ func appliedBill(evidence *r.EffectEvidence) string {
 		return id
 	}
 	return evidence.GetSurgeryBill().GetBill().GetId()
+}
+
+// nativeRefusal is a refused receipt's journal record: native's failure
+// code, its reason text and the class it assigned. A refusal that names no
+// class is unknown.
+func nativeRefusal(code c.FailureCode, reason string, class c.RefusalClass) *domain.NativeRefusal {
+	refusal := &domain.NativeRefusal{Code: code.String(), Reason: reason, Class: domain.RefusalUnknown}
+	switch class {
+	case c.RefusalClass_REFUSAL_CLASS_PERMANENT:
+		refusal.Class = domain.RefusalPermanent
+	case c.RefusalClass_REFUSAL_CLASS_TRANSIENT:
+		refusal.Class = domain.RefusalTransient
+	}
+	return refusal
 }

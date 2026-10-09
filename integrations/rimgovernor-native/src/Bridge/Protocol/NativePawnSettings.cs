@@ -121,7 +121,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var mode, out var care);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             Receipts.FieldResult field;
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.Nickname) {
                 field = new Receipts.FieldResult { Field = Receipts.SettingsField.Nickname, Outcome = Rename(pawn!, intent.Nickname) };
@@ -189,7 +189,7 @@ namespace HomeBridge.BridgeTools
         private static Receipts.EffectEvidence ApplyCarry(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
         {
             var failure = ResolveCarry(intent, context, out var pawn, out var medicine);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             var stock = pawn!.inventoryStock;
             var group = InventoryStockGroupDefOf.Medicine;
             var unchanged = stock.GetDesiredCountForGroup(group) == intent.MedicineCarry
@@ -225,7 +225,7 @@ namespace HomeBridge.BridgeTools
         private static Receipts.EffectEvidence ApplyReading(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
         {
             var failure = ResolveReading(intent, context, out var pawn, out var policy);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             var unchanged = pawn!.reading.CurrentPolicy == policy;
             pawn.reading.CurrentPolicy = policy;
             if (pawn.reading.CurrentPolicy != policy) throw new InvalidOperationException("Native reading policy requires readback.");
@@ -257,7 +257,7 @@ namespace HomeBridge.BridgeTools
         private static Receipts.EffectEvidence ApplyDrug(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
         {
             var failure = ResolveDrug(intent, context, out var pawn, out var policy);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             var unchanged = pawn!.drugs.CurrentPolicy == policy;
             pawn.drugs.CurrentPolicy = policy;
             if (pawn.drugs.CurrentPolicy != policy) throw new InvalidOperationException("Native drug policy requires readback.");
@@ -289,7 +289,7 @@ namespace HomeBridge.BridgeTools
         private static Receipts.EffectEvidence ApplyFood(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
         {
             var failure = ResolveFood(intent, context, out var pawn, out var policy);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             var unchanged = pawn!.foodRestriction.CurrentFoodPolicy == policy;
             pawn.foodRestriction.CurrentFoodPolicy = policy;
             if (pawn.foodRestriction.CurrentFoodPolicy != policy) throw new InvalidOperationException("Native food policy requires readback.");
@@ -345,7 +345,7 @@ namespace HomeBridge.BridgeTools
         private static Receipts.EffectEvidence ApplyMech(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
         {
             var failure = ResolveMech(intent, context, out var pawn, out var tracker, out var mode, out var group);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             bool unchanged;
             Receipts.SettingsField field;
             if (mode != null)
@@ -411,7 +411,7 @@ namespace HomeBridge.BridgeTools
         private static Receipts.EffectEvidence ApplyPermit(Operations.PawnSettingsIntent intent)
         {
             var failure = ResolvePermit(intent, out var pawn, out var faction, out var permit);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             var royalty = pawn!.royalty;
             var before = royalty.GetPermitPoints(faction!);
             var unchanged = royalty.HasPermit(permit!, faction!);
@@ -456,7 +456,7 @@ namespace HomeBridge.BridgeTools
         private static Receipts.EffectEvidence ApplyExtractBioferrite(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
         {
             var failure = ResolveExtractBioferrite(intent, context, out var pawn, out var target);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             var want = intent.ExtractBioferrite;
             var unchanged = target!.extractBioferrite == want;
             target.extractBioferrite = want;

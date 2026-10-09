@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.HackDesignationIntent c, Common.ObservationContext context)
         {
             var failure = Resolve(c, context, out var hack, out var toggle);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             if (hack!.Autohack != c.Enabled) toggle!.toggleAction();
             if (hack.Autohack != c.Enabled) throw new InvalidOperationException("Native autohack state did not change.");
             return new Receipts.EffectEvidence { HackDesignation = new Receipts.HackDesignationEffect { TargetId = c.Target.Id, Enabled = hack.Autohack } };

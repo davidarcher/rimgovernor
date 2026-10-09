@@ -261,7 +261,7 @@ namespace HomeBridge.BridgeTools {
   public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context)=>Resolve(action.RemoveProductionBill,context,out _);
   public Receipts.EffectEvidence Apply(Operations.Action action,Common.ObservationContext context){
    var failure=Resolve(action.RemoveProductionBill,context,out var t);
-   if(failure!=null)throw new ApplyRefusedException(failure.Code,failure.Detail);
+   if(failure!=null)throw new ApplyRefusedException(failure);
    var id=t.Bill.GetUniqueLoadID();var recipe=t.Bill.recipe.defName;
    NativeProductionTracking.Retire(t.Bill);t.Bill.billStack.Delete(t.Bill);
    return new Receipts.EffectEvidence{Bill=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},Bill=NativeRef.Of(id),RecipeDef=recipe}};

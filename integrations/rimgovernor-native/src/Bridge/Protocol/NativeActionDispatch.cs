@@ -126,7 +126,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var refusal = handler.Validate(action, context);
-                if (refusal != null) return Refused(action.Key, refusal.Code, refusal.Detail);
+                if (refusal != null) return Refused(action.Key, refusal.Code, refusal.Detail, refusal.RefusalClass);
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return Refused(action.Key, Common.FailureCode.AuthorityRequired, "Current native authority is required.");
                 Receipts.EffectEvidence evidence;
@@ -137,7 +137,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (ApplyRefusedException refused)
             {
-                return Refused(action.Key, refused.Code, refused.Message);
+                return Refused(action.Key, refused.Code, refused.Message, refused.RefusalClass);
             }
             catch (Exception error)
             {
@@ -146,8 +146,10 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static Operations.ActionResult Refused(string key, Common.FailureCode code, string reason) => new Operations.ActionResult
-        { Key = key ?? "", Refused = new Operations.Refusal { Code = code, Reason = reason ?? "" } };
+        // Every refusal leaves here with a class: the site's own, else the one its
+        // code implies (ProtoBoundary.RefusalClassOf).
+        private static Operations.ActionResult Refused(string key, Common.FailureCode code, string reason, Common.RefusalClass refusalClass = Common.RefusalClass.Unspecified) => new Operations.ActionResult
+        { Key = key ?? "", Refused = new Operations.Refusal { Code = code, Reason = reason ?? "", RefusalClass = refusalClass != Common.RefusalClass.Unspecified ? refusalClass : ProtoBoundary.RefusalClassOf(code) } };
     }
 
     // Thrown from Apply when native state already changed but the intent's
@@ -155,7 +157,9 @@ namespace HomeBridge.BridgeTools
     internal sealed class ApplyRefusedException : Exception
     {
         internal Common.FailureCode Code { get; }
-        internal ApplyRefusedException(Common.FailureCode code, string message) : base(message) { Code = code; }
+        internal Common.RefusalClass RefusalClass { get; }
+        internal ApplyRefusedException(Common.FailureCode code, string message, Common.RefusalClass refusalClass = Common.RefusalClass.Unspecified) : base(message) { Code = code; RefusalClass = refusalClass; }
+        internal ApplyRefusedException(Common.Failure failure) : this(failure.Code, failure.Detail, failure.RefusalClass) { }
     }
 
     internal sealed class TradeActionHandler : IActionHandler

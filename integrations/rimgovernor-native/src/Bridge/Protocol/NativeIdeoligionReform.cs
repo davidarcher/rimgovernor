@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
             var failure = Resolve(action.IdeoligionReform, out var source, out var candidate);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             if (candidate != null) IdeoDevelopmentUtility.ApplyChangesToIdeo(source!, candidate);
             return new Receipts.EffectEvidence { Ideoligion = new Receipts.IdeoligionEffect {
                 IdeoId = source!.GetUniqueLoadID(), Design = ReadDesign(source), ReformCount = source.development.reformCount, DevelopmentPoints = source.development.Points } };

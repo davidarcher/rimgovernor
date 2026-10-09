@@ -48,50 +48,55 @@ namespace RimGovernor.Protocol.Common {
             "X2NvbnRyb2xsZXJfc2Vzc2lvbl9pZEIMCgpfYWN0aW9uX2lkQg0KC19hdHRl",
             "bXB0X2lkIh0KA1JlZhIPCgJpZBgBIAEoCUgAiAEBQgUKA19pZCIyCgRDZWxs",
             "Eg4KAXgYASABKAVIAIgBARIOCgF6GAIgASgFSAGIAQFCBAoCX3hCBAoCX3oi",
-            "rgEKB0ZhaWx1cmUSNQoEY29kZRgBIAEoDjIiLnJpbWdvdmVybm9yLmNvbW1v",
+            "gQIKB0ZhaWx1cmUSNQoEY29kZRgBIAEoDjIiLnJpbWdvdmVybm9yLmNvbW1v",
             "bi52MS5GYWlsdXJlQ29kZUgAiAEBEhMKBmRldGFpbBgCIAEoCUgBiAEBEkMK",
             "EG9ic2VydmVkX2NvbnRleHQYAyABKAsyKS5yaW1nb3Zlcm5vci5jb21tb24u",
-            "djEuT2JzZXJ2YXRpb25Db250ZXh0QgcKBV9jb2RlQgkKB19kZXRhaWwidwoL",
-            "VW5hdmFpbGFibGUSPQoGcmVhc29uGAEgASgOMigucmltZ292ZXJub3IuY29t",
-            "bW9uLnYxLlVuYXZhaWxhYmxlUmVhc29uSACIAQESEwoGZGV0YWlsGAIgASgJ",
-            "SAGIAQFCCQoHX3JlYXNvbkIJCgdfZGV0YWlsKnYKEFRyYWRlUmVxdWVzdEtp",
-            "bmQSIgoeVFJBREVfUkVRVUVTVF9LSU5EX1VOU1BFQ0lGSUVEEAASHgoaVFJB",
-            "REVfUkVRVUVTVF9LSU5EX0NBUkFWQU4QARIeChpUUkFERV9SRVFVRVNUX0tJ",
-            "TkRfT1JCSVRBTBACKnoKC0NvcnBzZUNsYXNzEhwKGENPUlBTRV9DTEFTU19V",
-            "TlNQRUNJRklFRBAAEhkKFUNPUlBTRV9DTEFTU19DT0xPTklTVBABEhkKFUNP",
-            "UlBTRV9DTEFTU19TVFJBTkdFUhACEhcKE0NPUlBTRV9DTEFTU19BTklNQUwQ",
-            "AyprCghSb3RTdGFnZRIZChVST1RfU1RBR0VfVU5TUEVDSUZJRUQQABITCg9S",
-            "T1RfU1RBR0VfRlJFU0gQARIVChFST1RfU1RBR0VfUk9UVElORxACEhgKFFJP",
-            "VF9TVEFHRV9ERVNTSUNBVEVEEAMq+AQKC0ZhaWx1cmVDb2RlEhwKGEZBSUxV",
-            "UkVfQ09ERV9VTlNQRUNJRklFRBAAEiAKHEZBSUxVUkVfQ09ERV9JTlZBTElE",
-            "X1JFUVVFU1QQARIcChhGQUlMVVJFX0NPREVfVU5BVkFJTEFCTEUQAhIfChtG",
-            "QUlMVVJFX0NPREVfU1RBTEVfSURFTlRJVFkQAxIhCh1GQUlMVVJFX0NPREVf",
-            "U1RBTEVfR0VORVJBVElPThAEEiMKH0ZBSUxVUkVfQ09ERV9BVVRIT1JJVFlf",
-            "UkVRVUlSRUQQBRIeChpGQUlMVVJFX0NPREVfTEVBU0VfRVhQSVJFRBAGEh8K",
-            "G0ZBSUxVUkVfQ09ERV9PV05FUl9DT05GTElDVBAHEiEKHUZBSUxVUkVfQ09E",
-            "RV9BVFRFTVBUX0NPTkZMSUNUEAgSIwofRkFJTFVSRV9DT0RFX0NBUEFDSVRZ",
-            "X0VYSEFVU1RFRBAJEhoKFkZBSUxVUkVfQ09ERV9OT1RfRk9VTkQQChIcChhG",
-            "QUlMVVJFX0NPREVfVU5TVVBQT1JURUQQCxIfChtGQUlMVVJFX0NPREVfTkFU",
-            "SVZFX0ZBSUxVUkUQDBIaChZGQUlMVVJFX0NPREVfQ0FOQ0VMTEVEEA0SIgoe",
-            "RkFJTFVSRV9DT0RFX0RFQURMSU5FX0VYQ0VFREVEEA4SIwofRkFJTFVSRV9D",
-            "T0RFX05PX1dBTExfVE9fUkVQTEFDRRAPEikKJUZBSUxVUkVfQ09ERV9XQUxM",
-            "X1JFUExBQ0VNRU5UX1JFRlVTRUQQEBIuCipGQUlMVVJFX0NPREVfV0FMTF9S",
-            "RVBMQUNFTUVOVF9TVFJBTkRTX1JPT0YQESqpAwoRVW5hdmFpbGFibGVSZWFz",
-            "b24SIgoeVU5BVkFJTEFCTEVfUkVBU09OX1VOU1BFQ0lGSUVEEAASIQodVU5B",
-            "VkFJTEFCTEVfUkVBU09OX05PVF9MT0FERUQQARIjCh9VTkFWQUlMQUJMRV9S",
-            "RUFTT05fTk9UX09CU0VSVkVEEAISIgoeVU5BVkFJTEFCTEVfUkVBU09OX1VO",
-            "U1VQUE9SVEVEEAMSIgoeVU5BVkFJTEFCTEVfUkVBU09OX1JFQURfRkFJTEVE",
-            "EAQSHAoYVU5BVkFJTEFCTEVfUkVBU09OX1NUQUxFEAUSJQohVU5BVkFJTEFC",
-            "TEVfUkVBU09OX0xJTUlUX0VYQ0VFREVEEAYSJAogVU5BVkFJTEFCTEVfUkVB",
-            "U09OX05PVF9SRVFVRVNURUQQBxIlCiFVTkFWQUlMQUJMRV9SRUFTT05fTk9U",
-            "X0FQUExJQ0FCTEUQCBIdChlVTkFWQUlMQUJMRV9SRUFTT05fSElEREVOEAkS",
-            "LworVU5BVkFJTEFCTEVfUkVBU09OX05BVElWRV9DT01QT05FTlRfTUlTU0lO",
-            "RxAKQmVaRWdpdGh1Yi5jb20vZGF2aWRhcmNoZXIvUmltR292ZXJub3IvZ28v",
-            "aW50ZXJuYWwvd2lyZS9jb21tb25wYjtjb21tb25wYqoCG1JpbUdvdmVybm9y",
-            "LlByb3RvY29sLkNvbW1vbmIGcHJvdG8z"));
+            "djEuT2JzZXJ2YXRpb25Db250ZXh0Ej8KDXJlZnVzYWxfY2xhc3MYBCABKA4y",
+            "Iy5yaW1nb3Zlcm5vci5jb21tb24udjEuUmVmdXNhbENsYXNzSAKIAQFCBwoF",
+            "X2NvZGVCCQoHX2RldGFpbEIQCg5fcmVmdXNhbF9jbGFzcyJ3CgtVbmF2YWls",
+            "YWJsZRI9CgZyZWFzb24YASABKA4yKC5yaW1nb3Zlcm5vci5jb21tb24udjEu",
+            "VW5hdmFpbGFibGVSZWFzb25IAIgBARITCgZkZXRhaWwYAiABKAlIAYgBAUIJ",
+            "CgdfcmVhc29uQgkKB19kZXRhaWwqdgoQVHJhZGVSZXF1ZXN0S2luZBIiCh5U",
+            "UkFERV9SRVFVRVNUX0tJTkRfVU5TUEVDSUZJRUQQABIeChpUUkFERV9SRVFV",
+            "RVNUX0tJTkRfQ0FSQVZBThABEh4KGlRSQURFX1JFUVVFU1RfS0lORF9PUkJJ",
+            "VEFMEAIqegoLQ29ycHNlQ2xhc3MSHAoYQ09SUFNFX0NMQVNTX1VOU1BFQ0lG",
+            "SUVEEAASGQoVQ09SUFNFX0NMQVNTX0NPTE9OSVNUEAESGQoVQ09SUFNFX0NM",
+            "QVNTX1NUUkFOR0VSEAISFwoTQ09SUFNFX0NMQVNTX0FOSU1BTBADKmsKCFJv",
+            "dFN0YWdlEhkKFVJPVF9TVEFHRV9VTlNQRUNJRklFRBAAEhMKD1JPVF9TVEFH",
+            "RV9GUkVTSBABEhUKEVJPVF9TVEFHRV9ST1RUSU5HEAISGAoUUk9UX1NUQUdF",
+            "X0RFU1NJQ0FURUQQAyqCAQoMUmVmdXNhbENsYXNzEh0KGVJFRlVTQUxfQ0xB",
+            "U1NfVU5TUEVDSUZJRUQQABIbChdSRUZVU0FMX0NMQVNTX1BFUk1BTkVOVBAB",
+            "EhsKF1JFRlVTQUxfQ0xBU1NfVFJBTlNJRU5UEAISGQoVUkVGVVNBTF9DTEFT",
+            "U19VTktOT1dOEAMq+AQKC0ZhaWx1cmVDb2RlEhwKGEZBSUxVUkVfQ09ERV9V",
+            "TlNQRUNJRklFRBAAEiAKHEZBSUxVUkVfQ09ERV9JTlZBTElEX1JFUVVFU1QQ",
+            "ARIcChhGQUlMVVJFX0NPREVfVU5BVkFJTEFCTEUQAhIfChtGQUlMVVJFX0NP",
+            "REVfU1RBTEVfSURFTlRJVFkQAxIhCh1GQUlMVVJFX0NPREVfU1RBTEVfR0VO",
+            "RVJBVElPThAEEiMKH0ZBSUxVUkVfQ09ERV9BVVRIT1JJVFlfUkVRVUlSRUQQ",
+            "BRIeChpGQUlMVVJFX0NPREVfTEVBU0VfRVhQSVJFRBAGEh8KG0ZBSUxVUkVf",
+            "Q09ERV9PV05FUl9DT05GTElDVBAHEiEKHUZBSUxVUkVfQ09ERV9BVFRFTVBU",
+            "X0NPTkZMSUNUEAgSIwofRkFJTFVSRV9DT0RFX0NBUEFDSVRZX0VYSEFVU1RF",
+            "RBAJEhoKFkZBSUxVUkVfQ09ERV9OT1RfRk9VTkQQChIcChhGQUlMVVJFX0NP",
+            "REVfVU5TVVBQT1JURUQQCxIfChtGQUlMVVJFX0NPREVfTkFUSVZFX0ZBSUxV",
+            "UkUQDBIaChZGQUlMVVJFX0NPREVfQ0FOQ0VMTEVEEA0SIgoeRkFJTFVSRV9D",
+            "T0RFX0RFQURMSU5FX0VYQ0VFREVEEA4SIwofRkFJTFVSRV9DT0RFX05PX1dB",
+            "TExfVE9fUkVQTEFDRRAPEikKJUZBSUxVUkVfQ09ERV9XQUxMX1JFUExBQ0VN",
+            "RU5UX1JFRlVTRUQQEBIuCipGQUlMVVJFX0NPREVfV0FMTF9SRVBMQUNFTUVO",
+            "VF9TVFJBTkRTX1JPT0YQESqpAwoRVW5hdmFpbGFibGVSZWFzb24SIgoeVU5B",
+            "VkFJTEFCTEVfUkVBU09OX1VOU1BFQ0lGSUVEEAASIQodVU5BVkFJTEFCTEVf",
+            "UkVBU09OX05PVF9MT0FERUQQARIjCh9VTkFWQUlMQUJMRV9SRUFTT05fTk9U",
+            "X09CU0VSVkVEEAISIgoeVU5BVkFJTEFCTEVfUkVBU09OX1VOU1VQUE9SVEVE",
+            "EAMSIgoeVU5BVkFJTEFCTEVfUkVBU09OX1JFQURfRkFJTEVEEAQSHAoYVU5B",
+            "VkFJTEFCTEVfUkVBU09OX1NUQUxFEAUSJQohVU5BVkFJTEFCTEVfUkVBU09O",
+            "X0xJTUlUX0VYQ0VFREVEEAYSJAogVU5BVkFJTEFCTEVfUkVBU09OX05PVF9S",
+            "RVFVRVNURUQQBxIlCiFVTkFWQUlMQUJMRV9SRUFTT05fTk9UX0FQUExJQ0FC",
+            "TEUQCBIdChlVTkFWQUlMQUJMRV9SRUFTT05fSElEREVOEAkSLworVU5BVkFJ",
+            "TEFCTEVfUkVBU09OX05BVElWRV9DT01QT05FTlRfTUlTU0lORxAKQmVaRWdp",
+            "dGh1Yi5jb20vZGF2aWRhcmNoZXIvUmltR292ZXJub3IvZ28vaW50ZXJuYWwv",
+            "d2lyZS9jb21tb25wYjtjb21tb25wYqoCG1JpbUdvdmVybm9yLlByb3RvY29s",
+            "LkNvbW1vbmIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
-          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Common.TradeRequestKind), typeof(global::RimGovernor.Protocol.Common.CorpseClass), typeof(global::RimGovernor.Protocol.Common.RotStage), typeof(global::RimGovernor.Protocol.Common.FailureCode), typeof(global::RimGovernor.Protocol.Common.UnavailableReason), }, null, new pbr::GeneratedClrTypeInfo[] {
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Common.TradeRequestKind), typeof(global::RimGovernor.Protocol.Common.CorpseClass), typeof(global::RimGovernor.Protocol.Common.RotStage), typeof(global::RimGovernor.Protocol.Common.RefusalClass), typeof(global::RimGovernor.Protocol.Common.FailureCode), typeof(global::RimGovernor.Protocol.Common.UnavailableReason), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.IdeoligionDesign), global::RimGovernor.Protocol.Common.IdeoligionDesign.Parser, new[]{ "Memes", "Precepts", "Fluid" }, new[]{ "Fluid" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.Identity), global::RimGovernor.Protocol.Common.Identity.Parser, new[]{ "ColonyId", "LoadToken", "MapId" }, new[]{ "ColonyId", "LoadToken", "MapId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.TradeTarget), global::RimGovernor.Protocol.Common.TradeTarget.Parser, new[]{ "MapTrader", "Settlement", "OrbitalShip" }, new[]{ "Kind" }, null, null, null),
@@ -102,7 +107,7 @@ namespace RimGovernor.Protocol.Common {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.AttemptKey), global::RimGovernor.Protocol.Common.AttemptKey.Parser, new[]{ "ControllerSessionId", "ActionId", "AttemptId" }, new[]{ "ControllerSessionId", "ActionId", "AttemptId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.Ref), global::RimGovernor.Protocol.Common.Ref.Parser, new[]{ "Id" }, new[]{ "Id" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.Cell), global::RimGovernor.Protocol.Common.Cell.Parser, new[]{ "X", "Z" }, new[]{ "X", "Z" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.Failure), global::RimGovernor.Protocol.Common.Failure.Parser, new[]{ "Code", "Detail", "ObservedContext" }, new[]{ "Code", "Detail" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.Failure), global::RimGovernor.Protocol.Common.Failure.Parser, new[]{ "Code", "Detail", "ObservedContext", "RefusalClass" }, new[]{ "Code", "Detail", "RefusalClass" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.Unavailable), global::RimGovernor.Protocol.Common.Unavailable.Parser, new[]{ "Reason", "Detail" }, new[]{ "Reason", "Detail" }, null, null, null)
           }));
     }
@@ -135,6 +140,19 @@ namespace RimGovernor.Protocol.Common {
     [pbr::OriginalName("ROT_STAGE_FRESH")] Fresh = 1,
     [pbr::OriginalName("ROT_STAGE_ROTTING")] Rotting = 2,
     [pbr::OriginalName("ROT_STAGE_DESSICATED")] Dessicated = 3,
+  }
+
+  /// <summary>
+  /// How RimWorld answers the same request again. Native sets it on a refusal;
+  /// a refusal without one is unknown. PERMANENT: the game refuses it until the
+  /// world changes materially (or never). TRANSIENT: it may succeed once the
+  /// world changes. UNKNOWN: native cannot say; never silently banned.
+  /// </summary>
+  public enum RefusalClass {
+    [pbr::OriginalName("REFUSAL_CLASS_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("REFUSAL_CLASS_PERMANENT")] Permanent = 1,
+    [pbr::OriginalName("REFUSAL_CLASS_TRANSIENT")] Transient = 2,
+    [pbr::OriginalName("REFUSAL_CLASS_UNKNOWN")] Unknown = 3,
   }
 
   public enum FailureCode {
@@ -2969,6 +2987,7 @@ namespace RimGovernor.Protocol.Common {
       code_ = other.code_;
       detail_ = other.detail_;
       observedContext_ = other.observedContext_ != null ? other.observedContext_.Clone() : null;
+      refusalClass_ = other.refusalClass_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -3043,6 +3062,33 @@ namespace RimGovernor.Protocol.Common {
       }
     }
 
+    /// <summary>Field number for the "refusal_class" field.</summary>
+    public const int RefusalClassFieldNumber = 4;
+    private readonly static global::RimGovernor.Protocol.Common.RefusalClass RefusalClassDefaultValue = global::RimGovernor.Protocol.Common.RefusalClass.Unspecified;
+
+    private global::RimGovernor.Protocol.Common.RefusalClass refusalClass_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.RefusalClass RefusalClass {
+      get { if ((_hasBits0 & 2) != 0) { return refusalClass_; } else { return RefusalClassDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        refusalClass_ = value;
+      }
+    }
+    /// <summary>Gets whether the "refusal_class" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasRefusalClass {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "refusal_class" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearRefusalClass() {
+      _hasBits0 &= ~2;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -3061,6 +3107,7 @@ namespace RimGovernor.Protocol.Common {
       if (Code != other.Code) return false;
       if (Detail != other.Detail) return false;
       if (!object.Equals(ObservedContext, other.ObservedContext)) return false;
+      if (RefusalClass != other.RefusalClass) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -3071,6 +3118,7 @@ namespace RimGovernor.Protocol.Common {
       if (HasCode) hash ^= Code.GetHashCode();
       if (HasDetail) hash ^= Detail.GetHashCode();
       if (observedContext_ != null) hash ^= ObservedContext.GetHashCode();
+      if (HasRefusalClass) hash ^= RefusalClass.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -3101,6 +3149,10 @@ namespace RimGovernor.Protocol.Common {
         output.WriteRawTag(26);
         output.WriteMessage(ObservedContext);
       }
+      if (HasRefusalClass) {
+        output.WriteRawTag(32);
+        output.WriteEnum((int) RefusalClass);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -3123,6 +3175,10 @@ namespace RimGovernor.Protocol.Common {
         output.WriteRawTag(26);
         output.WriteMessage(ObservedContext);
       }
+      if (HasRefusalClass) {
+        output.WriteRawTag(32);
+        output.WriteEnum((int) RefusalClass);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -3141,6 +3197,9 @@ namespace RimGovernor.Protocol.Common {
       }
       if (observedContext_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(ObservedContext);
+      }
+      if (HasRefusalClass) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) RefusalClass);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -3165,6 +3224,9 @@ namespace RimGovernor.Protocol.Common {
           ObservedContext = new global::RimGovernor.Protocol.Common.ObservationContext();
         }
         ObservedContext.MergeFrom(other.ObservedContext);
+      }
+      if (other.HasRefusalClass) {
+        RefusalClass = other.RefusalClass;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -3200,6 +3262,10 @@ namespace RimGovernor.Protocol.Common {
             input.ReadMessage(ObservedContext);
             break;
           }
+          case 32: {
+            RefusalClass = (global::RimGovernor.Protocol.Common.RefusalClass) input.ReadEnum();
+            break;
+          }
         }
       }
     #endif
@@ -3232,6 +3298,10 @@ namespace RimGovernor.Protocol.Common {
               ObservedContext = new global::RimGovernor.Protocol.Common.ObservationContext();
             }
             input.ReadMessage(ObservedContext);
+            break;
+          }
+          case 32: {
+            RefusalClass = (global::RimGovernor.Protocol.Common.RefusalClass) input.ReadEnum();
             break;
           }
         }

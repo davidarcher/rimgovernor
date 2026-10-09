@@ -24,6 +24,7 @@ namespace HomeBridge.BridgeTools
         private readonly string kind;
         private string? refused;
         private Common.FailureCode code = Common.FailureCode.InvalidRequest;
+        private Common.RefusalClass refusalClass = Common.RefusalClass.Unspecified;
 
         internal ApplyPreconditions(string kind) { this.kind = kind; }
 
@@ -35,31 +36,31 @@ namespace HomeBridge.BridgeTools
         // Present is the rule for the exact target still being there; it
         // refuses NotFound so a caller that distinguishes a vanished target
         // from a target in the wrong state can.
-        internal ApplyPreconditions Present(Func<bool> rule, string reason) => Require(rule, reason, Common.FailureCode.NotFound);
+        internal ApplyPreconditions Present(Func<bool> rule, string reason) => Require(rule, reason, Common.FailureCode.NotFound, Common.RefusalClass.Transient);
 
         // Token is the closing CAS rule: the snapshot the controller read
         // must still hash to the token it sent. It keeps the InvalidRequest
         // code the routine kinds always answered a stale token with.
-        internal ApplyPreconditions Token(Func<bool> rule, string reason) => Require(rule, reason, Common.FailureCode.InvalidRequest);
+        internal ApplyPreconditions Token(Func<bool> rule, string reason) => Require(rule, reason, Common.FailureCode.InvalidRequest, Common.RefusalClass.Transient);
 
         // Token with sent false is the CAS rule for a request that carries no
         // token: the rule is skipped and the preconditions above stand alone.
         internal ApplyPreconditions Token(bool sent, Func<bool> rule, string reason) => sent ? Token(rule, reason) : this;
 
-        private ApplyPreconditions Require(Func<bool> rule, string reason, Common.FailureCode failureCode)
+        private ApplyPreconditions Require(Func<bool> rule, string reason, Common.FailureCode failureCode, Common.RefusalClass refusal = Common.RefusalClass.Unspecified)
         {
             if (refused != null) return this;
             bool holds;
             try { holds = rule(); }
             catch (Exception) { holds = false; }
-            if (!holds) { refused = reason; code = failureCode; }
+            if (!holds) { refused = reason; code = failureCode; refusalClass = refusal; }
             return this;
         }
 
         // Failure is the wire refusal: "<kind> refused: <reason>". The
         // reason strings are the contract (action-contracts.md); the
         // controller's flight recorder keeps them verbatim.
-        internal Common.Failure Failure() => ProtoBoundary.Fail(code, Detail(kind, refused ?? "precondition failed"));
+        internal Common.Failure Failure() => ProtoBoundary.Fail(code, Detail(kind, refused ?? "precondition failed"), refusalClass);
 
         internal static string Detail(string kind, string reason) => kind + " refused: " + reason;
     }

@@ -849,6 +849,7 @@ message CommsTradeRequestIntent {
 message Refusal {
   optional rimgovernor.common.v1.FailureCode code = 1;
   optional string reason = 2;
+  optional rimgovernor.common.v1.RefusalClass refusal_class = 3;
 }
 message ActionResult {
   optional string key = 1;

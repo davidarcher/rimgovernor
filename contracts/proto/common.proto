@@ -65,6 +65,17 @@ enum CorpseClass { CORPSE_CLASS_UNSPECIFIED = 0; CORPSE_CLASS_COLONIST = 1; CORP
 // A rotting thing's stage (Verse RotStage).
 enum RotStage { ROT_STAGE_UNSPECIFIED = 0; ROT_STAGE_FRESH = 1; ROT_STAGE_ROTTING = 2; ROT_STAGE_DESSICATED = 3; }
 
+// How RimWorld answers the same request again. Native sets it on a refusal;
+// a refusal without one is unknown. PERMANENT: the game refuses it until the
+// world changes materially (or never). TRANSIENT: it may succeed once the
+// world changes. UNKNOWN: native cannot say; never silently banned.
+enum RefusalClass {
+  REFUSAL_CLASS_UNSPECIFIED = 0;
+  REFUSAL_CLASS_PERMANENT = 1;
+  REFUSAL_CLASS_TRANSIENT = 2;
+  REFUSAL_CLASS_UNKNOWN = 3;
+}
+
 enum FailureCode {
   FAILURE_CODE_UNSPECIFIED = 0;
   FAILURE_CODE_INVALID_REQUEST = 1;
@@ -93,6 +104,7 @@ message Failure {
   optional FailureCode code = 1;
   optional string detail = 2;
   ObservationContext observed_context = 3;
+  optional RefusalClass refusal_class = 4;
 }
 
 enum UnavailableReason {

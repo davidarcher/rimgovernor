@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.PolicyPruneIntent intent, Common.ObservationContext context)
         {
             var failure = Validate(intent, context);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             var effect = new Receipts.PolicyPruneEffect();
             var reassigned = new SortedSet<string>(StringComparer.Ordinal);
             if (intent.Database == Operations.PolicyDatabase.AllowedArea)

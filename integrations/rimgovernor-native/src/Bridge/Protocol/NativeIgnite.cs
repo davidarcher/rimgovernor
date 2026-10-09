@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(action.Ignite, context, out var pawn, out var cell);
             if (failure != null || pawn == null)
-                throw new ApplyRefusedException(failure?.Code ?? Common.FailureCode.NativeFailure, failure?.Detail ?? "Ignite prerequisites changed before apply.");
+                throw new ApplyRefusedException(failure ?? ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Ignite prerequisites changed before apply."));
             var command = new Operations.CombatOrders();
             command.Orders.Add(new Operations.CombatOrder
             {

@@ -736,6 +736,9 @@ func workerDispatchRow(ctx context.Context, tally *bridge.ReadTally, before, aft
 		receipt = string(v)
 	}
 	d.Attrs["receipt"], d.Attrs["running"] = receipt, running
+	if refusal, known := after.Refusal.Value(); known && receipt == string(domain.ReceiptRefused) {
+		d.Attrs["refusal_class"], d.Attrs["refusal_reason"] = string(refusal.Class), refusal.Reason
+	}
 	if (before.Stage == domain.Pending || before.Stage == domain.Prepared) && after.Attempt != 0 && after.Stage != domain.Pending && after.Stage != domain.Prepared {
 		d.Attrs["dispatch_tick"] = int64(after.Tick)
 	}

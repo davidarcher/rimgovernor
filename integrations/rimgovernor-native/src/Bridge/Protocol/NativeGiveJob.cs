@@ -217,7 +217,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.GiveJobIntent intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var target, out var def, out var running);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             if (running) return NativeGiveJob.Evidence(pawn!, target!, pawn!.CurJob, false);
             var job = TryTake(pawn!, target!, def!, out var reason);
             if (job == null) throw new InvalidOperationException(reason);

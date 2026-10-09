@@ -177,6 +177,62 @@ func (RotStage) EnumDescriptor() ([]byte, []int) {
 	return file_common_proto_rawDescGZIP(), []int{2}
 }
 
+// How RimWorld answers the same request again. Native sets it on a refusal;
+// a refusal without one is unknown. PERMANENT: the game refuses it until the
+// world changes materially (or never). TRANSIENT: it may succeed once the
+// world changes. UNKNOWN: native cannot say; never silently banned.
+type RefusalClass int32
+
+const (
+	RefusalClass_REFUSAL_CLASS_UNSPECIFIED RefusalClass = 0
+	RefusalClass_REFUSAL_CLASS_PERMANENT   RefusalClass = 1
+	RefusalClass_REFUSAL_CLASS_TRANSIENT   RefusalClass = 2
+	RefusalClass_REFUSAL_CLASS_UNKNOWN     RefusalClass = 3
+)
+
+// Enum value maps for RefusalClass.
+var (
+	RefusalClass_name = map[int32]string{
+		0: "REFUSAL_CLASS_UNSPECIFIED",
+		1: "REFUSAL_CLASS_PERMANENT",
+		2: "REFUSAL_CLASS_TRANSIENT",
+		3: "REFUSAL_CLASS_UNKNOWN",
+	}
+	RefusalClass_value = map[string]int32{
+		"REFUSAL_CLASS_UNSPECIFIED": 0,
+		"REFUSAL_CLASS_PERMANENT":   1,
+		"REFUSAL_CLASS_TRANSIENT":   2,
+		"REFUSAL_CLASS_UNKNOWN":     3,
+	}
+)
+
+func (x RefusalClass) Enum() *RefusalClass {
+	p := new(RefusalClass)
+	*p = x
+	return p
+}
+
+func (x RefusalClass) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RefusalClass) Descriptor() protoreflect.EnumDescriptor {
+	return file_common_proto_enumTypes[3].Descriptor()
+}
+
+func (RefusalClass) Type() protoreflect.EnumType {
+	return &file_common_proto_enumTypes[3]
+}
+
+func (x RefusalClass) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RefusalClass.Descriptor instead.
+func (RefusalClass) EnumDescriptor() ([]byte, []int) {
+	return file_common_proto_rawDescGZIP(), []int{3}
+}
+
 type FailureCode int32
 
 const (
@@ -257,11 +313,11 @@ func (x FailureCode) String() string {
 }
 
 func (FailureCode) Descriptor() protoreflect.EnumDescriptor {
-	return file_common_proto_enumTypes[3].Descriptor()
+	return file_common_proto_enumTypes[4].Descriptor()
 }
 
 func (FailureCode) Type() protoreflect.EnumType {
-	return &file_common_proto_enumTypes[3]
+	return &file_common_proto_enumTypes[4]
 }
 
 func (x FailureCode) Number() protoreflect.EnumNumber {
@@ -270,7 +326,7 @@ func (x FailureCode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FailureCode.Descriptor instead.
 func (FailureCode) EnumDescriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{3}
+	return file_common_proto_rawDescGZIP(), []int{4}
 }
 
 type UnavailableReason int32
@@ -330,11 +386,11 @@ func (x UnavailableReason) String() string {
 }
 
 func (UnavailableReason) Descriptor() protoreflect.EnumDescriptor {
-	return file_common_proto_enumTypes[4].Descriptor()
+	return file_common_proto_enumTypes[5].Descriptor()
 }
 
 func (UnavailableReason) Type() protoreflect.EnumType {
-	return &file_common_proto_enumTypes[4]
+	return &file_common_proto_enumTypes[5]
 }
 
 func (x UnavailableReason) Number() protoreflect.EnumNumber {
@@ -343,7 +399,7 @@ func (x UnavailableReason) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use UnavailableReason.Descriptor instead.
 func (UnavailableReason) EnumDescriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{4}
+	return file_common_proto_rawDescGZIP(), []int{5}
 }
 
 // Plain precepts are the exact issue selections; role, ritual and building
@@ -936,6 +992,7 @@ type Failure struct {
 	Code            *FailureCode           `protobuf:"varint,1,opt,name=code,proto3,enum=rimgovernor.common.v1.FailureCode,oneof" json:"code,omitempty"`
 	Detail          *string                `protobuf:"bytes,2,opt,name=detail,proto3,oneof" json:"detail,omitempty"`
 	ObservedContext *ObservationContext    `protobuf:"bytes,3,opt,name=observed_context,json=observedContext,proto3" json:"observed_context,omitempty"`
+	RefusalClass    *RefusalClass          `protobuf:"varint,4,opt,name=refusal_class,json=refusalClass,proto3,enum=rimgovernor.common.v1.RefusalClass,oneof" json:"refusal_class,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -989,6 +1046,13 @@ func (x *Failure) GetObservedContext() *ObservationContext {
 		return x.ObservedContext
 	}
 	return nil
+}
+
+func (x *Failure) GetRefusalClass() RefusalClass {
+	if x != nil && x.RefusalClass != nil {
+		return *x.RefusalClass
+	}
+	return RefusalClass_REFUSAL_CLASS_UNSPECIFIED
 }
 
 type Unavailable struct {
@@ -1107,13 +1171,15 @@ const file_common_proto_rawDesc = "" +
 	"\x01x\x18\x01 \x01(\x05H\x00R\x01x\x88\x01\x01\x12\x11\n" +
 	"\x01z\x18\x02 \x01(\x05H\x01R\x01z\x88\x01\x01B\x04\n" +
 	"\x02_xB\x04\n" +
-	"\x02_z\"\xcd\x01\n" +
+	"\x02_z\"\xae\x02\n" +
 	"\aFailure\x12;\n" +
 	"\x04code\x18\x01 \x01(\x0e2\".rimgovernor.common.v1.FailureCodeH\x00R\x04code\x88\x01\x01\x12\x1b\n" +
 	"\x06detail\x18\x02 \x01(\tH\x01R\x06detail\x88\x01\x01\x12T\n" +
-	"\x10observed_context\x18\x03 \x01(\v2).rimgovernor.common.v1.ObservationContextR\x0fobservedContextB\a\n" +
+	"\x10observed_context\x18\x03 \x01(\v2).rimgovernor.common.v1.ObservationContextR\x0fobservedContext\x12M\n" +
+	"\rrefusal_class\x18\x04 \x01(\x0e2#.rimgovernor.common.v1.RefusalClassH\x02R\frefusalClass\x88\x01\x01B\a\n" +
 	"\x05_codeB\t\n" +
-	"\a_detail\"\x87\x01\n" +
+	"\a_detailB\x10\n" +
+	"\x0e_refusal_class\"\x87\x01\n" +
 	"\vUnavailable\x12E\n" +
 	"\x06reason\x18\x01 \x01(\x0e2(.rimgovernor.common.v1.UnavailableReasonH\x00R\x06reason\x88\x01\x01\x12\x1b\n" +
 	"\x06detail\x18\x02 \x01(\tH\x01R\x06detail\x88\x01\x01B\t\n" +
@@ -1132,7 +1198,12 @@ const file_common_proto_rawDesc = "" +
 	"\x15ROT_STAGE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fROT_STAGE_FRESH\x10\x01\x12\x15\n" +
 	"\x11ROT_STAGE_ROTTING\x10\x02\x12\x18\n" +
-	"\x14ROT_STAGE_DESSICATED\x10\x03*\xf8\x04\n" +
+	"\x14ROT_STAGE_DESSICATED\x10\x03*\x82\x01\n" +
+	"\fRefusalClass\x12\x1d\n" +
+	"\x19REFUSAL_CLASS_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17REFUSAL_CLASS_PERMANENT\x10\x01\x12\x1b\n" +
+	"\x17REFUSAL_CLASS_TRANSIENT\x10\x02\x12\x19\n" +
+	"\x15REFUSAL_CLASS_UNKNOWN\x10\x03*\xf8\x04\n" +
 	"\vFailureCode\x12\x1c\n" +
 	"\x18FAILURE_CODE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cFAILURE_CODE_INVALID_REQUEST\x10\x01\x12\x1c\n" +
@@ -1179,40 +1250,42 @@ func file_common_proto_rawDescGZIP() []byte {
 	return file_common_proto_rawDescData
 }
 
-var file_common_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_common_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
 var file_common_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_common_proto_goTypes = []any{
 	(TradeRequestKind)(0),         // 0: rimgovernor.common.v1.TradeRequestKind
 	(CorpseClass)(0),              // 1: rimgovernor.common.v1.CorpseClass
 	(RotStage)(0),                 // 2: rimgovernor.common.v1.RotStage
-	(FailureCode)(0),              // 3: rimgovernor.common.v1.FailureCode
-	(UnavailableReason)(0),        // 4: rimgovernor.common.v1.UnavailableReason
-	(*IdeoligionDesign)(nil),      // 5: rimgovernor.common.v1.IdeoligionDesign
-	(*Identity)(nil),              // 6: rimgovernor.common.v1.Identity
-	(*TradeTarget)(nil),           // 7: rimgovernor.common.v1.TradeTarget
-	(*MapTradeTarget)(nil),        // 8: rimgovernor.common.v1.MapTradeTarget
-	(*SettlementTradeTarget)(nil), // 9: rimgovernor.common.v1.SettlementTradeTarget
-	(*OrbitalTradeTarget)(nil),    // 10: rimgovernor.common.v1.OrbitalTradeTarget
-	(*ObservationContext)(nil),    // 11: rimgovernor.common.v1.ObservationContext
-	(*AttemptKey)(nil),            // 12: rimgovernor.common.v1.AttemptKey
-	(*Ref)(nil),                   // 13: rimgovernor.common.v1.Ref
-	(*Cell)(nil),                  // 14: rimgovernor.common.v1.Cell
-	(*Failure)(nil),               // 15: rimgovernor.common.v1.Failure
-	(*Unavailable)(nil),           // 16: rimgovernor.common.v1.Unavailable
+	(RefusalClass)(0),             // 3: rimgovernor.common.v1.RefusalClass
+	(FailureCode)(0),              // 4: rimgovernor.common.v1.FailureCode
+	(UnavailableReason)(0),        // 5: rimgovernor.common.v1.UnavailableReason
+	(*IdeoligionDesign)(nil),      // 6: rimgovernor.common.v1.IdeoligionDesign
+	(*Identity)(nil),              // 7: rimgovernor.common.v1.Identity
+	(*TradeTarget)(nil),           // 8: rimgovernor.common.v1.TradeTarget
+	(*MapTradeTarget)(nil),        // 9: rimgovernor.common.v1.MapTradeTarget
+	(*SettlementTradeTarget)(nil), // 10: rimgovernor.common.v1.SettlementTradeTarget
+	(*OrbitalTradeTarget)(nil),    // 11: rimgovernor.common.v1.OrbitalTradeTarget
+	(*ObservationContext)(nil),    // 12: rimgovernor.common.v1.ObservationContext
+	(*AttemptKey)(nil),            // 13: rimgovernor.common.v1.AttemptKey
+	(*Ref)(nil),                   // 14: rimgovernor.common.v1.Ref
+	(*Cell)(nil),                  // 15: rimgovernor.common.v1.Cell
+	(*Failure)(nil),               // 16: rimgovernor.common.v1.Failure
+	(*Unavailable)(nil),           // 17: rimgovernor.common.v1.Unavailable
 }
 var file_common_proto_depIdxs = []int32{
-	8,  // 0: rimgovernor.common.v1.TradeTarget.map_trader:type_name -> rimgovernor.common.v1.MapTradeTarget
-	9,  // 1: rimgovernor.common.v1.TradeTarget.settlement:type_name -> rimgovernor.common.v1.SettlementTradeTarget
-	10, // 2: rimgovernor.common.v1.TradeTarget.orbital_ship:type_name -> rimgovernor.common.v1.OrbitalTradeTarget
-	6,  // 3: rimgovernor.common.v1.ObservationContext.identity:type_name -> rimgovernor.common.v1.Identity
-	3,  // 4: rimgovernor.common.v1.Failure.code:type_name -> rimgovernor.common.v1.FailureCode
-	11, // 5: rimgovernor.common.v1.Failure.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
-	4,  // 6: rimgovernor.common.v1.Unavailable.reason:type_name -> rimgovernor.common.v1.UnavailableReason
-	7,  // [7:7] is the sub-list for method output_type
-	7,  // [7:7] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	9,  // 0: rimgovernor.common.v1.TradeTarget.map_trader:type_name -> rimgovernor.common.v1.MapTradeTarget
+	10, // 1: rimgovernor.common.v1.TradeTarget.settlement:type_name -> rimgovernor.common.v1.SettlementTradeTarget
+	11, // 2: rimgovernor.common.v1.TradeTarget.orbital_ship:type_name -> rimgovernor.common.v1.OrbitalTradeTarget
+	7,  // 3: rimgovernor.common.v1.ObservationContext.identity:type_name -> rimgovernor.common.v1.Identity
+	4,  // 4: rimgovernor.common.v1.Failure.code:type_name -> rimgovernor.common.v1.FailureCode
+	12, // 5: rimgovernor.common.v1.Failure.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
+	3,  // 6: rimgovernor.common.v1.Failure.refusal_class:type_name -> rimgovernor.common.v1.RefusalClass
+	5,  // 7: rimgovernor.common.v1.Unavailable.reason:type_name -> rimgovernor.common.v1.UnavailableReason
+	8,  // [8:8] is the sub-list for method output_type
+	8,  // [8:8] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_common_proto_init() }
@@ -1241,7 +1314,7 @@ func file_common_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_proto_rawDesc), len(file_common_proto_rawDesc)),
-			NumEnums:      5,
+			NumEnums:      6,
 			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,

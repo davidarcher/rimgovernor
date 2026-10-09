@@ -40,8 +40,10 @@ type Fixture struct {
 	LastPre                           *a.WritePrecondition
 	// Refuse, when set, is the reason Apply refuses every intent with;
 	// LastKeys are the keys of the last Apply batch.
-	Refuse   string
-	LastKeys []string
+	Refuse string
+	// RefuseClass, when set, is the class the refusal carries.
+	RefuseClass c.RefusalClass
+	LastKeys    []string
 }
 
 func NewFixture(t *testing.T) (*Boundary, *Fixture) {
@@ -107,7 +109,7 @@ func (f *Fixture) Apply(_ context.Context, identity *c.Identity, actions []*o.Ac
 	for _, action := range actions {
 		f.LastKeys = append(f.LastKeys, action.GetKey())
 		if f.Refuse != "" {
-			reply.Results = append(reply.Results, &o.ActionResult{Key: action.Key, Outcome: &o.ActionResult_Refused{Refused: &o.Refusal{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum(), Reason: proto.String(f.Refuse)}}})
+			reply.Results = append(reply.Results, &o.ActionResult{Key: action.Key, Outcome: &o.ActionResult_Refused{Refused: &o.Refusal{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum(), Reason: proto.String(f.Refuse), RefusalClass: refuseClass(f.RefuseClass)}}})
 			continue
 		}
 		ctx := &c.ObservationContext{Identity: proto.Clone(identity).(*c.Identity), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}
@@ -122,4 +124,11 @@ func (f *Fixture) Lease(domain.GenerationSnapshot) (string, error) {
 }
 func (f *Fixture) Holds(context.Context, domain.GenerationSnapshot) ([]policy.Reservation, error) {
 	return nil, f.HoldErr
+}
+
+func refuseClass(class c.RefusalClass) *c.RefusalClass {
+	if class == c.RefusalClass_REFUSAL_CLASS_UNSPECIFIED {
+		return nil
+	}
+	return class.Enum()
 }

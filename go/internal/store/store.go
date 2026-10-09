@@ -542,10 +542,11 @@ type transition struct {
 	Attempt     domain.AttemptID
 	Receipt     domain.Receipt
 	Observation domain.Observation
-	Zone        string               `json:",omitempty"`
-	Stockpiles  []domain.CreatedZone `json:",omitempty"`
-	Bill        string               `json:",omitempty"`
-	HeldReasons []domain.HeldReason  `json:",omitempty"`
+	Zone        string                `json:",omitempty"`
+	Stockpiles  []domain.CreatedZone  `json:",omitempty"`
+	Bill        string                `json:",omitempty"`
+	HeldReasons []domain.HeldReason   `json:",omitempty"`
+	Refusal     *domain.NativeRefusal `json:",omitempty"`
 }
 
 func decode(data []byte, event *transition) error {
@@ -586,6 +587,9 @@ func apply(p domain.Progress, e transition) (domain.Progress, error) {
 		}
 		if e.Bill != "" {
 			return p.RecordBillReceipt(e.Attempt, e.Receipt, e.Bill)
+		}
+		if e.Refusal != nil {
+			return p.RecordRefusal(e.Attempt, *e.Refusal)
 		}
 		return p.RecordReceipt(e.Attempt, e.Receipt)
 	case "observe":

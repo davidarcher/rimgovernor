@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.GiveItemIntent c, Common.ObservationContext context)
         {
             var failure = Validate(c, context);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             return Apply(c.Hauler.Id, c.Recipient.Id, c.Definition, (int)c.ExpectedRemaining, context);
         }
         private static Receipts.EffectEvidence Evidence(Pawn hauler, Pawn recipient, Thing source, Job job, int remaining, bool issued)

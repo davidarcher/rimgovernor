@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.DrugPolicyIntent intent, Common.ObservationContext context)
         {
             var failure = Validate(intent, context);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             var db = Current.Game.drugPolicyDatabase;
             var policy = db.AllPolicies.FirstOrDefault(p => p.label == intent.Name);
             var outcome = Receipts.FieldOutcome.Unchanged;

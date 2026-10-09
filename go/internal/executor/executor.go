@@ -80,6 +80,9 @@ type Receipt struct {
 	// Bill is the native bill an applied production_bill's or surgery's
 	// evidence names.
 	Bill string
+	// Refusal is native's own account of a refused write; nil when the
+	// receipt is not a native refusal.
+	Refusal *domain.NativeRefusal
 }
 
 type Boundary interface {

@@ -237,6 +237,9 @@ type ProgressView struct {
 	Effect             Fact[Effect]
 	UnsuccessfulReason Fact[UnsuccessfulReason]
 	HeldReason         Fact[HoldEvidence]
+	// Refusal is native's own account of a refused receipt: failure code,
+	// reason and class. Unknown unless the receipt was a native refusal.
+	Refusal Fact[NativeRefusal]
 }
 
 // Progress transitions return a new value; failed transitions preserve the original.
@@ -372,6 +375,20 @@ func RegisterIntentKind(k ActionKind) { intentKinds[k] = true }
 
 func (p Progress) RecordReceipt(attempt AttemptID, receipt Receipt) (Progress, error) {
 	return p.recordReceipt(attempt, receipt)
+}
+
+// RecordRefusal records a refused receipt together with native's account of
+// the refusal; a class outside the three is recorded unknown.
+func (p Progress) RecordRefusal(attempt AttemptID, refusal NativeRefusal) (Progress, error) {
+	next, err := p.recordReceipt(attempt, ReceiptRefused)
+	if err != nil {
+		return p, err
+	}
+	if !refusal.Class.Valid() {
+		refusal.Class = RefusalUnknown
+	}
+	next.view.Refusal = Known(refusal)
+	return next, nil
 }
 
 // RecordZoneReceipt records an applied zone_create's receipt together with

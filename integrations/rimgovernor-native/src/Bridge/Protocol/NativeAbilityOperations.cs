@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, out var use);
             if (failure != null || use == null)
-                throw new ApplyRefusedException(failure?.Code ?? Common.FailureCode.NativeFailure, failure?.Detail ?? "Ability prerequisites changed before apply.");
+                throw new ApplyRefusedException(failure ?? ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Ability prerequisites changed before apply."));
             return use();
         }
     }

@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.ProductionBillIntent intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var bench, out var recipe, out var overseer);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             var gestator = bench!; var made = recipe!; var pawn = overseer;
             var standing = gestator.BillStack.Bills.OfType<Bill_Mech>().FirstOrDefault(b => b.recipe == made && !BillCommon.IsFinished(b));
             if (standing == null)

@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.RulesAttachIntent intent, Common.ObservationContext context)
         {
             var failure = Validate(intent);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             NativeRuleRuntime.Attach(context, intent.Rules, context.Tick + intent.LeaseTicks);
             return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
                 Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.Rules, Outcome = Receipts.FieldOutcome.Applied } } } };

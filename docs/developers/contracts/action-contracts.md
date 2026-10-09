@@ -106,6 +106,29 @@ moving the world under a valid token. The reason text itself lives in the native
 for each kind (grep the quoted phrase); the table names the rule order and the non-obvious
 rules.
 
+### Refusal class and the shared retry budget
+
+Every native refusal carries a `refusal_class` (`Refusal.refusal_class` on an action
+refusal, `Failure.refusal_class` on a precondition failure): `PERMANENT` (RimWorld refuses the
+same request until the world changes materially, or never), `TRANSIENT` (it may succeed once
+the world changes) or `UNKNOWN`. Native classifies where the refusal leaves the action
+dispatcher: the site's own class when it names one (`ApplyPreconditions.Token` and `Present`
+are transient), otherwise by failure code (`ProtoBoundary.RefusalClassOf`: stale identity or
+generation, lost authority, owner or attempt conflict, capacity, deadline and cancellation
+are transient; `Unsupported` is permanent; `InvalidRequest`, `NotFound`, `NativeFailure` and
+the wall codes stay unknown on purpose, since only the game's reason separates them). Go never
+classifies from reason text. A refusal without a class is unknown.
+
+The worker journals the failure code, reason and class beside `ReceiptRefused`
+(`Progress.view.Refusal`, `domain.NativeRefusal`), and the `dispatch` flight row carries
+`refusal_class` and `refusal_reason`. `policy.RefusalBudget` (`Record(subject, reason, class,
+world)`, `Allowed(subject, world)`) is the one reason-aware retry budget: a permanent refusal
+gives its subject up with `retry_budget_spent` carrying the real reason, a transient one waits
+(`retry_budget_waiting`) and re-arms when the world's `GenerationSnapshot` changes, an unknown
+one stays allowed and visible (`refusal_unknown`). The per-planner attempt counters named in
+the tables here (`maxMedicalAttemptsPerPatient` and similar) move onto it as their planners
+migrate; until then they stand.
+
 An acquisition inspection outrun by the live clock records a stale_facts hold and
 invalidates its cached reads. The worker gives it one immediate fresh retry before
 ordinary backoff. A stale inspection never dispatches a write; native ineligibility

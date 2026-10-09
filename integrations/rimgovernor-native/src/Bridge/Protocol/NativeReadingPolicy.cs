@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.ReadingPolicyIntent intent, Common.ObservationContext context)
         {
             var failure = Validate(intent, context);
-            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            if (failure != null) throw new ApplyRefusedException(failure);
             var db = Current.Game.readingPolicyDatabase;
             var want = intent.AllowedDefs.OrderBy(d => d, StringComparer.Ordinal).ToList();
             var policy = db.AllReadingPolicies.FirstOrDefault(p => p.label == intent.Name);

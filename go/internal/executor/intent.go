@@ -272,6 +272,7 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 	stockpiles := make([][]domain.CreatedZone, len(sent))
 	bills := make([]string, len(sent))
 	combat := make([][]domain.CombatResult, len(sent))
+	refusals := make([]*domain.NativeRefusal, len(sent))
 	causes := make([]error, len(sent))
 	if err = e.guard(ctx, expected, generation); err != nil {
 		for j := range sent {
@@ -294,10 +295,13 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 				kinds[j], zones[j], bills[j] = receipts[j].Kind, receipts[j].Zone, receipts[j].Bill
 				stockpiles[j] = receipts[j].Stockpiles
 				combat[j] = receipts[j].Combat
+				refusals[j] = receipts[j].Refusal
 			}
 			var check error
 			if p.Action.Kind() == domain.CombatBatchAction {
 				_, check = nexts[j].RecordCombatReceipt(p.Attempt, kinds[j], combat[j])
+			} else if refusals[j] != nil && kinds[j] == domain.ReceiptRefused {
+				_, check = nexts[j].RecordRefusal(p.Attempt, *refusals[j])
 			} else {
 				_, check = nexts[j].RecordReceipt(p.Attempt, kinds[j])
 			}
@@ -308,7 +312,7 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 			causes[j] = errors.Join(causes[j], ctx.Err())
 		}
 	}
-	e.recordReceipts(out, sent, placements, kinds, zones, stockpiles, bills, combat, causes)
+	e.recordReceipts(out, sent, placements, kinds, zones, stockpiles, bills, combat, refusals, causes)
 	return out
 }
 
@@ -316,7 +320,7 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 // transaction; an applied zone_create or bill placement records its zone or bill id on its own. Like
 // recordZone, it uses a fresh bounded context so cancellation never erases
 // an attempt.
-func (e *Executor) recordReceipts(out []BatchItem, sent []int, placements []Placement, kinds []domain.Receipt, zones []string, stockpiles [][]domain.CreatedZone, bills []string, combat [][]domain.CombatResult, causes []error) {
+func (e *Executor) recordReceipts(out []BatchItem, sent []int, placements []Placement, kinds []domain.Receipt, zones []string, stockpiles [][]domain.CreatedZone, bills []string, combat [][]domain.CombatResult, refusals []*domain.NativeRefusal, causes []error) {
 	ctx, cancel := context.WithTimeout(context.Background(), e.limits.JournalTimeout)
 	defer cancel()
 	var receipts []store.BatchReceipt
@@ -348,7 +352,7 @@ func (e *Executor) recordReceipts(out []BatchItem, sent []int, placements []Plac
 			out[i].Err = errors.Join(out[i].Err, err)
 			continue
 		}
-		receipts = append(receipts, store.BatchReceipt{Plan: plan, Action: p.Action.ID(), Attempt: p.Attempt, Receipt: kinds[j], Combat: combat[j]})
+		receipts = append(receipts, store.BatchReceipt{Plan: plan, Action: p.Action.ID(), Attempt: p.Attempt, Receipt: kinds[j], Combat: combat[j], Refusal: refusals[j]})
 		at = append(at, i)
 	}
 	results, err := e.journal.RecordReceipts(ctx, receipts)
