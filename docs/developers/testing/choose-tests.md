@@ -11,6 +11,9 @@ and builds affected probes. The Go cache reuses unchanged package results.
 Wait for the final PASS/FAIL; do not pipe it or follow it with a full Go suite.
 
 Use `-full` at an epic's end or when changed code is covered by a skipped test.
+`-full` always checks the whole Go module, even when the tree matches the
+base. Use `-full -base <revision>` to also check formatting across an epic;
+formatter file arguments are batched below the Windows command-line limit.
 A clean merge of main does not invalidate a passing result. After resolving
 conflicts, build and vet the touched Go packages instead of rerunning tests.
 

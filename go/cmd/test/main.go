@@ -13,7 +13,7 @@
 //
 // The default run passes -short, which skips the slow tests (git-heavy,
 // planner and solver suites) so it stays near 30 s; -full runs them, as
-// the nightly module run does.
+// the nightly module run does, even with no changed Go files.
 package main
 
 import (
@@ -27,7 +27,7 @@ import (
 
 func main() {
 	base := flag.String("base", "main", "revision to diff the working tree against")
-	full := flag.Bool("full", false, "run the slow tests too (go test without -short); for the end of an epic")
+	full := flag.Bool("full", false, "check the whole module including slow tests, even without changes; for the end of an epic")
 	flag.Parse()
 	affected.Full = *full
 	if err := run(*base); err != nil {

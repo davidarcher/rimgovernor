@@ -97,7 +97,7 @@ func test(repo string, changed []string) error {
 			return err
 		}
 	}
-	if !GoChanged(changed) {
+	if !Full && !GoChanged(changed) {
 		fmt.Println("tests: no Go files changed, nothing to test")
 		return nil
 	}
@@ -133,7 +133,8 @@ func GoChanged(changed []string) bool {
 	return false
 }
 
-// Full runs the slow tests too (go test without -short). The default loop
+// Full checks the whole module even without changed Go files and runs the
+// slow tests too (go test without -short). The default loop
 // stays under about 30 s; the slow tests run in the nightly module run and
 // at the end of an epic (cmd/test -full).
 var Full bool
@@ -174,8 +175,12 @@ func lint(goDir string, changed, packages []string) error {
 			files = append(files, rel)
 		}
 	}
-	if len(files) > 0 {
-		unformatted, err := output(goDir, "gofmt", append([]string{"-l"}, files...)...)
+	batches, err := fileBatches(files)
+	if err != nil {
+		return err
+	}
+	for _, batch := range batches {
+		unformatted, err := output(goDir, "gofmt", append([]string{"-l"}, batch...)...)
 		if err != nil {
 			return err
 		}
@@ -237,4 +242,30 @@ func runOut(dir string, out io.Writer, name string, args ...string) error {
 		return fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
 	}
 	return nil
+}
+
+// fileArgumentBudget leaves room for the executable, flags and terminating NUL
+// below Windows' 32767 UTF-16-unit command line limit. Twice the UTF-8 byte
+// length plus quotes and a separator bounds Windows quoting and UTF-16 encoding,
+// including escaped backslashes and non-ASCII filenames.
+const fileArgumentBudget = 16000
+
+func fileBatches(files []string) ([][]string, error) {
+	var batches [][]string
+	start, size := 0, 0
+	for i, file := range files {
+		cost := 2*len(file) + 3
+		if cost > fileArgumentBudget {
+			return nil, fmt.Errorf("file argument exceeds command-line budget: %q", file)
+		}
+		if size+cost > fileArgumentBudget {
+			batches = append(batches, files[start:i])
+			start, size = i, 0
+		}
+		size += cost
+	}
+	if start < len(files) {
+		batches = append(batches, files[start:])
+	}
+	return batches, nil
 }
