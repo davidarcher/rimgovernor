@@ -224,8 +224,6 @@ namespace HomeBridge.BridgeTools
         {
             Predicate<Thing>? skipRock = ignoreNaturalRock ? NaturalRock : null;
             var report = GenConstruct.CanPlaceBlueprintAt_NewTemp(definition, center, rotation, map, godMode, null, null, material, skipBlockingThing: skipRock);
-            if (report.Accepted && NativeQuestMonumentProtection.BlocksPlacement(map, definition, center, rotation))
-                report = new AcceptanceReport(NativeQuestMonumentProtection.Refusal);
             var result = new PlacementRotation {
                 rotation = RotationNames[rotation.AsInt & 3], accepted = report.Accepted,
                 reason = Diagnostic(report.Accepted ? "" : report.Reason ?? ""), Rect = GenAdj.OccupiedRect(center, rotation, definition.Size)

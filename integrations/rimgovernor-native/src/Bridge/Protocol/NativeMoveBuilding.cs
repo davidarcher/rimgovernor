@@ -55,7 +55,6 @@ namespace HomeBridge.BridgeTools
                 .Require(() => !mini.Position.Fogged(map) && !mini.IsForbidden(Faction.OfPlayer), "the packed building is fogged or forbidden")
                 .Require(() => inner!.def.rotatable || rotation == Rot4.North, "the building is not rotatable; only north is valid")
                 .Require(() => cell.InBounds(map) && !cell.Fogged(map), "the destination is out of bounds or fogged")
-                .Require(() => !NativeQuestMonumentProtection.BlocksPlacement(map, inner!.def, cell, rotation), NativeQuestMonumentProtection.Refusal)
                 .Require(() => GenConstruct.CanPlaceBlueprintAt(inner!.def, cell, rotation, map, false, mini, inner).Accepted, "the game refuses an install blueprint at the destination")
                 .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Mover(p, mini)), "no free colonist with construction enabled can reach the packed building");
             failure = rules.Holds ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "") : rules.Failure();
@@ -74,7 +73,6 @@ namespace HomeBridge.BridgeTools
             var cell = new IntVec3(intent.Destination.X, 0, intent.Destination.Z);
             var rotation = Rotation(intent);
             var found = Find(map, intent.ThingId);
-            if (found != null && NativeQuestMonumentProtection.Protects(found)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, NativeQuestMonumentProtection.Refusal);
             if (found == null && FindPacked(map, intent.ThingId) is MinifiedThing mini)
             {
                 piece = mini;
@@ -102,7 +100,6 @@ namespace HomeBridge.BridgeTools
                     && map.designationManager.DesignationOn(found!, DesignationDefOf.Deconstruct) == null, "the building is designated for uninstall or deconstruction")
                 .Require(() => cell.InBounds(map) && !cell.Fogged(map), "the destination is out of bounds or fogged")
                 .Require(() => GenConstruct.CanPlaceBlueprintAt(found!.def, cell, rotation, map, false, found, found).Accepted, "the game refuses a reinstall blueprint at the destination")
-                .Require(() => !NativeQuestMonumentProtection.BlocksPlacement(map, found!.def, cell, rotation), NativeQuestMonumentProtection.Refusal)
                 .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Mover(p, found!)), "no free colonist with construction enabled can reach the building");
             if (!rules.Holds) return rules.Failure();
             piece = building = found;

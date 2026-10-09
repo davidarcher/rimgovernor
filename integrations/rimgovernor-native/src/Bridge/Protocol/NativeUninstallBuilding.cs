@@ -31,7 +31,6 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact building is not installed on this map")
                 .Require(() => found!.Faction == Faction.OfPlayer, "the building is not the player's")
-                .Require(() => !NativeQuestMonumentProtection.Protects(found!), NativeQuestMonumentProtection.Refusal)
                 .Require(() => found!.def.Minifiable, "the building cannot be uninstalled")
                 .Require(() => InstallBlueprintUtility.ExistingBlueprintFor(found!) == null, "the building has a reinstall blueprint")
                 .Require(() => map.designationManager.DesignationOn(found!, DesignationDefOf.Deconstruct) == null, "the building is designated for deconstruction")
