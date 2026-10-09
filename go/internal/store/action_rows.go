@@ -123,6 +123,13 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		}
 	} else if use, ok := a.UseItem(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'use_item',?,?,?)", a.ID(), plan, ordinal, use.Pawn(), use.Target(), use.Item())
+	} else if batch, ok := a.CombatBatch(); ok {
+		data, err := json.Marshal(batch.Orders())
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,zone_payload) VALUES(?,?,?,'combat_batch',?,?,?)", a.ID(), plan, ordinal, batch.Fight(), batch.Key(), data)
+		return conflict(err)
 	} else if attach, ok := a.RulesAttach(); ok {
 		// definition is the lease in ticks, zone_payload the encoded rules (#2154).
 		data, encodeErr := json.Marshal(attach.Rules())
@@ -476,6 +483,22 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewIdeoligionReformAction(id, value)
+		return a, ordinal, err
+	}
+	if kind == "combat_batch" && target.Valid && def.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {
+		var orders []domain.CombatCommand
+		if err := json.Unmarshal(zone, &orders); err != nil {
+			return domain.Action{}, 0, err
+		}
+		canonical, marshalErr := json.Marshal(orders)
+		if marshalErr != nil || !bytes.Equal(canonical, zone) {
+			return domain.Action{}, 0, errors.New("invalid combat batch payload")
+		}
+		batch, err := domain.NewCombatBatch(domain.PlanID(target.String), def.String, orders)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewCombatBatchAction(id, batch)
 		return a, ordinal, err
 	}
 	if kind == "rules_attach" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil {

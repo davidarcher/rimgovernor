@@ -73,6 +73,7 @@ type Receipt struct {
 	Attempt  domain.AttemptID
 	Snapshot domain.GenerationSnapshot
 	Kind     domain.Receipt
+	Combat   []domain.CombatResult
 	// Zone is the zone an applied zone_create's evidence names.
 	Zone       string
 	Stockpiles []domain.CreatedZone

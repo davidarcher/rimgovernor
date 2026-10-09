@@ -6,7 +6,7 @@ Vocabulary follows the [glossary](../glossary.md). Stored names: tables
 `standards`, `methods` (`standard_id`, `episode`) and `rounds`; blob keys `standard/<id>`; the
 `standard` and `episode` JSON keys; status words `open`/`settled`/`voided` (Standards) and
 `open`/`completed`/`voided` (Projects). Finding strings are `unclear`/`unmet`/`met` (Incident bindings
-store `unclear`/`active`/`clear`); journal schema 207. Databases and saves from other versions are refused;
+store `unclear`/`active`/`clear`); journal schema 208. Databases and saves from other versions are refused;
 there is no adoption path.
 
 Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second
@@ -14,7 +14,7 @@ copy of a fact is a bug, not a cache.
 
 | Home | Holds | On reload |
 |---|---|---|
-| Native save, `GovernorState` blobs | Go intent the world cannot show: Standards (`standard/<id>`, a Standard's own intent in its `Record`, e.g. ManageCreepJoiners' inspection record), Projects (`project/<id>`, `GovernorProjectBlob`; finished Projects stay as the record), family plans (`family/*`; the layout plan, `family/layout_plan`, keys each herd reservation, pen, barn and vet room, with its herd's race in `Herd`, #2226) and the soldier squad (`family/soldier_squad`); written by Go at save time, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
+| Native save, `GovernorState` blobs | Go intent the world cannot show: Standards (`standard/<id>`, a Standard's own intent in its `Record`, e.g. ManageCreepJoiners' inspection record), Projects (`project/<id>`, `GovernorProjectBlob`; finished Projects stay as the record), family plans (`family/*`; the layout plan, `family/layout_plan`, keys each herd reservation, pen, barn and vet room, with its herd's race in `Herd`, #2226) the soldier squad (`family/soldier_squad`) and original temporary combat settings (`family/combat_restoration`); written by Go at save time, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
 | Native save, other components | Colony identity, per-target construction finishing-skill settings (Go chooses once; native transfers blueprint to frame and enforces every finishing order), and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition; deep drilling; home coverage) | Follows the save; construction settings disappear with the exact cancelled/completed target, never transfer by cell |
 | SQLite, one database per launch (`--state`) | The session journal: actions, transitions, admissions, clock inbox and cursors (native buffers clock events in memory only), request-ID replay | Not restored; read across launches only by postmortem |
 | Go memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (read once per load token), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`); the `standards`, `projects`, `methods` and family tables are such views of the save blobs (`RebuildStandards` rebuilds Standards and Projects under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
@@ -114,6 +114,35 @@ leave active capacity and cannot be modified or reused.
 - The database grows with completed work; each launch opens a fresh database by default, which is the
   retention bound.
 
+## Combat batches and restoration
+
+Combat decisions dispatch one immutable typed batch through Hands. Each batch is
+an Incident method beside the fight, linked to its fight plan. Ordered commands,
+dispatch state and individual native outcomes live only in the session journal.
+An accepted batch may contain individual refusals; an uncertain batch is never
+reported as applied and is never blindly retried. Observable settings and
+positions can settle its current effect; historical attacks and drug doses
+remain uncertain when no observation can establish them.
+
+A later recorded tactical decision can supersede the execution responsibility
+of older batches once every temporary setting has a saved restoration obligation.
+`plans.superseded_by` identifies that decision. Retirement removes the old batch
+from active capacity while retaining its original receipt and uncertainty. A
+mere dispatch return does not retire uncertain work. Fight closure requires
+restoration to finish first. Retired combat batch methods stay readable by plan
+identity, outside the active Incident method list.
+
+Before a temporary door or animal restriction changes, Go records its original
+hold-open/forbidden settings or allowed-area identity. Unknown originals cannot
+authorize a temporary change. These restoration obligations alone follow the
+save. A reload creates fresh Hands cleanup from those settings; it never restores
+old attacks, receipts or tactical memory. Cleanup uses the saved originals,
+including an animal's prior restricted area, rather than assuming unrestricted.
+The ordinary current-world authority and Safeguards still apply. A cleanup
+method may run after the combat Situation clears only when its exact actions
+match the saved restoration intent. A fresh cleanup decision transfers those same
+originals and retires the prior execution responsibility; uncertain historical
+receipts remain unchanged. Pending cleanup does not block unrelated protection.
 ## Related reading
 
 [Sessions and recovery](../architecture/sessions-and-recovery.md) ·

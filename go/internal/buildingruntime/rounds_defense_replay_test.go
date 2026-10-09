@@ -128,7 +128,7 @@ func replayDefenseSteps(t *testing.T, frame replayFrame, steps ...snapshot.Defen
 	current := session.State().Snapshot
 	world := store.World{Colony: current.Colony, Load: current.Load, Map: current.Map}
 	native := &defenseReplayNative{t: t, identity: boundary.Identity(current), native: uint64(current.Native), frame: frame}
-	planner, err := NewRoundsDefensePlanner(r, framed{native})
+	planner, err := newCombatTestPlanner(t, r, framed{native})
 	if err != nil {
 		t.Fatal(err)
 	}

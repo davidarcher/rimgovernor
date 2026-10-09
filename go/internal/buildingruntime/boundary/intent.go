@@ -25,6 +25,9 @@ type ActionsWriter interface {
 // building intent's key on what it builds, which is how the construction
 // census names the owning action (store.ConstructionClaims).
 func IntentKey(p executor.Placement) string {
+	if batch, ok := p.Action.CombatBatch(); ok {
+		return batch.Key()
+	}
 	if z, ok := p.Action.ZoneCreate(); ok && z.Kind() == domain.StockpileZone {
 		return string(p.Action.ID())
 	}
@@ -89,6 +92,16 @@ func DispatchIntents(ctx context.Context, leases LeaseSource, placements []execu
 		switch {
 		case result.GetApplied().GetApplied() != nil:
 			out[i].Kind = domain.ReceiptAccepted
+			if placements[i].Action.Kind() == domain.CombatBatchAction {
+				results, err := bridge.CombatOrderResults(result.GetApplied(), actions[i].GetCombatOrders())
+				if err != nil {
+					return out, err
+				}
+				for _, r := range results {
+					bridge.RecordCombatOrder(ctx, r)
+					out[i].Combat = append(out[i].Combat, domain.CombatResult{Index: r.Index, PawnID: r.PawnID, Applied: r.Applied, Refusal: r.Refusal, JobDef: r.JobDef})
+				}
+			}
 			if placements[i].Action.Kind() == domain.ZoneCreateAction {
 				effect := result.GetApplied().GetApplied().GetObserved().GetZone()
 				zone, _ := placements[i].Action.ZoneCreate()

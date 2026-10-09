@@ -348,7 +348,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if !ok {
 				return nil, errors.New("defense plans require typed combat observations")
 			}
-			config.Defense, err = buildingruntime.NewRoundsDefensePlanner(reviewer, defenseNative)
+			config.Defense, err = buildingruntime.NewRoundsDefensePlanner(reviewer, defenseNative, session)
 			if err != nil {
 				return nil, err
 			}

@@ -217,7 +217,7 @@ func loadIncident(ctx context.Context, tx *sql.Tx, id domain.IncidentID) (Incide
 	if out.Incident.ID != id {
 		return IncidentState{}, errors.New("incident identity mismatch")
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM incident_methods WHERE incident_id=? ORDER BY method_id LIMIT 257", id)
+	rows, err := tx.QueryContext(ctx, "SELECT m.method_id,m.plan_id FROM incident_methods m JOIN plans p ON p.id=m.plan_id WHERE m.incident_id=? AND (p.retired=0 OR (m.method_id NOT LIKE 'batch-%' AND m.method_id NOT LIKE 'restore-%')) ORDER BY m.method_id LIMIT 257", id)
 	if err != nil {
 		return IncidentState{}, err
 	}

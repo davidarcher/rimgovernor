@@ -220,6 +220,7 @@ type ProgressView struct {
 	// method owns its zone for MaintainHomeCoverage (#315).
 	Zone       Fact[string]
 	Stockpiles Fact[CreatedZones]
+	Combat     Fact[CombatResults]
 	// Bill is the native bill an applied production_bill or surgery receipt
 	// identifies (BillEffect.bill, SurgeryEffect.bill): the id a later
 	// remove_production_bill names.

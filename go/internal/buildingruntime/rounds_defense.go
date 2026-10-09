@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
@@ -20,12 +22,9 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	mirrorpb "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 type RoundsDefenseSource interface {
-	// CombatOrders sends a stop's changed orders (#850, #852).
-	CombatOrders(context.Context, *c.Identity, string, *op.CombatOrders) ([]bridge.CombatOrderResult, error)
 	CombatGeometry(context.Context, *mirrorpb.CombatGeometryRequest) (*mirrorpb.CombatGeometry, bridge.Result, error)
 	// ReadCombat is the newest snapshot frame's combat state and the
 	// fight's other inputs (#851, #853, #858).
@@ -33,7 +32,12 @@ type RoundsDefenseSource interface {
 	// ReadDefenseSite censuses a burn-out's fuel (#1120).
 	burnFuelSource
 }
+type CombatHands interface {
+	RunBatch(context.Context, domain.PlanID, []domain.ActionID) ([]executor.BatchItem, error)
+}
+
 type RoundsDefensePlanner struct {
+	hands    CombatHands
 	reviewer *Rounder
 	native   RoundsDefenseSource
 }
@@ -42,11 +46,11 @@ type RoundsDefenseResult struct {
 	Plan domain.PlanID
 }
 
-func NewRoundsDefensePlanner(reviewer *Rounder, native RoundsDefenseSource) (*RoundsDefensePlanner, error) {
-	if reviewer == nil || native == nil {
+func NewRoundsDefensePlanner(reviewer *Rounder, native RoundsDefenseSource, hands CombatHands) (*RoundsDefensePlanner, error) {
+	if reviewer == nil || native == nil || hands == nil {
 		return nil, fmt.Errorf("%w: NewRoundsDefensePlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	return &RoundsDefensePlanner{reviewer, native}, nil
+	return &RoundsDefensePlanner{reviewer: reviewer, native: native, hands: hands}, nil
 }
 func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *stepArbiter) (RoundsDefenseResult, error) {
 	p := r.reviewer.player
@@ -56,6 +60,12 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoundsDefenseResult{}, fmt.Errorf("%w: decide: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
+	}
+	if err := r.restoreReloadedCombat(call, state); err != nil {
+		if !errors.Is(err, errCombatRestorationPending) {
+			return RoundsDefenseResult{}, err
+		}
+		telemetry.Decide(call, telemetry.Decision{Kind: "admission", Component: "routine-defense", Verdict: "held", Reason: "restoration_pending", Attrs: map[string]any{"error": err.Error()}})
 	}
 	review, err := p.journal.LoadRounds(call)
 	if err != nil {
@@ -95,7 +105,6 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 				if err = r.clearFightDoors(call, state, method.Plan); err != nil {
 					return RoundsDefenseResult{}, err
 				}
-				r.clearFightAnimals(call, state, method.Plan)
 				if err = p.journal.CloseCombatFight(call, method.Plan); err != nil {
 					return RoundsDefenseResult{}, err
 				}
@@ -129,6 +138,9 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoundsDefenseResult{}, err
+		}
+		if len(plan.Spec.Actions()) == 1 && plan.Spec.Actions()[0].Kind() == domain.CombatBatchAction {
+			continue
 		}
 		if store.PlanOpen(plan) {
 			return RoundsDefenseResult{Verdict: BuildingReasonExistingWork}, nil
@@ -198,6 +210,9 @@ func (r *RoundsDefensePlanner) decide(call, epoch context.Context, arbiter *step
 	view.Burn, view.Royalty, view.Drugs = burn, r.reviewer.census.remembered(), drug
 	tick := view.Tick
 	stop := combatStop(combat, memory.Tick)
+	if err = r.reconcileCombatBatches(call, state, incident, view); err != nil {
+		return RoundsDefenseResult{}, err
+	}
 	orders, ask, next := policy.DecideCombat(view, policy.GeometryReply{}, stop, memory)
 	recorded := snap.CombatStop{Tick: tick, Stop: stop, Orderable: orderable, Ask: ask, MemoryIn: memory}
 	if l, known := held.Value(); known {

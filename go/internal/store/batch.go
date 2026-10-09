@@ -21,6 +21,7 @@ type BatchReceipt struct {
 	Action  domain.ActionID
 	Attempt domain.AttemptID
 	Receipt domain.Receipt
+	Combat  []domain.CombatResult
 }
 
 // BatchResult is one item's outcome, in input order: the Progress its single
@@ -52,7 +53,7 @@ func (s *Store) DispatchBatch(ctx context.Context, attempts []BatchAttempt) ([]B
 func (s *Store) RecordReceipts(ctx context.Context, receipts []BatchReceipt) ([]BatchResult, error) {
 	return s.advanceBatch(ctx, len(receipts), func(i int) (domain.PlanID, domain.ActionID, transition) {
 		r := receipts[i]
-		return r.Plan, r.Action, transition{Kind: "receipt", Attempt: r.Attempt, Receipt: r.Receipt}
+		return r.Plan, r.Action, transition{Kind: "receipt", Attempt: r.Attempt, Receipt: r.Receipt, Combat: r.Combat}
 	})
 }
 

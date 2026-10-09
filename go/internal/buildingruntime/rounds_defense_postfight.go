@@ -197,7 +197,12 @@ func (r *RoundsDefensePlanner) finishRaider(call, epoch context.Context, state C
 		return RoundsDefenseResult{}, err
 	}
 	tick := domain.Tick(combat.Context.GetTick())
-	results, orders, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-finish-%s-%d", fightPlan, raider.GetId(), tick), drafts, orders)
+	label := fmt.Sprintf("%s-finish-%s-%d", fightPlan, raider.GetId(), tick)
+	batch, err := combatBatchPlan(fightPlan, label, drafts, orders)
+	if err != nil {
+		return RoundsDefenseResult{}, err
+	}
+	results, orders, err := r.sendCombatBatch(call, state, fightPlan, label, drafts, orders)
 	if err != nil {
 		return RoundsDefenseResult{}, err
 	}
@@ -205,6 +210,7 @@ func (r *RoundsDefensePlanner) finishRaider(call, epoch context.Context, state C
 		return RoundsDefenseResult{}, err
 	}
 	record, memory := combatStopRecord(policy.CombatView{Tick: tick}, orders, results, memory)
+	record.Batch = batch.ID()
 	if len(record.Orders) > 0 {
 		if err = p.journal.RecordCombatStop(call, fightPlan, record, memory); err != nil {
 			return RoundsDefenseResult{}, err

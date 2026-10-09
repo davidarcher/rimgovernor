@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -16,14 +17,23 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+type siteCombatKeySource struct {
+	RoundsDefenseSource
+	fake *combatOrdersFake
+}
+
+func (s siteCombatKeySource) CombatOrders(ctx context.Context, id *c.Identity, key string, command *op.CombatOrders) ([]bridge.CombatOrderResult, error) {
+	return s.fake.CombatOrders(ctx, id, key, command)
+}
+
 type siteCombatSource struct {
-	combatKeySource
+	siteCombatKeySource
 	identity *c.Identity
 }
 
 func (s *siteCombatSource) CombatOrders(ctx context.Context, id *c.Identity, key string, command *op.CombatOrders) ([]bridge.CombatOrderResult, error) {
 	s.identity = proto.Clone(id).(*c.Identity)
-	return s.combatKeySource.CombatOrders(ctx, id, key, command)
+	return s.siteCombatKeySource.CombatOrders(ctx, id, key, command)
 }
 
 func (s *siteCombatSource) CombatGeometry(ctx context.Context, request *mp.CombatGeometryRequest) (*mp.CombatGeometry, bridge.Result, error) {
@@ -91,7 +101,7 @@ func TestSelectedSiteMapUsesSharedCombat(t *testing.T) {
 	if len(orders) == 0 || !reflect.DeepEqual(orders, want) || !reflect.DeepEqual(ask, wantAsk) {
 		t.Fatalf("site combat differs: orders=%+v home=%+v", orders, want)
 	}
-	native := &siteCombatSource{combatKeySource: combatKeySource{fake: &combatOrdersFake{}}}
+	native := &siteCombatSource{siteCombatKeySource: siteCombatKeySource{fake: &combatOrdersFake{}}}
 	planner := &RoundsDefensePlanner{native: native}
 	id := frame.GetContext().GetIdentity()
 	if s.Ask != nil {
@@ -101,7 +111,15 @@ func TestSelectedSiteMapUsesSharedCombat(t *testing.T) {
 		}
 	}
 	state := ControlState{Snapshot: domain.GenerationSnapshot{Colony: domain.ColonyID(id.GetColonyId()), Load: domain.LoadID(id.GetLoadToken()), Map: siteMap}}
-	results, _, err := planner.sendCombatBatch(context.Background(), state, "site-fight", nil, orders)
+	plan, err := combatBatchPlan("fight", "site-fight", nil, orders)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire, err := bridge.IntentAction("site-key", plan.Actions()[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err := native.CombatOrders(context.Background(), boundary.Identity(state.Snapshot), wire.GetKey(), wire.GetCombatOrders())
 	if err != nil || len(results) != len(orders) || native.identity.GetMapId() != siteMap {
 		t.Fatalf("site batch: identity=%v results=%v err=%v", native.identity, results, err)
 	}

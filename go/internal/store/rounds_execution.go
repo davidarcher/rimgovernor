@@ -78,9 +78,7 @@ func (s *Store) AuthorizeRoundsPlan(ctx context.Context, root, target domain.Gen
 // it and the plan is its unretired method.
 func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review Rounds, id domain.IncidentID, root, target domain.GenerationSnapshot) error {
 	binding, bound := review.incidentBinding(id)
-	if !bound || binding.Situation != domain.SituationActive {
-		return ErrConflict
-	}
+
 	state, err := loadIncident(ctx, tx, id)
 	if err != nil {
 		return err
@@ -99,6 +97,9 @@ func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review Rounds, id do
 		return err
 	}
 	if p.Retired || p.Spec.Revision() != target.Revision {
+		return ErrConflict
+	}
+	if (!bound || binding.Situation != domain.SituationActive) && !combatRestorationPlan(ctx, tx, p) {
 		return ErrConflict
 	}
 	return roundsActionsSupported(p.Spec)
@@ -155,7 +156,7 @@ func authorizeStandardPlan(ctx context.Context, tx *sql.Tx, review Rounds, owner
 func roundsActionsSupported(spec domain.PlanSpec) error {
 	for _, action := range spec.Actions() {
 		switch action.Kind() {
-		case domain.BuildingAction, domain.SupplyAllowAction, domain.SupplyForbidAction, domain.WorkAssignmentAction, domain.AcquisitionAction, domain.AcquisitionWithdrawAction,
+		case domain.CombatBatchAction, domain.BuildingAction, domain.SupplyAllowAction, domain.SupplyForbidAction, domain.WorkAssignmentAction, domain.AcquisitionAction, domain.AcquisitionWithdrawAction,
 			domain.ZoneCreateAction, domain.ProductionBillAction, domain.OwnedDraftAction, domain.SubdueAction,
 			domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction, domain.HaulAction, domain.EquipAction, domain.DropEquipmentAction,
 			domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction, domain.MovementAction, domain.HusbandryAction,

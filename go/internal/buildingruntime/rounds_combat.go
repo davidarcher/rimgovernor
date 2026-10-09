@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -12,7 +13,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
@@ -21,7 +22,7 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -116,7 +117,7 @@ func (r *RoundsDefensePlanner) admitFight(call, epoch context.Context, incident 
 	if len(drafts)+len(orders) == 0 {
 		return admitted, p.journal.SaveCombatMemory(call, id, next)
 	}
-	results, orders, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-admit", id), drafts, orders)
+	results, orders, err := r.sendCombatBatch(call, state, id, fmt.Sprintf("%s-admit", id), drafts, orders)
 	if err != nil {
 		// Nothing is known of the batch: the next stop's rows show who
 		// was drafted.
@@ -131,68 +132,22 @@ func (r *RoundsDefensePlanner) admitFight(call, epoch context.Context, incident 
 	if len(record.Orders) == 0 {
 		return admitted, p.journal.SaveCombatMemory(call, id, next)
 	}
+	batchPlan, _ := combatBatchPlan(id, fmt.Sprintf("%s-admit", id), drafts, orders)
+	record.Batch = batchPlan.ID()
 	record.Stop = a.stop
 	return admitted, p.journal.RecordCombatStop(call, id, record, next)
 }
 
-// clearFightAnimals restores the restriction of every animal an open
-// fight still has zoned (#1058) as the fight closes. It is best effort: a
-// failed batch is logged and the animal keeps its one-cell area.
-func (r *RoundsDefensePlanner) clearFightAnimals(call context.Context, state ControlState, plan domain.PlanID) {
-	fight, ok, err := r.reviewer.player.journal.LoadCombatFight(call, plan)
-	if err != nil || !ok || !fight.Open {
-		return
-	}
-	clears := policy.AnimalClears(fight.Memory)
-	if len(clears) == 0 {
-		return
-	}
-	if _, _, err = r.sendCombatBatch(call, state, fmt.Sprintf("%s-animals", plan), nil, clears); err != nil {
-		defenseAction(call, "routine-defense", slog.LevelWarn, "failed", "animal_clear", string(plan), map[string]any{"plan": string(plan), "error": err})
-	}
-}
-
+// clearFightDoors restores every original temporary door and animal setting.
 func (r *RoundsDefensePlanner) clearFightDoors(call context.Context, state ControlState, plan domain.PlanID) error {
-	fight, found, err := r.reviewer.player.journal.LoadCombatFight(call, plan)
-	if err != nil || !found || !fight.Open {
+	kept, ok, err := r.reviewer.player.journal.LoadCombatRestoration(call)
+	if err != nil || !ok {
 		return err
 	}
-	clears := policy.CombatDoorClears(fight.Memory)
-	if len(clears) == 0 {
-		return nil
+	if kept.Owner != plan {
+		return ErrControl
 	}
-	combat, err := r.native.ReadCombat(call, boundary.Identity(state.Snapshot))
-	if err != nil {
-		return err
-	}
-	states, known := combat.DoorStates.Value()
-	if !known {
-		return fmt.Errorf("%w: combat door cleanup needs current door states", ErrControl)
-	}
-	clears = slices.DeleteFunc(clears, func(order policy.CombatOrder) bool {
-		index := slices.IndexFunc(states, func(door policy.RoomDoor) bool { return door.Cell == order.Cell })
-		if index < 0 {
-			return true
-		}
-		held, known := states[index].HoldOpen.Value()
-		return known && !held
-	})
-	if len(clears) == 0 {
-		return nil
-	}
-	results, _, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-door-clear", plan), nil, clears)
-	if err != nil {
-		return err
-	}
-	if results == nil {
-		return fmt.Errorf("%w: combat door cleanup receipt uncertain", ErrControl)
-	}
-	for _, result := range results {
-		if !result.Applied && result.Refusal != bridge.CombatRefusalNotADoor {
-			return fmt.Errorf("%w: combat door cleanup refused: %s", ErrControl, result.Refusal)
-		}
-	}
-	return nil
+	return r.restoreCombatSettings(call, state, kept)
 }
 
 // recordDrafts records a batch's leading draft results on the fight's
@@ -237,7 +192,7 @@ func undraftedRoles(m policy.CombatMemory, orderable []domain.PawnID, view polic
 // giving orders, and returns the stop's evidence and the memory without
 // the refused orders, which the next stop gives again.
 func (r *RoundsDefensePlanner) issueCombatOrders(call context.Context, state ControlState, plan domain.PlanID, view policy.CombatView, drafts []domain.PawnID, orders []policy.CombatOrder, memory policy.CombatMemory) (store.CombatStopRecord, policy.CombatMemory, error) {
-	results, orders, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-stop-%d", plan, view.Tick), drafts, orders)
+	results, orders, err := r.sendCombatBatch(call, state, plan, fmt.Sprintf("%s-stop-%d", plan, view.Tick), drafts, orders)
 	if err != nil {
 		return store.CombatStopRecord{}, memory, err
 	}
@@ -245,6 +200,8 @@ func (r *RoundsDefensePlanner) issueCombatOrders(call context.Context, state Con
 		return store.CombatStopRecord{}, memory, err
 	}
 	record, memory := combatStopRecord(view, orders, results, memory)
+	batchPlan, _ := combatBatchPlan(plan, fmt.Sprintf("%s-stop-%d", plan, view.Tick), drafts, orders)
+	record.Batch = batchPlan.ID()
 	return record, memory, nil
 }
 
@@ -262,7 +219,7 @@ func combatStopRecord(view policy.CombatView, orders []policy.CombatOrder, resul
 	}
 	record := store.CombatStopRecord{Tick: view.Tick}
 	for i, order := range orders {
-		row := store.CombatOrderRecord{CombatOrder: order, Applied: results == nil}
+		row := store.CombatOrderRecord{CombatOrder: order, Uncertain: results == nil}
 		if results != nil {
 			row.Applied, row.Refusal = results[i].Applied, results[i].Refusal
 		}
@@ -292,85 +249,77 @@ func combatStopRecord(view policy.CombatView, orders []policy.CombatOrder, resul
 // order for each of drafts (#910), then orders.
 // It returns every order's result in that order (nil for an uncertain
 // receipt) and the orders sent.
-func (r *RoundsDefensePlanner) sendCombatBatch(call context.Context, state ControlState, action string, drafts []domain.PawnID, orders []policy.CombatOrder) ([]bridge.CombatOrderResult, []policy.CombatOrder, error) {
-	command := &op.CombatOrders{}
-	for _, pawn := range drafts {
-		command.Orders = append(command.Orders, &op.CombatOrder{Pawn: &op.EntityPrecondition{EntityId: proto.String(string(pawn))}, Order: &op.CombatOrder_Draft{Draft: &op.Clear{}}})
+func combatBatchCommands(drafts []domain.PawnID, orders []policy.CombatOrder) []domain.CombatCommand {
+	var commands []domain.CombatCommand
+	for _, p := range drafts {
+		commands = append(commands, domain.CombatCommand{Kind: "draft", Pawn: p})
 	}
-	for _, order := range orders {
-		wire := &op.CombatOrder{Pawn: &op.EntityPrecondition{EntityId: proto.String(string(order.Pawn))}}
-		switch order.Kind {
-		case policy.OrderMove:
-			wire.Order = &op.CombatOrder_Move{Move: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}
-		case policy.OrderAttack:
-			wire.Order = &op.CombatOrder_Attack{Attack: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}
-		case policy.OrderRescue:
-			wire.Order = &op.CombatOrder_Rescue{Rescue: &op.CombatRescue{Downed: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}}
-		case policy.OrderManMortar:
-			wire.Order = &op.CombatOrder_ManMortar{ManMortar: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}
-		case policy.OrderMortarFire:
-			wire.Pawn = nil
-			fire := &op.CombatMortarFire{Mortar: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}
-			if !order.Clear {
-				// No target clears the forced target (#1235).
-				fire.Target = &c.Cell{X: proto.Int32(order.Aim.X), Z: proto.Int32(order.Aim.Z)}
-			}
-			if order.Shell != "" {
-				fire.Shell = proto.String(order.Shell)
-			}
-			wire.Order = &op.CombatOrder_MortarFire{MortarFire: fire}
-		case policy.OrderAttackGround:
-			wire.Order = &op.CombatOrder_AttackGround{AttackGround: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}
-		case policy.OrderRepair:
-			wire.Order = &op.CombatOrder_Repair{Repair: &op.CombatRepair{Cell: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}}
-		case policy.OrderDoor:
-			mode := op.CombatDoorMode_COMBAT_DOOR_MODE_FORBID
-			switch order.Door {
-			case policy.DoorAllow:
-				mode = op.CombatDoorMode_COMBAT_DOOR_MODE_ALLOW
-			case policy.DoorHoldOpen:
-				mode = op.CombatDoorMode_COMBAT_DOOR_MODE_HOLD_OPEN
-			case policy.DoorClose:
-				mode = op.CombatDoorMode_COMBAT_DOOR_MODE_CLOSE
-			}
-			wire.Pawn = nil
-			wire.Order = &op.CombatOrder_Door{Door: &op.CombatDoor{Cell: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}, Mode: mode.Enum()}}
-		case policy.OrderStop:
-			wire.Order = &op.CombatOrder_Stop{Stop: &op.Clear{}}
-		case policy.OrderHoldPosition:
-			wire.Order = &op.CombatOrder_HoldPosition{HoldPosition: &op.Clear{}}
-		case policy.OrderRelease:
-			wire.Order = &op.CombatOrder_Release{Release: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}
-		case policy.OrderAnimalArea:
-			wire.Order = &op.CombatOrder_AnimalArea{AnimalArea: &op.CombatAnimalArea{Area: &op.CombatAnimalArea_Cell{Cell: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}}}
-		case policy.OrderAnimalClear:
-			wire.Order = &op.CombatOrder_AnimalArea{AnimalArea: &op.CombatAnimalArea{Area: &op.CombatAnimalArea_Clear{Clear: &op.Clear{}}}}
-		case policy.OrderFireMode:
-			mode := op.CombatFireMode_COMBAT_FIRE_MODE_AT_WILL
-			if order.FireMode == policy.HoldFire {
-				mode = op.CombatFireMode_COMBAT_FIRE_MODE_HOLD
-			}
-			wire.Order = &op.CombatOrder_FireMode{FireMode: mode}
-		case policy.OrderDrug:
-			wire.Order = &op.CombatOrder_CombatDrug{CombatDrug: order.Drug}
-		default:
-			return nil, nil, fmt.Errorf("%w: sendCombatBatch: case policy.OrderFireMode", ErrControl)
+	for _, o := range orders {
+		commands = append(commands, domain.CombatCommand{Kind: string(o.Kind), Pawn: o.Pawn, Target: o.Target, Cell: o.Cell, Aim: o.Aim, Door: string(o.Door), FireMode: o.FireMode, Clear: o.Clear, Shell: o.Shell, Drug: o.Drug})
+	}
+	return commands
+}
+func combatBatchPlan(fight domain.PlanID, action string, drafts []domain.PawnID, orders []policy.CombatOrder) (domain.PlanSpec, error) {
+	commands := combatBatchCommands(drafts, orders)
+	raw, err := json.Marshal(commands)
+	if err != nil {
+		return domain.PlanSpec{}, err
+	}
+	sum := sha256.Sum256(append([]byte(action+"\n"), raw...))
+	key := fmt.Sprintf("combat-%x", sum[:])
+	batch, err := domain.NewCombatBatch(fight, key, commands)
+	if err != nil {
+		return domain.PlanSpec{}, err
+	}
+	a, err := domain.NewCombatBatchAction(domain.ActionID(key), batch)
+	if err != nil {
+		return domain.PlanSpec{}, err
+	}
+	return domain.NewPlan(domain.PlanID(key), 1, []domain.Action{a})
+}
+func (r *RoundsDefensePlanner) sendCombatBatch(call context.Context, state ControlState, fight domain.PlanID, action string, drafts []domain.PawnID, orders []policy.CombatOrder) ([]bridge.CombatOrderResult, []policy.CombatOrder, error) {
+	if err := r.captureCombatSettings(call, state, fight, orders); err != nil {
+		return nil, nil, err
+	}
+	plan, err := combatBatchPlan(fight, action, drafts, orders)
+	if err != nil {
+		return nil, nil, err
+	}
+	p := r.reviewer.player
+	saved, err := p.journal.CommitCombatBatch(call, plan)
+	if err != nil {
+		return nil, nil, err
+	}
+	progress := saved.Progress[0]
+	if !saved.Retired && !progress.View().Unresolved && (progress.View().Stage == domain.Pending || progress.View().Stage == domain.Prepared) {
+
+		items, runErr := r.hands.RunBatch(call, plan.ID(), []domain.ActionID{plan.Actions()[0].ID()})
+		if runErr != nil {
+			return nil, nil, runErr
 		}
-		command.Orders = append(command.Orders, wire)
+		if len(items) != 1 {
+			return nil, nil, ErrControl
+		}
+		if items[0].Err != nil && !items[0].Result.Progress.View().Unresolved {
+			return nil, nil, items[0].Err
+		}
+		progress = items[0].Result.Progress
 	}
-	// The key carries the batch's hash: two different batches under one
-	// action (several stops at a tick) must not share a key, or native
-	// replays the first receipt (#2344); an identical retry still replays.
-	payload, err := proto.MarshalOptions{Deterministic: true}.Marshal(command)
-	if err != nil {
+	if err = p.journal.RetireCombatBatch(call, plan.ID()); err != nil {
 		return nil, nil, err
 	}
-	sum := sha256.Sum256(payload)
-	results, err := r.native.CombatOrders(call, boundary.Identity(state.Snapshot), fmt.Sprintf("%s-%x", action, sum[:6]), command)
-	if err != nil {
-		return nil, nil, err
+	if receipt, known := progress.View().Receipt.Value(); known && (receipt == domain.ReceiptRefused || receipt == domain.ReceiptUnsent) {
+		return nil, nil, fmt.Errorf("%w: combat batch %s", ErrControl, receipt)
 	}
-	return results, orders, nil
+	results, known := progress.View().Combat.Value()
+	if !known {
+		return nil, orders, nil
+	}
+	var out []bridge.CombatOrderResult
+	for _, v := range results.Orders() {
+		out = append(out, bridge.CombatOrderResult{Index: v.Index, PawnID: v.PawnID, Applied: v.Applied, Refusal: v.Refusal, JobDef: v.JobDef})
+	}
+	return out, orders, nil
 }
 
 // answerGeometry answers DecideCombat's geometry ask with one

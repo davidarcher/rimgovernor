@@ -176,5 +176,12 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 			return nil, err
 		}
 	}
+	if r, ok, err := loadCombatRestoration(ctx, tx); err != nil {
+		return nil, err
+	} else if ok {
+		if err = family(GovernorCombatRestorationKey, nil, r); err != nil {
+			return nil, err
+		}
+	}
 	return out, tx.Commit()
 }

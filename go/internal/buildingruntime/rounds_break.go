@@ -91,18 +91,58 @@ func (r *RoundsDefensePlanner) reconcileSubdueFight(call, epoch context.Context,
 				orders = append(orders, policy.CombatOrder{Pawn: draft.Pawn(), Kind: policy.OrderStop})
 			}
 		}
-		results, _, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-subdue-stop-%d", method.Plan, combat.Context.GetTick()), nil, orders)
+		batchLabel := fmt.Sprintf("%s-subdue-stop-%d", method.Plan, combat.Context.GetTick())
+		batch, err := combatBatchPlan(method.Plan, batchLabel, nil, orders)
 		if err != nil {
 			return result, true, err
 		}
-		if results == nil {
-			return result, true, nil
+		results, _, err := r.sendCombatBatch(call, state, method.Plan, batchLabel, nil, orders)
+		if err != nil {
+			return result, true, err
 		}
-		record := store.CombatStopRecord{Tick: domain.Tick(combat.Context.GetTick()), Stop: stop}
-		confirmed := true
+		// Inspect after dispatch, including a lost reply: stopped current work
+		// proves the cleanup postcondition without inventing an applied receipt.
+		confirmed := results != nil
+		if results == nil {
+			fresh, readErr := r.native.ReadCombat(call, boundary.Identity(state.Snapshot))
+			if readErr != nil {
+				return result, true, readErr
+			}
+			if _, readErr = boundary.Context(fresh.Context, state.Snapshot); readErr != nil {
+				return result, true, readErr
+			}
+			confirmed = true
+			for _, order := range orders {
+				row, ok := fresh.Detail.Get(string(order.Pawn))
+				confirmed = confirmed && ok && row != nil && row.Job != nil && row.Job.PlayerForced != nil && !row.Job.GetPlayerForced() && row.Job.QueuedJobs != nil && row.Job.GetQueuedJobs() == 0 && len(row.Job.Issues) == 0
+			}
+			if confirmed {
+				saved, loadErr := p.journal.LoadPlan(call, batch.ID())
+				if loadErr != nil {
+					return result, true, loadErr
+				}
+				v := saved.Progress[0].View()
+				if v.Unresolved {
+					scope := state.Snapshot
+					scope.Plan, scope.Revision = batch.ID(), batch.Revision()
+					_, err = p.journal.Observe(call, batch.ID(), domain.Observation{Action: v.Action, Attempt: v.Attempt, Snapshot: scope, Tick: domain.Tick(fresh.Context.GetTick()), Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, scope)
+					if err != nil {
+						return result, true, err
+					}
+					if err = p.journal.RetireCombatBatch(call, batch.ID()); err != nil {
+						return result, true, err
+					}
+				}
+			}
+		}
+		record := store.CombatStopRecord{Tick: domain.Tick(combat.Context.GetTick()), Stop: stop, Batch: batch.ID()}
 		for i, order := range orders {
-			record.Orders = append(record.Orders, store.CombatOrderRecord{CombatOrder: order, Applied: results[i].Applied, Refusal: results[i].Refusal})
-			confirmed = confirmed && (results[i].Applied || results[i].Refusal == bridge.CombatRefusalNotDrafted || results[i].Refusal == bridge.CombatRefusalNotFound)
+			entry := store.CombatOrderRecord{CombatOrder: order, Uncertain: results == nil}
+			if results != nil {
+				entry.Applied, entry.Refusal = results[i].Applied, results[i].Refusal
+				confirmed = confirmed && (entry.Applied || entry.Refusal == bridge.CombatRefusalNotDrafted || entry.Refusal == bridge.CombatRefusalNotFound)
+			}
+			record.Orders = append(record.Orders, entry)
 		}
 		if len(record.Orders) > 0 {
 			if err = p.journal.RecordCombatStop(call, method.Plan, record, fight.Memory); err != nil {

@@ -194,7 +194,7 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 	t.Parallel()
 	r, db, session, _, n := roundsFixture(t)
 	ctx := context.Background()
-	planner, err := NewRoundsDefensePlanner(r, framed{&equipTestNative{roundsNative: n}})
+	planner, err := newCombatTestPlanner(t, r, framed{&equipTestNative{roundsNative: n}})
 	if err != nil {
 		t.Fatal(err)
 	}

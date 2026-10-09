@@ -27,12 +27,14 @@ const CombatEvidenceStops = 32
 // CombatOrderRecord is one order of a stop and its native outcome.
 type CombatOrderRecord struct {
 	policy.CombatOrder
-	Applied bool
-	Refusal string `json:",omitempty"`
+	Applied   bool
+	Uncertain bool   `json:",omitempty"`
+	Refusal   string `json:",omitempty"`
 }
 
 // CombatStopRecord is one stop's changed orders.
 type CombatStopRecord struct {
+	Batch  domain.PlanID `json:",omitempty"`
 	Tick   domain.Tick
 	Stop   policy.StopEvent
 	Orders []CombatOrderRecord
@@ -268,8 +270,25 @@ func (s *Store) UpdateCombatRoster(ctx context.Context, plan domain.PlanID, add,
 // CloseCombatFight ends plan's fight; the undraft sweep then undrafts its
 // roster.
 func (s *Store) CloseCombatFight(ctx context.Context, plan domain.PlanID) error {
-	_, err := s.db.ExecContext(ctx, "UPDATE combat_fights SET open=0 WHERE plan_id=?", string(plan))
-	return err
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	kept, ok, err := loadCombatRestoration(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if ok && kept.Owner == plan {
+		return ErrConflict
+	}
+	if _, err = tx.ExecContext(ctx, "UPDATE combat_fights SET open=0 WHERE plan_id=?", plan); err != nil {
+		return err
+	}
+	if err = supersedeCombatBatches(ctx, tx, plan, plan, false); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // SaveCombatMemory replaces an open fight's memory without evidence: a
@@ -315,6 +334,11 @@ func (s *Store) RecordCombatStop(ctx context.Context, plan domain.PlanID, stop C
 	}
 	if _, err = tx.ExecContext(ctx, "DELETE FROM combat_evidence WHERE plan_id=? AND sequence<=(SELECT MAX(sequence) FROM combat_evidence WHERE plan_id=?)-?", string(plan), string(plan), CombatEvidenceStops); err != nil {
 		return err
+	}
+	if stop.Batch != "" {
+		if err = supersedeCombatBatches(ctx, tx, plan, stop.Batch, false); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

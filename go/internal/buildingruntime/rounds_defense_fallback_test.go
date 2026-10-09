@@ -87,7 +87,7 @@ func crossedHoldFight(t *testing.T) {
 	// The corridor runs north: firing cells at z=23 behind sandbags at
 	// z=22, the raider walking in from the south.
 	native := &raidTestNative{equipTestNative: &equipTestNative{roundsNative: n, ids: []string{"a", "b"}}, raider: domain.Cell{X: 9, Z: 5}, toil: "LordToil_AssaultColony"}
-	planner, err := NewRoundsDefensePlanner(r, framed{native})
+	planner, err := newCombatTestPlanner(t, r, framed{native})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestRoundsDefenseHoldFallbackNeedsProof(t *testing.T) {
 	r, db, session, _, n := roundsFixture(t)
 	ctx := context.Background()
 	native := &raidTestNative{equipTestNative: &equipTestNative{roundsNative: n, ids: []string{"a"}}, raider: domain.Cell{X: 9, Z: 5}, toil: "LordToil_AssaultColony"}
-	planner, err := NewRoundsDefensePlanner(r, framed{native})
+	planner, err := newCombatTestPlanner(t, r, framed{native})
 	if err != nil {
 		t.Fatal(err)
 	}

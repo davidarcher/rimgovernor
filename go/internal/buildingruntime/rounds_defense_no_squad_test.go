@@ -41,7 +41,7 @@ func TestRoundsDefenseReportsNoSquadForAnUnanswerableBuilding(t *testing.T) {
 	r, db, session, _, n := roundsFixture(t)
 	ctx := context.Background()
 	native := &hiveTestNative{&equipTestNative{roundsNative: n, ids: []string{"a"}}}
-	planner, err := NewRoundsDefensePlanner(r, framed{native})
+	planner, err := newCombatTestPlanner(t, r, framed{native})
 	if err != nil {
 		t.Fatal(err)
 	}

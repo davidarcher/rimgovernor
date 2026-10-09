@@ -50,7 +50,7 @@ func TestPodFightCommitsLoadoutBeforeFirstCombatBatch(t *testing.T) {
 		}}
 	raid := &raidTestNative{equipTestNative: equip, raider: domain.Cell{X: 9, Z: 5}, toil: "LordToil_AssaultColony", weapon: "Gun_Revolver"}
 	native := podLoadoutNative{framed: framed{raid}, weapons: equip}
-	planner, err := NewRoundsDefensePlanner(r, native)
+	planner, err := newCombatTestPlanner(t, r, native)
 	if err != nil {
 		t.Fatal(err)
 	}

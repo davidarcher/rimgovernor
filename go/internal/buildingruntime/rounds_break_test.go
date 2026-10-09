@@ -67,7 +67,7 @@ func TestSubdueRecordedInjuryOwnsStopAndReconciles(t *testing.T) {
 					}
 				}
 			}
-			planner, _ := NewRoundsDefensePlanner(r, f)
+			planner, _ := newCombatTestPlanner(t, r, f)
 			current := session.State().Snapshot
 			old, _ := db.LoadRounds(ctx)
 			if _, err := db.ReviewRounds(ctx, store.RoundsRequest{Revision: old.Revision, Current: current, Tick: 7, Enabled: true, Policy: policy.DefaultRoundsPolicy(), Facts: policy.RoundsFacts{Workers: domain.Known(2), Hostiles: domain.Known(int64(1)), CleanupPawns: domain.Known(false)}}); err != nil {
@@ -207,7 +207,7 @@ func TestBreakResponsePlannerDraftsSubduesThenOffersRescue(t *testing.T) {
 	ctx := context.Background()
 	reviewer, db, session, _, base := roundsFixture(t)
 	native := newBreakNative(base)
-	planner, _ := NewRoundsDefensePlanner(reviewer, framed{native})
+	planner, _ := newCombatTestPlanner(t, reviewer, framed{native})
 	current := session.State().Snapshot
 	review := func(hostiles, patients int64) {
 		t.Helper()
