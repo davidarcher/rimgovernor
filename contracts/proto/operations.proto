@@ -307,6 +307,7 @@ message Action {
     HackDesignationIntent hack_designation = 70;
     GiveItemIntent give_item = 71;
     CommsTradeRequestIntent comms_trade_request = 72;
+    GatheringIntent gathering = 73;
   }
 }
 message HackDesignationIntent { rimgovernor.common.v1.Ref target = 1; optional bool enabled = 2; }
@@ -974,4 +975,11 @@ message RulesStatusReply {
     RulesStatus status = 1;
     rimgovernor.common.v1.Failure failure = 2;
   }
+}
+
+// Starts one vanilla (non-Ideology) gathering. The game picks the spot, which a
+// built PartySpot controls; the intent carries none.
+message GatheringIntent {
+  optional string gathering_def = 1;
+  rimgovernor.common.v1.Ref organizer = 2;
 }

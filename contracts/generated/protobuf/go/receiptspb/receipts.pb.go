@@ -819,6 +819,7 @@ type EffectEvidence struct {
 	//	*EffectEvidence_HackDesignation
 	//	*EffectEvidence_GiveItem
 	//	*EffectEvidence_CommsTradeRequest
+	//	*EffectEvidence_Gathering
 	Effect        isEffectEvidence_Effect `protobuf_oneof:"effect"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1149,6 +1150,15 @@ func (x *EffectEvidence) GetCommsTradeRequest() *CommsTradeRequestEffect {
 	return nil
 }
 
+func (x *EffectEvidence) GetGathering() *GatheringEffect {
+	if x != nil {
+		if x, ok := x.Effect.(*EffectEvidence_Gathering); ok {
+			return x.Gathering
+		}
+	}
+	return nil
+}
+
 type isEffectEvidence_Effect interface {
 	isEffectEvidence_Effect()
 }
@@ -1281,6 +1291,10 @@ type EffectEvidence_CommsTradeRequest struct {
 	CommsTradeRequest *CommsTradeRequestEffect `protobuf:"bytes,45,opt,name=comms_trade_request,json=commsTradeRequest,proto3,oneof"`
 }
 
+type EffectEvidence_Gathering struct {
+	Gathering *GatheringEffect `protobuf:"bytes,46,opt,name=gathering,proto3,oneof"`
+}
+
 func (*EffectEvidence_Construction) isEffectEvidence_Effect() {}
 
 func (*EffectEvidence_Installation) isEffectEvidence_Effect() {}
@@ -1344,6 +1358,8 @@ func (*EffectEvidence_HackDesignation) isEffectEvidence_Effect() {}
 func (*EffectEvidence_GiveItem) isEffectEvidence_Effect() {}
 
 func (*EffectEvidence_CommsTradeRequest) isEffectEvidence_Effect() {}
+
+func (*EffectEvidence_Gathering) isEffectEvidence_Effect() {}
 
 type HackDesignationEffect struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -5579,6 +5595,67 @@ func (*Progress_Absent) isProgress_Effect() {}
 
 func (*Progress_Unsuccessful) isProgress_Effect() {}
 
+// Applied means the lord was created; spot is the cell the game chose.
+type GatheringEffect struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GatheringDef  *string                `protobuf:"bytes,1,opt,name=gathering_def,json=gatheringDef,proto3,oneof" json:"gathering_def,omitempty"`
+	OrganizerId   *string                `protobuf:"bytes,2,opt,name=organizer_id,json=organizerId,proto3,oneof" json:"organizer_id,omitempty"`
+	Spot          *commonpb.Cell         `protobuf:"bytes,3,opt,name=spot,proto3" json:"spot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GatheringEffect) Reset() {
+	*x = GatheringEffect{}
+	mi := &file_receipts_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GatheringEffect) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GatheringEffect) ProtoMessage() {}
+
+func (x *GatheringEffect) ProtoReflect() protoreflect.Message {
+	mi := &file_receipts_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GatheringEffect.ProtoReflect.Descriptor instead.
+func (*GatheringEffect) Descriptor() ([]byte, []int) {
+	return file_receipts_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *GatheringEffect) GetGatheringDef() string {
+	if x != nil && x.GatheringDef != nil {
+		return *x.GatheringDef
+	}
+	return ""
+}
+
+func (x *GatheringEffect) GetOrganizerId() string {
+	if x != nil && x.OrganizerId != nil {
+		return *x.OrganizerId
+	}
+	return ""
+}
+
+func (x *GatheringEffect) GetSpot() *commonpb.Cell {
+	if x != nil {
+		return x.Spot
+	}
+	return nil
+}
+
 var File_receipts_proto protoreflect.FileDescriptor
 
 const file_receipts_proto_rawDesc = "" +
@@ -5600,7 +5677,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\tUncertain\x12L\n" +
 	"\rlast_observed\x18\x01 \x01(\v2'.rimgovernor.receipts.v1.EffectEvidenceR\flastObserved\x12\x1b\n" +
 	"\x06detail\x18\x02 \x01(\tH\x00R\x06detail\x88\x01\x01B\t\n" +
-	"\a_detail\"\xc6\x12\n" +
+	"\a_detail\"\x90\x13\n" +
 	"\x0eEffectEvidence\x12Q\n" +
 	"\fconstruction\x18\x01 \x01(\v2+.rimgovernor.receipts.v1.ConstructionEffectH\x00R\fconstruction\x12Q\n" +
 	"\finstallation\x18\x02 \x01(\v2+.rimgovernor.receipts.v1.InstallationEffectH\x00R\finstallation\x12N\n" +
@@ -5639,7 +5716,8 @@ const file_receipts_proto_rawDesc = "" +
 	"\rquest_shuttle\x18* \x01(\v2+.rimgovernor.receipts.v1.QuestShuttleEffectH\x00R\fquestShuttle\x12[\n" +
 	"\x10hack_designation\x18+ \x01(\v2..rimgovernor.receipts.v1.HackDesignationEffectH\x00R\x0fhackDesignation\x12F\n" +
 	"\tgive_item\x18, \x01(\v2'.rimgovernor.receipts.v1.GiveItemEffectH\x00R\bgiveItem\x12b\n" +
-	"\x13comms_trade_request\x18- \x01(\v20.rimgovernor.receipts.v1.CommsTradeRequestEffectH\x00R\x11commsTradeRequestB\b\n" +
+	"\x13comms_trade_request\x18- \x01(\v20.rimgovernor.receipts.v1.CommsTradeRequestEffectH\x00R\x11commsTradeRequest\x12H\n" +
+	"\tgathering\x18. \x01(\v2(.rimgovernor.receipts.v1.GatheringEffectH\x00R\tgatheringB\b\n" +
 	"\x06effect\"r\n" +
 	"\x15HackDesignationEffect\x12 \n" +
 	"\ttarget_id\x18\x01 \x01(\tH\x00R\btargetId\x88\x01\x01\x12\x1d\n" +
@@ -6250,7 +6328,13 @@ const file_receipts_proto_rawDesc = "" +
 	"\x06absent\x18\a \x01(\v2%.rimgovernor.receipts.v1.AbsentEffectH\x00R\x06absent\x12Q\n" +
 	"\funsuccessful\x18\b \x01(\v2+.rimgovernor.receipts.v1.UnsuccessfulEffectH\x00R\funsuccessfulB\b\n" +
 	"\x06effectB\x16\n" +
-	"\x14_complete_inspection*\xba\x01\n" +
+	"\x14_complete_inspection\"\xb7\x01\n" +
+	"\x0fGatheringEffect\x12(\n" +
+	"\rgathering_def\x18\x01 \x01(\tH\x00R\fgatheringDef\x88\x01\x01\x12&\n" +
+	"\forganizer_id\x18\x02 \x01(\tH\x01R\vorganizerId\x88\x01\x01\x12/\n" +
+	"\x04spot\x18\x03 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04spotB\x10\n" +
+	"\x0e_gathering_defB\x0f\n" +
+	"\r_organizer_id*\xba\x01\n" +
 	"\x11ConstructionStage\x12\"\n" +
 	"\x1eCONSTRUCTION_STAGE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cCONSTRUCTION_STAGE_BLUEPRINT\x10\x01\x12\x1c\n" +
@@ -6343,7 +6427,7 @@ func file_receipts_proto_rawDescGZIP() []byte {
 }
 
 var file_receipts_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_receipts_proto_msgTypes = make([]protoimpl.MessageInfo, 57)
+var file_receipts_proto_msgTypes = make([]protoimpl.MessageInfo, 58)
 var file_receipts_proto_goTypes = []any{
 	(ConstructionStage)(0),              // 0: rimgovernor.receipts.v1.ConstructionStage
 	(InstallationStage)(0),              // 1: rimgovernor.receipts.v1.InstallationStage
@@ -6409,20 +6493,21 @@ var file_receipts_proto_goTypes = []any{
 	(*UnknownEffect)(nil),               // 61: rimgovernor.receipts.v1.UnknownEffect
 	(*UnsuccessfulEffect)(nil),          // 62: rimgovernor.receipts.v1.UnsuccessfulEffect
 	(*Progress)(nil),                    // 63: rimgovernor.receipts.v1.Progress
-	(*commonpb.AttemptKey)(nil),         // 64: rimgovernor.common.v1.AttemptKey
-	(*commonpb.ObservationContext)(nil), // 65: rimgovernor.common.v1.ObservationContext
-	(*commonpb.IdeoligionDesign)(nil),   // 66: rimgovernor.common.v1.IdeoligionDesign
-	(*commonpb.Cell)(nil),               // 67: rimgovernor.common.v1.Cell
-	(placementpb.Rotation)(0),           // 68: rimgovernor.placement.v1.Rotation
-	(*commonpb.Ref)(nil),                // 69: rimgovernor.common.v1.Ref
-	(*commonpb.TradeTarget)(nil),        // 70: rimgovernor.common.v1.TradeTarget
-	(commonpb.TradeRequestKind)(0),      // 71: rimgovernor.common.v1.TradeRequestKind
-	(*commonpb.Identity)(nil),           // 72: rimgovernor.common.v1.Identity
-	(*commonpb.Failure)(nil),            // 73: rimgovernor.common.v1.Failure
+	(*GatheringEffect)(nil),             // 64: rimgovernor.receipts.v1.GatheringEffect
+	(*commonpb.AttemptKey)(nil),         // 65: rimgovernor.common.v1.AttemptKey
+	(*commonpb.ObservationContext)(nil), // 66: rimgovernor.common.v1.ObservationContext
+	(*commonpb.IdeoligionDesign)(nil),   // 67: rimgovernor.common.v1.IdeoligionDesign
+	(*commonpb.Cell)(nil),               // 68: rimgovernor.common.v1.Cell
+	(placementpb.Rotation)(0),           // 69: rimgovernor.placement.v1.Rotation
+	(*commonpb.Ref)(nil),                // 70: rimgovernor.common.v1.Ref
+	(*commonpb.TradeTarget)(nil),        // 71: rimgovernor.common.v1.TradeTarget
+	(commonpb.TradeRequestKind)(0),      // 72: rimgovernor.common.v1.TradeRequestKind
+	(*commonpb.Identity)(nil),           // 73: rimgovernor.common.v1.Identity
+	(*commonpb.Failure)(nil),            // 74: rimgovernor.common.v1.Failure
 }
 var file_receipts_proto_depIdxs = []int32{
-	64,  // 0: rimgovernor.receipts.v1.Receipt.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	65,  // 1: rimgovernor.receipts.v1.Receipt.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
+	65,  // 0: rimgovernor.receipts.v1.Receipt.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	66,  // 1: rimgovernor.receipts.v1.Receipt.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
 	8,   // 2: rimgovernor.receipts.v1.Receipt.no_change:type_name -> rimgovernor.receipts.v1.NoChange
 	9,   // 3: rimgovernor.receipts.v1.Receipt.applied:type_name -> rimgovernor.receipts.v1.Applied
 	10,  // 4: rimgovernor.receipts.v1.Receipt.uncertain:type_name -> rimgovernor.receipts.v1.Uncertain
@@ -6461,76 +6546,78 @@ var file_receipts_proto_depIdxs = []int32{
 	12,  // 37: rimgovernor.receipts.v1.EffectEvidence.hack_designation:type_name -> rimgovernor.receipts.v1.HackDesignationEffect
 	13,  // 38: rimgovernor.receipts.v1.EffectEvidence.give_item:type_name -> rimgovernor.receipts.v1.GiveItemEffect
 	50,  // 39: rimgovernor.receipts.v1.EffectEvidence.comms_trade_request:type_name -> rimgovernor.receipts.v1.CommsTradeRequestEffect
-	45,  // 40: rimgovernor.receipts.v1.GiveItemEffect.job:type_name -> rimgovernor.receipts.v1.JobEffect
-	66,  // 41: rimgovernor.receipts.v1.IdeoligionEffect.design:type_name -> rimgovernor.common.v1.IdeoligionDesign
-	67,  // 42: rimgovernor.receipts.v1.AcquisitionEffect.cell:type_name -> rimgovernor.common.v1.Cell
-	16,  // 43: rimgovernor.receipts.v1.AcquisitionEffect.outputs:type_name -> rimgovernor.receipts.v1.AcquisitionOutput
-	67,  // 44: rimgovernor.receipts.v1.ExcavationEffect.cell:type_name -> rimgovernor.common.v1.Cell
-	67,  // 45: rimgovernor.receipts.v1.ConstructionEffect.cell:type_name -> rimgovernor.common.v1.Cell
-	68,  // 46: rimgovernor.receipts.v1.ConstructionEffect.rotation:type_name -> rimgovernor.placement.v1.Rotation
-	0,   // 47: rimgovernor.receipts.v1.ConstructionEffect.stage:type_name -> rimgovernor.receipts.v1.ConstructionStage
-	67,  // 48: rimgovernor.receipts.v1.InstallationEffect.cell:type_name -> rimgovernor.common.v1.Cell
-	68,  // 49: rimgovernor.receipts.v1.InstallationEffect.rotation:type_name -> rimgovernor.placement.v1.Rotation
-	1,   // 50: rimgovernor.receipts.v1.InstallationEffect.stage:type_name -> rimgovernor.receipts.v1.InstallationStage
-	67,  // 51: rimgovernor.receipts.v1.DesignationEffect.cell:type_name -> rimgovernor.common.v1.Cell
-	2,   // 52: rimgovernor.receipts.v1.FieldResult.field:type_name -> rimgovernor.receipts.v1.SettingsField
-	3,   // 53: rimgovernor.receipts.v1.FieldResult.outcome:type_name -> rimgovernor.receipts.v1.FieldOutcome
-	15,  // 54: rimgovernor.receipts.v1.SettingsEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	23,  // 55: rimgovernor.receipts.v1.SettingsEffect.fields:type_name -> rimgovernor.receipts.v1.FieldResult
-	15,  // 56: rimgovernor.receipts.v1.BillEffect.stack:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	69,  // 57: rimgovernor.receipts.v1.BillEffect.bill:type_name -> rimgovernor.common.v1.Ref
-	15,  // 58: rimgovernor.receipts.v1.ResearchEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	67,  // 59: rimgovernor.receipts.v1.CellResult.cell:type_name -> rimgovernor.common.v1.Cell
-	67,  // 60: rimgovernor.receipts.v1.CreatedZone.cells:type_name -> rimgovernor.common.v1.Cell
-	15,  // 61: rimgovernor.receipts.v1.ZoneEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	27,  // 62: rimgovernor.receipts.v1.ZoneEffect.cells:type_name -> rimgovernor.receipts.v1.CellResult
-	28,  // 63: rimgovernor.receipts.v1.ZoneEffect.created:type_name -> rimgovernor.receipts.v1.CreatedZone
-	15,  // 64: rimgovernor.receipts.v1.DeconstructEffect.site:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	32,  // 65: rimgovernor.receipts.v1.CombatOrdersEffect.results:type_name -> rimgovernor.receipts.v1.CombatOrderResult
-	69,  // 66: rimgovernor.receipts.v1.SurgeryEffect.bill:type_name -> rimgovernor.common.v1.Ref
-	4,   // 67: rimgovernor.receipts.v1.SurgeryEffect.state:type_name -> rimgovernor.receipts.v1.SurgeryState
-	41,  // 68: rimgovernor.receipts.v1.AbilityEffect.permit:type_name -> rimgovernor.receipts.v1.PermitUseEffect
-	42,  // 69: rimgovernor.receipts.v1.AbilityEffect.psycast:type_name -> rimgovernor.receipts.v1.PsycastUseEffect
-	15,  // 70: rimgovernor.receipts.v1.WallEffect.site:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	67,  // 71: rimgovernor.receipts.v1.JobTarget.cell:type_name -> rimgovernor.common.v1.Cell
-	44,  // 72: rimgovernor.receipts.v1.JobEffect.target_a:type_name -> rimgovernor.receipts.v1.JobTarget
-	44,  // 73: rimgovernor.receipts.v1.JobEffect.target_b:type_name -> rimgovernor.receipts.v1.JobTarget
-	15,  // 74: rimgovernor.receipts.v1.AnimalEffect.animal:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	15,  // 75: rimgovernor.receipts.v1.PrisonerEffect.pawn:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	70,  // 76: rimgovernor.receipts.v1.TradeEffect.target:type_name -> rimgovernor.common.v1.TradeTarget
-	48,  // 77: rimgovernor.receipts.v1.TradeEffect.lines:type_name -> rimgovernor.receipts.v1.TradeLineEffect
-	15,  // 78: rimgovernor.receipts.v1.TradeEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	71,  // 79: rimgovernor.receipts.v1.CommsTradeRequestEffect.kind:type_name -> rimgovernor.common.v1.TradeRequestKind
-	15,  // 80: rimgovernor.receipts.v1.CaravanEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	5,   // 81: rimgovernor.receipts.v1.QuestEffect.state:type_name -> rimgovernor.receipts.v1.QuestStatus
-	15,  // 82: rimgovernor.receipts.v1.QuestEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	72,  // 83: rimgovernor.receipts.v1.LookupRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	64,  // 84: rimgovernor.receipts.v1.LookupRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	65,  // 85: rimgovernor.receipts.v1.UnknownAttempt.context:type_name -> rimgovernor.common.v1.ObservationContext
-	64,  // 86: rimgovernor.receipts.v1.InFlight.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	65,  // 87: rimgovernor.receipts.v1.InFlight.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
-	7,   // 88: rimgovernor.receipts.v1.LookupReply.receipt:type_name -> rimgovernor.receipts.v1.Receipt
-	56,  // 89: rimgovernor.receipts.v1.LookupReply.in_flight:type_name -> rimgovernor.receipts.v1.InFlight
-	55,  // 90: rimgovernor.receipts.v1.LookupReply.unknown:type_name -> rimgovernor.receipts.v1.UnknownAttempt
-	73,  // 91: rimgovernor.receipts.v1.LookupReply.failure:type_name -> rimgovernor.common.v1.Failure
-	11,  // 92: rimgovernor.receipts.v1.PendingEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
-	11,  // 93: rimgovernor.receipts.v1.CompletedEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
-	6,   // 94: rimgovernor.receipts.v1.UnsuccessfulEffect.reason:type_name -> rimgovernor.receipts.v1.UnsuccessfulReason
-	11,  // 95: rimgovernor.receipts.v1.UnsuccessfulEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
-	64,  // 96: rimgovernor.receipts.v1.Progress.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	65,  // 97: rimgovernor.receipts.v1.Progress.context:type_name -> rimgovernor.common.v1.ObservationContext
-	61,  // 98: rimgovernor.receipts.v1.Progress.unknown:type_name -> rimgovernor.receipts.v1.UnknownEffect
-	58,  // 99: rimgovernor.receipts.v1.Progress.pending:type_name -> rimgovernor.receipts.v1.PendingEffect
-	59,  // 100: rimgovernor.receipts.v1.Progress.completed:type_name -> rimgovernor.receipts.v1.CompletedEffect
-	60,  // 101: rimgovernor.receipts.v1.Progress.absent:type_name -> rimgovernor.receipts.v1.AbsentEffect
-	62,  // 102: rimgovernor.receipts.v1.Progress.unsuccessful:type_name -> rimgovernor.receipts.v1.UnsuccessfulEffect
-	54,  // 103: rimgovernor.receipts.v1.Attempts.Lookup:input_type -> rimgovernor.receipts.v1.LookupRequest
-	57,  // 104: rimgovernor.receipts.v1.Attempts.Lookup:output_type -> rimgovernor.receipts.v1.LookupReply
-	104, // [104:105] is the sub-list for method output_type
-	103, // [103:104] is the sub-list for method input_type
-	103, // [103:103] is the sub-list for extension type_name
-	103, // [103:103] is the sub-list for extension extendee
-	0,   // [0:103] is the sub-list for field type_name
+	64,  // 40: rimgovernor.receipts.v1.EffectEvidence.gathering:type_name -> rimgovernor.receipts.v1.GatheringEffect
+	45,  // 41: rimgovernor.receipts.v1.GiveItemEffect.job:type_name -> rimgovernor.receipts.v1.JobEffect
+	67,  // 42: rimgovernor.receipts.v1.IdeoligionEffect.design:type_name -> rimgovernor.common.v1.IdeoligionDesign
+	68,  // 43: rimgovernor.receipts.v1.AcquisitionEffect.cell:type_name -> rimgovernor.common.v1.Cell
+	16,  // 44: rimgovernor.receipts.v1.AcquisitionEffect.outputs:type_name -> rimgovernor.receipts.v1.AcquisitionOutput
+	68,  // 45: rimgovernor.receipts.v1.ExcavationEffect.cell:type_name -> rimgovernor.common.v1.Cell
+	68,  // 46: rimgovernor.receipts.v1.ConstructionEffect.cell:type_name -> rimgovernor.common.v1.Cell
+	69,  // 47: rimgovernor.receipts.v1.ConstructionEffect.rotation:type_name -> rimgovernor.placement.v1.Rotation
+	0,   // 48: rimgovernor.receipts.v1.ConstructionEffect.stage:type_name -> rimgovernor.receipts.v1.ConstructionStage
+	68,  // 49: rimgovernor.receipts.v1.InstallationEffect.cell:type_name -> rimgovernor.common.v1.Cell
+	69,  // 50: rimgovernor.receipts.v1.InstallationEffect.rotation:type_name -> rimgovernor.placement.v1.Rotation
+	1,   // 51: rimgovernor.receipts.v1.InstallationEffect.stage:type_name -> rimgovernor.receipts.v1.InstallationStage
+	68,  // 52: rimgovernor.receipts.v1.DesignationEffect.cell:type_name -> rimgovernor.common.v1.Cell
+	2,   // 53: rimgovernor.receipts.v1.FieldResult.field:type_name -> rimgovernor.receipts.v1.SettingsField
+	3,   // 54: rimgovernor.receipts.v1.FieldResult.outcome:type_name -> rimgovernor.receipts.v1.FieldOutcome
+	15,  // 55: rimgovernor.receipts.v1.SettingsEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	23,  // 56: rimgovernor.receipts.v1.SettingsEffect.fields:type_name -> rimgovernor.receipts.v1.FieldResult
+	15,  // 57: rimgovernor.receipts.v1.BillEffect.stack:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	70,  // 58: rimgovernor.receipts.v1.BillEffect.bill:type_name -> rimgovernor.common.v1.Ref
+	15,  // 59: rimgovernor.receipts.v1.ResearchEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	68,  // 60: rimgovernor.receipts.v1.CellResult.cell:type_name -> rimgovernor.common.v1.Cell
+	68,  // 61: rimgovernor.receipts.v1.CreatedZone.cells:type_name -> rimgovernor.common.v1.Cell
+	15,  // 62: rimgovernor.receipts.v1.ZoneEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	27,  // 63: rimgovernor.receipts.v1.ZoneEffect.cells:type_name -> rimgovernor.receipts.v1.CellResult
+	28,  // 64: rimgovernor.receipts.v1.ZoneEffect.created:type_name -> rimgovernor.receipts.v1.CreatedZone
+	15,  // 65: rimgovernor.receipts.v1.DeconstructEffect.site:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	32,  // 66: rimgovernor.receipts.v1.CombatOrdersEffect.results:type_name -> rimgovernor.receipts.v1.CombatOrderResult
+	70,  // 67: rimgovernor.receipts.v1.SurgeryEffect.bill:type_name -> rimgovernor.common.v1.Ref
+	4,   // 68: rimgovernor.receipts.v1.SurgeryEffect.state:type_name -> rimgovernor.receipts.v1.SurgeryState
+	41,  // 69: rimgovernor.receipts.v1.AbilityEffect.permit:type_name -> rimgovernor.receipts.v1.PermitUseEffect
+	42,  // 70: rimgovernor.receipts.v1.AbilityEffect.psycast:type_name -> rimgovernor.receipts.v1.PsycastUseEffect
+	15,  // 71: rimgovernor.receipts.v1.WallEffect.site:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	68,  // 72: rimgovernor.receipts.v1.JobTarget.cell:type_name -> rimgovernor.common.v1.Cell
+	44,  // 73: rimgovernor.receipts.v1.JobEffect.target_a:type_name -> rimgovernor.receipts.v1.JobTarget
+	44,  // 74: rimgovernor.receipts.v1.JobEffect.target_b:type_name -> rimgovernor.receipts.v1.JobTarget
+	15,  // 75: rimgovernor.receipts.v1.AnimalEffect.animal:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	15,  // 76: rimgovernor.receipts.v1.PrisonerEffect.pawn:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	71,  // 77: rimgovernor.receipts.v1.TradeEffect.target:type_name -> rimgovernor.common.v1.TradeTarget
+	48,  // 78: rimgovernor.receipts.v1.TradeEffect.lines:type_name -> rimgovernor.receipts.v1.TradeLineEffect
+	15,  // 79: rimgovernor.receipts.v1.TradeEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	72,  // 80: rimgovernor.receipts.v1.CommsTradeRequestEffect.kind:type_name -> rimgovernor.common.v1.TradeRequestKind
+	15,  // 81: rimgovernor.receipts.v1.CaravanEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	5,   // 82: rimgovernor.receipts.v1.QuestEffect.state:type_name -> rimgovernor.receipts.v1.QuestStatus
+	15,  // 83: rimgovernor.receipts.v1.QuestEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	73,  // 84: rimgovernor.receipts.v1.LookupRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	65,  // 85: rimgovernor.receipts.v1.LookupRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	66,  // 86: rimgovernor.receipts.v1.UnknownAttempt.context:type_name -> rimgovernor.common.v1.ObservationContext
+	65,  // 87: rimgovernor.receipts.v1.InFlight.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	66,  // 88: rimgovernor.receipts.v1.InFlight.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
+	7,   // 89: rimgovernor.receipts.v1.LookupReply.receipt:type_name -> rimgovernor.receipts.v1.Receipt
+	56,  // 90: rimgovernor.receipts.v1.LookupReply.in_flight:type_name -> rimgovernor.receipts.v1.InFlight
+	55,  // 91: rimgovernor.receipts.v1.LookupReply.unknown:type_name -> rimgovernor.receipts.v1.UnknownAttempt
+	74,  // 92: rimgovernor.receipts.v1.LookupReply.failure:type_name -> rimgovernor.common.v1.Failure
+	11,  // 93: rimgovernor.receipts.v1.PendingEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
+	11,  // 94: rimgovernor.receipts.v1.CompletedEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
+	6,   // 95: rimgovernor.receipts.v1.UnsuccessfulEffect.reason:type_name -> rimgovernor.receipts.v1.UnsuccessfulReason
+	11,  // 96: rimgovernor.receipts.v1.UnsuccessfulEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
+	65,  // 97: rimgovernor.receipts.v1.Progress.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	66,  // 98: rimgovernor.receipts.v1.Progress.context:type_name -> rimgovernor.common.v1.ObservationContext
+	61,  // 99: rimgovernor.receipts.v1.Progress.unknown:type_name -> rimgovernor.receipts.v1.UnknownEffect
+	58,  // 100: rimgovernor.receipts.v1.Progress.pending:type_name -> rimgovernor.receipts.v1.PendingEffect
+	59,  // 101: rimgovernor.receipts.v1.Progress.completed:type_name -> rimgovernor.receipts.v1.CompletedEffect
+	60,  // 102: rimgovernor.receipts.v1.Progress.absent:type_name -> rimgovernor.receipts.v1.AbsentEffect
+	62,  // 103: rimgovernor.receipts.v1.Progress.unsuccessful:type_name -> rimgovernor.receipts.v1.UnsuccessfulEffect
+	68,  // 104: rimgovernor.receipts.v1.GatheringEffect.spot:type_name -> rimgovernor.common.v1.Cell
+	54,  // 105: rimgovernor.receipts.v1.Attempts.Lookup:input_type -> rimgovernor.receipts.v1.LookupRequest
+	57,  // 106: rimgovernor.receipts.v1.Attempts.Lookup:output_type -> rimgovernor.receipts.v1.LookupReply
+	106, // [106:107] is the sub-list for method output_type
+	105, // [105:106] is the sub-list for method input_type
+	105, // [105:105] is the sub-list for extension type_name
+	105, // [105:105] is the sub-list for extension extendee
+	0,   // [0:105] is the sub-list for field type_name
 }
 
 func init() { file_receipts_proto_init() }
@@ -6578,6 +6665,7 @@ func file_receipts_proto_init() {
 		(*EffectEvidence_HackDesignation)(nil),
 		(*EffectEvidence_GiveItem)(nil),
 		(*EffectEvidence_CommsTradeRequest)(nil),
+		(*EffectEvidence_Gathering)(nil),
 	}
 	file_receipts_proto_msgTypes[5].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[6].OneofWrappers = []any{}
@@ -6645,13 +6733,14 @@ func file_receipts_proto_init() {
 		(*Progress_Absent)(nil),
 		(*Progress_Unsuccessful)(nil),
 	}
+	file_receipts_proto_msgTypes[57].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_receipts_proto_rawDesc), len(file_receipts_proto_rawDesc)),
 			NumEnums:      7,
-			NumMessages:   57,
+			NumMessages:   58,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

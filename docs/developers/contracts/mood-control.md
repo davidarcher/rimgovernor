@@ -178,6 +178,40 @@ prisoner holds its own policy too (inputs on its population row): no recreation,
 that maintenance. Recreation relief itself excludes ingestible joy; RimWorld chooses
 ordinary drug use. `policy/drug_policy_test.go` proves the entries.
 
+## Gatherings
+
+The `gathering` action (`GatheringIntent`: `gathering_def` plus a required
+`organizer` pawn) starts one vanilla `GatheringDef` party; Ideology precept
+gatherings stay under `ritual begin`. Any `GatheringDef` is accepted on the wire.
+The intent carries no spot: `GatheringWorker.TryExecute(map, organizer)` takes none
+and the game chooses it. Game code read with ilspycmd:
+
+- Native validates with `GatheringDef.CanExecute(map, organizer, ignoreGameConditions)`
+  and refuses otherwise. `AcceptableGameConditionsToStartGathering` needs local hour
+  4 to 21, danger rating None, no lord job that forbids new gatherings, at least four
+  spawned free colonists, none bleeding, under half drafted, and enough potential
+  guests (`round(0.65 x colonists)` clamped to 2..10 who may join joy and are awake,
+  fed, not bleeding or in a mental state). The worker also needs a spot.
+- `GatheringsUtility.PawnCanStartOrContinueGathering(organizer)` must hold: not
+  drafted, bleed rate at most 0.3, not a prisoner or slave, blood loss at most 0.2,
+  not a wild man, inhumanized or subhuman, spawned, not downed, no mental state.
+  Native refuses otherwise.
+- Spot choice (`GatheringWorker_Party.TryFindGatherSpot` ->
+  `RCellFinder.TryFindGatheringSpot`) prefers a built, colony-owned building of any
+  def in `GatheringDef.gatherSpotDefs` (`PartySpot` for `Party`): a random one whose
+  cell passes `ValidateGatheringSpot` (standable, not dangerous, roofed unless outdoor
+  joy is enjoyable, not forbidden, reservable and reachable by the organizer, enough
+  reachable guests). Only when none validates does it fall back to cells within 4 of
+  an active `CompGatherSpot` and then within 25 of the organizer, rejecting rooms
+  with under 10 cells that are not huge or outdoors. So a PartySpot controls the
+  spot; policy places it (a later child of #2532).
+- The party area is the whole room when the spot's room is at most 100 cells, not
+  huge and not outdoors, otherwise cells within 18.
+
+`GatheringEffect` records `gathering_def`, `organizer_id` and the `spot` the game
+chose. Applied means the lord was created, not that guests attended. A refusal is
+final for the attempt; the owning routine replans from live state.
+
 ## Observations
 
 **Active mental state.** The colonist status and pawn list reads carry the native

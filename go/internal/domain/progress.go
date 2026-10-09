@@ -435,7 +435,7 @@ func (p Progress) recordReceipt(attempt AttemptID, receipt Receipt) (Progress, e
 		}
 		return p, nil
 	}
-	if p.action.kind == CommsTradeRequestAction && receipt == ReceiptRefused {
+	if (p.action.kind == CommsTradeRequestAction || p.action.kind == GatheringAction) && receipt == ReceiptRefused {
 		p.view.Unresolved = false
 		p.view.Effect = Known(EffectAbsent)
 		if p.view.Stage != Cancelled {

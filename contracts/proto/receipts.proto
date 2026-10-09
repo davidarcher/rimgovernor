@@ -64,6 +64,7 @@ message EffectEvidence {
     HackDesignationEffect hack_designation = 43;
     GiveItemEffect give_item = 44;
     CommsTradeRequestEffect comms_trade_request = 45;
+    GatheringEffect gathering = 46;
   }
 }
 message HackDesignationEffect { optional string target_id = 1; optional bool enabled = 2; }
@@ -360,4 +361,11 @@ message Progress {
 }
 service Attempts {
   rpc Lookup(LookupRequest) returns (LookupReply);
+}
+
+// Applied means the lord was created; spot is the cell the game chose.
+message GatheringEffect {
+  optional string gathering_def = 1;
+  optional string organizer_id = 2;
+  rimgovernor.common.v1.Cell spot = 3;
 }
