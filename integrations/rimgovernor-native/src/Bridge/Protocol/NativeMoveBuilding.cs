@@ -83,7 +83,6 @@ namespace HomeBridge.BridgeTools
                 .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact building is not installed on this map")
                 .Require(() => found!.Faction == Faction.OfPlayer, "the building is not the player's")
                 .Require(() => found!.def.Minifiable, "the building cannot be uninstalled")
-                .Require(() => !(found!.Position == cell && found.Rotation == rotation), "the building already stands at the destination")
                 .Require(() => map.designationManager.DesignationOn(found!, DesignationDefOf.Uninstall) == null
                     && map.designationManager.DesignationOn(found!, DesignationDefOf.Deconstruct) == null, "the building is designated for uninstall or deconstruction")
                 .Require(() => GenConstruct.CanPlaceBlueprintAt(found!.def, cell, rotation, map, false, found, found).Accepted, "the game refuses a reinstall blueprint at the destination");
