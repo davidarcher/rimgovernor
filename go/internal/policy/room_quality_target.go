@@ -65,28 +65,86 @@ type RoomTarget struct {
 	// NeverUpgrade marks a room no upgrade should touch: every owner is
 	// ascetic and none demands a floor.
 	NeverUpgrade bool
+	// Cells, when positive, is the interior area a common room should hold
+	// for its users; bedrooms size through suiteCells instead.
+	Cells int32
 	// Reasons name the constraints that set Min or Max, sorted: "tier",
 	// "greedy", "jealous", "title", "ascetic".
 	Reasons []string
 }
 
-// CommonRoomTargets returns a RoomTarget per dining and rec room,
-// keyed by room id, or nil while the room census is unknown. Every colonist
-// eats and relaxes there, so no one's traits apply: the target is the
-// colony-wide tier baseline (ImpressivenessLevels.Baseline), reason "common". A room
+// Shared-room scaling. A dining or rec room is used by every colonist, so a
+// bad one costs the whole colony what a bedroom costs one pawn.
+const (
+	// commonRoomUsersPerStep is the colonists per extra impressiveness stage
+	// asked of a common room.
+	commonRoomUsersPerStep = 4
+	// commonRoomMaxSteps caps the raise at two tech-tier baselines above the
+	// current tier (never past Spacer); RoomGate still charges every step.
+	commonRoomMaxSteps = 2
+	// commonRoomCellsPerUser is the interior cells asked per colonist once
+	// the colony reaches commonRoomUsersPerStep; commonRoomMaxCells caps it.
+	commonRoomCellsPerUser = 3
+	commonRoomMaxCells     = 120
+)
+
+// commonRoomPressureDefs are the ledger sources a common room's size and
+// impressiveness remove.
+var commonRoomPressureDefs = []string{"AteInImpressiveDiningRoom", "JoyActivityInImpressiveRecRoom", "NeedRoomSize"}
+
+// CommonRoomPressure is the mood the ledger shows lost to common-room
+// thoughts across the colony, positive; pass it to CommonRoomTargets.
+func CommonRoomPressure(ledger MoodLedger) float64 {
+	lost := 0.0
+	for _, s := range ledger.Sources {
+		if slices.Contains(commonRoomPressureDefs, s.Def) {
+			lost -= s.Lost
+		}
+	}
+	return lost
+}
+
+// commonRoomSteps is how many tech-tier baselines above the current tier a
+// common room aims: one per commonRoomUsersPerStep colonists, one more while
+// the ledger shows loss, at most commonRoomMaxSteps.
+func commonRoomSteps(users int, pressure float64) int {
+	steps := users / commonRoomUsersPerStep
+	if pressure > 0 {
+		steps++
+	}
+	return min(steps, commonRoomMaxSteps)
+}
+
+// commonRoomCells is the interior area a common room should hold for its
+// users, zero (no target) below commonRoomUsersPerStep colonists.
+func commonRoomCells(users int) int32 {
+	if users < commonRoomUsersPerStep {
+		return 0
+	}
+	return int32(min(users*commonRoomCellsPerUser, commonRoomMaxCells))
+}
+
+// CommonRoomTargets returns a RoomTarget per dining and rec room, keyed by
+// room id, or nil while the room census is unknown. Every colonist eats and
+// relaxes there, so no one's traits apply. Min is the tier baseline raised by
+// commonRoomSteps (colonist count, plus ledger pressure from
+// CommonRoomPressure), never below the plain baseline nor past Spacer's;
+// Cells is the interior size for the colonist count. Reason "common". A room
 // holding colonist beds is left to RoomQualityTargets.
-func CommonRoomTargets(obs SleepingObservation, tier TechTier, levels ImpressivenessLevels) map[string]RoomTarget {
+func CommonRoomTargets(obs SleepingObservation, tier TechTier, levels ImpressivenessLevels, pressure float64) map[string]RoomTarget {
 	rooms, ok := obs.Rooms.Value()
 	if !ok {
 		return nil
 	}
-	min := levels.Baseline(tier)
+	steps := commonRoomSteps(obs.Colonists, pressure)
+	min := levels.Baseline(min(tier+TechTier(steps), TechTierSpacer))
+	cells := commonRoomCells(obs.Colonists)
 	targets := map[string]RoomTarget{}
 	for _, room := range rooms {
 		if len(room.Beds) > 0 || (room.Role != string(RoomRoleDiningRoom) && room.Role != string(RoomRoleRecRoom)) {
 			continue
 		}
-		t := RoomTarget{Room: room.ID, Min: min}
+		t := RoomTarget{Room: room.ID, Min: min, Cells: cells}
 		if min > 0 {
 			t.Reasons = []string{"common"}
 		}

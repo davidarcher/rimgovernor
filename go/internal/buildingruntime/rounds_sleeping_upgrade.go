@@ -67,7 +67,7 @@ func roomUpgrade(facts observation.ColonyProjection, stage policy.ColonyStage) (
 	}
 	tier, _ := facts.TechTier.Value()
 	targets := policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)
-	for id, t := range policy.CommonRoomTargets(obs, tier, facts.Impressiveness) {
+	for id, t := range policy.CommonRoomTargets(obs, tier, facts.Impressiveness, 0) {
 		if _, owned := targets[id]; !owned {
 			targets[id] = t
 		}

@@ -240,6 +240,17 @@ and the game chooses it. Game code read with ilspycmd:
 - The party area is the whole room when the spot's room is at most 100 cells, not
   huge and not outdoors, otherwise cells within 18.
 
+### Common-room targets
+
+`policy.CommonRoomTargets` sets the impressiveness target of each dining and rec
+room (no beds) to the tech-tier baseline raised one tier per four colonists, plus one
+while the ledger shows mood lost to common-room thoughts (`policy.CommonRoomPressure`:
+`AteInImpressiveDiningRoom`, `JoyActivityInImpressiveRecRoom`, `NeedRoomSize`), capped at
+two tiers above the current one and at Spacer's baseline, never below today's baseline.
+`RoomTarget.Cells` adds a size target of three interior cells per colonist from four
+colonists, capped at 120. `RoomGate` still charges every upgrade step. Production passes
+zero ledger pressure until the ledger is wired in (#2622); nothing yet consumes `Cells`.
+
 ### The PartySpot
 
 `EnsureComfort` keeps exactly one free, instant-build `PartySpot` placed, independent
