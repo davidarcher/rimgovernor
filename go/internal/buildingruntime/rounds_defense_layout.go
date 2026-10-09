@@ -223,7 +223,7 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		return RoundsDefenseLayoutResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// Open perimeter tiers do not hold the layout: more of the wall is admitted
-	// beside them while the stock funds it. Any other open plan, or a
+	// beside them with no stock-funded admission. Any other open plan, or a
 	// fight, still does.
 	pipe, pipelinable, err := defenseOpenTiers(goal, func(id domain.PlanID) (store.PlanState, error) { return p.journal.LoadPlan(call, id) })
 	if err != nil {
@@ -338,7 +338,6 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		return RoundsDefenseLayoutResult{}, err
 	}
 	tick := read.Projection.Identity.Tick
-	pipe.ledger = newFundingLedger(policy.StockObservation{Snapshot: state.Snapshot, Tick: tick})
 	pipe.settle(census)
 	// A layout that stood before turrets could be placed (no research, no
 	// network, no steel) gains the tier once the observed gates open.
@@ -377,8 +376,8 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		if !ok || len(buildings) == 0 || tier.Built || defenseTierOpen(pipe.open, name) {
 			continue
 		}
-		// Tiers after the first go on only while they are perimeter tiers the
-		// stock funds beside the ones in flight; anything else waits for them.
+		// Tiers after the first go on only while they are perimeter tiers
+		// beside the ones in flight; anything else waits for them.
 		if pipe.piped() && (!policy.IsPerimeterTier(name) || tier.Remove) {
 			break
 		}
@@ -1301,8 +1300,6 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 	// it: the position keeps its cover and stays a firing cell, unfloored.
 	unfloorable := map[domain.Cell]bool{}
 	placed := 0
-	var total []policy.Amount
-	priceUnknown := false
 	// One native call per placement batch previews the whole tier: a
 	// perimeter tier is over a hundred cells, and a preview per cell
 	// outlasted the optional wave's wall on a slow runner every step.
@@ -1352,16 +1349,6 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 		if err := mergeRoundsStock(&stock, preview.Stock, len(actions) == 1); err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}
-		if err := pipe.ledger.merge(preview.Stock, !pipe.merged); err != nil {
-			return RoundsDefenseLayoutResult{}, err
-		}
-		pipe.merged = true
-		if costs, known := preview.Preview.Costs.Value(); known {
-			pipe.ledger.price(building.Definition()+"/"+building.Stuff(), costs)
-			total = append(total, costs...)
-		} else {
-			priceUnknown = true
-		}
 	}
 	if len(actions) == 0 && placed > 0 && len(unfloorable) == 0 {
 		return RoundsDefenseLayoutResult{Verdict: BuildingReasonExistingWork, Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
@@ -1375,15 +1362,6 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 		}
 		if len(actions) == 0 {
 			return RoundsDefenseLayoutResult{Verdict: noSpace("defense_tier"), Tier: tier.Name}, nil
-		}
-	}
-	// A tier admitted beside others in flight is admitted only while the stock
-	// still pays for it after what they have claimed; the first tier goes whole,
-	// as a lone tier always did.
-	if pipe.piped() {
-		pipe.claimOpen()
-		if priceUnknown || !pipe.ledger.funded(total) {
-			return RoundsDefenseLayoutResult{Verdict: BuildingReasonExistingWork, Tier: tier.Name}, nil
 		}
 	}
 	// The audit blocks every placement of the whole layout that colonists
@@ -1456,7 +1434,6 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 		reason = BuildingReasonAdmitted
 		tier.Attempts++
 		record.SetTier(tier)
-		pipe.ledger.claim(total)
 		pipe.admitted++
 		for _, action := range actions {
 			if b, ok := action.Building(); ok {

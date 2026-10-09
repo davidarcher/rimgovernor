@@ -7,33 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func stockOf(resource policy.Resource, count int64) policy.StockObservation {
-	return policy.StockObservation{Values: []policy.Stock{{Resource: resource, Available: domain.Known(count)}}}
-}
-
-func TestFundingLedgerFundsOnlyWhatTheStockStillPays(t *testing.T) {
-	t.Parallel()
-	l := newFundingLedger(stockOf("Granite", 100))
-	wall := []policy.Amount{{Resource: "Granite", Count: 40}}
-	if !l.funded(wall) {
-		t.Fatal("first wall unfunded")
-	}
-	l.claim(wall)
-	l.claim(wall)
-	if l.funded(wall) {
-		t.Fatal("a third wall was funded past the stock")
-	}
-	if l.funded([]policy.Amount{{Resource: "Steel", Count: 1}}) {
-		t.Fatal("a resource the stock does not name was funded")
-	}
-	if !l.funded([]policy.Amount{{Resource: "Granite", Count: 10}, {Resource: "Granite", Count: 10}}) {
-		t.Fatal("two costs of one resource were not summed within the stock")
-	}
-	if l.funded([]policy.Amount{{Resource: "Granite", Count: 15}, {Resource: "Granite", Count: 10}}) {
-		t.Fatal("two costs of one resource were funded past the stock")
-	}
-}
-
 func TestDefenseTierOpenMatchesAttemptsAndRepairs(t *testing.T) {
 	t.Parallel()
 	open := []domain.MethodID{"defense-perimeter-r1-07-0", "defense-perimeter-03-r2-1"}
@@ -52,7 +25,7 @@ func TestDefenseTierOpenMatchesAttemptsAndRepairs(t *testing.T) {
 
 func TestDefensePipelineKeepsTiersOffOpenCells(t *testing.T) {
 	t.Parallel()
-	p := newDefensePipeline(newFundingLedger(stockOf("Granite", 10)))
+	p := newDefensePipeline()
 	wall := func(x, z int32) domain.Building {
 		b, err := domain.NewBuilding("Wall", domain.Cell{X: x, Z: z}, domain.North, "")
 		if err != nil {

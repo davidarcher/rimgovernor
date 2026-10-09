@@ -52,6 +52,8 @@ through by orchestration:
   Rock steps and excavation preview the owning planner's buildings, so they take
   that planner's `PlannerTier`; the animal paddock marker is a `PlannedPen`
   piece placed through the room funnel (Comfort).
+- Defense perimeter tiers are previewed and admitted in order every step, with
+  no stock-funded admission (#2551); the tier gate decides who gets materials.
 - A finishing-skill adoption of an existing site restates the tier native
   already reads on it (`policy.AdoptedTier`), so adopting never moves a build; a
   site with no tier is Expand. Placements nothing else lists (quest monuments,

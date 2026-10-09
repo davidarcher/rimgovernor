@@ -11,24 +11,19 @@ import (
 
 // defensePipeline is the perimeter tiers one layout step keeps in flight: the
 // ones already open from earlier steps and the ones this step admits. A tier
-// joins them while the stock funds it (the ledger) and it claims none of their
-// cells. Native frame completion preserves construction access.
+// joins them while it claims none of their cells. Native frame completion preserves construction access.
 type defensePipeline struct {
-	open    []domain.MethodID
-	cells   map[domain.Cell]bool
-	unbuilt []domain.Building
-	ledger  *fundingLedger
-	merged  bool
-	// claimed is whether the open tiers' remaining cost is charged to the ledger.
-	claimed  bool
+	open     []domain.MethodID
+	cells    map[domain.Cell]bool
+	unbuilt  []domain.Building
 	admitted int
 	// scope is the step's tick read, taken once: the player gate holds the clock for the whole step.
 	scope  observation.Identity
 	scoped bool
 }
 
-func newDefensePipeline(ledger *fundingLedger) *defensePipeline {
-	return &defensePipeline{cells: map[domain.Cell]bool{}, ledger: ledger}
+func newDefensePipeline() *defensePipeline {
+	return &defensePipeline{cells: map[domain.Cell]bool{}}
 }
 
 // piped is whether another tier is already in flight.
@@ -61,22 +56,6 @@ func (p *defensePipeline) settle(census *defenseCensus) {
 	p.unbuilt = kept
 }
 
-// claimOpen charges the open tiers' unbuilt buildings to the ledger once, at
-// the prices the tier being admitted has just read; a kind not priced yet is
-// not charged. A stock reading that already nets the native blueprints and
-// frames (NativeConstruction) holds their cost out of Available itself.
-func (p *defensePipeline) claimOpen() {
-	if p.claimed || p.ledger.stock.NativeConstruction {
-		return
-	}
-	p.claimed = true
-	for _, b := range p.unbuilt {
-		if costs, known := p.ledger.priceOf(b.Definition() + "/" + b.Stuff()); known {
-			p.ledger.claim(costs)
-		}
-	}
-}
-
 // defenseTierOpen is whether one of the open methods is the tier's: the
 // tier's prefix followed by an attempt number, or a repair and an attempt
 // (defenseTierMethodID).
@@ -103,7 +82,7 @@ func defenseTierOpen(open []domain.MethodID, tier policy.DefenseTierName) bool {
 // is not a pure-construction perimeter tier (a turret, a rearm, a wall
 // removal): the layout then waits on it as it always did.
 func defenseOpenTiers(goal store.ProjectState, plans func(domain.PlanID) (store.PlanState, error)) (pipe *defensePipeline, ok bool, err error) {
-	pipe = newDefensePipeline(nil)
+	pipe = newDefensePipeline()
 	for _, method := range goal.Methods {
 		plan, err := plans(method.Plan)
 		if err != nil {
