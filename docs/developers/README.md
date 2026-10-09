@@ -16,6 +16,7 @@ verify and land the change.
 | Test selection | [Choose tests](testing/choose-tests.md) |
 | Native case authoring and iteration | [Acceptance guide](testing/acceptance-guide.md) |
 | Planner replay | [Colony snapshots](testing/colony-snapshots.md) |
+| Recorded definition catalog | [Recording the catalog](testing/recording-the-catalog.md) |
 | Performance diagnosis | [Measure throughput](testing/measure-throughput.md) |
 | Schema changes | [Wire contracts](../../contracts/README.md) and [generation](../../contracts/schema-generation.md) |
 | Deployment names | [Project identity](project-identity.md) |

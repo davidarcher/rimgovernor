@@ -25,6 +25,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Choose evidence for a change | [Choose tests](developers/testing/choose-tests.md) |
 | Write or iterate on a native case | [Acceptance guide](developers/testing/acceptance-guide.md) |
 | Replay planner decisions | [Colony snapshots](developers/testing/colony-snapshots.md) |
+| Refresh the recorded definition catalog | [Recording the catalog](developers/testing/recording-the-catalog.md) |
 | Measure performance | [Throughput](developers/testing/measure-throughput.md), [hazard bounds](developers/architecture/hazard-detection-bounds.md) |
 | Improve expert play | [Architecture roadmap](developers/architecture/expert-play-assessment.md) |
 | Plan colony rooms and containment | [Facilities](developers/architecture/facilities.md) |

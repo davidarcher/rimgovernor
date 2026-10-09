@@ -206,29 +206,53 @@ func (caller *Client) DefinitionCatalog(ctx context.Context, identity *c.Identit
 	if held := caller.heldCatalog(identity); held != nil {
 		return held, nil
 	}
+	wire, err := caller.readCatalogWire(ctx, identity)
+	if err != nil {
+		return nil, err
+	}
+	catalog, err := DecodeDefinitionCatalog(wire, identity)
+	if err != nil {
+		return nil, err
+	}
+	caller.catalog.mu.Lock()
+	caller.catalog.catalog = catalog
+	caller.catalog.mu.Unlock()
+	return catalog, nil
+}
+
+// RecordDefinitionCatalog is the wire catalog of identity's load, read fresh
+// (the held catalog is not consulted) and checked by DecodeDefinitionCatalog;
+// cmd/recordcatalog writes it as the recorded catalog.
+func (caller *Client) RecordDefinitionCatalog(ctx context.Context, identity *c.Identity) (*o.DefinitionCatalog, error) {
+	if err := ValidateIdentity(identity); err != nil {
+		return nil, err
+	}
+	wire, err := caller.readCatalogWire(ctx, identity)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := DecodeDefinitionCatalog(wire, identity); err != nil {
+		return nil, err
+	}
+	return wire, nil
+}
+
+func (caller *Client) readCatalogWire(ctx context.Context, identity *c.Identity) (*o.DefinitionCatalog, error) {
 	request := &o.DefinitionCatalogRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
 	reply := &o.DefinitionCatalogReply{}
 	raw, err := caller.protoRead(ctx, methodDefinitionCatalog, request, reply)
 	if err != nil {
 		return nil, err
 	}
-	var catalog *DefinitionCatalog
 	switch v := reply.Outcome.(type) {
 	case *o.DefinitionCatalogReply_Failure:
 		return nil, failure(v.Failure, raw)
 	case *o.DefinitionCatalogReply_Unavailable:
 		return nil, unavailable(v.Unavailable, raw)
 	case *o.DefinitionCatalogReply_Observed:
-		if catalog, err = DecodeDefinitionCatalog(v.Observed, identity); err != nil {
-			return nil, err
-		}
-	default:
-		return nil, contract("missing definition catalog outcome")
+		return v.Observed, nil
 	}
-	caller.catalog.mu.Lock()
-	caller.catalog.catalog = catalog
-	caller.catalog.mu.Unlock()
-	return catalog, nil
+	return nil, contract("missing definition catalog outcome")
 }
 
 // defRows keys generated def rows by defName; no rows, a row without a
