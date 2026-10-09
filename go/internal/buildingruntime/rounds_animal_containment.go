@@ -110,7 +110,7 @@ func animalContainmentStuff(a, b observation.PlanningDefinition) (string, bool) 
 // none falls back to the cheapest allowed whatever the stock. Ranking by
 // market value alone picked Bioferrite, which no colony holds.
 func shellSharedStuff(facts observation.ColonyProjection, a, b observation.PlanningDefinition) (string, bool) {
-	if want := shellStyle(facts).WallStuff(domain.ShellRun); want != "" && len(a.StuffOptions) > 0 && a.MakeableFrom(want) && b.MakeableFrom(want) {
+	if want := shellStyle(facts).WallStuff; want != "" && len(a.StuffOptions) > 0 && a.MakeableFrom(want) && b.MakeableFrom(want) {
 		return want, true
 	}
 	if stock, known := facts.Stock(); known {

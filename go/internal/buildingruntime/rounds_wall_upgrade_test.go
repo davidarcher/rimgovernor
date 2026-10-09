@@ -3,7 +3,6 @@ package buildingruntime
 import (
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
@@ -13,7 +12,7 @@ import (
 func TestWallUpgradeIsUpgradeOnlyAndStockInHand(t *testing.T) {
 	budget := policy.ShellWallBudget
 	stone := shellProjection(map[policy.Resource]int64{"WoodLog": 1000, "BlocksGranite": 5 * budget})
-	if want := shellStyle(stone).WallStuff(domain.ShellRun); want != "BlocksGranite" || !stone.StuffUpgrade("Wall", "WoodLog", want) {
+	if want := shellStyle(stone).WallStuff; want != "BlocksGranite" || !stone.StuffUpgrade("Wall", "WoodLog", want) {
 		t.Fatal("wood wall, stone in stock and wanted is swapped", want)
 	}
 	if stone.StuffUpgrade("Wall", "BlocksGranite", "BlocksGranite") || stone.StuffUpgrade("Wall", "BlocksGranite", "WoodLog") {

@@ -74,7 +74,7 @@ func TestLayoutRingStepIsMasonry(t *testing.T) {
 		// slate blocks, 80 walls' worth, short of the 200-wall shell budget, and
 		// wood is plentiful, so the ring is wood. Stone winning once the stock
 		// covers a shell is TestShellStyleFollowsTheStock's claim.
-		if want := shellStyle(facts).WallStuff(domain.ShellRun); b.Stuff() != want {
+		if want := shellStyle(facts).WallStuff; b.Stuff() != want {
 			t.Fatalf("%s at %v is %s, want the shell style's %s", b.Definition(), b.Cell(), b.Stuff(), want)
 		}
 		stuffs[b.Stuff()] = true

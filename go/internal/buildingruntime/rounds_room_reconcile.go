@@ -245,7 +245,7 @@ func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state
 		}
 		_, player := policy.SplitGroundRows(census.Targets)
 		in.Rows, in.Floors, in.Furniture = policy.OwnRows(stampPacking(player, facts), rr.template, rr.forbidden), census.Floors, rr.template
-		if want := shellStyle(facts).WallStuff(domain.ShellRun); want != "" && !rr.room.Outdoor {
+		if want := shellStyle(facts).WallStuff; want != "" && !rr.room.Outdoor {
 			in.WallUpgrade = func(have string) bool { return facts.StuffUpgrade(policy.ShellWallDefinition, have, want) }
 		}
 		if !rr.room.Outdoor {

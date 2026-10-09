@@ -77,7 +77,7 @@ func shellStyle(facts observation.ColonyProjection) domain.ShellStyle {
 	if stuff := facts.BulkBuildStuff(style.WallDef, policy.ShellWallBudget); stuff != "" {
 		wall = stuff
 	}
-	style.WallStuff = func(domain.ShellPart) string { return wall }
+	style.WallStuff = wall
 	return style
 }
 

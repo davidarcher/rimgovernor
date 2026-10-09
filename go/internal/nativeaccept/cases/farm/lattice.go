@@ -67,7 +67,8 @@ func runLatticeSow(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("fixture: unexpected lattice staging: %#v", prepared)
 	}
 	report["fixture"] = prepared
-	wantTrees := domain.TreeLatticeCount(latticeWidth, latticeHeight)
+	pitch := domain.TreeLatticePitch
+	wantTrees := (latticeWidth + pitch - 1) / pitch * ((latticeHeight + pitch - 1) / pitch)
 	wantRice := latticeWidth * latticeHeight
 
 	var zones map[string]latticeZone

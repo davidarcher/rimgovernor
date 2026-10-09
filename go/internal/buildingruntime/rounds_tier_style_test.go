@@ -110,8 +110,8 @@ func TestShellStyleFollowsTheStock(t *testing.T) {
 		if tc.noAcquisiton {
 			p.Acquisition = domain.Known([]policy.AcquisitionSource{})
 		}
-		if shell := shellStyle(p); shell.DoorDef != "Door" || shell.DoorStuff != tc.door || shell.WallStuff(domain.ShellRun) != tc.wall || shell.WallStuff(domain.ShellCorner) != tc.wall {
-			t.Errorf("%s: %+v wall %s", tc.name, shell, shell.WallStuff(domain.ShellRun))
+		if shell := shellStyle(p); shell.DoorDef != "Door" || shell.DoorStuff != tc.door || shell.WallStuff != tc.wall {
+			t.Errorf("%s: %+v wall %s", tc.name, shell, shell.WallStuff)
 		}
 	}
 }
@@ -122,7 +122,7 @@ func TestShellStyleFollowsTheStock(t *testing.T) {
 func TestShellStyleOnAMapShortOfWood(t *testing.T) {
 	desert := shellProjection(map[policy.Resource]int64{"WoodLog": 80})
 	desert.Acquisition = domain.Known([]policy.AcquisitionSource{})
-	if got := shellStyle(desert).WallStuff(domain.ShellRun); got == "WoodLog" || got == "Bioferrite" {
+	if got := shellStyle(desert).WallStuff; got == "WoodLog" || got == "Bioferrite" {
 		t.Fatal("wood or exotic wall on a woodless map", got)
 	}
 }

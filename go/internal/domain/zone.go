@@ -120,15 +120,6 @@ const TreeLatticePitch = 2
 // TreeCellsPerTree is the zone area one lattice tree takes.
 const TreeCellsPerTree = TreeLatticePitch * TreeLatticePitch
 
-// TreeLatticeCount is how many trees a width x height rectangular growing
-// zone holds on the lattice.
-func TreeLatticeCount(width, height int) int {
-	if width <= 0 || height <= 0 {
-		return 0
-	}
-	return (width + TreeLatticePitch - 1) / TreeLatticePitch * ((height + TreeLatticePitch - 1) / TreeLatticePitch)
-}
-
 // NewFishingZoneExtension names the exact existing zone and the complete final
 // footprint. Native admission requires a strict superset in the same body.
 func NewFishingZoneExtension(zoneID string, cells []Cell) (ZoneCreate, error) {

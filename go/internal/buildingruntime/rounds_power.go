@@ -370,7 +370,7 @@ func (r *RoundsBuildingPlanner) previewPlannedPower(ctx context.Context, snapsho
 		}
 	}
 	wallStuff := ""
-	if s := shellStyle(facts).WallStuff(domain.ShellRun); s != "" {
+	if s := shellStyle(facts).WallStuff; s != "" {
 		wallStuff = string(s)
 	}
 	n, merged := 0, 0
