@@ -26,6 +26,12 @@ type OrderSpec struct {
 	Target int32
 	// BenchKind is the workbench definition, not a particular bench.
 	BenchKind string
+	// Product and Class are the declarer's stock-target context for the
+	// dispatcher: the resource the order stocks and how fast a shortfall must
+	// refill. They are not identity (not in Key) and a bill read back from a
+	// bench has neither.
+	Product Resource
+	Class   ResourceClass
 }
 
 // Key is the canonical spec identity. The mode is its wire class: native tells
@@ -96,27 +102,20 @@ type LedgerPlan struct {
 // declared. If any planner abstained nothing is removed and the counters do
 // not advance; otherwise an orphan is removed once it has been an orphan for
 // OrphanGraceRounds consecutive Rounds. Excluded kinds are always kept.
-func ReconcileLedger(declared []Declared, actual []ActualBill, orphans map[string]int) LedgerPlan {
-	wanted := map[string]OrderSpec{}
-	abstain := false
-	for _, d := range declared {
-		abstain = abstain || d.Abstain
-		for _, o := range d.Orders {
-			if _, ok := wanted[o.Key()]; !ok {
-				wanted[o.Key()] = o
-			}
-		}
-	}
+// copies is the wanted bill count per spec Key (the dispatcher's split across
+// benches); a spec absent from it, or below one, wants one bill.
+func ReconcileLedger(declared []Declared, actual []ActualBill, orphans map[string]int, copies map[string]int) LedgerPlan {
+	wanted, abstain := WantedOrders(declared)
 	plan := LedgerPlan{Orphans: map[string]int{}}
-	matched := map[string]bool{}
+	matched := map[string]int{}
 	for _, b := range actual {
 		k := b.Spec.Key()
 		_, isWanted := wanted[k]
 		switch {
 		case b.Kind != LedgerProduction:
 			plan.Keep = append(plan.Keep, b)
-		case isWanted && !matched[k] && !b.Spent:
-			matched[k] = true
+		case isWanted && matched[k] < wantedCopies(copies, k) && !b.Spent:
+			matched[k]++
 			plan.Keep = append(plan.Keep, b)
 		case abstain:
 			plan.Keep = append(plan.Keep, b)
@@ -135,13 +134,38 @@ func ReconcileLedger(declared []Declared, actual []ActualBill, orphans map[strin
 	}
 	keys := make([]string, 0, len(wanted))
 	for k := range wanted {
-		if !matched[k] {
+		if matched[k] < wantedCopies(copies, k) {
 			keys = append(keys, k)
 		}
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		plan.Place = append(plan.Place, wanted[k])
+		for n := matched[k]; n < wantedCopies(copies, k); n++ {
+			plan.Place = append(plan.Place, wanted[k])
+		}
 	}
 	return plan
+}
+
+// WantedOrders coalesces the declared orders by spec Key (the first declaration
+// of a key wins) and reports whether any planner abstained.
+func WantedOrders(declared []Declared) (wanted map[string]OrderSpec, abstain bool) {
+	wanted = map[string]OrderSpec{}
+	for _, d := range declared {
+		abstain = abstain || d.Abstain
+		for _, o := range d.Orders {
+			if _, ok := wanted[o.Key()]; !ok {
+				wanted[o.Key()] = o
+			}
+		}
+	}
+	return wanted, abstain
+}
+
+// wantedCopies is how many bills of the spec stand, at least one.
+func wantedCopies(copies map[string]int, key string) int {
+	if n := copies[key]; n > 1 {
+		return n
+	}
+	return 1
 }

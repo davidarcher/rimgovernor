@@ -35,6 +35,7 @@ type reconcileCase struct {
 	declared []Declared
 	actual   []ActualBill
 	in       map[string]int
+	copies   map[string]int
 	place    []OrderSpec
 	remove   []string
 	keep     []string
@@ -65,7 +66,7 @@ func TestReconcileLedger(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := ReconcileLedger(tc.declared, tc.actual, tc.in)
+			got := ReconcileLedger(tc.declared, tc.actual, tc.in, tc.copies)
 			ids := func(bs []ActualBill) []string {
 				var out []string
 				for _, b := range bs {
@@ -86,13 +87,13 @@ func TestReconcileLedgerGraceAcrossRounds(t *testing.T) {
 	actual := []ActualBill{{ID: "1", Spec: ledgerSpec("vest")}}
 	counters := map[string]int(nil)
 	for round := 1; round < OrphanGraceRounds; round++ {
-		plan := ReconcileLedger(nil, actual, counters)
+		plan := ReconcileLedger(nil, actual, counters, nil)
 		if len(plan.Remove) != 0 {
 			t.Fatalf("round %d removed early", round)
 		}
 		counters = plan.Orphans
 	}
-	if plan := ReconcileLedger(nil, actual, counters); len(plan.Remove) != 1 {
+	if plan := ReconcileLedger(nil, actual, counters, nil); len(plan.Remove) != 1 {
 		t.Fatalf("not removed after grace: %+v", plan)
 	}
 }

@@ -282,6 +282,10 @@ type RoundsFacts struct {
 	// (LedgerDiffOwed); it holds MaintainWorkLedger open. Unknown unless the
 	// ledger has declarers and read every bench's bills.
 	LedgerOwed domain.Fact[bool]
+	// UnmetThroughput is the dispatcher's unmet throughput per bench kind
+	// (units a day short and why), sorted by kind; the facilities ladder reads
+	// it. Empty when nothing is short or the ledger has no declarers.
+	UnmetThroughput []UnmetThroughput `json:",omitempty"`
 	// SafeAreaOwed: the Safe allowed area differs from the enclosed roofed
 	// rooms (PlanSafeArea); it holds MaintainShelter open. Unknown
 	// unless the MaintainShelter method is composed.

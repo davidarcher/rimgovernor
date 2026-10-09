@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -144,6 +145,45 @@ func placedBill(t *testing.T, action domain.Action) domain.ProductionBill {
 		t.Fatalf("not a production bill: %v", action)
 	}
 	return bill
+}
+
+// A stock target whose rate model is unread (no work hours in this fixture)
+// still stands on one bench, and an order no bench of its kind can take, or
+// every capable bench is at the slot cap for, is reported as unmet throughput
+// in the Round facts for its bench kind.
+func TestLedgerReportsUnmetThroughput(t *testing.T) {
+	f := newLedgerFixture(t)
+	stock := policy.OrderSpec{Recipe: "Make_Vest", Mode: domain.StockTarget, Target: 50, BenchKind: "TableMachining", Product: "WoodLog", Class: policy.ResourceMaterial}
+	f.declare(stock)
+	f.native.benches = []policy.GearBench{ledgerBenchRow()}
+	result := f.round()
+	if result.Plan == "" || len(f.settle(result.Plan)) != 1 {
+		t.Fatalf("an unsized stock target must stand on one bench: %+v", result.Verdict)
+	}
+	if unmet := f.reviewer.ledgerUnmet(); len(unmet) != 0 {
+		t.Fatalf("unmet = %+v", unmet)
+	}
+	// No bench of the kind.
+	noBench := stock
+	noBench.BenchKind = "FueledSmithy"
+	f.declare(noBench)
+	f.round()
+	if unmet := f.reviewer.ledgerUnmet(); len(unmet) != 1 || unmet[0].BenchKind != "FueledSmithy" || unmet[0].Reason != policy.UnmetNoBench {
+		t.Fatalf("unmet = %+v", unmet)
+	}
+	// The only capable bench carries 15 other bills.
+	bills := make([]policy.GearBill, policy.LedgerBenchSlots)
+	for i := range bills {
+		hat := ledgerOrder("Make_Hat")
+		hat.Target = int32(i + 1)
+		bills[i] = fakeBill(fmt.Sprintf("Bill_%d", i), hat)
+	}
+	f.declare(stock)
+	f.native.benches = []policy.GearBench{ledgerBenchRow(bills...)}
+	f.round()
+	if unmet := f.reviewer.ledgerUnmet(); len(unmet) != 1 || unmet[0].BenchKind != "TableMachining" || unmet[0].Reason != policy.UnmetSlotsFull {
+		t.Fatalf("unmet = %+v", unmet)
+	}
 }
 
 // A declared order with no bill is placed as one batched plan; once the bench

@@ -331,10 +331,33 @@ plan as one attempt-numbered owner method of `production_bill` and
 `remove_production_bill` actions (removals first, at most
 `store.MaxBillPlanActions`), under one multi-key arbiter claim (every bench and
 each removed bill id), at most once per review and never while an earlier plan of the
-owner is open (an unknown receipt blocks until its resend resolves). Placement
-(`policy.PlaceLedgerOrders`) takes the usable bench of the order's kind that
-offers the recipe and carries the fewest bills; the bench dispatcher replaces it.
-A finished bill is spent and never satisfies an order. Beer reserve and human
+owner is open (an unknown receipt blocks until its resend resolves).
+
+The bench dispatcher (`work_dispatch.go`, `work_dispatch_memory.go`; pure policy,
+memory in `Rounder.ledger.dispatch`) sizes and places the orders. A declared order
+carries `OrderSpec.Product` and `Class` beside the spec (not in `Key`); with them a
+stock target is a rate-model order. Its deficit is target minus the projection's
+stock count, its demand deficit over the class refill window, its per-bench capacity
+the recipe work and bench work speed over an average eligible worker's hours and
+speed (`DispatchWorkers`: available pawns with the recipe's work type enabled), and
+the benches wanted `BenchesWanted`, capped at the usable benches that offer the
+recipe and at the workers. That count (plus calibration widening, at least one) is
+`ReconcileLedger`'s copy count for the spec; an unsized order (not a stock target,
+or stock, schedule or recipe work unread) stands on one bench. `PlaceLedgerOrders`
+puts each copy on the fastest eligible bench (work speed, then fewest bills, then
+id) that does not already carry it and has fewer than `LedgerBenchSlots` readback
+bills; a copy no bench takes is unplaced. Calibration keeps a rolling one-game-day
+window per stock target, restarted when the number of carrying benches changes and
+reset with the world: a full window whose stock gain is under half of the predicted
+gain (and whose stock never reached the target) widens by one bench, capped at the
+usable benches, unless the recipe's ingredient stock is at or below one unit
+(`ingredient_bound`) or every carrying bill is active, ingredients are present and
+no pawn's job targeted a carrying bench all window (`haul_bound`); with a bill on
+every eligible bench it reports `benches_exhausted`. `RoundsFacts.UnmetThroughput`
+is one row per bench kind (`policy.UnmetThroughput`: units a day short and the
+reason, also `no_bench` when the model wants more benches than exist and
+`bench_slots_full` for an unplaced copy with capable benches), the demand signal the
+facilities ladder reads. A finished bill is spent and never satisfies an order. Beer reserve and human
 butcher bills read back as plain target and forever bills until native reports a
 bill class.
 

@@ -37,6 +37,17 @@ type workLedger struct {
 	world     domain.GenerationSnapshot
 	orphans   map[string]int
 	pending   *ledgerPending
+	// dispatch is the bench dispatcher's calibration memory and unmet its
+	// latest unmet throughput per bench kind (RoundsFacts.UnmetThroughput).
+	dispatch policy.DispatchMemory
+	unmet    []policy.UnmetThroughput
+}
+
+// ledgerUnmet is the latest review's unmet throughput per bench kind.
+func (r *Rounder) ledgerUnmet() []policy.UnmetThroughput {
+	r.ledger.mu.Lock()
+	defer r.ledger.mu.Unlock()
+	return r.ledger.unmet
 }
 
 // ledgerPending is a review's reconcile plan, committed by the ledger planner
@@ -69,8 +80,10 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 	l.pending = nil
 	if l.world != snapshot && (l.world.Colony != snapshot.Colony || l.world.Load != snapshot.Load || l.world.Map != snapshot.Map) {
 		l.orphans = nil
+		l.dispatch = policy.DispatchMemory{}
 	}
 	l.world = snapshot
+	l.unmet = nil
 	l.mu.Unlock()
 	native, ok := r.native.(RoundsWorkBenchSource)
 	if len(declarers) == 0 || !ok {
@@ -101,9 +114,16 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	plan := policy.ReconcileLedger(declared, actual, l.orphans)
+	var pawns []policy.WorkPawn
+	if rows, ok := projection.WorkPawns.Value(); ok {
+		pawns = rows
+	}
+	copies, dispatched := l.dispatch.Dispatch(policy.DispatchInputs{Declared: declared, Benches: benches, Pawns: pawns, Stock: projection.Resources, Tick: int64(projection.Identity.Tick)})
+	plan := policy.ReconcileLedger(declared, actual, l.orphans, copies)
 	l.orphans = plan.Orphans
 	placed, unplaced := policy.PlaceLedgerOrders(plan.Place, benches)
+	wanted, _ := policy.WantedOrders(declared)
+	l.unmet = l.dispatch.Unmet(dispatched, wanted, unplaced, benches)
 	if policy.LedgerDiffOwed(plan) {
 		l.pending = &ledgerPending{snapshot: snapshot, remove: plan.Remove, place: placed, unplaced: unplaced}
 	}

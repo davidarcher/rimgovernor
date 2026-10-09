@@ -50,16 +50,27 @@ type LedgerPlacement struct {
 	Spec  OrderSpec
 }
 
-// PlaceLedgerOrders assigns each order to a bench of its kind that is usable,
-// offers the recipe and has a free bill slot, the one carrying the fewest
-// bills (ties by id), counting the orders placed earlier in the same plan.
-// Orders no bench can take are returned unplaced. The bench dispatcher
-// replaces this rule with its throughput split.
+// PlaceLedgerOrders assigns each order (one entry per wanted copy) to an
+// eligible bench (EligibleBenches) that is not full and does not already carry
+// the order: the fastest bench by work speed, an unknown speed last, then the
+// one carrying the fewest bills, then by id. A bench is full when its readback
+// bill count reaches LedgerBenchSlots. Placements earlier in the same plan
+// count. Orders no bench can take are returned unplaced.
 func PlaceLedgerOrders(orders []OrderSpec, benches []GearBench) (placed []LedgerPlacement, unplaced []OrderSpec) {
 	load := map[string]int{}
+	carries := map[[2]string]bool{}
+	speed := map[string]float64{}
 	for _, b := range benches {
 		bills, _ := b.Bills.Value()
 		load[b.ID] = len(bills)
+		for _, bill := range bills {
+			if spec, ok := bill.Spec.Value(); ok && !bill.Spent {
+				carries[[2]string{b.ID, spec.Key()}] = true
+			}
+		}
+		if s, ok := b.WorkSpeed.Value(); ok {
+			speed[b.ID] = s
+		}
 	}
 	sorted := append([]GearBench(nil), benches...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].ID < sorted[j].ID })
@@ -75,10 +86,10 @@ func PlaceLedgerOrders(orders []OrderSpec, benches []GearBench) (placed []Ledger
 			claim += "/" + order.Worker
 		}
 		for _, b := range sorted {
-			if b.Def != order.BenchKind || load[b.ID] >= LedgerBenchSlots || taken[[2]string{b.ID, claim}] || !benchOffers(b, order.Recipe) {
+			if b.Def != order.BenchKind || load[b.ID] >= LedgerBenchSlots || taken[[2]string{b.ID, claim}] || carries[[2]string{b.ID, order.Key()}] || !benchOffers(b, order.Recipe) {
 				continue
 			}
-			if best == "" || load[b.ID] < load[best] {
+			if best == "" || fasterBench(speed, load, b.ID, best) {
 				best = b.ID
 			}
 		}
@@ -88,9 +99,24 @@ func PlaceLedgerOrders(orders []OrderSpec, benches []GearBench) (placed []Ledger
 		}
 		load[best]++
 		taken[[2]string{best, claim}] = true
+		carries[[2]string{best, order.Key()}] = true
 		placed = append(placed, LedgerPlacement{Bench: best, Spec: order})
 	}
 	return placed, unplaced
+}
+
+// fasterBench is whether bench a beats b: higher known work speed, then fewer
+// bills. Ids were visited in order, so a tie keeps the earlier bench.
+func fasterBench(speed map[string]float64, load map[string]int, a, b string) bool {
+	sa, aKnown := speed[a]
+	sb, bKnown := speed[b]
+	switch {
+	case aKnown != bKnown:
+		return aKnown
+	case sa != sb:
+		return sa > sb
+	}
+	return load[a] < load[b]
 }
 
 func benchOffers(b GearBench, recipe string) bool {

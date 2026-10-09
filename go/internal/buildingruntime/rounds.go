@@ -749,6 +749,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if reading.Projection.Facts.LedgerOwed, err = r.reviewLedger(ctx, state.Snapshot, expected, reading.Projection); err != nil {
 		return store.RoundsResult{}, err
 	}
+	reading.Projection.Facts.UnmetThroughput = r.ledgerUnmet()
 	// Acquisition uses the review's completed home staffing and defense facts.
 	r.census.retain(reading, r.roomsEnabled(), claims)
 	r.planFoodAcquisition(ctx, state.Snapshot, reading.Projection)
