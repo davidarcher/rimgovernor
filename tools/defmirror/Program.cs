@@ -95,7 +95,7 @@ internal static class Program
             foreach (var error in generator.Errors) Console.Error.WriteLine("  " + error);
             return 1;
         }
-        var summary = $"{generator.MessageCount} messages, {generator.EnumCount} enums, {generator.SkippedCount} runtime-state fields skipped";
+        var summary = $"{generator.MessageCount} messages, {generator.EnumCount} enums, {generator.SkippedCount} runtime-state fields skipped, {generator.HolderCount} constant classes with {generator.ConstantFieldCount} members ({generator.UnrepresentedCount} not carried)";
         if (check)
         {
             var current = File.Exists(output) ? File.ReadAllText(output).Replace("\r\n", "\n") : "";
@@ -170,8 +170,15 @@ internal sealed class Generator
     private readonly HashSet<Synth> synths = new();
     private readonly SortedSet<string> errors = new(StringComparer.Ordinal);
     private readonly SortedSet<string> skipped = new(StringComparer.Ordinal);
+    private readonly Dictionary<Type, Message> holders = new(); // classes holding carried static members (GameConstants)
+    private readonly SortedSet<string> unrepresented = new(StringComparer.Ordinal);
     private Dictionary<Type, string> names = new();
+    private Dictionary<Type, string> holderStems = new(); // a holder's root field name; its message is <stem>Constants
     private List<Type> roots = new();
+
+    // The namespaces whose static members GameConstants carries. Widening is an edit here.
+    private static readonly string[] ConstantNamespaces =
+        { "RimWorld", "Verse", "Verse.AI", "Verse.AI.Group", "RimWorld.Planet", "RimWorld.QuestGen", "RimWorld.BaseGen" };
 
     public Generator(MetadataLoadContext context, string managed)
     {
@@ -180,9 +187,12 @@ internal sealed class Generator
     }
 
     public IReadOnlyCollection<string> Errors => errors;
-    public int MessageCount => messages.Count + anys.Count + synths.Count;
+    public int MessageCount => messages.Count + anys.Count + synths.Count + holders.Count + 1;
     public int EnumCount => enums.Count;
     public int SkippedCount => skipped.Count;
+    public int HolderCount => holders.Count;
+    public int ConstantFieldCount => holders.Values.Sum(h => h.Fields.Count);
+    public int UnrepresentedCount => unrepresented.Count;
 
     // DefinitionCatalog carries these two roots in its own fields (8 and 9);
     // every other root is a repeated field of DefSets. They walk first.
@@ -192,6 +202,7 @@ internal sealed class Generator
     {
         var assemblies = Prepare();
         foreach (var root in roots) Need(root);
+        CollectConstants(assemblies);
         if (errors.Count > 0) return "";
         AssignNames();
         if (errors.Count > 0) return "";
@@ -415,6 +426,7 @@ internal sealed class Generator
         "System.Boolean" => "bool",
         "System.SByte" or "System.Int16" or "System.Int32" => "int32",
         "System.Byte" or "System.UInt16" or "System.UInt32" => "uint32",
+        "System.Char" => "uint32", // the UTF-16 code unit
         "System.Int64" => "int64",
         "System.UInt64" => "uint64",
         "System.Single" => "float",
@@ -614,6 +626,83 @@ internal sealed class Generator
         return new Ref(null, null, false, false, s);
     }
 
+    // ---- game constants ----
+
+    // UI and dev classes carry no gameplay constants; compiler-generated closures and
+    // caches and the *DefOf classes (filled at load, not constants) are no data either.
+    private static bool ExcludedClass(Type t)
+    {
+        for (var c = t; c != null; c = c.DeclaringType)
+            if (c.Name.Contains('<') || c.Name.StartsWith("Dialog_", StringComparison.Ordinal) || c.Name is "Widgets" or "DevGUI"
+                || c.Name.EndsWith("DefOf", StringComparison.Ordinal) || c.CustomAttributes.Any(a => a.AttributeType.Name == "CompilerGeneratedAttribute"))
+                return true;
+        return false;
+    }
+
+    private static bool InConstantNamespace(Type t)
+    {
+        var outer = t;
+        while (outer.DeclaringType != null) outer = outer.DeclaringType;
+        return outer.Namespace != null && ConstantNamespaces.Contains(outer.Namespace);
+    }
+
+    // Every const and static readonly of a primitive, string, enum or struct type the def
+    // mapping can represent, per class; every enum of the namespaces. A member the mapping
+    // cannot represent is listed with its reason; a public one of a type the mapping says
+    // must be carried (a primitive, string, enum or struct) fails the run, as a def field does.
+    private void CollectConstants(Assembly[] assemblies)
+    {
+        var types = assemblies.SelectMany(a => a.GetTypes())
+            .Where(t => !t.IsGenericTypeDefinition && InConstantNamespace(t) && !ExcludedClass(t))
+            .OrderBy(t => t.FullName, StringComparer.Ordinal).ToList();
+        foreach (var t in types)
+        {
+            if (t.IsEnum) { enums.Add(t); continue; }
+            var message = new Message { Clr = t };
+            var keys = new Dictionary<string, string>();
+            foreach (var f in t.GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly).OrderBy(f => f.MetadataToken))
+            {
+                if (!(f.IsLiteral || f.IsInitOnly) || f.Name.Contains('<')) continue;
+                var where = $"{t.FullName}.{f.Name}";
+                var element = StaticElement(f, where, out var reason);
+                if (element == null)
+                {
+                    unrepresented.Add($"{where}: {TypeText(f.FieldType)} ({reason})");
+                    continue;
+                }
+                var key = char.ToUpperInvariant(f.Name[0]) + f.Name.Substring(1).Replace("_", "");
+                if (keys.TryGetValue(key, out var other))
+                {
+                    errors.Add($"{where}: name collides with {other} after protobuf name normalisation");
+                    continue;
+                }
+                keys[key] = f.Name;
+                message.Fields.Add(new Field { Name = f.Name, Number = message.Fields.Count + 1, Info = f, Element = element });
+            }
+            if (message.Fields.Count > 0) holders[t] = message;
+        }
+    }
+
+    private Ref? StaticElement(FieldInfo f, string where, out string reason)
+    {
+        var t = f.FieldType;
+        reason = "";
+        if (RuntimeState(t) is { } state) { reason = $"runtime state {TypeText(state)}"; return null; }
+        var carried = t.IsPrimitive || t.IsEnum || t.FullName == "System.String" || (t.IsValueType && !t.FullName!.StartsWith("System.", StringComparison.Ordinal));
+        if (!carried || t.FullName == "System.Type")
+        {
+            reason = "not a primitive, string, enum or struct: curves, arrays and collections are not carried yet";
+            return null;
+        }
+        try { return Resolve(t); }
+        catch (Unsupported u)
+        {
+            reason = u.Message;
+            if (f.IsPublic) errors.Add($"{where}: {u.Message}");
+            return null;
+        }
+    }
+
     // ---- naming ----
 
     private static string SimpleName(Type t)
@@ -638,6 +727,17 @@ internal sealed class Generator
                 errors.Add($"{t.FullName}: message name {n} collides with {other.FullName}");
             used[n] = t;
         }
+        holderStems = new Dictionary<Type, string>();
+        foreach (var g in holders.Keys.GroupBy(SimpleName))
+            foreach (var t in g)
+                holderStems[t] = g.Count() == 1 ? g.Key : (t.Namespace ?? "").Replace('.', '_') + "_" + g.Key;
+        foreach (var (t, stem) in holderStems)
+        {
+            var n = stem + "Constants";
+            if (used.TryGetValue(n, out var other)) errors.Add($"{t.FullName}: message name {n} collides with {other.FullName}");
+            used[n] = t;
+        }
+        if (used.ContainsKey("GameConstants")) errors.Add("message name GameConstants is taken");
         foreach (var t in anys)
             if (used.ContainsKey(names[t] + "Any")) errors.Add($"{t.FullName}: wrapper name {names[t]}Any is taken");
     }
@@ -706,6 +806,16 @@ internal sealed class Generator
         L("// alone or as a collection element or generic argument; a class the loader cannot build, one in the");
         L("// RuntimeClasses table, or a lazily built instance of a class family held by a non-public field.");
         foreach (var s in skipped) L("//   " + s);
+        L("//");
+        L("// GameConstants: one <Class>Constants message per class or struct of the namespaces " + string.Join(", ", ConstantNamespaces));
+        L("// that holds a carried static member, and the root GameConstants with one field per such class.");
+        L("// A member is every const and static readonly of a primitive, string or enum type or of a struct the");
+        L("// mapping above represents, whatever its visibility; field names are the CLR names. Every enum of the");
+        L("// namespaces is emitted, reachable from a def field or not. Excluded: Dialog_* classes, Widgets, DevGUI,");
+        L("// *DefOf classes and compiler-generated members. A member the mapping cannot represent is listed here with");
+        L("// its reason; a public one of a primitive, string, enum or struct type fails the run instead.");
+        L("// Members not carried (class-typed values such as curves, arrays and collections stay out until a later change):");
+        foreach (var s in unrepresented) L("//   " + s);
         L();
         L("syntax = \"proto3\";");
         L("package " + Package + ";");
@@ -768,6 +878,24 @@ internal sealed class Generator
                 L($"  {(f.Repeated ? "repeated " : f.Optional ? "optional " : "")}{TypeName(f.Element!)} {f.Name} = {f.Number}{(f.Path != null ? " [(clr_path) = \"" + f.Path + "\"]" : f.DefRef != null ? " [(clr_def_ref) = \"" + f.DefRef + "\"]" : "")};");
             L("}");
         }
+
+        foreach (var (t, m) in holders.OrderBy(p => holderStems[p.Key], StringComparer.Ordinal))
+        {
+            L();
+            L("// " + t.FullName + ": its const and static readonly members");
+            L("message " + holderStems[t] + "Constants {");
+            L("  option (clr_type) = \"" + t.FullName + "\";");
+            foreach (var f in m.Fields) L($"  {TypeName(f.Element!)} {f.Name} = {f.Number};");
+            L("}");
+        }
+
+        L();
+        L("// The static members of the game's classes, one field per class holding any.");
+        L("message GameConstants {");
+        var constant = 0;
+        foreach (var (t, stem) in holderStems.OrderBy(p => p.Value, StringComparer.Ordinal))
+            L($"  {stem}Constants {stem} = {++constant};");
+        L("}");
 
         foreach (var s in synths.OrderBy(SynthName, StringComparer.Ordinal))
         {

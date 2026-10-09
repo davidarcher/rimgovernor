@@ -171,6 +171,35 @@ Any other field the tool cannot represent fails generation naming
 `Class.field`, writes nothing and exits 1. Fixing it means extending the mapping
 rules here, never listing the field.
 
+### Game constants
+
+Beside the def messages, `defs.proto` carries the game's static members, typed
+per class (no flat keyed table), so a renamed or mistyped constant breaks the
+Go build instead of reading zero. For every class or struct of the namespaces
+`RimWorld`, `Verse`, `Verse.AI`, `Verse.AI.Group`, `RimWorld.Planet`,
+`RimWorld.QuestGen` and `RimWorld.BaseGen` (the generator's `ConstantNamespaces`;
+widening is an edit there) that holds a carried member, one `<Class>Constants`
+message carries the `clr_type` of the class and one field per member, named by
+the CLR name, in declaration order. The root `GameConstants` message has one
+field per such class (named by the class, namespace-prefixed only when two share
+a simple name). The messages hold no values: native fills them by reflection.
+
+- Carried: every `const` and `static readonly`, whatever its visibility, of a
+  primitive, `string` or enum type (a `char` is its `uint32` code unit) or of a
+  struct the def-field mapping represents (`IntRange`, `FloatRange`, `IntVec2`,
+  `IntVec3`, `CellRect`, `LevelThresholds`, `PathFinderCostTuning`, `Color`, ...),
+  mapped exactly as a def field of that type.
+- Every enum of the namespaces is emitted, reachable from a def field or not
+  (`TileMutatorWorker_Stockpile_StockpileType`).
+- Excluded by rule: `Dialog_*` classes, `Widgets`, `DevGUI`, `*DefOf` classes,
+  other namespaces (`LudeonTK`, `Ionic.Zlib`, ...) and compiler-generated types
+  and members.
+- Not carried yet: members of any other type (`SimpleCurve`, arrays,
+  collections, `Texture2D`, `System.Type`, ...). The `defs.proto` header lists
+  each with its type and reason; there is no name list. A public member of a
+  primitive, string, enum or struct type the mapping cannot represent fails
+  generation naming `Class.member`, as a def field does.
+
 ### Class chains
 
 The base-class chain of a class is not a field of each row: a family (any
