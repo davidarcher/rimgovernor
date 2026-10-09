@@ -43,7 +43,7 @@ func squadRosterChanged(view CombatView, stop StopEvent, m CombatMemory) bool {
 // colonists do, on a Retreat role the next re-formation carries over while
 // the pawn stays out of the new formation. prev are the roles before the
 // re-formation; formed the new ones.
-func squadFallBack(view CombatView, prev, formed []CombatRole) []CombatRole {
+func squadFallBack(view CombatView, geometry GeometryReply, unreachable []domain.Cell, prev, formed []CombatRole) []CombatRole {
 	live := view.live()
 	hurt := map[domain.PawnID]bool{}
 	for _, id := range squadHurt(view, prev) {
@@ -60,6 +60,6 @@ func squadFallBack(view CombatView, prev, formed []CombatRole) []CombatRole {
 	if len(hurt) == 0 {
 		return formed
 	}
-	formed = append(slices.Clone(formed), shelterRolesFor(view, func(d SquadDefenderFacts) bool { return hurt[d.ID] })...)
+	formed = append(slices.Clone(formed), shelterRolesFor(view, geometry, unreachable, func(d SquadDefenderFacts) bool { return hurt[d.ID] })...)
 	return sortRoles(formed)
 }

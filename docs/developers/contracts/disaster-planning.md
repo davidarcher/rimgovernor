@@ -71,9 +71,12 @@ Refreshing a proposal does not count as attempting it. Saved typed inputs reprod
 the candidates on load, and cancelled concerns receive no new
 proposals.
 
-Candidates require fresh native preview of pawn eligibility, reachability,
-reservations, supplies, area safety and non-widening restrictions. Native job and
-area-lease dispatch are not connected. Proposals do not allocate resources, alter areas, issue jobs or prove recovery.
+Candidates enter ordinary Hands admission for pawn eligibility, reachability,
+reservations, supplies and area safety. Service Methods dispatch `RecoveryService`
+intent; area correction uses ordinary work-settings and husbandry actions.
+Applied intent does not prove recovery. Observed useful service jobs retain their
+responsibility as hit points or fuel change; unknown jobs hold replacement.
+See [Method continuation](method-continuation.md) for reconsideration and release.
 
 Manual clears candidates and suspends the recovery concern while retaining observation
 history; the episode survives a resume. Colony/load/map replacement or tick rewind

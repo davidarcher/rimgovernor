@@ -112,6 +112,60 @@ func RecoveryNeed(h *DisasterHistory) domain.Finding {
 	return h.Services[len(h.Services)-1].Finding
 }
 
+// RecoveryWorkContinuing observes the current service job after an intent has
+// been applied. Changing hit points or fuel must not create a replacement while
+// that work is still running. This is derived from the census, not a second
+// commitment ledger. Unknown jobs/targets cannot establish that work stopped.
+func RecoveryWorkContinuing(service domain.RecoveryService, buildings domain.Fact[[]RecoveryBuilding], pawns domain.Fact[[]WorkPawn]) domain.Fact[bool] {
+	observed, known := buildings.Value()
+	if !known {
+		return domain.Unknown[bool]()
+	}
+	var targetBuildings []RecoveryBuilding
+	for _, building := range observed {
+		if building.ID == service.Thing() {
+			targetBuildings = append(targetBuildings, building)
+		}
+	}
+	pending, err := RecoveryPending(domain.Known(targetBuildings))
+	work, known := pending.Value()
+	if err != nil || !known {
+		return domain.Unknown[bool]()
+	}
+	needed := false
+	for _, need := range work {
+		if need.Building == service.Thing() && string(need.Method) == string(service.Method()) {
+			needed = true
+		}
+	}
+	if !needed {
+		return domain.Known(false)
+	}
+	rows, known := pawns.Value()
+	if !known {
+		return domain.Unknown[bool]()
+	}
+	for _, pawn := range rows {
+		if domain.PawnID(pawn.ID) != service.Pawn() {
+			continue
+		}
+		job, known := pawn.Job.Value()
+		if !known {
+			return domain.Unknown[bool]()
+		}
+		names := map[domain.RecoveryMethod]string{domain.RecoveryServiceRepair: "Repair", domain.RecoveryServiceBreakdown: "FixBrokenDownBuilding", domain.RecoveryServiceRefuel: "Refuel"}
+		if job.Def != names[service.Method()] {
+			return domain.Known(false)
+		}
+		target, known := job.Target.Value()
+		if !known {
+			return domain.Unknown[bool]()
+		}
+		return domain.Known(target.Thing == service.Thing())
+	}
+	return domain.Known(false)
+}
+
 // SelectRecoveryMethods bounds the next admission batch to eight proposals.
 // Seen methods belong to the current shared Episode, including retired plans.
 // Merely creating or refreshing a batch does not count as attempting its methods.

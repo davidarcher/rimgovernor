@@ -170,13 +170,19 @@ func TestCombatReplayLabMechLine(t *testing.T) {
 
 // lab-mech (#1118, #1146, #1152): one rifleman against a scyther stunned
 // at staging (recorded on 71e1045c1). No squad is viable against the
-// mech, so the fight shelters from the first stop and never attacks: the
-// top-scored-target rule (#863) is checked on lab-mech-line, and every
-// stop's orders stay owned changes.
+// mech. This old recording has no shelter standability read: initial admission
+// must hold instead of sending its unchecked vector, and never attack. Verified
+// shelter selection is covered by policy's shelter tests. The top-scored-target
+// rule is checked on lab-mech-line; later recorded work stays owned changes.
 func TestCombatReplayLabMech(t *testing.T) {
 	t.Parallel()
-	stops := checkCombat(t, "testdata/combat/lab-mech.json.gz",
-		formsTactic(firstStop, policy.TacticShelter),
+	checkCombat(t, "testdata/combat/lab-mech.json.gz",
+		combatAssertion{name: "unknown shelter geometry holds admission", at: firstStop, check: func(s combatReplayStop) error {
+			if len(s.Memory.Roles) != 0 || len(s.Orders) != 0 {
+				return fmt.Errorf("unverified shelter: %+v %+v", s.Memory.Roles, s.Orders)
+			}
+			return nil
+		}},
 		ordersOwnedDrafts(),
 		changesOnly(),
 		combatAssertion{name: "no attack on the scyther", check: func(s combatReplayStop) error {
@@ -188,11 +194,6 @@ func TestCombatReplayLabMech(t *testing.T) {
 			return nil
 		}},
 	)
-	for _, o := range admission(t, stops[0]) {
-		if o.Kind == policy.OrderAttack {
-			t.Errorf("admission attacks: %+v", o)
-		}
-	}
 }
 
 // lab-ranged-shield (#866, #1153): lab-ranged plus a fifth colonist, a

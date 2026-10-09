@@ -73,6 +73,7 @@ func (r *RoundsRecoveryPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoundsRecoveryResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	var open []store.PlanState
+	var applied []domain.RecoveryService
 	for _, method := range incident.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -80,6 +81,11 @@ func (r *RoundsRecoveryPlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 		if store.PlanOpen(plan) {
 			open = append(open, plan)
+		}
+		for i, action := range plan.Spec.Actions() {
+			if service, ok := action.RecoveryService(); ok && i < len(plan.Progress) && plan.Progress[i].View().Stage == domain.Completed {
+				applied = append(applied, service)
+			}
 		}
 	}
 	expected, err := stepScope(call, r.reviewer.native)
@@ -131,6 +137,13 @@ func (r *RoundsRecoveryPlanner) step(call, epoch context.Context, arbiter *stepA
 	if len(changes) > 0 {
 		return r.commitAreaChange(call, epoch, arbiter, state.Snapshot, incident, changes, workers, started)
 	}
+	for _, service := range applied {
+		if continuing, known := policy.RecoveryWorkContinuing(service, facts.RecoveryBuildings, read.Projection.WorkPawns).Value(); !known {
+			return RoundsRecoveryResult{Verdict: fieldUnavailable("recovery_work")}, nil
+		} else if continuing {
+			return RoundsRecoveryResult{Verdict: BuildingReasonExistingWork}, nil
+		}
+	}
 	planning := policy.RecoveryPlanning{Safety: facts.RecoverySafety, Workers: facts.RecoveryWorkers, Buildings: facts.RecoveryBuildings}
 	seen := make([]domain.MethodID, 0, len(incident.Methods))
 	for _, method := range incident.Methods {
@@ -151,7 +164,7 @@ func (r *RoundsRecoveryPlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 	}
 	if chosen == nil {
-		return RoundsRecoveryResult{Verdict: waitFor(WaitMethodUsed, "recovery_service_proposal")}, nil
+		return RoundsRecoveryResult{Verdict: recoverySelectionVerdict(selection.Reason)}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(chosen.Pawn)}) {
 		return RoundsRecoveryResult{Verdict: waitFor(WaitMethodUsed, "recovery_pawn_claim")}, nil
@@ -184,6 +197,22 @@ func (r *RoundsRecoveryPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoundsRecoveryResult{}, err
 	}
 	return RoundsRecoveryResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
+}
+
+// Preserve the policy's continuation reason in the existing planner_step row.
+func recoverySelectionVerdict(reason policy.RecoverySelectionReason) Verdict {
+	switch reason {
+	case policy.RecoveryFactsUnknown:
+		return fieldUnavailable("recovery_observations")
+	case policy.RecoveryNoWorker:
+		return noWorker("recovery_service")
+	case policy.RecoveryTrackedMissing:
+		return siteBlocked("recovery_infrastructure", string(reason))
+	case policy.RecoveryNoWork:
+		return BuildingReasonNoDeficit
+	default:
+		return waitFor(WaitMethodUsed, "recovery_service_proposal")
+	}
 }
 
 // shelterCombatants is the squad's draft set for sheltering (#1367): the

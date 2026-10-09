@@ -28,6 +28,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Quest classification and execution](quests.md)
 - [Power contracts](power-contracts.md)
 - [Disaster planning](disaster-planning.md)
+- [Method continuation](method-continuation.md)
 - [Research tied to colony needs](research.md)
 - [Spatial contracts](spatial-contracts.md)
 - [Colony extent contract](colony-extent.md)

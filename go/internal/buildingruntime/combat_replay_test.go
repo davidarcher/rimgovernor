@@ -69,7 +69,7 @@ func replayCombat(path string) ([]combatReplayStop, error) {
 			return nil, fmt.Errorf("stop %d (tick %d): re-record: the frame's events answer %+v, the recording %+v", i, s.Tick, stop, s.Stop)
 		}
 		orders, ask, memory := policy.DecideCombat(view, policy.GeometryReply{}, s.Stop, s.MemoryIn)
-		if !reflect.DeepEqual(ask, s.Ask) {
+		if !replayGeometryCompatible(ask, s.Ask) {
 			// Recordings older than sparing contained bleeders (#1035)
 			// answer asks that still name them: replay those with the
 			// population unknown. The rule itself is proven on a recorded
@@ -78,15 +78,41 @@ func replayCombat(path string) ([]combatReplayStop, error) {
 			view.Population = domain.Unknown[int]()
 			orders, ask, memory = policy.DecideCombat(view, policy.GeometryReply{}, s.Stop, s.MemoryIn)
 		}
-		if !reflect.DeepEqual(ask, s.Ask) {
+		if !replayGeometryCompatible(ask, s.Ask) {
 			return nil, fmt.Errorf("stop %d (tick %d): re-record: DecideCombat asks %+v, the recording answered %+v", i, s.Tick, ask, s.Ask)
 		}
 		if ask != nil {
-			orders, _, memory = policy.DecideCombat(view, s.Reply, s.Stop, s.MemoryIn)
+			reply := s.Reply
+			reply.Answered = true
+			orders, _, memory = policy.DecideCombat(view, reply, s.Stop, s.MemoryIn)
 		}
 		out = append(out, combatReplayStop{RecordedStop: s, Index: i, View: view, Orders: orders, Memory: memory})
 	}
 	return out, nil
+}
+
+// Extra named-cell checks replay as unknown: only the recorded native answer
+// can establish standability. Proposal/path/hostile changes still need a new
+// recording. Full shelter geometry is covered by its policy transition tests;
+// these older recordings prove conservative behavior with partial evidence.
+func replayGeometryCompatible(ask, recorded *policy.GeometryRequest) bool {
+	if reflect.DeepEqual(ask, recorded) {
+		return true
+	}
+	if ask == nil {
+		return false
+	}
+	a := *ask
+	a.Cells = nil
+	if recorded == nil {
+		return reflect.DeepEqual(a, policy.GeometryRequest{})
+	}
+	b := *recorded
+	if len(ask.Cells) < len(b.Cells) || !slices.Equal(ask.Cells[:len(b.Cells)], b.Cells) {
+		return false
+	}
+	b.Cells = nil
+	return reflect.DeepEqual(a, b)
 }
 
 // combatAssertion is one declarative claim over a fight: check holds at

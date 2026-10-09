@@ -80,7 +80,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		next.PodDoors = keepSent(next.PodDoors, doors)
 		next.Formed = view.Tick
 	} else if !relieveBlocker(view, stop, &next) && !fallBack(view, stop, &next) && reform(view, stop, next) {
-		if ask := formationAsk(view); ask != nil && !geometry.Answered {
+		if ask := formationAsk(view, next); ask != nil && !geometry.Answered {
 			// Formation asks the game for its candidate cells by role in the
 			// stop's one geometry round trip; with nothing to ask (no
 			// layout) it forms at once.
@@ -99,7 +99,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 				// With no armed defender the pack is sheltered from as
 				// #968's squadless fight is; that plan admits the combat
 				// window instead of parking the clock (#1146).
-				next.Tactic, next.Roles = TacticShelter, shelterRoles(view)
+				next.Tactic, next.Roles = TacticShelter, shelterRoles(view, geometry, next.Unreachable)
 			}
 		} else if view.Hunt {
 			// A squad hunt picks its own tactic (#1616).
@@ -121,9 +121,17 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 				formGeometry = GeometryReply{Answered: true, Lines: geometry.Lines}
 			}
 			next.Tactic, next.Roles, next.Refusal = formation(view, formGeometry, next.Relieved, next.Unreachable)
+			if next.Tactic == "" && memory.Tactic == TacticShelter {
+				// Missing geometry cannot invalidate useful issued shelter.
+				// A proven unreachable destination is never retained.
+				next.Tactic = TacticShelter
+				next.Roles = slices.DeleteFunc(slices.Clone(memory.Roles), func(r CombatRole) bool {
+					return !live[r.Pawn] || r.Cell != nil && slices.Contains(next.Unreachable, *r.Cell)
+				})
+			}
 		}
 		if next.Tactic == TacticSquad {
-			next.Roles = squadFallBack(view, memory.Roles, next.Roles)
+			next.Roles = squadFallBack(view, geometry, next.Unreachable, memory.Roles, next.Roles)
 		}
 		next.Formed, formed = view.Tick, true
 		next.Flank = nil
@@ -193,6 +201,9 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	for i, role := range next.Roles {
 		// A defender still ingesting its combat drug (#1311) finishes it.
 		if !orderable[role.Pawn] || next.Rescue.carrying(role.Pawn) || state[role.Pawn].Job == "Ingest" {
+			continue
+		}
+		if _, known := state[role.Pawn].Cell.Value(); next.Tactic == TacticShelter && !known {
 			continue
 		}
 		want, ok := role.want(state[role.Pawn])
@@ -920,6 +931,8 @@ func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 		return reformSapper(view, m)
 	}
 	switch m.Tactic {
+	case TacticShelter:
+		return ShelterReconsider(view, m) != ""
 	case TacticHold:
 		layout, ok := view.Layout.Value()
 		return !ok || HoldCompromised(holdLine(layout, m), layout.Toward, unpeeled(view, stop, m))
@@ -979,12 +992,20 @@ func squadTargetDown(view CombatView, m CombatMemory) bool {
 // line against the live threats. Without a layout or a live hostile there
 // is nothing to ask. adjacent_to_choke and firing_cells have no caller
 // yet: the squad formation targets pawns, not cells.
-func formationAsk(view CombatView) *GeometryRequest {
+func formationAsk(view CombatView, memory CombatMemory) *GeometryRequest {
 	if door, ok := meleeDoorSite(view); ok {
 		return meleeDoorAsk(view, door)
 	}
+	var retreat []domain.Cell
+	_, squad := squadAssignments(view)
+	if !squad || len(squadHurt(view, memory.Roles)) > 0 || slices.ContainsFunc(memory.Roles, func(r CombatRole) bool { return r.Retreat }) {
+		retreat = shelterChecks(view)
+	}
 	layout, ok := view.Layout.Value()
 	if !ok || len(layout.Firing) == 0 {
+		if len(retreat) > 0 {
+			return &GeometryRequest{Cells: retreat}
+		}
 		return nil
 	}
 	ask := &GeometryRequest{Propose: RoleCoverBehindLine, Line: slices.Clone(layout.Firing)}
@@ -1001,7 +1022,7 @@ func formationAsk(view CombatView) *GeometryRequest {
 		named = append(named, aroundLine(layout.Firing)...)
 		limit = maxGeometryCells - 8 - len(ask.Line)
 	}
-	for _, c := range append(named, shooterCells(view)...) {
+	for _, c := range append(append(named, shooterCells(view)...), retreat...) {
 		if len(ask.Cells) < limit && !slices.Contains(ask.Cells, c) {
 			ask.Cells = append(ask.Cells, c)
 		}
@@ -1107,7 +1128,7 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 	}
 	assignments, ok := squadAssignments(view)
 	if !ok {
-		if roles := shelterRoles(view); len(roles) > 0 {
+		if roles := shelterRoles(view, geometry, unreachable); len(roles) > 0 {
 			return TacticShelter, roles, refusal
 		}
 		return "", nil, refusal
