@@ -12,11 +12,11 @@ func TestArmorResearchLadderOrdering(t *testing.T) {
 	if got := ArmorResearchLadder(base, false); !reflect.DeepEqual(got, base) {
 		t.Fatal("no soldier changed the ladder", got)
 	}
-	want := []string{"Stonecutting", "Electricity", "Smithing", "ComplexClothing", "FlakArmor", "Shields", "Batteries", "GeothermalPower", "SolarPanels", "CarpetMaking", "Machining", "Gunsmithing"}
+	want := []string{"Stonecutting", "Electricity", "Smithing", "ComplexClothing", "FlakArmor", "Batteries", "GeothermalPower", "SolarPanels", "CarpetMaking", "Machining", "Gunsmithing"}
 	if got := ArmorResearchLadder(base, true); !reflect.DeepEqual(got, want) {
 		t.Fatal(got)
 	}
-	if got := ArmorResearchLadder([]string{"Stonecutting"}, true); !reflect.DeepEqual(got, []string{"Smithing", "ComplexClothing", "FlakArmor", "Shields", "Stonecutting"}) {
+	if got := ArmorResearchLadder([]string{"Stonecutting"}, true); !reflect.DeepEqual(got, []string{"Smithing", "ComplexClothing", "FlakArmor", "Stonecutting"}) {
 		t.Fatal("no Electricity rung", got)
 	}
 	p := RoundsPolicy{ResearchLadder: base}

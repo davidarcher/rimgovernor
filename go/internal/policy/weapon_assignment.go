@@ -95,12 +95,7 @@ func UnarmedFighters(pawns []EquipCandidatePawn, weapons []EquipCandidateWeapon)
 // WeaponRecipe reports whether a bench recipe makes a weapon the armory
 // ladder places on a rung.
 func WeaponRecipe(recipe GearRecipe) bool {
-	for _, def := range recipe.Products {
-		if _, known := ArmoryWeaponTier(def); known {
-			return true
-		}
-	}
-	return false
+	return recipe.Armory != ArmoryTierUnknown
 }
 
 type EquipAssignment struct {

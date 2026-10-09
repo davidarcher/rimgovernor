@@ -1,6 +1,9 @@
 package policy
 
-import "sort"
+import (
+	"slices"
+	"sort"
+)
 
 // DefTable is one judgment table of game def names that policy keeps because
 // the game offers no signal to derive it from. Class is the CLR full name of
@@ -21,7 +24,18 @@ func DefTables() []DefTable {
 		{"unrecoveredParts", "Verse.HediffDef", sortedKeys(unrecoveredParts)},
 		{"keptBodyParts", "Verse.BodyPartDef", sortedKeys(keptBodyParts)},
 		{"herdTrainables", "RimWorld.TrainableDef", sortedKeys(herdTrainables)},
+		{"ArmorResearchRungs", "Verse.ResearchProjectDef", slices.Clone(ArmorResearchRungs)},
+		{"gearValuables", "Verse.ThingDef", resourceKeys(gearValuables)},
 	}
+}
+
+func resourceKeys(set map[Resource]bool) []string {
+	out := make([]string, 0, len(set))
+	for name := range set {
+		out = append(out, string(name))
+	}
+	sort.Strings(out)
+	return out
 }
 
 func sortedKeys(set map[string]bool) []string {

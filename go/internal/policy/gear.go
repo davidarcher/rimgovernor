@@ -348,6 +348,10 @@ type GearRecipe struct {
 	// (LedgerMechGestation, LedgerMedical, LedgerSurgery, LedgerBabyFood),
 	// LedgerProduction for every other recipe.
 	Kind LedgerBillKind
+	// Armory is the armory ladder rung of the recipe at this bench (the tech
+	// level of its research and of the table), ArmoryTierUnknown for a recipe
+	// that makes no ordinary weapon.
+	Armory ArmoryTier
 }
 type GearBench struct {
 	ID string
@@ -629,7 +633,8 @@ func validateGearProduction(benches []GearBench) error {
 }
 
 // gearValuables are the stuffs a bill never draws on unless the loadout
-// names them: the currency and the favor-sale gold.
+// names them: the currency and the favor-sale gold. A judgment table
+// (DefTables): no row marks a stuff as currency or as the favor trade's.
 var gearValuables = map[Resource]bool{"Silver": true, FavorSaleResource: true}
 
 // gearFilter is the ingredient filter of a bill placed with nothing in stock.

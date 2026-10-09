@@ -154,6 +154,9 @@ func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity,
 		if recipe.Kind, err = catalog.RecipeLedgerKind(recipe.Definition, recipe.MechKind); err != nil {
 			return nil, "", err
 		}
+		if recipe.Armory, err = catalog.RecipeArmoryTier(recipe.Definition, snapshot.GetBenchDef()); err != nil {
+			return nil, "", err
+		}
 		out = append(out, recipe)
 	}
 	return out, snapshot.GetBenchDef(), nil

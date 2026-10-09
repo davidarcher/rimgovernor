@@ -56,3 +56,10 @@ func (w WeaponDef) Hunts() bool { return w.Ranged && !w.Explosive && !w.Incendia
 // Burner is an incendiary weapon a carrier aims at the ground: the burn-out's
 // flame thrower (a molotov), which belongs to the burn-out alone.
 func (w WeaponDef) Burner() bool { return w.Incendiary && w.Blast > 0 }
+
+// Armament is an ordinary arm the armory may craft for a fighter: a weapon by
+// trade that strikes or shoots, and is neither a scattering explosive, an
+// incendiary nor spent by its shot.
+func (w WeaponDef) Armament() bool {
+	return w.ByTrade && (w.Ranged || w.Melee) && !w.Explosive && !w.Incendiary && !w.OneUse && !w.ForcedMiss
+}

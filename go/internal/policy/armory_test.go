@@ -32,8 +32,24 @@ func TestAssessArmoryTiers(t *testing.T) {
 	}
 }
 
+// testArmoryRungs are the rungs the bridge gives these recipes from their
+// research and tables (bridge.TestArmoryWeaponTierMatchesRetiredTable).
+var testArmoryRungs = map[Resource]ArmoryTier{
+	"Bow_Short": ArmoryTierNeolithic, "MeleeWeapon_Club": ArmoryTierNeolithic,
+	"Bow_Great": ArmoryTierSmithing, "Gun_Revolver": ArmoryTierMachining,
+	"Gun_AssaultRifle": ArmoryTierMachining, "Gun_ChargeRifle": ArmoryTierFabrication,
+}
+
 func armoryRecipe(def Resource, available bool) GearRecipe {
-	return GearRecipe{Definition: "Make_" + string(def), Products: []Resource{def}, Available: domain.Known(available), AvailableOn: domain.Known(true)}
+	return GearRecipe{Definition: "Make_" + string(def), Products: []Resource{def}, Available: domain.Known(available), AvailableOn: domain.Known(true), Armory: testArmoryRungs[def]}
+}
+
+// armoryProduct is the facts of a recipe's weapon as the bridge reads them: a
+// weapon by trade.
+func armoryProduct(def Resource) WeaponDef {
+	facts := coreFacts(string(def))
+	facts.ByTrade = true
+	return facts
 }
 
 // The ladder per tier and research: the unarmed get the best recipe at or
@@ -49,7 +65,7 @@ func TestArmoryWeaponDemandLadder(t *testing.T) {
 	revolver := map[domain.PawnID]ArmoryPrimary{"a": {Definition: "Gun_Revolver", Ranged: true, Quality: 2, Facts: coreFacts("Gun_Revolver")}}
 	products := map[Resource]WeaponDef{}
 	for _, r := range recipes {
-		products[r.Products[0]] = coreFacts(string(r.Products[0]))
+		products[r.Products[0]] = armoryProduct(r.Products[0])
 	}
 	for _, tc := range []struct {
 		name      string
@@ -99,7 +115,7 @@ func TestArmoryWeaponDemandSplitsHunters(t *testing.T) {
 	recipes := []GearRecipe{armoryRecipe("Bow_Short", true), armoryRecipe("MeleeWeapon_Club", true), armoryRecipe("Gun_AssaultRifle", true)}
 	products := map[Resource]WeaponDef{}
 	for _, r := range recipes {
-		products[r.Products[0]] = coreFacts(string(r.Products[0]))
+		products[r.Products[0]] = armoryProduct(r.Products[0])
 	}
 	hunter := weaponPawn("h", 10)
 	hunter.Role = WeaponRoleHunter

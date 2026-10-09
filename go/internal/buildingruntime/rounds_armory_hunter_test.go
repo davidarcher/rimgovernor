@@ -18,7 +18,7 @@ import (
 type bowBenchNative struct{ *clubBenchNative }
 
 func (n *bowBenchNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {
-	recipe := policy.GearRecipe{Definition: "Make_Bow_Short", Products: []policy.Resource{"Bow_Short"}, Available: domain.Known(true), AvailableOn: domain.Known(true), Ingredients: domain.Known([][]policy.Amount{{{Resource: "WoodLog", Count: 40}}}), RequiredWork: domain.Known([]policy.WorkRequirement{{Work: "Crafting", Skill: "Crafting"}})}
+	recipe := policy.GearRecipe{Definition: "Make_Bow_Short", Products: []policy.Resource{"Bow_Short"}, Armory: policy.ArmoryTierNeolithic, Available: domain.Known(true), AvailableOn: domain.Known(true), Ingredients: domain.Known([][]policy.Amount{{{Resource: "WoodLog", Count: 40}}}), RequiredWork: domain.Known([]policy.WorkRequirement{{Work: "Crafting", Skill: "Crafting"}})}
 	return []bridge.GearBenchRead{{Token: "spot-cas", Bench: policy.GearBench{ID: "spot", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{recipe})}}}, bridge.Result{}, nil
 }
 

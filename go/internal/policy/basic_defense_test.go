@@ -39,7 +39,7 @@ func TestUnarmedFightersAndWeaponRecipes(t *testing.T) {
 	if n := UnarmedFighters(pawns, club); n != 0 {
 		t.Fatal("a loose club still left a fighter to craft for", n)
 	}
-	if !WeaponRecipe(GearRecipe{Products: []Resource{"MeleeWeapon_Club"}}) || WeaponRecipe(GearRecipe{Products: []Resource{"Apparel_TribalA"}}) {
+	if !WeaponRecipe(GearRecipe{Products: []Resource{"MeleeWeapon_Club"}, Armory: ArmoryTierNeolithic}) || WeaponRecipe(GearRecipe{Products: []Resource{"Apparel_TribalA"}}) {
 		t.Fatal("weapon recipe misclassified")
 	}
 }

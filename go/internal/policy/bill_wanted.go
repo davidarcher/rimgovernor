@@ -2,18 +2,6 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// WeaponBill reports whether a bill's products are a weapon the armory ladder
-// models: the armory planner judges those bills, the gear planner judges every
-// other MaintainEquipment bill (apparel and armor).
-func WeaponBill(products []Resource) bool {
-	for _, p := range products {
-		if _, modelled := ArmoryWeaponTier(p); modelled {
-			return true
-		}
-	}
-	return false
-}
-
 // BillWanted reports whether any product of a bill is in wanted: a finite bill
 // matching none of an owner's current demand is stale whatever the owner's
 // finding.

@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -129,7 +130,14 @@ func runUpgrade(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["armory"] = armory
-	topBefore := topArmoryTier(before)
+	catalog, err := cases.Catalog(ctx, h.Client, identity)
+	if err != nil {
+		return err
+	}
+	topBefore, err := topArmoryTier(catalog, before)
+	if err != nil {
+		return err
+	}
 
 	svc, err = launchService(ctx, s, "upgrade", identity, report)
 	if err != nil {
@@ -163,7 +171,11 @@ func runUpgrade(ctx context.Context, s cases.Session) error {
 		if round == 1 && !turretStanding(after, rung.Definition, int(rung.Cell.X), int(rung.Cell.Z)) {
 			return fmt.Errorf("recorded %s at %d,%d is not standing natively: %v", rung.Definition, rung.Cell.X, rung.Cell.Z, after["turrets"])
 		}
-		if top := topArmoryTier(after); top > topBefore {
+		top, err := topArmoryTier(catalog, after)
+		if err != nil {
+			return err
+		}
+		if top > topBefore {
 			report["gear"] = map[string]any{"before": topBefore.String(), "after": top.String(), "rounds": round}
 			return nil
 		}
@@ -228,13 +240,21 @@ func turretStanding(inspect map[string]any, def string, x, z int) bool {
 }
 
 // topArmoryTier is the highest armory tier among the colonists' primaries.
-func topArmoryTier(inspect map[string]any) policy.ArmoryTier {
+func topArmoryTier(catalog *bridge.DefinitionCatalog, inspect map[string]any) (policy.ArmoryTier, error) {
 	top := policy.ArmoryTierUnknown
 	for _, raw := range na.AsSlice(inspect["colonists"]) {
 		row, _ := na.AsMap(raw)
-		if tier, ok := policy.ArmoryWeaponTier(policy.Resource(na.AsString(row["primary"]))); ok && tier > top {
+		primary := na.AsString(row["primary"])
+		if primary == "" {
+			continue
+		}
+		tier, ok, err := catalog.ArmoryWeaponTier(primary)
+		if err != nil {
+			return top, err
+		}
+		if ok && tier > top {
 			top = tier
 		}
 	}
-	return top
+	return top, nil
 }

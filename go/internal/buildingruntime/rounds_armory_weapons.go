@@ -98,10 +98,10 @@ func (r *RoundsArmoryPlanner) weaponDemand(ctx context.Context, snapshot domain.
 		}
 		recipes = append(recipes, rows...)
 		for _, recipe := range rows {
+			if !policy.WeaponRecipe(recipe) {
+				continue
+			}
 			for _, def := range recipe.Products {
-				if _, tiered := policy.ArmoryWeaponTier(def); !tiered {
-					continue
-				}
 				if products[def], err = catalog.WeaponOf(string(def)); err != nil {
 					return nil, nil, 0, err
 				}

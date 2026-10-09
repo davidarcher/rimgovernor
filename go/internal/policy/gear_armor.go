@@ -6,8 +6,12 @@ import (
 
 // ArmorResearchRungs is the armor ladder a colony with a soldier walks
 // right after Electricity: the simple helmet's smithy, the tailoring
-// bench flak cloth needs, flak armor itself, then shield belts.
-var ArmorResearchRungs = []string{"Smithing", "ComplexClothing", "FlakArmor", "Shields"}
+// bench flak cloth needs, then flak armor itself. It stays a judgment table
+// (DefTables): the recipes' prerequisites give Smithing and FlakArmor, but
+// when a colony wants them is a choice and ComplexClothing is no
+// prerequisite of any armor recipe. It once also named "Shields", which is
+// no project (the belt's is ShieldBelt), so the rung never matched.
+var ArmorResearchRungs = []string{"Smithing", "ComplexClothing", "FlakArmor"}
 
 // ArmorResearchLadder is ladder with ArmorResearchRungs spliced in directly
 // after Electricity (at the front when the ladder has no Electricity rung)

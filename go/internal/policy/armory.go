@@ -103,30 +103,6 @@ func AssessArmory(raidPoints domain.Fact[float64], research domain.Fact[Research
 	return a
 }
 
-// armoryWeaponTiers is the ladder rung each modelled weapon sits on:
-// crafting-spot neolithic arms, forged melee and the greatbow, machined
-// guns, fabricated charge weapons. A weapon off the table is never planned.
-var armoryWeaponTiers = map[string]ArmoryTier{
-	"MeleeWeapon_Club": ArmoryTierNeolithic, "MeleeWeapon_Knife": ArmoryTierNeolithic,
-	"Bow_Short": ArmoryTierNeolithic, "Bow_Recurve": ArmoryTierNeolithic,
-	"MeleeWeapon_Gladius": ArmoryTierSmithing, "MeleeWeapon_Longsword": ArmoryTierSmithing,
-	"MeleeWeapon_LongSword": ArmoryTierSmithing, "MeleeWeapon_Mace": ArmoryTierSmithing,
-	"MeleeWeapon_Spear": ArmoryTierSmithing, "Bow_Great": ArmoryTierSmithing,
-	"Gun_Revolver": ArmoryTierMachining, "Gun_Autopistol": ArmoryTierMachining,
-	"Gun_PumpShotgun": ArmoryTierMachining, "Gun_BoltActionRifle": ArmoryTierMachining,
-	"Gun_MachinePistol": ArmoryTierMachining, "Gun_HeavySMG": ArmoryTierMachining,
-	"Gun_AssaultRifle": ArmoryTierMachining, "Gun_SniperRifle": ArmoryTierMachining,
-	"Gun_ChainShotgun": ArmoryTierMachining,
-	"Gun_ChargeRifle":  ArmoryTierFabrication, "Gun_ChargeLance": ArmoryTierFabrication,
-}
-
-// ArmoryWeaponTier is the ladder rung of a weapon definition, and whether
-// the ladder models it.
-func ArmoryWeaponTier(definition Resource) (ArmoryTier, bool) {
-	tier, ok := armoryWeaponTiers[string(definition)]
-	return tier, ok
-}
-
 // WeaponQualityMultiplier scales a weapon's planning score by quality
 // (Awful=0 through Legendary=6), the weapon counterpart of
 // GearQualityMultipliers; out of range is 0.
@@ -233,13 +209,12 @@ func armoryBestWeapon(p EquipCandidatePawn, reach ArmoryTier, recipes []GearReci
 	var best Resource
 	bestScore := 0.0
 	for _, recipe := range recipes {
-		if !positive(recipe.Available) || !positive(recipe.AvailableOn) {
+		if !WeaponRecipe(recipe) || recipe.Armory > reach || !positive(recipe.Available) || !positive(recipe.AvailableOn) {
 			continue
 		}
 		for _, def := range recipe.Products {
-			rung, modelled := ArmoryWeaponTier(def)
 			facts, known := products[def]
-			if !modelled || rung > reach || !known || facts.ForcedMiss {
+			if !known || !facts.Armament() {
 				continue
 			}
 			class := WeaponRanged
