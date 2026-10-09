@@ -52,6 +52,8 @@ func TestRulesDueRenewalAfterCensusInvalidation(t *testing.T) {
 	q.catalog = func() []plannerEntry { return []plannerEntry{entry} }
 	tick := v.Context.GetTick()
 	firstTick := tick
+	scheduler := &ClockScheduler{player: r.player, config: ClockSchedulerConfig{Rules: planner}}
+	window := uint32(0)
 	expires := int64(0)
 	writes := 0
 	fake.run = func(ctx context.Context, plan domain.PlanID, action domain.ActionID) (executor.Result, error) {
@@ -92,7 +94,9 @@ func TestRulesDueRenewalAfterCensusInvalidation(t *testing.T) {
 		return got
 	}
 	for i := 0; i < 4; i++ {
-		tick = firstTick + int64(i)*int64(entry.reviewEvery())
+		if i > 0 {
+			tick += int64(window)
+		}
 		v.Context.Tick = proto.Int64(tick)
 		for _, source := range v.Acquisition {
 			source.SourceSnapshot.Context.Tick = proto.Int64(tick)
@@ -109,9 +113,20 @@ func TestRulesDueRenewalAfterCensusInvalidation(t *testing.T) {
 		if got.Verdict != BuildingReasonAdmitted {
 			t.Fatalf("tick %d: %+v", tick, got)
 		}
+		if !rulesDispatchTurn(true, &got) {
+			t.Fatal("new renewal did not yield to Hands")
+		}
+		sameTick := step()
+		if rulesDispatchTurn(true, &sameTick) {
+			t.Fatal("same tick deferred twice")
+		}
 		q.ran(sel, []string{"rules"}, func(string) (Verdict, bool) { return got.Verdict, true }, tick, nil)
 		if err := w.step(ctx, time.Now()); err != nil {
 			t.Fatal(err)
+		}
+		window, err = scheduler.rulesWindow(ctx, base.State().Snapshot, domain.Tick(tick), 60000)
+		if err != nil || window != uint32(entry.reviewEvery()) {
+			t.Fatalf("window=%d err=%v", window, err)
 		}
 		if writes != i+1 {
 			t.Fatalf("tick %d: %d dispatches", tick, writes)

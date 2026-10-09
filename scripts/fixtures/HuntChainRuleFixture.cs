@@ -10,7 +10,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // A disposable hunt chain: one ranger with a bow, a corpse stockpile and four wild deer
+    // A disposable hunt chain: one ranger with a bow, a corpse stockpile and six wild deer
     // designated for hunting. Only the initial state is staged; the shots are native. The
     // fixture records what the hunter is doing two ticks after each wild kill, through its own
     // hooks rather than the rule runtime's, so the case compares native rules with an
@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
         private static readonly List<Dictionary<string, object>> records = new List<Dictionary<string, object>>();
         private static bool patched;
 
-        [Tool("test/hunt_chain_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage one ranger with a bow, a corpse stockpile and four wild deer designated for hunting, and start recording the hunter's job two ticks after each wild kill.")]
+        [Tool("test/hunt_chain_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage one ranger with a bow, a corpse stockpile and six wild deer designated for hunting, and start recording the hunter's job two ticks after each wild kill.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -57,7 +57,7 @@ namespace HomeBridge.BridgeTools
                 for (int x = 12; x <= 16; x++) for (int z = mid - 2; z <= mid + 2; z++) stockpile.AddCell(new IntVec3(x, 0, z));
 
                 var deerKind = DefDatabase<PawnKindDef>.GetNamed("Deer");
-                for (int i = 0; i < 4; i++)
+                for (int i = 0; i < 6; i++)
                 {
                     var deer = PawnGenerator.GeneratePawn(new PawnGenerationRequest(deerKind, null, fixedBiologicalAge: 6f));
                     GenSpawn.Spawn(deer, new IntVec3(34 + 8 * i, 0, mid + (i % 2 == 0 ? -3 : 3)), map);
@@ -68,7 +68,7 @@ namespace HomeBridge.BridgeTools
                 if (!patched)
                 {
                     var harmony = new Harmony("rimgovernor.test.hunt-chain-rule");
-                    harmony.Patch(AccessTools.Method(typeof(Pawn), nameof(Pawn.Kill)), postfix: new HarmonyMethod(typeof(HuntChainRuleFixture), nameof(Killed)));
+                    harmony.Patch(AccessTools.Method(typeof(Pawn), nameof(Pawn.Kill)), prefix: new HarmonyMethod(typeof(HuntChainRuleFixture), nameof(Killing)), postfix: new HarmonyMethod(typeof(HuntChainRuleFixture), nameof(Killed)));
                     harmony.Patch(AccessTools.Method(typeof(TickManager), "DoSingleTick"), postfix: new HarmonyMethod(typeof(HuntChainRuleFixture), nameof(AfterTick)));
                     patched = true;
                 }
@@ -79,9 +79,15 @@ namespace HomeBridge.BridgeTools
         private static List<Pawn> Designated(Map map) =>
             map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.Faction == null && p.RaceProps.Animal && map.designationManager.DesignationOn(p, DesignationDefOf.Hunt) != null).ToList();
 
-        private static void Killed(Pawn __instance)
+        // Pawn.Kill despawns its victim before postfixes run; capture map ownership first.
+        private static void Killing(Pawn __instance, out bool __state)
         {
-            if (tracked == null || __instance.Faction != null || !__instance.RaceProps.Animal || __instance.Map != tracked) return;
+            __state = tracked != null && __instance.Faction == null && __instance.RaceProps.Animal && __instance.Map == tracked;
+        }
+
+        private static void Killed(Pawn __instance, bool __state)
+        {
+            if (!__state || !__instance.Dead) return;
             kills.Add(new Kill { Tick = Find.TickManager.TicksGame, Deer = __instance.GetUniqueLoadID() });
         }
 

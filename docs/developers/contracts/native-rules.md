@@ -38,7 +38,16 @@ commits one method per Round under `EnsureFoodSupply`. Both retained and fresh
 reads include the pawn frame that supplies hunter profiles; an invalidated census
 therefore renews from fresh evidence. Truly unread acquisition or hunter facts
 leave the previous lease unchanged, so loss of evidence still expires naturally; an empty set clears what an earlier Round attached,
-and a Standard that is no longer workable lets the lease lapse. Admission holds for new hunt designations do not clear existing orders; native checks route and work-giver legality when selecting the next prey and fires nothing after the last kill. The `rules_attach` op (absolute
+and a Standard that is no longer workable lets the lease lapse.
+
+A newly admitted attachment gives Hands one dispatch turn before the next native window starts.
+Only a completed, accepted nonempty attachment in the current load and authority bounds that window
+at half its lease, using the journaled dispatch tick as a conservative anchor before native apply.
+The native tick deadline stops accelerated play for renewal; wall-clock planner polling is not the
+deadline. Once the boundary is reached, unknown policy or an unsuccessful/uncertain receipt does not
+hold time: the original native lease can expire normally. No queued intent counts as a renewal.
+
+Admission holds for new hunt designations do not clear existing orders; native checks route and work-giver legality when selecting the next prey and fires nothing after the last kill. The `rules_attach` op (absolute
 `expires_at_tick`) stays for harnesses.
 
 ## Safety

@@ -13,6 +13,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/planstage"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
 const (
@@ -25,7 +27,7 @@ const (
 func init() {
 	cases.Register(cases.Case{Name: "food/hunt-chain-rule",
 		Scope: "Native postcondition and end-to-end signal (a Go snapshot test cannot cover a native rule firing on the kill hook): " +
-			"one hunter and four designated deer; an out-of-whitelist rule is refused; the controller (service family rules, #2154) attaches the hunt-chain " +
+			"one hunter and six designated deer; an out-of-whitelist rule is refused; the controller (service family rules, #2154) attaches the hunt-chain " +
 			"rule itself and renews it before expiry through journaled rules_attach actions, and with it attached the hunter's job two ticks after the first kill is Hunt on another " +
 			"live designated deer, not the vanilla haul of its own kill; with rules cleared the next kill " +
 			"leaves vanilla behaviour; after the lease expires nothing fires.",
@@ -33,7 +35,7 @@ func init() {
 		Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Acquisition, routinefamily.Work, routinefamily.Rules}, NativeTimeout: 60 * time.Second, Prefix: "hunt-chain"},
 		QuietWorld:  true,
 		RequiredOps: []string{chainObserveOp}, Budget: 6 * time.Minute, Crew: cases.Crew{Size: 3},
-		Reason: "a lab with one ranger, a corpse stockpile and four deer; one controller phase until two timely rules_attach receipts, then three native kills",
+		Reason: "a lab with one ranger, a corpse stockpile and six deer; one controller phase until two timely rules_attach receipts, then three native kills",
 		Run:    runHuntChain})
 }
 
@@ -56,7 +58,14 @@ func runHuntChain(ctx context.Context, s cases.Session) error {
 		return body, err
 	}
 	recordsAtLeast := func(label string, n int) error {
-		_, err := na.RunUntil(ctx, h, label, 6000, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
+		current, err := observe(label + "-before")
+		if err != nil {
+			return err
+		}
+		if len(na.AsSlice(current["records"])) >= n {
+			return nil
+		}
+		_, err = na.RunUntil(ctx, h, label, 6000, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
 			v, err := observe(label + "-progress")
 			if err != nil {
 				return "", false, err
@@ -123,6 +132,7 @@ func runHuntChain(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
+	var firings []*k.RuleFired
 	if err = phase.Until(ctx, "the controller attaches and renews the hunt-chain rule", func(store.Rounds) (string, bool, error) {
 		ticks, err := rulesJournaled(ctx, phase.St)
 		s.Report()["chain_renewal_ticks"] = ticks
@@ -135,7 +145,20 @@ func runHuntChain(ctx context.Context, s cases.Session) error {
 		if ticks[1] >= ticks[0]+chainLease {
 			return "", false, fmt.Errorf("hunt-chain renewal missed lease: %v", ticks)
 		}
-		return na.Signature(ticks), true, nil
+		inbox, err := phase.St.LoadClockInbox(ctx, s.Config().ServiceProfileDir(), clock.InboxCapacity)
+		if err != nil {
+			return "", false, err
+		}
+		firings = nil
+		for _, page := range inbox.Pages {
+			for _, event := range page.Page.GetEvents() {
+				if fired := event.GetRuleFired(); fired != nil && fired.GetRuleId() == chainID {
+					firings = append(firings, fired)
+				}
+			}
+		}
+		s.Report()["chain_rule_events"] = firings
+		return na.Signature(ticks, len(firings)), len(firings) > 0, nil
 	}); err != nil {
 		phase.Abort()
 		return err
@@ -174,13 +197,27 @@ func runHuntChain(ctx context.Context, s cases.Session) error {
 	if len(rules) != 1 {
 		return fmt.Errorf("want one active rule: %v", fired)
 	}
-	row, _ := na.AsMap(rules[0])
-	if na.AsNumber(row["firingCount"]) != 1 || na.AsString(row["lastActorId"]) != hunter || na.AsString(row["lastTargetId"]) != na.AsString(first["targetId"]) {
-		return fmt.Errorf("the status must name the one firing, its hunter and its target: %v", row)
+
+	matched := false
+	for _, event := range firings {
+		if event.GetActorId() == hunter && event.GetTargetId() == na.AsString(first["targetId"]) && event.GetTick() == int64(na.AsNumber(first["killTick"])) {
+			matched = true
+		}
+	}
+	if !matched {
+		return fmt.Errorf("the native journal must match the first kill, its hunter and next target: %v", first)
 	}
 	s.Report()["chain_fired"] = map[string]any{"record": first, "status": fired}
 
-	// Cleared: vanilla behaviour persists on the next kill.
+	// Renewal may have allowed more kills; clear is judged on the next one.
+	beforeClear, err := observe("before-clear")
+	if err != nil {
+		return err
+	}
+	clearedIndex := len(na.AsSlice(beforeClear["records"]))
+	if na.AsNumber(beforeClear["designatedAlive"]) < 3 {
+		return fmt.Errorf("need three standing prey for clear and expiry checks: %v", beforeClear)
+	}
 	cleared, err := h.Wire(ctx, "clear", "rules_clear", map[string]any{"identity": identity})
 	if err != nil {
 		return err
@@ -188,10 +225,10 @@ func runHuntChain(ctx context.Context, s cases.Session) error {
 	if _, body, err := na.Outcome(cleared, "cleared"); err != nil || na.AsNumber(body["cleared"]) != 1 {
 		return fmt.Errorf("clear must report the one active rule: %v %v", cleared, err)
 	}
-	if err := recordsAtLeast("chain-cleared", 2); err != nil {
+	if err := recordsAtLeast("chain-cleared", clearedIndex+1); err != nil {
 		return err
 	}
-	second, err := record(1)
+	second, err := record(clearedIndex)
 	if err != nil {
 		return err
 	}
@@ -206,7 +243,15 @@ func runHuntChain(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("cleared rules must not stay active: %v", after)
 	}
 
-	// Lease expired: nothing fires on the third kill although prey remains designated.
+	// Lease expired: nothing fires on a later kill while another target stands.
+	beforeExpiry, err := observe("before-expiry")
+	if err != nil {
+		return err
+	}
+	expiredIndex := len(na.AsSlice(beforeExpiry["records"]))
+	if na.AsNumber(beforeExpiry["designatedAlive"]) < 2 {
+		return fmt.Errorf("need two standing prey for expiry check: %v", beforeExpiry)
+	}
 	if _, err := attach("attach-short", 10, rule(chainID, "Hunt")); err != nil {
 		return err
 	}
@@ -220,10 +265,10 @@ func runHuntChain(ctx context.Context, s cases.Session) error {
 	}); err != nil {
 		return err
 	}
-	if err := recordsAtLeast("chain-expired", 3); err != nil {
+	if err := recordsAtLeast("chain-expired", expiredIndex+1); err != nil {
 		return err
 	}
-	third, err := record(2)
+	third, err := record(expiredIndex)
 	if err != nil {
 		return err
 	}
@@ -253,7 +298,7 @@ func first(rows []any) any {
 // rulesJournaled returns the ordered dispatch ticks of completed hunt-chain
 // attachments, so the case records controller renewal beside native kill evidence.
 func rulesJournaled(ctx context.Context, st *store.Store) ([]int64, error) {
-	plans, err := st.LoadPlans(ctx)
+	plans, err := st.PlanHistoryWithMethods(ctx, 256, "rules-*")
 	if err != nil {
 		return nil, err
 	}

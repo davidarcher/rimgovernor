@@ -79,3 +79,25 @@ func TestHuntChainRulesKeepDesignatedPreyHeldFromNewAcquisition(t *testing.T) {
 		}
 	}
 }
+
+func TestRulesWindowTicks(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		tick  domain.Tick
+		lease domain.Fact[RuleLease]
+		want  uint32
+	}{
+		{"fresh", 56, domain.Known(RuleLease{56, 2500}), 1250},
+		{"partway", 1000, domain.Known(RuleLease{56, 2500}), 306},
+		{"boundary", 1306, domain.Known(RuleLease{56, 2500}), 60000},
+		{"expired", 2556, domain.Known(RuleLease{56, 2500}), 60000},
+		{"unknown", 56, domain.Unknown[RuleLease](), 60000},
+		{"future", 55, domain.Known(RuleLease{56, 2500}), 60000},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := RulesWindowTicks(tt.tick, 60000, tt.lease); got != tt.want {
+				t.Fatalf("ticks=%d want %d", got, tt.want)
+			}
+		})
+	}
+}

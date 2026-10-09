@@ -63,3 +63,30 @@ func HuntChainRules(sources domain.Fact[[]AcquisitionSource], hunters domain.Fac
 		Radius:     huntChainRadius,
 	}}}, true
 }
+
+// RuleLease is a completed native attachment's dispatch evidence. Dispatch is
+// journaled before native apply, so its tick is a conservative lease anchor.
+// Native starts the full lease at apply; no queued intent supplies this value.
+type RuleLease struct {
+	Dispatched domain.Tick
+	Ticks      int64
+}
+
+// RulesWindowTicks stops native at the renewal boundary without relying on
+// wall-clock polling. Once that boundary passes, an unknown or failed renewal
+// must allow game time to advance to native expiry instead of parking forever.
+func RulesWindowTicks(tick domain.Tick, maxTicks uint32, attached domain.Fact[RuleLease]) uint32 {
+	lease, known := attached.Value()
+	if !known || lease.Ticks <= 1 || lease.Dispatched < 0 || tick < lease.Dispatched {
+		return maxTicks
+	}
+	elapsed := int64(tick - lease.Dispatched)
+	remaining := lease.Ticks/2 - elapsed
+	if remaining <= 0 {
+		return maxTicks
+	}
+	if remaining < int64(maxTicks) {
+		return uint32(remaining)
+	}
+	return maxTicks
+}
