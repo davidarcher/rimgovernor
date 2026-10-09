@@ -1,22 +1,17 @@
 package buildingruntime
 
 import (
-	"compress/gzip"
-	"io"
-	"os"
 	"reflect"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/proto"
+	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 )
 
 // Snapshot tests: each replays a Rounds pass recorded from the
@@ -133,27 +128,7 @@ var recordedPower struct {
 func recordedPowerRows(t *testing.T) (map[string]policy.PowerSourceProfile, policy.PowerBattery, policy.DiningFurniture) {
 	t.Helper()
 	recordedPower.once.Do(func() {
-		file, err := os.Open("../observation/testdata/full_catalog.pb.gz")
-		if err != nil {
-			recordedPower.err = err
-			return
-		}
-		defer file.Close()
-		zr, err := gzip.NewReader(file)
-		if err != nil {
-			recordedPower.err = err
-			return
-		}
-		data, err := io.ReadAll(zr)
-		if err != nil {
-			recordedPower.err = err
-			return
-		}
-		wire := &o.DefinitionCatalog{}
-		if recordedPower.err = proto.Unmarshal(data, wire); recordedPower.err != nil {
-			return
-		}
-		catalog, err := bridge.DecodeDefinitionCatalog(wire, wire.GetContext().GetIdentity())
+		catalog, err := recordedcatalog.Decode()
 		if err != nil {
 			recordedPower.err = err
 			return

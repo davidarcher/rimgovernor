@@ -11,8 +11,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/proto"
+	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 )
 
 func readGzip(t *testing.T, path string) []byte {
@@ -38,16 +37,7 @@ func readGzip(t *testing.T, path string) []byte {
 // the whole game with every expansion.
 func recordedCatalog(t *testing.T) *bridge.DefinitionCatalog {
 	t.Helper()
-	data := readGzip(t, "testdata/full_catalog.pb.gz")
-	wire := &o.DefinitionCatalog{}
-	if err := proto.Unmarshal(data, wire); err != nil {
-		t.Fatal(err)
-	}
-	catalog, err := bridge.DecodeDefinitionCatalog(wire, wire.GetContext().GetIdentity())
-	if err != nil {
-		t.Fatal(err)
-	}
-	return catalog
+	return recordedcatalog.Catalog(t)
 }
 
 // TestPlanningViewsMatchTheRecordedGolden pins every planning view over a

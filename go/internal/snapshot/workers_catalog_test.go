@@ -1,43 +1,18 @@
 package snapshot
 
 import (
-	"compress/gzip"
-	"io"
-	"os"
-	"sync"
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/proto"
+	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 )
 
 // fullCatalog is the whole game's recording (observation/testdata). The
 // workers/* recordings predate the work rows' skill and order, which the
 // census resolves from the catalog at read time, so loadPawns does
 // the same.
-var fullCatalog = sync.OnceValues(func() (*bridge.DefinitionCatalog, error) {
-	file, err := os.Open("../observation/testdata/full_catalog.pb.gz")
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	zr, err := gzip.NewReader(file)
-	if err != nil {
-		return nil, err
-	}
-	data, err := io.ReadAll(zr)
-	if err != nil {
-		return nil, err
-	}
-	wire := &o.DefinitionCatalog{}
-	if err = proto.Unmarshal(data, wire); err != nil {
-		return nil, err
-	}
-	return bridge.DecodeDefinitionCatalog(wire, wire.GetContext().GetIdentity())
-})
+var fullCatalog = recordedcatalog.Decode
 
 func resolveWorkRows(t *testing.T, pawns []policy.WorkPawn) {
 	t.Helper()

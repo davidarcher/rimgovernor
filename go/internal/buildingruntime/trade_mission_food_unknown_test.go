@@ -1,18 +1,15 @@
 package buildingruntime
 
 import (
-	"compress/gzip"
 	"context"
-	"io"
-	"os"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/proto"
 )
 
 type missionPurchaseNative struct {
@@ -40,29 +37,7 @@ func (n *missionPurchaseNative) ReadTradeSheet(context.Context, *c.Identity) (br
 
 func missionPurchaseCatalog(t *testing.T) *bridge.DefinitionCatalog {
 	t.Helper()
-	f, err := os.Open("../observation/testdata/full_catalog.pb.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	zr, err := gzip.NewReader(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer zr.Close()
-	data, err := io.ReadAll(zr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wire := &o.DefinitionCatalog{}
-	if err = proto.Unmarshal(data, wire); err != nil {
-		t.Fatal(err)
-	}
-	catalog, err := bridge.DecodeDefinitionCatalog(wire, wire.GetContext().GetIdentity())
-	if err != nil {
-		t.Fatal(err)
-	}
-	return catalog
+	return recordedcatalog.Catalog(t)
 }
 
 func TestMissionUnknownFoodHoldsBuyingButKnownZeroReturns(t *testing.T) {

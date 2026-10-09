@@ -1,19 +1,15 @@
 package buildingruntime
 
 import (
-	"compress/gzip"
 	"context"
-	"io"
-	"os"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/proto"
 )
 
 type nutritionMissionSource struct {
@@ -31,28 +27,7 @@ func (n *nutritionMissionSource) ReadWorld(context.Context, *c.Identity, int32, 
 }
 
 func TestSettlementNutritionMissionReadsCatalogStat(t *testing.T) {
-	file, err := os.Open("../observation/testdata/full_catalog.pb.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-	zr, err := gzip.NewReader(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer zr.Close()
-	bytes, err := io.ReadAll(zr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wire := &o.DefinitionCatalog{}
-	if err = proto.Unmarshal(bytes, wire); err != nil {
-		t.Fatal(err)
-	}
-	catalog, err := bridge.DecodeDefinitionCatalog(wire, wire.GetContext().GetIdentity())
-	if err != nil {
-		t.Fatal(err)
-	}
+	catalog := recordedcatalog.Catalog(t)
 	food, known, err := catalog.TradeFood("MealSimple")
 	if err != nil || !known || !food.Prepared || food.Nutrition != 0 {
 		t.Fatal("classification contract changed", food, known, err)

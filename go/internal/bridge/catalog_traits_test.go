@@ -1,18 +1,15 @@
 package bridge
 
 import (
-	"compress/gzip"
 	"fmt"
-	"io"
 	"math"
-	"os"
 	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/proto"
 )
 
 // fullCatalog is the whole game catalog recorded with every expansion
@@ -29,24 +26,7 @@ func fullCatalog(t *testing.T) *DefinitionCatalog {
 
 func recordedCatalog(t *testing.T) *o.DefinitionCatalog {
 	t.Helper()
-	file, err := os.Open("../observation/testdata/full_catalog.pb.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-	zr, err := gzip.NewReader(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := io.ReadAll(zr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wire := &o.DefinitionCatalog{}
-	if err := proto.Unmarshal(data, wire); err != nil {
-		t.Fatal(err)
-	}
-	return wire
+	return testkit.RecordedCatalogWire(t)
 }
 
 // retiredTraitTable is policy's trait table as it stood before the rows
