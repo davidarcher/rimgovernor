@@ -194,6 +194,9 @@ func (r *RoundsTradePlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoundsTradeResult{Verdict: BuildingReasonNoReview}, nil
 	}
+	if result, handled, err := r.mission(call, epoch, state, review, arbiter); handled || err != nil {
+		return result, err
+	}
 	if result, handled, err := r.request(call, epoch, state, review); handled || err != nil {
 		return result, err
 	}

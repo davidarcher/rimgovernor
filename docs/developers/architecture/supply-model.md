@@ -327,3 +327,11 @@ Priced records also carry the typed trade participant. Orbital offers share the
 colony scope and freshness policy; settlement offers belong to the visiting
 caravan and never supply colony stock before native delivery at home. Present
 orbital ships use the same browsing and purchasing routine as map traders.
+
+Outbound settlement missions are saved Projects chosen by the same acquisition
+planner from exact native crew/pack and round-trip estimates. They carry no
+secured yield. Live settlement purchases run through the shared supply ranker
+under mission demand, silver and mass limits; away cargo enters home supply
+facts only after native home entry. Purchase commitment and authorized return
+goods follow the ordinary save blobs; uncertain reloads return without buying
+again. See [controllable trade](../contracts/controllable-trade.md).

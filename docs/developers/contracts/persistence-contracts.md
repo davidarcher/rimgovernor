@@ -43,6 +43,12 @@ eligibility and scores are rebuilt from the keyed ideology section and catalog.
 
 Outbound trade Projects own home/settlement target, crew, silver budget, definition demand and mission phase/return intent ([controllable trade](controllable-trade.md)). Native goodwill, cooldown, caravan inventory and routes stay observed facts; the action journal carries the typed participant and attempts.
 
+Before accepting a settlement deal, the Project atomically records bounded
+authorized return definitions/counts and purchase commitment with its Hands
+Method. These are intent, not an inventory baseline or purchase receipt. They
+follow the ordinary Project blob and `pre_save` flush. A reload with commitment
+returns conservatively and never buys again to recover a missing receipt.
+
 Native saves no Go bookkeeping (receipts, lineage, purpose tags), and Go keeps no durable copy of what
 the save holds. The rest of this page details the session journal.
 

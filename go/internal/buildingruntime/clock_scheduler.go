@@ -1344,7 +1344,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	// An admitted trade phase keeps the window short: the session's next
 	// phase lands in the stop after it, before the caravan leaves (#1195).
-	if out.Trade != nil && out.Trade.Plan != "" && out.Trade.NativeWorkTicks > 0 {
+	if out.Trade != nil && out.Trade.NativeWorkTicks > 0 {
 		start.MaxTicks = min(start.MaxTicks, out.Trade.NativeWorkTicks)
 	}
 	if status.GetNeverStarted() != nil {

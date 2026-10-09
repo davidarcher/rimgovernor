@@ -419,7 +419,6 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	r.logBuildTier(ctx, reading.Projection)
 	r.logQuestSkips(ctx, reading.Projection.Facts)
 	r.planFood(&reading.Projection)
-	r.planFoodAcquisition(ctx, state.Snapshot, reading.Projection)
 	reading.Projection.Facts.ConstructionClaims = claims
 	reading.Sections.Colony.Value.Facts.ConstructionClaims = reading.Projection.Facts.ConstructionClaims
 	if err = r.reviewRoyalty(ctx, state.Snapshot, &reading); err != nil {
@@ -734,6 +733,9 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		return store.RoundsResult{}, err
 	}
 	reading.Projection.Facts.StaleBills = r.staleBills.stale(staleCandidates)
+	// Acquisition uses the review's completed home staffing and defense facts.
+	r.census.retain(reading, r.roomsEnabled(), claims)
+	r.planFoodAcquisition(ctx, state.Snapshot, reading.Projection)
 	result, err := p.journal.ReviewRounds(ctx, store.RoundsRequest{Revision: previous.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts})
 	if err != nil {
 	} else {

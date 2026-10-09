@@ -37,6 +37,44 @@ type ProjectMethod struct {
 	Plan   domain.PlanID
 }
 
+// OpenProjects returns saved Project owners, including ones not bound to a
+// routine assessment. Their methods use the same Hands admission and journal.
+func (s *Store) OpenProjects(ctx context.Context, kind domain.ConcernID) ([]ProjectState, error) {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, "SELECT id FROM projects WHERE retired=0 ORDER BY id")
+	if err != nil {
+		return nil, err
+	}
+	var ids []domain.ProjectID
+	for rows.Next() {
+		var id domain.ProjectID
+		if err = rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	var out []ProjectState
+	for _, id := range ids {
+		p, err := loadProject(ctx, tx, id)
+		if err != nil {
+			return nil, err
+		}
+		if p.Project.Kind == kind && p.Project.Status == domain.ProjectOpen {
+			out = append(out, p)
+		}
+	}
+	return out, tx.Commit()
+}
+
 func (p ProjectState) ownerSnapshot() domain.GenerationSnapshot { return p.Project.Snapshot }
 func (p ProjectState) ownerNeed(r Rounds) (domain.ConcernID, bool) {
 	return r.projectNeed(p.Project.ID)

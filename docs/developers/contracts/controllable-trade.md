@@ -100,5 +100,23 @@ Exact observed assembly or player caravan reconstructs progress after a lost
 receipt or load. Missing/overlapping crew evidence never resets a departing
 mission to planned. A stopped player caravan on the settlement tile is available
 to the shared session through vanilla `SettlementVisitedNow`; arrival does not
-require an extra order. The departure helper remains unregistered until the
-purchase, return and home-delivery driver is installed.
+require an extra order. The shared trade planner drives saved Projects before
+considering a new request or visit. Completed home staffing/defense facts admit
+exact packing options; the existing acquisition planner chooses without stock
+credit. Departure runs only after the Project has been recorded.
+
+Settlement purchases use live prices and current home demand, bounded by saved
+authorization, mission silver and native carry capacity. The existing supply
+ranker opens these candidates privately; away offers stay excluded from home
+stock. Empty/unavailable sheets or disappeared demand close trading and return.
+Commitment precedes accept dispatch, so a reload never rebuys.
+
+Return uses the same FormCaravan intent on exact observed crew, with a fresh
+home route, mass, food and rot check after trading. Native home entry uses
+`CaravanArrivalAction_Enter` / `UnloadIndividually`: inventory survives entry,
+then pawn jobs unload it. Final travel is observed at one-tick windows.
+Delivery requires exact crew on the home map and existing ListSupplies
+pawn-inventory/carried holder rows proving authorized goods above any initial
+packed amount of that definition. A missed held-cargo read stays unknown;
+loose home stock, crew arrival and receipts never prove delivery. Lost crew
+ends the attempt without delivery.

@@ -37,6 +37,9 @@ type TradeMission struct {
 	Pack           []CargoItem
 	Phase          TradeMissionPhase
 	ReturnHome     bool
+	// ReturnGoods is bounded authorized purchase intent, never observed stock.
+	ReturnGoods       []CargoItem `json:",omitempty"`
+	PurchaseCommitted bool        `json:",omitempty"`
 }
 
 func (m TradeMission) Validate() error {
@@ -59,6 +62,21 @@ func (m TradeMission) Validate() error {
 	}
 	if silver != uint64(m.SilverBudget) {
 		return errors.New("trade mission budget differs from packed silver")
+	}
+	if len(m.ReturnGoods) != 0 {
+		goods, err := NewCaravanDeparture(m.Crew, m.ReturnGoods, m.HomeTile)
+		if err != nil || !slices.Equal(m.ReturnGoods, goods.Cargo()) || !m.PurchaseCommitted {
+			return errors.New("invalid authorized return goods")
+		}
+		for _, item := range m.ReturnGoods {
+			idx := slices.IndexFunc(m.Demand, func(d CargoItem) bool { return d.Definition == item.Definition })
+			if idx < 0 || item.Count > m.Demand[idx].Count {
+				return errors.New("return goods exceed mission demand")
+			}
+		}
+	}
+	if m.PurchaseCommitted && len(m.ReturnGoods) == 0 {
+		return errors.New("purchase commitment needs authorized goods")
 	}
 	switch m.Phase {
 	case TradeMissionPlanned, TradeMissionDeparting, TradeMissionOutbound, TradeMissionBuying, TradeMissionReturning, TradeMissionDelivered, TradeMissionEnded:

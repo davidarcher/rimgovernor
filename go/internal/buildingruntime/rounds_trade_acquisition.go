@@ -21,6 +21,7 @@ type tradeAcquisitionMemory struct {
 	world     domain.GenerationSnapshot
 	proposals map[string]policy.TradeAcquisitionPlan
 	active    map[string]string
+	missions  map[string]domain.TradeMission
 }
 
 // TradeAcquisitionPlan is derived supply intent for the food/resources owner.
@@ -80,6 +81,7 @@ func (r *Rounder) planTradeAcquisition(ctx context.Context, world domain.Generat
 		m.world = world
 		m.proposals = map[string]policy.TradeAcquisitionPlan{}
 		m.active = map[string]string{}
+		m.missions = map[string]domain.TradeMission{}
 	}
 	active := ""
 	for _, id := range m.active {
@@ -103,6 +105,7 @@ func (r *Rounder) planTradeAcquisition(ctx context.Context, world domain.Generat
 			catalog, err := source.DefinitionCatalog(ctx, identity)
 			if err == nil && catalog != nil {
 				options = append(options, requestAcquisitionOptions(facts, catalog, demands)...)
+				options = append(options, r.settlementAcquisitionOptions(ctx, world, owner, p, demands, catalog)...)
 			}
 		}
 	}

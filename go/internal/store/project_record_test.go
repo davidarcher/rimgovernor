@@ -20,7 +20,9 @@ func TestTradeMissionProjectRecordFollowsSaveAndCAS(t *testing.T) {
 	if err = s.CreateProject(ctx, p); err != nil {
 		t.Fatal(err)
 	}
-	m.Phase = domain.TradeMissionDeparting
+	m.Phase = domain.TradeMissionBuying
+	m.PurchaseCommitted = true
+	m.ReturnGoods = []domain.CargoItem{{Definition: "Steel", Count: 10}}
 	record, err := m.Record()
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +50,7 @@ func TestTradeMissionProjectRecordFollowsSaveAndCAS(t *testing.T) {
 		t.Fatal(err)
 	}
 	mission, err := domain.DecodeTradeMission(state.Project.Record)
-	if err != nil || mission.Phase != domain.TradeMissionDeparting || len(state.History) != 0 {
+	if err != nil || mission.Phase != domain.TradeMissionBuying || !mission.PurchaseCommitted || len(mission.ReturnGoods) != 1 || len(state.History) != 0 {
 		t.Fatal(mission, state, err)
 	}
 }
