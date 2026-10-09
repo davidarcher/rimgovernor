@@ -14,7 +14,7 @@ import (
 // shortfall; and any race above its wealth-scaled cap (PlanHerd) with a
 // removable animal (herdSurplusCandidates). Removal needs no opt-in: it is
 // slaughter whenever SafeToSlaughter allows it, release only when
-// slaughter is refused and SafeToRelease allows it, and never breaks the last
+// slaughter is refused and ReleaseAllowed allows it, and never breaks the last
 // breeding pair. Native checks eligibility again when the HusbandryIntent
 // applies.
 const MaintainHerd ConcernID = "MaintainHerd"

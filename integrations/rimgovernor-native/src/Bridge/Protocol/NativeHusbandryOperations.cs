@@ -113,16 +113,10 @@ namespace HomeBridge.BridgeTools
             state.SlaughterDesignatable = new Designator_Slaughter().CanDesignateThing(animal).Accepted;
         }
 
-        // The release designator's own acceptance plus the bonded/master
-        // and pregnancy exclusions slaughter applies: release is non-lethal but still
-        // removes the animal from the colony.
-        internal static bool SafeToRelease(Pawn animal) => !animal.Dead && !animal.Downed && !animal.InMentalState
-            && animal.Faction == Faction.OfPlayer && animal.RaceProps.canReleaseToWild
-            && animal.playerSettings != null && animal.playerSettings.Master == null
-            && !TrainableUtility.GetAllColonistBondsFor(animal).Any()
-            && !animal.health.hediffSet.hediffs.OfType<Hediff_Pregnant>().Any()
-            && !Designated(animal, DesignationDefOf.Slaughter) && !Designated(animal, DesignationDefOf.ReleaseAnimalToWild)
-            && new Designator_ReleaseAnimalToWild().CanDesignateThing(animal).Accepted;
+        // The release designator's own acceptance and nothing more; which
+        // animals to protect (bonded, mastered, pregnant, downed) is Go herd
+        // policy (UpkeepAnimal.ReleaseAllowed).
+        internal static bool SafeToRelease(Pawn animal) => !animal.Dead && new Designator_ReleaseAnimalToWild().CanDesignateThing(animal).Accepted;
 
         // Current Animals-tab settings, always the real GetUniqueLoadID()
         // identities NativeHusbandryObservation publishes ("" when unset).
@@ -255,7 +249,7 @@ namespace HomeBridge.BridgeTools
                     rules.Require(() => !animal.Dead && new Designator_Slaughter().CanDesignateThing(animal).Accepted, "native slaughter designator refused the animal");
                     break;
                 case Operations.HusbandryOrder.Release:
-                    rules.Require(() => NativeHusbandryOperations.SafeToRelease(animal), "animal is protected or native release eligibility refused it");
+                    rules.Require(() => NativeHusbandryOperations.SafeToRelease(animal), "native release designator refused the animal");
                     break;
                 case Operations.HusbandryOrder.Tame:
                     rules.Require(() => NativeHusbandryOperations.Tameable(animal), "native tame eligibility refused the animal or it is designated for hunting");

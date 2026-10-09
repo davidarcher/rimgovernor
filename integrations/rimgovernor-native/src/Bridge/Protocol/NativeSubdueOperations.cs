@@ -10,8 +10,9 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The SUBDUE pawn order: a colonist beats a standing colonist in
-    // an aggressive mental break down with blunt melee. Ordinary melee damage
+    // The SUBDUE pawn order: a violence-capable colonist melee-attacks an
+    // exact spawned pawn with blunt melee. Which target to subdue is Go
+    // policy; native adds no target-state or weapon rule. Ordinary melee damage
     // applies. This is containment, never execution or custody. The subduer
     // is drafted when it is not; the plan's draft keeps it drafted.
     internal static class NativeSubdueOperations
@@ -25,9 +26,7 @@ namespace HomeBridge.BridgeTools
             if (target == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Subdue target is not spawned.");
             string? reason = null;
             if (!snapshot!.Eligible || !pawn!.IsColonistPlayerControlled || pawn.WorkTagIsDisabled(WorkTags.Violent)) reason = "incapable colonist";
-            else if (pawn.equipment?.Primary != null && !pawn.equipment.Primary.def.IsMeleeWeapon) reason = "ranged weapons are refused";
-            else if (target.Faction != Faction.OfPlayer || !target.RaceProps.Humanlike || target.IsPrisonerOfColony || target.Dead || target.Downed || !target.InAggroMentalState) reason = "target must be a standing aggressive colonist";
-            else if (!Running(pawn, target) && !pawn.CanReach(target, PathEndMode.Touch, Danger.Deadly)) reason = "target is unreachable";
+            else if (!Running(pawn, target) && !pawn.CanReach(target, PathEndMode.Touch, NativeOrderDanger.OrderDanger)) reason = "target is unreachable";
             return reason == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Subdue refused: " + reason);
         }
 

@@ -11,7 +11,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // The blight responder's native half: the CutPlant designation on
-    // one exact blighted plant (the census is the cell mirror's plant state;
+    // one exact plant (Go picks the blighted ones from the cell mirror's plant state;
     // DesignateIntent with THING_DESIGNATION_CUT_PLANT). The
     // designation is the whole write; ordinary plant-cutting work cuts the
     // plant afterwards, and the census emptying is what settles the concern.
@@ -20,22 +20,8 @@ namespace HomeBridge.BridgeTools
         internal const string Kind = "Cut plant";
         internal const string DesignationDef = "CutPlant";
 
-        // Census membership: a blighted plant on colony ground (a growing
-        // zone or the home area). Blight on wild plants outside both is the
-        // storyteller's, not the colony's, and is left alone.
-        internal static bool InColony(Plant plant, Map map) => map.zoneManager.ZoneAt(plant.Position) is Zone_Growing || map.areaManager.Home[plant.Position];
-        internal static bool Eligible(Plant plant) => !plant.Destroyed && plant.Spawned && ProtoBoundary.IsLoaded(plant.Map)
-            && plant.Blighted && !plant.Position.Fogged(plant.Map) && InColony(plant, plant.Map);
         internal static bool Designated(Plant plant) => plant.Map.designationManager.DesignationOn(plant, DesignationDefOf.CutPlant) != null
             || plant.Map.designationManager.DesignationOn(plant, DesignationDefOf.HarvestPlant) != null;
-
-        // Cutter is the same colonist rule plant acquisition applies: someone
-        // with plant cutting enabled must be able to do the work now.
-        private static bool Cutter(Pawn p, Plant plant) => p.workSettings?.Initialized == true
-            && p.workSettings.GetPriority(WorkTypeDefOf.PlantCutting) > 0 && !p.WorkTypeIsDisabled(WorkTypeDefOf.PlantCutting)
-            && !p.Downed && !p.Drafted && !p.InMentalState && !plant.IsForbidden(p)
-            && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
-            && p.CanReach(plant, PathEndMode.Touch, Danger.None);
 
         // The apply-time precondition list for CutPlant (action-contracts.md),
         // one rule at a time so a refusal names the fact that moved; a plant
@@ -44,14 +30,9 @@ namespace HomeBridge.BridgeTools
         {
             Plant? found = null;
             var rules = new ApplyPreconditions(Kind)
-                .Require(() => intent.HasThingId && ProtoBoundary.IsIdentifier(intent.ThingId), "CutPlant requires an exact blighted plant")
+                .Require(() => intent.HasThingId && ProtoBoundary.IsIdentifier(intent.ThingId), "CutPlant requires an exact plant")
                 .Present(() => (found = RefIndex.Thing<Plant>(map, intent.ThingId)) != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact plant is no longer spawned on this map")
-                .Require(() => found!.Blighted, "the plant is not blighted")
-                .Require(() => !found!.Position.Fogged(map), "the plant's cell is fogged")
-                .Require(() => InColony(found!, map), "the plant stands outside the colony's growing zones and home area")
-                .Require(() => !found!.IsForbidden(Faction.OfPlayer), "the plant is forbidden")
-                .Require(() => Designated(found!) || new Designator_PlantsCut().CanDesignateThing(found!).Accepted, "the native cut designator refuses the plant")
-                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Cutter(p, found!)), "no free colonist with plant cutting enabled can reach the plant");
+                .Require(() => Designated(found!) || new Designator_PlantsCut().CanDesignateThing(found!).Accepted, "the native cut designator refuses the plant");
             plant = found;
             return rules;
         }

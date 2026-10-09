@@ -190,7 +190,7 @@ func herdRemovalMethod(a UpkeepAnimal) (domain.HusbandryMethod, bool) {
 	if slaughter && !barred {
 		return domain.HusbandrySlaughter, true
 	}
-	release, rk := a.SafeToRelease.Value()
+	release, rk := a.ReleaseAllowed().Value()
 	if !rk {
 		return "", false
 	}

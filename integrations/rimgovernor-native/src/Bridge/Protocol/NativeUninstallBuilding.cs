@@ -33,9 +33,7 @@ namespace HomeBridge.BridgeTools
                 .Require(() => found!.Faction == Faction.OfPlayer, "the building is not the player's")
                 .Require(() => found!.def.Minifiable, "the building cannot be uninstalled")
                 .Require(() => InstallBlueprintUtility.ExistingBlueprintFor(found!) == null, "the building has a reinstall blueprint")
-                .Require(() => map.designationManager.DesignationOn(found!, DesignationDefOf.Deconstruct) == null, "the building is designated for deconstruction")
-                .Require(() => map.designationManager.DesignationOn(found!, DesignationDefOf.Uninstall) != null
-                    || map.mapPawns.FreeColonistsSpawned.Any(p => NativeMoveBuilding.Mover(p, found!)), "no free colonist with construction enabled can reach the building");
+                .Require(() => map.designationManager.DesignationOn(found!, DesignationDefOf.Deconstruct) == null, "the building is designated for deconstruction");
             if (!rules.Holds) return rules.Failure();
             building = found;
             return null;

@@ -11,45 +11,15 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "mood/subdue", Scope: "Ordinary melee containment through a GiveJobIntent AttackMelee on Actions/Apply: refuse non-aggro targets and ranged weapons; draft and order a blunt attack, resend applies again, and the colonist ends living, downed or recovered, without prisoner conversion.", Start: cases.Fixture{Op: "test/subdue_prepare", ArgsFrom: startersite.ArgsFor(7), On: cases.LabStart()}, Budget: 2 * time.Minute, Crew: cases.Crew{Size: 3}, Run: runSubdue})
+	cases.Register(cases.Case{Name: "mood/subdue", Scope: "Ordinary melee containment through a GiveJobIntent AttackMelee on Actions/Apply: draft and order a blunt attack, resend applies again, and the colonist ends living, downed or recovered, without prisoner conversion.", Start: cases.Fixture{Op: "test/subdue_prepare", ArgsFrom: startersite.ArgsFor(7), On: cases.LabStart()}, Budget: 2 * time.Minute, Crew: cases.Crew{Size: 3}, Run: runSubdue})
 }
 
 func runSubdue(ctx context.Context, s cases.Session) error {
 	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
 	pawn, target := na.AsString(prepared["pawn"]), na.AsString(prepared["target"])
 	intent := na.GiveJob(pawn, "AttackMelee", target)
-	read := func(label string) (map[string]any, error) {
-		reply, err := h.Wire(ctx, label, "observations_list_pawns", map[string]any{"scope": map[string]any{"expectedIdentity": identity}, "filter": map[string]any{"ids": []string{pawn}}})
-		if err != nil {
-			return nil, err
-		}
-		return na.PawnRow(reply, identity, pawn)
-	}
 	if _, err := na.GrantAuto(ctx, h.WireFunc(), "grant", identity); err != nil {
 		return err
-	}
-	for _, scenario := range []struct{ name, reason string }{{"normal", "standing aggressive colonist"}, {"ranged", "ranged weapons"}} {
-		if _, err := h.Call(ctx, "stage-"+scenario.name, "test/subdue_stage", map[string]any{"pawnId": pawn, "targetId": target, "scenario": scenario.name}); err != nil {
-			return err
-		}
-		before, err := read("before-" + scenario.name)
-		if err != nil {
-			return err
-		}
-		result, err := na.ApplyOne(ctx, h, "apply-"+scenario.name, identity, "subdue-"+scenario.name, intent)
-		if err != nil {
-			return err
-		}
-		if err := na.Refused(scenario.name, result, scenario.reason); err != nil {
-			return err
-		}
-		after, err := read("after-refusal-" + scenario.name)
-		if err != nil {
-			return err
-		}
-		if err := na.SameControl(before, after); err != nil {
-			return err
-		}
 	}
 	if _, err := h.Call(ctx, "stage-legal", "test/subdue_stage", map[string]any{"pawnId": pawn, "targetId": target, "scenario": "legal"}); err != nil {
 		return err

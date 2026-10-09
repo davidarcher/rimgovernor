@@ -124,7 +124,7 @@ func TestBondedAnimalSkippedByEveryRemovalPath(t *testing.T) {
 	if unknown || len(got) != 1 || got[0].animal.ID != "a2" {
 		t.Fatalf("surplus pick = %+v, want a2", got)
 	}
-	free.SlaughterFacts, free.SafeToRelease = safeSlaughter(false), domain.Known(true)
+	free.SlaughterFacts, free.SafeToRelease = slaughterRefused(), domain.Known(true)
 	if got, _ := herdSurplusCandidates([]UpkeepAnimal{bonded, free}, limits, true, HerdPolicy{}); len(got) != 1 || got[0].animal.ID != "a2" || got[0].method != domain.HusbandryRelease {
 		t.Fatalf("release pick = %+v, want a2", got)
 	}

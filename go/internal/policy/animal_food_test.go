@@ -98,6 +98,49 @@ func safeSlaughter(ok bool) SlaughterFacts {
 	return SlaughterFacts{Downed: f(!ok), InMentalState: f(false), Pregnant: f(false), Mastered: f(false), ColonistBonded: f(false), Designatable: f(true)}
 }
 
+// slaughterRefused is a clear animal only the slaughter designator refuses, so
+// removal falls through to release.
+func slaughterRefused() SlaughterFacts {
+	f := safeSlaughter(true)
+	f.Designatable = domain.Known(false)
+	return f
+}
+
+func herdSlaughterFacts(slaughter bool) SlaughterFacts {
+	if slaughter {
+		return safeSlaughter(true)
+	}
+	return slaughterRefused()
+}
+
+// Release is protected by Go policy, not native: the slaughter protections,
+// a standing designation or a refusing release designator each bar it.
+func TestReleaseAllowedExclusions(t *testing.T) {
+	ok := UpkeepAnimal{SlaughterFacts: safeSlaughter(true), Release: domain.Known(false), Slaughter: domain.Known(false), SafeToRelease: domain.Known(true)}
+	if v, k := ok.ReleaseAllowed().Value(); !k || !v {
+		t.Fatal("clear animal not releasable")
+	}
+	for name, mutate := range map[string]func(*UpkeepAnimal){
+		"downed":     func(a *UpkeepAnimal) { a.SlaughterFacts.Downed = domain.Known(true) },
+		"bonded":     func(a *UpkeepAnimal) { a.SlaughterFacts.ColonistBonded = domain.Known(true) },
+		"mastered":   func(a *UpkeepAnimal) { a.SlaughterFacts.Mastered = domain.Known(true) },
+		"pregnant":   func(a *UpkeepAnimal) { a.SlaughterFacts.Pregnant = domain.Known(true) },
+		"slaughter":  func(a *UpkeepAnimal) { a.Slaughter = domain.Known(true) },
+		"designator": func(a *UpkeepAnimal) { a.SafeToRelease = domain.Known(false) },
+	} {
+		a := ok
+		mutate(&a)
+		if v, k := a.ReleaseAllowed().Value(); !k || v {
+			t.Fatalf("%s animal releasable", name)
+		}
+	}
+	a := ok
+	a.Release = domain.Unknown[bool]()
+	if _, k := a.ReleaseAllowed().Value(); k {
+		t.Fatal("unknown designation read as known")
+	}
+}
+
 func TestSafeToSlaughterExclusions(t *testing.T) {
 	clear := func(mutate func(*UpkeepAnimal)) domain.Fact[bool] {
 		a := UpkeepAnimal{SlaughterFacts: safeSlaughter(true), Release: domain.Known(false)}

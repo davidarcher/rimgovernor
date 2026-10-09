@@ -31,13 +31,6 @@ namespace HomeBridge.BridgeTools
         private static MinifiedThing? FindPacked(Map map, string id) => 
             RefIndex.Thing(map, id) as MinifiedThing ?? RefIndex.ThingOrMinified(map, id)?.ParentHolder as MinifiedThing;
 
-        // Mover: someone with construction enabled must be able to reach
-        // the piece now; whether it is free is the game's reservation, later.
-        internal static bool Mover(Pawn p, Thing piece) => p.workSettings?.Initialized == true
-            && p.workSettings.GetPriority(WorkTypeDefOf.Construction) > 0 && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
-            && !p.Downed && !p.InMentalState && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
-            && p.CanReach(piece, PathEndMode.ClosestTouch, Danger.None);
-
         private static bool Valid(Operations.RelocateIntent intent) => ProtoBoundary.IsIdentifier(intent.ThingId)
             && intent.Destination != null && intent.Destination.HasX && intent.Destination.HasZ && intent.HasRotation
             && intent.Rotation >= Placement.Rotation.North && intent.Rotation <= Placement.Rotation.West;
@@ -52,11 +45,7 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => inner != null && !mini.Destroyed && mini.Spawned && ProtoBoundary.IsLoaded(mini.Map), "the exact packed building is not on this map")
                 .Require(() => inner!.Faction == null || inner.Faction == Faction.OfPlayer, "the packed building is not the player's")
-                .Require(() => !mini.Position.Fogged(map) && !mini.IsForbidden(Faction.OfPlayer), "the packed building is fogged or forbidden")
-                .Require(() => inner!.def.rotatable || rotation == Rot4.North, "the building is not rotatable; only north is valid")
-                .Require(() => cell.InBounds(map) && !cell.Fogged(map), "the destination is out of bounds or fogged")
-                .Require(() => GenConstruct.CanPlaceBlueprintAt(inner!.def, cell, rotation, map, false, mini, inner).Accepted, "the game refuses an install blueprint at the destination")
-                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Mover(p, mini)), "no free colonist with construction enabled can reach the packed building");
+                .Require(() => GenConstruct.CanPlaceBlueprintAt(inner!.def, cell, rotation, map, false, mini, inner).Accepted, "the game refuses an install blueprint at the destination");
             failure = rules.Holds ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "") : rules.Failure();
             return rules.Holds;
         }
@@ -94,13 +83,10 @@ namespace HomeBridge.BridgeTools
                 .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact building is not installed on this map")
                 .Require(() => found!.Faction == Faction.OfPlayer, "the building is not the player's")
                 .Require(() => found!.def.Minifiable, "the building cannot be uninstalled")
-                .Require(() => found!.def.rotatable || rotation == Rot4.North, "the building is not rotatable; only north is valid")
                 .Require(() => !(found!.Position == cell && found.Rotation == rotation), "the building already stands at the destination")
                 .Require(() => map.designationManager.DesignationOn(found!, DesignationDefOf.Uninstall) == null
                     && map.designationManager.DesignationOn(found!, DesignationDefOf.Deconstruct) == null, "the building is designated for uninstall or deconstruction")
-                .Require(() => cell.InBounds(map) && !cell.Fogged(map), "the destination is out of bounds or fogged")
-                .Require(() => GenConstruct.CanPlaceBlueprintAt(found!.def, cell, rotation, map, false, found, found).Accepted, "the game refuses a reinstall blueprint at the destination")
-                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Mover(p, found!)), "no free colonist with construction enabled can reach the building");
+                .Require(() => GenConstruct.CanPlaceBlueprintAt(found!.def, cell, rotation, map, false, found, found).Accepted, "the game refuses a reinstall blueprint at the destination");
             if (!rules.Holds) return rules.Failure();
             piece = building = found;
             return null;

@@ -148,10 +148,10 @@ cannot satisfy the native bed outcome.
 
 ### Native subdual
 
-The AttackMelee `GiveJobIntent` accepts exact colonist snapshots and an aggressive,
-standing colonist target. It drafts an undrafted responder (the plan's draft keeps it
+The AttackMelee `GiveJobIntent` accepts exact colonist snapshots and a spawned target
+pawn; which target is worth subduing (an aggressive, standing colonist) is Go policy. It drafts an undrafted responder (the plan's draft keeps it
 drafted) and issues an ordinary AttackMelee job; an existing draft is retained.
-Unarmed and melee responders are legal; ranged weapons are refused. The job prefers a
+Any violence-capable responder is legal whatever it wields. The job prefers a
 legal blunt verb, including fists, without changing native damage. It ends when the
 target is downed or its aggressive break ends. Death is failure, never successful
 containment. Progress requires the same order on a still-drafted responder. The

@@ -30,8 +30,10 @@ type UpkeepAnimal struct {
 	// straight from the same generic census read that already decodes
 	// containment/feed facts; SafeToSlaughter (animal_food.go) decides.
 	SlaughterFacts SlaughterFacts
-	SafeToRelease  domain.Fact[bool]
-	Training       []HusbandryTrainable
+	// SafeToRelease is native's Designator_ReleaseAnimalToWild acceptance;
+	// ReleaseAllowed (animal_food.go) adds the exclusions policy owns.
+	SafeToRelease domain.Fact[bool]
+	Training      []HusbandryTrainable
 	// Tameable and Tame are only populated for the wild census
 	// (AnimalUpkeepObservation.WildAnimals): native tame eligibility and a
 	// standing tame designation.

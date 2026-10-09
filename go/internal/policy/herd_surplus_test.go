@@ -7,7 +7,7 @@ import (
 )
 
 func herdAnimal(id, gender string, slaughter, release bool) UpkeepAnimal {
-	return UpkeepAnimal{ID: PawnID(id), Definition: "Muffalo", Gender: gender, Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SlaughterFacts: safeSlaughter(slaughter), SafeToRelease: domain.Known(release), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}}
+	return UpkeepAnimal{ID: PawnID(id), Definition: "Muffalo", Gender: gender, Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SlaughterFacts: herdSlaughterFacts(slaughter), SafeToRelease: domain.Known(release), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}}
 }
 
 func playerAnimal(id string, def Resource, safeRelease bool) UpkeepAnimal {

@@ -196,3 +196,29 @@ func FoodSlaughterChoice(plan domain.Fact[FoodPlan], animals domain.Fact[[]Upkee
 	}
 	return HusbandryChoice{Reason: HusbandryNoDeficit}
 }
+
+// ReleaseAllowed is the release exclusion policy owns: the slaughter
+// protections (downed, mentally broken, pregnant, mastered, colonist-bonded) or
+// an existing release or slaughter designation protect an animal, and
+// SafeToRelease is Designator_ReleaseAnimalToWild's own acceptance. A known
+// blocker decides even when another fact is unknown.
+func (a UpkeepAnimal) ReleaseAllowed() domain.Fact[bool] {
+	f := a.SlaughterFacts
+	unknown := false
+	for _, blocker := range []domain.Fact[bool]{f.Downed, f.InMentalState, f.Pregnant, f.Mastered, f.ColonistBonded, a.Release, a.Slaughter} {
+		if v, ok := blocker.Value(); !ok {
+			unknown = true
+		} else if v {
+			return domain.Known(false)
+		}
+	}
+	if v, ok := a.SafeToRelease.Value(); !ok {
+		unknown = true
+	} else if !v {
+		return domain.Known(false)
+	}
+	if unknown {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(true)
+}
