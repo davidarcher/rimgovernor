@@ -282,7 +282,12 @@ func TestWorkersHelpersEnabledUnderTheFloor(t *testing.T) {
 		ready.Candidates = append(ready.Candidates, policy.ReadyWork{Stage: "building:Wall", Work: policy.LaborProfile{policy.WorkConstruction}, State: policy.ReadyRunnable, Parallelism: 1, Claims: []policy.ReadyClaim{{Kind: "cell", Key: fmt.Sprint(i)}}})
 	}
 	plan := func(tick domain.Tick, previous *policy.ConstructionHelpRecord) policy.WorkDecision {
-		help := policy.ConstructionHelpDemand(ready, domain.GenerationSnapshot{}, tick, []string{"Wall"}, previous)
+		wall, err := domain.NewBuilding("Wall", domain.Cell{X: 0, Z: 1}, domain.North, "WoodLog")
+		if err != nil {
+			t.Fatal(err)
+		}
+		census := domain.Known(policy.CurrentConstruction{Colony: true, Sites: []policy.ConstructionSite{{Building: wall, Stage: "blueprint", ID: "w", QualitySensitive: domain.Known(false), NativeFinishingSkill: domain.Known(0)}}})
+		help := policy.ConstructionHelpDemand(ready, domain.GenerationSnapshot{}, tick, []policy.HelpDefinition{{Name: "Wall", Skill: domain.Known(0)}}, previous, census)
 		d, err := policy.PlanWork(pawns, nil, policy.WorkDemand{Construction: true, Help: &help})
 		if err != nil {
 			t.Fatal(err)

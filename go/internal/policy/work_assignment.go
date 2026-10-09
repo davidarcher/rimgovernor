@@ -571,13 +571,7 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 		// Helpers (construction_helpers.go): sub-floor pawns the native
 		// floor admits, at the lowest rank; owners are not
 		// helpers.
-		nativeFloor := 0
-		if r, ok := requirements[WorkConstruction]; ok {
-			nativeFloor = r.Minimum
-		}
-		if demand.Help.TargetSkills {
-			nativeFloor = 0
-		}
+		nativeFloor := demand.Help.Floor
 		rec := planConstructionHelp(*demand.Help, workers, owners[WorkConstruction], func(w *workWorker) bool {
 			return w.owns[WorkConstruction] == 0 && !able(w, WorkConstruction) && ableAt(w, WorkConstruction, nativeFloor)
 		})

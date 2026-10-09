@@ -30,6 +30,27 @@ func wallReport(n int, extra ...ReadyWork) *ReadyWorkReport {
 	return r
 }
 
+// wallCensus is an observed quality-free wall blueprint, the fact that makes
+// the Wall definition helper work.
+func wallCensus() domain.Fact[CurrentConstruction] {
+	b, _ := domain.NewBuilding("Wall", domain.Cell{X: 0, Z: 1}, domain.North, "WoodLog")
+	return domain.Known(CurrentConstruction{Colony: true, Sites: []ConstructionSite{{Building: b, Stage: "blueprint", ID: "w", QualitySensitive: domain.Known(false), NativeFinishingSkill: domain.Known(0)}}})
+}
+
+// helpDemand reads demand over the wall census with prerequisite-free plans.
+func helpDemand(report *ReadyWorkReport, world domain.GenerationSnapshot, tick domain.Tick, names []string, previous *ConstructionHelpRecord) ConstructionHelp {
+	return ConstructionHelpDemand(report, world, tick, helpNames(names...), previous, wallCensus())
+}
+
+// helpNames are plan definitions with an observed zero prerequisite.
+func helpNames(names ...string) []HelpDefinition {
+	defs := []HelpDefinition{}
+	for _, n := range names {
+		defs = append(defs, HelpDefinition{Name: n, Skill: domain.Known(0)})
+	}
+	return defs
+}
+
 func planHelp(t *testing.T, pawns []WorkPawn, h ConstructionHelp, resting ...DiseaseRest) WorkDecision {
 	t.Helper()
 	d, err := PlanWork(pawns, nil, WorkDemand{Construction: true, Help: &h, Resting: resting})
@@ -47,11 +68,11 @@ func planHelp(t *testing.T, pawns []WorkPawn, h ConstructionHelp, resting ...Dis
 // the owner at 1.
 func TestConstructionHelpersAssistOccupiedBuilder(t *testing.T) {
 	pawns := helpTeam()
-	first := planHelp(t, pawns, ConstructionHelpDemand(wallReport(6), helpWorld, 100, []string{"Wall"}, nil))
+	first := planHelp(t, pawns, helpDemand(wallReport(6), helpWorld, 100, []string{"Wall"}, nil))
 	if first.Help.Reason != HelpNoSpare || len(first.Help.Helpers) != 0 || workValue(t, first, "a", WorkConstruction) != 0 {
 		t.Fatalf("first review must only see spare capacity: %+v", first.Help)
 	}
-	second := planHelp(t, pawns, ConstructionHelpDemand(wallReport(6), helpWorld, 700, []string{"Wall"}, first.Help))
+	second := planHelp(t, pawns, helpDemand(wallReport(6), helpWorld, 700, []string{"Wall"}, first.Help))
 	if second.Help.Reason != HelpAssigned || !reflect.DeepEqual(second.Help.Helpers, []PawnID{"a", "b"}) || second.Help.Unmet != 6 {
 		t.Fatalf("%+v", second.Help)
 	}
@@ -64,11 +85,11 @@ func TestConstructionHelpersAssistOccupiedBuilder(t *testing.T) {
 	}
 	// Bounded by ready work: one wall, a free builder, no helper.
 	pawns[0].Job = domain.Known(PawnJob{Def: "Wait_Wander"})
-	one := planHelp(t, pawns, ConstructionHelpDemand(wallReport(1), helpWorld, 700, nil, &ConstructionHelpRecord{Tick: 100, Idle: []PawnID{"a", "b"}}))
+	one := planHelp(t, pawns, helpDemand(wallReport(1), helpWorld, 700, nil, &ConstructionHelpRecord{Tick: 100, Idle: []PawnID{"a", "b"}}))
 	if one.Help.Unmet != 0 || len(one.Help.Helpers) != 0 {
 		t.Fatalf("%+v", one.Help)
 	}
-	two := planHelp(t, pawns, ConstructionHelpDemand(wallReport(2), helpWorld, 700, nil, &ConstructionHelpRecord{Tick: 100, Idle: []PawnID{"a", "b"}}))
+	two := planHelp(t, pawns, helpDemand(wallReport(2), helpWorld, 700, nil, &ConstructionHelpRecord{Tick: 100, Idle: []PawnID{"a", "b"}}))
 	if !reflect.DeepEqual(two.Help.Helpers, []PawnID{"a"}) {
 		t.Fatalf("one unmet wall takes the better helper: %+v", two.Help)
 	}
@@ -77,7 +98,7 @@ func TestConstructionHelpersAssistOccupiedBuilder(t *testing.T) {
 func TestConstructionHelpersRespectRestrictions(t *testing.T) {
 	prev := &ConstructionHelpRecord{Tick: 100, Idle: []PawnID{"a", "b"}}
 	help := func() ConstructionHelp {
-		return ConstructionHelpDemand(wallReport(6), helpWorld, 700, []string{"Wall"}, prev)
+		return helpDemand(wallReport(6), helpWorld, 700, []string{"Wall"}, prev)
 	}
 	// A player who switched Construction off does not keep a pawn from
 	// helping: Governor owns every priority.
@@ -103,10 +124,10 @@ func TestConstructionHelpersRespectRestrictions(t *testing.T) {
 	if d := planHelp(t, pawns, help(), DiseaseRest{Pawn: "a", Conditions: []string{"Flu"}}, DiseaseRest{Pawn: "b", Conditions: []string{"Flu"}}); len(d.Help.Helpers) != 0 {
 		t.Fatalf("resting: %+v", d.Help)
 	}
-	// A native requirement minimum above the helper's level excludes it.
+	// An observed prerequisite above the helper's level excludes it.
 	pawns = helpTeam()
-	h := help()
-	d2, err := PlanWork(pawns, []WorkRequirement{{Work: WorkConstruction, Skill: "Construction", Minimum: 2}}, WorkDemand{Construction: true, Help: &h})
+	h := ConstructionHelpDemand(wallReport(6), helpWorld, 700, []HelpDefinition{{Name: "Wall", Skill: domain.Known(2)}}, prev, wallCensus())
+	d2, err := PlanWork(pawns, nil, WorkDemand{Construction: true, Help: &h})
 	if err != nil || !reflect.DeepEqual(d2.Help.Helpers, []PawnID{"a"}) {
 		t.Fatalf("requirement: %+v %v", d2.Help, err)
 	}
@@ -118,23 +139,51 @@ func TestConstructionHelpersRespectRestrictions(t *testing.T) {
 	}
 }
 
-// Risky or unknown tasks withhold helpers, and a risky task appearing
-// withdraws current helpers at once. The coarse limit: between reviews the
-// helper's Construction priority covers any frame, which the record names.
+// A definition with unobserved quality or prerequisite withholds helpers under
+// a reason naming that fact, and one appearing withdraws current helpers at
+// once. The coarse limit: between reviews the helper's Construction priority
+// covers any frame, which the record names.
 func TestConstructionHelpersWithheldForRiskyOrUnknownWork(t *testing.T) {
 	prev := &ConstructionHelpRecord{Tick: 100, Idle: []PawnID{"a", "b"}, Helpers: []PawnID{"a"}, DemandTick: 100}
 	pawns := helpTeam()
 	bed := ReadyWork{Stage: "building:Bed", Work: LaborProfile{WorkConstruction}, State: ReadyBlocked}
-	d := planHelp(t, pawns, ConstructionHelpDemand(wallReport(6, bed), helpWorld, 700, []string{"Wall", "Bed"}, prev))
-	if d.Help.Reason != HelpRiskyTask || len(d.Help.Helpers) != 0 || workValue(t, d, "a", WorkConstruction) != 0 || !reflect.DeepEqual(d.Help.Risky, []string{"Bed", "building:Bed"}) {
+	d := planHelp(t, pawns, helpDemand(wallReport(6, bed), helpWorld, 700, []string{"Wall", "Bed"}, prev))
+	if d.Help.Reason != HelpQualityUnknown || len(d.Help.Helpers) != 0 || workValue(t, d, "a", WorkConstruction) != 0 || !reflect.DeepEqual(d.Help.Withheld, []string{"Bed"}) {
 		t.Fatalf("%+v", d.Help)
 	}
-	// A player blueprint's definition alone is enough.
-	if h := ConstructionHelpDemand(wallReport(6), helpWorld, 700, []string{"Table2x2c"}, prev); len(h.Risky) != 1 {
+	// A plan definition with no observed site has unknown quality.
+	if h := helpDemand(wallReport(6), helpWorld, 700, []string{"Table2x2c"}, prev); h.Reason != HelpQualityUnknown || len(h.Withheld) != 1 {
 		t.Fatal(h)
 	}
-	// Another world's report is unknown demand.
-	if d := planHelp(t, pawns, ConstructionHelpDemand(wallReport(6), domain.GenerationSnapshot{Colony: "c", Map: helpMap, Load: "other"}, 700, nil, prev)); d.Help.Reason != HelpDemandUnknown || len(d.Help.Helpers) != 0 {
+	// An unobserved prerequisite names itself; the site's own prerequisite
+	// stands in for an unread definition row.
+	census := wallCensus()
+	if got := ConstructionHelpDemand(wallReport(6), helpWorld, 700, []HelpDefinition{{Name: "Wall", Skill: domain.Unknown[int]()}}, prev, census); got.Reason != "" || got.Floor != 0 {
+		t.Fatalf("site prerequisite should stand in: %+v", got)
+	}
+	sites, _ := census.Value()
+	sites.Sites[0].NativeFinishingSkill = domain.Unknown[int]()
+	if got := ConstructionHelpDemand(wallReport(6), helpWorld, 700, []HelpDefinition{{Name: "Wall", Skill: domain.Unknown[int]()}}, prev, census); got.Reason != HelpPrerequisiteUnknown || !reflect.DeepEqual(got.Withheld, []string{"Wall"}) {
+		t.Fatalf("%+v", got)
+	}
+	// A def no list ever named (Door) gets helpers from observed facts alone.
+	door, _ := domain.NewBuilding("Door", domain.Cell{X: 9, Z: 1}, domain.North, "WoodLog")
+	sites.Sites[0] = ConstructionSite{Building: door, Stage: "frame", ID: "d", ResourcesComplete: domain.Known(true), QualitySensitive: domain.Known(false), NativeFinishingSkill: domain.Known(1)}
+	got := ConstructionHelpDemand(nil, helpWorld, 700, nil, prev, census)
+	if ready, _ := got.Ready.Value(); got.Reason != "" || got.Floor != 1 || ready != 1 {
+		t.Fatalf("%+v", got)
+	}
+	// A quality site with no finishing minimum is unprotected; one with it is native-guarded.
+	sites.Sites[0].QualitySensitive = domain.Known(true)
+	if got := ConstructionHelpDemand(nil, helpWorld, 700, nil, prev, census); got.Reason != HelpQualityUnprotected {
+		t.Fatalf("%+v", got)
+	}
+	sites.Sites[0].MinimumFinishingSkill = domain.Known(5)
+	if got := ConstructionHelpDemand(nil, helpWorld, 700, nil, prev, census); got.Reason != "" || got.Floor != 0 {
+		t.Fatalf("%+v", got)
+	}
+	// Another world's report with no census is unknown demand.
+	if d := planHelp(t, pawns, ConstructionHelpDemand(wallReport(6), domain.GenerationSnapshot{Colony: "c", Map: helpMap, Load: "other"}, 700, nil, prev, domain.Unknown[CurrentConstruction]())); d.Help.Reason != HelpDemandUnknown || len(d.Help.Helpers) != 0 {
 		t.Fatalf("%+v", d.Help)
 	}
 }
@@ -144,23 +193,23 @@ func TestConstructionHelpersWithheldForRiskyOrUnknownWork(t *testing.T) {
 func TestConstructionHelpersHoldThenRestore(t *testing.T) {
 	pawns := helpTeam()
 	prev := &ConstructionHelpRecord{Tick: 700, Idle: []PawnID{"a", "b"}, Helpers: []PawnID{"a", "b"}, DemandTick: 700}
-	held := planHelp(t, pawns, ConstructionHelpDemand(wallReport(0), helpWorld, 1300, nil, prev))
+	held := planHelp(t, pawns, helpDemand(wallReport(0), helpWorld, 1300, nil, prev))
 	if held.Help.Reason != HelpHeld || !reflect.DeepEqual(held.Help.Helpers, []PawnID{"a", "b"}) || held.Help.DemandTick != 700 {
 		t.Fatalf("%+v", held.Help)
 	}
 	// Stable across reviews: the same record plans the same priorities.
-	again := planHelp(t, pawns, ConstructionHelpDemand(wallReport(0), helpWorld, 1900, nil, held.Help))
+	again := planHelp(t, pawns, helpDemand(wallReport(0), helpWorld, 1900, nil, held.Help))
 	if !reflect.DeepEqual(again.Assignments, held.Assignments) {
 		t.Fatal("held helpers oscillated")
 	}
-	gone := planHelp(t, pawns, ConstructionHelpDemand(wallReport(0), helpWorld, 700+ConstructionHelpHoldTicks, nil, again.Help))
+	gone := planHelp(t, pawns, helpDemand(wallReport(0), helpWorld, 700+ConstructionHelpHoldTicks, nil, again.Help))
 	if gone.Help.Reason != HelpNoDemand || len(gone.Help.Helpers) != 0 || workValue(t, gone, "a", WorkConstruction) != 0 {
 		t.Fatalf("%+v", gone.Help)
 	}
 	// A player who set a helper's Construction loses it on restoration.
 	edited := helpTeam()
 	setObservedWork(edited[1], WorkConstruction, 2)
-	kept := planHelp(t, edited, ConstructionHelpDemand(wallReport(0), helpWorld, 700+ConstructionHelpHoldTicks, nil, again.Help))
+	kept := planHelp(t, edited, helpDemand(wallReport(0), helpWorld, 700+ConstructionHelpHoldTicks, nil, again.Help))
 	if workValue(t, kept, "a", WorkConstruction) != 0 {
 		t.Fatal("restoration kept a player edit")
 	}

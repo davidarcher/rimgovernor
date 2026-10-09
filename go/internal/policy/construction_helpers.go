@@ -17,20 +17,15 @@ import (
 // construction job, not one chosen wall. Native RimWorld still refuses a
 // frame whose constructionSkillPrerequisite the pawn lacks. Quality sites
 // with an observed finishing minimum also enforce that minimum natively.
-// Helpers require every known task to be cheap, quality-free construction
-// or protected by that observed target setting. Unconfigured risky sites
-// withdraw helpers immediately. A new unconfigured site between reviews
+// Helper safety is derived from observed facts per definition, with no name
+// list: a definition is helper work when its quality sensitivity is observed
+// false and its skill prerequisite is observed (the helper must reach it), and
+// a quality-sensitive definition is protected when its sites carry an observed
+// finishing minimum, which native enforces per target (helpers then neither
+// count as demand nor constrain the floor). An unobserved prerequisite, an
+// unobserved quality fact or an unconfigured quality site withholds helpers
+// with a reason naming that fact. A new unconfigured site between reviews
 // still follows vanilla rules until Go adopts it on a later review.
-
-// HelperConstructionDefinitions is the conservative task set: Core
-// buildables with no constructionSkillPrerequisite and no quality, whose
-// failed attempt loses a share of cheap materials (stone blocks, wood).
-// Beds, furniture and anything with quality or a skill minimum are
-// excluded; an unknown definition is excluded.
-var HelperConstructionDefinitions = map[string]bool{
-	"Wall": true, "Door": true, "SleepingSpot": true, "DoubleSleepingSpot": true,
-	"Campfire": true, "Sandbags": true, "PowerConduit": true,
-}
 
 // ConstructionHelpHoldTicks: helpers stay one game hour after suitable
 // demand disappears, so a review between two walls does not rewrite work
@@ -43,21 +38,36 @@ const (
 	HelpHeld          = "held_after_demand"
 	HelpNoDemand      = "no_unmet_suitable_construction"
 	HelpDemandUnknown = "construction_demand_unknown"
-	HelpRiskyTask     = "risky_construction_pending"
 	HelpNoSpare       = "no_sustained_idle_pawn"
+	// Withholding reasons name the unobserved or unconfigured fact.
+	HelpPrerequisiteUnknown = "construction_prerequisite_unknown"
+	HelpQualityUnknown      = "construction_quality_unknown"
+	HelpQualityUnprotected  = "construction_quality_unprotected"
 )
+
+// helpWithholdRank orders withholding reasons when several hold.
+var helpWithholdRank = map[string]int{HelpPrerequisiteUnknown: 1, HelpQualityUnknown: 2, HelpQualityUnprotected: 3}
+
+// HelpDefinition is an open plan's building definition with its observed
+// native skill prerequisite.
+type HelpDefinition struct {
+	Name  string
+	Skill domain.Fact[int]
+}
 
 // ConstructionHelp is the planner's helper input (WorkDemand.Help).
 type ConstructionHelp struct {
 	Tick domain.Tick
-	// TargetSkills means observed target guards enforce furniture skill locally;
-	// the maximum prerequisite of unrelated projects must not disable safe-wall helpers.
-	TargetSkills bool
-	// Ready is the runnable suitable construction parallelism; unknown
+	// Floor is the highest observed skill prerequisite among the quality-free
+	// definitions in play; a helper must reach it.
+	Floor int
+	// Ready is the runnable helper-eligible construction parallelism; unknown
 	// never authorizes help.
 	Ready domain.Fact[int]
-	// Risky lists pending construction outside the conservative set.
-	Risky []string
+	// Withheld names the definitions whose prerequisite or quality is
+	// unobserved or unconfigured; Reason is the highest-ranked fact among them.
+	Withheld []string
+	Reason   string
 	// Previous is the last review's record in the same world, zero when
 	// none.
 	Previous ConstructionHelpRecord
@@ -77,42 +87,69 @@ type ConstructionHelpRecord struct {
 	Ready      int         `json:",omitempty"`
 	Unmet      int         `json:",omitempty"`
 	Reason     string
-	Risky      []string `json:",omitempty"`
+	Withheld   []string `json:",omitempty"`
 }
 
-// ConstructionHelpDemand reads the ready-work report for helper
-// demand: runnable Construction candidates on a conservative definition
-// count their parallelism; any construction candidate outside the set is risky, as is any
-// pending definition outside it. A report from another world is unknown.
-func ConstructionHelpDemand(report *ReadyWorkReport, current domain.GenerationSnapshot, tick domain.Tick, definitions []string, previous *ConstructionHelpRecord, census ...domain.Fact[CurrentConstruction]) ConstructionHelp {
+// ConstructionHelpDemand reads the ready-work report and the native
+// construction census for helper demand. Each building definition in play (an
+// observed site, an open plan or a construction candidate) is classified from
+// observed facts: quality-free definitions with an observed prerequisite are
+// helper work, their runnable candidates count their parallelism and their
+// highest prerequisite becomes the helper floor; protected quality definitions
+// are left to native per-target enforcement; anything else is withheld under
+// the reason naming the missing fact. A report from another world is unknown.
+func ConstructionHelpDemand(report *ReadyWorkReport, current domain.GenerationSnapshot, tick domain.Tick, definitions []HelpDefinition, previous *ConstructionHelpRecord, census domain.Fact[CurrentConstruction]) ConstructionHelp {
 	help := ConstructionHelp{Tick: tick, Ready: domain.Unknown[int]()}
-	protected := map[string]bool{}
-	if len(census) > 0 {
-		protected = protectedQualityDefinitions(census[0])
-		report = ConstructionHelperView(report, census[0], current)
-	}
-	help.TargetSkills = len(protected) > 0
+	report = ConstructionHelperView(report, census, current)
 	if previous != nil && previous.Tick <= tick {
 		help.Previous = *previous
 	}
-	risky := map[string]bool{}
-	if len(census) > 0 {
-		if observed, known := census[0].Value(); known && observed.Colony {
-			for _, site := range observed.Sites {
-				name := site.Building.Definition()
-				if !HelperConstructionDefinitions[name] && !protected[name] {
-					risky[name] = true
-				}
+	withheld := map[string]string{}
+	withhold := func(name, reason string) {
+		if rank := helpWithholdRank[withheld[name]]; rank == 0 || helpWithholdRank[reason] < rank {
+			withheld[name] = reason
+		}
+	}
+	// Quality per definition: absent (no observed site, or no census) is unknown.
+	const (
+		free = iota
+		protected
+		unprotected
+	)
+	quality := map[string]int{}
+	siteSkill := map[string]int{}
+	siteSkillUnknown := map[string]bool{}
+	if observed, known := census.Value(); known && observed.Colony {
+		for _, site := range observed.Sites {
+			name := site.Building.Definition()
+			q := unprotected
+			sensitive, sensitiveKnown := site.QualitySensitive.Value()
+			if _, set := site.MinimumFinishingSkill.Value(); sensitiveKnown && !sensitive {
+				q = free
+			} else if sensitiveKnown && set {
+				q = protected
+			} else if !sensitiveKnown {
+				withhold(name, HelpQualityUnknown)
+			}
+			quality[name] = max(quality[name], q)
+			if skill, ok := site.NativeFinishingSkill.Value(); ok {
+				siteSkill[name] = max(siteSkill[name], skill)
+			} else {
+				siteSkillUnknown[name] = true
 			}
 		}
 	}
+	skills := map[string]domain.Fact[int]{}
+	names := map[string]bool{}
 	for _, d := range definitions {
-		if !HelperConstructionDefinitions[d] && !protected[d] {
-			risky[d] = true
-		}
+		skills[d.Name] = d.Skill
+		names[d.Name] = true
 	}
+	for name := range quality {
+		names[name] = true
+	}
+	candidateDefs := map[string]string{} // stage -> definition
 	if report != nil && report.Current(current) {
-		ready := 0
 		for _, c := range report.Candidates {
 			builds := false
 			for _, w := range c.Work {
@@ -122,23 +159,54 @@ func ConstructionHelpDemand(report *ReadyWorkReport, current domain.GenerationSn
 				continue
 			}
 			def, migrated := strings.CutPrefix(c.Stage, "building:")
-			if migrated && protected[def] {
+			if !migrated {
+				withhold(c.Stage, HelpPrerequisiteUnknown)
 				continue
 			}
-			if !migrated || !HelperConstructionDefinitions[def] {
-				risky[c.Stage] = true
-				continue
+			candidateDefs[c.Stage] = def
+			names[def] = true
+		}
+	}
+	helperWork := map[string]bool{}
+	for name := range names {
+		if withheld[name] != "" {
+			continue
+		}
+		q, observed := quality[name]
+		switch {
+		case !observed:
+			withhold(name, HelpQualityUnknown)
+		case q == unprotected:
+			withhold(name, HelpQualityUnprotected)
+		case q == free:
+			skill, known := skills[name].Value()
+			if !known && !siteSkillUnknown[name] {
+				skill, known = siteSkill[name], true // a free definition has an observed site
 			}
-			if c.State == ReadyRunnable {
+			if !known {
+				withhold(name, HelpPrerequisiteUnknown)
+				break
+			}
+			helperWork[name] = true
+			help.Floor = max(help.Floor, skill)
+		}
+	}
+	if report != nil && report.Current(current) {
+		ready := 0
+		for _, c := range report.Candidates {
+			if def, ok := candidateDefs[c.Stage]; ok && helperWork[def] && c.State == ReadyRunnable {
 				ready += c.Parallelism
 			}
 		}
 		help.Ready = domain.Known(ready)
 	}
-	for d := range risky {
-		help.Risky = append(help.Risky, d)
+	for name, reason := range withheld {
+		help.Withheld = append(help.Withheld, name)
+		if help.Reason == "" || helpWithholdRank[reason] < helpWithholdRank[help.Reason] {
+			help.Reason = reason
+		}
 	}
-	sort.Strings(help.Risky)
+	sort.Strings(help.Withheld)
 	return help
 }
 
@@ -148,7 +216,7 @@ func ConstructionHelpDemand(report *ReadyWorkReport, current domain.GenerationSn
 // demand is ready work beyond the owners not held by other work; previous helpers are kept first
 // and through the hold after demand clears.
 func planConstructionHelp(h ConstructionHelp, workers, owners []*workWorker, eligible func(*workWorker) bool) ConstructionHelpRecord {
-	rec := ConstructionHelpRecord{Tick: h.Tick, Risky: h.Risky}
+	rec := ConstructionHelpRecord{Tick: h.Tick, Withheld: h.Withheld}
 	// An owner a giver of another type holds builds nothing this review.
 	free := 0
 	for _, o := range owners {
@@ -168,8 +236,8 @@ func planConstructionHelp(h ConstructionHelp, workers, owners []*workWorker, eli
 	case !known:
 		rec.Reason = HelpDemandUnknown
 		return rec
-	case len(h.Risky) > 0:
-		rec.Reason = HelpRiskyTask
+	case len(h.Withheld) > 0:
+		rec.Reason = h.Reason
 		return rec
 	}
 	rec.Ready = ready

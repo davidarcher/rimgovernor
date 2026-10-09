@@ -84,9 +84,6 @@ func ConstructionHelperView(previous *ReadyWorkReport, census domain.Fact[Curren
 		report.Candidates = append([]ReadyWork(nil), previous.Candidates...)
 	}
 	for _, site := range observed.Sites {
-		if !HelperConstructionDefinitions[site.Building.Definition()] {
-			continue
-		}
 		claim := CellClaim(site.Building.Cell())
 		row := ReadyWork{Stage: "building:" + site.Building.Definition(), Work: LaborProfile{WorkConstruction}, State: ReadyRunnable, Parallelism: 1, Claims: []ReadyClaim{claim}, Reason: "frame_materials_complete"}
 		if site.Stage != "frame" || site.ResourcesComplete != domain.Known(true) {
@@ -110,26 +107,4 @@ func ConstructionHelperView(previous *ReadyWorkReport, census domain.Fact[Curren
 		}
 	}
 	return &report
-}
-
-func protectedQualityDefinitions(census domain.Fact[CurrentConstruction]) map[string]bool {
-	out := map[string]bool{}
-	observed, known := census.Value()
-	if !known || !observed.Colony {
-		return out
-	}
-	blocked := map[string]bool{}
-	for _, site := range observed.Sites {
-		name := site.Building.Definition()
-		_, set := site.MinimumFinishingSkill.Value()
-		if site.QualitySensitive == domain.Known(true) && set {
-			out[name] = true
-		} else {
-			blocked[name] = true
-		}
-	}
-	for name := range blocked {
-		delete(out, name)
-	}
-	return out
 }

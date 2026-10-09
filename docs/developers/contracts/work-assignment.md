@@ -110,31 +110,42 @@ and holds still read `blocked`.
 
 Owners stay the skilled constructors; `WorkDemand.Help`
 (`construction_helpers.go`) adds bounded help below the floor. Demand
-is `ConstructionHelpDemand` over ready work and the current native construction census: the
-parallelism of runnable `building:<def>` candidates on
-`HelperConstructionDefinitions` (Wall, Door, SleepingSpot,
-DoubleSleepingSpot, Campfire, Sandbags, PowerConduit: no native skill
-minimum, no quality, cheap materials). A material-filled observed frame is
-runnable even when its placement action is already applied; blueprints and
-unknown or incomplete material delivery do not contribute readiness. Unmet demand is that parallelism
-beyond the owners not held by another work type's job. A helper is a pawn
-under the floor that the requirement's minimum (the native floor, else 0)
-admits, not resting, idle
-(`idleJob`) now and at the previous review, or already helping; helpers
-take priority 4 (enabled in checkbox mode), previous helpers first, then
-by level, at most one per unmet task. No other work type's floor moves.
+is `ConstructionHelpDemand` over ready work, the open plans' building
+definitions (with their observed `ConstructionSkill`) and the current native
+construction census. There is no definition-name list: every building
+definition in play (an observed site, an open plan, a construction candidate)
+is classified from observed facts.
+
+- Quality-free (`QualitySensitive` false) with an observed skill
+  prerequisite (the plan definition's, else the site's native finishing
+  skill) is helper work. The parallelism of its runnable `building:<def>`
+  candidates is demand, and the highest such prerequisite is the helper floor.
+- Quality-sensitive with an observed `MinimumFinishingSkill` is protected:
+  native enforces the setting per target, so it neither counts as demand nor
+  moves the floor.
+- Anything else withholds helpers and withdraws current ones at once, under
+  the reason naming the fact: `construction_prerequisite_unknown` (also a
+  construction candidate with no `building:` definition),
+  `construction_quality_unknown` (no observed site or unreadable quality fact)
+  or `construction_quality_unprotected` (a quality site awaiting its finishing
+  minimum from the quality adoption below). `Withheld` lists the definitions.
+
+A material-filled observed frame is runnable even when its placement action
+is already applied; blueprints and unknown or incomplete material delivery do
+not contribute readiness. Unmet demand is that parallelism beyond the owners
+not held by another work type's job. A helper is a pawn under the floor that
+the helper floor admits, not resting, idle (`idleJob`) now and at the
+previous review, or already helping; helpers take priority 4 (enabled in
+checkbox mode), previous helpers first, then by level, at most one per unmet
+task. No other work type's floor moves. Cheap-material cost is not modelled:
+native refuses what a helper cannot build, and the frame cost is not an
+observed per-definition fact.
 
 A work-type priority enables every native construction job, not one wall.
 Native still refuses a frame above the pawn's `constructionSkillPrerequisite`.
-Quality targets with observed finishing-skill settings are safe alongside helper
-work: native enforces the setting per target rather than an unrelated project's
-maximum prerequisite blocking the helper's wall. Other known
-construction outside the set (a ready candidate or an open plan's building definition, player
-plans included) withholds helpers and withdraws current ones at once
-(`risky_construction_pending`); unknown or other-world ready work authorizes
-nothing (`construction_demand_unknown`). A risky frame placed between two
-reviews follows vanilla rules until Go adopts it; helpers are withdrawn when
-an unprotected risky site is observed.
+Unknown or other-world ready work with no census authorizes nothing
+(`construction_demand_unknown`). A frame placed between two reviews follows
+vanilla rules until Go adopts it.
 
 ## Quality construction
 
@@ -144,7 +155,7 @@ identifies these targets. `ConstructionSkillChoices` chooses the highest current
 Construction level among capable colony builders once at first adoption. Busy,
 asleep or drafted builders keep their capability; equal-skilled builders qualify.
 Unknown capability or no builder meeting the inherent prerequisite leaves the
-target unconfigured, with the conservative helper safeguard still in force.
+target unconfigured, withholding helpers (`construction_quality_unprotected`).
 
 The existing `BuildingIntent` carries `minimum_finishing_skill`; adoption adds
 `existing_target_id`, which refuses stale targets rather than placing replacements.
@@ -167,7 +178,7 @@ equal-skill completion, refused low-skill finishing and same-cell isolation.
 When unmet demand clears, helpers hold for `ConstructionHelpHoldTicks`
 (2500) from the last tick it held (`held_after_demand`), then return to the
 ordinary 0; an override set meanwhile wins. The record (`Idle`, `Helpers`,
-`DemandTick`, `Ready`, `Unmet`, `Reason`, `Risky`) rides the roster report
+`DemandTick`, `Ready`, `Unmet`, `Reason`, `Withheld`) rides the roster report
 (`Rounds.Roster.Help`), which the next review reads back for the
 hysteresis; `no_sustained_idle_pawn` and `no_unmet_suitable_construction`
 name why spare capacity went unused.
@@ -337,7 +348,7 @@ Planner behaviour is table-driven in `work_assignment_test.go`,
 `pawn_profile_test.go` and `pawn_schedule_test.go` (trait flags, floors,
 growth secondaries, forbidden roles, decay, twelve-pawn coverage, three-review
 stability, timetable templates) and `construction_helpers_test.go` (helper
-restrictions, risky and unknown work, hold and restoration). `internal/snapshot/workers_test.go` replays the three debug-start
+restrictions, withheld and unknown work, hold and restoration). `internal/snapshot/workers_test.go` replays the three debug-start
 colonists' pawn reads recorded from native runs, with seeded sheet and written readback: a major passion owns a tied
 kitchen with the other cook backing it at 2; Pyromaniac/Brawler/Abrasive
 never fight fires, hunt or warden while Industrious wins a tied Construction

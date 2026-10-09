@@ -254,7 +254,7 @@ func loadRounds(ctx context.Context, tx *sql.Tx) (Rounds, error) {
 	if r.Comfort.Dining.Tick > r.Tick || r.Comfort.Recreation.Tick > r.Tick {
 		return Rounds{}, errors.New("future comfort use history")
 	}
-	if r.Roster != nil && (r.Roster.Tick > r.Tick || len(r.Roster.Coverage) > 256 || len(r.Roster.Decaying) > 4096 || len(r.Roster.Profiles) > 256 || r.Roster.Help != nil && (r.Roster.Help.Tick > r.Roster.Tick || len(r.Roster.Help.Idle) > 256 || len(r.Roster.Help.Helpers) > 256 || len(r.Roster.Help.Risky) > 256)) {
+	if r.Roster != nil && (r.Roster.Tick > r.Tick || len(r.Roster.Coverage) > 256 || len(r.Roster.Decaying) > 4096 || len(r.Roster.Profiles) > 256 || r.Roster.Help != nil && (r.Roster.Help.Tick > r.Roster.Tick || len(r.Roster.Help.Idle) > 256 || len(r.Roster.Help.Helpers) > 256 || len(r.Roster.Help.Withheld) > 256)) {
 		return Rounds{}, errors.New("invalid routine roster history")
 	}
 	if r.ShrineStep != nil && r.ShrineStep.validate(r.Tick) != nil {

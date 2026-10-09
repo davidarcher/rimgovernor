@@ -62,7 +62,7 @@ func TestConstructionHelpersUseFilledFramesBesideProtectedFurniture(t *testing.T
 	census := domain.Known(CurrentConstruction{Colony: true, Sites: []ConstructionSite{wall, bed}})
 	report := ProjectReadyWork(ReadyRequest{Snapshot: readySnap("p"), Plans: []ReadyPlan{plan}, Construction: census})
 	previous := &ConstructionHelpRecord{Tick: 100, Idle: []PawnID{"a", "b"}}
-	help := ConstructionHelpDemand(&report, readySnap("p"), 700, []string{"Wall", "Bed"}, previous, census)
+	help := ConstructionHelpDemand(&report, readySnap("p"), 700, helpNames("Wall", "Bed"), previous, census)
 	decision := planHelp(t, helpTeam(), help)
 	if decision.Help.Ready != 1 || !slices.Equal(decision.Help.Helpers, []PawnID{"a"}) {
 		t.Fatalf("filled wall should use idle helper: %+v", decision.Help)
@@ -74,21 +74,21 @@ func TestConstructionHelpersUseFilledFramesBesideProtectedFurniture(t *testing.T
 	ready := ConstructionHelperView(&report, census, readySnap("p"))
 	wall.ResourcesComplete = domain.Known(false)
 	blocked := ConstructionHelperView(ready, domain.Known(CurrentConstruction{Colony: true, Sites: []ConstructionSite{wall}}), readySnap("p"))
-	if got, _ := ConstructionHelpDemand(blocked, readySnap("p"), 700, nil, nil).Ready.Value(); got != 0 {
+	if got, _ := ConstructionHelpDemand(blocked, readySnap("p"), 700, nil, nil, domain.Known(CurrentConstruction{Colony: true, Sites: []ConstructionSite{wall}})).Ready.Value(); got != 0 {
 		t.Fatalf("stale ready work survived native material shortage: %+v", blocked)
 	}
 	wall.ResourcesComplete = domain.Known(true)
 	// Missing readback never lifts the coarse quality safeguard, including player sites.
 	bed.MinimumFinishingSkill = domain.Unknown[int]()
 	census = domain.Known(CurrentConstruction{Colony: true, Sites: []ConstructionSite{wall, bed}})
-	if got := planHelp(t, helpTeam(), ConstructionHelpDemand(&report, readySnap("p"), 700, nil, previous, census)); got.Help.Reason != HelpRiskyTask {
+	if got := planHelp(t, helpTeam(), ConstructionHelpDemand(&report, readySnap("p"), 700, nil, previous, census)); got.Help.Reason != HelpQualityUnprotected {
 		t.Fatal(got.Help)
 	}
 	// Observed material shortage or unknown resources never offers speculative work.
 	for _, resources := range []domain.Fact[bool]{domain.Known(false), domain.Unknown[bool]()} {
 		wall.ResourcesComplete = resources
 		census = domain.Known(CurrentConstruction{Colony: true, Sites: []ConstructionSite{wall}})
-		got := planHelp(t, helpTeam(), ConstructionHelpDemand(&report, readySnap("p"), 700, []string{"Wall"}, previous, census))
+		got := planHelp(t, helpTeam(), ConstructionHelpDemand(&report, readySnap("p"), 700, helpNames("Wall"), previous, census))
 		if got.Help.Ready != 0 || len(got.Help.Helpers) != 0 {
 			t.Fatal(got.Help)
 		}

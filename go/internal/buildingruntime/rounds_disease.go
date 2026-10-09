@@ -24,9 +24,28 @@ func roundsDiseaseDemand(facts observation.ColonyProjection, definitions []strin
 	if previous.Snapshot.Colony != current.Colony || previous.Snapshot.Load != current.Load || previous.Snapshot.Map != current.Map || facts.Identity.Tick < previous.Tick {
 		history, helped = nil, nil
 	}
-	help := policy.ConstructionHelpDemand(previous.ReadyWork, current, facts.Identity.Tick, definitions, helped, facts.Facts.CurrentConstruction)
+	help := policy.ConstructionHelpDemand(previous.ReadyWork, current, facts.Identity.Tick, helpDefinitions(definitions, facts.Definitions), helped, facts.Facts.CurrentConstruction)
 	demand.Help = &help
 	var err error
 	demand.Resting, err = policy.ReviewDiseaseRest(facts.Facts.MedicalPawns, history)
 	return demand, err
+}
+
+// helpDefinitions pairs each open plan's building definition with its
+// observed skill prerequisite; a definition the catalog did not read keeps an
+// unknown prerequisite.
+func helpDefinitions(names []string, catalog []observation.PlanningDefinition) []policy.HelpDefinition {
+	skills := map[string]domain.Fact[int32]{}
+	for _, d := range catalog {
+		skills[d.Name] = d.ConstructionSkill
+	}
+	out := make([]policy.HelpDefinition, 0, len(names))
+	for _, name := range names {
+		skill := domain.Unknown[int]()
+		if v, ok := skills[name].Value(); ok {
+			skill = domain.Known(int(v))
+		}
+		out = append(out, policy.HelpDefinition{Name: name, Skill: skill})
+	}
+	return out
 }

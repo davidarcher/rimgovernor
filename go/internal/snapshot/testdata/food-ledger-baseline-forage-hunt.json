@@ -8410,8 +8410,8 @@
     "Thing_Human743",
     "Thing_Human745"
    ],
-   "Reason": "risky_construction_pending",
-   "Risky": [
+   "Reason": "construction_quality_unknown",
+   "Withheld": [
     "ButcherSpot",
     "building:ButcherSpot",
     "equip"
@@ -10401,8 +10401,8 @@
      "Thing_Human743",
      "Thing_Human745"
     ],
-    "Reason": "risky_construction_pending",
-    "Risky": [
+    "Reason": "construction_quality_unknown",
+    "Withheld": [
      "ButcherSpot",
      "building:ButcherSpot",
      "equip"
