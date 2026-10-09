@@ -8,7 +8,7 @@ vars:
   REPO: '{{.TASKFILE_DIR}}/../..'
   EVIDENCE: '{{.REPO}}/.rimgovernor/task/probes'
   HARMONY_ASSEMBLY: '{{.HARMONY_ASSEMBLY | default "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll"}}'
-  HOST_ASSEMBLY_DIR: '{{.HOST_ASSEMBLY_DIR | default (printf "%s/.rimgovernor/task/native/mod/RimGovernor/Assemblies" .REPO)}}'
+  HOST_ASSEMBLY_DIR: '{{.HOST_ASSEMBLY_DIR | default (printf "%s/../../.rimgovernor/task/native/mod/RimGovernor/Assemblies" .TASKFILE_DIR)}}'
 
 tasks:
   build:
@@ -44,10 +44,15 @@ tasks:
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe gab-dispatch'
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe mod-log'
       # Binds against the host RimGovernor.Host.dll that native:build staged;
-      # reports unavailable when it has not been built.
+      # reports unavailable only when native:build never ran. A staged native build
+      # without the host at HOST_ASSEMBLY_DIR is a wrong path and fails (#2465).
       - |
         server="{{.HOST_ASSEMBLY_DIR}}/RimGovernor.Host.dll"
         if [ ! -f "$server" ]; then
+          if [ -f "{{.TASKFILE_DIR}}/../../.rimgovernor/task/native/mod/RimGovernor/native-manifest.json" ]; then
+            echo "native-proto-boundary: FAIL native build is staged but $server is missing"
+            exit 1
+          fi
           echo "native-proto-boundary: unavailable (missing $server)"
           exit 0
         fi
