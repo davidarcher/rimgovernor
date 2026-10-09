@@ -140,19 +140,28 @@ func admitStandardMethod(ctx context.Context, journal *store.Store, goal store.S
 
 // admitProjectMethod is admitStandardMethod for a Project, which has no epochs.
 func admitProjectMethod(ctx context.Context, journal *store.Store, project store.ProjectState, prefix string, world domain.GenerationSnapshot) (domain.MethodID, Verdict, bool, error) {
-	var plans []domain.PlanID
+	verdict, ok, err := admitProjectSubject(ctx, journal, project, prefix, world)
+	if err != nil || !ok {
+		return "", verdict, false, err
+	}
 	taken := make([]domain.MethodID, 0, len(project.History))
 	for _, m := range project.History {
 		taken = append(taken, m.Method)
+	}
+	return nextMethodID(prefix, taken), Verdict{}, true, nil
+}
+
+// admitProjectSubject is admitSubject for a Project whose method ids the
+// planner names itself (a tier ordinal, a tick): every refusal sits on the
+// plans of the methods that start with prefix.
+func admitProjectSubject(ctx context.Context, journal *store.Store, project store.ProjectState, prefix string, world domain.GenerationSnapshot) (Verdict, bool, error) {
+	var plans []domain.PlanID
+	for _, m := range project.History {
 		if strings.HasPrefix(string(m.Method), prefix) {
 			plans = append(plans, m.Plan)
 		}
 	}
-	verdict, ok, err := admitSubject(ctx, journal, prefix, plans, world)
-	if err != nil || !ok {
-		return "", verdict, false, err
-	}
-	return nextMethodID(prefix, taken), Verdict{}, true, nil
+	return admitSubject(ctx, journal, prefix, plans, world)
 }
 
 func historyMethodIDs(history []domain.Method, episode uint64) []domain.MethodID {

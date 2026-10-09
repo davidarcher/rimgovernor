@@ -22,13 +22,10 @@ import (
 // colonists with no psylink first. The neuroformer itself is acquired by
 // MaintainResource: the review adds policy.NeuroformerNeeds, for the
 // no-psylink colonists only, to the resource needs, which the resource ladder
-// meets with a production bill or a trade. At most maxPsylinkAttempts uses
-// are ordered per colonist per Episode, so a colonist native refuses
-// does not block the others or loop.
-const (
-	maxPsylinkAttempts = 2
-	psylinkPrefix      = "psylink-"
-)
+// meets with a production bill or a trade. A colonist whose use native
+// refuses is barred by the shared refusal budget, so it does not block the
+// others or loop.
+const psylinkPrefix = "psylink-"
 
 // RoundsPsylinkSource is the native read behind the held neuroformer items.
 type RoundsPsylinkSource interface {
@@ -143,23 +140,30 @@ func (r *RoundsPsylinkPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !ok {
 		return RoundsPsylinkResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	history, err := p.journal.LoadMethods(call, goal.Standard.ID, goal.Standard.Episode)
-	if err != nil {
-		return RoundsPsylinkResult{}, err
-	}
+	var barred Verdict
 	willingOf := func(who []policy.PawnID) []policy.PawnID {
 		var out []policy.PawnID
 		for _, pawn := range who {
-			if medicalAttemptCount(history, goal.Standard.Episode, fmt.Sprintf("%s%s-", psylinkPrefix, pawn)) < maxPsylinkAttempts {
+			prefix := fmt.Sprintf("%s%s-", psylinkPrefix, pawn)
+			verdict, ok, admitErr := admitSubject(call, p.journal, prefix, standardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot)
+			if admitErr != nil {
+				err = admitErr
+			}
+			if ok {
 				out = append(out, pawn)
+			} else {
+				barred = verdict
 			}
 		}
 		return out
 	}
 	choice, owed := policy.NextPsylinkUse(willingOf(candidates), willingOf(levelUps), items)
+	if err != nil {
+		return RoundsPsylinkResult{}, err
+	}
 	if !owed {
-		if len(candidates)+len(levelUps) > 0 && len(items) > 0 {
-			return RoundsPsylinkResult{Verdict: refuse(RefusalRetriesSpent, "maxPsylinkAttempts", "")}, nil
+		if barred != (Verdict{}) {
+			return RoundsPsylinkResult{Verdict: barred}, nil
 		}
 		return RoundsPsylinkResult{Verdict: waitFor(WaitMethodUsed, "psylink_item")}, nil
 	}
@@ -167,7 +171,6 @@ func (r *RoundsPsylinkPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoundsPsylinkResult{Verdict: waitFor(WaitMethodUsed, "psylink_pawn_claim")}, nil
 	}
 	prefix := fmt.Sprintf("%s%s-", psylinkPrefix, choice.Pawn)
-	attempt := medicalAttemptCount(history, goal.Standard.Episode, prefix)
 	use, err := domain.NewUseItem(domain.PawnID(choice.Pawn), choice.Item, domain.PawnID(choice.Pawn))
 	if err != nil {
 		return RoundsPsylinkResult{}, err
@@ -187,7 +190,7 @@ func (r *RoundsPsylinkPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if p.session.State() != state {
 		return RoundsPsylinkResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	method := nextMethodID(prefix, historyMethodIDs(goal.History, goal.Standard.Episode))
 	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("psylink: %s uses neuroformer %s", choice.Pawn, choice.Item), plan); err != nil {
 		return RoundsPsylinkResult{}, err
 	}

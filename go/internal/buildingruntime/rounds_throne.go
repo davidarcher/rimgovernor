@@ -232,9 +232,12 @@ func (r *RoundsSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, a
 // throne assigned this epoch reads unowned until then and the method is used.
 func (r *RoundsSleepingUpkeepPlanner) assignThrone(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, step policy.ThroneStep) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
-	method, err := r.assignMethod(call, goal, fmt.Sprintf("throne-assign-%s-%s", step.Need.Holder, step.Throne))
+	method, barred, err := r.assignMethod(call, goal, fmt.Sprintf("throne-assign-%s-%s", step.Need.Holder, step.Throne), state.Snapshot)
 	if err != nil {
 		return RoundsBuildingResult{}, err
+	}
+	if barred != (Verdict{}) {
+		return RoundsBuildingResult{Verdict: barred}, nil
 	}
 	if method == "" {
 		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "throne_assignment")}, nil

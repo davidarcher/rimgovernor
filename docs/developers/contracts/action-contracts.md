@@ -128,8 +128,8 @@ gives its subject up with `retry_budget_spent` carrying the real reason, a trans
 one stays allowed and visible (`refusal_unknown`). The tend, rescue, repair, clean, equip,
 mood relief and cast, exhausted-drill removal, ash cleaning, clearance, husbandry,
 population (custody, containment, joiner, lance, monolith, prisoner interaction, shrine arrest),
-quest, ideology, ritual, shrine and permit planners use it: they derive the ledger each step
-from the refusals journaled on their methods' plans (`refusalLedger`), keyed by the method-ID prefix (equip: by pawn), judged against the session
+quest, ideology, ritual, shrine, permit, defense layout (tier, rearm and cover), firebreak, mine, sleeping and throne assignment, trade open and psylink planners use it: they derive the ledger each step
+from the refusals journaled on their methods' plans (`refusalLedger`), keyed by the method-ID prefix (equip: by pawn; defense tier: tier and repair; rearm: turret; psylink: colonist; mine: rock; trade open: caravan; assignment: pawn and bed), judged against the session
 snapshot with its plan and revision dropped. A spent subject is a `retry_budget_spent` refusal
 whose detail is native's reason, a waiting one a `retry_budget_waiting` wait; accepted,
 interrupted and unclassified methods spend nothing, and method identity (`nextMethodID`) is

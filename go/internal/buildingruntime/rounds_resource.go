@@ -577,47 +577,66 @@ func (r *RoundsResourcePlanner) dispatchMineSource(call, epoch context.Context, 
 		// A rock the selection offers is not designated: an earlier method that
 		// bound it dispatched and the mark is gone (native cancelled it, or it
 		// was released), so a bound method id means a dead plan, not a live one.
-		// Each retry binds under a fresh id, up to mineAttempts per rock; past
-		// that the rock is left and the next source is tried.
-		for attempt := range mineAttempts {
-			key := fmt.Sprintf("%s/%d/mine/%s/%d/%d", goal.Standard.ID, goal.Standard.Episode, source.ThingID, source.Cell.X, source.Cell.Z)
+		// Each retry binds under a fresh id; a rock whose earlier plans native
+		// refused is left under the shared refusal budget and the next
+		// source is tried.
+		base := fmt.Sprintf("%s/%d/mine/%s/%d/%d", goal.Standard.ID, goal.Standard.Episode, source.ThingID, source.Cell.X, source.Cell.Z)
+		mineMethod := func(attempt int) domain.MethodID {
+			key := base
 			if attempt > 0 {
 				key = fmt.Sprintf("%s/%d", key, attempt)
 			}
 			digest := sha256.Sum256([]byte(key))
-			id := domain.MintPlanID()
-			methodID := domain.MethodID(fmt.Sprintf("resource-mine-%x", digest[:16]))
-			action, err := domain.NewMineAcquisitionAction(domain.ActionID(fmt.Sprintf("%s-0", id)), acquisitionValue)
-			if err != nil {
-				return RoundsResourceResult{}, false, err
-			}
-			plan, err := domain.NewPlan(id, 1, []domain.Action{action})
-			if err != nil {
-				return RoundsResourceResult{}, false, err
-			}
-			if err = p.current(call, epoch); err != nil {
-				return RoundsResourceResult{}, false, err
-			}
-			elapsed := r.reviewer.clock.Now().Sub(started)
-			if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-				return RoundsResourceResult{}, false, fmt.Errorf("%w: dispatchMineSource: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
-			}
-			_, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, methodID, plan)
-			if errors.Is(err, store.ErrMethodBound) {
-				continue
-			}
-			if err != nil {
-				return RoundsResourceResult{}, false, err
-			}
-			return RoundsResourceResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
+			return domain.MethodID(fmt.Sprintf("resource-mine-%x", digest[:16]))
 		}
+		plansByMethod := map[domain.MethodID]domain.PlanID{}
+		for _, m := range goal.History {
+			if m.Episode == goal.Standard.Episode {
+				plansByMethod[m.Method] = m.Plan
+			}
+		}
+		var earlier []domain.PlanID
+		attempt := 0
+		for ; ; attempt++ {
+			plan, bound := plansByMethod[mineMethod(attempt)]
+			if !bound {
+				break
+			}
+			earlier = append(earlier, plan)
+		}
+		if _, ok, err := admitSubject(call, p.journal, base, earlier, state.Snapshot); err != nil {
+			return RoundsResourceResult{}, false, err
+		} else if !ok {
+			continue
+		}
+		id := domain.MintPlanID()
+		methodID := mineMethod(attempt)
+		action, err := domain.NewMineAcquisitionAction(domain.ActionID(fmt.Sprintf("%s-0", id)), acquisitionValue)
+		if err != nil {
+			return RoundsResourceResult{}, false, err
+		}
+		plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+		if err != nil {
+			return RoundsResourceResult{}, false, err
+		}
+		if err = p.current(call, epoch); err != nil {
+			return RoundsResourceResult{}, false, err
+		}
+		elapsed := r.reviewer.clock.Now().Sub(started)
+		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+			return RoundsResourceResult{}, false, fmt.Errorf("%w: dispatchMineSource: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
+		}
+		_, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, methodID, plan)
+		if errors.Is(err, store.ErrMethodBound) {
+			continue
+		}
+		if err != nil {
+			return RoundsResourceResult{}, false, err
+		}
+		return RoundsResourceResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
 	}
 	return RoundsResourceResult{}, false, nil
 }
-
-// mineAttempts bounds how often one rock is designated again after its earlier
-// mine plan ended with the rock still standing.
-const mineAttempts = 3
 
 // recipeIngredientNames lists, sorted, every ingredient alternative of the
 // census recipes that produce product ("" for all recipes), for one

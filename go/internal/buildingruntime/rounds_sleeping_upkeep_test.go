@@ -148,7 +148,8 @@ func TestSleepingUpkeepAssignsVacantBedOncePerEpoch(t *testing.T) {
 }
 
 // An assignment intent native refused leaves nothing behind, so the epoch
-// retries it a bounded number of times; an applied one is never repeated.
+// retries it until a permanent refusal bars the pair under the shared
+// refusal budget; an applied one is never repeated.
 func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -158,7 +159,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	settle := func(method domain.MethodID, receipt domain.Receipt) {
+	settle := func(method domain.MethodID, receipt domain.Receipt, class domain.RefusalClass) {
 		t.Helper()
 		goal := sleepingGoal(t, db)
 		var plan domain.PlanID
@@ -183,11 +184,19 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 		if _, err = db.Dispatch(ctx, plan, action, snapshot, review.Tick); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = db.RecordReceipt(ctx, plan, action, 1, receipt); err != nil {
+		var refusal *domain.NativeRefusal
+		if receipt == domain.ReceiptRefused {
+			refusal = &domain.NativeRefusal{Code: "InvalidRequest", Reason: "bed taken", Class: class}
+		}
+		if _, err = db.RecordReceipts(ctx, []store.BatchReceipt{{Plan: plan, Action: action, Attempt: 1, Receipt: receipt, Refusal: refusal}}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for i, method := range []domain.MethodID{"sleeping-assign-patient-bed", "sleeping-assign-patient-bed-retry1", "sleeping-assign-patient-bed-retry2"} {
+		class := domain.RefusalUnknown
+		if i == 2 {
+			class = domain.RefusalPermanent
+		}
 		result, err := planner.Step(ctx)
 		if err != nil || result.Verdict != BuildingReasonAdmitted {
 			t.Fatal(i, result, err)
@@ -195,10 +204,10 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 		if goal := sleepingGoal(t, db); len(goal.Methods) != i+1 || goal.Methods[i].Method != method {
 			t.Fatal(i, goal.Methods)
 		}
-		settle(method, domain.ReceiptRefused)
+		settle(method, domain.ReceiptRefused, class)
 	}
-	if result, err := planner.Step(ctx); err != nil || !result.Verdict.Is(WaitMethodUsed) || result.NativeWorkTicks != 0 {
-		t.Fatal("fourth attempt", result, err)
+	if result, err := planner.Step(ctx); err != nil || !result.Verdict.Is(RefusalRetriesSpent) || result.Verdict.Refusal.Detail != "bed_taken" || result.NativeWorkTicks != 0 {
+		t.Fatal("after a permanent refusal", result, err)
 	}
 	// A completed (admitted) attempt is final for the epoch even when the
 	// bed still reads vacant.
@@ -209,7 +218,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
-	settle("sleeping-assign-patient-bed", domain.ReceiptAccepted)
+	settle("sleeping-assign-patient-bed", domain.ReceiptAccepted, domain.RefusalUnknown)
 	// Only observed sleep completes the goal, so the completed assignment
 	// earns a bounded clock window; the refused attempts above earned
 	// none.

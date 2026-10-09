@@ -487,4 +487,4 @@ text is surfaced) and a reachable free colonist with the work type; the same
 designation already standing applies again. `CutPlant` on a harvestable tree
 designates `HarvestPlant` (chop wood). Applied is terminal; ordinary work removes the
 thing, and the census skips designated cover. The defense layout planner orders up to
-eight clearances per method once every tier stands, at most four methods per game day.
+eight clearances per method once every tier stands; native refusals of the cover write follow the shared refusal budget (no per-day method bound).

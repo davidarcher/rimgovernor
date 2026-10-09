@@ -58,8 +58,9 @@ const (
 	// RefusalSharedAdmission: the shared admission path turned the plan down;
 	// the subject is the reason it gave, the detail its resource.
 	RefusalSharedAdmission RefusalKind = "shared_admission_refused"
-	// RefusalRetriesSpent: the step tried as often as it may; the subject
-	// names what it retried when the exit knows.
+	// RefusalRetriesSpent: native refused the subject for good (the shared
+	// refusal budget, budgetVerdict); the subject names what was retried and
+	// the detail is native's own reason.
 	RefusalRetriesSpent RefusalKind = "retry_budget_spent"
 	// RefusalRockNotDug: planned rock still stands after its dig plan
 	// settled; the subject names the dig, the detail the count.

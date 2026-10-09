@@ -2,25 +2,10 @@ package buildingruntime
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
-
-// medicalAttemptCount counts prior same-episode methods whose ID has the given
-// prefix. Only the psylink planner still counts attempts this way; it moves to
-// the shared refusal budget with its own child issue, and this helper goes
-// with it.
-func medicalAttemptCount(methods []domain.Method, epoch uint64, prefix string) int {
-	count := 0
-	for _, m := range methods {
-		if m.Episode == epoch && strings.HasPrefix(string(m.Method), prefix) {
-			count++
-		}
-	}
-	return count
-}
 
 // medicalWaitTicks bounds one clock window lent when a standing CriticalMedical
 // deficit has no method to run: no doctor/rescuer-patient pair the policy will

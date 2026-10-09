@@ -365,9 +365,12 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 	// not retried; the next epoch reconsiders. The one exception is an
 	// intent native refused: that leaves no effect behind, so a bounded
 	// number of fresh attempts follow.
-	method, err := r.assignMethod(call, goal, fmt.Sprintf("sleeping-assign-%s-%s", choice.Pawn, choice.Bed))
+	method, barred, err := r.assignMethod(call, goal, fmt.Sprintf("sleeping-assign-%s-%s", choice.Pawn, choice.Bed), state.Snapshot)
 	if err != nil {
 		return RoundsBuildingResult{}, err
+	}
+	if barred != (Verdict{}) {
+		return RoundsBuildingResult{Verdict: barred}, nil
 	}
 	if method == "" {
 		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, "bed_assignment")}, nil
@@ -417,36 +420,37 @@ func (r *RoundsSleepingUpkeepPlanner) decide(call, epoch context.Context, arbite
 	return RoundsBuildingResult{Verdict: BuildingReasonAdmitted}, nil
 }
 
-// sleepingAssignAttempts bounds the refused assignment attempts one goal
-// epoch may make for the same pawn and bed.
-const sleepingAssignAttempts = 3
-
 // assignMethod returns the method ID for the next assignment attempt of this
-// epoch under base, or "" when the pair was already applied (or the
-// attempt bound is spent).
-func (r *RoundsSleepingUpkeepPlanner) assignMethod(call context.Context, goal store.WorkOwner, base string) (domain.MethodID, error) {
+// epoch under base, or "" when the pair was already applied, or the shared
+// refusal budget bars another attempt (the verdict then says why).
+func (r *RoundsSleepingUpkeepPlanner) assignMethod(call context.Context, goal store.WorkOwner, base string, world domain.GenerationSnapshot) (domain.MethodID, Verdict, error) {
 	p := r.reviewer.player
-	for try := 0; try < sleepingAssignAttempts; try++ {
+	var refused []domain.PlanID
+	for try := 0; ; try++ {
 		method := domain.MethodID(base)
 		if try > 0 {
 			method = domain.MethodID(fmt.Sprintf("%s-retry%d", base, try))
 		}
 		existing, err := p.journal.LoadOwnerMethod(call, goal, method)
 		if errors.Is(err, store.ErrNotFound) {
-			return method, nil
+			verdict, ok, err := admitSubject(call, p.journal, base, refused, world)
+			if err != nil || !ok {
+				return "", verdict, err
+			}
+			return method, Verdict{}, nil
 		}
 		if err != nil {
-			return "", err
+			return "", Verdict{}, err
 		}
 		plan, err := p.journal.LoadPlan(call, existing.Plan)
 		if err != nil {
-			return "", err
+			return "", Verdict{}, err
 		}
 		if !sleepingAssignUnadmitted(plan.Progress) {
-			return "", nil
+			return "", Verdict{}, nil
 		}
+		refused = append(refused, existing.Plan)
 	}
-	return "", nil
 }
 
 // sleepingAssignUnadmitted reports a settled plan whose every action ended

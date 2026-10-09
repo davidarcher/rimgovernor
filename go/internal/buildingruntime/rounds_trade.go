@@ -47,8 +47,8 @@ type RoundsTradeSource interface {
 // trading with whom) and the session sheet. Per
 // caravan and TradeWithCaravan occurrence the method ids are fixed, so a restart resumes
 // where it left off. A caravan whose session reached accept or cancel, or
-// whose last open attempt ended without a session, is settled for the
-// occurrence and never reopened: it closes when the caravan leaves or
+// whose open the shared refusal budget barred (native refused it for good, or
+// for the current world), is settled for the occurrence: it closes when the caravan leaves or
 // the next review measures nothing left to trade.
 //
 // Adjacency is native's: OpenTrade orders vanilla's TradeWithPawn job, which
@@ -93,36 +93,37 @@ func tradeMethod(kind domain.TradeOperationKind, trader string, attempt int) dom
 	return domain.MethodID(fmt.Sprintf("trade-%s-%x-%d", kind, digest[:8], attempt))
 }
 
-// tradeAttempts bounds how often a phase is retried after a failure. An
-// open ends without a session when the world moves under the walk -- the
-// trader wandering off as the negotiator arrives, a path that could not
-// complete -- and is worth another walk; a refused line staging, accept or
-// end is not.
-func tradeAttempts(kind domain.TradeOperationKind) int {
-	if kind == domain.TradeOpen {
-		return 3
-	}
-	return 1
+// tradeOpenSubject is the shared refusal budget's subject for opening a
+// session with trader. An open ends without a session when the world moves
+// under the walk -- the trader wandering off as the negotiator arrives, a
+// path that could not complete -- and is walked again; only native's refusals
+// of it spend the budget. A line staging, accept or end is attempted once.
+func tradeOpenSubject(trader string) string {
+	digest := sha256.Sum256([]byte(trader))
+	return fmt.Sprintf("trade-open-%x", digest[:8])
 }
 
 // tradePhase is one caravan's latest recorded attempt at a phase and the
 // settled stage of its trade action: open reports in-flight work, and a
-// terminal stage other than Completed is a failure of the attempt.
+// terminal stage other than Completed is a failure of the attempt. plans
+// lists every attempt's plan, for the refusal budget.
 type tradePhase struct {
 	found, open, completed bool
 	attempt                int
+	plans                  []domain.PlanID
 }
 
 func (r *RoundsTradePlanner) failed(p tradePhase) bool { return p.found && !p.open && !p.completed }
 
 func (r *RoundsTradePlanner) phase(ctx context.Context, incident store.IncidentState, kind domain.TradeOperationKind, trader string) (tradePhase, error) {
 	out := tradePhase{}
-	for attempt := 0; attempt < tradeAttempts(kind); attempt++ {
+	for attempt := 0; ; attempt++ {
 		want := tradeMethod(kind, trader, attempt)
 		i := slices.IndexFunc(incident.Methods, func(m store.IncidentMethod) bool { return m.Method == want })
 		if i < 0 {
-			break
+			return out, nil
 		}
+		out.plans = append(out.plans, incident.Methods[i].Plan)
 		plan, err := r.reviewer.player.journal.LoadPlan(ctx, incident.Methods[i].Plan)
 		if err != nil {
 			return tradePhase{}, err
@@ -130,7 +131,7 @@ func (r *RoundsTradePlanner) phase(ctx context.Context, incident store.IncidentS
 		found := false
 		for _, progress := range plan.Progress {
 			if _, ok := progress.Action().Trade(); ok {
-				out = tradePhase{found: true, open: store.PlanOpen(plan), completed: progress.View().Stage == domain.Completed, attempt: attempt}
+				out = tradePhase{found: true, open: store.PlanOpen(plan), completed: progress.View().Stage == domain.Completed, attempt: attempt, plans: out.plans}
 				found = true
 			}
 		}
@@ -138,20 +139,24 @@ func (r *RoundsTradePlanner) phase(ctx context.Context, incident store.IncidentS
 			return tradePhase{}, fmt.Errorf("%w: phase: !found", ErrControl)
 		}
 	}
-	return out, nil
 }
 
 // tradeSettled reports whether the caravan's session is over for this occurrence:
-// its last open attempt ended with no session or walk left, its accept
+// its last open attempt ended with no session or walk left and the
+// refusal budget bars another, its accept
 // applied or was refused, or an end phase exists and is no longer open.
 // engaged is whether native holds a walk or session with the trader.
-func (r *RoundsTradePlanner) tradeSettled(ctx context.Context, incident store.IncidentState, trader string, engaged bool) (bool, error) {
+func (r *RoundsTradePlanner) tradeSettled(ctx context.Context, incident store.IncidentState, trader string, engaged bool, world domain.GenerationSnapshot) (bool, error) {
 	open, err := r.phase(ctx, incident, domain.TradeOpen, trader)
 	if err != nil {
 		return false, err
 	}
-	if tradeOpenSpent(open, engaged) && open.attempt+1 >= tradeAttempts(domain.TradeOpen) {
-		return true, nil
+	if tradeOpenSpent(open, engaged) {
+		// An open that ended is walked again until native's refusals bar it:
+		// a permanent one for good, a transient one until the world changes.
+		if _, ok, err := admitSubject(ctx, r.reviewer.player.journal, tradeOpenSubject(trader), open.plans, world); err != nil || !ok {
+			return err == nil, err
+		}
 	}
 	accept, err := r.phase(ctx, incident, domain.TradeAccept, trader)
 	if err != nil {
@@ -239,7 +244,7 @@ func (r *RoundsTradePlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if row.ID != session.Trader {
 			continue
 		}
-		settled, err := r.tradeSettled(call, incident, row.ID, true)
+		settled, err := r.tradeSettled(call, incident, row.ID, true, state.Snapshot)
 		if err != nil {
 			return RoundsTradeResult{}, err
 		}
@@ -254,7 +259,7 @@ func (r *RoundsTradePlanner) step(call, epoch context.Context, arbiter *stepArbi
 	settled := map[string]bool{}
 	waiting := arriving
 	for _, row := range census.Traders {
-		if settled[row.ID], err = r.tradeSettled(call, incident, row.ID, row.ID == session.Trader); err != nil {
+		if settled[row.ID], err = r.tradeSettled(call, incident, row.ID, row.ID == session.Trader, state.Snapshot); err != nil {
 			return RoundsTradeResult{}, err
 		}
 		// A settled caravan is waited out: the occurrence closes when it

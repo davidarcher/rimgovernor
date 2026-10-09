@@ -8,7 +8,6 @@ import (
 	"math"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -164,12 +163,12 @@ func NewRoundsDefenseLayoutPlanner(reviewer *Rounder, native RoundsDefenseLayout
 
 // A tier's method is keyed by tier, repair and attempt: a plan cancelled by
 // an authority discontinuity (a letter pause) or refused natively is retried
-// with a fresh method rather than counted as built, up to a small bound per
-// repair. A tier the census re-opened after it stood (a sprung trap, a
+// with a fresh method rather than counted as built, under the shared
+// refusal budget. A tier the census re-opened after it stood (a sprung trap, a
 // breached wall) restarts its attempts under the next repair number, so
-// the repair's plan id never collides with the plan that built it.
-const maxDefenseTierAttempts = 4
-
+// the repair's plan id never collides with the plan that built it. The
+// budget subject is the repair's method-id prefix: a refusal met building one
+// repair does not bar the next.
 func defenseTierPrefix(tier policy.DefenseTierName) string { return "defense-" + string(tier) + "-" }
 
 func defenseTierMethodID(tier store.DefenseTierRecord) domain.MethodID {
@@ -177,6 +176,14 @@ func defenseTierMethodID(tier store.DefenseTierRecord) domain.MethodID {
 		return domain.MethodID(fmt.Sprintf("%s%d", defenseTierPrefix(tier.Name), tier.Attempts))
 	}
 	return domain.MethodID(fmt.Sprintf("%sr%d-%d", defenseTierPrefix(tier.Name), tier.Reopened, tier.Attempts))
+}
+
+// defenseTierSubject is the budget subject of the tier's current repair.
+func defenseTierSubject(tier store.DefenseTierRecord) string {
+	if tier.Reopened == 0 {
+		return defenseTierPrefix(tier.Name)
+	}
+	return fmt.Sprintf("%sr%d-", defenseTierPrefix(tier.Name), tier.Reopened)
 }
 
 // defenseLayoutGoal finds the goal the planner serves: the review binding
@@ -381,17 +388,21 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 		if pipe.piped() && (!policy.IsPerimeterTier(name) || tier.Remove) {
 			break
 		}
-		if pipe.piped() && tier.Attempts >= maxDefenseTierAttempts {
+		spent, ok, err := admitProjectSubject(call, p.journal, goal, defenseTierSubject(tier), state.Snapshot)
+		if err != nil {
+			return RoundsDefenseLayoutResult{}, err
+		}
+		if !ok && pipe.piped() {
 			continue
 		}
-		if tier.Attempts >= maxDefenseTierAttempts {
+		if !ok {
 			// Verified as far as it goes: the tier is retried after the
 			// next combat or game hour, not on every step.
 			record.VerifiedTick, record.VerifiedCombat = tick, combat
 			if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 				return RoundsDefenseLayoutResult{}, err
 			}
-			return RoundsDefenseLayoutResult{Verdict: refuse(RefusalRetriesSpent, "maxDefenseTierAttempts", ""), Tier: name}, nil
+			return RoundsDefenseLayoutResult{Verdict: spent, Tier: name}, nil
 		}
 		if tier.Remove {
 			return r.remove(call, epoch, goal, state, read, record, tier, census)
@@ -498,32 +509,10 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 // layout goal keeps one epoch for as long as the operator opts in and a
 // settled order retires out of goal.Methods, so an attempt counter would
 // collide with the epoch's history the next time the same barrel empties.
-// maxDefenseRearmAttempts bounds the orders per turret within
-// defenseRearmWindowTicks (one game day); a refused or interrupted order is
-// retried at a later tick until the bound.
-const (
-	maxDefenseRearmAttempts = 4
-	defenseRearmWindowTicks = 60000
-)
+// A refused order is retried under the shared refusal budget, subject the
+// turret.
 
 func defenseRearmPrefix(turret string) string { return "defense-rearm-" + turret + "-" }
-
-// defenseRearmAttempts counts the epoch's rearm methods for the turret
-// ordered within the window before tick.
-func defenseRearmAttempts(history []domain.Method, turret string, tick domain.Tick) int {
-	prefix := defenseRearmPrefix(turret)
-	count := 0
-	for _, m := range history {
-		if !strings.HasPrefix(string(m.Method), prefix) {
-			continue
-		}
-		at, err := strconv.ParseInt(strings.TrimPrefix(string(m.Method), prefix), 10, 64)
-		if err == nil && tick-domain.Tick(at) < defenseRearmWindowTicks {
-			count++
-		}
-	}
-	return count
-}
 
 // rearm admits one forced refuel order for an empty tier barrel as a
 // recovery_service action under the layout goal: the same native work-giver
@@ -532,12 +521,10 @@ func defenseRearmAttempts(history []domain.Method, turret string, tick domain.Ti
 func (r *RoundsDefenseLayoutPlanner) rearm(call, epoch context.Context, goal store.ProjectState, review store.Rounds, state ControlState, read observation.RoundsReading, order policy.DefenseRearm, arbiter *stepArbiter) (RoundsDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	tick := read.Projection.Identity.Tick
-	history, err := p.journal.LoadOwnerMethods(call, goal)
-	if err != nil {
+	if verdict, ok, err := admitProjectSubject(call, p.journal, goal, defenseRearmPrefix(order.Turret), state.Snapshot); err != nil {
 		return RoundsDefenseLayoutResult{}, err
-	}
-	if defenseRearmAttempts(history, order.Turret, tick) >= maxDefenseRearmAttempts {
-		return RoundsDefenseLayoutResult{Verdict: refuse(RefusalRetriesSpent, "maxDefenseRearmAttempts", ""), Tier: policy.TierTurrets}, nil
+	} else if !ok {
+		return RoundsDefenseLayoutResult{Verdict: verdict, Tier: policy.TierTurrets}, nil
 	}
 	if arbiter == nil || !arbiter.tryClaim([]domain.PawnID{domain.PawnID(order.Pawn)}, "defense-rearm:"+order.Turret) {
 		return RoundsDefenseLayoutResult{Verdict: waitFor(WaitMethodUsed, "defense_rearm_claim"), Tier: policy.TierTurrets}, nil

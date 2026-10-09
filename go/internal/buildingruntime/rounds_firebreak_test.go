@@ -9,22 +9,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The daily bound counts only firebreak methods inside the last game day.
-func TestFirebreakAttemptsDailyBound(t *testing.T) {
-	now := domain.Tick(10 * firebreakWindowTicks)
-	var history []domain.Method
-	for i := 0; i < maxFirebreakAttempts; i++ {
-		history = append(history, domain.Method{Method: domain.MethodID(fmt.Sprintf("%s%d", firebreakPrefix, now-domain.Tick(i*1000)))})
-	}
-	if got := firebreakAttempts(history, now); got != maxFirebreakAttempts {
-		t.Fatal(got)
-	}
-	history = append(history[:1], domain.Method{Method: domain.MethodID(fmt.Sprintf("%s%d", firebreakPrefix, now-firebreakWindowTicks))}, domain.Method{Method: "cut-other"})
-	if got := firebreakAttempts(history, now); got != 1 {
-		t.Fatal(got)
-	}
-}
-
 func TestFirebreakActionsCutAndRuins(t *testing.T) {
 	ruins := map[domain.Cell]domain.CoverClearance{}
 	work := policy.FirebreakWork{Cut: []domain.Cell{{X: 3, Z: 1}, {X: 1, Z: 1}}}

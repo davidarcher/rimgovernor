@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -24,12 +23,10 @@ import (
 // while a cut cell holds a standing plant or a wooden ruin stands
 // undesignated. The planner orders one area cut over those cells and
 // deconstructs up to maxDefenseCoverBatch ruins through cover clearance,
-// at most maxFirebreakAttempts methods per game day so a player who keeps
-// undesignating does not cause a loop.
+// under the shared refusal budget: a native refusal of the firebreak write
+// gives it up (permanent) or waits for the world to change (transient).
 const (
-	maxFirebreakAttempts = 4
-	firebreakWindowTicks = domain.TicksPerDay
-	firebreakPrefix      = "firebreak-"
+	firebreakPrefix = "firebreak-"
 	// firebreakTile is the side of one defense-site read: the ring's
 	// bounding box is read in tiles, only those holding ring cells.
 	firebreakTile = 32
@@ -333,23 +330,6 @@ func firebreakBusy(plans []store.PlanState, current domain.GenerationSnapshot, p
 	return busy
 }
 
-// firebreakAttempts counts the epoch's firebreak methods ordered within the
-// window before tick.
-func firebreakAttempts(history []domain.Method, tick domain.Tick) int {
-	count := 0
-	for _, m := range history {
-		rest, ok := strings.CutPrefix(string(m.Method), firebreakPrefix)
-		if !ok {
-			continue
-		}
-		at, err := strconv.ParseInt(rest, 10, 64)
-		if err == nil && tick-domain.Tick(at) < firebreakWindowTicks {
-			count++
-		}
-	}
-	return count
-}
-
 // RoundsFirebreakPlanner is MaintainFirebreak's planner: it orders the
 // work the review found.
 type RoundsFirebreakPlanner struct {
@@ -413,12 +393,10 @@ func (r *RoundsFirebreakPlanner) step(call, epoch context.Context, arbiter *step
 	if !work.Owed() {
 		return RoundsFirebreakResult{Verdict: waitFor(WaitMethodUsed, "firebreak_work")}, nil
 	}
-	history, err := p.journal.LoadMethods(call, goal.Standard.ID, goal.Standard.Episode)
-	if err != nil {
+	if verdict, ok, err := admitSubject(call, p.journal, firebreakPrefix, standardMethodPlans(goal.History, goal.Standard.Episode, firebreakPrefix), state.Snapshot); err != nil {
 		return RoundsFirebreakResult{}, err
-	}
-	if firebreakAttempts(history, review.Tick) >= maxFirebreakAttempts {
-		return RoundsFirebreakResult{Verdict: refuse(RefusalRetriesSpent, "maxFirebreakAttempts", "")}, nil
+	} else if !ok {
+		return RoundsFirebreakResult{Verdict: verdict}, nil
 	}
 	actions, err := firebreakActions(domain.MintPlanID(), work, ruins)
 	if err != nil {

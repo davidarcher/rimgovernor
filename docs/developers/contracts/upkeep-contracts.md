@@ -167,7 +167,7 @@ defenders' doorway, sized from defenders and turrets, no door on the raiders' ro
   (`policy.hallwayAvoidsTraps`, `policy.colonistRouteAvoidsTraps`). Shooter cell floors are
   terrain; a floor the native preview refuses is dropped from the tier.
 - A `Complete` record is re-verified after each ActiveCombat epoch and once per game hour:
-  a tier that lost a building re-opens with a fresh retry budget as a new tier method while
+  a tier that lost a building re-opens under a new repair prefix, so earlier refusals do not bar it, as a new tier method while
   `Complete` stays true. A missing building whose cell carries a blueprint or frame is not
   placed again; the planner asks for a clock window. Defenders are undrafted once
   ActiveCombat stops authorizing the hold plan.

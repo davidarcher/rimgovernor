@@ -80,13 +80,3 @@ func TestDefenseRecordLayoutKeepsGeometry(t *testing.T) {
 		t.Fatalf("layout %+v", layout)
 	}
 }
-
-func TestDefenseCoverAttemptsCountTheWindow(t *testing.T) {
-	history := []domain.Method{{Method: "defense-cover-1000"}, {Method: "defense-cover-50000"}, {Method: "defense-rearm-t-60000"}, {Method: "defense-cover-x"}}
-	if got := defenseCoverAttempts(history, 61500); got != 1 {
-		t.Fatalf("attempts %d", got)
-	}
-	if got := defenseCoverAttempts(history, 60000); got != 2 {
-		t.Fatalf("attempts %d", got)
-	}
-}

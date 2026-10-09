@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strconv"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -25,30 +23,11 @@ import (
 // structure is theirs and is held, and a ruin the game's deconstruct
 // designator refuses fails its clearance natively with the designator's
 // reason rather than being re-ordered. Each method is one plan
-// of up to maxDefenseCoverBatch clearances, bounded per game day so a thing
-// the player keeps undesignating does not become a loop.
+// of up to maxDefenseCoverBatch clearances under the shared refusal budget.
 const (
-	maxDefenseCoverBatch    = 8
-	maxDefenseCoverAttempts = 4
-	defenseCoverWindowTicks = 60000
-	defenseCoverPrefix      = "defense-cover-"
+	maxDefenseCoverBatch = 8
+	defenseCoverPrefix   = "defense-cover-"
 )
-
-// defenseCoverAttempts counts the epoch's cover methods ordered within the
-// window before tick.
-func defenseCoverAttempts(history []domain.Method, tick domain.Tick) int {
-	count := 0
-	for _, m := range history {
-		if !strings.HasPrefix(string(m.Method), defenseCoverPrefix) {
-			continue
-		}
-		at, err := strconv.ParseInt(strings.TrimPrefix(string(m.Method), defenseCoverPrefix), 10, 64)
-		if err == nil && tick-domain.Tick(at) < defenseCoverWindowTicks {
-			count++
-		}
-	}
-	return count
-}
 
 // defenseRecordLayout rebuilds the accepted geometry the approaches keep
 // protected: lanes, firing cells and every tier's placements and reserved
@@ -232,12 +211,10 @@ func (r *RoundsDefenseLayoutPlanner) clearCover(call, epoch context.Context, goa
 	if len(clearances) > maxDefenseCoverBatch {
 		clearances = clearances[:maxDefenseCoverBatch]
 	}
-	history, err := p.journal.LoadOwnerMethods(call, goal)
-	if err != nil {
+	if verdict, ok, err := admitProjectSubject(call, p.journal, goal, defenseCoverPrefix, state.Snapshot); err != nil {
 		return RoundsDefenseLayoutResult{}, false, err
-	}
-	if defenseCoverAttempts(history, tick) >= maxDefenseCoverAttempts {
-		return RoundsDefenseLayoutResult{Verdict: refuse(RefusalRetriesSpent, "maxDefenseCoverAttempts", "")}, true, nil
+	} else if !ok {
+		return RoundsDefenseLayoutResult{Verdict: verdict}, true, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", defenseCoverPrefix, tick))
 	id := domain.MintPlanID()

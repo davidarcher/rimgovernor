@@ -265,28 +265,6 @@ func TestDefenseRecordGeometryAndTurretTier(t *testing.T) {
 	}
 }
 
-func TestDefenseRearmAttemptsCountTheTurretWithinTheWindow(t *testing.T) {
-	t.Parallel()
-	history := []domain.Method{
-		{Method: domain.MethodID(defenseRearmPrefix("T1") + "1000")},
-		{Method: domain.MethodID(defenseRearmPrefix("T1") + "2000")},
-		{Method: domain.MethodID(defenseRearmPrefix("T2") + "2000")},
-		{Method: domain.MethodID(defenseRearmPrefix("T1") + "x")},
-		{Method: "defense-turrets-0"},
-	}
-	if got := defenseRearmAttempts(history, "T1", 3000); got != 2 {
-		t.Fatal(got)
-	}
-	// An order older than the window no longer counts; another turret's
-	// never does.
-	if got := defenseRearmAttempts(history, "T1", 1000+defenseRearmWindowTicks); got != 1 {
-		t.Fatal(got)
-	}
-	if got := defenseRearmAttempts(history, "T3", 3000); got != 0 {
-		t.Fatal(got)
-	}
-}
-
 // TestDefenseMortarRequestOpensAfterResearchAtRaidPoints proves the mortar
 // tier's gates: closed before mortar research or below the raid
 // points' budget, open with both, and the geometry carries the turret cells.

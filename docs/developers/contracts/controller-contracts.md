@@ -61,7 +61,7 @@ reads: `blocked:no_worker` (designation dispatched, no capable pawn), `native_in
 `no_method`. `domain.TicksPerDay` (and the hunt, haul and harvest instances
 `RoundsPolicy.HuntProgress`/`HaulProgress`/`AcquisitionProgress` of `ProgressContract`)
 keys a stalled situation out for a bounded cooldown (`ProgressCooldownMax`, never
-permanent) and planners rotate method or target (`Store.RecordProgressCooldown`). The
+permanent) and planners rotate method or target (`Store.RecordProgressCooldown`). The cooldown is a separate mechanism from the shared refusal budget (`policy.RefusalBudget`): it keys out a situation that stalled (an accepted order that moved nothing), not a native refusal, so it needs no refusal class and always expires; the budget bars a subject native refused, by class and world. The
 food concern walks acquire, cook, store, grow, naming `prerequisite:EnsureCooking` while
 cooking is known missing. Prerequisites remain explicit dependencies; pawn work priorities schedule the
 orders without reserving a builder for a Concern.
