@@ -121,15 +121,12 @@ func (r *RoundsClearancePlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoundsClearanceResult{}, err
 	}
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	failures, err := failedIntentMethods(call, p.journal, goal.History, goal.Standard.Episode, prefix)
-	if err != nil {
+	if verdict, ok, err := admitSubject(call, p.journal, prefix, standardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot); err != nil {
 		return RoundsClearanceResult{}, err
+	} else if !ok {
+		return RoundsClearanceResult{Verdict: verdict}, nil
 	}
-	if failures >= maxFailedIntentMethods {
-		return RoundsClearanceResult{Verdict: refuse(RefusalRetriesSpent, "maxFailedIntentMethods", "")}, nil
-	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	method := nextMethodID(prefix, historyMethodIDs(goal.History, goal.Standard.Episode))
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
 		return RoundsClearanceResult{}, err

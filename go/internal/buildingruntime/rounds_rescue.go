@@ -124,13 +124,15 @@ func (r *RoundsRescuePlanner) step(call, epoch context.Context, arbiter *stepArb
 	// an interrupted or failed try picks whichever rescuer is currently best,
 	// which is how rescuer replacement happens across cycles.
 	prefix := fmt.Sprintf("rescue-%s-", patient)
-	attempt := incidentAttemptCount(incident.Methods, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		// The attempts are spent and the deficit stays visible; the
-		// clock must still advance under it.
-		return RoundsRescueResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), NativeWorkTicks: medicalWaitTicks}, nil
+	if verdict, ok, err := admitSubject(call, p.journal, prefix, incidentPlans(incident.Methods, prefix), state.Snapshot); err != nil {
+		return RoundsRescueResult{}, err
+	} else if !ok {
+		// Native refused this casualty's rescue and the refusal still
+		// stands; the deficit stays visible and the clock must still advance
+		// under it.
+		return RoundsRescueResult{Verdict: verdict, NativeWorkTicks: medicalWaitTicks}, nil
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	method := nextMethodID(prefix, incidentMethodIDs(incident.Methods))
 	id := domain.MintPlanID()
 	action, err := domain.NewRescueAction(domain.ActionID(fmt.Sprintf("%s-0", id)), rescue)
 	if err != nil {

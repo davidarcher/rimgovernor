@@ -123,13 +123,15 @@ func (r *RoundsTendPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	// interrupted or failed try picks whichever doctor is currently best,
 	// which is how doctor replacement happens across cycles.
 	prefix := fmt.Sprintf("tend-%s-", patient)
-	attempt := incidentAttemptCount(incident.Methods, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		// The attempts are spent and the deficit stays visible; the
-		// clock must still advance under it.
-		return RoundsTendResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), NativeWorkTicks: medicalWaitTicks}, nil
+	if verdict, ok, err := admitSubject(call, p.journal, prefix, incidentPlans(incident.Methods, prefix), state.Snapshot); err != nil {
+		return RoundsTendResult{}, err
+	} else if !ok {
+		// Native refused this patient's treatment and the refusal still
+		// stands; the deficit stays visible and the clock must still advance
+		// under it.
+		return RoundsTendResult{Verdict: verdict, NativeWorkTicks: medicalWaitTicks}, nil
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	method := nextMethodID(prefix, incidentMethodIDs(incident.Methods))
 	id := domain.MintPlanID()
 	action, err := domain.NewTendAction(domain.ActionID(fmt.Sprintf("%s-0", id)), tend)
 	if err != nil {

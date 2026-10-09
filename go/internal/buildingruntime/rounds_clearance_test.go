@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -96,7 +97,8 @@ func (n *roundsRecoveryNative) DefinitionCatalog(ctx context.Context, identity *
 	return (recoveryRoofCatalog{}).DefinitionCatalog(ctx, identity)
 }
 
-func TestRoundsClearanceWaitsForDesignatedBatchWithoutSpendingRetries(t *testing.T) {
+func clearanceBatchFixture(t *testing.T) (*Rounder, *store.Store, *RoundsClearancePlanner, *roundsRecoveryNative) {
+	t.Helper()
 	reviewer, db, _, _, native := roundsFixture(t)
 	v := native.reply.GetObserved()
 	v.ColonistCount, v.WorkerCount = proto.Uint32(2), proto.Uint32(2)
@@ -129,6 +131,12 @@ func TestRoundsClearanceWaitsForDesignatedBatchWithoutSpendingRetries(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
+	return reviewer, db, planner, source
+}
+
+func TestRoundsClearanceWaitsForDesignatedBatchWithoutSpendingRetries(t *testing.T) {
+	reviewer, db, planner, source := clearanceBatchFixture(t)
+	ctx := context.Background()
 	first, err := planner.Step(ctx)
 	if err != nil || first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first, err)

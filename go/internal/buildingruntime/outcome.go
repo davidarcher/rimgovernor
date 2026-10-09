@@ -105,11 +105,14 @@ const (
 	// WaitRoomTemperature: native room temperature has to settle after the
 	// last change before the goal judges it.
 	WaitRoomTemperature RefusalKind = "waiting_for_native_temperature"
+	// WaitRetryBudget: native refused the subject transiently and the world has
+	// not changed since; the subject names it, the detail native's reason.
+	WaitRetryBudget RefusalKind = "retry_budget_waiting"
 )
 
 var (
 	refusalKinds = []RefusalKind{RefusalCollapsePending, RefusalNoWorker, RefusalAwaitingPlan, RefusalFieldUnavailable, RefusalNoSpace, RefusalSharedAdmission, RefusalRetriesSpent, RefusalRockNotDug, RefusalSiteBlocked}
-	waitKinds    = []RefusalKind{WaitMethodUsed, WaitExistingWork, WaitBunksOpen, WaitBreachHeld, WaitComfortUse, WaitFacility, WaitHospitalConvert, WaitSleepingUse, WaitSeparation, WaitDialog, WaitClaim, WaitRoomTemperature, WaitFacilityAccess}
+	waitKinds    = []RefusalKind{WaitMethodUsed, WaitExistingWork, WaitBunksOpen, WaitBreachHeld, WaitComfortUse, WaitFacility, WaitHospitalConvert, WaitSleepingUse, WaitSeparation, WaitDialog, WaitClaim, WaitRoomTemperature, WaitFacilityAccess, WaitRetryBudget}
 )
 
 // Refusal says why an OutcomeRefused step stopped or what an OutcomeWaiting
@@ -170,6 +173,12 @@ func awaitingPlan(subject, detail string) Verdict {
 // this step (a bench, an animal); the subject names the claim.
 func claimHeld(subject string) Verdict {
 	return mustValid(Verdict{Outcome: OutcomeWaiting, Refusal: Refusal{Kind: WaitClaim, Subject: subject}})
+}
+
+// retryBudgetWait is the wait of a subject native refused transiently in a
+// world that has not changed since; the detail is native's reason.
+func retryBudgetWait(subject, detail string) Verdict {
+	return mustValid(Verdict{Outcome: OutcomeWaiting, Refusal: Refusal{Kind: WaitRetryBudget, Subject: subject, Detail: detail}})
 }
 
 // awaitingMethod is the refusal for a policy method that names what the
@@ -348,6 +357,8 @@ func (v Verdict) kindText() string {
 		return aside("waiting on a claim held by a higher-ranked proposal")
 	case WaitFacilityAccess:
 		return aside("a facility stands but some colonists cannot reach it")
+	case WaitRetryBudget:
+		return aside("the game refused it and nothing has changed since")
 	case WaitRoomTemperature:
 		return aside("waiting for the room temperature to settle")
 	}

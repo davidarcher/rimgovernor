@@ -25,11 +25,20 @@ func moodCastPrefix(target, caster policy.PawnID, ability string) string {
 // castMoodRelief commits one mood psycast on target, from the royalty read and
 // colonists of the review's census; false when no caster qualifies. Native
 // owns the cast's guards (cooldown, psyfocus, neural heat, range, target).
-func (r *RoundsMoodReliefPlanner) castMoodRelief(call, epoch context.Context, arbiter *stepArbiter, incident store.IncidentState, target policy.PawnID) (domain.PlanID, bool, error) {
+func (r *RoundsMoodReliefPlanner) castMoodRelief(call, epoch context.Context, arbiter *stepArbiter, incident store.IncidentState, target policy.PawnID, world domain.GenerationSnapshot) (domain.PlanID, bool, error) {
 	royalty, pawns := r.reviewer.census.psycasters()
+	var budgetErr error
 	choice, ok := policy.SelectMoodCast(target, royalty, pawns, func(caster policy.PawnID, ability string) bool {
-		return incidentAttemptCount(incident.Methods, moodCastPrefix(target, caster, ability)) >= maxMedicalAttemptsPerPatient
+		prefix := moodCastPrefix(target, caster, ability)
+		_, allowed, err := admitSubject(call, r.reviewer.player.journal, prefix, incidentPlans(incident.Methods, prefix), world)
+		if err != nil && budgetErr == nil {
+			budgetErr = err
+		}
+		return !allowed
 	})
+	if budgetErr != nil {
+		return "", false, budgetErr
+	}
 	if !ok || !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Caster)}) {
 		return "", false, nil
 	}
@@ -58,7 +67,7 @@ func (r *RoundsMoodReliefPlanner) castMoodRelief(call, epoch context.Context, ar
 		return "", false, err
 	}
 	prefix := moodCastPrefix(target, choice.Caster, choice.Ability)
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, incidentAttemptCount(incident.Methods, prefix)))
+	method := nextMethodID(prefix, incidentMethodIDs(incident.Methods))
 	if _, err = r.reviewer.player.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return "", false, err
 	}

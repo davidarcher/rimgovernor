@@ -48,6 +48,7 @@ func TestVerdictRendersPerKind(t *testing.T) {
 		{refuse(RefusalNoWorker, "builder_for_Cooler", "construction_skill_6"), "no_worker:builder_for_Cooler:construction_skill_6", "no colonist free to do it (builder for Cooler: construction skill 6)"},
 		{excavationBlocked("way_in_closed"), "site_blocked:excavation_site:way_in_closed", "the excavation site is blocked (way in closed)"},
 		{refuse(RefusalRetriesSpent, "excavation_stage", ""), "retry_budget_spent:excavation_stage", "tried as often as it may (excavation stage)"},
+		{retryBudgetWait("tend-alice", "no_path"), "retry_budget_waiting:tend-alice:no_path", "the game refused it and nothing has changed since (tend alice: no path)"},
 		{BuildingTemperatureWait, "waiting_for_native_temperature", "waiting for the room temperature to settle"},
 		{comfortAccessWait(policy.ComfortCapacity), "existing_facility_access_blocked:dining", "a facility stands but some colonists cannot reach it (dining)"},
 		{noSpace("floor_cells"), "no_space:floor_cells", "no space found for it (floor cells)"},

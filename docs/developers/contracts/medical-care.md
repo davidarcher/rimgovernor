@@ -21,7 +21,10 @@ Confirmed interrupted tending may resume within the recovery bound. An unavailab
 doctor can be replaced through a newly validated shared plan step (the original
 action and receipt stay retained). The load, native tick, player direction and
 native ordered-job generations must match; unknown write results and changed native
-player orders never authorize retries.
+player orders never authorize retries. A tend or rescue native refuses is retried
+through the shared refusal budget (action-contracts): a permanent refusal gives that
+patient up under native's reason, a transient one waits for the world to change, and the
+clock still advances under the standing deficit.
 
 ## Go planning
 

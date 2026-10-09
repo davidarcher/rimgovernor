@@ -58,21 +58,23 @@ func domainMoodReliefNeed(need policy.MoodNeed) (domain.MoodReliefNeed, bool) {
 	}
 }
 
-// moodReliefUsedNeeds reports needs whose prior committed attempts (this
-// pawn's occurrence) already reached maxMedicalAttemptsPerPatient: passing
-// these to policy.SelectMoodMethod lets it move on to the pawn's next
-// measured cause instead of proposing an exhausted one again, mirroring how
-// RoundsHusbandryPlanner keys attempts by method to avoid cross-method
-// collisions (3a6b30b8).
-func moodReliefUsedNeeds(methods []store.IncidentMethod, pawn policy.PawnID) []policy.MoodNeed {
+// moodReliefUsedNeeds reports needs the refusal budget turns away for this
+// pawn's occurrence (a permanent refusal, or a transient one in an unchanged
+// world): passing these to policy.SelectMoodMethod lets it move on to the
+// pawn's next measured cause instead of proposing a refused one again.
+func moodReliefUsedNeeds(ctx context.Context, journal *store.Store, methods []store.IncidentMethod, pawn policy.PawnID, world domain.GenerationSnapshot) ([]policy.MoodNeed, error) {
 	var used []policy.MoodNeed
 	for _, need := range []policy.MoodNeed{policy.MoodFood, policy.MoodRest, policy.MoodJoy} {
 		prefix := fmt.Sprintf("mood-%s-%s-", need, pawn)
-		if incidentAttemptCount(methods, prefix) >= maxMedicalAttemptsPerPatient {
+		_, ok, err := admitSubject(ctx, journal, prefix, incidentPlans(methods, prefix), world)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
 			used = append(used, need)
 		}
 	}
-	return used
+	return used, nil
 }
 
 func (r *RoundsMoodReliefPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoundsMoodReliefResult, error) {
@@ -131,7 +133,10 @@ func (r *RoundsMoodReliefPlanner) step(call, epoch context.Context, arbiter *ste
 			continue
 		}
 		policyState := moodReliefPolicyState(moodState)
-		used := moodReliefUsedNeeds(incident.Methods, moodState.Pawn.ID)
+		used, err := moodReliefUsedNeeds(call, p.journal, incident.Methods, moodState.Pawn.ID, sessionState.Snapshot)
+		if err != nil {
+			return RoundsMoodReliefResult{}, err
+		}
 		proposal, err := policy.SelectMoodMethod(policyState, used)
 		if err != nil {
 			return RoundsMoodReliefResult{}, err
@@ -151,7 +156,7 @@ func (r *RoundsMoodReliefPlanner) step(call, epoch context.Context, arbiter *ste
 		}
 		if proposal.Reason != policy.MoodRelief {
 			if moodCastReason(proposal.Reason) {
-				if id, cast, err := r.castMoodRelief(call, epoch, arbiter, incident, moodState.Pawn.ID); err != nil {
+				if id, cast, err := r.castMoodRelief(call, epoch, arbiter, incident, moodState.Pawn.ID, sessionState.Snapshot); err != nil {
 					return RoundsMoodReliefResult{}, err
 				} else if cast {
 					return RoundsMoodReliefResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
@@ -164,10 +169,6 @@ func (r *RoundsMoodReliefPlanner) step(call, epoch context.Context, arbiter *ste
 			return RoundsMoodReliefResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 		}
 		prefix := fmt.Sprintf("mood-%s-%s-", proposal.Need, moodState.Pawn.ID)
-		attempt := incidentAttemptCount(incident.Methods, prefix)
-		if attempt >= maxMedicalAttemptsPerPatient {
-			continue
-		}
 		if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(moodState.Pawn.ID)}) {
 			continue
 		}
@@ -175,7 +176,7 @@ func (r *RoundsMoodReliefPlanner) step(call, epoch context.Context, arbiter *ste
 		if err != nil {
 			return RoundsMoodReliefResult{}, err
 		}
-		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+		method := nextMethodID(prefix, incidentMethodIDs(incident.Methods))
 		id := domain.MintPlanID()
 		action, err := domain.NewMoodReliefAction(domain.ActionID(fmt.Sprintf("%s-0", id)), relief)
 		if err != nil {

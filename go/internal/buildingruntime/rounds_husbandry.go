@@ -131,24 +131,21 @@ func (r *RoundsHusbandryPlanner) step(call, epoch context.Context, arbiter *step
 	case policy.HusbandryUnknown:
 		return RoundsHusbandryResult{Verdict: fieldUnavailable("husbandry_census")}, nil
 	}
-	// Identity counts all prior methods; the budget counts only refusals.
-	// Each animal's trainable has its own failure budget.
+	// Identity counts all prior methods; the budget counts only native
+	// refusals. Each animal's trainable has its own budget.
 	prefix := fmt.Sprintf("%s-%s-", choice.Method, choice.Animal)
 	if choice.Method == domain.HusbandryTrain {
 		prefix = fmt.Sprintf("%s-%s-%s-", choice.Method, choice.Animal, choice.TrainableDef)
 	}
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	failures, err := failedIntentMethods(call, p.journal, goal.History, goal.Standard.Episode, prefix)
-	if err != nil {
+	if verdict, ok, err := admitSubject(call, p.journal, prefix, standardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot); err != nil {
 		return RoundsHusbandryResult{}, err
-	}
-	if failures >= maxFailedIntentMethods {
-		return RoundsHusbandryResult{Verdict: refuse(RefusalRetriesSpent, "maxFailedIntentMethods", ""), NativeWorkTicks: wait}, nil
+	} else if !ok {
+		return RoundsHusbandryResult{Verdict: verdict, NativeWorkTicks: wait}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Animal)}) {
 		return RoundsHusbandryResult{Verdict: claimHeld("animal")}, nil
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	method := nextMethodID(prefix, historyMethodIDs(goal.History, goal.Standard.Episode))
 	argument := choice.TrainableDef
 	if choice.Argument != "" {
 		argument = choice.Argument

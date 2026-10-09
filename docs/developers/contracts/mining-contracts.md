@@ -66,7 +66,7 @@ the derived research needs.
   controller's, so there is no ownership ledger.
 - While a metal runway is in deficit, a drill the census reads as depleted is removed even when no
   scanned lumps remain, through the shared Hands deconstruction path (a drill `Deconstruction`,
-  bounded attempts per drill). The dispatch guard re-reads the census and designates only while the
+  retried through the shared refusal budget per drill). The dispatch guard re-reads the census and designates only while the
   exact drill (id, definition, cell) is still present and depleted. A lump centre moving as it is
   mined, an unknown census or a still yielding seam never triggers removal; yielding and
   already-designated drills keep holding placement.

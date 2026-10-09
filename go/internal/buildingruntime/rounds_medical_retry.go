@@ -31,7 +31,7 @@ func medicalAttemptCount(methods []domain.Method, epoch uint64, prefix string) i
 
 // medicalWaitTicks bounds one clock window lent when a standing CriticalMedical
 // deficit has no method to run: no doctor/rescuer-patient pair the policy will
-// select, or the per-patient attempts spent. The emergency freezes development
+// select, or a patient native has refused (the shared refusal budget). The emergency freezes development
 // (every goal "not selected: emergency") and the tend planner contributes no
 // plan, so without a lent window the step reports no work and the clock parks
 // on no_work for as long as the emergency stands. Progress needs game time: a doctor

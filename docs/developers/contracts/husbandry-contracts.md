@@ -170,8 +170,10 @@ handlers. The governor does not assign a prioritized slaughter job.
 Training selection reads availability, learned state and the native wanted flag.
 A wanted, unlearned trainable remains a herd deficit, lends game time and needs
 no further write. An unknown wanted flag refuses selection until read. Method
-identities count prior writes independently of the eight-refusal budget for each
-animal and trainable; successful requests do not consume that budget.
+identities count prior writes independently of the shared refusal budget
+(`policy.RefusalBudget`, see action-contracts) kept for each animal and trainable: a
+permanent native refusal gives that subject up under native's reason, a transient one waits for
+the world to change, and successful requests never consume it.
 
 | Method | Target | Native write | Completed when |
 | --- | --- | --- | --- |

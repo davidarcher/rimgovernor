@@ -125,9 +125,16 @@ The worker journals the failure code, reason and class beside `ReceiptRefused`
 world)`, `Allowed(subject, world)`) is the one reason-aware retry budget: a permanent refusal
 gives its subject up with `retry_budget_spent` carrying the real reason, a transient one waits
 (`retry_budget_waiting`) and re-arms when the world's `GenerationSnapshot` changes, an unknown
-one stays allowed and visible (`refusal_unknown`). The per-planner attempt counters named in
-the tables here (`maxMedicalAttemptsPerPatient` and similar) move onto it as their planners
-migrate; until then they stand.
+one stays allowed and visible (`refusal_unknown`). The tend, rescue, repair, clean, equip,
+mood relief and cast, exhausted-drill removal, ash cleaning, clearance and husbandry planners
+use it: they derive the ledger each step from the refusals journaled on their methods' plans
+(`refusalLedger`), keyed by the method-ID prefix (equip: by pawn), judged against the session
+snapshot with its plan and revision dropped. A spent subject is a `retry_budget_spent` refusal
+whose detail is native's reason, a waiting one a `retry_budget_waiting` wait; accepted,
+interrupted and unclassified methods spend nothing, and method identity (`nextMethodID`) is
+independent of the budget. Their per-planner attempt counts and `maxFailedIntentMethods` are
+gone; the planners that still count by `maxMedicalAttemptsPerPatient` (the tables here) move
+onto the budget as they migrate.
 
 An acquisition inspection outrun by the live clock records a stale_facts hold and
 invalidates its cached reads. The worker gives it one immediate fresh retry before

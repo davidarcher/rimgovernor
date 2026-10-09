@@ -58,8 +58,10 @@ completed buildings and neighboring or replacement objects remain protected.
 Clearance reads standing removal designations before selecting writes. Designated
 buildings and floors remain a clearance deficit and lend game time to native jobs;
 they are not reissued. Batch roof safety and phase ordering still consider the
-standing targets. Its eight-refusal budget counts failed methods, not successful
-designation writes.
+standing targets. It retries through the shared refusal budget
+(`policy.RefusalBudget`): a permanent native refusal of a batch gives it up under native's
+reason, a transient one waits for the world to change, and successful designation writes spend
+nothing.
 
 Manual stops routine automation but permits current explicit player work through
 Hands while paused. It does not resume simulation. Direction and colony/map/load

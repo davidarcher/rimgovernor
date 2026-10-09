@@ -140,8 +140,8 @@ picks the first rung above the holder's with a throne.
   owns the pressure). Caster: another available colonist whose royalty read lists
   `WordOfJoy` as a pawn-targeted psycast and whose Psyfocus stays >= 0.25 above the
   cost; most Psyfocus wins; any unread fact holds. Neural heat and cooldown are not
-  read: native refuses (guards `entropy`, `cooldown`), at most eight attempts per
-  caster-psycast pair per incident. Combat, destination, healing and social psycasts
+  read: native refuses (guards `entropy`, `cooldown`) and the shared refusal budget
+  retries each caster-psycast pair per incident by the refusal's class. Combat, destination, healing and social psycasts
   are not used.
 - `MaintainIdeoRoles` (`policy.RoleAssignments`): see
   [ideology contracts](ideology-contracts.md#role-assignment).

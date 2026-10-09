@@ -99,11 +99,14 @@ func (r *RoundsResourcePlanner) removeExhaustedDrill(call, epoch context.Context
 	}
 	for _, drill := range exhaustedDrills(deep) {
 		prefix := fmt.Sprintf("deconstruct-drill-%s-", drill.ID)
-		attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-		if attempt >= maxMedicalAttemptsPerPatient {
+		// A drill native refuses to deconstruct is skipped for the next one;
+		// its refusal is journaled on the dispatch row.
+		if _, ok, err := admitSubject(call, r.reviewer.player.journal, prefix, standardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot); err != nil {
+			return RoundsResourceResult{}, true, err
+		} else if !ok {
 			continue
 		}
-		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+		method := nextMethodID(prefix, historyMethodIDs(goal.History, goal.Standard.Episode))
 		planID := domain.MintPlanID()
 		value, err := domain.NewDeconstruction(drill.ID, drill.Definition, drill.Position)
 		if err != nil {

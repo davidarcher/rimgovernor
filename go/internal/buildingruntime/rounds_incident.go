@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -47,16 +46,4 @@ func incidentOpenWork(call context.Context, journal *store.Store, state store.In
 		}
 	}
 	return false, nil
-}
-
-// incidentAttemptCount is medicalAttemptCount for an occurrence: each
-// occurrence is its own episode.
-func incidentAttemptCount(methods []store.IncidentMethod, prefix string) int {
-	count := 0
-	for _, m := range methods {
-		if strings.HasPrefix(string(m.Method), prefix) {
-			count++
-		}
-	}
-	return count
 }

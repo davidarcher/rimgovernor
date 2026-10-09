@@ -179,11 +179,12 @@ func (r *RoundsCleanPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// Keyed by filth and attempt count, not pawn: a fresh attempt after an
 	// interrupted or refused try picks whichever cleaner is currently best.
 	prefix := fmt.Sprintf("clean-%s-", target.ID)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsCleanResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+	if verdict, ok, err := admitSubject(call, p.journal, prefix, standardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot); err != nil {
+		return RoundsCleanResult{}, err
+	} else if !ok {
+		return RoundsCleanResult{Verdict: verdict}, nil
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	method := nextMethodID(prefix, historyMethodIDs(goal.History, goal.Standard.Episode))
 	id := domain.MintPlanID()
 	action, err := domain.NewCleanAction(domain.ActionID(fmt.Sprintf("%s-0", id)), clean)
 	if err != nil {

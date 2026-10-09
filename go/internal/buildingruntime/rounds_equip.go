@@ -82,7 +82,6 @@ func (r *RoundsEquipPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !workable {
 		return RoundsEquipResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	attemptsByPawn := map[domain.PawnID]int{}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -91,13 +90,23 @@ func (r *RoundsEquipPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if store.PlanOpen(plan) {
 			return RoundsEquipResult{Verdict: BuildingReasonExistingWork}, nil
 		}
-		for _, progress := range plan.Progress {
-			if equip, ok := progress.Action().Equip(); ok {
-				if method.Episode == goal.Standard.Episode {
-					attemptsByPawn[equip.Pawn()]++
-				}
-			}
+	}
+	// Native's refusals of equip orders, by pawn, over every wave this
+	// episode bound (retired ones included).
+	var wavePlans []domain.PlanID
+	for _, method := range goal.History {
+		if method.Episode == goal.Standard.Episode {
+			wavePlans = append(wavePlans, method.Plan)
 		}
+	}
+	refusals, err := refusalLedger(call, p.journal, wavePlans, func(progress domain.Progress) string {
+		if equip, ok := progress.Action().Equip(); ok {
+			return "equip-" + string(equip.Pawn())
+		}
+		return ""
+	})
+	if err != nil {
+		return RoundsEquipResult{}, err
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
@@ -189,16 +198,17 @@ func (r *RoundsEquipPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// another colonist could use. The arbiter lock spans selection and claims.
 	arbiter.mu.Lock()
 	pool := make([]policy.EquipCandidatePawn, 0, len(pawns))
-	exhausted := false
+	var refused Verdict
 	var held []domain.PawnID
 	for _, pawn := range pawns {
 		if pawn.NoArms != "" {
 			held = append(held, pawn.Pawn)
 			continue
 		}
-		attempts := attemptsByPawn[pawn.Pawn]
-		if attempts >= maxMedicalAttemptsPerPatient {
-			exhausted = true
+		if verdict, ok := budgetVerdict(refusals, "equip-"+string(pawn.Pawn), state.Snapshot); !ok {
+			if refused.IsZero() {
+				refused = verdict
+			}
 			continue
 		}
 		if !arbiter.pawns[pawn.Pawn] {
@@ -218,8 +228,8 @@ func (r *RoundsEquipPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	arbiter.mu.Unlock()
 	if len(assignments) == 0 {
-		if exhausted {
-			return RoundsEquipResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+		if !refused.IsZero() {
+			return RoundsEquipResult{Verdict: refused}, nil
 		}
 		// Every colonist left is held back from arms (a creepjoiner whose
 		// downside has not shown): no weapon is owed until it does.

@@ -94,16 +94,17 @@ func (r *RoundsIncinerationPlanner) cleanAsh(call, epoch context.Context, state 
 		return RoundsIncinerationResult{}, true, err
 	}
 	prefix := fmt.Sprintf("burn-ash-%s-", target.ID)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsIncinerationResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, true, nil
+	if verdict, ok, err := admitSubject(call, r.reviewer.player.journal, prefix, standardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot); err != nil {
+		return RoundsIncinerationResult{}, true, err
+	} else if !ok {
+		return RoundsIncinerationResult{Verdict: verdict}, true, nil
 	}
 	id := domain.MintPlanID()
 	action, err := domain.NewCleanAction(domain.ActionID(fmt.Sprintf("%s-0", id)), clean)
 	if err != nil {
 		return RoundsIncinerationResult{}, true, err
 	}
-	return r.commitBurnPlan(call, epoch, state, goal, domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt)), id, []domain.Action{action}, nil)
+	return r.commitBurnPlan(call, epoch, state, goal, nextMethodID(prefix, historyMethodIDs(goal.History, goal.Standard.Episode)), id, []domain.Action{action}, nil)
 }
 
 // burnRoom plans one burn of a full incinerator.

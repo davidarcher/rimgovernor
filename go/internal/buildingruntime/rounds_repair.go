@@ -174,11 +174,12 @@ func (r *RoundsRepairPlanner) step(call, epoch context.Context, arbiter *stepArb
 	// Keyed by structure and attempt count, not pawn: a fresh attempt after an
 	// interrupted or refused try picks whichever repairer is currently best.
 	prefix := fmt.Sprintf("repair-%s-", structure.ID)
-	attempt := medicalAttemptCount(goal.History, goal.Standard.Episode, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoundsRepairResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
+	if verdict, ok, err := admitSubject(call, p.journal, prefix, standardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot); err != nil {
+		return RoundsRepairResult{}, err
+	} else if !ok {
+		return RoundsRepairResult{Verdict: verdict}, nil
 	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	method := nextMethodID(prefix, historyMethodIDs(goal.History, goal.Standard.Episode))
 	id := domain.MintPlanID()
 	action, err := domain.NewRepairAction(domain.ActionID(fmt.Sprintf("%s-0", id)), repair)
 	if err != nil {
