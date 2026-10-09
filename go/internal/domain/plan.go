@@ -95,6 +95,7 @@ type Action struct {
 	building            Building
 	finishingSkill      Fact[int]
 	constructionTarget  string
+	tier                Fact[ConstructionTier]
 	draft               OwnedDraft
 	subdue              Subdue
 	zone                ZoneCreate
@@ -216,6 +217,9 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewBuildingAction(a.id, a.building)
 			if minimum, known := a.finishingSkill.Value(); err == nil && known {
 				canonical, err = canonical.WithFinishingSkill(minimum, a.constructionTarget)
+			}
+			if tier, known := a.tier.Value(); err == nil && known {
+				canonical, err = canonical.WithTier(tier, a.constructionTarget)
 			}
 		case OwnedDraftAction:
 			canonical, err = NewOwnedDraftAction(a.id, a.draft)

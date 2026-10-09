@@ -24,9 +24,12 @@ func buildingAction(action domain.Action) (*o.Action, error) {
 	intent := &o.BuildingIntent{Placement: candidate}
 	if minimum, known := action.FinishingSkill().Value(); known {
 		intent.MinimumFinishingSkill = proto.Int32(int32(minimum))
-		if action.ConstructionTarget() != "" {
-			intent.ExistingTargetId = proto.String(action.ConstructionTarget())
-		}
+	}
+	if tier, known := action.Tier().Value(); known {
+		intent.Tier = proto.Int32(int32(tier))
+	}
+	if action.ConstructionTarget() != "" {
+		intent.ExistingTargetId = proto.String(action.ConstructionTarget())
 	}
 	return &o.Action{Intent: &o.Action_Building{Building: intent}}, nil
 }

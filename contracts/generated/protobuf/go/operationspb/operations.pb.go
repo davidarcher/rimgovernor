@@ -8092,8 +8092,11 @@ type BuildingIntent struct {
 	MinimumFinishingSkill *int32                          `protobuf:"varint,2,opt,name=minimum_finishing_skill,json=minimumFinishingSkill,proto3,oneof" json:"minimum_finishing_skill,omitempty"`
 	// Adoption changes only this exact pending target; never places a replacement.
 	ExistingTargetId *string `protobuf:"bytes,3,opt,name=existing_target_id,json=existingTargetId,proto3,oneof" json:"existing_target_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Construction tier 0-5 (#2522); absent = ungated. With existing_target_id it re-tiers
+	// that exact blueprint or frame; the tier stays mutable while the finishing floor is write-once.
+	Tier          *int32 `protobuf:"varint,4,opt,name=tier,proto3,oneof" json:"tier,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BuildingIntent) Reset() {
@@ -8145,6 +8148,13 @@ func (x *BuildingIntent) GetExistingTargetId() string {
 		return *x.ExistingTargetId
 	}
 	return ""
+}
+
+func (x *BuildingIntent) GetTier() int32 {
+	if x != nil && x.Tier != nil {
+		return *x.Tier
+	}
+	return 0
 }
 
 // One step against RimWorld's single live trade session, named by its
@@ -10065,13 +10075,15 @@ const file_operations_proto_rawDesc = "" +
 	"\bthing_id\x18\x02 \x01(\tH\x01R\athingId\x88\x01\x01B\n" +
 	"\n" +
 	"\b_pawn_idB\v\n" +
-	"\t_thing_id\"\xff\x01\n" +
+	"\t_thing_id\"\xa1\x02\n" +
 	"\x0eBuildingIntent\x12J\n" +
 	"\tplacement\x18\x01 \x01(\v2,.rimgovernor.placement.v1.PlacementCandidateR\tplacement\x12;\n" +
 	"\x17minimum_finishing_skill\x18\x02 \x01(\x05H\x00R\x15minimumFinishingSkill\x88\x01\x01\x121\n" +
-	"\x12existing_target_id\x18\x03 \x01(\tH\x01R\x10existingTargetId\x88\x01\x01B\x1a\n" +
+	"\x12existing_target_id\x18\x03 \x01(\tH\x01R\x10existingTargetId\x88\x01\x01\x12\x17\n" +
+	"\x04tier\x18\x04 \x01(\x05H\x02R\x04tier\x88\x01\x01B\x1a\n" +
 	"\x18_minimum_finishing_skillB\x15\n" +
-	"\x13_existing_target_id\"\x8d\x03\n" +
+	"\x13_existing_target_idB\a\n" +
+	"\x05_tier\"\x8d\x03\n" +
 	"\vTradeIntent\x12:\n" +
 	"\x06target\x18\x01 \x01(\v2\".rimgovernor.common.v1.TradeTargetR\x06target\x12(\n" +
 	"\rnegotiator_id\x18\x02 \x01(\tH\x01R\fnegotiatorId\x88\x01\x01\x12:\n" +

@@ -668,6 +668,7 @@ message ConstructionState { optional double total_work = 1; optional double work
   optional int32 eligible_finishers = 10;
   optional string finishing_blocker = 11;
   optional int32 native_finishing_skill = 12;
+  optional int32 tier = 13; // Native per-target construction tier (#2522); absent = ungated.
 }
 message ThermalSide { optional string side = 1; rimgovernor.common.v1.Cell position = 2; rimgovernor.common.v1.Ref room = 3; optional bool outdoors = 4; optional double temperature_c = 5; optional bool fogged = 6; optional bool impassable = 7; repeated ReadIssue issues = 8; }
 message BuildingServiceState {

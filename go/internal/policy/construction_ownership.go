@@ -47,6 +47,7 @@ type ConstructionSite struct {
 	QualitySensitive      domain.Fact[bool]
 	MinimumFinishingSkill domain.Fact[int]
 	NativeFinishingSkill  domain.Fact[int]
+	Tier                  domain.Fact[domain.ConstructionTier] // native per-target tier; unknown = ungated
 	EligibleFinishers     domain.Fact[int]
 	FinishingBlocker      string
 }

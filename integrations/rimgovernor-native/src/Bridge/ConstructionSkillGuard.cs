@@ -19,19 +19,33 @@ namespace HomeBridge.BridgeTools
         {
             if (!(t is Blueprint_Build || t is Frame) || !Quality(t) || t.Faction != Faction.OfPlayer || minimum < 0 || minimum > 1000)
                 throw new InvalidOperationException("Invalid construction skill target or minimum.");
+            var setting = Entry(t);
+            if (setting.Minimum != ConstructionSkillSetting.None && setting.Minimum != minimum)
+                throw new InvalidOperationException("Construction finishing skill is already set.");
+            setting.Minimum = minimum;
+        }
+        // The tier is mutable while the target is unfinished; the finishing floor is not.
+        internal static void SetTier(Thing t, int tier)
+        {
+            if (!(t is Blueprint_Build || t is Frame) || t.Faction != Faction.OfPlayer || tier < 0 || tier > MaxTier)
+                throw new InvalidOperationException("Invalid construction tier target or tier.");
+            Entry(t).Tier = tier;
+        }
+        internal const int MaxTier = 5;
+        private static ConstructionSkillSetting Entry(Thing t)
+        {
             var existing = Setting(t);
-            if (existing != null)
-            {
-                if (existing.Minimum != minimum) throw new InvalidOperationException("Construction finishing skill is already set.");
-                return;
-            }
+            if (existing != null) return existing;
             State.Settings.RemoveAll(s => s.Target == null || s.Target.Destroyed);
-            State.Settings.Add(new ConstructionSkillSetting { Target = t, Minimum = minimum });
+            var created = new ConstructionSkillSetting { Target = t };
+            State.Settings.Add(created);
+            return created;
         }
         internal static bool Allows(Thing t, Pawn pawn)
         {
             var setting = Setting(t);
-            return setting == null || Capable(pawn, Math.Max(setting.Minimum, t.def.entityDefToBuild.constructionSkillPrerequisite));
+            return setting == null || setting.Minimum == ConstructionSkillSetting.None
+                || Capable(pawn, Math.Max(setting.Minimum, t.def.entityDefToBuild.constructionSkillPrerequisite));
         }
         internal static bool? Capability(Pawn p)
         {
@@ -49,7 +63,8 @@ namespace HomeBridge.BridgeTools
             if (t.def.entityDefToBuild == null) return;
             row.NativeFinishingSkill = t.def.entityDefToBuild.constructionSkillPrerequisite;
             var setting = Setting(t);
-            if (setting == null) { if (row.QualitySensitive) row.FinishingBlocker = "minimum_not_set"; return; }
+            if (setting != null && setting.Tier != ConstructionSkillSetting.None) row.Tier = setting.Tier;
+            if (setting == null || setting.Minimum == ConstructionSkillSetting.None) { if (row.QualitySensitive) row.FinishingBlocker = "minimum_not_set"; return; }
             row.MinimumFinishingSkill = setting.Minimum;
             row.EligibleFinishers = t.Map.mapPawns.FreeColonistsSpawned.Count(p => Capable(p, Math.Max(setting.Minimum, t.def.entityDefToBuild.constructionSkillPrerequisite)));
             if (row.EligibleFinishers == 0) row.FinishingBlocker = "no_qualified_builder";
@@ -85,7 +100,7 @@ namespace HomeBridge.BridgeTools
         private static void Inspect(Thing __instance, ref string __result)
         {
             var setting = Setting(__instance);
-            if (setting == null || __instance.Map == null) return;
+            if (setting == null || setting.Minimum == ConstructionSkillSetting.None || __instance.Map == null) return;
             var count = __instance.Map.mapPawns.FreeColonistsSpawned.Count(p => Allows(__instance, p));
             __result += "\nMinimum finishing Construction: " + setting.Minimum
                 + (count == 0 ? " (pending: no qualified builder)" : " (qualified builders: " + count + ")");

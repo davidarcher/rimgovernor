@@ -138,7 +138,8 @@ target unconfigured, with the conservative helper safeguard still in force.
 The existing `BuildingIntent` carries `minimum_finishing_skill`; adoption adds
 `existing_target_id`, which refuses stale targets rather than placing replacements.
 The setting is journaled before dispatch and observed in `ConstructionState`.
-`ConstructionSkillState` saves its exact native thing reference and transfers it
+`ConstructionSkillState` saves its exact native thing reference (shared with the
+[construction tier](construction-tiers.md)) and transfers it
 only through the blueprint's own frame conversion. Cancellation/completion and a
 new same-cell target never inherit a setting. Setting adoption confers no upkeep
 ownership and consumes no pawn labor.

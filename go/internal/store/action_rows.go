@@ -55,8 +55,18 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,zone_payload) VALUES(?,?,?,'zone_create',?)", a.ID(), plan, ordinal, data)
 	} else if b, ok := a.Building(); ok {
 		var payload []byte
-		if minimum, known := a.FinishingSkill().Value(); known {
-			payload, err = json.Marshal(constructionSkillPayload{minimum, a.ConstructionTarget()})
+		minimum, hasMinimum := a.FinishingSkill().Value()
+		tier, hasTier := a.Tier().Value()
+		if hasMinimum || hasTier {
+			setting := constructionSkillPayload{Target: a.ConstructionTarget()}
+			if hasMinimum {
+				setting.Minimum = &minimum
+			}
+			if hasTier {
+				value := int(tier)
+				setting.Tier = &value
+			}
+			payload, err = json.Marshal(setting)
 			if err != nil {
 				return err
 			}
@@ -1306,7 +1316,15 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			if !bytes.Equal(canonical, zone) {
 				return domain.Action{}, 0, errors.New("noncanonical construction setting")
 			}
-			a, e = a.WithFinishingSkill(payload.Minimum, payload.Target)
+			if payload.Minimum == nil && payload.Tier == nil {
+				return domain.Action{}, 0, errors.New("empty construction setting")
+			}
+			if payload.Minimum != nil {
+				a, e = a.WithFinishingSkill(*payload.Minimum, payload.Target)
+			}
+			if e == nil && payload.Tier != nil {
+				a, e = a.WithTier(domain.ConstructionTier(*payload.Tier), payload.Target)
+			}
 		}
 		return a, ordinal, e
 	}
@@ -1318,8 +1336,12 @@ type giveItemPayload struct {
 	ExpectedRemaining int64
 }
 
+// constructionSkillPayload is a building action's construction setting: the
+// finishing-skill floor and/or the tier (#2522), and the exact target for an
+// adoption or re-tier. Absent fields are omitted so the canonical form is unique.
 type constructionSkillPayload struct {
-	Minimum int
+	Minimum *int `json:",omitempty"`
+	Tier    *int `json:",omitempty"`
 	Target  string
 }
 

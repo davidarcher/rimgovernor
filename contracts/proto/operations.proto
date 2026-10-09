@@ -815,6 +815,9 @@ message BuildingIntent {
   optional int32 minimum_finishing_skill = 2;
   // Adoption changes only this exact pending target; never places a replacement.
   optional string existing_target_id = 3;
+  // Construction tier 0-5 (#2522); absent = ungated. With existing_target_id it re-tiers
+  // that exact blueprint or frame; the tier stays mutable while the finishing floor is write-once.
+  optional int32 tier = 4;
 }
 // One step against RimWorld's single live trade session, named by its
 // trader and negotiator.

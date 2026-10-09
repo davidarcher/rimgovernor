@@ -259,7 +259,7 @@ namespace HomeBridge.BridgeTools
                     return new {success=true, lowRefused, lowCompletionRefused, completed, noLeak=ConstructionSkillGuard.Setting(replacement)==null};
                 }
                 if (action!="convert" && action!="audit") return Refuse("Unknown action.");
-                return new {success=true,minimum=setting?.Minimum,lowRefused,highAllowed=ConstructionSkillGuard.Allows(bed,high),
+                return new {success=true,minimum=setting?.Minimum,tier=setting?.Tier,target=bed.GetUniqueLoadID(),lowRefused,highAllowed=ConstructionSkillGuard.Allows(bed,high),
                     wallProgress=wallCell.GetEdifice(map)?.def==ThingDefOf.Wall || wallCell.GetThingList(map).OfType<Frame>().Any(f=>f.workDone>0), bedPending=bed.Spawned};
             },cancellationToken).ConfigureAwait(false);
         }

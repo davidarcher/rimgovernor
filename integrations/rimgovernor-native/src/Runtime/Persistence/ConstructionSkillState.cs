@@ -4,7 +4,9 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // A setting of the exact unfinished thing, not a controller receipt or reservation.
+    // Settings of the exact unfinished thing (finishing-skill floor and construction
+    // tier), not a controller receipt or reservation. Each lives only while the
+    // target is a blueprint or frame; completion drops it.
     public sealed class ConstructionSkillState : GameComponent
     {
         public List<ConstructionSkillSetting> Settings = new List<ConstructionSkillSetting>();
@@ -13,7 +15,7 @@ namespace HomeBridge.BridgeTools
         {
             if (Scribe.mode == LoadSaveMode.Saving)
                 Settings.RemoveAll(s => s.Target == null || s.Target.Destroyed || !(s.Target is Blueprint_Build || s.Target is Frame));
-            Scribe_Collections.Look(ref Settings, "rimgovernorConstructionSkill", LookMode.Deep);
+            Scribe_Collections.Look(ref Settings, "rimgovernorConstructionTargets", LookMode.Deep);
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
                 if (Settings == null) Settings = new List<ConstructionSkillSetting>();
@@ -23,12 +25,16 @@ namespace HomeBridge.BridgeTools
     }
     public sealed class ConstructionSkillSetting : IExposable
     {
+        public const int None = -1;
         public Thing Target = null!;
-        public int Minimum;
+        // None means no finishing floor / no tier: the target is ungated on that axis.
+        public int Minimum = None;
+        public int Tier = None;
         public void ExposeData()
         {
             Scribe_References.Look(ref Target, "target");
-            Scribe_Values.Look(ref Minimum, "minimum");
+            Scribe_Values.Look(ref Minimum, "minimum", None);
+            Scribe_Values.Look(ref Tier, "tier", None);
         }
     }
 }

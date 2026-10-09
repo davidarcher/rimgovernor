@@ -68,6 +68,13 @@ func constructionSite(row *o.BuildingState) (site policy.ConstructionSite, ok bo
 		if state.EligibleFinishers != nil {
 			site.EligibleFinishers = domain.Known(int(state.GetEligibleFinishers()))
 		}
+		if state.Tier != nil {
+			tier := domain.ConstructionTier(state.GetTier())
+			if !tier.Valid() {
+				return site, false, ErrContract
+			}
+			site.Tier = domain.Known(tier)
+		}
 		site.FinishingBlocker = state.GetFinishingBlocker()
 	}
 	return site, true, nil

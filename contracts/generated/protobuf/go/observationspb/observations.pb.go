@@ -10172,6 +10172,7 @@ type ConstructionState struct {
 	EligibleFinishers     *int32                 `protobuf:"varint,10,opt,name=eligible_finishers,json=eligibleFinishers,proto3,oneof" json:"eligible_finishers,omitempty"`
 	FinishingBlocker      *string                `protobuf:"bytes,11,opt,name=finishing_blocker,json=finishingBlocker,proto3,oneof" json:"finishing_blocker,omitempty"`
 	NativeFinishingSkill  *int32                 `protobuf:"varint,12,opt,name=native_finishing_skill,json=nativeFinishingSkill,proto3,oneof" json:"native_finishing_skill,omitempty"`
+	Tier                  *int32                 `protobuf:"varint,13,opt,name=tier,proto3,oneof" json:"tier,omitempty"` // Native per-target construction tier (#2522); absent = ungated.
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -10286,6 +10287,13 @@ func (x *ConstructionState) GetFinishingBlocker() string {
 func (x *ConstructionState) GetNativeFinishingSkill() int32 {
 	if x != nil && x.NativeFinishingSkill != nil {
 		return *x.NativeFinishingSkill
+	}
+	return 0
+}
+
+func (x *ConstructionState) GetTier() int32 {
+	if x != nil && x.Tier != nil {
+		return *x.Tier
 	}
 	return 0
 }
@@ -49573,7 +49581,7 @@ const file_observations_proto_rawDesc = "" +
 	"\t_def_nameB\a\n" +
 	"\x05_needB\a\n" +
 	"\x05_haveB\x0f\n" +
-	"\r_still_needed\"\xe1\x06\n" +
+	"\r_still_needed\"\x83\a\n" +
 	"\x11ConstructionState\x12\"\n" +
 	"\n" +
 	"total_work\x18\x01 \x01(\x01H\x00R\ttotalWork\x88\x01\x01\x12 \n" +
@@ -49588,7 +49596,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x12eligible_finishers\x18\n" +
 	" \x01(\x05H\aR\x11eligibleFinishers\x88\x01\x01\x120\n" +
 	"\x11finishing_blocker\x18\v \x01(\tH\bR\x10finishingBlocker\x88\x01\x01\x129\n" +
-	"\x16native_finishing_skill\x18\f \x01(\x05H\tR\x14nativeFinishingSkill\x88\x01\x01B\r\n" +
+	"\x16native_finishing_skill\x18\f \x01(\x05H\tR\x14nativeFinishingSkill\x88\x01\x01\x12\x17\n" +
+	"\x04tier\x18\r \x01(\x05H\n" +
+	"R\x04tier\x88\x01\x01B\r\n" +
 	"\v_total_workB\f\n" +
 	"\n" +
 	"_work_leftB\x13\n" +
@@ -49599,7 +49609,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x12_quality_sensitiveB\x15\n" +
 	"\x13_eligible_finishersB\x14\n" +
 	"\x12_finishing_blockerB\x19\n" +
-	"\x17_native_finishing_skill\"\x9e\x03\n" +
+	"\x17_native_finishing_skillB\a\n" +
+	"\x05_tier\"\x9e\x03\n" +
 	"\vThermalSide\x12\x17\n" +
 	"\x04side\x18\x01 \x01(\tH\x00R\x04side\x88\x01\x01\x127\n" +
 	"\bposition\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\bposition\x12.\n" +
