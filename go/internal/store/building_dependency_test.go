@@ -130,7 +130,7 @@ func TestWallReplacementWaitsForCensusRemoval(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	replace, err := domain.NewBuildingAction("replace", wall)
+	replace, err := domain.NewBuildingAction("replace", wall, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +187,7 @@ func TestStuckWallRemovalWithdrawsReplacement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	replace, err := domain.NewBuildingAction("replace", wall)
+	replace, err := domain.NewBuildingAction("replace", wall, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

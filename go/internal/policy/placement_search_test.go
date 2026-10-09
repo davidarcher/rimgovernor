@@ -94,7 +94,7 @@ func placementPreview(t *testing.T, id domain.ActionID, c domain.Cell, cells ...
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := domain.NewBuildingAction(id, b)
+	a, err := domain.NewBuildingAction(id, b, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

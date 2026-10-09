@@ -38,7 +38,7 @@ func TestComfortUseAllowanceRetainsRetiredMethodAndExpires(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := domain.NewBuildingAction("chair", b)
+	a, err := domain.NewBuildingAction("chair", b, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

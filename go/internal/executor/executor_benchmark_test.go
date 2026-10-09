@@ -170,7 +170,7 @@ func BenchmarkExecutorScheduling(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			action, err := domain.NewBuildingAction("action", building)
+			action, err := domain.NewBuildingAction("action", building, domain.TierExpand)
 			if err != nil {
 				b.Fatal(err)
 			}

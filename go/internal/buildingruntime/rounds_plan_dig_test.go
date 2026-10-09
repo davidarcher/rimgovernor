@@ -170,6 +170,11 @@ func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
 	if !ok || b.Definition() != "Cooler" || b.Cell() != site.Cell || b.Rotation() != site.Rotation {
 		t.Fatal(actions[0])
 	}
+	// A rock step's building carries its planner's tier (#2525): the cooler
+	// is the refrigeration planner's, Sustain.
+	if tier, known := actions[0].Tier().Value(); !known || tier != domain.TierSustain {
+		t.Fatal("rock-step cooler tier", tier, known)
+	}
 	dug := map[domain.Cell]bool{}
 	requires := map[domain.ActionID]bool{}
 	for _, dep := range plan.Spec.Dependencies() {

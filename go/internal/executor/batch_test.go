@@ -38,7 +38,7 @@ func newBatchFixture(t *testing.T, n int) *batchFixture {
 			t.Fatal(err)
 		}
 		ids[i] = domain.ActionID(fmt.Sprintf("action-%d", i+1))
-		if actions[i], err = domain.NewBuildingAction(ids[i], building); err != nil {
+		if actions[i], err = domain.NewBuildingAction(ids[i], building, domain.TierExpand); err != nil {
 			t.Fatal(err)
 		}
 	}

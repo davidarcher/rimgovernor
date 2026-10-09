@@ -42,7 +42,7 @@ func TestFieldBlockingWorkIgnoresButcherTable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	build, err := domain.NewBuildingAction("a-spot", spot)
+	build, err := domain.NewBuildingAction("a-spot", spot, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

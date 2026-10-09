@@ -16,7 +16,7 @@ func buildingAtPlan(t *testing.T, id, definition string, cells ...domain.Cell) d
 		if err != nil {
 			t.Fatal(err)
 		}
-		a, err := domain.NewBuildingAction(domain.ActionID(id+"-"+string(rune('a'+i))), b)
+		a, err := domain.NewBuildingAction(domain.ActionID(id+"-"+string(rune('a'+i))), b, domain.TierExpand)
 		if err != nil {
 			t.Fatal(err)
 		}

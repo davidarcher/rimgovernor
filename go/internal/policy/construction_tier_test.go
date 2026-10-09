@@ -93,14 +93,24 @@ func TestPlannerTier(t *testing.T) {
 		{MaintainResource, "", domain.TierProduce},
 		{EnsureBasicPower, "", domain.TierExpand},
 	} {
-		got, ok := PlannerTier(c.concern, c.phase).Value()
-		if !ok || got != c.want {
-			t.Errorf("PlannerTier(%s, %s) = %d, %v; want %d", c.concern, c.phase, got, ok, c.want)
+		if got := PlannerTier(c.concern, c.phase); got != c.want {
+			t.Errorf("PlannerTier(%s, %s) = %d; want %d", c.concern, c.phase, got, c.want)
 		}
 	}
-	for _, concern := range []ConcernID{EnsureBasicDefense, EnsureDefensiveLayout} {
-		if _, ok := PlannerTier(concern, "").Value(); ok {
-			t.Errorf("PlannerTier(%s) must stay untiered until #2527", concern)
+	for _, concern := range []ConcernID{EnsureBasicDefense, EnsureDefensiveLayout, ConcernID("never-seen")} {
+		if got := PlannerTier(concern, ""); got != domain.TierExpand {
+			t.Errorf("PlannerTier(%s) = %d; unlisted concerns are Expand until #2527", concern, got)
 		}
+	}
+}
+
+// An adopted site keeps the tier native reads on it; one without is Expand.
+func TestAdoptedTier(t *testing.T) {
+	tiered := ConstructionSite{Tier: domain.Known(domain.TierSustain)}
+	if got := AdoptedTier(tiered); got != domain.TierSustain {
+		t.Errorf("AdoptedTier(tiered) = %d, want Sustain", got)
+	}
+	if got := AdoptedTier(ConstructionSite{}); got != domain.TierExpand {
+		t.Errorf("AdoptedTier(untiered) = %d, want Expand", got)
 	}
 }

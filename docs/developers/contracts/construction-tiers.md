@@ -3,8 +3,8 @@
 [Contracts](README.md) · Epic #2510. Tier is a per-target integer that native
 remembers while a building is unfinished. This page covers the field and its
 lifecycle (#2522), which builds carry which tier (#2524) and the native
-delivery gate that reads it (#2523). The remaining admit paths (#2525) and
-promotion (#2527) extend it.
+delivery gate that reads it (#2523). Since #2525 every planner-placed build
+states a tier; promotion (#2527) extends it.
 
 ## Ladder
 
@@ -18,7 +18,8 @@ promotion (#2527) extend it.
 | 5 | Secure | `TierSecure` |
 
 Tier orders construction only; the tech ladder is `TechTier`.
-Absent means ungated vanilla behavior, and is distinct from tier 0.
+Absent means ungated vanilla behavior (a build the game or player placed), and
+is distinct from tier 0.
 
 ## Which builds carry which tier
 
@@ -43,14 +44,30 @@ through by orchestration:
   Storage rooms are Sustain (the role cannot tell a food store from a bench
   input store), armory and wardrobe are Expand until #2527.
 - Loose buildings a Concern's planner places: `policy.PlannerTier(concern,
-  phase)`; unknown leaves the build untiered. Defense concerns stay untiered
-  until #2527, and the generic power planner is Expand (the proposal names no
-  consumer). Sleeping bunks (Survive), bedroom upgrades and storage shelves
-  (Sustain) state their tier at the call.
-- `RoundsBuildingPlanner.admitPreviews` requires `roundsAdmission.tiers`, one
-  entry per preview, so each caller states its tier; a missing statement is a
-  control error. Paths that do not use it (fields, excavation, rock steps,
-  paddocks) are untiered until #2525.
+  phase)`; a concern the ladder does not list is Expand by decision. Defense
+  concerns and the defense admit paths are Expand until #2527 assigns Secure,
+  and the generic power planner is Expand (the proposal names no consumer).
+  Sleeping bunks and stone-shell walls (Survive), bedroom upgrades, storage
+  shelves and food-field infrastructure (Sustain) state their tier at the call.
+  Rock steps and excavation preview the owning planner's buildings, so they take
+  that planner's `PlannerTier`; the animal paddock marker is a `PlannedPen`
+  piece placed through the room funnel (Comfort).
+- A finishing-skill adoption of an existing site restates the tier native
+  already reads on it (`policy.AdoptedTier`), so adopting never moves a build; a
+  site with no tier is Expand. Placements nothing else lists (quest monuments,
+  gene bank, mech charger, the HTTP building submission) are Expand.
+
+## Required tier
+
+`domain.NewBuildingAction(id, building, tier)` takes the tier as a required
+argument, and a stored building action without one does not load, so an untiered
+build cannot be constructed. `archgate.BuildingActionTiers` (run as
+`TestBuildingActionCallersStateTheirTier`, with a negative fixture) walks every
+non-test caller and fails one that omits the tier or passes anything other than
+a `domain.Tier*` constant or a `policy.RoomTier`/`PlannerTier`/`AdoptedTier`
+call. The only pass-through callers are `NewPlan` (canonicalizing an action that
+already has its tier) and the store's row reader. There is no baseline: add the
+tier, never an exemption.
 
 ## Place and set-tier
 
@@ -65,8 +82,9 @@ stays write-once. Tier applies to any `Blueprint_Build` or `Frame`, quality
 bearing or not; a completed building is refused.
 
 The journal carries the pair in the building action's canonical
-`zone_payload` (`Minimum`, `Tier`, `Target`; absent fields omitted). Load rejects
-any other JSON shape.
+`zone_payload` (`Tier` always; `Minimum` and `Target` when set; absent fields
+omitted). Load rejects any other JSON shape, and a building row with no
+payload or no `Tier`.
 
 ## Native store
 

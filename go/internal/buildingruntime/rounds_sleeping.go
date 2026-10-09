@@ -728,7 +728,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if r.power != nil && r.power.Method == policy.PowerShelter {
 		purpose = policy.Shelter
 	}
-	result, err := r.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: purpose, tiers: sameTier(len(selected), policy.PlannerTier(r.concern, r.phase))})
+	result, err := r.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: purpose})
 	if err != nil || ringAfter == nil || result.Verdict != BuildingReasonAdmitted {
 		return result, err
 	}
@@ -759,38 +759,6 @@ type roundsAdmission struct {
 	selected []policy.Preview
 	stock    policy.StockObservation
 	purpose  policy.Purpose
-	// tiers is each selected preview's construction tier, in order (#2524):
-	// every caller states it, unknown leaving a build untiered. A length that
-	// differs from selected is a caller bug.
-	tiers []domain.Fact[domain.ConstructionTier]
-}
-
-// sameTier states one tier for n previews.
-func sameTier(n int, tier domain.Fact[domain.ConstructionTier]) []domain.Fact[domain.ConstructionTier] {
-	tiers := make([]domain.Fact[domain.ConstructionTier], n)
-	for i := range tiers {
-		tiers[i] = tier
-	}
-	return tiers
-}
-
-// tierPreviews stamps each preview's building action with its stated tier; an
-// unknown tier leaves the action untiered.
-func tierPreviews(selected []policy.Preview, tiers []domain.Fact[domain.ConstructionTier]) ([]policy.Preview, error) {
-	if len(tiers) != len(selected) {
-		return nil, fmt.Errorf("%w: tierPreviews: len(tiers) != len(selected)", ErrControl)
-	}
-	out := slices.Clone(selected)
-	for i := range out {
-		if tier, known := tiers[i].Value(); known {
-			tiered, err := out[i].Action.WithTier(tier, "")
-			if err != nil {
-				return nil, err
-			}
-			out[i].Action = tiered
-		}
-	}
-	return out, nil
 }
 
 // admitPreviews admits the plan, the previews in dispatch order. Native
@@ -805,12 +773,7 @@ func (r *RoundsBuildingPlanner) admitPreviews(call, epoch context.Context, a rou
 	// wall's does, and gating held every wall until the door stood, or for
 	// ever when its observation came back unknown. The pen shell in
 	// rounds_animal_containment.go orders its ring the same way.
-	selected, err := tierPreviews(a.selected, a.tiers)
-	if err != nil {
-		return RoundsBuildingResult{}, err
-	}
-	a.selected = selected
-	for i, v := range selected {
+	for i, v := range a.selected {
 		actions[i] = v.Action
 	}
 	plan, err := domain.NewPlan(a.snapshot.Plan, a.snapshot.Revision, actions)
@@ -1118,7 +1081,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		if err != nil {
 			return placementChoice{}, false, Verdict{}, err
 		}
-		a, err := domain.NewBuildingAction(domain.ActionID(id), b)
+		a, err := domain.NewBuildingAction(domain.ActionID(id), b, policy.PlannerTier(r.concern, r.phase))
 		if err != nil {
 			return placementChoice{}, false, Verdict{}, err
 		}

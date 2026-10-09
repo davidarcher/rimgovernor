@@ -169,7 +169,7 @@ func (r *RoundsBuildingPlanner) previewFlooring(ctx context.Context, snapshot do
 		if err != nil {
 			return nil, stock, Verdict{}, err
 		}
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(selected))), building)
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(selected))), building, policy.PlannerTier(r.concern, r.phase))
 		if err != nil {
 			return nil, stock, Verdict{}, err
 		}

@@ -173,7 +173,7 @@ func historyPlan(tb testing.TB, id string) domain.PlanSpec {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	action, err := domain.NewBuildingAction(domain.ActionID(id+"-action"), building)
+	action, err := domain.NewBuildingAction(domain.ActionID(id+"-action"), building, domain.TierExpand)
 	if err != nil {
 		tb.Fatal(err)
 	}

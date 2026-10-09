@@ -24,7 +24,7 @@ func plan(t *testing.T, id domain.PlanID, ids ...domain.ActionID) domain.PlanSpe
 		if err != nil {
 			t.Fatal(err)
 		}
-		a, err := domain.NewBuildingAction(id, b)
+		a, err := domain.NewBuildingAction(id, b, domain.TierExpand)
 		if err != nil {
 			t.Fatal(err)
 		}

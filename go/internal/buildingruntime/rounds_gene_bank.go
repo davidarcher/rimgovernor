@@ -166,7 +166,7 @@ func (r *RoundsGeneBankPlanner) step(call, epoch context.Context, arbiter *stepA
 		if err != nil {
 			return policy.Preview{}, policy.StockObservation{}, domain.Action{}, err
 		}
-		action, err := domain.NewBuildingAction(domain.ActionID(string(planID)+"-0"), building)
+		action, err := domain.NewBuildingAction(domain.ActionID(string(planID)+"-0"), building, domain.TierExpand)
 		if err != nil {
 			return policy.Preview{}, policy.StockObservation{}, domain.Action{}, err
 		}

@@ -366,7 +366,7 @@ func TestClockSchedulerKeepsARunningWindowForACoupledOrder(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		second, err := domain.NewBuildingAction("second", wall)
+		second, err := domain.NewBuildingAction("second", wall, domain.TierExpand)
 		if err != nil {
 			t.Fatal(err)
 		}

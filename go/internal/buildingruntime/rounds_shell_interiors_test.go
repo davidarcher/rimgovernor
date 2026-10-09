@@ -36,7 +36,7 @@ func TestShellInteriorsCoverThePlannedRingsFloor(t *testing.T) {
 	claims, shell := concaveClaims(t, "shelter-shell", domain.Cell{X: 40, Z: 40})
 	var actions []domain.Action
 	for i, claim := range claims {
-		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("shelter-shell-%d", i)), claim.Building)
+		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("shelter-shell-%d", i)), claim.Building, domain.TierExpand)
 		if err != nil {
 			t.Fatal(err)
 		}

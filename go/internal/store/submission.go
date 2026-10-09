@@ -78,7 +78,7 @@ func (s *Store) SubmitBuilding(ctx context.Context, request SubmissionRequest) (
 		return Submission{}, false, err
 	}
 	result := Submission{Request: request, Plan: domain.PlanID("building-" + hex.EncodeToString(entropy[:16])), Action: domain.ActionID("building-action-" + hex.EncodeToString(entropy[16:])), Revision: 1}
-	action, err := domain.NewBuildingAction(result.Action, request.Building)
+	action, err := domain.NewBuildingAction(result.Action, request.Building, domain.TierExpand)
 	if err != nil {
 		return Submission{}, false, err
 	}

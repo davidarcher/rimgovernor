@@ -275,7 +275,7 @@ func (r *RoundsStorageShelvesPlanner) build(call, epoch context.Context, state C
 				return out, nil
 			}
 		}
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), value)
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), value, domain.TierSustain)
 		if err != nil {
 			return RoundsStorageShelvesResult{}, err
 		}
@@ -294,7 +294,7 @@ func (r *RoundsStorageShelvesPlanner) build(call, epoch context.Context, state C
 			return RoundsStorageShelvesResult{}, err
 		}
 		method := shelfMethod(step.Zone.Zone, index)
-		result, err := building.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, reason: "shelf for zone " + step.Zone.Zone, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Rounds, tiers: sameTier(1, domain.Known(domain.TierSustain))})
+		result, err := building.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, reason: "shelf for zone " + step.Zone.Zone, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Rounds})
 		if err != nil || result.Verdict != BuildingReasonAdmitted {
 			return RoundsStorageShelvesResult{Verdict: result.Verdict}, err
 		}

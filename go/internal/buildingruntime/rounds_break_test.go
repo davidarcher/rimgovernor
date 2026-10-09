@@ -309,7 +309,7 @@ func TestBreakResponseDispatchRadiusAndSquadExemption(t *testing.T) {
 		cell domain.Cell
 	}{{"near", domain.Cell{X: 17, Z: 10}}, {"far", domain.Cell{X: 40, Z: 40}}} {
 		b, _ := domain.NewBuilding("Wall", tc.cell, domain.North, "WoodLog")
-		a, _ := domain.NewBuildingAction(domain.ActionID(tc.id), b)
+		a, _ := domain.NewBuildingAction(domain.ActionID(tc.id), b, domain.TierExpand)
 		actions = append(actions, a)
 	}
 	d, _ := domain.NewOwnedDraft("a")

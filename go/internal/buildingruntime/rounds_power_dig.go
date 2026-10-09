@@ -33,7 +33,7 @@ func (r *RoundsBuildingPlanner) digGeothermal(call, epoch context.Context, s exc
 	}
 	probe := s.state.Snapshot
 	probe.Plan, probe.Revision = domain.MintPlanID(), 1
-	action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", probe.Plan)), building)
+	action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", probe.Plan)), building, policy.PlannerTier(r.concern, r.phase))
 	if err != nil {
 		return RoundsBuildingResult{}, false, err
 	}

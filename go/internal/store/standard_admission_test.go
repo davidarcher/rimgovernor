@@ -16,7 +16,7 @@ func methodRequest(t *testing.T, g WorkOwner, id string, costs ...int64) Buildin
 		if e != nil {
 			t.Fatal(e)
 		}
-		a, e := domain.NewBuildingAction(domain.ActionID(id+string(rune('a'+i))), b)
+		a, e := domain.NewBuildingAction(domain.ActionID(id+string(rune('a'+i))), b, domain.TierExpand)
 		if e != nil {
 			t.Fatal(e)
 		}

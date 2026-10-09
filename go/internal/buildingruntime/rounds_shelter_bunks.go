@@ -400,7 +400,7 @@ func (r *RoundsBuildingPlanner) admitBunks(call, epoch context.Context, s shelte
 		if err != nil {
 			return RoundsBuildingResult{}, false, err
 		}
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), b)
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), b, domain.TierSurvive)
 		if err != nil {
 			return RoundsBuildingResult{}, false, err
 		}
@@ -449,7 +449,7 @@ func (r *RoundsBuildingPlanner) admitBunks(call, epoch context.Context, s shelte
 	if len(selected) == 0 {
 		return RoundsBuildingResult{}, false, nil
 	}
-	result, err := r.admitPreviews(call, epoch, roundsAdmission{state: s.state, review: s.review, owner: s.owner, facts: s.facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Rounds, tiers: sameTier(len(selected), domain.Known(domain.TierSurvive))})
+	result, err := r.admitPreviews(call, epoch, roundsAdmission{state: s.state, review: s.review, owner: s.owner, facts: s.facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Rounds})
 	if err != nil {
 		return result, false, err
 	}

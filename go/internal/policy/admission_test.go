@@ -19,7 +19,7 @@ func candidate(t *testing.T, id domain.ActionID, x int32, count int64) Candidate
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := domain.NewBuildingAction(id, b)
+	a, err := domain.NewBuildingAction(id, b, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestUnknownUnsafeAndStaleFactsRefuse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := domain.NewBuildingAction("a", b)
+	a, err := domain.NewBuildingAction("a", b, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

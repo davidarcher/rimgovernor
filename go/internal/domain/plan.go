@@ -167,14 +167,21 @@ type Action struct {
 	caravanDeparture    CaravanDeparture
 }
 
-func NewBuildingAction(id ActionID, building Building) (Action, error) {
+// NewBuildingAction is a build order at a construction tier (#2525). The tier
+// is a required argument: every planner states where its build stands on the
+// ladder, and Expand is passed explicitly by the ones the ladder does not
+// list. TestBuildingActionCallersStateTheirTier fails a caller that does not.
+func NewBuildingAction(id ActionID, building Building, tier ConstructionTier) (Action, error) {
 	if !validID(string(id)) {
 		return Action{}, errors.New("invalid action identity")
+	}
+	if !tier.Valid() {
+		return Action{}, errors.New("invalid construction tier")
 	}
 	if _, err := NewBuilding(building.definition, building.cell, building.rotation, building.stuff); err != nil {
 		return Action{}, err
 	}
-	return Action{id: id, kind: BuildingAction, building: building}, nil
+	return Action{id: id, kind: BuildingAction, building: building, tier: Known(tier)}, nil
 }
 func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
@@ -209,11 +216,15 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 		var err error
 		switch a.kind {
 		case BuildingAction:
-			canonical, err = NewBuildingAction(a.id, a.building)
+			tier, known := a.tier.Value()
+			if !known {
+				return PlanSpec{}, errors.New("untiered building action")
+			}
+			canonical, err = NewBuildingAction(a.id, a.building, tier)
 			if minimum, known := a.finishingSkill.Value(); err == nil && known {
 				canonical, err = canonical.WithFinishingSkill(minimum, a.constructionTarget)
 			}
-			if tier, known := a.tier.Value(); err == nil && known {
+			if err == nil {
 				canonical, err = canonical.WithTier(tier, a.constructionTarget)
 			}
 		case OwnedDraftAction:

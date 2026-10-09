@@ -56,7 +56,7 @@ func (r *RoundsPopulationJoinerPlanner) admitMonument(call, epoch context.Contex
 			return RoundsPopulationJoinerResult{Verdict: waitFor(WaitClaim, "monument_haul")}, true, nil
 		}
 	case "build":
-		action, err = domain.NewBuildingAction(aid, choice.Build)
+		action, err = domain.NewBuildingAction(aid, choice.Build, domain.TierExpand)
 		if err != nil {
 			return RoundsPopulationJoinerResult{}, false, err
 		}

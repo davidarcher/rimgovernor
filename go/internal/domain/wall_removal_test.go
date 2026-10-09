@@ -36,7 +36,7 @@ func backupWallBundle(t *testing.T, deps ...ActionDependency) (PlanSpec, []Actio
 	if e != nil {
 		t.Fatal(e)
 	}
-	backupAction, e := NewBuildingAction("backup", backup)
+	backupAction, e := NewBuildingAction("backup", backup, TierExpand)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -52,7 +52,7 @@ func backupWallBundle(t *testing.T, deps ...ActionDependency) (PlanSpec, []Actio
 	if e != nil {
 		t.Fatal(e)
 	}
-	permanentAction, e := NewBuildingAction("permanent", permanent)
+	permanentAction, e := NewBuildingAction("permanent", permanent, TierExpand)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -96,7 +96,7 @@ func TestBackupWallRemovalRequiresPrecedingBackupWall(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	nonWallAction, e := NewBuildingAction("backup", nonWall)
+	nonWallAction, e := NewBuildingAction("backup", nonWall, TierExpand)
 	if e != nil {
 		t.Fatal(e)
 	}

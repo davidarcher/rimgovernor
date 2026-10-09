@@ -5,11 +5,11 @@ import (
 	"testing"
 )
 
-func TestConstructionTierIsOptionalAndReTiersExactTarget(t *testing.T) {
+func TestConstructionTierIsAlwaysSentAndReTiersExactTarget(t *testing.T) {
 	b, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 4}, domain.North, "WoodLog")
-	place, _ := domain.NewBuildingAction("place", b)
-	if wire, err := buildingAction(place); err != nil || wire.GetBuilding().Tier != nil {
-		t.Fatalf("untiered placement carried a tier: %v %v", wire, err)
+	place, _ := domain.NewBuildingAction("place", b, domain.TierExpand)
+	if wire, err := buildingAction(place); err != nil || wire.GetBuilding().Tier == nil || wire.GetBuilding().GetTier() != 4 {
+		t.Fatalf("placement states its tier: %v %v", wire, err)
 	}
 	placed, err := place.WithTier(domain.TierComfort, "")
 	if err != nil {

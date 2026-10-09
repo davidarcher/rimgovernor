@@ -111,7 +111,7 @@ func fixture(data []byte) (domain.PlanSpec, error) {
 	if err != nil {
 		return domain.PlanSpec{}, err
 	}
-	action, err := domain.NewBuildingAction(actionID, building)
+	action, err := domain.NewBuildingAction(actionID, building, domain.TierExpand)
 	if err != nil {
 		return domain.PlanSpec{}, err
 	}

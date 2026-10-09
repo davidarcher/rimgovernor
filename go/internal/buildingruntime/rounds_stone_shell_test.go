@@ -80,7 +80,7 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoundsStoneShellPlan
 		if err != nil {
 			t.Fatal(err)
 		}
-		a, err := domain.NewBuildingAction("owned-wall", wall)
+		a, err := domain.NewBuildingAction("owned-wall", wall, domain.TierExpand)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -10,23 +10,23 @@ func TestConstructionTierJournalRoundTripAndCanonicalForm(t *testing.T) {
 	ctx := context.Background()
 	s, path, _ := goalFixture(t)
 	b, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 4}, domain.North, "WoodLog")
-	placed, _ := domain.NewBuildingAction("placed", b)
+	placed, _ := domain.NewBuildingAction("placed", b, domain.TierExpand)
 	placed, err := placed.WithTier(domain.TierSurvive, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	retier, _ := domain.NewBuildingAction("retier", b)
+	retier, _ := domain.NewBuildingAction("retier", b, domain.TierExpand)
 	retier, err = retier.WithTier(domain.TierSecure, "Frame_12")
 	if err != nil {
 		t.Fatal(err)
 	}
-	both, _ := domain.NewBuildingAction("both", b)
+	both, _ := domain.NewBuildingAction("both", b, domain.TierExpand)
 	both, _ = both.WithFinishingSkill(9, "Frame_13")
 	both, err = both.WithTier(domain.TierProduce, "Frame_13")
 	if err != nil {
 		t.Fatal(err)
 	}
-	plain, _ := domain.NewBuildingAction("plain", b)
+	plain, _ := domain.NewBuildingAction("plain", b, domain.TierExpand)
 	actions := []domain.Action{placed, retier, both, plain}
 	plan, err := domain.NewPlan("tier-plan", 1, actions)
 	if err == nil {

@@ -16,7 +16,7 @@ func completedFacility(t *testing.T, proof bool) (*Store, string, StandardState,
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := domain.NewBuildingAction("placed", b)
+	a, err := domain.NewBuildingAction("placed", b, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

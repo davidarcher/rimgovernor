@@ -100,7 +100,7 @@ func TestDeepDrillFootprintRequiresClearUnroofedObservedCells(t *testing.T) {
 
 func TestPendingDeepDrillDrawEntersPowerBudget(t *testing.T) {
 	b, _ := domain.NewBuilding("DeepDrill", domain.Cell{X: 10, Z: 10}, domain.North, "")
-	a, _ := domain.NewBuildingAction("drill", b)
+	a, _ := domain.NewBuildingAction("drill", b, domain.TierExpand)
 	plan, _ := domain.NewPlan("drill-plan", 1, []domain.Action{a})
 	progress, err := domain.NewProgress(plan, a.ID())
 	if err != nil {

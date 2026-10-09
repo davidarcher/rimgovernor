@@ -207,7 +207,7 @@ func (r *RoundsBuildingPlanner) previewPowerShelter(ctx context.Context, snapsho
 		if err != nil {
 			return nil, stock, Verdict{}, err
 		}
-		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), b)
+		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), b, policy.PlannerTier(r.concern, r.phase))
 		if err != nil {
 			return nil, stock, Verdict{}, err
 		}
@@ -283,7 +283,7 @@ func (r *RoundsBuildingPlanner) previewPowerSite(ctx context.Context, snapshot d
 	if err != nil {
 		return nil, stock, Verdict{}, err
 	}
-	action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), building)
+	action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), building, policy.PlannerTier(r.concern, r.phase))
 	if err != nil {
 		return nil, stock, Verdict{}, err
 	}
@@ -382,7 +382,7 @@ func (r *RoundsBuildingPlanner) previewPlannedPower(ctx context.Context, snapsho
 		if err != nil {
 			return policy.Preview{}, false, err
 		}
-		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, n)), b)
+		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, n)), b, policy.PlannerTier(r.concern, r.phase))
 		if err != nil {
 			return policy.Preview{}, false, err
 		}
@@ -495,7 +495,7 @@ func (r *RoundsBuildingPlanner) previewPowerRoute(ctx context.Context, snapshot 
 		if err != nil {
 			return nil, stock, Verdict{}, err
 		}
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), building)
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), building, policy.PlannerTier(r.concern, r.phase))
 		if err != nil {
 			return nil, stock, Verdict{}, err
 		}

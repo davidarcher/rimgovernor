@@ -68,7 +68,7 @@ func TestTemperatureNativeWorkBudgetCountsFromTheApplyReceipt(t *testing.T) {
 	t.Parallel()
 	for _, definition := range []string{"Campfire", "PassiveCooler", "Wall"} {
 		building, _ := domain.NewBuilding(definition, domain.Cell{X: 1, Z: 1}, domain.North, "")
-		action, _ := domain.NewBuildingAction("thermal", building)
+		action, _ := domain.NewBuildingAction("thermal", building, domain.TierExpand)
 		spec, _ := domain.NewPlan("thermal-plan", 1, []domain.Action{action})
 		progress, _ := domain.NewProgress(spec, action.ID())
 		snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Native: 1, Plan: spec.ID(), Revision: 1}

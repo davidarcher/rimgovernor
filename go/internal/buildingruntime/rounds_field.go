@@ -338,7 +338,7 @@ func (r *RoundsFieldPlanner) enact(call, epoch context.Context, state ControlSta
 			if err != nil {
 				return RoundsFieldResult{}, false, err
 			}
-			action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), building)
+			action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), building, domain.TierSustain)
 			if err != nil {
 				return RoundsFieldResult{}, false, err
 			}

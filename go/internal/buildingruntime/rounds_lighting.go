@@ -96,7 +96,7 @@ func (r *RoundsBuildingPlanner) previewLighting(ctx context.Context, snapshot do
 		if err != nil {
 			return nil, stock, Verdict{}, err
 		}
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), building)
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), building, policy.PlannerTier(r.concern, r.phase))
 		if err != nil {
 			return nil, stock, Verdict{}, err
 		}

@@ -54,22 +54,19 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,zone_payload) VALUES(?,?,?,'zone_create',?)", a.ID(), plan, ordinal, data)
 	} else if b, ok := a.Building(); ok {
-		var payload []byte
-		minimum, hasMinimum := a.FinishingSkill().Value()
 		tier, hasTier := a.Tier().Value()
-		if hasMinimum || hasTier {
-			setting := constructionSkillPayload{Target: a.ConstructionTarget()}
-			if hasMinimum {
-				setting.Minimum = &minimum
-			}
-			if hasTier {
-				value := int(tier)
-				setting.Tier = &value
-			}
-			payload, err = json.Marshal(setting)
-			if err != nil {
-				return err
-			}
+		if !hasTier {
+			return errors.New("untiered building action")
+		}
+		value := int(tier)
+		setting := constructionSkillPayload{Target: a.ConstructionTarget(), Tier: &value}
+		if minimum, hasMinimum := a.FinishingSkill().Value(); hasMinimum {
+			setting.Minimum = &minimum
+		}
+		var payload []byte
+		payload, err = json.Marshal(setting)
+		if err != nil {
+			return err
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z,rotation,stuff,zone_payload) VALUES(?,?,?,'building',?,?,?,?,?,?)", a.ID(), plan, ordinal, b.Definition(), b.Cell().X, b.Cell().Z, b.Rotation(), b.Stuff(), payload)
 	} else if d, ok := a.OwnedDraft(); ok {
@@ -1306,25 +1303,28 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		if e != nil {
 			return domain.Action{}, 0, e
 		}
-		a, e := domain.NewBuildingAction(id, b)
-		if e == nil && zone != nil {
-			var payload constructionSkillPayload
-			if e = json.Unmarshal(zone, &payload); e != nil {
-				return domain.Action{}, 0, e
-			}
-			canonical, _ := json.Marshal(payload)
-			if !bytes.Equal(canonical, zone) {
-				return domain.Action{}, 0, errors.New("noncanonical construction setting")
-			}
-			if payload.Minimum == nil && payload.Tier == nil {
-				return domain.Action{}, 0, errors.New("empty construction setting")
-			}
-			if payload.Minimum != nil {
-				a, e = a.WithFinishingSkill(*payload.Minimum, payload.Target)
-			}
-			if e == nil && payload.Tier != nil {
-				a, e = a.WithTier(domain.ConstructionTier(*payload.Tier), payload.Target)
-			}
+		// Every building action is stored with its tier (#2525); a row
+		// without one predates the required argument and does not load.
+		if zone == nil {
+			return domain.Action{}, 0, errors.New("untiered building action")
+		}
+		var payload constructionSkillPayload
+		if e = json.Unmarshal(zone, &payload); e != nil {
+			return domain.Action{}, 0, e
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, zone) {
+			return domain.Action{}, 0, errors.New("noncanonical construction setting")
+		}
+		if payload.Tier == nil {
+			return domain.Action{}, 0, errors.New("untiered building action")
+		}
+		a, e := domain.NewBuildingAction(id, b, domain.ConstructionTier(*payload.Tier))
+		if e == nil && payload.Minimum != nil {
+			a, e = a.WithFinishingSkill(*payload.Minimum, payload.Target)
+		}
+		if e == nil {
+			a, e = a.WithTier(domain.ConstructionTier(*payload.Tier), payload.Target)
 		}
 		return a, ordinal, e
 	}

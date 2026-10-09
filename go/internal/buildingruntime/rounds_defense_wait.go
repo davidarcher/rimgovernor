@@ -123,7 +123,7 @@ func (r *RoundsDefenseLayoutPlanner) admitFightBuilds(call, epoch context.Contex
 	var previews []policy.Preview
 	stockSeen := policy.StockObservation{Snapshot: snapshot, Tick: tick}
 	for _, b := range buildings {
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), b)
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), b, domain.TierExpand) // Secure from #2527
 		if err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}

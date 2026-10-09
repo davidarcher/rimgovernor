@@ -15,7 +15,7 @@ import (
 
 func TestBuildingPreviewProjection(t *testing.T) {
 	b, _ := domain.NewBuilding("Wall", domain.Cell{}, domain.North, "WoodLog")
-	a, _ := domain.NewBuildingAction("wall", b)
+	a, _ := domain.NewBuildingAction("wall", b, domain.TierExpand)
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Native: domain.NativeGeneration(^uint64(0))}
 	for _, test := range []struct {
 		name                                string
@@ -112,7 +112,7 @@ func TestBuildingPreviewWatchAccessPreservesPresenceWithoutChangingLegality(t *t
 		server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) { return pbResult(reply), nil }}
 		client := testClient(t, server, testBudget)
 		building, _ := domain.NewBuilding("HorseshoesPin", domain.Cell{}, domain.North, "")
-		action, _ := domain.NewBuildingAction("play", building)
+		action, _ := domain.NewBuildingAction("play", building, domain.TierExpand)
 		snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Native: domain.NativeGeneration(^uint64(0))}
 		result, _, err := client.PreviewBuilding(context.Background(), action, snapshot)
 		if err != nil {

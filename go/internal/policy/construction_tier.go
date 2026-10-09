@@ -58,31 +58,39 @@ func RoomTier(role PlannedRole) domain.ConstructionTier {
 	return domain.TierExpand
 }
 
+// AdoptedTier is the tier the finishing-skill adoption of an existing site
+// restates: the tier native already reads on it, so the adoption never moves
+// the build. A site with no tier (placed before tiers, or by hand) is
+// unlisted, so Expand.
+func AdoptedTier(site ConstructionSite) domain.ConstructionTier {
+	if tier, known := site.Tier.Value(); known {
+		return tier
+	}
+	return domain.TierExpand
+}
+
 // PlannerTier is the tier of a loose building a Concern's planner places
-// outside any planned room. Unknown leaves the build untiered (ungated until
-// #2525 covers the path, and defense until #2527 assigns Secure). Power takes
-// the tier of what it serves: the refrigeration planner's builds stay Sustain,
-// and the generic power planner proposes no consumer, so it is Expand.
-func PlannerTier(concern ConcernID, phase Phase) domain.Fact[domain.ConstructionTier] {
-	var tier domain.ConstructionTier
+// outside any planned room. Every concern has a tier: a concern the ladder
+// does not list is Expand by decision, the defense concerns included until
+// #2527 assigns Secure. Power takes the tier of what it serves: the
+// refrigeration planner's builds stay Sustain, and the generic power planner
+// proposes no consumer, so it is Expand.
+func PlannerTier(concern ConcernID, phase Phase) domain.ConstructionTier {
 	switch concern {
 	case MaintainHousing:
-		tier = domain.TierSurvive
 		if phase == HousingSleeping {
-			tier = domain.TierSustain
+			return domain.TierSustain
 		}
+		return domain.TierSurvive
 	case EnsureCooking, EnsureResearch:
-		tier = domain.TierSurvive
+		return domain.TierSurvive
 	case MaintainButcherSpot, MaintainMedicalReserves, MaintainRefrigeration, MaintainStockpiles, MaintainFoodStorage:
-		tier = domain.TierSustain
+		return domain.TierSustain
 	case EnsureComfort, MaintainAnimalContainment:
-		tier = domain.TierComfort
+		return domain.TierComfort
 	case MaintainResource:
-		tier = domain.TierProduce
-	case EnsureBasicPower, EnsureTemperatureSafety, MaintainLighting, MaintainFlooring, MaintainRoutes, MaintainBurial, MaintainIncineration, MaintainPopulation:
-		tier = domain.TierExpand
+		return domain.TierProduce
 	default:
-		return domain.Unknown[domain.ConstructionTier]()
+		return domain.TierExpand
 	}
-	return domain.Known(tier)
 }

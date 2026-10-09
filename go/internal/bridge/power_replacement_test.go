@@ -23,7 +23,7 @@ func TestHiddenConduitReplacementOnlyAllowsFinishedOrdinaryConduit(t *testing.T)
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			b, _ := domain.NewBuilding("HiddenConduit", domain.Cell{}, domain.North, "")
-			a, _ := domain.NewBuildingAction("conduit", b)
+			a, _ := domain.NewBuildingAction("conduit", b, domain.TierExpand)
 			snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Native: domain.NativeGeneration(^uint64(0))}
 			reply := pbBatch()
 			blocker := &p.PlacementBlocker{Category: proto.String("Building"), IsBlueprint: proto.Bool(tc.blueprint), IsFrame: proto.Bool(tc.frame), WouldBeWiped: proto.Bool(true), FrameWouldBeCancelled: proto.Bool(false)}

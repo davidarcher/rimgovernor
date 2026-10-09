@@ -226,7 +226,7 @@ func (r *RoundsStoneShellPlanner) propose(call, epoch context.Context, goal stor
 			return RoundsStoneShellResult{}, false, err
 		}
 		actionID := domain.ActionID(fmt.Sprintf("%s-backup-%d", id, i))
-		action, err := domain.NewBuildingAction(actionID, building)
+		action, err := domain.NewBuildingAction(actionID, building, domain.TierSurvive)
 		if err != nil {
 			return RoundsStoneShellResult{}, false, err
 		}
@@ -260,7 +260,7 @@ func (r *RoundsStoneShellPlanner) propose(call, epoch context.Context, goal stor
 		return RoundsStoneShellResult{}, false, err
 	}
 	permanentID := domain.ActionID(fmt.Sprintf("%s-replace", id))
-	permanent, err := domain.NewBuildingAction(permanentID, permanentBuilding)
+	permanent, err := domain.NewBuildingAction(permanentID, permanentBuilding, domain.TierSurvive)
 	if err != nil {
 		return RoundsStoneShellResult{}, false, err
 	}

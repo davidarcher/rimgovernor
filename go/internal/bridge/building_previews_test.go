@@ -23,7 +23,7 @@ func TestBuildingPreviewsBatchesOneHopPerLimit(t *testing.T) {
 	actions := make([]domain.Action, 0, cells)
 	for i := 0; i < cells; i++ {
 		b, _ := domain.NewBuilding("Wall", domain.Cell{X: int32(i), Z: 1}, domain.North, "WoodLog")
-		a, _ := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("wall-%d", i)), b)
+		a, _ := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("wall-%d", i)), b, domain.TierExpand)
 		actions = append(actions, a)
 	}
 	for _, failRow := range []int{-1, 3} {
@@ -79,7 +79,7 @@ func TestBuildingPreviewsBatchesOneHopPerLimit(t *testing.T) {
 func TestBuildingPreviewOverRockSetsIgnoreNaturalRock(t *testing.T) {
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Native: domain.NativeGeneration(^uint64(0))}
 	b, _ := domain.NewBuilding("Cooler", domain.Cell{X: 3, Z: 1}, domain.North, "")
-	action, _ := domain.NewBuildingAction("cooler", b)
+	action, _ := domain.NewBuildingAction("cooler", b, domain.TierExpand)
 	var seen []*p.PlacementCandidate
 	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		var outer struct {

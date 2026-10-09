@@ -280,7 +280,7 @@ func TestRoundsSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := domain.NewBuildingAction("player-room-a", b)
+	a, err := domain.NewBuildingAction("player-room-a", b, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -265,7 +265,7 @@ func TestRefrigerationPowerNeededAfterCompletedMethodLendsCoolingAllowance(t *te
 func TestRefrigerationNativeWorkTicksSurviveGenerationMoves(t *testing.T) {
 	t.Parallel()
 	building, _ := domain.NewBuilding("Cooler", domain.Cell{X: 1, Z: 3}, domain.North, "")
-	action, _ := domain.NewBuildingAction("cooler", building)
+	action, _ := domain.NewBuildingAction("cooler", building, domain.TierExpand)
 	spec, _ := domain.NewPlan("cooler-plan", 1, []domain.Action{action})
 	progress, _ := domain.NewProgress(spec, action.ID())
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Native: 10, Plan: spec.ID(), Revision: 1}

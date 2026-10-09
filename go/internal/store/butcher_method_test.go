@@ -14,7 +14,7 @@ func butcherSpotPlan(t *testing.T, id domain.PlanID) domain.PlanSpec {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := domain.NewBuildingAction(domain.ActionID(string(id)+"-0"), b)
+	a, err := domain.NewBuildingAction(domain.ActionID(string(id)+"-0"), b, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestCommitButcherSpotExemptFromFieldAndAcquisitionOpenWork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := domain.NewBuildingAction("campfire-plan-0", other)
+	a, err := domain.NewBuildingAction("campfire-plan-0", other, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

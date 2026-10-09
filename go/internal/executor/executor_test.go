@@ -103,7 +103,7 @@ func newFixtureAt(t *testing.T, path string, with ...domain.Action) *fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	action, err := domain.NewBuildingAction("action-1", building)
+	action, err := domain.NewBuildingAction("action-1", building, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

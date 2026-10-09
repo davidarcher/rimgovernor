@@ -1305,7 +1305,7 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 	// outlasted the optional wave's wall on a slow runner every step.
 	candidates := make([]domain.Action, 0, len(buildings))
 	for i, building := range buildings {
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), building)
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), building, domain.TierExpand) // Secure from #2527
 		if err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}

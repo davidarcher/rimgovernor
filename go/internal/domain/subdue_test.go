@@ -55,7 +55,7 @@ func TestSubduePlanRequiresExactPrecedingOwnedDraft(t *testing.T) {
 	wrongPawn, _ := NewOwnedDraftAction("draft", otherDraft)
 	otherID, _ := NewOwnedDraftAction("unrelated-draft", draft)
 	building, _ := NewBuilding("Wall", Cell{}, North, "")
-	wrongKind, _ := NewBuildingAction("draft", building)
+	wrongKind, _ := NewBuildingAction("draft", building, TierExpand)
 	intent, _ := NewSubdue("pawn", "hostile", "draft")
 	attack, _ := NewSubdueAction("attack", intent)
 	for _, actions := range [][]Action{{attack}, {attack, draftAction}, {wrongPawn, attack}, {otherID, attack}, {wrongKind, attack}, {draftAction, attack, attack}} {

@@ -73,7 +73,7 @@ func planForRequestLocal(t *testing.T) domain.PlanSpec {
 	if err != nil {
 		t.Fatal(err)
 	}
-	action, err := domain.NewBuildingAction("local", building)
+	action, err := domain.NewBuildingAction("local", building, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

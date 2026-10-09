@@ -50,7 +50,7 @@ func NewFixture(t *testing.T) (*Boundary, *Fixture) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	action, err := domain.NewBuildingAction("action", building)
+	action, err := domain.NewBuildingAction("action", building, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -106,7 +106,7 @@ func TestIsStockpileEditPlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ba, err := domain.NewBuildingAction("b", b)
+	ba, err := domain.NewBuildingAction("b", b, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -17,7 +17,7 @@ func readyBuilding(t *testing.T, id domain.ActionID, def string, x int32) domain
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := domain.NewBuildingAction(id, b)
+	a, err := domain.NewBuildingAction(id, b, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

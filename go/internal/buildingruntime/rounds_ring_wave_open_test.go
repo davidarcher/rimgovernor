@@ -35,7 +35,7 @@ func TestOpenRingWaveDoesNotHoldTheFurnitureSlot(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := domain.MintPlanID()
-	action, err := domain.NewBuildingAction(domain.ActionID(string(id)+"-0"), wall)
+	action, err := domain.NewBuildingAction(domain.ActionID(string(id)+"-0"), wall, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestOpenRingWaveDoesNotHoldTheFurnitureSlot(t *testing.T) {
 			t.Fatal(err)
 		}
 		pid := domain.MintPlanID()
-		a, err := domain.NewBuildingAction(domain.ActionID(string(pid)+"-0"), b)
+		a, err := domain.NewBuildingAction(domain.ActionID(string(pid)+"-0"), b, domain.TierExpand)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -119,7 +119,7 @@ func TestRingWaveIsAdmittedBesideOpenFurnitureSlot(t *testing.T) {
 			t.Fatal(err)
 		}
 		id := domain.MintPlanID()
-		a, err := domain.NewBuildingAction(domain.ActionID(string(id)+"-0"), b)
+		a, err := domain.NewBuildingAction(domain.ActionID(string(id)+"-0"), b, domain.TierExpand)
 		if err != nil {
 			t.Fatal(err)
 		}

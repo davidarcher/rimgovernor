@@ -14,7 +14,7 @@ func dependencyPlan(t *testing.T, deps ...ActionDependency) PlanSpec {
 		if e != nil {
 			t.Fatal(e)
 		}
-		a, e := NewBuildingAction(id, b)
+		a, e := NewBuildingAction(id, b, TierExpand)
 		if e != nil {
 			t.Fatal(e)
 		}

@@ -16,7 +16,7 @@ func TestRoundsProjectWorkTracksSharedLifecycleAndWorld(t *testing.T) {
 	current := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "selected", Revision: 1, Native: 1}
 	makePlan := func(id domain.PlanID, name string, admitted bool) store.PlanState {
 		b, _ := domain.NewBuilding(name, domain.Cell{X: 1, Z: 1}, domain.North, "")
-		a, _ := domain.NewBuildingAction(domain.ActionID(id), b)
+		a, _ := domain.NewBuildingAction(domain.ActionID(id), b, domain.TierExpand)
 		spec, err := domain.NewPlan(id, 1, []domain.Action{a})
 		if err != nil {
 			t.Fatal(err)

@@ -18,7 +18,7 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		a, err := domain.NewBuildingAction(id, b)
+		a, err := domain.NewBuildingAction(id, b, domain.TierExpand)
 		if err != nil {
 			t.Fatal(err)
 		}

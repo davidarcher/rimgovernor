@@ -155,7 +155,7 @@ func TestPlanReadsRealFreshStore(t *testing.T) {
 	}
 	defer database.Close()
 	building, _ := domain.NewBuilding("Wall", domain.Cell{X: 2, Z: 3}, domain.North, "Granite")
-	action, _ := domain.NewBuildingAction("a1", building)
+	action, _ := domain.NewBuildingAction("a1", building, domain.TierExpand)
 	spec, _ := domain.NewPlan("plan", domain.PlanRevision(1<<60), []domain.Action{action})
 	if err := database.CreatePlan(context.Background(), spec); err != nil {
 		t.Fatal(err)
@@ -194,7 +194,7 @@ func TestPlanReadsRealFreshStore(t *testing.T) {
 	if !strings.Contains(string(body), `"revision":"1152921504606846976"`) || !strings.Contains(string(body), `"attempt":"1"`) {
 		t.Fatalf("numeric identity changed: %s", body)
 	}
-	held, _ := domain.NewBuildingAction("held", building)
+	held, _ := domain.NewBuildingAction("held", building, domain.TierExpand)
 	spec2, _ := domain.NewPlan("plan-held", domain.PlanRevision(1), []domain.Action{held})
 	if err := database.CreatePlan(ctx, spec2); err != nil {
 		t.Fatal(err)

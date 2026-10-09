@@ -241,7 +241,7 @@ func validAction(a domain.Action, p domain.Progress) error {
 	if !ok {
 		return errors.New("unsupported action family")
 	}
-	if _, err := domain.NewBuildingAction(a.ID(), b); err != nil {
+	if _, err := domain.NewBuilding(b.Definition(), b.Cell(), b.Rotation(), b.Stuff()); err != nil {
 		return err
 	}
 	if p.View().Action != a.ID() || p.View().Stage == "" {

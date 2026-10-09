@@ -306,7 +306,7 @@ func buildingOnlyPlan(t *testing.T, id, definition string) domain.PlanSpec {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := domain.NewBuildingAction(domain.ActionID(id+"-0"), b)
+	a, err := domain.NewBuildingAction(domain.ActionID(id+"-0"), b, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

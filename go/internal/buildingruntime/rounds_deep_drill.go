@@ -262,7 +262,7 @@ func (r *RoundsResourcePlanner) deepDrillPlacement(call context.Context, native 
 	if err != nil {
 		return deepDrillPlacement{}, false, err
 	}
-	action, err := domain.NewBuildingAction(domain.ActionID(string(planID)+"-0"), building)
+	action, err := domain.NewBuildingAction(domain.ActionID(string(planID)+"-0"), building, policy.PlannerTier(policy.MaintainResource, ""))
 	if err != nil {
 		return deepDrillPlacement{}, false, err
 	}

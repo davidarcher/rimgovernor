@@ -13,7 +13,7 @@ func TestConstructionSkillJournalRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := domain.NewBuildingAction("quality", b)
+	a, err := domain.NewBuildingAction("quality", b, domain.TierExpand)
 	if err == nil {
 		a, err = a.WithFinishingSkill(9, "Blueprint_12")
 	}

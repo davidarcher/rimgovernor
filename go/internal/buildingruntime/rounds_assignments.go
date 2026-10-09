@@ -383,7 +383,7 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		actions = append(actions, action)
 	}
 	for _, choice := range construction {
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), choice.Site.Building)
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), choice.Site.Building, policy.AdoptedTier(choice.Site))
 		if err != nil {
 			return RoundsWorkResult{}, err
 		}

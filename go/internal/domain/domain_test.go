@@ -12,7 +12,7 @@ func fixture(t *testing.T) (Progress, GenerationSnapshot) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := NewBuildingAction("a1", b)
+	a, err := NewBuildingAction("a1", b, TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestSharedIdentifierBounds(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		action, err := NewBuildingAction(ActionID(text), building)
+		action, err := NewBuildingAction(ActionID(text), building, TierExpand)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -70,7 +70,7 @@ func TestSharedIdentifierBounds(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, text := range []string{"a\x00b", strings.Repeat("a", 257), strings.Repeat("\U0001F600", 65), "\xff"} {
-		if _, err := NewBuildingAction(ActionID(text), building); err == nil {
+		if _, err := NewBuildingAction(ActionID(text), building, TierExpand); err == nil {
 			t.Fatalf("accepted invalid action ID %q", text)
 		}
 		if _, err := NewPlan(PlanID(text), 0, nil); err == nil {
@@ -118,17 +118,17 @@ func TestBuildingAndPlanValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := NewBuildingAction("stable", b)
+	a, err := NewBuildingAction("stable", b, TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err = NewPlan("p", 0, []Action{a, a}); err == nil {
 		t.Fatal("duplicate IDs accepted")
 	}
-	if _, err = NewBuildingAction("", b); err == nil {
+	if _, err = NewBuildingAction("", b, TierExpand); err == nil {
 		t.Fatal("empty ID accepted")
 	}
-	if _, err = NewBuildingAction("a", Building{}); err == nil {
+	if _, err = NewBuildingAction("a", Building{}, TierExpand); err == nil {
 		t.Fatal("zero building accepted")
 	}
 	if _, err = NewPlan("p", 0, []Action{{}}); err == nil {

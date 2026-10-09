@@ -383,7 +383,7 @@ func TestRoundsExecutionAuthorizesWallRemovalBundle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	replace, err := domain.NewBuildingAction("replace", building)
+	replace, err := domain.NewBuildingAction("replace", building, domain.TierExpand)
 	if err != nil {
 		t.Fatal(err)
 	}

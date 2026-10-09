@@ -70,7 +70,7 @@ func (caller *Client) previewBuildings(ctx context.Context, actions []domain.Act
 		if !ok {
 			return nil, Result{}, contract("building action required")
 		}
-		if _, err := domain.NewBuildingAction(action.ID(), b); err != nil {
+		if _, err := domain.NewBuilding(b.Definition(), b.Cell(), b.Rotation(), b.Stuff()); err != nil {
 			return nil, Result{}, err
 		}
 		candidates = append(candidates, &p.PlacementCandidate{DefName: proto.String(b.Definition()), Stuff: proto.String(b.Stuff()), X: proto.Int32(b.Cell().X), Z: proto.Int32(b.Cell().Z), Rotation: rotations[b.Rotation()].Enum()})

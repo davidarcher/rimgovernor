@@ -59,7 +59,7 @@ func (r *RoundsBuildingPlanner) previewPaste(ctx context.Context, snapshot domai
 		if err != nil {
 			return nil, stock, Verdict{}, err
 		}
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), building)
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), building, policy.PlannerTier(r.concern, r.phase))
 		if err != nil {
 			return nil, stock, Verdict{}, err
 		}

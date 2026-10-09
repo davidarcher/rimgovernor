@@ -707,7 +707,7 @@ func TestWorkerRotationAlternatesPlans(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("0-long-%d", i)), b)
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("0-long-%d", i)), b, domain.TierExpand)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -816,7 +816,7 @@ func workerWallPlan(t *testing.T, db *store.Store, id domain.PlanID, n int, snap
 		if err != nil {
 			t.Fatal(err)
 		}
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%02d", id, i)), b)
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%02d", id, i)), b, domain.TierExpand)
 		if err != nil {
 			t.Fatal(err)
 		}

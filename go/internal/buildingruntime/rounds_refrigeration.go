@@ -192,7 +192,7 @@ func (r *RoundsBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot 
 // terrain Go missed, an error rather than a refusal to retry.
 func (r *RoundsBuildingPlanner) previewPlannedBuilding(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, building domain.Building, index int, overRock, goOpen bool) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
-	action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, index)), building)
+	action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, index)), building, policy.PlannerTier(r.concern, r.phase))
 	if err != nil {
 		return nil, stock, Verdict{}, err
 	}

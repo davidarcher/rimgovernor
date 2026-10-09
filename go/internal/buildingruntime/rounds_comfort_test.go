@@ -66,7 +66,7 @@ func TestRoundsBuildingNativeUseBudgetCountsFromTheApplyReceipt(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			action, err := domain.NewBuildingAction("a", building)
+			action, err := domain.NewBuildingAction("a", building, domain.TierExpand)
 			if err != nil {
 				t.Fatal(err)
 			}
