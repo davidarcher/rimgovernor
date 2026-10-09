@@ -235,13 +235,15 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			return nil, err
 		}
 		config.Rounds = reviewer
+		if bills || gear || armory {
+			if config.Ledger, err = buildingruntime.NewRoundsLedgerPlanner(reviewer); err != nil {
+				return nil, err
+			}
+		}
 		if bills {
 			nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
 			if !ok {
 				return nil, errors.New("bill plans require typed preview")
-			}
-			if config.Ledger, err = buildingruntime.NewRoundsLedgerPlanner(reviewer); err != nil {
-				return nil, err
 			}
 			config.CookingBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.CookFood)
 			if err != nil {
@@ -428,6 +430,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if err != nil {
 				return nil, err
 			}
+			reviewer.AddOrderDeclarer(config.Armory)
 		}
 		if blight {
 			blightNative, ok := reads.(buildingruntime.RoundsBlightSource)
@@ -474,6 +477,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if err != nil {
 				return nil, err
 			}
+			reviewer.AddOrderDeclarer(config.Gear)
 		}
 		if medical {
 			medicalNative, ok := reads.(buildingruntime.RoundsMedicalSource)
@@ -863,7 +867,10 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainResource, policy.ClearPests)
 	}
 	if sc.roundsBillPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainButcherSpot, policy.MaintainBabyFeeding, policy.MaintainWorkLedger)
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainButcherSpot, policy.MaintainBabyFeeding)
+	}
+	if sc.roundsBillPlans || sc.roundsGearPlans || sc.roundsArmoryPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainWorkLedger)
 	}
 	if sc.roundsBillPlans || sc.roundsFoodStorageUpkeepPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainFoodStorage)

@@ -19,13 +19,17 @@ import (
 // standing each Round and commits no bill method of its own: the ledger Concern
 // (policy.MaintainWorkLedger) places, keeps and removes the bills.
 //
-// DeclareOrders is called once per review, on the review's projection. It
-// returns the planner's whole wanted set (an order it omits is an orphan after
-// policy.OrphanGraceRounds Rounds) and sets Declared.Abstain when it lacked
-// the facts to say, which stops orphan removal for that Round. It must be pure
-// over the projection: no native read, no write.
+// DeclareOrders is called once per review, on the review's projection and the
+// bench readback the ledger reconciles against. It returns the planner's whole
+// wanted set (an order it omits is an orphan after policy.OrphanGraceRounds
+// Rounds) and sets Declared.Abstain when it lacked the facts to say, which
+// stops orphan removal for that Round. It writes nothing; a facts-only native
+// read for what the projection lacks is allowed, and a read that fails is an
+// abstain, not an error.
+//
+// A planner joins policy.LedgerMigratedOwner in the change that registers it.
 type OrderDeclarer interface {
-	DeclareOrders(ctx context.Context, projection observation.ColonyProjection) (policy.Declared, error)
+	DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error)
 }
 
 // workLedger is the Rounder's ledger memory: the declarers, the orphan counters
@@ -37,6 +41,9 @@ type workLedger struct {
 	world     domain.GenerationSnapshot
 	orphans   map[string]int
 	pending   *ledgerPending
+	// batches are the declared finite batches of the latest review that no
+	// declarer abstained from: ingredient demand (Rounder.openBills).
+	batches []policy.OrderSpec
 	// dispatch is the bench dispatcher's calibration memory and unmet its
 	// latest unmet throughput per bench kind (RoundsFacts.UnmetThroughput).
 	dispatch policy.DispatchMemory
@@ -83,10 +90,13 @@ func (r *Rounder) AddOrderDeclarer(d OrderDeclarer) {
 // declarations, reads every bench's bills through the bench census, reconciles
 // them and keeps the plan for the ledger planner. The finding is the diff:
 // owed while it places or removes anything, unknown when the readback is.
-func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSnapshot, expected observation.Identity, projection observation.ColonyProjection) (domain.Fact[bool], error) {
+func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSnapshot, expected observation.Identity, review store.Rounds, projection observation.ColonyProjection) (domain.Fact[bool], error) {
 	l := &r.ledger
 	l.mu.Lock()
 	declarers := append([]OrderDeclarer(nil), l.declarers...)
+	if len(declarers) == 0 {
+		l.batches = nil
+	}
 	l.pending = nil
 	if l.world != snapshot && (l.world.Colony != snapshot.Colony || l.world.Load != snapshot.Load || l.world.Map != snapshot.Map) {
 		l.orphans = nil
@@ -99,14 +109,6 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 	if len(declarers) == 0 || !ok {
 		return domain.Unknown[bool](), nil
 	}
-	declared := make([]policy.Declared, 0, len(declarers))
-	for _, d := range declarers {
-		one, err := d.DeclareOrders(ctx, projection)
-		if err != nil {
-			return domain.Unknown[bool](), err
-		}
-		declared = append(declared, one)
-	}
 	reads, _, err := r.benchSource(native, expected, false).ReadGearBenches(ctx, boundary.Identity(snapshot))
 	if err != nil {
 		if ctx.Err() != nil {
@@ -118,12 +120,26 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 	for _, read := range reads {
 		benches = append(benches, read.Bench)
 	}
+	declared := make([]policy.Declared, 0, len(declarers))
+	for _, d := range declarers {
+		one, err := d.DeclareOrders(ctx, snapshot, projection, benches)
+		if err != nil {
+			return domain.Unknown[bool](), err
+		}
+		declared = append(declared, one)
+	}
 	actual, known := policy.LedgerActuals(benches)
-	if !known {
-		return domain.Unknown[bool](), nil
+	if known {
+		if err = r.markMigrated(ctx, snapshot, review, actual); err != nil {
+			return domain.Unknown[bool](), err
+		}
 	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.noteBatches(declared)
+	if !known {
+		return domain.Unknown[bool](), nil
+	}
 	var pawns []policy.WorkPawn
 	if rows, ok := projection.WorkPawns.Value(); ok {
 		pawns = rows
@@ -311,7 +327,7 @@ func ledgerMethod(owner store.WorkOwner, key string) domain.MethodID {
 	}
 	for attempt := 0; ; attempt++ {
 		digest := sha256.Sum256([]byte(fmt.Sprintf("ledger/%s/%d", key, attempt)))
-		if method := domain.MethodID(fmt.Sprintf("ledger-%x", digest[:16])); !tried[method] {
+		if method := domain.MethodID(fmt.Sprintf("%s%x", ledgerMethodPrefix, digest[:16])); !tried[method] {
 			return method
 		}
 	}

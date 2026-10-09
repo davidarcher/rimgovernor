@@ -224,22 +224,15 @@ func TestGearProductionPersistsOnlyFundedMaterials(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		result, err := planner.Step(context.Background())
-		if err != nil {
-			t.Fatal(err)
+		declared := declaredOrders(t, reviewer, planner)
+		if declared.Abstain || len(declared.Orders) == 0 {
+			t.Fatal("no batch declared", declared)
 		}
-		if result.Verdict != BuildingReasonAdmitted {
-			t.Fatal(result)
+		bill := declared.Orders[0]
+		if !reflect.DeepEqual(bill.Ingredients, []string{"Cloth"}) {
+			t.Fatal("wrong funded material declared", bill)
 		}
-		plan, err := db.LoadPlan(context.Background(), result.Plan)
-		if err != nil {
-			t.Fatal(err)
-		}
-		bill, ok := plan.Spec.Actions()[0].ProductionBill()
-		if !ok || !reflect.DeepEqual(bill.Ingredients(), []string{"Cloth"}) {
-			t.Fatal("wrong funded material persisted", bill, ok)
-		}
-		if bill.Mode() != domain.GearBatch || bill.Target() != 2 {
+		if bill.Mode != domain.GearBatch || bill.Target != 2 {
 			t.Fatal("colony gap not batched", bill)
 		}
 	}
@@ -381,7 +374,6 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	reviewed := n.benchReads // the review reads the benches for its own deficit work
 	planner, err := NewRoundsGearPlanner(reviewer, n)
 	if err != nil {
 		t.Fatal(err)
@@ -389,8 +381,5 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 	result, err := planner.Step(ctx)
 	if err != nil || result.Verdict == BuildingReasonAdmitted {
 		t.Fatal("weapon candidate admitted as a wear order", result, err)
-	}
-	if n.benchReads-reviewed != 1 {
-		t.Fatal("bench census not consulted once the weapon was skipped", n.benchReads-reviewed)
 	}
 }

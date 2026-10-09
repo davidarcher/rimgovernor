@@ -27,7 +27,7 @@ func (n *bowBenchNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge
 // the bill is MaintainEquipment's.
 func TestArmoryCraftsHunterBow(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	reviewer, db, _, _, native := roundsFixture(t)
+	reviewer, _, _, _, native := roundsFixture(t)
 	reviewer.policy.Stage.Floor = policy.StageDevelopment
 	setGearProductionNeed(native.reply.GetObserved())
 	n := &bowBenchNative{&clubBenchNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{roundsNative: native, ids: []string{"a", "b"}, weapons: []bridge.EquipCandidate{}, editPawn: func(row *o.PawnState) {
@@ -36,23 +36,12 @@ func TestArmoryCraftsHunterBow(t *testing.T) {
 	settleGearPolicies(t, native)
 	reviewer.native = n
 	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainEquipment})
-	ctx := context.Background()
-	if _, err := reviewer.Step(ctx); err != nil {
-		t.Fatal(err)
-	}
 	armory, err := NewRoundsArmoryPlanner(reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := armory.Step(ctx)
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal("armory held the hunters' bow", result, err)
-	}
-	plan, err := db.LoadPlan(ctx, result.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bill, ok := plan.Spec.Actions()[0].ProductionBill(); !ok || bill.Recipe() != "Make_Bow_Short" || bill.Target() != 2 {
-		t.Fatal("armory bill is not two bows", plan.Spec.Actions()[0])
+	declared := declaredOrders(t, reviewer, armory)
+	if order, ok := orderFor(declared, "Make_Bow_Short"); !ok || order.Target != 2 || order.Mode != domain.GearBatch {
+		t.Fatal("armory declared no batch of two bows", declared)
 	}
 }

@@ -46,7 +46,7 @@ func (n *clubBenchNative) ReadSupplyStock(context.Context, *c.Identity, []string
 func TestArmoryPlannerCraftsWeaponsPastFilteredCensus(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
-	reviewer, db, _, _, native := roundsFixture(t)
+	reviewer, _, _, _, native := roundsFixture(t)
 	reviewer.policy.Stage.Floor = policy.StageDevelopment
 	setGearProductionNeed(native.reply.GetObserved())
 	n := &clubBenchNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{roundsNative: native, ids: []string{"a", "b"}, weapons: []bridge.EquipCandidate{}, filtered: 4}}}
@@ -54,30 +54,25 @@ func TestArmoryPlannerCraftsWeaponsPastFilteredCensus(t *testing.T) {
 	reviewer.native = n
 	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainEquipment})
 	ctx := context.Background()
-	if _, err := reviewer.Step(ctx); err != nil {
-		t.Fatal(err)
-	}
 	gear, err := NewRoundsGearPlanner(reviewer, n)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if result, err := gear.Step(ctx); err != nil || result.Verdict == BuildingReasonAdmitted {
-		t.Fatal("gear planned weapon work", result, err)
 	}
 	armory, err := NewRoundsArmoryPlanner(reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := armory.Step(ctx)
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal("armory held the weapon bill", result, err)
+	gearSpy := &spyDeclarer{inner: gear}
+	reviewer.AddOrderDeclarer(gearSpy)
+	armoryDeclared := declaredOrders(t, reviewer, armory)
+	if _, planned := orderFor(gearSpy.got, "Make_MeleeWeapon_Club"); planned {
+		t.Fatal("gear declared weapon work", gearSpy.got)
 	}
-	plan, err := db.LoadPlan(ctx, result.Plan)
-	if err != nil {
-		t.Fatal(err)
+	order, ok := orderFor(armoryDeclared, "Make_MeleeWeapon_Club")
+	if !ok || order.Target != 2 || order.Mode != domain.GearBatch {
+		t.Fatal("armory declared no colony club batch", armoryDeclared)
 	}
-	bill, ok := plan.Spec.Actions()[0].ProductionBill()
-	if !ok || bill.Recipe() != "Make_MeleeWeapon_Club" || bill.Target() != 2 || bill.Mode() != domain.GearBatch {
-		t.Fatal("armory bill is not the colony club batch", plan.Spec.Actions()[0])
+	if result, err := gear.Step(ctx); err != nil || result.Verdict == BuildingReasonAdmitted {
+		t.Fatal("gear committed weapon work", result, err)
 	}
 }

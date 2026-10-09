@@ -176,10 +176,6 @@ func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepAr
 			}
 		}
 	}
-	// A bill whose need is gone (the owner stayed Met) is removed first.
-	if plan, err := r.reviewer.removeStaleBill(call, epoch, arbiter, state, goal, policy.MaintainEquipment); err != nil || plan != "" {
-		return RoundsGearResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
-	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, true)
@@ -224,20 +220,6 @@ func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepAr
 		}
 		pawn.Candidates = domain.Known(available)
 	}
-	// An apparel or armor bill outside every loadout's replacements goes
-	// whatever the owner's finding; the armory judges weapons.
-	wanted, known, err := policy.GearBillsWanted(domain.Known(observation))
-	if err != nil {
-		return RoundsGearResult{}, err
-	}
-	if known {
-		judge := func(b policy.StaleBill) (bool, bool) {
-			return !policy.WeaponBill(b.Products), policy.BillWanted(b.Products, wanted)
-		}
-		if plan, err := r.reviewer.removeUnwantedBill(call, epoch, arbiter, state, review, goal, policy.MaintainEquipment, judge); err != nil || plan != "" {
-			return RoundsGearResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
-		}
-	}
 	// Configure vanilla dressing before choosing individual replacements.
 	var policies RoundsGearResult
 	for _, pawn := range observation.Pawns {
@@ -281,35 +263,9 @@ func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepAr
 	for _, method := range goal.Methods {
 		seen = append(seen, method.Method)
 	}
-	// SelectGearMethod always prefers wearing an already-observed replacement
-	// candidate over crafting a new one and never reaches bench/recipe
-	// selection while any candidate is pending, so the bench census (extra
-	// native round trips) is only worth gathering once none exist.
-	hasCandidates := false
-	for _, pawn := range observation.Pawns {
-		if candidates, known := pawn.Candidates.Value(); known && len(candidates) > 0 {
-			hasCandidates = true
-		}
-	}
-	benchesFact := domain.Unknown[[]policy.GearBench]()
-	tokens := map[string]string{}
-	if !hasCandidates {
-		census, _, err := r.native.ReadGearBenches(call, identity)
-		if err != nil {
-			return RoundsGearResult{}, err
-		}
-		benches := make([]policy.GearBench, 0, len(census))
-		for _, row := range census {
-			benches = append(benches, row.Bench)
-			tokens[row.Bench.ID] = row.Token
-		}
-		benchesFact = domain.Known(benches)
-	}
-	items, err := r.reviewer.itemFacts(call, state.Snapshot)
-	if err != nil {
-		return RoundsGearResult{}, err
-	}
-	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, StuffCategories: items.StuffCategories}
+	// Crafting is the ledger's (DeclareOrders), so the request carries no
+	// bench census: the selection here is to wear an observed replacement.
+	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: domain.Unknown[[]policy.GearBench]()}
 	snap.NoteGearMethod(call, request)
 	choice, err := policy.SelectGearMethod(request)
 	if err != nil {
@@ -331,23 +287,6 @@ func (r *RoundsGearPlanner) stepOne(call, epoch context.Context, arbiter *stepAr
 			return RoundsGearResult{}, err
 		}
 		if action, err = domain.NewGearReplaceAction(domain.ActionID(fmt.Sprintf("%s-0", id)), replace); err != nil {
-			return RoundsGearResult{}, err
-		}
-	case policy.GearProduce:
-		_, ok := tokens[choice.Bench]
-		if !ok {
-			return RoundsGearResult{}, fmt.Errorf("%w: stepOne: !ok", ErrControl)
-		}
-		// A finite batch covers the colony gap, using only funded ingredients.
-		ingredients := make([]string, len(choice.Filter))
-		for i, resource := range choice.Filter {
-			ingredients[i] = string(resource)
-		}
-		bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, domain.GearBatch, choice.Count, ingredients...)
-		if err != nil {
-			return RoundsGearResult{}, err
-		}
-		if action, err = domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill); err != nil {
 			return RoundsGearResult{}, err
 		}
 	default:

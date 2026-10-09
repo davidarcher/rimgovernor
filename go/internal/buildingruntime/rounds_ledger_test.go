@@ -33,7 +33,7 @@ func (n *ledgerNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge.G
 // fakeDeclarer is the test double standing in for a migrated bill planner.
 type fakeDeclarer struct{ declared policy.Declared }
 
-func (f *fakeDeclarer) DeclareOrders(context.Context, observation.ColonyProjection) (policy.Declared, error) {
+func (f *fakeDeclarer) DeclareOrders(context.Context, domain.GenerationSnapshot, observation.ColonyProjection, []policy.GearBench) (policy.Declared, error) {
 	return f.declared, nil
 }
 
@@ -132,6 +132,31 @@ func (f *ledgerFixture) settle(plan domain.PlanID) []domain.Action {
 		}
 	}
 	return actions
+}
+
+// place completes the plan's first action the way an accepted receipt would,
+// journaling the native bill id it placed: the record that makes the bill a
+// migrated owner's (store.PlacedBills).
+func (f *ledgerFixture) place(plan domain.PlanID, bill string) {
+	f.t.Helper()
+	ctx := context.Background()
+	loaded, err := f.db.LoadPlan(ctx, plan)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	scope := f.session.State().Snapshot
+	scope.Plan, scope.Revision = plan, 1
+	action := loaded.Progress[0].Action().ID()
+	if _, err = f.db.Prepare(ctx, plan, action, scope, 1); err != nil {
+		f.t.Fatal(err)
+	}
+	progress, err := f.db.Dispatch(ctx, plan, action, scope, 1)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	if _, err = f.db.RecordBillReceipt(ctx, plan, action, progress.View().Attempt, bill); err != nil {
+		f.t.Fatal(err)
+	}
 }
 
 func (f *ledgerFixture) declare(orders ...policy.OrderSpec) {
@@ -235,6 +260,9 @@ func TestLedgerReplacesALostBill(t *testing.T) {
 func TestLedgerRemovesOrphansAfterGraceAndRebuildsOnRestart(t *testing.T) {
 	f := newLedgerFixture(t)
 	hat := ledgerOrder("Make_Hat")
+	f.declare(hat)
+	f.native.benches = []policy.GearBench{ledgerBenchRow()}
+	f.place(f.round().Plan, "Bill_Hat")
 	f.declare(ledgerOrder("Make_Vest"))
 	f.native.benches = []policy.GearBench{ledgerBenchRow(fakeBill("Bill_Hat", hat))}
 	// The vest is placed at once; the orphan hat waits.
@@ -271,6 +299,20 @@ func TestLedgerRemovesOrphansAfterGraceAndRebuildsOnRestart(t *testing.T) {
 	}
 	if r, ok := actions[0].RemoveProductionBill(); !ok || r.Bench() != ledgerBench || r.Bill() != "Bill_Hat" {
 		t.Fatalf("removal = %+v %v", r, ok)
+	}
+}
+
+// A bill the journal never placed (a player's, another load's, an unmigrated
+// owner's whose Standard the review does not bind) is kept however long no
+// planner declares it: orphan removal covers a migrated owner's bills only.
+func TestLedgerKeepsABillNoMigratedOwnerPlaced(t *testing.T) {
+	f := newLedgerFixture(t)
+	f.declare(ledgerOrder("Make_Vest"))
+	f.native.benches = []policy.GearBench{ledgerBenchRow(fakeBill("Bill_Hat", ledgerOrder("Make_Hat")), fakeBill("Bill_Vest", ledgerOrder("Make_Vest")))}
+	for round := 0; round < 3*policy.OrphanGraceRounds; round++ {
+		if r := f.round(); r.Plan != "" {
+			t.Fatalf("round %d committed %s", round, r.Plan)
+		}
 	}
 }
 

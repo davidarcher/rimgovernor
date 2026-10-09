@@ -40,5 +40,4 @@ func TestRoundsArmoryPlannerAssessesWithoutActions(t *testing.T) {
 	if len(after) != len(before) {
 		t.Fatalf("armory admitted plans: %d -> %d", len(before), len(after))
 	}
-	t.Logf("assessment %+v", got.Assessment)
 }

@@ -313,7 +313,7 @@ concerns.
 `rounds_ledger.go`) is the bot's production-bill ledger (epic #2590). A Standard in
 the Industry department over the Colony fact family. The ledger is memory only
 (`Rounder.ledger`): a planner that has migrated implements
-`buildingruntime.OrderDeclarer` (`DeclareOrders(ctx, projection)` returns a
+`buildingruntime.OrderDeclarer` (`DeclareOrders(ctx, snapshot, projection, benches)` returns a
 `policy.Declared`: its whole wanted `OrderSpec` set, or `Abstain` when it lacks
 facts) and commits no bill method of its own. Each review calls every declarer,
 reads every bench's bills through the bench census (`ReadGearBenches`;
@@ -357,7 +357,21 @@ every eligible bench it reports `benches_exhausted`. `RoundsFacts.UnmetThroughpu
 is one row per bench kind (`policy.UnmetThroughput`: units a day short and the
 reason, also `no_bench` when the model wants more benches than exist and
 `bench_slots_full` for an unplaced copy with capable benches), the demand signal the
-facilities ladder reads. A finished bill is spent and never satisfies an order. Beer reserve and human
+facilities ladder reads. A finished bill is spent and never satisfies an order.
+
+Orphan removal covers only bills the journal (`store.PlacedBills`) says a migrated
+owner placed (`policy.LedgerMigratedOwner` sets `ActualBill.Migrated`): a bill an
+unmigrated owner placed, one no plan placed and a player's are kept until the
+cleanup child (#2605). The first migration (#2597) is `MaintainEquipment`:
+`RoundsGearPlanner` declares the apparel batches and `RoundsArmoryPlanner` the
+weapon batches, armor ladder and mortar-shell stock (`policy.DeclareGearOrders`,
+`DeclareArmoryOrders`); both keep only their non-bill work (wear orders, apparel
+policies, the crafting spot). An existing bill that makes a need is declared as it
+stands (so its spec key never drifts), a new batch is declared only while no wear
+candidate is pending, and the declared batches are the ingredient demand of
+`openBills`. `production/gear-ledger` is the nightly signal.
+
+Beer reserve and human
 butcher bills read back as plain target and forever bills until native reports a
 bill class.
 

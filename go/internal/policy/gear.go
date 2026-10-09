@@ -311,6 +311,8 @@ type GearMethod struct {
 	Bench, Recipe   string
 	Filter          []Resource
 	RequiredWork    []WorkRequirement
+	// Bill is the standing bill a GearWait found already making Need.
+	Bill GearBill
 }
 type GearBill struct {
 	ID, Recipe string
@@ -512,29 +514,42 @@ func produceGear(needs []gearNeed, v GearObservation, review GearReview, seen ma
 	if len(needs) == 0 {
 		return GearMethod{Kind: GearBlocked}, nil
 	}
-	sort.SliceStable(needs, func(i, j int) bool {
-		a, b := needs[i], needs[j]
-		if a.pawn.Pawn != b.pawn.Pawn {
-			return a.pawn.Pawn < b.pawn.Pawn
-		}
-		if a.need.Definition != b.need.Definition {
-			return a.need.Definition < b.need.Definition
-		}
-		if a.need.Stuff != b.need.Stuff {
-			return a.need.Stuff < b.need.Stuff
-		}
-		return a.need.Reason < b.need.Reason
-	})
-	benches, known := r.Benches.Value()
-	if !known {
-		return GearMethod{Kind: GearUnknown}, nil
+	sortGearNeeds(needs)
+	benches, demand, known, err := gearProductionDemand(needs, v, review, r)
+	if err != nil || !known {
+		return GearMethod{Kind: GearUnknown}, err
 	}
-	if err := validateGearProduction(benches); err != nil {
-		return GearMethod{}, err
+	for _, n := range needs {
+		count := demand[gearStockKey{n.need.Definition, n.need.Stuff}]
+		if count == 0 {
+			continue
+		}
+		id := gearMethodID("produce", n.pawn, "", n.need)
+		if seen[id] {
+			return GearMethod{Kind: GearWait, ID: id, Pawn: n.pawn.Pawn, Loadout: n.pawn.Loadout, Need: n.need}, nil
+		}
+		method, resolved, err := produceNeed(n, count, benches, r)
+		if err != nil || resolved {
+			return method, err
+		}
+	}
+	return GearMethod{Kind: GearBlocked}, nil
+}
+
+// gearProductionDemand is the bench census sorted by id and, per definition
+// and stuff, how many items the needs still lack after netting the stored
+// stock. known is false while the bench census is unread.
+func gearProductionDemand(needs []gearNeed, v GearObservation, review GearReview, r GearPlanningRequest) (benches []GearBench, demand map[gearStockKey]int, known bool, err error) {
+	benches, known = r.Benches.Value()
+	if !known {
+		return nil, nil, false, nil
+	}
+	if err = validateGearProduction(benches); err != nil {
+		return nil, nil, false, err
 	}
 	benches = append([]GearBench(nil), benches...)
 	sort.Slice(benches, func(i, j int) bool { return benches[i].ID < benches[j].ID })
-	demand := map[gearStockKey]int{}
+	demand = map[gearStockKey]int{}
 	for _, n := range needs {
 		demand[gearStockKey{n.need.Definition, n.need.Stuff}]++
 	}
@@ -546,72 +561,73 @@ func produceGear(needs []gearNeed, v GearObservation, review GearReview, seen ma
 			demand[key] = max(0, demand[key]-row.Count)
 		}
 	}
-	for _, n := range needs {
-		count := demand[gearStockKey{n.need.Definition, n.need.Stuff}]
-		if count == 0 {
-			continue
-		}
+	for _, count := range demand {
 		if count > math.MaxInt32 {
-			return GearMethod{}, errors.New("gear batch exceeds bill bound")
+			return nil, nil, false, errors.New("gear batch exceeds bill bound")
 		}
-		id := gearMethodID("produce", n.pawn, "", n.need)
-		if seen[id] {
-			return GearMethod{Kind: GearWait, ID: id, Pawn: n.pawn.Pawn, Loadout: n.pawn.Loadout, Need: n.need}, nil
+	}
+	return benches, demand, true, nil
+}
+
+// produceNeed resolves one need of count items against the benches: Wait with
+// the standing bill (Bill) that already makes it, Unknown while a bench's
+// bills or a recipe's facts are unread, Produce with the first funded recipe.
+// resolved is false when no recipe is funded, so the next need is judged.
+func produceNeed(n gearNeed, count int, benches []GearBench, r GearPlanningRequest) (method GearMethod, resolved bool, err error) {
+	// Check every bench before adding a bill, including later-sorted player benches.
+	for _, b := range benches {
+		bills, known := b.Bills.Value()
+		if !known {
+			return GearMethod{Kind: GearUnknown}, true, nil
 		}
-		// Check every bench before adding a bill, including later-sorted player benches.
-		for _, b := range benches {
-			bills, known := b.Bills.Value()
+		for _, bill := range bills {
+			if bill.Spent || !containsResource(bill.Products, n.need.Definition) {
+				continue
+			}
+			active, known := bill.Active.Value()
 			if !known {
-				return GearMethod{Kind: GearUnknown}, nil
+				return GearMethod{Kind: GearUnknown}, true, nil
 			}
-			for _, bill := range bills {
-				if !containsResource(bill.Products, n.need.Definition) {
-					continue
-				}
-				active, known := bill.Active.Value()
-				if !known {
-					return GearMethod{Kind: GearUnknown}, nil
-				}
-				if active {
-					return GearMethod{Kind: GearWait, Need: n.need}, nil
-				}
-			}
-		}
-		for _, b := range benches {
-			recipes, known := b.Recipes.Value()
-			if !known {
-				return GearMethod{Kind: GearUnknown}, nil
-			}
-			recipes = append([]GearRecipe(nil), recipes...)
-			sort.Slice(recipes, func(i, j int) bool { return recipes[i].Definition < recipes[j].Definition })
-			for _, recipe := range recipes {
-				if !containsResource(recipe.Products, n.need.Definition) {
-					continue
-				}
-				available, ak := recipe.Available.Value()
-				on, ok := recipe.AvailableOn.Value()
-				if ak && !available || ok && !on {
-					continue
-				}
-				if !ak || !ok {
-					return GearMethod{Kind: GearUnknown}, nil
-				}
-				work, known := recipe.RequiredWork.Value()
-				if !known {
-					return GearMethod{Kind: GearUnknown}, nil
-				}
-				slots, known := recipe.Ingredients.Value()
-				if !known {
-					return GearMethod{Kind: GearUnknown}, nil
-				}
-				slots = gearBatchIngredients(slots, count)
-				if filter, ok := gearFilter(slots, n.need.Stuff, r.StuffCategories); ok {
-					return GearMethod{Kind: GearProduce, Count: int32(count), ID: id, Pawn: n.pawn.Pawn, Loadout: n.pawn.Loadout, Need: n.need, Bench: b.ID, Recipe: recipe.Definition, Filter: filter, RequiredWork: append([]WorkRequirement(nil), work...)}, nil
-				}
+			if active {
+				return GearMethod{Kind: GearWait, Need: n.need, Bill: bill}, true, nil
 			}
 		}
 	}
-	return GearMethod{Kind: GearBlocked}, nil
+	for _, b := range benches {
+		recipes, known := b.Recipes.Value()
+		if !known {
+			return GearMethod{Kind: GearUnknown}, true, nil
+		}
+		recipes = append([]GearRecipe(nil), recipes...)
+		sort.Slice(recipes, func(i, j int) bool { return recipes[i].Definition < recipes[j].Definition })
+		for _, recipe := range recipes {
+			if !containsResource(recipe.Products, n.need.Definition) {
+				continue
+			}
+			available, ak := recipe.Available.Value()
+			on, ok := recipe.AvailableOn.Value()
+			if ak && !available || ok && !on {
+				continue
+			}
+			if !ak || !ok {
+				return GearMethod{Kind: GearUnknown}, true, nil
+			}
+			work, known := recipe.RequiredWork.Value()
+			if !known {
+				return GearMethod{Kind: GearUnknown}, true, nil
+			}
+			slots, known := recipe.Ingredients.Value()
+			if !known {
+				return GearMethod{Kind: GearUnknown}, true, nil
+			}
+			slots = gearBatchIngredients(slots, count)
+			if filter, ok := gearFilter(slots, n.need.Stuff, r.StuffCategories); ok {
+				id := gearMethodID("produce", n.pawn, "", n.need)
+				return GearMethod{Kind: GearProduce, Count: int32(count), ID: id, Pawn: n.pawn.Pawn, Loadout: n.pawn.Loadout, Need: n.need, Bench: b.ID, Recipe: recipe.Definition, Filter: filter, RequiredWork: append([]WorkRequirement(nil), work...)}, true, nil
+			}
+		}
+	}
+	return GearMethod{}, false, nil
 }
 
 func validateGearProduction(benches []GearBench) error {

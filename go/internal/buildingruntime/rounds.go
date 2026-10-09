@@ -743,16 +743,17 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		}
 	}
 	reading.Projection.Facts.AvailableMethods = r.methods
-	reading.Projection.Facts.OpenBills, err = r.openBills(ctx, state.Snapshot, reading.Projection.Identity.Tick, plans)
-	if err != nil {
-		return store.RoundsResult{}, err
-	}
 	staleCandidates, err := r.staleBillCandidates(ctx, state.Snapshot, expected, previous)
 	if err != nil {
 		return store.RoundsResult{}, err
 	}
 	reading.Projection.Facts.StaleBills = r.staleBills.stale(staleCandidates)
-	if reading.Projection.Facts.LedgerOwed, err = r.reviewLedger(ctx, state.Snapshot, expected, reading.Projection); err != nil {
+	if reading.Projection.Facts.LedgerOwed, err = r.reviewLedger(ctx, state.Snapshot, expected, previous, reading.Projection); err != nil {
+		return store.RoundsResult{}, err
+	}
+	// The ledger's declared batches are read after the declaration above.
+	reading.Projection.Facts.OpenBills, err = r.openBills(ctx, state.Snapshot, reading.Projection.Identity.Tick, plans)
+	if err != nil {
 		return store.RoundsResult{}, err
 	}
 	reading.Projection.Facts.UnmetThroughput = r.ledgerUnmet()

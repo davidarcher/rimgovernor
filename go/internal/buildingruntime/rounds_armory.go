@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -20,12 +21,15 @@ type RoundsArmoryPlanner struct {
 	// spot places a crafting spot when no bench hosts a weapon recipe for
 	// an unarmed colonist; nil when the source cannot build.
 	spot *RoundsBuildingPlanner
+	mu   sync.Mutex
+	// spotNeeded is the latest declaration's finding: an unarmed colonist and
+	// no bench hosting a weapon recipe.
+	spotNeeded bool
 }
 
 type RoundsArmoryResult struct {
 	Verdict
-	Assessment policy.ArmoryAssessment
-	Plan       domain.PlanID
+	Plan domain.PlanID
 }
 
 func NewRoundsArmoryPlanner(reviewer *Rounder, native RoundsGearSource) (*RoundsArmoryPlanner, error) {
@@ -51,26 +55,16 @@ func (r *RoundsArmoryPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoundsArmoryResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	expected, err := stepScope(call, r.reviewer.native)
+	// The weapons, armor and shells are the ledger's (DeclareOrders); what is
+	// left here is the crafting spot for colonists no bench can arm.
+	_, workable, err := p.journal.Workable(call, review, policy.MaintainEquipment)
 	if err != nil {
 		return RoundsArmoryResult{}, err
 	}
-	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
-	if err != nil {
-		return RoundsArmoryResult{}, err
+	if !workable || !r.spotWanted() {
+		return RoundsArmoryResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims)
-	if err != nil {
-		return RoundsArmoryResult{}, err
-	}
-	facts := read.Projection.Facts
-	assessment := policy.AssessArmory(facts.RaidPoints, facts.Research)
-	result, err := r.craftWeapons(call, epoch, arbiter, state, review, assessment.Tier, facts.Items.StuffCategories)
-	if err == nil && result.Verdict != BuildingReasonAdmitted {
-		result, err = r.stockShells(call, epoch, state, review, read.Projection)
-	}
-	result.Assessment = assessment
-	return result, err
+	return r.placeCraftingSpot(call, epoch, arbiter)
 }
 
 // newCraftingSpotPlanner is the EnsureBasicDefense placement the armory

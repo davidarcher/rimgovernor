@@ -46,11 +46,13 @@ func TestArmoryStocksShellsAfterMortarBuilt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	spy := &spyDeclarer{inner: armory}
+	reviewer.AddOrderDeclarer(spy)
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if result, err := armory.Step(ctx); err != nil || result.Verdict == BuildingReasonAdmitted {
-		t.Fatal("armory billed without a mortar", result, err)
+	if _, ok := orderFor(spy.got, "Make_Shell_HighExplosive"); !spy.called || ok {
+		t.Fatal("armory declared shells without a mortar", spy.got, spy.called)
 	}
 	snapshot := session.State().Snapshot
 	world := store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}
@@ -61,16 +63,8 @@ func TestArmoryStocksShellsAfterMortarBuilt(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	result, err := armory.Step(ctx)
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal("armory held the shell bill", result, err)
-	}
-	plan, err := db.LoadPlan(ctx, result.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	bill, ok := plan.Spec.Actions()[0].ProductionBill()
-	if !ok || bill.Recipe() != "Make_Shell_HighExplosive" || bill.Mode() != domain.StockTarget || bill.Target() != 10 {
-		t.Fatal("armory bill is not the HE shell stock", plan.Spec.Actions()[0])
+	order, ok := orderFor(spy.got, "Make_Shell_HighExplosive")
+	if !ok || spy.got.Abstain || order.Mode != domain.StockTarget || order.Target != 10 {
+		t.Fatal("armory declared no HE shell stock", spy.got)
 	}
 }

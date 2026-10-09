@@ -321,7 +321,7 @@ func TestPlaceLedgerOrdersPrefersFastBenchAndSkipsCarriers(t *testing.T) {
 
 func TestReconcileLedgerCopies(t *testing.T) {
 	order := dispatchOrder(30)
-	bill := func(id string) ActualBill { return ActualBill{ID: id, Bench: id, Spec: order} }
+	bill := func(id string) ActualBill { return ActualBill{ID: id, Bench: id, Spec: order, Migrated: true} }
 	want := []Declared{{Orders: []OrderSpec{order}}}
 	copies := map[string]int{order.Key(): 3}
 	plan := ReconcileLedger(want, []ActualBill{bill("1")}, nil, copies)

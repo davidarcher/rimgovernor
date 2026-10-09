@@ -2,8 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"fmt"
-	"math"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -51,73 +49,4 @@ func shellTargets(ctx context.Context, native any, journal *store.Store, snapsho
 		return nil, err
 	}
 	return policy.MortarShellTargets(mortars, policy.AssessArmory(projection.Facts.RaidPoints, projection.Facts.Research), shells), nil
-}
-
-// stockShells admits one stock-target shell bill under MaintainEquipment
-// for the first shell no bench bill produces. Native keeps the
-// stock from then on; the planner only adds missing bills.
-func (r *RoundsArmoryPlanner) stockShells(call, epoch context.Context, state ControlState, review store.Rounds, projection observation.ColonyProjection) (RoundsArmoryResult, error) {
-	p := r.reviewer.player
-	targets, err := shellTargets(call, r.native, p.journal, state.Snapshot, projection)
-	if err != nil || len(targets) == 0 {
-		return RoundsArmoryResult{Verdict: BuildingReasonNoDeficit}, err
-	}
-	if short, _ := policy.ShellsShort(targets, projection.Resources).Value(); !short {
-		return RoundsArmoryResult{Verdict: BuildingReasonNoDeficit}, nil
-	}
-	goal, workable, err := p.journal.Workable(call, review, policy.MaintainEquipment)
-	if err != nil || !workable {
-		return RoundsArmoryResult{Verdict: BuildingReasonNoDeficit}, err
-	}
-	for _, method := range goal.Methods {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return RoundsArmoryResult{}, err
-		}
-		if store.PlanOpen(plan) {
-			return RoundsArmoryResult{Verdict: BuildingReasonExistingWork}, nil
-		}
-	}
-	started := r.reviewer.clock.Now()
-	identity := boundary.Identity(state.Snapshot)
-	census, _, err := r.native.ReadGearBenches(call, identity)
-	if err != nil {
-		return RoundsArmoryResult{}, err
-	}
-	benches := make([]policy.GearBench, 0, len(census))
-	for _, row := range census {
-		benches = append(benches, row.Bench)
-	}
-	choice, ok := policy.SelectShellBill(benches, targets)
-	if !ok {
-		return RoundsArmoryResult{Verdict: waitFor(WaitMethodUsed, "shell_bill_choice")}, nil
-	}
-	id := domain.MintPlanID()
-	if choice.Target < 1 || choice.Target > math.MaxInt32 {
-		return RoundsArmoryResult{}, fmt.Errorf("shell bill target %d exceeds the bill count", choice.Target)
-	}
-	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, domain.StockTarget, int32(choice.Target))
-	if err != nil {
-		return RoundsArmoryResult{}, err
-	}
-	action, err := domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill)
-	if err != nil {
-		return RoundsArmoryResult{}, err
-	}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
-	if err != nil {
-		return RoundsArmoryResult{}, err
-	}
-	if err = p.current(call, epoch); err != nil {
-		return RoundsArmoryResult{}, err
-	}
-	elapsed := r.reviewer.clock.Now().Sub(started)
-	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoundsArmoryResult{}, fmt.Errorf("%w: stockShells: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
-	}
-	method := domain.MethodID(fmt.Sprintf("armory-shell-%s-%s", choice.Recipe, id))
-	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
-		return RoundsArmoryResult{}, err
-	}
-	return RoundsArmoryResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

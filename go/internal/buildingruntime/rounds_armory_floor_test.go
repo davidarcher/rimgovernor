@@ -45,7 +45,7 @@ func (n *fabricationArmorNative) ReadGearBenches(context.Context, *c.Identity) (
 // billed recipe.
 func armoryArmorRecipe(t *testing.T, plasteelFloor int64) string {
 	t.Helper()
-	reviewer, db, _, _, native := roundsFixture(t)
+	reviewer, _, _, _, native := roundsFixture(t)
 	reviewer.policy.Stage.Floor = policy.StageDevelopment
 	if plasteelFloor > 0 {
 		native.setFloors(map[policy.Resource]int64{"Plasteel": plasteelFloor})
@@ -62,27 +62,18 @@ func armoryArmorRecipe(t *testing.T, plasteelFloor int64) string {
 	settleGearPolicies(t, native)
 	reviewer.native = n
 	reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainEquipment})
-	ctx := context.Background()
-	if _, err := reviewer.Step(ctx); err != nil {
-		t.Fatal(err)
-	}
 	armory, err := NewRoundsArmoryPlanner(reviewer, n)
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := armory.Step(ctx)
-	if err != nil || result.Verdict != BuildingReasonAdmitted {
-		t.Fatal("armory held the armor bill", result, err)
+	declared := declaredOrders(t, reviewer, armory)
+	for _, order := range declared.Orders {
+		if order.Mode == domain.GearBatch {
+			return order.Recipe
+		}
 	}
-	plan, err := db.LoadPlan(ctx, result.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	bill, ok := plan.Spec.Actions()[0].ProductionBill()
-	if !ok {
-		t.Fatal("armory plan is not a bill", plan.Spec.Actions()[0])
-	}
-	return bill.Recipe()
+	t.Fatal("armory declared no armor batch", declared)
+	return ""
 }
 
 // A MaintainResource floor on the armor's own plasteel never holds the bill

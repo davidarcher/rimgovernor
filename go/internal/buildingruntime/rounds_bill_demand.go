@@ -72,11 +72,13 @@ func (a *billAges) cancelExpired(ctx context.Context, journal *store.Store, plan
 	return nil
 }
 
-// openBills are the journal's open gear-batch bills (Forever and stock-target
-// bills are not counted) with their catalog slot counts read per recipe:
-// ResourceDemandOf turns them into ingredient demand. Expired bills are
-// cancelled first. It is empty when the reviewer's source serves no
-// definitions.
+// openBills are the open gear-batch bills (Forever and stock-target bills are
+// not counted) with their catalog slot counts read per recipe:
+// ResourceDemandOf turns them into ingredient demand. A migrated planner's
+// bills are the ledger's declared batches (an order stands from its
+// declaration, placed or not); every other owner's are the journal's open
+// bills. Expired bills are cancelled first. It is empty when the reviewer's
+// source serves no definitions.
 func (r *Rounder) openBills(ctx context.Context, snapshot domain.GenerationSnapshot, now domain.Tick, plans []store.PlanState) ([]policy.OpenBill, error) {
 	if err := r.billAges.cancelExpired(ctx, r.player.journal, plans, now); err != nil {
 		return nil, err
@@ -86,8 +88,12 @@ func (r *Rounder) openBills(ctx context.Context, snapshot domain.GenerationSnaps
 		return nil, nil
 	}
 	var bills []policy.OpenBill
+	for _, order := range r.ledger.declaredBatches() {
+		bills = append(bills, policy.OpenBill{Recipe: order.Recipe, Count: order.Target, Filter: order.Ingredients})
+	}
 	for _, plan := range plans {
-		if plan.Retired {
+		// The ledger's plans place what its batches above already count.
+		if plan.Retired || ledgerPlanMethod(plan.Method) {
 			continue
 		}
 		for _, progress := range plan.Progress {
