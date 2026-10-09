@@ -595,6 +595,19 @@ the higher usable skill (then the stronger passion, then shooting).
   the cap's headroom to real work and fights. A session is 10 cycles; the giver
   offers the next while the pawn is under the target and the budget.
 
+**Upkeep (#2611).** Repair is vanilla: `WorkGiver_Repair` (Construction, material
+free, which also trains Construction) works only on buildings inside the home
+area, and the existing `MaintainEssentialRepairs` order uses the same gate. A
+repairer standing in a lane is in the line of fire, so the range's buildings
+(stands, dummies, partitions; `policy.RangeHomeHold`) are held out of home while
+anyone may drill. The hold lifts only when a range building is damaged and no
+colonist's current job is `RimGovernor_Train*` (a pawn whose job is unread counts
+as drilling); `MaintainHomeCoverage` then sets the cells back, repair runs, and
+the hold returns the moment everything is whole or a drill starts. No action
+kind or wire field: `PlanHomeArea` takes the hold as an argument and the
+reading carries it as `RoundsFacts.RangeHold`. The range shell's ordinary walls
+stay in home and are repaired like any wall.
+
 ## Acceptance
 
 The `production/ladder` case (`acceptance run production/ladder`, `go/internal/nativeaccept/cases/production`) opens the

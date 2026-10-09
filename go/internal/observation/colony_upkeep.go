@@ -29,7 +29,7 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot, tables bridge.Tables) (policy.Upkeep
 				known = false
 				break
 			}
-			rows = append(rows, policy.UpkeepStructure{ID: item.Building.GetId(), Cell: domain.Cell{X: b.GetBuilding().GetPosition().GetX(), Z: b.GetBuilding().GetPosition().GetZ()}, Home: item.GetHome(), HitPoints: int64(b.GetHitPoints()), MaxHitPoints: int64(b.GetMaxHitPoints()), Priority: int(item.GetRepairPriority())})
+			rows = append(rows, policy.UpkeepStructure{ID: item.Building.GetId(), Definition: b.GetBuilding().GetDefName(), Cell: domain.Cell{X: b.GetBuilding().GetPosition().GetX(), Z: b.GetBuilding().GetPosition().GetZ()}, Home: item.GetHome(), HitPoints: int64(b.GetHitPoints()), MaxHitPoints: int64(b.GetMaxHitPoints()), Priority: int(item.GetRepairPriority())})
 		}
 		if known {
 			r.Structures = domain.Known(rows)

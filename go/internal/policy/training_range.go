@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"strings"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // The training range is a fixed template of the mod's own buildings
 // (integrations/rimgovernor-native/Defs/ThingDefs/TrainingRange.xml), scored
@@ -42,6 +46,58 @@ type RangePiece struct {
 	Cell domain.Cell
 	// Lane is the zero-based lane of a stand or dummy; partitions are -1.
 	Lane int
+}
+
+// RangeJobPrefix is the name prefix of the native training job defs
+// (RimGovernor_TrainShooting, RimGovernor_TrainMelee).
+const RangeJobPrefix = "RimGovernor_Train"
+
+// RangeHomeHold is the range cells kept out of the home area (#2611). Vanilla
+// repair works only on buildings inside home, and a repairer walking a lane
+// stands in the line of fire, so the range's buildings stay outside home while
+// anyone drills. The hold lifts only when a range building is damaged and no
+// colonist is on a training job; a pawn whose job is unread counts as
+// training. The cells leave home again as soon as the repair window closes
+// (everything whole, or a drill began). Structures unknown, or no range
+// standing, hold nothing.
+func RangeHomeHold(structures domain.Fact[[]UpkeepStructure], pawns domain.Fact[[]WorkPawn]) []domain.Cell {
+	rows, known := structures.Value()
+	if !known {
+		return nil
+	}
+	isRange := map[string]bool{}
+	for _, def := range RangeDefNames {
+		isRange[def] = true
+	}
+	var cells []domain.Cell
+	damaged := false
+	for _, row := range rows {
+		if !isRange[row.Definition] {
+			continue
+		}
+		cells = append(cells, row.Cell)
+		damaged = damaged || row.MaxHitPoints > 0 && row.HitPoints < row.MaxHitPoints
+	}
+	if len(cells) == 0 || damaged && !rangeBusy(pawns) {
+		return nil
+	}
+	return cells
+}
+
+// rangeBusy reports whether any colonist may be drilling: a training job, or
+// a job the read did not carry.
+func rangeBusy(pawns domain.Fact[[]WorkPawn]) bool {
+	list, known := pawns.Value()
+	if !known {
+		return true
+	}
+	for _, p := range list {
+		job, known := p.Job.Value()
+		if !known || strings.HasPrefix(job.Def, RangeJobPrefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // RangeLayout places the range template with its first stand's cell at

@@ -201,6 +201,7 @@ func observeRounds(ctx context.Context, source RoundsSource, clock Clock, expect
 	p.Facts.QuestSites = frameWorldSites(frame.Quests)
 	p.Facts.QuestExpeditionTrips = frameExpeditionTrips(frame.Quests, expected.Map)
 	p.Facts.QuestWorkers = p.WorkPawns
+	p.Facts.RangeHold = policy.RangeHomeHold(p.Facts.Upkeep.Structures, p.WorkPawns)
 	p.Facts.QuestWorkCapacity, p.Facts.QuestDeparturePawns = frameQuestWorkerCapacity(frame.Quests, expected.Map)
 	if pawns != nil {
 		p.Facts.QuestDeparturePawns = projectDepartureStrength(p.Facts.QuestDeparturePawns, roundsDefenders(colony, emergency, pawns))

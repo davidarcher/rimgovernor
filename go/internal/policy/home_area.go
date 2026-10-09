@@ -35,8 +35,9 @@ func (p HomeAreaPlan) MethodID() domain.MethodID {
 }
 
 // PlanHomeArea derives the home-area diff. Unknown when the extent, the
-// current home cells or the auto-expand setting is unknown.
-func PlanHomeArea(bounds domain.Fact[Bounds], construction domain.Fact[CurrentConstruction], claims domain.Fact[[]ConstructionClaim], home domain.Fact[HomeCoverageObservation]) (domain.Fact[HomeAreaPlan], error) {
+// current home cells or the auto-expand setting is unknown. hold are cells the
+// base footprint leaves out of home (RangeHomeHold).
+func PlanHomeArea(bounds domain.Fact[Bounds], construction domain.Fact[CurrentConstruction], claims domain.Fact[[]ConstructionClaim], home domain.Fact[HomeCoverageObservation], hold []domain.Cell) (domain.Fact[HomeAreaPlan], error) {
 	unknown := domain.Unknown[HomeAreaPlan]()
 	census, known := home.Value()
 	if !known {
@@ -56,6 +57,9 @@ func PlanHomeArea(bounds domain.Fact[Bounds], construction domain.Fact[CurrentCo
 		return unknown, nil
 	}
 	target := homeBase(value)
+	for _, c := range hold {
+		delete(target, c)
+	}
 	plan := HomeAreaPlan{AutoOff: auto, Set: []domain.Cell{}, Clear: []domain.Cell{}}
 	have := map[domain.Cell]bool{}
 	for _, c := range current {

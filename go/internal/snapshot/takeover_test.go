@@ -116,7 +116,7 @@ func TestTakeoverRemovedHomeOpensHomeCoverage(t *testing.T) {
 		home.Home, home.AutoHome = domain.Known([]domain.Cell{}), domain.Known(false)
 		r.Facts.HomeCoverage = domain.Known(home)
 		deficit(t, r, policy.MaintainHomeCoverage)
-		planned, err := policy.PlanHomeArea(r.Facts.MapBounds, r.Facts.CurrentConstruction, r.Facts.ConstructionClaims, r.Facts.HomeCoverage)
+		planned, err := policy.PlanHomeArea(r.Facts.MapBounds, r.Facts.CurrentConstruction, r.Facts.ConstructionClaims, r.Facts.HomeCoverage, r.Facts.RangeHold)
 		plan, known := planned.Value()
 		if err != nil || !known || len(plan.Set) == 0 {
 			t.Fatal(path, plan, known, err)

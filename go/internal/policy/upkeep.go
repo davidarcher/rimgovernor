@@ -56,7 +56,9 @@ type UpkeepObservation struct {
 	Routes domain.Fact[RoutesObservation]
 }
 type UpkeepStructure struct {
-	ID                      string
+	ID string
+	// Definition is the building's def name; empty when the row carries none.
+	Definition              string
 	Cell                    domain.Cell
 	Home                    bool
 	HitPoints, MaxHitPoints int64

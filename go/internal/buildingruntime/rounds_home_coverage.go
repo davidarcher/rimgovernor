@@ -76,7 +76,7 @@ func (r *RoundsHomeCoveragePlanner) step(call, epoch context.Context, arbiter *s
 		return RoundsHomeCoverageResult{}, err
 	}
 	f := read.Projection.Facts
-	planned, err := policy.PlanHomeArea(f.MapBounds, f.CurrentConstruction, claims, f.HomeCoverage)
+	planned, err := policy.PlanHomeArea(f.MapBounds, f.CurrentConstruction, claims, f.HomeCoverage, f.RangeHold)
 	if err != nil {
 		return RoundsHomeCoverageResult{}, err
 	}

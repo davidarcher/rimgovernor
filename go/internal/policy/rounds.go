@@ -232,9 +232,12 @@ type RoundsFacts struct {
 	MoodPawns         domain.Fact[[]MoodPawn]
 	// MoodLedger is where the colony loses mood, built each review from the
 	// mood census and the catalog thought facts; unknown with the census.
-	MoodLedger          domain.Fact[MoodLedger]
-	Mood                MoodHistory
-	HomeCoverage        domain.Fact[HomeCoverageObservation]
+	MoodLedger   domain.Fact[MoodLedger]
+	Mood         MoodHistory
+	HomeCoverage domain.Fact[HomeCoverageObservation]
+	// RangeHold are the training range cells the home area leaves out
+	// (RangeHomeHold); empty while the range is whole, absent or in its repair window.
+	RangeHold           []domain.Cell
 	StoneStructures     domain.Fact[[]StoneStructure]
 	ConstructionClaims  domain.Fact[[]ConstructionClaim]
 	CurrentConstruction domain.Fact[CurrentConstruction]
@@ -808,7 +811,7 @@ func InspectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Round
 		return RoundsFindings{}, err
 	}
 	c := &roundsRun{f: f, previous: previous, p: p}
-	if c.home, err = PlanHomeArea(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage); err != nil {
+	if c.home, err = PlanHomeArea(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage, f.RangeHold); err != nil {
 		return RoundsFindings{}, err
 	}
 	if c.stone, err = ReviewStoneShell(owned, f.StoneStructures); err != nil {
