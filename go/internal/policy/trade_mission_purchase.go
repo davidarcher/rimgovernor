@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"math"
 	"slices"
@@ -108,9 +109,19 @@ type MissionPurchaseRequest struct {
 	Mass, Capacity domain.Fact[float64]
 }
 
+// ErrTradeMissionFoodDemandUnknown holds a food mission until its owning review
+// measures demand. It is not a known empty purchase plan or a return decision.
+var ErrTradeMissionFoodDemandUnknown = errors.New("trade mission food demand unknown")
+
 // PlanTradeMissionPurchases bounds live demand by saved authorization, silver and mass.
 func PlanTradeMissionPurchases(in MissionPurchaseRequest) ([]domain.TradeLine, []domain.CargoItem, error) {
 	m := in.Mission
+	food, foodKnown := in.Food.Value()
+	for _, item := range m.Demand {
+		if nutrition, known := in.Nutrition[item.Definition].Value(); known && nutrition > 0 && !foodKnown {
+			return nil, nil, ErrTradeMissionFoodDemandUnknown
+		}
+	}
 	targets := in.Targets
 	current := map[string]int64{}
 	stocks, known := in.Stock.Value()
@@ -137,10 +148,6 @@ func PlanTradeMissionPurchases(in MissionPurchaseRequest) ([]domain.TradeLine, [
 	for _, need := range needs {
 		current[string(need.Key.Def)] = need.Count
 	}
-	foodWanted := 0.0
-	if food, known := in.Food.Value(); known {
-		foodWanted = math.Max(0, food.GapPerDay) * math.Max(1, in.FoodTargetDays)
-	}
 	var demands []SupplyDemand
 	var candidates []SupplyCandidate
 	rows := map[string]MissionPurchaseRow{}
@@ -160,6 +167,7 @@ func PlanTradeMissionPurchases(in MissionPurchaseRequest) ([]domain.TradeLine, [
 	for _, item := range m.Demand {
 		count := min(int64(item.Count), current[item.Definition])
 		if nutrition, known := in.Nutrition[item.Definition].Value(); known && nutrition > 0 {
+			foodWanted := math.Max(0, food.GapPerDay) * math.Max(1, in.FoodTargetDays)
 			count = min(int64(item.Count), int64(math.Ceil(foodWanted/float64(nutrition))))
 		}
 		if count > 0 {

@@ -108,7 +108,11 @@ credit. Departure runs only after the Project has been recorded.
 Settlement purchases use live prices and current home demand, bounded by saved
 authorization, mission silver and native carry capacity. The existing supply
 ranker opens these candidates privately; away offers stay excluded from home
-stock. Empty/unavailable sheets or disappeared demand close trading and return.
+stock. A mission authorized to buy food holds in Buying while the shared food
+review is unknown: it neither buys a partial plan nor records a return or
+completion. This is an explicit food-plan refusal, not measured zero demand.
+Known zero demand still closes trading and returns, as do empty/unavailable
+sheets. Resource-only missions do not require a food-demand measurement.
 Commitment precedes accept dispatch, so a reload never rebuys.
 
 Return uses the same FormCaravan intent on exact observed crew, with a fresh

@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"math"
 	"reflect"
@@ -142,5 +143,37 @@ func TestMissionPaymentRechecksAuthorization(t *testing.T) {
 	}
 	if TradeMissionPaymentSafe(10, domain.Unknown[int64](), domain.Known(-1.0)) || TradeMissionPaymentSafe(10, domain.Known(int64(10)), domain.Unknown[float64]()) {
 		t.Fatal("unknown economics admitted")
+	}
+}
+
+func TestMissionFoodDemandUnknownIsNotMeasuredZero(t *testing.T) {
+	in := purchaseRequest()
+	in.Mission.Demand = []domain.CargoItem{{Definition: "Meal", Count: 10}, {Definition: "Steel", Count: 20}}
+	in.Nutrition = map[string]domain.Fact[float64]{"Meal": domain.Known(0.5)}
+	in.Food = domain.Unknown[FoodPlan]()
+	lines, goods, err := PlanTradeMissionPurchases(in)
+	if !errors.Is(err, ErrTradeMissionFoodDemandUnknown) || len(lines) != 0 || len(goods) != 0 {
+		t.Fatal("unknown food bought a partial plan", lines, goods, err)
+	}
+	// Even another missing input cannot turn unknown food into an empty plan.
+	in.Stock = domain.Unknown[[]Amount]()
+	if _, _, err = PlanTradeMissionPurchases(in); !errors.Is(err, ErrTradeMissionFoodDemandUnknown) {
+		t.Fatal(err)
+	}
+	in = purchaseRequest()
+	in.Mission.Demand = []domain.CargoItem{{Definition: "Meal", Count: 10}}
+	in.Nutrition = map[string]domain.Fact[float64]{"Meal": domain.Known(0.5)}
+	in.Rows[0].DefName = "Meal"
+	in.Food = domain.Known(FoodPlan{GapPerDay: 0})
+	lines, goods, err = PlanTradeMissionPurchases(in)
+	if err != nil || len(lines) != 0 || len(goods) != 0 {
+		t.Fatal("known zero was not an empty measured plan", lines, goods, err)
+	}
+	// Food uncertainty does not block an independently measured resource mission.
+	in = purchaseRequest()
+	in.Food = domain.Unknown[FoodPlan]()
+	lines, goods, err = PlanTradeMissionPurchases(in)
+	if err != nil || len(lines) != 1 || len(goods) != 1 {
+		t.Fatal(lines, goods, err)
 	}
 }

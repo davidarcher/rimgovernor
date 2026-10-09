@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -333,6 +334,9 @@ func (r *RoundsTradePlanner) missionTrade(call, epoch context.Context, state Con
 		return RoundsTradeResult{}, true, err
 	}
 	lines, goods, err := r.missionPurchases(call, state, review, m, sheet, caravan)
+	if errors.Is(err, policy.ErrTradeMissionFoodDemandUnknown) {
+		return RoundsTradeResult{Verdict: fieldUnavailable("food_plan"), NativeWorkTicks: tradeWalkTicks}, true, nil
+	}
 	if err != nil {
 		return RoundsTradeResult{}, true, err
 	}
