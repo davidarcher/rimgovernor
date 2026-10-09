@@ -39,7 +39,10 @@ func (catalog *DefinitionCatalog) ImpressivenessLevels() (policy.ImpressivenessL
 		Dull: score(impressivenessDull), Mediocre: score(impressivenessMediocre),
 		Decent: score(impressivenessDecent), SlightlyImpressive: score(impressivenessSlightlyImpressive),
 	}
-	for _, v := range []float64{out.Dull, out.Mediocre, out.Decent, out.SlightlyImpressive} {
+	for i := range stages {
+		out.Stages = append(out.Stages, score(i))
+	}
+	for _, v := range out.Stages {
 		if math.IsNaN(v) || math.IsInf(v, 0) {
 			return policy.ImpressivenessLevels{}, contract("room stat %s has a non-finite score stage", RoomStatImpressiveness)
 		}

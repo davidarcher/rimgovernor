@@ -77,6 +77,9 @@ type RoundsBuildingPlanner struct {
 	// to build, and none standing is still owed (nobody researches without
 	// one).
 	benchUnlocked bool
+	// partySpotRoom is the shared room the PartySpot step places in; empty
+	// places in any roofed indoor cell.
+	partySpotRoom string
 }
 
 func NewRoundsSleepingPlanner(reviewer *Rounder, native RoundsBuildingSource) (*RoundsBuildingPlanner, error) {
@@ -124,7 +127,12 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	// A phased goal walks its phases in order: only the planner for the
 	// phase the review left owed runs.
-	if r.phase != "" && review.Latches.Phase(r.concern) != r.phase {
+	if r.phase == policy.ComfortRanked && review.Latches.Phase(r.concern) == policy.ComfortSpot {
+		// The PartySpot step is the ranked planner's third phase.
+		spot := *r
+		spot.phase, spot.definition, spot.environment = policy.ComfortSpot, policy.PartySpotDefinition, policy.PlacementIndoors
+		r = &spot
+	} else if r.phase != "" && review.Latches.Phase(r.concern) != r.phase {
 		return RoundsBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if r.phase == policy.ComfortBasic {
@@ -284,7 +292,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	var reading observation.ColonyReading
 	_, roundsSource := r.native.(observation.RoundsSource)
 	separation := (r.concern == policy.MaintainButcherSpot || r.concern == policy.EnsureCooking) && roundsSource
-	if r.concern == policy.EnsureTemperatureSafety || r.facilityLadder() || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes || separation {
+	if r.phase == policy.ComfortSpot || r.concern == policy.EnsureTemperatureSafety || r.facilityLadder() || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes || separation {
 		// Cooking and butcher placements read rooms too when the source can
 		// serve them, so kitchen/butcher separation protects each other's
 		// rooms; without a census nothing is protected.
@@ -303,6 +311,13 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	facts := reading.Projection
 	recordStepRead("building", r.concern, state.Snapshot, facts)
+	if r.phase == policy.ComfortSpot {
+		result, placing, err := r.partySpotStep(call, epoch, state, review, goal, reading)
+		if err != nil || placing == nil {
+			return result, err
+		}
+		r = placing
+	}
 	if r.concern == policy.MaintainRoutes || r.concern == policy.EnsureTemperatureSafety {
 		if result, handled, err := r.controlRoomDoor(call, epoch, state, goal, facts); handled || err != nil {
 			return result, err
@@ -553,7 +568,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 		}
 	}
-	if r.definition == "TableButcher" || r.facilityLadder() || r.phase == policy.ComfortBasic || r.concern == policy.EnsureBasicPower || r.concern == policy.EnsureTemperatureSafety || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes {
+	if r.definition == "TableButcher" || r.facilityLadder() || r.phase == policy.ComfortBasic || r.phase == policy.ComfortSpot || r.concern == policy.EnsureBasicPower || r.concern == policy.EnsureTemperatureSafety || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes {
 		gate = comfortBuilderGate(facts, r.definition)
 		if r.power != nil && r.power.Method == policy.PowerGenerate {
 			// A generator no site accepts yields to the next ranked one a
@@ -614,7 +629,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	if r.concern == policy.MaintainButcherSpot || r.concern == policy.EnsureCooking || r.facilityLadder() || r.phase == policy.ComfortBasic || r.phase == policy.HousingExpansion || r.concern == policy.EnsureBasicPower || r.concern == policy.EnsureTemperatureSafety || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes {
+	if r.concern == policy.MaintainButcherSpot || r.concern == policy.EnsureCooking || r.facilityLadder() || r.phase == policy.ComfortBasic || r.phase == policy.ComfortSpot || r.phase == policy.HousingExpansion || r.concern == policy.EnsureBasicPower || r.concern == policy.EnsureTemperatureSafety || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes {
 		pending := func(progress domain.Progress) bool {
 			if r.concern == policy.EnsureTemperatureSafety {
 				if r.temperature.Method == policy.TemperatureHeat {
@@ -856,7 +871,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	// A loose sleeping spot stands only in a room planned to sleep in; the
 	// basic-comfort table and seat keep out of the rooms that must stay clear.
 	looseSpot := r.concern == policy.MaintainHousing && r.definition == "SleepingSpot" && r.facility == nil && r.cells == nil
-	if !looseSpot && (r.concern == policy.MaintainHousing || r.concern == policy.EnsureComfort && r.phase == policy.ComfortBasic && r.cells == nil) && r.facility == nil {
+	if !looseSpot && (r.concern == policy.MaintainHousing || r.concern == policy.EnsureComfort && (r.phase == policy.ComfortBasic || r.phase == policy.ComfortSpot) && r.cells == nil) && r.facility == nil {
 		// Loose sleeping spots and the basic-comfort table and seat go to the
 		// starter shell or a bedroom, not into a standing kitchen, lab, storage
 		// or other planned room: beds there make it a sleeping room and block the

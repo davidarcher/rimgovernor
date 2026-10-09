@@ -13,6 +13,9 @@ import (
 const (
 	ComfortBasic  Phase = "basic"
 	ComfortRanked Phase = "ranked"
+	// ComfortSpot is the PartySpot step, owed once neither facility phase is:
+	// the ranked planner serves it (RoundsFacts.PartySpotOwed).
+	ComfortSpot Phase = "spot"
 )
 
 // BasicComfortReview is the foothold half of the comfort need: every

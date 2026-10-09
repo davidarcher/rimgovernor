@@ -262,6 +262,10 @@ type RoundsFacts struct {
 	// MealClosetOwed: the planned meal closet waits to be shelled while its
 	// dining room stands; it keeps MaintainRefrigeration open.
 	MealClosetOwed domain.Fact[bool]
+	// PartySpotOwed: the colony owes its PartySpot a placement or a
+	// deconstruction (ReviewPartySpot); it holds EnsureComfort Unmet for the
+	// pass or two the step takes. Unknown leaves comfort as it was.
+	PartySpotOwed domain.Fact[bool]
 	// CampfireRetireOwed: a stove kitchen supersedes a cooking campfire; it keeps EnsureCooking open.
 	CampfireRetireOwed domain.Fact[bool]
 	// TemperatureOwed: a heat campfire's auto-refuel should switch, or a

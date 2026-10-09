@@ -17,7 +17,7 @@ import (
 // needs.
 var StarterDefinitions = []string{
 	"Barricade", "Battery", "Bed", "ButcherSpot", "Campfire", "ChemfuelPoweredGenerator", "Cooler", "Door",
-	"Fence", "FenceGate", "FueledStove", "GeothermalGenerator", "Heater", "PassiveCooler", "PenMarker",
+	"Fence", "FenceGate", "FueledStove", "GeothermalGenerator", "Heater", "PartySpot", "PassiveCooler", "PenMarker",
 	"Plant_Corn", "Plant_Potato", "Plant_Rice", "PowerConduit", "Sandbags", "SimpleResearchBench", "SleepingSpot",
 	"SolarGenerator", "StandingLamp", "TableStonecutter", "Wall", "WindTurbine", "WoodFiredGenerator",
 }

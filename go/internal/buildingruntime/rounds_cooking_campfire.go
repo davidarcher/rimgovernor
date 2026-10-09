@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -153,8 +152,7 @@ func (r *RoundsBuildingPlanner) retireCampfire(call, epoch context.Context, stat
 // once that method exists.
 func (r *RoundsBuildingPlanner) retireBuilding(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.ColonyReading, id, def string, cell domain.Cell, prefix, reason string) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
-	sum := sha256.Sum256([]byte(id))
-	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, sum[:8]))
+	method := retireMethodID(prefix, id)
 	if _, err := p.journal.LoadOwnerMethod(call, goal, method); err == nil {
 		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, reason)}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {

@@ -12,6 +12,26 @@ import (
 // up; which stage a tier or trait asks for is the planner's choice.
 type ImpressivenessLevels struct {
 	Dull, Mediocre, Decent, SlightlyImpressive float64
+	// Stages are every score stage's minimum score in the game's order (awful
+	// first); Stage indexes into them. Empty reads as the four named levels.
+	Stages []float64
+}
+
+// Stage is the impressiveness stage a score reaches: the index of the highest
+// stage whose minimum score it meets (0 below the first named stage). Stages
+// beyond the four named levels count only when the catalog listed them.
+func (l ImpressivenessLevels) Stage(score float64) int {
+	stages := l.Stages
+	if len(stages) == 0 {
+		stages = []float64{0, l.Dull, l.Mediocre, l.Decent, l.SlightlyImpressive}
+	}
+	stage := 0
+	for i := 1; i < len(stages); i++ {
+		if score >= stages[i] {
+			stage = i
+		}
+	}
+	return stage
 }
 
 // Baseline is the colony-wide floor by tech tier, one native

@@ -463,6 +463,11 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	reading.Projection.Facts.MealClosetOwed = mealClosetOwed(reading.Projection)
 	reading.Projection.Facts.CampfireRetireOwed = campfireRetireOwed(reading.Projection)
 	reading.Projection.Facts.TemperatureOwed = temperatureOwed(reading.Projection)
+	if r.methodEnabled(policy.EnsureComfort) {
+		if reading.Projection.Facts.PartySpotOwed, err = r.partySpotOwed(ctx, previous, reading.Projection); err != nil {
+			return store.RoundsResult{}, err
+		}
+	}
 	if targets, err := shellTargets(ctx, r.native, p.journal, state.Snapshot, reading.Projection); err != nil {
 		return store.RoundsResult{}, err
 	} else {

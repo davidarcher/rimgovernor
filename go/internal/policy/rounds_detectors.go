@@ -262,6 +262,14 @@ func inspectComfort(c *roundsRun) error {
 		c.r.Latches.Comfort = ComfortRanked
 		g := c.raise(EnsureComfort, 4)
 		g.Deficit = f.ComfortDeficit
+	} else if positive(f.PartySpotOwed) {
+		// Neither facility phase is owed, but the colony's PartySpot is
+		// missing, duplicated or outranked by a better shared room. The step
+		// is one placement or one deconstruction (the review drops the
+		// deficit once the one-shot is spent or no cell takes it), so comfort
+		// is Unmet for a pass or two, not indefinitely.
+		c.r.Latches.Comfort = ComfortSpot
+		c.raise(EnsureComfort, 4).Deficit = domain.Known(1.0)
 	}
 	priority, recovered := 4, basicComfort.Recovered()
 	if c.r.Latches.Comfort == ComfortBasic {
@@ -270,6 +278,9 @@ func inspectComfort(c *roundsRun) error {
 		// The ranked phase is assessed at every stage, as before the merge;
 		// only its goal waits for StageDevelopment.
 		recovered = allFacts(recovered, f.ComfortRecovered)
+		if positive(f.PartySpotOwed) {
+			recovered = domain.Known(false)
+		}
 	}
 	c.assess(EnsureComfort, priority, recovered)
 	return nil

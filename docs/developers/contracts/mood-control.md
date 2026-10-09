@@ -214,9 +214,36 @@ and the game chooses it. Game code read with ilspycmd:
   reachable guests). Only when none validates does it fall back to cells within 4 of
   an active `CompGatherSpot` and then within 25 of the organizer, rejecting rooms
   with under 10 cells that are not huge or outdoors. So a PartySpot controls the
-  spot; policy places it (a later child of #2532).
+  spot; policy keeps one placed (below).
 - The party area is the whole room when the spot's room is at most 100 cells, not
   huge and not outdoors, otherwise cells within 18.
+
+### The PartySpot
+
+`EnsureComfort` keeps exactly one free, instant-build `PartySpot` placed, independent
+of any gathering. `policy.ReviewPartySpot` scores the dining and rec rooms
+lexicographically: the highest observed impressiveness stage (the Impressiveness
+`RoomStatDef` score stages, `ImpressivenessLevels.Stage`), ties broken by cell count.
+It owes one step, each resolved by a single action through the existing paths:
+
+- no spot stands: a `building` action places `PartySpot` on a free, roofed, indoor cell
+  of the winning room (the game's `ValidateGatheringSpot` filter), or on any such cell
+  while no shared room qualifies;
+- a room of a strictly higher stage than the incumbent's room exists (the incumbent's
+  room is read from the observed spot, never stored): the old spot is deconstructed
+  with the `deconstruction` action and the new one is placed on a later pass; rooms of
+  the same stage never move it;
+- duplicates: each extra spot is deconstructed.
+
+The need is `RoundsFacts.PartySpotOwed`. While it holds and neither facility phase is
+owed, `inspectComfort` raises `EnsureComfort` in the `spot` phase (served by the ranked
+planner) and assesses it Unmet, so comfort is briefly Unmet for the pass or two the
+step takes. Guards keep it from holding comfort Unmet: a blueprint or frame already
+standing, an unbuildable `PartySpot` (definition unavailable or no builder), no free
+cell, or an already spent per-Episode one-shot (`retireBuilding` once per building, one
+placement per room) all drop the deficit. Mood relief for `AteWithoutTable` and
+`NeedJoy` defers to `EnsureComfort` while it is active, so it defers during that window
+too. Gathering itself is #2548.
 
 `GatheringEffect` records `gathering_def`, `organizer_id` and the `spot` the game
 chose. Applied means the lord was created, not that guests attended. A refusal is

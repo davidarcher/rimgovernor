@@ -107,6 +107,9 @@ func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (i
 		}
 		return 0, "", fieldUnavailable("power_proposal")
 	case policy.EnsureComfort:
+		if r.phase == policy.ComfortSpot {
+			return 1, partySpotPlaceMethod(r.partySpotRoom), Verdict{}
+		}
 		if r.phase == policy.ComfortBasic {
 			return 1, domain.MethodID("basic-comfort-" + r.definition), Verdict{}
 		}
