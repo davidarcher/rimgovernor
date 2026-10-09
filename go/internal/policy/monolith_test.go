@@ -17,16 +17,16 @@ func monolithAt(level int32, next string, can bool) MonolithFacts {
 func strongGate() AwakenGate {
 	cell := heldEntity("e1", domain.Known(false))
 	cell.Escaping = domain.Known(false)
-	return AwakenGate{Capacity: domain.Known(250.0), RaidPoints: domain.Known(200.0), Hostiles: domain.Known(int64(0)),
+	return AwakenGate{Stage: StageStable, Capacity: domain.Known(250.0), RaidPoints: domain.Known(200.0), Hostiles: domain.Known(int64(0)),
 		Containment: ContainmentPlanning{Entities: domain.Known([]CapturableEntity{cell}), Holders: domain.Known([]BuiltHolder{})}}
 }
 
 func TestInactiveMonolithIsInvestigatedAndEarlierLevelsActivatedOnceAllowed(t *testing.T) {
-	got := MonolithAdvanceOwed(domain.Known(monolithAt(0, "Stirring", true)), AwakenGate{})
+	got := MonolithAdvanceOwed(domain.Known(monolithAt(0, "Stirring", true)), AwakenGate{Stage: StageStable})
 	if got.Order != MonolithInvestigate || got.Monolith != "Thing_VoidMonolith1" || got.Awaken || len(got.Issues) != 0 {
 		t.Fatalf("%+v", got)
 	}
-	got = MonolithAdvanceOwed(domain.Known(monolithAt(1, "Waking", true)), AwakenGate{})
+	got = MonolithAdvanceOwed(domain.Known(monolithAt(1, "Waking", true)), AwakenGate{Stage: StageStable})
 	if got.Order != MonolithActivate || got.Awaken || got.Level != 1 {
 		t.Fatalf("the Stirring level is activated without the awakening gate: %+v", got)
 	}
@@ -51,7 +51,7 @@ func TestMonolithHoldsWhileTheGameDoesNotAllowActivation(t *testing.T) {
 func TestMonolithIsInertInAmbientHorrorAndWithoutAMonolith(t *testing.T) {
 	f := monolithAt(0, "Stirring", true)
 	f.AmbientHorror = domain.Known(true)
-	if got := MonolithAdvanceOwed(domain.Known(f), AwakenGate{}); got.Order != "" || got.Hold != "" || len(got.Issues) != 0 {
+	if got := MonolithAdvanceOwed(domain.Known(f), AwakenGate{Stage: StageStable}); got.Order != "" || got.Hold != "" || len(got.Issues) != 0 {
 		t.Fatalf("Ambient Horror: %+v", got)
 	}
 	if MonolithInPlay(domain.Known(f)) {
@@ -59,10 +59,10 @@ func TestMonolithIsInertInAmbientHorrorAndWithoutAMonolith(t *testing.T) {
 	}
 	f = monolithAt(0, "Stirring", true)
 	f.Spawned = domain.Known(false)
-	if got := MonolithAdvanceOwed(domain.Known(f), AwakenGate{}); got.Order != "" || len(got.Issues) != 0 {
+	if got := MonolithAdvanceOwed(domain.Known(f), AwakenGate{Stage: StageStable}); got.Order != "" || len(got.Issues) != 0 {
 		t.Fatalf("no monolith: %+v", got)
 	}
-	if got := MonolithAdvanceOwed(domain.Unknown[MonolithFacts](), AwakenGate{}); got.Order != "" || len(got.Issues) != 0 {
+	if got := MonolithAdvanceOwed(domain.Unknown[MonolithFacts](), AwakenGate{Stage: StageStable}); got.Order != "" || len(got.Issues) != 0 {
 		t.Fatalf("no Anomaly: %+v", got)
 	}
 }
@@ -71,17 +71,17 @@ func TestMonolithUnreadFactsHoldTheOrderLoudly(t *testing.T) {
 	f := monolithAt(1, "Waking", true)
 	f.ID = domain.Unknown[string]()
 	f.AmbientHorror = domain.Known(false)
-	if got := MonolithAdvanceOwed(domain.Known(f), AwakenGate{}); got.Order != "" || len(got.Issues) != 1 {
+	if got := MonolithAdvanceOwed(domain.Known(f), AwakenGate{Stage: StageStable}); got.Order != "" || len(got.Issues) != 1 {
 		t.Fatalf("unread id: %+v", got)
 	}
 	f = monolithAt(1, "Waking", true)
 	f.AmbientHorror = domain.Unknown[bool]()
-	if got := MonolithAdvanceOwed(domain.Known(f), AwakenGate{}); got.Order != "" || len(got.Issues) != 1 {
+	if got := MonolithAdvanceOwed(domain.Known(f), AwakenGate{Stage: StageStable}); got.Order != "" || len(got.Issues) != 1 {
 		t.Fatalf("unread mode: %+v", got)
 	}
 	f = monolithAt(1, "Waking", true)
 	f.NextLevel = domain.Unknown[string]()
-	if got := MonolithAdvanceOwed(domain.Known(f), AwakenGate{}); got.Order != "" || len(got.Issues) != 1 {
+	if got := MonolithAdvanceOwed(domain.Known(f), AwakenGate{Stage: StageStable}); got.Order != "" || len(got.Issues) != 1 {
 		t.Fatalf("unread next level: %+v", got)
 	}
 }
@@ -155,11 +155,11 @@ func TestAwakeningUnknownStrengthIsAnIssueNotAGuess(t *testing.T) {
 
 func TestMonolithAdvanceIsAPopulationDeficit(t *testing.T) {
 	f := RoundsFacts{Monolith: domain.Known(monolithAt(0, "Stirring", true))}
-	if !monolithAdvanceOwed(f) {
+	if !monolithAdvanceOwed(f, StageStable) {
 		t.Fatal("an allowed investigation is a standing work")
 	}
 	f.Monolith = domain.Known(monolithAt(1, "Waking", false))
-	if monolithAdvanceOwed(f) {
+	if monolithAdvanceOwed(f, StageStable) {
 		t.Fatal("a held advance is no deficit")
 	}
 }
@@ -171,7 +171,7 @@ func TestVoidAwakeningQuestIsWalkedStageByStage(t *testing.T) {
 	quest := func(change func(*MonolithFacts)) MonolithAdvance {
 		f := monolithAt(3, "", false)
 		change(&f)
-		return MonolithAdvanceOwed(domain.Known(f), AwakenGate{})
+		return MonolithAdvanceOwed(domain.Known(f), AwakenGate{Stage: StageStable})
 	}
 	if got := quest(func(*MonolithFacts) {}); got.Order != "" || got.Target != "" {
 		t.Fatalf("outside the quest: %+v", got)
@@ -203,7 +203,27 @@ func TestVoidAwakeningQuestIsWalkedStageByStage(t *testing.T) {
 	}
 	pending := monolithAt(3, "", false)
 	pending.PendingStructures = []string{"Thing_VoidStructure1"}
-	if !monolithAdvanceOwed(RoundsFacts{Monolith: domain.Known(pending)}) {
+	if !monolithAdvanceOwed(RoundsFacts{Monolith: domain.Known(pending)}, StageStable) {
 		t.Fatal("a pending structure is a standing work")
+	}
+}
+
+func TestMonolithWaitsForAStableColony(t *testing.T) {
+	for _, stage := range []ColonyStage{StageFoothold, StageReserves} {
+		gate := strongGate()
+		gate.Stage = stage
+		for _, f := range []MonolithFacts{monolithAt(0, "Stirring", true), monolithAt(1, "Waking", true), monolithAt(2, MonolithLevelVoidAwakened, true)} {
+			got := MonolithAdvanceOwed(domain.Known(f), gate)
+			if got.Order != "" || !strings.Contains(got.Hold, "has not reached Stable") {
+				t.Fatalf("%s level %+v: %+v", stage, f.Level, got)
+			}
+		}
+	}
+	gate := strongGate()
+	gate.Stage = StageFoothold
+	quest := monolithAt(3, "", false)
+	quest.Gleaming = domain.Known(true)
+	if got := MonolithAdvanceOwed(domain.Known(quest), gate); got.Order != MonolithInteract {
+		t.Fatalf("a running awakening quest is walked at any stage: %+v", got)
 	}
 }

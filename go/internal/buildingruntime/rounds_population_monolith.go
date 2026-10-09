@@ -43,7 +43,7 @@ func (r *RoundsPopulationCustodyPlanner) stepMonolith(call, epoch context.Contex
 		return result, false, err
 	}
 	facts.Hostiles, _ = policy.EmergencyNeeds(snapshot, state.Snapshot, review.Tick)
-	advance := policy.MonolithAdvanceOwed(facts.Monolith, policy.MonolithGate(facts))
+	advance := policy.MonolithAdvanceOwed(facts.Monolith, policy.MonolithGate(facts, r.reviewer.staged().ColonyStage))
 	for _, issue := range advance.Issues {
 		defenseAction(call, "routine-population-custody", slog.LevelWarn, "refused", "monolith_advance_unread", "monolith", map[string]any{"detail": issue})
 	}

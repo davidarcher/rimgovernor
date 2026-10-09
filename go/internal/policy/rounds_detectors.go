@@ -825,7 +825,7 @@ func inspectPopulation(c *roundsRun) error {
 	letterDeficit, letterKnown := JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).Value()
 	_, ceremonyStarts := CeremonyStartOf(f.Royalty)
 	switch {
-	case ShrineArrestTarget(f) != "", LanceTarget(f) != "", entityCaptureOwed(f.Containment), entityDoorOwed(f.Containment), entityTendOwed(f.Containment), entityBioferriteOwed(f.Containment, f.Research), monolithAdvanceOwed(f), prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit, questKnown && questDeficit, letterKnown && letterDeficit, ceremonyStarts, DecreeDeficit(f), MonumentDeficit(f), DepartureDeficit(f), RefugeeDeficit(f), GravInspectionDeficit(f):
+	case ShrineArrestTarget(f) != "", LanceTarget(f) != "", entityCaptureOwed(f.Containment), entityDoorOwed(f.Containment), entityTendOwed(f.Containment), entityBioferriteOwed(f.Containment, f.Research), monolithAdvanceOwed(f, p.ColonyStage), prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit, questKnown && questDeficit, letterKnown && letterDeficit, ceremonyStarts, DecreeDeficit(f), MonumentDeficit(f), DepartureDeficit(f), RefugeeDeficit(f), GravInspectionDeficit(f):
 		recovered = domain.Known(false)
 	case prisonerDeficitKnown:
 		recovered = domain.Known(!prisonerDeficit)

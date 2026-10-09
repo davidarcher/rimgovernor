@@ -208,7 +208,7 @@ func TestMonolithFactsJoinTheLevelStateAndTheMonolithRead(t *testing.T) {
 		t.Fatal(next, f.Blocking)
 	}
 	colony.Monolith = domain.Fact[MonolithState]{}
-	if f, _ := monolithFacts(domain.Known(colony)).Value(); policy.MonolithAdvanceOwed(domain.Known(f), policy.AwakenGate{}).Order != "" {
+	if f, _ := monolithFacts(domain.Known(colony)).Value(); policy.MonolithAdvanceOwed(domain.Known(f), policy.AwakenGate{Stage: policy.StageStable}).Order != "" {
 		t.Fatal("an unread monolith read ordered a job")
 	}
 }

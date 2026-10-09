@@ -35,9 +35,14 @@ import (
 // is answered only by VoidNodeDisrupt, which collapses the monolith and ends
 // the questline at the Disrupted level; embracing is never chosen.
 //
-// The awakening is ordered only when the colony is strong enough for those
-// waves, containment is stable and no threat stands. An unread fact is a loud
-// issue and holds the order, never a guess.
+// No level is advanced before the colony has reached the Stable stage (#630):
+// every activation is irreversible and escalates the questline (the first
+// playtest investigated the monolith at tick 0 and the Death Pall that
+// followed wrecked a Foothold colony's moods). The awakening is further
+// ordered only when the colony is strong enough for those waves, containment
+// is stable and no threat stands. An unread fact is a loud issue and holds the
+// order, never a guess. The awakening quest already under way is walked at any
+// stage.
 
 // MonolithLevelVoidAwakened is MonolithLevelDefOf.VoidAwakened, the level whose
 // activation is the awakening.
@@ -83,9 +88,12 @@ const (
 	MonolithInteract MonolithOrder = "interact"
 )
 
-// AwakenGate is what the awakening needs the colony to be: defended against
-// the waves, with containment stable and no threat standing.
+// AwakenGate is what the monolith advance needs the colony to be: at least
+// Stable, and for the awakening defended against the waves, with containment
+// stable and no threat standing.
 type AwakenGate struct {
+	// Stage is the colony stage of the review; the zero value is Foothold.
+	Stage ColonyStage
 	// Capacity is the observed defense capacity and RaidPoints the points a
 	// default threat draws, both in raid-point units.
 	Capacity, RaidPoints domain.Fact[float64]
@@ -150,6 +158,10 @@ func MonolithAdvanceOwed(m domain.Fact[MonolithFacts], gate AwakenGate) Monolith
 		if target != "" {
 			out.Order, out.Target, out.Performers = MonolithInteract, target, performers
 		}
+		return out
+	}
+	if gate.Stage < StageStable {
+		out.Hold = fmt.Sprintf("colony stage %s has not reached %s", gate.Stage, StageStable)
 		return out
 	}
 	if !can {
@@ -295,11 +307,11 @@ func MonolithInPlay(m domain.Fact[MonolithFacts]) bool {
 
 // monolithAdvanceOwed is whether the monolith is to be advanced now: a
 // standing work for MaintainPopulation, whose custody step carries it.
-func monolithAdvanceOwed(f RoundsFacts) bool {
-	return MonolithAdvanceOwed(f.Monolith, MonolithGate(f)).Order != ""
+func monolithAdvanceOwed(f RoundsFacts, stage ColonyStage) bool {
+	return MonolithAdvanceOwed(f.Monolith, MonolithGate(f, stage)).Order != ""
 }
 
-// MonolithGate is the awakening gate the facts give.
-func MonolithGate(f RoundsFacts) AwakenGate {
-	return AwakenGate{Capacity: f.DefenseCapacity, RaidPoints: f.RaidPoints, Hostiles: f.Hostiles, Containment: f.Containment}
+// MonolithGate is the advance gate the facts and the review's stage give.
+func MonolithGate(f RoundsFacts, stage ColonyStage) AwakenGate {
+	return AwakenGate{Stage: stage, Capacity: f.DefenseCapacity, RaidPoints: f.RaidPoints, Hostiles: f.Hostiles, Containment: f.Containment}
 }
