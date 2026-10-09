@@ -53,6 +53,8 @@ func TestAcquisitionPlannerBoundsWoodAndPreservesManual(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// Food production contributes no demand in this resource-family fixture.
+	reviewer.census.latest.reading.Projection.Facts.FoodPlan = domain.Known(policy.FoodPlan{})
 	planner, err := NewRoundsAcquisitionPlanner(reviewer, policy.MaintainResource)
 	if err != nil {
 		t.Fatal(err)
@@ -174,6 +176,8 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// Food production contributes no demand in this resource-family fixture.
+	reviewer.census.latest.reading.Projection.Facts.FoodPlan = domain.Known(policy.FoodPlan{})
 	planner, err := NewRoundsAcquisitionPlanner(reviewer, policy.MaintainResource)
 	if err != nil {
 		t.Fatal(err)
@@ -210,6 +214,8 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 	if _, err = reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// Food production contributes no demand in this resource-family fixture.
+	reviewer.census.latest.reading.Projection.Facts.FoodPlan = domain.Known(policy.FoodPlan{})
 	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
@@ -219,6 +225,8 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 	if _, err = reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// Food production contributes no demand in this resource-family fixture.
+	reviewer.census.latest.reading.Projection.Facts.FoodPlan = domain.Known(policy.FoodPlan{})
 	berries, err := planner.Step(ctx)
 	if err != nil || berries.Verdict != BuildingReasonAdmitted {
 		t.Fatal(berries, err)

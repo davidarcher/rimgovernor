@@ -107,6 +107,8 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Recipe stock targets are independent of food-production demand here.
+	base.reviewer.census.latest.reading.Projection.Facts.FoodPlan = domain.Known(policy.FoodPlan{})
 	planner, err := NewRoundsResourcePlanner(base.reviewer, native)
 	if err != nil {
 		t.Fatal(err)
@@ -194,6 +196,8 @@ func TestResourceStepFallsThroughAnUndispatchableTargetToTheNextDeficit(t *testi
 	if _, err := base.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+	// Recipe stock targets are independent of food-production demand here.
+	base.reviewer.census.latest.reading.Projection.Facts.FoodPlan = domain.Known(policy.FoodPlan{})
 	// The ore lies inside the known colony extent: a wall at the cell the
 	// mining reach filter checks against.
 	wall, err := domain.NewBuilding("Wall", domain.Cell{X: 2, Z: 2}, domain.North, "WoodLog")

@@ -83,6 +83,8 @@ func composedRoundsFixture(t *testing.T) (*Rounder, *store.Store, *playerFakeSes
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// Food production contributes no demand in this resource-family fixture.
+	reviewer.census.latest.reading.Projection.Facts.FoodPlan = domain.Known(policy.FoodPlan{})
 	source := &roundsSupplyNative{context: proto.Clone(native.reply.GetObserved().Context).(*c.ObservationContext)}
 	supply, err := NewRoundsSupplyPlanner(reviewer, source)
 	if err != nil {
@@ -325,6 +327,8 @@ func TestComposedRoundsFamiliesFreshStartReconciliationRecoversIndependently(t *
 	if _, err = r1.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// Food production contributes no demand in this resource-family fixture.
+	r1.census.latest.reading.Projection.Facts.FoodPlan = domain.Known(policy.FoodPlan{})
 	source1 := &roundsSupplyNative{context: proto.Clone(n1.reply.GetObserved().Context).(*c.ObservationContext)}
 	supplyPlanner1, err := NewRoundsSupplyPlanner(r1, source1)
 	if err != nil {
@@ -398,6 +402,8 @@ func TestComposedRoundsFamiliesFreshStartReconciliationRecoversIndependently(t *
 	if _, err = r2.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// Food production contributes no demand in this resource-family fixture.
+	r2.census.latest.reading.Projection.Facts.FoodPlan = domain.Known(policy.FoodPlan{})
 	source2 := &roundsSupplyNative{context: proto.Clone(n2.reply.GetObserved().Context).(*c.ObservationContext)}
 	supplyPlanner2, err := NewRoundsSupplyPlanner(r2, source2)
 	if err != nil {

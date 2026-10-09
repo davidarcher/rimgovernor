@@ -63,6 +63,8 @@ func remoteOreStep(t *testing.T, steel int64) (RoundsResourceResult, *remoteOreN
 	}
 	cells := []domain.Cell{{X: 2, Z: 2}, {X: 2, Z: 3}}
 	facts := &base.reviewer.census.latest.reading.Projection.Facts
+	// This mining fixture has no food-production demand.
+	facts.FoodPlan = domain.Known(policy.FoodPlan{})
 	facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: wall, Cells: cells}}})
 	facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{ID: "wall", Shape: domain.Known("shape"), Cells: cells, Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)), ExtentGeometry: domain.Known(policy.HomeExtentGeometry{})}}})
 	facts.MapBounds = domain.Known(policy.Bounds{Width: 100, Height: 100})
