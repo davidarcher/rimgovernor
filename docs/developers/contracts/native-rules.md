@@ -29,12 +29,15 @@ hauling its own kill; the corpse is left for the ordinary haul.
 - `rules_read_status`: active rules with their firing count and last firing, the lease tick and the
   ticks remaining, and `lease_expired` from the expiry until the next attach or clear.
 
-Go re-attaches every Round with a lease (2500 ticks); rules live in native memory only and a load
+Go re-attaches on the rules planner cadence with a lease (2500 ticks); rules live in native memory only and a load
 starts with none. The controller attaches through the `rules_attach` action (`RulesAttachIntent` on
 Actions/Apply, [action contracts](action-contracts.md)), which carries the rules and a lease relative to
 the apply tick and sits in the session journal before native is written. `RoundsRulesPlanner`
 (family `rules`, every half lease) derives the set from the hunt plan with `policy.HuntChainRules` (a Hunting-capable ranged colonist and at least one designated prey, including prey held from new acquisition) and
-commits one method per Round under `EnsureFoodSupply`; an empty set clears what an earlier Round attached,
+commits one method per Round under `EnsureFoodSupply`. Both retained and fresh
+reads include the pawn frame that supplies hunter profiles; an invalidated census
+therefore renews from fresh evidence. Truly unread acquisition or hunter facts
+leave the previous lease unchanged, so loss of evidence still expires naturally; an empty set clears what an earlier Round attached,
 and a Standard that is no longer workable lets the lease lapse. Admission holds for new hunt designations do not clear existing orders; native checks route and work-giver legality when selecting the next prey and fires nothing after the last kill. The `rules_attach` op (absolute
 `expires_at_tick`) stays for harnesses.
 
@@ -52,4 +55,6 @@ and a Standard that is no longer workable lets the lease lapse. Admission holds 
 
 Source: `NativeRuleBook.cs` (validation, lease, limits; no game types, probed by
 `contracts/tests/NativeContractProbes` `native-rule-runtime`), `NativeRuleRuntime.cs` (trigger, target
-search, journal, write), `NativeRuleTools.cs` (ops). Acceptance: `food/hunt-chain-rule`.
+search, journal, write), `NativeRuleTools.cs` (ops). Acceptance: `food/hunt-chain-rule` records two completed controller attachment
+ticks, requires renewal before the first lease expires, and checks native firing,
+clear and expiry behavior.

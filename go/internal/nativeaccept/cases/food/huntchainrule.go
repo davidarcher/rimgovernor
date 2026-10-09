@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/routinefamily"
+	"sort"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -25,14 +26,14 @@ func init() {
 	cases.Register(cases.Case{Name: "food/hunt-chain-rule",
 		Scope: "Native postcondition and end-to-end signal (a Go snapshot test cannot cover a native rule firing on the kill hook): " +
 			"one hunter and four designated deer; an out-of-whitelist rule is refused; the controller (service family rules, #2154) attaches the hunt-chain " +
-			"rule itself through the journaled rules_attach action, and with it attached the hunter's job two ticks after the first kill is Hunt on another " +
+			"rule itself and renews it before expiry through journaled rules_attach actions, and with it attached the hunter's job two ticks after the first kill is Hunt on another " +
 			"live designated deer, not the vanilla haul of its own kill; with rules cleared the next kill " +
 			"leaves vanilla behaviour; after the lease expires nothing fires.",
 		Start:       cases.Fixture{Op: chainPrepareOp, On: cases.LabStart()},
 		Serve:       &cases.ServeSpec{Families: []routinefamily.Family{routinefamily.Acquisition, routinefamily.Work, routinefamily.Rules}, NativeTimeout: 60 * time.Second, Prefix: "hunt-chain"},
 		QuietWorld:  true,
 		RequiredOps: []string{chainObserveOp}, Budget: 6 * time.Minute, Crew: cases.Crew{Size: 3},
-		Reason: "a lab with one ranger, a corpse stockpile and four deer; one controller phase until the rules_attach receipt, then three native kills",
+		Reason: "a lab with one ranger, a corpse stockpile and four deer; one controller phase until two timely rules_attach receipts, then three native kills",
 		Run:    runHuntChain})
 }
 
@@ -122,7 +123,20 @@ func runHuntChain(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if err = phase.Until(ctx, "the controller attaches the hunt-chain rule", func(store.Rounds) (string, bool, error) { return rulesJournaled(ctx, phase.St) }); err != nil {
+	if err = phase.Until(ctx, "the controller attaches and renews the hunt-chain rule", func(store.Rounds) (string, bool, error) {
+		ticks, err := rulesJournaled(ctx, phase.St)
+		s.Report()["chain_renewal_ticks"] = ticks
+		if err != nil {
+			return "", false, err
+		}
+		if len(ticks) < 2 {
+			return na.Signature(ticks), false, nil
+		}
+		if ticks[1] >= ticks[0]+chainLease {
+			return "", false, fmt.Errorf("hunt-chain renewal missed lease: %v", ticks)
+		}
+		return na.Signature(ticks), true, nil
+	}); err != nil {
 		phase.Abort()
 		return err
 	}
@@ -236,13 +250,14 @@ func first(rows []any) any {
 	return rows[0]
 }
 
-// rulesJournaled reports whether the journal holds a completed rules_attach
-// carrying the hunt-chain rule: the intent's receipt, written before native was.
-func rulesJournaled(ctx context.Context, st *store.Store) (string, bool, error) {
+// rulesJournaled returns the ordered dispatch ticks of completed hunt-chain
+// attachments, so the case records controller renewal beside native kill evidence.
+func rulesJournaled(ctx context.Context, st *store.Store) ([]int64, error) {
 	plans, err := st.LoadPlans(ctx)
 	if err != nil {
-		return "", false, err
+		return nil, err
 	}
+	var ticks []int64
 	for _, plan := range plans {
 		for _, progress := range plan.Progress {
 			attach, ok := progress.Action().RulesAttach()
@@ -251,10 +266,12 @@ func rulesJournaled(ctx context.Context, st *store.Store) (string, bool, error) 
 			}
 			for _, rule := range attach.Rules() {
 				if rule.ID == chainID {
-					return "attached", true, nil
+					ticks = append(ticks, int64(progress.View().Tick))
+					break
 				}
 			}
 		}
 	}
-	return "waiting", false, nil
+	sort.Slice(ticks, func(i, j int) bool { return ticks[i] < ticks[j] })
+	return ticks, nil
 }

@@ -68,7 +68,9 @@ func (r *RoundsRulesPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoundsRulesResult{}, fmt.Errorf("%w: step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
-	read, err := r.reviewer.observeColony(call, r.reviewer.native, expected, nil)
+	// Hunters come from the pawn frame, not colony facts alone. After a
+	// census invalidation the fresh read must populate both inputs too.
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
 	if err != nil {
 		return RoundsRulesResult{}, err
 	}
