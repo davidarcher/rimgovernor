@@ -338,9 +338,7 @@ the batch if any, else the first), ahead of need; a Retiring wing is never carri
 suite step and the migration step stay one room. `reconcileBedroom` hands the
 batch to `reconcileRooms`, the shared build side's multi-room entry: each room
 is diffed alone, the packed stock is shared in plan order, the installs are one
-method, and the on-site builds are one admission in which the first room is
-admitted whole and later rooms only as far as the stock funds (no cap on rooms
-or cells); the rest follows in the next wave. Suites keep their own ring-stock
+method, and the on-site builds are one admission of every ready building, doors, walls, floors then furniture across the rooms in plan order (no cap on rooms, cells or stock: the native tier gate orders delivery, see [construction tiers](../contracts/construction-tiers.md)). Suites keep their own ring-stock
 gate. Move, clear and the bed replacement, sculpture and upgrade levers
 are unchanged. The starter shelter's bunk rungs (`rounds_shelter_bunks.go`)
 and the stand-in `SleepingSpot` keep their own guard (`standInBed`): the

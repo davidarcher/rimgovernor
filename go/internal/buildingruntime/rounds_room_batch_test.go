@@ -27,9 +27,10 @@ func (n *pricedNative) PreviewBuilding(ctx context.Context, action domain.Action
 // batchRooms are three rooms of one wing, each owing a door and three walls.
 func batchRooms() []roomWork {
 	var works []roomWork
+	roles := []policy.PlannedRole{policy.PlannedPen, policy.PlannedWorkshop, policy.PlannedGraveyard}
 	for i := int32(0); i < 3; i++ {
 		x := 1 + 4*i
-		room := policy.PlannedRoom{Role: policy.PlannedPen, Interior: policy.Rectangle{X: x, Z: 1, Width: 2, Height: 2}, Door: domain.Cell{X: x + 1, Z: 0}, DoorRot: domain.North, Outdoor: true}
+		room := policy.PlannedRoom{Role: roles[i], Interior: policy.Rectangle{X: x, Z: 1, Width: 2, Height: 2}, Door: domain.Cell{X: x + 1, Z: 0}, DoorRot: domain.North, Outdoor: true}
 		works = append(works, roomWork{
 			rr: roomReconcile{room: room, name: "wing-" + string(rune('a'+i)), reason: "wing"},
 			ops: []policy.Operation{
@@ -44,6 +45,12 @@ func batchRooms() []roomWork {
 // admittedBuilds commits works with available wood in stock and returns the
 // buildings of the one method admitted.
 func admittedBuilds(t *testing.T, available int64) []domain.Building {
+	out, _ := admittedActions(t, available)
+	return out
+}
+
+// admittedActions is admittedBuilds with each building's tier.
+func admittedActions(t *testing.T, available int64) ([]domain.Building, []domain.Fact[domain.ConstructionTier]) {
 	t.Helper()
 	p, db, base, _ := refrigerationFixture(t, false)
 	base.putCatalog(bridge.FixtureDef{Name: "Fence", ConstructionSkill: 0, Width: 1, Height: 1}, bridge.FixtureDef{Name: "FenceGate", ConstructionSkill: 0, Width: 1, Height: 1}, bridge.FixtureDef{Name: "PenMarker", Width: 1, Height: 1})
@@ -98,43 +105,46 @@ func admittedBuilds(t *testing.T, available int64) []domain.Building {
 		t.Fatal(err)
 	}
 	var out []domain.Building
+	var tiers []domain.Fact[domain.ConstructionTier]
 	for _, action := range plan.Spec.Actions() {
 		if b, ok := action.Building(); ok {
 			out = append(out, b)
+			tiers = append(tiers, action.Tier())
 		}
 	}
-	return out
+	return out, tiers
 }
 
 // A stocked wing's rooms are one batch: every room's ring is admitted
-// together, the first room leading, rooms in plan order.
+// together, doors first across the rooms in plan order, then walls.
 func TestCommitBuildsAdmitsAStockedWingTogether(t *testing.T) {
 	got := admittedBuilds(t, 100)
 	if len(got) != 12 {
 		t.Fatalf("admitted %d buildings, want the 12 of three rooms", len(got))
 	}
-	// The first room leads, door first; then the later rooms' doors, then walls.
-	for i, x := range map[int]int32{0: 2, 4: 6, 5: 10} {
+	for i, x := range map[int]int32{0: 2, 1: 6, 2: 10} {
 		if got[i].Definition() != "FenceGate" || got[i].Cell().X != x {
 			t.Fatalf("building %d = %s at %v, want the gate at x=%d", i, got[i].Definition(), got[i].Cell(), x)
 		}
 	}
 }
 
-// An under-stocked wing admits the first room whole and then only what the
-// stock still funds, in plan order; the rest follows in the next wave.
-func TestCommitBuildsAdmitsOnlyWhatTheStockFunds(t *testing.T) {
-	got := admittedBuilds(t, 6)
-	if len(got) != 6 {
-		t.Fatalf("admitted %d buildings, want the 6 the stock funds", len(got))
+// An under-stocked wing is admitted whole all the same: stock does not meter
+// admission, and each building carries its room's tier for the native gate.
+func TestCommitBuildsIgnoresStockAndCarriesTiers(t *testing.T) {
+	got, tiers := admittedActions(t, 1)
+	if len(got) != 12 {
+		t.Fatalf("admitted %d buildings, want the 12 of three rooms regardless of stock", len(got))
 	}
-	head := 0
-	for _, b := range got {
-		if b.Cell().X < 4 {
-			head++
+	byTier := map[domain.ConstructionTier]int{}
+	for _, tier := range tiers {
+		v, known := tier.Value()
+		if !known {
+			t.Fatal("an admitted building carries no tier")
 		}
+		byTier[v]++
 	}
-	if head != 4 {
-		t.Fatalf("the first room has %d of its 4 buildings, want it whole", head)
+	if byTier[domain.TierComfort] != 4 || byTier[domain.TierProduce] != 4 || byTier[domain.TierExpand] != 4 {
+		t.Fatalf("buildings by tier = %v, want four each of Comfort, Produce, Expand", byTier)
 	}
 }

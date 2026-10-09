@@ -497,18 +497,11 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	// The shelter's template slots are keyed on its planned interior, so the
 	// slot is previewed and admitted first and the ring wave goes in right
 	// after it, around the placed slot: a ring blueprint on the
-	// slot's interaction spot makes the native refuse the slot. A ring wave
-	// already open leaves the placement to go on.
+	// slot's interaction spot makes the native refuse the slot.
 	var ringAfter *roomReconcile
 	if r.takesShelterSlot(facts) {
 		if room, owed := plannedRoomOwed(facts, policy.PlannedShelter); owed {
-			open, err := r.ringWaveOpen(call, goal)
-			if err != nil {
-				return RoundsBuildingResult{}, err
-			}
-			if !open {
-				ringAfter = &roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room))}
-			}
+			ringAfter = &roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room))}
 		}
 	}
 	admitRing := func(goal store.WorkOwner) (RoundsBuildingResult, error) {

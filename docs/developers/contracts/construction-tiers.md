@@ -147,3 +147,10 @@ An unreachable tier-0 site cannot starve everything else. The comparison itself
 is `ConstructionTierGatePolicy` (no Verse types), covered by probe
 `native-construction-tier-gate`; the work-giver patch by native case
 `wall/tier-gate`.
+
+Admission is not metered by sequence: room builds (shell, floors, furniture,
+across every room of a wing) are admitted in one round whatever the stock, and
+a ring is never held for an open wave. A blueprint holds no materials until
+delivered, so over-admission is harmless and this gate orders the delivery.
+Logical prerequisites (kitchen before stove, dig before ring, stage gates)
+stay in Go.

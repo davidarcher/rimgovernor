@@ -233,16 +233,6 @@ func (b *RoundsBuildingPlanner) reconcileRooms(call, epoch context.Context, stat
 	if !known || len(rrs) == 0 {
 		return RoundsBuildingResult{Verdict: fieldUnavailable("room_ground")}, nil
 	}
-	// A ring-only room whose wave the owner still has open is not diffed again:
-	// its owner goes on to its own placement.
-	for _, rr := range rrs {
-		if rr.ringOnly {
-			open, err := b.ringWaveOpen(call, goal)
-			if err != nil || open {
-				return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, rr.name+"_build")}, err
-			}
-		}
-	}
 	// The packed stock the rooms share: a room takes what its predecessors left.
 	var left map[string]int
 	works := make([]roomWork, 0, len(rrs))
@@ -324,26 +314,6 @@ func (b *RoundsBuildingPlanner) reconcileRooms(call, epoch context.Context, stat
 		}
 	}
 	return b.commitBuilds(call, epoch, state, review, goal, reading, plan, works)
-}
-
-// ringWaveOpen is true when the owner has a ring wave of any planned room still
-// open: the walls it admitted are not all done. The store holds one open ring
-// wave per owner, so another room's ring waits for it as well.
-func (b *RoundsBuildingPlanner) ringWaveOpen(call context.Context, goal store.WorkOwner) (bool, error) {
-	journal := b.reviewer.player.journal
-	for _, m := range goal.OwnerMethods() {
-		if !store.IsRoomShellMethod(m.Method) {
-			continue
-		}
-		plan, err := journal.LoadPlan(call, m.Plan)
-		if err != nil {
-			return false, err
-		}
-		if store.PlanOpen(plan) {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 // methodOnce is true when the owner has not committed method yet.
@@ -532,10 +502,8 @@ var roomBuildKinds = []policy.OpKind{policy.OpDoorIn, policy.OpWallIn, policy.Op
 // commitBuilds previews every ready on-site building of the rooms, one kind at
 // a time across the rooms in plan order (twelve rooms' walls are one batch),
 // and admits those native accepts as one method; a refused placement is left
-// for a later pass. The first room with work to do is admitted whole, as a
-// single-room admission records any material shortfall; the rooms after it take only what the stock still funds after it,
-// walls, doors, floors and furniture alike, and the rest follows in the next
-// wave. There is no cap on rooms or cells: the stock is the limit.
+// for a later pass. There is no cap on rooms or cells and no funding limit:
+// the native tier gate orders material delivery.
 func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state ControlState, review store.Rounds, goal store.WorkOwner, reading observation.RoundsReading, plan policy.LayoutPlan, works []roomWork) (RoundsBuildingResult, error) {
 	facts := reading.Projection
 	wantWalls := make([]bool, len(works))
@@ -624,32 +592,15 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 			}
 		}
 	}
-	// The first room with work goes first and whole; the rest follow in the
-	// order the kinds were collected.
-	head := builds[0].work
-	ordered := make([]roomBuild, 0, len(builds))
-	for _, build := range builds {
-		if build.work == head {
-			ordered = append(ordered, build)
-		}
-	}
-	for _, build := range builds {
-		if build.work != head {
-			ordered = append(ordered, build)
-		}
-	}
-	ledger := newFundingLedger(policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick})
+	// Every ready building is admitted: a blueprint holds no materials until
+	// they are delivered, and the native tier gate orders the delivery.
+	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	var selected []policy.Preview
 	var key strings.Builder
 	previewed := 0
 	var refused []refusedPlacement
-	for _, build := range ordered {
+	for _, build := range builds {
 		rr := works[build.work].rr
-		priceKey := build.def + "/" + build.stuff
-		// A building priced already and unfunded is not previewed again.
-		if costs, seen := ledger.priceOf(priceKey); seen && build.work != head && !ledger.funded(costs) {
-			continue
-		}
 		if err := check(); err != nil {
 			return RoundsBuildingResult{}, err
 		}
@@ -683,18 +634,10 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 			}
 			continue
 		}
-		if err := ledger.merge(preview.Stock, previewed == 0); err != nil {
+		if err := mergeRoundsStock(&stock, preview.Stock, previewed == 0); err != nil {
 			return RoundsBuildingResult{}, err
 		}
 		previewed++
-		costs, priceKnown := v.Costs.Value()
-		if priceKnown {
-			ledger.price(priceKey, costs)
-		}
-		if build.work != head && (!priceKnown || !ledger.funded(costs)) {
-			continue
-		}
-		ledger.claim(costs)
 		selected = append(selected, v)
 		fmt.Fprintf(&key, "%s@%d,%d;", build.def, build.cell.X, build.cell.Z)
 	}
@@ -707,7 +650,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 	if once, err := b.methodOnce(call, goal, method); err != nil || !once {
 		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, rr.name+"_build")}, err
 	}
-	return b.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, reason: rr.reason, snapshot: snapshot, selected: selected, stock: ledger.stock, purpose: policy.Shelter})
+	return b.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, reason: rr.reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
 }
 
 // shellMaterials chooses the wall's and the door's stuff from the one stuff the
