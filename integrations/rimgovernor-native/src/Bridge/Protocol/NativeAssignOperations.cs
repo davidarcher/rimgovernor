@@ -18,29 +18,11 @@ namespace HomeBridge.BridgeTools
     // applies; a pawn that already owns the thing applies again.
     internal sealed class AssignActionHandler : IActionHandler
     {
-        /// <summary>Why bed cannot be assigned to pawn right now, or null when it can; each gate names itself so a harness can tell them apart.</summary>
-        internal static string? BedRefusal(Building_Bed bed, Pawn pawn, Map map, bool swap)
+        /// <summary>Why bed cannot be assigned at all, or null; legality beyond identity is the comp validator (CanAssignTo) in Resolve.</summary>
+        internal static string? BedRefusal(Building_Bed bed)
         {
             if (!bed.Spawned || bed.Faction != Faction.OfPlayerSilentFail || !bed.def.building.bed_humanlike)
                 return "Bed unavailable: not a spawned player-owned humanlike bed.";
-            if (bed.Medical || bed.ForPrisoners) return "Bed unavailable: medical or prisoner bed.";
-            // A willing love partner may join a partner's bed with a free
-            // slot; a bedroom swap evicts the owners; nobody
-            // else is ever put in an owned bed.
-            if (!swap && bed.OwnersForReading.Any() && (!bed.AnyUnownedSleepingSlot || bed.OwnersForReading.Any(o => o == pawn
-                    || !LovePartnerRelationUtility.LovePartnerRelationExists(pawn, o) || !BedUtility.WillingToShareBed(pawn, o))))
-                return "Bed unavailable: already assigned.";
-            if (bed.IsForbidden(pawn)) return "Bed unavailable: forbidden to the pawn.";
-            if (bed.IsBurning()) return "Bed unavailable: burning.";
-            if (!bed.OccupiedRect().All(c => c.Roofed(map))) return "Bed unavailable: not fully roofed.";
-            var restriction = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
-            if (restriction != null && !bed.OccupiedRect().All(c => restriction[c])) return "Bed unavailable: outside the pawn's allowed area.";
-            if (!pawn.CanReach(bed, PathEndMode.OnCell, Danger.None)) return "Bed unavailable: pawn cannot reach it safely.";
-            var ambient = bed.AmbientTemperature;
-            var comfyMin = pawn.GetStatValue(StatDefOf.ComfyTemperatureMin);
-            var comfyMax = pawn.GetStatValue(StatDefOf.ComfyTemperatureMax);
-            if (ambient < comfyMin || ambient > comfyMax)
-                return $"Bed unavailable: ambient temperature {ambient:F1} is outside the pawn's comfy band [{comfyMin:F1}, {comfyMax:F1}].";
             return null;
         }
 
@@ -108,7 +90,7 @@ namespace HomeBridge.BridgeTools
             var expectPrevious = intent.ExpectedPrevious.ValueCase == Operations.Assignment.ValueOneofCase.EntityId ? intent.ExpectedPrevious.EntityId : "";
             if (previousID != expectPrevious)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Previous assignment changed; observe before recovery.");
-            var refusal = target is Building_Bed bed ? BedRefusal(bed, found, map, intent.HasSwap && intent.Swap) : ThingRefusal(target, comp, found);
+            var refusal = target is Building_Bed bed ? BedRefusal(bed) : ThingRefusal(target, comp, found);
             if (refusal != null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, refusal);
             if (!comp.AssigningCandidates.Contains(found) || !comp.CanAssignTo(found).Accepted || comp.IdeoligionForbids(found))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native assignment eligibility refused.");

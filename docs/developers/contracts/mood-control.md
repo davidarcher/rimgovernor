@@ -94,12 +94,13 @@ are not ThoughtDefs in the installed game, so the table has no rows for them.
 ## Relief jobs
 
 A `GiveJobIntent` with `relieve_need` on Actions/Apply offers one ordinary food, rest
-or recreation job. It checks an exact pawn and current job identity, current
-timetable assignment, draft/mental/medical state, carried cargo, fire, native
-priority, target restrictions, safe reachability and reservations. It uses the
-installed native job givers and never changes schedules, policies, traits, ideology
-or needs. In Auto, forced and queued work do not prohibit a fresh relief admission;
-current job identity and native interruptibility still guard the replacement.
+or recreation job. Native checks only that the exact pawn is a spawned,
+living, undowned, undrafted colonist outside a mental break, then takes the job and
+reservations the installed native job giver returns; the game's refusal, not a native
+pre-veto on medical rest, interruptibility, need level, timetable, priority, cargo,
+fire, forbidden targets or reach danger, is the answer when no job comes. It never
+changes schedules, policies, traits, ideology or needs. Go decides whether relief is
+worth asking for from the observed facts.
 Recreation excludes ingestible joy; food relief requires an ordinary ingestion job
 and leaves acquisition to its own concern. Preview checks admission only: it does not
 run a job giver or reserve a target, and dispatch can still refuse when no eligible

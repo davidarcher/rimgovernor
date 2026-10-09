@@ -85,10 +85,10 @@ namespace HomeBridge.BridgeTools
                 // The walls above were spawned directly, so the enclosure's
                 // room does not exist until regions are rebuilt; do that now
                 // (the game is paused) and pin the room's temperature to the
-                // middle of the colonist's comfy band. AssignBed refuses beds
-                // outside that band (and CanReach at Danger.None refuses
-                // extreme cells), and a fresh debug world's outdoor
-                // temperature is not guaranteed to be comfortable.
+                // middle of the colonist's comfy band: a fresh debug world's
+                // outdoor temperature is not guaranteed to be comfortable,
+                // and the colonist must be able to sleep here. Native
+                // assign no longer gates on temperature.
                 map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
                 var room = newBed.GetRoom();
                 if (room == null || room.TouchesMapEdge || room.OpenRoofCount > 0)

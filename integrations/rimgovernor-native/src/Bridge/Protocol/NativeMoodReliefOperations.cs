@@ -22,14 +22,6 @@ namespace HomeBridge.BridgeTools
 
     internal static class NativeMoodReliefOperations
     {
-        internal static float? NeedLevel(Pawn p, Operations.Need need) => need switch
-        {
-            Operations.Need.Food => p.needs?.food?.CurLevelPercentage,
-            Operations.Need.Rest => p.needs?.rest?.CurLevelPercentage,
-            Operations.Need.Joy => p.needs?.joy?.CurLevelPercentage,
-            _ => null,
-        };
-
         private static ThinkNode_JobGiver? Giver(Operations.Need need) => need switch
         {
             Operations.Need.Food => new JobGiver_GetFood(),
@@ -72,20 +64,8 @@ namespace HomeBridge.BridgeTools
             if (pawn.Dead || pawn.Downed || pawn.Drafted || pawn.InMentalState || !pawn.IsColonistPlayerControlled)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn unavailable, drafted or in an active mental break.");
             if (Running(pawn, need)) return null;
-            if (HealthAIUtility.ShouldSeekMedicalRest(pawn))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Medical rest takes precedence.");
-            if (!pawn.jobs.IsCurrentJobPlayerInterruptible() || pawn.carryTracker?.CarriedThing != null || pawn.IsBurning())
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current job, carried cargo or fire prevents safe interruption.");
-            var level = NeedLevel(pawn, need);
-            if (level == null || level >= 0.5f)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Need is absent or no longer deficient.");
             giver = Giver(need);
             if (giver == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Unknown need.");
-            var assignment = pawn.timetable?.CurrentAssignment;
-            if (need == Operations.Need.Joy
-                    ? assignment != TimeAssignmentDefOf.Anything && assignment != TimeAssignmentDefOf.Joy
-                    : giver.GetPriority(pawn) <= 0)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native need priority or player timetable prevents recovery now.");
             return null;
         }
 
@@ -101,8 +81,6 @@ namespace HomeBridge.BridgeTools
             if (job == null) throw new InvalidOperationException("No eligible native need job; inspect access, resources and recreation tolerance.");
             if (need == Operations.Need.Food && job.def != JobDefOf.Ingest)
                 throw new InvalidOperationException("Food recovery requires an available ingestible; production remains a separate concern.");
-            if (job.targetA.IsValid && (!pawn!.CanReach(job.targetA, PathEndMode.Touch, Danger.None) || job.targetA.Cell.IsForbidden(pawn)))
-                throw new InvalidOperationException("Need target is not safely reachable under current restrictions.");
             if (!job.TryMakePreToilReservations(pawn!, errorOnFailed: false))
             { pawn!.ClearReservationsForJob(job); throw new InvalidOperationException("Native job reservations refused recovery."); }
             pawn!.jobs.StartJob(job, JobCondition.InterruptForced, giver, preToilReservationsCanFail: true);
