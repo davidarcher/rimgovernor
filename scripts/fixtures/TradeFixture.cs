@@ -21,7 +21,9 @@ namespace HomeBridge.BridgeTools
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
-                if (map == null || (!Find.TickManager.Paused && action != "session_inventory")) throw new InvalidOperationException("Pause a disposable colony first.");
+                if (map == null || (!Find.TickManager.Paused && action != "session_inventory" && action != "roundtrip_state")) throw new InvalidOperationException("Pause a disposable colony first.");
+                if (action == "roundtrip_setup") return PrepareRoundtrip(map);
+                if (action == "roundtrip_state") return RoundtripState(map, traderId);
                 if (action == "session_setup") return PrepareSession(map, channel);
                 if (action.StartsWith("request_")) return RequestFixture(map, action, channel, pawnId, traderId);
                 if (action == "session_inventory") return SessionInventory(map, channel, traderId, caravanId);
@@ -249,6 +251,70 @@ namespace HomeBridge.BridgeTools
                         social = p.skills.GetSkill(SkillDefOf.Social).TotallyDisabled ? -1 : p.skills.GetSkill(SkillDefOf.Social).Level,
                         job = p.CurJobDef?.defName, x = p.Position.x, z = p.Position.z }).ToArray() };
             }, cancellationToken);
+        }
+
+        // Only a precondition: no caravan, Project, order, purchase or home route.
+        private static object PrepareRoundtrip(Map map)
+        {
+            var people = map.mapPawns.FreeColonistsSpawned.ToList();
+            foreach (var p in people)
+            {
+                p.jobs.StopAll();
+                foreach (var old in p.inventory.innerContainer.ToList()) old.Destroy();
+                foreach (var work in DefDatabase<WorkTypeDef>.AllDefs.Where(w => !p.WorkTypeIsDisabled(w)))
+                    p.workSettings.SetPriority(work, 1);
+                if (p.needs.food != null) p.needs.food.CurLevelPercentage = 1f;
+                if (p.needs.rest != null) p.needs.rest.CurLevelPercentage = 1f;
+            }
+            foreach (var old in map.listerThings.AllThings.Where(t => t.def.IsNutritionGivingIngestible || t.def == ThingDefOf.Silver).ToList()) old.Destroy();
+            var cell = map.Center + new IntVec3(3, 0, 3);
+            void Place(ThingDef def, int count)
+            {
+                for (var left = count; left > 0; left -= def.stackLimit)
+                {
+                    var t = ThingMaker.MakeThing(def); t.stackCount = Math.Min(left, def.stackLimit);
+                    if (!GenPlace.TryPlaceThing(t, cell, map, ThingPlaceMode.Near)) throw new InvalidOperationException("Roundtrip stock placement failed.");
+                    t.SetForbidden(false, false); map.areaManager.Home[t.Position] = true;
+                }
+            }
+            // Retain the three-day home floor plus the short trip's pack,
+            // while staying below seven days even after one consumer leaves.
+            Place(ThingDef.Named("MealSurvivalPack"), 40);
+            Place(ThingDefOf.Silver, 4000);
+            var faction = Find.FactionManager.AllFactions.First(f => f.def.defName == "OutlanderCivil" && !f.defeated && !f.HostileTo(Faction.OfPlayer));
+            var neighbors = new System.Collections.Generic.List<PlanetTile>();
+            Find.WorldGrid.GetTileNeighbors(map.Tile, neighbors);
+            var tile = neighbors.OrderBy(t => t.tileId).First(t => !Find.World.Impassable(t) && !Find.WorldObjects.AnyMapParentAt(t));
+            var seller = (Settlement)WorldObjectMaker.MakeWorldObject(WorldObjectDefOf.Settlement);
+            seller.Tile = tile; seller.SetFaction(faction); seller.Name = "AutonomousRoundtripFixture";
+            Find.WorldObjects.Add(seller);
+            var generated = seller.Goods.ToList();
+            var holder = seller.trader.GetDirectlyHeldThings();
+            foreach (var old in generated) { holder.Remove(old); if (!(old is Pawn)) old.Destroy(); }
+            // Stock every vanilla prepared-food definition this seller actually
+            // trades; the normal policy still chooses its own demand definition.
+            var meals = DefDatabase<ThingDef>.AllDefs.Where(d => d.ingestible != null && (d.ingestible.foodType & FoodTypeFlags.Meal) != 0
+                && d.defName != "MealSurvivalPack" && seller.TraderKind.WillTrade(d)).OrderBy(d => d.defName).ToList();
+            foreach (var def in meals) { var t = ThingMaker.MakeThing(def); t.stackCount = 500; holder.TryAdd(t); }
+            var money = ThingMaker.MakeThing(ThingDefOf.Silver); money.stackCount = 10000; holder.TryAdd(money);
+            if (!seller.CanTradeNow || meals.Count == 0 || people.Count < 6) throw new InvalidOperationException("Roundtrip requires six home crew and a stocked legal seller.");
+            return new { success = true, traderId = seller.GetUniqueLoadID(), homeTile = map.Tile.tileId, settlementTile = tile.tileId,
+                crew = people.Select(p => p.GetUniqueLoadID()).ToArray(), meals = meals.Select(d => d.defName).ToArray(),
+                sellerMeals = meals.Count * 500, homeMeals = 0, packingMeals = 40, silver = 4000 };
+        }
+
+        private static object RoundtripState(Map map, string traderId)
+        {
+            var seller = Find.WorldObjects.Settlements.Single(s => s.GetUniqueLoadID() == traderId);
+            bool BoughtFood(Thing t) => t.def.ingestible != null && (t.def.ingestible.foodType & FoodTypeFlags.Meal) != 0 && t.def.defName != "MealSurvivalPack";
+            int Count(System.Collections.Generic.IEnumerable<Thing> things) => things.Where(t => !t.Destroyed && BoughtFood(t)).Sum(t => t.stackCount);
+            var caravans = Find.WorldObjects.Caravans.Where(c => c.Faction == Faction.OfPlayer).ToList();
+            return new { tick = Find.TickManager.TicksGame, sellerMeals = Count(seller.Goods), sellerSilver = seller.Goods.Where(t => t.def == ThingDefOf.Silver).Sum(t => t.stackCount),
+                homeMeals = Count(map.listerThings.AllThings.Where(t => t.Spawned).Concat(map.mapPawns.FreeColonistsSpawned.SelectMany(p => p.inventory.innerContainer))),
+                homeCrew = map.mapPawns.FreeColonistsSpawned.Select(p => p.GetUniqueLoadID()).ToArray(),
+                caravans = caravans.Select(c => new { id = c.GetUniqueLoadID(), tile = c.Tile.tileId, moving = c.pather.Moving,
+                    crew = c.PawnsListForReading.Select(p => p.GetUniqueLoadID()).ToArray(), meals = Count(CaravanInventoryUtility.AllInventoryItems(c)),
+                    silver = CaravanInventoryUtility.AllInventoryItems(c).Where(t => t.def == ThingDefOf.Silver).Sum(t => t.stackCount) }).ToArray() };
         }
 
         // Stock and participants only: opening, pricing and transfer are always

@@ -83,10 +83,11 @@ func (r *Rounder) settlementAcquisitionOptions(ctx context.Context, world domain
 				def = ""
 				for _, name := range defs {
 					food, known, e := catalog.TradeFood(name)
+					nutrition, nutritionErr := catalog.StatValue(name, "", bridge.StatNutrition)
 					compatible, knownSupply := catalog.TraderKindCanSupply(settlement.TraderKind, policy.ResourceKey{Def: policy.Resource(name)}).Value()
-					if e == nil && known && food.Prepared && food.Nutrition > 0 && knownSupply && compatible {
+					if e == nil && known && food.Prepared && nutritionErr == nil && nutrition > 0 && knownSupply && compatible {
 						def = name
-						count = int64(math.Ceil(d.Gap * math.Max(1, r.policy.FoodTargetDays) / food.Nutrition))
+						count = int64(math.Ceil(d.Gap * math.Max(1, r.policy.FoodTargetDays) / float64(nutrition)))
 						break
 					}
 				}
