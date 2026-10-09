@@ -15,7 +15,8 @@ import (
 //
 // ProjectReadyWork is a pure projection stored as Rounds.ReadyWork diagnostics;
 // admission does not consume it. Explicit adapters identify stages, work,
-// claims and parallelism. Other action kinds use the conservative adapter.
+// claims and parallelism. An action kind without one reports ReadyAwaiting
+// with reason eligibility_unknown and no work: its eligibility is not observed.
 
 // ReadyState is what a candidate can do this review.
 type ReadyState string
@@ -34,22 +35,6 @@ const (
 	// ReadyRunnable: the stage can consume worker time now.
 	ReadyRunnable ReadyState = "runnable"
 )
-
-// ReadyAdapter names how a candidate's work was derived.
-type ReadyAdapter string
-
-const (
-	ReadyMigrated ReadyAdapter = "migrated"
-	// ReadyConservative covers kinds without an explicit stage adapter. Its work
-	// is the goal's whole
-	// labor profile, one worker, and a dispatched action is assumed to be
-	// occupying it: usage is never read as zero.
-	ReadyConservative ReadyAdapter = "conservative"
-)
-
-// ReadyMigratedKinds are the action kinds whose stage, work and claims are
-// described by explicit stage adapters.
-var ReadyMigratedKinds = []domain.ActionKind{domain.BuildingAction, domain.HaulAction, domain.CutPlantAction, domain.AreaPlantCutAction, domain.ProductionBillAction, domain.GrowerCropAction, domain.ZoneCreateAction, domain.SupplyAllowAction, domain.SupplyForbidAction}
 
 // ReadyClaim is a resource or cell a candidate would use. Candidates with
 // the same stage, work and claims are one piece of work.
@@ -74,8 +59,7 @@ type ReadyWork struct {
 	// Stage is the concrete method stage ("bill:Make_Kibble", "grow:Hay"),
 	// never the goal's broad profile.
 	Stage string
-	// Work is the native work type the stage consumes; a conservative
-	// candidate lists the goal's whole profile (any one of them).
+	// Work is the native work type the stage consumes; empty when none is known.
 	Work   LaborProfile `json:",omitempty"`
 	State  ReadyState
 	Reason string `json:",omitempty"`
@@ -88,7 +72,6 @@ type ReadyWork struct {
 	// Parallelism is how many workers the stage usefully takes now; zero
 	// unless runnable.
 	Parallelism int `json:",omitempty"`
-	Adapter     ReadyAdapter
 }
 
 // ReadyBounds cap one projection pass.
@@ -124,8 +107,6 @@ type ReadyWorkReport struct {
 	Deferred   []ReadyDeferral `json:",omitempty"`
 	// Continuation is the first input the discovery bound skipped.
 	Continuation string `json:",omitempty"`
-	// Conservative lists kinds handled without an explicit stage adapter.
-	Conservative []domain.ActionKind `json:",omitempty"`
 }
 
 // Current reports whether the report describes the world s names; a
@@ -136,7 +117,7 @@ func (r ReadyWorkReport) Current(s domain.GenerationSnapshot) bool {
 
 // Demand is the runnable worker demand per work type, counting one
 // alternative per group (the largest) so alternatives are never both
-// reserved. Conservative candidates count against their first work type.
+// reserved.
 func (r ReadyWorkReport) Demand() map[WorkType]int {
 	demand := map[WorkType]int{}
 	groups := map[string]ReadyWork{}
@@ -197,12 +178,10 @@ type ReadyRequest struct {
 	// Construction is the building census: an applied building intent stays
 	// open, and its dependents wait, until a built row carries its key.
 	Construction domain.Fact[CurrentConstruction]
-	// Recipes place a bill's recipe at a work type; a recipe it does not know
-	// uses the conservative adapter.
+	// Recipes place a bill's recipe at a work type; a bill with a recipe it
+	// does not know reports eligibility_unknown.
 	Recipes RecipeFacts
 }
-
-const maxReadyParallelism = 4
 
 // ProjectReadyWork projects plans and proposals into bounded candidates.
 // Every open action of a plan is examined, not only the first, so an
@@ -218,7 +197,6 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 	byID := map[ReadyWorkID]int{}
 	var out []ReadyWork
 	examined := 0
-	conservative := map[domain.ActionKind]bool{}
 	add := func(c ReadyWork) {
 		c.Concerns = sortedConcerns(c.Concerns)
 		c.Claims = sortedClaims(c.Claims)
@@ -257,9 +235,6 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 			if !ok {
 				continue
 			}
-			if c.Adapter == ReadyConservative {
-				conservative[a.Kind()] = true
-			}
 			add(c)
 		}
 	}
@@ -285,7 +260,7 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 		add(readyProposal(p))
 	}
 	for _, g := range r.Unserved {
-		add(ReadyWork{Concerns: []ConcernID{g}, Stage: "none", State: ReadyNoMethod, Reason: "no plan or proposal", Adapter: ReadyMigrated})
+		add(ReadyWork{Concerns: []ConcernID{g}, Stage: "none", State: ReadyNoMethod, Reason: "no plan or proposal"})
 	}
 
 	sort.SliceStable(out, func(i, j int) bool {
@@ -324,10 +299,6 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 		}
 		return a.Reason < b.Reason
 	})
-	for k := range conservative {
-		report.Conservative = append(report.Conservative, k)
-	}
-	sort.Slice(report.Conservative, func(i, j int) bool { return report.Conservative[i] < report.Conservative[j] })
 	return report
 }
 
@@ -378,7 +349,7 @@ func readyActionStage(a domain.Action, recipes RecipeFacts) (readyStage, bool) {
 	}
 	if v, ok := a.ProductionBill(); ok {
 		// A recipe no catalog row places at a bench has no known work: the
-		// action uses the conservative adapter.
+		// action reports eligibility_unknown.
 		if work, known := recipes.BillWorkOf(v.Recipe()); known {
 			return readyStage{stage: "bill:" + v.Recipe(), work: work, claims: []ReadyClaim{{"bench", v.Bench()}}}, true
 		}
@@ -401,18 +372,14 @@ func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]doma
 	if has && !blueprint && (v.Stage == domain.Completed || v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled) && !v.Unresolved {
 		return ReadyWork{}, false
 	}
-	c := ReadyWork{Concerns: []ConcernID{p.Concern}, Method: p.Method, Plan: p.Spec.ID(), Action: a.ID(), Adapter: ReadyMigrated}
+	c := ReadyWork{Concerns: []ConcernID{p.Concern}, Method: p.Method, Plan: p.Spec.ID(), Action: a.ID()}
 	st, migrated := readyActionStage(a, recipes)
 	if !migrated {
 		st = readyStage{stage: string(a.Kind())}
-		c.Adapter = ReadyConservative
-		c.Reason = "unmigrated_family"
 	}
 	c.Stage, c.Claims = st.stage, st.claims
 	if st.work != "" {
 		c.Work = LaborProfile{st.work}
-	} else if !migrated {
-		c.Work = append(LaborProfile(nil), ConcernLabor(p.Concern)...)
 	}
 	runnable := func(reason string) ReadyWork {
 		c.State = ReadyRunnable
@@ -454,6 +421,11 @@ func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]doma
 			}
 			return set(ReadyBlocked, strings.Join(reasons, ",")), true
 		}
+		if !migrated {
+			// No stage adapter: nothing observed says a worker can take it, and the
+			// goal's labor profile is not a guess to stand in.
+			return set(ReadyAwaiting, "eligibility_unknown"), true
+		}
 		return runnable("admission"), true
 	}
 	// An applied building whose blueprint or frame still stands.
@@ -464,6 +436,9 @@ func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]doma
 	effect, known := v.Effect.Value()
 	if !known || effect == domain.EffectUnknown {
 		return set(ReadyAwaiting, "effect_unknown"), true
+	}
+	if !migrated {
+		return set(ReadyAwaiting, "eligibility_unknown"), true
 	}
 	if st.work == "" {
 		return set(ReadyOpenEffect, "settings_write"), true
@@ -482,7 +457,7 @@ func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]doma
 }
 
 func readyProposal(p ReadyProposal) ReadyWork {
-	c := ReadyWork{Concerns: []ConcernID{p.Concern}, Method: p.Method, Stage: p.Stage, Claims: append([]ReadyClaim(nil), p.Claims...), Alternative: p.Alternative, Adapter: ReadyMigrated, Reason: p.Reason}
+	c := ReadyWork{Concerns: []ConcernID{p.Concern}, Method: p.Method, Stage: p.Stage, Claims: append([]ReadyClaim(nil), p.Claims...), Alternative: p.Alternative, Reason: p.Reason}
 	if p.Work != "" {
 		c.Work = LaborProfile{p.Work}
 	}
@@ -502,7 +477,7 @@ func readyProposal(p ReadyProposal) ReadyWork {
 	default:
 		c.State = ReadyRunnable
 		if len(c.Work) > 0 {
-			c.Parallelism = min(max(p.Parallelism, 1), maxReadyParallelism)
+			c.Parallelism = max(p.Parallelism, 1)
 		}
 	}
 	return c

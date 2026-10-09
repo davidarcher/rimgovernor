@@ -36017,7 +36017,6 @@
    "Candidates": [
     {
      "Action": "routine-husbandry-5b4989dad436d60599ee91d3c9cd3a7f-0",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainHerd"
      ],
@@ -36031,7 +36030,7 @@
      ]
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureBasicDefense"
      ],
@@ -36041,7 +36040,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainFoodStorage"
      ],
@@ -36051,7 +36050,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [],
      "ID": "195db633e5055553",
      "Reason": "no plan or proposal",
@@ -36059,7 +36058,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainEquipment"
      ],
@@ -36069,7 +36068,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -36079,7 +36078,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -36089,7 +36088,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "ClearHomeObstructions"
      ],
@@ -36099,7 +36098,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -36109,7 +36108,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -36119,7 +36118,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [],
      "ID": "99b6f4926d221717",
      "Reason": "no plan or proposal",
@@ -36127,7 +36126,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainResource"
      ],
@@ -36137,7 +36136,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [],
      "ID": "bcd6bba4ffdae04d",
      "Reason": "no plan or proposal",
@@ -36145,7 +36144,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainCleanFacilities"
      ],
@@ -36155,7 +36154,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -36165,7 +36164,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -36176,9 +36175,6 @@
     }
    ],
    "Colony": "8a97e8220fed4c2eaaa91440697278b4",
-   "Conservative": [
-    "husbandry"
-   ],
    "Load": "c50185930534429d903556d8ca4c34af",
    "Tick": 6693
   },

@@ -10876,7 +10876,6 @@
    "Candidates": [
     {
      "Action": "routine-resource-acquire-a64c751a98f1944e5536439056f9a4e4-7",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainResource"
      ],
@@ -10894,7 +10893,6 @@
     },
     {
      "Action": "routine-resource-acquire-a64c751a98f1944e5536439056f9a4e4-5",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainResource"
      ],
@@ -10912,7 +10910,6 @@
     },
     {
      "Action": "routine-acquire-e831715e8ec54afd6b6ea4179c5f69a2-0",
-     "Adapter": "conservative",
      "Concerns": [
       "EnsureFoodSupply"
      ],
@@ -10924,7 +10921,6 @@
     },
     {
      "Action": "routine-resource-acquire-a64c751a98f1944e5536439056f9a4e4-6",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainResource"
      ],
@@ -10942,7 +10938,6 @@
     },
     {
      "Action": "routine-medical-acquire-552e78190fed5a86ee97264d0f3b9a9b-2",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -10958,7 +10953,6 @@
     },
     {
      "Action": "routine-work-3e9c8a5f6b9d4d86ecbba0602733d62d-7",
-     "Adapter": "conservative",
      "Concerns": [
       "EnsureWorkAssignments"
      ],
@@ -10970,7 +10964,6 @@
     },
     {
      "Action": "routine-medical-acquire-552e78190fed5a86ee97264d0f3b9a9b-3",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -10986,7 +10979,6 @@
     },
     {
      "Action": "routine-work-3e9c8a5f6b9d4d86ecbba0602733d62d-6",
-     "Adapter": "conservative",
      "Concerns": [
       "EnsureWorkAssignments"
      ],
@@ -10998,7 +10990,6 @@
     },
     {
      "Action": "routine-medical-acquire-552e78190fed5a86ee97264d0f3b9a9b-1",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -11014,7 +11005,6 @@
     },
     {
      "Action": "routine-medical-acquire-552e78190fed5a86ee97264d0f3b9a9b-0",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -11030,7 +11020,6 @@
     },
     {
      "Action": "routine-resource-acquire-a64c751a98f1944e5536439056f9a4e4-2",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainResource"
      ],
@@ -11047,7 +11036,6 @@
     },
     {
      "Action": "routine-resource-acquire-a64c751a98f1944e5536439056f9a4e4-3",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainResource"
      ],
@@ -11064,7 +11052,6 @@
     },
     {
      "Action": "routine-bill-99a6245efa6eb0e8fea1782ce5bfe5a0-0",
-     "Adapter": "migrated",
      "Claims": [
       {
        "Key": "Thing_ButcherSpot44907",
@@ -11085,7 +11072,6 @@
     },
     {
      "Action": "routine-resource-acquire-a64c751a98f1944e5536439056f9a4e4-4",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainResource"
      ],
@@ -11101,7 +11087,7 @@
      ]
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -11111,7 +11097,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainFlooring"
      ],
@@ -11121,7 +11107,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureBasicDefense"
      ],
@@ -11131,7 +11117,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -11141,7 +11127,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -11151,7 +11137,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -11161,7 +11147,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [],
      "ID": "85d0517662221c1c",
      "Reason": "no plan or proposal",
@@ -11169,7 +11155,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainEquipment"
      ],
@@ -11179,7 +11165,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainFoodStorage"
      ],
@@ -11189,7 +11175,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHerd"
      ],
@@ -11200,10 +11186,6 @@
     }
    ],
    "Colony": "7f60d09eec774440b7135c426cb600bc",
-   "Conservative": [
-    "acquisition",
-    "work_assignment"
-   ],
    "Load": "b4c71e4b620c4d30ae8e0016ff08797d",
    "Tick": 153652
   },

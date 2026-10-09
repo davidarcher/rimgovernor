@@ -24,7 +24,7 @@ func helpTeam() []WorkPawn {
 func wallReport(n int, extra ...ReadyWork) *ReadyWorkReport {
 	r := &ReadyWorkReport{Colony: "c", Map: helpMap, Load: "l"}
 	for i := 0; i < n; i++ {
-		r.Candidates = append(r.Candidates, ReadyWork{Stage: "building:Wall", Work: LaborProfile{WorkConstruction}, State: ReadyRunnable, Parallelism: 1, Adapter: ReadyMigrated, Claims: []ReadyClaim{CellClaim(domain.Cell{X: int32(i)})}})
+		r.Candidates = append(r.Candidates, ReadyWork{Stage: "building:Wall", Work: LaborProfile{WorkConstruction}, State: ReadyRunnable, Parallelism: 1, Claims: []ReadyClaim{CellClaim(domain.Cell{X: int32(i)})}})
 	}
 	r.Candidates = append(r.Candidates, extra...)
 	return r
@@ -124,18 +124,13 @@ func TestConstructionHelpersRespectRestrictions(t *testing.T) {
 func TestConstructionHelpersWithheldForRiskyOrUnknownWork(t *testing.T) {
 	prev := &ConstructionHelpRecord{Tick: 100, Idle: []PawnID{"a", "b"}, Helpers: []PawnID{"a"}, DemandTick: 100}
 	pawns := helpTeam()
-	bed := ReadyWork{Stage: "building:Bed", Work: LaborProfile{WorkConstruction}, State: ReadyBlocked, Adapter: ReadyMigrated}
+	bed := ReadyWork{Stage: "building:Bed", Work: LaborProfile{WorkConstruction}, State: ReadyBlocked}
 	d := planHelp(t, pawns, ConstructionHelpDemand(wallReport(6, bed), helpWorld, 700, []string{"Wall", "Bed"}, prev))
 	if d.Help.Reason != HelpRiskyTask || len(d.Help.Helpers) != 0 || workValue(t, d, "a", WorkConstruction) != 0 || !reflect.DeepEqual(d.Help.Risky, []string{"Bed", "building:Bed"}) {
 		t.Fatalf("%+v", d.Help)
 	}
 	// A player blueprint's definition alone is enough.
 	if h := ConstructionHelpDemand(wallReport(6), helpWorld, 700, []string{"Table2x2c"}, prev); len(h.Risky) != 1 {
-		t.Fatal(h)
-	}
-	// A conservative-adapter candidate that may build is unknown work.
-	cons := ReadyWork{Stage: "shelter", Work: LaborProfile{WorkConstruction, WorkHauling}, State: ReadyRunnable, Parallelism: 1, Adapter: ReadyConservative}
-	if h := ConstructionHelpDemand(wallReport(6, cons), helpWorld, 700, nil, prev); len(h.Risky) != 1 {
 		t.Fatal(h)
 	}
 	// Another world's report is unknown demand.

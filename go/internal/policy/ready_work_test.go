@@ -104,10 +104,10 @@ func TestReadyWorkStatesNeverClaimReadinessFromMissingFacts(t *testing.T) {
 			t.Fatalf("%s claims workers: %+v", stage, got[stage])
 		}
 	}
-	if got["building:Wall"].Parallelism != maxReadyParallelism {
-		t.Fatalf("parallelism unbounded: %+v", got["building:Wall"])
+	if got["building:Wall"].Parallelism != 9 {
+		t.Fatalf("observed parallelism governs: %+v", got["building:Wall"])
 	}
-	if d := r.Demand(); !reflect.DeepEqual(d, map[WorkType]int{WorkConstruction: maxReadyParallelism}) {
+	if d := r.Demand(); !reflect.DeepEqual(d, map[WorkType]int{WorkConstruction: 9}) {
 		t.Fatalf("demand %v", d)
 	}
 }
@@ -237,5 +237,27 @@ func TestReadyWorkStableBoundedAndWorldScoped(t *testing.T) {
 	c := ProjectReadyWork(ReadyRequest{Snapshot: other, Proposals: props, Bounds: bounds})
 	if c.Candidates[0].ID == a.Candidates[0].ID || a.Current(other) || !a.Current(readySnap("x")) {
 		t.Fatal("world change kept candidate identity")
+	}
+}
+
+// An action kind without a stage adapter is awaiting with a visible
+// eligibility_unknown reason, not a worker guessed from the goal's profile.
+func TestReadyWorkUnmigratedKindReportsEligibilityUnknown(t *testing.T) {
+	a, err := domain.NewAutoHomeAreaAction("home", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := domain.NewPlan("p", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := ReadyPlan{Concern: MaintainHousing, Spec: spec, Progress: []domain.Progress{readyProgress(t, spec, "home", "")}}
+	r := ProjectReadyWork(ReadyRequest{Snapshot: readySnap("p"), Plans: []ReadyPlan{plan}})
+	c := byStage(r)[string(a.Kind())]
+	if c.State != ReadyAwaiting || c.Reason != "eligibility_unknown" || len(c.Work) != 0 || c.Parallelism != 0 {
+		t.Fatalf("%+v", c)
+	}
+	if d := r.Demand(); len(d) != 0 {
+		t.Fatalf("demand %v", d)
 	}
 }

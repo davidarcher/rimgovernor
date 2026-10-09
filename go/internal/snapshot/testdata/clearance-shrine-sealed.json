@@ -12097,7 +12097,6 @@
    "Candidates": [
     {
      "Action": "routine-shrine-37da7823c1d03e5543c6d5d6af3ec72b-draft-Thing_Human735",
-     "Adapter": "conservative",
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -12113,7 +12112,6 @@
     },
     {
      "Action": "routine-shrine-37da7823c1d03e5543c6d5d6af3ec72b-draft-Thing_Human730",
-     "Adapter": "conservative",
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -12129,7 +12127,6 @@
     },
     {
      "Action": "routine-shrine-37da7823c1d03e5543c6d5d6af3ec72b-move-Thing_Human726",
-     "Adapter": "conservative",
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -12145,7 +12142,6 @@
     },
     {
      "Action": "routine-shrine-37da7823c1d03e5543c6d5d6af3ec72b-move-Thing_Human743",
-     "Adapter": "conservative",
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -12161,7 +12157,6 @@
     },
     {
      "Action": "routine-shrine-37da7823c1d03e5543c6d5d6af3ec72b-move-Thing_Human730",
-     "Adapter": "conservative",
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -12177,7 +12172,6 @@
     },
     {
      "Action": "routine-shrine-37da7823c1d03e5543c6d5d6af3ec72b-draft-Thing_Human724",
-     "Adapter": "conservative",
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -12193,7 +12187,6 @@
     },
     {
      "Action": "routine-shrine-37da7823c1d03e5543c6d5d6af3ec72b-draft-Thing_Human737",
-     "Adapter": "conservative",
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -12209,7 +12202,6 @@
     },
     {
      "Action": "routine-shrine-37da7823c1d03e5543c6d5d6af3ec72b-move-Thing_Human737",
-     "Adapter": "conservative",
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -12225,7 +12217,6 @@
     },
     {
      "Action": "routine-chunk-dump-b78999919daf683e979035d6bc2446d6-0",
-     "Adapter": "migrated",
      "Concerns": [
       "ClearHomeObstructions"
      ],
@@ -12236,7 +12227,7 @@
      "State": "runnable"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -12246,7 +12237,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHerd"
      ],
@@ -12256,7 +12247,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -12266,7 +12257,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHomeCoverage"
      ],
@@ -12276,7 +12267,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -12286,7 +12277,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainResource"
      ],
@@ -12296,7 +12287,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainFoodStorage"
      ],
@@ -12306,7 +12297,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainEquipment"
      ],
@@ -12316,7 +12307,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -12326,7 +12317,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [],
      "ID": "cd7ea017cccb74fe",
      "Reason": "no plan or proposal",
@@ -12334,7 +12325,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -12345,11 +12336,6 @@
     }
    ],
    "Colony": "7f60d09eec774440b7135c426cb600bc",
-   "Conservative": [
-    "deconstruction",
-    "movement",
-    "owned_draft"
-   ],
    "Deferred": [
     {
      "Count": 7,

@@ -13511,7 +13511,6 @@
    "Candidates": [
     {
      "Action": "routine-shrine-16baf01712bb0a0a2851bf1cfd403b57-open",
-     "Adapter": "conservative",
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -13526,9 +13525,6 @@
     }
    ],
    "Colony": "7f60d09eec774440b7135c426cb600bc",
-   "Conservative": [
-    "open_casket"
-   ],
    "Load": "7da09e08fb2b4a74ba13ca0706b7ade6",
    "Tick": 17246
   },

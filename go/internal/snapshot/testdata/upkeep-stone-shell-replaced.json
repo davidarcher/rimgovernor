@@ -13818,7 +13818,6 @@
    "Candidates": [
     {
      "Action": "routine-stone-shell-0a04a1491ff5d823e55b0eddc3ddf360-backup-0",
-     "Adapter": "migrated",
      "Claims": [
       {
        "Key": "105,113",
@@ -13840,7 +13839,6 @@
     },
     {
      "Action": "routine-stone-shell-0a04a1491ff5d823e55b0eddc3ddf360-demolish",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainStoneShell"
      ],
@@ -13855,7 +13853,6 @@
     },
     {
      "Action": "routine-stone-shell-0a04a1491ff5d823e55b0eddc3ddf360-backup-remove-1",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainStoneShell"
      ],
@@ -13873,7 +13870,6 @@
     },
     {
      "Action": "routine-stone-shell-0a04a1491ff5d823e55b0eddc3ddf360-replace",
-     "Adapter": "migrated",
      "Claims": [
       {
        "Key": "104,112",
@@ -13897,7 +13893,6 @@
     },
     {
      "Action": "routine-stone-shell-0a04a1491ff5d823e55b0eddc3ddf360-backup-remove-0",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainStoneShell"
      ],
@@ -13915,7 +13910,6 @@
     },
     {
      "Action": "routine-stone-shell-0a04a1491ff5d823e55b0eddc3ddf360-backup-remove-2",
-     "Adapter": "conservative",
      "Concerns": [
       "MaintainStoneShell"
      ],
@@ -13932,7 +13926,7 @@
      ]
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [],
      "ID": "0b655354e6a776f5",
      "Reason": "no plan or proposal",
@@ -13940,7 +13934,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -13950,7 +13944,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -13960,7 +13954,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -13970,7 +13964,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureBasicDefense"
      ],
@@ -13980,7 +13974,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHerd"
      ],
@@ -13990,7 +13984,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -14000,7 +13994,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -14010,7 +14004,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainEquipment"
      ],
@@ -14020,7 +14014,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainFlooring"
      ],
@@ -14030,7 +14024,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainCleanFacilities"
      ],
@@ -14040,7 +14034,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainFoodStorage"
      ],
@@ -14050,7 +14044,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainResource"
      ],
@@ -14060,7 +14054,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [],
      "ID": "e282739688f43c2f",
      "Reason": "no plan or proposal",
@@ -14069,9 +14063,6 @@
     }
    ],
    "Colony": "952ece635f54489eb77a7475be630f9e",
-   "Conservative": [
-    "wall_removal"
-   ],
    "Load": "d367669d2e67487c9dad1a51b6c915a2",
    "Tick": 99820
   },

@@ -279,7 +279,7 @@ func TestWorkersHelpersEnabledUnderTheFloor(t *testing.T) {
 	}
 	ready := &policy.ReadyWorkReport{}
 	for i := 0; i < 6; i++ {
-		ready.Candidates = append(ready.Candidates, policy.ReadyWork{Stage: "building:Wall", Work: policy.LaborProfile{policy.WorkConstruction}, State: policy.ReadyRunnable, Parallelism: 1, Adapter: policy.ReadyMigrated, Claims: []policy.ReadyClaim{{Kind: "cell", Key: fmt.Sprint(i)}}})
+		ready.Candidates = append(ready.Candidates, policy.ReadyWork{Stage: "building:Wall", Work: policy.LaborProfile{policy.WorkConstruction}, State: policy.ReadyRunnable, Parallelism: 1, Claims: []policy.ReadyClaim{{Kind: "cell", Key: fmt.Sprint(i)}}})
 	}
 	plan := func(tick domain.Tick, previous *policy.ConstructionHelpRecord) policy.WorkDecision {
 		help := policy.ConstructionHelpDemand(ready, domain.GenerationSnapshot{}, tick, []string{"Wall"}, previous)

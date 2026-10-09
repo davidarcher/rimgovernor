@@ -88,7 +88,7 @@ func ConstructionHelperView(previous *ReadyWorkReport, census domain.Fact[Curren
 			continue
 		}
 		claim := CellClaim(site.Building.Cell())
-		row := ReadyWork{Stage: "building:" + site.Building.Definition(), Work: LaborProfile{WorkConstruction}, State: ReadyRunnable, Parallelism: 1, Adapter: ReadyMigrated, Claims: []ReadyClaim{claim}, Reason: "frame_materials_complete"}
+		row := ReadyWork{Stage: "building:" + site.Building.Definition(), Work: LaborProfile{WorkConstruction}, State: ReadyRunnable, Parallelism: 1, Claims: []ReadyClaim{claim}, Reason: "frame_materials_complete"}
 		if site.Stage != "frame" || site.ResourcesComplete != domain.Known(true) {
 			row.State, row.Parallelism, row.Reason = ReadyAwaiting, 0, "construction_materials_pending"
 		}

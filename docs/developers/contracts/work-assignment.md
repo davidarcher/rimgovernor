@@ -94,6 +94,18 @@ role (Doctor, Cooking, Construction, Growing) found no owner. `Matches`
 compares the proposal to the readback with checkbox semantics when manual
 priorities are off (enabled or not, never the rank).
 
+## Ready work
+
+`ProjectReadyWork` (`ready_work.go`) projects plans and proposals into diagnostic
+candidates (`Rounds.ReadyWork`); admission does not read it. Parallelism is the
+observed count of eligible workers or claims, with no constant cap. An action
+kind without a stage adapter (everything but Building, Haul, CutPlant,
+AreaPlantCut, ProductionBill, GrowerCrop, ZoneCreate, SupplyAllow and
+SupplyForbid, and a bill whose recipe `RecipeFacts` does not know) reports
+`awaiting` with reason `eligibility_unknown` and no work or parallelism; it is
+never guessed from the goal's labor profile and adds no demand. Dependencies
+and holds still read `blocked`.
+
 ## Construction helpers
 
 Owners stay the skilled constructors; `WorkDemand.Help`
@@ -117,8 +129,7 @@ Native still refuses a frame above the pawn's `constructionSkillPrerequisite`.
 Quality targets with observed finishing-skill settings are safe alongside helper
 work: native enforces the setting per target rather than an unrelated project's
 maximum prerequisite blocking the helper's wall. Other known
-construction outside the set (a ready candidate, a conservative-adapter
-candidate that may build, or an open plan's building definition, player
+construction outside the set (a ready candidate or an open plan's building definition, player
 plans included) withholds helpers and withdraws current ones at once
 (`risky_construction_pending`); unknown or other-world ready work authorizes
 nothing (`construction_demand_unknown`). A risky frame placed between two

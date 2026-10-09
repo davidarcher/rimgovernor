@@ -7746,7 +7746,6 @@
    "Candidates": [
     {
      "Action": "routine-power-eaf6f0a8b41ff77b2f98285b9ba1b1a1-16",
-     "Adapter": "migrated",
      "Claims": [
       {
        "Key": "107,111",
@@ -7768,7 +7767,6 @@
     },
     {
      "Action": "routine-power-eaf6f0a8b41ff77b2f98285b9ba1b1a1-17",
-     "Adapter": "migrated",
      "Claims": [
       {
        "Key": "107,112",
@@ -7790,7 +7788,6 @@
     },
     {
      "Action": "routine-power-eaf6f0a8b41ff77b2f98285b9ba1b1a1-13",
-     "Adapter": "migrated",
      "Claims": [
       {
        "Key": "107,108",
@@ -7811,7 +7808,6 @@
     },
     {
      "Action": "routine-power-eaf6f0a8b41ff77b2f98285b9ba1b1a1-5",
-     "Adapter": "migrated",
      "Claims": [
       {
        "Key": "103,111",
@@ -7832,7 +7828,6 @@
     },
     {
      "Action": "routine-work-e2a0de5cf99d036dbea3df8826e2441a-0",
-     "Adapter": "conservative",
      "Concerns": [
       "EnsureWorkAssignments"
      ],
@@ -7844,7 +7839,6 @@
     },
     {
      "Action": "routine-power-eaf6f0a8b41ff77b2f98285b9ba1b1a1-12",
-     "Adapter": "migrated",
      "Claims": [
       {
        "Key": "107,107",
@@ -7865,7 +7859,6 @@
     },
     {
      "Action": "routine-power-eaf6f0a8b41ff77b2f98285b9ba1b1a1-9",
-     "Adapter": "migrated",
      "Claims": [
       {
        "Key": "105,112",
@@ -7886,7 +7879,6 @@
     },
     {
      "Action": "routine-power-eaf6f0a8b41ff77b2f98285b9ba1b1a1-14",
-     "Adapter": "migrated",
      "Claims": [
       {
        "Key": "107,109",
@@ -7907,7 +7899,6 @@
     },
     {
      "Action": "routine-power-eaf6f0a8b41ff77b2f98285b9ba1b1a1-0",
-     "Adapter": "migrated",
      "Claims": [
       {
        "Key": "105,107",
@@ -7928,7 +7919,6 @@
     },
     {
      "Action": "routine-work-e2a0de5cf99d036dbea3df8826e2441a-1",
-     "Adapter": "conservative",
      "Concerns": [
       "EnsureWorkAssignments"
      ],
@@ -7940,7 +7930,6 @@
     },
     {
      "Action": "routine-work-e2a0de5cf99d036dbea3df8826e2441a-2",
-     "Adapter": "conservative",
      "Concerns": [
       "EnsureWorkAssignments"
      ],
@@ -7951,7 +7940,7 @@
      "State": "awaiting_observation"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [],
      "ID": "0b655354e6a776f5",
      "Reason": "no plan or proposal",
@@ -7959,7 +7948,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -7969,7 +7958,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -7979,7 +7968,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -7989,7 +7978,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureBasicDefense"
      ],
@@ -7999,7 +7988,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -8009,7 +7998,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainHerd"
      ],
@@ -8019,7 +8008,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -8029,7 +8018,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -8039,7 +8028,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainEquipment"
      ],
@@ -8049,7 +8038,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [],
      "ID": "91a56955f0701a10",
      "Reason": "no plan or proposal",
@@ -8057,7 +8046,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "ClearHomeObstructions"
      ],
@@ -8067,7 +8056,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainFoodStorage"
      ],
@@ -8077,7 +8066,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [
       "MaintainResource"
      ],
@@ -8087,7 +8076,7 @@
      "State": "no_method"
     },
     {
-     "Adapter": "migrated",
+     
      "Concerns": [],
      "ID": "e282739688f43c2f",
      "Reason": "no plan or proposal",
@@ -8096,9 +8085,6 @@
     }
    ],
    "Colony": "952ece635f54489eb77a7475be630f9e",
-   "Conservative": [
-    "work_assignment"
-   ],
    "Deferred": [
     {
      "Count": 10,

@@ -82,8 +82,7 @@ type ConstructionHelpRecord struct {
 
 // ConstructionHelpDemand reads the ready-work report for helper
 // demand: runnable Construction candidates on a conservative definition
-// count their parallelism; any construction candidate outside the set (or
-// a conservative-adapter candidate that may build) is risky, as is any
+// count their parallelism; any construction candidate outside the set is risky, as is any
 // pending definition outside it. A report from another world is unknown.
 func ConstructionHelpDemand(report *ReadyWorkReport, current domain.GenerationSnapshot, tick domain.Tick, definitions []string, previous *ConstructionHelpRecord, census ...domain.Fact[CurrentConstruction]) ConstructionHelp {
 	help := ConstructionHelp{Tick: tick, Ready: domain.Unknown[int]()}
@@ -126,7 +125,7 @@ func ConstructionHelpDemand(report *ReadyWorkReport, current domain.GenerationSn
 			if migrated && protected[def] {
 				continue
 			}
-			if !migrated || !HelperConstructionDefinitions[def] || c.Adapter != ReadyMigrated {
+			if !migrated || !HelperConstructionDefinitions[def] {
 				risky[c.Stage] = true
 				continue
 			}

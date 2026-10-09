@@ -6209,7 +6209,6 @@
    "Candidates": [
     {
      "Action": "routine-allow-c31db1db6fe45a73b0f812db5f1ed337-6",
-     "Adapter": "migrated",
      "Concerns": [
       "AllowStartingSupplies"
      ],
@@ -6221,7 +6220,6 @@
     },
     {
      "Action": "routine-allow-c31db1db6fe45a73b0f812db5f1ed337-7",
-     "Adapter": "migrated",
      "Concerns": [
       "AllowStartingSupplies"
      ],
@@ -6233,7 +6231,6 @@
     },
     {
      "Action": "routine-allow-c31db1db6fe45a73b0f812db5f1ed337-5",
-     "Adapter": "migrated",
      "Concerns": [
       "AllowStartingSupplies"
      ],
