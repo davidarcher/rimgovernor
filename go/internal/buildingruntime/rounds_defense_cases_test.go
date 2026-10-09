@@ -84,7 +84,8 @@ func meleeStep(t *testing.T, foe float64) (snapshot.Defense, []*mp.CombatPawn) {
 }
 
 // defense/raid-bypass fought in melee: a pair whose melee power beats the
-// raider's engages it, a pair it outmatches does not and shelters (#969).
+// raider's engages it. An outmatched pair does not engage or invent a shelter
+// destination when the recording lacks observed safe geometry.
 func TestDefenseSnapshotMeleeEngagesOnlyABeatableRaider(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -95,13 +96,9 @@ func TestDefenseSnapshotMeleeEngagesOnlyABeatableRaider(t *testing.T) {
 		t.Fatal("no melee on a raider the pair beats", melee, ranged)
 	}
 	step, mirror = meleeStep(t, 12)
-	results, methods, db = replayDefenseSteps(t, replayFrame{mirror: mirror}, step)
-	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticShelter)
-	fight, _, _ := db.LoadCombatFight(context.Background(), results[0].Plan)
-	for _, role := range fight.Memory.Roles {
-		if role.Target != "" {
-			t.Fatal("engaged a raider the pair cannot beat", role)
-		}
+	results, methods, _ = replayDefenseSteps(t, replayFrame{mirror: mirror}, step)
+	if results[0].Plan != "" || methods[0] != "" {
+		t.Fatalf("outmatched pair fabricated a shelter fight without known geometry: %+v, %s", results[0], methods[0])
 	}
 }
 
@@ -292,9 +289,8 @@ func TestDefenseSnapshotMortarShellsTheShipPart(t *testing.T) {
 // a raider is behind the line the hold is dropped. The recording has one
 // free armed colonist and five unarmed ones against four melee raiders: no
 // armed pair per raider, so no squad forms and nobody brawls with fists
-// (#948). Instead every free colonist is moved away from the raiders
-// (#968; the recording has no roofed room). The later steps replay as one
-// fight.
+// (#948). With no observed safe shelter geometry, the hold formation is
+// dropped without inventing retreat destinations or issuing a squad attack.
 func TestDefenseReplayBreachWithoutArmedPairsFormsNoSquad(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
@@ -306,7 +302,7 @@ func TestDefenseReplayBreachWithoutArmedPairsFormsNoSquad(t *testing.T) {
 	if results[0].Verdict != BuildingReasonAdmitted {
 		t.Fatal(results)
 	}
-	if results[1].Verdict != BuildingReasonExistingWork || results[2].Verdict != BuildingReasonCombatOrders || results[3].Verdict != BuildingReasonExistingWork {
+	if results[1].Verdict != BuildingReasonExistingWork || results[2].Verdict != BuildingReasonHoldFallback || results[3].Verdict != BuildingReasonExistingWork {
 		t.Fatal(results)
 	}
 	for _, r := range results[1:] {
@@ -315,25 +311,16 @@ func TestDefenseReplayBreachWithoutArmedPairsFormsNoSquad(t *testing.T) {
 		}
 	}
 	fight, _, err := db.LoadCombatFight(context.Background(), results[3].Plan)
-	if err != nil || fight.Memory.Tactic != policy.TacticShelter || len(fight.Memory.Roles) < 2 {
-		t.Fatalf("fight %+v (%v), want shelter", fight.Memory, err)
+	if err != nil || fight.Memory.Tactic != "" || len(fight.Memory.Roles) != 0 || fight.Memory.Refusal == "" {
+		t.Fatalf("fight %+v (%v), want explicit refusal without fabricated shelter", fight.Memory, err)
 	}
-	for _, role := range fight.Memory.Roles {
-		if role.Target != "" || role.Cell == nil {
-			t.Fatal("a shelter role engages or stays", role)
+	for _, order := range fight.Memory.Issued {
+		if order.Tick >= fight.Memory.Formed {
+			t.Fatal("new combat order issued after formation refusal", order)
 		}
-	}
-	moves := 0
-	for _, o := range fight.Memory.Issued {
-		if o.Kind == policy.OrderAttack {
-			t.Fatal("an unviable squad attacked", o)
+		if order.Kind == policy.OrderMove && order.Reason == policy.ReasonRetreat {
+			t.Fatal("retreat ordered without observed destination geometry", order)
 		}
-		if o.Kind == policy.OrderMove && o.Reason == policy.ReasonRetreat {
-			moves++
-		}
-	}
-	if moves != len(fight.Memory.Roles) {
-		t.Fatalf("%d retreat moves for %d roles", moves, len(fight.Memory.Roles))
 	}
 }
 
