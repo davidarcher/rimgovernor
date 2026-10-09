@@ -17,13 +17,13 @@ var tierPassThrough = map[string]bool{
 
 // tierMappings are the pure policy functions that return a tier from the
 // ladder's tables (policy/construction_tier.go).
-var tierMappings = map[string]bool{"RoomTier": true, "PlannerTier": true, "AdoptedTier": true}
+var tierMappings = map[string]bool{"RoomTier": true, "PlannerTier": true, "AdoptedTier": true, "DefenseBuildTier": true}
 
 // BuildingActionTiers is the construction tier completeness check (#2525,
 // docs/developers/contracts/construction-tiers.md): every non-test call of
 // domain.NewBuildingAction states its tier as a ladder constant
 // (domain.TierSurvive ... TierSecure) or through a policy mapping function
-// (RoomTier, PlannerTier, AdoptedTier). It returns "file|func|reason" for each
+// (RoomTier, PlannerTier, AdoptedTier, DefenseBuildTier). It returns "file|func|reason" for each
 // caller that omits the tier or passes anything else. There is no baseline.
 func BuildingActionTiers(root string) []string {
 	bad := map[string]bool{}

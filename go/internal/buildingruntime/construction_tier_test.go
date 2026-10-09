@@ -28,7 +28,7 @@ func TestFunnelsStateTheLadderTiers(t *testing.T) {
 		{"resource dig and deep drill", policy.PlannerTier(policy.MaintainResource, ""), domain.TierProduce},
 		{"graveyard", policy.RoomTier(policy.PlannedGraveyard), domain.TierExpand},
 		{"geothermal power dig", policy.PlannerTier(policy.EnsureBasicPower, ""), domain.TierExpand},
-		{"killbox rock step", policy.PlannerTier(policy.EnsureDefensiveLayout, ""), domain.TierExpand},
+		{"killbox rock step", policy.PlannerTier(policy.EnsureDefensiveLayout, ""), domain.TierSecure},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s tier = %d; want %d", c.name, c.got, c.want)

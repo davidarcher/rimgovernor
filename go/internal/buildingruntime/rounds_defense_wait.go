@@ -122,8 +122,9 @@ func (r *RoundsDefenseLayoutPlanner) admitFightBuilds(call, epoch context.Contex
 	var actions []domain.Action
 	var previews []policy.Preview
 	stockSeen := policy.StockObservation{Snapshot: snapshot, Tick: tick}
+	promoted := defensePromoted(read.Projection)
 	for _, b := range buildings {
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), b, domain.TierExpand) // Secure from #2527
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), b, policy.DefenseBuildTier(promoted, false, false))
 		if err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}

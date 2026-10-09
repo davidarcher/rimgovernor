@@ -367,6 +367,9 @@ func (r *RoundsDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *
 			return RoundsDefenseLayoutResult{}, err
 		}
 	}
+	if result, done, err := r.retier(call, epoch, goal, state, read, record); err != nil || done {
+		return result, err
+	}
 	order := defenseTierSequence(record, defenseRoamerOwned(read.Projection))
 	var admitted *RoundsDefenseLayoutResult
 	for _, name := range order {
@@ -1304,8 +1307,9 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 	// perimeter tier is over a hundred cells, and a preview per cell
 	// outlasted the optional wave's wall on a slow runner every step.
 	candidates := make([]domain.Action, 0, len(buildings))
+	promoted, roamer := defensePromoted(read.Projection), defenseRoamerOwned(read.Projection)
 	for i, building := range buildings {
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), building, domain.TierExpand) // Secure from #2527
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), building, policy.DefenseBuildTier(promoted, policy.IsCorePerimeterTier(tier.Name), roamer))
 		if err != nil {
 			return RoundsDefenseLayoutResult{}, err
 		}

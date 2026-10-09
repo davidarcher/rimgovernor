@@ -97,9 +97,14 @@ func TestPlannerTier(t *testing.T) {
 			t.Errorf("PlannerTier(%s, %s) = %d; want %d", c.concern, c.phase, got, c.want)
 		}
 	}
-	for _, concern := range []ConcernID{EnsureBasicDefense, EnsureDefensiveLayout, ConcernID("never-seen")} {
+	for _, concern := range []ConcernID{EnsureBasicDefense, EnsureDefensiveLayout} {
+		if got := PlannerTier(concern, ""); got != domain.TierSecure {
+			t.Errorf("PlannerTier(%s) = %d; defense is Secure", concern, got)
+		}
+	}
+	for _, concern := range []ConcernID{ConcernID("never-seen")} {
 		if got := PlannerTier(concern, ""); got != domain.TierExpand {
-			t.Errorf("PlannerTier(%s) = %d; unlisted concerns are Expand until #2527", concern, got)
+			t.Errorf("PlannerTier(%s) = %d; unlisted concerns are Expand", concern, got)
 		}
 	}
 }

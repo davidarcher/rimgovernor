@@ -4,7 +4,7 @@
 remembers while a building is unfinished. This page covers the field and its
 lifecycle (#2522), which builds carry which tier (#2524) and the native
 delivery gate that reads it (#2523). Since #2525 every planner-placed build
-states a tier; promotion (#2527) extends it.
+states a tier; defense is Secure and promoted (#2527).
 
 ## Ladder
 
@@ -30,7 +30,7 @@ is distinct from tier 0.
 | 2 Comfort | Dining and rec rooms, throne/worship rooms, suites, animal shelter and barn |
 | 3 Produce | Other workshops and their bench input stores |
 | 4 Expand | Graveyard, waste yard, outskirts, anything unlisted |
-| 5 Secure | Defense ring, turrets, killbox, gates (#2527) |
+| 5 Secure | Defense ring, turrets and conduits, killbox, gates, mortars, IEDs, bait, wall support, armory and wardrobe (#2527) |
 
 Power for something other than the cooler/freezer takes the tier of what it
 serves; unlisted power is Expand.
@@ -42,7 +42,7 @@ through by orchestration:
   `PlannedRole`; a test fails a new role without a row. `commitBuilds` stamps
   every wall, door, floor and furniture build of a room with its role's tier.
   Storage rooms are Sustain (the role cannot tell a food store from a bench
-  input store), armory and wardrobe are Expand until #2527.
+  input store), armory and wardrobe are Secure.
 - Loose buildings a Concern's planner places: `policy.PlannerTier(concern,
   phase)`; a concern the ladder does not list is Expand by decision. Defense
   concerns and the defense admit paths are Expand until #2527 assigns Secure,
@@ -103,6 +103,20 @@ completion drops the tier; it is not carried onto the finished building.
 
 Native case `wall/construction-skill` covers tier through conversion and
 save/load, set-tier, the stale target refusal and the unchanged floor.
+
+## Defense promotion
+
+Defense builds are placed Secure (`policy.DefenseBuildTier`, #2527). They are
+placed Survive, and already placed layout blueprints and frames are lifted to
+Survive with the set-tier op (`RoundsDefenseLayoutPlanner.retier`, one
+`defense-retier-*` method per set of sites), when
+`policy.DefensePromoted(Facts.RaidPoints, Facts.DefenseCapacity)` holds: raid
+points at least `DefensePromotionFloor` (300, the lowest armory threshold) and
+above the observed capacity. Unknown raid points or capacity never promote. It
+is re-evaluated each defense round; a site already at Survive is not selected,
+so the op is idempotent. While a roamer is owned, the core ring is placed Comfort
+so its materials arrive before other Secure builds (a promotion outranks that);
+the sequence reorder of #2230 stays.
 
 ## Delivery gate
 

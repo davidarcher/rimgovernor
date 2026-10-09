@@ -45,3 +45,42 @@ func TestDefenseRoamerOwned(t *testing.T) {
 		t.Fatal("pen-requiring animal is a roamer")
 	}
 }
+
+func TestDefensePromotedReadsRaidPointsAgainstCapacity(t *testing.T) {
+	var p observation.ColonyProjection
+	if defensePromoted(p) {
+		t.Fatal("unknown raid points and capacity never promote")
+	}
+	p.Facts.RaidPoints, p.Facts.DefenseCapacity = domain.Known(600.0), domain.Known(100.0)
+	if !defensePromoted(p) {
+		t.Fatal("600 raid points over 100 capacity promote")
+	}
+	p.Facts.RaidPoints = domain.Known(250.0)
+	if defensePromoted(p) {
+		t.Fatal("below the 300 floor never promotes")
+	}
+}
+
+func TestDefenseBuildsStateSecureThenPromoted(t *testing.T) {
+	wall, err := domain.NewBuilding("Wall", domain.Cell{X: 1, Z: 1}, domain.North, "BlocksGranite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	placed, err := domain.NewBuildingAction("a", wall, policy.DefenseBuildTier(false, false, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tier, _ := placed.Tier().Value(); tier != domain.TierSecure {
+		t.Fatalf("unpromoted defense placed at %v, want Secure", tier)
+	}
+	lifted, err := domain.NewBuildingAction("b", wall, domain.TierSurvive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lifted, err = lifted.WithTier(domain.TierSurvive, "Wall123"); err != nil {
+		t.Fatal(err)
+	}
+	if tier, _ := lifted.Tier().Value(); tier != domain.TierSurvive || lifted.ConstructionTarget() != "Wall123" {
+		t.Fatalf("set-tier action = %v on %q", tier, lifted.ConstructionTarget())
+	}
+}

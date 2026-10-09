@@ -28,7 +28,7 @@ var plannedRoleTier = map[PlannedRole]domain.ConstructionTier{
 
 	PlannedWorkshop: domain.TierProduce,
 
-	// Unlisted rooms are Expand by decision; defense rooms get Secure in #2527.
+	// Unlisted rooms are Expand by decision; the armory and wardrobe equip the defense and are Secure (#2527).
 	PlannedGraveyard:        domain.TierExpand,
 	PlannedWasteYard:        domain.TierExpand,
 	PlannedYard:             domain.TierExpand,
@@ -38,8 +38,8 @@ var plannedRoleTier = map[PlannedRole]domain.ConstructionTier{
 	PlannedPrison:           domain.TierExpand,
 	PlannedReserve:          domain.TierExpand,
 	PlannedBattery:          domain.TierExpand,
-	PlannedArmory:           domain.TierExpand,
-	PlannedWardrobe:         domain.TierExpand,
+	PlannedArmory:           domain.TierSecure,
+	PlannedWardrobe:         domain.TierSecure,
 	PlannedVetRoom:          domain.TierExpand,
 	PlannedNursery:          domain.TierExpand,
 	PlannedPlayroom:         domain.TierExpand,
@@ -71,8 +71,8 @@ func AdoptedTier(site ConstructionSite) domain.ConstructionTier {
 
 // PlannerTier is the tier of a loose building a Concern's planner places
 // outside any planned room. Every concern has a tier: a concern the ladder
-// does not list is Expand by decision, the defense concerns included until
-// #2527 assigns Secure. Power takes the tier of what it serves: the
+// does not list is Expand by decision. The defense concerns are Secure (#2527;
+// promotion is DefenseBuildTier). Power takes the tier of what it serves: the
 // refrigeration planner's builds stay Sustain, and the generic power planner
 // proposes no consumer, so it is Expand.
 func PlannerTier(concern ConcernID, phase Phase) domain.ConstructionTier {
@@ -86,6 +86,8 @@ func PlannerTier(concern ConcernID, phase Phase) domain.ConstructionTier {
 		return domain.TierSurvive
 	case MaintainButcherSpot, MaintainMedicalReserves, MaintainRefrigeration, MaintainStockpiles, MaintainFoodStorage:
 		return domain.TierSustain
+	case EnsureBasicDefense, EnsureDefensiveLayout:
+		return domain.TierSecure
 	case EnsureComfort, MaintainAnimalContainment:
 		return domain.TierComfort
 	case MaintainResource:
