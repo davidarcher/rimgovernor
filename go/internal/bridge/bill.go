@@ -1,6 +1,8 @@
 package bridge
 
 import (
+	"strings"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
@@ -53,4 +55,14 @@ func billIntent(bill domain.ProductionBill) *op.ProductionBillIntent {
 		intent.ReplaceOwnedBill = NewRef(bill.Replaces())
 	}
 	return intent
+}
+
+// BillSlotsFull is the native refusal reason of a production bill whose bench
+// already carries the vanilla 15 bills; the dispatcher reads it as a full bench.
+const BillSlotsFull = "bench_bill_slots_full"
+
+// RefusedBillSlotsFull reports whether a refused action result names a full
+// bill stack.
+func RefusedBillSlotsFull(refusal *op.Refusal) bool {
+	return strings.Contains(refusal.GetReason(), BillSlotsFull)
 }

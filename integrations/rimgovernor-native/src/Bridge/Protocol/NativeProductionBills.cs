@@ -69,10 +69,8 @@ namespace HomeBridge.BridgeTools {
   internal static Obs.BillState BillRow(Bill bill,int index){
    var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Recipe=new Obs.DefinitionRef{DefName=bill.recipe.defName},Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill)};
    row.Worker=NativeRef.Of(bill.PawnRestriction);
-   // MakeNewBill consumes a native bill id; census defaults must stay detached.
-   // The parameterless Bill constructor leaves ingredientFilter null.
-   var fresh=new Bill_Production { recipe=bill.recipe, ingredientFilter=new ThingFilter() };
-   fresh.ingredientFilter.CopyAllowancesFrom(bill.recipe.defaultIngredientFilter ?? bill.recipe.fixedIngredientFilter);
+   // Census defaults stay detached from native bill ids.
+   var fresh=Detached(bill.recipe);
    if(bill is Bill_Production && bill.billStack?.billGiver is Thing bench){
     var defaults=new Operations.BillSettings();
     if(NativeRecipeRoles.Corpse(bill.recipe)){defaults.CorpseClass=CorpseClass(bill);}
@@ -124,12 +122,30 @@ namespace HomeBridge.BridgeTools {
      }
   }
   internal static bool Valid(Operations.ProductionBillIntent? intent)=>NativeProductionBillSettings.Valid(intent);
-  // A bench carries at most one bill per recipe (and corpse class, and
-  // pinned worker when the intent pins one): the one a resent or
-  // replanned intent finds standing.
-  internal static bool Matching(IBillGiver giver,Bill? except,Operations.ProductionBillIntent intent)=>giver.BillStack.Bills.Any(b=>b!=except && Matches(b,intent));
+  // A detached bill carrying the recipe's default filter; MakeNewBill would consume a native bill id.
+  // The parameterless Bill constructor leaves ingredientFilter null.
+  private static Bill_Production Detached(RecipeDef recipe){
+   var fresh=new Bill_Production { recipe=recipe, ingredientFilter=new ThingFilter() };
+   fresh.ingredientFilter.CopyAllowancesFrom(recipe.defaultIngredientFilter ?? recipe.fixedIngredientFilter);
+   return fresh;
+  }
+  // The ingredient filter the intent would give a new bill, as a configuration hash.
+  internal static string ExpectedFilter(RecipeDef recipe,Operations.BillSettings settings,Map map){var fresh=Detached(recipe);ConfigureIngredients(fresh,recipe,settings,map);return FilterConfiguration(fresh.ingredientFilter);}
+  // Exact spec identity: a bench may carry several bills of one recipe. An intent
+  // is a resend only when recipe, ingredient filter, worker pin, repeat mode and
+  // target all equal a standing, unfinished bill; any other spec places a new bill.
+  internal static Bill? Standing(IBillGiver giver,Bill? except,Operations.ProductionBillIntent intent,string expectedFilter)=>giver.BillStack.Bills.FirstOrDefault(b=>b!=except && Matches(b,intent,expectedFilter));
   // A finished "do X times" bill is spent, not standing: the next batch is a new bill.
-  internal static bool Matches(Bill b,Operations.ProductionBillIntent intent)=>b.recipe.defName==intent.RecipeDef && !BillCommon.IsFinished(b as Bill_Production) &&(!CorpseRecipe(intent.RecipeDef) || CorpseClass(b)==intent.Settings.CorpseClass) && (intent.Settings.Worker==null || b.PawnRestriction?.GetUniqueLoadID()==intent.Settings.Worker.EntityId);
+  internal static bool Matches(Bill b,Operations.ProductionBillIntent intent,string expectedFilter){
+   if(!(b is Bill_Production p)||p.recipe.defName!=intent.RecipeDef||BillCommon.IsFinished(p))return false;
+   var s=intent.Settings;
+   if((b is SocialBeerBill)!=s.BeerReserve)return false;
+   if((p.PawnRestriction?.GetUniqueLoadID()??"")!=(s.Worker?.EntityId??""))return false;
+   if(s.RepeatMode==Operations.RepeatMode.Forever){if(p.repeatMode!=BillRepeatModeDefOf.Forever)return false;}
+   else if(s.RepeatMode==Operations.RepeatMode.Count){if(p.repeatMode!=BillRepeatModeDefOf.RepeatCount||p.repeatCount!=s.RepeatCount)return false;}
+   else if(p.repeatMode!=BillRepeatModeDefOf.TargetCount||p.targetCount!=s.TargetCount||p.unpauseWhenYouHave!=s.UnpauseThreshold||!p.pauseWhenSatisfied)return false;
+   return FilterConfiguration(p.ingredientFilter)==expectedFilter;
+  }
   internal static bool Skilled(Pawn p,Thing bench,RecipeDef recipe,WorkTypeDef work)=>p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work)&&!bench.IsForbidden(p)&&p.Position.DistanceTo(bench.Position)<=40&&p.CanReach(bench,PathEndMode.InteractionCell,Danger.None)&&(recipe.skillRequirements==null||recipe.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel));
   // Each reason identifies the failed condition so the production ladder can choose the
   // corresponding repair from this diagnostic.
@@ -142,7 +158,7 @@ namespace HomeBridge.BridgeTools {
  }
 
  // Actions/Apply production_bill: add one bill to a player bench. A bench
- // already carrying a matching bill (and no replaced bill left) applies
+ // already carrying an identical bill (recipe, ingredient filter, worker pin, repeat mode and target; no replaced bill left) applies
  // again; every other rule is checked live at apply.
  internal sealed class ProductionBillActionHandler : IActionHandler {
   internal const string Kind="Production bill";
@@ -154,8 +170,13 @@ namespace HomeBridge.BridgeTools {
    var map=ProtoBoundary.LoadedMap(context);var t=target;
    var bench=map.listerThings.AllThings.FirstOrDefault(x=>x.GetUniqueLoadID()==intent!.BenchId);var giver=bench as IBillGiver;
    var replaced=intent!.ReplaceOwnedBill!=null&&bench!=null?NativeProductionTracking.ReplaceableBill(intent.ReplaceOwnedBill.Id,bench,intent.RecipeDef):null;
-   if(giver!=null&&replaced==null&&NativeProductionBills.Matching(giver,null,intent)){t.Bench=bench!;t.Giver=giver;t.Standing=giver.BillStack.Bills.First(b=>NativeProductionBills.Matches(b,intent));return null;}
    var recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(intent.RecipeDef);
+   Bill? twin=null;
+   if(giver!=null&&recipe!=null&&NativeProductionBills.Recipe(bench!,recipe)){
+    string? expected=null;try{expected=NativeProductionBills.ExpectedFilter(recipe,intent.Settings,map);}catch(Exception){}
+    if(expected!=null)twin=NativeProductionBills.Standing(giver,replaced,intent,expected);
+   }
+   if(twin!=null&&replaced==null){t.Bench=bench!;t.Giver=giver!;t.Standing=twin;return null;}
    var work=bench!=null&&recipe!=null?NativeBillsObservationTools.WorkType(bench.def,recipe):null;
    var colonists=map.mapPawns.FreeColonistsSpawned.Where(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true).ToList();
    if(intent.Settings.Worker!=null)colonists=colonists.Where(p=>p.GetUniqueLoadID()==intent.Settings.Worker.EntityId&&(!NativeRecipeRoles.ButcherFlesh(NativeRecipeRoles.Named(intent.RecipeDef))||HumanFoodFacts.AcceptsButchery(p))).ToList();
@@ -164,8 +185,8 @@ namespace HomeBridge.BridgeTools {
     .Require(()=>NativeProductionTracking.Ready,"production tracking is unavailable")
     .Require(()=>NativeProductionBills.UsableForNewBill(bench!),"bench is not usable for bills")
     .Require(()=>intent.ReplaceOwnedBill==null||replaced!=null,"replacement must be the same recipe on this bench or an ordinary meal tier on this map")
-    .Require(()=>giver!.BillStack.Count<BillStack.MaxCount||replaced?.billStack==giver.BillStack,"bill stack is full")
-    .Require(()=>replaced!=null&&replaced.recipe.defName==intent.RecipeDef||!NativeProductionBills.Matching(giver!,replaced,intent),"bench already carries a matching "+intent.RecipeDef+" bill")
+    .Require(()=>giver!.BillStack.Count<BillStack.MaxCount||replaced?.billStack==giver.BillStack,"bench_bill_slots_full: the bench already carries "+BillStack.MaxCount+" bills")
+    .Require(()=>twin==null,"bench already carries an identical "+intent.RecipeDef+" bill")
     .Require(()=>recipe!=null&&NativeProductionBills.Recipe(bench!,recipe),"recipe "+intent.RecipeDef+" is not available on the bench")
     .Require(()=>!intent.Settings.BeerReserve||recipe!.products.Count==1&&recipe.products[0].thingDef==ThingDefOf.Wort,"Beer reserve requires a wort recipe")
     .Require(()=>NativeProductionBills.CorpseRecipe(intent.RecipeDef)||recipe!.WorkerCounter.GetType()==typeof(RecipeWorkerCounter)&&recipe.specialProducts==null&&recipe.products.Count==1,"recipe "+intent.RecipeDef+" is not ordinary single-product work")

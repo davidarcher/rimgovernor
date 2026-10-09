@@ -5,7 +5,16 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
+	"google.golang.org/protobuf/proto"
 )
+
+func TestRefusedBillSlotsFull(t *testing.T) {
+	full := &op.Refusal{Reason: proto.String("Production bill refused: " + BillSlotsFull + ": the bench already carries 15 bills")}
+	other := &op.Refusal{Reason: proto.String("Production bill refused: bench is not usable for bills")}
+	if !RefusedBillSlotsFull(full) || RefusedBillSlotsFull(other) || RefusedBillSlotsFull(nil) {
+		t.Fatal("only a refusal naming bench_bill_slots_full is a full bench")
+	}
+}
 
 func billFoodTarget(t *testing.T) domain.ProductionBill {
 	t.Helper()
