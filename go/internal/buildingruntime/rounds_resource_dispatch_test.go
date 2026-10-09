@@ -87,7 +87,7 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 	var replace string
 	if len(replacement) > 0 {
 		replace = replacement[0]
-		native.benches[0].Bench.Bills = domain.Known([]policy.GearBill{{ID: replace, Recipe: recipe, Active: domain.Known(false), Products: []policy.Resource{product}}})
+		native.benches[0].Bench.Bills = domain.Known([]policy.GearBill{{ID: replace, Recipe: recipe, Active: domain.Known(false), Products: []policy.Resource{product}, Spec: domain.Known(policy.OrderSpec{Recipe: recipe, Mode: domain.StockTarget, Target: 3})}})
 	}
 	// The review must see the deficit and rank MaintainResource into a
 	// development slot: the fixture's player Wall plan holds one, so two
@@ -113,21 +113,28 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The planner commits no bill method: the ledger's declaration carries
+	// the stock target (the replaced idle bill of another size is dropped
+	// from it) and the step lends the clock a window instead.
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonAdmitted || result.Plan == "" {
+	if err != nil || result.Verdict != BuildingReasonExistingWork || result.Plan != "" || result.NativeWorkTicks == 0 {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Plan)
-	if err != nil || len(plan.Spec.Actions()) != 1 {
-		t.Fatal(plan, err)
+	declared := declaredOrders(t, base.reviewer, planner)
+	order, ok := orderFor(declared, recipe)
+	if declared.Abstain || !ok || len(declared.Orders) != 1 || order.Target != 5 || order.Mode != mode {
+		t.Fatal(declared)
 	}
-	bill, ok := plan.Spec.Actions()[0].ProductionBill()
-	if !ok || bill.Bench() != "Thing_CraftingSpot1" || bill.Recipe() != recipe || bill.Target() != 5 || bill.Mode() != mode || bill.Replaces() != replace {
-		t.Fatal(bill, ok)
-	}
-	again, err := planner.Step(context.Background())
-	if err != nil || again.Verdict != BuildingReasonExistingWork {
-		t.Fatal(again, err)
+	if plans, err := db.LoadPlans(context.Background()); err != nil {
+		t.Fatal(err)
+	} else {
+		for _, plan := range plans {
+			for _, action := range plan.Spec.Actions() {
+				if _, bill := action.ProductionBill(); bill {
+					t.Fatal("the resource planner committed a bill")
+				}
+			}
+		}
 	}
 }
 

@@ -696,6 +696,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if err != nil {
 				return nil, err
 			}
+			reviewer.AddOrderDeclarer(config.Resource)
 		}
 		if supplies {
 			source, ok := reads.(buildingruntime.RoundsSupplySource)

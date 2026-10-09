@@ -234,12 +234,9 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 
 // methodChoice reads the bench census and the recipes' ingredient stock and
 // selects the bill that would produce resource (policy.SelectResourceMethod).
-// tokens receives each census bench's write token.
-func (r *RoundsResourcePlanner) methodChoice(call context.Context, state ControlState, identity *c.Identity, goal store.StandardState, review store.Rounds, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], tokens map[string]string) (choice policy.ResourceMethod, supply []policy.Stock, err error) {
-	seen := make([]domain.MethodID, 0, len(goal.Methods))
-	for _, method := range goal.Methods {
-		seen = append(seen, method.Method)
-	}
+// The bill itself is the ledger's (DeclareOrders); the choice prices the
+// produce candidate of the Round's supply plan.
+func (r *RoundsResourcePlanner) methodChoice(call context.Context, identity *c.Identity, resource policy.Resource, target int64) (choice policy.ResourceMethod, supply []policy.Stock, err error) {
 	census, _, err := r.native.ReadGearBenches(call, identity)
 	if err != nil {
 		return policy.ResourceMethod{}, nil, err
@@ -247,14 +244,13 @@ func (r *RoundsResourcePlanner) methodChoice(call context.Context, state Control
 	benches := make([]policy.GearBench, 0, len(census))
 	for _, row := range census {
 		benches = append(benches, row.Bench)
-		tokens[row.Bench.ID] = row.Token
 	}
 	if names := recipeIngredientNames(census, resource); len(names) > 0 {
 		if supply, _, err = r.native.ReadSupplyStock(call, identity, names); err != nil {
 			return policy.ResourceMethod{}, nil, err
 		}
 	}
-	request := policy.ResourceMethodRequest{Resource: resource, Target: target, Seen: seen, Benches: domain.Known(benches), Stock: supply}
+	request := policy.ResourceMethodRequest{Resource: resource, Target: target, Benches: domain.Known(benches), Stock: supply}
 	snap.NoteResourceMethod(call, request)
 	choice, err = policy.SelectResourceMethod(request)
 	return choice, supply, err
@@ -277,73 +273,21 @@ func (r *RoundsResourcePlanner) dispatchResourceConcern(call, epoch context.Cont
 		}
 		resource = items.Wort
 	}
-	review, err := r.reviewer.player.journal.LoadRounds(call)
+	choice, _, err := r.methodChoice(call, identity, resource, target)
 	if err != nil {
 		return RoundsResourceResult{}, err
 	}
-	tokens := map[string]string{}
-	choice, _, err := r.methodChoice(call, state, identity, goal, review, resource, target, stock, tokens)
-	if err != nil {
-		return RoundsResourceResult{}, err
+	switch choice.Kind {
+	case policy.ResourceMethodProduce, policy.ResourceMethodWait:
+		// The ledger places the bill (DeclareOrders); lend the clock a window.
+		return RoundsResourceResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks}, nil
 	}
-	if choice.Kind != policy.ResourceMethodProduce {
-		if beer && choice.Kind == policy.ResourceMethodWait {
-			return RoundsResourceResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks}, nil
-		}
-		result, _, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, nil)
-		return result, err
-	}
-	return r.commitBill(call, epoch, state, goal, choice, tokens, beer, started)
-}
-
-// commitBill commits the production-bill method of a chosen bench and recipe.
-func (r *RoundsResourcePlanner) commitBill(call, epoch context.Context, state ControlState, goal store.StandardState, choice policy.ResourceMethod, tokens map[string]string, beer bool, started time.Time) (RoundsResourceResult, error) {
-	p := r.reviewer.player
-	if _, ok := tokens[choice.Bench]; !ok {
-		return RoundsResourceResult{}, fmt.Errorf("%w: commitBill: !ok", ErrControl)
-	}
-	id := domain.MintPlanID()
-	targetCount := int32(choice.Target)
-	if int64(targetCount) != choice.Target {
-		return RoundsResourceResult{}, fmt.Errorf("%w: commitBill: int64(targetCount) != choice.Target", ErrControl)
-	}
-	mode := domain.StockTarget
-	if beer {
-		mode = domain.BeerReserve
-	}
-	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, mode, targetCount)
-	if err != nil {
-		return RoundsResourceResult{}, err
-	}
-	if choice.Replace != "" {
-		bill, err = bill.ReplaceOwnedBill(choice.Replace)
-		if err != nil {
-			return RoundsResourceResult{}, err
-		}
-	}
-	action, err := domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill)
-	if err != nil {
-		return RoundsResourceResult{}, err
-	}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
-	if err != nil {
-		return RoundsResourceResult{}, err
-	}
-	if err = p.current(call, epoch); err != nil {
-		return RoundsResourceResult{}, err
-	}
-	elapsed := r.reviewer.clock.Now().Sub(started)
-	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoundsResourceResult{}, fmt.Errorf("%w: commitBill: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
-	}
-	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, choice.ID, plan); err != nil {
-		return RoundsResourceResult{}, err
-	}
-	return RoundsResourceResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
+	result, _, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, nil)
+	return result, err
 }
 
 // dispatchSupplied executes what the Round's supply plan opened for one
-// MaintainResource floor: a deposit to mine, a bench bill to produce at, in the
+// MaintainResource floor: a deposit to mine, a bench bill to wait on, in the
 // plan's rank order. A floor the
 // plan opened nothing for for this planner's kinds is left to the acquisition
 // planner when it opened a chop, harvest or hunt, to the trade planner when it
@@ -361,15 +305,9 @@ func (r *RoundsResourcePlanner) dispatchSupplied(call, epoch context.Context, st
 	for _, e := range supply.plan.Opened(resource) {
 		switch e.Candidate.Kind {
 		case policy.CandidateProduce:
-			// The bill funds the units the plan admitted, which ingredient
-			// draws may hold below the floor's deficit.
-			choice := row.choice
-			for _, credit := range e.Credit {
-				if credit.Good.Def == resource {
-					choice.Target = min(choice.Target, policy.StockReader{Resources: stock}.Units(resource)+int64(credit.Amount))
-				}
-			}
-			return r.commitBill(call, epoch, state, goal, choice, supply.tokens, false, started)
+			// The ledger places the bill (DeclareOrders); the bench works on
+			// game time, so lend the clock a window.
+			return RoundsResourceResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks}, nil
 		case policy.CandidateMining:
 			selection := row.sel
 			selection.selected = nil

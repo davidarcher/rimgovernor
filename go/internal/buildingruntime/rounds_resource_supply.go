@@ -54,8 +54,6 @@ type resourceSupply struct {
 	// cannot reserve these ingredients while the mine plan is open, so trade can
 	// sell them when their wealth share exceeds 0.6 and a trader is present.
 	derived map[policy.Resource]int64
-	// tokens maps each bench id of the census to its write token.
-	tokens map[string]string
 	// hunts is how many hunts may be admitted.
 	hunts int
 	// drill is the deep drill gate's reading, nil when no metal is in deficit.
@@ -107,7 +105,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 		return nil, err
 	}
 	serves := r.demand.get(state.Snapshot).Serves
-	out := &resourceSupply{rows: map[policy.Resource]*resourceSupplyRow{}, tokens: map[string]string{}, derived: map[policy.Resource]int64{}}
+	out := &resourceSupply{rows: map[policy.Resource]*resourceSupplyRow{}, derived: map[policy.Resource]int64{}}
 	planner := &RoundsResourcePlanner{reviewer: r, native: r.resourceNative}
 	identity := boundary.Identity(state.Snapshot)
 
@@ -187,7 +185,7 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 				reachRead = true
 			}
 			var ingredients []policy.Stock
-			if row.choice, ingredients, err = planner.methodChoice(call, state, identity, goal, review, resource, target.Target, stock, out.tokens); err != nil {
+			if row.choice, ingredients, err = planner.methodChoice(call, identity, resource, target.Target); err != nil {
 				return nil, err
 			}
 			input.Usable = policy.UsableIngredients(runways, ingredients)

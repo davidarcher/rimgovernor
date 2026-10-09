@@ -371,6 +371,16 @@ stands (so its spec key never drifts), a new batch is declared only while no wea
 candidate is pending, and the declared batches are the ingredient demand of
 `openBills`. `production/gear-ledger` is the nightly signal.
 
+`MaintainResource` (#2601) is migrated too: `RoundsResourcePlanner` declares
+`policy.DeclareResourceOrders` (a stock-target order, with `Product` and
+`Class` for the dispatcher, per floor below its target, the beer reserve as a
+`BeerReserve` order, and a standing bill that makes a floor's resource as it
+stands) and commits no bill method. Its mining, sourcing, field and trade
+methods are unchanged; where the Round's supply plan opens a produce candidate
+the step lends the clock a window and the ledger places the bill. The old
+one-method-per-recipe history and the ingredient-credit cap on the bill target
+are gone: the order is judged again every Round at the floor's full target.
+
 `MaintainArt` (#2603) migrates the worker-pinned sculpture batches:
 `RoundsArtPlanner.DeclareOrders` (`policy.DeclareArtOrders`) declares, while an
 inspired artist, an owed bedroom or a sale need is open, every active sculpture
