@@ -471,8 +471,8 @@ it (`cover_thing_id`, `cover_def_name`, `cover_kind` plant/chunk/mineable/buildi
 `cover_designated`) with a CAS token over identity, definition, cell and designation
 state. `RaidArrivalState`, a map component, samples every hostile lord every 60 ticks:
 its first pawn position is the spawn (ground when within 14 cells of the map edge) and
-the pawn nearest the home area adds one trail cell per sample, up to 128 per lord and
-32 lords per session. The snapshot's `raids` rows carry those tracks; the controller
+the pawn nearest the home area adds one trail cell per sample; a live lord's trail is
+never truncated, and a track not sampled for 60000 ticks (one game day) is evicted. The snapshot's `raids` rows carry those tracks; the controller
 takes the first trail cell inside its census region as the crossing, and the policy
 snaps it to the nearest sector edge cell within eight cells. Drop pods and tunnellers
 are not ground arrivals.

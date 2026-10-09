@@ -15,13 +15,13 @@ namespace HomeBridge.BridgeTools
     // colony). Afterwards the pawn of
     // the lord nearest the colony adds one trail sample, so the controller
     // can find where the raid crossed the boundary of its own census rather
-    // than guess from a far map-edge coordinate. Tracks live for the loaded
-    // session only and are bounded per lord and in number.
+    // than guess from a far map-edge coordinate. A live lord keeps its whole
+    // trail; a track whose lord has not been seen for FinishedAge ticks is
+    // evicted. Tracks live for the loaded session only.
     public sealed class RaidArrivalState : MapComponent
     {
         public const int SampleInterval = 60;
-        public const int TrailLimit = 128;
-        public const int TrackLimit = 32;
+        public const int FinishedAge = 60000;
         public const int EdgeMargin = 14;
 
         public sealed class Track
@@ -54,15 +54,16 @@ namespace HomeBridge.BridgeTools
                 if (pawns.Count == 0) continue;
                 if (!Tracks.TryGetValue(lord.loadID, out var track))
                 {
-                    if (Tracks.Count >= TrackLimit) continue;
                     var first = pawns[0].Position;
                     track = new Track { LordId = lord.loadID, FactionDef = lord.faction.def.defName, SpawnTick = tick, Spawn = first, Ground = OnEdge(first) };
                     Tracks[lord.loadID] = track;
                 }
                 var nearest = pawns.OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber).First().Position;
                 track.LastTick = tick;
-                if (track.Trail.Count < TrailLimit && (track.Trail.Count == 0 || track.Trail[track.Trail.Count - 1] != nearest)) track.Trail.Add(nearest);
+                if (track.Trail.Count == 0 || track.Trail[track.Trail.Count - 1] != nearest) track.Trail.Add(nearest);
             }
+            var finished = Tracks.Values.Where(t => tick - t.LastTick > FinishedAge).Select(t => t.LordId).ToList();
+            foreach (var id in finished) Tracks.Remove(id);
         }
 
         private bool OnEdge(IntVec3 c) => c.x < EdgeMargin || c.z < EdgeMargin || c.x >= map.Size.x - EdgeMargin || c.z >= map.Size.z - EdgeMargin;
