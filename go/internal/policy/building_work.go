@@ -5,7 +5,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // AppliedBuildingOpen reports an applied building intent whose blueprint or
 // frame still stands (or whose census is unknown).
 func AppliedBuildingOpen(p domain.Progress, census domain.Fact[CurrentConstruction]) bool {
-	return p.Action().Kind() == domain.BuildingAction && p.View().Stage == domain.Completed && workOpen(p, census) == BuildingOpen
+	return p.Action().Kind() == domain.BuildingAction && p.Action().ConstructionTarget() == "" && p.View().Stage == domain.Completed && workOpen(p, census) == BuildingOpen
 }
 
 // PlanWorkOpen is GoalWorkOpen plus applied buildings still under

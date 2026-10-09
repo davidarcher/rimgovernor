@@ -6887,9 +6887,12 @@ type PawnState struct {
 	Royalty *PawnRoyalty `protobuf:"bytes,48,opt,name=royalty,proto3" json:"royalty,omitempty"`
 	// Standing of a spawned humanlike pawn among the factions (#2383), colonist
 	// or not; absent for animals and mechanoids.
-	Standing      *PawnStanding `protobuf:"bytes,49,opt,name=standing,proto3" json:"standing,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Standing *PawnStanding `protobuf:"bytes,49,opt,name=standing,proto3" json:"standing,omitempty"`
+	// Alive, standing colony builder with native finishing work-type and required
+	// capacities. Jobs, draft, schedule and skill level do not change this fact.
+	ConstructionCapable *bool `protobuf:"varint,50,opt,name=construction_capable,json=constructionCapable,proto3,oneof" json:"construction_capable,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PawnState) Reset() {
@@ -7242,6 +7245,13 @@ func (x *PawnState) GetStanding() *PawnStanding {
 		return x.Standing
 	}
 	return nil
+}
+
+func (x *PawnState) GetConstructionCapable() bool {
+	if x != nil && x.ConstructionCapable != nil {
+		return *x.ConstructionCapable
+	}
+	return false
 }
 
 // Faction standing of one humanlike pawn (#2383). faction_def_name is the
@@ -10149,16 +10159,21 @@ func (x *MaterialDeficit) GetStillNeeded() int64 {
 }
 
 type ConstructionState struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	TotalWork         *float64               `protobuf:"fixed64,1,opt,name=total_work,json=totalWork,proto3,oneof" json:"total_work,omitempty"`
-	WorkLeft          *float64               `protobuf:"fixed64,2,opt,name=work_left,json=workLeft,proto3,oneof" json:"work_left,omitempty"`
-	PercentComplete   *float64               `protobuf:"fixed64,3,opt,name=percent_complete,json=percentComplete,proto3,oneof" json:"percent_complete,omitempty"`
-	Resources         []*MaterialDeficit     `protobuf:"bytes,4,rep,name=resources,proto3" json:"resources,omitempty"`
-	ResourcesComplete *bool                  `protobuf:"varint,5,opt,name=resources_complete,json=resourcesComplete,proto3,oneof" json:"resources_complete,omitempty"`
-	CompletableEver   *bool                  `protobuf:"varint,6,opt,name=completable_ever,json=completableEver,proto3,oneof" json:"completable_ever,omitempty"`
-	Issues            []*ReadIssue           `protobuf:"bytes,7,rep,name=issues,proto3" json:"issues,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	TotalWork             *float64               `protobuf:"fixed64,1,opt,name=total_work,json=totalWork,proto3,oneof" json:"total_work,omitempty"`
+	WorkLeft              *float64               `protobuf:"fixed64,2,opt,name=work_left,json=workLeft,proto3,oneof" json:"work_left,omitempty"`
+	PercentComplete       *float64               `protobuf:"fixed64,3,opt,name=percent_complete,json=percentComplete,proto3,oneof" json:"percent_complete,omitempty"`
+	Resources             []*MaterialDeficit     `protobuf:"bytes,4,rep,name=resources,proto3" json:"resources,omitempty"`
+	ResourcesComplete     *bool                  `protobuf:"varint,5,opt,name=resources_complete,json=resourcesComplete,proto3,oneof" json:"resources_complete,omitempty"`
+	CompletableEver       *bool                  `protobuf:"varint,6,opt,name=completable_ever,json=completableEver,proto3,oneof" json:"completable_ever,omitempty"`
+	Issues                []*ReadIssue           `protobuf:"bytes,7,rep,name=issues,proto3" json:"issues,omitempty"`
+	MinimumFinishingSkill *int32                 `protobuf:"varint,8,opt,name=minimum_finishing_skill,json=minimumFinishingSkill,proto3,oneof" json:"minimum_finishing_skill,omitempty"`
+	QualitySensitive      *bool                  `protobuf:"varint,9,opt,name=quality_sensitive,json=qualitySensitive,proto3,oneof" json:"quality_sensitive,omitempty"`
+	EligibleFinishers     *int32                 `protobuf:"varint,10,opt,name=eligible_finishers,json=eligibleFinishers,proto3,oneof" json:"eligible_finishers,omitempty"`
+	FinishingBlocker      *string                `protobuf:"bytes,11,opt,name=finishing_blocker,json=finishingBlocker,proto3,oneof" json:"finishing_blocker,omitempty"`
+	NativeFinishingSkill  *int32                 `protobuf:"varint,12,opt,name=native_finishing_skill,json=nativeFinishingSkill,proto3,oneof" json:"native_finishing_skill,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ConstructionState) Reset() {
@@ -10238,6 +10253,41 @@ func (x *ConstructionState) GetIssues() []*ReadIssue {
 		return x.Issues
 	}
 	return nil
+}
+
+func (x *ConstructionState) GetMinimumFinishingSkill() int32 {
+	if x != nil && x.MinimumFinishingSkill != nil {
+		return *x.MinimumFinishingSkill
+	}
+	return 0
+}
+
+func (x *ConstructionState) GetQualitySensitive() bool {
+	if x != nil && x.QualitySensitive != nil {
+		return *x.QualitySensitive
+	}
+	return false
+}
+
+func (x *ConstructionState) GetEligibleFinishers() int32 {
+	if x != nil && x.EligibleFinishers != nil {
+		return *x.EligibleFinishers
+	}
+	return 0
+}
+
+func (x *ConstructionState) GetFinishingBlocker() string {
+	if x != nil && x.FinishingBlocker != nil {
+		return *x.FinishingBlocker
+	}
+	return ""
+}
+
+func (x *ConstructionState) GetNativeFinishingSkill() int32 {
+	if x != nil && x.NativeFinishingSkill != nil {
+		return *x.NativeFinishingSkill
+	}
+	return 0
 }
 
 type ThermalSide struct {
@@ -48985,7 +49035,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x17_slaughter_designatableB\x11\n" +
 	"\x0f_ticks_to_birthB\x13\n" +
 	"\x11_life_stage_indexB\x1b\n" +
-	"\x19_ticks_to_next_life_stage\"\xb6\x15\n" +
+	"\x19_ticks_to_next_life_stage\"\x87\x16\n" +
 	"\tPawnState\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12'\n" +
 	"\rkind_def_name\x18\x02 \x01(\tH\x00R\vkindDefName\x88\x01\x01\x124\n" +
@@ -49036,7 +49086,8 @@ const file_observations_proto_rawDesc = "" +
 	"\abiotech\x18. \x01(\v2(.rimgovernor.observations.v1.PawnBiotechR\abiotech\x12B\n" +
 	"\aanomaly\x18/ \x01(\v2(.rimgovernor.observations.v1.PawnAnomalyR\aanomaly\x12B\n" +
 	"\aroyalty\x180 \x01(\v2(.rimgovernor.observations.v1.PawnRoyaltyR\aroyalty\x12E\n" +
-	"\bstanding\x181 \x01(\v2).rimgovernor.observations.v1.PawnStandingR\bstandingB\x10\n" +
+	"\bstanding\x181 \x01(\v2).rimgovernor.observations.v1.PawnStandingR\bstanding\x126\n" +
+	"\x14construction_capable\x182 \x01(\bH\x1aR\x13constructionCapable\x88\x01\x01B\x10\n" +
 	"\x0e_kind_def_nameB\v\n" +
 	"\t_colonistB\x10\n" +
 	"\x0e_free_colonistB\v\n" +
@@ -49067,7 +49118,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x13_mental_state_ticksB\r\n" +
 	"\v_raid_armorB\t\n" +
 	"\a_foggedB\x0e\n" +
-	"\f_inspiration\"\xb9\x02\n" +
+	"\f_inspirationB\x17\n" +
+	"\x15_construction_capable\"\xb9\x02\n" +
 	"\fPawnStanding\x12-\n" +
 	"\x10faction_def_name\x18\x01 \x01(\tH\x00R\x0efactionDefName\x88\x01\x01\x12$\n" +
 	"\vroyal_title\x18\x02 \x01(\tH\x01R\n" +
@@ -49521,7 +49573,7 @@ const file_observations_proto_rawDesc = "" +
 	"\t_def_nameB\a\n" +
 	"\x05_needB\a\n" +
 	"\x05_haveB\x0f\n" +
-	"\r_still_needed\"\xd7\x03\n" +
+	"\r_still_needed\"\xe1\x06\n" +
 	"\x11ConstructionState\x12\"\n" +
 	"\n" +
 	"total_work\x18\x01 \x01(\x01H\x00R\ttotalWork\x88\x01\x01\x12 \n" +
@@ -49530,13 +49582,24 @@ const file_observations_proto_rawDesc = "" +
 	"\tresources\x18\x04 \x03(\v2,.rimgovernor.observations.v1.MaterialDeficitR\tresources\x122\n" +
 	"\x12resources_complete\x18\x05 \x01(\bH\x03R\x11resourcesComplete\x88\x01\x01\x12.\n" +
 	"\x10completable_ever\x18\x06 \x01(\bH\x04R\x0fcompletableEver\x88\x01\x01\x12>\n" +
-	"\x06issues\x18\a \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\r\n" +
+	"\x06issues\x18\a \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12;\n" +
+	"\x17minimum_finishing_skill\x18\b \x01(\x05H\x05R\x15minimumFinishingSkill\x88\x01\x01\x120\n" +
+	"\x11quality_sensitive\x18\t \x01(\bH\x06R\x10qualitySensitive\x88\x01\x01\x122\n" +
+	"\x12eligible_finishers\x18\n" +
+	" \x01(\x05H\aR\x11eligibleFinishers\x88\x01\x01\x120\n" +
+	"\x11finishing_blocker\x18\v \x01(\tH\bR\x10finishingBlocker\x88\x01\x01\x129\n" +
+	"\x16native_finishing_skill\x18\f \x01(\x05H\tR\x14nativeFinishingSkill\x88\x01\x01B\r\n" +
 	"\v_total_workB\f\n" +
 	"\n" +
 	"_work_leftB\x13\n" +
 	"\x11_percent_completeB\x15\n" +
 	"\x13_resources_completeB\x13\n" +
-	"\x11_completable_ever\"\x9e\x03\n" +
+	"\x11_completable_everB\x1a\n" +
+	"\x18_minimum_finishing_skillB\x14\n" +
+	"\x12_quality_sensitiveB\x15\n" +
+	"\x13_eligible_finishersB\x14\n" +
+	"\x12_finishing_blockerB\x19\n" +
+	"\x17_native_finishing_skill\"\x9e\x03\n" +
 	"\vThermalSide\x12\x17\n" +
 	"\x04side\x18\x01 \x01(\tH\x00R\x04side\x88\x01\x01\x127\n" +
 	"\bposition\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\bposition\x12.\n" +

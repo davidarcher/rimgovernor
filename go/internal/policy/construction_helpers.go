@@ -15,14 +15,12 @@ import (
 //
 // Enforcement boundary: a work-type priority enables every native
 // construction job, not one chosen wall. Native RimWorld still refuses a
-// frame whose constructionSkillPrerequisite the pawn lacks, but nothing
-// native keeps a helper off a quality or expensive frame. So helpers are
-// enabled only while every construction task the review knows of (ready
-// work candidates and the open plans' building definitions) is in
-// HelperConstructionDefinitions, and a review that finds any other task
-// withdraws them at once, with no hysteresis. A risky frame placed between
-// two reviews is open to an enabled helper until the next review; that is
-// the limit of the coarse setting.
+// frame whose constructionSkillPrerequisite the pawn lacks. Quality sites
+// with an observed finishing minimum also enforce that minimum natively.
+// Helpers require every known task to be cheap, quality-free construction
+// or protected by that observed target setting. Unconfigured risky sites
+// withdraw helpers immediately. A new unconfigured site between reviews
+// still follows vanilla rules until Go adopts it on a later review.
 
 // HelperConstructionDefinitions is the conservative task set: Core
 // buildables with no constructionSkillPrerequisite and no quality, whose
@@ -52,6 +50,9 @@ const (
 // ConstructionHelp is the planner's helper input (WorkDemand.Help).
 type ConstructionHelp struct {
 	Tick domain.Tick
+	// TargetSkills means observed target guards enforce furniture skill locally;
+	// the maximum prerequisite of unrelated projects must not disable safe-wall helpers.
+	TargetSkills bool
 	// Ready is the runnable suitable construction parallelism; unknown
 	// never authorizes help.
 	Ready domain.Fact[int]
@@ -84,14 +85,30 @@ type ConstructionHelpRecord struct {
 // count their parallelism; any construction candidate outside the set (or
 // a conservative-adapter candidate that may build) is risky, as is any
 // pending definition outside it. A report from another world is unknown.
-func ConstructionHelpDemand(report *ReadyWorkReport, current domain.GenerationSnapshot, tick domain.Tick, definitions []string, previous *ConstructionHelpRecord) ConstructionHelp {
+func ConstructionHelpDemand(report *ReadyWorkReport, current domain.GenerationSnapshot, tick domain.Tick, definitions []string, previous *ConstructionHelpRecord, census ...domain.Fact[CurrentConstruction]) ConstructionHelp {
 	help := ConstructionHelp{Tick: tick, Ready: domain.Unknown[int]()}
+	protected := map[string]bool{}
+	if len(census) > 0 {
+		protected = protectedQualityDefinitions(census[0])
+		report = ConstructionHelperView(report, census[0], current)
+	}
+	help.TargetSkills = len(protected) > 0
 	if previous != nil && previous.Tick <= tick {
 		help.Previous = *previous
 	}
 	risky := map[string]bool{}
+	if len(census) > 0 {
+		if observed, known := census[0].Value(); known && observed.Colony {
+			for _, site := range observed.Sites {
+				name := site.Building.Definition()
+				if !HelperConstructionDefinitions[name] && !protected[name] {
+					risky[name] = true
+				}
+			}
+		}
+	}
 	for _, d := range definitions {
-		if !HelperConstructionDefinitions[d] {
+		if !HelperConstructionDefinitions[d] && !protected[d] {
 			risky[d] = true
 		}
 	}
@@ -106,6 +123,9 @@ func ConstructionHelpDemand(report *ReadyWorkReport, current domain.GenerationSn
 				continue
 			}
 			def, migrated := strings.CutPrefix(c.Stage, "building:")
+			if migrated && protected[def] {
+				continue
+			}
 			if !migrated || !HelperConstructionDefinitions[def] || c.Adapter != ReadyMigrated {
 				risky[c.Stage] = true
 				continue

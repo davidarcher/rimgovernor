@@ -22,7 +22,7 @@ func constructionClaims(ctx context.Context, tx *sql.Tx, current domain.Generati
 	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,m.owner_id FROM plan_methods m LEFT JOIN standards g ON g.id=m.owner_id AND m.kind='standard' LEFT JOIN projects pr ON pr.id=m.owner_id AND m.kind='project'
  WHERE json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Colony')=?
  AND json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Load')=? AND json_extract(COALESCE(g.payload,pr.payload),'$.Snapshot.Map')=?
- AND EXISTS(SELECT 1 FROM actions a JOIN transitions t ON t.action_id=a.id WHERE a.plan_id=m.plan_id AND a.kind='building' AND json_extract(t.payload,'$.Kind')='receipt' AND json_extract(t.payload,'$.Receipt')='accepted')
+ AND EXISTS(SELECT 1 FROM actions a JOIN transitions t ON t.action_id=a.id WHERE a.plan_id=m.plan_id AND a.kind='building' AND COALESCE(json_extract(a.zone_payload,'$.Target'),'')='' AND json_extract(t.payload,'$.Kind')='receipt' AND json_extract(t.payload,'$.Receipt')='accepted')
  ORDER BY m.plan_id LIMIT 257`, current.Colony, current.Load, current.Map)
 	if err != nil {
 		return unknown, err
@@ -72,7 +72,7 @@ func constructionClaims(ctx context.Context, tx *sql.Tx, current domain.Generati
 			v := progress.View()
 			building, isBuilding := progress.Action().Building()
 			effect, ek := v.Effect.Value()
-			if !isBuilding || !ek || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
+			if !isBuilding || progress.Action().ConstructionTarget() != "" || !ek || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
 				continue
 			}
 			result = append(result, policy.ConstructionClaim{Plan: link.plan, Action: v.Action, Concern: link.concern, Building: building})

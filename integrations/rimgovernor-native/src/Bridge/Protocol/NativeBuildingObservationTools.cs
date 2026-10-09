@@ -177,6 +177,7 @@ namespace HomeBridge.BridgeTools
                 if (thing is Blueprint_Install) row.InstallOfDefName = Id(buildDef.defName);
                 else row.BuildDefName = Id(buildDef.defName);
                 row.Construction = Construction(thing, buildDef, stuff);
+                ConstructionSkillGuard.Read(thing, row.Construction);
             }
             else row.Issues.Add(Issue("construction", Common.UnavailableReason.NotApplicable, "Completed building is not a construction site."));
             // Every row carries its service state and forbidden flag; the

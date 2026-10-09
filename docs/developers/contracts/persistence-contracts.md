@@ -6,7 +6,7 @@ Vocabulary follows the [glossary](../glossary.md). Stored names: tables
 `standards`, `methods` (`standard_id`, `episode`) and `rounds`; blob keys `standard/<id>`; the
 `standard` and `episode` JSON keys; status words `open`/`settled`/`voided` (Standards) and
 `open`/`completed`/`voided` (Projects). Finding strings are `unclear`/`unmet`/`met` (Incident bindings
-store `unclear`/`active`/`clear`); journal schema 206. Databases and saves from other versions are refused;
+store `unclear`/`active`/`clear`); journal schema 207. Databases and saves from other versions are refused;
 there is no adoption path.
 
 Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second
@@ -15,7 +15,7 @@ copy of a fact is a bug, not a cache.
 | Home | Holds | On reload |
 |---|---|---|
 | Native save, `GovernorState` blobs | Go intent the world cannot show: Standards (`standard/<id>`, a Standard's own intent in its `Record`, e.g. ManageCreepJoiners' inspection record), Projects (`project/<id>`, `GovernorProjectBlob`; finished Projects stay as the record), family plans (`family/*`; the layout plan, `family/layout_plan`, keys each herd reservation, pen, barn and vet room, with its herd's race in `Herd`, #2226) and the soldier squad (`family/soldier_squad`); written by Go at save time, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
-| Native save, other components | Colony identity and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition; deep drilling; home coverage) | Follows the save |
+| Native save, other components | Colony identity, per-target construction finishing-skill settings (Go chooses once; native transfers blueprint to frame and enforces every finishing order), and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition; deep drilling; home coverage) | Follows the save; construction settings disappear with the exact cancelled/completed target, never transfer by cell |
 | SQLite, one database per launch (`--state`) | The session journal: actions, transitions, admissions, clock inbox and cursors (native buffers clock events in memory only), request-ID replay | Not restored; read across launches only by postmortem |
 | Go memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (read once per load token), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`); the `standards`, `projects`, `methods` and family tables are such views of the save blobs (`RebuildStandards` rebuilds Standards and Projects under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
 | `flight.jsonl` | All controller telemetry, one row per thing that happened ([flight rows](flight-rows.md), schema v2), the only log: always on for `serve`, nothing else is written to stderr but the startup banner, fatals and panics; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |

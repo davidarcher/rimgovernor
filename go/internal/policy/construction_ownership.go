@@ -40,8 +40,15 @@ type CurrentConstruction struct {
 // ConstructionSite is one blueprint or frame on the map: the building it
 // will become and its stage.
 type ConstructionSite struct {
-	Building domain.Building
-	Stage    string
+	Building              domain.Building
+	Stage                 string
+	ID                    string
+	ResourcesComplete     domain.Fact[bool]
+	QualitySensitive      domain.Fact[bool]
+	MinimumFinishingSkill domain.Fact[int]
+	NativeFinishingSkill  domain.Fact[int]
+	EligibleFinishers     domain.Fact[int]
+	FinishingBlocker      string
 }
 
 // BuildingWork is where an applied building intent stands.

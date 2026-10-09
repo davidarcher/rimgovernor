@@ -21,5 +21,12 @@ func buildingAction(action domain.Action) (*o.Action, error) {
 		return nil, contract("building intent requires a definition and a cardinal rotation")
 	}
 	candidate := &p.PlacementCandidate{DefName: proto.String(b.Definition()), Stuff: proto.String(b.Stuff()), X: proto.Int32(b.Cell().X), Z: proto.Int32(b.Cell().Z), Rotation: rotation.Enum()}
-	return &o.Action{Intent: &o.Action_Building{Building: &o.BuildingIntent{Placement: candidate}}}, nil
+	intent := &o.BuildingIntent{Placement: candidate}
+	if minimum, known := action.FinishingSkill().Value(); known {
+		intent.MinimumFinishingSkill = proto.Int32(int32(minimum))
+		if action.ConstructionTarget() != "" {
+			intent.ExistingTargetId = proto.String(action.ConstructionTarget())
+		}
+	}
+	return &o.Action{Intent: &o.Action_Building{Building: intent}}, nil
 }

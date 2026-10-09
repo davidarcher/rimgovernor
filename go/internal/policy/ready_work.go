@@ -366,6 +366,9 @@ type readyStage struct {
 }
 
 func readyActionStage(a domain.Action, recipes RecipeFacts) (readyStage, bool) {
+	if a.ConstructionTarget() != "" {
+		return readyStage{stage: "construction_setting"}, true
+	}
 	if v, ok := a.Building(); ok {
 		return readyStage{stage: "building:" + v.Definition(), work: WorkConstruction, claims: []ReadyClaim{CellClaim(v.Cell())}}, true
 	}

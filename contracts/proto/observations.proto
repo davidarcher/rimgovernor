@@ -473,6 +473,9 @@ message PawnState {
   // Standing of a spawned humanlike pawn among the factions (#2383), colonist
   // or not; absent for animals and mechanoids.
   PawnStanding standing = 49;
+  // Alive, standing colony builder with native finishing work-type and required
+  // capacities. Jobs, draft, schedule and skill level do not change this fact.
+  optional bool construction_capable = 50;
 }
 // Faction standing of one humanlike pawn (#2383). faction_def_name is the
 // pawn's FactionDef (absent without a faction); royal_title the defName of its
@@ -659,7 +662,13 @@ message BuildingSettings {
   optional bool player_owned = 19;
 }
 message MaterialDeficit { optional string def_name = 1; optional int64 need = 2; optional int64 have = 3; optional int64 still_needed = 4; }
-message ConstructionState { optional double total_work = 1; optional double work_left = 2; optional double percent_complete = 3; repeated MaterialDeficit resources = 4; optional bool resources_complete = 5; optional bool completable_ever = 6; repeated ReadIssue issues = 7; }
+message ConstructionState { optional double total_work = 1; optional double work_left = 2; optional double percent_complete = 3; repeated MaterialDeficit resources = 4; optional bool resources_complete = 5; optional bool completable_ever = 6; repeated ReadIssue issues = 7;
+  optional int32 minimum_finishing_skill = 8;
+  optional bool quality_sensitive = 9;
+  optional int32 eligible_finishers = 10;
+  optional string finishing_blocker = 11;
+  optional int32 native_finishing_skill = 12;
+}
 message ThermalSide { optional string side = 1; rimgovernor.common.v1.Cell position = 2; rimgovernor.common.v1.Ref room = 3; optional bool outdoors = 4; optional double temperature_c = 5; optional bool fogged = 6; optional bool impassable = 7; repeated ReadIssue issues = 8; }
 message BuildingServiceState {
   optional bool connected = 1; optional bool power_on = 2; optional double power_output_w = 3; optional bool switched_on = 4;

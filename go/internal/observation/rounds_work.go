@@ -116,6 +116,7 @@ func resolveTrait(catalog *bridge.DefinitionCatalog, trait *policy.PawnTrait) er
 
 func workPawnRow(row *o.PawnState) policy.WorkPawn {
 	w := policy.WorkPawn{ID: policy.PawnID(row.Pawn.GetId())}
+	w.ConstructionAble = optional(row.ConstructionCapable)
 	mental, mk := nativePresence(row.MentalState, row.Issues, "mental_state").Value()
 	if row.GetDead() || row.GetDowned() || row.GetDrafted() || mk && mental {
 		w.Available = domain.Known(false)

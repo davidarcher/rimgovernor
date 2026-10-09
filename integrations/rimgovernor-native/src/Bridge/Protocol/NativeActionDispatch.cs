@@ -175,6 +175,32 @@ namespace HomeBridge.BridgeTools
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
             var map = ProtoBoundary.LoadedMap(context);
+            var intent = action.Building;
+            if (intent.HasMinimumFinishingSkill && (intent.MinimumFinishingSkill < 0 || intent.MinimumFinishingSkill > 1000)
+                || intent.HasExistingTargetId && !intent.HasMinimumFinishingSkill)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Invalid construction skill setting.");
+            if (intent.HasMinimumFinishingSkill)
+            {
+                if (intent.Placement == null || !PlacementPreviewOperation.TryResolveBuildable(intent.Placement.DefName, out var definition, out _)
+                    || !(definition is ThingDef qualityDef) || !qualityDef.HasComp(typeof(CompQuality)))
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Finishing minimum requires a quality-bearing building.");
+                var existing = Existing(map, intent.Placement);
+                if (existing != null && !(existing.Value.Thing is Blueprint_Build || existing.Value.Thing is Frame))
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Completed building has no finishing work.");
+                var set = existing == null ? null : ConstructionSkillGuard.Setting(existing.Value.Thing);
+                if (set != null && set.Minimum != intent.MinimumFinishingSkill)
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction minimum is already set.");
+            }
+            if (intent.HasExistingTargetId)
+            {
+                var target = Existing(map, intent.Placement);
+                if (target == null || target.Value.Thing.GetUniqueLoadID() != intent.ExistingTargetId
+                    || !(target.Value.Thing is Blueprint_Build || target.Value.Thing is Frame) || !ConstructionSkillGuard.Quality(target.Value.Thing))
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction setting target is stale.");
+                var set = ConstructionSkillGuard.Setting(target.Value.Thing);
+                if (set != null && set.Minimum != intent.MinimumFinishingSkill)
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction minimum is already set.");
+            }
             if (Existing(map, action.Building.Placement) != null) return null;
             return NativeConstructionPlan.Prepare(map, action.Building.Placement, context, out _, out _, out var failure) ? null : failure;
         }
@@ -186,12 +212,17 @@ namespace HomeBridge.BridgeTools
             var existing = Existing(map, candidate);
             if (existing != null)
             {
+                if (action.Building.HasExistingTargetId && existing.Value.Thing.GetUniqueLoadID() != action.Building.ExistingTargetId)
+                    throw new InvalidOperationException("Construction setting target changed.");
+                if (action.Building.HasMinimumFinishingSkill) ConstructionSkillGuard.Set(existing.Value.Thing, action.Building.MinimumFinishingSkill);
                 return new Receipts.EffectEvidence { Construction = Effect(existing.Value.Thing, candidate) };
             }
+            if (action.Building.HasExistingTargetId) throw new InvalidOperationException("Construction setting target disappeared.");
             if (!NativeConstructionPlan.Prepare(map, candidate, context, out var plan, out _, out var failure))
                 throw new InvalidOperationException("Placement became invalid: " + failure.Detail);
             var observed = plan.Proposed();
             var placed = plan.Place(observed) ?? throw new InvalidOperationException("Native placement returned no object.");
+            if (action.Building.HasMinimumFinishingSkill) ConstructionSkillGuard.Set(placed, action.Building.MinimumFinishingSkill);
             observed.OriginThingId = observed.CurrentThingId = placed.GetUniqueLoadID();
             observed.Stage = Stage(placed);
             observed.Present = true; observed.Started = true; observed.Failed = false;

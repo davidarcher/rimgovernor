@@ -51,7 +51,26 @@ func constructionSite(row *o.BuildingState) (site policy.ConstructionSite, ok bo
 	if err != nil {
 		return site, false, err
 	}
-	return policy.ConstructionSite{Building: b, Stage: stage}, true, nil
+	state := row.GetConstruction()
+	site = policy.ConstructionSite{Building: b, Stage: stage, ID: row.Building.GetId()}
+	if state != nil {
+		if state.GetMinimumFinishingSkill() < 0 || state.GetMinimumFinishingSkill() > 1000 || state.GetNativeFinishingSkill() < 0 || state.GetEligibleFinishers() < 0 {
+			return site, false, ErrContract
+		}
+		site.ResourcesComplete = optional(state.ResourcesComplete)
+		site.QualitySensitive = optional(state.QualitySensitive)
+		if state.MinimumFinishingSkill != nil {
+			site.MinimumFinishingSkill = domain.Known(int(state.GetMinimumFinishingSkill()))
+		}
+		if state.NativeFinishingSkill != nil {
+			site.NativeFinishingSkill = domain.Known(int(state.GetNativeFinishingSkill()))
+		}
+		if state.EligibleFinishers != nil {
+			site.EligibleFinishers = domain.Known(int(state.GetEligibleFinishers()))
+		}
+		site.FinishingBlocker = state.GetFinishingBlocker()
+	}
+	return site, true, nil
 }
 
 type siteNeed struct {

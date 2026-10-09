@@ -812,6 +812,9 @@ message HaulIntent {
 // stuff, anchor and rotation (#1355); nothing is stamped or saved.
 message BuildingIntent {
   rimgovernor.placement.v1.PlacementCandidate placement = 1;
+  optional int32 minimum_finishing_skill = 2;
+  // Adoption changes only this exact pending target; never places a replacement.
+  optional string existing_target_id = 3;
 }
 // One step against RimWorld's single live trade session, named by its
 // trader and negotiator.

@@ -647,6 +647,9 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 			work, err := policy.PlanWork(pawns, required, demand)
 			if err == nil {
 				reading.Projection.Facts.WorkCoverage = work.Matches
+				if len(policy.ConstructionSkillChoices(reading.Projection.Facts.CurrentConstruction, reading.Projection.WorkPawns)) > 0 {
+					reading.Projection.Facts.WorkCoverage = domain.Known(false)
+				}
 				// A timetable behind its role template is a work
 				// deficit the same review corrects (#417).
 				if matches, ok := work.Matches.Value(); ok && matches {

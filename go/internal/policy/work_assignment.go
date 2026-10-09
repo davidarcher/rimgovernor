@@ -29,6 +29,9 @@ type WorkPriority struct {
 	Order int
 }
 type WorkPawn struct {
+	// ConstructionAble is native finishing work capability, independent of
+	// draft, temporary mental state, schedule or current job.
+	ConstructionAble                          domain.Fact[bool]
 	ID                                        PawnID
 	Available, Applies, Manual, Ranged, Hunts domain.Fact[bool]
 	Skills                                    domain.Fact[[]WorkSkill]
@@ -571,6 +574,9 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 		nativeFloor := 0
 		if r, ok := requirements[WorkConstruction]; ok {
 			nativeFloor = r.Minimum
+		}
+		if demand.Help.TargetSkills {
+			nativeFloor = 0
 		}
 		rec := planConstructionHelp(*demand.Help, workers, owners[WorkConstruction], func(w *workWorker) bool {
 			return w.owns[WorkConstruction] == 0 && !able(w, WorkConstruction) && ableAt(w, WorkConstruction, nativeFloor)

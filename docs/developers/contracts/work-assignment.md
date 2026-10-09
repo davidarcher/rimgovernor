@@ -98,11 +98,13 @@ priorities are off (enabled or not, never the rank).
 
 Owners stay the skilled constructors; `WorkDemand.Help`
 (`construction_helpers.go`) adds bounded help below the floor. Demand
-is `ConstructionHelpDemand` over the review's recorded ready work: the
+is `ConstructionHelpDemand` over ready work and the current native construction census: the
 parallelism of runnable `building:<def>` candidates on
 `HelperConstructionDefinitions` (Wall, Door, SleepingSpot,
 DoubleSleepingSpot, Campfire, Sandbags, PowerConduit: no native skill
-minimum, no quality, cheap materials). Unmet demand is that parallelism
+minimum, no quality, cheap materials). A material-filled observed frame is
+runnable even when its placement action is already applied; blueprints and
+unknown or incomplete material delivery do not contribute readiness. Unmet demand is that parallelism
 beyond the owners not held by another work type's job. A helper is a pawn
 under the floor that the requirement's minimum (the native floor, else 0)
 admits, not resting, idle
@@ -111,15 +113,44 @@ take priority 4 (enabled in checkbox mode), previous helpers first, then
 by level, at most one per unmet task. No other work type's floor moves.
 
 A work-type priority enables every native construction job, not one wall.
-Native still refuses a frame above the pawn's `constructionSkillPrerequisite`;
-nothing native keeps a helper off a quality or expensive frame. So any known
+Native still refuses a frame above the pawn's `constructionSkillPrerequisite`.
+Quality targets with observed finishing-skill settings are safe alongside helper
+work: native enforces the setting per target rather than an unrelated project's
+maximum prerequisite blocking the helper's wall. Other known
 construction outside the set (a ready candidate, a conservative-adapter
 candidate that may build, or an open plan's building definition, player
 plans included) withholds helpers and withdraws current ones at once
 (`risky_construction_pending`); unknown or other-world ready work authorizes
 nothing (`construction_demand_unknown`). A risky frame placed between two
-reviews is open to an enabled helper until the next review: that is the
-limit of the coarse setting.
+reviews follows vanilla rules until Go adopts it; helpers are withdrawn when
+an unprotected risky site is observed.
+
+## Quality construction
+
+The Work planner adopts every observed colony-owned quality-sensitive blueprint
+or frame, including player-placed sites. Native `CompQuality` classification
+identifies these targets. `ConstructionSkillChoices` chooses the highest current
+Construction level among capable colony builders once at first adoption. Busy,
+asleep or drafted builders keep their capability; equal-skilled builders qualify.
+Unknown capability or no builder meeting the inherent prerequisite leaves the
+target unconfigured, with the conservative helper safeguard still in force.
+
+The existing `BuildingIntent` carries `minimum_finishing_skill`; adoption adds
+`existing_target_id`, which refuses stale targets rather than placing replacements.
+The setting is journaled before dispatch and observed in `ConstructionState`.
+`ConstructionSkillState` saves its exact native thing reference and transfers it
+only through the blueprint's own frame conversion. Cancellation/completion and a
+new same-cell target never inherit a setting. Setting adoption confers no upkeep
+ownership and consumes no pawn labor.
+
+Vanilla finishing work selection and the completion backstop enforce the greater
+of the configured minimum and the inherent skill prerequisite, including prioritized
+orders; there is no bypass. Material hauling stays unrestricted. Unconfigured
+sites retain vanilla behavior. A configured floor never ratchets upward or silently
+lowers. A lost eligible builder produces target-local `no_qualified_builder`
+readback and inspection text; other projects continue. Native case
+`wall/construction-skill` covers conversion, save/load, safe-wall progress,
+equal-skill completion, refused low-skill finishing and same-cell isolation.
 
 When unmet demand clears, helpers hold for `ConstructionHelpHoldTicks`
 (2500) from the last tick it held (`held_after_demand`), then return to the

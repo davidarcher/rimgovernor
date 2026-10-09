@@ -54,7 +54,14 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,zone_payload) VALUES(?,?,?,'zone_create',?)", a.ID(), plan, ordinal, data)
 	} else if b, ok := a.Building(); ok {
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z,rotation,stuff) VALUES(?,?,?,'building',?,?,?,?,?)", a.ID(), plan, ordinal, b.Definition(), b.Cell().X, b.Cell().Z, b.Rotation(), b.Stuff())
+		var payload []byte
+		if minimum, known := a.FinishingSkill().Value(); known {
+			payload, err = json.Marshal(constructionSkillPayload{minimum, a.ConstructionTarget()})
+			if err != nil {
+				return err
+			}
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z,rotation,stuff,zone_payload) VALUES(?,?,?,'building',?,?,?,?,?,?)", a.ID(), plan, ordinal, b.Definition(), b.Cell().X, b.Cell().Z, b.Rotation(), b.Stuff(), payload)
 	} else if d, ok := a.OwnedDraft(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn) VALUES(?,?,?,'owned_draft',?)", a.ID(), plan, ordinal, d.Pawn())
 	} else if m, ok := a.Subdue(); ok {
@@ -574,7 +581,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewStockpilePatchAction(id, patch)
 		return a, ordinal, err
 	}
-	if zone != nil && kind != "deconstruction" { // deconstruction carries cleared ground (#1366)
+	if zone != nil && kind != "deconstruction" && kind != "building" { // construction carries its finishing setting
 		return domain.Action{}, 0, errors.New("mixed zone payload")
 	}
 	if kind == "work_assignment" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
@@ -1267,6 +1274,17 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, e
 		}
 		a, e := domain.NewBuildingAction(id, b)
+		if e == nil && zone != nil {
+			var payload constructionSkillPayload
+			if e = json.Unmarshal(zone, &payload); e != nil {
+				return domain.Action{}, 0, e
+			}
+			canonical, _ := json.Marshal(payload)
+			if !bytes.Equal(canonical, zone) {
+				return domain.Action{}, 0, errors.New("noncanonical construction setting")
+			}
+			a, e = a.WithFinishingSkill(payload.Minimum, payload.Target)
+		}
 		return a, ordinal, e
 	}
 	return domain.Action{}, 0, errors.New("invalid action payload")
@@ -1275,6 +1293,11 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 type giveItemPayload struct {
 	Definition        string
 	ExpectedRemaining int64
+}
+
+type constructionSkillPayload struct {
+	Minimum int
+	Target  string
 }
 
 type workPayload struct {

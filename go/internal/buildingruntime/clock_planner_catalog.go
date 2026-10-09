@@ -76,7 +76,7 @@ var (
 	// sectionsWork adds the population census for the owned-pawn names
 	// (#1310) and the colony facts for the reading (#1306), drug (#1537) and
 	// food (#1541) policies.
-	sectionsWork     = []facts.Section{facts.Pawns, facts.Population, facts.Emergency, facts.Colony}
+	sectionsWork     = []facts.Section{facts.Pawns, facts.Population, facts.Emergency, facts.Colony, facts.Buildings}
 	sectionsRecovery = []facts.Section{facts.Pawns, facts.Emergency, facts.Colony}
 	sectionsCustody  = []facts.Section{facts.Pawns, facts.Population, facts.Emergency, facts.Colony}
 	sectionsResearch = []facts.Section{facts.Research, facts.Colony, facts.Buildings, facts.Rooms}
@@ -130,7 +130,7 @@ var plannerCatalog = []plannerEntry{
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			return Verdict{}, s.config.Rounds.sweepDrafts(ctx, epoch, arbiter)
 		}},
-	{name: "work", concern: policy.EnsureWorkAssignments, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.WorkAssignmentAction, domain.PawnSettingsAction, domain.ReadingPolicyAction, domain.DrugPolicyAction, domain.FoodPolicyAction}, sections: sectionsWork,
+	{name: "work", concern: policy.EnsureWorkAssignments, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.WorkAssignmentAction, domain.PawnSettingsAction, domain.ReadingPolicyAction, domain.DrugPolicyAction, domain.FoodPolicyAction, domain.BuildingAction}, sections: sectionsWork,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Work != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Work.step(ctx, epoch, arbiter)

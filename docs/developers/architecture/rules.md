@@ -42,7 +42,7 @@ The landing report answers each in a line.
 7. **Resource demand is one pipeline.** Detectors and planners read the same
    value from the shared demand calculation. Produce-bill ingredients remain
    planner-local between decision and placement; trade, workshop and acquisition
-   can therefore sell or consume them in that interval. This is the explicit
-   exception considered by [capacity coordination](https://github.com/davidarcher/rimgovernor/issues/2504).
+   can therefore sell or consume them in that interval. This remains an explicit
+   exception; per-target construction finishing settings do not reserve ingredients.
 8. **Unknown is never a number.** Use `domain.Known`/unknown, not a sentinel,
    a zero or a clamp.

@@ -93,6 +93,8 @@ type Action struct {
 	id                  ActionID
 	kind                ActionKind
 	building            Building
+	finishingSkill      Fact[int]
+	constructionTarget  string
 	draft               OwnedDraft
 	subdue              Subdue
 	zone                ZoneCreate
@@ -211,6 +213,9 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 		switch a.kind {
 		case BuildingAction:
 			canonical, err = NewBuildingAction(a.id, a.building)
+			if minimum, known := a.finishingSkill.Value(); err == nil && known {
+				canonical, err = canonical.WithFinishingSkill(minimum, a.constructionTarget)
+			}
 		case OwnedDraftAction:
 			canonical, err = NewOwnedDraftAction(a.id, a.draft)
 		case SubdueAction:

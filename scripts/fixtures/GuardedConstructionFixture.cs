@@ -149,6 +149,63 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        [Tool("test/construction_skill", Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab: prepare stages a material-filled wall and quality bed blueprint with a low-skill helper and drafted skilled builder; convert tests exact blueprint-to-frame setting transfer; audit/controls observe vanilla completion and finishing eligibility. No production caller.")]
+        public async Task<object> ConstructionSkill(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "audit")
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || (action != "audit" && !Find.TickManager.Paused) || map.Size.x != 100 || map.Size.z != 100) return Refuse("Paused lab required for fixture writes.");
+                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.skills != null
+                    && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)).OrderBy(p => p.thingIDNumber).ToList();
+                if (pawns.Count < 2) return Refuse("Two capable fixture pawns required.");
+                var low = pawns[0]; var high = pawns[1];
+                var wallCell = map.Center + new IntVec3(5,0,0);
+                var bedCell = map.Center + new IntVec3(9,0,0);
+                if (action == "prepare") {
+                    foreach (var pawn in pawns) {
+                        pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                        pawn.drafter.Drafted = pawn != low;
+                        pawn.Position = map.Center; pawn.Notify_Teleported(true,true);
+                        pawn.workSettings.SetPriority(WorkTypeDefOf.Construction,1);
+                        for (var hour=0;hour<24;hour++) pawn.timetable.SetAssignment(hour,TimeAssignmentDefOf.Work);
+                    }
+                    low.skills.GetSkill(SkillDefOf.Construction).Level=2;
+                    high.skills.GetSkill(SkillDefOf.Construction).Level=9;
+                    ClearWallCell(map,wallCell); ClearWallCell(map,bedCell); ClearWallCell(map,bedCell+IntVec3.North);
+                    FundedFrame(map,wallCell); map.areaManager.Home[wallCell]=true;
+                    var bp=GenConstruct.PlaceBlueprintForBuild(ThingDefOf.Bed,bedCell,map,Rot4.North,Faction.OfPlayer,ThingDefOf.WoodLog);
+                    return new { success=true, target=bp.GetUniqueLoadID(), x=bedCell.x,z=bedCell.z };
+                }
+                var site=bedCell.GetThingList(map).FirstOrDefault(t => t is Blueprint_Build || t is Frame);
+                if (action=="convert") {
+                    if (!(site is Blueprint_Build bp)) return Refuse("Expected bed blueprint.");
+                    var before=ConstructionSkillGuard.Setting(bp);
+                    if (before==null || before.Minimum!=9) return Refuse("Minimum must be attached through Actions/Apply first.");
+                    if (!bp.TryReplaceWithSolidThing(low,out var converted,out _ ) || !(converted is Frame frame)) return Refuse("Vanilla conversion failed.");
+                    foreach (var cost in frame.TotalMaterialCost()) { var stack=ThingMaker.MakeThing(cost.thingDef); stack.stackCount=cost.count; frame.resourceContainer.TryAdd(stack,true); }
+                    site=frame;
+                }
+                if (!(site is Frame bed)) return Refuse("Expected bed frame.");
+                var setting=ConstructionSkillGuard.Setting(bed);
+                var giver=new WorkGiver_ConstructFinishFrames { def=DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d=>d.giverClass==typeof(WorkGiver_ConstructFinishFrames)) };
+                var lowRefused=!giver.HasJobOnThing(low,bed,true);
+                if (action=="controls") {
+                    bed.workDone=bed.WorkToBuild;
+                    bed.CompleteConstruction(low);
+                    var lowCompletionRefused=bed.Spawned;
+                    bed.CompleteConstruction(high);
+                    var completed=!bed.Spawned && bedCell.GetEdifice(map)?.def==ThingDefOf.Bed;
+                    var built=bedCell.GetEdifice(map);
+                    if (built!=null) built.Destroy();
+                    var replacement=GenConstruct.PlaceBlueprintForBuild(ThingDefOf.Bed,bedCell,map,Rot4.North,Faction.OfPlayer,ThingDefOf.WoodLog);
+                    return new {success=true, lowRefused, lowCompletionRefused, completed, noLeak=ConstructionSkillGuard.Setting(replacement)==null};
+                }
+                if (action!="convert" && action!="audit") return Refuse("Unknown action.");
+                return new {success=true,minimum=setting?.Minimum,lowRefused,highAllowed=ConstructionSkillGuard.Allows(bed,high),
+                    wallProgress=wallCell.GetEdifice(map)?.def==ThingDefOf.Wall || wallCell.GetThingList(map).OfType<Frame>().Any(f=>f.workDone>0), bedPending=bed.Spawned};
+            },cancellationToken).ConfigureAwait(false);
+        }
+
         private static void ClearWallCell(Map map, IntVec3 cell)
         {
             foreach (var thing in cell.GetThingList(map).Where(t => !(t is Pawn)).ToList()) thing.Destroy();

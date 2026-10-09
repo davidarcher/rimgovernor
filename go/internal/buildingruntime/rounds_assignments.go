@@ -121,6 +121,10 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	if !known {
 		return existing(RoundsWorkResult{Verdict: fieldUnavailable("work_pawns")}), nil
 	}
+	construction := policy.ConstructionSkillChoices(read.Projection.Facts.CurrentConstruction, read.Projection.WorkPawns)
+	if len(construction) > 8 {
+		construction = construction[:8]
+	}
 	squad, err := reviewSoldierSquad(call, p.journal, state.Snapshot, pawns)
 	if err != nil {
 		return RoundsWorkResult{}, err
@@ -295,7 +299,7 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 			return RoundsWorkResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
-	if len(work) == 0 && len(settings) == 0 && len(reading) == 0 && len(drugs) == 0 && len(food) == 0 {
+	if len(work) == 0 && len(settings) == 0 && len(reading) == 0 && len(drugs) == 0 && len(food) == 0 && len(construction) == 0 {
 		return RoundsWorkResult{Verdict: fieldUnavailable("work_assignments")}, nil
 	}
 	// Staleness above judged every pawn; the plan itself carries at most eight.
@@ -303,6 +307,9 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		work = work[:8]
 	}
 	hash := sha256.New()
+	for _, choice := range construction {
+		fmt.Fprintf(hash, "construction/%s/%d\n", choice.Site.ID, choice.Minimum)
+	}
 	for _, w := range work {
 		data, _ := json.Marshal(w.Settings())
 		fmt.Fprintf(hash, "%s/%s\n", w.Pawn(), data)
@@ -370,6 +377,17 @@ func (r *RoundsWorkPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	}
 	for _, s := range settings {
 		action, err := domain.NewPawnSettingsAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), s)
+		if err != nil {
+			return RoundsWorkResult{}, err
+		}
+		actions = append(actions, action)
+	}
+	for _, choice := range construction {
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), choice.Site.Building)
+		if err != nil {
+			return RoundsWorkResult{}, err
+		}
+		action, err = action.WithFinishingSkill(choice.Minimum, choice.Site.ID)
 		if err != nil {
 			return RoundsWorkResult{}, err
 		}

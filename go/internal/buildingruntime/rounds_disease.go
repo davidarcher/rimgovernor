@@ -24,7 +24,7 @@ func roundsDiseaseDemand(facts observation.ColonyProjection, definitions []strin
 	if previous.Snapshot.Colony != current.Colony || previous.Snapshot.Load != current.Load || previous.Snapshot.Map != current.Map || facts.Identity.Tick < previous.Tick {
 		history, helped = nil, nil
 	}
-	help := policy.ConstructionHelpDemand(previous.ReadyWork, current, facts.Identity.Tick, definitions, helped)
+	help := policy.ConstructionHelpDemand(previous.ReadyWork, current, facts.Identity.Tick, definitions, helped, facts.Facts.CurrentConstruction)
 	demand.Help = &help
 	var err error
 	demand.Resting, err = policy.ReviewDiseaseRest(facts.Facts.MedicalPawns, history)
