@@ -904,13 +904,19 @@ func InspectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Round
 		}
 	}
 	r := c.r
-	// Dominant environment thought pressure raises the owning upkeep goal's
-	// deficit to at least the fraction of pawns under it: the goal's
-	// own census still decides whether it is active and what it builds, so a
+	// Thought pressure raises the owning upkeep goal's deficit to at least the
+	// ledger-weighted share of pawns under the entry margin: the goal's own
+	// census still decides whether it is active and what it builds, so a
 	// recovered owner is not re-raised, and the pawn's EnsureMood incident
 	// defers to it (MoodProvision) instead of dispatching need relief.
+	var provision map[ConcernID]float64
+	if census, ck := f.MoodPawns.Value(); ck {
+		if ledger, lk := f.MoodLedger.Value(); lk {
+			provision = MoodProvisionDeficits(census, ledger)
+		}
+	}
 	for i := range r.Concerns {
-		pressure, ok := MoodProvisionDeficits(f.Mood)[r.Concerns[i].ID]
+		pressure, ok := provision[r.Concerns[i].ID]
 		if !ok {
 			continue
 		}

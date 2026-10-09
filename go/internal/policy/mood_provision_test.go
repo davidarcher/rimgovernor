@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -35,19 +36,20 @@ func TestMoodProvisioningDominantEnvironmentThoughts(t *testing.T) {
 	if proposal.Reason != MoodRelief || proposal.Need != MoodJoy {
 		t.Fatalf("relief fallback lost: %+v", proposal)
 	}
-	deficits := MoodProvisionDeficits(h)
-	if deficits[EnsureComfort] != 1 || deficits[MaintainHousing] != 1 {
+	deficits := provisionDeficits(p)
+	if math.Abs(deficits[EnsureComfort]-20.0/29) > 1e-9 || math.Abs(deficits[MaintainHousing]-4.0/29) > 1e-9 {
 		t.Fatal(deficits)
 	}
 
-	// Social pressure outweighing the environment thoughts provisions nothing.
+	// Social pressure outweighing the environment thoughts provisions no pawn
+	// relief, but the colony aggregate still weighs the removable share (4 of 9).
 	p.Thoughts = domain.Known([]MoodThought{{"SleptOutside", -4}, {"Insulted", -5}})
 	h = moodReview(t, p, MoodHistory{})
 	if len(h.States[0].Provision) != 0 {
 		t.Fatal("non-dominant environment pressure provisioned", h.States[0].Provision)
 	}
-	if MoodProvisionDeficits(h) != nil {
-		t.Fatal("deficits without provisioning")
+	if got := provisionDeficits(p)[MaintainHousing]; math.Abs(got-4.0/9) > 1e-9 {
+		t.Fatal("housing weight", got)
 	}
 
 	// Unknown thoughts retain the prior provisioning; known empty clears it.
@@ -124,7 +126,7 @@ func TestMoodUnownedThoughtBlocker(t *testing.T) {
 	if len(s.Provision) != 0 || len(s.Unowned) != 2 || s.Unowned[0] != (MoodThought{"Slighted", -5}) || s.Unowned[1] != (MoodThought{"Insulted", -3}) {
 		t.Fatalf("unowned pressure not recorded: %+v", s)
 	}
-	if MoodProvisionDeficits(h) != nil {
+	if provisionDeficits(p) != nil {
 		t.Fatal("unowned pressure raised a deficit")
 	}
 	proposal, err := SelectMoodMethod(s, nil)
@@ -178,32 +180,100 @@ func TestMoodUnownedThoughtBlocker(t *testing.T) {
 	}
 }
 
+// moodColony is n pawns carrying the same thoughts, the first low of them
+// under the entry margin and the rest comfortably above it.
+func moodColony(n, low int, thoughts ...MoodThought) []MoodPawn {
+	var pawns []MoodPawn
+	for i := 0; i < n; i++ {
+		p := moodPawn()
+		p.ID = PawnID(fmt.Sprintf("p%d", i))
+		p.Mood = domain.Known(.9)
+		if i < low {
+			p.Mood = domain.Known(.2)
+		}
+		p.Thoughts = domain.Known(thoughts)
+		pawns = append(pawns, p)
+	}
+	return pawns
+}
+
+func moodColonyLedger(pawns []MoodPawn) MoodLedger {
+	var ledger []MoodLedgerPawn
+	for _, p := range pawns {
+		ledger = append(ledger, MoodLedgerPawn{ID: p.ID, Thoughts: p.Thoughts, Traits: domain.Known([]string{}), Precepts: domain.Known([]string{}), Expectation: domain.Known("Moderate")})
+	}
+	return BuildMoodLedger(ledger, nil)
+}
+
+// provisionDeficits is the aggregate over a census and the ledger built from it.
+func provisionDeficits(pawns ...MoodPawn) map[ConcernID]float64 {
+	return MoodProvisionDeficits(pawns, moodColonyLedger(pawns))
+}
+
+func TestMoodProvisionDeficitIsTheLedgerWeightedShareUnderTheMargin(t *testing.T) {
+	near := func(name string, got, want float64) {
+		t.Helper()
+		if math.Abs(got-want) > 1e-9 {
+			t.Fatalf("%s = %v, want %v", name, got, want)
+		}
+	}
+	joy := MoodThought{"NeedJoy", -20}
+	// One pawn in ten under the margin is a tenth, not a full deficit; N pawns
+	// raise proportionally.
+	near("one pawn", provisionDeficits(moodColony(10, 1, joy)...)[EnsureComfort], .1)
+	near("four pawns", provisionDeficits(moodColony(10, 4, joy)...)[EnsureComfort], .4)
+	near("all pawns", provisionDeficits(moodColony(10, 10, joy)...)[EnsureComfort], 1)
+	// Weights follow the ledger: the owner's share of each pawn's loss.
+	d := provisionDeficits(moodColony(4, 4, joy, MoodThought{"SleptOutside", -10}, MoodThought{"Insulted", -10})...)
+	near("comfort weight", d[EnsureComfort], .5)
+	near("housing weight", d[MaintainHousing], .25)
+	// A pawn exactly at the entry margin counts; one above does not.
+	edge := moodColony(2, 0, joy)
+	edge[0].Mood = domain.Known(.3 + moodEntryMargin)
+	edge[1].Mood = domain.Known(.3 + moodEntryMargin + .001)
+	near("entry margin", provisionDeficits(edge...)[EnsureComfort], .5)
+	// An unreadable pawn is left out of the denominator, not counted as zero.
+	unknown := moodColony(3, 3, joy)
+	unknown[0].Thoughts = domain.Unknown[[]MoodThought]()
+	near("unknown thoughts", provisionDeficits(unknown...)[EnsureComfort], 1)
+	unknown = moodColony(3, 3, joy)
+	unknown[1].Mood = domain.Unknown[float64]()
+	unknown[2].Threshold = domain.Unknown[float64]()
+	near("unknown mood and threshold", provisionDeficits(unknown...)[EnsureComfort], 1)
+	// Every pawn unknown raises nothing.
+	all := moodColony(2, 2, joy)
+	all[0].Thoughts, all[1].Thoughts = domain.Unknown[[]MoodThought](), domain.Unknown[[]MoodThought]()
+	if d := provisionDeficits(all...); d != nil {
+		t.Fatal("all-unknown colony raised", d)
+	}
+}
+
 func TestDetectRoundsRaisesProvisionOwnerDeficit(t *testing.T) {
-	f := stableRounds()
-	f.ComfortRecovered, f.ComfortDeficit = domain.Known(false), domain.Known(.5)
-	p := moodPawn()
-	p.Food = domain.Known(.8)
-	p.Thoughts = domain.Known([]MoodThought{{"NeedJoy", -20}})
-	h := moodReview(t, p, MoodHistory{})
-	f.Mood = h
-	detected := needs(t, f, RoundsLatches{})
-	found := false
-	for _, g := range detected.Concerns {
-		if g.ID == EnsureComfort {
-			found = true
-			if d, k := g.Deficit.Value(); !k || d != 1 {
-				t.Fatalf("comfort deficit not raised by mood pressure: %v", g.Deficit)
+	joy := MoodThought{"NeedJoy", -20}
+	comfort := func(pawns []MoodPawn, recovered bool) (float64, bool) {
+		f := stableRounds()
+		f.ComfortRecovered, f.ComfortDeficit = domain.Known(recovered), domain.Known(.05)
+		if recovered {
+			f.ComfortDeficit = domain.Known(0.0)
+		}
+		f.MoodPawns = domain.Known(pawns)
+		f.MoodLedger = domain.Known(moodColonyLedger(pawns))
+		for _, g := range needs(t, f, RoundsLatches{}).Concerns {
+			if g.ID == EnsureComfort {
+				return g.Deficit.Value()
 			}
 		}
+		return 0, false
 	}
-	if !found {
-		t.Fatal("EnsureComfort missing", detected.Concerns)
+	// One outlier in ten raises a tenth; four raise four tenths.
+	if d, k := comfort(moodColony(10, 1, joy), false); !k || math.Abs(d-.1) > 1e-9 {
+		t.Fatalf("one outlier deficit = %v", d)
+	}
+	if d, k := comfort(moodColony(10, 4, joy), false); !k || math.Abs(d-.4) > 1e-9 {
+		t.Fatalf("four pawn deficit = %v", d)
 	}
 	// A recovered owner is not re-raised: the goal is simply absent.
-	f.ComfortRecovered, f.ComfortDeficit = domain.Known(true), domain.Known(0.0)
-	for _, g := range needs(t, f, RoundsLatches{}).Concerns {
-		if g.ID == EnsureComfort {
-			t.Fatal("recovered comfort re-raised by mood pressure")
-		}
+	if _, found := comfort(moodColony(10, 10, joy), true); found {
+		t.Fatal("recovered comfort re-raised by mood pressure")
 	}
 }

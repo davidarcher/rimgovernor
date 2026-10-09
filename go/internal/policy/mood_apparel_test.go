@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"math"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -42,9 +43,8 @@ func TestApparelThoughtRaisesEquipmentDeficitAndRunway(t *testing.T) {
 
 	p := moodPawn()
 	p.Thoughts = domain.Known([]MoodThought{{"ApparelDamaged", -8}, {"Insulted", -1}})
-	h := moodReview(t, p, MoodHistory{})
-	deficit, raised := MoodProvisionDeficits(h)[MaintainEquipment]
-	if !raised || deficit != 1 {
+	deficit, raised := provisionDeficits(p)[MaintainEquipment]
+	if !raised || math.Abs(deficit-8.0/9) > 1e-9 {
 		t.Fatalf("ratty apparel deficit = %v, %v", deficit, raised)
 	}
 	if got := PlanClothingRunway(clothingInput([]GearOption{ratty}, nil, garments)).Needs; got["Leather_Light"] != 40 {
@@ -52,7 +52,7 @@ func TestApparelThoughtRaisesEquipmentDeficitAndRunway(t *testing.T) {
 	}
 
 	p.Thoughts = domain.Known([]MoodThought{{"Insulted", -8}})
-	if _, raised := MoodProvisionDeficits(moodReview(t, p, MoodHistory{}))[MaintainEquipment]; raised {
+	if _, raised := provisionDeficits(p)[MaintainEquipment]; raised {
 		t.Fatal("a pawn without an apparel thought raised the equipment deficit")
 	}
 	if got := PlanClothingRunway(clothingInput([]GearOption{good}, nil, garments)).Needs; len(got) != 0 {

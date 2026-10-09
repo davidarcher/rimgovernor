@@ -468,12 +468,6 @@ func SampleStandard(ctx context.Context, s *store.Store, need policy.ConcernID) 
 		return sample, nil
 	}
 	sample["concern_bound"] = true
-	// The mood review's provisioning of this goal: the fraction of
-	// reviewed pawns whose dominant thought pressure its facility removes,
-	// which DetectRounds raises the ranked deficit to at least.
-	if pressure, ok := policy.MoodProvisionDeficits(review.MoodHistory())[need]; ok {
-		sample["mood_provision"] = pressure
-	}
 	goal, err := s.LoadStandard(ctx, concernID)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {

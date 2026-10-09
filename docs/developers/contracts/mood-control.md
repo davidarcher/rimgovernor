@@ -48,9 +48,16 @@ them (a thought names every concern providing it):
 When those thoughts carry at least half of the pawn's negative thought offset, the
 pawn's mood state records the owners (most negative first) and the method proposal is
 `facility_provision` naming the first owner instead of a relief job.
-`DetectRounds` raises each owner's development deficit to at least the fraction of
-reviewed pawns under it; the owner's own census still decides whether it is active
-and what it builds. A recovered owner is never re-raised; when no owner concern is
+`DetectRounds` raises each owner's development deficit to at least the ledger-weighted
+share of reviewed pawns under the entry margin (`moodEntryMargin`, 0.10 above the
+minor-break threshold): each such pawn weighs the fraction of its negative thought loss
+the owner can remove (the ledger's lost rows through the owner column), a pawn above the
+margin weighs 0, and the sum is divided by the pawns whose loss, mood and threshold are
+all readable. There is no bar and no minimum pawn count: proportionality keeps one
+outlier in N at about 1/N, and the owner's own census still decides whether it is active
+and what it builds. Pawns with an unreadable loss, mood or threshold are left out, never
+counted as zero; if every pawn is unknown nothing is raised. This aggregate does not
+need the per-pawn half-of-loss dominance above. A recovered owner is never re-raised; when no owner concern is
 active with a deficit the planner falls back to the measured need method. An
 unreadable social block keeps the previous provisioning; a readable one with no such
 pressure clears it.
@@ -80,7 +87,7 @@ pressure raises that concern's deficit and adds no new action. The medicine runw
 follows realized tending, not mood; no painkiller policy exists (combat-only drugs are
 untouched). `MasochistPain`, `Pain_Idealized` and permanent-condition hediff thoughts
 stay unowned. Every review that provisions `EnsureComfort` must rank it with a
-deficit at least the provisioned fraction
+deficit at least that weighted share
 (snapshot-tested). Schedules are never written. Social recreation, tolerated
 recreation kinds and environmental eligibility remain native job-giver choices.
 Thoughts without a measured eligible corrective method produce an explicit blocker,

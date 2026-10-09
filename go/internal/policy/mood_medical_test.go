@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"math"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -43,14 +44,14 @@ func TestMedicalThoughtRaisesMedicalDeficit(t *testing.T) {
 	for _, def := range medicalThoughts {
 		p := moodPawn()
 		p.Thoughts = domain.Known([]MoodThought{{def, -8}, {"Insulted", -1}})
-		deficit, raised := MoodProvisionDeficits(moodReview(t, p, MoodHistory{}))[MaintainMedicalReserves]
-		if !raised || deficit != 1 {
+		deficit, raised := provisionDeficits(p)[MaintainMedicalReserves]
+		if !raised || math.Abs(deficit-8.0/9) > 1e-9 {
 			t.Fatalf("%s deficit = %v, %v", def, deficit, raised)
 		}
 	}
 	p := moodPawn()
 	p.Thoughts = domain.Known([]MoodThought{{"Insulted", -8}})
-	if _, raised := MoodProvisionDeficits(moodReview(t, p, MoodHistory{}))[MaintainMedicalReserves]; raised {
+	if _, raised := provisionDeficits(p)[MaintainMedicalReserves]; raised {
 		t.Fatal("a pawn without a medical thought raised the medical deficit")
 	}
 }

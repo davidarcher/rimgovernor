@@ -11,7 +11,7 @@ func TestSleptInBarracksRaisesTheHousingDeficit(t *testing.T) {
 	p.Food = domain.Known(.8)
 	p.Thoughts = domain.Known([]MoodThought{{"SleptInBarracks", -4}})
 	h := moodReview(t, p, MoodHistory{})
-	if got := MoodProvisionDeficits(h)[MaintainHousing]; got != 1 {
+	if got := provisionDeficits(p)[MaintainHousing]; got != 1 {
 		t.Fatalf("barracks thought housing deficit = %v, want 1", got)
 	}
 	if len(h.States[0].Unowned) != 0 {
@@ -19,11 +19,11 @@ func TestSleptInBarracksRaisesTheHousingDeficit(t *testing.T) {
 	}
 	// Absent thought, or a positive stage (an immune pawn has no row): no deficit.
 	p.Thoughts = domain.Known([]MoodThought{})
-	if d := MoodProvisionDeficits(moodReview(t, p, MoodHistory{})); d != nil {
+	if d := provisionDeficits(p); d != nil {
 		t.Fatalf("deficit without the thought: %v", d)
 	}
 	p.Thoughts = domain.Known([]MoodThought{{"SleptInBarracks", 2}})
-	if d := MoodProvisionDeficits(moodReview(t, p, MoodHistory{})); d != nil {
+	if d := provisionDeficits(p); d != nil {
 		t.Fatalf("positive barracks stage raised a deficit: %v", d)
 	}
 }

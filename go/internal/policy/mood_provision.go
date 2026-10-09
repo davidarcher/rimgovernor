@@ -120,30 +120,53 @@ func moodProvisioning(f domain.Fact[[]MoodThought]) []MoodProvision {
 	return result
 }
 
-// MoodProvisionDeficits reports, per owner goal, the fraction of reviewed
-// pawns whose dominant thought pressure that goal's facility would remove.
-// DetectRounds raises the owner's development deficit to at least this.
-func MoodProvisionDeficits(h MoodHistory) map[ConcernID]float64 {
-	if len(h.States) == 0 {
-		return nil
+// MoodProvisionDeficits reports, per owner goal, the ledger-weighted share of
+// reviewed pawns under the entry margin: a pawn at or below threshold plus
+// moodEntryMargin weighs the fraction of its negative thought loss the owner
+// can remove; a pawn above the margin weighs 0. A pawn whose loss, mood or
+// threshold is unreadable is left out of the denominator, never counted as
+// zero. DetectRounds raises the owner's development deficit to at least this.
+func MoodProvisionDeficits(census []MoodPawn, ledger MoodLedger) map[ConcernID]float64 {
+	byID := make(map[PawnID]MoodPawn, len(census))
+	for _, p := range census {
+		byID[p.ID] = p
 	}
-	counts := map[ConcernID]int{}
-	for _, s := range h.States {
-		if !s.Active || s.Missing {
+	read := 0
+	weights := map[ConcernID]float64{}
+	for _, lp := range ledger.Pawns {
+		lost, lk := lp.Lost.Value()
+		p := byID[lp.ID]
+		mood, mk := p.Mood.Value()
+		threshold, tk := p.Threshold.Value()
+		if !lk || !mk || !tk {
 			continue
 		}
-		for _, p := range s.Provision {
-			counts[p.Concern]++
+		read++
+		if mood > threshold+moodEntryMargin {
+			continue
+		}
+		total := 0.0
+		byGoal := map[ConcernID]float64{}
+		for _, t := range lost {
+			total += t.Offset
+			for _, goal := range thoughtOwners(t.Def) {
+				byGoal[goal] += t.Offset
+			}
+		}
+		if total >= 0 {
+			continue
+		}
+		for goal, offset := range byGoal {
+			weights[goal] += offset / total
 		}
 	}
-	if len(counts) == 0 {
+	if read == 0 || len(weights) == 0 {
 		return nil
 	}
-	result := make(map[ConcernID]float64, len(counts))
-	for goal, n := range counts {
-		result[goal] = float64(n) / float64(len(h.States))
+	for goal := range weights {
+		weights[goal] /= float64(read)
 	}
-	return result
+	return weights
 }
 
 // WithoutProvision is the same state with its provisioning dropped: the
