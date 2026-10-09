@@ -1233,6 +1233,23 @@ message PawnSettingsReply { oneof outcome { PawnSettings observed = 1; rimgovern
 message ResolveTargetSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated TargetRef candidates = 2; optional bool unique = 3; }
 message ResolveTargetRequest { ReadScope scope = 1; oneof query { string entity_id = 2; string exact_name = 3; rimgovernor.common.v1.Cell cell = 4; } }
 message ResolveTargetReply { oneof outcome { ResolveTargetSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+// EvaluateStat is the game's own stat evaluation for one subject: a definition
+// (with optional stuff and quality category), a thing, or a pawn. It reuses the
+// request the definition catalog's stat table is built from, so a definition
+// subject without quality equals the DefStatTable value. The oracle and
+// scaffolding of the Go stat evaluator (epic #2621); it carries no new action.
+message StatDefSubject { string def_name = 1; optional string stuff = 2; optional int32 quality = 3; }
+message StatSubject { oneof subject { StatDefSubject definition = 1; string thing_id = 2; string pawn_id = 3; } }
+// value is the final stat value (StatWorker.GetValue); explanation_lines are
+// the game's per-part breakdown before final adjustment
+// (GetExplanationUnfinalized), one line per entry; shown is
+// StatWorker.ShouldShowFor for the subject. A stat that is not shown still
+// carries its value.
+message StatEvaluation { rimgovernor.common.v1.ObservationContext context = 1; string stat = 2; double value = 3; repeated string explanation_lines = 4; bool shown = 5; }
+message EvaluateStatRequest { ReadScope scope = 1; string stat = 2; StatSubject subject = 3; }
+// An unknown stat or subject is a NOT_FOUND failure; an absent subject or an
+// invalid quality is INVALID_REQUEST.
+message EvaluateStatReply { oneof outcome { StatEvaluation observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message GearCandidate { GearItem item = 1; optional double gain = 2; optional string reason = 3; optional string blocker = 4; }
 // candidates are every eligible loose item, best gain first (then thing id).
 // The pawn's wear inputs (gender, developmental_stage, body_part_groups) are
@@ -2814,6 +2831,7 @@ service Observations {
   rpc ReadTradeSheet(TradeSheetRequest) returns (TradeSheetReply);
   rpc ReadTradeSession(TradeSessionRequest) returns (TradeSessionReply);
   rpc ReadTradeAcquisition(TradeAcquisitionRequest) returns (TradeAcquisitionReply);
+  rpc EvaluateStat(EvaluateStatRequest) returns (EvaluateStatReply);
 }
 
 // Native definition classification for bounded food purchases and crop exports.

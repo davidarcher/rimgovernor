@@ -94,6 +94,7 @@ var nonFactReads = map[string]bool{
 	"rimgovernor/presentation_notifications":    true,
 	"rimgovernor/presentation_render_state":     true,
 	methodOpenSnapshotStream:                    true,
+	evaluateStatTool:                            true,
 }
 
 // noteNativeRead notes the read of name on ctx's read note.
