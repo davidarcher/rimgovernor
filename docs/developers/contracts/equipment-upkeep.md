@@ -222,8 +222,8 @@ preserved. Production also rechecks the retained pawn/loadout prerequisite and
 available replacements before adding its bill.
 
 On Actions/Apply the apparel order is a `GiveJobIntent` with job `Wear`
-(`NativeGearOperations`). Native checks the pawn, the apparel and a
-material native gain live, then issues the `Wear` job as ordered (not forced)
+(`NativeGearOperations`). Native checks the pawn and the apparel
+(vanilla wear validators; reservation and reach at the shared order danger) live, then issues the `Wear` job as ordered (not forced)
 work. A pawn already wearing the apparel or walking to it applies again.
 Weapons use the `EQUIP` kind.
 

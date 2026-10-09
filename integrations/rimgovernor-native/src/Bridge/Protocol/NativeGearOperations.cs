@@ -11,8 +11,8 @@ using Receipts = RimGovernor.Protocol.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // GiveJobIntent Wear, the gear family's wear order: the
-    // pawn's availability, the apparel's eligibility and a material native
-    // gain are checked live, then the exact JobDefOf.Wear job an apparel
+    // pawn's availability, the apparel's eligibility are checked live
+    // (Go owns the gain policy), then the exact JobDefOf.Wear job an apparel
     // float-menu order would produce is issued as ordered work so no
     // forced-outfit entry is created. Weapons go through EQUIP. A pawn
     // already wearing the apparel, or walking to wear it, applies again.
@@ -36,8 +36,6 @@ namespace HomeBridge.BridgeTools
             if (blocked != null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Wear requires an available pawn: " + blocked);
             var refusal = GearUpkeepTools.Eligible(pawn, apparel);
             if (refusal != null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot wear the apparel: " + refusal);
-            if (GearUpkeepTools.Gain(pawn, apparel) < .05f)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "No material native apparel improvement.");
             return null;
         }
 

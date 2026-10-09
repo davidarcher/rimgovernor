@@ -8,7 +8,7 @@ import (
 )
 
 // igniteAction is the Actions/Apply ignite arm of one ignite action:
-// the pawn throws a molotov at the cell. Native refuses an occupied room.
+// the pawn throws a molotov at the cell. Room occupancy is Go policy (policy.BurnOccupied).
 func igniteAction(action domain.Action) (*o.Action, error) {
 	ignite, ok := action.Ignite()
 	if !ok {

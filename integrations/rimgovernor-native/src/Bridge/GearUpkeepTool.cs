@@ -66,7 +66,7 @@ namespace HomeBridge.BridgeTools
         // for low gain is never pathed to.
         internal static string? Eligible(Pawn p, Apparel a) => Screened(p, a) ?? (Reachable(p, a) ? null : "Cannot reserve or safely reach item");
 
-        internal static bool Reachable(Pawn p, Apparel a) => p.CanReserveAndReach(a, PathEndMode.OnCell, p.NormalMaxDanger());
+        internal static bool Reachable(Pawn p, Apparel a) => p.CanReserveAndReach(a, PathEndMode.OnCell, NativeOrderDanger.OrderDanger);
 
         internal static string? Screened(Pawn p, Apparel a)
         {

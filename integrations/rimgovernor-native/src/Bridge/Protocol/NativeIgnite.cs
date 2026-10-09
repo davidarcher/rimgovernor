@@ -1,6 +1,5 @@
 #nullable enable
 using System;
-using System.Linq;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
@@ -11,11 +10,9 @@ namespace HomeBridge.BridgeTools
 {
     // IgniteIntent on Actions/Apply: one drafted colonist
     // force-fires the molotov in the primary slot at one cell, as the
-    // CombatOrder attack_ground order does; apply runs that order. Refused
-    // while any pawn (colonist, animal, prisoner or hostile, downed or not)
-    // stands in the cell's room, the thrower included: the burn-out clears
-    // everything in the room, so nothing alive may be in it. No firebreak or
-    // stock veto. Applied means the throw order was taken; the fire catching
+    // CombatOrder attack_ground order does; apply runs that order. Room
+    // occupancy, firebreak and stock are Go policy (policy.BurnOccupied), not
+    // native vetoes. Applied means the throw order was taken; the fire catching
     // is the next census. The attack_ground path calls no validator that
     // reads Event.current.
     internal sealed class IgniteActionHandler : IActionHandler
@@ -40,8 +37,6 @@ namespace HomeBridge.BridgeTools
             if (!cell.InBounds(map)) return Refuse("cell", "The cell is off the map.");
             var room = cell.GetRoom(map);
             if (room == null) return Refuse("room", "The cell is in no room.");
-            var occupant = map.mapPawns.AllPawnsSpawned.FirstOrDefault(p => !p.Dead && p.Position.GetRoom(map) == room);
-            if (occupant != null) return Refuse("occupied", "A pawn is inside the target room.");
             pawn = found;
             return null;
         }

@@ -66,7 +66,8 @@ type BurnOrder struct {
 // PlanBurn orders one burn when the batch is met, nothing burns and no
 // colonist stands in the room. The burner is the lowest-ID colonist able to
 // fire a molotov (a holder first), and only while another colonist stands by
-// to fight fire. Native still refuses an occupied room.
+// to fight fire. Native does not re-check occupancy; this census (colonists)
+// is the only guard.
 func PlanBurn(r BurnRequest) (BurnOrder, BurnVerdict) {
 	switch {
 	case r.Stored < BurnStoredCells:

@@ -21,8 +21,8 @@ import (
 // same equip and draft actions the fight loadout uses; the combat planner's
 // undraft releases it when the plan settles, and the equip planner re-arms
 // it. A burned room leaves ash, which the planner then has cleaned with the
-// ordinary Clean action. Nothing here extends the wire: ignite
-// already refuses an occupied room natively.
+// ordinary Clean action. Nothing here extends the wire: the
+// room-occupancy check is policy.PlanBurn's own.
 
 // incineratorStored counts the interior cells holding things.
 func incineratorStored(facts observation.ColonyProjection, interior policy.Rectangle) int {
