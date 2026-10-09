@@ -337,6 +337,8 @@ func (r *RoundsDefensePlanner) sendCombatBatch(call context.Context, state Contr
 			wire.Order = &op.CombatOrder_Door{Door: &op.CombatDoor{Cell: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}, Mode: mode.Enum()}}
 		case policy.OrderStop:
 			wire.Order = &op.CombatOrder_Stop{Stop: &op.Clear{}}
+		case policy.OrderHoldPosition:
+			wire.Order = &op.CombatOrder_HoldPosition{HoldPosition: &op.Clear{}}
 		case policy.OrderRelease:
 			wire.Order = &op.CombatOrder_Release{Release: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}
 		case policy.OrderAnimalArea:

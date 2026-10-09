@@ -296,7 +296,9 @@ func meleeLocked(view CombatView, roles []CombatRole) map[domain.PawnID]bool {
 //
 // quiet (#1035) holds every gunner: the only hostiles left are spared
 // bleeders, whom fire-at-will would otherwise shoot.
-func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m CombatMemory, quiet bool) []CombatOrder {
+// suppressNativeFire holds an ordinary autonomous holder with target exclusions
+// and no safe target; cancelling its job alone cannot prevent reacquisition.
+func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m CombatMemory, quiet bool, suppressNativeFire map[domain.PawnID]bool) []CombatOrder {
 	state := map[domain.PawnID]CombatPawnState{}
 	for _, p := range view.Pawns {
 		state[p.ID] = p
@@ -312,6 +314,7 @@ func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m Comba
 	}
 	for _, r := range roles {
 		s := state[r.Pawn]
+		quietPawn := quiet || suppressNativeFire[r.Pawn]
 		if !r.Ranged || r.Duty == DutyBlocker || !orderable[r.Pawn] || s.Dead || s.Downed {
 			continue
 		}
@@ -319,13 +322,13 @@ func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m Comba
 		mine := func(o CombatOrder) bool { return o.Pawn == r.Pawn }
 		// A pawn mid-aim keeps its fire mode (#903) unless its shot is at
 		// the hostile our blocker is fighting.
-		if interruptsAim(s) && !locked[s.Target] && !quiet {
+		if interruptsAim(s) && !locked[s.Target] && !quietPawn {
 			continue
 		}
 		switch {
-		case quiet || locked[r.Target] || locked[s.Target] && (r.Target == "" || s.Stance != StanceIdle):
+		case quietPawn || locked[r.Target] || locked[s.Target] && (r.Target == "" || s.Stance != StanceIdle):
 			orders = slices.DeleteFunc(orders, mine)
-			if (quiet && s.Target != "" || locked[s.Target]) && s.Stance != StanceIdle {
+			if (quietPawn && s.Target != "" || locked[s.Target]) && s.Stance != StanceIdle {
 				orders = append(orders, CombatOrder{Pawn: r.Pawn, Kind: OrderStop, Reason: ReasonHoldFire})
 			}
 			if !held {

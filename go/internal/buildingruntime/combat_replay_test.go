@@ -411,6 +411,21 @@ func TestCombatReplayLabChoke(t *testing.T) {
 					continue
 				}
 				i := slices.IndexFunc(s.Memory.Roles, func(r policy.CombatRole) bool { return r.Pawn == o.Pawn })
+				if i >= 0 && s.Memory.Roles[i].Target == "" {
+					// Autonomous holders have no policy target; only an
+					// observed shot at a melee-locked target keeps them held.
+					shooter := slices.IndexFunc(s.View.Pawns, func(p policy.CombatPawnState) bool { return p.ID == o.Pawn })
+					if shooter >= 0 && (s.View.Pawns[shooter].Target == "" || s.View.Pawns[shooter].Stance == policy.StanceIdle) {
+						continue
+					}
+					if shooter >= 0 {
+						j := slices.IndexFunc(s.View.Pawns, func(p policy.CombatPawnState) bool { return p.ID == s.View.Pawns[shooter].Target })
+						if j >= 0 && !slices.ContainsFunc(s.Memory.Roles, func(r policy.CombatRole) bool { return r.Pawn == s.View.Pawns[j].Target && !r.Ranged }) {
+							continue
+						}
+					}
+					return fmt.Errorf("%s resumes autonomous fire on a blocker", o.Pawn)
+				}
 				j := -1
 				if i >= 0 {
 					j = slices.IndexFunc(s.View.Pawns, func(p policy.CombatPawnState) bool { return p.ID == s.Memory.Roles[i].Target })

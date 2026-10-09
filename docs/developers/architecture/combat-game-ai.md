@@ -114,10 +114,22 @@ weapon range up to 20 otherwise) with a static attack; Flee runs to a safe cell 
 Go already owns that setting for every colonist (`policy.DefaultHostility`): Attack for anyone able to fight,
 Flee for children, the violence-incapable and the badly hurt, Ignore during stealth work.
 
-A think node of our own in the same slot, reading a Go-set per-pawn posture (hold a cell, guard the choke,
-fall back to a line), would let an undrafted pawn react every tick with no Go round trip and without being
-drafted off its work. Go would still pick who holds what; native would only execute and report. It is
-adjacent to the native rule runtime ([native rules](../contracts/native-rules.md)), which already carries the
-lease, the journaling before writes and the whitelist, and is the natural place for it. Open questions
-(#1857): the interaction with plan-owned drafts and the undraft sweep, and what the policy decides between
-stops. Cadence is not the first gap (see above); fix the stop decisions before adding a native layer.
+Stationary ranged defense uses the existing drafted `HoldPosition` operation
+(`Wait_Combat`). Go owns the firing cell and tactical transitions; RimWorld
+acquires and switches targets. Eligible roles are ordinary firing-line holders
+with known plain ranged weapons. Retreats, tactical detachments, melee duties,
+repair, mortars and specialist weapons retain their existing orders. Spared
+bleeders and nearby exploding animals require targeted control because native
+acquisition cannot honor those target exclusions.
+
+Arrival installs the hold once. An observed `Wait_Combat` at the assigned cell
+keeps it valid across target changes. Existing formation and safety decisions
+replace it when the line is compromised, a breach or serious injury requires
+retreat, the layout disappears or a cell becomes unreachable. Owned-draft and
+Manual authority gates still govern every order and cleanup.
+
+The fresh `combatlab/native-hold` proof at `92d174d1c` passed stationary target
+acquisition and switching without further Go combat orders. Recorded-facts Go
+tests cover production assignment, deduplication and tactical invalidation;
+production gameplay remains a nightly claim. This contract does not include
+local repositioning, pursuit or squad coordination.

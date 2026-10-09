@@ -113,20 +113,28 @@ func TestCombatReplayLabRanged(t *testing.T) {
 			}
 		}
 	}
-	firstAttacksTopScored(t, first, orders)
+	firstHoldsOrAttacksTopScored(t, first, orders)
 }
 
-// firstAttacksTopScored is #863: the first attack orders name the
-// top-scored target, which the geometry ask lists first, and every gunner
-// takes it.
-func firstAttacksTopScored(t *testing.T, first combatReplayStop, orders []policy.CombatOrder) {
+// Plain stationary holders delegate acquisition; remaining explicit attacks
+// retain the top-scored-target contract.
+func firstHoldsOrAttacksTopScored(t *testing.T, first combatReplayStop, orders []policy.CombatOrder) {
 	t.Helper()
 	if len(first.Ask.Hostiles) == 0 {
 		t.Fatalf("first stop asked no hostiles")
 	}
 	top := first.Ask.Hostiles[0]
 	attacks := 0
+	holds := 0
 	for _, o := range orders {
+		if o.Kind == policy.OrderHoldPosition {
+			holds++
+			if first.Memory.Tactic != policy.TacticHold || !slices.ContainsFunc(first.Memory.Roles, func(r policy.CombatRole) bool {
+				return r.Pawn == o.Pawn && r.Ranged && r.Cell != nil && *r.Cell == o.Cell
+			}) {
+				t.Errorf("hold outside assigned firing cell: %+v", o)
+			}
+		}
 		if o.Kind == policy.OrderAttack {
 			attacks++
 			if o.Target != top {
@@ -134,8 +142,8 @@ func firstAttacksTopScored(t *testing.T, first combatReplayStop, orders []policy
 			}
 		}
 	}
-	if attacks == 0 {
-		t.Errorf("admission orders %+v attack nobody", orders)
+	if attacks+holds == 0 {
+		t.Errorf("admission orders %+v assign no combat execution", orders)
 	}
 	for _, r := range first.Memory.Roles {
 		if r.Ranged && r.Target != top {
@@ -157,7 +165,7 @@ func TestCombatReplayLabMechLine(t *testing.T) {
 		attacksOnPresentHostiles(),
 		noAimInterrupt(),
 	)
-	firstAttacksTopScored(t, stops[0], admission(t, stops[0]))
+	firstHoldsOrAttacksTopScored(t, stops[0], admission(t, stops[0]))
 }
 
 // lab-mech (#1118, #1146, #1152): one rifleman against a scyther stunned

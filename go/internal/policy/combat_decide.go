@@ -188,12 +188,35 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		return nil, ask, memory
 	}
 	orders := flankHoldFire(view, orderable, &next)
-	for _, role := range next.Roles {
+	targetExcluded := len(spared) > 0 || len(nearExploders(view)) > 0
+	suppressNativeFire := map[domain.PawnID]bool{}
+	for i, role := range next.Roles {
 		// A defender still ingesting its combat drug (#1311) finishes it.
 		if !orderable[role.Pawn] || next.Rescue.carrying(role.Pawn) || state[role.Pawn].Job == "Ingest" {
 			continue
 		}
 		want, ok := role.want(state[role.Pawn])
+		ordinaryHolder := stationaryRangedHold(next, role, state[role.Pawn])
+		if ordinaryHolder && targetExcluded && role.Target == "" && (state[role.Pawn].Job == "Wait_Combat" || state[role.Pawn].FireMode == HoldFire) {
+			suppressNativeFire[role.Pawn] = true
+		}
+		nativeHold := ordinaryHolder && !targetExcluded
+		at, known := state[role.Pawn].Cell.Value()
+		atCell := role.Cell != nil && known && at == *role.Cell
+		if nativeHold {
+			// Native acquires targets; no stale policy target participates in
+			// the observed-target friendly melee safeguard.
+			next.Roles[i].Target = ""
+			if atCell {
+				want, ok = CombatOrder{Pawn: role.Pawn, Kind: OrderHoldPosition, Cell: *role.Cell, Reason: ReasonFormation}, true
+			}
+		}
+		// Target exclusions cannot be delegated to autonomous acquisition.
+		// Stop a native hold with no safe target instead of leaving it active.
+		safetyTransition := ordinaryHolder && targetExcluded && atCell && state[role.Pawn].Job == "Wait_Combat"
+		if safetyTransition && !ok {
+			want, ok = CombatOrder{Pawn: role.Pawn, Kind: OrderStop, Reason: ReasonHoldFire}, true
+		}
 		if d := next.ChokeDoor; d != nil && d.Opener == role.Pawn {
 			want, ok = CombatOrder{Pawn: role.Pawn, Kind: OrderMove, Cell: d.Cell, Reason: ReasonFormation}, true
 		}
@@ -202,10 +225,10 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		} else if role.Repair != nil {
 			want, ok = CombatOrder{Pawn: role.Pawn, Kind: OrderRepair, Cell: *role.Repair, Reason: ReasonRepair}, true
 		}
-		if !ok || next.doing(want, state[role.Pawn]) {
+		if !ok || !safetyTransition && next.doing(want, state[role.Pawn]) {
 			continue
 		}
-		if interruptsAim(state[role.Pawn]) && want.Reason != ReasonRetreat && want.Reason != ReasonRescue {
+		if interruptsAim(state[role.Pawn]) && want.Reason != ReasonRetreat && want.Reason != ReasonRescue && !safetyTransition {
 			continue
 		}
 		if want.Kind == OrderManMortar {
@@ -218,7 +241,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	orders = standDown(stood, orders, orderable, state)
 	orders = holdFire(view, slices.DeleteFunc(slices.Clone(next.Roles), func(r CombatRole) bool {
 		return next.Rescue.carrying(r.Pawn) || next.Flank.waiting(r.Pawn)
-	}), orders, memory, onlySpared(view, spared))
+	}), orders, memory, onlySpared(view, spared), suppressNativeFire)
 	if !geometry.Answered {
 		// The attacks' lines of fire (#861) take the stop's geometry round
 		// trip when Formation did not.
@@ -496,10 +519,11 @@ type CombatRole struct {
 type CombatOrderKind string
 
 const (
-	OrderMove     CombatOrderKind = "move"
-	OrderAttack   CombatOrderKind = "attack"
-	OrderFireMode CombatOrderKind = "fire_mode"
-	OrderStop     CombatOrderKind = "stop"
+	OrderMove         CombatOrderKind = "move"
+	OrderAttack       CombatOrderKind = "attack"
+	OrderFireMode     CombatOrderKind = "fire_mode"
+	OrderStop         CombatOrderKind = "stop"
+	OrderHoldPosition CombatOrderKind = "hold_position"
 )
 
 // CombatOrderReason says why an order was given; retreat and rescue pass
@@ -814,6 +838,9 @@ func (m *CombatMemory) issue(order CombatOrder, tick domain.Tick) {
 // seen doing anything else since.
 func (m CombatMemory) doing(want CombatOrder, s CombatPawnState) bool {
 	switch want.Kind {
+	case OrderHoldPosition:
+		at, known := s.Cell.Value()
+		return known && at == want.Cell && s.Job == "Wait_Combat"
 	case OrderAttack:
 		if s.Target == want.Target {
 			return true
