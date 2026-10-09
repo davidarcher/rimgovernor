@@ -37,8 +37,6 @@ namespace HomeBridge.BridgeTools
     /// </summary>
     internal static class StockpileFilter
     {
-        internal const int SampleSize = 10;
-
         // ------------------------------------------------------------ universe
 
         /// <summary>
@@ -389,9 +387,7 @@ namespace HomeBridge.BridgeTools
                 { "categoriesFullyAllowed", new List<object>() },
                 { "categoriesPartlyAllowed", new List<object>() },
                 { "allowsRottable", false },
-                { "allowedRottableCount", 0 },
-                { "sampleAllowed", new List<object>() },
-                { "sampleTruncated", false }
+                { "allowedRottableCount", 0 }
             };
             if (filter == null || universe == null)
                 return summary;
@@ -408,16 +404,6 @@ namespace HomeBridge.BridgeTools
             var rottable = inUniverse.Count(IsRottable);
             summary["allowedRottableCount"] = rottable;
             summary["allowsRottable"] = rottable > 0;
-
-            var sample = new List<object>();
-            foreach (var def in inUniverse)
-            {
-                if (sample.Count >= SampleSize)
-                    break;
-                sample.Add(Label(def));
-            }
-            summary["sampleAllowed"] = sample;
-            summary["sampleTruncated"] = inUniverse.Count > sample.Count;
 
             var full = new List<object>();
             var part = new List<object>();

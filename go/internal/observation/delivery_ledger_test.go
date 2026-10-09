@@ -1,7 +1,6 @@
 package observation
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
@@ -56,16 +55,10 @@ func TestDeliveryLedgerDecodeAndUnknown(t *testing.T) {
 	hunted.Kills = []*o.KillRecord{{CorpseId: proto.String("Corpse1"), PawnId: proto.String("Deer1"), Race: proto.String("Deer"), BodySize: proto.Float64(1.2), PotentialNutrition: proto.Float64(1.6), Tick: proto.Int64(4)}}
 	hunted.Butchers = []*o.ButcherRecord{{CorpseId: proto.String("Corpse1"), Recipe: proto.String("ButcherCorpseFlesh"), MeatDef: proto.String("Meat_Deer"), MeatUnits: proto.Int64(60),
 		MeatNutrition: proto.Float64(1.2), LeatherUnits: proto.Int64(20), Tick: proto.Int64(6)}}
-	hunted.KillsTotal, hunted.ButchersTotal = proto.Uint64(3), proto.Uint64(1)
-	if l, known := decode(observed(hunted)).Value(); !known || l.KillsTotal != 3 || l.ButchersTotal != 1 || len(l.Kills) != 1 || len(l.Butchers) != 1 ||
+	if l, known := decode(observed(hunted)).Value(); !known || len(l.Kills) != 1 || len(l.Butchers) != 1 ||
 		l.Kills[0] != (Kill{CorpseID: "Corpse1", PawnID: "Deer1", Race: "Deer", BodySize: 1.2, PotentialNutrition: 1.6, Tick: 4}) ||
 		l.Butchers[0] != (Butcher{CorpseID: "Corpse1", Recipe: "ButcherCorpseFlesh", MeatDef: "Meat_Deer", MeatUnits: 60, MeatNutrition: 1.2, LeatherUnits: 20, Tick: 6}) {
 		t.Fatalf("hunt records %+v known=%v", l, known)
-	}
-	overflow := good()
-	overflow.Other, overflow.Lost = &o.DeliveryRow{Units: proto.Int64(3), Nutrition: proto.Float64(1), LastTick: proto.Int64(6)}, proto.Uint64(2)
-	if l, known := decode(observed(overflow)).Value(); !known || l.Other.Units != 3 || l.Lost != 2 {
-		t.Fatalf("overflow %+v known=%v", l, known)
 	}
 	if empty, known := decode(observed(&o.DeliveryLedgerFacts{Epoch: proto.String("e1")})).Value(); !known || len(empty.Counts) != 0 {
 		t.Fatalf("an observed empty ledger is a known empty ledger: %+v known=%v", empty, known)
@@ -84,33 +77,16 @@ func TestDeliveryLedgerDecodeAndUnknown(t *testing.T) {
 		"future tick":         func(f *o.DeliveryLedgerFacts) { f.Rows[0].LastTick = proto.Int64(8) },
 		"empty source":        func(f *o.DeliveryLedgerFacts) { f.Rows[0].SourceId = proto.String("") },
 		"duplicate key":       func(f *o.DeliveryLedgerFacts) { f.Rows[1] = proto.Clone(f.Rows[0]).(*o.DeliveryRow) },
-		"lost without row":    func(f *o.DeliveryLedgerFacts) { f.Lost = proto.Uint64(1) },
-		"keyed other row":     func(f *o.DeliveryLedgerFacts) { f.Other = deliveryRow(crop, "other", "other", 1, 0, 1) },
 		"kill without corpse": func(f *o.DeliveryLedgerFacts) { huntFacts(f); f.Kills[0].CorpseId = nil },
 		"duplicate kill": func(f *o.DeliveryLedgerFacts) {
 			huntFacts(f)
 			f.Kills = append(f.Kills, proto.Clone(f.Kills[0]).(*o.KillRecord))
-			f.KillsTotal = proto.Uint64(2)
 		},
 		"future kill":          func(f *o.DeliveryLedgerFacts) { huntFacts(f); f.Kills[0].Tick = proto.Int64(8) },
 		"negative potential":   func(f *o.DeliveryLedgerFacts) { huntFacts(f); f.Kills[0].PotentialNutrition = proto.Float64(-1) },
-		"kills beyond total":   func(f *o.DeliveryLedgerFacts) { huntFacts(f); f.KillsTotal = proto.Uint64(0) },
 		"butcher without meat": func(f *o.DeliveryLedgerFacts) { huntFacts(f); f.Butchers[0].MeatDef = nil },
 		"negative leather":     func(f *o.DeliveryLedgerFacts) { huntFacts(f); f.Butchers[0].LeatherUnits = proto.Int64(-1) },
 		"missing meat units":   func(f *o.DeliveryLedgerFacts) { huntFacts(f); f.Butchers[0].MeatUnits = nil },
-		"butcher beyond total": func(f *o.DeliveryLedgerFacts) { huntFacts(f); f.ButchersTotal = proto.Uint64(0) },
-		"too many kills": func(f *o.DeliveryLedgerFacts) {
-			huntFacts(f)
-			for i := 0; i < bridge.MaxHuntRecords; i++ {
-				f.Kills = append(f.Kills, &o.KillRecord{CorpseId: proto.String(fmt.Sprintf("C%d", i)), PawnId: proto.String(fmt.Sprintf("D%d", i)), Race: proto.String("Deer"), BodySize: proto.Float64(1), PotentialNutrition: proto.Float64(1), Tick: proto.Int64(1)})
-			}
-			f.KillsTotal = proto.Uint64(1000)
-		},
-		"too many rows": func(f *o.DeliveryLedgerFacts) {
-			for i := 0; i <= bridge.MaxDeliveryRows; i++ {
-				f.Rows = append(f.Rows, deliveryRow(crop, "z", fmt.Sprintf("Def%d", i), 1, 0, 1))
-			}
-		},
 	} {
 		f := good()
 		mutate(f)
@@ -128,5 +104,4 @@ func huntFacts(f *o.DeliveryLedgerFacts) {
 	f.Kills = []*o.KillRecord{{CorpseId: proto.String("Corpse1"), PawnId: proto.String("Deer1"), Race: proto.String("Deer"), BodySize: proto.Float64(1.2), PotentialNutrition: proto.Float64(1.6), Tick: proto.Int64(4)}}
 	f.Butchers = []*o.ButcherRecord{{CorpseId: proto.String("Corpse1"), Recipe: proto.String("ButcherCorpseFlesh"), MeatDef: proto.String("Meat_Deer"), MeatUnits: proto.Int64(60),
 		MeatNutrition: proto.Float64(1.2), LeatherUnits: proto.Int64(20), Tick: proto.Int64(6)}}
-	f.KillsTotal, f.ButchersTotal = proto.Uint64(1), proto.Uint64(1)
 }

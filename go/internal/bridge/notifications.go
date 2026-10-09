@@ -24,8 +24,8 @@ func (client *Client) ReadNotifications(ctx context.Context, request *p.Notifica
 		return nil, Result{}, err
 	}
 	for _, limit := range []*uint32{request.LetterLimit, request.MessageLimit, request.AlertLimit} {
-		if limit != nil && (*limit < 1 || *limit > 256) {
-			return nil, Result{}, contract("notification limit outside 1..256")
+		if limit != nil && *limit < 1 {
+			return nil, Result{}, contract("notification limit below 1")
 		}
 	}
 	reply := &p.NotificationsReply{}

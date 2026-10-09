@@ -51,8 +51,8 @@ func runLedger(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	s.Report()["ledger"] = map[string]any{"before": before, "after": after, "ledger": ledger.raw}
-	if ledger.epoch == "" || ledger.lost != 0 {
-		return fmt.Errorf("ledger epoch missing or keys lost: %v", ledger.raw)
+	if ledger.epoch == "" {
+		return fmt.Errorf("ledger epoch missing: %v", ledger.raw)
 	}
 	// The ledger may have counted a delivery between the two tallies; it is never outside them.
 	for _, c := range []struct {
@@ -86,7 +86,6 @@ func runLedger(ctx context.Context, s cases.Session) error {
 
 type ledgerRead struct {
 	epoch string
-	lost  float64
 	raw   map[string]any
 	// rows is units by source kind, then "source|def".
 	rows map[string]map[string]float64
@@ -117,7 +116,7 @@ func readLedger(ctx context.Context, s cases.Session, label string) (ledgerRead,
 	if observed == nil {
 		return ledgerRead{}, fmt.Errorf("delivery ledger is not observed: %v", section)
 	}
-	read := ledgerRead{raw: observed, lost: na.AsNumber(observed["lost"]), rows: map[string]map[string]float64{}}
+	read := ledgerRead{raw: observed, rows: map[string]map[string]float64{}}
 	read.epoch, _ = observed["epoch"].(string)
 	for _, raw := range na.AsSlice(observed["rows"]) {
 		row, _ := na.AsMap(raw)

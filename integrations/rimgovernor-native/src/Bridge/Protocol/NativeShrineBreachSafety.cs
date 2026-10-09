@@ -24,8 +24,6 @@ namespace HomeBridge.BridgeTools
             foreach (var room in rooms) {
                 var border = room.BorderCellsCardinal.ToList();
                 if (!border.Contains(wall.Position)) continue;
-                var rect = CellRect.FromCellList(room.Cells.ToList());
-                if (rect.Width > 256 || rect.Height > 256) return null;
                 cells.UnionWith(room.Cells);
                 cells.UnionWith(border);
             }

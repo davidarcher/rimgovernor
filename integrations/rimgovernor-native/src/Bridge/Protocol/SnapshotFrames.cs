@@ -133,7 +133,6 @@ namespace HomeBridge.BridgeTools
             // The damaged player doors, for a fight's door repair.
             foreach (var door in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_Door>())
             {
-                if (observed.CombatDoors.Count >= 64) break;
                 if (!door.Spawned || !door.def.useHitPoints || door.HitPoints >= door.MaxHitPoints) continue;
                 observed.CombatDoors.Add(new RimGovernor.Protocol.Mirror.CombatDoorRow { Id = door.GetUniqueLoadID(),
                     Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z }, HitPoints = door.HitPoints, MaxHitPoints = door.MaxHitPoints });
@@ -141,7 +140,6 @@ namespace HomeBridge.BridgeTools
             // The unroofed player mortars, for counter-battery.
             foreach (var mortar in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_TurretGun>())
             {
-                if (observed.CombatMortars.Count >= 16) break;
                 if (!mortar.Spawned || mortar.def.building?.IsMortar != true || mortar.AttackVerb == null || map.roofGrid.Roofed(mortar.Position)) continue;
                 observed.CombatMortars.Add(new RimGovernor.Protocol.Mirror.CombatMortarRow { Id = mortar.GetUniqueLoadID(),
                     Cell = new Common.Cell { X = mortar.Position.x, Z = mortar.Position.z },

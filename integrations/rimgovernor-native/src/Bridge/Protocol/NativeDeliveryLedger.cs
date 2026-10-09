@@ -23,20 +23,14 @@ namespace HomeBridge.BridgeTools
     internal static class NativeDeliveryLedger
     {
         private const string Owner = "rimgovernor.native.deliveries";
-        private const int MaxKeys = 512;
-        private const int MaxRecords = 256;
-        private const string OtherKey = "other";
 
         private sealed class Counter { internal long Units; internal double Nutrition; internal int LastTick; }
         private sealed class State
         {
             internal readonly string Epoch = Guid.NewGuid().ToString("N");
             internal readonly Dictionary<(Obs.DeliverySourceKind Kind, string Source, string Def), Counter> Rows = new Dictionary<(Obs.DeliverySourceKind, string, string), Counter>();
-            internal readonly Counter Other = new Counter();
-            internal ulong Lost;
             internal readonly List<Obs.KillRecord> Kills = new List<Obs.KillRecord>();
             internal readonly List<Obs.ButcherRecord> Butchers = new List<Obs.ButcherRecord>();
-            internal ulong KillsTotal, ButchersTotal;
         }
 
         private static readonly ConditionalWeakTable<Game, State> States = new ConditionalWeakTable<Game, State>();
@@ -51,14 +45,11 @@ namespace HomeBridge.BridgeTools
                 Install();
                 if (!installed || Current.Game == null) return Unavailable("Delivery counting is not installed.");
                 var state = States.GetOrCreateValue(Current.Game);
-                var facts = new Obs.DeliveryLedgerFacts { Epoch = state.Epoch, Lost = state.Lost };
+                var facts = new Obs.DeliveryLedgerFacts { Epoch = state.Epoch };
                 foreach (var row in state.Rows.OrderBy(r => r.Key.Kind).ThenBy(r => r.Key.Source, StringComparer.Ordinal).ThenBy(r => r.Key.Def, StringComparer.Ordinal))
                     facts.Rows.Add(Row(row.Value, row.Key.Kind, row.Key.Source, row.Key.Def));
                 facts.Kills.Add(state.Kills);
                 facts.Butchers.Add(state.Butchers);
-                facts.KillsTotal = state.KillsTotal;
-                facts.ButchersTotal = state.ButchersTotal;
-                if (state.Lost > 0) facts.Other = Row(state.Other, null, OtherKey, OtherKey);
                 return new Obs.DeliveryLedgerSection { Observed = facts };
             }
             catch (Exception error)
@@ -116,11 +107,7 @@ namespace HomeBridge.BridgeTools
             if (Current.Game == null || def == null || units <= 0) return;
             var state = States.GetOrCreateValue(Current.Game);
             var key = (kind, source, def.defName);
-            if (!state.Rows.TryGetValue(key, out var counter))
-            {
-                if (state.Rows.Count >= MaxKeys) { counter = state.Other; state.Lost++; }
-                else state.Rows[key] = counter = new Counter();
-            }
+            if (!state.Rows.TryGetValue(key, out var counter)) state.Rows[key] = counter = new Counter();
             counter.Units += units;
             if (NativeFoodPolicy.IsFood(def) && def.ingestible.HumanEdible) counter.Nutrition += units * def.GetStatValueAbstract(StatDefOf.Nutrition);
             counter.LastTick = Find.TickManager.TicksGame;
@@ -167,8 +154,6 @@ namespace HomeBridge.BridgeTools
             foreach (var (_, def, count) in placed) Count(Obs.DeliverySourceKind.AnimalProduct, __instance.parent.def.defName, def, count);
         }
 
-        private static void Record<T>(List<T> window, T record) { window.Add(record); if (window.Count > MaxRecords) window.RemoveAt(0); }
-
         // Pawn.Kill leaves the corpse on the pawn once it ran. An animal of the wild or the
         // colony killed by a player pawn (a hunt or a slaughter) is one KILL.
         private static void Killed(Pawn __instance, DamageInfo? __0)
@@ -183,8 +168,7 @@ namespace HomeBridge.BridgeTools
                 var record = new Obs.KillRecord { CorpseId = corpse.GetUniqueLoadID(), PawnId = __instance.GetUniqueLoadID(), Race = __instance.def.defName, BodySize = __instance.BodySize,
                     PotentialNutrition = meat == null ? 0 : Math.Max(0, __instance.GetStatValue(StatDefOf.MeatAmount)) * meat.GetStatValueAbstract(StatDefOf.Nutrition),
                     Tick = Find.TickManager.TicksGame };
-                state.KillsTotal++;
-                Record(state.Kills, record);
+                state.Kills.Add(record);
                 if (__instance.Faction == null) NativeRuleRuntime.OnPreyKilled(__0?.Instigator as Pawn, __instance);
             }
             catch (Exception error) { ModLog.Error("observe", "Kill counting failed: " + error); }
@@ -213,8 +197,7 @@ namespace HomeBridge.BridgeTools
                 LeatherUnits = leather, Tick = Find.TickManager.TicksGame };
             if (meatDef != null) record.MeatDef = meatDef.defName;
             var state = States.GetOrCreateValue(Current.Game);
-            state.ButchersTotal++;
-            Record(state.Butchers, record);
+            state.Butchers.Add(record);
         }
     }
 }

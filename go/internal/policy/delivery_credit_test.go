@@ -123,7 +123,6 @@ const creditDay = domain.Tick(domain.TicksPerDay)
 type creditRun struct {
 	d       DeliveryCredit
 	epoch   string
-	lost    uint64
 	rate    float64
 	lead    float64
 	cum     float64
@@ -139,7 +138,7 @@ func newCreditRun(rate, lead float64) *creditRun {
 // group on the first step unless asked not to.
 func (r *creditRun) step(day float64, deliver float64) CreditResult {
 	r.cum += deliver
-	in := CreditInput{Tick: domain.Tick(day * float64(creditDay)), LoadToken: r.epoch, Known: true, Lost: r.lost, Delivered: map[string]float64{"g": r.cum}}
+	in := CreditInput{Tick: domain.Tick(day * float64(creditDay)), LoadToken: r.epoch, Known: true, Delivered: map[string]float64{"g": r.cum}}
 	res := r.d.Observe(in, []CreditChannel{{Source: "g", Expected: r.rate, LeadDays: r.lead}})
 	if r.armed {
 		r.d.groups["g"].armOnce(in.Tick)
@@ -256,30 +255,6 @@ func TestCreditRebaselineHoldsTheFactor(t *testing.T) {
 	// The new epoch's first samples cannot be diffed against the old counters.
 	if got := r.step(6, 3); got.Factor != 0 {
 		t.Fatalf("one sample is not a window, got %v", got.Factor)
-	}
-}
-
-func TestCreditLostRowsHoldAGroupWithoutARow(t *testing.T) {
-	var d DeliveryCredit
-	in := func(day int, lost uint64, delivered map[string]float64) CreditInput {
-		return CreditInput{Tick: domain.Tick(day) * creditDay, LoadToken: "a", Known: true, Lost: lost, Delivered: delivered}
-	}
-	g := []CreditChannel{{Source: "g", Expected: 1}}
-	d.Observe(in(0, 0, nil), g)
-	d.groups["g"].armOnce(0)
-	d.Observe(in(4, 0, nil), g)
-	if d.results["g"].Factor != 0 {
-		t.Fatalf("setup: %v", d.results["g"])
-	}
-	d.groups["g"].factor = 1
-	d.Drain()
-	// Lost rows: no counter for g may be zero or dropped, so the factor holds.
-	if got := d.Observe(in(8, 5, nil), g)["g"]; got.Factor != 1 {
-		t.Fatalf("lost rows hold the factor, got %v", got.Factor)
-	}
-	changes := d.Drain()
-	if len(changes) != 0 && changes[0].Reason != CreditLost {
-		t.Fatalf("changes = %+v", changes)
 	}
 }
 

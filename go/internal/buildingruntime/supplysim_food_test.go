@@ -352,7 +352,6 @@ func (a *foodAdapter) projection(v supplysim.WorldView) (observation.ColonyProje
 	a.corpses = corpses
 	p.CombinedFoodSupply, p.FoodSupply = domain.Known(supply), domain.Known(supply)
 	ledger.Kills, ledger.Butchers = a.kills, a.butchers
-	ledger.KillsTotal, ledger.ButchersTotal = uint64(len(a.kills)), uint64(len(a.butchers))
 	p.DeliveryLedger = domain.Known(ledger)
 	// The herd's hunters carry bows; the rest of the colony does not hunt.
 	var workPawns []policy.WorkPawn

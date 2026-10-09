@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
             row.CrewIds.Add(crew.Select(p => p.GetUniqueLoadID()));
             if (crew.Count == 0) return row;
             foreach (var cell in CellRect.WholeMap(map).EdgeCells.Where(c => map.exitMapGrid.IsExitCell(c)
-                && crew.All(p => p.CanReach(c, PathEndMode.OnCell, Danger.Deadly))).OrderBy(c => crew.Sum(p => p.Position.DistanceToSquared(c))).ThenBy(c => c.x).ThenBy(c => c.z).Take(32))
+                && crew.All(p => p.CanReach(c, PathEndMode.OnCell, Danger.Deadly))).OrderBy(c => crew.Sum(p => p.Position.DistanceToSquared(c))).ThenBy(c => c.x).ThenBy(c => c.z))
                 row.ExitCells.Add(new RimGovernor.Protocol.Common.Cell { X = cell.x, Z = cell.z });
             var dialog = NativeCaravanCatalog.BuildDialog(map, reform: true);
             foreach (var group in dialog.transferables)

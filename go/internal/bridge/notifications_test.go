@@ -153,7 +153,7 @@ func TestNotificationsRequestBoundsAndFailure(t *testing.T) {
 		result.IsError = true
 		return result, nil
 	}}, time.Second)
-	for _, limit := range []uint32{0, 257} {
+	for _, limit := range []uint32{0} {
 		if _, _, err := client.ReadNotifications(context.Background(), &p.NotificationsRequest{Identity: pbIdentity(), LetterLimit: proto.Uint32(limit)}); err == nil {
 			t.Fatal("invalid limit")
 		}

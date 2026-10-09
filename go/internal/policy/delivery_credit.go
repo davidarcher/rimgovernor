@@ -21,7 +21,6 @@ const (
 const (
 	CreditWindow     = "window"     // the trailing window moved the factor or the state
 	CreditRebaseline = "rebaseline" // the ledger's load token changed; the factor is held
-	CreditLost       = "lost"       // the ledger dropped rows; the factor is held
 )
 
 // CreditChannel is one ledger counter group as the channels the census
@@ -36,15 +35,13 @@ type CreditChannel struct {
 }
 
 // CreditInput is one Round's read of the delivery ledger. Delivered is the
-// cumulative nutrition per counter group within the load token LoadToken; Lost is
-// the ledger's count of rows beyond its key bound. An unavailable ledger is
+// cumulative nutrition per counter group within the load token LoadToken. An unavailable ledger is
 // Known false and holds every factor.
 type CreditInput struct {
 	Tick      domain.Tick
 	LoadToken string
 	Known     bool
 	Delivered map[string]float64
-	Lost      uint64
 }
 
 // CreditResult is a group's standing: Factor in [0,1] scales its expected rate
@@ -91,7 +88,6 @@ type creditHistory struct {
 // positive differences calibrate delivering rates before a full window elapses.
 type DeliveryCredit struct {
 	loadToken string
-	lost      uint64
 	last      domain.Tick
 	seen      bool
 	groups    map[string]*creditHistory
@@ -116,11 +112,10 @@ func (d *DeliveryCredit) Observe(in CreditInput, channels []CreditChannel) map[s
 	if d.groups == nil {
 		d.groups = map[string]*creditHistory{}
 	}
-	rebaselined, lostRaised := false, false
+	rebaselined := false
 	if in.Known {
 		rebaselined = d.loadToken != "" && in.LoadToken != d.loadToken
-		lostRaised = !rebaselined && in.Lost > d.lost
-		d.loadToken, d.lost = in.LoadToken, in.Lost
+		d.loadToken = in.LoadToken
 	}
 	live := map[string]bool{}
 	previousResults := d.results
@@ -138,16 +133,11 @@ func (d *DeliveryCredit) Observe(in CreditInput, channels []CreditChannel) map[s
 		h.leadNow = math.Max(0, c.LeadDays)
 		previous := previousResults[c.Source].State
 		reason := CreditWindow
-		cum, present := in.Delivered[c.Source]
+		cum := in.Delivered[c.Source]
 		switch {
 		case !in.Known:
 		case rebaselined:
 			h.samples, reason = nil, CreditRebaseline
-		case !present && in.Lost > 0:
-			reason = CreditLost
-			if lostRaised {
-				h.samples = nil
-			}
 		default:
 			if cum > 0 {
 				h.delivered = true
@@ -161,7 +151,7 @@ func (d *DeliveryCredit) Observe(in CreditInput, channels []CreditChannel) map[s
 			state = CandidateDelivering
 		}
 		d.results[c.Source] = CreditResult{Factor: h.factor, State: state}
-		held := reason != CreditWindow && h.evaluated && (rebaselined || lostRaised)
+		held := reason != CreditWindow && h.evaluated && rebaselined
 		moved := math.Abs(h.factor-h.reported) >= CreditMoveThreshold
 		if held || moved || previous != "" && state != previous {
 			h.reported = h.factor

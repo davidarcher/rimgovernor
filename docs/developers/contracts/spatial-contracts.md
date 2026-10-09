@@ -433,13 +433,13 @@ despite fog; unsupported roofs, pending collapse and fog outside that footprint 
 block. This check reveals no occupants and never unfogs the room.
 
 The occupant of a filled casket is unknown until it opens; a casket under 20% hit
-points explodes, so hit points are a safety reading. The census is bounded to 64
-shrines, 32 caskets, 256 guards and 64 breach walls per shrine; overflow or an
+points explodes, so hit points are a safety reading. The census has no
+count caps on shrines, caskets, guards or breach walls; an
 unreadable scan is unavailable, never sampled. Nothing in this read admits a breach,
 a casket order or a claim: readiness, the breach concern and casket
 handling decide.
 
-Optional heat facts (visible roof-connected interior of at most 256 cells,
+Optional heat facts (visible roof-connected interior,
 independent of building ownership: measured temperatures, enclosure, colonist
 presence, one repairable door site, heater sites and existing heaters, doorway/retreat
 cells) are omitted on ambiguous geometry or fog; unknown never means heat-ready.

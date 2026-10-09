@@ -201,8 +201,8 @@ basin is forage, counted only when edible), a catch rolled
 Hauling and stack merges never count. Rows are keyed by kind (crop, fish, forage,
 animal product), source (growing zone or basin id, water body root cell `x,z`, plant
 def, animal race) and delivered def, with units, human-edible nutrition and the
-last delivery tick. At most 512 keys; later keys fold into an `other` row and `lost`
-counts those deliveries. The `epoch` changes on load or restart, so a reader diffs
+last delivery tick. Keys are unbounded; the set is bounded by the game's defs, zones
+and water bodies. The `epoch` changes on load or restart, so a reader diffs
 within an epoch and re-baselines on a change. Go maps source to channel from its own
 census: the channel builders name their counter group (`Source`: `crop:<zone>`,
 `fish:<x,z>` as `water-<x>-<z>`, `forage:<plant def>`, `animal_product:<race>`). `observation.ColonyProjection.DeliveryLedger` is Unknown for a missing,
@@ -213,9 +213,8 @@ stock id): a `KillRecord` when a player pawn kills an animal (a hunt, or a slaug
 that leaves a corpse; the animal's `pawn_id`, race, body size, potential nutrition as meat amount x meat
 nutrition, tick) and a `ButcherRecord` where `GenRecipe.MakeRecipeProducts` makes a
 butcher recipe's products (any bill, any butcher; meat def, units and nutrition,
-leather units, tick). Each window holds the newest 256 records in tick order, with
-`kills_total` and `butchers_total` counting the whole epoch. Go links a kill to its
-butcher by corpse id; hauling a corpse never counts. `CorpseHandling.in_storage` tells a
+leather units, tick). Each window holds every record of the epoch in tick order.
+Go links a kill to its butcher by corpse id; hauling a corpse never counts. `CorpseHandling.in_storage` tells a
 corpse in a stockpile from one in the field; rot is read from the existing
 corpse census. The plan credits the `hunt` group from these records: a kill at its
 corpse's potential yield times its rot clock, replaced by the butchered meat; a kill

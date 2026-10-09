@@ -1765,9 +1765,7 @@ message DeepResourcesSection { oneof outcome { DeepResourcesFacts observed = 1; 
 enum DeliverySourceKind { DELIVERY_SOURCE_KIND_UNSPECIFIED = 0; DELIVERY_SOURCE_KIND_CROP = 1; DELIVERY_SOURCE_KIND_FISH = 2; DELIVERY_SOURCE_KIND_FORAGE = 3; DELIVERY_SOURCE_KIND_ANIMAL_PRODUCT = 4; }
 message DeliveryRow { optional DeliverySourceKind source_kind = 1; optional string source_id = 2; optional string def_name = 3; optional int64 units = 4; optional double nutrition = 5; optional int64 last_tick = 6; }
 // Counters only ever grow within one epoch; epoch changes when the game is
-// loaded or restarted, so a reader re-baselines. At most 512 keyed rows: later
-// keys add to `other` (source_id and def_name "other") and count toward `lost`,
-// the number of deliveries that were not keyed. Absent means unknown, never zero.
+// loaded or restarted, so a reader re-baselines. Absent means unknown, never zero.
 // A player pawn killed an animal (a hunt, or a slaughter that leaves a corpse).
 // corpse_id is the corpse's thing id (the food census's stock id), race the
 // animal's def, body_size its body size and potential_nutrition the meat it
@@ -1779,11 +1777,9 @@ message KillRecord { optional string corpse_id = 1; optional string race = 2; op
 // the produced meat (meat_def) stack and its nutrition, leather_units the
 // produced leather; Go links it to its KillRecord by corpse_id.
 message ButcherRecord { optional string corpse_id = 1; optional string recipe = 2; optional string meat_def = 3; optional int64 meat_units = 4; optional double meat_nutrition = 5; optional int64 leather_units = 6; optional int64 tick = 7; }
-// kills and butchers hold the newest 256 records each in tick order; kills_total
-// and butchers_total count every record of the epoch, so a reader sees records
-// that fell off the window.
-message DeliveryLedgerFacts { optional string epoch = 1; repeated DeliveryRow rows = 2; DeliveryRow other = 3; optional uint64 lost = 4;
-  repeated KillRecord kills = 5; repeated ButcherRecord butchers = 6; optional uint64 kills_total = 7; optional uint64 butchers_total = 8; }
+// kills and butchers hold every record of the epoch in tick order.
+message DeliveryLedgerFacts { optional string epoch = 1; repeated DeliveryRow rows = 2;
+  repeated KillRecord kills = 5; repeated ButcherRecord butchers = 6; }
 message DeliveryLedgerSection { oneof outcome { DeliveryLedgerFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message ColonyFactsSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1;

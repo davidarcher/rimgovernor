@@ -52,18 +52,13 @@ type Butcher struct {
 
 // DeliveryLedger is native's cumulative production-site delivery counters.
 // A reader diffs successive ledgers of one load token and re-baselines when the
-// token changes (a load or restart). Other and Lost summarize deliveries beyond
-// the key bound. Kills and Butchers are the newest records in tick order;
-// KillsTotal and ButchersTotal count every record of the load token, so a
-// reader knows when records fell off the window.
+// token changes (a load or restart). Kills and Butchers are every record of the
+// load token in tick order.
 type DeliveryLedger struct {
-	LoadToken                 string
-	Counts                    map[DeliveryKey]DeliveryCount
-	Other                     DeliveryCount
-	Lost                      uint64
-	Kills                     []Kill
-	Butchers                  []Butcher
-	KillsTotal, ButchersTotal uint64
+	LoadToken string
+	Counts    map[DeliveryKey]DeliveryCount
+	Kills     []Kill
+	Butchers  []Butcher
 }
 
 var deliveryKinds = map[o.DeliverySourceKind]DeliveryKind{
@@ -80,8 +75,7 @@ func colonyDeliveryLedger(section *o.DeliveryLedgerSection, tick int64) domain.F
 	if !bridge.ValidDeliveryLedger(f, tick) {
 		return domain.Unknown[DeliveryLedger]()
 	}
-	r := DeliveryLedger{LoadToken: f.GetEpoch(), Counts: make(map[DeliveryKey]DeliveryCount, len(f.Rows)), Lost: f.GetLost(),
-		KillsTotal: f.GetKillsTotal(), ButchersTotal: f.GetButchersTotal()}
+	r := DeliveryLedger{LoadToken: f.GetEpoch(), Counts: make(map[DeliveryKey]DeliveryCount, len(f.Rows))}
 	for _, k := range f.Kills {
 		r.Kills = append(r.Kills, Kill{CorpseID: k.GetCorpseId(), PawnID: k.GetPawnId(), Race: k.GetRace(), BodySize: k.GetBodySize(), PotentialNutrition: k.GetPotentialNutrition(), Tick: k.GetTick()})
 	}
@@ -91,9 +85,6 @@ func colonyDeliveryLedger(section *o.DeliveryLedgerSection, tick int64) domain.F
 	}
 	for _, row := range f.Rows {
 		r.Counts[DeliveryKey{Kind: deliveryKinds[row.GetSourceKind()], SourceID: row.GetSourceId(), Def: row.GetDefName()}] = deliveryCount(row)
-	}
-	if f.Other != nil {
-		r.Other = deliveryCount(f.Other)
 	}
 	return domain.Known(r)
 }

@@ -26,7 +26,6 @@ namespace HomeBridge.BridgeTools
         private const int DefaultLetterLimit = 40;
         private const int DefaultMessageLimit = 12;
         private const int DefaultAlertLimit = 40;
-        private const int LimitCeiling = 256;
 
         private static readonly FieldInfo? ActiveAlertsField = BridgeCommon.PrivateInstanceField(typeof(AlertsReadout), "activeAlerts");
         private static readonly FieldInfo? LiveMessagesField = BridgeCommon.PrivateStaticField(typeof(Messages), "liveMessages");
@@ -71,14 +70,14 @@ namespace HomeBridge.BridgeTools
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Exact identity is required.");
             if (request?.Identity == null) return false;
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Notification limits must be within 1..256.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Notification limits must be at least 1.");
             foreach (var limit in new[] { (request.HasLetterLimit, request.LetterLimit), (request.HasMessageLimit, request.MessageLimit), (request.HasAlertLimit, request.AlertLimit) })
-                if (limit.Item1 && (limit.Item2 < 1 || limit.Item2 > LimitCeiling)) return false;
+                if (limit.Item1 && (limit.Item2 < 1)) return false;
             failure = null!;
             return true;
         }
 
-        private static int Limit(bool present, uint value, int fallback) => present ? checked((int)value) : fallback;
+        private static int Limit(bool present, uint value, int fallback) => present ? (int)Math.Min(value, (uint)int.MaxValue) : fallback;
 
         // A section whose native read throws is unavailable on its own; the
         // other sections still answer.
