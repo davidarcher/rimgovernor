@@ -3,9 +3,9 @@
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
 `EnsureMood` is a Response: one incident per pawn, keyed by the pawn's Thing ID as
-its subject, never a concern row. It enters at the pawn's observed minor-break
-threshold, or when the native current thought target is below that threshold and
-falling relative to current mood. Recovery requires five mood points above the
+its subject, never a concern row. It enters at 0.10 above the pawn's observed
+minor-break threshold, or when the native current thought target is below that
+threshold and falling relative to current mood. Recovery requires 0.15 above the
 threshold and recovery of retained need deficits. Missing pawns, thresholds or need
 reads never certify recovery. Native thresholds incorporate individual traits and
 ideology; current thought pressure predicts neither a break probability nor its

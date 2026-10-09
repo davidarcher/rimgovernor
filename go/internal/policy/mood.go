@@ -144,6 +144,14 @@ func psychicDroneMargin(thoughts domain.Fact[[]MoodThought]) float64 {
 	return 0
 }
 
+// moodEntryMargin is how far above the minor-break threshold a pawn enters
+// mood relief; moodRecoveryMargin is how far above it an active pawn must
+// climb before relief ends.
+const (
+	moodEntryMargin    = .10
+	moodRecoveryMargin = .15
+)
+
 // ReviewMood ports native-threshold and need hysteresis. Thought pressure is a
 // present observation, never a prediction of a break or future mood benefit;
 // a psychic drone thought widens the entry margin for its bearer alone.
@@ -179,9 +187,9 @@ func ReviewMood(observed domain.Fact[[]MoodPawn], previous MoodHistory) (MoodHis
 			s.Active = prior.Active
 			drone := psychicDroneMargin(p.Thoughts)
 			if mk && tk {
-				margin := 0.0
+				margin := moodEntryMargin
 				if prior.Active {
-					margin = .05
+					margin = moodRecoveryMargin
 				}
 				margin = max(margin, drone)
 				if mentalKnown {

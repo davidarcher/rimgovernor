@@ -31,13 +31,14 @@ func TestMoodThresholdsPressureAndRetainedNeeds(t *testing.T) {
 	if len(h.States) != 1 || h.States[0].Need() != domain.FindingUnmet {
 		t.Fatal(h)
 	}
-	p.Mood = domain.Known(.35)
+	threshold := .3
+	p.Mood = domain.Known(threshold + moodRecoveryMargin)
 	p.Food = domain.Known(.5)
 	h = moodReview(t, p, h)
 	if !h.States[0].Active {
 		t.Fatal("exit equality recovered", h)
 	}
-	p.Mood = domain.Known(.351)
+	p.Mood = domain.Known(threshold + moodRecoveryMargin + .001)
 	h = moodReview(t, p, h)
 	if h.States[0].Need() != domain.FindingMet {
 		t.Fatal(h)
@@ -191,7 +192,7 @@ func TestMoodPsychicDroneEntersEarlyForItsBearerOnly(t *testing.T) {
 	}
 	// Any other negative thought opens no margin.
 	p.Thoughts = domain.Known([]MoodThought{{Def: "SleptOutside", Offset: -30}})
-	p.Mood = domain.Known(.31)
+	p.Mood = domain.Known(.41)
 	if h := moodReview(t, p, MoodHistory{}); len(h.States) != 0 {
 		t.Fatal("non-drone thought widened entry", h)
 	}
