@@ -389,6 +389,9 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if r.methodEnabled(policy.MaintainIncineration) || r.methodEnabled(policy.MaintainBurial) {
 		readDefinitions = append(append([]string(nil), readDefinitions...), burialDefinitions...)
 	}
+	if r.methodEnabled(policy.MaintainTraining) {
+		readDefinitions = append(append([]string(nil), readDefinitions...), trainingDefinitions...)
+	}
 	if r.methodEnabled(policy.EnsureCooking) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainPopulation) {
 		// The planned kitchen, freezer and jail shells; the jail bed is
 		// a furniture rule's, read with every catalog.

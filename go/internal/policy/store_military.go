@@ -41,11 +41,13 @@ func (o militaryOwner) StoreErr(view StoreView) error {
 // wardrobe), and for a further one when every store of the kind is full.
 func (o militaryOwner) RoomDemand(view StoreView) RoomDemand {
 	g := view.Gear
+	ranges := RangesWanted(view.TrainingGap)
 	if g == nil || view.Layout == nil || view.Rooms == nil {
-		return RoomDemand{Known: g != nil}
+		return RoomDemand{Known: g != nil, Ranges: ranges}
 	}
 	demand := DeclaredDemand(view, o.Stores(view))
 	demand.Known = true
+	demand.Ranges = ranges
 	stands := map[PlannedRole]bool{}
 	for _, planned := range view.Layout.AllRooms() {
 		if _, ok := CensusRoomIn(planned, *view.Rooms); ok {

@@ -64,6 +64,7 @@ func TestConcernTypeOfCoversEveryConcernID(t *testing.T) {
 		EnsureCooking:        ProjectConcern,
 		MaintainIncineration: StandardConcern,
 		MaintainBurial:       StandardConcern,
+		MaintainTraining:     StandardConcern,
 		"NotAGoal":           UnknownConcern,
 	} {
 		if got := ConcernTypeOf(id); got != want {

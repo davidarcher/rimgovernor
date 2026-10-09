@@ -193,7 +193,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	armory := sc.roundsArmoryPlans
 	clearance := sc.roundsClearancePlans
 	shrine := sc.roundsShrinePlans
-	stockpiles, burial := sc.roundsStockpilePlans, sc.roundsBurialPlans
+	stockpiles, burial, training := sc.roundsStockpilePlans, sc.roundsBurialPlans, sc.roundsTrainingPlans
 	config := serviceClockConfig(profile, sc.clockTestAcceleration, defaultClockWindowTicks, uint32(sc.clockBlindTicks))
 	config.FollowPlayerSpeed = sc.followPlayerSpeed && !sc.clockTestAcceleration
 	config.PaceHorizonTicks = domain.Tick(sc.clockBlindTicks)
@@ -441,6 +441,11 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if burial {
 			if config.Burial, err = buildingruntime.NewRoundsBurialPlanner(reviewer); err != nil {
+				return nil, err
+			}
+		}
+		if training {
+			if config.Training, err = buildingruntime.NewRoundsTrainingPlanner(reviewer); err != nil {
 				return nil, err
 			}
 		}
@@ -907,6 +912,9 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 	}
 	if sc.roundsBurialPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainBurial)
+	}
+	if sc.roundsTrainingPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainTraining)
 	}
 	if sc.roundsIncinerationPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainIncineration)

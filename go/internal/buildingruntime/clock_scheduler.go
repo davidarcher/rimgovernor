@@ -150,6 +150,7 @@ type ClockSchedulerConfig struct {
 	Stockpiles    *RoundsStockpilePlanner
 	DefenseLayout *RoundsDefenseLayoutPlanner
 	Burial        *RoundsBurialPlanner
+	Training      *RoundsTrainingPlanner
 	Incineration  *RoundsIncinerationPlanner
 	MoodRelief    *RoundsMoodReliefPlanner
 	Dialog        *RoundsDialogPlanner
@@ -243,6 +244,7 @@ type ClockSchedulerResult struct {
 	Stockpiles                   *RoundsStockpileResult
 	DefenseLayout                *RoundsDefenseLayoutResult
 	Burial                       *RoundsBurialResult
+	Training                     *RoundsTrainingResult
 	Incineration                 *RoundsIncinerationResult
 	MoodRelief                   *RoundsMoodReliefResult
 	Dialog                       *RoundsDialogResult
@@ -549,6 +551,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Burial != nil && (config.Rounds == nil || config.Burial.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Burial != nil && (config.Rounds == nil || config.Burial.reviewer != config.Rounds)", ErrControl)
+	}
+	if config.Training != nil && (config.Rounds == nil || config.Training.reviewer != config.Rounds) {
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Training != nil && (config.Rounds == nil || config.Training.reviewer != config.Rounds)", ErrControl)
 	}
 	if config.MoodRelief != nil && (config.Rounds == nil || config.MoodRelief.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.MoodRelief != nil && (config.Rounds == nil || config.MoodRelief.reviewer != config.Rounds)", ErrControl)

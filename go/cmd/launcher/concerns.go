@@ -61,6 +61,7 @@ var concernLabels = map[string]string{
 	"MaintainEssentialRepairs":  "Repair essential buildings",
 	"MaintainCleanFacilities":   "Keep facilities clean",
 	"MaintainBurial":            "Bury the dead",
+	"MaintainTraining":          "Train combat skills",
 	"MaintainIncineration":      "Burn the waste",
 }
 

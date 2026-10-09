@@ -59,6 +59,7 @@ var inspections = []Inspection{
 	{EnsureComfort, StandardConcern, DepartmentShelter, []FactFamily{FactColony, FactRooms}, inspectComfort},
 	{ClearPests, StandardConcern, DepartmentMilitary, []FactFamily{FactColony, FactWorld}, inspectPests},
 	{MaintainEquipment, StandardConcern, DepartmentMilitary, []FactFamily{FactPawns, FactColony}, inspectEquipment},
+	{MaintainTraining, StandardConcern, DepartmentMilitary, []FactFamily{FactPawns, FactRooms, FactColony}, inspectTraining},
 	{EnsureResearch, ProjectConcern, DepartmentIndustry, []FactFamily{FactResearch, FactPawns, FactColony}, inspectResearch},
 	{MaintainResource, StandardConcern, DepartmentIndustry, []FactFamily{FactColony, FactDefinitions, FactResearch, FactPawns}, inspectResource},
 	{TradeWithCaravan, IncidentConcern, DepartmentIndustry, []FactFamily{FactWorld, FactColony, FactDefinitions, FactPawns}, inspectTrade},

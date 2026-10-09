@@ -49,6 +49,9 @@ type StoreView struct {
 	// Burial is the burial census; nil while the waste or construction
 	// census is unread (see BurialCensus).
 	Burial *BurialCensus
+	// TrainingGap is the standing skill gap (see TrainingGap); the Military
+	// store asks for a training range while it is open.
+	TrainingGap domain.Fact[bool]
 	// Incinerator is the planned incinerator room once its walls and door
 	// stand; nil before. The Sanitation store declares its zone.
 	Incinerator *PlannedRoom

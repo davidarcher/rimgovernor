@@ -558,8 +558,9 @@ department) makes `growRanges` site a 7 by 14 outline through
 walkable from the core), the site nearest the outskirts cluster; nothing is
 reserved ahead of the need and no room moves. `RangeTemplate(room)` turns
 `RangeLayout` from the interior's south-west cell into the `[]WantedPiece` the
-room reconciler builds. The range needs no cooler. Nothing sets `Ranges` yet: the
-training Concern that demands it is #2619. No action kind or wire field is
+room reconciler builds. The range needs no cooler. `MaintainTraining` (Military, #2619)
+demands it: while an adult colonist's best of Melee and Shooting is under
+`policy.TrainingSkillTarget`, the military store declares `RoomDemand.Ranges` 1 (the stockpile review, so with the stockpiles family); `RoundsTrainingPlanner` (family `training`) then reconciles the range shell and `RangeTemplate`, and takes no further action once the range stands (the native training job is #2610). No action kind or wire field is
 involved.
 
 ## Acceptance

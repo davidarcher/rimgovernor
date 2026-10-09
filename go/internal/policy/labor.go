@@ -53,6 +53,10 @@ func ConcernLabor(id ConcernID) LaborProfile {
 		// The shell, sarcophagus and graves are built; vanilla haulers carry
 		// the corpses.
 		return LaborProfile{WorkConstruction}
+	case MaintainTraining:
+		// The range shell and its stands are built; the native training job
+		// (#2610) spends the trainees' own hours.
+		return LaborProfile{WorkConstruction}
 	case MaintainCleanFacilities:
 		// The bounded cleaning response is a player-forced order any basic
 		// worker not incapable of Cleaning can carry, and it exists for the
