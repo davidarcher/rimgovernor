@@ -6,6 +6,36 @@ The Go bridge and store validate clock commands and recovered evidence against t
 canonical native producer. Autonomous play (`serve --profile`) composes the scheduler and workers;
 validation never restores permission after restart.
 
+## Immediate protection and ordinary review
+
+The scheduler uses the same Concern store, due queue and Hands executor for
+both review scopes. Immediate review updates only combat/cleanup, emergency
+medicine, fire and protective-area state. Omitted Concerns retain their prior
+inspection, Methods and progress; an urgent observation does not refresh an
+ordinary fact. Ordinary review retains its own inspection tick.
+
+Protective actions yield the scheduler gate to the existing Worker before
+unrelated development reads. Pending actions remain ahead of ordinary review
+until dispatch or an explicit current hold; a hold does not permanently veto
+ordinary work. Native window admission continues through its existing safety,
+authority, journal and lease checks. Ordinary review can run while that window
+advances. Relevant invalidations select planners through catalog dependencies;
+unrelated section changes do not invalidate a protective decision.
+The independent event poll cancels an in-flight ordinary review when it captures
+a native stop, releasing the same gate for fresh protection. It does not cancel
+the immediate scope or revoke valid authority merely to interrupt development.
+
+`clock_step.critical_wave_ms` includes review. `controller_pause_ms` measures
+each scheduler interval from observing a paused native clock through returning
+control, using Go's monotonic clock; unobserved pause intervals stay unknown.
+These are controller wall time,
+distinct from the game ticks used for onset, observation, dispatch and native
+outcomes. Combatlab metrics record a `response` report with runner, fixture,
+speed, phase ticks, controller pauses and first observed damage to a hostile.
+Hazard reports separately identify native-supervisor detection. Missing phases
+remain null; an accepted order does not fill the native-effect field. These
+records supply evidence for later calibration, without numeric latency gates.
+
 ## Original command correlation
 
 `bridge.ClockExpectation` retains the original world, attempt key, authority owner,

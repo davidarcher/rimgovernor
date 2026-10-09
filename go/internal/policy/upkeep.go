@@ -126,35 +126,13 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Co
 		seen[id] = true
 		return true
 	}
-	targets, metric := domain.Unknown[[]string](), domain.Unknown[float64]()
-	unsafe := false
-	if rows, known := v.Fires.Value(); known {
-		seen := map[string]bool{}
-		selected := []string{}
-		total := 0.0
-		measured := true
-		for _, row := range rows {
-			size, known := row.Size.Value()
-			if !valid(seen, row.ID) || known && (!foodNumber(size) || size < 0) {
-				return r, errors.New("invalid upkeep fire")
-			}
-			if !row.Home {
-				continue
-			}
-			selected = append(selected, row.ID)
-			total += size
-			measured = measured && known
-			unsafe = unsafe || !known || size > 1
-		}
-		sort.Strings(selected)
-		unsafe = unsafe || len(selected) > 3
-		targets = domain.Known(selected)
-		if measured {
-			metric = domain.Known(total)
-		}
+	fire, err := ReviewFireSafety(v.Fires, previous.Fire, issued[MaintainFireSafety])
+	if err != nil {
+		return r, err
 	}
-	r.History.Fire = add(MaintainFireSafety, 1, previous.Fire, targets, metric, unsafe)
-	targets, metric = domain.Unknown[[]string](), domain.Unknown[float64]()
+	r.History.Fire = fire.Active
+	r.Needs = append(r.Needs, fire)
+	targets, metric := domain.Unknown[[]string](), domain.Unknown[float64]()
 	if rows, known := v.Structures.Value(); known {
 		seen := map[string]bool{}
 		selected := []UpkeepStructure{}

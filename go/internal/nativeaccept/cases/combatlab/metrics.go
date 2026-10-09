@@ -264,7 +264,7 @@ func (m *Metrics) ScanFlight(path string) error {
 // CombatRow reports whether a flight row is one ScanFlight reads: the
 // bundle keeps only these.
 func CombatRow(row na.FlightRow) bool {
-	return row.Kind == "combat_order" || row.Kind == "clock_stop" || row.Kind == "dispatch"
+	return row.Kind == "combat_order" || row.Kind == "clock_stop" || row.Kind == "dispatch" || row.Kind == "clock_step" || row.Kind == "planner_step" && na.AsString(row.Fields()["scope"]) == "immediate"
 }
 
 // StagedSides maps a staging's pawn ids to their sides.

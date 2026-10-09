@@ -91,7 +91,8 @@ func openIncidentID(ctx context.Context, tx *sql.Tx, world domain.GenerationSnap
 // re-triggers) its occurrence; a recovered one closes once no work is
 // open, as a goal satisfies; an unknown one keeps an open occurrence and
 // opens none. An open occurrence the review no longer binds closes.
-func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.RoundsAssessment, current domain.GenerationSnapshot, tick domain.Tick) ([]RoundsIncident, []IncidentState, error) {
+func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.RoundsAssessment, request RoundsRequest, previous Rounds) ([]RoundsIncident, []IncidentState, error) {
+	current, tick := request.Current, request.Tick
 	var bindings []RoundsIncident
 	var states []IncidentState
 	for _, n := range assessments {
@@ -101,6 +102,36 @@ func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.Round
 		}
 		if n.Finding != domain.FindingUnmet && !open {
 			continue
+		}
+		if request.Immediate && open && n.ID == policy.RecoverDisasterServices && n.Finding == domain.FindingUnclear {
+			state, err := loadIncident(ctx, tx, id)
+			if err != nil {
+				return nil, nil, err
+			}
+			binding, known := previous.incidentBinding(id)
+			if !known {
+				return nil, nil, errors.New("recovery lost review binding")
+			}
+			bindings, states = append(bindings, binding), append(states, state)
+			continue
+		}
+		if request.Immediate && open && n.ID == policy.ActiveCombat {
+			_, foodKnown := request.Facts.FoodPlan.Value()
+			hostiles, hostileKnown := request.Facts.Hostiles.Value()
+			if !foodKnown && (!hostileKnown || hostiles == 0) {
+				state, err := loadIncident(ctx, tx, id)
+				if err != nil {
+					return nil, nil, err
+				}
+				if len(HuntPrey(state.Incident)) > 0 {
+					binding, known := previous.incidentBinding(id)
+					if !known {
+						return nil, nil, errors.New("active hunt lost review binding")
+					}
+					bindings, states = append(bindings, binding), append(states, state)
+					continue
+				}
+			}
 		}
 		if n.Finding == domain.FindingMet {
 			state, err := loadIncident(ctx, tx, id)
@@ -142,6 +173,15 @@ func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.Round
 	}
 	for _, id := range stale {
 		if !slices.ContainsFunc(bindings, func(b RoundsIncident) bool { return b.Incident == id }) {
+			if request.Immediate {
+				state, err := loadIncident(ctx, tx, id)
+				if err != nil {
+					return nil, nil, err
+				}
+				if !policy.ImmediateConcern(state.Incident.Kind) {
+					continue
+				}
+			}
 			if err = abandonIncident(ctx, tx, id, tick); err != nil {
 				return nil, nil, err
 			}

@@ -210,6 +210,17 @@ func run(ctx context.Context, s cases.Session, hc hazardCase) error {
 	summary := map[string]any{"class": hc.class, "bound_ticks": hc.bound, "stop_kind": kind, "inject_tick": injectTick,
 		"stop_tick": stopTick, "detected_tick": stopped["detectedTick"], "occurrence_tick": stopped["occurrenceTick"], "injected": injected}
 	report["hazard"] = summary
+	response, err := na.NewResponseEvidence(hc.name, "Ultrafast", injectTick)
+	if err != nil {
+		return err
+	}
+	response.DetectionSource = "native_supervisor"
+	if hasDetected {
+		response.DetectionTick = &detected
+	}
+	// This case exercises the native supervisor, not a served controller.
+	// Controller decision/dispatch and pawn effects therefore remain absent.
+	report["response"] = response
 	if kind != hc.class {
 		return fmt.Errorf("stop kind %s, expected %s: %#v", kind, hc.class, stopped)
 	}

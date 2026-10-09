@@ -103,6 +103,7 @@ func (r *RoundsDefensePlanner) restoreCombatSettings(ctx context.Context, state 
 		ids[i] = a.ID()
 	}
 	items, err := r.hands.RunBatch(ctx, id, ids)
+	recordCombatDispatch(ctx, items)
 	if err != nil {
 		return err
 	}

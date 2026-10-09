@@ -882,7 +882,7 @@ func (s *ClockScheduler) queuePlanners(ctx, epoch context.Context, wave *planner
 		if !entry.configured(&s.config) || pick != nil && !pick(entry) {
 			continue
 		}
-		if startup && entry.startup {
+		if startup && entry.startup || immediateReview(ctx) && immediatePlanner(entry) {
 			entry.class = classCritical
 		}
 		queued = append(queued, entry.name)

@@ -164,6 +164,20 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 		return err
 	}
 	s.Report()["metrics"] = m
+	response, err := na.NewResponseEvidence(name, metricsSpeed, int64(start))
+	if err != nil {
+		return err
+	}
+	if err := response.ReadFlight(flight); err != nil {
+		return err
+	}
+	for _, value := range na.AsSlice(last["damage"]) {
+		hit, _ := na.AsMap(value)
+		if na.AsString(hit["instigatorSide"]) == Colonist && na.AsString(hit["victimSide"]) == Hostile && na.AsNumber(hit["dealt"]) > 0 {
+			response.ObserveEffect(int64(na.AsNumber(hit["tick"])), "colonist_damaged_hostile")
+		}
+	}
+	s.Report()["response"] = response
 	if base, err := Baseline(name); err == nil {
 		s.Report()["baseline"] = base
 	}

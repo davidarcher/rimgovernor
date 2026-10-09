@@ -244,6 +244,9 @@ func sameNativeSource(a, b any) bool {
 // observeOwned is ObserveRoundsOwned served from the review's census when
 // the census covers the request, otherwise a fresh read through source.
 func (r *Rounder) observeOwned(ctx context.Context, source observation.RoundsSource, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (observation.RoundsReading, error) {
+	if immediateReview(ctx) {
+		return observation.ObserveRoundsProtection(ctx, source, r.clock, expected, r.maxAge)
+	}
 	ctx = standaloneWindow(ctx, source)
 	if reading, ok := r.census.lookup(source, r.native, expected, false, claims, definitions); ok {
 		return reading, nil
@@ -307,6 +310,9 @@ func (m mirroredBenches) ReadGearBenches(ctx context.Context, id *c.Identity) ([
 // observeRooms is ObserveRoundsRooms served from the census when it read
 // rooms, otherwise a fresh read through source.
 func (r *Rounder) observeRooms(ctx context.Context, source observation.RoundsSource, expected observation.Identity, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (observation.RoundsReading, error) {
+	if immediateReview(ctx) {
+		return observation.ObserveRoundsProtection(ctx, source, r.clock, expected, r.maxAge)
+	}
 	ctx = standaloneWindow(ctx, source)
 	if reading, ok := r.census.lookup(source, r.native, expected, true, claims, definitions); ok {
 		return reading, nil
@@ -327,6 +333,10 @@ func (r *Rounder) observeRooms(ctx context.Context, source observation.RoundsSou
 // otherwise a fresh read through source. Project definitions ride the
 // snapshot frame's subscription, so a read naming any takes the frame.
 func (r *Rounder) observeColony(ctx context.Context, source observation.ColonySource, expected observation.Identity, definitions []string) (observation.ColonyReading, error) {
+	if immediateReview(ctx) {
+		reading, err := observation.ObserveRoundsProtection(ctx, r.native, r.clock, expected, r.maxAge)
+		return reading.ColonyReading, err
+	}
 	ctx = standaloneWindow(ctx, source)
 	if len(definitions) > 0 {
 		routine, ok := source.(observation.RoundsSource)

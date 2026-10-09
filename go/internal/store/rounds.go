@@ -63,11 +63,15 @@ type Rounds struct {
 	Revision    uint64
 	Snapshot    domain.GenerationSnapshot
 	Tick        domain.Tick
-	Enabled     bool
-	Latches     policy.RoundsLatches
-	MedicalCare policy.MedicalCareHistory
-	EventLoot   policy.EventLootHistory
-	Comfort     policy.ComfortHistory
+	// OrdinaryTick is the last full enabled inspection, not refreshed by an
+	// immediate review. Zero means no full inspection in this world yet.
+	OrdinaryTick domain.Tick `json:",omitempty"`
+	Immediate    bool        `json:",omitempty"`
+	Enabled      bool
+	Latches      policy.RoundsLatches
+	MedicalCare  policy.MedicalCareHistory
+	EventLoot    policy.EventLootHistory
+	Comfort      policy.ComfortHistory
 	// Goals binds the Standards this review assessed; Projects binds the
 	// Projects.
 	Standards []RoundsStandard
@@ -114,12 +118,13 @@ type Rounds struct {
 }
 
 type RoundsRequest struct {
-	Revision uint64
-	Current  domain.GenerationSnapshot
-	Tick     domain.Tick
-	Enabled  bool
-	Policy   policy.RoundsPolicy
-	Facts    policy.RoundsFacts
+	Immediate bool
+	Revision  uint64
+	Current   domain.GenerationSnapshot
+	Tick      domain.Tick
+	Enabled   bool
+	Policy    policy.RoundsPolicy
+	Facts     policy.RoundsFacts
 }
 
 type RoundsResult struct {
@@ -168,7 +173,7 @@ func loadRounds(ctx context.Context, tx *sql.Tx) (Rounds, error) {
 	if migrated {
 		data = canonical
 	}
-	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Standards) > 306 || len(r.Projects) > 306 {
+	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || r.OrdinaryTick < 0 || r.OrdinaryTick > r.Tick || len(r.Standards) > 306 || len(r.Projects) > 306 {
 		return Rounds{}, errors.New("invalid rounds history")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
@@ -323,7 +328,7 @@ func (s *Store) LoadRounds(ctx context.Context) (Rounds, error) {
 	return r, tx.Commit()
 }
 
-// ReviewRounds commits all need assessments and latch history atomically.
+// ReviewRounds commits the requested inspection scope and latch history atomically.
 // It selects no methods and grants no execution authority. A disabled review
 // of the same world suspends routine goals and leaves their in-flight work
 // open for the next enabled review to resume; only world replacement or a
@@ -394,7 +399,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 	var recovery *policy.RecoveryRequest
 	var detection *RoundsDetection
 	// Stopping routine work must not depend on a successful native observation.
-	if request.Enabled {
+	if request.Enabled && !request.Immediate {
 		request.Facts.ResourceRunways = resourceRunways(request)
 		request.Facts.ConstructionClaims, err = constructionClaims(ctx, tx, request.Current, request.Tick)
 		if err != nil {
@@ -482,12 +487,23 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			}
 		}
 	}
+	if request.Enabled && request.Immediate {
+		request.Facts.Disaster, request.Facts.DisasterTick = disaster, previous.OrdinaryTick
+		if reset {
+			request.Facts.DisasterTick = 0
+		}
+		detection = &RoundsDetection{Facts: request.Facts, Latches: latches, Policy: request.Policy}
+		needs, err = policy.InspectImmediateRounds(request.Facts, latches, request.Policy)
+		if err != nil {
+			return RoundsResult{}, err
+		}
+	}
 	old := map[domain.ConcernID]StandardState{}
 	assessed := map[domain.ConcernID]bool{}
 	for _, n := range needs.All() {
 		assessed[n.ID] = true
 	}
-	if request.Enabled {
+	if request.Enabled && !request.Immediate {
 		if err = retireRoundsPlans(ctx, tx, request.Current, request.Tick, request.Facts.CurrentConstruction, settled); err != nil {
 			return RoundsResult{}, err
 		}
@@ -497,7 +513,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		if err != nil {
 			return RoundsResult{}, err
 		}
-		if changed || (request.Enabled && !assessed[binding.Concern]) {
+		if changed || (request.Enabled && !assessed[binding.Concern] && (!request.Immediate || policy.ImmediateConcern(binding.Concern))) {
 			if g.Standard.Status != domain.StandardVoided {
 				if err = cancelMethods(ctx, tx, g); err != nil {
 					return RoundsResult{}, err
@@ -521,7 +537,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		if err != nil {
 			return RoundsResult{}, err
 		}
-		if changed || (request.Enabled && !assessed[binding.Concern]) {
+		if changed || (request.Enabled && !assessed[binding.Concern] && (!request.Immediate || policy.ImmediateConcern(binding.Concern))) {
 			if p.Project.Status != domain.ProjectVoided {
 				if err = cancelMethods(ctx, tx, p); err != nil {
 					return RoundsResult{}, err
@@ -552,8 +568,10 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			retained[g.Standard.ID] = true
 		}
 	}
-	if err = retireRoundsStandards(ctx, tx, retained); err != nil {
-		return RoundsResult{}, err
+	if !request.Immediate || changed {
+		if err = retireRoundsStandards(ctx, tx, retained); err != nil {
+			return RoundsResult{}, err
+		}
 	}
 	retainedProjects := map[domain.ProjectID]bool{}
 	for _, p := range oldProjects {
@@ -561,10 +579,18 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			retainedProjects[p.Project.ID] = true
 		}
 	}
-	if err = retireProjects(ctx, tx, retainedProjects); err != nil {
-		return RoundsResult{}, err
+	if !request.Immediate || changed {
+		if err = retireProjects(ctx, tx, retainedProjects); err != nil {
+			return RoundsResult{}, err
+		}
 	}
-	r := Rounds{Revision: previous.Revision + 1, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
+	r := Rounds{Revision: previous.Revision + 1, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches, Immediate: request.Immediate}
+	if !reset {
+		r.OrdinaryTick = previous.OrdinaryTick
+	}
+	if request.Enabled && !request.Immediate {
+		r.OrdinaryTick = request.Tick
+	}
 	r.MedicalCare = medical
 	r.BrewingFinished = policy.BrewingFinished(request.Facts.Research)
 	r.EventLoot = loot
@@ -579,7 +605,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 	if !reset {
 		r.WallCells = previous.WallCells
 	}
-	if census, known := request.Facts.CurrentConstruction.Value(); known && census.Colony {
+	if census, known := request.Facts.CurrentConstruction.Value(); !request.Immediate && known && census.Colony {
 		if r.WallCells, err = wallCells(ctx, tx, census); err != nil {
 			return RoundsResult{}, err
 		}
@@ -587,12 +613,12 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			return RoundsResult{}, err
 		}
 	}
-	if census, known := request.Facts.CurrentConstruction.Value(); known && census.Colony {
+	if census, known := request.Facts.CurrentConstruction.Value(); !request.Immediate && known && census.Colony {
 		if r.Built, err = builtActions(ctx, tx, census); err != nil {
 			return RoundsResult{}, err
 		}
 	}
-	if request.Enabled {
+	if request.Enabled && !request.Immediate {
 		if reserve, known := request.Facts.FoodReserve.Value(); known {
 			wanted := map[string]bool{}
 			for _, id := range reserve.Hold {
@@ -679,7 +705,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			}
 		}
 		r.NoOps = needs.NoOps
-		if r.Incidents, result.Incidents, err = reviewIncidents(ctx, tx, needs.Incidents, b, request.Tick); err != nil {
+		if r.Incidents, result.Incidents, err = reviewIncidents(ctx, tx, needs.Incidents, request, previous); err != nil {
 			return RoundsResult{}, err
 		}
 		for _, n := range needs.Assessments {
@@ -732,7 +758,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			states = append(states, g)
 		}
 	}
-	if request.Enabled {
+	if request.Enabled && !request.Immediate {
 		r.Progress, err = roundsProgress(ctx, tx, request, previous, reset, needs, states)
 		if err != nil {
 			return RoundsResult{}, err
@@ -762,7 +788,7 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 			return RoundsResult{}, err
 		}
 	}
-	if _, known := request.Facts.Upkeep.Clearance.Value(); known {
+	if _, known := request.Facts.Upkeep.Clearance.Value(); !request.Immediate && known {
 		if recovery == nil {
 			// A disabled review never filtered the census.
 			rows, _ := request.Facts.Upkeep.Clearance.Value()
@@ -774,15 +800,22 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 		}
 		queue := policy.RankRecovery(*recovery)
 		r.RecoveryQueue = &queue
-	} else {
+	} else if !reset {
 		r.RecoveryQueue = previous.RecoveryQueue
 	}
 	if _, known := request.Facts.Upkeep.Shrines.Value(); known {
 		r.ShrineHolds = slices.Clone(request.Facts.ShrineHolds)
-	} else {
+	} else if !reset {
 		r.ShrineHolds = previous.ShrineHolds
 	}
-	markShrineHolds(r.ShrineHolds, r.ShrineStep)
+	if !request.Immediate {
+		markShrineHolds(r.ShrineHolds, r.ShrineStep)
+	}
+	if request.Enabled && request.Immediate && !reset {
+		if err = retainOrdinaryRounds(ctx, tx, &r, previous, &result); err != nil {
+			return RoundsResult{}, err
+		}
+	}
 	data, err := json.Marshal(r)
 	if err != nil {
 		return RoundsResult{}, err

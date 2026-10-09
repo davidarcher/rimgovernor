@@ -32,8 +32,11 @@ type Rounds struct {
 	Recorded string
 	Snapshot domain.GenerationSnapshot
 	Tick     domain.Tick
-	Facts    policy.RoundsFacts
-	Latches  policy.RoundsLatches
+	// Immediate records the inspection scope so replay does not infer ordinary
+	// findings from a deliberately partial emergency observation.
+	Immediate bool
+	Facts     policy.RoundsFacts
+	Latches   policy.RoundsLatches
 	// Policy is the staged policy the review detected against.
 	Policy policy.RoundsPolicy
 	// Review is the journal's rounds after this one filed.
@@ -63,7 +66,8 @@ func FromReview(current domain.GenerationSnapshot, tick domain.Tick, result stor
 		Projection: &reading,
 		Recorded:   fmt.Sprintf("colony %s load %s map %d tick %d", current.Colony, current.Load, current.Map, tick),
 		Snapshot:   current, Tick: tick,
-		Facts: result.Detection.Facts, Latches: result.Detection.Latches, Policy: result.Detection.Policy,
+		Immediate: result.Review.Immediate,
+		Facts:     result.Detection.Facts, Latches: result.Detection.Latches, Policy: result.Detection.Policy,
 		Review: &review,
 	}, true
 }
@@ -111,6 +115,9 @@ func decodeRounds(data []byte) (Rounds, error) {
 	if err := Decode(data, &r); err != nil {
 		return Rounds{}, err
 	}
+	if r.Review != nil && r.Immediate != r.Review.Immediate {
+		return Rounds{}, errors.New("snapshot: inspection scope differs from review")
+	}
 	dropNativeGearCensus(&r.Facts)
 	if r.Projection != nil {
 		r.Projection.Facts = r.Facts
@@ -134,6 +141,9 @@ func dropNativeGearCensus(f *policy.RoundsFacts) {
 
 // Detect replays the review's need detection over the recorded facts.
 func (r Rounds) Detect() (policy.RoundsFindings, error) {
+	if r.Immediate {
+		return policy.InspectImmediateRounds(r.Facts, r.Latches, r.Policy)
+	}
 	return policy.InspectRounds(r.Facts, r.Latches, r.Policy)
 }
 

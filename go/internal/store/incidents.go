@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // IncidentState is one Response occurrence and the methods bound to it
@@ -274,6 +275,12 @@ func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID,
 	if err != nil {
 		return IncidentState{}, err
 	}
+	if open && state.Incident.Kind == domain.ConcernID(policy.RecoverDisasterServices) && recoveryAreaOnly(plan) {
+		open, err = recoveryAreaConflictingWork(ctx, tx, state)
+		if err != nil {
+			return IncidentState{}, err
+		}
+	}
 	if open {
 		return IncidentState{}, ErrOpenMethod
 	}
@@ -298,4 +305,41 @@ func guardIncidentWork(ctx context.Context, tx *sql.Tx, id domain.IncidentID, cu
 		return errors.New("incident does not admit current work")
 	}
 	return admitRoundsSafeguards(ctx, tx, state)
+}
+
+// A protective area setting may coexist with ordinary service jobs on the
+// recovery Incident. All other open methods retain exclusive admission.
+func recoveryAreaOnly(plan domain.PlanSpec) bool {
+	if len(plan.Actions()) == 0 {
+		return false
+	}
+	for _, action := range plan.Actions() {
+		work, assignment := action.WorkAssignment()
+		animal, husbandry := action.Husbandry()
+		if !(assignment && work.HasArea() && len(work.Settings()) == 0 && !work.HasSchedule() || husbandry && animal.Method() == domain.HusbandryAllowedArea) {
+			return false
+		}
+	}
+	return true
+}
+
+func recoveryAreaConflictingWork(ctx context.Context, tx *sql.Tx, state IncidentState) (bool, error) {
+	for _, id := range state.ownerPlans() {
+		plan, err := load(ctx, tx, id)
+		if err != nil {
+			return false, err
+		}
+		if held, err := combatFightHolds(ctx, tx, id); err != nil || held {
+			return held, err
+		}
+		if !PlanOpen(plan) {
+			continue
+		}
+		for _, progress := range plan.Progress {
+			if domain.StandardWorkOpen([]domain.Progress{progress}) && progress.Action().Kind() != domain.RecoveryServiceAction {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -277,6 +278,20 @@ func combatBatchPlan(fight domain.PlanID, action string, drafts []domain.PawnID,
 	}
 	return domain.NewPlan(domain.PlanID(key), 1, []domain.Action{a})
 }
+
+// recordCombatDispatch uses the same dispatch evidence kind as Worker for
+// synchronous Hands calls. An uncertain receipt still proves a call happened;
+// neither that call nor an accepted receipt proves native pawn progress.
+func recordCombatDispatch(ctx context.Context, items []executor.BatchItem) {
+	for _, item := range items {
+		if !item.Result.NativeCalled {
+			continue
+		}
+		v := item.Result.Progress.View()
+		telemetry.Decide(ctx, telemetry.Decision{Kind: "dispatch", Component: "routine-defense", Target: string(item.Action), Verdict: "dispatched", Reason: "native_called", Attrs: map[string]any{"dispatch_tick": int64(v.Tick), "attempt": int64(v.Attempt), "stage_after": string(v.Stage)}})
+	}
+}
+
 func (r *RoundsDefensePlanner) sendCombatBatch(call context.Context, state ControlState, fight domain.PlanID, action string, drafts []domain.PawnID, orders []policy.CombatOrder) ([]bridge.CombatOrderResult, []policy.CombatOrder, error) {
 	if err := r.captureCombatSettings(call, state, fight, orders); err != nil {
 		return nil, nil, err
@@ -294,6 +309,7 @@ func (r *RoundsDefensePlanner) sendCombatBatch(call context.Context, state Contr
 	if !saved.Retired && !progress.View().Unresolved && (progress.View().Stage == domain.Pending || progress.View().Stage == domain.Prepared) {
 
 		items, runErr := r.hands.RunBatch(call, plan.ID(), []domain.ActionID{plan.Actions()[0].ID()})
+		recordCombatDispatch(call, items)
 		if runErr != nil {
 			return nil, nil, runErr
 		}

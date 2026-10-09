@@ -163,6 +163,9 @@ type ClockSchedulerConfig struct {
 	Autosave func(ctx context.Context, identity *c.Identity, tick int64)
 }
 type ClockSchedulerResult struct {
+	// Immediate marks a protection-only cycle. Ordinary queue entries remain
+	// due until Hands has had a dispatch opportunity and native can advance.
+	Immediate bool
 	// Pacing is what the step's clock status said of the pace (#627).
 	Pacing                                                                                                              StepPacing
 	CookingBills, PreservationBills, ButcherBills, CookAheadBills, ArtBills, SurgeryPartBills, BabyFoodBills, MechBills *RoundsBillResult
@@ -310,6 +313,12 @@ type ClockSchedulerResult struct {
 	Reason StepReason
 }
 type ClockScheduler struct {
+	// protection is the issued work ordinary review must yield to. The action
+	// journal remains authoritative; this is only the next-cycle scheduling set.
+	protection []domain.ActionID
+	// The independent clock poll cancels an ordinary read when native stops,
+	// releasing the player gate for a fresh protective cycle.
+	ordinaryCancel *atomic.Pointer[context.CancelFunc]
 	// plannerReasons is the last planner refusal filed per goal.
 	plannerReasons      plannerReasonLog
 	player              *Player
@@ -652,6 +661,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	config.Profile = inbox.Profile
 	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Store), queue: newPlannerQueue(), running: new(atomic.Bool), manualAt: new(atomic.Int64), validity: new(atomic.Pointer[domain.ReadValidity]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
+	scheduler.ordinaryCancel = new(atomic.Pointer[context.CancelFunc])
 	if config.Start.PlayerAccelerated || config.FollowPlayerSpeed {
 		scheduler.paceEpoch = new(atomic.Pointer[k.Epoch])
 		scheduler.pace = newPaceBackoff(config.PaceHorizonTicks, clock.Now, scheduler.requestCeiling)
@@ -748,6 +758,7 @@ func windowRefusedDecision(refused []string, attrs map[string]any) telemetry.Dec
 // EvaluateClockWindow) runs on every step that reaches it.
 func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) (out ClockSchedulerResult, err error) {
 	var paused time.Duration
+	var controllerPausedAt time.Time
 	var readmit bool
 	entered := time.Now()
 	var gate gateWait
@@ -763,6 +774,17 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		return out, err
 	}
 	defer done()
+	ordinary, cancelOrdinary := context.WithCancel(call)
+	if s.ordinaryCancel != nil {
+		s.ordinaryCancel.Store(&cancelOrdinary)
+	}
+	defer func() {
+		if s.ordinaryCancel != nil {
+			s.ordinaryCancel.Store(nil)
+		}
+		cancelOrdinary()
+	}()
+	call = context.WithValue(call, ordinaryInterruptKey{}, ordinary)
 	gateWait := time.Since(entered)
 	// A wake's evidence lands on the due queue once, here, so it outlives
 	// a step that runs no planners (a paced live wave, a stopping window)
@@ -872,6 +894,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if paused > 0 && readmit && out.Attempt != nil && out.Attempt.Phase != store.ClockRefused {
 			extra["stop_pause_s"] = paused.Seconds()
 		}
+		if !controllerPausedAt.IsZero() {
+			extra["controller_pause_ms"] = float64(time.Since(controllerPausedAt)) / float64(time.Millisecond)
+		}
 		reads.Publish(call, stepDecision(out, err, cause, elapsed, extra))
 	}()
 	attempts, err := journalTimed(journal, func() ([]store.ClockAttempt, error) { return s.player.journal.LoadClockAttempts(call, 4096) })
@@ -962,14 +987,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		return s.player.journal.LayoutPlan(ctx, world, tick)
 	}
 	zones.scope, zones.tick, zones.review = factsScope(loaded.Context), loaded.Context.GetTick(), reviews
-	// Every full review step refreshes the entity sections and the zone
-	// census, each read whole.
-	if reviews {
-		refreshEntitySections(call, s.native, s.facts, loaded.Context.Identity, factsScope(loaded.Context))
-		// A failed zone refresh leaves the census held; planners read it
-		// as stale rather than the step failing.
-		_, _ = zones.Zones(call, loaded.Context.Identity)
-	}
 	state := s.session.State()
 	world := domain.GenerationSnapshot{Colony: domain.ColonyID(loaded.Context.Identity.GetColonyId()), Load: domain.LoadID(loaded.Context.Identity.GetLoadToken()), Map: domain.MapID(loaded.Context.Identity.GetMapId())}
 	obligations := false
@@ -1008,6 +1025,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if err != nil {
 		clockAuthorityLost(call, "bundle clock status failed", "err", err)
 		return out, errors.Join(err, s.session.Disable())
+	}
+	if status.GetActualPaused() {
+		controllerPausedAt = time.Now()
 	}
 	if status.Context.GetTick() < loaded.Context.GetTick() {
 		clockAuthorityLost(call, "clock status is behind the scope tick", "status_tick", status.Context.GetTick(), "scope_tick", loaded.Context.GetTick())
@@ -1101,7 +1121,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			return out, err
 		}
 		s.plannedTick, s.plannedTickKnown = status.Context.GetTick(), true
-		if sel.pick == nil {
+		if sel.pick == nil && !out.Immediate {
 			s.lastFull = s.clock.Now()
 		}
 		return out, s.pauseForHunt(call, state.Snapshot, status, &out)
@@ -1154,7 +1174,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			return out, executor.ErrHeld
 		}
 		s.plannedTick, s.plannedTickKnown = status.Context.GetTick(), true
-		if sel.pick == nil {
+		if sel.pick == nil && !out.Immediate {
 			s.lastFull = s.clock.Now()
 		}
 		// The planners ran between the step read and admission; MaxAge
@@ -1559,13 +1579,32 @@ func (s *ClockScheduler) markStarved(finished, missed []string) {
 // records the planners that returned (#625): each is due again at its
 // cadence, one that found the work of its kinds still open waits on it,
 // and one that missed the cutoff keeps its marks for the next step.
-func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSchedulerResult, sel plannerSelectionResult, status *k.Status) ([]string, error) {
+func (s *ClockScheduler) runPlannerWave(call, epoch context.Context, out *ClockSchedulerResult, sel plannerSelectionResult, status *k.Status, immediate bool) ([]string, error) {
+	call = context.WithValue(call, immediateReviewKey{}, immediate)
+	if ordinary, ok := call.Value(ordinaryInterruptKey{}).(context.Context); !immediate && ok {
+		var cancel context.CancelFunc
+		call, cancel = context.WithCancel(call)
+		stop := context.AfterFunc(ordinary, cancel)
+		if ordinary.Err() != nil {
+			cancel()
+		}
+		defer func() {
+			stop()
+			cancel()
+		}()
+	}
 	arbiter := newStepArbiter()
 	arbiter.late = s.late
 	wave := newPlannerWave(call)
 	defer wave.cancelOptional()
 	defer s.recordWave(call, sel, wave, status.Context.GetTick())
 	began := time.Now()
+	if !immediate {
+		// Ordinary section refreshes belong after protective execution too.
+		// Failed reads retain the existing explicit stale/unknown evidence.
+		refreshEntitySections(call, s.native, s.facts, status.Context.Identity, factsScope(status.Context))
+		_, _ = observation.ReadZoneSection(call, s.native, status.Context.Identity)
+	}
 	// Under player acceleration the critical wave is the evidence the
 	// backoff keeps inside the horizon, aged from the step's status read.
 	watched := func(time.Duration, bool) {}
@@ -1577,25 +1616,25 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		s.paceEpoch.Store(proto.Clone(status.GetRunning().GetEpoch()).(*k.Epoch))
 		watched = s.pace.Watch(call, readAt)
 	}
-	planners, err := s.stepPlanners(call, epoch, out, wave, arbiter, sel.pick)
+	planners, err := s.stepPlanners(call, epoch, out, wave, arbiter, sel.pick, immediate)
 	if err != nil {
+		out.CriticalWave += time.Since(began)
 		watched(0, false)
 		return nil, err
 	}
-	// The wall budget bounds the planners, not the rounds that
-	// stepPlanners ran first: a cold review and layout take seconds on a
-	// slow runner and used to leave the critical planners the rest of the
-	// budget, so a startup planner was cut at every step.
-	began = time.Now()
+	// Response accounting includes review. The planner hang guard remains
+	// separate from that measurement; it is not an end-to-end latency promise.
+	plannerBegan := time.Now()
 	wall := after(s.config.Budget.wall())
 	if err = wave.group.WaitCritical(wall); err != nil {
 		watched(0, false)
 		if !errors.Is(err, errCutoff) {
+			out.CriticalWave += time.Since(began)
 			return nil, err
 		}
 		pending := wave.close()
 		arbiter.close()
-		out.CriticalWave = time.Since(began)
+		out.CriticalWave += time.Since(began)
 		for _, name := range pending {
 			if wave.queuedCritical(name) {
 				out.HeldBy = append(out.HeldBy, name)
@@ -1605,20 +1644,26 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		}
 		return planners, nil
 	}
-	out.CriticalWave = time.Since(began)
+	criticalWall := time.Since(began)
+	out.CriticalWave += criticalWall
 	watched(s.clock.Now().Sub(readAt), true)
-	grace := s.optionalWaveGrace(out.CriticalWave, wave.group.Pending())
-	cutoff := after(min(grace, s.config.Budget.wall()-out.CriticalWave))
+	grace := s.optionalWaveGrace(criticalWall, wave.group.Pending())
+	cutoff := after(min(grace, s.config.Budget.wall()-time.Since(plannerBegan)))
 	select {
 	case <-wall:
 		cutoff = wall
 	default:
 	}
 	if pending := wave.group.WaitUntil(cutoff); len(pending) > 0 {
-		out.MissedCutoff = pending
+		out.MissedCutoff = append(out.MissedCutoff, pending...)
 	}
 	s.markStarved(wave.finishedNames(), out.MissedCutoff)
-	out.PlannerMS = wave.plannerMS()
+	if out.PlannerMS == nil {
+		out.PlannerMS = map[string]float64{}
+	}
+	for name, ms := range wave.plannerMS() {
+		out.PlannerMS[name] += ms
+	}
 	wave.close()
 	arbiter.close()
 	// The migrated planners proposed instead of committing: rank their
@@ -1633,15 +1678,17 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	}
 	scope, _ := domain.ReadValidityFrom(call)
 	var commitFailures []error
-	out.Proposals, commitFailures = arbiter.coordinate(call, budget, scope)
-	for _, outcome := range out.Proposals {
+	proposals, commitFailures := arbiter.coordinate(call, budget, scope)
+	out.Proposals = append(out.Proposals, proposals...)
+	for _, outcome := range proposals {
 		wave.decided(outcome.Planner, outcome.Verdict)
 	}
 	wave.merge(out)
 	// A failed planner is reported, not fatal: the step still evaluates the
 	// clock window on what the other planners committed, and the failed
 	// planner retries next step (#62).
-	out.PlannerFailures = append(wave.group.Failures(), commitFailures...)
+	out.PlannerFailures = append(out.PlannerFailures, wave.group.Failures()...)
+	out.PlannerFailures = append(out.PlannerFailures, commitFailures...)
 	// A planner's own failure filed its planner_step row when it returned; a
 	// proposal that failed to commit has none, so it files one here.
 	for _, failure := range commitFailures {
@@ -1846,10 +1893,16 @@ func (s *ClockScheduler) fullStepDue() bool {
 // failures, without stopping the step. The colony stage's
 // Foothold hold also drops the comfort-class planners and promotes the
 // startup planners into the critical cycle for the step (#658).
-func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, wave *plannerWave, arbiter *stepArbiter, pick func(plannerEntry) bool) ([]string, error) {
+func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, wave *plannerWave, arbiter *stepArbiter, pick func(plannerEntry) bool, immediate bool) ([]string, error) {
 	startup := false
 	if s.config.Rounds != nil {
-		review, err := s.config.Rounds.step(call, epoch, arbiter, pick != nil)
+		var review store.RoundsResult
+		var err error
+		if immediate {
+			review, err = s.config.Rounds.immediateStep(call, epoch)
+		} else {
+			review, err = s.config.Rounds.step(call, epoch, arbiter, pick != nil)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("routine: %w", err)
 		}
@@ -1863,8 +1916,10 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 			return nil, fmt.Errorf("routine: %w", executor.ErrAuthority)
 		}
 		out.Rounds = &review
-		if err := s.establishExtent(call, review.Review.Tick); err != nil {
-			return nil, fmt.Errorf("colony extent: %w", err)
+		if !immediate {
+			if err := s.establishExtent(call, review.Review.Tick); err != nil {
+				return nil, fmt.Errorf("colony extent: %w", err)
+			}
 		}
 		// A mental break is not a hold: it only ends with ticks, so refusing
 		// every window while one is observed stopped the clock for good in

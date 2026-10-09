@@ -8,6 +8,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -33,7 +34,7 @@ type RoundsReading struct {
 }
 
 func ObserveRoundsOwned(ctx context.Context, source RoundsSource, clock Clock, expected Identity, maxAge time.Duration, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (RoundsReading, error) {
-	return observeRounds(ctx, source, clock, expected, maxAge, claims, false, definitions...)
+	return observeRounds(ctx, source, clock, expected, maxAge, claims, false, true, definitions...)
 }
 
 // ObserveRoundsRooms additionally takes the frame's room census. Temperature
@@ -41,7 +42,13 @@ func ObserveRoundsOwned(ctx context.Context, source RoundsSource, clock Clock, e
 // hosting room role: without the census no comfort facility can be
 // certified as hosted, so comfort becomes unknown.
 func ObserveRoundsRooms(ctx context.Context, source RoundsSource, clock Clock, expected Identity, maxAge time.Duration, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (RoundsReading, error) {
-	return observeRounds(ctx, source, clock, expected, maxAge, claims, true, definitions...)
+	return observeRounds(ctx, source, clock, expected, maxAge, claims, true, true, definitions...)
+}
+
+// ObserveRoundsProtection decodes the same native frame and room observations
+// without fetching the development planning window or its definition reads.
+func ObserveRoundsProtection(ctx context.Context, source RoundsSource, clock Clock, expected Identity, maxAge time.Duration) (RoundsReading, error) {
+	return observeRounds(ctx, source, clock, expected, maxAge, domain.Unknown[[]policy.ConstructionClaim](), true, false)
 }
 
 // frameColony answers ObserveColony's colony facts and zone reads from the
@@ -72,10 +79,15 @@ func (f frameColony) ReadZoneSection(context.Context, *c.Identity) (bridge.Zones
 	return *f.frame.Zones, bridge.Result{}, nil
 }
 
+func (f frameColony) Zones(ctx context.Context, id *c.Identity) (facts.Held[bridge.ZonesRead], error) {
+	read, _, err := f.ReadZoneSection(ctx, id)
+	return facts.Held[bridge.ZonesRead]{Value: read, AsOf: read.AsOf, Complete: err == nil, Source: "native_frame"}, err
+}
+
 // observeRounds decodes one frame. ObserveColony checks the frame's colony
 // context against expected; every other section of the frame shares that
 // context and tick, so none is checked against another (#306, #884).
-func observeRounds(ctx context.Context, source RoundsSource, clock Clock, expected Identity, maxAge time.Duration, claims domain.Fact[[]policy.ConstructionClaim], rooms bool, definitions ...string) (RoundsReading, error) {
+func observeRounds(ctx context.Context, source RoundsSource, clock Clock, expected Identity, maxAge time.Duration, claims domain.Fact[[]policy.ConstructionClaim], rooms, planning bool, definitions ...string) (RoundsReading, error) {
 	if source == nil {
 		return RoundsReading{}, ErrContract
 	}
@@ -88,7 +100,13 @@ func observeRounds(ctx context.Context, source RoundsSource, clock Clock, expect
 	if frame.Colony == nil || frame.Emergency.Context == nil {
 		return RoundsReading{}, ErrContract
 	}
-	reading, err := ObserveColony(ctx, frameColony{source, frame}, clock, expected, maxAge, true)
+	colonySource := frameColony{source, frame}
+	if !planning {
+		// Protection uses only this coherent frame, never the ordinary
+		// scheduler's zone refresher and its potentially blocked census.
+		ctx = WithZones(ctx, colonySource)
+	}
+	reading, err := ObserveColony(ctx, colonySource, clock, expected, maxAge, planning)
 	if err != nil {
 		return RoundsReading{}, err
 	}

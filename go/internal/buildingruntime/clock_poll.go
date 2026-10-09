@@ -244,6 +244,11 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 			s.noteManual(s.clock.Now())
 		}
 		if clockPollStopped(page) {
+			if s.ordinaryCancel != nil {
+				if cancel := s.ordinaryCancel.Load(); cancel != nil {
+					(*cancel)()
+				}
+			}
 			s.running.Store(false)
 		}
 		out.Wake, out.Invalidated, out.AuthorityChanged, out.Stopped, out.StoppedAt = clockPageWakeStopped(page)

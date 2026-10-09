@@ -20,6 +20,16 @@ copy of a fact is a bug, not a cache.
 | Go memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (read once per load token), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`); the `standards`, `projects`, `methods` and family tables are such views of the save blobs (`RebuildStandards` rebuilds Standards and Projects under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
 | `flight.jsonl` | All controller telemetry, one row per thing that happened ([flight rows](flight-rows.md), schema v2), the only log: always on for `serve`, nothing else is written to stderr but the startup banner, fatals and panics; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
 
+The derived `rounds` payload records its last inspection scope (`Immediate`) and
+last full enabled inspection time (`OrdinaryTick`) separately from the latest
+review `Tick`. Immediate reviews update only combat, critical care, worker
+restoration, fire safety, shelter and protective area needs. Other bindings,
+methods, progress and derived histories retain their original observation times.
+Disaster service history and recovery selections are not refreshed from missing
+ordinary inputs. An active hunt retains its incident and prey until a review has
+food-plan evidence or an observed hostile takes over. World changes and rewinds
+discard these derived histories through the same canonical review transaction.
+
 The supply Standard's `Record` holds an outstanding comms request's selected
 faction, kind, console, negotiator and expected request-tick fence. Its Method
 and that intent commit atomically. After a load, native comms work, request tick,
@@ -147,3 +157,8 @@ receipts remain unchanged. Pending cleanup does not block unrelated protection.
 
 [Sessions and recovery](../architecture/sessions-and-recovery.md) ·
 [Save and resume](../../players/save-and-resume.md)
+
+Protective area-setting methods on RecoverDisasterServices may coexist with open
+RecoveryService actions on that same Incident. Their normal typed payload,
+Safeguards and action journal remain authoritative; any other open action still
+blocks a second method, and service work is neither canceled nor replayed.

@@ -142,6 +142,12 @@ func (q *plannerQueue) wake(reason StepReason, kindOf func(domain.ActionID) (dom
 	}
 	for _, entry := range q.entries() {
 		if q.matches(entry, kinds, sections, families) {
+			// Protective waits describe the prior safety facts. A relevant
+			// observation must reconsider them even while issued work is open;
+			// family policy decides whether that work should continue.
+			if immediatePlanner(entry) {
+				delete(q.waits, entry.name)
+			}
 			q.mark(entry.name)
 		}
 	}

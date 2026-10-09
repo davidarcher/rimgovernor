@@ -95,13 +95,13 @@ func validateRoundsRecovery(r Rounds) error {
 		return nil
 	}
 	v := r.Recovery
-	if !r.Enabled || r.Disaster == nil || v.Selection.Tick != r.Tick || v.Selection.Validate() != nil {
+	if !r.Enabled || r.Disaster == nil || v.Selection.Tick > r.Tick || !r.Immediate && v.Selection.Tick != r.Tick || v.Selection.Validate() != nil {
 		return errors.New("invalid routine recovery selection")
 	}
 	if b, ok := r.incidentBinding(v.Incident); !ok || b.Kind != policy.RecoverDisasterServices {
 		return errors.New("recovery selection lost incident ownership")
 	}
-	selection, err := policy.SelectRecoveryMethods(v.planning(), r.Disaster, v.Used, r.Tick)
+	selection, err := policy.SelectRecoveryMethods(v.planning(), r.Disaster, v.Used, v.Selection.Tick)
 	if err != nil {
 		return err
 	}

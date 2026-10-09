@@ -130,12 +130,15 @@ func (r *RoundsRecoveryPlanner) step(call, epoch context.Context, arbiter *stepA
 		if err != nil {
 			return RoundsRecoveryResult{}, err
 		}
-		if domain.StandardWorkOpen(updated.Progress) {
+		if recoveryWorkBlocksProtection(updated.Progress, review.Immediate) {
 			return RoundsRecoveryResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	if len(changes) > 0 {
 		return r.commitAreaChange(call, epoch, arbiter, state.Snapshot, incident, changes, workers, started)
+	}
+	if review.Immediate {
+		return RoundsRecoveryResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, service := range applied {
 		if continuing, known := policy.RecoveryWorkContinuing(service, facts.RecoveryBuildings, read.Projection.WorkPawns).Value(); !known {
@@ -236,4 +239,21 @@ func shelterCombatants(ctx context.Context, journal *store.Store, world store.Wo
 	}
 	slices.Sort(out)
 	return domain.Known(out), nil
+}
+
+// Ordinary service work does not delay a protective area correction. Only
+// already-open area orders can cover that correction during an urgent review.
+func recoveryWorkBlocksProtection(progress []domain.Progress, immediate bool) bool {
+	if !immediate {
+		return domain.StandardWorkOpen(progress)
+	}
+	for _, p := range progress {
+		a := p.Action()
+		work, assignment := a.WorkAssignment()
+		animal, husbandry := a.Husbandry()
+		if (assignment && work.HasArea() || husbandry && animal.Method() == domain.HusbandryAllowedArea) && domain.StandardWorkOpen([]domain.Progress{p}) {
+			return true
+		}
+	}
+	return false
 }

@@ -38,21 +38,38 @@ force reconciliation. Tests reject undeclared planner reads.
 
 ```mermaid
 flowchart TD
-    Event[Clock event, outcome or cadence] --> Round[Inspect Concerns]
-    Round --> Queue[Select due and invalidated planners]
-    Queue --> Critical[Critical planner wave]
+    Event[Clock event, outcome or cadence] --> Queue[Select due and invalidated planners]
+    Queue --> Immediate[Inspect immediate protection]
+    Immediate --> Protection[Protective Methods through Hands]
+    Protection --> Advance[Yield for dispatch and native time]
+    Advance --> Round[Inspect ordinary Concerns]
+    Round --> Critical[Remaining critical planner wave]
     Critical --> Optional[Optional planner wave within budget]
     Critical --> Proposals[Proposals and claims]
     Optional --> Proposals
     Proposals --> Admit[Admission and dispatch]
     Admit --> Observe[Observe progress]
     Observe --> Event
+    Event -->|native stop cancels blocked ordinary review| Immediate
 ```
 
-Critical planners precede optional work. Startup shelter can be promoted.
-The planner-wave wall budget starts after the Rounder's review; it is not an
-end-to-end response deadline. See the
-[expert-play roadmap](expert-play-assessment.md) for the proposed stronger bound.
+Immediate protection precedes development reads: combat and draft cleanup,
+emergency tending/rescue, protective areas and active fire use a scoped review
+of the native frame. It does not fetch the development planning window. The
+same scheduler retains ordinary work on its due queue, yielding the player
+gate to Hands before that work can block dispatch. A stopped clock can admit
+protective native progress before ordinary review runs.
+
+An omitted Concern was not inspected. Its Methods, progress and derived
+ordinary facts keep their prior evidence and timestamps. World replacement,
+rewind and revoked authority still invalidate unsafe work. The scoped review
+does not interpret missing facts as recovery. Ordinary recovery service work,
+medical reserves and surgery remain in the ordinary pass.
+
+Critical planners precede optional work within each pass; startup shelter can
+be promoted. Response accounting includes pre-wave review, while the planner
+wall budget remains a separate hang guard. There is no calibrated numeric
+end-to-end latency gate.
 
 ### Routine work admission
 

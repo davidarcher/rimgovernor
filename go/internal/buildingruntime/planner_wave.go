@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
@@ -136,7 +137,14 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 		w.took[entry.name] = took
 		late := w.closed
 		w.mu.Unlock()
-		telemetry.Decide(ctx, plannerStepDecision(entry, reason, err, took, late))
+		decision := plannerStepDecision(entry, reason, err, took, late)
+		if immediateReview(ctx) {
+			decision.Attrs["scope"] = "immediate"
+			if validity, known := domain.ReadValidityFrom(ctx); known {
+				decision.Attrs["decision_tick"] = int64(validity.Tick)
+			}
+		}
+		telemetry.Decide(ctx, decision)
 		if err != nil {
 			err = fmt.Errorf("%s: %w", entry.name, err)
 		}

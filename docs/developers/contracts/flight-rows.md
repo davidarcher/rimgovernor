@@ -60,6 +60,17 @@ Register a kind and a consuming reader before adding an emission.
 
 ### Clock and scheduler (`internal/buildingruntime`)
 
+Immediate protection adds `scope: immediate` to its `planner_step` rows,
+`observation_tick` on the Rounder row and `decision_tick` on planner rows.
+`dispatch_tick` on a Worker or synchronous combat Hands dispatch records the
+journal's native dispatch tick, including uncertain replies.
+`clock_step.controller_pause_ms` records the monotonic scheduler interval from
+an observed paused clock through return; it excludes unobserved pause intervals.
+`clock_step.critical_wave_ms`
+includes pre-wave review. The native acceptance `ResponseEvidence` reader uses
+these fields alongside `stop_pause_s`; it never treats an accepted dispatch as
+the first native protective effect.
+
 | Kind | Shape and fields |
 |---|---|
 | `planner_step` (decision) | one per planner run. `target` planner, `verdict` outcome (`admitted`, `waiting`, `refused`, `unselected`, `failed`), `reason` the refusal or wait cause; attrs `proposals`, `edits`, `cause`, `admitted`, `running`, `reconciled`, `cleaned`, `deferred`, `retaken`, `combat`, `window_ticks`, `repeated`, `error`. Rounder targets `rounds` (`ok`/`reviewed` or `failed`/`error`, attr `partial`); the worker targets `worker_step`. Step journal failures target `reasons`, `waits` or `proposals` with `failed`/`journal_error`. |
