@@ -11,10 +11,10 @@ using Receipts = RimGovernor.Protocol.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // GiveJobIntent Clean, the bounded cleaning response of
-    // MaintainCleanFacilities: exact spawned filth inside the home area, an
-    // undrafted worker who can reach it and needs no tending, plus
+    // MaintainCleanFacilities: exact spawned filth, an
+    // undrafted worker who can reach it at NativeOrderDanger, plus
     // WorkGiver_CleanFilth's own HasJobOnThing (reservable, thickened at
-    // least 600 ticks ago), then one JobDefOf.Clean job whose target queue
+    // least 600 ticks ago, inside the home area), then one JobDefOf.Clean job whose target queue
     // holds the exact filth and nothing else. The work giver's JobOnThing
     // would also sweep up to fifteen neighbouring filth into the same job;
     // the controller's order is bounded to the one target it chose, so the
@@ -42,10 +42,6 @@ namespace HomeBridge.BridgeTools
             if (filth == null || filth.Destroyed || !filth.Spawned || filth.Map != map)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact spawned filth is unavailable.");
             if (Running(pawn!, filth)) return null;
-            if (!map.areaManager.Home[filth.Position])
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Clean targets only filth inside the current home area.");
-            if (pawn!.health.HasHediffsNeedingTend())
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn needs tending and cannot be ordered to clean.");
             var giver = Giver();
             var giverDef = giver?.def;
             if (giver == null || giverDef == null)
@@ -53,12 +49,12 @@ namespace HomeBridge.BridgeTools
             var missing = giver.MissingRequiredCapacity(pawn);
             if (missing != null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn is missing a capacity cleaning needs (" + missing.defName + ").");
-            if (pawn.WorkTagIsDisabled(giverDef.workTags) || (giverDef.workType != null && pawn.WorkTypeIsDisabled(giverDef.workType)))
+            if (pawn!.WorkTagIsDisabled(giverDef.workTags) || (giverDef.workType != null && pawn.WorkTypeIsDisabled(giverDef.workType)))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn is incapable of cleaning work.");
-            if (!pawn.CanReach(filth, PathEndMode.Touch, Danger.None))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot safely reach the filth.");
+            if (!pawn!.CanReach(filth, PathEndMode.Touch, NativeOrderDanger.OrderDanger))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot reach the filth.");
             if (!giver.HasJobOnThing(pawn, filth, true))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The native clean work giver refuses this filth for this pawn right now (reserved, or thickened within the last 600 ticks).");
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The native clean work giver refuses this filth for this pawn right now (outside the home area, reserved, or thickened within the last 600 ticks).");
             return null;
         }
 

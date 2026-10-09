@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
 {
     // GiveJobIntent Repair, the bounded repair response of
     // MaintainEssentialRepairs: an exact damaged player building, an
-    // undrafted eligible worker who can reach it and needs no tending,
+    // undrafted eligible worker who can reach it at NativeOrderDanger,
     // WorkGiver_Repair's own HasJobOnThing (home area, reservable, not
     // burning, no deconstruct/uninstall designation), then the work giver's
     // JobDefOf.Repair job issued as a player-forced order. Checked live at
@@ -35,10 +35,8 @@ namespace HomeBridge.BridgeTools
             if (Running(pawn!, building)) return null;
             if (!building.def.useHitPoints || building.HitPoints >= building.MaxHitPoints)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Building is not damaged.");
-            if (pawn!.health.HasHediffsNeedingTend())
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn needs tending and cannot be ordered to repair.");
-            if (!pawn.CanReach(building, PathEndMode.Touch, Danger.None))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot safely reach the building.");
+            if (!pawn!.CanReach(building, PathEndMode.Touch, NativeOrderDanger.OrderDanger))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot reach the building.");
             // WorkGiver_Repair's HasJobOnThing carries the remaining gates (home
             // area, reservation, burning, pending deconstruction/uninstall) and
             // WorkGiverDispatch adds the float-menu capability refusals.
