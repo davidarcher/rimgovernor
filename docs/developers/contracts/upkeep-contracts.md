@@ -567,7 +567,7 @@ straight-line distance. Native (`UpkeepFacts.routes`) reports every facility a c
 must reach (player beds, work benches at their interaction cell, storage buildings, dining
 surfaces, turrets, stockpile zones as `zone-<id>`) with one travel row per mobile colonist
 carrying the game's `CanReach` answer and, for the first 256 reachable pairs, path cost and
-node count. It also reports up to 16 breach cells per unreachable facility (one-cell player
+node count (the bound's measured cost: [capped reads](#measured-cost-of-capped-reads-2567)). It also reports up to 16 breach cells per unreachable facility (one-cell player
 walls on its room border a door would pass straight through, nearest the reaching colonist
 first), pending breaches (ordered doors a measured path crosses) and observed traffic (the
 64 busiest cells sampled every 30 ticks, with sample count and window start; the window
@@ -627,6 +627,38 @@ matrix or sustained survival. Live acceptance is the `upkeep/<scenario>` case se
 staged deficit per scenario, owning families only, recovery observed on the native
 postcondition (`-scenario a,b` picks scenarios; `-reuse` reloads the baseline save into
 one running game between them).
+
+## Measured cost of capped reads (#2567)
+
+Each native read that bounds its own work, timed with its bound removed so a cap is
+deleted or kept on evidence (epic #2533). Rule: delete the cap unless one main-thread hop
+exceeds about 5 ms at stress size; such a read gets a Go-supplied budget request field and
+an explicit skipped flag instead. Nothing here is a behaviour change; the downstream
+children act on the verdicts.
+
+Method: real game on the tribal8 baseline (250x250, 26.6k plants, fully revealed), paused,
+each read timed on the main thread with the existing `ObservationWork` spans. Realistic is
+14 colonists, 60 player buildings, 40 wild animals; stress is 40 colonists, 250 player
+buildings, 250 wild animals (a temporary staging op, not landed). Steady cost is the best
+of the repeated hops after the first; the first hop after staging ran 1.5-10x slower
+(cold reachability caches). 32 logical cores, no peer RimWorld process, peer sessions
+compiling at the time; steady iterations agreed within about 15%.
+
+| Read (cap) | Realistic | Stress | Capped vs uncapped | Verdict |
+| --- | --- | --- | --- | --- |
+| Route path cost, `FindPathNow` per reachable facility x colonist pair (256) | 256 pairs 100 ms; 840 uncapped 340-365 ms | 256 pairs 96-115 ms; 10,000 uncapped 3.3-4.0 s | about 0.4 ms per pair | Budget and skipped flag |
+| Hunt `RouteSafe` per hunter x prey (reach 100) | 202 checks 33 ms; 320 uncapped 114-128 ms | 4,069 checks 0.8-1.0 s; 8,500 uncapped 3.0-4.0 s | 0.2-0.45 ms per check | Budget and skipped flag |
+| Plant cutter reach (50) | 12-14 ms | 21-41 ms capped, 21-31 ms uncapped | the cap bounds nothing measurable | Delete the cap; the cost is the all-plants eligibility scan, not the reach |
+| Pair reachability, tend page (64 rows) | 14 rows 0.06-0.14 ms | 40 colonist rows 0.43-0.48 ms; 297-row whole table 23-44 ms | quadratic, about 0.27 us per pair | Budget (the unfiltered table crosses 5 ms near 130 rows); a colonist-only page passes by 10x |
+| Spatial access audit (32 colonists, 16,384 blocked, 128 targets) | 14 colonists 1.1-1.7 s | 40 colonists 2.9-3.3 s, 5.0 s with 16,384 blocked | about 70-80 ms per colonist, independent of blocked cells; 8 colonists 0.5-0.7 s; the 32 cap alone is about 2.5 s | Budget and skipped flag, per colonist |
+| Cold-site scan, `FoodLarderFacts` (`Take(16)`) | 11-13 ms | 7-14 ms with or without `Take(16)` | the take stops early only once 16 sites exist; sparse maps scan every cell (0.12-0.2 us per cell) | Budget; cost scales with map area, not the cap |
+| Lines of fire (64 x 64 cells) | 10-15 ms | 128 x 128 34 ms; 256 x 256 145-185 ms | 2.5-3.6 us per trace | Budget and skipped flag; over 5 ms at the cap |
+| Salvage census and refresher | not measured | not measured | already explicit time budgets (1.5, 5 and 250 ms) | Keep as is |
+
+For scale, a whole `SnapshotFrames.Capture` hop costs 100-175 ms on the 8-colonist
+baseline, about 300 ms at realistic size and 1.7-2.1 s at stress with the caps in place
+(hunt `RouteSafe` alone 0.8-1.0 s), so every capped route and hunt read already exceeds the
+threshold on its own.
 
 ## Corpse larder
 

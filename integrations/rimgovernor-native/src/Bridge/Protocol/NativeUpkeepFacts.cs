@@ -422,9 +422,8 @@ namespace HomeBridge.BridgeTools
                 result.Animals.AddRange(values);
             });
             // The factionless animals a MaintainHerd tame write can target:
-            // native tame eligibility only, no feed or pen facts. A wild
-            // census beyond the bound leaves the section unknown rather than
-            // silently truncating the tame candidate list.
+            // native tame eligibility only, no feed or pen facts. Every
+            // spawned wild animal is listed: the census has no row bound.
             Read("wild_animals", result, () => {
                 var wild = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal && p.Faction == null)
                     .OrderBy(p => p.thingIDNumber).ToList();
