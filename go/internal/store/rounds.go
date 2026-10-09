@@ -396,7 +396,6 @@ func reviewRoundsTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, sett
 	// Stopping routine work must not depend on a successful native observation.
 	if request.Enabled {
 		request.Facts.ResourceRunways = resourceRunways(request)
-		request.Facts.ResourceNeeds = policy.ResourceConcernTargets(request.Facts.ResourceNeeds, policy.ResourceRunwayTargets(request.Facts.ResourceRunways))
 		request.Facts.ConstructionClaims, err = constructionClaims(ctx, tx, request.Current, request.Tick)
 		if err != nil {
 			return RoundsResult{}, err

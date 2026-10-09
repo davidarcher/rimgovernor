@@ -539,13 +539,10 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 	floors := policy.RoundsTradeFloors(seasonal, construction.StillNeed)
 	// MaintainResource's floors (the wood floor, shortfall edges) are the
 	// catalog's trade demand: a caravan selling one buys it.
-	targets, err := r.reviewer.resourceTargets(call, state.Snapshot)
-	if err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
-	}
-	// A wealth-driven sale keeps each resource's runway protected line plus
-	// its construction demand (#2488).
-	retained := policy.TradeRetained(r.reviewer.resourceConsumption(call, state.Snapshot), review.ResourceRunwayState(), r.reviewer.construction.get(state.Snapshot))
+	targets := r.reviewer.resourceTargets(state.Snapshot)
+	// A wealth-driven sale keeps what the review's demand retains (#2488):
+	// the stock the trade detector held the sale to.
+	retained := r.reviewer.demand.get(state.Snapshot).Retained
 	// Restore parts no bench can fabricate are bought (#1168).
 	parts, benches, err := surgeryPartDemand(call, r.native, identity, projection.Facts.MedicalPawns, projection.SurgeryContext())
 	if err != nil {

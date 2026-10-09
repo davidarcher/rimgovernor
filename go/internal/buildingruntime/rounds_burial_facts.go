@@ -28,10 +28,7 @@ func (r *Rounder) reviewStrangers(ctx context.Context, snapshot domain.Generatio
 		projection.Strangers.Live = live
 		return nil
 	}
-	targets, err := r.resourceTargets(ctx, snapshot)
-	if err != nil {
-		return err
-	}
+	targets := r.resourceTargets(snapshot)
 	projection.Strangers = policy.StrangerTomb{Live: live, Funded: projection.StuffFunded(projection.Shapes.Furniture.Sarcophagus, targets)}
 	return nil
 }

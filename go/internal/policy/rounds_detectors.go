@@ -20,6 +20,8 @@ type roundsRun struct {
 	// housing, comfort and medical detectors set their own phase on it.
 	l RoundsLatches
 	r RoundsFindings
+	// demand is the review's one resource-demand value (ResourceDemandOf).
+	demand DerivedDemand
 
 	home           domain.Fact[HomeAreaPlan]
 	stone          domain.Fact[[]string]
@@ -331,14 +333,12 @@ func inspectResearch(c *roundsRun) error {
 }
 
 func inspectResource(c *roundsRun) error {
-	f, p, l := c.f, c.p, c.l
-	// Construction material demand (blueprint deficit, admitted methods'
-	// open costs, the wood latch's floor) is a stock floor on
+	f, l := c.f, c.l
+	// The review's resource demand (construction, bills, clothing, fuel,
+	// animal feed, runway targets, evidence needs) is a stock floor on
 	// MaintainResource.
-	construction := ConstructionDemandOf(f, p, l)
 	stock := StockReader{f.Resources, f.Wood}
-	resourceTargets := ResourceConcernTargets(f.ResourceNeeds, construction)
-	c.r.ResourceTargets = resourceTargets
+	resourceTargets := c.demand.Needs
 	resourceRecovered, resourceDeficit := ResourceTargetNeed(resourceTargets, stock.Census(resourceTargets))
 	for _, runway := range f.ResourceRunways {
 		if _, known := runway.Deficit.Value(); !known && runway.WindowDays >= 1 && positive(resourceRecovered) {
@@ -365,7 +365,7 @@ func inspectResource(c *roundsRun) error {
 		// as gating the bench is unfinished, the goal has no method of its
 		// own and holds no slot, so EnsureResearch can take one (#4 M4).
 		// Construction demand is chopped or mined meanwhile.
-		g.MethodUnavailable = ResearchConcernTarget("", f.ResearchNeeds, f.Research) != "" && len(construction) == 0
+		g.MethodUnavailable = ResearchConcernTarget("", f.ResearchNeeds, f.Research) != "" && len(c.demand.Works) == 0
 	}
 	c.assess(MaintainResource, priority, resourceRecovered)
 	return nil
@@ -377,9 +377,9 @@ func inspectResource(c *roundsRun) error {
 // caravan leaves or nothing is left worth trading. Restore parts a bench
 // could make do not stand the goal (#1255).
 func inspectTrade(c *roundsRun) error {
-	f, p, l := c.f, c.p, c.l
-	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(f.Items, c.medicine, f.Resources, f.ResourceNeeds, RoundsTradeFloors(p, nil), f.Wealth, TradeRetainedOf(f, p, l), RoundsTradeFood(f, p)), f.Resources, f.Colonists), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
-	tradeNeed = FavorGoldNeed(tradeNeed, f.Traders, f.Resources, f.ResourceNeeds, RoundsTradeFloors(p, nil), TradeRetainedOf(f, p, l))
+	f, p := c.f, c.p
+	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(f.Items, c.medicine, f.Resources, c.demand.Needs, RoundsTradeFloors(p, nil), f.Wealth, c.demand.Retained, RoundsTradeFood(f, p)), f.Resources, f.Colonists), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
+	tradeNeed = FavorGoldNeed(tradeNeed, f.Traders, f.Resources, c.demand.Needs, RoundsTradeFloors(p, nil), c.demand.Retained)
 	short, _ := RoundsSilverShort(f, p, c.medicine.Active).Value()
 	tradeNeed = FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(short))
 	c.assess(TradeWithCaravan, 3, TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity()))))
@@ -538,7 +538,7 @@ func inspectSurgery(c *roundsRun) error {
 	// training below the Medicine floor, prisoner control or a reinstall
 	// before release (#1236). A prisoner whose care allows better than herbal
 	// (#1239) too.
-	if SaleHarvestWanted(f, reviewSilverShort(f, p, c.medicine)) || PartRecoveryWanted(f) || PegCycleWanted(f, p.Prisoners()) {
+	if SaleHarvestWanted(f, reviewSilverShort(f, p, c.medicine, c.demand)) || PartRecoveryWanted(f) || PegCycleWanted(f, p.Prisoners()) {
 		recovered = domain.Known(false)
 	}
 	c.assess(MaintainSurgery, surgeryPriority, recovered)
@@ -705,7 +705,7 @@ func inspectArt(c *roundsRun) error {
 	recovered := domain.Unknown[bool]()
 	// An inspired artist holds it open without a room (#1192). Sale demand
 	// (#1193) holds it open the same way while an artist exists.
-	if profiles, pk := f.WorkProfiles.Value(); pk && (len(InspiredArtists(profiles)) > 0 || len(Artists(profiles)) > 0 && artForSale(f, c.p, c.medicine)) {
+	if profiles, pk := f.WorkProfiles.Value(); pk && (len(InspiredArtists(profiles)) > 0 || len(Artists(profiles)) > 0 && artForSale(f, c.p, c.medicine, c.demand)) {
 		recovered = domain.Known(false)
 	} else if owed, known := f.SculptureRoomsOwed.Value(); known && !owed {
 		recovered = domain.Known(true)

@@ -129,10 +129,7 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoundsResourceResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
-	targets, err := r.reviewer.resourceTargets(call, state.Snapshot)
-	if err != nil {
-		return RoundsResourceResult{}, err
-	}
+	targets := r.reviewer.resourceTargets(state.Snapshot)
 	if len(targets) == 0 {
 		return RoundsResourceResult{Verdict: BuildingReasonDisabled}, nil
 	}
@@ -193,9 +190,7 @@ func (r *RoundsResourcePlanner) step(call, epoch context.Context, arbiter *stepA
 	if result, handled, err := r.deepDrill(call, epoch, state, goal, review, started); err != nil || handled {
 		return result, err
 	}
-	if targets, err = r.reviewer.resourceTargets(call, state.Snapshot); err != nil {
-		return RoundsResourceResult{}, err
-	}
+	targets = r.reviewer.resourceTargets(state.Snapshot)
 	supply, err := r.reviewer.resourceSupply(call, state, review, goal)
 	if err != nil {
 		return RoundsResourceResult{}, err

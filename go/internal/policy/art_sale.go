@@ -93,14 +93,14 @@ func ArtSaleWanted(items ItemFacts, need domain.Fact[TradeNeed], silver, colonis
 }
 
 // reviewSilverShort is SilverShort over the review's trade need.
-func reviewSilverShort(f RoundsFacts, p RoundsPolicy, medicine MedicalReserveReview) domain.Fact[bool] {
-	need := ReviewTradeNeed(f.Items, medicine, f.Resources, f.ResourceNeeds, RoundsTradeFloors(p, nil), f.Wealth, TradeRetainedOf(f, p, RoundsLatches{}), RoundsTradeFood(f, p))
+func reviewSilverShort(f RoundsFacts, p RoundsPolicy, medicine MedicalReserveReview, demand DerivedDemand) domain.Fact[bool] {
+	need := ReviewTradeNeed(f.Items, medicine, f.Resources, demand.Needs, RoundsTradeFloors(p, nil), f.Wealth, demand.Retained, RoundsTradeFood(f, p))
 	return SilverShort(f.Items, need, f.Silver(), f.Colonists)
 }
 
 // artForSale is ArtSaleWanted over the review's trade need.
-func artForSale(f RoundsFacts, p RoundsPolicy, medicine MedicalReserveReview) bool {
-	return positive(reviewSilverShort(f, p, medicine))
+func artForSale(f RoundsFacts, p RoundsPolicy, medicine MedicalReserveReview, demand DerivedDemand) bool {
+	return positive(reviewSilverShort(f, p, medicine, demand))
 }
 
 // RoundsSilverShort is the review's silver runway deficit recomputed by a
@@ -114,7 +114,11 @@ func RoundsSilverShort(f RoundsFacts, p RoundsPolicy, medicineActive bool) domai
 	if err != nil {
 		return domain.Unknown[bool]()
 	}
-	return reviewSilverShort(f, p, medicine)
+	demand, err := ResourceDemandOf(f, p, RoundsLatches{})
+	if err != nil {
+		return domain.Unknown[bool]()
+	}
+	return reviewSilverShort(f, p, medicine, demand)
 }
 
 // RoundsArtForSale is the review's sale decision recomputed by the art

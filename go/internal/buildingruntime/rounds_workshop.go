@@ -83,10 +83,7 @@ func NewRoundsWorkshopPlanner(reviewer *Rounder, native RoundsBuildingSource) (*
 // ends the step.
 func (r *RoundsBuildingPlanner) prepareWorkshop(call context.Context, state ControlState, review store.Rounds) (*workshopSelection, Verdict, error) {
 	if r.concern != policy.MaintainEquipment {
-		targets, err := r.reviewer.resourceTargets(call, state.Snapshot)
-		if err != nil {
-			return nil, Verdict{}, err
-		}
+		targets := r.reviewer.resourceTargets(state.Snapshot)
 		if len(targets) == 0 {
 			return nil, BuildingReasonDisabled, nil
 		}
@@ -146,10 +143,7 @@ func (r *RoundsBuildingPlanner) prepareWorkshop(call context.Context, state Cont
 		products = needs
 	} else {
 		stock := resourceStockFacts(observed)
-		targets, err := r.reviewer.resourceTargets(call, state.Snapshot)
-		if err != nil {
-			return nil, Verdict{}, err
-		}
+		targets := r.reviewer.resourceTargets(state.Snapshot)
 		var found bool
 		resource, _, found, err = policy.SelectResourceTarget(targets, stock)
 		if err != nil {

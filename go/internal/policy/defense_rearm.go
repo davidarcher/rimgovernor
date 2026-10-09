@@ -113,22 +113,3 @@ func defenseRearmPawn(workers []WorkPawn) (PawnID, bool) {
 	}
 	return best, found
 }
-
-// ResourceGoalTargets merges derived stock floors (a turret barrel's fuel the
-// census found no stock of) into the operator's MaintainResource targets; a
-// configured floor is never lowered by a derived one.
-func ResourceConcernTargets(configured, derived map[Resource]int64) map[Resource]int64 {
-	if len(derived) == 0 {
-		return configured
-	}
-	out := make(map[Resource]int64, len(configured)+len(derived))
-	for r, v := range configured {
-		out[r] = v
-	}
-	for r, v := range derived {
-		if v > 0 && v > out[r] && validResource(r) && v <= 10000 {
-			out[r] = v
-		}
-	}
-	return out
-}

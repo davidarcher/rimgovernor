@@ -103,15 +103,12 @@ func (r *Rounder) buildResourceSupply(call context.Context, state ControlState, 
 		return nil, err
 	}
 	stock := projection.Facts.Resources
-	targets, err := r.resourceTargets(call, state.Snapshot)
-	if err != nil {
-		return nil, err
-	}
+	targets := r.resourceTargets(state.Snapshot)
 	ranked, err := policy.RankResourceTargets(targets, stock)
 	if err != nil {
 		return nil, err
 	}
-	serves := r.construction.getServes(state.Snapshot)
+	serves := r.demand.get(state.Snapshot).Serves
 	out := &resourceSupply{rows: map[policy.Resource]*resourceSupplyRow{}, tokens: map[string]string{}, derived: map[policy.Resource]int64{}}
 	planner := &RoundsResourcePlanner{reviewer: r, native: r.resourceNative}
 	identity := boundary.Identity(state.Snapshot)

@@ -68,10 +68,10 @@ type Rounder struct {
 	// store receives each review's decoded sections (#354); the scheduler
 	// that steps this reviewer sets it, a standalone reviewer files nowhere.
 	store *facts.Store
-	// construction is the latest review's construction material demand
+	// demand is the latest review's derived resource demand
 	// (derived state, empty until the first review after a restart); see
-	// constructionMemory.
-	construction constructionMemory
+	// resourceDemandMemory.
+	demand resourceDemandMemory
 	// firstSeen is the per-world first-seen record of humanlike pawns
 	// (#2383): derived, in memory only, empty after a restart.
 	firstSeen observation.FirstSeenRecord
@@ -607,7 +607,9 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	reading.Projection.Facts.ResourceNeeds = policy.PrisonerHerbalNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Facts, policy.RoundsSilverShort(reading.Projection.Facts, r.policy, medicine.Active))
 	// A willing colonist's psylink neuroformer, bought or made by the resource ladder (#1609).
 	reading.Projection.Facts.ResourceNeeds = policy.NeuroformerNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Royalty, psylinkCandidates)
-	resourceTargets := reading.Projection.Facts.ResourceNeeds
+	// The work goal's coverage reads the demand the last review derived: the
+	// value the work planner dispatches on.
+	resourceTargets := r.resourceTargets(state.Snapshot)
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
 		reading.Projection.Facts.Workers = policy.RoundsWorkers(pawns)
 		reading.Projection.Facts.Labor = policy.RoundsLabor(pawns)
@@ -724,7 +726,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		}
 	}
 	reading.Projection.Facts.AvailableMethods = r.methods
-	billDemand, err := r.openBillDemand(ctx, state.Snapshot, reading.Projection.Identity.Tick, plans, policy.StockReader{Resources: reading.Projection.Facts.Resources, Wood: reading.Projection.Facts.Wood})
+	reading.Projection.Facts.OpenBills, err = r.openBills(ctx, state.Snapshot, reading.Projection.Identity.Tick, plans)
 	if err != nil {
 		return store.RoundsResult{}, err
 	}
@@ -739,10 +741,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	result, err := p.journal.ReviewRounds(ctx, store.RoundsRequest{Revision: previous.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts})
 	if err == nil {
 		r.staleBills.observe(staleCandidates, result.Needs.Assessments)
-		clothing := reading.Projection.Facts.ClothingRunway()
-		r.construction.set(result.Review.Snapshot, policy.ResourceConcernTargets(policy.ResourceConcernTargets(policy.ConstructionDemandOf(reading.Projection.Facts, r.seasonal(reading.Projection.Facts), result.Review.Latches), billDemand), clothing.Needs), clothing.Serves)
-		r.construction.merge(result.Review.Snapshot, reading.Projection.Facts.FuelRunway().Needs)
-		r.construction.merge(result.Review.Snapshot, reading.Projection.Facts.AnimalFeedRunway().Needs)
+		r.demand.set(result.Review.Snapshot, result.Needs.ResourceDemand)
 		clockEvent(ctx, "routine", "rounds_review", "rounds ran", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "concerns", len(result.Standards) + len(result.Projects), "emergency", roundsEmergencyNames(result.Emergency)}, roundsStageAttrs(result.Review.Stage)...), roundsFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
 		r.logColonyStage(ctx, result.Review)
 		recordRoundsSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)

@@ -18,7 +18,5 @@ internal/policy/medical_reserve.go|SelectMedicineMethod|10000 compared
 internal/policy/power_method.go|SelectPowerMethod|sentinel 1e+12
 internal/policy/production_bill.go|SelectProductionBill|10000 compared
 internal/policy/resource_candidates.go|finiteAcquisitionCost|sentinel 1e+12
-internal/policy/resource_production.go|RankResourceTargets|10000 compared
-internal/policy/resource_production.go|SelectResourceMethod|10000 compared
 internal/policy/supply_plan.go|newSupplyCand|math.MaxFloat64
 internal/policy/supply_plan.go|newSupplyCand|sentinel 1e+12

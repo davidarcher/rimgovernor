@@ -401,10 +401,7 @@ func (r *RoundsTradePlanner) missionPurchases(ctx context.Context, state Control
 		return nil, nil, err
 	}
 	r.reviewer.planFood(&projection)
-	targets, err := r.reviewer.resourceTargets(ctx, state.Snapshot)
-	if err != nil {
-		return nil, nil, err
-	}
+	targets := r.reviewer.resourceTargets(state.Snapshot)
 	current := map[string]int64{}
 	stocks, known := projection.Facts.Resources.Value()
 	if !known {

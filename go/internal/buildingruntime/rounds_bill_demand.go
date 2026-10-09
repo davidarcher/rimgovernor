@@ -72,11 +72,12 @@ func (a *billAges) cancelExpired(ctx context.Context, journal *store.Store, plan
 	return nil
 }
 
-// openBillDemand is the ingredient demand of the journal's open gear-batch
-// bills (Forever and stock-target bills are not counted), their catalog slot
-// counts read per recipe. Expired bills are cancelled first. It is empty
-// when the reviewer's source serves no definitions.
-func (r *Rounder) openBillDemand(ctx context.Context, snapshot domain.GenerationSnapshot, now domain.Tick, plans []store.PlanState, stock policy.StockReader) (map[policy.Resource]int64, error) {
+// openBills are the journal's open gear-batch bills (Forever and stock-target
+// bills are not counted) with their catalog slot counts read per recipe:
+// ResourceDemandOf turns them into ingredient demand. Expired bills are
+// cancelled first. It is empty when the reviewer's source serves no
+// definitions.
+func (r *Rounder) openBills(ctx context.Context, snapshot domain.GenerationSnapshot, now domain.Tick, plans []store.PlanState) ([]policy.OpenBill, error) {
 	if err := r.billAges.cancelExpired(ctx, r.player.journal, plans, now); err != nil {
 		return nil, err
 	}
@@ -108,5 +109,5 @@ func (r *Rounder) openBillDemand(ctx context.Context, snapshot domain.Generation
 			bills[i].Slots = domain.Unknown[[][]policy.Amount]()
 		}
 	}
-	return policy.OpenBillDemand(bills, stock), nil
+	return bills, nil
 }

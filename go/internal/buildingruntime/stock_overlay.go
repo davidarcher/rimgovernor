@@ -28,7 +28,7 @@ func (r *Rounder) drawStockOverlay(ctx context.Context, snapshot domain.Generati
 			return
 		}
 		f := projection.Facts
-		levels := policy.StockLevels{Targets: result.Needs.ResourceTargets, Stock: map[policy.Resource]int64{}, FoodDays: f.FoodDays, FoodTargetDays: r.seasonal(f).FoodTargetDays}
+		levels := policy.StockLevels{Targets: result.Needs.ResourceDemand.Needs, Stock: map[policy.Resource]int64{}, FoodDays: f.FoodDays, FoodTargetDays: r.seasonal(f).FoodTargetDays}
 		census := policy.StockReader{Resources: f.Resources, Wood: f.Wood}.Census(levels.Targets)
 		if rows, known := census.Value(); known {
 			for _, row := range rows {

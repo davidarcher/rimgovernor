@@ -498,6 +498,9 @@ type RoundsFacts struct {
 	// review's live records: an open shortfall raises a MaintainResource
 	// floor for the bounded difference (#711).
 	Admitted []AdmittedCost
+	// OpenBills are the player's unfinished gear bills with their recipe
+	// slots (OpenBillDemand): ingredient demand ResourceDemandOf counts.
+	OpenBills []OpenBill
 	// Resources is the generic reachable, unforbidden player item census
 	// (the same colony facts rows Wood is taken from), so MaintainResource's
 	// deficit is measured at review time instead of assumed from config.
@@ -678,10 +681,10 @@ type RoundsFindings struct {
 	// NoOps is every detector that raised nothing, with the typed reason
 	// (#1909), in registry order.
 	NoOps []NoOpRecord `json:",omitempty"`
-	// ResourceTargets are the effective MaintainResource stock targets the
-	// review held the census to (configured, derived and the wood floor);
-	// the stock overlay (#825) tints stockpiles by them.
-	ResourceTargets map[Resource]int64 `json:",omitempty"`
+	// ResourceDemand is the review's one resource-demand value (Needs are
+	// the effective MaintainResource stock targets the review held the census
+	// to; the stock overlay (#825) tints stockpiles by them).
+	ResourceDemand DerivedDemand
 }
 
 // Assessments cover recovered and unknown needs as well as actionable deficits.
@@ -876,6 +879,10 @@ func InspectRounds(f RoundsFacts, previous RoundsLatches, p RoundsPolicy) (Round
 		Soldiers:       previous.Soldiers || GearSoldierPresent(f.Gear),
 	}
 	c.r = RoundsFindings{Latches: c.l}
+	if c.demand, err = ResourceDemandOf(f, p, c.l); err != nil {
+		return RoundsFindings{}, err
+	}
+	c.r.ResourceDemand = c.demand
 	for _, d := range inspections {
 		goals, assessments := len(c.r.Concerns), len(c.r.Assessments)
 		if err := d.Inspect(c); err != nil {

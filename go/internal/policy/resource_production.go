@@ -330,7 +330,7 @@ func RankResourceTargets(targets map[Resource]int64, stock domain.Fact[[]Amount]
 	}
 	names := make([]Resource, 0, len(targets))
 	for name, want := range targets {
-		if !validResource(name) || want <= 0 || want > 10000 {
+		if !validResource(name) || want <= 0 || want > maxResourceTarget {
 			return nil, errors.New("invalid resource target")
 		}
 		names = append(names, name)
@@ -432,7 +432,7 @@ func resourceMethodID(resource Resource, bench, recipe string) domain.MethodID {
 // this narrowing rather than falling back to those undispatched paths. It
 // issues no game orders and does not reserve resources.
 func SelectResourceMethod(r ResourceMethodRequest) (ResourceMethod, error) {
-	if !validResource(r.Resource) || r.Target <= 0 || r.Target > 10000 {
+	if !validResource(r.Resource) || r.Target <= 0 || r.Target > maxResourceTarget {
 		return ResourceMethod{Kind: ResourceMethodUnknown}, nil
 	}
 	seen := map[domain.MethodID]bool{}

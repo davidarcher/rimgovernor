@@ -120,10 +120,7 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 	if !pest {
 		mine := func(row policy.AcquisitionSource) bool { return food && row.Food }
 		if stockGoal {
-			targets, err := r.reviewer.resourceTargets(call, state.Snapshot)
-			if err != nil {
-				return RoundsAcquisitionResult{}, err
-			}
+			targets := r.reviewer.resourceTargets(state.Snapshot)
 			mine = func(row policy.AcquisitionSource) bool { _, ok := targets[policy.Resource(row.Resource)]; return ok }
 		}
 		for _, hunt := range []bool{false, true} {
