@@ -10,13 +10,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Native bounds of observations_read_spatial_access.
-const (
-	maxSpatialBlockedCells = 16384
-	maxSpatialTargetCells  = 128
-	maxSpatialPawns        = 32
-)
-
 // AccessTarget is one requested target cell for one colonist: native
 // CanReach today, and reachability inside the projected four-neighbour
 // component once the blocked cells are impassable.
@@ -30,8 +23,10 @@ type AccessTarget struct {
 // some cell reachable now (other than the blocked cells themselves) is not
 // reachable in the projection; it is informational, since cells stranded
 // outside a perimeter wall do not matter. OriginKnown is false when the pawn stands on
-// a blocked cell and no safe exit exists.
+// a blocked cell and no safe exit exists. Skipped means the audit budget ran out
+// before this colonist: Position is the only fact, and access is unknown.
 type PawnAccess struct {
+	Skipped         bool
 	ID              string
 	Position        domain.Cell
 	Current, After  uint32
@@ -54,13 +49,29 @@ type SpatialAccess struct {
 // the targets name the access the caller needs.
 func (s SpatialAccess) Accepted() bool { return s.Refusal() == "" }
 
-// Refusal names why the audit is not accepted, or "" when it is.
+// Skipped is the first colonist the audit budget left unaudited, if any. An
+// audit with a skipped colonist proves nothing about access: callers treat it as
+// unavailable, never as accepted or refused.
+func (s SpatialAccess) Skipped() (string, bool) {
+	for _, p := range s.Pawns {
+		if p.Skipped {
+			return p.ID, true
+		}
+	}
+	return "", false
+}
+
+// Refusal names why the audit is not accepted, or "" when it is. Callers check
+// Skipped first; a skipped colonist is not audited here.
 func (s SpatialAccess) Refusal() string {
 	if len(s.Pawns) == 0 {
 		return "no colonists audited"
 	}
 	reached := map[domain.Cell]bool{}
 	for _, p := range s.Pawns {
+		if p.Skipped {
+			continue
+		}
 		if !p.OriginKnown {
 			return fmt.Sprintf("pawn %s at %v has no safe exit", p.ID, p.Position)
 		}
@@ -89,9 +100,6 @@ func (client *Client) ReadSpatialAccess(ctx context.Context, identity *c.Identit
 	if err := ValidateIdentity(identity); err != nil {
 		return SpatialAccess{}, Result{}, err
 	}
-	if len(blocked) > maxSpatialBlockedCells || len(targets) > maxSpatialTargetCells || len(pawnIDs) > maxSpatialPawns {
-		return SpatialAccess{}, Result{}, contract("spatial access request exceeds native bounds")
-	}
 	for _, cells := range [][]domain.Cell{blocked, targets} {
 		seen := map[domain.Cell]bool{}
 		for _, cell := range cells {
@@ -108,7 +116,7 @@ func (client *Client) ReadSpatialAccess(ctx context.Context, identity *c.Identit
 		}
 		seenID[id] = true
 	}
-	request := &o.SpatialAccessRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, PawnIds: append([]string{}, pawnIDs...)}
+	request := &o.SpatialAccessRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, PawnIds: append([]string{}, pawnIDs...), BudgetMs: proto.Uint32(SpatialAccessBudgetMS)}
 	for _, cell := range blocked {
 		request.BlockedCells = append(request.BlockedCells, &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)})
 	}
@@ -146,7 +154,7 @@ func validateSpatialAccess(v *o.SpatialAccessSnapshot, identity *c.Identity, blo
 	if v.MapCells == nil || v.ObservedWalkableCells == nil || v.GetMapCells() == 0 || v.GetObservedWalkableCells() > v.GetMapCells() {
 		return SpatialAccess{}, contract("spatial access map census missing")
 	}
-	if len(v.Pawns) == 0 || len(v.Pawns) > maxSpatialPawns || len(pawnIDs) != 0 && len(v.Pawns) != len(pawnIDs) {
+	if len(v.Pawns) == 0 || len(pawnIDs) != 0 && len(v.Pawns) != len(pawnIDs) {
 		return SpatialAccess{}, contract("incomplete spatial access census")
 	}
 	wanted := map[string]bool{}
@@ -165,6 +173,14 @@ func validateSpatialAccess(v *o.SpatialAccessSnapshot, identity *c.Identity, blo
 		}
 		seen[row.Pawn.GetId()] = true
 		position, pk := protoCell(row.Position)
+		if row.GetSkipped() {
+			// Native left this colonist unaudited: position only, nothing else.
+			if !pk || row.CurrentCells != nil || row.ProjectedCells != nil || row.LosesAccess != nil || row.EgressSteps != nil || row.ProjectedOrigin != nil || len(row.Targets) != 0 {
+				return SpatialAccess{}, contract("skipped spatial access row carries facts")
+			}
+			access.Pawns = append(access.Pawns, PawnAccess{ID: row.Pawn.GetId(), Position: position, Skipped: true})
+			continue
+		}
 		if !pk || row.CurrentCells == nil || row.ProjectedCells == nil || row.LosesAccess == nil || row.EgressSteps == nil || len(row.Targets) != len(targets) {
 			return SpatialAccess{}, contract("incomplete spatial access row")
 		}

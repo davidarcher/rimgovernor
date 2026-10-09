@@ -63,9 +63,6 @@ func decodeFoodSupply(v *o.FoodSupplyFacts, rows map[string]*o.Thing, catalog *b
 			}
 			larder.Corpses = append(larder.Corpses, policy.CorpseHandling{InStorage: inStorage, ID: row.StockId, Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Hauler: domain.PawnID(row.GetHaulerId()), FrozenDestination: row.FrozenDestination})
 		}
-		for _, cell := range v.Larder.ColdSites {
-			larder.ColdSites = append(larder.ColdSites, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
-		}
 		supply.Larder = domain.Known(larder)
 	}
 	for _, row := range v.Consumers {

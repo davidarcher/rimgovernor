@@ -564,10 +564,12 @@ message PawnTendDoctor {
   optional bool work_type_disabled = 6;
   // Pawn IDs from this same reply this pawn can reach
   // (CanReach ClosestTouch, Danger.Deadly); self is excluded. The list is
-  // exhaustive over the reply's other rows unless an issue names
-  // reachable_pawn_ids.
+  // exhaustive over the reply's other rows unless reach_skipped is set.
   repeated string reachable_pawn_ids = 7;
   repeated ReadIssue issues = 8;
+  // PawnDetails.tend_reach_budget_ms ran out before this pawn's reachability
+  // was read: reachable_pawn_ids is empty and unknown, not "reaches nothing".
+  optional bool reach_skipped = 9;
 }
 message PawnFilter {
   repeated string ids = 1; optional string name_contains = 2; optional bool colonist = 3; optional bool prisoner = 4;
@@ -582,8 +584,11 @@ message PawnDetails {
   optional bool schedule = 10;
   // tend projects PawnState.tend_doctor: the native tend gates plus pairwise
   // reachability across the rows this query returns. Opt-in; reachability is
-  // quadratic in the page and is bounded to 64 rows.
+  // quadratic in the page (about 0.3 us a pair), so it runs under
+  // tend_reach_budget_ms: doctors past it report PawnTendDoctor.reach_skipped.
   optional bool tend = 11;
+  // Main-thread milliseconds the tend pair reachability may spend. Absent: read every pair.
+  optional uint32 tend_reach_budget_ms = 12;
 }
 message PawnSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnState pawns = 2; Completeness completeness = 3;
   // Colony fact: the Meditate TimeAssignmentDef exists
@@ -836,9 +841,15 @@ message ResearchReply { oneof outcome { ResearchSnapshot observed = 1; rimgovern
 message AccessTarget { rimgovernor.common.v1.Cell cell = 1; optional bool native_reachable = 2; optional bool projected_reachable = 3; optional uint32 projected_steps = 4; }
 message PawnAccess { rimgovernor.common.v1.Ref pawn = 1; optional uint32 current_cells = 2; optional uint32 projected_cells = 3; repeated AccessTarget targets = 6; rimgovernor.common.v1.Cell projected_origin = 7; optional uint32 egress_steps = 8; optional bool loses_access = 10;
   // The pawn's cell when the access was read.
-  rimgovernor.common.v1.Cell position = 11; }
+  rimgovernor.common.v1.Cell position = 11;
+  // The request's budget_ms ran out before this colonist: every field but pawn
+  // and position is absent (unknown, not "keeps access").
+  optional bool skipped = 12; }
 message SpatialAccessSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnAccess pawns = 2; optional uint32 map_cells = 3; optional uint32 observed_walkable_cells = 4; }
-message SpatialAccessRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell blocked_cells = 2; repeated rimgovernor.common.v1.Cell target_cells = 3; repeated string pawn_ids = 4; }
+// budget_ms: main-thread milliseconds the audit may spend (about 70-80 ms per colonist,
+// independent of the blocked and target cell counts). Colonists past it come back
+// PawnAccess.skipped. Absent: audit every colonist.
+message SpatialAccessRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell blocked_cells = 2; repeated rimgovernor.common.v1.Cell target_cells = 3; repeated string pawn_ids = 4; optional uint32 budget_ms = 5; }
 message SpatialAccessReply { oneof outcome { SpatialAccessSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // Defense site census: bounded terrain, cover and raider-approach facts for
 // layout planning. cover_fill is the native edifice/cover fillPercent the
@@ -883,10 +894,11 @@ message DefenseSiteReply { oneof outcome { DefenseSiteSnapshot observed = 1; rim
 // Lines of fire: native GenSight line of sight and CoverUtility overall block
 // chance for every (firing, approach) pair. target_cover is the chance a
 // target at `to` is protected from a shooter at `from`; shooter_cover is the
-// reverse. At most 64 firing and 64 approach cells (4096 pairs) per read.
+// reverse. Pairs are read firing-major under the request's budget_ms (about 3 us a
+// pair); past it the snapshot is skipped and holds only the pairs read.
 message LineOfFire { rimgovernor.common.v1.Cell from = 1; rimgovernor.common.v1.Cell to = 2; optional bool line_of_sight = 3; optional double target_cover = 4; optional double shooter_cover = 5; optional double distance = 6; repeated ReadIssue issues = 7; }
-message LinesOfFireSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated LineOfFire lines = 2; }
-message LinesOfFireRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell firing_cells = 2; repeated rimgovernor.common.v1.Cell approach_cells = 3; }
+message LinesOfFireSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated LineOfFire lines = 2; optional bool skipped = 3; }
+message LinesOfFireRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell firing_cells = 2; repeated rimgovernor.common.v1.Cell approach_cells = 3; optional uint32 budget_ms = 4; }
 message LinesOfFireReply { oneof outcome { LinesOfFireSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RoofSupportCell { rimgovernor.common.v1.Cell cell = 1; optional string roof_def_name = 2; optional bool supported_without_target = 3; optional string blocker = 4; }
 message RoofSupportSnapshot { rimgovernor.common.v1.ObservationContext context = 1; rimgovernor.common.v1.Ref target = 2; repeated RoofSupportCell roofs = 3; }
@@ -1347,7 +1359,7 @@ message FoodConsumer { optional string pawn_id = 1; optional double nutrition_pe
 message FoodStock { rimgovernor.common.v1.Ref item = 1; rimgovernor.common.v1.Ref holder = 3; optional double nutrition = 4; repeated rimgovernor.common.v1.Ref eaters = 5; }
 // in_storage is whether the corpse lies in a stockpile (false: in the field).
 message CorpseHandling { string stock_id = 1; rimgovernor.common.v1.Cell cell = 2; optional string hauler_id = 3; bool frozen_destination = 4; optional bool in_storage = 5; }
-message FoodLarderFacts { double raw_meat_nutrition = 1; double cook_demand_nutrition = 2; repeated CorpseHandling corpses = 3; repeated rimgovernor.common.v1.Cell cold_sites = 4; }
+message FoodLarderFacts { double raw_meat_nutrition = 1; double cook_demand_nutrition = 2; repeated CorpseHandling corpses = 3; }
 message FoodSupplyFacts { repeated FoodConsumer consumers = 1; repeated FoodStock stocks = 2; FoodLarderFacts larder = 4; }
 message CropForecast { rimgovernor.common.v1.Ref zone = 1; optional string crop = 2; optional double sow_work = 3; optional double harvest_work = 4; optional uint32 mature_plants = 5; optional uint32 stalled_plants = 6; optional double standing_yield = 7; optional string product = 8; repeated ReadIssue issues = 9; }
 message PatientForecast { optional string pawn_id = 1; optional double bleed_rate_per_day = 2; optional double hours_until_death_from_blood_loss = 3; optional double mood = 4; optional double mood_target = 5; optional double minor_break_threshold = 6; optional double major_break_threshold = 7; optional double extreme_break_threshold = 8; repeated ReadIssue issues = 9; }
@@ -2257,6 +2269,8 @@ message SnapshotStreamRequest {
   // The ColonyFactsRequest herd_radius and hunt_route_budget_ms of each frame's colony facts read.
   optional uint32 herd_radius = 6;
   optional uint32 hunt_route_budget_ms = 7;
+  // The LinesOfFireRequest budget_ms of each frame's combat lines of fire.
+  optional uint32 lines_of_fire_budget_ms = 8;
 }
 // The definition catalog: the generated def rows and the stat table
 // the planning views read, and every research project with its static

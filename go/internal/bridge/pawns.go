@@ -85,6 +85,7 @@ func pawnDetailsRequest(identity *c.Identity, ids []string, want pawnDetails) *o
 	}
 	if want.Tend {
 		request.Details.Tend = proto.Bool(true)
+		request.Details.TendReachBudgetMs = proto.Uint32(TendReachBudgetMS)
 	}
 	return request
 }
@@ -242,11 +243,14 @@ func pawnsSocial(v *o.PawnSocial) error {
 // answered pairwise across the rows of this one reply, so every listed ID must
 // be another requested pawn, never the row itself. A producer that skips the
 // block leaves the gates unknown -- SelectTend then proposes no doctor -- rather
-// than failing the read.
+// than failing the read. A reach_skipped row (budget ran out) carries no list.
 func pawnsTendDoctor(row *o.PawnState, requested map[string]bool) error {
 	tend := row.TendDoctor
 	if tend == nil {
 		return nil
+	}
+	if tend.GetReachSkipped() && len(tend.ReachablePawnIds) != 0 {
+		return contract("skipped tend reachability lists pawns")
 	}
 	if len(tend.ReachablePawnIds) > len(requested) {
 		return contract("too many reachable pawns")

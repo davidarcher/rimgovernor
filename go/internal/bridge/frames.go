@@ -721,6 +721,22 @@ const (
 	HerdRadius        uint32 = 25
 )
 
+// LinesOfFireBudgetMS is the main-thread time one lines-of-fire read (the
+// frame's combat lines or a layout probe) may spend on (firing, approach) pairs,
+// about 3 us each: the 10-15 ms the former 64 x 64 cap paid. Pairs past it are
+// not read and the snapshot is marked skipped.
+//
+// SpatialAccessBudgetMS bounds one spatial access audit, about 70-80 ms per
+// colonist: roughly the 2.5 s the former 32-colonist cap allowed. Colonists past
+// it arrive as PawnAccess.skipped. TendReachBudgetMS bounds the tend detail's
+// pairwise CanReach (about 0.3 us a pair, so a 300-row table is 25-45 ms);
+// doctors past it arrive as PawnTendDoctor.reach_skipped.
+const (
+	LinesOfFireBudgetMS   uint32 = 15
+	SpatialAccessBudgetMS uint32 = 2500
+	TendReachBudgetMS     uint32 = 50
+)
+
 // frameReader is the open stream, starting an open or resubscription in
 // the background when one is due; nil until the first open lands.
 func (caller *Client) frameReader(ctx context.Context) frameReader {
@@ -728,7 +744,7 @@ func (caller *Client) frameReader(ctx context.Context) frameReader {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if (s.reader == nil || s.stale || s.keyframe) && !s.opening && (s.stale || s.keyframe || time.Since(s.attempted) >= frameRetry) {
-		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources), RoutePathBudgetMs: proto.Uint32(RoutePathBudgetMS), HuntRouteBudgetMs: proto.Uint32(HuntRouteBudgetMS), HerdRadius: proto.Uint32(HerdRadius)}
+		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources), RoutePathBudgetMs: proto.Uint32(RoutePathBudgetMS), HuntRouteBudgetMs: proto.Uint32(HuntRouteBudgetMS), HerdRadius: proto.Uint32(HerdRadius), LinesOfFireBudgetMs: proto.Uint32(LinesOfFireBudgetMS)}
 		if s.reader != nil && !s.stale {
 			// Only a keyframe: the subscription stands.
 			request = &o.SnapshotStreamRequest{Keyframe: proto.Bool(true)}
@@ -871,6 +887,9 @@ type Combat struct {
 	// colonists, hostiles and predators with their combat detail.
 	Detail Pawns
 	Lines  []LineOfFire
+	// LinesSkipped: the LinesOfFireBudgetMS ran out, so a pair absent from Lines is
+	// unknown, not blocked (the shooter then walks in).
+	LinesSkipped bool
 	// Rooms are the map's standing rectangular rooms.
 	Rooms      []policy.CombatRoom
 	DoorStates domain.Fact[[]policy.RoomDoor]
@@ -1091,7 +1110,7 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 		if err != nil {
 			return Combat{}, err
 		}
-		out.Lines = lines
+		out.Lines, out.LinesSkipped = lines, v.CombatLinesOfFire.GetSkipped()
 	}
 	for _, row := range v.CombatMortars {
 		c, _ := protoCell(row.GetCell())

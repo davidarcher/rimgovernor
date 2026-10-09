@@ -14,7 +14,6 @@ namespace HomeBridge.BridgeTools
         internal sealed class Snapshot {
             internal double RawMeatNutrition, CookDemandNutrition;
             internal readonly List<Handling> Corpses = new List<Handling>();
-            internal readonly List<IntVec3> ColdSites = new List<IntVec3>();
         }
         internal sealed class Handling {
             internal string ID = "";
@@ -62,10 +61,6 @@ namespace HomeBridge.BridgeTools
                 }
                 result.Corpses.Add(row);
             }
-            if (result.Corpses.Count > 0)
-                foreach (var cell in map.AllCells.Where(c => !c.Fogged(map) && c.Standable(map) && Frozen(c, map)
-                    && map.zoneManager.ZoneAt(c) == null && c.GetEdifice(map) == null && c.GetThingList(map).All(t => t.def.category != ThingCategory.Item)).Take(16))
-                    result.ColdSites.Add(cell);
             return result;
         }
     }

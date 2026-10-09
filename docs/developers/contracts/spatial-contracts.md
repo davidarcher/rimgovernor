@@ -53,7 +53,12 @@ obstruction. Every previously reachable cell outside the footprint must remain
 reachable, including observed rooms whose actions are retired. Native door opening
 eligibility and exact-target reachability remain separate checks. A pawn standing on a
 proposed footprint needs a currently native-reachable exit; the read does not move it.
-Bounds: 262144 map cells, 32 mobile colonists, 16384 projected cells, 128 targets.
+The one cap is 262144 map cells (over it the read is unavailable). Blocked cells,
+targets and colonists are unbounded; the audit runs under the request's `budget_ms`
+(Go: `bridge.SpatialAccessBudgetMS`, 2.5 s at about 70-80 ms per colonist), and a
+colonist reached after it is spent comes back `PawnAccess.skipped` with position only.
+The defense layout treats any skipped colonist as `field_unavailable spatial_access_skipped`,
+never accepted and never refused for space.
 Unsupported or unreadable evidence blocks admission. Future danger, door locking and
 actual pawn labor remain simulation outcomes.
 

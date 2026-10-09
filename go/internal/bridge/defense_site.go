@@ -10,11 +10,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Native bounds of the two defense-layout reads: one lines-of-fire read takes at most this many cells on each side.
-const (
-	maxLinesOfFireCells  = 64
-	maxDefenseSiteExtent = 4096
-)
+// maxDefenseSiteExtent bounds a defense-layout cell coordinate.
+const maxDefenseSiteExtent = 4096
 
 // CellRect is one inclusive cell rectangle, the unit both defense reads and
 // their callers' tiling work in.
@@ -111,9 +108,13 @@ type LineOfFire struct {
 	Distance                  float64
 }
 
+// LinesOfFire holds the pairs a read produced, firing-major. Skipped means the
+// LinesOfFireBudgetMS ran out: the pairs after Lines were not read, so a pair
+// absent from Lines is unknown, not blocked.
 type LinesOfFire struct {
 	Context *c.ObservationContext
 	Lines   []LineOfFire
+	Skipped bool
 }
 
 // ReadDefenseSite reads one inclusive rectangle; the read never samples or truncates.
@@ -150,8 +151,8 @@ func (client *Client) ReadDefenseSite(ctx context.Context, identity *c.Identity,
 	}
 }
 
-// ReadLinesOfFire reads every (firing, approach) pair for at most 64 unique
-// cells on each side.
+// ReadLinesOfFire reads every (firing, approach) pair of unique cells, firing-major,
+// under LinesOfFireBudgetMS; LinesOfFire.Skipped reports a read cut short.
 func (client *Client) ReadLinesOfFire(ctx context.Context, identity *c.Identity, firing, approach []domain.Cell) (LinesOfFire, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return LinesOfFire{}, Result{}, err
@@ -161,7 +162,7 @@ func (client *Client) ReadLinesOfFire(ctx context.Context, identity *c.Identity,
 			return LinesOfFire{}, Result{}, err
 		}
 	}
-	request := &o.LinesOfFireRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
+	request := &o.LinesOfFireRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, BudgetMs: proto.Uint32(LinesOfFireBudgetMS)}
 	for _, cell := range firing {
 		request.FiringCells = append(request.FiringCells, &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)})
 	}
@@ -186,7 +187,7 @@ func (client *Client) ReadLinesOfFire(ctx context.Context, identity *c.Identity,
 		if err != nil {
 			return LinesOfFire{}, raw, err
 		}
-		return LinesOfFire{Context: v.Observed.Context, Lines: lines}, raw, nil
+		return LinesOfFire{Context: v.Observed.Context, Lines: lines, Skipped: v.Observed.GetSkipped()}, raw, nil
 	default:
 		return LinesOfFire{}, raw, contract("lines of fire outcome missing")
 	}
@@ -199,8 +200,8 @@ func validateDefenseRegion(region CellRect) error {
 	return nil
 }
 func validateLineCells(cells []domain.Cell) error {
-	if len(cells) < 1 || len(cells) > maxLinesOfFireCells {
-		return contract("lines of fire cells outside 1..%d", maxLinesOfFireCells)
+	if len(cells) < 1 {
+		return contract("lines of fire needs at least one cell on each side")
 	}
 	seen := map[domain.Cell]bool{}
 	for _, cell := range cells {
@@ -320,7 +321,8 @@ func validateLinesOfFire(v *o.LinesOfFireSnapshot, identity *c.Identity, firing,
 		return nil, contract("invalid lines of fire context")
 	}
 	want := len(firing) * len(approach)
-	if len(v.Lines) != want {
+	// A skipped snapshot holds a prefix of the product; otherwise it is whole.
+	if v.GetSkipped() && len(v.Lines) > want || !v.GetSkipped() && len(v.Lines) != want {
 		return nil, contract("incomplete lines of fire")
 	}
 	wantFrom := make(map[domain.Cell]bool, len(firing))

@@ -12,33 +12,37 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativePawnDetails
     {
-        internal static Obs.PawnDetails Defaults(Obs.PawnDetails? source)=>new Obs.PawnDetails {
-            Needs=source==null || !source.HasNeeds || source.Needs,
-            Health=source==null || !source.HasHealth || source.Health,
-            Equipment=source==null || !source.HasEquipment || source.Equipment,
-            Biography=source==null || !source.HasBiography || source.Biography,
-            Settings=source==null || !source.HasSettings || source.Settings,
-            Social=source==null || !source.HasSocial || source.Social,
-            Animals=source==null || !source.HasAnimals || source.Animals,
-            VisibleHediffsOnly=source?.VisibleHediffsOnly==true, Work=source?.Work==true, Schedule=source?.Schedule==true,
-            Tend=source?.Tend==true };
-
-        // Reachability is quadratic in the page, so the tend detail answers it
-        // only for a bounded query; beyond this the list carries an issue and
-        // the controller treats reachability as unknown.
-        internal const int TendRows=64;
+        internal static Obs.PawnDetails Defaults(Obs.PawnDetails? source)
+        {
+            var d=new Obs.PawnDetails {
+                Needs=source==null || !source.HasNeeds || source.Needs,
+                Health=source==null || !source.HasHealth || source.Health,
+                Equipment=source==null || !source.HasEquipment || source.Equipment,
+                Biography=source==null || !source.HasBiography || source.Biography,
+                Settings=source==null || !source.HasSettings || source.Settings,
+                Social=source==null || !source.HasSocial || source.Social,
+                Animals=source==null || !source.HasAnimals || source.Animals,
+                VisibleHediffsOnly=source?.VisibleHediffsOnly==true, Work=source?.Work==true, Schedule=source?.Schedule==true,
+                Tend=source?.Tend==true };
+            if(source!=null && source.HasTendReachBudgetMs) d.TendReachBudgetMs=source.TendReachBudgetMs;
+            return d;
+        }
 
         // Doctor-side tend gates for one reply's rows, mirroring
         // NativeTendOperations.Prepare: pawn-control eligibility (the gate
         // behind "Tend requires an eligible doctor"), WorkGiver_Tend's required
         // capacities, the Doctor work type, and CanReach(ClosestTouch, Deadly)
         // to every other row of the same reply -- the candidate patients.
-        internal static void Tend(System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<Pawn,Obs.PawnState>> page)
+        internal static void Tend(System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<Pawn,Obs.PawnState>> page,uint? reachBudgetMs)
         {
             var giver=DefDatabase<WorkGiverDef>.AllDefsListForReading
                 .Where(d => d.giverClass!=null && typeof(WorkGiver_Tend).IsAssignableFrom(d.giverClass))
                 .Select(d => d.Worker as WorkGiver_Tend).FirstOrDefault(w => w!=null);
-            bool bounded=page.Count<=TendRows;
+            // Pairwise reachability is quadratic in the page (about 0.3 us a pair), so
+            // it runs under Go's budget: a doctor reached after it is spent reports
+            // reach_skipped (list unknown), never a partial list.
+            var budgetTicks=reachBudgetMs.HasValue ? reachBudgetMs.Value*System.Diagnostics.Stopwatch.Frequency/1000 : long.MaxValue;
+            var began=System.Diagnostics.Stopwatch.GetTimestamp();
             foreach(var item in page) {
                 var pawn=item.Key; var row=new Obs.PawnTendDoctor(); item.Value.TendDoctor=row;
                 row.Spawned=pawn.Spawned; row.HasDrafter=pawn.drafter!=null;
@@ -54,14 +58,11 @@ namespace HomeBridge.BridgeTools
                     if(missing!=null) row.MissingCapacity=Id(missing.defName);
                     else row.Issues.Add(Issue("missing_capacity",Common.UnavailableReason.NotApplicable,"No tend capacity is missing."));
                 }
-                if(!bounded) {
-                    row.Issues.Add(Issue("reachable_pawn_ids",Common.UnavailableReason.LimitExceeded,"Pairwise reachability is bounded to "+TendRows+" rows."));
-                    continue;
-                }
                 if(!pawn.Spawned || pawn.Dead) {
                     row.Issues.Add(Issue("reachable_pawn_ids",Common.UnavailableReason.NotApplicable,"An unspawned or dead pawn reaches nothing."));
                     continue;
                 }
+                if(System.Diagnostics.Stopwatch.GetTimestamp()-began>=budgetTicks) {row.ReachSkipped=true;continue;}
                 foreach(var other in page) {
                     if(ReferenceEquals(other.Key,pawn) || !other.Key.Spawned || other.Key.Dead) continue;
                     if(pawn.CanReach(other.Key,PathEndMode.ClosestTouch,Danger.Deadly)) row.ReachablePawnIds.Add(other.Value.Pawn.Id);

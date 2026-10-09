@@ -76,7 +76,7 @@ namespace HomeBridge.BridgeTools
             var raidArmor = details.Equipment ? NativeGearFacts.RaidArmor(map) : null;
             // The tend detail is pairwise across the page, so it runs once over
             // the whole page before the per-row snapshot tokens are taken.
-            if (details.Tend) NativePawnDetails.Tend(page);
+            if (details.Tend) NativePawnDetails.Tend(page, details.HasTendReachBudgetMs ? details.TendReachBudgetMs : (uint?)null);
             foreach (var item in page) result.Pawns.Add(Detail(item.Key, colonists, item.Value, parsed.Details, raidArmor, context));
             return result;
         }

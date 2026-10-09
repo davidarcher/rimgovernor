@@ -50,11 +50,6 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 			}
 			seen[row.StockId] = true
 		}
-		for _, cell := range larder.ColdSites {
-			if cell == nil || cell.X == nil || cell.Z == nil || cell.GetX() < 0 || cell.GetZ() < 0 {
-				return contract("invalid cold site")
-			}
-		}
 	}
 	return nil
 }

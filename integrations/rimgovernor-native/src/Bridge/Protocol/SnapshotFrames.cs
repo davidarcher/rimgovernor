@@ -88,7 +88,7 @@ namespace HomeBridge.BridgeTools
             CombatMirror.Capture(map, observed);
             ObservationWork.Captured("combat", Now() - combatBegan, observed.CombatPawns.Count + observed.CombatEvents.Count);
             var inputsBegan = Now();
-            CombatInputs(map, context, observed);
+            CombatInputs(map, context, observed, request);
             ObservationWork.Captured("combatInputs", Now() - inputsBegan, observed.CombatDoors.Count + observed.CombatMortars.Count);
             return true;
         }
@@ -113,7 +113,7 @@ namespace HomeBridge.BridgeTools
         // ranged colonists to hostile buildings, while the census lists a
         // threat or a colonist in a mental state. Each is omitted when it
         // fails to read.
-        private static void CombatInputs(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed)
+        private static void CombatInputs(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed, Obs.SnapshotStreamRequest request)
         {
             var census = observed.Emergency;
             var threats = census?.Threats;
@@ -162,7 +162,7 @@ namespace HomeBridge.BridgeTools
                 var gun = weapon.def.Verbs?.FirstOrDefault(v => !v.IsMeleeAttack && v.range > 0);
                 if (gun == null || float.IsNaN(gun.range) || float.IsInfinity(gun.range)) continue;
                 var cell = new IntVec3(row.Pawn.Position.X, 0, row.Pawn.Position.Z);
-                if (!firing.Contains(cell) && firing.Count < NativeDefenseObservationTools.MaximumLineCells) firing.Add(cell);
+                if (!firing.Contains(cell)) firing.Add(cell);
             }
             var approach = new List<IntVec3>();
             foreach (var building in threats.HostileBuildings)
@@ -170,10 +170,10 @@ namespace HomeBridge.BridgeTools
                     for (var x = building.Occupied.Minimum.X; x <= building.Occupied.Maximum.X; x++)
                     {
                         var cell = new IntVec3(x, 0, z);
-                        if (!approach.Contains(cell) && approach.Count < NativeDefenseObservationTools.MaximumLineCells) approach.Add(cell);
+                        if (!approach.Contains(cell)) approach.Add(cell);
                     }
             if (firing.Count == 0 || approach.Count == 0 || firing.Concat(approach).Any(c => !c.InBounds(map))) return;
-            try { observed.CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context); }
+            try { observed.CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context, request.HasLinesOfFireBudgetMs ? request.LinesOfFireBudgetMs : (uint?)null); }
             catch (System.Exception ex) { ObservationWork.Failed("combatLinesOfFire", ex); }
         }
 

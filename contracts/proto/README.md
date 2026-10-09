@@ -16,8 +16,9 @@ work tracker or grant permission to change settings.
 native tend order enforces -- pawn-control eligibility, WorkGiver_Tend's required
 capacities, the Doctor work type -- plus `reachable_pawn_ids`, this pawn's
 `CanReach(ClosestTouch, Deadly)` over the other rows of the same reply. Reachability
-is pairwise, so it is answered only for a query of at most 64 rows and carries a
-`reachable_pawn_ids` issue beyond that. A producer that omits the block leaves the
+is pairwise, so it runs under the request's `PawnDetails.tend_reach_budget_ms`
+(Go: `bridge.TendReachBudgetMS`); a doctor reached after it is spent carries
+`reach_skipped` and an empty list, which is unknown, not "reaches nobody". A producer that omits the block leaves the
 gates unknown and the controller proposes no doctor, rather than failing the read.
 
 - [Fixed MCP tools](mcp-tools.md): descriptor methods, exact wrappers and capabilities.

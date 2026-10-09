@@ -22,13 +22,12 @@ namespace HomeBridge.BridgeTools
     // target cells separately. No orders, path-grid edits or simulation.
     public sealed class NativeSpatialAccessTool
     {
-        internal const int MaximumBlockedCells = 16384;
-        internal const int MaximumTargetCells = 128;
-        internal const int MaximumPawns = 32;
+        // The one surviving cap: the per-colonist work scans the whole map. Over it the read
+        // is unavailable (LimitExceeded), never partial.
         internal const long MaximumMapCells = 262144;
 
         [Tool("rimgovernor/observations_read_spatial_access", Title = "Read projected colony access",
-            Description = "Official SpatialAccessRequest ProtoJSON. Single-frame main-thread audit of each mobile colonist's current safe four-neighbour reach against the same reach with blocked_cells impassable, plus native CanReach for target_cells. At most 16384 blocked and 128 target cells, 32 colonists; pawn_ids restricts the census. Unavailable instead of truncation.")]
+            Description = "Official SpatialAccessRequest ProtoJSON. Single-frame main-thread audit of each mobile colonist's current safe four-neighbour reach against the same reach with blocked_cells impassable, plus native CanReach for target_cells. pawn_ids restricts the census. Colonists past the request's budget_ms come back skipped; a map over 262144 cells is unavailable.")]
         [ToolResponse("payload", "string", "Official observations SpatialAccessReply ProtoJSON.", Always = true)]
         public async Task<object> ReadSpatialAccess(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a SpatialAccessRequest ProtoJSON string.")] object? request = null)
@@ -45,7 +44,7 @@ namespace HomeBridge.BridgeTools
                     var targets = parsed.TargetCells.Select(Native).ToList();
                     if (blocked.Concat(targets).Any(c => !c.InBounds(map))) return ProtoBoundary.Encode(new Obs.SpatialAccessReply {
                         Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") });
-                    return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Observed = Audit(map, blocked, targets, parsed.PawnIds.ToList(), context) });
+                    return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Observed = Audit(map, blocked, targets, parsed.PawnIds.ToList(), context, parsed.HasBudgetMs ? parsed.BudgetMs : (uint?)null) });
                 }
                 catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native spatial access could not be read completely.") }); }
@@ -55,10 +54,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Validate(Obs.SpatialAccessRequest request, out Common.Failure failure)
         {
             failure = null!;
-            if (request.BlockedCells.Count > MaximumBlockedCells) failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "At most 16384 blocked cells.");
-            else if (request.TargetCells.Count > MaximumTargetCells) failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "At most 128 target cells.");
-            else if (request.PawnIds.Count > MaximumPawns) failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "At most 32 pawn ids.");
-            else if (request.BlockedCells.Concat(request.TargetCells).Any(c => c == null || !c.HasX || !c.HasZ || c.X < 0 || c.Z < 0))
+            if (request.BlockedCells.Concat(request.TargetCells).Any(c => c == null || !c.HasX || !c.HasZ || c.X < 0 || c.Z < 0))
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Every cell needs nonnegative x and z.");
             else if (request.BlockedCells.Select(Native).Distinct().Count() != request.BlockedCells.Count || request.TargetCells.Select(Native).Distinct().Count() != request.TargetCells.Count)
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Duplicate cells.");
@@ -82,8 +78,10 @@ namespace HomeBridge.BridgeTools
             return found;
         }
 
-        private static Obs.SpatialAccessSnapshot Audit(Map map, HashSet<IntVec3> blocked, List<IntVec3> targets, List<string> pawnIds, Common.ObservationContext context)
+        private static Obs.SpatialAccessSnapshot Audit(Map map, HashSet<IntVec3> blocked, List<IntVec3> targets, List<string> pawnIds, Common.ObservationContext context, uint? budgetMs)
         {
+            var budgetTicks = budgetMs.HasValue ? budgetMs.Value * System.Diagnostics.Stopwatch.Frequency / 1000 : long.MaxValue;
+            var began = System.Diagnostics.Stopwatch.GetTimestamp();
             var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.InMentalState).OrderBy(p => p.thingIDNumber).ToList();
             if (pawnIds.Count != 0)
             {
@@ -91,11 +89,18 @@ namespace HomeBridge.BridgeTools
                 pawns = pawns.Where(p => wanted.Contains(p.GetUniqueLoadID())).ToList();
                 if (pawns.Count != pawnIds.Count) throw new ReadLimit("Every requested pawn id must name a spawned mobile free colonist.");
             }
-            if (pawns.Count == 0 || pawns.Count > MaximumPawns) throw new ReadLimit("Require one through 32 mobile native colonists.");
+            if (pawns.Count == 0) throw new ReadLimit("Require at least one mobile native colonist.");
             var terrain = map.AllCells.Where(c => !c.Fogged(map) && c.Walkable(map)).ToList();
             var result = new Obs.SpatialAccessSnapshot { Context = context, MapCells = (uint)(map.Size.x * map.Size.z), ObservedWalkableCells = (uint)terrain.Count};
             foreach (var pawn in pawns)
             {
+                // The budget is checked between colonists (about 70-80 ms each): one past
+                // it is reported skipped, not audited and not assumed to keep access.
+                if (System.Diagnostics.Stopwatch.GetTimestamp() - began >= budgetTicks)
+                {
+                    result.Pawns.Add(new Obs.PawnAccess { Pawn = NativeRef.Thing(pawn), Position = Cell(pawn.Position), Skipped = true });
+                    continue;
+                }
                 var area = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
                 var allowed = new HashSet<IntVec3>(terrain.Where(c => (area == null || area[c])
                     && c.GetDangerFor(pawn, map) == Danger.None

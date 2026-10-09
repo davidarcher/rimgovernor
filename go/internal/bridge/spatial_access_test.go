@@ -41,7 +41,7 @@ func spatialClient(t *testing.T, fixture *o.SpatialAccessSnapshot) *Client {
 }
 
 func TestSpatialAccessReadsAudit(t *testing.T) {
-	want := &o.SpatialAccessRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, BlockedCells: []*c.Cell{pbCell(10, 14), pbCell(11, 14)}, TargetCells: []*c.Cell{pbCell(9, 14), pbCell(9, 0)}, PawnIds: spatialPawns}
+	want := &o.SpatialAccessRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, BlockedCells: []*c.Cell{pbCell(10, 14), pbCell(11, 14)}, TargetCells: []*c.Cell{pbCell(9, 14), pbCell(9, 0)}, PawnIds: spatialPawns, BudgetMs: proto.Uint32(SpatialAccessBudgetMS)}
 	client := defenseServer(t, "rimgovernor/observations_read_spatial_access", want, &o.SpatialAccessReply{Outcome: &o.SpatialAccessReply_Observed{Observed: spatialFixture()}})
 	access, _, err := client.ReadSpatialAccess(context.Background(), pbIdentity(), spatialBlocked, spatialTargets, spatialPawns)
 	if err != nil {
@@ -74,6 +74,24 @@ func TestSpatialAccessBlockedPawnNeedsEgress(t *testing.T) {
 	access, _, err = spatialClient(t, fixture).ReadSpatialAccess(context.Background(), pbIdentity(), blocked, spatialTargets, spatialPawns)
 	if err != nil || access.Pawns[0].OriginKnown || access.Accepted() {
 		t.Fatal(access, err)
+	}
+}
+
+// A colonist past the audit budget arrives as a position-only skipped row; the
+// audit then names it instead of accepting or refusing on partial evidence.
+func TestSpatialAccessSkippedColonistIsNamed(t *testing.T) {
+	fixture := spatialFixture()
+	fixture.Pawns[1] = &o.PawnAccess{Pawn: &c.Ref{Id: proto.String("Human2")}, Position: pbCell(8, 27), Skipped: proto.Bool(true)}
+	access, _, err := spatialClient(t, fixture).ReadSpatialAccess(context.Background(), pbIdentity(), spatialBlocked, spatialTargets, spatialPawns)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id, skipped := access.Skipped(); !skipped || id != "Human2" || !access.Pawns[1].Skipped {
+		t.Fatalf("%+v", access)
+	}
+	fixture.Pawns[1].CurrentCells = proto.Uint32(400)
+	if _, _, err = spatialClient(t, fixture).ReadSpatialAccess(context.Background(), pbIdentity(), spatialBlocked, spatialTargets, spatialPawns); !errors.Is(err, ErrContract) {
+		t.Fatal("skipped row carrying facts accepted", err)
 	}
 }
 func TestSpatialAccessRejectsMalformed(t *testing.T) {
@@ -110,13 +128,6 @@ func TestSpatialAccessRejectsMalformed(t *testing.T) {
 		t.Fatal("native read issued for an invalid request")
 		return nil, nil
 	}}, time.Second)
-	many := make([]domain.Cell, 129)
-	for i := range many {
-		many[i] = domain.Cell{X: int32(i), Z: 0}
-	}
-	if _, _, err := client.ReadSpatialAccess(context.Background(), pbIdentity(), spatialBlocked, many, nil); !errors.Is(err, ErrContract) {
-		t.Fatal(err)
-	}
 	if _, _, err := client.ReadSpatialAccess(context.Background(), pbIdentity(), []domain.Cell{{X: 1, Z: 1}, {X: 1, Z: 1}}, nil, nil); !errors.Is(err, ErrContract) {
 		t.Fatal(err)
 	}

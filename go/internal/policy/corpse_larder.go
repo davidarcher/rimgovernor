@@ -27,7 +27,6 @@ type CorpseHandling struct {
 type FoodLarder struct {
 	RawMeatNutrition, CookDemandNutrition float64
 	Corpses                               []CorpseHandling
-	ColdSites                             []domain.Cell
 }
 
 type CorpseLarderMethod struct {

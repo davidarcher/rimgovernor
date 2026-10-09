@@ -538,7 +538,6 @@ namespace HomeBridge.BridgeTools
                     if (corpse.Hauler != null) row.HaulerId = corpse.Hauler;
                     result.Larder.Corpses.Add(row);
                 }
-                foreach (var cell in source.larder.ColdSites) result.Larder.ColdSites.Add(Cell(cell));
             }
             foreach (var consumer in source.consumers)
                 result.Consumers.Add(new Obs.FoodConsumer { PawnId = consumer.id, NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable });

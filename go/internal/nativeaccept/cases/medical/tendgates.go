@@ -82,10 +82,10 @@ func tendGatesObserve(observed map[string]any) error {
 		if _, known := na.AsBool(doctor["workTypeDisabled"]); !known {
 			return fmt.Errorf("%s workTypeDisabled unknown: %#v", id, doctor)
 		}
-		// A row whose reachability could not be evaluated (unspawned, or a
-		// page past the pairwise bound) carries an issue instead of a list and
-		// takes no part in the symmetry check.
-		unevaluated := false
+		// A row whose reachability could not be evaluated (unspawned) carries an
+		// issue instead of a list, and one past the tend budget carries
+		// reachSkipped; neither takes part in the symmetry check.
+		unevaluated := doctor["reachSkipped"] == true
 		for _, rawIssue := range na.AsSlice(doctor["issues"]) {
 			issue, _ := na.AsMap(rawIssue)
 			if na.AsString(issue["field"]) == "reachable_pawn_ids" {

@@ -578,8 +578,8 @@ func podArrival(combat bridge.Combat) domain.Fact[policy.PodArrival] {
 // building's occupied cells no further than the defender's weapon range.
 // The native attack preview decides the shot itself; this only keeps a
 // defender who could not shoot from being planned as a shooter.
-// The frame carries at most 64 cells a side; a defender or building cell
-// it leaves out has no line, and that defender walks in.
+// A frame whose lines read ran past its budget (Combat.LinesSkipped) holds only
+// the pairs read; a pair it leaves out has no line, and that defender walks in.
 func buildingLinesOfFire(read []bridge.LineOfFire, buildings []policy.EmergencyThreat, defenders []policy.SquadDefenderFacts, rows map[string]*n.PawnState, reaches map[string]float64) map[policy.PawnID]map[domain.PawnID]bool {
 	lines := map[policy.PawnID]map[domain.PawnID]bool{}
 	shooters := map[domain.Cell][]domain.PawnID{}

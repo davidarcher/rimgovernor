@@ -992,6 +992,10 @@ func (r *RoundsDefenseLayoutPlanner) proposeTurrets(call context.Context, state 
 	if err = r.sameTick(lines.Context, state, projection.Identity.Tick); err != nil {
 		return err
 	}
+	if lines.Skipped {
+		// Pairs past the budget stay absent, which the turret policy reads as unknown.
+		defenseAction(call, "defense-layout", slog.LevelInfo, "partial", "lines_of_fire_skipped", "turrets", map[string]any{"read": len(lines.Lines), "firing": len(probe), "approach": len(record.TrapLane)})
+	}
 	for _, line := range lines.Lines {
 		l := policy.DefenseLine{From: line.From, To: line.To}
 		if line.Known {
@@ -1391,6 +1395,12 @@ func (r *RoundsDefenseLayoutPlanner) admit(call, epoch context.Context, goal sto
 		}
 		if err = r.sameTick(access.Context, state, projection.Identity.Tick); err != nil {
 			return RoundsDefenseLayoutResult{}, err
+		}
+		// A colonist past the audit budget proves nothing either way: unavailable,
+		// not accepted and not refused for want of space.
+		if id, skipped := access.Skipped(); skipped {
+			defenseAction(call, "defense-layout", slog.LevelInfo, "unavailable", "access_audit", string(tier.Name), map[string]any{"blocked_cells": len(blockedCells), "skipped_pawn": id})
+			return RoundsDefenseLayoutResult{Verdict: fieldUnavailable("spatial_access_skipped"), Tier: tier.Name}, nil
 		}
 		if refusal := access.Refusal(); refusal != "" {
 			defenseAction(call, "defense-layout", slog.LevelInfo, "refused", "access_audit", string(tier.Name), map[string]any{"blocked_cells": len(blockedCells), "detail": refusal})

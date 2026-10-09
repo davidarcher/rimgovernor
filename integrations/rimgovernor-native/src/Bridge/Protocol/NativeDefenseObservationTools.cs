@@ -23,8 +23,6 @@ namespace HomeBridge.BridgeTools
     // where a raid will actually path.
     public sealed class NativeDefenseObservationTools
     {
-        internal const int MaximumLineCells = 64;
-
         [Tool("rimgovernor/observations_read_defense_site", Title = "Read defense site census",
             Description = "Official DefenseSiteRequest ProtoJSON. Inclusive rectangle of any size: terrain, traversal, native cover fill and the cover thing's clearance identity, sight blocking, edifice ownership, natural rock, doors, home area and ground reachability to a map edge without opening doors; plus the session's observed hostile arrivals. Unavailable instead of truncation.")]
         [ToolResponse("payload", "string", "Official observations DefenseSiteReply ProtoJSON.", Always = true)]
@@ -47,7 +45,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("rimgovernor/observations_read_lines_of_fire", Title = "Read lines of fire",
-            Description = "Official LinesOfFireRequest ProtoJSON. Native line of sight and CoverUtility block chance for every (firing, approach) cell pair; at most 64 request cells on each side.")]
+            Description = "Official LinesOfFireRequest ProtoJSON. Native line of sight and CoverUtility block chance for every (firing, approach) cell pair, firing-major, until the request's budget_ms runs out; the snapshot is then skipped and holds the pairs read.")]
         [ToolResponse("payload", "string", "Official observations LinesOfFireReply ProtoJSON.", Always = true)]
         public async Task<object> ReadLinesOfFire(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a LinesOfFireRequest ProtoJSON string.")] object? request = null)
@@ -61,7 +59,7 @@ namespace HomeBridge.BridgeTools
                     var firing = parsed.FiringCells.Select(Native).ToList(); var approach = parsed.ApproachCells.Select(Native).ToList();
                     if (firing.Concat(approach).Any(c => !c.InBounds(map))) return ProtoBoundary.Encode(new Obs.LinesOfFireReply {
                         Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") });
-                    return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Observed = Lines(map, firing, approach, context) });
+                    return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Observed = Lines(map, firing, approach, context, parsed.HasBudgetMs ? parsed.BudgetMs : (uint?)null) });
                 }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native lines of fire could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
@@ -75,14 +73,14 @@ namespace HomeBridge.BridgeTools
         }
         internal static bool ValidateLines(Obs.LinesOfFireRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope and 1..64 unique firing and approach cells are required.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope and unique, nonempty firing and approach cells are required.");
             if (request?.Scope?.ExpectedIdentity == null) return false;
             return Unique(request.FiringCells) && Unique(request.ApproachCells);
         }
         private static bool Unique(IEnumerable<Common.Cell> cells)
         {
             var list = cells.ToList();
-            if (list.Count < 1 || list.Count > MaximumLineCells || list.Any(c => !HasCell(c))) return false;
+            if (list.Count < 1 ||list.Any(c => !HasCell(c))) return false;
             return list.Select(Native).Distinct().Count() == list.Count;
         }
         private static bool HasCell(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;
@@ -148,10 +146,15 @@ namespace HomeBridge.BridgeTools
             return snapshot;
         }
 
-        internal static Obs.LinesOfFireSnapshot Lines(Map map, List<IntVec3> firing, List<IntVec3> approach, Common.ObservationContext context)
+        internal static Obs.LinesOfFireSnapshot Lines(Map map, List<IntVec3> firing, List<IntVec3> approach, Common.ObservationContext context, uint? budgetMs)
         {
             var snapshot = new Obs.LinesOfFireSnapshot { Context = context };
+            var budgetTicks = budgetMs.HasValue ? budgetMs.Value * System.Diagnostics.Stopwatch.Frequency / 1000 : long.MaxValue;
+            var began = System.Diagnostics.Stopwatch.GetTimestamp();
             foreach (var from in firing) foreach (var to in approach) {
+                // About 3 us a pair; the budget is checked per pair, so the snapshot holds a
+                // firing-major prefix of the product and says so.
+                if (System.Diagnostics.Stopwatch.GetTimestamp() - began >= budgetTicks) { snapshot.Skipped = true; return snapshot; }
                 var row = new Obs.LineOfFire { From = new Common.Cell { X = from.x, Z = from.z }, To = new Common.Cell { X = to.x, Z = to.z },
                     Distance = Finite((from - to).LengthHorizontal) };
                 if (from.Fogged(map) || to.Fogged(map)) { row.Issues.Add(Issue("line_of_sight", Common.UnavailableReason.NotApplicable, "Fogged endpoint geometry is unknown.")); snapshot.Lines.Add(row); continue; }

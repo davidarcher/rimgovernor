@@ -405,23 +405,17 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	// trap lane raiders must walk, the chokepoint mouth is covered, and the
 	// line has cover. Flank cells sit behind the funnel walls, so the mouth
 	// itself is only visible from the centre.
-	// The native read takes at most 64 cells a side, so a longer trap lane is
-	// read in chunks and the lines merged.
-	var lines []any
-	const chunk = 64
-	for i := 0; i < len(layout.TrapLane); i += chunk {
-		fire, err := h.Wire(ctx, fmt.Sprintf("lines-of-fire-%d", i/chunk), "observations_read_lines_of_fire", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity}, "firingCells": cellsJSON(layout.Firing), "approachCells": cellsJSON(layout.TrapLane[i:min(i+chunk, len(layout.TrapLane))]),
-		})
-		if err != nil {
-			return err
-		}
-		_, observed, err := na.Outcome(fire, "observed")
-		if err != nil {
-			return fmt.Errorf("lines of fire after layout: %w", err)
-		}
-		lines = append(lines, na.AsSlice(observed["lines"])...)
+	fire, err := h.Wire(ctx, "lines-of-fire", "observations_read_lines_of_fire", map[string]any{
+		"scope": map[string]any{"expectedIdentity": identity}, "firingCells": cellsJSON(layout.Firing), "approachCells": cellsJSON(layout.TrapLane),
+	})
+	if err != nil {
+		return err
 	}
+	_, observed, err := na.Outcome(fire, "observed")
+	if err != nil {
+		return fmt.Errorf("lines of fire after layout: %w", err)
+	}
+	lines := na.AsSlice(observed["lines"])
 	report["lines_of_fire_after_layout"] = lines
 	report.Expect("lines of fire after layout", assertCover(lines, layout))
 	// The perimeter stood with its gates: the access audit above blocked

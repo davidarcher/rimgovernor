@@ -169,14 +169,34 @@ func TestLinesOfFireReadsEveryPair(t *testing.T) {
 	approach := []domain.Cell{{X: 10, Z: 3}, {X: 11, Z: 3}}
 	want := &o.LinesOfFireRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()},
 		FiringCells:   []*c.Cell{{X: proto.Int32(0), Z: proto.Int32(0)}, {X: proto.Int32(1), Z: proto.Int32(0)}},
-		ApproachCells: []*c.Cell{{X: proto.Int32(10), Z: proto.Int32(3)}, {X: proto.Int32(11), Z: proto.Int32(3)}}}
+		ApproachCells: []*c.Cell{{X: proto.Int32(10), Z: proto.Int32(3)}, {X: proto.Int32(11), Z: proto.Int32(3)}}, BudgetMs: proto.Uint32(LinesOfFireBudgetMS)}
 	client := defenseServer(t, "rimgovernor/observations_read_lines_of_fire", want, &o.LinesOfFireReply{Outcome: &o.LinesOfFireReply_Observed{Observed: linesFixture()}})
 	lines, _, err := client.ReadLinesOfFire(context.Background(), pbIdentity(), firing, approach)
-	if err != nil || len(lines.Lines) != 4 {
+	if err != nil || len(lines.Lines) != 4 || lines.Skipped {
 		t.Fatal(lines, err)
 	}
 	if got := lines.Lines[1]; !got.Known || got.LineOfSight || got.TargetCover != 0.75 || got.ShooterCover != 0.57 || got.Distance != 3.2 {
 		t.Fatalf("%+v", got)
+	}
+}
+
+// A read cut short by its budget reports the pairs it read and the skipped flag;
+// the same shorter reply without the flag is an incomplete read.
+func TestLinesOfFireSkippedHoldsAPrefix(t *testing.T) {
+	firing := []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}}
+	approach := []domain.Cell{{X: 10, Z: 3}, {X: 11, Z: 3}}
+	fixture := linesFixture()
+	fixture.Lines = fixture.Lines[:3]
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
+		return pbResult(&o.LinesOfFireReply{Outcome: &o.LinesOfFireReply_Observed{Observed: fixture}}), nil
+	}}, time.Second)
+	if _, _, err := client.ReadLinesOfFire(context.Background(), pbIdentity(), firing, approach); !errors.Is(err, ErrContract) {
+		t.Fatal("short unflagged read accepted", err)
+	}
+	fixture.Skipped = proto.Bool(true)
+	lines, _, err := client.ReadLinesOfFire(context.Background(), pbIdentity(), firing, approach)
+	if err != nil || !lines.Skipped || len(lines.Lines) != 3 {
+		t.Fatal(lines, err)
 	}
 }
 func TestLinesOfFireUnknownEndpointNeedsIssue(t *testing.T) {
@@ -226,11 +246,7 @@ func TestLinesOfFireRejectsMalformed(t *testing.T) {
 		t.Fatal("native read issued for invalid cells")
 		return nil, nil
 	}}, time.Second)
-	many := make([]domain.Cell, 65)
-	for i := range many {
-		many[i] = domain.Cell{X: int32(i), Z: 0}
-	}
-	for _, bad := range [][]domain.Cell{nil, many, {{X: 0, Z: 0}, {X: 0, Z: 0}}, {{X: -1, Z: 0}}} {
+	for _, bad := range [][]domain.Cell{nil, {{X: 0, Z: 0}, {X: 0, Z: 0}}, {{X: -1, Z: 0}}} {
 		if _, _, err := client.ReadLinesOfFire(context.Background(), pbIdentity(), bad, approach); !errors.Is(err, ErrContract) {
 			t.Fatal(bad, err)
 		}
