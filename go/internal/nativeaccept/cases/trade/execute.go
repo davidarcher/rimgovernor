@@ -144,9 +144,8 @@ func runExecute(ctx context.Context, s cases.Session) error {
 	plain := func(row map[string]any) bool {
 		currency, _ := na.AsBool(row["currency"])
 		pawn, _ := na.AsBool(row["pawn"])
-		protected, _ := na.AsBool(row["protectedExport"])
 		willTrade, _ := na.AsBool(row["traderWillTrade"])
-		return willTrade && !currency && !pawn && !protected && na.AsString(row["lineId"]) != ""
+		return willTrade && !currency && !pawn && na.AsString(row["lineId"]) != ""
 	}
 	setLines := func(label string, lines []any) error {
 		result, err := apply(label, map[string]any{"setLines": map[string]any{"lines": lines}})

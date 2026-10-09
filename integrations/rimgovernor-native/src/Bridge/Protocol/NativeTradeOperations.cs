@@ -99,48 +99,6 @@ namespace HomeBridge.BridgeTools
             try { return t.AnyThing is Pawn; } catch { return false; }
         }
 
-        // A colony animal row the economic policy may export: a
-        // player-faction animal with no bond. Humanlike pawns (slaves,
-        // prisoners) and bonded animals stay protected; which animal is
-        // surplus is the controller's herd plan, and the deal's economic
-        // floors must still name its definition.
-        internal static bool IsSellableAnimal(Tradeable t)
-        {
-            try
-            {
-                var pawn = t.thingsColony.FirstOrDefault() as Pawn;
-                return pawn != null && !pawn.Destroyed && pawn.RaceProps != null && pawn.RaceProps.Animal && pawn.Faction == Faction.OfPlayer
-                    && (pawn.relations == null || pawn.relations.GetFirstDirectRelationPawn(PawnRelationDefOf.Bond) == null);
-            }
-            catch { return false; }
-        }
-
-        // A colony prisoner row a favor session may sell: the pawns
-        // TradeUtility.AllSellableColonyPawns lists (secure prisoners; the
-        // trader tracker adds not-downed). Slaves, silver sessions and every
-        // other humanlike stay protected.
-        internal static bool IsSellableFavorPrisoner(Tradeable t)
-        {
-            try
-            {
-                var pawn = t.thingsColony.FirstOrDefault() as Pawn;
-                return IsFavorSession() && pawn != null && !pawn.Destroyed && pawn.guest != null && pawn.guest.IsPrisoner && pawn.guest.PrisonerIsSecure && !pawn.Downed;
-            }
-            catch { return false; }
-        }
-
-        // Gear the controller's gear-sale plan names by thing id: every
-        // colony thing of the row must be authorized, or the row stays protected.
-        private static bool AuthorizedGear(Tradeable t, HashSet<string> authorized)
-        {
-            try
-            {
-                var things = t.thingsColony.Where(x => !x.Destroyed).ToList();
-                return things.Count > 0 && things.All(x => authorized.Contains(x.GetUniqueLoadID()));
-            }
-            catch { return false; }
-        }
-
         private static bool WouldGiveAway(Tradeable t, int target)
         {
             bool gift; try { gift = TradeSession.giftMode; } catch { gift = false; }
@@ -508,35 +466,6 @@ namespace HomeBridge.BridgeTools
             SafeUpdateCurrency(deal);
             if (!command.HasExpectedDealSignature || DealSignature() != command.ExpectedDealSignature)
             { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Trade contents or prices changed since preview."); return false; }
-            if (command.EconomicFloors.Count > 0)
-            {
-                var floors = new Dictionary<string, int>(StringComparer.Ordinal);
-                foreach (var f in command.EconomicFloors)
-                {
-                    if (!f.HasDefName || string.IsNullOrEmpty(f.DefName) || floors.ContainsKey(f.DefName))
-                    { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Economic reserve policy is malformed."); return false; }
-                    floors[f.DefName] = f.HasCount ? f.Count : 0;
-                }
-                // A favor session pays royal favor to the negotiator, so it needs
-                // no silver reserve; its currency rows are exempt below.
-                var favorSession = IsFavorSession();
-                if (!favorSession && !floors.ContainsKey("Silver") || SafeBool(() => TradeSession.giftMode))
-                { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, favorSession ? "Economic policy requires an ordinary trade." : "Economic policy requires a silver reserve and an ordinary trade."); return false; }
-                var exportThings = new HashSet<string>(command.ExportThingIds, StringComparer.Ordinal);
-                foreach (var row in deal.AllTradeables.Where(t => SafeInt(() => t.CountToTransfer) < 0 || SafeBool(() => t.IsCurrency)))
-                {
-                    if (favorSession && SafeBool(() => row.IsCurrency)) continue;
-                    var def = SafeDef(row);
-                    if (def == null || !floors.TryGetValue(def.defName, out var floor)
-                        || SafeInt(() => row.thingsColony.Where(t => !t.Destroyed).Sum(t => t.stackCount)) + SafeInt(() => row.CountToTransfer) < floor)
-                    { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Economic stock reserve would be violated."); return false; }
-                    // A positive floor is Go's authorisation to sell a surplus of this
-                    // food (the crop/protein rule lives in policy, from the def rows).
-                    var cropSurplus = floor > 0;
-                    if (!SafeBool(() => row.IsCurrency) && (def.IsWeapon && !AuthorizedGear(row, exportThings) || def.IsApparel && !AuthorizedGear(row, exportThings) || def.IsMedicine || def.IsNutritionGivingIngestible && !cropSurplus || IsPawnRow(row) && !IsSellableAnimal(row) && !IsSellableFavorPrisoner(row)))
-                    { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Economic export is protected."); return false; }
-                }
-            }
             var stagedCount = deal.AllTradeables.Count(t => SafeInt(() => t.CountToTransfer) != 0);
             if (stagedCount == 0 && !(command.HasAllowEmpty && command.AllowEmpty))
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Nothing is staged; pass allow_empty to trade nothing deliberately."); return false; }

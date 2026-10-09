@@ -16,7 +16,7 @@ func tradeRow(line, def string, colony, trader int64, buy, sell float64) TradeSh
 		LineID: line, DefName: def, ColonyCount: colony, TraderCount: trader,
 		BuyPrice: buy, BuyPriceKnown: true, SellPrice: sell, SellPriceKnown: true,
 		TraderWillTrade: true, TraderWillTradeKnown: true,
-		CurrencyKnown: true, PawnKnown: true, ProtectedExportKnown: true,
+		CurrencyKnown: true, PawnKnown: true,
 	}
 }
 
@@ -239,31 +239,64 @@ func TestSelectTradeBlocksUnusableRows(t *testing.T) {
 	}
 }
 
-func TestSelectTradeBlocksProtectedExports(t *testing.T) {
-	for name, spoiler := range map[string]func(*TradeSheetRowFact){
-		"protected": func(r *TradeSheetRowFact) { r.ProtectedExport = true },
-		"unknown":   func(r *TradeSheetRowFact) { r.ProtectedExportKnown = false },
-	} {
-		t.Run(name, func(t *testing.T) {
-			row := tradeRow("#1", "MealSimple", 500, 0, 9, 5)
-			spoiler(&row)
-			policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("MealSimple", 100, 0, 1000, 0, 1)}}
-			got := SelectTrade(policy, tradeFacts([]TradeSheetRowFact{row}, 0, 100000, 100000))
-			if len(got.Selected) != 0 {
-				t.Fatalf("selected %+v of a protected export", got.Selected)
-			}
-			if evidence := evidenceFor(t, got, "MealSimple"); evidence.Blocker != tradeBlockerProtected {
-				t.Fatalf("evidence %+v, want the protected-export blocker", evidence)
-			}
-		})
+// Native keeps no export protection: food sells only as the authorized crop
+// surplus, a purchase of the same row is never blocked, and every other row
+// sells as its target says.
+func TestSelectTradeFoodSellsOnlyAsAuthorizedCropSurplus(t *testing.T) {
+	food := tradeRow("#1", "MealSimple", 500, 0, 9, 5)
+	food.Food = domain.Known(TradeFoodGood{Nutrition: 1, Class: IngredientAny, Prepared: true})
+	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("MealSimple", 100, 0, 1000, 0, 1)}}
+	got := SelectTrade(policy, tradeFacts([]TradeSheetRowFact{food}, 0, 100000, 100000))
+	if len(got.Selected) != 0 {
+		t.Fatalf("selected %+v of unauthorized food", got.Selected)
 	}
-	// The same protection must not block a purchase of the same definition.
-	row := tradeRow("#1", "MealSimple", 0, 500, 5, 9)
-	row.ProtectedExport = true
-	policy := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("MealSimple", 100, 1000, 0, 10, 0)}}
-	got := SelectTrade(policy, tradeFacts([]TradeSheetRowFact{row}, 100000, 100000, 100000))
-	if counts := selectedCounts(t, got); counts["MealSimple"] != 100 {
-		t.Fatalf("bought %d, want 100: an export protection never blocks an import", counts["MealSimple"])
+	if evidence := evidenceFor(t, got, "MealSimple"); evidence.Blocker != tradeBlockerProtected {
+		t.Fatalf("evidence %+v, want the food blocker", evidence)
+	}
+	plain := tradeRow("#1", "Steel", 500, 0, 9, 5)
+	steel := domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("Steel", 100, 0, 1000, 0, 1)}}
+	if counts := selectedCounts(t, SelectTrade(steel, tradeFacts([]TradeSheetRowFact{plain}, 0, 100000, 100000))); counts["Steel"] != -400 {
+		t.Fatalf("sold %d, want -400", counts["Steel"])
+	}
+	buy := tradeRow("#1", "MealSimple", 0, 500, 5, 9)
+	buy.Food = food.Food
+	policy = domain.TradeEconomicPolicy{Targets: []domain.TradeTarget{tradeTarget("MealSimple", 100, 1000, 0, 10, 0)}}
+	if counts := selectedCounts(t, SelectTrade(policy, tradeFacts([]TradeSheetRowFact{buy}, 100000, 100000, 100000))); counts["MealSimple"] != 100 {
+		t.Fatalf("bought %d, want 100: food rules never block an import", counts["MealSimple"])
+	}
+}
+
+// Native no longer checks the silver reserve at accept, so selection alone
+// must never stage a purchase that leaves the colony below it: across silver,
+// reserve, price and spend-ceiling combinations the silver left after the
+// purchases stays at or above the lesser of the stock and the reserve.
+func TestSelectTradeNeverStagesBelowTheSilverReserve(t *testing.T) {
+	for _, silver := range []int64{0, 50, 399, 400, 1000} {
+		for _, reserve := range []int64{0, 100, 400, 2000} {
+			for _, price := range []float64{0.7, 1, 3.3} {
+				for _, spend := range []int64{0, 25, 100000} {
+					rows := []TradeSheetRowFact{
+						tradeRow("#1", "Steel", 0, 10000, price, price),
+						tradeRow("#2", "Wood", 500, 0, 1, 2),
+					}
+					policy := domain.TradeEconomicPolicy{SilverReserve: reserve, Targets: []domain.TradeTarget{
+						tradeTarget("Steel", 5000, 5000, 0, 10, 0), tradeTarget("Wood", 100, 0, 50, 0, 1)}}
+					got := SelectTrade(policy, tradeFacts(rows, silver, 100000, spend))
+					if got.Refused {
+						t.Fatalf("refused: %s", got.Reason)
+					}
+					left := float64(silver)
+					for _, line := range got.Selected {
+						if line.Count > 0 && line.LineID == "#1" {
+							left -= float64(line.Count) * price
+						}
+					}
+					if left < float64(min(silver, reserve)) {
+						t.Fatalf("silver %d reserve %d price %v spend %d: purchases leave %v", silver, reserve, price, spend, left)
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -293,8 +326,8 @@ func TestSelectTradeBlocksUnknownQuantitiesAndPrices(t *testing.T) {
 		policy domain.TradeEconomicPolicy
 		row    TradeSheetRowFact
 	}{
-		{"colony count unknown", buy, TradeSheetRowFact{LineID: "#1", DefName: "Steel", ColonyCount: -1, TraderCount: 10, BuyPrice: 1, BuyPriceKnown: true, SellPrice: 1, SellPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true, ProtectedExportKnown: true}},
-		{"trader count unknown", buy, TradeSheetRowFact{LineID: "#1", DefName: "Steel", ColonyCount: 0, TraderCount: -1, BuyPrice: 1, BuyPriceKnown: true, SellPrice: 1, SellPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true, ProtectedExportKnown: true}},
+		{"colony count unknown", buy, TradeSheetRowFact{LineID: "#1", DefName: "Steel", ColonyCount: -1, TraderCount: 10, BuyPrice: 1, BuyPriceKnown: true, SellPrice: 1, SellPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true}},
+		{"trader count unknown", buy, TradeSheetRowFact{LineID: "#1", DefName: "Steel", ColonyCount: 0, TraderCount: -1, BuyPrice: 1, BuyPriceKnown: true, SellPrice: 1, SellPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true}},
 		{"buy price unknown", buy, func() TradeSheetRowFact { r := tradeRow("#1", "Steel", 0, 10, 1, 1); r.BuyPriceKnown = false; return r }()},
 		{"buy price not finite", buy, func() TradeSheetRowFact { r := tradeRow("#1", "Steel", 0, 10, 1, 1); r.BuyPrice = math.NaN(); return r }()},
 		{"sell price unknown", sell, func() TradeSheetRowFact {

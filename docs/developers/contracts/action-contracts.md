@@ -196,16 +196,18 @@ live state (`ReadTradeSession` issues no orders). Exchange completion does not c
 storage. A caravan reported still travelling holds the concern open and lends native ticks
 until it arrives.
 
-**Favor currency.** A favor session (the Royalty tribute collector) sets `TradeSheet.currency_kind` (absent reads as silver): row `sell_price` is the favor value, the favor row is `TradeLine.favor` (a currency row, never `protected_export`) and its `transfer_count` is the favor granted on accept. Accept needs no `Silver` floor and exempts currency rows from the reserve check but refuses a negotiator without a royalty tracker. Only here are secure, non-downed prisoners (`TradeUtility.AllSellableColonyPawns`) sellable; an extra home/host faction costs goodwill (`MemberSold`). The controller sells only surplus prisoners (`RoundsFacts.SurplusPrisoners`) with a known positive favor price; unknown facts hold. The staged human-race line gets the accept floor of 0.
+**Favor currency.** A favor session (the Royalty tribute collector) sets `TradeSheet.currency_kind` (absent reads as silver): row `sell_price` is the favor value, the favor row is `TradeLine.favor` (a currency row) and its `transfer_count` is the favor granted on accept. Accept refuses a negotiator without a royalty tracker. Only here are secure, non-downed prisoners (`TradeUtility.AllSellableColonyPawns`) sellable; an extra home/host faction costs goodwill (`MemberSold`). The controller sells only surplus prisoners (`RoundsFacts.SurplusPrisoners`) with a known positive favor price; unknown facts hold.
 
 **Policy trades** select bounded purchases and surplus sales from the fresh native sheet.
 Each sheet read of an open session also records the trader's priced offers in Go memory
 ([trade offers](../architecture/supply-model.md#trade-offers)); a resource purchase
 (MaintainResource shortfall, component target) is staged only as far as the Round's supply
 plan opened that trader's offer, re-priced by the live sheet and the price floors.
-`economicFloors` on native acceptance contains exact `Def=count` entries separated by
-semicolons, including Silver. Acceptance checks remaining actual stack counts in the same
-main-thread operation as the exchange and refuses protected exports. Unknown or truncated
+Go selection owns the silver reserve, retained targets and what may sell (food only as the
+authorized crop surplus; gear and animals only through their sale plans) and never stages a
+purchase below the reserve. Native acceptance checks only the deal signature, an empty stage,
+the game's own `CanAdjustTo`/`TraderWillTrade` eligibility, affordability and caravan
+capacity, and reports the game's refusal text. Unknown or truncated
 inventory prevents selection. A policy with no eligible affordable lines cancels its own
 session without an exchange. Neither cancellation nor acceptance takes a trader quest.
 Trade is routine-only (the `trade` family, `--routine-silver-reserve`,
@@ -215,7 +217,7 @@ above a MaintainResource target and, once the item share of colony wealth passes
 jade) sold down to the highest of the target, the economic floor and a retained minimum
 (`policy.WealthSurplus`); an unknown wealth split sells nothing on that rule. Gear
 sells one piece at a time when it lies in a warehouse zone below the gear hit-point or
-quality floor (`policy.SaleGear`, authorized by `export_thing_ids`).
+quality floor (`policy.SaleGear`).
 
 Orbital opening requires a powered beacon and console, a reachable interaction
 cell and talking negotiator, then an ordinary `UseCommsConsole` job. The

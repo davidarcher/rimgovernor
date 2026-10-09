@@ -24752,7 +24752,6 @@ type TradeLine struct {
 	TransferCount     *int64                 `protobuf:"varint,16,opt,name=transfer_count,json=transferCount,proto3,oneof" json:"transfer_count,omitempty"`
 	MinimumCount      *int64                 `protobuf:"varint,17,opt,name=minimum_count,json=minimumCount,proto3,oneof" json:"minimum_count,omitempty"`
 	MaximumCount      *int64                 `protobuf:"varint,18,opt,name=maximum_count,json=maximumCount,proto3,oneof" json:"maximum_count,omitempty"`
-	ProtectedExport   *bool                  `protobuf:"varint,19,opt,name=protected_export,json=protectedExport,proto3,oneof" json:"protected_export,omitempty"`
 	CannotSellReasons []string               `protobuf:"bytes,20,rep,name=cannot_sell_reasons,json=cannotSellReasons,proto3" json:"cannot_sell_reasons,omitempty"`
 	LineId            *string                `protobuf:"bytes,21,opt,name=line_id,json=lineId,proto3,oneof" json:"line_id,omitempty"`
 	Food              *TradeFoodFacts        `protobuf:"bytes,22,opt,name=food,proto3" json:"food,omitempty"`
@@ -24928,13 +24927,6 @@ func (x *TradeLine) GetMaximumCount() int64 {
 		return *x.MaximumCount
 	}
 	return 0
-}
-
-func (x *TradeLine) GetProtectedExport() bool {
-	if x != nil && x.ProtectedExport != nil {
-		return *x.ProtectedExport
-	}
-	return false
 }
 
 func (x *TradeLine) GetCannotSellReasons() []string {
@@ -51516,7 +51508,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2,.rimgovernor.observations.v1.TradersSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xb9\x10\n" +
+	"\aoutcome\"\xf4\x0f\n" +
 	"\tTradeLine\x12\x19\n" +
 	"\x05index\x18\x01 \x01(\rH\x00R\x05index\x88\x01\x01\x12J\n" +
 	"\n" +
@@ -51541,23 +51533,22 @@ const file_observations_proto_rawDesc = "" +
 	"\x0etransfer_count\x18\x10 \x01(\x03H\x0eR\rtransferCount\x88\x01\x01\x12(\n" +
 	"\rminimum_count\x18\x11 \x01(\x03H\x0fR\fminimumCount\x88\x01\x01\x12(\n" +
 	"\rmaximum_count\x18\x12 \x01(\x03H\x10R\fmaximumCount\x88\x01\x01\x12.\n" +
-	"\x10protected_export\x18\x13 \x01(\bH\x11R\x0fprotectedExport\x88\x01\x01\x12.\n" +
 	"\x13cannot_sell_reasons\x18\x14 \x03(\tR\x11cannotSellReasons\x12\x1c\n" +
-	"\aline_id\x18\x15 \x01(\tH\x12R\x06lineId\x88\x01\x01\x12?\n" +
+	"\aline_id\x18\x15 \x01(\tH\x11R\x06lineId\x88\x01\x01\x12?\n" +
 	"\x04food\x18\x16 \x01(\v2+.rimgovernor.observations.v1.TradeFoodFactsR\x04food\x12:\n" +
 	"\x06skills\x18\x17 \x03(\v2\".rimgovernor.observations.v1.SkillR\x06skills\x12.\n" +
-	"\x10violence_capable\x18\x18 \x01(\bH\x13R\x0fviolenceCapable\x88\x01\x01\x12\x1c\n" +
-	"\apawn_id\x18\x19 \x01(\tH\x14R\x06pawnId\x88\x01\x01\x12\x1e\n" +
-	"\bthing_id\x18\x1a \x01(\tH\x15R\athingId\x88\x01\x01\x12\x1d\n" +
-	"\aquality\x18\x1b \x01(\x05H\x16R\aquality\x88\x01\x01\x12$\n" +
-	"\vpawn_gender\x18\x1c \x01(\tH\x17R\n" +
+	"\x10violence_capable\x18\x18 \x01(\bH\x12R\x0fviolenceCapable\x88\x01\x01\x12\x1c\n" +
+	"\apawn_id\x18\x19 \x01(\tH\x13R\x06pawnId\x88\x01\x01\x12\x1e\n" +
+	"\bthing_id\x18\x1a \x01(\tH\x14R\athingId\x88\x01\x01\x12\x1d\n" +
+	"\aquality\x18\x1b \x01(\x05H\x15R\aquality\x88\x01\x01\x12$\n" +
+	"\vpawn_gender\x18\x1c \x01(\tH\x16R\n" +
 	"pawnGender\x88\x01\x01\x123\n" +
-	"\x13hit_points_fraction\x18\x1d \x01(\x01H\x18R\x11hitPointsFraction\x88\x01\x01\x12\x1c\n" +
-	"\azone_id\x18\x1e \x01(\tH\x19R\x06zoneId\x88\x01\x01\x12\x19\n" +
-	"\x05favor\x18\x1f \x01(\bH\x1aR\x05favor\x88\x01\x01\x12&\n" +
-	"\fguest_status\x18  \x01(\tH\x1bR\vguestStatus\x88\x01\x01\x12,\n" +
-	"\x0fprisoner_secure\x18! \x01(\bH\x1cR\x0eprisonerSecure\x88\x01\x01\x12$\n" +
-	"\vpawn_downed\x18\" \x01(\bH\x1dR\n" +
+	"\x13hit_points_fraction\x18\x1d \x01(\x01H\x17R\x11hitPointsFraction\x88\x01\x01\x12\x1c\n" +
+	"\azone_id\x18\x1e \x01(\tH\x18R\x06zoneId\x88\x01\x01\x12\x19\n" +
+	"\x05favor\x18\x1f \x01(\bH\x19R\x05favor\x88\x01\x01\x12&\n" +
+	"\fguest_status\x18  \x01(\tH\x1aR\vguestStatus\x88\x01\x01\x12,\n" +
+	"\x0fprisoner_secure\x18! \x01(\bH\x1bR\x0eprisonerSecure\x88\x01\x01\x12$\n" +
+	"\vpawn_downed\x18\" \x01(\bH\x1cR\n" +
 	"pawnDowned\x88\x01\x01\x12H\n" +
 	"\x12extra_home_faction\x18# \x01(\v2\x1a.rimgovernor.common.v1.RefR\x10extraHomeFaction\x12H\n" +
 	"\x12extra_host_faction\x18$ \x01(\v2\x1a.rimgovernor.common.v1.RefR\x10extraHostFactionB\b\n" +
@@ -51578,8 +51569,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x11_pawn_descriptionB\x11\n" +
 	"\x0f_transfer_countB\x10\n" +
 	"\x0e_minimum_countB\x10\n" +
-	"\x0e_maximum_countB\x13\n" +
-	"\x11_protected_exportB\n" +
+	"\x0e_maximum_countB\n" +
 	"\n" +
 	"\b_line_idB\x13\n" +
 	"\x11_violence_capableB\n" +

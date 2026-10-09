@@ -45,7 +45,7 @@ func (t Trade) WithParticipant(p TradeParticipant) (Trade, error) {
 		return Trade{}, err
 	}
 	t.participant = p
-	return newTrade(t.kind, p, t.negotiator, t.giftMode, t.Lines(), t.allowPawns, t.expectedDealSignature, t.EconomicFloors(), t.ExportThings(), t.allowEmpty, t.endKind, t.receiveQuest)
+	return newTrade(t.kind, p, t.negotiator, t.giftMode, t.Lines(), t.allowPawns, t.expectedDealSignature, t.allowEmpty, t.endKind, t.receiveQuest)
 }
 
 func (t Trade) Participant() TradeParticipant { return t.participant }

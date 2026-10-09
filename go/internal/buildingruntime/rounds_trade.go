@@ -449,9 +449,7 @@ func (r *RoundsTradePlanner) drive(call, epoch context.Context, state ControlSta
 	if !facts.Favor && float64(facts.ColonySilver)+sheet.Balance < float64(selection.SilverReserve) {
 		return r.cancel(call, epoch, state, incident, trader, negotiator, started)
 	}
-	currency, _ := policy.TradeCurrency(facts.Rows)
-	floors := tradeAcceptFloors(economic, selection, currency, facts.Favor)
-	value, err := domain.NewTradeAccept(trader, negotiator, sheet.DealSignature, floors, tradeExportThings(selection, facts), false, false)
+	value, err := domain.NewTradeAccept(trader, negotiator, sheet.DealSignature, false, false)
 	if err != nil {
 		return RoundsTradeResult{}, err
 	}
@@ -734,7 +732,7 @@ func tradeSheetRowFacts(rows []bridge.TradeSheetRow, catalog *bridge.DefinitionC
 			BuyPrice: row.BuyPrice, BuyPriceKnown: row.BuyPriceKnown, SellPrice: row.SellPrice, SellPriceKnown: row.SellPriceKnown,
 			TraderWillTrade: row.TraderWillTrade, TraderWillTradeKnown: row.TraderWillTradeKnown,
 			Currency: row.Currency, CurrencyKnown: row.CurrencyKnown, Pawn: row.Pawn, PawnKnown: row.PawnKnown,
-			ProtectedExport: row.ProtectedExport, ProtectedExportKnown: row.ProtectedExportKnown, ThingID: row.ThingID, HitPoints: row.HitPoints, HitPointsKnown: row.HitPointsKnown, Quality: row.Quality, QualityKnown: row.QualityKnown, ZoneID: row.ZoneID, PawnID: row.PawnID, PawnGender: row.PawnGender,
+			ThingID: row.ThingID, HitPoints: row.HitPoints, HitPointsKnown: row.HitPointsKnown, Quality: row.Quality, QualityKnown: row.QualityKnown, ZoneID: row.ZoneID, PawnID: row.PawnID, PawnGender: row.PawnGender,
 			Skills: tradePawnSkills(row.Skills), ViolenceCapable: row.ViolenceCapable, ViolenceCapableKnown: row.ViolenceCapableKnown,
 			GuestStatus: row.GuestStatus, PrisonerSecure: row.PrisonerSecure, PrisonerSecureKnown: row.PrisonerSecureKnown, PawnDowned: row.PawnDowned, PawnDownedKnown: row.PawnDownedKnown,
 			ExtraHomeFaction: row.ExtraHomeFaction, ExtraHostFaction: row.ExtraHostFaction,
@@ -800,51 +798,4 @@ func sameTradeLines(left, right []domain.TradeLine) bool {
 		}
 	}
 	return true
-}
-
-// tradeExportThings are the sale-gear thing ids the selection sells: the accept
-// authorizes them past the native gear protection.
-func tradeExportThings(selection policy.TradeSelection, facts policy.TradeSelectionFacts) []string {
-	lines := map[string]bool{}
-	for _, line := range selection.Selected {
-		if line.Count < 0 {
-			lines[line.LineID] = true
-		}
-	}
-	var out []string
-	for _, row := range facts.Rows {
-		if lines[row.LineID] && facts.SaleGear[row.ThingID] {
-			out = append(out, row.ThingID)
-		}
-	}
-	return out
-}
-
-// tradeAcceptFloors builds AcceptTrade's reserve guards: every sold
-// definition's retained target, plus the silver reserve (none in a favor session). Native checks
-// floors only on rows the colony gives, so purchases carry none.
-func tradeAcceptFloors(p domain.TradeEconomicPolicy, selection policy.TradeSelection, currency string, favor bool) []domain.TradeEconomicFloor {
-	stock := map[string]int64{}
-	for _, target := range p.Targets {
-		stock[target.Item] = target.Stock
-	}
-	for _, evidence := range selection.Evidence {
-		if evidence.Matched {
-			stock[evidence.Item] = max(stock[evidence.Item], evidence.RetainedTarget)
-		}
-	}
-	out := make([]domain.TradeEconomicFloor, 0, len(selection.Selected)+1)
-	// Animals of one race sell on separate rows under one definition.
-	floored := map[string]bool{}
-	for _, line := range selection.Selected {
-		if line.Count < 0 && !floored[line.DefName] {
-			floored[line.DefName] = true
-			out = append(out, domain.TradeEconomicFloor{DefName: line.DefName, Count: int32(stock[line.DefName])})
-		}
-	}
-	if favor {
-		// A favor session has no silver and native exempts its currency rows.
-		return out
-	}
-	return append(out, domain.TradeEconomicFloor{DefName: currency, Count: int32(selection.SilverReserve)})
 }

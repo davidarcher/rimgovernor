@@ -33,8 +33,6 @@ type TradeSheetRowFact struct {
 	CurrencyKnown        bool
 	Pawn                 bool
 	PawnKnown            bool
-	ProtectedExport      bool
-	ProtectedExportKnown bool
 
 	// Pawn rows only: what SelectPawnPurchase ranks.
 	Skills               []ProfileSkill
@@ -173,7 +171,7 @@ type TradeSelection struct {
 const (
 	tradeBlockerAmbiguous = "Unavailable or ambiguous native definition"
 	tradeBlockerRow       = "Ineligible trade row"
-	tradeBlockerProtected = "Protected equipment, food, medicine or unknown classification"
+	tradeBlockerProtected = "Food outside the authorized crop surplus"
 	tradeBlockerUnknown   = "Economic stock or price evidence is unknown"
 )
 
@@ -273,10 +271,12 @@ func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeS
 				budget -= float64(count) * price
 			}
 		case stock > floor && target.MaxSell > 0 && !stopped[target.Item]:
-			if cropAuthorized && row.ProtectedExport {
+			if cropAuthorized {
 				cropAuthorized = selectedProteinPurchase(out.Selected, facts.Rows)
 			}
-			if !row.ProtectedExportKnown || row.ProtectedExport && !cropAuthorized {
+			// Food sells only as the authorized crop surplus; every other row
+			// sells as the target says (native keeps no export protection).
+			if _, listed := facts.CropSurplusFloors[target.Item]; (foodKnown || listed) && !cropAuthorized {
 				out.Evidence = append(out.Evidence, TradeSelectionEvidence{Item: target.Item, Blocker: tradeBlockerProtected})
 				continue
 			}
@@ -317,32 +317,30 @@ func sellArt(out *TradeSelection, facts TradeSelectionFacts, stopped map[string]
 	if len(facts.SaleArt) == 0 {
 		return
 	}
-	sellRows(out, facts.Rows, stopped, traderCash, false, false, func(row TradeSheetRowFact) bool {
+	sellRows(out, facts.Rows, stopped, traderCash, false, func(row TradeSheetRowFact) bool {
 		return row.ThingID != "" && facts.SaleArt[row.ThingID]
 	})
 }
 
 // sellAnimals is the live-animal sale step: each pawn row whose
-// pawn id is a sale animal sells that one animal under the same rules. A
-// pawn row is always ProtectedExport natively; the herd plan that chose the
-// animal is the authorization, so the flag is not read.
+// pawn id is a sale animal sells that one animal under the same rules. The
+// herd plan that chose the animal is the authorization.
 func sellAnimals(out *TradeSelection, facts TradeSelectionFacts, stopped map[string]bool, traderCash *float64) {
 	if len(facts.SaleAnimals) == 0 {
 		return
 	}
-	sellRows(out, facts.Rows, stopped, traderCash, true, false, func(row TradeSheetRowFact) bool {
+	sellRows(out, facts.Rows, stopped, traderCash, true, func(row TradeSheetRowFact) bool {
 		return row.PawnID != "" && facts.SaleAnimals[row.PawnID]
 	})
 }
 
 // sellGear is the gear-sale step: each row whose thing is sale gear
-// sells that one piece under the same rules. Gear is ProtectedExport natively;
-// the accept names the thing ids it authorizes, so the flag is not read.
+// sells that one piece under the same rules.
 func sellGear(out *TradeSelection, facts TradeSelectionFacts, stopped map[string]bool, traderCash *float64) {
 	if len(facts.SaleGear) == 0 {
 		return
 	}
-	sellRows(out, facts.Rows, stopped, traderCash, false, true, func(row TradeSheetRowFact) bool {
+	sellRows(out, facts.Rows, stopped, traderCash, false, func(row TradeSheetRowFact) bool {
 		return row.ThingID != "" && facts.SaleGear[row.ThingID]
 	})
 }
@@ -369,8 +367,8 @@ func SaleGear(rows []TradeSheetRowFact, warehouses map[string]bool) map[string]b
 }
 
 // sellRows sells each wanted single-item row; pawns says the rows are pawn
-// rows and authorized that a protected row may sell.
-func sellRows(out *TradeSelection, rows []TradeSheetRowFact, stopped map[string]bool, traderCash *float64, pawns, authorized bool, wanted func(TradeSheetRowFact) bool) {
+// rows.
+func sellRows(out *TradeSelection, rows []TradeSheetRowFact, stopped map[string]bool, traderCash *float64, pawns bool, wanted func(TradeSheetRowFact) bool) {
 	selected := map[string]bool{}
 	for _, line := range out.Selected {
 		selected[line.LineID] = true
@@ -383,8 +381,6 @@ func sellRows(out *TradeSelection, rows []TradeSheetRowFact, stopped map[string]
 		switch {
 		case !row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn != pawns || !row.CurrencyKnown || row.Currency || stopped[row.DefName]:
 			evidence.Blocker = tradeBlockerRow
-		case !pawns && !authorized && (!row.ProtectedExportKnown || row.ProtectedExport):
-			evidence.Blocker = tradeBlockerProtected
 		case row.ColonyCount < 1 || !row.SellPriceKnown || !finite(row.SellPrice) || row.SellPrice < 0:
 			evidence.Blocker = tradeBlockerUnknown
 		}

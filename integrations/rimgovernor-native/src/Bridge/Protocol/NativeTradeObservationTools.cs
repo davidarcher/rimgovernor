@@ -124,9 +124,6 @@ namespace HomeBridge.BridgeTools
                 MarketValue = SafeFloat(() => t.BaseMarketValue),
                 TraderWillTrade = SafeBool(() => t.TraderWillTrade), Currency = SafeBool(() => t.IsCurrency), Pawn = pawn, Favor = favor,
                 TransferCount = SafeInt(() => t.CountToTransfer), MinimumCount = SafeInt(() => t.GetMinimumToTransfer()), MaximumCount = SafeInt(() => t.GetMaximumToTransfer()),
-                // The same classification AcceptTrade's economic floors refuse
-                // to export, so selection never stages what acceptance rejects.
-                ProtectedExport = !favor && (def == null || def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible || pawn && !NativeTradeOperations.IsSellableAnimal(t) && !NativeTradeOperations.IsSellableFavorPrisoner(t)),
                 Food = pawn ? null : NativeTradeFoodFacts.Read(def),
             };
             if (!pawn)

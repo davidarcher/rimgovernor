@@ -180,10 +180,10 @@ func TestSelectTraderSkipsSettledAndPrefersGoods(t *testing.T) {
 
 func TestRoundsTradeTargetsBuyCheapestMedicineThenSellSurplus(t *testing.T) {
 	rows := []TradeSheetRowFact{
-		{LineID: "#0", DefName: "MedicineIndustrial", ColonyCount: 1, TraderCount: 10, BuyPrice: 18, BuyPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true, ProtectedExportKnown: true, ProtectedExport: true},
-		{LineID: "#1", DefName: "MedicineHerbal", ColonyCount: 0, TraderCount: 10, BuyPrice: 9, BuyPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true, ProtectedExportKnown: true, ProtectedExport: true},
-		{LineID: "#2", DefName: "Steel", ColonyCount: 500, TraderCount: 0, SellPrice: 1.2, SellPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true, ProtectedExportKnown: true},
-		{LineID: "#3", DefName: "Silver", ColonyCount: 100, TraderCount: 900, Currency: true, CurrencyKnown: true, PawnKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, ProtectedExportKnown: true},
+		{LineID: "#0", DefName: "MedicineIndustrial", ColonyCount: 1, TraderCount: 10, BuyPrice: 18, BuyPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true},
+		{LineID: "#1", DefName: "MedicineHerbal", ColonyCount: 0, TraderCount: 10, BuyPrice: 9, BuyPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true},
+		{LineID: "#2", DefName: "Steel", ColonyCount: 500, TraderCount: 0, SellPrice: 1.2, SellPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true},
+		{LineID: "#3", DefName: "Silver", ColonyCount: 100, TraderCount: 900, Currency: true, CurrencyKnown: true, PawnKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true},
 	}
 	need := TradeNeed{MedicineReplenish: 4, Surplus: []Amount{{Resource: "Steel", Count: 300}}}
 	p := RoundsTradeTargets(CoreItemFacts(), need, rows, map[Resource]int64{"Steel": 200}, domain.Known(int64(2)))
@@ -210,8 +210,8 @@ func TestTradeBuysResourceShortfall(t *testing.T) {
 		t.Fatalf("%+v", need)
 	}
 	rows := []TradeSheetRowFact{
-		{LineID: "#0", DefName: "WoodLog", ColonyCount: 50, TraderCount: 400, BuyPrice: 1.5, BuyPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true, ProtectedExportKnown: true},
-		{LineID: "#1", DefName: "Silver", ColonyCount: 500, TraderCount: 900, Currency: true, CurrencyKnown: true, PawnKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, ProtectedExportKnown: true},
+		{LineID: "#0", DefName: "WoodLog", ColonyCount: 50, TraderCount: 400, BuyPrice: 1.5, BuyPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true},
+		{LineID: "#1", DefName: "Silver", ColonyCount: 500, TraderCount: 900, Currency: true, CurrencyKnown: true, PawnKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true},
 	}
 	p := RoundsTradeTargets(CoreItemFacts(), need, rows, map[Resource]int64{"WoodLog": 200}, domain.Known(int64(2)))
 	if len(p.Targets) != 1 || p.Targets[0].Item != "WoodLog" || p.Targets[0].MaxBuy != 150 || p.Targets[0].Stock != 200 {

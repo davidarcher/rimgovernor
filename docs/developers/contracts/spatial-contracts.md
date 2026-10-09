@@ -281,8 +281,8 @@ create is a native zone preview and a `zone_create` method. Each is a
 **Waste dump** (`wastedump`) is the Sanitation department's declared store: one Low zone over
 the waste yard interior outside the incinerator outline, allowing all storable items except
 the native not-burnable special (`domain.DumpFilter`). Warehouse gear (apparel or weapons in a
-`general` zone) below the gear hit-point or quality floor sells to traders (`policy.SaleGear`,
-`export_thing_ids`); unknown hit points or quality is not sale gear.
+`general` zone) below the gear hit-point or quality floor sells to traders (`policy.SaleGear`);
+unknown hit points or quality is not sale gear.
 
 **Gear rooms.** Gear is stored in layout's armory and wardrobe rooms; until a room stands,
 gear stays in the warehouse. The armory leaves out cells within six of a prison, and layout

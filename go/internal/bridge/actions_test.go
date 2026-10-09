@@ -3,7 +3,6 @@ package bridge
 import (
 	"context"
 	"errors"
-	"reflect"
 	"testing"
 	"time"
 
@@ -87,29 +86,6 @@ func TestTradeAndBuildingRegisterAsIntentKinds(t *testing.T) {
 	trade := wire.GetTrade()
 	if wire.GetKey() != "plan/1" || mapTraderID(trade.GetTarget()) != "trader-1" || trade.GetNegotiatorId() != "pawn-1" || trade.GetEnd().GetKind() != o.EndTradeKind_END_TRADE_KIND_CANCEL {
 		t.Fatalf("%v", wire)
-	}
-}
-
-// An accept carries the gear things it authorizes past native's export
-// protection, sorted.
-func TestTradeAcceptCarriesExportThings(t *testing.T) {
-	value, err := domain.NewTradeAccept("trader-1", "pawn-1", "sig-1", nil, []string{"Apparel_B", "Apparel_A"}, false, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	action, err := domain.NewTradeAction("a1", value)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wire, err := IntentAction("plan/1", action)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := wire.GetTrade().GetAccept().GetExportThingIds(); !reflect.DeepEqual(got, []string{"Apparel_A", "Apparel_B"}) {
-		t.Fatal(got)
-	}
-	if _, err := domain.NewTradeAccept("trader-1", "pawn-1", "sig-1", nil, []string{"Apparel_A", "Apparel_A"}, false, false); err == nil {
-		t.Fatal("duplicate export thing accepted")
 	}
 }
 

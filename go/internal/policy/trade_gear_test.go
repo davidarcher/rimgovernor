@@ -11,7 +11,6 @@ func gearRow(line, thing, zone string, hp float64, quality int32, sell float64) 
 	row := tradeRow(line, "Apparel_Parka", 1, 0, 0, sell)
 	row.ThingID, row.ZoneID, row.HitPoints, row.HitPointsKnown = thing, zone, hp, true
 	row.Quality, row.QualityKnown = quality, true
-	row.ProtectedExport, row.ProtectedExportKnown = true, true
 	return row
 }
 

@@ -345,7 +345,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,trade_payload) VALUES(?,?,?,'comms_trade_request',?)", a.ID(), plan, ordinal, data)
 	} else if trade, ok := a.Trade(); ok {
-		data, encodeErr := json.Marshal(tradePayload{trade.Kind(), trade.Participant(), trade.Negotiator(), trade.GiftMode(), trade.Lines(), trade.AllowPawns(), trade.ExpectedDealSignature(), trade.EconomicFloors(), trade.ExportThings(), trade.AllowEmpty(), trade.EndKind(), trade.ReceiveQuest()})
+		data, encodeErr := json.Marshal(tradePayload{trade.Kind(), trade.Participant(), trade.Negotiator(), trade.GiftMode(), trade.Lines(), trade.AllowPawns(), trade.ExpectedDealSignature(), trade.AllowEmpty(), trade.EndKind(), trade.ReceiveQuest()})
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -733,7 +733,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		case domain.TradeSetLines:
 			value, valueErr = domain.NewTradeSetLines(payload.Participant.ID, payload.Negotiator, payload.Lines, payload.AllowPawns)
 		case domain.TradeAccept:
-			value, valueErr = domain.NewTradeAccept(payload.Participant.ID, payload.Negotiator, payload.ExpectedDealSignature, payload.EconomicFloors, payload.ExportThings, payload.AllowEmpty, payload.ReceiveQuest)
+			value, valueErr = domain.NewTradeAccept(payload.Participant.ID, payload.Negotiator, payload.ExpectedDealSignature, payload.AllowEmpty, payload.ReceiveQuest)
 		case domain.TradeEnd:
 			value, valueErr = domain.NewTradeEnd(payload.Participant.ID, payload.Negotiator, payload.EndKind, payload.ReceiveQuest)
 		default:
@@ -1444,8 +1444,6 @@ type tradePayload struct {
 	Lines                 []domain.TradeLine
 	AllowPawns            bool
 	ExpectedDealSignature string
-	EconomicFloors        []domain.TradeEconomicFloor
-	ExportThings          []string
 	AllowEmpty            bool
 	EndKind               domain.TradeEndKind
 	ReceiveQuest          bool

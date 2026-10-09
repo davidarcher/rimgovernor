@@ -153,7 +153,7 @@ func favorPrisonerRow(facts TradeSelectionFacts, row TradeSheetRowFact) bool {
 	return row.PawnKnown && row.Pawn && row.PawnID != "" && facts.FavorPrisoners[row.PawnID] &&
 		row.GuestStatus == "Prisoner" && row.PrisonerSecureKnown && row.PrisonerSecure && row.PawnDownedKnown && !row.PawnDowned &&
 		row.ExtraHomeFaction == "" && row.ExtraHostFaction == "" &&
-		row.TraderWillTradeKnown && row.TraderWillTrade && row.CurrencyKnown && !row.Currency && row.ProtectedExportKnown && !row.ProtectedExport &&
+		row.TraderWillTradeKnown && row.TraderWillTrade && row.CurrencyKnown && !row.Currency &&
 		row.ColonyCount >= 1 && row.SellPriceKnown && finite(row.SellPrice) && row.SellPrice > 0
 }
 
@@ -182,8 +182,6 @@ func SelectFavorSale(facts TradeSelectionFacts, keep int64) TradeSelection {
 		switch {
 		case !row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn || !row.CurrencyKnown || row.Currency:
 			evidence.Blocker = tradeBlockerRow
-		case !row.ProtectedExportKnown || row.ProtectedExport:
-			evidence.Blocker = tradeBlockerProtected
 		case row.ColonyCount < 0 || !row.SellPriceKnown || !finite(row.SellPrice) || row.SellPrice <= 0:
 			evidence.Blocker = tradeBlockerUnknown
 		}

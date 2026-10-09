@@ -121,15 +121,13 @@ func TestShedArtNeedAloneSellsArtFirst(t *testing.T) {
 	}
 }
 
-// Art alone sells without a catalog target; a protected or unpriced art
+// Art alone sells without a catalog target; an unpriced art
 // row does not.
 func TestSelectTradeArtWithoutTargets(t *testing.T) {
-	protected := artRow("#2", "Thing_B", 400)
-	protected.ProtectedExport = true
 	unpriced := artRow("#3", "Thing_C", 0)
 	unpriced.SellPriceKnown = false
-	facts := tradeFacts([]TradeSheetRowFact{artRow("#1", "Thing_A", 150), protected, unpriced}, 0, 1000, 0)
-	facts.SaleArt = map[string]bool{"Thing_A": true, "Thing_B": true, "Thing_C": true}
+	facts := tradeFacts([]TradeSheetRowFact{artRow("#1", "Thing_A", 150), unpriced}, 0, 1000, 0)
+	facts.SaleArt = map[string]bool{"Thing_A": true, "Thing_C": true}
 	s := SelectTrade(domain.TradeEconomicPolicy{}, facts)
 	if want := []TradeSelectionLine{{"#1", SculptureDefinition, -1}}; s.Refused || !reflect.DeepEqual(s.Selected, want) {
 		t.Fatalf("selected = %+v (%s)", s.Selected, s.Reason)

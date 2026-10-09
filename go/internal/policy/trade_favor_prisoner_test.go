@@ -10,7 +10,7 @@ func favorPrisonerSheetRow(id string) TradeSheetRowFact {
 	return TradeSheetRowFact{
 		LineID: "#" + id, DefName: "Human", PawnID: id, ColonyCount: 1, SellPrice: 3, SellPriceKnown: true,
 		TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, Pawn: true, PawnKnown: true,
-		ProtectedExportKnown: true, GuestStatus: "Prisoner", PrisonerSecure: true, PrisonerSecureKnown: true, PawnDownedKnown: true,
+		GuestStatus: "Prisoner", PrisonerSecure: true, PrisonerSecureKnown: true, PawnDownedKnown: true,
 	}
 }
 
@@ -51,7 +51,6 @@ func TestSelectFavorSaleHoldsAnIneligiblePrisonerRow(t *testing.T) {
 		"guest":              edit(func(r *TradeSheetRowFact) { r.GuestStatus = "Guest" }),
 		"status unknown":     edit(func(r *TradeSheetRowFact) { r.GuestStatus = "" }),
 		"unpriced":           edit(func(r *TradeSheetRowFact) { r.SellPriceKnown = false }),
-		"protected":          edit(func(r *TradeSheetRowFact) { r.ProtectedExport = true }),
 		"won't trade":        edit(func(r *TradeSheetRowFact) { r.TraderWillTrade = false }),
 	} {
 		if got := SelectFavorSale(favorPrisonerFacts(row), 50); got.Refused || len(got.Selected) != 0 {

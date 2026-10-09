@@ -94,7 +94,6 @@ func TestTradeFoodReadsThePlan(t *testing.T) {
 func foodTradeRow(id string, stock, supply int64, g TradeFoodGood) TradeSheetRowFact {
 	r := tradeRow(id, id, stock, supply, 1, 1)
 	r.Food = domain.Known(g)
-	r.ProtectedExport = true
 	return r
 }
 
@@ -169,7 +168,6 @@ func TestTradeFoodMissingProteinAndCropFloors(t *testing.T) {
 		{"prepared food", func(f *TradeSelectionFacts) {
 			f.Rows[1].Food = domain.Known(TradeFoodGood{Nutrition: 1, Class: IngredientVegetable, Prepared: true})
 		}},
-		{"unknown protection", func(f *TradeSelectionFacts) { f.Rows[1].ProtectedExportKnown = false }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := facts

@@ -366,7 +366,7 @@ func (r *RoundsTradePlanner) missionTrade(call, epoch context.Context, state Con
 	}
 	m.ReturnGoods = goods
 	m.PurchaseCommitted = true
-	value, err := domain.NewTradeAccept(trader, m.Negotiator, sheet.DealSignature, []domain.TradeEconomicFloor{{DefName: "Silver", Count: 0}}, nil, false, false)
+	value, err := domain.NewTradeAccept(trader, m.Negotiator, sheet.DealSignature, false, false)
 	if err != nil {
 		return RoundsTradeResult{}, true, err
 	}

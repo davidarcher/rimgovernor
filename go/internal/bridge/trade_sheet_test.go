@@ -17,8 +17,7 @@ func tradeSheetLine(id, def string, colony, trader int64) *o.TradeLine {
 		LineId: proto.String(id), Definition: &o.DefinitionRef{DefName: proto.String(def)},
 		ColonyCount: proto.Int64(colony), TraderCount: proto.Int64(trader),
 		BuyPrice: proto.Float64(10), SellPrice: proto.Float64(5),
-		TraderWillTrade: proto.Bool(true), Currency: proto.Bool(false),
-		Pawn: proto.Bool(false), ProtectedExport: proto.Bool(false),
+		TraderWillTrade: proto.Bool(true), Currency: proto.Bool(false), Pawn: proto.Bool(false),
 	}
 }
 
@@ -82,8 +81,8 @@ func TestReadTradeSheetReadsTheCompleteSheetOnce(t *testing.T) {
 		t.Fatalf("header %+v differs from the sheet", out)
 	}
 	row := out.Rows[0]
-	if !row.BuyPriceKnown || !row.SellPriceKnown || !row.TraderWillTradeKnown || !row.CurrencyKnown || !row.PawnKnown || !row.ProtectedExportKnown ||
-		!row.TraderWillTrade || row.Currency || row.Pawn || row.ProtectedExport || row.ColonyCount != 100 || row.TraderCount != 200 {
+	if !row.BuyPriceKnown || !row.SellPriceKnown || !row.TraderWillTradeKnown || !row.CurrencyKnown || !row.PawnKnown ||
+		!row.TraderWillTrade || row.Currency || row.Pawn || row.ColonyCount != 100 || row.TraderCount != 200 {
 		t.Fatalf("row %+v did not carry its native evidence", row)
 	}
 }
@@ -133,7 +132,7 @@ func TestReadTradeSheetFavorPrisonerRowFacts(t *testing.T) {
 		t.Fatal(err)
 	}
 	row := out.Rows[0]
-	if !row.Pawn || row.ProtectedExport || row.SellPrice != 3 || row.GuestStatus != "Prisoner" || !row.PrisonerSecure || !row.PrisonerSecureKnown ||
+	if !row.Pawn || row.SellPrice != 3 || row.GuestStatus != "Prisoner" || !row.PrisonerSecure || !row.PrisonerSecureKnown ||
 		row.PawnDowned || !row.PawnDownedKnown || row.ExtraHomeFaction != "Faction_7" || row.ExtraHostFaction != "Faction_9" {
 		t.Fatalf("prisoner row %+v", row)
 	}
@@ -151,7 +150,7 @@ func TestReadTradeSheetFavorPrisonerRowFacts(t *testing.T) {
 
 func TestReadTradeSheetCarriesAbsentFieldsAsUnknown(t *testing.T) {
 	line := tradeSheetLine("line-1", "Steel", 0, 0)
-	line.BuyPrice, line.SellPrice, line.TraderWillTrade, line.Currency, line.Pawn, line.ProtectedExport = nil, nil, nil, nil, nil, nil
+	line.BuyPrice, line.SellPrice, line.TraderWillTrade, line.Currency, line.Pawn = nil, nil, nil, nil, nil
 	sheet := tradeSheetFixture([]*o.TradeLine{line})
 	sheet.Balance = nil
 	client, _ := tradeSheetClient(t, sheet)
@@ -164,7 +163,7 @@ func TestReadTradeSheetCarriesAbsentFieldsAsUnknown(t *testing.T) {
 		t.Fatal("an absent balance must not read as zero")
 	}
 	row := out.Rows[0]
-	if row.BuyPriceKnown || row.SellPriceKnown || row.TraderWillTradeKnown || row.CurrencyKnown || row.PawnKnown || row.ProtectedExportKnown {
+	if row.BuyPriceKnown || row.SellPriceKnown || row.TraderWillTradeKnown || row.CurrencyKnown || row.PawnKnown {
 		t.Fatalf("row %+v read absent native fields as known values", row)
 	}
 }

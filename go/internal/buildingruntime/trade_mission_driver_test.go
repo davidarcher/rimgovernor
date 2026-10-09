@@ -102,7 +102,7 @@ func TestTradeMissionSavedCommitmentReturnsWithoutRebuy(t *testing.T) {
 	m.PurchaseCommitted = true
 	m.ReturnGoods = []domain.CargoItem{{Definition: "Steel", Count: 10}}
 	target := domain.TradeParticipant{Kind: domain.TradeParticipantSettlement, ID: m.Settlement, Caravan: "caravan"}
-	value, err := domain.NewTradeAccept(target.Key(), m.Negotiator, "signature", nil, nil, false, false)
+	value, err := domain.NewTradeAccept(target.Key(), m.Negotiator, "signature", false, false)
 	if err != nil {
 		t.Fatal(err)
 	}

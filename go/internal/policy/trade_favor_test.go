@@ -11,7 +11,7 @@ func favorGoldRow(stock int64, price float64) TradeSheetRowFact {
 		LineID: "#2", DefName: "Gold", ColonyCount: stock, TraderCount: 99999,
 		SellPrice: price, SellPriceKnown: true,
 		TraderWillTrade: true, TraderWillTradeKnown: true, Currency: false, CurrencyKnown: true,
-		Pawn: false, PawnKnown: true, ProtectedExport: false, ProtectedExportKnown: true,
+		Pawn: false, PawnKnown: true,
 	}
 }
 
@@ -36,15 +36,12 @@ func TestSelectFavorSaleSellsNothingOnUnknownOrIneligibleGold(t *testing.T) {
 	unknownStock := favorGoldRow(-1, 1)
 	refuses := favorGoldRow(200, 1)
 	refuses.TraderWillTrade = false
-	protected := favorGoldRow(200, 1)
-	protected.ProtectedExportKnown = false
 	for name, facts := range map[string]TradeSelectionFacts{
 		"no gold row":   favorFacts(),
 		"at keep":       favorFacts(favorGoldRow(50, 1)),
 		"unpriced":      favorFacts(unpriced),
 		"unknown stock": favorFacts(unknownStock),
 		"won't trade":   favorFacts(refuses),
-		"protected":     favorFacts(protected),
 	} {
 		if got := SelectFavorSale(facts, 50); got.Refused || len(got.Selected) != 0 {
 			t.Fatalf("%s: selected %+v", name, got)

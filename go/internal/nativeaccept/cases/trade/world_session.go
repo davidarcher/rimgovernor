@@ -12,7 +12,7 @@ func init() {
 	for _, channel := range []string{"settlement", "orbital"} {
 		cases.Register(cases.Case{
 			Name:        "trade/" + channel + "-session",
-			Scope:       "Core " + channel + " trade: shared open/read/stage/accept/end, cancel without buying, protected medicine and silver reserve refusals, native inventory/silver transfer and closed session. A Go snapshot cannot prove vanilla settlement inventory ownership or orbital comms and drop-pod delivery. Opening and staging supply no goods; settlement purchases remain away from home.",
+			Scope:       "Core " + channel + " trade: shared open/read/stage/accept/end, cancel without buying, native inventory/silver transfer and closed session. A Go snapshot cannot prove vanilla settlement inventory ownership or orbital comms and drop-pod delivery. Opening and staging supply no goods; settlement purchases remain away from home.",
 			Start:       cases.Fixture{On: cases.LabStart(), Op: "test/trade_fixture", Args: map[string]any{"action": "session_setup", "channel": channel}},
 			RequiredOps: []string{"test/trade_fixture"}, Quiet: na.QuietRequired,
 			Budget: cases.LabBudget, Crew: cases.Crew{Size: 3},
@@ -181,10 +181,6 @@ func runWorldSession(ctx context.Context, s cases.Session, channel string) error
 	if component == nil || num(component["buyPrice"]) <= 0 || num(component["maximumCount"]) < 1 || medicine == nil || num(medicine["minimumCount"]) > -1 {
 		return fmt.Errorf("missing live priced stock: %#v", offers)
 	}
-	protected, _ := na.AsBool(medicine["protectedExport"])
-	if !protected {
-		return fmt.Errorf("medicine export is not protected: %#v", medicine)
-	}
 	if err := unchanged("opened-no-delivery", before); err != nil {
 		return err
 	}
@@ -209,44 +205,19 @@ func runWorldSession(ctx context.Context, s cases.Session, channel string) error
 	if err != nil {
 		return err
 	}
-	component, medicine = find(offers, "ComponentIndustrial"), find(offers, "MedicineIndustrial")
-	componentID, medicineID := na.AsString(component["lineId"]), na.AsString(medicine["lineId"])
-	if err := stage("protected-stage", []any{line(medicineID, -1)}); err != nil {
-		return err
-	}
-	accept := func(label string, silverFloor int) (map[string]any, error) {
+	component = find(offers, "ComponentIndustrial")
+	componentID := na.AsString(component["lineId"])
+	accept := func(label string) (map[string]any, error) {
 		staged, err := sheet(label+"-sheet", sessionID)
 		if err != nil {
 			return nil, err
 		}
-		return apply(label, map[string]any{"accept": map[string]any{"expectedDealSignature": na.AsString(staged["dealSignature"]), "economicFloors": []any{map[string]any{"defName": "Silver", "count": silverFloor}, map[string]any{"defName": "MedicineIndustrial", "count": 0}}}})
+		return apply(label, map[string]any{"accept": map[string]any{"expectedDealSignature": na.AsString(staged["dealSignature"])}})
 	}
-	refused := func(label string, result map[string]any) error {
-		refusal, _ := na.AsMap(result["refused"])
-		if na.AsString(refusal["code"]) != "FAILURE_CODE_INVALID_REQUEST" {
-			return fmt.Errorf("%s: expected economic refusal: %#v", label, result)
-		}
-		s.Report()[label] = refusal
-		return unchanged(label+"-no-transfer", before)
-	}
-	result, err := accept("protected-accept", 1000)
-	if err != nil {
+	if err := stage("purchase-stage", []any{line(componentID, 1)}); err != nil {
 		return err
 	}
-	if err := refused("protected-accept", result); err != nil {
-		return err
-	}
-	if err := stage("purchase-stage", []any{line(medicineID, 0), line(componentID, 1)}); err != nil {
-		return err
-	}
-	result, err = accept("reserve-accept", 2000)
-	if err != nil {
-		return err
-	}
-	if err := refused("reserve-accept", result); err != nil {
-		return err
-	}
-	result, err = accept("purchase-accept", 1000)
+	result, err := accept("purchase-accept")
 	if err != nil {
 		return err
 	}

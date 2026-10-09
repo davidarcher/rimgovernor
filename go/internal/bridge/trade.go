@@ -54,17 +54,8 @@ func tradeAction(action domain.Action) (*o.Action, error) {
 		if validID(t.ExpectedDealSignature()) != nil {
 			return nil, contract("accept trade requires a deal signature")
 		}
-		floors := make([]*o.DefCount, 0, len(t.EconomicFloors()))
-		seen := map[string]bool{}
-		for _, f := range t.EconomicFloors() {
-			if validID(f.DefName) != nil || f.Count < 0 || seen[f.DefName] {
-				return nil, contract("invalid or duplicate economic floor")
-			}
-			seen[f.DefName] = true
-			floors = append(floors, &o.DefCount{DefName: proto.String(f.DefName), Count: proto.Int32(f.Count)})
-		}
 		intent.Step = &o.TradeIntent_Accept{Accept: &o.AcceptTrade{ExpectedDealSignature: proto.String(t.ExpectedDealSignature()),
-			EconomicFloors: floors, ExportThingIds: t.ExportThings(), AllowEmpty: proto.Bool(t.AllowEmpty()), ReceiveQuest: proto.Bool(t.ReceiveQuest())}}
+			AllowEmpty: proto.Bool(t.AllowEmpty()), ReceiveQuest: proto.Bool(t.ReceiveQuest())}}
 	case domain.TradeEnd:
 		kind := o.EndTradeKind_END_TRADE_KIND_CANCEL
 		switch t.EndKind() {

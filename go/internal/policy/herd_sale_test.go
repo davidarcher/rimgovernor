@@ -86,7 +86,7 @@ func TestHerdSaleAnimalsFoundersAndTrainedNeededStay(t *testing.T) {
 
 func animalRow(line, def, pawn string, sell float64) TradeSheetRowFact {
 	row := tradeRow(line, def, 1, 0, 0, sell)
-	row.Pawn, row.PawnID, row.ProtectedExport = true, pawn, true
+	row.Pawn, row.PawnID = true, pawn
 	return row
 }
 

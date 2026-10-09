@@ -6,7 +6,7 @@
 caravan, or orbital ship. Every target is scoped by the enclosing identity.
 Native resolves map sellers on that map and world sellers in that loaded world;
 a missing or foreign target refuses. The four existing trade steps retain one
-live session, live prices, deal signatures and economic floors. Settlement sessions use exactly the visiting player caravan's inventory and
+live session, live prices, deal signatures; reserve and export policy live in Go selection. Settlement sessions use exactly the visiting player caravan's inventory and
 negotiator. Orbital sessions order `UseCommsConsole`; its contact toil opens
 the shared session without a dialog. Interrupted work reads absent and is not
 reissued. Cancellation stops only the session's matching pending job. Native

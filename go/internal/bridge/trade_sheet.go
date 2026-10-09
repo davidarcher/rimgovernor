@@ -14,7 +14,7 @@ import (
 // counts, both prices and the eligibility flags economic selection reads. It
 // is the Go form of the row shape trade_policy.py's select_trade inspects
 // (defName/colonyCount/traderCount/buyPrice/sellPrice/traderWillTrade/isPawn/
-// isCurrency/protectedExport), with each optional proto field's presence
+// isCurrency), with each optional proto field's presence
 // carried explicitly so an absent field is never read as a zero.
 type TradeSheetRow struct {
 	Food         *o.TradeFoodFacts
@@ -38,8 +38,6 @@ type TradeSheetRow struct {
 	CurrencyKnown        bool
 	Pawn                 bool
 	PawnKnown            bool
-	ProtectedExport      bool
-	ProtectedExportKnown bool
 	// Favor marks the favor currency row, which has no ThingDef (empty DefName).
 	Favor bool
 
@@ -249,6 +247,6 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 		TraderWillTrade: v.GetTraderWillTrade(), TraderWillTradeKnown: v.TraderWillTrade != nil,
 		Currency: v.GetCurrency(), CurrencyKnown: v.Currency != nil,
 		Pawn: v.GetPawn(), PawnKnown: v.Pawn != nil,
-		ProtectedExport: v.GetProtectedExport(), ProtectedExportKnown: v.ProtectedExport != nil, Favor: favor,
+		Favor: favor,
 	}, nil
 }
