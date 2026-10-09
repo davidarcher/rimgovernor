@@ -570,19 +570,26 @@ service state).
 straight-line distance. Native (`UpkeepFacts.routes`) reports every facility a colonist
 must reach (player beds, work benches at their interaction cell, storage buildings, dining
 surfaces, turrets, stockpile zones as `zone-<id>`) with one travel row per mobile colonist
-carrying the game's `CanReach` answer and, for the first 256 reachable pairs, path cost and
-node count (the bound's measured cost: [capped reads](#measured-cost-of-capped-reads-2567)). It also reports up to 16 breach cells per unreachable facility (one-cell player
-walls on its room border a door would pass straight through, nearest the reaching colonist
-first), pending breaches (ordered doors a measured path crosses) and observed traffic (the
-64 busiest cells sampled every 30 ticks, with sample count and window start; the window
-restarts on load).
+carrying the game's `CanReach` answer and, for every reachable pair, path cost and node
+count. Path costing is the one bounded part: the snapshot stream request carries
+`route_path_budget_ms` (Go sets `bridge.RoutePathBudgetMS`, 100; absent measures every
+pair), and a reachable pair native did not path once the budget is spent reports
+`path_skipped` with no numbers (cost: [capped reads](#measured-cost-of-capped-reads-2567)).
+It also reports every breach cell of an unreachable facility (one-cell player walls on its
+room border a door would pass straight through, nearest the reaching colonist first),
+pending breaches (ordered doors a measured path crosses, every one) and observed traffic
+(every nonzero cell of each layer, busiest first, sampled every 30 ticks, with sample count
+and window start; the window restarts on load).
 
 - The decoder requires every travel row's reachability and every traffic cell's samples,
   terrain and home flag, else the census is unknown; the bridge refuses unlisted pawns,
   path numbers on unreachable rows, duplicate breach or traffic cells and out-of-map cells.
 - A facility is deficient when at least one mobile colonist is listed and none reaches it.
   It latches by ID and releases only on a measured census reading it reachable with no door
-  still ordered on its border. No hysteresis.
+  still ordered on its border. A held facility with a skipped reachable pair keeps its latch
+  (without a deficit) until a census paths every reachable pair: a skipped pair cannot show
+  which ordered doors its path crosses. A skipped row on an unreachable pair, or with path
+  numbers, is refused. No hysteresis.
 - Ranks as development. Serves storage and stockpiles first, then benches, dining, beds,
   defence, opening the room with a `Door` of `WoodLog` on one breach cell (nearest breaches
   previewed north then east; first legal one-cell footprint admitted). The planner treats
@@ -650,7 +657,7 @@ compiling at the time; steady iterations agreed within about 15%.
 
 | Read (cap) | Realistic | Stress | Capped vs uncapped | Verdict |
 | --- | --- | --- | --- | --- |
-| Route path cost, `FindPathNow` per reachable facility x colonist pair (256) | 256 pairs 100 ms; 840 uncapped 340-365 ms | 256 pairs 96-115 ms; 10,000 uncapped 3.3-4.0 s | about 0.4 ms per pair | Budget and skipped flag |
+| Route path cost, `FindPathNow` per reachable facility x colonist pair (256) | 256 pairs 100 ms; 840 uncapped 340-365 ms | 256 pairs 96-115 ms; 10,000 uncapped 3.3-4.0 s | about 0.4 ms per pair | Budget and skipped flag (landed #2568: `route_path_budget_ms` + `path_skipped`; the traffic 128 and breach 16 x 2 caps were memory-only and are deleted) |
 | Hunt `RouteSafe` per hunter x prey (reach 100) | 202 checks 33 ms; 320 uncapped 114-128 ms | 4,069 checks 0.8-1.0 s; 8,500 uncapped 3.0-4.0 s | 0.2-0.45 ms per check | Budget and skipped flag |
 | Plant cutter reach (50) | 12-14 ms | 21-41 ms capped, 21-31 ms uncapped | the cap bounds nothing measurable | Delete the cap; the cost is the all-plants eligibility scan, not the reach |
 | Pair reachability, tend page (64 rows) | 14 rows 0.06-0.14 ms | 40 colonist rows 0.43-0.48 ms; 297-row whole table 23-44 ms | quadratic, about 0.27 us per pair | Budget (the unfiltered table crosses 5 ms near 130 rows); a colonist-only page passes by 10x |

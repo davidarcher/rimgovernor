@@ -39,9 +39,9 @@ internal static class NativeTrafficCountsProbe
         var top = new TrafficCounts(10);
         foreach (var (index, n) in new[] { (3, 2), (1, 5), (7, 2), (2, 9) })
             for (int i = 0; i < n; i++) top.Step(TrafficCounts.Colonist, false, index);
-        var busiest = top.Top(TrafficCounts.Colonist, 3);
-        Require(busiest.Count == 3 && busiest[0] == 2 && busiest[1] == 1 && busiest[2] == 3, "top cells busiest first, ties by index");
-        Console.WriteLine("native-traffic-counts: crossing detection, counting, saturation, per-layer decay and top cells passed");
+        var busiest = top.Nonzero(TrafficCounts.Colonist);
+        Require(busiest.Count == 4 && busiest[0] == 2 && busiest[1] == 1 && busiest[2] == 3 && busiest[3] == 7, "every nonzero cell, busiest first, ties by index");
+        Console.WriteLine("native-traffic-counts: crossing detection, counting, saturation, per-layer decay and nonzero cells passed");
     }
 
     private static void Require(bool condition, string message)

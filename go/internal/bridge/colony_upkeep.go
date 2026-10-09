@@ -181,7 +181,7 @@ func validTitle(t *o.RoyalTitleFacts) bool {
 
 // validateRoutes checks the routes section: unique facility refs at in-map
 // cells, each travel row naming a listed pawn once with non-negative path
-// numbers only when reachable, breach cells unique and in the map, traffic
+// numbers only when reachable (path_skipped only on a reachable row with none), breach cells unique and in the map, traffic
 // cells unique and in the map.
 func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32) error {
 	f := section.GetObserved()
@@ -205,7 +205,7 @@ func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32) erro
 		}
 		travelled := map[string]bool{}
 		for _, t := range row.Travel {
-			if t == nil || !pawns[t.GetPawnId()] || travelled[t.GetPawnId()] || t.PathCost != nil && (t.GetPathCost() < 0 || !t.GetReachable()) || t.PathCells != nil && (t.GetPathCells() < 0 || !t.GetReachable()) || !proto.Equal(t, &o.RouteTravel{PawnId: t.PawnId, Reachable: t.Reachable, PathCost: t.PathCost, PathCells: t.PathCells}) {
+			if t == nil || !pawns[t.GetPawnId()] || travelled[t.GetPawnId()] || t.PathCost != nil && (t.GetPathCost() < 0 || !t.GetReachable()) || t.PathCells != nil && (t.GetPathCells() < 0 || !t.GetReachable()) || t.PathSkipped != nil && (!t.GetReachable() || t.PathCost != nil || t.PathCells != nil) || !proto.Equal(t, &o.RouteTravel{PawnId: t.PawnId, Reachable: t.Reachable, PathCost: t.PathCost, PathCells: t.PathCells, PathSkipped: t.PathSkipped}) {
 				return contract("invalid routes travel")
 			}
 			travelled[t.GetPawnId()] = true

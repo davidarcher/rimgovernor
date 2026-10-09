@@ -1585,7 +1585,7 @@ message FlooringSection { oneof outcome { FlooringFacts observed = 1; rimgoverno
 // neighbour a colonist can stand on.
 // Traffic counts cell changes of moving pawns per layer, each layer
 // decaying on its own half-life, rebuilt from zero after a load; the
-// busiest cells are reported per layer with their terrain.
+// nonzero cells are all reported per layer, busiest first, with their terrain.
 enum TrafficLayer {
   TRAFFIC_LAYER_UNSPECIFIED = 0;
   TRAFFIC_LAYER_COLONIST = 1;
@@ -1594,7 +1594,10 @@ enum TrafficLayer {
   TRAFFIC_LAYER_VISITOR = 4;  // Visitors and traders.
   TRAFFIC_LAYER_HOSTILE = 5;  // Hostile pawns; slow decay.
 }
-message RouteTravel { optional string pawn_id = 1; optional bool reachable = 2; optional int32 path_cost = 3; optional int32 path_cells = 4; }
+// path_skipped: the pair is reachable but its path was not measured because the
+// stream's route_path_budget_ms ran out; path_cost, path_cells and the ordered
+// doors the path crosses are then unknown, not absent.
+message RouteTravel { optional string pawn_id = 1; optional bool reachable = 2; optional int32 path_cost = 3; optional int32 path_cells = 4; optional bool path_skipped = 5; }
 message RouteBreach { rimgovernor.common.v1.Cell cell = 1; optional string edifice = 2; optional string pending = 3; optional int32 distance = 4; }
 enum RouteFacilityKind { ROUTE_FACILITY_KIND_UNSPECIFIED = 0; ROUTE_FACILITY_KIND_BED = 1; ROUTE_FACILITY_KIND_BENCH = 2; ROUTE_FACILITY_KIND_STORAGE = 3; ROUTE_FACILITY_KIND_DINING = 4; ROUTE_FACILITY_KIND_DEFENSE = 5; ROUTE_FACILITY_KIND_STOCKPILE = 6; }
 message RouteFacility { rimgovernor.common.v1.Ref facility = 1; optional RouteFacilityKind kind = 2; rimgovernor.common.v1.Cell cell = 3; rimgovernor.common.v1.Ref room = 4; repeated RouteTravel travel = 5; repeated RouteBreach breaches = 6; }
@@ -2221,6 +2224,10 @@ message SnapshotStreamRequest {
   // the subscription and the other fields are left as they are. Every
   // other open is a keyframe too.
   optional bool keyframe = 4;
+  // Main-thread milliseconds one frame may spend measuring route path costs
+  // (FindPathNow per reachable facility x colonist pair, ~0.4 ms each). Pairs
+  // past it report RouteTravel.path_skipped. Absent: measure every pair.
+  optional uint32 route_path_budget_ms = 5;
 }
 // The definition catalog: the generated def rows and the stat table
 // the planning views read, and every research project with its static

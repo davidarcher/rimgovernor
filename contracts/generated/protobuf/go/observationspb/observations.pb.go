@@ -1390,7 +1390,7 @@ func (HuntProjectileKind) EnumDescriptor() ([]byte, []int) {
 // neighbour a colonist can stand on.
 // Traffic counts cell changes of moving pawns per layer, each layer
 // decaying on its own half-life, rebuilt from zero after a load; the
-// busiest cells are reported per layer with their terrain.
+// nonzero cells are all reported per layer, busiest first, with their terrain.
 type TrafficLayer int32
 
 const (
@@ -33137,12 +33137,16 @@ func (*FlooringSection_Observed) isFlooringSection_Outcome() {}
 
 func (*FlooringSection_Unavailable) isFlooringSection_Outcome() {}
 
+// path_skipped: the pair is reachable but its path was not measured because the
+// stream's route_path_budget_ms ran out; path_cost, path_cells and the ordered
+// doors the path crosses are then unknown, not absent.
 type RouteTravel struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PawnId        *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
 	Reachable     *bool                  `protobuf:"varint,2,opt,name=reachable,proto3,oneof" json:"reachable,omitempty"`
 	PathCost      *int32                 `protobuf:"varint,3,opt,name=path_cost,json=pathCost,proto3,oneof" json:"path_cost,omitempty"`
 	PathCells     *int32                 `protobuf:"varint,4,opt,name=path_cells,json=pathCells,proto3,oneof" json:"path_cells,omitempty"`
+	PathSkipped   *bool                  `protobuf:"varint,5,opt,name=path_skipped,json=pathSkipped,proto3,oneof" json:"path_skipped,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -33203,6 +33207,13 @@ func (x *RouteTravel) GetPathCells() int32 {
 		return *x.PathCells
 	}
 	return 0
+}
+
+func (x *RouteTravel) GetPathSkipped() bool {
+	if x != nil && x.PathSkipped != nil {
+		return *x.PathSkipped
+	}
+	return false
 }
 
 type RouteBreach struct {
@@ -42320,9 +42331,13 @@ type SnapshotStreamRequest struct {
 	// Only makes the next frame a keyframe, carrying every section;
 	// the subscription and the other fields are left as they are. Every
 	// other open is a keyframe too.
-	Keyframe      *bool `protobuf:"varint,4,opt,name=keyframe,proto3,oneof" json:"keyframe,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Keyframe *bool `protobuf:"varint,4,opt,name=keyframe,proto3,oneof" json:"keyframe,omitempty"`
+	// Main-thread milliseconds one frame may spend measuring route path costs
+	// (FindPathNow per reachable facility x colonist pair, ~0.4 ms each). Pairs
+	// past it report RouteTravel.path_skipped. Absent: measure every pair.
+	RoutePathBudgetMs *uint32 `protobuf:"varint,5,opt,name=route_path_budget_ms,json=routePathBudgetMs,proto3,oneof" json:"route_path_budget_ms,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SnapshotStreamRequest) Reset() {
@@ -42367,6 +42382,13 @@ func (x *SnapshotStreamRequest) GetKeyframe() bool {
 		return *x.Keyframe
 	}
 	return false
+}
+
+func (x *SnapshotStreamRequest) GetRoutePathBudgetMs() uint32 {
+	if x != nil && x.RoutePathBudgetMs != nil {
+		return *x.RoutePathBudgetMs
+	}
+	return 0
 }
 
 // The definition catalog: the generated def rows and the stat table
@@ -52664,20 +52686,22 @@ const file_observations_proto_rawDesc = "" +
 	"\x0fFlooringSection\x12H\n" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.FlooringFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\xcb\x01\n" +
+	"\aoutcome\"\x84\x02\n" +
 	"\vRouteTravel\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12!\n" +
 	"\treachable\x18\x02 \x01(\bH\x01R\treachable\x88\x01\x01\x12 \n" +
 	"\tpath_cost\x18\x03 \x01(\x05H\x02R\bpathCost\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"path_cells\x18\x04 \x01(\x05H\x03R\tpathCells\x88\x01\x01B\n" +
+	"path_cells\x18\x04 \x01(\x05H\x03R\tpathCells\x88\x01\x01\x12&\n" +
+	"\fpath_skipped\x18\x05 \x01(\bH\x04R\vpathSkipped\x88\x01\x01B\n" +
 	"\n" +
 	"\b_pawn_idB\f\n" +
 	"\n" +
 	"_reachableB\f\n" +
 	"\n" +
 	"_path_costB\r\n" +
-	"\v_path_cells\"\xc2\x01\n" +
+	"\v_path_cellsB\x0f\n" +
+	"\r_path_skipped\"\xc2\x01\n" +
 	"\vRouteBreach\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1d\n" +
 	"\aedifice\x18\x02 \x01(\tH\x00R\aedifice\x88\x01\x01\x12\x1d\n" +
@@ -53933,11 +53957,13 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v29.rimgovernor.observations.v1.ArchitectDesignatorsSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"p\n" +
+	"\aoutcome\"\xbf\x01\n" +
 	"\x15SnapshotStreamRequest\x12)\n" +
 	"\x10resource_sources\x18\x01 \x03(\tR\x0fresourceSources\x12\x1f\n" +
-	"\bkeyframe\x18\x04 \x01(\bH\x00R\bkeyframe\x88\x01\x01B\v\n" +
-	"\t_keyframe\"\xdd\x06\n" +
+	"\bkeyframe\x18\x04 \x01(\bH\x00R\bkeyframe\x88\x01\x01\x124\n" +
+	"\x14route_path_budget_ms\x18\x05 \x01(\rH\x01R\x11routePathBudgetMs\x88\x01\x01B\v\n" +
+	"\t_keyframeB\x17\n" +
+	"\x15_route_path_budget_ms\"\xdd\x06\n" +
 	"\x11DefinitionCatalog\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12H\n" +
 	"\bresearch\x18\x03 \x03(\v2,.rimgovernor.observations.v1.ResearchProjectR\bresearch\x12E\n" +

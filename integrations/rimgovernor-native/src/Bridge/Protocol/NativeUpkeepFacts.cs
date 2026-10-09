@@ -54,7 +54,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static void Populate(Map map, List<Thing> things, Obs.UpkeepFacts result)
+        internal static void Populate(Map map, List<Thing> things, Obs.UpkeepFacts result, uint? routePathBudgetMs = null)
         {
             var sets = ThingSets.Of(map, things);
             Read("items", result, () => {
@@ -226,9 +226,10 @@ namespace HomeBridge.BridgeTools
             Read("routes", result, () => {
                 // Every facility a colonist must reach, with each mobile
                 // colonist's native reachability from where they stand and
-                // the cost of the path the game itself would walk (bounded:
-                // the first 256 reachable pairs are measured, the rest
-                // report reachability only). A facility no colonist reaches
+                // the cost of the path the game itself would walk (every
+                // reachable pair, unless Go's route_path_budget_ms runs out:
+                // later pairs then report path_skipped, never a silent
+                // absence). A facility no colonist reaches
                 // lists breach candidates: player wall cells on its room's
                 // border whose outer neighbour some colonist can stand on.
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.Spawned).OrderBy(p => p.thingIDNumber).ToList();
@@ -247,6 +248,8 @@ namespace HomeBridge.BridgeTools
                 var facts = new Obs.RoutesFacts();
                 facts.PawnIds.AddRange(people.Select(p => Id(p.GetUniqueLoadID())));
                 var measured = 0; long pathTicks = 0, reachTicks = 0;
+                var skipped = 0;
+                var pathBudgetTicks = routePathBudgetMs.HasValue ? routePathBudgetMs.Value * System.Diagnostics.Stopwatch.Frequency / 1000 : long.MaxValue;
                 Obs.RouteFacility Facility(Common.Ref reference, Obs.RouteFacilityKind kind, IntVec3 cell, Func<Pawn, bool> reaches, Func<Pawn, LocalTargetInfo> target, PathEndMode mode)
                 {
                     var row = new Obs.RouteFacility { Facility = reference, Kind = kind, Cell = Cell(cell) };
@@ -268,7 +271,12 @@ namespace HomeBridge.BridgeTools
                         if (travel.Reachable)
                         {
                             anyReach = true;
-                            if (measured < 256)
+                            if (pathTicks >= pathBudgetTicks)
+                            {
+                                skipped++;
+                                travel.PathSkipped = true;
+                            }
+                            else
                             {
                                 measured++;
                                 var pf0 = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -291,7 +299,7 @@ namespace HomeBridge.BridgeTools
                     }
                     if (anyReach)
                     {
-                        foreach (var (bc, door) in crossed.Values.Take(16))
+                        foreach (var (bc, door) in crossed.Values)
                             row.Breaches.Add(new Obs.RouteBreach { Cell = Cell(bc), Edifice = Id(door.def.defName), Pending = Id(door.def.entityDefToBuild.defName), Distance = 0 });
                     }
                     else if (people.Count > 0 && room != null && room.ProperRoom && !room.TouchesMapEdge)
@@ -322,7 +330,7 @@ namespace HomeBridge.BridgeTools
                             var edifice = wall != null ? wall.def.defName : pendingDoor!.def.defName;
                             breaches.Add((edge, edifice, pendingDoor?.def.entityDefToBuild.defName, best == int.MaxValue ? 0 : best));
                         }
-                        foreach (var (bc, edifice, pending, distance) in breaches.OrderBy(b => b.distance).ThenBy(b => b.cell.z).ThenBy(b => b.cell.x).Take(16))
+                        foreach (var (bc, edifice, pending, distance) in breaches.OrderBy(b => b.distance).ThenBy(b => b.cell.z).ThenBy(b => b.cell.x))
                         {
                             var breach = new Obs.RouteBreach { Cell = Cell(bc), Edifice = Id(edifice), Distance = distance };
                             if (pending != null) breach.Pending = Id(pending);
@@ -347,12 +355,12 @@ namespace HomeBridge.BridgeTools
                 var traffic = map.GetComponent<TrafficState>();
                 if (traffic != null)
                 {
-                    // The busiest TrafficTop cells of each layer;
+                    // Every nonzero cell of each layer, busiest first;
                     // traffic_samples is the colonist layer's decayed total.
                     facts.TrafficSamples = traffic.Counts.Total(TrafficCounts.Colonist);
                     if (traffic.SinceTick >= 0) facts.TrafficSinceTick = traffic.SinceTick;
                     for (int layer = 0; layer < TrafficCounts.Layers; layer++)
-                        foreach (var index in traffic.Counts.Top(layer, TrafficTop))
+                        foreach (var index in traffic.Counts.Nonzero(layer))
                         {
                             var at = map.cellIndices.IndexToCell(index);
                             var cell = new Obs.TrafficCell { Cell = Cell(at), Samples = traffic.Counts[layer, index], Terrain = Id(at.GetTerrain(map).defName), Home = map.areaManager.Home[at], Layer = (Obs.TrafficLayer)(layer + 1) };
@@ -361,7 +369,7 @@ namespace HomeBridge.BridgeTools
                             facts.Traffic.Add(cell);
                         }
                 }
-                ObservationWork.Detail("cf.upkeep.routes.path", pathTicks, measured);
+                ObservationWork.Detail("cf.upkeep.routes.path", pathTicks, measured + skipped);
                 ObservationWork.Detail("cf.upkeep.routes.reach", reachTicks);
                 result.Routes = new Obs.RoutesSection { Observed = facts };
             });
@@ -431,9 +439,6 @@ namespace HomeBridge.BridgeTools
                     Pawn = NativePawnObservationTools.Ref(p), Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = false }));
             });
         }
-
-        // TrafficTop bounds the cells reported per traffic layer.
-        private const int TrafficTop = 128;
 
         // SleepingRelations fills a colonist's partners (lover, spouse and
         // fiance relations to living pawns on the same map), the native

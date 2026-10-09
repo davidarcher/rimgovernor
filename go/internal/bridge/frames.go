@@ -706,6 +706,12 @@ func roundsPawnIDs(emergency EmergencyObservation) []string {
 	return ids
 }
 
+// RoutePathBudgetMS is the main-thread time one frame may spend pathing
+// facility x colonist pairs for the routes census (about 0.4 ms a pair, so
+// roughly 250 pairs: the cost the former 256-pair cap paid at realistic size).
+// Pairs past it arrive as RouteTravel.path_skipped.
+const RoutePathBudgetMS uint32 = 100
+
 // frameReader is the open stream, starting an open or resubscription in
 // the background when one is due; nil until the first open lands.
 func (caller *Client) frameReader(ctx context.Context) frameReader {
@@ -713,7 +719,7 @@ func (caller *Client) frameReader(ctx context.Context) frameReader {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if (s.reader == nil || s.stale || s.keyframe) && !s.opening && (s.stale || s.keyframe || time.Since(s.attempted) >= frameRetry) {
-		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources)}
+		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources), RoutePathBudgetMs: proto.Uint32(RoutePathBudgetMS)}
 		if s.reader != nil && !s.stale {
 			// Only a keyframe: the subscription stands.
 			request = &o.SnapshotStreamRequest{Keyframe: proto.Bool(true)}

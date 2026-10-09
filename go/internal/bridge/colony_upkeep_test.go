@@ -164,6 +164,8 @@ func TestDirectUpkeepRoutesBoundary(t *testing.T) {
 		func(f *o.RoutesFacts) { f.Facilities[0].Travel[0].PathCost = proto.Int32(3) },
 		func(f *o.RoutesFacts) { f.Facilities[1].Travel[0].PathCost = proto.Int32(-1) },
 		func(f *o.RoutesFacts) { f.Facilities[1].Travel[0].PathCells = proto.Int32(-1) },
+		func(f *o.RoutesFacts) { f.Facilities[0].Travel[0].PathSkipped = proto.Bool(true) },
+		func(f *o.RoutesFacts) { f.Facilities[1].Travel[0].PathSkipped = proto.Bool(true) },
 		func(f *o.RoutesFacts) { f.Facilities[0].Breaches[0].Cell.Z = proto.Int32(-1) },
 		func(f *o.RoutesFacts) { f.Facilities[0].Breaches[0].Edifice = nil },
 		func(f *o.RoutesFacts) { f.Facilities[0].Breaches[1].Pending = proto.String("") },
@@ -180,6 +182,14 @@ func TestDirectUpkeepRoutesBoundary(t *testing.T) {
 		if err := validateDirectUpkeep(v, size, 3); err == nil {
 			t.Fatal("accepted invalid routes section")
 		}
+	}
+	// A reachable pair native did not path says so; it carries no numbers.
+	v = upkeepWire()
+	v.Routes = routesWire()
+	skipped := v.Routes.GetObserved().Facilities[1].Travel[0]
+	skipped.PathCost, skipped.PathCells, skipped.PathSkipped = nil, nil, proto.Bool(true)
+	if err := validateDirectUpkeep(v, size, 3); err != nil {
+		t.Fatal(err)
 	}
 	v = upkeepWire()
 	v.Routes = routesWire()

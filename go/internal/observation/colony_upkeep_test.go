@@ -195,6 +195,12 @@ func TestUpkeepProjectionDecodesRoutes(t *testing.T) {
 	if f.Breaches[0] != (policy.RouteBreach{Cell: domain.Cell{X: 9, Z: 10}, Edifice: "Wall", Pending: "Door", Distance: 4}) {
 		t.Fatal(f.Breaches)
 	}
+	// A skipped pair decodes as skipped with no path numbers, not as a measured zero.
+	routes.Facilities[0].Travel[1] = &o.RouteTravel{PawnId: proto.String("b"), Reachable: proto.Bool(true), PathSkipped: proto.Bool(true)}
+	r, _ = upkeepOf(t, v, bridge.Tables{}).Routes.Value()
+	if r.Facilities[0].Travel[1] != (policy.RouteTravel{Pawn: "b", Reachable: true, Skipped: true}) {
+		t.Fatal(r.Facilities[0].Travel[1])
+	}
 	if r.Traffic[0] != (policy.TrafficCell{Cell: domain.Cell{X: 5, Z: 5}, Samples: 30, Terrain: "Soil", Home: true, Layer: policy.TrafficColonist}) {
 		t.Fatal(r.Traffic)
 	}

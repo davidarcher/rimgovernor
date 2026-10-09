@@ -82,6 +82,33 @@ func TestReviewRoutesLatchesUnreachableFacilitiesByKind(t *testing.T) {
 	}
 }
 
+// A reachable pair native did not path (budget spent) shows no crossed doors:
+// it raises no deficit and cannot release a latch, unlike an unreachable pair
+// or a measured one.
+func TestReviewRoutesSkippedPathNeitherRaisesNorReleases(t *testing.T) {
+	p := DefaultRoutesPolicy()
+	v := routesCensus()
+	skipped := &v.Facilities[1].Travel[0] // bench-1, reachable
+	skipped.Cost, skipped.Cells, skipped.Skipped = domain.Unknown[int32](), domain.Unknown[int32](), true
+	fresh, err := ReviewRoutes(domain.Known(v), nil, p)
+	if err != nil || len(fresh.Deficits) != 2 || len(fresh.Latched) != 2 {
+		t.Fatal(fresh, err)
+	}
+	held, err := ReviewRoutes(domain.Known(v), []string{"bench-1", "zone-3"}, p)
+	if err != nil || len(held.Deficits) != 2 || len(held.Latched) != 3 || held.Latched[1] != "bench-1" {
+		t.Fatal(held, err)
+	}
+	v.Facilities[1].Travel[0] = RouteTravel{Pawn: "a", Reachable: true, Cost: domain.Known[int32](1), Cells: domain.Known[int32](1)}
+	measured, err := ReviewRoutes(domain.Known(v), []string{"bench-1"}, p)
+	if err != nil || len(measured.Latched) != 2 {
+		t.Fatal(measured, err)
+	}
+	v.Facilities[1].Travel[1].Skipped = true // unreachable and skipped
+	if _, err := ReviewRoutes(domain.Known(v), nil, p); err == nil {
+		t.Fatal("accepted a skipped unreachable pair")
+	}
+}
+
 func TestReviewRoutesNeedsAMobileColonist(t *testing.T) {
 	v := routesCensus()
 	v.Pawns = nil

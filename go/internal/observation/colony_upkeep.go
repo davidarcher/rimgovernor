@@ -168,6 +168,7 @@ func colonyRoutes(section *o.RoutesSection) domain.Fact[policy.RoutesObservation
 			if t.PathCells != nil {
 				travel.Cells = domain.Known(t.GetPathCells())
 			}
+			travel.Skipped = t.GetPathSkipped()
 			out.Travel = append(out.Travel, travel)
 		}
 		for _, b := range row.Breaches {

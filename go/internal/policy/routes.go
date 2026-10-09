@@ -60,8 +60,12 @@ type RouteTravel struct {
 	Pawn      string
 	Reachable bool
 	// Cost and Cells are the game's own path for the reachable pair;
-	// unknown when the census hit its measurement bound.
+	// unknown when Skipped.
 	Cost, Cells domain.Fact[int32]
+	// Skipped marks a reachable pair native did not path (the stream's
+	// route_path_budget_ms ran out): the doors its path crosses are
+	// unknown, so it can neither raise nor release a door wait.
+	Skipped bool
 }
 type RouteBreach struct {
 	Cell    domain.Cell
@@ -141,6 +145,11 @@ func (v RoutesObservation) Validate() error {
 			if cells, known := t.Cells.Value(); known && (cells < 0 || !t.Reachable) {
 				return errors.New("invalid routes travel cells")
 			}
+			_, costKnown := t.Cost.Value()
+			_, cellsKnown := t.Cells.Value()
+			if t.Skipped && (!t.Reachable || costKnown || cellsKnown) {
+				return errors.New("invalid routes skipped travel")
+			}
 		}
 		cells := map[domain.Cell]bool{}
 		for _, b := range f.Breaches {
@@ -215,17 +224,23 @@ func ReviewRoutes(fact domain.Fact[RoutesObservation], previous []string, p Rout
 		held[id] = true
 	}
 	for _, f := range v.Facilities {
-		reached, ordered := false, false
+		reached, ordered, unpathed := false, false, false
 		for _, t := range f.Travel {
 			if t.Reachable {
 				reached = true
-				break
+				unpathed = unpathed || t.Skipped
 			}
 		}
 		for _, b := range f.Breaches {
 			ordered = ordered || b.Pending != ""
 		}
 		if reached && !(held[f.ID] && ordered) {
+			// A skipped pair never showed which ordered doors its path
+			// crosses, so it cannot release a latch: the facility stays held,
+			// without a deficit, until a census paths every reachable pair.
+			if held[f.ID] && unpathed {
+				r.Latched = append(r.Latched, f.ID)
+			}
 			continue
 		}
 		// A facility already reachable waits for its ordered door only;

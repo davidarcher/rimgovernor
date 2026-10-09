@@ -82,22 +82,16 @@ namespace HomeBridge.BridgeTools
             return total;
         }
 
-        // Top is the layer's n busiest non-zero cells, busiest first, ties
+        // Nonzero is every non-zero cell of the layer, busiest first, ties
         // by index so a read is deterministic.
-        public List<int> Top(int layer, int n)
+        public List<int> Nonzero(int layer)
         {
             var source = counts[layer];
-            var heap = new SortedSet<(ushort count, int negIndex)>();
+            var cells = new List<int>();
             for (int i = 0; i < source.Length; i++)
-            {
-                if (source[i] == 0) continue;
-                if (heap.Count < n) { heap.Add((source[i], -i)); continue; }
-                var min = heap.Min;
-                if (source[i] > min.count) { heap.Remove(min); heap.Add((source[i], -i)); }
-            }
-            var top = new List<int>(heap.Count);
-            foreach (var entry in heap.Reverse()) top.Add(-entry.negIndex);
-            return top;
+                if (source[i] != 0) cells.Add(i);
+            cells.Sort((a, b) => source[a] != source[b] ? source[b].CompareTo(source[a]) : a.CompareTo(b));
+            return cells;
         }
     }
 }

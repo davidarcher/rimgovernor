@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
             ObservationWork.Captured("emergency", Now() - statusBegan, 0);
             if (!statusRead) return false;
             observed.Emergency = emergency;
-            ReadFamilies(map, context, observed);
+            ReadFamilies(map, context, observed, request.HasRoutePathBudgetMs ? request.RoutePathBudgetMs : (uint?)null);
             ReadStepFamilies(map, context, observed);
             ReadSubscribed(map, request, context, observed);
             var combatBegan = Now();
@@ -180,12 +180,12 @@ namespace HomeBridge.BridgeTools
         // On the main thread. Adds the census families to observed, each
         // keyed as its dedicated read. A section that throws fails the frame
         // (SnapshotSectionException); none is omitted.
-        private static void ReadFamilies(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed)
+        private static void ReadFamilies(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed, uint? routePathBudgetMs)
         {
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
             {
                 var began = Now();
-                observed.ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, new Obs.ColonyFactsRequest { Scope = Scope(), Planning = true }, context));
+                observed.ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, new Obs.ColonyFactsRequest { Scope = Scope(), Planning = true }, context, routePathBudgetMs));
                 ObservationWork.Captured("colonyFacts", Now() - began, observed.ColonyFacts.Resources.Count);
             }
             {

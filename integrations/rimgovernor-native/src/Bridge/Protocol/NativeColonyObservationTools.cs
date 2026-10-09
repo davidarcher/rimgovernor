@@ -59,7 +59,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The colony facts as a frame section: a read that throws fails the frame.
-        internal static Obs.ColonyFactsSnapshot Read(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context)
+        internal static Obs.ColonyFactsSnapshot Read(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context, uint? routePathBudgetMs = null)
         {
             // Each span below names where the read's game-thread time went
             // in a slow snapshot capture line.
@@ -124,7 +124,7 @@ namespace HomeBridge.BridgeTools
             Span("cf.foodSupply");
             result.Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) };
             Span("cf.forecast");
-            result.Upkeep = ReadComfort(map, things);
+            result.Upkeep = ReadComfort(map, things, routePathBudgetMs);
             Span("cf.upkeep");
             result.Threat = ReadThreat(map, people.Count);
             result.Development = new Obs.DevelopmentSection { Observed = ReadPower(map) };
@@ -242,14 +242,14 @@ namespace HomeBridge.BridgeTools
             catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); return new Obs.ThreatSection { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Colony wealth and raid points could not be read.") }; }
         }
 
-        private static Obs.UpkeepSection ReadComfort(Map map, List<Thing> things)
+        private static Obs.UpkeepSection ReadComfort(Map map, List<Thing> things, uint? routePathBudgetMs)
         {
             var result = new Obs.UpkeepFacts { };
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
             try { result.Comfort = new Obs.ComfortSection { Observed = ComfortFacts.ReadProtocol(map) }; }
             catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result.Comfort = new Obs.ComfortSection { Unavailable = Unsupported("Complete comfort facts are unavailable.") }; }
             ObservationWork.Detail("cf.upkeep.comfort", System.Diagnostics.Stopwatch.GetTimestamp() - began);
-            NativeUpkeepFacts.Populate(map, things, result);
+            NativeUpkeepFacts.Populate(map, things, result, routePathBudgetMs);
             foreach (var field in new[] { "construction", "storage_cells", "storage_capacity", "protected_cells", "hauling", "wall_removal" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Upkeep section is not yet projected."));
             return new Obs.UpkeepSection { Observed = result };
