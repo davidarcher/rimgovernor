@@ -55,6 +55,13 @@ namespace HomeBridge.BridgeTools
                             continue;
                         if (!giver.directOrderable)
                             continue;
+                        // The float menu refuses a pawn incapable of the giver's work
+                        // (tags or type); issuing the job anyway runs drivers that read
+                        // stats disabled for that pawn (ConstructionSpeed in
+                        // JobDriver_Repair logs an error every tick).
+                        if (pawn != null && (pawn.WorkTagIsDisabled(giver.workTags)
+                            || (giver.workType != null && pawn.WorkTypeIsDisabled(giver.workType))))
+                            continue;
 
                         var scanner = giver.Worker as WorkGiver_Scanner;
                         if (scanner == null)
