@@ -49,7 +49,7 @@ func TestTradeMissionNativePackRequiresRoundTripFoodRotMassAndRoutes(t *testing.
 	if !SafeTradeMissionPack(missionPack(), 2, 3) {
 		t.Fatal("safe pack refused")
 	}
-	for _, edit := range []func(*o.TradePackEstimate){func(p *o.TradePackEstimate) { p.Home.EstimatedTicks = nil }, func(p *o.TradePackEstimate) { p.Home.Reachable = proto.Bool(false) }, func(p *o.TradePackEstimate) { p.Home.Destination = proto.Int32(4) }, func(p *o.TradePackEstimate) { p.FoodDays = proto.Float64(2.9) }, func(p *o.TradePackEstimate) { p.FoodRotDays = proto.Float64(2.9) }, func(p *o.TradePackEstimate) { p.MassUsage = proto.Float64(31) }, func(p *o.TradePackEstimate) { p.CanPack = nil }} {
+	for _, edit := range []func(*o.TradePackEstimate){func(p *o.TradePackEstimate) { p.Home.EstimatedTicks = nil }, func(p *o.TradePackEstimate) { p.Home.Reachable = proto.Bool(false) }, func(p *o.TradePackEstimate) { p.Home.Destination = proto.Int32(4) }, func(p *o.TradePackEstimate) { p.FoodDays = proto.Float64(2.9) }, func(p *o.TradePackEstimate) { p.FoodRotDays = proto.Float64(2.9) }, func(p *o.TradePackEstimate) { p.FoodDays = proto.Float64(0) }, func(p *o.TradePackEstimate) { p.MassUsage = proto.Float64(31) }, func(p *o.TradePackEstimate) { p.CanPack = nil }} {
 		p := missionPack()
 		edit(p)
 		if SafeTradeMissionPack(p, 2, 3) {

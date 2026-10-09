@@ -62,8 +62,8 @@ func runDeparture(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	// The fixture's whole forbidden pemmican stack (20) plus enough survival
-	// meals for native's one-day food floor; simple meals stay home.
+	// The fixture's whole forbidden pemmican stack (20) plus survival meals
+	// for the trip; simple meals stay home.
 	packed := map[string]int64{"WoodLog": 10, "Pemmican": 20, "MealSurvivalPack": 10}
 	var cargo []map[string]any
 	for def, count := range packed {

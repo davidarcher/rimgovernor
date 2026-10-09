@@ -89,8 +89,11 @@ exists; executable trade participants still require its observed caravan ID.
 
 Preparation retains the shared departure policy's healthy spare worker, home
 work owners, staffing and defense headroom. Urgent claims exclude crew members.
-The native preview requires a day of food before returning mass/routes, so the
-read-only calculation seeds a legal dietary one-day pack plus reserved silver,
+Native imposes no mass or food floor on the preview or the packing step: it
+reports the dialog's mass, food and route facts, and the game's own
+`CheckForErrors` (which refuses overweight non-reform caravans) is the only
+packing veto. Go's `SafeTradeMissionPack` is the mass and round-trip food/rot
+gate. The read-only calculation seeds a legal dietary one-day pack plus reserved silver,
 then replaces food with the round-trip pack and validates its full native mass,
 food, rot and asymmetric routes. The final native calculation admits the trip;
 unknown estimates hold it. It supplies no expected purchase yield.

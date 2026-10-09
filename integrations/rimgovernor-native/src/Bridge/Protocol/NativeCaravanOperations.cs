@@ -118,17 +118,13 @@ namespace HomeBridge.BridgeTools
             if (reform && !(map.Parent.GetComponent<FormCaravanComp>()?.CanReformNow() ?? false))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Vanilla caravan reform is unavailable while site threats remain.");
             var built = NativeCaravanCatalog.BuildDialog(map, reform);
-            var selected = new List<Pawn>();
             foreach (var id in command.PawnIds)
             {
                 var group = built.transferables.SingleOrDefault(g => g.AnyThing is Pawn p && RefIndex.Is(p, id));
                 if (!(group?.AnyThing is Pawn pawn) || !NativeCaravanCatalog.PawnEligible(pawn, reform))
                     return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible colonist is unavailable: " + id);
-                selected.Add(pawn);
                 group.ForceToDestination(1);
             }
-            if (map.IsPlayerHome && map.mapPawns.FreeColonistsSpawned.Count <= selected.Count)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "At least one colonist must remain home.");
             foreach (var item in command.Cargo)
             {
                 var remaining = item.Count;
@@ -152,10 +148,6 @@ namespace HomeBridge.BridgeTools
             NativeCaravanCatalog.Set(built, "destinationTile", tile);
             NativeCaravanCatalog.Set(built, "startingTile", exit);
             NativeCaravanCatalog.Call(built, "Notify_TransferablesChanged");
-            if (built.MassUsage > built.MassCapacity)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cargo exceeds native carrying capacity.");
-            if (!reform && NativeCaravanCatalog.FoodDays(built).days < 1f)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "At least one native day of caravan food is required.");
 
             dialog = built;
             return null;
