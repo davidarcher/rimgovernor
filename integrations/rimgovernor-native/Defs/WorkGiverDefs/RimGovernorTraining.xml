@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <WorkGiverDef>
+    <defName>RimGovernor_TrainRange</defName>
+    <label>train at the range</label>
+    <giverClass>RimGovernor.Runtime.WorkGiver_TrainRange</giverClass>
+    <workType>RimGovernorTraining</workType>
+    <priorityInType>10</priorityInType>
+    <verb>train</verb>
+    <gerund>training</gerund>
+    <scanThings>true</scanThings>
+    <directOrderable>false</directOrderable>
+    <requiredCapacities>
+      <li>Manipulation</li>
+    </requiredCapacities>
+  </WorkGiverDef>
+</Defs>

@@ -3,6 +3,7 @@ package policy
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -80,5 +81,33 @@ func TestTrainingRangeCatalogRow(t *testing.T) {
 	f, err := Facility(RoomRoleTrainingRange)
 	if err != nil || f.Content != "" || f.Status != FacilityImplemented || !f.Hosts(RoomRoleTrainingRange) || f.Hosts(RoomRoleRoom) {
 		t.Fatal(f, err)
+	}
+}
+
+// The native training job gates on the same skill target the Concern raises the
+// range for, and the mod defines the work type, giver and jobs it runs under.
+func TestNativeTrainingJobMirrorsTheTarget(t *testing.T) {
+	native := filepath.Join("..", "..", "..", "integrations", "rimgovernor-native")
+	src, err := os.ReadFile(filepath.Join(native, "src", "Runtime", "Training", "RangeTraining.cs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "public const int SkillTarget = " + strconv.Itoa(TrainingSkillTarget) + ";"; !strings.Contains(string(src), want) {
+		t.Fatalf("native RangeTraining.SkillTarget drifted from TrainingSkillTarget; want %q", want)
+	}
+	for dir, names := range map[string][]string{
+		"WorkTypeDefs":  {"RimGovernorTraining"},
+		"WorkGiverDefs": {"RimGovernor_TrainRange"},
+		"JobDefs":       {"RimGovernor_TrainShooting", "RimGovernor_TrainMelee"},
+	} {
+		def, err := os.ReadFile(filepath.Join(native, "Defs", dir, "RimGovernorTraining.xml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range names {
+			if !strings.Contains(string(def), "<defName>"+name+"</defName>") {
+				t.Fatal("def missing from the native mod", dir, name)
+			}
+		}
 	}
 }

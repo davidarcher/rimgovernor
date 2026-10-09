@@ -86,7 +86,11 @@ For each:
 - **Everyone capable** takes 3 (level 8 or unskilled work) or 4 under manual
   priorities, enabled in checkbox mode. Firefighter, Patient, BedRest and
   Childcare stay 1; Hauling, Cleaning and BasicWorker 3, Hauling and Cleaning
-  4 for the research owner.
+  4 for the research owner. The mod's `RimGovernorTraining` work type
+  (range drill, [facilities](../architecture/facilities.md)) has no relevant
+  skill, so every capable colonist takes 3: the matrix needs no training row,
+  because the native work giver offers a lane only to a colonist under the
+  combat skill target with budget left.
 
 `WorkDecision.Coverage` lists demand, owners and capable count per type
 (`RoundsFacts.WorkRoster`). `Capacity` is false when a required type or a core

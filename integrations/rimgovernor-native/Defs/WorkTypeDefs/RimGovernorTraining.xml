@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <!-- Range training (#2610). The work type carries no relevant skill, so the work planner
+       gives it the unskilled rank (3) and the bot, not the player, controls whether pawns
+       drill. The lowest natural priority: at an equal rank every other work comes first. -->
+  <WorkTypeDef>
+    <defName>RimGovernorTraining</defName>
+    <labelShort>train</labelShort>
+    <pawnLabel>Trainee</pawnLabel>
+    <gerundLabel>training</gerundLabel>
+    <description>Drill at a training range: shoot a practice bow at a dummy or strike it in melee. Only colonists whose best combat skill is below the training target take the work, and only while the range has a free lane.</description>
+    <verb>Train</verb>
+    <naturalPriority>1</naturalPriority>
+    <workTags>
+      <li>Violent</li>
+    </workTags>
+  </WorkTypeDef>
+</Defs>
