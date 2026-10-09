@@ -50,8 +50,7 @@ rotation (`policy.WorkOpen`); a match placed by anyone is the same end state.
 
 Sources: [saved types](../integrations/rimgovernor-native/src/Runtime/Persistence/GuardState.cs),
 [guard registry and hooks](../integrations/rimgovernor-native/src/Bridge/Protocol/Guards/NativeDesignationGuards.cs),
-[wall-upgrade site check](../integrations/rimgovernor-native/src/Bridge/WallUpgradeSafety.cs),
-[drilling](../integrations/rimgovernor-native/src/Runtime/Persistence/DrillingState.cs).
+[wall-upgrade site check](../integrations/rimgovernor-native/src/Bridge/WallUpgradeSafety.cs).
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |
@@ -59,7 +58,6 @@ Sources: [saved types](../integrations/rimgovernor-native/src/Runtime/Persistenc
 | `Guard/guard`, `Designation/designation`, `ExpectedDef/expectedDef`, `MapId/mapId`, `X/x`, `Z/z`, `ThingId/thingId` | Native guard | Fresh designation facts; the guard membership is not. |
 | `Finished/finished`, `Cancelled/cancelled`, `Blocker/blocker` | Native guard | No; closed records are dropped on save. |
 | `Wall/wallUpgrade` (deep `WallRemovalRecord`: site roles, backups, material, `Load`, `UiRevision`) | Native guard | No; old load/UI authority is never restored to a new load. |
-| `DrillingState.Drills/rimgovernorDrilling` (deep `DrillingRecord`) | SQL | No. |
 
 One ledger holds every guarded designation: enclosure, mine_safety,
 wall_upgrade and acquisition. A Mine record is keyed by cell and
@@ -67,7 +65,6 @@ rock definition, so compressed rock recreated with fresh ids on load stays
 guarded. The job hooks re-check the guard before work lands; a failed check
 drops the designation and closes the record. Revoking authority releases
 every open record. Wall-upgrade admission is capped at 512 open records.
-`DrillingRecord.Target` is unsaved, re-admitted policy.
 
 ## Equipment ownership
 

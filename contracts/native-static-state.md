@@ -86,7 +86,6 @@ from their saved components or transient work scopes:
 | --- | --- | --- |
 | `DraftOwnership.patched` | `Ensure`; explicit draft-setter lookup, true after patch, no reset after success. | Setter/owner health and repeated install, N01.05. |
 | `OrderedWorkHistory.installed` | `Read`; two patches, exceptions return unavailable, true only after both. | Failure after first patch and retry; unknown generation must remain unknown, N01.04/05. |
-| [DrillingGuard](../integrations/rimgovernor-native/src/Bridge/DrillingGuard.cs): `patched` | `Install`; eligibility/work/transition patches, true after last, no reset. | Missing required work/transition hook must disable admission, N01.04/05. |
 | `HomeCoverage.installed` | `Install`; Set/Clear/Invert then true, no reset. | Partial revision observation must not be treated as complete, N01.04/05. |
 | `WallUpgradeSafety.installed` | `Install`; also initializes the PlayerUiRevision observer; true after all hooks. | Partial guard install and repeat initialization, N01.04/05. |
 | `LetterPauseHook.installed` | `EnsurePatched`; letter and three clock callbacks then true, no reset. | Partial installation/retry must preserve pause attribution, N01.05. |
