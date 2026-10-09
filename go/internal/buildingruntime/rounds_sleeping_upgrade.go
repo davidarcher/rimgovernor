@@ -258,5 +258,5 @@ func (r *RoundsSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Context
 	if len(selected) == 0 {
 		return RoundsBuildingResult{Verdict: noSpace("bedroom_upgrade_site")}, nil
 	}
-	return r.building.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
+	return r.building.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter, tiers: sameTier(len(selected), domain.Known(domain.TierSustain))})
 }

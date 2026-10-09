@@ -641,6 +641,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 	}
 	ledger := newFundingLedger(policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick})
 	var selected []policy.Preview
+	var tiers []domain.Fact[domain.ConstructionTier]
 	var key strings.Builder
 	previewed := 0
 	var refused []refusedPlacement
@@ -697,6 +698,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 		}
 		ledger.claim(costs)
 		selected = append(selected, v)
+		tiers = append(tiers, domain.Known(policy.RoomTier(rr.room.Role)))
 		fmt.Fprintf(&key, "%s@%d,%d;", build.def, build.cell.X, build.cell.Z)
 	}
 	if len(selected) == 0 {
@@ -708,7 +710,7 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 	if once, err := b.methodOnce(call, goal, method); err != nil || !once {
 		return RoundsBuildingResult{Verdict: waitFor(WaitMethodUsed, rr.name+"_build")}, err
 	}
-	return b.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, reason: rr.reason, snapshot: snapshot, selected: selected, stock: ledger.stock, purpose: policy.Shelter})
+	return b.admitPreviews(call, epoch, roundsAdmission{state: state, review: review, owner: goal, facts: facts, method: method, reason: rr.reason, snapshot: snapshot, selected: selected, stock: ledger.stock, purpose: policy.Shelter, tiers: tiers})
 }
 
 // shellMaterials chooses the wall's and the door's stuff from the one stuff the

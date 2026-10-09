@@ -2,8 +2,9 @@
 
 [Contracts](README.md) · Epic #2510. Tier is a per-target integer that native
 remembers while a building is unfinished. This page covers the field and its
-lifecycle (#2522); nothing reads the tier yet. The delivery gate (#2523), room
-tier assignment (#2524) and promotion (#2527) extend it.
+lifecycle (#2522) and which builds carry which tier (#2524); nothing reads the
+tier yet. The delivery gate (#2523), the remaining admit paths (#2525) and
+promotion (#2527) extend it.
 
 ## Ladder
 
@@ -16,8 +17,40 @@ tier assignment (#2524) and promotion (#2527) extend it.
 | 4 | Expand | `TierExpand` |
 | 5 | Secure | `TierSecure` |
 
-The names are fixed here; which buildings belong to which tier is a later child.
+Tier orders construction only; the tech ladder is `TechTier`.
 Absent means ungated vanilla behavior, and is distinct from tier 0.
+
+## Which builds carry which tier
+
+| Tier | Contents |
+|---|---|
+| 0 Survive | Initial shelter shell, sleeping spots and bunks, kitchen and cook station, essential sanitation, research bench |
+| 1 Sustain | Private bedrooms, hospital, butchery, food stores (storage rooms and shelves), lab, cooler/freezer and its power, stonecutter |
+| 2 Comfort | Dining and rec rooms, throne/worship rooms, suites, animal shelter and barn |
+| 3 Produce | Other workshops and their bench input stores |
+| 4 Expand | Graveyard, waste yard, outskirts, anything unlisted |
+| 5 Secure | Defense ring, turrets, killbox, gates (#2527) |
+
+Power for something other than the cooler/freezer takes the tier of what it
+serves; unlisted power is Expand.
+
+Tier is chosen in pure policy (`policy/construction_tier.go`) and only passed
+through by orchestration:
+
+- Planned rooms: `policy.RoomTier(role)` over a table with one row per
+  `PlannedRole`; a test fails a new role without a row. `commitBuilds` stamps
+  every wall, door, floor and furniture build of a room with its role's tier.
+  Storage rooms are Sustain (the role cannot tell a food store from a bench
+  input store), armory and wardrobe are Expand until #2527.
+- Loose buildings a Concern's planner places: `policy.PlannerTier(concern,
+  phase)`; unknown leaves the build untiered. Defense concerns stay untiered
+  until #2527, and the generic power planner is Expand (the proposal names no
+  consumer). Sleeping bunks (Survive), bedroom upgrades and storage shelves
+  (Sustain) state their tier at the call.
+- `RoundsBuildingPlanner.admitPreviews` requires `roundsAdmission.tiers`, one
+  entry per preview, so each caller states its tier; a missing statement is a
+  control error. Paths that do not use it (fields, excavation, rock steps,
+  paddocks) are untiered until #2525.
 
 ## Place and set-tier
 

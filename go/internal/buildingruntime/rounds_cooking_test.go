@@ -60,6 +60,9 @@ func TestRoundsCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.T
 		t.Fatal(plan, err)
 	}
 	b, _ := plan.Spec.Actions()[0].Building()
+	if tier, known := plan.Spec.Actions()[0].Tier().Value(); !known || tier != domain.TierSurvive {
+		t.Fatal(tier, known)
+	}
 	if b.Definition() != "Campfire" || plan.Progress[0].View().Attempt != 0 || result.Decision.Project.Project.Finding != domain.FindingUnmet {
 		t.Fatal(plan, result)
 	}

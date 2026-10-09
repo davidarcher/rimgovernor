@@ -111,6 +111,9 @@ func TestRefrigerationReviewLatchesAndBuildsCoolerOnVentedWall(t *testing.T) {
 	if b.Definition() != "Cooler" || b.Cell() != (domain.Cell{X: 1, Z: 3}) || b.Rotation() != domain.North {
 		t.Fatal(b)
 	}
+	if tier, known := plan.Progress[0].Action().Tier().Value(); !known || tier != domain.TierSustain {
+		t.Fatal(tier, known)
+	}
 	if n.previews != 1 || n.buildingReads != 1 {
 		t.Fatal(n.previews, n.buildingReads)
 	}
