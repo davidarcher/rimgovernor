@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -173,5 +174,60 @@ namespace HomeBridge.BridgeTools
                     designated = thing != null && map.designationManager.DesignationOn(thing, DesignationDefOf.Deconstruct) != null };
             }, cancellationToken);
         }
+
+        // Spoilage preference probe (#2520): spawns an old and a fresh stack of
+        // raw meat and of simple meals near a colonist, the fresh one closer, and
+        // reports which stack a bill ingredient pick and a meal pick choose with
+        // the preference off, on, and on with the old stack forbidden.
+        [Tool("test/spoilage_pick", Description = "UNSAFE FOR MODEL EXECUTION. Disposable probe (#2520): spawn old and fresh meat and meal stacks near a colonist and reply which each vanilla-path pick chooses with the spoilage preference off, on, and on with the old stack forbidden. Test builds only.")]
+        public async Task<object> SpoilagePick(IRimBridgeContext ctx, CancellationToken cancellationToken)
+            => await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var pawn = map?.mapPawns.FreeColonistsSpawned.FirstOrDefault();
+                if (pawn == null) return new { success = false, error = "No spawned colonist" };
+                var free = GenRadial.RadialCellsAround(pawn.Position, 20, true).Where(c => c.InBounds(map) && c.Standable(map)
+                    && c.GetEdifice(map) == null && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)).ToList();
+                IntVec3 Cell(int minDistance) => free.First(c => (c - pawn.Position).LengthManhattan >= minDistance);
+                Thing Stack(ThingDef def, int ticksUntilRot, IntVec3 at) {
+                    var thing = ThingMaker.MakeThing(def);
+                    thing.stackCount = 5;
+                    GenSpawn.Spawn(thing, at, map);
+                    var rot = thing.TryGetComp<CompRottable>();
+                    rot.RotProgress = rot.PropsRot.TicksToRotStart - ticksUntilRot;
+                    return thing;
+                }
+                var meat = DefDatabase<ThingDef>.GetNamed("Meat_Muffalo");
+                var meal = ThingDefOf.MealSimple;
+                // The old stacks sit outside vanilla's 30000-tick freshness bonus, further away than the fresh ones.
+                var freshMeat = Stack(meat, 100000, Cell(3)); var oldMeat = Stack(meat, 45000, Cell(11));
+                var freshMeal = Stack(meal, 200000, Cell(4)); var oldMeal = Stack(meal, 45000, Cell(12));
+                foreach (var m in new[] { freshMeat, oldMeat, freshMeal, oldMeal }) m.SetForbidden(false, false);
+                pawn.needs.food.CurLevelPercentage = 0.1f;
+                var ingredient = new IngredientCount();
+                ingredient.filter.SetAllow(ThingCategoryDefOf.MeatRaw, true);
+                ingredient.SetBaseCount(1f);
+                var ingredients = new List<IngredientCount> { ingredient };
+                string Bill() {
+                    var chosen = new List<ThingCount>();
+                    return WorkGiver_DoBill.TryFindBestFixedIngredients(ingredients, pawn, pawn, chosen) && chosen.Count > 0 ? chosen[0].Thing.GetUniqueLoadID() : "";
+                }
+                string Meal() {
+                    var found = FoodUtility.BestFoodSourceOnMap(pawn, pawn, false, out var _, FoodPreferability.MealLavish, allowPlant: false, allowDrug: false, allowCorpse: false, allowDispenserFull: false, allowDispenserEmpty: false);
+                    return found == null ? "" : found.GetUniqueLoadID();
+                }
+                var previous = SpoilagePreference.Active;
+                try {
+                    SpoilagePreference.Active = () => false;
+                    var off = new { bill = Bill(), meal = Meal() };
+                    SpoilagePreference.Active = () => true;
+                    var on = new { bill = Bill(), meal = Meal() };
+                    oldMeat.SetForbidden(true, false); oldMeal.SetForbidden(true, false);
+                    var forbidden = new { bill = Bill(), meal = Meal() };
+                    return new { success = true, freshMeat = freshMeat.GetUniqueLoadID(), oldMeat = oldMeat.GetUniqueLoadID(),
+                        freshMeal = freshMeal.GetUniqueLoadID(), oldMeal = oldMeal.GetUniqueLoadID(), off, on, forbidden,
+                        oldMeatTicks = SpoilagePreference.TicksUntilRot(oldMeat), freshMeatTicks = SpoilagePreference.TicksUntilRot(freshMeat),
+                        oldMealTicks = SpoilagePreference.TicksUntilRot(oldMeal), freshMealTicks = SpoilagePreference.TicksUntilRot(freshMeal) };
+                } finally { SpoilagePreference.Active = previous; }
+            }, cancellationToken);
     }
 }

@@ -456,6 +456,16 @@ and rotted stock never counts.
   least five days of rot runway; a roofed warm stockpile is no deficit unless close to
   rotting.
 
+Spoilage preference (#2520): while the supervisor is active the colony uses its oldest
+stock first. Two native Harmony patches (`SpoilagePreference`) only reorder candidates
+vanilla already accepts; legality (allowed, reachable, unforbidden, policy, filter) stays
+with vanilla, and non-perishables keep vanilla's order. Bill ingredients: the non-mixing
+pick (`WorkGiver_DoBill.TryFindBestIngredientsInSet_NoMixHelper`) sorts candidates by
+least `TicksUntilRotAtCurrentTemp`, then distance; mixing recipes keep vanilla's value
+order. Meals eaten: a postfix on `FoodUtility.FoodOptimality` adds up to 24 points to a
+fresh perishable stack as it nears rotting (none beyond 60000 ticks), skipped when taking
+food to inventory. Hauling is unchanged. The `lab/spoilage-pick` case proves both picks.
+
 `MaintainRefrigeration` takes the warm side: roofed perishable nutrition in a known room,
 warmer than 10 C and under five days from rot. It latches at the same five-unit floor and
 releases only when every such stock measures 5 C or colder; unknown temperature or room
