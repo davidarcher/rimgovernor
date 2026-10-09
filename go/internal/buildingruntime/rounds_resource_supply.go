@@ -55,6 +55,15 @@ type resourceSupply struct {
 	rows  map[policy.Resource]*resourceSupplyRow
 	// derived are the floors the produce bills' ingredient needs add to the
 	// colony's targets (stock plus the bill's unfunded draw).
+	//
+	// This is the one planner-time exception to the single demand pipeline
+	// (policy.ResourceDemandOf). A produce bill's ingredient need is chosen by
+	// the resource planner (bench census, stock, Seen) and is nonzero only from
+	// the decide round until the bill is placed. Trade, workshop and
+	// acquisition do not see it, so in that window (unbounded: as long as the
+	// mine plan is open) the ingredient can be sold when its item wealth share
+	// exceeds 0.6 and a trader is present. Accepted for now; to be revisited
+	// under #2504 (colony-wide commitments). See #2500.
 	derived map[policy.Resource]int64
 	// tokens maps each bench id of the census to its write token.
 	tokens map[string]string
