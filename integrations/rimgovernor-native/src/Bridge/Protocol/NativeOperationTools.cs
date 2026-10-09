@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
 
     public sealed class NativeOperationTools
     {
-        public NativeOperationTools() { NativeDrugPolicy.Install(); NativeDesignationGuards.Install(); HomeCoverage.Install(); TreeLatticeSowing.Install(); WallLayerGuard.Install(); BenchCleaningGuard.Install(); RemotePickupGuard.Install(); ConstructionSkillGuard.Install(); ConsumptionHooks.Install(); SpoilagePreference.Install(); ChunkAutoHaul.Install(); TickProfile.Install(); NativePawnControlState.Initialize(); }
+        public NativeOperationTools() { NativeDrugPolicy.Install(); NativeDesignationGuards.Install(); HomeCoverage.Install(); TreeLatticeSowing.Install(); WallLayerGuard.Install(); StorageRefillHysteresis.Install(); BenchCleaningGuard.Install(); RemotePickupGuard.Install(); ConstructionSkillGuard.Install(); ConsumptionHooks.Install(); SpoilagePreference.Install(); ChunkAutoHaul.Install(); TickProfile.Install(); NativePawnControlState.Initialize(); }
 
         [Tool("rimgovernor/zones_preview", Title = "Preview zone site", Description = "Check one zone intent create site as the zone Action arm would, without creating the zone.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ZonePreviewReply.", Always = true)]

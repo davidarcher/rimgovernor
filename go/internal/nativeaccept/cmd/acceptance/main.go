@@ -127,6 +127,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/smoke"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/speedmatrix"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/startup"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/storage"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/supplies"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/temperature"

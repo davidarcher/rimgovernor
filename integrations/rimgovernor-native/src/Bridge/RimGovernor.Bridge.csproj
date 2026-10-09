@@ -18,6 +18,7 @@
     <Compile Include="../../../../scripts/fixtures/RoundsSleepingFixture.cs" Condition="'$(RoundsSleepingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/GuardedConstructionFixture.cs" Condition="'$(GuardedConstructionFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/StorageHaulFixture.cs" Condition="'$(StorageHaulFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/RefillHysteresisFixture.cs" Condition="'$(RefillHysteresisFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DefenseFixture.cs" Condition="'$(DefenseFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HazardFixture.cs" Condition="'$(HazardFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ShelterFixture.cs" Condition="'$(ShelterFixture)' == 'true'" />

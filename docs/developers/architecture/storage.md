@@ -100,3 +100,17 @@ An admitted zone create or delete is a `layout_edit` row (family `stockpile`, at
 (role, tick, cells: the first create is the earliest a store can open) and the deletes by
 role, and fails a role created again after a delete (churn). Early-room spoilage is read
 against the create ticks; no check gates it.
+
+## Refill hysteresis
+
+Vanilla sizes a haul by the room a store has left, so a drawn-down stockpile,
+shelf or bench input store is refilled by a stream of 1-3 item hauls. Under
+supervision (`Supervisor.IsActive`) native withholds a pawn's haul-to-storage
+job (a postfix on `HaulAIUtility.HaulToStorageJob`, `StorageRefillHysteresis`)
+until the destination group has room for one stack of the item, summed over its
+good cells. A haul that carries the whole source stack is kept, so a small loose
+pile still goes to storage. No measurement phase. The native reads of
+`StoreUtility.TryFindBestBetterStoreCellFor` are untouched, so Go-side storage
+headroom (`policy.LootItem.StorageHeadroom`) is unchanged. Container hauls,
+opportunistic hauling and bill-product storing are not covered. Case:
+`storage/refill-hysteresis`.
