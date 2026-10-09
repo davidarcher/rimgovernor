@@ -274,6 +274,28 @@ func TestLandRefusesAStaleTreeReparentedOntoMain(t *testing.T) {
 	}
 }
 
+// Adding a Concern bumps a count back to a value an earlier landing also
+// held (56 to 55 on a removal, then 55 to 56). The blob equals that old
+// pre-image, but only digits changed, so landing accepts it.
+func TestLandTakesACountOnlyUpdateThatMatchesAnOldBlob(t *testing.T) {
+	root, wt := newRepo(t)
+	write(t, filepath.Join(root, "a.txt"), "assessments: 56\n")
+	mustGit(t, root, "commit", "-qam", "peer: 56 assessments")
+	write(t, filepath.Join(root, "a.txt"), "assessments: 55\n")
+	mustGit(t, root, "commit", "-qam", "peer: drop a Concern")
+	mustGit(t, wt, "merge", "-q", "--ff-only", "main")
+	write(t, filepath.Join(wt, "a.txt"), "assessments: 56\n")
+	mustGit(t, wt, "commit", "-qam", "feat: add a Concern, 56 assessments")
+
+	t.Chdir(wt)
+	if err := run("", "", "", time.Second, false, nil); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(root, "a.txt")); strings.TrimSpace(string(data)) != "assessments: 56" {
+		t.Errorf("main a.txt = %q", data)
+	}
+}
+
 // A revert that names the reverted commit lands, and so does deleting a
 // file main added before the branch forked.
 func TestLandTakesANamedRevertAndOldDeletions(t *testing.T) {

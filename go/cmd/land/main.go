@@ -479,6 +479,9 @@ func refuseReverts(worktree string) error {
 		if (blob == nullBlob && !sinceFork[commit]) || intended(commit) {
 			continue
 		}
+		if blob != nullBlob && countOnly(worktree, path) {
+			continue
+		}
 		reverted[path] = fmt.Sprintf("%s (undoes %.9s %s)", path, commit, subject)
 	}
 	if len(reverted) == 0 {
@@ -490,6 +493,42 @@ func refuseReverts(worktree string) error {
 	}
 	sort.Strings(lines)
 	return fmt.Errorf("the merged branch puts back content main replaced:\n  %s\nrestore main's version (git checkout main -- <path>) and commit, or name the commit's hash in a commit message if the revert is intended; then run land again", strings.Join(lines, "\n  "))
+}
+
+var digitRun = regexp.MustCompile(`[0-9]+`)
+
+// countOnly reports whether the branch's change to path against main
+// differs only in numbers: every removed line has an added twin once digit
+// runs are masked. Adding a Concern bumps counts back to a value an earlier
+// commit also held, so the blob equals an old pre-image without restoring
+// any deleted behavior; a restored implementation changes more than digits.
+func countOnly(worktree, path string) bool {
+	diff, err := gitOutput(worktree, "diff", "-U0", "--no-color", "--no-renames", "main", "HEAD", "--", path)
+	if err != nil {
+		return false
+	}
+	balance := map[string]int{}
+	changes := 0
+	for _, line := range strings.Split(diff, "\n") {
+		if line == "" || strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---") {
+			continue
+		}
+		masked := digitRun.ReplaceAllString(line[1:], "#")
+		switch line[0] {
+		case '-':
+			balance[masked]--
+			changes++
+		case '+':
+			balance[masked]++
+			changes++
+		}
+	}
+	for _, n := range balance {
+		if n != 0 {
+			return false
+		}
+	}
+	return changes > 0
 }
 
 // rawEntry parses one `--raw --no-abbrev` line into the blob before, the
