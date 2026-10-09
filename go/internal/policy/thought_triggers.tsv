@@ -88,7 +88,7 @@ AwkwardExecution	memory	ritual xml:Ideology/Defs/Rituals/Ritual_Outcomes.xml	oth
 BabyBorn	memory	ritual PregnancyUtility.ApplyBirthOutcome	hediff;hediff:InfantIllness;hediff:Lactating;hediff:PostpartumExhaustion;hediff:Stillborn	
 BabyCriedSocial	memory	other MentalState_BabyCry.AuraEffect	other	
 BabyGiggledSocial	memory	other MentalState_BabyGiggle.AuraEffect	other	
-BabySick	situational	ThoughtWorker_BabySick	hediff;hediff:InfantIllness	
+BabySick	situational	ThoughtWorker_BabySick	hediff;hediff:InfantIllness	MaintainMedicalReserves
 BeautifulSkyLanterns	memory	ritual xml:Ideology/Defs/Rituals/Ritual_Outcomes.xml	other	
 BecameGhoul	memory	other xml:Anomaly/Defs/Misc/Mutants.xml	other	
 BioSculpterDespised	memory	other unreferenced	other	
@@ -681,7 +681,7 @@ OtherTravelerArrested	memory	other QuestNode_Root_Hospitality_Refugee.RunInt	app
 OtherTravelerDied	memory	other QuestNode_Root_Hospitality_Refugee.RunInt	apparel	
 OtherTravelerLeftBehind	memory	other QuestNode_Root_Hospitality_Refugee.RunInt	apparel	
 OtherTravelerSurgicallyViolated	memory	other QuestNode_Root_Hospitality_Refugee.RunInt	apparel	
-Pain	situational	ThoughtWorker_Pain	hediff	
+Pain	situational	ThoughtWorker_Pain	hediff	MaintainMedicalReserves
 Pain_Idealized	situational	ThoughtWorker_Precept_Pain	other	
 ParticipatedInRaid_Required	memory	ritual xml:Ideology/Defs/PreceptDefs/Precepts_Raiders.xml	other	
 ParticipatedInRaid_Respected	memory	ritual xml:Ideology/Defs/PreceptDefs/Precepts_Raiders.xml	other	
@@ -775,7 +775,7 @@ Scarification_Minor	situational	ThoughtWorker_Precept_Scarification	hediff;hedif
 Scarification_Minor_Opinion	situational	ThoughtWorker_Precept_Scarification_Social	hediff;hediff:Scarification	
 SelfDislikedXenotype	situational	ThoughtWorker_Precept_SelfDislikedXenotype	other	
 SharedBed	situational	ThoughtWorker_SharedBed	other	
-Sick	situational	ThoughtWorker_Sick	hediff	
+Sick	situational	ThoughtWorker_Sick	hediff	MaintainMedicalReserves
 SkillBookPassion	situational	ThoughtWorker_SkillBookPassion	other	
 Skullspike_Desired	situational	ThoughtWorker_Precept_Skullspike	other	
 Skullspike_Disapproved	situational	ThoughtWorker_Precept_Skullspike	other	

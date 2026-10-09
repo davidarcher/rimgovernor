@@ -67,7 +67,14 @@ evidence. The apparel thoughts `ApparelDamaged` (ratty and tattered), `DeadMansA
 exist (the outfit excludes tainted gear, floors hit points at `apparelMinHP`, offers only
 gender-correct definitions, and `ClothingRunway` replaces garments before they tatter),
 so dominant apparel pressure raises that concern's deficit and adds no new action.
-Cosmetic preferences and Ideology apparel precepts stay unowned. Every review that provisions `EnsureComfort` must rank it with a
+Cosmetic preferences and Ideology apparel precepts stay unowned. The pain and
+sickness thoughts `Pain`, `Sick` and `BabySick` are owned by `MaintainMedicalReserves`:
+tending, disease rest, the hospital bed and the medicine stock it holds already treat
+their causes (injuries, infections, infant illness), so dominant pain or sickness
+pressure raises that concern's deficit and adds no new action. The medicine runway still
+follows realized tending, not mood; no painkiller policy exists (combat-only drugs are
+untouched). `MasochistPain`, `Pain_Idealized` and permanent-condition hediff thoughts
+stay unowned. Every review that provisions `EnsureComfort` must rank it with a
 deficit at least the provisioned fraction
 (snapshot-tested). Schedules are never written. Social recreation, tolerated
 recreation kinds and environmental eligibility remain native job-giver choices.
