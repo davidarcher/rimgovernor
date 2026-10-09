@@ -29,6 +29,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Improve expert play | [Architecture roadmap](developers/architecture/expert-play-assessment.md) |
 | Plan colony rooms and containment | [Facilities](developers/architecture/facilities.md) |
 | Change a subsystem | [Behavior contracts](developers/contracts/README.md) |
+| Plan and reconcile trade missions | [Controllable trade](developers/contracts/controllable-trade.md) |
 | Preserve or reconsider issued work | [Method continuation](developers/contracts/method-continuation.md) |
 | Change the native boundary | [Wire contracts](../contracts/README.md), [schema generation](../contracts/schema-generation.md) |
 

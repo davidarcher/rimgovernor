@@ -10,7 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	"math"
 	"slices"
 	"strings"
 )
@@ -46,22 +45,15 @@ func TradeMissionReturnSafe(m domain.TradeMission, caravan *bridge.CaravanJourne
 	if caravan == nil {
 		return false
 	}
-	mass, mk := caravan.MassUsage.Value()
-	capacity, ck := caravan.MassCapacity.Value()
-	rot, rk := caravan.FoodRotDays.Value()
-	if !mk || !ck || !rk || !caravan.FoodDaysKnown || !finiteMission(mass) || !finiteMission(capacity) || !finiteMission(rot) || !finiteMission(caravan.FoodDays) || mass > capacity {
-		return false
-	}
+	in := policy.MissionReturnFacts{Mass: caravan.MassUsage, Capacity: caravan.MassCapacity, FoodDays: missionOptional(caravan.FoodDays, caravan.FoodDaysKnown), RotDays: caravan.FoodRotDays}
 	for _, route := range caravan.HomeRoutes {
 		if route.DestinationTile == m.HomeTile && route.Reachable && route.EstimatedTicksKnown && route.EstimatedTicks >= 0 {
-			days := float64(route.EstimatedTicks) / float64(domain.TicksPerDay)
-			return caravan.FoodDays >= days && rot >= days
+			in.RouteTicks = domain.Known(route.EstimatedTicks)
+			break
 		}
 	}
-	return false
+	return policy.TradeMissionReturnSafe(in)
 }
-func finiteMission(v float64) bool { return v >= 0 && !math.IsNaN(v) && !math.IsInf(v, 0) }
-
 func missionCaravan(m domain.TradeMission, world *bridge.WorldProgressionRead) *bridge.CaravanJourney {
 	var found *bridge.CaravanJourney
 	for i := range world.Caravans {
@@ -364,7 +356,7 @@ func (r *RoundsTradePlanner) missionTrade(call, epoch context.Context, state Con
 		return r.missionTradeCommit(call, epoch, state, p, m, value)
 	}
 	silver, _, known := tradeSheetSilver(sheet.Rows)
-	if !sameTradeLines(lines, tradeStagedLines(sheet)) || !sheet.ColonyCanAfford || !sheet.BalanceKnown || sheet.Balance > 0 || -sheet.Balance > float64(m.SilverBudget) || !known || float64(silver)+sheet.Balance < 0 || sheet.DealSignature == "" {
+	if !sameTradeLines(lines, tradeStagedLines(sheet)) || !sheet.ColonyCanAfford || !policy.TradeMissionPaymentSafe(m.SilverBudget, missionOptional(silver, known), missionOptional(sheet.Balance, sheet.BalanceKnown)) || sheet.DealSignature == "" {
 		m.Phase = domain.TradeMissionReturning
 		return r.missionRecord(call, p, m)
 	}
@@ -402,100 +394,27 @@ func (r *RoundsTradePlanner) missionPurchases(ctx context.Context, state Control
 	}
 	r.reviewer.planFood(&projection)
 	targets := r.reviewer.resourceTargets(state.Snapshot)
-	current := map[string]int64{}
-	stocks, known := projection.Facts.Resources.Value()
-	if !known {
-		return nil, nil, nil
-	}
-	available := map[policy.Resource]int64{}
-	for _, stock := range stocks {
-		available[stock.Resource] = stock.Count
-	}
-	for def, target := range targets {
-		current[string(def)] = max(0, target-available[def])
-	}
-	foodWanted := 0.0
-	if food, known := projection.Facts.FoodPlan.Value(); known {
-		foodWanted = math.Max(0, food.GapPerDay) * math.Max(1, r.reviewer.policy.FoodTargetDays)
-	}
-	var demands []policy.SupplyDemand
-	var candidates []policy.SupplyCandidate
-	rows := map[string]bridge.TradeSheetRow{}
-	budget := float64(m.SilverBudget)
-	mass, mk := caravan.MassUsage.Value()
-	capacity, ck := caravan.MassCapacity.Value()
-	if !mk || !ck || !finiteMission(mass) || !finiteMission(capacity) || mass > capacity {
-		return nil, nil, nil
-	}
-	headroom := capacity - mass
-	silver, _, sk := tradeSheetSilver(sheet.Rows)
-	if !sk {
-		return nil, nil, nil
-	}
-	budget = math.Min(budget, float64(silver))
-	wanted := map[string]int64{}
+	nutrition := map[string]domain.Fact[float64]{}
 	for _, item := range m.Demand {
-		count := min(int64(item.Count), current[item.Definition])
-		if nutrition, err := tables.Catalog.StatValue(item.Definition, "", "Nutrition"); err == nil && nutrition > 0 {
-			count = min(int64(item.Count), int64(math.Ceil(foodWanted/float64(nutrition))))
-		}
-		if count > 0 {
-			wanted[item.Definition] = count
-			demands = append(demands, policy.SupplyDemand{Good: policy.ResourceKey{Def: policy.Resource(item.Definition)}, Units: count, Priority: 1})
-		}
+		nutrition[item.Definition] = missionCatalogStat(tables.Catalog, item.Definition, "Nutrition")
 	}
+	var rows []policy.MissionPurchaseRow
 	for _, row := range sheet.Rows {
-		if wanted[row.DefName] == 0 || row.Pawn || row.Currency || !row.BuyPriceKnown || row.BuyPrice <= 0 || !finiteMission(row.BuyPrice) || !row.TraderWillTradeKnown || !row.TraderWillTrade {
-			continue
-		}
-		count := min(wanted[row.DefName], row.TraderCount, int64(math.Floor(budget/row.BuyPrice)))
-		unitMass, err := tables.Catalog.StatValue(row.DefName, "", "Mass")
-		if err != nil || !finiteMission(float64(unitMass)) {
-			continue
-		}
-		if unitMass > 0 {
-			count = min(count, int64(math.Floor(headroom/float64(unitMass))))
-		}
-		if count <= 0 {
-			continue
-		}
-		candidate, ok := policy.TradeCandidate(policy.Resource(row.DefName), row.LineID, count, row.BuyPrice)
-		if ok {
-			candidates = append(candidates, candidate)
-			rows[candidate.ID] = row
-			budget -= float64(count) * row.BuyPrice
-			headroom -= float64(count) * float64(unitMass)
-			wanted[row.DefName] -= count
-		}
+		rows = append(rows, policy.MissionPurchaseRow{LineID: row.LineID, DefName: row.DefName, TraderCount: row.TraderCount, Pawn: row.Pawn, Currency: row.Currency, BuyPrice: missionOptional(row.BuyPrice, row.BuyPriceKnown), WillTrade: missionOptional(row.TraderWillTrade, row.TraderWillTradeKnown), UnitMass: missionCatalogStat(tables.Catalog, row.DefName, "Mass")})
 	}
-	plan, err := policy.PlanSupply(policy.SupplyPlanRequest{Demands: domain.Known(demands), Candidates: domain.Known(candidates), Labor: domain.Known(math.MaxFloat64)})
-	if err != nil {
-		return nil, nil, err
+	silver, _, known := tradeSheetSilver(sheet.Rows)
+	return policy.PlanTradeMissionPurchases(policy.MissionPurchaseRequest{Mission: m, Targets: targets, Stock: projection.Facts.Resources, Food: projection.Facts.FoodPlan, FoodTargetDays: r.reviewer.policy.FoodTargetDays, Nutrition: nutrition, Rows: rows, Silver: missionOptional(silver, known), Mass: caravan.MassUsage, Capacity: caravan.MassCapacity})
+}
+
+func missionOptional[T any](v T, known bool) domain.Fact[T] {
+	if known {
+		return domain.Known(v)
 	}
-	var lines []domain.TradeLine
-	goods := map[string]uint64{}
-	for _, entry := range plan.Portfolio {
-		if entry.Decision != policy.SupplyOpen || entry.Wanted <= 0 {
-			continue
-		}
-		row := rows[entry.Candidate.ID]
-		lines = append(lines, domain.TradeLine{LineID: row.LineID, AbsoluteCount: int32(entry.Wanted)})
-		goods[row.DefName] += uint64(entry.Wanted)
-	}
-	var cargo []domain.CargoItem
-	for def, count := range goods {
-		cargo = append(cargo, domain.CargoItem{Definition: def, Count: count})
-	}
-	slices.SortFunc(cargo, func(a, b domain.CargoItem) int {
-		if a.Definition < b.Definition {
-			return -1
-		}
-		if a.Definition > b.Definition {
-			return 1
-		}
-		return 0
-	})
-	return lines, cargo, nil
+	return domain.Unknown[T]()
+}
+func missionCatalogStat(catalog *bridge.DefinitionCatalog, def, stat string) domain.Fact[float64] {
+	value, err := catalog.StatValue(def, "", stat)
+	return missionOptional(float64(value), err == nil)
 }
 
 func (r *RoundsTradePlanner) createMission(ctx context.Context, state ControlState, review store.Rounds) (RoundsTradeResult, bool, error) {

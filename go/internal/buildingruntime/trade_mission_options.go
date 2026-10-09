@@ -9,7 +9,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"math"
-	"slices"
 )
 
 func (r *Rounder) settlementAcquisitionOptions(ctx context.Context, world domain.GenerationSnapshot, owner string, p observation.ColonyProjection, demands []policy.SupplyDemandResult, catalog *bridge.DefinitionCatalog) []policy.TradeAcquisitionOption {
@@ -54,53 +53,24 @@ func (r *Rounder) settlementAcquisitionOptions(ctx context.Context, world domain
 	if err != nil {
 		return nil
 	}
-	silver, sk := p.Facts.Silver().Value()
-	reserve, rk := policy.TradeSilverReserve(p.Facts.Colonists)
-	if !sk || !rk || silver <= reserve {
+	budget, known := policy.TradeMissionBudget(p.Facts.Silver(), p.Facts.Colonists).Value()
+	if !known || budget <= 0 {
 		return nil
 	}
-	budget := min(silver-reserve, int64(math.MaxInt32))
 	var out []policy.TradeAcquisitionOption
 	for _, settlement := range destinations.Settlements {
-		var cargo []domain.CargoItem
-		var compatible []policy.ResourceKey
+		compatibleFacts := map[policy.ResourceKey]domain.Fact[bool]{}
 		for _, d := range demands {
-			if d.Gap <= 0 {
-				continue
-			}
-			can, known := catalog.TraderKindCanSupply(settlement.TraderKind, d.Demand.Good).Value()
-			if !known || !can {
-				continue
-			}
-			def := string(d.Demand.Good.Def)
-			count := int64(math.Ceil(d.Gap))
-			if d.Demand.Good == policy.NutritionKey {
-				defs := make([]string, 0, len(catalog.ThingDefs))
-				for name := range catalog.ThingDefs {
-					defs = append(defs, name)
-				}
-				slices.Sort(defs)
-				def = ""
-				for _, name := range defs {
-					food, known, e := catalog.TradeFood(name)
-					nutrition, nutritionErr := catalog.StatValue(name, "", bridge.StatNutrition)
-					compatible, knownSupply := catalog.TraderKindCanSupply(settlement.TraderKind, policy.ResourceKey{Def: policy.Resource(name)}).Value()
-					if e == nil && known && food.Prepared && nutritionErr == nil && nutrition > 0 && knownSupply && compatible {
-						def = name
-						count = int64(math.Ceil(d.Gap * math.Max(1, r.policy.FoodTargetDays) / float64(nutrition)))
-						break
-					}
-				}
-			}
-			if def == "" || count <= 0 || count > math.MaxInt32 {
-				continue
-			}
-			if slices.ContainsFunc(cargo, func(item domain.CargoItem) bool { return item.Definition == def }) {
-				continue
-			}
-			cargo = append(cargo, domain.CargoItem{Definition: def, Count: uint64(count)})
-			compatible = append(compatible, d.Demand.Good)
+			compatibleFacts[d.Demand.Good] = catalog.TraderKindCanSupply(settlement.TraderKind, d.Demand.Good)
 		}
+		var definitions []policy.MissionSupplyDefinition
+		if _, requested := compatibleFacts[policy.NutritionKey]; requested {
+			for name := range catalog.ThingDefs {
+				food, known, err := catalog.TradeFood(name)
+				definitions = append(definitions, policy.MissionSupplyDefinition{Definition: name, Prepared: missionOptional(food.Prepared, known && err == nil), Nutrition: missionCatalogStat(catalog, name, bridge.StatNutrition), CanSupply: catalog.TraderKindCanSupply(settlement.TraderKind, policy.ResourceKey{Def: policy.Resource(name)})})
+			}
+		}
+		cargo, compatible := policy.TradeMissionCargo(demands, compatibleFacts, definitions, r.policy.FoodTargetDays)
 		if len(cargo) == 0 {
 			continue
 		}

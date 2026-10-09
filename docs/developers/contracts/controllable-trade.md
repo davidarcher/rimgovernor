@@ -120,3 +120,9 @@ pawn-inventory/carried holder rows proving authorized goods above any initial
 packed amount of that definition. A missed held-cargo read stays unknown;
 loose home stock, crew arrival and receipts never prove delivery. Lost crew
 ends the attempt without delivery.
+
+Mission sizing, live purchase allocation and the refreshed return-safety decision
+are pure policy. Runtime supplies decoded catalog nutrition/mass and native
+route/capacity facts. Purchase quantities reuse `BuildResourceDemand` against the
+shared resource targets; silver and carry headroom are consumed once across the
+live offer rows before the shared supply ranker chooses purchases.
