@@ -60,6 +60,7 @@ internal static class Program
     {
         var managed = DefaultManagedDir();
         string? output = null;
+        string? report = null;
         var check = false;
         for (var i = 0; i < args.Length; i++)
         {
@@ -68,11 +69,12 @@ internal static class Program
                 case "--managed-dir": managed = args[++i]; break;
                 case "--output": output = args[++i]; break;
                 case "--check": check = true; break;
+                case "--report": report = args[++i]; break;
                 default: return Fail($"unknown argument {args[i]}");
             }
         }
-        if (managed == null || output == null)
-            return Fail("usage: defmirror --output <defs.proto> [--managed-dir <dir with Assembly-CSharp.dll>] [--check]");
+        if (managed == null || (output == null && report == null))
+            return Fail("usage: defmirror (--output <defs.proto> [--check] | --report <file>) [--managed-dir <dir with Assembly-CSharp.dll>]");
         if (!File.Exists(Path.Combine(managed, "Assembly-CSharp.dll")))
             return Fail($"{managed} has no Assembly-CSharp.dll");
 
@@ -80,6 +82,12 @@ internal static class Program
         var resolver = new PathAssemblyResolver(paths);
         using var context = new MetadataLoadContext(resolver, "mscorlib");
         var generator = new Generator(context, managed);
+        if (report != null)
+        {
+            File.WriteAllText(report, generator.Report(), new UTF8Encoding(false));
+            Console.WriteLine($"defmirror: wrote {report}");
+            return 0;
+        }
         var text = generator.Run();
         if (generator.Errors.Count > 0)
         {
@@ -96,7 +104,7 @@ internal static class Program
             Console.WriteLine($"defmirror: {output} matches ({summary})");
             return 0;
         }
-        File.WriteAllText(output, text, new UTF8Encoding(false));
+        File.WriteAllText(output!, text, new UTF8Encoding(false));
         Console.WriteLine($"defmirror: wrote {output} ({summary})");
         return 0;
     }
@@ -181,6 +189,51 @@ internal sealed class Generator
 
     public string Run()
     {
+        var assemblies = Prepare();
+        foreach (var root in roots) Need(root);
+        if (errors.Count > 0) return "";
+        AssignNames();
+        if (errors.Count > 0) return "";
+        var text = Emit(assemblies);
+        return errors.Count > 0 ? "" : text;
+    }
+
+    private static readonly HashSet<string> GameplayNamespaces = new()
+    {
+        "RimWorld", "Verse", "Verse.AI", "RimWorld.Planet", "RimWorld.QuestGen", "Verse.AI.Group",
+    };
+
+    // The audit behind cmd/catalogaudit: one tab-separated line per game member
+    // outside the def rows. "const" is a const or static readonly scalar or enum
+    // and "curve" a static SimpleCurve, both in the gameplay namespaces of
+    // Assembly-CSharp; "unsaved" is an [Unsaved] data field (not runtime state)
+    // declared by a Verse.Def class. Columns: kind, declaring class, member.
+    public string Report()
+    {
+        var assemblies = Prepare();
+        var sb = new StringBuilder();
+        foreach (var type in assemblies[0].GetTypes().OrderBy(t => t.FullName, StringComparer.Ordinal))
+        {
+            if (type.IsGenericTypeDefinition || type.FullName!.Contains('<')) continue;
+            const BindingFlags all = BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+            foreach (var f in type.GetFields(all).OrderBy(f => f.MetadataToken))
+            {
+                if (f.Name.Contains('<')) continue;
+                if (f.IsStatic && GameplayNamespaces.Contains(type.Namespace ?? ""))
+                {
+                    if (f.FieldType.FullName == "Verse.SimpleCurve") sb.Append($"curve\t{type.FullName}\t{f.Name}\n");
+                    else if ((f.IsLiteral || f.IsInitOnly) && (f.FieldType.IsEnum || ScalarOf(f.FieldType) != null && f.FieldType.FullName != "System.Type"))
+                        sb.Append($"const\t{type.FullName}\t{f.Name}\n");
+                }
+                else if (!f.IsStatic && IsDef(type) && HasUnsaved(f) && RuntimeState(f.FieldType) == null)
+                    sb.Append($"unsaved\t{type.FullName}\t{f.Name}\n");
+            }
+        }
+        return sb.ToString();
+    }
+
+    private Assembly[] Prepare()
+    {
         var assemblies = DefAssemblies.Select(n => context.LoadFromAssemblyPath(Path.Combine(managed, n + ".dll"))).ToArray();
         foreach (var assembly in assemblies)
             foreach (var type in assembly.GetTypes())
@@ -204,12 +257,7 @@ internal sealed class Generator
         roots = defs.OrderBy(t => Array.IndexOf(CarriedRoots, t.FullName) is var i && i >= 0 ? i : CarriedRoots.Length)
             .ThenBy(t => t.FullName, StringComparer.Ordinal).ToList();
         publicReach = PublicReach();
-        foreach (var root in roots) Need(root);
-        if (errors.Count > 0) return "";
-        AssignNames();
-        if (errors.Count > 0) return "";
-        var text = Emit(assemblies);
-        return errors.Count > 0 ? "" : text;
+        return assemblies;
     }
 
     // ---- type mapping ----
