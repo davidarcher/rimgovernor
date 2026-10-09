@@ -45,6 +45,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.HackDesignation] = new HackDesignationActionHandler(),
             [Operations.Action.IntentOneofCase.GiveItem] = new GiveItemActionHandler(),
             [Operations.Action.IntentOneofCase.Ritual] = new RitualActionHandler(),
+            [Operations.Action.IntentOneofCase.Gathering] = new GatheringActionHandler(),
             [Operations.Action.IntentOneofCase.IdeoligionReform] = new IdeoligionReformActionHandler(),
             [Operations.Action.IntentOneofCase.Ability] = new AbilityActionHandler(),
             [Operations.Action.IntentOneofCase.Ignite] = new IgniteActionHandler(),

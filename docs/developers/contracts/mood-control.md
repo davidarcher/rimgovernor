@@ -246,7 +246,12 @@ placement per room) all drop the deficit. Mood relief for `AteWithoutTable` and
 too. Gathering itself is #2548.
 
 `GatheringEffect` records `gathering_def`, `organizer_id` and the `spot` the game
-chose. Applied means the lord was created, not that guests attended. A refusal is
+chose. `NativeGathering` is an immediate write with no native job: it refuses an
+unknown def, a non-colonist organizer, `PawnCanStartOrContinueGathering`, unacceptable
+game conditions or a failing `CanExecute`, then runs `GatheringWorker.TryExecute`.
+A repeated start applies again without a second party when a joinable gathering lord
+job of the def is already running on any map; the effect then reports that job's
+organizer and spot. Applied means the lord was created, not that guests attended. A refusal is
 final for the attempt; the owning routine replans from live state.
 
 Go dispatches `gathering` as a plain intent (`executor.plainIntents`, bridge
