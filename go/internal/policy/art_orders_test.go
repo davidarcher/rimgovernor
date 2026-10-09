@@ -97,19 +97,19 @@ func TestDeclareArtOrdersFollowsTheNeed(t *testing.T) {
 func TestLedgerKeepsAnUnmigratedOwnersBill(t *testing.T) {
 	benches := artGearBench(sculptureBill("Bill_x", "x", true))
 	actual, _ := LedgerActuals(benches)
-	for _, owner := range []ConcernID{MaintainResource, EnsureCooking, MaintainSurgery, MaintainMechs} {
+	for _, owner := range []ConcernID{MaintainSurgery, MaintainMechs, MaintainBabyFeeding} {
 		if LedgerMigratedOwner(owner) {
 			t.Fatalf("%s is not migrated", owner)
 		}
 	}
-	for _, owner := range []ConcernID{MaintainArt, MaintainPopulation} {
+	for _, owner := range []ConcernID{MaintainArt, MaintainPopulation, MaintainResource, EnsureCooking, MaintainFoodStorage, EnsureFoodSupply, MaintainRefrigeration} {
 		if !LedgerMigratedOwner(owner) {
 			t.Fatalf("%s is migrated", owner)
 		}
 	}
 	orphans := map[string]int{}
 	for round := 0; round < 3*OrphanGraceRounds; round++ {
-		actual[0].Migrated = LedgerMigratedOwner(MaintainResource)
+		actual[0].Migrated = LedgerMigratedOwner(MaintainSurgery)
 		plan := ReconcileLedger([]Declared{{}}, actual, orphans, nil)
 		orphans = plan.Orphans
 		if len(plan.Remove) != 0 {

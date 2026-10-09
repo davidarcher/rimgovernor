@@ -150,7 +150,6 @@ func (r *RoundsFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbit
 			return RoundsFoodStorageUpkeepResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
-	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, false)
 	if err != nil {
@@ -196,25 +195,7 @@ func (r *RoundsFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbit
 	if !foodReview.Active {
 		return RoundsFoodStorageUpkeepResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	seen := make([]domain.MethodID, 0, len(goal.Methods))
-	for _, method := range goal.Methods {
-		seen = append(seen, method.Method)
-	}
-	names := foodStorageDefNames(facts, r.reviewer.policy.FoodStorage)
-	sites := make([]policy.FoodStorageSite, 0, len(names))
-	for _, name := range names {
-		_, storage, _, err := r.native.ReadResourceSources(call, identity, name)
-		if err != nil {
-			sites = append(sites, policy.FoodStorageSite{ID: name, Capacity: domain.Unknown[int64]()})
-			continue
-		}
-		spare := storage.Capacity - storage.Stored
-		if spare < 0 {
-			spare = 0
-		}
-		sites = append(sites, policy.FoodStorageSite{ID: name, Capacity: domain.Known(spare)})
-	}
-	choice, err := policy.SelectFoodStorageMethod(policy.FoodStoragePlanningRequest{Review: foodReview, Sites: domain.Known(sites), Resource: foodStorageResourceDefinition, Seen: seen})
+	choice, err := r.storageChoice(call, identity, facts, foodReview)
 	if err != nil {
 		return RoundsFoodStorageUpkeepResult{}, err
 	}
@@ -226,71 +207,101 @@ func (r *RoundsFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbit
 	if choice.Kind != policy.FoodStorageProduce {
 		return RoundsFoodStorageUpkeepResult{Verdict: foodStorageChoiceVerdict(choice.Kind)}, nil
 	}
-	census, _, err := r.native.ReadGearBenches(call, identity)
+	// The meal stock bill is the ledger's (DeclareOrders): name why none is wanted.
+	benches, err := r.gearBenches(call, identity)
 	if err != nil {
 		return RoundsFoodStorageUpkeepResult{}, err
+	}
+	if _, kind, ok, err := policy.FoodStorageMealOrder(choice, benches); err != nil {
+		return RoundsFoodStorageUpkeepResult{}, err
+	} else if !ok {
+		return RoundsFoodStorageUpkeepResult{Verdict: medicineChoiceVerdict(kind, choice.Resource)}, nil
+	}
+	return RoundsFoodStorageUpkeepResult{Verdict: waitFor(WaitMethodUsed, "ledger_bill")}, nil
+}
+
+// gearBenches is the bench census with its bills, the ledger's readback.
+func (r *RoundsFoodStorageUpkeepPlanner) gearBenches(ctx context.Context, identity *c.Identity) ([]policy.GearBench, error) {
+	census, _, err := r.native.ReadGearBenches(ctx, identity)
+	if err != nil {
+		return nil, err
 	}
 	benches := make([]policy.GearBench, 0, len(census))
-	tokens := map[string]string{}
 	for _, row := range census {
 		benches = append(benches, row.Bench)
-		tokens[row.Bench.ID] = row.Token
 	}
-	// SelectFoodStorageMethod's Produce outcome only returns {Resource,
-	// Target}; bench/recipe selection for that resource is the routine
-	// planner's own job, the same deferral SelectMedicineMethod/GearProduce
-	// perform. SelectMedicineMethod's bench-walking loop is already
-	// generic-resource-shaped (its Resource field is not hardcoded to
-	// a medicine -- only its caller's medicine resource
-	// is), so it is reused directly here rather than duplicated: a
-	// synthetic MedicalReserveReview{Active: true, Target: choice.Target}
-	// stands in for the medicine-specific review SelectMedicineMethod
-	// otherwise expects, since it only reads Review.Active/Review.Target.
-	medChoice, err := policy.SelectMedicineMethod(policy.MedicinePlanningRequest{
-		Review:   policy.MedicalReserveReview{Active: true, Target: domain.Known(choice.Target)},
-		Resource: choice.Resource, Seen: seen, Benches: domain.Known(benches),
-	})
+	return benches, nil
+}
+
+// storageChoice is the method for food that is unstored: the spare capacity of
+// each covered site the unstored stock could use, read per definition (an
+// unread site is unknown capacity), then the policy's choice.
+func (r *RoundsFoodStorageUpkeepPlanner) storageChoice(ctx context.Context, identity *c.Identity, facts policy.FoodStorageObservation, review policy.FoodStorageReview) (policy.FoodStorageMethod, error) {
+	names := foodStorageDefNames(facts, r.reviewer.policy.FoodStorage)
+	sites := make([]policy.FoodStorageSite, 0, len(names))
+	for _, name := range names {
+		_, storage, _, err := r.native.ReadResourceSources(ctx, identity, name)
+		if err != nil {
+			sites = append(sites, policy.FoodStorageSite{ID: name, Capacity: domain.Unknown[int64]()})
+			continue
+		}
+		spare := storage.Capacity - storage.Stored
+		if spare < 0 {
+			spare = 0
+		}
+		sites = append(sites, policy.FoodStorageSite{ID: name, Capacity: domain.Known(spare)})
+	}
+	return policy.SelectFoodStorageMethod(policy.FoodStoragePlanningRequest{Review: review, Sites: domain.Known(sites), Resource: foodStorageResourceDefinition})
+}
+
+// DeclareOrders declares the meal stock bill MaintainFoodStorage falls back to
+// when no covered site has room (OrderDeclarer). The reserve and the corpse
+// larder come first, as in the step: while either is owed the standing meal
+// bill is kept as it stands.
+func (r *RoundsFoodStorageUpkeepPlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+	f := projection.Facts
+	if !policy.FoodPlanSupport(f.FoodPlan, policy.CandidateReserve, "stock-protection") {
+		return policy.Declared{Abstain: true}, nil
+	}
+	standing := policy.StandingStockOrders(benches, foodStorageResourceDefinition)
+	if reserve, known := f.FoodReserve.Value(); known && (len(reserve.Hold) > 0 || len(reserve.Release) > 0) {
+		return standing, nil
+	}
+	larder, err := policy.SelectCorpseLarder(f.FoodStorageUpkeep)
 	if err != nil {
-		return RoundsFoodStorageUpkeepResult{}, err
+		return policy.Declared{Abstain: true}, nil
 	}
-	if medChoice.Kind != policy.MedicineProduce {
-		return RoundsFoodStorageUpkeepResult{Verdict: medicineChoiceVerdict(medChoice.Kind, choice.Resource)}, nil
+	if larder.Kind != "" {
+		return standing, nil
 	}
-	_, ok := tokens[medChoice.Bench]
-	if !ok {
-		return RoundsFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
-	}
-	if !arbiter.tryClaim(nil, "bench:"+medChoice.Bench) {
-		return RoundsFoodStorageUpkeepResult{Verdict: claimHeld("bench")}, nil
-	}
-	id := domain.MintPlanID()
-	target := int32(medChoice.Target)
-	if int64(target) != medChoice.Target {
-		return RoundsFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: int64(target) != medChoice.Target", ErrControl)
-	}
-	bill, err := domain.NewProductionBill(medChoice.Bench, medChoice.Recipe, domain.StockTarget, target)
+	review, err := r.reviewer.player.journal.LoadRounds(ctx)
 	if err != nil {
-		return RoundsFoodStorageUpkeepResult{}, err
+		return abstainOnRead(ctx)
 	}
-	action, err := domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill)
+	foodReview, err := policy.ReviewFoodStorage(f.FoodStorageUpkeep, review.Latches.FoodStorage, r.reviewer.policy.FoodStorage)
 	if err != nil {
-		return RoundsFoodStorageUpkeepResult{}, err
+		return policy.Declared{Abstain: true}, nil
 	}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if !foodReview.Active {
+		return policy.Declared{}, nil
+	}
+	choice, err := r.storageChoice(ctx, boundary.Identity(snapshot), f.FoodStorageUpkeep, foodReview)
 	if err != nil {
-		return RoundsFoodStorageUpkeepResult{}, err
+		return policy.Declared{Abstain: true}, nil
 	}
-	if err = p.current(call, epoch); err != nil {
-		return RoundsFoodStorageUpkeepResult{}, err
+	switch choice.Kind {
+	case policy.FoodStorageUnknown:
+		return policy.Declared{Abstain: true}, nil
+	case policy.FoodStorageProduce:
+		spec, kind, ok, err := policy.FoodStorageMealOrder(choice, benches)
+		switch {
+		case err != nil || kind == policy.MedicineUnknown:
+			return policy.Declared{Abstain: true}, nil
+		case ok:
+			return policy.Declared{Orders: []policy.OrderSpec{spec}}, nil
+		}
 	}
-	elapsed := r.reviewer.clock.Now().Sub(started)
-	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoundsFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
-	}
-	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, medChoice.ID, plan); err != nil {
-		return RoundsFoodStorageUpkeepResult{}, err
-	}
-	return RoundsFoodStorageUpkeepResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
+	return policy.Declared{}, nil
 }
 
 // foodNotStoredVerdict is the verdict naming why food is unstored though a

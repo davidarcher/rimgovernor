@@ -279,16 +279,7 @@ func foodCreditDecision(c policy.CreditChange) telemetry.Decision {
 }
 
 func foodPlanSupport(p domain.Fact[policy.FoodPlan], kind policy.CandidateKind, id string) bool {
-	plan, known := p.Value()
-	if !known {
-		return false
-	}
-	for _, entry := range plan.Portfolio {
-		if entry.Channel.Kind == kind && entry.Channel.ID == id {
-			return entry.Decision == policy.FoodPlanOpen || entry.Decision == policy.FoodPlanHold
-		}
-	}
-	return false
+	return policy.FoodPlanSupport(p, kind, id)
 }
 
 // foodPlanFieldRoom is whether the plan opened a new-field candidate that the

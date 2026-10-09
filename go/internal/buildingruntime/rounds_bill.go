@@ -190,88 +190,57 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 		}
 		return r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
 	}
-	if r.purpose == policy.CookFood && !foodPlanSupport(projection.Facts.FoodPlan, policy.CandidateCook, "cooking-capacity") {
-		return RoundsBillResult{Verdict: awaitingFoodPlan("cooking-capacity")}, nil
+	// The food bills are the ledger's (DeclareOrders): this planner only says
+	// why the purpose has nothing to place and lends game time to a reserve.
+	request, err := r.foodRequest(projection, review)
+	if err != nil {
+		return RoundsBillResult{}, err
 	}
-	if r.purpose == policy.ButcherFood {
-		// Owed on the food runway alone: native offers no hunt row
-		// until a usable bench carries this bill, so waiting for an armed
-		// colonist would serialise spot, bill and hunt behind the equip family.
-		days, dk := projection.Facts.FoodDays.Value()
-		if (!dk || days >= r.reviewer.seasonal(projection.Facts).FoodTargetDays) && !policy.HumanFoodPending(projection.Facts.FoodPlan) {
-			if !dk {
-				return RoundsBillResult{Verdict: fieldUnavailable("food_days")}, nil
-			}
-			return RoundsBillResult{Verdict: BuildingReasonNoDeficit}, nil
-		}
+	order := policy.SelectFoodOrder(request)
+	reserveRunning := order.ReserveRunning
+	switch order.Gap {
+	case policy.FoodOrderPlan:
+		return RoundsBillResult{Verdict: awaitingFoodPlan(order.Subject)}, nil
+	case policy.FoodOrderField:
+		return RoundsBillResult{Verdict: fieldUnavailable(order.Subject)}, nil
+	case policy.FoodOrderNoDeficit:
+		return RoundsBillResult{Verdict: BuildingReasonNoDeficit}, nil
+	case policy.FoodOrderNoBill:
+		return r.lendReserveWork(RoundsBillResult{Verdict: r.noBill(projection.ProductionBenches, projection.Facts.Colonists)}, reserveRunning), nil
 	}
-	benches, atRisk := projection.ProductionBenches, projection.FoodAtRiskNutrition
-	if r.purpose == policy.CookAheadFood {
-		// Only under a solar flare with a known remaining duration: the
-		// coolers are dark for the outage, so the warm at-risk stock the
-		// refrigeration review latched on is cooked instead. A bench whose
-		// meal recipe this load already claimed (the ordinary cooking bill)
-		// is dropped from the census: one claim per bench and recipe.
-		if !policy.PowerOutageHold(projection.Facts.DisasterConditions) {
-			return RoundsBillResult{Verdict: BuildingReasonNoDeficit}, nil
-		}
+	return r.lendReserveWork(RoundsBillResult{Verdict: waitFor(WaitMethodUsed, "ledger_bill")}, reserveRunning), nil
+}
+
+// foodRequest is the food purpose's reviewed inputs: the declaration and the
+// verdict above read the same request.
+func (r *RoundsBillPlanner) foodRequest(projection observation.ColonyProjection, review store.Rounds) (policy.FoodOrderRequest, error) {
+	seasonal := r.reviewer.seasonal(projection.Facts)
+	request := policy.FoodOrderRequest{Purpose: r.purpose, Benches: projection.ProductionBenches, Facts: projection.Facts, Supply: projection.CombinedFoodSupply, Humans: projection.FoodSupply, TargetDays: seasonal.FoodTargetDays, Warm: domain.Unknown[float64]()}
+	switch r.purpose {
+	case policy.CookFood:
+		request.Meals = projection.MealRequest(seasonal.FoodMinDays, seasonal.FoodTargetDays)
+	case policy.CookAheadFood:
 		refrigeration, err := policy.ReviewRefrigeration(projection.Facts.FoodStorageUpkeep, review.Latches.Refrigeration, r.reviewer.policy.FoodStorage)
 		if err != nil {
-			return RoundsBillResult{}, err
+			return policy.FoodOrderRequest{}, err
 		}
-		atRisk = refrigeration.WarmNutrition
-		if benches, err = r.unclaimedBenches(call, state.Snapshot, benches); err != nil {
-			return RoundsBillResult{}, err
-		}
+		request.Warm = refrigeration.WarmNutrition
 	}
-	var billContext []policy.ProductionBillContext
-	reserveRunning := false
-	if r.purpose == policy.CookFood {
-		seasonal := r.reviewer.seasonal(projection.Facts)
-		meals := projection.MealRequest(seasonal.FoodMinDays, seasonal.FoodTargetDays)
-		billContext = append(billContext, policy.ProductionBillContext{Meals: &meals})
+	return request, nil
+}
+
+// DeclareOrders declares a food purpose's wanted bills (OrderDeclarer).
+func (r *RoundsBillPlanner) DeclareOrders(ctx context.Context, _ domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+	review, err := r.reviewer.player.journal.LoadRounds(ctx)
+	if err != nil {
+		return abstainOnRead(ctx)
 	}
-	if r.purpose == policy.PreserveFood {
-		if !foodPlanSupport(projection.Facts.FoodPlan, policy.CandidateReserve, "stock-protection") {
-			return RoundsBillResult{Verdict: awaitingFoodPlan("stock-protection")}, nil
-		}
-		value, known := projection.Facts.FoodReserve.Value()
-		if !known {
-			return RoundsBillResult{Verdict: fieldUnavailable("food_reserve")}, nil
-		}
-		billContext = append(billContext, policy.ProductionBillContext{Reserve: &value})
-		// A standing short reserve bill is native cook work: lend game time
-		// instead of parking the clock on no_work while it fills.
-		reserveRunning = policy.ReserveBillRunning(benches, value)
+	request, err := r.foodRequest(projection, review)
+	if err != nil {
+		// A review that cannot be read from the facts declares nothing.
+		return abstainOnRead(ctx)
 	}
-	if r.purpose == policy.CookFood {
-		if supply, ok := projection.CombinedFoodSupply.Value(); ok {
-			if humans, ok := projection.FoodSupply.Value(); ok {
-				billContext[0].Ingredients = policy.HumanCookingIngredients(supply, humans.Consumers, projection.Facts.FoodPlan, policy.HumanMeatMeals)
-			}
-		}
-	}
-	selected, known := policy.SelectProductionBill(r.purpose, benches, projection.Facts.Colonists, projection.Facts.FoodDays, atRisk, r.reviewer.seasonal(projection.Facts).FoodTargetDays, billContext...)
-	if r.purpose == policy.PreserveFood {
-		if supply, ok := projection.CombinedFoodSupply.Value(); ok {
-			if sale, ok := policy.SelectHumanSurvivalBill(benches, supply, projection.Facts.FoodPlan); ok {
-				selected, known = sale, true
-			}
-		}
-	}
-	if r.purpose == policy.ButcherFood {
-		if human, ok := policy.SelectHumanButcher(benches, projection.Facts.IdeologyRead()); ok {
-			if !foodPlanSupport(projection.Facts.FoodPlan, policy.CandidateCorpse, "human-butchery") {
-				return RoundsBillResult{Verdict: awaitingFoodPlan("human-butchery")}, nil
-			}
-			selected, known = human, true
-		}
-	}
-	if !known {
-		return r.lendReserveWork(RoundsBillResult{Verdict: r.noBill(benches, projection.Facts.Colonists)}, reserveRunning), nil
-	}
-	result, err := r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
-	return r.lendReserveWork(result, reserveRunning), err
+	return policy.DeclareFoodOrders(request, benches), nil
 }
 
 // billGapVerdict is the verdict of a bill selector that chose nothing: the
@@ -408,37 +377,4 @@ func (r *RoundsBillPlanner) admit(call, epoch context.Context, arbiter *stepArbi
 		return RoundsBillResult{}, err
 	}
 	return RoundsBillResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
-}
-
-// unclaimedBenches copies the bench census with every recipe this load has
-// already claimed, or admitted and not yet written, on its bench marked
-// unavailable, so the selection lands
-// on a bench and recipe the bill claim table still admits.
-func (r *RoundsBillPlanner) unclaimedBenches(ctx context.Context, snapshot domain.GenerationSnapshot, benches domain.Fact[[]policy.ProductionBench]) (domain.Fact[[]policy.ProductionBench], error) {
-	rows, known := benches.Value()
-	if !known {
-		return benches, nil
-	}
-	out := make([]policy.ProductionBench, 0, len(rows))
-	for _, bench := range rows {
-		bench.Recipes = append([]policy.ProductionRecipe(nil), bench.Recipes...)
-		for i, recipe := range bench.Recipes {
-			claimed, err := r.reviewer.player.journal.BillClaimed(ctx, snapshot, bench.ID, recipe.Name)
-			if err != nil {
-				return benches, err
-			}
-			if !claimed {
-				// An admitted bill not yet written: the sibling planner of
-				// this step chose the bench from the same before-token.
-				if claimed, err = r.reviewer.player.journal.BillPending(ctx, bench.ID, recipe.Name); err != nil {
-					return benches, err
-				}
-			}
-			if claimed {
-				bench.Recipes[i].Available = domain.Known(false)
-			}
-		}
-		out = append(out, bench)
-	}
-	return domain.Known(out), nil
 }

@@ -235,7 +235,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			return nil, err
 		}
 		config.Rounds = reviewer
-		if bills || gear || armory || sc.roundsArtPlans || sc.roundsPopulationJoinerPlans {
+		if bills || gear || armory || sc.roundsArtPlans || sc.roundsPopulationJoinerPlans || foodStorageUpkeep || refrigeration {
 			if config.Ledger, err = buildingruntime.NewRoundsLedgerPlanner(reviewer); err != nil {
 				return nil, err
 			}
@@ -261,6 +261,9 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if err != nil {
 				return nil, err
 			}
+			reviewer.AddOrderDeclarer(config.CookingBills)
+			reviewer.AddOrderDeclarer(config.PreservationBills)
+			reviewer.AddOrderDeclarer(config.ButcherBills)
 			buildingNative, ok := reads.(buildingruntime.RoundsBuildingSource)
 			if !ok {
 				return nil, errors.New("bill prerequisites require building observations")
@@ -504,6 +507,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if err != nil {
 				return nil, err
 			}
+			reviewer.AddOrderDeclarer(config.FoodStorageUpkeep)
 		}
 		if animalContainment {
 			containmentNative, ok := reads.(buildingruntime.RoundsBuildingSource)
@@ -758,6 +762,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				if err != nil {
 					return nil, err
 				}
+				reviewer.AddOrderDeclarer(config.CookAheadBills)
 			}
 			if mechCharger {
 				config.MechCharger, err = buildingruntime.NewRoundsMechChargerPlanner(reviewer, source)
@@ -866,7 +871,7 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 	if sc.roundsBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainButcherSpot, policy.MaintainBabyFeeding)
 	}
-	if sc.roundsBillPlans || sc.roundsGearPlans || sc.roundsArmoryPlans || sc.roundsArtPlans || sc.roundsPopulationJoinerPlans {
+	if sc.roundsBillPlans || sc.roundsGearPlans || sc.roundsArmoryPlans || sc.roundsArtPlans || sc.roundsPopulationJoinerPlans || sc.roundsFoodStorageUpkeepPlans || sc.roundsRefrigerationPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainWorkLedger)
 	}
 	if sc.roundsBillPlans || sc.roundsFoodStorageUpkeepPlans {

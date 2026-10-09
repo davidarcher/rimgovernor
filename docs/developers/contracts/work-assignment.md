@@ -375,6 +375,20 @@ stands (so its spec key never drifts), a new batch is declared only while no wea
 candidate is pending, and the declared batches are the ingredient demand of
 `openBills`. `production/gear-ledger` is the nightly signal.
 
+The food bills (#2602) are the second migration: `EnsureCooking`, `MaintainFoodStorage`,
+`EnsureFoodSupply` and `MaintainRefrigeration` are migrated owners. The cooking,
+reserve (preserve), butcher and cook-ahead `RoundsBillPlanner`s and the food-storage
+upkeep planner declare through `policy.DeclareFoodOrders` (`food_orders.go`): the
+same selectors that once chose the next bill now run over the bench census read
+without its bills, so the declaration is what should stand. A stock-target bill that
+already covers the wanted target is declared as it stands (`adequateOrder`); a
+purpose that is not owed, or has no bench, keeps its standing bills; an unread
+fact or a food-plan channel not yet open abstains; the cook-ahead bill ends with the
+solar flare. The planners keep the food-plan gates, their verdicts and the reserve
+work-lending (`lendReserveWork`); human-meat and survival-pack ingredient filters
+ride in the declared spec. Food orders set no `Product`/`Class`, so each stands on
+one bench until the resource census covers meals.
+
 `MaintainResource` (#2601) is migrated too: `RoundsResourcePlanner` declares
 `policy.DeclareResourceOrders` (a stock-target order, with `Product` and
 `Class` for the dispatcher, per floor below its target, the beer reserve as a
