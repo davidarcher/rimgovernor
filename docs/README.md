@@ -27,6 +27,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Replay planner decisions | [Colony snapshots](developers/testing/colony-snapshots.md) |
 | Measure performance | [Throughput](developers/testing/measure-throughput.md), [hazard bounds](developers/architecture/hazard-detection-bounds.md) |
 | Improve expert play | [Architecture roadmap](developers/architecture/expert-play-assessment.md) |
+| Plan colony rooms and containment | [Facilities](developers/architecture/facilities.md) |
 | Change a subsystem | [Behavior contracts](developers/contracts/README.md) |
 | Preserve or reconsider issued work | [Method continuation](developers/contracts/method-continuation.md) |
 | Change the native boundary | [Wire contracts](../contracts/README.md), [schema generation](../contracts/schema-generation.md) |

@@ -698,6 +698,9 @@ type FloorDefinition struct {
 
 // FlooringFacts is what SelectFlooringMethod needs beyond the review.
 type FlooringFacts struct {
+	// Layout and Observation credit floors already laid or ordered inside planned rooms.
+	Layout      domain.Fact[LayoutPlan]
+	Observation domain.Fact[FlooringObservation]
 	// Definitions maps floor definition names to their census row; a floor
 	// absent here is unknown.
 	Definitions map[string]FloorDefinition

@@ -92,7 +92,7 @@ func roomRingOwed(facts observation.ColonyProjection, plan policy.LayoutPlan, ro
 // flooringFacts is the flooring review's view of the colony's floors: every
 // definition the mirror describes, the accessible stock and the tier style.
 func flooringFacts(facts observation.ColonyProjection) policy.FlooringFacts {
-	flooring := policy.FlooringFacts{Definitions: map[string]policy.FloorDefinition{}, Stock: facts.Resources, Style: floorStyle(facts)}
+	flooring := policy.FlooringFacts{Definitions: map[string]policy.FloorDefinition{}, Stock: facts.Resources, Style: floorStyle(facts), Layout: facts.LayoutPlan, Observation: facts.Facts.Upkeep.Flooring}
 	if defs, known := facts.Facts.Containment.Defs.Value(); known {
 		flooring.ContainmentFloor = defs.Floor
 	}

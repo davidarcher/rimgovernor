@@ -235,6 +235,14 @@ that reaches the demand owes no cell. One catalog file,
 unreadable catalog input or an unbuildable platform leaves the cell unowed
 with a plain reason.
 
+**Cell floor.** The containment prediction and room reconciliation share the
+catalog's containment-floor choice. Accessible stock must pay for uncovered
+tiles; terrain already laid and blueprints or frames already ordered inside
+that planned containment room count once toward coverage. Spending stock on
+the floor therefore does not withdraw the cell's demand. Floors in other rooms
+and unknown flooring observations supply no credit. A pending replacement
+of a laid floor overrides that terrain when assessing the future cell.
+
 **Cell lamp.** The cell is furnished with one standing lamp beside the
 platform (`policy.ContainmentLampDefinition`, an Optional `ChildFurniture` the
 child-room staging places like any piece; left out until the catalog offers

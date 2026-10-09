@@ -133,6 +133,13 @@ func ContainmentCellNeed(p ContainmentPlanning, furniture []FurnitureDefinition,
 			floored = ContainmentFloorLaid(defs.Floor, floors, int(sizes[0][0]*sizes[0][1]))
 		}
 	}
+	if plan, known := floors.Layout.Value(); known {
+		for _, room := range plan.Rooms {
+			if room.Role == PlannedContainmentCell && containmentRoomFloorLaid(defs.Floor, floors, room) {
+				floored = true
+			}
+		}
+	}
 	strength, err := defs.Predict(ContainmentRoom{Floored: floored})
 	if err != nil {
 		return ChildRoomNeed{}, ContainmentVerdict{Reason: "the cell's strength cannot be predicted: " + err.Error()}
@@ -155,4 +162,30 @@ func ContainmentFloorLaid(floor ContainmentFloor, facts FlooringFacts, tiles int
 	available, ak := def.Available.Value()
 	terrain, tk := def.Terrain.Value()
 	return ak && tk && available && terrain && affordableCells(def, facts.Stock, tiles) >= tiles
+}
+
+// containmentRoomFloorLaid credits observed terrain and outstanding floor orders
+// once each, then prices only the room's remaining tiles against accessible stock.
+// Unknown observations cannot supply credit; an unrelated room supplies none.
+func containmentRoomFloorLaid(floor ContainmentFloor, facts FlooringFacts, room PlannedRoom) bool {
+	if floor.Def == "" {
+		return false
+	}
+	remaining := map[domain.Cell]bool{}
+	for _, cell := range rectCells(room.Interior) {
+		remaining[cell] = true
+	}
+	if len(remaining) == 0 {
+		return false
+	}
+	if observed, known := facts.Observation.Value(); known {
+		for _, r := range observed.Rooms {
+			for _, cell := range r.Cells {
+				if cell.Pending == floor.Def || cell.Pending == "" && cell.Terrain == floor.Def {
+					delete(remaining, cell.Cell)
+				}
+			}
+		}
+	}
+	return len(remaining) == 0 || ContainmentFloorLaid(floor, facts, len(remaining))
 }

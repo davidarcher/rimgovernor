@@ -17,8 +17,8 @@ func WantedFloors(room PlannedRoom, tags []string, facts FlooringFacts, p Floori
 	cells := d.Cells
 	if room.Role == PlannedContainmentCell {
 		// The containment cell takes the catalog's containment floor when the
-		// stock pays for the whole room (#2435), else no floor.
-		if !ContainmentFloorLaid(facts.ContainmentFloor, facts, len(cells)) {
+		// stock pays for tiles not already laid or ordered, else no floor.
+		if !containmentRoomFloorLaid(facts.ContainmentFloor, facts, room) {
 			return none
 		}
 		return func(domain.Cell) string { return facts.ContainmentFloor.Def }

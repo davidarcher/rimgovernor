@@ -67,3 +67,75 @@ func TestContainmentCellCountsTheBioferriteFloorWhenStockPaysForIt(t *testing.T)
 		t.Fatal("a plain floor stood in for the containment floor")
 	}
 }
+func TestContainmentCellRetainsFloorAfterStockSpent(t *testing.T) {
+	defs := platformDefs()
+	defs.FloorStrength = 1
+	defs.Floor = ContainmentFloor{Def: "BioferritePlate", Strength: 16}
+	plain, _ := defs.Predict(ContainmentRoom{})
+	margin, _ := CaptureMargin(defs)
+	p := planning(1, plain+7-margin)
+	p.Defs = domain.Known(defs)
+	shape, _ := ChildRoomNeed{Module: PlannedContainmentCell, Furniture: []ChildFurniture{{Defs: []string{"HoldingPlatform"}, Count: 1}}}.shape(platformFurniture())
+	size := ChildRoomSizes(shape)[0]
+	room := PlannedRoom{Role: PlannedContainmentCell, Interior: Rectangle{X: 10, Z: 20, Width: size[0], Height: size[1]}}
+	cells := rectCells(room.Interior)
+	for _, tc := range []struct {
+		name                        string
+		laid, pending               int
+		stock                       int64
+		unknown, outside, replacing bool
+		owed                        bool
+	}{
+		{name: "stock before orders", stock: int64(len(cells)) * 4, owed: true},
+		{name: "all blueprinted stock spent", pending: len(cells), owed: true},
+		{name: "all laid stock spent", laid: len(cells), owed: true},
+		{name: "mixed construction", laid: 2, pending: len(cells) - 3, stock: 4, owed: true},
+		{name: "unfinished unfunded tile", pending: len(cells) - 1},
+		{name: "unread floors", pending: len(cells), unknown: true},
+		{name: "unrelated floor", pending: len(cells), outside: true},
+		{name: "replacement ordered", laid: len(cells), replacing: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			observed := FloorRoom{}
+			for i, cell := range cells {
+				if tc.outside {
+					cell.X += 100
+				}
+				row := FloorCell{Cell: cell, Terrain: "Soil"}
+				if i < tc.laid {
+					row.Terrain = defs.Floor.Def
+				}
+				if i >= tc.laid && i < tc.laid+tc.pending {
+					row.Pending = defs.Floor.Def
+				}
+				if tc.replacing {
+					row.Pending = "WoodPlankFloor"
+				}
+				observed.Cells = append(observed.Cells, row)
+			}
+			floors := FlooringFacts{
+				Definitions: map[string]FloorDefinition{defs.Floor.Def: {Available: domain.Known(true), Terrain: domain.Known(true), Costs: domain.Known([]Amount{{Resource: "Bioferrite", Count: 4}})}},
+				Stock:       domain.Known(map[Resource]int64{"Bioferrite": tc.stock}), ContainmentFloor: defs.Floor,
+				Layout:      domain.Known(LayoutPlan{Rooms: []PlannedRoom{room}}),
+				Observation: domain.Known(FlooringObservation{Rooms: []FloorRoom{observed}}),
+			}
+			if tc.unknown {
+				floors.Observation = domain.Unknown[FlooringObservation]()
+			}
+			_, verdict := ContainmentCellNeed(p, platformFurniture(), floors)
+			if verdict.Owed != tc.owed {
+				t.Fatalf("verdict %+v, want owed %v", verdict, tc.owed)
+			}
+			wanted := WantedFloors(room, nil, floors, DefaultFlooringPolicy())(cells[0])
+			if (wanted == defs.Floor.Def) != tc.owed {
+				t.Fatalf("wanted %q, want containment floor %v", wanted, tc.owed)
+			}
+			if tc.owed && tc.stock == 0 {
+				floors.Stock = domain.Unknown[map[Resource]int64]()
+				if _, v := ContainmentCellNeed(p, platformFurniture(), floors); !v.Owed {
+					t.Fatalf("fully covered floor needs no stock read: %+v", v)
+				}
+			}
+		})
+	}
+}
