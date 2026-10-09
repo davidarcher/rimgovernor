@@ -76,7 +76,7 @@
   .ev { border-top: 1px solid #23261f; padding: 6px 2px; }
   .ev:first-child { border-top: none; }
   .evhead { display: grid; grid-template-columns: 10px auto 1fr auto; align-items: baseline; gap: 8px; cursor: pointer; }
-  .evhead .msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .evhead .msg { overflow-wrap: anywhere; }
   .ev.open .evhead .msg { white-space: normal; overflow-wrap: anywhere; }
   .badge { color: var(--muted); font-size: 12px; min-width: 2.5em; }
   .ev .copy { padding: 2px 8px; font-size: 12px; }

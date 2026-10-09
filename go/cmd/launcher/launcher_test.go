@@ -234,12 +234,23 @@ func TestLoadSlotKeepsOnlyTheNewestLoad(t *testing.T) {
 func TestReloadSave(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	var loads []map[string]any
-	fail, refuse := 1, false
+	var reads []string
+	fail, refuse, pendingReads := 1, false, 1
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/player/session":
 			w.Write([]byte(`{"token":"tok"}`))
 		case "/api/lifecycle/load":
+			if r.Method == http.MethodGet {
+				reads = append(reads, r.URL.Query().Get("requestId"))
+				if pendingReads > 0 {
+					pendingReads--
+					w.WriteHeader(202)
+					return
+				}
+				w.WriteHeader(200)
+				return
+			}
 			var body map[string]any
 			json.NewDecoder(r.Body).Decode(&body)
 			loads = append(loads, body)
@@ -250,7 +261,7 @@ func TestReloadSave(t *testing.T) {
 				fail--
 				w.WriteHeader(503)
 			default:
-				w.WriteHeader(201)
+				w.WriteHeader(202)
 			}
 		}
 	}))
@@ -260,6 +271,9 @@ func TestReloadSave(t *testing.T) {
 	}
 	if len(loads) != 2 || loads[0]["saveName"] != "checkpoint" || loads[0]["requestId"] != loads[1]["requestId"] {
 		t.Fatalf("loads %v", loads)
+	}
+	if len(reads) != 2 || reads[0] != loads[0]["requestId"] || reads[1] != reads[0] {
+		t.Fatalf("an accepted load must be polled, not re-posted: reads %v", reads)
 	}
 	refuse = true
 	if err := ReloadSave(context.Background(), srv.URL, "x"); err == nil {

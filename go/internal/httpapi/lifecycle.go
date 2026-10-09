@@ -80,6 +80,11 @@ type loadRequestDTO struct {
 	Readiness string `json:"readiness"`
 	TimeoutMs uint32 `json:"timeoutMs"`
 }
+type loadPendingDTO struct {
+	Status    string `json:"status"`
+	RequestID string `json:"requestId"`
+	Detail    string `json:"detail"`
+}
 type loadReplyDTO struct {
 	RequestID string   `json:"requestId"`
 	SaveName  string   `json:"saveName"`
@@ -188,16 +193,7 @@ func (s *Server) handleLifecycleRead(w http.ResponseWriter, r *http.Request) {
 			return opErr
 		})
 	}
-	if err != nil {
-		s.readFailure(w, r, err)
-		return
-	}
-	dto, err := projectLoadCompleted(reply.GetCompleted())
-	if err != nil {
-		s.readFailure(w, r, err)
-		return
-	}
-	s.write(w, r, 200, dto)
+	s.writeLoad(w, r, reply, err, 200)
 }
 
 // currentLifecycleIdentity reads the fresh, matching identity and control mode
@@ -317,16 +313,30 @@ func (s *Server) handleLifecycleLoad(w http.ResponseWriter, r *http.Request, ctx
 			return opErr
 		})
 	}
-	if err != nil {
+	s.writeLoad(w, r, reply, err, 201)
+}
+
+// writeLoad projects a bridge load outcome: a completed reply, a load still in
+// progress (202, the poller's ordinary case -- poll GET /api/lifecycle/load), or
+// a superseded request (409).
+func (s *Server) writeLoad(w http.ResponseWriter, r *http.Request, reply *l.LoadReply, err error, completedStatus int) {
+	var pending *bridgepkg.LoadPending
+	var superseded *bridgepkg.LoadSuperseded
+	switch {
+	case errors.As(err, &pending):
+		s.write(w, r, 202, loadPendingDTO{Status: "pending", RequestID: pending.Value.GetRequestId(), Detail: pending.Value.GetDetail()})
+	case errors.As(err, &superseded):
+		s.failure(w, r, 409, "superseded", superseded.Value.GetDetail())
+	case err != nil:
 		s.readFailure(w, r, err)
-		return
+	default:
+		dto, perr := projectLoadCompleted(reply.GetCompleted())
+		if perr != nil {
+			s.readFailure(w, r, perr)
+			return
+		}
+		s.write(w, r, completedStatus, dto)
 	}
-	dto, err := projectLoadCompleted(reply.GetCompleted())
-	if err != nil {
-		s.readFailure(w, r, err)
-		return
-	}
-	s.write(w, r, 201, dto)
 }
 
 func projectSaveCompleted(v *l.SaveCompleted) saveReplyDTO {

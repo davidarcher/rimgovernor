@@ -166,6 +166,36 @@ func TestCollapseStuckLoop(t *testing.T) {
 	}
 }
 
+func TestCollapseHTTPAccessByRoute(t *testing.T) {
+	access := func(method, path string, status, ms float64) bridge.TimelineRecord {
+		return bridge.TimelineRecord{Kind: "http_access",
+			Context: map[string]any{"level": "WARN", "component": "httpapi", "tick": float64(7)},
+			Payload: map[string]any{"method": method, "path": path, "status": status, "dur_ms": ms, "bytes": float64(65)}}
+	}
+	entries := Collapse([]bridge.TimelineRecord{
+		access("POST", "/api/lifecycle/load", 503, 28.5),
+		access("POST", "/api/lifecycle/load", 503, 118.1),
+		access("POST", "/api/lifecycle/load", 201, 40),
+		access("GET", "/api/lifecycle/load", 503, 3),
+	})
+	if len(entries) != 3 || entries[0].Count != 2 {
+		t.Fatalf("entries %+v", entries)
+	}
+	if line := entries[0].Line(); !strings.Contains(line, "http_access POST /api/lifecycle/load 503  x 2") {
+		t.Fatalf("line %q", line)
+	}
+	if words := entries[1].Words(); words != "http_access POST /api/lifecycle/load 201 40.0ms" {
+		t.Fatalf("words %q", words)
+	}
+}
+
+func TestCompactPayloadLeadsWithWhatHappened(t *testing.T) {
+	text := compactPayload(map[string]any{"seq": 6, "source": "watchdog", "level": "warn", "msg": "hop slow"})
+	if !strings.HasPrefix(text, `msg="hop slow"`) {
+		t.Fatal(text)
+	}
+}
+
 func TestCollapseKeyAndInterleaving(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "flight.jsonl")
 	write(t, path,

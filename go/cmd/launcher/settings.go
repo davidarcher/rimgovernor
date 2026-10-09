@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -291,16 +292,28 @@ func (l *loadSlot) stop() {
 
 // ReloadSave asks the controller at baseURL to load save through the
 // lifecycle API, retrying (same request id) while the controller or game is
-// not ready yet, until ctx ends.
+// not ready yet, until ctx ends. Once the controller accepts the load (202)
+// it polls that request instead of posting it again.
 func ReloadSave(ctx context.Context, baseURL, save string) error {
 	client := &http.Client{Timeout: 40 * time.Second}
-	body, _ := json.Marshal(map[string]any{"requestId": "launcher-reload-" + strconv.FormatInt(time.Now().UnixNano(), 36), "saveName": save, "readiness": "map", "timeoutMs": 30000})
+	requestID := "launcher-reload-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+	body, _ := json.Marshal(map[string]any{"requestId": requestID, "saveName": save, "readiness": "map", "timeoutMs": 30000})
 	var last error
+	accepted := false
 	for {
-		status, err := reloadOnce(ctx, client, baseURL, body)
+		var status int
+		var err error
+		if accepted {
+			status, err = readLoadOnce(ctx, client, baseURL, requestID)
+		} else {
+			status, err = reloadOnce(ctx, client, baseURL, body)
+		}
 		switch {
-		case err == nil && status == http.StatusCreated:
+		case err == nil && (status == http.StatusCreated || accepted && status == http.StatusOK):
 			return nil
+		case err == nil && status == http.StatusAccepted:
+			accepted = true
+			last = errors.New("load still in progress")
 		case err == nil && status < 500:
 			return fmt.Errorf("the controller refused the load (HTTP %d)", status)
 		case err == nil:
@@ -314,6 +327,16 @@ func ReloadSave(ctx context.Context, baseURL, save string) error {
 		case <-time.After(2 * time.Second):
 		}
 	}
+}
+
+func readLoadOnce(ctx context.Context, client *http.Client, baseURL, requestID string) (int, error) {
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/lifecycle/load?requestId="+url.QueryEscape(requestID), nil)
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	resp.Body.Close()
+	return resp.StatusCode, nil
 }
 
 func reloadOnce(ctx context.Context, client *http.Client, baseURL string, body []byte) (int, error) {

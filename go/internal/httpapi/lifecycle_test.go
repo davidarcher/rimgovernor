@@ -192,6 +192,31 @@ func TestLifecycleLoad(t *testing.T) {
 		t.Fatal(f.seenLoad.GetExpectedPlayer())
 	}
 }
+func TestLifecycleLoadPendingIsAccepted(t *testing.T) {
+	s, f, token := lifecycleAPI(t, "automate")
+	f.err = &bridge.LoadPending{Value: &l.LoadPending{RequestId: proto.String("load-1"), Detail: proto.String("loading")}}
+	f.failCalls = 2
+	out := playerCall(s, "POST", "/api/lifecycle/load", `{"requestId":"load-1","saveName":"checkpoint","readiness":"map","timeoutMs":5000}`, token)
+	var dto loadPendingDTO
+	if out.Code != 202 || json.Unmarshal(out.Body.Bytes(), &dto) != nil || dto.Status != "pending" || dto.RequestID != "load-1" || dto.Detail != "loading" {
+		t.Fatal(out.Code, out.Body.String())
+	}
+	out = playerCall(s, "GET", "/api/lifecycle/load?requestId=load-1", "", "")
+	if out.Code != 202 {
+		t.Fatal(out.Code, out.Body.String())
+	}
+}
+
+func TestLifecycleLoadSupersededConflicts(t *testing.T) {
+	s, f, token := lifecycleAPI(t, "automate")
+	f.err = &bridge.LoadSuperseded{Value: &l.LoadSuperseded{RequestId: proto.String("load-1"), Detail: proto.String("preempted")}}
+	f.failCalls = 1
+	out := playerCall(s, "POST", "/api/lifecycle/load", `{"requestId":"load-1","saveName":"checkpoint","readiness":"map","timeoutMs":5000}`, token)
+	if out.Code != 409 {
+		t.Fatal(out.Code, out.Body.String())
+	}
+}
+
 func TestLifecycleReadSaveAndLoad(t *testing.T) {
 	s, f, _ := lifecycleAPI(t, "manual")
 	out := playerCall(s, "GET", "/api/lifecycle/save?requestId=save-1", "", "")

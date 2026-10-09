@@ -220,8 +220,12 @@ func (e *Entry) absorb(rec bridge.TimelineRecord) {
 	}
 }
 
+// accessKind is httpapi.AccessKind; logview does not import the server.
+const accessKind = "http_access"
+
 // Collapse turns rows into entries, in order of first appearance. Decision
-// rows with the same (kind, component, verdict, reason, target) become one
+// rows with the same (kind, component, verdict, reason, target), and
+// http_access rows with the same (component, level, method, path, status), become one
 // entry carrying the count and the first and last tick, wherever they sit in
 // the stream; every other row is its own entry.
 func Collapse(records []bridge.TimelineRecord) []Entry {
@@ -229,11 +233,17 @@ func Collapse(records []bridge.TimelineRecord) []Entry {
 	index := map[[5]string]int{}
 	for _, rec := range records {
 		e := NewEntry(rec)
-		if !e.Decision {
+		key := [5]string{e.Kind, e.Component, e.Verdict, e.Reason, e.Target}
+		switch {
+		case e.Decision:
+		case e.Kind == accessKind:
+			// Repeated requests differ only in latency and size, so one
+			// (method, path, status) is one entry however many times it fires.
+			key = [5]string{e.Kind, e.Component, e.Level, payloadString(rec, "method") + " " + payloadString(rec, "path"), fmt.Sprint(rec.Payload["status"])}
+		default:
 			entries = append(entries, e)
 			continue
 		}
-		key := [5]string{e.Kind, e.Component, e.Verdict, e.Reason, e.Target}
 		if i, ok := index[key]; ok {
 			entries[i].absorb(rec)
 			continue
@@ -291,6 +301,13 @@ func (e Entry) Words() string {
 				b.WriteString(" (" + state + ")")
 			}
 		}
+	} else if e.Kind == accessKind {
+		method, _ := e.Payload["method"].(string)
+		path, _ := e.Payload["path"].(string)
+		fmt.Fprintf(&b, " %s %s %v", method, path, e.Payload["status"])
+		if ms, _ := e.Payload["dur_ms"].(float64); ms > 0 && e.Count == 1 {
+			fmt.Fprintf(&b, " %.1fms", ms)
+		}
 	} else if text := compactPayload(e.Payload); text != "" {
 		b.WriteString(" " + text)
 	}
@@ -298,6 +315,18 @@ func (e Entry) Words() string {
 }
 
 const payloadPreview = 200
+
+var leadKeys = []string{"msg", "error", "reason", "method", "path", "status"}
+
+// leadKeyRank is a key's position among leadKeys, after them all otherwise.
+func leadKeyRank(key string) int {
+	for i, k := range leadKeys {
+		if k == key {
+			return i
+		}
+	}
+	return len(leadKeys)
+}
 
 func compactPayload(payload map[string]any) string {
 	if len(payload) == 0 {
@@ -307,7 +336,15 @@ func compactPayload(payload map[string]any) string {
 	for k := range payload {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	// The keys that say what happened lead, so the preview's cut-off only ever
+	// drops bookkeeping (bytes, seq, source).
+	sort.Slice(keys, func(i, j int) bool {
+		ri, rj := leadKeyRank(keys[i]), leadKeyRank(keys[j])
+		if ri != rj {
+			return ri < rj
+		}
+		return keys[i] < keys[j]
+	})
 	parts := make([]string, 0, len(keys))
 	for _, k := range keys {
 		v, _ := json.Marshal(payload[k])
