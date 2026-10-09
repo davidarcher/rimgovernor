@@ -61,8 +61,13 @@ all, is **unowned**: when owned provisioning does not apply, the pawn's mood sta
 records its unowned thoughts (`Unowned`, most negative first) and, once no measured
 need method remains, the proposal is the explicit `unowned_thought_pressure` blocker
 naming the largest instead of `no_measured_correctable_need`; measured relief runs
-first. Apparel and social memories are unowned in this sense but stay native relief and
-recovery evidence. Every review that provisions `EnsureComfort` must rank it with a
+first. Social memories are unowned in this sense but stay native relief and recovery
+evidence. The apparel thoughts `ApparelDamaged` (ratty and tattered), `DeadMansApparel`
+(tainted) and `WrongApparelGender` are owned by `MaintainEquipment`: its levers already
+exist (the outfit excludes tainted gear, floors hit points at `apparelMinHP`, offers only
+gender-correct definitions, and `ClothingRunway` replaces garments before they tatter),
+so dominant apparel pressure raises that concern's deficit and adds no new action.
+Cosmetic preferences and Ideology apparel precepts stay unowned. Every review that provisions `EnsureComfort` must rank it with a
 deficit at least the provisioned fraction
 (snapshot-tested). Schedules are never written. Social recreation, tolerated
 recreation kinds and environmental eligibility remain native job-giver choices.
