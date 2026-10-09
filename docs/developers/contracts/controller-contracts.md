@@ -185,7 +185,8 @@ not an executor.
 - Toxic fallout: `RecoverDisasterServices` can move a colonist restricted outside every
   roof into an existing wholly roofed, reachable allowed area via an allowed-area
   `WorkSettingsIntent`, re-derived each 600-tick window (no native lease). Areas restrict
-  work destinations; they do not make paths safe. No refuge produces a blocker. Outdoor
+  work destinations; they do not make paths safe. Go never assigns an unroofed area or
+  clears a restriction while fallout lasts; native reports no hazard veto. No refuge produces a blocker. Outdoor
   acquisition and field expansion pause during the hazard and resume after expiry.
 
 ### Shared compilation
@@ -240,8 +241,8 @@ steel-equivalent and power per added kW against network day headroom (lamps) or
 night/calm-night headroom (basins, heaters), plus a heater per room or outdoors below
 6C (`policy.DefaultSiteTypeWeights`). A kind lacking power, heater, infrastructure or
 crop compatibility stays in the candidate list with its reason; an unknown environment
-leaves only outdoor. Controlled kinds ignore the outdoor season (native zone creation
-checks each cell's own growing season). Candidates are enacted in score order, at most
+leaves only outdoor. Controlled kinds ignore the outdoor season (native does not refuse a zone for
+season, fertility or roof; those decide usefulness and stay Go crop and cell choice). Candidates are enacted in score order, at most
 three per step: zones preview growing zones, construction kinds preview the lamp or
 basins (lit soil is planted by a later batch once the game reports it). A refused or
 unreservable candidate falls through. Open farm-infrastructure work blocks the next

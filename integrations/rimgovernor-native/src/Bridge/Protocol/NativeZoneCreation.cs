@@ -64,11 +64,6 @@ namespace HomeBridge.BridgeTools
             var map = ProtoBoundary.LoadedMap(context);
             var cells = Cells(command);
             var selected = new HashSet<IntVec3>(cells);
-            var reached = new HashSet<IntVec3> { cells[0] };
-            var queue = new Queue<IntVec3>();
-            queue.Enqueue(cells[0]);
-            while (queue.Count > 0) { var c = queue.Dequeue(); foreach (var offset in GenAdj.CardinalDirections) { var next = c + offset; if (selected.Contains(next) && reached.Add(next)) queue.Enqueue(next); } }
-            if (reached.Count != selected.Count) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires cardinally connected cells."); return false; }
             var rules = new ApplyPreconditions(Kind);
             if (command.Kind == Operations.ZoneType.Fishing)
             {
@@ -92,23 +87,14 @@ namespace HomeBridge.BridgeTools
                 if (crop?.plant == null || !crop.plant.Sowable || !crop.plant.sowTags.Contains("Ground")
                     || crop.researchPrerequisites?.Any(r => !r.IsFinished) == true || !Command_SetPlantToGrow.IsPlantAvailable(crop, map)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires an available crop."); return false; }
                 var designator = new Designator_ZoneAdd_Growing();
-                var wanted = crop;
                 ground = true;
-                // The growing season is each cell's own temperature, so a
-                // heated greenhouse under a roof sows in winter while open
-                // ground follows the outdoor season; the controller decides
-                // whether a roofed cell is lit enough to be worth planting.
+                // Legality is the game's own designator. Growing season,
+                // fertility and roof decide whether a field is useful, which
+                // is the controller's crop and cell choice, not a refusal.
                 foreach (var cell in cells)
                 {
                     var c = cell;
-                    rules.Require(() => c.InBounds(map) && !c.Fogged(map), "cell " + At(c) + " is out of bounds or fogged")
-                        .Require(() => c.Walkable(map), "cell " + At(c) + " is not walkable")
-                        .Require(() => PlantUtility.GrowthSeasonNow(c, map, wanted), "cell " + At(c) + " is outside the crop's growing season")
-                        .Require(() => c.GetEdifice(map) == null && !c.GetThingList(map).Any(t => t is Blueprint || t is Frame), "cell " + At(c) + " holds a building, blueprint or frame")
-                        .Require(() => map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c)), "cell " + At(c) + " is already zoned")
-                        .Require(() => !map.roofCollapseBuffer.IsMarkedToCollapse(c), "cell " + At(c) + " is marked for roof collapse")
-                        .Require(() => map.fertilityGrid.FertilityAt(c) >= wanted.plant.fertilityMin, "cell " + At(c) + " is not fertile enough for the crop")
-                        .Require(() => designator.CanDesignateCell(c).Accepted, "cell " + At(c) + " is refused by the native growing-zone designator");
+                    rules.Require(() => designator.CanDesignateCell(c).Accepted, "cell " + At(c) + " is refused by the native growing-zone designator");
                 }
             }
             if (!rules.Holds) { failure = rules.Failure(); return false; }

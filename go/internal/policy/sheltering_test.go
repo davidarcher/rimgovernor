@@ -98,6 +98,14 @@ func TestShelteringNeedsSafeAreaAndSkipsPenAnimals(t *testing.T) {
 	if got := PlanSheltering(f); len(got) != 0 {
 		t.Fatal("sheltered without a Safe area", got)
 	}
+	// Native no longer refuses an unroofed area under fallout: with no Safe
+	// area a hauler is not sent to the unroofed NoKillbox area either.
+	f.NoDangerArea = domain.Known("nokill")
+	f.DangerWindow = domain.Known(true)
+	f.DangerHaulers = domain.Known([]PawnID{"a"})
+	if got := PlanSheltering(f); len(got) != 0 {
+		t.Fatal("fallout moved a pawn to an unroofed area", got)
+	}
 	f.ShelterArea = domain.Known("safe")
 	animals, _ := f.AnimalUpkeep.Animals.Value()
 	animals[0].RequiresPen = domain.Known(true)

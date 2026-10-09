@@ -34,27 +34,6 @@ namespace HomeBridge.BridgeTools
             return cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() == cells.Count;
         }
 
-        // Same BFS NativeZoneCreation.Prepare uses: reached from the first
-        // cell over cardinal neighbours within the set.
-        private static bool Contiguous(HashSet<IntVec3> set)
-        {
-            if (set.Count <= 1) return true;
-            var first = set.First();
-            var reached = new HashSet<IntVec3> { first };
-            var queue = new Queue<IntVec3>();
-            queue.Enqueue(first);
-            while (queue.Count > 0)
-            {
-                var c = queue.Dequeue();
-                foreach (var offset in GenAdj.CardinalDirections)
-                {
-                    var next = c + offset;
-                    if (set.Contains(next) && reached.Add(next)) queue.Enqueue(next);
-                }
-            }
-            return reached.Count == set.Count;
-        }
-
         private static bool IsFreeGround(IntVec3 c, Map map)
         {
             try
@@ -108,12 +87,7 @@ namespace HomeBridge.BridgeTools
                     rules.Require(() => !candidate.Cells.Contains(c) || map.zoneManager.ZoneAt(c) == candidate, "cell " + At(c) + " is not mapped to the zone on the zone grid")
                         .Require(() => !candidate.Cells.Contains(c) || slotGroup == null || map.haulDestinationManager?.SlotGroupAt(c) == slotGroup, "cell " + At(c) + " is not mapped to the stockpile's storage group");
             }
-            return rules.Require(() =>
-            {
-                var result = new HashSet<IntVec3>(candidate.Cells);
-                foreach (var c in requested) { if (adding) result.Add(c); else result.Remove(c); }
-                return result.Count == 0 || Contiguous(result);
-            }, "the edited zone would not be contiguous");
+            return rules;
         }
 
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)

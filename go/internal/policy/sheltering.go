@@ -217,6 +217,11 @@ func PlanSheltering(f RoundsFacts) []AllowedAreaChange {
 		case noKill != "" && area == noKill:
 			move = windowKnown && (!window || hk && !hauler)
 		}
+		// Native no longer vetoes an unroofed area during fallout, so the
+		// only area a fallout move may land on is the roofed Safe area.
+		if trigger == ShelterFallout && (safe == "" || to != safe) {
+			move = false
+		}
 		if move {
 			changes = append(changes, AllowedAreaChange{id, animal, to})
 		}

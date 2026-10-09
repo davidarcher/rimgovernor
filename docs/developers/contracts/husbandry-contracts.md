@@ -294,7 +294,7 @@ penned animals. Combat orders still do not skip sheltered animals.
 Selection order each cycle is exposure shelter, then train, then tame, then
 surplus removal, then master assignment, then sterilize; one write
 per cycle. The recovery planner also produces `allowed_area` changes from fresh
-Auto safety facts: a roofed refuge during roof hazards, otherwise unrestricted
+Auto safety facts: Go assigns a roofed refuge during roof hazards (native does not veto an unroofed area), otherwise unrestricted
 food/work access. It skips pen-managed animals and unknown area/safety facts.
 Other settings methods remain available through the same husbandry action.
 Pen containment is not a husbandry method: pens are built by

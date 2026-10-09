@@ -269,7 +269,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.HusbandryOrder.AllowedArea:
                     rules.Require(() => NativeHusbandryOperations.SupportsAllowedAreas(animal), "animal cannot carry an allowed area")
                         .Present(() => !intent!.HasTargetId || target.Area != null, "allowed area " + intent!.TargetId + " is not on the animal's map")
-                        .Require(() => NativeWorkSettings.AreaSafeAndReachable(animal, target.Area), "allowed area must preserve hazard protection and native reachability");
+                        .Require(() => NativeWorkSettings.AreaReachable(animal, target.Area), "allowed area must be native-reachable");
                     break;
                 case Operations.HusbandryOrder.Master:
                     rules.Require(() => NativeHusbandryOperations.Obedient(animal), "a master requires learned Obedience")

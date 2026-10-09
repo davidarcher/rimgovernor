@@ -29,16 +29,14 @@ namespace HomeBridge.BridgeTools
         internal static Area_Allowed? ResolveArea(Pawn pawn, string entityId) => pawn.Map?.areaManager.AllAreas.OfType<Area_Allowed>()
             .FirstOrDefault(a => RefIndex.Is(a, entityId) || a.ID.ToString(CultureInfo.InvariantCulture) == entityId);
 
-        // Checked when a restriction is applied: weather, roof geometry and
-        // paths move. Removing a saved restriction restores ordinary native
-        // job reachability; it never teleports a pawn.
-        internal static bool AreaSafeAndReachable(Pawn pawn, Area_Allowed? area)
+        // Checked when a restriction is applied: paths move. Hazard safety
+        // is Go policy (sheltering assigns only the roofed Safe area). Removing
+        // a saved restriction restores ordinary native job reachability; it
+        // never teleports a pawn.
+        internal static bool AreaReachable(Pawn pawn, Area_Allowed? area)
         {
-            var conditions = new System.Collections.Generic.List<GameCondition>();
-            pawn.Map.gameConditionManager.GetAllGameConditionsAffectingMap(pawn.Map, conditions);
-            var roofHazard = conditions.Any(c => c is GameCondition_ToxicFallout);
-            if (area == null) return !roofHazard;
-            if (area.TrueCount == 0 || (roofHazard && area.ActiveCells.Any(c => !c.Roofed(pawn.Map) || c.Fogged(pawn.Map)))) return false;
+            if (area == null) return true;
+            if (area.TrueCount == 0) return false;
             return area.ActiveCells.Any(c => !c.Fogged(pawn.Map) && c.Standable(pawn.Map)
                 && pawn.CanReach(c, Verse.AI.PathEndMode.OnCell, Danger.Some));
         }
@@ -71,9 +69,9 @@ namespace HomeBridge.BridgeTools
         {
             area = null;
             if (intent.AllowedArea == null) return true;
-            if (intent.AllowedArea.ValueCase == Operations.Assignment.ValueOneofCase.Clear) return NativeWorkSettings.AreaSafeAndReachable(pawn, null);
+            if (intent.AllowedArea.ValueCase == Operations.Assignment.ValueOneofCase.Clear) return NativeWorkSettings.AreaReachable(pawn, null);
             area = NativeWorkSettings.ResolveArea(pawn, intent.AllowedArea.EntityId);
-            return area != null && NativeWorkSettings.AreaSafeAndReachable(pawn, area);
+            return area != null && NativeWorkSettings.AreaReachable(pawn, area);
         }
 
         // Holds says whether every requested field already reads as asked.
@@ -115,7 +113,7 @@ namespace HomeBridge.BridgeTools
                     .Require(() => intent.Work.All(row => DefDatabase<WorkTypeDef>.GetNamedSilentFail(row.WorkTypeDef) != null), "a requested work type is not defined")
                     .Require(() => intent.Work.All(row => row.Priority == 0 || !found!.WorkTypeIsDisabled(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef))), "a requested work type is disabled for the pawn")
                     .Require(() => manual.GetValueOrDefault() || intent.Work.All(row => row.Priority == 0 || row.Priority == 3), "manual priorities are off, so only 0 or 3 can be set")
-                    .Require(() => AreaResolves(intent, found!, out _), "the requested allowed area is missing, unreachable or unsafe under the current roof hazard")
+                    .Require(() => AreaResolves(intent, found!, out _), "the requested allowed area is missing or unreachable")
                     .Require(() => intent.Schedule == null || intent.Schedule.AssignmentDefs.All(name => DefDatabase<TimeAssignmentDef>.GetNamedSilentFail(name) != null), "a requested timetable assignment is not defined")
                     .Require(() => intent.Schedule == null || found!.timetable?.times != null && found.timetable.times.Count == NativeWorkSettings.ScheduleHours, "the pawn has no 24-hour timetable");
             if (!rules.Holds) return rules.Failure();
