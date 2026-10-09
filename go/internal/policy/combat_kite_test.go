@@ -166,10 +166,10 @@ func TestDecideCombatMechKitesBreachersInside(t *testing.T) {
 		view := withBrawlers(holdView(), combatBrawler("m", 0.5))
 		view.Rooms = []CombatRoom{sapperRoom}
 		view = withMechs(view,
-			combatMech{id: "t1", kind: "Mech_Termite", cell: domain.Cell{X: 9, Z: 5}, speed: 2.1},
-			combatMech{id: "t2", kind: "Mech_Termite", cell: domain.Cell{X: 10, Z: 4}, speed: 2.1})
+			combatMech{id: "t1", kind: "Mech_Termite_Breach", cell: domain.Cell{X: 9, Z: 5}, speed: 2.1},
+			combatMech{id: "t2", kind: "Mech_Termite_Breach", cell: domain.Cell{X: 10, Z: 4}, speed: 2.1})
 		for i := range view.Pawns {
-			view.Pawns[i].Sapper = view.Pawns[i].Kind == "Mech_Termite"
+			view.Pawns[i].Sapper = view.Pawns[i].Kind == "Mech_Termite_Breach"
 		}
 		return fastRifleman(view)
 	}

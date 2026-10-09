@@ -24,6 +24,8 @@ func DefTables() []DefTable {
 		{"unrecoveredParts", "Verse.HediffDef", sortedKeys(unrecoveredParts)},
 		{"keptBodyParts", "Verse.BodyPartDef", sortedKeys(keptBodyParts)},
 		{"herdTrainables", "RimWorld.TrainableDef", sortedKeys(herdTrainables)},
+		{"threatKinds", "Verse.PawnKindDef", sortedKeys(threatKinds)},
+		{"threatWeapons", "Verse.ThingDef", sortedKeys(threatWeapons)},
 		{"ArmorResearchRungs", "Verse.ResearchProjectDef", slices.Clone(ArmorResearchRungs)},
 		{"gearValuables", "Verse.ThingDef", resourceKeys(gearValuables)},
 	}
@@ -38,7 +40,7 @@ func resourceKeys(set map[Resource]bool) []string {
 	return out
 }
 
-func sortedKeys(set map[string]bool) []string {
+func sortedKeys[V any](set map[string]V) []string {
 	out := make([]string, 0, len(set))
 	for name := range set {
 		out = append(out, name)

@@ -4,7 +4,6 @@ import (
 	"math"
 	"slices"
 	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -50,21 +49,40 @@ func threatTier(h CombatPawnState, colonists map[domain.PawnID]bool) int {
 		return threatSapper
 	case h.GoJuice:
 		return threatGoJuice
-	case h.Kind == "Tribal_Berserker":
-		return threatBerserker
-	case h.Weapon == "Pila":
-		return threatPila
-	case strings.Contains(h.Kind, "CentipedeBurner") || h.Weapon == "Gun_InfernoCannon":
-		return threatInfernoCentipede
-	case strings.Contains(h.Kind, "Scyther"):
-		return threatScyther
-	case strings.Contains(h.Kind, "Termite"):
-		return threatTermite
+	}
+	// The named tiers below rank the more urgent of the kind's and the
+	// weapon's (the constants run most urgent first).
+	named := threatOther
+	if tier, ok := threatKinds[h.Kind]; ok {
+		named = tier
+	}
+	if tier, ok := threatWeapons[h.Weapon]; ok {
+		named = min(named, tier)
+	}
+	switch {
+	case named != threatOther:
+		return named
 	case h.Mech:
 		return threatMech
 	}
 	return threatOther
 }
+
+// threatKinds and threatWeapons are judgment tables: the game states no
+// field that sets a tribal berserker, a pila thrower or a particular mech
+// apart (a scyther and a termite carry no weapon def, and the pila's verb
+// differs from a bow's only in numbers), so the tiers name the defs.
+// The flamer needs no weapon entry: Gun_InfernoCannon's verb is explosive
+// (WeaponFacts.Explosive), so it already ranks threatExplosive above.
+var (
+	threatKinds = map[string]int{
+		"Tribal_Berserker":     threatBerserker,
+		"Mech_CentipedeBurner": threatInfernoCentipede,
+		"Mech_Scyther":         threatScyther,
+		"Mech_Termite_Breach":  threatTermite,
+	}
+	threatWeapons = map[string]int{"Pila": threatPila}
+)
 
 // CaptureWorthy says a downed hostile is worth taking prisoner: a
 // luciferium addict dies without a supply we would have to keep up,

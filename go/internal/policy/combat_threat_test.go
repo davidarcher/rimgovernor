@@ -17,7 +17,7 @@ func threatView() CombatView {
 	hostiles := []CombatPawnState{
 		{ID: "h1", Kind: "Mech_Scyther", Mech: true},
 		{ID: "h2", Kind: "Mech_CentipedeBurner", Mech: true, Weapon: "Gun_InfernoCannon"},
-		{ID: "h3", Kind: "Mech_Termite", Mech: true},
+		{ID: "h3", Kind: "Mech_Termite_Breach", Mech: true},
 		{ID: "h4", Kind: "Pirate", Weapon: "MeleeWeapon_Knife", Stance: StanceMelee, Target: "c"},
 		{ID: "h5", Kind: "Grenadier_Destructive", Weapon: "Weapon_GrenadeFrag", WeaponFacts: coreWeapons["Weapon_GrenadeFrag"]},
 	}
@@ -61,7 +61,7 @@ func TestThreatScoreOrder(t *testing.T) {
 func TestRankThreatsTermiteAfterScyther(t *testing.T) {
 	view := holdView()
 	view.Threats, view.Positional = nil, nil
-	for i, h := range []CombatPawnState{{ID: "m1", Kind: "Mech_Lancer", Mech: true}, {ID: "m2", Kind: "Mech_Termite", Mech: true}, {ID: "m3", Kind: "Mech_Scyther", Mech: true}} {
+	for i, h := range []CombatPawnState{{ID: "m1", Kind: "Mech_Lancer", Mech: true}, {ID: "m2", Kind: "Mech_Termite_Breach", Mech: true}, {ID: "m3", Kind: "Mech_Scyther", Mech: true}} {
 		cell := domain.Cell{X: 8 + int32(i), Z: 10}
 		h.Cell = domain.Known(cell)
 		s, d := combatRaider(PawnID(h.ID), cell)
@@ -75,7 +75,7 @@ func TestRankThreatsTermiteAfterScyther(t *testing.T) {
 	if want := []domain.PawnID{"m3", "m2", "m1"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("ranked %v, want %v", got, want)
 	}
-	if threatTier(CombatPawnState{Kind: "Mech_Termite", Mech: true, Sapper: true}, nil) != threatSapper {
+	if threatTier(CombatPawnState{Kind: "Mech_Termite_Breach", Mech: true, Sapper: true}, nil) != threatSapper {
 		t.Fatal("breaching termite left the sapper tier")
 	}
 }
