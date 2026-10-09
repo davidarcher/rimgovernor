@@ -142,7 +142,7 @@ func housingFixture(t *testing.T, pawns int, suites ...float64) (LayoutPlan, Map
 	if !ok {
 		t.Fatal("no seed")
 	}
-	return g.generate(LayoutPlan{Zones: zones}, seed, pawns, 1, BuildTierCamp, suites...), s
+	return g.generate(LayoutPlan{Zones: zones}, seed, pawns, 1, TechTierCamp, suites...), s
 }
 
 func TestGenerateHundredColonistsGetTenFullWings(t *testing.T) {
@@ -218,7 +218,7 @@ func TestGenerateSuiteBlocksAreCappedAndReachable(t *testing.T) {
 func TestSiteCoreCourtyardNetworkKeepsOffThePatch(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := courtyardSurvey()
-	plan := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
+	plan := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, TechTierCamp)
 	if !plan.Valid() {
 		t.Fatal("invalid")
 	}
@@ -231,7 +231,7 @@ func TestSiteCoreCourtyardNetworkKeepsOffThePatch(t *testing.T) {
 			t.Fatal("hallway on the patch", h)
 		}
 	}
-	if again := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp); !reflect.DeepEqual(plan, again) {
+	if again := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, TechTierCamp); !reflect.DeepEqual(plan, again) {
 		t.Fatal("siting is not deterministic")
 	}
 }

@@ -19,9 +19,9 @@ func perimeterPlan(t *testing.T, cell func(x, z int32) SurveyCell) LayoutPlan {
 func perimeterPlanAt(t *testing.T, seed *domain.Cell, cell func(x, z int32) SurveyCell) LayoutPlan {
 	t.Helper()
 	s := zoningSurvey(200, cell)
-	plan := corePlan(Zone(s), 3, BuildTierCamp)
+	plan := corePlan(Zone(s), 3, TechTierCamp)
 	if seed != nil {
-		plan = newCoreGrid(Zone(s), nil).generate(LayoutPlan{Zones: Zone(s)}, *seed, 3, 1, BuildTierCamp)
+		plan = newCoreGrid(Zone(s), nil).generate(LayoutPlan{Zones: Zone(s)}, *seed, 3, 1, TechTierCamp)
 	}
 	p := PlanPerimeter(plan, s)
 	if !p.Valid() {
@@ -246,7 +246,7 @@ func wetPerimeter(t *testing.T, soft func(x, z int32) (SurveyCell, bool)) (Layou
 		return SurveyCell{Walkable: true, Fertility: 0.7}
 	}
 	s := zoningSurvey(200, cell)
-	p := PlanPerimeter(corePlan(Zone(s), 3, BuildTierCamp), s)
+	p := PlanPerimeter(corePlan(Zone(s), 3, TechTierCamp), s)
 	if !p.Valid() {
 		t.Fatal("invalid plan")
 	}
@@ -473,7 +473,7 @@ func TestPerimeterUnbridgeableGapIsFlagged(t *testing.T) {
 		return SurveyCell{Walkable: true, Fertility: 1}
 	}
 	s := zoningSurvey(200, cell)
-	p := PlanPerimeter(corePlan(Zone(s), 3, BuildTierCamp), s)
+	p := PlanPerimeter(corePlan(Zone(s), 3, TechTierCamp), s)
 	if len(reserved(p, ReservePerimeterGap)) == 0 {
 		t.Fatal("ground nothing closes is flagged")
 	}
@@ -547,7 +547,7 @@ func TestPerimeterLeavesRichPatchOutside(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	ground := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true} }
 	s := zoningSurvey(200, ground)
-	plan := corePlan(Zone(s), 3, BuildTierCamp)
+	plan := corePlan(Zone(s), 3, TechTierCamp)
 	core := footprintBox(plan, 200, 200)
 	right, top := core.X+core.Width-1, core.Z+core.Height-1
 	off := perimeterGap + perimeterThick + 3
@@ -597,7 +597,7 @@ func TestPerimeterLeavesRichPatchOutside(t *testing.T) {
 func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	p, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30, 0).Value()
+	p, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 30, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -617,7 +617,7 @@ func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	p, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30, 0).Value()
+	p, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 30, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

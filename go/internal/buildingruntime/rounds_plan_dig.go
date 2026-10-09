@@ -286,7 +286,7 @@ func (b *RoundsBuildingPlanner) digPlannedRoom(call, epoch context.Context, s ex
 func (b *RoundsBuildingPlanner) digExhaust(call, epoch context.Context, s excavationStep, check func() error) (RoundsBuildingResult, bool, error) {
 	plan, pk := s.facts.LayoutPlan.Value()
 	rooms, rk := s.facts.Rooms.Value()
-	if tier, ok := s.facts.BuildTier.Value(); !pk || !rk || !ok || tier < policy.BuildTierMasonry {
+	if tier, ok := s.facts.TechTier.Value(); !pk || !rk || !ok || tier < policy.TechTierMasonry {
 		return RoundsBuildingResult{}, false, nil
 	}
 	for _, room := range plan.AllRooms() {

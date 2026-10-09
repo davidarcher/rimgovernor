@@ -17,14 +17,14 @@ import (
 
 // generate grows plan from seed over g, for pawns colonists and tombs tomb
 // rooms. g is not changed.
-func (g coreGrid) generate(plan LayoutPlan, seed domain.Cell, pawns, tombs int, tier BuildTier, suites ...float64) LayoutPlan {
+func (g coreGrid) generate(plan LayoutPlan, seed domain.Cell, pawns, tombs int, tier TechTier, suites ...float64) LayoutPlan {
 	return g.finish(g.generateBase(plan, seed, pawns, tombs, tier, suites...))
 }
 
 // generateBase is generate before the hallway network is finished: rooms,
 // housing blocks and the entrances. The local search (layout_gen_search.go)
 // varies a base plan, then finish closes its rings.
-func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs int, tier BuildTier, suites ...float64) LayoutPlan {
+func (g coreGrid) generateBase(plan LayoutPlan, seed domain.Cell, pawns, tombs int, tier TechTier, suites ...float64) LayoutPlan {
 	open := g
 	g, base := open.clone(), open.clone()
 	spine := []SpineSegment{{From: seed, To: seed}}

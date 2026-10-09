@@ -13,7 +13,7 @@ import (
 // keeps a cell clear of the other, and a food field never adopts a tree zone.
 func TestFieldBlocksKeepTreesApartFromCrops(t *testing.T) {
 	plan := policy.LayoutPlan{Zones: []policy.LayoutZone{{Kind: policy.ZoneField}}}
-	facts := observation.ColonyProjection{BuildTier: domain.Known(policy.BuildTierCamp)}
+	facts := observation.ColonyProjection{TechTier: domain.Known(policy.TechTierCamp)}
 	for z := int32(0); z < 20; z++ {
 		plan.Zones[0].Runs = append(plan.Zones[0].Runs, policy.RowRun{Z: z, X: 0, Length: 40})
 		for x := int32(0); x < 40; x++ {

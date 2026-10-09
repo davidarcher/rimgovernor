@@ -45,7 +45,7 @@ func checkWingInvariants(t *testing.T, plan LayoutPlan) {
 }
 
 func TestWingsRunAlongEitherAxis(t *testing.T) {
-	size := WingRoomSize(BuildTierCamp)
+	size := WingRoomSize(TechTierCamp)
 	// A hallway along X with ground south of it only, and its transpose.
 	horizontal := []SpineSegment{{From: domain.Cell{X: 40, Z: 40}, To: domain.Cell{X: 60, Z: 40}}}
 	vertical := []SpineSegment{{From: domain.Cell{X: 40, Z: 40}, To: domain.Cell{X: 40, Z: 60}}}
@@ -71,7 +71,7 @@ func TestWingsRunAlongEitherAxis(t *testing.T) {
 }
 
 func TestWingsFitNarrowAndWideStrips(t *testing.T) {
-	size := WingRoomSize(BuildTierCamp)
+	size := WingRoomSize(TechTierCamp)
 	for name, tc := range map[string]struct {
 		g     coreGrid
 		spine []SpineSegment
@@ -81,7 +81,7 @@ func TestWingsFitNarrowAndWideStrips(t *testing.T) {
 		// A wide strip with a horizontal hallway: wings run up and down.
 		"wide": {openGround(0, 0, 120, 36), []SpineSegment{{From: domain.Cell{X: 10, Z: 2}, To: domain.Cell{X: 100, Z: 2}}}},
 	} {
-		spine, wings := tc.g.siteBedWings(tc.spine, nil, nil, 20, BuildTierCamp)
+		spine, wings := tc.g.siteBedWings(tc.spine, nil, nil, 20, TechTierCamp)
 		if len(wings) == 0 {
 			t.Fatal(name, "no wing sited")
 		}

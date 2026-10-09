@@ -280,7 +280,7 @@ func TestThroneTemplateFurnishesAroundTheThrone(t *testing.T) {
 }
 
 func TestGrowThroneRoomAddsOneAndKeepsTheRest(t *testing.T) {
-	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
+	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, TechTierCamp)
 	have := len(base.Rooms)
 	grown, added, _ := growThroneRoom(base, 30, nil)
 	if !added || len(grown.Rooms) != have+1 {

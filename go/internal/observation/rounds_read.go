@@ -189,7 +189,7 @@ func observeRounds(ctx context.Context, source RoundsSource, clock Clock, expect
 	p.Facts.RecoveryWorkers = recoveryWorkers(p.Facts.MoodPawns)
 	p.Facts.Gear = roundsGear(p.Facts.Gear, emergency)
 	p.Facts.Research = frameResearch(frame.Research)
-	p.BuildTier = policy.SelectBuildTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel)
+	p.TechTier = policy.SelectTechTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel)
 	p.Facts.Traders = frameTraders(frame.Traders)
 	p.Facts.QuestOffers = frameQuests(frame.Quests, expected.Map, frame.Catalog)
 	p.Facts.QuestSites = frameWorldSites(frame.Quests)
@@ -477,7 +477,7 @@ func hostedComfort(comfort domain.Fact[policy.ComfortObservation], rooms domain.
 }
 
 // FinishedResearch is the finished project list of a known research census,
-// the input BuildTier is selected from.
+// the input TechTier is selected from.
 func FinishedResearch(research domain.Fact[policy.ResearchFacts]) domain.Fact[[]policy.ResearchProjectID] {
 	if facts, known := research.Value(); known {
 		return domain.Known(facts.Finished)

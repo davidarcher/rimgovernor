@@ -23,7 +23,7 @@ func sculptureRoomsOwed(facts observation.ColonyProjection, stage policy.ColonyS
 	if !rk || !ck || !sk || !census.Colony || traits == nil {
 		return domain.Unknown[bool]()
 	}
-	tier, _ := facts.BuildTier.Value()
+	tier, _ := facts.TechTier.Value()
 	return policy.SculptureRoomsOwed(facts.Facts.Sleeping, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), stage), policy.FurnitureRooms(rooms, census, facts.Cells))
 }
 
@@ -40,7 +40,7 @@ func (r *RoundsSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context,
 	if !sk || !rk || !ck || !census.Colony || traits == nil {
 		return RoundsBuildingResult{}, false, nil
 	}
-	tier, _ := facts.BuildTier.Value()
+	tier, _ := facts.TechTier.Value()
 	items, ok, err := stock.Items(call, policy.PackedSculptureDefinition)
 	if err != nil || !ok {
 		return RoundsBuildingResult{}, false, err
@@ -142,7 +142,7 @@ func saleSculptures(call context.Context, native packedSource, identity *c.Ident
 	if err != nil {
 		return nil, err
 	}
-	tier, _ := facts.BuildTier.Value()
+	tier, _ := facts.TechTier.Value()
 	return policy.SaleSculptures(obs, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), policy.FurnitureRooms(rooms, census, facts.Cells), packedSculptures(items, facts.Facts.Items), facts.Facts.Items), nil
 }
 

@@ -69,12 +69,12 @@ func TestReplayScoreFixtures(t *testing.T) {
 		t.Run(f.name, func(t *testing.T) {
 			s := f.survey(t)
 			zones := Zone(s)
-			before := Score(siteCore(LayoutPlan{Zones: zones}, s, f.pawns, 1, BuildTierCamp, 0), s)
+			before := Score(siteCore(LayoutPlan{Zones: zones}, s, f.pawns, 1, TechTierCamp, 0), s)
 			layoutCounters.routed.Store(0)
 			layoutCounters.spineFallbacks.Store(0)
 			layoutCounters.rings.Store(0)
 			layoutCounters.secondDoors.Store(0)
-			plan := SiteCore(LayoutPlan{Zones: zones}, s, f.pawns, 1, BuildTierCamp)
+			plan := SiteCore(LayoutPlan{Zones: zones}, s, f.pawns, 1, TechTierCamp)
 			sc := Score(plan, s)
 			t.Logf("%-16s unsearched %s", f.name, before)
 			if before.Better(sc) {

@@ -300,7 +300,7 @@ func (r *Rounder) layoutPlan(ctx context.Context, snapshot domain.GenerationSnap
 
 // deriveLayoutPlan lays a fresh v2 plan over survey and the reported
 // geysers and records it.
-func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int, tier policy.BuildTier, geysers []policy.PowerGeyser, animals, yardAnimals int) error {
+func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int, tier policy.TechTier, geysers []policy.PowerGeyser, animals, yardAnimals int) error {
 	plan, known := policy.DeriveLayoutPlan(survey, pawns, tier, geysers, animals, yardAnimals).Value()
 	if !known {
 		telemetry.Decide(ctx, layoutPlanDecision("skipped", "no_core", pawns, "", nil))
@@ -315,7 +315,7 @@ func (r *Rounder) deriveLayoutPlan(ctx context.Context, snapshot domain.Generati
 
 // replanLayout grows the recorded v2 plan over a fresh survey and records
 // it when it changed.
-func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, growth policy.RoomGrowth, animals, pawns, tombs int, tier policy.BuildTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64) error {
+func (r *Rounder) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, growth policy.RoomGrowth, animals, pawns, tombs int, tier policy.TechTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64) error {
 	next, changed, unplaced := policy.ReplanLayoutWithRooms(plan, survey, growth, animals, pawns, tombs, tier, geysers, emptied, suites...)
 	r.logNoRoom(ctx, pawns, unplaced)
 	if !changed {
@@ -419,9 +419,9 @@ func (r *Rounder) drawHeatOverlay(ctx context.Context, native LayoutOverlayNativ
 	r.heatDrawn, r.heatCleared = tick, !on
 }
 
-// layoutTier is the build tier new bedroom wings are sized for (#1214); an
+// layoutTier is the tech tier new bedroom wings are sized for (#1214); an
 // unknown tier reads Camp.
-func layoutTier(projection observation.ColonyProjection) policy.BuildTier {
-	tier, _ := projection.BuildTier.Value()
+func layoutTier(projection observation.ColonyProjection) policy.TechTier {
+	tier, _ := projection.TechTier.Value()
 	return tier
 }

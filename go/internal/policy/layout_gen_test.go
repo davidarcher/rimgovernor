@@ -130,7 +130,7 @@ func TestSiteCoreWrapsRichCourtyard(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := courtyardSurvey()
 	zones := Zone(s)
-	plan := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
+	plan := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, TechTierCamp)
 	sc := Score(plan, s)
 	if len(sc.Missing) != 0 || sc.RoutesErr != "" || sc.RichCells != 0 {
 		t.Fatal("courtyard plan", sc)
@@ -156,13 +156,13 @@ func TestGenerateHopsRichPatchFromTheEdge(t *testing.T) {
 		if !lg.column(seed.X, seed.Z) {
 			continue
 		}
-		p := lg.generate(LayoutPlan{Zones: zones}, seed, 3, 1, BuildTierCamp)
+		p := lg.generate(LayoutPlan{Zones: zones}, seed, 3, 1, TechTierCamp)
 		sc := scorer.core(p)
 		if sc.RichCells != 0 || len(sc.Missing) != 0 || sc.RoutesErr != "" {
 			t.Fatalf("seed %v: %v", seed, sc)
 		}
 		linksKeepWall(t, p)
-		old := growPlan(LayoutPlan{Zones: zones, Spine: []SpineSegment{{From: seed, To: seed}}}, 3, 1, BuildTierCamp)
+		old := growPlan(LayoutPlan{Zones: zones, Spine: []SpineSegment{{From: seed, To: seed}}}, 3, 1, TechTierCamp)
 		over += scorer.core(old).RichCells
 	}
 	if over == 0 {
@@ -175,7 +175,7 @@ func TestGenerateHopsRichPatchFromTheEdge(t *testing.T) {
 func TestSiteCoreAllRichValleyPlacesEveryRoomAtCost(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := richValleySurvey()
-	plan := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
+	plan := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, TechTierCamp)
 	sc := Score(plan, s)
 	if len(sc.Missing) != 0 || sc.RoutesErr != "" {
 		t.Fatal("all-rich plan", sc)
@@ -188,7 +188,7 @@ func TestSiteCoreAllRichValleyPlacesEveryRoomAtCost(t *testing.T) {
 func TestSiteCoreBaselineKeepsLinksAndRoutes(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := loadSurvey(t, baselineSurveyPath)
-	plan := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
+	plan := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, TechTierCamp)
 	if _, err := CheckRoutes(plan); err != nil {
 		t.Fatal(err)
 	}
@@ -202,9 +202,9 @@ func TestSiteCoreSameOnAnyThreadCount(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := courtyardSurvey()
 	zones := Zone(s)
-	many := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
+	many := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, TechTierCamp)
 	prev := runtime.GOMAXPROCS(1)
-	one := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
+	one := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, TechTierCamp)
 	runtime.GOMAXPROCS(prev)
 	if !reflect.DeepEqual(many, one) {
 		t.Fatal("one thread gave a different plan")

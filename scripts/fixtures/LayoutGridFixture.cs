@@ -12,7 +12,7 @@ using Verse.AI;
 namespace HomeBridge.BridgeTools
 {
     // Issue #607: the layout/grid case proves the tiered colony layout on
-    // the tribal baseline. Prepare finishes Stonecutting so the build tier
+    // the tribal baseline. Prepare finishes Stonecutting so the tech tier
     // reads Masonry, stages the starter hut (FixtureHut) whose south-west
     // corner anchors the layout, and drops wood beside
     // its door; the field the controller then plans is the case's own.

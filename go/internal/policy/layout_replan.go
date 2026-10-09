@@ -32,14 +32,14 @@ type replanner struct {
 	sc    planScorer
 	pawns int
 	tombs int
-	tier  BuildTier
+	tier  TechTier
 	suite []float64
 }
 
 // newReplanner prepares a replan of plan over survey s. The core ground is
 // plan.Zones less the blocked cells, and plan's reservations (the
 // perimeter, laid again afterwards, excepted).
-func newReplanner(plan LayoutPlan, s MapSurvey, blocked map[domain.Cell]bool, pawns, tombs int, tier BuildTier, suites []float64) replanner {
+func newReplanner(plan LayoutPlan, s MapSurvey, blocked map[domain.Cell]bool, pawns, tombs int, tier TechTier, suites []float64) replanner {
 	var inner []LayoutReservation
 	for _, r := range plan.Reservations {
 		if !perimeterKinds[r.Kind] {
@@ -110,7 +110,7 @@ func allPins(plan LayoutPlan) map[Rectangle]bool {
 // bedroom wing with a fixed room (a wing is sited as one block), and every
 // suite block (existing suites never move). An emptied Retiring wing is
 // never pinned, built or not: it is the ground a replan may reclaim.
-func replanPins(plan LayoutPlan, fixed map[Rectangle]bool, emptied map[domain.Cell]bool, tier BuildTier) map[Rectangle]bool {
+func replanPins(plan LayoutPlan, fixed map[Rectangle]bool, emptied map[domain.Cell]bool, tier TechTier) map[Rectangle]bool {
 	if fixed == nil {
 		// The census is unknown, so nothing is known to be unbuilt.
 		return allPins(plan)

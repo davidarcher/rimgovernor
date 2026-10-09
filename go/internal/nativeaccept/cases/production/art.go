@@ -148,7 +148,7 @@ func artTarget(prepared map[string]any, levels policy.ImpressivenessLevels) floa
 	for _, r := range na.AsSlice(prepared["research"]) {
 		finished = append(finished, policy.ResearchProjectID(na.AsString(r)))
 	}
-	tier, _ := policy.SelectBuildTier(domain.Known(finished), domain.Known(na.AsString(prepared["techLevel"]))).Value()
+	tier, _ := policy.SelectTechTier(domain.Known(finished), domain.Known(na.AsString(prepared["techLevel"]))).Value()
 	return levels.Baseline(tier)
 }
 

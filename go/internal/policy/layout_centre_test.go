@@ -18,7 +18,7 @@ func TestSiteCoreStaysOffBorderMountain(t *testing.T) {
 		}
 		return SurveyCell{Walkable: true, Fertility: 1, Footing: FootingFirm}
 	})
-	p := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
+	p := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, TechTierCamp)
 	if len(p.AllRooms()) == 0 {
 		t.Fatal("no rooms")
 	}

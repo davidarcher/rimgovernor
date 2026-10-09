@@ -65,7 +65,7 @@ func roomUpgrade(facts observation.ColonyProjection, stage policy.ColonyStage) (
 	if !sk || !rk || !ck || !census.Colony || traits == nil {
 		return policy.RoomUpgrade{}, false
 	}
-	tier, _ := facts.BuildTier.Value()
+	tier, _ := facts.TechTier.Value()
 	targets := policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)
 	for id, t := range policy.CommonRoomTargets(obs, tier, facts.Impressiveness) {
 		if _, owned := targets[id]; !owned {
@@ -90,7 +90,7 @@ func bedReplacement(facts observation.ColonyProjection, stage policy.ColonyStage
 	if !sk || !rk || !ck || !census.Colony || traits == nil {
 		return policy.BedReplacement{}, false
 	}
-	tier, _ := facts.BuildTier.Value()
+	tier, _ := facts.TechTier.Value()
 	available := func(def string) bool {
 		v, known := facts.DefinitionAvailable(def).Value()
 		return known && v
@@ -158,7 +158,7 @@ func beautyUpgrade(facts observation.ColonyProjection, stage policy.ColonyStage)
 	if !sk || !rk || !ck || !census.Colony || traits == nil {
 		return policy.RoomUpgrade{}, false
 	}
-	tier, _ := facts.BuildTier.Value()
+	tier, _ := facts.TechTier.Value()
 	available := func(def string) bool {
 		v, known := facts.DefinitionAvailable(def).Value()
 		return known && v

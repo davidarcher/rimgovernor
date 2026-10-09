@@ -28,7 +28,7 @@ func TestPenAnimalsFollowsThePlanCeilings(t *testing.T) {
 }
 
 func TestHerdSitesBarnAndVetRoom(t *testing.T) {
-	core := corePlan(utilityTestZones(), 3, BuildTierCamp)
+	core := corePlan(utilityTestZones(), 3, TechTierCamp)
 	p := PlanUtilities(core, UtilityWants{PenAnimals: 20})
 	barns, vets := herdReservations(p, ReserveBarn), herdReservations(p, ReserveVetRoom)
 	if len(barns) != 1 || len(vets) != 1 {
@@ -63,7 +63,7 @@ func TestVetBedsScaleWithTheHerd(t *testing.T) {
 	if VetBeds(45) <= VetBeds(10) {
 		t.Fatal("more beds for a bigger herd", VetBeds(45))
 	}
-	core := corePlan(utilityTestZones(), 3, BuildTierCamp)
+	core := corePlan(utilityTestZones(), 3, TechTierCamp)
 	small := herdReservations(PlanUtilities(core, UtilityWants{PenAnimals: 10}), ReserveVetRoom)
 	large := herdReservations(PlanUtilities(core, UtilityWants{PenAnimals: 45}), ReserveVetRoom)
 	if len(small) != 1 || len(large) != 1 || VetRoomBeds(large[0].Area) < VetBeds(45) || VetRoomBeds(large[0].Area) <= VetRoomBeds(small[0].Area) {

@@ -14,18 +14,18 @@ type ImpressivenessLevels struct {
 	Dull, Mediocre, Decent, SlightlyImpressive float64
 }
 
-// Baseline is the colony-wide floor by build tier (#610 style), one native
+// Baseline is the colony-wide floor by tech tier (#610 style), one native
 // stage per tier: Camp asks nothing, Masonry dull, Powered mediocre,
 // Industrial decent, Spacer slightly impressive.
-func (l ImpressivenessLevels) Baseline(tier BuildTier) float64 {
+func (l ImpressivenessLevels) Baseline(tier TechTier) float64 {
 	switch {
-	case tier >= BuildTierSpacer:
+	case tier >= TechTierSpacer:
 		return l.SlightlyImpressive
-	case tier >= BuildTierIndustrial:
+	case tier >= TechTierIndustrial:
 		return l.Decent
-	case tier >= BuildTierPowered:
+	case tier >= TechTierPowered:
 		return l.Mediocre
-	case tier >= BuildTierMasonry:
+	case tier >= TechTierMasonry:
 		return l.Dull
 	}
 	return 0
@@ -55,7 +55,7 @@ type RoomTarget struct {
 // eats and relaxes there, so no one's traits apply: the target is the
 // colony-wide tier baseline (ImpressivenessLevels.Baseline), reason "common". A room
 // holding colonist beds is left to RoomQualityTargets.
-func CommonRoomTargets(obs SleepingObservation, tier BuildTier, levels ImpressivenessLevels) map[string]RoomTarget {
+func CommonRoomTargets(obs SleepingObservation, tier TechTier, levels ImpressivenessLevels) map[string]RoomTarget {
 	rooms, ok := obs.Rooms.Value()
 	if !ok {
 		return nil
@@ -102,7 +102,7 @@ func CommonRoomTargets(obs SleepingObservation, tier BuildTier, levels Impressiv
 // partner, and the demanded floor wins because a missed demand costs more
 // mood (-4 to -8, or a title's) than the lost ascetic bonus (+3 to +5).
 // NeverUpgrade holds only when the ceiling holds and Min is zero.
-func RoomQualityTargets(obs SleepingObservation, traits map[PawnID]TraitEffects, tier BuildTier, levels ImpressivenessLevels) map[string]RoomTarget {
+func RoomQualityTargets(obs SleepingObservation, traits map[PawnID]TraitEffects, tier TechTier, levels ImpressivenessLevels) map[string]RoomTarget {
 	rooms, ok := obs.Rooms.Value()
 	if !ok {
 		return nil

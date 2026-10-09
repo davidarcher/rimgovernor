@@ -53,7 +53,7 @@ func TestLayoutTriggersHourly(t *testing.T) {
 	projection := observation.ColonyProjection{Identity: observation.Identity{Colony: snapshot.Colony, Map: snapshot.Map, Load: snapshot.Load}}
 	openWindow(&projection, 120)
 	projection.Facts.Colonists = domain.Known(int64(3))
-	projection.BuildTier = domain.Known(policy.BuildTierCamp)
+	projection.TechTier = domain.Known(policy.TechTierCamp)
 	review := func(tick domain.Tick) {
 		t.Helper()
 		projection.Identity.Tick = tick
@@ -98,7 +98,7 @@ func TestLayoutTriggersHourly(t *testing.T) {
 
 	// A tier change replans at the next hourly review.
 	grown := r.planGrownFor
-	projection.BuildTier = domain.Known(policy.BuildTierCamp + 1)
+	projection.TechTier = domain.Known(policy.TechTierCamp + 1)
 	review(100 + 6*layoutReplanEvery + 100)
 	if r.planGrownFor != grown {
 		t.Fatal("a tier change replanned before the hour")

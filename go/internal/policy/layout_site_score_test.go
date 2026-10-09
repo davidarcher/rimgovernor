@@ -36,15 +36,15 @@ func TestSiteCoreLandsOffCentreRichPatch(t *testing.T) {
 	s := centreRichSurvey()
 	zones := Zone(s)
 	g := newCoreGrid(zones, nil).withSoil(s)
-	centroid := corePlan(zones, 3, BuildTierCamp)
-	sited := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
+	centroid := corePlan(zones, 3, TechTierCamp)
+	sited := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, TechTierCamp)
 	if len(sited.Rooms) == 0 {
 		t.Fatal("no rooms")
 	}
 	if c, r := richUnderRooms(g, centroid), richUnderRooms(g, sited); r != 0 || c == 0 {
 		t.Fatal("rich cells under rooms: centroid", c, "sited", r)
 	}
-	if !reflect.DeepEqual(sited, SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)) {
+	if !reflect.DeepEqual(sited, SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, TechTierCamp)) {
 		t.Fatal("same input gave a different plan")
 	}
 }
@@ -53,12 +53,12 @@ func TestSiteCoreBaselineScoresNoBelowCentroid(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := loadSurvey(t, baselineSurveyPath)
 	zones := Zone(s)
-	centroid := corePlan(zones, 3, BuildTierCamp)
-	sited := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
+	centroid := corePlan(zones, 3, TechTierCamp)
+	sited := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, TechTierCamp)
 	if Score(centroid, s).Better(Score(sited, s)) {
 		t.Fatal("sited plan scores below the centroid plan")
 	}
-	if !reflect.DeepEqual(sited, SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)) {
+	if !reflect.DeepEqual(sited, SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, TechTierCamp)) {
 		t.Fatal("same input gave a different plan")
 	}
 }
@@ -97,7 +97,7 @@ func TestSoilCostBaselineFixture(t *testing.T) {
 func TestSiteCoreKeepsOffMapEdge(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := loadSurvey(t, baselineSurveyPath)
-	p := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
+	p := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, TechTierCamp)
 	if len(p.AllRooms()) == 0 {
 		t.Fatal("no rooms")
 	}
@@ -116,7 +116,7 @@ func TestSiteCoreKeepsOffMapEdge(t *testing.T) {
 func TestSiteCoreAndGrowAvoidProps(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	plain := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
-	first := SiteCore(LayoutPlan{Zones: Zone(zoningSurvey(140, plain))}, zoningSurvey(140, plain), 3, 1, BuildTierCamp)
+	first := SiteCore(LayoutPlan{Zones: Zone(zoningSurvey(140, plain))}, zoningSurvey(140, plain), 3, 1, TechTierCamp)
 	prop := map[domain.Cell]bool{}
 	for _, r := range first.AllRooms() {
 		for _, c := range rectCells(r.Interior) {
@@ -131,8 +131,8 @@ func TestSiteCoreAndGrowAvoidProps(t *testing.T) {
 		c.Prop = prop[domain.Cell{X: x, Z: z}]
 		return c
 	})
-	sited := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
-	grown := growPlan(sited, 8, 1, BuildTierCamp)
+	sited := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, TechTierCamp)
+	grown := growPlan(sited, 8, 1, TechTierCamp)
 	for name, p := range map[string]LayoutPlan{"sited": sited, "grown": grown} {
 		if len(p.AllRooms()) == 0 {
 			t.Fatal(name, "no rooms")
@@ -210,8 +210,8 @@ func TestSiteCorePrefersMountainSide(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := mountainSideSurvey()
 	zones := Zone(s)
-	centroid := corePlan(zones, 3, BuildTierCamp)
-	sited := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
+	centroid := corePlan(zones, 3, TechTierCamp)
+	sited := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, TechTierCamp)
 	if len(sited.Rooms) == 0 || len(centroid.Rooms) == 0 {
 		t.Fatal("no rooms")
 	}

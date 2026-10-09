@@ -23,7 +23,7 @@ var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1}
 // colonists, with a geothermal enclosure on each reported steam geyser
 // (#834) and pens, a barn and a vet room for a herd of animals
 // (HerdPlan.PenAnimals), and a wall yard that holds yardAnimals (HerdPlan.YardAnimals, 0 keeps the floor, #2232). Unknown when the survey holds no room for a core.
-func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGeyser, animals, yardAnimals int) domain.Fact[LayoutPlan] {
+func DeriveLayoutPlan(s MapSurvey, pawns int, tier TechTier, geysers []PowerGeyser, animals, yardAnimals int) domain.Fact[LayoutPlan] {
 	zones := Zone(s)
 	footprints := geyserFootprints(geysers)
 	plan := SiteCore(LayoutPlan{Zones: coreWithout(zones, geothermalCells(footprints)), Cold: s.Cold, Hot: s.Hot}, s, pawns, 0, tier)
@@ -107,7 +107,7 @@ type RoomGrowth struct {
 // the pens, barn and vet room it lacks (PlanHerdSites, #1633). The error
 // joins the rooms growth asked for that no core slot took (#1799); the plan
 // returned is still the best one, so the caller reports it and carries on.
-func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool, error) {
+func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawns, tombs int, tier TechTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool, error) {
 	zones := Zone(s)
 	vents := geothermalCells(geyserFootprints(geysers))
 	noGo := map[domain.Cell]bool{}

@@ -26,7 +26,7 @@ func TestTribalSpotOwnersShellABedroom(t *testing.T) {
 		shell.Beds = append(shell.Beds, bed)
 	}
 	facts := observation.ColonyProjection{
-		BuildTier:  domain.Known(policy.BuildTierCamp),
+		TechTier:   domain.Known(policy.TechTierCamp),
 		LayoutPlan: domain.Known(plan),
 		Rooms:      domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{shell}}),
 	}

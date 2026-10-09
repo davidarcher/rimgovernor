@@ -146,29 +146,29 @@ func ComputeScore(rows []Row) Score {
 	return s
 }
 
-// stageComponents is one component per build tier the run reached: the days
+// stageComponents is one component per tech tier the run reached: the days
 // from the start to its first reading. Without a tier reading it is a single
 // unknown component.
 func stageComponents(read []Row) []Component {
 	var order []string
 	first := map[string]float64{}
 	for _, r := range read {
-		if r.Census.BuildTier == nil || *r.Census.BuildTier == "" {
+		if r.Census.TechTier == nil || *r.Census.TechTier == "" {
 			continue
 		}
-		t := *r.Census.BuildTier
+		t := *r.Census.TechTier
 		if _, seen := first[t]; !seen {
 			order = append(order, t)
 			first[t] = float64(r.Tick) / 60000
 		}
 	}
 	if len(order) == 0 {
-		return []Component{{Name: "stage_days", Unit: "days", Weight: weightStages, Note: "the timeline has no build tier reading"}}
+		return []Component{{Name: "stage_days", Unit: "days", Weight: weightStages, Note: "the timeline has no tech tier reading"}}
 	}
 	var out []Component
 	for _, t := range order {
 		c := Component{Name: "stage_days:" + t, Unit: "days", Weight: weightStages / float64(len(order)),
-			Note: fmt.Sprintf("days until the colony first reached the %s build tier", t)}
+			Note: fmt.Sprintf("days until the colony first reached the %s tech tier", t)}
 		c.set(first[t], 1-first[t]/horizonDays)
 		out = append(out, c)
 	}

@@ -81,9 +81,9 @@ type Rounder struct {
 	staleBills staleBills
 	// skipsLogged are the quest skips already logged (#1717).
 	skipsLogged map[questSkipKey]bool
-	// buildTier is the last build tier logged (#604): the flight recorder
+	// techTier is the last tech tier logged (#604): the flight recorder
 	// records a change once, not every review.
-	buildTier domain.Fact[policy.BuildTier]
+	techTier domain.Fact[policy.TechTier]
 	// stockpiles remembers since when each owned stockpile sat mostly
 	// empty (#725); see stockpileMemory.
 	stockpiles stockpileMemory
@@ -185,24 +185,24 @@ func (r *Rounder) logColonyStage(ctx context.Context, review store.Rounds) {
 	clockEvent(ctx, "routine", "colony_stage", message, "stage", stage.Stage.String(), "since", int64(stage.Since), "blocker", string(stage.Blocker), "reason", stage.Reason, "held", stage.Held)
 }
 
-// logBuildTier records the reading's build tier in the flight recorder once per
-// change: `[layout] build tier Masonry (Stonecutting)`. An unknown tier
+// logTechTier records the reading's tech tier in the flight recorder once per
+// change: `[layout] tech tier Masonry (Stonecutting)`. An unknown tier
 // (no research census) is not a change.
-func (r *Rounder) logBuildTier(ctx context.Context, projection observation.ColonyProjection) {
-	tier, known := projection.BuildTier.Value()
+func (r *Rounder) logTechTier(ctx context.Context, projection observation.ColonyProjection) {
+	tier, known := projection.TechTier.Value()
 	if !known {
 		return
 	}
-	if last, logged := r.buildTier.Value(); logged && last == tier {
+	if last, logged := r.techTier.Value(); logged && last == tier {
 		return
 	}
-	r.buildTier = projection.BuildTier
-	evidence := policy.BuildTierEvidence(observation.FinishedResearch(projection.Facts.Research), projection.PlayerTechLevel)
-	message := "build tier " + tier.String()
+	r.techTier = projection.TechTier
+	evidence := policy.TechTierEvidence(observation.FinishedResearch(projection.Facts.Research), projection.PlayerTechLevel)
+	message := "tech tier " + tier.String()
 	if evidence != "" {
 		message += " (" + evidence + ")"
 	}
-	clockEvent(ctx, "layout", "build_tier", message, "tier", tier.String(), "evidence", evidence)
+	clockEvent(ctx, "layout", "tech_tier", message, "tier", tier.String(), "evidence", evidence)
 }
 
 // questSkipDecision is the routine_skip row of an Odyssey offer the colony
@@ -416,7 +416,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if err = releaseBreakWork(ctx, p.journal, state.Snapshot, reading.Emergency, plans); err != nil {
 		return store.RoundsResult{}, err
 	}
-	r.logBuildTier(ctx, reading.Projection)
+	r.logTechTier(ctx, reading.Projection)
 	r.logQuestSkips(ctx, reading.Projection.Facts)
 	r.planFood(&reading.Projection)
 	reading.Projection.Facts.ConstructionClaims = claims

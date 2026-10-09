@@ -50,7 +50,7 @@ type Census struct {
 	WealthTotal    *float64 `json:"wealthTotal"`
 	MoodMean       *float64 `json:"moodMean"`
 	Downed         int      `json:"downed"`
-	BuildTier      *string  `json:"buildTier"`
+	TechTier       *string  `json:"techTier"`
 	// Stockpiles and ForbiddenSupplies are null until a review has filed.
 	Stockpiles        []Stockpile `json:"stockpiles"`
 	ForbiddenSupplies *bool       `json:"forbiddenSupplies"`

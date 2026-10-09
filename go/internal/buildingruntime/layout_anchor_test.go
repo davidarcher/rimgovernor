@@ -10,8 +10,8 @@ import (
 )
 
 // anchorProjection is an open 96x96 map at the tier; every cell is observed open ground.
-func anchorProjection(tier policy.BuildTier) observation.ColonyProjection {
-	p := observation.ColonyProjection{BuildTier: domain.Known(tier), Bounds: policy.Bounds{Width: 96, Height: 96}}
+func anchorProjection(tier policy.TechTier) observation.ColonyProjection {
+	p := observation.ColonyProjection{TechTier: domain.Known(tier), Bounds: policy.Bounds{Width: 96, Height: 96}}
 	for x := int32(0); x < 96; x++ {
 		for z := int32(0); z < 96; z++ {
 			p.Cells = append(p.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false)})
@@ -84,7 +84,7 @@ func anchorPlan() policy.LayoutPlan {
 }
 
 func TestRoomAnchorIsTheNearestFreeRoomOfTheRole(t *testing.T) {
-	p := anchorProjection(policy.BuildTierMasonry)
+	p := anchorProjection(policy.TechTierMasonry)
 	p.LayoutPlan = domain.Known(anchorPlan())
 	if c, _ := roomAnchor(p, policy.PlannedShelter, domain.Cell{X: 40, Z: 12}); c != (domain.Cell{X: 22, Z: 12}) {
 		t.Fatalf("nearest to the east %v", c)
@@ -109,7 +109,7 @@ func TestRoomAnchorIsTheNearestFreeRoomOfTheRole(t *testing.T) {
 }
 
 func TestRoomAnchorFallsBackToReserveRooms(t *testing.T) {
-	p := anchorProjection(policy.BuildTierMasonry)
+	p := anchorProjection(policy.TechTierMasonry)
 	plan := anchorPlan()
 	plan.Rooms = append(plan.Rooms, policy.PlannedRoom{Role: policy.PlannedReserve, Interior: policy.Rectangle{X: 50, Z: 50, Width: 4, Height: 4}})
 	p.LayoutPlan = domain.Known(plan)
@@ -119,21 +119,21 @@ func TestRoomAnchorFallsBackToReserveRooms(t *testing.T) {
 }
 
 func TestFieldAnchorReadsTheFieldZone(t *testing.T) {
-	p := anchorProjection(policy.BuildTierMasonry)
+	p := anchorProjection(policy.TechTierMasonry)
 	p.LayoutPlan = domain.Known(anchorPlan())
 	if c, _ := fieldAnchor(p); c != (domain.Cell{X: 65, Z: 70}) {
 		t.Fatalf("fields %v", c)
 	}
 	// Camp reads the plan too: pens, barn and turbines must not stack on
 	// the colony centre.
-	p.BuildTier = domain.Known(policy.BuildTierCamp)
+	p.TechTier = domain.Known(policy.TechTierCamp)
 	if c, _ := fieldAnchor(p); c != (domain.Cell{X: 65, Z: 70}) {
 		t.Fatalf("camp fields %v", c)
 	}
 }
 
 func TestAnchorsWaitForAPlan(t *testing.T) {
-	p := anchorProjection(policy.BuildTierMasonry)
+	p := anchorProjection(policy.TechTierMasonry)
 	if _, ok := fieldAnchor(p); ok {
 		t.Fatal("a field anchor without a plan")
 	}

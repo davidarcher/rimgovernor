@@ -13,7 +13,7 @@ import (
 // ordered fact that sets the goal budgets (the research ladder's pace, the
 // stall deadline) and which goals the review raises at all
 // (StageGoalAllowed). It is derived from colony facts and the goal progress
-// records, never from research: BuildTier (#604) is what the colony can
+// records, never from research: TechTier (#604) is what the colony can
 // build, the stage is what it has achieved.
 //
 // Each stage has explicit exit criteria, all read from the review's one

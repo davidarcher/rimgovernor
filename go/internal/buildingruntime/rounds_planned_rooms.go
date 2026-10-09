@@ -34,7 +34,7 @@ func (r *RoundsBuildingPlanner) plannedRoomModule() (policy.PlannedRole, bool) {
 }
 
 // plannedLayout is the v2 plan and room census, known whenever both are
-// read. The build tier does not gate it: a colony that holds the materials
+// read. The tech tier does not gate it: a colony that holds the materials
 // raises a planned room at any tier, and the stuff ladder (WallStuff) says
 // what it is built from.
 func plannedLayout(facts observation.ColonyProjection) (policy.LayoutPlan, policy.RoomObservation, bool) {

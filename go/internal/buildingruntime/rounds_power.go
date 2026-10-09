@@ -340,7 +340,7 @@ func (r *RoundsBuildingPlanner) previewPowerOrSearch(call context.Context, snaps
 func (r *RoundsBuildingPlanner) previewPlannedPower(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, bool, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	plan, planned := facts.LayoutPlan.Value()
-	if tier, ok := facts.BuildTier.Value(); !planned || !ok || tier < policy.BuildTierMasonry || missing < 1 {
+	if tier, ok := facts.TechTier.Value(); !planned || !ok || tier < policy.TechTierMasonry || missing < 1 {
 		return nil, stock, false, nil
 	}
 	sites := policy.PlannedPowerSites(plan, r.definition)

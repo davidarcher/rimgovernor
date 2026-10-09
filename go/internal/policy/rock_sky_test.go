@@ -64,7 +64,7 @@ func TestUtilityGridSkyRock(t *testing.T) {
 // A turbine's catch zone is its own 7x16 wind path, inside the pair's lanes;
 // the other turbine's back zone is not in it (#1871).
 func TestTurbineCatchZoneIsTheTurbinesOwnWindPath(t *testing.T) {
-	p := PlanUtilities(corePlan(utilityTestZones(), 3, BuildTierCamp), UtilityWants{TurbinePairs: 1})
+	p := PlanUtilities(corePlan(utilityTestZones(), 3, TechTierCamp), UtilityWants{TurbinePairs: 1})
 	sites := PlannedPowerSites(p, WindTurbineDefinition)
 	if len(sites) != 2 {
 		t.Fatal(sites)

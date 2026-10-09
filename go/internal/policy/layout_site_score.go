@@ -36,13 +36,13 @@ type siteScore struct {
 
 // SiteCore sites a fresh plan for pawns colonists and tombs tomb rooms: grown
 // from each candidate seed over s, keeping the best-scoring result.
-func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier) LayoutPlan {
+func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier TechTier) LayoutPlan {
 	return siteCore(plan, s, pawns, tombs, tier, siteSearchIters)
 }
 
 // siteCore is SiteCore with searchIters local-search operators per searched
 // site (0 skips the search: the replay harness's unsearched baseline).
-func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, searchIters int) LayoutPlan {
+func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier TechTier, searchIters int) LayoutPlan {
 	g := newCoreGrid(plan.Zones, plan.Reservations).withSoil(s)
 	if len(g.core) == 0 {
 		return plan
@@ -111,7 +111,7 @@ func siteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, se
 // siteLevel generates and scores a plan from each seed of the ground g
 // leaves at level, best first, and returns that ground. A level whose
 // obstacles leave no seed returns none.
-func siteLevel(g coreGrid, scorer planScorer, plan LayoutPlan, level obstacleLevel, pawns, tombs int, tier BuildTier) ([]siteScore, coreGrid) {
+func siteLevel(g coreGrid, scorer planScorer, plan LayoutPlan, level obstacleLevel, pawns, tombs int, tier TechTier) ([]siteScore, coreGrid) {
 	lg := g.withObstacles(g.coreObstacles(plan.Zones, level))
 	if len(lg.core) == 0 {
 		return nil, lg

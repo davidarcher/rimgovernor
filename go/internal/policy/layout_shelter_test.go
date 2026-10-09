@@ -39,7 +39,7 @@ func shelterOf(t *testing.T, p LayoutPlan) PlannedRoom {
 }
 
 func TestPlanHoldsOneShelterFiveTilesClearOnOpenGround(t *testing.T) {
-	p := corePlan(coreTestZones(), 3, BuildTierCamp)
+	p := corePlan(coreTestZones(), 3, TechTierCamp)
 	s := shelterOf(t, p)
 	if gap := shelterGapTo(p, s); gap < shelterGap {
 		t.Fatalf("shelter %v is %d tiles from the nearest room, want at least %d", s.Interior, gap, shelterGap)
@@ -58,9 +58,9 @@ func TestPlanHoldsOneShelterFiveTilesClearOnOpenGround(t *testing.T) {
 
 // A replan keeps the shelter it holds and never adds a second.
 func TestGrowKeepsTheOneShelter(t *testing.T) {
-	p := corePlan(coreTestZones(), 3, BuildTierCamp)
+	p := corePlan(coreTestZones(), 3, TechTierCamp)
 	before := shelterOf(t, p)
-	after := shelterOf(t, growPlan(p, 12, 1, BuildTierCamp))
+	after := shelterOf(t, growPlan(p, 12, 1, TechTierCamp))
 	if !before.Same(after) {
 		t.Fatal("shelter moved", before, after)
 	}
@@ -70,7 +70,7 @@ func TestGrowKeepsTheOneShelter(t *testing.T) {
 // leaves no room for the preferred clearance.
 func TestShelterFallbackLadder(t *testing.T) {
 	zones := coreTestZones()
-	open := corePlan(zones, 3, BuildTierCamp)
+	open := corePlan(zones, 3, TechTierCamp)
 	base := open
 	base.Rooms = nil
 	for _, r := range open.Rooms {

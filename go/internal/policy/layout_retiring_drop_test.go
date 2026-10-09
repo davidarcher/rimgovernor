@@ -14,7 +14,7 @@ func TestEmptiedRetiringWingDropsOnlyForGain(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, size := range []int32{80, 120} {
 		s := zoningSurvey(size, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-		camp, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0, 0).Value()
+		camp, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0, 0).Value()
 		if !ok {
 			t.Fatal(size, "no plan")
 		}
@@ -28,11 +28,11 @@ func TestEmptiedRetiringWingDropsOnlyForGain(t *testing.T) {
 			return false
 		}
 		built := RoomGrowth{Fixed: allPins(LayoutPlan{Rooms: old.Rooms})}
-		next, _, _ := ReplanLayoutWithRooms(camp, s, built, 0, 6, 1, BuildTierSpacer, nil, nil)
+		next, _, _ := ReplanLayoutWithRooms(camp, s, built, 0, 6, 1, TechTierSpacer, nil, nil)
 		if !has(next, old) {
 			t.Fatal(size, "a wing with owned beds dropped")
 		}
-		next, _, _ = ReplanLayoutWithRooms(camp, s, built, 0, 6, 1, BuildTierSpacer, nil, map[domain.Cell]bool{old.Corridor.From: true})
+		next, _, _ = ReplanLayoutWithRooms(camp, s, built, 0, 6, 1, TechTierSpacer, nil, map[domain.Cell]bool{old.Corridor.From: true})
 		if !has(next, old) && bedroomCount(next) < min(bedroomCount(camp), 6) {
 			t.Fatal(size, "the retiring wing dropped without housing the colonists", bedroomCount(next))
 		}

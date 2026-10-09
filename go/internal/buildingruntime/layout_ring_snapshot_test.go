@@ -36,8 +36,8 @@ func TestLayoutRingStepIsMasonry(t *testing.T) {
 		}
 	}
 	facts.LayoutPlan = domain.Known(recorded)
-	if tier := styleTier(facts); tier != policy.BuildTierMasonry {
-		t.Fatalf("build tier %v, want Masonry", tier)
+	if tier := styleTier(facts); tier != policy.TechTierMasonry {
+		t.Fatalf("tech tier %v, want Masonry", tier)
 	}
 	var room policy.PlannedRoom
 	for _, candidate := range recorded.Rooms {

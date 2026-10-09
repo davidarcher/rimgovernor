@@ -2,36 +2,36 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// BuildTier is how far the colony's construction technology has come
+// TechTier is how far the colony's construction technology has come
 // (#604): the one ordered fact every layout decision reads instead of
 // research or the faction tech level directly. It is derived from finished
 // research with the player faction's tech level as a floor, because
 // RimWorld never advances a faction's techLevel with research: a tribe that
 // has finished Stonecutting and Electricity still reads Neolithic.
-type BuildTier int
+type TechTier int
 
 const (
-	BuildTierCamp BuildTier = iota
-	BuildTierMasonry
-	BuildTierPowered
-	BuildTierIndustrial
-	BuildTierSpacer
+	TechTierCamp TechTier = iota
+	TechTierMasonry
+	TechTierPowered
+	TechTierIndustrial
+	TechTierSpacer
 )
 
-var buildTierNames = [...]string{"Camp", "Masonry", "Powered", "Industrial", "Spacer"}
+var techTierNames = [...]string{"Camp", "Masonry", "Powered", "Industrial", "Spacer"}
 
-func (t BuildTier) String() string {
-	if t < 0 || int(t) >= len(buildTierNames) {
+func (t TechTier) String() string {
+	if t < 0 || int(t) >= len(techTierNames) {
 		return "Camp"
 	}
-	return buildTierNames[t]
+	return techTierNames[t]
 }
 
 // techLevelRank orders the native TechLevel names a faction def carries;
 // Undefined and anything unrecognised rank unknown.
 var techLevelRank = map[string]int{"Animal": 1, "Neolithic": 2, "Medieval": 3, "Industrial": 4, "Spacer": 5, "Ultra": 6, "Archotech": 7}
 
-// SelectBuildTier derives the build tier from the finished research and the
+// SelectTechTier derives the tech tier from the finished research and the
 // faction tech level. A faction floor satisfies every tier at or below it;
 // research raises the tier above the floor one condition at a time:
 //
@@ -46,51 +46,51 @@ var techLevelRank = map[string]int{"Animal": 1, "Neolithic": 2, "Medieval": 3, "
 //
 // Unknown research or an unknown faction level is an unknown fact; the tier
 // never advances on unknown inputs, and consumers treat unknown as Camp.
-func SelectBuildTier(finished domain.Fact[[]ResearchProjectID], factionLevel domain.Fact[string]) domain.Fact[BuildTier] {
-	tier, _ := buildTier(finished, factionLevel)
+func SelectTechTier(finished domain.Fact[[]ResearchProjectID], factionLevel domain.Fact[string]) domain.Fact[TechTier] {
+	tier, _ := techTier(finished, factionLevel)
 	return tier
 }
 
-// BuildTierEvidence names the condition that satisfied the selected tier
+// TechTierEvidence names the condition that satisfied the selected tier
 // (a research project, or "faction <level>" for a floor); empty for Camp
 // or an unknown tier.
-func BuildTierEvidence(finished domain.Fact[[]ResearchProjectID], factionLevel domain.Fact[string]) string {
-	_, evidence := buildTier(finished, factionLevel)
+func TechTierEvidence(finished domain.Fact[[]ResearchProjectID], factionLevel domain.Fact[string]) string {
+	_, evidence := techTier(finished, factionLevel)
 	return evidence
 }
 
-func buildTier(finished domain.Fact[[]ResearchProjectID], factionLevel domain.Fact[string]) (domain.Fact[BuildTier], string) {
+func techTier(finished domain.Fact[[]ResearchProjectID], factionLevel domain.Fact[string]) (domain.Fact[TechTier], string) {
 	projects, known := finished.Value()
 	level, levelKnown := factionLevel.Value()
 	rank, ranked := techLevelRank[level]
 	if !known || !levelKnown || !ranked {
-		return domain.Unknown[BuildTier](), ""
+		return domain.Unknown[TechTier](), ""
 	}
 	done := map[ResearchProjectID]bool{}
 	for _, id := range projects {
 		done[id] = true
 	}
 	// The floor: the tier the faction level satisfies outright.
-	tier, evidence := BuildTierCamp, ""
+	tier, evidence := TechTierCamp, ""
 	switch {
 	case rank >= techLevelRank["Spacer"]:
-		tier = BuildTierSpacer
+		tier = TechTierSpacer
 	case rank >= techLevelRank["Industrial"]:
-		tier = BuildTierIndustrial
+		tier = TechTierIndustrial
 	case rank >= techLevelRank["Medieval"]:
-		tier = BuildTierMasonry
+		tier = TechTierMasonry
 	}
-	if tier > BuildTierCamp {
+	if tier > TechTierCamp {
 		evidence = "faction " + level
 	}
 	// Research raises the tier above the floor one condition at a time.
-	unlocks := map[BuildTier][]ResearchProjectID{
-		BuildTierMasonry:    {"Stonecutting"},
-		BuildTierPowered:    {"Electricity"},
-		BuildTierIndustrial: {"Machining", "Fabrication"},
-		BuildTierSpacer:     {"AdvancedFabrication"},
+	unlocks := map[TechTier][]ResearchProjectID{
+		TechTierMasonry:    {"Stonecutting"},
+		TechTierPowered:    {"Electricity"},
+		TechTierIndustrial: {"Machining", "Fabrication"},
+		TechTierSpacer:     {"AdvancedFabrication"},
 	}
-	for tier < BuildTierSpacer {
+	for tier < TechTierSpacer {
 		next, raised := tier+1, ""
 		for _, id := range unlocks[next] {
 			if done[id] {

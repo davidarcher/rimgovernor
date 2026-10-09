@@ -44,7 +44,7 @@ func TestMiningFollowsTheLayoutPlanTiers(t *testing.T) {
 // cell and shaft ahead of the ring; a standing room digs only its shaft,
 // and nothing while its back wall is still rock.
 func TestPlannedDig(t *testing.T) {
-	p := PlanUtilities(corePlan(coreTestZones(), 3, BuildTierCamp), UtilityWants{})
+	p := PlanUtilities(corePlan(coreTestZones(), 3, TechTierCamp), UtilityWants{})
 	var freezer PlannedRoom
 	for _, r := range p.Rooms {
 		if r.Role == PlannedFreezer {
@@ -99,7 +99,7 @@ func TestPlannedDig(t *testing.T) {
 // TestRoomDigIncludesFoggedCells: cells the census does not list are fogged
 // mountain and are dug like any rock, while listed non-rock cells are not.
 func TestRoomDigIncludesFoggedCells(t *testing.T) {
-	p := corePlan(utilityTestZones(), 3, BuildTierCamp)
+	p := corePlan(utilityTestZones(), 3, TechTierCamp)
 	var room PlannedRoom
 	for _, r := range p.AllRooms() {
 		room = r

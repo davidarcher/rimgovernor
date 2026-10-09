@@ -27,7 +27,7 @@ func plainScoreSurvey() MapSurvey {
 func scoredPlan(t *testing.T) (LayoutPlan, MapSurvey) {
 	t.Helper()
 	s := plainScoreSurvey()
-	p := corePlan(Zone(s), 3, BuildTierCamp)
+	p := corePlan(Zone(s), 3, TechTierCamp)
 	if len(p.Rooms) == 0 {
 		t.Fatal("no rooms")
 	}

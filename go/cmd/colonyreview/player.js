@@ -162,7 +162,7 @@
       tile('Mean mood', pct(f.mood), moodBad ? 'bad' : '') +
       tile('Food runway', f.food == null ? '–' : num(f.food, 1) + ' d', foodBad ? 'bad' : '') +
       tile('Wealth', f.wealth == null ? '–' : f.wealth.toFixed(0), '') +
-      tile('Build tier', f.tier ? esc(f.tier) : '–', '') +
+      tile('Tech tier', f.tier ? esc(f.tier) : '–', '') +
       tile('In deficit', f.n == null ? '–' : (f.u || []).length, (f.u || []).length ? 'warn' : '') + '</div>';
     if (f.p && f.p.length) {
       h += '<table class="pawns"><tr><th></th><th>Mood</th><th>Food</th></tr>';

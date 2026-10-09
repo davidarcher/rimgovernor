@@ -15,7 +15,7 @@ func outskirtsPlan(rockX int32) LayoutPlan {
 		}
 		return SurveyCell{Walkable: true, Fertility: 1}
 	}))
-	return corePlan(zones, 6, BuildTierCamp)
+	return corePlan(zones, 6, TechTierCamp)
 }
 
 func TestOutskirtsSitedOffTheCoreOnTheSideWithLeastGround(t *testing.T) {

@@ -10,7 +10,7 @@ one honest end-to-end path, and staged fixtures for recovery.
 
 | Claim | Check |
 | --- | --- |
-| Style selection by build tier, unknowns included | `buildingruntime.TestShelterStylePicksByTier` |
+| Style selection by tech tier, unknowns included | `buildingruntime.TestShelterStylePicksByTier` |
 | Every shell stands on its planned room (the shelter on the planned storeroom at every tier), refuses a blocked slot or a missing plan, reuses rock and player walls, marks rock for plan dig and claims matching ruins | `policy` `layout_rooms_test.go` (`TestPlannedLayout…`, `TestShelterStandsOnThePlannedStoreroom`), `buildingruntime.TestRoundsShelterRefusesABlockedPlannedStoreroom`, `…TestExpansionClaimsAMatchingRuinOnItsPlannedRing` |
 | Shape-blind properties of every admitted ring: census-offered ground only, previewed whole, encloses the staged beds with an aisle to spare, opens south off its own shell | `buildingruntime.TestRoundsShelterShellInvariantsAcrossSites` |
 | Bunk rungs before the ring; refused beds fall through to the shell | `buildingruntime` `rounds_shelter_bunks_test.go` |

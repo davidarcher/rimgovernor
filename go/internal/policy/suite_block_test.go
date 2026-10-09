@@ -11,7 +11,7 @@ import (
 // and a target of 50 its floor cannot meet.
 func suiteOwnerCase(t *testing.T) (LayoutPlan, RoomObservation, SleepingObservation, map[string]RoomTarget) {
 	t.Helper()
-	plan := growPlan(corePlan(coreTestZones(), 2, BuildTierCamp), 2, 1, BuildTierCamp, 0.1)
+	plan := growPlan(corePlan(coreTestZones(), 2, TechTierCamp), 2, 1, TechTierCamp, 0.1)
 	i := wingOf(plan.Wings, WingSuites)
 	if i < 0 {
 		t.Fatal("no suite wing")
@@ -30,9 +30,9 @@ func suiteOwnerCase(t *testing.T) (LayoutPlan, RoomObservation, SleepingObservat
 // takes a block's ground.
 func TestSitedSuiteBlockStaysPutAndKeepsItsGround(t *testing.T) {
 	targets := []float64{ImpressivenessDull, ImpressivenessDull}
-	p := growPlan(corePlan(coreTestZones(), 2, BuildTierCamp), 2, 1, BuildTierCamp, targets...)
+	p := growPlan(corePlan(coreTestZones(), 2, TechTierCamp), 2, 1, TechTierCamp, targets...)
 	before := testSuiteWing(t, p)
-	g := growPlan(p, 10, 2, BuildTierCamp, append(targets, ImpressivenessDecent)...)
+	g := growPlan(p, 10, 2, TechTierCamp, append(targets, ImpressivenessDecent)...)
 	after := g.Wings[wingOf(g.Wings, WingSuites)]
 	for i, r := range before.Rooms {
 		if !after.Rooms[i].Same(r) {
@@ -70,7 +70,7 @@ func TestRisingTargetSitesANewSuiteAndKeepsTheBuiltOne(t *testing.T) {
 	if !slices.Equal(suites, []float64{0, 50}) {
 		t.Fatalf("suite targets = %v, want the kept suite and a new one at 50", suites)
 	}
-	grown := growPlan(plan, 2, 1, BuildTierCamp, suites...)
+	grown := growPlan(plan, 2, 1, TechTierCamp, suites...)
 	if grown.SuiteRooms() != 2 {
 		t.Fatalf("suites = %d, want 2", grown.SuiteRooms())
 	}
@@ -105,7 +105,7 @@ func TestSuitesArePlannedInCappedBlocks(t *testing.T) {
 	for i := 0; i < suiteMaxRooms+3; i++ {
 		targets = append(targets, ImpressivenessDull)
 	}
-	p := growPlan(corePlan(coreTestZones(), 4, BuildTierCamp), 4, 1, BuildTierCamp, targets...)
+	p := growPlan(corePlan(coreTestZones(), 4, TechTierCamp), 4, 1, TechTierCamp, targets...)
 	blocks := suiteWings(p.Wings)
 	if p.SuiteRooms() != len(targets) {
 		t.Skipf("only %d of %d suites fit the test core", p.SuiteRooms(), len(targets))
@@ -154,7 +154,7 @@ func TestSuitesArePlannedInCappedBlocks(t *testing.T) {
 		t.Fatal("routes:", err)
 	}
 	// A later claim sites a new block and leaves every sited suite alone.
-	more := growPlan(p, 4, 1, BuildTierCamp, append(append([]float64(nil), make([]float64, len(targets))...), ImpressivenessDecent)...)
+	more := growPlan(p, 4, 1, TechTierCamp, append(append([]float64(nil), make([]float64, len(targets))...), ImpressivenessDecent)...)
 	if more.SuiteRooms() == len(targets)+1 {
 		for _, r := range suites {
 			if !slices.ContainsFunc(more.AllRooms(), r.Same) {

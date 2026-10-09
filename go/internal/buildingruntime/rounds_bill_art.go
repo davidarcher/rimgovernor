@@ -96,7 +96,7 @@ func artDemand(facts observation.ColonyProjection, profiles []policy.PawnProfile
 	if !rk || !ck || !sk || !census.Colony || traits == nil {
 		return policy.NewArtDemand(domain.Unknown[policy.SleepingObservation](), nil, nil, stock, profiles, facts.Facts.Items)
 	}
-	tier, _ := facts.BuildTier.Value()
+	tier, _ := facts.TechTier.Value()
 	return policy.NewArtDemand(facts.Facts.Sleeping, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), policy.FurnitureRooms(rooms, census, facts.Cells), stock, profiles, facts.Facts.Items)
 }
 

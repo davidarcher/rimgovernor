@@ -135,19 +135,19 @@ func plannedSpace(plan InteriorPlan) float64 {
 	return bedroomSpace(plan.Frame.Width, plan.Frame.Depth, blocked)
 }
 
-// The standard room by build tier (#1214): its size, its furniture set, and
+// The standard room by tech tier (#1214): its size, its furniture set, and
 // planned space at or above bedroomMinSpace.
 func TestBedroomStandardRoomByTier(t *testing.T) {
 	cases := []struct {
-		tier BuildTier
+		tier TechTier
 		size [2]int32
 		set  []string
 	}{
-		{BuildTierCamp, [2]int32{3, 4}, []string{"bed", "end_table"}},
-		{BuildTierMasonry, [2]int32{3, 4}, []string{"bed", "end_table"}},
-		{BuildTierPowered, [2]int32{4, 4}, []string{"bed", "end_table", "dresser"}},
-		{BuildTierIndustrial, [2]int32{4, 4}, []string{"bed", "end_table", "dresser"}},
-		{BuildTierSpacer, [2]int32{4, 5}, []string{"bed", "end_table", "dresser"}},
+		{TechTierCamp, [2]int32{3, 4}, []string{"bed", "end_table"}},
+		{TechTierMasonry, [2]int32{3, 4}, []string{"bed", "end_table"}},
+		{TechTierPowered, [2]int32{4, 4}, []string{"bed", "end_table", "dresser"}},
+		{TechTierIndustrial, [2]int32{4, 4}, []string{"bed", "end_table", "dresser"}},
+		{TechTierSpacer, [2]int32{4, 5}, []string{"bed", "end_table", "dresser"}},
 	}
 	for _, c := range cases {
 		size := WingRoomSize(c.tier)

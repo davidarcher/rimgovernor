@@ -99,10 +99,10 @@ func TestCoreGrowPlansATomb(t *testing.T) {
 	if coreRoomSize[PlannedTomb] != [2]int32{5, 5} || containsRole(coreBaseRooms, PlannedTomb) {
 		t.Fatal("the tomb is grown on demand, not a base room")
 	}
-	if p := corePlan(coreTestZones(), 3, BuildTierCamp); p.TombRooms() != 0 {
+	if p := corePlan(coreTestZones(), 3, TechTierCamp); p.TombRooms() != 0 {
 		t.Fatal("a fresh plan holds no tomb", p.TombRooms())
 	}
-	if p := growPlan(corePlan(coreTestZones(), 3, BuildTierCamp), 3, 1, BuildTierCamp); p.TombRooms() != 1 {
+	if p := growPlan(corePlan(coreTestZones(), 3, TechTierCamp), 3, 1, TechTierCamp); p.TombRooms() != 1 {
 		t.Fatal("a dead colonist grows one tomb", p.TombRooms())
 	}
 	if role, ok := PlannedRoleFor(RoomRoleTomb); !ok || role != PlannedTomb {

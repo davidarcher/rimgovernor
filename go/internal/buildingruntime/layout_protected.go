@@ -20,7 +20,7 @@ func planCore(facts observation.ColonyProjection) (domain.Cell, bool) {
 // fieldAnchor is where pens, barns, fields, tombs and waste start their site
 // search: the middle of the first free field-zone run of the layout plan, else
 // the plan's centre (no free run); false until a plan exists. The plan is read
-// at every build tier: gating it on Masonry stacked the pens, barn and
+// at every tech tier: gating it on Masonry stacked the pens, barn and
 // turbines of a Camp colony on the map centre.
 func fieldAnchor(facts observation.ColonyProjection) (domain.Cell, bool) {
 	if plan, ok := facts.LayoutPlan.Value(); ok {

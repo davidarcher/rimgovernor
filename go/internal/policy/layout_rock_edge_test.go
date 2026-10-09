@@ -73,7 +73,7 @@ func TestRockEdgeMapsPlanWalkableAndBuildableLayouts(t *testing.T) {
 	for name, rock := range rockEdgeMaps {
 		t.Run(name, func(t *testing.T) {
 			s := rockEdgeSurvey(rock)
-			sited := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
+			sited := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, TechTierCamp)
 			if len(sited.AllRooms()) == 0 {
 				t.Fatal("site scorer placed no rooms")
 			}
@@ -134,7 +134,7 @@ func TestRockEdgeMapsPlanWalkableAndBuildableLayouts(t *testing.T) {
 func TestRockAcrossTheKillboxCorridorIsDugNotBuiltOn(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := rockEdgeSurvey(rockEdgeMaps["east mountain"])
-	plan := PlanPerimeter(SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp), s)
+	plan := PlanPerimeter(SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, TechTierCamp), s)
 	killbox, region, home, ok := LayoutKillbox(plan, s.Bounds)
 	if !ok {
 		t.Fatal("plan has no killbox opening")

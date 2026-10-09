@@ -16,7 +16,7 @@ func TestPlanCoreOffCentre(t *testing.T) {
 		}
 		return SurveyCell{}
 	}))
-	plan := corePlan(zones, 4, BuildTierCamp)
+	plan := corePlan(zones, 4, TechTierCamp)
 	core, ok := plan.Core()
 	if !ok {
 		t.Fatalf("no core in plan %s", plan.Summary())

@@ -203,7 +203,7 @@ func TestLayoutGrowsAThroneRoomForTheNextTitle(t *testing.T) {
 	projection := observation.ColonyProjection{Identity: observation.Identity{Colony: snapshot.Colony, Map: snapshot.Map, Load: snapshot.Load}}
 	openWindow(&projection, 140)
 	projection.Facts.Colonists = domain.Known(int64(3))
-	projection.BuildTier = domain.Known(policy.BuildTierCamp)
+	projection.TechTier = domain.Known(policy.TechTierCamp)
 	review := func(tick domain.Tick) policy.LayoutPlan {
 		t.Helper()
 		projection.Identity.Tick = tick

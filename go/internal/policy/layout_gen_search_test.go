@@ -18,7 +18,7 @@ func searchFixture(t *testing.T) (coreGrid, planScorer, LayoutPlan, domain.Cell)
 	if !ok {
 		t.Fatal("no seed")
 	}
-	base := g.generateBase(LayoutPlan{Zones: zones}, seed, 12, 1, BuildTierCamp)
+	base := g.generateBase(LayoutPlan{Zones: zones}, seed, 12, 1, TechTierCamp)
 	return g, newPlanScorer(zones, nil, s), base, seed
 }
 
@@ -124,7 +124,7 @@ func TestSiteCoreIsIdenticalAtAnyThreadCount(t *testing.T) {
 	s := courtyardSurvey()
 	run := func(procs int) LayoutPlan {
 		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(procs))
-		return SiteCore(LayoutPlan{Zones: Zone(s)}, s, 5, 1, BuildTierCamp)
+		return SiteCore(LayoutPlan{Zones: Zone(s)}, s, 5, 1, TechTierCamp)
 	}
 	one, many := run(1), run(runtime.NumCPU())
 	if !reflect.DeepEqual(one, many) {

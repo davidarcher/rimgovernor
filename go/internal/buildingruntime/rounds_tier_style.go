@@ -9,19 +9,19 @@ import (
 // Tier-styled buildings (#610): the shell, flooring and lighting planners
 // read their definitions and stuff from policy's tier rules, each
 // f(tier, role, stock) with one stock rung of fallback. Every helper here
-// folds the projection into the rule's inputs: the build tier, the stock
+// folds the projection into the rule's inputs: the tech tier, the stock
 // census, the finished research and whether a powered source runs. An
 // unknown tier reads as Camp, so a colony whose research census has not
 // arrived yet is styled as a Camp and never receives a stone, powered or
 // floored proposal.
 
-// styleTier is the build tier the rules read: the projection's, Camp when
+// styleTier is the tech tier the rules read: the projection's, Camp when
 // unknown.
-func styleTier(facts observation.ColonyProjection) policy.BuildTier {
-	if tier, known := facts.BuildTier.Value(); known {
+func styleTier(facts observation.ColonyProjection) policy.TechTier {
+	if tier, known := facts.TechTier.Value(); known {
 		return tier
 	}
-	return policy.BuildTierCamp
+	return policy.TechTierCamp
 }
 
 // styleStock is the stock census the rules read; an unknown census holds
@@ -85,7 +85,7 @@ func shellStyle(facts observation.ColonyProjection) domain.ShellStyle {
 // before it scores the census: nil at Camp, where no floor is styled.
 func floorStyle(facts observation.ColonyProjection) func(policy.RoomRole) (string, bool) {
 	tier, stock := styleTier(facts), styleStock(facts)
-	if tier < policy.BuildTierMasonry {
+	if tier < policy.TechTierMasonry {
 		return nil
 	}
 	research := policy.FloorStyleFacts{CarpetMaking: styleResearchFinished(facts, "CarpetMaking"), SterileMaterials: styleResearchFinished(facts, "SterileMaterials"), Costs: map[string][]policy.Amount{}}

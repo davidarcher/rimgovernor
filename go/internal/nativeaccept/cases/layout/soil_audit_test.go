@@ -36,7 +36,7 @@ func TestRichSoilBaselinePlan(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := baselineSurvey(t)
 	for _, pawns := range []int{8} {
-		plan, ok := policy.DeriveLayoutPlan(s, pawns, policy.BuildTierCamp, nil, 30, 0).Value()
+		plan, ok := policy.DeriveLayoutPlan(s, pawns, policy.TechTierCamp, nil, 30, 0).Value()
 		if !ok {
 			t.Fatal("no plan")
 		}
@@ -133,7 +133,7 @@ func plusSurvey(n int32) policy.MapSurvey {
 func TestAuditSoilCourtyardPlan(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := plusSurvey(140)
-	plan, ok := policy.DeriveLayoutPlan(s, 8, policy.BuildTierCamp, nil, 30, 0).Value()
+	plan, ok := policy.DeriveLayoutPlan(s, 8, policy.TechTierCamp, nil, 30, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

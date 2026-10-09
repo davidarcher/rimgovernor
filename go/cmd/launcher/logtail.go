@@ -32,7 +32,7 @@ type LogRow struct {
 var infoLogKinds = map[string]bool{
 	"combat_summary": true,
 	"defense_action": true,
-	"colony_stage":   true, "build_tier": true,
+	"colony_stage":   true, "tech_tier": true,
 	"authority": true, "rule": true,
 }
 

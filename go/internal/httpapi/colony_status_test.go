@@ -39,7 +39,7 @@ func TestColonyStatusReadSuccess(t *testing.T) {
 		FoodNutrition: domain.Known(12.5), FoodRunwayDays: domain.Known(2.25), FoodCorpses: 1,
 		Threat:          bridge.ColonyThreat{RaidPoints: domain.Known(120.5), WealthTotal: domain.Known(7400.0), WealthItems: domain.Known(1200.0)},
 		Shrines:         domain.Known([]policy.AncientShrine{{ID: "AncientShrineGroup_1", Sealed: true, Caskets: []policy.ShrineCasket{{EntityID: "c1", HasContents: true}, {EntityID: "c2"}}, BreachWalls: []policy.ShrineBreachWall{{EntityID: "w1"}}}}),
-		PlayerTechLevel: domain.Known("Neolithic"), BuildTier: domain.Known(policy.BuildTierMasonry),
+		PlayerTechLevel: domain.Known("Neolithic"), TechTier: domain.Known(policy.TechTierMasonry),
 		Stockpiles: domain.Known([]policy.StockpileRoleCount{{Role: "general", Zones: 1, Cells: 40, Used: 12}}), ForbiddenSupplies: domain.Known(true),
 		ShrineReadiness: []buildingruntime.ShrineReadinessReport{{Shrine: "AncientShrineGroup_1", Readiness: policy.ShrineReadiness{Reason: policy.ShrineHoldNoTraps, Wall: policy.ShrineBreachWall{EntityID: "w1"}, Squad: []domain.PawnID{"p1", "p2"}, Traps: 1}}},
 		Pawns: []buildingruntime.ColonyStatusPawn{
@@ -52,7 +52,7 @@ func TestColonyStatusReadSuccess(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, r)
 	body := w.Body.String()
-	for _, want := range []string{`"tick":1200`, `"colonists":3`, `"foodRunwayDays":2.25`, `"pendingFoodNutrition":null`, `"foodCorpses":1`, `"raidPoints":120.5`, `"wealthTotal":7400`, `"wealthItems":1200`, `"wealthBuildings":null`, `"wealthPawns":null`, `"playerTechLevel":"Neolithic"`, `"buildTier":"Masonry"`, `"stockpiles":[{"role":"general","zones":1,"cells":40,"used":12}]`, `"forbiddenSupplies":true`, `"shrines":[{"id":"AncientShrineGroup_1","sealed":true,"inHome":false,"caskets":2,"filledCaskets":1,"guardsKnown":false,"guardsAlive":true,"breachWalls":1,"ready":false,"reason":"no_traps","wall":"w1","squad":2,"traps":1}]`, `"downed":1`, `"moodMean":0.4`, `"food":0.1,"share":400,"spent":150,"remaining":250`, `"food":null,"share":400,"spent":null,"remaining":null`, `"id":"p3","label":"Cy","downed":null,"mood":null,"food":null,"share":null,"spent":null,"remaining":null`} {
+	for _, want := range []string{`"tick":1200`, `"colonists":3`, `"foodRunwayDays":2.25`, `"pendingFoodNutrition":null`, `"foodCorpses":1`, `"raidPoints":120.5`, `"wealthTotal":7400`, `"wealthItems":1200`, `"wealthBuildings":null`, `"wealthPawns":null`, `"playerTechLevel":"Neolithic"`, `"techTier":"Masonry"`, `"stockpiles":[{"role":"general","zones":1,"cells":40,"used":12}]`, `"forbiddenSupplies":true`, `"shrines":[{"id":"AncientShrineGroup_1","sealed":true,"inHome":false,"caskets":2,"filledCaskets":1,"guardsKnown":false,"guardsAlive":true,"breachWalls":1,"ready":false,"reason":"no_traps","wall":"w1","squad":2,"traps":1}]`, `"downed":1`, `"moodMean":0.4`, `"food":0.1,"share":400,"spent":150,"remaining":250`, `"food":null,"share":400,"spent":null,"remaining":null`, `"id":"p3","label":"Cy","downed":null,"mood":null,"food":null,"share":null,"spent":null,"remaining":null`} {
 		if w.Code != 200 || !strings.Contains(body, want) {
 			t.Fatal(w.Code, want, body)
 		}

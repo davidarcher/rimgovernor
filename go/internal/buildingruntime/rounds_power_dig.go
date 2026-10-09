@@ -82,7 +82,7 @@ func (r *RoundsBuildingPlanner) digSky(call, epoch context.Context, s excavation
 		return RoundsBuildingResult{}, false, nil
 	}
 	plan, planned := s.facts.LayoutPlan.Value()
-	if tier, ok := s.facts.BuildTier.Value(); !planned || !ok || tier < policy.BuildTierMasonry {
+	if tier, ok := s.facts.TechTier.Value(); !planned || !ok || tier < policy.TechTierMasonry {
 		return RoundsBuildingResult{}, false, nil
 	}
 	taken := map[domain.Cell]bool{}

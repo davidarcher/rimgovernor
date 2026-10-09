@@ -16,7 +16,7 @@ var testHerdFurniture = HerdFurniture{
 
 func herdTestPlan(t *testing.T, animals int) LayoutPlan {
 	t.Helper()
-	core := corePlan(utilityTestZones(), 3, BuildTierCamp)
+	core := corePlan(utilityTestZones(), 3, TechTierCamp)
 	return PlanUtilities(core, UtilityWants{PenAnimals: animals})
 }
 

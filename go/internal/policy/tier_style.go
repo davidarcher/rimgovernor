@@ -2,9 +2,9 @@ package policy
 
 import "sort"
 
-// Tier-styled buildings (#610): each build tier looks different because the
+// Tier-styled buildings (#610): each tech tier looks different because the
 // floor under each room role and the lighting fixture advance with
-// BuildTier, all through existing Core defs and stuff choices. Every rule here is a pure f(tier, role, stock) -> def/stuff with
+// TechTier, all through existing Core defs and stuff choices. Every rule here is a pure f(tier, role, stock) -> def/stuff with
 // one stock fallback: when the tier's rung names a material the colony does
 // not hold, the rung one tier down is tried, and nothing further. A rule
 // never proposes a stuff the colony has none of, so a Camp colony never
@@ -58,11 +58,11 @@ func stoneSuffix(blocks Resource) string {
 
 // oneRungDown tries rung(tier) and, when that rung names nothing the
 // colony holds, rung(tier-1) once; Camp has no rung below it.
-func oneRungDown[T any](tier BuildTier, rung func(BuildTier) (T, bool)) (T, bool) {
+func oneRungDown[T any](tier TechTier, rung func(TechTier) (T, bool)) (T, bool) {
 	if v, ok := rung(tier); ok {
 		return v, true
 	}
-	if tier > BuildTierCamp {
+	if tier > TechTierCamp {
 		return rung(tier - 1)
 	}
 	var zero T
@@ -143,7 +143,7 @@ const SterileTile = "SterileTile"
 // recreation once CarpetMaking is finished and cloth stock allows. Each
 // upgrade falls back one rung to the stone floor, and the stone floor to
 // nothing.
-func FloorDef(tier BuildTier, role RoomRole, stock TierStyleStock, facts FloorStyleFacts) (string, bool) {
+func FloorDef(tier TechTier, role RoomRole, stock TierStyleStock, facts FloorStyleFacts) (string, bool) {
 	class := floorClassOf(role)
 	if class == floorNone {
 		return "", false
@@ -158,18 +158,18 @@ func FloorDef(tier BuildTier, role RoomRole, stock TierStyleStock, facts FloorSt
 		}
 		return "Tile" + stoneSuffix(stone), true
 	}
-	return oneRungDown(tier, func(t BuildTier) (string, bool) {
-		if t < BuildTierMasonry {
+	return oneRungDown(tier, func(t TechTier) (string, bool) {
+		if t < TechTierMasonry {
 			return "", false
 		}
 		switch {
-		case class == floorHospital && t >= BuildTierIndustrial:
+		case class == floorHospital && t >= TechTierIndustrial:
 			if facts.SterileMaterials && facts.affordable(SterileTile, stock) {
 				return SterileTile, true
 			}
 			// Sterile tile unmet: the rung below Industrial is the stone
 			// floor, and Spacer shares Industrial's rung.
-			if t > BuildTierIndustrial {
+			if t > TechTierIndustrial {
 				return stoneFloor()
 			}
 			return "", false
@@ -201,11 +201,11 @@ type LightingStyle struct {
 // sub-cell, or one sun lamp per farm module. A powered rung without power
 // or the steel for a lamp falls back to the torch, and a torch without
 // wood to nothing.
-func PlannedLighting(tier BuildTier, farm bool, stock TierStyleStock, powered bool) (LightingStyle, bool) {
+func PlannedLighting(tier TechTier, farm bool, stock TierStyleStock, powered bool) (LightingStyle, bool) {
 	const torchWood, lampSteel int64 = 20, 20
-	return oneRungDown(tier, func(t BuildTier) (LightingStyle, bool) {
+	return oneRungDown(tier, func(t TechTier) (LightingStyle, bool) {
 		switch {
-		case t >= BuildTierPowered:
+		case t >= TechTierPowered:
 			if !powered || !stock.has("Steel", lampSteel) {
 				return LightingStyle{}, false
 			}
@@ -213,7 +213,7 @@ func PlannedLighting(tier BuildTier, farm bool, stock TierStyleStock, powered bo
 				return LightingStyle{"SunLamp", LightingPerModule}, true
 			}
 			return LightingStyle{"StandingLamp", LightingPerSubCell}, true
-		case t >= BuildTierMasonry:
+		case t >= TechTierMasonry:
 			if farm || !stock.has("WoodLog", torchWood) {
 				return LightingStyle{}, false
 			}

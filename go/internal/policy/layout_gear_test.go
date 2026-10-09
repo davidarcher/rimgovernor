@@ -9,7 +9,7 @@ import (
 )
 
 func gearTestPlan() LayoutPlan {
-	plan := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
+	plan := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, TechTierCamp)
 	plan, _, _ = SiteRoom(plan, nil, PlannedPrison, coreRoomSize[PlannedPrison])
 	return plan
 }

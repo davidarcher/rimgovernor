@@ -46,7 +46,7 @@ func suiteFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 var suiteTraits = map[PawnID]TraitEffects{"a": {Greedy: true}}
 
 func suiteTargetsFor(sleeping SleepingObservation, traits map[PawnID]TraitEffects) map[string]RoomTarget {
-	return RoomQualityTargets(sleeping, traits, BuildTierMasonry, testImpressiveness)
+	return RoomQualityTargets(sleeping, traits, TechTierMasonry, testImpressiveness)
 }
 
 func TestSuiteClaimsQualifyOnlyOutgrownRooms(t *testing.T) {
@@ -122,7 +122,7 @@ func TestSuiteTargetsAddOnlyUnansweredClaims(t *testing.T) {
 	if got := SuiteTargets(plan, rooms, sleeping, claims); !slices.Equal(got, []float64{50, 60}) {
 		t.Fatalf("no suite wing targets = %v", got)
 	}
-	grown := growPlan(corePlan(coreTestZones(), 2, BuildTierCamp), 2, 1, BuildTierCamp, 50)
+	grown := growPlan(corePlan(coreTestZones(), 2, TechTierCamp), 2, 1, TechTierCamp, 50)
 	if grown.SuiteRooms() != 1 {
 		t.Fatalf("grown suites = %d, want 1", grown.SuiteRooms())
 	}

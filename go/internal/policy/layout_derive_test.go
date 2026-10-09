@@ -12,7 +12,7 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(200, open)
-	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 30, 0).Value()
 	if !ok || !plan.Valid() || plan.LayoutOutgrown(3) {
 		t.Fatal(ok, plan.Valid())
 	}
@@ -24,7 +24,7 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 	if sum := plan.Summary(); !strings.Contains(sum, "bedroom:10") || !strings.Contains(sum, "routes=ok") || !strings.Contains(sum, "perimeter_wall:") {
 		t.Fatal(sum)
 	}
-	if _, changed := replanTest(plan, s, 3, 0, BuildTierCamp, nil, nil); changed {
+	if _, changed := replanTest(plan, s, 3, 0, TechTierCamp, nil, nil); changed {
 		t.Fatal("a sound plan replanned")
 	}
 	// The outskirts cluster plans the first tomb from the start (#2185): one
@@ -32,17 +32,17 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 	if plan.TombRooms() != 1 {
 		t.Fatal("the plan holds no first tomb", plan.TombRooms())
 	}
-	if _, changed := replanTest(plan, s, 3, 1, BuildTierCamp, nil, nil); changed {
+	if _, changed := replanTest(plan, s, 3, 1, TechTierCamp, nil, nil); changed {
 		t.Fatal("a dead colonist replanned past the planned tomb")
 	}
-	tombs, changed := replanTest(plan, s, 3, 2, BuildTierCamp, nil, nil)
+	tombs, changed := replanTest(plan, s, 3, 2, TechTierCamp, nil, nil)
 	if !changed || tombs.TombRooms() != 2 || plan.TombRooms() != 1 {
 		t.Fatal("a second dead colonist grew no tomb", changed, tombs.TombRooms())
 	}
-	if again, changed := replanTest(tombs, s, 3, 3, BuildTierCamp, nil, nil); !changed || again.TombRooms() != 3 {
+	if again, changed := replanTest(tombs, s, 3, 3, TechTierCamp, nil, nil); !changed || again.TombRooms() != 3 {
 		t.Fatal("a third dead colonist grew no tomb", changed, again.TombRooms())
 	}
-	grown, changed := replanTest(plan, s, 11, 0, BuildTierCamp, nil, nil)
+	grown, changed := replanTest(plan, s, 11, 0, TechTierCamp, nil, nil)
 	if !changed || grown.LayoutOutgrown(11) {
 		t.Fatal(changed)
 	}
@@ -70,15 +70,15 @@ func TestReplanPerimeterOnDriedGround(t *testing.T) {
 			return c
 		})
 	}
-	plan, ok := DeriveLayoutPlan(survey(false, nil), 3, BuildTierCamp, nil, 30, 0).Value()
+	plan, ok := DeriveLayoutPlan(survey(false, nil), 3, TechTierCamp, nil, 30, 0).Value()
 	if !ok || len(reserved(plan, ReservePerimeterLight)) == 0 || len(reserved(plan, ReserveMoisturePump)) == 0 {
 		t.Fatal("no wooden stretch", ok)
 	}
 	walls := reservedCells(plan, ReservePerimeter)
-	if _, changed := replanTest(plan, survey(false, walls), 3, 0, BuildTierCamp, nil, nil); changed {
+	if _, changed := replanTest(plan, survey(false, walls), 3, 0, TechTierCamp, nil, nil); changed {
 		t.Fatal("standing walls replanned the perimeter")
 	}
-	next, changed := replanTest(plan, survey(true, walls), 3, 0, BuildTierCamp, nil, nil)
+	next, changed := replanTest(plan, survey(true, walls), 3, 0, TechTierCamp, nil, nil)
 	if !changed || len(reserved(next, ReservePerimeterLight)) != 0 || len(reserved(next, ReserveMoisturePump)) != 0 {
 		t.Fatal("dried ground kept its wooden wall", changed)
 	}

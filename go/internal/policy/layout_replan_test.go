@@ -17,7 +17,7 @@ const replanBudget = time.Second
 func replanFixture(t testing.TB) (MapSurvey, LayoutPlan) {
 	t.Helper()
 	s := zoningSurvey(120, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -48,7 +48,7 @@ func replanNeverChangesFixedRooms(t *testing.T) {
 	for seed := int64(1); seed <= 3; seed++ {
 		rng := rand.New(rand.NewSource(seed))
 		s, plan := replanFixture(t)
-		pawns, tier := 3, BuildTierCamp
+		pawns, tier := 3, TechTierCamp
 		fixed := map[Rectangle]fixedRoom{}
 		occupied := map[domain.Cell]bool{}
 		for step := 0; step < 5; step++ {
@@ -56,7 +56,7 @@ func replanNeverChangesFixedRooms(t *testing.T) {
 			case 0:
 				pawns += 1 + rng.Intn(3)
 			case 1:
-				tier = min(tier+1, BuildTierSpacer)
+				tier = min(tier+1, TechTierSpacer)
 			default:
 				// A rock patch, off every fixed room and the plan's hallways.
 				x, z := int32(rng.Intn(110)), int32(rng.Intn(110))
@@ -134,7 +134,7 @@ func TestReplanHysteresisKeepsThePlan(t *testing.T) {
 	t.Cleanup(func() { planWeights.ReplanGain = was })
 	planWeights.ReplanGain = 1 << 30
 	for range 2 {
-		next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: map[Rectangle]bool{}}, 0, 3, 0, BuildTierCamp, nil, nil)
+		next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: map[Rectangle]bool{}}, 0, 3, 0, TechTierCamp, nil, nil)
 		if changed || !reflect.DeepEqual(next, plan) {
 			t.Fatalf("a gain under the threshold changed the plan: %s -> %s", plan.Summary(), next.Summary())
 		}
@@ -154,7 +154,7 @@ func TestReplanAboveThresholdMovesOnlyUnbuiltRooms(t *testing.T) {
 			built[r.Interior] = true
 		}
 	}
-	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: built}, 0, 3, 0, BuildTierCamp, nil, nil)
+	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: built}, 0, 3, 0, TechTierCamp, nil, nil)
 	if !changed {
 		t.Fatal("nothing re-sited")
 	}
@@ -180,7 +180,7 @@ func TestReplanWithUnknownCensusKeepsEveryRoom(t *testing.T) {
 	was := planWeights.ReplanGain
 	t.Cleanup(func() { planWeights.ReplanGain = was })
 	planWeights.ReplanGain = -1 << 30
-	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{}, 0, 3, 0, BuildTierCamp, nil, nil)
+	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{}, 0, 3, 0, TechTierCamp, nil, nil)
 	if changed || !reflect.DeepEqual(next, plan) {
 		t.Fatalf("a plan with an unknown census changed: %s -> %s", plan.Summary(), next.Summary())
 	}
@@ -191,7 +191,7 @@ func TestReplanWithUnknownCensusKeepsEveryRoom(t *testing.T) {
 // replan runs over replanBudget.
 func BenchmarkReplanHourly(b *testing.B) {
 	s := loadSurvey(b, baselineSurveyPath)
-	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0, 0).Value()
 	if !ok {
 		b.Fatal("no plan")
 	}
@@ -204,7 +204,7 @@ func BenchmarkReplanHourly(b *testing.B) {
 	b.ResetTimer()
 	start, n := time.Now(), 0
 	for b.Loop() {
-		ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: built}, 0, 5, 0, BuildTierCamp, nil, nil)
+		ReplanLayoutWithRooms(plan, s, RoomGrowth{Fixed: built}, 0, 5, 0, TechTierCamp, nil, nil)
 		n++
 	}
 	if per := time.Since(start) / time.Duration(n); per > replanBudget {

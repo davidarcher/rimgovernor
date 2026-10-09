@@ -22,7 +22,7 @@ func TestSelectFlooringPrefersTheTierStyle(t *testing.T) {
 	facts.Definitions["TileGranite"] = FloorDefinition{Available: domain.Known(true), Terrain: domain.Known(true), Cleanliness: domain.Known(0.0), Beauty: domain.Known(0.0), Flammability: domain.Known(0.0), PathCost: domain.Known[int32](0), Costs: domain.Known([]Amount{{Resource: "BlocksGranite", Count: 3}})}
 	stock := TierStyleStock{"BlocksGranite": 100, "WoodLog": 100}
 	facts.Stock = domain.Known(map[Resource]int64(stock))
-	facts.Style = func(role RoomRole) (string, bool) { return FloorDef(BuildTierMasonry, role, stock, FloorStyleFacts{}) }
+	facts.Style = func(role RoomRole) (string, bool) { return FloorDef(TechTierMasonry, role, stock, FloorStyleFacts{}) }
 	proposal, err := SelectFlooringMethod(review, facts, p)
 	if err != nil || proposal.Method != FlooringBuild || proposal.Definition != "TileGranite" || proposal.Room != "kitchen" || len(proposal.Cells) != 6 {
 		t.Fatal(proposal, err)
@@ -43,7 +43,7 @@ func TestSelectFlooringPrefersTheTierStyle(t *testing.T) {
 	facts.Definitions[Carpet] = FloorDefinition{Available: domain.Known(true), Terrain: domain.Known(true), Cleanliness: domain.Known(0.0), Beauty: domain.Known(2.0), Flammability: domain.Known(1.0), PathCost: domain.Known[int32](0), Costs: domain.Known([]Amount{{Resource: "Cloth", Count: 7}})}
 	facts.Stock = domain.Known(map[Resource]int64{"BlocksGranite": 100, "WoodLog": 100, "Cloth": 100})
 	facts.Style = func(role RoomRole) (string, bool) {
-		return FloorDef(BuildTierMasonry, role, TierStyleStock{"BlocksGranite": 100, "Cloth": 100}, FloorStyleFacts{CarpetMaking: true, Costs: floorCosts})
+		return FloorDef(TechTierMasonry, role, TierStyleStock{"BlocksGranite": 100, "Cloth": 100}, FloorStyleFacts{CarpetMaking: true, Costs: floorCosts})
 	}
 	p.Floors = append(p.Floors, Carpet)
 	review.Deficits = review.Deficits[1:] // the bedroom next

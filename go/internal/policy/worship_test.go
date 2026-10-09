@@ -68,7 +68,7 @@ func TestGrowWorshipRoomAddsOneAndKeepsTheRest(t *testing.T) {
 	need, _ := WorshipRoomNeed(worshipIdeoligion())
 	defs := furnitureDefs(map[string]Bounds{"TestAltar": {Width: 1, Height: 2}, "TestIdeogram": {Width: 1, Height: 1}})
 	shape, _ := need.shape(defs)
-	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
+	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, TechTierCamp)
 	grown, added, _ := growChildRoom(base, shape, nil)
 	if !added || len(grown.Rooms) != len(base.Rooms)+1 {
 		t.Fatalf("added=%v rooms %d -> %d", added, len(base.Rooms), len(grown.Rooms))

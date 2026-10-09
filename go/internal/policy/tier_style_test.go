@@ -38,34 +38,34 @@ func TestFloorDefTable(t *testing.T) {
 	sterile := FloorStyleFacts{SterileMaterials: true, Costs: floorCosts}
 	cases := []struct {
 		name  string
-		tier  BuildTier
+		tier  TechTier
 		role  RoomRole
 		stock TierStyleStock
 		facts FloorStyleFacts
 		want  string
 		ok    bool
 	}{
-		{"camp never floors", BuildTierCamp, RoomRoleBedroom, fullStock, FloorStyleFacts{CarpetMaking: true, SterileMaterials: true, Costs: floorCosts}, "", false},
-		{"masonry aisle flagstone", BuildTierMasonry, RoomRoleNone, stoneStock, FloorStyleFacts{}, "FlagstoneGranite", true},
-		{"masonry storage flagstone", BuildTierMasonry, RoomRoleStoreroom, stoneStock, FloorStyleFacts{}, "FlagstoneGranite", true},
-		{"masonry bedroom tile", BuildTierMasonry, RoomRoleBedroom, stoneStock, FloorStyleFacts{}, "TileGranite", true},
-		{"masonry dining tile", BuildTierMasonry, RoomRoleDiningRoom, stoneStock, FloorStyleFacts{}, "TileGranite", true},
-		{"masonry workshop tile", BuildTierMasonry, RoomRoleWorkshop, stoneStock, FloorStyleFacts{}, "TileGranite", true},
-		{"masonry hospital tile", BuildTierMasonry, RoomRoleHospital, stoneStock, sterile, "TileGranite", true},
-		{"masonry without blocks falls to nothing", BuildTierMasonry, RoomRoleBedroom, campStock, FloorStyleFacts{}, "", false},
-		{"masonry tomb unfloored", BuildTierMasonry, RoomRoleTomb, stoneStock, FloorStyleFacts{}, "", false},
-		{"masonry carpet with cloth", BuildTierMasonry, RoomRoleBedroom, steelStock, carpet, Carpet, true},
-		{"masonry recreation carpet", BuildTierMasonry, RoomRoleRecRoom, steelStock, carpet, Carpet, true},
-		{"masonry carpet without cloth falls to tile", BuildTierMasonry, RoomRoleBedroom, stoneStock, carpet, "TileGranite", true},
-		{"masonry carpet never in dining", BuildTierMasonry, RoomRoleDiningRoom, steelStock, carpet, "TileGranite", true},
-		{"powered stone", BuildTierPowered, RoomRoleKitchen, stoneStock, FloorStyleFacts{}, "TileGranite", true},
-		{"industrial sterile hospital", BuildTierIndustrial, RoomRoleHospital, steelStock, sterile, "SterileTile", true},
-		{"industrial hospital without research falls to tile", BuildTierIndustrial, RoomRoleHospital, steelStock, FloorStyleFacts{}, "TileGranite", true},
-		{"industrial hospital without silver falls to tile", BuildTierIndustrial, RoomRoleHospital, tierStock("BlocksGranite", 50, "Steel", 50), sterile, "TileGranite", true},
-		{"industrial hospital without any stock", BuildTierIndustrial, RoomRoleHospital, campStock, sterile, "", false},
-		{"spacer sterile", BuildTierSpacer, RoomRoleHospital, fullStock, sterile, "SterileTile", true},
-		{"spacer hospital unmet falls to tile", BuildTierSpacer, RoomRoleHospital, stoneStock, sterile, "TileGranite", true},
-		{"spacer aisle flagstone", BuildTierSpacer, RoomRoleNone, fullStock, FloorStyleFacts{}, "FlagstoneGranite", true},
+		{"camp never floors", TechTierCamp, RoomRoleBedroom, fullStock, FloorStyleFacts{CarpetMaking: true, SterileMaterials: true, Costs: floorCosts}, "", false},
+		{"masonry aisle flagstone", TechTierMasonry, RoomRoleNone, stoneStock, FloorStyleFacts{}, "FlagstoneGranite", true},
+		{"masonry storage flagstone", TechTierMasonry, RoomRoleStoreroom, stoneStock, FloorStyleFacts{}, "FlagstoneGranite", true},
+		{"masonry bedroom tile", TechTierMasonry, RoomRoleBedroom, stoneStock, FloorStyleFacts{}, "TileGranite", true},
+		{"masonry dining tile", TechTierMasonry, RoomRoleDiningRoom, stoneStock, FloorStyleFacts{}, "TileGranite", true},
+		{"masonry workshop tile", TechTierMasonry, RoomRoleWorkshop, stoneStock, FloorStyleFacts{}, "TileGranite", true},
+		{"masonry hospital tile", TechTierMasonry, RoomRoleHospital, stoneStock, sterile, "TileGranite", true},
+		{"masonry without blocks falls to nothing", TechTierMasonry, RoomRoleBedroom, campStock, FloorStyleFacts{}, "", false},
+		{"masonry tomb unfloored", TechTierMasonry, RoomRoleTomb, stoneStock, FloorStyleFacts{}, "", false},
+		{"masonry carpet with cloth", TechTierMasonry, RoomRoleBedroom, steelStock, carpet, Carpet, true},
+		{"masonry recreation carpet", TechTierMasonry, RoomRoleRecRoom, steelStock, carpet, Carpet, true},
+		{"masonry carpet without cloth falls to tile", TechTierMasonry, RoomRoleBedroom, stoneStock, carpet, "TileGranite", true},
+		{"masonry carpet never in dining", TechTierMasonry, RoomRoleDiningRoom, steelStock, carpet, "TileGranite", true},
+		{"powered stone", TechTierPowered, RoomRoleKitchen, stoneStock, FloorStyleFacts{}, "TileGranite", true},
+		{"industrial sterile hospital", TechTierIndustrial, RoomRoleHospital, steelStock, sterile, "SterileTile", true},
+		{"industrial hospital without research falls to tile", TechTierIndustrial, RoomRoleHospital, steelStock, FloorStyleFacts{}, "TileGranite", true},
+		{"industrial hospital without silver falls to tile", TechTierIndustrial, RoomRoleHospital, tierStock("BlocksGranite", 50, "Steel", 50), sterile, "TileGranite", true},
+		{"industrial hospital without any stock", TechTierIndustrial, RoomRoleHospital, campStock, sterile, "", false},
+		{"spacer sterile", TechTierSpacer, RoomRoleHospital, fullStock, sterile, "SterileTile", true},
+		{"spacer hospital unmet falls to tile", TechTierSpacer, RoomRoleHospital, stoneStock, sterile, "TileGranite", true},
+		{"spacer aisle flagstone", TechTierSpacer, RoomRoleNone, fullStock, FloorStyleFacts{}, "FlagstoneGranite", true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -80,24 +80,24 @@ func TestFloorDefTable(t *testing.T) {
 func TestModuleLightingTable(t *testing.T) {
 	cases := []struct {
 		name    string
-		tier    BuildTier
+		tier    TechTier
 		farm    bool
 		stock   TierStyleStock
 		powered bool
 		want    LightingStyle
 		ok      bool
 	}{
-		{"camp unlit", BuildTierCamp, false, fullStock, true, LightingStyle{}, false},
-		{"masonry torch per module", BuildTierMasonry, false, campStock, false, LightingStyle{"TorchLamp", LightingPerModule}, true},
-		{"masonry torch without wood", BuildTierMasonry, false, tierStock("BlocksGranite", 50), false, LightingStyle{}, false},
-		{"masonry farm unlit", BuildTierMasonry, true, campStock, false, LightingStyle{}, false},
-		{"powered lamp per sub-cell", BuildTierPowered, false, steelStock, true, LightingStyle{"StandingLamp", LightingPerSubCell}, true},
-		{"powered farm sun lamp", BuildTierPowered, true, steelStock, true, LightingStyle{"SunLamp", LightingPerModule}, true},
-		{"powered without power falls to torch", BuildTierPowered, false, steelStock, false, LightingStyle{"TorchLamp", LightingPerModule}, true},
-		{"powered without steel falls to torch", BuildTierPowered, false, stoneStock, true, LightingStyle{"TorchLamp", LightingPerModule}, true},
-		{"powered farm without power unlit", BuildTierPowered, true, steelStock, false, LightingStyle{}, false},
-		{"industrial lamp", BuildTierIndustrial, false, steelStock, true, LightingStyle{"StandingLamp", LightingPerSubCell}, true},
-		{"spacer sun lamp", BuildTierSpacer, true, fullStock, true, LightingStyle{"SunLamp", LightingPerModule}, true},
+		{"camp unlit", TechTierCamp, false, fullStock, true, LightingStyle{}, false},
+		{"masonry torch per module", TechTierMasonry, false, campStock, false, LightingStyle{"TorchLamp", LightingPerModule}, true},
+		{"masonry torch without wood", TechTierMasonry, false, tierStock("BlocksGranite", 50), false, LightingStyle{}, false},
+		{"masonry farm unlit", TechTierMasonry, true, campStock, false, LightingStyle{}, false},
+		{"powered lamp per sub-cell", TechTierPowered, false, steelStock, true, LightingStyle{"StandingLamp", LightingPerSubCell}, true},
+		{"powered farm sun lamp", TechTierPowered, true, steelStock, true, LightingStyle{"SunLamp", LightingPerModule}, true},
+		{"powered without power falls to torch", TechTierPowered, false, steelStock, false, LightingStyle{"TorchLamp", LightingPerModule}, true},
+		{"powered without steel falls to torch", TechTierPowered, false, stoneStock, true, LightingStyle{"TorchLamp", LightingPerModule}, true},
+		{"powered farm without power unlit", TechTierPowered, true, steelStock, false, LightingStyle{}, false},
+		{"industrial lamp", TechTierIndustrial, false, steelStock, true, LightingStyle{"StandingLamp", LightingPerSubCell}, true},
+		{"spacer sun lamp", TechTierSpacer, true, fullStock, true, LightingStyle{"SunLamp", LightingPerModule}, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

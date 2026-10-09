@@ -71,7 +71,7 @@ func TestEndedRoomRolesNeedKnownFacts(t *testing.T) {
 func TestReplanRetiresUnbuiltEndedRooms(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 30, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -85,7 +85,7 @@ func TestReplanRetiresUnbuiltEndedRooms(t *testing.T) {
 	}
 	count := func(p LayoutPlan, role PlannedRole) int { return len(p.roomsOf(role)) }
 	replan := func(g RoomGrowth) LayoutPlan {
-		next, _, _ := ReplanLayoutWithRooms(plan, s, g, 0, 3, 1, BuildTierCamp, nil, nil)
+		next, _, _ := ReplanLayoutWithRooms(plan, s, g, 0, 3, 1, TechTierCamp, nil, nil)
 		return next
 	}
 	for i, role := range roles {

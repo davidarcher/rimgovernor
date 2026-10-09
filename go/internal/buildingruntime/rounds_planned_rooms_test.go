@@ -38,10 +38,10 @@ func ringConstruction(room *policy.PlannedRoom) domain.Fact[policy.CurrentConstr
 
 func TestPlannedRoomOwedAtAnyTierUntilTheRoomStands(t *testing.T) {
 	kitchen := policy.PlannedRoom{Role: policy.PlannedKitchen, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 9}}
-	facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{kitchen}}), Rooms: domain.Known(policy.RoomObservation{Shapes: testPieceShapes}), BuildTier: domain.Known(policy.BuildTierCamp)}
+	facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{kitchen}}), Rooms: domain.Known(policy.RoomObservation{Shapes: testPieceShapes}), TechTier: domain.Known(policy.TechTierCamp)}
 	facts.Facts.CurrentConstruction = ringConstruction(nil)
-	for _, tier := range []policy.BuildTier{policy.BuildTierCamp, policy.BuildTierMasonry} {
-		facts.BuildTier = domain.Known(tier)
+	for _, tier := range []policy.TechTier{policy.TechTierCamp, policy.TechTierMasonry} {
+		facts.TechTier = domain.Known(tier)
 		if r, owed := plannedRoomOwed(facts, policy.PlannedKitchen); !owed || r.Interior != kitchen.Interior {
 			t.Fatal("the planned kitchen is not owed at tier", tier, r, owed)
 		}
@@ -91,7 +91,7 @@ func TestPlannedFacilityFurnishingUsesThePlannedRoom(t *testing.T) {
 			t.Fatal(err)
 		}
 		room := policy.PlannedRoom{Role: tc.planned, Interior: policy.Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 9}}
-		facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}}), BuildTier: domain.Known(policy.BuildTierCamp)}
+		facts := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{Rooms: []policy.PlannedRoom{room}}), TechTier: domain.Known(policy.TechTierCamp)}
 		facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "r", Cells: []domain.Cell{{X: 13, Z: 12}}, Enclosed: domain.Known(true)}}})
 		facts.Facts.CurrentConstruction = ringConstruction(&room)
 		r := &RoundsBuildingPlanner{facility: &facility, definition: "Furniture"}
@@ -99,7 +99,7 @@ func TestPlannedFacilityFurnishingUsesThePlannedRoom(t *testing.T) {
 		if err != nil || done || got == r || got.facility != nil || len(got.cells) != 30 {
 			t.Errorf("%s: furniture did not land in its planned room: done=%v err=%v got=%+v", tc.role, done, err, got)
 		}
-		bare := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{}), Rooms: facts.Rooms, BuildTier: facts.BuildTier}
+		bare := observation.ColonyProjection{LayoutPlan: domain.Known(policy.LayoutPlan{}), Rooms: facts.Rooms, TechTier: facts.TechTier}
 		bare.Facts.CurrentConstruction = ringConstruction(nil)
 		if got, done, err := step(r, bare); err != nil || done || got != r {
 			t.Errorf("%s: planner changed with no planned room: done=%v err=%v", tc.role, done, err)

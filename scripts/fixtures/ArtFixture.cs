@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
     // one artist's (colonist 0, Artistic 8, the other at 3), holds a jade
     // bed, a plant pot, an end table, a dresser and an unpowered lamp, so
     // no lever before the sculpture has anything to add; it stands below the
-    // build tier's impressiveness target with beauty its weakest stat. Room
+    // tech tier's impressiveness target with beauty its weakest stat. Room
     // B, a plain 3x3 with a granite bed, belongs to an Ascetic neighbour: no
     // target, and already the plainest room, so no bedroom swap moves anyone.
     // Jade (a stuff no floor, pot or bed upgrade beats) and a little silver
@@ -111,7 +111,7 @@ namespace HomeBridge.BridgeTools
                 center = new { x = center.x, z = center.z },
                 artist = people[0].ThingID,
                 neighbour = people[1].ThingID,
-                // The build tier's inputs: the target is its baseline.
+                // The tech tier's inputs: the target is its baseline.
                 techLevel = Faction.OfPlayer.def.techLevel.ToString(),
                 research = DefDatabase<ResearchProjectDef>.AllDefsListForReading.Where(r => r.IsFinished).Select(r => r.defName).ToList(),
                 rooms = Rooms(map),

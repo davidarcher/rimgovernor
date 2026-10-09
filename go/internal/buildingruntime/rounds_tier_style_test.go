@@ -9,8 +9,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func styledProjection(tier policy.BuildTier, stock map[policy.Resource]int64, finished ...string) observation.ColonyProjection {
-	p := observation.ColonyProjection{BuildTier: domain.Known(tier), Resources: domain.Known(stock)}
+func styledProjection(tier policy.TechTier, stock map[policy.Resource]int64, finished ...string) observation.ColonyProjection {
+	p := observation.ColonyProjection{TechTier: domain.Known(tier), Resources: domain.Known(stock)}
 	var research policy.ResearchFacts
 	for _, name := range finished {
 		research.Finished = append(research.Finished, policy.ResearchProjectID(name))
@@ -31,7 +31,7 @@ func TestTierStylesFollowTheProjection(t *testing.T) {
 		t.Fatal("unknown tier styled a floor or lamp")
 	}
 	// Masonry: stone floors and a torch.
-	masonry := styledProjection(policy.BuildTierMasonry, stone)
+	masonry := styledProjection(policy.TechTierMasonry, stone)
 	floor := floorStyle(masonry)
 	if floor == nil {
 		t.Fatal("masonry styled no floor")
@@ -47,7 +47,7 @@ func TestTierStylesFollowTheProjection(t *testing.T) {
 	}
 	// Industrial without power: the lamp rule's one rung down is still a
 	// powered rung, so no lamp is styled and the lighting ladder decides.
-	industrial := styledProjection(policy.BuildTierIndustrial, stone, "Autodoors")
+	industrial := styledProjection(policy.TechTierIndustrial, stone, "Autodoors")
 	if lamp := lampStyle(industrial); lamp != "" {
 		t.Fatal(lamp)
 	}
@@ -85,7 +85,7 @@ func shellDefs() []observation.PlanningDefinition {
 }
 
 func shellProjection(stock map[policy.Resource]int64) observation.ColonyProjection {
-	p := styledProjection(policy.BuildTierCamp, stock)
+	p := styledProjection(policy.TechTierCamp, stock)
 	p.Definitions = shellDefs()
 	return p
 }
@@ -138,7 +138,7 @@ func TestShellStyleAutodoor(t *testing.T) {
 	for i := range auto.StuffOptions {
 		auto.StuffOptions[i].Costs = append(auto.StuffOptions[i].Costs, policy.Amount{Resource: "Steel", Count: 40})
 	}
-	p := styledProjection(policy.BuildTierIndustrial, map[policy.Resource]int64{"WoodLog": 1000, "BlocksGranite": 1000, "Steel": 100}, "Autodoors")
+	p := styledProjection(policy.TechTierIndustrial, map[policy.Resource]int64{"WoodLog": 1000, "BlocksGranite": 1000, "Steel": 100}, "Autodoors")
 	p.Definitions = append(shellDefs(), auto)
 	if shell := shellStyle(p); shell.DoorDef != "Door" {
 		t.Fatalf("an Autodoor on an unpowered colony: %+v", shell)

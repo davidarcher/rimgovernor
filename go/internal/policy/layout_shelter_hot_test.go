@@ -35,7 +35,7 @@ func TestHotMapShelterHoldsAPassiveCoolerSlot(t *testing.T) {
 	plans := map[bool]LayoutPlan{}
 	for _, hot := range []bool{false, true} {
 		s.Hot = hot
-		plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0, 0).Value()
+		plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0, 0).Value()
 		if !ok || plan.Hot != hot {
 			t.Fatalf("survey hot=%v: plan ok=%v hot=%v", hot, ok, plan.Hot)
 		}
@@ -59,7 +59,7 @@ func TestHotMapShelterHoldsAPassiveCoolerSlot(t *testing.T) {
 	}
 	hot := plans[true]
 	before := shelterOf(t, hot)
-	if grown := growPlan(hot, 12, 1, BuildTierCamp); !grown.Hot || !before.Same(shelterOf(t, grown)) {
+	if grown := growPlan(hot, 12, 1, TechTierCamp); !grown.Hot || !before.Same(shelterOf(t, grown)) {
 		t.Fatal("a replan resized or re-sited the hot shelter, or lost the latch")
 	}
 }

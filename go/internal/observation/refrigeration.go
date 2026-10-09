@@ -84,7 +84,7 @@ func RefrigerationFacts(projection ColonyProjection, coolers domain.Fact[[]polic
 		result.Blackout = topology.Blackout
 	}
 	if plan, known := projection.LayoutPlan.Value(); known {
-		if tier, ok := projection.BuildTier.Value(); ok && tier >= policy.BuildTierMasonry {
+		if tier, ok := projection.TechTier.Value(); ok && tier >= policy.TechTierMasonry {
 			result.Planned = policy.PlannedCoolerSites(plan)
 		}
 	}

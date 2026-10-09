@@ -41,7 +41,7 @@ func TestCourtyardPlusPatchStaysOneFarmedFieldEnclosedWhole(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := plusSurvey(140, 0)
 	rich := richSet(s)
-	plan, ok := DeriveLayoutPlan(s, 8, BuildTierCamp, nil, 30, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 8, TechTierCamp, nil, 30, 0).Value()
 	if !ok || !plan.Valid() {
 		t.Fatal("no valid plan")
 	}
@@ -96,7 +96,7 @@ func TestCourtyardPatchIsNotYardRoom(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := plusSurvey(140, 0)
 	rich := richSet(s)
-	plan, ok := DeriveLayoutPlan(s, 8, BuildTierCamp, nil, 30, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 8, TechTierCamp, nil, 30, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -132,7 +132,7 @@ func TestCourtyardHundredColonistsCappedAndReachable(t *testing.T) {
 	for i := range targets {
 		targets[i] = 60 + float64(i)
 	}
-	plan := lg.generate(LayoutPlan{Zones: zones}, seed, 100, 1, BuildTierCamp, targets...)
+	plan := lg.generate(LayoutPlan{Zones: zones}, seed, 100, 1, TechTierCamp, targets...)
 	if !plan.Valid() {
 		t.Fatal("invalid")
 	}

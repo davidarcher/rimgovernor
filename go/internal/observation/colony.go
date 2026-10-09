@@ -164,10 +164,10 @@ type ColonyProjection struct {
 	// Packable is the catalog's building defs that pack (minifiedDef, #2103);
 	// empty without a catalog.
 	Packable map[string]bool
-	// BuildTier is the construction tier derived from finished research
+	// TechTier is the construction tier derived from finished research
 	// with PlayerTechLevel as its floor (#604); unknown until a routine
 	// reading served the research census.
-	BuildTier domain.Fact[policy.BuildTier]
+	TechTier domain.Fact[policy.TechTier]
 	// LayoutPlan is the persisted v2 layout (#783), served by the routine
 	// review; unknown until one is derived. layoutAnchor reads it (#785).
 	LayoutPlan domain.Fact[policy.LayoutPlan]
@@ -422,7 +422,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	}
 	r := ColonyProjection{Identity: identity, Bounds: policy.Bounds{Width: int32(v.MapSize.GetWidth()), Height: int32(v.MapSize.GetHeight())}}
 	r.PlayerTechLevel = optional(v.PlayerTechLevel)
-	r.BuildTier = domain.Unknown[policy.BuildTier]()
+	r.TechTier = domain.Unknown[policy.TechTier]()
 	r.Threat = bridge.ProjectColonyThreat(v)
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
 	r.DeliveryLedger = colonyDeliveryLedger(v.DeliveryLedger, v.Context.GetTick())

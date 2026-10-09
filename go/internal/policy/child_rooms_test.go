@@ -274,7 +274,7 @@ func TestNextChildRoomStepWaitsOnTheCatalogAndThePlan(t *testing.T) {
 }
 
 func TestGrowChildRoomAddsOneAndKeepsTheRest(t *testing.T) {
-	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
+	base := growPlan(LayoutPlan{Zones: coreTestZones()}, 6, 1, TechTierCamp)
 	shape := ChildRoomShape{Module: PlannedNursery, Pieces: []PieceCount{{Size: domain.Cell{X: 1, Z: 1}, Count: 4}}}
 	grown, added, _ := growChildRoom(base, shape, nil)
 	if !added || len(grown.Rooms) != len(base.Rooms)+1 {

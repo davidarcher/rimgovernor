@@ -35,8 +35,8 @@ func TestShelterIsSizedByTheLatchedClimate(t *testing.T) {
 	if !ok {
 		t.Fatal("no seed")
 	}
-	cold := g.generate(LayoutPlan{Zones: zones, Cold: true}, seed, 3, 0, BuildTierCamp)
-	warm := g.generate(LayoutPlan{Zones: zones}, seed, 3, 0, BuildTierCamp)
+	cold := g.generate(LayoutPlan{Zones: zones, Cold: true}, seed, 3, 0, TechTierCamp)
+	warm := g.generate(LayoutPlan{Zones: zones}, seed, 3, 0, TechTierCamp)
 	if !cold.Cold || warm.Cold {
 		t.Fatalf("latch cold=%v warm=%v", cold.Cold, warm.Cold)
 	}
@@ -54,7 +54,7 @@ func TestShelterIsSizedByTheLatchedClimate(t *testing.T) {
 		t.Fatal("a cold shelter is no bigger than a normal one")
 	}
 	before := shelterOf(t, cold)
-	grown := growPlan(cold, 12, 1, BuildTierCamp)
+	grown := growPlan(cold, 12, 1, TechTierCamp)
 	if !grown.Cold || !before.Same(shelterOf(t, grown)) {
 		t.Fatal("a replan resized or re-sited the cold shelter, or lost the latch")
 	}
@@ -66,7 +66,7 @@ func TestShelterIsSizedByTheLatchedClimate(t *testing.T) {
 // when no power can run one. The shelter template reserves no cell for it.
 func TestTemperaturePlannerCoolsTheShelter(t *testing.T) {
 	t.Parallel()
-	plan := corePlan(coreTestZones(), 3, BuildTierCamp)
+	plan := corePlan(coreTestZones(), 3, TechTierCamp)
 	shelter := shelterOf(t, plan)
 	in := shelter.Interior
 	walls := pad(in, 1)
@@ -111,7 +111,7 @@ func TestDeriveLatchesTheSurveyClimate(t *testing.T) {
 	s := zoningSurvey(120, open)
 	for _, cold := range []bool{false, true} {
 		s.Cold = cold
-		plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0, 0).Value()
+		plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 0, 0).Value()
 		if !ok || plan.Cold != cold {
 			t.Fatalf("survey cold=%v: plan ok=%v cold=%v", cold, ok, plan.Cold)
 		}

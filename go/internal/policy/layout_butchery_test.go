@@ -5,7 +5,7 @@ import "testing"
 // TestPlanCorePlansButcheryApartFromKitchen: the butchery is grown on demand and
 // that does not crowd the kitchen.
 func TestPlanCorePlansButcheryApartFromKitchen(t *testing.T) {
-	p := corePlan(coreTestZones(), 0, BuildTierCamp)
+	p := corePlan(coreTestZones(), 0, TechTierCamp)
 	p, grown, err := growDemandRooms(p, MapSurvey{}, nil, []PlannedRole{PlannedButchery})
 	if err != nil || !grown {
 		t.Fatalf("butchery grown=%v err=%v", grown, err)

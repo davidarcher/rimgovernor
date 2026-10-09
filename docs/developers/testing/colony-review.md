@@ -61,7 +61,7 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   | `min_food_runway` | lowest food runway, days | 10 days | 3 |
   | `deaths` | colonists lost between readings | none lost (0 at all lost) | 4 |
   | `downed_time` | fraction of readings with a colonist downed | never | 1 |
-  | `stage_days:<tier>` | days to the first reading of each build tier reached | day 0 (0 at 15 days) | 3 shared evenly by the tiers reached |
+  | `stage_days:<tier>` | days to the first reading of each tech tier reached | day 0 (0 at 15 days) | 3 shared evenly by the tiers reached |
   | `raid_damage` | unknown: the timeline records none yet | | 2 |
 - **Previous-night comparison** `report -baselines <dir of earlier run dirs>`
   adds `delta` to `run.json` and a section to the run page: this run's

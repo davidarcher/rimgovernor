@@ -25,7 +25,7 @@ const (
 
 // retireWings marks every bedroom wing whose rooms are smaller than tier's
 // WingRoomSize Retiring (#1219); the next wing sited takes the new size.
-func retireWings(wings []Wing, tier BuildTier) []Wing {
+func retireWings(wings []Wing, tier TechTier) []Wing {
 	want := WingRoomSize(tier)
 	var out []Wing
 	for _, w := range wings {
@@ -51,11 +51,11 @@ type Wing struct {
 // width along the corridor, depth away from it. Camp and Masonry rooms are
 // 3x4, Powered and Industrial 4x4, Spacer 4x5. A new wing takes the
 // current tier's size; an existing wing keeps the size of its rooms.
-func WingRoomSize(tier BuildTier) [2]int32 {
+func WingRoomSize(tier TechTier) [2]int32 {
 	switch {
-	case tier >= BuildTierSpacer:
+	case tier >= TechTierSpacer:
 		return [2]int32{4, 5}
-	case tier >= BuildTierPowered:
+	case tier >= TechTierPowered:
 		return [2]int32{4, 4}
 	}
 	return [2]int32{3, 4}
@@ -108,7 +108,7 @@ type wingFrame struct {
 // A wing is horizontal when its corridor runs along X.
 func frameOf(w Wing) wingFrame {
 	c := w.Corridor
-	f := wingFrame{sign: 1, size: WingRoomSize(BuildTierCamp)}
+	f := wingFrame{sign: 1, size: WingRoomSize(TechTierCamp)}
 	if (w.Purpose == WingBedrooms || w.Purpose == WingBedroomsRetiring) && len(w.Rooms) > 0 {
 		in := w.Rooms[0].Interior
 		f.size = [2]int32{in.Height, in.Width}

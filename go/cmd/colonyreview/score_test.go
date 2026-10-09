@@ -23,7 +23,7 @@ func fixtureRows() []Row {
 		}
 		rows = append(rows, Row{Tick: h * 90000, Census: Census{
 			Colonists: &n, FoodRunwayDays: f(float64(8 - h*4/3)), WealthTotal: f(1000 + float64(h)*500/3),
-			MoodMean: f(0.5), BuildTier: s(tier)}})
+			MoodMean: f(0.5), TechTier: s(tier)}})
 	}
 	return rows
 }

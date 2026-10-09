@@ -9,9 +9,9 @@ import (
 // A tier bump retires the smaller wing and sites a new wing at the new
 // size, keeping every old room in place (#1219).
 func TestTierBumpRetiresWingAndSitesNewOne(t *testing.T) {
-	p := corePlan(coreTestZones(), 4, BuildTierCamp)
+	p := corePlan(coreTestZones(), 4, TechTierCamp)
 	old := testBedroomWing(t, p)
-	g := growPlan(p, 4, 1, BuildTierPowered)
+	g := growPlan(p, 4, 1, TechTierPowered)
 	var retiring, active []Wing
 	for _, w := range g.Wings {
 		switch w.Purpose {
@@ -46,7 +46,7 @@ func TestTierBumpRetiresWingAndSitesNewOne(t *testing.T) {
 		t.Fatal("routes:", err)
 	}
 	// The retiring wing stays as it is.
-	for _, w := range growPlan(g, 6, 1, BuildTierPowered).Wings {
+	for _, w := range growPlan(g, 6, 1, TechTierPowered).Wings {
 		if w.Purpose == WingBedroomsRetiring && len(w.Rooms) != len(old.Rooms) {
 			t.Fatal("retiring wing grew", len(w.Rooms))
 		}

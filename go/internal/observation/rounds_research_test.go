@@ -54,8 +54,8 @@ func TestRoundsResearchAndResourceFactsReadTheFrame(t *testing.T) {
 	if _, known := out.Projection.Facts.Research.Value(); known {
 		t.Fatal("research known without a source")
 	}
-	if _, known := out.Projection.BuildTier.Value(); known {
-		t.Fatal("build tier known without a research census")
+	if _, known := out.Projection.TechTier.Value(); known {
+		t.Fatal("tech tier known without a research census")
 	}
 	if rows, known := out.Projection.Facts.Resources.Value(); !known || !reflect.DeepEqual(rows, []policy.Amount{{Resource: "WoodLog", Count: 40}}) {
 		t.Fatal(out.Projection.Facts.Resources)
@@ -70,9 +70,9 @@ func TestRoundsResearchAndResourceFactsReadTheFrame(t *testing.T) {
 	if facts := out.Projection.Facts.Research; !reflect.DeepEqual(facts, domain.Known(want)) {
 		t.Fatal(facts)
 	}
-	// The build tier follows the census (#604): Stonecutting finished on
+	// The tech tier follows the census (#604): Stonecutting finished on
 	// the fixture's Neolithic faction is Masonry, filed with the section.
-	if tier := out.Projection.BuildTier; tier != domain.Known(policy.BuildTierMasonry) || out.Sections.Colony.Value.BuildTier != tier {
-		t.Fatal(tier, out.Sections.Colony.Value.BuildTier)
+	if tier := out.Projection.TechTier; tier != domain.Known(policy.TechTierMasonry) || out.Sections.Colony.Value.TechTier != tier {
+		t.Fatal(tier, out.Sections.Colony.Value.TechTier)
 	}
 }

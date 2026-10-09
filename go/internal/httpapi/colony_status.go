@@ -23,7 +23,7 @@ type ColonyStatus interface {
 // moodMean are derived from the roster (moodMean over the colonists whose
 // mood was readable, null when none was). raidPoints and the wealth split
 // are the census's threat section (#395). playerTechLevel is the faction's
-// native TechLevel name and buildTier the research-derived construction
+// native TechLevel name and techTier the research-derived construction
 // tier (#604), null until a Rounds pass with the research census filed.
 type colonyStatusDTO struct {
 	FoodPlan             *foodPlanDTO      `json:"foodPlan"`
@@ -43,7 +43,7 @@ type colonyStatusDTO struct {
 	WealthBuildings      *float64          `json:"wealthBuildings"`
 	WealthPawns          *float64          `json:"wealthPawns"`
 	PlayerTechLevel      *string           `json:"playerTechLevel"`
-	BuildTier            *string           `json:"buildTier"`
+	TechTier             *string           `json:"techTier"`
 	Shrines              []colonyShrineDTO `json:"shrines"`
 	// Stockpiles counts the owned stockpile zones by role kind and
 	// ForbiddenSupplies is whether starting supplies were still forbidden
@@ -123,9 +123,9 @@ func projectColonyStatus(v buildingruntime.ColonyStatusReport) colonyStatusDTO {
 			out.Stockpiles = append(out.Stockpiles, colonyStockpileDTO{Role: z.Role, Zones: z.Zones, Cells: z.Cells, Used: z.Used})
 		}
 	}
-	if tier, known := v.BuildTier.Value(); known {
+	if tier, known := v.TechTier.Value(); known {
 		name := tier.String()
-		out.BuildTier = &name
+		out.TechTier = &name
 	}
 	if shrines, known := v.Shrines.Value(); known {
 		out.Shrines = []colonyShrineDTO{}

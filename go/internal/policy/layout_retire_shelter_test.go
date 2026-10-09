@@ -22,12 +22,12 @@ func newShelterRetireFixture(t *testing.T) shelterRetireFixture {
 	t.Helper()
 	slowtest.Skip(t, "full layout derive and replan on a 200-cell map; runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	plan, ok := DeriveLayoutPlan(s, 2, BuildTierCamp, nil, 30, 0).Value()
+	plan, ok := DeriveLayoutPlan(s, 2, TechTierCamp, nil, 30, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
 	// The laboratory is demand-grown: a replan asked for it sites it.
-	plan, _, _ = ReplanLayoutWithRooms(plan, s, RoomGrowth{Core: []PlannedRole{PlannedLab}}, 0, 2, 0, BuildTierCamp, nil, nil)
+	plan, _, _ = ReplanLayoutWithRooms(plan, s, RoomGrowth{Core: []PlannedRole{PlannedLab}}, 0, 2, 0, TechTierCamp, nil, nil)
 	f := shelterRetireFixture{plan: plan, survey: s}
 	if shelters := plan.roomsOf(PlannedShelter); len(shelters) == 1 {
 		f.shelter = shelters[0]
@@ -67,7 +67,7 @@ func newShelterRetireFixture(t *testing.T) shelterRetireFixture {
 func (f shelterRetireFixture) replan(t *testing.T, retire bool, inFlight map[Rectangle]bool) (LayoutPlan, bool) {
 	t.Helper()
 	growth := RoomGrowth{RetireShelter: retire, InFlight: inFlight}
-	next, changed, _ := ReplanLayoutWithRooms(f.plan, f.survey, growth, 0, 2, 0, BuildTierCamp, nil, nil)
+	next, changed, _ := ReplanLayoutWithRooms(f.plan, f.survey, growth, 0, 2, 0, TechTierCamp, nil, nil)
 	return next, changed
 }
 
@@ -169,7 +169,7 @@ func TestRetiredShelterGroundIsDemolishedThenDropped(t *testing.T) {
 	if len(next.RetiredGround) != 1 || next.RetiredGround[0] != ground || !next.Valid() {
 		t.Fatalf("retired ground %v, want %v", next.RetiredGround, ground)
 	}
-	again, _, _ := ReplanLayoutWithRooms(next, f.survey, RoomGrowth{}, 0, 2, 0, BuildTierCamp, nil, nil)
+	again, _, _ := ReplanLayoutWithRooms(next, f.survey, RoomGrowth{}, 0, 2, 0, TechTierCamp, nil, nil)
 	if len(again.RetiredGround) != 1 {
 		t.Fatalf("a later replan lost the entry: %v", again.RetiredGround)
 	}

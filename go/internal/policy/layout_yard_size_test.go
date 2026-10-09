@@ -39,7 +39,7 @@ func TestDeriveSizesTheWallFromTheHerd(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	wallBox := func(animals int) (Rectangle, LayoutPlan) {
-		p, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30, animals).Value()
+		p, ok := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 30, animals).Value()
 		if !ok {
 			t.Fatal("no plan")
 		}

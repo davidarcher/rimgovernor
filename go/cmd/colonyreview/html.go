@@ -177,8 +177,8 @@ func frames(rows []Row) []frameDTO {
 		c := r.Census
 		f := frameDTO{Tick: r.Tick, Day: r.Day, Label: r.Label, Shot: r.ColonyShot, Map: r.MapShot, Sample: r.Sampled, Err: c.Error,
 			N: c.Colonists, Mood: c.MoodMean, Food: c.FoodRunwayDays, Wealth: c.WealthTotal, Change: r.Changes, Unmet: [][2]string{}}
-		if c.BuildTier != nil {
-			f.Tier = *c.BuildTier
+		if c.TechTier != nil {
+			f.Tier = *c.TechTier
 		}
 		for _, p := range c.Pawns {
 			f.Pawns = append(f.Pawns, pawnDTO{p.Label, p.Mood, p.Food, p.Downed != nil && *p.Downed})

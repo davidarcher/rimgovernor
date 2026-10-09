@@ -65,11 +65,11 @@ type ColonyStatusReport struct {
 	// Shrines row; empty while the census or its inputs are unknown.
 	ShrineReadiness []ShrineReadinessReport
 	// PlayerTechLevel is the player faction's native TechLevel name and
-	// BuildTier the construction tier the last rounds derived from
+	// TechTier the construction tier the last rounds derived from
 	// it and finished research (#604); the tier is unknown until a review
 	// with the research census has filed.
 	PlayerTechLevel domain.Fact[string]
-	BuildTier       domain.Fact[policy.BuildTier]
+	TechTier        domain.Fact[policy.TechTier]
 	// Stockpiles counts the owned stockpile zones by role kind as the last
 	// rounds read them, and ForbiddenSupplies is whether the loot
 	// census held a safe stack forbidden at the last rounds; both are
@@ -156,7 +156,7 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 		Threat:               bridge.ProjectColonyThreat(observed),
 		Shrines:              domain.Unknown[[]policy.AncientShrine](),
 		PlayerTechLevel:      optionalFact(observed.PlayerTechLevel),
-		BuildTier:            domain.Unknown[policy.BuildTier](),
+		TechTier:             domain.Unknown[policy.TechTier](),
 		Stockpiles:           domain.Unknown[[]policy.StockpileRoleCount](),
 		ForbiddenSupplies:    domain.Unknown[bool](),
 		Pawns:                []ColonyStatusPawn{},
@@ -174,7 +174,7 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 			b, bk := decoded.NativeGeneration.Value()
 			if ak && bk && a == b {
 				shares = held.Value.Facts.PersonalShares
-				report.BuildTier = held.Value.BuildTier
+				report.TechTier = held.Value.TechTier
 				report.FoodPlan = held.Value.Facts.FoodPlan
 				report.ForbiddenSupplies = forbiddenSupplies(held.Value.Facts.EventLoot)
 				report.Stockpiles = held.Value.Facts.StockpileZones

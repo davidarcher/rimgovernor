@@ -18,7 +18,7 @@ func TestFieldLedgerRichSoilToHighestDemand(t *testing.T) {
 	hay := policy.CropChoice{Name: "Plant_Haygrass", Edible: domain.Known(false), FertilityMin: domain.Known(0.5)}
 	run := func(ricePriority, hayPriority int) (riceRich, hayRich int) {
 		plan := policy.LayoutPlan{Zones: []policy.LayoutZone{{Kind: policy.ZoneField}}}
-		facts := observation.ColonyProjection{BuildTier: domain.Known(policy.BuildTierCamp)}
+		facts := observation.ColonyProjection{TechTier: domain.Known(policy.TechTierCamp)}
 		rich := map[domain.Cell]bool{}
 		for z := int32(0); z < 20; z++ {
 			plan.Zones[0].Runs = append(plan.Zones[0].Runs, policy.RowRun{Z: z, X: 0, Length: 40})
@@ -74,7 +74,7 @@ func TestFieldBlockFarmsCourtyardPatch(t *testing.T) {
 		return (x >= 60 && x < 80 && z >= 66 && z < 74) || (x >= 66 && x < 74 && z >= 60 && z < 80)
 	}
 	s := policy.MapSurvey{Bounds: policy.Bounds{Width: n, Height: n}}
-	facts := observation.ColonyProjection{BuildTier: domain.Known(policy.BuildTierCamp)}
+	facts := observation.ColonyProjection{TechTier: domain.Known(policy.TechTierCamp)}
 	rich := map[domain.Cell]bool{}
 	for z := int32(0); z < n; z++ {
 		for x := int32(0); x < n; x++ {
@@ -88,7 +88,7 @@ func TestFieldBlockFarmsCourtyardPatch(t *testing.T) {
 			facts.Cells = append(facts.Cells, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(f)})
 		}
 	}
-	plan, ok := policy.DeriveLayoutPlan(s, 8, policy.BuildTierCamp, nil, 30, 0).Value()
+	plan, ok := policy.DeriveLayoutPlan(s, 8, policy.TechTierCamp, nil, 30, 0).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -111,7 +111,7 @@ func blockFacts() observation.ColonyProjection {
 		{Kind: policy.ZoneField, Runs: []policy.RowRun{{Z: 0, X: 0, Length: 4}, {Z: 1, X: 0, Length: 4}}},
 		{Kind: policy.ZoneField, Runs: []policy.RowRun{{Z: 0, X: 6, Length: 4}, {Z: 1, X: 6, Length: 4}}},
 	}}
-	facts := observation.ColonyProjection{BuildTier: domain.Known(policy.BuildTierCamp), LayoutPlan: domain.Known(plan)}
+	facts := observation.ColonyProjection{TechTier: domain.Known(policy.TechTierCamp), LayoutPlan: domain.Known(plan)}
 	for z := int32(0); z < 2; z++ {
 		for x := int32(0); x < 10; x++ {
 			facts.Cells = append(facts.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(1.0)})
@@ -125,7 +125,7 @@ func blockFacts() observation.ColonyProjection {
 // demand grows one zone in place and leaves the others (#1283).
 func TestFieldPatchCropBlocksByDemand(t *testing.T) {
 	plan := policy.LayoutPlan{Zones: []policy.LayoutZone{{Kind: policy.ZoneField}}}
-	facts := observation.ColonyProjection{BuildTier: domain.Known(policy.BuildTierCamp)}
+	facts := observation.ColonyProjection{TechTier: domain.Known(policy.TechTierCamp)}
 	for z := int32(0); z < 30; z++ {
 		plan.Zones[0].Runs = append(plan.Zones[0].Runs, policy.RowRun{Z: z, X: 0, Length: 40})
 		for x := int32(0); x < 40; x++ {

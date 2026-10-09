@@ -13,13 +13,13 @@ func TestDeriveLayoutPlanGeothermal(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(200, open)
-	base, _ := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30, 0).Value()
+	base, _ := DeriveLayoutPlan(s, 3, TechTierCamp, nil, 30, 0).Value()
 	mid := base.Spine[0].From
 	for dz := int32(14); dz <= 40; dz += 2 {
 		for _, sign := range []int32{1, -1} {
 			at := domain.Cell{X: mid.X, Z: mid.Z + sign*dz}
 			g := PowerGeyser{ID: "g", Cell: at, Cells: []domain.Cell{at, {X: at.X + 1, Z: at.Z}, {X: at.X, Z: at.Z + 1}, {X: at.X + 1, Z: at.Z + 1}}}
-			plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, []PowerGeyser{g}, 30, 0).Value()
+			plan, ok := DeriveLayoutPlan(s, 3, TechTierCamp, []PowerGeyser{g}, 30, 0).Value()
 			if !ok {
 				t.Fatal("no plan")
 			}
@@ -74,12 +74,12 @@ func TestPlannedRoomsKeepOffGeysers(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(200, open)
-	base, _ := DeriveLayoutPlan(s, 5, BuildTierCamp, nil, 30, 0).Value()
+	base, _ := DeriveLayoutPlan(s, 5, TechTierCamp, nil, 30, 0).Value()
 	for _, r := range base.AllRooms() {
 		at := domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}
 		g := []PowerGeyser{{ID: "g", Cell: at, Cells: []domain.Cell{at, {X: at.X + 1, Z: at.Z}, {X: at.X, Z: at.Z + 1}, {X: at.X + 1, Z: at.Z + 1}}}}
 		vents := geothermalCells(geyserFootprints(g))
-		plan, ok := DeriveLayoutPlan(s, 5, BuildTierCamp, g, 30, 0).Value()
+		plan, ok := DeriveLayoutPlan(s, 5, TechTierCamp, g, 30, 0).Value()
 		if !ok {
 			t.Fatalf("no plan with a geyser under %s", r.Role)
 		}
@@ -88,7 +88,7 @@ func TestPlannedRoomsKeepOffGeysers(t *testing.T) {
 				t.Fatalf("fresh plan: %s covers the geyser at %v", room.Role, at)
 			}
 		}
-		next, changed := replanTest(base, s, 5, 1, BuildTierCamp, g, nil)
+		next, changed := replanTest(base, s, 5, 1, TechTierCamp, g, nil)
 		if !changed {
 			t.Fatalf("replan kept %s over the geyser at %v", r.Role, at)
 		}

@@ -90,7 +90,7 @@ the first native protective effect.
 |---|---|
 | `rounds_review` | event row. `revision`, `previous_revision`, `concerns`, `emergency`, the stage and food attrs of `roundsStageAttrs` and `roundsFoodAttrs` |
 | `colony_stage` | event row. `stage`, `since`, `blocker`, `reason`, `held` |
-| `build_tier` | event row. `tier`, `evidence` |
+| `tech_tier` | event row. `tier`, `evidence` |
 | `layout_plan` (decision) | `verdict` `planned`/`replanned`/`claimed`/`refused` (`reason` `no_room`: a replan left rooms unplaced, attr `unplaced`, once per distinct set), `reason` replan reason, attrs `colonists`, `summary`, `claims`, and on a replan `tomb_short`; `skipped`/`no_core` when the survey holds no core; a suite-claims change is `claimed` with target `suites`. |
 | `layout_edit` (decision) | `target` zone, role, item or building, `verdict` `admitted`/`refused`/`abandoned`/`closed`/`proposed`, `reason` refusal code or detail; attrs `family` (`stockpile`, `field`, `building`), `kind`, `role` (stockpile create/delete),  `plan`, `crop`, `cells`, `moves`, `gain`, `owner`, `x`, `z` |
 | `snapshot_skip` | decision, `WARN`. `target` the snapshot (`colony`, `combat`, `defense`, `layout`, `firebreak`, `shelter`), `verdict` `skipped`, `reason` `not_recorded`; attrs `error`, `tick` |

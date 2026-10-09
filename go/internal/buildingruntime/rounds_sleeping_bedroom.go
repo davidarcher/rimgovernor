@@ -47,7 +47,7 @@ func bedroomTargets(facts observation.ColonyProjection) map[string]policy.RoomTa
 	if !known || traits == nil {
 		return nil
 	}
-	tier, _ := facts.BuildTier.Value()
+	tier, _ := facts.TechTier.Value()
 	return policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)
 }
 

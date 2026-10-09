@@ -72,13 +72,13 @@ func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 }
 
 func TestPlanCore(t *testing.T) {
-	p := corePlan(coreTestZones(), 3, BuildTierCamp)
+	p := corePlan(coreTestZones(), 3, TechTierCamp)
 	checkCore(t, p, 3)
 }
 
 func TestGrowKeepsRooms(t *testing.T) {
-	p := corePlan(coreTestZones(), 3, BuildTierCamp)
-	g := growPlan(p, 12, 1, BuildTierCamp)
+	p := corePlan(coreTestZones(), 3, TechTierCamp)
+	g := growPlan(p, 12, 1, TechTierCamp)
 	checkCore(t, g, 12)
 	for i, r := range p.Rooms {
 		if !g.Rooms[i].Same(r) {
@@ -96,7 +96,7 @@ func TestGrowKeepsRooms(t *testing.T) {
 
 func TestGrowStopsAtEdge(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
-	g := corePlan(coreTestZones(), 500, BuildTierCamp)
+	g := corePlan(coreTestZones(), 500, TechTierCamp)
 	if n := len(g.AllRooms()); n < 20 || n > 500 {
 		t.Fatal("rooms", len(g.AllRooms()))
 	}
@@ -110,7 +110,7 @@ func TestGrowStopsAtEdge(t *testing.T) {
 // The freezer shares a wall with the kitchen: its hallway door takes the
 // haulers, its link door the cook (#819).
 func TestFreezerLinksToTheKitchen(t *testing.T) {
-	p := corePlan(coreTestZones(), 3, BuildTierCamp)
+	p := corePlan(coreTestZones(), 3, TechTierCamp)
 	var kitchen, freezer PlannedRoom
 	for _, r := range p.Rooms {
 		switch r.Role {
@@ -144,7 +144,7 @@ func TestFreezerLinksToTheKitchen(t *testing.T) {
 // (#936), so the meal stockpile can sit in the cold one door from the
 // table; no meal closet is planned then.
 func TestDiningOpensIntoTheFreezer(t *testing.T) {
-	p := corePlan(coreTestZones(), 3, BuildTierCamp)
+	p := corePlan(coreTestZones(), 3, TechTierCamp)
 	var dining PlannedRoom
 	for _, r := range p.Rooms {
 		if r.Role == PlannedDining {
@@ -166,13 +166,13 @@ func TestDiningOpensIntoTheFreezer(t *testing.T) {
 // meal closet behind its back wall, its door in that wall and its cooler
 // site in the closet's own back wall, venting away from the dining room.
 func TestMealClosetBehindTheDiningRoom(t *testing.T) {
-	p := corePlan(coreTestZones(), 3, BuildTierCamp)
+	p := corePlan(coreTestZones(), 3, TechTierCamp)
 	for i := range p.Rooms {
 		if p.Rooms[i].Role == PlannedDining {
 			p.Rooms[i].Link = nil
 		}
 	}
-	grown := growPlan(p, 3, 1, BuildTierCamp)
+	grown := growPlan(p, 3, 1, TechTierCamp)
 	var dining, closet PlannedRoom
 	for _, r := range grown.Rooms {
 		switch r.Role {
@@ -196,7 +196,7 @@ func TestMealClosetBehindTheDiningRoom(t *testing.T) {
 	if closet.Door.Z != back {
 		t.Fatalf("closet %+v is not behind the dining room's back wall %d", closet, back)
 	}
-	if again := growPlan(grown, 3, 1, BuildTierCamp); len(again.Rooms) != len(grown.Rooms) {
+	if again := growPlan(grown, 3, 1, TechTierCamp); len(again.Rooms) != len(grown.Rooms) {
 		t.Fatal("second closet planned")
 	}
 	withExhaust := PlanUtilities(grown, UtilityWants{})
@@ -211,7 +211,7 @@ func TestMealClosetBehindTheDiningRoom(t *testing.T) {
 func TestCoreReservesCentreCrossing(t *testing.T) {
 	// The five base rooms all fit east of the crossing, so demand rooms fill
 	// the hallway out to its west side.
-	p := withRooms(corePlan(coreTestZones(), 3, BuildTierCamp), PlannedHospital, PlannedLab, PlannedTomb)
+	p := withRooms(corePlan(coreTestZones(), 3, TechTierCamp), PlannedHospital, PlannedLab, PlannedTomb)
 	if len(p.Spine) != 2 || alongX(p.Spine[1]) {
 		t.Fatal("spine", p.Spine)
 	}
@@ -234,10 +234,10 @@ func TestCoreReservesCentreCrossing(t *testing.T) {
 func TestGrowBranchesIntoCrossings(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	zones := coreTestZones()
-	p := corePlan(zones, 3, BuildTierCamp)
+	p := corePlan(zones, 3, TechTierCamp)
 	// Bedrooms live in the wing (#1213); tomb rooms fill the hallways.
 	for _, tombs := range []int{10, 20, 30} {
-		g := growPlan(p, 3, tombs, BuildTierCamp)
+		g := growPlan(p, 3, tombs, TechTierCamp)
 		for i, r := range p.Rooms {
 			// A new crossing can give a pass-through room a second door
 			// (addSecondDoors, #1948): the room and the doors it had stay.
@@ -288,7 +288,7 @@ func TestDemandRoomsJoinTheCore(t *testing.T) {
 			}
 			return SurveyCell{Walkable: true, Fertility: 1}
 		}))
-		for _, tier := range []BuildTier{BuildTierCamp, BuildTierPowered} {
+		for _, tier := range []TechTier{TechTierCamp, TechTierPowered} {
 			for _, pawns := range []int{1, 4, 8} {
 				base := growPlan(LayoutPlan{Zones: zones}, pawns, 0, tier)
 				p, grown, err := growDemandRooms(growPlan(base, pawns, 1, tier), MapSurvey{}, nil, demandCoreRooms)

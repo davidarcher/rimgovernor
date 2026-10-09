@@ -143,7 +143,7 @@ func diningAnchor(spine []SpineSegment, rooms []PlannedRoom) domain.Cell {
 // sited by siteBlock. Existing wings are never touched; rooms that do not
 // fit are left out. g is the core before any bedroom wing's ground is
 // carved out of it.
-func (g coreGrid) siteBedWings(spine []SpineSegment, rooms []PlannedRoom, wings []Wing, pawns int, tier BuildTier) ([]SpineSegment, []Wing) {
+func (g coreGrid) siteBedWings(spine []SpineSegment, rooms []PlannedRoom, wings []Wing, pawns int, tier TechTier) ([]SpineSegment, []Wing) {
 	owed := pawns
 	for _, i := range bedroomWings(wings) {
 		owed -= len(wings[i].Rooms)
