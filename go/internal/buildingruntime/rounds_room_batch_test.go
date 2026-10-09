@@ -24,25 +24,19 @@ func (n *pricedNative) PreviewBuilding(ctx context.Context, action domain.Action
 	return preview, raw, err
 }
 
-// batchRooms are three rooms of one wing, each owing a door and three walls.
-func batchRooms() []roomWork {
-	var works []roomWork
-	roles := []policy.PlannedRole{policy.PlannedPen, policy.PlannedWorkshop, policy.PlannedGraveyard}
-	for i := int32(0); i < 3; i++ {
-		x := 1 + 4*i
-		room := policy.PlannedRoom{Role: roles[i], Interior: policy.Rectangle{X: x, Z: 1, Width: 2, Height: 2}, Door: domain.Cell{X: x + 1, Z: 0}, DoorRot: domain.North, Outdoor: true}
-		works = append(works, roomWork{
-			rr: roomReconcile{room: room, name: "wing-" + string(rune('a'+i)), reason: "wing"},
-			ops: []policy.Operation{
-				{Kind: policy.OpWallIn, Cells: []domain.Cell{{X: x - 1, Z: 1}, {X: x - 1, Z: 2}, {X: x + 2, Z: 1}}},
-				{Kind: policy.OpDoorIn, Cells: []domain.Cell{room.Door}},
-			},
-		})
+// ringRoom is one room owing a door and three walls.
+func ringRoom() roomWork {
+	room := policy.PlannedRoom{Role: policy.PlannedPen, Interior: policy.Rectangle{X: 1, Z: 1, Width: 2, Height: 2}, Door: domain.Cell{X: 2, Z: 0}, DoorRot: domain.North, Outdoor: true}
+	return roomWork{
+		rr: roomReconcile{room: room, name: "pen", reason: "pen"},
+		ops: []policy.Operation{
+			{Kind: policy.OpWallIn, Cells: []domain.Cell{{X: 0, Z: 1}, {X: 0, Z: 2}, {X: 3, Z: 1}}},
+			{Kind: policy.OpDoorIn, Cells: []domain.Cell{room.Door}},
+		},
 	}
-	return works
 }
 
-// admittedBuilds commits works with available wood in stock and returns the
+// admittedBuilds commits the room with available wood in stock and returns the
 // buildings of the one method admitted.
 func admittedBuilds(t *testing.T, available int64) []domain.Building {
 	out, _ := admittedActions(t, available)
@@ -92,9 +86,9 @@ func admittedActions(t *testing.T, available int64) ([]domain.Building, []domain
 	player.mu.Lock()
 	epoch := player.epoch
 	player.mu.Unlock()
-	result, err := p.commitBuilds(ctx, epoch, state, review, goal, reading, policy.LayoutPlan{}, batchRooms())
+	result, err := p.commitBuilds(ctx, epoch, state, review, goal, reading, policy.LayoutPlan{}, ringRoom())
 	if err != nil || !result.Decision.Admitted {
-		t.Fatalf("a wing's wave = %v %+v, %v", result.Verdict, result.Decision, err)
+		t.Fatalf("the room wave = %v %+v, %v", result.Verdict, result.Decision, err)
 	}
 	after, err := db.LoadStandard(ctx, concern)
 	if err != nil {
@@ -115,36 +109,28 @@ func admittedActions(t *testing.T, available int64) ([]domain.Building, []domain
 	return out, tiers
 }
 
-// A stocked wing's rooms are one batch: every room's ring is admitted
-// together, doors first across the rooms in plan order, then walls.
-func TestCommitBuildsAdmitsAStockedWingTogether(t *testing.T) {
+// A stocked room's ring is admitted together, the door first, then walls.
+func TestCommitBuildsAdmitsAStockedRoomTogether(t *testing.T) {
 	got := admittedBuilds(t, 100)
-	if len(got) != 12 {
-		t.Fatalf("admitted %d buildings, want the 12 of three rooms", len(got))
+	if len(got) != 4 {
+		t.Fatalf("admitted %d buildings, want the 4 of the room", len(got))
 	}
-	for i, x := range map[int]int32{0: 2, 1: 6, 2: 10} {
-		if got[i].Definition() != "FenceGate" || got[i].Cell().X != x {
-			t.Fatalf("building %d = %s at %v, want the gate at x=%d", i, got[i].Definition(), got[i].Cell(), x)
-		}
+	if got[0].Definition() != "FenceGate" || got[0].Cell().X != 2 {
+		t.Fatalf("building 0 = %s at %v, want the gate at x=2", got[0].Definition(), got[0].Cell())
 	}
 }
 
-// An under-stocked wing is admitted whole all the same: stock does not meter
+// An under-stocked room is admitted whole all the same: stock does not meter
 // admission, and each building carries its room's tier for the native gate.
 func TestCommitBuildsIgnoresStockAndCarriesTiers(t *testing.T) {
 	got, tiers := admittedActions(t, 1)
-	if len(got) != 12 {
-		t.Fatalf("admitted %d buildings, want the 12 of three rooms regardless of stock", len(got))
+	if len(got) != 4 {
+		t.Fatalf("admitted %d buildings, want the 4 of the room regardless of stock", len(got))
 	}
-	byTier := map[domain.ConstructionTier]int{}
+	want := policy.RoomTier(policy.PlannedPen)
 	for _, tier := range tiers {
-		v, known := tier.Value()
-		if !known {
-			t.Fatal("an admitted building carries no tier")
+		if v, known := tier.Value(); !known || v != want {
+			t.Fatalf("an admitted building carries tier %v (known %v), want %v", v, known, want)
 		}
-		byTier[v]++
-	}
-	if byTier[domain.TierComfort] != 4 || byTier[domain.TierProduce] != 4 || byTier[domain.TierExpand] != 4 {
-		t.Fatalf("buildings by tier = %v, want four each of Comfort, Produce, Expand", byTier)
 	}
 }

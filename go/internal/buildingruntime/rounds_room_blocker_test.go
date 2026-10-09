@@ -70,12 +70,12 @@ func commitFurniture(t *testing.T, refuse string) (RoundsBuildingResult, string)
 	player.mu.Unlock()
 	room := policy.PlannedRoom{Role: policy.PlannedPen, Interior: policy.Rectangle{X: 1, Z: 1, Width: 2, Height: 2}, Outdoor: true}
 	piece := policy.WantedPiece{DefName: "PenMarker", Minimum: domain.Cell{X: 1, Z: 1}, Maximum: domain.Cell{X: 1, Z: 1}, Size: domain.Cell{X: 1, Z: 1}, Rot: domain.North}
-	works := []roomWork{{rr: roomReconcile{room: room, name: "kitchen", reason: "kitchen"}, ops: []policy.Operation{{Kind: policy.OpBuild, Pieces: []policy.WantedPiece{piece}}}}}
+	work := roomWork{rr: roomReconcile{room: room, name: "kitchen", reason: "kitchen"}, ops: []policy.Operation{{Kind: policy.OpBuild, Pieces: []policy.WantedPiece{piece}}}}
 	var logs bytes.Buffer
 	old := slog.Default()
 	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
 	defer slog.SetDefault(old)
-	result, err := p.commitBuilds(ctx, epoch, state, review, goal, reading, policy.LayoutPlan{}, works)
+	result, err := p.commitBuilds(ctx, epoch, state, review, goal, reading, policy.LayoutPlan{}, work)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -126,10 +126,10 @@ func (r *RoundsAnimalContainmentPlanner) stagePaddock(call, epoch context.Contex
 		piece := policy.PaddockMarkerPiece(anchor, shape)
 		room := policy.PlannedRoom{Role: policy.PlannedPen, Outdoor: true, Interior: policy.Rectangle{X: piece.Minimum.X, Z: piece.Minimum.Z, Width: piece.Maximum.X - piece.Minimum.X + 1, Height: piece.Maximum.Z - piece.Minimum.Z + 1}}
 		var err error
-		result, err = r.building.commitBuilds(call, epoch, state, review, goal, read, plan, []roomWork{{
+		result, err = r.building.commitBuilds(call, epoch, state, review, goal, read, plan, roomWork{
 			rr:  roomReconcile{room: room, name: "paddock-marker", reason: string(policy.PlannedPen)},
 			ops: []policy.Operation{{Kind: policy.OpBuild, Pieces: []policy.WantedPiece{piece}}},
-		}})
+		})
 		if err != nil || result.Verdict.Refusal.Kind != WaitExistingWork {
 			return RoundsAnimalContainmentResult{Verdict: result.Verdict}, err
 		}

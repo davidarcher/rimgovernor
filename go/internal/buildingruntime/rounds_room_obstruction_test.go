@@ -87,8 +87,8 @@ func TestCommitObstructionsCommitsTheFirstKindOwed(t *testing.T) {
 
 // A held foreign thing names itself in the wait key.
 func TestWaitingHeldNamesTheBlocker(t *testing.T) {
-	works := []roomWork{{holds: []policy.ReconcileHold{{Cell: domain.Cell{X: 4, Z: 5}, Def: "AncientShrine", Reason: "casket"}}}}
-	got := waitingHeld(context.Background(), "kitchen", works).Verdict.Refusal.Subject
+	work := roomWork{holds: []policy.ReconcileHold{{Cell: domain.Cell{X: 4, Z: 5}, Def: "AncientShrine", Reason: "casket"}}}
+	got := waitingHeld(context.Background(), "kitchen", work).Verdict.Refusal.Subject
 	if got != "kitchen_reconcile:held:AncientShrine@4,5:casket" {
 		t.Fatalf("subject = %q", got)
 	}
