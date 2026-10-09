@@ -8,6 +8,7 @@ import (
 
 // TimeAssignmentDef names, as native's timetable reports them.
 const (
+	ScheduleWork     = "Work"
 	ScheduleAnything = "Anything"
 	ScheduleJoy      = "Joy"
 	ScheduleSleep    = "Sleep"

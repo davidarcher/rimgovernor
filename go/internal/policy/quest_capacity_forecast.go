@@ -113,7 +113,7 @@ func QuestDeadlineFeasibility(offer JoinerOffer, f RoundsFacts) QuestSkipReason 
 		}
 		for _, pawn := range eligible {
 			p := byID[pawn.Pawn]
-			scheduled, known := questScheduledHours(p)
+			scheduled, known := p.WorkHoursPerDay().Value()
 			if !known {
 				return "deadline_unknown"
 			}
@@ -209,23 +209,6 @@ func questDeadlineTasks(offer JoinerOffer, now int64) ([]questTimedWork, QuestSk
 		tasks = append(tasks, questTimedWork{deadline, work})
 	}
 	return tasks, ""
-}
-func questScheduledHours(p WorkPawn) (int, bool) {
-	rows, known := p.Schedule.Value()
-	if !known || len(rows) != 24 {
-		return 0, false
-	}
-	n := 0
-	for _, s := range rows {
-		switch s {
-		case "Work", "Anything":
-			n++
-		case "Sleep", "Joy", "Meditate":
-		default:
-			return 0, false
-		}
-	}
-	return n, true
 }
 func questWorkEnabled(p WorkPawn, work WorkType) bool {
 	rows, known := p.Work.Value()

@@ -77,7 +77,7 @@ func (client *Client) ReadGearBenches(ctx context.Context, identity *c.Identity)
 		if err != nil {
 			return nil, raw, err
 		}
-		bench := policy.GearBench{ID: stack.Bench.GetId(), Bills: domain.Known(bills), Recipes: domain.Known(recipes)}
+		bench := policy.GearBench{ID: stack.Bench.GetId(), WorkSpeed: benchWorkSpeed(stack), Bills: domain.Known(bills), Recipes: domain.Known(recipes)}
 		out = append(out, GearBenchRead{Token: stack.Snapshot.GetToken(), Bench: bench})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Bench.ID < out[j].Bench.ID })
@@ -142,12 +142,24 @@ func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity,
 		if recipe.RequiredWork, err = catalog.RecipeWork(recipe.Definition, snapshot.GetBenchDef()); err != nil {
 			return nil, err
 		}
+		if recipe.WorkAmount, err = catalog.RecipeWorkAmount(recipe.Definition); err != nil {
+			return nil, err
+		}
 		if recipe.MechKind, err = catalog.RecipeMechKind(recipe.Definition); err != nil {
 			return nil, err
 		}
 		out = append(out, recipe)
 	}
 	return out, nil
+}
+
+// benchWorkSpeed is the stack's work-table speed factor; unknown when native
+// sent none or a negative one.
+func benchWorkSpeed(stack *o.BillStack) domain.Fact[float64] {
+	if stack.WorkSpeed == nil || stack.GetWorkSpeed() < 0 {
+		return domain.Unknown[float64]()
+	}
+	return domain.Known(stack.GetWorkSpeed())
 }
 
 func gearBillsFromStack(stack *o.BillStack, recipes []policy.GearRecipe, catalog *DefinitionCatalog) ([]policy.GearBill, error) {

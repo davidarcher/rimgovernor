@@ -215,6 +215,13 @@ ignore rest and recreation and wake sleeping pawns. Every
 known timetable is planned, whoever wrote it: a timetable edited under Manual
 is replanned like any other once Auto holds (control-loop.md, Manual control); an unknown timetable (issue `schedule`) is skipped.
 
+`policy.PawnProfile.WorkHours` is the pawn's work hours per day: the count of
+timetable hours assigned to `Work` or `Anything` (`WorkPawn.WorkHoursPerDay`,
+the same count the quest capacity forecast uses). It adds no wire field; it is
+derived from the `schedule` the work read already carries. An unread, non-24-hour
+or unclassifiable timetable leaves it unknown, never a default. Nothing acts on
+it yet; the production rate model (#2590) reads it as worker-hours.
+
 The work review sends a mismatching timetable in the pawn's
 `WorkSettingsIntent` (`domain.NewScheduleAssignment`, `Schedule.assignment_defs`
 all 24 hours, `SettingsField.Schedule` in the applied result) together with the

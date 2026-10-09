@@ -645,7 +645,8 @@ message BillState {
   repeated IngredientReservation reservations = 27;
 }
 message IngredientReservation { optional string pawn_id = 1; repeated Quantity items = 2; }
-message BillStack { SnapshotRef snapshot = 1; rimgovernor.common.v1.Ref bench = 2; optional bool usable = 3; optional BenchUnusableReason unusable_reason = 4; optional uint32 capacity = 5; repeated BillState bills = 6; }
+// work_speed is the bench's WorkTableWorkSpeedFactor stat as the game computes it now (stat parts included); absent when the bench has no such stat.
+message BillStack { SnapshotRef snapshot = 1; rimgovernor.common.v1.Ref bench = 2; optional bool usable = 3; optional BenchUnusableReason unusable_reason = 4; optional uint32 capacity = 5; repeated BillState bills = 6; optional double work_speed = 7; }
 // What a recipe is, costs and needs is its RecipeDef row in the definition catalog; a frame carries only whether the bench offers it now.
 message RecipeState {
   DefinitionRef recipe = 1; optional bool available_now = 2; optional bool available_on_bench = 3;

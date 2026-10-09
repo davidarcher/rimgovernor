@@ -180,6 +180,9 @@ type PawnProfile struct {
 	// Inspiration is the current InspirationDef defName; known "" is none
 	// and unknown stays distinct from none.
 	Inspiration domain.Fact[string]
+	// WorkHours is the hours per day the timetable assigns to Work or
+	// Anything (WorkPawn.WorkHoursPerDay); unknown when the schedule is.
+	WorkHours domain.Fact[int]
 }
 
 // Skill returns the pawn's skill row; a skill absent from the read is level
@@ -255,6 +258,27 @@ func (p PawnProfile) ForbiddenWork() []WorkType {
 	return append(out, young...)
 }
 
+// WorkHoursPerDay is how many hours of the pawn's timetable are Work or
+// Anything. Unknown when the schedule is unread, is not 24 hours, or holds an
+// assignment this does not classify.
+func (w WorkPawn) WorkHoursPerDay() domain.Fact[int] {
+	rows, known := w.Schedule.Value()
+	if !known || len(rows) != 24 {
+		return domain.Unknown[int]()
+	}
+	n := 0
+	for _, s := range rows {
+		switch s {
+		case ScheduleWork, ScheduleAnything:
+			n++
+		case ScheduleSleep, ScheduleJoy, ScheduleMeditate:
+		default:
+			return domain.Unknown[int]()
+		}
+	}
+	return domain.Known(n)
+}
+
 // BuildProfile reads the profile from a WorkPawn; unknown traits, incapable
 // rows or age leave those parts empty rather than making the profile unknown,
 // since the planner degrades to skill-only ordering without them.
@@ -301,6 +325,7 @@ func BuildProfile(pawn WorkPawn) PawnProfile {
 	profile.Ranged, _ = pawn.Ranged.Value()
 	profile.Hunts, _ = pawn.Hunts.Value()
 	profile.Inspiration = pawn.Inspiration
+	profile.WorkHours = pawn.WorkHoursPerDay()
 	return profile
 }
 

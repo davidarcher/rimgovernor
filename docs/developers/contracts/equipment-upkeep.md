@@ -36,6 +36,15 @@ concern can select a fresh method at the next review.
 
 ## Production and resource protection
 
+The production bench census carries two throughput facts for the rate model
+(#2590); nothing acts on them yet. `GearRecipe.WorkAmount` is the work one unit
+takes, from the definition catalog (`RecipeDef.workAmount`, else the first
+product's base `WorkToMake`, as the game's `WorkAmountTotal` does, without the
+stuff multiplier); `RequiredWork` remains the skill gate. `GearBench.WorkSpeed`
+is `BillStack.work_speed`, native's `GetStatValue(WorkTableWorkSpeedFactor)` on
+the bench now, stat parts included; `RecipeDef.workTableSpeedStat` defaults to
+that stat. Both stay unknown when the catalog or native supplies none.
+
 Available eligible replacements precede production. A missing replacement can
 select a discovered recipe and issue a finite bill for the colony gap count. When its workshop
 is missing, the shared workshop ladder stages the bench in a suitable room (or

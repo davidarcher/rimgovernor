@@ -25,7 +25,7 @@ func TestReadGearBenchesAssemblesCensusAcrossBillsAndRecipes(t *testing.T) {
 		Context: gearBenchContext(),
 		Benches: []*o.BillStack{{
 			Snapshot: &o.SnapshotRef{Context: gearBenchContext(), EntityId: proto.String("bench1"), Token: proto.String("bench1-token")},
-			Bench:    &c.Ref{Id: proto.String("bench1")},
+			Bench:    &c.Ref{Id: proto.String("bench1")}, WorkSpeed: proto.Float64(0.75),
 			Bills: []*o.BillState{
 				{Id: proto.String("bill1"), Recipe: &o.DefinitionRef{DefName: proto.String("MakeParka")}, Suspended: proto.Bool(false), Finished: proto.Bool(false)},
 			},
@@ -95,6 +95,12 @@ func TestReadGearBenchesAssemblesCensusAcrossBillsAndRecipes(t *testing.T) {
 	work, known := recipeList[0].RequiredWork.Value()
 	if !known || len(work) != 1 || work[0].Work != "Tailoring" || work[0].Skill != "Crafting" || work[0].Minimum != 4 {
 		t.Fatal(work)
+	}
+	if amount, known := recipeList[0].WorkAmount.Value(); !known || amount != 100 {
+		t.Fatal("recipe work amount", recipeList[0].WorkAmount)
+	}
+	if speed, known := census[0].Bench.WorkSpeed.Value(); !known || speed != 0.75 {
+		t.Fatal("bench work speed", census[0].Bench.WorkSpeed)
 	}
 	billList, known := census[0].Bench.Bills.Value()
 	if !known || len(billList) != 1 || billList[0].ID != "bill1" || billList[0].Recipe != "MakeParka" {

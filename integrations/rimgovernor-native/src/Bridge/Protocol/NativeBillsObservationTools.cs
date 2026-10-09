@@ -113,6 +113,11 @@ namespace HomeBridge.BridgeTools
             if (!row.Usable) row.UnusableReason = bench.Faction != Faction.OfPlayer ? Obs.BenchUnusableReason.NotPlayerOwned
                 : bench.IsForbidden(Faction.OfPlayer) ? Obs.BenchUnusableReason.Forbidden : bench.IsBurning() ? Obs.BenchUnusableReason.Burning
                 : !giver.CurrentlyUsableForBills() ? Obs.BenchUnusableReason.NotUsableForBills : Obs.BenchUnusableReason.Other;
+            // RecipeDef defaults workTableSpeedStat to this stat, so it is the
+            // speed the game applies to a recipe that names none; the stat
+            // parts (outdoors, temperature, ...) are included by GetStatValue.
+            var workSpeed = bench.GetStatValue(StatDefOf.WorkTableWorkSpeedFactor);
+            if (!float.IsNaN(workSpeed) && !float.IsInfinity(workSpeed) && workSpeed >= 0f) row.WorkSpeed = workSpeed;
             for (var index = 0; index < stack.Count; index++) row.Bills.Add(NativeProductionBills.BillRow(stack.Bills[index], index));
             return row;
         }

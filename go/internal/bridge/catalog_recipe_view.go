@@ -291,6 +291,33 @@ func (catalog *DefinitionCatalog) RecipeWork(name, bench string) (domain.Fact[[]
 	return domain.Known([]policy.WorkRequirement{{Work: policy.WorkType(work), Skill: row.GetWorkSkill(), Minimum: minimum}}), nil
 }
 
+// RecipeWorkAmount is the work one unit of the recipe takes, as RecipeDef
+// WorkAmountTotal reads it: the recipe's own workAmount, else (a negative
+// amount) the first product's base WorkToMake stat. The stuff multiplier of
+// a stuffed product is not applied, so the figure is the base cost. Unknown
+// when the recipe has no amount and no shown WorkToMake on its product.
+func (catalog *DefinitionCatalog) RecipeWorkAmount(name string) (domain.Fact[float64], error) {
+	row, err := catalog.Recipe(name)
+	if err != nil {
+		return domain.Unknown[float64](), err
+	}
+	work := row.GetWorkAmount()
+	if work < 0 {
+		if len(row.GetProducts()) == 0 {
+			return domain.Unknown[float64](), nil
+		}
+		stat, shown, err := catalog.ShownStatValue(row.GetProducts()[0].GetValue().GetThingDef(), "", statWorkToMake)
+		if err != nil || !shown {
+			return domain.Unknown[float64](), nil
+		}
+		work = stat
+	}
+	if !finite(float64(work)) || work < 0 {
+		return domain.Unknown[float64](), nil
+	}
+	return domain.Known(float64(work)), nil
+}
+
 // billWorkType is the work type whose DoBill giver serves the bench
 // definition, so a worker must have it enabled to take the bill: the first
 // such giver by name whose work type the recipe's required giver work type

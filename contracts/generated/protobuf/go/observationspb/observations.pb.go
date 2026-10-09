@@ -9763,6 +9763,7 @@ func (x *IngredientReservation) GetItems() []*Quantity {
 	return nil
 }
 
+// work_speed is the bench's WorkTableWorkSpeedFactor stat as the game computes it now (stat parts included); absent when the bench has no such stat.
 type BillStack struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Snapshot       *SnapshotRef           `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
@@ -9771,6 +9772,7 @@ type BillStack struct {
 	UnusableReason *BenchUnusableReason   `protobuf:"varint,4,opt,name=unusable_reason,json=unusableReason,proto3,enum=rimgovernor.observations.v1.BenchUnusableReason,oneof" json:"unusable_reason,omitempty"`
 	Capacity       *uint32                `protobuf:"varint,5,opt,name=capacity,proto3,oneof" json:"capacity,omitempty"`
 	Bills          []*BillState           `protobuf:"bytes,6,rep,name=bills,proto3" json:"bills,omitempty"`
+	WorkSpeed      *float64               `protobuf:"fixed64,7,opt,name=work_speed,json=workSpeed,proto3,oneof" json:"work_speed,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -9845,6 +9847,13 @@ func (x *BillStack) GetBills() []*BillState {
 		return x.Bills
 	}
 	return nil
+}
+
+func (x *BillStack) GetWorkSpeed() float64 {
+	if x != nil && x.WorkSpeed != nil {
+		return *x.WorkSpeed
+	}
+	return 0
 }
 
 // What a recipe is, costs and needs is its RecipeDef row in the definition catalog; a frame carries only whether the bench offers it now.
@@ -49505,17 +49514,20 @@ const file_observations_proto_rawDesc = "" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12;\n" +
 	"\x05items\x18\x02 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05itemsB\n" +
 	"\n" +
-	"\b_pawn_id\"\x8b\x03\n" +
+	"\b_pawn_id\"\xbe\x03\n" +
 	"\tBillStack\x12D\n" +
 	"\bsnapshot\x18\x01 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x120\n" +
 	"\x05bench\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x05bench\x12\x1b\n" +
 	"\x06usable\x18\x03 \x01(\bH\x00R\x06usable\x88\x01\x01\x12^\n" +
 	"\x0funusable_reason\x18\x04 \x01(\x0e20.rimgovernor.observations.v1.BenchUnusableReasonH\x01R\x0eunusableReason\x88\x01\x01\x12\x1f\n" +
 	"\bcapacity\x18\x05 \x01(\rH\x02R\bcapacity\x88\x01\x01\x12<\n" +
-	"\x05bills\x18\x06 \x03(\v2&.rimgovernor.observations.v1.BillStateR\x05billsB\t\n" +
+	"\x05bills\x18\x06 \x03(\v2&.rimgovernor.observations.v1.BillStateR\x05bills\x12\"\n" +
+	"\n" +
+	"work_speed\x18\a \x01(\x01H\x03R\tworkSpeed\x88\x01\x01B\t\n" +
 	"\a_usableB\x12\n" +
 	"\x10_unusable_reasonB\v\n" +
-	"\t_capacity\"\xd7\x01\n" +
+	"\t_capacityB\r\n" +
+	"\v_work_speed\"\xd7\x01\n" +
 	"\vRecipeState\x12B\n" +
 	"\x06recipe\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\x06recipe\x12(\n" +
 	"\ravailable_now\x18\x02 \x01(\bH\x00R\favailableNow\x88\x01\x01\x121\n" +

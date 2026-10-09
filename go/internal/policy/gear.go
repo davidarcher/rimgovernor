@@ -331,14 +331,20 @@ type GearRecipe struct {
 	Available, AvailableOn domain.Fact[bool]
 	Ingredients            domain.Fact[[][]Amount]
 	RequiredWork           domain.Fact[[]WorkRequirement]
+	// WorkAmount is the work one unit takes (the catalog's RecipeWorkAmount);
+	// RequiredWork is the skill gate, not this.
+	WorkAmount domain.Fact[float64]
 	// MechKind is the PawnKindDef of the mech a gestation recipe makes,
 	// "" for every other recipe.
 	MechKind string
 }
 type GearBench struct {
-	ID      string
-	Bills   domain.Fact[[]GearBill]
-	Recipes domain.Fact[[]GearRecipe]
+	ID string
+	// WorkSpeed is the bench's WorkTableWorkSpeedFactor now; unknown when
+	// native sent none.
+	WorkSpeed domain.Fact[float64]
+	Bills     domain.Fact[[]GearBill]
+	Recipes   domain.Fact[[]GearRecipe]
 }
 
 // RecipeHost is one native recipe definition with the player-buildable
