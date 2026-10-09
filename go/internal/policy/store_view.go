@@ -70,6 +70,9 @@ type RoomDemand struct {
 	// Graveyards is the graveyards the plan should hold, 0 for no demand (a
 	// further graveyard; see GraveyardsWanted).
 	Graveyards int
+	// Ranges is the training ranges the plan should hold, 0 for no demand (the
+	// training concern, #2619).
+	Ranges int
 	// Yard is the materials yards the plan should hold, 0 for no demand
 	// (a further yard; see YardRoomsWanted).
 	Yard int

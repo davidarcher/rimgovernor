@@ -274,9 +274,9 @@ func FacilityCatalog() []FacilityRequirement {
 		// predicted containment strength reaches what the entity needs.
 		{Role: RoomRoleContainmentCell, Status: FacilityImplemented, Content: "Anomaly", FurnitureFromGame: true},
 		{Role: RoomRoleCeremonialChamber, Status: FacilityPending, Content: "Anomaly"},
-		// A training range is its own planned room of the mod's buildings (RangeLayout);
-		// the training Concern that places it is pending, so the role stays pending.
-		{Role: RoomRoleTrainingRange, Status: FacilityPending},
+		// A training range is its own planned room of the mod's buildings (RangeLayout),
+		// sited in the outskirts (layout_range.go); the training Concern that demands it is #2619.
+		{Role: RoomRoleTrainingRange, Status: FacilityImplemented, Furniture: []string{RangeDefNames[RangeStand], RangeDefNames[RangeDummy], RangeDefNames[RangePartition]}},
 	}
 }
 

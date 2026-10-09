@@ -537,9 +537,19 @@ training job, not craftable.
 long (stand at the first row, dummy at the last), a partition column between
 neighbouring lanes, a 5 by 12 interior. Lane count and length are constants; the
 mod's def names are `policy.RangeDefNames` and a test keeps them equal to the
-XML. The catalog row is `pending`: the training Concern that decides when to
-place the range, and the placement itself, are separate work. No action kind or
-wire field is involved.
+XML.
+
+The range is a planned room (`PlannedTrainingRange`, `layout_range.go`, #2620),
+`TierExpand`, walled with the shell ring and a west-wall door onto lane 0. It is
+demand-grown, like a further graveyard: `RoomDemand.Ranges` (merged by the store
+department) makes `growRanges` site a 7 by 14 outline through
+`outskirtsCandidates` (`outskirtsGap` clear of every room, off the growth lines,
+walkable from the core), the site nearest the outskirts cluster; nothing is
+reserved ahead of the need and no room moves. `RangeTemplate(room)` turns
+`RangeLayout` from the interior's south-west cell into the `[]WantedPiece` the
+room reconciler builds. The range needs no cooler. Nothing sets `Ranges` yet: the
+training Concern that demands it is #2619. No action kind or wire field is
+involved.
 
 ## Acceptance
 

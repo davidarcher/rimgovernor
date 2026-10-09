@@ -78,7 +78,7 @@ func TestRangeDefNamesAreDefinedByTheNativeMod(t *testing.T) {
 
 func TestTrainingRangeCatalogRow(t *testing.T) {
 	f, err := Facility(RoomRoleTrainingRange)
-	if err != nil || f.Content != "" || f.Status != FacilityPending || !f.Hosts(RoomRoleTrainingRange) || f.Hosts(RoomRoleRoom) {
+	if err != nil || f.Content != "" || f.Status != FacilityImplemented || !f.Hosts(RoomRoleTrainingRange) || f.Hosts(RoomRoleRoom) {
 		t.Fatal(f, err)
 	}
 }

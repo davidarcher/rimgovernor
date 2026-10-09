@@ -157,7 +157,7 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 	retireShelter := growth.RetireShelter && hourly
 	// Stored gear outgrew its zone: the storage planner's demand adds
 	// the armory or wardrobe the plan lacks, at most once an hour.
-	if haveLayout && (len(policy.GearRoomsOwed(layout.Plan, demand)) > 0 || policy.StorageRoomsOwed(layout.Plan, demand) > 0 || policy.YardRoomsOwed(layout.Plan, demand) > 0 || policy.GraveyardsOwed(layout.Plan, demand) > 0 || policy.SurplusRoomsPossible(layout.Plan, growth.ThroneMin, demand)) {
+	if haveLayout && (len(policy.GearRoomsOwed(layout.Plan, demand)) > 0 || policy.StorageRoomsOwed(layout.Plan, demand) > 0 || policy.YardRoomsOwed(layout.Plan, demand) > 0 || policy.GraveyardsOwed(layout.Plan, demand) > 0 || policy.RangesOwed(layout.Plan, demand) > 0 || policy.SurplusRoomsPossible(layout.Plan, growth.ThroneMin, demand)) {
 		growth.Demand = demand
 	}
 	gear := growth.Demand != (policy.RoomDemand{}) && hourly

@@ -30,6 +30,7 @@ var plannedRoleTier = map[PlannedRole]domain.ConstructionTier{
 
 	// Unlisted rooms are Expand by decision; the armory and wardrobe equip the defense and are Secure (#2527).
 	PlannedGraveyard:        domain.TierExpand,
+	PlannedTrainingRange:    domain.TierExpand,
 	PlannedWasteYard:        domain.TierExpand,
 	PlannedYard:             domain.TierExpand,
 	PlannedTomb:             domain.TierExpand,

@@ -176,6 +176,8 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	}
 	next, graves := growGraveyards(next, growth.Demand)
 	dropped = dropped || graves
+	next, ranges := growRanges(next, growth.Demand)
+	dropped = dropped || ranges
 	next.Zones = zones
 	unplacedRooms := errors.Join(unplaced...)
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
