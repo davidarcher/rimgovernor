@@ -10,8 +10,9 @@ import (
 // the morgue, tomb, graveyard, waste yard and incinerator. It is a reservation
 // sited apart from the core spine: set back outskirtsGap cells from every
 // room (the dump clearance and the corpse-sight radius), off the straight
-// growth lines beyond each hallway's ends, outside what the core ring takes in
-// and with a walkable path to the core. The side is derived on every plan from
+// growth lines beyond each hallway's ends and with a walkable path to the
+// core. The core ring walls it in with the rooms (innerEnclosed), so the base
+// stays one compact block rather than reaching out to a far cluster. The side is derived on every plan from
 // the core ground each side holds, never stored: the colony grows toward core
 // ground, so the cluster goes where least of it lies. It reuses the shelter's
 // gap test (shelterBlocked) and the pens' grid (utilityGrid.free, inset and
@@ -101,8 +102,6 @@ func outskirtsCandidates(plan LayoutPlan, w, h int32) (map[domain.Rotation]Recta
 		avoid = append(avoid, pad(s, outskirtsGap))
 	}
 	walkable := u.walkableFromCore(plan)
-	fp := coreBaseFootprint(plan, u.w, u.h)
-	gap := yardGap(fp, u.w, u.h, plan.YardCells)
 
 	best, bestDist := map[domain.Rotation]Rectangle{}, map[domain.Rotation]int32{}
 	x0, x1 := max(ext.X-outskirtsReach-w, 0), min(ext.X+ext.Width+outskirtsReach, u.w-w)
@@ -117,7 +116,7 @@ func outskirtsCandidates(plan LayoutPlan, w, h int32) (map[domain.Rotation]Recta
 			if _, has := best[side]; has && dist >= bestDist[side] {
 				continue
 			}
-			if !u.free(site, false) || !u.inset(site) || !u.outside(site) || crowdsCore(fp, u.w, u.h, site, gap) ||
+			if !u.free(site, false) || !u.inset(site) ||
 				shelterBlocked(site, avoid) || shelterBlocked(site, lines) || !u.reachable(site, walkable) {
 				continue
 			}

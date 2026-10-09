@@ -129,3 +129,17 @@ func TestOutskirtsReplanGateUnchangedWithoutCluster(t *testing.T) {
 		t.Fatal("a plan that asks for none grew one")
 	}
 }
+
+// The outskirts stand close to the core: the core ring walls them in, so the
+// base stays one compact block (no far cluster for the outer ring to reach).
+func TestOutskirtsStandCloseToTheCore(t *testing.T) {
+	plan := outskirtsPlan(150)
+	site, ok := SiteOutskirts(plan, outskirtsW, outskirtsH)
+	if !ok {
+		t.Fatal("no site")
+	}
+	ext, _ := plan.CoreBounds()
+	if _, dist, _ := sideOf(ext, site); dist > outskirtsGap+4 {
+		t.Fatal("site far from the core extent", dist, site, ext)
+	}
+}
