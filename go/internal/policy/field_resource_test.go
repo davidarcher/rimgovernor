@@ -64,9 +64,9 @@ func TestPlanFieldByResource(t *testing.T) {
 			t.Fatal(plan.Explain())
 		}
 	})
-	t.Run("cell cap", func(t *testing.T) {
+	t.Run("size follows demand within the observed soil", func(t *testing.T) {
 		plan, ok := PlanFieldByResource(resourceRequest(1e9, cotton))
-		if !ok || plan.Needed != ResourceFieldCellCap {
+		if !ok || plan.Needed != 125000000 || plan.Sites.Cells >= plan.Needed || plan.Sites.Cells == 0 {
 			t.Fatal(plan.Explain())
 		}
 	})

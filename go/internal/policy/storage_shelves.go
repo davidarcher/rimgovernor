@@ -68,9 +68,6 @@ type ShelfRequest struct {
 	Available bool
 }
 
-// maxShelfSites bounds the sites one build step previews.
-const maxShelfSites = 4
-
 // NextShelfStep builds one shelf at a time: an open placement waits; then
 // the first zone (by id) under its shelf quota gets candidate sites.
 func NextShelfStep(r ShelfRequest) ShelfStep {
@@ -184,9 +181,9 @@ func ShelfSites(zone []domain.Cell, cells []SiteCell) []InteriorPiece {
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].walled && !out[j].walled })
-	pieces := make([]InteriorPiece, 0, min(len(out), maxShelfSites))
-	for i := 0; i < len(out) && i < maxShelfSites; i++ {
-		pieces = append(pieces, out[i].piece)
+	pieces := make([]InteriorPiece, 0, len(out))
+	for _, c := range out {
+		pieces = append(pieces, c.piece)
 	}
 	return pieces
 }

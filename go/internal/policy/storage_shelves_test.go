@@ -29,7 +29,7 @@ func TestShelfSitesPreferTheWallAwayFromTheDoor(t *testing.T) {
 	t.Parallel()
 	zone, cells := shelfRoom(5, 5, domain.Cell{X: 3, Z: 0})
 	pieces := ShelfSites(zone, cells)
-	if len(pieces) == 0 || len(pieces) > maxShelfSites {
+	if len(pieces) == 0 {
 		t.Fatal(pieces)
 	}
 	for _, p := range pieces {

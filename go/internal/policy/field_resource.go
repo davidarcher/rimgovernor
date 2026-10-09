@@ -7,9 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// ResourceFieldCellCap bounds the cells one resource field plan asks for.
-const ResourceFieldCellCap = 4096
-
 // ResourceFieldRequest is a demand-driven field decision: sow the
 // crop whose harvest is Resource so that Deficit units come in. Edibility is
 // irrelevant; only Harvests and UnitsPerCell say what a crop is for.
@@ -30,7 +27,8 @@ type ResourceFieldRequest struct {
 // demanded resource and sites patches for the best one. It shares the food
 // planner's viability rules (season of 2.5 grow cycles, fertility floor,
 // glow, dark biome, pollution) and patch picker, with cells needed =
-// ceil(deficit / UnitsPerCell) up to ResourceFieldCellCap. Unlike food it
+// ceil(deficit / UnitsPerCell); the patch picker
+// then fits it to the observed arable cells. Unlike food it
 // never plants on a guess: unknown season, darkness or crop facts refuse.
 // Candidates are ranked by yield per day over the needed cells.
 //
@@ -163,7 +161,7 @@ func resourceCropViable(crop CropChoice, deficit, season float64, r ResourceFiel
 	if days*fieldCycles > season {
 		return viableCrop{}, "season too short"
 	}
-	needed := int(math.Min(ResourceFieldCellCap, math.Ceil(deficit/units-1e-9)))
+	needed := int(math.Ceil(deficit/units - 1e-9))
 	if needed <= 0 {
 		return viableCrop{}, fmt.Sprintf("no cells needed for %.2f units", deficit)
 	}
@@ -180,7 +178,7 @@ func treeViable(crop CropChoice, deficit float64, r ResourceFieldRequest) (viabl
 	if !ok {
 		return viableCrop{}, "incomplete crop facts"
 	}
-	trees := int(math.Min(ResourceFieldCellCap/domain.TreeCellsPerTree, math.Ceil(deficit/wood-1e-9)))
+	trees := int(math.Ceil(deficit/wood - 1e-9))
 	if trees <= 0 {
 		return viableCrop{}, fmt.Sprintf("no trees needed for %.2f units", deficit)
 	}
