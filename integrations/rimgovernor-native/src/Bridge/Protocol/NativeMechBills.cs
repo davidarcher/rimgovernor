@@ -60,7 +60,7 @@ namespace HomeBridge.BridgeTools
             var colonists = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState && p.workSettings?.Initialized == true).ToList();
             var rules = new ApplyPreconditions(ProductionBillActionHandler.Kind)
                 .Require(() => NativeProductionBills.UsableForNewBill(gestator), "gestator is not usable for bills")
-                .Require(() => gestator.BillStack.Count < 15, "bill stack is full")
+                .Require(() => gestator.BillStack.Count < BillStack.MaxCount, "bill stack is full")
                 .Require(() => gestator.def.AllRecipes.Contains(made) && made.AvailableNow && made.AvailableOnNow(gestator), "recipe " + intent.RecipeDef + " is not available on the gestator")
                 .Require(() => work != null, "recipe " + intent.RecipeDef + " has no work type on " + gestator.def.defName)
                 .Require(() => !float.IsNaN(cost) && !float.IsInfinity(cost), "mech race has no bandwidth cost");

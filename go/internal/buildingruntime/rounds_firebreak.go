@@ -447,13 +447,12 @@ type firebreakPlan struct {
 	cut, ruins int
 }
 
-// firebreakActions is one area cut over the owed cut cells (at most one
-// sweep's worth) and up to maxDefenseCoverBatch ruin deconstructions.
+// firebreakActions is one area cut over the owed cut cells (every owed cell)
+// and up to maxDefenseCoverBatch ruin deconstructions.
 func firebreakActions(id domain.PlanID, work policy.FirebreakWork, ruins map[domain.Cell]domain.CoverClearance) (firebreakPlan, error) {
 	out := firebreakPlan{id: id}
 	if len(work.Cut) > 0 {
-		cells := work.Cut[:min(len(work.Cut), domain.MaxAreaPlantCutCells)]
-		cut, err := domain.NewAreaPlantCut(cells)
+		cut, err := domain.NewAreaPlantCut(work.Cut)
 		if err != nil {
 			return out, err
 		}
@@ -461,7 +460,7 @@ func firebreakActions(id domain.PlanID, work policy.FirebreakWork, ruins map[dom
 		if err != nil {
 			return out, err
 		}
-		out.actions, out.cut = append(out.actions, action), len(cells)
+		out.actions, out.cut = append(out.actions, action), len(work.Cut)
 	}
 	for i, cell := range work.Deconstruct {
 		if out.ruins == maxDefenseCoverBatch {

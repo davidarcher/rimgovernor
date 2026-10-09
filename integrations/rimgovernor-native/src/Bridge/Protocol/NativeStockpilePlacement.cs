@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
                 && intent.HasLabel && ProtoBoundary.IsIdentifier(intent.Label) && !intent.RequireCoveredEmpty
                 && intent.Stockpile != null && intent.Stockpile.HasPriority && NativeStockpileSettings.Valid(intent.Stockpile)
                 && r != null && r.Origin != null && r.Origin.HasX && r.Origin.HasZ && r.Origin.X >= 0 && r.Origin.Z >= 0
-                && r.HasWidth && r.HasHeight && r.Width > 0 && r.Height > 0 && (long)r.Width * r.Height <= 4096
+                && r.HasWidth && r.HasHeight && r.Width > 0 && r.Height > 0
                 && (long)r.Origin.X + r.Width <= int.MaxValue && (long)r.Origin.Z + r.Height <= int.MaxValue;
         }
 

@@ -147,7 +147,7 @@ func NewFilteredStockpileZone(filter StockpileFilter, priority StockpilePriority
 	if err != nil || canonical != filter || !validStockpilePriority(priority) {
 		return ZoneCreate{}, errors.New("invalid stockpile zone configuration")
 	}
-	if rectangle.Origin.X < 0 || rectangle.Origin.Z < 0 || rectangle.Width <= 0 || rectangle.Height <= 0 || int64(rectangle.Width)*int64(rectangle.Height) > 4096 || int64(rectangle.Origin.X)+int64(rectangle.Width) > math.MaxInt32 || int64(rectangle.Origin.Z)+int64(rectangle.Height) > math.MaxInt32 {
+	if rectangle.Origin.X < 0 || rectangle.Origin.Z < 0 || rectangle.Width <= 0 || rectangle.Height <= 0 || int64(rectangle.Origin.X)+int64(rectangle.Width) > math.MaxInt32 || int64(rectangle.Origin.Z)+int64(rectangle.Height) > math.MaxInt32 {
 		return ZoneCreate{}, errors.New("invalid stockpile rectangle")
 	}
 	return ZoneCreate{kind: StockpileZone, priority: priority, rectangle: rectangle, filter: filter}, nil

@@ -13,16 +13,13 @@ import (
 // Applied means designated; the plant cut census decides when pawns finished.
 const AreaPlantCutAction ActionKind = "area_plant_cut"
 
-// MaxAreaPlantCutCells bounds one sweep, as the census bounds one read.
-const MaxAreaPlantCutCells = 1024
-
 // AreaPlantCut is an immutable, comparable value: canonical cells (sorted,
 // deduplicated), at least one.
 type AreaPlantCut struct{ cells string }
 
 func NewAreaPlantCut(cells []Cell) (AreaPlantCut, error) {
-	if len(cells) == 0 || len(cells) > MaxAreaPlantCutCells {
-		return AreaPlantCut{}, errors.New("area plant cut needs 1..1024 cells")
+	if len(cells) == 0 {
+		return AreaPlantCut{}, errors.New("area plant cut needs at least one cell")
 	}
 	rows := append([]Cell{}, cells...)
 	sort.Slice(rows, func(i, j int) bool { return rows[i].X < rows[j].X || rows[i].X == rows[j].X && rows[i].Z < rows[j].Z })

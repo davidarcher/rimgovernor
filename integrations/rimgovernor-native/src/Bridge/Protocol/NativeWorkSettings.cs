@@ -63,7 +63,6 @@ namespace HomeBridge.BridgeTools
         private static bool Valid(Operations.WorkSettingsIntent? intent) => intent != null
             && intent.HasPawnId && ProtoBoundary.IsIdentifier(intent.PawnId)
             && (intent.Work.Count > 0 || intent.AllowedArea != null || intent.Schedule != null)
-                && intent.Work.Count <= 256
                 && intent.Work.All(w => w.HasWorkTypeDef && ProtoBoundary.IsIdentifier(w.WorkTypeDef) && w.HasPriority && w.Priority >= 0 && w.Priority <= 4)
                 && intent.Work.Select(w => w.WorkTypeDef).Distinct(StringComparer.Ordinal).Count() == intent.Work.Count
                 && ValidSchedule(intent.Schedule) && ValidArea(intent.AllowedArea);

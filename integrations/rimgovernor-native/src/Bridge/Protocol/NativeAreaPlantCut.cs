@@ -20,8 +20,6 @@ namespace HomeBridge.BridgeTools
     // mirror, not from native.
     internal static class NativeAreaPlantCut
     {
-        internal const int MaxCells = 1024;
-
         private static bool ChopWood(Plant plant) => plant.def.plant.IsTree && plant.HarvestableNow;
 
         private static bool Designated(Plant plant)
@@ -51,7 +49,7 @@ namespace HomeBridge.BridgeTools
         {
             cells = new List<IntVec3>();
             var rows = requested?.ToList() ?? new List<Common.Cell>();
-            if (rows.Count == 0 || rows.Count > MaxCells) return $"Area plant cut requires 1..{MaxCells} cells.";
+            if (rows.Count == 0) return "Area plant cut requires at least one cell.";
             var seen = new HashSet<IntVec3>();
             foreach (var c in rows)
             {

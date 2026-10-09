@@ -39,7 +39,7 @@ func validateAdmission(a domain.Action, p domain.Progress, admission Admission) 
 	if !isZone {
 		return errors.New("unsupported admission action")
 	}
-	if len(admission.Footprint) != len(zone.Cells()) || len(admission.Footprint) > 4096 {
+	if len(admission.Footprint) != len(zone.Cells()) {
 		return errors.New("zone admission footprint mismatch")
 	}
 	seen := map[domain.Cell]bool{}

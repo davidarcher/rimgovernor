@@ -30,11 +30,7 @@ func TestAreaPlantCutBuildsIntent(t *testing.T) {
 }
 
 func TestAreaPlantCutRefusesBadCells(t *testing.T) {
-	many := make([]domain.Cell, domain.MaxAreaPlantCutCells+1)
-	for i := range many {
-		many[i] = domain.Cell{X: int32(i), Z: 0}
-	}
-	for _, cells := range [][]domain.Cell{nil, {{X: -1, Z: 0}}, {{X: 1, Z: 1}, {X: 1, Z: 1}}, many} {
+	for _, cells := range [][]domain.Cell{nil, {{X: -1, Z: 0}}, {{X: 1, Z: 1}, {X: 1, Z: 1}}} {
 		if _, err := domain.NewAreaPlantCut(cells); err == nil {
 			t.Fatalf("accepted %d cells", len(cells))
 		}

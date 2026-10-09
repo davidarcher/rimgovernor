@@ -37,7 +37,7 @@ type ProductionBill struct {
 }
 
 func NewProductionBill(bench, recipe string, mode BillMode, target int32, ingredients ...string) (ProductionBill, error) {
-	if !validID(bench) || !validID(recipe) || (mode != FoodTarget && mode != ButcherForever && mode != StockTarget && mode != BeerReserve && mode != GearBatch) || mode == FoodTarget && (target < 1 || target > 10000) || mode == ButcherForever && target != 0 || (mode == StockTarget || mode == BeerReserve || mode == GearBatch) && (target < 1 || target > 10000) {
+	if !validID(bench) || !validID(recipe) || (mode != FoodTarget && mode != ButcherForever && mode != StockTarget && mode != BeerReserve && mode != GearBatch) || mode == FoodTarget && target < 1 || mode == ButcherForever && target != 0 || (mode == StockTarget || mode == BeerReserve || mode == GearBatch) && target < 1 {
 		return ProductionBill{}, errors.New("invalid production bill")
 	}
 	if mode == ButcherForever && len(ingredients) > 0 {

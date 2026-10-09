@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools {
    w.Write("ingredients.hp.min",filter.AllowedHitPointsPercents.min);w.Write("ingredients.hp.max",filter.AllowedHitPointsPercents.max);w.Write("ingredients.quality.min",(int)filter.AllowedQualityLevels.min);w.Write("ingredients.quality.max",(int)filter.AllowedQualityLevels.max);w.Write("ingredients.mentalBreak.min",filter.AllowedMentalBreakChance.min);w.Write("ingredients.mentalBreak.max",filter.AllowedMentalBreakChance.max);
    w.Group("ingredients.special",g=>{foreach(var f in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.OrderBy(d=>d.defName,StringComparer.Ordinal)){g.Write(f.defName);g.Write(filter.Allows(f));}});
   });
-  internal static Obs.SnapshotRef Snapshot(Thing bench,IBillGiver giver,Common.ObservationContext context)=>new Obs.SnapshotRef{Context=context.Clone(),EntityId=bench.GetUniqueLoadID(),Token=Hash(w=>{w.Write(context.Identity.ColonyId);w.Write(context.Identity.LoadToken);w.Write(context.Identity.MapId);w.Write(bench.GetUniqueLoadID());w.Write(giver.BillStack.Count);if(giver.BillStack.Count>15)throw new InvalidOperationException("Bill stack bound");foreach(var b in giver.BillStack.Bills){w.Write(Configuration(b));w.Write(b is Bill_Production p&&p.paused);}})};
+  internal static Obs.SnapshotRef Snapshot(Thing bench,IBillGiver giver,Common.ObservationContext context)=>new Obs.SnapshotRef{Context=context.Clone(),EntityId=bench.GetUniqueLoadID(),Token=Hash(w=>{w.Write(context.Identity.ColonyId);w.Write(context.Identity.LoadToken);w.Write(context.Identity.MapId);w.Write(bench.GetUniqueLoadID());w.Write(giver.BillStack.Count);if(giver.BillStack.Count>BillStack.MaxCount)throw new InvalidOperationException("Bill stack bound");foreach(var b in giver.BillStack.Bills){w.Write(Configuration(b));w.Write(b is Bill_Production p&&p.paused);}})};
   internal static bool Usable(Thing bench)=>bench.Spawned&&ProtoBoundary.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is IBillGiver g&&g.CurrentlyUsableForBills();
   // Players can queue work on an empty fueled bench; haulers refuel it once a bill waits.
   // CurrentlyUsableForBills rejects an unfueled bench, so admission relaxes only that condition.
@@ -164,7 +164,7 @@ namespace HomeBridge.BridgeTools {
     .Require(()=>NativeProductionTracking.Ready,"production tracking is unavailable")
     .Require(()=>NativeProductionBills.UsableForNewBill(bench!),"bench is not usable for bills")
     .Require(()=>intent.ReplaceOwnedBill==null||replaced!=null,"replacement must be the same recipe on this bench or an ordinary meal tier on this map")
-    .Require(()=>giver!.BillStack.Count<15||replaced?.billStack==giver.BillStack,"bill stack is full")
+    .Require(()=>giver!.BillStack.Count<BillStack.MaxCount||replaced?.billStack==giver.BillStack,"bill stack is full")
     .Require(()=>replaced!=null&&replaced.recipe.defName==intent.RecipeDef||!NativeProductionBills.Matching(giver!,replaced,intent),"bench already carries a matching "+intent.RecipeDef+" bill")
     .Require(()=>recipe!=null&&NativeProductionBills.Recipe(bench!,recipe),"recipe "+intent.RecipeDef+" is not available on the bench")
     .Require(()=>!intent.Settings.BeerReserve||recipe!.products.Count==1&&recipe.products[0].thingDef==ThingDefOf.Wort,"Beer reserve requires a wort recipe")
