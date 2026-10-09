@@ -15,6 +15,7 @@ automation and save your session.
 its contracts and run the relevant checks.
 
 - [Architecture](developers/architecture/overview.md) (including [storage](developers/architecture/storage.md)), [supply model](developers/architecture/supply-model.md) and [source map](developers/source-map.md)
+- [Expert-play architecture assessment](developers/architecture/expert-play-assessment.md): source evidence, proposed contracts and migration sequence
 - [Development workflow](developers/development-process.md) and the
   [agent runbook](developers/agent-runbook.md) (shared machine, private game copy, running harnesses)
 - [Durable policy and Auto control](developers/contracts/durable-policy.md)
