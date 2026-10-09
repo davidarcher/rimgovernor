@@ -517,6 +517,30 @@ Content-gated rows are pursued only when their definitions exist in the
 planning census. The table is the catalog's own rows; `go test ./internal/policy`
 keeps it complete against the installed RoomRoleDefs.
 
+### Training range (RimGovernor mod)
+
+The only role the native mod itself defines. `TrainingRange` is a native
+`RoomRoleDef` (`Defs/RoomRoleDefs/TrainingRange.xml`, worker
+`RimGovernor.Runtime.RoomRoleWorker_TrainingRange`): the game scores a room
+100 per training stand plus 20 per dummy once a stand stands in it, so one lane
+beats a workshop or laboratory bench while any bed role still wins. The
+controller only reads the role, like every other. The pieces are separate small
+buildings (`Defs/ThingDefs/TrainingRange.xml`): `RimGovernor_TrainingBowStand`
+(the lane's firing mark), `RimGovernor_TrainingDummy` and
+`RimGovernor_TrainingPartition`, all `madeFromStuff` (wood, stone or metal; hit
+points come from the vanilla stuff multiplier, damage multipliers only if tuning
+needs them) and reusing vanilla textures. `Bow_Training` is the lane weapon: a
+short-bow clone with no recipe, category or trade tag, issued and restored by the
+training job, not craftable.
+
+`policy.RangeLayout(origin)` is the fixed template: three one-cell lanes, 12 cells
+long (stand at the first row, dummy at the last), a partition column between
+neighbouring lanes, a 5 by 12 interior. Lane count and length are constants; the
+mod's def names are `policy.RangeDefNames` and a test keeps them equal to the
+XML. The catalog row is `pending`: the training Concern that decides when to
+place the range, and the placement itself, are separate work. No action kind or
+wire field is involved.
+
 ## Acceptance
 
 The `production/ladder` case (`acceptance run production/ladder`, `go/internal/nativeaccept/cases/production`) opens the

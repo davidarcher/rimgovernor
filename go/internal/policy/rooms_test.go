@@ -20,6 +20,8 @@ var installedRoomRoles = map[RoomRole]string{
 	RoomRoleThroneRoom: "Royalty", RoomRoleWorshipRoom: "Ideology",
 	RoomRoleNursery: "Biotech", RoomRolePlayroom: "Biotech", RoomRoleClassroom: "Biotech", RoomRoleDeathrestChamber: "Biotech",
 	RoomRoleContainmentCell: "Anomaly", RoomRoleCeremonialChamber: "Anomaly",
+	// RoomRoleTrainingRange is defined by this mod (Defs/RoomRoleDefs), not the game.
+	RoomRoleTrainingRange: "",
 }
 
 func TestFacilityCatalogIsTheCompleteRoomRoleMatrix(t *testing.T) {
