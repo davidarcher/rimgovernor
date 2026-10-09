@@ -14,8 +14,8 @@ func huntCensusFacts(bills bool) *o.ColonyFactsSnapshot {
 	census := &o.HuntCensus{Hunters: []*o.HunterFacts{{
 		PawnId: proto.String("ann"), Position: &c.Cell{X: proto.Int32(20), Z: proto.Int32(10)}, Downed: proto.Bool(false), InMentalState: proto.Bool(false),
 		HuntingActive: proto.Bool(true), HuntingPriority: proto.Int32(3), CookingActive: proto.Bool(true),
-		Weapon:        &o.HuntWeaponFacts{DefName: proto.String("Gun_BoltActionRifle"), Ranged: proto.Bool(true), Verbs: []*o.HuntVerbFacts{{Melee: proto.Bool(false), AiWeapon: proto.Bool(true), Range: proto.Float64(36), ProjectileKind: o.HuntProjectileKind_HUNT_PROJECTILE_KIND_BULLET.Enum(), DamageDef: proto.String("Bullet")}}},
-		RouteSafePrey: []string{"deer"}, ReachableBenches: []string{"bench"}}}}
+		Weapon: &o.HuntWeaponFacts{DefName: proto.String("Gun_BoltActionRifle"), Ranged: proto.Bool(true), Verbs: []*o.HuntVerbFacts{{Melee: proto.Bool(false), AiWeapon: proto.Bool(true), Range: proto.Float64(36), ProjectileKind: o.HuntProjectileKind_HUNT_PROJECTILE_KIND_BULLET.Enum(), DamageDef: proto.String("Bullet")}}},
+		Routes: []*o.HuntRoute{{PreyId: proto.String("deer"), Safe: proto.Bool(true)}}, ReachableBenches: []string{"bench"}}}}
 	if bills {
 		census.Benches = []*o.HuntButcherBench{{BenchId: proto.String("bench"), Usable: proto.Bool(true), Bills: []*o.HuntButcherBill{{RepeatMode: operationspb.RepeatMode_REPEAT_MODE_FOREVER.Enum(), AllowedCorpses: []string{"Corpse_Deer"}}}}}
 	}

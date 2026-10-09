@@ -712,6 +712,15 @@ func roundsPawnIDs(emergency EmergencyObservation) []string {
 // Pairs past it arrive as RouteTravel.path_skipped.
 const RoutePathBudgetMS uint32 = 100
 
+// HuntRouteBudgetMS is the main-thread time one colony facts read may spend on
+// hunter x prey RouteSafe pairs (0.2-0.45 ms each, so 100-250 pairs); pairs
+// past it arrive as HuntRoute.skipped. HerdRadius is the cell radius of the
+// same-race herd count on a hunt row.
+const (
+	HuntRouteBudgetMS uint32 = 50
+	HerdRadius        uint32 = 25
+)
+
 // frameReader is the open stream, starting an open or resubscription in
 // the background when one is due; nil until the first open lands.
 func (caller *Client) frameReader(ctx context.Context) frameReader {
@@ -719,7 +728,7 @@ func (caller *Client) frameReader(ctx context.Context) frameReader {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if (s.reader == nil || s.stale || s.keyframe) && !s.opening && (s.stale || s.keyframe || time.Since(s.attempted) >= frameRetry) {
-		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources), RoutePathBudgetMs: proto.Uint32(RoutePathBudgetMS)}
+		request := &o.SnapshotStreamRequest{ResourceSources: slices.Clone(s.resources), RoutePathBudgetMs: proto.Uint32(RoutePathBudgetMS), HuntRouteBudgetMs: proto.Uint32(HuntRouteBudgetMS), HerdRadius: proto.Uint32(HerdRadius)}
 		if s.reader != nil && !s.stale {
 			// Only a keyframe: the subscription stands.
 			request = &o.SnapshotStreamRequest{Keyframe: proto.Bool(true)}

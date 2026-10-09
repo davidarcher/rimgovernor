@@ -1476,6 +1476,8 @@ message CookingFacts { rimgovernor.common.v1.Ref bench = 1; optional bool usable
   // The bench's CAS token.
   SnapshotRef bench_snapshot = 8; }
 message AcquisitionFacts { rimgovernor.common.v1.Ref source = 1; SnapshotRef source_snapshot = 16; optional string resource = 2; optional bool tree = 3; optional bool food = 4; optional double yield = 5; optional double nutrition_yield = 6; optional bool designated = 7; optional bool hunt = 8; optional double revenge_chance = 9; optional uint32 herd_size = 10; optional bool melee_only = 11; optional bool downed = 12; optional int64 designated_tick = 14; optional bool taken = 15; optional double body_size = 17; optional bool sleeping = 18; optional bool predator = 19;
+  // herd_size counts same-race animals (the prey included) within the request's herd_radius;
+  // absent when the request carried no radius (unknown, never 0).
   // Raw hunt prey facts: a hunt row is every wild animal that bears a corpse, whatever
   // policy then decides. fogged and in_mental_state are native's current reading of the animal.
   optional bool fogged = 20; optional bool in_mental_state = 21;
@@ -1496,9 +1498,11 @@ message HuntWeaponFacts { optional string def_name = 1; optional bool ranged = 2
 // One free colonist. hunting_priority is the raw work priority (0 is off); hunting_active is
 // WorkIsActive; hunting_disabled is WorkTypeIsDisabled. weapon is absent for an unarmed pawn.
 // has_hunting_weapon and ranged_blocking_shield mirror WorkGiver_HunterHunt.HasHuntingWeapon and
-// HasShieldAndRangedWeapon. route_safe_prey lists the hunt row sources the colonist has a safe
-// route to (HuntingSafety.RouteSafe, a pathing fact), evaluated only within the hunting reach
-// (100 cells) or for a pest: a bound on pathfinding cost, the same reach policy applies.
+// HasShieldAndRangedWeapon. routes carries one HuntRoute per (hunt row, colonist) pair native
+// evaluated: every unfogged hunt row, pests first then nearest first, for a colonist with
+// Hunting active who is neither downed nor in a mental state, until the request's
+// hunt_route_budget_ms runs out. A pair with no row was not evaluated (the colonist is
+// ineligible or the prey is fogged); policy refuses those first.
 // reachable_benches lists the butcher benches the colonist can reach.
 message HunterFacts {
   optional string pawn_id = 1; rimgovernor.common.v1.Cell position = 2;
@@ -1506,8 +1510,11 @@ message HunterFacts {
   optional int32 hunting_priority = 6; optional bool hunting_active = 7; optional bool hunting_disabled = 8;
   optional bool cooking_active = 9;
   HuntWeaponFacts weapon = 10; optional bool has_hunting_weapon = 11; optional bool ranged_blocking_shield = 12;
-  repeated string route_safe_prey = 13; repeated string reachable_benches = 14;
+  repeated string reachable_benches = 14; repeated HuntRoute routes = 15;
 }
+// One colonist x hunt-row route verdict (HuntingSafety.RouteSafe, a pathing fact). Exactly one
+// of safe (the evaluated answer) and skipped (the budget ran out before this pair) is present.
+message HuntRoute { optional string prey_id = 1; optional bool safe = 2; optional bool skipped = 3; }
 // A butcher-flesh bill on a bench; allowed_corpses are the corpse defs of the census's wild
 // animals the bill's ingredient filter allows; product_count is BillCommon.ProductCount for a
 // target-count bill.
@@ -2052,7 +2059,11 @@ message BabyCare {
 message BabyAutofeeder { optional string pawn_id = 1; optional string mode = 2; }
 // Current-map WandererJoins offers and creepjoiner offers (creepjoiner true); the token binds letter, quest, pawn and expiry. expires_tick is the letter's disappearAtTick, negative for no timeout.
 message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; optional bool creepjoiner = 7; }
-message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; }
+// herd_radius: cells within which same-race animals count toward a hunt row's herd_size;
+// absent, herd_size is unknown (omitted). hunt_route_budget_ms: main-thread milliseconds the
+// hunt census may spend on RouteSafe pairs (about 0.2-0.45 ms each); pairs past it report
+// HuntRoute.skipped. Absent: evaluate every pair.
+message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; optional uint32 herd_radius = 3; optional uint32 hunt_route_budget_ms = 4; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 // Simulation status excludes notifications/UI/clock, exposed by their typed owners.
@@ -2228,6 +2239,9 @@ message SnapshotStreamRequest {
   // (FindPathNow per reachable facility x colonist pair, ~0.4 ms each). Pairs
   // past it report RouteTravel.path_skipped. Absent: measure every pair.
   optional uint32 route_path_budget_ms = 5;
+  // The ColonyFactsRequest herd_radius and hunt_route_budget_ms of each frame's colony facts read.
+  optional uint32 herd_radius = 6;
+  optional uint32 hunt_route_budget_ms = 7;
 }
 // The definition catalog: the generated def rows and the stat table
 // the planning views read, and every research project with its static

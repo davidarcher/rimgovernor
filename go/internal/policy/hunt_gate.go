@@ -60,9 +60,8 @@ func (w HuntWeapon) Hunts() bool {
 
 // HuntHunter is one free colonist's raw hunting facts. HuntingPriority is the
 // work priority (0 is off), HuntingActive the game's WorkIsActive. HasHuntingWeapon and
-// RangedBlockingShield mirror the game's own hunting-weapon and shield checks. RouteSafePrey names the
-// hunt rows native found a safe route to (within the hunting reach or a pest);
-// ReachableBenches the butcher benches the colonist can reach.
+// RangedBlockingShield mirror the game's own hunting-weapon and shield checks. The Route*Prey sets carry
+// native's per-row route verdict; ReachableBenches the butcher benches the colonist can reach.
 type HuntHunter struct {
 	ID                                            string
 	Cell                                          domain.Cell
@@ -71,7 +70,11 @@ type HuntHunter struct {
 	HuntingActive, HuntingDisabled, CookingActive bool
 	Weapon                                        *HuntWeapon
 	HasHuntingWeapon, RangedBlockingShield        bool
-	RouteSafePrey, ReachableBenches               map[string]bool
+	ReachableBenches                              map[string]bool
+	// Route evidence per hunt row id: RouteSafePrey and RouteUnsafePrey are
+	// evaluated answers, RouteSkippedPrey ran out of the native budget. A row
+	// in none of the three was not evaluated.
+	RouteSafePrey, RouteUnsafePrey, RouteSkippedPrey map[string]bool
 }
 
 // HuntBill is a butcher-flesh bill on a bench, raw. Product is the bill's
@@ -120,6 +123,10 @@ const (
 	huntHunterShield    = "ranged_blocking_shield"
 	huntHunterTooFar    = "too_far"
 	huntHunterNoRoute   = "no_safe_route"
+	// route_skipped: native's route budget ran out before this pair;
+	// route_unevaluated: native emitted no verdict for it.
+	huntHunterRouteSkipped     = "route_skipped"
+	huntHunterRouteUnevaluated = "route_unevaluated"
 )
 
 // HuntHold is a hunt row policy offers no hunt for: the first gate it fails,
@@ -207,10 +214,15 @@ func (c HuntCensus) hunterReason(h HuntHunter, prey HuntPrey) string {
 		return huntHunterNoWeapon
 	case !prey.pest() && dx*dx+dz*dz > huntReachSquared:
 		return huntHunterTooFar
-	case !h.RouteSafePrey[prey.Source.ID]:
+	case h.RouteSafePrey[prey.Source.ID]:
+		return ""
+	case h.RouteUnsafePrey[prey.Source.ID]:
 		return huntHunterNoRoute
+	case h.RouteSkippedPrey[prey.Source.ID]:
+		return huntHunterRouteSkipped
+	default:
+		return huntHunterRouteUnevaluated
 	}
-	return ""
 }
 
 // Gate decides whether the hunt row is offered: the first failing gate holds it.

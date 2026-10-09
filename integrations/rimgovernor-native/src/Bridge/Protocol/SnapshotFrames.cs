@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
             ObservationWork.Captured("emergency", Now() - statusBegan, 0);
             if (!statusRead) return false;
             observed.Emergency = emergency;
-            ReadFamilies(map, context, observed, request.HasRoutePathBudgetMs ? request.RoutePathBudgetMs : (uint?)null);
+            ReadFamilies(map, context, observed, request);
             ReadStepFamilies(map, context, observed);
             ReadSubscribed(map, request, context, observed);
             var combatBegan = Now();
@@ -177,15 +177,25 @@ namespace HomeBridge.BridgeTools
             catch (System.Exception ex) { ObservationWork.Failed("combatLinesOfFire", ex); }
         }
 
+        // The frame's colony facts request: planning, with the stream's herd
+        // radius and hunt route budget carried through when Go supplied them.
+        private static Obs.ColonyFactsRequest ColonyRequest(Obs.ReadScope scope, Obs.SnapshotStreamRequest request)
+        {
+            var colony = new Obs.ColonyFactsRequest { Scope = scope, Planning = true };
+            if (request.HasHerdRadius) colony.HerdRadius = request.HerdRadius;
+            if (request.HasHuntRouteBudgetMs) colony.HuntRouteBudgetMs = request.HuntRouteBudgetMs;
+            return colony;
+        }
+
         // On the main thread. Adds the census families to observed, each
         // keyed as its dedicated read. A section that throws fails the frame
         // (SnapshotSectionException); none is omitted.
-        private static void ReadFamilies(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed, uint? routePathBudgetMs)
+        private static void ReadFamilies(Map map, Common.ObservationContext context, Obs.BundleSnapshot observed, Obs.SnapshotStreamRequest request)
         {
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
             {
                 var began = Now();
-                observed.ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, new Obs.ColonyFactsRequest { Scope = Scope(), Planning = true }, context, routePathBudgetMs));
+                observed.ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, ColonyRequest(Scope(), request), context, request.HasRoutePathBudgetMs ? request.RoutePathBudgetMs : (uint?)null));
                 ObservationWork.Captured("colonyFacts", Now() - began, observed.ColonyFacts.Resources.Count);
             }
             {

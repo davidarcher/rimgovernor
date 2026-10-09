@@ -83,12 +83,14 @@ func TestHuntGateNoHunterNamesEachColonistsFirstReason(t *testing.T) {
 		{ID: "c"},
 		{ID: "d", HuntingActive: true},
 		{ID: "e", HuntingActive: true, Weapon: gateRifle(), Cell: domain.Cell{X: 500, Z: 500}},
-		{ID: "f", HuntingActive: true, Weapon: gateRifle(), Cell: domain.Cell{X: 12, Z: 10}},
+		{ID: "f", HuntingActive: true, Weapon: gateRifle(), Cell: domain.Cell{X: 12, Z: 10}, RouteUnsafePrey: map[string]bool{"deer": true}},
+		{ID: "g", HuntingActive: true, Weapon: gateRifle(), Cell: domain.Cell{X: 12, Z: 10}, RouteSkippedPrey: map[string]bool{"deer": true}},
+		{ID: "h", HuntingActive: true, Weapon: gateRifle(), Cell: domain.Cell{X: 12, Z: 10}},
 	}
 	// The cook is a colonist too; every colonist is listed.
 	c.Hunters[3].CookingActive, c.Hunters[3].ReachableBenches = true, map[string]bool{"bench": true}
 	v := c.Gate(gateDeer())
-	want := []string{"a downed", "b mental_state", "c hunting_inactive", "d no_hunting_weapon", "e too_far", "f no_safe_route"}
+	want := []string{"a downed", "b mental_state", "c hunting_inactive", "d no_hunting_weapon", "e too_far", "f no_safe_route", "g route_skipped", "h route_unevaluated"}
 	if v.Hold == nil || v.Hold.Reason != HuntHoldNoHunter || !reflect.DeepEqual(v.Hold.Detail, want) {
 		t.Fatal(v.Hold)
 	}

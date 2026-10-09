@@ -176,7 +176,7 @@ namespace HomeBridge.BridgeTools
                 GrowingDays = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile,Plant.DefaultMinOptimalGrowthTemperature,Plant.DefaultMaxOptimalGrowthTemperature).Count * GenDate.DaysPerTwelfth }; }
             catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result.Issues.Add(Issue("food_climate", Common.UnavailableReason.ReadFailed, "Seasonal crop budget unavailable.")); }
             Span("cf.climate");
-            try { NativePlantAcquisition.Read(result, map, center, humanFood); }
+            try { NativePlantAcquisition.Read(result, map, center, humanFood, request); }
             catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error);
                 result.Acquisition.Clear(); result.ClearPendingFoodNutrition(); result.ClearPendingWoodUnits(); result.ClearPendingHunts();
                 foreach (var field in new[] { "acquisition", "pending_food_nutrition", "pending_wood_units", "pending_hunts" })

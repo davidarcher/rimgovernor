@@ -146,7 +146,7 @@ func addPest(native *roundsNative, v *o.ColonyFactsSnapshot, id string, x, z int
 		}}}
 	}
 	hunter := v.HuntCensus.Hunters[0]
-	hunter.RouteSafePrey = append(hunter.RouteSafePrey, id)
+	hunter.Routes = append(hunter.Routes, &o.HuntRoute{PreyId: proto.String(id), Safe: proto.Bool(true)})
 }
 
 func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {

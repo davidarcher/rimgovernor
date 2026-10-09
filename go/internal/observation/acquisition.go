@@ -81,7 +81,18 @@ func huntCensus(v *o.HuntCensus) (census policy.HuntCensus) {
 			Downed: h.GetDowned(), MentalState: h.GetInMentalState(), Drafted: h.GetDrafted(),
 			HuntingPriority: int(h.GetHuntingPriority()), HuntingActive: h.GetHuntingActive(), HuntingDisabled: h.GetHuntingDisabled(), CookingActive: h.GetCookingActive(),
 			HasHuntingWeapon: h.GetHasHuntingWeapon(), RangedBlockingShield: h.GetRangedBlockingShield(),
-			RouteSafePrey: set(h.RouteSafePrey), ReachableBenches: set(h.ReachableBenches)}
+			ReachableBenches: set(h.ReachableBenches)}
+		hunter.RouteSafePrey, hunter.RouteUnsafePrey, hunter.RouteSkippedPrey = map[string]bool{}, map[string]bool{}, map[string]bool{}
+		for _, r := range h.Routes {
+			switch {
+			case r.GetSkipped():
+				hunter.RouteSkippedPrey[r.GetPreyId()] = true
+			case r.GetSafe():
+				hunter.RouteSafePrey[r.GetPreyId()] = true
+			default:
+				hunter.RouteUnsafePrey[r.GetPreyId()] = true
+			}
+		}
 		if w := h.Weapon; w != nil {
 			weapon := &policy.HuntWeapon{DefName: w.GetDefName(), Ranged: w.GetRanged(), Melee: w.GetMelee()}
 			for _, verb := range w.Verbs {

@@ -65,19 +65,19 @@ namespace HomeBridge.BridgeTools
         // policy then decides (policy.HuntGate): native states facts and keeps only physical validity.
         private static bool Candidate(Pawn prey) => prey.Spawned && !prey.Dead && prey.Faction == null && prey.RaceProps.Animal
             && prey.RaceProps.corpseDef != null && (PestRace(prey.RaceProps) || prey.RaceProps.meatDef?.IsNutritionGivingIngestible == true);
-        // The hunting reach: a food hunter works within 100 cells; a pest is hunted wherever it is.
-        // Route evidence is gathered only inside it (a pathfinding cost bound), the reach policy applies.
-        private static bool InReach(Pawn hunter, Pawn prey) => PestRace(prey.RaceProps) || hunter.Position.DistanceToSquared(prey.Position) <= 10000;
-        internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center)
+        internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Obs.ColonyFactsRequest request)
         {
             result.PendingHunts = (uint)Pending(map);
-            // Wild animals by food-prey order (body size over distance, then id), then every pest by
-            // distance: a pest row is a hunt of one unit of nothing edible (food false, no nutrition),
-            // so the food and wood selections pass it over and only the pest concern takes it.
+            // Wild animals by distance from the colony anchor, food prey then every pest: a pest row is
+            // a hunt of one unit of nothing edible (food false, no nutrition), so the food and wood
+            // selections pass it over and only the pest concern takes it. Go orders its own selection.
             var prey = map.mapPawns.AllPawnsSpawned.Where(p => !PestRace(p.RaceProps) && Candidate(p))
-                .OrderByDescending(p => p.BodySize / (1 + p.Position.DistanceTo(center) / 25)).ThenBy(p => p.thingIDNumber)
+                .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber)
                 .Concat(map.mapPawns.AllPawnsSpawned.Where(p => PestRace(p.RaceProps) && Candidate(p)).OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber))
                 .ToList();
+            // herd_size counts same-race animals within the request's herd_radius; without a radius it is
+            // left unset (unknown), never 0.
+            var herdSquared = request.HasHerdRadius ? (long)request.HerdRadius * request.HerdRadius : -1;
             foreach (var animal in prey)
             {
                 var designated = Designated(animal);
@@ -86,16 +86,17 @@ namespace HomeBridge.BridgeTools
                 Resource = animal.RaceProps.corpseDef.defName, Tree = false, Food = !PestRace(animal.RaceProps), Hunt = true,
                 Yield = 1, NutritionYield = PestRace(animal.RaceProps) ? 0 : Nutrition(animal), Designated = designated,
                 RevengeChance = animal.RaceProps.manhunterOnDamageChance,
-                HerdSize = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == animal.def && p.Position.DistanceToSquared(animal.Position) <= 625),
                 MeleeOnly = Meleeable(animal), Downed = animal.Downed,
                 BodySize = animal.BodySize, Sleeping = !animal.Awake(), Predator = animal.RaceProps.predator,
                 Taken = ResourceAcquisitionTools.Taken(animal),
                 Fogged = animal.Position.Fogged(map), InMentalState = animal.InMentalState };
+                if (herdSquared >= 0)
+                    row.HerdSize = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == animal.def && p.Position.DistanceToSquared(animal.Position) <= herdSquared);
                 var tick = ResourceAcquisitionTools.DesignatedTick(animal, designated);
                 if (tick.HasValue) row.DesignatedTick = tick.Value;
                 result.Acquisition.Add(row);
             }
-            result.HuntCensus = Census(map, prey);
+            result.HuntCensus = Census(map, prey, request.HasHuntRouteBudgetMs ? request.HuntRouteBudgetMs : (uint?)null);
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
         }
         internal static Obs.HuntProjectileKind ProjectileKind(ThingDef? projectile)
@@ -132,9 +133,10 @@ namespace HomeBridge.BridgeTools
         // Raw facts per free colonist and per butcher bench. Route evidence is skipped for a colonist
         // who is downed, in a mental state or has Hunting off: policy refuses each of those before it
         // reads a route, so the skip loses nothing.
-        private static Obs.HuntCensus Census(Map map, List<Pawn> prey)
+        private static Obs.HuntCensus Census(Map map, List<Pawn> prey, uint? routeBudgetMs)
         {
             var census = new Obs.HuntCensus();
+            var pairs = new List<(Pawn pawn, Obs.HunterFacts hunter, Pawn animal)>();
             var corpses = prey.Select(p => p.RaceProps.corpseDef).Distinct().ToList();
             var benches = map.listerThings.AllThings.OfType<Building>()
                 .Where(b => b is IBillGiver giver && giver.BillStack.Bills.OfType<Bill_Production>().Any(bill => NativeRecipeRoles.ButcherFlesh(bill.recipe)))
@@ -167,10 +169,27 @@ namespace HomeBridge.BridgeTools
                 if (hunter.CookingActive && !pawn.Downed && !pawn.InMentalState)
                     foreach (var bench in benches.Where(b => pawn.CanReach(b, PathEndMode.InteractionCell, Danger.None))) hunter.ReachableBenches.Add(bench.GetUniqueLoadID());
                 if (hunter.HuntingActive && !pawn.Downed && !pawn.InMentalState)
-                    foreach (var animal in prey.Where(a => !a.Position.Fogged(map) && InReach(pawn, a) && HuntingSafety.RouteSafe(pawn, a)))
-                        hunter.RouteSafePrey.Add(animal.GetUniqueLoadID());
+                    foreach (var animal in prey.Where(a => !a.Position.Fogged(map)))
+                        pairs.Add((pawn, hunter, animal));
                 census.Hunters.Add(hunter);
             }
+            // Every eligible pair gets a verdict, pests first then nearest first, until Go's budget runs
+            // out; the rest are marked skipped (never silently absent).
+            var budgetTicks = routeBudgetMs.HasValue ? routeBudgetMs.Value * System.Diagnostics.Stopwatch.Frequency / 1000 : long.MaxValue;
+            long spent = 0;
+            foreach (var (pawn, hunter, animal) in pairs.OrderBy(p => PestRace(p.animal.RaceProps) ? 0 : 1).ThenBy(p => p.pawn.Position.DistanceToSquared(p.animal.Position)))
+            {
+                var route = new Obs.HuntRoute { PreyId = animal.GetUniqueLoadID() };
+                if (spent >= budgetTicks) route.Skipped = true;
+                else
+                {
+                    var began = System.Diagnostics.Stopwatch.GetTimestamp();
+                    route.Safe = HuntingSafety.RouteSafe(pawn, animal);
+                    spent += System.Diagnostics.Stopwatch.GetTimestamp() - began;
+                }
+                hunter.Routes.Add(route);
+            }
+            ObservationWork.Detail("cf.hunt.route", spent, pairs.Count);
             return census;
         }
         internal const string Kind = "Hunt";

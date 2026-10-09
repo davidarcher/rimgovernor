@@ -383,9 +383,15 @@ and the colony facts carry a `HuntCensus`: per free colonist the position, downe
 and mental-state flags, Hunting work state (priority, active, disabled), Cooking active,
 the primary weapon (ranged, verb range, projectile kind bullet / arrow / other, blast
 radius, damage def and worker, warmup), the game's own `HasHuntingWeapon` and
-`HasShieldAndRangedWeapon` answers, the butcher benches reachable, and the hunt rows with a
-Danger.None path avoiding predators by 25 cells and an ordinary death action (`RouteSafe`,
-evaluated within 100 cells or for a pest); per butcher bench its usability and butcher-flesh
+`HasShieldAndRangedWeapon` answers, the butcher benches reachable, and one `HuntRoute` per
+unfogged hunt row for each colonist with Hunting active who is neither downed nor in a mental
+state: `safe` true or false (a Danger.None path avoiding predators by 25 cells and an ordinary
+death action, `RouteSafe`), or `skipped` once the frame's `hunt_route_budget_ms` (Go sets
+`bridge.HuntRouteBudgetMS`, 50; absent evaluates every pair) is spent. Native applies no reach:
+pairs are evaluated pests first then nearest first, so the pairs a spent budget skips are the
+far ones policy refuses as `too_far` before it reads a route (cost:
+[capped reads](upkeep-contracts.md#measured-cost-of-capped-reads-2567)). A pair with no row was
+not evaluated; per butcher bench its usability and butcher-flesh
 bills (suspended, paused, repeat mode, counts, corpses the filter allows). `policy.HuntGate`
 decides from them, in this order: fogged; safe prey (not in a mental state, edible; a pest
 waives it); a usable bench with a running bill accepting the corpse and a Cooking worker (a
@@ -396,12 +402,16 @@ ranged-blocking shield) or a melee weapon or bare hands against meleeable prey
 (body size <= 1.0, which flees), within 100 cells (a pest anywhere) and a safe route. A
 held row is not a source; the projection's `HuntHolds` names the first failing gate
 (`fogged`, `not_safe_prey`, `no_butcher_bill`, `no_colonist`, `no_hunter` with each
-colonist's `downed`, `mental_state`, `hunting_inactive`, `no_hunting_weapon`, `ranged_blocking_shield`, `too_far`
-or `no_safe_route`). Selection designates as many prey as the nutrition gap (deficit less pending nutrition) needs, meatiest safe prey first, bounded by the budget; an open hunt does not block the next hunt method. Supervised play pauses when an
+colonist's `downed`, `mental_state`, `hunting_inactive`, `no_hunting_weapon`, `ranged_blocking_shield`, `too_far`,
+`no_safe_route` (evaluated, unsafe), `route_skipped` (budget spent) or `route_unevaluated` (no verdict)).
+The 100-cell reach and the plant cutter's former 50-cell reach are no longer native filters:
+the 100 cells live only in the gate above, and a plant needs only a colonist with Plant Cutting
+enabled who can reach it. Selection designates as many prey as the nutrition gap (deficit less pending nutrition) needs, meatiest safe prey first, bounded by the budget; an open hunt does not block the next hunt method. Supervised play pauses when an
 active hunt loses its route.
 
-Acquisition reports revenge chance, same-race herd size within 25 cells (including the
-prey), melee eligibility and downed state; Go derives the longest weapon range among the
+Acquisition reports revenge chance, same-race herd size within the request's `herd_radius`
+(Go sets `bridge.HerdRadius`, 25; the prey included; absent radius leaves `herd_size` unset,
+unknown, never 0, and the bridge refuses a hunt row without it), melee eligibility and downed state; Go derives the longest weapon range among the
 eligible hunters from the census, and the animal's leather and butcher products from its
 race row. Food selection keeps forage priority, then downed animals, then lower revenge
 chance times herd size.

@@ -60,6 +60,13 @@ func validateHuntCensus(c *o.HuntCensus) error {
 		if h == nil || validID(h.GetPawnId()) != nil || h.Position == nil || h.Downed == nil || h.InMentalState == nil || h.HuntingActive == nil || h.CookingActive == nil || h.HuntingPriority == nil {
 			return contract("invalid hunter facts")
 		}
+		routed := map[string]bool{}
+		for _, r := range h.Routes {
+			if r == nil || validID(r.GetPreyId()) != nil || routed[r.GetPreyId()] || (r.Safe == nil) == (r.Skipped == nil) || r.Skipped != nil && !r.GetSkipped() {
+				return contract("invalid hunt route evidence")
+			}
+			routed[r.GetPreyId()] = true
+		}
 	}
 	for _, b := range c.Benches {
 		if b == nil || validID(b.GetBenchId()) != nil || b.Usable == nil {

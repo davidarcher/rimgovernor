@@ -19,10 +19,12 @@ namespace HomeBridge.BridgeTools
     {
         private static bool Eligible(Plant plant) => ProtoBoundary.IsLoaded(plant.Map) && ResourceAcquisitionTools.Eligible(plant, plant.Map)
             && plant.Map.mapPawns.FreeColonistsSpawned.Any(p => Cutter(p, plant));
+        // Cutter has no distance reach: the measured cost (#2567) is the
+        // all-plants eligibility scan, which the reach never bounded.
         internal static Obs.SnapshotRef Snapshot(Plant plant, Common.ObservationContext context) => new Obs.SnapshotRef {
             Context = context.Clone(), EntityId = plant.GetUniqueLoadID(), Token = NativeAcquisitionToken.Plant(context.Identity, plant.GetUniqueLoadID(),
                 plant.def.plant.harvestedThingDef.defName, plant.Position.x, plant.Position.z, plant.HarvestableNow, ResourceAcquisitionTools.Designated(plant)) };
-        internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Func<ThingDef, bool> humanFood)
+        internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Func<ThingDef, bool> humanFood, Obs.ColonyFactsRequest request)
         {
             var plants = map.listerThings.AllThings.OfType<Plant>().Where(p => p.def.plant.harvestedThingDef != null).ToArray();
             // The candidate pool is every eligible plant on the map; pending yield below covers all designations.
@@ -49,7 +51,7 @@ namespace HomeBridge.BridgeTools
             }
             var pending = plants.Where(ResourceAcquisitionTools.Designated).ToArray();
             result.PendingFoodNutrition = pending.Where(p => humanFood(p.def.plant.harvestedThingDef)).Sum(p => (double)p.YieldNow() * p.def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition));
-            NativeHuntAcquisition.Read(result, map, center);
+            NativeHuntAcquisition.Read(result, map, center, request);
             result.PendingWoodUnits = pending.Where(p => p.def.plant.harvestedThingDef == ThingDefOf.WoodLog).Sum(p => (double)p.YieldNow());
         }
         internal const string Kind = "Plant acquisition";
@@ -58,7 +60,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Cutter(Pawn p, Plant plant) => p.workSettings?.Initialized == true
             && p.workSettings.GetPriority(WorkTypeDefOf.PlantCutting) > 0 && !p.WorkTypeIsDisabled(WorkTypeDefOf.PlantCutting)
             && !p.Downed && !p.Drafted && !p.InMentalState && !plant.IsForbidden(p)
-            && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) && p.Position.DistanceTo(plant.Position) <= 50
+            && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
             && p.CanReach(plant, PathEndMode.Touch, Danger.None);
         // Prepare is the apply-time precondition list for cut/harvest
         // (action-contracts.md): the conjunction is Eligible plus the
