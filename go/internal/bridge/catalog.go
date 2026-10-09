@@ -89,6 +89,18 @@ type DefinitionCatalog struct {
 	disarmErr  error
 }
 
+// NotMirrored is the error for a fact the game computes in code that the
+// mirror does not carry: the stat evaluator returns it for a StatWorker or
+// StatPart class that cmd/stataudit lists as unowned, never a default value.
+type NotMirrored struct {
+	Class string // the StatWorker or StatPart class
+	Fact  string // what the class computes that the mirror lacks
+}
+
+func (e *NotMirrored) Error() string {
+	return "stat class " + e.Class + ": " + e.Fact + " is computed in game code and not mirrored"
+}
+
 // defStuff keys a stat row: stuff is empty for a def not made from stuff.
 type defStuff struct{ def, stuff string }
 

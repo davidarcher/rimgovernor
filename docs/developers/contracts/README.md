@@ -21,6 +21,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Medical care contracts](medical-care.md)
 - [Material extraction contracts](mining-contracts.md)
 - [Mood relief contracts](mood-control.md)
+- [Stat worker and part table](stat-classes.md): per-class category and Go owner, `--check` drift gate
 - [Construction tiers](construction-tiers.md): per-target tier on place, native store, set-tier, readback
 - [Persistence contracts](persistence-contracts.md)
 - [Flight rows (schema v2)](flight-rows.md)
