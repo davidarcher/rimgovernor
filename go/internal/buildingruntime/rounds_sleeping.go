@@ -171,7 +171,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		if !r.shelter && IsShellMethod(m.Method) {
 			// A planned room's open ring wave does not hold the furniture
 			// raised on its interior with it: the ring and the slot
-			// are admitted together, and reconcileRooms leaves the ring alone
+			// are admitted together, and reconcileRoom leaves the ring alone
 			// while its wave is open.
 			continue
 		}

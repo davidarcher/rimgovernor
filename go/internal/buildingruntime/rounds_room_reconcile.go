@@ -262,35 +262,31 @@ func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state
 		in.Stock = left
 	}
 	ops, holds := policy.ReconcileRoomHolds(in)
-	works := []roomWork{{rr: rr, ops: ops, holds: holds}}
+	w := roomWork{rr: rr, ops: ops, holds: holds}
 	// Foreign obstructions first (claim, cut, haul),
 	// then removals, then installs from stock, then what is built on site.
-	if result, done, err := b.commitObstructions(call, epoch, state, goal, works); done || err != nil {
+	if result, done, err := b.commitObstructions(call, epoch, state, goal, w); done || err != nil {
 		return result, err
 	}
 	for _, kind := range []policy.OpKind{policy.OpFurnitureOut, policy.OpPack, policy.OpPackInUse, policy.OpFloorOut} {
-		for _, w := range works {
-			for _, op := range w.ops {
-				if op.Kind == kind {
-					return b.commitRemoval(call, epoch, state, goal, w.rr, op)
-				}
+		for _, op := range ops {
+			if op.Kind == kind {
+				return b.commitRemoval(call, epoch, state, goal, rr, op)
 			}
 		}
 	}
 	var installs []policy.WantedPiece
-	for _, w := range works {
-		for _, op := range w.ops {
-			if op.Kind == policy.OpInstall {
-				installs = append(installs, op.Pieces...)
-			}
+	for _, op := range ops {
+		if op.Kind == policy.OpInstall {
+			installs = append(installs, op.Pieces...)
 		}
 	}
 	if len(installs) > 0 {
-		if result, done, err := b.commitInstalls(call, epoch, state, goal, stock, works[0].rr, installs); done || err != nil {
+		if result, done, err := b.commitInstalls(call, epoch, state, goal, stock, rr, installs); done || err != nil {
 			return result, err
 		}
 	}
-	return b.commitBuilds(call, epoch, state, review, goal, reading, plan, works[0])
+	return b.commitBuilds(call, epoch, state, review, goal, reading, plan, w)
 }
 
 // methodOnce is true when the owner has not committed method yet.
@@ -345,7 +341,7 @@ func (b *RoundsBuildingPlanner) commitRemoval(call, epoch context.Context, state
 // obstructionKinds are the foreign-thing waves in the order they are committed.
 var obstructionKinds = []policy.OpKind{policy.OpClaim, policy.OpCut, policy.OpHaulOut}
 
-// commitObstructions commits the next foreign-thing wave across every room:
+// commitObstructions commits the next foreign-thing wave of the room:
 // ruins claimed as wall, impassable plants cut and haulable items
 // moved, one method per kind whose name carries the targets, so an order the
 // game has not finished is not repeated. Packing and deconstruction of foreign
@@ -353,28 +349,26 @@ var obstructionKinds = []policy.OpKind{policy.OpClaim, policy.OpCut, policy.OpHa
 // committed is skipped, not waited on: the cells it covers are blocked in the
 // diff, so the rest of the room proceeds. done is false when nothing was
 // committed.
-func (b *RoundsBuildingPlanner) commitObstructions(call, epoch context.Context, state ControlState, goal store.WorkOwner, works []roomWork) (RoundsBuildingResult, bool, error) {
+func (b *RoundsBuildingPlanner) commitObstructions(call, epoch context.Context, state ControlState, goal store.WorkOwner, w roomWork) (RoundsBuildingResult, bool, error) {
 	for _, kind := range obstructionKinds {
 		var targets []policy.ClearanceTarget
 		seen := map[string]bool{}
-		for _, w := range works {
-			for _, op := range w.ops {
-				if op.Kind != kind {
-					continue
-				}
-				for _, t := range op.Targets {
-					key := fmt.Sprintf("%s@%d,%d", t.EntityID, t.Minimum.X, t.Minimum.Z)
-					if !seen[key] {
-						seen[key] = true
-						targets = append(targets, t)
-					}
+		for _, op := range w.ops {
+			if op.Kind != kind {
+				continue
+			}
+			for _, t := range op.Targets {
+				key := fmt.Sprintf("%s@%d,%d", t.EntityID, t.Minimum.X, t.Minimum.Z)
+				if !seen[key] {
+					seen[key] = true
+					targets = append(targets, t)
 				}
 			}
 		}
 		if len(targets) == 0 {
 			continue
 		}
-		result, done, err := b.commitObstructionWave(call, epoch, state, goal, works[0].rr.name, kind, targets)
+		result, done, err := b.commitObstructionWave(call, epoch, state, goal, w.rr.name, kind, targets)
 		if err != nil || done {
 			return result, done, err
 		}
