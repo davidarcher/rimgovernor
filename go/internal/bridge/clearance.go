@@ -10,6 +10,20 @@ import (
 
 const clearanceTool = "rimgovernor/observations_get_clearance_targets"
 
+// Salvage evidence tunables sent on every clearance read. Native computes
+// about 1 ms of colonist pathing per ruin, so these are main-thread guards:
+// a cached row older than SalvageMaxAgeTicks (four game hours) is recomputed,
+// the frame refresher spends SalvageFrameBudgetMS per update, a read computes
+// rows with no cache entry up to SalvageInlineBudgetMS, and the first read
+// (empty cache) up to SalvageCensusBudgetMS. Rows past the budget carry
+// salvage_skipped.
+const (
+	SalvageMaxAgeTicks    int32   = 4 * 2500
+	SalvageFrameBudgetMS  float64 = 1.5
+	SalvageInlineBudgetMS float64 = 5
+	SalvageCensusBudgetMS float64 = 250
+)
+
 // ReadClearanceTargets is read-only and requires no authority. An unsupported
 // native stub returns ErrUnavailable, never a successful empty census.
 func (client *Client) ReadClearanceTargets(ctx context.Context, identity *c.Identity, includeSalvage bool) (*o.ClearanceTargetsReply, Result, error) {
@@ -28,7 +42,7 @@ func (client *Client) ReadClearanceTargetsOnGround(ctx context.Context, identity
 			return nil, Result{}, contract("invalid planned ground rectangle")
 		}
 	}
-	request := &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeSalvage: includeSalvage}
+	request := &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeSalvage: includeSalvage, SalvageMaxAgeTicks: SalvageMaxAgeTicks, SalvageFrameBudgetMs: SalvageFrameBudgetMS, SalvageInlineBudgetMs: SalvageInlineBudgetMS, SalvageCensusBudgetMs: SalvageCensusBudgetMS}
 	for _, rect := range planned {
 		request.PlannedGround = append(request.PlannedGround, proto.Clone(rect).(*o.Rectangle))
 	}
@@ -80,7 +94,7 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 		seen[row.GetEntityId()] = true
 		if s := row.Salvage; s != nil {
 			finite := func(n float64) bool { return !math.IsNaN(n) && !math.IsInf(n, 0) && n >= 0 && n <= 1e12 }
-			if !finite(s.PathLength) || !finite(s.Labor) {
+			if !finite(s.PathLength) || !finite(s.Labor) || s.AgeTicks < 0 {
 				return contract("invalid salvage costs")
 			}
 			yields := map[string]bool{}
@@ -90,6 +104,9 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 				}
 				yields[y.DefName] = true
 			}
+		}
+		if row.Salvage != nil && row.GetSalvageSkipped() {
+			return contract("salvage both computed and skipped")
 		}
 		if row.RoofBlocker != nil && row.GetRoofBlocker() == "" {
 			return contract("empty clearance roof blocker")

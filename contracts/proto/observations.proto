@@ -52,6 +52,9 @@ message ClearanceTarget {
   optional bool ancient_danger = 9;
   optional bool designated = 10; // A standing Deconstruct designation; the controller adopts it (no ownership ledger).
   SalvageEvidence salvage = 12;
+  // Set when the salvage time budget ran out before native computed this row:
+  // salvage is absent because it was not computed, not because none exists.
+  optional bool salvage_skipped = 14;
   // Player-faction rows only (planned ground): the building is a wall or door
   // on the boundary of a room that is not outdoors.
   optional bool encloses_room = 13;
@@ -75,6 +78,9 @@ message SalvageEvidence {
   double path_length = 2;
   double labor = 3;
   repeated SalvageYield yields = 4;
+  // Game ticks since native computed this row. Served rows keep their cached
+  // evidence until the refresher recomputes them, so age is how stale it is.
+  int32 age_ticks = 5;
 }
 // A rock or slag chunk stack standing on a Home cell: a haul, never a
 // deconstruction. stored is vanilla's IsInValidStorage; destination is
@@ -97,6 +103,15 @@ message ClearanceTargetsRequest {
   ReadScope scope = 1;
   bool include_salvage = 2;
   repeated Rectangle planned_ground = 3;
+  // Salvage evidence tunables, Go-supplied: a cached row older than
+  // salvage_max_age_ticks is recomputed; the frame refresher spends at most
+  // salvage_frame_budget_ms per update; a read computes rows with no cache
+  // entry up to salvage_inline_budget_ms, or salvage_census_budget_ms when its
+  // cache starts empty. Rows past the budget carry salvage_skipped.
+  int32 salvage_max_age_ticks = 4;
+  double salvage_frame_budget_ms = 5;
+  double salvage_inline_budget_ms = 6;
+  double salvage_census_budget_ms = 7;
 }
 message ClearanceTargetsSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1;

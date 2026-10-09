@@ -110,6 +110,9 @@ func TestRankRecoveryHoldReasons(t *testing.T) {
 		{"route unknown", func(_ *RecoveryRequest, t *RecoveryThing) { t.RouteSafe = domain.Unknown[bool]() }, RemoteHoldRouteUnsafe},
 		{"urgent", func(r *RecoveryRequest, _ *RecoveryThing) { r.Urgent = domain.Known(true) }, RemoteHoldUrgentWork},
 		{"no evidence", func(_ *RecoveryRequest, t *RecoveryThing) { t.Evidenced = false }, "salvage_unknown"},
+		{"skipped", func(_ *RecoveryRequest, t *RecoveryThing) {
+			*t, _ = RecoveryClearanceThing(ClearanceTarget{EntityID: "x", Deconstructible: true, SalvageSkipped: true}, false)
+		}, "salvage_skipped"},
 		{"ancient", func(_ *RecoveryRequest, t *RecoveryThing) {
 			*t, _ = RecoveryClearanceThing(ClearanceTarget{EntityID: "x", Deconstructible: true, AncientDanger: true, Salvage: &SalvageEvidence{Safe: domain.Known(true)}}, false)
 		}, "ancient_danger"},

@@ -647,6 +647,7 @@ resource planner's log:
 | `roof_support_risk` | The deposit is not open surface, or a recovery removal the mirror roof check still refuses after the thin roofs are down (thick roof, unknown cell). A ruin whose removal merely drops a thin roof is not held: `PlanRecoveryBatch` removes the roofs first, then the ruin; native's per-building roof verdict no longer holds it in the queue and native re-checks at admission. |
 | `route_unsafe` | Native walked no safe route to the target and back to storage. |
 | `missing_storage` | No accepting headroom. |
+| `salvage_skipped` | Native ran out of salvage time budget before computing the ruin (`ClearanceTarget.salvage_skipped`); the refresher fills it for a later read. Distinct from `salvage_unknown`, a ruin carrying no evidence for any other reason. |
 
 Reach-stage and demand reasons keep their own text. Unknown urgency holds nothing at
 selection; the dispatch emergency check holds on the same unknown facts.

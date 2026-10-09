@@ -22,6 +22,10 @@ const (
 	ClearanceOther           ClearanceClass = "other"
 )
 
+// salvageUnitsPerTrip is the units one hauler carries per trip when pricing a
+// salvage yield; policy, not a native fact.
+const salvageUnitsPerTrip int64 = 75
+
 // ClearanceTarget is an observed building, not an admitted demolition. Empty
 // Faction means neutral and empty RoofBlocker means supported without this
 // one building. Combined removals require a new counterfactual check.
@@ -100,14 +104,14 @@ func ObserveClearanceCensusOnGround(ctx context.Context, source ClearanceSource,
 		o.ClearanceClass_CLEARANCE_CLASS_OTHER:             ClearanceOther,
 	}
 	for _, row := range v.Targets {
-		rows = append(rows, ClearanceTarget{EntityID: row.GetEntityId(), DefName: row.GetDefName(), Class: classes[row.Class], Minimum: domain.Cell{X: row.Occupied.Minimum.GetX(), Z: row.Occupied.Minimum.GetZ()}, Maximum: domain.Cell{X: row.Occupied.Maximum.GetX(), Z: row.Occupied.Maximum.GetZ()}, Deconstructible: row.GetDeconstructible(), InHome: row.GetInHome(), AncientDanger: row.GetAncientDanger(), RoofBlocker: row.GetRoofBlocker(), Designated: row.GetDesignated(), Player: row.EnclosesRoom != nil, EnclosesRoom: row.GetEnclosesRoom()})
+		rows = append(rows, ClearanceTarget{EntityID: row.GetEntityId(), DefName: row.GetDefName(), Class: classes[row.Class], Minimum: domain.Cell{X: row.Occupied.Minimum.GetX(), Z: row.Occupied.Minimum.GetZ()}, Maximum: domain.Cell{X: row.Occupied.Maximum.GetX(), Z: row.Occupied.Maximum.GetZ()}, Deconstructible: row.GetDeconstructible(), InHome: row.GetInHome(), AncientDanger: row.GetAncientDanger(), RoofBlocker: row.GetRoofBlocker(), Designated: row.GetDesignated(), Player: row.EnclosesRoom != nil, EnclosesRoom: row.GetEnclosesRoom(), SalvageSkipped: row.GetSalvageSkipped()})
 		if s := row.Salvage; s != nil {
 			yields := make([]policy.CandidateYield, 0, len(s.Yields))
 			for _, y := range s.Yields {
 				yields = append(yields, policy.SourceYield(policy.ResourceKey{Def: policy.Resource(y.DefName)}, y.Count, y.UnitValue, domain.Known(y.StorageHeadroom)))
 			}
-			candidate := policy.SourceCandidate(policy.CandidateSalvage, row.GetEntityId(), domain.Known(s.Labor), domain.Known(s.PathLength), true, 75, yields...)
-			rows[len(rows)-1].Salvage = &policy.SalvageEvidence{Safe: domain.Known(s.Safe), Candidate: candidate}
+			candidate := policy.SourceCandidate(policy.CandidateSalvage, row.GetEntityId(), domain.Known(s.Labor), domain.Known(s.PathLength), true, salvageUnitsPerTrip, yields...)
+			rows[len(rows)-1].Salvage = &policy.SalvageEvidence{Safe: domain.Known(s.Safe), Candidate: candidate, AgeTicks: s.AgeTicks}
 		}
 	}
 	chunks := make([]ClearanceChunk, 0, len(v.Chunks))

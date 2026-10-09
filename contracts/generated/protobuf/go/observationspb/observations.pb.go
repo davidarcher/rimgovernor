@@ -2148,6 +2148,9 @@ type ClearanceTarget struct {
 	AncientDanger   *bool                  `protobuf:"varint,9,opt,name=ancient_danger,json=ancientDanger,proto3,oneof" json:"ancient_danger,omitempty"`
 	Designated      *bool                  `protobuf:"varint,10,opt,name=designated,proto3,oneof" json:"designated,omitempty"` // A standing Deconstruct designation; the controller adopts it (no ownership ledger).
 	Salvage         *SalvageEvidence       `protobuf:"bytes,12,opt,name=salvage,proto3" json:"salvage,omitempty"`
+	// Set when the salvage time budget ran out before native computed this row:
+	// salvage is absent because it was not computed, not because none exists.
+	SalvageSkipped *bool `protobuf:"varint,14,opt,name=salvage_skipped,json=salvageSkipped,proto3,oneof" json:"salvage_skipped,omitempty"`
 	// Player-faction rows only (planned ground): the building is a wall or door
 	// on the boundary of a room that is not outdoors.
 	EnclosesRoom  *bool `protobuf:"varint,13,opt,name=encloses_room,json=enclosesRoom,proto3,oneof" json:"encloses_room,omitempty"`
@@ -2253,6 +2256,13 @@ func (x *ClearanceTarget) GetSalvage() *SalvageEvidence {
 		return x.Salvage
 	}
 	return nil
+}
+
+func (x *ClearanceTarget) GetSalvageSkipped() bool {
+	if x != nil && x.SalvageSkipped != nil {
+		return *x.SalvageSkipped
+	}
+	return false
 }
 
 func (x *ClearanceTarget) GetEnclosesRoom() bool {
@@ -2394,11 +2404,14 @@ func (x *SalvageYield) GetStorageHeadroom() int64 {
 }
 
 type SalvageEvidence struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Safe          bool                   `protobuf:"varint,1,opt,name=safe,proto3" json:"safe,omitempty"`
-	PathLength    float64                `protobuf:"fixed64,2,opt,name=path_length,json=pathLength,proto3" json:"path_length,omitempty"`
-	Labor         float64                `protobuf:"fixed64,3,opt,name=labor,proto3" json:"labor,omitempty"`
-	Yields        []*SalvageYield        `protobuf:"bytes,4,rep,name=yields,proto3" json:"yields,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Safe       bool                   `protobuf:"varint,1,opt,name=safe,proto3" json:"safe,omitempty"`
+	PathLength float64                `protobuf:"fixed64,2,opt,name=path_length,json=pathLength,proto3" json:"path_length,omitempty"`
+	Labor      float64                `protobuf:"fixed64,3,opt,name=labor,proto3" json:"labor,omitempty"`
+	Yields     []*SalvageYield        `protobuf:"bytes,4,rep,name=yields,proto3" json:"yields,omitempty"`
+	// Game ticks since native computed this row. Served rows keep their cached
+	// evidence until the refresher recomputes them, so age is how stale it is.
+	AgeTicks      int32 `protobuf:"varint,5,opt,name=age_ticks,json=ageTicks,proto3" json:"age_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2459,6 +2472,13 @@ func (x *SalvageEvidence) GetYields() []*SalvageYield {
 		return x.Yields
 	}
 	return nil
+}
+
+func (x *SalvageEvidence) GetAgeTicks() int32 {
+	if x != nil {
+		return x.AgeTicks
+	}
+	return 0
 }
 
 // A rock or slag chunk stack standing on a Home cell: a haul, never a
@@ -2559,8 +2579,17 @@ type ClearanceTargetsRequest struct {
 	Scope          *ReadScope             `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
 	IncludeSalvage bool                   `protobuf:"varint,2,opt,name=include_salvage,json=includeSalvage,proto3" json:"include_salvage,omitempty"`
 	PlannedGround  []*Rectangle           `protobuf:"bytes,3,rep,name=planned_ground,json=plannedGround,proto3" json:"planned_ground,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Salvage evidence tunables, Go-supplied: a cached row older than
+	// salvage_max_age_ticks is recomputed; the frame refresher spends at most
+	// salvage_frame_budget_ms per update; a read computes rows with no cache
+	// entry up to salvage_inline_budget_ms, or salvage_census_budget_ms when its
+	// cache starts empty. Rows past the budget carry salvage_skipped.
+	SalvageMaxAgeTicks    int32   `protobuf:"varint,4,opt,name=salvage_max_age_ticks,json=salvageMaxAgeTicks,proto3" json:"salvage_max_age_ticks,omitempty"`
+	SalvageFrameBudgetMs  float64 `protobuf:"fixed64,5,opt,name=salvage_frame_budget_ms,json=salvageFrameBudgetMs,proto3" json:"salvage_frame_budget_ms,omitempty"`
+	SalvageInlineBudgetMs float64 `protobuf:"fixed64,6,opt,name=salvage_inline_budget_ms,json=salvageInlineBudgetMs,proto3" json:"salvage_inline_budget_ms,omitempty"`
+	SalvageCensusBudgetMs float64 `protobuf:"fixed64,7,opt,name=salvage_census_budget_ms,json=salvageCensusBudgetMs,proto3" json:"salvage_census_budget_ms,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ClearanceTargetsRequest) Reset() {
@@ -2612,6 +2641,34 @@ func (x *ClearanceTargetsRequest) GetPlannedGround() []*Rectangle {
 		return x.PlannedGround
 	}
 	return nil
+}
+
+func (x *ClearanceTargetsRequest) GetSalvageMaxAgeTicks() int32 {
+	if x != nil {
+		return x.SalvageMaxAgeTicks
+	}
+	return 0
+}
+
+func (x *ClearanceTargetsRequest) GetSalvageFrameBudgetMs() float64 {
+	if x != nil {
+		return x.SalvageFrameBudgetMs
+	}
+	return 0
+}
+
+func (x *ClearanceTargetsRequest) GetSalvageInlineBudgetMs() float64 {
+	if x != nil {
+		return x.SalvageInlineBudgetMs
+	}
+	return 0
+}
+
+func (x *ClearanceTargetsRequest) GetSalvageCensusBudgetMs() float64 {
+	if x != nil {
+		return x.SalvageCensusBudgetMs
+	}
+	return 0
 }
 
 type ClearanceTargetsSnapshot struct {
@@ -48437,7 +48494,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x06_field\"y\n" +
 	"\tRectangle\x125\n" +
 	"\aminimum\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\aminimum\x125\n" +
-	"\amaximum\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\amaximum\"\x92\x05\n" +
+	"\amaximum\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\amaximum\"\xd4\x05\n" +
 	"\x0fClearanceTarget\x12 \n" +
 	"\tentity_id\x18\x01 \x01(\tH\x00R\bentityId\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x12B\n" +
@@ -48451,8 +48508,9 @@ const file_observations_proto_rawDesc = "" +
 	"designated\x18\n" +
 	" \x01(\bH\x06R\n" +
 	"designated\x88\x01\x01\x12F\n" +
-	"\asalvage\x18\f \x01(\v2,.rimgovernor.observations.v1.SalvageEvidenceR\asalvage\x12(\n" +
-	"\rencloses_room\x18\r \x01(\bH\aR\fenclosesRoom\x88\x01\x01B\f\n" +
+	"\asalvage\x18\f \x01(\v2,.rimgovernor.observations.v1.SalvageEvidenceR\asalvage\x12,\n" +
+	"\x0fsalvage_skipped\x18\x0e \x01(\bH\aR\x0esalvageSkipped\x88\x01\x01\x12(\n" +
+	"\rencloses_room\x18\r \x01(\bH\bR\fenclosesRoom\x88\x01\x01B\f\n" +
 	"\n" +
 	"_entity_idB\v\n" +
 	"\t_def_nameB\x12\n" +
@@ -48461,7 +48519,8 @@ const file_observations_proto_rawDesc = "" +
 	"\b_in_homeB\x0f\n" +
 	"\r_roof_blockerB\x11\n" +
 	"\x0f_ancient_dangerB\r\n" +
-	"\v_designatedB\x10\n" +
+	"\v_designatedB\x12\n" +
+	"\x10_salvage_skippedB\x10\n" +
 	"\x0e_encloses_room\"\xa2\x01\n" +
 	"\x0eClearanceFloor\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1e\n" +
@@ -48476,13 +48535,14 @@ const file_observations_proto_rawDesc = "" +
 	"\x05count\x18\x02 \x01(\x03R\x05count\x12\x1d\n" +
 	"\n" +
 	"unit_value\x18\x03 \x01(\x01R\tunitValue\x12)\n" +
-	"\x10storage_headroom\x18\x04 \x01(\x03R\x0fstorageHeadroom\"\x9f\x01\n" +
+	"\x10storage_headroom\x18\x04 \x01(\x03R\x0fstorageHeadroom\"\xbc\x01\n" +
 	"\x0fSalvageEvidence\x12\x12\n" +
 	"\x04safe\x18\x01 \x01(\bR\x04safe\x12\x1f\n" +
 	"\vpath_length\x18\x02 \x01(\x01R\n" +
 	"pathLength\x12\x14\n" +
 	"\x05labor\x18\x03 \x01(\x01R\x05labor\x12A\n" +
-	"\x06yields\x18\x04 \x03(\v2).rimgovernor.observations.v1.SalvageYieldR\x06yields\"\xae\x02\n" +
+	"\x06yields\x18\x04 \x03(\v2).rimgovernor.observations.v1.SalvageYieldR\x06yields\x12\x1b\n" +
+	"\tage_ticks\x18\x05 \x01(\x05R\bageTicks\"\xae\x02\n" +
 	"\x0eClearanceChunk\x12 \n" +
 	"\tentity_id\x18\x01 \x01(\tH\x00R\bentityId\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x12/\n" +
@@ -48496,11 +48556,15 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_forbiddenB\t\n" +
 	"\a_storedB\x0e\n" +
-	"\f_destination\"\xcf\x01\n" +
+	"\f_destination\"\xab\x03\n" +
 	"\x17ClearanceTargetsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12'\n" +
 	"\x0finclude_salvage\x18\x02 \x01(\bR\x0eincludeSalvage\x12M\n" +
-	"\x0eplanned_ground\x18\x03 \x03(\v2&.rimgovernor.observations.v1.RectangleR\rplannedGround\"\xb1\x02\n" +
+	"\x0eplanned_ground\x18\x03 \x03(\v2&.rimgovernor.observations.v1.RectangleR\rplannedGround\x121\n" +
+	"\x15salvage_max_age_ticks\x18\x04 \x01(\x05R\x12salvageMaxAgeTicks\x125\n" +
+	"\x17salvage_frame_budget_ms\x18\x05 \x01(\x01R\x14salvageFrameBudgetMs\x127\n" +
+	"\x18salvage_inline_budget_ms\x18\x06 \x01(\x01R\x15salvageInlineBudgetMs\x127\n" +
+	"\x18salvage_census_budget_ms\x18\a \x01(\x01R\x15salvageCensusBudgetMs\"\xb1\x02\n" +
 	"\x18ClearanceTargetsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12F\n" +
 	"\atargets\x18\x02 \x03(\v2,.rimgovernor.observations.v1.ClearanceTargetR\atargets\x12C\n" +

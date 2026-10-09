@@ -25,7 +25,7 @@ func TestClearanceReadAndUnavailableStub(t *testing.T) {
 			if arg.Tool != clearanceTool {
 				t.Fatal(arg.Tool)
 			}
-			protoTestRequest(t, arg, &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, IncludeSalvage: true})
+			protoTestRequest(t, arg, &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, IncludeSalvage: true, SalvageMaxAgeTicks: SalvageMaxAgeTicks, SalvageFrameBudgetMs: SalvageFrameBudgetMS, SalvageInlineBudgetMs: SalvageInlineBudgetMS, SalvageCensusBudgetMs: SalvageCensusBudgetMS})
 			return pbResult(reply), nil
 		}}, time.Second)
 		got, _, err := client.ReadClearanceTargets(context.Background(), pbIdentity(), true)
@@ -120,7 +120,7 @@ func TestClearancePlannedGroundRequestAndFloors(t *testing.T) {
 		snapshot.Floors = tc.floors
 		reply := &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: snapshot}}
 		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
-			protoTestRequest(t, arg, &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, PlannedGround: planned})
+			protoTestRequest(t, arg, &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, PlannedGround: planned, SalvageMaxAgeTicks: SalvageMaxAgeTicks, SalvageFrameBudgetMs: SalvageFrameBudgetMS, SalvageInlineBudgetMs: SalvageInlineBudgetMS, SalvageCensusBudgetMs: SalvageCensusBudgetMS})
 			return pbResult(reply), nil
 		}}, time.Second)
 		got, _, err := client.ReadClearanceTargetsOnGround(context.Background(), pbIdentity(), false, planned)

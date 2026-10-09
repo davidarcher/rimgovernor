@@ -30,6 +30,9 @@ type ClearanceTarget struct {
 	// with an active bill.
 	Packable, InUse bool
 	Salvage         *SalvageEvidence
+	// SalvageSkipped: native ran out of salvage time budget before computing
+	// this row; Salvage is absent because it was not computed.
+	SalvageSkipped bool
 	// Count is the stack a foreign item holds (#2270); zero when unknown.
 	Count int64
 }

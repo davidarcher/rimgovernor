@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
                     began = Now();
                     var snapshot = new Obs.ClearanceTargetsSnapshot { Context = context };
                     snapshot.Floors.AddRange(floors);
-                    var salvage = parsed.IncludeSalvage ? SalvageRead.Begin(map) : null;
+                    var salvage = parsed.IncludeSalvage ? SalvageRead.Begin(map, parsed) : null;
                     foreach (var chunk in chunks.Values.OrderBy(t => t.thingIDNumber)) {
                         if (!chunk.Position.InBounds(map) || chunk.Position.Fogged(map)) continue;
                         var forbidden = chunk.IsForbidden(player);
@@ -105,6 +105,7 @@ namespace HomeBridge.BridgeTools
                             phase = Now();
                             var evidence = salvage.Evidence(building);
                             if (evidence != null) row.Salvage = evidence;
+                            else row.SalvageSkipped = true;
                             salvageTicks += Now() - phase;
                             salvageRows++;
                         }
@@ -182,10 +183,10 @@ namespace HomeBridge.BridgeTools
         // carries no Salvage (remote salvage holds it as salvage_unknown) and
         // the refresher fills it for the next Read. The refresher only walks
         // targets a Read listed, so a colony that never asks pays nothing.
-        private const int salvageMaxAgeTicks = 4 * GenDate.TicksPerHour;
-        private const double salvageFrameBudgetMs = 1.5;
-        private const double salvageInlineBudgetMs = 5;
-        private const double salvageCensusBudgetMs = 250;
+        // The tunables are the last request's (Go supplies them, bridge.Salvage*);
+        // the frame refresher between reads runs under the same values.
+        private static int salvageMaxAgeTicks;
+        private static double salvageFrameBudgetMs, salvageInlineBudgetMs, salvageCensusBudgetMs;
         private const int salvageSignatureEveryTicks = 60;
         private sealed class SalvageEntry { internal long Local, Colony, Stamp; internal int Computed; internal Obs.SalvageEvidence Evidence = null!; }
         private static readonly Dictionary<int, SalvageEntry> salvageCache = new Dictionary<int, SalvageEntry>();
@@ -222,6 +223,14 @@ namespace HomeBridge.BridgeTools
             var entry = new SalvageEntry { Local = local, Colony = salvageSignature, Stamp = ++salvageStamp, Computed = Find.TickManager.TicksGame, Evidence = Salvage(map, b, safety, passYields) };
             salvageCache[b.thingIDNumber] = entry;
             return entry.Evidence;
+        }
+
+        // A copy of the cached evidence stamped with its age at this read.
+        private static Obs.SalvageEvidence Served(SalvageEntry e)
+        {
+            var copy = e.Evidence.Clone();
+            copy.AgeTicks = Math.Max(0, Find.TickManager.TicksGame - e.Computed);
+            return copy;
         }
 
         private static bool Aged(SalvageEntry e)
@@ -269,8 +278,12 @@ namespace HomeBridge.BridgeTools
             private long inline, served, inlineTicks, capped;
             private SalvageRead(Map map, bool census) { this.map = map; this.census = census; }
 
-            internal static SalvageRead Begin(Map map)
+            internal static SalvageRead Begin(Map map, Obs.ClearanceTargetsRequest request)
             {
+                salvageMaxAgeTicks = request.SalvageMaxAgeTicks;
+                salvageFrameBudgetMs = request.SalvageFrameBudgetMs;
+                salvageInlineBudgetMs = request.SalvageInlineBudgetMs;
+                salvageCensusBudgetMs = request.SalvageCensusBudgetMs;
                 if (salvageGame != Current.Game || salvageMap != map.uniqueID) {
                     salvageCache.Clear();
                     salvageTargets.Clear();
@@ -286,7 +299,7 @@ namespace HomeBridge.BridgeTools
                 var id = b.thingIDNumber;
                 seen.Add(id);
                 salvageTargets[id] = b;
-                if (salvageCache.TryGetValue(id, out var e)) { served++; return e.Evidence.Clone(); }
+                if (salvageCache.TryGetValue(id, out var e)) { served++; return Served(e); }
                 if (Ms(inlineTicks) >= (census ? salvageCensusBudgetMs : salvageInlineBudgetMs)) { capped++; return null; }
                 var began = Now();
                 var evidence = Store(map, b, LocalSignature(b));

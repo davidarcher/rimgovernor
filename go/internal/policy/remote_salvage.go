@@ -11,6 +11,9 @@ import (
 type SalvageEvidence struct {
 	Safe      domain.Fact[bool]
 	Candidate SupplyCandidate
+	// AgeTicks is how many game ticks old native's computation was at the
+	// read; served rows are cached until the refresher recomputes them.
+	AgeTicks int32
 }
 
 // SalvagePriced is the one salvage yield pricing function: the native

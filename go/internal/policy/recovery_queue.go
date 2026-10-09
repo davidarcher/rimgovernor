@@ -52,9 +52,12 @@ type RecoveryThing struct {
 	Cell            domain.Cell
 	RoomObstruction bool
 	Evidenced       bool
-	Candidate       SupplyCandidate
-	Hold            string
-	RouteSafe       domain.Fact[bool]
+	// Skipped: native ran out of salvage time budget before computing this
+	// row; held "salvage_skipped", distinct from "salvage_unknown".
+	Skipped   bool
+	Candidate SupplyCandidate
+	Hold      string
+	RouteSafe domain.Fact[bool]
 }
 
 // RecoveryRequest is the review's input. Short are the resources currently
@@ -125,6 +128,8 @@ func recoveryHold(t RecoveryThing, r RecoveryRequest) string {
 	switch {
 	case t.Hold != "":
 		return t.Hold
+	case t.Skipped:
+		return "salvage_skipped"
 	case !t.Evidenced:
 		return "salvage_unknown"
 	}
@@ -221,7 +226,7 @@ func RecoveryClearanceThing(row ClearanceTarget, roomObstruction bool) (Recovery
 	t := RecoveryThing{
 		ID: row.EntityID, Def: row.DefName, Kind: RemoteSalvage, RoomObstruction: roomObstruction,
 		Cell: domain.Cell{X: (row.Minimum.X + row.Maximum.X) / 2, Z: (row.Minimum.Z + row.Maximum.Z) / 2},
-		Hold: RemoteHoldReason(RemoteSalvage, ClearanceHoldReason(own)), RouteSafe: domain.Unknown[bool](),
+		Hold: RemoteHoldReason(RemoteSalvage, ClearanceHoldReason(own)), RouteSafe: domain.Unknown[bool](), Skipped: row.SalvageSkipped,
 	}
 	if row.Salvage != nil {
 		t.Candidate, _ = SalvagePriced(row.EntityID, *row.Salvage)

@@ -664,7 +664,7 @@ compiling at the time; steady iterations agreed within about 15%.
 | Spatial access audit (32 colonists, 16,384 blocked, 128 targets) | 14 colonists 1.1-1.7 s | 40 colonists 2.9-3.3 s, 5.0 s with 16,384 blocked | about 70-80 ms per colonist, independent of blocked cells; 8 colonists 0.5-0.7 s; the 32 cap alone is about 2.5 s | Budget and skipped flag, per colonist |
 | Cold-site scan, `FoodLarderFacts` (`Take(16)`) | 11-13 ms | 7-14 ms with or without `Take(16)` | the take stops early only once 16 sites exist; sparse maps scan every cell (0.12-0.2 us per cell) | Budget; cost scales with map area, not the cap |
 | Lines of fire (64 x 64 cells) | 10-15 ms | 128 x 128 34 ms; 256 x 256 145-185 ms | 2.5-3.6 us per trace | Budget and skipped flag; over 5 ms at the cap |
-| Salvage census and refresher | not measured | not measured | already explicit time budgets (1.5, 5 and 250 ms) | Keep as is |
+| Salvage census and refresher | not measured | not measured | already explicit time budgets (1.5, 5 and 250 ms) | Keep (landed #2574): the budgets and the four-hour cache age are Go-supplied `ClearanceTargetsRequest` fields (`salvage_*`, defaults `bridge.Salvage*`); `SalvageEvidence.age_ticks` reports row staleness and `ClearanceTarget.salvage_skipped` marks rows past the budget |
 
 For scale, a whole `SnapshotFrames.Capture` hop costs 100-175 ms on the 8-colonist
 baseline, about 300 ms at realistic size and 1.7-2.1 s at stress with the caps in place
