@@ -142,6 +142,13 @@ thoughts stay unverified and the ledger's expectation list is empty. Later child
 (display, the colony aggregate, the gathering trigger) read this fact; the ledger itself
 changes no relief or provisioning decision.
 
+The colony status route (`/api/player/colony`) carries the held fact as `moodLedger`
+(null until a review has filed): `sources` ranked by mood lost, the `unowned` subset
+(empty `owners`), each source's `unverified` count, `unknownPawns` and the `expectation`
+levels (empty while the level is unobserved). `cmd/colonyreview` copies it into each
+frame and the hourly panel renders the two tables, saying "Expectation level not
+observed" rather than assuming one. Unowned thoughts ranked by mood lost choose the next gap-fill.
+
 ## Relief jobs
 
 A `GiveJobIntent` with `relieve_need` on Actions/Apply offers one ordinary food, rest

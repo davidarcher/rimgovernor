@@ -153,3 +153,26 @@ func TestReportOfAFailedRun(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestFramesCarryMoodLedger passes the status route's ranked sources and
+// unowned bucket through to the player untouched, and a missing ledger stays
+// absent rather than becoming an empty one.
+func TestFramesCarryMoodLedger(t *testing.T) {
+	ledger := &MoodLedger{
+		Sources:     []MoodSource{{Def: "NeedJoy", Pawns: 2, Lost: -8, Owners: []string{"EnsureComfort"}, Unverified: 2}, {Def: "SleptInBarracks", Pawns: 1, Lost: -4, Owners: []string{}, Unverified: 1}},
+		Unowned:     []MoodSource{{Def: "SleptInBarracks", Pawns: 1, Lost: -4, Owners: []string{}, Unverified: 1}},
+		Expectation: []MoodExpectation{},
+	}
+	got := frames([]Row{{Census: Census{MoodLedger: ledger}}, {}})
+	if got[0].Ledger != ledger || got[1].Ledger != nil {
+		t.Fatalf("ledger frames = %+v", got)
+	}
+	data, err := json.Marshal(got[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `"ml":{"sources":[{"def":"NeedJoy","pawns":2,"lost":-8,"owners":["EnsureComfort"],"unverified":2},{"def":"SleptInBarracks","pawns":1,"lost":-4,"owners":[],"unverified":1}],"unowned":[{"def":"SleptInBarracks","pawns":1,"lost":-4,"owners":[],"unverified":1}],"unknownPawns":0,"expectation":[]}`
+	if !strings.Contains(string(data), want) {
+		t.Fatalf("frame json = %s", data)
+	}
+}

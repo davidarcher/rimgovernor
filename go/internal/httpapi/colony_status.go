@@ -49,11 +49,14 @@ type colonyStatusDTO struct {
 	// ForbiddenSupplies is whether starting supplies were still forbidden
 	// at the last review (the colony review report's zone check); null
 	// until a review has filed.
-	Stockpiles        []colonyStockpileDTO  `json:"stockpiles"`
-	ForbiddenSupplies *bool                 `json:"forbiddenSupplies"`
-	Downed            int                   `json:"downed"`
-	MoodMean          *float64              `json:"moodMean"`
-	Pawns             []colonyStatusPawnDTO `json:"pawns"`
+	Stockpiles        []colonyStockpileDTO `json:"stockpiles"`
+	ForbiddenSupplies *bool                `json:"forbiddenSupplies"`
+	Downed            int                  `json:"downed"`
+	MoodMean          *float64             `json:"moodMean"`
+	// MoodLedger ranks where the colony loses mood and the unowned bucket;
+	// null until a review has filed.
+	MoodLedger *moodLedgerDTO        `json:"moodLedger"`
+	Pawns      []colonyStatusPawnDTO `json:"pawns"`
 }
 
 type colonyStockpileDTO struct {
@@ -160,11 +163,58 @@ func projectColonyStatus(v buildingruntime.ColonyStatusReport) colonyStatusDTO {
 		}
 		out.Pawns = append(out.Pawns, row)
 	}
+	if ledger, known := v.MoodLedger.Value(); known {
+		out.MoodLedger = projectMoodLedger(ledger)
+	}
 	if moodCount > 0 {
 		mean := moodSum / float64(moodCount)
 		out.MoodMean = &mean
 	}
 	return out
+}
+
+// moodLedgerDTO is policy.MoodLedger on the wire: sources ranked by mood lost
+// (most negative first), the unowned subset, the pawns whose thoughts were
+// unreadable and the expectation levels observed. Expectation is empty while
+// the level is not read; a source's Unverified counts affected pawns whose
+// immunity or expectation gating could not be checked.
+type moodLedgerDTO struct {
+	Sources      []moodSourceDTO      `json:"sources"`
+	Unowned      []moodSourceDTO      `json:"unowned"`
+	UnknownPawns int                  `json:"unknownPawns"`
+	Expectation  []moodExpectationDTO `json:"expectation"`
+}
+
+type moodSourceDTO struct {
+	Def        string   `json:"def"`
+	Pawns      int      `json:"pawns"`
+	Lost       float64  `json:"lost"`
+	Owners     []string `json:"owners"`
+	Unverified int      `json:"unverified"`
+}
+
+type moodExpectationDTO struct {
+	Level string `json:"level"`
+	Pawns int    `json:"pawns"`
+}
+
+func projectMoodLedger(l policy.MoodLedger) *moodLedgerDTO {
+	project := func(rows []policy.MoodLedgerSource) []moodSourceDTO {
+		out := make([]moodSourceDTO, 0, len(rows))
+		for _, s := range rows {
+			owners := make([]string, 0, len(s.Owners))
+			for _, owner := range s.Owners {
+				owners = append(owners, string(owner))
+			}
+			out = append(out, moodSourceDTO{Def: s.Def, Pawns: s.Pawns, Lost: s.Lost, Owners: owners, Unverified: s.Unverified})
+		}
+		return out
+	}
+	expectation := make([]moodExpectationDTO, 0, len(l.Expectation))
+	for _, e := range l.Expectation {
+		expectation = append(expectation, moodExpectationDTO{Level: e.Level, Pawns: e.Pawns})
+	}
+	return &moodLedgerDTO{Sources: project(l.Sources), Unowned: project(l.Unowned), UnknownPawns: l.UnknownPawns, Expectation: expectation}
 }
 
 type foodPlanDTO struct {

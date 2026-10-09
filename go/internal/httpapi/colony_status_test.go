@@ -2,8 +2,10 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -11,7 +13,44 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 )
+
+// TestColonyStatusReportsMoodLedger ranks the recorded pressured pawn's
+// thoughts (policy/testdata/mood-provision-pressured.json) plus one unowned
+// thought; an unread expectation level is an empty list, not a guess.
+func TestColonyStatusReportsMoodLedger(t *testing.T) {
+	data, err := os.ReadFile("../policy/testdata/mood-provision-pressured.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pawn policy.MoodPawn
+	if err = snapshot.Decode(data, &pawn); err != nil {
+		t.Fatal(err)
+	}
+	rows, known := pawn.Thoughts.Value()
+	if !known {
+		t.Fatal("recorded thoughts unknown")
+	}
+	rows = append(rows, policy.MoodThought{Def: "SleptInBarracks", Offset: -4})
+	ledger := policy.BuildMoodLedger([]policy.MoodLedgerPawn{
+		{ID: pawn.ID, Thoughts: domain.Known(rows), Traits: domain.Known([]string{}), Precepts: domain.Known([]string{}), Expectation: domain.Unknown[string]()},
+		{ID: "unread", Thoughts: domain.Unknown[[]policy.MoodThought]()},
+	}, nil)
+	dto := projectColonyStatus(buildingruntime.ColonyStatusReport{MoodLedger: domain.Known(ledger)})
+	b, err := json.Marshal(dto.MoodLedger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"sources":[{"def":"NeedJoy","pawns":1,"lost":-10,"owners":["EnsureComfort"],"unverified":1},{"def":"EnvironmentCold","pawns":1,"lost":-4,"owners":["EnsureTemperatureSafety"],"unverified":1},{"def":"SleptInBarracks","pawns":1,"lost":-4,"owners":[],"unverified":1},{"def":"SleptOutside","pawns":1,"lost":-4,"owners":["MaintainHousing"],"unverified":1}],` +
+		`"unowned":[{"def":"SleptInBarracks","pawns":1,"lost":-4,"owners":[],"unverified":1}],"unknownPawns":1,"expectation":[]}`
+	if string(b) != want {
+		t.Fatalf("ledger = %s\nwant     %s", b, want)
+	}
+	if projectColonyStatus(buildingruntime.ColonyStatusReport{}).MoodLedger != nil {
+		t.Fatal("an unfiled ledger must be null")
+	}
+}
 
 type colonyStatusFixture struct {
 	report buildingruntime.ColonyStatusReport

@@ -55,6 +55,32 @@ type Census struct {
 	Stockpiles        []Stockpile `json:"stockpiles"`
 	ForbiddenSupplies *bool       `json:"forbiddenSupplies"`
 	Pawns             []Pawn      `json:"pawns"`
+	// MoodLedger is the status route's ranked mood loss; null until a review has filed.
+	MoodLedger *MoodLedger `json:"moodLedger"`
+}
+
+// MoodLedger mirrors the colony status route's moodLedger: sources ranked by
+// mood lost, the unowned subset, and what could not be verified.
+type MoodLedger struct {
+	Sources      []MoodSource      `json:"sources"`
+	Unowned      []MoodSource      `json:"unowned"`
+	UnknownPawns int               `json:"unknownPawns"`
+	Expectation  []MoodExpectation `json:"expectation"`
+}
+
+// MoodSource is one thought's colony total.
+type MoodSource struct {
+	Def        string   `json:"def"`
+	Pawns      int      `json:"pawns"`
+	Lost       float64  `json:"lost"`
+	Owners     []string `json:"owners"`
+	Unverified int      `json:"unverified"`
+}
+
+// MoodExpectation is how many pawns sit at an expectation level.
+type MoodExpectation struct {
+	Level string `json:"level"`
+	Pawns int    `json:"pawns"`
 }
 
 // Concern is one sampled concern's state.

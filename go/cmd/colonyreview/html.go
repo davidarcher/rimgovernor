@@ -147,6 +147,7 @@ type frameDTO struct {
 	Pawns  []pawnDTO   `json:"p,omitempty"`
 	Zones  []zoneDTO   `json:"z,omitempty"`
 	Forbid bool        `json:"fb,omitempty"`
+	Ledger *MoodLedger `json:"ml,omitempty"`
 	Flags  []flagDTO   `json:"f,omitempty"`
 	Change []string    `json:"c,omitempty"`
 	Unmet  [][2]string `json:"u"` // concern id, status, for each concern in deficit
@@ -186,6 +187,7 @@ func frames(rows []Row) []frameDTO {
 		for _, z := range c.Stockpiles {
 			f.Zones = append(f.Zones, zoneDTO(z))
 		}
+		f.Ledger = c.MoodLedger
 		f.Forbid = c.ForbiddenSupplies != nil && *c.ForbiddenSupplies
 		for _, fl := range r.Flags {
 			f.Flags = append(f.Flags, flagDTO(fl))

@@ -76,6 +76,9 @@ type ColonyStatusReport struct {
 	// unknown until a review with the fact has filed.
 	Stockpiles        domain.Fact[[]policy.StockpileRoleCount]
 	ForbiddenSupplies domain.Fact[bool]
+	// MoodLedger is where the colony loses mood, as the last rounds built it;
+	// unknown until a review has filed.
+	MoodLedger domain.Fact[policy.MoodLedger]
 	// Pawns is the living home colonist roster, sorted as native listed it.
 	Pawns []ColonyStatusPawn
 }
@@ -159,6 +162,7 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 		TechTier:             domain.Unknown[policy.TechTier](),
 		Stockpiles:           domain.Unknown[[]policy.StockpileRoleCount](),
 		ForbiddenSupplies:    domain.Unknown[bool](),
+		MoodLedger:           domain.Unknown[policy.MoodLedger](),
 		Pawns:                []ColonyStatusPawn{},
 	}
 	if source, ok := s.native.(observation.ShrineSource); ok {
@@ -178,6 +182,7 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 				report.FoodPlan = held.Value.Facts.FoodPlan
 				report.ForbiddenSupplies = forbiddenSupplies(held.Value.Facts.EventLoot)
 				report.Stockpiles = held.Value.Facts.StockpileZones
+				report.MoodLedger = held.Value.Facts.MoodLedger
 				if animals, known := held.Value.Facts.AnimalUpkeep.Animals.Value(); known {
 					report.PetLabels = map[policy.PawnID]string{}
 					for _, animal := range animals {

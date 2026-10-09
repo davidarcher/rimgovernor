@@ -249,6 +249,7 @@ table.runs img{width:72px;height:72px;object-fit:cover;border-radius:4px}
       });
       h += '</table>';
     }
+    h += ledgerHTML(f.ml);
     if (f.f && f.f.length) {
       h += '<ul class="notes">' + f.f.map(function (x) { return '<li class="' + x.s + '">⚑ ' + esc(x.t) + '</li>'; }).join('') + '</ul>';
     }
@@ -263,6 +264,28 @@ table.runs img{width:72px;height:72px;object-fit:cover;border-radius:4px}
         (f.fb ? ' · <span class="warn">starting supplies forbidden</span>' : '') + '</p>';
     }
     $('now').innerHTML = h;
+  }
+  // The mood ledger: every source ranked by colony mood lost, then the
+  // unowned bucket (no audited owner). Unverified counts pawns whose
+  // immunity or expectation gating could not be checked; an unread expectation
+  // level is said so rather than assumed.
+  function ledgerRows(rows) {
+    var h = '<table class="pawns"><tr><th>Thought</th><th>Pawns</th><th>Mood lost</th><th>Owner</th><th>Unverified</th></tr>';
+    rows.forEach(function (s) {
+      h += '<tr><td>' + esc(s.def) + '</td><td>' + s.pawns + '</td><td>' + num(s.lost, 1) + '</td><td>' +
+        (s.owners.length ? esc(s.owners.join(', ')) : '<span class="warn">unowned</span>') + '</td><td>' + (s.unverified ? s.unverified : '') + '</td></tr>';
+    });
+    return h + '</table>';
+  }
+  function ledgerHTML(l) {
+    if (!l) return '<p class="muted">Mood ledger: unknown (no review has filed).</p>';
+    var h = '<h3>Mood lost by thought</h3>';
+    h += l.sources.length ? ledgerRows(l.sources) : '<p class="muted">No negative thoughts.</p>';
+    h += '<h3>Unowned</h3>';
+    h += l.unowned.length ? ledgerRows(l.unowned) : '<p class="muted">None.</p>';
+    h += '<p class="muted">' + (l.unknownPawns ? l.unknownPawns + ' colonist(s) with unreadable thoughts · ' : '') +
+      (l.expectation.length ? 'Expectation: ' + l.expectation.map(function (e) { return esc(e.level) + ' ' + e.pawns; }).join(', ') : 'Expectation level not observed') + '</p>';
+    return h;
   }
   function tile(label, value, cls) { return '<div class="tile"><span class="muted">' + label + '</span><b class="' + cls + '">' + value + '</b></div>'; }
   function bar(v, cls) {
