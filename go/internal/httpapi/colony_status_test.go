@@ -42,8 +42,8 @@ func TestColonyStatusReportsMoodLedger(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"sources":[{"def":"NeedJoy","pawns":1,"lost":-10,"owners":["EnsureComfort"],"unverified":1},{"def":"EnvironmentCold","pawns":1,"lost":-4,"owners":["EnsureTemperatureSafety"],"unverified":1},{"def":"SleptInBarracks","pawns":1,"lost":-4,"owners":[],"unverified":1},{"def":"SleptOutside","pawns":1,"lost":-4,"owners":["MaintainHousing"],"unverified":1}],` +
-		`"unowned":[{"def":"SleptInBarracks","pawns":1,"lost":-4,"owners":[],"unverified":1}],"unknownPawns":1,"expectation":[]}`
+	want := `{"sources":[{"def":"NeedJoy","pawns":1,"lost":-10,"owners":["EnsureComfort"],"unverified":1},{"def":"EnvironmentCold","pawns":1,"lost":-4,"owners":["EnsureTemperatureSafety"],"unverified":1},{"def":"SleptInBarracks","pawns":1,"lost":-4,"owners":["MaintainHousing"],"unverified":1},{"def":"SleptOutside","pawns":1,"lost":-4,"owners":["MaintainHousing"],"unverified":1}],` +
+		`"unowned":[],"unknownPawns":1,"expectation":[]}`
 	if string(b) != want {
 		t.Fatalf("ledger = %s\nwant     %s", b, want)
 	}

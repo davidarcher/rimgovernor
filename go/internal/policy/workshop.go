@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -56,6 +57,10 @@ type WorkshopRequest struct {
 	// requirement then assigns that builder. Unknown keeps the choice to
 	// benches without a prerequisite.
 	BuilderSkill domain.Fact[int32]
+	// Further names the bench kinds (FurtherBenchKinds) whose standing benches
+	// no longer suffice: a bench of such a kind is not reused, and a further
+	// one of the kind is staged instead.
+	Further []string
 }
 
 // BuilderSkill is the highest Construction skill level among the pawns that
@@ -143,6 +148,7 @@ func SelectWorkshopBench(r WorkshopRequest) (WorkshopChoice, error) {
 	if !known {
 		return WorkshopChoice{Method: WorkshopUnknown}, nil
 	}
+	var reuse *WorkshopChoice
 	for _, b := range benches {
 		recipes, known := b.Recipes.Value()
 		if !known {
@@ -158,7 +164,13 @@ func SelectWorkshopBench(r WorkshopRequest) (WorkshopChoice, error) {
 				return WorkshopChoice{Method: WorkshopUnknown}, nil
 			}
 			if available && on {
-				return WorkshopChoice{Method: WorkshopExisting, Definition: "", Recipe: recipe.Definition}, nil
+				existing := WorkshopChoice{Method: WorkshopExisting, Definition: "", Recipe: recipe.Definition}
+				if !slices.Contains(r.Further, b.Def) {
+					return existing, nil
+				}
+				// Capacity no longer suffices: a further bench of the kind,
+				// with this one as the fallback when none can be staged.
+				reuse = &existing
 			}
 		}
 	}
@@ -177,6 +189,9 @@ func SelectWorkshopBench(r WorkshopRequest) (WorkshopChoice, error) {
 			continue
 		}
 		for _, name := range WorkshopBenchCandidates(r.Resource, r.Hosts) {
+			if reuse != nil && !slices.Contains(r.Further, name) {
+				continue
+			}
 			d, exists := byName[name]
 			available, ak := d.Available.Value()
 			powered, pk := d.NeedsPower.Value()
@@ -189,6 +204,9 @@ func SelectWorkshopBench(r WorkshopRequest) (WorkshopChoice, error) {
 				return WorkshopChoice{Method: WorkshopBuild, Definition: name, Recipe: workshopRecipe(r.Resource, r.Hosts, name), NeedsPower: powered}, nil
 			}
 		}
+	}
+	if reuse != nil {
+		return *reuse, nil
 	}
 	// Research-gated: the first bench and recipe pair that only research
 	// stands between; its projects are the ladder's next rung.

@@ -41,6 +41,8 @@ type workLedger struct {
 	// latest unmet throughput per bench kind (RoundsFacts.UnmetThroughput).
 	dispatch policy.DispatchMemory
 	unmet    []policy.UnmetThroughput
+	// colonists sizes the further-bench cap (policy.BenchCap).
+	colonists int
 }
 
 // ledgerUnmet is the latest review's unmet throughput per bench kind.
@@ -48,6 +50,14 @@ func (r *Rounder) ledgerUnmet() []policy.UnmetThroughput {
 	r.ledger.mu.Lock()
 	defer r.ledger.mu.Unlock()
 	return r.ledger.unmet
+}
+
+// ledgerFurtherBenches is the bench kinds the latest review's unmet throughput
+// says need another bench (policy.FurtherBenchKinds) against the standing ones.
+func (r *Rounder) ledgerFurtherBenches(benches []policy.GearBench) []string {
+	r.ledger.mu.Lock()
+	defer r.ledger.mu.Unlock()
+	return policy.FurtherBenchKinds(r.ledger.unmet, benches, r.ledger.colonists)
 }
 
 // ledgerPending is a review's reconcile plan, committed by the ledger planner
@@ -83,7 +93,7 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 		l.dispatch = policy.DispatchMemory{}
 	}
 	l.world = snapshot
-	l.unmet = nil
+	l.unmet, l.colonists = nil, 0
 	l.mu.Unlock()
 	native, ok := r.native.(RoundsWorkBenchSource)
 	if len(declarers) == 0 || !ok {
@@ -124,6 +134,7 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 	placed, unplaced := policy.PlaceLedgerOrders(plan.Place, benches)
 	wanted, _ := policy.WantedOrders(declared)
 	l.unmet = l.dispatch.Unmet(dispatched, wanted, unplaced, benches)
+	l.colonists = len(pawns)
 	if policy.LedgerDiffOwed(plan) {
 		l.pending = &ledgerPending{snapshot: snapshot, remove: plan.Remove, place: placed, unplaced: unplaced}
 	}

@@ -12,8 +12,19 @@ Each rung is a separate deficit under an existing maintained Concern. Shared
 admission checks its resources and dependencies; vanilla priorities schedule pawn work.
 
 1. **Reuse**: a room the game already scores as hosting the function, or an
-   existing bench, bed or spot that already does the job. Reuse always wins
-   over building, so a colony that has the facility never gets a second one.
+   existing bench, bed or spot that already does the job. Reuse wins over
+   building while its capacity suffices, so a colony that has the facility
+   gets no second one. The one exception is a production bench kind the work
+   dispatcher reports short (`RoundsFacts.UnmetThroughput` reason `no_bench`
+   or `benches_exhausted`; slots, ingredient and haul-bound shortfalls never
+   count): its standing benches stop counting as reuse and a further bench of
+   that kind walks the research, power, bench and workstation-stockpile rungs
+   below. A kind is capped at `policy.BenchCap` = `1 + colonists/4`, at most
+   4 (`ColonistsPerExtraBench`, `MaxBenchesPerKind`); a further bench that
+   cannot be staged leaves the existing bench in use. Each further bench is
+   its own `workshop-<def>-<n>` method. The case needs a colony whose demand
+   outruns one bench, so it is proven by the nightly tier and the unit tests in
+   `workshop_further_test.go`, not by a dedicated `production/ladder` fixture.
 2. **Research**: when the first bench that could produce a `MaintainResource`
    deficit is gated only by unfinished research, the workshop planner records
    the projects on the `production_ladder` journal record and steps aside. The

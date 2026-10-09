@@ -115,6 +115,11 @@ func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (i
 		}
 		return 1, domain.MethodID("comfort-" + r.definition), Verdict{}
 	case policy.MaintainResource, policy.MaintainEquipment:
+		if r.workshop != nil && r.workshop.ordinal > 0 {
+			// A further bench is a new method, so the first bench's finished
+			// plan does not retire it.
+			return 1, domain.MethodID(fmt.Sprintf("workshop-%s-%d", r.definition, r.workshop.ordinal+1)), Verdict{}
+		}
 		return 1, domain.MethodID("workshop-" + r.definition), Verdict{}
 	case policy.MaintainMedicalReserves:
 		return 1, domain.MethodID("hospital-" + r.definition), Verdict{}

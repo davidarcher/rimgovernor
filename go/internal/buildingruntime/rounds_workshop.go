@@ -36,6 +36,11 @@ type workshopSelection struct {
 	benches      []policy.GearBench
 	hosts        []policy.RecipeHost
 	candidates   []string
+	// further is the bench kinds whose standing benches no longer suffice
+	// (policy.FurtherBenchKinds); ordinal is how many benches of the chosen
+	// definition already stand, which names a further bench's method.
+	further []string
+	ordinal int
 }
 
 // stepWorkshops shares the facility ladder between replacement gear and resource
@@ -180,14 +185,14 @@ func (r *RoundsBuildingPlanner) prepareWorkshop(call context.Context, state Cont
 	if len(products) == 0 {
 		products = []policy.Resource{resource}
 	}
-	selection := &workshopSelection{benches: benches}
+	selection := &workshopSelection{benches: benches, further: r.reviewer.ledgerFurtherBenches(benches)}
 	candidates := map[string]bool{}
 	for _, product := range products {
 		hosts, err := defs.Catalog.RecipeHosts(string(product), finished)
 		if err != nil {
 			return nil, Verdict{}, err
 		}
-		request := policy.WorkshopRequest{Resource: product, Benches: domain.Known(benches), Hosts: hosts}
+		request := policy.WorkshopRequest{Resource: product, Benches: domain.Known(benches), Hosts: hosts, Further: selection.further}
 		snap.NoteWorkshop(call, request)
 		choice, err := policy.SelectWorkshopBench(request)
 		if err != nil {
@@ -265,7 +270,7 @@ func (r *RoundsBuildingPlanner) selectWorkshop(call context.Context, state Contr
 	choice := policy.WorkshopChoice{Method: policy.WorkshopUnavailable}
 	resource := r.workshop.resource
 	for _, product := range products {
-		request := policy.WorkshopRequest{Resource: product.resource, Benches: domain.Known(r.workshop.benches), Hosts: product.hosts, Definitions: definitions, Power: generatorAvailable(available), BuilderSkill: policy.BuilderSkill(facts.WorkPawns)}
+		request := policy.WorkshopRequest{Resource: product.resource, Benches: domain.Known(r.workshop.benches), Hosts: product.hosts, Definitions: definitions, Power: generatorAvailable(available), BuilderSkill: policy.BuilderSkill(facts.WorkPawns), Further: r.workshop.further}
 		snap.NoteWorkshop(call, request)
 		candidate, err := policy.SelectWorkshopBench(request)
 		if err != nil {
@@ -301,6 +306,11 @@ func (r *RoundsBuildingPlanner) selectWorkshop(call context.Context, state Contr
 	resolved := *r
 	selectedWorkshop := *r.workshop
 	selectedWorkshop.resource = resource
+	for _, b := range r.workshop.benches {
+		if b.Def == choice.Definition {
+			selectedWorkshop.ordinal++
+		}
+	}
 	resolved.workshop = &selectedWorkshop
 	resolved.definition = choice.Definition
 	resolved.environment = policy.PlacementIndoors
