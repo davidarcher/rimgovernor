@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
+using Verse.AI.Group;
 using System.Threading;
 using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
@@ -238,6 +241,125 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, pawn = pawn.GetUniqueLoadID() };
             }, cancellationToken);
         }
+        private static IEnumerable<Pawn> MoodColonists(Map map, string id) =>
+            map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && p.needs?.mood != null && (string.IsNullOrEmpty(id) || p.GetUniqueLoadID() == id))
+                .OrderBy(p => p.thingIDNumber);
+
+        private static object[] Memories(Pawn pawn) =>
+            pawn.needs.mood.thoughts.memories.Memories.Select(m => (object)new { def = m.def.defName, offset = m.MoodOffset() }).ToArray();
+
+        // Mood is pinned natively with no clock: the unfrozen Mood need seeks the instantaneous level (base plus every thought), so a
+        // calibrating memory whose moodPowerFactor makes that level land exactly on the target keeps CurLevel there through ordinary ticks (#2549).
+        [Tool("test/mood_headroom", Description = "UNSAFE FOR MODEL EXECUTION. Hold one disposable colonist's mood exactly `headroom` above its native minor-break threshold with a calibrating memory (MyOrganHarvested to lower, Catharsis to raise), replacing any earlier calibration (#2549).")]
+        public async Task<object> Headroom(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Pawn load id; empty takes the lowest-id colonist.")] string pawn,
+            [ToolParameter(Description = "Mood level above the minor-break threshold, e.g. 0.07.")] double headroom)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded colony is required.");
+                var p = MoodColonists(map, pawn).FirstOrDefault(x => !x.Downed && !x.InMentalState) ?? throw new InvalidOperationException("No eligible colonist.");
+                var mood = p.needs.mood;
+                var lower = ThoughtDef.Named("MyOrganHarvested");
+                var raise = ThoughtDef.Named("Catharsis");
+                mood.thoughts.memories.RemoveMemoriesOfDef(lower);
+                mood.thoughts.memories.RemoveMemoriesOfDef(raise);
+                mood.thoughts.situational.Notify_SituationalThoughtsDirty();
+                var threshold = p.mindState.mentalBreaker.BreakThresholdMinor;
+                var difficulty = Find.Storyteller.difficulty.colonistMoodOffset;
+                var baseLevel = p.health.hediffSet.OverrideMoodBase ?? mood.def.baseLevel;
+                var target = threshold + (float)headroom;
+                var extra = (target - baseLevel) * 100f - mood.thoughts.TotalMoodOffset() - difficulty;
+                var def = extra < 0f ? lower : raise;
+                var memory = (Thought_Memory)ThoughtMaker.MakeThought(def);
+                memory.moodPowerFactor = extra / def.stages[0].baseMoodEffect;
+                mood.thoughts.memories.TryGainMemory(memory);
+                mood.CurLevel = target;
+                var instant = UnityEngine.Mathf.Clamp01(baseLevel + (mood.thoughts.TotalMoodOffset() + difficulty) / 100f);
+                if (UnityEngine.Mathf.Abs(instant - target) > 0.005f)
+                    throw new InvalidOperationException($"Mood did not calibrate: instant {instant} target {target}.");
+                return new { success = true, pawn = p.GetUniqueLoadID(), threshold, mood = mood.CurLevel, instant, headroom = instant - threshold, calibrator = def.defName };
+            }, cancellationToken);
+        }
+
+        [Tool("test/mood_thoughts", Description = "UNSAFE FOR MODEL EXECUTION. Give one colonist (or every colonist when pawn is empty) a named memory thought scaled to exactly `loss` mood points, or clear that def; replies each colonist's memories (#2549).")]
+        public async Task<object> Thoughts(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Pawn load id, or first for the lowest-id colonist; empty means every free colonist.")] string pawn,
+            [ToolParameter(Description = "Memory ThoughtDef defName, e.g. SleptOutside.")] string thought,
+            [ToolParameter(Description = "Mood points the memory should carry (positive magnitude; the def's own sign is kept).")] double loss,
+            [ToolParameter(Description = "Remove the def's memories instead of adding.")] bool clear = false)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded colony is required.");
+                var def = DefDatabase<ThoughtDef>.GetNamedSilentFail(thought);
+                if (def == null || !def.IsMemory) throw new InvalidOperationException("Unknown memory thought.");
+                var pawns = MoodColonists(map, pawn == "first" ? "" : pawn).Take(pawn == "first" ? 1 : int.MaxValue).ToList();
+                if (pawns.Count == 0) throw new InvalidOperationException("No colonist.");
+                foreach (var p in pawns)
+                {
+                    p.needs.mood.thoughts.memories.RemoveMemoriesOfDef(def);
+                    if (clear) continue;
+                    var memory = (Thought_Memory)ThoughtMaker.MakeThought(def);
+                    memory.moodPowerFactor = (float)loss / Math.Abs(def.stages[0].baseMoodEffect);
+                    p.needs.mood.thoughts.memories.TryGainMemory(memory);
+                    if (!p.needs.mood.thoughts.memories.Memories.Any(m => m.def == def))
+                        throw new InvalidOperationException($"{thought} was not kept by {p.LabelShort} (nullified).");
+                }
+                return new { success = true, pawns = pawns.Select(p => new { pawn = p.GetUniqueLoadID(), memories = Memories(p) }).ToArray() };
+            }, cancellationToken);
+        }
+
+        [Tool("test/party_spot", Description = "UNSAFE FOR MODEL EXECUTION. Build one colony PartySpot on a standable cell beside the lowest-id colonist (unless one stands) and reply the cell (#2549).")]
+        public async Task<object> PartySpot(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded colony is required.");
+                var def = ThingDef.Named("PartySpot");
+                var existing = map.listerBuildings.AllBuildingsColonistOfDef(def).FirstOrDefault();
+                if (existing == null)
+                {
+                    var colonist = MoodColonists(map, "").First();
+                    var cell = CellFinder.StandableCellNear(colonist.Position, map, 8);
+                    var spot = ThingMaker.MakeThing(def);
+                    spot.SetFaction(Faction.OfPlayer);
+                    GenSpawn.Spawn(spot, cell, map);
+                    existing = spot as Building ?? throw new InvalidOperationException("The PartySpot is not a building.");
+                }
+                return new { success = true, x = existing.Position.x, z = existing.Position.z, spots = map.listerBuildings.AllBuildingsColonistOfDef(def).Count() };
+            }, cancellationToken);
+        }
+
+        // Native read of the claim #2549 (c) makes: how many lord jobs of one GatheringDef run, plus the game's own gate readings so a
+        // refused start names which gate failed.
+        [Tool("test/gathering_lords", Description = "UNSAFE FOR MODEL EXECUTION. Count running lord jobs of one GatheringDef (organizer and spot of the first) and read the game's gathering gates (#2549).")]
+        public async Task<object> GatheringLords(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "GatheringDef defName, e.g. Party.")] string def)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded colony is required.");
+                var gathering = DefDatabase<GatheringDef>.GetNamedSilentFail(def) ?? throw new InvalidOperationException("Unknown gathering def.");
+                var jobs = Find.Maps.SelectMany(m => m.lordManager.lords).Select(l => l.LordJob as LordJob_Joinable_Gathering)
+                    .Where(j => j != null && Traverse.Create(j).Field("gatheringDef").GetValue<GatheringDef>() == gathering).ToList();
+                var colonists = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
+                var organizer = colonists.FirstOrDefault();
+                var spotDef = gathering.gatherSpotDefs?.FirstOrDefault();
+                var memory = ThoughtDef.Named("AttendedParty");
+                return new {
+                    success = true,
+                    lords = jobs.Count,
+                    organizer = jobs.Count > 0 ? jobs[0].Organizer?.GetUniqueLoadID() : null,
+                    spotX = jobs.Count > 0 ? jobs[0].Spot.x : -1,
+                    spotZ = jobs.Count > 0 ? jobs[0].Spot.z : -1,
+                    colonists = colonists.Count,
+                    spots = spotDef == null ? 0 : map.listerBuildings.AllBuildingsColonistOfDef(spotDef).Count(),
+                    hour = GenLocalDate.HourInteger(map),
+                    acceptable = GatheringsUtility.AcceptableGameConditionsToStartGathering(map, gathering),
+                    canExecute = organizer != null && gathering.CanExecute(map, organizer),
+                    attendedMemories = colonists.Sum(p => p.needs?.mood?.thoughts.memories.Memories.Count(m => m.def == memory) ?? 0),
+                    ideology = ModsConfig.IdeologyActive,
+                };
+            }, cancellationToken);
+        }
+
         [Tool("test/mood_setup",Description = "Seed deficient needs in one disposable pawn; test builds only.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "food, rest, joy, forced, schedule, mental or environment.")] string scenario)

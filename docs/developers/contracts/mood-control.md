@@ -359,6 +359,27 @@ organizer, `definition` = gathering def) and admits it in routine execution
 (`roundsExecutableKind`, `roundsActionsSupported`, the clock window kind switch);
 tests fail if one registration is missing. The native handler is #2546.
 
+### Native cases for the margins, ledger and party
+
+Three nightly-tier cases in `mood/` prove the epic end to end, each observing the layer its
+claim lives in. They use the test-only `MoodFixture` ops `test/mood_headroom` (holds a
+colonist's mood a given distance above its native minor-break threshold with a calibrating
+memory), `test/mood_thoughts` (a named memory scaled to a mood size), `test/party_spot` and
+`test/gathering_lords` (running lord jobs of one `GatheringDef`).
+
+- `mood/headroom` reads the journal's `EnsureMood` incident: it opens at 0.07 above the
+  threshold and, after a native lift to 0.22 and a service restart, closes (needs frozen, so the
+  margin alone decides). The 0.10 to 0.15 stay-open band needs history a restart drops and stays
+  in `policy/mood_margin_test.go`.
+- `mood/ledger` reads `moodLedger` from `GET /api/player/colony`: an owned thought carries its
+  owner, an unowned one is alone in `unowned`. Native only confirms the memories exist.
+- `mood/gathering` reads the journal for exactly one completed `gathering` action and native
+  for exactly one running `Party` lord job on the `PartySpot`. It needs at least four
+  colonists and a profile without ritual precepts. It is off-tier and unverified: the lab
+  profile has Ideology active, the planner defers to `MaintainRituals` (`nothing_to_do`), and
+  the case stalls. It needs a lab without Ideology (or an ideoligion without rituals) before
+  it joins the nightly tier.
+
 ## Observations
 
 **Active mental state.** The colonist status and pawn list reads carry the native
