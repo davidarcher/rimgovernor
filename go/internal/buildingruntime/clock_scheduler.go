@@ -95,6 +95,8 @@ type ClockSchedulerConfig struct {
 	Pollution           *RoundsPollutionPlanner
 	MechCharger         *RoundsMechChargerPlanner
 	GeneBank            *RoundsGeneBankPlanner
+	// Ledger commits the work ledger's reconcile plan (MaintainWorkLedger).
+	Ledger              *RoundsLedgerPlanner
 	Armory              *RoundsArmoryPlanner
 	Clearance           *RoundsClearancePlanner
 	Shrine              *RoundsShrinePlanner
@@ -187,6 +189,7 @@ type ClockSchedulerResult struct {
 	Pollution                    *RoundsPollutionResult
 	MechCharger                  *RoundsBuildingResult
 	GeneBank                     *RoundsBuildingResult
+	Ledger                       *RoundsLedgerResult
 	Armory                       *RoundsArmoryResult
 	Clearance                    *RoundsClearanceResult
 	Shrine                       *RoundsShrineResult
@@ -471,6 +474,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.GeneBank != nil && (config.Rounds == nil || config.GeneBank.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.GeneBank != nil && (config.Rounds == nil || config.GeneBank.reviewer != config.Rounds)", ErrControl)
+	}
+	if config.Ledger != nil && (config.Rounds == nil || config.Ledger.reviewer != config.Rounds) {
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Ledger != nil && (config.Rounds == nil || config.Ledger.reviewer != config.Rounds)", ErrControl)
 	}
 	if config.Sleeping != nil && (config.Rounds == nil || config.Sleeping.reviewer != config.Rounds || config.Sleeping.concern != policy.MaintainHousing || config.Sleeping.phase != policy.HousingShelter) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Sleeping != nil && (config.Rounds == nil || config.Sleeping.reviewer != config.Rounds || config.Sl", ErrControl)

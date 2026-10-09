@@ -275,6 +275,10 @@ type RoundsFacts struct {
 	// StaleBills are the bills whose owner stayed Met for StaleBillReviews
 	// reviews; assess files that owner Unmet so its planner removes them.
 	StaleBills []StaleBill `json:",omitempty"`
+	// LedgerOwed: the work ledger's reconcile diff is non-empty
+	// (LedgerDiffOwed); it holds MaintainWorkLedger open. Unknown unless the
+	// ledger has declarers and read every bench's bills.
+	LedgerOwed domain.Fact[bool]
 	// SafeAreaOwed: the Safe allowed area differs from the enclosed roofed
 	// rooms (PlanSafeArea); it holds MaintainShelter open. Unknown
 	// unless the MaintainShelter method is composed.

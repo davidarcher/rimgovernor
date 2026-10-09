@@ -113,6 +113,16 @@ func RoundsDeficit(id ConcernID, f RoundsFacts, p RoundsPolicy) domain.Fact[floa
 			return domain.Known(0.0)
 		}
 		return domain.Known(1.0)
+	case MaintainWorkLedger:
+		// A non-empty diff is a full deficit, an empty one none.
+		owed, known := f.LedgerOwed.Value()
+		if !known {
+			return domain.Unknown[float64]()
+		}
+		if !owed {
+			return domain.Known(0.0)
+		}
+		return domain.Known(1.0)
 	case MaintainGeneBank:
 		// A bank owed is a full deficit, none owed none.
 		owed, known := f.GeneBankOwed.Value()

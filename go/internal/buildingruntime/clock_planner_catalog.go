@@ -547,6 +547,16 @@ var plannerCatalog = []plannerEntry{
 			out.GeneBank = &method
 			return method.Verdict, nil
 		}},
+	{name: "workLedger", concern: policy.MaintainWorkLedger, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.RemoveProductionBillAction}, sections: sectionsBills,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Ledger != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
+			method, err := s.config.Ledger.step(ctx, epoch, arbiter)
+			if err != nil {
+				return Verdict{}, err
+			}
+			out.Ledger = &method
+			return method.Verdict, nil
+		}},
 	{name: "blight", concern: policy.RemoveBlight, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.CutPlantAction}, sections: sectionsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Blight != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

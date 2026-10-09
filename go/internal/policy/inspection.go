@@ -81,6 +81,7 @@ var inspections = []Inspection{
 	{MaintainArt, StandardConcern, DepartmentShelter, []FactFamily{FactRooms, FactColony, FactPawns}, inspectArt},
 	{MaintainShelter, StandardConcern, DepartmentShelter, []FactFamily{FactRooms, FactWorld, FactEmergency}, inspectShelter},
 	{MaintainFirebreak, StandardConcern, DepartmentShelter, []FactFamily{FactColony, FactWorld}, inspectFirebreak},
+	{MaintainWorkLedger, StandardConcern, DepartmentIndustry, []FactFamily{FactColony}, inspectWorkLedger},
 	{MaintainMechs, StandardConcern, DepartmentIndustry, []FactFamily{FactColony, FactPawns}, inspectMechs},
 	{MaintainPsylink, StandardConcern, DepartmentPeople, []FactFamily{FactPawns, FactColony}, inspectPsylink},
 	{MaintainIdeoRoles, StandardConcern, DepartmentPeople, []FactFamily{FactPawns, FactColony}, inspectIdeoRoles},

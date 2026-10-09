@@ -309,6 +309,35 @@ frame or open plan holds it. Powering it is the power concern's (a bank is a 40 
 consumer wired like any other); harvesting, assembly and implanting are other
 concerns.
 
+`MaintainWorkLedger` (`work_ledger.go`, `work_ledger_concern.go`,
+`rounds_ledger.go`) is the bot's production-bill ledger (epic #2590). A Standard in
+the Industry department over the Colony fact family. The ledger is memory only
+(`Rounder.ledger`): a planner that has migrated implements
+`buildingruntime.OrderDeclarer` (`DeclareOrders(ctx, projection)` returns a
+`policy.Declared`: its whole wanted `OrderSpec` set, or `Abstain` when it lacks
+facts) and commits no bill method of its own. Each review calls every declarer,
+reads every bench's bills through the bench census (`ReadGearBenches`;
+`policy.LedgerActuals` is unknown while any bench's bills or any bill's spec is
+unread), and runs `policy.ReconcileLedger`. The finding is `RoundsFacts.LedgerOwed`:
+owed exactly while the diff places or removes anything, unknown with no
+declarer or an unread readback (so a ledger with no declarers never touches a
+bill). Orders are identified as native identifies bills: recipe, ingredient
+filter, worker pin and repeat mode with its count (`OrderSpec.Key` uses the wire
+class, so a food target equals a stock target); no native tag. A bill is
+identified across Rounds by its native `UniqueLoadID`, which vanilla scribes
+with the bill, so ids survive Rounds and save/load; a restart empties the
+orphan counters and only delays removal. The ledger planner commits the review's
+plan as one attempt-numbered owner method of `production_bill` and
+`remove_production_bill` actions (removals first, at most
+`store.MaxBillPlanActions`), under one multi-key arbiter claim (every bench and
+each removed bill id), at most once per review and never while an earlier plan of the
+owner is open (an unknown receipt blocks until its resend resolves). Placement
+(`policy.PlaceLedgerOrders`) takes the usable bench of the order's kind that
+offers the recipe and carries the fewest bills; the bench dispatcher replaces it.
+A finished bill is spent and never satisfies an order. Beer reserve and human
+butcher bills read back as plain target and forever bills until native reports a
+bill class.
+
 `policy.PlanMechGuards` orders every standing guard at the hostile nearest to it
 among those within `MechCommandRange` (25 tiles, Mechanitor wiki; native
 `MechanitorUtility.InMechanitorCommandRange` stays authoritative) of its

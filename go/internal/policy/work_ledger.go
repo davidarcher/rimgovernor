@@ -28,11 +28,26 @@ type OrderSpec struct {
 	BenchKind string
 }
 
-// Key is the canonical spec identity.
+// Key is the canonical spec identity. The mode is its wire class: native tells
+// bills apart by repeat mode and count only, so a food target and a stock
+// target are one order, and a bill read back as a target cannot be told from a
+// beer reserve nor a forever bill from a human butcher bill.
 func (s OrderSpec) Key() string {
 	ing := append([]string(nil), s.Ingredients...)
 	sort.Strings(ing)
-	return strings.Join([]string{s.BenchKind, s.Recipe, string(s.Mode), strconv.FormatInt(int64(s.Target), 10), s.Worker, strings.Join(ing, ",")}, "|")
+	return strings.Join([]string{s.BenchKind, s.Recipe, string(wireClass(s.Mode)), strconv.FormatInt(int64(s.Target), 10), s.Worker, strings.Join(ing, ",")}, "|")
+}
+
+// wireClass is the bill mode native reads back for m: one of GearBatch (count),
+// ButcherForever (forever) and StockTarget (target).
+func wireClass(m domain.BillMode) domain.BillMode {
+	switch m {
+	case domain.HumanButcherForever:
+		return domain.ButcherForever
+	case domain.FoodTarget, domain.BeerReserve:
+		return domain.StockTarget
+	}
+	return m
 }
 
 // Declared is what one planner wants this Round. Abstain means the planner
@@ -60,6 +75,9 @@ type ActualBill struct {
 	Bench string
 	Kind  LedgerBillKind
 	Spec  OrderSpec
+	// Spent marks a finished bill: native does not count it as standing, so it
+	// never satisfies a wanted spec and is an orphan like any other.
+	Spent bool
 }
 
 // LedgerPlan is one Round's reconcile result. Orphans is the next Round's
@@ -97,7 +115,7 @@ func ReconcileLedger(declared []Declared, actual []ActualBill, orphans map[strin
 		switch {
 		case b.Kind != LedgerProduction:
 			plan.Keep = append(plan.Keep, b)
-		case isWanted && !matched[k]:
+		case isWanted && !matched[k] && !b.Spent:
 			matched[k] = true
 			plan.Keep = append(plan.Keep, b)
 		case abstain:

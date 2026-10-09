@@ -69,61 +69,64 @@ func (client *Client) ReadGearBenches(ctx context.Context, identity *c.Identity)
 			return nil, raw, contract("invalid gear bench token")
 		}
 		seen[stack.Bench.GetId()] = true
-		recipes, err := client.readGearRecipes(ctx, identity, stack.Bench.GetId(), catalog)
+		recipes, def, err := client.readGearRecipes(ctx, identity, stack.Bench.GetId(), catalog)
 		if err != nil {
 			return nil, raw, err
 		}
-		bills, err := gearBillsFromStack(stack, recipes, catalog)
+		bills, err := gearBillsFromStack(stack, def, recipes, catalog)
 		if err != nil {
 			return nil, raw, err
 		}
-		bench := policy.GearBench{ID: stack.Bench.GetId(), WorkSpeed: benchWorkSpeed(stack), Bills: domain.Known(bills), Recipes: domain.Known(recipes)}
+		bench := policy.GearBench{ID: stack.Bench.GetId(), Def: def, WorkSpeed: benchWorkSpeed(stack), Bills: domain.Known(bills), Recipes: domain.Known(recipes)}
+		if stack.Usable != nil {
+			bench.Usable = domain.Known(stack.GetUsable())
+		}
 		out = append(out, GearBenchRead{Token: stack.Snapshot.GetToken(), Bench: bench})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Bench.ID < out[j].Bench.ID })
 	return out, raw, nil
 }
 
-func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity, bench string, catalog *DefinitionCatalog) ([]policy.GearRecipe, error) {
+func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity, bench string, catalog *DefinitionCatalog) ([]policy.GearRecipe, string, error) {
 	request := &o.RecipesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, BenchId: proto.String(bench)}
 	reply := &o.RecipesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_recipes", request, reply)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if err = buildingUnknown(reply); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	var snapshot *o.RecipesSnapshot
 	switch v := reply.Outcome.(type) {
 	case *o.RecipesReply_Observed:
 		snapshot = v.Observed
 	case *o.RecipesReply_Unavailable:
-		return nil, unavailable(v.Unavailable, raw)
+		return nil, "", unavailable(v.Unavailable, raw)
 	case *o.RecipesReply_Failure:
-		return nil, failure(v.Failure, raw)
+		return nil, "", failure(v.Failure, raw)
 	default:
-		return nil, contract("missing recipes outcome")
+		return nil, "", contract("missing recipes outcome")
 	}
 	if snapshot == nil || ValidateContext(snapshot.Context) != nil || !sameIdentity(snapshot.Context.Identity, identity) {
-		return nil, contract("invalid recipes context")
+		return nil, "", contract("invalid recipes context")
 	}
 	if snapshot.Snapshot == nil || snapshot.Snapshot.GetEntityId() != bench {
-		return nil, contract("recipe snapshot bench mismatch")
+		return nil, "", contract("recipe snapshot bench mismatch")
 	}
 	if validID(snapshot.GetBenchDef()) != nil {
-		return nil, contract("recipe snapshot has no bench definition")
+		return nil, "", contract("recipe snapshot has no bench definition")
 	}
 	names := map[string]bool{}
 	out := make([]policy.GearRecipe, 0, len(snapshot.Recipes))
 	for _, row := range snapshot.Recipes {
 		if row == nil || row.Recipe == nil || validID(row.Recipe.GetDefName()) != nil || names[row.Recipe.GetDefName()] {
-			return nil, contract("invalid gear recipe identity")
+			return nil, "", contract("invalid gear recipe identity")
 		}
 		names[row.Recipe.GetDefName()] = true
 		recipe := policy.GearRecipe{Definition: row.Recipe.GetDefName()}
 		if recipe.Role, err = catalog.RecipeRole(recipe.Definition); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if row.AvailableNow != nil {
 			recipe.Available = domain.Known(row.GetAvailableNow())
@@ -134,23 +137,23 @@ func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity,
 		// What the recipe is and costs is the catalog's; the frame says only
 		// whether this bench offers it now.
 		if recipe.Products, err = catalog.RecipeProducts(recipe.Definition); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if recipe.Ingredients, err = catalog.RecipeIngredients(recipe.Definition); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if recipe.RequiredWork, err = catalog.RecipeWork(recipe.Definition, snapshot.GetBenchDef()); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if recipe.WorkAmount, err = catalog.RecipeWorkAmount(recipe.Definition); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if recipe.MechKind, err = catalog.RecipeMechKind(recipe.Definition); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		out = append(out, recipe)
 	}
-	return out, nil
+	return out, snapshot.GetBenchDef(), nil
 }
 
 // benchWorkSpeed is the stack's work-table speed factor; unknown when native
@@ -162,13 +165,15 @@ func benchWorkSpeed(stack *o.BillStack) domain.Fact[float64] {
 	return domain.Known(stack.GetWorkSpeed())
 }
 
-func gearBillsFromStack(stack *o.BillStack, recipes []policy.GearRecipe, catalog *DefinitionCatalog) ([]policy.GearBill, error) {
+func gearBillsFromStack(stack *o.BillStack, benchDef string, recipes []policy.GearRecipe, catalog *DefinitionCatalog) ([]policy.GearBill, error) {
 	if len(stack.Bills) > 15 {
 		return nil, contract("bill stack exceeds bound")
 	}
 	products := map[string][]policy.Resource{}
+	gestation := map[string]bool{}
 	for _, r := range recipes {
 		products[r.Definition] = r.Products
+		gestation[r.Definition] = r.MechKind != ""
 	}
 	out := make([]policy.GearBill, 0, len(stack.Bills))
 	for _, bill := range stack.Bills {
@@ -194,9 +199,48 @@ func gearBillsFromStack(stack *o.BillStack, recipes []policy.GearRecipe, catalog
 		if list, known := products[bill.Recipe.GetDefName()]; known {
 			row.Products = list
 		}
+		row.Spent = bill.GetFinished()
+		if gestation[row.Recipe] {
+			row.Kind = policy.LedgerMechGestation
+		}
+		row.Spec = billOrderSpec(bill, benchDef)
 		out = append(out, row)
 	}
 	return out, nil
+}
+
+// billOrderSpec is a bill read back as the work ledger's order spec, in the
+// terms native identifies a bill by (recipe, ingredient filter, worker pin,
+// repeat mode and count). It is unknown when the readback lacks the repeat
+// mode, its count or whether the ingredient filter is the recipe's default.
+func billOrderSpec(bill *o.BillState, benchDef string) domain.Fact[policy.OrderSpec] {
+	spec := policy.OrderSpec{Recipe: bill.Recipe.GetDefName(), BenchKind: benchDef}
+	if bill.RepeatMode == nil || bill.DefaultIngredients == nil {
+		return domain.Unknown[policy.OrderSpec]()
+	}
+	switch RepeatModeName(bill.GetRepeatMode()) {
+	case "Forever":
+		spec.Mode = domain.ButcherForever
+	case "RepeatCount":
+		if bill.RepeatCount == nil {
+			return domain.Unknown[policy.OrderSpec]()
+		}
+		spec.Mode, spec.Target = domain.GearBatch, bill.GetRepeatCount()
+	case "TargetCount":
+		if bill.TargetCount == nil {
+			return domain.Unknown[policy.OrderSpec]()
+		}
+		spec.Mode, spec.Target = domain.StockTarget, bill.GetTargetCount()
+	default:
+		return domain.Unknown[policy.OrderSpec]()
+	}
+	if optionalRef(bill.Worker) {
+		spec.Worker = bill.GetWorker().GetId()
+	}
+	if !bill.GetDefaultIngredients() {
+		spec.Ingredients = append([]string(nil), bill.GetIngredientFilter().GetAllowedDefNames()...)
+	}
+	return domain.Known(spec)
 }
 
 // ReadSupplyStock reads the currently available, unforbidden owned quantity

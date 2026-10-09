@@ -240,6 +240,9 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if !ok {
 				return nil, errors.New("bill plans require typed preview")
 			}
+			if config.Ledger, err = buildingruntime.NewRoundsLedgerPlanner(reviewer); err != nil {
+				return nil, err
+			}
 			config.CookingBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.CookFood)
 			if err != nil {
 				return nil, err
@@ -849,7 +852,7 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainResource, policy.ClearPests)
 	}
 	if sc.roundsBillPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainButcherSpot, policy.MaintainBabyFeeding)
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainButcherSpot, policy.MaintainBabyFeeding, policy.MaintainWorkLedger)
 	}
 	if sc.roundsBillPlans || sc.roundsFoodStorageUpkeepPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainFoodStorage)

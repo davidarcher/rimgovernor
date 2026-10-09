@@ -9,8 +9,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// maxBillPlanActions bounds one batched bill plan to a Round's reconcile.
-const maxBillPlanActions = 64
+// MaxBillPlanActions bounds one batched bill plan to a Round's reconcile.
+const MaxBillPlanActions = 64
 
 // billModeClaims reports whether a bill of the mode records a durable
 // bench+recipe claim. The ledger owns the standing and target modes, which
@@ -29,8 +29,8 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || len(plan.Actions()) > maxBillPlanActions {
-		return fmt.Errorf("%w: bill method needs a current autopilot review and at most %d actions", ErrConflict, maxBillPlanActions)
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || len(plan.Actions()) > MaxBillPlanActions {
+		return fmt.Errorf("%w: bill method needs a current autopilot review and at most %d actions", ErrConflict, MaxBillPlanActions)
 	}
 	// Bills serve the cooking/food goals, the resource-target goals whose
 	// production path (RoundsResourcePlanner.dispatchResourceConcern) stages a
@@ -39,8 +39,9 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	// a standing bench, and the refrigeration goal whose solar-flare
 	// answer is a cook-ahead bill, and the art goal's pinned sculpture
 	// bills, and the baby feeding goal's baby food bill, and the mech goal's gestation bills, and the surgery goal's part bills.
+	// The work ledger goal commits the Round's whole reconcile plan: places and removals together.
 	need, bound := owner.ownerNeed(review)
-	bound = bound && (need == policy.EnsureCooking || need == policy.EnsureFoodSupply || need == policy.MaintainFoodStorage || need == policy.MaintainResource || need == policy.MaintainEquipment || need == policy.MaintainRefrigeration || need == policy.MaintainArt || need == policy.MaintainBabyFeeding || need == policy.MaintainMechs || need == policy.MaintainSurgery)
+	bound = bound && (need == policy.EnsureCooking || need == policy.EnsureFoodSupply || need == policy.MaintainFoodStorage || need == policy.MaintainResource || need == policy.MaintainEquipment || need == policy.MaintainRefrigeration || need == policy.MaintainArt || need == policy.MaintainBabyFeeding || need == policy.MaintainMechs || need == policy.MaintainSurgery || need == policy.MaintainWorkLedger)
 	if !bound {
 		return fmt.Errorf("%w: %s does not admit production bills", ErrConflict, owner.ownerLabel())
 	}

@@ -323,6 +323,14 @@ type GearBill struct {
 	// Finite is whether the bill repeats a count (neither Forever nor a
 	// stock target), the only bills a stale-bill removal may name.
 	Finite domain.Fact[bool]
+	// Spec is the bill as the work ledger identifies it (recipe, ingredient
+	// filter, worker pin, wire mode and count, bench definition); unknown
+	// when the readback lacked the repeat mode or count.
+	Spec domain.Fact[OrderSpec]
+	// Spent is a finished bill; Kind is LedgerMechGestation for a gestation
+	// recipe, LedgerProduction otherwise.
+	Spent bool
+	Kind  LedgerBillKind
 }
 type GearRecipe struct {
 	Definition string
@@ -341,6 +349,10 @@ type GearRecipe struct {
 }
 type GearBench struct {
 	ID string
+	// Def is the workbench definition, empty when unread; Usable whether the
+	// bench takes a new bill.
+	Def    string
+	Usable domain.Fact[bool]
 	// WorkSpeed is the bench's WorkTableWorkSpeedFactor now; unknown when
 	// native sent none.
 	WorkSpeed domain.Fact[float64]

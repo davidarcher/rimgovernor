@@ -15,6 +15,7 @@ func stableRounds() RoundsFacts {
 	return RoundsFacts{
 		BabyFeeding:         domain.Known(BabyFeeding{}),
 		OutdoorsDark:        domain.Known(false),
+		LedgerOwed:          domain.Known(false),
 		Pollution:           domain.Known(PollutionFacts{UncoveredCells: domain.Known(uint32(0))}),
 		ButcherBenches:      domain.Known([]ButcherBench{{ID: "bench"}}),
 		CurrentConstruction: domain.Known(CurrentConstruction{Colony: true}),

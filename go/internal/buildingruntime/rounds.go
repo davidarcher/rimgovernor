@@ -79,6 +79,9 @@ type Rounder struct {
 	billAges billAges
 	// staleBills counts the reviews each finite bill's owner stayed Met.
 	staleBills staleBills
+	// ledger is the work ledger's memory: declarers, orphan counters and the
+	// latest reconcile plan.
+	ledger workLedger
 	// skipsLogged are the quest skips already logged.
 	skipsLogged map[questSkipKey]bool
 	// techTier is the last tech tier logged: the flight recorder
@@ -743,6 +746,9 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 		return store.RoundsResult{}, err
 	}
 	reading.Projection.Facts.StaleBills = r.staleBills.stale(staleCandidates)
+	if reading.Projection.Facts.LedgerOwed, err = r.reviewLedger(ctx, state.Snapshot, expected, reading.Projection); err != nil {
+		return store.RoundsResult{}, err
+	}
 	// Acquisition uses the review's completed home staffing and defense facts.
 	r.census.retain(reading, r.roomsEnabled(), claims)
 	r.planFoodAcquisition(ctx, state.Snapshot, reading.Projection)

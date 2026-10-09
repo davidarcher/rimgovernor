@@ -39,6 +39,7 @@ var concernLabels = map[string]string{
 	"MaintainFirebreak":         "Keep a firebreak",
 	"MaintainFlooring":          "Keep floors laid",
 	"MaintainGeneBank":          "Keep the gene bank running",
+	"MaintainWorkLedger":        "Keep production orders in order",
 	"MaintainIdeoRoles":         "Fill ideology roles",
 	"MaintainHerd":              "Tend the herd",
 	"MaintainLighting":          "Keep workplaces lit",
