@@ -29,8 +29,8 @@ namespace HomeBridge.BridgeTools
     // A standing deconstruct designation no removal record claims is adopted by
     // the RemoveWall operation; designated and removal_id report it.
     // Workers, stock, geometry and the roof-support
-    // snapshot are not projected: builders are checked at admission, stock
-    // through ListSupplies and cells through GetCells.
+    // snapshot are not projected: Go owns builders and stock (its material
+    // budget); cells come through GetCells.
     public sealed class NativeWallUpgradeObservationTools
     {
         internal const string ToolName = "rimgovernor/observations_list_wall_upgrade_sites";

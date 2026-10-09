@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
     //  2. a cleanup site where this wall is a completed backup of a standing
     //     stone permanent wall (clear the backup);
     //  3. a corner site with open salvage access, rebuilt from whichever
-    //     stone material current stock and policy still cover.
+    //     stone material the site lists (Go budgets the stock).
     // Several admissible sites of one class refuse rather than guess. Applied
     // means designated; Go reads the building census for the wall's removal.
     internal static class NativeWallRemovalOperations
@@ -33,7 +33,6 @@ namespace HomeBridge.BridgeTools
             internal WallRemovalRecord Record = null!;
             internal Obs.WallUpgradeSite Site = null!;
             internal Func<Obs.WallUpgradeSite?> Reread = null!;
-            internal List<Pawn> Workers = new List<Pawn>();
         }
 
         [ThreadStatic] private static string? lastBlocker;
@@ -45,7 +44,7 @@ namespace HomeBridge.BridgeTools
             // admission adopts it under this ledger's record.
             if (site.HasBlocker) { lastBlocker = site.Blocker; return null; }
             var candidate = new Candidate { Record = record, Site = site, Reread = reread };
-            var blocker = WallUpgradeSafety.Prepare(record, out candidate.Workers);
+            var blocker = WallUpgradeSafety.Prepare(record);
             if (blocker != null) lastBlocker = blocker;
             return blocker == null ? candidate : null;
         }
@@ -149,12 +148,11 @@ namespace HomeBridge.BridgeTools
                 return new Receipts.EffectEvidence { Wall = new Receipts.WallEffect { TargetId = id, RemovalId = pending.Id, DemolitionObserved = false } };
             var chosen = candidate!;
             var before = chosen.Site.Snapshot?.Token ?? "";
-            if (WallUpgradeSafety.Prepare(chosen.Record, out _) != null) throw new InvalidOperationException("Wall removal site changed before designation.");
+            if (WallUpgradeSafety.Prepare(chosen.Record) != null) throw new InvalidOperationException("Wall removal site changed before designation.");
             var blocker = WallUpgradeSafety.Commit(chosen.Record);
             if (blocker != null) throw new InvalidOperationException(blocker);
             var effect = new Receipts.WallEffect { TargetId = id, RemovalId = chosen.Record.Id, DemolitionObserved = false,
                 Site = new Receipts.SnapshotEvidence { EntityId = id, BeforeToken = before } };
-            effect.WorkerIds.AddRange(chosen.Workers.Select(p => p.GetUniqueLoadID()));
             var after = chosen.Reread();
             if (after?.Snapshot != null) effect.Site.AfterToken = after.Snapshot.Token;
             return new Receipts.EffectEvidence { Wall = effect };

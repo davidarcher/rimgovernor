@@ -3785,7 +3785,6 @@ type WallEffect struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	TargetId           *string                `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3,oneof" json:"target_id,omitempty"`
 	RemovalId          *string                `protobuf:"bytes,2,opt,name=removal_id,json=removalId,proto3,oneof" json:"removal_id,omitempty"`
-	WorkerIds          []string               `protobuf:"bytes,3,rep,name=worker_ids,json=workerIds,proto3" json:"worker_ids,omitempty"`
 	DemolitionObserved *bool                  `protobuf:"varint,5,opt,name=demolition_observed,json=demolitionObserved,proto3,oneof" json:"demolition_observed,omitempty"`
 	Site               *SnapshotEvidence      `protobuf:"bytes,6,opt,name=site,proto3" json:"site,omitempty"`
 	unknownFields      protoimpl.UnknownFields
@@ -3834,13 +3833,6 @@ func (x *WallEffect) GetRemovalId() string {
 		return *x.RemovalId
 	}
 	return ""
-}
-
-func (x *WallEffect) GetWorkerIds() []string {
-	if x != nil {
-		return x.WorkerIds
-	}
-	return nil
 }
 
 func (x *WallEffect) GetDemolitionObserved() bool {
@@ -6012,14 +6004,12 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"\b_abilityB\n" +
 	"\n" +
-	"\b_job_def\"\x9b\x02\n" +
+	"\b_job_def\"\xfc\x01\n" +
 	"\n" +
 	"WallEffect\x12 \n" +
 	"\ttarget_id\x18\x01 \x01(\tH\x00R\btargetId\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"removal_id\x18\x02 \x01(\tH\x01R\tremovalId\x88\x01\x01\x12\x1d\n" +
-	"\n" +
-	"worker_ids\x18\x03 \x03(\tR\tworkerIds\x124\n" +
+	"removal_id\x18\x02 \x01(\tH\x01R\tremovalId\x88\x01\x01\x124\n" +
 	"\x13demolition_observed\x18\x05 \x01(\bH\x02R\x12demolitionObserved\x88\x01\x01\x12=\n" +
 	"\x04site\x18\x06 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x04siteB\f\n" +
 	"\n" +

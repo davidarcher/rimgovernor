@@ -245,3 +245,16 @@ func TestRoundsHomeCoverageAdmitsPlayerBuiltFacility(t *testing.T) {
 func (n *stoneShellNative) ReadRoundsFrame(ctx context.Context, id *c.Identity) (bridge.RoundsFrame, error) {
 	return fakeFrame(ctx, n, id)
 }
+
+// Go's material budget is the only stock gate: a site whose stone costs more
+// than the free stock withholds the upgrade before any native call is made.
+func TestRoundsStoneShellWithholdsUnfundedUpgrade(t *testing.T) {
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
+	t.Parallel()
+	p, _, n := stoneShellFixture(t)
+	n.sites.Sites[0].ReplacementMaterials[0].Costs[0].Units = 500
+	result, err := p.Step(context.Background())
+	if err != nil || result.Verdict == BuildingReasonAdmitted || n.previews != 0 {
+		t.Fatal(result, err, n.previews)
+	}
+}

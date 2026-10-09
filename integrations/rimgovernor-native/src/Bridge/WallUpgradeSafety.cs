@@ -88,11 +88,6 @@ namespace HomeBridge.BridgeTools
                 if (stuff == null || stuff.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) != true
                     || !GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Contains(stuff)
                     || r.Backup.Any(id => Wall(map, id)?.Stuff != stuff)) return "Native stone replacement material changed";
-                // Go's material budget admitted the upgrade; live, only the stone itself is checked.
-                var required = ThingDefOf.Wall.CostListAdjusted(stuff).Where(c => c.thingDef == stuff).Sum(c => c.count);
-                var available = map.listerThings.ThingsOfDef(stuff).Where(t => t.Spawned && !t.IsForbidden(Faction.OfPlayer)).Sum(t => t.stackCount);
-                if (available < required)
-                    return "Materials no longer cover the permanent wall";
             } else {
                 var permanent = Wall(map, r.Permanent);
                 if (!At(permanent, origin) || !Stone(permanent) || !BackupCells(r).Contains(target.Position)
@@ -112,13 +107,12 @@ namespace HomeBridge.BridgeTools
                 Id = Guid.NewGuid().ToString("N"), Target = target, Original = original, Left = left, Right = right,
                 Backup = backup.ToList(), Permanent = string.IsNullOrEmpty(permanent) ? null : permanent, Material = material,
                 MapId = map.uniqueID, X = x, Z = z, Nx = nx, Nz = nz, Load = Load, UiRevision = PlayerUiRevision.Current };
-        /// <summary>Why this record cannot be admitted now, or null with the builders who could take the job. Changes nothing.</summary>
-        internal static string? Prepare(WallRemovalRecord r, out List<Pawn> workers)
+        /// <summary>Why this record cannot be admitted now, or null. Changes nothing.</summary>
+        internal static string? Prepare(WallRemovalRecord r)
         {
             Install();
-            workers = new List<Pawn>();
             var map = Find.CurrentMap;
-            if (map == null || NativeDesignationGuards.State().Records.Count(g => g.Open) >= 512) return "Native removal ledger unavailable";
+            if (map == null) return "No current map";
             var wall = Wall(map, r.Target);
             if (wall == null) return "Exact native wall is unavailable";
             var blocker = Check(r, requireDesignation: false);
@@ -130,11 +124,7 @@ namespace HomeBridge.BridgeTools
             // of this ledger on the wall is the caller's replay, refused upstream.
             if (map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null
                 && !new Designator_Deconstruct().CanDesignateThing(wall).Accepted) return "Native deconstruction designator refused";
-            workers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState
-                && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && !p.health.HasHediffsNeedingTend()
-                && p.health.hediffSet.BleedRateTotal <= 0
-                && p.CanReserveAndReach(wall, PathEndMode.Touch, Danger.None)).ToList();
-            return workers.Count == 0 ? "No enabled available builder with safe native access" : null;
+            return null;
         }
         /// <summary>Place the native deconstruct designation and record it under the wall_upgrade guard; null on success.</summary>
         internal static string? Commit(WallRemovalRecord r)

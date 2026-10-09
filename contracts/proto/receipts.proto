@@ -239,7 +239,7 @@ message PsycastUseEffect {
   optional string ability = 1;
   optional string job_def = 2;
 }
-message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
+message WallEffect { optional string target_id = 1; optional string removal_id = 2; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
 message JobTarget { oneof target { string thing_id = 1; rimgovernor.common.v1.Cell cell = 2; } }
 message JobEffect {
   optional string pawn_id = 1;

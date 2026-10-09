@@ -143,7 +143,7 @@ geometry, remaining roof support and any pending wall upgrade at apply.
   untouched until adopted; revoking authority releases exactly the controller-owned pending
   designations and player replacements survive.
 - `wall_upgrade` completion comes from the native deconstruction job, not a wall disappearing;
-  the guard rechecks supporting identities, enclosure, roofs, materials and resource policies.
+  the guard rechecks supporting identities, enclosure and roofs. Go's material budget is the only stock check; native neither caps open guards nor vetoes on builder availability.
   Jobs need active supervised simulation. Native UI input, a load/map change or changed safety
   invalidates pending demolition; Manual suspends it. Cleanup requires the completed permanent
   wall; missing or uncertain outcomes stay blocked. Native evidence must confirm retirement,
