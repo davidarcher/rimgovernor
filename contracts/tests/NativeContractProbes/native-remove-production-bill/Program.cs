@@ -7,8 +7,8 @@ using System.Reflection;
 // the RemoveProductionBillIntent arm of Actions/Apply. Checks the wire
 // shape, that Actions/Apply maps the arm to a handler, and that a malformed
 // intent is refused InvalidRequest before any live game state is read. The
-// live rules (bill gone, bill worked, unfinished item bound, idle bill
-// deleted from the bench) need a map and are covered by the nightly
+// live rules (bill gone, worked or unfinished-bound bill deleted, cancel
+// destroying the unfinished item) need a map and are covered by the nightly
 // acceptance. args[0] is the built bridge DLL; further args are dependency
 // directories (game Managed, SDK, Harmony).
 internal static class NativeRemoveProductionBillProbe
@@ -40,6 +40,10 @@ internal static class NativeRemoveProductionBillProbe
         Check(Get(action, "IntentCase")!.ToString() == "RemoveProductionBill", "remove_production_bill arm parses");
         var intent = Get(action, "RemoveProductionBill")!;
         Check((string)Get(intent, "BenchId")! == "Bench_1" && (string)Get(Get(intent, "Bill")!, "Id")! == "Bill_Production_77", "remove_production_bill fields round trip");
+
+        Check(!(bool)Get(intent, "CancelUnfinished")!, "cancel_unfinished defaults to keeping the unfinished item");
+        var cancel = Get(Wire("Operations.Action", "{\"key\":\"k\",\"removeProductionBill\":{\"benchId\":\"Bench_1\",\"bill\":{\"id\":\"Bill_Production_77\"},\"cancelUnfinished\":true}}"), "RemoveProductionBill")!;
+        Check((bool)Get(cancel, "CancelUnfinished")!, "cancel_unfinished round trips");
 
         var dispatch = bridge.GetType("HomeBridge.BridgeTools.NativeActionDispatch", true)!;
         dispatch.GetMethod("AssertComplete", Flags)!.Invoke(null, null);

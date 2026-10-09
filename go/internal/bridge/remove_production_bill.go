@@ -8,8 +8,8 @@ import (
 )
 
 // removeProductionBillAction is the Actions/Apply remove_production_bill arm
-// of one remove_production_bill action: native deletes the idle bill
-// or refuses.
+// of one remove_production_bill action: native deletes the bill
+// (and, when asked, cancels its unfinished item) or refuses.
 func removeProductionBillAction(action domain.Action) (*o.Action, error) {
 	removal, ok := action.RemoveProductionBill()
 	if !ok {
@@ -19,5 +19,6 @@ func removeProductionBillAction(action domain.Action) (*o.Action, error) {
 		return nil, contract("remove_production_bill: %v", err)
 	}
 	return &o.Action{Intent: &o.Action_RemoveProductionBill{RemoveProductionBill: &o.RemoveProductionBillIntent{
-		BenchId: proto.String(removal.Bench()), Bill: &c.Ref{Id: proto.String(removal.Bill())}}}}, nil
+		BenchId: proto.String(removal.Bench()), Bill: &c.Ref{Id: proto.String(removal.Bill())},
+		CancelUnfinished: removal.CancelsUnfinished()}}}, nil
 }

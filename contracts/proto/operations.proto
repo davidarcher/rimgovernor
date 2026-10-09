@@ -695,12 +695,16 @@ message ProductionBillIntent {
   optional bool acknowledge_violation = 7;
   rimgovernor.common.v1.Ref surgeon = 8;
 }
-// Delete one idle production bill from a player bench.
+// Delete one ordinary production bill from a player bench.
 // Native re-resolves the bench and the bill live and refuses when either is
-// gone, when a spawned pawn's current job works the bill, or when an unfinished
-// item is bound to it. Applied evidence is the BillEffect naming the deleted
-// bill; a bill that is already gone is refused, not applied again.
-message RemoveProductionBillIntent { optional string bench_id = 1; rimgovernor.common.v1.Ref bill = 2; }
+// gone or the bill is not an ordinary production bill. A pawn working the bill
+// or an unfinished item bound to it does not refuse: the job fails cleanly and
+// the unfinished item stays for any same-recipe bill to resume. With
+// cancel_unfinished the bound unfinished item is destroyed with
+// DestroyMode.Cancel, returning its ingredient share (a recipe change orphans
+// it). Applied evidence is the BillEffect naming the deleted bill; a bill that
+// is already gone is refused, not applied again.
+message RemoveProductionBillIntent { optional string bench_id = 1; rimgovernor.common.v1.Ref bill = 2; bool cancel_unfinished = 3; }
 // Write one free colonist's settings: work priorities, allowed area and the
 // 24-hour timetable together, or the medicine ceiling
 // alone. Native

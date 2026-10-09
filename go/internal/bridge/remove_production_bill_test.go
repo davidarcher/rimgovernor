@@ -28,3 +28,28 @@ func TestRemoveProductionBillBuildsIntent(t *testing.T) {
 		t.Fatalf("%v", wire)
 	}
 }
+
+// Only a removal asking for it sets cancel_unfinished on the wire.
+func TestRemoveProductionBillCancelUnfinishedOnWire(t *testing.T) {
+	value, err := domain.NewRemoveProductionBill("Bench_1", "Bill_Production_77")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, cancel := range []bool{false, true} {
+		v := value
+		if cancel {
+			v = v.CancelUnfinished()
+		}
+		action, err := domain.NewRemoveProductionBillAction("r1", v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wire, err := IntentAction("plan/1", action)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := wire.GetRemoveProductionBill().GetCancelUnfinished(); got != cancel {
+			t.Fatalf("cancel %v sent as %v", cancel, got)
+		}
+	}
+}

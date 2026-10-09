@@ -208,8 +208,8 @@ func (r *Rounder) removeUnwantedBill(call, epoch context.Context, arbiter *stepA
 // removeStaleBill commits the one-action RemoveProductionBill plan for the
 // first stale bill of owner's concern, the planners' Unmet response to a bill
 // whose need is gone. The zero plan means none was due, or another planner of
-// the step took it. The method id carries an attempt number: native refuses a
-// bill a pawn is working and a later run of reviews retries as a new method.
+// the step took it. The method id carries an attempt number: a later run of
+// reviews retries a refused removal as a new method.
 func (r *Rounder) removeStaleBill(call, epoch context.Context, arbiter *stepArbiter, state ControlState, owner store.WorkOwner, concern policy.ConcernID) (domain.PlanID, error) {
 	bill, ok := r.staleBills.first(concern)
 	if !ok {

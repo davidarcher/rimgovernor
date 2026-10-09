@@ -106,3 +106,37 @@ func TestBillReceiptRefusesOtherKinds(t *testing.T) {
 		t.Fatal("a building receipt journaled a bill id")
 	}
 }
+
+// The cancel-unfinished flag persists with the removal and survives a reopen.
+func TestRemoveProductionBillCancelUnfinishedRoundTrips(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "bills.db")
+	s := open(t, path)
+	removal, err := domain.NewRemoveProductionBill("Bench_1", "Bill_Production_77")
+	if err != nil {
+		t.Fatal(err)
+	}
+	removal = removal.CancelUnfinished()
+	action, err := domain.NewRemoveProductionBillAction("remove", removal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := domain.NewPlan("p", domain.PlanRevision(^uint64(0)), []domain.Action{action})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CreatePlan(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	s = open(t, path)
+	loaded, err := s.LoadPlan(ctx, "p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, ok := loaded.Spec.Actions()[0].RemoveProductionBill()
+	if !ok || got != removal || !got.CancelsUnfinished() {
+		t.Fatal(got, removal)
+	}
+}

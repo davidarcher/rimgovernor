@@ -7088,17 +7088,22 @@ func (x *ProductionBillIntent) GetSurgeon() *commonpb.Ref {
 	return nil
 }
 
-// Delete one idle production bill from a player bench.
+// Delete one ordinary production bill from a player bench.
 // Native re-resolves the bench and the bill live and refuses when either is
-// gone, when a spawned pawn's current job works the bill, or when an unfinished
-// item is bound to it. Applied evidence is the BillEffect naming the deleted
-// bill; a bill that is already gone is refused, not applied again.
+// gone or the bill is not an ordinary production bill. A pawn working the bill
+// or an unfinished item bound to it does not refuse: the job fails cleanly and
+// the unfinished item stays for any same-recipe bill to resume. With
+// cancel_unfinished the bound unfinished item is destroyed with
+// DestroyMode.Cancel, returning its ingredient share (a recipe change orphans
+// it). Applied evidence is the BillEffect naming the deleted bill; a bill that
+// is already gone is refused, not applied again.
 type RemoveProductionBillIntent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BenchId       *string                `protobuf:"bytes,1,opt,name=bench_id,json=benchId,proto3,oneof" json:"bench_id,omitempty"`
-	Bill          *commonpb.Ref          `protobuf:"bytes,2,opt,name=bill,proto3" json:"bill,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	BenchId          *string                `protobuf:"bytes,1,opt,name=bench_id,json=benchId,proto3,oneof" json:"bench_id,omitempty"`
+	Bill             *commonpb.Ref          `protobuf:"bytes,2,opt,name=bill,proto3" json:"bill,omitempty"`
+	CancelUnfinished bool                   `protobuf:"varint,3,opt,name=cancel_unfinished,json=cancelUnfinished,proto3" json:"cancel_unfinished,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RemoveProductionBillIntent) Reset() {
@@ -7143,6 +7148,13 @@ func (x *RemoveProductionBillIntent) GetBill() *commonpb.Ref {
 		return x.Bill
 	}
 	return nil
+}
+
+func (x *RemoveProductionBillIntent) GetCancelUnfinished() bool {
+	if x != nil {
+		return x.CancelUnfinished
+	}
+	return false
 }
 
 // Write one free colonist's settings: work priorities, allowed area and the
@@ -10058,10 +10070,11 @@ const file_operations_proto_rawDesc = "" +
 	"\t_bench_idB\r\n" +
 	"\v_recipe_defB\r\n" +
 	"\v_part_indexB\x18\n" +
-	"\x16_acknowledge_violation\"y\n" +
+	"\x16_acknowledge_violation\"\xa6\x01\n" +
 	"\x1aRemoveProductionBillIntent\x12\x1e\n" +
 	"\bbench_id\x18\x01 \x01(\tH\x00R\abenchId\x88\x01\x01\x12.\n" +
-	"\x04bill\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04billB\v\n" +
+	"\x04bill\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04bill\x12+\n" +
+	"\x11cancel_unfinished\x18\x03 \x01(\bR\x10cancelUnfinishedB\v\n" +
 	"\t_bench_id\"\x86\x02\n" +
 	"\x12WorkSettingsIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12;\n" +

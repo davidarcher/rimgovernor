@@ -211,8 +211,9 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if gathering, ok := a.Gathering(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition) VALUES(?,?,?,'gathering',?,?)", a.ID(), plan, ordinal, gathering.Organizer(), gathering.Def())
 	} else if removal, ok := a.RemoveProductionBill(); ok {
-		// target is the bench, definition the native bill id.
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'remove_production_bill',?,?)", a.ID(), plan, ordinal, removal.Bench(), removal.Bill())
+		// target is the bench, definition the native bill id, stuff
+		// 'cancel_unfinished' the orphan-cancel flag.
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'remove_production_bill',?,?,NULLIF(?,''))", a.ID(), plan, ordinal, removal.Bench(), removal.Bill(), cancelUnfinishedStuff(removal))
 	} else if door, ok := a.DoorControl(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,x,z,definition) VALUES(?,?,?,'door_control',?,?,?)", a.ID(), plan, ordinal, door.Cell().X, door.Cell().Z, fmt.Sprint(door.HoldOpen()))
 	} else if ability, ok := a.Ability(); ok {
@@ -1199,10 +1200,13 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewGatheringAction(id, gathering)
 		return a, ordinal, err
 	}
-	if kind == "remove_production_bill" && target.Valid && def.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone == nil {
+	if kind == "remove_production_bill" && target.Valid && def.Valid && (!stuff.Valid || stuff.String == cancelUnfinishedMark) && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone == nil {
 		removal, err := domain.NewRemoveProductionBill(target.String, def.String)
 		if err != nil {
 			return domain.Action{}, 0, err
+		}
+		if stuff.Valid {
+			removal = removal.CancelUnfinished()
 		}
 		a, err := domain.NewRemoveProductionBillAction(id, removal)
 		return a, ordinal, err
@@ -1564,4 +1568,15 @@ func parsePawnSetting(pawn domain.PawnID, def string) (domain.PawnSettings, erro
 		return domain.NewMedicalCareSetting(pawn, care)
 	}
 	return domain.NewHostilitySetting(pawn, domain.HostilityResponse(def))
+}
+
+// cancelUnfinishedMark is the stuff column value of a remove_production_bill
+// that also cancels the bill's bound unfinished item.
+const cancelUnfinishedMark = "cancel_unfinished"
+
+func cancelUnfinishedStuff(r domain.RemoveProductionBill) string {
+	if r.CancelsUnfinished() {
+		return cancelUnfinishedMark
+	}
+	return ""
 }

@@ -2,15 +2,19 @@ package domain
 
 import "errors"
 
-// RemoveProductionBillAction deletes one idle production bill from a bench:
-// the bench and the native bill id a placing receipt
-// journaled (Progress view Bill). Native re-resolves both live and refuses a
-// bill that is gone, being worked or holding an unfinished item; Go does not
-// restate those guards, and the Round retries.
+// RemoveProductionBillAction deletes one ordinary production bill from a bench:
+// the bench and the native bill id a placing receipt journaled (Progress view
+// Bill). Native re-resolves both live and refuses only a bill that is gone or
+// not ordinary; a worked bill ends its job cleanly and an unfinished item
+// survives for any same-recipe bill unless CancelUnfinished is set (a recipe
+// change orphaning it). Go does not restate those guards, and the Round retries.
 const RemoveProductionBillAction ActionKind = "remove_production_bill"
 
 // RemoveProductionBill is an immutable, comparable value.
-type RemoveProductionBill struct{ bench, bill string }
+type RemoveProductionBill struct {
+	bench, bill      string
+	cancelUnfinished bool
+}
 
 func NewRemoveProductionBill(bench, bill string) (RemoveProductionBill, error) {
 	if !validID(bench) || !validID(bill) {
@@ -21,6 +25,16 @@ func NewRemoveProductionBill(bench, bill string) (RemoveProductionBill, error) {
 
 func (r RemoveProductionBill) Bench() string { return r.bench }
 func (r RemoveProductionBill) Bill() string  { return r.bill }
+
+// CancelUnfinished returns the removal that also destroys the bill's bound
+// unfinished item (DestroyMode.Cancel, returning its ingredient share).
+func (r RemoveProductionBill) CancelUnfinished() RemoveProductionBill {
+	r.cancelUnfinished = true
+	return r
+}
+
+// CancelsUnfinished reports whether the bound unfinished item is destroyed.
+func (r RemoveProductionBill) CancelsUnfinished() bool { return r.cancelUnfinished }
 
 func NewRemoveProductionBillAction(id ActionID, r RemoveProductionBill) (Action, error) {
 	if !validID(string(id)) {

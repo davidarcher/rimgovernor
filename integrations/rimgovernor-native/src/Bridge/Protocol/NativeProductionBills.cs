@@ -234,11 +234,11 @@ namespace HomeBridge.BridgeTools {
    return new Receipts.EffectEvidence{Bill=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},Bill=NativeRef.Of(standing.GetUniqueLoadID()),RecipeDef=standing.recipe.defName}};
   }
  }
- // Actions/Apply remove_production_bill: delete one idle
- // bill from a player bench. Bench and bill are re-resolved live; a bill that
- // is gone, that a spawned pawn's current job works, or that an unfinished item
- // is bound to is refused and the Round retries. Only ordinary production
- // bills are removable here; medical and mech bills are not.
+ // Actions/Apply remove_production_bill: delete one bill from a player bench.
+ // Bench and bill are re-resolved live; a bill that is gone is refused and the
+ // Round retries. A pawn working the bill or an unfinished item bound to it does
+ // not refuse. Only ordinary production bills are removable here; medical and
+ // mech (Bill_Mech) bills are not, since removing one destroys the mech forming.
  internal sealed class RemoveProductionBillActionHandler : IActionHandler {
   internal const string Kind="Remove production bill";
   private sealed class Target {internal Thing Bench=null!;internal Bill Bill=null!;}
@@ -251,18 +251,21 @@ namespace HomeBridge.BridgeTools {
    var rules=new ApplyPreconditions(Kind)
     .Present(()=>bench!=null&&giver!=null,"bench "+intent.BenchId+" is not a loaded bill giver")
     .Present(()=>bill!=null,"bill "+intent.Bill.Id+" is not on bench "+intent.BenchId)
-    .Require(()=>bill is Bill_Production,"bill "+intent.Bill.Id+" is not an ordinary production bill")
-    .Require(()=>!map.mapPawns.AllPawnsSpawned.Any(p=>p.CurJob?.bill==bill),"a pawn is working bill "+intent.Bill.Id)
-    .Require(()=>!(bill is Bill_ProductionWithUft uft&&uft.BoundUft!=null&&!uft.BoundUft.Destroyed),"an unfinished item is bound to bill "+intent.Bill.Id);
+    .Require(()=>bill is Bill_Production,"bill "+intent.Bill.Id+" is not an ordinary production bill");
    if(!rules.Holds)return rules.Failure();
    t.Bench=bench!;t.Bill=bill!;
    return null;
   }
   public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context)=>Resolve(action.RemoveProductionBill,context,out _);
   public Receipts.EffectEvidence Apply(Operations.Action action,Common.ObservationContext context){
-   var failure=Resolve(action.RemoveProductionBill,context,out var t);
+   var intent=action.RemoveProductionBill;
+   var failure=Resolve(intent,context,out var t);
    if(failure!=null)throw new ApplyRefusedException(failure);
    var id=t.Bill.GetUniqueLoadID();var recipe=t.Bill.recipe.defName;
+   // Vanilla Delete never refuses and a pawn's job on the bill fails cleanly. The bound
+   // unfinished item stays for a same-recipe bill to resume unless the caller asks for the
+   // orphan to be cancelled (a recipe change): Cancel returns the ingredient share.
+   if(intent.CancelUnfinished&&t.Bill is Bill_ProductionWithUft uft&&uft.BoundUft!=null&&!uft.BoundUft.Destroyed)uft.BoundUft.Destroy(DestroyMode.Cancel);
    NativeProductionTracking.Retire(t.Bill);t.Bill.billStack.Delete(t.Bill);
    return new Receipts.EffectEvidence{Bill=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},Bill=NativeRef.Of(id),RecipeDef=recipe}};
   }
