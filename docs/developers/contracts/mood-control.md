@@ -308,7 +308,34 @@ standing, an unbuildable `PartySpot` (definition unavailable or no builder), no 
 cell, or an already spent per-Episode one-shot (`retireBuilding` once per building, one
 placement per room) all drop the deficit. Mood relief for `AteWithoutTable` and
 `NeedJoy` defers to `EnsureComfort` while it is active, so it defers during that window
-too. Gathering itself is #2548.
+too.
+
+### Holding a party
+
+`HoldGatherings` (People; routine family `gathering`) holds a vanilla `Party` when the
+colony as a whole is losing mood the party would repay. It is a mood source with a cost
+(colonist time), never a repair, and it never places the spot: with no built `PartySpot`
+(a blueprint or frame does not count) it waits for `EnsureComfort`. No number in
+`policy/gathering.go` is a tuning choice; each is read from the game:
+
+| Gate | Source |
+| --- | --- |
+| Def `Party` | the `GatheringDef` whose `gatherSpotDefs` is `PartySpot` |
+| Pressure | a colonist is pressed when its ledger loss (`MoodLedger.Pawns`) is at least the `AttendedParty` `baseMoodEffect` (8 in Core; catalog `ThoughtFacts.WorstOffset`, unknown without it) |
+| Share | at least 0.65 of the ledger's colonists are pressed: the guest fraction `AcceptableGameConditionsToStartGathering` sizes the party to |
+| Colonists | at least 4 not dead (the game's own floor) |
+| Cooldown | no colonist carries the `AttendedParty` memory (`durationDays` 10): nothing is stored |
+| Calm | `RitualCalm`: no hostile threat, no critical patient; any colonist in a mental state vetoes |
+| Running | a party's lord job runs 5000 to 15000 ticks (`LordJob_Joinable_Party`) and the game refuses a second; the planner waits `gathering_running` for `GatheringMaxTicks` after the last completed gathering action of the Episode, and while a plan is open |
+| Ideology | with Ideology installed and any ritual precept held, `MaintainRituals` owns celebrations (`ritual begin`) and no `gathering` is issued |
+
+Unknown inputs never start a party; a known veto wins over an unknown input. Colonists
+whose thoughts are unreadable count as neither pressed nor carrying the memory. The
+organizer is the able colonist (known undowned, undrafted, out of a mental state) with the
+highest mood, then the lowest id; the game's `PawnCanStartOrContinueGathering` decides the
+rest. `RoundsFacts.GatheringPlan` / `GatheringOwed` hold the concern open; the planner
+commits one `gathering` action per Episode attempt. Recovery: the memory, the veto or the
+trigger lapsing. Weddings, concerts and schedule writes are out of scope.
 
 `GatheringEffect` records `gathering_def`, `organizer_id` and the `spot` the game
 chose. `NativeGathering` is an immediate write with no native job: it refuses an

@@ -147,6 +147,8 @@ picks the first rung above the holder's with a throne.
   [ideology contracts](ideology-contracts.md#role-assignment).
 - `MaintainRituals` (`policy.PlanRituals`): see
   [ideology contracts](ideology-contracts.md#ritual-scheduling).
+- `HoldGatherings` (`policy.PlanGathering`): see
+  [mood control](mood-control.md#holding-a-party).
 - `MaintainPermits` (`policy.NextPermit`): each review ranks every untaken permit of
   every titled colonist (`policy.RankPermits`): acting permits by worker class (aid and
   laborer calls, trade, drop-pod and shuttle access; psycast permits ahead of trade for

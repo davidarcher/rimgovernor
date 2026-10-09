@@ -90,6 +90,7 @@ var (
 	IdeoRoles           = define("ideo-roles")
 	Ideoligion          = define("ideoligion-reform")
 	Rituals             = define("rituals")
+	Gathering           = define("gathering")
 	StoneShell          = define("stone-shell")
 	DefensiveLayout     = define("defensive-layout")
 	Dialog              = define("dialog")

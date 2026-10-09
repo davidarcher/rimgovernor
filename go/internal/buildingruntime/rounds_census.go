@@ -258,9 +258,14 @@ func (r *Rounder) observeOwned(ctx context.Context, source observation.RoundsSou
 		r.reviewMeals(&reading.Projection)
 		r.reviewReserve(&reading.Projection)
 		r.reviewBabyFeeding(&reading.Projection)
-		if r.player != nil && r.methodEnabled(policy.MaintainRituals) {
+		if r.player != nil {
 			if state := r.player.session.State(); state.ObservationKnown && state.Snapshot.Validate() == nil {
-				r.reviewRituals(&reading, state.Snapshot)
+				if r.methodEnabled(policy.MaintainRituals) {
+					r.reviewRituals(&reading, state.Snapshot)
+				}
+				if r.methodEnabled(policy.HoldGatherings) {
+					r.reviewGathering(&reading, state.Snapshot)
+				}
 			}
 		}
 	}

@@ -18,13 +18,20 @@ import (
 func (r *Rounder) reviewRituals(reading *observation.RoundsReading, snapshot domain.GenerationSnapshot) {
 	facts := &reading.Projection.Facts
 	tick := reading.Projection.Identity.Tick
-	calm := domain.Unknown[bool]()
-	if emergency, err := policy.NewEmergencySnapshot(snapshot, tick, reading.Emergency); err == nil {
-		hostiles, patients := policy.EmergencyNeeds(emergency, snapshot, tick)
-		calm = policy.RitualCalm(hostiles, patients)
-	}
-	facts.RitualPlans = policy.PlanRituals(facts.Ideology, reading.Projection.WorkPawns, facts.RitualSites, tick, calm)
+	facts.RitualPlans = policy.PlanRituals(facts.Ideology, reading.Projection.WorkPawns, facts.RitualSites, tick, r.roundsCalm(reading, snapshot))
 	facts.RitualsOwed = policy.RitualsOwed(facts.RitualPlans)
+}
+
+// roundsCalm is policy.RitualCalm over the reading's emergency census: known
+// when no hostile threat and no critical patient stand.
+func (r *Rounder) roundsCalm(reading *observation.RoundsReading, snapshot domain.GenerationSnapshot) domain.Fact[bool] {
+	tick := reading.Projection.Identity.Tick
+	emergency, err := policy.NewEmergencySnapshot(snapshot, tick, reading.Emergency)
+	if err != nil {
+		return domain.Unknown[bool]()
+	}
+	hostiles, patients := policy.EmergencyNeeds(emergency, snapshot, tick)
+	return policy.RitualCalm(hostiles, patients)
 }
 
 // RoundsRitualsPlanner is MaintainRituals' planner: while

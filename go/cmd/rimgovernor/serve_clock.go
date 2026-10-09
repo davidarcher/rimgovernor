@@ -587,6 +587,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
+		if sc.roundsGatheringPlans {
+			// HoldGatherings plans from the mood ledger, pawn rows, building table and emergency census.
+			if config.Gathering, err = buildingruntime.NewRoundsGatheringPlanner(reviewer); err != nil {
+				return nil, err
+			}
+		}
 		if sc.roundsIdeoligionPlans {
 			if config.Ideoligion, err = buildingruntime.NewRoundsIdeoligionPlanner(reviewer); err != nil {
 				return nil, err
@@ -958,6 +964,9 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 	}
 	if sc.roundsRitualPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainRituals)
+	}
+	if sc.roundsGatheringPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.HoldGatherings)
 	}
 	if sc.roundsIdeoligionPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.ImproveIdeoligion)

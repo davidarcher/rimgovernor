@@ -144,15 +144,17 @@ type ClockSchedulerConfig struct {
 	IdeoRoles           *RoundsIdeoRolesPlanner
 	Ideoligion          *RoundsIdeoligionPlanner
 	Rituals             *RoundsRitualsPlanner
-	StoneShell          *RoundsStoneShellPlanner
-	Stockpiles          *RoundsStockpilePlanner
-	DefenseLayout       *RoundsDefenseLayoutPlanner
-	Burial              *RoundsBurialPlanner
-	Incineration        *RoundsIncinerationPlanner
-	MoodRelief          *RoundsMoodReliefPlanner
-	Dialog              *RoundsDialogPlanner
-	Trade               *RoundsTradePlanner
-	RoundsMethods       bool
+	// Gathering starts the colony party (HoldGatherings).
+	Gathering     *RoundsGatheringPlanner
+	StoneShell    *RoundsStoneShellPlanner
+	Stockpiles    *RoundsStockpilePlanner
+	DefenseLayout *RoundsDefenseLayoutPlanner
+	Burial        *RoundsBurialPlanner
+	Incineration  *RoundsIncinerationPlanner
+	MoodRelief    *RoundsMoodReliefPlanner
+	Dialog        *RoundsDialogPlanner
+	Trade         *RoundsTradePlanner
+	RoundsMethods bool
 	// WorldReady, when set, runs after the step's opening read and before
 	// any review: it rebuilds the store for the observed world if needed
 	// and reports whether a rebuild reset the review cache since
@@ -236,6 +238,7 @@ type ClockSchedulerResult struct {
 	IdeoRoles                    *RoundsIdeoRolesResult
 	Ideoligion                   *RoundsIdeoligionResult
 	Rituals                      *RoundsRitualsResult
+	Gathering                    *RoundsGatheringResult
 	StoneShell                   *RoundsStoneShellResult
 	Stockpiles                   *RoundsStockpileResult
 	DefenseLayout                *RoundsDefenseLayoutResult
@@ -609,6 +612,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Rituals != nil && (config.Rounds == nil || config.Rituals.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Rituals != nil && (config.Rounds == nil || config.Rituals.reviewer != config.Rounds)", ErrControl)
+	}
+	if config.Gathering != nil && (config.Rounds == nil || config.Gathering.reviewer != config.Rounds) {
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Gathering != nil && (config.Rounds == nil || config.Gathering.reviewer != config.Rounds)", ErrControl)
 	}
 	if config.Ideoligion != nil && (config.Rounds == nil || config.Ideoligion.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: mismatched ideoligion reviewer", ErrControl)

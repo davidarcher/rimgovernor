@@ -320,7 +320,11 @@ type RoundsFacts struct {
 	RitualSites domain.Fact[[]RitualSite]
 	RitualPlans domain.Fact[[]RitualPlan]
 	RitualsOwed domain.Fact[bool]
-	ReformOwed  domain.Fact[bool]
+	// GatheringPlan is the party to start now (PlanGathering); GatheringOwed
+	// holds HoldGatherings open. Unknown unless the method is composed.
+	GatheringPlan domain.Fact[GatheringPlan]
+	GatheringOwed domain.Fact[bool]
+	ReformOwed    domain.Fact[bool]
 	// ShelterArea is the Safe allowed area's native load id, "" when the
 	// map has none (PlanSheltering).
 	ShelterArea domain.Fact[string]

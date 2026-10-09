@@ -37,6 +37,7 @@ func TestRoundsCapabilitiesDeclareSelectedGoals(t *testing.T) {
 		{"permits", policy.MaintainPermits},
 		{"ideo-roles", policy.MaintainIdeoRoles},
 		{"rituals", policy.MaintainRituals},
+		{"gathering", policy.HoldGatherings},
 		{"ideoligion-reform", policy.ImproveIdeoligion},
 		{"equip", policy.EnsureBasicDefense},
 		{"gear", policy.MaintainEquipment},

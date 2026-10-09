@@ -51,6 +51,7 @@ var concernLabels = map[string]string{
 	"MaintainPopulation":        "Grow the population",
 	"MaintainPsylink":           "Keep psylinks developing",
 	"MaintainRituals":           "Hold rituals",
+	"HoldGatherings":            "Hold a party",
 	"MaintainRoutes":            "Keep facilities reachable",
 	"MaintainShelter":           "Keep a safe shelter",
 	"ClearAncientShrine":        "Clear the ancient shrine",
