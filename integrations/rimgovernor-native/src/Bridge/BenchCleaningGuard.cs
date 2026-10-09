@@ -9,9 +9,11 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    // Opportunistic cleaning (#2515, epic #2510): when a pawn is about to start
-    // a bill at a workbench, nearby home-area filth is cleaned first. Needs no
-    // Go data. Caps apply to every trigger that shares CleanJob(): never override
+    // Opportunistic cleaning (#2515, #2521, epic #2510): when a pawn is about to
+    // start a bill at a workbench, or a surgery bill on a patient in an operating
+    // bed (the same WorkGiver_DoBill, with the patient as the bill giver), nearby
+    // home-area filth is cleaned first; a doctor who finishes tending a patient
+    // cleans around the patient's bed. Needs no Go data. Caps apply to every trigger that shares CleanJob(): never override
     // a disabled or priority-0 Cleaning work type, at most MaxFilth filth per
     // trip, skip drafted, downed, mentally broken, bleeding, tending-needy,
     // player-forced or prioritised-work pawns, and act only under
@@ -29,7 +31,26 @@ namespace HomeBridge.BridgeTools
             new Harmony("rimgovernor.bench-cleaning").Patch(
                 AccessTools.Method(typeof(WorkGiver_DoBill), nameof(WorkGiver_DoBill.JobOnThing)),
                 postfix: new HarmonyMethod(typeof(BenchCleaningGuard), nameof(BeforeBill)));
+            new Harmony("rimgovernor.care-cleaning").Patch(
+                AccessTools.Method(typeof(JobDriver_TendPatient), nameof(JobDriver_TendPatient.Notify_Starting)),
+                postfix: new HarmonyMethod(typeof(BenchCleaningGuard), nameof(ArmAfterTend)));
             patched = true;
+        }
+
+        // A tend that ends Succeeded hands the doctor a Clean job around the
+        // patient's bed through vanilla's finalizer-job slot, which EndCurrentJob
+        // starts only when the pawn may take an opportunistic job.
+        private static readonly System.Reflection.MethodInfo SetFinalizer =
+            AccessTools.Method(typeof(JobDriver), "SetFinalizerJob");
+
+        private static void ArmAfterTend(JobDriver_TendPatient __instance)
+        {
+            var doctor = __instance.pawn;
+            var patient = __instance.job.targetA.Pawn;
+            if (patient == null || patient == doctor || !Supervisor.IsActive) return;
+            SetFinalizer.Invoke(__instance, new object[] { (System.Func<JobCondition, Job?>)(condition =>
+                condition != JobCondition.Succeeded || !Supervisor.IsActive || !patient.Spawned || patient.Map != doctor.Map
+                    ? null : CleanJob(doctor, patient.Map, patient.Position)) });
         }
 
         private static void BeforeBill(Pawn pawn, Thing thing, bool forced, ref Job? __result)

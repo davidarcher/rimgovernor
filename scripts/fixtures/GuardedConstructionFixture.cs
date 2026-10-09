@@ -336,6 +336,89 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        [Tool("test/care_cleaning", Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab: stages a bed with an injured patient, a startable surgery bill and eight old filth beside it, then asks the patched WorkGiver_DoBill for the surgery job and the patched tend driver for its finalizer job, for a normal and a Cleaning-priority-0 doctor (#2521). Changes no standing pawn orders.")]
+        public async Task<object> CareCleaning(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused || map.Size.x != 100 || map.Size.z != 100) return Refuse("A paused 100x100 disposable lab is required.");
+                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.workSettings != null && p.drafter != null
+                    && !p.WorkTypeIsDisabled(WorkTypeDefOf.Cleaning)).OrderBy(p => p.thingIDNumber).Take(3).ToList();
+                if (pawns.Count < 3) return Refuse("Three colonists able to clean are required.");
+                var blood = DefDatabase<ThingDef>.GetNamedSilentFail("Filth_Blood");
+                if (blood == null) return Refuse("Filth_Blood unavailable.");
+                var doctor = pawns[0]; var noClean = pawns[1]; var patient = pawns[2];
+                var origin = map.Center + new IntVec3(14, 0, 0);
+                foreach (var cell in new CellRect(origin.x - 6, origin.z - 6, 13, 13).Cells) {
+                    ClearWallCell(map, cell);
+                    map.areaManager.Home[cell] = true;
+                    map.roofGrid.SetRoof(cell, null);
+                }
+                foreach (var pawn in pawns) {
+                    pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                    pawn.drafter.Drafted = false;
+                    pawn.Position = origin + new IntVec3(0, 0, -4); pawn.Notify_Teleported(true, true);
+                    pawn.workSettings.SetPriority(WorkTypeDefOf.Cleaning, 1);
+                }
+                map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+                var bed = (Building_Bed)ThingMaker.MakeThing(ThingDefOf.Bed, ThingDefOf.WoodLog);
+                bed.SetFaction(Faction.OfPlayer);
+                GenSpawn.Spawn(bed, origin, map, Rot4.North);
+                map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+                patient.Position = bed.Position; patient.Notify_Teleported(true, true);
+                patient.jobs.StartJob(JobMaker.MakeJob(JobDefOf.LayDown, bed), JobCondition.InterruptForced);
+                var torso = patient.health.hediffSet.GetNotMissingParts().FirstOrDefault(p => p.def.defName == "Torso");
+                if (torso == null) return Refuse("Patient has no torso.");
+                patient.TakeDamage(new DamageInfo(DamageDefOf.Cut, 3f, 999f, -1f, null, torso));
+                if (!patient.health.HasHediffsNeedingTend()) return Refuse("Patient needs no tending.");
+                var giver = DefDatabase<WorkGiverDef>.GetNamedSilentFail("DoBillsMedicalHumanOperation")?.Worker as WorkGiver_DoBill;
+                if (giver == null) return Refuse("Surgery work giver unavailable.");
+                string Surgery(Pawn p) { var job = giver.JobOnThing(p, patient, false); return job == null ? "none" : job.def.defName; }
+                int SurgeryTargets(Pawn p) { var job = giver.JobOnThing(p, patient, false); return job?.def == JobDefOf.Clean ? job.GetTargetQueue(TargetIndex.A).Count : 0; }
+                Bill staged = null;
+                foreach (var recipe in patient.def.AllRecipes.Where(r => r.IsSurgery)) {
+                    var bill = recipe.MakeNewBill();
+                    patient.BillStack.AddBill(bill);
+                    if (bill is Bill_Medical medical) {
+                        var part = recipe.Worker.GetPartsToApplyOn(patient, recipe).FirstOrDefault();
+                        if (part != null) medical.Part = part;
+                    }
+                    if (Surgery(doctor) == "DoBill") { staged = bill; break; }
+                    patient.BillStack.Delete(bill);
+                }
+                if (staged == null) return Refuse("No surgery bill is startable on the staged patient.");
+                var spawned = 0;
+                foreach (var cell in GenRadial.RadialCellsAround(bed.Position, 4, true).Where(c => c != bed.Position && c.Standable(map))) {
+                    if (spawned == 8) break;
+                    if (!FilthMaker.TryMakeFilth(cell, map, blood, 1, FilthSourceFlags.None)) continue;
+                    var filth = cell.GetThingList(map).OfType<Filth>().FirstOrDefault(f => f.def == blood);
+                    if (filth == null) continue;
+                    AccessTools.Field(typeof(Filth), "growTick").SetValue(filth, Find.TickManager.TicksGame - 1000);
+                    spawned++;
+                }
+                if (spawned < 8) return Refuse("Only " + spawned + " filth spawned.");
+                noClean.workSettings.SetPriority(WorkTypeDefOf.Cleaning, 0);
+                var surgery = Surgery(doctor); var surgeryTargets = SurgeryTargets(doctor);
+                var surgeryDisabled = Surgery(noClean); var surgeryDisabledTargets = SurgeryTargets(noClean);
+                patient.BillStack.Delete(staged);
+                string Tend(Pawn p, out int targets) {
+                    targets = 0;
+                    p.jobs.StartJob(JobMaker.MakeJob(JobDefOf.TendPatient, patient), JobCondition.InterruptForced);
+                    var job = p.jobs.curDriver?.GetFinalizerJob(JobCondition.Succeeded);
+                    var other = p.jobs.curDriver?.GetFinalizerJob(JobCondition.Incompletable);
+                    p.jobs.EndCurrentJob(JobCondition.InterruptForced, false);
+                    if (other != null) return "finalizer-on-failure";
+                    if (job == null) return "none";
+                    targets = job.def == JobDefOf.Clean ? job.GetTargetQueue(TargetIndex.A).Count : 0;
+                    return job.def.defName;
+                }
+                var tend = Tend(doctor, out var tendTargets);
+                var tendDisabled = Tend(noClean, out var tendDisabledTargets);
+                return new { success = true, supervisorActive = Supervisor.IsActive, filth = spawned, surgery, surgeryTargets,
+                    surgeryDisabled, surgeryDisabledTargets, tend, tendTargets, tendDisabled, tendDisabledTargets };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         private static void ClearWallCell(Map map, IntVec3 cell)
         {
             foreach (var thing in cell.GetThingList(map).Where(t => !(t is Pawn)).ToList()) thing.Destroy();

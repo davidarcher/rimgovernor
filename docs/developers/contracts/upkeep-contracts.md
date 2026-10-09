@@ -272,7 +272,11 @@ Home at a time, nearest the colony center first.
   Caps: at most 5 filth per trip; never for a pawn whose Cleaning work type is disabled or at
   priority 0; never for a drafted, downed, mentally broken, bleeding, tend-needy,
   player-forced or priority-work pawn; forced bill orders are untouched. The same
-  `CleanJob` helper is meant to serve the after-tending and before-surgery triggers.
+  `CleanJob` helper serves two more triggers (#2521): a surgery bill is the same
+  `WorkGiver_DoBill` with the patient as bill giver, so a doctor cleans within 6 cells of the
+  patient's bed before operating; and a `JobDriver_TendPatient` that ends `Succeeded` hands
+  the doctor a `Clean` job around the patient's bed through the driver's finalizer-job slot
+  (never when the doctor tends herself or the tend was player-forced). Acceptance: `clean/care`.
   It overlaps the Go `MaintainCleanFacilities` planners only in effect; neither consults the other.
 - Butcher placements never share a room with a cooking bench; a colony whose every butcher
   bench shares a cooking room is admitted one more `ButcherSpot` outside. The spot and its
