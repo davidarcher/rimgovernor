@@ -375,6 +375,25 @@ stands (so its spec key never drifts), a new batch is declared only while no wea
 candidate is pending, and the declared batches are the ingredient demand of
 `openBills`. `production/gear-ledger` is the nightly signal.
 
+The second migration (#2604) is declare-only: `RoundsMedicalPlanner` declares
+MaintainMedicalReserves' stock-target medicine bill (`policy.DeclareMedicine`) and
+`RoundsCareBillDeclarer` the surgery part (MaintainSurgery), baby food
+(MaintainBabyFeeding) and mech gestation (MaintainMechs) bills
+(`policy.DeclareSelection` over the unchanged selectors), each only while its concern
+is workable; the old `RoundsBillPlanner` purposes are deleted. These bills are
+placed and kept but never removed in the first pass (a gestation bill is the mech
+being formed, a part or medicine bill serves a patient). `LedgerMigratedOwner` is
+unchanged: a bill the ledger places is owned by `MaintainWorkLedger` and so would be
+removable, so removability is decided by the recipe instead. The bench census sets
+`GearBill.Kind` from `DefinitionCatalog.RecipeLedgerKind` (mech gestation, medicine,
+a body part item, baby-edible food), restart-safe, and `ReconcileLedger` keeps such
+a bill whatever its owner while still letting it satisfy a declared order. The census
+lists every spawned `IBillGiver` building that is not a pawn, so gestators and part
+benches are read back; a pawn's surgery bills are operations (`surgery` actions), not
+bench bills, and are outside the ledger. Not carried over: stale part-bill removal
+and the replacement of an inadequate baby food bill (an adequate new bill is placed
+beside it), both waiting for orphan removal of these kinds.
+
 The food bills (#2602) are the second migration: `EnsureCooking`, `MaintainFoodStorage`,
 `EnsureFoodSupply` and `MaintainRefrigeration` are migrated owners. The cooking,
 reserve (preserve), butcher and cook-ahead `RoundsBillPlanner`s and the food-storage

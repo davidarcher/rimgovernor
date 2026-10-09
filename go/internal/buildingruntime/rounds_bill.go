@@ -2,12 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
-	"errors"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -43,11 +40,11 @@ var _ artBenchSource = (*bridge.Client)(nil)
 
 // NewRoundsBillPlanner composes one bill purpose: cooking serves
 // EnsureCooking, preservation MaintainFoodStorage, butchery EnsureFoodSupply, the
-// cook-ahead bill MaintainRefrigeration under a solar flare, and the
-// pinned sculpture bills MaintainArt, the part bills
-// MaintainSurgery, the baby food bill MaintainBabyFeeding, and the mech gestation bills MaintainMechs.
+// cook-ahead bill MaintainRefrigeration under a solar flare. The sculpture,
+// part, baby food and mech gestation bills are the ledger's
+// (RoundsArtPlanner, RoundsCareBillDeclarer).
 func NewRoundsBillPlanner(reviewer *Rounder, native BillPlannerNative, purpose policy.BillPurpose) (*RoundsBillPlanner, error) {
-	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood && purpose != policy.SurgeryPartBill && purpose != policy.BabyFoodBill && purpose != policy.MechGestationBill) {
+	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood) {
 		return nil, fmt.Errorf("%w: NewRoundsBillPlanner: reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpos", ErrControl)
 	}
 	need := policy.EnsureFoodSupply
@@ -58,12 +55,6 @@ func NewRoundsBillPlanner(reviewer *Rounder, native BillPlannerNative, purpose p
 		need = policy.MaintainFoodStorage
 	case policy.CookAheadFood:
 		need = policy.MaintainRefrigeration
-	case policy.SurgeryPartBill:
-		need = policy.MaintainSurgery
-	case policy.BabyFoodBill:
-		need = policy.MaintainBabyFeeding
-	case policy.MechGestationBill:
-		need = policy.MaintainMechs
 	}
 	return &RoundsBillPlanner{reviewer: reviewer, native: native, purpose: purpose, need: need}, nil
 }
@@ -113,13 +104,6 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 			return RoundsBillResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
-	if r.purpose == policy.SurgeryPartBill {
-		// A part bill whose need is gone (the owner stayed Met) is removed
-		// first.
-		if plan, err := r.reviewer.removeStaleBill(call, epoch, arbiter, state, goal, r.need); err != nil || plan != "" {
-			return RoundsBillResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
-		}
-	}
 	plans, err := p.journal.LoadPlans(call)
 	if err != nil {
 		return RoundsBillResult{}, err
@@ -149,47 +133,6 @@ func (r *RoundsBillPlanner) step(call, epoch context.Context, arbiter *stepArbit
 	}
 	projection := read.Projection
 	recordStepRead("bill", r.need, state.Snapshot, projection)
-	if r.purpose == policy.MechGestationBill {
-		selected, verdict, err := r.mechSelection(call, state, projection)
-		if err != nil {
-			return RoundsBillResult{}, err
-		}
-		if !verdict.IsZero() {
-			return RoundsBillResult{Verdict: verdict}, nil
-		}
-		// Each gestation is a new method of the goal: the bill is the same
-		// bench, recipe and count as the one before it.
-		return r.admit(call, epoch, arbiter, state, goal, read, selected, len(goal.OwnerMethods()))
-	}
-	if r.purpose == policy.SurgeryPartBill {
-		parts, benches, err := surgeryPartDemand(call, r.native, boundary.Identity(state.Snapshot), projection.Facts.MedicalPawns, projection.SurgeryContext())
-		if err != nil {
-			return RoundsBillResult{}, err
-		}
-		// A part bill no waiting operation names goes whatever the owner's
-		// finding.
-		wanted := policy.SurgeryPartsWanted(parts)
-		judge := func(b policy.StaleBill) (bool, bool) { return true, policy.BillWanted(b.Products, wanted) }
-		if plan, err := r.reviewer.removeUnwantedBill(call, epoch, arbiter, state, review, goal, r.need, judge); err != nil || plan != "" {
-			return RoundsBillResult{Verdict: BuildingReasonAdmitted, Plan: plan}, err
-		}
-		selected, gap := policy.SelectSurgeryPartBill(benches, parts)
-		if gap != "" {
-			return RoundsBillResult{Verdict: billGapVerdict(gap, "surgery_part_bill")}, nil
-		}
-		return r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
-	}
-	if r.purpose == policy.BabyFoodBill {
-		babies, known := projection.Facts.BabyFeeding.Value()
-		if !known {
-			return RoundsBillResult{Verdict: fieldUnavailable("baby_feeding")}, nil
-		}
-		selected, known := policy.SelectProductionBill(r.purpose, projection.ProductionBenches, projection.Facts.Colonists, domain.Fact[float64]{}, domain.Fact[float64]{}, 1, policy.ProductionBillContext{BabyFeeding: &babies})
-		if !known {
-			return RoundsBillResult{Verdict: BuildingReasonNoDeficit}, nil
-		}
-		return r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
-	}
 	// The food bills are the ledger's (DeclareOrders): this planner only says
 	// why the purpose has nothing to place and lends game time to a reserve.
 	request, err := r.foodRequest(projection, review)
@@ -297,84 +240,4 @@ func (r *RoundsBillPlanner) lendReserveWork(result RoundsBillResult, running boo
 		result.NativeWorkTicks = max(result.NativeWorkTicks, reserveBillWorkTicks)
 	}
 	return result
-}
-
-// admit commits the selected bill as the goal's method, once per goal
-// epoch and claim.
-func (r *RoundsBillPlanner) admit(call, epoch context.Context, arbiter *stepArbiter, state ControlState, goal store.WorkOwner, read observation.RoundsReading, selected policy.BillSelection, round int) (RoundsBillResult, error) {
-	p := r.reviewer.player
-	value, err := domain.NewProductionBill(selected.Bench, selected.Recipe, selected.Mode, selected.Target, selected.Ingredients...)
-	if selected.Mode == domain.HumanButcherForever {
-		value, err = domain.NewHumanButcherBill(selected.Bench, selected.Recipe, selected.Worker)
-	} else if err == nil && selected.Worker != "" {
-		value, err = value.PinWorker(selected.Worker)
-	}
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
-	claimed, err := p.journal.BillClaimed(call, state.Snapshot, selected.Bench, value.ClaimRecipe())
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
-	// Finite batches expire (store.checkBillMethod): a claim from an earlier
-	// batch does not bar the next one.
-	if claimed && selected.Replace == "" && selected.Mode != domain.GearBatch {
-		return RoundsBillResult{Verdict: waitFor(WaitMethodUsed, "bill_claim")}, nil
-	}
-	// The bill planners of one step run concurrently and read the same
-	// bench token; the second bill on a bench would hold forever on the
-	// first's write. One bill per bench per step.
-	if arbiter != nil && !arbiter.tryClaim(nil, "bench:"+selected.Bench) {
-		return RoundsBillResult{Verdict: claimHeld("bench")}, nil
-	}
-	hash := sha256.New()
-	fmt.Fprintf(hash, "%s/%s/%s/%d", selected.Bench, selected.Recipe, selected.Mode, selected.Target)
-	if selected.Worker != "" {
-		fmt.Fprintf(hash, "/%s", selected.Worker)
-	}
-	// A finished sculpture batch stays on the bench, inactive; the next
-	// piece of the same shape (a sale sculpture after the room's)
-	// is a new method, keyed by the finished batches before it.
-	if round > 0 {
-		fmt.Fprintf(hash, "/round%d", round)
-	}
-	if selected.Replace != "" {
-		fmt.Fprint(hash, "/", selected.Replace, "/", selected.Token)
-	}
-	method := domain.MethodID(fmt.Sprintf("bill-%x", hash.Sum(nil)[:16]))
-	if _, err = p.journal.LoadOwnerMethod(call, goal, method); err == nil {
-		return RoundsBillResult{Verdict: waitFor(WaitMethodUsed, "bill_method")}, nil
-	} else if !errors.Is(err, store.ErrNotFound) {
-		return RoundsBillResult{}, err
-	}
-	id := domain.MintPlanID()
-	if selected.Replace != "" {
-		value, err = value.ReplaceOwnedBill(selected.Replace)
-		if err != nil {
-			return RoundsBillResult{}, err
-		}
-	}
-	action, err := domain.NewProductionBillAction(domain.ActionID(string(id)+"-0"), value)
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
-	actions := []domain.Action{action}
-	plan, err := domain.NewPlan(id, 1, actions)
-	if err != nil {
-		return RoundsBillResult{}, err
-	}
-	if err = p.current(call, epoch); err != nil {
-		return RoundsBillResult{}, err
-	}
-	if p.session.State() != state {
-		return RoundsBillResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
-	}
-	now := r.reviewer.clock.Now()
-	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
-		return RoundsBillResult{}, observation.ErrStale
-	}
-	if err = p.journal.CommitOwnerMethod(call, goal, method, "", plan); err != nil {
-		return RoundsBillResult{}, err
-	}
-	return RoundsBillResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

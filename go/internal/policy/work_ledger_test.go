@@ -66,8 +66,13 @@ func TestReconcileLedger(t *testing.T) {
 		reconcileCase{name: "unmigrated owner's bill is kept and never counted", declared: want(), actual: []ActualBill{foreign}, in: map[string]int{"9": 99}, keep: []string{"9"}, out: map[string]int{}},
 		reconcileCase{name: "unmigrated duplicate of a wanted spec is kept", declared: want(vest), actual: []ActualBill{bill("1", vest, LedgerProduction), foreign}, keep: []string{"1", "9"}, out: map[string]int{}},
 	)
-	for _, k := range []LedgerBillKind{LedgerMechGestation, LedgerSurgery, LedgerMedical} {
-		tests = append(tests, reconcileCase{name: "excluded " + string(k) + " never removed", declared: want(), actual: []ActualBill{bill("1", vest, k)}, in: map[string]int{"1": 99}, keep: []string{"1"}, out: map[string]int{}})
+	for _, k := range []LedgerBillKind{LedgerMechGestation, LedgerSurgery, LedgerMedical, LedgerBabyFood} {
+		tests = append(tests,
+			reconcileCase{name: "excluded " + string(k) + " never removed", declared: want(), actual: []ActualBill{bill("1", vest, k)}, in: map[string]int{"1": 99}, keep: []string{"1"}, out: map[string]int{}},
+			reconcileCase{name: "excluded " + string(k) + " never removed as a duplicate", declared: want(vest), actual: []ActualBill{bill("1", vest, LedgerProduction), bill("2", vest, k)}, in: map[string]int{"2": 99}, keep: []string{"1", "2"}, out: map[string]int{}},
+			reconcileCase{name: "excluded " + string(k) + " satisfies its declared order", declared: want(vest), actual: []ActualBill{bill("1", vest, k)}, keep: []string{"1"}, out: map[string]int{}},
+			reconcileCase{name: "spent excluded " + string(k) + " is kept and does not satisfy", declared: want(vest), actual: []ActualBill{{ID: "1", Bench: "b1", Kind: k, Spec: vest, Migrated: true, Spent: true}}, in: map[string]int{"1": 99}, place: []OrderSpec{vest}, keep: []string{"1"}, out: map[string]int{}},
+		)
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

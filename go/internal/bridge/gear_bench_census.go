@@ -151,6 +151,9 @@ func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity,
 		if recipe.MechKind, err = catalog.RecipeMechKind(recipe.Definition); err != nil {
 			return nil, "", err
 		}
+		if recipe.Kind, err = catalog.RecipeLedgerKind(recipe.Definition, recipe.MechKind); err != nil {
+			return nil, "", err
+		}
 		out = append(out, recipe)
 	}
 	return out, snapshot.GetBenchDef(), nil
@@ -170,10 +173,10 @@ func gearBillsFromStack(stack *o.BillStack, benchDef string, recipes []policy.Ge
 		return nil, contract("bill stack exceeds bound")
 	}
 	products := map[string][]policy.Resource{}
-	gestation := map[string]bool{}
+	kinds := map[string]policy.LedgerBillKind{}
 	for _, r := range recipes {
 		products[r.Definition] = r.Products
-		gestation[r.Definition] = r.MechKind != ""
+		kinds[r.Definition] = r.Kind
 	}
 	out := make([]policy.GearBill, 0, len(stack.Bills))
 	for _, bill := range stack.Bills {
@@ -200,9 +203,7 @@ func gearBillsFromStack(stack *o.BillStack, benchDef string, recipes []policy.Ge
 			row.Products = list
 		}
 		row.Spent = bill.GetFinished()
-		if gestation[row.Recipe] {
-			row.Kind = policy.LedgerMechGestation
-		}
+		row.Kind = kinds[row.Recipe]
 		row.Spec = billOrderSpec(bill, benchDef)
 		out = append(out, row)
 	}

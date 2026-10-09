@@ -197,14 +197,6 @@ func (r *Rounder) staleBillCandidates(ctx context.Context, snapshot domain.Gener
 	return out, nil
 }
 
-// removeUnwantedBill is removeStaleBill after the planner that built concern's
-// demand notes which of its bills the demand names: a bill outside it
-// for StaleBillReviews reviews goes whatever the owner's finding.
-func (r *Rounder) removeUnwantedBill(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.Rounds, owner store.WorkOwner, concern policy.ConcernID, judge func(policy.StaleBill) (judged, wanted bool)) (domain.PlanID, error) {
-	r.staleBills.noteWanted(review.Revision, concern, judge)
-	return r.removeStaleBill(call, epoch, arbiter, state, owner, concern)
-}
-
 // removeStaleBill commits the one-action RemoveProductionBill plan for the
 // first stale bill of owner's concern, the planners' Unmet response to a bill
 // whose need is gone. The zero plan means none was due, or another planner of

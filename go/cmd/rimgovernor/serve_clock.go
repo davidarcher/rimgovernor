@@ -235,10 +235,15 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			return nil, err
 		}
 		config.Rounds = reviewer
-		if bills || gear || armory || sc.roundsArtPlans || sc.roundsPopulationJoinerPlans || foodStorageUpkeep || refrigeration {
+		if bills || gear || armory || sc.roundsArtPlans || sc.roundsPopulationJoinerPlans || foodStorageUpkeep || refrigeration || medical || sc.roundsMechPlans {
 			if config.Ledger, err = buildingruntime.NewRoundsLedgerPlanner(reviewer); err != nil {
 				return nil, err
 			}
+		}
+		if bills || medical || sc.roundsMechPlans {
+			// The surgery part, baby food and mech gestation bills are the
+			// ledger's, declare-only (#2604).
+			reviewer.AddOrderDeclarer(buildingruntime.NewRoundsCareBillDeclarer(reviewer, reads, medical, bills, sc.roundsMechPlans))
 		}
 		if bills {
 			nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
@@ -246,10 +251,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, errors.New("bill plans require typed preview")
 			}
 			config.CookingBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.CookFood)
-			if err != nil {
-				return nil, err
-			}
-			config.BabyFoodBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.BabyFoodBill)
 			if err != nil {
 				return nil, err
 			}
@@ -279,17 +280,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 			reviewer.AddOrderDeclarer(config.ArtBills)
-		}
-		if sc.roundsMechPlans {
-			// MaintainMechs' gestation bills are their own bill family.
-			nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
-			if !ok {
-				return nil, errors.New("mech bills require typed preview")
-			}
-			config.MechBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.MechGestationBill)
-			if err != nil {
-				return nil, err
-			}
 		}
 		if fields {
 			fieldNative, ok := reads.(buildingruntime.FieldNative)
@@ -489,13 +479,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			config.Surgery, err = buildingruntime.NewRoundsSurgeryPlanner(reviewer)
 			if err != nil {
 				return nil, err
-			}
-			// Parts a restore lacks are fabricated where researched.
-			if nativeBills, ok := reads.(buildingruntime.BillPlannerNative); ok {
-				config.SurgeryPartBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.SurgeryPartBill)
-				if err != nil {
-					return nil, err
-				}
 			}
 		}
 		if foodStorageUpkeep {
@@ -871,7 +854,7 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 	if sc.roundsBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainButcherSpot, policy.MaintainBabyFeeding)
 	}
-	if sc.roundsBillPlans || sc.roundsGearPlans || sc.roundsArmoryPlans || sc.roundsArtPlans || sc.roundsPopulationJoinerPlans || sc.roundsFoodStorageUpkeepPlans || sc.roundsRefrigerationPlans {
+	if sc.roundsBillPlans || sc.roundsGearPlans || sc.roundsArmoryPlans || sc.roundsArtPlans || sc.roundsPopulationJoinerPlans || sc.roundsFoodStorageUpkeepPlans || sc.roundsRefrigerationPlans || sc.roundsMedicalPlans || sc.roundsMechPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainWorkLedger)
 	}
 	if sc.roundsBillPlans || sc.roundsFoodStorageUpkeepPlans {

@@ -316,6 +316,35 @@ func TestLedgerKeepsABillNoMigratedOwnerPlaced(t *testing.T) {
 	}
 }
 
+// A bill the ledger itself placed (a migrated owner's, so removable in
+// general) is never removed when its recipe is declare-only: the surgery part,
+// medicine, baby food and mech gestation bills of #2604, however long the
+// planner has declared nothing. It also satisfies its declared order, so the
+// ledger does not place a second one.
+func TestLedgerNeverRemovesADeclareOnlyBill(t *testing.T) {
+	for _, kind := range []policy.LedgerBillKind{policy.LedgerSurgery, policy.LedgerMedical, policy.LedgerBabyFood, policy.LedgerMechGestation} {
+		t.Run(string(kind), func(t *testing.T) {
+			f := newLedgerFixture(t)
+			hat := ledgerOrder("Make_Hat")
+			f.declare(hat)
+			f.native.benches = []policy.GearBench{ledgerBenchRow()}
+			f.place(f.round().Plan, "Bill_Hat")
+			standing := fakeBill("Bill_Hat", hat)
+			standing.Kind = kind
+			f.native.benches = []policy.GearBench{ledgerBenchRow(standing)}
+			if r := f.round(); r.Plan != "" {
+				t.Fatalf("a declared bill of kind %s was placed again: %s", kind, r.Plan)
+			}
+			f.declare()
+			for round := 0; round < 3*policy.OrphanGraceRounds; round++ {
+				if r := f.round(); r.Plan != "" {
+					t.Fatalf("round %d removed a %s bill: %s", round, kind, r.Plan)
+				}
+			}
+		})
+	}
+}
+
 // A planner that abstained stops orphan removal for the Round.
 func TestLedgerAbstainKeepsOrphans(t *testing.T) {
 	f := newLedgerFixture(t)

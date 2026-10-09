@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -70,17 +69,17 @@ func mechGestation(call context.Context, native any, identity *c.Identity, proje
 // mechBenches converts the gear bench census into production benches that
 // carry each recipe's mech kind (RecipeState.mech_kind) and the bills
 // standing; Available is researched and offered here.
-func mechBenches(reads []bridge.GearBenchRead) []policy.ProductionBench {
-	benches := partBenches(reads)
+func mechBenches(gear []policy.GearBench) []policy.ProductionBench {
+	benches := partBenches(gear)
 	kinds := map[string]map[string]string{}
-	for _, read := range reads {
-		recipes, ok := read.Bench.Recipes.Value()
+	for _, bench := range gear {
+		recipes, ok := bench.Recipes.Value()
 		if !ok {
 			continue
 		}
-		kinds[read.Bench.ID] = map[string]string{}
+		kinds[bench.ID] = map[string]string{}
 		for _, recipe := range recipes {
-			kinds[read.Bench.ID][recipe.Definition] = recipe.MechKind
+			kinds[bench.ID][recipe.Definition] = recipe.MechKind
 		}
 	}
 	for i, bench := range benches {
@@ -89,31 +88,4 @@ func mechBenches(reads []bridge.GearBenchRead) []policy.ProductionBench {
 		}
 	}
 	return benches
-}
-
-// mechSelection is the next gestation bill: the gear bench census for the
-// gestators' recipes and bills, the projection for the rest.
-// A zero verdict means a bill was selected; otherwise the verdict says why not.
-func (r *RoundsBillPlanner) mechSelection(call context.Context, state ControlState, projection observation.ColonyProjection) (policy.BillSelection, Verdict, error) {
-	source, ok := r.native.(artBenchSource)
-	if !ok {
-		return policy.BillSelection{}, Verdict{}, fmt.Errorf("%w: mechSelection: native cannot read the bill census", ErrControl)
-	}
-	identity := boundary.Identity(state.Snapshot)
-	gestation, known, err := mechGestation(call, r.native, identity, projection)
-	if err != nil {
-		return policy.BillSelection{}, Verdict{}, err
-	}
-	if !known {
-		return policy.BillSelection{}, fieldUnavailable("mech_colony"), nil
-	}
-	reads, _, err := source.ReadGearBenches(call, identity)
-	if err != nil {
-		return policy.BillSelection{}, Verdict{}, err
-	}
-	selected, gap, err := policy.SelectMechGestationBill(mechBenches(reads), gestation)
-	if err != nil || gap == "" {
-		return selected, Verdict{}, err
-	}
-	return selected, billGapVerdict(gap, "gestation_bill"), nil
 }

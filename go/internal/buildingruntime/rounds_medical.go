@@ -179,10 +179,8 @@ func (r *RoundsMedicalPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoundsMedicalResult{}, err
 	}
 	benches := make([]policy.GearBench, 0, len(census))
-	tokens := map[string]string{}
 	for _, row := range census {
 		benches = append(benches, row.Bench)
-		tokens[row.Bench.ID] = row.Token
 	}
 	choice, err := policy.SelectMedicineMethod(policy.MedicinePlanningRequest{Review: medicalReview, Resource: medicineResource, Seen: seen, Benches: domain.Known(benches)})
 	if err != nil {
@@ -194,41 +192,49 @@ func (r *RoundsMedicalPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if choice.Kind != policy.MedicineProduce {
 		return RoundsMedicalResult{Verdict: medicineChoiceVerdict(choice.Kind, medicineResource)}, nil
 	}
-	_, ok := tokens[choice.Bench]
-	if !ok {
-		return RoundsMedicalResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
-	}
-	if !arbiter.tryClaim(nil, "bench:"+choice.Bench) {
-		return RoundsMedicalResult{Verdict: claimHeld("bench")}, nil
-	}
-	id := domain.MintPlanID()
-	target := int32(choice.Target)
-	if int64(target) != choice.Target {
-		return RoundsMedicalResult{}, fmt.Errorf("%w: step: int64(target) != choice.Target", ErrControl)
-	}
-	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, domain.StockTarget, target)
+	// The medicine bill is the ledger's (DeclareOrders).
+	return RoundsMedicalResult{Verdict: waitFor(WaitMethodUsed, "medicine_bill")}, nil
+}
+
+// DeclareOrders declares MaintainMedicalReserves' stock-target medicine bill
+// (OrderDeclarer): the bill SelectMedicineMethod produces while the reserve
+// restocks and a bench makes the medicine. A reserve that is not owed, one a
+// harvest serves and a bill already standing declare nothing; the bill is
+// declare-only (it is never removed as an orphan). It abstains while the review
+// or the medicine catalog is unread.
+func (r *RoundsMedicalPlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+	journal := r.reviewer.player.journal
+	review, err := journal.LoadRounds(ctx)
 	if err != nil {
-		return RoundsMedicalResult{}, err
+		return policy.Declared{}, err
 	}
-	action, err := domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill)
+	if !review.Enabled || review.Snapshot != snapshot {
+		return policy.Declared{Abstain: true}, nil
+	}
+	_, workable, err := journal.Workable(ctx, review, policy.MaintainMedicalReserves)
 	if err != nil {
-		return RoundsMedicalResult{}, err
+		return policy.Declared{}, err
 	}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if !workable || !review.Latches.Medical.Restocks() {
+		return policy.Declared{}, nil
+	}
+	facts := projection.Facts.MedicalReserve
+	medicalReview, err := policy.ReviewMedicalReserve(facts, review.Latches.MedicalReserve, r.reviewer.policy.MedicalReserve)
 	if err != nil {
-		return RoundsMedicalResult{}, err
+		return policy.Declared{}, err
 	}
-	if err = p.current(call, epoch); err != nil {
-		return RoundsMedicalResult{}, err
+	if !medicalReview.Active {
+		return policy.Declared{}, nil
 	}
-	elapsed := r.reviewer.clock.Now().Sub(started)
-	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoundsMedicalResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
+	medicine, err := projection.Facts.Items.MedicineAt(0)
+	if err != nil {
+		return policy.Declared{Abstain: true}, nil
 	}
-	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, choice.ID, plan); err != nil {
-		return RoundsMedicalResult{}, err
+	choice, err := policy.SelectMedicineMethod(policy.MedicinePlanningRequest{Review: medicalReview, Resource: medicine, Benches: domain.Known(benches)})
+	if err != nil {
+		return policy.Declared{}, err
 	}
-	return RoundsMedicalResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
+	return policy.DeclareMedicine(choice, benches), nil
 }
 
 // harvestMedicine is MaintainMedicalReserves' method when no bench produces

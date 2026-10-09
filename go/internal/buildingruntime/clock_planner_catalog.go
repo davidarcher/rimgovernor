@@ -317,36 +317,6 @@ var plannerCatalog = []plannerEntry{
 			out.ArtBills = &method
 			return method.Verdict, nil
 		}},
-	{name: "babyFoodBills", concern: policy.MaintainBabyFeeding, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsBills,
-		configured: func(c *ClockSchedulerConfig) bool { return c.BabyFoodBills != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.BabyFoodBills.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.BabyFoodBills = &method
-			return method.Verdict, nil
-		}},
-	{name: "surgeryPartBills", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.RemoveProductionBillAction}, sections: sectionsBills,
-		configured: func(c *ClockSchedulerConfig) bool { return c.SurgeryPartBills != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.SurgeryPartBills.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.SurgeryPartBills = &method
-			return method.Verdict, nil
-		}},
-	{name: "mechBills", concern: policy.MaintainMechs, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsBills,
-		configured: func(c *ClockSchedulerConfig) bool { return c.MechBills != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.MechBills.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			out.MechBills = &method
-			return method.Verdict, nil
-		}},
 	{name: "basicComfort", concern: policy.EnsureComfort, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.BasicComfort != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

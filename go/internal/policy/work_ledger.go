@@ -63,15 +63,22 @@ type Declared struct {
 	Abstain bool
 }
 
-// LedgerBillKind classifies a bill on a bench. Everything but
-// LedgerProduction is declare-only in the first pass and never removed.
+// LedgerBillKind classifies a bill on a bench by what its recipe makes (the
+// bridge census sets it from the catalog). Everything but LedgerProduction is
+// declare-only in the first pass: a bill of it satisfies a declared order the
+// same as any other, but is never removed, whoever placed it.
 type LedgerBillKind string
 
 const (
 	LedgerProduction    LedgerBillKind = ""
 	LedgerMechGestation LedgerBillKind = "mech_gestation"
-	LedgerSurgery       LedgerBillKind = "surgery"
-	LedgerMedical       LedgerBillKind = "medical"
+	// LedgerSurgery is a recipe making a body part item (a prosthetic or
+	// bionic for a restore operation).
+	LedgerSurgery LedgerBillKind = "surgery"
+	// LedgerMedical is a recipe making medicine.
+	LedgerMedical LedgerBillKind = "medical"
+	// LedgerBabyFood is a recipe making food a baby can ingest.
+	LedgerBabyFood LedgerBillKind = "baby_food"
 )
 
 // ActualBill is a bill read back from a bench.
@@ -116,10 +123,10 @@ func ReconcileLedger(declared []Declared, actual []ActualBill, orphans map[strin
 		k := b.Spec.Key()
 		_, isWanted := wanted[k]
 		switch {
-		case b.Kind != LedgerProduction:
-			plan.Keep = append(plan.Keep, b)
 		case isWanted && matched[k] < wantedCopies(copies, k) && !b.Spent:
 			matched[k]++
+			plan.Keep = append(plan.Keep, b)
+		case b.Kind != LedgerProduction:
 			plan.Keep = append(plan.Keep, b)
 		case !b.Migrated:
 			plan.Keep = append(plan.Keep, b)

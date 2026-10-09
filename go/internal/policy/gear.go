@@ -329,8 +329,8 @@ type GearBill struct {
 	// filter, worker pin, wire mode and count, bench definition); unknown
 	// when the readback lacked the repeat mode or count.
 	Spec domain.Fact[OrderSpec]
-	// Spent is a finished bill; Kind is LedgerMechGestation for a gestation
-	// recipe, LedgerProduction otherwise.
+	// Spent is a finished bill; Kind is the declare-only class of its recipe
+	// (GearRecipe.Kind), LedgerProduction otherwise.
 	Spent bool
 	Kind  LedgerBillKind
 }
@@ -348,6 +348,10 @@ type GearRecipe struct {
 	// MechKind is the PawnKindDef of the mech a gestation recipe makes,
 	// "" for every other recipe.
 	MechKind string
+	// Kind is the declare-only class of the recipe by what it makes
+	// (LedgerMechGestation, LedgerMedical, LedgerSurgery, LedgerBabyFood),
+	// LedgerProduction for every other recipe.
+	Kind LedgerBillKind
 }
 type GearBench struct {
 	ID string

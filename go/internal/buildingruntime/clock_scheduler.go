@@ -41,7 +41,7 @@ type ClockWindowNative interface {
 	ReadClockStatus(context.Context, *c.Identity) (*k.StatusReply, bridge.Result, error)
 }
 type ClockSchedulerConfig struct {
-	CookingBills, PreservationBills, ButcherBills, CookAheadBills, SurgeryPartBills, BabyFoodBills, MechBills *RoundsBillPlanner
+	CookingBills, PreservationBills, ButcherBills, CookAheadBills *RoundsBillPlanner
 	// ArtBills lends MaintainArt its sculpting time; the sculpture bills are the
 	// ledger's (RoundsArtPlanner.DeclareOrders).
 	ArtBills *RoundsArtPlanner
@@ -175,12 +175,12 @@ type ClockSchedulerResult struct {
 	// due until Hands has had a dispatch opportunity and native can advance.
 	Immediate bool
 	// Pacing is what the step's clock status said of the pace.
-	Pacing                                                                                                              StepPacing
-	CookingBills, PreservationBills, ButcherBills, CookAheadBills, ArtBills, SurgeryPartBills, BabyFoodBills, MechBills *RoundsBillResult
-	Butcher                                                                                                             *RoundsBuildingResult
-	Fields                                                                                                              *RoundsFieldResult
-	Attempt                                                                                                             *store.ClockAttempt
-	Decision                                                                                                            policy.ClockWindowDecision
+	Pacing                                                                  StepPacing
+	CookingBills, PreservationBills, ButcherBills, CookAheadBills, ArtBills *RoundsBillResult
+	Butcher                                                                 *RoundsBuildingResult
+	Fields                                                                  *RoundsFieldResult
+	Attempt                                                                 *store.ClockAttempt
+	Decision                                                                policy.ClockWindowDecision
 	// Window is the colony window the admission tail sized (before any
 	// native-work or combat bound), zero when the tail did not run.
 	Window                       ClockWindowSize
@@ -437,7 +437,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.Rounds != nil && config.Rounds.player != player {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Rounds != nil && config.Rounds.player != player", ErrControl)
 	}
-	for _, planner := range []*RoundsBillPlanner{config.CookingBills, config.PreservationBills, config.ButcherBills, config.CookAheadBills, config.SurgeryPartBills, config.BabyFoodBills, config.MechBills} {
+	for _, planner := range []*RoundsBillPlanner{config.CookingBills, config.PreservationBills, config.ButcherBills, config.CookAheadBills} {
 		if planner != nil && (config.Rounds == nil || planner.reviewer != config.Rounds) {
 			return nil, fmt.Errorf("%w: NewClockScheduler: planner != nil && (config.Rounds == nil || planner.reviewer != config.Rounds)", ErrControl)
 		}
