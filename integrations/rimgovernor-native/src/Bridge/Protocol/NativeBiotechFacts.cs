@@ -9,47 +9,23 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Biotech facts: the static defs of the definition catalog
-    // (life stages, genes, xenotypes, mech kinds, mech work modes) and the
-    // per-pawn row block. Effects come from the game defs themselves, never
-    // from name lists. Everything is absent without Biotech.
+    // Biotech facts: the catalog's Biotech section (the game's role picks of
+    // mech work modes and the gene tuning constants; every other Biotech def
+    // is a row of the def mirror) and the per-pawn row block. Everything is
+    // absent without Biotech.
     internal static class NativeBiotechFacts
     {
         private static string? Id(string? value) => value != null && ProtoBoundary.IsIdentifier(value) ? value : null;
-        private static string Label(Def def) => PlacementPreviewOperation.Diagnostic(def.label ?? "");
         private static bool Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
-        private static IEnumerable<T> Sorted<T>(IEnumerable<T> defs) where T : Def =>
-            defs.Where(d => ProtoBoundary.IsIdentifier(d.defName)).OrderBy(d => d.defName, StringComparer.Ordinal);
-        private static IEnumerable<string> Names(IEnumerable<Def>? defs) =>
-            (defs ?? Enumerable.Empty<Def>()).Select(d => Id(d?.defName)).Where(n => n != null).Select(n => n!).OrderBy(n => n, StringComparer.Ordinal);
-
-        private static readonly WorkTags[] SingleTags = ((WorkTags[])Enum.GetValues(typeof(WorkTags)))
-            .Where(t => t != WorkTags.None && t != WorkTags.AllWork && ((int)t & ((int)t - 1)) == 0).ToArray();
-
-        private static void Effects(Google.Protobuf.Collections.RepeatedField<Obs.StatEffect> into, List<StatModifier>? factors, List<StatModifier>? offsets)
-        {
-            foreach (var m in factors ?? new List<StatModifier>())
-                if (m?.stat != null && Id(m.stat.defName) is string stat && Finite(m.value)) into.Add(new Obs.StatEffect { Stat = stat, Factor = m.value });
-            foreach (var m in offsets ?? new List<StatModifier>())
-                if (m?.stat != null && Id(m.stat.defName) is string stat && Finite(m.value)) into.Add(new Obs.StatEffect { Stat = stat, Offset = m.value });
-        }
 
         internal static Obs.BiotechCatalog? Catalog()
         {
             if (!ModsConfig.BiotechActive) return null;
-            var catalog = new Obs.BiotechCatalog();
-            foreach (var def in Sorted(DefDatabase<LifeStageDef>.AllDefsListForReading)) catalog.LifeStages.Add(LifeStage(def));
-            foreach (var race in Sorted(DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.race != null && d.race.Humanlike && d.race.lifeStageAges != null)))
-                catalog.Races.Add(Race(race));
-            foreach (var def in Sorted(DefDatabase<GeneDef>.AllDefsListForReading)) catalog.Genes.Add(Gene(def));
-            foreach (var def in Sorted(DefDatabase<XenotypeDef>.AllDefsListForReading)) catalog.Xenotypes.Add(Xenotype(def));
-            foreach (var def in Sorted(DefDatabase<PawnKindDef>.AllDefsListForReading.Where(k => k.race?.race != null && k.race.race.IsMechanoid && k.race.HasComp(typeof(CompOverseerSubject)))))
-                catalog.MechKinds.Add(MechKind(def));
-            foreach (var def in Sorted(DefDatabase<MechWorkModeDef>.AllDefsListForReading))
-                catalog.MechWorkModes.Add(new Obs.MechWorkModeRow { DefName = def.defName, Label = Label(def), UiOrder = def.uiOrder, IgnoreGroupChargeLimits = def.ignoreGroupChargeLimits,
-                    Recharge = def == MechWorkModeDefOf.Recharge, Work = def == MechWorkModeDefOf.Work, Escort = def == MechWorkModeDefOf.Escort });
-            catalog.GeneTuning = GeneTuningRow();
-            return catalog;
+            return new Obs.BiotechCatalog
+            {
+                GeneTuning = GeneTuningRow(),
+                MechWorkModes = new Obs.MechWorkModeRoles { Work = MechWorkModeDefOf.Work.defName, Escort = MechWorkModeDefOf.Escort.defName, Recharge = MechWorkModeDefOf.Recharge.defName },
+            };
         }
 
         // The game's own GeneTuning constants and the extractor's private
@@ -75,89 +51,6 @@ namespace HomeBridge.BridgeTools
                 return field != null && field.IsLiteral ? field.GetRawConstantValue() as int? : null;
             }
             catch (Exception) { return null; }
-        }
-
-        private static Obs.LifeStageRow LifeStage(LifeStageDef def)
-        {
-            var row = new Obs.LifeStageRow { DefName = def.defName, Label = Label(def), DevelopmentalStage = def.developmentalStage.ToString(),
-                Reproductive = def.reproductive, AlwaysDowned = def.alwaysDowned, Claimable = def.claimable, CanVoluntarilySleep = def.canVoluntarilySleep,
-                InvoluntarySleepIsNegativeEvent = def.involuntarySleepIsNegativeEvent };
-            if (Finite(def.hungerRateFactor)) row.HungerRateFactor = def.hungerRateFactor;
-            if (Finite(def.bodySizeFactor)) row.BodySizeFactor = def.bodySizeFactor;
-            if (Finite(def.healthScaleFactor)) row.HealthScaleFactor = def.healthScaleFactor;
-            Effects(row.Effects, def.statFactors, def.statOffsets);
-            return row;
-        }
-
-        private static Obs.RaceLifeStages Race(ThingDef def)
-        {
-            var row = new Obs.RaceLifeStages { Race = def.defName };
-            foreach (var stage in def.race.lifeStageAges)
-                if (Id(stage?.def?.defName) is string name && Finite(stage!.minAge)) row.Stages.Add(new Obs.LifeStageAgeRow { LifeStage = name, MinAgeYears = stage.minAge });
-            foreach (var work in def.race.lifeStageWorkSettings ?? new List<LifeStageWorkSettings>())
-                if (Id(work?.workType?.defName) is string name) row.WorkMinAges.Add(new Obs.WorkMinAge { WorkType = name, MinAge = work!.minAge });
-            return row;
-        }
-
-        private static Obs.GeneRow Gene(GeneDef def)
-        {
-            var row = new Obs.GeneRow { DefName = def.defName, Label = Label(def), Complexity = def.biostatCpx, Metabolism = def.biostatMet, Archite = def.biostatArc };
-            if (Id(def.displayCategory?.defName) is string category) row.Category = category;
-            foreach (var tag in SingleTags) if ((def.disabledWorkTags & tag) != 0) row.DisabledWorkTags.Add(tag.ToString());
-            Effects(row.Effects, def.statFactors, def.statOffsets);
-            foreach (var a in def.aptitudes ?? new List<Aptitude>())
-                if (Id(a?.skill?.defName) is string skill) row.Aptitudes.Add(new Obs.SkillLevel { Skill = skill, Level = a!.level });
-            if (def.passionMod != null && Id(def.passionMod.skill?.defName) is string passionSkill)
-                row.PassionMods.Add(new Obs.PassionEffect { Skill = passionSkill, ModType = def.passionMod.modType.ToString() });
-            foreach (var cap in def.capMods ?? new List<PawnCapacityModifier>())
-                if (Id(cap?.capacity?.defName) is string capacity)
-                {
-                    var effect = new Obs.CapacityEffect { Capacity = capacity };
-                    if (Finite(cap!.offset)) effect.Offset = cap.offset;
-                    if (cap.SetMaxDefined && Finite(cap.setMax)) effect.SetMax = cap.setMax;
-                    if (Finite(cap.postFactor)) effect.PostFactor = cap.postFactor;
-                    row.CapacityEffects.Add(effect);
-                }
-            row.EnablesNeeds.Add(Names(def.enablesNeeds));
-            row.DisablesNeeds.Add(Names(def.disablesNeeds));
-            row.ForcedTraits.Add((def.forcedTraits ?? new List<GeneticTraitData>()).Select(t => Id(t?.def?.defName)).Where(n => n != null).Select(n => n!).OrderBy(n => n, StringComparer.Ordinal));
-            row.SuppressedTraits.Add((def.suppressedTraits ?? new List<GeneticTraitData>()).Select(t => Id(t?.def?.defName)).Where(n => n != null).Select(n => n!).OrderBy(n => n, StringComparer.Ordinal));
-            row.MakeImmuneTo.Add(Names(def.makeImmuneTo));
-            if (Id(def.chemical?.defName) is string chemical)
-            {
-                row.Chemical = chemical;
-                if (Finite(def.addictionChanceFactor)) row.AddictionChanceFactor = def.addictionChanceFactor;
-                if (Finite(def.overdoseChanceFactor)) row.OverdoseChanceFactor = def.overdoseChanceFactor;
-                if (Finite(def.toleranceBuildupFactor)) row.ToleranceBuildupFactor = def.toleranceBuildupFactor;
-            }
-            if (Finite(def.minAgeActive)) row.MinAgeActive = def.minAgeActive;
-            if (Finite(def.painOffset)) row.PainOffset = def.painOffset;
-            if (Finite(def.painFactor)) row.PainFactor = def.painFactor;
-            row.ExclusionTags.Add((def.exclusionTags ?? new List<string>()).Where(ProtoBoundary.IsIdentifier).OrderBy(t => t, StringComparer.Ordinal));
-            return row;
-        }
-
-        private static Obs.XenotypeRow Xenotype(XenotypeDef def)
-        {
-            var row = new Obs.XenotypeRow { DefName = def.defName, Label = Label(def), Inheritable = def.inheritable };
-            row.Genes.Add(Names(def.genes));
-            return row;
-        }
-
-        private static Obs.MechKindRow MechKind(PawnKindDef kind)
-        {
-            var race = kind.race;
-            var row = new Obs.MechKindRow { DefName = kind.defName, Label = Label(kind), Race = race.defName, MaxEnergy = race.race.maxMechEnergy,
-                FixedSkillLevel = race.race.mechFixedSkillLevel, WorkMech = race.race.IsWorkMech };
-            if (Id(race.race.mechWeightClass?.defName) is string weight) row.WeightClass = weight;
-            var cost = race.GetStatValueAbstract(StatDefOf.BandwidthCost);
-            if (Finite(cost)) row.BandwidthCost = cost;
-            if (Finite(race.race.baseBodySize)) row.BodySize = race.race.baseBodySize;
-            if (Finite(kind.combatPower)) row.CombatPower = kind.combatPower;
-            row.WorkTypes.Add(Names(race.race.mechEnabledWorkTypes));
-            foreach (var p in race.race.mechWorkTypePriorities ?? new List<MechWorkTypePriority>())
-                if (Id(p?.def?.defName) is string work) row.WorkPriorities.Add(new Obs.MechWorkPriority { WorkType = work, Priority = p!.priority });
-            return row;
         }
 
         private static Obs.ReadIssue Failed(string field, Exception ex) => new Obs.ReadIssue { Field = field,

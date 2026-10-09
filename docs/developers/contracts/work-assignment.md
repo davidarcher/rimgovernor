@@ -240,15 +240,15 @@ differs from the readback.
 `policy.PlanMechControl` (`mech_control.go`) puts each mechanitor's
 mechs in role groups and sets each group's mode through the `mech_control_group`
 and `mech_work_mode` arms of `PawnSettingsAction`: every move first, then each
-group's mode (the mode is per group). A work mech (`MechKindRow.work_mech`) is a
+group's mode (the mode is per group). A work mech (the race's `IsWorkMech`) is a
 worker, any other kind a guard. With two or more control groups (vanilla default
 2) workers go to the group already holding most of them, guards to the busiest
 other group; workers run `Work`, guards `Escort` (the wiki's "do available work
 tasks" and "follow the mechanitor and fight enemies"; `MechWorkModeDefOf` also has
 `SelfShutdown`, unused here). The modes are never named in Go: the catalog's
-`MechWorkModeRow` flags `work`, `escort` and `recharge` mark `MechWorkModeDefOf.Work`,
-`.Escort` and `.Recharge` (native reflection), each on exactly one row or the
-catalog fails to decode. The plan fails without those modes or any mech's kind. A mech with no overseer among the
+`MechWorkModeRoles` names the `MechWorkModeDef` the game picks as
+`MechWorkModeDefOf.Work`, `.Escort` and `.Recharge` (native reflection); the
+catalog fails to decode if one is not a def of the mirror. The plan fails without those modes or any mech's kind. A mech with no overseer among the
 inputs, or an unread group, is left alone.
 
 Colonist need versus bandwidth, decided from the read: control never changes
@@ -266,7 +266,7 @@ recharge band (`recharge_below`/`recharge_above`, the private
 `MechanitorControlGroup.mechRechargeThresholds` the game recharges within), so
 no threshold is a bot number. With a charger ready (`MechChargerReady`: powered,
 not full of waste) a group with any mech under its band's lower bound runs the
-catalog's recharge mode (`MechWorkModeRow.recharge`, native
+catalog's recharge mode (`MechWorkModeRoles.recharge`, native
 `def == MechWorkModeDefOf.Recharge`), stays there until every mech is at the
 band's upper bound, then returns to the role mode; with no charger ready it
 does not enter, and a charging group leaves. Unread energy never counts as low.

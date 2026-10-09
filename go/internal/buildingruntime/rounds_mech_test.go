@@ -8,19 +8,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
-func mechBiotechCatalog() *bridge.BiotechCatalog {
-	return &bridge.BiotechCatalog{
-		MechKinds: map[string]*o.MechKindRow{
-			"Mech_Constructoid": {WorkMech: proto.Bool(true)},
-			"Mech_Militor":      {WorkMech: proto.Bool(false)},
-		},
-		MechWorkModes: map[string]*o.MechWorkModeRow{"Work": {Work: proto.Bool(true)}, "Escort": {Escort: proto.Bool(true)}, "Recharge": {Recharge: proto.Bool(true)}},
-	}
+func mechBiotechCatalog(t *testing.T) *bridge.BiotechCatalog {
+	return recordedcatalog.Catalog(t).Biotech
 }
 
 func mechPawnRows() []*o.PawnState {
@@ -39,7 +34,7 @@ func mechPawnRows() []*o.PawnState {
 func TestRoundsMechSettingsSplitRolesThroughTheRead(t *testing.T) {
 	var read observation.RoundsReading
 	read.Projection.Mechs = domain.Known(observation.MechFleet(slices.Values(mechPawnRows())))
-	read.Frame.Catalog = &bridge.DefinitionCatalog{Biotech: mechBiotechCatalog()}
+	read.Frame.Catalog = &bridge.DefinitionCatalog{Biotech: mechBiotechCatalog(t)}
 	got, err := roundsMechSettings(read)
 	if err != nil {
 		t.Fatal(err)
@@ -70,7 +65,7 @@ func TestCombatMechGuardsOrderGuardAtHostile(t *testing.T) {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	rows := mechPawnRows()
 	table := bridge.NewPawns(rows...)
-	combat := bridge.Combat{Detail: table, Catalog: &bridge.DefinitionCatalog{Biotech: mechBiotechCatalog()}}
+	combat := bridge.Combat{Detail: table, Catalog: &bridge.DefinitionCatalog{Biotech: mechBiotechCatalog(t)}}
 	raider := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("raider"), Position: cell(20, 10)}}
 	plan, err := combatMechGuards(combat, []string{"raider"}, map[string]*o.PawnState{"raider": raider})
 	if err != nil {

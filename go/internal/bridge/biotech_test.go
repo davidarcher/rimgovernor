@@ -5,41 +5,48 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func biotechCatalogFixture() *o.BiotechCatalog {
-	return &o.BiotechCatalog{
-		LifeStages: []*o.LifeStageRow{
-			{DefName: proto.String("HumanlikeBaby"), DevelopmentalStage: proto.String("Baby"), AlwaysDowned: proto.Bool(true), Effects: []*o.StatEffect{{Stat: proto.String("MoveSpeed"), Factor: proto.Float64(0)}}},
-			{DefName: proto.String("HumanlikeAdult"), DevelopmentalStage: proto.String("Adult")}},
-		Races: []*o.RaceLifeStages{{Race: proto.String("Human"), Stages: []*o.LifeStageAgeRow{{LifeStage: proto.String("HumanlikeBaby"), MinAgeYears: proto.Float64(0)}, {LifeStage: proto.String("HumanlikeAdult"), MinAgeYears: proto.Float64(18)}},
-			WorkMinAges: []*o.WorkMinAge{{WorkType: proto.String("Hauling"), MinAge: proto.Int32(3)}}}},
-		Genes:         []*o.GeneRow{{DefName: proto.String("Robust"), DisabledWorkTags: []string{"Violent"}, Effects: []*o.StatEffect{{Stat: proto.String("WorkSpeedGlobal"), Offset: proto.Float64(.1)}}, Aptitudes: []*o.SkillLevel{{Skill: proto.String("Shooting"), Level: proto.Int32(2)}}}},
-		Xenotypes:     []*o.XenotypeRow{{DefName: proto.String("Hussar"), Genes: []string{"Robust"}}},
-		MechKinds:     []*o.MechKindRow{{DefName: proto.String("Mech_Lifter"), BandwidthCost: proto.Float64(1), WorkTypes: []string{"Hauling"}, WorkPriorities: []*o.MechWorkPriority{{WorkType: proto.String("Hauling"), Priority: proto.Int32(1)}}}},
-		MechWorkModes: []*o.MechWorkModeRow{{DefName: proto.String("Work"), UiOrder: proto.Int32(1), Work: proto.Bool(true)}, {DefName: proto.String("Escort"), UiOrder: proto.Int32(3), Escort: proto.Bool(true)}, {DefName: proto.String("Recharge"), UiOrder: proto.Int32(2), Recharge: proto.Bool(true)}},
+// biotechRolesFixture names the three role work modes of a catalog that
+// carries them as MechWorkModeDef rows.
+func biotechRolesFixture() (*DefinitionCatalog, *o.MechWorkModeRoles) {
+	modes := map[string]proto.Message{}
+	for _, name := range []string{"Work", "Escort", "Recharge"} {
+		modes[name] = &d.MechWorkModeDef{DefName: name}
 	}
+	catalog := &DefinitionCatalog{ThingDefs: map[string]*d.ThingDef{},
+		Defs: map[protoreflect.FullName]map[string]proto.Message{(&d.MechWorkModeDef{}).ProtoReflect().Descriptor().FullName(): modes}}
+	return catalog, &o.MechWorkModeRoles{Work: proto.String("Work"), Escort: proto.String("Escort"), Recharge: proto.String("Recharge")}
 }
 
-// TestGeneTuningFacts: the singleton passes through the catalog view
-// and a malformed one is refused.
-func TestGeneTuningFacts(t *testing.T) {
+// TestBiotechFacade: the section is built from the catalog's rows, carries
+// the game's role picks and the gene tuning singleton, and a malformed one is
+// refused; absent stays nil.
+func TestBiotechFacade(t *testing.T) {
 	tuning := func() *o.GeneTuningFacts {
 		return &o.GeneTuningFacts{BiostatMin: proto.Int32(-5), BiostatMax: proto.Int32(5), BaseMaxComplexity: proto.Int32(6),
 			CreationHoursCurve: []*o.CurvePointRow{{X: proto.Float64(0), Y: proto.Float64(3)}, {X: proto.Float64(4), Y: proto.Float64(5)}},
 			RegrowDaysMin:      proto.Float64(12), RegrowDaysMax: proto.Float64(20), ExtractTicks: proto.Int32(30000), NoPowerEjectTicks: proto.Int32(60000)}
 	}
-	v := biotechCatalogFixture()
-	v.GeneTuning = tuning()
-	got, err := DecodeBiotechCatalog(v)
+	catalog, roles := biotechRolesFixture()
+	got, err := buildBiotech(catalog, &o.BiotechCatalog{MechWorkModes: roles, GeneTuning: tuning()})
 	if err != nil || got.GeneTuning.GetBiostatMax() != 5 || got.GeneTuning.GetExtractTicks() != 30000 || len(got.GeneTuning.CreationHoursCurve) != 2 {
 		t.Fatalf("gene tuning = %+v, %v", got, err)
 	}
-	if plain, err := DecodeBiotechCatalog(biotechCatalogFixture()); err != nil || plain.GeneTuning != nil {
+	if modes := got.MechCatalog(); modes.Work != "Work" || modes.Escort != "Escort" || modes.Recharge != "Recharge" {
+		t.Fatalf("mode roles %+v", modes)
+	}
+	if plain, err := buildBiotech(catalog, &o.BiotechCatalog{MechWorkModes: roles}); err != nil || plain.GeneTuning != nil {
 		t.Fatalf("absent gene tuning = %v, %v", plain, err)
+	}
+	if none, err := buildBiotech(catalog, nil); none != nil || err != nil {
+		t.Fatal("Core-only catalog must build to nil", none, err)
 	}
 	for name, mutate := range map[string]func(*o.GeneTuningFacts){
 		"descending biostat":  func(g *o.GeneTuningFacts) { g.BiostatMin = proto.Int32(6) },
@@ -49,43 +56,52 @@ func TestGeneTuningFacts(t *testing.T) {
 		"curve not ascending": func(g *o.GeneTuningFacts) { g.CreationHoursCurve[1].X = proto.Float64(0) },
 		"curve incomplete":    func(g *o.GeneTuningFacts) { g.CreationHoursCurve[0].Y = nil },
 	} {
-		bad := biotechCatalogFixture()
-		bad.GeneTuning = tuning()
-		mutate(bad.GeneTuning)
-		if _, err := DecodeBiotechCatalog(bad); err == nil {
+		bad := tuning()
+		mutate(bad)
+		if _, err := buildBiotech(catalog, &o.BiotechCatalog{MechWorkModes: roles, GeneTuning: bad}); err == nil {
 			t.Errorf("%s accepted", name)
 		}
+	}
+	for role, set := range map[string]func(*o.MechWorkModeRoles){
+		"work":     func(r *o.MechWorkModeRoles) { r.Work = nil },
+		"escort":   func(r *o.MechWorkModeRoles) { r.Escort = proto.String("Missing") },
+		"recharge": func(r *o.MechWorkModeRoles) { r.Recharge = proto.String("") },
+	} {
+		_, bad := biotechRolesFixture()
+		set(bad)
+		if _, err := buildBiotech(catalog, &o.BiotechCatalog{MechWorkModes: bad}); err == nil {
+			t.Errorf("bad %s role accepted", role)
+		}
+	}
+	if _, err := buildBiotech(catalog, &o.BiotechCatalog{}); err == nil {
+		t.Error("catalog without roles accepted")
 	}
 }
 
-// TestBiotechCatalogDecode: the section decodes by name and refuses
-// duplicates, bad references and nonfinite numbers; absent stays nil.
-func TestBiotechCatalogDecode(t *testing.T) {
-	got, err := DecodeBiotechCatalog(biotechCatalogFixture())
-	if err != nil || got.Genes["Robust"] == nil || got.Xenotypes["Hussar"] == nil || got.MechKinds["Mech_Lifter"] == nil || got.MechWorkModes["Work"] == nil || got.LifeStages["HumanlikeBaby"] == nil || got.Races["Human"] == nil {
-		t.Fatalf("%+v %v", got, err)
+// TestBiotechFacadeOnRecordedCatalog: the facade built from the recorded
+// whole-game catalog answers what the retired native Biotech rows did.
+func TestBiotechFacadeOnRecordedCatalog(t *testing.T) {
+	cat := fullCatalog(t).Biotech
+	if cat == nil {
+		t.Fatal("recorded catalog has no Biotech")
 	}
-	if none, err := DecodeBiotechCatalog(nil); none != nil || err != nil {
-		t.Fatal("Core-only catalog must decode to nil", none, err)
+	ages, err := cat.WorkMinAges("Human")
+	if err != nil || ages["Hauling"] != 3 || ages["Research"] != 13 {
+		t.Fatalf("ages %v, %v", ages, err)
 	}
-	for name, mutate := range map[string]func(*o.BiotechCatalog){
-		"duplicate gene":     func(v *o.BiotechCatalog) { v.Genes = append(v.Genes, v.Genes[0]) },
-		"unnamed stage":      func(v *o.BiotechCatalog) { v.LifeStages[0].DefName = nil },
-		"unknown xeno gene":  func(v *o.BiotechCatalog) { v.Xenotypes[0].Genes = []string{"Missing"} },
-		"unknown race stage": func(v *o.BiotechCatalog) { v.Races[0].Stages[0].LifeStage = proto.String("Missing") },
-		"descending ages":    func(v *o.BiotechCatalog) { v.Races[0].Stages[1].MinAgeYears = proto.Float64(-1) },
-		"nan effect":         func(v *o.BiotechCatalog) { v.Genes[0].Effects[0].Offset = proto.Float64(math.NaN()) },
-		"both sides":         func(v *o.BiotechCatalog) { v.Genes[0].Effects[0].Factor = proto.Float64(1) },
-		"duplicate tag":      func(v *o.BiotechCatalog) { v.Genes[0].DisabledWorkTags = []string{"Violent", "Violent"} },
-		"negative work age":  func(v *o.BiotechCatalog) { v.Races[0].WorkMinAges[0].MinAge = proto.Int32(-1) },
-		"nan bandwidth":      func(v *o.BiotechCatalog) { v.MechKinds[0].BandwidthCost = proto.Float64(math.Inf(1)) },
-		"priority missing":   func(v *o.BiotechCatalog) { v.MechKinds[0].WorkPriorities[0].Priority = nil },
-	} {
-		v := biotechCatalogFixture()
-		mutate(v)
-		if _, err := DecodeBiotechCatalog(v); err == nil {
-			t.Errorf("%s accepted", name)
-		}
+	modes := cat.MechCatalog()
+	if modes.Work != "Work" || modes.Escort != "Escort" || modes.Recharge != "Recharge" {
+		t.Fatalf("roles %+v", modes)
+	}
+	if k := modes.Kinds["Mech_Agrihand"]; !k.WorkMech || k.BandwidthCost != 1 || k.CombatPower != 10 || len(k.WorkTypes) != 2 {
+		t.Fatalf("agrihand %+v", k)
+	}
+	if k := modes.Kinds["Mech_Centurion"]; k.WorkMech || k.BandwidthCost != 5 || k.CombatPower != 250 {
+		t.Fatalf("centurion %+v", k)
+	}
+	effects, err := cat.GeneEffects([]policy.PawnGene{{Name: "Robust"}})
+	if err != nil || effects.Stat("IncomingDamageFactor").Factor != 0.75 {
+		t.Fatalf("robust %+v, %v", effects, err)
 	}
 }
 
@@ -148,7 +164,7 @@ func TestPawnBiotechRow(t *testing.T) {
 
 // TestMechEnergyAndRechargeRole: the mech block carries energy and
 // its group's recharge band, a failed band read stays unknown, and the
-// catalog names exactly one recharge mode from the row flag.
+// catalog is covered by TestBiotechFacade.
 func TestMechEnergyAndRechargeRole(t *testing.T) {
 	b := biotechPawnFixture()
 	b.Mech = &o.PawnMech{WorkMode: proto.String("Work"), ControlGroup: proto.Int32(0), Energy: proto.Float64(.4), RechargeBelow: proto.Float64(.3), RechargeAbove: proto.Float64(.7)}
@@ -183,28 +199,6 @@ func TestMechEnergyAndRechargeRole(t *testing.T) {
 		mutate(v.Mech)
 		if validatePawnBiotech(v) == nil {
 			t.Errorf("%s accepted", name)
-		}
-	}
-	catalog, err := DecodeBiotechCatalog(biotechCatalogFixture())
-	if modes := catalog.MechCatalog(); err != nil || modes.Work != "Work" || modes.Escort != "Escort" || modes.Recharge != "Recharge" {
-		t.Fatal("mode roles", err)
-	}
-	for role, set := range map[string]func(*o.MechWorkModeRow){
-		"work": func(r *o.MechWorkModeRow) { r.Work = proto.Bool(true) }, "escort": func(r *o.MechWorkModeRow) { r.Escort = proto.Bool(true) },
-		"recharge": func(r *o.MechWorkModeRow) { r.Recharge = proto.Bool(true) },
-	} {
-		two := biotechCatalogFixture()
-		set(two.MechWorkModes[2])
-		two.MechWorkModes = append(two.MechWorkModes, &o.MechWorkModeRow{DefName: proto.String("Extra" + role)})
-		set(two.MechWorkModes[3])
-		if _, err := DecodeBiotechCatalog(two); err == nil {
-			t.Fatalf("two %s modes accepted", role)
-		}
-		none := biotechCatalogFixture()
-		none.MechWorkModes = none.MechWorkModes[:0:0]
-		none.MechWorkModes = append(none.MechWorkModes, &o.MechWorkModeRow{DefName: proto.String("Only")})
-		if _, err := DecodeBiotechCatalog(none); err == nil {
-			t.Fatalf("no %s mode accepted", role)
 		}
 	}
 }

@@ -434,25 +434,22 @@ Biotech facts follow the shared wire pattern: static defs ride the
 definition catalog and per-pawn facts ride the canonical pawn row. There is no
 separate read tool. Both are absent without Biotech (`ModsConfig.BiotechActive`).
 
-`DefinitionCatalog.biotech` holds, each sorted by name: `LifeStageDef`
-rows (developmental stage, flags, stat effects); `RaceLifeStages` for every
-humanlike race (`lifeStageAges` with the age each stage begins and
-`lifeStageWorkSettings`, the minimum age per work type); `GeneDef` rows with
-typed effects read from the def (disabled work tags, stat offsets and factors,
-aptitudes, passion mods, capacity mods, enabled and disabled needs, forced and
-suppressed traits, immunities, chemical dependency and tolerance factors,
-biostats, exclusion tags); `XenotypeDef` rows with their genes; controllable
-mech kinds (`PawnKindDef` of a mechanoid race with an overseer-subject comp:
-weight class, bandwidth cost, work types and priorities); and
-`MechWorkModeDef` rows (`work`, `escort` and `recharge` mark `MechWorkModeDefOf.Work`, `.Escort` and `.Recharge`). Effects come from the game defs, never Go name lists.
-`gene_tuning` (`GeneTuningFacts`) is a singleton of the game's own
+`DefinitionCatalog.biotech` carries only what the def mirror cannot give. The
+life stage, race, gene, xenotype, mech kind and work mode defs are the mirror's
+own rows (`LifeStageDef`, `RaceProperties.lifeStageAges` and
+`lifeStageWorkSettings`, `GeneDef`, `XenotypeDef`, `PawnKindDef`,
+`MechWorkModeDef`). `mech_work_modes` (`MechWorkModeRoles`) names the
+`MechWorkModeDef` the game picks as `MechWorkModeDefOf.Work`, `.Escort` and
+`.Recharge`. `gene_tuning` (`GeneTuningFacts`) is a singleton of the game's own
 `GeneTuning` constants: the biostat (metabolism) range, base max complexity, the
 complexity to assembler hours curve, the extractor regrow days range, and the
 extractor's private `TicksToExtract` and power-cut eject limit (absent when
-reflection cannot read them). Go keeps it as `BiotechCatalog.GeneTuning`.
-The Go client decodes the section into `bridge.BiotechCatalog` (rows by name,
-refusing duplicates, unknown cross references and nonfinite numbers) with the
-rest of the catalog, once per load token.
+reflection cannot read them). Go builds `bridge.BiotechCatalog` as a facade
+over the catalog's rows once per load token: genes by name, the humanlike
+races' work minimum ages, the controllable mech kinds (a `PawnKindDef` of a
+mechanoid race with an overseer-subject comp; its bandwidth cost is the race's
+`BandwidthCost` stat value) and the role modes, with `GeneTuning` carried
+through.
 
 `PawnState.biotech` (`PawnBiotech`) carries a pawn's life stage and
 developmental stage, learning need level and category, genes (endogene or

@@ -10,7 +10,7 @@ import (
 
 // Mech control: a mechanitor's mechs are split by role
 // into control groups and each group is given the work mode its role needs.
-// Workers (a race that does work, MechKindRow.work_mech) and guards (a
+// Workers (a race that does work, RaceProperties.IsWorkMech) and guards (a
 // combat mech) never share a group while the overseer has two or more
 // (Mechanitor wiki: "By default, a mechanitor has 2 control groups"; the
 // mode is per group, so a mixed group forces one role to idle or follow).
@@ -53,7 +53,7 @@ type MechKind struct {
 	WorkMech      bool
 	WorkTypes     []WorkType
 	BandwidthCost float64
-	// CombatPower is the kind's MechKindRow combat_power.
+	// CombatPower is the kind's PawnKindDef combatPower.
 	CombatPower float64
 }
 

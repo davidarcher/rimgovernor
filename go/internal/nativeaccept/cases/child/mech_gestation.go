@@ -96,7 +96,7 @@ func mechModeWritten(ctx context.Context, st *store.Store) (bool, error) {
 }
 
 // mechModes are the work modes the game names by role: the Biotech catalog's
-// MechWorkModeRow rows flagged work and escort.
+// the MechWorkModeRoles work and escort modes.
 type mechModes struct{ work, escort string }
 
 // mechRoleModes reads the definition catalog and returns the mode each role

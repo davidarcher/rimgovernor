@@ -24,7 +24,7 @@ const MechGestationBill BillPurpose = "mech_gestation"
 // guides on the wiki; numbers come from the game defs, never from here):
 //   - Bandwidth is the limit. A mech is built only when a mechanitor's free
 //     bandwidth, TotalBandwidth - UsedBandwidth - GestationBandwidth, covers
-//     its cost (the catalog's MechKindRow bandwidth_cost). The sum is
+//     its cost (the race's BandwidthCost stat). The sum is
 //     deliberately conservative: it never promises more than the game's own
 //     HasBandwidthForBill, which native re-checks at apply.
 //   - Every gestation produces wastepacks, and an unfrozen pack deteriorates

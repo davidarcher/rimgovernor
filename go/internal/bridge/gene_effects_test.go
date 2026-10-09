@@ -5,22 +5,21 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/proto"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
 // TestBiotechGeneEffects: active genes combine their typed stat and
 // need effects from the catalog rows; an inactive gene adds nothing and an
 // undefined gene fails.
 func TestBiotechGeneEffects(t *testing.T) {
-	cat, err := DecodeBiotechCatalog(&o.BiotechCatalog{Genes: []*o.GeneRow{
-		{DefName: proto.String("A"), Effects: []*o.StatEffect{{Stat: proto.String("S"), Offset: proto.Float64(.1)}, {Stat: proto.String("S"), Factor: proto.Float64(2)}}, DisablesNeeds: []string{"Rest"}},
-		{DefName: proto.String("B"), Effects: []*o.StatEffect{{Stat: proto.String("S"), Offset: proto.Float64(.2)}}, EnablesNeeds: []string{"Deathrest"}},
-		{DefName: proto.String("C"), Effects: []*o.StatEffect{{Stat: proto.String("S"), Factor: proto.Float64(9)}}, DisablesNeeds: []string{"Joy"}},
-	}})
-	if err != nil {
-		t.Fatal(err)
+	stat := func(stat string, value float32) *d.Opt_StatModifier {
+		return &d.Opt_StatModifier{Value: &d.StatModifier{Stat: stat, Value: value}}
 	}
+	cat := &BiotechCatalog{Genes: map[string]*d.GeneDef{
+		"A": {DefName: "A", StatOffsets: []*d.Opt_StatModifier{stat("S", .1)}, StatFactors: []*d.Opt_StatModifier{stat("S", 2)}, DisablesNeeds: []string{"Rest"}},
+		"B": {DefName: "B", StatOffsets: []*d.Opt_StatModifier{stat("S", .2)}, EnablesNeeds: []string{"Deathrest"}},
+		"C": {DefName: "C", StatFactors: []*d.Opt_StatModifier{stat("S", 9)}, DisablesNeeds: []string{"Joy"}},
+	}}
 	gene := func(name string, active bool) policy.PawnGene {
 		return policy.PawnGene{Name: name, Active: domain.Known(active)}
 	}

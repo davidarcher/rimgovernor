@@ -2,162 +2,109 @@ package bridge
 
 import (
 	"math"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// BiotechCatalog is one load's Biotech defs by name, the native
-// rows as read: effects are the game defs' own, never Go name lists. Nil
-// without Biotech.
+// classOverseerSubject is the comp class that makes a mechanoid race a
+// controllable mech.
+const classOverseerSubject = "RimWorld.CompProperties_OverseerSubject"
+
+// statBandwidthCost is the stat that prices a mech kind in mechanitor bandwidth.
+const statBandwidthCost = "BandwidthCost"
+
+// BiotechCatalog is one load's Biotech facts, a facade over the def mirror:
+// the gene, race and mech kind defs are the catalog's own rows, and only the
+// game's role picks and tuning constants come from the native Biotech
+// section. Nil without Biotech.
 type BiotechCatalog struct {
-	LifeStages    map[string]*o.LifeStageRow
-	Races         map[string]*o.RaceLifeStages
-	Genes         map[string]*o.GeneRow
-	Xenotypes     map[string]*o.XenotypeRow
-	MechKinds     map[string]*o.MechKindRow
-	MechWorkModes map[string]*o.MechWorkModeRow
+	// Genes are the GeneDef rows by name.
+	Genes map[string]*d.GeneDef
+	// races are the humanlike races' RaceProperties by ThingDef name.
+	races map[string]*d.RaceProperties
+	// mechKinds are the controllable mech kinds by PawnKindDef name.
+	mechKinds map[string]mechKindRow
+	// work, escort and recharge are the MechWorkModeDef names the game picks
+	// by role.
+	work, escort, recharge string
 	// GeneTuning is the singleton of GeneTuning constants; nil when
 	// the native did not send it.
 	GeneTuning *o.GeneTuningFacts
 }
 
-func biotechEffects(kind string, rows []*o.StatEffect) error {
-	for _, e := range rows {
-		if e == nil || validID(e.GetStat()) != nil || (e.Factor == nil) == (e.Offset == nil) {
-			return contract("invalid biotech %s stat effect", kind)
-		}
-		if err := catalogNumbers("biotech "+kind, e.Factor, e.Offset); err != nil {
-			return err
-		}
-	}
-	return nil
+// mechKindRow is a controllable mech kind as the planner reads it.
+type mechKindRow struct {
+	race          string
+	workMech      bool
+	bandwidthCost float64
+	combatPower   float64
+	workTypes     []string
 }
 
-// DecodeBiotechCatalog validates the catalog's Biotech section; nil in,
-// nil out (the game has no Biotech).
-func DecodeBiotechCatalog(v *o.BiotechCatalog) (*BiotechCatalog, error) {
+// buildBiotech builds the facade from the catalog's def rows and the native
+// Biotech section; nil in, nil out (the game has no Biotech). It runs after
+// the catalog's rows, thing facts and stat table are decoded.
+func buildBiotech(catalog *DefinitionCatalog, v *o.BiotechCatalog) (*BiotechCatalog, error) {
 	if v == nil {
 		return nil, nil
 	}
-	out := &BiotechCatalog{}
-	var err error
-	if out.LifeStages, err = catalogIndex("biotech life stage", v.LifeStages, (*o.LifeStageRow).GetDefName); err != nil {
-		return nil, err
+	out := &BiotechCatalog{Genes: map[string]*d.GeneDef{}, races: map[string]*d.RaceProperties{}, mechKinds: map[string]mechKindRow{}, GeneTuning: v.GeneTuning}
+	for _, msg := range catalog.Defs[(&d.GeneDef{}).ProtoReflect().Descriptor().FullName()] {
+		gene := msg.(*d.GeneDef)
+		out.Genes[gene.GetDefName()] = gene
 	}
-	if out.Races, err = catalogIndex("biotech race", v.Races, (*o.RaceLifeStages).GetRace); err != nil {
-		return nil, err
-	}
-	if out.Genes, err = catalogIndex("biotech gene", v.Genes, (*o.GeneRow).GetDefName); err != nil {
-		return nil, err
-	}
-	if out.Xenotypes, err = catalogIndex("biotech xenotype", v.Xenotypes, (*o.XenotypeRow).GetDefName); err != nil {
-		return nil, err
-	}
-	if out.MechKinds, err = catalogIndex("biotech mech kind", v.MechKinds, (*o.MechKindRow).GetDefName); err != nil {
-		return nil, err
-	}
-	if out.MechWorkModes, err = catalogIndex("biotech mech work mode", v.MechWorkModes, (*o.MechWorkModeRow).GetDefName); err != nil {
-		return nil, err
-	}
-	if len(v.MechWorkModes) > 0 {
-		roles := map[string]func(*o.MechWorkModeRow) bool{
-			"work": (*o.MechWorkModeRow).GetWork, "escort": (*o.MechWorkModeRow).GetEscort, "recharge": (*o.MechWorkModeRow).GetRecharge,
+	for name, def := range catalog.ThingDefs {
+		race := def.GetRace()
+		if race.GetIntelligence() >= d.Intelligence_INTELLIGENCE_HUMANLIKE && len(race.GetLifeStageAges()) > 0 {
+			out.races[name] = race
 		}
-		for role, flag := range roles {
-			count := 0
-			for _, row := range v.MechWorkModes {
-				if flag(row) {
-					count++
-				}
-			}
-			if count != 1 {
-				return nil, contract("biotech mech work modes carry %d %s roles, want one", count, role)
-			}
+	}
+	for _, msg := range catalog.Defs[(&d.PawnKindDef{}).ProtoReflect().Descriptor().FullName()] {
+		kind := msg.(*d.PawnKindDef)
+		row, ok, err := catalog.mechKind(kind)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			out.mechKinds[kind.GetDefName()] = row
+		}
+	}
+	roles := v.GetMechWorkModes()
+	out.work, out.escort, out.recharge = roles.GetWork(), roles.GetEscort(), roles.GetRecharge()
+	for role, name := range map[string]string{"work": out.work, "escort": out.escort, "recharge": out.recharge} {
+		if validID(name) != nil || DefRow[*d.MechWorkModeDef](catalog, name) == nil {
+			return nil, contract("biotech mech work mode role %s is %q, not a def of the catalog", role, name)
 		}
 	}
 	if err := validateGeneTuning(v.GeneTuning); err != nil {
 		return nil, err
 	}
-	out.GeneTuning = v.GeneTuning
-	for _, row := range v.LifeStages {
-		if err := biotechEffects("life stage", row.Effects); err != nil {
-			return nil, err
-		}
-		if err := catalogNumbers("biotech life stage", row.HungerRateFactor, row.BodySizeFactor, row.HealthScaleFactor); err != nil {
-			return nil, err
-		}
-	}
-	for _, row := range v.Races {
-		last := math.Inf(-1)
-		for _, stage := range row.Stages {
-			if out.LifeStages[stage.GetLifeStage()] == nil || stage.MinAgeYears == nil || math.IsNaN(stage.GetMinAgeYears()) || stage.GetMinAgeYears() < last {
-				return nil, contract("invalid biotech race life stage")
-			}
-			last = stage.GetMinAgeYears()
-		}
-		seen := map[string]bool{}
-		for _, work := range row.WorkMinAges {
-			if validID(work.GetWorkType()) != nil || seen[work.GetWorkType()] || work.MinAge == nil || work.GetMinAge() < 0 {
-				return nil, contract("invalid biotech work minimum age")
-			}
-			seen[work.GetWorkType()] = true
-		}
-	}
-	for _, row := range v.Genes {
-		if err := biotechEffects("gene", row.Effects); err != nil {
-			return nil, err
-		}
-		if err := catalogIDs("biotech gene", row.DisabledWorkTags, row.EnablesNeeds, row.DisablesNeeds, row.ForcedTraits, row.SuppressedTraits, row.MakeImmuneTo, row.ExclusionTags); err != nil {
-			return nil, err
-		}
-		if err := catalogNumbers("biotech gene", row.AddictionChanceFactor, row.OverdoseChanceFactor, row.ToleranceBuildupFactor, row.MinAgeActive, row.PainOffset, row.PainFactor); err != nil {
-			return nil, err
-		}
-		for _, a := range row.Aptitudes {
-			if validID(a.GetSkill()) != nil || a.Level == nil {
-				return nil, contract("invalid biotech gene aptitude")
-			}
-		}
-		for _, p := range row.PassionMods {
-			if validID(p.GetSkill()) != nil || validID(p.GetModType()) != nil {
-				return nil, contract("invalid biotech gene passion effect")
-			}
-		}
-		for _, c := range row.CapacityEffects {
-			if validID(c.GetCapacity()) != nil {
-				return nil, contract("invalid biotech gene capacity effect")
-			}
-			if err := catalogNumbers("biotech gene", c.Offset, c.SetMax, c.PostFactor); err != nil {
-				return nil, err
-			}
-		}
-	}
-	for _, row := range v.Xenotypes {
-		if err := catalogIDs("biotech xenotype", row.Genes); err != nil {
-			return nil, err
-		}
-		for _, gene := range row.Genes {
-			if out.Genes[gene] == nil {
-				return nil, contract("biotech xenotype %s names unknown gene %s", row.GetDefName(), gene)
-			}
-		}
-	}
-	for _, row := range v.MechKinds {
-		if err := catalogIDs("biotech mech kind", row.WorkTypes); err != nil {
-			return nil, err
-		}
-		if err := catalogNumbers("biotech mech kind", row.BandwidthCost, row.BodySize, row.CombatPower); err != nil {
-			return nil, err
-		}
-		for _, p := range row.WorkPriorities {
-			if validID(p.GetWorkType()) != nil || p.Priority == nil {
-				return nil, contract("invalid biotech mech work priority")
-			}
-		}
-	}
 	return out, nil
+}
+
+// mechKind is kind as a controllable mech: a PawnKindDef whose race is a
+// mechanoid with an overseer-subject comp. Bandwidth cost is the race's stat.
+func (catalog *DefinitionCatalog) mechKind(kind *d.PawnKindDef) (mechKindRow, bool, error) {
+	race := catalog.ThingDefs[kind.GetRace()]
+	if _, mechanoid, _ := catalog.RaceFlags(kind.GetRace()); race == nil || !mechanoid {
+		return mechKindRow{}, false, nil
+	}
+	controllable, err := catalog.HasComp(race, classOverseerSubject)
+	if err != nil || !controllable {
+		return mechKindRow{}, false, err
+	}
+	cost, _, err := catalog.ShownStatValue(race.GetDefName(), "", statBandwidthCost)
+	if err != nil {
+		return mechKindRow{}, false, err
+	}
+	row := mechKindRow{race: race.GetDefName(), workMech: len(race.GetRace().GetMechEnabledWorkTypes()) > 0, bandwidthCost: float64(cost),
+		combatPower: float64(kind.GetCombatPower()), workTypes: slices.Clone(race.GetRace().GetMechEnabledWorkTypes())}
+	slices.Sort(row.workTypes)
+	return row, true, nil
 }
 
 // validateGeneTuning bounds the GeneTuning singleton: finite
@@ -338,91 +285,6 @@ func PawnBiotech(b *o.PawnBiotech) domain.Fact[policy.PawnBiotech] {
 		r.Extractable, r.ExtractableReason = domain.Known(b.GetExtractable()), domain.Known(b.GetExtractableReason())
 	}
 	return domain.Known(r)
-}
-
-// MechCatalog is the catalog's mech kinds and the work modes the game names
-// by role as the mech planner reads them; the zero value without
-// Biotech.
-func (c *BiotechCatalog) MechCatalog() policy.MechCatalog {
-	out := policy.MechCatalog{Kinds: map[string]policy.MechKind{}}
-	if c == nil {
-		return out
-	}
-	for name, row := range c.MechKinds {
-		kind := policy.MechKind{Name: name, WorkMech: row.GetWorkMech(), BandwidthCost: row.GetBandwidthCost(), CombatPower: row.GetCombatPower()}
-		for _, w := range row.WorkTypes {
-			kind.WorkTypes = append(kind.WorkTypes, policy.WorkType(w))
-		}
-		out.Kinds[name] = kind
-	}
-	for name, row := range c.MechWorkModes {
-		if row.GetWork() {
-			out.Work = name
-		}
-		if row.GetEscort() {
-			out.Escort = name
-		}
-		if row.GetRecharge() {
-			out.Recharge = name
-		}
-	}
-	return out
-}
-
-// GeneEffects resolves the active genes of a pawn into their combined typed
-// effects from the catalog's gene rows. A gene the catalog does not define is
-// a contract failure, never skipped.
-func (c *BiotechCatalog) GeneEffects(genes []policy.PawnGene) (policy.GeneEffects, error) {
-	out := policy.GeneEffects{Stats: map[string]policy.StatModifier{}, DisabledNeeds: map[string]bool{}, EnabledNeeds: map[string]bool{}}
-	for _, g := range genes {
-		if active, ok := g.Active.Value(); ok && !active {
-			continue
-		}
-		var row *o.GeneRow
-		if c != nil {
-			row = c.Genes[g.Name]
-		}
-		if row == nil {
-			return policy.GeneEffects{}, contract("pawn gene %s is not in the biotech catalog", g.Name)
-		}
-		for _, e := range row.Effects {
-			m, seen := out.Stats[e.GetStat()]
-			if !seen {
-				m.Factor = 1
-			}
-			if e.Factor != nil {
-				m.Factor *= e.GetFactor()
-			} else {
-				m.Offset += e.GetOffset()
-			}
-			out.Stats[e.GetStat()] = m
-		}
-		for _, n := range row.DisablesNeeds {
-			out.DisabledNeeds[n] = true
-		}
-		for _, n := range row.EnablesNeeds {
-			out.EnabledNeeds[n] = true
-		}
-	}
-	return out, nil
-}
-
-// WorkMinAges is the race's minimum age in years per work type from the
-// catalog. A race the catalog lacks is a contract failure: a child
-// must never be left unrestricted for want of data.
-func (c *BiotechCatalog) WorkMinAges(race string) (map[policy.WorkType]int, error) {
-	var row *o.RaceLifeStages
-	if c != nil {
-		row = c.Races[race]
-	}
-	if row == nil {
-		return nil, contract("child race %s is not in the biotech catalog", race)
-	}
-	out := make(map[policy.WorkType]int, len(row.WorkMinAges))
-	for _, w := range row.WorkMinAges {
-		out[policy.WorkType(w.GetWorkType())] = int(w.GetMinAge())
-	}
-	return out, nil
 }
 
 func optionalInt(p *int32) domain.Fact[int] {

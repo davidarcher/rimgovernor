@@ -2482,77 +2482,6 @@ message IdeoRole { optional string id = 1; optional string def_name = 2; optiona
 message IdeoRitual { optional string id = 1; optional string def_name = 2; optional string pattern = 3; optional int32 last_finished_tick = 4; optional int32 active_obligations = 5; optional bool repeat_penalty_active = 6; optional bool running = 7; }
 // A building precept: the ThingDef it takes.
 message IdeoBuilding { optional string id = 1; optional string def_name = 2; optional string building = 3; }
-// The static Biotech defs, each list sorted by name. A stat effect is
-// a StatModifier of the def: stat is the StatDef name; factor and offset are
-// set for the side it carries. Scalars are absent when native could not read
-// them. Effects are the game defs' own (never Go name lists): the controller
-// reads them once per load token.
-message StatEffect { optional string stat = 1; optional double factor = 2; optional double offset = 3; }
-message SkillLevel { optional string skill = 1; optional int32 level = 2; }
-message CapacityEffect { optional string capacity = 1; optional double offset = 2; optional double set_max = 3; optional double post_factor = 4; }
-// LifeStageDef: developmental_stage is the DevelopmentalStage name,
-// reproductive/always_downed/claimable/can_voluntarily_sleep and
-// involuntary_sleep_is_negative_event are the def's flags, and effects its
-// statOffsets and statFactors.
-message LifeStageRow {
-  optional string def_name = 1; optional string label = 2; optional string developmental_stage = 3;
-  optional bool reproductive = 4; optional bool always_downed = 5; optional bool claimable = 6; optional bool can_voluntarily_sleep = 7;
-  optional bool involuntary_sleep_is_negative_event = 8; repeated StatEffect effects = 9;
-  optional double hunger_rate_factor = 10; optional double body_size_factor = 11; optional double health_scale_factor = 12;
-}
-// RaceProperties.lifeStageAges of a humanlike race: each stage with the age
-// (years) it begins, ascending, and lifeStageWorkSettings: the minimum age of
-// each work type a young pawn may do (a work type missing from the list has
-// no minimum).
-message LifeStageAgeRow { optional string life_stage = 1; optional double min_age_years = 2; }
-message WorkMinAge { optional string work_type = 1; optional int32 min_age = 2; }
-message RaceLifeStages { optional string race = 1; repeated LifeStageAgeRow stages = 2; repeated WorkMinAge work_min_ages = 3; }
-// GeneDef: complexity, metabolism and archite are biostatCpx, biostatMet and
-// biostatArc; disabled_work_tags are the WorkTags names the gene disables;
-// effects its statOffsets and statFactors; aptitudes the skill levels it
-// adds; passion_mods the skills whose passion it changes (mod_type is the
-// PassionModType name); capacity_effects its capMods; enables_needs and
-// disables_needs the NeedDefs it turns on or off; forced_traits and
-// suppressed_traits the TraitDefs; make_immune_to the HediffDefs it
-// immunizes against. Chemical tolerance: chemical is the ChemicalDef of a
-// dependency or tolerance gene with the three chance factors; the rest are
-// the def's own fields (min_age_active years, pain_offset and pain_factor,
-// exclusion_tags).
-message GeneRow {
-  optional string def_name = 1; optional string label = 2; optional string category = 3;
-  optional int32 complexity = 4; optional int32 metabolism = 5; optional int32 archite = 6;
-  repeated string disabled_work_tags = 7; repeated StatEffect effects = 8; repeated SkillLevel aptitudes = 9;
-  repeated PassionEffect passion_mods = 10; repeated CapacityEffect capacity_effects = 11;
-  repeated string enables_needs = 12; repeated string disables_needs = 13;
-  repeated string forced_traits = 14; repeated string suppressed_traits = 15; repeated string make_immune_to = 16;
-  optional string chemical = 17; optional double addiction_chance_factor = 18; optional double overdose_chance_factor = 19; optional double tolerance_buildup_factor = 20;
-  optional double min_age_active = 21; optional double pain_offset = 22; optional double pain_factor = 23;
-  repeated string exclusion_tags = 24;
-}
-message PassionEffect { optional string skill = 1; optional string mod_type = 2; }
-// XenotypeDef: genes are the GeneDef names it carries.
-message XenotypeRow { optional string def_name = 1; optional string label = 2; optional bool inheritable = 3; repeated string genes = 4; }
-message MechWorkPriority { optional string work_type = 1; optional int32 priority = 2; }
-// A controllable mech kind: a PawnKindDef whose race is a mechanoid with an
-// overseer-subject comp. weight_class is the MechWeightClassDef;
-// bandwidth_cost the BandwidthCost stat of the race; max_energy and
-// fixed_skill_level the race's maxMechEnergy and mechFixedSkillLevel;
-// work_types the mechEnabledWorkTypes and work_priorities the
-// mechWorkTypePriorities (priority per work type); work_mech whether the race
-// does work.
-message MechKindRow {
-  optional string def_name = 1; optional string label = 2; optional string race = 3; optional string weight_class = 4;
-  optional double bandwidth_cost = 5; optional int32 max_energy = 6; optional int32 fixed_skill_level = 7;
-  repeated string work_types = 8; repeated MechWorkPriority work_priorities = 9; optional bool work_mech = 10; optional double body_size = 11; optional double combat_power = 12;
-}
-// MechWorkModeDef: ui_order sorts the command UI; ignore_group_charge_limits
-// the def's flag.
-// work, escort and recharge are the game's own roles: def ==
-// MechWorkModeDefOf.Work, .Escort and .Recharge; each is set on exactly one row.
-message MechWorkModeRow {
-  optional string def_name = 1; optional string label = 2; optional int32 ui_order = 3; optional bool ignore_group_charge_limits = 4;
-  optional bool recharge = 5; optional bool work = 6; optional bool escort = 7;
-}
 // One point of a game SimpleCurve.
 message CurvePointRow { optional double x = 1; optional double y = 2; }
 // The Biotech tuning constants the defs do not carry, read natively
@@ -2571,11 +2500,13 @@ message GeneTuningFacts {
   optional double regrow_days_min = 5; optional double regrow_days_max = 6;
   optional int32 extract_ticks = 7; optional int32 no_power_eject_ticks = 8;
 }
-message BiotechCatalog {
-  repeated LifeStageRow life_stages = 1; repeated RaceLifeStages races = 2; repeated GeneRow genes = 3; repeated XenotypeRow xenotypes = 4;
-  repeated MechKindRow mech_kinds = 5; repeated MechWorkModeRow mech_work_modes = 6;
-  GeneTuningFacts gene_tuning = 7;
-}
+// The def names the game picks by role from MechWorkModeDefOf: the mech work
+// modes of work, escort and recharge. A def row cannot say which is which.
+message MechWorkModeRoles { optional string work = 1; optional string escort = 2; optional string recharge = 3; }
+// The Biotech facts the def mirror (defs.proto) cannot give. The life stage,
+// race, gene, xenotype, mech kind and work mode defs are the mirror's rows;
+// the decoded BiotechCatalog is built from them. Absent without Biotech.
+message BiotechCatalog { GeneTuningFacts gene_tuning = 1; MechWorkModeRoles mech_work_modes = 2; }
 // The Odyssey facts the def mirror (defs.proto) cannot give.
 // Biome, tile mutator, hackable and portal defs are the mirror's BiomeDef,
 // TileMutatorDef, CompProperties_Hackable and MapPortalProperties rows, and

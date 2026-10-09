@@ -404,9 +404,6 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 	}
 	out := &DefinitionCatalog{LoadToken: identity.GetLoadToken(), Research: make(map[string]policy.ResearchProjectFacts, len(v.Research))}
 	var err error
-	if out.Biotech, err = DecodeBiotechCatalog(v.Biotech); err != nil {
-		return nil, err
-	}
 	if out.Odyssey, err = DecodeOdysseyCatalog(v.Odyssey); err != nil {
 		return nil, err
 	}
@@ -432,6 +429,9 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 		return nil, err
 	}
 	if out.statValues, err = decodeStatTable(v.StatValues, out.ThingDefs, out.TerrainDefs); err != nil {
+		return nil, err
+	}
+	if out.Biotech, err = buildBiotech(out, v.Biotech); err != nil {
 		return nil, err
 	}
 	for _, row := range v.Research {

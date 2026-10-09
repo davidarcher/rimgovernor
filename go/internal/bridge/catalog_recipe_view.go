@@ -383,18 +383,12 @@ func (catalog *DefinitionCatalog) RecipeMechKind(name string) (string, error) {
 	}
 	if len(row.GetProducts()) == 1 && len(row.GetSpecialProducts()) == 0 && catalog.Biotech != nil {
 		race := row.GetProducts()[0].GetValue().GetThingDef()
-		var kinds []string
-		for kind, mech := range catalog.Biotech.MechKinds {
-			if mech.GetRace() == race {
-				kinds = append(kinds, kind)
-			}
+		kind, err := catalog.Biotech.mechKindOfRace(race)
+		if err != nil {
+			return "", err
 		}
-		slices.Sort(kinds)
-		if len(kinds) > 1 {
-			return "", contract("recipe %s produces race %s, which has several mech kinds %v", name, race, kinds)
-		}
-		if len(kinds) == 1 {
-			return kinds[0], nil
+		if kind != "" {
+			return kind, nil
 		}
 	}
 	if row.GetGestationCycles() > 0 {
