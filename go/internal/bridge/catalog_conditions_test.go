@@ -1,11 +1,15 @@
 package bridge
 
-import "testing"
+import (
+	"testing"
+
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
+)
 
 // TestWeatherAndConditionRows: the weather accuracy and the power
 // outage come from the def rows, and a def with no row is an error.
 func TestWeatherAndConditionRows(t *testing.T) {
-	catalog := FixtureCatalog("load")
+	catalog := sharedRecordedCatalog(t)
 	if got, err := catalog.WeatherAccuracy("FoggyRain"); err != nil || got != 0.5 {
 		t.Fatalf("FoggyRain accuracy = %v, %v", got, err)
 	}
@@ -31,11 +35,15 @@ func TestWeatherAndConditionRows(t *testing.T) {
 }
 
 // TestOutdoorsPermanentlyDark: a biome is dark when a map condition's
-// class derives from the no-sunlight family (a mod's subclass counts, no name
+// class derives from the no-sunlight family (a subclass counts, no name
 // list), lit otherwise; a biome with no row is an error.
 func TestOutdoorsPermanentlyDark(t *testing.T) {
-	catalog := FixtureCatalog("load")
-	for biome, want := range map[string]bool{"FixtureDarkBiome": true, "FixtureLitBiome": false, "FixtureBareBiome": false} {
+	// Glowforest carries DarkenedSkies, a subclass of the no-sunlight family;
+	// Grasslands is given an unrelated condition and Desert none.
+	slice := sliceRecorded(t, named("Silver"), "biome_defs", "game_condition_defs")
+	setRow[*d.BiomeDef](slice, "Grasslands").BiomeMapConditions = []string{"ColdSnap"}
+	catalog := slice.catalog()
+	for biome, want := range map[string]bool{"Glowforest": true, "Grasslands": false, "Desert": false} {
 		if got, err := catalog.OutdoorsPermanentlyDark(biome); err != nil || got != want {
 			t.Errorf("%s dark = %v, %v; want %v", biome, got, err, want)
 		}

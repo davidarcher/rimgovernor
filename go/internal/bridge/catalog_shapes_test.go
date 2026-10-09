@@ -1,25 +1,25 @@
 package bridge
 
 import (
-	"slices"
 	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
 // A def's family is the room role the game scores its building into: a work
 // table's role, a bedroom bed, a medical bed; a work table with no role and an
 // ordinary building have none.
 func TestPieceShapesFamilyIsTheRoomRoleTheRowsGive(t *testing.T) {
-	shapes, err := FixtureCatalog("load", slices.Concat(CoreFurnitureFixtures(), []FixtureDef{{Name: "Pot", Width: 1, Height: 1}})...).PieceShapes()
+	shapes, err := sharedRecordedCatalog(t).PieceShapes()
 	if err != nil {
 		t.Fatal(err)
 	}
 	for def, want := range map[string]policy.RoomRole{
 		"FueledStove": policy.RoomRoleKitchen, "TableStonecutter": policy.RoomRoleWorkshop, "SimpleResearchBench": policy.RoomRoleLaboratory,
 		"Bed": policy.RoomRoleBedroom, "RoyalBed": policy.RoomRoleBedroom, "HospitalBed": policy.RoomRoleHospital,
-		"TableButcher": "", "Pot": "",
+		"TableButcher": "", "PlantPot": "",
 	} {
 		if got := shapes.Defs[def].Family; got != want {
 			t.Errorf("%s family %q, want %q", def, got, want)
@@ -34,31 +34,30 @@ func TestPieceShapesFamilyIsTheRoomRoleTheRowsGive(t *testing.T) {
 }
 
 func TestPieceShapesRefuseACatalogTheTemplatesCannotUse(t *testing.T) {
-	without := func(names ...string) []FixtureDef {
-		var out []FixtureDef
-		for _, def := range CoreFurnitureFixtures() {
-			if !slices.Contains(names, def.Name) {
-				out = append(out, def)
-			}
-		}
-		return out
+	isDoubleBed := func(row *d.ThingDef) bool {
+		return Buildable(row) && row.GetThingClass() == ClassBed && row.GetBuilding().GetBedHumanlike() && row.GetSize().GetX() == 2
 	}
 	for name, test := range map[string]struct {
-		defs []FixtureDef
-		want string
+		strip func(*recordedSlice)
+		want  string
 	}{
-		"no end table":    {without("EndTable"), "end table"},
-		"no dresser":      {without("Dresser"), "dresser"},
-		"no cabinet":      {without("ToolCabinet"), "tool cabinet"},
-		"no monitor":      {without("VitalsMonitor"), "vitals monitor"},
-		"no sarcophagus":  {without("Sarcophagus"), "Sarcophagus"},
-		"no stove":        {without("FueledStove", "ElectricStove"), "Kitchen"},
-		"no animal bed":   {without("AnimalBed"), "animal"},
-		"no animal flap":  {without("AnimalFlap"), "animal flap"},
-		"no double bed":   {without("DoubleBed", "RoyalBed", "BedrollDouble"), "double bed"},
-		"stoves not role": {append(without("FueledStove", "ElectricStove"), FixtureDef{Name: "FueledStove", Width: 3, Height: 1, Bench: true}), "Kitchen"},
+		"no end table":   {func(s *recordedSlice) { s.drop("EndTable") }, "end table"},
+		"no dresser":     {func(s *recordedSlice) { s.drop("Dresser") }, "dresser"},
+		"no cabinet":     {func(s *recordedSlice) { s.drop("ToolCabinet") }, "tool cabinet"},
+		"no monitor":     {func(s *recordedSlice) { s.drop("VitalsMonitor") }, "vitals monitor"},
+		"no sarcophagus": {func(s *recordedSlice) { s.drop("Sarcophagus") }, "Sarcophagus"},
+		"no stove":       {func(s *recordedSlice) { s.drop("FueledStove", "ElectricStove") }, "Kitchen"},
+		"no animal bed":  {func(s *recordedSlice) { s.drop("AnimalBed") }, "animal"},
+		"no animal flap": {func(s *recordedSlice) { s.drop("AnimalFlap") }, "animal flap"},
+		"no double bed":  {func(s *recordedSlice) { s.dropWhere(isDoubleBed) }, "double bed"},
+		"stoves not role": {func(s *recordedSlice) {
+			s.drop("ElectricStove")
+			s.thing("FueledStove").Building.WorkTableRoomRole = ""
+		}, "Kitchen"},
 	} {
-		_, err := FixtureCatalog("load", test.defs...).PieceShapes()
+		slice := buildingsSlice(t)
+		test.strip(slice)
+		_, err := slice.catalog().PieceShapes()
 		if err == nil || !strings.Contains(err.Error(), test.want) {
 			t.Errorf("%s: %v, want an error naming %q", name, err, test.want)
 		}

@@ -9,7 +9,7 @@ import (
 // TestWeaponOfReadsTheDefRows: the area weapons, the EMP and fire
 // projectiles, the rockets and the blunt melee weapons come from the rows.
 func TestWeaponOfReadsTheDefRows(t *testing.T) {
-	catalog := FixtureCatalog("load", CoreWeaponFixtures()...)
+	catalog := sharedRecordedCatalog(t)
 	approx := func(got, want float64) bool { return got > want-0.001 && got < want+0.001 }
 	for _, c := range []struct {
 		def  string
@@ -56,7 +56,7 @@ func TestWeaponOfReadsTheDefRows(t *testing.T) {
 // the verb, tool, projectile and stat rows. Before the rows, a table stated
 // Minigun 30/0 (area fire), sniper 4/.38, club 6/.18, charge rifle 11/.35.
 func TestWeaponOfThroughput(t *testing.T) {
-	catalog := FixtureCatalog("load", CoreWeaponFixtures()...)
+	catalog := sharedRecordedCatalog(t)
 	near := func(got, want float64) bool { return got > want-0.001 && got < want+0.001 }
 	for _, c := range []struct {
 		def        string

@@ -29,7 +29,7 @@ func TestCombatFrameResolvesHeldPrimaryWeapons(t *testing.T) {
 		t.Fatalf("held rifle missing from the combat frame: %v", cut.GetThings())
 	}
 	things := NewThings(cut.GetThings().GetThings()...)
-	weapon, known, err := FixtureCatalog("load", CoreWeaponFixtures()...).PrimaryWeapon(equipment, things)
+	weapon, known, err := sharedRecordedCatalog(t).PrimaryWeapon(equipment, things)
 	if err != nil || !known || !weapon.Ranged {
 		t.Fatalf("rifle %+v known=%v err=%v", weapon, known, err)
 	}
