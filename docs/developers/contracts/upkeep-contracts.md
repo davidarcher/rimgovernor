@@ -27,26 +27,27 @@ non-damageable markers such as sleeping spots are never repair targets.
 
 ### Home coverage
 
-`MaintainHomeCoverage` covers every target of the native Home census: every colonist
-building and every stockpile, whoever made it. Targets use the native unique load id.
+`MaintainHomeCoverage` uses the complete native building and stockpile geometry
+through `policy.PlanHomeArea`. A building anchors its occupied cells plus
+connected visible, enclosed, fully roofed rooms; traversal crosses usable colony
+doors only between enclosed rooms. A stockpile contributes its current footprint.
+Targets use native unique load IDs, whoever built or zoned them.
 
-- A building anchors its occupied cells plus connected visible, enclosed, fully roofed
-  rooms. Traversal crosses usable colony doors only between enclosed rooms. A stockpile
-  is covered at its current footprint; an edited zone is reconciled, never blocked.
-- Each target proposes at most 256 cells, missing cells first in coordinate order;
-  larger rooms progress in batches and covered cells never hide missing ones past the
-  first batch. Unavailable geometry stays unknown.
-- Play is autonomous: every missing scoped cell is restoration work however Home was
-  removed. The wire `excluded_cells` is always zero. A method is identified by target,
-  batch shape and observed Home revision, so a later removal admits fresh work.
-- The method is an `AreaIntent` set_cells on home; an applied result is terminal and the
-  next review rereads the census. A lost reply is resent under a new key
-  ([apply-time checks](action-contracts.md#apply-time-preconditions-and-refusal-reasons)).
-- A store's zone outside Home is extended under its receipt identity.
-  Vanilla `AutoHomeAreaMaker` (default on) marks Home four cells around added zone cells
-  and player buildings. Remote resource work does not expand Home.
+The policy adds a four-cell Chebyshev margin, retains the largest extent region
+and regions within `HomeAreaOutlier` (16 cells) of it, and computes the diff from
+the current Home mask. Far outposts and other cells outside this base target are
+cleared. Unknown geometry, Home cells or auto-expand state prevents a plan.
 
-Acceptance: `upkeep/home-coverage`.
+The journaled method disables vanilla auto-expand when needed, then sends
+`AreaIntent` set_cells and clear_cells through Hands. A hash of the diff names
+the method; applied results are terminal and the next review rereads native
+state. Every missing target cell is restoration work, however Home was removed.
+The native target census also carries bounded 256-cell batches, but the policy
+uses its separate complete geometry to derive the base and margin.
+
+Acceptance: `upkeep/home-coverage` and `upkeep/colony-extent`. The latter verifies
+corridor and margin maintenance, exclusion beyond the margin, and a byte-identical
+Home mask across a subsequent extent review.
 
 ### Construction lineage and extent
 

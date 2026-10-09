@@ -106,14 +106,18 @@ adopting the extent window there follows the same three steps.
 
 ## Home mask rule
 
-Extent growth alone never changes the native Home mask. Establishing a
-region and widening a consumer's window are Go-side records; the only path that paints Home is the existing
-`AreaIntent` home set_cells, driven by the per-facility Home coverage
-review whose targets and batches do not read the extent.
-Home coverage over a corridor between two controller-owned facilities is
-therefore produced, and restored, by that path whether or not the corridor
-is inside the extent. The converse also holds: Home cells are an *input* to derivation
-(through the coverage targets' geometry), never a consumer of it.
+Deriving or recording extent never writes the native Home mask. The Home
+planner separately calls `PlanHomeArea`, which derives the current extent with
+`HomeAreaMargin` (four cells), selects the largest region and nearby regions,
+and computes explicit Home set/clear actions. The game owns those writes
+through Hands; merely recording established extent cannot paint Home.
+
+A cell just outside a building can therefore be inside the intended Home
+margin. `upkeep/colony-extent` records complete Home masks before and after
+maintenance, checks a missing corridor cell and a margin cell become Home,
+and checks a cell beyond the margin stays outside Home. Once maintenance has
+converged, another runtime extent review must leave the complete mask
+byte-identical.
 
 ## Related reading
 

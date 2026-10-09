@@ -28,6 +28,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Measure performance | [Throughput](developers/testing/measure-throughput.md), [hazard bounds](developers/architecture/hazard-detection-bounds.md) |
 | Improve expert play | [Architecture roadmap](developers/architecture/expert-play-assessment.md) |
 | Plan colony rooms and containment | [Facilities](developers/architecture/facilities.md) |
+| Understand territory and Home margins | [Colony extent](developers/contracts/colony-extent.md), [Home coverage](developers/contracts/upkeep-contracts.md#home-coverage) |
 | Change a subsystem | [Behavior contracts](developers/contracts/README.md) |
 | Plan and reconcile trade missions | [Controllable trade](developers/contracts/controllable-trade.md) |
 | Preserve or reconsider issued work | [Method continuation](developers/contracts/method-continuation.md) |
