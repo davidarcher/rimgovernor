@@ -134,13 +134,13 @@ func TestHuntRequestAndCombatCleared(t *testing.T) {
 	}
 }
 
-func TestHuntFormationCapsTheSquad(t *testing.T) {
+func TestHuntFormationTakesEveryGunner(t *testing.T) {
 	view := huntView(wildGroup()...)
 	for _, id := range []domain.PawnID{"d", "e", "f"} {
 		view.Defenders = append(view.Defenders, combatRifleman(id))
 		view.Pawns = append(view.Pawns, CombatPawnState{ID: id, Cell: domain.Known(domain.Cell{X: 4, Z: 30}), Stance: StanceIdle, WeaponRange: 30, WeaponFacts: WeaponDef{Ranged: true, Range: 30}})
 	}
-	if got := len(huntFormation(view)); got != SquadHuntMaxGunners {
+	if got := len(huntFormation(view)); got != len(view.Defenders) {
 		t.Fatalf("squad of %d", got)
 	}
 	view.Defenders = view.Defenders[:SquadHuntMinGunners-1]

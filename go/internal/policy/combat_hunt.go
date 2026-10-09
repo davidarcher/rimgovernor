@@ -44,8 +44,6 @@ func huntFormation(view CombatView) []CombatRole {
 	if len(gunners) < SquadHuntMinGunners || len(prey) == 0 {
 		return nil
 	}
-	// A larger roster keeps its other members working.
-	gunners = gunners[:min(len(gunners), SquadHuntMaxGunners)]
 	top := prey[0].ID
 	var sum domain.Cell
 	known := int32(0)

@@ -8,16 +8,15 @@ import (
 )
 
 // A squad hunt takes a group of nearby wild animals, mixed species
-// allowed, with 3 to 4 drafted ranged colonists. A group is worth a squad at
+// allowed, with every drafted ranged colonist, at least SquadHuntMinGunners. A group is worth a squad at
 // SquadHuntMinPrey animals, or at any single animal a lone hunter must not
 // designate (Retaliates); the revenge cap (MaxHuntRevengeChance) binds only
 // lone designation hunters.
 const (
 	SquadHuntMinPrey = 3
-	// SquadHuntMinGunners and SquadHuntMaxGunners are the squad's size.
+	// SquadHuntMinGunners is the smallest squad worth drafting; there is no upper bound.
 	SquadHuntMinGunners = 3
-	SquadHuntMaxGunners = 4
-	// squadHuntRadius links two animals into one group, in cells.
+	// squadHuntRadius is the linkage distance, in cells, that joins two animals into one group: a threshold, not a cap.
 	squadHuntRadius = 12.0
 	// squadSleepingWork scales the work of a sleeping animal: it stands still,
 	// so night is a soft preference and never a gate.

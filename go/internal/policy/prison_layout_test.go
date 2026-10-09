@@ -35,10 +35,10 @@ func TestPrisonTurrets(t *testing.T) {
 			t.Fatal("not beside the door's front cell", c)
 		}
 	}
-	// A second prison adds one more: three at most.
+	// A second prison adds its own sites: the count follows the doors, not a cap.
 	p.Rooms = append(p.Rooms, PlannedRoom{Role: PlannedPrison, Interior: Rectangle{X: 40, Z: 21, Width: 5, Height: 5}, Door: domain.Cell{X: 42, Z: 20}, DoorRot: domain.South})
-	if n := len(PrisonTurretSites(p)); n != prisonTurretMax {
-		t.Fatal("cap", n)
+	if n := len(PrisonTurretSites(p)); n != 4 {
+		t.Fatal("sites follow doors", n)
 	}
 	// Sections: the turret, then conduits to the network.
 	p = prisonPlan()

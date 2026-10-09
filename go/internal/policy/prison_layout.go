@@ -15,9 +15,6 @@ const (
 	// TierPrisonTurretPrefix names the prison turret sections under the
 	// perimeter's prefix, each with its conduit run, as the pumps do.
 	TierPrisonTurretPrefix = TierPerimeterPrefix + "prison-"
-	// prisonTurretMax bounds the turrets for all prisons together: the wiki
-	// asks for one to three.
-	prisonTurretMax = 3
 	// prisonWeaponClearance is the Chebyshev distance a weapon stockpile
 	// keeps from every prison cell (walls and door included).
 	prisonWeaponClearance = 6
@@ -37,7 +34,7 @@ func prisonDoorOutside(r PlannedRoom) (domain.Cell, domain.Cell, bool) {
 
 // PrisonTurretSites are the mini-turret cells outside the plan's prison
 // doors: one each side of the cell in front of a door, never on that cell
-// (the walkway) nor on any room's footprint or reservation, at most three.
+// (the walkway) nor on any room's footprint or reservation.
 func PrisonTurretSites(plan LayoutPlan) []domain.Cell {
 	blocked := map[domain.Cell]bool{}
 	for _, r := range plan.AllRooms() {
@@ -62,9 +59,6 @@ func PrisonTurretSites(plan LayoutPlan) []domain.Cell {
 		blocked[front] = true
 		p := perpendicular(dir)
 		for _, c := range []domain.Cell{addCell(front, p), addCell(front, scale(p, -1))} {
-			if len(out) == prisonTurretMax {
-				return out
-			}
 			if !blocked[c] {
 				out = append(out, c)
 				blocked[c] = true

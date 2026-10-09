@@ -407,7 +407,8 @@ One Hunt candidate stands per animal or prey group (`policy.HuntCandidates`), wi
 `lone` (a designation; id the animal's) or `formation` (id `squad:<first prey>`, run as a
 `HuntRequest` of drafted gunners). A formation is required for prey that retaliates
 (a predator, or revenge chance above 0.2) and for a group the clustering marks worth a
-squad (12-cell linkage, three or more standing animals); every other animal is lone.
+squad (12-cell linkage, three or more standing animals); every other animal is lone. The
+formation takes every eligible gunner, at least three; no upper size is enforced.
 A gunner is a colonist whose primary weapon hunts (`WeaponDef.Hunts`: ranged, not
 explosive, not incendiary); the candidate and `huntFormation` share that predicate, and the
 three-gunner minimum applies to formation prey only (a lone bow hunter is never gated).
