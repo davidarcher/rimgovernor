@@ -16,6 +16,12 @@ defs_proto_source=Assembly-CSharp 1.6.9676.17735
 `defs_proto_source` the assembly line of `contracts/proto/defs.proto`. Game
 identity is this sidecar; the catalog carries no version field.
 
+`TestCommittedRecordingIsFresh` (`go/cmd/recordcatalog`) fails when the sidecar's
+game version differs from the `Krafs.Rimworld.Ref` pin in
+`tools/defmirror/DefMirror.csproj`, or `defs_proto_source` from `defs.proto`'s
+source line, and names the refresh command. It reads files only, so CI runs it
+without a game install; CI cannot refresh.
+
 ## Refresh
 
 Refresh after a game update, after regenerating `defs.proto`, or when native

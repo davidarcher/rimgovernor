@@ -182,6 +182,18 @@ jobs:
           go run ./internal/protobufgen/cmd/generatego --check \
             --protoc "$HOME/.nuget/packages/grpc.tools/2.72.0/tools/linux_x64/protoc" \
             --output ../.rimgovernor/task/protobuf/go-check
+      # defmirror:build (tools/defmirror/Taskfile.yml) without the task
+      # binary: defs.proto against the locked Krafs.Rimworld.Ref reference
+      # assemblies, so no game install is needed. It only checks; refreshing
+      # defs.proto or the recorded catalog needs the real game. The recorded
+      # catalog's version sidecar against these pins is the go test above
+      # (go/cmd/recordcatalog TestCommittedRecordingIsFresh).
+      - name: Def mirror drift
+        shell: bash
+        run: |
+          dotnet restore tools/defmirror/DefMirror.csproj --locked-mode
+          dotnet run --project tools/defmirror -c Release --no-restore --no-launch-profile -- \
+            --check --output "$PWD/contracts/proto/defs.proto"
       - name: Protobuf proof module tests
         working-directory: tools/protobuf/go
         shell: bash
