@@ -65,13 +65,6 @@ func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (i
 		}
 		return 0, "", BuildingExistingFacility
 
-	case policy.EnsureBasicDefense:
-		// Reached only from RoundsEquipPlanner once no loose weapon and no
-		// bench's weapon recipe can arm an unarmed colonist.
-		if r.definition != "CraftingSpot" {
-			return 0, "", fieldUnavailable("crafting_spot_definition")
-		}
-		return 1, "crafting-spot", Verdict{}
 	case policy.EnsureTemperatureSafety:
 		if r.temperature == nil {
 			return 0, "", fieldUnavailable("temperature_proposal")
@@ -120,6 +113,14 @@ func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (i
 		}
 		return 1, domain.MethodID("comfort-" + r.definition), Verdict{}
 	case policy.MaintainResource, policy.MaintainEquipment:
+		if r.craftingSpot {
+			// The free spot stands in the planned workshop until a weapon bench
+			// is built, then is deconstructed.
+			if _, retire := standingCraftingSpot(facts); retire {
+				return 1, "crafting-spot-retire", Verdict{}
+			}
+			return 1, "crafting-spot", Verdict{}
+		}
 		if r.workshop != nil && r.workshop.ordinal > 0 {
 			// A further bench is a new method, so the first bench's finished
 			// plan does not retire it.
@@ -322,4 +323,26 @@ func (r *RoundsBuildingPlanner) butcherFacility() bool {
 // butcherBenchDefinition is a butcher bench the facility places.
 func butcherBenchDefinition(definition string) bool {
 	return definition == policy.ButcherTableDefinition || definition == policy.ButcherSpotDefinition
+}
+
+// workshopLadder reports the planners that walk the production-bench ladder:
+// MaintainResource's and MaintainEquipment's own, not the crafting spot's.
+func (r *RoundsBuildingPlanner) workshopLadder() bool {
+	return (r.concern == policy.MaintainResource || r.concern == policy.MaintainEquipment) && !r.craftingSpot
+}
+
+// standingCraftingSpot is the crafting spot in the building census once a weapon
+// bench stands beside it (the review's CraftingSpotRetireOwed): the spot is
+// deconstructed then.
+func standingCraftingSpot(facts observation.ColonyProjection) (policy.CurrentBuilding, bool) {
+	census, known := facts.Facts.CurrentConstruction.Value()
+	if !known || !positiveFact(facts.Facts.CraftingSpotRetireOwed) {
+		return policy.CurrentBuilding{}, false
+	}
+	for _, b := range census.Buildings {
+		if b.Building.Definition() == policy.CraftingSpotDefinition && len(b.Cells) > 0 {
+			return b, true
+		}
+	}
+	return policy.CurrentBuilding{}, false
 }

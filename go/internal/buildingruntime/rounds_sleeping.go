@@ -36,10 +36,13 @@ type RoundsBuildingPlanner struct {
 	paste []policy.SiteBuilding
 	// slotCuts are the plants a refused shelter slot names on its footprint or
 	// interaction cell; the step commits their cut wave and the slot is retried.
-	slotCuts         []policy.ClearanceTarget
-	reviewer         *Rounder
-	native           RoundsBuildingSource
-	concern          policy.ConcernID
+	slotCuts []policy.ClearanceTarget
+	reviewer *Rounder
+	native   RoundsBuildingSource
+	concern  policy.ConcernID
+	// craftingSpot marks MaintainEquipment's stand-in planner: the spot goes in
+	// the planned workshop and leaves when a weapon bench stands.
+	craftingSpot     bool
 	definition       string
 	recreationPowerW float64
 	stuff            string
@@ -150,6 +153,16 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		if err != nil {
 			return RoundsBuildingResult{}, err
 		}
+		if r.craftingSpot {
+			// Bills share the goal and run for days: only a pending spot is the
+			// planner's own work.
+			for _, progress := range plan.Progress {
+				if pendingFacility(progress, policy.CraftingSpotDefinition) {
+					return RoundsBuildingResult{Verdict: BuildingReasonExistingWork}, nil
+				}
+			}
+			continue
+		}
 		if r.butcherFacility() {
 			// Fields, foraging and hunts share the goal and run for days: only a
 			// pending bench is the planner's own work (the ring is its own wave).
@@ -204,7 +217,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		// name the boundary that actually failed.
 		return RoundsBuildingResult{}, fmt.Errorf("%w: step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) observed tick=%d review tick=%d", ErrControl, expected.Tick, review.Tick)
 	}
-	if r.concern == policy.MaintainResource || r.concern == policy.MaintainEquipment {
+	if r.workshopLadder() {
 		var recorded func()
 		call, recorded = recordPlannerStep(call, r.concern, state.Snapshot, review.Tick)
 		defer recorded()
@@ -240,7 +253,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 		}
 	}
-	if r.concern == policy.MaintainResource || r.concern == policy.MaintainEquipment {
+	if r.workshopLadder() {
 		definitions = r.workshop.candidates
 	}
 	if r.concern == policy.MaintainMedicalReserves || r.phase == policy.HousingSleeping || r.concern == policy.EnsureResearch {
@@ -379,7 +392,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			resolved, reason, err = r.selectFlooring(call, state.Snapshot, facts, review.Latches)
 		} else if r.concern == policy.MaintainRoutes {
 			resolved, reason, err = r.selectRoutes(facts, review.Latches)
-		} else if r.concern == policy.MaintainResource || r.concern == policy.MaintainEquipment {
+		} else if r.workshopLadder() {
 			resolved, reason, err = r.selectWorkshop(call, state, review, facts)
 		} else if r.concern == policy.MaintainMedicalReserves {
 			resolved, reason, err = r.selectHospital(facts)
@@ -495,6 +508,10 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		if spot, owed := standingButcherSpot(facts); owed {
 			return r.retireBuilding(call, epoch, state, review, goal, reading, spot.ID, spot.Building.Definition(), spot.Cells[0], "butcher-spot-retire", "stand-in_butcher_spot")
 		}
+	case "crafting-spot-retire":
+		if spot, owed := standingCraftingSpot(facts); owed {
+			return r.retireBuilding(call, epoch, state, review, goal, reading, spot.ID, spot.Building.Definition(), spot.Cells[0], "crafting-spot-retire", "stand-in_crafting_spot")
+		}
 	case "butcher-spot":
 		// The free spot stands in the planned butchery until the table is built.
 		spot := *r
@@ -558,6 +575,21 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 				r = &kitchen
 			}
 		}
+	}
+	if r.craftingSpot && r.cells == nil && len(plannedShelterRooms(facts)) == 0 {
+		// With no shelter planned the spot never falls back to a free search: it
+		// stands in the planned workshop, built or not, and waits for the plan to
+		// hold one.
+		cells := plannedRoomCells(facts, policy.PlannedWorkshop)
+		if cells == nil {
+			cells = plannedRoomPlanCells(facts, policy.PlannedWorkshop)
+		}
+		if cells == nil {
+			return RoundsBuildingResult{Verdict: awaitingPlan("workshop_room", "")}, nil
+		}
+		spot := *r
+		spot.cells, spot.environment = cells, policy.PlacementAnywhere
+		r = &spot
 	}
 	if r.butcherFacility() && r.cells == nil {
 		// The bench never falls back to a free search: it stands in the
@@ -936,9 +968,9 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 			roomCells[c] = true
 		}
 	}
-	// The crafting spot takes the standing shelter's template slot;
-	// with no shelter, or its slot taken, it is placed as before.
-	slotOnly := r.concern == policy.EnsureBasicDefense && r.definition == craftingSpotDefinition && r.facility == nil
+	// The crafting spot takes the standing shelter's template slot and moves to
+	// the planned workshop only once the shelter has left the plan.
+	slotOnly := r.craftingSpot && r.facility == nil && len(plannedShelterRooms(facts)) > 0
 	// On a cold map the campfires stand indoors on the shelter's template
 	// slots; a taken slot, or no shelter, leaves the campfire to the
 	// search below.
@@ -967,9 +999,8 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 	}
 	// A campfire or cooler for a planned shelter has no outdoor stand-in: a slot
 	// the native refuses waits, named by its blocker, instead of the search
-	// below placing one outside the room. The crafting spot keeps its
-	// placed-as-before fall-through.
-	strictSlot := slotOnly && len(interiorRooms) > 0 && r.concern != policy.EnsureBasicDefense
+	// below placing one outside the room.
+	strictSlot := slotOnly && len(interiorRooms) > 0
 	var refusedSlot *refusedPlacement
 	var lastPreview policy.Preview
 	if r.temperature != nil {

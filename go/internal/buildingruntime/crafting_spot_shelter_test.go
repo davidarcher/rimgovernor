@@ -33,7 +33,8 @@ func craftingSpotSearch(t *testing.T, shelterPlanned bool) (chosen, slot domain.
 	if err != nil {
 		t.Fatal(err)
 	}
-	planner.concern, planner.definition, planner.environment = policy.EnsureBasicDefense, craftingSpotDefinition, policy.PlacementAnywhere
+	planner.concern, planner.definition, planner.environment = policy.MaintainEquipment, craftingSpotDefinition, policy.PlacementAnywhere
+	planner.craftingSpot = true
 	interior := policy.Rectangle{X: 0, Z: 0, Width: 4, Height: 4}
 	door := domain.Cell{X: 2, Z: 4}
 	facts := reading.Projection

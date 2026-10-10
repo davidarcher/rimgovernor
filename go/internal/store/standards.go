@@ -401,6 +401,12 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 			}
 		}
 		if !exempt {
+			exempt, err = craftingSpotOpenWorkExempt(ctx, tx, state, plan)
+			if err != nil {
+				return err
+			}
+		}
+		if !exempt {
 			exempt, err = shelterOpenWorkExempt(ctx, tx, state, plan)
 			if err != nil {
 				return err

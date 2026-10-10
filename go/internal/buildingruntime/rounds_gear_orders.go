@@ -64,7 +64,7 @@ func (r *RoundsArmoryPlanner) declareOrders(ctx context.Context, snapshot domain
 	if err != nil {
 		return abstainOnRead(ctx, policy.CauseUnreadShells)
 	}
-	r.setSpotNeeded(unarmed > 0 && !weaponBenchHosted(benches))
+	r.setSpotNeeded(unarmed > 0 && !weaponBenchHosted(benches) || positiveFact(projection.Facts.CraftingSpotRetireOwed))
 	return policy.DeclareArmoryOrders(gearRequest(projection, benches), tier, mergeAmounts(fighters, hunters), shells)
 }
 

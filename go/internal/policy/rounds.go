@@ -266,6 +266,9 @@ type RoundsFacts struct {
 	PartySpotOwed domain.Fact[bool]
 	// CampfireRetireOwed: a stove kitchen supersedes a cooking campfire; it keeps EnsureCooking open.
 	CampfireRetireOwed domain.Fact[bool]
+	// CraftingSpotRetireOwed: a weapon bench stands beside the crafting spot that
+	// stood in for it; it keeps MaintainEquipment open for the deconstruction.
+	CraftingSpotRetireOwed domain.Fact[bool]
 	// TemperatureOwed: a heat campfire's auto-refuel should switch, or a
 	// sleeping room sits unheated below its sleepers' comfort minimum
 	// (TemperatureOwed); it holds EnsureTemperatureSafety open.
@@ -1061,6 +1064,11 @@ func butcherFacilityMet(f RoundsFacts) domain.Fact[bool] {
 	wood, ok := f.Wood.Value()
 	return domain.Known(!ok || wood < ButcherTableWood)
 }
+
+// CraftingSpotDefinition is the free, instant bench that hosts the club and short
+// bow recipes; MaintainEquipment stands one in the planned workshop until a
+// real weapon bench is built.
+const CraftingSpotDefinition = "CraftingSpot"
 
 // ButcherSpotDefinition is the free, instant butcher bench that stands in the
 // planned butchery until the table is built.

@@ -181,8 +181,8 @@ func (r *RoundsBuildingPlanner) takesShelterSlot(facts observation.ColonyProject
 	switch {
 	case r.facility != nil:
 		return r.facility.Role == policy.RoomRoleLaboratory && !r.advancedLab
-	case r.concern == policy.EnsureBasicDefense:
-		return r.definition == craftingSpotDefinition
+	case r.craftingSpot:
+		return true
 	case r.definition == "Campfire":
 		cooking := r.concern == policy.EnsureCooking && len(r.paste) == 0
 		return known && plan.Cold && (cooking || r.temperature != nil && r.temperature.Method == policy.TemperatureHeat)
@@ -268,7 +268,7 @@ func plannedInteriorRooms(facts observation.ColonyProjection, keep func(policy.P
 // place at once; it hosts the club and short bow recipes a tribal start
 // arms itself with. It lives here, not in rounds_armory.go, so the armory's
 // scope does not widen through the shelter slot predicate.
-const craftingSpotDefinition = "CraftingSpot"
+const craftingSpotDefinition = policy.CraftingSpotDefinition
 
 // plannedRoomPlanCells is the interior of the first planned room of module,
 // whether or not a wall or a roof stands; nil when the plan holds none.

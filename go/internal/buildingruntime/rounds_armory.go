@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
@@ -67,7 +69,7 @@ func (r *RoundsArmoryPlanner) step(call, epoch context.Context, arbiter *stepArb
 	return r.placeCraftingSpot(call, epoch, arbiter)
 }
 
-// newCraftingSpotPlanner is the EnsureBasicDefense placement the armory
+// newCraftingSpotPlanner is the MaintainEquipment placement the armory
 // falls back to (moved from the equip planner); nil when the source
 // cannot serve a building step.
 func newCraftingSpotPlanner(reviewer *Rounder, native RoundsGearSource) *RoundsBuildingPlanner {
@@ -75,5 +77,37 @@ func newCraftingSpotPlanner(reviewer *Rounder, native RoundsGearSource) *RoundsB
 	if !ok {
 		return nil
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: building, concern: policy.EnsureBasicDefense, definition: craftingSpotDefinition, environment: policy.PlacementAnywhere}
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: building, concern: policy.MaintainEquipment, definition: craftingSpotDefinition, environment: policy.PlacementAnywhere, craftingSpot: true}
+}
+
+// craftingSpotRetireOwed is the review's CraftingSpotRetireOwed fact: a crafting
+// spot stands and another bench that takes a bill hosts a weapon recipe, so the
+// spot that stood in for it can go. The bench census is read only while a spot
+// stands; an unreadable one leaves the fact unknown.
+func (r *Rounder) craftingSpotRetireOwed(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection) (domain.Fact[bool], error) {
+	census, known := facts.Facts.CurrentConstruction.Value()
+	if !known {
+		return domain.Unknown[bool](), nil
+	}
+	standing := false
+	for _, b := range census.Buildings {
+		standing = standing || b.Building.Definition() == policy.CraftingSpotDefinition
+	}
+	if !standing {
+		return domain.Known(false), nil
+	}
+	source, ok := r.native.(artBenchSource)
+	if !ok {
+		return domain.Unknown[bool](), nil
+	}
+	reads, _, err := source.ReadGearBenches(ctx, boundary.Identity(snapshot))
+	if err != nil {
+		return domain.Unknown[bool](), err
+	}
+	for _, read := range reads {
+		if usable, _ := read.Bench.Usable.Value(); usable && read.Bench.Def != policy.CraftingSpotDefinition && weaponBenchHosted([]policy.GearBench{read.Bench}) {
+			return domain.Known(true), nil
+		}
+	}
+	return domain.Known(false), nil
 }

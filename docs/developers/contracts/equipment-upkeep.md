@@ -271,6 +271,12 @@ weapon demand joins after colony-wide loose-weapon assignment. Each review admit
 at most one bill and up to sixteen independent pawn orders;
 pawn and item identities cannot be claimed twice by open dressing methods.
 
+When a colonist is unarmed and no bench hosts a weapon recipe, `MaintainEquipment` stands a
+free `CraftingSpot` in the planned shelter's template slot while a shelter is planned, and in the
+planned workshop once it has left the plan (the workshop's plan interior, built or not; with none
+planned the step waits on `workshop_room`). Once another usable bench hosts a weapon recipe the
+review sets `CraftingSpotRetireOwed`, which keeps the goal open until the spot is deconstructed.
+
 Fixture checks, native scripted pawn outcomes and sustained seasonal campaigns
 are different evidence levels.
 

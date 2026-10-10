@@ -41,3 +41,23 @@ func TestButcherFacilityKeepsFoodGoalOpenUntilTableStandsAlone(t *testing.T) {
 		t.Fatal("an unread census raised the food goal")
 	}
 }
+
+// A crafting spot standing beside the weapon bench it stood in for keeps
+// MaintainEquipment open for the deconstruction, though every colonist is
+// dressed; an unread census owes nothing.
+func TestCraftingSpotBesideWeaponBenchKeepsEquipmentOpen(t *testing.T) {
+	for _, c := range []struct {
+		owed domain.Fact[bool]
+		want bool
+	}{
+		{domain.Known(true), true},
+		{domain.Known(false), false},
+		{domain.Unknown[bool](), false},
+	} {
+		f := stableRounds()
+		f.CraftingSpotRetireOwed = c.owed
+		if got := hasNeed(needs(t, f, RoundsLatches{}), MaintainEquipment); got != c.want {
+			t.Errorf("owed %v: equipment goal raised = %v, want %v", c.owed, got, c.want)
+		}
+	}
+}

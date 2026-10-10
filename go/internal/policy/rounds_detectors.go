@@ -301,10 +301,20 @@ func inspectEquipment(c *roundsRun) error {
 			c.r.GearBudgetPawns = append(c.r.GearBudgetPawns, l.Pawn)
 		}
 	}
-	if !positive(gear.Recovered) {
-		c.raise(MaintainEquipment, 3).Deficit = gear.Deficit
+	// A crafting spot beside the weapon bench it stood in for keeps the goal
+	// open for its deconstruction.
+	retire := positive(f.CraftingSpotRetireOwed)
+	if !positive(gear.Recovered) || retire {
+		g := c.raise(MaintainEquipment, 3)
+		g.Deficit = gear.Deficit
+		if retire && positive(gear.Recovered) {
+			g.Deficit = domain.Known(1.0)
+		}
 	}
 	equipped := gear.Recovered
+	if retire {
+		equipped = domain.Known(false)
+	}
 	if short, _ := f.ShellsShort.Value(); short {
 		equipped = domain.Known(false)
 	}
