@@ -147,3 +147,40 @@ func TestPlannerRecordReasonRejectsAnInvalidVerdict(t *testing.T) {
 		t.Fatal("no verdict was filed")
 	}
 }
+
+// TestEveryPlannerRefusalFilesATransition holds that no catalog planner is
+// silently unexplained: each one's refusal, filed the way a finished wave
+// files it, becomes a transition on a non-empty key, and the subject keys of
+// the planners that serve no single concern collide with neither a concern id
+// nor each other.
+func TestEveryPlannerRefusalFilesATransition(t *testing.T) {
+	concerns := map[policy.ConcernID]bool{}
+	for _, entry := range plannerCatalog {
+		if entry.concern != "" {
+			concerns[entry.concern] = true
+		}
+	}
+	subjects := map[policy.ConcernID]string{}
+	for _, entry := range plannerCatalog {
+		key := entry.filingKey()
+		if key == "" {
+			t.Fatalf("%s has no filing key", entry.name)
+		}
+		if entry.concern == "" {
+			if concerns[key] {
+				t.Fatalf("%s: subject key %q is a concern id", entry.name, key)
+			}
+			if other, dup := subjects[key]; dup {
+				t.Fatalf("%s and %s share the subject key %q", entry.name, other, key)
+			}
+			subjects[key] = entry.name
+		}
+		wave := &plannerWave{concerns: map[string]policy.ConcernID{entry.name: key}, reasons: map[string]Verdict{entry.name: refuse(policy.CauseRetriesSpent, "x", "")}}
+		filings := wavePlannerReasons([]string{entry.name}, wave.filing)
+		var log plannerReasonLog
+		got := log.changed(filings, 10)
+		if len(got) != 1 || got[0].Concern != key || got[0].Filing.Note.Cause != policy.CauseRetriesSpent {
+			t.Fatalf("%s: refusal filed %+v", entry.name, got)
+		}
+	}
+}

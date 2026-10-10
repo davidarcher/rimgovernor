@@ -12,7 +12,8 @@ import (
 // plannerEntry declares a queued planner's priority, dependencies and wake conditions.
 type plannerEntry struct {
 	name string
-	// concern receives this planner's refusal. Multi-concern planners leave it empty.
+	// concern receives this planner's refusal. Multi-concern planners leave it
+	// empty and file under their own name (filingKey).
 	concern policy.ConcernID
 	// class says whether the admission cycle waits on the planner:
 	// critical for the preempt and critical priority classes and the
@@ -105,6 +106,18 @@ func (e plannerEntry) reviewEvery() domain.Tick {
 		return reviewEveryComfort
 	}
 	return reviewEveryUrgent
+}
+
+// filingKey is the key a planner's verdict files its cause under, and so the
+// target of its concern_transition rows: its concern, or for a planner that
+// serves several concerns (or none) its own name, a subject key beside the
+// concern ids. A subject key has no progress record, so it never relabels a
+// concern's strip; it only explains the planner.
+func (e plannerEntry) filingKey() policy.ConcernID {
+	if e.concern != "" {
+		return e.concern
+	}
+	return policy.ConcernID(e.name)
 }
 
 // plannerCatalog lists every routine planner in queue order. Priorities

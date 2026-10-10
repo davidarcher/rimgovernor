@@ -106,7 +106,7 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 	private := &ClockSchedulerResult{}
 	w.results[entry.name] = private
 	w.critical[entry.name] = entry.class == classCritical
-	w.concerns[entry.name] = entry.concern
+	w.concerns[entry.name] = entry.filingKey()
 	ctx := call
 	if entry.class != classCritical {
 		ctx = w.optional
@@ -220,15 +220,13 @@ func (w *plannerWave) reason(name string) (Verdict, bool) {
 	return reason, ok
 }
 
-// filing is the goal and verdict a returned planner files on: the goal comes
-// with the result. False for a planner that serves no single goal, failed or
-// missed the cutoff.
+// filing is the key and verdict a returned planner files on (its filingKey).
+// False for a planner that failed or missed the cutoff.
 func (w *plannerWave) filing(name string) (policy.ConcernID, Verdict, bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	verdict, ok := w.reasons[name]
-	goal := w.concerns[name]
-	return goal, verdict, ok && goal != ""
+	return w.concerns[name], verdict, ok
 }
 
 // queuedCritical reports whether the named planner was queued into this
