@@ -13,7 +13,7 @@ research orders.
    *derived* need: the concern stays in deficit while the project is current).
 2. The first unfinished rung of the research ladder (`RoundsPolicy.ResearchLadder`,
    `policy.DefaultResearchLadder`: Stonecutting, Electricity, Batteries, GeothermalPower, SolarPanels,
-   Smithing, CarpetMaking, ComplexClothing, MicroelectronicsBasics, MultiAnalyzer, Machining, Gunsmithing).
+   Smithing, CarpetMaking, ComplexClothing, MicroelectronicsBasics, MultiAnalyzer, Machining, Gunsmithing, ChargedShot, BeamWeapons; BeamWeapons is Odyssey's and skipped when the census does not list it).
 
 A rung is a deficit only while the research tab is idle: any current project, the player's included,
 recovers the concern and is never replaced, and the planner lends the clock ticks until it finishes. The

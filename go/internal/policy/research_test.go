@@ -126,6 +126,45 @@ func TestResearchPrerequisiteQueueCapsAtMax(t *testing.T) {
 	}
 }
 
+func TestDefaultLadderQueuesChargedShotThenBeamWeapons(t *testing.T) {
+	ladder := DefaultResearchLadder()
+	if n := len(ladder); ladder[n-2] != "ChargedShot" || ladder[n-1] != "BeamWeapons" {
+		t.Fatal("ladder tail", ladder)
+	}
+	p := RoundsPolicy{ResearchLadder: ladder}
+	finished := []ResearchProjectID{}
+	for _, rung := range ladder[:len(ladder)-2] {
+		finished = append(finished, ResearchProjectID(rung))
+	}
+	listed := append(append([]ResearchProjectID{}, finished...), "ChargedShot")
+	// Without Odyssey the census does not list BeamWeapons: the ladder
+	// ends at ChargedShot, then has no target and no stall on an unlisted rung.
+	facts := domain.Known(ResearchFacts{Projects: listed, Finished: finished})
+	if target, _ := ResearchConcern(p, nil, facts); target != "ChargedShot" {
+		t.Fatal("charged shot target", target)
+	}
+	finished = append(finished, "ChargedShot")
+	facts = domain.Known(ResearchFacts{Projects: listed, Finished: finished})
+	if target, _ := ResearchConcern(p, nil, facts); target != "" {
+		t.Fatal("beam weapons walked without Odyssey", target)
+	}
+	// With Odyssey it is listed and walked next, its prerequisite chain queued.
+	listed = append(listed, "BeamWeapons")
+	facts = domain.Known(ResearchFacts{Projects: listed, Finished: finished})
+	if target, _ := ResearchConcern(p, nil, facts); target != "BeamWeapons" {
+		t.Fatal("beam weapons target", target)
+	}
+	projects := map[ResearchProjectID]ResearchProjectFacts{
+		"Gunsmithing": researchProject("Gunsmithing", nil, nil),
+		"ChargedShot": researchProject("ChargedShot", []ResearchProjectID{"Gunsmithing"}, nil),
+		"BeamWeapons": researchProject("BeamWeapons", []ResearchProjectID{"ChargedShot"}, nil),
+	}
+	queue, err := ResearchPrerequisiteQueue(projects, nil, []ResearchProjectID{"BeamWeapons"})
+	if err != nil || len(queue) != 3 || queue[0] != "Gunsmithing" || queue[2] != "BeamWeapons" {
+		t.Fatal(queue, err)
+	}
+}
+
 func TestResearchBenchNeededIsTheOnlyLock(t *testing.T) {
 	if ResearchBenchNeeded(ResearchProjectFacts{}) {
 		t.Fatal("a project that can start needs no bench")
