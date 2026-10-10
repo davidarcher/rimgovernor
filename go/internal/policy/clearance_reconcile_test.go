@@ -205,3 +205,27 @@ func TestPlannedGroundStepLeavesTheStandInBed(t *testing.T) {
 		t.Fatal(work)
 	}
 }
+
+// A barn's animal spots are the herd owner's: while the barn's ring is still
+// unfinished the clear side must not deconstruct a spot the owner just built
+// (the placed-then-removed churn), but still clears other furniture.
+func TestPlannedGroundStepLeavesTheBarnsOwnSpots(t *testing.T) {
+	plan := herdTestPlan(t, 6)
+	barn := plan.HerdRooms(PlannedBarn)[0]
+	rooms := RoomObservation{Shapes: testShapes}
+	spotDef := testFurniture.AnimalSpot
+	cell := domain.Cell{X: barn.Interior.X, Z: barn.Interior.Z}
+	spot := playerRow("spot", spotDef, "other", cell, cell, false)
+	table := playerRow("table", "Table", "other", domain.Cell{X: cell.X + 1, Z: cell.Z}, domain.Cell{X: cell.X + 1, Z: cell.Z}, false)
+	step, ok := PlannedGroundStep(plan, GroundCensus{}, []ClearanceTarget{spot, table}, nil, rooms, RetiredGroundOf(plan), wantsAll)
+	if !ok || len(step.Targets) != 1 || step.Targets[0].EntityID != "table" {
+		t.Fatalf("only the foreign furniture comes down: %+v", step)
+	}
+	if step, ok = PlannedGroundStep(plan, GroundCensus{}, []ClearanceTarget{spot}, nil, rooms, RetiredGroundOf(plan), wantsAll); ok {
+		for _, target := range step.Targets {
+			if target.EntityID == "spot" {
+				t.Fatalf("the barn's own spot is cleared: %+v", step)
+			}
+		}
+	}
+}

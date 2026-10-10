@@ -40,11 +40,31 @@ type clearedRoom struct {
 func reconcileGround(plan LayoutPlan, g GroundCensus, rows []ClearanceTarget, floors []ClearanceFloor, rooms RoomObservation, wants RoomFloors) []clearedRoom {
 	var out []clearedRoom
 	for _, r := range plan.groundRooms(g) {
-		in := ReconcileInput{Plan: plan, Room: r, Ground: g, Rows: rows, Floors: floors, Rooms: rooms}
+		in := ReconcileInput{Plan: plan, Room: r, Ground: g, Rows: herdOwnFurnitureLeft(r, rows, rooms.Shapes.Furniture), Floors: floors, Rooms: rooms}
 		if wants != nil {
 			in.WantedFloor, in.FloorKept = wants(r)
 		}
 		out = append(out, clearedRoom{r, Reconcile(in)})
+	}
+	return out
+}
+
+// herdOwnFurnitureLeft is rows without the animal beds and the heater standing
+// in a barn or vet room's interior. The herd owner builds those beside the
+// ring (its template is not the clear side's), so while the ring differs from
+// the plan the clear side would deconstruct each one as it is finished and the
+// owner would place it again.
+func herdOwnFurnitureLeft(room PlannedRoom, rows []ClearanceTarget, f RoomFurniture) []ClearanceTarget {
+	if room.Role != PlannedBarn && room.Role != PlannedVetRoom {
+		return rows
+	}
+	var out []ClearanceTarget
+	for _, row := range rows {
+		own := row.DefName != "" && (row.DefName == f.AnimalSpot || row.DefName == f.AnimalBed || row.DefName == f.Heater)
+		if own && rectInside(room.Interior, Rectangle{X: row.Minimum.X, Z: row.Minimum.Z, Width: row.Maximum.X - row.Minimum.X + 1, Height: row.Maximum.Z - row.Minimum.Z + 1}) {
+			continue
+		}
+		out = append(out, row)
 	}
 	return out
 }
