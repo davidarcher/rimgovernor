@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -13,19 +14,33 @@ import (
 
 type xmlSparringDef struct {
 	DefName string   `xml:"defName"`
+	Name    string   `xml:"Name,attr"`
+	Parent  string   `xml:"ParentName,attr"`
 	Trade   string   `xml:"tradeability"`
 	Recipes string   `xml:"recipeMaker"`
 	Tags    string   `xml:"weaponTags"`
 	Verbs   []string `xml:"verbs>li>verbClass"`
-	Tools   []struct {
+	// Practice apparel (#2706) fields.
+	Categories []string `xml:"thingCategories>li"`
+	Mass       string   `xml:"statBases>Mass"`
+	Sharp      string   `xml:"statBases>ArmorRating_Sharp"`
+	Blunt      string   `xml:"statBases>ArmorRating_Blunt"`
+	Wear       struct {
+		Groups []string `xml:"bodyPartGroups>li"`
+		Layers []string `xml:"layers>li"`
+		Tags   []string `xml:"tags>li"`
+		Outfit []string `xml:"defaultOutfitTags>li"`
+	} `xml:"apparel"`
+	Tools []struct {
 		Capacities []string `xml:"capacities>li"`
 		Power      string   `xml:"power"`
 	} `xml:"tools>li"`
 	Extensions []struct {
-		Class   string `xml:"Class,attr"`
-		Tier    string `xml:"tier"`
-		Ceiling string `xml:"skillCeiling"`
-		Gate    string `xml:"gateResearch"`
+		Class   string   `xml:"Class,attr"`
+		Tier    string   `xml:"tier"`
+		Ceiling string   `xml:"skillCeiling"`
+		Gate    string   `xml:"gateResearch"`
+		Apparel []string `xml:"apparel>li"`
 	} `xml:"modExtensions>li"`
 }
 
@@ -44,6 +59,9 @@ func readSparringDefs(t *testing.T) map[string]xmlSparringDef {
 	}
 	out := map[string]xmlSparringDef{}
 	for _, d := range doc.Things {
+		if d.DefName == "" {
+			d.DefName = d.Name
+		}
 		out[d.DefName] = d
 	}
 	return out
@@ -54,8 +72,14 @@ func readSparringDefs(t *testing.T) map[string]xmlSparringDef {
 // be crafted, traded or tagged.
 func TestSparringTiersMirrorTheNativeWeaponDefs(t *testing.T) {
 	defs := readSparringDefs(t)
-	if len(defs) != len(SparringTiers) {
-		t.Fatalf("%d sparring defs, %d Go rows", len(defs), len(SparringTiers))
+	weapons := 0
+	for _, d := range defs {
+		if len(d.Extensions) > 0 {
+			weapons++
+		}
+	}
+	if weapons != len(SparringTiers) {
+		t.Fatalf("%d sparring weapon defs, %d Go rows", weapons, len(SparringTiers))
 	}
 	for i, want := range SparringTiers {
 		d, ok := defs[want.Weapon]
@@ -82,6 +106,79 @@ func TestSparringTiersMirrorTheNativeWeaponDefs(t *testing.T) {
 		}
 		if d.Trade != "None" || d.Recipes != "" || d.Tags != "" {
 			t.Fatal("weapon is craftable, tradeable or tagged", want.Weapon)
+		}
+	}
+}
+
+// The practice apparel (#2706): each tier's set is the Go row's list, every piece
+// is untradeable, uncraftable and untagged (so no outfit or optimizer reaches it),
+// and the set wears together without leaving a pawn nude. Core has no Hands layer,
+// so gloves share Middle with the vest; they must not share a body-part group.
+func TestSparringApparelMirrorsTheNativeDefs(t *testing.T) {
+	defs := readSparringDefs(t)
+	type piece struct {
+		groups, layer, sharp, blunt string
+	}
+	want := map[string]piece{
+		practiceTunic:  {"Torso,Legs", "OnSkin", "", ""},
+		practiceHelmet: {"FullHead", "Overhead", "1", "1"},
+		practiceGloves: {"Hands", "Middle", "1", "1"},
+		practiceVest:   {"Torso", "Middle", "0.3", "0.2"},
+	}
+	for i, tier := range SparringTiers {
+		e := defs[tier.Weapon].Extensions[0]
+		if !slices.Equal(e.Apparel, tier.Apparel) {
+			t.Fatalf("%s apparel drifted: xml %v, go %v", tier.Weapon, e.Apparel, tier.Apparel)
+		}
+		if !slices.Contains(tier.Apparel, practiceTunic) {
+			t.Fatal("tier lacks the tunic, so a swapped pawn would be nude", i)
+		}
+		if slices.Contains(tier.Apparel, practiceHelmet) != (i >= 1) ||
+			slices.Contains(tier.Apparel, practiceGloves) != (i >= 1) ||
+			slices.Contains(tier.Apparel, practiceVest) != (i >= 2) {
+			t.Fatal("helmet and gloves from tier 1, vest from tier 2", i)
+		}
+		seen := map[string]string{} // layer/group -> piece
+		for _, name := range tier.Apparel {
+			d, ok := defs[name]
+			if !ok {
+				t.Fatal("apparel def missing from the native mod", name)
+			}
+			// Mass and tradeability come from the abstract practice base.
+			if base, ok := defs[d.Parent]; ok {
+				d.Mass, d.Trade = base.Mass, base.Trade
+			}
+			w := want[name]
+			if got := strings.Join(d.Wear.Groups, ","); got != w.groups {
+				t.Fatalf("%s covers %s, want %s", name, got, w.groups)
+			}
+			if len(d.Wear.Layers) != 1 || d.Wear.Layers[0] != w.layer {
+				t.Fatal("wrong layer", name, d.Wear.Layers)
+			}
+			if d.Sharp != w.sharp || d.Blunt != w.blunt {
+				t.Fatalf("%s armor drifted: sharp %q blunt %q", name, d.Sharp, d.Blunt)
+			}
+			if mass, _ := strconv.ParseFloat(d.Mass, 64); mass <= 0 || mass > 1 {
+				t.Fatal("practice apparel is about a kilogram", name, d.Mass)
+			}
+			if d.Trade != "None" || d.Recipes != "" || len(d.Categories) != 0 || len(d.Wear.Tags) != 0 || len(d.Wear.Outfit) != 0 {
+				t.Fatal("apparel is craftable, tradeable, categorized or tagged", name)
+			}
+			for _, g := range d.Wear.Groups {
+				key := d.Wear.Layers[0] + "/" + g
+				if other, clash := seen[key]; clash {
+					t.Fatalf("%s and %s share %s and cannot be worn together", name, other, key)
+				}
+				seen[key] = name
+			}
+		}
+		var torso, legs bool
+		for _, name := range tier.Apparel {
+			torso = torso || slices.Contains(defs[name].Wear.Groups, "Torso")
+			legs = legs || slices.Contains(defs[name].Wear.Groups, "Legs")
+		}
+		if !torso || !legs {
+			t.Fatal("PsychologicallyNude needs a Torso and a Legs piece", i)
 		}
 	}
 }

@@ -22,15 +22,29 @@ type SparringTier struct {
 	Ceiling int
 	// Gate is the research project that unlocks the tier; empty means none.
 	Gate string
+	// Apparel is the practice apparel issued with the weapon, by def name: the
+	// tunic always, helmet and gloves at the sharp tiers, a padded vest from tier 2.
+	Apparel []string
 }
+
+const (
+	practiceTunic  = "Apparel_PracticeTunic"
+	practiceHelmet = "Apparel_PracticeHelmet"
+	practiceGloves = "Apparel_PracticeGloves"
+	practiceVest   = "Apparel_PracticeVest"
+)
 
 // SparringTiers is the ladder, tier 0 first. The power numbers are tuned by the
 // lab case (#2711).
 var SparringTiers = []SparringTier{
-	{Weapon: "MeleeWeapon_PracticeClub", DamageType: "Blunt", Power: 3, Ceiling: 8},
-	{Weapon: "MeleeWeapon_PracticeSword", DamageType: "Cut", Power: 5, Ceiling: 12, Gate: "Smithing"},
-	{Weapon: "MeleeWeapon_PracticeSwordBetter", DamageType: "Cut", Power: 5, Ceiling: 16, Gate: "Machining"},
-	{Weapon: "MeleeWeapon_PracticeSwordBest", DamageType: "Cut", Power: 5, Ceiling: 20, Gate: "Fabrication"},
+	{Weapon: "MeleeWeapon_PracticeClub", DamageType: "Blunt", Power: 3, Ceiling: 8,
+		Apparel: []string{practiceTunic}},
+	{Weapon: "MeleeWeapon_PracticeSword", DamageType: "Cut", Power: 5, Ceiling: 12, Gate: "Smithing",
+		Apparel: []string{practiceTunic, practiceHelmet, practiceGloves}},
+	{Weapon: "MeleeWeapon_PracticeSwordBetter", DamageType: "Cut", Power: 5, Ceiling: 16, Gate: "Machining",
+		Apparel: []string{practiceTunic, practiceHelmet, practiceGloves, practiceVest}},
+	{Weapon: "MeleeWeapon_PracticeSwordBest", DamageType: "Cut", Power: 5, Ceiling: 20, Gate: "Fabrication",
+		Apparel: []string{practiceTunic, practiceHelmet, practiceGloves, practiceVest}},
 }
 
 // UnlockedSparringTier is the best tier whose gate research is finished; tier 0

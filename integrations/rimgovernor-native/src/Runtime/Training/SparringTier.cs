@@ -19,6 +19,9 @@ namespace RimGovernor.Runtime
         // Research project that unlocks the tier; empty means none. A name, not a
         // reference, so a project the game lacks never unlocks (as Go's census).
         public string gateResearch = "";
+        // Practice apparel (#2706) the spar job issues with the weapon, by def
+        // name: the set a tier's swap puts on (the swap itself is #2709).
+        public List<string> apparel = new List<string>();
     }
 
     // Melee mirror of RangeTraining's tier selection (UnlockedSparringTier in
