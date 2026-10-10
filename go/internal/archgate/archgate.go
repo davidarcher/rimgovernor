@@ -1,4 +1,4 @@
-// Package archgate holds the mechanical architecture gates (#2497, rules 1-5 of
+// Package archgate holds the mechanical architecture gates (#2497, rules 1-6 of
 // docs/developers/architecture/rules.md). Each rule is a function over a Go
 // module root (the go/ directory) that returns violation keys; the test
 // compares them with the checked-in baseline under baseline/, which may only
@@ -113,10 +113,21 @@ func Compare(rule int, msg string, got []string, base map[string]bool) []string 
 			out = append(out, fmt.Sprintf("arch rule %d: baseline entry no longer occurs, delete it from baseline/rule%d.txt: %s", rule, rule, v))
 		}
 	}
-	if len(base) > 200 {
-		out = append(out, fmt.Sprintf("arch rule %d: baseline has %d entries (>200), stop and review the rule", rule, len(base)))
+	if limit := baselineCap(rule); len(base) > limit {
+		out = append(out, fmt.Sprintf("arch rule %d: baseline has %d entries (>%d), stop and review the rule", rule, len(base), limit))
 	}
 	return out
+}
+
+// baselineCap is the most entries a baseline may hold before the rule needs
+// review: 200, except rule 6. Rule 6 baselines every def-name and game-constant
+// literal that predates the gate (#2649), which outnumbers any other rule's
+// legacy; the cap is set just above today's count, so it only guards growth.
+func baselineCap(rule int) int {
+	if rule == 6 {
+		return 450
+	}
+	return 200
 }
 
 // Layers is the rule 1 order, lowest first. cmd sits above all of them.

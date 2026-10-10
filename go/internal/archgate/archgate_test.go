@@ -33,6 +33,7 @@ var gates = []struct {
 	{3, "exported type has more than one owner among domain, policy, bridge, observation", Rule3},
 	{4, "empty `if err != nil` swallows the error", Rule4},
 	{5, "literal resource cap or sentinel standing for unknown", Rule5},
+	{6, "quoted game def name or retyped game constant (read the catalog, or register a judgment table in policy.DefTables)", Rule6},
 }
 
 func TestGatesHoldOnMain(t *testing.T) {

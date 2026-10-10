@@ -214,7 +214,9 @@ internal sealed class Generator
     // outside the def rows. "const" is a const or static readonly scalar or enum
     // and "curve" a static SimpleCurve, both in the gameplay namespaces of
     // Assembly-CSharp; "unsaved" is an [Unsaved] data field (not runtime state)
-    // declared by a Verse.Def class. Columns: kind, declaring class, member.
+    // declared by a Verse.Def class; "defof" is a static field of a *DefOf class,
+    // whose name is the def name the game itself looks up (archgate rule 6).
+    // Columns: kind, declaring class, member.
     public string Report()
     {
         var assemblies = Prepare();
@@ -226,6 +228,11 @@ internal sealed class Generator
             foreach (var f in type.GetFields(all).OrderBy(f => f.MetadataToken))
             {
                 if (f.Name.Contains('<')) continue;
+                if (f.IsStatic && type.Name.EndsWith("DefOf", StringComparison.Ordinal))
+                {
+                    sb.Append($"defof\t{type.FullName}\t{f.Name}\n");
+                    continue;
+                }
                 if (f.IsStatic && ConstantNamespaces.Contains(type.Namespace ?? ""))
                 {
                     if (f.FieldType.FullName == "Verse.SimpleCurve") sb.Append($"curve\t{type.FullName}\t{f.Name}\n");

@@ -50,7 +50,7 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
 - Before adding a fallback, retry, cache, wrapper or parallel path, check whether
   removing an earlier layer solves the problem. New behavior must trace to the
   task or issue; identify assumptions. Review orchestration, shared demand and
-  unknown handling against rules 6–8.
+  unknown handling against rules 7–9.
 - State has one owner: [persistence table](docs/developers/contracts/persistence-contracts.md).
   Amend that table before adding a store or second copy. Game intent lives in the
   save, the session journal in SQLite, derived state in memory, telemetry in
@@ -106,5 +106,5 @@ Do not file issues merely for unverified coverage. Read issues from `go/` with
 `go run ./cmd/issue -last <n> <issue>` (flags first); remote agents use GitHub
 MCP when the CLI is unavailable. Put ongoing issue status in comments.
 
-Landing reports state the result, verification, rules 6–8 review and
+Landing reports state the result, verification, rules 7–9 review and
 `Complexity: added X / removed Y / deletion candidate: Z` (use `none` as needed).
