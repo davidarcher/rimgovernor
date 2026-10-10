@@ -157,14 +157,14 @@ func InstalledParts(h *o.PawnHealth, catalog *DefinitionCatalog) (domain.Fact[[]
 		if err != nil {
 			return domain.Unknown[[]policy.InstalledPart](), err
 		}
-		row := policy.InstalledPart{
+		item, err := catalog.HediffSpawnOnRemoved(p.GetDefinition().GetDefName())
+		if err != nil {
+			return domain.Unknown[[]policy.InstalledPart](), err
+		}
+		rows = append(rows, policy.InstalledPart{
 			Hediff: p.GetDefinition().GetDefName(), Part: surgeryFact(p.PartDefName), PartIndex: surgeryInt(p.PartIndex),
-			Tier: tier,
-		}
-		if p.SpawnThingDefName != nil {
-			row.Item = domain.Known(policy.Resource(p.GetSpawnThingDefName()))
-		}
-		rows = append(rows, row)
+			Tier: tier, Item: item,
+		})
 	}
 	return domain.Known(rows), nil
 }

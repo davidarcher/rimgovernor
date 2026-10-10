@@ -39,6 +39,14 @@ Static and mixed findings, grouped into one child issue each (all labelled `area
 | #2656 | Health, royalty, psycast, prisoner and site-part flags | `HediffDef`, `RoyalTitleDef`, `AbilityDef`, `PrisonerInteractionModeDef`, `SitePartDef` |
 | #2657 | Label, enum and catalog echoes | `XDef.label`, `defs.proto` enums, `DefSets` |
 
+### #2656 disposition
+
+Deleted (Go reads the `HediffDef` row by `Hediff.def_name` / `InstalledPart.definition`): `Hediff.part_label`, `Hediff.severity_label`, `Hediff.bad` (`HediffDef.isBad`, `DefinitionCatalog.HediffBad`) and `InstalledPart.spawn_thing_def_name` (`HediffDef.spawnThingOnRemoved`, `DefinitionCatalog.HediffSpawnOnRemoved`).
+
+Kept, reason recorded: `MissingBodyPart.vital` and `SurgeryOperation` kind, yields and market values are computed by vanilla surgery workers (`GetPartsToApplyOn`, harvest value of the live part), so they are game-method output, not a def copy.
+
+Still open under #2656 (def copies not yet retired): `RoyalTitleFacts`, `BedroomThingRequirement`, `ApparelRequirementFact`, `PawnPolicyInputs.title_apparel`, `PawnPsycast`, `NeuroformerStock`, `BiomeDef.diseases` in `NativePolicyFacts.cs`, prisoner `SupportedInteractions`, `NativeTeamPolicy.cs` trait degrees, `NativeSiteSecurity.ClosedPart/LoadedGroundPart`, `BuildingSettings.flickable/maximum_assigned_pawns` and `BuildingServiceState.allowed_fuel_defs`.
+
 Out of scope and unchanged: files classed state or code, and the excluded Biotech, Anomaly, Odyssey and Race items (#2630, #2631, #2632).
 
 ## Native files
@@ -149,7 +157,7 @@ Out of scope and unchanged: files classed state or code, and the excluded Biotec
 | NativeOperationTools.cs | 83 | code | Per-game operation state ledger holder and zone preview and receipt lookup tool entry points. |  |  |
 | NativeOrderDanger.cs | 16 | static | One constant: Danger.Deadly used for forced-order reach checks. | OrderDanger = Danger.Deadly | GameConstants (#2626): the Danger level vanilla float menu passes to CanReach |
 | NativePawnControlObservation.cs | 35 | state | Attaches the native pawn control snapshot ref (or an issue) to a pawn row. |  |  |
-| NativePawnDetails.cs | 655 | mixed | Builds per-pawn needs, health, surgery options, gear, biography, settings, social and animal rows from live pawn state; surgery success chance and tend gates are game-method code. | Hediff.Bad=def.isBad; BodyPart Vital=part.def.tags.vital; InstalledPart.SpawnThingDefName and Harvest/Yield MarketValue copy def.spawnThingOnRemoved and BaseMarketValue; SingleWorkTags enum list (WorkTags flags); TendRows=64 const (bot bound, not game) | HediffDef.isBad; BodyPartDef.tags -> BodyPartTagDef.vital; HediffDef.spawnThingOnRemoved + ThingDef.statBases MarketValue; WorkTags enum -> GameConstants |
+| NativePawnDetails.cs | 655 | mixed | Builds per-pawn needs, health, surgery options, gear, biography, settings, social and animal rows from live pawn state; surgery success chance and tend gates are game-method code. | BodyPart Vital=part.def.tags.vital and Harvest/Yield MarketValue copy def tags and BaseMarketValue (kept, see #2656 disposition); SingleWorkTags enum list (WorkTags flags); TendRows=64 const (bot bound, not game) | HediffDef.isBad; BodyPartDef.tags -> BodyPartTagDef.vital; HediffDef.spawnThingOnRemoved + ThingDef.statBases MarketValue; WorkTags enum -> GameConstants |
 | NativePawnObservationTools.cs | 230 | state | ListPawns tool plus the core pawn row builder (position, hostility, standing, nearest colonist, job target). |  |  |
 | NativePawnRoyalty.cs | 90 | mixed | Emits a colonist royalty block: holdings, permit cooldowns, psycasts and psyfocus/entropy. | Psycast(): level, PsyfocusCost, EntropyGain, CooldownTicks (cooldownTicksRange.max), TargetKind derived from verbProperties.targetParams | AbilityDef.level; AbilityDef.cooldownTicksRange; AbilityDef.psyfocusCostRange; AbilityDef.verbProperties.targetParams (canTarget* flags); entropy gain from AbilityDef.comps (Go rule over rows) |
 | NativePawnSettings.cs | 494 | state | Applies PawnSettingsIntent: nickname, medical care, hostility, self-tend, policies, medicine carry, mech mode, permit, bioferrite flag. | Medicine carry range uses InventoryStockGroupDefOf.Medicine min/max; permit checks read RoyalTitlePermitDef minTitle/prerequisite/permitPointCost | InventoryStockGroupDef.min/max (range check in Go from rows); RoyalTitlePermitDef.permitPointCost/minTitle/prerequisite |
@@ -284,11 +292,11 @@ Out of scope and unchanged: files classed state or code, and the excluded Biotec
 | Amount | message | 206 | 2 | state | Def name with amount |  |  |
 | JobEvidence | message | 207 | 12 | state | Pawn current job def load id target and priority |  |  |
 | PawnNeeds | message | 225 | 13 | mixed | Pawn need levels hunger category break risk thresholds | break_threshold_minor; break_threshold_major; break_threshold_extreme | Pawn-computed (traits genes) so effectively code; MentalBreakDef thresholds only the base |
-| Hediff | message | 235 | 20 | mixed | One health condition on a pawn with severity tend and immunity state | part_label; bad; severity_label | part_label: BodyPartDef.label; bad: HediffDef.isBad; severity_label: HediffDef.stages HediffStage.label by severity |
+| Hediff | message | 235 | 17 | state | One health condition on a pawn with severity tend and immunity state (label, part label, isBad read from the catalog row, #2656) |  |  |
 | Capacity | message | 246 | 3 | state | Pawn capacity level |  |  |
 | SurgeryBill | message | 247 | 4 | state | Queued surgery bill on a pawn |  |  |
 | PawnHealth | message | 248 | 22 | state | Pawn health summary conditions capacities hediffs and surgery facts |  |  |
-| InstalledPart | message | 267 | 4 | mixed | Installed added part | spawn_thing_def_name | HediffDef.spawnThingOnRemoved |
+| InstalledPart | message | 267 | 3 | state | Installed added part (the item it leaves is HediffDef.spawnThingOnRemoved from the catalog, #2656) |  |  |
 | MissingBodyPart | message | 269 | 5 | mixed | Missing body part at its common ancestor | part_def_name; parent_index; parent_def_name; vital | BodyDef BodyPartRecord tree (def and parent per index); vital: BodyPartDef.tags BodyPartTagDef.vital |
 | SurgeryKind | enum | 270 | 7 | code | Tag classifying a surgery recipe |  | Go rule over RecipeDef (addsHediff removesHediff workerClass) |
 | SurgeryOperation | message | 283 | 16 | mixed | Available operation on one part with success chance and market values | kind; yield_market_value; yield_thing_def; medicine_market_value (base value) | kind: Go rule over RecipeDef; yield_thing_def: HediffDef.spawnThingOnRemoved; yield_market_value and medicine_market_value: ThingDef.statBases MarketValue x count |

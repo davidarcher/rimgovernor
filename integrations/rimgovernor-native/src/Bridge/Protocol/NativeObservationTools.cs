@@ -292,8 +292,8 @@ namespace HomeBridge.BridgeTools
                 health.Bleeding=health.BleedRatePerDay>0;
                 if(detail) {
                     foreach(var h in pawn.health.hediffSet.hediffs) {
-                        var condition=new Obs.Hediff { DefName=Identifier(h.def.defName), Severity=Finite(h.Severity), SeverityLabel=Diagnostic(h.SeverityLabel??""), Visible=h.Visible };
-                        if(h.Part != null) { condition.PartDefName=Identifier(h.Part.def.defName); condition.PartLabel=Diagnostic(h.Part.LabelCap); condition.PartIndex=pawn.RaceProps.body.AllParts.IndexOf(h.Part); }
+                        var condition=new Obs.Hediff { DefName=Identifier(h.def.defName), Severity=Finite(h.Severity), Visible=h.Visible };
+                        if(h.Part != null) { condition.PartDefName=Identifier(h.Part.def.defName); condition.PartIndex=pawn.RaceProps.body.AllParts.IndexOf(h.Part); }
                         health.Hediffs.Add(condition);
                     }
                     health.HediffCompleteness=Complete(health.Hediffs.Count);

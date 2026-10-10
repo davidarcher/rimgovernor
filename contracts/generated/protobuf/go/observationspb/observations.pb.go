@@ -4066,12 +4066,9 @@ type Hediff struct {
 	// The HediffDef is the catalog row by def_name; its label is the row's.
 	DefName            *string  `protobuf:"bytes,21,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
 	PartDefName        *string  `protobuf:"bytes,2,opt,name=part_def_name,json=partDefName,proto3,oneof" json:"part_def_name,omitempty"`
-	PartLabel          *string  `protobuf:"bytes,3,opt,name=part_label,json=partLabel,proto3,oneof" json:"part_label,omitempty"`
 	PartIndex          *int32   `protobuf:"varint,4,opt,name=part_index,json=partIndex,proto3,oneof" json:"part_index,omitempty"`
 	Severity           *float64 `protobuf:"fixed64,5,opt,name=severity,proto3,oneof" json:"severity,omitempty"`
-	SeverityLabel      *string  `protobuf:"bytes,6,opt,name=severity_label,json=severityLabel,proto3,oneof" json:"severity_label,omitempty"`
 	Visible            *bool    `protobuf:"varint,7,opt,name=visible,proto3,oneof" json:"visible,omitempty"`
-	Bad                *bool    `protobuf:"varint,8,opt,name=bad,proto3,oneof" json:"bad,omitempty"`
 	Permanent          *bool    `protobuf:"varint,9,opt,name=permanent,proto3,oneof" json:"permanent,omitempty"`
 	LifeThreatening    *bool    `protobuf:"varint,10,opt,name=life_threatening,json=lifeThreatening,proto3,oneof" json:"life_threatening,omitempty"`
 	TendableNow        *bool    `protobuf:"varint,11,opt,name=tendable_now,json=tendableNow,proto3,oneof" json:"tendable_now,omitempty"`
@@ -4133,13 +4130,6 @@ func (x *Hediff) GetPartDefName() string {
 	return ""
 }
 
-func (x *Hediff) GetPartLabel() string {
-	if x != nil && x.PartLabel != nil {
-		return *x.PartLabel
-	}
-	return ""
-}
-
 func (x *Hediff) GetPartIndex() int32 {
 	if x != nil && x.PartIndex != nil {
 		return *x.PartIndex
@@ -4154,23 +4144,9 @@ func (x *Hediff) GetSeverity() float64 {
 	return 0
 }
 
-func (x *Hediff) GetSeverityLabel() string {
-	if x != nil && x.SeverityLabel != nil {
-		return *x.SeverityLabel
-	}
-	return ""
-}
-
 func (x *Hediff) GetVisible() bool {
 	if x != nil && x.Visible != nil {
 		return *x.Visible
-	}
-	return false
-}
-
-func (x *Hediff) GetBad() bool {
-	if x != nil && x.Bad != nil {
-		return *x.Bad
 	}
 	return false
 }
@@ -4604,16 +4580,14 @@ func (x *PawnHealth) GetInstalledParts() []*InstalledPart {
 }
 
 // One installed added part (bionic, prosthetic, peg, archotech). definition is
-// the hediff def; spawn_thing_def_name is its spawnThingOnRemoved, absent when
-// the part spawns nothing. No price rides the wire.
+// the hediff def; the part item it leaves on removal is that def's spawnThingOnRemoved row.
 type InstalledPart struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	Definition        *DefinitionRef         `protobuf:"bytes,1,opt,name=definition,proto3" json:"definition,omitempty"`
-	PartDefName       *string                `protobuf:"bytes,2,opt,name=part_def_name,json=partDefName,proto3,oneof" json:"part_def_name,omitempty"`
-	PartIndex         *int32                 `protobuf:"varint,3,opt,name=part_index,json=partIndex,proto3,oneof" json:"part_index,omitempty"`
-	SpawnThingDefName *string                `protobuf:"bytes,4,opt,name=spawn_thing_def_name,json=spawnThingDefName,proto3,oneof" json:"spawn_thing_def_name,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Definition    *DefinitionRef         `protobuf:"bytes,1,opt,name=definition,proto3" json:"definition,omitempty"`
+	PartDefName   *string                `protobuf:"bytes,2,opt,name=part_def_name,json=partDefName,proto3,oneof" json:"part_def_name,omitempty"`
+	PartIndex     *int32                 `protobuf:"varint,3,opt,name=part_index,json=partIndex,proto3,oneof" json:"part_index,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *InstalledPart) Reset() {
@@ -4665,13 +4639,6 @@ func (x *InstalledPart) GetPartIndex() int32 {
 		return *x.PartIndex
 	}
 	return 0
-}
-
-func (x *InstalledPart) GetSpawnThingDefName() string {
-	if x != nil && x.SpawnThingDefName != nil {
-		return *x.SpawnThingDefName
-	}
-	return ""
 }
 
 // A missing or destroyed part at its common missing ancestor; descendants are implied.
@@ -46230,41 +46197,34 @@ const file_observations_proto_rawDesc = "" +
 	"\x18_break_threshold_extremeB\v\n" +
 	"\t_psyfocusB\x12\n" +
 	"\x10_psyfocus_targetB\x10\n" +
-	"\x0e_psylink_level\"\xde\b\n" +
+	"\x0e_psylink_level\"\xcd\a\n" +
 	"\x06Hediff\x12\x1e\n" +
 	"\bdef_name\x18\x15 \x01(\tH\x00R\adefName\x88\x01\x01\x12'\n" +
 	"\rpart_def_name\x18\x02 \x01(\tH\x01R\vpartDefName\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"part_label\x18\x03 \x01(\tH\x02R\tpartLabel\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"part_index\x18\x04 \x01(\x05H\x03R\tpartIndex\x88\x01\x01\x12\x1f\n" +
-	"\bseverity\x18\x05 \x01(\x01H\x04R\bseverity\x88\x01\x01\x12*\n" +
-	"\x0eseverity_label\x18\x06 \x01(\tH\x05R\rseverityLabel\x88\x01\x01\x12\x1d\n" +
-	"\avisible\x18\a \x01(\bH\x06R\avisible\x88\x01\x01\x12\x15\n" +
-	"\x03bad\x18\b \x01(\bH\aR\x03bad\x88\x01\x01\x12!\n" +
-	"\tpermanent\x18\t \x01(\bH\bR\tpermanent\x88\x01\x01\x12.\n" +
+	"part_index\x18\x04 \x01(\x05H\x02R\tpartIndex\x88\x01\x01\x12\x1f\n" +
+	"\bseverity\x18\x05 \x01(\x01H\x03R\bseverity\x88\x01\x01\x12\x1d\n" +
+	"\avisible\x18\a \x01(\bH\x04R\avisible\x88\x01\x01\x12!\n" +
+	"\tpermanent\x18\t \x01(\bH\x05R\tpermanent\x88\x01\x01\x12.\n" +
 	"\x10life_threatening\x18\n" +
-	" \x01(\bH\tR\x0flifeThreatening\x88\x01\x01\x12&\n" +
-	"\ftendable_now\x18\v \x01(\bH\n" +
-	"R\vtendableNow\x88\x01\x01\x12\x1b\n" +
-	"\x06tended\x18\f \x01(\bH\vR\x06tended\x88\x01\x01\x12&\n" +
-	"\ftend_quality\x18\r \x01(\x01H\fR\vtendQuality\x88\x01\x01\x126\n" +
-	"\x15tend_expires_in_ticks\x18\x0e \x01(\x03H\rR\x12tendExpiresInTicks\x88\x01\x01\x120\n" +
-	"\x12next_tend_in_ticks\x18\x0f \x01(\x03H\x0eR\x0fnextTendInTicks\x88\x01\x01\x12%\n" +
-	"\vimmunizable\x18\x10 \x01(\bH\x0fR\vimmunizable\x88\x01\x01\x12\x1f\n" +
-	"\bimmunity\x18\x11 \x01(\x01H\x10R\bimmunity\x88\x01\x01\x12&\n" +
-	"\ffully_immune\x18\x12 \x01(\bH\x11R\vfullyImmune\x88\x01\x01\x12-\n" +
-	"\x10severity_per_day\x18\x13 \x01(\x01H\x12R\x0eseverityPerDay\x88\x01\x01\x12-\n" +
-	"\x10immunity_per_day\x18\x14 \x01(\x01H\x13R\x0eimmunityPerDay\x88\x01\x01B\v\n" +
+	" \x01(\bH\x06R\x0flifeThreatening\x88\x01\x01\x12&\n" +
+	"\ftendable_now\x18\v \x01(\bH\aR\vtendableNow\x88\x01\x01\x12\x1b\n" +
+	"\x06tended\x18\f \x01(\bH\bR\x06tended\x88\x01\x01\x12&\n" +
+	"\ftend_quality\x18\r \x01(\x01H\tR\vtendQuality\x88\x01\x01\x126\n" +
+	"\x15tend_expires_in_ticks\x18\x0e \x01(\x03H\n" +
+	"R\x12tendExpiresInTicks\x88\x01\x01\x120\n" +
+	"\x12next_tend_in_ticks\x18\x0f \x01(\x03H\vR\x0fnextTendInTicks\x88\x01\x01\x12%\n" +
+	"\vimmunizable\x18\x10 \x01(\bH\fR\vimmunizable\x88\x01\x01\x12\x1f\n" +
+	"\bimmunity\x18\x11 \x01(\x01H\rR\bimmunity\x88\x01\x01\x12&\n" +
+	"\ffully_immune\x18\x12 \x01(\bH\x0eR\vfullyImmune\x88\x01\x01\x12-\n" +
+	"\x10severity_per_day\x18\x13 \x01(\x01H\x0fR\x0eseverityPerDay\x88\x01\x01\x12-\n" +
+	"\x10immunity_per_day\x18\x14 \x01(\x01H\x10R\x0eimmunityPerDay\x88\x01\x01B\v\n" +
 	"\t_def_nameB\x10\n" +
 	"\x0e_part_def_nameB\r\n" +
-	"\v_part_labelB\r\n" +
 	"\v_part_indexB\v\n" +
-	"\t_severityB\x11\n" +
-	"\x0f_severity_labelB\n" +
+	"\t_severityB\n" +
 	"\n" +
-	"\b_visibleB\x06\n" +
-	"\x04_badB\f\n" +
+	"\b_visibleB\f\n" +
 	"\n" +
 	"_permanentB\x13\n" +
 	"\x11_life_threateningB\x0f\n" +
@@ -46339,18 +46299,16 @@ const file_observations_proto_rawDesc = "" +
 	"\x15_stable_rest_eligibleB\x1b\n" +
 	"\x19_should_seek_medical_restB\x16\n" +
 	"\x14_urgent_medical_restB\t\n" +
-	"\a_bed_id\"\x98\x02\n" +
+	"\a_bed_id\"\xc9\x01\n" +
 	"\rInstalledPart\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
 	"definition\x12'\n" +
 	"\rpart_def_name\x18\x02 \x01(\tH\x00R\vpartDefName\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"part_index\x18\x03 \x01(\x05H\x01R\tpartIndex\x88\x01\x01\x124\n" +
-	"\x14spawn_thing_def_name\x18\x04 \x01(\tH\x02R\x11spawnThingDefName\x88\x01\x01B\x10\n" +
+	"part_index\x18\x03 \x01(\x05H\x01R\tpartIndex\x88\x01\x01B\x10\n" +
 	"\x0e_part_def_nameB\r\n" +
-	"\v_part_indexB\x17\n" +
-	"\x15_spawn_thing_def_name\"\x9e\x02\n" +
+	"\v_part_index\"\x9e\x02\n" +
 	"\x0fMissingBodyPart\x12\"\n" +
 	"\n" +
 	"part_index\x18\x01 \x01(\x05H\x00R\tpartIndex\x88\x01\x01\x12'\n" +

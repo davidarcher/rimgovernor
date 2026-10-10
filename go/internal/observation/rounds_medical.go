@@ -53,11 +53,20 @@ func roundsMedical(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFact
 			if c != nil && c.GetFiltered() == 0 && h.HiddenHediffs != nil && h.GetHiddenHediffs() == 0 && !hasIssue(h.Issues, "hediffs") {
 				bad, known := false, true
 				for _, condition := range h.Hediffs {
-					if condition == nil || condition.Bad == nil {
+					if condition == nil || condition.DefName == nil {
 						known = false
 						break
 					}
-					bad = bad || condition.GetBad()
+					fact, err := catalog.HediffBad(condition.GetDefName())
+					if err != nil {
+						return unknown, err
+					}
+					isBad, isKnown := fact.Value()
+					if !isKnown {
+						known = false
+						break
+					}
+					bad = bad || isBad
 				}
 				if known {
 					p.BadConditions = domain.Known(bad)

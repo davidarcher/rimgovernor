@@ -117,13 +117,13 @@ namespace HomeBridge.BridgeTools
         // One hediff row of a health read.
         private static Obs.Hediff HediffRow(Pawn pawn,Hediff h,Obs.PawnHealth row)
         {
-                var item=new Obs.Hediff {DefName=Id(h.def.defName),Severity=Number(h.Severity),SeverityLabel=Text(h.SeverityLabel??""),
-                    Visible=h.Visible,Bad=h.def.isBad,Permanent=h.IsPermanent(),LifeThreatening=h.IsCurrentlyLifeThreatening,
+                var item=new Obs.Hediff {DefName=Id(h.def.defName),Severity=Number(h.Severity),
+                    Visible=h.Visible,Permanent=h.IsPermanent(),LifeThreatening=h.IsCurrentlyLifeThreatening,
                     TendableNow=h.TendableNow(false),Tended=h.IsTended()};
                 if(h.Part!=null) {
                     var index=pawn.RaceProps.body.AllParts.IndexOf(h.Part);
                     if(index<0) throw new InvalidOperationException("Hediff body part is not in this pawn's body.");
-                    item.PartIndex=index;item.PartDefName=Id(h.Part.def.defName);item.PartLabel=Text(h.Part.LabelCap);
+                    item.PartIndex=index;item.PartDefName=Id(h.Part.def.defName);
                 }
                 var immune=h.TryGetComp<HediffComp_Immunizable>(); item.Immunizable=immune!=null;
                 if(immune!=null) {
@@ -222,7 +222,6 @@ namespace HomeBridge.BridgeTools
             foreach(var added in pawn.health.hediffSet.hediffs.OfType<Hediff_AddedPart>()) {
                 var installed=new Obs.InstalledPart {Definition=Definition(added.def)};
                 if(added.Part!=null) {installed.PartIndex=parts.IndexOf(added.Part);installed.PartDefName=Id(added.Part.def.defName);}
-                if(added.def.spawnThingOnRemoved!=null) installed.SpawnThingDefName=Id(added.def.spawnThingOnRemoved.defName);
                 row.InstalledParts.Add(installed);
             }
             foreach(var missing in pawn.health.hediffSet.GetMissingPartsCommonAncestors()) {

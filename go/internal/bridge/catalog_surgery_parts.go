@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
@@ -72,6 +73,36 @@ func (catalog *DefinitionCatalog) SeriousBloodLoss() (domain.Fact[float64], erro
 		}
 	}
 	return domain.Unknown[float64](), contract("hediff %s has no %q stage", bloodLossHediff, bloodLossSeriousStage)
+}
+
+// HediffBad is the hediff def's isBad. A nil catalog has none; a hediff with no
+// row is an error.
+func (catalog *DefinitionCatalog) HediffBad(hediff string) (domain.Fact[bool], error) {
+	if catalog == nil {
+		return domain.Unknown[bool](), nil
+	}
+	row := DefRow[*d.HediffDef](catalog, hediff)
+	if row == nil {
+		return domain.Unknown[bool](), contract("catalog has no hediff row for %s", hediff)
+	}
+	return domain.Known(row.GetIsBad()), nil
+}
+
+// HediffSpawnOnRemoved is the item a removed part hediff leaves behind (its
+// spawnThingOnRemoved), unknown when it spawns nothing or the catalog is nil; a
+// hediff with no row is an error.
+func (catalog *DefinitionCatalog) HediffSpawnOnRemoved(hediff string) (domain.Fact[policy.Resource], error) {
+	if catalog == nil {
+		return domain.Unknown[policy.Resource](), nil
+	}
+	row := DefRow[*d.HediffDef](catalog, hediff)
+	if row == nil {
+		return domain.Unknown[policy.Resource](), contract("catalog has no hediff row for %s", hediff)
+	}
+	if row.GetSpawnThingOnRemoved() == "" {
+		return domain.Unknown[policy.Resource](), nil
+	}
+	return domain.Known(policy.Resource(row.GetSpawnThingOnRemoved())), nil
 }
 
 const (
