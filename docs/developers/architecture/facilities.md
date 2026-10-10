@@ -681,6 +681,25 @@ next free slots; nothing moves. `RingTemplate(room)` is one
 `RimGovernor_SparringMarker` (`Defs/ThingDefs/SparringMarker.xml`) per marker.
 What fills `Rings` and the runtime reconcile are later epic #2677 issues.
 
+**Bout formation (#2708, `Runtime/Training/Sparring/`).** `WorkGiver_Spar`
+(`RimGovernorTraining`, job `RimGovernor_Spar`) scans only the marker held for
+the asking pawn. `SparringBouts` is a per-map registry keyed on the `Map` object:
+runtime only, never saved, empty after a load, and a spar job whose bout is gone
+ends Incompletable. The first free eligible pawn to ask forms bouts for every
+free eligible pawn with `SparringFormation.Form` (pure): bouts of 2 to 4, the
+fewest that fit (5 is 3+2), one marker each. Matchmaking is a preference: a bout
+is seeded by the highest Melee left and filled with the nearest levels, those who
+fought the seed last bout after the rest; Melee below 3 only ranks last when
+markers run short. Eligible is an adult colonist, spawned, not downed or drafted,
+violent work enabled, not bleeding, low pain, Melee below `SparringRules.Ceiling`.
+A bout gathers (members walk to markers; one that has not arrived in 900 ticks sits
+out 1500), then fights once two or more have arrived and none more for 120 ticks,
+or a four is full; a pawn that stops being eligible while gathering is dropped.
+Teams: pairs and threes free-for-all, a four 2v2 with the highest beside the lowest.
+`Opponent` is the nearest standing member of another team, lower id on a tie. The
+fight length is a placeholder until #2709's stop rule. `lab/sparring` proves it; "empty after a
+load" holds by construction (the registry is keyed on the `Map`), not by a reload case.
+
 ### Trade goods (MaintainTrade)
 
 Goods made to sell (#2607) need no facility of their own: `MaintainTrade`

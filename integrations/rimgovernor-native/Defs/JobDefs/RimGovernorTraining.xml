@@ -7,4 +7,11 @@
     <reportString>practising archery at the range.</reportString>
     <allowOpportunisticPrefix>false</allowOpportunisticPrefix>
   </JobDef>
+  <!-- A pawn's part in a sparring bout (JobDriver_Spar, #2708). -->
+  <JobDef>
+    <defName>RimGovernor_Spar</defName>
+    <driverClass>RimGovernor.Runtime.JobDriver_Spar</driverClass>
+    <reportString>sparring at the ring.</reportString>
+    <allowOpportunisticPrefix>false</allowOpportunisticPrefix>
+  </JobDef>
 </Defs>

@@ -14,4 +14,18 @@
       <li>Manipulation</li>
     </requiredCapacities>
   </WorkGiverDef>
+  <WorkGiverDef>
+    <defName>RimGovernor_Spar</defName>
+    <label>spar at the ring</label>
+    <giverClass>RimGovernor.Runtime.WorkGiver_Spar</giverClass>
+    <workType>RimGovernorTraining</workType>
+    <priorityInType>5</priorityInType>
+    <verb>spar</verb>
+    <gerund>sparring</gerund>
+    <scanThings>true</scanThings>
+    <directOrderable>false</directOrderable>
+    <requiredCapacities>
+      <li>Manipulation</li>
+    </requiredCapacities>
+  </WorkGiverDef>
 </Defs>
