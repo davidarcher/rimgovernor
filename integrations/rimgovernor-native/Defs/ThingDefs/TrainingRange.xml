@@ -240,7 +240,7 @@
         <tier>1</tier>
         <multiplier>1.5</multiplier>
         <xpPerShot>112</xpPerShot>
-        <skillCeiling>10</skillCeiling>
+        <skillCeiling>12</skillCeiling>
         <gateResearch>Gunsmithing</gateResearch>
       </li>
     </modExtensions>
@@ -296,7 +296,7 @@
         <tier>2</tier>
         <multiplier>2.5</multiplier>
         <xpPerShot>187</xpPerShot>
-        <skillCeiling>12</skillCeiling>
+        <skillCeiling>16</skillCeiling>
         <gateResearch>ChargedShot</gateResearch>
       </li>
     </modExtensions>
@@ -354,7 +354,7 @@
         <tier>3</tier>
         <multiplier>4</multiplier>
         <xpPerShot>300</xpPerShot>
-        <skillCeiling>15</skillCeiling>
+        <skillCeiling>20</skillCeiling>
         <gateResearch>BeamWeapons</gateResearch>
       </li>
     </modExtensions>

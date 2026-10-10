@@ -30,9 +30,9 @@ type TrainingTier struct {
 // cycle, so XP per shot is XP per cycle.
 var TrainingTiers = []TrainingTier{
 	{Weapon: RangeWeaponDef, Projectile: "Arrow_Practice", Multiplier: 1, XPPerShot: 75, Ceiling: 8},
-	{Weapon: "Gun_PracticeRifle", Projectile: "Bullet_PracticeRubber", Multiplier: 1.5, XPPerShot: 112, Ceiling: 10, Gate: "Gunsmithing"},
-	{Weapon: "Gun_PracticePulseRifle", Projectile: "Bullet_PracticePulse", Multiplier: 2.5, XPPerShot: 187, Ceiling: 12, Gate: "ChargedShot"},
-	{Weapon: "Gun_PracticeBeamEmitter", Projectile: "Bullet_PracticeBeam", Multiplier: 4, XPPerShot: 300, Ceiling: 15, Gate: "BeamWeapons"},
+	{Weapon: "Gun_PracticeRifle", Projectile: "Bullet_PracticeRubber", Multiplier: 1.5, XPPerShot: 112, Ceiling: 12, Gate: "Gunsmithing"},
+	{Weapon: "Gun_PracticePulseRifle", Projectile: "Bullet_PracticePulse", Multiplier: 2.5, XPPerShot: 187, Ceiling: 16, Gate: "ChargedShot"},
+	{Weapon: "Gun_PracticeBeamEmitter", Projectile: "Bullet_PracticeBeam", Multiplier: 4, XPPerShot: 300, Ceiling: 20, Gate: "BeamWeapons"},
 }
 
 // UnlockedTrainingTier is the best tier whose gate research is finished; tier 0

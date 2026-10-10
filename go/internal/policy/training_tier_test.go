@@ -132,10 +132,10 @@ func TestUnlockedTrainingTierFollowsFinishedResearch(t *testing.T) {
 		{"unknown census holds at the bow", domain.Unknown[ResearchFacts](), 8},
 		{"nothing finished", known(), 8},
 		{"unrelated research", known("Smithing"), 8},
-		{"gunsmithing", known("Gunsmithing"), 10},
-		{"charged shot outranks gunsmithing", known("Gunsmithing", "ChargedShot"), 12},
-		{"beam weapons is the best", known("Gunsmithing", "ChargedShot", "BeamWeapons"), 15},
-		{"a higher gate alone still unlocks its tier", known("BeamWeapons"), 15},
+		{"gunsmithing", known("Gunsmithing"), 12},
+		{"charged shot outranks gunsmithing", known("Gunsmithing", "ChargedShot"), 16},
+		{"beam weapons is the best", known("Gunsmithing", "ChargedShot", "BeamWeapons"), 20},
+		{"a higher gate alone still unlocks its tier", known("BeamWeapons"), 20},
 	} {
 		if got := UnlockedTrainingTier(tc.research).Ceiling; got != tc.ceiling {
 			t.Errorf("%s: ceiling %d, want %d", tc.name, got, tc.ceiling)
