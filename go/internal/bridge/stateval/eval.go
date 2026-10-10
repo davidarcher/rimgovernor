@@ -55,6 +55,12 @@ type Subject struct {
 	Terrain bool
 	Stuff   string
 	Quality *int32
+	// Context is the live state of a thing request; nil is a definition
+	// request, which has no thing (see StatContext). The thing-side terms of
+	// the base worker are not ported, so the public entry points refuse a
+	// request with a Context; the state-reading parts run through it via
+	// Evaluator.finalize.
+	Context *StatContext
 }
 
 // ThingSubject is the request for a ThingDef made of stuff (empty for none).
@@ -101,6 +107,7 @@ type Part interface {
 // "stateval.<Class>" as its owner in stat_classes.tsv.
 func ownedParts() map[string]Part {
 	parts := []Part{partHyperlinks{}, partQuality{}, partQualityOffset{}, partStuff{}}
+	parts = append(parts, statePartList()...)
 	owned := make(map[string]Part, len(parts))
 	for _, p := range parts {
 		owned[p.Class()] = p
@@ -137,7 +144,7 @@ type Result struct {
 // Evaluate is the game's GetStatValueAbstract and ShouldShowFor of stat for
 // subject. A class no Go function owns is a *bridge.NotMirrored.
 func (e *Evaluator) Evaluate(stat string, subject Subject) (Result, error) {
-	req, err := e.request(stat, subject)
+	req, err := e.publicRequest(stat, subject)
 	if err != nil {
 		return Result{}, err
 	}
@@ -154,7 +161,7 @@ func (e *Evaluator) Evaluate(stat string, subject Subject) (Result, error) {
 
 // Value is StatWorker.GetValue (the final value) of stat for subject.
 func (e *Evaluator) Value(stat string, subject Subject) (float32, error) {
-	req, err := e.request(stat, subject)
+	req, err := e.publicRequest(stat, subject)
 	if err != nil {
 		return 0, err
 	}
@@ -163,11 +170,25 @@ func (e *Evaluator) Value(stat string, subject Subject) (float32, error) {
 
 // ShouldShowFor is StatWorker.ShouldShowFor of stat for subject.
 func (e *Evaluator) ShouldShowFor(stat string, subject Subject) (bool, error) {
-	req, err := e.request(stat, subject)
+	req, err := e.publicRequest(stat, subject)
 	if err != nil {
 		return false, err
 	}
 	return e.shown(req)
+}
+
+// publicRequest is request, refusing a thing request: the base worker's
+// thing-side terms (the thing's comps, statFactors, the pawn's skill, trait
+// and hediff offsets) are not ported, so its value would be wrong.
+func (e *Evaluator) publicRequest(stat string, subject Subject) (*Request, error) {
+	req, err := e.request(stat, subject)
+	if err != nil {
+		return nil, err
+	}
+	if req.Subject.Context != nil {
+		return nil, &bridge.NotMirrored{Class: workerClass(req.Stat), Fact: "GetValueUnfinalized of a thing request"}
+	}
+	return req, nil
 }
 
 func (e *Evaluator) request(stat string, subject Subject) (*Request, error) {
@@ -179,6 +200,9 @@ func (e *Evaluator) request(stat string, subject Subject) (*Request, error) {
 		return nil, fmt.Errorf("catalog has no stat def %s", stat)
 	}
 	req := &Request{Evaluator: e, Stat: def, Subject: subject, Quality: 2}
+	if subject.Context != nil && subject.Terrain {
+		return nil, fmt.Errorf("terrain %s is not a thing: it takes no thing context", subject.Def)
+	}
 	if subject.Terrain {
 		if req.Terrain = e.catalog.TerrainDef(subject.Def); req.Terrain == nil {
 			return nil, fmt.Errorf("catalog has no terrain def %s", subject.Def)
