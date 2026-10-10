@@ -52,7 +52,10 @@ type FacilityLink struct {
 //   - EndTable and Dresser are the Comfort facilities a bed links, the one
 //     that stands beside the bed's head and the one that does not; Cabinet
 //     is the work speed facility a workshop bench links and Monitor the tend
-//     quality facility a medical bed links, each the best offset per cost.
+//     quality facility a medical bed links, each the best offset per cost;
+//   - AdvancedLab is the laboratory bench, besides the default one, that links
+//     a research speed facility, the cheapest when several, and Analyzer the
+//     best such facility it links; both are empty when the catalog has none.
 type RoomFurniture struct {
 	Beds        []FurnitureBed
 	Sarcophagus string
@@ -64,6 +67,9 @@ type RoomFurniture struct {
 	Bench      map[RoomRole]string
 
 	EndTable, Dresser, Cabinet, Monitor FacilityLink
+
+	AdvancedLab string
+	Analyzer    FacilityLink
 }
 
 // slotBeds are the beds of one slot count in preference order.
@@ -163,6 +169,7 @@ func (f RoomFurniture) Definitions() []string {
 	for _, link := range f.Facilities() {
 		out = append(out, link.Def)
 	}
+	out = append(out, f.AdvancedLab, f.Analyzer.Def)
 	out = slices.DeleteFunc(out, func(s string) bool { return s == "" })
 	slices.Sort(out)
 	return slices.Compact(out)
@@ -207,6 +214,14 @@ func (f RoomFurniture) Validate() error {
 		if !check.ok(check.link) {
 			return fmt.Errorf("the interior templates place %s %s as a facility that must %s, its row says otherwise (%+v)", check.what, check.link.Def, check.need, check.link)
 		}
+	}
+	// The advanced lab is optional, but one that names a bench needs the
+	// analyzer the lab template reserves a slot for.
+	if (f.AdvancedLab == "") != (f.Analyzer.Def == "") {
+		return fmt.Errorf("room furniture has advanced lab %q and analyzer %q: both or neither", f.AdvancedLab, f.Analyzer.Def)
+	}
+	if f.Analyzer.Def != "" && (f.Analyzer.Adjacent || f.Analyzer.CardinalToHead || f.Analyzer.MaxDistance <= 0 || f.Analyzer.MaxSimultaneous < 1) {
+		return fmt.Errorf("the lab template places analyzer %s as a facility that links at a distance, its row says otherwise (%+v)", f.Analyzer.Def, f.Analyzer)
 	}
 	return nil
 }

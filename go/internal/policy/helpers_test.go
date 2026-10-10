@@ -39,11 +39,13 @@ var testFurniture = RoomFurniture{
 		{testCoupleBed, 2, false}, {SleepingCoupleBedrollDefinition, 2, false}, {"RoyalBed", 2, false}, {"DoubleSleepingSpot", 2, true},
 	},
 	Sarcophagus: testSarcophagus, Heater: "Heater", AnimalSpot: testAnimalSpot, AnimalBed: testAnimalBed,
-	Bench:    map[RoomRole]string{RoomRoleKitchen: testStove, RoomRoleWorkshop: testWorkshop, RoomRoleLaboratory: testResearch},
-	EndTable: FacilityLink{Def: "EndTable", MaxDistance: 8, MaxSimultaneous: 1, Adjacent: true, CardinalToHead: true},
-	Dresser:  FacilityLink{Def: "Dresser", MaxDistance: 6, MaxSimultaneous: 1},
-	Cabinet:  FacilityLink{Def: "ToolCabinet", MaxDistance: 8, MaxSimultaneous: 2},
-	Monitor:  FacilityLink{Def: "VitalsMonitor", MaxDistance: 8, MaxSimultaneous: 1, Adjacent: true},
+	Bench:       map[RoomRole]string{RoomRoleKitchen: testStove, RoomRoleWorkshop: testWorkshop, RoomRoleLaboratory: testResearch},
+	EndTable:    FacilityLink{Def: "EndTable", MaxDistance: 8, MaxSimultaneous: 1, Adjacent: true, CardinalToHead: true},
+	Dresser:     FacilityLink{Def: "Dresser", MaxDistance: 6, MaxSimultaneous: 1},
+	Cabinet:     FacilityLink{Def: "ToolCabinet", MaxDistance: 8, MaxSimultaneous: 2},
+	Monitor:     FacilityLink{Def: "VitalsMonitor", MaxDistance: 8, MaxSimultaneous: 1, Adjacent: true},
+	AdvancedLab: "HiTechResearchBench",
+	Analyzer:    FacilityLink{Def: "MultiAnalyzer", MaxDistance: 8, MaxSimultaneous: 1},
 }
 
 // testShapes are the Core furniture shapes the interior templates lay out, as
@@ -85,6 +87,7 @@ var testShapes = func() PieceShapes {
 	add("AnimalSleepingSpot", 1, 1, "", nil)
 	add("AnimalBed", 1, 1, "", nil)
 	add("HiTechResearchBench", 5, 2, RoomRoleLaboratory, front)
+	add("MultiAnalyzer", 2, 2, "", nil)
 	return out
 }()
 

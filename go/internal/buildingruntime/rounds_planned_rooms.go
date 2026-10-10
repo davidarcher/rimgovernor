@@ -147,7 +147,7 @@ func (r *RoundsBuildingPlanner) plannedFacilityFurnishing(call, epoch context.Co
 	if r.facility == nil || r.cells != nil || !facilityFurnishingRoles[r.facility.Role] {
 		return r, RoundsBuildingResult{}, false, nil
 	}
-	if r.facility.Role == policy.RoomRoleLaboratory && len(plannedShelterRooms(facts)) > 0 {
+	if r.facility.Role == policy.RoomRoleLaboratory && !r.advancedLab && len(plannedShelterRooms(facts)) > 0 {
 		return r, RoundsBuildingResult{}, false, nil
 	}
 	module, ok := r.roomModule()
@@ -180,7 +180,7 @@ func (r *RoundsBuildingPlanner) takesShelterSlot(facts observation.ColonyProject
 	plan, known := facts.LayoutPlan.Value()
 	switch {
 	case r.facility != nil:
-		return r.facility.Role == policy.RoomRoleLaboratory
+		return r.facility.Role == policy.RoomRoleLaboratory && !r.advancedLab
 	case r.concern == policy.EnsureBasicDefense:
 		return r.definition == craftingSpotDefinition
 	case r.definition == "Campfire":

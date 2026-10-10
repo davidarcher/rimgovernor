@@ -212,10 +212,10 @@ func ResearchConcernTarget(configured string, derived []string, facts domain.Fac
 // operator target nor a workshop need names a project: the early research
 // direction a new colony needs on its own (stone blocks, then power with its
 // storage, geothermal and solar rungs, the medieval crafts, then Machining
-// and simple firearms). Microelectronics is deliberately absent. Rungs the
+// and simple firearms), with Microelectronics and the multi-analyzer after the crafts: the hi-tech bench and analyzer the lab is planned for. Rungs the
 // native census does not list (another mod set) are skipped.
 func DefaultResearchLadder() []string {
-	return []string{"Stonecutting", "Electricity", "Batteries", "GeothermalPower", "SolarPanels", "Smithing", "CarpetMaking", "ComplexClothing", "Machining", "Gunsmithing"}
+	return []string{"Stonecutting", "Electricity", "Batteries", "GeothermalPower", "SolarPanels", "Smithing", "CarpetMaking", "ComplexClothing", "MicroelectronicsBasics", "MultiAnalyzer", "Machining", "Gunsmithing"}
 }
 
 // ResearchGoal resolves the project EnsureResearch pursues and whether it is

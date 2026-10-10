@@ -40,7 +40,7 @@ var coreRoomSize = map[PlannedRole][2]int32{
 	PlannedPrison:   {5, 5},
 	PlannedWorkshop: {7, 5},
 	PlannedStorage:  {15, 7},
-	PlannedLab:      {6, 5},
+	PlannedLab:      {11, 6},
 	PlannedTomb:     {5, 5},
 	PlannedMorgue:   {5, 4},
 	// The rooms below are added on demand (layout_demand_rooms.go,

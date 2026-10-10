@@ -88,6 +88,9 @@ func (s PieceShapes) Validate() error {
 	for _, link := range s.Furniture.Facilities() {
 		wants = append(wants, templatePiece{link.Def, "", false})
 	}
+	if s.Furniture.AdvancedLab != "" {
+		wants = append(wants, templatePiece{s.Furniture.AdvancedLab, RoomRoleLaboratory, true}, templatePiece{s.Furniture.Analyzer.Def, "", false})
+	}
 	wants = append(wants, templatePieces...)
 	for _, w := range wants {
 		shape, ok := s.Defs[w.Def]

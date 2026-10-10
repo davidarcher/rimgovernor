@@ -436,9 +436,9 @@ func DoctorCapable(profiles domain.Fact[[]PawnProfile]) domain.Fact[bool] {
 
 // stageLadderRungs is how many rungs of the research ladder each stage
 // walks: the masonry and power rungs at Foothold, through solar at
-// Reserves, through the medieval crafts at Stable, the whole ladder at
+// Reserves, through the medieval crafts and the multi-analyzer at Stable, the whole ladder at
 // Development.
-var stageLadderRungs = [...]int{2, 5, 8, math.MaxInt}
+var stageLadderRungs = [...]int{2, 5, 10, math.MaxInt}
 
 // StageResearchLadder is the research ladder paced to the stage: its first
 // rungs only, so a colony without reserves researches what its shell and

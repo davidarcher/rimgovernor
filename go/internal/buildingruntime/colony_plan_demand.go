@@ -23,7 +23,9 @@ func coreRoomsWanted(projection observation.ColonyProjection) []policy.PlannedRo
 	want(err == nil && choice.Method == policy.HospitalBuild, policy.PlannedHospital)
 	// No research bench stands yet: the research ladder shells the lab.
 	built, known := policy.ResearchBenchBuilt(projection.Facts.CurrentConstruction).Value()
-	want(known && !built, policy.PlannedLab)
+	// Or the high-tech bench or its analyzer is buildable and owed.
+	_, advanced := advancedLabOwed(projection)
+	want(known && !built || advanced, policy.PlannedLab)
 	want(recRoomWanted(projection), policy.PlannedRec)
 	benches, bk := projection.ButcheringBenches.Value()
 	want(bk && butcherTableWanted(projection, benches), policy.PlannedButchery)

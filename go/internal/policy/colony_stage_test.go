@@ -204,7 +204,7 @@ func TestStageRoundsPolicyBudgets(t *testing.T) {
 	}{
 		{StageFoothold, 2, 5, 350, base.ConcernStallTicks / 4},
 		{StageReserves, 5, 5, 350, base.ConcernStallTicks},
-		{StageStable, 8, 5, 350, base.ConcernStallTicks},
+		{StageStable, 10, 5, 350, base.ConcernStallTicks},
 		{StageDevelopment, len(DefaultResearchLadder()), 5, 350, base.ConcernStallTicks},
 	} {
 		p := StageRoundsPolicy(base, tc.stage)

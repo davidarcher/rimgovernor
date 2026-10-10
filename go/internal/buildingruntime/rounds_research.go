@@ -74,6 +74,15 @@ func NewRoundsResearchPlanner(reviewer *Rounder, native RoundsResearchSource) (*
 // planning census lists it buildable.
 func (r *RoundsBuildingPlanner) selectResearchBench(facts observation.ColonyProjection) (*RoundsBuildingPlanner, Verdict, error) {
 	bench := facts.Shapes.Furniture.BenchFor(policy.RoomRoleLaboratory)
+	if r.advancedLab {
+		// The advanced step builds only what is buildable now: nothing owed is
+		// no deficit, never a missing field.
+		owed, ok := advancedLabOwed(facts)
+		if !ok {
+			return nil, BuildingReasonNoDeficit, nil
+		}
+		bench = owed
+	}
 	var definition *observation.PlanningDefinition
 	for i := range facts.Definitions {
 		if facts.Definitions[i].Name == bench {
@@ -102,14 +111,51 @@ func (r *RoundsBuildingPlanner) selectResearchBench(facts observation.ColonyProj
 	return &resolved, Verdict{}, nil
 }
 
+// advancedLabOwed is the high-tech bench, then its analyzer, whichever is
+// buildable now and not yet standing: the lab's hi-tech width benches and the
+// analyzer slot the planned laboratory reserves (policy.RoomFurniture.AdvancedLab
+// and Analyzer). The analyzer follows the bench because the project that
+// unlocks it requires the bench. False when the catalog has neither, both
+// stand, or the next is not yet buildable.
+func advancedLabOwed(facts observation.ColonyProjection) (string, bool) {
+	furniture := facts.Shapes.Furniture
+	if furniture.AdvancedLab == "" {
+		return "", false
+	}
+	standing := map[string]bool{}
+	for _, c := range facts.Cells {
+		if d := c.PlayerEdifice(); d != "" {
+			standing[d] = true
+		}
+	}
+	next := furniture.AdvancedLab
+	if standing[next] {
+		next = furniture.Analyzer.Def
+	}
+	if standing[next] {
+		return "", false
+	}
+	for _, d := range facts.Definitions {
+		if d.Name == next {
+			available, known := d.Available.Value()
+			if known && available {
+				return next, true
+			}
+			return "", false
+		}
+	}
+	return "", false
+}
+
 // bench walks the building ladder for the research bench, or reports the
-// hold when none is composed.
-func (r *RoundsResearchPlanner) bench(call, epoch context.Context, arbiter *stepArbiter, unlocked bool) (RoundsResearchResult, error) {
+// hold when none is composed. advanced walks it for the high-tech bench and
+// analyzer instead.
+func (r *RoundsResearchPlanner) bench(call, epoch context.Context, arbiter *stepArbiter, advanced bool) (RoundsResearchResult, error) {
 	if r.building == nil {
 		return RoundsResearchResult{Verdict: BuildingResearchBench}, nil
 	}
 	building := *r.building
-	building.benchUnlocked = unlocked
+	building.advancedLab = advanced
 	result, err := building.step(call, epoch, arbiter)
 	if err != nil {
 		return RoundsResearchResult{}, err
@@ -196,14 +242,23 @@ func (r *RoundsResearchPlanner) step(call, epoch context.Context, arbiter *stepA
 		// that names no bench be selected, but nobody progresses it, so the
 		// bench is owed first.
 		if deficit && policy.ResearchBenchNeeded(read.Projects[read.CurrentProject]) {
+			if result, admitted, err := r.buildAhead(call, epoch, arbiter); admitted || err != nil {
+				return result, err
+			}
 			return r.bench(call, epoch, arbiter, false)
 		}
 		// Native locks a project only when it names a bench, yet none is
 		// researched without one: with no bench standing the bench is owed
 		// whatever the project; a standing bench is the ordinary wait.
 		if deficit && r.building != nil {
-			result, err := r.bench(call, epoch, arbiter, true)
+			result, err := r.bench(call, epoch, arbiter, false)
 			if err != nil || result.Verdict != BuildingReasonNoDeficit {
+				return result, err
+			}
+			// Research goes on while the hi-tech bench and analyzer are
+			// built: only an admitted plan preempts the wait, and any hold
+			// falls through to it.
+			if result, admitted, err := r.buildAhead(call, epoch, arbiter); admitted || err != nil {
 				return result, err
 			}
 		}
@@ -221,9 +276,31 @@ func (r *RoundsResearchPlanner) step(call, epoch context.Context, arbiter *stepA
 	// The ladder's plans are this goal's methods, so an open bench
 	// build reads as existing work above and the selection follows it.
 	if policy.ResearchBenchNeeded(read.Projects[next]) {
+		if result, admitted, err := r.buildAhead(call, epoch, arbiter); admitted || err != nil {
+			return result, err
+		}
 		return r.bench(call, epoch, arbiter, false)
 	}
+	if result, admitted, err := r.buildAhead(call, epoch, arbiter); admitted || err != nil {
+		return result, err
+	}
 	return r.admit(call, epoch, state, goal, next)
+}
+
+// buildAhead walks the building ladder for the high-tech bench and then the
+// analyzer, whichever is buildable and owed. admitted is true only when it
+// admitted a building plan; every other outcome (nothing owed, no space, a
+// funding or placement hold) is not a verdict for the research step, which
+// goes on to select or wait.
+func (r *RoundsResearchPlanner) buildAhead(call, epoch context.Context, arbiter *stepArbiter) (RoundsResearchResult, bool, error) {
+	if r.building == nil {
+		return RoundsResearchResult{}, false, nil
+	}
+	result, err := r.bench(call, epoch, arbiter, true)
+	if err != nil {
+		return RoundsResearchResult{}, false, err
+	}
+	return result, result.Verdict == BuildingReasonAdmitted, nil
 }
 
 // admit records the one-action plan that selects next, unless this goal

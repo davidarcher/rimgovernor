@@ -18,9 +18,10 @@ const (
 	// BuildingProperties.roamerCanOpen marks.
 	ClassDoor = "RimWorld.Building_Door"
 	// StatWorkTableWorkSpeedFactor and StatMedicalTendQualityOffset are the
-	// stats a bench's and a medical bed's facility offsets.
+	// stats a bench's, a medical bed's and a research bench's facility offsets.
 	StatWorkTableWorkSpeedFactor = "WorkTableWorkSpeedFactor"
 	StatMedicalTendQualityOffset = "MedicalTendQualityOffset"
+	StatResearchSpeedFactor      = "ResearchSpeedFactor"
 )
 
 // RoomFurniture is the furniture the room planners place, chosen by rules over
@@ -92,7 +93,44 @@ func (catalog *DefinitionCatalog) RoomFurniture(shapes map[string]policy.Interio
 	if out.Monitor, err = catalog.bestFacility("a vitals monitor", facilities, medicalLinks, StatMedicalTendQualityOffset, func(f facilityRow) bool { return f.adjacent && !f.cardinalToHead }); err != nil {
 		return out, err
 	}
+	if out.AdvancedLab, out.Analyzer, err = catalog.advancedLab(shapes, facilities, out.Bench[policy.RoomRoleLaboratory]); err != nil {
+		return out, err
+	}
 	return out, nil
+}
+
+// advancedLab is the laboratory bench besides the default one that links a
+// facility offsetting research speed (the cheapest when several, by name when
+// equal) and the best such facility it links. Both are empty when the catalog
+// has no such bench.
+func (catalog *DefinitionCatalog) advancedLab(shapes map[string]policy.InteriorPieceDef, facilities map[string]facilityRow, plain string) (string, policy.FacilityLink, error) {
+	var bench string
+	var link policy.FacilityLink
+	bestCost := math.Inf(1)
+	for name, shape := range shapes {
+		if name == plain || shape.Family != policy.RoomRoleLaboratory || !shape.WorkedFromFront() || catalog.ThingDefs[name].GetBuilding().GetWorkTableRoomRole() != string(policy.RoomRoleLaboratory) {
+			continue
+		}
+		linked, err := catalog.linkedFacilities(name)
+		if err != nil {
+			return "", link, err
+		}
+		best, found, err := catalog.findFacility(facilities, linked, StatResearchSpeedFactor, func(facilityRow) bool { return true })
+		if err != nil || !found {
+			if err != nil {
+				return "", link, err
+			}
+			continue
+		}
+		cost, err := catalog.CheapestCostValue(name)
+		if err != nil {
+			return "", link, err
+		}
+		if cost < bestCost || cost == bestCost && name < bench {
+			bench, link, bestCost = name, best, cost
+		}
+	}
+	return bench, link, nil
 }
 
 // bedRank is one bed row with the numbers the rules rank it by.
@@ -390,6 +428,18 @@ func (catalog *DefinitionCatalog) linkedFacilities(defs ...string) (map[string]b
 // with the most offset per unit of cost (a free one is the best), by name
 // when equal.
 func (catalog *DefinitionCatalog) bestFacility(what string, facilities map[string]facilityRow, linked map[string]bool, stat string, fits func(facilityRow) bool) (policy.FacilityLink, error) {
+	link, found, err := catalog.findFacility(facilities, linked, stat, fits)
+	if err != nil {
+		return policy.FacilityLink{}, err
+	}
+	if !found {
+		return policy.FacilityLink{}, contract("catalog has no facility that is %s: nothing the interior templates' bed or bench links offsets %s in that way", what, stat)
+	}
+	return link, nil
+}
+
+// findFacility is bestFacility's choice; false when no linked facility fits.
+func (catalog *DefinitionCatalog) findFacility(facilities map[string]facilityRow, linked map[string]bool, stat string, fits func(facilityRow) bool) (policy.FacilityLink, bool, error) {
 	var best facilityRow
 	bestScore := math.Inf(-1)
 	for name, f := range facilities {
@@ -399,7 +449,7 @@ func (catalog *DefinitionCatalog) bestFacility(what string, facilities map[strin
 		}
 		cost, err := catalog.CheapestCostValue(name)
 		if err != nil {
-			return policy.FacilityLink{}, err
+			return policy.FacilityLink{}, false, err
 		}
 		score := math.Inf(1)
 		if cost > 0 {
@@ -410,9 +460,9 @@ func (catalog *DefinitionCatalog) bestFacility(what string, facilities map[strin
 		}
 	}
 	if best.def == "" {
-		return policy.FacilityLink{}, contract("catalog has no facility that is %s: nothing the interior templates' bed or bench links offsets %s in that way", what, stat)
+		return policy.FacilityLink{}, false, nil
 	}
-	return policy.FacilityLink{Def: best.def, MaxDistance: best.maxDistance, MaxSimultaneous: best.maxSimultaneous, Adjacent: best.adjacent, CardinalToHead: best.cardinalToHead}, nil
+	return policy.FacilityLink{Def: best.def, MaxDistance: best.maxDistance, MaxSimultaneous: best.maxSimultaneous, Adjacent: best.adjacent, CardinalToHead: best.cardinalToHead}, true, nil
 }
 
 // exactComp is the first comp of row that is exactly the message type T, not

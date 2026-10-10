@@ -9,8 +9,14 @@ import (
 func TestLaboratoryLayoutRepeatsAndFacesTheFloor(t *testing.T) {
 	for _, size := range [][3]int32{{3, 4, 1}, {5, 4, 1}, {7, 5, 2}, {11, 6, 3}} {
 		plan := assertInteriorRepeatable(t, RoomRoleLaboratory, size[0], size[1], size[2])
-		if want := RowCapacity(size[0], 3, 1); int32(len(plan.Pieces)) != want {
-			t.Errorf("%v: %d benches, want %d", size, len(plan.Pieces), want)
+		var benches []InteriorPiece
+		for _, p := range plan.Pieces {
+			if p.Def != testFurniture.Analyzer.Def {
+				benches = append(benches, p)
+			}
+		}
+		if want := RowCapacity(size[0], 3, 1); int32(len(benches)) != want {
+			t.Errorf("%v: %d benches, want %d", size, len(benches), want)
 		}
 		used := map[domain.Cell]bool{}
 		for _, p := range plan.Pieces {
@@ -18,7 +24,7 @@ func TestLaboratoryLayoutRepeatsAndFacesTheFloor(t *testing.T) {
 				used[c] = true
 			}
 		}
-		for _, p := range plan.Pieces {
+		for _, p := range benches {
 			if p.Def != testResearch {
 				t.Errorf("%v: %s is %s", size, p.Slot, p.Def)
 			}

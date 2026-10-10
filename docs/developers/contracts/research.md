@@ -13,7 +13,7 @@ research orders.
    *derived* need: the concern stays in deficit while the project is current).
 2. The first unfinished rung of the research ladder (`RoundsPolicy.ResearchLadder`,
    `policy.DefaultResearchLadder`: Stonecutting, Electricity, Batteries, GeothermalPower, SolarPanels,
-   Smithing, CarpetMaking, ComplexClothing, Machining, Gunsmithing).
+   Smithing, CarpetMaking, ComplexClothing, MicroelectronicsBasics, MultiAnalyzer, Machining, Gunsmithing).
 
 A rung is a deficit only while the research tab is idle: any current project, the player's included,
 recovers the concern and is never replaced, and the planner lends the clock ticks until it finishes. The
@@ -78,8 +78,22 @@ stages a `SimpleResearchBench` in a room whose native role hosts the Laboratory 
 Barracks or plain room; the starter shell), else a starter shell first, through native placement and
 material admission. Selection follows once the bench stands. Holds: `research_bench_needed` (no
 placement-capable source), `research_bench_unavailable` (the census lists the bench definition
-unbuildable). Advanced bench, facility and power requirements keep explicit blockers until their
+unbuildable). Power requirements keep explicit blockers until their
 methods provide them.
+
+### High-tech bench and analyzer
+
+The planned laboratory (`PlannedLab`, an 11x6 interior) holds two hi-tech-width (5x2) benches in one back-wall
+row plus one reserved analyzer slot (2x2) on the room's centre line, clear of every worker cell and within the
+analyzer's link distance (8 cells) of each bench. `policy.RoomFurniture.AdvancedLab` and `Analyzer` are
+derived from the catalog (the other laboratory bench that links a research-speed facility, and that
+facility), never named; both are optional. EnsureResearch builds them ahead of need: once the census lists
+the hi-tech bench buildable, it builds one in the planned laboratory (never the shelter's research slot),
+then the analyzer once the `MultiAnalyzer` project is done. Only an admitted building plan preempts the
+research step; every other outcome of the build-ahead (nothing owed, no space, a funding or placement hold)
+falls through to the ordinary selection or wait, so research is never blocked behind it. An owed buildable
+advanced building also makes the colony want the laboratory (`coreRoomsWanted`). The default ladder walks
+`MicroelectronicsBasics` then `MultiAnalyzer` after the medieval crafts, inside the Stable stage's rungs.
 
 ## Completion
 

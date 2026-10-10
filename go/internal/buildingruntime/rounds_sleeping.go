@@ -72,11 +72,11 @@ type RoundsBuildingPlanner struct {
 	// planner serves; the review's latched phase decides which one runs.
 	// Empty for every other goal.
 	phase policy.Phase
-	// benchUnlocked marks a research step whose project the native census
-	// does not lock for lack of a bench: a standing bench then leaves nothing
-	// to build, and none standing is still owed (nobody researches without
-	// one).
-	benchUnlocked bool
+	// advancedLab marks the research step that builds the high-tech bench and
+	// then its analyzer in the planned laboratory (never the shelter's
+	// research slot, which holds only the simple bench): whichever of the two
+	// is buildable and not yet standing is the one placed.
+	advancedLab bool
 	// partySpotRoom is the shared room the PartySpot step places in; empty
 	// places in any roofed indoor cell.
 	partySpotRoom string
@@ -947,7 +947,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		}
 	}
 	if r.facility != nil {
-		if planned := plannedShelterRooms(facts); r.facility.Role == policy.RoomRoleLaboratory && len(planned) > 0 {
+		if planned := plannedShelterRooms(facts); r.facility.Role == policy.RoomRoleLaboratory && !r.advancedLab && len(planned) > 0 {
 			// The research bench takes the planned shelter's bench row.
 			interiorRooms, plannedInterior = planned, true
 			for _, room := range planned {
