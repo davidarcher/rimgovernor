@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"log/slog"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
@@ -55,32 +56,99 @@ func noteRank(n policy.PlannerNote) int {
 	return 3
 }
 
-// plannerReasonLog remembers the last note filed per goal; the idle-stall row
-// lists them as the standing refusals. Only the step goroutine touches it
-// (recordWave).
-type plannerReasonLog struct {
-	last map[policy.ConcernID]policy.PlannerNote
+// plannerFiling is a goal's winning note with the outcome of the verdict that
+// filed it (admitted and nothing_to_do both file the zero note).
+type plannerFiling struct {
+	Note    policy.PlannerNote
+	Outcome Outcome
 }
 
-// changed files notes and returns those that differ from the last seen.
-func (l *plannerReasonLog) changed(notes map[policy.ConcernID]policy.PlannerNote) map[policy.ConcernID]policy.PlannerNote {
+// plannerStanding is the note a goal stands on and the game tick it began
+// standing on that cause.
+type plannerStanding struct {
+	Note  policy.PlannerNote
+	Since int64
+}
+
+// concernTransition is one change of a goal's winning cause: the new cause
+// with its subject and outcome, and the cause it replaced. HadPrevious is
+// false for the first note seen since the process started (the past is
+// unknown); Held is nil when the ticks the previous cause stood are unknown
+// (the game clock went backwards, as a save load does).
+type concernTransition struct {
+	Concern     policy.ConcernID
+	Filing      plannerFiling
+	HadPrevious bool
+	Previous    policy.Cause
+	Held        *int64
+}
+
+// plannerReasonLog remembers the standing note per goal; the idle-stall row
+// lists them as the standing refusals and changed turns a change of cause into
+// a transition. It lives in memory only: after a restart the first note of a
+// goal has no known past. Only the step goroutine touches it (recordWave).
+type plannerReasonLog struct {
+	last map[policy.ConcernID]plannerStanding
+}
+
+// changed files the wave's notes at tick and returns the goals whose cause
+// changed, in goal order. A subject change under the same cause files
+// silently, and a goal first seen clear is not a transition (nothing to explain).
+func (l *plannerReasonLog) changed(filings map[policy.ConcernID]plannerFiling, tick int64) []concernTransition {
 	if l.last == nil {
-		l.last = map[policy.ConcernID]policy.PlannerNote{}
+		l.last = map[policy.ConcernID]plannerStanding{}
 	}
-	out := map[policy.ConcernID]policy.PlannerNote{}
-	for goal, note := range notes {
-		if prior, seen := l.last[goal]; !seen || prior != note {
-			l.last[goal] = note
-			out[goal] = note
+	goals := make([]policy.ConcernID, 0, len(filings))
+	for goal := range filings {
+		goals = append(goals, goal)
+	}
+	slices.Sort(goals)
+	var out []concernTransition
+	for _, goal := range goals {
+		filing := filings[goal]
+		prior, seen := l.last[goal]
+		if seen && prior.Note.Cause == filing.Note.Cause {
+			l.last[goal] = plannerStanding{Note: filing.Note, Since: prior.Since}
+			continue
 		}
+		l.last[goal] = plannerStanding{Note: filing.Note, Since: tick}
+		if !seen {
+			if filing.Note.Cause != "" {
+				out = append(out, concernTransition{Concern: goal, Filing: filing})
+			}
+			continue
+		}
+		t := concernTransition{Concern: goal, Filing: filing, HadPrevious: true, Previous: prior.Note.Cause}
+		if held := tick - prior.Since; held >= 0 {
+			t.Held = &held
+		}
+		out = append(out, t)
 	}
 	return out
 }
 
-// wavePlannerReasons collects the goal notes of the planners that returned;
+// emitTransitions writes one concern_transition row per transition into the
+// explanation ring: target the concern, verdict the filing verdict's outcome,
+// reason the new cause (empty when it cleared), attrs subject, previous_reason
+// and held_ticks (each only when known) and method, the goal's current method
+// on its progress record.
+func emitTransitions(call context.Context, transitions []concernTransition, methods map[policy.ConcernID]string) {
+	for _, t := range transitions {
+		attrs := map[string]any{"subject": t.Filing.Note.Subject, "method": methods[t.Concern]}
+		if t.HadPrevious {
+			attrs["previous_reason"] = string(t.Previous)
+		}
+		if t.Held != nil {
+			attrs["held_ticks"] = *t.Held
+		}
+		telemetry.Decide(call, telemetry.Decision{Kind: telemetry.ConcernTransitionKind, Component: "clock-scheduler", Verdict: string(t.Filing.Outcome), Reason: string(t.Filing.Note.Cause), Target: string(t.Concern), Attrs: attrs})
+	}
+}
+
+// wavePlannerReasons collects the goal filings of the planners that returned;
 // siblings on one goal keep the highest-ranked note (noteRank).
-func wavePlannerReasons(names []string, filing func(string) (policy.ConcernID, Verdict, bool)) map[policy.ConcernID]policy.PlannerNote {
-	out := map[policy.ConcernID]policy.PlannerNote{}
+func wavePlannerReasons(names []string, filing func(string) (policy.ConcernID, Verdict, bool)) map[policy.ConcernID]plannerFiling {
+	out := map[policy.ConcernID]plannerFiling{}
 	for _, name := range names {
 		goal, verdict, ok := filing(name)
 		if !ok {
@@ -90,8 +158,8 @@ func wavePlannerReasons(names []string, filing func(string) (policy.ConcernID, V
 		if !ok {
 			continue
 		}
-		if prior, seen := out[goal]; !seen || noteRank(note) > noteRank(prior) {
-			out[goal] = note
+		if prior, seen := out[goal]; !seen || noteRank(note) > noteRank(prior.Note) {
+			out[goal] = plannerFiling{Note: note, Outcome: verdict.Outcome}
 		}
 	}
 	return out
@@ -100,18 +168,25 @@ func wavePlannerReasons(names []string, filing func(string) (policy.ConcernID, V
 // recordPlannerReasons notes each goal's planner refusal or wait and files it
 // on the goal's progress record, so the status strip says why a goal has no
 // method or what it waits on (the planner_step rows carry the same reasons).
-func (s *ClockScheduler) recordPlannerReasons(call context.Context, wave *plannerWave) {
-	notes := wavePlannerReasons(wave.finishedNames(), wave.filing)
-	if len(notes) == 0 {
+// A goal whose cause changed also files a concern_transition row.
+func (s *ClockScheduler) recordPlannerReasons(call context.Context, wave *plannerWave, tick int64) {
+	filings := wavePlannerReasons(wave.finishedNames(), wave.filing)
+	if len(filings) == 0 {
 		return
 	}
-	s.plannerReasons.changed(notes)
-	if s.player == nil || s.player.journal == nil {
-		return
+	transitions := s.plannerReasons.changed(filings, tick)
+	var methods map[policy.ConcernID]string
+	if s.player != nil && s.player.journal != nil {
+		notes := make(map[policy.ConcernID]policy.PlannerNote, len(filings))
+		for goal, f := range filings {
+			notes[goal] = f.Note
+		}
+		var err error
+		if _, methods, err = s.player.journal.RecordPlannerReasons(call, notes); err != nil {
+			plannerBookkeepingFailed(call, "reasons", err)
+		}
 	}
-	if _, err := s.player.journal.RecordPlannerReasons(call, notes); err != nil {
-		plannerBookkeepingFailed(call, "reasons", err)
-	}
+	emitTransitions(call, transitions, methods)
 }
 
 // plannerBookkeepingFailed files the step's own failure to record a wave

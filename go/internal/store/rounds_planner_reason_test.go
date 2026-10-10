@@ -17,11 +17,11 @@ func TestRecordPlannerReasonsNamesTheRefusal(t *testing.T) {
 	r := roundsRequest()
 	reviewRounds(t, s, &r)
 	refusal := policy.PlannerNote{Cause: policy.CauseNoSpace, Subject: "wood"}
-	changed, err := s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: refusal})
+	changed, _, err := s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: refusal})
 	if err != nil || !changed {
 		t.Fatal(changed, err)
 	}
-	if changed, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: refusal}); err != nil || changed {
+	if changed, _, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: refusal}); err != nil || changed {
 		t.Fatal("unchanged reason rewrote the review", err)
 	}
 	second := reviewRounds(t, s, &r)
@@ -29,7 +29,7 @@ func TestRecordPlannerReasonsNamesTheRefusal(t *testing.T) {
 	if wood.Planner != policy.CauseNoSpace || wood.PlannerSubject != "wood" || wood.Blocked != policy.BlockedReason(policy.CauseNoSpace) || wood.BlockedSubject() != "wood" || !wood.Blocked.Actionable() {
 		t.Fatalf("wood record %+v", wood)
 	}
-	if _, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {}}); err != nil {
+	if _, _, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {}}); err != nil {
 		t.Fatal(err)
 	}
 	review, err := s.LoadRounds(ctx)
@@ -48,7 +48,7 @@ func TestRecordPlannerReasonsRejectsAnUnknownCause(t *testing.T) {
 	defer s.Close()
 	r := roundsRequest()
 	reviewRounds(t, s, &r)
-	if _, err := s.RecordPlannerReasons(context.Background(), map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {Cause: "no site found"}}); err == nil {
+	if _, _, err := s.RecordPlannerReasons(context.Background(), map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {Cause: "no site found"}}); err == nil {
 		t.Fatal("unknown cause filed")
 	}
 }
@@ -63,14 +63,14 @@ func TestRecordPlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 	r := roundsRequest()
 	reviewRounds(t, s, &r)
 	wait := policy.PlannerNote{Cause: policy.CauseBunksOpen}
-	if changed, err := s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: wait}); err != nil || !changed {
+	if changed, _, err := s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: wait}); err != nil || !changed {
 		t.Fatal(changed, err)
 	}
 	wood := progressRecord(t, reviewRounds(t, s, &r).Review, policy.MaintainResource)
 	if wood.Planner != policy.CauseBunksOpen || wood.Blocked != policy.BlockedReason(policy.CauseBunksOpen) || wood.Blocked.Actionable() || !wood.Blocked.Waiting() {
 		t.Fatalf("waiting wood record %+v", wood)
 	}
-	if _, err := s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {Cause: policy.CauseNoSpace, Subject: "wood"}}); err != nil {
+	if _, _, err := s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {Cause: policy.CauseNoSpace, Subject: "wood"}}); err != nil {
 		t.Fatal(err)
 	}
 	review, err := s.LoadRounds(ctx)
@@ -80,10 +80,10 @@ func TestRecordPlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 	if wood = progressRecord(t, review, policy.MaintainResource); wood.Blocked != policy.BlockedReason(policy.CauseNoSpace) {
 		t.Fatalf("refused wood record %+v", wood)
 	}
-	if _, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: wait}); err != nil {
+	if _, _, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: wait}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {}}); err != nil {
+	if _, _, err = s.RecordPlannerReasons(ctx, map[policy.ConcernID]policy.PlannerNote{policy.MaintainResource: {}}); err != nil {
 		t.Fatal(err)
 	}
 	if review, err = s.LoadRounds(ctx); err != nil {

@@ -135,7 +135,7 @@ directly; there is no HTTP route.
 
 | Kind | Shape and fields |
 |---|---|
-| `concern_transition` | one per change of a concern's typed reason (transition rows, not repeats). Fields land with the emission (#2697). Readers: the launcher's per-concern timeline (#2699) and `rimgovernor log` (merge, #2695) |
+| `concern_transition` | decision row, component `clock-scheduler`, one per change of a concern's winning typed cause (transition rows, not repeats), written by `recordPlannerReasons` (`buildingruntime/planner_reasons.go`) after the wave's notes are filed. `target` the concern id; `verdict` the winning planner verdict's outcome (`refused`, `waiting`, `admitted`, `nothing_to_do`, `disabled`, `combat_orders`, `hold_fallback`); `reason` the new `policy.Cause` wire value, empty when the note cleared (`admitted`, `nothing_to_do`); attrs `subject` (bounded subject, may be empty), `method` (the concern's current method on its progress record when filed, empty when none), and when known `previous_reason` (the cause replaced, empty when it was a clear) and `held_ticks` (game ticks the previous cause stood, whole across a subject-only change). No row while the cause is unchanged or when the subject alone changes; a concern first seen clear files no row. The standing state is in memory only: after a restart a concern's first non-clear cause has no `previous_reason` and no `held_ticks` (unknown, not zero), and `held_ticks` is also absent when the game clock went backwards (a save load). No free text. Readers: the launcher's per-concern timeline (#2699) and `rimgovernor log` (merge, #2695) |
 
 ### Session and reader events
 

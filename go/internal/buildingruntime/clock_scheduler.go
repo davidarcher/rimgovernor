@@ -1560,7 +1560,8 @@ const (
 // NativeWorkTicks hint.
 func (s *ClockScheduler) warnIdleStall(ctx context.Context, tick int64) {
 	standing := make([]string, 0, len(s.plannerReasons.last))
-	for goal, note := range s.plannerReasons.last {
+	for goal, filed := range s.plannerReasons.last {
+		note := filed.Note
 		if note.Cause == "" || note.Cause == policy.CauseHeldOptIn {
 			continue
 		}
@@ -1758,7 +1759,7 @@ func (s *ClockScheduler) runPlannerWave(call, epoch context.Context, out *ClockS
 // open attempts of those kinds. The plans are read once, only when some
 // planner reported existing work.
 func (s *ClockScheduler) recordWave(call context.Context, sel plannerSelectionResult, wave *plannerWave, tick int64) {
-	s.recordPlannerReasons(call, wave)
+	s.recordPlannerReasons(call, wave, tick)
 	var plans []store.PlanState
 	s.queue.ran(sel, wave.finishedNames(), wave.reason, tick, func(kinds []domain.ActionKind) []domain.ActionID {
 		if plans == nil {

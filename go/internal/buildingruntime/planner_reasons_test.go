@@ -36,12 +36,12 @@ func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
 		t.Fatalf("%v", got)
 	}
 	for g, r := range want {
-		if got[g] != r {
+		if got[g].Note != r {
 			t.Fatalf("%v", got)
 		}
 	}
 	var log plannerReasonLog
-	if len(log.changed(got)) != 3 || len(log.changed(got)) != 0 {
+	if len(log.changed(got, 10)) != 3 || len(log.changed(got, 11)) != 0 {
 		t.Fatal("log not rate-limited on change")
 	}
 }
@@ -50,7 +50,7 @@ func TestWavePlannerReasonsFilesSleepingRefusalOnHousing(t *testing.T) {
 	goals := map[string]policy.ConcernID{"expansion": policy.MaintainHousing, "sleepingUpkeep": policy.MaintainHousing}
 	verdicts := map[string]Verdict{"expansion": BuildingReasonNoDeficit, "sleepingUpkeep": BuildingSleepingUnavailable}
 	got := wavePlannerReasons([]string{"expansion", "sleepingUpkeep"}, filingOf(goals, verdicts))
-	if got[policy.MaintainHousing] != (policy.PlannerNote{Cause: policy.CauseAwaitingPlan, Subject: "buildable_bed"}) {
+	if got[policy.MaintainHousing].Note != (policy.PlannerNote{Cause: policy.CauseAwaitingPlan, Subject: "buildable_bed"}) {
 		t.Fatalf("%v", got)
 	}
 }
@@ -78,46 +78,46 @@ func TestWavePlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 		t.Fatalf("%v", got)
 	}
 	for g, r := range want {
-		if got[g] != r {
-			t.Fatalf("%s: %v, want %v", g, got[g], r)
+		if got[g].Note != r {
+			t.Fatalf("%s: %v, want %v", g, got[g].Note, r)
 		}
 	}
 	verdicts["shelter"], verdicts["housing"] = BuildingReasonAdmitted, BuildingReasonNoDeficit
 	cleared := wavePlannerReasons(names, filingOf(goals, verdicts))
-	if cleared[policy.MaintainShelter] != (policy.PlannerNote{}) || cleared[policy.MaintainHousing] != (policy.PlannerNote{}) {
+	if cleared[policy.MaintainShelter].Note != (policy.PlannerNote{}) || cleared[policy.MaintainHousing].Note != (policy.PlannerNote{}) {
 		t.Fatalf("waits not cleared: %v", cleared)
 	}
 	verdicts["shelter"] = BuildingReasonExistingWork
-	if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter] != (policy.PlannerNote{Cause: policy.CauseExistingWork}) {
+	if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter].Note != (policy.PlannerNote{Cause: policy.CauseExistingWork}) {
 		t.Fatalf("existing work not filed as a wait: %v", got)
 	}
 	verdicts["shelter"] = BuildingReasonNoDeficit
-	if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter] != (policy.PlannerNote{}) {
+	if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter].Note != (policy.PlannerNote{}) {
 		t.Fatalf("nothing to do did not clear the existing-work wait: %v", got)
 	}
 	for combat, text := range map[Verdict]policy.Cause{BuildingReasonCombatOrders: policy.CauseCombatOrders, BuildingReasonHoldFallback: policy.CauseHoldFallback} {
 		verdicts["shelter"] = combat
-		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter] != (policy.PlannerNote{Cause: text}) {
+		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter].Note != (policy.PlannerNote{Cause: text}) {
 			t.Fatalf("%s not filed as a wait: %v", combat, got)
 		}
 		verdicts["shelter"] = BuildingReasonAdmitted
-		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter] != (policy.PlannerNote{}) {
+		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter].Note != (policy.PlannerNote{}) {
 			t.Fatalf("admitting did not clear %s: %v", combat, got)
 		}
 		// Sibling precedence on one goal: an idle sibling does not clear the
 		// fight's note, and a refusal outranks it.
 		verdicts["housing"], verdicts["sibling"] = combat, BuildingReasonNoDeficit
-		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainHousing] != (policy.PlannerNote{Cause: text}) {
+		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainHousing].Note != (policy.PlannerNote{Cause: text}) {
 			t.Fatalf("an idle sibling cleared %s: %v", combat, got)
 		}
 		verdicts["sibling"] = noSpace("power_route")
-		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainHousing].Cause.Waiting() || got[policy.MaintainHousing].Cause == "" {
+		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainHousing].Note.Cause.Waiting() || got[policy.MaintainHousing].Note.Cause == "" {
 			t.Fatalf("a refusal lost to %s: %v", combat, got)
 		}
 	}
 	verdicts["shelter"] = BuildingReasonNoDeficit
 	verdicts["housing"], verdicts["sibling"] = BuildingSleepingUseNeeded, noSpace("power_route")
-	if refused := wavePlannerReasons(names, filingOf(goals, verdicts)); refused[policy.MaintainHousing].Cause.Waiting() || refused[policy.MaintainHousing].Cause == "" {
+	if refused := wavePlannerReasons(names, filingOf(goals, verdicts)); refused[policy.MaintainHousing].Note.Cause.Waiting() || refused[policy.MaintainHousing].Note.Cause == "" {
 		t.Fatalf("a refusal lost to a wait: %v", refused)
 	}
 }

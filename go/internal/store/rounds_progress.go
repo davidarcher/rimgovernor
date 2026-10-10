@@ -217,24 +217,29 @@ func (r Rounds) ConcernProgress(need domain.ConcernID) (policy.ConcernProgress, 
 // planner admitted or found work). A record with no method, or one already
 // naming a planner refusal or wait, is relabelled at once so the strip names the reason
 // before the next review; held records keep their hold. Goals without a
-// record are skipped. It reports whether anything changed.
-func (s *Store) RecordPlannerReasons(ctx context.Context, reasons map[domain.ConcernID]policy.PlannerNote) (bool, error) {
+// record are skipped. It reports whether anything changed and each filed
+// goal's current method (its record's Method, "" when it has none).
+func (s *Store) RecordPlannerReasons(ctx context.Context, reasons map[domain.ConcernID]policy.PlannerNote) (bool, map[domain.ConcernID]string, error) {
 	if len(reasons) == 0 {
-		return false, nil
+		return false, nil, nil
 	}
 	tx, err := s.begin(ctx)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	defer tx.Rollback()
 	review, err := loadRounds(ctx, tx)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	changed := false
+	methods := map[domain.ConcernID]string{}
 	for i := range review.Progress {
 		p := &review.Progress[i]
 		note, ok := reasons[p.Concern]
+		if ok {
+			methods[p.Concern] = p.Method
+		}
 		if !ok || p.PlannerNote() == note {
 			continue
 		}
@@ -244,19 +249,19 @@ func (s *Store) RecordPlannerReasons(ctx context.Context, reasons map[domain.Con
 			p.Blocked = note.Blocked()
 		}
 		if err = policy.ValidateConcernProgress(*p, review.Tick); err != nil {
-			return false, fmt.Errorf("%s: %w", p.Concern, err)
+			return false, nil, fmt.Errorf("%s: %w", p.Concern, err)
 		}
 		changed = true
 	}
 	if !changed {
-		return false, nil
+		return false, methods, nil
 	}
 	data, err := json.Marshal(review)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO rounds(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
-		return false, err
+		return false, nil, err
 	}
-	return true, tx.Commit()
+	return true, methods, tx.Commit()
 }
