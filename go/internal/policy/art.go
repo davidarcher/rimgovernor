@@ -111,9 +111,6 @@ func selectArtBill(benches []ProductionBench, artist PawnID, demand ArtDemand) (
 	if len(pinned) > 0 {
 		return BillSelection{}, false
 	}
-	if demand.Sale && demand.Fits == 0 {
-		return selectSaleSculpture(available, artist, demand)
-	}
 	for rank := len(demand.Items.Sculptures) - 1; rank >= 0; rank-- {
 		size := demand.Items.Sculptures[rank]
 		options := available[size.Recipe]
@@ -215,10 +212,9 @@ func (i ItemFacts) SculptureSize(def string) (domain.Cell, bool) {
 
 // ArtDemand is what an art bill sizes against: the impressiveness
 // gap of the first owed room and the largest square side (1-3) free in it,
-// the colony stock by definition, and each artist's Artistic level. Sale
-// asks for a sculpture to sell when no room is owed.
+// the colony stock by definition, and each artist's Artistic level. Sculptures
+// to sell are MaintainTrade's (export_orders.go), not art demand.
 type ArtDemand struct {
-	Sale  bool
 	Gap   float64
 	Fits  int32
 	Stock map[Resource]int64

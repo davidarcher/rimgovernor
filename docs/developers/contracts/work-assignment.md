@@ -416,9 +416,10 @@ the step lends the clock a window and the ledger places the bill. The old
 one-method-per-recipe history and the ingredient-credit cap on the bill target
 are gone: the order is judged again every Round at the floor's full target.
 
-`MaintainArt` (#2603) migrates the worker-pinned sculpture batches:
+`MaintainArt` (#2603) migrates the worker-pinned sculpture batches (room
+decoration only since #2607; sculptures to sell are `MaintainTrade`'s):
 `RoundsArtPlanner.DeclareOrders` (`policy.DeclareArtOrders`) declares, while an
-inspired artist, an owed bedroom or a sale need is open, every active sculpture
+inspired artist or an owed bedroom is open, every active sculpture
 bill pinned to a current artist as it stands plus the bill the art selectors
 choose for each artist lacking one. A sculpture pinned to someone who is no longer an
 artist, or any sculpture once the need is known gone, is undeclared and so
@@ -428,6 +429,37 @@ decrees of `MaintainPopulation` declare through
 `RoundsPopulationJoinerPlanner.DeclareOrders` (`policy.DeclareDecreeOrders`): the
 funded batch, or the bill already making the item as it stands; the planner keeps
 the crafting game time and the harvest and hunt decrees.
+
+`MaintainTrade` (#2607) answers `SilverShort`: while the gap is open,
+`RoundsTradeExportPlanner.DeclareOrders` (`policy.DeclareExportOrders`) ranks
+craftable sale goods and declares the winners as finite `GearBatch` orders
+(priority 3) pinned to the best capable worker. One owner per bill spec:
+`MaintainResource` owns products with a floor; `MaintainTrade` owns floorless
+sale goods, never acquires, and never declares a floor product. It spends only
+`policy.UsableIngredients`; score is (expected sale value minus raw ingredient
+value) per (crafting ticks plus ingredient units times acquisition ticks), the
+produce prior of 60 pricing unsourced ingredients and the worker's skill
+setting the expected quality. Buyers are the `_Buy*` generators of the reachable
+trader kinds (`bridge.TraderKindBuys`; orbital comms options plus known
+settlements); the cash cap is the low end of the best kind's silver range
+(`TraderKindSilver`). Quantity is min(gap / expected sell price, cash cap), with
+held stock, packed art, standing bills and in-flight goods counted against the
+gap; standing placed export bills are declared as they stand so a Round never
+flips them. `ExportGuard` (15-day horizon, committed draws including the
+order's own and declared-unplaced orders) refuses an order whose ingredients
+the colony needs; a finite-versus-renewable classification can replace it. Any
+unread input abstains. The sale path: while the gap is open held export
+products join `TradeNeed.Surplus` with retain 0 (in `inspectTrade` and the
+trade selection, via the planner's in-memory `exportMemory`; the weapon surplus
+can be one review stale), and gear surplus (`policy.GearSurplus`: gear held
+minus demand, best quality kept for loadouts, lowest value sold first, apparel
+and weapons) is sold the same way. The gap may stay open while benches are
+slow; the other silver responses run in parallel. Sculptures stay finite
+batches pinned to an artist; a non-pinned good could later become a
+stock-target order (not built). A standing sculpture bill pinned to an artist
+is declared by both concerns' selectors only by spec key, so coalescing leaves one.
+No trade-depot siting changes: sale goods leave from the stock the trade planner
+already reaches.
 
 Beer reserve and human
 butcher bills read back as plain target and forever bills until native reports a

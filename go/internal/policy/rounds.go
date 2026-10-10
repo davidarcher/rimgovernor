@@ -348,6 +348,11 @@ type RoundsFacts struct {
 	// read only while the wealth headroom is negative, it opens a trade as
 	// the shed_art need.
 	SaleArt domain.Fact[int64]
+	// ExportProducts are the generic goods MaintainTrade's last declaration
+	// could rank (ExportSaleProducts), held stacks of which sell as surplus
+	// while the silver gap is open (ExportSaleSurplus). Set from the Rounder's
+	// memory; empty before the first declaration of a world.
+	ExportProducts []Resource
 	// FabricableParts are the part items a usable gear bench has a researched
 	// recipe for, read only while a medical pawn wants a part; the
 	// caravan assessment counts only parts no bench can make.

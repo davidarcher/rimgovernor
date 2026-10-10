@@ -280,6 +280,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 			reviewer.AddOrderDeclarer(config.ArtBills)
+			// MaintainTrade's export batches are the ledger's too: the silver
+			// gap answered with sale goods (#2607).
+			if config.ExportBills, err = buildingruntime.NewRoundsTradeExportPlanner(reviewer); err != nil {
+				return nil, err
+			}
+			reviewer.AddOrderDeclarer(config.ExportBills)
 		}
 		if fields {
 			fieldNative, ok := reads.(buildingruntime.FieldNative)
@@ -873,7 +879,7 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainLighting)
 	}
 	if sc.roundsArtPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.MaintainArt)
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainArt, policy.MaintainTrade)
 	}
 	if sc.roundsMechPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainMechs)

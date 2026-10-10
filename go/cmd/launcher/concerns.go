@@ -30,6 +30,7 @@ var concernLabels = map[string]string{
 	"MaintainBabyFeeding":       "Feed the babies",
 	"ClearHomeObstructions":     "Clear obstructions from the home area",
 	"MaintainArt":               "Make art",
+	"MaintainTrade":             "Make goods to sell",
 	"MaintainAnimalContainment": "Keep animals contained",
 	"RemoveBlight":              "Remove crop blight",
 	"ManageCreepJoiners":        "Handle creepjoiners",

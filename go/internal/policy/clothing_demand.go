@@ -67,43 +67,7 @@ func (o GearOption) TatteredWithin(days float64) bool {
 // census asks for nothing. The demand is an absolute stock level, counted
 // only where the stock falls short.
 func PlanClothingRunway(in ClothingDemandInput) ClothingRunway {
-	gear, known := in.Gear.Value()
-	if !known {
-		return ClothingRunway{}
-	}
-	spare := map[Resource]int{}
-	if stored, ok := gear.Stored.Value(); ok {
-		for _, s := range stored {
-			if s.Serviceable() {
-				spare[s.Definition] += s.Count
-			}
-		}
-	}
-	var bills []OpenBill
-	for _, pawn := range gear.Pawns {
-		model, ok := pawn.LoadoutModel.Value()
-		if !ok {
-			continue
-		}
-		for _, worn := range model.Worn {
-			if !worn.TatteredWithin(ClothingHorizonDays) {
-				continue
-			}
-			g, ok := garmentOf(in.Garments, worn.Definition)
-			if !ok || spareGarment(in.Garments, g, spare) {
-				continue
-			}
-			filter, ok := gearFilter(g.Slots, worn.Stuff, in.Categories)
-			if !ok {
-				continue
-			}
-			bill := OpenBill{Count: 1, Slots: domain.Known(g.Slots)}
-			for _, r := range filter {
-				bill.Filter = append(bill.Filter, string(r))
-			}
-			bills = append(bills, bill)
-		}
-	}
+	bills, _ := clothingReplacements(in)
 	out := ClothingRunway{}
 	for resource, n := range OpenBillDemand(bills, in.Stock) {
 		if out.Needs == nil {
@@ -128,6 +92,62 @@ func PlanClothingRunway(in ClothingDemandInput) ClothingRunway {
 	return out
 }
 
+// clothingReplacements walks the worn garments about to wear out: the bills
+// for those no serviceable stored garment covers, and per definition the
+// serviceable stored garments that cover the rest (the spare reserve a sale
+// must leave in storage).
+func clothingReplacements(in ClothingDemandInput) (bills []OpenBill, reserve map[Resource]int) {
+	gear, known := in.Gear.Value()
+	if !known {
+		return nil, nil
+	}
+	spare, reserve := map[Resource]int{}, map[Resource]int{}
+	if stored, ok := gear.Stored.Value(); ok {
+		for _, s := range stored {
+			if s.Serviceable() {
+				spare[s.Definition] += s.Count
+			}
+		}
+	}
+	for _, pawn := range gear.Pawns {
+		model, ok := pawn.LoadoutModel.Value()
+		if !ok {
+			continue
+		}
+		for _, worn := range model.Worn {
+			if !worn.TatteredWithin(ClothingHorizonDays) {
+				continue
+			}
+			g, ok := garmentOf(in.Garments, worn.Definition)
+			if !ok {
+				continue
+			}
+			if taken, covered := spareGarment(in.Garments, g, spare); covered {
+				reserve[taken]++
+				continue
+			}
+			filter, ok := gearFilter(g.Slots, worn.Stuff, in.Categories)
+			if !ok {
+				continue
+			}
+			bill := OpenBill{Count: 1, Slots: domain.Known(g.Slots)}
+			for _, r := range filter {
+				bill.Filter = append(bill.Filter, string(r))
+			}
+			bills = append(bills, bill)
+		}
+	}
+	return bills, reserve
+}
+
+// ClothingSpareReserve is, per definition, the serviceable stored garments
+// PlanClothingRunway counts as the replacement of a worn garment about to
+// wear out: spare the colony keeps for the runway and never sells.
+func ClothingSpareReserve(in ClothingDemandInput) map[Resource]int {
+	_, reserve := clothingReplacements(in)
+	return reserve
+}
+
 // garmentOf is the allowed garment of definition.
 func garmentOf(garments []ClothingGarment, definition Resource) (ClothingGarment, bool) {
 	i := slices.IndexFunc(garments, func(g ClothingGarment) bool { return g.Definition == definition })
@@ -138,17 +158,17 @@ func garmentOf(garments []ClothingGarment, definition Resource) (ClothingGarment
 }
 
 // spareGarment consumes one serviceable stored garment covering a core group
-// g covers, reporting whether one was left.
-func spareGarment(garments []ClothingGarment, g ClothingGarment, spare map[Resource]int) bool {
+// g covers, returning its definition and whether one was left.
+func spareGarment(garments []ClothingGarment, g ClothingGarment, spare map[Resource]int) (Resource, bool) {
 	for _, c := range garments {
 		if spare[c.Definition] > 0 && slices.ContainsFunc(g.Groups, func(group string) bool {
 			return slices.Contains(GearCoreGroups, group) && slices.Contains(c.Groups, group)
 		}) {
 			spare[c.Definition]--
-			return true
+			return c.Definition, true
 		}
 	}
-	return false
+	return "", false
 }
 
 // sharesCategory reports two stuffs that are the same or share a catalog

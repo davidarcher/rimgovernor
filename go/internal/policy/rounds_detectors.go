@@ -382,7 +382,7 @@ func inspectResource(c *roundsRun) error {
 // could make do not stand the goal.
 func inspectTrade(c *roundsRun) error {
 	f, p := c.f, c.p
-	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(f.Items, c.medicine, f.Resources, c.demand.Needs, RoundsTradeFloors(p, nil), f.Wealth, c.demand.Retained, RoundsTradeFood(f, p)), f.Resources, f.Colonists, f.Recipes), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
+	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ExportSaleSurplus(f.Items, ReviewTradeNeed(f.Items, c.medicine, f.Resources, c.demand.Needs, RoundsTradeFloors(p, nil), f.Wealth, c.demand.Retained, RoundsTradeFood(f, p)), f.Resources, f.Colonists, f.ExportProducts), f.Resources, f.Colonists, f.Recipes), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
 	tradeNeed = FavorGoldNeed(tradeNeed, f.Traders, f.Resources, c.demand.Needs, RoundsTradeFloors(p, nil), c.demand.Retained)
 	short, _ := RoundsSilverShort(f, p, c.medicine.Active).Value()
 	tradeNeed = FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(short))
@@ -701,9 +701,8 @@ func inspectRoutes(c *roundsRun) error {
 func inspectArt(c *roundsRun) error {
 	f := c.f
 	recovered := domain.Unknown[bool]()
-	// An inspired artist holds it open without a room. Sale demand
-	// holds it open the same way while an artist exists.
-	if profiles, pk := f.WorkProfiles.Value(); pk && (len(InspiredArtists(profiles)) > 0 || len(Artists(profiles)) > 0 && artForSale(f, c.p, c.medicine, c.demand)) {
+	// An inspired artist holds it open without a room.
+	if profiles, pk := f.WorkProfiles.Value(); pk && len(InspiredArtists(profiles)) > 0 {
 		recovered = domain.Known(false)
 	} else if owed, known := f.SculptureRoomsOwed.Value(); known && !owed {
 		recovered = domain.Known(true)
@@ -713,6 +712,22 @@ func inspectArt(c *roundsRun) error {
 	c.assess(MaintainArt, artPriority, recovered)
 	if v, known := recovered.Value(); known && !v {
 		c.raise(MaintainArt, artPriority).Deficit = domain.Known(1.0)
+	}
+	return nil
+}
+
+// inspectExport: MaintainTrade is owed while a purchase need's silver gap is
+// open. A closed gap recovers it; an unread gap raises nothing.
+func inspectExport(c *roundsRun) error {
+	recovered := domain.Unknown[bool]()
+	gap := reviewSilverGap(c.f, c.p, c.medicine, c.demand)
+	if g, known := gap.Value(); known {
+		recovered = domain.Known(!(g > 0))
+	}
+	c.assess(MaintainTrade, tradePriority, recovered)
+	if v, known := recovered.Value(); known && !v {
+		// Binary like the other upkeep needs: the silver amount is not a fraction.
+		c.raise(MaintainTrade, tradePriority).Deficit = domain.Known(1.0)
 	}
 	return nil
 }

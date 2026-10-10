@@ -109,6 +109,7 @@ func (r *RoundsArmoryPlanner) weaponDemand(ctx context.Context, snapshot domain.
 		}
 	}
 	fighters, hunters = policy.ArmoryWeaponDemand(tier, pawns, primaries, candidates, recipes, products)
+	r.reviewer.exports.setWeapons(snapshot, policy.SpareWeaponCounts(tier, pawns, primaries, candidates, recipes, products))
 	return fighters, hunters, policy.UnarmedFighters(pawns, candidates), nil
 }
 

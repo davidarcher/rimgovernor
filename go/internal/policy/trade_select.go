@@ -51,6 +51,9 @@ type TradeSheetRowFact struct {
 	Quality      int32
 	QualityKnown bool
 	ZoneID       string
+	// Stuff is a stuffed gear row's material (empty otherwise): what
+	// SaleGearSurplus matches beside the definition and condition.
+	Stuff string
 
 	// PawnID is a pawn row's load id (the animal census id for a colony
 	// animal): the key a live-animal sale matches and a purchase

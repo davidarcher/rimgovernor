@@ -75,7 +75,7 @@ func runArt(ctx context.Context, s cases.Session) error {
 	// Phase 1: sculpt, install, and sculpt for sale. Three in-game days: a
 	// large sculpture (30000 work), its install and a sale piece.
 	_, err = sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: 25 * time.Minute, Window: 180000, Concern: policy.MaintainArt, Extra: []policy.ConcernID{policy.TradeWithCaravan}},
+		WatchConfig: sustainedfood.WatchConfig{Watch: 25 * time.Minute, Window: 180000, Concern: policy.MaintainArt, Extra: []policy.ConcernID{policy.TradeWithCaravan, policy.MaintainTrade}},
 		Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
 			after, err := h.Call(ctx, "audit-install", artOp, map[string]any{"action": "audit"})
 			if err != nil {
@@ -91,7 +91,7 @@ func runArt(ctx context.Context, s cases.Session) error {
 	// Phase 2: the caravan buys the surplus.
 	var surplus []string
 	_, err = sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: 10 * time.Minute, Window: 30000, Concern: policy.TradeWithCaravan, Extra: []policy.ConcernID{policy.MaintainArt}},
+		WatchConfig: sustainedfood.WatchConfig{Watch: 10 * time.Minute, Window: 30000, Concern: policy.TradeWithCaravan, Extra: []policy.ConcernID{policy.MaintainArt, policy.MaintainTrade}},
 		Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 			before, err := h.Call(ctx, "audit-before-trade", artOp, map[string]any{"action": "audit"})
 			if err != nil {

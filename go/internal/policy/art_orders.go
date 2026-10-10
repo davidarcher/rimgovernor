@@ -5,12 +5,11 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // MaintainArt declares its pinned sculpture batches to the work ledger
 // (OrderDeclarer): the ledger places a missing one, keeps a standing one and
 // removes the rest, so a sculpture pinned to someone who is no longer an artist
-// is simply no longer declared.
+// is simply no longer declared. Sculptures to sell are MaintainTrade's.
 
 // ArtOrderRequest is what one Round's sculpture declaration reads: the bench
 // readback the ledger reconciles against, the work pawns' profiles, the art
-// demand (its Sale flag is the review's silver-short decision) and whether a
-// bedroom still wants a sculpture.
+// demand and whether a bedroom still wants a sculpture.
 type ArtOrderRequest struct {
 	Benches   []GearBench
 	Profiles  domain.Fact[[]PawnProfile]
@@ -21,8 +20,7 @@ type ArtOrderRequest struct {
 }
 
 // DeclareArtOrders is MaintainArt's wanted sculpture orders. While the need is
-// open (an inspired artist, a bedroom below target, or silver to raise by
-// sale) every active sculpture bill pinned to a current artist is declared as
+// open (an inspired artist or a bedroom below target) every active sculpture bill pinned to a current artist is declared as
 // it stands, and each artist lacking one is given the bill the art selectors
 // choose; a need known to be gone declares nothing, so the ledger removes
 // the sculptures. Abstain while the artists or the need are unread, or a
@@ -34,7 +32,7 @@ func DeclareArtOrders(r ArtOrderRequest) Declared {
 	}
 	artists, inspired := Artists(profiles), InspiredArtists(profiles)
 	owed, owedKnown := r.RoomsOwed.Value()
-	sculpt := owedKnown && owed || r.Demand.Sale
+	sculpt := owedKnown && owed
 	open := sculpt || len(inspired) > 0
 	if !open && owedKnown {
 		return Declared{}

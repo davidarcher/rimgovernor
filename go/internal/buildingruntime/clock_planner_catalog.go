@@ -317,6 +317,16 @@ var plannerCatalog = []plannerEntry{
 			out.ArtBills = &method
 			return method.Verdict, nil
 		}},
+	{name: "exportBills", concern: policy.MaintainTrade, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.RemoveProductionBillAction}, sections: sectionsBills,
+		configured: func(c *ClockSchedulerConfig) bool { return c.ExportBills != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
+			method, err := s.config.ExportBills.step(ctx, epoch, arbiter)
+			if err != nil {
+				return Verdict{}, err
+			}
+			out.ExportBills = &method
+			return method.Verdict, nil
+		}},
 	{name: "basicComfort", concern: policy.EnsureComfort, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.BasicComfort != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

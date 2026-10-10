@@ -578,7 +578,7 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 	planInput.Offers = policy.HerdOffers(rows, projection.Facts.AnimalUpkeep.AnimalRaces)
 	herd := policy.PlanHerd(planInput)
 	saleAnimals := policy.HerdSaleAnimals(projection.Facts.AnimalUpkeep.Animals, herd.Policy)
-	need, known := policy.AnimalSaleNeed(projection.Facts.Items, policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.ReserveSurgeryStock(policy.OrganSaleSurplus(projection.Facts.Items, policy.ReviewTradeNeed(projection.Facts.Items, medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, retained, policy.RoundsTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists, projection.Facts.Recipes), projection.Facts.MedicalPawns), policy.SurgeryPurchaseParts(projection.Facts.MedicalPawns, projection.SurgeryContext(), parts, policy.FabricableParts(benches))), headroom, artCount), saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).Value()
+	need, known := policy.AnimalSaleNeed(projection.Facts.Items, policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.ReserveSurgeryStock(policy.OrganSaleSurplus(projection.Facts.Items, policy.ExportSaleSurplus(projection.Facts.Items, policy.ReviewTradeNeed(projection.Facts.Items, medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, retained, policy.RoundsTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists, r.reviewer.exports.products(state.Snapshot)), medicalFacts.Resources, projection.Facts.Colonists, projection.Facts.Recipes), projection.Facts.MedicalPawns), policy.SurgeryPurchaseParts(projection.Facts.MedicalPawns, projection.SurgeryContext(), parts, policy.FabricableParts(benches))), headroom, artCount), saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).Value()
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: !known", ErrControl)
 	}
@@ -613,6 +613,15 @@ func (r *RoundsTradePlanner) selection(call context.Context, state ControlState,
 		}
 	}
 	facts.SaleGear = policy.SaleGear(rows, warehouses)
+	// While the silver gap is open, gear above demand sells too, cheapest
+	// first until the prices cover the gap (MaintainTrade's sale path).
+	if gap, known := policy.SilverGap(projection.Facts.Items, domain.Known(need), projection.Facts.Silver(), projection.Facts.Colonists).Value(); known && gap > 0 {
+		if surplus, ok := r.reviewer.exports.surplus(state.Snapshot); ok {
+			for id := range policy.SaleGearSurplus(rows, warehouses, surplus, gap) {
+				facts.SaleGear[id] = true
+			}
+		}
+	}
 	facts.HerdWants = append(policy.HerdWants(herd), policy.PlannedAnimalPurchases(projection.Facts.FoodPlan, trader)...)
 	if need.SurplusAnimals > 0 {
 		facts.SaleAnimals = make(map[string]bool, len(saleAnimals))
@@ -732,7 +741,7 @@ func tradeSheetRowFacts(rows []bridge.TradeSheetRow, catalog *bridge.DefinitionC
 			BuyPrice: row.BuyPrice, BuyPriceKnown: row.BuyPriceKnown, SellPrice: row.SellPrice, SellPriceKnown: row.SellPriceKnown,
 			TraderWillTrade: row.TraderWillTrade, TraderWillTradeKnown: row.TraderWillTradeKnown,
 			Currency: row.Currency, CurrencyKnown: row.CurrencyKnown, Pawn: row.Pawn, PawnKnown: row.PawnKnown,
-			ThingID: row.ThingID, HitPoints: row.HitPoints, HitPointsKnown: row.HitPointsKnown, Quality: row.Quality, QualityKnown: row.QualityKnown, ZoneID: row.ZoneID, PawnID: row.PawnID, PawnGender: row.PawnGender,
+			ThingID: row.ThingID, Stuff: row.Stuff, HitPoints: row.HitPoints, HitPointsKnown: row.HitPointsKnown, Quality: row.Quality, QualityKnown: row.QualityKnown, ZoneID: row.ZoneID, PawnID: row.PawnID, PawnGender: row.PawnGender,
 			Skills: tradePawnSkills(row.Skills), ViolenceCapable: row.ViolenceCapable, ViolenceCapableKnown: row.ViolenceCapableKnown,
 			GuestStatus: row.GuestStatus, PrisonerSecure: row.PrisonerSecure, PrisonerSecureKnown: row.PrisonerSecureKnown, PawnDowned: row.PawnDowned, PawnDownedKnown: row.PawnDownedKnown,
 			ExtraHomeFaction: row.ExtraHomeFaction, ExtraHostFaction: row.ExtraHostFaction,

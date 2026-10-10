@@ -17,6 +17,7 @@ var concernLabels = map[policy.ConcernID]string{
 	policy.EnsureFoodSupply:         "Food supply",
 	policy.MaintainFoodStorage:      "Food storage",
 	policy.MaintainResource:         "Resource",
+	policy.MaintainTrade:            "Export goods",
 	policy.MaintainFlooring:         "Flooring",
 	policy.MaintainHousing:          "Housing",
 	policy.EnsureTemperatureSafety:  "Temperature",

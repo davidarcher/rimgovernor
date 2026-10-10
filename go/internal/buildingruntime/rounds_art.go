@@ -38,16 +38,11 @@ func (r *RoundsArtPlanner) DeclareOrders(ctx context.Context, _ domain.Generatio
 	r.mu.Lock()
 	r.sculpting = policy.SculptureInProgress(benches)
 	r.mu.Unlock()
-	review, err := r.reviewer.player.journal.LoadRounds(ctx)
-	if err != nil {
-		return policy.Declared{}, err
-	}
 	request := policy.ArtOrderRequest{Benches: benches, Colonists: projection.Facts.Colonists, Items: projection.Facts.Items, RoomsOwed: projection.Facts.SculptureRoomsOwed, Profiles: domain.Unknown[[]policy.PawnProfile]()}
 	if pawns, known := projection.WorkPawns.Value(); known {
 		profiles := policy.Profiles(pawns)
 		request.Profiles = domain.Known(profiles)
 		request.Demand = artDemand(projection, profiles)
-		request.Demand.Sale = policy.RoundsArtForSale(projection.Facts, r.reviewer.policy, review.Latches.MedicalReserve)
 	}
 	return policy.DeclareArtOrders(request), nil
 }

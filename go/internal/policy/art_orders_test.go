@@ -81,11 +81,11 @@ func TestDeclareArtOrdersFollowsTheNeed(t *testing.T) {
 	if got := DeclareArtOrders(request); !got.Abstain || len(got.Orders) != 0 {
 		t.Fatalf("unread artists: %+v", got)
 	}
-	// Silver to raise opens the need without a room.
+	// Silver to raise opens no art need: sculptures to sell are MaintainTrade's.
 	request = artRequest(artGearBench(), domain.Known(false), artist)
-	request.Demand.Sale, request.Demand.Stock, request.Demand.Skill = true, map[Resource]int64{"Gold": 200, "Steel": 1000}, map[PawnID]int{"a": 8}
-	if got := DeclareArtOrders(request); len(got.Orders) != 1 || got.Orders[0].Worker != "a" || got.Orders[0].BenchKind != artBenchKind {
-		t.Fatalf("sale: %+v", got)
+	request.Demand.Stock, request.Demand.Skill = map[Resource]int64{"Gold": 200, "Steel": 1000}, map[PawnID]int{"a": 8}
+	if got := DeclareArtOrders(request); len(got.Orders) != 0 {
+		t.Fatalf("no room: %+v", got)
 	}
 }
 

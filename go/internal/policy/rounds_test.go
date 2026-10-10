@@ -33,6 +33,7 @@ func stableRounds() RoundsFacts {
 		FoodStorageUpkeep:    FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{})},
 		Upkeep:               emptyUpkeep(),
 		Gear:                 domain.Known(gear),
+		Resources:            domain.Known([]Amount{}),
 		MedicalCareRecovered: domain.Known(true), ComfortRecovered: domain.Known(true), MedicalPawns: domain.Known([]CarePawn{}),
 		BasicComfort: domain.Known(providedComfort("a", "b", "c")),
 		Colonists:    domain.Known(int64(3)), HousingTarget: domain.Known(int64(0)), BedCapacity: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(4)), GrowingCells: domain.Known(int64(30)), Armed: domain.Known(int64(2)),

@@ -80,6 +80,7 @@ var inspections = []Inspection{
 	{MaintainFlooring, StandardConcern, DepartmentShelter, []FactFamily{FactRooms, FactColony}, inspectFlooring},
 	{MaintainRoutes, StandardConcern, DepartmentShelter, []FactFamily{FactWorld, FactColony}, inspectRoutes},
 	{MaintainArt, StandardConcern, DepartmentShelter, []FactFamily{FactRooms, FactColony, FactPawns}, inspectArt},
+	{MaintainTrade, StandardConcern, DepartmentIndustry, []FactFamily{FactColony, FactPawns, FactDefinitions, FactWorld}, inspectExport},
 	{MaintainShelter, StandardConcern, DepartmentShelter, []FactFamily{FactRooms, FactWorld, FactEmergency}, inspectShelter},
 	{MaintainFirebreak, StandardConcern, DepartmentShelter, []FactFamily{FactColony, FactWorld}, inspectFirebreak},
 	{MaintainWorkLedger, StandardConcern, DepartmentIndustry, []FactFamily{FactColony}, inspectWorkLedger},

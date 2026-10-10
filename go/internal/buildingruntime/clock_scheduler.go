@@ -45,10 +45,13 @@ type ClockSchedulerConfig struct {
 	// ArtBills lends MaintainArt its sculpting time; the sculpture bills are the
 	// ledger's (RoundsArtPlanner.DeclareOrders).
 	ArtBills *RoundsArtPlanner
-	Butcher  *RoundsBuildingPlanner
-	Fields   *RoundsFieldPlanner
-	Profile  string
-	Start    bridge.ClockStart
+	// ExportBills lends MaintainTrade its crafting time; the export batches are
+	// the ledger's (RoundsTradeExportPlanner.DeclareOrders).
+	ExportBills *RoundsTradeExportPlanner
+	Butcher     *RoundsBuildingPlanner
+	Fields      *RoundsFieldPlanner
+	Profile     string
+	Start       bridge.ClockStart
 	// PaceHorizonTicks is the safe horizon player acceleration's backoff
 	// keeps the critical evidence inside; zero is
 	// DefaultPaceHorizonTicks. Unused unless Start.PlayerAccelerated.
@@ -175,12 +178,12 @@ type ClockSchedulerResult struct {
 	// due until Hands has had a dispatch opportunity and native can advance.
 	Immediate bool
 	// Pacing is what the step's clock status said of the pace.
-	Pacing                                                                  StepPacing
-	CookingBills, PreservationBills, ButcherBills, CookAheadBills, ArtBills *RoundsBillResult
-	Butcher                                                                 *RoundsBuildingResult
-	Fields                                                                  *RoundsFieldResult
-	Attempt                                                                 *store.ClockAttempt
-	Decision                                                                policy.ClockWindowDecision
+	Pacing                                                                               StepPacing
+	CookingBills, PreservationBills, ButcherBills, CookAheadBills, ArtBills, ExportBills *RoundsBillResult
+	Butcher                                                                              *RoundsBuildingResult
+	Fields                                                                               *RoundsFieldResult
+	Attempt                                                                              *store.ClockAttempt
+	Decision                                                                             policy.ClockWindowDecision
 	// Window is the colony window the admission tail sized (before any
 	// native-work or combat bound), zero when the tail did not run.
 	Window                       ClockWindowSize
@@ -444,6 +447,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.ArtBills != nil && (config.Rounds == nil || config.ArtBills.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.ArtBills != nil && (config.Rounds == nil || config.ArtBills.reviewer != config.Rounds)", ErrControl)
+	}
+	if config.ExportBills != nil && (config.Rounds == nil || config.ExportBills.reviewer != config.Rounds) {
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.ExportBills != nil && (config.Rounds == nil || config.ExportBills.reviewer != config.Rounds)", ErrControl)
 	}
 	if config.Butcher != nil && (config.Rounds == nil || config.Butcher.reviewer != config.Rounds || config.Butcher.concern != policy.MaintainButcherSpot) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Butcher != nil && (config.Rounds == nil || config.Butcher.reviewer != config.Rounds || config.Butc", ErrControl)
@@ -1358,6 +1364,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	if out.ArtBills != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.ArtBills.NativeWorkTicks)
+	}
+	if out.ExportBills != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.ExportBills.NativeWorkTicks)
 	}
 	if out.PreservationBills != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.PreservationBills.NativeWorkTicks)

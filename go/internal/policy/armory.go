@@ -137,13 +137,24 @@ type ArmoryPrimary struct {
 // (EnsureFoodSupply). A hunter's upgrade
 // stays an ordinary fighter's.
 func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries map[domain.PawnID]ArmoryPrimary, weapons []EquipCandidateWeapon, recipes []GearRecipe, products map[Resource]WeaponDef) (fighters, hunters []Amount) {
+	fighters, hunters, _ = armoryWeaponAccounting(tier, pawns, primaries, weapons, recipes, products)
+	return fighters, hunters
+}
+
+// armoryWeaponAccounting is ArmoryWeaponDemand with the loose weapons it
+// leaves over: per definition the count lying about once the pairs AssignEquip
+// makes and the upgrades it counts as covered are taken out.
+func armoryWeaponAccounting(tier ArmoryTier, pawns []EquipCandidatePawn, primaries map[domain.PawnID]ArmoryPrimary, weapons []EquipCandidateWeapon, recipes []GearRecipe, products map[Resource]WeaponDef) (fighters, hunters []Amount, spare map[Resource]int) {
 	assigned := map[domain.PawnID]bool{}
-	for _, pair := range AssignEquip(pawns, weapons) {
-		assigned[pair.Pawn] = true
-	}
 	loose := map[Resource]int{}
+	spare = map[Resource]int{}
 	for _, w := range weapons {
 		loose[Resource(w.Definition)]++
+		spare[Resource(w.Definition)]++
+	}
+	for _, pair := range AssignEquip(pawns, weapons) {
+		assigned[pair.Pawn] = true
+		spare[Resource(pair.Weapon.Definition)]--
 	}
 	counts, hunts := map[Resource]int64{}, map[Resource]int64{}
 	for _, p := range pawns {
@@ -172,6 +183,7 @@ func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries m
 		}
 		if armed && loose[best] > 0 {
 			loose[best]--
+			spare[best]--
 			continue
 		}
 		if p.Role == WeaponRoleHunter && lacks {
@@ -180,7 +192,7 @@ func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries m
 			counts[best]++
 		}
 	}
-	return amounts(counts), amounts(hunts)
+	return amounts(counts), amounts(hunts), spare
 }
 
 func amounts(counts map[Resource]int64) []Amount {

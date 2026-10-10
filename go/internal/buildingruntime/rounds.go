@@ -91,6 +91,9 @@ type Rounder struct {
 	tunnels tunnelMemory
 	// consumption is the realized-consumption ledger of the current load, in memory only.
 	consumption consumptionMemory
+	// exports is the sale path's view of MaintainTrade's and the armory's
+	// declarations: the export products and the gear above demand.
+	exports exportMemory
 	// safeArea is MaintainShelter's Safe area memory.
 	safeArea safeAreaMemory
 	// firebreak is MaintainFirebreak's review memory, set when its
@@ -498,6 +501,7 @@ func (r *Rounder) reviewStep(ctx, epoch context.Context, arbiter *stepArbiter, p
 	if r.methodEnabled(policy.MaintainArt) {
 		reading.Projection.Facts.SculptureRoomsOwed = sculptureRoomsOwed(reading.Projection, r.stage)
 	}
+	reading.Projection.Facts.ExportProducts = r.exports.products(state.Snapshot)
 	if reading.Projection.Facts.SaleArt, err = reviewSaleArt(ctx, r.native, boundary.Identity(state.Snapshot), reading.Projection); err != nil {
 		return store.RoundsResult{}, err
 	}

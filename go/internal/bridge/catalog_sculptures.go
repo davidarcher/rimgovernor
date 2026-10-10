@@ -12,6 +12,14 @@ import (
 // statWorkToMake is the work a thing takes to make when its recipe names none.
 const statWorkToMake = "WorkToMake"
 
+// WorkToMake is the work one piece of a def made from a stuff takes (the
+// stat's shown value with the stuff's factor); false when the catalog shows
+// none.
+func (catalog *DefinitionCatalog) WorkToMake(def, stuff string) (float64, bool) {
+	value, shown, err := catalog.ShownStatValue(def, stuff, statWorkToMake)
+	return float64(value), err == nil && shown
+}
+
 // sculptures are the art recipes of the catalog: each recipe whose role
 // is RoleSculpture, with the building it makes, the building's footprint and
 // stuff cost, and the work the recipe takes (its own workAmount, else the

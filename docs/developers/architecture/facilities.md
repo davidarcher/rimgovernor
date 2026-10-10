@@ -608,6 +608,13 @@ kind or wire field: `PlanHomeArea` takes the hold as an argument and the
 reading carries it as `RoundsFacts.RangeHold`. The range shell's ordinary walls
 stay in home and are repaired like any wall.
 
+### Trade goods (MaintainTrade)
+
+Goods made to sell (#2607) need no facility of their own: `MaintainTrade`
+declares ledger orders at the benches the ladder already builds, and the trade
+planner sells the products from stock. No depot or room is sited for them; see
+`work-assignment.md` for the ranking, ownership and sale path.
+
 ## Acceptance
 
 The `production/ladder` case (`acceptance run production/ladder`, `go/internal/nativeaccept/cases/production`) opens the

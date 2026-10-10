@@ -38,6 +38,9 @@ func ConcernLabor(id ConcernID) LaborProfile {
 		return LaborProfile{WorkPlantCutting}
 	case MaintainArt:
 		return LaborProfile{WorkArt}
+	case MaintainTrade:
+		// A sale batch at any crafting bench: sculpture, apparel, weapon.
+		return LaborProfile{WorkArt, WorkTailoring, WorkSmithing, WorkCrafting}
 	case EnsureResearch:
 		return LaborProfile{WorkResearch}
 	case MaintainResource:
