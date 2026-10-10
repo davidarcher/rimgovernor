@@ -217,7 +217,7 @@ func inspectBasicDefense(c *roundsRun) error {
 		n, k := footholdCount(f).Value()
 		stock, sk := f.Armed.Value()
 		if k && sk && n > 0 {
-			deficit := max(0, float64(min(2, n)-stock)/float64(min(2, n)))
+			deficit := max(0, float64(armedTarget(n)-stock)/float64(armedTarget(n)))
 			if unarmed, uk := f.Unarmed.Value(); uk && unarmed > 0 && deficit == 0 {
 				deficit = float64(unarmed) / float64(unarmed+stock)
 			}

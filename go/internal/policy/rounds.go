@@ -636,7 +636,11 @@ func footholdPower(f RoundsFacts) domain.Fact[bool] {
 	return allFacts(power, measured(f.DisabledConsumers, func(v bool) bool { return !v }))
 }
 
-// footholdArmed is two armed fighters (every colonist when fewer).
+// armedTarget is the armed fighters a colony of n colonists owes: two, every
+// colonist when fewer, never below one. The only place the number lives.
+func armedTarget(n int64) int64 { return max(1, min(2, n)) }
+
+// footholdArmed is armedTarget fighters.
 func footholdArmed(f RoundsFacts) domain.Fact[bool] {
 	if n, k := footholdCount(f).Value(); k {
 		return measured(f.Armed, func(v int64) bool { return v >= min(2, n) })
