@@ -78,6 +78,9 @@ type Rounder struct {
 	// ledger is the work ledger's memory: declarers, orphan counters and the
 	// latest reconcile plan.
 	ledger workLedger
+	// roomStalls remembers since when each room has had unfinished blueprints
+	// or frames; see noteStall.
+	roomStalls map[string]roomStall
 	// skipsLogged are the quest skips already logged.
 	skipsLogged map[questSkipKey]bool
 	// techTier is the last tech tier logged: the flight recorder

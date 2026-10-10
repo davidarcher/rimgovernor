@@ -125,6 +125,10 @@ func foreignThings(in ReconcileInput, ring Rectangle, wallDef string, doorWanted
 			case t.Category == ThingItem:
 				if t.Has(FlagHaulable) && !t.Has(FlagForbidden) {
 					place(OpHaulOut, t, c, false)
+				} else if t.Has(FlagHaulable) && doorWanted[c] {
+					// Nothing hauls a forbidden stack: it is named, not blocking, so the
+					// door goes on to its placement and the wait shows what sits on it.
+					w.holds = append(w.holds, ReconcileHold{Cell: c, Def: t.Def, Reason: "forbidden_item"})
 				}
 			case t.Category == ThingBuilding && t.Faction != FactionPlayer && !t.Has(FlagBlueprint) && !t.Has(FlagFrame):
 				switch {

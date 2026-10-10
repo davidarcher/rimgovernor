@@ -292,6 +292,23 @@ func (e Entry) Words() string {
 		if ms, _ := e.Payload[telemetry.DurMsKey].(float64); ms > 0 && e.Count == 1 {
 			fmt.Fprintf(&b, " %.1fms", ms)
 		}
+		if e.Kind == "build_stalled" {
+			// A stalled room reads as its blueprint and frame counts and reasons.
+			attrs, _ := e.Payload[telemetry.AttrsKey].(map[string]any)
+			bp, _ := attrs["blueprints"].(float64)
+			fr, _ := attrs["frames"].(float64)
+			fmt.Fprintf(&b, " %.0f blueprints, %.0f frames", bp, fr)
+			if reasons, ok := attrs["reasons"].(map[string]any); ok {
+				keys := make([]string, 0, len(reasons))
+				for k := range reasons {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				for _, k := range keys {
+					fmt.Fprintf(&b, " %s=%v", k, reasons[k])
+				}
+			}
+		}
 		if e.Kind == "food_credit" {
 			// A credit row's point is the factor the ledger moved the channel to.
 			attrs, _ := e.Payload[telemetry.AttrsKey].(map[string]any)

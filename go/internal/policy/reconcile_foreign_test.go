@@ -147,3 +147,42 @@ func TestThingLoadIDIsVanillaForm(t *testing.T) {
 		t.Fatalf("LoadID = %q", got)
 	}
 }
+
+// A ring standing but for its door cell, on which a stack sits: the haul is
+// owed, the door waits on the cell, and the room's furniture does not wait on
+// the ring.
+func TestReconcileDoorCellStackHaulsAndDoesNotGateFurniture(t *testing.T) {
+	in, room := reconFixture()
+	doors := in.Plan.ShellDoors(room)
+	door := doors[0]
+	in.Ground.doors[door] = false
+	at := domain.Cell{X: room.Interior.X, Z: room.Interior.Z}
+	in.Furniture = []WantedPiece{{DefName: "Bed", Minimum: at, Maximum: at, Size: domain.Cell{X: 1, Z: 1}, Rot: domain.North}}
+	steel := Thing{ID: 5, Def: "Steel", Category: ThingItem, Flags: FlagHaulable, Count: 40}
+	in.Cells = []SiteCell{foreignCell(door, steel)}
+	rec := Reconcile(in)
+	if haul := readyOp(t, rec, OpHaulOut); len(haul.Targets) != 1 || haul.Targets[0].Count != 40 || haul.Targets[0].Minimum != door {
+		t.Fatalf("haul the door-cell stack: %+v", rec.Ready)
+	}
+	if len(readyOp(t, rec, OpDoorIn).Cells) != 0 {
+		t.Fatalf("the door waits for the haul: %+v", rec.Ready)
+	}
+	if len(readyOp(t, rec, OpBuild).Pieces) != 1 {
+		t.Fatalf("the bed does not wait on the door: %+v", rec.Ready)
+	}
+}
+
+// A forbidden stack on the door cell is named but does not block the door.
+func TestReconcileForbiddenStackOnDoorCellIsNamedNotBlocking(t *testing.T) {
+	in, room := reconFixture()
+	door := in.Plan.ShellDoors(room)[0]
+	in.Ground.doors[door] = false
+	in.Cells = []SiteCell{foreignCell(door, Thing{ID: 5, Def: "Steel", Category: ThingItem, Flags: FlagHaulable | FlagForbidden, Count: 40})}
+	rec := Reconcile(in)
+	if !hasHold(rec, "forbidden_item") || len(rec.Holds) != 1 || rec.Holds[0].Def != "Steel" {
+		t.Fatalf("holds = %+v", rec.Holds)
+	}
+	if len(readyOp(t, rec, OpDoorIn).Cells) != 1 {
+		t.Fatalf("a forbidden stack leaves the door ready: %+v", rec.Ready)
+	}
+}

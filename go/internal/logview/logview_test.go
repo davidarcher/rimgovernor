@@ -274,3 +274,12 @@ func TestFoodCreditRowShowsFactorAndState(t *testing.T) {
 		t.Fatalf("Words = %q", got)
 	}
 }
+
+func TestBuildStalledRowShowsCountsAndReasons(t *testing.T) {
+	rec := bridge.TimelineRecord{Kind: "build_stalled", Context: map[string]any{"component": "building-planner"}, Payload: map[string]any{
+		telemetry.VerdictKey: "waiting", telemetry.ReasonKey: "awaiting_materials", telemetry.TargetKey: "bedroom-shell-105-99",
+		telemetry.AttrsKey: map[string]any{"blueprints": 8.0, "frames": 2.0, "reasons": map[string]any{"awaiting_materials": 8.0, "no_eligible_builder": 2.0}}}}
+	if got := NewEntry(rec).Words(); got != "build_stalled waiting awaiting_materials bedroom-shell-105-99 8 blueprints, 2 frames awaiting_materials=8 no_eligible_builder=2" {
+		t.Fatalf("Words = %q", got)
+	}
+}

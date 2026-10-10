@@ -33,8 +33,18 @@ func (n *refusingNative) PreviewBuilding(ctx context.Context, action domain.Acti
 // refuse and returns the result and the service log.
 func commitFurniture(t *testing.T, refuse string) (RoundsBuildingResult, string) {
 	t.Helper()
+	piece := policy.WantedPiece{DefName: "PenMarker", Minimum: domain.Cell{X: 1, Z: 1}, Maximum: domain.Cell{X: 1, Z: 1}, Size: domain.Cell{X: 1, Z: 1}, Rot: domain.North}
+	return commitOps(t, refuse, policy.Operation{Kind: policy.OpBuild, Pieces: []policy.WantedPiece{piece}})
+}
+
+// commitOps commits one operation through a native that refuses refuse and
+// returns the result and the service log.
+func commitOps(t *testing.T, refuse string, op policy.Operation) (RoundsBuildingResult, string) {
+	t.Helper()
 	p, db, base, _ := refrigerationFixture(t, false)
 	base.buildable("PenMarker", 0, 1, 1)
+	base.buildable("Wall", 0, 1, 1)
+	base.buildable("Door", 0, 1, 1)
 	p.native = &refusingNative{pricedNative: &pricedNative{refrigerationNative: base, available: 100}, def: refuse, blocker: policy.PlacementBlocker{Category: "Building", DefName: "Wall", Blueprint: true}}
 	ctx := context.Background()
 	state := p.reviewer.player.session.State()
@@ -60,17 +70,23 @@ func commitFurniture(t *testing.T, refuse string) (RoundsBuildingResult, string)
 	if err != nil {
 		t.Fatal(err)
 	}
-	reading, err := p.reviewer.observeRooms(ctx, base, expected, domain.Unknown[[]policy.ConstructionClaim](), "PenMarker")
+	reading, err := p.reviewer.observeRooms(ctx, base, expected, domain.Unknown[[]policy.ConstructionClaim](), "PenMarker", "Wall", "Door")
 	if err != nil {
 		t.Fatal(err)
+	}
+	for i, d := range reading.Projection.Definitions {
+		if d.Name == "Wall" || d.Name == "Door" {
+			reading.Projection.Definitions[i].Available = domain.Known(true)
+		}
 	}
 	player := p.reviewer.player
 	player.mu.Lock()
 	epoch := player.epoch
 	player.mu.Unlock()
-	room := policy.PlannedRoom{Role: policy.PlannedPen, Interior: policy.Rectangle{X: 1, Z: 1, Width: 2, Height: 2}, Outdoor: true}
-	piece := policy.WantedPiece{DefName: "PenMarker", Minimum: domain.Cell{X: 1, Z: 1}, Maximum: domain.Cell{X: 1, Z: 1}, Size: domain.Cell{X: 1, Z: 1}, Rot: domain.North}
-	work := roomWork{rr: roomReconcile{room: room, name: "kitchen", reason: "kitchen"}, ops: []policy.Operation{{Kind: policy.OpBuild, Pieces: []policy.WantedPiece{piece}}}}
+	room := policy.PlannedRoom{Role: policy.PlannedPen, Interior: policy.Rectangle{X: 1, Z: 1, Width: 2, Height: 2}, Outdoor: op.Kind == policy.OpBuild}
+	work := roomWork{rr: roomReconcile{room: room, name: "kitchen", reason: "kitchen", stuff: func(_, _ observation.PlanningDefinition) (string, string, Verdict, bool) {
+		return "", "", Verdict{}, true
+	}}, ops: []policy.Operation{op}}
 	var logs bytes.Buffer
 	old := slog.Default()
 	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
@@ -102,5 +118,16 @@ func TestAllClearRoomWaitUnchanged(t *testing.T) {
 	result, logs := commitFurniture(t, "NoSuchDef")
 	if result.Verdict.Refusal.Kind == policy.CauseExistingWork || strings.Contains(logs, "refused") {
 		t.Fatalf("an all-clear room waited: %+v, log %q", result.Verdict, logs)
+	}
+}
+
+// A wall cell the preview refuses is named in the wait like a furniture cell.
+func TestRefusedRingCellNamesItsBlocker(t *testing.T) {
+	result, logs := commitOps(t, "Wall", policy.Operation{Kind: policy.OpWallUp, Cells: []domain.Cell{{X: 1, Z: 1}}})
+	if result.Verdict.Refusal.Kind != policy.CauseExistingWork || result.Verdict.Refusal.Subject != "kitchen_reconcile:blocked:Wall@1,1" {
+		t.Fatalf("verdict = %+v, want the wait naming Wall@1,1", result.Verdict)
+	}
+	if !strings.Contains(logs, "ring cell refused: Wall@1,1") || !strings.Contains(logs, "Wall blueprint") {
+		t.Fatalf("service log = %q, want the refused ring cell and its blocker", logs)
 	}
 }

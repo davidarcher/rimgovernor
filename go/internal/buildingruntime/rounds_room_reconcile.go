@@ -142,7 +142,7 @@ func roomWaiting(name string, refused ...refusedPlacement) RoundsBuildingResult 
 	return RoundsBuildingResult{Verdict: waitFor(policy.CauseExistingWork, subject)}
 }
 
-// refusedPlacement is a furniture cell the native preview refused and the
+// refusedPlacement is a furniture or ring cell the native preview refused and the
 // thing it reported in the way.
 type refusedPlacement struct {
 	def     string
@@ -174,11 +174,15 @@ func describeBlockers(blockers []policy.PlacementBlocker) string {
 	return strings.Join(parts, ", ")
 }
 
-// reportRefused records a refused furniture cell in the service log and
-// returns it for the wait key.
+// reportRefused records a refused furniture or ring cell in the service log and
+// returns it for the wait key; a ring cell (wall, door) reads as one.
 func reportRefused(ctx context.Context, build roomBuild, v policy.Preview) refusedPlacement {
 	r := refusedPlacement{def: build.def, cell: build.cell, blocker: describeBlockers(v.Blockers)}
-	slog.Default().InfoContext(ctx, "furniture cell refused: "+r.key()+" blocked by "+r.blocker, telemetry.ComponentKey, "building-planner", telemetry.KindKey, "placement_refused")
+	kindWord := "furniture"
+	if build.ring {
+		kindWord = "ring"
+	}
+	slog.Default().InfoContext(ctx, kindWord+" cell refused: "+r.key()+" blocked by "+r.blocker, telemetry.ComponentKey, "building-planner", telemetry.KindKey, "placement_refused")
 	return r
 }
 
@@ -188,6 +192,12 @@ type roomWork struct {
 	ops []policy.Operation
 	// holds are the foreign things the room leaves standing.
 	holds []policy.ReconcileHold
+	// awaiting names the blueprints and frames the room has standing
+	// (awaitingKey); empty when none.
+	awaiting string
+	// obstructed names the foreign things on cells the room waits to have
+	// cleared (roomObstructions).
+	obstructed []string
 }
 
 // holdKey names the first held foreign thing for a wait key and logs every one:
@@ -207,8 +217,16 @@ func holdKey(ctx context.Context, w roomWork) string {
 // waitingHeld is roomWaiting with the first held foreign thing named.
 func waitingHeld(ctx context.Context, name string, w roomWork, refused ...refusedPlacement) RoundsBuildingResult {
 	result := roomWaiting(name, refused...)
-	if hold := holdKey(ctx, w); hold != "" && len(refused) == 0 {
+	hold := holdKey(ctx, w)
+	if len(refused) > 0 {
+		return result
+	}
+	if hold != "" {
 		result.Verdict = waitFor(policy.CauseExistingWork, name+"_reconcile:held:"+hold)
+	} else if len(w.obstructed) > 0 {
+		result.Verdict = waitFor(policy.CauseExistingWork, name+"_reconcile:obstructed:"+w.obstructed[0])
+	} else if w.awaiting != "" {
+		result.Verdict = waitFor(policy.CauseExistingWork, name+"_reconcile:"+w.awaiting)
 	}
 	return result
 }
@@ -262,7 +280,13 @@ func (b *RoundsBuildingPlanner) reconcileRoom(call, epoch context.Context, state
 		in.Stock = left
 	}
 	ops, holds := policy.ReconcileRoomHolds(in)
-	w := roomWork{rr: rr, ops: ops, holds: holds}
+	var standing []policy.ConstructionSite
+	if census, known := facts.Facts.CurrentConstruction.Value(); known {
+		standing = roomSites(census.Sites, rr.room.RoomGround())
+	}
+	obstructed := roomObstructions(ops)
+	b.reviewer.noteStall(call, rr.name, facts.Identity.Tick, standing, obstructed)
+	w := roomWork{rr: rr, ops: ops, holds: holds, awaiting: awaitingKey(standing), obstructed: obstructed}
 	// Foreign obstructions first (claim, cut, haul),
 	// then removals, then installs from stock, then what is built on site.
 	if result, done, err := b.commitObstructions(call, epoch, state, goal, w); done || err != nil {
@@ -584,11 +608,9 @@ func (b *RoundsBuildingPlanner) commitBuilds(call, epoch context.Context, state 
 				// another site.
 				return RoundsBuildingResult{Verdict: noSpace("pen_enclosure")}, nil
 			}
-			if !build.ring {
-				r := reportRefused(call, build, v)
-				if len(refused) == 0 {
-					refused = append(refused, r)
-				}
+			r := reportRefused(call, build, v)
+			if len(refused) == 0 {
+				refused = append(refused, r)
 			}
 			continue
 		}
