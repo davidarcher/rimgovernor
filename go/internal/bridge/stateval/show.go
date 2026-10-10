@@ -73,7 +73,7 @@ func (e *Evaluator) shown(req *Request) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		force, err := part.ForceShow(req)
+		force, err := part.ForceShow(req, rp.row)
 		if err != nil || force {
 			return force, err
 		}

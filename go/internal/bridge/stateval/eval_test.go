@@ -30,8 +30,8 @@ func partAge(priority float32) *d.Opt_StatPartAny {
 	return &d.Opt_StatPartAny{Value: &d.StatPartAny{Value: &d.StatPartAny_StatPart_Age{StatPart_Age: &d.StatPart_Age{Priority: priority}}}}
 }
 
-func partStuff(priority float32) *d.Opt_StatPartAny {
-	return &d.Opt_StatPartAny{Value: &d.StatPartAny{Value: &d.StatPartAny_StatPart_Stuff{StatPart_Stuff: &d.StatPart_Stuff{Priority: priority}}}}
+func partGlow(priority float32) *d.Opt_StatPartAny {
+	return &d.Opt_StatPartAny{Value: &d.StatPartAny{Value: &d.StatPartAny_StatPart_Glow{StatPart_Glow: &d.StatPart_Glow{Priority: priority}}}}
 }
 
 // rig is a small catalog (Apparel_Parka, Steel and a free terrain) with a
@@ -165,24 +165,24 @@ type fakePart struct {
 }
 
 func (p fakePart) Class() string { return p.class }
-func (p fakePart) Transform(_ *Request, val float32) (float32, error) {
+func (p fakePart) Transform(_ *Request, _ proto.Message, val float32) (float32, error) {
 	*p.log = append(*p.log, p.class)
 	return val*2 + p.add, nil
 }
-func (p fakePart) ForceShow(*Request) (bool, error) { return p.force, nil }
+func (p fakePart) ForceShow(*Request, proto.Message) (bool, error) { return p.force, nil }
 
 func TestPartsDispatchByPriorityAndUnownedPartsAreNotMirrored(t *testing.T) {
 	r := newRig(t, func(stat *d.StatDef, parka, _ *d.ThingDef) {
-		stat.Parts = []*d.Opt_StatPartAny{partAge(1), partStuff(5), partAge(1)}
+		stat.Parts = []*d.Opt_StatPartAny{partAge(1), partGlow(5), partAge(1)}
 		stat.Parts[2].Value.GetStatPart_Age().Curve = curve(0, 0) // distinct row, same class
 		parka.StatBases = append(parka.StatBases, mod(testStat, 1))
 	})
 	parka := ThingSubject("Apparel_Parka", "")
 	_, err := r.eval.Value(testStat, parka)
-	notMirrored(t, err, "StatPart_Stuff") // the highest priority part runs first
+	notMirrored(t, err, "StatPart_Glow") // the highest priority part runs first
 	r.eval.parts = map[string]Part{}
 	var log []string
-	r.eval.parts["StatPart_Stuff"] = fakePart{class: "StatPart_Stuff", add: 1, log: &log}
+	r.eval.parts["StatPart_Glow"] = fakePart{class: "StatPart_Glow", add: 1, log: &log}
 	_, err = r.eval.Value(testStat, parka)
 	notMirrored(t, err, "StatPart_Age")
 	r.eval.parts["StatPart_Age"] = fakePart{class: "StatPart_Age", add: 0, log: &log}
@@ -191,23 +191,23 @@ func TestPartsDispatchByPriorityAndUnownedPartsAreNotMirrored(t *testing.T) {
 	if got := r.value(parka); got != 12 {
 		t.Errorf("parts chain = %v, want 12", got)
 	}
-	if strings.Join(log, ",") != "StatPart_Stuff,StatPart_Age,StatPart_Age" {
+	if strings.Join(log, ",") != "StatPart_Glow,StatPart_Age,StatPart_Age" {
 		t.Errorf("part order = %v", log)
 	}
 }
 
 func TestEqualPriorityPartsKeepFileOrder(t *testing.T) {
 	r := newRig(t, func(stat *d.StatDef, parka, _ *d.ThingDef) {
-		stat.Parts = []*d.Opt_StatPartAny{partAge(0), partStuff(0)}
+		stat.Parts = []*d.Opt_StatPartAny{partAge(0), partGlow(0)}
 		parka.StatBases = append(parka.StatBases, mod(testStat, 1))
 	})
 	var log []string
 	r.eval.parts = map[string]Part{
-		"StatPart_Age":   fakePart{class: "StatPart_Age", log: &log},
-		"StatPart_Stuff": fakePart{class: "StatPart_Stuff", log: &log},
+		"StatPart_Age":  fakePart{class: "StatPart_Age", log: &log},
+		"StatPart_Glow": fakePart{class: "StatPart_Glow", log: &log},
 	}
 	r.value(ThingSubject("Apparel_Parka", ""))
-	if strings.Join(log, ",") != "StatPart_Age,StatPart_Stuff" {
+	if strings.Join(log, ",") != "StatPart_Age,StatPart_Glow" {
 		t.Errorf("order = %v", log)
 	}
 }
@@ -388,11 +388,11 @@ func TestEvaluateCurve(t *testing.T) {
 func TestNoSharedMutation(t *testing.T) {
 	// The evaluator reads the catalog's rows and never writes them.
 	r := newRig(t, func(s *d.StatDef, p, _ *d.ThingDef) {
-		s.Parts = []*d.Opt_StatPartAny{partAge(2), partStuff(1)}
+		s.Parts = []*d.Opt_StatPartAny{partAge(2), partGlow(1)}
 		p.StatBases = append(p.StatBases, mod(testStat, 1))
 	})
 	before := proto.Clone(r.stat)
-	r.eval.parts = map[string]Part{"StatPart_Age": fakePart{class: "StatPart_Age", log: new([]string)}, "StatPart_Stuff": fakePart{class: "StatPart_Stuff", log: new([]string)}}
+	r.eval.parts = map[string]Part{"StatPart_Age": fakePart{class: "StatPart_Age", log: new([]string)}, "StatPart_Glow": fakePart{class: "StatPart_Glow", log: new([]string)}}
 	r.value(ThingSubject("Apparel_Parka", ""))
 	if !proto.Equal(before, r.stat) {
 		t.Error("evaluation changed the stat row")

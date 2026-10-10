@@ -27,6 +27,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
+	"google.golang.org/protobuf/proto"
 )
 
 // baseWorker is the class of a StatDef with no workerClass: the core itself.
@@ -89,15 +90,23 @@ func (r *Request) statBases() []*d.Opt_StatModifier {
 type Part interface {
 	// Class is the StatPart class name, as in stat_classes.tsv.
 	Class() string
-	// Transform is StatPart.TransformValue.
-	Transform(req *Request, val float32) (float32, error)
+	// Transform is StatPart.TransformValue; row is the part's own entry of
+	// the stat's parts list (a *defspb.<Class>), which carries its fields.
+	Transform(req *Request, row proto.Message, val float32) (float32, error)
 	// ForceShow is StatPart.ForceShow.
-	ForceShow(req *Request) (bool, error)
+	ForceShow(req *Request, row proto.Message) (bool, error)
 }
 
 // ownedParts are the StatPart classes a Go function owns, by class. Each has
 // "stateval.<Class>" as its owner in stat_classes.tsv.
-func ownedParts() map[string]Part { return map[string]Part{} }
+func ownedParts() map[string]Part {
+	parts := []Part{partHyperlinks{}, partQuality{}, partQualityOffset{}, partStuff{}}
+	owned := make(map[string]Part, len(parts))
+	for _, p := range parts {
+		owned[p.Class()] = p
+	}
+	return owned
+}
 
 // Evaluator evaluates stats over one catalog.
 type Evaluator struct {
@@ -215,6 +224,7 @@ func notMirroredWorker(stat *d.StatDef, fact string) error {
 type resolvedPart struct {
 	class    string
 	priority float32
+	row      proto.Message
 }
 
 func (e *Evaluator) orderedParts(stat *d.StatDef) ([]resolvedPart, error) {
@@ -232,7 +242,7 @@ func (e *Evaluator) orderedParts(stat *d.StatDef) ([]resolvedPart, error) {
 		}
 		inner := msg.Get(field).Message()
 		priority := inner.Get(inner.Descriptor().Fields().ByName("priority")).Float()
-		parts = append(parts, resolvedPart{class: string(field.Name()), priority: float32(priority)})
+		parts = append(parts, resolvedPart{class: string(field.Name()), priority: float32(priority), row: inner.Interface()})
 	}
 	sort.SliceStable(parts, func(i, j int) bool { return -parts[i].priority < -parts[j].priority })
 	return parts, nil
@@ -315,7 +325,7 @@ func (e *Evaluator) finalize(req *Request, val float32) (float32, error) {
 		if err != nil {
 			return 0, err
 		}
-		if val, err = part.Transform(req, val); err != nil {
+		if val, err = part.Transform(req, rp.row, val); err != nil {
 			return 0, err
 		}
 	}
