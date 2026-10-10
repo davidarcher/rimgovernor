@@ -136,4 +136,3 @@ func (z StockZone) medicine() bool {
 	prefix, _, _ := strings.Cut(z.Role, ":")
 	return prefix == "medicine"
 }
-
