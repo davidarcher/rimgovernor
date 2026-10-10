@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
     public static class LabStart
     {
         public const float Temperature = 21f;
-        public const int DefaultColonists = 3, MaxColonists = 8, SkillLevel = 8;
+        public const int DefaultColonists = 3, MaxColonists = 12, SkillLevel = 8;
         private const int Seed = 730;
         private static bool patched;
 

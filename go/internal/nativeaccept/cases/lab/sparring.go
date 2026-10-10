@@ -127,7 +127,14 @@ func runSparringStage(ctx context.Context, s cases.Session, h *na.Harness, stage
 					ended++
 				}
 			}
-			return fmt.Sprint(got["active"], ended), ended >= stage.eligible, nil
+			done := ended >= stage.eligible
+			if stage.scenario == "raid" {
+				// The attacker is removed a few hundred ticks after the victim's job ends.
+				raid, _ := na.AsMap(got["raid"])
+				gone, _ := na.AsBool(raid["raiderGone"])
+				done = done && gone
+			}
+			return fmt.Sprint(got["active"], ended), done, nil
 		}
 		done := 0
 		for _, b := range sparringBouts(got) {
@@ -142,10 +149,37 @@ func runSparringStage(ctx context.Context, s cases.Session, h *na.Harness, stage
 	if err := checkSparringStage(stage, prepared, last); err != nil {
 		return last, err
 	}
+	if stage.scenario == "raid" {
+		return last, checkSparringRaid(last)
+	}
 	if stage.scenario != "" {
 		return last, checkSparringFight(stage, last)
 	}
 	return last, nil
+}
+
+// checkSparringRaid: a real attacker beside a sparring pawn (#2711). The victim's
+// spar job ends (the stop rule, or it is downed) and its own gear is back; the
+// numbers it saw go to the report.
+func checkSparringRaid(got map[string]any) error {
+	raid, _ := na.AsMap(got["raid"])
+	if raid == nil {
+		return fmt.Errorf("no attacker was ever spawned: %#v", got)
+	}
+	victim := na.AsString(raid["victim"])
+	for _, p := range sparringPawns(got) {
+		switch {
+		case !p.ended:
+			return fmt.Errorf("%s's spar job never ended: %#v", p.id, got)
+		case !p.noPractice || !p.originals:
+			return fmt.Errorf("%s left practice gear behind or lost a piece: %#v", p.id, got)
+		case !p.dead && !p.restored:
+			return fmt.Errorf("%s's gear is not restored: %#v", p.id, got)
+		case p.id == victim && p.dead:
+			return fmt.Errorf("the attacker killed %s: %#v", p.id, got)
+		}
+	}
+	return nil
 }
 
 type sparringPawn struct {

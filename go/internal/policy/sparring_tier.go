@@ -39,11 +39,11 @@ const (
 var SparringTiers = []SparringTier{
 	{Weapon: "MeleeWeapon_PracticeClub", DamageType: "Blunt", Power: 3, Ceiling: 8,
 		Apparel: []string{practiceTunic}},
-	{Weapon: "MeleeWeapon_PracticeSword", DamageType: "Cut", Power: 5, Ceiling: 12, Gate: "Smithing",
+	{Weapon: "MeleeWeapon_PracticeSword", DamageType: "Cut", Power: 3, Ceiling: 12, Gate: "Smithing",
 		Apparel: []string{practiceTunic, practiceHelmet, practiceGloves}},
-	{Weapon: "MeleeWeapon_PracticeSwordBetter", DamageType: "Cut", Power: 5, Ceiling: 16, Gate: "Machining",
+	{Weapon: "MeleeWeapon_PracticeSwordBetter", DamageType: "Cut", Power: 3, Ceiling: 16, Gate: "Machining",
 		Apparel: []string{practiceTunic, practiceHelmet, practiceGloves, practiceVest}},
-	{Weapon: "MeleeWeapon_PracticeSwordBest", DamageType: "Cut", Power: 5, Ceiling: 20, Gate: "Fabrication",
+	{Weapon: "MeleeWeapon_PracticeSwordBest", DamageType: "Cut", Power: 3, Ceiling: 20, Gate: "Fabrication",
 		Apparel: []string{practiceTunic, practiceHelmet, practiceGloves, practiceVest}},
 }
 

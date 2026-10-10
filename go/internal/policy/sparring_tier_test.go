@@ -121,9 +121,9 @@ func TestSparringApparelMirrorsTheNativeDefs(t *testing.T) {
 	}
 	want := map[string]piece{
 		practiceTunic:  {"Torso,Legs", "OnSkin", "", ""},
-		practiceHelmet: {"FullHead", "Overhead", "1", "1"},
-		practiceGloves: {"Hands", "Middle", "1", "1"},
-		practiceVest:   {"Torso", "Middle", "0.3", "0.2"},
+		practiceHelmet: {"FullHead", "Overhead", "2.2", "2.2"},
+		practiceGloves: {"Hands", "Middle", "2.2", "2.2"},
+		practiceVest:   {"Torso", "Middle", "0.8", "0.5"},
 	}
 	for i, tier := range SparringTiers {
 		e := defs[tier.Weapon].Extensions[0]

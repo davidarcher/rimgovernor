@@ -697,8 +697,25 @@ out 1500), then fights once two or more have arrived and none more for 120 ticks
 or a four is full; a pawn that stops being eligible while gathering is dropped.
 Teams: pairs and threes free-for-all, a four 2v2 with the highest beside the lowest.
 `Opponent` is the nearest standing member of another team, lower id on a tie. The
-fight length is a placeholder until #2709's stop rule. `lab/sparring` proves it; "empty after a
+fight length is `SparringStopRule` (#2709, tuned in #2711). `lab/sparring` proves it; "empty after a
 load" holds by construction (the registry is keyed on the `Map`), not by a reload case.
+
+**Tuned numbers (#2711).** Measured over about 100 sessions per tier and outfit
+(tribal garment, spacer recon armor) by `lab/sparring-risk`, `lab/sparring-xp` and
+`lab/sparring-scale` (measure mode of `SparringFixture`: tally each ended session,
+heal it to realize scars, reset the pawn). Stop rule: pain 0.4, bleed 1.5, 12 swings.
+The first guesses were wrong: bleed 0.05 ended nearly every sharp session after one
+swing, and Cut power 5 gave about 10 deep cuts and median pain 0.55 per session.
+Now every Cut weapon shares power 3 (Blunt club 3), practice helmet and gloves
+armor 2.2/2.2, vest 0.8/0.5, tunic 0/0. Result: 0 deaths, 0 destroyed parts, nobody
+naked, no real armor lost or worn, no scar in the final 800-session run (an earlier
+run with the same armor scarred one eye in 800). A sharp session is about 8 cuts; a quarter to a third end early on bleeding.
+Vanilla melee XP is about 400 per swing at passion Minor and the day's 4000
+`xpSinceMidnight` saturation (then x0.2) is crossed in the first 10 swings of
+the day's first bout, so 12 swings already over-fill it. Formation seats every
+pawn at 2 to 12 eligible with no double booking; at levels 16 to 20 a lone high
+pawn pairs with the lowest available and a high-only crew pairs among itself.
+The fixture's colony cap is 12 for these cases.
 
 **Trained with (#2710, `TrainingCompany`).** One memory, `RimGovernor_TrainedWith`
 (`Defs/ThoughtDefs/`, +3 mood, one day, stack limit 1), shared by the range and

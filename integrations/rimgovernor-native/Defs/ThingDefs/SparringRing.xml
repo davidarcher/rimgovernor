@@ -69,7 +69,7 @@
         <capacities>
           <li>Cut</li>
         </capacities>
-        <power>5</power>
+        <power>3</power>
         <cooldownTime>2</cooldownTime>
       </li>
     </tools>
@@ -111,7 +111,7 @@
         <capacities>
           <li>Cut</li>
         </capacities>
-        <power>5</power>
+        <power>3</power>
         <cooldownTime>2</cooldownTime>
       </li>
     </tools>
@@ -154,7 +154,7 @@
         <capacities>
           <li>Cut</li>
         </capacities>
-        <power>5</power>
+        <power>3</power>
         <cooldownTime>2</cooldownTime>
       </li>
     </tools>
@@ -226,8 +226,8 @@
       <graphicClass>Graphic_Single</graphicClass>
     </graphicData>
     <statBases>
-      <ArmorRating_Sharp>1</ArmorRating_Sharp>
-      <ArmorRating_Blunt>1</ArmorRating_Blunt>
+      <ArmorRating_Sharp>2.2</ArmorRating_Sharp>
+      <ArmorRating_Blunt>2.2</ArmorRating_Blunt>
     </statBases>
     <apparel>
       <countsAsClothingForNudity>false</countsAsClothingForNudity>
@@ -250,8 +250,8 @@
       <graphicClass>Graphic_Single</graphicClass>
     </graphicData>
     <statBases>
-      <ArmorRating_Sharp>1</ArmorRating_Sharp>
-      <ArmorRating_Blunt>1</ArmorRating_Blunt>
+      <ArmorRating_Sharp>2.2</ArmorRating_Sharp>
+      <ArmorRating_Blunt>2.2</ArmorRating_Blunt>
     </statBases>
     <apparel>
       <countsAsClothingForNudity>false</countsAsClothingForNudity>
@@ -273,8 +273,8 @@
       <graphicClass>Graphic_Single</graphicClass>
     </graphicData>
     <statBases>
-      <ArmorRating_Sharp>0.3</ArmorRating_Sharp>
-      <ArmorRating_Blunt>0.2</ArmorRating_Blunt>
+      <ArmorRating_Sharp>0.8</ArmorRating_Sharp>
+      <ArmorRating_Blunt>0.5</ArmorRating_Blunt>
     </statBases>
     <apparel>
       <bodyPartGroups>
