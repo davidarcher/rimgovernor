@@ -219,6 +219,24 @@ a simple name). The messages hold no values: native fills them by reflection.
   A public member of a carried type the mapping cannot represent fails
   generation naming `Class.member`, as a def field does.
 
+#### Game facts kept outside the mirror
+
+A game fact is a typed mirror read, derived in Go from mirrored rows, or an
+explicit error. These stay outside `GameConstants` and the def rows, each for a
+reason a reflection walk cannot remove (sizes and timings:
+[mirror measurements](../docs/developers/architecture/mirror-measurements.md);
+RimGovernor's own caps: [kept constants](../docs/developers/contracts/kept-constants.md)):
+
+| Fact | Why it stays outside | Owner |
+|---|---|---|
+| `GenTemperature.RotRateAtTemperature` full-rate temperature (`FullRotRateC`) | The rot curve is literals inside a method body, not a field. Native evaluates the function and bisects for the first temperature whose rate reaches 1; it fails naming the function if none does. | `NativeDefinitionCatalogTool.FullRotRateC`; carrier decided in #2629 |
+| `ThingDefOf.Silver` (currency) and `ThingDefOf.Wort` def names | `*DefOf` classes are excluded by rule: their fields are def references resolved after load, not constants. The game's own code names them (`Tradeable.IsCurrency`, `Building_FermentingBarrel`). | native, #2629 |
+| Any literal inside a method body (a magic number in `StatWorker`, `JobDriver`, `Pawn_*` code) | Reflection sees fields, not method bodies. These are code logic, not constants: the audit family of #2635 lists each worker class as owned in Go or unowned, and a lookup of an unmirrored fact errors naming the class. | #2635 and the stat children (#2636 to #2639) |
+| Members of unsupported shapes: `HashSet`, `Dictionary`, arrays and lists of structs or classes, multidimensional arrays, `LudeonTK.ComplexCurve`, `Texture2D`, `System.Type`; 12 static curves that are not `readonly` | The mapping cannot represent them. `defs.proto` lists each with its reason; a public one of a carried type fails generation instead of being skipped. | generator header |
+| `private` arrays and `List`s | Runtime buffers and caches, filled while the game runs (`LanguageWorker_Czech._replaceRegexKeys`). | generator rule |
+| Classes outside `ConstantNamespaces`, `Dialog_*`, `Widgets`, `DevGUI`, `*DefOf` | UI, editor and def-reference classes. Widening the namespaces is one generator edit, weighed against the generated-code growth in the measurements. | generator rule |
+| Per-world and per-pawn state (a pawn's skills, a map's temperature, `[Unsaved]` runtime fields) | State, not static data; it travels in observation frames. About 129 `[Unsaved]` data fields are caches derivable from rows ([static-data census](../docs/developers/static-data-census.md)). | observation protocol |
+
 ### Class chains
 
 The base-class chain of a class is not a field of each row: a family (any
