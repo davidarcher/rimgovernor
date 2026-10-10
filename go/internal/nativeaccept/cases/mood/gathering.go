@@ -18,9 +18,8 @@ func init() {
 		Scope: "HoldGatherings starts exactly one party after a colony-wide mood dip (#2549, #2548): five Core-only colonists " +
 			"each carrying a 9-point negative memory (at least the 8 points AttendedParty repays) and a built PartySpot, no " +
 			"AttendedParty memory anywhere. The journal records one completed gathering action and no second; a native read " +
-			"counts exactly one running lord job of the Party GatheringDef whose spot is the PartySpot. Off tier until the lab " +
-			"profile has no ritual precepts (Ideology defers to MaintainRituals). Native " +
-			"because only RimWorld's lord manager shows that a gathering exists.",
+			"counts exactly one running lord job of the Party GatheringDef whose spot is the PartySpot, read while the party runs. " +
+			"Native because only RimWorld's lord manager shows that a gathering exists.",
 		Start:       cases.Lab{Colonists: 5},
 		Serve:       &cases.ServeSpec{Families: epicFamilies(routinefamily.Gathering), Prefix: "mood-gathering"},
 		RequiredOps: []string{thoughtsOp, partySpotOp, lordsOp},
@@ -66,8 +65,6 @@ func runGathering(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["lords_before"] = before
-	// Ideology may be active in the profile; the planner defers only to a
-	// colony that holds ritual precepts, which the journal wait below shows.
 	if na.AsNumber(before["colonists"]) < policy.GatheringMinColonists || na.AsNumber(before["spots"]) != 1 ||
 		na.AsNumber(before["lords"]) != 0 || na.AsNumber(before["attendedMemories"]) != 0 {
 		return fmt.Errorf("gathering fixture is not set: %#v", before)
@@ -106,26 +103,16 @@ func runGathering(ctx context.Context, s cases.Session) error {
 	}); err != nil {
 		return err
 	}
-	// It stays one: the review keeps running while the party does.
-	settle, _, err := d.world(ctx)
-	if err != nil {
+	// The journal holds one gathering action and no second. The native read
+	// follows at once, while the party runs: its lord job ends on its own
+	// duration, so a later read finds none, and stopping the service closes
+	// the journal.
+	if completed, other, err := gatherings(ctx); err != nil {
 		return err
+	} else if completed+other != 1 {
+		return fmt.Errorf("%d completed and %d other gathering actions, want exactly one", completed, other)
 	}
-	if err = d.wait(ctx, 3*time.Minute, func(ctx context.Context) (string, bool, error) {
-		r, _, err := d.world(ctx)
-		if err != nil {
-			return "", false, err
-		}
-		completed, other, err := gatherings(ctx)
-		if err == nil && completed+other != 1 {
-			err = fmt.Errorf("%d completed and %d other gathering actions, want exactly one", completed, other)
-		}
-		return na.Signature(r.Tick, r.Revision), r.Revision >= settle.Revision+3, err
-	}); err != nil {
-		return err
-	}
-
-	// The native read: one lord job of the Party def, on the PartySpot.
+	// One lord job of the Party def, on the PartySpot.
 	h, err = d.native(ctx, "lords")
 	if err != nil {
 		return err

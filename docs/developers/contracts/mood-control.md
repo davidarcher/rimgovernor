@@ -383,11 +383,9 @@ memory), `test/mood_thoughts` (a named memory scaled to a mood size), `test/part
 - `mood/ledger` reads `moodLedger` from `GET /api/player/colony`: an owned thought carries its
   owner, an unowned one is alone in `unowned`. Native only confirms the memories exist.
 - `mood/gathering` reads the journal for exactly one completed `gathering` action and native
-  for exactly one running `Party` lord job on the `PartySpot`. It needs at least four
-  colonists and a profile without ritual precepts. It is off-tier and unverified: the lab
-  profile has Ideology active, the planner defers to `MaintainRituals` (`nothing_to_do`), and
-  the case stalls. It needs a lab without Ideology (or an ideoligion without rituals) before
-  it joins the nightly tier.
+  for exactly one running `Party` lord job on the `PartySpot`, read right after the first
+  completed action because the lord job ends on its own duration. It needs at least four
+  colonists, runs on the lab profile (Ideology active) and is in the nightly tier.
 
 ## Observations
 

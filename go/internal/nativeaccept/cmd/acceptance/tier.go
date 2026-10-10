@@ -101,7 +101,7 @@ var endToEnd = map[string]bool{
 	"shelter/retirement": true, "shelter/climate-mild": true, "shelter/climate-cold": true, "shelter/climate-hot": true,
 	"sustained/colony-stable": true, "sustained/winter": true, "upkeep/campaign": true, "sleeping/suites": true,
 	"layout/ring": true, "layout/rich-soil": true,
-	"mood/headroom": true, "mood/ledger": true,
+	"mood/headroom": true, "mood/ledger": true, "mood/gathering": true,
 }
 
 // offTier names the cases no tier runs: fixture generators, which
@@ -110,7 +110,7 @@ var endToEnd = map[string]bool{
 func offTier(name string) bool {
 	switch name {
 	case "sustained/colony", "sustained/colony-loud", "sustained/food", "lifecycle/headless-soak",
-		"medical/stable-patient", "review/colony-week", "mood/gathering":
+		"medical/stable-patient", "review/colony-week":
 		return true
 	}
 	return strings.HasPrefix(name, "tools/") || strings.HasPrefix(name, "sustained/matrix-") ||
