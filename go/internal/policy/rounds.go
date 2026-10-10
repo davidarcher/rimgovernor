@@ -46,10 +46,10 @@ const refrigerationPriority = 2
 // lightingPriority ranks MaintainLighting with the other upkeep projects.
 const lightingPriority = 3
 
-// flooringPriority ranks MaintainFlooring while a clean workspace is short
-// of floor; living-room flooring alone ranks one step lower and traffic
-// flooring last, never below the lowest goal rank.
-const flooringPriority = 3
+// flooringPriority ranks MaintainFlooring at the lowest goal rank in every
+// tier: floors add no speed or dirt benefit early, and must not take labor
+// or starting wood from rooms still unbuilt.
+const flooringPriority = domain.MaxPriority
 
 // routesPriority ranks MaintainRoutes with the other upkeep projects: an
 // unreachable facility idles whatever it serves, so it ranks with a dark

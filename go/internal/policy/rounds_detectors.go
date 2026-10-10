@@ -655,23 +655,17 @@ func inspectLighting(c *roundsRun) error {
 	return nil
 }
 
-// detectFlooring is likewise a ranked project. A clean workspace on bare
-// ground ranks with lighting; living rooms alone rank one step lower.
+// detectFlooring is likewise a ranked project, at the lowest rank in every
+// tier.
 func inspectFlooring(c *roundsRun) error {
 	flooring := c.flooring
 	recovered := domain.Unknown[bool]()
-	priority := flooringPriority
 	if flooring.Known {
 		recovered = domain.Known(!flooring.Active)
-		if flooring.Active && flooring.Deficits[0].Tier != FloorTierClean {
-			priority = min(4, priority+floorTierOrder[flooring.Deficits[0].Tier])
-		}
-	} else if !flooring.Active {
-		priority = 4
 	}
-	c.assess(MaintainFlooring, priority, recovered)
+	c.assess(MaintainFlooring, flooringPriority, recovered)
 	if !positive(recovered) {
-		g := c.raise(MaintainFlooring, priority)
+		g := c.raise(MaintainFlooring, flooringPriority)
 		if flooring.Known {
 			g.Deficit = domain.Known(1.0)
 		}
