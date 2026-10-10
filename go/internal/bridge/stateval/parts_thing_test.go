@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
-	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -31,10 +30,7 @@ func newThingRig(t *testing.T, sets []string, edit func(stat *d.StatDef, parka, 
 	}
 	edit(stat, parka, steel)
 	slice.Wire.Defs.StatDefs = append(slice.Wire.Defs.StatDefs, stat)
-	catalog, err := recordedcatalog.FromSlice(slice, "unit")
-	if err != nil {
-		t.Fatal(err)
-	}
+	catalog := fromWire(slice.Wire)
 	env := Env{ActiveMods: map[string]bool{"ludeon.rimworld": true}, ScenarioFactors: map[string]float32{}}
 	return &rig{t: t, stat: stat, eval: New(catalog, env)}
 }
@@ -73,7 +69,7 @@ func runThingCases(t *testing.T, cases []thingCase) {
 				r.eval.env.ActiveMods["ludeon.rimworld.biotech"] = true
 			}
 			var terrainName string
-			for name, terrain := range r.eval.catalog.TerrainDefs {
+			for name, terrain := range r.eval.stub().terrains {
 				terrainName = name
 				if c.terrain != nil {
 					c.terrain(terrain)

@@ -32,18 +32,24 @@ func (catalog *DefinitionCatalog) ItemFacts() (policy.ItemFacts, error) {
 }
 
 func buildItemFacts(catalog *DefinitionCatalog) (policy.ItemFacts, error) {
-	if catalog.statValues == nil {
+	if catalog.statEnv == nil {
 		return policy.ItemFacts{}, nil
 	}
 	items := policy.ItemFacts{Market: map[policy.Resource]float64{}, Nutrition: map[policy.Resource]float64{}, MedicalPotency: map[policy.Resource]float64{},
 		StuffBeauty: map[policy.Resource]float64{}, StuffCategories: map[policy.Resource][]string{}, AcceptedStuff: map[policy.Resource][]string{}, Categories: map[policy.Resource][]string{}}
 	for name, def := range catalog.ThingDefs {
 		resource := policy.Resource(name)
-		if row, ok := catalog.statValues.things[defStuff{name, ""}]; ok {
-			if v, shown := row.values[statMarketValue]; shown {
+		if len(def.StuffCategories) == 0 {
+			v, shown, err := catalog.ShownStatValue(name, "", statMarketValue)
+			if err != nil {
+				return policy.ItemFacts{}, err
+			}
+			if shown {
 				items.Market[resource] = float64(v)
 			}
-			if v, shown := row.values[statNutrition]; shown {
+			if v, shown, err = catalog.ShownStatValue(name, "", statNutrition); err != nil {
+				return policy.ItemFacts{}, err
+			} else if shown {
 				items.Nutrition[resource] = float64(v)
 			}
 		}

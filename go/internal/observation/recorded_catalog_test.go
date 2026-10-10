@@ -38,12 +38,11 @@ func catalogOf(t testing.TB, names ...string) *bridge.DefinitionCatalog {
 	return decodeRows(recordedRows(t, names...))
 }
 
-// addRecordedEnvironment adds the recorded weather, game condition and room
-// stat rows (with the class chains they name) to a hand-built catalog wire,
-// and the invented biomes the darkness tests read: FixtureDarkBiome holds a
-// condition of a mod subclass of the no-sunlight family, FixtureLitBiome an
-// unrelated one.
-func addRecordedEnvironment(t testing.TB, v *o.DefinitionCatalog) {
+// addStatSupport gives a hand-built catalog wire what the stat evaluator reads
+// beyond its thing and terrain rows: the recorded game's stat defs, categories
+// and environment. A def's stat values then come from its own statBases and
+// cost list, as in the live game's catalog.
+func addStatSupport(t testing.TB, v *o.DefinitionCatalog) {
 	t.Helper()
 	rec, err := testkit.LoadRecordedCatalogWire()
 	if err != nil {
@@ -51,6 +50,28 @@ func addRecordedEnvironment(t testing.TB, v *o.DefinitionCatalog) {
 	}
 	if v.Defs == nil {
 		v.Defs = &d.DefSets{}
+	}
+	v.StatEnv = proto.Clone(rec.StatEnv).(*o.StatEnv)
+	v.Defs.StatDefs, v.Defs.StatCategoryDefs = nil, nil
+	for _, row := range rec.Defs.StatDefs {
+		v.Defs.StatDefs = append(v.Defs.StatDefs, proto.Clone(row).(*d.StatDef))
+	}
+	for _, row := range rec.Defs.StatCategoryDefs {
+		v.Defs.StatCategoryDefs = append(v.Defs.StatCategoryDefs, proto.Clone(row).(*d.StatCategoryDef))
+	}
+}
+
+// addRecordedEnvironment adds the recorded weather, game condition and room
+// stat rows (with the class chains they name) to a hand-built catalog wire,
+// and the invented biomes the darkness tests read: FixtureDarkBiome holds a
+// condition of a mod subclass of the no-sunlight family, FixtureLitBiome an
+// unrelated one.
+func addRecordedEnvironment(t testing.TB, v *o.DefinitionCatalog) {
+	t.Helper()
+	addStatSupport(t, v)
+	rec, err := testkit.LoadRecordedCatalogWire()
+	if err != nil {
+		t.Fatalf("%v", err)
 	}
 	for _, row := range rec.Defs.WeatherDefs {
 		v.Defs.WeatherDefs = append(v.Defs.WeatherDefs, proto.Clone(row).(*d.WeatherDef))

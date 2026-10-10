@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -140,7 +139,7 @@ func lifeStage(req *Request, pawn *PawnState) (*d.LifeStageDef, error) {
 	if err != nil {
 		return nil, err
 	}
-	row := bridge.DefRow[*d.LifeStageDef](req.Evaluator.catalog, name)
+	row := DefRow[*d.LifeStageDef](req.Evaluator.catalog, name)
 	if row == nil {
 		return nil, fmt.Errorf("catalog has no life stage def %s", name)
 	}
@@ -185,7 +184,7 @@ func (partIsFlesh) Class() string { return "StatPart_IsFlesh" }
 
 func (partIsFlesh) Transform(req *Request, _ proto.Message, val float32) (float32, error) {
 	isFlesh := func(def *d.ThingDef) (float32, error) {
-		flesh := bridge.DefRow[*d.FleshTypeDef](req.Evaluator.catalog, fleshType(def.GetRace()))
+		flesh := DefRow[*d.FleshTypeDef](req.Evaluator.catalog, fleshType(def.GetRace()))
 		if flesh == nil {
 			return 0, fmt.Errorf("catalog has no flesh type %s", fleshType(def.GetRace()))
 		}
@@ -244,7 +243,7 @@ func (partMetabolismTotal) Transform(req *Request, row proto.Message, val float3
 		if g.Overridden {
 			continue
 		}
-		def := bridge.DefRow[*d.GeneDef](req.Evaluator.catalog, g.Def)
+		def := DefRow[*d.GeneDef](req.Evaluator.catalog, g.Def)
 		if def == nil {
 			return 0, fmt.Errorf("catalog has no gene def %s", g.Def)
 		}
@@ -282,7 +281,7 @@ func (partNaturalNotMissingBodyPartsCoverage) Transform(req *Request, _ proto.Me
 
 // hediffDef is the HediffDef row of a hediff in the pawn's set.
 func hediffDef(req *Request, name string) (*d.HediffDef, error) {
-	row := bridge.DefRow[*d.HediffDef](req.Evaluator.catalog, name)
+	row := DefRow[*d.HediffDef](req.Evaluator.catalog, name)
 	if row == nil {
 		return nil, fmt.Errorf("catalog has no hediff def %s", name)
 	}
@@ -556,7 +555,7 @@ func (partTerrainMoveSpeed) Transform(_ *Request, _ proto.Message, val float32) 
 
 // preceptDef is the PreceptDef row an ideo's precept or role names.
 func preceptDef(req *Request, name string) (*d.PreceptDef, error) {
-	row := bridge.DefRow[*d.PreceptDef](req.Evaluator.catalog, name)
+	row := DefRow[*d.PreceptDef](req.Evaluator.catalog, name)
 	if row == nil {
 		return nil, fmt.Errorf("catalog has no precept def %s", name)
 	}

@@ -44,7 +44,7 @@ func TestDisarmSitesComeFromTheBodyAndToolRows(t *testing.T) {
 		Tools: []*d.Opt_Tool{tool("LeftHand", false), tool("RightHand", false), tool("Teeth", false), tool("HeadAttackTool", true)}}
 	biter := &d.ThingDef{DefName: "Biter", Race: &d.RaceProperties{Body: "Human"}, Tools: []*d.Opt_Tool{tool("Teeth", false)}}
 	catalog := &DefinitionCatalog{
-		ThingDefs: map[string]*d.ThingDef{"Human": human, "Biter": biter, "WoodLog": {DefName: "WoodLog"}},
+		ThingDefs: map[string]*d.ThingDef{"Human": human, "Biter": biter},
 		Defs:      map[protoreflect.FullName]map[string]proto.Message{},
 	}
 	add := func(name protoreflect.FullName, rows map[string]proto.Message) { catalog.Defs[name] = rows }
@@ -57,7 +57,7 @@ func TestDisarmSitesComeFromTheBodyAndToolRows(t *testing.T) {
 		&d.RecipeDef{DefName: "CookMeal", Ingredients: []*d.Opt_IngredientCount{slot(&d.ThingFilter{ThingDefs: []string{"WoodLog"}}, 1)}},
 		&d.RecipeDef{DefName: "InstallUnpriced", AddsHediff: "X", AppliedOnFixedBodyParts: []string{"Hand"},
 			Ingredients: []*d.Opt_IngredientCount{slot(&d.ThingFilter{ThingDefs: []string{"Mystery"}}, 1)}}))
-	catalog.statValues = &statTable{things: map[defStuff]*statRow{{"WoodLog", ""}: {values: map[string]float32{"MarketValue": 1.5}}}}
+	catalog.withRecordedStats(t, "WoodLog").ThingDefs["WoodLog"].ThingCategories = nil
 
 	got, err := catalog.CreepJoinerDisarm()
 	if err != nil {
@@ -69,7 +69,7 @@ func TestDisarmSitesComeFromTheBodyAndToolRows(t *testing.T) {
 	if !reflect.DeepEqual(got.Sites, wantSites) {
 		t.Fatalf("sites = %+v, want %+v", got.Sites, wantSites)
 	}
-	wantValue := map[string]float64{"InstallWoodenHand": 3, "InstallDenture": 0}
+	wantValue := map[string]float64{"InstallWoodenHand": 2 * float64(float32(1.2)), "InstallDenture": 0}
 	if !reflect.DeepEqual(got.InstallValue, wantValue) {
 		t.Fatalf("install values = %v, want %v", got.InstallValue, wantValue)
 	}

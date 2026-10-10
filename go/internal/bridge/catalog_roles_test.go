@@ -15,7 +15,7 @@ func TestGameRoomRolesByName(t *testing.T) {
 			t.Errorf("%s roles %v, want %v", name, got, want)
 		}
 	}
-	reply := factsReply()
+	reply := factsReply(t)
 	reply.ThingDefs = append(reply.ThingDefs, &d.ThingDef{DefName: "ToyBox", DesignationCategory: "Furniture"})
 	catalog, err := DecodeDefinitionCatalog(reply, pbIdentity())
 	if err != nil {

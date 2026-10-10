@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -19,7 +20,6 @@ func decodeCatalog(t *testing.T, v *o.DefinitionCatalog) *bridge.DefinitionCatal
 	if v.Defs == nil {
 		v.Defs = &d.DefSets{}
 	}
-	v.Defs.StatDefs = []*d.StatDef{{DefName: "MarketValue"}}
 	addRecordedEnvironment(t, v)
 	v.Derived, v.GameConstants = &o.CatalogDerived{CurrencyDef: "Silver", WortDef: "Wort", FullRotRateC: 10}, testGameConstants()
 	if len(v.TerrainDefs) == 0 {
@@ -45,33 +45,34 @@ type itemFact struct {
 // flammability) in that order.
 func itemCatalog(t *testing.T, items map[string]itemFact, terrains map[string][3]float32) *bridge.DefinitionCatalog {
 	t.Helper()
-	v := &o.DefinitionCatalog{ThingDefs: []*d.ThingDef{{DefName: "Anchor"}},
-		StatValues: &o.DefStatTable{Stats: []string{"Beauty", "Cleanliness", "DeteriorationRate", "Flammability"}}}
+	v := &o.DefinitionCatalog{ThingDefs: []*d.ThingDef{{DefName: "Anchor"}}}
+	stat := func(name string, value float32) *d.Opt_StatModifier {
+		return &d.Opt_StatModifier{Value: &d.StatModifier{Stat: name, Value: value}}
+	}
 	for name, item := range items {
-		def := &d.ThingDef{DefName: name}
+		def := &d.ThingDef{DefName: name, StatBases: []*d.Opt_StatModifier{stat("DeteriorationRate", item.deterioration)}}
 		if item.medicine {
-			def.StatBases = []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: "MedicalPotency", Value: 1}}}
+			def.StatBases = append(def.StatBases, stat("MedicalPotency", 1))
 		}
 		if item.raw {
 			def.Category, def.ThingCategories = d.ThingCategory_THING_CATEGORY_ITEM, []string{"MeatRaw"}
 		}
 		v.ThingDefs = append(v.ThingDefs, def)
 		v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: name})
-		v.StatValues.Rows = append(v.StatValues.Rows, &o.DefStatRow{DefName: name, Stat: []int32{2}, Value: []float32{item.deterioration}})
 	}
 	for name, stats := range terrains {
-		v.TerrainDefs = append(v.TerrainDefs, &d.TerrainDef{DefName: name, PathCost: 2, Natural: name == "Soil"})
-		v.StatValues.TerrainRows = append(v.StatValues.TerrainRows, &o.DefStatRow{DefName: name, Stat: []int32{1, 0, 3}, Value: []float32{stats[0], stats[1], stats[2]}})
+		v.TerrainDefs = append(v.TerrainDefs, &d.TerrainDef{DefName: name, PathCost: 2, Natural: name == "Soil",
+			StatBases: []*d.Opt_StatModifier{stat("Cleanliness", stats[0]), stat("Beauty", stats[1]), stat("Flammability", stats[2])}})
 	}
 	return decodeCatalog(t, v)
 }
 
 // testGameConstants are the game constants a hand-built reply carries: the
-// calendar bridge checks and the members the catalog reads.
+// recorded game's, which the calendar check and the stat evaluator read.
 func testGameConstants() *d.GameConstants {
-	return &d.GameConstants{
-		GenDate:             &d.GenDateConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60},
-		SkillRecord:         &d.SkillRecordConstants{MaxLevel: 20},
-		RoofCollapseUtility: &d.RoofCollapseUtilityConstants{RoofMaxSupportDistance: 6.9},
+	rec, err := testkit.LoadRecordedCatalogWire()
+	if err != nil {
+		panic(err)
 	}
+	return proto.Clone(rec.GameConstants).(*d.GameConstants)
 }

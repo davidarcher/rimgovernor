@@ -1234,9 +1234,8 @@ message ResolveTargetSnapshot { rimgovernor.common.v1.ObservationContext context
 message ResolveTargetRequest { ReadScope scope = 1; oneof query { string entity_id = 2; string exact_name = 3; rimgovernor.common.v1.Cell cell = 4; } }
 message ResolveTargetReply { oneof outcome { ResolveTargetSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // EvaluateStat is the game's own stat evaluation for one subject: a definition
-// (with optional stuff and quality category), a thing, or a pawn. It reuses the
-// request the definition catalog's stat table is built from, so a definition
-// subject without quality equals the DefStatTable value. The oracle and
+// (with optional stuff and quality category), a thing, or a pawn. A definition
+// subject without quality is the live parity oracle of the Go evaluator. The oracle and
 // scaffolding of the Go stat evaluator (epic #2621); it carries no new action.
 message StatDefSubject { string def_name = 1; optional string stuff = 2; optional int32 quality = 3; }
 message StatSubject { oneof subject { StatDefSubject definition = 1; string thing_id = 2; string pawn_id = 3; } }
@@ -2288,7 +2287,7 @@ message SnapshotStreamRequest {
   // The LinesOfFireRequest budget_ms of each frame's combat lines of fire.
   optional uint32 lines_of_fire_budget_ms = 8;
 }
-// The definition catalog: the generated def rows and the stat table
+// The definition catalog: the generated def rows and the stat environment
 // the planning views read, and every research project with its static
 // facts (costs, prerequisites, tab, tech level, required bench). It is fixed
 // for a load: the controller reads it once per load token.
@@ -2310,9 +2309,8 @@ message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1
   repeated rimgovernor.defs.v1.ThingDef thing_defs = 8;
   repeated rimgovernor.defs.v1.TerrainDef terrain_defs = 9;
   CatalogDerived derived = 10;
-  // The game's own stat values per def and stuff; absent in a reply
-  // that carries none.
-  DefStatTable stat_values = 11;
+  // The game state Go's stat evaluator (stateval) reads beyond the rows.
+  StatEnv stat_env = 11;
   // Every def of every other concrete Verse.Def class, one repeated
   // field per class, filled the same way.
   rimgovernor.defs.v1.DefSets defs = 12;
@@ -2353,7 +2351,7 @@ message ThingDefFacts {
 // `edible_defs` are the foods (ThingDefFacts.food_kind set) RaceProperties
 // .CanEverEat accepts, sorted. The race flags, trainables, meat and life stage
 // ages are Go's, derived from the RaceProperties, FleshTypeDef, LifeStageDef and
-// TrainableDef rows and the stat table (bridge/race_rules.go).
+// TrainableDef rows and the evaluated stats (bridge/race_rules.go).
 message RaceFacts {
   repeated string edible_defs = 5;
   // TrainableUtility.TamenessCanDecay(def) and DegradationPeriodTicks(def): a
@@ -2370,31 +2368,22 @@ message RaceFacts {
   // race can price its feed. Absent for a race with no life stages.
   optional double adult_feed_per_day = 15;
 }
-// GetStatValueAbstract(stat, stuff) of every StatDef the game shows for a def,
-// for every ThingDef: once per allowed stuff for a def made from stuff, once
-// with no stuff otherwise. Stat rules are game code; Go looks values up
-// and never recomputes them. `stats` is the shared table of stat defNames.
-message DefStatTable {
-  repeated string stats = 1;
-  repeated DefStatRow rows = 2;
-  // The same rows for every TerrainDef, `stuff_name` empty (a terrain defName
-  // may also name a ThingDef, so the two are kept apart). `costs` is the terrain's
-  // adjusted cost list (BuildableDef.CostListAdjusted(null)), empty for a free floor.
-  repeated DefStatRow terrain_rows = 3;
+// The game state a Go stat evaluation reads that the def rows do not hold
+// (stateval.Env), read once per load beside the rows. `active_mods` are the
+// package ids (lower case) of ModsConfig.ActiveModsInLoadOrder. `scenario_factors`
+// are Scenario.GetStatFactor for every StatDef whose factor is not 1.
+// `difficulty_flags` are the public bool fields of Find.Storyteller.difficulty by
+// field name (what CostListForDifficulty.difficultyVar names).
+message StatEnv {
+  repeated string active_mods = 1;
+  bool classic_mode = 2;
+  repeated StatFactor scenario_factors = 3;
+  float butcher_yield_factor = 4;
+  float fishing_yield_factor = 5;
+  repeated DifficultyFlag difficulty_flags = 6;
 }
-// One (def, stuff) pair: `stat[i]` indexes DefStatTable.stats and `value[i]` is
-// its value (parallel arrays, equal length). A stat the game does not show for
-// the def (StatWorker.ShouldShowFor) is absent from the row, not zero. `stuff`
-// is empty for a def not made from stuff. `costs` is the game's
-// ThingDef.CostListAdjusted(stuff): the material list with stuff volume and
-// difficulty adjustments applied, empty for a def with no cost.
-message DefStatRow {
-  string def_name = 1;
-  string stuff_name = 2;
-  repeated int32 stat = 3;
-  repeated float value = 4;
-  repeated Quantity costs = 5;
-}
+message StatFactor { string stat = 1; float factor = 2; }
+message DifficultyFlag { string name = 1; bool value = 2; }
 // The catalog facts the game names or computes in code, which no const of
 // game_constants carries (the numeric constants are the typed GameConstants).
 message CatalogDerived {

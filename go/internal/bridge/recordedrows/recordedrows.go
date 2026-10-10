@@ -22,7 +22,8 @@ import (
 type index struct {
 	things map[string]*d.ThingDef
 	facts  map[string]*o.ThingDefFacts
-	stats  map[string][]*o.DefStatRow
+	// stuffs are the stuff defs (those with stuffProps) in recorded order.
+	stuffs []*d.ThingDef
 }
 
 var recorded = sync.OnceValue(func() *index {
@@ -30,18 +31,39 @@ var recorded = sync.OnceValue(func() *index {
 	if err != nil {
 		panic(err)
 	}
-	idx := &index{things: map[string]*d.ThingDef{}, facts: map[string]*o.ThingDefFacts{}, stats: map[string][]*o.DefStatRow{}}
+	idx := &index{things: map[string]*d.ThingDef{}, facts: map[string]*o.ThingDefFacts{}}
 	for _, row := range wire.ThingDefs {
 		idx.things[row.GetDefName()] = row
+		if row.GetStuffProps() != nil {
+			idx.stuffs = append(idx.stuffs, row)
+		}
 	}
 	for _, row := range wire.ThingFacts {
 		idx.facts[row.GetDefName()] = row
 	}
-	for _, row := range wire.StatValues.Rows {
-		idx.stats[row.GetDefName()] = append(idx.stats[row.GetDefName()], row)
-	}
 	return idx
 })
+
+// materials are the recorded defs a def's stats and adjusted cost list read: the
+// items of its cost lists and, when it is made from stuff, every stuff that can
+// make it.
+func (idx *index) materials(row *d.ThingDef) []string {
+	var out []string
+	for _, list := range [][]*d.Opt_ThingDefCountClass{row.GetCostList(), row.GetCostListForDifficulty().GetCostList()} {
+		for _, cost := range list {
+			out = append(out, cost.GetValue().GetThingDef())
+		}
+	}
+	for _, stuff := range idx.stuffs {
+		for _, category := range row.GetStuffCategories() {
+			if slices.Contains(stuff.GetStuffProps().GetCategories(), category) {
+				out = append(out, stuff.GetDefName())
+				break
+			}
+		}
+	}
+	return out
+}
 
 // Reporter is what a slice needs of a test to report a misuse: *testing.T and
 // *testing.B satisfy it, and Panic serves a fake that holds no test.
@@ -61,9 +83,9 @@ func (panicker) Fatalf(format string, args ...any) {
 var Panic Reporter = panicker{}
 
 // Slice is a copy of a few recorded rows, cheap enough to decode per test: the
-// thing defs a predicate keeps, the items and stuffs their cost and stat rows
+// thing defs a predicate keeps, the items and stuffs their cost lists and stuffs
 // name, the projectiles they fire, and every row of the def sets asked for.
-// The whole game's class chains and stat table header ride along. Everything in
+// The whole game's class chains and stat environment ride along. Everything in
 // it is a deep copy, so a test mutates it freely.
 type Slice struct {
 	T    Reporter
@@ -86,7 +108,7 @@ func Take(t Reporter, keep func(*d.ThingDef) bool, sets ...string) *Slice {
 	full := recordedWire(t)
 	s := &Slice{T: t, Wire: &o.DefinitionCatalog{
 		Context: full.Context, Derived: full.Derived, GameConstants: full.GameConstants, ClassChains: append([]*o.ClassChain(nil), full.ClassChains...),
-		StatValues: &o.DefStatTable{Stats: full.StatValues.Stats}, Defs: &d.DefSets{},
+		StatEnv: full.StatEnv, Defs: &d.DefSets{},
 	}}
 	var names []string
 	for _, row := range full.ThingDefs {
@@ -97,23 +119,20 @@ func Take(t Reporter, keep func(*d.ThingDef) bool, sets ...string) *Slice {
 	s.add(names)
 	// The decoder refuses a catalog with no terrain: one recorded terrain rides along.
 	// A free one, so no item rows are needed for its cost.
-	for _, row := range full.StatValues.TerrainRows {
-		if len(row.GetCosts()) == 0 {
-			s.Wire.StatValues.TerrainRows = append(s.Wire.StatValues.TerrainRows, proto.Clone(row).(*o.DefStatRow))
-			for _, terrain := range full.TerrainDefs {
-				if terrain.GetDefName() == row.GetDefName() {
-					s.Wire.TerrainDefs = append(s.Wire.TerrainDefs, proto.Clone(terrain).(*d.TerrainDef))
-				}
-			}
+	for _, terrain := range full.TerrainDefs {
+		if len(terrain.GetCostList()) == 0 && terrain.GetCostStuffCount() == 0 && terrain.GetCostListForDifficulty() == nil {
+			s.Wire.TerrainDefs = append(s.Wire.TerrainDefs, proto.Clone(terrain).(*d.TerrainDef))
 			break
 		}
 	}
+	// The stat evaluator reads the stat defs and their categories.
+	s.AddSets("stat_defs", "stat_category_defs")
 	s.AddSets(sets...)
 	return s
 }
 
 // Add copies the recorded thing defs with these names into the slice, with
-// the items and stuffs their cost and stat rows name, the projectiles they
+// the items and stuffs their cost lists and stuffs name, the projectiles they
 // fire and the meat of a race, unless it holds them already. A name the game does not have fails.
 func (s *Slice) Add(names ...string) {
 	s.T.Helper()
@@ -155,16 +174,9 @@ func (s *Slice) add(names []string) {
 			continue
 		}
 		want[name] = true
-		for _, stat := range idx.stats[name] {
-			for _, cost := range stat.GetCosts() {
-				queue = append(queue, cost.GetDefName())
-			}
-			if stat.GetStuffName() != "" {
-				queue = append(queue, stat.GetStuffName())
-			}
-		}
+		queue = append(queue, idx.materials(row)...)
 		queue = append(queue, row.GetProjectileWhenLoaded(), row.GetPlant().GetHarvestedThingDef())
-		// A race's meat (its stat rows price the butchery): the generated
+		// A race's meat (its stats price the butchery): the generated
 		// Meat_<race>, or the def the race names.
 		if race := row.GetRace(); race != nil {
 			queue = append(queue, "Meat_"+name, race.GetSpecificMeatDef(), race.GetUseMeatFrom())
@@ -182,9 +194,6 @@ func (s *Slice) add(names []string) {
 		races = races || row.GetRace() != nil
 		s.Wire.ThingDefs = append(s.Wire.ThingDefs, proto.Clone(row).(*d.ThingDef))
 		s.Wire.ThingFacts = append(s.Wire.ThingFacts, proto.Clone(idx.facts[name]).(*o.ThingDefFacts))
-		for _, stat := range idx.stats[name] {
-			s.Wire.StatValues.Rows = append(s.Wire.StatValues.Rows, proto.Clone(stat).(*o.DefStatRow))
-		}
 	}
 	// The decoder derives a race's flags, trainables and ages from these rows.
 	if races {
@@ -282,7 +291,7 @@ func (s *Slice) Find(name string) *d.ThingDef {
 	return nil
 }
 
-// Drop removes thing defs, their facts and their stat rows from the slice.
+// Drop removes thing defs and their facts from the slice.
 func (s *Slice) Drop(names ...string) {
 	s.T.Helper()
 	gone := map[string]bool{}
@@ -304,13 +313,6 @@ func (s *Slice) Drop(names ...string) {
 		}
 	}
 	s.Wire.ThingFacts = keepFacts
-	keepStats := s.Wire.StatValues.Rows[:0]
-	for _, row := range s.Wire.StatValues.Rows {
-		if !gone[row.GetDefName()] {
-			keepStats = append(keepStats, row)
-		}
-	}
-	s.Wire.StatValues.Rows = keepStats
 }
 
 // DropWhere removes the thing defs the predicate accepts.
@@ -325,23 +327,21 @@ func (s *Slice) DropWhere(match func(*d.ThingDef) bool) {
 	s.Drop(names...)
 }
 
-// ScaleCosts multiplies every cost of a def (whatever its stuff) by num/den,
-// keeping each at one unit or more.
-func (s *Slice) ScaleCosts(name string, num, den int64) {
+// ScaleCosts multiplies the cost list and the stuff count of a def by num/den,
+// keeping each entry at one unit or more.
+func (s *Slice) ScaleCosts(name string, num, den int32) {
 	s.T.Helper()
-	rows := s.StatRows(name)
-	if len(rows) == 0 {
-		s.T.Fatalf("the slice has no stat rows for %s", name)
+	row := s.Thing(name)
+	for _, cost := range row.GetCostList() {
+		cost.GetValue().Count = max(1, cost.GetValue().GetCount()*num/den)
 	}
-	for _, stat := range rows {
-		for _, cost := range stat.GetCosts() {
-			cost.Units = proto.Int64(max(1, cost.GetUnits()*num/den))
-		}
+	if row.GetCostStuffCount() > 0 {
+		row.CostStuffCount = max(1, row.GetCostStuffCount()*num/den)
 	}
 }
 
-// CopyThing adds a copy of a slice def under a new name (its facts and stat
-// rows too) and returns the new thing row.
+// CopyThing adds a copy of a slice def under a new name (its facts too)
+// and returns the new thing row.
 func (s *Slice) CopyThing(name, as string) *d.ThingDef {
 	s.T.Helper()
 	row := proto.Clone(s.Thing(name)).(*d.ThingDef)
@@ -355,18 +355,11 @@ func (s *Slice) CopyThing(name, as string) *d.ThingDef {
 			break
 		}
 	}
-	for _, stat := range s.Wire.StatValues.Rows {
-		if stat.GetDefName() == name {
-			c := proto.Clone(stat).(*o.DefStatRow)
-			c.DefName = as
-			s.Wire.StatValues.Rows = append(s.Wire.StatValues.Rows, c)
-		}
-	}
 	return row
 }
 
-// Import copies a def of another slice into this one (its facts and stat rows
-// too, and the recorded items they name), unless it holds the def already.
+// Import copies a def of another slice into this one (its facts
+// too, and the recorded items its stats read), unless it holds the def already.
 func (s *Slice) Import(from *Slice, name string) {
 	s.T.Helper()
 	if s.Has(name) {
@@ -379,23 +372,15 @@ func (s *Slice) Import(from *Slice, name string) {
 			break
 		}
 	}
-	var named []string
-	for _, stat := range from.StatRows(name) {
-		s.Wire.StatValues.Rows = append(s.Wire.StatValues.Rows, proto.Clone(stat).(*o.DefStatRow))
-		for _, cost := range stat.GetCosts() {
-			named = append(named, cost.GetDefName())
-		}
-		named = append(named, stat.GetStuffName())
-	}
 	idx := recorded()
-	for _, item := range named {
+	for _, item := range idx.materials(from.Thing(name)) {
 		if idx.things[item] != nil {
 			s.add([]string{item})
 		}
 	}
 }
 
-// Overwrite replaces the slice's rows of a def (thing, facts, stat rows) with
+// Overwrite replaces the slice's rows of a def (thing, facts) with
 // another slice's, so a test's edits of a recorded def reach a catalog built
 // from a different base. The def must be held by both.
 func (s *Slice) Overwrite(from *Slice, name string) {
@@ -405,19 +390,7 @@ func (s *Slice) Overwrite(from *Slice, name string) {
 	}
 	s.Wire.ThingDefs = slices.DeleteFunc(s.Wire.ThingDefs, func(r *d.ThingDef) bool { return r.GetDefName() == name })
 	s.Wire.ThingFacts = slices.DeleteFunc(s.Wire.ThingFacts, func(r *o.ThingDefFacts) bool { return r.GetDefName() == name })
-	s.Wire.StatValues.Rows = slices.DeleteFunc(s.Wire.StatValues.Rows, func(r *o.DefStatRow) bool { return r.GetDefName() == name })
 	s.Import(from, name)
-}
-
-// StatRows are the slice's stat rows of a def (one per stuff).
-func (s *Slice) StatRows(name string) []*o.DefStatRow {
-	var out []*o.DefStatRow
-	for _, stat := range s.Wire.StatValues.Rows {
-		if stat.GetDefName() == name {
-			out = append(out, stat)
-		}
-	}
-	return out
 }
 
 // SetRow is the slice's copy of a def-set row, found by its type and name.

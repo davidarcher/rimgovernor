@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -276,7 +275,7 @@ func (partGearStatOffset) Transform(req *Request, row proto.Message, val float32
 		return val, nil
 	}
 	e := req.Evaluator
-	stat := bridge.DefRow[*d.StatDef](e.catalog, p.GetApparelStat())
+	stat := DefRow[*d.StatDef](e.catalog, p.GetApparelStat())
 	if stat == nil {
 		return 0, fmt.Errorf("catalog has no stat def %s", p.GetApparelStat())
 	}
@@ -337,7 +336,7 @@ func (e *Evaluator) statOffsetFromGear(item GearItem, stat *d.StatDef) (float32,
 		return 0, err
 	}
 	for _, name := range traits {
-		trait := bridge.DefRow[*d.WeaponTraitDef](e.catalog, name)
+		trait := DefRow[*d.WeaponTraitDef](e.catalog, name)
 		if trait == nil {
 			return 0, fmt.Errorf("catalog has no weapon trait def %s", name)
 		}
@@ -421,7 +420,7 @@ func (partWeaponTraitsMarketValueOffset) Transform(req *Request, _ proto.Message
 		return 0, err
 	}
 	for _, name := range traits {
-		trait := bridge.DefRow[*d.WeaponTraitDef](req.Evaluator.catalog, name)
+		trait := DefRow[*d.WeaponTraitDef](req.Evaluator.catalog, name)
 		if trait == nil {
 			return 0, fmt.Errorf("catalog has no weapon trait def %s", name)
 		}

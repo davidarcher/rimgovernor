@@ -87,7 +87,7 @@ namespace HomeBridge.BridgeTools
             }
             catalog.GameConstants = mirror.BuildStatics<Defs.GameConstants>();
             catalog.Derived = Derived();
-            catalog.StatValues = StatValues();
+            catalog.StatEnv = StatEnv();
             foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
                 catalog.ThingFacts.Add(NativeFoodPolicy.Facts(def));
             catalog.Biotech = NativeBiotechFacts.Catalog();
@@ -132,94 +132,27 @@ namespace HomeBridge.BridgeTools
             return sets;
         }
 
-        // The game's own GetStatValueAbstract(stat, stuff) for every
-        // ThingDef: once per allowed stuff when the def is made from stuff, once
-        // with no stuff otherwise. A stat the game does not show for the def
-        // (StatWorker.ShouldShowFor) is left out of its row, except the planner
-        // stats of a ThingDef (PlannerStats), emitted whether shown or not. A stat that fails to
-        // compute, or computes a non-finite value, fails the read naming def,
-        // stuff and stat; nothing is skipped or defaulted.
-        private static Obs.DefStatTable StatValues()
+        // The game state Go's stat evaluator reads that the def rows do not hold
+        // (stateval.Env): the active mods, the ideology classic mode, the scenario's
+        // stat factors and the storyteller difficulty's yield factors and bool settings.
+        private static Obs.StatEnv StatEnv()
         {
-            var table = new Obs.DefStatTable();
-            var forcedStuffs = ScenarioStartingStuffs();
-            var stats = DefDatabase<StatDef>.AllDefsListForReading.OrderBy(s => Named(s.defName, "StatDef"), StringComparer.Ordinal).ToList();
-            foreach (var stat in stats) table.Stats.Add(stat.defName);
-            foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
+            var env = new Obs.StatEnv();
+            foreach (var mod in ModsConfig.ActiveModsInLoadOrder)
+                env.ActiveMods.Add(mod.PackageId.ToLowerInvariant());
+            env.ClassicMode = Find.IdeoManager?.classicMode ?? false;
+            var scenario = Find.Scenario ?? throw new InvalidOperationException("Find.Scenario is unavailable.");
+            foreach (var stat in DefDatabase<StatDef>.AllDefsListForReading.OrderBy(s => Named(s.defName, "StatDef"), StringComparer.Ordinal))
             {
-                if (!def.MadeFromStuff) { table.Rows.Add(StatRow(def, null, stats)); continue; }
-                var allowed = GenStuff.AllowedStuffsFor(def).ToList();
-                // A scenario can start the colony with a stuff the game would not
-                // offer for the def (the classic one's jade knife); the item
-                // exists, so its stats are read from a row of its own. Go keeps
-                // such a pair out of the allowed stuffs by category.
-                if (forcedStuffs.TryGetValue(def, out var forced))
-                    allowed.AddRange(forced.Where(s => !allowed.Contains(s)));
-                foreach (var stuff in allowed.OrderBy(s => Named(s.defName, "ThingDef"), StringComparer.Ordinal))
-                    table.Rows.Add(StatRow(def, stuff, stats));
+                var factor = scenario.GetStatFactor(stat);
+                if (factor != 1f) env.ScenarioFactors.Add(new Obs.StatFactor { Stat = stat.defName, Factor = factor });
             }
-            // Every TerrainDef the same way, with no stuff, and its adjusted cost list.
-            foreach (var def in DefDatabase<TerrainDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "TerrainDef"), StringComparer.Ordinal))
-                table.TerrainRows.Add(StatRow(def, null, stats));
-            return table;
-        }
-
-        // The (def, stuff) pairs the current scenario's parts start the colony
-        // with (ScenPart_ThingCount.thingDef and .stuff, both protected).
-        private static Dictionary<ThingDef, List<ThingDef>> ScenarioStartingStuffs()
-        {
-            var result = new Dictionary<ThingDef, List<ThingDef>>();
-            var scenario = Current.Game?.Scenario;
-            if (scenario == null) return result;
-            const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
-            var defField = typeof(ScenPart_ThingCount).GetField("thingDef", flags) ?? throw new InvalidOperationException("ScenPart_ThingCount.thingDef is unavailable.");
-            var stuffField = typeof(ScenPart_ThingCount).GetField("stuff", flags) ?? throw new InvalidOperationException("ScenPart_ThingCount.stuff is unavailable.");
-            foreach (var part in scenario.AllParts.OfType<ScenPart_ThingCount>())
-            {
-                if (defField.GetValue(part) is ThingDef def && def.MadeFromStuff && stuffField.GetValue(part) is ThingDef stuff)
-                {
-                    if (!result.TryGetValue(def, out var list)) result[def] = list = new List<ThingDef>();
-                    if (!list.Contains(stuff)) list.Add(stuff);
-                }
-            }
-            return result;
-        }
-
-        // Stats a planner reads of every ThingDef whether or not the game shows
-        // them: DeteriorationRate is showIfUndefined false, so the game hides it
-        // for any def that does not set it, where its value is the default base
-        // value (0). Go reads it as bridge.StatDeteriorationRate.
-        private static readonly HashSet<string> PlannerStats = new HashSet<string>(StringComparer.Ordinal) { "DeteriorationRate" };
-
-        private static Obs.DefStatRow StatRow(BuildableDef def, ThingDef? stuff, System.Collections.Generic.List<StatDef> stats)
-        {
-            var row = new Obs.DefStatRow { DefName = def.defName, StuffName = stuff?.defName ?? "" };
-            for (var i = 0; i < stats.Count; i++)
-            {
-                var stat = stats[i];
-                try
-                {
-                    if (!stat.Worker.ShouldShowFor(StatRequest.For(def, stuff)) && !(def is ThingDef && PlannerStats.Contains(stat.defName))) continue;
-                    var value = def.GetStatValueAbstract(stat, stuff);
-                    if (float.IsNaN(value) || float.IsInfinity(value)) throw new InvalidOperationException($"the value is {value}");
-                    row.Stat.Add(i);
-                    row.Value.Add(value);
-                }
-                catch (Exception ex)
-                {
-                    throw new InvalidOperationException($"Stat {stat.defName} of def {def.defName} with stuff {stuff?.defName ?? "(none)"} failed: {ex.Message}", ex);
-                }
-            }
-            try
-            {
-                foreach (var cost in def.CostListAdjusted(stuff, false))
-                    row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Adjusted cost list of def {def.defName} with stuff {stuff?.defName ?? "(none)"} failed: {ex.Message}", ex);
-            }
-            return row;
+            var difficulty = Find.Storyteller?.difficulty ?? throw new InvalidOperationException("Find.Storyteller.difficulty is unavailable.");
+            env.ButcherYieldFactor = difficulty.butcherYieldFactor;
+            env.FishingYieldFactor = difficulty.fishingYieldFactor;
+            foreach (var field in typeof(Difficulty).GetFields(BindingFlags.Instance | BindingFlags.Public).Where(f => f.FieldType == typeof(bool)).OrderBy(f => f.Name, StringComparer.Ordinal))
+                env.DifficultyFlags.Add(new Obs.DifficultyFlag { Name = field.Name, Value = (bool)field.GetValue(difficulty)! });
+            return env;
         }
 
         // A def whose defName is not a protocol identifier cannot be a catalog key:

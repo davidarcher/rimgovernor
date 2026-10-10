@@ -5,7 +5,6 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
@@ -156,7 +155,7 @@ type verbSource struct {
 // maneuvers are the ManeuverDefs by name, the order the mirror carries (the
 // catalog keeps no load order).
 func (e *Evaluator) maneuvers() []*d.ManeuverDef {
-	rows := e.catalog.Defs[(&d.ManeuverDef{}).ProtoReflect().Descriptor().FullName()]
+	rows := e.catalog.Rows((&d.ManeuverDef{}).ProtoReflect().Descriptor().FullName())
 	out := make([]*d.ManeuverDef, 0, len(rows))
 	for _, row := range rows {
 		if m, ok := row.(*d.ManeuverDef); ok {
@@ -244,14 +243,14 @@ func (t weaponTarget) damage(s verbSource) (float32, error) {
 			}
 			num = float32(num * mult)
 			if damageDef := s.verb.GetMeleeDamageDef(); t.req.Subject.Stuff != "" && damageDef != "" {
-				row := bridge.DefRow[*d.DamageDef](e.catalog, damageDef)
+				row := DefRow[*d.DamageDef](e.catalog, damageDef)
 				if row == nil {
 					return 0, fmt.Errorf("catalog has no damage def %s", damageDef)
 				}
 				if row.GetArmorCategory() == "" {
 					return 0, fmt.Errorf("damage def %s has no armorCategory: AdjustedBaseMeleeDamageAmount throws", damageDef)
 				}
-				category := bridge.DefRow[*d.DamageArmorCategoryDef](e.catalog, row.GetArmorCategory())
+				category := DefRow[*d.DamageArmorCategoryDef](e.catalog, row.GetArmorCategory())
 				if category == nil {
 					return 0, fmt.Errorf("catalog has no damage armor category %s", row.GetArmorCategory())
 				}
@@ -429,7 +428,7 @@ func (e *Evaluator) techHediff(tech *d.ThingDef) (*d.HediffDef, error) {
 		if !ingredient {
 			continue
 		}
-		hediff := bridge.DefRow[*d.HediffDef](e.catalog, recipe.GetAddsHediff())
+		hediff := DefRow[*d.HediffDef](e.catalog, recipe.GetAddsHediff())
 		if hediff == nil {
 			return nil, fmt.Errorf("catalog has no hediff def %s", recipe.GetAddsHediff())
 		}
@@ -471,7 +470,7 @@ func (e *Evaluator) recipeTakes(recipe *d.RecipeDef, def string) (bool, error) {
 // one def.
 func (e *Evaluator) fixedFilter(filter *d.ThingFilter) (bool, error) {
 	count := 0
-	for name := range e.catalog.ThingDefs {
+	for name := range e.catalog.AllThingDefs() {
 		ok, err := e.catalog.FilterAccepts(filter, name)
 		if err != nil {
 			return false, err

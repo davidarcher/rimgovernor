@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
-	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -81,10 +80,7 @@ func newBaseRig(t *testing.T, opts baseOpts) *rig {
 	}
 	slice.Wire.Defs.StatDefs = slices.DeleteFunc(slices.Clone(slice.Wire.Defs.StatDefs), func(s *d.StatDef) bool { return s.DefName == stat.DefName })
 	slice.Wire.Defs.StatDefs = append(slice.Wire.Defs.StatDefs, stat, other)
-	catalog, err := recordedcatalog.FromSlice(slice, "unit")
-	if err != nil {
-		t.Fatal(err)
-	}
+	catalog := fromWire(slice.Wire)
 	mods := map[string]bool{"ludeon.rimworld": true}
 	if opts.biotech {
 		mods[modBiotech] = true

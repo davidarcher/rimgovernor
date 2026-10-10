@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
-	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -50,10 +49,7 @@ func (g gearSpec) build(t *testing.T) (*Evaluator, *d.StatDef) {
 		g.edit(slice, stat, parka)
 	}
 	slice.Wire.Defs.StatDefs = append(slice.Wire.Defs.StatDefs, stat)
-	catalog, err := recordedcatalog.FromSlice(slice, "unit")
-	if err != nil {
-		t.Fatal(err)
-	}
+	catalog := fromWire(slice.Wire)
 	env := Env{
 		ActiveMods: map[string]bool{"ludeon.rimworld": true}, ScenarioFactors: map[string]float32{},
 		Difficulty: Some(Difficulty{ButcherYieldFactor: 0.5, FishingYieldFactor: 2, Flags: map[string]bool{"classicMortars": true, "off": false}}),

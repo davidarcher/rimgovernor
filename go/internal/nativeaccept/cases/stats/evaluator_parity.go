@@ -55,7 +55,10 @@ func evaluatorParity(ctx context.Context, s cases.Session) error {
 	for _, row := range evaluateStatSample {
 		subjects[[2]string{row[0], row[1]}] = true
 	}
-	eval := stateval.New(catalog, stateval.Env{ActiveMods: stateval.ModsOf(catalog), ScenarioFactors: map[string]float32{}})
+	eval, err := catalog.StatEvaluator()
+	if err != nil {
+		return err
+	}
 	type pair struct {
 		def, stuff, stat string
 		want             stateval.Result
@@ -65,7 +68,7 @@ func evaluatorParity(ctx context.Context, s cases.Session) error {
 	for subject := range subjects {
 		for _, stat := range stats {
 			got, err := eval.Evaluate(stat, stateval.ThingSubject(subject[0], subject[1]))
-			var nm *bridge.NotMirrored
+			var nm *stateval.NotMirrored
 			switch {
 			case errors.As(err, &nm):
 				skipped++

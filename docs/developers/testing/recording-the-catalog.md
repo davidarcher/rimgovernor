@@ -16,6 +16,14 @@ defs_proto_source=Assembly-CSharp 1.6.9676.17735
 `defs_proto_source` the assembly line of `contracts/proto/defs.proto`. Game
 identity is this sidecar; the catalog carries no version field.
 
+The recording carries `stat_env` (mods, classic mode, scenario factors,
+difficulty) and no stat table: stat values, allowed stuffs and adjusted costs are
+computed in Go from the rows (`bridge/stateval`). A recording made before #2640
+had a per-(def, stuff) `stat_values` field; refreshing from a current native
+build replaces it with `stat_env`. The committed file was converted by dropping
+that field and writing a `StatEnv` of the same game (its mods and the default
+difficulty).
+
 `TestCommittedRecordingIsFresh` (`go/cmd/recordcatalog`) fails when the sidecar's
 game version differs from the `Krafs.Rimworld.Ref` pin in
 `tools/defmirror/DefMirror.csproj`, or `defs_proto_source` from `defs.proto`'s

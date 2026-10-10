@@ -13,9 +13,8 @@ namespace HomeBridge.BridgeTools
 {
     // One generic stat query: the game's own evaluation of a StatDef for a
     // definition (with optional stuff and quality), a thing or a pawn. The
-    // definition path is the one StatValues() in the definition catalog runs
-    // (GetStatValueAbstract and ShouldShowFor), so it is the oracle for the Go
-    // stat evaluator. Read-only; an unknown stat or subject is a typed failure.
+    // definition path is GetStatValueAbstract and ShouldShowFor, so it is the
+    // live oracle for the Go stat evaluator. Read-only; an unknown stat or subject is a typed failure.
     public sealed class NativeStatTool
     {
         internal const string ToolName = "rimgovernor/observations_evaluate_stat";

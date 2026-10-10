@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/stateval"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
@@ -185,7 +186,7 @@ func (catalog *DefinitionCatalog) generatedSlot(row *d.RecipeDef, i int) ([]stri
 		if i == 0 {
 			var out []string
 			for name, stuff := range catalog.ThingDefs {
-				if stuff.GetStuffProps() != nil && canMake(stuff, product) {
+				if stuff.GetStuffProps() != nil && stateval.StuffCanMake(stuff, product) {
 					out = append(out, name)
 				}
 			}

@@ -46,32 +46,39 @@ var gearGarments = map[string]gearGarment{
 // Smithing and FlakArmor but not PlateArmor or MarineArmor.
 func gearModelDefs(t *testing.T) GearDefinitions {
 	t.Helper()
-	return gearModelDefsShowing(t, []int32{0, 1, 2, 3, 4})
+	return gearModelDefsHiding(t)
 }
 
-// gearModelDefsShowing is gearModelDefs with only the listed stat indexes (of
-// sharp, blunt, cold, heat, market value) in every garment's stat row.
-func gearModelDefsShowing(t *testing.T, shown []int32) GearDefinitions {
+// gearModelDefsHiding is gearModelDefs with the named stat defs hidden, as the
+// game hides a stat of an always-hide def (StatDef.alwaysHide).
+func gearModelDefsHiding(t *testing.T, hidden ...string) GearDefinitions {
 	t.Helper()
 	id := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
 	v := &o.DefinitionCatalog{Context: &c.ObservationContext{Identity: id, Tick: proto.Int64(12), NativeGeneration: proto.Uint64(7)},
-		TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}}, Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}}}, StatValues: &o.DefStatTable{Stats: []string{statArmorSharp, statArmorBlunt, statInsulationCold, statInsulationHeat, statMarketValue}},
-		Derived: &o.CatalogDerived{CurrencyDef: "Silver", WortDef: "Wort", FullRotRateC: 10}, GameConstants: testGameConstants()}
+		TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}},
+		Derived:     &o.CatalogDerived{CurrencyDef: "Silver", WortDef: "Wort", FullRotRateC: 10}, GameConstants: testGameConstants()}
+	addStatSupport(t, v)
+	for _, stat := range v.Defs.StatDefs {
+		if slices.Contains(hidden, stat.DefName) {
+			stat.AlwaysHide = true
+		}
+	}
 	for _, name := range slices.Sorted(maps.Keys(gearGarments)) {
 		g := gearGarments[name]
 		row := &d.ThingDef{DefName: name, Apparel: &d.ApparelProperties{Layers: g.layers, BodyPartGroups: g.groups, DefaultOutfitTags: g.tags, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}}
 		if g.speed != 0 {
 			row.EquippedStatOffsets = []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: statMoveSpeed, Value: g.speed}}}
 		}
-		v.ThingDefs = append(v.ThingDefs, row)
 		// The game shows every Apparel-category stat for an apparel def
 		// (StatWorker.ShouldShowFor), a zero armor rating included.
-		all := []float32{g.sharp, g.blunt, 2, 1, 100}
-		stats, values := shown, make([]float32, len(shown))
-		for i, s := range shown {
-			values[i] = all[s]
+		for _, stat := range []struct {
+			name  string
+			value float32
+		}{{statArmorSharp, g.sharp}, {statArmorBlunt, g.blunt}, {statInsulationCold, 2}, {statInsulationHeat, 1}, {statMarketValue, 100}} {
+			row.StatBases = append(row.StatBases, &d.Opt_StatModifier{Value: &d.StatModifier{Stat: stat.name, Value: stat.value}})
 		}
-		v.StatValues.Rows = append(v.StatValues.Rows, &o.DefStatRow{DefName: name, Stat: stats, Value: values})
+		row.Category, row.Tradeability, row.AlwaysHaulable = d.ThingCategory_THING_CATEGORY_ITEM, d.Tradeability_TRADEABILITY_ALL, true
+		v.ThingDefs = append(v.ThingDefs, row)
 	}
 	catalog, err := bridge.DecodeDefinitionCatalog(v, id)
 	if err != nil {
@@ -358,11 +365,11 @@ func gearModelTables() bridge.Tables {
 // insulation (the game shows every Apparel-category stat for apparel), and
 // zero cost for market value (hidden for gear nobody trades).
 func TestOptionStatIsStrictExceptMarketValue(t *testing.T) {
-	noBlunt := gearModelDefsShowing(t, []int32{0, 2, 3, 4}).Catalog
+	noBlunt := gearModelDefsHiding(t, statArmorBlunt).Catalog
 	if _, err := optionStat(noBlunt, "Apparel_FlakVest", "", statArmorBlunt, false); err == nil {
 		t.Fatal("a hidden armor stat read as a value")
 	}
-	noValue := gearModelDefsShowing(t, []int32{0, 1, 2, 3}).Catalog
+	noValue := gearModelDefsHiding(t, statMarketValue).Catalog
 	if v, err := optionStat(noValue, "Apparel_FlakVest", "", statMarketValue, true); err != nil || v != 0 {
 		t.Fatal("hidden market value", v, err)
 	}

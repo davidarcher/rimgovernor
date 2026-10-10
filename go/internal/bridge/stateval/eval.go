@@ -1,14 +1,14 @@
 // Package stateval is the Go port of RimWorld's stat evaluation over the
 // mirrored def rows (epic #2621): StatWorker.GetValue for a definition request
 // (a ThingDef or TerrainDef with optional stuff and quality, the request
-// DefStatTable and bridge.Client.EvaluateStat answer) and ShouldShowFor. It is
+// bridge.Client.EvaluateStat answers too) and ShouldShowFor. It is
 // pure: it reads the decoded catalog and calls nothing native.
 //
 // The core is the base StatWorker: the stat's base value (statBases, else the
 // StatDef default), the stuff factor and offset, the StatPart list in
 // priority order, the post-process curve and factors, the scenario factor,
 // rounding and the min/max clamp. A StatPart or StatWorker subclass that no Go
-// function owns yet is a *bridge.NotMirrored naming the class, never a
+// function owns yet is a *NotMirrored naming the class, never a
 // default; cmd/stataudit's stat_classes.tsv records which classes are owned.
 // A thing request (Subject.Context) is answered from its StatContext, whose
 // typed facts hold the live state the rows lack; a fact it does not state is
@@ -26,7 +26,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -123,14 +122,14 @@ func ownedParts() map[string]Part {
 
 // Evaluator evaluates stats over one catalog.
 type Evaluator struct {
-	catalog *bridge.DefinitionCatalog
+	catalog Catalog
 	env     Env
 	parts   map[string]Part
 	workers map[string]Worker
 }
 
 // New is the evaluator of catalog under env.
-func New(catalog *bridge.DefinitionCatalog, env Env) *Evaluator {
+func New(catalog Catalog, env Env) *Evaluator {
 	return &Evaluator{catalog: catalog, env: env, parts: ownedParts(), workers: ownedWorkers()}
 }
 
@@ -149,7 +148,7 @@ type Result struct {
 }
 
 // Evaluate is the game's GetStatValueAbstract and ShouldShowFor of stat for
-// subject. A class no Go function owns is a *bridge.NotMirrored.
+// subject. A class no Go function owns is a *NotMirrored.
 func (e *Evaluator) Evaluate(stat string, subject Subject) (Result, error) {
 	req, err := e.request(stat, subject)
 	if err != nil {
@@ -199,7 +198,7 @@ func (e *Evaluator) request(stat string, subject Subject) (*Request, error) {
 	if e == nil || e.catalog == nil {
 		return nil, fmt.Errorf("stat evaluation has no catalog")
 	}
-	def := bridge.DefRow[*d.StatDef](e.catalog, stat)
+	def := DefRow[*d.StatDef](e.catalog, stat)
 	if def == nil {
 		return nil, fmt.Errorf("catalog has no stat def %s", stat)
 	}
@@ -285,7 +284,7 @@ func (e *Evaluator) part(class, fact string) (Part, error) {
 	if p, ok := e.parts[class]; ok {
 		return p, nil
 	}
-	return nil, &bridge.NotMirrored{Class: class, Fact: fact}
+	return nil, &NotMirrored{Class: class, Fact: fact}
 }
 
 // value is StatWorker.GetValue: the worker's GetValueUnfinalized, finalized.

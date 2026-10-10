@@ -58,10 +58,12 @@ comps surfaces as `NotMirrored` naming the comp class.
   `stateval.ownedWorkers`, and the class's row owner becomes `stateval.<Class>` (a class with
   no owner is `NotMirrored` for both value and `ShouldShowFor`).
   `TestOwnerColumnMatchesEvaluator` fails when the owner column and the registry disagree.
-- The environment is explicit (`stateval.Env`): the active mods (`ModsOf` reads them off
-  the catalog's rows), classic mode and the scenario's stat factors. A missing mod set is
-  an error, not "no mods".
-- `TestParityWithRecordedStatTable` compares the evaluator with every row of the recorded
-  `DefStatTable`, bit for bit, and fails on any stat that still returns `NotMirrored` (every
-  class is owned). The native case
-  `stats/evaluator-parity` repeats the comparison against the live `EvaluateStat`.
+- The environment is explicit (`stateval.Env`): the active mods, classic mode, the
+  scenario's stat factors and the difficulty, all from the catalog's `StatEnv` (one native
+  read per load). A catalog without it evaluates no stat: that is an error, not "no mods".
+- `stateval` declares the read interface it needs (`stateval.Catalog`); `bridge.DefinitionCatalog`
+  satisfies it, so the bridge calls the evaluator and the evaluator never imports the bridge.
+- The recorded `DefStatTable` is gone. The native case `stats/evaluator-parity` compares the
+  evaluator with the live `EvaluateStat` bit for bit and fails on any stat that still
+  returns `NotMirrored` (every class is owned); the planning-view golden pins the planner's
+  numbers.

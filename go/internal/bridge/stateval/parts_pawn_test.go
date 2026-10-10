@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
-	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -93,10 +92,7 @@ func newPawnRig(t *testing.T, c pawnCase) *rig {
 	constants := proto.Clone(slice.Wire.GameConstants).(*d.GameConstants)
 	constants.RevenantUtility.SpeedRangeFromBecameVisibleCurve = curve(0, 0.5, 10, 1.5)
 	slice.Wire.GameConstants = constants
-	catalog, err := recordedcatalog.FromSlice(slice, "unit")
-	if err != nil {
-		t.Fatal(err)
-	}
+	catalog := fromWire(slice.Wire)
 	env := Env{ActiveMods: map[string]bool{"ludeon.rimworld": true}, ScenarioFactors: map[string]float32{}}
 	if c.biotech {
 		env.ActiveMods["ludeon.rimworld.biotech"] = true

@@ -2,7 +2,6 @@ package stateval
 
 import (
 	"fmt"
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
@@ -50,7 +49,7 @@ func (e *Evaluator) animal(r *d.RaceProperties, anomalyEntity bool) (bool, error
 	if r.GetIntelligence() != d.Intelligence_INTELLIGENCE_ANIMAL || anomalyEntity {
 		return false, nil
 	}
-	flesh := bridge.DefRow[*d.FleshTypeDef](e.catalog, fleshType(r))
+	flesh := DefRow[*d.FleshTypeDef](e.catalog, fleshType(r))
 	if flesh == nil {
 		return false, fmt.Errorf("catalog has no flesh type %s", fleshType(r))
 	}

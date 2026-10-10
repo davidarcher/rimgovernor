@@ -31,8 +31,7 @@ func TestMaterialInstallsComeFromTheRows(t *testing.T) {
 	categories := catalog.Defs[(&d.ThingCategoryDef{}).ProtoReflect().Descriptor().FullName()]
 	categories["BodyParts"] = &d.ThingCategoryDef{DefName: "BodyParts", Parent: "Root"}
 	catalog.ThingDefs["BionicArm"] = &d.ThingDef{DefName: "BionicArm", ThingCategories: []string{"BodyParts"}}
-	catalog.ThingDefs["WoodLog"] = &d.ThingDef{DefName: "WoodLog"}
-	catalog.statValues = &statTable{things: map[defStuff]*statRow{{"WoodLog", ""}: {values: map[string]float32{"MarketValue": 1.2}}}}
+	catalog.withRecordedStats(t, "WoodLog").ThingDefs["WoodLog"].ThingCategories = nil
 	facts, err := catalog.RecipeFacts()
 	if err != nil {
 		t.Fatal(err)

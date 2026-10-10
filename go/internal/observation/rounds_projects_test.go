@@ -78,13 +78,9 @@ func TestRoundsProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			rows := diningRows(t)
 			rows.Add("Wall", "WoodLog")
 			// A furniture row may have pulled Wall in with every stuff: leave it wood.
-			keep := rows.Wire.StatValues.Rows[:0]
-			for _, row := range rows.Wire.StatValues.Rows {
-				if row.GetDefName() != "Wall" || row.GetStuffName() == "WoodLog" {
-					keep = append(keep, row)
-				}
-			}
-			rows.Wire.StatValues.Rows = keep
+			// The wall takes a stuff category only wood has.
+			rows.Thing("WoodLog").StuffProps.Categories = append(rows.Thing("WoodLog").StuffProps.Categories, "OnlyWood")
+			rows.Thing("Wall").StuffCategories = []string{"OnlyWood"}
 			if phase != "uncataloged" {
 				rows.CopyThing("HospitalBed", "SurgeryTable").ResearchPrerequisites = []string{"Medicine"}
 			}

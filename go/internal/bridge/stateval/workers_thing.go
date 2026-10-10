@@ -3,7 +3,6 @@ package stateval
 import (
 	"fmt"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
@@ -314,7 +313,7 @@ func meleeDamageAmount(req *Request) (float32, error) {
 	if category == "" {
 		return val, nil
 	}
-	row := bridge.DefRow[*d.DamageArmorCategoryDef](e.catalog, category)
+	row := DefRow[*d.DamageArmorCategoryDef](e.catalog, category)
 	if row == nil {
 		return 0, fmt.Errorf("catalog has no damage armor category %s", category)
 	}

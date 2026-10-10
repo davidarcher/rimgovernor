@@ -3,9 +3,7 @@ package stateval
 import (
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
-	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
@@ -21,10 +19,7 @@ func pawnStatEval(t *testing.T, odyssey bool) *Evaluator {
 	slice := recordedrows.Take(t, recordedrows.Named(defAnimal, defHuman), "stat_defs", "flesh_type_defs", "mutant_defs", "life_stage_defs")
 	slice.Wire.Defs.MutantDefs = append(slice.Wire.Defs.MutantDefs,
 		&d.MutantDef{DefName: "TestNoAir", BreathesAir: false}, &d.MutantDef{DefName: "TestAir", BreathesAir: true})
-	catalog, err := recordedcatalog.FromSlice(slice, "unit")
-	if err != nil {
-		t.Fatal(err)
-	}
+	catalog := fromWire(slice.Wire)
 	mods := map[string]bool{"ludeon.rimworld": true}
 	if odyssey {
 		mods[modOdyssey] = true
@@ -401,7 +396,7 @@ func TestForagedNutritionPerDay(t *testing.T) {
 			t.Fatal(err)
 		}
 		factor := game.GetStatWorker_ForagedNutritionPerDay().GetForgeBodySizeFactor()
-		bodySize := mul(bridge.DefRow[*d.LifeStageDef](on.catalog, "HumanlikeAdult").GetBodySizeFactor(), on.catalog.ThingDef(defAnimal).GetRace().GetBaseBodySize())
+		bodySize := mul(DefRow[*d.LifeStageDef](on.catalog, "HumanlikeAdult").GetBodySizeFactor(), on.catalog.ThingDef(defAnimal).GetRace().GetBaseBodySize())
 		if factor != 0.6 {
 			t.Errorf("ForgeBodySizeFactor = %v, want 0.6", factor)
 		}

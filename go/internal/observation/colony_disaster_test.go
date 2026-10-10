@@ -103,7 +103,7 @@ func TestColonyDisasterCarriesRemainingTicks(t *testing.T) {
 // condition rows.
 func colonyDisasterTest(t *testing.T, v *o.ColonyFactsSnapshot, f *policy.RoundsFacts, buildings bridge.Buildings) {
 	t.Helper()
-	conditions, known, err := colonyConditions(v, decodeCatalog(t, &o.DefinitionCatalog{ThingDefs: []*d.ThingDef{{DefName: "Anchor"}}, StatValues: &o.DefStatTable{}}))
+	conditions, known, err := colonyConditions(v, decodeCatalog(t, &o.DefinitionCatalog{ThingDefs: []*d.ThingDef{{DefName: "Anchor"}}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func colonyDisasterTest(t *testing.T, v *o.ColonyFactsSnapshot, f *policy.Rounds
 // TestColonyConditionsReadTheDefRow: the power outage is the def's class, not
 // a name, and a condition without a row is an error.
 func TestColonyConditionsReadTheDefRow(t *testing.T) {
-	catalog := decodeCatalog(t, &o.DefinitionCatalog{ThingDefs: []*d.ThingDef{{DefName: "Anchor"}}, StatValues: &o.DefStatTable{}})
+	catalog := decodeCatalog(t, &o.DefinitionCatalog{ThingDefs: []*d.ThingDef{{DefName: "Anchor"}}})
 	v := &o.ColonyFactsSnapshot{Environment: []*o.EnvironmentCondition{{Id: proto.String("1"), DefName: proto.String("SolarFlare")}, {Id: proto.String("2"), DefName: proto.String("ColdSnap")}}}
 	rows, known, err := colonyConditions(v, catalog)
 	if err != nil || !known || len(rows) != 2 || !rows[0].DisablesPower || rows[1].DisablesPower {
@@ -129,7 +129,7 @@ func TestColonyConditionsReadTheDefRow(t *testing.T) {
 // biome's map conditions' class family; no biome read, no catalog and a
 // biome without a row are each a named error.
 func TestColonyOutdoorsDarkReadsTheBiomeConditions(t *testing.T) {
-	catalog := decodeCatalog(t, &o.DefinitionCatalog{ThingDefs: []*d.ThingDef{{DefName: "Anchor"}}, StatValues: &o.DefStatTable{}})
+	catalog := decodeCatalog(t, &o.DefinitionCatalog{ThingDefs: []*d.ThingDef{{DefName: "Anchor"}}})
 	for biome, want := range map[string]bool{"FixtureDarkBiome": true, "FixtureLitBiome": false} {
 		got, err := colonyOutdoorsDark(&o.ColonyFactsSnapshot{Biome: proto.String(biome)}, catalog)
 		if dark, known := got.Value(); err != nil || !known || dark != want {

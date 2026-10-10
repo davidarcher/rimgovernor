@@ -2,215 +2,152 @@ package bridge
 
 import (
 	"math"
-	"slices"
 
-	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/stateval"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// statTable is the decoded stat table: the rows of every ThingDef by
-// (def, stuff) and of every TerrainDef by name, then stat name.
-type statTable struct {
-	things   map[defStuff]*statRow
-	terrains map[string]*statRow
-	// stuffs are the allowed stuffs of each stuffed def, in row order (the
-	// native defName order): the rows whose stuff can make the def.
-	stuffs map[string][]string
-}
-
-// decodeStatTable indexes the stat table by (def, stuff) then stat name. A
-// thing row must name a known ThingDef, and a known stuff when it has one; a
-// terrain row a known TerrainDef with no stuff; each carries one finite value
-// per distinct stat of the shared table. An absent table stays nil.
-func decodeStatTable(v *o.DefStatTable, things map[string]*d.ThingDef, terrains map[string]*d.TerrainDef) (*statTable, error) {
+// decodeStatEnv is the game state the stat evaluator reads beyond the rows.
+// An absent message stays nil: the catalog then evaluates no stat.
+func decodeStatEnv(v *o.StatEnv) (*stateval.Env, error) {
 	if v == nil {
 		return nil, nil
 	}
-	seen := make(map[string]bool, len(v.Stats))
-	for _, name := range v.Stats {
-		if validID(name) != nil || seen[name] {
-			return nil, contract("invalid or repeated catalog stat %q", name)
+	env := &stateval.Env{ActiveMods: make(map[string]bool, len(v.ActiveMods)), ClassicMode: v.ClassicMode, ScenarioFactors: make(map[string]float32, len(v.ScenarioFactors))}
+	for _, mod := range v.ActiveMods {
+		if mod == "" {
+			return nil, contract("catalog stat environment names an empty mod")
 		}
-		seen[name] = true
+		env.ActiveMods[mod] = true
 	}
-	out := &statTable{things: make(map[defStuff]*statRow, len(v.Rows)), terrains: make(map[string]*statRow, len(v.TerrainRows)), stuffs: map[string][]string{}}
-	for _, row := range v.Rows {
-		key := defStuff{row.GetDefName(), row.GetStuffName()}
-		if things[key.def] == nil || (key.stuff != "" && things[key.stuff] == nil) {
-			return nil, contract("catalog stat row for unknown def %s or stuff %q", key.def, key.stuff)
+	for _, f := range v.ScenarioFactors {
+		if _, dup := env.ScenarioFactors[f.GetStat()]; dup || validID(f.GetStat()) != nil || math.IsNaN(float64(f.GetFactor())) || math.IsInf(float64(f.GetFactor()), 0) {
+			return nil, contract("invalid or repeated catalog scenario stat factor %q", f.GetStat())
 		}
-		if out.things[key] != nil {
-			return nil, contract("duplicate catalog stat row for def %s with stuff %q", key.def, key.stuff)
-		}
-		decoded, err := decodeStatRow(v.Stats, row)
-		if err != nil {
-			return nil, err
-		}
-		if err := checkCosts(row, things); err != nil {
-			return nil, err
-		}
-		decoded.costs = row.Costs
-		out.things[key] = decoded
-		// A pair the game would not offer (a scenario forces a jade knife) has a
-		// row so its stats can be read, but is not an allowed stuff.
-		if key.stuff != "" && canMake(things[key.stuff], things[key.def]) {
-			out.stuffs[key.def] = append(out.stuffs[key.def], key.stuff)
-		}
+		env.ScenarioFactors[f.GetStat()] = f.GetFactor()
 	}
-	for _, row := range v.TerrainRows {
-		name := row.GetDefName()
-		if terrains[name] == nil || row.GetStuffName() != "" {
-			return nil, contract("catalog terrain stat row for unknown terrain %s, or with stuff %q", name, row.GetStuffName())
+	flags := make(map[string]bool, len(v.DifficultyFlags))
+	for _, f := range v.DifficultyFlags {
+		if _, dup := flags[f.GetName()]; dup || validID(f.GetName()) != nil {
+			return nil, contract("invalid or repeated catalog difficulty setting %q", f.GetName())
 		}
-		if out.terrains[name] != nil {
-			return nil, contract("duplicate catalog stat row for terrain %s", name)
-		}
-		decoded, err := decodeStatRow(v.Stats, row)
-		if err != nil {
-			return nil, err
-		}
-		if err := checkCosts(row, things); err != nil {
-			return nil, err
-		}
-		decoded.costs = row.Costs
-		out.terrains[name] = decoded
+		flags[f.GetName()] = f.GetValue()
 	}
-	return out, nil
+	env.Difficulty = stateval.Some(stateval.Difficulty{ButcherYieldFactor: v.ButcherYieldFactor, FishingYieldFactor: v.FishingYieldFactor, Flags: flags})
+	return env, nil
 }
 
-// checkCosts refuses an adjusted cost entry that names no known ThingDef or
-// has no units.
-func checkCosts(row *o.DefStatRow, things map[string]*d.ThingDef) error {
-	for _, cost := range row.Costs {
-		if validID(cost.GetDefName()) != nil || things[cost.GetDefName()] == nil || cost.GetUnits() <= 0 {
-			return contract("catalog cost of %s/%q names %q x %d", row.GetDefName(), row.GetStuffName(), cost.GetDefName(), cost.GetUnits())
-		}
+// StatEvaluator is the Go port of the game's stat evaluation over this
+// catalog's rows and stat environment (stateval). A catalog that carries no
+// environment is an error, never an evaluator with guessed state.
+func (catalog *DefinitionCatalog) StatEvaluator() (*stateval.Evaluator, error) {
+	if catalog == nil || catalog.statEnv == nil {
+		return nil, contract("definition catalog carries no stat environment")
 	}
-	return nil
+	catalog.evalOnce.Do(func() { catalog.eval = stateval.New(catalog, *catalog.statEnv) })
+	return catalog.eval, nil
 }
 
-// decodeStatRow is a row's finite values by stat name.
-func decodeStatRow(stats []string, row *o.DefStatRow) (*statRow, error) {
-	key := defStuff{row.GetDefName(), row.GetStuffName()}
-	if len(row.Stat) != len(row.Value) {
-		return nil, contract("catalog stat row %s/%q has %d stats and %d values", key.def, key.stuff, len(row.Stat), len(row.Value))
+// StatValue is the game's GetStatValueAbstract(stat, stuff) of def, with stuff
+// empty for a def not made from stuff. A def or stuff the catalog lacks and a
+// stat the game does not show for the def are errors, never a default.
+func (catalog *DefinitionCatalog) StatValue(def, stuff, stat string) (float32, error) {
+	value, shown, err := catalog.ShownStatValue(def, stuff, stat)
+	if err == nil && !shown {
+		return 0, contract("stat %s is not shown for def %s with stuff %q", stat, def, stuff)
 	}
-	values := make(map[string]float32, len(row.Stat))
-	for i, index := range row.Stat {
-		if index < 0 || int(index) >= len(stats) {
-			return nil, contract("catalog stat row %s/%q stat index %d is outside the table", key.def, key.stuff, index)
-		}
-		name := stats[index]
-		if _, dup := values[name]; dup {
-			return nil, contract("catalog stat row %s/%q repeats stat %s", key.def, key.stuff, name)
-		}
-		if f := float64(row.Value[i]); math.IsNaN(f) || math.IsInf(f, 0) {
-			return nil, contract("catalog stat %s of %s/%q is %v", name, key.def, key.stuff, f)
-		}
-		values[name] = row.Value[i]
-	}
-	return &statRow{values: values}, nil
+	return value, err
 }
 
-// statRow is one (def, stuff) row: the game's stat values by stat name and
-// its adjusted cost list (things only).
-type statRow struct {
-	values map[string]float32
-	costs  []*o.Quantity
+// ShownStatValue is StatValue for a stat that is legitimately absent from a
+// def: shown is false when the game does not show the stat for the def (the
+// def has no such property). DeteriorationRate is a planner stat of every
+// ThingDef, which the game hides for a def that does not set it: it is read
+// whether shown or not.
+func (catalog *DefinitionCatalog) ShownStatValue(def, stuff, stat string) (value float32, shown bool, err error) {
+	return catalog.shownValue(stat, stateval.ThingSubject(def, stuff), stat == StatDeteriorationRate)
+}
+
+// shownValue is the stat's value for the subject and whether the game shows it;
+// a stat that is not shown is not evaluated unless planner says to read it.
+func (catalog *DefinitionCatalog) shownValue(stat string, subject stateval.Subject, planner bool) (float32, bool, error) {
+	eval, err := catalog.StatEvaluator()
+	if err != nil {
+		return 0, false, err
+	}
+	shown, err := eval.ShouldShowFor(stat, subject)
+	if err != nil {
+		return 0, false, err
+	}
+	if !shown && !planner {
+		return 0, false, nil
+	}
+	value, err := eval.Value(stat, subject)
+	if err != nil {
+		return 0, false, err
+	}
+	if math.IsNaN(float64(value)) || math.IsInf(float64(value), 0) {
+		return 0, false, contract("stat %s of %s with stuff %q is %v", stat, subject.Def, subject.Stuff, value)
+	}
+	return value, true, nil
 }
 
 // AdjustedCosts is the game's ThingDef.CostListAdjusted(stuff) of def, with
 // stuff empty for a def not made from stuff; an empty list is a def with no
-// cost. A catalog without the stat table or a pair without a row is an error.
+// cost.
 func (catalog *DefinitionCatalog) AdjustedCosts(def, stuff string) ([]*o.Quantity, error) {
-	if catalog == nil || catalog.statValues == nil {
-		return nil, contract("definition catalog carries no stat values")
+	eval, err := catalog.StatEvaluator()
+	if err != nil {
+		return nil, err
 	}
-	row, ok := catalog.statValues.things[defStuff{def, stuff}]
-	if !ok {
-		return nil, contract("no stat values for def %s with stuff %q", def, stuff)
-	}
-	return row.costs, nil
+	costs, err := eval.CostListAdjusted(def, stuff)
+	return quantities(costs), err
 }
 
 // AllowedStuffs is the game's GenStuff.AllowedStuffsFor(def): the stuffs the
-// def can be made from, by name, empty for a def not made from stuff. A
-// catalog without the stat table is an error.
+// def can be made from, by name, empty for a def not made from stuff.
 func (catalog *DefinitionCatalog) AllowedStuffs(def string) ([]string, error) {
-	if catalog == nil || catalog.statValues == nil {
-		return nil, contract("definition catalog carries no stat values")
+	eval, err := catalog.StatEvaluator()
+	if err != nil {
+		return nil, err
 	}
-	return catalog.statValues.stuffs[def], nil
+	return eval.AllowedStuffsFor(def)
 }
 
 // TerrainAdjustedCosts is the game's CostListAdjusted(null) of a TerrainDef;
 // an empty list is a free floor.
 func (catalog *DefinitionCatalog) TerrainAdjustedCosts(terrain string) ([]*o.Quantity, error) {
-	if catalog == nil || catalog.statValues == nil {
-		return nil, contract("definition catalog carries no stat values")
+	eval, err := catalog.StatEvaluator()
+	if err != nil {
+		return nil, err
 	}
-	row, ok := catalog.statValues.terrains[terrain]
-	if !ok {
-		return nil, contract("no stat values for terrain %s", terrain)
+	costs, err := eval.TerrainCostListAdjusted(terrain)
+	return quantities(costs), err
+}
+
+func quantities(costs []stateval.Cost) []*o.Quantity {
+	var out []*o.Quantity
+	for _, cost := range costs {
+		out = append(out, &o.Quantity{DefName: &cost.Def, Units: &cost.Units})
 	}
-	return row.costs, nil
+	return out
 }
 
 // TerrainWorkToBuild is the game's GetStatValueAbstract(WorkToBuild) of a
-// TerrainDef. The stat table does not show WorkToBuild for terrain, so it
-// is the value the game itself computes: the def's own statBases entry, else
-// the stat def's default. A stat table row that does show it wins.
+// TerrainDef. The game does not show the stat for terrain, so it is read
+// whether shown or not.
 func (catalog *DefinitionCatalog) TerrainWorkToBuild(terrain string) (float32, error) {
-	if value, err := catalog.TerrainStatValue(terrain, StatWorkToBuild); err == nil {
-		return value, nil
-	}
-	if catalog.statValues == nil {
-		return 0, contract("definition catalog carries no stat values")
-	}
-	if _, ok := catalog.statValues.terrains[terrain]; !ok {
-		return 0, contract("no stat values for terrain %s", terrain)
-	}
-	row := catalog.TerrainDef(terrain)
-	if row == nil {
-		return 0, contract("catalog has no def row for terrain %s", terrain)
-	}
-	for _, m := range row.GetStatBases() {
-		if m.GetValue().GetStat() == StatWorkToBuild {
-			return m.GetValue().GetValue(), nil
-		}
-	}
-	stat := DefRow[*d.StatDef](catalog, StatWorkToBuild)
-	if stat == nil {
-		return 0, contract("catalog has no %s stat def", StatWorkToBuild)
-	}
-	return stat.GetDefaultBaseValue(), nil
+	value, _, err := catalog.shownValue(StatWorkToBuild, stateval.TerrainSubject(terrain), true)
+	return value, err
 }
 
 // TerrainStatValue is the game's GetStatValueAbstract(stat) of a TerrainDef.
-// A catalog without the stat table, a terrain without a row and a stat the
-// game does not show for the terrain are errors, never a default.
+// A terrain the catalog lacks and a stat the game does not show for the
+// terrain are errors, never a default.
 func (catalog *DefinitionCatalog) TerrainStatValue(terrain, stat string) (float32, error) {
-	if catalog == nil || catalog.statValues == nil {
-		return 0, contract("definition catalog carries no stat values")
-	}
-	row, ok := catalog.statValues.terrains[terrain]
-	if !ok {
-		return 0, contract("no stat values for terrain %s", terrain)
-	}
-	value, shown := row.values[stat]
-	if !shown {
+	value, shown, err := catalog.shownValue(stat, stateval.TerrainSubject(terrain), false)
+	if err == nil && !shown {
 		return 0, contract("stat %s is not shown for terrain %s", stat, terrain)
 	}
-	return value, nil
-}
-
-// canMake is StuffProperties.CanMake: the stuff's categories share one with
-// the def's stuffCategories.
-func canMake(stuff, def *d.ThingDef) bool {
-	for _, category := range def.StuffCategories {
-		if slices.Contains(stuff.GetStuffProps().GetCategories(), category) {
-			return true
-		}
-	}
-	return false
+	return value, err
 }

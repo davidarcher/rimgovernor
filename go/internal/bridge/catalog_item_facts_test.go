@@ -11,12 +11,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func itemTestCatalog() *o.DefinitionCatalog {
+func itemTestCatalog(t testing.TB) *o.DefinitionCatalog {
 	v := catalogReply(authorityTestContext(7)).GetObserved()
 	v.ThingDefs = []*d.ThingDef{
 		{DefName: "Steel", ThingCategories: []string{"ResourcesRaw"}, StuffProps: &d.StuffProperties{Categories: []string{"Metallic"}}},
 		{DefName: "Gold", StuffProps: &d.StuffProperties{Categories: []string{"Metallic"}, StatFactors: []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: "Beauty", Value: 4}}}}},
-		{DefName: "MedicineHerbal", ThingCategories: []string{"Medicine"}, StatBases: []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: "MedicalPotency", Value: 0.6}}}},
+		{DefName: "MedicineHerbal", ThingCategories: []string{"Medicine"}},
 		{DefName: "RawRice", ThingCategories: []string{"PlantFoodRaw"}},
 		{DefName: "Bed", StuffCategories: []string{"Metallic", "Woody"}},
 		{DefName: "Silver"},
@@ -43,16 +43,18 @@ func itemTestCatalog() *o.DefinitionCatalog {
 				Comps: fadingComp(-0.25)},
 		},
 	}
-	v.StatValues = &o.DefStatTable{
-		Stats: []string{"MarketValue", "Nutrition"},
-		Rows: []*o.DefStatRow{
-			{DefName: "Steel", Stat: []int32{0}, Value: []float32{1.9}},
-			{DefName: "Gold", Stat: []int32{0}, Value: []float32{10}},
-			{DefName: "MedicineHerbal", Stat: []int32{0}, Value: []float32{18}},
-			{DefName: "RawRice", Stat: []int32{0, 1}, Value: []float32{1.1, 0.05}},
-		},
+	stats := func(pairs ...any) (out []*d.Opt_StatModifier) {
+		for i := 0; i < len(pairs); i += 2 {
+			out = append(out, &d.Opt_StatModifier{Value: &d.StatModifier{Stat: pairs[i].(string), Value: pairs[i+1].(float32)}})
+		}
+		return out
 	}
-	return v
+	v.ThingDefs[0].StatBases = stats("MarketValue", float32(1.9))
+	v.ThingDefs[1].StatBases = stats("MarketValue", float32(10))
+	v.ThingDefs[2].StatBases = stats("MarketValue", float32(18), "MedicalPotency", float32(0.6))
+	v.ThingDefs[3].StatBases = stats("MarketValue", float32(1.1), "Nutrition", float32(0.05))
+	tradeItem(v.ThingDefs[:4]...)
+	return withStatSupport(t, v)
 }
 
 func drugRow(name, chemical string, category d.DrugCategory, order float32, combat bool) *d.ThingDef {
@@ -68,7 +70,7 @@ func fadingComp(perDay float32) []*d.Opt_HediffCompPropertiesAny {
 // which chemicals' addictions fade, the preventive drug and the currency are
 // the def rows', with no name in Go.
 func TestDefinitionCatalogDrugFacts(t *testing.T) {
-	catalog, err := DecodeDefinitionCatalog(itemTestCatalog(), pbIdentity())
+	catalog, err := DecodeDefinitionCatalog(itemTestCatalog(t), pbIdentity())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +109,7 @@ func TestDefinitionCatalogDrugFacts(t *testing.T) {
 		t.Fatalf("categories carry their parents: %v", got)
 	}
 
-	missing := itemTestCatalog()
+	missing := itemTestCatalog(t)
 	missing.Defs.ChemicalDefs = missing.Defs.ChemicalDefs[1:]
 	catalog, err = DecodeDefinitionCatalog(missing, pbIdentity())
 	if err != nil {
@@ -123,7 +125,7 @@ func TestDefinitionCatalogDrugFacts(t *testing.T) {
 // stuff the catalog could not price is refused, and a catalog without a stat
 // table gives facts every lookup on which fails.
 func TestDefinitionCatalogItemFacts(t *testing.T) {
-	catalog, err := DecodeDefinitionCatalog(itemTestCatalog(), pbIdentity())
+	catalog, err := DecodeDefinitionCatalog(itemTestCatalog(t), pbIdentity())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,8 +162,8 @@ func TestDefinitionCatalogItemFacts(t *testing.T) {
 		t.Fatal("a catalog without a stat table priced steel")
 	}
 
-	unpriced := itemTestCatalog()
-	unpriced.StatValues.Rows = unpriced.StatValues.Rows[1:]
+	unpriced := itemTestCatalog(t)
+	unpriced.ThingDefs[0].Tradeability = d.Tradeability_TRADEABILITY_NONE
 	catalog, err = DecodeDefinitionCatalog(unpriced, pbIdentity())
 	if err != nil {
 		t.Fatal(err)
@@ -222,7 +224,7 @@ func TestApparelIsArmorOnRealOutfitTags(t *testing.T) {
 // The armory-versus-wardrobe split is the catalog's: an apparel def only the
 // Soldier outfit tag names (not Worker too) is armor, sorted by name.
 func TestDefinitionCatalogItemFactsArmorSplit(t *testing.T) {
-	v := itemTestCatalog()
+	v := itemTestCatalog(t)
 	apparel := func(name string, tags ...string) *d.ThingDef {
 		return &d.ThingDef{DefName: name, Apparel: &d.ApparelProperties{DefaultOutfitTags: tags}}
 	}

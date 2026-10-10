@@ -170,43 +170,22 @@ func (n *roundsNative) takeCatalog(from *roundsNative) {
 	}
 }
 
-// onlyStuff leaves a stuffed def one allowed stuff: the other stuffs' stat
-// rows go.
+// onlyStuff leaves a stuffed def one allowed stuff, which its recorded rows may
+// not allow: the def takes a stuff category only that stuff has.
 func (n *roundsNative) onlyStuff(name, stuff string) {
 	rows := n.catalogRows()
-	rows.Add(name)
-	keep := rows.Wire.StatValues.Rows[:0]
-	for _, row := range rows.Wire.StatValues.Rows {
-		if row.GetDefName() != name || row.GetStuffName() == stuff {
-			keep = append(keep, row)
-		}
+	rows.Add(name, stuff)
+	category := "Only" + stuff
+	props := rows.Thing(stuff).StuffProps
+	if !slices.Contains(props.Categories, category) {
+		props.Categories = append(props.Categories, category)
 	}
-	rows.Wire.StatValues.Rows = keep
+	rows.Thing(name).StuffCategories = []string{category}
 }
 
-// madeOf leaves a stuffed def one stuff that its recorded rows do not allow:
-// the first stuff's row is kept under the new stuff, its cost item renamed.
-func (n *roundsNative) madeOf(name, stuff string) {
-	rows := n.catalogRows()
-	rows.Add(name, stuff)
-	rows.Thing(name).StuffCategories = slices.Clone(rows.Thing(stuff).GetStuffProps().GetCategories())
-	keep := rows.Wire.StatValues.Rows[:0]
-	done := false
-	for _, row := range rows.Wire.StatValues.Rows {
-		if row.GetDefName() == name && row.GetStuffName() != "" {
-			if done {
-				continue
-			}
-			done = true
-			row.StuffName = stuff
-			for _, cost := range row.Costs {
-				cost.DefName = &stuff
-			}
-		}
-		keep = append(keep, row)
-	}
-	rows.Wire.StatValues.Rows = keep
-}
+// madeOf is onlyStuff under the name the tests use for a stuff the recorded
+// rows do not allow.
+func (n *roundsNative) madeOf(name, stuff string) { n.onlyStuff(name, stuff) }
 
 // rice is the recorded rice plant tuned to the colony these tests draw: it
 // grows at the glow of a lit cell and one harvest is a nutrition unit (the

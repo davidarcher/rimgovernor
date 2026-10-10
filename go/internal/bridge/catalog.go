@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/stateval"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -53,9 +54,11 @@ type DefinitionCatalog struct {
 	// typed per class (GameConstants); nil only in a creation catalog's decode of a
 	// hand-built test.
 	gameConstants *d.GameConstants
-	// statValues are the game's own stat values per (def, stuff); nil
-	// in a reply that carries none.
-	statValues *statTable
+	// statEnv is the game state the stat evaluator reads beyond the rows; nil
+	// in a reply that carries none (StatEvaluator).
+	statEnv  *stateval.Env
+	evalOnce sync.Once
+	eval     *stateval.Evaluator
 	// thingFacts are the game-computed flags of every ThingDef by name.
 	thingFacts map[string]*o.ThingDefFacts
 	// items is the planner-facing item facts, built once on first use.
@@ -90,47 +93,22 @@ type DefinitionCatalog struct {
 	disarmErr  error
 }
 
-// NotMirrored is the error for a fact the game computes in code that the
-// mirror does not carry: the stat evaluator returns it for a StatWorker or
-// StatPart class that cmd/stataudit lists as unowned, never a default value.
-type NotMirrored struct {
-	Class string // the StatWorker or StatPart class
-	Fact  string // what the class computes that the mirror lacks
+// AllThingDefs are every ThingDef row by defName (stateval.Catalog); callers
+// do not mutate it.
+func (catalog *DefinitionCatalog) AllThingDefs() map[string]*d.ThingDef {
+	if catalog == nil {
+		return nil
+	}
+	return catalog.ThingDefs
 }
 
-func (e *NotMirrored) Error() string {
-	return "stat class " + e.Class + ": " + e.Fact + " is computed in game code and not mirrored"
-}
-
-// defStuff keys a stat row: stuff is empty for a def not made from stuff.
-type defStuff struct{ def, stuff string }
-
-// StatValue is the game's GetStatValueAbstract(stat, stuff) of def, with stuff
-// empty for a def not made from stuff. A catalog without the stat table, a
-// (def, stuff) pair without a row and a stat the game does not show for the
-// def are errors, never a default.
-func (catalog *DefinitionCatalog) StatValue(def, stuff, stat string) (float32, error) {
-	value, shown, err := catalog.ShownStatValue(def, stuff, stat)
-	if err == nil && !shown {
-		return 0, contract("stat %s is not shown for def %s with stuff %q", stat, def, stuff)
+// Rows are the rows of one other concrete Def class by defName
+// (stateval.Catalog).
+func (catalog *DefinitionCatalog) Rows(class protoreflect.FullName) map[string]proto.Message {
+	if catalog == nil {
+		return nil
 	}
-	return value, err
-}
-
-// ShownStatValue is StatValue for a stat that is legitimately absent from a
-// def's row: shown is false when the row exists and the game does not show
-// the stat for the def (the def has no such property). A catalog without the
-// stat table and a pair without a row are still errors.
-func (catalog *DefinitionCatalog) ShownStatValue(def, stuff, stat string) (value float32, shown bool, err error) {
-	if catalog == nil || catalog.statValues == nil {
-		return 0, false, contract("definition catalog carries no stat values")
-	}
-	row, ok := catalog.statValues.things[defStuff{def, stuff}]
-	if !ok {
-		return 0, false, contract("no stat values for def %s with stuff %q", def, stuff)
-	}
-	value, shown = row.values[stat]
-	return value, shown, nil
+	return catalog.Defs[class]
 }
 
 // ThingDef is name's generated def row, nil when the catalog has none.
@@ -429,7 +407,7 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 	if out.thingFacts, err = decodeThingFacts(v.ThingFacts, out.ThingDefs); err != nil {
 		return nil, err
 	}
-	if out.statValues, err = decodeStatTable(v.StatValues, out.ThingDefs, out.TerrainDefs); err != nil {
+	if out.statEnv, err = decodeStatEnv(v.StatEnv); err != nil {
 		return nil, err
 	}
 	if out.Biotech, err = buildBiotech(out, v.Biotech); err != nil {

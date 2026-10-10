@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
@@ -282,7 +281,7 @@ func (e *Evaluator) shownByCategory(req *Request) (bool, error) {
 			return false, nil
 		}
 	}
-	row := bridge.DefRow[*d.StatCategoryDef](e.catalog, category)
+	row := DefRow[*d.StatCategoryDef](e.catalog, category)
 	if row == nil {
 		return false, fmt.Errorf("catalog has no stat category %s", category)
 	}

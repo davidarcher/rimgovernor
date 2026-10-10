@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -225,7 +224,7 @@ func TestWorkerContainmentStrength(t *testing.T) {
 					c.edit(def)
 				}
 			})
-			for _, terrain := range r.eval.catalog.TerrainDefs {
+			for _, terrain := range r.eval.stub().terrains {
 				terrain.StatBases = append(terrain.StatBases, mod("ContainmentStrength", 4))
 			}
 			subject := ThingSubject("Apparel_Parka", "")
@@ -272,7 +271,7 @@ func TestWorkerMeleeDamageAmountTrap(t *testing.T) {
 		if got, err := r.eval.Value(testStat, ThingSubject("Apparel_Parka", "")); err != nil || got != 2 {
 			t.Errorf("no stuff = %v, %v; want 10/5", got, err)
 		}
-		row := bridge.DefRow[*d.DamageArmorCategoryDef](r.eval.catalog, "Sharp")
+		row := DefRow[*d.DamageArmorCategoryDef](r.eval.catalog, "Sharp")
 		if row == nil {
 			t.Fatal("no Sharp damage armor category")
 		}
@@ -345,7 +344,7 @@ func TestWorkerMeleeDamageAmountTrap(t *testing.T) {
 }
 
 func anyTerrain(r *rig) string {
-	for name := range r.eval.catalog.TerrainDefs {
+	for name := range r.eval.stub().terrains {
 		return name
 	}
 	return ""

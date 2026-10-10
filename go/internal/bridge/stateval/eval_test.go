@@ -5,9 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
-	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -61,10 +59,7 @@ func newRig(t *testing.T, edit func(stat *d.StatDef, parka, steel *d.ThingDef)) 
 	}
 	edit(stat, parka, steel)
 	slice.Wire.Defs.StatDefs = append(slice.Wire.Defs.StatDefs, stat)
-	catalog, err := recordedcatalog.FromSlice(slice, "unit")
-	if err != nil {
-		t.Fatal(err)
-	}
+	catalog := fromWire(slice.Wire)
 	env := Env{ActiveMods: map[string]bool{"ludeon.rimworld": true}, ScenarioFactors: map[string]float32{}}
 	return &rig{t: t, stat: stat, eval: New(catalog, env)}
 }
@@ -80,7 +75,7 @@ func (r *rig) value(subject Subject) float32 {
 
 func notMirrored(t *testing.T, err error, class string) {
 	t.Helper()
-	var nm *bridge.NotMirrored
+	var nm *NotMirrored
 	if !errors.As(err, &nm) || nm.Class != class {
 		t.Fatalf("err = %v, want NotMirrored for %s", err, class)
 	}
@@ -318,14 +313,14 @@ func TestShouldShowFor(t *testing.T) {
 			}
 		}
 		r := newRig(t, func(s *d.StatDef, _, _ *d.ThingDef) { s.Category = "Terrain" })
-		if got, err := r.eval.ShouldShowFor(testStat, TerrainSubject(r.eval.catalog.TerrainDefs[anyKey(r.eval.catalog.TerrainDefs)].DefName)); err != nil || !got {
+		if got, err := r.eval.ShouldShowFor(testStat, TerrainSubject(r.eval.stub().terrains[anyKey(r.eval.stub().terrains)].DefName)); err != nil || !got {
 			t.Errorf("terrain stat on terrain = %v, %v", got, err)
 		}
 	})
 	t.Run("untradeable stats read MarketValue and surface its failure", func(t *testing.T) {
 		r := newRig(t, func(s *d.StatDef, _, _ *d.ThingDef) { s.ShowOnUntradeables = false })
 		// Stand in for a MarketValue worker no Go function owns.
-		bridge.DefRow[*d.StatDef](r.eval.catalog, statMarketValue).WorkerClass = "RimWorld.StatWorker_NotPorted"
+		DefRow[*d.StatDef](r.eval.catalog, statMarketValue).WorkerClass = "RimWorld.StatWorker_NotPorted"
 		_, err := r.eval.ShouldShowFor(testStat, parka)
 		if err == nil || !strings.Contains(err.Error(), "MarketValue of") {
 			t.Errorf("err = %v, want a MarketValue evaluation failure", err)
@@ -342,7 +337,7 @@ func anyKey[V any](m map[string]V) string {
 
 func TestRequestErrors(t *testing.T) {
 	r := newRig(t, func(*d.StatDef, *d.ThingDef, *d.ThingDef) {})
-	terrain := anyKey(r.eval.catalog.TerrainDefs)
+	terrain := anyKey(r.eval.stub().terrains)
 	bad := int32(7)
 	for name, c := range map[string]struct {
 		stat    string

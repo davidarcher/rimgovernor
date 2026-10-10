@@ -70,7 +70,7 @@ func TestColonyCalendarReachesRoundsFacts(t *testing.T) {
 	expected := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
 	r.GetObserved().Biome = proto.String("FixtureLitBiome")
 	r.GetObserved().FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(40), GrowingDaysRemaining: proto.Float64(10), GrowingDaysUntil: proto.Float64(0), NonGrowingDays: proto.Float64(22), SowingNow: proto.Bool(true), DayOfYear: proto.Int32(35), Season: proto.String("Fall")}
-	tables := bridge.Tables{Catalog: decodeCatalog(t, &o.DefinitionCatalog{ThingDefs: []*d.ThingDef{{DefName: "Anchor"}}, StatValues: &o.DefStatTable{}})}
+	tables := bridge.Tables{Catalog: decodeCatalog(t, &o.DefinitionCatalog{ThingDefs: []*d.ThingDef{{DefName: "Anchor"}}})}
 	p, err := DecodeColony(r, expected, tables)
 	if err != nil {
 		t.Fatal(err)

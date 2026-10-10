@@ -3,7 +3,6 @@ package bridge
 import (
 	"reflect"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -15,7 +14,7 @@ import (
 // factsReply is a catalog reply with three joy buildings (a television, a
 // chess table and a horseshoes pin), a terrain, the stat table that values
 // them and the game-computed ThingDef flags.
-func factsReply() *o.DefinitionCatalog {
+func factsReply(t testing.TB) *o.DefinitionCatalog {
 	v := catalogReply(authorityTestContext(7)).GetObserved()
 	building := func(name, kind string) *d.ThingDef {
 		return &d.ThingDef{DefName: name, DesignationCategory: "Joy", Building: &d.BuildingProperties{JoyKind: kind}}
@@ -43,20 +42,28 @@ func factsReply() *o.DefinitionCatalog {
 			{DefName: "EatChocolate", ThingDefs: []string{"Meal"}},
 		},
 	}
-	costs := func(units int64) []*o.Quantity {
-		return []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(units)}}
+	costs := func(units int32) []*d.Opt_ThingDefCountClass {
+		return []*d.Opt_ThingDefCountClass{{Value: &d.ThingDefCountClass{ThingDef: "Steel", Count: units}}}
 	}
-	v.StatValues = &o.DefStatTable{
-		Stats: []string{"Beauty", "Cleanliness", "Flammability", "MarketValue"},
-		Rows: []*o.DefStatRow{
-			{DefName: "Chess", Costs: costs(40)}, {DefName: "Pin", Costs: costs(5)}, {DefName: "Television", Costs: costs(80)},
-			{DefName: "Steel", Stat: []int32{3}, Value: []float32{2}}, {DefName: "Wall"}, {DefName: "MeatRaw"}, {DefName: "Meal"},
-		},
-		TerrainRows: []*o.DefStatRow{
-			{DefName: "Soil", Stat: []int32{0, 1, 2}, Value: []float32{-3, -1, 0.5}},
-			{DefName: "Lava", Stat: []int32{0}, Value: []float32{-1}},
-		},
+	stat := func(name string, value float32) *d.Opt_StatModifier {
+		return &d.Opt_StatModifier{Value: &d.StatModifier{Stat: name, Value: value}}
 	}
+	for _, row := range v.ThingDefs {
+		switch row.DefName {
+		case "Chess":
+			row.CostList = costs(40)
+		case "Pin":
+			row.CostList = costs(5)
+		case "Television":
+			row.CostList = costs(80)
+		case "Steel":
+			tradeItem(row)
+			row.StatBases = []*d.Opt_StatModifier{stat("MarketValue", 2)}
+		}
+	}
+	v.TerrainDefs[0].StatBases = []*d.Opt_StatModifier{stat("Beauty", -3), stat("Cleanliness", -1), stat("Flammability", 0.5)}
+	v.TerrainDefs[1].StatBases = []*d.Opt_StatModifier{stat("Beauty", -1)}
+	withStatSupport(t, v)
 	v.ThingFacts = []*o.ThingDefFacts{
 		{DefName: "Chess"}, {DefName: "Pin"}, {DefName: "Steel"}, {DefName: "Television"}, {DefName: "Wall"},
 		{DefName: "MeatRaw", FoodKind: o.FoodKind_FOOD_KIND_HUMAN_MEAT.Enum()},
@@ -69,7 +76,7 @@ func factsReply() *o.DefinitionCatalog {
 // ingredients, raw-meat and medicine flags decode per def; a def without a
 // row and a malformed row are errors.
 func TestCatalogThingFacts(t *testing.T) {
-	catalog, err := DecodeDefinitionCatalog(factsReply(), pbIdentity())
+	catalog, err := DecodeDefinitionCatalog(factsReply(t), pbIdentity())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +105,7 @@ func TestCatalogThingFacts(t *testing.T) {
 		},
 		"unspecified kind": func(v *o.DefinitionCatalog) { v.ThingFacts[5].FoodKind = o.FoodKind_FOOD_KIND_UNSPECIFIED.Enum() },
 	} {
-		v := factsReply()
+		v := factsReply(t)
 		mutate(v)
 		if _, err := DecodeDefinitionCatalog(v, pbIdentity()); err == nil {
 			t.Fatalf("%s accepted", name)
@@ -114,29 +121,19 @@ func TestCatalogThingFacts(t *testing.T) {
 // rows and its path cost and natural flag from its def row; a stat the game
 // does not show for it, a terrain without rows and a malformed row are errors.
 func TestCatalogFloorTerrain(t *testing.T) {
-	catalog, err := DecodeDefinitionCatalog(factsReply(), pbIdentity())
+	catalog, err := DecodeDefinitionCatalog(factsReply(t), pbIdentity())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got, err := catalog.FloorTerrain("Soil"); err != nil || !reflect.DeepEqual(got, policy.FloorTerrain{Cleanliness: -1, Beauty: -3, Flammability: .5, PathCost: 2, Natural: true}) {
 		t.Fatal(got, err)
 	}
-	if _, err := catalog.FloorTerrain("Lava"); err == nil || !strings.Contains(err.Error(), "not shown") {
-		t.Fatal("an absent stat read as a value", err)
+	// A stat the terrain sets nothing for reads the stat's default base value.
+	if got, err := catalog.FloorTerrain("Lava"); err != nil || got.Beauty != -1 || got.Cleanliness != 0 {
+		t.Fatal(got, err)
 	}
 	if _, err := catalog.FloorTerrain("Missing"); err == nil {
 		t.Fatal("a terrain without rows answered")
-	}
-	for name, mutate := range map[string]func(*o.DefStatTable){
-		"unknown terrain":    func(v *o.DefStatTable) { v.TerrainRows = append(v.TerrainRows, &o.DefStatRow{DefName: "Ghost"}) },
-		"repeated terrain":   func(v *o.DefStatTable) { v.TerrainRows = append(v.TerrainRows, &o.DefStatRow{DefName: "Soil"}) },
-		"terrain with stuff": func(v *o.DefStatTable) { v.TerrainRows[0].StuffName = "Steel" },
-	} {
-		v := factsReply()
-		mutate(v.StatValues)
-		if _, err := DecodeDefinitionCatalog(v, pbIdentity()); err == nil {
-			t.Fatalf("%s accepted", name)
-		}
 	}
 }
 
@@ -144,7 +141,7 @@ func TestCatalogFloorTerrain(t *testing.T) {
 // buildable defs that give a joy kind, ranked by the joy one session gives,
 // then by cost, then by name; none is chosen by name.
 func TestCatalogJoyBuildingsRankByJoyThenCost(t *testing.T) {
-	catalog, err := DecodeDefinitionCatalog(factsReply(), pbIdentity())
+	catalog, err := DecodeDefinitionCatalog(factsReply(t), pbIdentity())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,9 +160,9 @@ func TestCatalogJoyBuildingsRankByJoyThenCost(t *testing.T) {
 	for name, mutate := range map[string]func(*o.DefinitionCatalog){
 		"no giver offers it":   func(v *o.DefinitionCatalog) { v.Defs.JoyGiverDefs = v.Defs.JoyGiverDefs[:1] },
 		"giver without a job":  func(v *o.DefinitionCatalog) { v.Defs.JoyGiverDefs[0].JobDef = "Missing" },
-		"cost without a value": func(v *o.DefinitionCatalog) { v.StatValues.Rows[3].Stat, v.StatValues.Rows[3].Value = nil, nil },
+		"cost without a value": func(v *o.DefinitionCatalog) { v.ThingDefs[2].Tradeability = d.Tradeability_TRADEABILITY_NONE },
 	} {
-		v := factsReply()
+		v := factsReply(t)
 		mutate(v)
 		catalog, err := DecodeDefinitionCatalog(v, pbIdentity())
 		if err != nil {
@@ -186,7 +183,10 @@ func TestCatalogJoyBuildingsRankByJoyThenCost(t *testing.T) {
 // watch buildings are those a watch-building giver offers; neither is named.
 func TestCatalogRecreationFootholdAndWatchBuildings(t *testing.T) {
 	build := func(mutate func(*o.DefinitionCatalog)) *DefinitionCatalog {
-		v := factsReply()
+		v := factsReply(t)
+		v.ClassChains = slices.DeleteFunc(v.ClassChains, func(c *o.ClassChain) bool {
+			return c.Name == "RimWorld.JoyGiver_WatchBuilding" || c.Name == "RimWorld.JoyGiver_Other"
+		})
 		v.ClassChains = append(v.ClassChains, &o.ClassChain{Name: "RimWorld.JoyGiver_WatchBuilding", Bases: []string{"RimWorld.JoyGiver"}}, &o.ClassChain{Name: "RimWorld.JoyGiver_Other", Bases: []string{"RimWorld.JoyGiver"}})
 		for _, giver := range v.Defs.JoyGiverDefs {
 			switch giver.DefName {
@@ -233,30 +233,30 @@ func TestCatalogRecreationFootholdAndWatchBuildings(t *testing.T) {
 	}
 }
 
-// TestCatalogStatRowForScenarioForcedStuff: a scenario can start the colony
+// TestCatalogStatForScenarioForcedStuff: a scenario can start the colony
 // with a stuff the game would not offer for the def (the classic scenario's
-// jade knife). Native sends a row for the pair so its stats read, and the
+// jade knife). The evaluator reads the pair's stats all the same, and the
 // pair is not one of the def's allowed stuffs.
-func TestCatalogStatRowForScenarioForcedStuff(t *testing.T) {
-	v := factsReply()
+func TestCatalogStatForScenarioForcedStuff(t *testing.T) {
+	v := factsReply(t)
 	byName := map[string]*d.ThingDef{}
 	for _, row := range v.ThingDefs {
 		byName[row.DefName] = row
 	}
 	byName["Steel"].StuffProps = &d.StuffProperties{Categories: []string{"Metallic"}}
-	jade := &d.ThingDef{DefName: "Jade", StuffProps: &d.StuffProperties{Categories: []string{"Stony"}}}
-	knife := &d.ThingDef{DefName: "Knife", StuffCategories: []string{"Metallic"}}
+	marketValue := func(value float32) []*d.Opt_StatModifier {
+		return []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: StatMarketValue, Value: value}}}
+	}
+	jade := &d.ThingDef{DefName: "Jade", StuffProps: &d.StuffProperties{Categories: []string{"Stony"}, StatFactors: marketValue(2)}, StatBases: marketValue(3)}
+	knife := &d.ThingDef{DefName: "Knife", StuffCategories: []string{"Metallic"}, StatBases: marketValue(10)}
+	tradeItem(jade, knife)
 	v.ThingDefs = append(v.ThingDefs, jade, knife)
 	v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: "Jade"}, &o.ThingDefFacts{DefName: "Knife"})
-	v.StatValues.Rows = append(v.StatValues.Rows,
-		&o.DefStatRow{DefName: "Jade"},
-		&o.DefStatRow{DefName: "Knife", StuffName: "Steel", Stat: []int32{3}, Value: []float32{20}},
-		&o.DefStatRow{DefName: "Knife", StuffName: "Jade", Stat: []int32{3}, Value: []float32{30}})
 	catalog, err := DecodeDefinitionCatalog(v, pbIdentity())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, err := catalog.StatValue("Knife", "Jade", StatMarketValue); err != nil || got != 30 {
+	if got, err := catalog.StatValue("Knife", "Jade", StatMarketValue); err != nil || got != 20 {
 		t.Fatal(got, err)
 	}
 	if got, err := catalog.AllowedStuffs("Knife"); err != nil || !slices.Equal(got, []string{"Steel"}) {

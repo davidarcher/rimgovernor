@@ -320,38 +320,33 @@ condition class cannot be read.
 
 ### Stat values and adjusted costs
 
-`DefinitionCatalog.stat_values` (`DefStatTable`) carries the game's own
-numbers that StatDef parts compute in code, once per load. For every
-`ThingDef` native emits one `DefStatRow` per allowed stuff
-(`GenStuff.AllowedStuffsFor`) when the def is made from stuff, else one row
-with an empty `stuff_name`. A row holds `GetStatValueAbstract(stat, stuff)` of
-every StatDef the game shows for that def and stuff
-(`StatWorker.ShouldShowFor(StatRequest.For(def, stuff))`; a stat the game hides
-is absent, not zero; except `DeteriorationRate`, which a planner reads of
-every `ThingDef` and the game hides (`showIfUndefined` false) for a def that
-does not set it, so native emits it whether shown or not) and `costs`, the game's `ThingDef.CostListAdjusted(stuff)`
-(stuff volume and difficulty adjustments applied). Stat names are the shared
-`stats` table; a row's parallel `stat` (index) and `value` arrays are the
-compact form, chosen over repeated name strings per row. A stat or cost list
-that fails, or a non-finite value, fails the whole read naming def, stuff and
-stat. A def, stuff or stat whose name is not a valid identifier fails the read,
-as in the def rows. Go does not port StatWorker or type any stat constant.
-`terrain_rows` holds the same rows for every `TerrainDef` (stuffless, no
-costs; kept apart from `rows` because a terrain defName may also name a
-ThingDef); `DefinitionCatalog.TerrainStatValue` reads them and
-`FloorTerrain(name)` joins cleanliness, beauty and flammability with the def
-row's `pathCost` and `natural`; `FloorTerrains()` prices every terrain row once
-per load, so a flooring frame names no terrain.
+Go computes them: `bridge/stateval` ports the game's StatWorker and StatPart
+code over the catalog's def rows, so no stat value, allowed stuff or adjusted
+cost list travels in the catalog. `DefinitionCatalog.stat_env` (`StatEnv`)
+carries the only game state that evaluation reads beyond the rows, once per
+load: the active mod package ids (lower case), classic mode, the scenario's
+stat factors (`Scenario.GetStatFactor` of every StatDef whose factor is not 1)
+and the storyteller difficulty (butcher and fishing yield factors and the
+public bool fields, which `CostListForDifficulty.difficultyVar` names). It
+rides in the catalog read, so a difficulty changed mid-load is read at the next
+load. A catalog without `stat_env` evaluates no stat: `StatEvaluator()` is a
+contract error, never a guessed environment.
 
-`DefinitionCatalog.StatValue(def, stuff, stat)` and `AdjustedCosts(def, stuff)`
-look the values up in the per-load-token cache; an absent table, a missing
-(def, stuff) row or a hidden stat is an error, never a default. Decode refuses
-an unknown def, stuff or cost def, a repeated row, stat or table name, an
-index outside the table, unequal arrays, a non-finite value and a non-positive
-cost. Go applies quality and condition itself. Size: a synthesized table of
-13700 rows (450 stuffed defs x 25 stuffs plus 2450 plain defs, 40 stats and 3
-costs each, 270 stats) is 3.9 MB; native timing and the real size are
-unmeasured.
+`DefinitionCatalog.StatValue(def, stuff, stat)`, `ShownStatValue`,
+`AdjustedCosts(def, stuff)` (`ThingDef.CostListAdjusted`: stuff volume and
+difficulty applied), `AllowedStuffs(def)` (`GenStuff.AllowedStuffsFor`, sorted by
+defName), `TerrainStatValue`, `TerrainWorkToBuild` and `TerrainAdjustedCosts`
+evaluate on demand for any (def, stuff) pair, including a stuff the game would
+not offer for the def (a scenario's jade knife). An unknown def or stuff, a
+stat the game hides for the def, a non-finite value and a stat class Go does
+not mirror are errors, never a default. `DeteriorationRate`, which a planner
+reads of every `ThingDef` and the game hides for a def that does not set it,
+is read whether shown or not. `FloorTerrain(name)` joins a terrain's
+cleanliness, beauty and flammability with the def row's `pathCost` and
+`natural`; `FloorTerrains()` prices every terrain once per load. The
+`EvaluateStat` rpc stays as the parity oracle: the `stats/evaluate-stat` and
+`stats/evaluator-parity` acceptance cases compare the Go evaluator with the
+game's own answer.
 
 ### Game-computed ThingDef flags
 

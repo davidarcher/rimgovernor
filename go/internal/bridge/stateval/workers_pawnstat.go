@@ -3,7 +3,6 @@ package stateval
 import (
 	"fmt"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
@@ -31,7 +30,7 @@ func requirePawn(req *Request, what string) (*PawnState, error) {
 
 // isFlesh is RaceProperties.IsFlesh: the flesh type's isOrganic.
 func (e *Evaluator) isFlesh(r *d.RaceProperties) (bool, error) {
-	flesh := bridge.DefRow[*d.FleshTypeDef](e.catalog, fleshType(r))
+	flesh := DefRow[*d.FleshTypeDef](e.catalog, fleshType(r))
 	if flesh == nil {
 		return false, fmt.Errorf("catalog has no flesh type %s", fleshType(r))
 	}
@@ -203,7 +202,7 @@ func (workerVacuumResistance) Unfinalized(req *Request) (float32, error) {
 			return 0, err
 		}
 		if name != "" {
-			mutant := bridge.DefRow[*d.MutantDef](req.Evaluator.catalog, name)
+			mutant := DefRow[*d.MutantDef](req.Evaluator.catalog, name)
 			if mutant == nil {
 				return 0, fmt.Errorf("catalog has no mutant def %s", name)
 			}

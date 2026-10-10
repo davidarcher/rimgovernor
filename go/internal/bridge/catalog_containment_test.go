@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"slices"
 	"strings"
 	"testing"
 
@@ -13,7 +14,7 @@ func platformComp(factor float32) *d.CompPropertiesAny {
 	return &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_EntityHolderPlatform{CompProperties_EntityHolderPlatform: &d.CompProperties_EntityHolderPlatform{ContainmentFactor: factor}}}
 }
 
-func containmentCatalog() *o.DefinitionCatalog {
+func containmentCatalog(t testing.TB) *o.DefinitionCatalog {
 	v := catalogReply(authorityTestContext(7)).GetObserved()
 	linked := &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_AffectedByFacilities{CompProperties_AffectedByFacilities: &d.CompProperties_AffectedByFacilities{LinkableFacilities: []string{"Inhibitor"}}}}
 	facility := &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Facility{CompProperties_Facility: &d.CompProperties_Facility{
@@ -24,15 +25,21 @@ func containmentCatalog() *o.DefinitionCatalog {
 		{DefName: "ZPlatform", Comps: []*d.Opt_CompPropertiesAny{{Value: platformComp(1)}}},
 		{DefName: "Inhibitor", Comps: []*d.Opt_CompPropertiesAny{{Value: facility}}},
 	}
-	v.TerrainDefs = []*d.TerrainDef{{DefName: "BioferritePlate"}, {DefName: "Soil"}, {DefName: "SteelTile"}}
-	v.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: "ContainmentStrength", DefaultBaseValue: 1}}}
-	v.StatValues = &o.DefStatTable{
-		Stats:       []string{"MaxHitPoints", "ContainmentStrength"},
-		TerrainRows: []*o.DefStatRow{{DefName: "BioferritePlate", Stat: []int32{1}, Value: []float32{16}}, {DefName: "Soil"}, {DefName: "SteelTile", Stat: []int32{1}, Value: []float32{3}}},
-		Rows: []*o.DefStatRow{
-			{DefName: "Wall", StuffName: "Steel", Stat: []int32{0}, Value: []float32{4000}},
-			{DefName: "Door", StuffName: "Steel", Stat: []int32{0}, Value: []float32{300}},
-		},
+	strength := func(value float32) []*d.Opt_StatModifier {
+		return []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: "ContainmentStrength", Value: value}}}
+	}
+	v.TerrainDefs = []*d.TerrainDef{{DefName: "BioferritePlate", StatBases: strength(16)}, {DefName: "Soil"}, {DefName: "SteelTile", StatBases: strength(3)}}
+	hitPoints := func(value float32) []*d.Opt_StatModifier {
+		return []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: "MaxHitPoints", Value: value}}}
+	}
+	v.ThingDefs[0].StatBases, v.ThingDefs[1].StatBases = hitPoints(4000), hitPoints(300)
+	v.ThingDefs[0].StuffCategories, v.ThingDefs[1].StuffCategories = []string{"Metallic"}, []string{"Metallic"}
+	v.ThingDefs[2].StuffProps = &d.StuffProperties{Categories: []string{"Metallic"}}
+	withStatSupport(t, v)
+	for _, stat := range v.Defs.StatDefs {
+		if stat.DefName == "ContainmentStrength" {
+			stat.DefaultBaseValue = 1
+		}
 	}
 	return v
 }
@@ -43,7 +50,7 @@ func containmentCatalog() *o.DefinitionCatalog {
 // game's stat values and facilities are the linked defs' ContainmentStrength
 // offsets with their limits.
 func TestContainmentDefsReadTheFormulaInputsFromDefs(t *testing.T) {
-	catalog, err := DecodeDefinitionCatalog(containmentCatalog(), pbIdentity())
+	catalog, err := DecodeDefinitionCatalog(containmentCatalog(t), pbIdentity())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,15 +75,16 @@ func TestContainmentDefsRefuseMissingInputs(t *testing.T) {
 		mutate func(*o.DefinitionCatalog)
 		reason string
 	}{
-		"no stat def":  {func(v *o.DefinitionCatalog) { v.Defs.StatDefs[0].DefName = "MarketValue" }, "stat def"},
-		"no platform":  {func(v *o.DefinitionCatalog) { v.ThingDefs = v.ThingDefs[:3] }, "no holding platform"},
-		"no wall hp":   {func(v *o.DefinitionCatalog) { v.StatValues.Rows[0].Value[0] = 0 }, "no MaxHitPoints"},
-		"no stat rows": {func(v *o.DefinitionCatalog) { v.StatValues.Rows = v.StatValues.Rows[1:] }, "no stat values"},
+		"no stat def": {func(v *o.DefinitionCatalog) {
+			v.Defs.StatDefs = slices.DeleteFunc(v.Defs.StatDefs, func(s *d.StatDef) bool { return s.DefName == "ContainmentStrength" })
+		}, "stat def"},
+		"no platform": {func(v *o.DefinitionCatalog) { v.ThingDefs = v.ThingDefs[:3] }, "no holding platform"},
+		"no wall def": {func(v *o.DefinitionCatalog) { v.ThingDefs = v.ThingDefs[1:] }, "Wall"},
 		"unknown link": {func(v *o.DefinitionCatalog) {
 			v.ThingDefs[3].Comps[1].GetValue().GetCompProperties_AffectedByFacilities().LinkableFacilities = []string{"Gone"}
 		}, "lacks"},
 	} {
-		v := containmentCatalog()
+		v := containmentCatalog(t)
 		tc.mutate(v)
 		catalog, err := DecodeDefinitionCatalog(v, pbIdentity())
 		if err != nil {

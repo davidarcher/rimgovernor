@@ -1,7 +1,6 @@
 package stateval
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
@@ -62,5 +61,5 @@ func (e *Evaluator) worker(stat *d.StatDef, fact string) (Worker, error) {
 	if w, ok := e.workers[class]; ok {
 		return w, nil
 	}
-	return nil, &bridge.NotMirrored{Class: class, Fact: fact}
+	return nil, &NotMirrored{Class: class, Fact: fact}
 }

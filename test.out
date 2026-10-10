@@ -1,0 +1,38 @@
+probes: native contract probes build affected, running task probes:build
+task: [probes:build] go -C C:/Users/darch/code/rimgovernor/.claude/worktrees/agent-a08a1a03d1351a7c9/contracts/tests/../../go run ./internal/protobufgen/cmd/generatecsharp
+  Determining projects to restore...
+  Restored C:\Users\darch\code\rimgovernor\.claude\worktrees\agent-a08a1a03d1351a7c9\.rimgovernor\protobuf-9c52dfe27cbcd86b9fb27f014df8afd5\source\tools\protobuf\ProtobufProof.csproj (in 192 ms).
+libprotoc 30.0: 11 schemas, 11 C# files; generated. Artifacts: C:\Users\darch\code\rimgovernor\.claude\worktrees\agent-a08a1a03d1351a7c9\.rimgovernor\protobuf-9c52dfe27cbcd86b9fb27f014df8afd5
+task: [probes:build] dotnet build NativeContractProbes.csproj -c Release -v minimal -nologo -p:RestoreLockedMode=true "-p:OutputPath=C:/Users/darch/code/rimgovernor/.claude/worktrees/agent-a08a1a03d1351a7c9/contracts/tests/../../.rimgovernor/task/probes/bin/" "-p:BaseIntermediateOutputPath=C:/Users/darch/code/rimgovernor/.claude/worktrees/agent-a08a1a03d1351a7c9/contracts/tests/../../.rimgovernor/task/probes/obj/"
+  Determining projects to restore...
+  Restored C:\Users\darch\code\rimgovernor\.claude\worktrees\agent-a08a1a03d1351a7c9\contracts\tests\NativeContractProbes.csproj (in 243 ms).
+  NativeContractProbes -> C:\Users\darch\code\rimgovernor\.claude\worktrees\agent-a08a1a03d1351a7c9\.rimgovernor\task\probes\bin\NativeContractProbes.exe
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:12.52
+task: [probes:build] if [ ! -f "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll" ]; then
+  echo "native-hook-set: unavailable (missing C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll)"
+  exit 0
+fi
+dotnet build NativeHookSetProbe/NativeHookSetProbe.csproj -c Release -v minimal -nologo "-p:HarmonyAssembly=C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll" "-p:OutputPath=C:/Users/darch/code/rimgovernor/.claude/worktrees/agent-a08a1a03d1351a7c9/contracts/tests/../../.rimgovernor/task/probes/hookset/bin/" "-p:BaseIntermediateOutputPath=C:/Users/darch/code/rimgovernor/.claude/worktrees/agent-a08a1a03d1351a7c9/contracts/tests/../../.rimgovernor/task/probes/hookset/obj/"
+
+  Determining projects to restore...
+  Restored C:\Users\darch\code\rimgovernor\.claude\worktrees\agent-a08a1a03d1351a7c9\contracts\tests\NativeHookSetProbe\NativeHookSetProbe.csproj (in 199 ms).
+  NativeHookSetProbe -> C:\Users\darch\code\rimgovernor\.claude\worktrees\agent-a08a1a03d1351a7c9\.rimgovernor\task\probes\hookset\bin\NativeHookSetProbe.exe
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.41
+lint: go vet and staticcheck on ./... (silent when clean)
+  still running: go vet (30s)
+  still running: go tool staticcheck (30s)
+internal\bridge\stateval\workers_gear_test.go:96:6: func fullEvaluator is unused (U1000)
+lint: failed (1m27s)
+test: FAIL (1m55s)
+test: staticcheck: findings above
+exit status 1

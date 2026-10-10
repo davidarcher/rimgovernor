@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
-	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
@@ -92,12 +91,6 @@ func TestWorkerPossibleCompOffsets(t *testing.T) {
 }
 
 // --- StatWorker_MarketValue ---
-
-// fullEvaluator is the evaluator over the whole recorded catalog.
-func fullEvaluator(t *testing.T) *Evaluator {
-	t.Helper()
-	return New(recordedcatalog.Catalog(t), recordedEnv(t))
-}
 
 func TestWorkerMarketValueThingBranches(t *testing.T) {
 	spec := marketSpec().withEdit(func(s *recordedrows.Slice, _ *d.StatDef, _ *d.ThingDef) {
@@ -229,7 +222,7 @@ func TestWorkerMarketValuePawnPrice(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stage *d.LifeStageDef
-	for _, row := range e.catalog.Defs[(&d.LifeStageDef{}).ProtoReflect().Descriptor().FullName()] {
+	for _, row := range e.stub().defs[(&d.LifeStageDef{}).ProtoReflect().Descriptor().FullName()] {
 		if r := row.(*d.LifeStageDef); r.GetMarketValueFactor() != 1 && stage == nil {
 			stage = r
 		}
@@ -238,7 +231,7 @@ func TestWorkerMarketValuePawnPrice(t *testing.T) {
 		t.Fatal("no life stage with a market value factor")
 	}
 	capacities := map[string]CapacityState{}
-	for name := range e.catalog.Defs[(&d.PawnCapacityDef{}).ProtoReflect().Descriptor().FullName()] {
+	for name := range e.stub().defs[(&d.PawnCapacityDef{}).ProtoReflect().Descriptor().FullName()] {
 		capacities[name] = CapacityState{Capable: true, TradeLevel: 1}
 	}
 	if len(capacities) == 0 {
@@ -593,7 +586,7 @@ func TestWorkerMeleeAverageWeapons(t *testing.T) {
 		}
 	})
 	t.Run("a terrain is no weapon", func(t *testing.T) {
-		ts := e.catalog.TerrainDefs
+		ts := e.stub().terrains
 		for name := range ts {
 			got, err := rawValue(t, e, "MeleeWeapon_AverageDPS", TerrainSubject(name))
 			if err != nil || got != 0 {
@@ -684,84 +677,5 @@ func TestWorkerMeleeAverageIntelligenceGate(t *testing.T) {
 	got, err := rawValue(t, e, "MeleeWeapon_AverageArmorPenetration", s)
 	if err != nil || !math.IsNaN(float64(got)) {
 		t.Errorf("= %v, %v; want NaN", got, err)
-	}
-}
-
-func TestWorkerMeleeAverageShow(t *testing.T) {
-	e := fullEvaluator(t)
-	wire := recordedcatalog.Wire(t)
-	table := wire.StatValues
-	shown := map[string]map[string]bool{"MeleeWeapon_AverageDPS": {}, "MeleeWeapon_AverageArmorPenetration": {}}
-	index := map[int32]string{}
-	for i, s := range table.Stats {
-		if _, ok := shown[s]; ok {
-			index[int32(i)] = s
-		}
-	}
-	for _, row := range table.Rows {
-		for _, s := range row.Stat {
-			if name, ok := index[s]; ok {
-				shown[name][row.DefName] = true
-			}
-		}
-	}
-	tech, weapons := 0, 0
-	for name, def := range e.catalog.ThingDefs {
-		for stat, rows := range shown {
-			got, err := e.ShouldShowFor(stat, ThingSubject(name, ""))
-			if err != nil {
-				t.Fatalf("%s/%s: %v", name, stat, err)
-			}
-			if got != rows[name] {
-				t.Errorf("%s/%s shown = %v, game %v", name, stat, got, rows[name])
-			}
-		}
-		if def.GetIsTechHediff() && shown["MeleeWeapon_AverageDPS"][name] {
-			tech++
-		}
-		if len(def.GetTools()) > 0 && shown["MeleeWeapon_AverageDPS"][name] {
-			weapons++
-		}
-	}
-	if tech == 0 || weapons == 0 {
-		t.Errorf("%d tech hediffs and %d weapons shown: the recording does not exercise both", tech, weapons)
-	}
-	// A terrain is shown for neither.
-	for name := range e.catalog.TerrainDefs {
-		for stat := range shown {
-			if got, err := e.ShouldShowFor(stat, TerrainSubject(name)); err != nil || got {
-				t.Errorf("terrain %s/%s shown = %v, %v", name, stat, got, err)
-			}
-		}
-		break
-	}
-}
-
-func TestWorkerMeleeAverageTechHediffValues(t *testing.T) {
-	e := fullEvaluator(t)
-	wire := recordedcatalog.Wire(t)
-	table := wire.StatValues
-	want := map[string]float32{}
-	var stat int32 = -1
-	for i, s := range table.Stats {
-		if s == "MeleeWeapon_AverageDPS" {
-			stat = int32(i)
-		}
-	}
-	for _, row := range table.Rows {
-		for i, s := range row.Stat {
-			if s == stat && row.StuffName == "" && e.catalog.ThingDef(row.DefName).GetIsTechHediff() {
-				want[row.DefName] = row.Value[i]
-			}
-		}
-	}
-	if len(want) == 0 {
-		t.Fatal("no recorded tech hediff has a melee average DPS")
-	}
-	for name, w := range want {
-		got, err := e.Value("MeleeWeapon_AverageDPS", ThingSubject(name, ""))
-		if err != nil || math.Float32bits(got) != math.Float32bits(w) {
-			t.Errorf("%s = %v, %v; game %v", name, got, err, w)
-		}
 	}
 }

@@ -20,6 +20,9 @@ import (
 // research) that is the recreation foothold.
 func joyCatalog(t *testing.T) *bridge.DefinitionCatalog {
 	t.Helper()
+	logs := func(count int32) []*d.Opt_ThingDefCountClass {
+		return []*d.Opt_ThingDefCountClass{{Value: &d.ThingDefCountClass{ThingDef: "WoodLog", Count: count}}}
+	}
 	building := func(name, kind string, powerW float32, research ...string) *d.ThingDef {
 		row := &d.ThingDef{DefName: name, DesignationCategory: "Joy", Building: &d.BuildingProperties{JoyKind: kind}, ResearchPrerequisites: research, Size: &d.IntVec2{X: 1, Z: 1}}
 		if name == "BilliardsTable" {
@@ -33,13 +36,12 @@ func joyCatalog(t *testing.T) *bridge.DefinitionCatalog {
 	powerClass, _ := proto.GetExtension((&d.CompProperties_Power{}).ProtoReflect().Descriptor().Options(), d.E_ClrType).(string)
 	v := &o.DefinitionCatalog{
 		ThingDefs: []*d.ThingDef{building("TubeTelevision", "Television", 100, "TubeTelevision"), building("ChessTable", "Cerebral", 0, "ComplexFurniture"), building("BilliardsTable", "Dexterity", 0), building("HorseshoesPin", "Dexterity", 0),
-			{DefName: "Chair", DesignationCategory: "Furniture", Building: &d.BuildingProperties{IsSittable: true}, Size: &d.IntVec2{X: 1, Z: 1}},
-			{DefName: "Table", DesignationCategory: "Furniture", SurfaceType: d.SurfaceType_SURFACE_TYPE_EAT, Size: &d.IntVec2{X: 1, Z: 2}}, {DefName: "WoodLog"}},
+			{DefName: "Chair", DesignationCategory: "Furniture", Building: &d.BuildingProperties{IsSittable: true}, Size: &d.IntVec2{X: 1, Z: 1}, CostList: logs(20),
+				StatBases: []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: bridge.StatComfort, Value: .5}}}},
+			{DefName: "Table", DesignationCategory: "Furniture", SurfaceType: d.SurfaceType_SURFACE_TYPE_EAT, Size: &d.IntVec2{X: 1, Z: 2}, CostList: logs(20)},
+			{DefName: "WoodLog", Category: d.ThingCategory_THING_CATEGORY_ITEM, Tradeability: d.Tradeability_TRADEABILITY_ALL, AlwaysHaulable: true,
+				StatBases: []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: bridge.StatMarketValue, Value: 1}}}}},
 		ClassChains: []*o.ClassChain{{Name: powerClass}, {Name: "RimWorld.JoyGiver_WatchBuilding", Bases: []string{"RimWorld.JoyGiver"}}, {Name: "RimWorld.JoyGiver_InteractBuildingSitAdjacent", Bases: []string{"RimWorld.JoyGiver"}}},
-		StatValues: &o.DefStatTable{Stats: []string{bridge.StatComfort, bridge.StatMarketValue}, Rows: []*o.DefStatRow{{DefName: "TubeTelevision"}, {DefName: "ChessTable"}, {DefName: "BilliardsTable"}, {DefName: "HorseshoesPin"},
-			{DefName: "Chair", Stat: []int32{0}, Value: []float32{.5}, Costs: []*o.Quantity{{DefName: proto.String("WoodLog"), Units: proto.Int64(20)}}},
-			{DefName: "Table", Costs: []*o.Quantity{{DefName: proto.String("WoodLog"), Units: proto.Int64(20)}}},
-			{DefName: "WoodLog", Stat: []int32{1}, Value: []float32{1}}}},
 	}
 	v.Defs = &d.DefSets{
 		JobDefs: []*d.JobDef{{DefName: "Watch", JoyGainRate: 1, JoyDuration: 2000}, {DefName: "Play", JoyGainRate: .5, JoyDuration: 3000}, {DefName: "Toss", JoyGainRate: .1, JoyDuration: 3000}},

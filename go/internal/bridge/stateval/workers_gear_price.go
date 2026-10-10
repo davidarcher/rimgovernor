@@ -5,7 +5,6 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
@@ -269,7 +268,7 @@ func (e *Evaluator) calculableRecipe(terrain bool, def string, costList []*d.Opt
 
 // recipes are the catalog's RecipeDefs by name.
 func (e *Evaluator) recipes() []*d.RecipeDef {
-	rows := e.catalog.Defs[(&d.RecipeDef{}).ProtoReflect().Descriptor().FullName()]
+	rows := e.catalog.Rows((&d.RecipeDef{}).ProtoReflect().Descriptor().FullName())
 	out := make([]*d.RecipeDef, 0, len(rows))
 	for _, row := range rows {
 		if recipe, ok := row.(*d.RecipeDef); ok {
@@ -289,7 +288,7 @@ func (e *Evaluator) pawnQualityPriceFactor(p PawnPriceFacts) (float32, error) {
 	price := game.GetPriceUtility()
 	num := float32(1)
 	num = float32(num * lerp32(float32(1-price.GetSummaryHealthImpact()), 1, p.SummaryHealthPercent))
-	capacities := e.catalog.Defs[(&d.PawnCapacityDef{}).ProtoReflect().Descriptor().FullName()]
+	capacities := e.catalog.Rows((&d.PawnCapacityDef{}).ProtoReflect().Descriptor().FullName())
 	names := make([]string, 0, len(capacities))
 	for name := range capacities {
 		names = append(names, name)
@@ -322,7 +321,7 @@ func (e *Evaluator) pawnQualityPriceFactor(p PawnPriceFacts) (float32, error) {
 		}
 		num = float32(num * curve)
 	}
-	stage := bridge.DefRow[*d.LifeStageDef](e.catalog, p.LifeStage)
+	stage := DefRow[*d.LifeStageDef](e.catalog, p.LifeStage)
 	if stage == nil {
 		return 0, fmt.Errorf("catalog has no life stage def %q", p.LifeStage)
 	}
@@ -341,7 +340,7 @@ func (e *Evaluator) pawnQualityPriceFactor(p PawnPriceFacts) (float32, error) {
 func (e *Evaluator) pawnQualityPriceOffset(p PawnPriceFacts) (float32, error) {
 	var num float32
 	for _, name := range p.Hediffs {
-		hediff := bridge.DefRow[*d.HediffDef](e.catalog, name)
+		hediff := DefRow[*d.HediffDef](e.catalog, name)
 		if hediff == nil {
 			return 0, fmt.Errorf("catalog has no hediff def %s", name)
 		}

@@ -3,10 +3,8 @@ package bridge
 import "testing"
 
 func TestAnimalRaceComfort(t *testing.T) {
-	reply := racesReply()
-	reply.StatValues.Stats = append(reply.StatValues.Stats, StatComfyTemperatureMin, StatComfyTemperatureMax)
-	reply.StatValues.Rows[0].Stat = append(reply.StatValues.Rows[0].Stat, 4, 5)
-	reply.StatValues.Rows[0].Value = append(reply.StatValues.Rows[0].Value, -30, 45)
+	reply := racesReply(t)
+	setStats(reply.ThingDefs[0], StatComfyTemperatureMin, -30, StatComfyTemperatureMax, 45)
 	catalog, err := DecodeDefinitionCatalog(reply, pbIdentity())
 	if err != nil {
 		t.Fatal(err)
@@ -20,14 +18,14 @@ func TestAnimalRaceComfort(t *testing.T) {
 		t.Fatalf("wolf comfort %+v %v", got, known)
 	}
 	beaver, _ := races.Race("Alphabeaver")
-	if _, known := beaver.Comfort.Value(); known {
-		t.Fatal("a race without the stats got a range")
+	// The game shows the comfort stats of every animal; one that sets none reads
+	// the stats' own default base values.
+	if got, known := beaver.Comfort.Value(); !known || got.Min != 0 || got.Max != 40 {
+		t.Fatalf("beaver comfort %+v %v", got, known)
 	}
 
-	reply = racesReply()
-	reply.StatValues.Stats = append(reply.StatValues.Stats, StatComfyTemperatureMin, StatComfyTemperatureMax)
-	reply.StatValues.Rows[0].Stat = append(reply.StatValues.Rows[0].Stat, 4, 5)
-	reply.StatValues.Rows[0].Value = append(reply.StatValues.Rows[0].Value, 50, 45)
+	reply = racesReply(t)
+	setStats(reply.ThingDefs[0], StatComfyTemperatureMin, 50, StatComfyTemperatureMax, 45)
 	if catalog, err = DecodeDefinitionCatalog(reply, pbIdentity()); err != nil {
 		t.Fatal(err)
 	}

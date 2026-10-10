@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
@@ -236,7 +235,7 @@ func (e *Evaluator) pawnOffsetTerms(req *Request, p *PawnState, val float32) (fl
 		return 0, err
 	}
 	for _, gname := range genes {
-		def := bridge.DefRow[*d.GeneDef](e.catalog, gname)
+		def := DefRow[*d.GeneDef](e.catalog, gname)
 		if def == nil {
 			return 0, fmt.Errorf("catalog has no gene def %s", gname)
 		}
@@ -385,7 +384,7 @@ func (e *Evaluator) pawnFactorTerms(req *Request, p *PawnState, val float32) (fl
 		return 0, err
 	}
 	for _, gname := range genes {
-		def := bridge.DefRow[*d.GeneDef](e.catalog, gname)
+		def := DefRow[*d.GeneDef](e.catalog, gname)
 		v, err := modifierFromList(def.GetStatFactors(), name, 1)
 		if err != nil {
 			return 0, err
@@ -460,7 +459,7 @@ func (e *Evaluator) pawnThingTerms(req *Request, p *PawnState, val float32) (flo
 		return 0, err
 	}
 	if inspiration != "" {
-		def := bridge.DefRow[*d.InspirationDef](e.catalog, inspiration)
+		def := DefRow[*d.InspirationDef](e.catalog, inspiration)
 		if def == nil {
 			return 0, fmt.Errorf("catalog has no inspiration def %s", inspiration)
 		}
@@ -559,7 +558,7 @@ func skillNeedValue(opt *d.Opt_SkillNeedAny, skills SkillsState) (float32, error
 // true) for an unsuppressed trait: the sum or product of every matching entry
 // of the degree's data.
 func (e *Evaluator) traitStat(t TraitState, stat string, factor bool) (float32, error) {
-	def := bridge.DefRow[*d.TraitDef](e.catalog, t.Def)
+	def := DefRow[*d.TraitDef](e.catalog, t.Def)
 	if def == nil {
 		return 0, fmt.Errorf("catalog has no trait def %s", t.Def)
 	}
@@ -603,7 +602,7 @@ func (e *Evaluator) hediffStage(h HediffState) (*d.HediffStage, error) {
 	case StageSynthetic:
 		return &d.HediffStage{StatOffsets: statMods(h.Stage.StatOffsets), StatFactors: statMods(h.Stage.StatFactors)}, nil
 	case StageDef:
-		def := bridge.DefRow[*d.HediffDef](e.catalog, h.Def)
+		def := DefRow[*d.HediffDef](e.catalog, h.Def)
 		if def == nil {
 			return nil, fmt.Errorf("catalog has no hediff def %s", h.Def)
 		}
@@ -678,7 +677,7 @@ func scaleFactor(factor, scale float32) float32 {
 }
 
 func (e *Evaluator) precept(name string) (*d.PreceptDef, error) {
-	def := bridge.DefRow[*d.PreceptDef](e.catalog, name)
+	def := DefRow[*d.PreceptDef](e.catalog, name)
 	if def == nil {
 		return nil, fmt.Errorf("catalog has no precept def %s", name)
 	}
@@ -710,7 +709,7 @@ func (e *Evaluator) lifeStage(p *PawnState) (*d.LifeStageDef, error) {
 	if err != nil {
 		return nil, err
 	}
-	def := bridge.DefRow[*d.LifeStageDef](e.catalog, name)
+	def := DefRow[*d.LifeStageDef](e.catalog, name)
 	if def == nil {
 		return nil, fmt.Errorf("catalog has no life stage def %s", name)
 	}
@@ -748,7 +747,7 @@ func affecterOf(opt *d.Opt_ConditionalStatAffecterAny) (affecter, error) {
 		c := a.GetConditionalStatAffecter_InSunlight()
 		return affecter{"InSunlight", c.GetStatOffsets(), c.GetStatFactors()}, nil
 	}
-	return affecter{}, &bridge.NotMirrored{Class: "ConditionalStatAffecter", Fact: "a conditional stat affecter of a class with no Go port"}
+	return affecter{}, &NotMirrored{Class: "ConditionalStatAffecter", Fact: "a conditional stat affecter of a class with no Go port"}
 }
 
 // affecterApplies is ConditionalStatAffecter.Applies(req) of a concrete
@@ -884,7 +883,7 @@ func (e *Evaluator) compStat(req *Request, val float32, factor bool) (float32, e
 				sum = 1
 			}
 			for _, tname := range traits {
-				def := bridge.DefRow[*d.WeaponTraitDef](e.catalog, tname)
+				def := DefRow[*d.WeaponTraitDef](e.catalog, tname)
 				if def == nil {
 					return 0, fmt.Errorf("catalog has no weapon trait def %s", tname)
 				}
@@ -988,7 +987,7 @@ func (e *Evaluator) gearOffset(req *Request, g GearPiece) (float32, error) {
 			return 0, err
 		}
 		for _, tname := range traits {
-			trait := bridge.DefRow[*d.WeaponTraitDef](e.catalog, tname)
+			trait := DefRow[*d.WeaponTraitDef](e.catalog, tname)
 			if trait == nil {
 				return 0, fmt.Errorf("catalog has no weapon trait def %s", tname)
 			}

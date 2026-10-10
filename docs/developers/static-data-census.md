@@ -720,8 +720,8 @@ Out of scope and unchanged: files classed state or code, and the excluded Biotec
 | ClassChain | message | 2299 | 2 | static | CLR class and its bases for def class matching | name,bases | none in defs.proto; reflection over assemblies; keep as Go ClassIsA index |
 | ThingDefFacts | message | 2310 | 4 | code | Game-computed ThingDef flags (food kind, meal ingredients; raw meat, medicine and room roles are Go, #2632) |  |  |
 | RaceFacts | message | 2329 | 5 | code | Edible foods, tameness decay, tame-chance factor, adult feed (game code; the rest is Go, #2632) |  |  |
-| DefStatTable | message | 2370 | 3 | code | Game stat values per def and stuff (GetStatValueAbstract) |  |  |
-| DefStatRow | message | 2384 | 5 | code | One def/stuff stat value row with adjusted costs |  |  |
+| StatEnv | message | 2377 | 6 | code | Mods, classic mode, scenario stat factors and difficulty the Go stat evaluator reads beyond the rows |  |  |
+| StatFactor | message | 2385 | 2 | code | A scenario stat factor |  |  |
 | CatalogDerived | message | 2392 | 3 | code | Facts the game names or computes in code | currency_def,full_rot_rate_c,wort_def |  |
 | IdeologySnapshot | message | 2434 | 15 | state | Primary ideoligion: memes, precepts, roles, rituals, believers, reform state |  |  |
 | IdeoPrecept | message | 2443 | 2 | state | Precept in force id and def name |  |  |
@@ -776,6 +776,6 @@ Out of scope and unchanged: files classed state or code, and the excluded Biotec
 | SnapshotStreamReply | message | 2755 | 3 | state | Outcome oneof of stream open |  |  |
 | FlushSnapshotRequest | message | 2758 | 0 | state | Flush request (empty) |  |  |
 | FlushSnapshotReply | message | 2759 | 2 | state | Outcome oneof of flush |  |  |
-| TradeFoodFacts | message | 2806 | 1 | code | Nutrition of a food def for trade (game-classified) | nutrition | candidate: DefStatTable Nutrition stat or ThingDef.ingestible.nutrition |
+| TradeFoodFacts | message | 2806 | 1 | code | Nutrition of a food def for trade (game-classified) | nutrition | candidate: Nutrition stat (Go evaluator) or ThingDef.ingestible.nutrition |
 | FoodRestriction | message | 2809 | 2 | state | Pawn food policy id and allowed defs |  |  |
 | ApparelPolicyState | message | 2814 | 18 | state | Pawn apparel policy limits and requirements |  |  |

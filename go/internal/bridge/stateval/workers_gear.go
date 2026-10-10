@@ -3,7 +3,6 @@ package stateval
 import (
 	"fmt"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
@@ -62,7 +61,7 @@ func (e *Evaluator) unfinalized(req *Request) (float32, error) {
 
 // statDef is the catalog's StatDef row, or an error.
 func (e *Evaluator) statDef(name string) (*d.StatDef, error) {
-	row := bridge.DefRow[*d.StatDef](e.catalog, name)
+	row := DefRow[*d.StatDef](e.catalog, name)
 	if row == nil {
 		return nil, fmt.Errorf("catalog has no stat def %s", name)
 	}
