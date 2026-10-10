@@ -3,8 +3,7 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // MaintainTraining is the Military department's standing skill gap (#2619):
-// colonists whose best combat skill (Melee or Shooting) is below
-// the unlocked tier's ceiling. It is a Standard whose target is no such colonist, and it
+// shooters whose Shooting is below the unlocked tier's ceiling. It is a Standard whose target is no such colonist, and it
 // is not gated by defense admission: the gap is its own deficit. Open, it asks
 // layout for a training range (RoomDemand.Ranges); a standing range takes no
 // further action from the Concern, because the native training job (#2610)
@@ -18,16 +17,15 @@ const trainingPriority = 3
 // unlocked tier (UnlockedTrainingTier): the combat skill level at which a
 // colonist stops counting toward the gap. RimWorld skills run 0 to 20.
 type TrainingReview struct {
-	// Capable are the adult colonists with an enabled combat skill read.
+	// Capable are the adult colonists who can shoot.
 	Capable int
-	// Below are the capable ones whose best enabled combat skill is under the
-	// target.
+	// Below are the capable ones whose Shooting is under the ceiling.
 	Below int
 }
 
-// ReviewTraining counts the capable colonists below the target. A child is
-// skipped, as is a pawn whose combat skills are all disabled (not
-// combat-capable). A pawn whose profile carries neither skill row is unread: it
+// ReviewTraining counts the shooters below the ceiling. A child is skipped, as
+// is a pawn who cannot shoot (Shooting disabled, or a Brawler): the range trains
+// shooting only. A pawn whose profile carries no Shooting row is unread: it
 // is no gap, and when no gap is found elsewhere the review is unknown rather
 // than closed.
 func ReviewTraining(profiles domain.Fact[[]PawnProfile], research domain.Fact[ResearchFacts]) domain.Fact[TrainingReview] {
@@ -42,23 +40,16 @@ func ReviewTraining(profiles domain.Fact[[]PawnProfile], research domain.Fact[Re
 		if p.Child {
 			continue
 		}
-		best, read := -1, false
-		for _, name := range []string{"Melee", "Shooting"} {
-			s, ok := p.Skills[name]
-			read = read || ok
-			if ok && !s.Disabled {
-				best = max(best, s.Level)
-			}
-		}
+		s, read := p.Skills["Shooting"]
 		if !read {
 			unread = true
 			continue
 		}
-		if best < 0 {
+		if s.Disabled || p.Effects.MeleeOnly {
 			continue
 		}
 		r.Capable++
-		if best < ceiling {
+		if s.Level < ceiling {
 			r.Below++
 		}
 	}

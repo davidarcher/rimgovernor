@@ -601,18 +601,19 @@ trains Shooting only; melee left the range (#2676).
   the cap's headroom to real work and fights. A session is 10 cycles; the giver
   offers the next while the pawn is under the target and the budget.
 
-**Upkeep (#2611).** Repair is vanilla: `WorkGiver_Repair` (Construction, material
-free, which also trains Construction) works only on buildings inside the home
-area, and the existing `MaintainEssentialRepairs` order uses the same gate. A
-repairer standing in a lane is in the line of fire, so the range's buildings
-(stands and dummies; `policy.RangeHomeHold`) are held out of home while
-anyone may drill. The hold lifts only when a range building is damaged and no
-colonist's current job is `RimGovernor_Train*` (a pawn whose job is unread counts
-as drilling); `MaintainHomeCoverage` then sets the cells back, repair runs, and
-the hold returns the moment everything is whole or a drill starts. No action
-kind or wire field: `PlanHomeArea` takes the hold as an argument and the
-reading carries it as `RoundsFacts.RangeHold`. The range shell's ordinary walls
-stay in home and are repaired like any wall.
+**Dummy wear and mending (#2687).** The dummy has 300 base hit points times the
+vanilla stuff factor (wood 0.65, steel 1, granite 1.7, plasteel 2.8); its
+flammability is the vanilla base 1 times the stuff's factor, as for any
+`madeFromStuff` building. Every tier's practice projectile does 1 damage, so wear
+is bounded and the shooter mends the dummy inside the drill job at
+`JobDriver_Repair`'s rate (one hit point per 20 / (ConstructionSpeed x 1.7)
+ticks, small Construction XP, no materials, no Construction work type or
+home-area gate). Before each cycle, if the dummy's hit points are at or below
+twice the projectile's damage (the next hit plus one hit of margin) the shooter
+stops, mends to full and resumes; it also mends to full at the end of a session.
+An interrupted session mends nothing. Vanilla repair still covers other damage
+and the room reconciler still rebuilds a destroyed dummy. No Go state is
+involved: the range is never held out of the home area.
 
 ### Trade goods (MaintainTrade)
 

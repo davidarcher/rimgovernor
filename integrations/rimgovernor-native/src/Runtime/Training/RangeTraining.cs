@@ -89,6 +89,19 @@ namespace RimGovernor.Runtime
         // A shot pays its weapon's xpPerShot.
         public static float ShotXp(ThingDef weapon) => weapon?.GetModExtension<TrainingTier>()?.xpPerShot ?? 0f;
 
+        // The damage one hit of the weapon's projectile does to a dummy.
+        public static int HitDamage(ThingDef weapon)
+        {
+            var projectile = weapon?.Verbs?.FirstOrDefault()?.defaultProjectile?.projectile;
+            if (projectile == null) return 1;
+            return System.Math.Max(1, projectile.GetDamageAmount((Thing)null));
+        }
+
+        // The shooter mends the dummy before a cycle when the next hit would bring it
+        // to (or past) what one more hit could still destroy: hit points at or below
+        // the hit's damage plus one hit of margin. Nothing else mends mid-session.
+        public static bool NeedsMend(int hitPoints, int hitDamage) => hitPoints <= 2 * hitDamage;
+
         public static float SpentToday(Pawn pawn)
         {
             return Spent.TryGetValue(pawn.thingIDNumber, out var row) && row.Key == GenDate.DaysPassed ? row.Value : 0f;

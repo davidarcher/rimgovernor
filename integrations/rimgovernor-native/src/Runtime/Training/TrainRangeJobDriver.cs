@@ -17,7 +17,8 @@ namespace RimGovernor.Runtime
     //
     // Vanilla pays no verb XP for a non-pawn target, so each completed shot is
     // paid by direct SkillRecord.Learn at the weapon's xpPerShot, within the pawn's
-    // daily budget. The finish action runs on every end of the job (completion,
+    // daily budget. The shooter mends the dummy itself (Mend): before a cycle when
+    // the next hit could destroy it, and at the end of the session. The finish action runs on every end of the job (completion,
     // interruption, drafting, the pawn's death, which despawns it before its
     // belongings drop) and puts the real weapon back and destroys the practice weapon.
     public sealed class JobDriver_TrainRange : JobDriver
@@ -29,10 +30,14 @@ namespace RimGovernor.Runtime
         private ThingWithComps trainingBow;
         private int cyclesDone;
         private int castStartedTick = -1;
+        private bool mending;
+        private float repairCredit;
 
         public override void ExposeData()
         {
             base.ExposeData();
+            Scribe_Values.Look(ref mending, "mending", false);
+            Scribe_Values.Look(ref repairCredit, "repairCredit", 0f);
             Scribe_References.Look(ref realWeapon, "realWeapon");
             Scribe_References.Look(ref trainingBow, "trainingBow");
             Scribe_Values.Look(ref cyclesDone, "cyclesDone", 0);
@@ -110,12 +115,35 @@ namespace RimGovernor.Runtime
                 return;
             }
             if (stances.FullBodyBusy) return;
-            if (cyclesDone >= job.maxNumStaticAttacks || RangeTraining.Remaining(pawn) <= 0f)
+            var done = cyclesDone >= job.maxNumStaticAttacks || RangeTraining.Remaining(pawn) <= 0f;
+            if (mending || done && dummy.HitPoints < dummy.MaxHitPoints
+                || RangeTraining.NeedsMend(dummy.HitPoints, RangeTraining.HitDamage(trainingBow?.def)))
+            {
+                mending = true;
+                Mend(dummy);
+                return;
+            }
+            if (done)
             {
                 EndJobWith(JobCondition.Succeeded);
                 return;
             }
             StartShot(dummy);
+        }
+
+        // The shooter repairs the dummy at JobDriver_Repair's rate (one hit point per
+        // 20 / (ConstructionSpeed x 1.7) ticks) for the same small Construction XP;
+        // no materials, no Construction work type, no home area. Until it is whole.
+        private void Mend(Thing dummy)
+        {
+            pawn.skills?.Learn(SkillDefOf.Construction, 0.05f);
+            repairCredit -= pawn.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7f;
+            if (repairCredit <= 0f)
+            {
+                repairCredit += 20f;
+                dummy.HitPoints = System.Math.Min(dummy.HitPoints + 1, dummy.MaxHitPoints);
+            }
+            if (dummy.HitPoints >= dummy.MaxHitPoints) mending = false;
         }
 
         private void StartShot(Thing dummy)

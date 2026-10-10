@@ -30,6 +30,18 @@ type xmlTierDef struct {
 		Gate       string `xml:"gateResearch"`
 	} `xml:"modExtensions>li"`
 	Damage string `xml:"projectile>damageAmountBase"`
+	MaxHP  string `xml:"statBases>MaxHitPoints"`
+}
+
+// The dummy carries 300 base hit points (#2687). The shooter's mend trigger is
+// native (RangeTraining.NeedsMend: hit points at or below twice a hit's damage),
+// so with every tier at 1 damage a fresh dummy is far above it and a session
+// mends rarely mid-drill.
+func TestTrainingDummyHitPoints(t *testing.T) {
+	defs := readThingDefs(t)
+	if got := defs[RangeDefNames[RangeDummy]].MaxHP; got != "300" {
+		t.Fatalf("dummy MaxHitPoints %q, want 300", got)
+	}
 }
 
 func readThingDefs(t *testing.T) map[string]xmlTierDef {

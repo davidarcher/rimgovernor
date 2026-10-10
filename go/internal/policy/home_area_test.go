@@ -12,7 +12,7 @@ func homeAreaFixture(t *testing.T, auto bool, current []domain.Cell, points ...d
 	r := extentFixture(t, points...)
 	h, _ := r.Home.Value()
 	h.Home, h.AutoHome = domain.Known(current), domain.Known(auto)
-	return PlanHomeArea(domain.Known(Bounds{Width: 60, Height: 60}), r.Construction, r.Claims, domain.Known(h), nil)
+	return PlanHomeArea(domain.Known(Bounds{Width: 60, Height: 60}), r.Construction, r.Claims, domain.Known(h))
 }
 
 func TestHomeAreaFootprintPlusMarginDropsFarOutpost(t *testing.T) {
@@ -69,7 +69,7 @@ func TestHomeAreaAutoExpandOffOnceAndConverged(t *testing.T) {
 
 func TestHomeAreaUnknownWithoutHomeCellsOrSetting(t *testing.T) {
 	r := extentFixture(t, domain.Cell{X: 3, Z: 3})
-	got, err := PlanHomeArea(r.Bounds, r.Construction, r.Claims, r.Home, nil)
+	got, err := PlanHomeArea(r.Bounds, r.Construction, r.Claims, r.Home)
 	if _, known := got.Value(); err != nil || known {
 		t.Fatal(known, err)
 	}

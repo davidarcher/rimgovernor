@@ -13,21 +13,23 @@ func combatant(id string, melee, shooting int) PawnProfile {
 	}}
 }
 
-func TestTrainingReviewCountsTheGapAgainstTheBestCombatSkill(t *testing.T) {
+func TestTrainingReviewCountsTheGapAgainstShooting(t *testing.T) {
 	t.Parallel()
 	pacifist := PawnProfile{ID: "p", Skills: map[string]ProfileSkill{"Melee": {Name: "Melee", Disabled: true}, "Shooting": {Name: "Shooting", Disabled: true}}}
 	child := combatant("kid", 0, 0)
 	child.Child = true
 	meleeOnly := PawnProfile{ID: "m", Skills: map[string]ProfileSkill{"Melee": {Name: "Melee", Level: 3}, "Shooting": {Name: "Shooting", Disabled: true}}}
+	brawler := combatant("b", 3, 0)
+	brawler.Effects.MeleeOnly = true
 	for _, tc := range []struct {
 		name     string
 		profiles domain.Fact[[]PawnProfile]
 		want     domain.Fact[TrainingReview]
 	}{
-		{"at the target is no gap", domain.Known([]PawnProfile{combatant("a", TrainingTiers[0].Ceiling, 0)}), domain.Known(TrainingReview{Capable: 1})},
+		{"at the target is no gap", domain.Known([]PawnProfile{combatant("a", 0, TrainingTiers[0].Ceiling)}), domain.Known(TrainingReview{Capable: 1})},
 		{"one below the target is a gap", domain.Known([]PawnProfile{combatant("a", TrainingTiers[0].Ceiling-1, TrainingTiers[0].Ceiling-2)}), domain.Known(TrainingReview{Capable: 1, Below: 1})},
-		{"best skill decides", domain.Known([]PawnProfile{combatant("a", 2, TrainingTiers[0].Ceiling+3), combatant("b", 1, 1)}), domain.Known(TrainingReview{Capable: 2, Below: 1})},
-		{"a disabled skill is skipped", domain.Known([]PawnProfile{meleeOnly}), domain.Known(TrainingReview{Capable: 1, Below: 1})},
+		{"only Shooting counts", domain.Known([]PawnProfile{combatant("a", 0, TrainingTiers[0].Ceiling+3), combatant("b", 20, 1)}), domain.Known(TrainingReview{Capable: 2, Below: 1})},
+		{"a pawn who cannot shoot is skipped", domain.Known([]PawnProfile{meleeOnly, brawler}), domain.Known(TrainingReview{})},
 		{"no combat-capable colonists", domain.Known([]PawnProfile{pacifist, child}), domain.Known(TrainingReview{})},
 		{"no colonists", domain.Known([]PawnProfile{}), domain.Known(TrainingReview{})},
 		{"unread profiles", domain.Unknown[[]PawnProfile](), domain.Unknown[TrainingReview]()},
@@ -45,7 +47,7 @@ func TestTrainingReviewCountsTheGapAgainstTheBestCombatSkill(t *testing.T) {
 func TestTrainingConcernRaisesTheRangeDeficit(t *testing.T) {
 	t.Parallel()
 	f := stableRounds()
-	f.WorkProfiles = domain.Known([]PawnProfile{combatant("a", 2, 3), combatant("b", 12, 4)})
+	f.WorkProfiles = domain.Known([]PawnProfile{combatant("a", 2, 3), combatant("b", 2, 12)})
 	findings, err := InspectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +84,7 @@ func TestTrainingConcernRaisesTheRangeDeficit(t *testing.T) {
 func TestTrainingConcernRaisesNothingWithoutAGap(t *testing.T) {
 	t.Parallel()
 	for name, profiles := range map[string]domain.Fact[[]PawnProfile]{
-		"everyone at the target": domain.Known([]PawnProfile{combatant("a", TrainingTiers[0].Ceiling, 0)}),
+		"everyone at the target": domain.Known([]PawnProfile{combatant("a", 0, TrainingTiers[0].Ceiling)}),
 		"no combatants":          domain.Known([]PawnProfile{}),
 		"unread":                 domain.Unknown[[]PawnProfile](),
 	} {

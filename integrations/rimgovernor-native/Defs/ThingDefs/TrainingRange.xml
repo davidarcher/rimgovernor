@@ -35,11 +35,11 @@
     <designationCategory>Misc</designationCategory>
   </ThingDef>
 
-  <!-- Hit points come from the vanilla stuff multiplier: wood, granite or plasteel. -->
+  <!-- Hit points: 300 times the vanilla stuff multiplier (wood 0.65 to plasteel 2.8). Flammability is the vanilla base 1 times the stuff factor. -->
   <ThingDef ParentName="BuildingBase">
     <defName>RimGovernor_TrainingDummy</defName>
     <label>training dummy</label>
-    <description>A post for target practice across from a range stand. Arrows and blows damage it; a builder repairs it like any building.</description>
+    <description>A post for target practice across from a range stand. Practice shots wear it; the shooter mends it between sessions.</description>
     <graphicData>
       <texPath>Things/Building/Furniture/Column</texPath>
       <graphicClass>Graphic_Single</graphicClass>
@@ -53,7 +53,7 @@
     <fillPercent>0.4</fillPercent>
     <canOverlapZones>false</canOverlapZones>
     <statBases>
-      <MaxHitPoints>150</MaxHitPoints>
+      <MaxHitPoints>300</MaxHitPoints>
       <WorkToBuild>200</WorkToBuild>
       <Flammability>1</Flammability>
     </statBases>

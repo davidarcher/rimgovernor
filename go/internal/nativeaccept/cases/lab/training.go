@@ -67,9 +67,10 @@ func runTraining(ctx context.Context, s cases.Session) error {
 	if na.AsNumber(last["shotsFired"]) < 1 {
 		return fmt.Errorf("no shot was fired: %#v", last)
 	}
-	// Open air: a shot may miss and fly on, but over a session some hit the dummy.
-	if na.AsNumber(last["dummyHp"]) >= na.AsNumber(prepared["dummyMax"]) {
-		return fmt.Errorf("no shot hit the dummy: %#v", last)
+	// The shooter mends the dummy at the end of the session (#2687): it is whole
+	// again, not destroyed or worn.
+	if hp := na.AsNumber(last["dummyHp"]); hp <= 0 || hp != na.AsNumber(prepared["dummyMax"]) {
+		return fmt.Errorf("drilled dummy not mended to full: %#v", last)
 	}
 	if na.AsString(last["primary"]) != real {
 		return fmt.Errorf("real weapon %s not restored to hand: %#v", real, last)
