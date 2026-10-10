@@ -93,7 +93,12 @@ func foreignThings(in ReconcileInput, ring Rectangle, wallDef string, doorWanted
 		if t.ID == 0 {
 			k.cell = c
 		}
-		w.blocked[c] = true
+		// A stack on a ring cell is cleanup: the native preview, not the diff,
+		// decides whether the wall or door goes up over it, so a room is never
+		// held unfinished (or unreachable, door unbuilt) by an item.
+		if kind != OpHaulOut || !onRing(c, ring) {
+			w.blocked[c] = true
+		}
 		if i, ok := index[k]; ok {
 			tg := &w.items[i].target
 			tg.Minimum = domain.Cell{X: min(tg.Minimum.X, c.X), Z: min(tg.Minimum.Z, c.Z)}

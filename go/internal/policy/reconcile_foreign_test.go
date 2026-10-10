@@ -151,7 +151,7 @@ func TestThingLoadIDIsVanillaForm(t *testing.T) {
 // A ring standing but for its door cell, on which a stack sits: the haul is
 // owed, the door waits on the cell, and the room's furniture does not wait on
 // the ring.
-func TestReconcileDoorCellStackHaulsAndDoesNotGateFurniture(t *testing.T) {
+func TestReconcileDoorCellStackIsCleanupNotABlock(t *testing.T) {
 	in, room := reconFixture()
 	doors := in.Plan.ShellDoors(room)
 	door := doors[0]
@@ -164,8 +164,8 @@ func TestReconcileDoorCellStackHaulsAndDoesNotGateFurniture(t *testing.T) {
 	if haul := readyOp(t, rec, OpHaulOut); len(haul.Targets) != 1 || haul.Targets[0].Count != 40 || haul.Targets[0].Minimum != door {
 		t.Fatalf("haul the door-cell stack: %+v", rec.Ready)
 	}
-	if len(readyOp(t, rec, OpDoorIn).Cells) != 0 {
-		t.Fatalf("the door waits for the haul: %+v", rec.Ready)
+	if len(readyOp(t, rec, OpDoorIn).Cells) != 1 {
+		t.Fatalf("the door goes up over the stack, the haul is cleanup: %+v", rec.Ready)
 	}
 	if len(readyOp(t, rec, OpBuild).Pieces) != 1 {
 		t.Fatalf("the bed does not wait on the door: %+v", rec.Ready)
