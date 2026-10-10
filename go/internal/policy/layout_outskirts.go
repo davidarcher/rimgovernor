@@ -85,6 +85,12 @@ func SiteOutskirts(plan LayoutPlan, w, h int32) (Rectangle, bool) {
 // outskirtsCandidates is the nearest valid site on each side of the core
 // extent, with the grid, extent and growth lines that scored them.
 func outskirtsCandidates(plan LayoutPlan, w, h int32) (map[domain.Rotation]Rectangle, *utilityGrid, Rectangle, []Rectangle) {
+	return outskirtsCandidatesAt(plan, w, h, outskirtsGap)
+}
+
+// outskirtsCandidatesAt is outskirtsCandidates keeping gap clear cells from
+// every room and hallway instead of outskirtsGap.
+func outskirtsCandidatesAt(plan LayoutPlan, w, h, gap int32) (map[domain.Rotation]Rectangle, *utilityGrid, Rectangle, []Rectangle) {
 	ext, ok := plan.CoreBounds()
 	if !ok || len(plan.Hallways()) == 0 {
 		return nil, nil, ext, nil
@@ -96,10 +102,10 @@ func outskirtsCandidates(plan LayoutPlan, w, h int32) (map[domain.Rotation]Recta
 	lines := growthLines(plan, u)
 	var avoid []Rectangle
 	for _, r := range plan.AllRooms() {
-		avoid = append(avoid, pad(roomWalls(r), outskirtsGap))
+		avoid = append(avoid, pad(roomWalls(r), gap))
 	}
 	for _, s := range spineRects(plan.Hallways()) {
-		avoid = append(avoid, pad(s, outskirtsGap))
+		avoid = append(avoid, pad(s, gap))
 	}
 	walkable := u.walkableFromCore(plan)
 

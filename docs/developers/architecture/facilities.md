@@ -530,38 +530,48 @@ keeps it complete against the installed RoomRoleDefs.
 
 ### Training range (RimGovernor mod)
 
-The only role the native mod itself defines. `TrainingRange` is a native
-`RoomRoleDef` (`Defs/RoomRoleDefs/TrainingRange.xml`, worker
-`RimGovernor.Runtime.RoomRoleWorker_TrainingRange`): the game scores a room
-100 per training stand plus 20 per dummy once a stand stands in it, so one lane
-beats a workshop or laboratory bench while any bed role still wins. The
-controller only reads the role, like every other. The pieces are separate small
-buildings (`Defs/ThingDefs/TrainingRange.xml`): `RimGovernor_TrainingBowStand`
-(the lane's firing mark), `RimGovernor_TrainingDummy` and
-`RimGovernor_TrainingPartition`, all `madeFromStuff` (wood, stone or metal; hit
-points come from the vanilla stuff multiplier, damage multipliers only if tuning
-needs them) and reusing vanilla textures. `Bow_Training` is the lane weapon: a
-short-bow clone with no recipe, category or trade tag, issued and restored by the
-training job, not craftable.
+The range is open air: stands and dummies, no room, no ring. The mod's
+buildings (`Defs/ThingDefs/TrainingRange.xml`) are `RimGovernor_TrainingBowStand`
+(the firing mark) and `RimGovernor_TrainingDummy`, both `madeFromStuff` (wood,
+stone or metal; hit points come from the vanilla stuff multiplier) and reusing
+vanilla textures. `Bow_Training` is the practice weapon: a short-bow clone with
+no recipe, category or trade tag, issued and restored by the training job, not
+craftable. The mod defines no `RoomRoleDef`: nothing scores the range, and the
+controller reads no role for it.
 
-`policy.RangeLayout(origin)` is the fixed template: three one-cell lanes, 12 cells
-long (stand at the first row, dummy at the last), a partition column between
-neighbouring lanes, a 5 by 12 interior. Lane count and length are constants; the
-mod's def names are `policy.RangeDefNames` and a test keeps them equal to the
-XML.
+`policy.RangeLayout(room)` is the template: one row of stands side by side with
+no gaps and, `RangeDistance` (8) cells away, one row of dummies directly facing
+them, one dummy per stand. The room's `Interior` is the bounding rectangle of the
+two rows and the lane between them; its `Facing` is the direction from the stands
+to the dummies. The stand count is `RangeStandsFor(capable adults)`:
+`clamp(ceil(n / 2), 2, 8)`, read from `TrainingReview.Capable` (every capable
+adult, not only those under the skill target, so it does not fall as colonists
+train). The mod's def names are `policy.RangeDefNames` and a test keeps them
+equal to the XML.
 
-The range is a planned room (`PlannedTrainingRange`, `layout_range.go`, #2620),
-`TierExpand`, walled with the shell ring and a west-wall door onto lane 0. It is
-demand-grown, like a further graveyard: `RoomDemand.Ranges` (merged by the store
-department) makes `growRanges` site a 7 by 14 outline through
-`outskirtsCandidates` (`outskirtsGap` clear of every room, off the growth lines,
-walkable from the core), the site nearest the outskirts cluster; nothing is
-reserved ahead of the need and no room moves. `RangeTemplate(room)` turns
-`RangeLayout` from the interior's south-west cell into the `[]WantedPiece` the
-room reconciler builds. The range needs no cooler. `MaintainTraining` (Military, #2619)
+The range is a planned room (`PlannedTrainingRange`, `layout_range.go`),
+`TierExpand`, `Outdoor` and unfenced (`PlannedRoom.Unfenced`): it owes no fence,
+gate, door, roof or floor, so `GroundMatches` is always true, `ShellDoors` is
+empty, `RoomGround` is the interior alone and `Reconcile` diffs only the
+template and the foreign things on the interior. Its blocked footprint
+(`roomWalls`) is the interior with a one-cell margin plus `RangeBackdrop` (4)
+cells behind the dummies, so no later room is planned there. It is demand-grown,
+like a further graveyard: `RoomDemand.Ranges` (the stand count, merged by the
+store department; `StoreView.TrainingStands`) makes `growRanges` site it through
+`outskirtsCandidatesAt` with `rangeGap` (2) instead of `outskirtsGap`, on the
+nearest site to the core. A site on a side of the core faces away from it; when
+the sites on the dummy axis are taken (map edge, cliff, water), a site beside the
+core faces along its rows toward the end farther from the core, and none faces the
+core. A standing range only grows: a larger demand widens it along its rows into
+free ground (the + end, then the - end), keeping every standing piece, and a
+smaller demand changes nothing. `RangeTemplate(room)` turns the layout into the
+`[]WantedPiece` the room reconciler builds. `MaintainTraining` (Military, #2619)
 demands it: while an adult colonist's best of Melee and Shooting is under
-`policy.TrainingSkillTarget`, the military store declares `RoomDemand.Ranges` 1 (the stockpile review, so with the stockpiles family); `RoundsTrainingPlanner` (family `training`) then reconciles the range shell and `RangeTemplate`, and takes no further action once the range stands (the native training job is #2610). No action kind or wire field is
-involved.
+`policy.TrainingSkillTarget`, the military store declares `RoomDemand.Ranges`
+(the stockpile review, so with the stockpiles family); `RoundsTrainingPlanner`
+(family `training`) then reconciles `RangeTemplate`, and takes no further action
+once the range stands (the native training job is #2610). No action kind or wire
+field is involved.
 
 The drill itself is native (#2610, `src/Runtime/Training`). `WorkGiver_TrainRange`
 sits under the `RimGovernorTraining` work type (`Defs/WorkTypeDefs`,
@@ -578,8 +588,8 @@ the higher usable skill (then the stronger passion, then shooting).
 
 - **Shooting.** Walk onto the stand, move the pawn's weapon to its inventory,
   equip a fresh `Bow_Training` and fire its real verb at the dummy (no friendly
-  fire, no non-target pawns), so arrows hit the dummy, a partition or the wall
-  behind. The finish action runs on every end of the job (completion,
+  fire, no non-target pawns), so arrows hit the dummy or what stands
+  behind it. The finish action runs on every end of the job (completion,
   interruption, drafting, downing, the pawn's death, which despawns it before its
   belongings drop) and restores the weapon and destroys the bow.
 - **Melee.** Walk to the lane cell before the dummy and strike it with the
@@ -599,7 +609,7 @@ the higher usable skill (then the stronger passion, then shooting).
 free, which also trains Construction) works only on buildings inside the home
 area, and the existing `MaintainEssentialRepairs` order uses the same gate. A
 repairer standing in a lane is in the line of fire, so the range's buildings
-(stands, dummies, partitions; `policy.RangeHomeHold`) are held out of home while
+(stands and dummies; `policy.RangeHomeHold`) are held out of home while
 anyone may drill. The hold lifts only when a range building is damaged and no
 colonist's current job is `RimGovernor_Train*` (a pawn whose job is unread counts
 as drilling); `MaintainHomeCoverage` then sets the cells back, repair runs, and

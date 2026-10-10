@@ -41,6 +41,9 @@ type PlannedRoom struct {
 	// Outdoor is an open ring: a fence and a gate (RingDefs), no roof and no
 	// floor owed (the animal pen).
 	Outdoor bool `json:",omitempty"`
+	// Facing is the direction an unfenced training range's dummies lie from its
+	// stands (Unfenced); unset for every other room.
+	Facing domain.Rotation `json:",omitempty"`
 }
 
 // ZoneKind is a whole-map zone's use.
@@ -283,7 +286,7 @@ func (r PlannedRoom) Same(o PlannedRoom) bool {
 			return false
 		}
 	}
-	return r.Role == o.Role && r.Interior == o.Interior && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor
+	return r.Role == o.Role && r.Interior == o.Interior && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing
 }
 
 // NearestAnchor is the interior centre of the free planned room of role want

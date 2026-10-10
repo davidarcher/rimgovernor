@@ -143,6 +143,10 @@ type reconcileItem struct {
 func Reconcile(in ReconcileInput) Reconciliation {
 	r := in.Room
 	ring, interior := roomWalls(r), r.Interior
+	if r.Unfenced() {
+		// No ring is owed: only the template and the foreign things on the interior.
+		ring = Rectangle{}
+	}
 	doorWanted := map[domain.Cell]bool{}
 	for _, d := range in.Plan.ShellDoors(r) {
 		doorWanted[d] = true
@@ -159,7 +163,7 @@ func Reconcile(in ReconcileInput) Reconciliation {
 	rows := append([]ClearanceTarget(nil), in.Rows...)
 	sort.Slice(rows, func(i, j int) bool { return rows[i].EntityID < rows[j].EntityID })
 	var removedRows []ClearanceTarget
-	ground := roomGround(interior)
+	ground := r.RoomGround()
 	var innerWalls []ClearanceTarget
 	cover := func(row ClearanceTarget) {
 		for _, c := range rectCells(Rectangle{X: row.Minimum.X, Z: row.Minimum.Z, Width: row.Maximum.X - row.Minimum.X + 1, Height: row.Maximum.Z - row.Minimum.Z + 1}) {

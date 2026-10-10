@@ -39,9 +39,7 @@ namespace HomeBridge.BridgeTools
                 }
                 var stand = Put("RimGovernor_TrainingBowStand", x, z);
                 var dummy = Put("RimGovernor_TrainingDummy", x, z + LaneLength - 1);
-                var partitions = new List<Thing>();
-                foreach (var side in new[] { x - 1, x + 1 })
-                    for (var dz = 0; dz < LaneLength; dz++) partitions.Add(Put("RimGovernor_TrainingPartition", side, z + dz));
+                var partitions = new List<Thing>(); // the range has none; kept so the case reads an empty set
                 var backWall = new List<Thing>();
                 for (var dx = -1; dx <= 1; dx++) backWall.Add(Put("Wall", x + dx, z + LaneLength));
                 var sentinels = new List<Thing> { Put("Wall", x + 8, z + 6), Put("Wall", x - 8, z + 6) };

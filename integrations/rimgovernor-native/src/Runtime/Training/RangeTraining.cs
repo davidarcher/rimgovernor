@@ -6,6 +6,13 @@ using Verse;
 
 namespace RimGovernor.Runtime
 {
+    // The range buildings (Defs/ThingDefs/TrainingRange.xml); mirrors go/internal/policy RangeDefNames.
+    public static class TrainingRangeDefs
+    {
+        public const string Stand = "RimGovernor_TrainingBowStand";
+        public const string Dummy = "RimGovernor_TrainingDummy";
+    }
+
     // The training job's rules (#2610): who is eligible, which skill drills, the
     // XP per cycle and the daily budget. The mod's work type, work giver and job
     // defs are Defs/WorkTypeDefs, WorkGiverDefs and JobDefs/RimGovernorTraining.xml.

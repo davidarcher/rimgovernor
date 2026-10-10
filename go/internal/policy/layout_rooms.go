@@ -137,6 +137,9 @@ func (p LayoutPlan) ring(r PlannedRoom, g GroundCensus) (walls, doors map[domain
 // none elsewhere on the ring. Geometry only; floors and furniture are separate
 // diffs. No census room need be enclosed yet (a ring still unroofed matches).
 func (p LayoutPlan) GroundMatches(r PlannedRoom, g GroundCensus) bool {
+	if r.Unfenced() {
+		return true // no ring owed
+	}
 	doors := map[domain.Cell]bool{}
 	for _, d := range p.ShellDoors(r) {
 		doors[d] = true
@@ -237,6 +240,9 @@ func (p LayoutPlan) NextPlannedRoom(role PlannedRole, ground GroundCensus) (Plan
 // r's ring (the kitchen's side of the freezer door; the barn's side of the
 // vet room's, which is no AllRooms room).
 func (p LayoutPlan) ShellDoors(r PlannedRoom) []domain.Cell {
+	if r.Unfenced() {
+		return nil
+	}
 	doors := []domain.Cell{r.Door}
 	for _, d := range r.Doors {
 		doors = append(doors, d.Cell)

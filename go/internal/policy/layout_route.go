@@ -155,6 +155,9 @@ func routeWalk(p LayoutPlan) (map[domain.Cell]int, []PlannedRoom) {
 		}
 	}
 	for _, r := range rooms {
+		if r.Unfenced() {
+			continue // no door
+		}
 		if _, ok := walk[r.Door]; !ok {
 			walk[r.Door] = -1
 		}

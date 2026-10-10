@@ -49,9 +49,9 @@ type StoreView struct {
 	// Burial is the burial census; nil while the waste or construction
 	// census is unread (see BurialCensus).
 	Burial *BurialCensus
-	// TrainingGap is the standing skill gap (see TrainingGap); the Military
+	// TrainingStands is the stands the range should hold (see TrainingStands); the Military
 	// store asks for a training range while it is open.
-	TrainingGap domain.Fact[bool]
+	TrainingStands domain.Fact[int]
 	// Incinerator is the planned incinerator room once its walls and door
 	// stand; nil before. The Sanitation store declares its zone.
 	Incinerator *PlannedRoom
@@ -73,7 +73,7 @@ type RoomDemand struct {
 	// Graveyards is the graveyards the plan should hold, 0 for no demand (a
 	// further graveyard; see GraveyardsWanted).
 	Graveyards int
-	// Ranges is the training ranges the plan should hold, 0 for no demand (the
+	// Ranges is the stands the plan's training range should hold, 0 for no demand (the
 	// training concern, #2619).
 	Ranges int
 	// Yard is the materials yards the plan should hold, 0 for no demand

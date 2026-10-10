@@ -13,29 +13,26 @@ import (
 
 // MaintainTraining (#2619): while a capable colonist is below the combat skill
 // target the stockpile review asks layout for a training range
-// (RoomDemand.Ranges, as a further graveyard is asked for). This planner then
-// stages the planned range's shell and furniture through the room reconciler.
-// A standing range takes no further action here: the native training job
+// (RoomDemand.Ranges, the stand count; a further graveyard is asked for the same
+// way). This planner then stages the planned range's stands and dummies through
+// the room reconciler. The range is unfenced open air (PlannedRoom.Unfenced), so
+// the reconciler owes it no ring, roof or floor, only the template; a range that
+// outgrew its stands is widened by layout and the same template builds the new
+// ones. A standing range takes no further action here: the native training job
 // (#2610) spends the pawn-hours.
 
 // trainingDefinitions are the definitions the range step reads availability
-// and stuff for: the shell's wall and door and the range's own buildings.
-var trainingDefinitions = func() []string {
-	out := []string{policy.ShellWallDefinition, policy.ShellDoorDefinition}
-	for _, kind := range []policy.RangePieceKind{policy.RangeStand, policy.RangeDummy, policy.RangePartition} {
-		out = append(out, policy.RangeDefNames[kind])
-	}
-	return out
-}()
+// and stuff for: the range's own buildings.
+var trainingDefinitions = []string{policy.RangeDefNames[policy.RangeStand], policy.RangeDefNames[policy.RangeDummy]}
 
-// trainingGap is the review's standing skill gap, read from the projection's
-// work pawns; unknown while they are.
-func trainingGap(facts observation.ColonyProjection) domain.Fact[bool] {
+// trainingStands is the stands the review wants, read from the projection's work
+// pawns; unknown while they are.
+func trainingStands(facts observation.ColonyProjection) domain.Fact[int] {
 	pawns, known := facts.WorkPawns.Value()
 	if !known {
-		return domain.Unknown[bool]()
+		return domain.Unknown[int]()
 	}
-	return policy.TrainingGap(domain.Known(policy.Profiles(pawns)))
+	return policy.TrainingStands(domain.Known(policy.Profiles(pawns)))
 }
 
 // RoundsTrainingPlanner stages the training range of MaintainTraining.

@@ -79,7 +79,7 @@ func SlotPlantCuts(cells []SiteCell, piece InteriorPiece, blockers []PlacementBl
 
 func foreignThings(in ReconcileInput, ring Rectangle, wallDef string, doorWanted map[domain.Cell]bool) foreignWork {
 	w := foreignWork{blocked: map[domain.Cell]bool{}, claimed: map[domain.Cell]bool{}}
-	ground := roomGround(in.Room.Interior)
+	ground := in.Room.RoomGround()
 	type key struct {
 		id   uint64
 		def  string

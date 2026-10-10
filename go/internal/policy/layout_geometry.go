@@ -49,6 +49,7 @@ func transposeRoom(r PlannedRoom) PlannedRoom {
 		r.Link = &l
 	}
 	r.DoorRot = transposeRot(r.DoorRot)
+	r.Facing = transposeRot(r.Facing)
 	if len(r.Doors) > 0 {
 		doors := make([]Door, len(r.Doors))
 		for i, d := range r.Doors {

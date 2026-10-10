@@ -44,8 +44,6 @@ const (
 	// Anomaly
 	RoomRoleContainmentCell   RoomRole = "ContainmentCell"
 	RoomRoleCeremonialChamber RoomRole = "CeremonialChamber"
-	// RoomRoleTrainingRange is the native mod's own RoomRoleDef (RimGovernor), scored by training lanes.
-	RoomRoleTrainingRange RoomRole = "TrainingRange"
 	// RoomRoleIsolationRoom is a plan role only, no game RoomRoleDef:
 	// the game scores the furnished room a bedroom, so it has no facility row.
 	RoomRoleIsolationRoom RoomRole = "IsolationRoom"
@@ -274,9 +272,6 @@ func FacilityCatalog() []FacilityRequirement {
 		// predicted containment strength reaches what the entity needs.
 		{Role: RoomRoleContainmentCell, Status: FacilityImplemented, Content: "Anomaly", FurnitureFromGame: true},
 		{Role: RoomRoleCeremonialChamber, Status: FacilityPending, Content: "Anomaly"},
-		// A training range is its own planned room of the mod's buildings (RangeLayout),
-		// sited in the outskirts (layout_range.go); the training Concern that demands it is #2619.
-		{Role: RoomRoleTrainingRange, Status: FacilityImplemented, Furniture: []string{RangeDefNames[RangeStand], RangeDefNames[RangeDummy], RangeDefNames[RangePartition]}},
 	}
 }
 

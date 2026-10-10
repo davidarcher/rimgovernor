@@ -2,11 +2,11 @@
 <Defs>
   <!-- Training range pieces. Graphics reuse vanilla textures: no mod textures. -->
 
-  <!-- The firing mark of one lane; the lane's training bow is issued here by the training job. -->
+  <!-- The firing mark of one range stand; the stand's training bow is issued here by the training job. -->
   <ThingDef ParentName="BuildingBase">
     <defName>RimGovernor_TrainingBowStand</defName>
     <label>training stand</label>
-    <description>The firing mark of one training range lane. A colonist who trains here shoots the lane's practice bow at the dummy downrange.</description>
+    <description>The firing mark of one training range stand. A colonist who trains here shoots the lane's practice bow at the dummy downrange.</description>
     <graphicData>
       <texPath>Things/Building/Joy/HorseshoesPin</texPath>
       <graphicClass>Graphic_Single</graphicClass>
@@ -39,7 +39,7 @@
   <ThingDef ParentName="BuildingBase">
     <defName>RimGovernor_TrainingDummy</defName>
     <label>training dummy</label>
-    <description>A post for target practice at the end of a range lane. Arrows and blows damage it; a builder repairs it like any building.</description>
+    <description>A post for target practice across from a range stand. Arrows and blows damage it; a builder repairs it like any building.</description>
     <graphicData>
       <texPath>Things/Building/Furniture/Column</texPath>
       <graphicClass>Graphic_Single</graphicClass>
@@ -70,56 +70,6 @@
       <ai_chillDestination>false</ai_chillDestination>
     </building>
     <designationCategory>Misc</designationCategory>
-  </ThingDef>
-
-  <!-- Low partition between lanes. -->
-  <ThingDef ParentName="BuildingBase">
-    <defName>RimGovernor_TrainingPartition</defName>
-    <label>range partition</label>
-    <description>A waist-high partition that keeps neighbouring training lanes apart.</description>
-    <graphicData>
-      <texPath>Things/Building/Linked/Barricade_Atlas</texPath>
-      <graphicClass>Graphic_Single</graphicClass>
-      <linkType>Basic</linkType>
-      <linkFlags>
-        <li>Barricades</li>
-      </linkFlags>
-      <color>(139,122,87)</color>
-    </graphicData>
-    <uiIconPath>Things/Building/Linked/Barricade_MenuIcon</uiIconPath>
-    <uiIconScale>1.2</uiIconScale>
-    <altitudeLayer>Building</altitudeLayer>
-    <passability>PassThroughOnly</passability>
-    <pathCost>42</pathCost>
-    <pathCostIgnoreRepeat>true</pathCostIgnoreRepeat>
-    <castEdgeShadows>true</castEdgeShadows>
-    <fillPercent>0.55</fillPercent>
-    <canOverlapZones>false</canOverlapZones>
-    <rotatable>false</rotatable>
-    <statBases>
-      <MaxHitPoints>300</MaxHitPoints>
-      <WorkToBuild>200</WorkToBuild>
-      <Flammability>1</Flammability>
-    </statBases>
-    <stuffCategories>
-      <li>Metallic</li>
-      <li>Woody</li>
-      <li>Stony</li>
-    </stuffCategories>
-    <costStuffCount>3</costStuffCount>
-    <useStuffTerrainAffordance>true</useStuffTerrainAffordance>
-    <terrainAffordanceNeeded>Light</terrainAffordanceNeeded>
-    <building>
-      <isInert>true</isInert>
-      <ai_chillDestination>false</ai_chillDestination>
-      <isFence>true</isFence>
-      <isPlaceOverableWall>true</isPlaceOverableWall>
-      <blueprintGraphicData>
-        <texPath>Things/Building/Linked/Barricade_Blueprint_Atlas</texPath>
-      </blueprintGraphicData>
-    </building>
-    <drawStyleCategory>Defenses</drawStyleCategory>
-    <designationCategory>Security</designationCategory>
   </ThingDef>
 
   <!-- The lane bow. No recipe, category, weapon tag or trade tag: it exists only because

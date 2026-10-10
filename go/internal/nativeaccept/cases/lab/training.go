@@ -18,7 +18,7 @@ func init() {
 		skill := skill
 		cases.Register(cases.Case{
 			Name: "lab/training-" + skill,
-			Scope: "Native training job (#2610), " + skill + ": test/training_prepare builds one range lane (stand, dummy, partitions, back wall) and " +
+			Scope: "Native training job (#2610), " + skill + ": test/training_prepare builds one range lane (stand, dummy, back wall) and " +
 				"leaves a low-skill colonist whose only work is the RimGovernorTraining work type; with no order from Go the vanilla work scan " +
 				"offers the lane, the colonist drills, direct Learn raises the skill without touching xpSinceMidnight, the colonist's own weapon " +
 				"is back in hand with no Bow_Training left anywhere, and a sentinel wall off the lane is unharmed. A Go snapshot test cannot see " +

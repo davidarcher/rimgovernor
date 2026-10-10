@@ -68,13 +68,13 @@ func TestTrainingConcernRaisesTheRangeDeficit(t *testing.T) {
 
 	// The open gap reaches layout as a range the plan lacks, through the
 	// shared store declaration.
-	view := StoreView{TrainingGap: TrainingGap(f.WorkProfiles)}
+	view := StoreView{TrainingStands: TrainingStands(f.WorkProfiles)}
 	demand := DeclareStores(view).Apply(RoomDemand{})
-	if demand.Ranges != 1 {
-		t.Fatalf("open gap demands %d ranges, want 1", demand.Ranges)
+	if demand.Ranges != RangeMinStands {
+		t.Fatalf("open gap demands %d stands, want %d", demand.Ranges, RangeMinStands)
 	}
-	plan, _ := rangePlan(t)
-	if RangesOwed(LayoutPlan{}, demand) != 1 || RangesOwed(plan, demand) != 0 {
+	plan, _ := rangePlan(t, 2)
+	if RangesOwed(LayoutPlan{}, demand) != RangeMinStands || RangesOwed(plan, demand) != 0 {
 		t.Fatalf("owed %d without a range and %d with one", RangesOwed(LayoutPlan{}, demand), RangesOwed(plan, demand))
 	}
 }
@@ -97,7 +97,7 @@ func TestTrainingConcernRaisesNothingWithoutAGap(t *testing.T) {
 				t.Errorf("%s raised MaintainTraining", name)
 			}
 		}
-		if demand := DeclareStores(StoreView{TrainingGap: TrainingGap(profiles)}).Apply(RoomDemand{}); demand.Ranges != 0 {
+		if demand := DeclareStores(StoreView{TrainingStands: TrainingStands(profiles)}).Apply(RoomDemand{}); demand.Ranges != 0 {
 			t.Errorf("%s demands %d ranges", name, demand.Ranges)
 		}
 	}

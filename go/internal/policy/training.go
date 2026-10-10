@@ -70,10 +70,20 @@ func ReviewTraining(profiles domain.Fact[[]PawnProfile]) domain.Fact[TrainingRev
 	return domain.Known(r)
 }
 
-// TrainingGap reports whether any capable colonist is below the target; unknown
-// while the profiles or their skills are unread.
-func TrainingGap(profiles domain.Fact[[]PawnProfile]) domain.Fact[bool] {
-	return measured(ReviewTraining(profiles), func(r TrainingReview) bool { return r.Below > 0 })
+// TrainingStands is the stands the training range should hold: none while no
+// capable colonist is below the target, else RangeStandsFor the capable adults
+// (every capable colonist, not only those under the target, so the count does
+// not fall as colonists train). Unknown while the profiles or their skills are
+// unread.
+func TrainingStands(profiles domain.Fact[[]PawnProfile]) domain.Fact[int] {
+	r, known := ReviewTraining(profiles).Value()
+	if !known {
+		return domain.Unknown[int]()
+	}
+	if r.Below == 0 {
+		return domain.Known(0)
+	}
+	return domain.Known(RangeStandsFor(r.Capable))
 }
 
 // inspectTraining raises MaintainTraining while a capable colonist is below the
@@ -87,11 +97,12 @@ func inspectTraining(c *roundsRun) error {
 	return nil
 }
 
-// RangesWanted is the training ranges the plan should hold: one while the gap is
-// open, else 0. A standing range stays; the plan never retires it.
-func RangesWanted(gap domain.Fact[bool]) int {
-	if open, known := gap.Value(); known && open {
-		return 1
+// RangesWanted is the stands the plan's training range should hold: the stand
+// count while the gap is open, else 0. A standing range stays and only grows;
+// the plan never retires it.
+func RangesWanted(stands domain.Fact[int]) int {
+	if n, known := stands.Value(); known {
+		return n
 	}
 	return 0
 }
