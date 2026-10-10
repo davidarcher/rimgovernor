@@ -32,16 +32,22 @@ named error. The rows give:
 | `Undergrounder` | the Outdoors need among disablesNeeds |
 | `Cannibal` | the human-meat ingestion thoughts among disallowedThoughtsFromIngestion |
 
-The remaining flags (`GreatMemory`, `NightShift`, `MeleeOnly`, `FrontLine`,
-`RearRanged`, `Pyromaniac`, `Sociable`, `Execution`, `SurgeonSafe`, `Nudist`,
-`Ascetic`, `Gourmand`, `ChemicalInterest`, `Greedy`, `Jealous`) are policy
-decisions with no rule over the rows; they stay in the small `traitFlags` table
-in `pawn_profile.go`, keyed by TraitDef name and degree, and are merged onto the
-derived effects. A trait with neither rows nor flags (a mod trait the catalog
-does not carry fails the read; a mood/nerves spectrum native already folds into
-break thresholds) contributes nothing beyond its rows. The gear
+The thought- and stat-derived flags (`NightShift`, `MeleeOnly`, `FrontLine`,
+`RearRanged`, `Pyromaniac`, `Execution`, `SurgeonSafe`, `Nudist`, `Ascetic`,
+`ChemicalInterest`, `Greedy`, `Jealous`) read the thoughts a trait nullifies or
+is required by, and `Gourmand` a hunger-rate factor above 1. The one effect no
+row states, `Sociable` (Kind +1, Abrasive -1), is the registered
+`sociableTraits` table in `trait_worth.go`. A trait the catalog does not carry
+fails the read. The gear
 ([equipment upkeep](equipment-upkeep.md)), drug and room concerns read their flags
 from `PawnProfile.Effects`; mood control keeps its native thresholds.
+
+A prisoner prospect's trait is good or bad by the sign of its worth
+(`DefinitionCatalog.TraitBalance`, weighed by `policy.TraitBalance.Worth`): stat
+offsets and factors (distance from 1), hunger rate, disabled work types,
+sociability and mood (always-active thought offsets, and the worst negative stage
+of each situational thought the trait requires). The weights are the one table
+in `trait_worth.go`.
 
 `ProfileSkill.LearnFactor` is the passion multiplier (none 0.35, minor 1.0,
 major 1.5) scaled by `1 + LearnRate`.

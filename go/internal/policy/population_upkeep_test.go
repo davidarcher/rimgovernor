@@ -9,8 +9,8 @@ import (
 // strong is a prospect any colony wants: two high passionate skills and a
 // good trait. weak is an able-bodied prospect nobody recruits.
 var (
-	strong = PrisonerProspect{Age: 30, Health: 1, Skills: []PrisonerSkill{{"Construction", 12, "Major", false}, {"Plants", 9, "Minor", false}}, Traits: []PrisonerTrait{{"Industriousness", 1}}}
-	weak   = PrisonerProspect{Age: 30, Health: 1, Skills: []PrisonerSkill{{"Construction", 3, "None", false}}, Traits: []PrisonerTrait{{"Industriousness", -1}}}
+	strong = PrisonerProspect{Age: 30, Health: 1, Skills: []PrisonerSkill{{"Construction", 12, "Major", false}, {"Plants", 9, "Minor", false}}, Traits: []PrisonerTrait{{"Industriousness", 1, 0.2}}}
+	weak   = PrisonerProspect{Age: 30, Health: 1, Skills: []PrisonerSkill{{"Construction", 3, "None", false}}, Traits: []PrisonerTrait{{"Industriousness", -1, -0.2}}}
 	frail  = PrisonerProspect{Age: 80, Health: 0.3, Incapable: []string{"Mining", "Hauling", "Cleaning", "Growing", "Construction"}}
 )
 

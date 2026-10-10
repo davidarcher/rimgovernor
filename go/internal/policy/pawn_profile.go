@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"reflect"
 	"slices"
 	"sort"
 
@@ -21,7 +22,8 @@ type PawnTrait struct {
 // pawn's traits, typed so no policy matches trait names itself. A trait's
 // effects are derived from its catalog row when the pawn is read
 // (DefinitionCatalog.TraitEffects: stat offsets, disabled work, needs and
-// ingestion thoughts), plus the few flags the game applies in code (TraitFlags).
+// ingestion thoughts and hunger rate), plus the sociability the game applies in
+// code (TraitSociable).
 type TraitEffects struct {
 	// WorkSpeed is the summed WorkSpeedGlobal offset (Industrious +0.35,
 	// Slothful -0.35, Very neurotic +0.40).
@@ -31,8 +33,6 @@ type TraitEffects struct {
 	LearnRate float64
 	// MoveSpeed is the summed MoveSpeed offset (Jogger +0.4, Slowpoke -0.2).
 	MoveSpeed float64
-	// GreatMemory halves skill decay above level 10.
-	GreatMemory bool
 	// QuickSleeper rests twice as fast: a shorter Sleep block suffices.
 	QuickSleeper bool
 	// NightShift (NightOwl) wants the pawn awake 23h-6h and asleep by day.
@@ -72,7 +72,6 @@ func (e TraitEffects) Add(o TraitEffects) TraitEffects {
 	e.WorkSpeed += o.WorkSpeed
 	e.LearnRate += o.LearnRate
 	e.MoveSpeed += o.MoveSpeed
-	e.GreatMemory = e.GreatMemory || o.GreatMemory
 	e.QuickSleeper = e.QuickSleeper || o.QuickSleeper
 	e.NightShift = e.NightShift || o.NightShift
 	e.MeleeOnly = e.MeleeOnly || o.MeleeOnly
@@ -96,27 +95,20 @@ func (e TraitEffects) Add(o TraitEffects) TraitEffects {
 	return e
 }
 
-// traitKey names one trait degree in traitFlags.
-type traitKey struct {
-	Name   string
-	Degree int
-}
-
-// traitFlags are the typed preferences the game applies to a trait in code,
-// where no row of the TraitDef or a ThoughtDef states them; every other
-// effect is derived from the catalog rows (DefinitionCatalog.TraitEffects).
-// A trait absent here contributes no flag.
-var traitFlags = map[traitKey]TraitEffects{
-	{"GreatMemory", 0}: {GreatMemory: true},
-	{"Kind", 0}:        {Sociable: 1},
-	{"Abrasive", 0}:    {Sociable: -1},
-	{"Gourmand", 0}:    {Gourmand: true},
-}
-
-// TraitFlags is the code-applied part of a trait's effects; a trait it does
-// not list is the zero value.
-func TraitFlags(name string, degree int) TraitEffects {
-	return traitFlags[traitKey{name, degree}]
+// Flags names the effect flags that are set, in field order, and a
+// No<WorkType> for each disabled work type.
+func (e TraitEffects) Flags() []string {
+	out := []string{}
+	v := reflect.ValueOf(e)
+	for i := range v.NumField() {
+		if f := v.Field(i); f.Kind() == reflect.Bool && f.Bool() {
+			out = append(out, v.Type().Field(i).Name)
+		}
+	}
+	for _, work := range e.DisabledWork {
+		out = append(out, "No"+string(work))
+	}
+	return out
 }
 
 // ProfileSkill is one skill as the planner scores it: the effective level

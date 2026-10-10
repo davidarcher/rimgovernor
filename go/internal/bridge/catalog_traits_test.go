@@ -41,7 +41,6 @@ var retiredTraitTable = map[traitDegree]policy.TraitEffects{
 	{"FastLearner", 0}:       {LearnRate: 0.75},
 	{"SlowLearner", 0}:       {LearnRate: -0.75},
 	{"TooSmart", 0}:          {LearnRate: 0.75},
-	{"GreatMemory", 0}:       {GreatMemory: true},
 	{"SpeedOffset", 2}:       {MoveSpeed: 0.4},
 	{"SpeedOffset", 1}:       {MoveSpeed: 0.2},
 	{"SpeedOffset", -1}:      {MoveSpeed: -0.2},

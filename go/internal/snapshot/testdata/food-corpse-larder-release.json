@@ -19146,9 +19146,7 @@
    "v": [
     {
      "Age": 32.067047119140625,
-     "Effects": {
-      "GreatMemory": true
-     },
+     "Effects": {},
      "ID": "Thing_Human780",
      "Incapable": {},
      "Skills": {
@@ -19227,9 +19225,7 @@
        "Name": "PsychicSensitivity"
       },
       {
-       "Effects": {
-        "GreatMemory": true
-       },
+       "Effects": {},
        "Name": "GreatMemory"
       }
      ]
@@ -20746,9 +20742,7 @@
    "Profiles": [
     {
      "Age": 32.067047119140625,
-     "Effects": {
-      "GreatMemory": true
-     },
+     "Effects": {},
      "ID": "Thing_Human780",
      "Incapable": {},
      "Skills": {
@@ -20827,9 +20821,7 @@
        "Name": "PsychicSensitivity"
       },
       {
-       "Effects": {
-        "GreatMemory": true
-       },
+       "Effects": {},
        "Name": "GreatMemory"
       }
      ]

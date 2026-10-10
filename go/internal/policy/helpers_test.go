@@ -203,9 +203,15 @@ const (
 
 var testImpressiveness = ImpressivenessLevels{Dull: ImpressivenessDull, Mediocre: ImpressivenessMediocre, Decent: ImpressivenessDecent, SlightlyImpressive: ImpressivenessSlightlyImpressive}
 
+type traitKey struct {
+	Name   string
+	Degree int
+}
+
 // testTraitRows are the catalog-derived effects of the traits the planner
 // tests use (DefinitionCatalog.TraitEffects, compared with the full game
-// recording in the bridge tests); the code-applied flags come from traitFlags.
+// recording in the bridge tests); the code-applied sociability comes from
+// TraitSociable.
 var testTraitRows = map[traitKey]TraitEffects{
 	{"Industriousness", 2}:   {WorkSpeed: 0.35},
 	{"Industriousness", -2}:  {WorkSpeed: -0.35},
@@ -231,11 +237,14 @@ var testTraitRows = map[traitKey]TraitEffects{
 	{"ShootingAccuracy", 1}:  {RearRanged: true},
 	{"ShootingAccuracy", -1}: {RearRanged: true},
 	{"Undergrounder", 0}:     {Undergrounder: true},
+	{"Gourmand", 0}:          {Gourmand: true},
 }
 
 // testTrait is a pawn trait with its effects resolved the way the pawn read
 // resolves them from the catalog.
 func testTrait(name string, degree int) PawnTrait {
 	key := traitKey{name, degree}
-	return PawnTrait{Name: name, Degree: degree, Effects: testTraitRows[key].Add(traitFlags[key])}
+	effects := testTraitRows[key]
+	effects.Sociable = TraitSociable(name)
+	return PawnTrait{Name: name, Degree: degree, Effects: effects}
 }

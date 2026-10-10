@@ -18,36 +18,6 @@ const (
 	statShooting       = "ShootingAccuracyPawn"
 )
 
-// The vanilla thoughts the game raises in code, whose rows state which
-// traits take no mood from the act or carry a mood of their own: a trait
-// that nullifies the thought of a prisoner dying (an execution), of a
-// butchered human, or of being naked is Execution, HumanButcher or Nudist;
-// the trait the carrying-a-ranged-weapon thought requires is MeleeOnly.
-const (
-	thoughtPrisonerDied   = "KnowPrisonerDiedInnocent"
-	thoughtButcheredHuman = "ButcheredHumanlikeCorpse"
-	thoughtNaked          = "Naked"
-	thoughtRangedCarried  = "BrawlerUnhappy"
-	// thoughtOrganHarvested is the thought of a harvest from a colonist: a
-	// trait that nullifies it is a surgeon who harvests without a mood loss.
-	thoughtOrganHarvested = "KnowColonistOrganHarvested"
-	// thoughtTaintedApparel is the thought of wearing a dead man's apparel.
-	thoughtTaintedApparel = "DeadMansApparel"
-	// The thoughts whose worker applies to one trait only (requiredTraits):
-	// a bedroom that is impressive or not (Greedy, Ascetic), a better bedroom
-	// than the pawn's own (Jealous), the night and carrying an incendiary
-	// weapon (NightOwl, Pyromaniac).
-	thoughtGreedy     = "Greedy"
-	thoughtAscetic    = "Ascetic"
-	thoughtJealous    = "Jealous"
-	thoughtNightOwl   = "NightOwlDuringTheNight"
-	thoughtPyromaniac = "PyromaniacHappy"
-	// thoughtDrugDesire is the thought a drug desire trait raises while
-	// unsatisfied; its required trait is the DrugDesire trait, whose degree
-	// is the chemical interest.
-	thoughtDrugDesire = "DrugDesireInterest"
-)
-
 // Stats whose trait offset or factor marks a pawn who fights on the melee
 // line: more melee hits or dodges, less incoming damage.
 const (
@@ -98,19 +68,13 @@ func float32Number(v float32) float64 {
 // HumanButcher, Nudist and MeleeOnly, and a ShootingAccuracyPawn offset
 // RearRanged. A trait or degree the catalog lacks is a contract error;
 // effects the game applies in code and no row states come from
-// policy.TraitFlags.
+// policy.TraitSociable, and a hunger-rate factor above 1 is a gourmand.
 func (catalog *DefinitionCatalog) TraitEffects(name string, degree int) (policy.TraitEffects, error) {
 	row := DefRow[*d.TraitDef](catalog, name)
 	if row == nil {
 		return policy.TraitEffects{}, contract("catalog has no trait %s", name)
 	}
-	var data *d.TraitDegreeData
-	for _, entry := range row.GetDegreeDatas() {
-		if int(entry.GetValue().GetDegree()) == degree {
-			data = entry.GetValue()
-			break
-		}
-	}
+	data := traitDegreeData(row, degree)
 	if data == nil {
 		return policy.TraitEffects{}, contract("catalog trait %s has no degree %d", name, degree)
 	}
@@ -143,17 +107,17 @@ func (catalog *DefinitionCatalog) TraitEffects(name string, degree int) (policy.
 		required bool
 		set      *bool
 	}{
-		{thoughtPrisonerDied, false, &out.Execution},
-		{thoughtButcheredHuman, false, &out.HumanButcher},
-		{thoughtNaked, false, &out.Nudist},
-		{thoughtRangedCarried, true, &out.MeleeOnly},
-		{thoughtOrganHarvested, false, &out.SurgeonSafe},
-		{thoughtTaintedApparel, false, &out.TaintFree},
-		{thoughtGreedy, true, &out.Greedy},
-		{thoughtAscetic, true, &out.Ascetic},
-		{thoughtJealous, true, &out.Jealous},
-		{thoughtNightOwl, true, &out.NightShift},
-		{thoughtPyromaniac, true, &out.Pyromaniac},
+		{policy.ThoughtPrisonerDied, false, &out.Execution},
+		{policy.ThoughtButcheredHuman, false, &out.HumanButcher},
+		{policy.ThoughtNaked, false, &out.Nudist},
+		{policy.ThoughtRangedCarried, true, &out.MeleeOnly},
+		{policy.ThoughtOrganHarvested, false, &out.SurgeonSafe},
+		{policy.ThoughtTaintedApparel, false, &out.TaintFree},
+		{policy.ThoughtGreedy, true, &out.Greedy},
+		{policy.ThoughtAscetic, true, &out.Ascetic},
+		{policy.ThoughtJealous, true, &out.Jealous},
+		{policy.ThoughtNightOwl, true, &out.NightShift},
+		{policy.ThoughtPyromaniac, true, &out.Pyromaniac},
 	} {
 		thought, err := thoughtRow(catalog, rule.thought)
 		if err != nil {
@@ -165,7 +129,7 @@ func (catalog *DefinitionCatalog) TraitEffects(name string, degree int) (policy.
 		}
 		*rule.set = slices.Contains(list, name)
 	}
-	desire, err := thoughtRow(catalog, thoughtDrugDesire)
+	desire, err := thoughtRow(catalog, policy.ThoughtDrugDesire)
 	if err != nil {
 		return policy.TraitEffects{}, err
 	}
@@ -190,5 +154,7 @@ func (catalog *DefinitionCatalog) TraitEffects(name string, degree int) (policy.
 		}
 	}
 	slices.Sort(out.DisabledWork)
-	return out.Add(policy.TraitFlags(name, degree)), nil
+	out.Gourmand = data.GetHungerRateFactor() > 1
+	out.Sociable = policy.TraitSociable(name)
+	return out, nil
 }

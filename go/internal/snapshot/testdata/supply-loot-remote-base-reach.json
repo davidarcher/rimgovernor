@@ -4977,9 +4977,7 @@
     },
     {
      "Age": 31.007755279541016,
-     "Effects": {
-      "GreatMemory": true
-     },
+     "Effects": {},
      "ID": "Thing_Human280",
      "Incapable": {},
      "Skills": {
@@ -5056,9 +5054,7 @@
      },
      "Traits": [
       {
-       "Effects": {
-        "GreatMemory": true
-       },
+       "Effects": {},
        "Name": "GreatMemory"
       }
      ]
@@ -6579,9 +6575,7 @@
     },
     {
      "Age": 31.007755279541016,
-     "Effects": {
-      "GreatMemory": true
-     },
+     "Effects": {},
      "ID": "Thing_Human280",
      "Incapable": {},
      "Skills": {
@@ -6658,9 +6652,7 @@
      },
      "Traits": [
       {
-       "Effects": {
-        "GreatMemory": true
-       },
+       "Effects": {},
        "Name": "GreatMemory"
       }
      ]

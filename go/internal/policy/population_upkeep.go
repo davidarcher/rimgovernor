@@ -47,6 +47,9 @@ type PrisonerSkill struct {
 type PrisonerTrait struct {
 	Def    string
 	Degree int
+	// Worth is the net worth of the degree (TraitBalance.Worth); zero when
+	// the read had no catalog to derive it.
+	Worth float64
 }
 
 // PrisonerProspect is the biography a prisoner's use is judged by.
@@ -154,26 +157,10 @@ type PrisonerChoice struct {
 	Interaction domain.PrisonerInteractionMode
 }
 
-// Trait effects on a prospect's worth: work-rate and mood-stability traits
-// by defName and degree. Anything unlisted is neutral.
-var (
-	prospectGoodTraits = map[PrisonerTrait]bool{
-		{"Industriousness", 1}: true, {"Industriousness", 2}: true, {"Tough", 0}: true,
-		{"TooSmart", 0}: true, {"Nerves", 1}: true, {"Nerves", 2}: true,
-		{"NaturalMood", 1}: true, {"NaturalMood", 2}: true, {"FastLearner", 0}: true,
-		{"Kind", 0}: true,
-	}
-	prospectBadTraits = map[PrisonerTrait]bool{
-		{"Pyromaniac", 0}: true, {"Industriousness", -1}: true, {"Industriousness", -2}: true,
-		{"Nerves", -1}: true, {"Nerves", -2}: true, {"NaturalMood", -1}: true, {"NaturalMood", -2}: true,
-		{"Wimp", 0}: true, {"Abrasive", 0}: true, {"DrugDesire", 2}: true, {"Gourmand", 0}: true,
-	}
-)
-
 // PrisonerWorth scores a prospect against the colony: +1 per usable skill at
 // 8+, +1 more at 12+, +1 per major and +0.5 per minor passion, +2 per skill
 // at 6+ that beats the colony's best by 3 or more (a gap the colony lacks),
-// +1 per good and -2 per bad trait, -0.5 per incapable work type, -1 under
+// +1 per good and -2 per bad trait (the sign of TraitBalance.Worth), -0.5 per incapable work type, -1 under
 // 16 or over 60, -1 below half health, and -1 per 10 points of native recruit
 // resistance still to break (0 when unknown). Recruiting needs
 // RecruitThreshold; organ harvest considers only prisoners below it.
@@ -200,10 +187,10 @@ func PrisonerWorth(p PrisonerProspect, resistance float64, c PrisonerColony) flo
 		}
 	}
 	for _, t := range p.Traits {
-		if prospectGoodTraits[t] {
+		if t.Worth > 0 {
 			score++
 		}
-		if prospectBadTraits[t] {
+		if t.Worth < 0 {
 			score -= 2
 		}
 	}

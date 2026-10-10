@@ -28,6 +28,10 @@ func DefTables() []DefTable {
 		{"threatWeapons", "Verse.ThingDef", sortedKeys(threatWeapons)},
 		{"ArmorResearchRungs", "Verse.ResearchProjectDef", slices.Clone(ArmorResearchRungs)},
 		{"gearValuables", "Verse.ThingDef", resourceKeys(gearValuables)},
+		{"traitStatWeights", "RimWorld.StatDef", sortedKeys(traitStatWeights)},
+		{"sociableTraits", "RimWorld.TraitDef", sortedKeys(sociableTraits)},
+		{"traitThoughts", "RimWorld.ThoughtDef", slices.Clone(traitThoughts)},
+		{"suitePressureThoughts", "RimWorld.ThoughtDef", sortedKeys(suitePressureThoughts)},
 		{"GameRoomRoleDefs", "Verse.ThingDef", sortedKeys(GameRoomRoleDefs)},
 		{"NonFleshMeatDefs", "Verse.ThingDef", slices.Clone(NonFleshMeatDefs)},
 	}

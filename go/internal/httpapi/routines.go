@@ -265,17 +265,6 @@ func roundsRosterPawn(p policy.PawnProfile) roundsRosterPawnDTO {
 	sort.Slice(dto.Incapable, func(i, j int) bool { return dto.Incapable[i] < dto.Incapable[j] })
 	dto.Forbidden = append(dto.Forbidden, p.ForbiddenWork()...)
 	e := p.Effects
-	dto.Effects = roundsTraitEffectsDTO{WorkSpeed: e.WorkSpeed, LearnRate: e.LearnRate, MoveSpeed: e.MoveSpeed, Sociable: e.Sociable, ChemicalInterest: e.ChemicalInterest, Flags: []string{}}
-	for _, flag := range []struct {
-		name string
-		set  bool
-	}{{"GreatMemory", e.GreatMemory}, {"QuickSleeper", e.QuickSleeper}, {"NightShift", e.NightShift}, {"MeleeOnly", e.MeleeOnly}, {"FrontLine", e.FrontLine}, {"RearRanged", e.RearRanged}, {"Pyromaniac", e.Pyromaniac}, {"Execution", e.Execution}, {"SurgeonSafe", e.SurgeonSafe}, {"Nudist", e.Nudist}, {"Ascetic", e.Ascetic}, {"Cannibal", e.Cannibal}, {"Gourmand", e.Gourmand}, {"Undergrounder", e.Undergrounder}, {"Greedy", e.Greedy}, {"Jealous", e.Jealous}} {
-		if flag.set {
-			dto.Effects.Flags = append(dto.Effects.Flags, flag.name)
-		}
-	}
-	for _, work := range e.DisabledWork {
-		dto.Effects.Flags = append(dto.Effects.Flags, "No"+string(work))
-	}
+	dto.Effects = roundsTraitEffectsDTO{WorkSpeed: e.WorkSpeed, LearnRate: e.LearnRate, MoveSpeed: e.MoveSpeed, Sociable: e.Sociable, ChemicalInterest: e.ChemicalInterest, Flags: e.Flags()}
 	return dto
 }

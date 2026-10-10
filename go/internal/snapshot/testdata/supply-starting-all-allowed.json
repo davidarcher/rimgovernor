@@ -12344,7 +12344,6 @@
       "DisabledWork": [
        "Firefighter"
       ],
-      "GreatMemory": true,
       "MoveSpeed": 0.4,
       "Pyromaniac": true
      },
@@ -12433,9 +12432,7 @@
        "Name": "SpeedOffset"
       },
       {
-       "Effects": {
-        "GreatMemory": true
-       },
+       "Effects": {},
        "Name": "GreatMemory"
       },
       {
@@ -14115,7 +14112,6 @@
       "DisabledWork": [
        "Firefighter"
       ],
-      "GreatMemory": true,
       "MoveSpeed": 0.4,
       "Pyromaniac": true
      },
@@ -14204,9 +14200,7 @@
        "Name": "SpeedOffset"
       },
       {
-       "Effects": {
-        "GreatMemory": true
-       },
+       "Effects": {},
        "Name": "GreatMemory"
       },
       {

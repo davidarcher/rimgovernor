@@ -48,20 +48,30 @@ type PrisonerCensus struct {
 }
 
 // prisonerProspect decodes a person's biography and health; unknown when
-// either is absent.
-func prisonerProspect(person *o.PopulationPerson) domain.Fact[policy.PrisonerProspect] {
+// either is absent. Each trait's worth is derived from the catalog's rows;
+// without a catalog (the standalone chat read, which never scores a prospect)
+// it is zero.
+func prisonerProspect(person *o.PopulationPerson, catalog *DefinitionCatalog) (domain.Fact[policy.PrisonerProspect], error) {
 	bio := person.GetBiography()
 	if bio == nil || bio.BiologicalAgeYears == nil || person.HealthSummary == nil {
-		return domain.Unknown[policy.PrisonerProspect]()
+		return domain.Unknown[policy.PrisonerProspect](), nil
 	}
 	p := policy.PrisonerProspect{Age: bio.GetBiologicalAgeYears(), Health: person.GetHealthSummary(), Incapable: append([]string{}, bio.IncapableWorkTypes...)}
 	for _, s := range bio.Skills {
 		p.Skills = append(p.Skills, policy.PrisonerSkill{Name: s.GetDefName(), Level: int(s.GetLevel()), Passion: PassionName(s.GetPassion()), Disabled: s.GetDisabled()})
 	}
 	for _, t := range bio.Traits {
-		p.Traits = append(p.Traits, policy.PrisonerTrait{Def: t.GetDefName(), Degree: int(t.GetDegree())})
+		trait := policy.PrisonerTrait{Def: t.GetDefName(), Degree: int(t.GetDegree())}
+		if catalog != nil {
+			balance, err := catalog.TraitBalance(trait.Def, trait.Degree)
+			if err != nil {
+				return domain.Unknown[policy.PrisonerProspect](), err
+			}
+			trait.Worth = balance.Worth()
+		}
+		p.Traits = append(p.Traits, trait)
 	}
-	return domain.Known(p)
+	return domain.Known(p), nil
 }
 
 // ReadRoundsPopulation reads the whole population census and extracts every
@@ -158,7 +168,10 @@ func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns, catalog *Defi
 		if person.Guest != nil {
 			custodyRow.Guest = domain.Known(person.GetGuest())
 		}
-		custodyRow.Prospect = prisonerProspect(person)
+		var err error
+		if custodyRow.Prospect, err = prisonerProspect(person, catalog); err != nil {
+			return PrisonerCensus{}, err
+		}
 		if person.LuciferiumAddicted != nil {
 			custodyRow.Luciferium = domain.Known(person.GetLuciferiumAddicted())
 		}
@@ -200,9 +213,8 @@ func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns, catalog *Defi
 		if person.Will != nil {
 			f.Will = domain.Known(person.GetWill())
 		}
-		f.Ideo, f.WildMan, f.Prospect = person.GetIdeoId(), person.GetWildMan(), prisonerProspect(person)
+		f.Ideo, f.WildMan, f.Prospect = person.GetIdeoId(), person.GetWildMan(), custodyRow.Prospect
 		if h := person.GetSurgery(); h != nil {
-			var err error
 			if f.MissingParts, f.Operations, err = SurgeryFacts(h, catalog); err != nil {
 				return PrisonerCensus{}, err
 			}
