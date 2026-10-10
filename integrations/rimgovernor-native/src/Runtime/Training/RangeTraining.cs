@@ -13,22 +13,19 @@ namespace RimGovernor.Runtime
         public const string Dummy = "RimGovernor_TrainingDummy";
     }
 
-    // The training job's rules (#2610): who is eligible, which skill drills, the
-    // XP per cycle and the daily budget. The mod's work type, work giver and job
-    // defs are Defs/WorkTypeDefs, WorkGiverDefs and JobDefs/RimGovernorTraining.xml.
+    // The training job's rules (#2610, ranged only since #2686): who is eligible,
+    // the weapon tier, the XP per shot and the daily budget. The mod's work type,
+    // work giver and job defs are Defs/WorkTypeDefs, WorkGiverDefs and
+    // JobDefs/RimGovernorTraining.xml.
     internal static class RangeTraining
     {
         public const string ShootingJob = "RimGovernor_TrainShooting";
-        public const string MeleeJob = "RimGovernor_TrainMelee";
         public const string WeaponDef = "Bow_Training";
 
-        // Melee XP per cycle second (verbProps.AdjustedFullCycleTime), applied by direct
-        // SkillRecord.Learn. Vanilla pays 170 (shooting at a hostile pawn) / 20
-        // (a friendly pawn) and 200 (melee) per cycle second but pays nothing for a
-        // non-pawn target (IsTargetImmobile), so this drill is the only source. The
-        // drill pays about 15% of the fight rate: about 90 per melee swing. A shot
-        // pays the practice weapon's TrainingTier.xpPerShot (75 for the bow).
-        public const float MeleeXpPerCycleSecond = 30f;
+        // Vanilla pays 170 XP per cycle second shooting at a hostile pawn but
+        // nothing for a non-pawn target (IsTargetImmobile), so this drill is the
+        // only source: a shot pays the practice weapon's TrainingTier.xpPerShot,
+        // applied by direct SkillRecord.Learn.
 
         // Direct Learn skips the 4,000 XP/day soft cap (it neither counts toward
         // xpSinceMidnight nor feels the 0.2 saturation factor), so the drill bounds
@@ -46,7 +43,8 @@ namespace RimGovernor.Runtime
         public static ThingDef DummyDef => DefDatabase<ThingDef>.GetNamedSilentFail(TrainingRangeDefs.Dummy);
         public static ThingDef BowDef => DefDatabase<ThingDef>.GetNamedSilentFail(WeaponDef);
 
-        public static float BowRange => BowDef?.Verbs.FirstOrDefault()?.range ?? 0f;
+        // The unlocked weapon's range: the farthest a dummy may stand.
+        public static float WeaponRange => UnlockedWeapon()?.Verbs.FirstOrDefault()?.range ?? 0f;
 
         // Practice weapons by rung, from their TrainingTier extensions (the defs are
         // fixed once loaded).
@@ -88,12 +86,8 @@ namespace RimGovernor.Runtime
 
         public static int Ceiling => UnlockedWeapon()?.GetModExtension<TrainingTier>()?.skillCeiling ?? 0;
 
-        // A shot pays its weapon's xpPerShot; a melee swing pays by cycle second.
-        public static float CycleXp(ThingDef shotWeapon, float cycleSeconds)
-        {
-            var tier = shotWeapon?.GetModExtension<TrainingTier>();
-            return tier != null ? tier.xpPerShot : MeleeXpPerCycleSecond * cycleSeconds;
-        }
+        // A shot pays its weapon's xpPerShot.
+        public static float ShotXp(ThingDef weapon) => weapon?.GetModExtension<TrainingTier>()?.xpPerShot ?? 0f;
 
         public static float SpentToday(Pawn pawn)
         {
@@ -107,24 +101,15 @@ namespace RimGovernor.Runtime
             Spent[pawn.thingIDNumber] = new KeyValuePair<int, float>(GenDate.DaysPassed, SpentToday(pawn) + applied);
         }
 
-        // Pure: the best level among the enabled combat skills; -1 when none is enabled.
-        public static int BestEnabledLevel(int melee, bool meleeEnabled, int shooting, bool shootingEnabled)
+        // Only Shooting trains; the drill is closed to a pawn who cannot shoot (a
+        // Brawler, or Shooting disabled) or whose Shooting has reached the ceiling.
+        public static bool CanShoot(Pawn pawn)
         {
-            var best = -1;
-            if (meleeEnabled) best = System.Math.Max(best, melee);
-            if (shootingEnabled) best = System.Math.Max(best, shooting);
-            return best;
+            var record = pawn.skills?.GetSkill(SkillDefOf.Shooting);
+            return record != null && !record.TotallyDisabled && !(pawn.story?.traits?.HasTrait(TraitDefOf.Brawler) ?? false);
         }
 
-        public static bool BelowTarget(Pawn pawn)
-        {
-            var skills = pawn.skills;
-            if (skills == null) return false;
-            var melee = skills.GetSkill(SkillDefOf.Melee);
-            var shooting = skills.GetSkill(SkillDefOf.Shooting);
-            var best = BestEnabledLevel(melee.Level, !melee.TotallyDisabled, shooting.Level, !shooting.TotallyDisabled);
-            return best >= 0 && best < Ceiling;
-        }
+        public static bool BelowTarget(Pawn pawn) => CanShoot(pawn) && pawn.skills.GetSkill(SkillDefOf.Shooting).Level < Ceiling;
 
         public static bool Eligible(Pawn pawn)
         {
@@ -133,39 +118,22 @@ namespace RimGovernor.Runtime
                 && BelowTarget(pawn) && Remaining(pawn) > 0f;
         }
 
-        // Which skill drills: the higher usable level (it reaches the ceiling soonest),
-        // then the stronger passion, then shooting (the safer drill). Shooting is
-        // unusable for a Brawler; melee for a pawn whose Melee is disabled.
-        public static bool TryChoose(Pawn pawn, out bool shooting)
-        {
-            shooting = false;
-            var melee = pawn.skills.GetSkill(SkillDefOf.Melee);
-            var shoot = pawn.skills.GetSkill(SkillDefOf.Shooting);
-            var meleeOk = !melee.TotallyDisabled;
-            var shootOk = !shoot.TotallyDisabled && !(pawn.story?.traits?.HasTrait(TraitDefOf.Brawler) ?? false);
-            if (!meleeOk && !shootOk) return false;
-            if (meleeOk && !shootOk) return true;
-            if (shootOk && !meleeOk) { shooting = true; return true; }
-            if (shoot.Level != melee.Level) shooting = shoot.Level > melee.Level;
-            else shooting = (int)shoot.passion >= (int)melee.passion;
-            return true;
-        }
-
         public static IEnumerable<Thing> Stands(Map map)
         {
             var def = StandDef;
             return def == null || map == null ? Enumerable.Empty<Thing>() : map.listerThings.ThingsOfDef(def);
         }
 
-        // The dummy a stand faces: the nearest on the stand's row or column, in the
-        // same room, within the bow's range and in clear sight.
+        // The dummy a stand faces: the nearest one sharing its column (x or z; the
+        // rows are one cell apart and the planner puts the facing dummy straight
+        // across), within the unlocked weapon's range. No room, no walls: the range
+        // is open air, and Verb.CanHitTarget checks the shot itself.
         public static Thing DummyFor(Thing stand)
         {
             var dummyDef = DummyDef;
             var map = stand.Map;
             if (dummyDef == null || map == null) return null;
-            var range = BowRange;
-            var room = stand.Position.GetRoom(map);
+            var range = WeaponRange;
             Thing best = null;
             var bestDistance = float.MaxValue;
             foreach (var dummy in map.listerThings.ThingsOfDef(dummyDef))
@@ -174,20 +142,10 @@ namespace RimGovernor.Runtime
                 if ((d.x != 0 && d.z != 0) || (d.x == 0 && d.z == 0)) continue;
                 var distance = System.Math.Abs(d.x + d.z);
                 if (distance >= bestDistance || distance > range || dummy.HitPoints <= 0) continue;
-                if (dummy.Position.GetRoom(map) != room || !GenSight.LineOfSight(stand.Position, dummy.Position, map)) continue;
                 best = dummy;
                 bestDistance = distance;
             }
             return best;
-        }
-
-        // The lane cell a melee pawn strikes from: the one before the dummy, on the
-        // stand's side.
-        public static IntVec3 StrikeCell(Thing stand, Thing dummy)
-        {
-            var d = dummy.Position - stand.Position;
-            var step = new IntVec3(System.Math.Sign(d.x), 0, System.Math.Sign(d.z));
-            return dummy.Position - step;
         }
     }
 }

@@ -44,7 +44,7 @@ type RangePiece struct {
 }
 
 // RangeJobPrefix is the name prefix of the native training job defs
-// (RimGovernor_TrainShooting, RimGovernor_TrainMelee).
+// (RimGovernor_TrainShooting).
 const RangeJobPrefix = "RimGovernor_Train"
 
 // RangeHomeHold is the range cells kept out of the home area (#2611). Vanilla

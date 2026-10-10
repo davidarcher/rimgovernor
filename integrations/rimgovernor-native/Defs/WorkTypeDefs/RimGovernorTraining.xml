@@ -8,7 +8,7 @@
     <labelShort>train</labelShort>
     <pawnLabel>Trainee</pawnLabel>
     <gerundLabel>training</gerundLabel>
-    <description>Drill at a training range: shoot a practice bow at a dummy or strike it in melee. Only colonists whose best combat skill is below the training target take the work, and only while the range has a free lane.</description>
+    <description>Drill at a training range: shoot a practice weapon at a dummy. Only colonists whose Shooting skill is below the unlocked tier's ceiling take the work, and only while the range has a free stand.</description>
     <verb>Train</verb>
     <naturalPriority>1</naturalPriority>
     <workTags>

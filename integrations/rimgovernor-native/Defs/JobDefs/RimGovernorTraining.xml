@@ -1,16 +1,10 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <Defs>
-  <!-- Both drills share one driver; the def picks the skill (JobDriver_TrainRange). -->
+  <!-- The shooting drill (JobDriver_TrainRange); ranged only since #2686. -->
   <JobDef>
     <defName>RimGovernor_TrainShooting</defName>
     <driverClass>RimGovernor.Runtime.JobDriver_TrainRange</driverClass>
     <reportString>practising archery at the range.</reportString>
-    <allowOpportunisticPrefix>false</allowOpportunisticPrefix>
-  </JobDef>
-  <JobDef>
-    <defName>RimGovernor_TrainMelee</defName>
-    <driverClass>RimGovernor.Runtime.JobDriver_TrainRange</driverClass>
-    <reportString>sparring with a range dummy.</reportString>
     <allowOpportunisticPrefix>false</allowOpportunisticPrefix>
   </JobDef>
 </Defs>

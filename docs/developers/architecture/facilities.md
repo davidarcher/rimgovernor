@@ -579,26 +579,22 @@ sits under the `RimGovernorTraining` work type (`Defs/WorkTypeDefs`,
 unskilled rank 3 for every capable colonist and the bot, not the player, owns
 the priority ([work assignment](../contracts/work-assignment.md)); the lowest
 natural priority puts it behind every other work of an equal rank. The giver
-offers a lane only to an adult colonist whose best enabled combat skill is under
+offers a stand only to an adult colonist whose Shooting skill is under
 the same ceiling (native `RangeTraining.Ceiling`, read from finished research, Odyssey projects by name; About.xml depends on Odyssey) with budget
-left, for a stand that is unreserved and unforbidden and a dummy on its row or
-column in the same room, in the bow's range and in sight. The job
-(`JobDriver_TrainRange`, `RimGovernor_TrainShooting` or `_TrainMelee`) trains
-the higher usable skill (then the stronger passion, then shooting).
+left, for a stand that is unreserved and unforbidden and a dummy sharing its
+column (x or z) within the unlocked weapon's range; the range is open air, so no
+room or sight test. The job (`JobDriver_TrainRange`, `RimGovernor_TrainShooting`)
+trains Shooting only; melee left the range (#2676).
 
 - **Shooting.** Walk onto the stand, move the pawn's weapon to its inventory,
-  equip a fresh `Bow_Training` and fire its real verb at the dummy (no friendly
-  fire, no non-target pawns), so arrows hit the dummy or what stands
-  behind it. The finish action runs on every end of the job (completion,
+  equip a fresh practice weapon of the best unlocked tier and fire its real verb
+  at the dummy (no friendly fire, no non-target pawns). The finish action runs on every end of the job (completion,
   interruption, drafting, downing, the pawn's death, which despawns it before its
   belongings drop) and restores the weapon and destroys the bow.
-- **Melee.** Walk to the lane cell before the dummy and strike it with the
-  pawn's own melee verb; no swap. The `lab/training-melee` case runs it.
 - **XP.** Vanilla pays nothing for a non-pawn target (`IsTargetImmobile`), so
-  each completed cycle (a shot whose `LastShotTick` advanced, or a swing) calls
-  direct `SkillRecord.Learn`: the weapon's `TrainingTier.xpPerShot` for
-  shooting (75 a shot with the practice bow, more for the unlocked tiers) and 30 per second of `AdjustedFullCycleTime` for melee, about 15% of
-  vanilla's 170 and 200 per cycle second against a hostile pawn. Direct Learn
+  each completed shot (one whose `LastShotTick` advanced) calls
+  direct `SkillRecord.Learn` with the weapon's `TrainingTier.xpPerShot` (75 with
+  the practice bow, more for the unlocked tiers). Direct Learn
   keeps the passion factor but skips the 4,000 XP/day soft cap and does not count
   toward `xpSinceMidnight`, so the job bounds itself: at most 3,000 applied XP
   a pawn a day (in memory, reset on a new day or a load), leaving a quarter of

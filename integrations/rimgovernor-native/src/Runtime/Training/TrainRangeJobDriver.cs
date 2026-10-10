@@ -6,20 +6,20 @@ using Verse.AI;
 
 namespace RimGovernor.Runtime
 {
-    // One drill session at a range lane (#2610). TargetA is the lane's stand,
-    // TargetB its dummy; job.maxNumStaticAttacks bounds the cycles.
+    // One drill session at a range stand (#2610, ranged only since #2686). TargetA
+    // is the stand, TargetB the dummy in its column; job.maxNumStaticAttacks bounds
+    // the cycles.
     //
-    // Shooting: walk onto the stand, swap the pawn's weapon for the best unlocked practice weapon (a Bow_Training at tier 0)
-    // (the real one moves to the pawn's inventory), then fire the bow's real verb
-    // at the dummy, so arrows hit the dummy or the partitions beside it.
-    // Melee: walk to the lane cell before the dummy and strike it with the pawn's
-    // own melee verb; no swap.
+    // Walk onto the stand, swap the pawn's weapon for the best unlocked practice
+    // weapon (the real one moves to the pawn's inventory), then fire its real verb
+    // at the dummy. The range is open air: the verb never hits a pawn in the way
+    // (TryStartCastOn with friendly fire prevented), and a wild shot flies on.
     //
-    // Vanilla pays no verb XP for a non-pawn target, so each completed cycle is
-    // paid by direct SkillRecord.Learn at RangeTraining's rates, within the pawn's
+    // Vanilla pays no verb XP for a non-pawn target, so each completed shot is
+    // paid by direct SkillRecord.Learn at the weapon's xpPerShot, within the pawn's
     // daily budget. The finish action runs on every end of the job (completion,
     // interruption, drafting, the pawn's death, which despawns it before its
-    // belongings drop) and puts the real weapon back and destroys the bow.
+    // belongings drop) and puts the real weapon back and destroys the practice weapon.
     public sealed class JobDriver_TrainRange : JobDriver
     {
         private const TargetIndex StandIndex = TargetIndex.A;
@@ -29,9 +29,6 @@ namespace RimGovernor.Runtime
         private ThingWithComps trainingBow;
         private int cyclesDone;
         private int castStartedTick = -1;
-
-        private bool Shooting => job.def.defName == RangeTraining.ShootingJob;
-        private SkillDef Skill => Shooting ? SkillDefOf.Shooting : SkillDefOf.Melee;
 
         public override void ExposeData()
         {
@@ -53,22 +50,15 @@ namespace RimGovernor.Runtime
             this.FailOnDespawnedOrNull(DummyIndex);
             this.FailOn(() => !RangeTraining.BelowTarget(pawn));
             AddFinishAction(delegate { RestoreWeapon(); });
-            if (Shooting)
-            {
-                yield return Toils_Goto.GotoThing(StandIndex, PathEndMode.OnCell);
-                var swap = ToilMaker.MakeToil("SwapToTrainingBow");
-                swap.initAction = SwapToBow;
-                yield return swap;
-            }
-            else
-            {
-                yield return Toils_Goto.GotoCell(RangeTraining.StrikeCell(job.GetTarget(StandIndex).Thing, job.GetTarget(DummyIndex).Thing), PathEndMode.OnCell);
-            }
+            yield return Toils_Goto.GotoThing(StandIndex, PathEndMode.OnCell);
+            var swap = ToilMaker.MakeToil("SwapToTrainingWeapon");
+            swap.initAction = SwapToBow;
+            yield return swap;
             var drill = ToilMaker.MakeToil("Drill");
             drill.defaultCompleteMode = ToilCompleteMode.Never;
             drill.initAction = delegate { pawn.pather.StopDead(); };
             drill.tickAction = DrillTick;
-            drill.activeSkill = () => Skill;
+            drill.activeSkill = () => SkillDefOf.Shooting;
             yield return drill;
         }
 
@@ -104,14 +94,14 @@ namespace RimGovernor.Runtime
                 EndJobWith(JobCondition.Incompletable);
                 return;
             }
-            if (Shooting && castStartedTick >= 0)
+            if (castStartedTick >= 0)
             {
                 // The shot lands when the warmup ends; a cast cut short never fires.
                 var verb = pawn.equipment.PrimaryEq?.PrimaryVerb;
                 if (verb != null && verb.LastShotTick >= castStartedTick)
                 {
                     castStartedTick = -1;
-                    Pay(verb);
+                    Pay();
                 }
                 else if (!stances.FullBodyBusy)
                 {
@@ -125,8 +115,7 @@ namespace RimGovernor.Runtime
                 EndJobWith(JobCondition.Succeeded);
                 return;
             }
-            if (Shooting) StartShot(dummy);
-            else Swing(dummy);
+            StartShot(dummy);
         }
 
         private void StartShot(Thing dummy)
@@ -137,29 +126,18 @@ namespace RimGovernor.Runtime
                 EndJobWith(JobCondition.Incompletable);
                 return;
             }
-            // No stray pawn is hit and no friendly fire: a wild arrow ends in a partition or the wall.
+            // No stray pawn is hit and no friendly fire.
             if (verb.TryStartCastOn(dummy, false, false, true)) castStartedTick = Find.TickManager.TicksGame;
             else EndJobWith(JobCondition.Incompletable);
         }
 
-        private void Swing(Thing dummy)
-        {
-            var verb = pawn.meleeVerbs.TryGetMeleeVerb(dummy);
-            if (verb == null || !verb.CanHitTarget(dummy) || !pawn.meleeVerbs.TryMeleeAttack(dummy, verb))
-            {
-                EndJobWith(JobCondition.Incompletable);
-                return;
-            }
-            Pay(verb);
-        }
-
-        // One completed cycle: direct Learn, bounded by what is left of the day's budget.
-        private void Pay(Verb verb)
+        // One completed shot: direct Learn, bounded by what is left of the day's budget.
+        private void Pay()
         {
             cyclesDone++;
-            var record = pawn.skills.GetSkill(Skill);
+            var record = pawn.skills.GetSkill(SkillDefOf.Shooting);
             var factor = record.LearnRateFactor(true);
-            var xp = RangeTraining.CycleXp(Shooting ? trainingBow?.def : null, verb.verbProps.AdjustedFullCycleTime(verb, pawn));
+            var xp = RangeTraining.ShotXp(trainingBow?.def);
             var applied = xp * factor;
             var remaining = RangeTraining.Remaining(pawn);
             if (applied > remaining)

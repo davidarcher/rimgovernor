@@ -35,7 +35,7 @@ func TestNativeTrainingJobMirrorsTheTarget(t *testing.T) {
 	for dir, names := range map[string][]string{
 		"WorkTypeDefs":  {"RimGovernorTraining"},
 		"WorkGiverDefs": {"RimGovernor_TrainRange"},
-		"JobDefs":       {"RimGovernor_TrainShooting", "RimGovernor_TrainMelee"},
+		"JobDefs":       {"RimGovernor_TrainShooting"},
 	} {
 		def, err := os.ReadFile(filepath.Join(native, "Defs", dir, "RimGovernorTraining.xml"))
 		if err != nil {
@@ -45,6 +45,9 @@ func TestNativeTrainingJobMirrorsTheTarget(t *testing.T) {
 			if !strings.Contains(string(def), "<defName>"+name+"</defName>") {
 				t.Fatal("def missing from the native mod", dir, name)
 			}
+		}
+		if strings.Contains(string(def), "RimGovernor_TrainMelee") {
+			t.Fatal("melee leaves the range (#2676)", dir)
 		}
 	}
 }
