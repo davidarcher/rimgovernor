@@ -32,9 +32,15 @@ func NewRoundsArtPlanner(reviewer *Rounder) (*RoundsArtPlanner, error) {
 	return &RoundsArtPlanner{reviewer: reviewer}, nil
 }
 
-// DeclareOrders declares the pinned sculpture batches (OrderDeclarer) and notes
+// DeclareOrders is the declaration owned by policy.MaintainArt.
+func (r *RoundsArtPlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+	declared, err := r.declareOrders(ctx, snapshot, projection, benches)
+	return declared.For(policy.MaintainArt), err
+}
+
+// declareOrders declares the pinned sculpture batches (OrderDeclarer) and notes
 // whether one is being sculpted.
-func (r *RoundsArtPlanner) DeclareOrders(ctx context.Context, _ domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+func (r *RoundsArtPlanner) declareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
 	r.mu.Lock()
 	r.sculpting = policy.SculptureInProgress(benches)
 	r.mu.Unlock()

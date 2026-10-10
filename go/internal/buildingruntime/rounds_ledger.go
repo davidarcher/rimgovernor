@@ -22,8 +22,8 @@ import (
 // DeclareOrders is called once per review, on the review's projection and the
 // bench readback the ledger reconciles against. It returns the planner's whole
 // wanted set (an order it omits is an orphan after policy.OrphanGraceRounds
-// Rounds) and sets Declared.Abstain when it lacked the facts to say, which
-// stops orphan removal for that Round. It writes nothing; a facts-only native
+// Rounds) and abstains (policy.Abstaining, naming the unread fact) when it lacked the
+// facts to say, which stops orphan removal for that Round. It writes nothing; a facts-only native
 // read for what the projection lacks is allowed, and a read that fails is an
 // abstain, not an error.
 type OrderDeclarer interface {
@@ -50,6 +50,9 @@ type workLedger struct {
 	colonists int
 	// view is the latest review's read-only projection (LedgerView).
 	view policy.LedgerView
+	// benchKinds is the latest readback's bench definition by bench id, which
+	// turns a journaled bill action back into an order Key.
+	benchKinds map[string]string
 }
 
 // ledgerUnmet is the latest review's unmet throughput per bench kind.
@@ -104,6 +107,7 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 	}
 	l.world = snapshot
 	l.unmet, l.colonists = nil, 0
+	l.benchKinds = nil
 	l.view = policy.NewLedgerView(policy.LedgerViewInactive, int64(projection.Identity.Tick))
 	l.mu.Unlock()
 	native, ok := r.native.(RoundsWorkBenchSource)
@@ -137,11 +141,15 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 	actual, known := policy.LedgerActuals(benches)
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.benchKinds = map[string]string{}
+	for _, b := range benches {
+		l.benchKinds[b.ID] = b.Def
+	}
 	l.noteBatches(declared)
 	if !known {
 		l.view = policy.NewLedgerView(policy.LedgerViewUnread, int64(projection.Identity.Tick))
 		for _, d := range named {
-			l.view.Declarers = append(l.view.Declarers, policy.LedgerDeclarerView{Name: d.Name, Orders: len(d.Orders), Abstain: d.Abstain})
+			l.view.Declarers = append(l.view.Declarers, policy.DeclarerView(d.Name, d.Declared))
 		}
 		return domain.Unknown[bool](), nil
 	}

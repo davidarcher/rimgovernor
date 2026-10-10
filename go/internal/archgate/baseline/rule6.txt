@@ -119,7 +119,7 @@ internal/buildingruntime/rounds_research.go|-|2500
 internal/buildingruntime/rounds_resource.go|RoundsResourcePlanner.dispatchResourceConcern|"Beer"
 internal/buildingruntime/rounds_resource.go|RoundsResourcePlanner.step|"Beer"
 internal/buildingruntime/rounds_resource_fields.go|Rounder.chopMinGrowth|"WoodLog"
-internal/buildingruntime/rounds_resource_orders.go|RoundsResourcePlanner.DeclareOrders|"Beer"
+internal/buildingruntime/rounds_resource_orders.go|RoundsResourcePlanner.declareOrders|"Beer"
 internal/buildingruntime/rounds_resource_supply.go|Rounder.buildResourceSupply|"Beer"
 internal/buildingruntime/rounds_shell_interiors.go|shellInteriors|"Door"
 internal/buildingruntime/rounds_shell_interiors.go|shellInteriors|"Wall"

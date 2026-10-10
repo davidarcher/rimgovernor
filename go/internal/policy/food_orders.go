@@ -184,8 +184,11 @@ func (s BillSelection) Order(benchKind string) OrderSpec {
 // the flare.
 func DeclareFoodOrders(r FoodOrderRequest, benches []GearBench) Declared {
 	order := SelectFoodOrder(r)
-	if order.Gap == FoodOrderField || order.Gap == FoodOrderPlan {
-		return Declared{Abstain: true}
+	if order.Gap == FoodOrderField {
+		return Abstaining(UnreadFoodFacts)
+	}
+	if order.Gap == FoodOrderPlan {
+		return Abstaining(UnreadFoodPlan)
 	}
 	census, _ := r.Benches.Value()
 	kinds := map[string]string{}
@@ -196,11 +199,11 @@ func DeclareFoodOrders(r FoodOrderRequest, benches []GearBench) Declared {
 	for _, selected := range order.Selections {
 		kind, ok := kinds[selected.Bench]
 		if !ok || kind == "" {
-			return Declared{Abstain: true}
+			return Abstaining(UnreadBenchDef)
 		}
 		spec, known := adequateOrder(selected.Order(kind), benches)
 		if !known {
-			return Declared{Abstain: true}
+			return Abstaining(UnreadBills)
 		}
 		out.Orders = append(out.Orders, spec)
 	}
@@ -208,7 +211,7 @@ func DeclareFoodOrders(r FoodOrderRequest, benches []GearBench) Declared {
 		return out
 	}
 	standing, known := standingOrders(benches, foodFamily(r.Purpose))
-	return Declared{Orders: standing, Abstain: !known}
+	return abstainUnless(unreadIf(!known, UnreadBills), standing...)
 }
 
 // foodFamily is whether a bill belongs to a purpose's family.
@@ -318,5 +321,5 @@ func FoodStorageMealOrder(choice FoodStorageMethod, benches []GearBench) (spec O
 // they stand; Abstain while a bill readback is unread.
 func StandingStockOrders(benches []GearBench, resource Resource) Declared {
 	orders, known := standingOrders(benches, func(b GearBill) bool { return slices.Contains(b.Products, resource) })
-	return Declared{Orders: orders, Abstain: !known}
+	return abstainUnless(unreadIf(!known, UnreadBills), orders...)
 }

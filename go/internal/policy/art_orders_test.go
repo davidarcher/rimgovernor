@@ -31,7 +31,7 @@ func artRequest(benches []GearBench, owed domain.Fact[bool], profiles ...PawnPro
 func TestDeclareArtOrdersPinsASculptureToEachArtist(t *testing.T) {
 	artistA, artistB := artProfile("a", 8, ""), artProfile("b", 8, "")
 	got := DeclareArtOrders(artRequest(artGearBench(sculptureBill("Bill_1", "a", true)), domain.Known(true), artistA, artistB))
-	if got.Abstain || len(got.Orders) != 2 || got.Orders[0].Key() != sculptureSpec("a").Key() || got.Orders[1].Key() != sculptureSpec("b").Key() {
+	if got.Abstained() || len(got.Orders) != 2 || got.Orders[0].Key() != sculptureSpec("a").Key() || got.Orders[1].Key() != sculptureSpec("b").Key() {
 		t.Fatalf("declared = %+v", got)
 	}
 	// A finished sculpture is renewed, not declared as it stands.
@@ -47,7 +47,7 @@ func TestDeclareArtOrdersPinsASculptureToEachArtist(t *testing.T) {
 func TestDeclareArtOrdersDropsASculptureOfAFormerArtist(t *testing.T) {
 	benches := artGearBench(sculptureBill("Bill_a", "a", true), sculptureBill("Bill_b", "b", true))
 	got := DeclareArtOrders(artRequest(benches, domain.Known(true), artProfile("a", 8, ""), artProfile("b", 2, "")))
-	if got.Abstain || len(got.Orders) != 1 || got.Orders[0].Key() != sculptureSpec("a").Key() {
+	if got.Abstained() || len(got.Orders) != 1 || got.Orders[0].Key() != sculptureSpec("a").Key() {
 		t.Fatalf("declared = %+v", got)
 	}
 	actual, known := LedgerActuals(benches)
@@ -70,15 +70,15 @@ func TestDeclareArtOrdersDropsASculptureOfAFormerArtist(t *testing.T) {
 func TestDeclareArtOrdersFollowsTheNeed(t *testing.T) {
 	benches := artGearBench(sculptureBill("Bill_a", "a", true))
 	artist := artProfile("a", 8, "")
-	if got := DeclareArtOrders(artRequest(benches, domain.Known(false), artist)); got.Abstain || len(got.Orders) != 0 {
+	if got := DeclareArtOrders(artRequest(benches, domain.Known(false), artist)); got.Abstained() || len(got.Orders) != 0 {
 		t.Fatalf("no need: %+v", got)
 	}
-	if got := DeclareArtOrders(artRequest(benches, domain.Unknown[bool](), artist)); !got.Abstain || len(got.Orders) != 1 {
+	if got := DeclareArtOrders(artRequest(benches, domain.Unknown[bool](), artist)); !got.Abstained() || len(got.Orders) != 1 {
 		t.Fatalf("unread need: %+v", got)
 	}
 	request := artRequest(benches, domain.Unknown[bool](), artist)
 	request.Profiles = domain.Unknown[[]PawnProfile]()
-	if got := DeclareArtOrders(request); !got.Abstain || len(got.Orders) != 0 {
+	if got := DeclareArtOrders(request); !got.Abstained() || len(got.Orders) != 0 {
 		t.Fatalf("unread artists: %+v", got)
 	}
 	// Silver to raise opens no art need: sculptures to sell are MaintainTrade's.

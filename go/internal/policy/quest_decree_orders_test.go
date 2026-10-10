@@ -26,7 +26,7 @@ func TestDeclareDecreeOrders(t *testing.T) {
 	open := produceOffer("q1", domain.Known(true), domain.Unknown[int64]())
 	got := DeclareDecreeOrders(decreeOrderRequest([]JoinerOffer{open}, recipe))
 	want := OrderSpec{Recipe: "MakeArmor", Ingredients: []string{"Steel"}, Mode: domain.GearBatch, Target: 3, BenchKind: "TableMachining"}
-	if got.Abstain || len(got.Orders) != 1 || got.Orders[0].Key() != want.Key() {
+	if got.Abstained() || len(got.Orders) != 1 || got.Orders[0].Key() != want.Key() {
 		t.Fatalf("declared = %+v", got)
 	}
 	// The bill is half made: it is declared as the bench reads it back.
@@ -42,21 +42,21 @@ func TestDeclareDecreeOrders(t *testing.T) {
 		"expired":       produceOffer("q1", domain.Known(true), domain.Known[int64](100)),
 		"another asker": produceOffer("q1", domain.Known(false), domain.Unknown[int64]()),
 	} {
-		if got := DeclareDecreeOrders(decreeOrderRequest([]JoinerOffer{offer}, recipe)); got.Abstain || len(got.Orders) != 0 {
+		if got := DeclareDecreeOrders(decreeOrderRequest([]JoinerOffer{offer}, recipe)); got.Abstained() || len(got.Orders) != 0 {
 			t.Fatalf("%s: %+v", name, got)
 		}
 	}
 	// What is unread abstains.
-	if got := DeclareDecreeOrders(decreeOrderRequest([]JoinerOffer{produceOffer("q1", domain.Unknown[bool](), domain.Unknown[int64]())}, recipe)); !got.Abstain {
+	if got := DeclareDecreeOrders(decreeOrderRequest([]JoinerOffer{produceOffer("q1", domain.Unknown[bool](), domain.Unknown[int64]())}, recipe)); !got.Abstained() {
 		t.Fatalf("unread asker: %+v", got)
 	}
 	request := decreeOrderRequest([]JoinerOffer{open}, recipe)
 	request.Stock = domain.Unknown[[]Amount]()
-	if got := DeclareDecreeOrders(request); !got.Abstain || len(got.Orders) != 0 {
+	if got := DeclareDecreeOrders(request); !got.Abstained() || len(got.Orders) != 0 {
 		t.Fatalf("unread stock: %+v", got)
 	}
 	request.Offers = domain.Unknown[[]JoinerOffer]()
-	if got := DeclareDecreeOrders(request); !got.Abstain {
+	if got := DeclareDecreeOrders(request); !got.Abstained() {
 		t.Fatalf("unread offers: %+v", got)
 	}
 }

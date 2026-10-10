@@ -16,26 +16,41 @@ func gearRequest(projection observation.ColonyProjection, benches []policy.GearB
 
 // abstainOnRead is the declaration of a Round whose native read failed: the
 // ledger removes nothing on it. A cancelled context is the caller's error.
-func abstainOnRead(ctx context.Context) (policy.Declared, error) {
+func abstainOnRead(ctx context.Context, fact policy.UnreadFact) (policy.Declared, error) {
 	if ctx.Err() != nil {
 		return policy.Declared{}, ctx.Err()
 	}
-	return policy.Declared{Abstain: true}, nil
+	return policy.Abstaining(fact), nil
 }
 
-// DeclareOrders declares MaintainEquipment's apparel batches (OrderDeclarer).
-func (r *RoundsGearPlanner) DeclareOrders(_ context.Context, _ domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+// DeclareOrders is the declaration owned by policy.MaintainEquipment.
+func (r *RoundsGearPlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+	declared, err := r.declareOrders(ctx, snapshot, projection, benches)
+	return declared.For(policy.MaintainEquipment), err
+}
+
+// declareOrders declares MaintainEquipment's apparel batches (OrderDeclarer).
+func (r *RoundsGearPlanner) declareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
 	return policy.DeclareGearOrders(gearRequest(projection, benches))
 }
 
-// DeclareOrders declares the armory's weapon batches, armor ladder and mortar
-// shell stock (OrderDeclarer), and notes whether a crafting spot is wanted.
+// DeclareOrders is the declaration owned by policy.MaintainEquipment.
 func (r *RoundsArmoryPlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+	declared, err := r.declareOrders(ctx, snapshot, projection, benches)
+	return declared.For(policy.MaintainEquipment), err
+}
+
+// declareOrders declares the armory's weapon batches, armor ladder and mortar
+// shell stock (OrderDeclarer), and notes whether a crafting spot is wanted.
+func (r *RoundsArmoryPlanner) declareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
 	r.setSpotNeeded(false)
 	tier := policy.AssessArmory(projection.Facts.RaidPoints, projection.Facts.Research).Tier
 	census, known := projection.Facts.Gear.Value()
-	if _, ok := r.native.(RoundsEquipSource); !ok || !known {
-		return policy.Declared{Abstain: true}, nil
+	if _, ok := r.native.(RoundsEquipSource); !ok {
+		return policy.Abstaining(policy.UnreadNativeRead), nil
+	}
+	if !known {
+		return policy.Abstaining(policy.UnreadGearDemand), nil
 	}
 	ids := make([]string, 0, len(census.Pawns))
 	for _, p := range census.Pawns {
@@ -43,11 +58,11 @@ func (r *RoundsArmoryPlanner) DeclareOrders(ctx context.Context, snapshot domain
 	}
 	fighters, hunters, unarmed, err := r.weaponDemand(ctx, snapshot, ids, int64(projection.Identity.Tick), benches, tier)
 	if err != nil {
-		return abstainOnRead(ctx)
+		return abstainOnRead(ctx, policy.UnreadWeapons)
 	}
 	shells, err := shellTargets(ctx, r.native, r.reviewer.player.journal, snapshot, projection)
 	if err != nil {
-		return abstainOnRead(ctx)
+		return abstainOnRead(ctx, policy.UnreadShells)
 	}
 	r.setSpotNeeded(unarmed > 0 && !weaponBenchHosted(benches))
 	return policy.DeclareArmoryOrders(gearRequest(projection, benches), tier, mergeAmounts(fighters, hunters), shells)

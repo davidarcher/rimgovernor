@@ -41,6 +41,59 @@ var modeLabels = map[string]string{
 	"gear_batch": "finite batch", "butcher_forever": "forever", "human_butcher_forever": "forever",
 }
 
+// unreadLabels say what each abstain's unread input is. A test holds it to
+// every policy.UnreadFact.
+var unreadLabels = map[policy.UnreadFact]string{
+	policy.UnreadReview:      "the Round's review",
+	policy.UnreadStock:       "the stock census",
+	policy.UnreadBenches:     "the bench readback",
+	policy.UnreadBenchDef:    "a bench's kind",
+	policy.UnreadBills:       "a bench's bills or recipes",
+	policy.UnreadRecipes:     "a recipe's facts",
+	policy.UnreadDefinitions: "the game's definitions",
+	policy.UnreadNativeRead:  "a read the game could not serve",
+	policy.UnreadMedicine:    "the medicine catalog",
+	policy.UnreadArtists:     "who the artists are",
+	policy.UnreadArtNeed:     "whether art is wanted",
+	policy.UnreadGearRecover: "whether colonists have recovered",
+	policy.UnreadGearNeeds:   "what gear colonists need",
+	policy.UnreadGearDemand:  "the gear census",
+	policy.UnreadArmoryTier:  "the armory tier",
+	policy.UnreadWeapons:     "the weapon demand",
+	policy.UnreadShells:      "the mortar shell targets",
+	policy.UnreadFoodFacts:   "the food facts",
+	policy.UnreadFoodPlan:    "the food plan",
+	policy.UnreadFoodStorage: "food storage",
+	policy.UnreadBabyFeeding: "which babies need feeding",
+	policy.UnreadMechs:       "the mech gestation",
+	policy.UnreadWort:        "which wort makes beer",
+	policy.UnreadQuestOffers: "the quest offers",
+	policy.UnreadQuestAsker:  "who a quest's asker is",
+	policy.UnreadSilverGap:   "the silver gap",
+	policy.UnreadWorkers:     "the workers' skills",
+	policy.UnreadTraderCash:  "what traders can pay",
+	policy.UnreadBuyers:      "which traders buy",
+	policy.UnreadSurplus:     "the gear surplus",
+	policy.UnreadRunways:     "the ingredient runways",
+	policy.UnreadSupply:      "the ingredient supply",
+	policy.UnreadSources:     "where ingredients come from",
+}
+
+func unreadLabel(f policy.UnreadFact) string {
+	if l, ok := unreadLabels[f]; ok {
+		return l
+	}
+	return string(f)
+}
+
+// dropLabels say why export candidates never reached an order.
+var dropLabels = map[policy.ExportDrop]string{
+	policy.ExportDropNoBuyer:      "no reachable buyer",
+	policy.ExportDropNoIngredient: "no usable ingredient",
+	policy.ExportDropNoMargin:     "margin at or below zero",
+	policy.ExportDropRunway:       "runway guard",
+}
+
 var orderStateLabels = map[string]string{
 	policy.OrderPlaced: "placed", policy.OrderPlacing: "placing this Round", policy.OrderUnplaced: "unplaced",
 }
@@ -96,14 +149,18 @@ func ledgerPage(r Reading[policy.LedgerView]) LedgerPage {
 	declarers := LedgerSection{Title: "Planners declaring", Columns: []string{"Planner", "Orders", "State"}}
 	for _, d := range v.Declarers {
 		row := LedgerRow{Cells: []string{d.Name, strconv.Itoa(d.Orders), "declared"}}
-		if d.Abstain {
-			row.Cells[2], row.Flag = "abstained: a fact it needs was unread", "warn"
+		if len(d.Abstains) > 0 {
+			var why []string
+			for _, a := range d.Abstains {
+				why = append(why, a.Concern+" did not read "+unreadLabel(a.Fact))
+			}
+			row.Cells[2], row.Flag = "abstained: "+strings.Join(why, "; "), "warn"
 		}
 		declarers.Rows = append(declarers.Rows, row)
 	}
 	declarers.Note = "Orphan bills are removed only after " + strconv.Itoa(v.GraceRounds) + " undeclared Rounds, and never in a Round where a planner abstained."
 
-	orders := LedgerSection{Title: "Declared orders", Columns: []string{"Owner", "Order", "Target", "Mode", "Bench kind", "Worker", "Ingredients", "State", "Benches"}}
+	orders := LedgerSection{Title: "Declared orders", Columns: []string{"Owners", "Order", "Target", "Mode", "Bench kind", "Worker", "Ingredients", "State", "Benches", "Placement"}}
 	for _, o := range v.Orders {
 		name := o.Recipe
 		if o.Product != "" {
@@ -114,12 +171,15 @@ func ledgerPage(r Reading[policy.LedgerView]) LedgerPage {
 		if len(o.Placing) > 0 {
 			benches += " -> placing on " + strings.Join(o.Placing, ", ")
 		}
-		row := LedgerRow{Cells: []string{o.Owner, name, strconv.Itoa(int(o.Target)), modeLabels[o.Mode], o.BenchKind, orDash(o.Worker), list(o.Ingredients), state, benches}}
+		row := LedgerRow{Cells: []string{list(o.Owners), name, strconv.Itoa(int(o.Target)), modeLabels[o.Mode], o.BenchKind, orDash(o.Worker), list(o.Ingredients), state, benches, placement(o.Attempt, v.AttemptsKnown)}}
 		if o.Copies > 1 {
 			row.Cells[1] += fmt.Sprintf(" x%d benches", o.Copies)
 		}
 		if o.State == policy.OrderUnplaced {
 			row.Cells[7] = fmt.Sprintf("unplaced x%d: %s", o.Unplaced, unmetLabel(o.Reason))
+			row.Flag = "warn"
+		}
+		if o.Attempt != nil && o.Attempt.Outcome == policy.AttemptRefused {
 			row.Flag = "warn"
 		}
 		if o.Shortfall != nil {
@@ -190,6 +250,24 @@ func ledgerPage(r Reading[policy.LedgerView]) LedgerPage {
 	return p
 }
 
+// placement says what the journal holds for an order's latest bill: native's
+// answer, or that none was tried.
+func placement(a *policy.PlacementAttempt, known bool) string {
+	switch {
+	case a == nil && !known:
+		return "journal unread"
+	case a == nil:
+		return "never attempted"
+	case a.Outcome == policy.AttemptRefused:
+		return "refused at tick " + group(a.Tick) + ": " + orDash(a.Reason)
+	case a.Outcome == policy.AttemptAccepted:
+		return "accepted at tick " + group(a.Tick)
+	case a.Outcome == policy.AttemptUnconfirmed:
+		return "sent at tick " + group(a.Tick) + ", answer unknown"
+	}
+	return "committed, not yet sent"
+}
+
 func emptyNote(rows int, text string) string {
 	if rows == 0 {
 		return text
@@ -210,6 +288,13 @@ func exportSection(e *policy.ExportView) LedgerSection {
 		s.Note = "No silver gap: nothing is made for sale."
 	default:
 		s.Note = fmt.Sprintf("Silver gap %s; %s already in flight (held, packed or on standing bills); %s left to order against.", silver(e.Gap), silver(e.InFlight), silver(e.Remaining))
+	}
+	var dropped []string
+	for _, d := range e.Dropped {
+		dropped = append(dropped, fmt.Sprintf("%d %s", d.Count, dropLabels[d.Reason]))
+	}
+	if len(dropped) > 0 {
+		s.Note += " Candidates dropped before ordering: " + strings.Join(dropped, ", ") + "."
 	}
 	for _, c := range e.Candidates {
 		ordered := "no"

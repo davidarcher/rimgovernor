@@ -66,7 +66,7 @@ func TestExportRankingFollowsAcquisitionCost(t *testing.T) {
 func TestExportDeclaresPinnedBatchesForAnOpenGap(t *testing.T) {
 	request := exportFixture(exportProfile("w1", 10))
 	got := DeclareExportOrders(request).Declared
-	if got.Abstain || len(got.Orders) != 1 {
+	if got.Abstained() || len(got.Orders) != 1 {
 		t.Fatalf("declared = %+v", got)
 	}
 	o := got.Orders[0]
@@ -74,7 +74,7 @@ func TestExportDeclaresPinnedBatchesForAnOpenGap(t *testing.T) {
 		t.Fatalf("order = %+v", o)
 	}
 	request.Gap = domain.Known(0.0)
-	if got := DeclareExportOrders(request).Declared; got.Abstain || len(got.Orders) != 0 {
+	if got := DeclareExportOrders(request).Declared; got.Abstained() || len(got.Orders) != 0 {
 		t.Fatalf("closed gap = %+v", got)
 	}
 }
@@ -94,11 +94,11 @@ func TestExportQuantityIsBoundedByTraderCash(t *testing.T) {
 func TestExportNeverOrdersAGoodTheTraderDoesNotBuy(t *testing.T) {
 	request := exportFixture(exportProfile("w1", 10))
 	request.Buys["Jewel"], request.Buys["WoodTrinket"] = domain.Known(false), domain.Known(false)
-	if got := DeclareExportOrders(request).Declared; got.Abstain || len(got.Orders) != 0 {
+	if got := DeclareExportOrders(request).Declared; got.Abstained() || len(got.Orders) != 0 {
 		t.Fatalf("unbought = %+v", got)
 	}
 	request.Buys["Jewel"] = domain.Unknown[bool]()
-	if got := DeclareExportOrders(request).Declared; !got.Abstain {
+	if got := DeclareExportOrders(request).Declared; !got.Abstained() {
 		t.Fatalf("unread buyer = %+v", got)
 	}
 }
@@ -133,7 +133,7 @@ func TestExportRunwayGuardCountsDeclaredDraws(t *testing.T) {
 	}
 	// An unread use rate of a forecast ingredient is unknown.
 	request.Runways = []ResourceRunway{{Resource: "WoodLog", Stock: domain.Known[int64](100)}}
-	if got := DeclareExportOrders(request).Declared; !got.Abstain {
+	if got := DeclareExportOrders(request).Declared; !got.Abstained() {
 		t.Fatalf("unread rate = %+v", got)
 	}
 }
@@ -174,7 +174,7 @@ func TestExportAbstainsOnUnreadInputs(t *testing.T) {
 	} {
 		request := exportFixture(exportProfile("w1", 10))
 		mutate(&request)
-		if got := DeclareExportOrders(request).Declared; !got.Abstain || len(got.Orders) != 0 {
+		if got := DeclareExportOrders(request).Declared; !got.Abstained() || len(got.Orders) != 0 {
 			t.Errorf("%s: declared = %+v", name, got)
 		}
 	}

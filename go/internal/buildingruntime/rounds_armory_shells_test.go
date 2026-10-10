@@ -64,7 +64,7 @@ func TestArmoryStocksShellsAfterMortarBuilt(t *testing.T) {
 		t.Fatal(err)
 	}
 	order, ok := orderFor(spy.got, "Make_Shell_HighExplosive")
-	if !ok || spy.got.Abstain || order.Mode != domain.StockTarget || order.Target != 10 {
+	if !ok || spy.got.Abstained() || order.Mode != domain.StockTarget || order.Target != 10 {
 		t.Fatal("armory declared no HE shell stock", spy.got)
 	}
 }

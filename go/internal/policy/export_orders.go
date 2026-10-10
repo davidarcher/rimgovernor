@@ -84,6 +84,39 @@ type ExportPlan struct {
 	// ExportViewCandidates scored pairs, ordered or not, for the reader.
 	InFlight   float64
 	Candidates []ExportCandidate
+	// Dropped counts the (recipe, variant, worker) candidates that never reached
+	// an order, by why.
+	Dropped ExportDrops
+}
+
+// ExportDrop is why a candidate sale good was dropped before it was ordered.
+type ExportDrop string
+
+const (
+	// ExportDropNoBuyer: no reachable trader buys the product.
+	ExportDropNoBuyer ExportDrop = "no_buyer"
+	// ExportDropNoIngredient: an ingredient the colony may not spend, or lacks.
+	ExportDropNoIngredient ExportDrop = "no_ingredient"
+	// ExportDropNoMargin: the sale nets at or below zero (or the good is unpriced).
+	ExportDropNoMargin ExportDrop = "no_margin"
+	// ExportDropRunway: the runway guard grants no unit of the ingredients.
+	ExportDropRunway ExportDrop = "runway_guard"
+)
+
+// AllExportDrops is every ExportDrop, in the order the view lists them.
+var AllExportDrops = []ExportDrop{ExportDropNoBuyer, ExportDropNoIngredient, ExportDropNoMargin, ExportDropRunway}
+
+// ExportDrops counts dropped candidates by reason.
+type ExportDrops map[ExportDrop]int
+
+func (d *ExportDrops) add(why ExportDrop, n int) {
+	if n <= 0 {
+		return
+	}
+	if *d == nil {
+		*d = ExportDrops{}
+	}
+	(*d)[why] += n
 }
 
 // ExportCandidate is one ranked sale good: a recipe at a bench kind made from
@@ -553,22 +586,34 @@ func DeclareExportOrders(r ExportRequest) ExportPlan {
 	sort.Slice(plan.Products, func(i, j int) bool { return plan.Products[i] < plan.Products[j] })
 	gap, gk := r.Gap.Value()
 	if !gk {
-		plan.Declared.Abstain = true
+		plan.Declared.Unread(UnreadSilverGap)
 		return plan
 	}
 	if !(gap > 0) {
-		plan.Declared.Abstain = unread
+		if unread {
+			plan.Declared.Unread(UnreadRecipes)
+		}
 		return plan
 	}
 	profiles, pk := r.Profiles.Value()
 	cash, ck := r.CashCap.Value()
+	if !pk {
+		plan.Declared.Unread(UnreadWorkers)
+	}
+	if !ck {
+		plan.Declared.Unread(UnreadTraderCash)
+	}
 	if !pk || !ck {
-		plan.Declared.Abstain = true
 		return plan
 	}
 	standing, bills, standingUnread := standingExports(r.Benches, productSet)
 	plan.Declared.Orders = append(plan.Declared.Orders, standing...)
-	plan.Declared.Abstain = unread || standingUnread
+	if unread {
+		plan.Declared.Unread(UnreadRecipes)
+	}
+	if standingUnread {
+		plan.Declared.Unread(UnreadBills)
+	}
 	busy := map[string]bool{}
 	for _, o := range standing {
 		busy[o.Worker] = true
@@ -597,27 +642,34 @@ func DeclareExportOrders(r ExportRequest) ExportPlan {
 		usable[q.Key.Def] = q.Count
 	}
 	for _, e := range recipes {
-		if buys, known := r.Buys[e.Product].Value(); !known {
-			plan.Declared.Abstain = true
+		buys, known := r.Buys[e.Product].Value()
+		if !known {
+			plan.Declared.Unread(UnreadBuyers)
 			continue
-		} else if !buys {
+		}
+		variants, workers := exportVariants(r.Items, e), exportWorkers(profiles, e.Required)
+		if !buys {
+			plan.Dropped.add(ExportDropNoBuyer, len(variants)*len(workers))
 			continue
 		}
 		// Gear held above demand is unread: the gap cannot be netted, so the
 		// good is not ordered.
 		if exportGear(r.Items, e.Product) && !r.SurplusKnown {
-			plan.Declared.Abstain = true
+			plan.Declared.Unread(UnreadSurplus)
 			continue
 		}
-		for _, v := range exportVariants(r.Items, e) {
+		for _, v := range variants {
 			// An ingredient the colony may not spend drops the candidate.
 			if slices.ContainsFunc(v.Picks, func(a Amount) bool { have, ok := usable[a.Resource]; return !ok || have < a.Count }) {
+				plan.Dropped.add(ExportDropNoIngredient, len(workers))
 				continue
 			}
-			for _, w := range exportWorkers(profiles, e.Required) {
+			for _, w := range workers {
 				if c, ok := r.score(e, v, w.Skill); ok {
 					c.Worker = w.ID
 					pairs = append(pairs, pair{c, w.ID})
+				} else {
+					plan.Dropped.add(ExportDropNoMargin, 1)
 				}
 			}
 		}
@@ -658,10 +710,11 @@ func DeclareExportOrders(r ExportRequest) ExportPlan {
 		}
 		granted, known := guard.Admit(c.Draw, want)
 		if !known {
-			plan.Declared.Abstain = true
+			plan.Declared.Unread(UnreadRunways)
 			continue
 		}
 		if granted < 1 {
+			plan.Dropped.add(ExportDropRunway, 1)
 			continue
 		}
 		busy[string(p.worker)] = true

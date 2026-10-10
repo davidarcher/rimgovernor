@@ -11,7 +11,7 @@ import (
 func parkaBatch(t *testing.T, r GearPlanningRequest) OrderSpec {
 	t.Helper()
 	got, err := DeclareGearOrders(r)
-	if err != nil || got.Abstain || len(got.Orders) != 1 {
+	if err != nil || got.Abstained() || len(got.Orders) != 1 {
 		t.Fatal(got, err)
 	}
 	return got.Orders[0]
@@ -33,7 +33,7 @@ func TestGearProductionRefusesUnknownOrInvalidRequiredWork(t *testing.T) {
 	benches, _ := r.Benches.Value()
 	recipes, _ := benches[0].Recipes.Value()
 	recipes[0].RequiredWork = domain.Unknown[[]WorkRequirement]()
-	if got, err := DeclareGearOrders(r); err != nil || !got.Abstain || len(got.Orders) != 0 {
+	if got, err := DeclareGearOrders(r); err != nil || !got.Abstained() || len(got.Orders) != 0 {
 		t.Fatal(got, err)
 	}
 	recipes[0].RequiredWork = domain.Known([]WorkRequirement{{Work: "Tailoring", Minimum: -1}})
@@ -50,13 +50,13 @@ func TestGearProductionFindsExistingBillOnLaterBench(t *testing.T) {
 	benches = append(benches, GearBench{ID: "z-player-bench", Bills: domain.Known([]GearBill{{Active: domain.Known(true), Products: []Resource{"Parka"}, Spec: domain.Known(standing)}})})
 	r.Benches = domain.Known(benches)
 	got, err := DeclareGearOrders(r)
-	if err != nil || got.Abstain || !reflect.DeepEqual(got.Orders, []OrderSpec{standing}) {
+	if err != nil || got.Abstained() || !reflect.DeepEqual(got.Orders, []OrderSpec{standing}) {
 		t.Fatal("duplicated player production", got, err)
 	}
 	benches[1].Bills = domain.Unknown[[]GearBill]()
 	r.Benches = domain.Known(benches)
 	got, err = DeclareGearOrders(r)
-	if err != nil || !got.Abstain || len(got.Orders) != 0 {
+	if err != nil || !got.Abstained() || len(got.Orders) != 0 {
 		t.Fatal("unknown existing bills spent materials", got, err)
 	}
 }
@@ -71,7 +71,7 @@ func TestGearProductionAggregatesSlotsAndRejectsAmbiguousFlatFilter(t *testing.T
 	}
 	// A wanted stuff the flat filter cannot isolate is refused.
 	recipes[0].Ingredients = domain.Known([][]Amount{{{"Cloth", 60}, {"Synthread", 60}}, {{"Synthread", 10}}})
-	if got, err := DeclareGearOrders(r); err != nil || got.Abstain || len(got.Orders) != 0 {
+	if got, err := DeclareGearOrders(r); err != nil || got.Abstained() || len(got.Orders) != 0 {
 		t.Fatal(got, err)
 	}
 }
@@ -143,7 +143,7 @@ func TestGearProductionKeepsUnknownEvidenceUnknown(t *testing.T) {
 	} {
 		r := gearModelFixture()
 		change(&r)
-		if got, err := DeclareGearOrders(r); err != nil || !got.Abstain || len(got.Orders) != 0 {
+		if got, err := DeclareGearOrders(r); err != nil || !got.Abstained() || len(got.Orders) != 0 {
 			t.Fatal(got, err)
 		}
 	}

@@ -34,7 +34,7 @@ func (n *ledgerNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge.G
 type fakeDeclarer struct{ declared policy.Declared }
 
 func (f *fakeDeclarer) DeclareOrders(context.Context, domain.GenerationSnapshot, observation.ColonyProjection, []policy.GearBench) (policy.Declared, error) {
-	return f.declared, nil
+	return f.declared.For(policy.MaintainResource), nil
 }
 
 const ledgerBench = "Bench_1"
@@ -357,7 +357,7 @@ func TestLedgerNeverRemovesADeclareOnlyBill(t *testing.T) {
 // A planner that abstained stops orphan removal for the Round.
 func TestLedgerAbstainKeepsOrphans(t *testing.T) {
 	f := newLedgerFixture(t)
-	f.declarer.declared = policy.Declared{Abstain: true}
+	f.declarer.declared = policy.Abstaining(policy.UnreadStock)
 	f.native.benches = []policy.GearBench{ledgerBenchRow(fakeBill("Bill_Hat", ledgerOrder("Make_Hat")))}
 	for round := 0; round < 2*policy.OrphanGraceRounds; round++ {
 		if r := f.round(); r.Plan != "" {

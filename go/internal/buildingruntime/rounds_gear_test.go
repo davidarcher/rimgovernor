@@ -225,7 +225,7 @@ func TestGearProductionPersistsOnlyFundedMaterials(t *testing.T) {
 			t.Fatal(err)
 		}
 		declared := declaredOrders(t, reviewer, planner)
-		if declared.Abstain || len(declared.Orders) == 0 {
+		if declared.Abstained() || len(declared.Orders) == 0 {
 			t.Fatal("no batch declared", declared)
 		}
 		bill := declared.Orders[0]

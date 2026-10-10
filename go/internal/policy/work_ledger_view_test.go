@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -20,7 +21,7 @@ func TestBuildLedgerViewStates(t *testing.T) {
 	removed := ActualBill{ID: "B_gone", Bench: "T1", Spec: viewOrder("Make_Gone")}
 	surgery := ActualBill{ID: "B_surg", Bench: "T1", Kind: LedgerSurgery, Spec: viewOrder("Make_Arm")}
 	actual := []ActualBill{{ID: "B_kept", Bench: "T1", Spec: kept}, counting, removed, surgery}
-	declared := []Declared{{Orders: []OrderSpec{kept, placing, noBench}}}
+	declared := []Declared{Declared{Orders: []OrderSpec{kept, placing, noBench}}.For(MaintainResource)}
 	plan := ReconcileLedger(declared, actual, map[string]int{"B_count": 1, "B_gone": OrphanGraceRounds - 1}, nil)
 	placed, unplaced := PlaceLedgerOrders(plan.Place, []GearBench{{ID: "T1", Def: "TableMachining", Usable: domain.Known(true),
 		Recipes: domain.Known([]GearRecipe{{Definition: "Make_B", AvailableOn: domain.Known(true)}}), Bills: domain.Known([]GearBill{})}})
@@ -35,7 +36,7 @@ func TestBuildLedgerViewStates(t *testing.T) {
 	for _, o := range v.Orders {
 		states[o.Recipe] = o
 	}
-	if o := states["Make_A"]; o.State != OrderPlaced || len(o.Benches) != 1 || o.Owner != "Resource" || o.Widen != 1 || o.Shortfall == nil || o.Shortfall.Reason != UnmetIngredients {
+	if o := states["Make_A"]; o.State != OrderPlaced || len(o.Benches) != 1 || strings.Join(o.Owners, ",") != "MaintainResource" || o.Widen != 1 || o.Shortfall == nil || o.Shortfall.Reason != UnmetIngredients {
 		t.Fatalf("kept = %+v", o)
 	} else if w := o.Window; w == nil || w.ObservedGain == nil || *w.ObservedGain != 15 || w.PredictedPerDay != 20 || w.Ends != 1000+ThroughputWindowTicks {
 		t.Fatalf("window = %+v", w)
@@ -67,10 +68,10 @@ func TestBuildLedgerViewStates(t *testing.T) {
 // An abstaining planner holds every orphan, and the view names who abstained.
 func TestBuildLedgerViewAbstainHoldsOrphans(t *testing.T) {
 	orphan := ActualBill{ID: "B_1", Bench: "T1", Spec: viewOrder("Make_Old")}
-	declared := []Declared{{Abstain: true}}
+	declared := []Declared{{Abstains: []Abstain{{Fact: UnreadStock}}}}
 	plan := ReconcileLedger(declared, []ActualBill{orphan}, map[string]int{"B_1": 2}, nil)
 	v := BuildLedgerView(LedgerViewInput{Declarers: []NamedDeclared{{Name: "Gear", Declared: declared[0]}}, Plan: plan})
-	if !v.Abstained || !v.Declarers[0].Abstain || len(v.Orphans) != 1 || v.Orphans[0].State != OrphanHeld {
+	if !v.Abstained || len(v.Declarers[0].Abstains) != 1 || len(v.Orphans) != 1 || v.Orphans[0].State != OrphanHeld {
 		t.Fatalf("view = %+v", v)
 	}
 }

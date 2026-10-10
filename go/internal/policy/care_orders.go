@@ -25,7 +25,7 @@ func SelectionOrder(s BillSelection, benches []GearBench) (OrderSpec, bool) {
 
 // DeclareSelection is a declare-only owner's declaration for one Round: the
 // order of its selected bill, nothing when the selector chose none (a bill
-// already standing makes its need, and the ledger keeps it), and Abstain when
+// already standing makes its need, and the ledger keeps it), and an abstain when
 // the selected bench cannot be named.
 func DeclareSelection(s BillSelection, selected bool, benches []GearBench) Declared {
 	if !selected {
@@ -33,7 +33,7 @@ func DeclareSelection(s BillSelection, selected bool, benches []GearBench) Decla
 	}
 	spec, ok := SelectionOrder(s, benches)
 	if !ok {
-		return Declared{Abstain: true}
+		return Abstaining(UnreadBenchDef)
 	}
 	return Declared{Orders: []OrderSpec{spec}}
 }
@@ -45,7 +45,7 @@ func DeclareSelection(s BillSelection, selected bool, benches []GearBench) Decla
 func DeclareMedicine(m MedicineMethod, benches []GearBench) Declared {
 	switch m.Kind {
 	case MedicineUnknown:
-		return Declared{Abstain: true}
+		return Abstaining(UnreadMedicine)
 	case MedicineProduce:
 		return DeclareSelection(BillSelection{Bench: m.Bench, Recipe: m.Recipe, Mode: domain.StockTarget, Target: int32(m.Target)}, true, benches)
 	}

@@ -13,7 +13,7 @@ import (
 
 type ledgerFunc func() (policy.LedgerView, bool)
 
-func (f ledgerFunc) WorkLedger() (policy.LedgerView, bool) { return f() }
+func (f ledgerFunc) WorkLedger(context.Context) (policy.LedgerView, bool) { return f() }
 
 func ledgerServer(t *testing.T, ledger LedgerProvider) string {
 	t.Helper()

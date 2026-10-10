@@ -318,8 +318,11 @@ concerns.
 the Industry department over the Colony fact family. The ledger is memory only
 (`Rounder.ledger`): a planner that has migrated implements
 `buildingruntime.OrderDeclarer` (`DeclareOrders(ctx, snapshot, projection, benches)` returns a
-`policy.Declared`: its whole wanted `OrderSpec` set, or `Abstain` when it lacks
-facts) and commits no bill method of its own. Each review calls every declarer,
+`policy.Declared`: its whole wanted `OrderSpec` set, plus an `Abstain{Concern, Fact}` per
+concern that lacks a fact: `policy.Abstaining(UnreadFact)` is the only constructor, `UnreadFact` is a
+closed typed set, and the declarer stamps the concern and every order's `OrderSpec.Owner` with
+`Declared.For(concern)`. Owner is not part of `Key`; two concerns declaring one spec coalesce into one
+order that lists both. Any abstain, of any concern, still skips orphan removal for the Round) and commits no bill method of its own. Each review calls every declarer,
 reads every bench's bills through the bench census (`ReadGearBenches`;
 `policy.LedgerActuals` is unknown while any bench's bills or any bill's spec is
 unread), and runs `policy.ReconcileLedger`. The finding is `RoundsFacts.LedgerOwed`:
@@ -366,16 +369,21 @@ facilities ladder reads. A finished bill is spent and never satisfies an order.
 `GET /api/ledger` (`httpapi/ledger.go`, `policy.BuildLedgerView`) is the read-only
 view the launcher's Ledger tab prints. Each review leaves a `policy.LedgerView` in
 `Rounder.ledger.view`, a projection of the memory above that is persisted nowhere.
-It lists the declaring planners (named by Go type; an abstain is a flag, not a named
-fact), every wanted order with its owner, spec, state (`placed` on which benches,
+It lists the declaring planners (named by Go type, each abstain naming its concern
+and the `UnreadFact` it lacked), every wanted order with its owning concerns, spec, state (`placed` on which benches,
 `placing`, or `unplaced` with `no_bench` or `bench_slots_full`), dispatch sizing,
 calibration window (predicted against observed stock gain) and shortfall, the
 orphans (grace Rounds left, `removing`, or held by an abstain), the excluded-kind
 bills, `UnmetThroughput` with the further-bench request and, from MaintainTrade's
-last declaration, the silver gap, the goods in flight netted off it and the best
-scored export candidates (`Export`, nil until it declares in this world). It issues
-no native call and has no mutating verb (405); it is 404 without Rounds. A native
-refusal of a placed bill is journal state, not ledger memory, and is not shown.
+last declaration, the silver gap, the goods in flight netted off it, the best 10 scored
+export candidates plus any ordered, and the count of candidates dropped by reason (`no_buyer`,
+`no_ingredient`, `no_margin`, `runway_guard`; `Export`, nil until it declares in this world). It
+issues no native call and has no mutating verb (405); it is 404 without Rounds. Each order also
+carries its latest placement outcome (`Rounder.WorkLedger`, read from the journal per request,
+nothing stored): the newest `production_bill` action in the ledger owner's `ledger-*` methods whose
+spec matches, as `accepted`, `refused` (native's code and reason, e.g. `bench_bill_slots_full`),
+`unconfirmed` or `pending`. No attempt means none was ever journaled; `attemptsKnown` false means
+the journal could not be read.
 
 Orphan removal covers every bill of a production recipe kind: one no plan placed (a
 player's, or placed before a restart) is an orphan like any other, and the journal

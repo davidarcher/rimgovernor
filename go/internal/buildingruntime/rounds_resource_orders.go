@@ -8,16 +8,22 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// DeclareOrders declares MaintainResource's bench production: the stock-target
+// DeclareOrders is the declaration owned by policy.MaintainResource.
+func (r *RoundsResourcePlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+	declared, err := r.declareOrders(ctx, snapshot, projection, benches)
+	return declared.For(policy.MaintainResource), err
+}
+
+// declareOrders declares MaintainResource's bench production: the stock-target
 // bill of each floor below its target and the beer reserve (OrderDeclarer).
 // The mining and sourcing methods stay the planner's own.
-func (r *RoundsResourcePlanner) DeclareOrders(_ context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+func (r *RoundsResourcePlanner) declareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
 	var floors []policy.ResourceFloor
 	for resource, target := range r.reviewer.resourceTargets(snapshot) {
 		if resource == "Beer" {
 			wort := projection.Facts.Items.Wort
 			if wort == "" {
-				return policy.Declared{Abstain: true}, nil
+				return policy.Abstaining(policy.UnreadWort), nil
 			}
 			floors = append(floors, policy.ResourceFloor{Resource: wort, Target: target, Reserve: true})
 			continue

@@ -149,14 +149,20 @@ func (r *RoundsTradeExportPlanner) setWorking(v bool) {
 	r.working = v
 }
 
-// DeclareOrders declares the export batches (OrderDeclarer) and files the sale
-// path's inputs. Any unread input abstains: the ledger removes nothing.
+// DeclareOrders is the declaration owned by policy.MaintainTrade.
 func (r *RoundsTradeExportPlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+	declared, err := r.declareOrders(ctx, snapshot, projection, benches)
+	return declared.For(policy.MaintainTrade), err
+}
+
+// declareOrders declares the export batches (OrderDeclarer) and files the sale
+// path's inputs. Any unread input abstains: the ledger removes nothing.
+func (r *RoundsTradeExportPlanner) declareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
 	r.setWorking(false)
 	rd := r.reviewer
 	review, err := rd.player.journal.LoadRounds(ctx)
 	if err != nil {
-		return abstainOnRead(ctx)
+		return abstainOnRead(ctx, policy.UnreadReview)
 	}
 	f := projection.Facts
 	gap, demand := policy.RoundsSilverGap(f, rd.policy, review.Latches.MedicalReserve)
@@ -187,7 +193,7 @@ func (r *RoundsTradeExportPlanner) DeclareOrders(ctx context.Context, snapshot d
 	rd.exports.setPlan(snapshot, policy.ExportSaleProducts(f.Items, ranked.Products), apparel, apparelKnown)
 	rd.exports.setView(snapshot, policy.NewExportView(ranked, gap))
 	if !stockKnown {
-		return policy.Declared{Abstain: true}, nil
+		return policy.Abstaining(policy.UnreadStock), nil
 	}
 	if g, known := gap.Value(); !known || !(g > 0) {
 		return ranked.Declared, nil
@@ -198,16 +204,16 @@ func (r *RoundsTradeExportPlanner) DeclareOrders(ctx context.Context, snapshot d
 		resource, _ = rd.native.(RoundsResourceSource)
 	}
 	if !ok || resource == nil {
-		return policy.Declared{Abstain: true}, nil
+		return policy.Abstaining(policy.UnreadNativeRead), nil
 	}
 	identity := boundary.Identity(snapshot)
 	catalog, err := native.DefinitionCatalog(ctx, identity)
 	if err != nil || catalog == nil {
-		return abstainOnRead(ctx)
+		return abstainOnRead(ctx, policy.UnreadDefinitions)
 	}
 	kinds, known := r.traderKinds(ctx, native, snapshot, identity)
 	if !known {
-		return abstainOnRead(ctx)
+		return abstainOnRead(ctx, policy.UnreadBuyers)
 	}
 	request.CashCap, request.Buys = exportBuyers(catalog, kinds, ranked.Products)
 	request.WorkFor = exportWorkFor(catalog)
@@ -218,7 +224,7 @@ func (r *RoundsTradeExportPlanner) DeclareOrders(ctx context.Context, snapshot d
 	}
 	if len(strs) > 0 {
 		if request.Supply, _, err = resource.ReadSupplyStock(ctx, identity, strs); err != nil {
-			return abstainOnRead(ctx)
+			return abstainOnRead(ctx, policy.UnreadSupply)
 		}
 	}
 	center, centered := projection.Center().Value()
@@ -226,7 +232,7 @@ func (r *RoundsTradeExportPlanner) DeclareOrders(ctx context.Context, snapshot d
 	for _, name := range names {
 		rows, _, _, err := resource.ReadResourceSources(ctx, identity, string(name))
 		if err != nil {
-			return abstainOnRead(ctx)
+			return abstainOnRead(ctx, policy.UnreadSources)
 		}
 		var mines []policy.ResourceSource
 		for _, row := range rows {

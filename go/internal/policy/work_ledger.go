@@ -32,6 +32,9 @@ type OrderSpec struct {
 	// bench has neither.
 	Product Resource
 	Class   ResourceClass
+	// Owner is the concern that declared the order. It is not identity either:
+	// two concerns declaring one spec coalesce into one order (OrderOwners).
+	Owner ConcernID
 }
 
 // Key is the canonical spec identity. The mode is its wire class: native tells
@@ -56,11 +59,11 @@ func wireClass(m domain.BillMode) domain.BillMode {
 	return m
 }
 
-// Declared is what one planner wants this Round. Abstain means the planner
-// lacked facts, so its silence about a bill proves nothing.
+// Declared is what one planner wants this Round. Abstains name the concerns
+// that lacked a fact, so the planner's silence about a bill proves nothing.
 type Declared struct {
-	Orders  []OrderSpec
-	Abstain bool
+	Orders   []OrderSpec
+	Abstains []Abstain
 }
 
 // LedgerBillKind classifies a bill on a bench by what its recipe makes (the
@@ -167,7 +170,7 @@ func ReconcileLedger(declared []Declared, actual []ActualBill, orphans map[strin
 func WantedOrders(declared []Declared) (wanted map[string]OrderSpec, abstain bool) {
 	wanted = map[string]OrderSpec{}
 	for _, d := range declared {
-		abstain = abstain || d.Abstain
+		abstain = abstain || d.Abstained()
 		for _, o := range d.Orders {
 			if _, ok := wanted[o.Key()]; !ok {
 				wanted[o.Key()] = o

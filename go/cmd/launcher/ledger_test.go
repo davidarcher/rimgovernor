@@ -13,7 +13,8 @@ import (
 func sampleLedger() policy.LedgerView {
 	steel := policy.OrderSpec{Recipe: "Smelt_Steel", Mode: domain.StockTarget, Target: 100, BenchKind: "ElectricSmelter", Product: "Steel", Class: policy.ResourceMaterial}
 	pike := policy.OrderSpec{Recipe: "Make_Pike", Mode: domain.GearBatch, Target: 3, BenchKind: "FueledSmithy", Worker: "Pawn_7", Ingredients: []string{"Steel"}}
-	declared := []policy.Declared{{Orders: []policy.OrderSpec{steel, pike}}}
+	declared := []policy.Declared{policy.Declared{Orders: []policy.OrderSpec{steel, pike}}.For(policy.MaintainResource)}
+	declared[0].Merge(policy.Abstaining(policy.UnreadWort).For(policy.MaintainResource))
 	actual := []policy.ActualBill{
 		{ID: "Bill_1", Bench: "Smelter_1", Spec: steel},
 		{ID: "Bill_9", Bench: "Smelter_1", Spec: policy.OrderSpec{Recipe: "Make_Old", Mode: domain.GearBatch, Target: 1, BenchKind: "ElectricSmelter"}},
@@ -26,7 +27,8 @@ func sampleLedger() policy.LedgerView {
 		Memory:   policy.DispatchMemory{Windows: map[string]policy.ThroughputWindow{steel.Key(): {Open: true, Start: 60000, StartStock: 20, Deficit: 80, PerDay: 40, Carrying: 1, Samples: 3, Busy: 2}}},
 		Stock:    domain.Known(map[policy.Resource]int64{"Steel": 31}),
 		Unmet:    []policy.UnmetThroughput{{BenchKind: "FueledSmithy", ShortPerDay: 2.5, Reason: policy.UnmetNoBench}}, Further: []string{"FueledSmithy"}})
-	v.Export = policy.NewExportView(policy.ExportPlan{InFlight: 120, Candidates: []policy.ExportCandidate{{Recipe: "Make_Sculpture", BenchKind: "Stonecutter", Product: "SculptureSmall", Stuff: "BlocksGranite", Worker: "Pawn_2", Score: 0.0123, Net: 210, Ticks: 17000}},
+	v = v.WithAttempts(policy.PlacementAttempts{steel.Key(): {Plan: "ledger-1", Tick: 60500, Outcome: policy.AttemptRefused, Code: "bill_slots", Reason: "bench_bill_slots_full"}})
+	v.Export = policy.NewExportView(policy.ExportPlan{InFlight: 120, Dropped: policy.ExportDrops{policy.ExportDropNoBuyer: 4, policy.ExportDropRunway: 1}, Candidates: []policy.ExportCandidate{{Recipe: "Make_Sculpture", BenchKind: "Stonecutter", Product: "SculptureSmall", Stuff: "BlocksGranite", Worker: "Pawn_2", Score: 0.0123, Net: 210, Ticks: 17000}},
 		Ranked: []policy.ExportCandidate{{Recipe: "Make_Sculpture", BenchKind: "Stonecutter", Product: "SculptureSmall", Stuff: "BlocksGranite", Worker: "Pawn_2"}}}, domain.Known(400.0))
 	return v
 }
@@ -57,13 +59,16 @@ func TestLedgerPageShowsPlacedOrphanAndUnmetRows(t *testing.T) {
 		t.Fatalf("headline %q", p.Headline)
 	}
 	orders := tableText(section(t, p, "Declared orders"))
-	for _, want := range []string{"Resource | Smelt_Steel (Steel) | 100 | stock target | ElectricSmelter | - | - | placed | Smelter_1",
-		"warn|Resource | Make_Pike | 3 | finite batch | FueledSmithy | Pawn_7 | Steel | unplaced x1: no bench for it (no_bench) | -"} {
+	for _, want := range []string{"warn|MaintainResource | Smelt_Steel (Steel) | 100 | stock target | ElectricSmelter | - | - | placed | Smelter_1 | refused at tick 60,500: bench_bill_slots_full",
+		"warn|MaintainResource | Make_Pike | 3 | finite batch | FueledSmithy | Pawn_7 | Steel | unplaced x1: no bench for it (no_bench) | - | never attempted"} {
 		if !strings.Contains(orders, want) {
 			t.Fatalf("orders missing %q:\n%s", want, orders)
 		}
 	}
-	if got := tableText(section(t, p, "Orphan bills")); !strings.Contains(got, "Smelter_1 | Make_Old | 1 | - | undeclared 2 of 3 Rounds: 1 left before removal") {
+	if got := tableText(section(t, p, "Planners declaring")); !strings.Contains(got, "abstained: MaintainResource did not read which wort makes beer") {
+		t.Fatalf("declarers:\n%s", got)
+	}
+	if got := tableText(section(t, p, "Orphan bills")); !strings.Contains(got, "Smelter_1 | Make_Old | 1 | - | undeclared, held: a planner abstained") {
 		t.Fatalf("orphans:\n%s", got)
 	}
 	if got := tableText(section(t, p, "Unmet throughput")); !strings.Contains(got, "FueledSmithy | 2.5/day | no bench for it (no_bench) | requested") {
@@ -76,7 +81,7 @@ func TestLedgerPageShowsPlacedOrphanAndUnmetRows(t *testing.T) {
 		t.Fatalf("excluded:\n%s", got)
 	}
 	export := section(t, p, "Silver gap and export candidates")
-	if !strings.Contains(export.Note, "Silver gap 400 silver; 120 silver already in flight") || !strings.Contains(tableText(export), "Make_Sculpture | SculptureSmall | BlocksGranite | Pawn_2 | 0.012 | 210 silver | 17,000 | yes") {
+	if !strings.Contains(export.Note, "Silver gap 400 silver; 120 silver already in flight") || !strings.Contains(export.Note, "Candidates dropped before ordering: 4 no reachable buyer, 1 runway guard.") || !strings.Contains(tableText(export), "Make_Sculpture | SculptureSmall | BlocksGranite | Pawn_2 | 0.012 | 210 silver | 17,000 | yes") {
 		t.Fatalf("export: %q\n%s", export.Note, tableText(export))
 	}
 }
@@ -94,5 +99,36 @@ func TestLedgerPageFeedStates(t *testing.T) {
 		if s.Note == "" && len(s.Rows) == 0 {
 			t.Fatalf("%q is empty without a note", s.Title)
 		}
+	}
+}
+
+// Every abstain reason and export drop reason has a label the page prints.
+func TestEveryReasonHasALabel(t *testing.T) {
+	for _, f := range policy.UnreadFacts {
+		if unreadLabels[f] == "" {
+			t.Errorf("UnreadFact %q has no label", f)
+		}
+	}
+	if len(unreadLabels) != len(policy.UnreadFacts) {
+		t.Errorf("%d labels for %d facts", len(unreadLabels), len(policy.UnreadFacts))
+	}
+	for _, d := range policy.AllExportDrops {
+		if dropLabels[d] == "" {
+			t.Errorf("ExportDrop %q has no label", d)
+		}
+	}
+}
+
+// An order the journal could not be read for says so rather than claiming it
+// was never tried.
+func TestPlacementColumnSaysWhenTheJournalIsUnread(t *testing.T) {
+	if got := placement(nil, false); got != "journal unread" {
+		t.Fatal(got)
+	}
+	if got := placement(nil, true); got != "never attempted" {
+		t.Fatal(got)
+	}
+	if got := placement(&policy.PlacementAttempt{Outcome: policy.AttemptAccepted, Tick: 12}, true); got != "accepted at tick 12" {
+		t.Fatal(got)
 	}
 }

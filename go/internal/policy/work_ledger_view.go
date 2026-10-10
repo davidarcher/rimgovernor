@@ -51,6 +51,39 @@ type NamedDeclared struct {
 	Declared
 }
 
+// Placement outcomes in the view: what the journal holds for the latest
+// production_bill of an order.
+const (
+	// AttemptAccepted: native took the bill.
+	AttemptAccepted = "accepted"
+	// AttemptRefused: native refused it (Code and Reason say why).
+	AttemptRefused = "refused"
+	// AttemptUnconfirmed: sent, but native's answer is unknown or it never left.
+	AttemptUnconfirmed = "unconfirmed"
+	// AttemptPending: committed, not yet dispatched.
+	AttemptPending = "pending"
+)
+
+// PlacementAttempt is the latest outcome of a ledger plan's production_bill
+// for one order, read from the journal: the view stores nothing of its own.
+type PlacementAttempt struct {
+	Plan    string `json:"plan"`
+	Tick    int64  `json:"tick"`
+	Outcome string `json:"outcome"`
+	Code    string `json:"code"`
+	Reason  string `json:"reason"`
+}
+
+// PlacementAttempts is the latest attempt per order Key.
+type PlacementAttempts map[string]PlacementAttempt
+
+// Note keeps a as the key's attempt unless a later one is already held.
+func (p PlacementAttempts) Note(key string, a PlacementAttempt) {
+	if held, ok := p[key]; !ok || a.Tick >= held.Tick {
+		p[key] = a
+	}
+}
+
 // LedgerViewInput is what the Round holds when it builds the view.
 type LedgerViewInput struct {
 	Tick      int64
@@ -79,20 +112,43 @@ type LedgerView struct {
 	Excluded       []LedgerBillView     `json:"excluded"`
 	Unmet          []UnmetView          `json:"unmet"`
 	FurtherBenches []string             `json:"furtherBenches"`
-	Export         *ExportView          `json:"export"`
+	// AttemptsKnown is whether the journal was read for the orders' Attempt.
+	AttemptsKnown bool        `json:"attemptsKnown"`
+	Export        *ExportView `json:"export"`
 }
 
 // LedgerDeclarerView is one planner's declaration summary.
 type LedgerDeclarerView struct {
-	Name    string `json:"name"`
-	Orders  int    `json:"orders"`
-	Abstain bool   `json:"abstain"`
+	Name     string        `json:"name"`
+	Orders   int           `json:"orders"`
+	Abstains []AbstainView `json:"abstains"`
+}
+
+// AbstainView is one concern's abstain and the input it lacked.
+type AbstainView struct {
+	Concern string     `json:"concern"`
+	Fact    UnreadFact `json:"fact"`
+}
+
+func abstainViews(list []Abstain) []AbstainView {
+	out := []AbstainView{}
+	for _, a := range list {
+		out = append(out, AbstainView{Concern: string(a.Concern), Fact: a.Fact})
+	}
+	return out
+}
+
+// DeclarerView is one planner's declaration summary.
+func DeclarerView(name string, d Declared) LedgerDeclarerView {
+	return LedgerDeclarerView{Name: name, Orders: len(d.Orders), Abstains: abstainViews(d.Abstains)}
 }
 
 // LedgerOrderView is one wanted order and where it stands.
 type LedgerOrderView struct {
-	Key         string   `json:"key"`
-	Owner       string   `json:"owner"`
+	Key string `json:"key"`
+	// Owners are the concerns that declared it; a spec two concerns declare is one
+	// order that lists both.
+	Owners      []string `json:"owners"`
 	Recipe      string   `json:"recipe"`
 	Product     string   `json:"product"`
 	Mode        string   `json:"mode"`
@@ -117,6 +173,8 @@ type LedgerOrderView struct {
 	Widen     int         `json:"widen"`
 	Shortfall *UnmetView  `json:"shortfall"`
 	Window    *WindowView `json:"window"`
+	// Attempt is the journal's latest placement outcome, nil when none was tried.
+	Attempt *PlacementAttempt `json:"attempt"`
 }
 
 // WindowView is an order's calibration window: predicted against observed.
@@ -170,6 +228,14 @@ type ExportView struct {
 	// netted.
 	Remaining  float64               `json:"remaining"`
 	Candidates []ExportCandidateView `json:"candidates"`
+	// Dropped counts the candidates that never reached an order, by reason.
+	Dropped []ExportDropView `json:"dropped"`
+}
+
+// ExportDropView is how many candidates one reason dropped.
+type ExportDropView struct {
+	Reason ExportDrop `json:"reason"`
+	Count  int        `json:"count"`
 }
 
 // ExportCandidateView is one scored sale good; Ordered marks the ones the
@@ -190,7 +256,12 @@ type ExportCandidateView struct {
 // NewExportView is the view of one export declaration against the gap it
 // read. The candidates are the best scored pairs plus every ordered one.
 func NewExportView(plan ExportPlan, gap domain.Fact[float64]) *ExportView {
-	v := &ExportView{InFlight: plan.InFlight, Candidates: []ExportCandidateView{}}
+	v := &ExportView{InFlight: plan.InFlight, Candidates: []ExportCandidateView{}, Dropped: []ExportDropView{}}
+	for _, why := range AllExportDrops {
+		if n := plan.Dropped[why]; n > 0 {
+			v.Dropped = append(v.Dropped, ExportDropView{Reason: why, Count: n})
+		}
+	}
 	g, known := gap.Value()
 	v.GapKnown = known
 	if known {
@@ -220,6 +291,21 @@ func sameCandidate(list []ExportCandidate, c ExportCandidate) bool {
 	return false
 }
 
+// WithAttempts is the view with each order's latest placement outcome from the
+// journal. The receiver's rows are not changed.
+func (v LedgerView) WithAttempts(attempts PlacementAttempts) LedgerView {
+	v.AttemptsKnown = true
+	orders := make([]LedgerOrderView, len(v.Orders))
+	copy(orders, v.Orders)
+	for i := range orders {
+		if a, ok := attempts[orders[i].Key]; ok {
+			orders[i].Attempt = &a
+		}
+	}
+	v.Orders = orders
+	return v
+}
+
 // NewLedgerView is an empty view with the given status, its lists empty
 // rather than null.
 func NewLedgerView(status string, tick int64) LedgerView {
@@ -234,17 +320,12 @@ func BuildLedgerView(in LedgerViewInput) LedgerView {
 	view := NewLedgerView(LedgerViewReconciled, in.Tick)
 	view.FurtherBenches = append(view.FurtherBenches, in.Further...)
 	declared := make([]Declared, 0, len(in.Declarers))
-	owner := map[string]string{}
 	for _, d := range in.Declarers {
 		declared = append(declared, d.Declared)
-		view.Declarers = append(view.Declarers, LedgerDeclarerView{Name: d.Name, Orders: len(d.Orders), Abstain: d.Abstain})
-		for _, o := range d.Orders {
-			if _, ok := owner[o.Key()]; !ok {
-				owner[o.Key()] = d.Name
-			}
-		}
+		view.Declarers = append(view.Declarers, DeclarerView(d.Name, d.Declared))
 	}
 	wanted, abstain := WantedOrders(declared)
+	owners := OrderOwners(declared)
 	view.Abstained = abstain
 	matched := map[string][]string{}
 	for _, b := range in.Plan.Matched {
@@ -266,7 +347,7 @@ func BuildLedgerView(in LedgerViewInput) LedgerView {
 	stock, stockKnown := in.Stock.Value()
 	for _, k := range keys {
 		o, d := wanted[k], in.Dispatch[k]
-		row := LedgerOrderView{Key: k, Owner: owner[k], Recipe: o.Recipe, Product: string(o.Product), Mode: string(o.Mode), Target: o.Target,
+		row := LedgerOrderView{Key: k, Owners: concernNames(owners[k]), Recipe: o.Recipe, Product: string(o.Product), Mode: string(o.Mode), Target: o.Target,
 			BenchKind: o.BenchKind, Worker: o.Worker, Ingredients: append([]string{}, o.Ingredients...), Copies: max(d.Copies, 1), Eligible: d.Eligible,
 			State: OrderPlaced, Benches: sortedStrings(matched[k]), Placing: sortedStrings(placing[k]), Unplaced: unplaced[k],
 			Demand: factPtr(d.Demand), Capacity: factPtr(d.Capacity), Wanted: factPtr(d.Wanted), Widen: in.Memory.Widen[k]}
@@ -321,6 +402,14 @@ func billView(b ActualBill, state string, rounds int) LedgerBillView {
 	}
 	return LedgerBillView{ID: b.ID, Bench: b.Bench, Kind: string(b.Kind), Recipe: b.Spec.Recipe, Mode: string(b.Spec.Mode), Target: b.Spec.Target, Worker: b.Spec.Worker,
 		Spent: b.Spent, State: state, Rounds: rounds, GraceLeft: left, Filter: append([]string{}, b.Spec.Ingredients...)}
+}
+
+func concernNames(list []ConcernID) []string {
+	out := []string{}
+	for _, c := range list {
+		out = append(out, string(c))
+	}
+	return out
 }
 
 func sortedStrings(s []string) []string {

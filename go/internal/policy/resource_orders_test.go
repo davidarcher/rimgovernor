@@ -28,10 +28,10 @@ func TestDeclareResourceOrdersDeclaresDeficitsAndReserve(t *testing.T) {
 		{Recipe: "Make_Steel", Mode: domain.StockTarget, Target: 50, BenchKind: "TableMachining", Product: "Steel", Class: ResourceMaterial},
 		{Recipe: "Make_Wort", Mode: domain.BeerReserve, Target: 8, BenchKind: "TableMachining"},
 	}
-	if err != nil || got.Abstain || !reflect.DeepEqual(got.Orders, want) {
+	if err != nil || got.Abstained() || !reflect.DeepEqual(got.Orders, want) {
 		t.Fatal(got, err)
 	}
-	if got, err = DeclareResourceOrders(resourceOrderRequest(50, resourceOrderBench(), ResourceFloor{Resource: "Steel", Target: 50})); err != nil || got.Abstain || len(got.Orders) != 0 {
+	if got, err = DeclareResourceOrders(resourceOrderRequest(50, resourceOrderBench(), ResourceFloor{Resource: "Steel", Target: 50})); err != nil || got.Abstained() || len(got.Orders) != 0 {
 		t.Fatal("a met floor declared", got, err)
 	}
 }
@@ -43,7 +43,7 @@ func TestDeclareResourceOrdersKeepsStandingBills(t *testing.T) {
 	bill := GearBill{ID: "b", Recipe: "Make_Steel", Products: []Resource{"Steel"}, Active: domain.Known(true), Spec: domain.Known(standing)}
 	for _, stock := range []int64{0, 50} {
 		got, err := DeclareResourceOrders(resourceOrderRequest(stock, resourceOrderBench(bill), ResourceFloor{Resource: "Steel", Target: 50}))
-		if err != nil || got.Abstain || !reflect.DeepEqual(got.Orders, []OrderSpec{standing}) {
+		if err != nil || got.Abstained() || !reflect.DeepEqual(got.Orders, []OrderSpec{standing}) {
 			t.Fatal(stock, got, err)
 		}
 	}
@@ -61,16 +61,16 @@ func TestDeclareResourceOrdersAbstainsOnUnknowns(t *testing.T) {
 	floor := ResourceFloor{Resource: "Steel", Target: 50}
 	r := resourceOrderRequest(0, resourceOrderBench(), floor)
 	r.Stock = domain.Unknown[map[Resource]int64]()
-	if got, _ := DeclareResourceOrders(r); !got.Abstain {
+	if got, _ := DeclareResourceOrders(r); !got.Abstained() {
 		t.Fatal("unread stock declared")
 	}
 	r = resourceOrderRequest(0, resourceOrderBench(), floor)
 	r.Benches = domain.Unknown[[]GearBench]()
-	if got, _ := DeclareResourceOrders(r); !got.Abstain {
+	if got, _ := DeclareResourceOrders(r); !got.Abstained() {
 		t.Fatal("unread benches declared")
 	}
 	unread := GearBill{ID: "b", Products: []Resource{"Steel"}, Active: domain.Known(true)}
-	if got, _ := DeclareResourceOrders(resourceOrderRequest(0, resourceOrderBench(unread), floor)); !got.Abstain {
+	if got, _ := DeclareResourceOrders(resourceOrderRequest(0, resourceOrderBench(unread), floor)); !got.Abstained() {
 		t.Fatal("unread bill declared")
 	}
 }

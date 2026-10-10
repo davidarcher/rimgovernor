@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -11,7 +12,7 @@ import (
 // and nothing it returns is persisted or fed back to a planner. ok is false
 // when the process runs no Rounds.
 type LedgerProvider interface {
-	WorkLedger() (view policy.LedgerView, ok bool)
+	WorkLedger(ctx context.Context) (view policy.LedgerView, ok bool)
 }
 
 // ledgerPath: GET /api/ledger is the launcher's read-only work ledger view.
@@ -35,7 +36,7 @@ func (s *Server) handleLedger(w http.ResponseWriter, r *http.Request) bool {
 		s.failure(w, r, 404, "not_found", "The work ledger is not enabled")
 		return true
 	}
-	view, ok := s.config.Ledger.WorkLedger()
+	view, ok := s.config.Ledger.WorkLedger(r.Context())
 	if !ok {
 		s.failure(w, r, 404, "not_found", "The work ledger is not enabled")
 		return true

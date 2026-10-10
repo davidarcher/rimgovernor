@@ -1,10 +1,13 @@
 package buildingruntime
 
 import (
+	"context"
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // The ledger view projects the Round's memory: a placed order, an orphan
@@ -27,7 +30,7 @@ func TestWorkLedgerViewShowsPlacedOrphanAndUnmet(t *testing.T) {
 	for _, o := range v.Orders {
 		orders[o.Recipe] = o
 	}
-	if o := orders["Make_Vest"]; o.State != policy.OrderPlaced || len(o.Benches) != 1 || o.Benches[0] != ledgerBench || o.Target != 2 || o.Mode != string(domain.GearBatch) || o.Owner != "fake" {
+	if o := orders["Make_Vest"]; o.State != policy.OrderPlaced || len(o.Benches) != 1 || o.Benches[0] != ledgerBench || o.Target != 2 || o.Mode != string(domain.GearBatch) || strings.Join(o.Owners, ",") != "MaintainResource" {
 		t.Fatalf("vest = %+v", o)
 	}
 	if o := orders["Make_Pike"]; o.State != policy.OrderUnplaced || o.Reason != policy.UnmetNoBench || o.Unplaced != 1 || o.BenchKind != "FueledSmithy" {
@@ -50,11 +53,11 @@ func TestWorkLedgerViewShowsPlacedOrphanAndUnmet(t *testing.T) {
 // readback and an inactive ledger have their own statuses.
 func TestWorkLedgerViewStatuses(t *testing.T) {
 	f := newLedgerFixture(t)
-	f.declarer.declared = policy.Declared{Abstain: true}
+	f.declarer.declared = policy.Abstaining(policy.UnreadStock)
 	f.native.benches = []policy.GearBench{ledgerBenchRow(fakeBill("Bill_Hat", ledgerOrder("Make_Hat")))}
 	f.round()
 	v := f.reviewer.WorkLedgerView()
-	if !v.Abstained || len(v.Declarers) != 1 || !v.Declarers[0].Abstain || len(v.Orphans) != 1 || v.Orphans[0].State != policy.OrphanHeld {
+	if !v.Abstained || len(v.Declarers) != 1 || len(v.Declarers[0].Abstains) != 1 || len(v.Orphans) != 1 || v.Orphans[0].State != policy.OrphanHeld {
 		t.Fatalf("view = %+v", v)
 	}
 	unread := ledgerBenchRow()
@@ -68,5 +71,62 @@ func TestWorkLedgerViewStatuses(t *testing.T) {
 	f.round()
 	if v := f.reviewer.WorkLedgerView(); v.Status != policy.LedgerViewInactive {
 		t.Fatalf("inactive view = %+v", v)
+	}
+}
+
+// The Ledger view reads each order's latest placement outcome from the journal: an
+// accepted bill, a bill native refused (with its reason) and an order no plan
+// ever carried.
+func TestWorkLedgerShowsPlacementOutcomesFromJournal(t *testing.T) {
+	f := newLedgerFixture(t)
+	ctx := context.Background()
+	f.declare(ledgerOrder("Make_Vest"), ledgerOrder("Make_Hat"), ledgerOrder("Make_Cap"))
+	f.native.benches = []policy.GearBench{ledgerBenchRow()}
+	result := f.round()
+	loaded, err := f.db.LoadPlan(ctx, result.Plan)
+	if err != nil || len(loaded.Progress) != 2 {
+		t.Fatalf("plan = %+v err %v", loaded.Progress, err)
+	}
+	scope := f.session.State().Snapshot
+	scope.Plan, scope.Revision = result.Plan, 1
+	for _, progress := range loaded.Progress {
+		action := progress.Action().ID()
+		if _, err = f.db.Prepare(ctx, result.Plan, action, scope, 7); err != nil {
+			t.Fatal(err)
+		}
+		dispatched, err := f.db.Dispatch(ctx, result.Plan, action, scope, 7)
+		if err != nil {
+			t.Fatal(err)
+		}
+		attempt := dispatched.View().Attempt
+		if placedBill(t, progress.Action()).Recipe() == "Make_Vest" {
+			_, err = f.db.RecordBillReceipt(ctx, result.Plan, action, attempt, "Bill_Vest")
+		} else {
+			_, err = f.db.RecordReceipts(ctx, []store.BatchReceipt{{Plan: result.Plan, Action: action, Attempt: attempt, Receipt: domain.ReceiptRefused,
+				Refusal: &domain.NativeRefusal{Code: "bill_slots", Reason: "bench_bill_slots_full", Class: domain.RefusalTransient}}})
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	v := f.reviewer.WorkLedger(ctx)
+	if !v.AttemptsKnown {
+		t.Fatalf("journal unread: %+v", v)
+	}
+	attempt := map[string]*policy.PlacementAttempt{}
+	for _, o := range v.Orders {
+		attempt[o.Recipe] = o.Attempt
+	}
+	if a := attempt["Make_Vest"]; a == nil || a.Outcome != policy.AttemptAccepted || a.Tick != 7 {
+		t.Fatalf("vest = %+v", a)
+	}
+	if a := attempt["Make_Hat"]; a == nil || a.Outcome != policy.AttemptRefused || a.Reason != "bench_bill_slots_full" || a.Code != "bill_slots" {
+		t.Fatalf("hat = %+v", a)
+	}
+	if a, ok := attempt["Make_Cap"]; !ok || a != nil {
+		t.Fatalf("cap was never carried by a plan: %+v", a)
+	}
+	if f.reviewer.WorkLedgerView().AttemptsKnown {
+		t.Fatal("the memory view must not claim a journal read")
 	}
 }

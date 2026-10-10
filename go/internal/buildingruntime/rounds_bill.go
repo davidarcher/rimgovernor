@@ -172,16 +172,22 @@ func (r *RoundsBillPlanner) foodRequest(projection observation.ColonyProjection,
 	return request, nil
 }
 
-// DeclareOrders declares a food purpose's wanted bills (OrderDeclarer).
-func (r *RoundsBillPlanner) DeclareOrders(ctx context.Context, _ domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+// DeclareOrders is the declaration owned by r.need.
+func (r *RoundsBillPlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+	declared, err := r.declareOrders(ctx, snapshot, projection, benches)
+	return declared.For(r.need), err
+}
+
+// declareOrders declares a food purpose's wanted bills (OrderDeclarer).
+func (r *RoundsBillPlanner) declareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
 	review, err := r.reviewer.player.journal.LoadRounds(ctx)
 	if err != nil {
-		return abstainOnRead(ctx)
+		return abstainOnRead(ctx, policy.UnreadReview)
 	}
 	request, err := r.foodRequest(projection, review)
 	if err != nil {
 		// A review that cannot be read from the facts declares nothing.
-		return abstainOnRead(ctx)
+		return abstainOnRead(ctx, policy.UnreadFoodFacts)
 	}
 	return policy.DeclareFoodOrders(request, benches), nil
 }

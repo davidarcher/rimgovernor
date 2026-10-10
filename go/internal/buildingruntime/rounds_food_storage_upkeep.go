@@ -254,14 +254,20 @@ func (r *RoundsFoodStorageUpkeepPlanner) storageChoice(ctx context.Context, iden
 	return policy.SelectFoodStorageMethod(policy.FoodStoragePlanningRequest{Review: review, Sites: domain.Known(sites), Resource: foodStorageResourceDefinition})
 }
 
-// DeclareOrders declares the meal stock bill MaintainFoodStorage falls back to
+// DeclareOrders is the declaration owned by policy.MaintainFoodStorage.
+func (r *RoundsFoodStorageUpkeepPlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+	declared, err := r.declareOrders(ctx, snapshot, projection, benches)
+	return declared.For(policy.MaintainFoodStorage), err
+}
+
+// declareOrders declares the meal stock bill MaintainFoodStorage falls back to
 // when no covered site has room (OrderDeclarer). The reserve and the corpse
 // larder come first, as in the step: while either is owed the standing meal
 // bill is kept as it stands.
-func (r *RoundsFoodStorageUpkeepPlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+func (r *RoundsFoodStorageUpkeepPlanner) declareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
 	f := projection.Facts
 	if !policy.FoodPlanSupport(f.FoodPlan, policy.CandidateReserve, "stock-protection") {
-		return policy.Declared{Abstain: true}, nil
+		return policy.Abstaining(policy.UnreadFoodPlan), nil
 	}
 	standing := policy.StandingStockOrders(benches, foodStorageResourceDefinition)
 	if reserve, known := f.FoodReserve.Value(); known && (len(reserve.Hold) > 0 || len(reserve.Release) > 0) {
@@ -269,34 +275,34 @@ func (r *RoundsFoodStorageUpkeepPlanner) DeclareOrders(ctx context.Context, snap
 	}
 	larder, err := policy.SelectCorpseLarder(f.FoodStorageUpkeep)
 	if err != nil {
-		return policy.Declared{Abstain: true}, nil
+		return policy.Abstaining(policy.UnreadFoodStorage), nil
 	}
 	if larder.Kind != "" {
 		return standing, nil
 	}
 	review, err := r.reviewer.player.journal.LoadRounds(ctx)
 	if err != nil {
-		return abstainOnRead(ctx)
+		return abstainOnRead(ctx, policy.UnreadReview)
 	}
 	foodReview, err := policy.ReviewFoodStorage(f.FoodStorageUpkeep, review.Latches.FoodStorage, r.reviewer.policy.FoodStorage)
 	if err != nil {
-		return policy.Declared{Abstain: true}, nil
+		return policy.Abstaining(policy.UnreadFoodStorage), nil
 	}
 	if !foodReview.Active {
 		return policy.Declared{}, nil
 	}
 	choice, err := r.storageChoice(ctx, boundary.Identity(snapshot), f.FoodStorageUpkeep, foodReview)
 	if err != nil {
-		return policy.Declared{Abstain: true}, nil
+		return policy.Abstaining(policy.UnreadFoodStorage), nil
 	}
 	switch choice.Kind {
 	case policy.FoodStorageUnknown:
-		return policy.Declared{Abstain: true}, nil
+		return policy.Abstaining(policy.UnreadFoodStorage), nil
 	case policy.FoodStorageProduce:
 		spec, kind, ok, err := policy.FoodStorageMealOrder(choice, benches)
 		switch {
 		case err != nil || kind == policy.MedicineUnknown:
-			return policy.Declared{Abstain: true}, nil
+			return policy.Abstaining(policy.UnreadRecipes), nil
 		case ok:
 			return policy.Declared{Orders: []policy.OrderSpec{spec}}, nil
 		}

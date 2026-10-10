@@ -14,10 +14,16 @@ import (
 
 var errDecreeNoDefinitions = errors.New("decree recipes: the native source serves no definitions")
 
-// DeclareOrders declares the production batches of the open produce-item
+// DeclareOrders is the declaration owned by policy.MaintainPopulation.
+func (r *RoundsPopulationJoinerPlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+	declared, err := r.declareOrders(ctx, snapshot, projection, benches)
+	return declared.For(policy.MaintainPopulation), err
+}
+
+// declareOrders declares the production batches of the open produce-item
 // decrees (OrderDeclarer) and notes whether one is declared, for the clock's
 // game time (decreeLending). Harvest and hunt decrees stay admitStandardMethod's.
-func (r *RoundsPopulationJoinerPlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+func (r *RoundsPopulationJoinerPlanner) declareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
 	var catalog *bridge.DefinitionCatalog
 	var catalogErr error
 	recipes := func(objective policy.QuestObjective) []policy.DecreeRecipe {
@@ -38,7 +44,7 @@ func (r *RoundsPopulationJoinerPlanner) DeclareOrders(ctx context.Context, snaps
 		if ctx.Err() != nil {
 			return policy.Declared{}, ctx.Err()
 		}
-		declared.Abstain = true
+		declared.Unread(policy.UnreadDefinitions)
 	}
 	r.mu.Lock()
 	r.decreeWork = len(declared.Orders) > 0

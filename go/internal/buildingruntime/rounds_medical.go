@@ -196,20 +196,26 @@ func (r *RoundsMedicalPlanner) step(call, epoch context.Context, arbiter *stepAr
 	return RoundsMedicalResult{Verdict: waitFor(WaitMethodUsed, "medicine_bill")}, nil
 }
 
-// DeclareOrders declares MaintainMedicalReserves' stock-target medicine bill
+// DeclareOrders is the declaration owned by policy.MaintainMedicalReserves.
+func (r *RoundsMedicalPlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+	declared, err := r.declareOrders(ctx, snapshot, projection, benches)
+	return declared.For(policy.MaintainMedicalReserves), err
+}
+
+// declareOrders declares MaintainMedicalReserves' stock-target medicine bill
 // (OrderDeclarer): the bill SelectMedicineMethod produces while the reserve
 // restocks and a bench makes the medicine. A reserve that is not owed, one a
 // harvest serves and a bill already standing declare nothing; the bill is
 // declare-only (it is never removed as an orphan). It abstains while the review
 // or the medicine catalog is unread.
-func (r *RoundsMedicalPlanner) DeclareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
+func (r *RoundsMedicalPlanner) declareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
 	journal := r.reviewer.player.journal
 	review, err := journal.LoadRounds(ctx)
 	if err != nil {
 		return policy.Declared{}, err
 	}
 	if !review.Enabled || review.Snapshot != snapshot {
-		return policy.Declared{Abstain: true}, nil
+		return policy.Abstaining(policy.UnreadReview), nil
 	}
 	_, workable, err := journal.Workable(ctx, review, policy.MaintainMedicalReserves)
 	if err != nil {
@@ -228,7 +234,7 @@ func (r *RoundsMedicalPlanner) DeclareOrders(ctx context.Context, snapshot domai
 	}
 	medicine, err := projection.Facts.Items.MedicineAt(0)
 	if err != nil {
-		return policy.Declared{Abstain: true}, nil
+		return policy.Abstaining(policy.UnreadMedicine), nil
 	}
 	choice, err := policy.SelectMedicineMethod(policy.MedicinePlanningRequest{Review: medicalReview, Resource: medicine, Benches: domain.Known(benches)})
 	if err != nil {

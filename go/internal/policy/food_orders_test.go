@@ -25,7 +25,7 @@ func TestDeclareFoodOrdersOwedButcher(t *testing.T) {
 	want := OrderSpec{Recipe: "ButcherCorpseFlesh", Mode: domain.ButcherForever, BenchKind: "TableButcher"}
 	for _, benches := range [][]GearBench{nil, standingButcher()} {
 		got := DeclareFoodOrders(foodButcherRequest(domain.Known(2.0)), benches)
-		if got.Abstain || !reflect.DeepEqual(got.Orders, []OrderSpec{want}) {
+		if got.Abstained() || !reflect.DeepEqual(got.Orders, []OrderSpec{want}) {
 			t.Fatalf("%+v", got)
 		}
 	}
@@ -35,13 +35,13 @@ func TestDeclareFoodOrdersOwedButcher(t *testing.T) {
 // nothing when none stands; an unread runway abstains.
 func TestDeclareFoodOrdersNotOwedKeepsStanding(t *testing.T) {
 	got := DeclareFoodOrders(foodButcherRequest(domain.Known(20.0)), standingButcher())
-	if got.Abstain || len(got.Orders) != 1 || got.Orders[0].Recipe != "ButcherCorpseFlesh" {
+	if got.Abstained() || len(got.Orders) != 1 || got.Orders[0].Recipe != "ButcherCorpseFlesh" {
 		t.Fatalf("standing butcher bill dropped: %+v", got)
 	}
-	if got = DeclareFoodOrders(foodButcherRequest(domain.Known(20.0)), nil); got.Abstain || len(got.Orders) != 0 {
+	if got = DeclareFoodOrders(foodButcherRequest(domain.Known(20.0)), nil); got.Abstained() || len(got.Orders) != 0 {
 		t.Fatalf("%+v", got)
 	}
-	if got = DeclareFoodOrders(foodButcherRequest(domain.Unknown[float64]()), standingButcher()); !got.Abstain {
+	if got = DeclareFoodOrders(foodButcherRequest(domain.Unknown[float64]()), standingButcher()); !got.Abstained() {
 		t.Fatalf("an unread runway declared %+v", got)
 	}
 }
@@ -51,12 +51,12 @@ func TestDeclareFoodOrdersNotOwedKeepsStanding(t *testing.T) {
 func TestDeclareFoodOrdersAbstains(t *testing.T) {
 	cook := foodButcherRequest(domain.Known(2.0))
 	cook.Purpose = CookFood
-	if got := DeclareFoodOrders(cook, nil); !got.Abstain {
+	if got := DeclareFoodOrders(cook, nil); !got.Abstained() {
 		t.Fatalf("cooking without a food plan declared %+v", got)
 	}
 	unread := standingButcher()
 	unread[0].Bills = domain.Unknown[[]GearBill]()
-	if got := DeclareFoodOrders(foodButcherRequest(domain.Known(20.0)), unread); !got.Abstain {
+	if got := DeclareFoodOrders(foodButcherRequest(domain.Known(20.0)), unread); !got.Abstained() {
 		t.Fatalf("%+v", got)
 	}
 }
@@ -66,7 +66,7 @@ func TestDeclareFoodOrdersAbstains(t *testing.T) {
 func TestDeclareFoodOrdersCookAheadEndsWithTheFlare(t *testing.T) {
 	r := foodButcherRequest(domain.Known(2.0))
 	r.Purpose = CookAheadFood
-	if got := DeclareFoodOrders(r, standingButcher()); got.Abstain || len(got.Orders) != 0 {
+	if got := DeclareFoodOrders(r, standingButcher()); got.Abstained() || len(got.Orders) != 0 {
 		t.Fatalf("%+v", got)
 	}
 }

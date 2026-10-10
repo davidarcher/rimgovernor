@@ -24,13 +24,13 @@ func withBenchDef(r GearPlanningRequest, def string) GearPlanningRequest {
 func TestDeclareGearOrdersBatchesTheGap(t *testing.T) {
 	r := withBenchDef(gearModelFixture(), "TableTailor")
 	got, err := DeclareGearOrders(r)
-	if err != nil || got.Abstain || !reflect.DeepEqual(got.Orders, []OrderSpec{parkaOrder(1)}) {
+	if err != nil || got.Abstained() || !reflect.DeepEqual(got.Orders, []OrderSpec{parkaOrder(1)}) {
 		t.Fatal(got, err)
 	}
 	v, _ := r.Observation.Value()
 	v.Stored = domain.Known([]GearStock{{"Parka", "Cloth", 2, 9, 1}})
 	r.Observation = domain.Known(v)
-	if got, err = DeclareGearOrders(r); err != nil || got.Abstain || len(got.Orders) != 0 {
+	if got, err = DeclareGearOrders(r); err != nil || got.Abstained() || len(got.Orders) != 0 {
 		t.Fatal("stored stock covers the gap", got, err)
 	}
 }
@@ -43,7 +43,7 @@ func TestDeclareGearOrdersKeepsTheStandingBill(t *testing.T) {
 	benches, _ := r.Benches.Value()
 	benches[0].Bills = domain.Known([]GearBill{{ID: "Bill_1", Products: []Resource{"Parka"}, Active: domain.Known(true), Spec: domain.Known(standing)}})
 	got, err := DeclareGearOrders(r)
-	if err != nil || got.Abstain || !reflect.DeepEqual(got.Orders, []OrderSpec{standing}) {
+	if err != nil || got.Abstained() || !reflect.DeepEqual(got.Orders, []OrderSpec{standing}) {
 		t.Fatal(got, err)
 	}
 	// A finished bill keeps nothing.
@@ -53,7 +53,7 @@ func TestDeclareGearOrdersKeepsTheStandingBill(t *testing.T) {
 	}
 	// A standing bill whose spec was unread is unknown, so nothing is removed.
 	benches[0].Bills = domain.Known([]GearBill{{ID: "Bill_1", Products: []Resource{"Parka"}, Active: domain.Known(true)}})
-	if got, err = DeclareGearOrders(r); err != nil || !got.Abstain {
+	if got, err = DeclareGearOrders(r); err != nil || !got.Abstained() {
 		t.Fatal("an unread bill spec must abstain", got, err)
 	}
 }
@@ -71,7 +71,7 @@ func TestDeclareGearOrdersWearsBeforeCrafting(t *testing.T) {
 	v.Pawns[0].Candidates = domain.Known([]GearCandidate{{Target: "shelf-parka", Definition: "Parka", Gain: 1}})
 	r.Observation = domain.Known(v)
 	got, err := DeclareGearOrders(r)
-	if err != nil || got.Abstain || len(got.Orders) != 0 {
+	if err != nil || got.Abstained() || len(got.Orders) != 0 {
 		t.Fatal(got, err)
 	}
 }
@@ -79,19 +79,19 @@ func TestDeclareGearOrdersWearsBeforeCrafting(t *testing.T) {
 func TestDeclareGearOrdersAbstainsOnUnreadFacts(t *testing.T) {
 	r := withBenchDef(gearModelFixture(), "TableTailor")
 	r.Benches = domain.Unknown[[]GearBench]()
-	if got, err := DeclareGearOrders(r); err != nil || !got.Abstain {
+	if got, err := DeclareGearOrders(r); err != nil || !got.Abstained() {
 		t.Fatal("an unread bench census must abstain", got, err)
 	}
 	r = withBenchDef(gearModelFixture(), "TableTailor")
 	r.Observation = domain.Unknown[GearObservation]()
-	if got, err := DeclareGearOrders(r); err != nil || !got.Abstain {
+	if got, err := DeclareGearOrders(r); err != nil || !got.Abstained() {
 		t.Fatal("an unread census must abstain", got, err)
 	}
 	r = withBenchDef(gearModelFixture(), "TableTailor")
 	benches, _ := r.Benches.Value()
 	recipes, _ := benches[0].Recipes.Value()
 	recipes[0].Ingredients = domain.Unknown[[][]Amount]()
-	if got, err := DeclareGearOrders(r); err != nil || !got.Abstain {
+	if got, err := DeclareGearOrders(r); err != nil || !got.Abstained() {
 		t.Fatal("an unread recipe must abstain", got, err)
 	}
 }
@@ -99,7 +99,7 @@ func TestDeclareGearOrdersAbstainsOnUnreadFacts(t *testing.T) {
 // Armor is the armory's: gear declares none.
 func TestDeclareGearLeavesArmorToTheArmory(t *testing.T) {
 	r := armoryArmorFixture()
-	if got, err := DeclareGearOrders(r); err != nil || got.Abstain || len(got.Orders) != 0 {
+	if got, err := DeclareGearOrders(r); err != nil || got.Abstained() || len(got.Orders) != 0 {
 		t.Fatal(got, err)
 	}
 }
@@ -110,10 +110,10 @@ func TestDeclareArmoryOrdersWeaponsArmorAndShells(t *testing.T) {
 	v.Pawns[0] = gearDressedPawn("pawn", loadoutOption("Parka", GearSkinTorso))
 	r.Observation = domain.Known(v)
 	got, err := DeclareArmoryOrders(r, ArmoryTierSmithing, []Amount{{"Parka", 3}}, nil)
-	if err != nil || got.Abstain || len(got.Orders) != 1 || got.Orders[0].Recipe != "Make_Parka" || got.Orders[0].Target != 3 {
+	if err != nil || got.Abstained() || len(got.Orders) != 1 || got.Orders[0].Recipe != "Make_Parka" || got.Orders[0].Target != 3 {
 		t.Fatal("weapon batch", got, err)
 	}
-	if got, err = DeclareArmoryOrders(r, ArmoryTierUnknown, []Amount{{"Parka", 3}}, nil); err != nil || !got.Abstain {
+	if got, err = DeclareArmoryOrders(r, ArmoryTierUnknown, []Amount{{"Parka", 3}}, nil); err != nil || !got.Abstained() {
 		t.Fatal("an unknown tier must abstain", got, err)
 	}
 }
@@ -124,7 +124,7 @@ func TestDeclareArmoryOrdersArmorLadderByTier(t *testing.T) {
 		benches, _ := r.Benches.Value()
 		benches[0].Def = "TableFabrication"
 		got, err := DeclareArmoryOrders(r, tier, nil, nil)
-		if err != nil || got.Abstain {
+		if err != nil || got.Abstained() {
 			t.Fatal(tier, got, err)
 		}
 		if want == "" {
@@ -155,7 +155,7 @@ func TestDeclareArmoryOrdersShellsAreStockTargets(t *testing.T) {
 		{Recipe: "Make_Shell_HighExplosive", Mode: domain.StockTarget, Target: 10, BenchKind: "TableMachining"},
 		{Recipe: "Make_Shell_Incendiary", Mode: domain.StockTarget, Target: 5, BenchKind: "TableMachining"},
 	}
-	if err != nil || got.Abstain || !reflect.DeepEqual(got.Orders, want) {
+	if err != nil || got.Abstained() || !reflect.DeepEqual(got.Orders, want) {
 		t.Fatal(got, err)
 	}
 	// A shell some bill already makes is declared as that bill stands.
@@ -163,7 +163,7 @@ func TestDeclareArmoryOrdersShellsAreStockTargets(t *testing.T) {
 	bench.Bills = domain.Known([]GearBill{{ID: "Bill_1", Products: []Resource{testShellHE}, Spec: domain.Known(standing)}})
 	r.Benches = domain.Known([]GearBench{bench})
 	got, err = DeclareArmoryOrders(r, ArmoryTierMachining, nil, targets)
-	if err != nil || got.Abstain || !reflect.DeepEqual(got.Orders, []OrderSpec{standing, want[1]}) {
+	if err != nil || got.Abstained() || !reflect.DeepEqual(got.Orders, []OrderSpec{standing, want[1]}) {
 		t.Fatal(got, err)
 	}
 }

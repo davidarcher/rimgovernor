@@ -1,6 +1,7 @@
 package buildingruntime
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -19,7 +20,7 @@ func (l *workLedger) noteBatches(declared []policy.Declared) {
 	var batches []policy.OrderSpec
 	seen := map[string]bool{}
 	for _, d := range declared {
-		if d.Abstain {
+		if d.Abstained() {
 			return
 		}
 		for _, o := range d.Orders {
@@ -64,4 +65,77 @@ func (l *workLedger) declaredBatches() []policy.OrderSpec {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return append([]policy.OrderSpec(nil), l.batches...)
+}
+
+// WorkLedger is WorkLedgerView with each order's latest placement outcome read
+// from the journal: the ledger planner's ledger-* methods, whose plans hold the
+// production_bill actions and native's receipts (accepted, or refused with its
+// reason). Nothing is stored for it; when the journal cannot be read the view
+// says so (AttemptsKnown false) rather than claiming no order was tried.
+func (r *Rounder) WorkLedger(ctx context.Context) policy.LedgerView {
+	view := r.WorkLedgerView()
+	r.ledger.mu.Lock()
+	kinds := r.ledger.benchKinds
+	r.ledger.mu.Unlock()
+	if len(view.Orders) == 0 {
+		return view
+	}
+	attempts, ok := r.ledgerAttempts(ctx, kinds)
+	if !ok {
+		return view
+	}
+	return view.WithAttempts(attempts)
+}
+
+// ledgerAttempts is the latest outcome per order Key over every plan of the
+// ledger owner's methods.
+func (r *Rounder) ledgerAttempts(ctx context.Context, kinds map[string]string) (policy.PlacementAttempts, bool) {
+	journal := r.player.journal
+	review, err := journal.LoadRounds(ctx)
+	if err != nil {
+		return nil, false
+	}
+	owner, _, err := journal.WorkableOwner(ctx, review, policy.MaintainWorkLedger)
+	if err != nil || owner == nil {
+		return nil, false
+	}
+	attempts := policy.PlacementAttempts{}
+	for _, method := range owner.OwnerHistory() {
+		if !strings.HasPrefix(string(method.Method), ledgerMethodPrefix) {
+			continue
+		}
+		plan, err := journal.LoadPlan(ctx, method.Plan)
+		if err != nil {
+			return nil, false
+		}
+		for _, progress := range plan.Progress {
+			bill, ok := progress.Action().ProductionBill()
+			kind := kinds[bill.Bench()]
+			if !ok || kind == "" {
+				continue
+			}
+			key := policy.OrderSpec{BenchKind: kind, Recipe: bill.Recipe(), Ingredients: bill.Ingredients(), Worker: bill.Worker(), Mode: bill.Mode(), Target: bill.Target()}.Key()
+			attempts.Note(key, attemptOf(string(method.Plan), progress.View()))
+		}
+	}
+	return attempts, true
+}
+
+// attemptOf is a journaled bill action as a placement outcome.
+func attemptOf(plan string, v domain.ProgressView) policy.PlacementAttempt {
+	a := policy.PlacementAttempt{Plan: plan, Tick: int64(v.Tick), Outcome: policy.AttemptPending}
+	receipt, known := v.Receipt.Value()
+	switch {
+	case !known:
+	case receipt == domain.ReceiptAccepted:
+		a.Outcome = policy.AttemptAccepted
+	case receipt == domain.ReceiptRefused:
+		a.Outcome = policy.AttemptRefused
+		if refusal, ok := v.Refusal.Value(); ok {
+			a.Code, a.Reason = refusal.Code, refusal.Reason
+		}
+	default:
+		a.Outcome = policy.AttemptUnconfirmed
+	}
+	return a
 }

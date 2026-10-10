@@ -18,8 +18,8 @@ func TestDeclareSelection(t *testing.T) {
 	}{
 		"selected bill is declared":      {sel, true, Declared{Orders: []OrderSpec{want}}},
 		"nothing selected declares none": {sel, false, Declared{}},
-		"bench missing abstains":         {BillSelection{Bench: "b9", Recipe: "r"}, true, Declared{Abstain: true}},
-		"bench without a def abstains":   {BillSelection{Bench: "b2", Recipe: "r"}, true, Declared{Abstain: true}},
+		"bench missing abstains":         {BillSelection{Bench: "b9", Recipe: "r"}, true, Declared{Abstains: []Abstain{{Fact: UnreadBenchDef}}}},
+		"bench without a def abstains":   {BillSelection{Bench: "b2", Recipe: "r"}, true, Declared{Abstains: []Abstain{{Fact: UnreadBenchDef}}}},
 	} {
 		if got := DeclareSelection(c.sel, c.selected, benches); !reflect.DeepEqual(got, c.want) {
 			t.Errorf("%s: got %+v, want %+v", name, got, c.want)
@@ -34,11 +34,11 @@ func TestDeclareMedicine(t *testing.T) {
 	if got := DeclareMedicine(produce, benches); !reflect.DeepEqual(got, want) {
 		t.Errorf("produce: got %+v, want %+v", got, want)
 	}
-	if got := DeclareMedicine(MedicineMethod{Kind: MedicineUnknown}, benches); !got.Abstain {
+	if got := DeclareMedicine(MedicineMethod{Kind: MedicineUnknown}, benches); !got.Abstained() {
 		t.Errorf("unknown must abstain: %+v", got)
 	}
 	for _, kind := range []MedicineMethodKind{MedicineRecovered, MedicineWait, MedicineBlocked} {
-		if got := DeclareMedicine(MedicineMethod{Kind: kind}, benches); got.Abstain || len(got.Orders) != 0 {
+		if got := DeclareMedicine(MedicineMethod{Kind: kind}, benches); got.Abstained() || len(got.Orders) != 0 {
 			t.Errorf("%s declares nothing: %+v", kind, got)
 		}
 	}

@@ -178,11 +178,11 @@ func (w *ClockWorker) Validity() (domain.ReadValidity, bool) {
 }
 
 // WorkLedger is the Rounder's latest ledger view; ok is false without routines.
-func (w *ClockWorker) WorkLedger() (view policy.LedgerView, ok bool) {
+func (w *ClockWorker) WorkLedger(ctx context.Context) (view policy.LedgerView, ok bool) {
 	if w.rounds == nil {
 		return policy.LedgerView{}, false
 	}
-	return w.rounds.WorkLedgerView(), true
+	return w.rounds.WorkLedger(ctx), true
 }
 
 // waitOrWake sleeps for delay unless the wake signal fires first. It reports

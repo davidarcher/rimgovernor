@@ -163,7 +163,7 @@ func TestSnapshotApparelBuildsBenchThenProducesShirt(t *testing.T) {
 	}
 	gearReq.Observation = domain.Known(census)
 	declared, err := policy.DeclareGearOrders(gearReq)
-	if err != nil || declared.Abstain || len(declared.Orders) == 0 || declared.Orders[0].Recipe != "Make_Apparel_BasicShirt" {
+	if err != nil || declared.Abstained() || len(declared.Orders) == 0 || declared.Orders[0].Recipe != "Make_Apparel_BasicShirt" {
 		t.Fatalf("gear: declared %+v err %v, want a shirt order for the bench", declared, err)
 	}
 }

@@ -122,7 +122,7 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 	}
 	declared := declaredOrders(t, base.reviewer, planner)
 	order, ok := orderFor(declared, recipe)
-	if declared.Abstain || !ok || len(declared.Orders) != 1 || order.Target != 5 || order.Mode != mode {
+	if declared.Abstained() || !ok || len(declared.Orders) != 1 || order.Target != 5 || order.Mode != mode {
 		t.Fatal(declared)
 	}
 	if plans, err := db.LoadPlans(context.Background()); err != nil {
