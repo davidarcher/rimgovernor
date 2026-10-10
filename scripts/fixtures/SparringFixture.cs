@@ -27,6 +27,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Comma-separated Melee levels for the eligible colonists in order (default 7,6,5,4,3,2).")] string levels = "7,6,5,4,3,2",
             [ToolParameter(Description = "Markers in the ring row.")] int markers = 6,
             [ToolParameter(Description = "Add two colonists who must never be seated: Melee 20, and drafted.")] bool ineligible = false,
+            [ToolParameter(Description = "Add one trainee whose chosen skill is Shooting (Shooting 15 over Melee 5): never seated.")] bool shooter = false,
             [ToolParameter(Description = "Draft one member of the first gathering bout, the tick it is seen.")] bool draftOnGather = false,
             [ToolParameter(Description = "Mid-bout event: '' none; 'cap' no pain (painstopper) so only the exchange cap ends a bout; 'pain' or 'bleed' injures the first fighter past the stop rule the tick it wears practice gear; 'draft' or 'kill' hits the second fighter after its second swing.")] string scenario = "",
             [ToolParameter(Description = "Cells south of the ring the colonists start.")] int far = 30)
@@ -41,7 +42,7 @@ namespace HomeBridge.BridgeTools
 
                 var capable = map.mapPawns.FreeColonistsSpawned.Where(p => !p.WorkTagIsDisabled(WorkTags.Violent)
                     && !p.skills.GetSkill(SkillDefOf.Melee).TotallyDisabled).OrderBy(p => p.thingIDNumber).ToList();
-                var needed = eligible + (ineligible ? 2 : 0);
+                var needed = eligible + (ineligible ? 2 : 0) + (shooter ? 1 : 0);
                 if (capable.Count < needed) throw new InvalidOperationException("Need " + needed + " violence-capable colonists.");
                 var levelList = levels.Split(',').Select(int.Parse).ToList();
 
@@ -65,7 +66,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading) p.workSettings.SetPriority(work, 0);
                     p.jobs.EndCurrentJob(JobCondition.InterruptForced);
                 }
-                void Stage(Pawn p, int at, int level, bool trains, bool drafted)
+                void Stage(Pawn p, int at, int level, bool trains, bool drafted, int shooting = 0)
                 {
                     p.Position = new IntVec3(x + at, 0, z - far);
                     p.Notify_Teleported(true, true);
@@ -81,6 +82,15 @@ namespace HomeBridge.BridgeTools
                     record.xpSinceLastLevel = 0f;
                     record.xpSinceMidnight = 0f;
                     record.passion = Passion.Minor;
+                    // The skill a pawn trains is its higher one: Shooting stays under every
+                    // Melee level here unless the stage makes the pawn a shooter.
+                    var shot = p.skills.GetSkill(SkillDefOf.Shooting);
+                    shot.Level = shooting;
+                    shot.xpSinceLastLevel = 0f;
+                    shot.xpSinceMidnight = 0f;
+                    shot.passion = Passion.None;
+                    var brawler = p.story.traits.GetTrait(TraitDefOf.Brawler);
+                    if (brawler != null) p.story.traits.RemoveTrait(brawler);
                     if (trains) p.workSettings.SetPriority(training, 1);
                     p.drafter.Drafted = drafted;
                 }
@@ -101,12 +111,19 @@ namespace HomeBridge.BridgeTools
                     ineligibleIds.Add(capable[eligible].GetUniqueLoadID());
                     ineligibleIds.Add(capable[eligible + 1].GetUniqueLoadID());
                 }
+                var shooterIds = new List<string>();
+                if (shooter)
+                {
+                    var at = eligible + (ineligible ? 2 : 0);
+                    Stage(capable[at], at, 5, true, false, 15);
+                    shooterIds.Add(capable[at].GetUniqueLoadID());
+                }
                 for (var i = needed; i < capable.Count; i++) Stage(capable[i], i, 5, false, false);
                 foreach (var bout in registry.Bouts.ToList()) foreach (var slot in bout.Slots.ToList()) registry.Leave(slot.Pawn);
                 map.components.Add(new SparringWatcher(map, tracked, scenario) { DraftOnGather = draftOnGather });
                 return new
                 {
-                    success = true, eligible = eligibleIds, ineligible = ineligibleIds, markers = markerIds,
+                    success = true, eligible = eligibleIds, ineligible = ineligibleIds, shooter = shooterIds, markers = markerIds,
                     ceiling = SparringRules.Ceiling,
                 };
             }, cancellationToken);

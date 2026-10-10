@@ -105,10 +105,12 @@ namespace RimGovernor.Runtime
             return !melee.TotallyDisabled && melee.Level < SparringRules.Ceiling;
         }
 
-        // Who may join a bout: CanTakePart, and unhurt.
+        // Who may join a bout: CanTakePart, unhurt, and a pawn whose chosen
+        // training skill is Melee and still under its ceiling (the shared
+        // RangeTraining choice, so a pawn that trains Shooting never spars).
         public static bool Eligible(Pawn pawn)
         {
-            if (!CanTakePart(pawn)) return false;
+            if (!CanTakePart(pawn) || !RangeTraining.BelowTarget(pawn, SkillDefOf.Melee)) return false;
             var health = pawn.health.hediffSet;
             return health.BleedRateTotal <= 0.01f && health.PainTotal <= 0.1f;
         }

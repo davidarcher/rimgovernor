@@ -24,7 +24,7 @@ func init() {
 		Name: "lab/sparring",
 		Scope: "Bout formation at the sparring ring (#2708): with no order from Go the vanilla work scan offers eligible colonists a marker, and " +
 			"2, 3, 4 and 5 eligible colonists form bouts of 2; 3 (free-for-all); 4 (2v2, highest with lowest); and 3 + 2 at once. Every pawn and every " +
-			"marker is in at most one bout, a colonist above the ceiling and a drafted one are never seated, a pawn drafted while its bout gathers is " +
+			"marker is in at most one bout, a colonist above the ceiling, a drafted one and one whose chosen skill is Shooting are never seated, a pawn drafted while its bout gathers is " +
 			"dropped and the rest fight on, and every fighter's opponent is a member of another team. The bouts then run end to end (#2709): each " +
 			"fighter swaps at its marker into the practice weapon and apparel set (its own gear held in its inventory), swings through the vanilla " +
 			"melee verb and is paid vanilla melee XP, the struck pawn neither flees nor fights back nor drops its job, and the gear is fully restored " +
@@ -46,7 +46,10 @@ type sparringStage struct {
 	// sizes are the first round's bout sizes, largest first.
 	sizes      []int
 	ineligible bool
-	draft      bool
+	// shooter adds a trainee whose chosen skill is Shooting (level above its
+	// Melee): it must never be seated while the melee-chosen ones are.
+	shooter bool
+	draft   bool
 	// scenario names a fight stage (#2709): the fixture's mid-bout event, and
 	// the stage waits for every spar job to end instead of the bouts to finish.
 	scenario string
@@ -60,6 +63,7 @@ func runSparring(ctx context.Context, s cases.Session) error {
 		{name: "four", eligible: 4, levels: "7,5,4,2", sizes: []int{4}},
 		{name: "five-two-bouts", eligible: 5, levels: "7,6,5,4,3", sizes: []int{3, 2}},
 		{name: "ineligible", eligible: 2, levels: "5,4", sizes: []int{2}, ineligible: true},
+		{name: "shooter-never-seated", eligible: 3, levels: "6,4,2", sizes: []int{3}, shooter: true},
 		{name: "drafted-while-gathering", eligible: 4, levels: "7,5,4,2", sizes: []int{3}, draft: true},
 		{name: "fight-cap", eligible: 2, levels: "5,4", sizes: []int{2}, scenario: "cap"},
 		{name: "fight-pain", eligible: 3, levels: "6,5,4", sizes: []int{3}, scenario: "pain"},
@@ -103,7 +107,7 @@ func prepareSparring(ctx context.Context, s cases.Session, h *na.Harness, args m
 
 func runSparringStage(ctx context.Context, s cases.Session, h *na.Harness, stage sparringStage) (map[string]any, error) {
 	prepared, err := prepareSparring(ctx, s, h, map[string]any{
-		"eligible": stage.eligible, "levels": stage.levels, "ineligible": stage.ineligible, "draftOnGather": stage.draft,
+		"eligible": stage.eligible, "levels": stage.levels, "ineligible": stage.ineligible, "shooter": stage.shooter, "draftOnGather": stage.draft,
 		"scenario": stage.scenario,
 	})
 	if err != nil {
@@ -335,6 +339,20 @@ func checkSparringStage(stage sparringStage, prepared, got map[string]any) error
 		return fmt.Errorf("a pawn or marker was in two bouts at once %v times: %#v", n, got)
 	}
 	eligible := stringList(prepared["eligible"])
+	if stage.shooter {
+		shooters := stringList(prepared["shooter"])
+		if len(shooters) != 1 {
+			return fmt.Errorf("stage staged %d shooters, want 1: %#v", len(shooters), prepared)
+		}
+		for _, id := range stringList(got["seated"]) {
+			if sparringHas(shooters, id) {
+				return fmt.Errorf("shooting-chosen %s was seated in a bout: %#v", id, got)
+			}
+		}
+		if len(stringList(got["seated"])) < stage.eligible {
+			return fmt.Errorf("the melee-chosen pawns were not all seated: %#v", got)
+		}
+	}
 	for _, id := range stringList(got["seated"]) {
 		if !sparringHas(eligible, id) {
 			return fmt.Errorf("%s was seated but is not eligible: %#v", id, got)
