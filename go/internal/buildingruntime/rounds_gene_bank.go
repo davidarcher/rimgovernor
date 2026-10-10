@@ -180,7 +180,7 @@ func (r *RoundsGeneBankPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !planned {
 		return RoundsBuildingResult{Verdict: BuildingNoLayoutPlan}, nil
 	}
-	sites, err := policy.FreeSites(policy.FreeSiteRequest{Bounds: f.Bounds, Anchor: anchor, Cells: f.Cells}, size.Width, size.Height)
+	sites, err := policy.FreeSites(policy.FreeSiteRequest{Bounds: f.Bounds, Anchor: anchor, Cells: f.Cells, Light: f.LightTerrains}, size.Width, size.Height)
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}

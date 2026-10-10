@@ -170,7 +170,7 @@ namespace HomeBridge.BridgeTools
                 refusal != null ? refusal.Message : "New colony failed in " + entry.Phase + ": " + error.GetType().Name + ": " + error.Message));
         }
 
-        // The spec resolved to defs; an unknown name lists the valid ones.
+        // The spec resolved to defs; an unknown name is refused (the mirror's def rows list the valid ones).
         private static ResolvedSpec Resolve(Lifecycle.NewColonySpec spec)
         {
             var resolved = new ResolvedSpec();
@@ -190,8 +190,7 @@ namespace HomeBridge.BridgeTools
                 resolved.Biomes.Add(Named(settleable, name, "biome"));
             var temperatureName = spec.HasWorldTemperature ? spec.WorldTemperature : nameof(OverallTemperature.Normal);
             if (!Enum.TryParse(temperatureName, out OverallTemperature temperature) || !Enum.IsDefined(typeof(OverallTemperature), temperature))
-                throw new Refusal(Common.FailureCode.InvalidRequest, "Unknown world_temperature " + temperatureName + "; valid: "
-                    + string.Join(", ", Enum.GetNames(typeof(OverallTemperature))) + ".");
+                throw new Refusal(Common.FailureCode.InvalidRequest, "Unknown world_temperature " + temperatureName + ".");
             resolved.WorldTemperature = temperature;
             if (spec.HasMinTemperature) resolved.MinTemperature = spec.MinTemperature;
             if (spec.HasMaxTemperature) resolved.MaxTemperature = spec.MaxTemperature;
@@ -204,8 +203,7 @@ namespace HomeBridge.BridgeTools
         {
             var found = defs.FirstOrDefault(d => d.defName == name);
             if (found == null)
-                throw new Refusal(Common.FailureCode.InvalidRequest, "Unknown " + field + " \"" + name + "\"; valid: "
-                    + string.Join(", ", defs.Select(d => d.defName).OrderBy(n => n, StringComparer.Ordinal)) + ".");
+                throw new Refusal(Common.FailureCode.InvalidRequest, "Unknown " + field + " \"" + name + "\".");
             return found;
         }
 
@@ -324,19 +322,8 @@ namespace HomeBridge.BridgeTools
 
         private static readonly TeamSkill[] Skills = (TeamSkill[])Enum.GetValues(typeof(TeamSkill));
 
-        private static SkillDef SkillDefFor(TeamSkill skill)
-        {
-            switch (skill)
-            {
-                case TeamSkill.Plants: return SkillDefOf.Plants;
-                case TeamSkill.Cooking: return SkillDefOf.Cooking;
-                case TeamSkill.Construction: return SkillDefOf.Construction;
-                case TeamSkill.Medicine: return SkillDefOf.Medicine;
-                case TeamSkill.Mining: return SkillDefOf.Mining;
-                case TeamSkill.Shooting: return SkillDefOf.Shooting;
-                default: return SkillDefOf.Melee;
-            }
-        }
+        // TeamSkill members are SkillDef defNames.
+        private static SkillDef SkillDefFor(TeamSkill skill) => DefDatabase<SkillDef>.GetNamed(skill.ToString());
 
         // Cooking has no WorkTypeDefOf field.
         private static WorkTypeDef? WorkTypeFor(TeamSkill skill)

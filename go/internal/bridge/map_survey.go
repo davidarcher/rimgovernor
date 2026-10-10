@@ -3,14 +3,13 @@ package bridge
 import (
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-// Terrain affordance names of the mirror's foundation_affordances column.
+// Terrain affordance names (TerrainAffordanceDef defNames) of TerrainDef.affordances.
 const (
 	affordanceHeavy      = "Heavy"
 	affordanceLight      = "Light"
@@ -19,7 +18,7 @@ const (
 
 // SurveyFromCells is the whole-map survey the layout plan is derived from,
 // read off the cell mirror's planning window: terrain and
-// foundation affordances from the columns, ore and trees from the thing list
+// base-terrain affordances from the catalog, ore and trees from the thing list
 // and the catalog's defs, roofs from the catalog's roof rules. A
 // fogged cell is not held; it reads as solid rock to mine out, since the fog
 // hides mountain far more often than a cavern, and the excavation steps
@@ -72,7 +71,14 @@ func unseenRock(held []policy.SurveyCell, bounds policy.Bounds) []policy.SurveyC
 // surveyCell decodes one held cell. A thick roof is the roof rules';
 // a roof def they lack is an error wrapping policy.ErrUnknownRoof.
 func surveyCell(cell policy.SiteCell, roofs policy.RoofRules, catalog *DefinitionCatalog) (policy.SurveyCell, error) {
-	affordances := strings.Split(value(cell.FoundationAffordances), ",")
+	var affordances []string
+	if name := value(cell.BaseTerrain); name != "" {
+		base := catalog.TerrainDefs[name]
+		if base == nil {
+			return policy.SurveyCell{}, contract("catalog has no def row for base terrain %s at %v", name, cell.Cell)
+		}
+		affordances = base.GetAffordances()
+	}
 	footing := policy.FootingFirm
 	if !slices.Contains(affordances, affordanceHeavy) {
 		footing = policy.FootingNone

@@ -181,7 +181,7 @@ func offeredSite(n *sleepingNative) (map[domain.Cell]bool, domain.Cell) {
 	offered := map[domain.Cell]bool{}
 	is := func(f domain.Fact[bool]) bool { v, _ := f.Value(); return v }
 	for _, cell := range cells.Cells {
-		if _, zoned := cell.ZoneID.Value(); is(cell.Indoors) || is(cell.Roofed) || !is(cell.Walkable) || cell.Occupied() || !is(cell.SupportsLight) || zoned {
+		if _, zoned := cell.ZoneID.Value(); is(cell.Indoors) || is(cell.Roofed) || !is(cell.Walkable) || cell.Occupied() || !cell.SupportsLight(policy.LightTerrains{"Soil": true}) || zoned {
 			continue
 		}
 		offered[cell.Cell] = true

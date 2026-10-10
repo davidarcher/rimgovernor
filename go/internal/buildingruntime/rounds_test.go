@@ -114,6 +114,7 @@ func (n *roundsNative) thingCatalog() *bridge.DefinitionCatalog {
 	}
 	base := []string{"HorseshoesPin", "Silver", "SolarGenerator", "WindTurbine", "WoodFiredGenerator", "ChemfuelPoweredGenerator", "GeothermalGenerator", "Battery", "Human", "Corpse_Human"}
 	s := recordedrows.Take(recordedrows.Panic, recordedrows.Named(base...), "room_stat_defs", "weather_defs", "game_condition_defs", "biome_defs", "joy_giver_defs", "job_defs", "thing_category_defs", "damage_defs")
+	s.AddTerrain("Soil")
 	for _, name := range base {
 		if n.rows != nil && n.rows.Has(name) {
 			s.Overwrite(n.rows, name)
@@ -237,7 +238,7 @@ func (n *roundsNative) ReadPlanningWindow(ctx context.Context, _ *c.Identity, re
 // openCell is a visible, walkable, unroofed, unzoned outdoor cell with
 // light footing and no edifice, as the frame grid reads one.
 func openCell(x, z int32) policy.SiteCell {
-	return policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: policy.OccupantThings(false), SupportsLight: domain.Known(true), Indoors: domain.Known(false),
+	return policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Things: policy.OccupantThings(false), Terrain: domain.Known("Soil"), Indoors: domain.Known(false),
 		Zone: domain.Known(false), Roofed: domain.Known(false)}
 }
 

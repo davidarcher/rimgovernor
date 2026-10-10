@@ -15,10 +15,14 @@ import (
 func TestSurveyFromCellsReadsTheMirror(t *testing.T) {
 	catalog := roofCatalog(&d.RoofDef{DefName: "RoofRockThick", IsNatural: true, IsThickRoof: true})
 	catalog.TerrainDefs = map[string]*d.TerrainDef{
-		"Soil":   {DefName: "Soil"},
-		"Marsh":  {DefName: "Marsh", DriesTo: "Soil"},
-		"Lava":   {DefName: "Lava", Dangerous: true},
-		"Gravel": {DefName: "Gravel"},
+		"Soil":            {DefName: "Soil"},
+		"Marsh":           {DefName: "Marsh", DriesTo: "Soil"},
+		"Lava":            {DefName: "Lava", Dangerous: true},
+		"Gravel":          {DefName: "Gravel"},
+		"HeavyLight":      {DefName: "HeavyLight", Affordances: []string{"Heavy", "Light"}},
+		"BridgeableLight": {DefName: "BridgeableLight", Affordances: []string{"Bridgeable", "Light"}},
+		"BridgeableOnly":  {DefName: "BridgeableOnly", Affordances: []string{"Bridgeable"}},
+		"HeavyOnly":       {DefName: "HeavyOnly", Affordances: []string{"Heavy"}},
 	}
 	catalog.ThingDefs = map[string]*d.ThingDef{
 		"Granite":      {DefName: "Granite"},
@@ -26,21 +30,21 @@ func TestSurveyFromCellsReadsTheMirror(t *testing.T) {
 		"Plant_Oak":    {DefName: "Plant_Oak", Plant: &d.PlantProperties{TreeCategory: d.TreeCategory_TREE_CATEGORY_FULL}},
 		"Plant_Rice":   {DefName: "Plant_Rice", Plant: &d.PlantProperties{}},
 	}
-	cell := func(x int32, terrain, affordances string, things ...policy.Thing) policy.SiteCell {
-		return policy.SiteCell{Cell: domain.Cell{X: x, Z: 1}, Walkable: domain.Known(true), Terrain: domain.Known(terrain), FoundationAffordances: domain.Known(affordances), Things: things}
+	cell := func(x int32, terrain, base string, things ...policy.Thing) policy.SiteCell {
+		return policy.SiteCell{Cell: domain.Cell{X: x, Z: 1}, Walkable: domain.Known(true), Terrain: domain.Known(terrain), BaseTerrain: domain.Known(base), Things: things}
 	}
 	rock := func(def string) policy.Thing {
 		return policy.Thing{Def: def, Category: policy.ThingBuilding, Flags: policy.FlagEdifice | policy.FlagImpassable | policy.FlagNaturalRock, Count: 1, Building: &policy.BuildingState{}}
 	}
-	gold := cell(1, "Gravel", "Heavy,Light", rock("MineableGold"))
+	gold := cell(1, "Gravel", "HeavyLight", rock("MineableGold"))
 	gold.Walkable, gold.Roof = domain.Known(false), domain.Known("RoofRockThick")
 	cells := []policy.SiteCell{
-		cell(0, "Soil", "Heavy,Light", rock("Granite")),
+		cell(0, "Soil", "HeavyLight", rock("Granite")),
 		gold,
-		cell(2, "Soil", "Heavy,Light", policy.OccupantThings(true)...),
-		cell(3, "Marsh", "Bridgeable,Light", policy.Thing{Def: "Plant_Oak", Category: policy.ThingPlant, Count: 1}),
-		cell(4, "Marsh", "Bridgeable"),
-		cell(5, "Lava", "Heavy", policy.Thing{Def: "Plant_Rice", Category: policy.ThingPlant, Count: 1}),
+		cell(2, "Soil", "HeavyLight", policy.OccupantThings(true)...),
+		cell(3, "Marsh", "BridgeableLight", policy.Thing{Def: "Plant_Oak", Category: policy.ThingPlant, Count: 1}),
+		cell(4, "Marsh", "BridgeableOnly"),
+		cell(5, "Lava", "HeavyOnly", policy.Thing{Def: "Plant_Rice", Category: policy.ThingPlant, Count: 1}),
 	}
 	cells[3].Fertility = domain.Known(1.4)
 	survey, err := SurveyFromCells(cells, policy.Bounds{Width: 8, Height: 2}, catalog)

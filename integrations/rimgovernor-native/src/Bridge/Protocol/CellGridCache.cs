@@ -8,7 +8,7 @@ namespace HomeBridge.BridgeTools
 {
     /// <summary>
     /// The grid read's cached per-cell facts: walkability, doorway,
-    /// empty storage, terrain light, terrain and foundation names and the
+    /// empty storage, terrain and base terrain names and the
     /// cell's room, held per map and recomputed only for a cell the game
     /// reported changed. A cell is dirtied by a non-pawn thing spawning or
     /// despawning on it, a terrain change or a path-cost recalculation at it;
@@ -23,8 +23,8 @@ namespace HomeBridge.BridgeTools
 
         private readonly Map map;
         internal readonly bool[] Valid;
-        internal readonly byte[] Walkable, Doorway, StorageEmpty, Light;
-        internal readonly string?[] Terrain, Foundation;
+        internal readonly byte[] Walkable, Doorway, StorageEmpty;
+        internal readonly string?[] Terrain, BaseTerrain;
         internal readonly Room?[] Room;
         private int epoch, seen;
 
@@ -43,8 +43,8 @@ namespace HomeBridge.BridgeTools
         {
             this.map = map;
             var n = map.Size.x * map.Size.z;
-            Valid = new bool[n]; Walkable = new byte[n]; Doorway = new byte[n]; StorageEmpty = new byte[n]; Light = new byte[n];
-            Terrain = new string?[n]; Foundation = new string?[n]; Room = new Room?[n];
+            Valid = new bool[n]; Walkable = new byte[n]; Doorway = new byte[n]; StorageEmpty = new byte[n];
+            Terrain = new string?[n]; BaseTerrain = new string?[n]; Room = new Room?[n];
             var events = map.events;
             events.ThingSpawned += OnThing;
             events.ThingDespawned += OnThing;

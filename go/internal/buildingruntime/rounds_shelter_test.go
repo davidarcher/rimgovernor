@@ -568,7 +568,10 @@ func hutCells(n *sleepingNative, side int32, lit func(x, z int32) bool) {
 	for x := int32(0); x < side; x++ {
 		for z := int32(0); z < side; z++ {
 			cell := openCell(x, z)
-			cell.SupportsLight = domain.Known(lit(x, z))
+			cell.Terrain = domain.Known("Soil")
+			if !lit(x, z) {
+				cell.Terrain = domain.Known("WaterDeep")
+			}
 			n.cells.Cells = append(n.cells.Cells, cell)
 		}
 	}

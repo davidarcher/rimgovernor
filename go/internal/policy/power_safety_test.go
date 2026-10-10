@@ -36,7 +36,7 @@ func TestPowerSafetyPrecedesGenerationAndUsesNativeRoofs(t *testing.T) {
 	var cells []SiteCell
 	for x := int32(0); x < 20; x++ {
 		for z := int32(0); z < 20; z++ {
-			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), SupportsLight: domain.Known(true), Things: OccupantThings(false), Zone: domain.Known(false)})
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Terrain: domain.Known("Soil"), Things: OccupantThings(false), Zone: domain.Known(false)})
 		}
 	}
 	p, err := SelectPowerMethod(domain.Known(topology), Bounds{20, 20}, cells, nil, testPowerPlanning())
@@ -99,7 +99,7 @@ func TestShortCircuitTracksBurningDamageAndDoesNotReplayArchive(t *testing.T) {
 func TestPowerConnectsConsumerToLiveNetBeforeUpgrading(t *testing.T) {
 	var cells []SiteCell
 	for x := int32(1); x <= 10; x++ {
-		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true)})
+		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, Terrain: domain.Known("Soil")})
 	}
 	plain := []domain.Cell{{X: 7, Z: 2}, {X: 8, Z: 2}, {X: 9, Z: 2}}
 	cooler := powerSite("cooler", 2, -200, 0, "")

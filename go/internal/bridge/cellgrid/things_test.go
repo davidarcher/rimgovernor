@@ -15,7 +15,7 @@ func thingCells(things map[domain.Cell][]policy.Thing) map[domain.Cell]policy.Si
 		for x := int32(5); x < 8; x++ {
 			c := domain.Cell{X: x, Z: z}
 			cells[c] = policy.SiteCell{Cell: c, Walkable: domain.Known(true), Terrain: domain.Known("Soil"), InHome: domain.Known(x == 5),
-				SnowDepth: domain.Known(0.5), TopLayerRemovable: domain.Known(false), FoundationAffordances: domain.Known("Heavy,Light"), Things: things[c]}
+				SnowDepth: domain.Known(0.5), TopLayerRemovable: domain.Known(false), BaseTerrain: domain.Known("Soil"), Things: things[c]}
 		}
 	}
 	return cells

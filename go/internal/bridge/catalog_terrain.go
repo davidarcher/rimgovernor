@@ -59,6 +59,21 @@ func (catalog *DefinitionCatalog) FloorTerrain(name string) (policy.FloorTerrain
 	return policy.FloorTerrain{Cleanliness: float64(stats[0]), Beauty: float64(stats[1]), Flammability: float64(stats[2]), PathCost: row.GetPathCost(), Fertility: float64(row.GetFertility()), Natural: row.GetNatural(), Tags: slices.Clone(row.GetTags())}, nil
 }
 
+// LightTerrains are the TerrainDef rows whose affordances include Light:
+// the ground SiteCell.SupportsLight accepts. Nil without a catalog.
+func (catalog *DefinitionCatalog) LightTerrains() policy.LightTerrains {
+	if catalog == nil {
+		return nil
+	}
+	out := policy.LightTerrains{}
+	for name, row := range catalog.TerrainDefs {
+		if slices.Contains(row.GetAffordances(), affordanceLight) {
+			out[name] = true
+		}
+	}
+	return out
+}
+
 // TerrainsWithTags lists, sorted, every TerrainDef carrying any of tags: the
 // floors that satisfy a TerrainWithTags requirement.
 func (catalog *DefinitionCatalog) TerrainsWithTags(tags []string) []string {

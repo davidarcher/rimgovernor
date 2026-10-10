@@ -148,6 +148,8 @@ type ColonyProjection struct {
 	// PowerBattery); the power planner refuses a projection without them.
 	PowerSources map[string]policy.PowerSourceProfile
 	PowerBattery policy.PowerBattery
+	// LightTerrains are the terrain defs affording Light (DefinitionCatalog.LightTerrains).
+	LightTerrains policy.LightTerrains
 	// RoofSupport is the game's roof support radius (the catalog constant
 	// roof_max_support_distance).
 	RoofSupport float64
@@ -463,6 +465,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		r.RoofSupport = float64(game.GetRoofCollapseUtility().GetRoofMaxSupportDistance())
 		r.BedPrice = marketBedPrice(tables.Catalog)
 		r.Packable = tables.Catalog.Packable()
+		r.LightTerrains = tables.Catalog.LightTerrains()
 		if r.Impressiveness, err = tables.Catalog.ImpressivenessLevels(); err != nil {
 			return ColonyProjection{}, err
 		}

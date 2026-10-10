@@ -7,9 +7,21 @@ import (
 )
 
 type Rectangle struct{ X, Z, Width, Height int32 }
+
+// LightTerrains names the terrain defs whose affordances include Light
+// (DefinitionCatalog.LightTerrains): ground a light structure may stand on.
+type LightTerrains map[string]bool
+
+// SupportsLight reports whether the cell's top terrain affords Light; a cell
+// without a known terrain does not.
+func (c SiteCell) SupportsLight(light LightTerrains) bool {
+	name, known := c.Terrain.Value()
+	return known && light[name]
+}
+
 type SiteCell struct {
-	Cell                                                         domain.Cell
-	Walkable, Zone, Roofed, Indoors, SupportsLight, StorageEmpty domain.Fact[bool]
+	Cell                                          domain.Cell
+	Walkable, Zone, Roofed, Indoors, StorageEmpty domain.Fact[bool]
 	// Doorway reports a door, or a door blueprint or frame, on the cell;
 	// indoor furnishing keeps the cells beside a doorway clear as its aisle.
 	Doorway   domain.Fact[bool]
@@ -25,17 +37,17 @@ type SiteCell struct {
 	// kinds pick a block per room interior.
 	Room domain.Fact[string]
 	// The per-cell thing list and the tile columns that join it. Terrain names the terrain def; InHome is inside the home area;
-	// FoundationAffordances is the comma-joined, sorted affordances a
-	// foundation may stand on; SnowDepth and TopLayerRemovable read the
+	// BaseTerrain names the terrain def under a floor or bridge; its
+	// affordances are what a foundation may stand on. SnowDepth and TopLayerRemovable read the
 	// ground. Things lists the cell's non-pawn things in native order: a
 	// view into the grid's shared slab, never to be modified. Empty means
 	// none on a held cell; a fogged cell is not a row at all.
-	Terrain               domain.Fact[string]
-	InHome                domain.Fact[bool]
-	FoundationAffordances domain.Fact[string]
-	SnowDepth             domain.Fact[float64]
-	TopLayerRemovable     domain.Fact[bool]
-	Things                []Thing `json:",omitempty"`
+	Terrain           domain.Fact[string]
+	InHome            domain.Fact[bool]
+	BaseTerrain       domain.Fact[string]
+	SnowDepth         domain.Fact[float64]
+	TopLayerRemovable domain.Fact[bool]
+	Things            []Thing `json:",omitempty"`
 }
 
 func sortedCells(set map[domain.Cell]bool) []domain.Cell {

@@ -63,8 +63,8 @@ func init() {
 				if _, ok := cell.InHome.Value(); !ok {
 					return fmt.Errorf("grid_things: cell %d in_home unknown", i)
 				}
-				if aff, ok := cell.FoundationAffordances.Value(); !ok || aff == "" {
-					return fmt.Errorf("grid_things: cell %d foundation affordances unknown", i)
+				if aff, ok := cell.BaseTerrain.Value(); !ok || aff == "" {
+					return fmt.Errorf("grid_things: cell %d base terrain unknown", i)
 				}
 				if _, ok := cell.SnowDepth.Value(); !ok {
 					return fmt.Errorf("grid_things: cell %d snow depth unknown", i)

@@ -319,7 +319,6 @@ message CellGrid {
   FieldArray zone = 6;
   FieldArray roofed = 7;
   FieldArray indoors = 8;
-  FieldArray supports_light = 9;
   FieldArray storage_empty = 10;
   FieldArray doorway = 11;
   FieldArray fertility = 12;
@@ -333,7 +332,7 @@ message CellGrid {
   // (cell code 0) stays unknown, distinct from a held cell with no things.
   FieldArray terrain = 23;               // string: the terrain def
   FieldArray in_home = 24;               // bool codes: inside the home area
-  FieldArray foundation_affordances = 25; // string: the terrain affordances a foundation may stand on, comma-joined and sorted
+  FieldArray base_terrain = 25;           // string: the base terrain def under a floor or bridge (its affordances are what a foundation stands on)
   FieldArray snow_depth = 26;            // numbers
   FieldArray top_layer_removable = 27;   // bool codes: the top terrain layer can be removed
   ThingList things = 28;

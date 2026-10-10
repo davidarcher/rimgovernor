@@ -51,6 +51,7 @@ var catalogSets = []string{
 func newCatalogRows() *recordedrows.Slice {
 	names := slices.Concat([]string{"HorseshoesPin", "DiningChair", "Table1x2c", "Silver"}, garmentNames, weaponNames, furnitureNames)
 	rows := recordedrows.Take(recordedrows.Panic, recordedrows.Named(names...), catalogSets...)
+	rows.AddTerrain("Soil")
 	// The recipes that make the garments: a gear census's bill options read
 	// their research and cost from them.
 	wire, err := testkit.LoadRecordedCatalogWire()

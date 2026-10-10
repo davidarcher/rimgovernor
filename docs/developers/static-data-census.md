@@ -19,10 +19,10 @@ Replacements name a `defs.proto` field (`Message.field`), a planned `GameConstan
 
 | Class | Native files | Proto messages and enums |
 |---|---|---|
-| state | 105 | 309 |
+| state | 106 | 309 |
 | code | 53 | 57 |
 | static | 3 | 16 |
-| mixed | 35 | 56 |
+| mixed | 34 | 56 |
 | excluded | 7 | 92 |
 | total | 203 | 530 |
 
@@ -52,10 +52,10 @@ Kept, with the reason:
   carries it.
 - `NativeQuestWorkers` stat list: the read names the stats whose rates it
   returns; moving the rule to Go needs a new request field on the quest read.
-- `RecipeState.recipe.label`, `BillState.recipe.label`, `ExtractionDevelopment`,
-  `ExtractionWorkType`, `NativeApparelPolicyOperations` enumerations and
-  `NativeProductionBills.cs` special filters: each is part of a live read or
-  write that also needs the game object; separate milestones if wanted.
+- `NativeApparelPolicyOperations` enumerations and `NativeProductionBills.cs`
+  special filters: each is part of a live read or write that also needs the
+  game object; separate milestones if wanted. (The recipe labels and the
+  Extraction messages that once sat here went with #2657.)
 
 ## Clusters
 
@@ -120,14 +120,22 @@ Kept, reason recorded:
 - `NativeColonyObservationTools.Crops`: the `EdibleCrop` row is the live per-map diet and animal nutrition demand of a crop; the `CropDefs` list only enumerates `DefDatabase` and its food filter is `NativeFoodPolicy.IsFood`, the game-method output the `ThingDefFacts` section keeps.
 - `NativeColonyObservationTools` room roles: `room.Role` is the live room's computed role (`NativeUpkeepFacts`), nothing in the file retypes the role table.
 
-Not yet converted (issue stays open): `CellGridEncoder.cs` terrain light and foundation affordance columns (`supports_light`, `foundation_affordances`) and `ProtoLifecycleNewColonyTools.cs` scenario/difficulty/storyteller/biome lookups and the skill/work-type maps.
+Second slice, deleted:
+- The `CellGrid` `supports_light` and `foundation_affordances` columns, with the native terrain-light and affordance-join caches. The grid carries `base_terrain` (the def under a floor or bridge) beside `terrain`; Go reads `TerrainDef.affordances` from the mirror: `DefinitionCatalog.LightTerrains` feeds `ColonyProjection.LightTerrains`, which `FreeSiteRequest.Light` and `PowerPlanning.Light` pass to `SiteCell.SupportsLight`, and `SurveyFromCells` takes the footing and bridgeable bits from the base terrain's row. The committed `planning_cells` fixtures lost the `SupportsLight` field; a cell whose old recording had no terrain got `Soil` (lit) or `WaterDeep` (not) so the lit set survives, and each fixture's projection carries `LightTerrains`.
+- `ProtoLifecycleNewColonyTools`: the "valid: ..." name lists in the scenario, difficulty, storyteller, biome and world-temperature refusals (the `ScenarioDef`/`DifficultyDef`/`StorytellerDef`/`BiomeDef` rows list them), and the `SkillDefFor` switch (a `TeamSkill` member is the `SkillDef` defName).
+
+Kept, reason recorded:
+- `ProtoLifecycleNewColonyTools.Named` / `Resolve` lookups of scenario, difficulty, storyteller and biome by defName: they resolve the request to the live def objects the `Game`, `Storyteller` and tile finder are built from; no static data is copied to the wire. Go does not pre-validate the names, so the native refusal (now without the name list) is the only check.
+- The `BiomeDef.canBuildBase` settleable filter and the team-composition reroll (`NativeTeamPolicy`, the 1..10 colonist, 100..400 map-size and 0.05..1 coverage bounds): native policy that gates world generation and consumes the seeded `Rand` stream in place. Moving it to Go is moving a policy subsystem (a one-way door), so it is reported, not done here.
+- `WorkTypeFor`: a skill has several work types in the defs (`Plants` feeds `Growing` and `PlantCutting`), so the one the team policy judges is a policy choice, not a row property; `ReadFacts` also reads `WorkTypeIsDisabled`, a live pawn check.
+- `ReadFacts` `constructionSkillPrerequisite` of `Wall`: read from the live `ThingDefOf.Wall` beside the pawn's live skills inside the seeded policy loop; it is one field on the same native team-policy path as above.
 
 ## Native files
 
 | File | Lines | Class | What it does | Static items | Replacement |
 |---|---|---|---|---|---|
-| CellGridCache.cs | 81 | state | Per-map cache of walkability, doorway, empty storage, terrain light, terrain/foundation names and room per cell, invalidated by map events. |  |  |
-| CellGridEncoder.cs | 374 | mixed | Reads the whole-map cell grid each frame and encodes keyframe/delta arrays; per-cell terrain light flag and foundation affordance list are def data. | terrain light (terrain.affordances contains TerrainAffordanceDefOf.Light) and foundation affordances string join (baseTerrain.affordances) per terrain def | TerrainDef.affordances (Go derives supports_light and foundation_affordances from terrain row by terrain name); about 2 expressions |
+| CellGridCache.cs | 81 | state | Per-map cache of walkability, doorway, empty storage, terrain/base terrain names and room per cell, invalidated by map events. |  |  |
+| CellGridEncoder.cs | 367 | state | Reads the whole-map cell grid each frame and encodes keyframe/delta arrays; terrain light and foundation affordances are derived in Go from the terrain and base_terrain columns (#2657). | none | none |
 | CellGridThings.cs | 199 | state | Reads the non-pawn things on each cell into ThingRec with flags (edifice, impassable, haulable, deconstructible, forbidden, designated) for the grid. | flags from def: passability impassable, holdsRoof, Minifiable, EverHaulable, building.isNaturalRock (copied per thing) | ThingDef.passability / holds_roof / minifiable / ever_haulable / building.is_natural_rock (Go could derive these four flag bits from the def row via thing def name) |
 | DefMirrorFill.cs | 304 | code | Reflection-based filler that mirrors game def objects into defs.proto messages from clr_type options. |  |  |
 | DeterministicGenSeed.cs | 61 | code | Harmony patch replacing per-process-salted HashCode.Combine map-gen seeds with a fixed hash. |  |  |
@@ -317,7 +325,7 @@ Not yet converted (issue stays open): `CellGridEncoder.cs` terrain light and fou
 | ProtoGovernorStateTools.cs | 79 | state | Reads and replaces the opaque governor-state blobs saved with the game. |  | none |
 | ProtoIdentityTools.cs | 174 | state | Reads native tick and pause state and the identity with a hand-written capability list. | Hand-written capability table of about 30 Capability rows with method names and detail text (~120 lines) | none; not def data. Candidate for deletion or generation from proto services |
 | ProtoLifecycleLoadTools.cs | 321 | state | Starts an async native save load and polls readiness, with a Harmony visual-ready tracker. |  | none |
-| ProtoLifecycleNewColonyTools.cs | 495 | mixed | Drives new-colony generation through world, tile, colonists and map phases then saves; applies team-composition rerolls. | Resolve() lookups listing DefDatabase Scenario, Difficulty, Storyteller and BiomeDef (canBuildBase) for error text; SkillDefFor and WorkTypeFor TeamSkill to def maps (~25 lines); bounds colonist_count 1..10, map_size 100..400, planet_coverage 0.05..1; Wall constructionSkillPrerequisite in ReadFacts | ScenarioDef, DifficultyDef, StorytellerDef, BiomeDef.canBuildBase rows; SkillDef and WorkTypeDef rows; ThingDef.constructionSkillPrerequisite; bounds as Go validation or GameConstants (#2626) |
+| ProtoLifecycleNewColonyTools.cs | 482 | mixed | Drives new-colony generation through world, tile, colonists and map phases then saves; applies team-composition rerolls. | name lookups (live def objects), BiomeDef.canBuildBase filter, WorkTypeFor map, bounds colonist_count 1..10, map_size 100..400, planet_coverage 0.05..1 (the name lists and SkillDefFor were deleted, #2657) | kept, see the #2657 disposition |
 | ProtoLifecycleSaveSignalTools.cs | 61 | state | Long-poll and ack tools for the pre-save handshake. |  | none |
 | ProtoLifecycleSaveTools.cs | 192 | state | Performs the trusted pause-gated checkpoint save with identity and tick re-verification and a request-outcome table. |  | none |
 | ProtoOverlayTools.cs | 110 | state | Draws a named controller overlay layer of cell shapes and labels on the map. |  | none |

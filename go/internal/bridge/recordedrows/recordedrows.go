@@ -145,6 +145,23 @@ func (s *Slice) Add(names ...string) {
 	s.add(names)
 }
 
+// AddTerrain copies the recorded terrain defs with these names into the slice,
+// unless it holds them already. A name the game does not have fails.
+func (s *Slice) AddTerrain(names ...string) {
+	s.T.Helper()
+	full := recordedWire(s.T)
+	for _, name := range names {
+		if slices.ContainsFunc(s.Wire.TerrainDefs, func(t *d.TerrainDef) bool { return t.GetDefName() == name }) {
+			continue
+		}
+		i := slices.IndexFunc(full.TerrainDefs, func(t *d.TerrainDef) bool { return t.GetDefName() == name })
+		if i < 0 {
+			s.T.Fatalf("the recorded catalog has no terrain def %s", name)
+		}
+		s.Wire.TerrainDefs = append(s.Wire.TerrainDefs, proto.Clone(full.TerrainDefs[i]).(*d.TerrainDef))
+	}
+}
+
 // Has is whether the slice holds the thing def.
 func (s *Slice) Has(name string) bool { return s.Find(name) != nil }
 

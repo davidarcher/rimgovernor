@@ -182,7 +182,7 @@ func testPowerSources() map[string]PowerSourceProfile {
 // testPowerPlanning is DefaultPowerPlanning over the stock catalog rows.
 func testPowerPlanning() PowerPlanning {
 	p := DefaultPowerPlanning()
-	p.Battery, p.Sources = testBattery, testPowerSources()
+	p.Battery, p.Sources, p.Light = testBattery, testPowerSources(), LightTerrains{"Soil": true}
 	return p
 }
 

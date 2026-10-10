@@ -18,15 +18,15 @@ import (
 // get_cells band (NativeObservationTools.ReadCells) and the grid
 // (CellGridEncoder.Read) derive their rows from.
 type nativeCell struct {
-	fogged                                                    bool
-	walkable, occupied, doorway, light, storageEmpty, indoors bool
-	polluted, naturalRock                                     bool
-	roof, zone, room                                          string
-	glow, fertility                                           float64 // glow artificial only
-	terrain, foundation                                       string
-	inHome, topRemovable                                      bool
-	snow                                                      float64
-	things                                                    []policy.Thing
+	fogged                                             bool
+	walkable, occupied, doorway, storageEmpty, indoors bool
+	polluted, naturalRock                              bool
+	roof, zone, room                                   string
+	glow, fertility                                    float64 // glow artificial only
+	terrain, baseTerrain                               string
+	inHome, topRemovable                               bool
+	snow                                               float64
+	things                                             []policy.Thing
 }
 
 // gridMap is a 4x3 map: x 0..3, z 0..2.
@@ -35,18 +35,18 @@ const gridMapWidth, gridMapHeight = 4, 3
 func gridTestMap() []nativeCell {
 	cells := make([]nativeCell, gridMapWidth*gridMapHeight)
 	for j := range cells {
-		cells[j] = nativeCell{walkable: true, light: true, storageEmpty: true, fertility: 1, room: "1", terrain: "Soil", foundation: "Heavy,Light", snow: 0.25, inHome: j%2 == 0}
+		cells[j] = nativeCell{walkable: true, storageEmpty: true, fertility: 1, room: "1", terrain: "Soil", baseTerrain: "Soil", snow: 0.25, inHome: j%2 == 0}
 	}
 	rice := policy.Thing{Def: "Plant_Rice", Category: policy.ThingPlant, ID: 5, Count: 1, Plant: policy.PlantState{Growth: 0.5}}
 	wall := policy.Thing{Def: "Wall", Category: policy.ThingBuilding, Faction: policy.FactionPlayer, Flags: policy.FlagEdifice | policy.FlagImpassable, ID: 6, Count: 1, Building: &policy.BuildingState{HitPoints: 300}}
 	cells[3].things = []policy.Thing{rice}
 	cells[9].things = []policy.Thing{rice, wall}
-	cells[1] = nativeCell{fogged: true}                                                                                               // (1,0)
-	cells[2] = nativeCell{walkable: true, light: true, roof: "RoofConstructed", indoors: true, room: "4", glow: 0.42, zone: "Zone_9"} // (2,0) roofed, lit
-	cells[5] = nativeCell{occupied: true, light: true, roof: "RoofConstructed"}                                                       // (1,1) wall
-	cells[6] = nativeCell{walkable: true, occupied: true, doorway: true, light: true, room: "", glow: 0.6}                            // (2,1) door, art > sky
-	cells[7] = nativeCell{occupied: true, naturalRock: true, roof: "RoofRockThick"}                                                   // (3,1)
-	cells[10] = nativeCell{occupied: true, polluted: true, fertility: 0.7, room: "1"}                                                 // (2,2) ruin
+	cells[1] = nativeCell{fogged: true}                                                                                  // (1,0)
+	cells[2] = nativeCell{walkable: true, roof: "RoofConstructed", indoors: true, room: "4", glow: 0.42, zone: "Zone_9"} // (2,0) roofed, lit
+	cells[5] = nativeCell{occupied: true, roof: "RoofConstructed"}                                                       // (1,1) wall
+	cells[6] = nativeCell{walkable: true, occupied: true, doorway: true, room: "", glow: 0.6}                            // (2,1) door, art > sky
+	cells[7] = nativeCell{occupied: true, naturalRock: true, roof: "RoofRockThick"}                                      // (3,1)
+	cells[10] = nativeCell{occupied: true, polluted: true, fertility: 0.7, room: "1"}                                    // (2,2) ruin
 	// The old occupied and natural-rock flags are things now.
 	for j := range cells {
 		switch {
@@ -82,10 +82,10 @@ func gridBand(cells []nativeCell, rect policy.Rectangle, sky float64) ([]policy.
 				glow = math.Max(glow, sky)
 			}
 			cell := policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(n.walkable), Doorway: domain.Known(n.doorway),
-				SupportsLight: domain.Known(n.light), StorageEmpty: domain.Known(n.storageEmpty),
-				Indoors: domain.Known(n.indoors), Polluted: domain.Known(n.polluted), Glow: domain.Known(glow), Zone: domain.Known(n.zone != ""), Roofed: domain.Known(n.roof != ""),
+				StorageEmpty: domain.Known(n.storageEmpty),
+				Indoors:      domain.Known(n.indoors), Polluted: domain.Known(n.polluted), Glow: domain.Known(glow), Zone: domain.Known(n.zone != ""), Roofed: domain.Known(n.roof != ""),
 				Roof: named(n.roof), ZoneID: named(n.zone), Room: named(n.room),
-				Terrain: named(n.terrain), InHome: domain.Known(n.inHome), FoundationAffordances: named(n.foundation), SnowDepth: domain.Known(n.snow), TopLayerRemovable: domain.Known(n.topRemovable), Things: n.things}
+				Terrain: named(n.terrain), InHome: domain.Known(n.inHome), BaseTerrain: named(n.baseTerrain), SnowDepth: domain.Known(n.snow), TopLayerRemovable: domain.Known(n.topRemovable), Things: n.things}
 			if n.fertility > 0 {
 				cell.Fertility = domain.Known(n.fertility)
 			}
@@ -156,7 +156,6 @@ func gridWire(cells []nativeCell) *mp.CellGrid {
 	g.Zone = code(func(n nativeCell) bool { return n.zone != "" })
 	g.Roofed = code(func(n nativeCell) bool { return n.roof != "" })
 	g.Indoors = code(func(n nativeCell) bool { return n.indoors })
-	g.SupportsLight = code(func(n nativeCell) bool { return n.light })
 	g.StorageEmpty = code(func(n nativeCell) bool { return n.storageEmpty })
 	g.Doorway = code(func(n nativeCell) bool { return n.doorway })
 	g.Fertility = number(func(n nativeCell) (float64, bool) { return n.fertility, n.fertility > 0 })
@@ -167,7 +166,7 @@ func gridWire(cells []nativeCell) *mp.CellGrid {
 	g.Room = str(named(func(n nativeCell) string { return n.room }))
 	g.Terrain = str(named(func(n nativeCell) string { return n.terrain }))
 	g.InHome = code(func(n nativeCell) bool { return n.inHome })
-	g.FoundationAffordances = str(named(func(n nativeCell) string { return n.foundation }))
+	g.BaseTerrain = str(named(func(n nativeCell) string { return n.baseTerrain }))
 	g.SnowDepth = number(func(n nativeCell) (float64, bool) { return n.snow, true })
 	g.TopLayerRemovable = code(func(n nativeCell) bool { return n.topRemovable })
 	g.Things = thingList(cells, index)
@@ -239,11 +238,10 @@ func TestFrameGridMatchesTheBand(t *testing.T) {
 	// A wall goes up at (2,2) (was the ruin): the delta, against the
 	// keyframe, carries only the arrays that changed, sparse.
 	key := gridWire(cells)
-	cells[10] = nativeCell{light: true, fertility: 0.7, things: policy.OccupantThings(true)}
+	cells[10] = nativeCell{fertility: 0.7, things: policy.OccupantThings(true)}
 	next := gridWire(cells)
 	delta := &mp.CellGrid{Rect: next.Rect, Strings: next.Strings, Things: next.Things}
 	delta.Walkable = &mp.FieldArray{Form: &mp.FieldArray_Sparse{Sparse: &mp.SparseArray{Index: []uint32{10}, Code: []uint32{1}}}}
-	delta.SupportsLight = &mp.FieldArray{Form: &mp.FieldArray_Sparse{Sparse: &mp.SparseArray{Index: []uint32{10}, Code: []uint32{2}}}}
 	delta.StorageEmpty = &mp.FieldArray{Form: &mp.FieldArray_Sparse{Sparse: &mp.SparseArray{Index: []uint32{10}, Code: []uint32{1}}}}
 	delta.Polluted = &mp.FieldArray{Form: &mp.FieldArray_Sparse{Sparse: &mp.SparseArray{Index: []uint32{10}, Code: []uint32{1}}}}
 	delta.Room = &mp.FieldArray{Form: &mp.FieldArray_Sparse{Sparse: &mp.SparseArray{Index: []uint32{10}, Code: []uint32{0}}}}

@@ -19,7 +19,7 @@ func empty() *mp.FieldArray { return sparse(nil, nil, nil) }
 func keyframeGrid() *mp.CellGrid {
 	g := &mp.CellGrid{Rect: WireRect(policy.Rectangle{X: 5, Z: 7, Width: 2, Height: 1}), Strings: []string{"RoofConstructed", "", "Wall"}}
 	g.Cell = codes(1, 0)
-	for _, set := range []**mp.FieldArray{&g.Walkable, &g.Zone, &g.Roofed, &g.Indoors, &g.SupportsLight, &g.StorageEmpty, &g.Doorway, &g.Polluted} {
+	for _, set := range []**mp.FieldArray{&g.Walkable, &g.Zone, &g.Roofed, &g.Indoors, &g.StorageEmpty, &g.Doorway, &g.Polluted} {
 		*set = codes(1, 0)
 	}
 	g.Walkable = codes(2, 0)
@@ -28,7 +28,7 @@ func keyframeGrid() *mp.CellGrid {
 	g.Roof = sparse([]uint32{0}, []uint32{1}, nil)
 	g.ZoneId = empty()
 	g.Room = empty()
-	g.Terrain, g.FoundationAffordances = empty(), empty()
+	g.Terrain, g.BaseTerrain = empty(), empty()
 	g.InHome, g.TopLayerRemovable = empty(), empty()
 	g.SnowDepth = empty()
 	g.Things = &mp.ThingList{Offsets: []uint32{0}}
@@ -46,7 +46,7 @@ func TestApplyCellGridKeyframeAndDelta(t *testing.T) {
 	}
 	got := cells[0]
 	want := policy.SiteCell{Cell: domain.Cell{X: 5, Z: 7}, Walkable: domain.Known(true), Zone: domain.Known(false), Roofed: domain.Known(false),
-		Indoors: domain.Known(false), SupportsLight: domain.Known(false), StorageEmpty: domain.Known(false), Doorway: domain.Known(false), Polluted: domain.Known(false),
+		Indoors: domain.Known(false), StorageEmpty: domain.Known(false), Doorway: domain.Known(false), Polluted: domain.Known(false),
 		Glow: domain.Known(0.25), Roof: domain.Known("RoofConstructed")}
 	if !got.Equal(want) {
 		t.Fatalf("cell = %+v\nwant %+v", got, want)

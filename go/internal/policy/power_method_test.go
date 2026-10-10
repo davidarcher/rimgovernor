@@ -81,7 +81,7 @@ func TestPowerRouteExtendsFromProducerAndSkipsNativeFootprints(t *testing.T) {
 	v.Conduits = []domain.Cell{{X: 12, Z: 2}}
 	var cells []SiteCell
 	for x := int32(1); x <= 14; x++ {
-		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true), Things: OccupantThings(true)})
+		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, Terrain: domain.Known("Soil"), Things: OccupantThings(true)})
 	}
 	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
 	want := []domain.Cell{{X: 11, Z: 2}, {X: 10, Z: 2}, {X: 9, Z: 2}, {X: 8, Z: 2}, {X: 7, Z: 2}, {X: 6, Z: 2}, {X: 5, Z: 2}, {X: 4, Z: 2}}
@@ -97,7 +97,7 @@ func TestPowerRouteExtendsFromProducerAndSkipsNativeFootprints(t *testing.T) {
 	if err != nil || blocked.Method != PowerRouteBlocked {
 		t.Fatal(blocked, err)
 	}
-	cells[5].SupportsLight = domain.Unknown[bool]()
+	cells[5].Terrain = domain.Unknown[string]()
 	blocked, err = SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
 	if err != nil || blocked.Method != PowerRouteBlocked {
 		t.Fatal(blocked, err)
@@ -114,7 +114,7 @@ func TestPowerRouteWiresAnUnpoweredMechChargerLikeAnyConsumer(t *testing.T) {
 	v.Conduits = []domain.Cell{{X: 12, Z: 2}}
 	var cells []SiteCell
 	for x := int32(1); x <= 14; x++ {
-		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true), Things: OccupantThings(true)})
+		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, Terrain: domain.Known("Soil"), Things: OccupantThings(true)})
 	}
 	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
 	if err != nil || p.Method != PowerConnect || len(p.Cells) == 0 {
@@ -131,7 +131,7 @@ func TestPowerRouteWiresAnUnpoweredGeneBankLikeAnyConsumer(t *testing.T) {
 	v.Conduits = []domain.Cell{{X: 12, Z: 2}}
 	var cells []SiteCell
 	for x := int32(1); x <= 14; x++ {
-		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true), Things: OccupantThings(true)})
+		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, Terrain: domain.Known("Soil"), Things: OccupantThings(true)})
 	}
 	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
 	if err != nil || p.Method != PowerConnect || len(p.Cells) == 0 {
@@ -376,7 +376,7 @@ func TestPowerMethodProposesGeothermalOnAReachableFreeGeyser(t *testing.T) {
 	var cells []SiteCell
 	for x := int32(0); x < 40; x++ {
 		for z := int32(0); z < 10; z++ {
-			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, SupportsLight: domain.Known(true)})
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Terrain: domain.Known("Soil")})
 		}
 	}
 	geyser := PowerGeyser{ID: "geyser", Cell: domain.Cell{X: 20, Z: 5}, Cells: []domain.Cell{{X: 20, Z: 5}, {X: 21, Z: 5}, {X: 20, Z: 6}, {X: 21, Z: 6}}}
@@ -409,7 +409,7 @@ func TestPowerMethodProposesGeothermalOnAReachableFreeGeyser(t *testing.T) {
 			for i := range cells {
 				c := cells[i].Cell
 				if c.X == 20 && c.Z < 9 || c.X == 30 && c.Z > 0 {
-					cells[i].SupportsLight = domain.Known(false)
+					cells[i].Terrain = domain.Known("Water")
 				}
 			}
 		}

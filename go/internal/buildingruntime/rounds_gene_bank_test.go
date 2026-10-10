@@ -37,7 +37,7 @@ func geneBankFixture(t *testing.T, facts *o.BiotechColonyFacts) geneBankDispatch
 	}
 	t.Cleanup(done)
 	for i := range sleeping.cells.Cells {
-		sleeping.cells.Cells[i].SupportsLight = domain.Known(true)
+		sleeping.cells.Cells[i].Terrain = domain.Known("Soil")
 	}
 	return geneBankDispatch{planner: planner, call: call, epoch: epoch, db: db, sleeping: sleeping}
 }

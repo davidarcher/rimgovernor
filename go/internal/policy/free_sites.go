@@ -15,6 +15,8 @@ type FreeSiteRequest struct {
 	Anchor    domain.Cell
 	Cells     []SiteCell
 	Protected []domain.Cell
+	// Light is the terrain defs that afford Light (SiteCell.SupportsLight).
+	Light LightTerrains
 }
 
 // FreeSites returns a bounded, deterministically ordered list of width x height
@@ -55,7 +57,7 @@ func FreeSites(r FreeSiteRequest, width, height int32) ([]Rectangle, error) {
 			return false
 		}
 		return positive(c.Walkable) && !c.Occupied() &&
-			positive(measured(c.Zone, func(v bool) bool { return !v })) && positive(c.SupportsLight)
+			positive(measured(c.Zone, func(v bool) bool { return !v })) && c.SupportsLight(r.Light)
 	}
 	type site struct {
 		score int64

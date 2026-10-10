@@ -23,7 +23,7 @@ type countingSurvey struct {
 
 func (n countingSurvey) DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error) {
 	*n.reads++
-	return &bridge.DefinitionCatalog{Defs: map[protoreflect.FullName]map[string]proto.Message{
+	return &bridge.DefinitionCatalog{TerrainDefs: map[string]*d.TerrainDef{"Soil": {DefName: "Soil", Affordances: []string{"Heavy", "Light"}}}, Defs: map[protoreflect.FullName]map[string]proto.Message{
 		(&d.RoofDef{}).ProtoReflect().Descriptor().FullName(): {"RoofConstructed": &d.RoofDef{DefName: "RoofConstructed"}},
 	}}, nil
 }
@@ -35,7 +35,7 @@ func openWindow(projection *observation.ColonyProjection, n int32) {
 	projection.Cells = nil
 	for z := int32(0); z < n; z++ {
 		for x := int32(0); x < n; x++ {
-			projection.Cells = append(projection.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Fertility: domain.Known(1.0), FoundationAffordances: domain.Known("Heavy,Light")})
+			projection.Cells = append(projection.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Fertility: domain.Known(1.0), BaseTerrain: domain.Known("Soil")})
 		}
 	}
 }

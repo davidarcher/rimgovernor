@@ -149,6 +149,9 @@ type PowerPlanning struct {
 	// are about to build, counted in the budget's demand so generation and
 	// storage are sized for the colony being built, not only the one standing.
 	PendingDemandW float64
+	// Light is the terrain defs that afford Light: where the power route and
+	// a shelter may run (SiteCell.SupportsLight).
+	Light LightTerrains
 }
 
 func DefaultPowerPlanning() PowerPlanning {
@@ -358,7 +361,7 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 			return PowerProposal{}, errors.New("invalid power route census")
 		}
 		seenCells[c.Cell] = true
-		route[c.Cell] = positive(c.SupportsLight) && !blocked[c.Cell]
+		route[c.Cell] = c.SupportsLight(planning.Light) && !blocked[c.Cell]
 	}
 	blackout, known := v.Blackout.Value()
 	eclipse, _ := v.Eclipse.Value()
@@ -380,7 +383,7 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 		if _, known := b.Roofed.Value(); !known {
 			return PowerProposal{Method: PowerUnknown}, nil
 		}
-		room, ok := powerShelter(b, cells, blocked, bounds)
+		room, ok := powerShelter(b, cells, blocked, bounds, planning.Light)
 		if !ok {
 			return PowerProposal{Method: PowerRouteBlocked}, nil
 		}
@@ -616,7 +619,7 @@ func connectLiveBeforeUpgrade(v PowerTopology, existing, unsafe, route map[domai
 
 // A narrow, supported enclosure leaves an aisle around the equipment and a
 // doorway. Occupied, zoned, protected or unobserved perimeter cells fail closed.
-func powerShelter(target PowerSite, cells []SiteCell, protected map[domain.Cell]bool, bounds Bounds) (Rectangle, bool) {
+func powerShelter(target PowerSite, cells []SiteCell, protected map[domain.Cell]bool, bounds Bounds, light LightTerrains) (Rectangle, bool) {
 	minX, maxX, minZ, maxZ := target.Cell.X, target.Cell.X, target.Cell.Z, target.Cell.Z
 	occupied := map[domain.Cell]bool{}
 	for _, c := range target.Occupied {
@@ -639,7 +642,7 @@ func powerShelter(target PowerSite, cells []SiteCell, protected map[domain.Cell]
 			continue
 		}
 		c, exists := observed[p]
-		if !exists || !positive(c.Walkable) || !positive(c.SupportsLight) || c.Occupied() || !positive(measured(c.Zone, func(v bool) bool { return !v })) {
+		if !exists || !positive(c.Walkable) || !c.SupportsLight(light) || c.Occupied() || !positive(measured(c.Zone, func(v bool) bool { return !v })) {
 			return Rectangle{}, false
 		}
 	}

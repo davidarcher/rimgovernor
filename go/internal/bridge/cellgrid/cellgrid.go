@@ -121,7 +121,6 @@ var arrays = []array{
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Zone }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Zone }),
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Roofed }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Roofed }),
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Indoors }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Indoors }),
-	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.SupportsLight }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.SupportsLight }),
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.StorageEmpty }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.StorageEmpty }),
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Doorway }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Doorway }),
 	numArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Fertility }, func(c *policy.SiteCell) *domain.Fact[float64] { return &c.Fertility }),
@@ -132,7 +131,7 @@ var arrays = []array{
 	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Room }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.Room }),
 	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Terrain }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.Terrain }),
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.InHome }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.InHome }),
-	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.FoundationAffordances }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.FoundationAffordances }),
+	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.BaseTerrain }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.BaseTerrain }),
 	numArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.SnowDepth }, func(c *policy.SiteCell) *domain.Fact[float64] { return &c.SnowDepth }),
 	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.TopLayerRemovable }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.TopLayerRemovable }),
 }

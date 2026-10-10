@@ -34,10 +34,10 @@ namespace HomeBridge.BridgeTools
 
         // The CellGrid arrays in field order (cell first); Read fills its
         // columns by these positions.
-        internal const int Cell = 0, Walkable = 1, Zone = 2, Roofed = 3, Indoors = 4, SupportsLight = 5,
-            StorageEmpty = 6, Doorway = 7, Fertility = 8, Polluted = 9, Glow = 10, Roof = 11, ZoneId = 12,
-            Room = 13, Terrain = 14, InHome = 15,
-            FoundationAffordances = 16, SnowDepth = 17, TopLayerRemovable = 18;
+        internal const int Cell = 0, Walkable = 1, Zone = 2, Roofed = 3, Indoors = 4,
+            StorageEmpty = 5, Doorway = 6, Fertility = 7, Polluted = 8, Glow = 9, Roof = 10, ZoneId = 11,
+            Room = 12, Terrain = 13, InHome = 14,
+            BaseTerrain = 15, SnowDepth = 16, TopLayerRemovable = 17;
 
         private static readonly (string Name, Kind Kind, Action<Mirror.CellGrid, Mirror.FieldArray> Set)[] Fields =
         {
@@ -46,7 +46,6 @@ namespace HomeBridge.BridgeTools
             ("zone", Kind.Code, (g, a) => g.Zone = a),
             ("roofed", Kind.Code, (g, a) => g.Roofed = a),
             ("indoors", Kind.Code, (g, a) => g.Indoors = a),
-            ("supports_light", Kind.Code, (g, a) => g.SupportsLight = a),
             ("storage_empty", Kind.Code, (g, a) => g.StorageEmpty = a),
             ("doorway", Kind.Code, (g, a) => g.Doorway = a),
             ("fertility", Kind.Number, (g, a) => g.Fertility = a),
@@ -57,7 +56,7 @@ namespace HomeBridge.BridgeTools
             ("room", Kind.Index, (g, a) => g.Room = a),
             ("terrain", Kind.Index, (g, a) => g.Terrain = a),
             ("in_home", Kind.Code, (g, a) => g.InHome = a),
-            ("foundation_affordances", Kind.Index, (g, a) => g.FoundationAffordances = a),
+            ("base_terrain", Kind.Index, (g, a) => g.BaseTerrain = a),
             ("snow_depth", Kind.Number, (g, a) => g.SnowDepth = a),
             ("top_layer_removable", Kind.Code, (g, a) => g.TopLayerRemovable = a),
         };
@@ -128,7 +127,6 @@ namespace HomeBridge.BridgeTools
             var biotech = ModsConfig.BiotechActive;
             var things = new ThingReader(map, player);
             var terrainGrid = map.terrainGrid;
-            var affordances = new Dictionary<TerrainDef, string>();
             var home = map.areaManager.Home;
             // A room's key is the whole-map index (row-major) of its first
             // held cell in the read, not Room.ID: RimWorld regenerates rooms
@@ -137,7 +135,6 @@ namespace HomeBridge.BridgeTools
             // unless it changes.
             var roomKeys = new Dictionary<Room, string>();
             var roomIndoors = new Dictionary<Room, byte>();
-            var lights = new Dictionary<TerrainDef, byte>();
             for (int z = 0; z < h; z++)
                 for (int x = 0; x < w; x++)
                 {
@@ -145,11 +142,11 @@ namespace HomeBridge.BridgeTools
                     var j = z * w + x;
                     if (cell.Fogged(map)) continue;
                     c[Cell].Codes![j] = 1;
-                    byte walkable, doorway, storageEmpty, light; string? terrainName, foundation; Room? room;
+                    byte walkable, doorway, storageEmpty; string? terrainName, baseName; Room? room;
                     if (cache != null && cache.Valid[j])
                     {
-                        walkable = cache.Walkable[j]; doorway = cache.Doorway[j]; storageEmpty = cache.StorageEmpty[j]; light = cache.Light[j];
-                        terrainName = cache.Terrain[j]; foundation = cache.Foundation[j]; room = cache.Room[j];
+                        walkable = cache.Walkable[j]; doorway = cache.Doorway[j]; storageEmpty = cache.StorageEmpty[j];
+                        terrainName = cache.Terrain[j]; baseName = cache.BaseTerrain[j]; room = cache.Room[j];
                     }
                     else
                     {
@@ -157,24 +154,20 @@ namespace HomeBridge.BridgeTools
                         CellThingFlags(map, cell, out var isDoorway, out var isEmpty);
                         doorway = B(isDoorway); storageEmpty = B(isEmpty);
                         var terrain = terrainGrid.TerrainAt(cell);
-                        if (!lights.TryGetValue(terrain, out light)) lights[terrain] = light = B(terrain.affordances.Contains(TerrainAffordanceDefOf.Light));
                         terrainName = Identifier(terrain.defName);
-                        var baseTerrain = terrainGrid.BaseTerrainAt(cell);
-                        if (!affordances.TryGetValue(baseTerrain, out foundation))
-                            affordances[baseTerrain] = foundation = string.Join(",", baseTerrain.affordances.Select(a => Identifier(a.defName)).OrderBy(a => a, StringComparer.Ordinal));
+                        baseName = Identifier(terrainGrid.BaseTerrainAt(cell).defName);
                         room = cell.GetRoom(map);
                         if (cache != null)
                         {
-                            cache.Walkable[j] = walkable; cache.Doorway[j] = doorway; cache.StorageEmpty[j] = storageEmpty; cache.Light[j] = light;
-                            cache.Terrain[j] = terrainName; cache.Foundation[j] = foundation; cache.Room[j] = room; cache.Valid[j] = true;
+                            cache.Walkable[j] = walkable; cache.Doorway[j] = doorway; cache.StorageEmpty[j] = storageEmpty;
+                            cache.Terrain[j] = terrainName; cache.BaseTerrain[j] = baseName; cache.Room[j] = room; cache.Valid[j] = true;
                         }
                     }
                     c[Walkable].Codes![j] = walkable;
                     c[Doorway].Codes![j] = doorway;
-                    c[SupportsLight].Codes![j] = light;
                     c[StorageEmpty].Codes![j] = storageEmpty;
                     c[Terrain].Strings![j] = terrainName;
-                    c[FoundationAffordances].Strings![j] = foundation;
+                    c[BaseTerrain].Strings![j] = baseName;
                     var roof = map.roofGrid.RoofAt(cell);
                     c[Roofed].Codes![j] = B(roof != null);
                     if (roof != null) c[Roof].Strings![j] = Identifier(roof.defName);

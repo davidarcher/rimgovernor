@@ -31,7 +31,7 @@ func (r *RoundsBuildingPlanner) selectPower(facts observation.ColonyProjection, 
 		return nil, Verdict{}, err
 	}
 	planning.Generators = generators
-	planning.Sources, planning.Battery = facts.PowerSources, facts.PowerBattery
+	planning.Sources, planning.Battery, planning.Light = facts.PowerSources, facts.PowerBattery, facts.LightTerrains
 	planning.BatteryAvailable = facts.DefinitionAvailable(policy.BatteryDefinition)
 	planning.GeothermalAvailable = facts.DefinitionAvailable(policy.GeothermalDefinition)
 	planning.PendingDemandW = pendingDemand(facts, pendingConsumers)
