@@ -24,13 +24,11 @@ func (r *Rounder) reviewGathering(reading *observation.RoundsReading, snapshot d
 		}
 	}
 	facts.GatheringPlan = policy.PlanGathering(policy.GatheringInput{
-		Ledger:            facts.MoodLedger,
-		Pawns:             facts.MoodPawns,
-		Benefit:           benefit,
-		Calm:              r.roundsCalm(reading, snapshot),
-		Census:            facts.CurrentConstruction,
-		IdeologyInstalled: facts.IdeologyInstalled,
-		Ideology:          facts.Ideology,
+		Ledger:  facts.MoodLedger,
+		Pawns:   facts.MoodPawns,
+		Benefit: benefit,
+		Calm:    r.roundsCalm(reading, snapshot),
+		Census:  facts.CurrentConstruction,
 	})
 	facts.GatheringOwed = policy.GatheringOwed(facts.GatheringPlan)
 }

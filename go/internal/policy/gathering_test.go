@@ -37,13 +37,11 @@ func gatherFixture(t *testing.T, n, pressed int) (GatheringInput, []MoodPawn) {
 		t.Fatal(err)
 	}
 	return GatheringInput{
-		Ledger:            domain.Known(BuildMoodLedger(ledgerPawns, nil)),
-		Pawns:             domain.Known(pawns),
-		Benefit:           domain.Known(partyBenefit),
-		Calm:              domain.Known(true),
-		Census:            domain.Known(CurrentConstruction{Colony: true, Buildings: []CurrentBuilding{{ID: "s", Building: spot, Cells: []domain.Cell{{X: 1, Z: 1}}}}}),
-		IdeologyInstalled: domain.Known(false),
-		Ideology:          domain.Unknown[Ideoligion](),
+		Ledger:  domain.Known(BuildMoodLedger(ledgerPawns, nil)),
+		Pawns:   domain.Known(pawns),
+		Benefit: domain.Known(partyBenefit),
+		Calm:    domain.Known(true),
+		Census:  domain.Known(CurrentConstruction{Colony: true, Buildings: []CurrentBuilding{{ID: "s", Building: spot, Cells: []domain.Cell{{X: 1, Z: 1}}}}}),
 	}, pawns
 }
 
@@ -104,10 +102,6 @@ func TestGatheringGates(t *testing.T) {
 			spot, _ := domain.NewBuilding(PartySpotDefinition, domain.Cell{X: 1, Z: 1}, domain.North, "")
 			in.Census = domain.Known(CurrentConstruction{Colony: true, Sites: []ConstructionSite{{Building: spot}}})
 		}},
-		{"a ritual precept owns the celebration", func(in *GatheringInput, p *[]MoodPawn) {
-			in.IdeologyInstalled = domain.Known(true)
-			in.Ideology = domain.Known(Ideoligion{Facts: IdeoligionFacts{Rituals: []HeldRitual{{ID: "r", Pattern: "Party"}}}})
-		}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -125,24 +119,13 @@ func TestGatheringGates(t *testing.T) {
 	}
 }
 
-func TestGatheringIdeologyWithoutRitualsStillParties(t *testing.T) {
-	in, _ := gatherFixture(t, 6, 6)
-	in.IdeologyInstalled = domain.Known(true)
-	in.Ideology = domain.Known(Ideoligion{})
-	if gatherPlan(t, in).Organizer == "" {
-		t.Fatal("an ideoligion with no ritual precept has nothing to defer to")
-	}
-}
-
 func TestGatheringUnknownNeverStarts(t *testing.T) {
 	for name, mutate := range map[string]func(*GatheringInput){
-		"ledger":    func(in *GatheringInput) { in.Ledger = domain.Unknown[MoodLedger]() },
-		"pawns":     func(in *GatheringInput) { in.Pawns = domain.Unknown[[]MoodPawn]() },
-		"benefit":   func(in *GatheringInput) { in.Benefit = domain.Unknown[float64]() },
-		"calm":      func(in *GatheringInput) { in.Calm = domain.Unknown[bool]() },
-		"census":    func(in *GatheringInput) { in.Census = domain.Unknown[CurrentConstruction]() },
-		"ideology":  func(in *GatheringInput) { in.IdeologyInstalled = domain.Unknown[bool]() },
-		"installed": func(in *GatheringInput) { in.IdeologyInstalled = domain.Known(true) },
+		"ledger":  func(in *GatheringInput) { in.Ledger = domain.Unknown[MoodLedger]() },
+		"pawns":   func(in *GatheringInput) { in.Pawns = domain.Unknown[[]MoodPawn]() },
+		"benefit": func(in *GatheringInput) { in.Benefit = domain.Unknown[float64]() },
+		"calm":    func(in *GatheringInput) { in.Calm = domain.Unknown[bool]() },
+		"census":  func(in *GatheringInput) { in.Census = domain.Unknown[CurrentConstruction]() },
 	} {
 		in, _ := gatherFixture(t, 6, 6)
 		mutate(&in)

@@ -54,10 +54,6 @@ type GatheringInput struct {
 	Calm domain.Fact[bool]
 	// Census holds the built PartySpot.
 	Census domain.Fact[CurrentConstruction]
-	// IdeologyInstalled and Ideology defer to MaintainRituals: an Ideology
-	// colony that holds ritual precepts celebrates through `ritual begin`.
-	IdeologyInstalled domain.Fact[bool]
-	Ideology          domain.Fact[Ideoligion]
 }
 
 // GatheringPlan is one party ready to start: the organizer to name.
@@ -76,13 +72,8 @@ func PlanGathering(in GatheringInput) domain.Fact[GatheringPlan] {
 	benefit, bk := in.Benefit.Value()
 	calm, ck := in.Calm.Value()
 	census, sk := in.Census.Value()
-	installed, ik := in.IdeologyInstalled.Value()
-	hold := holdsNone
-	if ik && installed {
-		hold = ideologyHoldsRituals(in.Ideology)
-	}
 	// Known gates that refuse, whatever else is unread.
-	if ck && !calm || hold == holdsRituals {
+	if ck && !calm {
 		return none
 	}
 	if pk {
@@ -106,7 +97,7 @@ func PlanGathering(in GatheringInput) domain.Fact[GatheringPlan] {
 	if sk && census.Colony && !hasPartySpot(census) {
 		return none
 	}
-	if !pk || !lk || !bk || !ck || !sk || !census.Colony || !ik || hold == holdsUnknown {
+	if !pk || !lk || !bk || !ck || !sk || !census.Colony {
 		return domain.Unknown[GatheringPlan]()
 	}
 	if !gatheringPressure(ledger, benefit) {
@@ -117,28 +108,6 @@ func PlanGathering(in GatheringInput) domain.Fact[GatheringPlan] {
 		return none
 	}
 	return domain.Known(GatheringPlan{Def: PartyGatheringDef, Organizer: organizer})
-}
-
-type ritualHold int
-
-const (
-	holdsNone ritualHold = iota
-	holdsRituals
-	holdsUnknown
-)
-
-// ideologyHoldsRituals reads the deferral on an Ideology-installed colony:
-// the held ritual precepts own its celebrations. An unread ideoligion is
-// unknown; a colony with no ritual precept has nothing to defer to.
-func ideologyHoldsRituals(f domain.Fact[Ideoligion]) ritualHold {
-	ideo, known := f.Value()
-	switch {
-	case !known:
-		return holdsUnknown
-	case len(ideo.Facts.Rituals) > 0:
-		return holdsRituals
-	}
-	return holdsNone
 }
 
 // hasPartyMemory reports whether the pawn carries the AttendedParty memory.

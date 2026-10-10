@@ -334,7 +334,6 @@ colony as a whole is losing mood the party would repay. It is a mood source with
 | Cooldown | no colonist carries the `AttendedParty` memory (`durationDays` 10): nothing is stored |
 | Calm | `RitualCalm`: no hostile threat, no critical patient; any colonist in a mental state vetoes |
 | Running | a party's lord job runs 5000 to 15000 ticks (`LordJob_Joinable_Party`) and the game refuses a second; the planner waits `gathering_running` for `GatheringMaxTicks` after the last completed gathering action of the Episode, and while a plan is open |
-| Ideology | with Ideology installed and any ritual precept held, `MaintainRituals` owns celebrations (`ritual begin`) and no `gathering` is issued |
 
 Unknown inputs never start a party; a known veto wins over an unknown input. Colonists
 whose thoughts are unreadable count as neither pressed nor carrying the memory. The
@@ -343,6 +342,16 @@ highest mood, then the lowest id; the game's `PawnCanStartOrContinueGathering` d
 rest. `RoundsFacts.GatheringPlan` / `GatheringOwed` hold the concern open; the planner
 commits one `gathering` action per Episode attempt. Recovery: the memory, the veto or the
 trigger lapsing. Weddings, concerts and schedule writes are out of scope.
+
+The `gathering` family is in the default serve composition (every family is on unless
+`RIMGOVERNOR_ROUTINE_FAMILIES` narrows it), so `HoldGatherings` is eligible beside
+the `mood` family and `EnsureComfort` in a normal run. Ideology does not change this: it
+neither removes nor gates the Core `Party` `GatheringDef` (ilspycmd on `GatheringDef`,
+`GatheringWorker_Party`, `LordJob_Joinable_Party` and `VoluntarilyJoinableLordsStarter`
+shows no Ideology check, and the Ideology defs add no `GatheringDef`), so a party starts
+the same with or without precepts. Ideology rituals (`ritual begin`, `MaintainRituals`)
+are a separate additive system; a running ritual lord job blocks a new gathering through
+`AllowStartNewGatherings`, which native refuses and Go replans.
 
 `GatheringEffect` records `gathering_def`, `organizer_id` and the `spot` the game
 chose. `NativeGathering` is an immediate write with no native job: it refuses an

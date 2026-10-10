@@ -50,6 +50,16 @@ func TestServeDefaultsToAutonomousComposition(t *testing.T) {
 	if got := c.activeRoundsFamilies(); len(got) != len(families) {
 		t.Fatalf("active families %v did not cover every family", got)
 	}
+	// HoldGatherings is selected beside EnsureMood and EnsureComfort.
+	_, capabilities := roundsCapabilities(c)
+	for _, goal := range []policy.ConcernID{policy.HoldGatherings, policy.EnsureComfort} {
+		if !slices.Contains(capabilities.Methods, goal) {
+			t.Errorf("default composition lacks %s: %v", goal, capabilities.Methods)
+		}
+	}
+	if !c.roundsGatheringPlans || !c.roundsMoodPlans {
+		t.Error("default composition left the gathering or mood planner off")
+	}
 	if _, err := parseServe(serveBase(dir), io.Discard); err == nil {
 		t.Fatal("autonomous serve accepted without a profile")
 	}
