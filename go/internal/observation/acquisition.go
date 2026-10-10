@@ -27,17 +27,46 @@ func decodeAcquisition(v *o.ColonyFactsSnapshot, tables bridge.Tables) (domain.F
 	if err != nil {
 		return domain.Unknown[[]policy.AcquisitionSource](), nil
 	}
-	census := huntCensus(v.HuntCensus)
+	census, err := huntCensus(v.HuntCensus, tables.Catalog)
+	if err != nil {
+		return domain.Unknown[[]policy.AcquisitionSource](), nil
+	}
 	rows := []policy.AcquisitionSource{}
 	var holds []policy.HuntHold
 	for _, row := range v.Acquisition {
 		source := tables.Entity(row.Source)
-		// An inedible hunt is only ever a pest, a race row's flag.
 		race, _ := races.Race(policy.Resource(source.GetDefName()))
-		if row.GetHunt() && !row.GetFood() && !race.Pest {
-			continue
+		offered := policy.AcquisitionSource{ID: row.Source.GetId(), Resource: row.GetResource(), Token: row.SourceSnapshot.GetToken(), Definition: source.GetDefName(), Cell: domain.Cell{X: source.GetPosition().GetX(), Z: source.GetPosition().GetZ()}, Hunt: row.GetHunt(), Food: row.GetFood(), Designated: row.GetDesignated(), Yield: row.GetYield(), HerdSize: int(row.GetHerdSize()), Downed: row.GetDowned(), Sleeping: row.GetSleeping(), Pest: race.Pest, DesignatedTick: domain.Tick(row.GetDesignatedTick()), Taken: row.GetTaken(), Growth: row.GetGrowth(), Plantation: row.GetPlantation()}
+		if offered.Hunt {
+			// The race row's own flags and numbers: an inedible hunt is only
+			// ever a pest; the meat's nutrition is the live MeatAmount stat
+			// times the meat def's Nutrition.
+			offered.Food, offered.Predator = !race.Pest, race.Predator
+			chance, ok := race.ManhunterOnDamage.Value()
+			if !ok {
+				return domain.Unknown[[]policy.AcquisitionSource](), nil
+			}
+			offered.RevengeChance = chance
+			if !race.Pest {
+				perUnit, ok := race.MeatNutritionPerUnit.Value()
+				if !ok || row.MeatAmount == nil {
+					return domain.Unknown[[]policy.AcquisitionSource](), nil
+				}
+				offered.NutritionYield = max(0, row.GetMeatAmount()) * perUnit
+			}
+			offered.MeleeOnly = meleeable(row, tables.Pawns, race, offered)
+		} else {
+			offered.Tree = tables.Catalog.PlantIsTree(source.GetDefName())
+			if offered.Food {
+				nutrition, shown, err := tables.Catalog.ShownStatValue(row.GetResource(), "", bridge.StatNutrition)
+				if err != nil {
+					return domain.Unknown[[]policy.AcquisitionSource](), nil
+				}
+				if shown {
+					offered.NutritionYield = row.GetYield() * float64(nutrition)
+				}
+			}
 		}
-		offered := policy.AcquisitionSource{ID: row.Source.GetId(), Resource: row.GetResource(), Token: row.SourceSnapshot.GetToken(), Definition: source.GetDefName(), Cell: domain.Cell{X: source.GetPosition().GetX(), Z: source.GetPosition().GetZ()}, Hunt: row.GetHunt(), Tree: row.GetTree(), Food: row.GetFood(), Designated: row.GetDesignated(), Yield: row.GetYield(), NutritionYield: row.GetNutritionYield(), RevengeChance: row.GetRevengeChance(), HerdSize: int(row.GetHerdSize()), MeleeOnly: row.GetMeleeOnly(), Downed: row.GetDowned(), BodySize: row.GetBodySize(), Sleeping: row.GetSleeping(), Predator: row.GetPredator(), Pest: race.Pest, DesignatedTick: domain.Tick(row.GetDesignatedTick()), Taken: row.GetTaken(), Growth: row.GetGrowth(), Plantation: row.GetPlantation()}
 		if offered.Hunt {
 			offered.Products = race.Butchery
 			verdict := census.Gate(policy.HuntPrey{Source: offered, Fogged: row.GetFogged(), Mental: row.GetInMentalState()})
@@ -54,8 +83,39 @@ func decodeAcquisition(v *o.ColonyFactsSnapshot, tables bridge.Tables) (domain.F
 	return domain.Known(rows), holds
 }
 
+// meleeable is the day-one interim food rule over the race row: safe prey (not
+// in a mental state, its meat nourishing) that is no predator, and downed or
+// docile (no manhunter chance on damage) and no bigger than a colonist, which
+// flees rather than fights back, so a melee weapon or bare hands can run it
+// down. Pawn.BodySize is the current life stage's bodySizeFactor (the prey's
+// life stage index, the pawn row's) times the race's baseBodySize; a prey whose
+// row or stage is not held is not known to be small, so not meleeable. The
+// comparison is in float32, as the game's.
+func meleeable(row *o.AcquisitionFacts, pawns bridge.Pawns, race policy.AnimalRace, prey policy.AcquisitionSource) bool {
+	nutrition, known := race.MeatNutritionPerUnit.Value()
+	if row.GetInMentalState() || race.Predator || !known || !(nutrition > 0) {
+		return false
+	}
+	if prey.Downed {
+		return true
+	}
+	if chance, ok := race.ManhunterOnDamage.Value(); !ok || chance != 0 {
+		return false
+	}
+	state, ok := pawns.Row(row.Source)
+	size, sized := race.BodySize.Value()
+	if !ok || state.GetAnimalState() == nil || !sized {
+		return false
+	}
+	index := state.GetAnimalState().LifeStageIndex
+	if index == nil || *index < 0 || int(*index) >= len(race.LifeStages) {
+		return false
+	}
+	return float32(race.LifeStages[*index].BodySizeFactor)*float32(size) <= 1.0
+}
+
 // huntCensus decodes native's raw hunt facts.
-func huntCensus(v *o.HuntCensus) (census policy.HuntCensus) {
+func huntCensus(v *o.HuntCensus, catalog *bridge.DefinitionCatalog) (census policy.HuntCensus, err error) {
 	for _, b := range v.GetBenches() {
 		bench := policy.HuntBench{ID: b.GetBenchId(), Usable: b.GetUsable()}
 		for _, bill := range b.Bills {
@@ -93,29 +153,13 @@ func huntCensus(v *o.HuntCensus) (census policy.HuntCensus) {
 				hunter.RouteUnsafePrey[r.GetPreyId()] = true
 			}
 		}
-		if w := h.Weapon; w != nil {
-			weapon := &policy.HuntWeapon{DefName: w.GetDefName(), Ranged: w.GetRanged(), Melee: w.GetMelee()}
-			for _, verb := range w.Verbs {
-				weapon.Verbs = append(weapon.Verbs, policy.HuntVerb{Melee: verb.GetMelee(), AIWeapon: verb.GetAiWeapon(), Range: verb.GetRange(), ExplosionRadius: verb.GetExplosionRadius(), Warmup: verb.GetWarmup(),
-					Projectile: huntProjectile(verb.GetProjectileKind()), DamageDef: verb.GetDamageDef(), DamageWorker: verb.GetDamageWorker()})
-			}
-			hunter.Weapon = weapon
+		// The weapon's verbs and projectile are the def rows' (Catalog.HuntWeapon).
+		if hunter.Weapon, err = catalog.HuntWeapon(h.GetWeaponDef()); err != nil {
+			return census, err
 		}
 		census.Hunters = append(census.Hunters, hunter)
 	}
-	return census
-}
-
-func huntProjectile(kind o.HuntProjectileKind) policy.HuntProjectile {
-	switch kind {
-	case o.HuntProjectileKind_HUNT_PROJECTILE_KIND_BULLET:
-		return policy.HuntProjectileBullet
-	case o.HuntProjectileKind_HUNT_PROJECTILE_KIND_ARROW:
-		return policy.HuntProjectileArrow
-	case o.HuntProjectileKind_HUNT_PROJECTILE_KIND_OTHER:
-		return policy.HuntProjectileOther
-	}
-	return policy.HuntProjectileNone
+	return census, nil
 }
 
 func set(values []string) map[string]bool {

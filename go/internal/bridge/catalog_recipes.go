@@ -7,7 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 // Recipe rows. What a recipe does is read from its RecipeDef row, never
@@ -127,16 +126,20 @@ func (catalog *DefinitionCatalog) makesOrdinaryMeal(row *d.RecipeDef) (bool, err
 	}
 	for _, product := range row.GetProducts() {
 		name := product.GetValue().GetThingDef()
-		facts, err := catalog.thingFactsRow(name)
+		product, err := catalog.thingRow(name)
 		if err != nil {
 			return false, err
 		}
-		switch facts.GetFoodKind() {
-		case o.FoodKind_FOOD_KIND_MEAL_SIMPLE, o.FoodKind_FOOD_KIND_MEAL_FINE, o.FoodKind_FOOD_KIND_MEAL_LAVISH:
-		default:
+		if product.GetIngestible() == nil {
 			return false, nil
 		}
-		if facts.FoodKind == nil {
+		kind, err := catalog.foodKind(name, product)
+		if err != nil {
+			return false, err
+		}
+		switch kind {
+		case policy.FoodKindMealSimple, policy.FoodKindMealFine, policy.FoodKindMealLavish:
+		default:
 			return false, nil
 		}
 		_, perishable, err := catalog.RotDays(name)

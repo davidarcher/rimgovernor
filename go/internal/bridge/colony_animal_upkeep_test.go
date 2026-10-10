@@ -45,7 +45,7 @@ func TestAnimalUpkeepBoundary(t *testing.T) {
 
 func wildWire() *o.UpkeepFacts {
 	v := upkeepWire()
-	v.WildAnimals = []*o.AnimalFeed{{Pawn: &commonpb.Ref{Id: proto.String("wild")}, Diet: proto.String("OmnivoreAnimal"), RequiresPen: proto.Bool(false)}}
+	v.WildAnimals = []*o.AnimalFeed{{Pawn: &commonpb.Ref{Id: proto.String("wild")}, RequiresPen: proto.Bool(false)}}
 	return v
 }
 

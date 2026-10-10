@@ -86,6 +86,25 @@ func (catalog *DefinitionCatalog) raceMeatDef(row *d.ThingDef) string {
 	return "Meat_" + row.GetDefName()
 }
 
+// RaceMeatNutrition is the Nutrition stat of the meat race's butchery yields,
+// for any pawn def (the animal race table holds animals only); false for a race
+// with no meat or a meat that shows no nutrition.
+func (catalog *DefinitionCatalog) RaceMeatNutrition(race string) (float64, bool, error) {
+	row := catalog.ThingDef(race)
+	if row == nil || row.GetRace() == nil {
+		return 0, false, nil
+	}
+	meat := catalog.raceMeatDef(row)
+	if meat == "" {
+		return 0, false, nil
+	}
+	n, shown, err := catalog.ShownStatValue(meat, "", StatNutrition)
+	if err != nil || !shown || n <= 0 {
+		return 0, false, err
+	}
+	return float64(n), true, nil
+}
+
 // raceTicks is a LifeStageAge's minAge in ticks: Mathf.FloorToInt(minAge *
 // GenDate.TicksPerYear) in the game's single-precision arithmetic.
 func raceTicks(minAge float32) int64 {

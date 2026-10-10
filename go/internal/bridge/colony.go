@@ -140,9 +140,6 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	if err := validateChoiceDialog(v.Dialog); err != nil {
 		return err
 	}
-	if len(v.FoodCorpses) != 0 {
-		return contract("unreviewed colony section")
-	}
 	if err := validateColonyWaste(v.Waste, v.MapSize, v.Context.Identity.GetMapId()); err != nil {
 		return err
 	}
@@ -275,7 +272,7 @@ func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) err
 		return true
 	}
 	for _, row := range e.Lights {
-		if row == nil || !validRef(row.Building) || !unique("light/"+row.Building.GetId()) || !optionalRef(row.Room) || !optionalID(row.PowerNetId) || !combatNumber(row.PowerW, true) || !cells(row.GrowthCells) {
+		if row == nil || !validRef(row.Building) || !unique("light/"+row.Building.GetId()) || !optionalRef(row.Room) || !optionalID(row.PowerNetId) || !cells(row.GrowthCells) {
 			return contract("invalid environment light")
 		}
 		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {
@@ -283,7 +280,7 @@ func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) err
 		}
 	}
 	for _, row := range e.Growers {
-		if row == nil || !validRef(row.Building) || !unique("grower/"+row.Building.GetId()) || !optionalRef(row.Room) || !optionalID(row.PowerNetId) || !optionalID(row.SowTag) || !optionalID(row.CropDefName) || !combatNumber(row.PowerW, true) || !combatNumber(row.Fertility, true) || !cells(row.PlantCells) {
+		if row == nil || !validRef(row.Building) || !unique("grower/"+row.Building.GetId()) || !optionalRef(row.Room) || !optionalID(row.PowerNetId) || !optionalID(row.CropDefName) || !cells(row.PlantCells) {
 			return contract("invalid environment grower")
 		}
 		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {

@@ -58,20 +58,18 @@ func recipeFixture() *DefinitionCatalog {
 		"Corpse_Human":     {DefName: "Corpse_Human", ThingClass: "Verse.Corpse", ThingCategories: []string{"Corpses"}},
 		"Corpse_Mech":      {DefName: "Corpse_Mech", ThingClass: "Verse.Corpse", ThingCategories: []string{"CorpsesMech"}},
 		"Apparel_Parka":    {DefName: "Apparel_Parka", ThingClass: "RimWorld.Apparel", ThingCategories: []string{"Apparel"}},
-		"MealSimple":       {DefName: "MealSimple", ThingClass: thing, Comps: []*d.Opt_CompPropertiesAny{rottable()}},
-		"MealSurvivalPack": {DefName: "MealSurvivalPack", ThingClass: thing},
+		"MealSimple":       {DefName: "MealSimple", ThingClass: thing, Comps: []*d.Opt_CompPropertiesAny{rottable()}, Ingestible: &d.IngestibleProperties{Preferability: d.FoodPreferability_FOOD_PREFERABILITY_MEAL_SIMPLE}},
+		"MealSurvivalPack": {DefName: "MealSurvivalPack", ThingClass: thing, Ingestible: &d.IngestibleProperties{Preferability: d.FoodPreferability_FOOD_PREFERABILITY_MEAL_SIMPLE}},
 		"SculptureSmall":   {DefName: "SculptureSmall", ThingClass: thing, Category: d.ThingCategory_THING_CATEGORY_BUILDING, MinifiedDef: "MinifiedThing", CostStuffCount: 50, Comps: []*d.Opt_CompPropertiesAny{artComp()}},
 		"Gun_Art":          {DefName: "Gun_Art", ThingClass: thing, Category: d.ThingCategory_THING_CATEGORY_ITEM, Comps: []*d.Opt_CompPropertiesAny{artComp()}},
 		"Steel":            {DefName: "Steel", ThingClass: thing},
 		"Stool":            {DefName: "Stool", ThingClass: thing},
 	}
 	facts := map[string]*o.ThingDefFacts{
-		"MealSimple":       {DefName: "MealSimple", FoodKind: o.FoodKind_FOOD_KIND_MEAL_SIMPLE.Enum(), MealIngredients: o.MealIngredients_MEAL_INGREDIENTS_ANY.Enum()},
-		"MealSurvivalPack": {DefName: "MealSurvivalPack", FoodKind: o.FoodKind_FOOD_KIND_MEAL_SIMPLE.Enum(), MealIngredients: o.MealIngredients_MEAL_INGREDIENTS_ANY.Enum()},
-		"SculptureSmall":   {DefName: "SculptureSmall"},
-		"Gun_Art":          {DefName: "Gun_Art"},
-		"Steel":            {DefName: "Steel"},
-		"Stool":            {DefName: "Stool"},
+		"SculptureSmall": {DefName: "SculptureSmall"},
+		"Gun_Art":        {DefName: "Gun_Art"},
+		"Steel":          {DefName: "Steel"},
+		"Stool":          {DefName: "Stool"},
 	}
 	return &DefinitionCatalog{
 		ThingDefs: things,

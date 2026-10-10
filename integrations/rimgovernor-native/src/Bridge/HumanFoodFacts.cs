@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
@@ -52,12 +53,15 @@ namespace HomeBridge.BridgeTools
             && !bench.IsForbidden(pawn) && pawn.Position.DistanceTo(bench.Position) <= 40
             && pawn.CanReach(bench, PathEndMode.InteractionCell, Danger.None);
 
-        internal static double CorpseNutrition(Thing bench) => bench.Map.listerThings.AllThings.OfType<Corpse>()
+        // The MeatAmount of the fresh humanlike corpses within reach of the bench,
+        // summed per race; Go prices each race's meat off its def rows.
+        internal static IEnumerable<Obs.HumanCorpseMeat> CorpseMeat(Thing bench) => bench.Map.listerThings.AllThings.OfType<Corpse>()
             .Where(c => c.InnerPawn.RaceProps.Humanlike && c.GetRotStage() == RotStage.Fresh
                 && c.InnerPawn.RaceProps.meatDef != null && c.Position.DistanceTo(bench.Position) <= 40
                 && !c.IsForbidden(Faction.OfPlayer))
-            .Sum(c => (double)c.InnerPawn.GetStatValue(StatDefOf.MeatAmount)
-                * c.InnerPawn.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition));
+            .GroupBy(c => c.InnerPawn.def.defName, System.StringComparer.Ordinal)
+            .OrderBy(g => g.Key, System.StringComparer.Ordinal)
+            .Select(g => new Obs.HumanCorpseMeat { Race = g.Key, MeatAmount = g.Sum(c => (double)c.InnerPawn.GetStatValue(StatDefOf.MeatAmount)) });
 
         internal static void Fill(Obs.ButcheringFacts row, Thing bench)
         {
@@ -69,7 +73,7 @@ namespace HomeBridge.BridgeTools
                 if(pawn.story?.traits!=null)candidate.PawnTraits.Add(pawn.story.traits.allTraits.Select(t=>new Obs.Trait{DefName=t.def.defName,Degree=t.Degree}));
                 row.HumanButchers.Add(candidate);
             }
-            row.HumanCorpseNutrition=CorpseNutrition(bench);
+            row.HumanCorpseMeat.Add(CorpseMeat(bench));
         }
     }
 }

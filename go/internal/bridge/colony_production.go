@@ -23,12 +23,12 @@ func validFarmMeasures(farm *o.FarmFacts) bool {
 			return false
 		}
 	}
-	for _, value := range []*float64{farm.NutritionPerHarvestCell, farm.FertilityFactorMin, farm.FertilityFactorMean, farm.LightFactorMean} {
+	for _, value := range []*float64{farm.FertilityFactorMin, farm.FertilityFactorMean, farm.LightFactorMean} {
 		if !combatNumber(value, true) {
 			return false
 		}
 	}
-	for _, value := range []*float64{farm.Temperature, farm.MinGrowthTemperature, farm.MinOptimalGrowthTemperature, farm.MaxOptimalGrowthTemperature, farm.MaxGrowthTemperature} {
+	for _, value := range []*float64{farm.Temperature} {
 		if !combatNumber(value, false) {
 			return false
 		}
@@ -62,8 +62,12 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 		if b == nil {
 			return contract("nil butcher bench")
 		}
-		if !combatNumber(b.HumanCorpseNutrition, true) {
-			return contract("invalid human butchery census")
+		corpses := map[string]bool{}
+		for _, meat := range b.HumanCorpseMeat {
+			if meat == nil || validID(meat.GetRace()) != nil || corpses[meat.GetRace()] || !combatNumber(meat.MeatAmount, true) || meat.MeatAmount == nil {
+				return contract("invalid human butchery census")
+			}
+			corpses[meat.GetRace()] = true
 		}
 		workers := map[string]bool{}
 		for _, worker := range b.HumanButchers {

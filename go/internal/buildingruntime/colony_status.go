@@ -53,8 +53,6 @@ type ColonyStatusReport struct {
 	NutritionPerDay      domain.Fact[float64]
 	FoodRunwayDays       domain.Fact[float64]
 	PendingFoodNutrition domain.Fact[float64]
-	// FoodCorpses counts the edible corpses the census listed.
-	FoodCorpses int
 	// Threat is the census's wealth split and raid points; unknown
 	// under a native build that does not report the section.
 	Threat bridge.ColonyThreat
@@ -155,7 +153,6 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 		NutritionPerDay:      optionalFact(observed.NutritionPerDay),
 		FoodRunwayDays:       optionalFact(observed.FoodRunwayDays),
 		PendingFoodNutrition: optionalFact(observed.PendingFoodNutrition),
-		FoodCorpses:          len(observed.FoodCorpses),
 		Threat:               bridge.ProjectColonyThreat(observed),
 		Shrines:              domain.Unknown[[]policy.AncientShrine](),
 		PlayerTechLevel:      optionalFact(observed.PlayerTechLevel),

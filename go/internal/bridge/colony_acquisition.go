@@ -17,13 +17,13 @@ func validateColonyAcquisition(v *o.ColonyFactsSnapshot) error {
 			return contract("missing acquisition row")
 		}
 		source := row.Source
-		if !validRef(source) || seen[source.GetId()] || !refSnapshot(row.SourceSnapshot, source, v.Context) || validID(row.GetResource()) != nil || row.Hunt == nil || row.Tree == nil || row.Food == nil || row.Designated == nil || row.Yield == nil || row.GetYield() <= 0 || !combatNumber(row.Yield, true) || row.NutritionYield == nil || !combatNumber(row.NutritionYield, true) || !row.GetFood() && row.GetNutritionYield() != 0 || row.GetHunt() && (row.GetTree() || row.GetYield() != 1) {
+		if !validRef(source) || seen[source.GetId()] || !refSnapshot(row.SourceSnapshot, source, v.Context) || validID(row.GetResource()) != nil || row.Hunt == nil || row.Designated == nil || row.Yield == nil || row.GetYield() <= 0 || !combatNumber(row.Yield, true) || row.GetHunt() && (row.Food != nil || row.GetYield() != 1) || !row.GetHunt() && row.Food == nil {
 			return contract("invalid acquisition source or yield")
 		}
-		if row.GetHunt() && (row.RevengeChance == nil || !combatNumber(row.RevengeChance, true) || row.GetRevengeChance() > 1 || row.HerdSize == nil || row.GetHerdSize() == 0 || row.GetHerdSize() > 65536 || row.MeleeOnly == nil || row.Downed == nil || row.BodySize != nil && !combatNumber(row.BodySize, true)) {
+		if row.GetHunt() && (row.MeatAmount == nil || !combatNumber(row.MeatAmount, true) || row.HerdSize == nil || row.GetHerdSize() == 0 || row.GetHerdSize() > 65536 || row.Downed == nil) || !row.GetHunt() && row.MeatAmount != nil {
 			return contract("missing or invalid hunt cost facts")
 		}
-		if row.GetPlantation() && (!row.GetTree() || row.GetHunt() || row.Growth == nil || !combatNumber(row.Growth, true) || row.GetGrowth() > 1) || row.Growth != nil && (row.GetHunt() || !combatNumber(row.Growth, true) || row.GetGrowth() > 1) {
+		if row.GetPlantation() && (row.GetHunt() || row.Growth == nil || !combatNumber(row.Growth, true) || row.GetGrowth() > 1) || row.Growth != nil && (row.GetHunt() || !combatNumber(row.Growth, true) || row.GetGrowth() > 1) {
 			return contract("invalid plantation tree or growth fraction")
 		}
 		if row.GetHunt() && (v.HuntCensus == nil || row.Fogged == nil || row.InMentalState == nil) {

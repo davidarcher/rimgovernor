@@ -33,7 +33,7 @@ func validateDeepResources(v *o.ColonyFactsSnapshot) error {
 		seen := map[string]bool{}
 		for _, rows := range [][]*o.MineralScannerState{f.GroundScanners, f.LongRangeScanners} {
 			for _, row := range rows {
-				if row == nil || validID(row.GetBuildingId()) != nil || validID(row.GetDefName()) != nil || seen[row.GetBuildingId()] || !colonyCell(row.Position, v.MapSize) || !row.GetBuilt() || row.GetTicksToNextFind() < 0 || row.TargetResource != nil && validID(row.GetTargetResource()) != nil {
+				if row == nil || validID(row.GetBuildingId()) != nil || validID(row.GetDefName()) != nil || seen[row.GetBuildingId()] || !colonyCell(row.Position, v.MapSize) || !row.GetBuilt() || row.GetTicksToNextFind() < 0 || row.TargetMineable != nil && validID(row.GetTargetMineable()) != nil {
 					return contract("invalid mineral scanner")
 				}
 				seen[row.GetBuildingId()] = true

@@ -72,10 +72,10 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Animals {
-		if row == nil || !uniqueRef(row.Pawn, seen) || row.Diet != nil && validID(row.GetDiet()) != nil || !optionalRef(row.SuitablePen) {
+		if row == nil || !uniqueRef(row.Pawn, seen) || !optionalRef(row.SuitablePen) {
 			return contract("invalid upkeep animal")
 		}
-		if row.RequiresPen != nil && !row.GetRequiresPen() && row.SuitablePen != nil || !proto.Equal(row, &o.AnimalFeed{Pawn: row.Pawn, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePen: row.SuitablePen}) {
+		if row.RequiresPen != nil && !row.GetRequiresPen() && row.SuitablePen != nil || !proto.Equal(row, &o.AnimalFeed{Pawn: row.Pawn, RequiresPen: row.RequiresPen, SuitablePen: row.SuitablePen}) {
 			return contract("conflicting upkeep animal fields")
 		}
 	}
@@ -83,7 +83,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	// feed, pen or ownership facts; the tame facts ride the table row.
 	seen = map[string]bool{}
 	for _, row := range v.WildAnimals {
-		if row == nil || !uniqueRef(row.Pawn, seen) || row.Diet != nil && validID(row.GetDiet()) != nil || row.RequiresPen != nil && row.GetRequiresPen() || !proto.Equal(row, &o.AnimalFeed{Pawn: row.Pawn, Diet: row.Diet, RequiresPen: row.RequiresPen}) {
+		if row == nil || !uniqueRef(row.Pawn, seen) || row.RequiresPen != nil && row.GetRequiresPen() || !proto.Equal(row, &o.AnimalFeed{Pawn: row.Pawn, RequiresPen: row.RequiresPen}) {
 			return contract("invalid wild animal")
 		}
 	}
@@ -263,7 +263,7 @@ func validateLighting(section *o.LightingSection, size *o.MapSize, mapID int32) 
 	}
 	benches := map[string]bool{}
 	for _, row := range l.WorkCells {
-		if row == nil || !uniqueRef(row.Bench, benches) || !colonyCell(row.Cell, size) || !optionalRef(row.Room) || !proto.Equal(row, &o.WorkLightCell{Bench: row.Bench, Cell: row.Cell, Glow: row.Glow, Roofed: row.Roofed, Room: row.Room, LightSensitive: row.LightSensitive}) {
+		if row == nil || !uniqueRef(row.Bench, benches) || !colonyCell(row.Cell, size) || !optionalRef(row.Room) || !proto.Equal(row, &o.WorkLightCell{Bench: row.Bench, Cell: row.Cell, Glow: row.Glow, Roofed: row.Roofed, Room: row.Room, PlantDefs: row.PlantDefs}) {
 			return contract("invalid lighting work cell")
 		}
 		if row.Glow != nil && (math.IsNaN(row.GetGlow()) || row.GetGlow() < 0 || row.GetGlow() > 1) {
@@ -272,11 +272,8 @@ func validateLighting(section *o.LightingSection, size *o.MapSize, mapID int32) 
 	}
 	lamps := map[string]bool{}
 	for _, row := range l.Lamps {
-		if row == nil || !uniqueRef(row.Building, lamps) || !optionalRef(row.Room) || !proto.Equal(row, &o.LampState{Building: row.Building, GlowRadius: row.GlowRadius, Lit: row.Lit, Room: row.Room}) {
+		if row == nil || !uniqueRef(row.Building, lamps) || !optionalRef(row.Room) || !proto.Equal(row, &o.LampState{Building: row.Building, Lit: row.Lit, Room: row.Room}) {
 			return contract("invalid lighting lamp")
-		}
-		if row.GlowRadius != nil && (math.IsNaN(row.GetGlowRadius()) || row.GetGlowRadius() < 0 || row.GetGlowRadius() > 1e3) {
-			return contract("invalid lamp glow radius")
 		}
 	}
 	return nil

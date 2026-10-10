@@ -27,7 +27,7 @@ func validateFoodChannels(v *o.ColonyFactsSnapshot) error {
 		}
 		meat := map[string]bool{}
 		for _, row := range f.Slaughter {
-			if row == nil || validID(row.GetPawnId()) != nil || validID(row.GetRace()) != nil || meat[row.GetPawnId()] || !combatNumber(row.MeatNutrition, true) || !combatNumber(row.FeedPerDay, true) || !combatNumber(row.ReproductionDays, true) {
+			if row == nil || validID(row.GetPawnId()) != nil || validID(row.GetRace()) != nil || meat[row.GetPawnId()] || !combatNumber(row.MeatAmount, true) {
 				return contract("invalid slaughter food facts")
 			}
 			meat[row.GetPawnId()] = true

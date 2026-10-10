@@ -128,17 +128,21 @@ func addPest(native *roundsNative, v *o.ColonyFactsSnapshot, id string, x, z int
 	beaver := &o.EntityRef{Id: proto.String(id), DefName: proto.String("Alphabeaver"), MapId: v.Context.Identity.MapId, Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}}
 	native.pawn(&o.PawnState{Pawn: beaver, Wild: proto.Bool(true), AnimalState: &o.AnimalState{Tameable: proto.Bool(true), Tame: proto.Bool(false)}})
 	// The recorded race row says an alphabeaver is a pest: an animal that eats trees.
+	// The test colony's lone hunters take it on: the race's retaliation chance
+	// (the row's, which the hunt census used to send beside it) is under the cap.
 	native.catalogRows().Add("Alphabeaver")
+	native.def("Alphabeaver").Race.ManhunterOnDamageChance = 0.1
 	upkeep := v.Upkeep.GetObserved()
-	upkeep.WildAnimals = append(upkeep.WildAnimals, &o.AnimalFeed{Pawn: &c.Ref{Id: proto.String(id)}, Diet: proto.String("DendrovoreAnimal"), RequiresPen: proto.Bool(false)})
-	v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Taken: proto.Bool(false), Source: &c.Ref{Id: beaver.Id}, SourceSnapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}, RevengeChance: proto.Float64(0.1), HerdSize: proto.Uint32(3), MeleeOnly: proto.Bool(false), Downed: proto.Bool(false), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Fogged: proto.Bool(false), InMentalState: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)})
+	upkeep.WildAnimals = append(upkeep.WildAnimals, &o.AnimalFeed{Pawn: &c.Ref{Id: proto.String(id)}, RequiresPen: proto.Bool(false)})
+	v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Taken: proto.Bool(false), Source: &c.Ref{Id: beaver.Id}, SourceSnapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}, HerdSize: proto.Uint32(3), MeatAmount: proto.Float64(0), Downed: proto.Bool(false), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Designated: proto.Bool(false), Fogged: proto.Bool(false), InMentalState: proto.Bool(false), Yield: proto.Float64(1)})
 	// The hunt census names a bow-armed colonist with a safe route to the
 	// pest; policy's hunt gate offers the row only with one.
+	native.entity(&o.EntityRef{Id: proto.String("hunter-bow"), DefName: proto.String("Bow_Short")})
 	if v.HuntCensus == nil {
 		v.HuntCensus = &o.HuntCensus{Hunters: []*o.HunterFacts{{
 			PawnId: proto.String("hunter"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}, Downed: proto.Bool(false), InMentalState: proto.Bool(false),
 			HuntingActive: proto.Bool(true), HuntingPriority: proto.Int32(3), CookingActive: proto.Bool(true),
-			Weapon: &o.HuntWeaponFacts{DefName: proto.String("Bow_Short"), Ranged: proto.Bool(true), Verbs: []*o.HuntVerbFacts{{Melee: proto.Bool(false), AiWeapon: proto.Bool(true), Range: proto.Float64(25.9), ProjectileKind: o.HuntProjectileKind_HUNT_PROJECTILE_KIND_ARROW.Enum(), DamageDef: proto.String("Arrow")}}},
+			WeaponDef: proto.String("Bow_Short"),
 		}}}
 	}
 	hunter := v.HuntCensus.Hunters[0]

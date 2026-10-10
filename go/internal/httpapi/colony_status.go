@@ -36,7 +36,6 @@ type colonyStatusDTO struct {
 	NutritionPerDay      *float64          `json:"nutritionPerDay"`
 	FoodRunwayDays       *float64          `json:"foodRunwayDays"`
 	PendingFoodNutrition *float64          `json:"pendingFoodNutrition"`
-	FoodCorpses          int               `json:"foodCorpses"`
 	RaidPoints           *float64          `json:"raidPoints"`
 	WealthTotal          *float64          `json:"wealthTotal"`
 	WealthItems          *float64          `json:"wealthItems"`
@@ -113,7 +112,7 @@ func projectColonyStatus(v buildingruntime.ColonyStatusReport) colonyStatusDTO {
 		Tick: v.Tick, RosterTick: v.RosterTick, Colonists: factPointer(v.Colonists), Workers: factPointer(v.Workers),
 		FoodNutrition: factPointer(v.FoodNutrition), NutritionPerDay: factPointer(v.NutritionPerDay),
 		FoodRunwayDays: factPointer(v.FoodRunwayDays), PendingFoodNutrition: factPointer(v.PendingFoodNutrition),
-		FoodCorpses: v.FoodCorpses, RaidPoints: factPointer(v.Threat.RaidPoints), WealthTotal: factPointer(v.Threat.WealthTotal),
+		RaidPoints: factPointer(v.Threat.RaidPoints), WealthTotal: factPointer(v.Threat.WealthTotal),
 		WealthItems: factPointer(v.Threat.WealthItems), WealthBuildings: factPointer(v.Threat.WealthBuildings), WealthPawns: factPointer(v.Threat.WealthPawns),
 		Pawns: []colonyStatusPawnDTO{},
 	}

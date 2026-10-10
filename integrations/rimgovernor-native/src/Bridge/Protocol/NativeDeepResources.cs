@@ -70,8 +70,8 @@ namespace HomeBridge.BridgeTools
                             if (!double.IsNaN(ticks) && !double.IsInfinity(ticks) && ticks < long.MaxValue) row.TicksToNextFind = (long)ticks;
                         }
                         if (scanner is CompLongRangeMineralScanner) {
-                            if (Target?.GetValue(scanner) is ThingDef target && target.building?.mineableThing != null)
-                                row.TargetResource = target.building.mineableThing.defName;
+                            if (Target?.GetValue(scanner) is ThingDef target)
+                                row.TargetMineable = target.defName;
                             facts.LongRangeScanners.Add(row);
                         } else facts.GroundScanners.Add(row);
                     }

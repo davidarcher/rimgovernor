@@ -41,7 +41,7 @@ func lightingWire() *o.LightingSection {
 	}
 	return &o.LightingSection{Outcome: &o.LightingSection_Observed{Observed: &o.LightingFacts{
 		WorkCells: []*o.WorkLightCell{{Bench: NewRef(entity("stove", 10, 10).GetId()), Cell: cell(10, 11), Glow: proto.Float64(0.2), Roofed: proto.Bool(true), Room: &c.Ref{Id: proto.String("7")}}},
-		Lamps:     []*o.LampState{{Building: NewRef(entity("lamp", 12, 12).GetId()), GlowRadius: proto.Float64(10), Lit: proto.Bool(true), Room: &c.Ref{Id: proto.String("7")}}},
+		Lamps:     []*o.LampState{{Building: NewRef(entity("lamp", 12, 12).GetId()), Lit: proto.Bool(true), Room: &c.Ref{Id: proto.String("7")}}},
 	}}}
 }
 
@@ -101,7 +101,6 @@ func TestDirectUpkeepLightingBoundary(t *testing.T) {
 		func(l *o.LightingFacts) { l.WorkCells = append(l.WorkCells, l.WorkCells[0]) },
 		func(l *o.LightingFacts) { l.WorkCells[0].Room = &c.Ref{Id: proto.String("")} },
 		func(l *o.LightingFacts) { l.Lamps = append(l.Lamps, l.Lamps[0]) },
-		func(l *o.LightingFacts) { l.Lamps[0].GlowRadius = proto.Float64(-1) },
 		func(l *o.LightingFacts) { l.Lamps[0].Room = &c.Ref{Id: proto.String("")} },
 	} {
 		v := upkeepWire()

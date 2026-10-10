@@ -123,7 +123,7 @@ namespace HomeBridge.BridgeTools
                     && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item)
                     && Protected(c) && !CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
                     && Accessible(c)).ToList();
-            var result = new Obs.StorageCapacity { Resource = def.defName, Capacity = capacity, Stored = stored, StackLimit = def.stackLimit };
+            var result = new Obs.StorageCapacity { Resource = def.defName, Capacity = capacity, Stored = stored };
             result.Haulers.AddRange(NativeRef.All(haulers));
             result.Candidates.AddRange(candidates.Select(c => new Common.Cell { X = c.x, Z = c.z }));
             return result;
@@ -164,7 +164,7 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.ResourceSource
             {
                 Source = NativeRef.Thing(thing),
-                Method = mineable ? "mine" : thing.def.plant.IsTree ? "cut" : "harvest",
+                DefName = thing.def.defName,
                 Yield = thing is Plant plant ? plant.YieldNow() : thing.def.building.mineableYield,
                 Reachable = !buried,
                 Buried = buried,

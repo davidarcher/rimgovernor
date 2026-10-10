@@ -54,7 +54,9 @@ type PlanningDefinition struct {
 	// power draw and glow radius, as the native definition declares them.
 	SowTags                                                           domain.Fact[[]string]
 	GrowMinGlow, PowerW, GrowerFertility, GlowRadius, ExplosiveRadius domain.Fact[float64]
-	SowTag                                                            domain.Fact[string]
+	// The crop's growth temperature range (PlantProperties).
+	MinGrowthTemperature, MinOptimalGrowthTemperature, MaxOptimalGrowthTemperature, MaxGrowthTemperature domain.Fact[float64]
+	SowTag                                                                                               domain.Fact[string]
 	// Floor definition facts: Terrain marks a TerrainDef
 	// and the stats are what a laid floor carries.
 	Terrain                           domain.Fact[bool]
@@ -423,13 +425,23 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.PlayerTechLevel = optional(v.PlayerTechLevel)
 	r.TechTier = domain.Unknown[policy.TechTier]()
 	r.Threat = bridge.ProjectColonyThreat(v)
-	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
+	// The race rows are static for a load and come from the catalog; an
+	// unbuildable race table fails the reading.
+	races, racesErr := tables.Catalog.AnimalRaces()
+	if racesErr != nil {
+		return ColonyProjection{}, racesErr
+	}
+	r.FoodChannels = colonyFoodChannels(v.FoodChannels, tables.Pawns, races)
 	r.DeliveryLedger = colonyDeliveryLedger(v.DeliveryLedger, v.Context.GetTick())
-	r.DeepResources = colonyDeepResources(v.DeepResources)
+	r.DeepResources = colonyDeepResources(v.DeepResources, tables.Catalog)
 	r.Policies = ColonyPolicies(v.Policies)
 	if policies, known := r.Policies.Value(); known {
 		policies.Books = tables.Catalog.Books()
-		policies.Foods = tables.Catalog.Foods()
+		foods, err := tables.Catalog.Foods()
+		if err != nil {
+			return ColonyProjection{}, err
+		}
+		policies.Foods = foods
 		if v.Biome != nil {
 			diseases, err := tables.Catalog.BiomeDiseases(v.GetBiome())
 			if err != nil {
@@ -656,12 +668,6 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		return ColonyProjection{}, sleepingErr
 	}
 	r.Facts.Sleeping = sleeping
-	// The race rows are static for a load and come from the catalog; an
-	// unbuildable race table fails the reading.
-	races, racesErr := tables.Catalog.AnimalRaces()
-	if racesErr != nil {
-		return ColonyProjection{}, racesErr
-	}
 	r.Facts.AnimalUpkeep.AnimalRaces = races
 	r.Facts.AnimalUpkeep.Animals = mergeHerdFoodFacts(colonyAnimals(v, tables.Pawns, races), r.FoodChannels)
 	r.Facts.AnimalUpkeep.WildAnimals = colonyWildAnimals(v, tables.Pawns, races)
@@ -816,11 +822,20 @@ func colonyEnvironment(v *o.ControlledEnvironment, outdoor *float64, buildings b
 	}
 	for _, row := range v.Lights {
 		ref := buildings.Entity(row.Building)
-		e.Lights = append(e.Lights, policy.GrowLight{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optionalRef(row.Room), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: optional(row.PowerW), LitNow: optional(row.LitNow), GrowthCells: cellsOf(row.GrowthCells)})
+		power, err := defPowerW(catalog, ref.GetDefName())
+		if err != nil {
+			return policy.ControlledEnvironment{}, err
+		}
+		e.Lights = append(e.Lights, policy.GrowLight{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optionalRef(row.Room), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: power, LitNow: optional(row.LitNow), GrowthCells: cellsOf(row.GrowthCells)})
 	}
 	for _, row := range v.Growers {
 		ref := buildings.Entity(row.Building)
-		e.Growers = append(e.Growers, policy.PlantGrower{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optionalRef(row.Room), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: optional(row.PowerW), Fertility: optional(row.Fertility), SowTag: optional(row.SowTag), Crop: optional(row.CropDefName), CanSow: optional(row.CanSow), Cells: cellsOf(row.PlantCells)})
+		power, err := defPowerW(catalog, ref.GetDefName())
+		if err != nil {
+			return policy.ControlledEnvironment{}, err
+		}
+		fertility, sowTag := growerRows(catalog, ref.GetDefName())
+		e.Growers = append(e.Growers, policy.PlantGrower{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optionalRef(row.Room), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: power, Fertility: fertility, SowTag: sowTag, Crop: optional(row.CropDefName), CanSow: optional(row.CanSow), Cells: cellsOf(row.PlantCells)})
 	}
 	for _, row := range v.Rooms {
 		e.Rooms = append(e.Rooms, policy.GrowRoom{ID: row.GetRoom().GetId(), TemperatureC: optional(row.TemperatureC), Cells: count(row.CellCount), OpenRoof: count(row.OpenRoofCount), Lit: count(row.LitCells), Proper: optional(row.ProperRoom), Outdoors: optional(row.PsychologicallyOutdoors)})
@@ -829,6 +844,31 @@ func colonyEnvironment(v *o.ControlledEnvironment, outdoor *float64, buildings b
 		e.Networks = append(e.Networks, policy.PowerHeadroom{ID: row.GetId(), GenerationW: optional(row.GenerationW), SolarW: optional(row.SolarW), WindW: optional(row.WindW), ConsumptionW: optional(row.ConsumptionW), StoredWattDays: optional(row.StoredWattDays), CapacityWattDays: optional(row.CapacityWattDays), ActiveSource: optional(row.HasActiveSource)})
 	}
 	return e, nil
+}
+
+// defPowerW is the base draw of def's power comp row (CompProperties_Power),
+// unknown for a def without one.
+func defPowerW(catalog *bridge.DefinitionCatalog, def string) (domain.Fact[float64], error) {
+	watts, powered, err := catalog.PowerDraw(catalog.ThingDef(def))
+	if err != nil || !powered {
+		return domain.Unknown[float64](), err
+	}
+	return finiteFact(watts), nil
+}
+
+// growerRows is a plant grower def's own numbers: its fixed fertility (when
+// it sets one) and the sow tag of its building properties, unknown for a def
+// that names none.
+func growerRows(catalog *bridge.DefinitionCatalog, def string) (fertility domain.Fact[float64], sowTag domain.Fact[string]) {
+	row := catalog.ThingDef(def)
+	fertility, sowTag = domain.Unknown[float64](), domain.Unknown[string]()
+	if row != nil && row.GetFertility() >= 0 {
+		fertility = finiteFact(float64(row.GetFertility()))
+	}
+	if tag := row.GetBuilding().GetSowTag(); tag != "" {
+		sowTag = domain.Known(tag)
+	}
+	return fertility, sowTag
 }
 
 func count(p *uint32) domain.Fact[int] {

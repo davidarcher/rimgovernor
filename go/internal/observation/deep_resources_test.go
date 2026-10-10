@@ -42,8 +42,8 @@ func TestDeepResourcesProjectionPresence(t *testing.T) {
 	}
 	f.Lumps = []*o.DeepResourceLump{{DefName: proto.String("Plasteel"), Count: proto.Int64(300), Centre: &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}, CellCount: proto.Uint32(3)}}
 	f.GroundScanners = []*o.MineralScannerState{{BuildingId: proto.String("scanner"), DefName: proto.String("GroundPenetratingScanner"), Position: &c.Cell{X: proto.Int32(11), Z: proto.Int32(10)}, Built: proto.Bool(true), Powered: proto.Bool(false)}}
-	f.LongRangeScanners = []*o.MineralScannerState{{BuildingId: proto.String("long"), DefName: proto.String("LongRangeMineralScanner"), Position: &c.Cell{X: proto.Int32(12), Z: proto.Int32(10)}, Built: proto.Bool(true), Working: proto.Bool(false), TicksToNextFind: proto.Int64(0), TargetResource: proto.String("Gold")}}
-	p, err = DecodeColony(r, id, bridge.Tables{})
+	f.LongRangeScanners = []*o.MineralScannerState{{BuildingId: proto.String("long"), DefName: proto.String("LongRangeMineralScanner"), Position: &c.Cell{X: proto.Int32(12), Z: proto.Int32(10)}, Built: proto.Bool(true), Working: proto.Bool(false), TicksToNextFind: proto.Int64(0), TargetMineable: proto.String("MineableGold")}}
+	p, err = DecodeColony(r, id, bridge.Tables{Catalog: recordedCatalog(t)})
 	if err != nil {
 		t.Fatal(err)
 	}

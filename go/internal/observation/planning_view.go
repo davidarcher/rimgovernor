@@ -208,6 +208,8 @@ func plantView(catalog *bridge.DefinitionCatalog, v *PlanningDefinition, plant *
 	v.FertilityMin = finiteFact(float64(plant.GetFertilityMin()))
 	v.FertilitySensitivity = finiteFact(float64(plant.GetFertilitySensitivity()))
 	v.GrowMinGlow = finiteFact(float64(plant.GetGrowMinGlow()))
+	v.MinGrowthTemperature, v.MinOptimalGrowthTemperature = finiteFact(float64(plant.GetMinGrowthTemperature())), finiteFact(float64(plant.GetMinOptimalGrowthTemperature()))
+	v.MaxOptimalGrowthTemperature, v.MaxGrowthTemperature = finiteFact(float64(plant.GetMaxOptimalGrowthTemperature())), finiteFact(float64(plant.GetMaxGrowthTemperature()))
 	v.SowTags = domain.Known(append([]string{}, plant.GetSowTags()...))
 	v.SowMinSkill = domain.Known(plant.GetSowMinSkill())
 	v.BlockAdjacentSow = domain.Known(plant.GetBlockAdjacentSow())

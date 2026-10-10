@@ -38,46 +38,11 @@ namespace HomeBridge.BridgeTools
         internal static IEnumerable<ThingDef> Foods() =>
             DefDatabase<ThingDef>.AllDefsListForReading.Where(IsFood).OrderBy(d => d.defName, StringComparer.Ordinal);
 
-        internal static Obs.FoodKind Kind(ThingDef d)
-        {
-            switch (d.ingestible.preferability) {
-                case FoodPreferability.MealAwful: return Obs.FoodKind.MealAwful;
-                case FoodPreferability.MealSimple: return Obs.FoodKind.MealSimple;
-                case FoodPreferability.MealFine: return Obs.FoodKind.MealFine;
-                case FoodPreferability.MealLavish: return Obs.FoodKind.MealLavish;
-            }
-            if ((d.ingestible.foodType & FoodTypeFlags.Kibble) != 0) return Obs.FoodKind.Kibble;
-            if (d == ThingDefOf.Hay) return Obs.FoodKind.Hay;
-            if (d.IsMeat)
-                switch (FoodUtility.GetMeatSourceCategory(d)) {
-                    case MeatSourceCategory.Humanlike: return Obs.FoodKind.HumanMeat;
-                    case MeatSourceCategory.Insect: return Obs.FoodKind.InsectMeat;
-                    default: return Obs.FoodKind.RawMeat;
-                }
-            if (d.IsFungus) return Obs.FoodKind.Fungus;
-            if (d.IsAnimalProduct) return Obs.FoodKind.AnimalProduct;
-            if ((d.ingestible.foodType & FoodTypeFlags.VegetableOrFruit) != 0) return Obs.FoodKind.Vegetable;
-            return Obs.FoodKind.Other;
-        }
-
-        // The game's own classification of one ThingDef, computed once per load
-        // for the definition catalog: the food kind and meal ingredients
-        // of a food a policy can allow, and the race facts of a race def.
-        internal static Obs.ThingDefFacts Facts(ThingDef d)
-        {
-            var row = new Obs.ThingDefFacts { DefName = d.defName };
-            if (d.race != null) row.Race = NativeRaceFacts.Facts(d);
-            if (!IsFood(d)) return row;
-            var kind = Kind(d);
-            row.FoodKind = kind;
-            if (kind >= Obs.FoodKind.MealAwful && kind <= Obs.FoodKind.MealLavish)
-                row.MealIngredients = FoodUtility.GetFoodKind(d) switch {
-                    FoodKind.Meat => Obs.MealIngredients.Meat,
-                    FoodKind.NonMeat => Obs.MealIngredients.NonMeat,
-                    _ => Obs.MealIngredients.Any,
-                };
-            return row;
-        }
+        // The game's own race facts of one race def, computed once per load for
+        // the definition catalog (a food's kind and a meal's ingredients are Go's,
+        // over the def rows).
+        internal static Obs.ThingDefFacts Facts(ThingDef d) =>
+            new Obs.ThingDefFacts { DefName = d.defName, Race = NativeRaceFacts.Facts(d) };
 
         internal static IEnumerable<string> Allowed(FoodPolicy p) =>
             p.filter.AllowedThingDefs.Where(IsFood).Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal);

@@ -4,15 +4,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// HuntProjectile is a verb's default projectile class as native states it:
-// Bullet is exactly the game's Bullet class, Arrow a Bullet-class projectile
-// with an arrow damage def, Other any other class; None is no projectile.
+// HuntProjectile is a verb's default projectile class (Catalog.HuntWeapon):
+// Bullet is exactly the game's Bullet class (arrows included), Other any
+// other class; None is no projectile.
 type HuntProjectile string
 
 const (
 	HuntProjectileNone   HuntProjectile = ""
 	HuntProjectileBullet HuntProjectile = "bullet"
-	HuntProjectileArrow  HuntProjectile = "arrow"
 	HuntProjectileOther  HuntProjectile = "other"
 )
 
@@ -51,7 +50,7 @@ func (w HuntWeapon) Hunts() bool {
 			continue
 		}
 		n++
-		if v.Projectile != HuntProjectileBullet && v.Projectile != HuntProjectileArrow || v.ExplosionRadius != 0 || v.DamageDef == "" || v.DamageWorker == flameDamageWorker {
+		if v.Projectile != HuntProjectileBullet || v.ExplosionRadius != 0 || v.DamageDef == "" || v.DamageWorker == flameDamageWorker {
 			return false
 		}
 	}

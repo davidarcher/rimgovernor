@@ -32,6 +32,15 @@ func decodeRows(s *recordedrows.Slice) *bridge.DefinitionCatalog {
 	return catalog
 }
 
+// envCatalog is the recorded catalog of the environment test's defs, with the
+// room stat rows the colony decode reads.
+func envCatalog(t *testing.T) *bridge.DefinitionCatalog {
+	t.Helper()
+	rows := recordedRows(t, "Plant_Rice", "SunLamp", "HydroponicsBasin")
+	rows.AddSets("room_stat_defs")
+	return decodeRows(rows)
+}
+
 // catalogOf is the catalog of the named recorded defs.
 func catalogOf(t testing.TB, names ...string) *bridge.DefinitionCatalog {
 	t.Helper()

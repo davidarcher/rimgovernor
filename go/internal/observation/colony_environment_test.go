@@ -15,8 +15,8 @@ import (
 
 func TestColonyEnvironmentDecodesLampsGrowersRoomsAndNetworks(t *testing.T) {
 	env := &o.ControlledEnvironment{Daylight: proto.Bool(false),
-		Lights:   []*o.GrowLight{{Building: &c.Ref{Id: proto.String("lamp-1")}, Room: &c.Ref{Id: proto.String("7")}, Powered: proto.Bool(true), PowerW: proto.Float64(2900), LitNow: proto.Bool(true), PowerNetId: proto.String("net-a"), GrowthCells: []*c.Cell{{X: proto.Int32(10), Z: proto.Int32(10)}, {X: proto.Int32(11), Z: proto.Int32(10)}}}},
-		Growers:  []*o.PlantGrower{{Building: &c.Ref{Id: proto.String("basin-1")}, Fertility: proto.Float64(2.8), SowTag: proto.String("Hydroponic"), CanSow: proto.Bool(true), PowerNetId: proto.String("net-a"), PlantCells: []*c.Cell{{X: proto.Int32(20), Z: proto.Int32(10)}, {X: proto.Int32(20), Z: proto.Int32(11)}, {X: proto.Int32(20), Z: proto.Int32(12)}, {X: proto.Int32(20), Z: proto.Int32(13)}}}},
+		Lights:   []*o.GrowLight{{Building: &c.Ref{Id: proto.String("lamp-1")}, Room: &c.Ref{Id: proto.String("7")}, Powered: proto.Bool(true), LitNow: proto.Bool(true), PowerNetId: proto.String("net-a"), GrowthCells: []*c.Cell{{X: proto.Int32(10), Z: proto.Int32(10)}, {X: proto.Int32(11), Z: proto.Int32(10)}}}},
+		Growers:  []*o.PlantGrower{{Building: &c.Ref{Id: proto.String("basin-1")}, CanSow: proto.Bool(true), PowerNetId: proto.String("net-a"), PlantCells: []*c.Cell{{X: proto.Int32(20), Z: proto.Int32(10)}, {X: proto.Int32(20), Z: proto.Int32(11)}, {X: proto.Int32(20), Z: proto.Int32(12)}, {X: proto.Int32(20), Z: proto.Int32(13)}}}},
 		Rooms:    []*o.GrowRoom{{Room: &c.Ref{Id: proto.String("7")}, TemperatureC: proto.Float64(21), CellCount: proto.Uint32(36), OpenRoofCount: proto.Uint32(0), ProperRoom: proto.Bool(true), PsychologicallyOutdoors: proto.Bool(false), LitCells: proto.Uint32(30)}},
 		Networks: []*o.PowerHeadroom{{Id: proto.String("net-a"), GenerationW: proto.Float64(3000), SolarW: proto.Float64(1700), WindW: proto.Float64(300), ConsumptionW: proto.Float64(600), StoredWattDays: proto.Float64(400), CapacityWattDays: proto.Float64(600), HasActiveSource: proto.Bool(true)}}}
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
@@ -37,7 +37,7 @@ func TestColonyEnvironmentDecodesLampsGrowersRoomsAndNetworks(t *testing.T) {
 		t.Fatal(err)
 	}
 	heads := buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("lamp-1"), DefName: proto.String("SunLamp"), Position: &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}}}, &o.BuildingState{Building: &o.EntityRef{Id: proto.String("basin-1"), DefName: proto.String("HydroponicsBasin"), Position: &c.Cell{X: proto.Int32(20), Z: proto.Int32(10)}}})
-	p, err := DecodeColony(reply, id, bridge.Tables{Buildings: heads})
+	p, err := DecodeColony(reply, id, bridge.Tables{Buildings: heads, Catalog: envCatalog(t)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestColonyEnvironmentDecodesLampsGrowersRoomsAndNetworks(t *testing.T) {
 	if e.Lights[0].ID != "lamp-1" || e.Lights[0].Room != domain.Known("7") || len(e.Lights[0].GrowthCells) != 2 || e.LitCells()[domain.Cell{X: 11, Z: 10}] != "lamp-1" {
 		t.Fatal(e.Lights[0])
 	}
-	if e.Growers[0].Fertility != domain.Known(2.8) || len(e.Growers[0].Cells) != 4 || e.Rooms[0].Lit != domain.Known(30) || e.Rooms[0].TemperatureC != domain.Known(21.0) {
+	if e.Growers[0].Fertility != domain.Known(float64(float32(2.8))) || len(e.Growers[0].Cells) != 4 || e.Rooms[0].Lit != domain.Known(30) || e.Rooms[0].TemperatureC != domain.Known(21.0) {
 		t.Fatal(e.Growers[0], e.Rooms[0])
 	}
 	net, ok := e.Network("net-a")

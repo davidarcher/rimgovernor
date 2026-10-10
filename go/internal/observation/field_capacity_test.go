@@ -10,7 +10,7 @@ import (
 
 func TestUnsownFieldCapacityDoesNotBecomeGrowingFood(t *testing.T) {
 	v := &o.ColonyFactsSnapshot{Farms: []*o.FarmFacts{withGrowth(&o.FarmFacts{Crop: proto.String("Plant_Rice"), EdibleCrop: proto.Bool(true), UsableCells: proto.Uint32(73)}, 0)}}
-	definitions := []PlanningDefinition{{Name: "Plant_Rice", GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0), NutritionDemandPerDay: domain.Known(5.0)}}
+	definitions := []PlanningDefinition{temperateCrop(PlanningDefinition{Name: "Plant_Rice", GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0), NutritionDemandPerDay: domain.Known(5.0)})}
 	growing := policy.FieldCoverage(domain.Known(int64(3)), colonyFieldCrops(v.Farms, definitions), 7)
 	capacity := policy.FieldCoverage(domain.Known(int64(3)), colonyFieldCrops(v.Farms, definitions, true), 7)
 	if growing != domain.Known(0.0) || capacity != domain.Known(1.0) {

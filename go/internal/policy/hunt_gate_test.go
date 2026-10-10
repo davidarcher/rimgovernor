@@ -127,7 +127,7 @@ func TestHuntGateGatesRunInOrder(t *testing.T) {
 }
 
 func TestHuntGateWeaponRules(t *testing.T) {
-	arrow := &HuntWeapon{Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 25, Projectile: HuntProjectileArrow, DamageDef: "Arrow"}}}
+	arrow := &HuntWeapon{Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 25, Projectile: HuntProjectileBullet, DamageDef: "Arrow"}}}
 	grenade := &HuntWeapon{Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 12, Projectile: HuntProjectileOther, ExplosionRadius: 2}}}
 	incendiary := &HuntWeapon{Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 20, Projectile: HuntProjectileBullet, DamageDef: "Flame", DamageWorker: flameDamageWorker}}}
 	mixed := &HuntWeapon{Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Projectile: HuntProjectileBullet, DamageDef: "Bullet"}, {AIWeapon: true, Projectile: HuntProjectileOther, ExplosionRadius: 1}}}
@@ -166,7 +166,7 @@ func TestHuntGateWeaponRules(t *testing.T) {
 // without one qualifies, and the offered reach is the bow's.
 func TestHuntGateBowHunterQualifiesAndShieldDoesNot(t *testing.T) {
 	c := gateCensus()
-	c.Hunters[0].Weapon = &HuntWeapon{DefName: "Bow_Short", Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 25.9, Projectile: HuntProjectileArrow, DamageDef: "Arrow"}}}
+	c.Hunters[0].Weapon = &HuntWeapon{DefName: "Bow_Short", Ranged: true, Verbs: []HuntVerb{{AIWeapon: true, Range: 25.9, Projectile: HuntProjectileBullet, DamageDef: "Arrow"}}}
 	if v := c.Gate(gateDeer()); v.Hold != nil || v.WeaponRange != 25.9 {
 		t.Fatal(v)
 	}

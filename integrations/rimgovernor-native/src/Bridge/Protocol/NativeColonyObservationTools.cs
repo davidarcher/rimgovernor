@@ -426,7 +426,7 @@ namespace HomeBridge.BridgeTools
                 var room = building.GetRoom();
                 if (IsSunLamp(building)) { var lamp = building;
                     var row = new Obs.GrowLight { Building = NativeBuildingObservationTools.Ref(lamp) };
-                    if (power != null) { row.Powered = power.PowerOn; row.PowerW = Finite(power.Props.PowerConsumption); var id = NetId(power); if (id != null) row.PowerNetId = id; }
+                    if (power != null) { row.Powered = power.PowerOn; var id = NetId(power); if (id != null) row.PowerNetId = id; }
                     else row.Issues.Add(Issue("powered", Common.UnavailableReason.NotApplicable, "Lamp has no power trader."));
                     var schedule = lamp.TryGetComp<CompSchedule>();
                     row.LitNow = (power == null || power.PowerOn) && (schedule == null || schedule.Allowed);
@@ -436,11 +436,9 @@ namespace HomeBridge.BridgeTools
                 } else if (building is Building_PlantGrower grower) {
                     var row = new Obs.PlantGrower { Building = NativeBuildingObservationTools.Ref(grower),
                         CanSow = grower.CanAcceptSowNow() };
-                    if (grower.def.fertility >= 0f) row.Fertility = Finite(grower.def.fertility);
-                    if (grower.def.building?.sowTag != null) row.SowTag = grower.def.building.sowTag;
                     var crop = grower.GetPlantDefToGrow();
                     if (crop != null) row.CropDefName = crop.defName;
-                    if (power != null) { row.Powered = power.PowerOn; row.PowerW = Finite(power.Props.PowerConsumption); var id = NetId(power); if (id != null) row.PowerNetId = id; }
+                    if (power != null) { row.Powered = power.PowerOn; var id = NetId(power); if (id != null) row.PowerNetId = id; }
                     foreach (var c in ((IPlantToGrowSettable)grower).Cells) row.PlantCells.Add(Cell(c));
                     if (room != null) { row.Room = NativeRef.Room(room); Note(room); }
                     result.Growers.Add(row);

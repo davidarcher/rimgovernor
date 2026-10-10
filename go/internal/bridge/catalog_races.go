@@ -83,6 +83,8 @@ func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts
 	}
 	// A pest is a tree eater: RaceProperties.Eats(FoodTypeFlags.Tree).
 	race.Pest = int32(props.GetFoodType())&int32(d.FoodTypeFlags_FOOD_TYPE_FLAGS_TREE) != 0
+	race.EatsPlant = int32(props.GetFoodType())&int32(d.FoodTypeFlags_FOOD_TYPE_FLAGS_PLANT) != 0
+	race.GestationDays = float64(props.GetGestationPeriodDays())
 	if t := props.GetTrainability(); t != "" {
 		race.Trainability = domain.Known(t)
 	}
@@ -209,7 +211,7 @@ func (catalog *DefinitionCatalog) raceLifeStages(props *d.RaceProperties) []poli
 		if age == nil || stage == nil {
 			return nil
 		}
-		out = append(out, policy.RaceLifeStage{MinAgeTicks: int64(math.Round(float64(age.GetMinAge()) * domain.TicksPerDay * domain.DaysPerYear)), HungerRateFactor: float64(stage.GetHungerRateFactor())})
+		out = append(out, policy.RaceLifeStage{MinAgeTicks: int64(math.Round(float64(age.GetMinAge()) * domain.TicksPerDay * domain.DaysPerYear)), HungerRateFactor: float64(stage.GetHungerRateFactor()), BodySizeFactor: float64(stage.GetBodySizeFactor())})
 	}
 	return out
 }

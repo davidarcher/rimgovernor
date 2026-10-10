@@ -101,11 +101,8 @@ namespace HomeBridge.BridgeTools
                 row.Farm = new Obs.FarmFacts { Zone = NativeRef.Of(row.Id), Crop = crop.defName,
                     UsableCells = (uint)visible.Count(c => map.fertilityGrid.FertilityAt(c) >= crop.plant.fertilityMin),
                     PlantedCells = (uint)plants.Count, EdibleCrop = edible,
-                    NutritionPerHarvestCell = edible ? crop.plant.harvestYield * product.GetStatValueAbstract(StatDefOf.Nutrition) : 0,
                     Temperature = map.mapTemperature.OutdoorTemp, FertilePlantedCells = (uint)plants.Count(p => p.GrowthRateFactor_Fertility > 0),
-                    BlightedPlants = (uint)plants.Count(p => p.Blighted),
-                    MinGrowthTemperature = crop.plant.minGrowthTemperature, MinOptimalGrowthTemperature = crop.plant.minOptimalGrowthTemperature,
-                    MaxOptimalGrowthTemperature = crop.plant.maxOptimalGrowthTemperature, MaxGrowthTemperature = crop.plant.maxGrowthTemperature };
+                    BlightedPlants = (uint)plants.Count(p => p.Blighted) };
                 if (plants.Count > 0)
                 {
                     row.Farm.GrowthMin = plants.Min(p => p.Growth); row.Farm.GrowthMean = plants.Average(p => p.Growth);

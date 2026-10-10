@@ -99,7 +99,11 @@ func foodPolicy(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	kinds := map[string]pol.FoodKind{}
-	for _, f := range catalog.Foods() {
+	foods, err := catalog.Foods()
+	if err != nil {
+		return err
+	}
+	for _, f := range foods {
 		kinds[f.Def] = f.Kind
 	}
 	held := map[string]map[pol.FoodKind]bool{}

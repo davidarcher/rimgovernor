@@ -86,7 +86,7 @@ namespace HomeBridge.BridgeTools
             catalog.GameConstants = mirror.BuildStatics<Defs.GameConstants>();
             catalog.Derived = Derived();
             catalog.StatEnv = StatEnv();
-            foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
+            foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.race != null).OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
                 catalog.ThingFacts.Add(NativeFoodPolicy.Facts(def));
             catalog.Biotech = NativeBiotechFacts.Catalog();
             return catalog;

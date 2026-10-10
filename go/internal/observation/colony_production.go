@@ -39,12 +39,33 @@ func billActive(suspended *bool) domain.Fact[bool] {
 	return domain.Known(!*suspended)
 }
 
+// humanCorpseNutrition is the nutrition of the fresh humanlike corpses near a
+// bench: each race's live MeatAmount sum times the Nutrition of that race's
+// meat def; unknown when a race's meat shows no nutrition.
+func humanCorpseNutrition(meat []*o.HumanCorpseMeat, catalog *bridge.DefinitionCatalog) domain.Fact[float64] {
+	total := 0.0
+	for _, m := range meat {
+		per, ok, err := catalog.RaceMeatNutrition(m.GetRace())
+		if err != nil || !ok {
+			return domain.Unknown[float64]()
+		}
+		total += m.GetMeatAmount() * per
+	}
+	return domain.Known(total)
+}
+
 // farmGrowth is a growing zone's raw crop facts for policy.
-func farmGrowth(farm *o.FarmFacts) policy.CropGrowth {
+func farmGrowth(farm *o.FarmFacts, definitions []PlanningDefinition) policy.CropGrowth {
+	lo, loOptimal, hiOptimal, hi := domain.Unknown[float64](), domain.Unknown[float64](), domain.Unknown[float64](), domain.Unknown[float64]()
+	for _, d := range definitions {
+		if d.Name == farm.GetCrop() {
+			lo, loOptimal, hiOptimal, hi = d.MinGrowthTemperature, d.MinOptimalGrowthTemperature, d.MaxOptimalGrowthTemperature, d.MaxGrowthTemperature
+		}
+	}
 	return policy.CropGrowth{Planted: countFact(farm.PlantedCells), FertilePlanted: countFact(farm.FertilePlantedCells),
 		GrowthMean: optional(farm.GrowthMean), FertilityMean: optional(farm.FertilityFactorMean), Temperature: optional(farm.Temperature),
-		MinGrowth: optional(farm.MinGrowthTemperature), MinOptimal: optional(farm.MinOptimalGrowthTemperature),
-		MaxOptimal: optional(farm.MaxOptimalGrowthTemperature), MaxGrowth: optional(farm.MaxGrowthTemperature)}
+		MinGrowth: lo, MinOptimal: loOptimal,
+		MaxOptimal: hiOptimal, MaxGrowth: hi}
 }
 
 // colonyFoodFields computes each field's harvest lead in policy from the raw
@@ -60,7 +81,7 @@ func colonyFoodFields(farms []*o.FarmFacts, definitions []PlanningDefinition, ca
 	zones := zoneRoofs(cells)
 	rows := []policy.FoodField{}
 	for _, farm := range farms {
-		growth := farmGrowth(farm)
+		growth := farmGrowth(farm, definitions)
 		growing, growingKnown := growth.GrowingCells().Value()
 		if farm.Zone == nil || !growingKnown {
 			return domain.Unknown[[]policy.FoodField]()
@@ -138,7 +159,7 @@ func colonyFieldCrops(farms []*o.FarmFacts, definitions []PlanningDefinition, us
 	}
 	rows := make([]policy.FieldCrop, 0, len(farms))
 	for _, farm := range farms {
-		row := policy.FieldCrop{Edible: optional(farm.EdibleCrop), GrowingCells: farmGrowth(farm).GrowingCells()}
+		row := policy.FieldCrop{Edible: optional(farm.EdibleCrop), GrowingCells: farmGrowth(farm, definitions).GrowingCells()}
 		if len(usable) == 1 && usable[0] {
 			row.GrowingCells = countFact(farm.UsableCells)
 		}
@@ -299,7 +320,7 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Building
 	for _, b := range v.Butchering {
 		add(b.Bench, b.BenchSnapshot, b.Usable, b.Recipes, b.Bills, nil, true, b.Room)
 		row := &rows[len(rows)-1]
-		row.HumanCorpseNutrition = optional(b.HumanCorpseNutrition)
+		row.HumanCorpseNutrition = humanCorpseNutrition(b.HumanCorpseMeat, catalog)
 		for _, candidate := range b.HumanButchers {
 			var traits []policy.PawnTrait
 			for _, t := range candidate.PawnTraits {
@@ -332,7 +353,7 @@ func colonyCalendar(climate *o.FoodClimate) domain.Fact[policy.Calendar] {
 	return domain.Known(c)
 }
 
-func zoneProduction(farms []*o.FarmFacts, facts *policy.RoundsFacts) {
+func zoneProduction(farms []*o.FarmFacts, definitions []PlanningDefinition, facts *policy.RoundsFacts) {
 	if farms != nil {
 		var growing int64
 		known := true
@@ -344,7 +365,7 @@ func zoneProduction(farms []*o.FarmFacts, facts *policy.RoundsFacts) {
 			if !farm.GetEdibleCrop() {
 				continue
 			}
-			cells, cellsKnown := farmGrowth(farm).GrowingCells().Value()
+			cells, cellsKnown := farmGrowth(farm, definitions).GrowingCells().Value()
 			if !cellsKnown {
 				known = false
 				continue

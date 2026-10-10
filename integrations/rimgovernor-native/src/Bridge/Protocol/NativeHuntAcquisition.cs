@@ -49,11 +49,9 @@ namespace HomeBridge.BridgeTools
         // to answer, not a reason to leave the trees to them.
         internal static bool Pest(Pawn prey) => prey.Faction == null && prey.RaceProps.Animal && !prey.InMentalState
             && prey.RaceProps.corpseDef != null && PestRace(prey.RaceProps);
-        // Meleeable prey: safe prey no bigger than the hunter, which
-        // flees rather than fights back, so a colonist with a melee weapon
-        // or bare hands can run it down. This is the wiki's day-one interim
-        // food; it never covers a pest or anything the safe-prey rule rejects.
-        internal static bool Meleeable(Pawn prey) => SafePrey(prey) && !prey.RaceProps.predator && (prey.Downed || prey.RaceProps.manhunterOnDamageChance == 0 && prey.BodySize <= 1.0f);
+        // MeatAmount is the live animal's stat (wounds, missing parts and malnutrition scale it);
+        // Go multiplies it by the meat's nutrition off the def rows.
+        private static double MeatAmount(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount));
         private static double Nutrition(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount)) * prey.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition);
         private static Obs.SnapshotRef Snapshot(Pawn prey, Common.ObservationContext context) => new Obs.SnapshotRef {
             // A hunt follows its animal: the token binds the animal,
@@ -83,11 +81,9 @@ namespace HomeBridge.BridgeTools
                 var designated = Designated(animal);
                 var row = new Obs.AcquisitionFacts {
                 Source = NativeRef.Thing(animal), SourceSnapshot = Snapshot(animal, result.Context),
-                Resource = animal.RaceProps.corpseDef.defName, Tree = false, Food = !PestRace(animal.RaceProps), Hunt = true,
-                Yield = 1, NutritionYield = PestRace(animal.RaceProps) ? 0 : Nutrition(animal), Designated = designated,
-                RevengeChance = animal.RaceProps.manhunterOnDamageChance,
-                MeleeOnly = Meleeable(animal), Downed = animal.Downed,
-                BodySize = animal.BodySize, Sleeping = !animal.Awake(), Predator = animal.RaceProps.predator,
+                Resource = animal.RaceProps.corpseDef.defName, Hunt = true,
+                Yield = 1, MeatAmount = MeatAmount(animal), Designated = designated,
+                Downed = animal.Downed, Sleeping = !animal.Awake(),
                 Taken = ResourceAcquisitionTools.Taken(animal),
                 Fogged = animal.Position.Fogged(map), InMentalState = animal.InMentalState };
                 if (herdSquared >= 0)
@@ -99,37 +95,6 @@ namespace HomeBridge.BridgeTools
             result.HuntCensus = Census(map, prey, request.HasHuntRouteBudgetMs ? request.HuntRouteBudgetMs : (uint?)null,
                 request.HasHuntPredatorMarginCells ? request.HuntPredatorMarginCells : (float?)null);
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
-        }
-        internal static Obs.HuntProjectileKind ProjectileKind(ThingDef? projectile)
-        {
-            if (projectile == null) return Obs.HuntProjectileKind.Unspecified;
-            if (projectile.thingClass != typeof(Bullet)) return Obs.HuntProjectileKind.Other;
-            return projectile.projectile?.damageDef?.defName?.StartsWith("Arrow", StringComparison.Ordinal) == true
-                ? Obs.HuntProjectileKind.Arrow : Obs.HuntProjectileKind.Bullet;
-        }
-        internal static Obs.HuntVerbFacts VerbFacts(VerbProperties verb)
-        {
-            var projectile = verb.defaultProjectile;
-            var facts = new Obs.HuntVerbFacts { Melee = verb.IsMeleeAttack, AiWeapon = verb.ai_IsWeapon, Range = verb.range,
-                ProjectileKind = ProjectileKind(projectile), Warmup = verb.warmupTime };
-            if (projectile?.projectile != null)
-            {
-                facts.ExplosionRadius = projectile.projectile.explosionRadius;
-                if (projectile.projectile.damageDef != null)
-                {
-                    facts.DamageDef = projectile.projectile.damageDef.defName;
-                    if (projectile.projectile.damageDef.workerClass != null) facts.DamageWorker = projectile.projectile.damageDef.workerClass.FullName;
-                }
-            }
-            return facts;
-        }
-        private static Obs.HuntWeaponFacts? WeaponFacts(Pawn pawn)
-        {
-            var weapon = pawn.equipment?.Primary;
-            if (weapon == null) return null;
-            var facts = new Obs.HuntWeaponFacts { DefName = weapon.def.defName, Ranged = weapon.def.IsRangedWeapon, Melee = weapon.def.IsMeleeWeapon };
-            foreach (var verb in weapon.def.Verbs) facts.Verbs.Add(VerbFacts(verb));
-            return facts;
         }
         // Raw facts per free colonist and per butcher bench. Route evidence is skipped for a colonist
         // who is downed, in a mental state or has Hunting off: policy refuses each of those before it
@@ -165,8 +130,7 @@ namespace HomeBridge.BridgeTools
                     HuntingDisabled = pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hunting),
                     CookingActive = cooking != null && settings?.WorkIsActive(cooking) == true,
                     HasHuntingWeapon = WorkGiver_HunterHunt.HasHuntingWeapon(pawn), RangedBlockingShield = WorkGiver_HunterHunt.HasShieldAndRangedWeapon(pawn) };
-                var weapon = WeaponFacts(pawn);
-                if (weapon != null) hunter.Weapon = weapon;
+                if (pawn.equipment?.Primary != null) hunter.WeaponDef = pawn.equipment.Primary.def.defName;
                 if (hunter.CookingActive && !pawn.Downed && !pawn.InMentalState)
                     foreach (var bench in benches.Where(b => pawn.CanReach(b, PathEndMode.InteractionCell, Danger.None))) hunter.ReachableBenches.Add(bench.GetUniqueLoadID());
                 if (hunter.HuntingActive && !pawn.Downed && !pawn.InMentalState)

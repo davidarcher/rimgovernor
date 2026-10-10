@@ -113,7 +113,7 @@ func (n *roundsNative) thingCatalog() *bridge.DefinitionCatalog {
 		return n.framed
 	}
 	base := []string{"HorseshoesPin", "Silver", "SolarGenerator", "WindTurbine", "WoodFiredGenerator", "ChemfuelPoweredGenerator", "GeothermalGenerator", "Battery", "Human", "Corpse_Human"}
-	s := recordedrows.Take(recordedrows.Panic, recordedrows.Named(base...), "room_stat_defs", "weather_defs", "game_condition_defs", "biome_defs", "joy_giver_defs", "job_defs", "thing_category_defs")
+	s := recordedrows.Take(recordedrows.Panic, recordedrows.Named(base...), "room_stat_defs", "weather_defs", "game_condition_defs", "biome_defs", "joy_giver_defs", "job_defs", "thing_category_defs", "damage_defs")
 	for _, name := range base {
 		if n.rows != nil && n.rows.Has(name) {
 			s.Overwrite(n.rows, name)
@@ -441,7 +441,7 @@ func TestRounderUsesConfiguredFieldReserve(t *testing.T) {
 	v := n.reply.GetObserved()
 	v.Issues = v.Issues[1:] // Complete native farm census replaces its unavailable issue.
 	v.Farms = []*o.FarmFacts{{Zone: &c.Ref{Id: proto.String("farm")}, Crop: proto.String("Plant_Rice"), EdibleCrop: proto.Bool(true), PlantedCells: proto.Uint32(73), FertilePlantedCells: proto.Uint32(73), UsableCells: proto.Uint32(73),
-		Temperature: proto.Float64(20), MinGrowthTemperature: proto.Float64(0), MinOptimalGrowthTemperature: proto.Float64(10), MaxOptimalGrowthTemperature: proto.Float64(30), MaxGrowthTemperature: proto.Float64(42)}}
+		Temperature: proto.Float64(20)}}
 	n.rice()
 	for _, reserve := range []float64{7, 14, 7} {
 		r.policy.FoodTargetDays = reserve

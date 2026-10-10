@@ -56,7 +56,7 @@ func TestMedicalPlannerHarvestsWildHealrootWithoutBench(t *testing.T) {
 	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 	for i := 0; i < 4; i++ {
 		id := fmt.Sprint("healroot", i)
-		v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Taken: proto.Bool(false), Source: native.entity(&o.EntityRef{Id: proto.String(id), DefName: proto.String("Plant_Healroot"), MapId: v.Context.Identity.MapId, Position: proto.Clone(v.Center).(*c.Cell)}), SourceSnapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}, Resource: proto.String("MedicineHerbal"), Hunt: proto.Bool(false), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(i == 0), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)})
+		v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Taken: proto.Bool(false), Source: native.entity(&o.EntityRef{Id: proto.String(id), DefName: proto.String("Plant_Healroot"), MapId: v.Context.Identity.MapId, Position: proto.Clone(v.Center).(*c.Cell)}), SourceSnapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}, Resource: proto.String("MedicineHerbal"), Hunt: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(i == 0), Yield: proto.Float64(1)})
 		if i == 0 {
 			v.Acquisition[len(v.Acquisition)-1].DesignatedTick = proto.Int64(0)
 		}

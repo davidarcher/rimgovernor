@@ -105,16 +105,21 @@ func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 func TestUpkeepProjectionDecodesLighting(t *testing.T) {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	lighting := &o.LightingFacts{
-		WorkCells: []*o.WorkLightCell{{Bench: &c.Ref{Id: proto.String("stove")}, Cell: cell(10, 11), Glow: proto.Float64(0.1), Roofed: proto.Bool(true), Room: &c.Ref{Id: proto.String("7")}, LightSensitive: proto.Bool(true)}},
-		Lamps:     []*o.LampState{{Building: &c.Ref{Id: proto.String("lamp")}, GlowRadius: proto.Float64(12), Lit: proto.Bool(false), Room: &c.Ref{Id: proto.String("7")}}},
+		WorkCells: []*o.WorkLightCell{{Bench: &c.Ref{Id: proto.String("stove")}, Cell: cell(10, 11), Glow: proto.Float64(0.1), Roofed: proto.Bool(true), Room: &c.Ref{Id: proto.String("7")}, PlantDefs: []string{"Plant_Berry", "Plant_Nutrifungus"}}},
+		Lamps:     []*o.LampState{{Building: &c.Ref{Id: proto.String("lamp")}, Lit: proto.Bool(false), Room: &c.Ref{Id: proto.String("7")}}},
 	}
 	lamp := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("StandingLamp"), Position: cell(12, 12)}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(false), SwitchedOn: proto.Bool(true), BrokenDown: proto.Bool(false)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}
 	u := &o.UpkeepFacts{Lighting: &o.LightingSection{Outcome: &o.LightingSection_Observed{Observed: lighting}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
+	catalog := catalogOf(t, "StandingLamp", "Plant_Berry", "Plant_Nutrifungus")
+	wantRadius, glows, err := catalog.GlowRadius("StandingLamp")
+	if err != nil || !glows || wantRadius <= 0 {
+		t.Fatal(wantRadius, glows, err)
+	}
 	if _, known := upkeepOf(t, v, bridge.Tables{}).Lighting.Value(); known {
 		t.Fatal("an unresolved lamp reference became a known census")
 	}
-	f, known := upkeepOf(t, v, bridge.Tables{Buildings: buildingRows(lamp, &o.BuildingState{Building: &o.EntityRef{Id: proto.String("stove"), DefName: proto.String("FueledStove"), Position: cell(10, 10)}})}).Lighting.Value()
+	f, known := upkeepOf(t, v, bridge.Tables{Catalog: catalog, Buildings: buildingRows(lamp, &o.BuildingState{Building: &o.EntityRef{Id: proto.String("stove"), DefName: proto.String("FueledStove"), Position: cell(10, 10)}})}).Lighting.Value()
 	if !known || len(f.WorkCells) != 1 || len(f.Lamps) != 1 {
 		t.Fatal(f, known)
 	}
@@ -126,7 +131,7 @@ func TestUpkeepProjectionDecodesLighting(t *testing.T) {
 		t.Fatal(w)
 	}
 	l := f.Lamps[0]
-	if l.ID != "lamp" || l.Definition != "StandingLamp" || l.Cell != (domain.Cell{X: 12, Z: 12}) || l.Radius != 12 || l.Lit {
+	if l.ID != "lamp" || l.Definition != "StandingLamp" || l.Cell != (domain.Cell{X: 12, Z: 12}) || l.Radius != wantRadius || l.Lit {
 		t.Fatal(l)
 	}
 	if powered, ok := l.Powered.Value(); !ok || powered {

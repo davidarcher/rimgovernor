@@ -12,7 +12,7 @@ import (
 func TestFieldBudgetUsesCropDefinitionsAndPreservesFoodRunway(t *testing.T) {
 	v := &o.ColonyFactsSnapshot{NutritionPerDay: proto.Float64(99), Farms: []*o.FarmFacts{withGrowth(&o.FarmFacts{Crop: proto.String("Rice"), EdibleCrop: proto.Bool(true)}, 73)}}
 	p := ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(3)), FoodDays: domain.Known(2.0)}}
-	p.FieldCrops = colonyFieldCrops(v.Farms, []PlanningDefinition{{Name: "Rice", NutritionDemandPerDay: domain.Known(5.0), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)}})
+	p.FieldCrops = colonyFieldCrops(v.Farms, []PlanningDefinition{temperateCrop(PlanningDefinition{Name: "Rice", NutritionDemandPerDay: domain.Known(5.0), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)})})
 	p.ApplyFieldBudget(7)
 	if n, known := p.Facts.FieldCoverage.Value(); !known || n != 1 {
 		t.Fatal(p.Facts)
@@ -29,7 +29,7 @@ func TestFieldBudgetUsesCropDefinitionsAndPreservesFoodRunway(t *testing.T) {
 	if _, known := p.Facts.FieldCoverage.Value(); known {
 		t.Fatal("missing crop definition certified")
 	}
-	p.FieldCrops = colonyFieldCrops(v.Farms, []PlanningDefinition{{Name: "Rice", GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)}})
+	p.FieldCrops = colonyFieldCrops(v.Farms, []PlanningDefinition{temperateCrop(PlanningDefinition{Name: "Rice", GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)})})
 	p.ApplyFieldBudget(7)
 	if _, known := p.Facts.FieldCoverage.Value(); known {
 		t.Fatal("human demand substituted for unknown competing-animal demand")
@@ -58,7 +58,7 @@ func TestProductionFactsRequireEdibleGrowingCellsAndActiveFoodBills(t *testing.T
 			}
 			f := policy.RoundsFacts{Colonists: domain.Known(int64(3))}
 			colonyProduction(v, &f)
-			zoneProduction(v.Farms, &f)
+			zoneProduction(v.Farms, []PlanningDefinition{temperateCrop(PlanningDefinition{})}, &f)
 			cooking, known := f.Cooking.Value()
 			if known != (change != "unknown-bill" && change != "unknown-bench") || cooking != (change == "ready" || change == "unknown-farm") {
 				t.Fatal(f.Cooking)
@@ -83,7 +83,13 @@ func TestProductionFactsRequireEdibleGrowingCellsAndActiveFoodBills(t *testing.T
 func withGrowth(farm *o.FarmFacts, cells uint32) *o.FarmFacts {
 	farm.PlantedCells, farm.FertilePlantedCells = proto.Uint32(cells), proto.Uint32(cells)
 	farm.Temperature = proto.Float64(20)
-	farm.MinGrowthTemperature, farm.MinOptimalGrowthTemperature = proto.Float64(0), proto.Float64(10)
-	farm.MaxOptimalGrowthTemperature, farm.MaxGrowthTemperature = proto.Float64(30), proto.Float64(42)
 	return farm
+}
+
+// temperateCrop is a crop definition whose optimal range holds 20 C, the
+// temperature withGrowth sets.
+func temperateCrop(def PlanningDefinition) PlanningDefinition {
+	def.MinGrowthTemperature, def.MinOptimalGrowthTemperature = domain.Known(0.0), domain.Known(10.0)
+	def.MaxOptimalGrowthTemperature, def.MaxGrowthTemperature = domain.Known(30.0), domain.Known(42.0)
+	return def
 }

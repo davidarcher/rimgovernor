@@ -38,10 +38,13 @@ func Buildable(row *d.ThingDef) bool { return row.GetDesignationCategory() != ""
 func TerrainBuildable(row *d.TerrainDef) bool { return row.GetDesignationCategory() != "" }
 
 // IsFood is whether the def is a food a policy can allow (a nutrition-giving
-// ingestible that is no drug and no corpse), from the game-computed flags.
+// ingestible that is no drug and no corpse), from the def's rows.
 func (catalog *DefinitionCatalog) IsFood(name string) (bool, error) {
-	row, err := catalog.thingFactsRow(name)
-	return row.FoodKind != nil, err
+	row, err := catalog.thingRow(name)
+	if err != nil {
+		return false, err
+	}
+	return catalog.isFood(name, row)
 }
 
 // GameRoomRoles are the furniture roles the game's room-role code scores the

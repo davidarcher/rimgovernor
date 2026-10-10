@@ -37,13 +37,9 @@ namespace HomeBridge.BridgeTools
                     var slaughter = new Obs.FoodSlaughterAnimal { PawnId = animal.GetUniqueLoadID(), Race = animal.def.defName };
                     if (animal.RaceProps.meatDef != null && humanFood(animal.RaceProps.meatDef))
                     {
-                        slaughter.MeatNutrition = Finite(animal.GetStatValue(StatDefOf.MeatAmount) * animal.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition));
-                        if (animal.RaceProps.Eats(FoodTypeFlags.Plant))
-                            slaughter.FeedPerDay = Finite(SimplifiedPastureNutritionSimulator.NutritionConsumedPerDay(animal.def, animal.ageTracker.CurLifeStage));
-                        var reproduction = animal.RaceProps.gestationPeriodDays;
-                        var eggProps = animal.GetComp<CompEggLayer>()?.Props;
-                        if (eggProps != null) reproduction = eggProps.eggLayIntervalDays;
-                        if (reproduction > 0) slaughter.ReproductionDays = Finite(reproduction);
+                        // The game's computed MeatAmount of this animal, sent only when the
+                        // colony eats the meat; Go derives nutrition, feed and reproduction.
+                        slaughter.MeatAmount = Finite(animal.GetStatValue(StatDefOf.MeatAmount));
                     }
                     result.Slaughter.Add(slaughter);
                     if (comps.Count == 0) result.Gatherable.Add(new Obs.GatherableAnimal { PawnId = animal.GetUniqueLoadID(), Race = animal.def.defName, HandlerReachable = reachable, Active = false });

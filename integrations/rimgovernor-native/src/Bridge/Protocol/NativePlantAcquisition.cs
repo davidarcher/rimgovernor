@@ -41,9 +41,8 @@ namespace HomeBridge.BridgeTools
                 var designated = ResourceAcquisitionTools.Designated(plant);
                 var row = new Obs.AcquisitionFacts {
                     Source = NativeRef.Thing(plant), SourceSnapshot = Snapshot(plant, result.Context),
-                    Resource = resource.defName, Tree = plant.def.plant.IsTree, Food = food, Yield = yield,
+                    Resource = resource.defName, Food = food, Yield = yield,
                     Growth = plant.Growth, Plantation = ResourceAcquisitionTools.Plantation(plant),
-                    NutritionYield = food ? yield * resource.GetStatValueAbstract(StatDefOf.Nutrition) : 0,
                     Designated = designated, Hunt = false, Taken = ResourceAcquisitionTools.Taken(plant) };
                 var tick = ResourceAcquisitionTools.DesignatedTick(plant, designated);
                 if (tick.HasValue) row.DesignatedTick = tick.Value;

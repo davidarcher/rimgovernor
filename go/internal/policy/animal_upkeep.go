@@ -295,6 +295,11 @@ type AnimalRace struct {
 	// trees (RaceProperties.Eats(Tree)), hunted for what it destroys, not for
 	// meat; Mechanoid and Insect are the game's own race flags.
 	Predator, Pest, Mechanoid, Insect bool
+	// EatsPlant is RaceProperties.Eats(Plant); GestationDays is
+	// RaceProperties.gestationPeriodDays (zero for a race that does not bear
+	// live young).
+	EatsPlant     bool
+	GestationDays float64
 	// Edible are the foods the race can ever eat (RaceProperties.CanEverEat),
 	// sorted.
 	Edible []string
@@ -345,6 +350,8 @@ type AnimalRace struct {
 type RaceLifeStage struct {
 	MinAgeTicks      int64
 	HungerRateFactor float64
+	// BodySizeFactor scales the race's base body size (Pawn.BodySize).
+	BodySizeFactor float64
 }
 
 // AnimalInteraction is the game's constants of one animal interaction job

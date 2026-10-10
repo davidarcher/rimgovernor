@@ -10,7 +10,7 @@ import (
 
 // Evaluated-unsafe, skipped and unevaluated routes reach policy as three distinct hold reasons.
 func TestHuntRouteEvidenceReachesPolicyDistinct(t *testing.T) {
-	tables := heads(&o.EntityRef{Id: proto.String("deer"), DefName: proto.String("Deer"), Position: &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}})
+	tables := huntTables(t, &o.EntityRef{Id: proto.String("deer"), DefName: proto.String("Deer"), Position: &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}})
 	cases := []struct {
 		route *o.HuntRoute
 		want  string

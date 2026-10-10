@@ -83,6 +83,10 @@ type DefinitionCatalog struct {
 	racesOnce sync.Once
 	races     policy.AnimalRaceCatalog
 	racesErr  error
+	// foods is Foods, built once on first use (food_rules.go).
+	foodsOnce sync.Once
+	foods     []policy.Food
+	foodsErr  error
 	// ideology is IdeologyDefs, built once on first use.
 	ideologyOnce sync.Once
 	ideology     *policy.IdeologyDefs

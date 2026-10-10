@@ -75,7 +75,11 @@ func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Ident
 	if snapshot.GetResource() != resource {
 		return nil, policy.ResourceStorage{}, raw, contract("resource sources definition mismatch")
 	}
-	storage, err := decodeResourceStorage(snapshot.Storage, resource)
+	catalog, err := client.DefinitionCatalog(ctx, identity)
+	if err != nil {
+		return nil, policy.ResourceStorage{}, raw, err
+	}
+	storage, err := decodeResourceStorage(snapshot.Storage, resource, catalog)
 	if err != nil {
 		return nil, policy.ResourceStorage{}, raw, err
 	}
@@ -85,8 +89,9 @@ func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Ident
 		if row == nil || row.Source == nil || validID(row.Source.GetId()) != nil || seen[row.Source.GetId()] {
 			return nil, policy.ResourceStorage{}, raw, contract("invalid resource source identity")
 		}
-		if row.Method == nil || validID(row.GetMethod()) != nil {
-			return nil, policy.ResourceStorage{}, raw, contract("invalid resource source method")
+		method, err := catalog.ResourceSourceMethodOf(row.GetDefName())
+		if err != nil {
+			return nil, policy.ResourceStorage{}, raw, err
 		}
 		if row.Yield == nil || row.GetYield() < 0 {
 			return nil, policy.ResourceStorage{}, raw, contract("invalid resource source yield")
@@ -101,7 +106,6 @@ func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Ident
 		if row.Designated == nil {
 			return nil, policy.ResourceStorage{}, raw, contract("resource source designation unavailable")
 		}
-		method := policy.ResourceSourceMethod(row.GetMethod())
 		var cell domain.Cell
 		var token string
 		if method == policy.ResourceSourceMine {
@@ -149,7 +153,7 @@ func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Ident
 // hauling jobs directly from this read. Candidate cells are native's own
 // hauler-reachable, roofed, unreserved scan and are trusted as exact
 // placement sites, not re-validated against colony geometry here.
-func decodeResourceStorage(storage *o.StorageCapacity, resource string) (policy.ResourceStorage, error) {
+func decodeResourceStorage(storage *o.StorageCapacity, resource string, catalog *DefinitionCatalog) (policy.ResourceStorage, error) {
 	if storage == nil || storage.GetResource() != resource {
 		return policy.ResourceStorage{}, contract("resource storage identity mismatch")
 	}
@@ -159,7 +163,11 @@ func decodeResourceStorage(storage *o.StorageCapacity, resource string) (policy.
 	if storage.Stored == nil || storage.GetStored() < 0 {
 		return policy.ResourceStorage{}, contract("invalid resource storage stored amount")
 	}
-	if storage.StackLimit == nil || storage.GetStackLimit() <= 0 {
+	row, err := catalog.thingRow(resource)
+	if err != nil {
+		return policy.ResourceStorage{}, err
+	}
+	if row.GetStackLimit() <= 0 {
 		return policy.ResourceStorage{}, contract("invalid resource storage stack limit")
 	}
 	for _, hauler := range storage.Haulers {
@@ -178,8 +186,32 @@ func decodeResourceStorage(storage *o.StorageCapacity, resource string) (policy.
 		Resource:   policy.Resource(resource),
 		Capacity:   storage.GetCapacity(),
 		Stored:     storage.GetStored(),
-		StackLimit: int64(storage.GetStackLimit()),
+		StackLimit: int64(row.GetStackLimit()),
 		Haulers:    int64(len(storage.Haulers)),
 		Candidates: cells,
 	}, nil
+}
+
+// classMineable is the game class of a rock a colonist mines.
+const classMineable = "RimWorld.Mineable"
+
+// ResourceSourceMethodOf is how a source thing of def is acquired, by its row:
+// a thing whose class is the game's Mineable is mined, a tree is cut and any
+// other plant is harvested (the native census' former Project switch).
+func (catalog *DefinitionCatalog) ResourceSourceMethodOf(def string) (policy.ResourceSourceMethod, error) {
+	row, err := catalog.thingRow(def)
+	if err != nil {
+		return "", err
+	}
+	mine, err := catalog.ClassIsA(row.GetThingClass(), classMineable)
+	if err != nil {
+		return "", err
+	}
+	switch {
+	case mine:
+		return policy.ResourceSourceMine, nil
+	case catalog.PlantIsTree(def):
+		return "cut", nil
+	}
+	return "harvest", nil
 }

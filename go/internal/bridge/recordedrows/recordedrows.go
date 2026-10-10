@@ -193,7 +193,9 @@ func (s *Slice) add(names []string) {
 		}
 		races = races || row.GetRace() != nil
 		s.Wire.ThingDefs = append(s.Wire.ThingDefs, proto.Clone(row).(*d.ThingDef))
-		s.Wire.ThingFacts = append(s.Wire.ThingFacts, proto.Clone(idx.facts[name]).(*o.ThingDefFacts))
+		if facts := idx.facts[name]; facts != nil {
+			s.Wire.ThingFacts = append(s.Wire.ThingFacts, proto.Clone(facts).(*o.ThingDefFacts))
+		}
 	}
 	// The decoder derives a race's flags, trainables and ages from these rows.
 	if races {

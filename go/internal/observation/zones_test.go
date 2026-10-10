@@ -34,7 +34,7 @@ func TestPoliciesUseZonesNotAggregateZoneFields(t *testing.T) {
 	}
 	farm := &o.FarmFacts{Zone: &commonpb.Ref{Id: proto.String("Zone_1")}, Crop: proto.String("Rice"), UsableCells: proto.Uint32(20), EdibleCrop: proto.Bool(true)}
 	withGrowth(farm, 10)
-	p.Definitions = []PlanningDefinition{{Name: "Rice", GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)}}
+	p.Definitions = []PlanningDefinition{temperateCrop(PlanningDefinition{Name: "Rice", GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)})}
 	applyZones(&p, bridge.ZonesRead{Rows: []*o.ZoneState{{Id: farm.Zone.Id, Farm: farm, FoodStorage: proto.Bool(false)}, {Id: proto.String("Zone_2"), FoodStorage: proto.Bool(true)}}})
 	if p.Facts.GrowingCells != domain.Known(int64(10)) || len(p.Farms) != 1 || p.Farms[0].ID != "Zone_1" {
 		t.Fatal(p)

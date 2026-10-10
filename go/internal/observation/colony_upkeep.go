@@ -3,6 +3,7 @@ package observation
 import (
 	"fmt"
 	"maps"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -211,12 +212,13 @@ func colonyLighting(section *o.LightingSection, buildings bridge.Buildings, cata
 		if row.Glow == nil || row.Roofed == nil || buildings.Entity(row.Bench) == nil {
 			return domain.Fact[policy.LightingObservation]{}, nil
 		}
-		r.WorkCells = append(r.WorkCells, policy.WorkLightCell{Bench: row.Bench.GetId(), Definition: buildings.Entity(row.Bench).GetDefName(), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Glow: row.GetGlow(), Roofed: row.GetRoofed(), Room: optionalRef(row.Room), LightSensitive: row.GetLightSensitive()})
+		r.WorkCells = append(r.WorkCells, policy.WorkLightCell{Bench: row.Bench.GetId(), Definition: buildings.Entity(row.Bench).GetDefName(), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Glow: row.GetGlow(), Roofed: row.GetRoofed(), Room: optionalRef(row.Room), LightSensitive: slices.ContainsFunc(row.PlantDefs, catalog.PlantDiesToLight)})
 	}
 	for _, row := range l.Lamps {
 		b, ok := buildings.Row(row.GetBuilding())
 		ref := b.GetBuilding()
-		if !ok || row.GlowRadius == nil || row.Lit == nil {
+		radius, glows, err := catalog.GlowRadius(ref.GetDefName())
+		if !ok || err != nil || !glows || row.Lit == nil {
 			return domain.Fact[policy.LightingObservation]{}, nil
 		}
 		s := b.GetService()
@@ -224,7 +226,7 @@ func colonyLighting(section *o.LightingSection, buildings bridge.Buildings, cata
 		if err != nil {
 			return domain.Fact[policy.LightingObservation]{}, err
 		}
-		r.Lamps = append(r.Lamps, policy.Lamp{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Radius: row.GetGlowRadius(), Lit: row.GetLit(), Room: optionalRef(row.Room),
+		r.Lamps = append(r.Lamps, policy.Lamp{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Radius: radius, Lit: row.GetLit(), Room: optionalRef(row.Room),
 			Powered: optional(s.PowerOn), Connected: optional(s.Connected), SwitchedOn: optional(s.SwitchedOn), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: fuels})
 	}
 	return domain.Known(r), nil

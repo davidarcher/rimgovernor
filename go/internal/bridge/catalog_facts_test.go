@@ -66,8 +66,7 @@ func factsReply(t testing.TB) *o.DefinitionCatalog {
 	withStatSupport(t, v)
 	v.ThingFacts = []*o.ThingDefFacts{
 		{DefName: "Chess"}, {DefName: "Pin"}, {DefName: "Steel"}, {DefName: "Television"}, {DefName: "Wall"},
-		{DefName: "MeatRaw", FoodKind: o.FoodKind_FOOD_KIND_HUMAN_MEAT.Enum()},
-		{DefName: "Meal", FoodKind: o.FoodKind_FOOD_KIND_MEAL_FINE.Enum(), MealIngredients: o.MealIngredients_MEAL_INGREDIENTS_NON_MEAT.Enum()},
+		{DefName: "MeatRaw"}, {DefName: "Meal"},
 	}
 	return v
 }
@@ -79,10 +78,6 @@ func TestCatalogThingFacts(t *testing.T) {
 	catalog, err := DecodeDefinitionCatalog(factsReply(t), pbIdentity())
 	if err != nil {
 		t.Fatal(err)
-	}
-	want := []policy.Food{{Def: "Meal", Kind: policy.FoodKindMealFine, Ingredients: policy.MealNonMeat}, {Def: "MeatRaw", Kind: policy.FoodKindHumanMeat}}
-	if got := catalog.Foods(); len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
-		t.Fatal(got)
 	}
 	if meat, err := catalog.RawMeat("MeatRaw"); err != nil || !meat {
 		t.Fatal(meat, err)
@@ -97,13 +92,8 @@ func TestCatalogThingFacts(t *testing.T) {
 		t.Fatal("a def without facts answered")
 	}
 	for name, mutate := range map[string]func(*o.DefinitionCatalog){
-		"unknown def":    func(v *o.DefinitionCatalog) { v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: "Ghost"}) },
-		"repeated def":   func(v *o.DefinitionCatalog) { v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: "Wall"}) },
-		"meal no inputs": func(v *o.DefinitionCatalog) { v.ThingFacts[6].MealIngredients = nil },
-		"ingredients on raw": func(v *o.DefinitionCatalog) {
-			v.ThingFacts[5].MealIngredients = o.MealIngredients_MEAL_INGREDIENTS_ANY.Enum()
-		},
-		"unspecified kind": func(v *o.DefinitionCatalog) { v.ThingFacts[5].FoodKind = o.FoodKind_FOOD_KIND_UNSPECIFIED.Enum() },
+		"unknown def":  func(v *o.DefinitionCatalog) { v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: "Ghost"}) },
+		"repeated def": func(v *o.DefinitionCatalog) { v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: "Wall"}) },
 	} {
 		v := factsReply(t)
 		mutate(v)
@@ -112,7 +102,7 @@ func TestCatalogThingFacts(t *testing.T) {
 		}
 	}
 	var none *DefinitionCatalog
-	if _, err := none.Medicine("Meal"); err == nil || none.Foods() != nil {
+	if _, err := none.Medicine("Meal"); err == nil {
 		t.Fatal("a nil catalog decided a fact")
 	}
 }

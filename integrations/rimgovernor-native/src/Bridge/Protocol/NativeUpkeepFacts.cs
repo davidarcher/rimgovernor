@@ -182,17 +182,18 @@ namespace HomeBridge.BridgeTools
                     if (room != null)
                     {
                         row.Room = NativeRef.Room(room);
-                        // A room growing a plant that dies to light (cave
-                        // fungus) is protected: lighting it kills the crop.
-                        row.LightSensitive = room.ProperRoom && room.Cells.Any(c => c.GetPlant(map) is Plant plant && plant.def.plant != null && plant.def.plant.diesToLight
-                            || c.GetZone(map) is Zone_Growing zone && zone.GetPlantDefToGrow()?.plant?.diesToLight == true);
+                        // The plants a proper room grows, standing or set in its
+                        // growing zones: Go reads which die to light (cave
+                        // fungus) off their def rows.
+                        if (room.ProperRoom)
+                            row.PlantDefs.AddRange(room.Cells.SelectMany(c => new[] { c.GetPlant(map)?.def, (c.GetZone(map) as Zone_Growing)?.GetPlantDefToGrow() })
+                                .Where(d => d?.plant != null).Select(d => d!.defName).Distinct().OrderBy(n => n, StringComparer.Ordinal));
                     }
                     facts.WorkCells.Add(row);
                 }
                 foreach (var b in lamps) {
                     var glower = b.TryGetComp<CompGlower>();
-                    var row = new Obs.LampState { Building = NativeBuildingObservationTools.Ref(b),
-                        GlowRadius = Number(glower.Props.glowRadius), Lit = glower.Glows };
+                    var row = new Obs.LampState { Building = NativeBuildingObservationTools.Ref(b), Lit = glower.Glows };
                     var room = b.Position.GetRoom(map);
                     if (room != null) row.Room = NativeRef.Room(room);
                     facts.Lamps.Add(row);
@@ -422,7 +423,7 @@ namespace HomeBridge.BridgeTools
                     // pawn table row's animal state.
                     var value = new Obs.AnimalFeed {
                         Pawn = NativePawnObservationTools.Ref(p),
-                        Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = requiresPen
+                        RequiresPen = requiresPen
                     };
                     if (suitable != null) value.SuitablePen = NativeRef.Of(Id(suitable.parent.GetUniqueLoadID()));
                     return value;
@@ -436,7 +437,7 @@ namespace HomeBridge.BridgeTools
                 var wild = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal && p.Faction == null)
                     .OrderBy(p => p.thingIDNumber).ToList();
                 result.WildAnimals.AddRange(wild.Select(p => new Obs.AnimalFeed {
-                    Pawn = NativePawnObservationTools.Ref(p), Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = false }));
+                    Pawn = NativePawnObservationTools.Ref(p), RequiresPen = false }));
             });
         }
 

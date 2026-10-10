@@ -21,8 +21,7 @@ type AcquisitionSource struct {
 	RevengeChance, WeaponRange   float64
 	HerdSize                     int
 	MeleeOnly, Downed            bool
-	// BodySize, Sleeping and Predator describe a hunt row for squad planning.
-	BodySize           float64
+	// Sleeping and Predator describe a hunt row for squad planning.
 	Sleeping, Predator bool
 	// Products are what butchering the animal yields besides meat (leather),
 	// from its race row.
@@ -96,7 +95,7 @@ func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 	}
 	seen := map[string]bool{}
 	for _, row := range rows {
-		if !foodNumber(row.RevengeChance) || row.RevengeChance > 1 || row.HerdSize < 0 || row.HerdSize > 65536 || !foodNumber(row.WeaponRange) || !foodNumber(row.BodySize) || !foodID(row.ID) || !foodID(row.Resource) || !foodID(row.Token) || seen[row.ID] || row.Cell.X < 0 || row.Cell.Z < 0 || !foodNumber(row.Yield) || row.Yield <= 0 || !foodNumber(row.NutritionYield) || !row.Food && row.NutritionYield != 0 || row.Hunt && (row.Tree || row.Yield != 1 || !row.Food && !row.Pest) {
+		if !foodNumber(row.RevengeChance) || row.RevengeChance > 1 || row.HerdSize < 0 || row.HerdSize > 65536 || !foodNumber(row.WeaponRange) || !foodID(row.ID) || !foodID(row.Resource) || !foodID(row.Token) || seen[row.ID] || row.Cell.X < 0 || row.Cell.Z < 0 || !foodNumber(row.Yield) || row.Yield <= 0 || !foodNumber(row.NutritionYield) || !row.Food && row.NutritionYield != 0 || row.Hunt && (row.Tree || row.Yield != 1 || !row.Food && !row.Pest) {
 			return nil, errors.New("invalid acquisition source")
 		}
 		seen[row.ID] = true

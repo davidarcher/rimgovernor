@@ -20,9 +20,6 @@ namespace HomeBridge.BridgeTools
     {
         internal static bool IsBook(ThingDef d) => d.GetCompProperties<CompProperties_Book>() != null;
 
-        internal static IEnumerable<ThingDef> Books() =>
-            DefDatabase<ThingDef>.AllDefsListForReading.Where(IsBook).OrderBy(d => d.defName, StringComparer.Ordinal);
-
         internal static IEnumerable<string> Allowed(ReadingPolicy p) =>
             p.defFilter.AllowedThingDefs.Where(IsBook).Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal);
 
@@ -48,7 +45,8 @@ namespace HomeBridge.BridgeTools
             if (policy == null || !Allowed(policy).SequenceEqual(want))
             {
                 if (policy == null) { policy = db.MakeNewReadingPolicy(); policy.label = intent.Name; }
-                foreach (var d in Books()) policy.defFilter.SetAllow(d, want.Contains(d.defName));
+                policy.defFilter.SetDisallowAll();
+                foreach (var name in want) policy.defFilter.SetAllow(DefDatabase<ThingDef>.GetNamed(name), true);
                 policy.effectFilter.SetAllowAll(null);
                 if (!Allowed(policy).SequenceEqual(want)) throw new InvalidOperationException("Native reading policy requires readback.");
                 outcome = Receipts.FieldOutcome.Applied;

@@ -88,8 +88,8 @@ func TestHuntCandidatesExposeRiskAndPursuitWork(t *testing.T) {
 // A predator is never designated by a lone hunter, whatever its revenge
 // chance, but every open hunt row stays visible to the squad planner.
 func TestSquadPreyIncludesRetaliatingRows(t *testing.T) {
-	wolf := AcquisitionSource{ID: "wolf", Resource: "Corpse_Wolf_Timber", Token: "t", Hunt: true, Food: true, Yield: 1, NutritionYield: 20, BodySize: 0.8, Predator: true, Sleeping: true, HerdSize: 1}
-	moose := AcquisitionSource{ID: "moose", Resource: "Corpse_Moose", Token: "t", Hunt: true, Food: true, Yield: 1, NutritionYield: 40, RevengeChance: 0.5, BodySize: 2, HerdSize: 1}
+	wolf := AcquisitionSource{ID: "wolf", Resource: "Corpse_Wolf_Timber", Token: "t", Hunt: true, Food: true, Yield: 1, NutritionYield: 20, Predator: true, Sleeping: true, HerdSize: 1}
+	moose := AcquisitionSource{ID: "moose", Resource: "Corpse_Moose", Token: "t", Hunt: true, Food: true, Yield: 1, NutritionYield: 40, RevengeChance: 0.5, HerdSize: 1}
 	taken := moose
 	taken.ID, taken.Taken = "taken", true
 	for _, row := range []AcquisitionSource{wolf, moose} {
