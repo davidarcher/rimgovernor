@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <!-- A finished drill or spar session in company (TrainingCompany, #2710): one def for
+       the range and the ring. No opinion thought and no social-fight memory. -->
+  <ThoughtDef>
+    <defName>RimGovernor_TrainedWith</defName>
+    <thoughtClass>Thought_Memory</thoughtClass>
+    <durationDays>1</durationDays>
+    <stackLimit>1</stackLimit>
+    <stages>
+      <li>
+        <label>trained with others</label>
+        <description>I drilled alongside my colony-mates today.</description>
+        <baseMoodEffect>3</baseMoodEffect>
+      </li>
+    </stages>
+  </ThoughtDef>
+</Defs>

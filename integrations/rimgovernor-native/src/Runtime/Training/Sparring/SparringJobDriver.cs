@@ -184,6 +184,7 @@ namespace RimGovernor.Runtime
             var swapped = practiceWeapon != null;
             Restore();
             ClearThreats();
+            TrainingCompany.Finished(pawn, swapped && condition == JobCondition.Succeeded, partners.Count > 0);
             var map = pawn.MapHeld;
             if (map == null) return;
             var bouts = SparringBouts.For(map);

@@ -73,6 +73,7 @@ namespace HomeBridge.BridgeTools
                     // Earlier stages leave bruises and pain: every stage starts unhurt.
                     foreach (var hediff in p.health.hediffSet.hediffs.Where(h => h is Hediff_Injury || h.def == painstopper).ToList()) p.health.RemoveHediff(hediff);
                     p.mindState.meleeThreat = null;
+                    p.needs?.mood?.thoughts?.memories?.RemoveMemoriesOfDef(DefDatabase<ThoughtDef>.GetNamed(TrainingCompany.ThoughtName));
                     if (p.equipment.Primary == null)
                     {
                         p.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(ThingDefOf.MeleeWeapon_Knife, ThingDefOf.Steel));
@@ -187,6 +188,7 @@ namespace HomeBridge.BridgeTools
         public bool NoPractice;
         public bool Originals;
         public bool ThreatNull;
+        public bool Thought;
         public int EndedTick;
     }
 
@@ -246,7 +248,7 @@ namespace HomeBridge.BridgeTools
                 id = p.GetUniqueLoadID(), startMelee = g.StartLevel, melee = melee.Level, xp = melee.Level > g.StartLevel || melee.xpSinceLastLevel > 0f,
                 swapSeen = g.SwapSeen, swapAtMarker = g.SwapAtMarker, originalsHeld = g.OriginalsHeld,
                 ended = g.Ended, stop = g.Stop, condition = g.Condition, exchanges = g.Exchanges, swapped = g.Swapped, dead = g.Dead, drafted = g.Drafted,
-                restored = g.Restored, noPractice = g.NoPractice, originals = g.Originals, threatNull = g.ThreatNull, endedTick = g.EndedTick,
+                restored = g.Restored, noPractice = g.NoPractice, originals = g.Originals, threatNull = g.ThreatNull, trainedWith = g.Thought, endedTick = g.EndedTick,
             };
         }
 
@@ -371,6 +373,7 @@ namespace HomeBridge.BridgeTools
             g.Dead = p.Dead;
             g.Drafted = p.Drafted;
             g.ThreatNull = p.mindState == null || p.mindState.meleeThreat == null;
+            g.Thought = TrainingFixture.HasTrainedWith(p);
             var ground = map.listerThings.AllThings.Any(t => IsPractice(t.def));
             g.NoPractice = !Carries(p) && !ground;
             var all = g.ApparelIds.Select(id => FindThing(p, id)).ToList();

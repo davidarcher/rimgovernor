@@ -20,7 +20,8 @@ namespace RimGovernor.Runtime
     // daily budget. The shooter mends the dummy itself (Mend): before a cycle when
     // the next hit could destroy it, and at the end of the session. The finish action runs on every end of the job (completion,
     // interruption, drafting, the pawn's death, which despawns it before its
-    // belongings drop) and puts the real weapon back and destroys the practice weapon.
+    // belongings drop) and puts the real weapon back and destroys the practice weapon;
+    // a completed session also earns the shared "trained with" thought (TrainingCompany).
     public sealed class JobDriver_TrainRange : JobDriver
     {
         private const TargetIndex StandIndex = TargetIndex.A;
@@ -54,7 +55,11 @@ namespace RimGovernor.Runtime
             this.FailOnDespawnedOrNull(StandIndex);
             this.FailOnDespawnedOrNull(DummyIndex);
             this.FailOn(() => !RangeTraining.BelowTarget(pawn, SkillDefOf.Shooting));
-            AddFinishAction(delegate { RestoreWeapon(); });
+            AddFinishAction(delegate (JobCondition condition)
+            {
+                RestoreWeapon();
+                TrainingCompany.Finished(pawn, condition == JobCondition.Succeeded && cyclesDone > 0, false);
+            });
             yield return Toils_Goto.GotoThing(StandIndex, PathEndMode.OnCell);
             var swap = ToilMaker.MakeToil("SwapToTrainingWeapon");
             swap.initAction = SwapToBow;

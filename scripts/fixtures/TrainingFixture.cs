@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
+using RimGovernor.Runtime;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -18,6 +19,10 @@ namespace HomeBridge.BridgeTools
     // bystander standing mid-lane, and a starting Shooting level.
     public sealed class TrainingFixture
     {
+        // The shared "trained with" thought (#2710) the pawn holds now.
+        public static bool HasTrainedWith(Pawn p) =>
+            p.needs?.mood?.thoughts?.memories?.GetFirstMemoryOfDef(DefDatabase<ThoughtDef>.GetNamed(TrainingCompany.ThoughtName)) != null;
+
         private const int RangeDistance = 8; // go/internal/policy.RangeDistance
 
         [Tool("test/training_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Build one open-air training range column at the cell and stage a low-skill colonist whose only work is training. Test builds only.")]
@@ -73,6 +78,8 @@ namespace HomeBridge.BridgeTools
                         record.xpSinceMidnight = 0f;
                         record.passion = Passion.Minor;
                     }
+                    // A "trained with" memory from an earlier case would outlast the restage.
+                    p.needs?.mood?.thoughts?.memories?.RemoveMemoriesOfDef(DefDatabase<ThoughtDef>.GetNamed(TrainingCompany.ThoughtName));
                     p.equipment.DestroyAllEquipment();
                     p.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Gun_Autopistol")));
                     p.workSettings.EnableAndInitialize();
@@ -169,6 +176,7 @@ namespace HomeBridge.BridgeTools
                     dummyHp = dummy.Length == 0 ? 0 : dummy[0].HitPoints,
                     sentinelHp = Hp(Things(sentinels)), sentinelMax = Things(sentinels).Sum(t => t.MaxHitPoints),
                     x = pawn.Position.x, z = pawn.Position.z,
+                    trainedWith = HasTrainedWith(pawn), otherTrainedWith = other != null && HasTrainedWith(other),
                     otherJob = other?.CurJob?.def.defName, otherShots = other?.records.GetAsInt(RecordDefOf.ShotsFired) ?? 0,
                     bystanderHurt = idle == null ? 0 : idle.health.hediffSet.hediffs.Count(h => h is Hediff_Injury),
                     bystanderHealth = idle?.health.summaryHealth.SummaryHealthPercent ?? 1f,

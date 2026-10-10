@@ -126,6 +126,42 @@ func init() {
 			return nil
 		},
 	})
+	cases.Register(cases.Case{
+		Name: "lab/training-company",
+		Scope: "Two shooters at adjacent stands (#2710) each finish a completed session and each holds the shared trained-with thought, " +
+			"which a lone shooter does not (lab/training-shooting). The native finish action, the 6-cell line-of-sight company read and the memory " +
+			"cannot be seen from a Go snapshot.",
+		Start: cases.Lab{Colonists: 3}, RequiredOps: trainingOps, QuietWorld: true, Budget: cases.LabBudget, Crew: cases.Crew{Size: 3},
+		Run: func(ctx context.Context, s cases.Session) error {
+			t, err := prepareTraining(ctx, s, map[string]any{"neighbour": true})
+			if err != nil {
+				return err
+			}
+			second := t.neighbour()
+			var first, other map[string]any
+			if _, err := na.RunUntil(ctx, t.h, "training-both-done", 12000, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
+				if first, err = t.inspect(ctx); err != nil {
+					return "", false, err
+				}
+				if other, err = second.inspect(ctx); err != nil {
+					return "", false, err
+				}
+				done := func(got map[string]any) bool {
+					return trainingGained(0, int(na.AsNumber(got["shootingLevel"])), na.AsNumber(got["shootingXp"])) > 0 && !training(got["job"])
+				}
+				return fmt.Sprint(first["job"], other["job"]), done(first) && done(other), nil
+			}); err != nil {
+				return err
+			}
+			s.Report()["company"] = []any{first, other}
+			for _, got := range []map[string]any{first, other} {
+				if worn, _ := na.AsBool(got["trainedWith"]); !worn {
+					return fmt.Errorf("a shooter finished beside another without the trained-with thought: %#v", got)
+				}
+			}
+			return nil
+		},
+	})
 	for _, c := range []struct{ name, scope, action string }{
 		{"lab/training-raid", "A raid drafts the shooter mid-drill (#2688): the finish action restores the real weapon and leaves no practice weapon anywhere.", "draft"},
 		{"lab/training-fire", "A fire on the open-air dummy mid-drill (#2688): whatever ends the session, the real weapon is restored and no practice weapon leaks.", "fire"},
@@ -140,7 +176,13 @@ func init() {
 }
 
 func runTrainingInterrupt(ctx context.Context, s cases.Session, action string) error {
-	t, err := prepareTraining(ctx, s, nil)
+	// A drafted shooter has a neighbour drilling beside it (#2710): company, yet an
+	// interrupted session earns no thought.
+	var extra map[string]any
+	if action == "draft" {
+		extra = map[string]any{"neighbour": true}
+	}
+	t, err := prepareTraining(ctx, s, extra)
 	if err != nil {
 		return err
 	}
@@ -174,6 +216,9 @@ func runTrainingInterrupt(ctx context.Context, s cases.Session, action string) e
 	s.Report()["after"] = last
 	if na.AsString(last["primary"]) != na.AsString(t.prepared["weapon"]) {
 		return fmt.Errorf("real weapon not restored after %s: %#v", action, last)
+	}
+	if worn, _ := na.AsBool(last["trainedWith"]); action == "draft" && worn {
+		return fmt.Errorf("an interrupted session earned the trained-with thought: %#v", last)
 	}
 	if na.AsNumber(last["practiceOnMap"]) != 0 {
 		return fmt.Errorf("practice weapon left on the map after %s: %#v", action, last)

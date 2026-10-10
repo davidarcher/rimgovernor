@@ -72,6 +72,10 @@ func runTraining(ctx context.Context, s cases.Session) error {
 	if hp := na.AsNumber(last["dummyHp"]); hp <= 0 || hp != na.AsNumber(prepared["dummyMax"]) {
 		return fmt.Errorf("drilled dummy not mended to full: %#v", last)
 	}
+	// Nobody else drilled within chat range (#2710): no "trained with" thought.
+	if worn, _ := na.AsBool(last["trainedWith"]); worn {
+		return fmt.Errorf("lone shooter got the trained-with thought: %#v", last)
+	}
 	if na.AsString(last["primary"]) != real {
 		return fmt.Errorf("real weapon %s not restored to hand: %#v", real, last)
 	}

@@ -700,6 +700,19 @@ Teams: pairs and threes free-for-all, a four 2v2 with the highest beside the low
 fight length is a placeholder until #2709's stop rule. `lab/sparring` proves it; "empty after a
 load" holds by construction (the registry is keyed on the `Map`), not by a reload case.
 
+**Trained with (#2710, `TrainingCompany`).** One memory, `RimGovernor_TrainedWith`
+(`Defs/ThoughtDefs/`, +3 mood, one day, stack limit 1), shared by the range and
+the ring. Both drivers' finish actions call `TrainingCompany.Finished` after the
+gear is restored; it grants the memory only for a completed session (the drill's
+cycles, or a spar stop rule, exchange cap or bout end; never a draft, downing,
+death or other interruption). A shooter needs another colonist within vanilla's
+chat range (6 cells, line of sight) either on a training job or having completed a
+session in the last 2,500 ticks (so neighbours who finish a little apart both
+get it); a spar member has company by being in the bout. Runtime state only; no
+opinion thought and none of the social-fight mental state. Lab:
+`lab/training-company`, the lone shooter in `lab/training-shooting`, the draft
+in `lab/training-raid`, and the per-member flag in `lab/sparring`.
+
 ### Trade goods (MaintainTrade)
 
 Goods made to sell (#2607) need no facility of their own: `MaintainTrade`

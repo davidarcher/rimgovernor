@@ -29,7 +29,7 @@ func init() {
 			"fighter swaps at its marker into the practice weapon and apparel set (its own gear held in its inventory), swings through the vanilla " +
 			"melee verb and is paid vanilla melee XP, the struck pawn neither flees nor fights back nor drops its job, and the gear is fully restored " +
 			"after a normal end (the exchange cap), a pawn leaving for pain or bleeding while the rest fight on, a pawn drafted mid-bout and a pawn " +
-			"killed mid-bout. A Go snapshot test cannot see the work giver, the registry, the walk, the swap or the vanilla verb.",
+			"killed mid-bout. Every member whose session completed holds the shared trained-with thought (#2710); a pawn drafted or killed mid-bout does not. A Go snapshot test cannot see the work giver, the registry, the walk, the swap or the vanilla verb.",
 		Start:       cases.Lab{Colonists: 8},
 		RequiredOps: sparringOps,
 		QuietWorld:  true,
@@ -164,6 +164,7 @@ type sparringPawn struct {
 	originals  bool
 	threatNull bool
 	xp         bool
+	trained    bool
 }
 
 func sparringPawns(got map[string]any) []sparringPawn {
@@ -175,7 +176,7 @@ func sparringPawns(got map[string]any) []sparringPawn {
 			id: na.AsString(row["id"]), ended: flag("ended"), stop: na.AsString(row["stop"]), exchanges: int(na.AsNumber(row["exchanges"])),
 			swapped: flag("swapped"), swapSeen: flag("swapSeen"), atMarker: flag("swapAtMarker"), held: flag("originalsHeld"),
 			dead: flag("dead"), drafted: flag("drafted"), restored: flag("restored"), noPractice: flag("noPractice"),
-			originals: flag("originals"), threatNull: flag("threatNull"), xp: flag("xp"),
+			originals: flag("originals"), threatNull: flag("threatNull"), xp: flag("xp"), trained: flag("trainedWith"),
 		})
 	}
 	return out
@@ -219,6 +220,10 @@ func checkSparringFight(stage sparringStage, got map[string]any) error {
 			return fmt.Errorf("%s made %d exchanges, past the cap: %#v", p.id, p.exchanges, got)
 		case p.exchanges > 0 && !p.xp:
 			return fmt.Errorf("%s swung %d times and was paid no melee XP: %#v", p.id, p.exchanges, got)
+		// #2710: a bout member whose session was completed (cap, stop rule, bout end)
+		// holds the trained-with thought; one drafted or killed mid-bout does not.
+		case p.trained != (!killed && !(stage.scenario == "draft" && p.id == hit)):
+			return fmt.Errorf("%s trained-with thought is %v after a %q stage: %#v", p.id, p.trained, stage.scenario, got)
 		}
 	}
 	by := map[string]sparringPawn{}
