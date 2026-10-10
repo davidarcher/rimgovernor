@@ -115,6 +115,11 @@
   .nowsec p { margin: 6px 0; overflow-wrap: anywhere; }
   .nownotice { color: var(--warn); font-size: 13px; margin: 4px 0 8px; overflow-wrap: anywhere; }
   .nownotice[hidden] { display: none; }
+  .ledtbl { overflow-x: auto; }
+  .ledtbl table { border-collapse: collapse; width: 100%; min-width: max-content; font-size: 12px; }
+  .ledtbl th { text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); padding: 3px 8px 3px 0; white-space: nowrap; }
+  .ledtbl td { padding: 3px 8px 3px 0; border-bottom: 1px solid var(--raised); vertical-align: top; overflow-wrap: break-word; }
+  .ledtbl tr.warn td { color: var(--warn); }
 
   section.colony { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
   section.colony h2 { font-size: 15px; margin: 0; display: inline; }
@@ -168,6 +173,7 @@
   <nav class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-launch" data-tab="launch" aria-selected="true">Launch</button>
     <button role="tab" id="tab-now" data-tab="now" aria-selected="false">Now</button>
+    <button role="tab" id="tab-ledger" data-tab="ledger" aria-selected="false">Ledger</button>
     <button role="tab" id="tab-acceptance" data-tab="acceptance" aria-selected="false">Acceptance</button>
     <button role="tab" id="tab-problems" data-tab="problems" aria-selected="false">Problems</button>
     <button role="tab" id="tab-log" data-tab="log" aria-selected="false">Log</button>
@@ -180,6 +186,15 @@
       <div id="nowBody" hidden>
         <p class="nowline" id="nowHeadline"></p>
         <div id="nowSections"></div>
+      </div>
+    </section>
+  </div>
+  <div class="view" id="view-ledger" role="tabpanel" aria-labelledby="tab-ledger" hidden>
+    <section class="nowsec" aria-label="Work ledger">
+      <div class="nownotice" id="ledNote" role="status" hidden></div>
+      <div id="ledBody" hidden>
+        <p class="nowline" id="ledHeadline"></p>
+        <div id="ledSections"></div>
       </div>
     </section>
   </div>
@@ -593,6 +608,20 @@ function everyWhile(viewId, poll, ms) {
 }
 everyWhile('view-now', pollNowHeader, 1500);
 everyWhile('view-now', pollNowReport, 3000);
+
+// Ledger tab: the work ledger's tables, read-only, as the Go side built them.
+async function pollLedger() {
+  const l = await getLedger();
+  setNote('ledNote', l);
+  $('ledBody').hidden = !l.HasValue;
+  if (!l.HasValue) return;
+  $('ledHeadline').textContent = l.Headline;
+  $('ledSections').innerHTML = l.Sections.map(s =>
+    `<h2>${esc(s.Title)}</h2>` + (s.Note ? `<div class="nownotice">${esc(s.Note)}</div>` : '') +
+    (s.Rows.length ? `<div class="ledtbl"><table><thead><tr>${s.Columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>` +
+      s.Rows.map(r => `<tr class="${esc(r.Flag)}">${r.Cells.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('') + '</tbody></table></div>' : '')).join('');
+}
+everyWhile('view-ledger', pollLedger, 3000);
 
 // Acceptance tab: the case list loads once (the Go side reads the registry in
 // the background); the run view polls while the tab shows. Rows re-render only

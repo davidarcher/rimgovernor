@@ -100,6 +100,10 @@ type LedgerPlan struct {
 	Remove  []ActualBill
 	Keep    []ActualBill
 	Orphans map[string]int
+	// Matched, Held and Excluded split Keep for the reader: the bills that
+	// stand for a wanted order, the orphans not yet removed (in grace or held
+	// by an abstain) and the excluded-kind bills no order wants.
+	Matched, Held, Excluded []ActualBill
 }
 
 // ReconcileLedger diffs the declared orders against the actual bills. Identical
@@ -122,10 +126,13 @@ func ReconcileLedger(declared []Declared, actual []ActualBill, orphans map[strin
 		case isWanted && matched[k] < wantedCopies(copies, k) && !b.Spent:
 			matched[k]++
 			plan.Keep = append(plan.Keep, b)
+			plan.Matched = append(plan.Matched, b)
 		case b.Kind != LedgerProduction:
 			plan.Keep = append(plan.Keep, b)
+			plan.Excluded = append(plan.Excluded, b)
 		case abstain:
 			plan.Keep = append(plan.Keep, b)
+			plan.Held = append(plan.Held, b)
 			if n, ok := orphans[b.ID]; ok {
 				plan.Orphans[b.ID] = n
 			}
@@ -137,6 +144,7 @@ func ReconcileLedger(declared []Declared, actual []ActualBill, orphans map[strin
 			}
 			plan.Orphans[b.ID] = n
 			plan.Keep = append(plan.Keep, b)
+			plan.Held = append(plan.Held, b)
 		}
 	}
 	keys := make([]string, 0, len(wanted))

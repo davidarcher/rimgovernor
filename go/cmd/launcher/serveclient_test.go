@@ -24,6 +24,8 @@ func TestServeClientDecodesEachEndpoint(t *testing.T) {
 			w.Write([]byte(`{"sessionId":"s","connected":true,"mode":"automate","status":{"label":"ok"},"game":{"tick":4200,"paused":true,"stale":false},"identity":{"colonyId":"c","mapId":1,"loadToken":"l"},"activePlanId":"p1"}`))
 		case "/api/spectator/now":
 			w.Write([]byte(`{"tick":4200,"concerns":[{"concern":"Feed","method":"Hunt","blocked":"no_hunter"}],"pacing":{"reason":"held","detail":"d"}}`))
+		case "/api/ledger":
+			w.Write([]byte(`{"status":"reconciled","tick":9,"orders":[{"recipe":"Make_Vest","state":"placed","benches":["B1"]}]}`))
 		case "/api/routines":
 			w.Write([]byte(`{"lastReviewTick":4200,"emergency":["Fire"],"progress":[{"concern":"Feed","blocked":"no_hunter"}]}`))
 		default:
@@ -36,6 +38,9 @@ func TestServeClientDecodesEachEndpoint(t *testing.T) {
 	}
 	if n := c.Now(ctx); n.Value == nil || n.Value.Concerns[0].Concern != "Feed" || n.Value.Concerns[0].Blocked != "no_hunter" {
 		t.Fatalf("now %+v", n)
+	}
+	if l := c.Ledger(ctx); l.Value == nil || l.Value.Tick != 9 || l.Value.Orders[0].Benches[0] != "B1" {
+		t.Fatalf("ledger %+v", l)
 	}
 	r := c.Routines(ctx)
 	if r.Value == nil || r.Value.Tick == nil || *r.Value.Tick != 4200 || len(r.Value.Emergency) != 1 || r.Value.Progress[0].Blocked != "no_hunter" {

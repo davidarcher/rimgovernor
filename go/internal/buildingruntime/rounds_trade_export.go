@@ -30,11 +30,12 @@ type exportMemory struct {
 	apparelKnown bool
 	weapons      map[policy.Resource]int
 	weaponsKnown bool
+	gap          *policy.ExportView
 }
 
 func (m *exportMemory) world(snapshot domain.GenerationSnapshot) {
 	if m.snapshot != snapshot {
-		m.snapshot, m.sale, m.apparel, m.apparelKnown, m.weapons, m.weaponsKnown = snapshot, nil, nil, false, nil, false
+		m.snapshot, m.sale, m.apparel, m.apparelKnown, m.weapons, m.weaponsKnown, m.gap = snapshot, nil, nil, false, nil, false, nil
 	}
 }
 
@@ -43,6 +44,24 @@ func (m *exportMemory) setPlan(snapshot domain.GenerationSnapshot, sale []policy
 	defer m.mu.Unlock()
 	m.world(snapshot)
 	m.sale, m.apparel, m.apparelKnown = sale, apparel, known
+}
+
+// setView keeps the latest declaration's silver gap for the ledger view.
+func (m *exportMemory) setView(snapshot domain.GenerationSnapshot, v *policy.ExportView) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.world(snapshot)
+	m.gap = v
+}
+
+// view is the silver gap of snapshot's world, nil when none was read in it.
+func (m *exportMemory) view(snapshot domain.GenerationSnapshot) *policy.ExportView {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.snapshot != snapshot {
+		return nil
+	}
+	return m.gap
 }
 
 func (m *exportMemory) setWeapons(snapshot domain.GenerationSnapshot, spare map[policy.Resource]int) {
@@ -166,6 +185,7 @@ func (r *RoundsTradeExportPlanner) DeclareOrders(ctx context.Context, snapshot d
 	// The sale path learns the rankable goods even when this Round abstains.
 	ranked := policy.DeclareExportOrders(request)
 	rd.exports.setPlan(snapshot, policy.ExportSaleProducts(f.Items, ranked.Products), apparel, apparelKnown)
+	rd.exports.setView(snapshot, policy.NewExportView(ranked, gap))
 	if !stockKnown {
 		return policy.Declared{Abstain: true}, nil
 	}
@@ -230,6 +250,7 @@ func (r *RoundsTradeExportPlanner) DeclareOrders(ctx context.Context, snapshot d
 		request.Packed = packed
 	}
 	plan := policy.DeclareExportOrders(request)
+	rd.exports.setView(snapshot, policy.NewExportView(plan, gap))
 	r.setWorking(len(plan.Declared.Orders) > 0)
 	return plan.Declared, nil
 }

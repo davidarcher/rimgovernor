@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
@@ -48,6 +49,8 @@ type ClockWorker struct {
 	// signal is the clock channel's announcements (rimgovernor.clock); nil
 	// when the native has none, which leaves the cadence poll.
 	signal *bridge.ClockSignal
+	// rounds is the scheduler's Rounder, nil without routines.
+	rounds *Rounder
 }
 
 // Mirror poll transport-error backoff: from pollBackoffMin,
@@ -82,7 +85,7 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 		return nil, fmt.Errorf("%w: NewClockWorker: config.SignalWait < 0 || config.SignalWait > ClockSignalWaitMax", ErrControl)
 	}
 	lifetime, cancel := context.WithCancel(ctx)
-	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, trace: scheduler.Trace, validity: scheduler.Validity, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
+	w := &ClockWorker{rounds: scheduler.config.Rounds, ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, trace: scheduler.Trace, validity: scheduler.Validity, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
 	w.poll = func(ctx context.Context) (ClockPollResult, error) {
 		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit)
 	}
@@ -172,6 +175,14 @@ func (w *ClockWorker) Validity() (domain.ReadValidity, bool) {
 		return domain.ReadValidity{}, false
 	}
 	return w.validity()
+}
+
+// WorkLedger is the Rounder's latest ledger view; ok is false without routines.
+func (w *ClockWorker) WorkLedger() (view policy.LedgerView, ok bool) {
+	if w.rounds == nil {
+		return policy.LedgerView{}, false
+	}
+	return w.rounds.WorkLedgerView(), true
 }
 
 // waitOrWake sleeps for delay unless the wake signal fires first. It reports

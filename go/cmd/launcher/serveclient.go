@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/spectator"
 )
 
@@ -74,6 +75,7 @@ type ServeClient struct {
 	state    feed[httpapi.State]
 	now      feed[spectator.Now]
 	routines feed[RoundsView]
+	ledger   feed[policy.LedgerView]
 }
 
 func NewServeClient(base func() string) *ServeClient {
@@ -81,6 +83,7 @@ func NewServeClient(base func() string) *ServeClient {
 	c.state.path = "/api/state"
 	c.now.path = "/api/spectator/now"
 	c.routines.path = "/api/routines"
+	c.ledger.path = "/api/ledger"
 	return c
 }
 
@@ -90,6 +93,9 @@ func (c *ServeClient) State(ctx context.Context) Reading[httpapi.State] {
 }
 func (c *ServeClient) Now(ctx context.Context) Reading[spectator.Now] {
 	return refresh(ctx, c, &c.now)
+}
+func (c *ServeClient) Ledger(ctx context.Context) Reading[policy.LedgerView] {
+	return refresh(ctx, c, &c.ledger)
 }
 func (c *ServeClient) Routines(ctx context.Context) Reading[RoundsView] {
 	return refresh(ctx, c, &c.routines)

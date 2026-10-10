@@ -117,6 +117,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	if s.handlePprof(w, r) {
 		return
 	}
+	if s.handleLedger(w, r) {
+		return
+	}
 	if s.handleSpectator(w, r) {
 		return
 	}

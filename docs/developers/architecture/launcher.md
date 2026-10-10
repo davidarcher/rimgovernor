@@ -31,6 +31,7 @@ a tick while a request is in flight.
 | --- | --- |
 | Launch | Launcher process/build state, saved games, settings and colony generation |
 | Now | `/api/state`, `/api/spectator/now` and `/api/routines`, composed into Doing, Pursuing, Concerns and Waiting |
+| Ledger | `/api/ledger`: the work ledger's declared orders, orphans, unmet throughput and silver gap, read-only ([ledger.go](../../../go/cmd/launcher/ledger.go) builds the tables) |
 | Acceptance | Registered case list and one visible native run |
 | Problems | Local flight recorder, grouped and filtered |
 | Log | Current run's warnings, errors and selected informational events; build/start diagnostics |

@@ -48,6 +48,8 @@ type workLedger struct {
 	unmet    []policy.UnmetThroughput
 	// colonists sizes the further-bench cap (policy.BenchCap).
 	colonists int
+	// view is the latest review's read-only projection (LedgerView).
+	view policy.LedgerView
 }
 
 // ledgerUnmet is the latest review's unmet throughput per bench kind.
@@ -102,6 +104,7 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 	}
 	l.world = snapshot
 	l.unmet, l.colonists = nil, 0
+	l.view = policy.NewLedgerView(policy.LedgerViewInactive, int64(projection.Identity.Tick))
 	l.mu.Unlock()
 	native, ok := r.native.(RoundsWorkBenchSource)
 	if len(declarers) == 0 || !ok {
@@ -112,6 +115,9 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 		if ctx.Err() != nil {
 			return domain.Unknown[bool](), ctx.Err()
 		}
+		l.mu.Lock()
+		l.view = policy.NewLedgerView(policy.LedgerViewUnread, int64(projection.Identity.Tick))
+		l.mu.Unlock()
 		return domain.Unknown[bool](), nil
 	}
 	benches := make([]policy.GearBench, 0, len(reads))
@@ -119,18 +125,24 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 		benches = append(benches, read.Bench)
 	}
 	declared := make([]policy.Declared, 0, len(declarers))
+	named := make([]policy.NamedDeclared, 0, len(declarers))
 	for _, d := range declarers {
 		one, err := d.DeclareOrders(ctx, snapshot, projection, benches)
 		if err != nil {
 			return domain.Unknown[bool](), err
 		}
 		declared = append(declared, one)
+		named = append(named, policy.NamedDeclared{Name: declarerName(d), Declared: one})
 	}
 	actual, known := policy.LedgerActuals(benches)
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.noteBatches(declared)
 	if !known {
+		l.view = policy.NewLedgerView(policy.LedgerViewUnread, int64(projection.Identity.Tick))
+		for _, d := range named {
+			l.view.Declarers = append(l.view.Declarers, policy.LedgerDeclarerView{Name: d.Name, Orders: len(d.Orders), Abstain: d.Abstain})
+		}
 		return domain.Unknown[bool](), nil
 	}
 	var pawns []policy.WorkPawn
@@ -144,6 +156,9 @@ func (r *Rounder) reviewLedger(ctx context.Context, snapshot domain.GenerationSn
 	wanted, _ := policy.WantedOrders(declared)
 	l.unmet = l.dispatch.Unmet(dispatched, wanted, unplaced, benches)
 	l.colonists = len(pawns)
+	l.view = policy.BuildLedgerView(policy.LedgerViewInput{Tick: int64(projection.Identity.Tick), Declarers: named, Plan: plan, Placed: placed, Unplaced: unplaced,
+		Dispatch: dispatched, Memory: l.dispatch, Stock: projection.Resources, Unmet: l.unmet,
+		Further: policy.FurtherBenchKinds(l.unmet, benches, l.colonists)})
 	if policy.LedgerDiffOwed(plan) {
 		l.pending = &ledgerPending{snapshot: snapshot, remove: plan.Remove, place: placed, unplaced: unplaced}
 	}

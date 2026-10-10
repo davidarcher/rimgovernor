@@ -363,6 +363,20 @@ reason, also `no_bench` when the model wants more benches than exist and
 `bench_slots_full` for an unplaced copy with capable benches), the demand signal the
 facilities ladder reads. A finished bill is spent and never satisfies an order.
 
+`GET /api/ledger` (`httpapi/ledger.go`, `policy.BuildLedgerView`) is the read-only
+view the launcher's Ledger tab prints. Each review leaves a `policy.LedgerView` in
+`Rounder.ledger.view`, a projection of the memory above that is persisted nowhere.
+It lists the declaring planners (named by Go type; an abstain is a flag, not a named
+fact), every wanted order with its owner, spec, state (`placed` on which benches,
+`placing`, or `unplaced` with `no_bench` or `bench_slots_full`), dispatch sizing,
+calibration window (predicted against observed stock gain) and shortfall, the
+orphans (grace Rounds left, `removing`, or held by an abstain), the excluded-kind
+bills, `UnmetThroughput` with the further-bench request and, from MaintainTrade's
+last declaration, the silver gap, the goods in flight netted off it and the best
+scored export candidates (`Export`, nil until it declares in this world). It issues
+no native call and has no mutating verb (405); it is 404 without Rounds. A native
+refusal of a placed bill is journal state, not ledger memory, and is not shown.
+
 Orphan removal covers every bill of a production recipe kind: one no plan placed (a
 player's, or placed before a restart) is an orphan like any other, and the journal
 keeps no placement record. The first migration (#2597) is `MaintainEquipment`:

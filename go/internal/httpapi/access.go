@@ -30,6 +30,7 @@ var polledPaths = map[string]bool{
 	"/api/state":         true,
 	"/api/spectator/now": true,
 	"/api/routines":      true,
+	"/api/ledger":        true,
 	"/api/health":        true,
 }
 

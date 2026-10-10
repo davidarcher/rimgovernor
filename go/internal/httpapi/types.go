@@ -45,6 +45,7 @@ type Config struct {
 	Notifications                NotificationReader
 	ClockReview                  ClockReview
 	Rounds                       RoundsProvider
+	Ledger                       LedgerProvider
 	ColonyStatus                 ColonyStatus
 	Lifecycle                    LifecycleWriter
 	// Attention, when set, lets a lifecycle mutation clear one blocking

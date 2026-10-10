@@ -79,6 +79,11 @@ type ExportPlan struct {
 	Products []Resource
 	// Ranked is the candidates by descending score, for the reader.
 	Ranked []ExportCandidate
+	// InFlight is the sale value of the goods already held, packed or on
+	// standing bills that was netted off the gap. Candidates is the best
+	// ExportViewCandidates scored pairs, ordered or not, for the reader.
+	InFlight   float64
+	Candidates []ExportCandidate
 }
 
 // ExportCandidate is one ranked sale good: a recipe at a bench kind made from
@@ -569,7 +574,8 @@ func DeclareExportOrders(r ExportRequest) ExportPlan {
 		busy[o.Worker] = true
 	}
 	// The goods already in flight: held, packed, and on standing bills.
-	gap -= r.inFlight(recipes, bills)
+	plan.InFlight = r.inFlight(recipes, bills)
+	gap -= plan.InFlight
 	if !(gap > 0) || cash <= 0 {
 		return plan
 	}
@@ -629,6 +635,10 @@ func DeclareExportOrders(r ExportRequest) ExportPlan {
 		}
 		return a.Worker < b.Worker
 	})
+	plan.Candidates = make([]ExportCandidate, 0, min(len(pairs), ExportViewCandidates))
+	for _, p := range pairs[:min(len(pairs), ExportViewCandidates)] {
+		plan.Candidates = append(plan.Candidates, p.cand)
+	}
 	budget := float64(cash)
 	for _, p := range pairs {
 		if !(gap > 0) || !(budget > 0) {
@@ -796,3 +806,7 @@ func (r ExportRequest) billDraw(recipes []exportRecipe, spec OrderSpec) []Amount
 	}
 	return nil
 }
+
+// ExportViewCandidates bounds the scored candidates an ExportPlan keeps for
+// the ledger view.
+const ExportViewCandidates = 10

@@ -271,6 +271,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	// The decoded state store: the scheduler's reviews
 	// file their census sections, /api/routines reports them.
 	var sections *factsstore.Store
+	var ledger httpapi.LedgerProvider
 	var advanced, windowRunning = func() {}, func() bool { return false }
 	var stepTrace func() telemetry.Trace
 	var validity func() (domain.ReadValidity, bool)
@@ -293,6 +294,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return err
 		}
 		advanced, windowRunning, stepTrace, validity = clockWorker.Nudge, clockWorker.WindowRunning, clockWorker.Trace, clockWorker.Validity
+		ledger = clockWorker
 	}
 	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: natives.breaks, Pawns: natives.breaks, Moves: client.movement.Writer, RoundsMethods: config.roundsMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
@@ -329,7 +331,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if err != nil {
 		return err
 	}
-	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Rounds: routines, ColonyStatus: colonyStatus, Notifications: natives.notifications, Presentation: natives.presentation, PresentationMedia: client.presentationMedia, Lifecycle: client.lifecycle, Attention: client.attention, Pprof: config.pprof, FlightRecorder: config.flightRecorder, Access: accessRecorder(config), ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Rounds: routines, Ledger: ledger, ColonyStatus: colonyStatus, Notifications: natives.notifications, Presentation: natives.presentation, PresentationMedia: client.presentationMedia, Lifecycle: client.lifecycle, Attention: client.attention, Pprof: config.pprof, FlightRecorder: config.flightRecorder, Access: accessRecorder(config), ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}
