@@ -62,6 +62,10 @@ func (r *RoundsAcquisitionPlanner) step(call, epoch context.Context, arbiter *st
 	if err != nil {
 		return RoundsAcquisitionResult{}, err
 	}
+	// An outdoor hazard holds chop, hunt and forage like it holds remote work.
+	if policy.OutdoorAcquisitionHeld(projection.Facts) {
+		return RoundsAcquisitionResult{Verdict: waitFor(policy.CauseUnsafeThreat, policy.RemoteHoldHazard)}, nil
+	}
 	pest := r.need == policy.ClearPests
 	stockGoal := r.need == policy.MaintainResource
 	food := r.need == policy.EnsureFoodSupply

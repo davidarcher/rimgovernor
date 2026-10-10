@@ -22,6 +22,7 @@ type ResourceReachRequest struct {
 	Extent                              domain.Fact[ColonyExtent]
 	Bounds                              domain.Fact[Bounds]
 	Threat                              domain.Fact[bool]
+	Hazard                              domain.Fact[[]OutdoorHazard]
 	RaidPoints                          domain.Fact[float64]
 	Armed, FreeHaulers, StorageHeadroom domain.Fact[int64]
 	StorytellerQuiet                    domain.Fact[bool]
@@ -45,6 +46,9 @@ func ResourceReach(r ResourceReachRequest) ResourceReachDecision {
 	threat, tk := r.Threat.Value()
 	if tk && threat {
 		return base("threat_present")
+	}
+	if OutdoorHazardHeld(r.Hazard) {
+		return base(RemoteHoldHazard)
 	}
 	if _, ek := r.Extent.Value(); !ek {
 		return base("extent_unknown")

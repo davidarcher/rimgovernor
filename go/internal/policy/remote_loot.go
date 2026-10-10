@@ -161,6 +161,7 @@ func LootReach(f RoundsFacts, bounds domain.Fact[Bounds], extent domain.Fact[Col
 	if hostiles, known := f.Hostiles.Value(); known {
 		r.Threat = domain.Known(hostiles > 0)
 	}
+	r.Hazard = OutdoorHazardsOf(f)
 	if rows, known := f.EventLoot.Value(); known {
 		headroom := int64(0)
 		complete := true

@@ -70,6 +70,7 @@ type RecoveryRequest struct {
 	Origins []domain.Cell
 	Center  domain.Cell
 	Threat  domain.Fact[bool]
+	Hazard  domain.Fact[[]OutdoorHazard]
 	Urgent  domain.Fact[bool]
 }
 
@@ -124,6 +125,9 @@ func recoveryDistance(t RecoveryThing, r RecoveryRequest) float64 {
 func recoveryHold(t RecoveryThing, r RecoveryRequest) string {
 	if threat, known := r.Threat.Value(); known && threat {
 		return RemoteHoldThreat
+	}
+	if OutdoorHazardHeld(r.Hazard) {
+		return RemoteHoldHazard
 	}
 	switch {
 	case t.Hold != "":
@@ -320,6 +324,7 @@ func ReviewRecoveryRequest(p RoundsPolicy, f RoundsFacts, rows []ClearanceTarget
 	if hostiles, known := f.Hostiles.Value(); known {
 		r.Threat = domain.Known(hostiles > 0)
 	}
+	r.Hazard = OutdoorHazardsOf(f)
 	if e, known := extent.Value(); known {
 		var sx, sz, n int64
 		for _, region := range e.Regions {

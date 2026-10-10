@@ -139,5 +139,8 @@ func remoteThreatHold(r ResourceReachRequest) string {
 	if threat, known := r.Threat.Value(); known && threat {
 		return RemoteHoldThreat
 	}
+	if OutdoorHazardHeld(r.Hazard) {
+		return RemoteHoldHazard
+	}
 	return ""
 }

@@ -188,8 +188,11 @@ not an executor.
   roof into an existing wholly roofed, reachable allowed area via an allowed-area
   `WorkSettingsIntent`, re-derived each 600-tick window (no native lease). Areas restrict
   work destinations; they do not make paths safe. Go never assigns an unroofed area or
-  clears a restriction while fallout lasts; native reports no hazard veto. No refuge produces a blocker. Outdoor
-  acquisition and field expansion pause during the hazard and resume after expiry.
+  clears a restriction while fallout lasts; native reports no hazard veto. No refuge produces a blocker.
+  Outdoor hazards (extreme cold at or below -20 C, extreme heat at or above 45 C, toxic fallout) are a typed
+  fact (`OutdoorHazardsOf`); any known hazard, including an unrecognised kind, holds remote loot, salvage and
+  mining, recovery, and chop, hunt and forage acquisition with reason `outdoor_hazard`. An unknown fact never
+  holds. Field expansion is not gated.
 
 ### Shared compilation
 
