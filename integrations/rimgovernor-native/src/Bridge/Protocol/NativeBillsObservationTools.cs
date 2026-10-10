@@ -125,7 +125,7 @@ namespace HomeBridge.BridgeTools
         // Only what a frame alone knows: whether the game offers the recipe now
         // and on this bench. The rest is the recipe's catalog row.
         private static Obs.RecipeState Recipe(Thing bench, RecipeDef recipe)
-            => new Obs.RecipeState { Recipe = new Obs.DefinitionRef { DefName = Id(recipe.defName), Label = PlacementPreviewOperation.Diagnostic(recipe.LabelCap) },
+            => new Obs.RecipeState { Recipe = new Obs.DefinitionRef { DefName = Id(recipe.defName) },
                 AvailableNow = recipe.AvailableNow, AvailableOnBench = recipe.AvailableOnNow(bench) };
 
         // The work type whose DoBill giver serves this bench definition, so a

@@ -98,11 +98,6 @@ namespace HomeBridge.BridgeTools
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope and an exact resource definition are required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
             if (!request.HasResource || !ProtoBoundary.IsIdentifier(request.Resource)) return false;
-            if (request.IncludeDevelopment)
-            {
-                failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Extraction-development detail is not implemented by this read adapter.");
-                return false;
-            }
             return true;
         }
 

@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
         internal static bool ValidShape(Operations.GiveItemIntent? c) => c != null && c.Hauler != null && c.Recipient != null
             && c.HasDefinition && c.HasExpectedRemaining && c.ExpectedRemaining > 0 && c.ExpectedRemaining <= int.MaxValue
             && ProtoBoundary.IsIdentifier(c.Hauler.Id) && ProtoBoundary.IsIdentifier(c.Recipient.Id)
-            && c.Hauler.Id != c.Recipient.Id && Allowed(c.Definition);
+            && c.Hauler.Id != c.Recipient.Id && ProtoBoundary.IsIdentifier(c.Definition);
         internal static Common.Failure? Validate(Operations.GiveItemIntent c, Common.ObservationContext context) => !ValidShape(c)
             ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An exact whole item request is required.")
             : Validate(c.Hauler.Id, c.Recipient.Id, c.Definition, (int)c.ExpectedRemaining, context);
@@ -30,12 +30,11 @@ namespace HomeBridge.BridgeTools
             => new Receipts.EffectEvidence { GiveItem = new Receipts.GiveItemEffect {
                 HaulerId = hauler.GetUniqueLoadID(), RecipientId = recipient.GetUniqueLoadID(), Definition = source.def.defName,
                 ExpectedRemaining = remaining, SourceItemId = source.GetUniqueLoadID(), Job = NativeGiveJob.Evidence(hauler, source, job, issued).Job } };
-        private static bool Allowed(string def) => def == "Silver" || def == "MedicineHerbal" || def == "MedicineIndustrial" || def == "Penoxycyline" || def == "Beer";
         private static Common.Failure? Resolve(string haulerId, string recipientId, string defName, int expectedRemaining, Common.ObservationContext context, out Pawn? hauler, out Pawn? recipient, out Thing? source, out Lord? lord, out bool running)
         {
             hauler = null; recipient = null; source = null; lord = null; running = false;
-            if (!ProtoBoundary.IsIdentifier(haulerId) || !ProtoBoundary.IsIdentifier(recipientId) || haulerId == recipientId || !Allowed(defName) || expectedRemaining <= 0)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Giving requires distinct exact pawns, an allowed item and a positive expected remaining request.");
+            if (!ProtoBoundary.IsIdentifier(haulerId) || !ProtoBoundary.IsIdentifier(recipientId) || haulerId == recipientId || expectedRemaining <= 0)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Giving requires distinct exact pawns, an exact item and a positive expected remaining request.");
             var failure = NativeGiveJob.Pawn(new JobOrder { PawnId = haulerId, TargetId = recipientId }, context, out hauler, out var snapshot);
             if (failure != null) return failure;
             if (!snapshot!.Eligible || snapshot.Drafted || !hauler!.IsColonistPlayerControlled || !hauler.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))

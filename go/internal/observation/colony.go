@@ -533,9 +533,15 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 					return ColonyProjection{}, err
 				}
 			}
+			capacity := domain.Unknown[float64]()
+			if def := b.GetBuilding().DefName; def != nil && tables.Catalog != nil {
+				if capacity, err = tables.Catalog.BatteryCapacityWD(*def); err != nil {
+					return ColonyProjection{}, err
+				}
+			}
 			power = append(power, policy.PowerBuilding{BaseW: baseW, OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(b.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn),
 				Fuel: optional(s.Fuel), TargetFuel: optional(s.TargetFuel), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: fuels,
-				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays), RainVulnerable: rainVulnerable, Roofed: optional(row.Roofed), TurretDPS: optional(row.TurretDps)})
+				Stored: optional(row.StoredWattDays), Capacity: capacity, RainVulnerable: rainVulnerable, Roofed: optional(row.Roofed), TurretDPS: optional(row.TurretDps)})
 			ref := b.GetBuilding()
 			consumer, refuelable, err := fuelConsumer(tables.Catalog, ref.GetId(), ref.GetDefName(), power[len(power)-1])
 			if err != nil {
@@ -551,14 +557,25 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 				turrets = append(turrets, policy.DefenseTurretFacts{ID: site.ID, Definition: site.Definition, Cell: site.Cell, Powered: site.Powered, DPS: site.TurretDPS})
 			}
 		}
-		for _, row := range development.Furniture {
-			conduit := buildings.Entity(row.Building)
-			if conduit.GetPosition() == nil {
+		// A conduit is a built plain building of a def whose power comp only
+		// transmits: the def rows say which, the building table says where.
+		for _, row := range buildings.Sorted() {
+			if row.GetStatus() != o.BuildingStatus_BUILDING_STATUS_BUILT || row.GetBuilding().DefName == nil || tables.Catalog == nil {
+				continue
+			}
+			conduit, err := tables.Catalog.PlainConduit(row.GetBuilding().GetDefName())
+			if err != nil {
+				return ColonyProjection{}, err
+			}
+			if !conduit {
+				continue
+			}
+			if row.GetBuilding().GetPosition() == nil {
 				geometryKnown = false
 				continue
 			}
-			topology.Conduits = append(topology.Conduits, domain.Cell{X: conduit.Position.GetX(), Z: conduit.Position.GetZ()})
-			if conduit.GetDefName() == "PowerConduit" {
+			topology.Conduits = append(topology.Conduits, domain.Cell{X: row.Building.Position.GetX(), Z: row.Building.Position.GetZ()})
+			if row.Building.GetDefName() == "PowerConduit" {
 				topology.UnsafeConduits = append(topology.UnsafeConduits, topology.Conduits[len(topology.Conduits)-1])
 			}
 		}

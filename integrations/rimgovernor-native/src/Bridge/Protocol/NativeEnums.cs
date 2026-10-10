@@ -40,15 +40,6 @@ namespace HomeBridge.BridgeTools
             _ => null
         };
 
-        internal static Obs.HungerCategory Hunger(HungerCategory hunger) => hunger switch
-        {
-            HungerCategory.Fed => Obs.HungerCategory.Fed,
-            HungerCategory.Hungry => Obs.HungerCategory.Hungry,
-            HungerCategory.UrgentlyHungry => Obs.HungerCategory.UrgentlyHungry,
-            HungerCategory.Starving => Obs.HungerCategory.Starving,
-            _ => Obs.HungerCategory.Unspecified
-        };
-
         // The Anomaly enums fail loudly on a value the wire does not
         // name: the caller turns the exception into a ReadIssue.
         internal static Obs.EntityContainmentModeKind ContainmentMode(EntityContainmentMode mode) => mode switch
@@ -106,29 +97,6 @@ namespace HomeBridge.BridgeTools
             Operations.HostilityResponse.Attack => HostilityResponseMode.Attack,
             Operations.HostilityResponse.Flee => HostilityResponseMode.Flee,
             _ => null
-        };
-
-        internal static Obs.Quality Quality(QualityCategory quality) => quality switch
-        {
-            QualityCategory.Awful => Obs.Quality.Awful,
-            QualityCategory.Poor => Obs.Quality.Poor,
-            QualityCategory.Normal => Obs.Quality.Normal,
-            QualityCategory.Good => Obs.Quality.Good,
-            QualityCategory.Excellent => Obs.Quality.Excellent,
-            QualityCategory.Masterwork => Obs.Quality.Masterwork,
-            QualityCategory.Legendary => Obs.Quality.Legendary,
-            _ => Obs.Quality.Unspecified
-        };
-
-        internal static Obs.PriceType Price(RimWorld.PriceType price) => price switch
-        {
-            RimWorld.PriceType.Undefined => Obs.PriceType.Undefined,
-            RimWorld.PriceType.VeryCheap => Obs.PriceType.VeryCheap,
-            RimWorld.PriceType.Cheap => Obs.PriceType.Cheap,
-            RimWorld.PriceType.Normal => Obs.PriceType.Normal,
-            RimWorld.PriceType.Expensive => Obs.PriceType.Expensive,
-            RimWorld.PriceType.Exorbitant => Obs.PriceType.Exorbitant,
-            _ => Obs.PriceType.Unspecified
         };
 
         internal static Receipts.QuestStatus Quest(RimWorld.QuestState state) => state switch

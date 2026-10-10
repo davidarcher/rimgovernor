@@ -272,7 +272,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (!ProtoBoundary.IsIdentifier(resource)) continue;
                 var began = Now();
-                var sources = NativeResourceSourcesTool.Read(map, new Obs.ResourceSourcesRequest { Scope = Scope(), Resource = resource, IncludeDevelopment = false }, context).Observed;
+                var sources = NativeResourceSourcesTool.Read(map, new Obs.ResourceSourcesRequest { Scope = Scope(), Resource = resource }, context).Observed;
                 ObservationWork.Captured("resourceSources", Now() - began, sources != null ? sources.Sources.Count : 0);
                 if (sources != null) { observed.ResourceSources.Add(sources); }
             }

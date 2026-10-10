@@ -126,11 +126,11 @@ func TestCreepJoinerPawnAndHandLift(t *testing.T) {
 		t.Fatal("a failed allowed area read is known")
 	}
 	hungry := joinerRow(false, nil)
-	hungry.Needs = &o.PawnNeeds{HungerCategory: o.HungerCategory_HUNGER_CATEGORY_HUNGRY.Enum()}
+	hungry.Needs = &o.PawnNeeds{HungerCategory: d.HungerCategory_HUNGER_CATEGORY_HUNGRY.Enum()}
 	if v, known := CreepJoinerHand(hungry).Hungry.Value(); !known || !v {
 		t.Fatal("a hungry colonist is not hungry")
 	}
-	hungry.Needs = &o.PawnNeeds{HungerCategory: o.HungerCategory_HUNGER_CATEGORY_FED.Enum()}
+	hungry.Needs = &o.PawnNeeds{HungerCategory: d.HungerCategory_HUNGER_CATEGORY_FED.Enum()}
 	if v, known := CreepJoinerHand(hungry).Hungry.Value(); !known || v {
 		t.Fatal("a fed colonist is hungry")
 	}

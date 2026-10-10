@@ -9,7 +9,7 @@ import (
 )
 
 func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.MapSize) error {
-	if v == nil || !proto.Equal(v, &o.DevelopmentFacts{Power: v.Power, Furniture: v.Furniture, Networks: v.Networks, ShortCircuitTick: v.ShortCircuitTick, Geysers: v.Geysers}) {
+	if v == nil || !proto.Equal(v, &o.DevelopmentFacts{Power: v.Power, Networks: v.Networks, ShortCircuitTick: v.ShortCircuitTick, Geysers: v.Geysers}) {
 		return contract("unsupported development facts")
 	}
 	if v.ShortCircuitTick != nil && v.GetShortCircuitTick() < 0 {
@@ -25,13 +25,8 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 			return contract("invalid power building identity")
 		}
 		seen[ref.GetId()] = true
-		for _, value := range []*float64{row.StoredWattDays, row.CapacityWattDays} {
-			if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || *value < 0 || *value > 1e12) {
-				return contract("invalid power storage quantity")
-			}
-		}
-		if row.StoredWattDays != nil && row.CapacityWattDays != nil && row.GetStoredWattDays() > row.GetCapacityWattDays() {
-			return contract("power storage exceeds capacity")
+		if value := row.StoredWattDays; value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || *value < 0 || *value > 1e12) {
+			return contract("invalid power storage quantity")
 		}
 	}
 	networks := map[string]bool{}
@@ -68,12 +63,6 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 			cells[key] = true
 		}
 	}
-	for _, row := range v.Furniture {
-		if row == nil || !proto.Equal(row, &o.DevelopmentFurniture{Building: row.Building}) || !validRef(row.Building) || seen[row.Building.GetId()] {
-			return contract("invalid or duplicate power conduit")
-		}
-		seen[row.Building.GetId()] = true
-	}
 	return nil
 }
 
@@ -83,15 +72,12 @@ func validateColonyEnvironment(v *o.ColonyFactsSnapshot) error {
 		if row == nil || validID(row.GetId()) != nil || validID(row.GetDefName()) != nil || seen[row.GetId()] {
 			return contract("invalid environment condition")
 		}
-		// Native fills implementation (the GameCondition type name), label,
-		// permanent and, for a timed condition, ticks_left >= 0.
-		if (row.Implementation != nil && validID(row.GetImplementation()) != nil) || !diagnostic(row.Label) {
-			return contract("invalid environment condition")
-		}
+		// Native fills permanent and, for a timed condition, ticks_left >= 0;
+		// the condition's class and label are its GameConditionDef row's.
 		if row.TicksLeft != nil && (row.GetTicksLeft() < 0 || row.GetPermanent()) {
 			return contract("invalid environment condition duration")
 		}
-		if !proto.Equal(row, &o.EnvironmentCondition{Id: row.Id, DefName: row.DefName, Implementation: row.Implementation, Label: row.Label, Permanent: row.Permanent, TicksLeft: row.TicksLeft}) {
+		if !proto.Equal(row, &o.EnvironmentCondition{Id: row.Id, DefName: row.DefName, Permanent: row.Permanent, TicksLeft: row.TicksLeft}) {
 			return contract("invalid environment condition")
 		}
 		seen[row.GetId()] = true

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -100,7 +101,7 @@ func TestReadTradeSheetFavorCurrencyAndSilverSheets(t *testing.T) {
 	favorRow.Currency, favorRow.Favor, favorRow.BuyPrice, favorRow.SellPrice = proto.Bool(true), proto.Bool(true), nil, nil
 	favorRow.TransferCount = proto.Int64(6)
 	sheet := tradeSheetFixture([]*o.TradeLine{tradeSheetLine("line-1", "Steel", 1, 0), favorRow})
-	sheet.CurrencyKind = o.TradeCurrencyKind_TRADE_CURRENCY_KIND_FAVOR.Enum()
+	sheet.CurrencyKind = d.TradeCurrency_TRADE_CURRENCY_FAVOR.Enum()
 	client, _ := tradeSheetClient(t, sheet)
 	out, _, err := client.ReadTradeSheet(context.Background(), pbIdentity())
 	if err != nil {
@@ -125,7 +126,7 @@ func TestReadTradeSheetFavorPrisonerRowFacts(t *testing.T) {
 	prisoner.ExtraHomeFaction = &c.Ref{Id: proto.String("Faction_7")}
 	prisoner.ExtraHostFaction = &c.Ref{Id: proto.String("Faction_9")}
 	sheet := tradeSheetFixture([]*o.TradeLine{prisoner, tradeSheetLine("line-2", "Steel", 1, 0)})
-	sheet.CurrencyKind = o.TradeCurrencyKind_TRADE_CURRENCY_KIND_FAVOR.Enum()
+	sheet.CurrencyKind = d.TradeCurrency_TRADE_CURRENCY_FAVOR.Enum()
 	client, _ := tradeSheetClient(t, sheet)
 	out, _, err := client.ReadTradeSheet(context.Background(), pbIdentity())
 	if err != nil {

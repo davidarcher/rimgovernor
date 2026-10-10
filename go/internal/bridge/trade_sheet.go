@@ -5,6 +5,7 @@ import (
 	"math"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -181,7 +182,7 @@ func tradeSheetPage(v *o.TradeSheet, identity *c.Identity, seen map[string]bool,
 		Target: proto.CloneOf(v.Target), Trader: TradeParticipantOf(v.Target).Key(), Negotiator: v.GetNegotiator().GetId(), GiftMode: v.GetGiftMode(),
 		CanTradeNow: v.GetCanTradeNow(), Balance: v.GetBalance(), BalanceKnown: v.Balance != nil,
 		ColonyCanAfford: v.GetColonyCanAfford(), TraderHasSilver: v.GetTraderHasEnoughSilver(),
-		DealSignature: v.GetDealSignature(), FavorCurrency: v.GetCurrencyKind() == o.TradeCurrencyKind_TRADE_CURRENCY_KIND_FAVOR,
+		DealSignature: v.GetDealSignature(), FavorCurrency: v.GetCurrencyKind() == d.TradeCurrency_TRADE_CURRENCY_FAVOR,
 	}
 	for _, line := range v.Lines {
 		row, err := tradeSheetRow(line)

@@ -39,7 +39,7 @@ type ResourceSourceRow = policy.ResourceSource
 // resource sources family.
 func resourceSourcesRequest(identity *c.Identity, resource string) *o.ResourceSourcesRequest {
 	return &o.ResourceSourcesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
-		Resource: proto.String(resource), IncludeDevelopment: proto.Bool(false)}
+		Resource: proto.String(resource)}
 }
 
 func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Identity, resource string) ([]ResourceSourceRow, policy.ResourceStorage, Result, error) {

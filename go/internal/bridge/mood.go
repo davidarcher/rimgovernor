@@ -1,6 +1,9 @@
 package bridge
 
-import o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+import (
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+)
 
 func validateMoodNeeds(v *o.PawnNeeds) error {
 	if err := pawnsIssues(v.Issues, v.ProtoReflect()); err != nil {
@@ -11,7 +14,7 @@ func validateMoodNeeds(v *o.PawnNeeds) error {
 			return contract("nonfinite pawn need")
 		}
 	}
-	if v.HungerCategory != nil && o.HungerCategory_name[int32(v.GetHungerCategory())] == "" || v.BreakRisk != nil && o.BreakRisk_name[int32(v.GetBreakRisk())] == "" {
+	if v.HungerCategory != nil && d.HungerCategory_name[int32(v.GetHungerCategory())] == "" || v.BreakRisk != nil && o.BreakRisk_name[int32(v.GetBreakRisk())] == "" {
 		return contract("invalid pawn need category")
 	}
 	// Psyfocus: all three or none (no Royalty, no psylink).

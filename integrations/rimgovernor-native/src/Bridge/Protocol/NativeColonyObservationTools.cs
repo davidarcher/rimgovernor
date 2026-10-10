@@ -208,14 +208,12 @@ namespace HomeBridge.BridgeTools
         // The game-condition census: every condition affecting the map, with
         // the native remaining duration so Go can plan for the length of a
         // fallout or volcanic winter. A permanent condition has no ticks_left;
-        // a label read that throws leaves the label unset.
+        // its class and label are the GameConditionDef row's.
         internal static Obs.EnvironmentCondition EnvironmentCondition(GameCondition condition)
         {
             var row = new Obs.EnvironmentCondition { Id = condition.uniqueID.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                DefName = condition.def.defName, Implementation = condition.GetType().FullName, Permanent = condition.Permanent };
+                DefName = condition.def.defName, Permanent = condition.Permanent };
             if (!condition.Permanent) row.TicksLeft = Math.Max(0, condition.TicksLeft);
-            var label = condition.LabelCap;
-            if (!string.IsNullOrEmpty(label)) row.Label = label;
             return row;
         }
 
@@ -265,8 +263,6 @@ namespace HomeBridge.BridgeTools
                 .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
             var batteries = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerBattery>())
                 .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
-            var conduits = map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName == "PowerConduit" || b.def.defName == "HiddenConduit" || b.def.defName == "WaterproofConduit")
-                .OrderBy(b => b.thingIDNumber).ToList();
             var nets = map.powerNetManager.AllNetsListForReading.OrderBy(n => n.GetHashCode()).ToList();
             var geysers = map.listerThings.ThingsOfDef(ThingDefOf.SteamGeyser).OfType<Building_SteamGeyser>().OrderBy(g => g.thingIDNumber).ToList();
             var result = new Obs.DevelopmentFacts { };
@@ -290,10 +286,8 @@ namespace HomeBridge.BridgeTools
             foreach (var battery in batteries) {
                 var building = (Building)battery.parent;
                 result.Power.Add(new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building), Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
-                    StoredWattDays = Finite(battery.StoredEnergy), CapacityWattDays = Finite(battery.Props.storedEnergyMax) });
+                    StoredWattDays = Finite(battery.StoredEnergy) });
             }
-            foreach (var conduit in conduits)
-                result.Furniture.Add(new Obs.DevelopmentFurniture { Building = NativeBuildingObservationTools.Ref(conduit) });
             foreach (var net in nets) {
                 var generation = net.powerComps.Where(p => p.PowerOn && p.PowerOutput > 0).Sum(p => (double)p.PowerOutput);
                 var consumption = net.powerComps.Where(p => p.PowerOn && p.PowerOutput < 0).Sum(p => (double)-p.PowerOutput);

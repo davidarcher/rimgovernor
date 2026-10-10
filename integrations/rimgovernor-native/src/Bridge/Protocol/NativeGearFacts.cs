@@ -280,7 +280,7 @@ namespace HomeBridge.BridgeTools
                 InsulationCold = Number(thing.GetStatValue(StatDefOf.Insulation_Cold)), InsulationHeat = Number(thing.GetStatValue(StatDefOf.Insulation_Heat)) };
             Biocode(thing, row);
             if (thing.Stuff != null) row.Stuff = Id(thing.Stuff.defName);
-            if (thing.TryGetQuality(out var quality)) row.Quality = NativeEnums.Quality(quality);
+            if (thing.TryGetQuality(out var quality)) row.Quality = (Defs.QualityCategory)(int)quality;
             if (thing.def.useHitPoints) {
                 row.HitPoints = thing.HitPoints; row.MaxHitPoints = thing.MaxHitPoints;
                 row.ConditionFraction = Number((double)thing.HitPoints / thing.MaxHitPoints);

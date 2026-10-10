@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
 
 
         private static Obs.ResourceStock StoredItemRow(IGrouping<ThingDef, Thing> group) => new Obs.ResourceStock
-        { Definition = new Obs.DefinitionRef { DefName = group.Key.defName, Label = group.Key.label ?? "" }, Units = group.Sum(t => (long)t.stackCount) };
+        { Definition = new Obs.DefinitionRef { DefName = group.Key.defName }, Units = group.Sum(t => (long)t.stackCount) };
 
         private static List<Obs.WorldMap> Maps(Common.ObservationContext context, bool includeStorage)
         {

@@ -206,10 +206,6 @@ a depleted drill for removal from the deep drill step's recorded read.
 
 ## Other reads
 
-- ListArchitectCategories/ListArchitectDesignators expose exact designator ID,
-  category, buildable definition/label, application kind and cell/rectangle
-  support. Visibility/availability are explicit optional facts. No generic
-  architect execution capability is introduced.
 - Camera, selection, UI, tabs, gizmos, notifications and screenshots are
   presentation-owned. Process ownership, save/load and clock journal readback are
   lifecycle/clock-owned.

@@ -49,6 +49,10 @@ func SelectQuestGift(f RoundsFacts, currentMap domain.MapID) (QuestGiftWork, err
 				result.Reason = "stock_unknown"
 				return result, nil
 			}
+			if !slices.Contains(QuestGiftDefs, request.Def) {
+				result.Reason = "gift_def_unsupported"
+				return result, nil
+			}
 			def := Resource(request.Def)
 			value, vk := f.Items.Market[def]
 			if !vk || !finite(value) || value <= 0 {

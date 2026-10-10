@@ -193,7 +193,7 @@ message AncientShrinesReply { oneof outcome {
   rimgovernor.common.v1.Failure failure = 3;
 } }
 message MapSize { optional uint32 width = 1; optional uint32 height = 2; }
-message DefinitionRef { optional string def_name = 1; optional string label = 2; }
+message DefinitionRef { optional string def_name = 1; }
 message EntityRef {
   optional string id = 1;
   optional string def_name = 2;
@@ -224,7 +224,7 @@ message JobEvidence {
 }
 message PawnNeeds {
   optional double food = 1; optional double rest = 2; optional double mood = 3; optional double joy = 4;
-  optional HungerCategory hunger_category = 5; optional BreakRisk break_risk = 6;
+  optional rimgovernor.defs.v1.HungerCategory hunger_category = 5; optional BreakRisk break_risk = 6;
   optional double break_threshold_minor = 7; optional double break_threshold_major = 8; optional double break_threshold_extreme = 9;
   repeated ReadIssue issues = 10;
   // Psyfocus: Pawn_PsychicEntropyTracker CurrentPsyfocus and
@@ -305,10 +305,8 @@ message SurgeryOperation {
   // absent.
   map<string, double> doctor_chances = 16;
 }
-// Quality is the vanilla QualityCategory.
-enum Quality { QUALITY_UNSPECIFIED = 0; QUALITY_AWFUL = 1; QUALITY_POOR = 2; QUALITY_NORMAL = 3; QUALITY_GOOD = 4; QUALITY_EXCELLENT = 5; QUALITY_MASTERWORK = 6; QUALITY_LEGENDARY = 7; }
 message GearItem {
-  rimgovernor.common.v1.Ref thing = 1; optional string stuff = 2; optional Quality quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;
+  rimgovernor.common.v1.Ref thing = 1; optional string stuff = 2; optional rimgovernor.defs.v1.QualityCategory quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;
   optional double condition_fraction = 6;
   optional bool forced = 13; optional bool locked = 14; optional double armor_sharp = 15; optional double armor_blunt = 16;
   optional double insulation_cold = 17; optional double insulation_heat = 18;
@@ -600,7 +598,6 @@ message ListPawnsRequest { ReadScope scope = 1; PawnFilter filter = 2; PawnDetai
 message ListPawnsReply { oneof outcome { PawnSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 // Closed vanilla value sets read off pawns, stock and bills.
-enum HungerCategory { HUNGER_CATEGORY_UNSPECIFIED = 0; HUNGER_CATEGORY_FED = 1; HUNGER_CATEGORY_HUNGRY = 2; HUNGER_CATEGORY_URGENTLY_HUNGRY = 3; HUNGER_CATEGORY_STARVING = 4; }
 // BreakRisk is the mental-break band the mood sits in.
 enum BreakRisk { BREAK_RISK_UNSPECIFIED = 0; BREAK_RISK_NONE = 1; BREAK_RISK_MINOR = 2; BREAK_RISK_MAJOR = 3; BREAK_RISK_EXTREME = 4; }
 // HolderKind is what holds a held stack: a building container, a corpse's
@@ -949,12 +946,8 @@ message ResourceSource {
   SnapshotRef source_snapshot = 16; rimgovernor.common.v1.Cell cell = 17;
 }
 message StorageCapacity { optional string resource = 1; optional int64 capacity = 2; optional int64 stored = 3; optional int32 stack_limit = 4; repeated rimgovernor.common.v1.Ref haulers = 5; repeated string blockers = 6; repeated ReadIssue issues = 7; repeated rimgovernor.common.v1.Cell candidates = 8; }
-message ExtractionWorkType { DefinitionRef definition = 1; repeated DefinitionRef work_givers = 2; }
-message ExtractionSite { SnapshotRef snapshot = 1; optional string def_name = 2; rimgovernor.common.v1.Cell cell = 3; optional rimgovernor.placement.v1.Rotation rotation = 4; optional string resource = 5; optional bool eligible = 6; optional double power_w = 7; optional double spare_power_w = 8; repeated ExtractionWorkType work_types = 9; }
-message OwnedDrill { SnapshotRef snapshot = 1; optional string def_name = 2; optional string thing_id = 3; optional string pending_id = 4; rimgovernor.common.v1.Cell cell = 5; optional string resource = 6; optional int64 recovered = 7; optional int64 stock_target = 8; optional bool missing = 9; optional bool depleted = 10; }
-message ExtractionDevelopment { repeated ResourceSource deposits = 3; repeated DefinitionRef definitions = 4; repeated Quantity costs = 5; repeated string research = 6; repeated ExtractionSite sites = 8; repeated OwnedDrill owned = 9; optional bool scanners_active = 11; ExtractionWorkType flick_work_type = 12; }
-message ResourceSourcesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; optional string resource = 2; repeated ResourceSource sources = 3; StorageCapacity storage = 4; ExtractionDevelopment development = 5; Completeness completeness = 6; }
-message ResourceSourcesRequest { ReadScope scope = 1; optional string resource = 2; optional bool include_development = 3; }
+message ResourceSourcesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; optional string resource = 2; repeated ResourceSource sources = 3; StorageCapacity storage = 4; Completeness completeness = 6; }
+message ResourceSourcesRequest { ReadScope scope = 1; optional string resource = 2; }
 message ResourceSourcesReply { oneof outcome { ResourceSourcesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // Realized consumption. Native keeps a saved hourly ring (2500-tick
 // hours, 60 days) of what colony stock was spent, per (definition, reason). A
@@ -1297,23 +1290,19 @@ message Trader { EntityRef trader = 1; optional string kind = 2; rimgovernor.com
 message TradersSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated Trader traders = 2; repeated rimgovernor.common.v1.Ref negotiators = 3; }
 message TradersRequest { ReadScope scope = 1; }
 message TradersReply { oneof outcome { TradersSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-// PriceType is the vanilla trade PriceType.
-enum PriceType { PRICE_TYPE_UNSPECIFIED = 0; PRICE_TYPE_UNDEFINED = 1; PRICE_TYPE_VERY_CHEAP = 2; PRICE_TYPE_CHEAP = 3; PRICE_TYPE_NORMAL = 4; PRICE_TYPE_EXPENSIVE = 5; PRICE_TYPE_EXORBITANT = 6; }
-message TradeLine { optional uint32 index = 1; DefinitionRef definition = 2; optional string stuff = 3; optional string category = 4; optional int64 colony_count = 5; optional int64 trader_count = 6; optional double buy_price = 7; optional double sell_price = 8; optional PriceType buy_price_type = 9; optional PriceType sell_price_type = 10; optional double market_value = 11; optional bool trader_will_trade = 12; optional bool currency = 13; optional bool pawn = 14; optional string pawn_description = 15; optional int64 transfer_count = 16; optional int64 minimum_count = 17; optional int64 maximum_count = 18; repeated string cannot_sell_reasons = 20; optional string line_id = 21; TradeFoodFacts food = 22; repeated Skill skills = 23; optional bool violence_capable = 24; optional string pawn_id = 25; optional string thing_id = 26; optional int32 quality = 27; optional string pawn_gender = 28; optional double hit_points_fraction = 29; optional string zone_id = 30; optional bool favor = 31; optional string guest_status = 32; optional bool prisoner_secure = 33; optional bool pawn_downed = 34; rimgovernor.common.v1.Ref extra_home_faction = 35; rimgovernor.common.v1.Ref extra_host_faction = 36; }
-// TradeCurrencyKind is the open session's currency (vanilla TradeCurrency):
-// silver, or the trader faction's royal favor (the Royalty tribute
-// collector). In a favor session every row's sell_price is that item's
-// favor value, TradeLine.favor marks the favor currency row (no ThingDef, so
-// an empty definition; its transfer_count is the favor the negotiator gains),
-// and absent reads as silver.
-enum TradeCurrencyKind { TRADE_CURRENCY_KIND_UNSPECIFIED = 0; TRADE_CURRENCY_KIND_SILVER = 1; TRADE_CURRENCY_KIND_FAVOR = 2; }
+message TradeLine { optional uint32 index = 1; DefinitionRef definition = 2; optional string stuff = 3; optional string category = 4; optional int64 colony_count = 5; optional int64 trader_count = 6; optional double buy_price = 7; optional double sell_price = 8; optional rimgovernor.defs.v1.PriceType buy_price_type = 9; optional rimgovernor.defs.v1.PriceType sell_price_type = 10; optional double market_value = 11; optional bool trader_will_trade = 12; optional bool currency = 13; optional bool pawn = 14; optional string pawn_description = 15; optional int64 transfer_count = 16; optional int64 minimum_count = 17; optional int64 maximum_count = 18; repeated string cannot_sell_reasons = 20; optional string line_id = 21; TradeFoodFacts food = 22; repeated Skill skills = 23; optional bool violence_capable = 24; optional string pawn_id = 25; optional string thing_id = 26; optional int32 quality = 27; optional string pawn_gender = 28; optional double hit_points_fraction = 29; optional string zone_id = 30; optional bool favor = 31; optional string guest_status = 32; optional bool prisoner_secure = 33; optional bool pawn_downed = 34; rimgovernor.common.v1.Ref extra_home_faction = 35; rimgovernor.common.v1.Ref extra_host_faction = 36; }
 // TradeSession is the adapter's one live trade: the negotiator
 // walking to trader_id to open a session (open false), or the pair holding
 // the open session (open true). Both ids are absent when neither exists.
 message TradeSession { rimgovernor.common.v1.ObservationContext context = 1; rimgovernor.common.v1.TradeTarget target = 2; optional string negotiator_id = 3; optional bool open = 4; }
 message TradeSessionRequest { ReadScope scope = 1; }
 message TradeSessionReply { oneof outcome { TradeSession observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message TradeSheet { SnapshotRef snapshot = 1; optional string session_id = 2; rimgovernor.common.v1.TradeTarget target = 3; rimgovernor.common.v1.Ref negotiator = 4; optional bool gift_mode = 5; optional bool negotiator_adjacent = 6; optional bool can_trade_now = 7; optional double balance = 8; optional bool colony_can_afford = 9; optional bool trader_has_enough_silver = 10; repeated TradeLine lines = 11; optional string deal_signature = 13; optional TradeCurrencyKind currency_kind = 14; }
+// currency_kind is the open session's currency (vanilla TradeCurrency): silver,
+// or the trader faction's royal favor (the Royalty tribute collector). In a favor
+// session every row's sell_price is that item's favor value, TradeLine.favor marks
+// the favor currency row (no ThingDef, so an empty definition; its transfer_count
+// is the favor the negotiator gains), and absent reads as silver.
+message TradeSheet { SnapshotRef snapshot = 1; optional string session_id = 2; rimgovernor.common.v1.TradeTarget target = 3; rimgovernor.common.v1.Ref negotiator = 4; optional bool gift_mode = 5; optional bool negotiator_adjacent = 6; optional bool can_trade_now = 7; optional double balance = 8; optional bool colony_can_afford = 9; optional bool trader_has_enough_silver = 10; repeated TradeLine lines = 11; optional string deal_signature = 13; optional rimgovernor.defs.v1.TradeCurrency currency_kind = 14; }
 message TradeSheetRequest { ReadScope scope = 1; optional string session_id = 2; optional bool include_untradeable = 3; optional bool only_changed = 4; optional string name_contains = 5; }
 message TradeSheetReply { oneof outcome { TradeSheet observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
@@ -1438,17 +1427,16 @@ message RoyaltyColonyFacts { repeated NeuroformerStock neuroformers = 1; repeate
 // pawn refers to the bundle pawn table row, whose animal_state
 // carries the herd facts.
 message AnimalFeed { reserved 5, 6, 7, 8; rimgovernor.common.v1.Ref pawn = 9; optional string diet = 2; optional bool requires_pen = 3; rimgovernor.common.v1.Ref suitable_pen = 4; }
-message DevelopmentPower { rimgovernor.common.v1.Ref building = 8; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; optional bool roofed = 6;
+message DevelopmentPower { rimgovernor.common.v1.Ref building = 8; optional double stored_watt_days = 3; optional bool roofed = 6;
   // A turret gun's damage per second from its own verb and burst timing; absent for other consumers.
   optional double turret_dps = 7; }
-message DevelopmentFurniture { rimgovernor.common.v1.Ref building = 1; optional bool indoors = 2; optional uint32 slots = 3; }
 // One steam geyser on the map: geyser is the Building_SteamGeyser with its
 // anchor position, cells its 2x2 footprint, and occupied whether a harvester
 // (a geothermal generator, built or under construction) or any other
 // building already stands on it.
 message SteamGeyser { rimgovernor.common.v1.Ref geyser = 1; repeated rimgovernor.common.v1.Cell cells = 2; optional bool occupied = 3; }
-message DevelopmentFacts { repeated DevelopmentPower power = 1; repeated DevelopmentFurniture furniture = 2; repeated PowerNetwork networks = 5; optional int64 short_circuit_tick = 6; repeated SteamGeyser geysers = 7; }
-message EnvironmentCondition { optional string id = 1; optional string def_name = 2; optional string implementation = 3; optional string label = 4; optional bool permanent = 5; optional int64 ticks_left = 6; }
+message DevelopmentFacts { repeated DevelopmentPower power = 1; repeated PowerNetwork networks = 5; optional int64 short_circuit_tick = 6; repeated SteamGeyser geysers = 7; }
+message EnvironmentCondition { optional string id = 1; optional string def_name = 2; optional bool permanent = 5; optional int64 ticks_left = 6; }
 // FoodClimate is the map tile's calendar for food planning: growing_days is
 // the tile's growing period per 60-day year, growing_days_remaining the days
 // until the seasonal temperature next leaves the crop growth range (60 while
@@ -2237,19 +2225,6 @@ message ObservationBatchSnapshot {
 message ObservationBatchRequest { ReadScope scope = 1; StatusRequest status = 2; ListPawnsRequest pawns = 3; ListSuppliesRequest supplies = 4; ListBuildingsRequest buildings = 5; ListRoomsRequest rooms = 6; ListZonesRequest zones = 7; }
 message ObservationBatchReply { oneof outcome { ObservationBatchSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
-message ArchitectCategory { optional string id = 1; optional string label = 2; optional bool visible = 3; optional bool enabled = 4; optional uint32 designator_count = 5; }
-message ArchitectDesignator {
-  optional string id = 1; optional string category_id = 2; optional string label = 3;
-  optional string buildable_def_name = 4; optional string buildable_label = 5;
-  optional string application_kind = 6; optional bool supports_cell = 7; optional bool supports_rectangle = 8;
-  optional bool visible = 9; optional bool enabled = 10; optional string disabled_reason = 11;
-}
-message ArchitectCategoriesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ArchitectCategory categories = 2; }
-message ArchitectCategoriesRequest { ReadScope scope = 1; optional bool include_empty = 2; optional bool include_hidden = 3; }
-message ArchitectCategoriesReply { oneof outcome { ArchitectCategoriesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message ArchitectDesignatorsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ArchitectDesignator designators = 2; }
-message ArchitectDesignatorsRequest { ReadScope scope = 1; optional string category_id = 2; optional bool include_hidden = 3; }
-message ArchitectDesignatorsReply { oneof outcome { ArchitectDesignatorsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 // The snapshot stream: native publishes whole BundleSnapshot frames
 // into a named shared-memory ring and signals a named event; this request
@@ -2534,8 +2509,6 @@ message FlushSnapshotReply { oneof outcome { bool flushed = 1; rimgovernor.commo
 service Observations {
   rpc GetClearanceTargets(ClearanceTargetsRequest) returns (ClearanceTargetsReply);
   rpc GetAncientShrines(AncientShrinesRequest) returns (AncientShrinesReply);
-  rpc ListArchitectCategories(ArchitectCategoriesRequest) returns (ArchitectCategoriesReply);
-  rpc ListArchitectDesignators(ArchitectDesignatorsRequest) returns (ArchitectDesignatorsReply);
   rpc ReadStatus(StatusRequest) returns (StatusReply);
   rpc ReadObservationBatch(ObservationBatchRequest) returns (ObservationBatchReply);
   rpc OpenSnapshotStream(SnapshotStreamRequest) returns (SnapshotStreamReply);

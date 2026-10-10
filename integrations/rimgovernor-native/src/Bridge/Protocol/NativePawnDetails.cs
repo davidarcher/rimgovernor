@@ -5,6 +5,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
+using Defs = RimGovernor.Protocol.Defs;
 using Obs = RimGovernor.Protocol.Observations;
 using static HomeBridge.BridgeTools.NativePawnObservationTools;
 
@@ -75,7 +76,7 @@ namespace HomeBridge.BridgeTools
             var d=Defaults(requested);
             if(d.Needs) {
                 var needs=row.Needs;
-                if(pawn.needs?.food!=null) {needs.Food=Number(pawn.needs.food.CurLevelPercentage);needs.HungerCategory=NativeEnums.Hunger(pawn.needs.food.CurCategory);}
+                if(pawn.needs?.food!=null) {needs.Food=Number(pawn.needs.food.CurLevelPercentage);needs.HungerCategory=(Defs.HungerCategory)(int)pawn.needs.food.CurCategory;}
                 else {needs.Issues.Add(Missing("food"));needs.Issues.Add(Missing("hunger_category"));}
                 if(pawn.needs?.rest!=null) needs.Rest=Number(pawn.needs.rest.CurLevelPercentage); else needs.Issues.Add(Missing("rest"));
                 if(pawn.needs?.joy!=null) needs.Joy=Number(pawn.needs.joy.CurLevelPercentage); else needs.Issues.Add(Missing("joy"));
@@ -446,7 +447,7 @@ namespace HomeBridge.BridgeTools
             var row=new Obs.GearItem {Thing=NativeRef.Thing(thing)};
             NativeGearFacts.Biocode(thing, row);
             if(thing.Stuff!=null) row.Stuff=Id(thing.Stuff.defName);
-            if(thing.TryGetQuality(out var quality)) row.Quality=NativeEnums.Quality(quality);
+            if(thing.TryGetQuality(out var quality)) row.Quality=(Defs.QualityCategory)(int)quality;
             if(thing.def.useHitPoints) {
                 if(thing.MaxHitPoints<=0 || thing.HitPoints<0) throw new InvalidOperationException("Invalid native hit points.");
                 row.HitPoints=thing.HitPoints;row.MaxHitPoints=thing.MaxHitPoints;
@@ -642,12 +643,7 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        private static Obs.DefinitionRef Definition(Def def)=>DefinitionLabel(def.defName,def.LabelCap);
-        internal static Obs.DefinitionRef DefinitionLabel(string defName,string? label) {
-            var result=new Obs.DefinitionRef {DefName=Id(defName)};
-            if(label!=null) result.Label=Text(label);
-            return result;
-        }
+        private static Obs.DefinitionRef Definition(Def def)=>new Obs.DefinitionRef {DefName=Id(def.defName)};
         private static Obs.ReadIssue Missing(string field)=>Issue(field,Common.UnavailableReason.NativeComponentMissing,"Native component is absent or uninitialized.");
         private static Obs.ReadIssue Skipped(string field)=>Issue(field,Common.UnavailableReason.NotRequested,"Detail was explicitly disabled.");
         private static Obs.ReadIssue Unsupported(string field,string detail)=>Issue(field,Common.UnavailableReason.Unsupported,detail);

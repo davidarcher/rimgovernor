@@ -93,6 +93,27 @@ Deleted: `ColonyFactsSnapshot.policy_resources` (never written or read), `Butche
 
 Kept, each one a native read of live pawn or map state that the mirror cannot reproduce today, and each one a separate rewrite with its own native case: the verb/weapon facts (`HuntVerbFacts`, `HuntWeaponFacts`) track the weapon a hunter actually holds and its projectile; the `AcquisitionFacts`, `FarmFacts`, `FoodCorpse`, `FoodSlaughterAnimal`, `AnimalFeed`, `ThreatPawn`, `GrowLight`, `PlantGrower`, `WorkLightCell`, `LampState` and `MineralScannerState` def-derived fields are read together with the live row they annotate, so removing one means moving its consumer to a catalog join in the same change. They stay until a follow-up converts a consumer to read the mirror; no wire shape changed for them here.
 
+### #2657 disposition
+
+Deleted (Go reads the mirror row, or the field was dead):
+- `DefinitionRef.label` (so `ResourceStock.definition.label`, the recipe, project, part and trade-line labels), and `EnvironmentCondition.implementation`/`label` (the `GameConditionDef` row has both).
+- The `Quality`, `HungerCategory`, `PriceType` and `TradeCurrencyKind` enums: `GearItem.quality`, `PawnNeeds.hunger_category`, `TradeLine.*_price_type` and `TradeSheet.currency_kind` carry the `defs.proto` `QualityCategory`, `HungerCategory`, `PriceType` and `TradeCurrency` values (presence replaces the `UNSPECIFIED` zero). `TechLevel` went with #2654.
+- `ExtractionWorkType`, `ExtractionSite`, `OwnedDrill`, `ExtractionDevelopment`, `ResourceSourcesSnapshot.development` and `ResourceSourcesRequest.include_development`: no native code wrote them and no Go code read them.
+- `ArchitectCategory`, `ArchitectDesignator`, their snapshot, request and reply messages and the `ListArchitectCategories`/`ListArchitectDesignators` reads: native never implemented the tools and nothing called them.
+- `DevelopmentFurniture` and `DevelopmentFacts.furniture`, the native `PowerConduit`/`HiddenConduit`/`WaterproofConduit` list: the conduit census is `DefinitionCatalog.PlainConduit` (a built plain `Building` whose `CompProperties_Power` is a bare `CompPowerTransmitter`) over the building table.
+- `DevelopmentPower.capacity_watt_days`: `DefinitionCatalog.BatteryCapacityWD` (`CompProperties_Battery.storedEnergyMax`).
+- `NativeGiveItemOperations.Allowed()`: the five defNames are `policy.QuestGiftDefs`, registered in `policy.DefTables()` and checked by the dangling-reference gate; `SelectQuestGift` refuses any other request (`gift_def_unsupported`).
+
+Kept, reason recorded:
+- `TrainingEntry.def_name`: the key of the live learned/wanted/available row, not a copy of a `TrainableDef` property.
+- `AnimalState.tameable`: `TameUtility.CanTame` on the live animal plus its hunting designation; a game-method output.
+- `DevelopmentPower.turret_dps`: `NativeDefenseStats.TurretDps` reads the live gun (its quality-scaled verb), not a row.
+- `DefinitionCatalog.thing_defs`/`terrain_defs`, `CreationDefinitionCatalog.defs` and `ClassChain`: these are the mirror rows (`DefSets` omits ThingDef and TerrainDef by construction), not copies of them; `ClassChain` is the `ClassIsA` index.
+- `NativeColonyObservationTools.Crops`: the `EdibleCrop` row is the live per-map diet and animal nutrition demand of a crop; the `CropDefs` list only enumerates `DefDatabase` and its food filter is `NativeFoodPolicy.IsFood`, the game-method output the `ThingDefFacts` section keeps.
+- `NativeColonyObservationTools` room roles: `room.Role` is the live room's computed role (`NativeUpkeepFacts`), nothing in the file retypes the role table.
+
+Not yet converted (issue stays open): `CellGridEncoder.cs` terrain light and foundation affordance columns (`supports_light`, `foundation_affordances`) and `ProtoLifecycleNewColonyTools.cs` scenario/difficulty/storyteller/biome lookups and the skill/work-type maps.
+
 ## Native files
 
 | File | Lines | Class | What it does | Static items | Replacement |
@@ -139,7 +160,7 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | NativeClockEventProjection.cs | 212 | code | Projects clock-journal event rows into typed Clock.Event protos; clock transport infrastructure. |  |  |
 | NativeClockRuntime.cs | 549 | state | Clock epoch runtime: leases, speed, pause holds, event journal pages and authority. |  |  |
 | NativeClockTools.cs | 161 | state | Tool handlers for clock start/renew/change-speed/read-events. |  |  |
-| NativeColonyObservationTools.cs | 558 | mixed | Reads the whole colony facts frame (food, power, wealth, crops, conditions) from live game state. | conduit defName list (PowerConduit/HiddenConduit/WaterproofConduit); CropDefs DefDatabase enumeration | room roles and conduits: Go rule over ThingDef rows (defName/thingClass/comps in defs.proto ThingDef); CropDefs: Go filter over ThingDef.plant |
+| NativeColonyObservationTools.cs | 558 | mixed | Reads the whole colony facts frame (food, power, wealth, crops, conditions) from live game state. | CropDefs DefDatabase enumeration (conduit list deleted, #2657) | kept, see the #2657 disposition |
 | NativeCombatGeometryTools.cs | 234 | code | Combat geometry read: cover, line of fire and path ticks via CoverUtility/GenSight/pathfinder. |  |  |
 | NativeCombatOperations.cs | 47 | code | Attack rules: picks melee or ranged attack job per vanilla float-menu logic. |  |  |
 | NativeCombatOrders.cs | 488 | state | Applies a batch of combat micro orders (draft, goto, attack, rescue, repair, mortar, animal orders). |  |  |
@@ -170,7 +191,7 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | NativeGathering.cs | 93 | state | GatheringIntent apply: starts a vanilla gathering via GatheringDef.Worker.TryExecute and records the spot. |  |  |
 | NativeGearFacts.cs | 304 | mixed | Gear census per colonist (loadout, candidates, storage, climate, equipment) with a loadout model whose option catalog is built from RecipeDefs. | Catalog() producible-apparel recipes (RecipeDef.ProducedThingDef IsApparel, one per def); BillOption research prereqs and CostListAdjusted ingredients; Option() Smokepop verb check (Verb_SmokePop) | Go rule over rows: RecipeDef.products + ThingDef.apparel + RecipeDef.researchPrerequisite/researchPrerequisites + ThingDef.costList/stuffCategories; ThingDef.verbs[].verbClass for smokepop; caps are tool constants not game constants |
 | NativeGearOperations.cs | 58 | state | Wear order: validates pawn and apparel live and issues JobDefOf.Wear as ordered work. |  |  |
-| NativeGiveItemOperations.cs | 83 | mixed | GiveItem order: hauler delivers an item to a recipient waiting on a lord toil request, validated live. | Allowed(def) hardcoded 5 defNames: Silver, MedicineHerbal, MedicineIndustrial, Penoxycyline, Beer | Go-side policy list or ThingDef rows filtered by the quest request defs; not a game constant |
+| NativeGiveItemOperations.cs | 83 | mixed | GiveItem order: hauler delivers an item to a recipient waiting on a lord toil request, validated live. | none (the five-def allowlist is policy.QuestGiftDefs, #2657) | none |
 | NativeGiveJob.cs | 256 | code | GiveJobIntent dispatcher: classifies intent into order/need/use/prioritized arms and applies prioritized work-giver jobs. |  | Kinds job-name to JobOrderKind map (17 entries) is a dispatch table, not def data |
 | NativeGravEngineInspectionOperations.cs | 49 | state | Orders a colonist to inspect the grav engine with JobDefOf.InspectGravEngine. |  |  |
 | NativeGrowerCrop.cs | 90 | state | BuildingPatchIntent plant_def arm: sets a plant grower's crop with sowable and research checks and CAS token. |  | Sowable() duplicates PlantProperties.sowTags/sowResearchPrerequisites; live check stays native |
@@ -329,7 +350,7 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | AncientShrinesSnapshot | message | 186 | 2 | state | Snapshot of ancient shrines |  |  |
 | AncientShrinesReply | message | 190 | 3 | state | Reply envelope |  |  |
 | MapSize | message | 195 | 2 | state | Map width and height |  |  |
-| DefinitionRef | message | 196 | 2 | mixed | Def name plus label reference | label | label: XDef.label of the referenced def (any Def message in defs.proto) |
+| DefinitionRef | message | 196 | 1 | state | Def name reference (label deleted, #2657) |  |  |
 | EntityRef | message | 197 | 5 | state | Instance id def name label map id and position |  |  |
 | TargetRef | message | 204 | 3 | state | Oneof entity or cell or unavailable |  |  |
 | Quantity | message | 205 | 2 | state | Def name with unit count |  |  |
@@ -344,7 +365,6 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | MissingBodyPart | message | 269 | 5 | mixed | Missing body part at its common ancestor | part_def_name; parent_index; parent_def_name; vital | BodyDef BodyPartRecord tree (def and parent per index); vital: BodyPartDef.tags BodyPartTagDef.vital |
 | SurgeryKind | enum | 270 | 7 | code | Tag classifying a surgery recipe |  | Go rule over RecipeDef (addsHediff removesHediff workerClass) |
 | SurgeryOperation | message | 283 | 16 | mixed | Available operation on one part with success chance and market values | kind; yield_market_value; yield_thing_def; medicine_market_value (base value) | kind: Go rule over RecipeDef; yield_thing_def: HediffDef.spawnThingOnRemoved; yield_market_value and medicine_market_value: ThingDef.statBases MarketValue x count |
-| Quality | enum | 310 | 8 | state | Quality tag |  |  |
 | GearItem | message | 311 | 15 | code | Worn or held gear with quality hp and computed armor and insulation |  |  |
 | PawnEquipment | message | 321 | 10 | code | Pawn equipment and apparel lists with ranged and melee DPS |  |  |
 | Passion | enum | 331 | 4 | state | Skill passion level tag |  |  |
@@ -361,8 +381,8 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | InventoryStockSetting | message | 389 | 3 | state | Pawn inventory stock tracker entry |  |  |
 | ChemicalState | message | 393 | 4 | state | Pawn addiction and tolerance per chemical |  |  |
 | ApparelRequirementFact | message | 394 | 4 | state | Apparel requirement body-part groups required defs and tags of a pawn's Precept_Role (kept: ideology generates the roles' requirements per ideo, so the instance is not a def row) |  |  |
-| TrainingEntry | message | 395 | 5 | mixed | Animal training state per trainable | def_name | def_name is a TrainableDef key (static key only) |
-| AnimalState | message | 396 | 40 | mixed | Player animal husbandry facts and settings | tameable (partly) | tameable: Go rule over race wildness (RaceProperties) plus pawn state |
+| TrainingEntry | message | 395 | 5 | state | Animal training state per trainable; def_name is the key of the live learned/wanted row (kept, #2657) |  |  |
+| AnimalState | message | 396 | 40 | state | Player animal husbandry facts and settings; tameable kept: TameUtility.CanTame on the live animal (#2657) |  |  |
 | PawnState | message | 443 | 47 | state | Canonical pawn row with flags needs health gear social and status |  |  |
 | PawnStanding | message | 501 | 5 | state | Faction standing of a humanlike pawn |  |  |
 | PawnGene | message | 519 | 3 | excluded | Biotech pawn gene entry |  |  #2630 Biotech |
@@ -376,7 +396,6 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | PawnSnapshot | message | 588 | 5 | state | Pawn list snapshot with completeness |  |  |
 | ListPawnsRequest | message | 594 | 3 | state | List pawns request |  |  |
 | ListPawnsReply | message | 595 | 3 | state | List pawns reply envelope |  |  |
-| HungerCategory | enum | 598 | 5 | state | Hunger band tag |  |  |
 | BreakRisk | enum | 600 | 5 | state | Mental break band tag |  |  |
 | HolderKind | enum | 603 | 5 | state | What holds a stack |  |  |
 | WasteKind | enum | 605 | 3 | state | Why an item is waste |  |  |
@@ -427,7 +446,6 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | GetCellsRequest | message | 806 | 2 | state | Read request parameters |  |  |
 | GetCellsReply | message | 810 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | ResearchUnlock | message | 811 | 3 | static | What a research project unlocks (def, native type, label) | def_name;native_type;label | Go rule over ThingDef.researchPrerequisites, RecipeDef.researchPrerequisite(s), TerrainDef.researchPrerequisites rows keyed by ResearchProjectDef.defName |
-| TechLevel | enum | 813 | 9 | static | Vanilla TechLevel enum | all | defs.proto enum TechLevel |
 | ResearchProject | message | 814 | 23 | mixed | Research project row: definition facts plus progress and availability | tab;tech_level;base_cost;prerequisites;hidden_prerequisites;techprints_needed;required_building;required_facilities;unlocks;category | ResearchProjectDef.tab, techLevel, baseCost, prerequisites, hiddenPrerequisites, techprintCount, requiredResearchBuilding, requiredResearchFacilities; unlocks = Go rule over rows; category = Go rule over ResearchProjectDef.tab |
 | Researcher | message | 823 | 6 | code | Pawn research ability/priority/active row |  |  |
 | ResearchFacility | message | 824 | 2 | state | Linked research facility and whether active |  |  |
@@ -467,10 +485,6 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | WallUpgradeSitesReply | message | 932 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | ResourceSource | message | 933 | 17 | state | Resource source row: yield, reachability, designation, depletion |  |  |
 | StorageCapacity | message | 943 | 8 | mixed | Storage capacity for a resource: capacity, stored, haulers | stack_limit | ThingDef.stackLimit |
-| ExtractionWorkType | message | 944 | 2 | static | Work type and work givers that mine a deposit | definition;work_givers | Go rule over WorkGiverDef rows by workType (WorkTypeDef) |
-| ExtractionSite | message | 945 | 9 | mixed | Candidate extraction building site with power and work types | power_w;work_types;resource | power_w = CompProperties_Power.basePowerConsumption on ThingDef.comps; work_types = Go rule over WorkGiverDef; resource = CompProperties_DeepDrill on ThingDef.comps |
-| OwnedDrill | message | 946 | 10 | state | Owned drill with recovered amount, stock target, depletion |  |  |
-| ExtractionDevelopment | message | 947 | 8 | mixed | Extraction development: deposits, definitions, costs, research, sites, owned drills | definitions;costs;research;flick_work_type | Go rule over ThingDef rows with deep-drill/mining comps; ThingDef.costList; ThingDef.researchPrerequisites; WorkGiverDef rows |
 | ResourceSourcesSnapshot | message | 948 | 6 | state | Resource sources, storage and development for a resource |  |  |
 | ResourceSourcesRequest | message | 949 | 3 | state | Read request parameters |  |  |
 | ResourceSourcesReply | message | 950 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
@@ -564,9 +578,7 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | TradersSnapshot | message | 1275 | 3 | state | Traders and negotiators |  |  |
 | TradersRequest | message | 1276 | 1 | state | Read request parameters |  |  |
 | TradersReply | message | 1277 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
-| PriceType | enum | 1279 | 7 | static | Vanilla PriceType enum | all | defs.proto enum PriceType |
 | TradeLine | message | 1280 | 35 | mixed | Trade sheet line: counts, prices, pawn/food facts | category;market_value;currency | ThingDef.thingCategories / statBases MarketValue x stuff x quality (catalog stat table); currency = Go rule over ThingDef (silver) |
-| TradeCurrencyKind | enum | 1287 | 3 | static | Session currency tag (silver/favor) | all | defs.proto enum TradeCurrency |
 | TradeSession | message | 1291 | 4 | state | Live trade session pair |  |  |
 | TradeSessionRequest | message | 1292 | 1 | state | Read request parameters |  |  |
 | TradeSessionReply | message | 1293 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
@@ -612,11 +624,10 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | RoyaltySection | message | 1418 | 2 | state | Royalty colony section envelope |  |  |
 | RoyaltyColonyFacts | message | 1419 | 3 | state | Neuroformers, ceremonies, thrones |  |  |
 | AnimalFeed | message | 1422 | 4 | mixed | Animal feed diet and pen requirement | diet | RaceProperties.foodType (ThingDef.race) |
-| DevelopmentPower | message | 1423 | 5 | mixed | Power consumer/battery storage and turret dps | capacity_watt_days;turret_dps | capacity_watt_days = CompProperties_Battery.storedEnergyMax; turret_dps = Go rule over VerbProperties (burst, warmup, damage) |
-| DevelopmentFurniture | message | 1426 | 3 | mixed | Furniture indoors flag and slots | slots | ThingDef.size / BuildingProperties bed slots |
+| DevelopmentPower | message | 1423 | 4 | state | Power consumer/battery stored energy, roof and turret dps (capacity deleted, #2657) |  | turret_dps kept: the live gun's verb output |
 | SteamGeyser | message | 1431 | 3 | state | Steam geyser cells and occupancy |  |  |
 | DevelopmentFacts | message | 1432 | 5 | state | Development power, furniture, networks, geysers |  |  |
-| EnvironmentCondition | message | 1433 | 6 | mixed | Active game condition with id, ticks left | def_name;implementation;label | GameConditionDef.defName, conditionClass, label |
+| EnvironmentCondition | message | 1433 | 4 | state | Active game condition with id, def name and ticks left (class and label deleted, #2657) |  |  |
 | FoodClimate | message | 1444 | 8 | code | Growing-day calendar computed from biome temperatures and season |  |  |
 | FarmFacts | message | 1452 | 19 | mixed | Per-growing-zone plant growth state plus the crop's static growth range and yield | edible_crop; nutrition_per_harvest_cell; min_growth_temperature; min_optimal_growth_temperature; max_optimal_growth_temperature; max_growth_temperature | PlantProperties.minGrowthTemperature, minOptimalGrowthTemperature, maxOptimalGrowthTemperature, maxGrowthTemperature; nutrition_per_harvest_cell = PlantProperties.harvestYield x harvestedThingDef nutrition stat (Go rule over crop row); edible_crop = harvestedThingDef ingestible (Go rule) |
 | GrowLight | message | 1466 | 8 | mixed | Sun lamp state: powered, lit, grown cells, net | power_w | CompProperties_Power.basePowerConsumption on the building def |
@@ -756,14 +767,6 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | ObservationBatchSnapshot | message | 2219 | 9 | state | Batch of status, pawns, supplies, buildings, rooms, zones reads |  |  |
 | ObservationBatchRequest | message | 2224 | 7 | state | Request envelope for the batch read |  |  |
 | ObservationBatchReply | message | 2225 | 3 | state | Outcome oneof of batch read |  |  |
-| ArchitectCategory | message | 2227 | 5 | mixed | Architect menu category id, label and live visible/enabled flags | id,label,designator_count | DesignationCategoryDef.defName/label; designator_count = Go rule over designator rows |
-| ArchitectDesignator | message | 2228 | 11 | mixed | Architect designator with buildable and per-frame enabled state | id,category_id,label,buildable_def_name,buildable_label,application_kind,supports_cell,supports_rectangle | ThingDef.defName/label for buildable; category from DesignationCategoryDef; supports_* a Go rule over application_kind (designator class via class_chains) |
-| ArchitectCategoriesSnapshot | message | 2234 | 2 | state | Snapshot wrapper of architect categories |  |  |
-| ArchitectCategoriesRequest | message | 2235 | 3 | state | Request envelope |  |  |
-| ArchitectCategoriesReply | message | 2236 | 3 | state | Outcome oneof |  |  |
-| ArchitectDesignatorsSnapshot | message | 2237 | 2 | state | Snapshot wrapper of architect designators |  |  |
-| ArchitectDesignatorsRequest | message | 2238 | 3 | state | Request envelope |  |  |
-| ArchitectDesignatorsReply | message | 2239 | 3 | state | Outcome oneof |  |  |
 | SnapshotStreamRequest | message | 2247 | 5 | state | Stream subscription: resource sources, keyframe flag, budgets |  |  |
 | DefinitionCatalog | message | 2265 | 12 | static | Catalog envelope holding def mirror, stat table, facts, constants | thing_defs,terrain_defs,defs,class_chains,research | already the def mirror itself (defs.proto ThingDef/TerrainDef/DefSets); research duplicates DefSets ResearchProjectDef rows |
 | ClassChain | message | 2299 | 2 | static | CLR class and its bases for def class matching | name,bases | none in defs.proto; reflection over assemblies; keep as Go ClassIsA index |

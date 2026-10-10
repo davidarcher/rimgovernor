@@ -220,12 +220,7 @@ namespace HomeBridge.BridgeTools
         }
         private static void Number(double value) { if (double.IsNaN(value) || double.IsInfinity(value) || value < 0) throw new InvalidOperationException("Invalid research quantity."); }
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid research identifier.");
-        private static Obs.DefinitionRef Definition(Def def)
-        {
-            var value = new Obs.DefinitionRef { DefName = Id(def.defName) };
-            if (def.label != null) value.Label = PlacementPreviewOperation.Diagnostic(def.label);
-            return value;
-        }
+        private static Obs.DefinitionRef Definition(Def def) => new Obs.DefinitionRef { DefName = Id(def.defName) };
         private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Missing(Common.UnavailableReason.ReadFailed, detail) };
         private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Filtered = (ulong)filtered };

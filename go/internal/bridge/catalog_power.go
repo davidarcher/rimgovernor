@@ -100,6 +100,46 @@ func (catalog *DefinitionCatalog) PowerBattery(name string) (policy.PowerBattery
 	return out, nil
 }
 
+// BatteryCapacityWD is the stored-energy capacity of the named def's
+// CompProperties_Battery; a def without the comp is unknown, not an error.
+func (catalog *DefinitionCatalog) BatteryCapacityWD(name string) (domain.Fact[float64], error) {
+	row, err := catalog.thingRow(name)
+	if err != nil {
+		return domain.Fact[float64]{}, err
+	}
+	battery := compOf(row, (*d.CompPropertiesAny).GetCompProperties_Battery)
+	if battery == nil {
+		return domain.Unknown[float64](), nil
+	}
+	return domain.Known(float64(battery.GetStoredEnergyMax())), nil
+}
+
+// The CompProperties_Power compClass of a bare conduit, and the thing class
+// of a plain building: a plain Building whose power comp only transmits.
+const (
+	ClassConduitComp   = "RimWorld.CompPowerTransmitter"
+	ClassPlainBuilding = "Verse.Building"
+)
+
+// PlainConduit is whether the named def is a power conduit: a plain Building
+// whose power comp is a bare CompPowerTransmitter (no generator, consumer,
+// battery or switch class).
+func (catalog *DefinitionCatalog) PlainConduit(name string) (bool, error) {
+	row, err := catalog.thingRow(name)
+	if err != nil {
+		return false, err
+	}
+	if row.GetThingClass() != ClassPlainBuilding {
+		return false, nil
+	}
+	comp, err := catalog.CompOf(row, ClassPowerComp)
+	if err != nil || comp == nil {
+		return false, err
+	}
+	class, err := CompString(comp, "compClass")
+	return class == ClassConduitComp, err
+}
+
 // PowerBaseW is the base wattage a power row states for the named def, in the
 // sign the power policy reads: negative for a consumer, positive for a
 // producer, zero for a battery. It is the def's basePowerConsumption with the

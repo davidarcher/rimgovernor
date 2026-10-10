@@ -34,8 +34,14 @@ func DefTables() []DefTable {
 		{"suitePressureThoughts", "RimWorld.ThoughtDef", sortedKeys(suitePressureThoughts)},
 		{"GameRoomRoleDefs", "Verse.ThingDef", sortedKeys(GameRoomRoleDefs)},
 		{"NonFleshMeatDefs", "Verse.ThingDef", slices.Clone(NonFleshMeatDefs)},
+		{"QuestGiftDefs", "Verse.ThingDef", slices.Clone(QuestGiftDefs)},
 	}
 }
+
+// QuestGiftDefs are the items a Beggars quest's request may be answered with.
+// Native gives whatever the lord toil requests, so which items the colony
+// hands over is policy's choice, not a game rule.
+var QuestGiftDefs = []string{"Beer", "MedicineHerbal", "MedicineIndustrial", "Penoxycyline", "Silver"}
 
 // GameRoomRoleDefs are the ThingDefOf names the game's room-role workers score a
 // furniture role by: a def of the name has the role.

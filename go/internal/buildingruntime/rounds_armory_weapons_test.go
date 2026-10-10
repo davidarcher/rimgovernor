@@ -9,11 +9,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 func TestArmoryPrimary(t *testing.T) {
-	id, def, q := "r1", "Gun_Revolver", o.Quality_QUALITY_GOOD
+	id, def, q := "r1", "Gun_Revolver", d.QualityCategory_QUALITY_CATEGORY_GOOD
 	catalog, err := sharedBaseCatalog("load")
 	if err != nil {
 		t.Fatal(err)

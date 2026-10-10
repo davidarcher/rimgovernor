@@ -3,6 +3,7 @@ package bridge
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
@@ -59,8 +60,8 @@ func CreepJoinerHand(row *o.PawnState) policy.CreepJoinerHand {
 	if s := row.Settings; s != nil && !failedFields(s.Issues)["allowed_area_id"] {
 		hand.Area = domain.Known(s.GetAllowedAreaId())
 	}
-	if n := row.Needs; n != nil && n.HungerCategory != nil && n.GetHungerCategory() != o.HungerCategory_HUNGER_CATEGORY_UNSPECIFIED && !failedFields(n.Issues)["hunger_category"] {
-		hand.Hungry = domain.Known(n.GetHungerCategory() != o.HungerCategory_HUNGER_CATEGORY_FED)
+	if n := row.Needs; n != nil && n.HungerCategory != nil && !failedFields(n.Issues)["hunger_category"] {
+		hand.Hungry = domain.Known(n.GetHungerCategory() != d.HungerCategory_HUNGER_CATEGORY_FED)
 	}
 	mental := CellPresence(row.MentalState, row.Issues, "mental_state", false)
 	if row.GetDead() || row.GetDowned() || row.GetDrafted() {

@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -58,7 +59,7 @@ func armoryArmorRecipe(t *testing.T, plasteelFloor int64) string {
 	observed.Threat = &o.ThreatSection{Outcome: &o.ThreatSection_Observed{Observed: &o.ThreatFacts{RaidPoints: proto.Float64(3000)}}}
 	n := &fabricationArmorNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{roundsNative: native, ids: []string{"a", "b"}, weapons: []bridge.EquipCandidate{}, editPawn: func(row *o.PawnState) {
 		gun := row.GetPawn().GetId() + "-gun"
-		row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String(gun), Equipped: []*o.GearItem{{Thing: native.entity(&o.EntityRef{Id: proto.String(gun), DefName: proto.String("Gun_ChargeRifle")}), Quality: o.Quality_QUALITY_GOOD.Enum()}}}
+		row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String(gun), Equipped: []*o.GearItem{{Thing: native.entity(&o.EntityRef{Id: proto.String(gun), DefName: proto.String("Gun_ChargeRifle")}), Quality: d.QualityCategory_QUALITY_CATEGORY_GOOD.Enum()}}}
 	}}}}
 	settleGearPolicies(t, native)
 	reviewer.native = n

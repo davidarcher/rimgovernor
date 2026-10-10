@@ -12,6 +12,7 @@ using RimWorld;
 using Verse;
 using Verse.AI.Group;
 using Common = RimGovernor.Protocol.Common;
+using Defs = RimGovernor.Protocol.Defs;
 using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
@@ -274,7 +275,7 @@ namespace HomeBridge.BridgeTools
             if (pawn.needs?.mood != null) needs.Mood=Finite(pawn.needs.mood.CurLevelPercentage);
             else needs.Issues.Add(Issue("mood",Common.UnavailableReason.NativeComponentMissing,"Mood tracker unavailable."));
             if (detail) {
-                if(pawn.needs?.food != null) { needs.Food=Finite(pawn.needs.food.CurLevelPercentage); needs.HungerCategory=NativeEnums.Hunger(pawn.needs.food.CurCategory); }
+                if(pawn.needs?.food != null) { needs.Food=Finite(pawn.needs.food.CurLevelPercentage); needs.HungerCategory=(Defs.HungerCategory)(int)pawn.needs.food.CurCategory; }
                 else needs.Issues.Add(Issue("food",Common.UnavailableReason.NativeComponentMissing,"Food tracker unavailable."));
                 if(pawn.needs?.rest != null) needs.Rest=Finite(pawn.needs.rest.CurLevelPercentage); else needs.Issues.Add(Issue("rest",Common.UnavailableReason.NativeComponentMissing,"Rest tracker unavailable."));
                 if(pawn.needs?.joy != null) needs.Joy=Finite(pawn.needs.joy.CurLevelPercentage); else needs.Issues.Add(Issue("joy",Common.UnavailableReason.NativeComponentMissing,"Joy tracker unavailable."));

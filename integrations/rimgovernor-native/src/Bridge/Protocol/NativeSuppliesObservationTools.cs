@@ -192,7 +192,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.ResourceStock Project(List<StockEntry> entries, HashSet<Thing> reserved, bool includeHeld)
         {
             var first = entries[0].Thing.def;
-            var row = new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = Id(first.defName), Label = PlacementPreviewOperation.Diagnostic(first.LabelCap) },
+            var row = new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = Id(first.defName) },
                 Units = 0, Stacks = entries.Count, Spawned = 0, Ours = 0, OursUnforbidden = 0, Forbidden = 0,
                 PlayerFaction = 0, OtherFaction = 0, Fogged = 0, Reserved = 0 };
             if (includeHeld) { row.Carried = 0; row.InContainer = 0; row.TraderStock = 0; }

@@ -73,8 +73,6 @@ Use [shared rules](README.md) and the family contract documents for exact valida
 | `rimgovernor/lifecycle_save` | `rimgovernor.lifecycle.v1.Lifecycle/Save` | `rimgovernor.lifecycle.v1.SaveRequest` | `rimgovernor.lifecycle.v1.SaveReply` |
 | `rimgovernor/observations_flush_snapshot` | `rimgovernor.observations.v1.Observations/FlushSnapshot` | `rimgovernor.observations.v1.FlushSnapshotRequest` | `rimgovernor.observations.v1.FlushSnapshotReply` |
 | `rimgovernor/observations_get_cells` | `rimgovernor.observations.v1.Observations/GetCells` | `rimgovernor.observations.v1.GetCellsRequest` | `rimgovernor.observations.v1.GetCellsReply` |
-| `rimgovernor/observations_list_architect_categories` | `rimgovernor.observations.v1.Observations/ListArchitectCategories` | `rimgovernor.observations.v1.ArchitectCategoriesRequest` | `rimgovernor.observations.v1.ArchitectCategoriesReply` |
-| `rimgovernor/observations_list_architect_designators` | `rimgovernor.observations.v1.Observations/ListArchitectDesignators` | `rimgovernor.observations.v1.ArchitectDesignatorsRequest` | `rimgovernor.observations.v1.ArchitectDesignatorsReply` |
 | `rimgovernor/observations_list_buildings` | `rimgovernor.observations.v1.Observations/ListBuildings` | `rimgovernor.observations.v1.ListBuildingsRequest` | `rimgovernor.observations.v1.ListBuildingsReply` |
 | `rimgovernor/observations_list_pawns` | `rimgovernor.observations.v1.Observations/ListPawns` | `rimgovernor.observations.v1.ListPawnsRequest` | `rimgovernor.observations.v1.ListPawnsReply` |
 | `rimgovernor/observations_list_resource_sources` | `rimgovernor.observations.v1.Observations/ListResourceSources` | `rimgovernor.observations.v1.ResourceSourcesRequest` | `rimgovernor.observations.v1.ResourceSourcesReply` |

@@ -11,6 +11,7 @@ using RimWorld;
 using Verse;
 using Verse.AI.Group;
 using Common = RimGovernor.Protocol.Common;
+using Defs = RimGovernor.Protocol.Defs;
 using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
@@ -30,7 +31,7 @@ namespace HomeBridge.BridgeTools
         private static int SafeInt(Func<int> f) { try { return f(); } catch { return 0; } }
         private static float SafeFloat(Func<float> f) { try { return f(); } catch { return 0f; } }
         private static string SafeText(Func<string?> f) { try { return f() ?? ""; } catch { return ""; } }
-        private static Obs.PriceType SafePrice(Func<RimWorld.PriceType> f) { try { return NativeEnums.Price(f()); } catch { return Obs.PriceType.Unspecified; } }
+        private static Defs.PriceType SafePrice(Func<RimWorld.PriceType> f) { try { return (Defs.PriceType)(int)f(); } catch { return Defs.PriceType.Undefined; } }
 
 
         // A trader pawn's row head; its token is the row's trader_snapshot.
@@ -112,7 +113,7 @@ namespace HomeBridge.BridgeTools
             var line = new Obs.TradeLine
             {
                 Index = (uint)index, LineId = "#" + index,
-                Definition = new Obs.DefinitionRef { DefName = def != null ? def.defName : "", Label = def != null ? def.label ?? "" : "" },
+                Definition = new Obs.DefinitionRef { DefName = def != null ? def.defName : "" },
                 Stuff = SafeText(() => t.StuffDef != null ? t.StuffDef.defName : ""),
                 Category = def != null && def.FirstThingCategory != null ? def.FirstThingCategory.defName : "",
                 ColonyCount = SafeInt(() => t.CountHeldBy(Transactor.Colony)), TraderCount = SafeInt(() => t.CountHeldBy(Transactor.Trader)),
@@ -214,7 +215,7 @@ namespace HomeBridge.BridgeTools
                 CanTradeNow = SafeBool(() => session.Trader.CanTradeNow),
                 TraderHasEnoughSilver = SafeBool(() => deal.DoesTraderHaveEnoughSilver()),
                 DealSignature = session.DealSignature,
-                CurrencyKind = NativeTradeOperations.IsFavorSession() ? Obs.TradeCurrencyKind.Favor : Obs.TradeCurrencyKind.Silver,
+                CurrencyKind = NativeTradeOperations.IsFavorSession() ? Defs.TradeCurrency.Favor : Defs.TradeCurrency.Silver,
             };
             if (currency != null)
             {

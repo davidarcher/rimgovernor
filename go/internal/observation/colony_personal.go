@@ -154,8 +154,8 @@ func equippedWeapon(row *o.PawnState, tables bridge.Tables, catalog *bridge.Defi
 			return item, false, false
 		}
 		quality := 2
-		if q := g.GetQuality(); q != o.Quality_QUALITY_UNSPECIFIED {
-			quality = int(q) - 1
+		if g.Quality != nil {
+			quality = int(g.GetQuality())
 		}
 		base, err := optionStat(catalog, def, g.GetStuff(), statMarketValue, true)
 		if err != nil {

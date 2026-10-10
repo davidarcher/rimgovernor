@@ -148,8 +148,8 @@ func armoryPrimary(row *o.PawnState, things bridge.Things, catalog *bridge.Defin
 			return policy.ArmoryPrimary{}, false, err
 		}
 		quality := 2 // QualityCategory.Normal
-		if q := item.GetQuality(); q != o.Quality_QUALITY_UNSPECIFIED {
-			quality = int(q) - 1
+		if item.Quality != nil {
+			quality = int(item.GetQuality())
 		}
 		return policy.ArmoryPrimary{Definition: def, Ranged: facts.Ranged, Quality: quality, Facts: facts}, true, nil
 	}
