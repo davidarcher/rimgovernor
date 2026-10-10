@@ -1561,14 +1561,14 @@ const (
 func (s *ClockScheduler) warnIdleStall(ctx context.Context, tick int64) {
 	standing := make([]string, 0, len(s.plannerReasons.last))
 	for goal, note := range s.plannerReasons.last {
-		if note.Text == "" || note.Text == policy.PlannerOptOut {
+		if note.Cause == "" || note.Cause == policy.CauseHeldOptIn {
 			continue
 		}
 		kind := "refused"
-		if note.Waiting {
+		if note.Cause.Waiting() {
 			kind = "waiting"
 		}
-		standing = append(standing, fmt.Sprintf("%s %s: %s", goal, kind, note.Text))
+		standing = append(standing, fmt.Sprintf("%s %s: %s", goal, kind, policy.Wording(note.Cause, note.Subject)))
 	}
 	slices.Sort(standing)
 	// The colony refused no_work and nothing lent game time: a planner waits

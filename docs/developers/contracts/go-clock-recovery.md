@@ -532,17 +532,19 @@ branch on outcome or kind, never text. The kind lists are the constants in
 `outcome.go`.
 
 `Verdict.String` is the machine token (`kind[:subject[:detail]]`, no spaces) for the
-flight rows' `reason` and snapshot names; `Verdict.Text` is the plain-English
-sentence filed on `ConcernProgress.Planner`.
+flight rows' `reason` and snapshot names. Persisted progress and the wire carry the
+typed `policy.Cause` plus a subject bounded to `policy.MaxSubjectLen`
+(`ConcernProgress.Planner`, `PlannerSubject`); English for a cause lives only in
+`policy.Wording`, which the launcher renders.
 
 A planner's catalog entry names the one concern it serves (`plannerEntry.concern`), and the
 wave files its verdict there:
 
-- a refusal files as a block (`planner:` reason);
-- a wait files as a wait (`waiting:` reason, `ConcernProgress.PlannerWaiting`; no warning);
-- a disabled planner files the opt-out hold;
+- a refusal files its cause as the block;
+- a wait files its wait cause (`Cause.Waiting`; no warning);
+- a disabled planner files the opt-out hold (`held:opt-in`);
 - `already_working_on_it` waits on the earlier work;
-- `combat_orders` and `hold_fallback` file their sentence as a wait (nothing failed);
+- `combat_orders` and `hold_fallback` file their own wait causes (nothing failed);
 - an admitted or nothing-to-do verdict clears the concern's refusal or wait;
 - a verdict that says nothing about the concern (no review, a stale proposal) files nothing.
 

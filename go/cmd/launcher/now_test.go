@@ -19,10 +19,17 @@ func TestLabels(t *testing.T) {
 	if got := stopReason(""); got != "unspecified" {
 		t.Fatal(got)
 	}
-	for in, want := range map[string]string{"": "Progressing", "no_worker": "No capable worker available", "prerequisite:Roof": "Needs Roof first", "odd": "odd",
-		"planner:no site": "Planner refused: no site", "waiting:wood": "Waiting: wood"} {
-		if got := blockedLabel(in); got != want {
-			t.Fatalf("%q -> %q", in, got)
+	for _, c := range []struct{ in, subject, want string }{
+		{"", "", "Progressing"},
+		{"no_worker", "", "No colonist is able to do this work"},
+		{"prerequisite:Roof", "", "Needs Roof first"},
+		{"no_space", "power_route", "There is no verified place to put it (power_route)"},
+		{"already_working_on_it", "", "Earlier work is still standing and the goal moves with it"},
+		{"held:opt-in", "", "Held on purpose until it is switched on"},
+		{"odd", "", "The bot is held up for a reason it cannot name"},
+	} {
+		if got := blockedLabel(c.in, c.subject); got != c.want {
+			t.Fatalf("%q -> %q", c.in, got)
 		}
 	}
 	if group(1234567) != "1,234,567" || group(12) != "12" || group(-4200) != "-4,200" {
@@ -106,9 +113,9 @@ func TestReportView(t *testing.T) {
 			contains: map[string][]string{
 				"Doing":    {"|Roof: Build, to move roofed cells (last moved 2 game h ago) - Progressing", "|Pace: Running - 250 ticks/s"},
 				"Pursuing": {"|Stage Foothold since tick 1,200 - next stage waits on shelter: roof 40% of 80%", "|Roof - Build"},
-				"Concerns": {"|Roof - Build - Progressing - review in 1 game h", "warn|Feed - no method - No capable worker available - deficit 40% - no review deadline",
+				"Concerns": {"|Roof - Build - Progressing - review in 1 game h", "warn|Feed - no method - No colonist is able to do this work - deficit 40% - no review deadline",
 					"|Last stop: tick budget at tick 8,000, the controller's own - 12 ticks to detect, 1500.3 ms paused before readmission - 3 stop(s) this launch, 2 on budget and 1 reactive"},
-				"Waiting": {"|Feed - No capable worker available"},
+				"Waiting": {"|Feed - No colonist is able to do this work"},
 			}},
 		{name: "idle: held", now: Reading[spectator.Now]{Value: &held}, dev: Reading[RoundsView]{Value: &dev}, hasValue: true,
 			headline: "Stage Foothold, governor held for a review, last review 1 game h ago.",
@@ -127,14 +134,14 @@ func TestReportView(t *testing.T) {
 		{name: "emergency", now: Reading[spectator.Now]{Value: &emergencyNow}, dev: Reading[RoundsView]{Value: &emergencyDev}, hasValue: true,
 			headline: "Stage Foothold, governor running, last review 1,000 ticks ago, an emergency is in force.",
 			contains: map[string][]string{
-				"Concerns": {"emergency|Emergency in force.", "warn|Fire - Extinguish - No capable worker available - review overdue by 1,000 ticks", "warn|Roof - no method - No capable worker available"},
-				"Waiting":  {"|Roof - No capable worker available"},
+				"Concerns": {"emergency|Emergency in force.", "warn|Fire - Extinguish - No colonist is able to do this work - review overdue by 1,000 ticks", "warn|Roof - no method - No colonist is able to do this work"},
+				"Waiting":  {"|Roof - No colonist is able to do this work"},
 				"Doing":    {"|Fire: Extinguish, to move burning cells (last moved 100 ticks ago)"},
 			}},
 		{name: "stale progress keeps its last value", now: Reading[spectator.Now]{Value: &healthy}, hasValue: true,
 			dev:      Reading[RoundsView]{Value: &dev, Stale: true, Error: "HTTP 500", At: at},
 			headline: "Stage Foothold, governor running, last review 1 game h ago.",
-			contains: map[string][]string{"Waiting": {"|Feed - No capable worker available"}}},
+			contains: map[string][]string{"Waiting": {"|Feed - No colonist is able to do this work"}}},
 		{name: "stale now keeps its last value", now: Reading[spectator.Now]{Value: &healthy, Stale: true, Error: "HTTP 500", At: at},
 			dev: Reading[RoundsView]{Value: &dev}, hasValue: true, stale: true, notice: lastGood,
 			headline: "Stage Foothold, governor running, last review 1 game h ago."},

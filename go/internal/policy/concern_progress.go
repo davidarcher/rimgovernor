@@ -36,94 +36,86 @@ type ConcernProgress struct {
 	// Observed is the deficit fraction the last review measured, the
 	// evidence a shrinking deficit is compared against.
 	Observed *float64 `json:",omitempty"`
-	// Planner is the goal's planner's latest refusal ("no_space"), empty
-	// while it last admitted, found work or has not run (RecordPlannerReason).
-	// A record with no method reads it as BlockedPlanner, so "no_method"
-	// only means no planner has said why.
-	Planner string `json:",omitempty"`
-	// PlannerWaiting: Planner is a wait (the goal waits on something that is
-	// not a failure) rather than a refusal; a record with no method reads it
-	// as BlockedWaiting. Meaningless while Planner is empty.
-	PlannerWaiting bool `json:",omitempty"`
+	// Planner is the goal's planner's latest refusal or wait, empty while it
+	// last admitted, found work or has not run (RecordPlannerReasons). A
+	// record with no method reads it as its Blocked, so "no_method" only
+	// means no planner has said why.
+	Planner Cause `json:",omitempty"`
+	// PlannerSubject is the thing Planner concerns, bounded by MaxSubjectLen;
+	// empty when Planner is.
+	PlannerSubject string `json:",omitempty"`
 	// Open: the goal has a method with unsettled work in flight, the
 	// evidence a prerequisite is being worked rather than merely owed.
 	Open bool `json:",omitempty"`
 }
 
-// BlockedReason says why a goal's expected observable is not advancing. A
-// prerequisite reason carries the goal it waits on after a colon.
+// BlockedReason says why a goal's expected observable is not advancing: a
+// Cause, or a prerequisite naming the goal it waits on after a colon.
 type BlockedReason string
 
 const (
 	// BlockedNoWorker: the method's work is issued but no available pawn is
 	// capable of it, so the designation can never be taken.
-	BlockedNoWorker BlockedReason = "no_worker"
+	BlockedNoWorker BlockedReason = BlockedReason(CauseNoWorker)
 	// BlockedNativeIneligible: native refuses the order (no storage accepts
 	// the thing, no route reaches it).
-	BlockedNativeIneligible BlockedReason = "native_ineligible"
+	BlockedNativeIneligible BlockedReason = BlockedReason(CauseNativeIneligible)
 	// BlockedReconciling: a write's outcome is unknown; the action identity
 	// is reconciled before anything is retried.
-	BlockedReconciling BlockedReason = "reconcile_write"
+	BlockedReconciling BlockedReason = BlockedReason(CauseReconcileWrite)
 	// BlockedCooldown: every alternative method is under a cooldown.
-	BlockedCooldown BlockedReason = "cooldown"
+	BlockedCooldown BlockedReason = BlockedReason(CauseCooldown)
 	// BlockedNoMethod: the goal has no method open and its planner proposed
 	// none this review.
-	BlockedNoMethod     BlockedReason = "no_method"
+	BlockedNoMethod     BlockedReason = BlockedReason(CauseNoMethod)
 	blockedPrerequisite string        = "prerequisite:"
-	blockedPlanner      string        = "planner:"
-	blockedWaiting      string        = "waiting:"
 	blockedHeld         string        = "held:"
 	// Held reasons: the goal is intentionally not worked (HoldProgress).
-	HeldUnavailable BlockedReason = "held:unavailable"
-	HeldOptIn       BlockedReason = "held:opt-in"
+	HeldUnavailable BlockedReason = BlockedReason(CauseHeldUnavailable)
+	HeldOptIn       BlockedReason = BlockedReason(CauseHeldOptIn)
 )
-
-// BlockedPlanner blocks on the goal's planner's refusal reason.
-func BlockedPlanner(reason string) BlockedReason {
-	return BlockedReason(blockedPlanner + reason)
-}
-
-// BlockedWaiting is the goal's planner waiting on what the text says: not a
-// failure, but shown so the goal says what it waits on.
-func BlockedWaiting(text string) BlockedReason {
-	return BlockedReason(blockedWaiting + text)
-}
 
 // Waiting reports a planner wait.
 func (r BlockedReason) Waiting() bool {
-	return strings.HasPrefix(string(r), blockedWaiting)
+	return Cause(r).Waiting()
 }
 
 // PlannerNote is a planner's latest standing on a goal as it files on the
 // goal's progress record: the zero note clears it (the planner admitted or
-// found no deficit), Text is the plain-English refusal or wait, and Waiting
-// marks a wait.
+// found no deficit), otherwise Cause is the refusal, wait or opt-out
+// (CauseHeldOptIn) and Subject what it concerns.
 type PlannerNote struct {
-	Text    string
-	Waiting bool
+	Cause   Cause
+	Subject string
 }
 
 // Blocked is the reason a record with no method reads the note as: nothing
-// to do while cleared, a wait, or a planner refusal.
+// to do while cleared, else the note's cause.
 func (n PlannerNote) Blocked() BlockedReason {
-	switch {
-	case n.Text == "":
+	if n.Cause == "" {
 		return BlockedNoMethod
-	case n.Waiting:
-		return BlockedWaiting(n.Text)
 	}
-	return BlockedPlanner(n.Text)
+	return BlockedReason(n.Cause)
 }
 
-// Planner is the record's filed planner note.
+// PlannerNote is the record's filed planner note.
 func (p ConcernProgress) PlannerNote() PlannerNote {
-	return PlannerNote{Text: p.Planner, Waiting: p.PlannerWaiting}
+	return PlannerNote{Cause: p.Planner, Subject: p.PlannerSubject}
 }
 
 // Unmethoded reports a record whose blocked reason only the planner's note
-// can improve: no method, or a refusal or wait already filed from it.
-func (r BlockedReason) Unmethoded() bool {
-	return r == BlockedNoMethod || strings.HasPrefix(string(r), blockedPlanner) || r.Waiting()
+// can improve: no method, or the filed note's own reason.
+func (p ConcernProgress) Unmethoded() bool {
+	return p.Blocked == BlockedNoMethod || p.Planner != "" && p.Blocked == BlockedReason(p.Planner)
+}
+
+// BlockedSubject is the subject of a blocked reason that is the filed
+// planner note; empty for any other reason.
+func (p ConcernProgress) BlockedSubject() string {
+	if p.Planner != "" && p.Blocked == BlockedReason(p.Planner) {
+		return p.PlannerSubject
+	}
+	return ""
 }
 
 // Held reports a goal intentionally not worked: a held: reason or a
@@ -136,20 +128,6 @@ func (r BlockedReason) Held() bool {
 // not held and not merely waiting.
 func (r BlockedReason) Actionable() bool {
 	return r != "" && !r.Held() && !r.Waiting()
-}
-
-// printableReason bounds a free-text reason suffix to short printable ASCII
-// (spaces allowed: planner reasons are sentences).
-func printableReason(s string) bool {
-	if s == "" || len(s) > 96 {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		if s[i] < 0x20 || s[i] > 0x7e {
-			return false
-		}
-	}
-	return true
 }
 
 // BlockedPrerequisite blocks on another goal that must be served first.
@@ -166,16 +144,13 @@ func (r BlockedReason) Prerequisite() ConcernID {
 }
 
 func (r BlockedReason) valid() bool {
-	switch r {
-	case "", BlockedNoWorker, BlockedNativeIneligible, BlockedReconciling, BlockedCooldown, BlockedNoMethod:
+	switch {
+	case r == "":
 		return true
+	case r.Prerequisite() != "":
+		return validResource(Resource(r.Prerequisite()))
 	}
-	for _, prefix := range []string{blockedPlanner, blockedWaiting, blockedHeld} {
-		if strings.HasPrefix(string(r), prefix) {
-			return printableReason(strings.TrimPrefix(string(r), prefix))
-		}
-	}
-	return r.Prerequisite() != "" && validResource(Resource(r.Prerequisite()))
+	return Cause(r).Validate() == nil
 }
 
 // ProgressCooldown keeps one failed situation (a prey, a haul target, a
@@ -406,7 +381,7 @@ func AddProgressCooldown(p ConcernProgress, key string, until, now domain.Tick) 
 
 // ValidateGoalProgress checks a persisted record against the review tick.
 func ValidateConcernProgress(p ConcernProgress, tick domain.Tick) error {
-	if !validResource(Resource(p.Concern)) || len(p.Method) > 64 || p.LastProgress < 0 || p.LastProgress > tick || p.NextReview < 0 || !p.Blocked.valid() || p.Planner != "" && !printableReason(p.Planner) || p.Planner == "" && p.PlannerWaiting {
+	if !validResource(Resource(p.Concern)) || len(p.Method) > 64 || p.LastProgress < 0 || p.LastProgress > tick || p.NextReview < 0 || !p.Blocked.valid() || !validPlannerNote(p.PlannerNote()) {
 		return errors.New("invalid standard progress")
 	}
 	if p.Observed != nil && (*p.Observed < 0 || *p.Observed > 1) {
@@ -464,22 +439,28 @@ func ConcernProgressContract(method string, p RoundsPolicy) ProgressContract {
 	return ProgressContract{Method: method, Expected: "deficit shrinks or the method's work settles", Deadline: domain.Tick(p.ConcernStallTicks)}
 }
 
-// PlannerOptOut is the planner reason for a goal whose method this runtime
-// did not enable (the routine building planners' "disabled").
-const PlannerOptOut = "disabled"
+// validPlannerNote reports a filed note whose cause is in the closed set and
+// whose subject is within the bound Wording folds in; a cleared note has
+// neither.
+func validPlannerNote(n PlannerNote) bool {
+	if n.Cause == "" {
+		return n.Subject == ""
+	}
+	return n.Cause.Validate() == nil && n.Subject == BoundSubject(n.Subject)
+}
 
 // HoldProgress reports unavailable methods and planner opt-outs.
 func HoldProgress(progress []ConcernProgress, unavailable map[ConcernID]bool) []ConcernProgress {
 	out := append([]ConcernProgress(nil), progress...)
 	for i := range out {
 		p := &out[i]
-		if !p.Blocked.Unmethoded() {
+		if !p.Unmethoded() {
 			continue
 		}
 		switch {
 		case unavailable[p.Concern]:
 			p.Blocked = HeldUnavailable
-		case p.Planner == PlannerOptOut:
+		case p.Planner == CauseHeldOptIn:
 			p.Blocked = HeldOptIn
 		}
 	}

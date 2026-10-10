@@ -125,6 +125,14 @@ func TestProjectPacingReasons(t *testing.T) {
 }
 
 // The panel bounds its concern rows and carries a prerequisite blocker's concern.
+func TestProjectConcernCarriesThePlannerCauseAndSubject(t *testing.T) {
+	progress := []policy.ConcernProgress{{Concern: "MaintainShelter", Blocked: policy.BlockedReason(policy.CauseNoSpace), Planner: policy.CauseNoSpace, PlannerSubject: "bunks"}}
+	got := concerns(progress, 5)
+	if got[0].Blocked != "no_space" || got[0].BlockedSubject != "bunks" {
+		t.Fatal(got[0])
+	}
+}
+
 func TestProjectConcernBoundAndPrerequisite(t *testing.T) {
 	progress := []policy.ConcernProgress{{Concern: "MaintainResource-Steel", Method: "mine", Expected: "steel in storage", Blocked: policy.BlockedPrerequisite("MaintainFoodStorage")}}
 	for i := 0; i < 10; i++ {

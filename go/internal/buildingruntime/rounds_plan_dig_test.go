@@ -236,7 +236,7 @@ func TestDigPlannedRefusesLoudlyWhenADigSettlesWithRockStanding(t *testing.T) {
 	if !stuck.Verdict.Is(policy.CauseRockNotDug) || stuck.Verdict.Outcome != OutcomeRefused {
 		t.Fatal(stuck.Verdict)
 	}
-	if text := outcomeSentence(stuck.Verdict); !strings.Contains(text, "Rock still stands") || !strings.Contains(text, "plan-dig-test") {
+	if text := policy.Wording(stuck.Verdict.Refusal.Kind, stuck.Verdict.Refusal.Subject); !strings.Contains(text, "Rock still stands") || !strings.Contains(text, "plan-dig-test") {
 		t.Fatal(text)
 	}
 }

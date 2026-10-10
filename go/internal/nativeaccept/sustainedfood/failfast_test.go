@@ -33,7 +33,7 @@ func TestFailFastRetryableUnsuccessfulSkipsListedReasons(t *testing.T) {
 func idleSample(revision uint64, idle bool, methods int) map[string]any {
 	blocked := ""
 	if !idle {
-		blocked = string(policy.BlockedWaiting("prerequisite"))
+		blocked = string(policy.BlockedReason(policy.CauseExistingWork))
 	}
 	return map[string]any{"review_revision": revision, "method_count": methods, "need": "unmet", "status": "open", "blocked": blocked}
 }
@@ -67,7 +67,7 @@ func TestFailFastNoMethodCountsDistinctIdleReviews(t *testing.T) {
 	}
 	// A goal the review never selected (startup_survival) is waiting, not refused.
 	waiting := idleSample(2, false, 0)
-	waiting["blocked"] = string(policy.BlockedWaiting("prerequisite"))
+	waiting["blocked"] = string(policy.BlockedReason(policy.CauseExistingWork))
 	if _, failed := g.check(waiting); failed {
 		t.Fatal("an unselected goal is not a refusal")
 	}

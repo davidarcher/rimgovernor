@@ -57,6 +57,7 @@ type RoundsView struct {
 type ConcernBlock struct {
 	Concern string `json:"concern"`
 	Blocked string `json:"blocked"`
+	Subject string `json:"subject,omitempty"`
 }
 
 // feed holds one endpoint's last good value behind its own lock, so a slow

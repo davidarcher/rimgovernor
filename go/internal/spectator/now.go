@@ -85,14 +85,15 @@ type Stage struct {
 // observable that proves the method advances, when that last moved, when it
 // is judged stalled and what blocks it now.
 type Concern struct {
-	Concern      string      `json:"concern"`
-	Method       string      `json:"method"`
-	Expected     string      `json:"expected"`
-	LastProgress domain.Tick `json:"lastProgress"`
-	NextReview   domain.Tick `json:"nextReview"`
-	Blocked      string      `json:"blocked"`
-	Prerequisite string      `json:"prerequisite"`
-	Observed     *float64    `json:"observed"`
+	Concern        string      `json:"concern"`
+	Method         string      `json:"method"`
+	Expected       string      `json:"expected"`
+	LastProgress   domain.Tick `json:"lastProgress"`
+	NextReview     domain.Tick `json:"nextReview"`
+	Blocked        string      `json:"blocked"`
+	BlockedSubject string      `json:"blockedSubject,omitempty"`
+	Prerequisite   string      `json:"prerequisite"`
+	Observed       *float64    `json:"observed"`
 }
 
 // Pacing is the pacing reason with the speed it explains.
@@ -314,7 +315,7 @@ func concerns(records []policy.ConcernProgress, limit int) []Concern {
 	out := make([]Concern, 0, len(records))
 	for _, r := range records {
 		out = append(out, Concern{Concern: string(r.Concern), Method: r.Method, Expected: r.Expected, LastProgress: r.LastProgress,
-			NextReview: r.NextReview, Blocked: string(r.Blocked), Prerequisite: string(r.Blocked.Prerequisite()), Observed: r.Observed})
+			NextReview: r.NextReview, Blocked: string(r.Blocked), BlockedSubject: r.BlockedSubject(), Prerequisite: string(r.Blocked.Prerequisite()), Observed: r.Observed})
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		a, b := out[i], out[j]

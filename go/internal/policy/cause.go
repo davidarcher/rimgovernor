@@ -49,6 +49,10 @@ const (
 	CauseFacilityAccess  Cause = "existing_facility_access_blocked"
 	CauseRoomTemperature Cause = "waiting_for_native_temperature"
 	CauseRetryBudgetWait Cause = "retry_budget_waiting"
+	// CauseCombatOrders and CauseHoldFallback are the fight outcomes, waits in
+	// all but name: nothing failed. They are not wait kinds a Verdict may carry.
+	CauseCombatOrders Cause = "combat_orders"
+	CauseHoldFallback Cause = "hold_fallback"
 )
 
 // Admission reasons that are not already a Cause above.
@@ -119,6 +123,7 @@ var Causes = []Cause{
 	CauseNoMethod, CauseHeldUnavailable, CauseHeldOptIn,
 	CauseMethodUsed, CauseExistingWork, CauseBunksOpen, CauseBreachHeld, CauseComfortUse, CauseFacility, CauseHospitalConvert,
 	CauseSleepingUse, CauseSeparation, CauseDialog, CauseClaim, CauseFacilityAccess, CauseRoomTemperature, CauseRetryBudgetWait,
+	CauseCombatOrders, CauseHoldFallback,
 	CauseNotReady, CauseAlreadyReserved, CauseUnknownFacts, CauseStaleFacts, CauseUnsafePlacement, CauseUnsafeThreat,
 	CauseCriticalMedical, CauseMaterialRequired, CauseDependencyBlocked, CauseGeometryBlocked, CauseInvalidHeld,
 	CauseExcavationUnsupported, CauseExcavationGeometryChanged, CauseUnsafeRoute, CauseRoofSupportRisk, CauseStorageMissing,
@@ -139,12 +144,25 @@ func CauseOfReason(r Reason) Cause { return Cause(r) }
 var fixedBlocked = []BlockedReason{BlockedNoWorker, BlockedNativeIneligible, BlockedReconciling, BlockedCooldown, BlockedNoMethod, HeldUnavailable, HeldOptIn}
 
 // CauseOfBlocked is the Cause of a fixed BlockedReason; ok is false for the
-// composed forms (planner:, waiting:, prerequisite:).
+// prerequisite form.
 func CauseOfBlocked(r BlockedReason) (Cause, bool) {
 	if !slices.Contains(fixedBlocked, r) {
 		return "", false
 	}
 	return Cause(r), true
+}
+
+// WaitCauses are the causes an OutcomeWaiting verdict may carry: the goal
+// waits on something that is not a failure.
+var WaitCauses = []Cause{
+	CauseMethodUsed, CauseExistingWork, CauseBunksOpen, CauseBreachHeld, CauseComfortUse, CauseFacility, CauseHospitalConvert,
+	CauseSleepingUse, CauseSeparation, CauseDialog, CauseClaim, CauseFacilityAccess, CauseRoomTemperature, CauseRetryBudgetWait,
+}
+
+// Waiting reports a cause that is a wait rather than a refusal: a wait kind or
+// one of the two fight outcomes.
+func (c Cause) Waiting() bool {
+	return c == CauseCombatOrders || c == CauseHoldFallback || slices.Contains(WaitCauses, c)
 }
 
 // Validate reports a Cause outside the closed set.
@@ -165,14 +183,16 @@ func Wording(c Cause, subject string) string {
 	if !ok {
 		base = "The bot is held up for a reason it cannot name."
 	}
-	subject = boundedSubject(subject)
+	subject = BoundSubject(subject)
 	if subject == "" {
 		return base
 	}
 	return strings.TrimSuffix(base, ".") + " (" + subject + ")."
 }
 
-func boundedSubject(s string) string {
+// BoundSubject cuts a subject to MaxSubjectLen printable ASCII characters,
+// the form a progress record persists and Wording folds in.
+func BoundSubject(s string) string {
 	var b strings.Builder
 	for _, r := range s {
 		if b.Len() >= MaxSubjectLen {
@@ -218,6 +238,8 @@ var causeWording = map[Cause]string{
 	CauseFacilityAccess:  "A facility stands but some colonists cannot reach it.",
 	CauseRoomTemperature: "The room's temperature has to settle first.",
 	CauseRetryBudgetWait: "The game refused this for now and nothing has changed since.",
+	CauseCombatOrders:    "Combat orders are running.",
+	CauseHoldFallback:    "The hold line fell back to squad defense.",
 
 	CauseNotReady:                  "The action is not ready yet.",
 	CauseAlreadyReserved:           "Something else already reserved this.",

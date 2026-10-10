@@ -213,7 +213,7 @@ func (r Rounds) ConcernProgress(need domain.ConcernID) (policy.ConcernProgress, 
 }
 
 // RecordPlannerReasons files each goal's latest planner refusal on its
-// progress record (GoalProgress.Planner); the zero note clears it (the
+// progress record (ConcernProgress.Planner); the zero note clears it (the
 // planner admitted or found work). A record with no method, or one already
 // naming a planner refusal or wait, is relabelled at once so the strip names the reason
 // before the next review; held records keep their hold. Goals without a
@@ -238,13 +238,10 @@ func (s *Store) RecordPlannerReasons(ctx context.Context, reasons map[domain.Con
 		if !ok || p.PlannerNote() == note {
 			continue
 		}
-		p.Planner, p.PlannerWaiting = note.Text, note.Waiting
-		if p.Blocked.Unmethoded() {
-			if note.Text == policy.PlannerOptOut {
-				p.Blocked = policy.HeldOptIn
-			} else {
-				p.Blocked = note.Blocked()
-			}
+		unmethoded := p.Unmethoded()
+		p.Planner, p.PlannerSubject = note.Cause, note.Subject
+		if unmethoded {
+			p.Blocked = note.Blocked()
 		}
 		if err = policy.ValidateConcernProgress(*p, review.Tick); err != nil {
 			return false, fmt.Errorf("%s: %w", p.Concern, err)

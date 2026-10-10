@@ -42,7 +42,7 @@ const (
 // catch-all. English for them lives in policy.Wording.
 var (
 	refusalKinds = []policy.Cause{policy.CauseCollapsePending, policy.CauseNoWorker, policy.CauseAwaitingPlan, policy.CauseFieldUnavailable, policy.CauseNoSpace, policy.CauseSharedAdmission, policy.CauseRetriesSpent, policy.CauseRockNotDug, policy.CauseSiteBlocked}
-	waitKinds    = []policy.Cause{policy.CauseMethodUsed, policy.CauseExistingWork, policy.CauseBunksOpen, policy.CauseBreachHeld, policy.CauseComfortUse, policy.CauseFacility, policy.CauseHospitalConvert, policy.CauseSleepingUse, policy.CauseSeparation, policy.CauseDialog, policy.CauseClaim, policy.CauseRoomTemperature, policy.CauseFacilityAccess, policy.CauseRetryBudgetWait}
+	waitKinds    = policy.WaitCauses
 )
 
 // Refusal says why an OutcomeRefused step stopped or what an OutcomeWaiting

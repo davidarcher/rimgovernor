@@ -173,6 +173,7 @@ type concernProgressDTO struct {
 	LastProgress domain.Tick           `json:"lastProgress"`
 	NextReview   domain.Tick           `json:"nextReview"`
 	Blocked      policy.BlockedReason  `json:"blocked"`
+	Subject      string                `json:"subject,omitempty"`
 	Cooldowns    []progressCooldownDTO `json:"cooldowns"`
 }
 
@@ -184,7 +185,7 @@ type progressCooldownDTO struct {
 func concernProgress(records []policy.ConcernProgress) []concernProgressDTO {
 	out := make([]concernProgressDTO, 0, len(records))
 	for _, p := range records {
-		dto := concernProgressDTO{Concern: p.Concern, Method: p.Method, Expected: p.Expected, LastProgress: p.LastProgress, NextReview: p.NextReview, Blocked: p.Blocked, Cooldowns: []progressCooldownDTO{}}
+		dto := concernProgressDTO{Concern: p.Concern, Method: p.Method, Expected: p.Expected, LastProgress: p.LastProgress, NextReview: p.NextReview, Blocked: p.Blocked, Subject: p.BlockedSubject(), Cooldowns: []progressCooldownDTO{}}
 		for _, c := range p.Cooldowns {
 			dto.Cooldowns = append(dto.Cooldowns, progressCooldownDTO{Key: c.Key, Until: c.Until})
 		}

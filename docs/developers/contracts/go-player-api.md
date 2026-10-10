@@ -140,6 +140,7 @@ Read routes name the watched kind `concern` (a Concern id string such as `Ensure
 `GET /api/routines` carries `progress[].concern` and `noOps[].concern`;
 `GET /api/spectator/now` carries `concerns[]` with `concerns[].concern`. Other fields (`method`,
 `expected`, `lastProgress`, `nextReview`, `blocked`, `cooldowns`, `prerequisite`, ...) are as named.
+`blocked` is a `policy.Cause` wire value (or `prerequisite:<concern>`); `subject` (`blockedSubject` on the spectator) is its optional bounded subject, and the client renders both through `policy.Wording`.
 
 ## Finding value strings
 

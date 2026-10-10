@@ -9,13 +9,13 @@ import (
 )
 
 // plannerRecordReason is what a planner's verdict files on its goal's
-// record. A refusal and a wait file their plain-English text (a wait marked
-// as one); a planner whose fight is running orders (combat_orders) or fell
-// back to squad defense (hold_fallback) files that text as a wait, since the
-// fight is under way and nothing failed; a planner that admitted or saw no
-// deficit files the zero note, which clears the goal's filed refusal or wait; a switched-off
-// planner files the opt-out hold. False skips filing: no verdict, an invalid
-// one, unprintable text, or an outcome that says nothing about the goal (no
+// record: the verdict's cause and its bounded subject. A refusal and a wait
+// file their cause; a planner whose fight is running orders (combat_orders)
+// or fell back to squad defense (hold_fallback) files its own wait cause,
+// since the fight is under way and nothing failed; a planner that admitted or
+// saw no deficit files the zero note, which clears the goal's filed refusal or
+// wait; a switched-off planner files the opt-out hold. False skips filing: no
+// verdict, an invalid one, or an outcome that says nothing about the goal (no
 // review to judge, a stale proposal).
 func plannerRecordReason(v Verdict) (policy.PlannerNote, bool) {
 	if v.IsZero() {
@@ -28,33 +28,15 @@ func plannerRecordReason(v Verdict) (policy.PlannerNote, bool) {
 	case OutcomeAdmitted, OutcomeNothingToDo:
 		return policy.PlannerNote{}, true
 	case OutcomeDisabled:
-		return policy.PlannerNote{Text: policy.PlannerOptOut}, true
+		return policy.PlannerNote{Cause: policy.CauseHeldOptIn}, true
 	case OutcomeNoReview, OutcomeExpired:
 		return policy.PlannerNote{}, false
-	}
-	s := outcomeSentence(v)
-	if len(s) > 96 {
-		s = s[:96]
-	}
-	for i := 0; i < len(s); i++ {
-		if s[i] < 0x20 || s[i] > 0x7e {
-			return policy.PlannerNote{}, false
-		}
-	}
-	return policy.PlannerNote{Text: s, Waiting: v.Outcome != OutcomeRefused}, true
-}
-
-// outcomeSentence is the sentence a verdict files: a refusal or wait reads its
-// cause's wording naming the subject; the two fight outcomes, which are waits
-// in all but name, read their own sentence.
-func outcomeSentence(v Verdict) string {
-	switch v.Outcome {
 	case OutcomeOrdersSent:
-		return "combat orders are running"
+		return policy.PlannerNote{Cause: policy.CauseCombatOrders}, true
 	case OutcomeHoldFallback:
-		return "the hold line fell back to squad defense"
+		return policy.PlannerNote{Cause: policy.CauseHoldFallback}, true
 	}
-	return policy.Wording(v.Refusal.Kind, v.Refusal.Subject)
+	return policy.PlannerNote{Cause: v.Refusal.Kind, Subject: policy.BoundSubject(v.Refusal.Subject)}, true
 }
 
 // noteRank orders the notes sibling planners file on one goal: a refusal
@@ -63,11 +45,11 @@ func outcomeSentence(v Verdict) string {
 // planner of the goal is switched off.
 func noteRank(n policy.PlannerNote) int {
 	switch {
-	case n.Text == "":
+	case n.Cause == "":
 		return 1
-	case n.Text == policy.PlannerOptOut && !n.Waiting:
+	case n.Cause == policy.CauseHeldOptIn:
 		return 0
-	case n.Waiting:
+	case n.Cause.Waiting():
 		return 2
 	}
 	return 3

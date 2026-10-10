@@ -85,8 +85,8 @@ func TestFixedBlockedMapToACause(t *testing.T) {
 	if len(fixedBlocked) != 7 {
 		t.Errorf("%d fixed blocked reasons, want 7", len(fixedBlocked))
 	}
-	if _, ok := CauseOfBlocked(BlockedPlanner("x")); ok {
-		t.Error("composed blocked reason mapped")
+	if _, ok := CauseOfBlocked(BlockedPrerequisite("x")); ok {
+		t.Error("prerequisite blocked reason mapped")
 	}
 }
 

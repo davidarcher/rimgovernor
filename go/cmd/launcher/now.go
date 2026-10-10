@@ -8,6 +8,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/spectator"
 )
 
@@ -107,37 +108,17 @@ func stopReason(reason string) string {
 	return r
 }
 
-// blockedLabel names a concern's blocker (policy.BlockedReason); a
-// prerequisite names the concern that must land first.
-func blockedLabel(blocked string) string {
+// blockedLabel names a concern's blocker (policy.BlockedReason) in the
+// wording table's sentence; a prerequisite names the concern that must land
+// first.
+func blockedLabel(blocked, subject string) string {
 	if rest, ok := strings.CutPrefix(blocked, "prerequisite:"); ok {
 		return "Needs " + concernLabel(rest) + " first"
 	}
-	if rest, ok := strings.CutPrefix(blocked, "planner:"); ok {
-		return "Planner refused: " + rest
-	}
-	if rest, ok := strings.CutPrefix(blocked, "waiting:"); ok {
-		return "Waiting: " + rest
-	}
-	switch blocked {
-	case "":
+	if blocked == "" {
 		return "Progressing"
-	case "held:unavailable":
-		return "Held: unavailable"
-	case "held:opt-in":
-		return "Held: not opted in"
-	case "no_worker":
-		return "No capable worker available"
-	case "native_ineligible":
-		return "Native holds the order ineligible"
-	case "reconcile_write":
-		return "Reconciling an uncertain order"
-	case "cooldown":
-		return "Every method on cooldown"
-	case "no_method":
-		return "No method in play"
 	}
-	return blocked
+	return strings.TrimSuffix(policy.Wording(policy.Cause(blocked), subject), ".")
 }
 
 // ReportLine is one sentence of the report. Flag is "", "warn" or
@@ -295,7 +276,7 @@ func reportView(nr Reading[spectator.Now], dr Reading[RoundsView]) ReportView {
 				text += ", to move " + c.Expected + " (" + movedAgo(c.LastProgress, n.Tick) + ")"
 			}
 		}
-		text += " - " + blockedLabel(c.Blocked)
+		text += " - " + blockedLabel(c.Blocked, c.BlockedSubject)
 		if idle {
 			text = "Last on the list: " + text
 		}
@@ -317,7 +298,7 @@ func reportView(nr Reading[spectator.Now], dr Reading[RoundsView]) ReportView {
 	waiting := ReportSection{Title: "Waiting", Note: devNote}
 	for _, c := range n.Concerns {
 		if c.Blocked != "" {
-			waiting.Lines = append(waiting.Lines, ReportLine{Text: concernLabel(c.Concern) + " - " + blockedLabel(c.Blocked)})
+			waiting.Lines = append(waiting.Lines, ReportLine{Text: concernLabel(c.Concern) + " - " + blockedLabel(c.Blocked, c.BlockedSubject)})
 		}
 		if c.Method != "" {
 			pursuing.Lines = append(pursuing.Lines, ReportLine{Text: concernLabel(c.Concern) + " - " + c.Method})
@@ -338,7 +319,7 @@ func reportView(nr Reading[spectator.Now], dr Reading[RoundsView]) ReportView {
 		if method == "" {
 			method = "no method"
 		}
-		text := fmt.Sprintf("%s - %s - %s", concernLabel(c.Concern), method, blockedLabel(c.Blocked))
+		text := fmt.Sprintf("%s - %s - %s", concernLabel(c.Concern), method, blockedLabel(c.Blocked, c.BlockedSubject))
 		if c.Observed != nil {
 			text += fmt.Sprintf(" - deficit %d%%", int(math.Round(*c.Observed*100)))
 		}
