@@ -188,16 +188,20 @@ a simple name). The messages hold no values: native fills them by reflection.
   primitive, `string` or enum type (a `char` is its `uint32` code unit) or of a
   struct the def-field mapping represents (`IntRange`, `FloatRange`, `IntVec2`,
   `IntVec3`, `CellRect`, `LevelThresholds`, `PathFinderCostTuning`, `Color`, ...),
-  mapped exactly as a def field of that type.
+  mapped exactly as a def field of that type; or `Verse.SimpleCurve`, the
+  existing `SimpleCurve` message (its points, unset for a null curve; the
+  generator evaluates nothing); or a one-dimensional array or `List<T>` of
+  primitives, strings or enums, a `repeated` field.
 - Every enum of the namespaces is emitted, reachable from a def field or not
   (`TileMutatorWorker_Stockpile_StockpileType`).
 - Excluded by rule: `Dialog_*` classes, `Widgets`, `DevGUI`, `*DefOf` classes,
   other namespaces (`LudeonTK`, `Ionic.Zlib`, ...) and compiler-generated types
   and members.
-- Not carried yet: members of any other type (`SimpleCurve`, arrays,
-  collections, `Texture2D`, `System.Type`, ...). The `defs.proto` header lists
-  each with its type and reason; there is no name list. A public member of a
-  primitive, string, enum or struct type the mapping cannot represent fails
+- Not carried yet: members of any other type (`HashSet`, `Dictionary`,
+  arrays and lists of structs or classes such as `List<IntVec3>`, multidimensional
+  arrays, `LudeonTK.ComplexCurve`, `Texture2D`, `System.Type`, ...). The
+  `defs.proto` header lists each with its type and reason; there is no name list.
+  A public member of a carried type the mapping cannot represent fails
   generation naming `Class.member`, as a def field does.
 
 ### Class chains

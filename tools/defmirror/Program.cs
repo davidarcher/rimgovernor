@@ -210,11 +210,6 @@ internal sealed class Generator
         return errors.Count > 0 ? "" : text;
     }
 
-    private static readonly HashSet<string> GameplayNamespaces = new()
-    {
-        "RimWorld", "Verse", "Verse.AI", "RimWorld.Planet", "RimWorld.QuestGen", "Verse.AI.Group",
-    };
-
     // The audit behind cmd/catalogaudit: one tab-separated line per game member
     // outside the def rows. "const" is a const or static readonly scalar or enum
     // and "curve" a static SimpleCurve, both in the gameplay namespaces of
@@ -231,7 +226,7 @@ internal sealed class Generator
             foreach (var f in type.GetFields(all).OrderBy(f => f.MetadataToken))
             {
                 if (f.Name.Contains('<')) continue;
-                if (f.IsStatic && GameplayNamespaces.Contains(type.Namespace ?? ""))
+                if (f.IsStatic && ConstantNamespaces.Contains(type.Namespace ?? ""))
                 {
                     if (f.FieldType.FullName == "Verse.SimpleCurve") sb.Append($"curve\t{type.FullName}\t{f.Name}\n");
                     else if ((f.IsLiteral || f.IsInitOnly) && (f.FieldType.IsEnum || ScalarOf(f.FieldType) != null && f.FieldType.FullName != "System.Type"))
@@ -664,7 +659,7 @@ internal sealed class Generator
             {
                 if (!(f.IsLiteral || f.IsInitOnly) || f.Name.Contains('<')) continue;
                 var where = $"{t.FullName}.{f.Name}";
-                var element = StaticElement(f, where, out var reason);
+                var element = StaticElement(f, where, out var reason, out var repeated);
                 if (element == null)
                 {
                     unrepresented.Add($"{where}: {TypeText(f.FieldType)} ({reason})");
@@ -677,24 +672,34 @@ internal sealed class Generator
                     continue;
                 }
                 keys[key] = f.Name;
-                message.Fields.Add(new Field { Name = f.Name, Number = message.Fields.Count + 1, Info = f, Element = element });
+                message.Fields.Add(new Field { Name = f.Name, Number = message.Fields.Count + 1, Info = f, Element = element, Repeated = repeated });
             }
             if (message.Fields.Count > 0) holders[t] = message;
         }
     }
 
-    private Ref? StaticElement(FieldInfo f, string where, out string reason)
+    private static bool IsPlain(Type t) => (t.IsPrimitive || t.IsEnum || t.FullName == "System.String") && t.FullName != "System.Type";
+
+    // The wire element of a static member: a primitive, string, enum or struct, a SimpleCurve
+    // (data points; native fills them by reflection and nothing evaluates a curve here), or
+    // repeated elements for a one-dimensional array or List of primitives, strings or enums.
+    private Ref? StaticElement(FieldInfo f, string where, out string reason, out bool repeated)
     {
         var t = f.FieldType;
         reason = "";
+        repeated = false;
         if (RuntimeState(t) is { } state) { reason = $"runtime state {TypeText(state)}"; return null; }
-        var carried = t.IsPrimitive || t.IsEnum || t.FullName == "System.String" || (t.IsValueType && !t.FullName!.StartsWith("System.", StringComparison.Ordinal));
-        if (!carried || t.FullName == "System.Type")
+        var elementType = t;
+        if (t.IsArray && t.GetArrayRank() == 1) { elementType = t.GetElementType()!; repeated = true; }
+        else if (t.IsGenericType && t.GetGenericTypeDefinition().FullName == "System.Collections.Generic.List`1") { elementType = t.GetGenericArguments()[0]; repeated = true; }
+        var carried = repeated ? IsPlain(elementType)
+            : t.FullName == "Verse.SimpleCurve" || IsPlain(t) || (t.IsValueType && !t.FullName!.StartsWith("System.", StringComparison.Ordinal));
+        if (!carried)
         {
-            reason = "not a primitive, string, enum or struct: curves, arrays and collections are not carried yet";
+            reason = "not a primitive, string, enum, struct or SimpleCurve, nor a one-dimensional array or List of primitives, strings or enums";
             return null;
         }
-        try { return Resolve(t); }
+        try { return Resolve(elementType); }
         catch (Unsupported u)
         {
             reason = u.Message;
@@ -809,12 +814,13 @@ internal sealed class Generator
         L("//");
         L("// GameConstants: one <Class>Constants message per class or struct of the namespaces " + string.Join(", ", ConstantNamespaces));
         L("// that holds a carried static member, and the root GameConstants with one field per such class.");
-        L("// A member is every const and static readonly of a primitive, string or enum type or of a struct the");
-        L("// mapping above represents, whatever its visibility; field names are the CLR names. Every enum of the");
+        L("// A member is every const and static readonly of a primitive, string or enum type, of a struct the");
+        L("// mapping above represents, of Verse.SimpleCurve (its points, unset for a null curve) or a one-dimensional");
+        L("// array or List of primitives, strings or enums (repeated), whatever its visibility; field names are the CLR names. Every enum of the");
         L("// namespaces is emitted, reachable from a def field or not. Excluded: Dialog_* classes, Widgets, DevGUI,");
         L("// *DefOf classes and compiler-generated members. A member the mapping cannot represent is listed here with");
-        L("// its reason; a public one of a primitive, string, enum or struct type fails the run instead.");
-        L("// Members not carried (class-typed values such as curves, arrays and collections stay out until a later change):");
+        L("// its reason; a public one of a carried type the mapping cannot represent fails the run instead.");
+        L("// Members not carried (other collections, arrays of structs or classes, multidimensional arrays, other classes):");
         foreach (var s in unrepresented) L("//   " + s);
         L();
         L("syntax = \"proto3\";");
@@ -885,7 +891,7 @@ internal sealed class Generator
             L("// " + t.FullName + ": its const and static readonly members");
             L("message " + holderStems[t] + "Constants {");
             L("  option (clr_type) = \"" + t.FullName + "\";");
-            foreach (var f in m.Fields) L($"  {TypeName(f.Element!)} {f.Name} = {f.Number};");
+            foreach (var f in m.Fields) L($"  {(f.Repeated ? "repeated " : "")}{TypeName(f.Element!)} {f.Name} = {f.Number};");
             L("}");
         }
 
