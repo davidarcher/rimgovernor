@@ -4,8 +4,7 @@ using HomeBridge.BridgeTools;
 using Operations = RimGovernor.Protocol.Operations;
 
 // The declarative rule book (#2152): attach is replace-all and idempotent by id, a rule outside the v1
-// whitelist is refused with a reason, a lease expires once and deactivates every rule, and one actor fires
-// at most once per 60 ticks. The game side (kill hook, target search, the Hunt write) runs in acceptance.
+// whitelist is refused with a reason, and a lease expires once and deactivates every rule. The game side (kill hook, target search, the Hunt write) runs in acceptance.
 internal static class NativeRuleRuntimeProbe
 {
     private static Operations.Rule Hunt(string id, Action<Operations.Rule> edit = null)
@@ -45,8 +44,6 @@ internal static class NativeRuleRuntimeProbe
             ("action", Hunt("x", r => r.Action = Operations.RuleAction.Unspecified), Operations.RuleRefusalReason.UnsupportedAction),
             ("draft job", Hunt("d", r => r.Job = "Draft"), Operations.RuleRefusalReason.UnsupportedJob),
             ("selector", Hunt("s", r => r.Target = Operations.RuleTargetSelector.Unspecified), Operations.RuleRefusalReason.UnsupportedTarget),
-            ("radius zero", Hunt("r0", r => r.Radius = 0), Operations.RuleRefusalReason.InvalidRadius),
-            ("radius over", Hunt("r1", r => r.Radius = NativeRuleBook.MaxRadius + 1), Operations.RuleRefusalReason.InvalidRadius),
             ("margin zero", Hunt("m0", r => r.PredatorMarginCells = 0), Operations.RuleRefusalReason.InvalidPredatorMargin),
             ("margin absent", Hunt("m1", r => r.ClearPredatorMarginCells()), Operations.RuleRefusalReason.InvalidPredatorMargin),
         };
@@ -58,16 +55,11 @@ internal static class NativeRuleRuntimeProbe
         }
         attached = book.Attach(new[] { Hunt("dup"), Hunt("dup") }, 2500);
         Require(attached.Refused.Count == 1 && attached.Refused[0].Reason == Operations.RuleRefusalReason.DuplicateId, "a repeated id is refused");
-        attached = book.Attach(Enumerable.Range(0, NativeRuleBook.MaxRules + 2).Select(i => Hunt("r" + i)), 2500);
-        Require(book.Active.Count == NativeRuleBook.MaxRules && attached.Refused.Count == 2
-            && attached.Refused.All(r => r.Reason == Operations.RuleRefusalReason.TooManyRules), "at most 16 rules are active");
+        attached = book.Attach(Enumerable.Range(0, 40).Select(i => Hunt("r" + i)), 2500);
+        Require(book.Active.Count == 40 && attached.Refused.Count == 0, "the rule count has no limit");
 
-        // One firing per actor per 60 ticks, across rules.
         book.Attach(new[] { Hunt("a"), Hunt("b") }, 2500);
-        Require(book.ActorReady("Thing_Human1", 100), "an actor that never fired is ready");
         book.NoteFired(book.Active[0], "Thing_Human1", "Thing_Deer2", 100);
-        Require(!book.ActorReady("Thing_Human1", 159) && book.ActorReady("Thing_Human1", 160), "the actor waits 60 ticks");
-        Require(book.ActorReady("Thing_Human2", 101), "another actor is unaffected");
 
         // Status: the firing count and the last firing, the lease remaining.
         var status = book.Status(1000);

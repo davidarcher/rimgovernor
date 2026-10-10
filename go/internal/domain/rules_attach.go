@@ -12,9 +12,6 @@ import (
 // sits in the session journal before native is written.
 const RulesAttachAction ActionKind = "rules_attach"
 
-// MaxRules is native's active-rule limit (docs/developers/contracts/native-rules.md).
-const MaxRules = 16
-
 // RuleTrigger, RulePredicate, RuleActionKind and RuleTarget are the closed
 // words of a native rule; the bridge maps each to its wire enum.
 type (
@@ -58,9 +55,9 @@ type RulesAttach struct {
 	lease int64
 }
 
-// NewRulesAttach validates rules (at most MaxRules, unique ids) and a positive lease.
+// NewRulesAttach validates rules (unique ids) and a positive lease.
 func NewRulesAttach(rules []Rule, leaseTicks int64) (RulesAttach, error) {
-	if leaseTicks <= 0 || len(rules) > MaxRules {
+	if leaseTicks <= 0 {
 		return RulesAttach{}, errors.New("invalid rules attach")
 	}
 	seen := map[string]bool{}

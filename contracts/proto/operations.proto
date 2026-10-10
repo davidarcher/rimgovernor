@@ -876,7 +876,7 @@ message ApplyReply {
 // shape: PREY_KILLED, then GIVE_JOB Hunt on the nearest designated prey,
 // built by the same path as GiveJobIntent (options.prioritized). There are no
 // draft actions. A firing is journaled (clock.v1.RuleFired) before its write;
-// a pawn fires at most once per 60 ticks and at most 16 rules are active.
+// native adds no count, radius or per-pawn firing limit.
 enum RuleTrigger {
   RULE_TRIGGER_UNSPECIFIED = 0;
   // A player pawn killed a wild animal; fired in-process by the kill hook the
@@ -893,7 +893,7 @@ enum RulePredicate {
 }
 enum RuleAction { RULE_ACTION_UNSPECIFIED = 0; RULE_ACTION_GIVE_JOB = 1; }
 enum RuleTargetSelector { RULE_TARGET_SELECTOR_UNSPECIFIED = 0; RULE_TARGET_SELECTOR_NEAREST_DESIGNATED_PREY = 1; }
-// job is a JobDef name (v1: Hunt). radius is in cells, 1..100, around the
+// job is a JobDef name (v1: Hunt). radius is Go-authored, in cells around the
 // actor. The selector skips prey that fail TARGET_AVAILABLE's checks; with no
 // target the rule does not fire.
 message Rule {
@@ -911,13 +911,11 @@ enum RuleRefusalReason {
   RULE_REFUSAL_REASON_UNSPECIFIED = 0;
   RULE_REFUSAL_REASON_INVALID_ID = 1;
   RULE_REFUSAL_REASON_DUPLICATE_ID = 2;
-  RULE_REFUSAL_REASON_TOO_MANY_RULES = 3;
   RULE_REFUSAL_REASON_UNSUPPORTED_TRIGGER = 4;
   RULE_REFUSAL_REASON_UNSUPPORTED_PREDICATE = 5;
   RULE_REFUSAL_REASON_UNSUPPORTED_ACTION = 6;
   RULE_REFUSAL_REASON_UNSUPPORTED_JOB = 7;
   RULE_REFUSAL_REASON_UNSUPPORTED_TARGET = 8;
-  RULE_REFUSAL_REASON_INVALID_RADIUS = 9;
   RULE_REFUSAL_REASON_INVALID_PREDATOR_MARGIN = 10;
 }
 message RuleRefusal { optional string rule_id = 1; optional RuleRefusalReason reason = 2; }

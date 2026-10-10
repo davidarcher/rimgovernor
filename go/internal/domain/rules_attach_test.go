@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"strconv"
+	"testing"
+)
 
 func huntRule(id string) Rule {
 	return Rule{ID: id, Trigger: RulePreyKilled, Predicates: []RulePredicate{RuleActorUndrafted, RuleTargetAvailable}, Action: RuleGiveJob, Job: "Hunt", Target: RuleNearestDesignatedPrey, Radius: 80, PredatorMarginCells: 25}
@@ -35,12 +38,12 @@ func TestRulesAttachValidation(t *testing.T) {
 	if _, err := NewRulesAttach([]Rule{huntRule("a"), huntRule("a")}, 2500); err == nil {
 		t.Fatal("duplicate rule id accepted")
 	}
-	tooMany := make([]Rule, MaxRules+1)
-	for i := range tooMany {
-		tooMany[i] = huntRule(string(rune('a' + i)))
+	many := make([]Rule, 40)
+	for i := range many {
+		many[i] = huntRule("rule-" + strconv.Itoa(i))
 	}
-	if _, err := NewRulesAttach(tooMany, 2500); err == nil {
-		t.Fatal("more than MaxRules accepted")
+	if _, err := NewRulesAttach(many, 2500); err != nil {
+		t.Fatalf("a long rule list has no count limit: %v", err)
 	}
 	bad := huntRule("a")
 	bad.Radius = 0

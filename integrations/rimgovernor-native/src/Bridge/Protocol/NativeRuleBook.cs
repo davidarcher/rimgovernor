@@ -7,15 +7,10 @@ using Operations = RimGovernor.Protocol.Operations;
 namespace HomeBridge.BridgeTools
 {
     // The attached declarative rules of one loaded game, with no game types:
-    // validation of Go's rules, the lease, the per-actor firing limit and the
-    // status counters. NativeRuleRuntime evaluates the game side. The book
+    // validation of Go's rules, the lease and the status counters. NativeRuleRuntime evaluates the game side. The book
     // lives in memory only; a load starts empty and Go re-attaches each Round.
     internal sealed class NativeRuleBook
     {
-        internal const int MaxRules = 16;
-        // One firing per actor per this many ticks, whichever rule fires.
-        internal const int ActorCooldownTicks = 60;
-        internal const uint MaxRadius = 100;
         internal const string HuntJob = "Hunt";
 
         internal sealed class Entry
@@ -27,7 +22,6 @@ namespace HomeBridge.BridgeTools
         }
 
         private readonly List<Entry> active = new List<Entry>();
-        private readonly Dictionary<string, long> lastFiredByActor = new Dictionary<string, long>();
         private long expiresAtTick;
         private bool leaseExpired;
 
@@ -46,7 +40,6 @@ namespace HomeBridge.BridgeTools
             if (!rule.HasAction || rule.Action != Operations.RuleAction.GiveJob) return Operations.RuleRefusalReason.UnsupportedAction;
             if (!rule.HasJob || rule.Job != HuntJob) return Operations.RuleRefusalReason.UnsupportedJob;
             if (!rule.HasTarget || rule.Target != Operations.RuleTargetSelector.NearestDesignatedPrey) return Operations.RuleRefusalReason.UnsupportedTarget;
-            if (!rule.HasRadius || rule.Radius < 1 || rule.Radius > MaxRadius) return Operations.RuleRefusalReason.InvalidRadius;
             if (!rule.HasPredatorMarginCells || float.IsNaN(rule.PredatorMarginCells) || float.IsInfinity(rule.PredatorMarginCells) || rule.PredatorMarginCells <= 0)
                 return Operations.RuleRefusalReason.InvalidPredatorMargin;
             return Operations.RuleRefusalReason.Unspecified;
@@ -63,7 +56,6 @@ namespace HomeBridge.BridgeTools
             {
                 var reason = Validate(rule);
                 if (reason == Operations.RuleRefusalReason.Unspecified && !seen.Add(rule.Id)) reason = Operations.RuleRefusalReason.DuplicateId;
-                if (reason == Operations.RuleRefusalReason.Unspecified && accepted.Count >= MaxRules) reason = Operations.RuleRefusalReason.TooManyRules;
                 if (reason != Operations.RuleRefusalReason.Unspecified)
                 {
                     var refusal = new Operations.RuleRefusal { Reason = reason };
@@ -76,7 +68,6 @@ namespace HomeBridge.BridgeTools
             }
             active.Clear();
             active.AddRange(accepted);
-            lastFiredByActor.Clear();
             expiresAtTick = expiresAt;
             leaseExpired = false;
             return result;
@@ -87,7 +78,6 @@ namespace HomeBridge.BridgeTools
         {
             var cleared = active.Count;
             active.Clear();
-            lastFiredByActor.Clear();
             expiresAtTick = 0;
             leaseExpired = false;
             return cleared;
@@ -100,13 +90,9 @@ namespace HomeBridge.BridgeTools
             if (active.Count == 0 || now < expiresAtTick) return false;
             deactivated = active.Count;
             active.Clear();
-            lastFiredByActor.Clear();
             leaseExpired = true;
             return true;
         }
-
-        internal bool ActorReady(string actorId, long now) =>
-            !lastFiredByActor.TryGetValue(actorId, out var last) || now - last >= ActorCooldownTicks;
 
         internal void NoteFired(Entry entry, string actorId, string targetId, long now)
         {
@@ -114,7 +100,6 @@ namespace HomeBridge.BridgeTools
             entry.LastTick = now;
             entry.LastActor = actorId;
             entry.LastTarget = targetId;
-            lastFiredByActor[actorId] = now;
         }
 
         internal Operations.RulesStatus Status(long now)

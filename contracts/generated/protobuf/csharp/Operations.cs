@@ -562,32 +562,30 @@ namespace RimGovernor.Protocol.Operations {
             "X0FDVElPTl9VTlNQRUNJRklFRBAAEhgKFFJVTEVfQUNUSU9OX0dJVkVfSk9C",
             "EAEqbAoSUnVsZVRhcmdldFNlbGVjdG9yEiQKIFJVTEVfVEFSR0VUX1NFTEVD",
             "VE9SX1VOU1BFQ0lGSUVEEAASMAosUlVMRV9UQVJHRVRfU0VMRUNUT1JfTkVB",
-            "UkVTVF9ERVNJR05BVEVEX1BSRVkQASrgAwoRUnVsZVJlZnVzYWxSZWFzb24S",
+            "UkVTVF9ERVNJR05BVEVEX1BSRVkQASqQAwoRUnVsZVJlZnVzYWxSZWFzb24S",
             "IwofUlVMRV9SRUZVU0FMX1JFQVNPTl9VTlNQRUNJRklFRBAAEiIKHlJVTEVf",
             "UkVGVVNBTF9SRUFTT05fSU5WQUxJRF9JRBABEiQKIFJVTEVfUkVGVVNBTF9S",
-            "RUFTT05fRFVQTElDQVRFX0lEEAISJgoiUlVMRV9SRUZVU0FMX1JFQVNPTl9U",
-            "T09fTUFOWV9SVUxFUxADEisKJ1JVTEVfUkVGVVNBTF9SRUFTT05fVU5TVVBQ",
-            "T1JURURfVFJJR0dFUhAEEi0KKVJVTEVfUkVGVVNBTF9SRUFTT05fVU5TVVBQ",
-            "T1JURURfUFJFRElDQVRFEAUSKgomUlVMRV9SRUZVU0FMX1JFQVNPTl9VTlNV",
-            "UFBPUlRFRF9BQ1RJT04QBhInCiNSVUxFX1JFRlVTQUxfUkVBU09OX1VOU1VQ",
-            "UE9SVEVEX0pPQhAHEioKJlJVTEVfUkVGVVNBTF9SRUFTT05fVU5TVVBQT1JU",
-            "RURfVEFSR0VUEAgSJgoiUlVMRV9SRUZVU0FMX1JFQVNPTl9JTlZBTElEX1JB",
-            "RElVUxAJEi8KK1JVTEVfUkVGVVNBTF9SRUFTT05fSU5WQUxJRF9QUkVEQVRP",
-            "Ul9NQVJHSU4QCjJuCgVab25lcxJlCgdQcmV2aWV3Ei0ucmltZ292ZXJub3Iu",
-            "b3BlcmF0aW9ucy52MS5ab25lUHJldmlld1JlcXVlc3QaKy5yaW1nb3Zlcm5v",
-            "ci5vcGVyYXRpb25zLnYxLlpvbmVQcmV2aWV3UmVwbHkyYgoHQWN0aW9ucxJX",
-            "CgVBcHBseRInLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuQXBwbHlSZXF1",
-            "ZXN0GiUucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5BcHBseVJlcGx5MroC",
-            "CgVSdWxlcxJkCgZBdHRhY2gSLS5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYx",
-            "LlJ1bGVzQXR0YWNoUmVxdWVzdBorLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMu",
-            "djEuUnVsZXNBdHRhY2hSZXBseRJhCgVDbGVhchIsLnJpbWdvdmVybm9yLm9w",
-            "ZXJhdGlvbnMudjEuUnVsZXNDbGVhclJlcXVlc3QaKi5yaW1nb3Zlcm5vci5v",
-            "cGVyYXRpb25zLnYxLlJ1bGVzQ2xlYXJSZXBseRJoCgpSZWFkU3RhdHVzEi0u",
-            "cmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5SdWxlc1N0YXR1c1JlcXVlc3Qa",
-            "Ky5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLlJ1bGVzU3RhdHVzUmVwbHlC",
-            "cVpNZ2l0aHViLmNvbS9kYXZpZGFyY2hlci9SaW1Hb3Zlcm5vci9nby9pbnRl",
-            "cm5hbC93aXJlL29wZXJhdGlvbnNwYjtvcGVyYXRpb25zcGKqAh9SaW1Hb3Zl",
-            "cm5vci5Qcm90b2NvbC5PcGVyYXRpb25zYgZwcm90bzM="));
+            "RUFTT05fRFVQTElDQVRFX0lEEAISKwonUlVMRV9SRUZVU0FMX1JFQVNPTl9V",
+            "TlNVUFBPUlRFRF9UUklHR0VSEAQSLQopUlVMRV9SRUZVU0FMX1JFQVNPTl9V",
+            "TlNVUFBPUlRFRF9QUkVESUNBVEUQBRIqCiZSVUxFX1JFRlVTQUxfUkVBU09O",
+            "X1VOU1VQUE9SVEVEX0FDVElPThAGEicKI1JVTEVfUkVGVVNBTF9SRUFTT05f",
+            "VU5TVVBQT1JURURfSk9CEAcSKgomUlVMRV9SRUZVU0FMX1JFQVNPTl9VTlNV",
+            "UFBPUlRFRF9UQVJHRVQQCBIvCitSVUxFX1JFRlVTQUxfUkVBU09OX0lOVkFM",
+            "SURfUFJFREFUT1JfTUFSR0lOEAoybgoFWm9uZXMSZQoHUHJldmlldxItLnJp",
+            "bWdvdmVybm9yLm9wZXJhdGlvbnMudjEuWm9uZVByZXZpZXdSZXF1ZXN0Gisu",
+            "cmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5ab25lUHJldmlld1JlcGx5MmIK",
+            "B0FjdGlvbnMSVwoFQXBwbHkSJy5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYx",
+            "LkFwcGx5UmVxdWVzdBolLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuQXBw",
+            "bHlSZXBseTK6AgoFUnVsZXMSZAoGQXR0YWNoEi0ucmltZ292ZXJub3Iub3Bl",
+            "cmF0aW9ucy52MS5SdWxlc0F0dGFjaFJlcXVlc3QaKy5yaW1nb3Zlcm5vci5v",
+            "cGVyYXRpb25zLnYxLlJ1bGVzQXR0YWNoUmVwbHkSYQoFQ2xlYXISLC5yaW1n",
+            "b3Zlcm5vci5vcGVyYXRpb25zLnYxLlJ1bGVzQ2xlYXJSZXF1ZXN0Gioucmlt",
+            "Z292ZXJub3Iub3BlcmF0aW9ucy52MS5SdWxlc0NsZWFyUmVwbHkSaAoKUmVh",
+            "ZFN0YXR1cxItLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuUnVsZXNTdGF0",
+            "dXNSZXF1ZXN0GisucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5SdWxlc1N0",
+            "YXR1c1JlcGx5QnFaTWdpdGh1Yi5jb20vZGF2aWRhcmNoZXIvUmltR292ZXJu",
+            "b3IvZ28vaW50ZXJuYWwvd2lyZS9vcGVyYXRpb25zcGI7b3BlcmF0aW9uc3Bi",
+            "qgIfUmltR292ZXJub3IuUHJvdG9jb2wuT3BlcmF0aW9uc2IGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor, global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Operations.CombatFireMode), typeof(global::RimGovernor.Protocol.Operations.CombatDoorMode), typeof(global::RimGovernor.Protocol.Operations.ThingDesignation), typeof(global::RimGovernor.Protocol.Operations.PowerSetting), typeof(global::RimGovernor.Protocol.Operations.HostilityResponse), typeof(global::RimGovernor.Protocol.Operations.MedicalCare), typeof(global::RimGovernor.Protocol.Operations.RepeatMode), typeof(global::RimGovernor.Protocol.Operations.StoreMode), typeof(global::RimGovernor.Protocol.Operations.ZoneType), typeof(global::RimGovernor.Protocol.Operations.StoragePriority), typeof(global::RimGovernor.Protocol.Operations.FilterPreset), typeof(global::RimGovernor.Protocol.Operations.Need), typeof(global::RimGovernor.Protocol.Operations.PrisonerInteraction), typeof(global::RimGovernor.Protocol.Operations.EndTradeKind), typeof(global::RimGovernor.Protocol.Operations.AreaOperation), typeof(global::RimGovernor.Protocol.Operations.PolicyDatabase), typeof(global::RimGovernor.Protocol.Operations.DesignationGuard), typeof(global::RimGovernor.Protocol.Operations.HusbandryOrder), typeof(global::RimGovernor.Protocol.Operations.RuleTrigger), typeof(global::RimGovernor.Protocol.Operations.RulePredicate), typeof(global::RimGovernor.Protocol.Operations.RuleAction), typeof(global::RimGovernor.Protocol.Operations.RuleTargetSelector), typeof(global::RimGovernor.Protocol.Operations.RuleRefusalReason), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -977,7 +975,7 @@ namespace RimGovernor.Protocol.Operations {
   /// shape: PREY_KILLED, then GIVE_JOB Hunt on the nearest designated prey,
   /// built by the same path as GiveJobIntent (options.prioritized). There are no
   /// draft actions. A firing is journaled (clock.v1.RuleFired) before its write;
-  /// a pawn fires at most once per 60 ticks and at most 16 rules are active.
+  /// native adds no count, radius or per-pawn firing limit.
   /// </summary>
   public enum RuleTrigger {
     [pbr::OriginalName("RULE_TRIGGER_UNSPECIFIED")] Unspecified = 0,
@@ -1015,13 +1013,11 @@ namespace RimGovernor.Protocol.Operations {
     [pbr::OriginalName("RULE_REFUSAL_REASON_UNSPECIFIED")] Unspecified = 0,
     [pbr::OriginalName("RULE_REFUSAL_REASON_INVALID_ID")] InvalidId = 1,
     [pbr::OriginalName("RULE_REFUSAL_REASON_DUPLICATE_ID")] DuplicateId = 2,
-    [pbr::OriginalName("RULE_REFUSAL_REASON_TOO_MANY_RULES")] TooManyRules = 3,
     [pbr::OriginalName("RULE_REFUSAL_REASON_UNSUPPORTED_TRIGGER")] UnsupportedTrigger = 4,
     [pbr::OriginalName("RULE_REFUSAL_REASON_UNSUPPORTED_PREDICATE")] UnsupportedPredicate = 5,
     [pbr::OriginalName("RULE_REFUSAL_REASON_UNSUPPORTED_ACTION")] UnsupportedAction = 6,
     [pbr::OriginalName("RULE_REFUSAL_REASON_UNSUPPORTED_JOB")] UnsupportedJob = 7,
     [pbr::OriginalName("RULE_REFUSAL_REASON_UNSUPPORTED_TARGET")] UnsupportedTarget = 8,
-    [pbr::OriginalName("RULE_REFUSAL_REASON_INVALID_RADIUS")] InvalidRadius = 9,
     [pbr::OriginalName("RULE_REFUSAL_REASON_INVALID_PREDATOR_MARGIN")] InvalidPredatorMargin = 10,
   }
 
@@ -32399,7 +32395,7 @@ namespace RimGovernor.Protocol.Operations {
   }
 
   /// <summary>
-  /// job is a JobDef name (v1: Hunt). radius is in cells, 1..100, around the
+  /// job is a JobDef name (v1: Hunt). radius is Go-authored, in cells around the
   /// actor. The selector skips prey that fail TARGET_AVAILABLE's checks; with no
   /// target the rule does not fire.
   /// </summary>

@@ -17,14 +17,11 @@ namespace HomeBridge.BridgeTools
     // animal, the killer takes a Hunt job on the nearest designated prey, built
     // by the path GiveJobIntent's prioritized arm uses. The kill hook is the
     // delivery ledger's; the firing runs at the end of the next tick, never
-    // inside the kill. A rule fires only while native holds Auto authority, at
-    // most once per actor per 60 ticks, and its firing is journaled on the
-    // clock event ring before the write. Rules live in memory per loaded game.
+    // inside the kill. A rule fires only while native holds Auto authority, and
+    // its firing is journaled on the clock event ring before the write. Rules live in memory per loaded game.
     internal static class NativeRuleRuntime
     {
         private const string Owner = "rimgovernor.native.rules";
-        // Route checks are pathfinding; the nearest few candidates bound the cost of one firing.
-        private const int MaxRouteChecks = 8;
 
         private sealed class Kill { internal Pawn Actor = null!, Prey = null!; }
         private sealed class State
@@ -114,10 +111,8 @@ namespace HomeBridge.BridgeTools
         {
             var actor = kill.Actor;
             if (actor.Destroyed || !actor.Spawned || actor.Dead || actor.Downed || actor.Map == null) return;
-            var actorId = actor.GetUniqueLoadID();
             foreach (var entry in state.Book.Active.ToList())
             {
-                if (!state.Book.ActorReady(actorId, now)) return;
                 if (!ActorQualifies(entry.Rule, actor)) continue;
                 var def = DefDatabase<JobDef>.GetNamedSilentFail(entry.Rule.Job);
                 var target = def == null ? null : Nearest(actor, def, entry.Rule.Radius, entry.Rule.PredatorMarginCells, kill.Prey);
@@ -147,8 +142,7 @@ namespace HomeBridge.BridgeTools
             var candidates = actor.Map.mapPawns.AllPawnsSpawned
                 .Where(p => p != killed && !p.Dead && p.Faction == null && p.RaceProps.Animal && NativeHuntAcquisition.Designated(p)
                     && actor.Position.DistanceToSquared(p.Position) <= limit)
-                .OrderBy(p => actor.Position.DistanceToSquared(p.Position)).ThenBy(p => p.thingIDNumber)
-                .Take(MaxRouteChecks);
+                .OrderBy(p => actor.Position.DistanceToSquared(p.Position)).ThenBy(p => p.thingIDNumber);
             return candidates.FirstOrDefault(p => HuntingSafety.RouteSafe(actor, p, predatorMarginCells) && NativePrioritizedJob.CanTake(actor, p, def));
         }
 

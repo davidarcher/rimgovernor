@@ -1137,7 +1137,7 @@ func (HusbandryOrder) EnumDescriptor() ([]byte, []int) {
 // shape: PREY_KILLED, then GIVE_JOB Hunt on the nearest designated prey,
 // built by the same path as GiveJobIntent (options.prioritized). There are no
 // draft actions. A firing is journaled (clock.v1.RuleFired) before its write;
-// a pawn fires at most once per 60 ticks and at most 16 rules are active.
+// native adds no count, radius or per-pawn firing limit.
 type RuleTrigger int32
 
 const (
@@ -1338,13 +1338,11 @@ const (
 	RuleRefusalReason_RULE_REFUSAL_REASON_UNSPECIFIED             RuleRefusalReason = 0
 	RuleRefusalReason_RULE_REFUSAL_REASON_INVALID_ID              RuleRefusalReason = 1
 	RuleRefusalReason_RULE_REFUSAL_REASON_DUPLICATE_ID            RuleRefusalReason = 2
-	RuleRefusalReason_RULE_REFUSAL_REASON_TOO_MANY_RULES          RuleRefusalReason = 3
 	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_TRIGGER     RuleRefusalReason = 4
 	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_PREDICATE   RuleRefusalReason = 5
 	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_ACTION      RuleRefusalReason = 6
 	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_JOB         RuleRefusalReason = 7
 	RuleRefusalReason_RULE_REFUSAL_REASON_UNSUPPORTED_TARGET      RuleRefusalReason = 8
-	RuleRefusalReason_RULE_REFUSAL_REASON_INVALID_RADIUS          RuleRefusalReason = 9
 	RuleRefusalReason_RULE_REFUSAL_REASON_INVALID_PREDATOR_MARGIN RuleRefusalReason = 10
 )
 
@@ -1354,26 +1352,22 @@ var (
 		0:  "RULE_REFUSAL_REASON_UNSPECIFIED",
 		1:  "RULE_REFUSAL_REASON_INVALID_ID",
 		2:  "RULE_REFUSAL_REASON_DUPLICATE_ID",
-		3:  "RULE_REFUSAL_REASON_TOO_MANY_RULES",
 		4:  "RULE_REFUSAL_REASON_UNSUPPORTED_TRIGGER",
 		5:  "RULE_REFUSAL_REASON_UNSUPPORTED_PREDICATE",
 		6:  "RULE_REFUSAL_REASON_UNSUPPORTED_ACTION",
 		7:  "RULE_REFUSAL_REASON_UNSUPPORTED_JOB",
 		8:  "RULE_REFUSAL_REASON_UNSUPPORTED_TARGET",
-		9:  "RULE_REFUSAL_REASON_INVALID_RADIUS",
 		10: "RULE_REFUSAL_REASON_INVALID_PREDATOR_MARGIN",
 	}
 	RuleRefusalReason_value = map[string]int32{
 		"RULE_REFUSAL_REASON_UNSPECIFIED":             0,
 		"RULE_REFUSAL_REASON_INVALID_ID":              1,
 		"RULE_REFUSAL_REASON_DUPLICATE_ID":            2,
-		"RULE_REFUSAL_REASON_TOO_MANY_RULES":          3,
 		"RULE_REFUSAL_REASON_UNSUPPORTED_TRIGGER":     4,
 		"RULE_REFUSAL_REASON_UNSUPPORTED_PREDICATE":   5,
 		"RULE_REFUSAL_REASON_UNSUPPORTED_ACTION":      6,
 		"RULE_REFUSAL_REASON_UNSUPPORTED_JOB":         7,
 		"RULE_REFUSAL_REASON_UNSUPPORTED_TARGET":      8,
-		"RULE_REFUSAL_REASON_INVALID_RADIUS":          9,
 		"RULE_REFUSAL_REASON_INVALID_PREDATOR_MARGIN": 10,
 	}
 )
@@ -8619,7 +8613,7 @@ func (x *ApplyReply) GetBatchFailure() *commonpb.Failure {
 	return nil
 }
 
-// job is a JobDef name (v1: Hunt). radius is in cells, 1..100, around the
+// job is a JobDef name (v1: Hunt). radius is Go-authored, in cells around the
 // actor. The selector skips prey that fail TARGET_AVAILABLE's checks; with no
 // target the rule does not fire.
 type Rule struct {
@@ -10446,18 +10440,16 @@ const file_operations_proto_rawDesc = "" +
 	"\x14RULE_ACTION_GIVE_JOB\x10\x01*l\n" +
 	"\x12RuleTargetSelector\x12$\n" +
 	" RULE_TARGET_SELECTOR_UNSPECIFIED\x10\x00\x120\n" +
-	",RULE_TARGET_SELECTOR_NEAREST_DESIGNATED_PREY\x10\x01*\xe0\x03\n" +
+	",RULE_TARGET_SELECTOR_NEAREST_DESIGNATED_PREY\x10\x01*\x90\x03\n" +
 	"\x11RuleRefusalReason\x12#\n" +
 	"\x1fRULE_REFUSAL_REASON_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eRULE_REFUSAL_REASON_INVALID_ID\x10\x01\x12$\n" +
-	" RULE_REFUSAL_REASON_DUPLICATE_ID\x10\x02\x12&\n" +
-	"\"RULE_REFUSAL_REASON_TOO_MANY_RULES\x10\x03\x12+\n" +
+	" RULE_REFUSAL_REASON_DUPLICATE_ID\x10\x02\x12+\n" +
 	"'RULE_REFUSAL_REASON_UNSUPPORTED_TRIGGER\x10\x04\x12-\n" +
 	")RULE_REFUSAL_REASON_UNSUPPORTED_PREDICATE\x10\x05\x12*\n" +
 	"&RULE_REFUSAL_REASON_UNSUPPORTED_ACTION\x10\x06\x12'\n" +
 	"#RULE_REFUSAL_REASON_UNSUPPORTED_JOB\x10\a\x12*\n" +
-	"&RULE_REFUSAL_REASON_UNSUPPORTED_TARGET\x10\b\x12&\n" +
-	"\"RULE_REFUSAL_REASON_INVALID_RADIUS\x10\t\x12/\n" +
+	"&RULE_REFUSAL_REASON_UNSUPPORTED_TARGET\x10\b\x12/\n" +
 	"+RULE_REFUSAL_REASON_INVALID_PREDATOR_MARGIN\x10\n" +
 	"2n\n" +
 	"\x05Zones\x12e\n" +
