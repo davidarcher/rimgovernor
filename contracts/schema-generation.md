@@ -191,7 +191,22 @@ a simple name). The messages hold no values: native fills them by reflection.
   mapped exactly as a def field of that type; or `Verse.SimpleCurve`, the
   existing `SimpleCurve` message (its points, unset for a null curve; the
   generator evaluates nothing); or a one-dimensional array or `List<T>` of
-  primitives, strings or enums, a `repeated` field.
+  primitives, strings or enums, a `repeated` field. A `private` array or `List`
+  is not carried: the game keeps buffers and caches there and fills them while it
+  runs (`LanguageWorker_Czech._replaceRegexKeys` starts as 107 nulls), so the value
+  depends on what was read before, not on the build. The header lists each with
+  that reason.
+- Fill and access: `DefMirrorFill.BuildStatics` walks the root's fields, finds each
+  class by its `clr_type` in the loaded assemblies (not the reference assemblies: a
+  public `const` is inlined from those) and reads the static field of each member's
+  name, a `const` with `GetRawConstantValue` and a `static readonly` from the live
+  field. A class or member the game no longer has fails the read naming
+  `Class.field`. The same `game_constants` message rides on `DefinitionCatalog` and
+  `CreationDefinitionCatalog` (static data of the build, readable at the main menu);
+  Go reads it with `DefinitionCatalog.GameConstants()`, which errors on a catalog
+  without it. A `static readonly` value is fixed at the class initializer, so it
+  can depend on world state only through what that initializer reads; the two
+  recordings of the same game in #2628 carried identical `game_constants`.
 - Every enum of the namespaces is emitted, reachable from a def field or not
   (`TileMutatorWorker_Stockpile_StockpileType`).
 - Excluded by rule: `Dialog_*` classes, `Widgets`, `DevGUI`, `*DefOf` classes,

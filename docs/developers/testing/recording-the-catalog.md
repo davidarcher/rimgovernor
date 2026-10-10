@@ -38,6 +38,10 @@ Anomaly section, then:
 It prints whether the new content equals the previous recording. The read
 context (colony, load token, tick, native generation) differs on every run and
 is not content; compare decoded protos with it cleared, never gzip bytes.
+Two refreshes of the same game still differ in some def rows (an `[Unsaved]`
+cache such as `allRecipesCached` that a run filled or not, and def fields the
+game's map generation rewrites per seed, such as `GenStep_Scatter*` counts); the
+`game_constants` message was identical across refreshes.
 
 After a refresh run `go run ./cmd/test` and commit the recording, sidecar and
 golden together; a golden diff is the review of what the new game changed.

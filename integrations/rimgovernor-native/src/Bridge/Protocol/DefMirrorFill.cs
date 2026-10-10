@@ -57,6 +57,41 @@ namespace HomeBridge.BridgeTools
         }
         private readonly Dictionary<MessageDescriptor, Dictionary<string, FieldDescriptor>> arms = new Dictionary<MessageDescriptor, Dictionary<string, FieldDescriptor>>();
 
+        // The static members of the game classes: GameConstants (root) with one
+        // <Class>Constants message per class, each field read from the static field
+        // of the same name in the loaded assembly (never the reference one: a public
+        // const is inlined there). A const is read with GetRawConstantValue, a
+        // static readonly from the live field. Static data of the build: the read
+        // touches no world state except what a class initializer itself reads.
+        // A class or member the game no longer has throws naming Class.field.
+        internal T BuildStatics<T>() where T : IMessage, new()
+        {
+            var root = new T();
+            foreach (var holder in root.Descriptor.Fields.InFieldNumberOrder())
+            {
+                var clr = Clr(holder.MessageType) ?? throw Fail(root.Descriptor.Name, holder.Name, $"{holder.MessageType.Name} has no clr_type option");
+                var type = AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetType(clr, false)).FirstOrDefault(t => t != null)
+                    ?? throw Fail(clr, "(class)", "the game has no such class");
+                var message = Create(holder.MessageType);
+                foreach (var fd in holder.MessageType.Fields.InFieldNumberOrder())
+                {
+                    var info = type.GetField(fd.Name, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
+                        ?? throw Fail(clr, fd.Name, "no such static field");
+                    object? value;
+                    try { value = info.IsLiteral ? info.GetRawConstantValue() : info.GetValue(null); }
+                    catch (Exception ex) when (ex is TargetInvocationException || ex is TypeInitializationException)
+                    {
+                        throw Fail(clr, fd.Name, "the class initializer failed: " + (ex.InnerException ?? ex).Message);
+                    }
+                    if (value == null) continue;
+                    if (fd.IsRepeated) AddAll((IList)fd.Accessor.GetValue(message), fd, value, clr, fd.Name);
+                    else fd.Accessor.SetValue(message, Value(fd, value, clr, fd.Name));
+                }
+                holder.Accessor.SetValue(root, message);
+            }
+            return root;
+        }
+
         // The message mirroring source, filled.
         internal T Build<T>(object source) where T : IMessage, new()
         {

@@ -17,3 +17,18 @@ func TestFullCatalogRecordingDecodes(t *testing.T) {
 		t.Fatalf("recorded catalog is trimmed: %d things, %d terrains, %d recipes", len(catalog.ThingDefs), len(catalog.TerrainDefs), len(wire.GetDefs().GetRecipeDefs()))
 	}
 }
+
+// TestFullCatalogRecordingCarriesGameConstants pins the recorded GameConstants:
+// a const (the calendar) and a static readonly curve with points.
+func TestFullCatalogRecordingCarriesGameConstants(t *testing.T) {
+	game, err := recordedcatalog.Catalog(t).GameConstants()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := game.GetGenDate().GetTicksPerDay(); got != 60000 {
+		t.Errorf("GenDate.TicksPerDay = %d, want 60000", got)
+	}
+	if len(game.GetFoodUtility().GetFoodOptimalityEffectFromMoodCurve().GetPoints()) == 0 {
+		t.Error("FoodUtility.FoodOptimalityEffectFromMoodCurve has no points")
+	}
+}

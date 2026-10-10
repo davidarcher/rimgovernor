@@ -2324,6 +2324,10 @@ message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1
   // What the game's own code says about every ThingDef, computed once per
   // load; Go reads it and never ports the rule.
   repeated ThingDefFacts thing_facts = 14;
+  // The static members (const and static readonly) of the game classes, typed per
+  // class, filled by reflection over the loaded assemblies; static for the game
+  // build, so the creation catalog carries the same message.
+  rimgovernor.defs.v1.GameConstants game_constants = 15;
 }
 // A class by CLR full name and its base classes, nearest first, up to but not
 // including System.Object.
@@ -2613,7 +2617,7 @@ message EntityHolderState { optional double containment_strength = 1; optional b
 message AnomalyDoor { rimgovernor.common.v1.Cell cell = 1; optional bool open = 2; optional bool hold_open = 3; optional bool containment_breached = 4; optional bool blocked_open = 5; }
 message DefinitionCatalogRequest { ReadScope scope = 1; optional bool creation = 2; }
 // The same static def mirror before a world exists; no invented map/load identity.
-message CreationDefinitionCatalog { rimgovernor.defs.v1.DefSets defs = 1; repeated ClassChain class_chains = 2; }
+message CreationDefinitionCatalog { rimgovernor.defs.v1.DefSets defs = 1; repeated ClassChain class_chains = 2; rimgovernor.defs.v1.GameConstants game_constants = 3; }
 message DefinitionCatalogReply { oneof outcome { DefinitionCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; CreationDefinitionCatalog creation = 4; } }
 message SnapshotStreamOpened {
   string name = 1;       // mapping name; the ready event is name + "-ready"

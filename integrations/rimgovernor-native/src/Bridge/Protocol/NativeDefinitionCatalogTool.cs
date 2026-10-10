@@ -42,12 +42,13 @@ namespace HomeBridge.BridgeTools
                         var mirror = new DefMirrorFill();
                         var creation = new Obs.CreationDefinitionCatalog { Defs = DefSets(mirror) };
                         foreach (var chain in mirror.ClassChains()) { var row = new Obs.ClassChain { Name = chain.Key }; row.Bases.AddRange(chain.Value); creation.ClassChains.Add(row); }
+                        creation.GameConstants = mirror.BuildStatics<Defs.GameConstants>();
                         return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Creation = creation });
                     }
                     catch (Exception ex)
                     {
                         ObservationWork.Failed("definitionCatalog", ex);
-                        return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Creation defs could not be read completely." } });
+                        return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic("Creation defs could not be read completely: " + ex.GetType().Name + ": " + ex.Message) } });
                     }
                 }
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope!.ExpectedIdentity, out _, out var context, out var error))
@@ -59,7 +60,7 @@ namespace HomeBridge.BridgeTools
                 catch (Exception ex)
                 {
                     ObservationWork.Failed("definitionCatalog", ex);
-                    return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "The definition catalog could not be read completely." } });
+                    return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic("The definition catalog could not be read completely: " + ex.GetType().Name + ": " + ex.Message) } });
                 }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -84,6 +85,7 @@ namespace HomeBridge.BridgeTools
                 row.Bases.AddRange(chain.Value);
                 catalog.ClassChains.Add(row);
             }
+            catalog.GameConstants = mirror.BuildStatics<Defs.GameConstants>();
             catalog.Constants = Constants();
             catalog.StatValues = StatValues();
             foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))

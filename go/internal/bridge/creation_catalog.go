@@ -39,7 +39,7 @@ func DecodeCreationCatalog(v *o.CreationDefinitionCatalog) (*DefinitionCatalog, 
 	if err != nil {
 		return nil, err
 	}
-	return &DefinitionCatalog{Defs: rows, classBases: bases}, nil
+	return &DefinitionCatalog{Defs: rows, classBases: bases, gameConstants: v.GameConstants}, nil
 }
 
 func (catalog *DefinitionCatalog) StartingIdeoligion(scenario string) (policy.DesignChoice, error) {

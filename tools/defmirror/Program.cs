@@ -689,6 +689,14 @@ internal sealed class Generator
         reason = "";
         repeated = false;
         if (RuntimeState(t) is { } state) { reason = $"runtime state {TypeText(state)}"; return null; }
+        // A private array or List is an implementation buffer or cache the game fills while it
+        // runs (LanguageWorker_Czech._replaceRegexKeys starts as 107 nulls): its content depends on
+        // what was read before, not on the build. A non-private one is declared data.
+        if (f.IsPrivate && (t.IsArray || t.IsGenericType && t.GetGenericTypeDefinition().FullName == "System.Collections.Generic.List`1"))
+        {
+            reason = "private collection: implementation state the game changes while it runs";
+            return null;
+        }
         var elementType = t;
         if (t.IsArray && t.GetArrayRank() == 1) { elementType = t.GetElementType()!; repeated = true; }
         else if (t.IsGenericType && t.GetGenericTypeDefinition().FullName == "System.Collections.Generic.List`1") { elementType = t.GetGenericArguments()[0]; repeated = true; }

@@ -50,6 +50,9 @@ type DefinitionCatalog struct {
 	// Constants are the game constants the native read took from the game
 	// assemblies.
 	Constants *o.CatalogConstants
+	// gameConstants are the const and static readonly members of the game classes,
+	// typed per class (GameConstants); nil in a hand-built test catalog.
+	gameConstants *d.GameConstants
 	// statValues are the game's own stat values per (def, stuff); nil
 	// in a reply that carries none.
 	statValues *statTable
@@ -420,6 +423,7 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 	if out.Constants, err = validateConstants(v.Constants); err != nil {
 		return nil, err
 	}
+	out.gameConstants = v.GameConstants
 	if out.thingFacts, err = decodeThingFacts(v.ThingFacts, out.ThingDefs); err != nil {
 		return nil, err
 	}
@@ -457,4 +461,15 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 			Prerequisites: domain.Known(toProjectIDs(row.GetPrerequisites())), HiddenPrerequisites: domain.Known(toProjectIDs(row.GetHiddenPrerequisites())), RequiredBuilding: row.GetRequiredBuilding()}
 	}
 	return out, nil
+}
+
+// GameConstants is the typed mirror of the game's const and static readonly
+// members: read a value as game.GetFoodUtility().GetFoodPoisoningStageInitial(), so a member
+// the game renames fails the build. A catalog without the message (a hand-built
+// test catalog) is an error, never zero values.
+func (catalog *DefinitionCatalog) GameConstants() (*d.GameConstants, error) {
+	if catalog == nil || catalog.gameConstants == nil {
+		return nil, contract("catalog carries no game constants")
+	}
+	return catalog.gameConstants, nil
 }
