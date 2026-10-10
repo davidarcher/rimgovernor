@@ -53,16 +53,7 @@ func TestStockOverlayTintsEveryStockpileByItsTarget(t *testing.T) {
 	if band["short"] != 6 || band["low"] != 12 || band["met"] != 6 || len(o.Layers) != 3 {
 		t.Fatalf("bands %v", band)
 	}
-	want := []string{"wood 120/400", "Steel 90/100", "food 5.5/7 days", "MedicineHerbal 12/10", "apparel", "Lager ?"}
-	if len(o.Labels) != len(want) {
+	if len(o.Labels) != 0 {
 		t.Fatalf("labels %+v", o.Labels)
-	}
-	for i, l := range o.Labels {
-		if l.Text != want[i] {
-			t.Fatalf("label %d %q, want %q", i, l.Text, want[i])
-		}
-		if l.Cell != (domain.Cell{X: int32(i)*10 + 1, Z: 0}) {
-			t.Fatalf("label %q at %+v", l.Text, l.Cell)
-		}
 	}
 }

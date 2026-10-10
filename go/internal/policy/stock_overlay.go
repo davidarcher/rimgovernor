@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -41,9 +40,8 @@ type StockLevels struct {
 const stockShortFill = 0.5
 
 // StockOverlay tints every stockpile zone by the fill of the worst-covered
-// target it stores (red short, amber, green met) and labels it with that
-// resource's have/target; a zone storing nothing with a target gets only a
-// label of what it holds. A zone stores a target when its filter allows
+// target it stores (red short, amber, green met); it draws no text labels,
+// and a zone storing nothing with a target is left untinted. A zone stores a target when its filter allows
 // only that definition, when its role or food flag makes it a food store
 // (food days), when its role is a medicine store (every Medicine* target),
 // or when it is a general store (role general, or an everything or
@@ -63,13 +61,8 @@ func StockOverlay(zones []StockZone, levels StockLevels, bounds Bounds) LayoutOv
 		if len(cells) == 0 {
 			continue
 		}
-		at := labelCell(cells)
-		resource, have, target, ok := worstStock(z, levels)
+		_, have, target, ok := worstStock(z, levels)
 		if !ok {
-			// The layout overlay already labels the yard "materials yard".
-			if z.Role != domain.YardRole {
-				out.Labels = append(out.Labels, OverlayLabel{Text: z.holds(), Cell: at})
-			}
 			continue
 		}
 		band := 2
@@ -80,11 +73,6 @@ func StockOverlay(zones []StockZone, levels StockLevels, bounds Bounds) LayoutOv
 			band = 1
 		}
 		bands[band] = append(bands[band], cells...)
-		text := fmt.Sprintf("%s %d/%d", stockName(resource), int64(have), int64(target))
-		if resource == stockFood {
-			text = fmt.Sprintf("food %.1f/%.0f days", have, target)
-		}
-		out.Labels = append(out.Labels, OverlayLabel{Text: text, Cell: at})
 	}
 	for i, hue := range []overlayHue{planRed, planAmber, planGreen} {
 		if len(bands[i]) > 0 {
@@ -149,46 +137,3 @@ func (z StockZone) medicine() bool {
 	return prefix == "medicine"
 }
 
-// holds names what a zone without a target is for: its role, else its
-// native label, ASCII only.
-func (z StockZone) holds() string {
-	text := z.Role
-	if text == "" {
-		text = z.Label
-	}
-	if text == "" {
-		text = "stockpile"
-	}
-	return strings.Map(func(r rune) rune {
-		if r < 0x20 || r > 0x7e {
-			return '?'
-		}
-		return r
-	}, text)
-}
-
-// stockName is a target's label name: wood for WoodLog, else the definition.
-func stockName(r Resource) string {
-	if r == "WoodLog" {
-		return "wood"
-	}
-	return string(r)
-}
-
-// labelCell is the zone cell nearest the zone's centroid.
-func labelCell(cells []domain.Cell) domain.Cell {
-	var sx, sz int64
-	for _, c := range cells {
-		sx, sz = sx+int64(c.X), sz+int64(c.Z)
-	}
-	n := int64(len(cells))
-	cx, cz := int32(sx/n), int32(sz/n)
-	best, dist := cells[0], int32(-1)
-	for _, c := range cells {
-		d := abs32(c.X-cx) + abs32(c.Z-cz)
-		if dist < 0 || d < dist || d == dist && (c.Z < best.Z || c.Z == best.Z && c.X < best.X) {
-			best, dist = c, d
-		}
-	}
-	return best
-}

@@ -12,7 +12,6 @@ const SpotLayer = "spots"
 // planned ahead, so they are drawn from what stands or is blueprinted.
 var spotLabels = map[string]overlayStyle{
 	"ButcherSpot":  {planBrown, "butcher spot"},
-	"TableButcher": {planBrown, "butcher table"},
 	"CraftingSpot": {planTan, "crafting spot"},
 }
 
