@@ -107,9 +107,7 @@ func OutskirtsSlots(area Rectangle) (OutskirtsLayout, bool) {
 		return OutskirtsSlot{Outline: outline, Interior: in, Door: domain.Cell{X: in.X + in.Width/2, Z: in.Z + in.Height}, DoorRot: domain.North}
 	}
 	yard := func(outline Rectangle) OutskirtsSlot {
-		s := walled(outline)
-		s.Door, s.DoorRot = domain.Cell{X: s.Interior.X + s.Interior.Width/2, Z: outline.Z}, domain.South
-		return s
+		return OutskirtsSlot{Outline: outline, Interior: pad(outline, -1)}
 	}
 	tomb, morgue := coreRoomSize[PlannedTomb], coreRoomSize[PlannedMorgue]
 	row1 := outskirtsRow0() + 1

@@ -23,7 +23,7 @@ const (
 	// PlannedMorgue is the room for human corpses, planned from the
 	// start in the outskirts cluster and shelled only once one lies waiting.
 	PlannedMorgue PlannedRole = "morgue"
-	// PlannedGraveyard is the fenced, unfloored Outdoor room of graves,
+	// PlannedGraveyard is the unfenced, unfloored Outdoor room of graves,
 	// planned from the start in the outskirts cluster.
 	PlannedGraveyard PlannedRole = "graveyard"
 )

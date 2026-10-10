@@ -37,11 +37,15 @@ func RangeStandsFor(capable int) int {
 	return min(max((capable+1)/2, RangeMinStands), RangeMaxStands)
 }
 
-// Unfenced reports whether r has no ring: the training range and the sparring
-// ring stand in open air with nothing built round them, so they owe no wall,
-// fence, door, roof or floor.
+// Unfenced reports whether r has no ring: a training range, sparring ring, graveyard or yard
+// stands in open air with nothing built round it, so it owes no wall, fence,
+// gate, roof or floor and has no Door. Only the animal pen keeps a fence.
 func (r PlannedRoom) Unfenced() bool {
-	return r.Role == PlannedTrainingRange || r.Role == PlannedSparringRing
+	switch r.Role {
+	case PlannedTrainingRange, PlannedSparringRing, PlannedGraveyard, PlannedWasteYard, PlannedYard:
+		return true
+	}
+	return false
 }
 
 // rangeHorizontal is true when the range's rows run along X (dummies north or

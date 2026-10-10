@@ -2,7 +2,6 @@ package policy
 
 import (
 	"fmt"
-	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -17,25 +16,6 @@ func penBuilding(t *testing.T, def string, c domain.Cell) CurrentBuilding {
 		t.Fatal(err)
 	}
 	return CurrentBuilding{ID: fmt.Sprintf("%s@%d,%d", def, c.X, c.Z), Building: b, Cells: []domain.Cell{c}}
-}
-
-// penRing is the fences and gate standing on an outdoor room's ring, built
-// from the plan.
-func penRing(t *testing.T, plan LayoutPlan, room PlannedRoom) []CurrentBuilding {
-	t.Helper()
-	doors := plan.ShellDoors(room)
-	ring := roomWalls(room)
-	var out []CurrentBuilding
-	for _, c := range rectCells(ring) {
-		switch {
-		case !onRing(c, ring):
-		case slices.Contains(doors, c):
-			out = append(out, penBuilding(t, PenGateDefinition, c))
-		default:
-			out = append(out, penBuilding(t, PenFenceDefinition, c))
-		}
-	}
-	return out
 }
 
 // The paddock marker goes on a free cell of the wall's yard: inside the

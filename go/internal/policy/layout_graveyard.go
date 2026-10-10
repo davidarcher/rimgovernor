@@ -8,15 +8,15 @@ import (
 )
 
 // The graveyard: a planned Outdoor room in the outskirts
-// cluster. Its ring is a fence and a gate, its interior has no roof and owes
-// no floor (graves need diggable soil, not a constructed floor), and it never
-// grows: a full graveyard asks for a further one.
+// cluster. It is unfenced open ground (PlannedRoom.Unfenced: no ring, gate,
+// roof or floor; graves need diggable soil, not a constructed floor), and it
+// never grows: a full graveyard asks for a further one.
 //
 // The interior template packs GraveyardGraves plain graves (GraveDefinition,
 // 1x2) in two bands of GraveyardColumns columns. Graves stand on even columns,
 // so every grave's long sides face an aisle column (or the room's edge on one
-// side), and three aisle rows (the gate row, the row between the bands and
-// the top row) join the aisle columns to the gate.
+// side), and three aisle rows (the south row, the row between the bands and
+// the top row) join the aisle columns.
 //
 //	z=6  . . . . . . . . . . .   aisle
 //	z=5  G . G . G . G . G . G
@@ -24,7 +24,7 @@ import (
 //	z=3  . . . . . . . . . . .   aisle
 //	z=2  G . G . G . G . G . G
 //	z=1  G . G . G . G . G . G   band 0
-//	z=0  . . . . . . . . . . .   aisle (the gate is in the south wall below x=5)
+//	z=0  . . . . . . . . . . .   aisle
 
 const (
 	// GraveyardGraves is the graves the graveyard is sized for.
@@ -53,27 +53,11 @@ func GraveyardSlots(in Rectangle) []Rectangle {
 }
 
 // outdoorRoles are the roles planned as an Outdoor room (PlannedRoom.Outdoor):
-// a fence and a gate ring, no roof, no floor owed.
+// no ring, no roof, no floor owed.
 var outdoorRoles = map[PlannedRole]bool{PlannedPen: true, PlannedGraveyard: true, PlannedWasteYard: true, PlannedYard: true}
 
 // IsOutdoor reports whether a room of role is planned as an Outdoor room.
 func (r PlannedRole) IsOutdoor() bool { return outdoorRoles[r] }
-
-// gateCell is the interior cell just inside an outdoor room's gate.
-func (r PlannedRoom) gateCell() domain.Cell {
-	c := r.Door
-	switch r.DoorRot {
-	case domain.North:
-		c.Z--
-	case domain.South:
-		c.Z++
-	case domain.East:
-		c.X--
-	case domain.West:
-		c.X++
-	}
-	return c
-}
 
 // graveSlot is the graveyard's first template slot no building stands on.
 func graveSlot(r PlannedRoom, taken map[domain.Cell]bool) (InteriorPiece, bool) {
@@ -120,9 +104,8 @@ func GraveyardsOwed(plan LayoutPlan, demand RoomDemand) int {
 // graveyard is an Outdoor room of the first one's size, sited like the
 // outskirts cluster (outskirtsCandidates: outskirtsGap clear of every room,
 // off the growth lines, walkable from the core) and, of the sites that fit,
-// the nearest to the cluster. Its gate faces south like the cluster's yards
-// and its fence ring is built through the same path as any Outdoor room. No
-// room moves. It reports whether a graveyard was added; a graveyard that fits
+// the nearest to the cluster. No room moves. It reports whether a graveyard
+// was added; a graveyard that fits
 // nowhere is left out.
 func growGraveyards(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool) {
 	owed := GraveyardsOwed(plan, demand)
@@ -134,7 +117,7 @@ func growGraveyards(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool) {
 			break
 		}
 		in := Rectangle{X: area.X + 1, Z: area.Z + 1, Width: GraveyardW, Height: GraveyardH}
-		slot := OutskirtsSlot{Outline: area, Interior: in, Door: domain.Cell{X: in.X + in.Width/2, Z: area.Z}, DoorRot: domain.South}
+		slot := OutskirtsSlot{Outline: area, Interior: in}
 		plan.Rooms = append(slices.Clone(plan.Rooms), slotRoom(PlannedGraveyard, slot))
 		added = true
 	}

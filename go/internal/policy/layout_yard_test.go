@@ -121,43 +121,16 @@ func TestDerivedPlanHoldsAYard(t *testing.T) {
 	}
 }
 
-// The yard's fence ring is owed until every ring cell holds a fence and the
-// gate stands toward the core; the ring is outside the interior, so
-// raising it never breaks the yard's store zone.
-func TestYardRingIsOwedUntilFenceAndGateStand(t *testing.T) {
+// The yard is unfenced: no ring, gate or door is ever owed, and the room has no
+// Door.
+func TestYardOwesNoRingOrGate(t *testing.T) {
 	t.Parallel()
 	plan := PlanYardSites(gearTestPlan(), 1)
 	yard := plan.YardRooms()[0]
-	if _, owed := plan.NextPlannedRoom(PlannedYard, GroundOf(nil)); !owed {
-		t.Fatal("a yard with no ring is not owed")
+	if !yard.Unfenced() || yard.Door != (domain.Cell{}) || len(plan.ShellDoors(yard)) != 0 {
+		t.Fatalf("yard %+v is fenced", yard)
 	}
-	gates := map[domain.Cell]bool{}
-	for _, c := range plan.ShellDoors(yard) {
-		gates[c] = true
-	}
-	var buildings []CurrentBuilding
-	ring := roomWalls(yard)
-	for _, c := range rectCells(ring) {
-		if !onRing(c, ring) {
-			continue
-		}
-		if c.X >= yard.Interior.X && c.X < yard.Interior.X+yard.Interior.Width && c.Z >= yard.Interior.Z && c.Z < yard.Interior.Z+yard.Interior.Height {
-			t.Fatalf("ring cell %v inside the yard interior", c)
-		}
-		def := PenFenceDefinition
-		if gates[c] {
-			def = PenGateDefinition
-		}
-		b, err := domain.NewBuilding(def, c, domain.North, "")
-		if err != nil {
-			t.Fatal(err)
-		}
-		buildings = append(buildings, CurrentBuilding{Building: b, Cells: []domain.Cell{c}})
-	}
-	if len(gates) == 0 {
-		t.Fatal("the yard plans no gate")
-	}
-	if room, owed := plan.NextPlannedRoom(PlannedYard, GroundOf(buildings)); owed {
-		t.Fatalf("yard still owed with its ring standing: %+v", room)
+	if room, owed := plan.NextPlannedRoom(PlannedYard, GroundOf(nil)); owed {
+		t.Fatalf("an unfenced yard is owed: %+v", room)
 	}
 }

@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"fmt"
 	"reflect"
 	"slices"
 	"testing"
@@ -24,14 +23,11 @@ func TestGraveyardIsAnOutdoorRoomInTheOutskirtsSlot(t *testing.T) {
 	plan, room := graveyardPlan(t)
 	area, _ := plan.OutskirtsArea()
 	l, _ := OutskirtsSlots(area)
-	if room.Interior != l.Graveyard.Interior || room.Door != l.Graveyard.Door || room.DoorRot != l.Graveyard.DoorRot || !room.Outdoor {
-		t.Fatalf("graveyard %+v want slot %+v outdoor", room, l.Graveyard)
+	if room.Interior != l.Graveyard.Interior || !room.Outdoor || !room.Unfenced() || room.Door != (domain.Cell{}) {
+		t.Fatalf("graveyard %+v want unfenced slot %+v", room, l.Graveyard)
 	}
 	if !contains(area, domain.Cell{X: room.Interior.X, Z: room.Interior.Z}) {
 		t.Fatal("graveyard off the cluster")
-	}
-	if wall, door := room.RingDefs(); wall != PenFenceDefinition || door != PenGateDefinition {
-		t.Fatalf("ring %s %s", wall, door)
 	}
 	if again, added := growOutskirtsRooms(plan, nil); added || len(again.Rooms) != len(plan.Rooms) {
 		t.Fatal("graveyard grown twice")
@@ -44,49 +40,17 @@ func TestGraveyardIsAnOutdoorRoomInTheOutskirtsSlot(t *testing.T) {
 	}
 }
 
-func TestGraveyardRingIsFenceAndGateWithNoFloorOwed(t *testing.T) {
+// An unfenced graveyard owes no ring, gate, door or floor: nothing is built.
+func TestGraveyardOwesNoRingGateOrFloor(t *testing.T) {
 	plan, room := graveyardPlan(t)
-	if plan.GroundMatches(room, GroundOf(nil)) {
-		t.Fatal("an unbuilt graveyard matches")
+	if !plan.GroundMatches(room, GroundOf(nil)) || len(plan.ShellDoors(room)) != 0 {
+		t.Fatal("an unfenced graveyard owes a ring or a door")
 	}
-	built := penRing(t, plan, room)
-	if !plan.GroundMatches(room, GroundOf(built)) {
-		t.Fatal("a fenced and gated graveyard does not match")
-	}
-	// Walls and a door round it are not its ring.
-	ring := roomWalls(room)
-	var walled []CurrentBuilding
-	for _, c := range rectCells(ring) {
-		if onRing(c, ring) {
-			walled = append(walled, penBuilding(t, ShellWallDefinition, c))
-		}
-	}
-	if plan.GroundMatches(room, GroundOf(walled)) {
-		t.Fatal("a walled graveyard matches")
-	}
-	in := ReconcileInput{Plan: plan, Room: room, Ground: GroundOf(nil), WantedFloor: func(domain.Cell) string { return "(wanted)" }}
-	rec := Reconcile(in)
-	fenced, gated := map[domain.Cell]bool{}, map[domain.Cell]bool{}
+	rec := Reconcile(ReconcileInput{Plan: plan, Room: room, Ground: GroundOf(nil), WantedFloor: func(domain.Cell) string { return "(wanted)" }})
 	for _, op := range append(slices.Clone(rec.Ready), rec.Owed...) {
-		switch op.Kind {
-		case OpWallIn:
-			for _, c := range op.Cells {
-				fenced[c] = true
-			}
-		case OpDoorIn:
-			for _, c := range op.Cells {
-				gated[c] = true
-			}
-		case OpFloorIn:
-			t.Fatalf("a graveyard owes a floor: %+v", op)
+		if op.Kind == OpWallIn || op.Kind == OpDoorIn || op.Kind == OpFloorIn {
+			t.Fatalf("a graveyard owes %+v", op)
 		}
-	}
-	if len(gated) != 1 || !gated[room.Door] || len(fenced) != int(2*(room.Interior.Width+2)+2*room.Interior.Height)-1 {
-		t.Fatalf("fences %d gates %d", len(fenced), len(gated))
-	}
-	in.Ground = GroundOf(built)
-	if rec := Reconcile(in); len(rec.Ready)+len(rec.Owed) != 0 {
-		t.Fatalf("a standing ring owes %+v", rec)
 	}
 }
 
@@ -111,12 +75,9 @@ func TestGraveyardTemplateHolds12ReachableGraves(t *testing.T) {
 			grave[c] = i
 		}
 	}
-	// Flood the open interior from just inside the gate.
+	// Flood the open interior from its south-west corner (an aisle cell).
 	open := map[domain.Cell]bool{}
-	queue := []domain.Cell{room.gateCell()}
-	if !contains(room.Interior, queue[0]) {
-		t.Fatalf("gate cell %+v outside the interior", queue[0])
-	}
+	queue := []domain.Cell{{X: room.Interior.X, Z: room.Interior.Z}}
 	open[queue[0]] = true
 	for len(queue) > 0 {
 		c := queue[0]
@@ -143,40 +104,6 @@ func TestGraveyardTemplateHolds12ReachableGraves(t *testing.T) {
 	}
 }
 
-// A fenced, unroofed graveyard adds only its own ring to the colony extent: no
-// enclosed interior, and no cell between it and the base (colony-extent.md).
-func TestGraveyardFenceAddsOnlyItsRingToTheColonyExtent(t *testing.T) {
-	plan, room := graveyardPlan(t)
-	var cells []domain.Cell
-	for _, b := range penRing(t, plan, room) {
-		cells = append(cells, b.Cells...)
-	}
-	r := extentFixture(t, cells[:1]...)
-	census, home := CurrentConstruction{Colony: true}, HomeCoverageObservation{}
-	for i, c := range cells {
-		id := fmt.Sprintf("fence-%d", i)
-		b, _ := domain.NewBuilding(PenFenceDefinition, c, domain.North, "")
-		census.Buildings = append(census.Buildings, CurrentBuilding{ID: id, Building: b, Cells: []domain.Cell{c}})
-		home.Targets = append(home.Targets, HomeCoverageTarget{ID: id, Cells: []domain.Cell{c}, Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)), ExtentGeometry: domain.Known(HomeExtentGeometry{})})
-	}
-	r.Bounds, r.Construction, r.Home = domain.Known(Bounds{Width: 300, Height: 300}), domain.Known(census), domain.Known(home)
-	got, err := DeriveColonyExtent(r)
-	e, known := got.Value()
-	if err != nil || !known || len(e.Regions) != 1 {
-		t.Fatalf("extent %+v known=%v err=%v", e, known, err)
-	}
-	for _, c := range rectCells(room.Interior) {
-		if len(extentReasons(e, c)) != 0 {
-			t.Fatalf("the open interior %+v is in the extent", c)
-		}
-	}
-	for _, c := range cells {
-		if !slices.ContainsFunc(extentReasons(e, c), func(p ExtentProvenance) bool { return p.Origin == ExtentFacility }) {
-			t.Fatalf("ring cell %+v is no facility", c)
-		}
-	}
-}
-
 func TestFurtherGraveyardIsSitedOffCoreClearOfLivingRooms(t *testing.T) {
 	plan, first := graveyardPlan(t)
 	if _, added := growGraveyards(plan, RoomDemand{Graveyards: 1}); added {
@@ -194,8 +121,8 @@ func TestFurtherGraveyardIsSitedOffCoreClearOfLivingRooms(t *testing.T) {
 	if !room.Outdoor || room.Interior.Width != GraveyardW || room.Interior.Height != GraveyardH || len(GraveyardSlots(room.Interior)) != GraveyardGraves {
 		t.Fatalf("further graveyard %+v", room)
 	}
-	if wall, door := room.RingDefs(); wall != PenFenceDefinition || door != PenGateDefinition {
-		t.Fatalf("ring %s %s", wall, door)
+	if !room.Unfenced() {
+		t.Fatal("further graveyard is fenced")
 	}
 	for _, other := range plan.AllRooms() {
 		if other.Role == PlannedTomb || other.Role == PlannedMorgue || other.Role == PlannedWasteYard || other.Role == PlannedGraveyard || other.Role == PlannedIncinerator {

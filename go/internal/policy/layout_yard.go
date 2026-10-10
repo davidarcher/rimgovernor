@@ -3,14 +3,15 @@ package policy
 import "slices"
 
 // The materials yard: a planned Outdoor room beside the
-// core, inside the core ring like the animal pen. Its ring is a fence and a
-// gate toward the core, its interior open ground with no roof or floor owed,
-// and the Storage department's one yard store covers the whole interior. It
-// never grows: a full yard asks for a further one (RoomDemand.Yard).
+// core, inside the core ring like the animal pen. It is unfenced open ground
+// (PlannedRoom.Unfenced: no ring, gate, roof or floor owed), and the Storage
+// department's one yard store covers the whole interior. Its reservation keeps
+// the one-cell margin a fence ring would have taken. It never grows: a full
+// yard asks for a further one (RoomDemand.Yard).
 
 const (
 	// ReserveYard is the yard's reservation: its outline, the interior plus
-	// the one-cell fence ring.
+	// a one-cell margin.
 	ReserveYard ReservationKind = "yard"
 	// PlannedYard is the plan role of a yard viewed as an Outdoor room.
 	PlannedYard PlannedRole = "yard"
@@ -25,7 +26,7 @@ func (p LayoutPlan) YardRooms() []PlannedRoom {
 	var out []PlannedRoom
 	for _, r := range p.Reservations {
 		if r.Kind == ReserveYard {
-			out = append(out, p.herdRoom(r.Area, PlannedYard))
+			out = append(out, PlannedRoom{Role: PlannedYard, Interior: pad(r.Area, -1), Outdoor: true})
 		}
 	}
 	return out

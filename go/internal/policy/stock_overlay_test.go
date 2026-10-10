@@ -30,6 +30,8 @@ func TestStockOverlayTintsEveryStockpileByItsTarget(t *testing.T) {
 		{ID: "e", Role: "apparel", Cells: block(40, 0)},
 		// A player's stockpile with an unread filter and a non-ASCII label.
 		{ID: "f", Label: "Lager ä", Cells: block(50, 0)},
+		// The yard has no target and no label here: the layout overlay names it.
+		{ID: "g", Role: domain.YardRole, Cells: block(60, 0)},
 	}
 	levels := StockLevels{
 		Targets:        map[Resource]int64{"WoodLog": 400, "Steel": 100, "MedicineHerbal": 10},

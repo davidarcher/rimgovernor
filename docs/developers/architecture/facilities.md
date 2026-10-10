@@ -443,10 +443,10 @@ never gates a shell, and `WarmCoolingRooms` owes a cooler to every standing
 tomb, morgue and meal closet that measures above `TombMaxC`, empty or not.
 
 The graveyard (`layout_graveyard.go`, #2186) is the cluster's first-slot Outdoor
-room: `PlannedGraveyard`, a fence and gate ring (`RingDefs`), no roof and no floor
-owed, because graves need diggable soil. `GraveyardSlots` is its template: 12
+room: `PlannedGraveyard`, unfenced (`PlannedRoom.Unfenced`: no ring, gate, roof or floor
+owed; graves need diggable soil). `GraveyardSlots` is its template: 12
 plain graves (`GraveDefinition`, 1x2) in two bands of six on an 11x7 interior,
-each beside an aisle column joined to the gate row. It never grows; a further
+each beside an aisle column joined by the aisle rows. It never grows; a further
 graveyard is the burial concern's request (`RoomDemand.Graveyards`,
 `GraveyardsWanted`): while no sarcophagus can be had, when fewer free grave
 slots remain than the unburied colonist corpses still owed a grave, or the
@@ -455,7 +455,7 @@ graveyards are 0.85 used. `PlannedRole.IsOutdoor` lists the Outdoor roles.
 `MaintainBurial` (People, #2196) stages the tomb, graveyard and morgue
 (`RoundsBurialPlanner`) and its `burialOwner` declares the tomb and morgue stores
 (`policy.StoreOwner`). A plain grave is placed only in the next free
-`GraveyardSlots` slot, its fence and gate raised with it; with no slot free the
+`GraveyardSlots` slot; with no slot free the
 body waits in the morgue. The morgue holds every human corpse, fresh or rotten, at
 `MorguePriority` (Normal), below the graves and sarcophagi that take a colonist
 corpse by vanilla hauling (acceptance case `burial/grave_over_morgue`). Stranger
@@ -476,12 +476,12 @@ memory per colonist from the first body ever, none from a second burial, the
 ejected corpse beside the cell) is acceptance case `burial/stranger_sarcophagus`
 .
 
-The waste yard is an Outdoor plan room (`PlannedWasteYard`: fence and
-gate, no roof, no floor owed) of 11x7 interior, planned with the cluster. The
+The waste yard is an unfenced Outdoor plan room (`PlannedWasteYard`: no ring,
+roof or floor owed) of 11x7 interior, planned with the cluster. The
 incinerator is a walled, unroofed 3x3 room in its far corner (`PlannedIncinerator`,
 fireproof ring, permanent, never moved), leaving 52 cells for the dump; it is no
 longer sited on demand. `MaintainIncineration` (Sanitation) shells the incinerator,
-then the yard's ring (`stageDisposal`), burns a full incinerator (equip, draft,
+(`stageDisposal`) and burns a full incinerator (equip, draft,
 ignite) and has the ash cleaned. Its zone is a Sanitation store declared through
 `incinerationOwner`: the whole interior at Preferred, above the Low dump, refusing
 the native not-burnable special (`IncineratorFilter`).

@@ -66,7 +66,10 @@ func StockOverlay(zones []StockZone, levels StockLevels, bounds Bounds) LayoutOv
 		at := labelCell(cells)
 		resource, have, target, ok := worstStock(z, levels)
 		if !ok {
-			out.Labels = append(out.Labels, OverlayLabel{Text: z.holds(), Cell: at})
+			// The layout overlay already labels the yard "materials yard".
+			if z.Role != domain.YardRole {
+				out.Labels = append(out.Labels, OverlayLabel{Text: z.holds(), Cell: at})
+			}
 			continue
 		}
 		band := 2

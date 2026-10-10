@@ -43,7 +43,8 @@ func TestOutskirtsSlotsAreDisjointInsideTheOutline(t *testing.T) {
 		t.Errorf("incinerator %+v outside the yard %+v", inc, y)
 	}
 	// Every door stands in its own outline's wall, with the lane cell outside it open.
-	for name, s := range map[string]OutskirtsSlot{"tomb": l.Tomb, "morgue": l.Morgue, "graveyard": l.Graveyard, "waste yard": l.WasteYard} {
+	// The unfenced yards have no door; they stand with their ring margin clear of the lane.
+	for name, s := range map[string]OutskirtsSlot{"tomb": l.Tomb, "morgue": l.Morgue} {
 		if !onRing(s.Door, s.Outline) {
 			t.Errorf("%s door %+v off its wall", name, s.Door)
 		}
@@ -102,7 +103,7 @@ func TestOutskirtsPlanHoldsTombAndMorgueFromTheStart(t *testing.T) {
 	}
 }
 
-// The waste yard is an Outdoor room (a fence and gate, no roof, no floor owed)
+// The waste yard is an unfenced Outdoor room (no ring, roof or floor owed)
 // planned from the start, with the incinerator's walled room in its far
 // corner and the dump's ground, 52 cells, beside it.
 func TestOutskirtsPlanHoldsWasteYardWithIncineratorInside(t *testing.T) {
@@ -115,11 +116,8 @@ func TestOutskirtsPlanHoldsWasteYardWithIncineratorInside(t *testing.T) {
 		t.Fatalf("yards %d incinerators %d", len(yards), len(incs))
 	}
 	yard, inc := yards[0], incs[0]
-	if !yard.Outdoor || yard.Interior != l.WasteYard.Interior || yard.Door != l.WasteYard.Door || yard.DoorRot != domain.South {
-		t.Errorf("yard %+v want slot %+v", yard, l.WasteYard)
-	}
-	if wall, door := yard.RingDefs(); wall != PenFenceDefinition || door != PenGateDefinition {
-		t.Errorf("yard ring %s %s", wall, door)
+	if !yard.Outdoor || !yard.Unfenced() || yard.Interior != l.WasteYard.Interior || yard.Door != (domain.Cell{}) {
+		t.Errorf("yard %+v want unfenced slot %+v", yard, l.WasteYard)
 	}
 	if inc.Outdoor || inc.Interior.Width != 3 || inc.Interior.Height != 3 || roomWalls(inc) != l.Incinerator {
 		t.Errorf("incinerator %+v outline %+v", inc, l.Incinerator)

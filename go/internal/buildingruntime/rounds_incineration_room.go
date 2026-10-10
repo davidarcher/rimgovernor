@@ -12,9 +12,8 @@ import (
 )
 
 // The incinerator: the layout plan holds it from the start inside the
-// waste yard, and MaintainIncineration shells the yard's fence and
-// gate, then the incinerator like the tomb with the least flammable wall and
-// door the game's stuff data offers, refusing a wall or door that would burn.
+// unfenced waste yard, and MaintainIncineration shells the incinerator like the
+// tomb with the least flammable wall and door the game's stuff data offers, refusing a wall or door that would burn.
 // The Sanitation store (policy.incinerationOwner) then zones its interior. It
 // is permanent: nothing here ever drops or tears it down.
 
@@ -101,9 +100,6 @@ func incinerationOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 	if shell {
 		return domain.Known(true)
 	}
-	if _, owed := plannedRoomOwed(facts, policy.PlannedWasteYard); owed {
-		return domain.Known(true)
-	}
 	room := standingIncinerator(facts)
 	if room == nil || fireBurning(facts) {
 		return domain.Known(false)
@@ -116,8 +112,8 @@ func incineratorMethod(room policy.PlannedRoom) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("incinerator-shell-%d-%d", room.Interior.X, room.Interior.Z))
 }
 
-// stageDisposal answers a due burn, else the incinerator's shell, else the
-// waste yard's fence; handled is false when none is due.
+// stageDisposal answers a due burn, else the incinerator's shell; handled is
+// false when none is due.
 func (r *RoundsIncinerationPlanner) stageDisposal(call, epoch context.Context, state ControlState, review store.Rounds, goal store.StandardState, arbiter *stepArbiter, reading observation.RoundsReading) (RoundsIncinerationResult, bool, error) {
 	if result, handled, err := r.stageBurn(call, epoch, state, review, goal, arbiter, reading); err != nil || handled {
 		return result, handled, err
@@ -128,10 +124,7 @@ func (r *RoundsIncinerationPlanner) stageDisposal(call, epoch context.Context, s
 	room, owed := incineratorStep(reading.Projection)
 	rc := roomReconcile{ringOnly: true, room: room, name: string(incineratorMethod(room)), reason: "burn waste", stuff: fireproofShellStuff}
 	if !owed {
-		if room, owed = plannedRoomOwed(reading.Projection, policy.PlannedWasteYard); !owed {
-			return RoundsIncinerationResult{}, false, nil
-		}
-		rc = roomReconcile{ringOnly: true, room: room, name: string(plannedRoomMethod(room)), reason: "hold the waste and the incinerator"}
+		return RoundsIncinerationResult{}, false, nil
 	}
 	result, err := r.building.reconcileRoom(call, epoch, state, review, goal, observation.RoundsReading{ColonyReading: reading.ColonyReading}, nil, rc)
 	return RoundsIncinerationResult{Verdict: result.Verdict}, true, err

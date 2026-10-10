@@ -71,7 +71,7 @@ func stockpileWorld(s domain.GenerationSnapshot) string {
 // registered roles judge on the projection and benches.
 func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool], inputs []policy.BenchInput, gear *policy.GearStore, protected []domain.Cell, feed *policy.AnimalFeedStore) policy.StockpileRequest {
 	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Cells: projection.Cells, Bounds: projection.Bounds, Protected: protected}
-	for _, module := range []policy.PlannedRole{policy.PlannedStorage, policy.PlannedArmory, policy.PlannedWardrobe, policy.PlannedYard} {
+	for _, module := range []policy.PlannedRole{policy.PlannedStorage, policy.PlannedArmory, policy.PlannedWardrobe} {
 		if _, owed := plannedRoomOwed(*projection, module); owed {
 			request.Rooms = append(request.Rooms, module)
 		}

@@ -457,8 +457,11 @@ func roomWalls(r PlannedRoom) Rectangle {
 		return ringBlock(r)
 	}
 	if r.Unfenced() {
-		// No walls: the footprint the range blocks (rangeBlock).
-		return rangeBlock(r)
+		// No walls: a range blocks its rangeBlock, any other room its interior.
+		if r.Role == PlannedTrainingRange {
+			return rangeBlock(r)
+		}
+		return r.Interior
 	}
 	in := r.Interior
 	return Rectangle{X: in.X - 1, Z: in.Z - 1, Width: in.Width + 2, Height: in.Height + 2}

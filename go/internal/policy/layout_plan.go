@@ -38,7 +38,7 @@ type PlannedRoom struct {
 	Link *domain.Cell
 	// Dug is a room mined out of natural rock.
 	Dug bool
-	// Outdoor is an open ring: a fence and a gate (RingDefs), no roof and no
+	// Outdoor is an open room: a fence and a gate ring (RingDefs, the pen) or none (Unfenced), no roof and no
 	// floor owed (the animal pen).
 	Outdoor bool `json:",omitempty"`
 	// Facing is the direction an unfenced training range's dummies lie from its
@@ -217,7 +217,9 @@ func (p LayoutPlan) Valid() bool {
 		switch r.DoorRot {
 		case domain.North, domain.East, domain.South, domain.West:
 		default:
-			return false
+			if !r.Unfenced() { // an unfenced room has no door
+				return false
+			}
 		}
 	}
 	for _, z := range p.Zones {
