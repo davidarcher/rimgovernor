@@ -813,17 +813,15 @@ message GetCellsRequest {
   ReadScope scope = 1; Rectangle rectangle = 2;
 }
 message GetCellsReply { oneof outcome { CellsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message ResearchUnlock { optional string def_name = 1; optional string native_type = 2; optional string label = 3; }
-// TechLevel is the vanilla TechLevel.
-enum TechLevel { TECH_LEVEL_UNSPECIFIED = 0; TECH_LEVEL_UNDEFINED = 1; TECH_LEVEL_ANIMAL = 2; TECH_LEVEL_NEOLITHIC = 3; TECH_LEVEL_MEDIEVAL = 4; TECH_LEVEL_INDUSTRIAL = 5; TECH_LEVEL_SPACER = 6; TECH_LEVEL_ULTRA = 7; TECH_LEVEL_ARCHOTECH = 8; }
 message ResearchProject {
-  DefinitionRef project = 1; optional string tab = 2; optional string category = 3; optional TechLevel tech_level = 4;
-  optional double base_cost = 5; optional double apparent_cost = 6; optional double cost_factor = 7; optional double progress = 8;
+  // Progress and availability only: the project's definition facts (cost, tab,
+  // prerequisites, techprints, required bench) are ResearchProjectDef rows of
+  // the definition catalog, and what a project unlocks is a reverse index over
+  // the rows that name it as a prerequisite.
+  DefinitionRef project = 1; optional double progress = 8;
   optional double progress_fraction = 9; optional bool finished = 10; optional bool current = 11; optional bool available = 12;
-  optional bool can_start = 13; repeated string prerequisites = 14; repeated string hidden_prerequisites = 15;
-  optional uint32 techprints_applied = 16; optional uint32 techprints_needed = 17; optional string required_building = 18;
-  repeated string required_facilities = 19; repeated string lock_reasons = 20; optional string lock_detail = 21;
-  repeated ResearchUnlock unlocks = 22; repeated ReadIssue issues = 24;
+  optional bool can_start = 13; optional uint32 techprints_applied = 16; repeated string lock_reasons = 20; optional string lock_detail = 21;
+  repeated ReadIssue issues = 24;
 }
 message Researcher { rimgovernor.common.v1.Ref pawn = 1; optional double intellectual = 2; optional int32 priority = 3; optional bool disabled = 4; optional bool ever_work = 5; optional bool active = 6; }
 message ResearchFacility { DefinitionRef definition = 1; optional bool active = 2; }
@@ -832,10 +830,8 @@ message ResearchSlot { optional string category = 1; optional string current_pro
 // finished names every finished project, whatever the request filters.
 message ResearchSnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef snapshot = 2; repeated ResearchSlot slots = 3; repeated ResearchProject projects = 4; repeated ResearchBench benches = 5; repeated Researcher researchers = 6; optional bool anomaly_active = 7; optional string player_tech_level = 8; Completeness completeness = 9; repeated string finished = 10; }
 // progress_only lists only the current projects, with their lock
-// reasons, and the started unfinished ones, each without the static fields
-// the definition catalog carries (costs, prerequisites, tab, tech level,
-// required bench); the other filters are ignored.
-message ResearchRequest { ReadScope scope = 1; optional bool include_locked = 2; optional bool include_finished = 3; optional bool include_unlocks = 4; optional bool include_capability = 5; optional string name_contains = 6; optional bool progress_only = 8; }
+// reasons, and the started unfinished ones; the other filters are ignored.
+message ResearchRequest { ReadScope scope = 1; optional bool include_locked = 2; optional bool include_finished = 3; optional bool include_capability = 5; optional string name_contains = 6; optional bool progress_only = 8; }
 message ResearchReply { oneof outcome { ResearchSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 message AccessTarget { rimgovernor.common.v1.Cell cell = 1; optional bool native_reachable = 2; optional bool projected_reachable = 3; optional uint32 projected_steps = 4; }
@@ -1263,14 +1259,12 @@ message GearLoadout { SnapshotRef snapshot = 1; rimgovernor.common.v1.Ref pawn =
 // groups and the def x stuff stats come from the catalog (def rows and stat
 // table); the option carries the instance: id is the thing id for
 // worn/loose/stored items, bill:<def>/<stuff> for a producible definition.
-// source is worn, loose, stored or bill. smokepop is the def's smoke-pop verb
-// (the catalog's def rows do not carry verbs yet).
+// source is worn, loose, stored or bill. A bill option's recipe research and
+// ingredients and the def's smoke-pop verb are Go rules over the catalog rows.
 message GearLoadoutOption {
   optional string id = 1; optional string def_name = 2; optional string stuff = 3; optional int32 quality = 4;
   optional string source = 5;
-  optional double condition = 8; optional bool tainted = 15; optional bool locked = 16; optional bool smokepop = 19;
-  repeated string research = 20; // the producing recipe's research projects (bill options)
-  repeated Quantity ingredients = 21; // the producing recipe's cost for this stuff (bill options)
+  optional double condition = 8; optional bool tainted = 15; optional bool locked = 16;
 }
 // The loadout model's per-pawn inputs: present only when the producer read the
 // whole catalog. worn is every worn garment; options are the eligible loose or
@@ -2281,10 +2275,9 @@ message SnapshotStreamRequest {
   optional uint32 lines_of_fire_budget_ms = 8;
 }
 // The definition catalog: the generated def rows and the stat environment
-// the planning views read, and every research project with its static
-// facts (costs, prerequisites, tab, tech level, required bench). It is fixed
-// for a load: the controller reads it once per load token.
-message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1; repeated ResearchProject research = 3;
+// the planning views read (research projects are ResearchProjectDef rows of
+// `defs`). It is fixed for a load: the controller reads it once per load token.
+message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1;
   // Biotech defs; absent without Biotech.
   BiotechCatalog biotech = 4;
   // The Ideology defs are rows of `defs` (MemeDef, PreceptDef, RitualPatternDef,

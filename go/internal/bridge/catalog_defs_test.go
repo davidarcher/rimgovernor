@@ -349,6 +349,10 @@ func syntheticCatalog(stride, perClass int) *o.DefinitionCatalog {
 			list.Append(row)
 		}
 	}
+	// A knowledge project of the catalog has a finite cost.
+	for _, row := range v.Defs.ResearchProjectDefs {
+		row.BaseCost, row.KnowledgeCost = 0, 1
+	}
 	v.Derived, v.GameConstants = catalogDerived(), catalogGameConstants()
 	return v
 }

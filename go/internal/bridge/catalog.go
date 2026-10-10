@@ -384,7 +384,7 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 	if err := buildingUnknown(v); err != nil {
 		return nil, err
 	}
-	out := &DefinitionCatalog{LoadToken: identity.GetLoadToken(), Research: make(map[string]policy.ResearchProjectFacts, len(v.Research))}
+	out := &DefinitionCatalog{LoadToken: identity.GetLoadToken()}
 	var err error
 	if out.ThingDefs, err = defRows(v.ThingDefs, (*d.ThingDef).GetDefName, "thing"); err != nil {
 		return nil, err
@@ -413,32 +413,8 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 	if out.Biotech, err = buildBiotech(out, v.Biotech); err != nil {
 		return nil, err
 	}
-	for _, row := range v.Research {
-		if row == nil || row.Project == nil || validID(row.Project.GetDefName()) != nil {
-			return nil, contract("invalid catalog research project")
-		}
-		name := row.Project.GetDefName()
-		if _, exists := out.Research[name]; exists {
-			return nil, contract("duplicate catalog research project %s", name)
-		}
-		for _, list := range [][]string{row.Prerequisites, row.HiddenPrerequisites} {
-			for _, prerequisite := range list {
-				if validID(prerequisite) != nil {
-					return nil, contract("invalid catalog research prerequisite")
-				}
-			}
-		}
-		// The catalog does not carry native ResearchProjectDef.hidden (an
-		// anomaly codex state, not a static fact): every project starts as
-		// not hidden and the research read marks a codex-hidden one from
-		// its "hidden" lock reason.
-		// A project with no prerequisites is an absent repeated field on
-		// the wire, which is known-empty, not unread.
-		if row.GetCategory() != "" && (row.ApparentCost == nil || badNonNegative(row.ApparentCost) || row.GetApparentCost() <= 0) {
-			return nil, contract("catalog knowledge project %s lacks a finite cost", name)
-		}
-		out.Research[name] = policy.ResearchProjectFacts{Name: policy.ResearchProjectID(name), Hidden: domain.Known(false), KnowledgeCategory: row.GetCategory(), Cost: row.GetApparentCost(),
-			Prerequisites: domain.Known(toProjectIDs(row.GetPrerequisites())), HiddenPrerequisites: domain.Known(toProjectIDs(row.GetHiddenPrerequisites())), RequiredBuilding: row.GetRequiredBuilding()}
+	if out.Research, err = researchFacts(v.GetDefs().GetResearchProjectDefs()); err != nil {
+		return nil, err
 	}
 	return out, nil
 }

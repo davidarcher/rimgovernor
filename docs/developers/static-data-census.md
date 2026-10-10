@@ -26,6 +26,37 @@ Replacements name a `defs.proto` field (`Message.field`), a planned `GameConstan
 | excluded | 7 | 92 |
 | total | 203 | 530 |
 
+## Disposition of #2654 (research, recipe and gear catalogs)
+
+Deleted (Go derives them from the mirror's rows): the `DefinitionCatalog.research`
+list and `NativeResearchObservationTools.Static()`, so `ResearchProjectFacts`
+come from `ResearchProjectDef` rows (`bridge.researchFacts`, cost =
+`ResearchProjectCost`); `ResearchProject.tab/category/tech_level/base_cost/
+apparent_cost/cost_factor/prerequisites/hidden_prerequisites/techprints_needed/
+required_building/required_facilities/unlocks`, `ResearchUnlock`, the
+`TechLevel` enum and `ResearchRequest.include_unlocks` (nothing in Go read the
+unlocks; the reverse index over `researchPrerequisite(s)` is a rule to write
+when a consumer needs it); `GearLoadoutOption.research/ingredients/smokepop`
+(`DefinitionCatalog.ApparelBill` and `SmokePop`: the first recipe by defName
+whose only product is the def, its prerequisites, and
+`stateval.CostListAdjusted`); `NativeMechBills.Kind()` (the mech kind is
+`RecipeMechKind`; native keeps a boolean `IsMech` to route the write).
+
+Kept, with the reason:
+
+- `NativeGearFacts.Catalog()`: which bill options exist is live state, not row
+  data: `RecipeDef.AvailableNow` (finished research, memes, precepts) and the
+  stuff with the most stock per def (`map.resourceCounter`).
+- `NativeProductionTracking.OrdinaryMeal()`: a guard inside the native bill
+  write path and Harmony hook over live `RecipeDef` objects; no wire field
+  carries it.
+- `NativeQuestWorkers` stat list: the read names the stats whose rates it
+  returns; moving the rule to Go needs a new request field on the quest read.
+- `RecipeState.recipe.label`, `BillState.recipe.label`, `ExtractionDevelopment`,
+  `ExtractionWorkType`, `NativeApparelPolicyOperations` enumerations and
+  `NativeProductionBills.cs` special filters: each is part of a live read or
+  write that also needs the game object; separate milestones if wanted.
+
 ## Clusters
 
 Static and mixed findings, grouped into one child issue each (all labelled `area:G01`, `area:N01`, `area:simplify`, linked from #2621):

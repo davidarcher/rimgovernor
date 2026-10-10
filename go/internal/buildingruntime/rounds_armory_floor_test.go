@@ -53,6 +53,7 @@ func armoryArmorRecipe(t *testing.T, plasteelFloor int64) string {
 	observed := native.reply.GetObserved()
 	setGearProductionNeed(observed)
 	pawn := observed.GetPlanning().GetObserved().Gear.Pawns[0]
+	native.garmentRecipe("Apparel_PowerArmor")
 	gearModel(pawn, true, nil, gearBillOption("Apparel_PowerArmor", ""))
 	observed.Threat = &o.ThreatSection{Outcome: &o.ThreatSection_Observed{Observed: &o.ThreatFacts{RaidPoints: proto.Float64(3000)}}}
 	n := &fabricationArmorNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{roundsNative: native, ids: []string{"a", "b"}, weapons: []bridge.EquipCandidate{}, editPawn: func(row *o.PawnState) {

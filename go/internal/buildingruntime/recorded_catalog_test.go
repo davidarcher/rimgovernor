@@ -6,6 +6,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
+	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
@@ -49,7 +50,21 @@ var catalogSets = []string{
 // furniture, with the def sets their rules read.
 func newCatalogRows() *recordedrows.Slice {
 	names := slices.Concat([]string{"HorseshoesPin", "DiningChair", "Table1x2c", "Silver"}, garmentNames, weaponNames, furnitureNames)
-	return recordedrows.Take(recordedrows.Panic, recordedrows.Named(names...), catalogSets...)
+	rows := recordedrows.Take(recordedrows.Panic, recordedrows.Named(names...), catalogSets...)
+	// The recipes that make the garments: a gear census's bill options read
+	// their research and cost from them.
+	wire, err := testkit.LoadRecordedCatalogWire()
+	if err != nil {
+		panic(err)
+	}
+	for _, recipe := range wire.GetDefs().GetRecipeDefs() {
+		if len(recipe.GetProducts()) == 1 && slices.Contains(garmentNames, recipe.GetProducts()[0].GetValue().GetThingDef()) {
+			// Only what the bill option reads: the product and the research.
+			rows.Wire.Defs.RecipeDefs = append(rows.Wire.Defs.RecipeDefs, &d.RecipeDef{DefName: recipe.GetDefName(), Products: proto.Clone(&d.RecipeDef{Products: recipe.GetProducts()}).(*d.RecipeDef).Products,
+				ResearchPrerequisite: recipe.GetResearchPrerequisite(), ResearchPrerequisites: slices.Clone(recipe.GetResearchPrerequisites())})
+		}
+	}
+	return rows
 }
 
 // recordedWork are the rows of the def classes a fake catalog takes from the
@@ -102,6 +117,18 @@ func (n *roundsNative) catalogRows() *recordedrows.Slice {
 	return n.rows
 }
 
+// garmentRecipe is the fake's recipe that makes the garment, for the test to
+// give a research requirement (or none): its bill option reads it from there.
+func (n *roundsNative) garmentRecipe(garment string, research ...string) {
+	for _, recipe := range n.catalogRows().Wire.Defs.RecipeDefs {
+		if len(recipe.GetProducts()) == 1 && recipe.GetProducts()[0].GetValue().GetThingDef() == garment {
+			recipe.ResearchPrerequisite, recipe.ResearchPrerequisites = "", research
+			return
+		}
+	}
+	panic("no recipe makes " + garment)
+}
+
 // def is the fake's copy of a recorded thing def, added from the recording
 // when the base lacks it, for the test to edit.
 func (n *roundsNative) def(name string) *d.ThingDef {
@@ -141,8 +168,9 @@ func (n *roundsNative) definitions(id *c.Identity) (*bridge.DefinitionCatalog, e
 	// cannot change a catalog already served.
 	copied := &recordedrows.Slice{T: rows.T, Wire: proto.Clone(rows.Wire).(*o.DefinitionCatalog)}
 	if len(n.recipes) > 0 {
-		copied.Wire.Defs.RecipeDefs = nil
+		// The test's recipes join the garments' recipes the base holds.
 		for _, recipe := range n.recipes {
+			copied.Wire.Defs.RecipeDefs = slices.DeleteFunc(copied.Wire.Defs.RecipeDefs, func(base *d.RecipeDef) bool { return base.GetDefName() == recipe.GetDefName() })
 			copied.Wire.Defs.RecipeDefs = append(copied.Wire.Defs.RecipeDefs, proto.Clone(recipe).(*d.RecipeDef))
 		}
 	}

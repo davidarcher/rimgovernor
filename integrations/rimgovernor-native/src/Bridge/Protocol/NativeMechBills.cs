@@ -25,21 +25,14 @@ namespace HomeBridge.BridgeTools
     // kind fails the census read and the write loudly.
     internal static class NativeMechBills
     {
-        // The PawnKindDef name of the mech a gestation recipe makes, null for
-        // every other recipe (resurrection included, which produces no kind).
-        internal static string? Kind(RecipeDef recipe)
-        {
-            if (recipe.mechResurrection) return null;
-            var race = recipe.ProducedThingDef?.race;
-            if (race != null && race.IsMechanoid)
-                return race.AnyPawnKind?.defName ?? throw new InvalidOperationException("Mech recipe " + recipe.defName + " produces a mechanoid race with no pawn kind.");
-            if (recipe.gestationCycles > 0)
-                throw new InvalidOperationException("Gestation recipe " + recipe.defName + " does not produce a mechanoid race.");
-            return null;
-        }
+        // A mech recipe produces a mechanoid race (resurrection excluded). The
+        // mech's PawnKindDef is a Go rule over the recipe and race rows
+        // (DefinitionCatalog.RecipeMechKind), which also refuses a gestation
+        // recipe that makes no mechanoid.
+        private static bool IsMech(RecipeDef recipe) => !recipe.mechResurrection && recipe.ProducedThingDef?.race?.IsMechanoid == true;
 
         internal static bool Handles(Operations.ProductionBillIntent? intent) =>
-            intent != null && intent.HasRecipeDef && DefDatabase<RecipeDef>.GetNamedSilentFail(intent.RecipeDef) is RecipeDef recipe && Kind(recipe) != null;
+            intent != null && intent.HasRecipeDef && DefDatabase<RecipeDef>.GetNamedSilentFail(intent.RecipeDef) is RecipeDef recipe && IsMech(recipe);
 
         private static Common.Failure? Resolve(Operations.ProductionBillIntent intent, Common.ObservationContext context, out Building_MechGestator? bench, out RecipeDef? recipe, out Pawn? overseer)
         {

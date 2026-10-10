@@ -108,11 +108,11 @@ type bundleFamilyServer struct {
 // catalogReply is a definition catalog under context: a wall, a bed behind
 // Beds research, and the research tree Beds <- Smithing.
 func catalogReply(context *c.ObservationContext) *o.DefinitionCatalogReply {
-	project := func(name string, prerequisites ...string) *o.ResearchProject {
-		return &o.ResearchProject{Project: &o.DefinitionRef{DefName: proto.String(name)}, Prerequisites: prerequisites}
+	project := func(name string, prerequisites ...string) *d.ResearchProjectDef {
+		return &d.ResearchProjectDef{DefName: name, Prerequisites: prerequisites}
 	}
 	return &o.DefinitionCatalogReply{Outcome: &o.DefinitionCatalogReply_Observed{Observed: &o.DefinitionCatalog{Context: proto.Clone(context).(*c.ObservationContext),
-		ThingDefs: []*d.ThingDef{{DefName: "Bed", DesignationCategory: "Furniture", ResearchPrerequisites: []string{"Beds"}}, {DefName: "Wall", DesignationCategory: "Structure"}}, TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}}, Derived: catalogDerived(), GameConstants: catalogGameConstants(), Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}}}, Research: []*o.ResearchProject{project("Beds", "Smithing"), project("Smithing")}}}}
+		ThingDefs: []*d.ThingDef{{DefName: "Bed", DesignationCategory: "Furniture", ResearchPrerequisites: []string{"Beds"}}, {DefName: "Wall", DesignationCategory: "Structure"}}, TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}}, Derived: catalogDerived(), GameConstants: catalogGameConstants(), Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}}, ResearchProjectDefs: []*d.ResearchProjectDef{project("Beds", "Smithing"), project("Smithing")}}}}}
 }
 
 var bundleFamilyTools = []string{"rimgovernor/observations_read_colony_facts", "rimgovernor/observations_read_population", "rimgovernor/observations_read_research", "rimgovernor/observations_list_pawns"}

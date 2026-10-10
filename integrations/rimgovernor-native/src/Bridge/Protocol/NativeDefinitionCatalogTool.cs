@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
     {
         internal const string ToolName = "rimgovernor/observations_read_definition_catalog";
 
-        [Tool(ToolName, Title = "Read the definition catalog", Description = "Static planning facts of every player-buildable or sowable ThingDef and buildable TerrainDef, and every research project with its costs and prerequisites, plus every ThingDef and TerrainDef with all its fields and the game constants. Fixed for a load. Read-only.")]
+        [Tool(ToolName, Title = "Read the definition catalog", Description = "Static planning facts of every player-buildable or sowable ThingDef and buildable TerrainDef, plus every ThingDef and TerrainDef with all its fields and the game constants. Fixed for a load. Read-only.")]
         [ToolResponse("payload", "string", "Official DefinitionCatalogReply ProtoJSON.", Always = true)]
         public async Task<object> ReadDefinitionCatalog(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw DefinitionCatalogRequest ProtoJSON string.")] object? request = null)
@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
                 var player = Faction.OfPlayerSilentFail;
                 if (player?.def == null)
                     return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction is unavailable." } });
-                try { return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Observed = Read(context, player) }); }
+                try { return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Observed = Read(context) }); }
                 catch (Exception ex)
                 {
                     ObservationWork.Failed("definitionCatalog", ex);
@@ -65,11 +65,9 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        private static Obs.DefinitionCatalog Read(Common.ObservationContext context, Faction player)
+        private static Obs.DefinitionCatalog Read(Common.ObservationContext context)
         {
             var catalog = new Obs.DefinitionCatalog { Context = context };
-            foreach (var def in DefDatabase<ResearchProjectDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName)).OrderBy(d => d.defName, StringComparer.Ordinal))
-                catalog.Research.Add(NativeResearchObservationTools.Static(def, player));
             // Every def with all its fields, by protobuf reflection over the
             // generated messages. An unmapped field throws and fails the read.
             var mirror = new DefMirrorFill();

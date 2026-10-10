@@ -131,19 +131,6 @@ namespace HomeBridge.BridgeTools
             _ => Obs.PriceType.Unspecified
         };
 
-        internal static Obs.TechLevel Tech(RimWorld.TechLevel level) => level switch
-        {
-            RimWorld.TechLevel.Undefined => Obs.TechLevel.Undefined,
-            RimWorld.TechLevel.Animal => Obs.TechLevel.Animal,
-            RimWorld.TechLevel.Neolithic => Obs.TechLevel.Neolithic,
-            RimWorld.TechLevel.Medieval => Obs.TechLevel.Medieval,
-            RimWorld.TechLevel.Industrial => Obs.TechLevel.Industrial,
-            RimWorld.TechLevel.Spacer => Obs.TechLevel.Spacer,
-            RimWorld.TechLevel.Ultra => Obs.TechLevel.Ultra,
-            RimWorld.TechLevel.Archotech => Obs.TechLevel.Archotech,
-            _ => Obs.TechLevel.Unspecified
-        };
-
         internal static Receipts.QuestStatus Quest(RimWorld.QuestState state) => state switch
         {
             RimWorld.QuestState.NotYetAccepted => Receipts.QuestStatus.NotYetAccepted,

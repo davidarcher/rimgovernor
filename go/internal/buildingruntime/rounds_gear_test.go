@@ -182,14 +182,10 @@ func gearWornOption(id, def, stuff string) *o.GearLoadoutOption {
 	return &o.GearLoadoutOption{Id: proto.String(id), DefName: proto.String(def), Stuff: proto.String(stuff), Quality: proto.Int32(2), Source: proto.String("worn"), Condition: proto.Float64(1)}
 }
 
-// gearBillOption is a producible definition at Normal quality with no recipe
-// research and a cost of 40 of its stuff (or steel for an unstuffed def).
+// gearBillOption is a producible definition at Normal quality; its recipe
+// research and cost are the catalog's.
 func gearBillOption(def, stuff string) *o.GearLoadoutOption {
-	cost := stuff
-	if cost == "" {
-		cost = "Steel"
-	}
-	option := &o.GearLoadoutOption{Id: proto.String("bill:" + def + "/" + stuff), DefName: proto.String(def), Quality: proto.Int32(2), Source: proto.String("bill"), Condition: proto.Float64(1), Ingredients: []*o.Quantity{{DefName: proto.String(cost), Units: proto.Int64(40)}}}
+	option := &o.GearLoadoutOption{Id: proto.String("bill:" + def + "/" + stuff), DefName: proto.String(def), Quality: proto.Int32(2), Source: proto.String("bill"), Condition: proto.Float64(1)}
 	if stuff != "" {
 		option.Stuff = proto.String(stuff)
 	}
@@ -204,6 +200,7 @@ func TestGearProductionPersistsOnlyFundedMaterials(t *testing.T) {
 		reviewer.policy.Stage.Floor = policy.StageDevelopment
 		setGearProductionNeed(native.reply.GetObserved())
 		gear := native.reply.GetObserved().GetPlanning().GetObserved().Gear
+		native.garmentRecipe("Apparel_BasicShirt")
 		gearModel(gear.Pawns[1], false, nil, gearBillOption("Apparel_BasicShirt", "Cloth"))
 		n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{roundsNative: native, ids: []string{"a", "b"}}}}
 		settleGearPolicies(t, native)

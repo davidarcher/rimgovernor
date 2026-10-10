@@ -43,9 +43,10 @@ knowledge, not research work: no researcher, no clock ticks and no bench unless 
 
 ## Prerequisite graph and selection
 
-`Observations.ReadResearch` supplies the installed prerequisite graph. `include_unlocks` lists the
-definitions each project unlocks; `include_capability` adds research benches, their facilities and
-eligible researchers. Unknown or ambiguous definitions stay unknown.
+The installed prerequisite graph, costs, tabs, techprints and required benches are the
+`ResearchProjectDef` rows of the definition catalog; `Observations.ReadResearch` supplies progress,
+lock reasons and finished projects only. `include_capability` adds research benches, their
+facilities and eligible researchers. Unknown or ambiguous definitions stay unknown.
 
 - Ordinary and hidden prerequisites both participate in traversal. Missing and hidden (entity-codex)
   projects block research; knowledge-category projects do not.

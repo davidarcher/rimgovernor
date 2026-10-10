@@ -128,6 +128,7 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 	native.benches = nil
 	reconPawn := native.reply.GetObserved().Planning.GetObserved().Gear.Pawns[0]
 	reconPawn.ApparelPolicy.Drafted = proto.Bool(true)
+	native.garmentRecipe("Apparel_ArmorRecon")
 	reconPawn.LoadoutModel.Options = append(reconPawn.LoadoutModel.Options, gearBillOption("Apparel_ArmorRecon", ""))
 	native.hosts = append(native.hosts, policy.RecipeHost{Definition: "Make_Armor", Products: []policy.Resource{"Apparel_ArmorRecon"}, Available: false, Research: []string{"ReconArmor"}, Benches: []string{"FabricationBench"}})
 	selection, reason, err = planner.prepareWorkshop(ctx, session.State(), store.Rounds{})

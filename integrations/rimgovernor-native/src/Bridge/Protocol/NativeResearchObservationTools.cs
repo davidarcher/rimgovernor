@@ -129,8 +129,8 @@ namespace HomeBridge.BridgeTools
                     var selectedRow = selected.Contains(def);
                     var knowledgeRow = anomaly && def.knowledgeCategory != null && !finished;
                     if (hidden && !knowledgeRow || finished && !selectedRow || !selectedRow && !knowledgeRow && reached <= 0) { filtered++; continue; }
-                    var slim = Project(def, manager, progress, knowledge, anomaly, player, reached, cost, finished, selectedRow);
-                    var kept = new Obs.ResearchProject { Project = slim.Project, Finished = slim.Finished, Current = slim.Current, Progress = slim.Progress, ApparentCost = slim.ApparentCost };
+                    var slim = Project(def, manager, progress, knowledge, anomaly, reached, cost, finished, selectedRow);
+                    var kept = new Obs.ResearchProject { Project = slim.Project, Finished = slim.Finished, Current = slim.Current, Progress = slim.Progress };
                     if (slim.HasProgressFraction) kept.ProgressFraction = slim.ProgressFraction;
                     if (selectedRow || knowledgeRow) { kept.LockReasons.Add(slim.LockReasons); kept.CanStart = slim.CanStart; kept.Available = slim.Available; kept.TechprintsApplied = slim.TechprintsApplied; }
                     points[def.defName] = reached;
@@ -140,19 +140,9 @@ namespace HomeBridge.BridgeTools
                 if (hidden || finished && !request.IncludeFinished || request.HasNameContains && request.NameContains.Length != 0
                     && def.defName.IndexOf(request.NameContains, StringComparison.OrdinalIgnoreCase) < 0
                     && (def.label ?? "").IndexOf(request.NameContains, StringComparison.OrdinalIgnoreCase) < 0) { filtered++; continue; }
-                var row = Project(def, manager, progress, knowledge, anomaly, player, reached, cost, finished, selected.Contains(def));
+                var row = Project(def, manager, progress, knowledge, anomaly, reached, cost, finished, selected.Contains(def));
                 points[def.defName] = reached;
                 if (!finished && !row.CanStart && !request.IncludeLocked) { filtered++; continue; }
-                if (request.IncludeUnlocks)
-                {
-                    var unlocks = def.UnlockedDefs; 
-                    foreach (var unlocked in unlocks)
-                    {
-                        var item = new Obs.ResearchUnlock { DefName = Id(unlocked.defName), NativeType = Id(unlocked.GetType().Name) };
-                        if (unlocked.label != null) item.Label = PlacementPreviewOperation.Diagnostic(unlocked.label);
-                        row.Unlocks.Add(item);
-                    }
-                }
                 built.Add(row);
             }
             snapshot.Projects.Add(built);
@@ -164,30 +154,21 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.ResearchProject Project(ResearchProjectDef def, ResearchManager manager,
             IDictionary<ResearchProjectDef, float> progress, IDictionary<ResearchProjectDef, float> knowledge,
-            bool anomaly, Faction player, float points, float cost, bool finished, bool current)
+            bool anomaly, float points, float cost, bool finished, bool current)
         {
-            var row = new Obs.ResearchProject { Project = Definition(def), TechLevel = NativeEnums.Tech(def.techLevel), Finished = finished, Current = current };
-            var factor = def.CostFactor(player.def.techLevel); Number(factor); Number(cost * factor); Number(def.baseCost);
-            row.BaseCost = def.baseCost; row.ApparentCost = cost * factor; row.CostFactor = factor; row.Progress = points;
+            var row = new Obs.ResearchProject { Project = Definition(def), Finished = finished, Current = current };
+            Number(cost); Number(def.baseCost);
+            row.Progress = points;
             if (cost > 0) row.ProgressFraction = Fraction(points, cost);
             else row.Issues.Add(Issue("progress_fraction", "Zero-cost project has no finite native progress fraction."));
-            if (def.tab != null) row.Tab = Id(def.tab.defName);
-            if (def.knowledgeCategory != null) row.Category = Id(def.knowledgeCategory.defName);
             foreach (var prerequisite in def.prerequisites ?? new List<ResearchProjectDef>())
-            {
-                row.Prerequisites.Add(Id(prerequisite.defName));
                 if (!Finished(Progress(prerequisite, progress, knowledge, anomaly), prerequisite.Cost)) row.LockReasons.Add("prerequisite:" + Id(prerequisite.defName));
-            }
             foreach (var prerequisite in def.hiddenPrerequisites ?? new List<ResearchProjectDef>())
-            {
-                row.HiddenPrerequisites.Add(Id(prerequisite.defName));
                 if (!Finished(Progress(prerequisite, progress, knowledge, anomaly), prerequisite.Cost)) row.LockReasons.Add("hidden_prerequisite:" + Id(prerequisite.defName));
-            }
             var applied = manager.GetTechprints(def); var needed = def.TechprintCount;
             if (applied < 0 || needed < 0) throw new InvalidOperationException();
-            row.TechprintsApplied = (uint)applied; row.TechprintsNeeded = (uint)needed;
+            row.TechprintsApplied = (uint)applied;
             if (applied < needed) row.LockReasons.Add("techprints");
-            if (def.requiredResearchBuilding != null) row.RequiredBuilding = Id(def.requiredResearchBuilding.defName);
             // Native CanStartNow only demands a bench for a project that names
             // one, yet no project progresses without a bench the researcher can
             // work at: the lock is reported whenever none stands.
@@ -197,7 +178,6 @@ namespace HomeBridge.BridgeTools
             // The entity codex hides a project until its entity is discovered
             // (or the monolith reaches level 1); native CanStartNow refuses it.
             if (anomaly && !finished && Find.EntityCodex.Hidden(def)) row.LockReasons.Add("hidden");
-            foreach (var facility in def.requiredResearchFacilities ?? new List<ThingDef>()) row.RequiredFacilities.Add(Id(facility.defName));
             if (!def.PlayerMechanitorRequirementMet) row.LockReasons.Add("mechanitor");
             if (!def.AnalyzedThingsRequirementsMet) row.LockReasons.Add("analysis");
             if (!def.InspectionRequirementsMet) row.LockReasons.Add("inspection");
@@ -206,25 +186,6 @@ namespace HomeBridge.BridgeTools
             // plus the bench: a selectable project nobody can research is not
             // available to the controller.
             row.CanStart = row.LockReasons.Count == 0; row.Available = row.CanStart;
-            return row;
-        }
-
-        // A project's static row for the definition catalog: what
-        // holds for the whole load, no progress or lock state.
-        internal static Obs.ResearchProject Static(ResearchProjectDef def, Faction player)
-        {
-            var row = new Obs.ResearchProject { Project = Definition(def), TechLevel = NativeEnums.Tech(def.techLevel) };
-            var factor = def.CostFactor(player.def.techLevel); Number(factor); Number(def.Cost * factor); Number(def.baseCost);
-            row.BaseCost = def.baseCost; row.ApparentCost = def.Cost * factor; row.CostFactor = factor;
-            if (def.tab != null) row.Tab = Id(def.tab.defName);
-            if (def.knowledgeCategory != null) row.Category = Id(def.knowledgeCategory.defName);
-            foreach (var prerequisite in def.prerequisites ?? new List<ResearchProjectDef>()) row.Prerequisites.Add(Id(prerequisite.defName));
-            foreach (var prerequisite in def.hiddenPrerequisites ?? new List<ResearchProjectDef>()) row.HiddenPrerequisites.Add(Id(prerequisite.defName));
-            var needed = def.TechprintCount;
-            if (needed < 0) throw new InvalidOperationException();
-            row.TechprintsNeeded = (uint)needed;
-            if (def.requiredResearchBuilding != null) row.RequiredBuilding = Id(def.requiredResearchBuilding.defName);
-            foreach (var facility in def.requiredResearchFacilities ?? new List<ThingDef>()) row.RequiredFacilities.Add(Id(facility.defName));
             return row;
         }
 

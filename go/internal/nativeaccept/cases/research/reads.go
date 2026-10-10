@@ -116,59 +116,6 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("filtered read for %q returned no projects", needle)
 	}
 
-	// Bounded search for a project row with a populated unlocks collection;
-	// unlocks are only returned per-row on request.
-	var unlockRows []any
-	candidates := projects
-	for index, raw := range candidates {
-		if index >= 16 {
-			break
-		}
-		row, _ := na.AsMap(raw)
-		finished, _ := na.AsBool(row["finished"])
-		if finished {
-			continue
-		}
-		rowDef, _ := na.AsMap(row["project"])
-		reply, err := h.Wire(ctx, fmt.Sprintf("unlocks-%d", index), "observations_read_research",
-			na.Merge(full, map[string]any{"nameContains": na.AsString(rowDef["defName"]), "includeUnlocks": true}))
-		if err != nil {
-			return err
-		}
-		if reason, ok := na.UnavailableReason(reply); ok {
-			if reason != "UNAVAILABLE_REASON_LIMIT_EXCEEDED" {
-				return fmt.Errorf("unexpected unavailable reason for unlock probe: %s", reason)
-			}
-			continue
-		}
-		_, rows, err := na.Outcome(reply, "observed")
-		if err != nil {
-			return err
-		}
-		candidateRows := na.AsSlice(rows["projects"])
-		hasUnlocks := false
-		for _, r := range candidateRows {
-			rm, _ := na.AsMap(r)
-			if len(na.AsSlice(rm["unlocks"])) > 0 {
-				hasUnlocks = true
-			}
-		}
-		unlockRows = candidateRows
-		if hasUnlocks {
-			break
-		}
-	}
-	hasPopulatedUnlocks := false
-	for _, raw := range unlockRows {
-		row, _ := na.AsMap(raw)
-		if len(na.AsSlice(row["unlocks"])) > 0 {
-			hasPopulatedUnlocks = true
-		}
-	}
-	if !hasPopulatedUnlocks {
-		return fmt.Errorf("no populated bounded unlock collection was verified")
-	}
-
 	fingerprintAfter, err := h.Call(ctx, "fingerprint-after", "test/research_observation_fingerprint", nil)
 	if err != nil {
 		return err

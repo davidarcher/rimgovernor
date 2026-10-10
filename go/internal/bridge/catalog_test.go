@@ -20,9 +20,9 @@ func TestDefinitionCatalogRefusesMalformedRows(t *testing.T) {
 			case "world":
 				v.Context.Identity.LoadToken = proto.String("other")
 			case "research-duplicate":
-				v.Research = append(v.Research, v.Research[0])
+				v.Defs.ResearchProjectDefs = append(v.Defs.ResearchProjectDefs, v.Defs.ResearchProjectDefs[0])
 			case "prerequisite":
-				v.Research[0].Prerequisites = []string{""}
+				v.Defs.ResearchProjectDefs[0].Prerequisites = []string{""}
 			}
 			if _, err := DecodeDefinitionCatalog(v, pbIdentity()); err == nil {
 				t.Fatal("malformed catalog accepted")

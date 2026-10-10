@@ -157,14 +157,7 @@ namespace HomeBridge.BridgeTools
             var stuff = def.MadeFromStuff ? GenStuff.AllowedStuffsFor(def).OrderByDescending(s => map.resourceCounter.GetCount(s))
                 .ThenBy(s => s.defName, StringComparer.Ordinal).FirstOrDefault() : null;
             if (def.MadeFromStuff && stuff == null) return null;
-            var option = Option("bill:" + def.defName + "/" + (stuff?.defName ?? ""), def, stuff, "bill");
-            var research = new List<ResearchProjectDef>();
-            if (recipe.researchPrerequisite != null) research.Add(recipe.researchPrerequisite);
-            if (recipe.researchPrerequisites != null) research.AddRange(recipe.researchPrerequisites);
-            option.Research.Add(research.Select(r => Id(r.defName)).Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList());
-            foreach (var cost in def.CostListAdjusted(stuff, false))
-                option.Ingredients.Add(new Obs.Quantity { DefName = Id(cost.thingDef.defName), Units = cost.count });
-            return option;
+            return Option("bill:" + def.defName + "/" + (stuff?.defName ?? ""), def, stuff, "bill");
         }
 
         private static Obs.GearLoadoutOption Physical(Apparel apparel, string source)
@@ -177,12 +170,11 @@ namespace HomeBridge.BridgeTools
         }
 
         // The instance facts of one option at Normal quality; layers, groups and the
-        // def x stuff stats are the catalog's. The smoke-pop verb is the one def fact
-        // still sent: the catalog's def rows do not carry verbs.
+        // def x stuff stats are the catalog's.
         private static Obs.GearLoadoutOption Option(string id, ThingDef def, ThingDef? stuff, string source)
         {
             var row = new Obs.GearLoadoutOption { Id = Id(id), DefName = Id(def.defName), Source = source, Quality = (int)QualityCategory.Normal,
-                Condition = 1, Smokepop = def.Verbs?.Any(v => v.verbClass == typeof(Verb_SmokePop)) == true };
+                Condition = 1 };
             if (stuff != null) row.Stuff = Id(stuff.defName);
             return row;
         }

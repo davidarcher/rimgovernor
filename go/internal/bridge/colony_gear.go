@@ -133,11 +133,6 @@ func validateGearModel(m *o.GearLoadoutModel) error {
 			if !combatNumber(x.Condition, false) {
 				return contract("invalid gear model option condition")
 			}
-			for _, q := range x.Ingredients {
-				if q == nil || validID(q.GetDefName()) != nil || q.GetUnits() <= 0 {
-					return contract("invalid gear model ingredient")
-				}
-			}
 		}
 	}
 	return nil

@@ -23,6 +23,10 @@ type gearGarment struct {
 	tags           []string
 	sharp, blunt   float32
 	speed          float32
+	// research and cost make the garment a bill option: the recipe that makes
+	// it names the project, and the def's cost list is its ingredients.
+	research string
+	cost     map[string]int32
 }
 
 // gearGarments is the armour catalog of a colony: tribalwear and clothing, a
@@ -30,13 +34,13 @@ type gearGarment struct {
 // armour.
 var gearGarments = map[string]gearGarment{
 	"Apparel_TribalA":          {layers: []string{"OnSkin"}, groups: []string{"Torso", "Legs"}, sharp: .04, tags: []string{"Worker"}},
-	"Apparel_Pants":            {layers: []string{"OnSkin"}, groups: []string{"Legs"}, sharp: .03, tags: []string{"Worker", "Soldier"}},
-	"Apparel_Duster":           {layers: []string{"Shell"}, groups: []string{"Torso", "Neck", "Shoulders", "Arms", "Legs"}, sharp: .06, tags: []string{"Worker"}},
-	"Apparel_FlakVest":         {layers: []string{"Middle"}, groups: []string{"Torso", "Neck"}, sharp: 1, blunt: .36, speed: -.12, tags: []string{"Soldier"}},
-	"Apparel_SimpleHelmet":     {layers: []string{"Overhead"}, groups: []string{"UpperHead"}, sharp: .72, blunt: .26, tags: []string{"Soldier"}},
-	"Apparel_AdvancedHelmet":   {layers: []string{"Overhead"}, groups: []string{"UpperHead"}, sharp: .9, blunt: .36, tags: []string{"Soldier"}},
-	"Apparel_PlateArmor":       {layers: []string{"Middle", "Shell"}, groups: []string{"Torso", "Neck", "Shoulders", "Arms", "Legs"}, sharp: 1.2, blunt: .5, speed: -.8, tags: []string{"Soldier"}},
-	"Apparel_PowerArmorHelmet": {layers: []string{"Overhead"}, groups: []string{"FullHead"}, sharp: 1.2, blunt: .5, tags: []string{"Soldier"}},
+	"Apparel_Pants":            {layers: []string{"OnSkin"}, groups: []string{"Legs"}, sharp: .03, tags: []string{"Worker", "Soldier"}, research: "ComplexClothing", cost: map[string]int32{"Cloth": 40}},
+	"Apparel_Duster":           {layers: []string{"Shell"}, groups: []string{"Torso", "Neck", "Shoulders", "Arms", "Legs"}, sharp: .06, tags: []string{"Worker"}, research: "ComplexClothing", cost: map[string]int32{"Cloth": 80}},
+	"Apparel_FlakVest":         {layers: []string{"Middle"}, groups: []string{"Torso", "Neck"}, sharp: 1, blunt: .36, speed: -.12, tags: []string{"Soldier"}, research: "FlakArmor", cost: map[string]int32{"Steel": 60, "Cloth": 30, "ComponentIndustrial": 1}},
+	"Apparel_SimpleHelmet":     {layers: []string{"Overhead"}, groups: []string{"UpperHead"}, sharp: .72, blunt: .26, tags: []string{"Soldier"}, research: "Smithing", cost: map[string]int32{"Steel": 40}},
+	"Apparel_AdvancedHelmet":   {layers: []string{"Overhead"}, groups: []string{"UpperHead"}, sharp: .9, blunt: .36, tags: []string{"Soldier"}, research: "FlakArmor", cost: map[string]int32{"Steel": 40, "Plasteel": 10, "ComponentIndustrial": 2}},
+	"Apparel_PlateArmor":       {layers: []string{"Middle", "Shell"}, groups: []string{"Torso", "Neck", "Shoulders", "Arms", "Legs"}, sharp: 1.2, blunt: .5, speed: -.8, tags: []string{"Soldier"}, research: "PlateArmor", cost: map[string]int32{"Steel": 170}},
+	"Apparel_PowerArmorHelmet": {layers: []string{"Overhead"}, groups: []string{"FullHead"}, sharp: 1.2, blunt: .5, tags: []string{"Soldier"}, research: "MarineArmor", cost: map[string]int32{"Plasteel": 40}},
 	"Apparel_Tuque":            {layers: []string{"Overhead"}, groups: []string{"UpperHead"}},
 	"Apparel_ClothMask":        {layers: []string{"Overhead"}, groups: []string{"Mouth"}},
 }
@@ -78,6 +82,13 @@ func gearModelDefsHiding(t *testing.T, hidden ...string) GearDefinitions {
 			row.StatBases = append(row.StatBases, &d.Opt_StatModifier{Value: &d.StatModifier{Stat: stat.name, Value: stat.value}})
 		}
 		row.Category, row.Tradeability, row.AlwaysHaulable = d.ThingCategory_THING_CATEGORY_ITEM, d.Tradeability_TRADEABILITY_ALL, true
+		for _, material := range slices.Sorted(maps.Keys(g.cost)) {
+			row.CostList = append(row.CostList, &d.Opt_ThingDefCountClass{Value: &d.ThingDefCountClass{ThingDef: material, Count: g.cost[material]}})
+		}
+		if g.research != "" {
+			v.Defs.RecipeDefs = append(v.Defs.RecipeDefs, &d.RecipeDef{DefName: "Make_" + name, ResearchPrerequisite: g.research,
+				Products: []*d.Opt_ThingDefCountClass{{Value: &d.ThingDefCountClass{ThingDef: name, Count: 1}}}})
+		}
 		v.ThingDefs = append(v.ThingDefs, row)
 	}
 	catalog, err := bridge.DecodeDefinitionCatalog(v, id)
@@ -89,11 +100,8 @@ func gearModelDefsHiding(t *testing.T, hidden ...string) GearDefinitions {
 
 // gearModelOption is one native loadout-model option at Normal quality: the
 // instance facts only; layers, groups and stats come from the catalog.
-func gearModelOption(id, def, source string, research []string, ingredients map[string]int64) *o.GearLoadoutOption {
-	x := &o.GearLoadoutOption{Id: proto.String(id), DefName: proto.String(def), Quality: proto.Int32(2), Source: proto.String(source), Condition: proto.Float64(1), Research: research}
-	for _, name := range slices.Sorted(maps.Keys(ingredients)) {
-		x.Ingredients = append(x.Ingredients, &o.Quantity{DefName: proto.String(name), Units: proto.Int64(ingredients[name])})
-	}
+func gearModelOption(id, def, source string) *o.GearLoadoutOption {
+	x := &o.GearLoadoutOption{Id: proto.String(id), DefName: proto.String(def), Quality: proto.Int32(2), Source: proto.String(source), Condition: proto.Float64(1)}
 	return x
 }
 
@@ -103,17 +111,17 @@ func gearModelOption(id, def, source string, research []string, ingredients map[
 func gearModelCensus() *o.ColonyFactsSnapshot {
 	catalog := func() []*o.GearLoadoutOption {
 		return []*o.GearLoadoutOption{
-			gearModelOption("bill:Apparel_Pants/", "Apparel_Pants", "bill", []string{"ComplexClothing"}, map[string]int64{"Cloth": 40}),
-			gearModelOption("bill:Apparel_Duster/", "Apparel_Duster", "bill", []string{"ComplexClothing"}, map[string]int64{"Cloth": 80}),
-			gearModelOption("bill:Apparel_FlakVest/", "Apparel_FlakVest", "bill", []string{"FlakArmor"}, map[string]int64{"Steel": 60, "Cloth": 30, "ComponentIndustrial": 1}),
-			gearModelOption("bill:Apparel_SimpleHelmet/", "Apparel_SimpleHelmet", "bill", []string{"Smithing"}, map[string]int64{"Steel": 40}),
-			gearModelOption("bill:Apparel_AdvancedHelmet/", "Apparel_AdvancedHelmet", "bill", []string{"FlakArmor"}, map[string]int64{"Steel": 40, "Plasteel": 10, "ComponentIndustrial": 2}),
-			gearModelOption("bill:Apparel_PlateArmor/", "Apparel_PlateArmor", "bill", []string{"PlateArmor"}, map[string]int64{"Steel": 170}),
-			gearModelOption("bill:Apparel_PowerArmorHelmet/", "Apparel_PowerArmorHelmet", "bill", []string{"MarineArmor"}, map[string]int64{"Plasteel": 40}),
+			gearModelOption("bill:Apparel_Pants/", "Apparel_Pants", "bill"),
+			gearModelOption("bill:Apparel_Duster/", "Apparel_Duster", "bill"),
+			gearModelOption("bill:Apparel_FlakVest/", "Apparel_FlakVest", "bill"),
+			gearModelOption("bill:Apparel_SimpleHelmet/", "Apparel_SimpleHelmet", "bill"),
+			gearModelOption("bill:Apparel_AdvancedHelmet/", "Apparel_AdvancedHelmet", "bill"),
+			gearModelOption("bill:Apparel_PlateArmor/", "Apparel_PlateArmor", "bill"),
+			gearModelOption("bill:Apparel_PowerArmorHelmet/", "Apparel_PowerArmorHelmet", "bill"),
 		}
 	}
 	pawn := func(id string, drafted bool, gender d.Gender) *o.GearLoadout {
-		worn := gearModelOption("tribal-"+id, "Apparel_TribalA", "worn", nil, nil)
+		worn := gearModelOption("tribal-"+id, "Apparel_TribalA", "worn")
 		return &o.GearLoadout{
 			Pawn:               &c.Ref{Id: proto.String(id)},
 			Snapshot:           &o.SnapshotRef{Token: proto.String("loadout-" + id)},
@@ -314,8 +322,8 @@ func TestColonyGearLoadoutModelRefusalNamesTheCause(t *testing.T) {
 			g.Pawns[0].LoadoutModel.Options[0].DefName = proto.String("Apparel_Missing")
 		}, "Apparel_Missing"},
 		"slot collision": {func(g *o.GearSnapshot) {
-			hat := gearModelOption("hat", "Apparel_Tuque", "worn", nil, nil)
-			mask := gearModelOption("mask", "Apparel_ClothMask", "worn", nil, nil)
+			hat := gearModelOption("hat", "Apparel_Tuque", "worn")
+			mask := gearModelOption("mask", "Apparel_ClothMask", "worn")
 			g.Pawns[0].LoadoutModel.Worn = append(g.Pawns[0].LoadoutModel.Worn, hat, mask)
 		}, "conflicting worn gear"},
 	} {
