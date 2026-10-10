@@ -74,6 +74,12 @@ func oneRungDown[T any](tier TechTier, rung func(TechTier) (T, bool)) (T, bool) 
 // trees, covers this many (a few hundred cells at 5 units each).
 const ShellWallBudget int64 = 200
 
+// GuardedWallStuff is the wall stuff a shell never spends: steel is what the
+// heater, generators and hydroponics are built from, and wall material does not
+// change heat equalization, so walls take the cheapest other stuff. Steel walls
+// are allowed only where the map resupplies steel (a steel acquisition source).
+const GuardedWallStuff = string(siteSteelUnit)
+
 // floorClass groups the room roles the floor rule tells apart.
 type floorClass int
 

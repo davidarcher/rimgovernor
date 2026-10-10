@@ -332,11 +332,25 @@ func (r ColonyProjection) StockedBuildStuff(name string) (string, bool) {
 // whatever the stock, so the ring waits for it to be gathered: the stone
 // blocks of a map short of wood, once they are quarried.
 func (r ColonyProjection) BulkBuildStuff(name string, units int64) string {
+	return r.BulkBuildStuffExcept(name, units, nil)
+}
+
+// BulkBuildStuffExcept is BulkBuildStuff without the stuffs `excluded` names (nil
+// excludes none). When an exclusion is given and no remaining stuff is covered,
+// the fallback is the best ranked remaining stuff the colony holds any of, so
+// a ring never waits on a stuff the map cannot supply.
+func (r ColonyProjection) BulkBuildStuffExcept(name string, units int64, excluded func(stuff string) bool) string {
 	d, ok := r.Definition(name)
 	if !ok || len(d.StuffOptions) == 0 {
 		return ""
 	}
+	if excluded != nil {
+		if first := r.BulkBuildStuffExcept(name, units, nil); !excluded(first) {
+			return first
+		}
+	}
 	criteria, ordinary := d.BuildCriteria(), d.ordinaryStuff()
+	allowed := func(o StuffOption) bool { return ordinary(o) && (excluded == nil || !excluded(o.Stuff)) }
 	if stock, known := r.Stock(); known {
 		have := func(resource policy.Resource) float64 {
 			held := float64(stock[resource])
@@ -363,11 +377,16 @@ func (r ColonyProjection) BulkBuildStuff(name string, units int64) string {
 			}
 			return len(o.Costs) > 0 && !slices.ContainsFunc(o.Costs, func(a policy.Amount) bool { return have(a.Resource) < float64(a.Count*units) })
 		}
-		if price, err := d.chooseStuff(criteria, func(o StuffOption) bool { return ordinary(o) && covered(o) }); err == nil {
+		if price, err := d.chooseStuff(criteria, func(o StuffOption) bool { return allowed(o) && covered(o) }); err == nil {
 			return price.Stuff
 		}
+		if excluded != nil {
+			if price, err := d.chooseStuff(criteria, func(o StuffOption) bool { return allowed(o) && stock[policy.Resource(o.Stuff)] > 0 }); err == nil {
+				return price.Stuff
+			}
+		}
 	}
-	price, err := d.chooseStuff(criteria, ordinary)
+	price, err := d.chooseStuff(criteria, allowed)
 	if err != nil {
 		return ""
 	}

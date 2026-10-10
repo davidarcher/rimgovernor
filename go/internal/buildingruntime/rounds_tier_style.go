@@ -1,6 +1,8 @@
 package buildingruntime
 
 import (
+	"slices"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -74,11 +76,19 @@ func shellStyle(facts observation.ColonyProjection) domain.ShellStyle {
 		}
 	}
 	wall := "WoodLog"
-	if stuff := facts.BulkBuildStuff(style.WallDef, policy.ShellWallBudget); stuff != "" {
+	guarded := func(stuff string) bool { return stuff == policy.GuardedWallStuff && !steelResupplied(facts) }
+	if stuff := facts.BulkBuildStuffExcept(style.WallDef, policy.ShellWallBudget, guarded); stuff != "" {
 		wall = stuff
 	}
 	style.WallStuff = wall
 	return style
+}
+
+// steelResupplied reports an observed source of steel (a deposit or salvage); an
+// unread acquisition census reads as none, so steel stays guarded.
+func steelResupplied(facts observation.ColonyProjection) bool {
+	sources, _ := facts.Acquisition.Value()
+	return slices.ContainsFunc(sources, func(s policy.AcquisitionSource) bool { return s.Resource == policy.GuardedWallStuff && !s.Tree })
 }
 
 // floorStyle is the floor rule the flooring planner prefers per room role

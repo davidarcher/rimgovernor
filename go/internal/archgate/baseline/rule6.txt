@@ -214,7 +214,7 @@ internal/observation/meal_tier.go|ColonyProjection.MealRequest|"NutrientPasteDis
 internal/observation/refrigeration.go|ReadRefrigerationCoolers|"Cooler"
 internal/observation/refrigeration.go|RefrigerationFacts|"Cooler"
 internal/observation/sleeping_upkeep.go|upkeepRooms|"Space"
-internal/observation/stuff_choice.go|ColonyProjection.BulkBuildStuff|"WoodLog"
+internal/observation/stuff_choice.go|ColonyProjection.BulkBuildStuffExcept|"WoodLog"
 internal/policy/acquisition.go|SelectAcquisition|"WoodLog"
 internal/policy/armory.go|-|2500
 internal/policy/burn.go|-|"Filth_Ash"
