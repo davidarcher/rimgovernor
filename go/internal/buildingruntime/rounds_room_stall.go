@@ -14,8 +14,8 @@ import (
 
 // roomBuildStallTicks is how long a room's blueprints or frames may stand
 // unfinished before the planner reports the stall, and the spacing of the
-// repeats while it lasts.
-const roomBuildStallTicks domain.Tick = 30000
+// repeats while it lasts: half a day.
+const roomBuildStallTicks domain.Tick = domain.TicksPerDay / 2
 
 // roomStall remembers since when a room has had unfinished sites and when the
 // stall was last reported. Derived, in memory only.
