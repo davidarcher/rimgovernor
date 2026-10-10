@@ -587,7 +587,8 @@ at least two Melee pawns are below (a lone one has no partner) it declares
 takes no further action once they stand. A child and a pawn who can train neither
 skill are not counted. No action kind or wire field is involved.
 
-**Tiers.** The drill climbs a research-gated ladder of practice weapons. Every
+**Shooting tiers.** The drill climbs a research-gated ladder of practice weapons
+(the sparring ring has its own, below; both stop teaching at 8, 12, 16 and 20). Every
 weapon keeps the 3 s cycle; what changes is the XP per shot and the skill
 ceiling at which the weapon stops teaching. The best unlocked tier applies.
 
@@ -679,7 +680,8 @@ slot n is always the same cell. Growth only raises `PlannedRoom.Markers`
 (additive, omitempty) to `RoomDemand.Rings` (4 to 12, `RingMarkersFor`) in the
 next free slots; nothing moves. `RingTemplate(room)` is one
 `RimGovernor_SparringMarker` (`Defs/ThingDefs/SparringMarker.xml`) per marker.
-What fills `Rings` and the runtime reconcile are later epic #2677 issues.
+`RoundsTrainingPlanner` reconciles the ring beside the range (see `MaintainTraining`
+above); the ring's 4 to 12 markers seat bouts of 2 to 4, one marker per pawn.
 
 **Bout formation (#2708, `Runtime/Training/Sparring/`).** `WorkGiver_Spar`
 (`RimGovernorTraining`, job `RimGovernor_Spar`) scans only the marker held for
@@ -700,22 +702,66 @@ Teams: pairs and threes free-for-all, a four 2v2 with the highest beside the low
 fight length is `SparringStopRule` (#2709, tuned in #2711). `lab/sparring` proves it; "empty after a
 load" holds by construction (the registry is keyed on the `Map`), not by a reload case.
 
+**Melee tiers and practice gear (#2703, #2704, `Runtime/Training/SparringTier.cs`).**
+The ring climbs a four-rung research-gated ladder with the same ceilings as the
+range. The best tier whose gate research is finished applies (`UnlockedSparringTier`
+in Go, `SparringRules.UnlockedWeapon` natively; an unknown census holds at tier 0).
+
+| Tier | Weapon | Damage | Ceiling | Gate | Practice apparel |
+|---|---|---|---|---|---|
+| 0 | `MeleeWeapon_PracticeClub` | Blunt, power 3 | 8 | none | tunic |
+| 1 | `MeleeWeapon_PracticeSword` | Cut, power 3 | 12 | Smithing | tunic, helmet, gloves |
+| 2 | `MeleeWeapon_PracticeSwordBetter` | Cut, power 3 | 16 | Machining | tunic, helmet, gloves, vest |
+| 3 | `MeleeWeapon_PracticeSwordBest` | Cut, power 3 | 20 | Fabrication | tunic, helmet, gloves, vest |
+
+Damage is flat per damage type and every Cut weapon shares one power, so a tier buys
+a higher ceiling and nothing else; vanilla pays the XP. The table is owned by the
+`SparringTier` `DefModExtension` on each weapon def in `SparringRing.xml` and
+mirrored in Go as [`policy.SparringTiers`](../../../go/internal/policy/sparring_tier.go);
+a test parses the XML and pins every field. A pawn spars only while its Melee is
+under the unlocked tier's ceiling (`SparringRules.Ceiling`), and only if Melee is
+the skill it trains (see `MaintainTraining`). The weapons and the
+`Apparel_Practice*` pieces have no recipe, category or trade tag and are never
+owned: the spar job issues them. When a fight starts, the pawn's real weapon moves to
+its inventory and every unlocked worn apparel piece moves there too (still the
+pawn's, still counted in its carried mass), then the tier's practice set is worn.
+Armor (sharp / blunt): helmet and gloves 2.2 / 2.2, vest 0.8 / 0.5, tunic none. The
+finish action undoes the swap on every end of the job (stop rule, bout end, draft,
+downing, death, a raid), so real gear is never worn, damaged or lost. A blow does not
+make the struck pawn flee or fight back with its real gear: the job def's
+`checkOverrideOnDamage` is `Never`, and the `meleeThreat` a partner leaves is cleared
+when the job ends. The range trains Shooting only; there is no melee drill there.
+
 **Tuned numbers (#2711).** Measured over about 100 sessions per tier and outfit
 (tribal garment, spacer recon armor) by `lab/sparring-risk`, `lab/sparring-xp` and
 `lab/sparring-scale` (measure mode of `SparringFixture`: tally each ended session,
-heal it to realize scars, reset the pawn). Stop rule: pain 0.4, bleed 1.5, 10 swings.
-The first guesses were wrong: bleed 0.05 ended nearly every sharp session after one
-swing, and Cut power 5 gave about 10 deep cuts and median pain 0.55 per session.
-Now every Cut weapon shares power 3 (Blunt club 3), practice helmet and gloves
-armor 2.2/2.2, vest 0.8/0.5, tunic 0/0. Result: 0 deaths, 0 destroyed parts, nobody
-naked, no real armor lost or worn, no scar in the final 800-session run (an earlier
-run with the same armor scarred one eye in 800). A sharp session is about 8 cuts; a quarter to a third end early on bleeding.
-Vanilla melee XP is about 400 per swing at passion Minor and the day's 4000
-`xpSinceMidnight` saturation (then x0.2) is crossed in the first 10 swings of
-the day's first bout, so the 10-swing cap ends the first bout at the saturation point. Formation seats every
-pawn at 2 to 12 eligible with no double booking; at levels 16 to 20 a lone high
-pawn pairs with the lowest available and a high-only crew pairs among itself.
-The fixture's colony cap is 12 for these cases.
+heal it to realize scars, reset the pawn).
+
+- **Stop rule** (`SparringStopRule`, per pawn): the pawn leaves the bout at total
+  pain 0.4, or bleeding above 1.5, or after 10 swings; the rest of the bout
+  continues. The first guesses were wrong: bleed 0.05 ended nearly every sharp
+  session after one swing, and Cut power 5 gave about 10 deep cuts and median pain
+  0.55 per session. The tuned values are every Cut weapon at power 3 (Blunt club 3)
+  and the practice armor above.
+- **Outcome.** Across the final 800 sessions (100 per tier and outfit, tribal and
+  spacer): zero deaths and zero destroyed parts, nobody left naked, no real armor
+  lost or worn, carried mass at most 0.44 of capacity. The cost is injury, not
+  maiming: a sharp-tier session is about 8 cuts, and a quarter to a third end early
+  on bleeding; the club leaves bruises. Scars are rare, about 1 in 800 sessions (the
+  final run had none, an earlier run with the same armor scarred one eye). Rare
+  events are below what 100 sessions per stage can resolve, so that rate is an
+  estimate.
+- **XP.** Vanilla pays it (`Verb_MeleeAttack` pays XP for a pawn target, which a
+  dummy never was), through the normal `Learn`, so it counts toward the day's
+  `xpSinceMidnight`. At passion Minor a swing pays about 400 XP until
+  `xpSinceMidnight` reaches 4,000, then x0.2 (about 80 a swing); saturation is per
+  skill. The first 10 swings of a day's first bout cross it, which is why the cap is
+  10: that bout pays about 4,000 to 4,400, and later bouts pay about 720 to 1,200 a session.
+  Sparring therefore stops teaching Melee quickly each day and leaves the rest to
+  real work, much as the shooting drill's 3,000 XP daily budget does.
+- **Formation.** Seats every pawn at 2 to 12 eligible with no double booking; at
+  levels 16 to 20 a lone high pawn pairs with the lowest available and a high-only
+  crew pairs among itself. The fixture's colony cap is 12 for these cases.
 
 **Trained with (#2710, `TrainingCompany`).** One memory, `RimGovernor_TrainedWith`
 (`Defs/ThoughtDefs/`, +3 mood, one day, stack limit 1), shared by the range and
