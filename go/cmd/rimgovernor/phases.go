@@ -31,7 +31,7 @@ func phases(args []string, out, errors io.Writer) int {
 		fmt.Fprintln(errors, "usage: rimgovernor phases [--json] <absolute flight-recorder.jsonl>")
 		return 2
 	}
-	records, err := bridge.ReadTimeline(path)
+	records, err := bridge.ReadMergedTimeline(path)
 	if err != nil {
 		fmt.Fprintf(errors, "phases: %v\n", err)
 		return 1

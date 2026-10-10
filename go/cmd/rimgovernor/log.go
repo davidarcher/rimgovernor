@@ -86,7 +86,7 @@ func logCommand(ctx context.Context, args []string, out, errors io.Writer) int {
 		return usage("the file path must be absolute")
 	}
 	path := logview.Path(profile, file)
-	records, err := bridge.ReadTimeline(path)
+	records, err := bridge.ReadMergedTimeline(path)
 	if err != nil {
 		fmt.Fprintf(errors, "log: %v\n", err)
 		return 1

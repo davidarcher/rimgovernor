@@ -126,7 +126,11 @@ in `telemetry.IsExplanationKind` to this ring and every other kind to `flight.js
 monotonic `sequence` (continuing across launches; no `coverage` row), rows carry the run id, and retention is
 1 MiB x 4 segments (`bridge.DefaultExplainSegmentBytes`/`DefaultExplainSegments`, tunable with the
 `FlightSegmentBytes`/`FlightSegments` options). `serve` opens it at start and closes it on exit. Readers
-merge the two streams by `wall_time` and never compare sequences across them. The launcher tails the file
+merge the two streams by `wall_time` and never compare sequences across them: `bridge.ReadMergedTimeline`/`MergedTimelineReader`
+assemble each ring on its own (so no false `recording_gap` rows), tag explanation rows `Stream == "explain"` and interleave
+them. `rimgovernor log` (including `--follow`, which keeps a last sequence per stream), `phases` and the acceptance postmortem
+(evidence `explain.jsonl#<seq>`, plus `service-N/explain.jsonl`) read both; with no `explain.jsonl` the result is the flight
+timeline unchanged. Remote acceptance exports and indexes `explain.jsonl` beside `flight.jsonl`. The launcher tails the file
 directly; there is no HTTP route.
 
 | Kind | Shape and fields |

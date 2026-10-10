@@ -229,6 +229,9 @@ func flightRows(dir string) []flightRow {
 		}
 		f.Close()
 	}
+	// The flight and explanation rings merge by wall time; each keeps its own
+	// sequence, which is why evidence names the file.
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i].rec.WallTime < rows[j].rec.WallTime })
 	return rows
 }
 
@@ -475,9 +478,9 @@ func clip(text string) string {
 	return text
 }
 
-// flightFiles lists every flight recording under dir (the case's own and
-// each relaunch's service-N/flight.jsonl), each with its retained segments
-// oldest first, relative to dir.
+// flightFiles lists every flight and explanation recording under dir (the
+// case's own and each relaunch's service-N/), each ring with its retained
+// segments oldest first, relative to dir.
 func flightFiles(dir string) []string {
 	var out []string
 	add := func(sub string) {
@@ -486,31 +489,8 @@ func flightFiles(dir string) []string {
 		if err != nil {
 			return
 		}
-		type segment struct {
-			index int
-			name  string
-		}
-		var segments []segment
-		active := false
-		for _, e := range entries {
-			name := e.Name()
-			if name == "flight.jsonl" {
-				active = true
-				continue
-			}
-			if !strings.HasPrefix(name, "flight.jsonl.") {
-				continue
-			}
-			if i, err := strconv.Atoi(strings.TrimPrefix(name, "flight.jsonl.")); err == nil {
-				segments = append(segments, segment{i, name})
-			}
-		}
-		sort.Slice(segments, func(i, j int) bool { return segments[i].index > segments[j].index })
-		for _, s := range segments {
-			out = append(out, filepath.ToSlash(filepath.Join(sub, s.name)))
-		}
-		if active {
-			out = append(out, filepath.ToSlash(filepath.Join(sub, "flight.jsonl")))
+		for _, ring := range []string{"flight.jsonl", "explain.jsonl"} {
+			out = append(out, ringFiles(sub, ring, entries)...)
 		}
 	}
 	add(".")
@@ -524,6 +504,39 @@ func flightFiles(dir string) []string {
 	sort.Slice(relaunches, func(i, j int) bool { return launchIndex(relaunches[i]) < launchIndex(relaunches[j]) })
 	for _, r := range relaunches {
 		add(r)
+	}
+	return out
+}
+
+// ringFiles lists one ring's files among the entries of directory sub:
+// rotated segments oldest first, then the active file.
+func ringFiles(sub, ring string, entries []os.DirEntry) []string {
+	type segment struct {
+		index int
+		name  string
+	}
+	var segments []segment
+	active := false
+	for _, e := range entries {
+		name := e.Name()
+		if name == ring {
+			active = true
+			continue
+		}
+		if !strings.HasPrefix(name, ring+".") {
+			continue
+		}
+		if i, err := strconv.Atoi(strings.TrimPrefix(name, ring+".")); err == nil {
+			segments = append(segments, segment{i, name})
+		}
+	}
+	sort.Slice(segments, func(i, j int) bool { return segments[i].index > segments[j].index })
+	var out []string
+	for _, s := range segments {
+		out = append(out, filepath.ToSlash(filepath.Join(sub, s.name)))
+	}
+	if active {
+		out = append(out, filepath.ToSlash(filepath.Join(sub, ring)))
 	}
 	return out
 }

@@ -26,6 +26,9 @@ type TimelineRecord struct {
 	// successive launches share one file; the sequence continues across
 	// them and Run tells them apart.
 	Run string
+	// Stream names the ring a merged read took the row from: ExplainStream
+	// for explain.jsonl, empty for flight.jsonl.
+	Stream string
 	// WallTime is the row's Unix time in seconds, as the recorder wrote it.
 	WallTime float64
 	Context  map[string]any

@@ -38,6 +38,7 @@ func FlightSegments(path string) []string {
 // FlightRecorderPath is where every launch has rimgovernor serve write its
 // timeline under output (launchServe passes --flight-recorder); the
 // runner's metrics block summarizes it (metrics.go).
+// serve writes explain.jsonl beside it (bridge.ExplainPath); bridge.ReadMergedTimeline reads both.
 func FlightRecorderPath(output string) string { return filepath.Join(output, "flight.jsonl") }
 
 // ReadFlight reads every row of a service's flight recorder at path from

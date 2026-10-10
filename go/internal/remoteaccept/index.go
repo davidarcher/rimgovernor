@@ -23,6 +23,7 @@ type IndexCase struct {
 	Diagnosis []string `json:"diagnosis,omitempty"`
 	Report    string   `json:"report,omitempty"`
 	Flight    string   `json:"flight,omitempty"`
+	Explain   string   `json:"explain,omitempty"`
 	Log       string   `json:"log,omitempty"`
 	Snapshots []string `json:"snapshots,omitempty"`
 }
@@ -56,6 +57,7 @@ func BuildIndex(root string) (Index, error) {
 			base := c.ShardID + "/fixture"
 			row.Report = existing(root, base+"/"+c.Name+"/result.json")
 			row.Flight = existing(root, base+"/"+c.Name+"/flight.jsonl")
+			row.Explain = existing(root, base+"/"+c.Name+"/explain.jsonl")
 			row.Log = existing(root, base+"/"+c.Name+".log")
 			matches, _ := filepath.Glob(filepath.Join(root, filepath.FromSlash(base+"/"+SnapshotDir+"/"+c.Name), "routine-stream-*.jsonl"))
 			sort.Strings(matches)
@@ -129,7 +131,7 @@ func (x Index) Markdown() string {
 	b.WriteString("| Case | Status | Attempts | Shard | `gh run download -n` | Evidence | Postmortem |\n|---|---|---|---|---|---|---|\n")
 	for _, c := range x.Cases {
 		ev := []string{}
-		for _, p := range []string{c.Report, c.Flight, c.Log} {
+		for _, p := range []string{c.Report, c.Flight, c.Explain, c.Log} {
 			if p != "" {
 				ev = append(ev, "`"+p+"`")
 			}

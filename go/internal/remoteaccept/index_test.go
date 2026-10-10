@@ -30,6 +30,7 @@ func TestBuildIndexFailingFirstWithEvidencePaths(t *testing.T) {
 	writeIndexFile(t, root, "s2/fixture/b/bad/result.json", `{"diagnosis":{"sections":[
 		{"name":"revision","note":"same"},{"name":"refusals","lines":[{"text":"no pawn","evidence":"x"},{"text":"bed|blocked","evidence":"y"}]}]}}`)
 	writeIndexFile(t, root, "s2/fixture/b/bad/flight.jsonl", ``)
+	writeIndexFile(t, root, "s2/fixture/b/bad/explain.jsonl", ``)
 	writeIndexFile(t, root, "s2/fixture/b/bad.log", ``)
 	writeIndexFile(t, root, "s2/fixture/snapshots/b/bad/routine-stream-9-2.jsonl", ``)
 	writeIndexFile(t, root, "s2/fixture/snapshots/b/bad/routine-stream-1-1.jsonl", ``)
@@ -48,7 +49,7 @@ func TestBuildIndexFailingFirstWithEvidencePaths(t *testing.T) {
 	bad := x.Cases[0]
 	want := IndexCase{Name: "b/bad", Status: "failed", Attempts: 2, Shard: "s2", Artifact: "acceptance-42-2-shard-s2",
 		Diagnosis: []string{"refusals: no pawn", "refusals: bed|blocked"},
-		Report:    "s2/fixture/b/bad/result.json", Flight: "s2/fixture/b/bad/flight.jsonl", Log: "s2/fixture/b/bad.log",
+		Report:    "s2/fixture/b/bad/result.json", Flight: "s2/fixture/b/bad/flight.jsonl", Explain: "s2/fixture/b/bad/explain.jsonl", Log: "s2/fixture/b/bad.log",
 		Snapshots: []string{"s2/fixture/snapshots/b/bad/routine-stream-1-1.jsonl", "s2/fixture/snapshots/b/bad/routine-stream-9-2.jsonl"}}
 	if !reflect.DeepEqual(bad, want) {
 		t.Fatalf("bad = %+v\nwant %+v", bad, want)

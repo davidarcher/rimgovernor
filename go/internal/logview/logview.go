@@ -20,7 +20,8 @@ import (
 )
 
 // Path resolves a recording: a profile directory's flight/flight.jsonl, or
-// the file path itself.
+// the file path itself. The explanation ring (explain.jsonl) beside it is
+// merged in by bridge.MergedTimelineReader.
 func Path(profile, file string) string {
 	if profile != "" {
 		return filepath.Join(profile, "flight", "flight.jsonl")
@@ -362,8 +363,8 @@ func compactPayload(payload map[string]any) string {
 // until ctx ends. Rows already present are skipped: the caller prints those
 // first. Follow does not collapse.
 func Follow(ctx context.Context, path string, f Filter, interval time.Duration, emit func(bridge.TimelineRecord)) error {
-	reader := bridge.NewTimelineReader(path)
-	var last uint64
+	reader := bridge.NewMergedTimelineReader(path)
+	last := map[string]uint64{} // per stream: the two rings count separately
 	started := false
 	for {
 		records, err := reader.Read()
@@ -377,8 +378,8 @@ func Follow(ctx context.Context, path string, f Filter, interval time.Duration, 
 				gap = &records[i]
 				continue
 			}
-			if rec.HasSeq && rec.Sequence > last {
-				last = rec.Sequence
+			if rec.HasSeq && rec.Sequence > last[rec.Stream] {
+				last[rec.Stream] = rec.Sequence
 				if started {
 					if gap != nil {
 						fresh = append(fresh, *gap)
