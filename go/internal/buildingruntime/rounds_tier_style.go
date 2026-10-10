@@ -90,7 +90,7 @@ func floorStyle(facts observation.ColonyProjection) func(policy.RoomRole) (strin
 	}
 	research := policy.FloorStyleFacts{CarpetMaking: styleResearchFinished(facts, "CarpetMaking"), SterileMaterials: styleResearchFinished(facts, "SterileMaterials"), Costs: map[string][]policy.Amount{}}
 	for _, d := range facts.Definitions {
-		if costs, known := d.Costs.Value(); known && (d.Name == policy.Carpet || d.Name == policy.SterileTile) {
+		if costs, known := d.Costs.Value(); known && (d.Name == policy.Carpet || d.Name == policy.SterileTile || d.Name == policy.StrawMatting) {
 			research.Costs[d.Name] = costs
 		}
 	}

@@ -187,7 +187,7 @@ func TestSelectRoutesMethodOpensNearestBreach(t *testing.T) {
 
 func TestFlooringTrafficTierFloorsBusyNaturalHomeCells(t *testing.T) {
 	p := flooringPolicy()
-	v := FlooringObservation{Rooms: []FloorRoom{flooringRoom("done", RoomRoleKitchen, "WoodPlankFloor", 40, 40)}, Terrains: flooringTerrains(), TrafficSamples: 100, Floors: trafficFloors()}
+	v := FlooringObservation{Rooms: []FloorRoom{flooringRoom("done", RoomRoleKitchen, "WoodPlankFloor", 40, 40)}, Terrains: flooringTerrains(), TrafficSamples: 100, Floors: trafficFloors(), TrafficStyle: "WoodPlankFloor"}
 	v.Traffic = []TrafficCell{
 		{Cell: domain.Cell{X: 1, Z: 1}, Layer: TrafficColonist, Samples: 40, Terrain: "Soil", Home: true},
 		{Cell: domain.Cell{X: 2, Z: 1}, Layer: TrafficColonist, Samples: 20, Terrain: "Soil", Home: true, Pending: "WoodPlankFloor"},
@@ -232,7 +232,7 @@ func TestFlooringTrafficTierFloorsBusyNaturalHomeCells(t *testing.T) {
 
 func TestDetectRoundsRanksTrafficFlooringLast(t *testing.T) {
 	f := stableRounds()
-	v := FlooringObservation{Rooms: []FloorRoom{flooringRoom("done", RoomRoleKitchen, "WoodPlankFloor", 40, 40)}, Terrains: flooringTerrains(), TrafficSamples: 100, Floors: trafficFloors()}
+	v := FlooringObservation{Rooms: []FloorRoom{flooringRoom("done", RoomRoleKitchen, "WoodPlankFloor", 40, 40)}, Terrains: flooringTerrains(), TrafficSamples: 100, Floors: trafficFloors(), TrafficStyle: "WoodPlankFloor"}
 	v.Traffic = []TrafficCell{{Cell: domain.Cell{X: 1, Z: 1}, Layer: TrafficColonist, Samples: 40, Terrain: "Soil", Home: true}}
 	f.Upkeep.Flooring = domain.Known(v)
 	r := needs(t, f, RoundsLatches{})

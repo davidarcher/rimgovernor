@@ -6,9 +6,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The tier style decides the floor when its floor can be laid now; a styled
-// floor the colony cannot afford for the whole batch, or that fails the
-// tier, leaves the scored list to decide.
+// The tier style decides the floor; a styled floor the colony cannot afford
+// for the whole batch, or that the census does not know, waits and is never
+// replaced by a floor from the scored list.
 func TestSelectFlooringPrefersTheTierStyle(t *testing.T) {
 	p := flooringPolicy()
 	p.Floors = append(p.Floors, "TileGranite")
@@ -27,16 +27,16 @@ func TestSelectFlooringPrefersTheTierStyle(t *testing.T) {
 	if err != nil || proposal.Method != FlooringBuild || proposal.Definition != "TileGranite" || proposal.Room != "kitchen" || len(proposal.Cells) != 6 {
 		t.Fatal(proposal, err)
 	}
-	// Blocks for half the batch: the style stands aside and wood pays.
+	// Blocks for half the batch: the tile waits, wood is not substituted.
 	facts.Stock = domain.Known(map[Resource]int64{"BlocksGranite": 9, "WoodLog": 100})
-	if proposal, err = SelectFlooringMethod(review, facts, p); err != nil || proposal.Definition != "WoodPlankFloor" {
+	if proposal, err = SelectFlooringMethod(review, facts, p); err != nil || proposal.Method != FlooringMaterialsNeeded {
 		t.Fatal(proposal, err)
 	}
-	// A style naming a floor the census does not know is no preference:
-	// the scored list decides, and with that stock it scores the tile too.
+	// A style naming a floor the census does not know is an unknown fact,
+	// not a licence to score the list.
 	facts.Stock = domain.Known(map[Resource]int64(stock))
 	facts.Style = func(RoomRole) (string, bool) { return "TileMarble", true }
-	if proposal, err = SelectFlooringMethod(review, facts, p); err != nil || proposal.Definition != "TileGranite" {
+	if proposal, err = SelectFlooringMethod(review, facts, p); err != nil || proposal.Method != FlooringUnknown {
 		t.Fatal(proposal, err)
 	}
 	// The style outranks the score: carpet in the bedroom over the tile.

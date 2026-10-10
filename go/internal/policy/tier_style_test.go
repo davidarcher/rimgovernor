@@ -15,6 +15,7 @@ var (
 	campStock  = tierStock("WoodLog", 300)
 	stoneStock = tierStock("WoodLog", 300, "BlocksGranite", 200, "BlocksSlate", 50)
 	steelStock = tierStock("WoodLog", 300, "BlocksGranite", 200, "Steel", 500, "Silver", 100, "Cloth", 100)
+	hayStock   = tierStock("WoodLog", 300, "BlocksGranite", 200, "Hay", 100)
 	fullStock  = tierStock("WoodLog", 300, "BlocksGranite", 200, "Steel", 500, "Plasteel", 100, "Silver", 100, "Cloth", 100)
 )
 
@@ -65,6 +66,11 @@ func TestFloorDefTable(t *testing.T) {
 		{"industrial hospital without any stock", TechTierIndustrial, RoomRoleHospital, campStock, sterile, "", false},
 		{"spacer sterile", TechTierSpacer, RoomRoleHospital, fullStock, sterile, "SterileTile", true},
 		{"spacer hospital unmet falls to tile", TechTierSpacer, RoomRoleHospital, stoneStock, sterile, "TileGranite", true},
+		{"industrial sterile kitchen", TechTierIndustrial, RoomRoleKitchen, steelStock, sterile, "SterileTile", true},
+		{"industrial kitchen without research falls to tile", TechTierIndustrial, RoomRoleKitchen, steelStock, FloorStyleFacts{}, "TileGranite", true},
+		{"masonry barn straw matting", TechTierMasonry, RoomRoleBarn, hayStock, FloorStyleFacts{Costs: floorCosts}, StrawMatting, true},
+		{"masonry barn without hay unfloored", TechTierMasonry, RoomRoleBarn, stoneStock, FloorStyleFacts{Costs: floorCosts}, "", false},
+		{"camp barn unfloored", TechTierCamp, RoomRoleBarn, hayStock, FloorStyleFacts{Costs: floorCosts}, "", false},
 		{"spacer aisle flagstone", TechTierSpacer, RoomRoleNone, fullStock, FloorStyleFacts{}, "FlagstoneGranite", true},
 	}
 	for _, tc := range cases {

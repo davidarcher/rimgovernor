@@ -71,16 +71,9 @@ func (r *RoundsBuildingPlanner) incineratorFloor(call context.Context, current d
 }
 
 // flooringDefinitions lists every floor the policy may choose so the census
-// read carries each one's availability, stats and cost list, the entry floors included.
+// read carries each one's availability, stats and cost list.
 func (r *RoundsBuildingPlanner) flooringDefinitions() []string {
-	p := r.reviewer.policy.Flooring
-	names := append([]string(nil), p.Floors...)
-	for _, name := range p.EntryFloors {
-		if !slices.Contains(names, name) {
-			names = append(names, name)
-		}
-	}
-	return names
+	return append([]string(nil), r.reviewer.policy.Flooring.Floors...)
 }
 
 // selectFlooring re-reviews the fresh census under the review's latch and

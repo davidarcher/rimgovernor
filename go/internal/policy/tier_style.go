@@ -82,24 +82,27 @@ const (
 	floorAisle
 	floorLiving
 	floorSoft
-	floorHospital
+	floorSterile
+	floorBarn
 )
 
 // floorClassOf maps a room role to its floor class: aisles (RoomRoleNone,
 // the cells between modules) and storage take flagstone; bedrooms, dining,
 // workshops and the other lived-in rooms take stone tile; bedrooms and
-// recreation may take carpet; the hospital takes sterile tile. Roles not
-// listed (tombs, barns, prison cells) receive no floor.
+// recreation may take carpet; the hospital and kitchen take sterile tile; barns take straw
+// matting. Roles not listed (tombs, prison cells) receive no floor.
 func floorClassOf(role RoomRole) floorClass {
 	switch role {
 	case RoomRoleNone, RoomRoleStoreroom:
 		return floorAisle
 	case RoomRoleBedroom, RoomRoleRecRoom:
 		return floorSoft
-	case RoomRoleDiningRoom, RoomRoleWorkshop, RoomRoleKitchen, RoomRoleLaboratory, RoomRoleBarracks, RoomRoleRoom:
+	case RoomRoleDiningRoom, RoomRoleWorkshop, RoomRoleLaboratory, RoomRoleBarracks, RoomRoleRoom:
 		return floorLiving
-	case RoomRoleHospital:
-		return floorHospital
+	case RoomRoleHospital, RoomRoleKitchen:
+		return floorSterile
+	case RoomRoleBarn:
+		return floorBarn
 	}
 	return floorNone
 }
@@ -133,12 +136,15 @@ func (f FloorStyleFacts) affordable(def string, stock TierStyleStock) bool {
 // colour keeps the proposal deterministic.
 const Carpet = "CarpetRed"
 
-// SterileTile is the hospital's sterile floor.
+// SterileTile is the hospital and kitchen sterile floor.
 const SterileTile = "SterileTile"
+
+// StrawMatting is the barn floor: cheap hay matting that accepts little filth.
+const StrawMatting = "StrawMatting"
 
 // FloorDef is the floor rule: nothing at Camp; from Masonry flagstone of the
 // quarried stone on aisles and in storage and stone tile in the lived-in
-// rooms; sterile tile in the hospital at Industrial once SterileMaterials
+// rooms; sterile tile in the hospital and kitchen at Industrial once SterileMaterials
 // is finished and steel and silver stock allow; carpet in bedrooms and
 // recreation once CarpetMaking is finished and cloth stock allows. Each
 // upgrade falls back one rung to the stone floor, and the stone floor to
@@ -163,7 +169,12 @@ func FloorDef(tier TechTier, role RoomRole, stock TierStyleStock, facts FloorSty
 			return "", false
 		}
 		switch {
-		case class == floorHospital && t >= TechTierIndustrial:
+		case class == floorBarn:
+			if facts.affordable(StrawMatting, stock) {
+				return StrawMatting, true
+			}
+			return "", false
+		case class == floorSterile && t >= TechTierIndustrial:
 			if facts.SterileMaterials && facts.affordable(SterileTile, stock) {
 				return SterileTile, true
 			}

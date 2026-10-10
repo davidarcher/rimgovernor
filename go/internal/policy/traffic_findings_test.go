@@ -31,42 +31,28 @@ func TestTrafficFindingsFlagBedroomThoroughfare(t *testing.T) {
 	}
 }
 
-func TestFlooringEntryTierMatsKitchenDoorCrossing(t *testing.T) {
+func TestFlooringBarnTierLaysStrawMatting(t *testing.T) {
 	p := flooringPolicy()
 	terrains := flooringTerrains()
 	terrains["StrawMatting"] = FloorTerrain{Cleanliness: -0.1, Beauty: -1, PathCost: 1}
-	kitchen := flooringRoom("kitchen", RoomRoleKitchen, "SterileTile", 10, 10)
-	v := FlooringObservation{Rooms: []FloorRoom{kitchen}, Terrains: terrains}
-	v.Traffic = []TrafficCell{
-		{Cell: domain.Cell{X: 40, Z: 40}, Layer: TrafficCrossing, Samples: 90, Terrain: "WoodPlankFloor", Home: true},
-		{Cell: domain.Cell{X: 10, Z: 10}, Layer: TrafficCrossing, Samples: 50, Terrain: "SterileTile", Home: true},
-		{Cell: domain.Cell{X: 30, Z: 30}, Layer: TrafficCrossing, Samples: 5, Terrain: "WoodPlankFloor", Home: true},
-		{Cell: domain.Cell{X: 10, Z: 10}, Layer: TrafficColonist, Samples: 500, Terrain: "SterileTile", Home: true},
-	}
+	v := FlooringObservation{Rooms: []FloorRoom{flooringRoom("barn", RoomRoleBarn, "Soil", 10, 10)}, Terrains: terrains}
 	r, err := ReviewFlooring(domain.Known(v), domain.Unknown[RoomObservation](), nil, p)
-	if err != nil || len(r.Deficits) != 1 {
+	if err != nil || len(r.Deficits) != 1 || r.Deficits[0].Tier != FloorTierBarn || len(r.Deficits[0].Cells) != 6 {
 		t.Fatal(r, err)
 	}
-	// The kitchen door comes before the busier crossing elsewhere; the
-	// quiet one is not an entry point.
-	d := r.Deficits[0]
-	if d.Tier != FloorTierEntry || len(d.Cells) != 2 || d.Cells[0] != (domain.Cell{X: 10, Z: 10}) || d.Cells[1] != (domain.Cell{X: 40, Z: 40}) {
-		t.Fatal(d)
-	}
-	facts := flooringDefinitions()
-	facts.Definitions["StrawMatting"] = FloorDefinition{Available: domain.Known(true), Terrain: domain.Known(true), Cleanliness: domain.Known(-0.1), Beauty: domain.Known(-1.0), Flammability: domain.Known(1.5), PathCost: domain.Known[int32](1), Costs: domain.Known([]Amount{{Resource: "Hay", Count: 2}})}
+	facts := styledFacts(StrawMatting)
+	facts.Definitions[StrawMatting] = FloorDefinition{Available: domain.Known(true), Terrain: domain.Known(true), Cleanliness: domain.Known(-0.1), Beauty: domain.Known(-1.0), Flammability: domain.Known(1.5), PathCost: domain.Known[int32](1), Costs: domain.Known([]Amount{{Resource: "Hay", Count: 2}})}
 	facts.Stock = domain.Known(map[Resource]int64{"WoodLog": 100, "Hay": 40})
 	proposal, err := SelectFlooringMethod(r, facts, p)
-	if err != nil || proposal.Method != FlooringBuild || proposal.Tier != FloorTierEntry || proposal.Definition != "StrawMatting" || proposal.Cells[0] != (domain.Cell{X: 10, Z: 10}) {
+	if err != nil || proposal.Method != FlooringBuild || proposal.Tier != FloorTierBarn || proposal.Definition != StrawMatting || len(proposal.Cells) != 6 {
 		t.Fatal(proposal, err)
 	}
-	// Once matted, the kitchen cell is neither an entry point nor a clean
-	// deficit despite the mat's negative cleanliness.
-	v.Rooms[0].Cells[0].Terrain = "StrawMatting"
-	v.Traffic[1].Terrain = "StrawMatting"
-	v.Traffic[3].Terrain = "StrawMatting"
-	r, err = ReviewFlooring(domain.Known(v), domain.Unknown[RoomObservation](), nil, p)
-	if err != nil || len(r.Deficits) != 1 || r.Deficits[0].Tier != FloorTierEntry || len(r.Deficits[0].Cells) != 1 {
+	// Once matted, despite the mat's negative beauty and cleanliness, the barn
+	// has no deficit.
+	for i := range v.Rooms[0].Cells {
+		v.Rooms[0].Cells[i].Terrain = StrawMatting
+	}
+	if r, err = ReviewFlooring(domain.Known(v), domain.Unknown[RoomObservation](), nil, p); err != nil || len(r.Deficits) != 0 {
 		t.Fatal(r, err)
 	}
 }
@@ -75,7 +61,7 @@ func TestFlooringTrafficTierRanksColonistStepsByPayback(t *testing.T) {
 	p := flooringPolicy()
 	terrains := flooringTerrains()
 	terrains["Sand"] = FloorTerrain{PathCost: 4, Natural: true}
-	v := FlooringObservation{Terrains: terrains, TrafficSamples: 1000, Floors: trafficFloors()}
+	v := FlooringObservation{Terrains: terrains, TrafficSamples: 1000, Floors: trafficFloors(), TrafficStyle: "WoodPlankFloor"}
 	v.Traffic = []TrafficCell{
 		{Cell: domain.Cell{X: 1, Z: 1}, Layer: TrafficColonist, Samples: 60, Terrain: "Soil", Home: true},
 		{Cell: domain.Cell{X: 2, Z: 1}, Layer: TrafficColonist, Samples: 40, Terrain: "Sand", Home: true},
@@ -86,5 +72,24 @@ func TestFlooringTrafficTierRanksColonistStepsByPayback(t *testing.T) {
 	// visitor steps never pave.
 	if err != nil || len(r.Deficits) != 1 || len(r.Deficits[0].Cells) != 2 || r.Deficits[0].Cells[0] != (domain.Cell{X: 2, Z: 1}) {
 		t.Fatal(r, err)
+	}
+}
+
+// With no tier style the traffic tier lays nothing, however cheap or steel-free
+// the policy floors would be.
+func TestFlooringTrafficTierNeverSubstitutesAFloor(t *testing.T) {
+	p := flooringPolicy()
+	terrains := flooringTerrains()
+	terrains["Sand"] = FloorTerrain{PathCost: 8, Natural: true}
+	v := FlooringObservation{Terrains: terrains, TrafficSamples: 1000, Floors: trafficFloors()}
+	v.Traffic = []TrafficCell{{Cell: domain.Cell{X: 1, Z: 1}, Layer: TrafficColonist, Samples: 400, Terrain: "Sand", Home: true}}
+	if r, err := ReviewFlooring(domain.Known(v), domain.Unknown[RoomObservation](), nil, p); err != nil || r.Active {
+		t.Fatal("paved without a style", r, err)
+	}
+	// A styled floor the stock cannot pay for waits instead of falling to wood.
+	v.TrafficStyle = "SterileTile"
+	v.Stock = domain.Known(map[Resource]int64{"WoodLog": 100})
+	if r, err := ReviewFlooring(domain.Known(v), domain.Unknown[RoomObservation](), nil, p); err != nil || r.Active {
+		t.Fatal("substituted wood for the styled floor", r, err)
 	}
 }

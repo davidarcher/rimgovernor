@@ -38,16 +38,22 @@ func TestWantedFloorsOrdinaryRoomTakesTheEconomicsChoice(t *testing.T) {
 	facts := wantedFloorFacts()
 	// The choice is the selector's: the same floor the review would lay.
 	review, _ := ReviewFlooring(domain.Known(flooringCensus()), domain.Unknown[RoomObservation](), nil, p)
-	proposal, err := SelectFlooringMethod(review, flooringDefinitions(), p)
+	styled := styledFacts("WoodPlankFloor")
+	proposal, err := SelectFlooringMethod(review, styled, p)
 	if err != nil || proposal.Tier != FloorTierClean {
 		t.Fatal(proposal, err)
 	}
 	room := wantedFloorRoom(PlannedKitchen)
-	got := WantedFloors(room, nil, flooringDefinitions(), p)(domain.Cell{X: 11, Z: 11})
+	got := WantedFloors(room, nil, styled, p)(domain.Cell{X: 11, Z: 11})
 	if got != proposal.Definition || got != "WoodPlankFloor" {
 		t.Fatal(got, proposal.Definition)
 	}
-	// With steel the clean tier prefers sterile tile, and a living room stays on wood.
+	// No style (Camp) wants no floor, however affordable the list is.
+	if got := WantedFloors(room, nil, flooringDefinitions(), p)(domain.Cell{X: 11, Z: 11}); got != "" {
+		t.Fatal("wanted a floor with no style", got)
+	}
+	// The style names the sterile tile for the kitchen once steel pays for it.
+	facts.Style = func(RoomRole) (string, bool) { return "SterileTile", true }
 	facts.Stock = domain.Known(map[Resource]int64{"WoodLog": 100, "Steel": 100})
 	if got := WantedFloors(room, nil, facts, p)(domain.Cell{X: 10, Z: 10}); got != "SterileTile" {
 		t.Fatal(got)

@@ -160,13 +160,19 @@ func TestReviewFlooringRejectsInvalidCensus(t *testing.T) {
 	}
 }
 
-func TestSelectFlooringPrefersTheTierScoreAmongAffordableFloors(t *testing.T) {
+// styledFacts is the fixture definitions with a tier style naming one floor
+// for every room.
+func styledFacts(floor string) FlooringFacts {
+	facts := flooringDefinitions()
+	facts.Style = func(RoomRole) (string, bool) { return floor, true }
+	return facts
+}
+
+func TestSelectFlooringLaysOnlyTheStyledFloor(t *testing.T) {
 	p := flooringPolicy()
 	review, _ := ReviewFlooring(domain.Known(flooringCensus()), domain.Unknown[RoomObservation](), nil, p)
-	facts := flooringDefinitions()
+	facts := styledFacts("WoodPlankFloor")
 	proposal, err := SelectFlooringMethod(review, facts, p)
-	// Sterile tile scores higher for a kitchen but there is no steel; wood
-	// pays for every cell.
 	if err != nil || proposal.Method != FlooringBuild || proposal.Definition != "WoodPlankFloor" || proposal.Room != "kitchen" || proposal.Tier != FloorTierClean || len(proposal.Cells) != 6 || proposal.Key == "" {
 		t.Fatal(proposal, err)
 	}
@@ -174,22 +180,17 @@ func TestSelectFlooringPrefersTheTierScoreAmongAffordableFloors(t *testing.T) {
 	if again.Key != proposal.Key {
 		t.Fatal("method key is not stable", proposal.Key, again.Key)
 	}
+	facts = styledFacts("SterileTile")
 	facts.Stock = domain.Known(map[Resource]int64{"WoodLog": 100, "Steel": 100})
 	proposal, err = SelectFlooringMethod(review, facts, p)
 	if err != nil || proposal.Definition != "SterileTile" {
 		t.Fatal(proposal, err)
 	}
-	// A floor paying for the whole batch beats a better one paying for part
-	// of it; partial stock lays what it pays for and the key follows the batch.
+	// A styled floor the stock cannot pay for whole waits; wood, which the
+	// stock could pay for, is never substituted.
 	facts.Stock = domain.Known(map[Resource]int64{"WoodLog": 100, "Steel": 8})
-	partial, err := SelectFlooringMethod(review, facts, p)
-	if err != nil || partial.Definition != "WoodPlankFloor" || len(partial.Cells) != 6 {
-		t.Fatal(partial, err)
-	}
-	facts.Stock = domain.Known(map[Resource]int64{"WoodLog": 9, "Steel": 8})
-	partial, err = SelectFlooringMethod(review, facts, p)
-	if err != nil || partial.Definition != "WoodPlankFloor" || len(partial.Cells) != 3 || partial.Key == proposal.Key {
-		t.Fatal(partial, err)
+	if proposal, err = SelectFlooringMethod(review, facts, p); err != nil || proposal.Method != FlooringMaterialsNeeded {
+		t.Fatal("substituted a floor the style did not name", proposal, err)
 	}
 	// Unknown stock leaves affordability to admission.
 	facts.Stock = domain.Unknown[map[Resource]int64]()
@@ -199,10 +200,26 @@ func TestSelectFlooringPrefersTheTierScoreAmongAffordableFloors(t *testing.T) {
 	}
 }
 
+func TestSelectFlooringLaysNothingWhereTheStyleNamesNone(t *testing.T) {
+	p := flooringPolicy()
+	review, _ := ReviewFlooring(domain.Known(flooringCensus()), domain.Unknown[RoomObservation](), nil, p)
+	// No style (Camp): affordable wood and available sterile tile stay unlaid.
+	facts := flooringDefinitions()
+	facts.Stock = domain.Known(map[Resource]int64{"WoodLog": 100, "Steel": 100})
+	if proposal, err := SelectFlooringMethod(review, facts, p); err != nil || proposal.Method != FlooringNoMethod {
+		t.Fatal("laid a floor with no style", proposal, err)
+	}
+	// A style that names no floor for the role waits on materials.
+	facts.Style = func(RoomRole) (string, bool) { return "", false }
+	if proposal, err := SelectFlooringMethod(review, facts, p); err != nil || proposal.Method != FlooringMaterialsNeeded {
+		t.Fatal(proposal, err)
+	}
+}
+
 func TestSelectFlooringDefersWithoutMaterialsOrResearch(t *testing.T) {
 	p := flooringPolicy()
 	review, _ := ReviewFlooring(domain.Known(flooringCensus()), domain.Unknown[RoomObservation](), nil, p)
-	facts := flooringDefinitions()
+	facts := styledFacts("SterileTile")
 	facts.Stock = domain.Known(map[Resource]int64{})
 	proposal, err := SelectFlooringMethod(review, facts, p)
 	if err != nil || proposal.Method != FlooringMaterialsNeeded {
@@ -217,7 +234,9 @@ func TestSelectFlooringDefersWithoutMaterialsOrResearch(t *testing.T) {
 		t.Fatal(proposal, err)
 	}
 	// A definition missing from the census leaves the choice unknown.
-	proposal, err = SelectFlooringMethod(review, FlooringFacts{Definitions: map[string]FloorDefinition{}}, p)
+	missing := styledFacts("SterileTile")
+	missing.Definitions = map[string]FloorDefinition{}
+	proposal, err = SelectFlooringMethod(review, missing, p)
 	if err != nil || proposal.Method != FlooringUnknown {
 		t.Fatal(proposal, err)
 	}
@@ -233,7 +252,7 @@ func TestSelectFlooringBoundsTheBatch(t *testing.T) {
 	p := flooringPolicy()
 	p.MaxCellsPerPlan = 4
 	review, _ := ReviewFlooring(domain.Known(flooringCensus()), domain.Unknown[RoomObservation](), nil, p)
-	proposal, err := SelectFlooringMethod(review, flooringDefinitions(), p)
+	proposal, err := SelectFlooringMethod(review, styledFacts("WoodPlankFloor"), p)
 	if err != nil || len(proposal.Cells) != 4 || proposal.Cells[0] != (domain.Cell{X: 10, Z: 10}) {
 		t.Fatal(proposal, err)
 	}
@@ -241,17 +260,16 @@ func TestSelectFlooringBoundsTheBatch(t *testing.T) {
 
 func TestSelectFlooringRefusesUglyFloorsForLivingRooms(t *testing.T) {
 	p := flooringPolicy()
-	p.Floors = []string{"Concrete"}
 	census := FlooringObservation{Rooms: []FloorRoom{flooringRoom("bed", RoomRoleBedroom, "Soil", 20, 20)}, Terrains: flooringTerrains()}
 	review, _ := ReviewFlooring(domain.Known(census), domain.Unknown[RoomObservation](), nil, p)
-	facts := flooringDefinitions()
+	facts := styledFacts("Concrete")
 	concrete := facts.Definitions["Concrete"]
 	concrete.Available = domain.Known(true)
 	facts.Definitions = map[string]FloorDefinition{"Concrete": concrete}
 	facts.Stock = domain.Known(map[Resource]int64{"Steel": 100})
 	proposal, err := SelectFlooringMethod(review, facts, p)
-	if err != nil || proposal.Method != FlooringResearchNeeded {
-		t.Fatal("concrete is not a living-room floor", proposal, err)
+	if err != nil || proposal.Method != FlooringUnknown {
+		t.Fatal("a style naming concrete for a living room must not lay it", proposal, err)
 	}
 }
 
@@ -304,7 +322,7 @@ func TestFlooringTrafficTierPaysBack(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p := flooringPolicy()
-			v := FlooringObservation{Terrains: terrains, TrafficSamples: 1000, Traffic: tc.traffic, Floors: trafficFloors()}
+			v := FlooringObservation{Terrains: terrains, TrafficSamples: 1000, Traffic: tc.traffic, Floors: trafficFloors(), TrafficStyle: "WoodPlankFloor"}
 			if tc.floors != nil {
 				tc.floors(v.Floors)
 			}
