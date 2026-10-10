@@ -51,7 +51,7 @@ type NamedDeclared struct {
 	Declared
 }
 
-// Placement outcomes in the view: what the journal holds for the latest
+// Placement outcomes in the view: what the placement index holds for the latest
 // production_bill of an order.
 const (
 	// AttemptAccepted: native took the bill.
@@ -65,7 +65,7 @@ const (
 )
 
 // PlacementAttempt is the latest outcome of a ledger plan's production_bill
-// for one order, read from the journal: the view stores nothing of its own.
+// for one order, read from the Rounder's placement index.
 type PlacementAttempt struct {
 	Plan    string `json:"plan"`
 	Tick    int64  `json:"tick"`
@@ -112,7 +112,7 @@ type LedgerView struct {
 	Excluded       []LedgerBillView     `json:"excluded"`
 	Unmet          []UnmetView          `json:"unmet"`
 	FurtherBenches []string             `json:"furtherBenches"`
-	// AttemptsKnown is whether the journal was read for the orders' Attempt.
+	// AttemptsKnown is whether the placement index was seeded for the orders' Attempt.
 	AttemptsKnown bool        `json:"attemptsKnown"`
 	Export        *ExportView `json:"export"`
 }
@@ -292,7 +292,7 @@ func sameCandidate(list []ExportCandidate, c ExportCandidate) bool {
 }
 
 // WithAttempts is the view with each order's latest placement outcome from the
-// journal. The receiver's rows are not changed.
+// placement index. The receiver's rows are not changed.
 func (v LedgerView) WithAttempts(attempts PlacementAttempts) LedgerView {
 	v.AttemptsKnown = true
 	orders := make([]LedgerOrderView, len(v.Orders))

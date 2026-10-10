@@ -109,6 +109,9 @@ func TestWorkLedgerShowsPlacementOutcomesFromJournal(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// A restart: the index is empty and unseeded, so the journal's receipts seed it.
+	index := &f.reviewer.ledger.attempts
+	index.entries, index.seeded = nil, false
 	v := f.reviewer.WorkLedger(ctx)
 	if !v.AttemptsKnown {
 		t.Fatalf("journal unread: %+v", v)
@@ -125,6 +128,17 @@ func TestWorkLedgerShowsPlacementOutcomesFromJournal(t *testing.T) {
 	}
 	if a, ok := attempt["Make_Cap"]; !ok || a != nil {
 		t.Fatalf("cap was never carried by a plan: %+v", a)
+	}
+	// The worker's next outcome for the refused bill replaces the seeded one.
+	for _, progress := range loaded.Progress {
+		if placedBill(t, progress.Action()).Recipe() == "Make_Hat" {
+			f.reviewer.notePlacement(result.Plan, progress.Action(), domain.ProgressView{Tick: 9, Receipt: domain.Known(domain.ReceiptUnknown)})
+		}
+	}
+	for _, o := range f.reviewer.WorkLedger(ctx).Orders {
+		if o.Recipe == "Make_Hat" && (o.Attempt == nil || o.Attempt.Outcome != policy.AttemptUnconfirmed || o.Attempt.Tick != 9) {
+			t.Fatalf("hat after the worker noted it = %+v", o.Attempt)
+		}
 	}
 	if f.reviewer.WorkLedgerView().AttemptsKnown {
 		t.Fatal("the memory view must not claim a journal read")

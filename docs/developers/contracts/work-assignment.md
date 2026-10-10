@@ -385,11 +385,12 @@ last declaration, the silver gap, the goods in flight netted off it, the best 10
 export candidates plus any ordered, and the count of candidates dropped by reason (`no_buyer`,
 `no_ingredient`, `no_margin`, `runway_guard`; `Export`, nil until it declares in this world). It
 issues no native call and has no mutating verb (405); it is 404 without Rounds. Each order also
-carries its latest placement outcome (`Rounder.WorkLedger`, read from the journal per request,
-nothing stored): the newest `production_bill` action in the ledger owner's `ledger-*` methods whose
-spec matches, as `accepted`, `refused` (native's code and reason, e.g. `bench_bill_slots_full`),
-`unconfirmed` or `pending`. No attempt means none was ever journaled; `attemptsKnown` false means
-the journal could not be read.
+carries its latest placement outcome (`Rounder.WorkLedger`), read from an in-memory placement index:
+the Rounder notes a `ledger-*` plan's `production_bill` as `pending` when it commits, and the worker
+notes each dispatch's progress as `accepted`, `refused` (native's code and reason, e.g.
+`bench_bill_slots_full`), `unconfirmed` or `pending`. The first request after a start seeds the index once from the
+journal's `ledger-*` plans, so a restart shows no false "never attempted". No attempt means none was
+ever journaled; `attemptsKnown` false means the seed could not be read yet. No request decodes a plan.
 
 Orphan removal covers every bill of a production recipe kind: one no plan placed (a
 player's, or placed before a restart) is an orphan like any other, and the journal

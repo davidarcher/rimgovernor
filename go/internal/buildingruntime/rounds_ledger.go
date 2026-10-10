@@ -53,6 +53,8 @@ type workLedger struct {
 	// benchKinds is the latest readback's bench definition by bench id, which
 	// turns a journaled bill action back into an order Key.
 	benchKinds map[string]string
+	// attempts is the placement index (WorkLedger), seeded once from the journal.
+	attempts placementIndex
 }
 
 // ledgerUnmet is the latest review's unmet throughput per bench kind.
@@ -261,6 +263,9 @@ func (l *RoundsLedgerPlanner) step(call, epoch context.Context, arbiter *stepArb
 	r.ledger.mu.Lock()
 	r.ledger.pending = nil
 	r.ledger.mu.Unlock()
+	for _, action := range actions {
+		r.notePlacement(id, action, domain.ProgressView{})
+	}
 	return RoundsLedgerResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 

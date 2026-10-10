@@ -272,6 +272,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	// file their census sections, /api/routines reports them.
 	var sections *factsstore.Store
 	var ledger httpapi.LedgerProvider
+	var placement func(domain.PlanID, domain.Action, domain.ProgressView)
 	var advanced, windowRunning = func() {}, func() bool { return false }
 	var stepTrace func() telemetry.Trace
 	var validity func() (domain.ReadValidity, bool)
@@ -294,11 +295,11 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return err
 		}
 		advanced, windowRunning, stepTrace, validity = clockWorker.Nudge, clockWorker.WindowRunning, clockWorker.Trace, clockWorker.Validity
-		ledger = clockWorker
+		ledger, placement = clockWorker, clockWorker.NotePlacement
 	}
 	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: natives.breaks, Pawns: natives.breaks, Moves: client.movement.Writer, RoundsMethods: config.roundsMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
-		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Store: sections, WindowRunning: windowRunning, Trace: stepTrace, Validity: validity, Flush: natives.flush.FlushSnapshot,
+		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Store: sections, WindowRunning: windowRunning, Trace: stepTrace, Validity: validity, Flush: natives.flush.FlushSnapshot, Placement: placement,
 	}, player, session)
 	if err != nil {
 		return err

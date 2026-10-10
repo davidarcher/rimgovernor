@@ -75,6 +75,9 @@ type WorkerConfig struct {
 	// so a dispatch wave pays one frame capture instead of one per apply.
 	// Nil leaves every dispatch capturing its own frame.
 	Flush func(context.Context) error
+	// Placement, when set, is told each dispatched action's progress after
+	// its step (the Rounder's placement index for the ledger's Attempt column).
+	Placement func(domain.PlanID, domain.Action, domain.ProgressView)
 }
 
 // roundsExecutableKind lists every action kind the worker (and, for a
@@ -546,6 +549,9 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			after := v
 			if result.Progress.View().Action == v.Action {
 				after = result.Progress.View()
+			}
+			if w.config.Placement != nil {
+				w.config.Placement(candidate.plan, candidate.action, after)
 			}
 			stale := workerHeldStale(after, result, err)
 			delay := w.config.StepInterval

@@ -185,6 +185,14 @@ func (w *ClockWorker) WorkLedger(ctx context.Context) (view policy.LedgerView, o
 	return w.rounds.WorkLedger(ctx), true
 }
 
+// NotePlacement tells the Rounder's placement index a dispatched action's
+// progress (WorkerConfig.Placement).
+func (w *ClockWorker) NotePlacement(plan domain.PlanID, action domain.Action, v domain.ProgressView) {
+	if w.rounds != nil {
+		w.rounds.notePlacement(plan, action, v)
+	}
+}
+
 // waitOrWake sleeps for delay unless the wake signal fires first. It reports
 // whether the wake fired and whether the worker is still alive.
 func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (woken, alive bool) {

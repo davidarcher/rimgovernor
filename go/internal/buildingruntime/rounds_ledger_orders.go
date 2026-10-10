@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -67,63 +68,125 @@ func (l *workLedger) declaredBatches() []policy.OrderSpec {
 	return append([]policy.OrderSpec(nil), l.batches...)
 }
 
-// WorkLedger is WorkLedgerView with each order's latest placement outcome read
-// from the journal: the ledger planner's ledger-* methods, whose plans hold the
-// production_bill actions and native's receipts (accepted, or refused with its
-// reason). Nothing is stored for it; when the journal cannot be read the view
-// says so (AttemptsKnown false) rather than claiming no order was tried.
+// placementIndex is the Rounder's memory of each placed bill's latest outcome,
+// the ledger's Attempt column. It is updated where the ledger planner commits a
+// placement and where the worker dispatches it (WorkerConfig.Placement), and
+// seeded once from the journal's receipts so a restart does not read as "never
+// attempted". It is keyed by the bill's bench id and spec rather than the order
+// Key, which needs the bench's kind, a readback fact a restart has not read yet.
+type placementIndex struct {
+	mu      sync.Mutex
+	seeded  bool
+	entries map[string]placementEntry
+}
+
+type placementEntry struct {
+	bench   string
+	spec    policy.OrderSpec
+	attempt policy.PlacementAttempt
+}
+
+func placementEntryOf(plan string, bill domain.ProductionBill, attempt policy.PlacementAttempt) (string, placementEntry) {
+	spec := policy.OrderSpec{Recipe: bill.Recipe(), Ingredients: bill.Ingredients(), Worker: bill.Worker(), Mode: bill.Mode(), Target: bill.Target()}
+	attempt.Plan = plan
+	return bill.Bench() + "/" + spec.Key(), placementEntry{bench: bill.Bench(), spec: spec, attempt: attempt}
+}
+
+// notePlacement records a committed or dispatched production bill's progress.
+func (r *Rounder) notePlacement(plan domain.PlanID, action domain.Action, v domain.ProgressView) {
+	bill, ok := action.ProductionBill()
+	if !ok {
+		return
+	}
+	key, e := placementEntryOf(string(plan), bill, attemptOf(v))
+	x := &r.ledger.attempts
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	if x.entries == nil {
+		x.entries = map[string]placementEntry{}
+	}
+	x.entries[key] = e
+}
+
+// WorkLedger is WorkLedgerView with each order's latest placement outcome from
+// the placement index. The index is seeded once from the ledger planner's
+// journaled plans; until that read succeeds the view says so (AttemptsKnown
+// false) rather than claiming no order was tried.
 func (r *Rounder) WorkLedger(ctx context.Context) policy.LedgerView {
 	view := r.WorkLedgerView()
 	r.ledger.mu.Lock()
 	kinds := r.ledger.benchKinds
 	r.ledger.mu.Unlock()
-	if len(view.Orders) == 0 {
+	if len(view.Orders) == 0 || !r.seedPlacements(ctx) {
 		return view
 	}
-	attempts, ok := r.ledgerAttempts(ctx, kinds)
-	if !ok {
-		return view
+	attempts := policy.PlacementAttempts{}
+	r.ledger.attempts.mu.Lock()
+	for _, e := range r.ledger.attempts.entries {
+		if kind := kinds[e.bench]; kind != "" {
+			spec := e.spec
+			spec.BenchKind = kind
+			attempts.Note(spec.Key(), e.attempt)
+		}
 	}
+	r.ledger.attempts.mu.Unlock()
 	return view.WithAttempts(attempts)
 }
 
-// ledgerAttempts is the latest outcome per order Key over every plan of the
-// ledger owner's methods.
-func (r *Rounder) ledgerAttempts(ctx context.Context, kinds map[string]string) (policy.PlacementAttempts, bool) {
+// seedPlacements fills the index from the journal once and reports whether it
+// is filled. Outcomes noted live meanwhile stand: they are newer.
+func (r *Rounder) seedPlacements(ctx context.Context) bool {
+	x := &r.ledger.attempts
+	x.mu.Lock()
+	seeded := x.seeded
+	x.mu.Unlock()
+	if seeded {
+		return true
+	}
 	journal := r.player.journal
 	review, err := journal.LoadRounds(ctx)
 	if err != nil {
-		return nil, false
+		return false
 	}
 	owner, _, err := journal.WorkableOwner(ctx, review, policy.MaintainWorkLedger)
 	if err != nil || owner == nil {
-		return nil, false
+		return false
 	}
-	attempts := policy.PlacementAttempts{}
+	found := map[string]placementEntry{}
 	for _, method := range owner.OwnerHistory() {
 		if !strings.HasPrefix(string(method.Method), ledgerMethodPrefix) {
 			continue
 		}
 		plan, err := journal.LoadPlan(ctx, method.Plan)
 		if err != nil {
-			return nil, false
+			return false
 		}
 		for _, progress := range plan.Progress {
-			bill, ok := progress.Action().ProductionBill()
-			kind := kinds[bill.Bench()]
-			if !ok || kind == "" {
-				continue
+			if bill, ok := progress.Action().ProductionBill(); ok {
+				key, e := placementEntryOf(string(method.Plan), bill, attemptOf(progress.View()))
+				if held, ok := found[key]; !ok || e.attempt.Tick >= held.attempt.Tick {
+					found[key] = e
+				}
 			}
-			key := policy.OrderSpec{BenchKind: kind, Recipe: bill.Recipe(), Ingredients: bill.Ingredients(), Worker: bill.Worker(), Mode: bill.Mode(), Target: bill.Target()}.Key()
-			attempts.Note(key, attemptOf(string(method.Plan), progress.View()))
 		}
 	}
-	return attempts, true
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	if x.entries == nil {
+		x.entries = map[string]placementEntry{}
+	}
+	for key, e := range found {
+		if _, live := x.entries[key]; !live {
+			x.entries[key] = e
+		}
+	}
+	x.seeded = true
+	return true
 }
 
-// attemptOf is a journaled bill action as a placement outcome.
-func attemptOf(plan string, v domain.ProgressView) policy.PlacementAttempt {
-	a := policy.PlacementAttempt{Plan: plan, Tick: int64(v.Tick), Outcome: policy.AttemptPending}
+// attemptOf is a bill action's progress as a placement outcome.
+func attemptOf(v domain.ProgressView) policy.PlacementAttempt {
+	a := policy.PlacementAttempt{Tick: int64(v.Tick), Outcome: policy.AttemptPending}
 	receipt, known := v.Receipt.Value()
 	switch {
 	case !known:

@@ -205,7 +205,7 @@ func ledgerPage(r Reading[policy.LedgerView]) LedgerPage {
 	return p
 }
 
-// placement says what the journal holds for an order's latest bill: native's
+// placement says what the ledger holds for an order's latest bill: native's
 // answer, or that none was tried.
 func placement(a *policy.PlacementAttempt, known bool) string {
 	switch {
