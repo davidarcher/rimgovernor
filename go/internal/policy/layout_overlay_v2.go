@@ -41,6 +41,7 @@ var roomOverlay = map[PlannedRole]overlayStyle{
 	PlannedIncinerator:      {planRed, "incinerator"},
 	PlannedGraveyard:        {planGreen, "graveyard"},
 	PlannedTrainingRange:    {planBrown, "training range"},
+	PlannedSparringRing:     {planBrown, "sparring ring"},
 	PlannedYard:             {planTan, "materials yard"},
 	PlannedThrone:           {planAmber, "throne room"},
 	PlannedNursery:          {planGreen, "nursery"},

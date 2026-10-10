@@ -81,6 +81,7 @@ func declareStores(owners []StoreOwner, view StoreView) StoreDeclaration {
 		d.Demand.StorageIdle = d.Demand.StorageIdle || got.StorageIdle
 		d.Demand.Graveyards = max(d.Demand.Graveyards, got.Graveyards)
 		d.Demand.Ranges = max(d.Demand.Ranges, got.Ranges)
+		d.Demand.Rings = max(d.Demand.Rings, got.Rings)
 		d.Demand.Known = d.Demand.Known || got.Known
 	}
 	return d
@@ -103,6 +104,7 @@ func (d StoreDeclaration) Apply(old RoomDemand) RoomDemand {
 	}
 	old.Graveyards = d.Demand.Graveyards
 	old.Ranges = d.Demand.Ranges
+	old.Rings = d.Demand.Rings
 	old.Known = old.Known || d.Demand.Known
 	return old
 }

@@ -44,6 +44,9 @@ type PlannedRoom struct {
 	// Facing is the direction an unfenced training range's dummies lie from its
 	// stands (Unfenced); unset for every other room.
 	Facing domain.Rotation `json:",omitempty"`
+	// Markers is the marker count of a sparring ring (RingSlot orders the
+	// slots); 0 for every other room.
+	Markers int `json:",omitempty"`
 }
 
 // ZoneKind is a whole-map zone's use.
@@ -286,7 +289,7 @@ func (r PlannedRoom) Same(o PlannedRoom) bool {
 			return false
 		}
 	}
-	return r.Role == o.Role && r.Interior == o.Interior && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing
+	return r.Role == o.Role && r.Interior == o.Interior && r.Door == o.Door && r.DoorRot == o.DoorRot && r.Dug == o.Dug && r.Outdoor == o.Outdoor && r.Facing == o.Facing && r.Markers == o.Markers
 }
 
 // NearestAnchor is the interior centre of the free planned room of role want

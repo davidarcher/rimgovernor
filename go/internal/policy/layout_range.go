@@ -37,9 +37,12 @@ func RangeStandsFor(capable int) int {
 	return min(max((capable+1)/2, RangeMinStands), RangeMaxStands)
 }
 
-// Unfenced reports whether r has no ring: the training range stands in open air
-// with nothing built round it, so it owes no wall, fence, door, roof or floor.
-func (r PlannedRoom) Unfenced() bool { return r.Role == PlannedTrainingRange }
+// Unfenced reports whether r has no ring: the training range and the sparring
+// ring stand in open air with nothing built round them, so they owe no wall,
+// fence, door, roof or floor.
+func (r PlannedRoom) Unfenced() bool {
+	return r.Role == PlannedTrainingRange || r.Role == PlannedSparringRing
+}
 
 // rangeHorizontal is true when the range's rows run along X (dummies north or
 // south of the stands).

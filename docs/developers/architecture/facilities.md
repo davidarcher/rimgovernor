@@ -662,6 +662,18 @@ ChargedShot moves the weapon and lifts the ceiling), `lab/training-raid` (a draf
 mid-drill restores the real weapon) and `lab/training-fire` (a burning dummy
 likewise leaks no practice weapon).
 
+**Sparring ring (#2705, `layout_ring.go`).** A second unfenced Outdoor planned
+room (`PlannedSparringRing`, `Unfenced()`), sited beside the range by the same
+search (`rangeGap`), on the candidate nearest the range's blocked footprint, or
+the core when there is no range. Its shape is fixed: a side-9 interior
+(`RingSide`), blocked with a one-cell margin, no facing. Marker slots
+(`RingSlot`) sit at fixed positions on the inner edge, one per side in turn, so
+slot n is always the same cell. Growth only raises `PlannedRoom.Markers`
+(additive, omitempty) to `RoomDemand.Rings` (4 to 12, `RingMarkersFor`) in the
+next free slots; nothing moves. `RingTemplate(room)` is one
+`RimGovernor_SparringMarker` (`Defs/ThingDefs/SparringMarker.xml`) per marker.
+What fills `Rings` and the runtime reconcile are later epic #2677 issues.
+
 ### Trade goods (MaintainTrade)
 
 Goods made to sell (#2607) need no facility of their own: `MaintainTrade`

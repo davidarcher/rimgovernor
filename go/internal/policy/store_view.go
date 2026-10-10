@@ -76,6 +76,9 @@ type RoomDemand struct {
 	// Ranges is the stands the plan's training range should hold, 0 for no demand (the
 	// training concern, #2619).
 	Ranges int
+	// Rings is the markers the plan's sparring ring should hold, 0 for no
+	// demand (PlannedRoom.Markers mirrors it).
+	Rings int
 	// Yard is the materials yards the plan should hold, 0 for no demand
 	// (a further yard; see YardRoomsWanted).
 	Yard int

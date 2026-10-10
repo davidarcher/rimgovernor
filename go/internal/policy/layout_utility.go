@@ -453,6 +453,9 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 }
 
 func roomWalls(r PlannedRoom) Rectangle {
+	if r.Role == PlannedSparringRing {
+		return ringBlock(r)
+	}
 	if r.Unfenced() {
 		// No walls: the footprint the range blocks (rangeBlock).
 		return rangeBlock(r)
