@@ -229,7 +229,7 @@ namespace HomeBridge.BridgeTools
         public bool Thought;
         public int EndedTick;
         public float JoyStart = -1f;
-        public float JoyEnd = -1f;
+        public float JoyEnd = -1f;
         public float ToleranceStart;
         public float ToleranceEnd;
     }

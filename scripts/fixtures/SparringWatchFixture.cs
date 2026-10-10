@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
     // one, one on a work-only schedule), bored of every joy kind but Social so the
     // vanilla joy pick can only choose a Social giver, and a per-tick recorder that
     // reads each watch job the tick it runs (the game runs thousands of ticks between
-    // two reads). Test builds only; compiled with SparringFixture.
+    // two reads). Test builds only; compiled with SparringWatchFixture (stage after SparringFixture).
     public sealed class SparringWatchFixture
     {
         [Tool("test/sparring_watch_prepare", Description = "UNSAFE FOR MODEL EXECUTION. After test/sparring_prepare: stage spectators near the ring (a free bystander at joy time; optionally a drafted one and one whose schedule is all work) and a recorder of every watch job. Test builds only.")]
