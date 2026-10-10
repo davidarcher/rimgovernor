@@ -530,24 +530,27 @@ keeps it complete against the installed RoomRoleDefs.
 
 ### Training range (RimGovernor mod)
 
-The range is open air: stands and dummies, no room, no ring. The mod's
-buildings (`Defs/ThingDefs/TrainingRange.xml`) are `RimGovernor_TrainingBowStand`
-(the firing mark) and `RimGovernor_TrainingDummy`, both `madeFromStuff` (wood,
-stone or metal; hit points come from the vanilla stuff multiplier) and reusing
-vanilla textures. `Bow_Training` is the practice weapon: a short-bow clone with
-no recipe, category or trade tag, issued and restored by the training job, not
-craftable. The mod defines no `RoomRoleDef`: nothing scores the range, and the
-controller reads no role for it.
+The range is open air: a row of firing stands, a row of dummies facing it, no
+shell, no fence, no door and nothing between them. Drill shots cannot hurt
+a colonist (the verb is cast with friendly fire prevented and non-target pawns
+excluded), so a pawn walking between stand and dummy is safe and nothing needs
+guarding. The mod's buildings (`Defs/ThingDefs/TrainingRange.xml`) are
+`RimGovernor_TrainingBowStand` (the firing mark) and `RimGovernor_TrainingDummy`,
+both `madeFromStuff` (wood, stone or metal; hit points and flammability come
+from the vanilla stuff factors) and reusing vanilla textures. The mod defines no
+`RoomRoleDef`: nothing scores the range, and the controller reads no role for
+it. Melee practice is a separate facility (the sparring ring,
+`Defs/ThingDefs/SparringRing.xml`), not part of the range.
 
-`policy.RangeLayout(room)` is the template: one row of stands side by side with
-no gaps and, `RangeDistance` (8) cells away, one row of dummies directly facing
-them, one dummy per stand. The room's `Interior` is the bounding rectangle of the
-two rows and the lane between them; its `Facing` is the direction from the stands
-to the dummies. The stand count is `RangeStandsFor(capable adults)`:
-`clamp(ceil(n / 2), 2, 8)`, read from `TrainingReview.Capable` (every capable
-adult, not only those under the skill target, so it does not fall as colonists
-train). The mod's def names are `policy.RangeDefNames` and a test keeps them
-equal to the XML.
+**Layout and scaling.** `policy.RangeLayout(room)` is the template: one row of
+stands side by side with no gaps and, `RangeDistance` (8) cells away, one row of
+dummies directly facing them, one dummy per stand. The room's `Interior` is the
+bounding rectangle of the two rows and the ground between them; its `Facing` is
+the direction from the stands to the dummies. The stand count is
+`RangeStandsFor(capable adults)`: `clamp(ceil(n / 2), 2, 8)`, read from
+`TrainingReview.Capable` (every adult colonist who can shoot, not only those under
+the skill ceiling, so it does not fall as colonists train). The mod's def names
+are `policy.RangeDefNames` and a test keeps them equal to the XML.
 
 The range is a planned room (`PlannedTrainingRange`, `layout_range.go`),
 `TierExpand`, `Outdoor` and unfenced (`PlannedRoom.Unfenced`): it owes no fence,
@@ -561,59 +564,103 @@ store department; `StoreView.TrainingStands`) makes `growRanges` site it through
 `outskirtsCandidatesAt` with `rangeGap` (2) instead of `outskirtsGap`, on the
 nearest site to the core. A site on a side of the core faces away from it; when
 the sites on the dummy axis are taken (map edge, cliff, water), a site beside the
-core faces along its rows toward the end farther from the core, and none faces the
-core. A standing range only grows: a larger demand widens it along its rows into
-free ground (the + end, then the - end), keeping every standing piece, and a
-smaller demand changes nothing. `RangeTemplate(room)` turns the layout into the
-`[]WantedPiece` the room reconciler builds. `MaintainTraining` (Military, #2619)
-demands it: while an adult colonist's best of Melee and Shooting is under
-the ceiling of `policy.UnlockedTrainingTier` (#2684: the best tier whose gate research is finished in the research census; an unknown census holds at the bow), the military store declares `RoomDemand.Ranges`
-(the stockpile review, so with the stockpiles family); `RoundsTrainingPlanner`
-(family `training`) then reconciles `RangeTemplate`, and takes no further action
-once the range stands (the native training job is #2610). No action kind or wire
-field is involved.
+core faces along its rows toward the end farther from the core, and none faces
+the core. A standing range only grows: a larger demand widens it along its rows
+into free ground (the + end, then the - end), keeping every standing piece, and
+a smaller demand changes nothing. `RangeTemplate(room)` turns the layout into
+the `[]WantedPiece` the room reconciler builds.
 
-The drill itself is native (#2610, `src/Runtime/Training`). `WorkGiver_TrainRange`
-sits under the `RimGovernorTraining` work type (`Defs/WorkTypeDefs`,
-`WorkGiverDefs`, `JobDefs`): no relevant skill, so the work planner gives it the
-unskilled rank 3 for every capable colonist and the bot, not the player, owns
-the priority ([work assignment](../contracts/work-assignment.md)); the lowest
-natural priority puts it behind every other work of an equal rank. The giver
-offers a stand only to an adult colonist whose Shooting skill is under
-the same ceiling (native `RangeTraining.Ceiling`, read from finished research, Odyssey projects by name; About.xml depends on Odyssey) with budget
-left, for a stand that is unreserved and unforbidden and a dummy sharing its
-column (x or z) within the unlocked weapon's range; the range is open air, so no
-room or sight test. The job (`JobDriver_TrainRange`, `RimGovernor_TrainShooting`)
-trains Shooting only; melee left the range (#2676).
+`MaintainTraining` (Military, #2619) demands it: while a capable adult's
+Shooting is under the ceiling of `policy.UnlockedTrainingTier` (the best tier
+whose gate research is finished in the research census; an unknown census holds
+at the bow), the military store declares `RoomDemand.Ranges` (the stockpile
+review, so with the stockpiles family). `RoundsTrainingPlanner` (family
+`training`) then reconciles `RangeTemplate` and takes no further action once the
+range stands. A pawn who cannot shoot (a Brawler or melee-only colonist,
+Shooting disabled) and a child are not counted. No action kind or wire field is
+involved.
+
+**Tiers.** The drill climbs a research-gated ladder of practice weapons. Every
+weapon keeps the 3 s cycle; what changes is the XP per shot and the skill
+ceiling at which the weapon stops teaching. The best unlocked tier applies.
+
+| Tier | Weapon | XP/shot | Ceiling | Gate | Projectile |
+|---|---|---|---|---|---|
+| 0 | `Bow_Training` (practice bow) | 75 | 8 | none | `Arrow_Practice` |
+| 1 | `Gun_PracticeRifle` | 112 | 12 | Gunsmithing | `Bullet_PracticeRubber` |
+| 2 | `Gun_PracticePulseRifle` | 187 | 16 | ChargedShot | `Bullet_PracticePulse` |
+| 3 | `Gun_PracticeBeamEmitter` | 300 | 20 | BeamWeapons (Odyssey) | `Bullet_PracticeBeam` |
+
+(Multipliers 1, 1.5, 2.5 and 4 against tier 0.) The table is owned by the
+`TrainingTier` `DefModExtension` on each weapon def in `TrainingRange.xml`, read
+natively by [`TrainingTier.cs`](../../../integrations/rimgovernor-native/src/Runtime/Training/TrainingTier.cs)
+and mirrored in Go as
+[`policy.TrainingTiers`](../../../go/internal/policy/training_tier.go); a Go test
+parses the XML and pins every field. `UnlockedTrainingTier` (Go, from the
+research census) and `RangeTraining.UnlockedWeapon` (native, from
+`ResearchProjectDef.IsFinished`) apply the same rule. The practice weapons have
+no recipe, category or trade tag and are never owned: the drill issues and
+restores them. Every projectile does exactly 1 damage (`Thing.TakeDamage` returns
+early at 0, and damage is an integer). The mod depends on Odyssey (`About.xml`
+`modDependencies` and `loadAfter`), so the BeamWeapons project always exists;
+research that a census does not list never unlocks its tier.
+
+The research ladder supplies the gates: `DefaultResearchLadder` ends with
+Gunsmithing, ChargedShot and BeamWeapons, after Microelectronics and the
+multi-analyzer, and the planned laboratory builds the high-tech bench and the
+analyzer early (see [research](../contracts/research.md)).
+
+**The drill.** The drill itself is native (#2610, `src/Runtime/Training`).
+`WorkGiver_TrainRange` sits under the `RimGovernorTraining` work type
+(`Defs/WorkTypeDefs`, `WorkGiverDefs`, `JobDefs`): no relevant skill, so the work
+planner gives it the unskilled rank 3 for every capable colonist and the bot, not
+the player, owns the priority ([work assignment](../contracts/work-assignment.md));
+the lowest natural priority puts it behind every other work of an equal rank. The
+giver offers a stand only to an adult colonist who can shoot and whose Shooting is
+under the unlocked tier's ceiling (`RangeTraining.Ceiling`), with budget left, for
+a stand that is unreserved and unforbidden and a dummy sharing its column (x or z)
+within the weapon's range; the range is open air, so there is no room or sight
+test. The job (`JobDriver_TrainRange`, `RimGovernor_TrainShooting`) trains
+Shooting only.
 
 - **Shooting.** Walk onto the stand, move the pawn's weapon to its inventory,
   equip a fresh practice weapon of the best unlocked tier and fire its real verb
-  at the dummy (no friendly fire, no non-target pawns). The finish action runs on every end of the job (completion,
+  at the dummy. The finish action runs on every end of the job (completion,
   interruption, drafting, downing, the pawn's death, which despawns it before its
-  belongings drop) and restores the weapon and destroys the bow.
+  belongings drop) and restores the weapon and destroys the practice weapon.
 - **XP.** Vanilla pays nothing for a non-pawn target (`IsTargetImmobile`), so
-  each completed shot (one whose `LastShotTick` advanced) calls
-  direct `SkillRecord.Learn` with the weapon's `TrainingTier.xpPerShot` (75 with
-  the practice bow, more for the unlocked tiers). Direct Learn
-  keeps the passion factor but skips the 4,000 XP/day soft cap and does not count
-  toward `xpSinceMidnight`, so the job bounds itself: at most 3,000 applied XP
-  a pawn a day (in memory, reset on a new day or a load), leaving a quarter of
-  the cap's headroom to real work and fights. A session is 10 cycles; the giver
-  offers the next while the pawn is under the target and the budget.
+  each completed shot (one whose `LastShotTick` advanced) calls direct
+  `SkillRecord.Learn` with the weapon's `xpPerShot`. Direct Learn keeps the
+  passion factor but skips the 4,000 XP/day soft cap and does not count toward
+  `xpSinceMidnight`, so the job bounds itself: at most 3,000 applied XP a pawn a
+  day (in memory, reset on a new day or a load), leaving a quarter of the cap's
+  headroom to real work and fights. Tiers buy time and a higher ceiling, not a
+  higher daily budget. A session is 10 cycles; the giver offers the next while the
+  pawn is under the ceiling and the budget.
+- **Chatting.** Adjacent drillers are inside vanilla's 6-cell line-of-sight chat
+  rule, which does not depend on the job, so neighbours at the stands can chat
+  (and rarely quarrel). This is left alone on purpose.
 
 **Dummy wear and mending (#2687).** The dummy has 300 base hit points times the
-vanilla stuff factor (wood 0.65, steel 1, granite 1.7, plasteel 2.8); its
-flammability is the vanilla base 1 times the stuff's factor, as for any
-`madeFromStuff` building. Every tier's practice projectile does 1 damage, so wear
-is bounded and the shooter mends the dummy inside the drill job at
-`JobDriver_Repair`'s rate (one hit point per 20 / (ConstructionSpeed x 1.7)
-ticks, small Construction XP, no materials, no Construction work type or
-home-area gate). Before each cycle, if the dummy's hit points are at or below
-twice the projectile's damage (the next hit plus one hit of margin) the shooter
-stops, mends to full and resumes; it also mends to full at the end of a session.
-An interrupted session mends nothing. Vanilla repair still covers other damage
-and the room reconciler still rebuilds a destroyed dummy. No Go state is
-involved: the range is never held out of the home area.
+vanilla stuff factor (wood 0.65, steel 1, granite 1.7, plasteel 2.8). Every
+tier's practice projectile does 1 damage, so wear is bounded and the shooter
+mends the dummy inside the drill job at `JobDriver_Repair`'s rate (one hit point
+per 20 / (ConstructionSpeed x 1.7) ticks, small Construction XP, no materials, no
+Construction work type or home-area gate). Before each cycle, if the dummy's hit
+points are at or below twice the projectile's damage (the next hit plus one hit
+of margin) the shooter stops, mends to full and resumes; it also mends to full at
+the end of a session. An interrupted session mends nothing. Vanilla repair still
+covers other damage and the room reconciler still rebuilds a destroyed dummy. No
+Go state is involved: the range is never held out of the home area.
+
+**Lab cases.** `lab/training-shooting` and the open-air cases in
+`nativeaccept/cases/lab/training_range.go` (nightly bulk tier) check what only
+the native job shows: `lab/training-midlane` (a colonist standing between stand
+and dummy takes no hit and does not stall the shooter), `lab/training-chat`
+(adjacent drillers can chat), `lab/training-tiers` (finishing Gunsmithing then
+ChargedShot moves the weapon and lifts the ceiling), `lab/training-raid` (a draft
+mid-drill restores the real weapon) and `lab/training-fire` (a burning dummy
+likewise leaks no practice weapon).
 
 ### Trade goods (MaintainTrade)
 
