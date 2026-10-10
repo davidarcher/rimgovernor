@@ -195,6 +195,7 @@ type Client struct {
 
 	recorder         *FlightRecorder
 	framesSampledAt  atomic.Int64
+	rollup           pollRollup
 	recordingContext func() map[string]any
 	transcript       *Transcript
 }

@@ -220,7 +220,7 @@ func (caller *Client) frameReadView(ctx context.Context, name string, key readCa
 						}
 					}
 					if caller.recorder != nil {
-						caller.recorder.Event("native_frame", caller.snapshotRecordingContext(ctx), false, map[string]any{"outcome": "hit", "tool": "games_call_tool", "native_tool": name, "frame": frame.Number})
+						caller.foldHit(name)
 					}
 					return true, nil
 				case world != nil && !sameIdentity(world, identity):

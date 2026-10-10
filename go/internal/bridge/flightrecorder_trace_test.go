@@ -15,6 +15,7 @@ import (
 // and every row it records carries the trace; the companion's echo lands
 // in the response row's timing.
 func TestTracePropagatesThroughTypedCallsAndRows(t *testing.T) {
+	noRollup(t)
 	var sent []string
 	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		var outer struct {

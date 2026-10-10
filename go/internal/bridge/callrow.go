@@ -130,7 +130,7 @@ func withDeferredCall(ctx context.Context) (context.Context, *deferredCall) {
 func (c *Client) recordCall(ctx context.Context, recordCtx map[string]any, row map[string]any) {
 	d, _ := ctx.Value(pendingCallKey{}).(*deferredCall)
 	if d == nil {
-		c.recorder.Event("native_call", recordCtx, false, row)
+		c.recordNativeCall(recordCtx, row)
 		return
 	}
 	d.mu.Lock()
@@ -160,5 +160,5 @@ func (p *pendingCall) write(extra map[string]any) {
 			timing[k] = v
 		}
 	}
-	p.c.recorder.Event("native_call", p.recordCtx, false, p.row)
+	p.c.recordNativeCall(p.recordCtx, p.row)
 }

@@ -18,6 +18,7 @@ import (
 // row, a correlated ProtoJSON decode row, and that the sampler attributes
 // them to the inner rimgovernor/* tool with wall TPS from reply ticks.
 func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
+	noRollup(t)
 	tick := int64(1000)
 	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		tick += 600

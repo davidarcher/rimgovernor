@@ -443,6 +443,31 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 			}
 			lastTick, tickWall, haveTick = tick, row.WallTime, true
 			summary.Clock.LastTick = tick
+		case "native_poll":
+			// The calls and frame hits a window folded instead of writing rows.
+			if folded, ok := row.Payload["tools"].(map[string]any); ok {
+				for native, v := range folded {
+					fields, _ := v.(map[string]any)
+					wrapper, _ := fields["wrapper"].(string)
+					_, entry := phaseEntry(tools, TimelineRecord{Payload: map[string]any{"tool": wrapper, "native_tool": native}})
+					entry.Calls += uint64(field(fields, "calls"))
+					entry.GateWaitMs += field(fields, "gate_wait_ms")
+					entry.CallMs += field(fields, "call_ms")
+					entry.DecodeMs += field(fields, "decode_ms")
+					entry.TotalMs += field(fields, "total_ms")
+					entry.ResponseBytes += uint64(field(fields, "response_bytes"))
+					entry.ProtoDecodeMs += field(fields, "proto_decode_ms")
+					entry.NativeTimed += uint64(field(fields, "native_timed"))
+					entry.NativeQueueMs += field(fields, "native_queue_ms")
+					entry.NativeExecuteMs += field(fields, "native_execute_ms")
+				}
+			}
+			if hits, ok := row.Payload["frame_hits"].(map[string]any); ok {
+				for native := range hits {
+					_, entry := phaseEntry(tools, TimelineRecord{Payload: map[string]any{"tool": "games_call_tool", "native_tool": native}})
+					entry.CacheHits += uint64(field(hits, native))
+				}
+			}
 		case "native_frame":
 			switch outcome, _ := row.Payload["outcome"].(string); outcome {
 			case "hit":
