@@ -703,7 +703,7 @@ load" holds by construction (the registry is keyed on the `Map`), not by a reloa
 **Tuned numbers (#2711).** Measured over about 100 sessions per tier and outfit
 (tribal garment, spacer recon armor) by `lab/sparring-risk`, `lab/sparring-xp` and
 `lab/sparring-scale` (measure mode of `SparringFixture`: tally each ended session,
-heal it to realize scars, reset the pawn). Stop rule: pain 0.4, bleed 1.5, 12 swings.
+heal it to realize scars, reset the pawn). Stop rule: pain 0.4, bleed 1.5, 10 swings.
 The first guesses were wrong: bleed 0.05 ended nearly every sharp session after one
 swing, and Cut power 5 gave about 10 deep cuts and median pain 0.55 per session.
 Now every Cut weapon shares power 3 (Blunt club 3), practice helmet and gloves
@@ -712,7 +712,7 @@ naked, no real armor lost or worn, no scar in the final 800-session run (an earl
 run with the same armor scarred one eye in 800). A sharp session is about 8 cuts; a quarter to a third end early on bleeding.
 Vanilla melee XP is about 400 per swing at passion Minor and the day's 4000
 `xpSinceMidnight` saturation (then x0.2) is crossed in the first 10 swings of
-the day's first bout, so 12 swings already over-fill it. Formation seats every
+the day's first bout, so the 10-swing cap ends the first bout at the saturation point. Formation seats every
 pawn at 2 to 12 eligible with no double booking; at levels 16 to 20 a lone high
 pawn pairs with the lowest available and a high-only crew pairs among itself.
 The fixture's colony cap is 12 for these cases.

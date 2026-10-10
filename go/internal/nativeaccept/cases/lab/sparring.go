@@ -250,7 +250,7 @@ func checkSparringFight(stage sparringStage, got map[string]any) error {
 			return fmt.Errorf("%s's gear is not restored: %#v", p.id, got)
 		case !p.threatNull:
 			return fmt.Errorf("%s still had a meleeThreat when its job ended: %#v", p.id, got)
-		case p.exchanges > 12:
+		case p.exchanges > 10:
 			return fmt.Errorf("%s made %d exchanges, past the cap: %#v", p.id, p.exchanges, got)
 		case p.exchanges > 0 && !p.xp:
 			return fmt.Errorf("%s swung %d times and was paid no melee XP: %#v", p.id, p.exchanges, got)
@@ -271,12 +271,12 @@ func checkSparringFight(stage sparringStage, got map[string]any) error {
 			if p.stop == "Pain" || p.stop == "Bleeding" {
 				return fmt.Errorf("%s stopped for %s with no pain possible: %#v", p.id, p.stop, got)
 			}
-			if p.stop == "Exchanges" && p.exchanges == 12 {
+			if p.stop == "Exchanges" && p.exchanges == 10 {
 				capped++
 			}
 		}
 		if capped == 0 {
-			return fmt.Errorf("no pawn ended at the 12-exchange cap: %#v", got)
+			return fmt.Errorf("no pawn ended at the 10-exchange cap: %#v", got)
 		}
 		if na.AsNumber(got["struck"]) == 0 {
 			return fmt.Errorf("no blow landed, so the struck pawn was never tested: %#v", got)

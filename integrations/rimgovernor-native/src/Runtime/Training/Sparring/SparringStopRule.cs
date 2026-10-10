@@ -15,7 +15,7 @@ namespace RimGovernor.Runtime
         // bruise does not bleed, so only a cut at the sharp tiers can reach it.
         public const float BleedLimit = 1.5f;
         // Swings a pawn makes in one bout.
-        public const int MaxExchanges = 12;
+        public const int MaxExchanges = 10;
 
         public static SparringStop Check(float pain, float bleedRate, int exchanges)
         {
