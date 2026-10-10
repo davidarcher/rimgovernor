@@ -86,7 +86,7 @@ func DeriveGearRole(p GearRoleInput) GearRole {
 	best := 5
 	var counts, skill map[GearRole]int
 	for _, w := range priorities {
-		if w.Disabled || w.Priority <= 0 || w.Priority > 4 {
+		if w.Disabled || w.Priority <= 0 || w.Priority > domain.MaxPriority {
 			continue
 		}
 		r := gearWorkRole(w.Work)
@@ -291,7 +291,7 @@ func gearMedic(p GearLoadoutInput) bool {
 	priorities, _ := p.Role.Work.Work.Value()
 	best, medic := 5, false
 	for _, w := range priorities {
-		if w.Disabled || w.Priority <= 0 || w.Priority > 4 {
+		if w.Disabled || w.Priority <= 0 || w.Priority > domain.MaxPriority {
 			continue
 		}
 		if w.Priority < best {

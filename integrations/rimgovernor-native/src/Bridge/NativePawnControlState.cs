@@ -172,6 +172,7 @@ namespace HomeBridge.BridgeTools
                 if (game.Exhausted) return NativePawnControlResult.Unavailable;
                 if (!game.Pawns.TryGetValue(pawn,out var record))
                 {
+                    // Hard count; tracked in #2662 (docs/developers/contracts/kept-constants.md).
                     if (game.Pawns.Count >= 4096) return NativePawnControlResult.CapacityExhausted;
                     record = new NativePawnControlRecord(); game.Pawns.Add(pawn,record);
                 }

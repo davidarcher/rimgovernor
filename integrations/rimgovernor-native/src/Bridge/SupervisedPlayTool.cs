@@ -17,7 +17,6 @@ namespace HomeBridge.BridgeTools
 {
     internal static partial class Supervisor
     {
-        private const int Capacity = 128;
         private static readonly FieldInfo BoostField = typeof(TickManager).GetField("UltraSpeedBoost", BindingFlags.Static | BindingFlags.NonPublic);
         // Wall-clock grace for a force pause with no window behind it.
         // An autosave takes about a second; 20 s is generous and still

@@ -37,7 +37,8 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 const KnowBuriedInSarcophagusThought = "KnowBuriedInSarcophagus"
 
 // StrangerTombStackCap is the most live KnowBuriedInSarcophagus stacks the
-// tomb feeds strangers for.
+// tomb feeds strangers for. Kept: the memory's stack depth is the game's
+// (docs/developers/contracts/kept-constants.md).
 const StrangerTombStackCap = 4
 
 // knowBuriedStackTotals is a colonist's summed memory offset at 1, 2, 3 and 4

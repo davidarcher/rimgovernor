@@ -25,6 +25,7 @@ namespace HomeBridge.BridgeTools
         private const int RegulatorRampMs = 100;
         // Rows the controller has not acknowledged, oldest first; a backlog
         // this long is already held at Normal, so the tail need not be kept.
+        // Kept (docs/developers/contracts/kept-constants.md).
         private const int UnackedRowsKept = 256;
 
         private static bool _ceilingPatched;

@@ -16,6 +16,7 @@ namespace HomeBridge.BridgeTools
     // thread may use it. Admission guards and native evidence remain adapter work.
     internal sealed class NativeAttemptLedger
     {
+        // Refuses at this count; tracked in #2662 (docs/developers/contracts/kept-constants.md).
         internal const int Capacity = 4096;
         private static readonly Encoding Utf8 = new UTF8Encoding(false, true);
         private readonly string colonyId;

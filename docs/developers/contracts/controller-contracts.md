@@ -735,3 +735,9 @@ psycast of the highest family (heal, then stun, burst, defensive).
   in reach.
 - The order is no `combat.orders` entry: it commits as an `ability` action (psycast
   source) on the permit calls' incident method, native owning the guards.
+
+## Fixed values that stay
+
+`raidGiveUpTicks` (38000, the vanilla window raiders leave within), the
+sarcophagus memory stack of four (`StrangerTombStackCap`) and the other surviving
+constants are listed once, with reasons, in [kept constants](kept-constants.md).

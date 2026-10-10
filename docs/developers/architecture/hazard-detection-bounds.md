@@ -153,3 +153,10 @@ records the event and `TickBody` stops right after the watch checks
 A combat window with no armed event stops on its tick budget, the
 controller's `combatBackstopTicks` (300). The acceptance case
 `combatlab/stops` proves the exact tick on `lab-open`.
+
+## Combat event ring
+
+The combat mirror keeps the last 1024 event rows (`CombatMirror.RingSize`) and
+every frame carries the ring whole; a reader works from its watermark. A row's
+free-text `Detail` is cut to 256 characters and a cut value ends in
+`...[truncated]`. Both bounds are kept: see [kept constants](../contracts/kept-constants.md).

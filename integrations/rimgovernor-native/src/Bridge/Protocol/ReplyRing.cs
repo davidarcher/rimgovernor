@@ -30,6 +30,7 @@ namespace HomeBridge.BridgeTools
     /// </summary>
     internal static class ReplyRing
     {
+        // Kept (docs/developers/contracts/kept-constants.md).
         internal const int Slots = 8;
         internal const int SlotBytes = 16 << 20;
         internal const int HeaderBytes = 64, SlotHeaderBytes = 40;

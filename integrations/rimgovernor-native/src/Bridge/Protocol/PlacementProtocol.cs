@@ -13,6 +13,7 @@ namespace HomeBridge.BridgeTools
 
         internal static bool Validate(Wire.PlacementRequest request, out Failure failure)
         {
+            // The 64-candidate bound is kept (docs/developers/contracts/kept-constants.md).
             failure = new Failure { Code = FailureCode.InvalidRequest, Detail = "Placement request requires identity and 1..64 complete candidates." };
             if (request.Identity == null || request.Placements.Count < 1 || request.Placements.Count > 64) return false;
             foreach (var row in request.Placements)

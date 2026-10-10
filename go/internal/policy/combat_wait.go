@@ -9,6 +9,7 @@ import (
 // raidGiveUpTicks bounds a humanoid raid's wait: raiders give up
 // and leave 26k-38k ticks after they arrive (sappers 33k-38k), so a raid
 // still here past the window's end is not leaving and the fight re-forms.
+// Kept: the vanilla window's end (docs/developers/contracts/kept-constants.md).
 const raidGiveUpTicks = 38000
 
 // outmatched is the wait-it-out comparison: ours is the

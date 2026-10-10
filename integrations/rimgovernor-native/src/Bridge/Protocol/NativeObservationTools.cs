@@ -167,6 +167,7 @@ namespace HomeBridge.BridgeTools
         // very close. So an insect is engaging only while awake and targeting
         // something of the player's, and a hive only while awake with a
         // colonist inside its boundary or one of its insects engaging.
+        // Tracked in #2652 (docs/developers/contracts/kept-constants.md).
         internal const int HiveBoundaryCells = 10;
         private static bool Awake(Thing thing) => thing.TryGetComp<CompCanBeDormant>()?.Awake ?? true;
         // A dormant mech cluster: its mechs and buildings sleep under

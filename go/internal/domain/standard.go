@@ -63,7 +63,7 @@ func NewStandard(id ConcernID, priority int, snapshot GenerationSnapshot) (Stand
 	return g, g.Validate()
 }
 func (g Standard) Validate() error {
-	if !validID(string(g.ID)) || g.Priority < 0 || g.Priority > 4 || g.Snapshot.Validate() != nil {
+	if !validID(string(g.ID)) || g.Priority < 0 || g.Priority > MaxPriority || g.Snapshot.Validate() != nil {
 		return errors.New("invalid standard")
 	}
 	if len(g.Record) > MaxStandardRecord {

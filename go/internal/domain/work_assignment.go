@@ -14,7 +14,14 @@ type WorkSetting struct {
 }
 
 // ScheduleHours is the timetable length: one TimeAssignmentDef per hour.
+// Kept: a game day is fixed at 24 hours (docs/developers/contracts/kept-constants.md).
 const ScheduleHours = 24
+
+// MaxPriority is the top of the 0-4 priority range: RimWorld's manual work
+// priorities run 1 (first) to 4 (last) with 0 disabled, and Concern
+// priorities (Standard, Project, Incident) share the scale. Kept as the one
+// range constant (docs/developers/contracts/kept-constants.md).
+const MaxPriority = 4
 
 // WorkAssignment is an immutable, comparable value. The private canonical
 // encoding retains a bounded typed list without exposing mutable action
@@ -68,7 +75,7 @@ func newWorkAssignment(pawn PawnID, settings []WorkSetting, hasArea, areaClear b
 	rows := append([]WorkSetting(nil), settings...)
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Definition < rows[j].Definition })
 	for i, row := range rows {
-		if !validID(row.Definition) || row.Priority < 0 || row.Priority > 4 || i > 0 && rows[i-1].Definition == row.Definition {
+		if !validID(row.Definition) || row.Priority < 0 || row.Priority > MaxPriority || i > 0 && rows[i-1].Definition == row.Definition {
 			return WorkAssignment{}, errors.New("invalid work priority")
 		}
 	}

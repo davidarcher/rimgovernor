@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -72,7 +73,7 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 		}
 		seen := map[string]bool{}
 		for _, w := range s.Work {
-			if w == nil || validID(w.GetDefName()) != nil || seen[w.GetDefName()] || w.Priority != nil && (w.GetPriority() < 0 || w.GetPriority() > 4) {
+			if w == nil || validID(w.GetDefName()) != nil || seen[w.GetDefName()] || w.Priority != nil && (w.GetPriority() < 0 || w.GetPriority() > domain.MaxPriority) {
 				return contract("invalid or duplicate work priority")
 			}
 			seen[w.GetDefName()] = true

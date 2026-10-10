@@ -504,3 +504,7 @@ ladder builds a fermenting barrel and a discovered wort-recipe bench. A saved
 reserve, so fermentation does not cause continuous wort production. Native recipe
 batch size can overshoot the target. Hauling, brewing, fermentation and consumption
 remain ordinary game work; actual mood/recreation recovery is a separate check.
+
+The 24-hour timetable length (`domain.ScheduleHours`) and the 0-4 priority range
+(`domain.MaxPriority`: 0 disabled, 1 first to 4 last) are fixed by the game and
+shared by every priority consumer; see [kept constants](kept-constants.md).

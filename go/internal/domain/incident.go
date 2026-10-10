@@ -39,7 +39,7 @@ func (i Incident) Validate() error {
 	if !utf8.ValidString(i.Trigger) || strings.TrimSpace(i.Trigger) == "" || len(i.Trigger) > 256 {
 		return errors.New("invalid incident trigger")
 	}
-	if i.Priority < 0 || i.Priority > 4 || i.Started < 0 || i.Snapshot.Validate() != nil {
+	if i.Priority < 0 || i.Priority > MaxPriority || i.Started < 0 || i.Snapshot.Validate() != nil {
 		return errors.New("invalid incident assessment")
 	}
 	if i.Closed && i.Ended < i.Started || !i.Closed && i.Ended != 0 {

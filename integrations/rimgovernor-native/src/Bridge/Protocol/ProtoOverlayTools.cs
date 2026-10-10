@@ -17,6 +17,7 @@ namespace HomeBridge.BridgeTools
     public sealed class ProtoOverlayTools
     {
         private const string ToolName = "rimgovernor/presentation_overlay";
+        // Input bounds on a draw request; kept (docs/developers/contracts/kept-constants.md).
         private const int MaxCells = 250000;
         private const int MaxLabels = 4096;
         private const int MaxLayerId = 64;

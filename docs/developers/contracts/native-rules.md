@@ -56,6 +56,7 @@ Admission holds for new hunt designations do not clear existing orders; native c
   authority scope, so a revoked authority fires nothing and the write is not read as a player order.
 - No rule-count, radius or per-actor firing limit in native: a firing already happens only at the end of
   a kill tick, and Go owns how many rules and how far they reach.
+- Every other fixed value on this path is listed in [kept constants](kept-constants.md).
 - Lease: when the game tick reaches `expires_at_tick`, native deactivates every rule without Go and
   emits one `rule_lease_expired` event.
 - Journal before write: native appends `rule_fired` (rule id, job, radius, actor, target, tick) to the

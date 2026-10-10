@@ -38,8 +38,13 @@ namespace HomeBridge.BridgeTools
         /// While combat is dirty the stream captures at most this often on a
         /// running game: half a game second.
         internal const int MinCombatCompareTicks = 30;
-        /// The event ring's size; every frame carries it whole.
+        /// The event ring's size; every frame carries it whole. Kept
+        /// (docs/developers/contracts/kept-constants.md).
         internal const int RingSize = 1024;
+        /// An event row's Detail is cut to this many characters; a cut Detail
+        /// ends in TruncatedMarker so a reader sees the text is incomplete.
+        internal const int MaxDetailChars = 256;
+        internal const string TruncatedMarker = "...[truncated]";
 
         private static volatile bool _active;
         private static volatile bool _dirty;
@@ -176,7 +181,7 @@ namespace HomeBridge.BridgeTools
                 if (thing != null) row.ThingId = LoadId(thing);
                 if (other != null) row.TargetId = LoadId(other);
                 if (!string.IsNullOrEmpty(defName)) row.DefName = defName;
-                if (!string.IsNullOrEmpty(detail)) row.Detail = detail!.Length > 256 ? detail.Substring(0, 256) : detail;
+                if (!string.IsNullOrEmpty(detail)) row.Detail = detail!.Length > MaxDetailChars ? detail.Substring(0, MaxDetailChars - TruncatedMarker.Length) + TruncatedMarker : detail;
                 if (!string.IsNullOrEmpty(strategy)) row.RaidStrategy = strategy;
                 fill?.Invoke(row);
                 var at = cell ?? thing?.PositionHeld ?? other?.PositionHeld;

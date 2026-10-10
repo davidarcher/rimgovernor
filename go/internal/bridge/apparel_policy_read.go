@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"math"
 )
@@ -26,7 +27,7 @@ func validateApparelPolicy(v *o.ApparelPolicyState) error {
 	}
 	seen := map[string]bool{}
 	for _, w := range v.Work {
-		if w == nil || validID(w.GetDefName()) != nil || seen[w.GetDefName()] || w.Priority == nil || w.GetPriority() < 0 || w.GetPriority() > 4 || w.Disabled == nil {
+		if w == nil || validID(w.GetDefName()) != nil || seen[w.GetDefName()] || w.Priority == nil || w.GetPriority() < 0 || w.GetPriority() > domain.MaxPriority || w.Disabled == nil {
 			return contract("invalid apparel work role")
 		}
 		seen[w.GetDefName()] = true

@@ -39,7 +39,7 @@ func NewProject(id ProjectID, kind ConcernID, priority int, snapshot GenerationS
 }
 
 func (p Project) Validate() error {
-	if !validID(string(p.ID)) || !validID(string(p.Kind)) || p.Priority < 0 || p.Priority > 4 || p.Snapshot.Validate() != nil {
+	if !validID(string(p.ID)) || !validID(string(p.Kind)) || p.Priority < 0 || p.Priority > MaxPriority || p.Snapshot.Validate() != nil {
 		return errors.New("invalid project")
 	}
 	if len(p.Record) > MaxProjectRecord {

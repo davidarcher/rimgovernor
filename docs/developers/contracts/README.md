@@ -36,6 +36,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Colony extent contract](colony-extent.md)
 - [Colony upkeep contracts](upkeep-contracts.md)
 - [Work assignment contracts](work-assignment.md)
+- [Kept constants](kept-constants.md): the surviving caps and fixed values, each with its reason or follow-up issue
 - [Waste census contract](waste-management.md)
 
 - [Controllable trade](controllable-trade.md): shared targets, read-only request/packing facts, reconciliation and outbound Project ownership.

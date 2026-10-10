@@ -483,6 +483,7 @@ namespace HomeBridge.BridgeTools
         }
         // The narrowing of an invalidation: at most 64 distinct entity
         // ids and one rectangle with present, nonnegative, ordered corners.
+        // Kept (docs/developers/contracts/kept-constants.md).
         internal const int InvalidationEntitiesMax = 64;
         private static bool ValidInvalidationScope(Clock.ObservationInvalidated value)
         {

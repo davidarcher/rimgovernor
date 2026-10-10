@@ -30,6 +30,7 @@ namespace HomeBridge.BridgeTools
         /// The caps, measured on lab-ranged against the 50 ms main-thread
         /// budget: 64 cells x 8 pawns took 1.3-6.6 ms of main thread
         /// (worst of 5 per run, path ticks included), about 13 ms at the caps.
+        /// Kept (docs/developers/contracts/kept-constants.md).
         internal const int MaxCells = 64;
         internal const int MaxHostiles = 16;
         /// A firing_cells proposal's search radius cap.

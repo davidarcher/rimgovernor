@@ -18,6 +18,7 @@ namespace HomeBridge.BridgeTools
     {
         private const string ToolName = "rimgovernor/observations_list_zones";
         // A caller names at most this many zones by exact id (input bound).
+        // Kept (docs/developers/contracts/kept-constants.md).
         private const int MaxIds = 16;
 
         [Tool(ToolName, Title = "Read typed zones", Description = "Read exact zone identity, type, bounds and per-zone CAS snapshot tokens. Cells are included only when requested. No filter contents, stored resources, anomalies or crop-plant counts yet.")]
