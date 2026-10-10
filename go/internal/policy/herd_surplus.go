@@ -125,8 +125,8 @@ func herdJuvenile(a UpkeepAnimal) bool {
 }
 
 // herdDangerous is a predator, or a race whose failed tame turns manhunter
-// at least herdTameDanger of the time. Such a race is tamed only as the war
-// target (herdDangerousWar); every other job and the leveling race pass it by.
+// at least herdTameDanger of the time. Such a race is never tamed: a failed
+// tame turns it on the handler.
 func herdDangerous(a UpkeepAnimal) bool {
 	chance, _ := a.Herd.ManhunterOnTameFail.Value()
 	return a.Herd.Predator || chance >= herdTameDanger

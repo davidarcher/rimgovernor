@@ -44,7 +44,7 @@ func TestSelectHusbandryMethodStillExcludesDangerousRaces(t *testing.T) {
 		t.Fatal("a predator is not tamed off the war job", choice)
 	}
 	herd.Roles["Wolf"] = HerdRole{Race: "Wolf", Preferred: true, Job: HerdJobWar}
-	if choice := SelectHusbandryMethod(domain.Known([]UpkeepAnimal{}), domain.Known([]UpkeepAnimal{wolf}), feedFine, herd, anyTamer); choice.Animal != "wolf-1" {
-		t.Fatal("the war target is tamed", choice)
+	if choice := SelectHusbandryMethod(domain.Known([]UpkeepAnimal{}), domain.Known([]UpkeepAnimal{wolf}), feedFine, herd, anyTamer); choice.Reason != HusbandryNoDeficit {
+		t.Fatal("a predator is not tamed even as the war target", choice)
 	}
 }

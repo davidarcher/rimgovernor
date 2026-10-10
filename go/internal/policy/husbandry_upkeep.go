@@ -170,7 +170,7 @@ func AnimalHerdDeficit(animals, wild domain.Fact[[]UpkeepAnimal], feedShort doma
 // makes the result unknown.
 //
 // The shortfall stops at the race's max (pen and feed room), and a
-// dangerous race (herdDangerous) is tamed only as the war target.
+// dangerous race (herdDangerous) is never tamed.
 func herdTameCandidates(rows, wild []UpkeepAnimal, herd HerdPolicy) ([]UpkeepAnimal, bool) {
 	populationMin := herd.PopulationMin
 	counts := map[Resource]int64{}
@@ -202,7 +202,7 @@ func herdTameCandidates(rows, wild []UpkeepAnimal, herd HerdPolicy) ([]UpkeepAni
 			counts[a.Definition]++
 			continue
 		}
-		if role := herd.Roles[a.Definition]; tameable && (!herdDangerous(a) || role.Preferred && role.Job == HerdJobWar) {
+		if tameable && !herdDangerous(a) {
 			eligible[a.Definition] = append(eligible[a.Definition], a)
 		}
 	}
