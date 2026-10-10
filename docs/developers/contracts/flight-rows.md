@@ -117,6 +117,22 @@ the first native protective effect.
 | `rule` | decision, one per native rule event ingested from the clock inbox (`clockPollEvents`, #2154). A firing: `verdict` `fired`, `reason` `prey_killed`, `target` the actor pawn; attrs `rule`, `target` (the prey), `params` (`job`, `radius`), `tick`, `cursor`. A lapsed lease: `verdict` `expired`, `reason` `lease_expired`, `target` `rules`; attrs `expires_at_tick`, `deactivated`, `cursor`. Reader: the launcher Log panel (`infoLogKinds`) and `rimgovernor log` |
 | `log_overflow` | event row, level `WARN`: one summary of dropped diagnostics. `dropped`, `side` `mod` (the mod's ring overflowed while nothing was subscribed or the publisher lagged; `seq` is where the lines were) or `controller` (the reader goroutine's hand-off queue of 1024 was full) |
 
+### Explanation rows (`explain.jsonl`)
+
+Player-facing explanation rows go to a second ring, `explain.jsonl`, beside `flight.jsonl` in the profile
+flight directory. It is a `bridge.FlightRecorder` with the same envelope, written by the same
+`telemetry.Decide`/`slog` call sites: `telemetry.RouteExplanations` (installed by `serve`) sends the kinds
+in `telemetry.IsExplanationKind` to this ring and every other kind to `flight.jsonl`. The ring has its own
+monotonic `sequence` (continuing across launches; no `coverage` row), rows carry the run id, and retention is
+1 MiB x 4 segments (`bridge.DefaultExplainSegmentBytes`/`DefaultExplainSegments`, tunable with the
+`FlightSegmentBytes`/`FlightSegments` options). `serve` opens it at start and closes it on exit. Readers
+merge the two streams by `wall_time` and never compare sequences across them. The launcher tails the file
+directly; there is no HTTP route.
+
+| Kind | Shape and fields |
+|---|---|
+| `concern_transition` | one per change of a concern's typed reason (transition rows, not repeats). Fields land with the emission (#2697). Readers: the launcher's per-concern timeline (#2699) and `rimgovernor log` (merge, #2695) |
+
 ### Session and reader events
 
 | Kind | Notes |
@@ -125,7 +141,7 @@ the first native protective effect.
 | `recording_gap` | Synthetic, produced by `TimelineReader` for a corrupt line or sequence discontinuity; never written. Fields `reason`, `file`, `line`, `before`, `after`. |
 | `state_reset` | event row, level `WARN`, component `serve`: the service database came from another schema version and was moved aside (`path`, `aside`). Written once at startup. |
 
-The flight recorder is the only log: the telemetry handler writes a row for a record that names a `kind`
+The flight recorder, with its explanation ring, is the only log: the telemetry handler writes a row for a record that names a `kind`
 and drops one that does not, there is no Debug level, and `telemetry/kinds_test.go` fails any `slog` call in
 non-test code with no `kind`. stderr carries only the startup banner, parse errors, `flight recorder:` and
 `Go service:` failures, the clock fault-injection notice and Go panics. A new emission adds its kind here with

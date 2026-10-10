@@ -362,7 +362,14 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 	}
 	defer recorder.Close()
 	config.bridge.Recorder = recorder
-	slog.SetDefault(telemetry.New(recorder))
+	// Explanation rows (player-facing) go to explain.jsonl beside flight.jsonl.
+	explainer, err := bridge.NewExplainRecorder(filepath.Join(filepath.Dir(config.flightRecorder), "explain.jsonl"))
+	if err != nil {
+		fmt.Fprintln(diagnostics, "explain recorder:", err)
+		return 1
+	}
+	defer explainer.Close()
+	slog.SetDefault(telemetry.New(telemetry.RouteExplanations(recorder, explainer)))
 	defer snapshot.Flush()
 	if config.playerControl {
 		err = serveBuildingControl(ctx, config, out)
