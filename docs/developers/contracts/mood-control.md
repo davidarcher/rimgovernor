@@ -282,13 +282,8 @@ and the game chooses it. Game code read with ilspycmd:
 ### Common-room targets
 
 `policy.CommonRoomTargets` sets the impressiveness target of each dining and rec
-room (no beds) to the tech-tier baseline raised one tier per four colonists, plus one
-while the ledger shows mood lost to common-room thoughts (`policy.CommonRoomPressure`:
-`AteInImpressiveDiningRoom`, `JoyActivityInImpressiveRecRoom`, `NeedRoomSize`), capped at
-two tiers above the current one and at Spacer's baseline, never below today's baseline.
-`RoomTarget.Cells` adds a size target of three interior cells per colonist from four
-colonists, capped at 120. `RoomGate` still charges every upgrade step. Production passes
-zero ledger pressure until the ledger is wired in (#2622); nothing yet consumes `Cells`.
+room (no beds) to the tech-tier baseline (`ImpressivenessLevels.Baseline`), the same
+for any colonist count. `RoomGate` still charges every upgrade step.
 
 ### The PartySpot
 

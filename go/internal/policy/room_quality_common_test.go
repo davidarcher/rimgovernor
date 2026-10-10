@@ -16,7 +16,7 @@ func TestCommonRoomTargetsUseTheColonyBaseline(t *testing.T) {
 		{ID: "dining-with-bed", Role: "DiningRoom", Quality: q, Beds: []string{"b2"}},
 		{ID: "workshop", Role: "Workshop", Quality: q},
 	})}
-	got := CommonRoomTargets(obs, TechTierIndustrial, testImpressiveness, 0)
+	got := CommonRoomTargets(obs, TechTierIndustrial, testImpressiveness)
 	if len(got) != 2 {
 		t.Fatalf("targets = %+v", got)
 	}
@@ -26,10 +26,15 @@ func TestCommonRoomTargetsUseTheColonyBaseline(t *testing.T) {
 			t.Errorf("%s = %+v", id, tg)
 		}
 	}
-	if got := CommonRoomTargets(obs, TechTierCamp, testImpressiveness, 0); got["dining"].Min != 0 || got["dining"].Reasons != nil {
+	if got := CommonRoomTargets(obs, TechTierCamp, testImpressiveness); got["dining"].Min != 0 || got["dining"].Reasons != nil {
 		t.Errorf("camp = %+v", got["dining"])
 	}
-	if got := CommonRoomTargets(SleepingObservation{}, TechTierIndustrial, testImpressiveness, 0); got != nil {
+	// The colonist count does not raise the target.
+	obs.Colonists = 12
+	if got := CommonRoomTargets(obs, TechTierPowered, testImpressiveness); got["dining"].Min != ImpressivenessMediocre {
+		t.Errorf("powered, 12 colonists = %+v", got["dining"])
+	}
+	if got := CommonRoomTargets(SleepingObservation{}, TechTierIndustrial, testImpressiveness); got != nil {
 		t.Errorf("unknown census = %+v", got)
 	}
 }
@@ -48,7 +53,7 @@ func TestCommonRoomBelowTargetGetsTheTemplateLamp(t *testing.T) {
 	}
 	low := domain.Known(RoomQuality{Wealth: 300, Beauty: 1, Space: 60, Impressiveness: 25})
 	obs := SleepingObservation{Rooms: domain.Known([]UpkeepRoom{{ID: "Room_2", Role: "DiningRoom", Quality: low}})}
-	targets := CommonRoomTargets(obs, TechTierIndustrial, testImpressiveness, 0)
+	targets := CommonRoomTargets(obs, TechTierIndustrial, testImpressiveness)
 	all := func(string) bool { return true }
 	u, ok := NextRoomUpgrade(obs, targets, []FurnitureRoom{tidy}, all, RoomGate{})
 	if !ok || u.Room != "Room_2" || u.Slot != "lamp" || u.Def != "StandingLamp" {
