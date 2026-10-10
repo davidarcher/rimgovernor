@@ -27,7 +27,7 @@ type DecreeOrderRequest struct {
 func DeclareDecreeOrders(r DecreeOrderRequest) Declared {
 	offers, known := r.Offers.Value()
 	if !known {
-		return Abstaining(UnreadQuestOffers)
+		return Abstaining(CauseUnreadQuestOffers)
 	}
 	offers = append([]JoinerOffer(nil), offers...)
 	sort.Slice(offers, func(i, j int) bool { return offers[i].Quest < offers[j].Quest })
@@ -39,7 +39,7 @@ func DeclareDecreeOrders(r DecreeOrderRequest) Declared {
 		}
 		player, known := offer.AskerFactionPlayer.Value()
 		if !known {
-			out.Unread(UnreadQuestAsker)
+			out.Unread(CauseUnreadQuestAsker)
 			continue
 		}
 		if deadline, known := objective.DeadlineTicks.Value(); !player || known && deadline <= r.Now {
@@ -63,7 +63,7 @@ func DeclareDecreeOrders(r DecreeOrderRequest) Declared {
 				}
 			}
 		case "ingredients_unknown":
-			out.Unread(UnreadRecipes)
+			out.Unread(CauseUnreadRecipes)
 		}
 	}
 	return out

@@ -44,7 +44,7 @@ func (r *RoundsPopulationJoinerPlanner) declareOrders(ctx context.Context, snaps
 		if ctx.Err() != nil {
 			return policy.Declared{}, ctx.Err()
 		}
-		declared.Unread(policy.UnreadDefinitions)
+		declared.Unread(policy.CauseUnreadDefinitions)
 	}
 	r.mu.Lock()
 	r.decreeWork = len(declared.Orders) > 0

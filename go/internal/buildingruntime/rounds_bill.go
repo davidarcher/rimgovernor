@@ -182,12 +182,12 @@ func (r *RoundsBillPlanner) DeclareOrders(ctx context.Context, snapshot domain.G
 func (r *RoundsBillPlanner) declareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
 	review, err := r.reviewer.player.journal.LoadRounds(ctx)
 	if err != nil {
-		return abstainOnRead(ctx, policy.UnreadReview)
+		return abstainOnRead(ctx, policy.CauseUnreadReview)
 	}
 	request, err := r.foodRequest(projection, review)
 	if err != nil {
 		// A review that cannot be read from the facts declares nothing.
-		return abstainOnRead(ctx, policy.UnreadFoodFacts)
+		return abstainOnRead(ctx, policy.CauseUnreadFoodFacts)
 	}
 	return policy.DeclareFoodOrders(request, benches), nil
 }

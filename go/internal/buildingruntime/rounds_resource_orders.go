@@ -23,7 +23,7 @@ func (r *RoundsResourcePlanner) declareOrders(ctx context.Context, snapshot doma
 		if resource == "Beer" {
 			wort := projection.Facts.Items.Wort
 			if wort == "" {
-				return policy.Abstaining(policy.UnreadWort), nil
+				return policy.Abstaining(policy.CauseUnreadWort), nil
 			}
 			floors = append(floors, policy.ResourceFloor{Resource: wort, Target: target, Reserve: true})
 			continue

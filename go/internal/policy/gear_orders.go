@@ -33,7 +33,7 @@ func DeclareGearOrders(r GearPlanningRequest) (Declared, error) {
 	for _, p := range v.Pawns {
 		replacements, ok := p.Replacements.Value()
 		if !ok {
-			return Abstaining(UnreadGearNeeds), nil
+			return Abstaining(CauseUnreadGearNeeds), nil
 		}
 		for _, n := range replacements {
 			if !ArmoryArmor(n.Definition) {
@@ -58,7 +58,7 @@ func DeclareArmoryOrders(r GearPlanningRequest, tier ArmoryTier, weapons, shells
 	}
 	benches, _ := r.Benches.Value()
 	var out Declared
-	collect := func(orders []OrderSpec, unread UnreadFact) {
+	collect := func(orders []OrderSpec, unread Cause) {
 		out.Orders = append(out.Orders, orders...)
 		if unread != "" {
 			out.Unread(unread)
@@ -80,14 +80,14 @@ func DeclareArmoryOrders(r GearPlanningRequest, tier ArmoryTier, weapons, shells
 	collect(orders, unknown)
 	// Armor and shells follow the tier; weapons stand without it.
 	if tier == ArmoryTierUnknown {
-		out.Unread(UnreadArmoryTier)
+		out.Unread(CauseUnreadArmoryTier)
 		return out, nil
 	}
 	armor := map[Resource]int{}
 	for _, p := range v.Pawns {
 		replacements, ok := p.Replacements.Value()
 		if !ok {
-			return Abstaining(UnreadGearNeeds), nil
+			return Abstaining(CauseUnreadGearNeeds), nil
 		}
 		for _, n := range replacements {
 			if ArmoryArmor(n.Definition) {
@@ -128,15 +128,15 @@ func DeclareArmoryOrders(r GearPlanningRequest, tier ArmoryTier, weapons, shells
 // gearOrderCensus is the reviewed, loadout-modelled census a declaration reads;
 // unread names the fact the review cannot establish (recovery or the bench
 // readback), empty when both are read.
-func gearOrderCensus(r GearPlanningRequest) (review GearReview, v GearObservation, unread UnreadFact, err error) {
+func gearOrderCensus(r GearPlanningRequest) (review GearReview, v GearObservation, unread Cause, err error) {
 	if review, err = ReviewGear(r.Observation); err != nil {
 		return GearReview{}, GearObservation{}, "", err
 	}
 	if _, ok := review.Recovered.Value(); !ok {
-		return GearReview{}, GearObservation{}, UnreadGearRecover, nil
+		return GearReview{}, GearObservation{}, CauseUnreadGearRecover, nil
 	}
 	if _, ok := r.Benches.Value(); !ok {
-		return GearReview{}, GearObservation{}, UnreadBenches, nil
+		return GearReview{}, GearObservation{}, CauseUnreadBenches, nil
 	}
 	observed, _ := r.Observation.Value()
 	return review, modeledGearObservation(observed, review.Loadouts), "", nil
@@ -163,7 +163,7 @@ func sortGearNeeds(needs []gearNeed) {
 // stuff, the bill that already makes it (declared as it stands) or the first
 // funded recipe's batch sized to the demand left after stored stock. unknown
 // names the fact left unread (a bench census, bills or a recipe's facts).
-func gearOrders(needs []gearNeed, v GearObservation, review GearReview, r GearPlanningRequest) (orders []OrderSpec, unknown UnreadFact, err error) {
+func gearOrders(needs []gearNeed, v GearObservation, review GearReview, r GearPlanningRequest) (orders []OrderSpec, unknown Cause, err error) {
 	if len(needs) == 0 {
 		return nil, "", nil
 	}
@@ -171,7 +171,7 @@ func gearOrders(needs []gearNeed, v GearObservation, review GearReview, r GearPl
 	benches, demand, known, err := gearProductionDemand(needs, v, review, r)
 	if err != nil || !known {
 		if !known {
-			return nil, UnreadBenches, err
+			return nil, CauseUnreadBenches, err
 		}
 		return nil, "", err
 	}
@@ -197,11 +197,11 @@ func gearOrders(needs []gearNeed, v GearObservation, review GearReview, r GearPl
 		}
 		switch method.Kind {
 		case GearUnknown:
-			unknown = UnreadBills
+			unknown = CauseUnreadBills
 		case GearWait:
 			spec, ok := method.Bill.Spec.Value()
 			if !ok {
-				unknown = UnreadBills
+				unknown = CauseUnreadBills
 				continue
 			}
 			orders = append(orders, spec)
@@ -232,7 +232,7 @@ func gearBenchDef(benches []GearBench, id string) string {
 // priority order: a shell some bench bill already makes is declared as that
 // bill stands, else the first bench (by id) with an available recipe makes it.
 // A target no recipe makes is skipped.
-func shellOrders(benches []GearBench, targets []Amount) (orders []OrderSpec, unknown UnreadFact, err error) {
+func shellOrders(benches []GearBench, targets []Amount) (orders []OrderSpec, unknown Cause, err error) {
 	sorted := slices.Clone(benches)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].ID < sorted[j].ID })
 	standing := map[Resource]GearBill{}
@@ -256,7 +256,7 @@ func shellOrders(benches []GearBench, targets []Amount) (orders []OrderSpec, unk
 		if bill, ok := standing[t.Resource]; ok {
 			spec, known := bill.Spec.Value()
 			if !known {
-				unknown = UnreadBills
+				unknown = CauseUnreadBills
 				continue
 			}
 			orders = append(orders, spec)

@@ -9,7 +9,7 @@ import (
 // Cause is the closed set of reasons the bot explains itself with: why a
 // concern did not advance, what it waits on, which input it could not read.
 // Wire values are the strings the sources already used (refusal and wait
-// kinds, UnreadFact, BlockedReason, admission Reason); a string two sources
+// kinds, the unread-input names, BlockedReason, admission Reason); a string two sources
 // share (no_worker, native_ineligible) is one Cause. Wording is the only place
 // English for a Cause lives.
 type Cause string
@@ -72,9 +72,48 @@ const (
 	CauseUrgentCompetingWork       Cause = "urgent_competing_work"
 )
 
+// Unread facts: the one input a planner did not read when it abstained from
+// declaring. Every abstain site picks one, so the ledger view can say which
+// input was missing instead of only who abstained.
+const (
+	CauseUnreadReview      Cause = "review"
+	CauseUnreadStock       Cause = "stock"
+	CauseUnreadBenches     Cause = "benches"
+	CauseUnreadBenchDef    Cause = "bench_definition"
+	CauseUnreadBills       Cause = "bills"
+	CauseUnreadRecipes     Cause = "recipes"
+	CauseUnreadDefinitions Cause = "definitions"
+	CauseUnreadNativeRead  Cause = "native_source"
+	CauseUnreadMedicine    Cause = "medicine"
+	CauseUnreadArtists     Cause = "artists"
+	CauseUnreadArtNeed     Cause = "art_need"
+	CauseUnreadGearRecover Cause = "gear_recovery"
+	CauseUnreadGearNeeds   Cause = "gear_replacements"
+	CauseUnreadGearDemand  Cause = "gear_demand"
+	CauseUnreadArmoryTier  Cause = "armory_tier"
+	CauseUnreadWeapons     Cause = "weapon_demand"
+	CauseUnreadShells      Cause = "shell_targets"
+	CauseUnreadFoodFacts   Cause = "food_facts"
+	CauseUnreadFoodPlan    Cause = "food_plan"
+	CauseUnreadFoodStorage Cause = "food_storage"
+	CauseUnreadBabyFeeding Cause = "baby_feeding"
+	CauseUnreadMechs       Cause = "mech_gestation"
+	CauseUnreadWort        Cause = "wort"
+	CauseUnreadQuestOffers Cause = "quest_offers"
+	CauseUnreadQuestAsker  Cause = "quest_asker"
+	CauseUnreadSilverGap   Cause = "silver_gap"
+	CauseUnreadWorkers     Cause = "workers"
+	CauseUnreadTraderCash  Cause = "trader_cash"
+	CauseUnreadBuyers      Cause = "buyers"
+	CauseUnreadSurplus     Cause = "surplus"
+	CauseUnreadRunways     Cause = "runways"
+	CauseUnreadSupply      Cause = "supply"
+	CauseUnreadSources     Cause = "sources"
+)
+
 // Causes is every Cause, in the order a view lists them: the refusal and
 // blocked kinds, the wait kinds, the admission reasons, then the unread facts.
-var Causes = slices.Concat([]Cause{
+var Causes = []Cause{
 	CauseCollapsePending, CauseNoWorker, CauseAwaitingPlan, CauseFieldUnavailable, CauseNoSpace, CauseSharedAdmission,
 	CauseRetriesSpent, CauseRockNotDug, CauseSiteBlocked, CauseNativeIneligible, CauseReconcileWrite, CauseCooldown,
 	CauseNoMethod, CauseHeldUnavailable, CauseHeldOptIn,
@@ -84,22 +123,18 @@ var Causes = slices.Concat([]Cause{
 	CauseCriticalMedical, CauseMaterialRequired, CauseDependencyBlocked, CauseGeometryBlocked, CauseInvalidHeld,
 	CauseExcavationUnsupported, CauseExcavationGeometryChanged, CauseUnsafeRoute, CauseRoofSupportRisk, CauseStorageMissing,
 	CauseUrgentCompetingWork,
-}, unreadCauses())
-
-func unreadCauses() []Cause {
-	out := make([]Cause, len(UnreadFacts))
-	for i, f := range UnreadFacts {
-		out[i] = CauseOfUnread(f)
-	}
-	return out
+	CauseUnreadReview, CauseUnreadStock, CauseUnreadBenches, CauseUnreadBenchDef, CauseUnreadBills, CauseUnreadRecipes,
+	CauseUnreadDefinitions, CauseUnreadNativeRead, CauseUnreadMedicine, CauseUnreadArtists, CauseUnreadArtNeed,
+	CauseUnreadGearRecover, CauseUnreadGearNeeds, CauseUnreadGearDemand, CauseUnreadArmoryTier, CauseUnreadWeapons,
+	CauseUnreadShells, CauseUnreadFoodFacts, CauseUnreadFoodPlan, CauseUnreadFoodStorage, CauseUnreadBabyFeeding,
+	CauseUnreadMechs, CauseUnreadWort, CauseUnreadQuestOffers, CauseUnreadQuestAsker, CauseUnreadSilverGap,
+	CauseUnreadWorkers, CauseUnreadTraderCash, CauseUnreadBuyers, CauseUnreadSurplus, CauseUnreadRunways,
+	CauseUnreadSupply, CauseUnreadSources,
 }
 
 // CauseOfReason is the Cause of an admission Reason. Reason and its HeldReason
 // map are untouched; a test fails when a declared Reason is not a Cause.
 func CauseOfReason(r Reason) Cause { return Cause(r) }
-
-// CauseOfUnread is the Cause of an input a planner did not read.
-func CauseOfUnread(f UnreadFact) Cause { return Cause(f) }
 
 var fixedBlocked = []BlockedReason{BlockedNoWorker, BlockedNativeIneligible, BlockedReconciling, BlockedCooldown, BlockedNoMethod, HeldUnavailable, HeldOptIn}
 
@@ -202,37 +237,37 @@ var causeWording = map[Cause]string{
 	CauseStorageMissing:            "There is nowhere to store it.",
 	CauseUrgentCompetingWork:       "Urgent work is taking the colonists.",
 
-	CauseOfUnread(UnreadReview):      unreadWording("the Round's review"),
-	CauseOfUnread(UnreadStock):       unreadWording("the stock census"),
-	CauseOfUnread(UnreadBenches):     unreadWording("the bench readback"),
-	CauseOfUnread(UnreadBenchDef):    unreadWording("a bench's kind"),
-	CauseOfUnread(UnreadBills):       unreadWording("a bench's bills or recipes"),
-	CauseOfUnread(UnreadRecipes):     unreadWording("a recipe's facts"),
-	CauseOfUnread(UnreadDefinitions): unreadWording("the game's definitions"),
-	CauseOfUnread(UnreadNativeRead):  unreadWording("something the game could not serve"),
-	CauseOfUnread(UnreadMedicine):    unreadWording("the medicine catalog"),
-	CauseOfUnread(UnreadArtists):     unreadWording("who the artists are"),
-	CauseOfUnread(UnreadArtNeed):     unreadWording("whether art is wanted"),
-	CauseOfUnread(UnreadGearRecover): unreadWording("whether colonists have recovered"),
-	CauseOfUnread(UnreadGearNeeds):   unreadWording("what gear colonists need"),
-	CauseOfUnread(UnreadGearDemand):  unreadWording("the gear census"),
-	CauseOfUnread(UnreadArmoryTier):  unreadWording("the armory tier"),
-	CauseOfUnread(UnreadWeapons):     unreadWording("the weapon demand"),
-	CauseOfUnread(UnreadShells):      unreadWording("the mortar shell targets"),
-	CauseOfUnread(UnreadFoodFacts):   unreadWording("the food facts"),
-	CauseOfUnread(UnreadFoodPlan):    unreadWording("the food plan"),
-	CauseOfUnread(UnreadFoodStorage): unreadWording("food storage"),
-	CauseOfUnread(UnreadBabyFeeding): unreadWording("which babies need feeding"),
-	CauseOfUnread(UnreadMechs):       unreadWording("the mech gestation"),
-	CauseOfUnread(UnreadWort):        unreadWording("which wort makes beer"),
-	CauseOfUnread(UnreadQuestOffers): unreadWording("the quest offers"),
-	CauseOfUnread(UnreadQuestAsker):  unreadWording("who a quest's asker is"),
-	CauseOfUnread(UnreadSilverGap):   unreadWording("the silver gap"),
-	CauseOfUnread(UnreadWorkers):     unreadWording("the workers' skills"),
-	CauseOfUnread(UnreadTraderCash):  unreadWording("what traders can pay"),
-	CauseOfUnread(UnreadBuyers):      unreadWording("which traders buy"),
-	CauseOfUnread(UnreadSurplus):     unreadWording("the gear surplus"),
-	CauseOfUnread(UnreadRunways):     unreadWording("the ingredient runways"),
-	CauseOfUnread(UnreadSupply):      unreadWording("the ingredient supply"),
-	CauseOfUnread(UnreadSources):     unreadWording("where ingredients come from"),
+	CauseUnreadReview:      unreadWording("the Round's review"),
+	CauseUnreadStock:       unreadWording("the stock census"),
+	CauseUnreadBenches:     unreadWording("the bench readback"),
+	CauseUnreadBenchDef:    unreadWording("a bench's kind"),
+	CauseUnreadBills:       unreadWording("a bench's bills or recipes"),
+	CauseUnreadRecipes:     unreadWording("a recipe's facts"),
+	CauseUnreadDefinitions: unreadWording("the game's definitions"),
+	CauseUnreadNativeRead:  unreadWording("something the game could not serve"),
+	CauseUnreadMedicine:    unreadWording("the medicine catalog"),
+	CauseUnreadArtists:     unreadWording("who the artists are"),
+	CauseUnreadArtNeed:     unreadWording("whether art is wanted"),
+	CauseUnreadGearRecover: unreadWording("whether colonists have recovered"),
+	CauseUnreadGearNeeds:   unreadWording("what gear colonists need"),
+	CauseUnreadGearDemand:  unreadWording("the gear census"),
+	CauseUnreadArmoryTier:  unreadWording("the armory tier"),
+	CauseUnreadWeapons:     unreadWording("the weapon demand"),
+	CauseUnreadShells:      unreadWording("the mortar shell targets"),
+	CauseUnreadFoodFacts:   unreadWording("the food facts"),
+	CauseUnreadFoodPlan:    unreadWording("the food plan"),
+	CauseUnreadFoodStorage: unreadWording("food storage"),
+	CauseUnreadBabyFeeding: unreadWording("which babies need feeding"),
+	CauseUnreadMechs:       unreadWording("the mech gestation"),
+	CauseUnreadWort:        unreadWording("which wort makes beer"),
+	CauseUnreadQuestOffers: unreadWording("the quest offers"),
+	CauseUnreadQuestAsker:  unreadWording("who a quest's asker is"),
+	CauseUnreadSilverGap:   unreadWording("the silver gap"),
+	CauseUnreadWorkers:     unreadWording("the workers' skills"),
+	CauseUnreadTraderCash:  unreadWording("what traders can pay"),
+	CauseUnreadBuyers:      unreadWording("which traders buy"),
+	CauseUnreadSurplus:     unreadWording("the gear surplus"),
+	CauseUnreadRunways:     unreadWording("the ingredient runways"),
+	CauseUnreadSupply:      unreadWording("the ingredient supply"),
+	CauseUnreadSources:     unreadWording("where ingredients come from"),
 }

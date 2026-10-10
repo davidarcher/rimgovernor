@@ -1,51 +1,18 @@
 package policy
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// UnreadFacts lists exactly the UnreadFact constants, so a new constant cannot
-// miss the view's label check.
-func TestUnreadFactsListsEveryConstant(t *testing.T) {
-	file, err := parser.ParseFile(token.NewFileSet(), "work_ledger_unread.go", nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var declared []UnreadFact
-	ast.Inspect(file, func(n ast.Node) bool {
-		spec, ok := n.(*ast.ValueSpec)
-		if !ok {
-			return true
-		}
-		if ident, ok := spec.Type.(*ast.Ident); ok && ident.Name == "UnreadFact" && len(spec.Values) == 1 {
-			if lit, ok := spec.Values[0].(*ast.BasicLit); ok {
-				declared = append(declared, UnreadFact(lit.Value[1:len(lit.Value)-1]))
-			}
-		}
-		return true
-	})
-	if len(declared) != len(UnreadFacts) {
-		t.Fatalf("constants %d, UnreadFacts %d", len(declared), len(UnreadFacts))
-	}
-	for _, f := range declared {
-		if !slices.Contains(UnreadFacts, f) {
-			t.Fatalf("%q is not in UnreadFacts", f)
-		}
-	}
-}
-
 // For owns the orders and names the concern on the abstains without touching
 // the receiver.
 func TestDeclaredForStampsOwnerAndConcern(t *testing.T) {
 	d := Declared{Orders: []OrderSpec{{Recipe: "A"}, {Recipe: "B", Owner: MaintainArt}}}
-	d.Unread(UnreadStock)
-	d.Unread(UnreadStock)
+	d.Unread(CauseUnreadStock)
+	d.Unread(CauseUnreadStock)
 	got := d.For(MaintainResource)
 	if got.Orders[0].Owner != MaintainResource || got.Orders[1].Owner != MaintainArt || len(got.Abstains) != 1 || got.Abstains[0].Concern != MaintainResource {
 		t.Fatalf("for = %+v", got)
@@ -78,7 +45,7 @@ func TestCoalescedSpecListsEveryOwner(t *testing.T) {
 func TestOneConcernAbstainingStillShowsTheOthersAndRemovesNothing(t *testing.T) {
 	var multi Declared
 	multi.Merge(Declared{Orders: []OrderSpec{viewOrder("Make_Arm")}}.For(MaintainSurgery))
-	multi.Merge(Abstaining(UnreadBabyFeeding).For(MaintainBabyFeeding))
+	multi.Merge(Abstaining(CauseUnreadBabyFeeding).For(MaintainBabyFeeding))
 	orphan := ActualBill{ID: "B_old", Bench: "T1", Spec: viewOrder("Make_Old")}
 	declared := []Declared{multi}
 	plan := ReconcileLedger(declared, []ActualBill{orphan}, map[string]int{"B_old": OrphanGraceRounds - 1}, nil)
@@ -89,7 +56,7 @@ func TestOneConcernAbstainingStillShowsTheOthersAndRemovesNothing(t *testing.T) 
 	if len(v.Orders) != 1 || v.Orders[0].Owners[0] != "MaintainSurgery" || !v.Abstained || v.Orphans[0].State != OrphanHeld {
 		t.Fatalf("view = %+v", v)
 	}
-	if a := v.Declarers[0].Abstains; len(a) != 1 || a[0].Concern != "MaintainBabyFeeding" || a[0].Fact != UnreadBabyFeeding {
+	if a := v.Declarers[0].Abstains; len(a) != 1 || a[0].Concern != "MaintainBabyFeeding" || a[0].Fact != CauseUnreadBabyFeeding {
 		t.Fatalf("abstains = %+v", a)
 	}
 }

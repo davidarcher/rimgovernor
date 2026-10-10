@@ -76,7 +76,7 @@ func TestDeclareGearOrdersWearsBeforeCrafting(t *testing.T) {
 	}
 }
 
-func TestDeclareGearOrdersAbstainsOnUnreadFacts(t *testing.T) {
+func TestDeclareGearOrdersAbstainsOnUnreadInputs(t *testing.T) {
 	r := withBenchDef(gearModelFixture(), "TableTailor")
 	r.Benches = domain.Unknown[[]GearBench]()
 	if got, err := DeclareGearOrders(r); err != nil || !got.Abstained() {

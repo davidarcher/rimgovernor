@@ -67,7 +67,7 @@ func TestMonolithIsInertInAmbientHorrorAndWithoutAMonolith(t *testing.T) {
 	}
 }
 
-func TestMonolithUnreadFactsHoldTheOrderLoudly(t *testing.T) {
+func TestMonolithUnreadInputsHoldTheOrderLoudly(t *testing.T) {
 	f := monolithAt(1, "Waking", true)
 	f.ID = domain.Unknown[string]()
 	f.AmbientHorror = domain.Known(false)

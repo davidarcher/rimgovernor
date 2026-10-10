@@ -28,7 +28,7 @@ type ArtOrderRequest struct {
 func DeclareArtOrders(r ArtOrderRequest) Declared {
 	profiles, known := r.Profiles.Value()
 	if !known {
-		return Abstaining(UnreadArtists)
+		return Abstaining(CauseUnreadArtists)
 	}
 	artists, inspired := Artists(profiles), InspiredArtists(profiles)
 	owed, owedKnown := r.RoomsOwed.Value()
@@ -40,10 +40,10 @@ func DeclareArtOrders(r ArtOrderRequest) Declared {
 	orders, unread := standingSculptures(r.Benches, artists)
 	out := Declared{Orders: orders}
 	if unread {
-		out.Unread(UnreadBills)
+		out.Unread(CauseUnreadBills)
 	}
 	if !open {
-		out.Unread(UnreadArtNeed)
+		out.Unread(CauseUnreadArtNeed)
 	}
 	benches := domain.Known(ArtProductionBenches(r.Benches))
 	selected := SelectInspiredArtBills(benches, inspired, r.Items)

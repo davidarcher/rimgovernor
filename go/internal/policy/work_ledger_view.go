@@ -126,8 +126,8 @@ type LedgerDeclarerView struct {
 
 // AbstainView is one concern's abstain and the input it lacked.
 type AbstainView struct {
-	Concern string     `json:"concern"`
-	Fact    UnreadFact `json:"fact"`
+	Concern string `json:"concern"`
+	Fact    Cause  `json:"fact"`
 }
 
 func abstainViews(list []Abstain) []AbstainView {

@@ -215,7 +215,7 @@ func (r *RoundsMedicalPlanner) declareOrders(ctx context.Context, snapshot domai
 		return policy.Declared{}, err
 	}
 	if !review.Enabled || review.Snapshot != snapshot {
-		return policy.Abstaining(policy.UnreadReview), nil
+		return policy.Abstaining(policy.CauseUnreadReview), nil
 	}
 	_, workable, err := journal.Workable(ctx, review, policy.MaintainMedicalReserves)
 	if err != nil {
@@ -234,7 +234,7 @@ func (r *RoundsMedicalPlanner) declareOrders(ctx context.Context, snapshot domai
 	}
 	medicine, err := projection.Facts.Items.MedicineAt(0)
 	if err != nil {
-		return policy.Abstaining(policy.UnreadMedicine), nil
+		return policy.Abstaining(policy.CauseUnreadMedicine), nil
 	}
 	choice, err := policy.SelectMedicineMethod(policy.MedicinePlanningRequest{Review: medicalReview, Resource: medicine, Benches: domain.Known(benches)})
 	if err != nil {

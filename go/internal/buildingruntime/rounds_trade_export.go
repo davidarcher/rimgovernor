@@ -162,7 +162,7 @@ func (r *RoundsTradeExportPlanner) declareOrders(ctx context.Context, snapshot d
 	rd := r.reviewer
 	review, err := rd.player.journal.LoadRounds(ctx)
 	if err != nil {
-		return abstainOnRead(ctx, policy.UnreadReview)
+		return abstainOnRead(ctx, policy.CauseUnreadReview)
 	}
 	f := projection.Facts
 	gap, demand := policy.RoundsSilverGap(f, rd.policy, review.Latches.MedicalReserve)
@@ -193,7 +193,7 @@ func (r *RoundsTradeExportPlanner) declareOrders(ctx context.Context, snapshot d
 	rd.exports.setPlan(snapshot, policy.ExportSaleProducts(f.Items, ranked.Products), apparel, apparelKnown)
 	rd.exports.setView(snapshot, policy.NewExportView(ranked, gap))
 	if !stockKnown {
-		return policy.Abstaining(policy.UnreadStock), nil
+		return policy.Abstaining(policy.CauseUnreadStock), nil
 	}
 	if g, known := gap.Value(); !known || !(g > 0) {
 		return ranked.Declared, nil
@@ -204,16 +204,16 @@ func (r *RoundsTradeExportPlanner) declareOrders(ctx context.Context, snapshot d
 		resource, _ = rd.native.(RoundsResourceSource)
 	}
 	if !ok || resource == nil {
-		return policy.Abstaining(policy.UnreadNativeRead), nil
+		return policy.Abstaining(policy.CauseUnreadNativeRead), nil
 	}
 	identity := boundary.Identity(snapshot)
 	catalog, err := native.DefinitionCatalog(ctx, identity)
 	if err != nil || catalog == nil {
-		return abstainOnRead(ctx, policy.UnreadDefinitions)
+		return abstainOnRead(ctx, policy.CauseUnreadDefinitions)
 	}
 	kinds, known := r.traderKinds(ctx, native, snapshot, identity)
 	if !known {
-		return abstainOnRead(ctx, policy.UnreadBuyers)
+		return abstainOnRead(ctx, policy.CauseUnreadBuyers)
 	}
 	request.CashCap, request.Buys = exportBuyers(catalog, kinds, ranked.Products)
 	request.WorkFor = exportWorkFor(catalog)
@@ -224,7 +224,7 @@ func (r *RoundsTradeExportPlanner) declareOrders(ctx context.Context, snapshot d
 	}
 	if len(strs) > 0 {
 		if request.Supply, _, err = resource.ReadSupplyStock(ctx, identity, strs); err != nil {
-			return abstainOnRead(ctx, policy.UnreadSupply)
+			return abstainOnRead(ctx, policy.CauseUnreadSupply)
 		}
 	}
 	center, centered := projection.Center().Value()
@@ -232,7 +232,7 @@ func (r *RoundsTradeExportPlanner) declareOrders(ctx context.Context, snapshot d
 	for _, name := range names {
 		rows, _, _, err := resource.ReadResourceSources(ctx, identity, string(name))
 		if err != nil {
-			return abstainOnRead(ctx, policy.UnreadSources)
+			return abstainOnRead(ctx, policy.CauseUnreadSources)
 		}
 		var mines []policy.ResourceSource
 		for _, row := range rows {

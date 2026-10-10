@@ -53,7 +53,7 @@ func TestWorkLedgerViewShowsPlacedOrphanAndUnmet(t *testing.T) {
 // readback and an inactive ledger have their own statuses.
 func TestWorkLedgerViewStatuses(t *testing.T) {
 	f := newLedgerFixture(t)
-	f.declarer.declared = policy.Abstaining(policy.UnreadStock)
+	f.declarer.declared = policy.Abstaining(policy.CauseUnreadStock)
 	f.native.benches = []policy.GearBench{ledgerBenchRow(fakeBill("Bill_Hat", ledgerOrder("Make_Hat")))}
 	f.round()
 	v := f.reviewer.WorkLedgerView()

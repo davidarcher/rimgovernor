@@ -2,73 +2,22 @@ package policy
 
 import "slices"
 
-// UnreadFact names the one input a planner did not read when it abstained from
-// declaring. The set is closed: every abstain site picks a constant, so the
-// ledger view can say which input was missing instead of only who abstained.
-type UnreadFact string
-
-const (
-	UnreadReview      UnreadFact = "review"
-	UnreadStock       UnreadFact = "stock"
-	UnreadBenches     UnreadFact = "benches"
-	UnreadBenchDef    UnreadFact = "bench_definition"
-	UnreadBills       UnreadFact = "bills"
-	UnreadRecipes     UnreadFact = "recipes"
-	UnreadDefinitions UnreadFact = "definitions"
-	UnreadNativeRead  UnreadFact = "native_source"
-	UnreadMedicine    UnreadFact = "medicine"
-	UnreadArtists     UnreadFact = "artists"
-	UnreadArtNeed     UnreadFact = "art_need"
-	UnreadGearRecover UnreadFact = "gear_recovery"
-	UnreadGearNeeds   UnreadFact = "gear_replacements"
-	UnreadGearDemand  UnreadFact = "gear_demand"
-	UnreadArmoryTier  UnreadFact = "armory_tier"
-	UnreadWeapons     UnreadFact = "weapon_demand"
-	UnreadShells      UnreadFact = "shell_targets"
-	UnreadFoodFacts   UnreadFact = "food_facts"
-	UnreadFoodPlan    UnreadFact = "food_plan"
-	UnreadFoodStorage UnreadFact = "food_storage"
-	UnreadBabyFeeding UnreadFact = "baby_feeding"
-	UnreadMechs       UnreadFact = "mech_gestation"
-	UnreadWort        UnreadFact = "wort"
-	UnreadQuestOffers UnreadFact = "quest_offers"
-	UnreadQuestAsker  UnreadFact = "quest_asker"
-	UnreadSilverGap   UnreadFact = "silver_gap"
-	UnreadWorkers     UnreadFact = "workers"
-	UnreadTraderCash  UnreadFact = "trader_cash"
-	UnreadBuyers      UnreadFact = "buyers"
-	UnreadSurplus     UnreadFact = "surplus"
-	UnreadRunways     UnreadFact = "runways"
-	UnreadSupply      UnreadFact = "supply"
-	UnreadSources     UnreadFact = "sources"
-)
-
-// UnreadFacts is every UnreadFact, in the order the view lists them. A policy
-// test holds it equal to the constants above.
-var UnreadFacts = []UnreadFact{
-	UnreadReview, UnreadStock, UnreadBenches, UnreadBenchDef, UnreadBills, UnreadRecipes, UnreadDefinitions, UnreadNativeRead,
-	UnreadMedicine, UnreadArtists, UnreadArtNeed, UnreadGearRecover, UnreadGearNeeds, UnreadGearDemand, UnreadArmoryTier,
-	UnreadWeapons, UnreadShells, UnreadFoodFacts, UnreadFoodPlan, UnreadFoodStorage, UnreadBabyFeeding, UnreadMechs, UnreadWort,
-	UnreadQuestOffers, UnreadQuestAsker, UnreadSilverGap, UnreadWorkers, UnreadTraderCash, UnreadBuyers, UnreadSurplus,
-	UnreadRunways, UnreadSupply, UnreadSources,
-}
-
 // Abstain is one concern's refusal to speak this Round: Fact is the input it
 // lacked. Its silence about a bill proves nothing, so the ledger removes
 // nothing while any concern abstains. The declaring planner stamps Concern
 // (Declared.For); the policy site that finds the gap only knows the fact.
 type Abstain struct {
 	Concern ConcernID
-	Fact    UnreadFact
+	Fact    Cause
 }
 
 // Abstaining is a declaration that lacked the fact.
-func Abstaining(fact UnreadFact) Declared {
+func Abstaining(fact Cause) Declared {
 	return Declared{Abstains: []Abstain{{Fact: fact}}}
 }
 
 // Unread records that the declaration lacked fact, once per fact.
-func (d *Declared) Unread(fact UnreadFact) {
+func (d *Declared) Unread(fact Cause) {
 	if !slices.ContainsFunc(d.Abstains, func(a Abstain) bool { return a.Fact == fact }) {
 		d.Abstains = append(d.Abstains, Abstain{Fact: fact})
 	}
@@ -120,7 +69,7 @@ func OrderOwners(declared []Declared) map[string][]ConcernID {
 }
 
 // abstainUnless is a declaration of orders that abstains on unread, when set.
-func abstainUnless(unread UnreadFact, orders ...OrderSpec) Declared {
+func abstainUnless(unread Cause, orders ...OrderSpec) Declared {
 	out := Declared{Orders: orders}
 	if unread != "" {
 		out.Unread(unread)
@@ -129,7 +78,7 @@ func abstainUnless(unread UnreadFact, orders ...OrderSpec) Declared {
 }
 
 // unreadIf is fact when unread holds, else empty.
-func unreadIf(unread bool, fact UnreadFact) UnreadFact {
+func unreadIf(unread bool, fact Cause) Cause {
 	if unread {
 		return fact
 	}

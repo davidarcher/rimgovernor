@@ -90,7 +90,7 @@ func TestBioferriteFlagSkipsReleaseSetFlagsAndUnheldEntities(t *testing.T) {
 }
 
 // An unread fact is a loud issue and never an order.
-func TestBioferriteUnreadFactsAreIssues(t *testing.T) {
+func TestBioferriteUnreadInputsAreIssues(t *testing.T) {
 	for name, mutate := range map[string]func(*CapturableEntity){
 		"mode":      func(e *CapturableEntity) { e.Mode = domain.Unknown[ContainmentMode]() },
 		"flag":      func(e *CapturableEntity) { e.ExtractBioferrite = domain.Unknown[bool]() },

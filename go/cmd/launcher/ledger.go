@@ -41,51 +41,6 @@ var modeLabels = map[string]string{
 	"gear_batch": "finite batch", "butcher_forever": "forever", "human_butcher_forever": "forever",
 }
 
-// unreadLabels say what each abstain's unread input is. A test holds it to
-// every policy.UnreadFact.
-var unreadLabels = map[policy.UnreadFact]string{
-	policy.UnreadReview:      "the Round's review",
-	policy.UnreadStock:       "the stock census",
-	policy.UnreadBenches:     "the bench readback",
-	policy.UnreadBenchDef:    "a bench's kind",
-	policy.UnreadBills:       "a bench's bills or recipes",
-	policy.UnreadRecipes:     "a recipe's facts",
-	policy.UnreadDefinitions: "the game's definitions",
-	policy.UnreadNativeRead:  "a read the game could not serve",
-	policy.UnreadMedicine:    "the medicine catalog",
-	policy.UnreadArtists:     "who the artists are",
-	policy.UnreadArtNeed:     "whether art is wanted",
-	policy.UnreadGearRecover: "whether colonists have recovered",
-	policy.UnreadGearNeeds:   "what gear colonists need",
-	policy.UnreadGearDemand:  "the gear census",
-	policy.UnreadArmoryTier:  "the armory tier",
-	policy.UnreadWeapons:     "the weapon demand",
-	policy.UnreadShells:      "the mortar shell targets",
-	policy.UnreadFoodFacts:   "the food facts",
-	policy.UnreadFoodPlan:    "the food plan",
-	policy.UnreadFoodStorage: "food storage",
-	policy.UnreadBabyFeeding: "which babies need feeding",
-	policy.UnreadMechs:       "the mech gestation",
-	policy.UnreadWort:        "which wort makes beer",
-	policy.UnreadQuestOffers: "the quest offers",
-	policy.UnreadQuestAsker:  "who a quest's asker is",
-	policy.UnreadSilverGap:   "the silver gap",
-	policy.UnreadWorkers:     "the workers' skills",
-	policy.UnreadTraderCash:  "what traders can pay",
-	policy.UnreadBuyers:      "which traders buy",
-	policy.UnreadSurplus:     "the gear surplus",
-	policy.UnreadRunways:     "the ingredient runways",
-	policy.UnreadSupply:      "the ingredient supply",
-	policy.UnreadSources:     "where ingredients come from",
-}
-
-func unreadLabel(f policy.UnreadFact) string {
-	if l, ok := unreadLabels[f]; ok {
-		return l
-	}
-	return string(f)
-}
-
 // dropLabels say why export candidates never reached an order.
 var dropLabels = map[policy.ExportDrop]string{
 	policy.ExportDropNoBuyer:      "no reachable buyer",
@@ -152,7 +107,7 @@ func ledgerPage(r Reading[policy.LedgerView]) LedgerPage {
 		if len(d.Abstains) > 0 {
 			var why []string
 			for _, a := range d.Abstains {
-				why = append(why, a.Concern+" did not read "+unreadLabel(a.Fact))
+				why = append(why, a.Concern+": "+policy.Wording(a.Fact, ""))
 			}
 			row.Cells[2], row.Flag = "abstained: "+strings.Join(why, "; "), "warn"
 		}

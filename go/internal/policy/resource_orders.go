@@ -39,10 +39,10 @@ func DeclareResourceOrders(r ResourceOrderRequest) (Declared, error) {
 	stock, known := r.Stock.Value()
 	benches, benchesKnown := r.Benches.Value()
 	if !known {
-		return Abstaining(UnreadStock), nil
+		return Abstaining(CauseUnreadStock), nil
 	}
 	if !benchesKnown {
-		return Abstaining(UnreadBenches), nil
+		return Abstaining(CauseUnreadBenches), nil
 	}
 	floors := append([]ResourceFloor(nil), r.Floors...)
 	sort.SliceStable(floors, func(i, j int) bool { return floors[i].Resource < floors[j].Resource })
@@ -53,7 +53,7 @@ func DeclareResourceOrders(r ResourceOrderRequest) (Declared, error) {
 		}
 		standing, active, unknown := standingResourceBills(benches, f.Resource)
 		if unknown {
-			out.Unread(UnreadBills)
+			out.Unread(CauseUnreadBills)
 			continue
 		}
 		if active || !f.Reserve && stock[f.Resource] >= f.Target {
@@ -70,7 +70,7 @@ func DeclareResourceOrders(r ResourceOrderRequest) (Declared, error) {
 		}
 		switch method.Kind {
 		case ResourceMethodUnknown:
-			out.Unread(UnreadRecipes)
+			out.Unread(CauseUnreadRecipes)
 		case ResourceMethodProduce:
 			// An idle bill of another size is replaced, not kept beside it.
 			mode, class, product := domain.StockTarget, ResourceMaterial, f.Resource

@@ -55,7 +55,7 @@ func (d *RoundsCareBillDeclarer) DeclareOrders(ctx context.Context, snapshot dom
 	if !review.Enabled || review.Snapshot != snapshot {
 		var out policy.Declared
 		for _, c := range d.concerns() {
-			out.Merge(policy.Abstaining(policy.UnreadReview).For(c))
+			out.Merge(policy.Abstaining(policy.CauseUnreadReview).For(c))
 		}
 		return out, nil
 	}
@@ -82,7 +82,7 @@ func (d *RoundsCareBillDeclarer) DeclareOrders(ctx context.Context, snapshot dom
 	if err = collect(policy.MaintainBabyFeeding, d.baby, func() (policy.Declared, error) {
 		babies, known := projection.Facts.BabyFeeding.Value()
 		if !known {
-			return policy.Abstaining(policy.UnreadBabyFeeding), nil
+			return policy.Abstaining(policy.CauseUnreadBabyFeeding), nil
 		}
 		selected, ok := policy.SelectProductionBill(policy.BabyFoodBill, projection.ProductionBenches, projection.Facts.Colonists, domain.Fact[float64]{}, domain.Fact[float64]{}, 1, policy.ProductionBillContext{BabyFeeding: &babies})
 		return policy.DeclareSelection(selected, ok, benches), nil
@@ -92,10 +92,10 @@ func (d *RoundsCareBillDeclarer) DeclareOrders(ctx context.Context, snapshot dom
 	if err = collect(policy.MaintainMechs, d.mech, func() (policy.Declared, error) {
 		gestation, known, err := mechGestation(ctx, d.native, boundary.Identity(snapshot), projection)
 		if err != nil {
-			return abstainOnRead(ctx, policy.UnreadMechs)
+			return abstainOnRead(ctx, policy.CauseUnreadMechs)
 		}
 		if !known {
-			return policy.Abstaining(policy.UnreadMechs), nil
+			return policy.Abstaining(policy.CauseUnreadMechs), nil
 		}
 		selected, gap, err := policy.SelectMechGestationBill(mechBenches(benches), gestation)
 		if err != nil {

@@ -267,7 +267,7 @@ func (r *RoundsFoodStorageUpkeepPlanner) DeclareOrders(ctx context.Context, snap
 func (r *RoundsFoodStorageUpkeepPlanner) declareOrders(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, benches []policy.GearBench) (policy.Declared, error) {
 	f := projection.Facts
 	if !policy.FoodPlanSupport(f.FoodPlan, policy.CandidateReserve, "stock-protection") {
-		return policy.Abstaining(policy.UnreadFoodPlan), nil
+		return policy.Abstaining(policy.CauseUnreadFoodPlan), nil
 	}
 	standing := policy.StandingStockOrders(benches, foodStorageResourceDefinition)
 	if reserve, known := f.FoodReserve.Value(); known && (len(reserve.Hold) > 0 || len(reserve.Release) > 0) {
@@ -275,34 +275,34 @@ func (r *RoundsFoodStorageUpkeepPlanner) declareOrders(ctx context.Context, snap
 	}
 	larder, err := policy.SelectCorpseLarder(f.FoodStorageUpkeep)
 	if err != nil {
-		return policy.Abstaining(policy.UnreadFoodStorage), nil
+		return policy.Abstaining(policy.CauseUnreadFoodStorage), nil
 	}
 	if larder.Kind != "" {
 		return standing, nil
 	}
 	review, err := r.reviewer.player.journal.LoadRounds(ctx)
 	if err != nil {
-		return abstainOnRead(ctx, policy.UnreadReview)
+		return abstainOnRead(ctx, policy.CauseUnreadReview)
 	}
 	foodReview, err := policy.ReviewFoodStorage(f.FoodStorageUpkeep, review.Latches.FoodStorage, r.reviewer.policy.FoodStorage)
 	if err != nil {
-		return policy.Abstaining(policy.UnreadFoodStorage), nil
+		return policy.Abstaining(policy.CauseUnreadFoodStorage), nil
 	}
 	if !foodReview.Active {
 		return policy.Declared{}, nil
 	}
 	choice, err := r.storageChoice(ctx, boundary.Identity(snapshot), f.FoodStorageUpkeep, foodReview)
 	if err != nil {
-		return policy.Abstaining(policy.UnreadFoodStorage), nil
+		return policy.Abstaining(policy.CauseUnreadFoodStorage), nil
 	}
 	switch choice.Kind {
 	case policy.FoodStorageUnknown:
-		return policy.Abstaining(policy.UnreadFoodStorage), nil
+		return policy.Abstaining(policy.CauseUnreadFoodStorage), nil
 	case policy.FoodStorageProduce:
 		spec, kind, ok, err := policy.FoodStorageMealOrder(choice, benches)
 		switch {
 		case err != nil || kind == policy.MedicineUnknown:
-			return policy.Abstaining(policy.UnreadRecipes), nil
+			return policy.Abstaining(policy.CauseUnreadRecipes), nil
 		case ok:
 			return policy.Declared{Orders: []policy.OrderSpec{spec}}, nil
 		}

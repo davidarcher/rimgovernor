@@ -33,7 +33,7 @@ func DeclareSelection(s BillSelection, selected bool, benches []GearBench) Decla
 	}
 	spec, ok := SelectionOrder(s, benches)
 	if !ok {
-		return Abstaining(UnreadBenchDef)
+		return Abstaining(CauseUnreadBenchDef)
 	}
 	return Declared{Orders: []OrderSpec{spec}}
 }
@@ -45,7 +45,7 @@ func DeclareSelection(s BillSelection, selected bool, benches []GearBench) Decla
 func DeclareMedicine(m MedicineMethod, benches []GearBench) Declared {
 	switch m.Kind {
 	case MedicineUnknown:
-		return Abstaining(UnreadMedicine)
+		return Abstaining(CauseUnreadMedicine)
 	case MedicineProduce:
 		return DeclareSelection(BillSelection{Bench: m.Bench, Recipe: m.Recipe, Mode: domain.StockTarget, Target: int32(m.Target)}, true, benches)
 	}

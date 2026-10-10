@@ -357,7 +357,7 @@ func TestLedgerNeverRemovesADeclareOnlyBill(t *testing.T) {
 // A planner that abstained stops orphan removal for the Round.
 func TestLedgerAbstainKeepsOrphans(t *testing.T) {
 	f := newLedgerFixture(t)
-	f.declarer.declared = policy.Abstaining(policy.UnreadStock)
+	f.declarer.declared = policy.Abstaining(policy.CauseUnreadStock)
 	f.native.benches = []policy.GearBench{ledgerBenchRow(fakeBill("Bill_Hat", ledgerOrder("Make_Hat")))}
 	for round := 0; round < 2*policy.OrphanGraceRounds; round++ {
 		if r := f.round(); r.Plan != "" {

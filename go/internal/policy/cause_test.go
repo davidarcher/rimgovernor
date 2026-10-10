@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -46,12 +47,35 @@ func TestCauseSetIsClosed(t *testing.T) {
 	}
 }
 
-func TestUnreadFactsAndFixedBlockedMapToACause(t *testing.T) {
-	for _, f := range UnreadFacts {
-		if err := CauseOfUnread(f).Validate(); err != nil {
-			t.Error(err)
+// Causes lists exactly the Cause constants, so a new constant cannot miss the
+// wording check.
+func TestCausesListsEveryConstant(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "cause.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var declared []Cause
+	ast.Inspect(file, func(n ast.Node) bool {
+		if spec, ok := n.(*ast.ValueSpec); ok {
+			if ident, ok := spec.Type.(*ast.Ident); ok && ident.Name == "Cause" && len(spec.Values) == 1 {
+				if lit, ok := spec.Values[0].(*ast.BasicLit); ok {
+					declared = append(declared, Cause(lit.Value[1:len(lit.Value)-1]))
+				}
+			}
+		}
+		return true
+	})
+	if len(declared) != len(Causes) {
+		t.Fatalf("constants %d, Causes %d", len(declared), len(Causes))
+	}
+	for _, c := range declared {
+		if !slices.Contains(Causes, c) {
+			t.Fatalf("%q is not in Causes", c)
 		}
 	}
+}
+
+func TestFixedBlockedMapToACause(t *testing.T) {
 	for _, b := range fixedBlocked {
 		c, ok := CauseOfBlocked(b)
 		if !ok || c.Validate() != nil || string(c) != string(b) {

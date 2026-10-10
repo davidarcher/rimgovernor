@@ -586,22 +586,22 @@ func DeclareExportOrders(r ExportRequest) ExportPlan {
 	sort.Slice(plan.Products, func(i, j int) bool { return plan.Products[i] < plan.Products[j] })
 	gap, gk := r.Gap.Value()
 	if !gk {
-		plan.Declared.Unread(UnreadSilverGap)
+		plan.Declared.Unread(CauseUnreadSilverGap)
 		return plan
 	}
 	if !(gap > 0) {
 		if unread {
-			plan.Declared.Unread(UnreadRecipes)
+			plan.Declared.Unread(CauseUnreadRecipes)
 		}
 		return plan
 	}
 	profiles, pk := r.Profiles.Value()
 	cash, ck := r.CashCap.Value()
 	if !pk {
-		plan.Declared.Unread(UnreadWorkers)
+		plan.Declared.Unread(CauseUnreadWorkers)
 	}
 	if !ck {
-		plan.Declared.Unread(UnreadTraderCash)
+		plan.Declared.Unread(CauseUnreadTraderCash)
 	}
 	if !pk || !ck {
 		return plan
@@ -609,10 +609,10 @@ func DeclareExportOrders(r ExportRequest) ExportPlan {
 	standing, bills, standingUnread := standingExports(r.Benches, productSet)
 	plan.Declared.Orders = append(plan.Declared.Orders, standing...)
 	if unread {
-		plan.Declared.Unread(UnreadRecipes)
+		plan.Declared.Unread(CauseUnreadRecipes)
 	}
 	if standingUnread {
-		plan.Declared.Unread(UnreadBills)
+		plan.Declared.Unread(CauseUnreadBills)
 	}
 	busy := map[string]bool{}
 	for _, o := range standing {
@@ -644,7 +644,7 @@ func DeclareExportOrders(r ExportRequest) ExportPlan {
 	for _, e := range recipes {
 		buys, known := r.Buys[e.Product].Value()
 		if !known {
-			plan.Declared.Unread(UnreadBuyers)
+			plan.Declared.Unread(CauseUnreadBuyers)
 			continue
 		}
 		variants, workers := exportVariants(r.Items, e), exportWorkers(profiles, e.Required)
@@ -655,7 +655,7 @@ func DeclareExportOrders(r ExportRequest) ExportPlan {
 		// Gear held above demand is unread: the gap cannot be netted, so the
 		// good is not ordered.
 		if exportGear(r.Items, e.Product) && !r.SurplusKnown {
-			plan.Declared.Unread(UnreadSurplus)
+			plan.Declared.Unread(CauseUnreadSurplus)
 			continue
 		}
 		for _, v := range variants {
@@ -710,7 +710,7 @@ func DeclareExportOrders(r ExportRequest) ExportPlan {
 		}
 		granted, known := guard.Admit(c.Draw, want)
 		if !known {
-			plan.Declared.Unread(UnreadRunways)
+			plan.Declared.Unread(CauseUnreadRunways)
 			continue
 		}
 		if granted < 1 {

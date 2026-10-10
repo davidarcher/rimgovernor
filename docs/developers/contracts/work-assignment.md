@@ -325,7 +325,7 @@ the Industry department over the Colony fact family. The ledger is memory only
 (`Rounder.ledger`): a planner that has migrated implements
 `buildingruntime.OrderDeclarer` (`DeclareOrders(ctx, snapshot, projection, benches)` returns a
 `policy.Declared`: its whole wanted `OrderSpec` set, plus an `Abstain{Concern, Fact}` per
-concern that lacks a fact: `policy.Abstaining(UnreadFact)` is the only constructor, `UnreadFact` is a
+concern that lacks a fact: `policy.Abstaining(Cause)` is the only constructor, the `CauseUnread*` members of `policy.Cause` are a
 closed typed set, and the declarer stamps the concern and every order's `OrderSpec.Owner` with
 `Declared.For(concern)`. Owner is not part of `Key`; two concerns declaring one spec coalesce into one
 order that lists both. Any abstain, of any concern, still skips orphan removal for the Round) and commits no bill method of its own. Each review calls every declarer,
@@ -376,7 +376,7 @@ facilities ladder reads. A finished bill is spent and never satisfies an order.
 view the launcher's Ledger tab prints. Each review leaves a `policy.LedgerView` in
 `Rounder.ledger.view`, a projection of the memory above that is persisted nowhere.
 It lists the declaring planners (named by Go type, each abstain naming its concern
-and the `UnreadFact` it lacked), every wanted order with its owning concerns, spec, state (`placed` on which benches,
+and the `Cause` it lacked, worded by `policy.Wording`), every wanted order with its owning concerns, spec, state (`placed` on which benches,
 `placing`, or `unplaced` with `no_bench` or `bench_slots_full`), dispatch sizing,
 calibration window (predicted against observed stock gain) and shortfall, the
 orphans (grace Rounds left, `removing`, or held by an abstain), the excluded-kind

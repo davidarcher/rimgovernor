@@ -16,7 +16,7 @@ func gearRequest(projection observation.ColonyProjection, benches []policy.GearB
 
 // abstainOnRead is the declaration of a Round whose native read failed: the
 // ledger removes nothing on it. A cancelled context is the caller's error.
-func abstainOnRead(ctx context.Context, fact policy.UnreadFact) (policy.Declared, error) {
+func abstainOnRead(ctx context.Context, fact policy.Cause) (policy.Declared, error) {
 	if ctx.Err() != nil {
 		return policy.Declared{}, ctx.Err()
 	}
@@ -47,10 +47,10 @@ func (r *RoundsArmoryPlanner) declareOrders(ctx context.Context, snapshot domain
 	tier := policy.AssessArmory(projection.Facts.RaidPoints, projection.Facts.Research).Tier
 	census, known := projection.Facts.Gear.Value()
 	if _, ok := r.native.(RoundsEquipSource); !ok {
-		return policy.Abstaining(policy.UnreadNativeRead), nil
+		return policy.Abstaining(policy.CauseUnreadNativeRead), nil
 	}
 	if !known {
-		return policy.Abstaining(policy.UnreadGearDemand), nil
+		return policy.Abstaining(policy.CauseUnreadGearDemand), nil
 	}
 	ids := make([]string, 0, len(census.Pawns))
 	for _, p := range census.Pawns {
@@ -58,11 +58,11 @@ func (r *RoundsArmoryPlanner) declareOrders(ctx context.Context, snapshot domain
 	}
 	fighters, hunters, unarmed, err := r.weaponDemand(ctx, snapshot, ids, int64(projection.Identity.Tick), benches, tier)
 	if err != nil {
-		return abstainOnRead(ctx, policy.UnreadWeapons)
+		return abstainOnRead(ctx, policy.CauseUnreadWeapons)
 	}
 	shells, err := shellTargets(ctx, r.native, r.reviewer.player.journal, snapshot, projection)
 	if err != nil {
-		return abstainOnRead(ctx, policy.UnreadShells)
+		return abstainOnRead(ctx, policy.CauseUnreadShells)
 	}
 	r.setSpotNeeded(unarmed > 0 && !weaponBenchHosted(benches))
 	return policy.DeclareArmoryOrders(gearRequest(projection, benches), tier, mergeAmounts(fighters, hunters), shells)

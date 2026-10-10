@@ -51,7 +51,7 @@ func mustStudy(t *testing.T, p ContainmentPlanning) ([]WorkRequirement, bool) {
 	return work.Value()
 }
 
-func TestStudyWorkFailsLoudlyOnUnreadFacts(t *testing.T) {
+func TestStudyWorkFailsLoudlyOnUnreadInputs(t *testing.T) {
 	for name, e := range map[string]CapturableEntity{
 		"studiable": heldEntity("e1", domain.Unknown[bool]()),
 		"held":      {Pawn: "e1", Dead: domain.Known(false), Held: domain.Unknown[bool](), CurrentlyStudiable: domain.Known(true)},

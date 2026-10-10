@@ -68,7 +68,7 @@ func TestBuildLedgerViewStates(t *testing.T) {
 // An abstaining planner holds every orphan, and the view names who abstained.
 func TestBuildLedgerViewAbstainHoldsOrphans(t *testing.T) {
 	orphan := ActualBill{ID: "B_1", Bench: "T1", Spec: viewOrder("Make_Old")}
-	declared := []Declared{{Abstains: []Abstain{{Fact: UnreadStock}}}}
+	declared := []Declared{{Abstains: []Abstain{{Fact: CauseUnreadStock}}}}
 	plan := ReconcileLedger(declared, []ActualBill{orphan}, map[string]int{"B_1": 2}, nil)
 	v := BuildLedgerView(LedgerViewInput{Declarers: []NamedDeclared{{Name: "Gear", Declared: declared[0]}}, Plan: plan})
 	if !v.Abstained || len(v.Declarers[0].Abstains) != 1 || len(v.Orphans) != 1 || v.Orphans[0].State != OrphanHeld {

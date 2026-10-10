@@ -14,7 +14,7 @@ func sampleLedger() policy.LedgerView {
 	steel := policy.OrderSpec{Recipe: "Smelt_Steel", Mode: domain.StockTarget, Target: 100, BenchKind: "ElectricSmelter", Product: "Steel", Class: policy.ResourceMaterial}
 	pike := policy.OrderSpec{Recipe: "Make_Pike", Mode: domain.GearBatch, Target: 3, BenchKind: "FueledSmithy", Worker: "Pawn_7", Ingredients: []string{"Steel"}}
 	declared := []policy.Declared{policy.Declared{Orders: []policy.OrderSpec{steel, pike}}.For(policy.MaintainResource)}
-	declared[0].Merge(policy.Abstaining(policy.UnreadWort).For(policy.MaintainResource))
+	declared[0].Merge(policy.Abstaining(policy.CauseUnreadWort).For(policy.MaintainResource))
 	actual := []policy.ActualBill{
 		{ID: "Bill_1", Bench: "Smelter_1", Spec: steel},
 		{ID: "Bill_9", Bench: "Smelter_1", Spec: policy.OrderSpec{Recipe: "Make_Old", Mode: domain.GearBatch, Target: 1, BenchKind: "ElectricSmelter"}},
@@ -65,7 +65,7 @@ func TestLedgerPageShowsPlacedOrphanAndUnmetRows(t *testing.T) {
 			t.Fatalf("orders missing %q:\n%s", want, orders)
 		}
 	}
-	if got := tableText(section(t, p, "Planners declaring")); !strings.Contains(got, "abstained: MaintainResource did not read which wort makes beer") {
+	if got := tableText(section(t, p, "Planners declaring")); !strings.Contains(got, "abstained: MaintainResource: The bot could not read which wort makes beer.") {
 		t.Fatalf("declarers:\n%s", got)
 	}
 	if got := tableText(section(t, p, "Orphan bills")); !strings.Contains(got, "Smelter_1 | Make_Old | 1 | - | undeclared, held: a planner abstained") {
@@ -102,16 +102,8 @@ func TestLedgerPageFeedStates(t *testing.T) {
 	}
 }
 
-// Every abstain reason and export drop reason has a label the page prints.
+// Every export drop reason has a label the page prints.
 func TestEveryReasonHasALabel(t *testing.T) {
-	for _, f := range policy.UnreadFacts {
-		if unreadLabels[f] == "" {
-			t.Errorf("UnreadFact %q has no label", f)
-		}
-	}
-	if len(unreadLabels) != len(policy.UnreadFacts) {
-		t.Errorf("%d labels for %d facts", len(unreadLabels), len(policy.UnreadFacts))
-	}
 	for _, d := range policy.AllExportDrops {
 		if dropLabels[d] == "" {
 			t.Errorf("ExportDrop %q has no label", d)

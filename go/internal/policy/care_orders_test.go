@@ -18,8 +18,8 @@ func TestDeclareSelection(t *testing.T) {
 	}{
 		"selected bill is declared":      {sel, true, Declared{Orders: []OrderSpec{want}}},
 		"nothing selected declares none": {sel, false, Declared{}},
-		"bench missing abstains":         {BillSelection{Bench: "b9", Recipe: "r"}, true, Declared{Abstains: []Abstain{{Fact: UnreadBenchDef}}}},
-		"bench without a def abstains":   {BillSelection{Bench: "b2", Recipe: "r"}, true, Declared{Abstains: []Abstain{{Fact: UnreadBenchDef}}}},
+		"bench missing abstains":         {BillSelection{Bench: "b9", Recipe: "r"}, true, Declared{Abstains: []Abstain{{Fact: CauseUnreadBenchDef}}}},
+		"bench without a def abstains":   {BillSelection{Bench: "b2", Recipe: "r"}, true, Declared{Abstains: []Abstain{{Fact: CauseUnreadBenchDef}}}},
 	} {
 		if got := DeclareSelection(c.sel, c.selected, benches); !reflect.DeepEqual(got, c.want) {
 			t.Errorf("%s: got %+v, want %+v", name, got, c.want)
