@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <!-- Sparring ring melee practice weapons (#2703). Graphics reuse vanilla textures: no mod
+       textures. Like Bow_Training: issued by the spar job, never owned; no recipe, category,
+       weapon tag or trade tag; one limb tool, no verbs. Damage is flat per damage type (the
+       Cut weapons share one power) and vanilla pays melee XP; a tier buys a higher ceiling
+       and nothing else. The tier table is the SparringTier extension; Go mirrors it in
+       sparring_tier.go. -->
+
+  <ThingDef ParentName="BaseMeleeWeapon">
+    <defName>MeleeWeapon_PracticeClub</defName>
+    <label>padded practice club</label>
+    <description>A padded club for sparring, kept at a sparring ring. It cannot be made, bought or sold.</description>
+    <techLevel>Neolithic</techLevel>
+    <graphicData>
+      <texPath>Things/Item/Equipment/WeaponMelee/Club</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <soundInteract>Interact_BluntMedium</soundInteract>
+    <tradeability>None</tradeability>
+    <statBases>
+      <Mass>1</Mass>
+    </statBases>
+    <weaponClasses>
+      <li>Melee</li>
+    </weaponClasses>
+    <tools>
+      <li>
+        <label>head</label>
+        <capacities>
+          <li>Blunt</li>
+        </capacities>
+        <power>3</power>
+        <cooldownTime>2</cooldownTime>
+      </li>
+    </tools>
+    <rotateInShelves>false</rotateInShelves>
+    <modExtensions>
+      <li Class="RimGovernor.Runtime.SparringTier">
+        <tier>0</tier>
+        <skillCeiling>8</skillCeiling>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
+  <ThingDef ParentName="BaseMeleeWeapon">
+    <defName>MeleeWeapon_PracticeSword</defName>
+    <label>practice sword</label>
+    <description>A blunted sword for sparring, kept at a sparring ring. It cannot be made, bought or sold.</description>
+    <techLevel>Medieval</techLevel>
+    <graphicData>
+      <texPath>Things/Item/Equipment/WeaponMelee/Gladius</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <soundInteract>Interact_BladeMedium</soundInteract>
+    <tradeability>None</tradeability>
+    <statBases>
+      <Mass>1</Mass>
+    </statBases>
+    <weaponClasses>
+      <li>Melee</li>
+    </weaponClasses>
+    <tools>
+      <li>
+        <label>blade</label>
+        <capacities>
+          <li>Cut</li>
+        </capacities>
+        <power>5</power>
+        <cooldownTime>2</cooldownTime>
+      </li>
+    </tools>
+    <rotateInShelves>false</rotateInShelves>
+    <modExtensions>
+      <li Class="RimGovernor.Runtime.SparringTier">
+        <tier>1</tier>
+        <skillCeiling>12</skillCeiling>
+        <gateResearch>Smithing</gateResearch>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
+  <ThingDef ParentName="BaseMeleeWeapon">
+    <defName>MeleeWeapon_PracticeSwordBetter</defName>
+    <label>better practice sword</label>
+    <description>A well-balanced blunted sword for sparring, kept at a sparring ring. It cannot be made, bought or sold.</description>
+    <techLevel>Industrial</techLevel>
+    <graphicData>
+      <texPath>Things/Item/Equipment/WeaponMelee/LongSword</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <soundInteract>Interact_BladeMedium</soundInteract>
+    <tradeability>None</tradeability>
+    <statBases>
+      <Mass>1</Mass>
+    </statBases>
+    <weaponClasses>
+      <li>Melee</li>
+    </weaponClasses>
+    <tools>
+      <li>
+        <label>blade</label>
+        <capacities>
+          <li>Cut</li>
+        </capacities>
+        <power>5</power>
+        <cooldownTime>2</cooldownTime>
+      </li>
+    </tools>
+    <rotateInShelves>false</rotateInShelves>
+    <modExtensions>
+      <li Class="RimGovernor.Runtime.SparringTier">
+        <tier>2</tier>
+        <skillCeiling>16</skillCeiling>
+        <gateResearch>Machining</gateResearch>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
+  <ThingDef ParentName="BaseMeleeWeapon">
+    <defName>MeleeWeapon_PracticeSwordBest</defName>
+    <label>best practice sword</label>
+    <description>A fine blunted sword for sparring, kept at a sparring ring. It cannot be made, bought or sold.</description>
+    <techLevel>Spacer</techLevel>
+    <graphicData>
+      <texPath>Things/Item/Equipment/WeaponMelee/Plasmasword</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <soundInteract>Interact_BladeMedium</soundInteract>
+    <tradeability>None</tradeability>
+    <statBases>
+      <Mass>1</Mass>
+    </statBases>
+    <weaponClasses>
+      <li>Melee</li>
+    </weaponClasses>
+    <tools>
+      <li>
+        <label>blade</label>
+        <capacities>
+          <li>Cut</li>
+        </capacities>
+        <power>5</power>
+        <cooldownTime>2</cooldownTime>
+      </li>
+    </tools>
+    <rotateInShelves>false</rotateInShelves>
+    <modExtensions>
+      <li Class="RimGovernor.Runtime.SparringTier">
+        <tier>3</tier>
+        <skillCeiling>20</skillCeiling>
+        <gateResearch>Fabrication</gateResearch>
+      </li>
+    </modExtensions>
+  </ThingDef>
+</Defs>
