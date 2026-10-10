@@ -570,15 +570,22 @@ into free ground (the + end, then the - end), keeping every standing piece, and
 a smaller demand changes nothing. `RangeTemplate(room)` turns the layout into
 the `[]WantedPiece` the room reconciler builds.
 
-`MaintainTraining` (Military, #2619) demands it: while a capable adult's
-Shooting is under the ceiling of `policy.UnlockedTrainingTier` (the best tier
-whose gate research is finished in the research census; an unknown census holds
-at the bow), the military store declares `RoomDemand.Ranges` (the stockpile
-review, so with the stockpiles family). `RoundsTrainingPlanner` (family
-`training`) then reconciles `RangeTemplate` and takes no further action once the
-range stands. A pawn who cannot shoot (a Brawler or melee-only colonist,
-Shooting disabled) and a child are not counted. No action kind or wire field is
-involved.
+`MaintainTraining` (Military, #2619, per-skill since #2707) demands it. Each
+adult is judged on the one skill it trains (`policy.TrainingSkill`, mirrored by
+native `RangeTraining.TryChoose`: the higher usable level, then the stronger
+passion, then Shooting; Shooting is unusable for a Brawler, a skill for a pawn
+with it disabled) against that skill's own ceiling: `UnlockedTrainingTier` for
+Shooting, `UnlockedSparringTier` for Melee (the best tier whose gate research is
+finished in the research census; an unknown census holds at tier 0).
+`TrainingReview` counts the pawns below per skill. While a Shooting pawn is
+below, the military store declares `RoomDemand.Ranges` (stands: RangeStandsFor
+the capable adults; the stockpile review, so with the stockpiles family); while
+at least two Melee pawns are below (a lone one has no partner) it declares
+`RoomDemand.Rings` (`RingMarkersFor` the capable adults, grow-only).
+`RoundsTrainingPlanner` (family `training`) then reconciles `RangeTemplate` and
+`RingTemplate` in turn (a room with nothing ready leaves the next its turn) and
+takes no further action once they stand. A child and a pawn who can train neither
+skill are not counted. No action kind or wire field is involved.
 
 **Tiers.** The drill climbs a research-gated ladder of practice weapons. Every
 weapon keeps the 3 s cycle; what changes is the XP per shot and the skill

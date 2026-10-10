@@ -27,14 +27,14 @@ func TestTrainingReviewCountsTheGapAgainstShooting(t *testing.T) {
 		want     domain.Fact[TrainingReview]
 	}{
 		{"at the target is no gap", domain.Known([]PawnProfile{combatant("a", 0, TrainingTiers[0].Ceiling)}), domain.Known(TrainingReview{Capable: 1})},
-		{"one below the target is a gap", domain.Known([]PawnProfile{combatant("a", TrainingTiers[0].Ceiling-1, TrainingTiers[0].Ceiling-2)}), domain.Known(TrainingReview{Capable: 1, Below: 1})},
-		{"only Shooting counts", domain.Known([]PawnProfile{combatant("a", 0, TrainingTiers[0].Ceiling+3), combatant("b", 20, 1)}), domain.Known(TrainingReview{Capable: 2, Below: 1})},
-		{"a pawn who cannot shoot is skipped", domain.Known([]PawnProfile{meleeOnly, brawler}), domain.Known(TrainingReview{})},
+		{"one below the target is a gap", domain.Known([]PawnProfile{combatant("a", TrainingTiers[0].Ceiling-2, TrainingTiers[0].Ceiling-1)}), domain.Known(TrainingReview{Capable: 1, Below: 1, ShootingBelow: 1})},
+		{"each pawn is judged on its chosen skill", domain.Known([]PawnProfile{combatant("a", 0, TrainingTiers[0].Ceiling+3), combatant("b", 20, 1)}), domain.Known(TrainingReview{Capable: 2})},
+		{"a pawn who cannot shoot trains melee", domain.Known([]PawnProfile{meleeOnly, brawler}), domain.Known(TrainingReview{Capable: 2, Below: 2, MeleeBelow: 2})},
 		{"no combat-capable colonists", domain.Known([]PawnProfile{pacifist, child}), domain.Known(TrainingReview{})},
 		{"no colonists", domain.Known([]PawnProfile{}), domain.Known(TrainingReview{})},
 		{"unread profiles", domain.Unknown[[]PawnProfile](), domain.Unknown[TrainingReview]()},
 		{"a pawn with unread skills and no gap elsewhere is unknown", domain.Known([]PawnProfile{{ID: "x"}, combatant("a", 15, 15)}), domain.Unknown[TrainingReview]()},
-		{"a gap is a gap despite an unread pawn", domain.Known([]PawnProfile{{ID: "x"}, combatant("a", 1, 1)}), domain.Known(TrainingReview{Capable: 1, Below: 1})},
+		{"a gap is a gap despite an unread pawn", domain.Known([]PawnProfile{{ID: "x"}, combatant("a", 1, 1)}), domain.Known(TrainingReview{Capable: 1, Below: 1, ShootingBelow: 1})},
 	} {
 		got, gk := ReviewTraining(tc.profiles, domain.Unknown[ResearchFacts]()).Value()
 		want, wk := tc.want.Value()

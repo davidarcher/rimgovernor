@@ -17,7 +17,7 @@ namespace RimGovernor.Runtime
 
         public override bool ShouldSkip(Pawn pawn, bool forced = false)
         {
-            if (!RangeTraining.Eligible(pawn)) return true;
+            if (!RangeTraining.Eligible(pawn, SkillDefOf.Shooting)) return true;
             foreach (var _ in RangeTraining.Stands(pawn.Map)) return false;
             return true;
         }
@@ -35,7 +35,7 @@ namespace RimGovernor.Runtime
         private static bool Plan(Pawn pawn, Thing stand, out Thing dummy)
         {
             dummy = null;
-            if (!RangeTraining.Eligible(pawn) || stand.Destroyed || !stand.Spawned || stand.IsForbidden(pawn)) return false;
+            if (!RangeTraining.Eligible(pawn, SkillDefOf.Shooting) || stand.Destroyed || !stand.Spawned || stand.IsForbidden(pawn)) return false;
             dummy = RangeTraining.DummyFor(stand);
             return dummy != null && !dummy.IsForbidden(pawn) && pawn.CanReserve(stand) && pawn.CanReserve(dummy);
         }

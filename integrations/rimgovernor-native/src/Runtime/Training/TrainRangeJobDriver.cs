@@ -53,7 +53,7 @@ namespace RimGovernor.Runtime
         {
             this.FailOnDespawnedOrNull(StandIndex);
             this.FailOnDespawnedOrNull(DummyIndex);
-            this.FailOn(() => !RangeTraining.BelowTarget(pawn));
+            this.FailOn(() => !RangeTraining.BelowTarget(pawn, SkillDefOf.Shooting));
             AddFinishAction(delegate { RestoreWeapon(); });
             yield return Toils_Goto.GotoThing(StandIndex, PathEndMode.OnCell);
             var swap = ToilMaker.MakeToil("SwapToTrainingWeapon");

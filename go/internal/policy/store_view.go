@@ -52,6 +52,9 @@ type StoreView struct {
 	// TrainingStands is the stands the range should hold (see TrainingStands); the Military
 	// store asks for a training range while it is open.
 	TrainingStands domain.Fact[int]
+	// TrainingRings is the markers the sparring ring should hold (see
+	// TrainingRings); asked while two fighters are below the melee ceiling.
+	TrainingRings domain.Fact[int]
 	// Incinerator is the planned incinerator room once its walls and door
 	// stand; nil before. The Sanitation store declares its zone.
 	Incinerator *PlannedRoom

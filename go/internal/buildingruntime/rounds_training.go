@@ -14,25 +14,28 @@ import (
 // MaintainTraining (#2619): while a capable colonist is below the combat skill
 // target the stockpile review asks layout for a training range
 // (RoomDemand.Ranges, the stand count; a further graveyard is asked for the same
-// way). This planner then stages the planned range's stands and dummies through
-// the room reconciler. The range is unfenced open air (PlannedRoom.Unfenced), so
-// the reconciler owes it no ring, roof or floor, only the template; a range that
-// outgrew its stands is widened by layout and the same template builds the new
-// ones. A standing range takes no further action here: the native training job
-// (#2610) spends the pawn-hours.
+// way), and while two fighters are below the melee ceiling for a sparring ring
+// (RoomDemand.Rings, the marker count; #2707). This planner then stages the
+// planned range's stands and dummies and the ring's markers through the room
+// reconciler. Both are unfenced open air (PlannedRoom.Unfenced), so the
+// reconciler owes them no ring, roof or floor, only the template; one that
+// outgrew its stands or markers is widened by layout and the same template builds
+// the new ones. A standing range or ring takes no further action here: the
+// native training and spar jobs spend the pawn-hours.
 
 // trainingDefinitions are the definitions the range step reads availability
 // and stuff for: the range's own buildings.
-var trainingDefinitions = []string{policy.RangeDefNames[policy.RangeStand], policy.RangeDefNames[policy.RangeDummy]}
+var trainingDefinitions = []string{policy.RangeDefNames[policy.RangeStand], policy.RangeDefNames[policy.RangeDummy], policy.RingMarkerDef}
 
-// trainingStands is the stands the review wants, read from the projection's work
-// pawns; unknown while they are.
-func trainingStands(facts observation.ColonyProjection) domain.Fact[int] {
+// trainingDemand is the range's stands and the ring's markers the review wants,
+// read from the projection's work pawns; unknown while they are.
+func trainingDemand(facts observation.ColonyProjection) (stands, rings domain.Fact[int]) {
 	pawns, known := facts.WorkPawns.Value()
 	if !known {
-		return domain.Unknown[int]()
+		return domain.Unknown[int](), domain.Unknown[int]()
 	}
-	return policy.TrainingStands(domain.Known(policy.Profiles(pawns)), facts.Facts.Research)
+	profiles := domain.Known(policy.Profiles(pawns))
+	return policy.TrainingStands(profiles, facts.Facts.Research), policy.TrainingRings(profiles, facts.Facts.Research)
 }
 
 // RoundsTrainingPlanner stages the training range of MaintainTraining.
@@ -107,13 +110,32 @@ func (r *RoundsTrainingPlanner) step(call, epoch context.Context, _ *stepArbiter
 	if !known {
 		return RoundsTrainingResult{Verdict: fieldUnavailable("layout_plan")}, nil
 	}
-	ranges := plan.RangeRooms()
-	if len(ranges) == 0 {
-		// The layout review grows the range from RoomDemand.Ranges.
+	var rooms []roomReconcile
+	if ranges := plan.RangeRooms(); len(ranges) > 0 {
+		room := ranges[0]
+		rooms = append(rooms, roomReconcile{room: room, template: policy.RangeTemplate(room), name: roomName("range", room), reason: "range"})
+	}
+	if rings := plan.RingRooms(); len(rings) > 0 {
+		room := rings[0]
+		rooms = append(rooms, roomReconcile{room: room, template: policy.RingTemplate(room), name: roomName("ring", room), reason: "ring"})
+	}
+	if len(rooms) == 0 {
+		// The layout review grows the range and ring from RoomDemand.
 		return RoundsTrainingResult{Verdict: waitFor(policy.CauseMethodUsed, "range_room")}, nil
 	}
 	stock := newPackedStock(r.reviewer.native, boundary.Identity(state.Snapshot))
-	room := ranges[0]
-	result, err := r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, roomReconcile{room: room, template: policy.RangeTemplate(room), name: roomName("range", room), reason: "range"})
-	return RoundsTrainingResult{Verdict: result.Verdict}, err
+	var verdict Verdict
+	for _, rr := range rooms {
+		result, err := r.building.reconcileRoom(call, epoch, state, review, goal, reading, stock, rr)
+		if err != nil {
+			return RoundsTrainingResult{}, err
+		}
+		verdict = result.Verdict
+		// A room with nothing ready (finished, or waiting on its builders)
+		// leaves the next one its turn; work staged ends the step.
+		if !verdict.Is(policy.CauseExistingWork) {
+			break
+		}
+	}
+	return RoundsTrainingResult{Verdict: verdict}, nil
 }

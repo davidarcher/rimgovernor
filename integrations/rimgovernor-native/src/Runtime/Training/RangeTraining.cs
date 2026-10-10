@@ -114,21 +114,46 @@ namespace RimGovernor.Runtime
             Spent[pawn.thingIDNumber] = new KeyValuePair<int, float>(GenDate.DaysPassed, SpentToday(pawn) + applied);
         }
 
-        // Only Shooting trains; the drill is closed to a pawn who cannot shoot (a
-        // Brawler, or Shooting disabled) or whose Shooting has reached the ceiling.
-        public static bool CanShoot(Pawn pawn)
+        // A skill is usable unless disabled; Shooting also not for a Brawler.
+        public static bool CanTrain(Pawn pawn, SkillDef skill)
         {
-            var record = pawn.skills?.GetSkill(SkillDefOf.Shooting);
-            return record != null && !record.TotallyDisabled && !(pawn.story?.traits?.HasTrait(TraitDefOf.Brawler) ?? false);
+            var record = pawn.skills?.GetSkill(skill);
+            if (record == null || record.TotallyDisabled) return false;
+            return skill != SkillDefOf.Shooting || !(pawn.story?.traits?.HasTrait(TraitDefOf.Brawler) ?? false);
         }
 
-        public static bool BelowTarget(Pawn pawn) => CanShoot(pawn) && pawn.skills.GetSkill(SkillDefOf.Shooting).Level < Ceiling;
+        // The skill a pawn trains (TrainingSkill in go/internal/policy/training.go):
+        // the higher usable level, then the stronger passion, then Shooting.
+        public static bool TryChoose(Pawn pawn, out SkillDef skill)
+        {
+            var canShoot = CanTrain(pawn, SkillDefOf.Shooting);
+            var canMelee = CanTrain(pawn, SkillDefOf.Melee);
+            skill = canShoot ? SkillDefOf.Shooting : canMelee ? SkillDefOf.Melee : null;
+            if (!canShoot || !canMelee) return skill != null;
+            var shooting = pawn.skills.GetSkill(SkillDefOf.Shooting);
+            var melee = pawn.skills.GetSkill(SkillDefOf.Melee);
+            if (melee.Level > shooting.Level || melee.Level == shooting.Level && melee.passion > shooting.passion)
+            {
+                skill = SkillDefOf.Melee;
+            }
+            return true;
+        }
 
-        public static bool Eligible(Pawn pawn)
+        // Each skill's own ladder: the unlocked drill bow's ceiling, the sparring weapon's.
+        public static int CeilingFor(SkillDef skill) => skill == SkillDefOf.Melee ? SparringRules.Ceiling : Ceiling;
+
+        // True when the pawn's chosen skill is the given one and still under that
+        // skill's ceiling.
+        public static bool BelowTarget(Pawn pawn, SkillDef skill)
+        {
+            return TryChoose(pawn, out var chosen) && chosen == skill && pawn.skills.GetSkill(skill).Level < CeilingFor(skill);
+        }
+
+        public static bool Eligible(Pawn pawn, SkillDef skill)
         {
             return pawn != null && pawn.Spawned && pawn.IsColonist && !pawn.Downed && !pawn.Drafted
                 && pawn.DevelopmentalStage == DevelopmentalStage.Adult && pawn.equipment != null && pawn.inventory != null
-                && BelowTarget(pawn) && Remaining(pawn) > 0f;
+                && BelowTarget(pawn, skill) && Remaining(pawn) > 0f;
         }
 
         public static IEnumerable<Thing> Stands(Map map)
