@@ -18,6 +18,17 @@ namespace HomeBridge.BridgeTools
     {
         internal const string ToolName = "rimgovernor/observations_read_trade_acquisition";
 
+        // FactionDialogMaker writes these inline (no const or static field), so
+        // GameConstants cannot carry them; this is their one native copy, shared
+        // by the observation and the request validation.
+        internal static class TraderRequest
+        {
+            internal static int GoodwillDelta(bool orbital) => orbital ? -30 : -15;
+            internal static int CooldownTicks(bool orbital) => orbital ? 900000 : 240000;
+            internal static int ArrivalMinTicks(bool orbital) => orbital ? 2500 : 120000;
+            internal static int ArrivalMaxTicks(bool orbital) => orbital ? 5000 : 120000;
+        }
+
         internal static bool ConsoleNegotiator(Building_CommsConsole console, Pawn pawn) =>
             console.CanUseCommsNow && NativeTradeObservation.EligibleNegotiator(pawn)
             && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Talking)
@@ -26,14 +37,14 @@ namespace HomeBridge.BridgeTools
 
         // FactionRelation.CheckKindThresholds uses effective goodwill after
         // clamping base goodwill and the situation ceiling. An Ally stays Ally
-        // down to (but excluding) zero; 75 is the threshold for becoming Ally.
+        // down to (but excluding) zero; DiplomacyTuning holds the Hostile and Ally thresholds.
         internal static string RelationAfterPayment(Faction faction, int delta)
         {
-            var projected = Math.Min(Math.Max(-100, Math.Min(100,
+            var projected = Math.Min(Math.Max(DiplomacyTuning.MinGoodwill, Math.Min(DiplomacyTuning.MaxGoodwill,
                 faction.BaseGoodwillWith(Faction.OfPlayer) + delta)),
                 Find.GoodwillSituationManager.GetMaxGoodwill(faction));
-            if (projected <= -75) return "Hostile";
-            if (projected >= 75) return "Ally";
+            if (projected <= DiplomacyTuning.BecomeHostileThreshold) return "Hostile";
+            if (projected >= DiplomacyTuning.BecomeAllyThreshold) return "Ally";
             if (faction.PlayerRelationKind == FactionRelationKind.Ally && projected > 0) return "Ally";
             if (faction.PlayerRelationKind == FactionRelationKind.Hostile && projected < 0) return "Hostile";
             return "Neutral";
@@ -88,14 +99,14 @@ namespace HomeBridge.BridgeTools
                     var kinds = orbital ? faction.def.orbitalTraderKinds : faction.def.caravanTraderKinds;
                     foreach (var kind in kinds.Where(k => k.requestable).OrderBy(k => k.defName))
                     {
-                        var delta = Faction.OfPlayer.CalculateAdjustedGoodwillChange(faction, orbital ? -30 : -15);
+                        var delta = Faction.OfPlayer.CalculateAdjustedGoodwillChange(faction, TraderRequest.GoodwillDelta(orbital));
                         var last = orbital ? faction.lastOrbitalTraderRequestTick : faction.lastTraderRequestTick;
                         var row = new Obs.TradeRequestOption { FactionId = faction.GetUniqueLoadID(),
                             Kind = orbital ? Common.TradeRequestKind.Orbital : Common.TradeRequestKind.Caravan,
                             TraderKind = kind.defName, Goodwill = faction.PlayerGoodwill, GoodwillCost = -delta,
                             RelationAfterPayment = RelationAfterPayment(faction, delta), LastRequestTick = last,
-                            CooldownRemainingTicks = Math.Max(0L, (long)last + (orbital ? 900000 : 240000) - now),
-                            ArrivalMinTicks = orbital ? 2500 : 120000, ArrivalMaxTicks = orbital ? 5000 : 120000 };
+                            CooldownRemainingTicks = Math.Max(0L, (long)last + TraderRequest.CooldownTicks(orbital) - now),
+                            ArrivalMinTicks = TraderRequest.ArrivalMinTicks(orbital), ArrivalMaxTicks = TraderRequest.ArrivalMaxTicks(orbital) };
                         row.NegotiatorIds.Add(eligible.Where(p => kind.TitleRequiredToTrade == null ||
                             p.royalty != null && p.GetCurrentTitleSeniorityIn(faction) >= kind.TitleRequiredToTrade.seniority)
                             .Select(p => p.GetUniqueLoadID()));

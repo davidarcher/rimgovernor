@@ -51,8 +51,8 @@ namespace HomeBridge.BridgeTools
             var last = orbital ? faction.lastOrbitalTraderRequestTick : faction.lastTraderRequestTick;
             reason = last != intent.ExpectedLastRequestTick ? "request_tick_changed" :
                 faction.PlayerRelationKind != FactionRelationKind.Ally ? "not_ally" :
-                NativeTradeAcquisition.RelationAfterPayment(faction, Faction.OfPlayer.CalculateAdjustedGoodwillChange(faction, orbital ? -30 : -15)) != "Ally" ? "alliance_cost" :
-                (long)last + (orbital ? 900000 : 240000) > Find.TickManager.TicksGame ? "cooldown" :
+                NativeTradeAcquisition.RelationAfterPayment(faction, Faction.OfPlayer.CalculateAdjustedGoodwillChange(faction, NativeTradeAcquisition.TraderRequest.GoodwillDelta(orbital))) != "Ally" ? "alliance_cost" :
+                (long)last + NativeTradeAcquisition.TraderRequest.CooldownTicks(orbital) > Find.TickManager.TicksGame ? "cooldown" :
                 orbital && (!ModsConfig.OdysseyActive || !faction.def.canRequestOrbitalTrader) ? "orbital_unavailable" :
                 !orbital && (!faction.def.canRequestTraders || !faction.def.allowedArrivalTemperatureRange.ExpandedBy(-4f).Includes(map.mapTemperature.SeasonalTemp)) ? "caravan_unavailable" :
                 orbital && map.passingShipManager.passingShips.Count != 0 ? "passing_ships" :

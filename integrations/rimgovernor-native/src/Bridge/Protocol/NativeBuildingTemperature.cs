@@ -14,14 +14,12 @@ using Receipts = RimGovernor.Protocol.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // BuildingPatchIntent's target_temperature arm: RimWorld.CompTempControl
-    // .targetTemperature, a public settable float clamped by the game's own
-    // -273.15..1000 C interface range. The other arms are NativeBedUse,
+    // .targetTemperature, a public settable float bounded by the Go planner
+    // (domain.NewBuildingTemperature). The other arms are NativeBedUse,
     // NativeGrowerCrop and NativeClaimBuilding; BuildingPatchActionHandler
     // below routes them.
     internal static class NativeBuildingTemperature
     {
-        private const float MinCelsius = -273.15f;
-        private const float MaxCelsius = 1000f;
 
 
 
@@ -53,9 +51,8 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.BuildingPatchIntent intent, Common.ObservationContext context, out Thing? thing)
         {
             thing = null;
-            if (!ProtoBoundary.IsIdentifier(intent.ThingId) || float.IsNaN(intent.TargetTemperature) || float.IsInfinity(intent.TargetTemperature)
-                || intent.TargetTemperature < MinCelsius || intent.TargetTemperature > MaxCelsius)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A temperature patch requires an exact building and a target in the game's -273.15 to 1000 C interface range.");
+            if (!ProtoBoundary.IsIdentifier(intent.ThingId) || float.IsNaN(intent.TargetTemperature) || float.IsInfinity(intent.TargetTemperature))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A temperature patch requires an exact building and a finite target (domain.NewBuildingTemperature bounds the range).");
             thing = RefIndex.Thing(ProtoBoundary.LoadedMap(context), intent.ThingId);
             if (thing == null || !Eligible(thing)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact building with CompTempControl is unavailable.");
             return null;
