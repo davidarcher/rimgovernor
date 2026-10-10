@@ -40,17 +40,25 @@ const (
 	classBuildingWorkTable = "RimWorld.Building_WorkTable"
 	classBuildingDoor      = "RimWorld.Building_Door"
 	classCompPowerPlant    = "RimWorld.CompPowerPlant"
-	classVerbMeleeAttack   = "Verse.Verb_MeleeAttack"
 )
 
-// shown is StatWorker.ShouldShowFor for a definition request, in the game's
-// order, so a stat that is hidden before it reaches an unowned class is
-// answered without the class.
+// shown is ShouldShowFor: the worker's override, else the base worker's.
 func (e *Evaluator) shown(req *Request) (bool, error) {
-	stat := req.Stat
-	if workerClass(stat) != baseWorker {
-		return false, notMirroredWorker(stat, "the worker's ShouldShowFor")
+	w, err := e.worker(req.Stat, "the worker's ShouldShowFor")
+	if err != nil {
+		return false, err
 	}
+	if sw, ok := w.(showWorker); ok {
+		return sw.Show(req, func() (bool, error) { return e.baseShown(req) })
+	}
+	return e.baseShown(req)
+}
+
+// baseShown is the base StatWorker.ShouldShowFor for a definition request, in
+// the game's order, so a stat that is hidden before it reaches an unowned
+// class is answered without the class.
+func (e *Evaluator) baseShown(req *Request) (bool, error) {
+	stat := req.Stat
 	if stat.GetAlwaysHide() {
 		return false, nil
 	}
@@ -78,7 +86,28 @@ func (e *Evaluator) shown(req *Request) (bool, error) {
 			return force, err
 		}
 	}
-	// The pawn checks (hediffs, slave) and MaxHitPoints need a thing.
+	if p := req.pawn(); p != nil {
+		if len(stat.GetShowIfHediffsPresent()) > 0 {
+			hediffs, err := need(p.Body.Hediffs, "the pawn's hediffs")
+			if err != nil {
+				return false, err
+			}
+			for _, want := range stat.GetShowIfHediffsPresent() {
+				if !slices.ContainsFunc(hediffs, func(h HediffState) bool { return h.Def == want }) {
+					return false, nil
+				}
+			}
+		}
+		if stat.GetShowOnSlavesOnly() {
+			slave, err := need(p.IsSlave, "whether the pawn is a slave")
+			if err != nil || !slave {
+				return false, err
+			}
+		}
+	}
+	if stat.GetDefName() == statMaxHitPoints && req.ctx() != nil {
+		return false, nil
+	}
 	if !stat.GetShowOnUntradeables() {
 		trade, err := e.displayTradeStats(req)
 		if err != nil || !trade {
@@ -88,7 +117,7 @@ func (e *Evaluator) shown(req *Request) (bool, error) {
 	thing := req.Thing
 	if thing != nil {
 		if thing.GetCategory() == d.ThingCategory_THING_CATEGORY_PAWN {
-			ok, err := e.pawnDefShown(stat, thing)
+			ok, err := e.pawnDefShown(req)
 			if err != nil || !ok {
 				return false, err
 			}
@@ -101,7 +130,8 @@ func (e *Evaluator) shown(req *Request) (bool, error) {
 }
 
 // pawnDefShown is the ThingCategory.Pawn block of ShouldShowFor.
-func (e *Evaluator) pawnDefShown(stat *d.StatDef, thing *d.ThingDef) (bool, error) {
+func (e *Evaluator) pawnDefShown(req *Request) (bool, error) {
+	stat, thing := req.Stat, req.Thing
 	if !stat.GetShowOnPawns() {
 		return false, nil
 	}
@@ -113,9 +143,18 @@ func (e *Evaluator) pawnDefShown(stat *d.StatDef, thing *d.ThingDef) (bool, erro
 	if !stat.GetShowOnHumanlikes() && humanlike {
 		return false, nil
 	}
-	// A definition request has no pawn, so a humanlike is never a wild man.
+	// Without a pawn (a definition request) a humanlike is never a wild man.
 	if !stat.GetShowOnNonWildManHumanlikes() && humanlike {
-		return false, nil
+		wild := false
+		if p := req.pawn(); p != nil {
+			var err error
+			if wild, err = need(p.IsWildMan, "whether the pawn is a wild man"); err != nil {
+				return false, err
+			}
+		}
+		if !wild {
+			return false, nil
+		}
 	}
 	flesh := fleshType(race)
 	anomaly, err := e.anomalyEntity(flesh)
@@ -143,6 +182,16 @@ func (e *Evaluator) pawnDefShown(stat *d.StatDef, thing *d.ThingDef) (bool, erro
 			return false, nil
 		}
 	}
+	if p := req.pawn(); p != nil {
+		// StatDef.showDevelopmentalStageFilter.Has(pawn.DevelopmentalStage).
+		stage, err := need(p.Base.Developmental, "the pawn's developmental stage")
+		if err != nil {
+			return false, err
+		}
+		if int32(stat.GetShowDevelopmentalStageFilter())&stage == 0 {
+			return false, nil
+		}
+	}
 	return true, nil
 }
 
@@ -158,7 +207,23 @@ func (e *Evaluator) shownByCategory(req *Request) (bool, error) {
 		if !isPawn {
 			return false, nil
 		}
-		// No pawn: not a colony mech, and the pawn-kind list needs a kind.
+		if p := req.pawn(); p != nil {
+			if stat.GetShowOnPlayerMechanoids() {
+				mech, err := need(p.Base.IsColonyMech, "whether the pawn is a colony mech")
+				if err != nil || mech {
+					return mech, err
+				}
+			}
+			if kinds := stat.GetShowOnPawnKind(); len(kinds) > 0 {
+				kind, err := need(p.Base.KindDef, "the pawn's kind def")
+				if err != nil {
+					return false, err
+				}
+				if slices.Contains(kinds, kind) {
+					return true, nil
+				}
+			}
+		}
 		return humanlike(thing.GetRace()), nil
 	case catBuilding:
 		if thing == nil {
@@ -231,7 +296,7 @@ func (e *Evaluator) weaponKind(thing *d.ThingDef) (melee, ranged bool, err error
 		return false, false, nil
 	}
 	for _, v := range thing.GetVerbs() {
-		isMelee, err := e.classIsA(v.GetValue().GetVerbClass(), classVerbMeleeAttack)
+		isMelee, err := e.classIsA(v.GetValue().GetVerbClass(), classMeleeAttackVerb)
 		if err != nil {
 			return false, false, err
 		}
@@ -242,11 +307,33 @@ func (e *Evaluator) weaponKind(thing *d.ThingDef) (melee, ranged bool, err error
 	return true, false, nil
 }
 
-// displayTradeStats is StatWorker.DisplayTradeStats for a definition request.
+// displayTradeStats is StatWorker.DisplayTradeStats.
 func (e *Evaluator) displayTradeStats(req *Request) (bool, error) {
 	thing := req.Thing
 	if thing == nil {
 		return false, nil
+	}
+	if c := req.ctx(); c != nil {
+		biotech, err := e.modActive(modBiotech)
+		if err != nil {
+			return false, err
+		}
+		if p := req.pawn(); biotech && p != nil {
+			mech, err := need(p.Base.IsColonyMech, "whether the pawn is a colony mech")
+			if err != nil || mech {
+				return mech, err
+			}
+		}
+		biocodable, err := e.hasCompFrom(thing, classCompBiocodable)
+		if err != nil {
+			return false, err
+		}
+		if biocodable {
+			coded, err := need(c.Base.Biocoded, "whether the thing is biocoded")
+			if err != nil || coded {
+				return false, err
+			}
+		}
 	}
 	if thing.GetCategory() == d.ThingCategory_THING_CATEGORY_BUILDING && minifiable(thing) {
 		return true, nil
@@ -260,7 +347,8 @@ func (e *Evaluator) displayTradeStats(req *Request) (bool, error) {
 }
 
 // everPlayerSellable is TradeUtility.EverPlayerSellable. It reads the def's
-// MarketValue, whose worker is not ported yet: that is a NotMirrored error.
+// MarketValue; a failure evaluating it (an unowned class, an unstated fact) is
+// returned, never read as unsellable.
 func (e *Evaluator) everPlayerSellable(thing *d.ThingDef) (bool, error) {
 	if t := thing.GetTradeability(); t != d.Tradeability_TRADEABILITY_ALL && t != d.Tradeability_TRADEABILITY_SELLABLE {
 		return false, nil

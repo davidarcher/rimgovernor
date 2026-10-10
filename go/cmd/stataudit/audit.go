@@ -360,8 +360,9 @@ func KeepOwners(rows, old []Row) {
 }
 
 // Check compares the checked-in table with the rows built from the
-// installed game and returns one message per class that is new, gone or
-// whose decompiled hash changed.
+// installed game and returns one message per class that is new, gone,
+// whose decompiled hash changed, or that the table still lists as unowned:
+// every StatPart and StatWorker class has a Go owner.
 func Check(table, current []Row) []string {
 	have := map[string]Row{}
 	for _, r := range table {
@@ -382,6 +383,9 @@ func Check(table, current []Row) []string {
 	for _, r := range table {
 		if !seen[r.Class] {
 			out = append(out, fmt.Sprintf("%s: in the table, gone from the game", r.Class))
+		}
+		if r.Owner == Unowned {
+			out = append(out, fmt.Sprintf("%s: unowned, a %s no Go function owns", r.Class, r.Kind))
 		}
 	}
 	sort.Strings(out)

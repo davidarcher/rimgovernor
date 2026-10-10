@@ -30,6 +30,7 @@ internal/bridge/clock_expectation.go|ValidateClockExpectation|60000
 internal/bridge/colony_gear.go|validateColonyGear|300000
 internal/bridge/frames.go|-|2500
 internal/bridge/lifecycle_new.go|-|1.8e+06
+internal/bridge/stateval/workers_gear_price.go|-|"Steel"
 internal/bridge/world_progression.go|worldProgressionSelected|2.147483647e+09
 internal/buildingruntime/boundary/fixture.go|NewFixture|"Wall"
 internal/buildingruntime/boundary/fixture.go|NewFixture|"WoodLog"

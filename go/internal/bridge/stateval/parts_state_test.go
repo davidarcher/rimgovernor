@@ -303,24 +303,3 @@ func TestStatePartsRowShapeMismatch(t *testing.T) {
 		t.Error("a mismatched row was accepted")
 	}
 }
-
-// A thing request is refused by the public entry points until the base
-// worker's thing-side terms are ported; a terrain takes no context.
-func TestThingRequestsAreNotMirroredYet(t *testing.T) {
-	r := newRig(t, func(stat *d.StatDef, parka, _ *d.ThingDef) {
-		parka.StatBases = append(parka.StatBases, mod(testStat, 1))
-	})
-	subject := ThingSubject("Apparel_Parka", "")
-	subject.Context = &StatContext{}
-	_, err := r.eval.Value(testStat, subject)
-	notMirrored(t, err, "StatWorker")
-	_, err = r.eval.ShouldShowFor(testStat, subject)
-	notMirrored(t, err, "StatWorker")
-	_, err = r.eval.Evaluate(testStat, subject)
-	notMirrored(t, err, "StatWorker")
-	terrain := TerrainSubject("Soil")
-	terrain.Context = &StatContext{}
-	if _, err := r.eval.request(testStat, terrain); err == nil {
-		t.Error("a terrain with a thing context was accepted")
-	}
-}

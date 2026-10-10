@@ -2,12 +2,10 @@ package stateval
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"math"
 	"os"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 
@@ -15,8 +13,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
-
-var update = flag.Bool("update", false, "rewrite testdata/not_mirrored_stats.txt")
 
 // recordedEnv is the environment the recording was made in: core plus the
 // DLCs the sidecar lists, no scenario stat factors (the debug start's
@@ -35,7 +31,10 @@ func recordedEnv(t *testing.T) Env {
 			}
 		}
 	}
-	return Env{ActiveMods: mods, ScenarioFactors: map[string]float32{}}
+	// The recorded yields (FishingYield 1 for a pawn) show the storyteller's
+	// butcher and fishing yield factors were 1.
+	difficulty := Difficulty{ButcherYieldFactor: 1, FishingYieldFactor: 1, Flags: map[string]bool{"classicMortars": false}}
+	return Env{ActiveMods: mods, ScenarioFactors: map[string]float32{}, Difficulty: Some(difficulty)}
 }
 
 // TestModsOfMatchesTheRecordingSidecar: the mods the rows name are core and the
@@ -71,11 +70,10 @@ func blocker(t *testing.T, what string, err error) string {
 }
 
 // TestParityWithRecordedStatTable compares the evaluator with the game's own
-// DefStatTable on every recorded row: every stat whose classes are all owned
-// must reproduce the game's value, and ShouldShowFor must reproduce whether
-// the stat is in the row at all. The stats that fail with NotMirrored are the
-// golden set in testdata/not_mirrored_stats.txt (go test -update rewrites it):
-// a stat leaves it only by porting the classes it names.
+// DefStatTable on every recorded row: every stat must reproduce the game's
+// value, and ShouldShowFor must reproduce whether
+// the stat is in the row at all. No stat may fail with NotMirrored: every
+// StatPart and StatWorker class is owned (stat_classes.tsv).
 func TestParityWithRecordedStatTable(t *testing.T) {
 	catalog := recordedcatalog.Catalog(t)
 	wire := recordedcatalog.Wire(t)
@@ -139,27 +137,10 @@ func TestParityWithRecordedStatTable(t *testing.T) {
 		t.Fatal("no recorded value was reproduced")
 	}
 
-	var lines []string
 	for _, stat := range table.Stats {
 		if valueBlocked[stat] != "" || showBlocked[stat] != "" {
-			lines = append(lines, fmt.Sprintf("%s\tvalue=%s\tshown=%s", stat, orNone(valueBlocked[stat]), orNone(showBlocked[stat])))
+			t.Errorf("%s is not answered: value blocked on %s, ShouldShowFor on %s", stat, orNone(valueBlocked[stat]), orNone(showBlocked[stat]))
 		}
-	}
-	sort.Strings(lines)
-	got := "# Stats the evaluator cannot answer yet for some recorded row: the first class\n# it names (stat, value blocker, ShouldShowFor blocker; - is answered, or a value never\n# reached because the stat is never shown). Regenerate with go test -update.\n" + strings.Join(lines, "\n") + "\n"
-	const golden = "testdata/not_mirrored_stats.txt"
-	if *update {
-		if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		return
-	}
-	want, err := os.ReadFile(golden)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(want) != got {
-		t.Errorf("the stats the evaluator cannot answer changed; run go test -update ./internal/bridge/stateval and review the diff\nwant:\n%s\ngot:\n%s", want, got)
 	}
 }
 
@@ -188,8 +169,8 @@ func TestOwnerColumnMatchesEvaluator(t *testing.T) {
 		if owner == "unowned" {
 			continue
 		}
-		if kind != "part" || owner != "stateval."+class {
-			t.Errorf("%s (%s) is owned by %q: only StatParts are ported, as stateval.<Class>", class, kind, owner)
+		if owner != "stateval."+class {
+			t.Errorf("%s (%s) is owned by %q: a ported class is owned as stateval.<Class>", class, kind, owner)
 		}
 		owned = append(owned, class)
 	}

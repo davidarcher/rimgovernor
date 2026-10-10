@@ -10,8 +10,9 @@
 // rounding and the min/max clamp. A StatPart or StatWorker subclass that no Go
 // function owns yet is a *bridge.NotMirrored naming the class, never a
 // default; cmd/stataudit's stat_classes.tsv records which classes are owned.
-// A pawn or thing request carries live state the rows do not, so only
-// definition subjects are evaluated.
+// A thing request (Subject.Context) is answered from its StatContext, whose
+// typed facts hold the live state the rows lack; a fact it does not state is
+// an error naming it.
 //
 // Values are float32 throughout and every operation is rounded to float32, as
 // the game's, so a value is bit-identical to the game's when every class it
@@ -45,6 +46,9 @@ type Env struct {
 	// by stat; a stat absent from the map has factor 1. The caller states
 	// them: an empty map is a scenario with none.
 	ScenarioFactors map[string]float32
+	// Difficulty is the storyteller's difficulty (Find.Storyteller). Unstated,
+	// a stat that reads it is an error naming it.
+	Difficulty Known[Difficulty]
 }
 
 // Subject is a definition request: a ThingDef, or a TerrainDef when Terrain is
@@ -55,11 +59,10 @@ type Subject struct {
 	Terrain bool
 	Stuff   string
 	Quality *int32
-	// Context is the live state of a thing request; nil is a definition
-	// request, which has no thing (see StatContext). The thing-side terms of
-	// the base worker are not ported, so the public entry points refuse a
-	// request with a Context; the state-reading parts run through it via
-	// Evaluator.finalize.
+	// Context is the live state of a thing request, which the evaluator
+	// answers from it alone (see StatContext); nil is a definition request,
+	// which has no thing. A thing's quality is the context's, so Quality must
+	// be nil with one.
 	Context *StatContext
 }
 
@@ -108,6 +111,9 @@ type Part interface {
 func ownedParts() map[string]Part {
 	parts := []Part{partHyperlinks{}, partQuality{}, partQualityOffset{}, partStuff{}}
 	parts = append(parts, statePartList()...)
+	parts = append(parts, pawnPartList()...)
+	parts = append(parts, thingPartList()...)
+	parts = append(parts, gearPartList()...)
 	owned := make(map[string]Part, len(parts))
 	for _, p := range parts {
 		owned[p.Class()] = p
@@ -120,11 +126,12 @@ type Evaluator struct {
 	catalog *bridge.DefinitionCatalog
 	env     Env
 	parts   map[string]Part
+	workers map[string]Worker
 }
 
 // New is the evaluator of catalog under env.
 func New(catalog *bridge.DefinitionCatalog, env Env) *Evaluator {
-	return &Evaluator{catalog: catalog, env: env, parts: ownedParts()}
+	return &Evaluator{catalog: catalog, env: env, parts: ownedParts(), workers: ownedWorkers()}
 }
 
 func (e *Evaluator) modActive(pkg string) (bool, error) {
@@ -144,7 +151,7 @@ type Result struct {
 // Evaluate is the game's GetStatValueAbstract and ShouldShowFor of stat for
 // subject. A class no Go function owns is a *bridge.NotMirrored.
 func (e *Evaluator) Evaluate(stat string, subject Subject) (Result, error) {
-	req, err := e.publicRequest(stat, subject)
+	req, err := e.request(stat, subject)
 	if err != nil {
 		return Result{}, err
 	}
@@ -161,7 +168,7 @@ func (e *Evaluator) Evaluate(stat string, subject Subject) (Result, error) {
 
 // Value is StatWorker.GetValue (the final value) of stat for subject.
 func (e *Evaluator) Value(stat string, subject Subject) (float32, error) {
-	req, err := e.publicRequest(stat, subject)
+	req, err := e.request(stat, subject)
 	if err != nil {
 		return 0, err
 	}
@@ -170,25 +177,22 @@ func (e *Evaluator) Value(stat string, subject Subject) (float32, error) {
 
 // ShouldShowFor is StatWorker.ShouldShowFor of stat for subject.
 func (e *Evaluator) ShouldShowFor(stat string, subject Subject) (bool, error) {
-	req, err := e.publicRequest(stat, subject)
+	req, err := e.request(stat, subject)
 	if err != nil {
 		return false, err
 	}
 	return e.shown(req)
 }
 
-// publicRequest is request, refusing a thing request: the base worker's
-// thing-side terms (the thing's comps, statFactors, the pawn's skill, trait
-// and hediff offsets) are not ported, so its value would be wrong.
-func (e *Evaluator) publicRequest(stat string, subject Subject) (*Request, error) {
+// ValueWithoutPostProcess is StatWorker.GetValue(req, applyPostProcess:
+// false): the post-process curve, the post-process stat factors and the
+// min/max clamp are skipped.
+func (e *Evaluator) ValueWithoutPostProcess(stat string, subject Subject) (float32, error) {
 	req, err := e.request(stat, subject)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	if req.Subject.Context != nil {
-		return nil, &bridge.NotMirrored{Class: workerClass(req.Stat), Fact: "GetValueUnfinalized of a thing request"}
-	}
-	return req, nil
+	return e.valueWith(req, false)
 }
 
 func (e *Evaluator) request(stat string, subject Subject) (*Request, error) {
@@ -218,6 +222,17 @@ func (e *Evaluator) request(stat string, subject Subject) (*Request, error) {
 			return nil, fmt.Errorf("catalog has no stuff def %s", subject.Stuff)
 		}
 	}
+	if subject.Context != nil {
+		// StatRequest.For(thing): the quality is the thing's TryGetQuality,
+		// Normal without a CompQuality. Quality parts read it through
+		// Request.qualityCategory, which names a quality not observed.
+		if subject.Quality != nil {
+			return nil, fmt.Errorf("a thing request takes its quality from the context, not Subject.Quality")
+		}
+		if q := subject.Context.Base.Quality; q.OK && q.V.Has {
+			req.Quality = q.V.Category
+		}
+	}
 	if q := subject.Quality; q != nil {
 		if *q < 0 || *q > 6 {
 			return nil, fmt.Errorf("quality %d is not a quality category", *q)
@@ -234,13 +249,6 @@ func workerClass(stat *d.StatDef) string {
 		return baseWorker
 	}
 	return class[strings.LastIndex(class, ".")+1:]
-}
-
-// notMirroredWorker is the error for a stat whose worker class is not the
-// base StatWorker: every subclass overrides some of the core, and none is
-// owned yet.
-func notMirroredWorker(stat *d.StatDef, fact string) error {
-	return &bridge.NotMirrored{Class: workerClass(stat), Fact: fact}
 }
 
 // orderedParts are the stat's parts as the game orders them (StatDef
@@ -280,20 +288,80 @@ func (e *Evaluator) part(class, fact string) (Part, error) {
 	return nil, &bridge.NotMirrored{Class: class, Fact: fact}
 }
 
-// value is StatWorker.GetValue for a definition request.
-func (e *Evaluator) value(req *Request) (float32, error) {
-	stat := req.Stat
-	if workerClass(stat) != baseWorker {
-		return 0, notMirroredWorker(stat, "the worker's value computation")
+// value is StatWorker.GetValue: the worker's GetValueUnfinalized, finalized.
+func (e *Evaluator) value(req *Request) (float32, error) { return e.valueWith(req, true) }
+
+// valueWith is StatWorker.GetValue(req, applyPostProcess).
+func (e *Evaluator) valueWith(req *Request, applyPostProcess bool) (float32, error) {
+	if inner, err := e.minifiedInner(req); err != nil {
+		return 0, err
+	} else if inner != nil {
+		return e.valueWith(inner, applyPostProcess)
 	}
-	// A definition request has no thing and no pawn, so GetValueUnfinalized is
-	// the base value and the stuff's factor and offset; minifiedThingInherits,
-	// the thing's comps, statFactors and the pawn offsets all need a thing.
-	val := baseValue(req)
+	w, err := e.worker(req.Stat, "the worker's value computation")
+	if err != nil {
+		return 0, err
+	}
+	var val float32
+	if vw, ok := w.(unfinalizedWorker); ok {
+		val, err = vw.Unfinalized(req)
+	} else {
+		val, err = e.baseUnfinalized(req)
+	}
+	if err != nil {
+		return 0, err
+	}
+	return e.finalizeWith(req, val, applyPostProcess)
+}
+
+// minifiedInner is the inner thing's request when the stat is
+// minifiedThingInherits and the request's thing is a MinifiedThing with an
+// inner thing; nil otherwise (a null inner thing logs an error in the game
+// and evaluates the minified thing itself).
+func (e *Evaluator) minifiedInner(req *Request) (*Request, error) {
+	c := req.ctx()
+	if c == nil || !req.Stat.GetMinifiedThingInherits() {
+		return nil, nil
+	}
+	minified, err := e.classIsA(req.Thing.GetThingClass(), classMinifiedThing)
+	if err != nil || !minified {
+		return nil, err
+	}
+	inner, err := need(c.Base.Minified, "the inner thing of the minified thing")
+	if err != nil || inner == nil {
+		return nil, err
+	}
+	return e.request(req.Stat.GetDefName(), *inner)
+}
+
+// baseUnfinalized is the base StatWorker.GetValueUnfinalized, which a worker
+// override reaches as base.GetValueUnfinalized. A definition request has no
+// thing, so it is the base value and the stuff's factor and offset; a thing
+// request adds the pawn's offsets and factors, the stuff's quality terms and
+// the thing's comps, statFactors, skill and capacity factors (base_thing.go).
+func (e *Evaluator) baseUnfinalized(req *Request) (float32, error) {
+	stat := req.Stat
+	val, err := e.baseValueFor(req)
+	if err != nil {
+		return 0, err
+	}
+	pawn := req.pawn()
+	if pawn != nil {
+		if val, err = e.pawnOffsetTerms(req, pawn, val); err != nil {
+			return 0, err
+		}
+		if val, err = e.pawnFactorTerms(req, pawn, val); err != nil {
+			return 0, err
+		}
+	}
 	if req.Stuff != nil {
 		props := req.Stuff.GetStuffProps()
 		if props == nil {
 			return 0, fmt.Errorf("stuff %s has no stuffProps", req.Stuff.GetDefName())
+		}
+		quality, err := req.qualityState()
+		if err != nil {
+			return 0, err
 		}
 		if val > 0 || stat.GetApplyFactorsIfNegative() {
 			factor, err := modifierFromList(props.GetStatFactors(), stat.GetDefName(), 1)
@@ -301,14 +369,44 @@ func (e *Evaluator) value(req *Request) (float32, error) {
 				return 0, err
 			}
 			val = float32(val * factor)
+			if quality.Has {
+				qf, err := qualityListValue(props.GetStatFactorsQuality(), stat.GetDefName(), quality.Category, 1)
+				if err != nil {
+					return 0, err
+				}
+				val = float32(val * qf)
+			}
 		}
 		offset, err := modifierFromList(props.GetStatOffsets(), stat.GetDefName(), 0)
 		if err != nil {
 			return 0, err
 		}
 		val = float32(val + offset)
+		if quality.Has {
+			qo, err := qualityListValue(props.GetStatOffsetsQuality(), stat.GetDefName(), quality.Category, 0)
+			if err != nil {
+				return 0, err
+			}
+			val = float32(val + qo)
+		}
 	}
-	return e.finalize(req, val)
+	if req.ctx() != nil {
+		return e.thingTerms(req, val)
+	}
+	return val, nil
+}
+
+// baseValueFor is GetBaseValueFor: the worker's override, else the base
+// worker's.
+func (e *Evaluator) baseValueFor(req *Request) (float32, error) {
+	w, err := e.worker(req.Stat, "GetBaseValueFor")
+	if err != nil {
+		return 0, err
+	}
+	if bw, ok := w.(baseValueWorker); ok {
+		return bw.BaseValue(req)
+	}
+	return baseValue(req), nil
 }
 
 // baseValue is StatWorker.GetBaseValueFor: the first statBases entry for the
@@ -339,6 +437,13 @@ func modifierFromList(list []*d.Opt_StatModifier, stat string, def float32) (flo
 
 // finalize is StatWorker.FinalizeValue.
 func (e *Evaluator) finalize(req *Request, val float32) (float32, error) {
+	return e.finalizeWith(req, val, true)
+}
+
+// finalizeWith is FinalizeValue(req, ref val, applyPostProcess): without the
+// post-process the curve, the post-process stat factors and the clamp are
+// skipped.
+func (e *Evaluator) finalizeWith(req *Request, val float32, applyPostProcess bool) (float32, error) {
 	stat := req.Stat
 	parts, err := e.orderedParts(stat)
 	if err != nil {
@@ -353,13 +458,22 @@ func (e *Evaluator) finalize(req *Request, val float32) (float32, error) {
 			return 0, err
 		}
 	}
-	if stat.PostProcessCurve != nil {
+	if applyPostProcess && stat.PostProcessCurve != nil {
 		if val, err = EvaluateCurve(stat.PostProcessCurve, val); err != nil {
 			return 0, fmt.Errorf("stat %s post-process curve: %w", stat.GetDefName(), err)
 		}
 	}
 	// postProcessStatFactors multiply by the thing's own stat value: a
 	// definition request has no thing, so they do not apply.
+	if applyPostProcess && req.ctx() != nil {
+		for _, other := range stat.GetPostProcessStatFactors() {
+			v, err := req.statValue(other)
+			if err != nil {
+				return 0, err
+			}
+			val = float32(val * v)
+		}
+	}
 	if factor, ok := e.env.ScenarioFactors[stat.GetDefName()]; ok {
 		val = float32(val * factor)
 	}
@@ -368,6 +482,9 @@ func (e *Evaluator) finalize(req *Request, val float32) (float32, error) {
 	}
 	if stat.GetRoundValue() {
 		val = float32(math.RoundToEven(float64(val)))
+	}
+	if !applyPostProcess {
+		return val, nil
 	}
 	return clamp32(val, stat.GetMinValue(), stat.GetMaxValue()), nil
 }
@@ -421,7 +538,10 @@ func EvaluateCurve(curve *d.SimpleCurve, x float32) (float32, error) {
 	return lerp32(ay, by, t), nil
 }
 
-// lerp32 is Mathf.Lerp: t clamped to 0..1.
+// lerp32 is Mathf.Lerp: t clamped to 0..1. The recorded MeatAmount and
+// LeatherAmount values (a post-process curve) are the correctly rounded
+// a+(b-a)*t, not the product rounded to float32 first, so the game's Lerp is
+// evaluated with a single rounding (fused multiply-add).
 func lerp32(a, b, t float32) float32 {
 	switch {
 	case t < 0:
@@ -429,13 +549,17 @@ func lerp32(a, b, t float32) float32 {
 	case t > 1:
 		t = 1
 	}
-	return float32(a + float32(float32(b-a)*t))
+	return float32(float64(a) + float64(float32(b-a))*float64(t))
 }
 
-// OwnedClasses are the StatPart classes the evaluator ports, sorted.
+// OwnedClasses are the StatPart and StatWorker classes the evaluator ports,
+// sorted.
 func OwnedClasses() []string {
 	var out []string
 	for class := range ownedParts() {
+		out = append(out, class)
+	}
+	for class := range ownedWorkers() {
 		out = append(out, class)
 	}
 	slices.Sort(out)

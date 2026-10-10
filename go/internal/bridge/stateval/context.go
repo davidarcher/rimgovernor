@@ -32,6 +32,9 @@ func need[T any](k Known[T], input string) (T, error) {
 type StatContext struct {
 	// Pawn is the pawn's state; nil means the thing is not a Pawn.
 	Pawn *PawnState
+	// Corpse is the inner pawn's state when the thing is a Corpse (Pawn is then
+	// nil: `req.Thing is Pawn` is false for a corpse).
+	Corpse *PawnState
 	// Spawned is Thing.Spawned.
 	Spawned Known[bool]
 	// Room is Thing.GetRoom(): Some(nil) is a thing in no room.
@@ -45,6 +48,11 @@ type StatContext struct {
 	// Genepack is the thing's GeneSet when it is a Genepack with one; Some(nil)
 	// is any other thing.
 	Genepack Known[*GeneSetState]
+	// Thing and Gear are the facts of the thing-group and gear-group classes.
+	Thing ThingFacts
+	Gear  GearFacts
+	// Base holds the facts of the base StatWorker (context_base.go).
+	Base BaseFacts
 }
 
 // RoomState is the Room facts the parts read.
@@ -95,6 +103,11 @@ type PawnState struct {
 	Blind                   Known[bool]
 	IdeoPrefersDarkness     Known[bool]
 	GenesAffectedByDarkness Known[bool]
+	// Body is the facts of the pawn-group classes.
+	Body     BodyFacts
+	PawnStat PawnStatFacts
+	// Base holds the facts of the base StatWorker (context_base.go).
+	Base PawnBaseFacts
 }
 
 const ticksPerYear = 3600000

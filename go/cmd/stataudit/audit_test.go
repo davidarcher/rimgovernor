@@ -161,6 +161,9 @@ func TestCheckFailsOnEditedHashNewAndGoneClasses(t *testing.T) {
 		t.Fatal(err)
 	}
 	current := BuildRows(classes, statUse{})
+	for i := range current {
+		current[i].Owner = "stateval." + current[i].Class
+	}
 	table, err := Parse(Format(current))
 	if err != nil {
 		t.Fatal(err)
@@ -168,6 +171,12 @@ func TestCheckFailsOnEditedHashNewAndGoneClasses(t *testing.T) {
 	if problems := Check(table, current); len(problems) != 0 {
 		t.Fatalf("matching table reported %v", problems)
 	}
+	// A class still unowned fails the check, even with a matching hash.
+	table[0].Owner = Unowned
+	if problems := Check(table, current); len(problems) != 1 || !strings.Contains(problems[0], table[0].Class+": unowned") {
+		t.Fatalf("unowned class reported as %v", problems)
+	}
+	table[0].Owner = "stateval." + table[0].Class
 	edited := table[0].Class
 	table[0].Hash = "0000000000000000" // hand-edited hash
 	table = append(table, Row{Class: "StatPart_Removed", Hash: "x"})
@@ -213,6 +222,9 @@ func TestEmbeddedTableParsesAndCoversEveryClassOnce(t *testing.T) {
 		}
 		if r.Hash == "" || r.Owner == "" {
 			t.Errorf("%s: missing hash or owner", r.Class)
+		}
+		if r.Owner == Unowned {
+			t.Errorf("%s is unowned: every class has a Go owner (#2639)", r.Class)
 		}
 	}
 }

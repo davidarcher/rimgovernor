@@ -29,7 +29,8 @@ class: the goal is that every row reaches an owner.
 - `go run ./cmd/stataudit` regenerates the table from the installed game.
 - `go run ./cmd/stataudit --check` writes nothing and fails when a class is new, gone,
   or its hash differs from the checked-in table, meaning the game's code changed since
-  the table was written. Regenerate, then review the owner of each changed class.
+  the table was written, and when the table lists any class as `unowned` (none is: every
+  class has a Go owner). Regenerate, then review the owner of each changed class.
 
 Both decompile `Assembly-CSharp.dll` with the global `ilspycmd` tool
 (`dotnet tool install -g ilspycmd`); nothing in the repository pins it, the same
@@ -48,18 +49,19 @@ code that the mirror lacks. The stat evaluator returns it for a class whose owne
 for definition requests (a ThingDef or TerrainDef with optional stuff and quality). Its
 core is the base `StatWorker`: `statBases` or the `StatDef` default, the stuff factor and
 offset, the `StatPart` list in descending priority, the post-process curve, the scenario
-factor, rounding and the min/max clamp, in `float32` as the game does. Pawn and thing
-requests carry state the rows lack and are not evaluated.
+factor, rounding and the min/max clamp, in `float32` as the game does. A thing request is
+answered from its `StatContext`: every live fact is a typed `Known` the caller observed,
+and a missing one is an error naming it. A `ThingComp` stat override outside the modelled
+comps surfaces as `NotMirrored` naming the comp class.
 
-- A `StatPart` registers in `stateval.ownedParts` and its row's owner becomes
-  `stateval.<Class>`; a `StatWorker` subclass is `NotMirrored` for both value and
-  `ShouldShowFor` until a later change ports it. `TestOwnerColumnMatchesEvaluator` fails
-  when the owner column and the registry disagree.
+- A `StatPart` registers in `stateval.ownedParts`, a `StatWorker` subclass in
+  `stateval.ownedWorkers`, and the class's row owner becomes `stateval.<Class>` (a class with
+  no owner is `NotMirrored` for both value and `ShouldShowFor`).
+  `TestOwnerColumnMatchesEvaluator` fails when the owner column and the registry disagree.
 - The environment is explicit (`stateval.Env`): the active mods (`ModsOf` reads them off
   the catalog's rows), classic mode and the scenario's stat factors. A missing mod set is
   an error, not "no mods".
 - `TestParityWithRecordedStatTable` compares the evaluator with every row of the recorded
-  `DefStatTable`, bit for bit, and `testdata/not_mirrored_stats.txt` lists the stats that
-  still fail with `NotMirrored` and the class each names (`go test -update` rewrites it; a
-  stat leaves the list only by porting its classes). The native case
+  `DefStatTable`, bit for bit, and fails on any stat that still returns `NotMirrored` (every
+  class is owned). The native case
   `stats/evaluator-parity` repeats the comparison against the live `EvaluateStat`.

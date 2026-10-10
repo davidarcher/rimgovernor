@@ -177,6 +177,7 @@ func TestPartsDispatchByPriorityAndUnownedPartsAreNotMirrored(t *testing.T) {
 		parka.StatBases = append(parka.StatBases, mod(testStat, 1))
 	})
 	parka := ThingSubject("Apparel_Parka", "")
+	delete(r.eval.parts, "StatPart_Pollution") // stands for a class no Go function owns
 	_, err := r.eval.Value(testStat, parka)
 	notMirrored(t, err, "StatPart_Pollution") // the highest priority part runs first
 	r.eval.parts = map[string]Part{}
@@ -212,11 +213,11 @@ func TestEqualPriorityPartsKeepFileOrder(t *testing.T) {
 }
 
 func TestWorkerSubclassIsNotMirrored(t *testing.T) {
-	r := newRig(t, func(stat *d.StatDef, _, _ *d.ThingDef) { stat.WorkerClass = "RimWorld.StatWorker_Terror" })
+	r := newRig(t, func(stat *d.StatDef, _, _ *d.ThingDef) { stat.WorkerClass = "RimWorld.StatWorker_NotPorted" })
 	_, err := r.eval.Value(testStat, ThingSubject("Apparel_Parka", ""))
-	notMirrored(t, err, "StatWorker_Terror")
+	notMirrored(t, err, "StatWorker_NotPorted")
 	_, err = r.eval.ShouldShowFor(testStat, ThingSubject("Apparel_Parka", ""))
-	notMirrored(t, err, "StatWorker_Terror")
+	notMirrored(t, err, "StatWorker_NotPorted")
 }
 
 func TestShouldShowFor(t *testing.T) {
@@ -264,6 +265,7 @@ func TestShouldShowFor(t *testing.T) {
 	})
 	t.Run("an unowned part is reached only after the cheap checks", func(t *testing.T) {
 		r := newRig(t, func(s *d.StatDef, _, _ *d.ThingDef) { s.Parts = []*d.Opt_StatPartAny{partTerror(0)} })
+		r.eval.parts = map[string]Part{} // no part is owned
 		_, err := r.eval.ShouldShowFor(testStat, parka)
 		notMirrored(t, err, "StatPart_Terror")
 		r = newRig(t, func(s *d.StatDef, _, _ *d.ThingDef) {
@@ -320,10 +322,14 @@ func TestShouldShowFor(t *testing.T) {
 			t.Errorf("terrain stat on terrain = %v, %v", got, err)
 		}
 	})
-	t.Run("untradeable stats read MarketValue, which is not ported", func(t *testing.T) {
+	t.Run("untradeable stats read MarketValue and surface its failure", func(t *testing.T) {
 		r := newRig(t, func(s *d.StatDef, _, _ *d.ThingDef) { s.ShowOnUntradeables = false })
+		// Stand in for a MarketValue worker no Go function owns.
+		bridge.DefRow[*d.StatDef](r.eval.catalog, statMarketValue).WorkerClass = "RimWorld.StatWorker_NotPorted"
 		_, err := r.eval.ShouldShowFor(testStat, parka)
-		notMirrored(t, err, "StatWorker_MarketValue")
+		if err == nil || !strings.Contains(err.Error(), "MarketValue of") {
+			t.Errorf("err = %v, want a MarketValue evaluation failure", err)
+		}
 	})
 }
 

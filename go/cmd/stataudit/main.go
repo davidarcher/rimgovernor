@@ -13,9 +13,9 @@
 //
 // Regeneration writes -out (default cmd/stataudit/stat_classes.tsv relative
 // to go/) and keeps the hand-maintained owner of every class that remains.
-// --check does not write: it fails when a class is new, gone, or its hash
-// differs from the checked-in (embedded) table, that is, when the game's
-// code changed since the table was written.
+// --check does not write: it fails when a class is new, gone, its hash
+// differs from the checked-in (embedded) table (the game's code changed since
+// the table was written), or the table lists a class as unowned.
 package main
 
 import (

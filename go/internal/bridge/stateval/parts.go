@@ -50,8 +50,12 @@ func (partQuality) Transform(req *Request, row proto.Message, val float32) (floa
 	if val <= 0 && !p.GetApplyToNegativeValues() {
 		return val, nil
 	}
+	qc, err := req.qualityCategory()
+	if err != nil {
+		return 0, err
+	}
 	var factor, maxGain float32
-	switch req.Quality {
+	switch qc {
 	case 0:
 		factor, maxGain = p.GetFactorAwful(), p.GetMaxGainAwful()
 	case 1:
@@ -67,7 +71,7 @@ func (partQuality) Transform(req *Request, row proto.Message, val float32) (floa
 	case 6:
 		factor, maxGain = p.GetFactorLegendary(), p.GetMaxGainLegendary()
 	default:
-		return 0, fmt.Errorf("quality %d is not a quality category", req.Quality)
+		return 0, fmt.Errorf("quality %d is not a quality category", qc)
 	}
 	gain := float32(float32(val*factor) - val)
 	if maxGain < gain { // Mathf.Min
@@ -95,8 +99,12 @@ func (partQualityOffset) Transform(req *Request, row proto.Message, val float32)
 	if list := p.GetThingDefs(); len(list) > 0 && (req.Subject.Terrain || !slices.Contains(list, req.Subject.Def)) {
 		return val, nil
 	}
+	qc, err := req.qualityCategory()
+	if err != nil {
+		return 0, err
+	}
 	var offset float32
-	switch req.Quality {
+	switch qc {
 	case 0:
 		offset = p.GetOffsetAwful()
 	case 1:
@@ -112,7 +120,7 @@ func (partQualityOffset) Transform(req *Request, row proto.Message, val float32)
 	case 6:
 		offset = p.GetOffsetLegendary()
 	default:
-		return 0, fmt.Errorf("quality %d is not a quality category", req.Quality)
+		return 0, fmt.Errorf("quality %d is not a quality category", qc)
 	}
 	return float32(val + offset), nil
 }
@@ -137,7 +145,14 @@ func (partStuff) Transform(req *Request, row proto.Message, val float32) (float3
 			return 0, err
 		}
 	}
-	multiplier, err := req.Evaluator.Value(p.GetMultiplierStat(), Subject{Def: req.Subject.Def, Terrain: req.Subject.Terrain})
+	// GetMultiplier: the thing's own value for a thing request, the def's
+	// (without stuff or quality) otherwise.
+	var multiplier float32
+	if req.ctx() != nil {
+		multiplier, err = req.statValue(p.GetMultiplierStat())
+	} else {
+		multiplier, err = req.Evaluator.Value(p.GetMultiplierStat(), Subject{Def: req.Subject.Def, Terrain: req.Subject.Terrain})
+	}
 	if err != nil {
 		return 0, err
 	}
