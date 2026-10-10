@@ -27,6 +27,13 @@ review. Below it:
 - **Concerns** lists active needs, methods, status and review deadlines.
 - **Waiting** explains unavailable methods, prerequisites and native blockers.
 
+Under the report, **Why is the bot doing this?** lists every Concern (or
+planner, such as "Tend the wounded and sick") that has changed state. Pick one
+to see its history, newest first: what the bot found, what it was before and
+how long that stood in game time, and the Method it had. A Method shown on a
+"started" line may belong to the previous review. The history survives a
+restart and is read-only.
+
 A stale reading retains its last good value and is marked stale. Observe mode
 shows its limited read-only status instead of an autonomous report.
 

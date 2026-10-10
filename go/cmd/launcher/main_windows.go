@@ -108,6 +108,7 @@ func main() {
 	serve := NewServeClient(a.serveURL)
 	for name, f := range map[string]any{
 		"getNowHeader": func() HeaderView { return headerView(serve.State(context.Background())) },
+		"getExplain":   func(concern string) ExplainPage { return explainPage(a.explain.view(), concern) },
 		"getLedger":    func() LedgerPage { return ledgerPage(serve.Ledger(context.Background())) },
 		"getNowReport": func() ReportView {
 			return reportView(serve.Now(context.Background()), serve.Routines(context.Background()))

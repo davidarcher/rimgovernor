@@ -113,6 +113,7 @@
   .nowsec p.warn { color: var(--warn); }
   .nowsec p.emergency { color: var(--bad); font-weight: 600; }
   .nowsec p { margin: 6px 0; overflow-wrap: anywhere; }
+  .nowsec .muted { color: var(--muted); }
   .nownotice { color: var(--warn); font-size: 13px; margin: 4px 0 8px; overflow-wrap: anywhere; }
   .nownotice[hidden] { display: none; }
   .ledtbl { overflow-x: auto; }
@@ -186,6 +187,16 @@
       <div id="nowBody" hidden>
         <p class="nowline" id="nowHeadline"></p>
         <div id="nowSections"></div>
+      </div>
+    </section>
+    <section class="nowsec" aria-label="Why the bot did what it did">
+      <h2 style="margin-top:0">Why is the bot doing this?</h2>
+      <div class="nownotice" id="exNote" role="status" hidden></div>
+      <div id="exBody" hidden>
+        <label for="exSel">Pick a concern</label>
+        <select id="exSel"></select>
+        <p class="nowline" id="exCurrent"></p>
+        <div id="exTimeline"></div>
       </div>
     </section>
   </div>
@@ -608,6 +619,27 @@ function everyWhile(viewId, poll, ms) {
 }
 everyWhile('view-now', pollNowHeader, 1500);
 everyWhile('view-now', pollNowReport, 3000);
+// Per-concern drill-down: newest first, plain language as the Go side wrote it.
+let exChosen = '';
+async function pollExplain() {
+  const p = await getExplain(exChosen);
+  $('exNote').hidden = p.Available;
+  $('exNote').textContent = p.Available ? '' : p.Notice;
+  $('exBody').hidden = !p.Available;
+  if (!p.Available) return;
+  if (!p.Concerns.some(c => c.ID === exChosen)) exChosen = p.Concerns[0].ID;
+  if (!p.Selected || p.Selected.ID !== exChosen) return pollExplain();
+  const sel = $('exSel');
+  sel.innerHTML = p.Concerns.map(c => `<option value="${esc(c.ID)}">${esc(c.Label)} (${esc(c.When)})</option>`).join('');
+  sel.value = exChosen;
+  $('exCurrent').textContent = p.Selected.Label + ': ' + p.Selected.Current;
+  $('exTimeline').innerHTML = p.Selected.Entries.map(e =>
+    `<p><b>${esc(e.When)}</b>${e.Tick ? ' (tick ' + esc(e.Tick) + ')' : ''} ${esc(e.Text)}` +
+    (e.Before ? `<br><span class="muted">Before: ${esc(e.Before)}${e.Held ? ' (' + esc(e.Held) + ')' : ''}</span>` : '') +
+    (e.Method ? `<br><span class="muted">${esc(e.Method)}</span>` : '') + '</p>').join('');
+}
+$('exSel').onchange = () => { exChosen = $('exSel').value; pollExplain(); };
+everyWhile('view-now', pollExplain, 3000);
 
 // Ledger tab: the work ledger's tables, read-only, as the Go side built them.
 async function pollLedger() {

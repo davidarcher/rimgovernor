@@ -37,7 +37,12 @@ a tick while a request is in flight.
 | Log | Current run's warnings, errors and selected informational events; build/start diagnostics |
 
 [now.go](../../../go/cmd/launcher/now.go) builds the report; the page does not
-rank Concerns or infer planner state. Spectator/routine reads use retained
+rank Concerns or infer planner state. The Now tab's "Why is the bot doing
+this?" drill-down binds `getExplain`: [explainpage.go](../../../go/cmd/launcher/explainpage.go)
+turns the `explain.jsonl` timelines ([explaintail.go](../../../go/cmd/launcher/explaintail.go),
+read in-process, no HTTP route) into newest-first entries. Targets are concern
+ids or planner names; `plannerLabels` is the closed table naming the latter,
+and an unknown target prints as written. Spectator/routine reads use retained
 review data and issue no native calls.
 
 Problems refreshes asynchronously and retains its completed feed even after
