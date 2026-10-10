@@ -1,6 +1,10 @@
 package stateval
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // The state a thing request reads that the rows do not hold (epic #2621,
 // #2638). A definition request (Subject.Context nil) has no thing, so every
@@ -110,7 +114,7 @@ type PawnState struct {
 	Base PawnBaseFacts
 }
 
-const ticksPerYear = 3600000
+const ticksPerYear = domain.TicksPerYear
 
 // AgeState is Pawn_AgeTracker: the biological age in ticks, from which both
 // AgeBiologicalYears (an int) and AgeBiologicalYearsFloat derive.
@@ -120,7 +124,7 @@ type AgeState struct {
 }
 
 func (a AgeState) years() int32        { return int32(a.BiologicalTicks / ticksPerYear) }
-func (a AgeState) yearsFloat() float32 { return float32(float32(a.BiologicalTicks) / 3600000) }
+func (a AgeState) yearsFloat() float32 { return float32(float32(a.BiologicalTicks) / ticksPerYear) }
 
 // Need categories, by the game's enum member name.
 const (

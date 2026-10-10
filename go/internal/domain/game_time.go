@@ -8,4 +8,7 @@ const (
 	TicksPerHour = 2500
 	TicksPerDay  = 60000
 	DaysPerYear  = 60
+
+	// TicksPerYear is GenDate.TicksPerYear (a year is DaysPerYear days).
+	TicksPerYear = TicksPerDay * DaysPerYear
 )

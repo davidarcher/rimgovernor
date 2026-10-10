@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
@@ -79,14 +81,16 @@ func (catalog *DefinitionCatalog) raceMeatDef(row *d.ThingDef) string {
 		return ""
 	}
 	if flesh := DefRow[*d.FleshTypeDef](catalog, raceFleshType(props)); flesh != nil && !flesh.GetIsOrganic() {
-		return "Steel"
+		return policy.NonFleshMeatDefs[0]
 	}
 	return "Meat_" + row.GetDefName()
 }
 
 // raceTicks is a LifeStageAge's minAge in ticks: Mathf.FloorToInt(minAge *
-// 3600000f) in the game's single-precision arithmetic.
-func raceTicks(minAge float32) int64 { return int64(math.Floor(float64(minAge * 3600000))) }
+// GenDate.TicksPerYear) in the game's single-precision arithmetic.
+func raceTicks(minAge float32) int64 {
+	return int64(math.Floor(float64(minAge * domain.TicksPerYear)))
+}
 
 // raceStageAges are the husbandry ages of a race in ticks: Adult is
 // Pawn_AgeTracker.AdultMinAge (a humanlike race's first adult stage, otherwise

@@ -28,8 +28,20 @@ func DefTables() []DefTable {
 		{"threatWeapons", "Verse.ThingDef", sortedKeys(threatWeapons)},
 		{"ArmorResearchRungs", "Verse.ResearchProjectDef", slices.Clone(ArmorResearchRungs)},
 		{"gearValuables", "Verse.ThingDef", resourceKeys(gearValuables)},
+		{"GameRoomRoleDefs", "Verse.ThingDef", sortedKeys(GameRoomRoleDefs)},
+		{"NonFleshMeatDefs", "Verse.ThingDef", slices.Clone(NonFleshMeatDefs)},
 	}
 }
+
+// GameRoomRoleDefs are the ThingDefOf names the game's room-role workers score a
+// furniture role by: a def of the name has the role.
+var GameRoomRoleDefs = map[string]FurnitureRole{
+	"ToyBox": RoleToy, "BabyDecoration": RoleDecoration, "Blackboard": RoleBoard, "SchoolDesk": RoleDesk,
+}
+
+// NonFleshMeatDefs is the one meat def ThingDefGenerator_Meat gives a pawn def
+// whose flesh type is not organic (ThingDefOf.Steel).
+var NonFleshMeatDefs = []string{"Steel"}
 
 func resourceKeys(set map[Resource]bool) []string {
 	out := make([]string, 0, len(set))

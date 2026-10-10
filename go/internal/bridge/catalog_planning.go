@@ -44,16 +44,10 @@ func (catalog *DefinitionCatalog) IsFood(name string) (bool, error) {
 	return row.FoodKind != nil, err
 }
 
-// gameRoomRoles are the ThingDefOf names the game's room-role workers score a
-// furniture role by: a def of the name has the role.
-var gameRoomRoles = map[string]policy.FurnitureRole{
-	"ToyBox": policy.RoleToy, "BabyDecoration": policy.RoleDecoration, "Blackboard": policy.RoleBoard, "SchoolDesk": policy.RoleDesk,
-}
-
 // GameRoomRoles are the furniture roles the game's room-role code scores the
 // def for by name (Toy, Decoration, Board, Desk): at most one.
 func GameRoomRoles(name string) []string {
-	if role, ok := gameRoomRoles[name]; ok {
+	if role, ok := policy.GameRoomRoleDefs[name]; ok {
 		return []string{string(role)}
 	}
 	return nil
