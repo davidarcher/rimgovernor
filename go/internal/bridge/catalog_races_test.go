@@ -107,8 +107,9 @@ func TestCatalogAnimalRacesFailLoudly(t *testing.T) {
 // catalog; an absent life stage and a race with no meat stay unknown.
 func TestCatalogAnimalRaceHusbandryFacts(t *testing.T) {
 	reply := racesReply()
-	reply.Constants.AnimalInteractTalkTicks, reply.Constants.AnimalInteractFeedTicks, reply.Constants.AnimalInteractFeeds = 270, 270, 2
-	reply.Constants.AnimalFeedNutritionFraction, reply.Constants.AnimalFeedNutritionCap, reply.Constants.MinTrainIntervalTicks = 0.15, 0.3, 15000
+	animal, train := reply.GameConstants.JobDriver_InteractAnimal, reply.GameConstants.TrainableUtility
+	animal.TalkDuration, animal.FeedDuration, animal.FeedCount = 270, 270, 2
+	animal.NutritionPercentagePerFeed, animal.MaxMinNutritionPerFeed, train.MinTrainInterval = 0.15, 0.3, 15000
 	wolf := reply.ThingFacts[0].Race
 	reproductive, milkable := int64(2700000), int64(3600000)
 	wolf.AdultMinAgeTicks, wolf.ReproductiveMinAgeTicks, wolf.MilkableMinAgeTicks = 7200000, &reproductive, &milkable

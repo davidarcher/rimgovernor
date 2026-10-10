@@ -13,7 +13,7 @@
 //     contracts/proto/defs.proto, counted by reason from its header.
 //  3. Constants: the game's const and static readonly scalars and enums and
 //     its static SimpleCurves in the gameplay namespaces, against the fields
-//     the catalog carries (CatalogConstants).
+//     the catalog carries (GameConstants).
 //  4. Unsaved data fields: [Unsaved] fields that are data, not runtime state,
 //     per Def class.
 //
@@ -76,7 +76,7 @@ func run(out io.Writer, rimworld, recording, defsProto, defmirror string) (bool,
 		return false, err
 	}
 	members := ParseReport(report)
-	fmt.Fprint(out, FormatConstants(members, catalogConstantFields()))
+	fmt.Fprint(out, FormatConstants(members, catalogConstantClasses()))
 	fmt.Fprint(out, FormatUnsaved(members))
 	return cov.Failed(), nil
 }

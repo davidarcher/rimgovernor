@@ -77,7 +77,7 @@ func foodStorageObservationFacts(ctx context.Context, native RoundsFoodStorageUp
 	if err != nil || !known {
 		return policy.FoodStorageObservation{}
 	}
-	return policy.FoodStorageStocks(supply, float64(tables.Catalog.Constants.FullRotRateC))
+	return policy.FoodStorageStocks(supply, float64(tables.Catalog.Derived.FullRotRateC))
 }
 
 // foodStorageDefNames collects the distinct native resource definition names

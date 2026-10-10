@@ -2309,7 +2309,7 @@ message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1
   // filtered to buildable or sowable defs.
   repeated rimgovernor.defs.v1.ThingDef thing_defs = 8;
   repeated rimgovernor.defs.v1.TerrainDef terrain_defs = 9;
-  CatalogConstants constants = 10;
+  CatalogDerived derived = 10;
   // The game's own stat values per def and stuff; absent in a reply
   // that carries none.
   DefStatTable stat_values = 11;
@@ -2423,19 +2423,9 @@ message DefStatRow {
   repeated float value = 4;
   repeated Quantity costs = 5;
 }
-// Game constants read from the game assemblies, never typed in.
-message CatalogConstants {
-  // GenDate.TicksPerHour, TicksPerDay and DaysPerYear.
-  int32 ticks_per_hour = 1;
-  int32 ticks_per_day = 2;
-  int32 days_per_year = 3;
-  // BillStack.MaxCount.
-  int32 bill_stack_max = 4;
-  // SkillRecord.MaxLevel.
-  int32 skill_max_level = 5;
-  // GlowGrid.GameGlowLitThreshold (a non-public const): the glow at or above
-  // which a cell counts as lit.
-  float lit_glow_threshold = 6;
+// The catalog facts the game names or computes in code, which no const of
+// game_constants carries (the numeric constants are the typed GameConstants).
+message CatalogDerived {
   // The defName of ThingDefOf.Silver: the def Tradeable.IsCurrency tests, so
   // the coin every price and the colony census count in.
   string currency_def = 7;
@@ -2443,25 +2433,10 @@ message CatalogConstants {
   // reaches its full rate of 1, found by evaluating the game's own function:
   // food stored at or below it rots slower than the full rate.
   float full_rot_rate_c = 8;
-  // RoofCollapseUtility.RoofMaxSupportDistance (a public const read from the
-  // assembly, not inlined): how far a roofed cell may lie from a roof holder
-  // before the game collapses it.
-  float roof_max_support_distance = 9;
   // The defName of ThingDefOf.Wort: what Building_FermentingBarrel takes in
   // and turns into ThingDefOf.Beer, so the beer reserve names the
   // intermediate without typing it.
   string wort_def = 10;
-  // JobDriver_InteractAnimal: the ticks of one TalkToAnimal toil
-  // (TalkDuration, a private const) and of one feed (FeedDuration), the feeds
-  // per interaction (FeedCount), the share of the animal's food need one feed
-  // gives (NutritionPercentagePerFeed) capped at MaxMinNutritionPerFeed, and
-  // TrainableUtility.MinTrainInterval: the ticks between two training jobs.
-  int32 animal_interact_talk_ticks = 11;
-  int32 animal_interact_feed_ticks = 12;
-  int32 animal_interact_feeds = 13;
-  float animal_feed_nutrition_fraction = 14;
-  float animal_feed_nutrition_cap = 15;
-  int32 min_train_interval_ticks = 16;
 }
 // The player faction's primary ideoligion: FactionIdeosTracker.PrimaryIdeo.
 // Precept ids are Precept.GetUniqueLoadID(); every def name resolves to a

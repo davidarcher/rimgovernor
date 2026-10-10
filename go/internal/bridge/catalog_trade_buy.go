@@ -82,14 +82,14 @@ func (catalog *DefinitionCatalog) TraderKindBuys(kind string, def policy.Resourc
 // has no currency row or the catalog has no currency.
 func (catalog *DefinitionCatalog) TraderKindSilver(kind string) domain.Fact[int64] {
 	row := DefRow[*d.TraderKindDef](catalog, kind)
-	if row == nil || catalog.Constants.CurrencyDef == "" {
+	if row == nil || catalog.Derived.CurrencyDef == "" {
 		return domain.Unknown[int64]()
 	}
 	var total int64
 	found := false
 	for _, opt := range row.StockGenerators {
 		single := opt.GetValue().GetStockGenerator_SingleDef()
-		if single == nil || single.ThingDef != catalog.Constants.CurrencyDef || single.CountRange == nil {
+		if single == nil || single.ThingDef != catalog.Derived.CurrencyDef || single.CountRange == nil {
 			continue
 		}
 		total += int64(single.CountRange.Min)

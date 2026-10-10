@@ -36,19 +36,19 @@ func TestDefsSourceReadsTheAssemblyLine(t *testing.T) {
 }
 
 func TestSameContentIgnoresTheContext(t *testing.T) {
-	a := &o.DefinitionCatalog{Context: &c.ObservationContext{Tick: proto.Int64(28), Identity: &c.Identity{LoadToken: proto.String("a")}}, Constants: &o.CatalogConstants{CurrencyDef: "Silver"}}
-	b := &o.DefinitionCatalog{Context: &c.ObservationContext{Tick: proto.Int64(31), Identity: &c.Identity{LoadToken: proto.String("b")}}, Constants: &o.CatalogConstants{CurrencyDef: "Silver"}}
+	a := &o.DefinitionCatalog{Context: &c.ObservationContext{Tick: proto.Int64(28), Identity: &c.Identity{LoadToken: proto.String("a")}}, Derived: &o.CatalogDerived{CurrencyDef: "Silver"}}
+	b := &o.DefinitionCatalog{Context: &c.ObservationContext{Tick: proto.Int64(31), Identity: &c.Identity{LoadToken: proto.String("b")}}, Derived: &o.CatalogDerived{CurrencyDef: "Silver"}}
 	if !sameContent(a, b) {
 		t.Fatal("catalogs differing only in context compare different")
 	}
-	b.Constants.CurrencyDef = "Gold"
+	b.Derived.CurrencyDef = "Gold"
 	if sameContent(a, b) {
 		t.Fatal("catalogs with different constants compare equal")
 	}
 }
 
 func TestEncodeIsStableAndReadable(t *testing.T) {
-	catalog := &o.DefinitionCatalog{Constants: &o.CatalogConstants{CurrencyDef: "Silver"}}
+	catalog := &o.DefinitionCatalog{Derived: &o.CatalogDerived{CurrencyDef: "Silver"}}
 	first, err := encode(catalog)
 	if err != nil {
 		t.Fatal(err)

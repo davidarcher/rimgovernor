@@ -236,10 +236,11 @@ func litterSizeMean(curve *d.SimpleCurve) domain.Fact[float64] {
 // constant a catalog does not carry stays unknown.
 func (catalog *DefinitionCatalog) animalInteraction() policy.AnimalInteraction {
 	var out policy.AnimalInteraction
-	c := catalog.Constants
-	if c == nil {
+	game, err := catalog.GameConstants()
+	if err != nil {
 		return out
 	}
+	animal, train := game.GetJobDriver_InteractAnimal(), game.GetTrainableUtility()
 	count := func(v int32, into *domain.Fact[int]) {
 		if v > 0 {
 			*into = domain.Known(int(v))
@@ -250,12 +251,12 @@ func (catalog *DefinitionCatalog) animalInteraction() policy.AnimalInteraction {
 			*into = domain.Known(float64(v))
 		}
 	}
-	count(c.AnimalInteractTalkTicks, &out.TalkTicks)
-	count(c.AnimalInteractFeedTicks, &out.FeedTicks)
-	count(c.AnimalInteractFeeds, &out.Feeds)
-	count(c.MinTrainIntervalTicks, &out.MinTrainIntervalTicks)
-	amount(c.AnimalFeedNutritionFraction, &out.FeedNutritionFraction)
-	amount(c.AnimalFeedNutritionCap, &out.FeedNutritionCap)
+	count(animal.GetTalkDuration(), &out.TalkTicks)
+	count(animal.GetFeedDuration(), &out.FeedTicks)
+	count(animal.GetFeedCount(), &out.Feeds)
+	count(train.GetMinTrainInterval(), &out.MinTrainIntervalTicks)
+	amount(animal.GetNutritionPercentagePerFeed(), &out.FeedNutritionFraction)
+	amount(animal.GetMaxMinNutritionPerFeed(), &out.FeedNutritionCap)
 	return out
 }
 

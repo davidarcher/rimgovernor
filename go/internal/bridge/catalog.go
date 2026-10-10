@@ -47,11 +47,13 @@ type DefinitionCatalog struct {
 	classBases map[string][]string
 	// spawnForbidden caches SpawnForbiddenProducts.
 	spawnForbidden atomic.Pointer[map[string]bool]
-	// Constants are the game constants the native read took from the game
-	// assemblies.
-	Constants *o.CatalogConstants
+	// Derived are the three facts the game names or computes in code
+	// (currency def, wort def, full rot rate); the numeric constants are
+	// GameConstants.
+	Derived *o.CatalogDerived
 	// gameConstants are the const and static readonly members of the game classes,
-	// typed per class (GameConstants); nil in a hand-built test catalog.
+	// typed per class (GameConstants); nil only in a creation catalog's decode of a
+	// hand-built test.
 	gameConstants *d.GameConstants
 	// statValues are the game's own stat values per (def, stuff); nil
 	// in a reply that carries none.
@@ -361,36 +363,39 @@ func (catalog *DefinitionCatalog) RowIsA(row proto.Message, base string) (bool, 
 	return catalog.ClassIsA(class, base)
 }
 
-// validateConstants refuses an absent constants block and one with a
-// non-positive or non-finite value.
-func validateConstants(v *o.CatalogConstants) (*o.CatalogConstants, error) {
+// validateDerived refuses an absent derived block, an empty def name and a
+// non-finite or non-positive rot rate.
+func validateDerived(v *o.CatalogDerived) (*o.CatalogDerived, error) {
 	if v == nil {
-		return nil, contract("catalog carries no constants")
-	}
-	for name, n := range map[string]int32{"ticks_per_hour": v.TicksPerHour, "ticks_per_day": v.TicksPerDay, "days_per_year": v.DaysPerYear, "bill_stack_max": v.BillStackMax, "skill_max_level": v.SkillMaxLevel} {
-		if n <= 0 {
-			return nil, contract("catalog constant %s is %d", name, n)
-		}
-	}
-	// Go states the calendar once (domain.TicksPerDay); a game that differs
-	// is refused, never planned against.
-	if v.TicksPerHour != domain.TicksPerHour || v.TicksPerDay != domain.TicksPerDay || v.DaysPerYear != domain.DaysPerYear {
-		return nil, contract("catalog calendar %d ticks per hour, %d per day, %d days per year differs from the one Go plans with", v.TicksPerHour, v.TicksPerDay, v.DaysPerYear)
+		return nil, contract("catalog carries no derived facts")
 	}
 	if v.CurrencyDef == "" {
-		return nil, contract("catalog constant currency_def is empty")
+		return nil, contract("catalog derived currency_def is empty")
 	}
 	if v.WortDef == "" {
-		return nil, contract("catalog constant wort_def is empty")
-	}
-	if g := float64(v.LitGlowThreshold); math.IsNaN(g) || math.IsInf(g, 0) || g <= 0 {
-		return nil, contract("catalog constant lit_glow_threshold is %v", g)
+		return nil, contract("catalog derived wort_def is empty")
 	}
 	if r := float64(v.FullRotRateC); math.IsNaN(r) || math.IsInf(r, 0) || r <= 0 {
-		return nil, contract("catalog constant full_rot_rate_c is %v", r)
+		return nil, contract("catalog derived full_rot_rate_c is %v", r)
 	}
-	if r := float64(v.RoofMaxSupportDistance); math.IsNaN(r) || math.IsInf(r, 0) || r <= 0 {
-		return nil, contract("catalog constant roof_max_support_distance is %v", r)
+	return v, nil
+}
+
+// validateGameConstants refuses an absent GameConstants, the members Go reads
+// when they are not positive, and a calendar that differs from domain's.
+func validateGameConstants(v *d.GameConstants) (*d.GameConstants, error) {
+	if v == nil {
+		return nil, contract("catalog carries no game constants")
+	}
+	date := v.GetGenDate()
+	if date.GetTicksPerHour() != domain.TicksPerHour || date.GetTicksPerDay() != domain.TicksPerDay || date.GetDaysPerYear() != domain.DaysPerYear {
+		return nil, contract("catalog calendar %d ticks per hour, %d per day, %d days per year differs from the one Go plans with", date.GetTicksPerHour(), date.GetTicksPerDay(), date.GetDaysPerYear())
+	}
+	if n := v.GetSkillRecord().GetMaxLevel(); n <= 0 {
+		return nil, contract("catalog game constant SkillRecord.MaxLevel is %d", n)
+	}
+	if r := float64(v.GetRoofCollapseUtility().GetRoofMaxSupportDistance()); math.IsNaN(r) || math.IsInf(r, 0) || r <= 0 {
+		return nil, contract("catalog game constant RoofCollapseUtility.RoofMaxSupportDistance is %v", r)
 	}
 	return v, nil
 }
@@ -420,10 +425,12 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 	if out.classBases, err = classBases(v.ClassChains); err != nil {
 		return nil, err
 	}
-	if out.Constants, err = validateConstants(v.Constants); err != nil {
+	if out.Derived, err = validateDerived(v.Derived); err != nil {
 		return nil, err
 	}
-	out.gameConstants = v.GameConstants
+	if out.gameConstants, err = validateGameConstants(v.GameConstants); err != nil {
+		return nil, err
+	}
 	if out.thingFacts, err = decodeThingFacts(v.ThingFacts, out.ThingDefs); err != nil {
 		return nil, err
 	}

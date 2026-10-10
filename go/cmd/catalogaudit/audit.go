@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -309,9 +310,9 @@ func (m Members) count(kind string) int {
 	return n
 }
 
-// catalogConstantFields counts the fields CatalogConstants carries.
-func catalogConstantFields() int {
-	return (&o.CatalogConstants{}).ProtoReflect().Descriptor().Fields().Len()
+// catalogConstantClasses counts the classes GameConstants carries.
+func catalogConstantClasses() int {
+	return (&d.GameConstants{}).ProtoReflect().Descriptor().Fields().Len()
 }
 
 // FormatConstants renders the constants section.
@@ -320,7 +321,7 @@ func FormatConstants(m Members, carried int) string {
 	consts, curves := m.count("const"), m.count("curve")
 	fmt.Fprintf(&b, "== game constants: %d const/static readonly scalars in %d classes, %d static SimpleCurves in %d classes\n",
 		consts, len(m["const"]), curves, len(m["curve"]))
-	fmt.Fprintf(&b, "  the catalog carries %d CatalogConstants fields\n", carried)
+	fmt.Fprintf(&b, "  the catalog carries %d GameConstants classes\n", carried)
 	return b.String()
 }
 

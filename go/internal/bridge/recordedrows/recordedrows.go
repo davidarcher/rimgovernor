@@ -85,7 +85,7 @@ func Take(t Reporter, keep func(*d.ThingDef) bool, sets ...string) *Slice {
 	t.Helper()
 	full := recordedWire(t)
 	s := &Slice{T: t, Wire: &o.DefinitionCatalog{
-		Context: full.Context, Constants: full.Constants, ClassChains: append([]*o.ClassChain(nil), full.ClassChains...),
+		Context: full.Context, Derived: full.Derived, GameConstants: full.GameConstants, ClassChains: append([]*o.ClassChain(nil), full.ClassChains...),
 		StatValues: &o.DefStatTable{Stats: full.StatValues.Stats}, Defs: &d.DefSets{},
 	}}
 	var names []string

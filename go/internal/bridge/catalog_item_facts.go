@@ -81,11 +81,11 @@ func buildItemFacts(catalog *DefinitionCatalog) (policy.ItemFacts, error) {
 	}
 	slices.Sort(items.Armor)
 	slices.Sort(items.DeepResources)
-	items.Currency = policy.Resource(catalog.Constants.CurrencyDef)
-	if catalog.ThingDefs[catalog.Constants.CurrencyDef] == nil {
-		return policy.ItemFacts{}, contract("catalog has no def row for the currency %s", catalog.Constants.CurrencyDef)
+	items.Currency = policy.Resource(catalog.Derived.CurrencyDef)
+	if catalog.ThingDefs[catalog.Derived.CurrencyDef] == nil {
+		return policy.ItemFacts{}, contract("catalog has no def row for the currency %s", catalog.Derived.CurrencyDef)
 	}
-	items.Wort = policy.Resource(catalog.Constants.WortDef)
+	items.Wort = policy.Resource(catalog.Derived.WortDef)
 	if err := buildDrugFacts(catalog, &items); err != nil {
 		return policy.ItemFacts{}, err
 	}

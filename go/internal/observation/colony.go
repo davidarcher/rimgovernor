@@ -437,7 +437,11 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		return ColonyProjection{}, err
 	}
 	if tables.Catalog != nil {
-		r.RoofSupport = float64(tables.Catalog.Constants.RoofMaxSupportDistance)
+		game, err := tables.Catalog.GameConstants()
+		if err != nil {
+			return ColonyProjection{}, err
+		}
+		r.RoofSupport = float64(game.GetRoofCollapseUtility().GetRoofMaxSupportDistance())
 		r.BedPrice = marketBedPrice(tables.Catalog)
 		r.Packable = tables.Catalog.Packable()
 		if r.Impressiveness, err = tables.Catalog.ImpressivenessLevels(); err != nil {
@@ -677,7 +681,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		}
 		if known {
 			r.FoodSupply = domain.Known(supply)
-			r.Facts.FoodStorageUpkeep = policy.FoodStorageStocks(supply, float64(tables.Catalog.Constants.FullRotRateC))
+			r.Facts.FoodStorageUpkeep = policy.FoodStorageStocks(supply, float64(tables.Catalog.Derived.FullRotRateC))
 		}
 	}
 	if forecast := v.GetForecast().GetObserved(); forecast != nil {

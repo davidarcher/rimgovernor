@@ -107,7 +107,7 @@ func TestClassIsAFollowsBaseChains(t *testing.T) {
 		v := catalogReply(authorityTestContext(7)).GetObserved()
 		v.ThingDefs = []*d.ThingDef{{DefName: "Wall"}}
 		v.TerrainDefs = []*d.TerrainDef{{DefName: "Soil"}}
-		v.Constants = catalogConstants()
+		v.Derived, v.GameConstants = catalogDerived(), catalogGameConstants()
 		v.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: "Beauty"}}}
 		v.ClassChains = []*o.ClassChain{
 			{Name: "RimWorld.StatDef", Bases: []string{"Verse.Def"}},
@@ -166,8 +166,18 @@ func TestClassIsAFollowsBaseChains(t *testing.T) {
 	}
 }
 
-func catalogConstants() *o.CatalogConstants {
-	return &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver", WortDef: "Wort"}
+func catalogDerived() *o.CatalogDerived {
+	return &o.CatalogDerived{CurrencyDef: "Silver", WortDef: "Wort", FullRotRateC: 10}
+}
+
+func catalogGameConstants() *d.GameConstants {
+	return &d.GameConstants{
+		GenDate:                  &d.GenDateConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60},
+		SkillRecord:              &d.SkillRecordConstants{MaxLevel: 20},
+		RoofCollapseUtility:      &d.RoofCollapseUtilityConstants{RoofMaxSupportDistance: 6.9},
+		JobDriver_InteractAnimal: &d.JobDriver_InteractAnimalConstants{},
+		TrainableUtility:         &d.TrainableUtilityConstants{},
+	}
 }
 
 // TestDefinitionCatalogCarriesGeneratedDefRows: the generated rows
@@ -179,7 +189,7 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 		v := catalogReply(context).GetObserved()
 		v.ThingDefs = []*d.ThingDef{{DefName: "Wall", Label: "wall", StackLimit: 1, Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties{CompProperties: &d.CompProperties{CompClass: "Verse.CompForbiddable"}}}}}}, {DefName: "Bed"}}
 		v.TerrainDefs = []*d.TerrainDef{{DefName: "Wall", Label: "floor"}}
-		v.Constants = catalogConstants()
+		v.Derived, v.GameConstants = catalogDerived(), catalogGameConstants()
 		v.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: "Wall", Label: "stat"}}, RecipeDefs: []*d.RecipeDef{{DefName: "Wall"}, {DefName: "Bed"}}}
 		return v
 	}
@@ -196,10 +206,10 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 	if row := DefRow[*d.StatDef](catalog, "Wall"); row == nil || row.Label != "stat" || DefRow[*d.RecipeDef](catalog, "Bed") == nil || DefRow[*d.RecipeDef](catalog, "Missing") != nil || DefRow[*d.TraitDef](catalog, "Wall") != nil {
 		t.Fatalf("def set rows %+v", catalog.Defs)
 	}
-	if catalog.ThingDef("Missing") != nil || catalog.TerrainDef("Bed") != nil || catalog.Constants.TicksPerDay != 60000 {
+	if catalog.ThingDef("Missing") != nil || catalog.TerrainDef("Bed") != nil {
 		t.Fatalf("lookup %+v", catalog)
 	}
-	for _, change := range []string{"duplicate-thing", "duplicate-terrain", "unnamed-thing", "nil-terrain", "zero-constant", "nan-glow", "no-full-rot-rate", "no-thing-defs", "no-terrain-defs", "no-constants", "no-def-sets", "empty-def-sets", "duplicate-def-row", "unnamed-def-row"} {
+	for _, change := range []string{"duplicate-thing", "duplicate-terrain", "unnamed-thing", "nil-terrain", "zero-constant", "nan-roof", "no-full-rot-rate", "no-thing-defs", "no-terrain-defs", "no-derived", "no-game-constants", "no-def-sets", "empty-def-sets", "duplicate-def-row", "unnamed-def-row"} {
 		t.Run(change, func(t *testing.T) {
 			v := build()
 			switch change {
@@ -212,13 +222,15 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 			case "nil-terrain":
 				v.TerrainDefs = append(v.TerrainDefs, nil)
 			case "zero-constant":
-				v.Constants.BillStackMax = 0
+				v.GameConstants.SkillRecord.MaxLevel = 0
 			case "no-thing-defs":
 				v.ThingDefs = nil
 			case "no-terrain-defs":
 				v.TerrainDefs = nil
-			case "no-constants":
-				v.Constants = nil
+			case "no-derived":
+				v.Derived = nil
+			case "no-game-constants":
+				v.GameConstants = nil
 			case "no-def-sets":
 				v.Defs = nil
 			case "empty-def-sets":
@@ -227,10 +239,10 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 				v.Defs.RecipeDefs = append(v.Defs.RecipeDefs, &d.RecipeDef{DefName: "Bed"})
 			case "unnamed-def-row":
 				v.Defs.StatDefs[0].DefName = ""
-			case "nan-glow":
-				v.Constants.LitGlowThreshold = float32(math.NaN())
+			case "nan-roof":
+				v.GameConstants.RoofCollapseUtility.RoofMaxSupportDistance = float32(math.NaN())
 			case "no-full-rot-rate":
-				v.Constants.FullRotRateC = 0
+				v.Derived.FullRotRateC = 0
 			}
 			if _, err := DecodeDefinitionCatalog(v, pbIdentity()); err == nil {
 				t.Fatal("malformed rows accepted")
@@ -337,7 +349,7 @@ func syntheticCatalog(stride, perClass int) *o.DefinitionCatalog {
 			list.Append(row)
 		}
 	}
-	v.Constants = catalogConstants()
+	v.Derived, v.GameConstants = catalogDerived(), catalogGameConstants()
 	return v
 }
 

@@ -722,7 +722,7 @@ Out of scope and unchanged: files classed state or code, and the excluded Biotec
 | RaceFacts | message | 2329 | 15 | excluded | Game-computed race facts incl. husbandry ages and tameness |  | excluded owner owner Race |
 | DefStatTable | message | 2370 | 3 | code | Game stat values per def and stuff (GetStatValueAbstract) |  |  |
 | DefStatRow | message | 2384 | 5 | code | One def/stuff stat value row with adjusted costs |  |  |
-| CatalogConstants | message | 2392 | 16 | static | Game constants read from assemblies | ticks_per_hour,ticks_per_day,days_per_year,bill_stack_max,skill_max_level,lit_glow_threshold,currency_def,full_rot_rate_c,roof_max_support_distance,wort_def,animal_interact_talk_ticks,animal_interact_feed_ticks,animal_interact_feeds,animal_feed_nutrition_fraction,animal_feed_nutrition_cap,min_train_interval_ticks | planned GameConstants (#2626) for all 16 fields |
+| CatalogDerived | message | 2392 | 3 | code | Facts the game names or computes in code | currency_def,full_rot_rate_c,wort_def |  |
 | IdeologySnapshot | message | 2434 | 15 | state | Primary ideoligion: memes, precepts, roles, rituals, believers, reform state |  |  |
 | IdeoPrecept | message | 2443 | 2 | state | Precept in force id and def name |  |  |
 | IdeoRole | message | 2446 | 4 | state | Role precept active flag and holder pawns |  |  |

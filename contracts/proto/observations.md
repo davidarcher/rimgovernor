@@ -244,30 +244,28 @@ dictionary key or scalar value), or a type with no arm. A mod subclass of a mirr
 `CompProperties`) is such a type, so the catalog read fails on a modded game;
 the supported configuration is vanilla plus the DLCs the generator saw.
 
-`DefinitionCatalog.constants` (`CatalogConstants`) holds the game numbers Go
-must not type in: `ticks_per_hour`, `ticks_per_day`, `days_per_year`
-(`GenDate`), `bill_stack_max` (`BillStack.MaxCount`), `skill_max_level`
-(`SkillRecord.MaxLevel`) and `lit_glow_threshold`, read by reflection from the
-non-public const `GlowGrid.GameGlowLitThreshold`; the read throws naming the
-member when it is missing or not a float. `currency_def` is `ThingDefOf.Silver`: the
+The game numbers Go must not type in are the typed `GameConstants` member of
+the catalog (`game_constants`, read with `DefinitionCatalog.GameConstants()`): the
+calendar (`GenDate`), `SkillRecord.MaxLevel`, `RoofCollapseUtility.RoofMaxSupportDistance`
+(roof support), `JobDriver_InteractAnimal` and `TrainableUtility.MinTrainInterval`
+(the animal interaction job). `DefinitionCatalog.derived` (`CatalogDerived`) holds
+the three facts no const carries. `currency_def` is `ThingDefOf.Silver`: the
 def `Tradeable.IsCurrency` tests, which Go reads as `ItemFacts.Currency` (the
-census coin; an empty value or a def with no row is refused). `full_rot_rate_c` is the temperature at which
+census coin; an empty value or a def with no row is refused). `wort_def` is
+`ThingDefOf.Wort`. `full_rot_rate_c` is the temperature at which
 `GenTemperature.RotRateAtTemperature` first reaches its full rate of 1: its
 curve is literals inside the game function, so native bisects the function
 itself and throws naming it when the rate never reaches 1 or is not finite; Go
 reads it as `FoodStorageObservation.ChilledMaxC`, the limit for refrigerated
-food. `roof_max_support_distance` is `RoofCollapseUtility.RoofMaxSupportDistance`,
-read by reflection from the public const so the assembly's value, not one inlined at
-compile time, is sent (the read throws naming the member when it is missing or not a
-float); Go measures roof support against it. Drugs, chemicals
+food. Drugs, chemicals
 and the preventive drug are not constants: `ItemFacts` derives them from the
 `CompProperties_Drug`, `ChemicalDef` and `HediffDef` rows. There is no plant-glow constant: each
 def carries `growMinGlow`.
 
 `bridge.DecodeDefinitionCatalog` keys the rows by def name in the per-load-token
 cache (`DefinitionCatalog.ThingDef`, `TerrainDef`; a thing and a terrain may
-share a name) and refuses a missing or repeated name, absent def rows, sets or
-constants, and a non-positive or nonfinite constant. The reply must stay under
+share a name) and refuses a missing or repeated name, absent def rows, sets, derived facts or
+game constants, a calendar that differs from Go's (domain.TicksPerDay and kin), and a non-positive or nonfinite constant Go reads. The reply must stay under
 the 48 MiB gunzipped reply guard (`maxReplyProtoBytes`, a decompression guard,
 not a row cap).
 

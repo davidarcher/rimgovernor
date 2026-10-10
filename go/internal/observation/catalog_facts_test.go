@@ -21,7 +21,7 @@ func decodeCatalog(t *testing.T, v *o.DefinitionCatalog) *bridge.DefinitionCatal
 	}
 	v.Defs.StatDefs = []*d.StatDef{{DefName: "MarketValue"}}
 	addRecordedEnvironment(t, v)
-	v.Constants = &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver", WortDef: "Wort"}
+	v.Derived, v.GameConstants = &o.CatalogDerived{CurrencyDef: "Silver", WortDef: "Wort", FullRotRateC: 10}, testGameConstants()
 	if len(v.TerrainDefs) == 0 {
 		v.TerrainDefs = []*d.TerrainDef{{DefName: "AnchorTerrain"}}
 	}
@@ -57,4 +57,14 @@ func itemCatalog(t *testing.T, items map[string]itemFact, terrains map[string][3
 		v.StatValues.TerrainRows = append(v.StatValues.TerrainRows, &o.DefStatRow{DefName: name, Stat: []int32{1, 0, 3}, Value: []float32{stats[0], stats[1], stats[2]}})
 	}
 	return decodeCatalog(t, v)
+}
+
+// testGameConstants are the game constants a hand-built reply carries: the
+// calendar bridge checks and the members the catalog reads.
+func testGameConstants() *d.GameConstants {
+	return &d.GameConstants{
+		GenDate:             &d.GenDateConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60},
+		SkillRecord:         &d.SkillRecordConstants{MaxLevel: 20},
+		RoofCollapseUtility: &d.RoofCollapseUtilityConstants{RoofMaxSupportDistance: 6.9},
+	}
 }

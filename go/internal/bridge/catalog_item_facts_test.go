@@ -174,13 +174,13 @@ func TestDefinitionCatalogItemFacts(t *testing.T) {
 // TestDefinitionCatalogRefusesADifferentCalendar: Go states the
 // calendar once; a game whose tick constants differ is not planned against.
 func TestDefinitionCatalogRefusesADifferentCalendar(t *testing.T) {
-	for _, change := range []func(*o.CatalogConstants){
-		func(c *o.CatalogConstants) { c.TicksPerHour = 1000 },
-		func(c *o.CatalogConstants) { c.TicksPerDay = 24000 },
-		func(c *o.CatalogConstants) { c.DaysPerYear = 15 },
+	for _, change := range []func(*d.GenDateConstants){
+		func(c *d.GenDateConstants) { c.TicksPerHour = 1000 },
+		func(c *d.GenDateConstants) { c.TicksPerDay = 24000 },
+		func(c *d.GenDateConstants) { c.DaysPerYear = 15 },
 	} {
 		v := catalogReply(authorityTestContext(7)).GetObserved()
-		change(v.Constants)
+		change(v.GameConstants.GenDate)
 		if _, err := DecodeDefinitionCatalog(v, pbIdentity()); err == nil || !strings.Contains(err.Error(), "calendar") {
 			t.Fatalf("a different calendar decoded: %v", err)
 		}

@@ -35,7 +35,7 @@ func buyCatalog(generators ...*d.StockGeneratorAny) *DefinitionCatalog {
 		row.StockGenerators = append(row.StockGenerators, &d.Opt_StockGeneratorAny{Value: g})
 	}
 	return &DefinitionCatalog{
-		Constants: &o.CatalogConstants{CurrencyDef: "Silver"},
+		Derived: &o.CatalogDerived{CurrencyDef: "Silver"},
 		ThingDefs: map[string]*d.ThingDef{
 			"Jewel":  {DefName: "Jewel", Tradeability: d.Tradeability_TRADEABILITY_SELLABLE, TradeTags: []string{"Art"}, TechLevel: d.TechLevel_TECH_LEVEL_MEDIEVAL},
 			"Gun":    {DefName: "Gun", Tradeability: d.Tradeability_TRADEABILITY_ALL, TradeTags: []string{"Weapon"}, TechLevel: d.TechLevel_TECH_LEVEL_INDUSTRIAL},

@@ -86,7 +86,7 @@ namespace HomeBridge.BridgeTools
                 catalog.ClassChains.Add(row);
             }
             catalog.GameConstants = mirror.BuildStatics<Defs.GameConstants>();
-            catalog.Constants = Constants();
+            catalog.Derived = Derived();
             catalog.StatValues = StatValues();
             foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
                 catalog.ThingFacts.Add(NativeFoodPolicy.Facts(def));
@@ -228,40 +228,14 @@ namespace HomeBridge.BridgeTools
         private static string Named(string defName, string kind) =>
             ProtoBoundary.IsIdentifier(defName) ? defName : throw new InvalidOperationException($"{kind} defName '{defName}' is not an identifier.");
 
-        private static Obs.CatalogConstants Constants() => new Obs.CatalogConstants
+        private static Obs.CatalogDerived Derived() => new Obs.CatalogDerived
         {
-            TicksPerHour = GenDate.TicksPerHour,
-            TicksPerDay = GenDate.TicksPerDay,
-            DaysPerYear = GenDate.DaysPerYear,
-            BillStackMax = BillStack.MaxCount,
-            SkillMaxLevel = SkillRecord.MaxLevel,
-            LitGlowThreshold = LitGlowThreshold(),
             // Tradeable.IsCurrency is "def == ThingDefOf.Silver".
             CurrencyDef = ThingDefOf.Silver?.defName ?? throw new InvalidOperationException("ThingDefOf.Silver is not loaded."),
             // Building_FermentingBarrel adds ThingDefOf.Wort and takes out ThingDefOf.Beer.
             WortDef = ThingDefOf.Wort?.defName ?? throw new InvalidOperationException("ThingDefOf.Wort is not loaded."),
             FullRotRateC = FullRotRateC(),
-            RoofMaxSupportDistance = Constant<float>(typeof(RoofCollapseUtility), "RoofMaxSupportDistance"),
-            AnimalInteractTalkTicks = Constant<int>(typeof(JobDriver_InteractAnimal), "TalkDuration"),
-            AnimalInteractFeedTicks = Constant<int>(typeof(JobDriver_InteractAnimal), "FeedDuration"),
-            AnimalInteractFeeds = Constant<int>(typeof(JobDriver_InteractAnimal), "FeedCount"),
-            AnimalFeedNutritionFraction = Constant<float>(typeof(JobDriver_InteractAnimal), "NutritionPercentagePerFeed"),
-            AnimalFeedNutritionCap = Constant<float>(typeof(JobDriver_InteractAnimal), "MaxMinNutritionPerFeed"),
-            MinTrainIntervalTicks = Constant<int>(typeof(TrainableUtility), "MinTrainInterval"),
         };
-
-        // A game const (public or not) read from the loaded assembly by name,
-        // because the compiler would inline a public one from the reference
-        // assembly; fails naming it when the game no longer has it.
-        private static T Constant<T>(Type owner, string name)
-        {
-            var field = owner.GetField(name, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-            if (field == null || !field.IsLiteral)
-                throw new InvalidOperationException($"{owner.Name}.{name} is not a constant of this game version.");
-            return field.GetRawConstantValue() is T value
-                ? value
-                : throw new InvalidOperationException($"{owner.Name}.{name} is a {field.FieldType.FullName} constant, not a {typeof(T).Name}.");
-        }
 
         // The game keeps its rot curve as literals inside
         // GenTemperature.RotRateAtTemperature, so evaluate that function: bisect the
@@ -291,19 +265,6 @@ namespace HomeBridge.BridgeTools
                 if (Rate(BitConverter.ToSingle(BitConverter.GetBytes(middle), 0)) >= 1f) at = middle; else below = middle;
             }
             return BitConverter.ToSingle(BitConverter.GetBytes(at), 0);
-        }
-
-        // GlowGrid.GameGlowLitThreshold is a non-public const: read it by name, and
-        // fail naming it when the game no longer has it or its type changed.
-        private static float LitGlowThreshold()
-        {
-            const string member = "GlowGrid.GameGlowLitThreshold";
-            var field = typeof(GlowGrid).GetField("GameGlowLitThreshold", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-            if (field == null || !field.IsLiteral)
-                throw new InvalidOperationException($"{member} is not a constant of this game version.");
-            if (!(field.GetRawConstantValue() is float value))
-                throw new InvalidOperationException($"{member} is a {field.FieldType.FullName} constant, not a float.");
-            return value;
         }
     }
 }

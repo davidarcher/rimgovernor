@@ -587,10 +587,11 @@ func (catalog *DefinitionCatalog) RecipeMealFacts(name, bench string) (MealFacts
 	}
 	facts.IngredientClasses = domain.Known(slots)
 	facts.NutrientEfficiency = domain.Known(float64(nutrition) / input)
-	if catalog.Constants == nil {
-		return facts, contract("catalog has no constants (skill max level)")
+	game, err := catalog.GameConstants()
+	if err != nil {
+		return facts, err
 	}
-	limit := catalog.Constants.GetSkillMaxLevel()
+	limit := game.GetSkillRecord().GetMaxLevel()
 	floor := int32(0)
 	for _, skill := range row.GetSkillRequirements() {
 		if skill.GetValue().GetSkill() != row.GetWorkSkill() {

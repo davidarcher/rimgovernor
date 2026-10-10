@@ -42962,7 +42962,7 @@ type DefinitionCatalog struct {
 	// filtered to buildable or sowable defs.
 	ThingDefs   []*defspb.ThingDef   `protobuf:"bytes,8,rep,name=thing_defs,json=thingDefs,proto3" json:"thing_defs,omitempty"`
 	TerrainDefs []*defspb.TerrainDef `protobuf:"bytes,9,rep,name=terrain_defs,json=terrainDefs,proto3" json:"terrain_defs,omitempty"`
-	Constants   *CatalogConstants    `protobuf:"bytes,10,opt,name=constants,proto3" json:"constants,omitempty"`
+	Derived     *CatalogDerived      `protobuf:"bytes,10,opt,name=derived,proto3" json:"derived,omitempty"`
 	// The game's own stat values per def and stuff; absent in a reply
 	// that carries none.
 	StatValues *DefStatTable `protobuf:"bytes,11,opt,name=stat_values,json=statValues,proto3" json:"stat_values,omitempty"`
@@ -43057,9 +43057,9 @@ func (x *DefinitionCatalog) GetTerrainDefs() []*defspb.TerrainDef {
 	return nil
 }
 
-func (x *DefinitionCatalog) GetConstants() *CatalogConstants {
+func (x *DefinitionCatalog) GetDerived() *CatalogDerived {
 	if x != nil {
-		return x.Constants
+		return x.Derived
 	}
 	return nil
 }
@@ -43590,20 +43590,10 @@ func (x *DefStatRow) GetCosts() []*Quantity {
 	return nil
 }
 
-// Game constants read from the game assemblies, never typed in.
-type CatalogConstants struct {
+// The catalog facts the game names or computes in code, which no const of
+// game_constants carries (the numeric constants are the typed GameConstants).
+type CatalogDerived struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// GenDate.TicksPerHour, TicksPerDay and DaysPerYear.
-	TicksPerHour int32 `protobuf:"varint,1,opt,name=ticks_per_hour,json=ticksPerHour,proto3" json:"ticks_per_hour,omitempty"`
-	TicksPerDay  int32 `protobuf:"varint,2,opt,name=ticks_per_day,json=ticksPerDay,proto3" json:"ticks_per_day,omitempty"`
-	DaysPerYear  int32 `protobuf:"varint,3,opt,name=days_per_year,json=daysPerYear,proto3" json:"days_per_year,omitempty"`
-	// BillStack.MaxCount.
-	BillStackMax int32 `protobuf:"varint,4,opt,name=bill_stack_max,json=billStackMax,proto3" json:"bill_stack_max,omitempty"`
-	// SkillRecord.MaxLevel.
-	SkillMaxLevel int32 `protobuf:"varint,5,opt,name=skill_max_level,json=skillMaxLevel,proto3" json:"skill_max_level,omitempty"`
-	// GlowGrid.GameGlowLitThreshold (a non-public const): the glow at or above
-	// which a cell counts as lit.
-	LitGlowThreshold float32 `protobuf:"fixed32,6,opt,name=lit_glow_threshold,json=litGlowThreshold,proto3" json:"lit_glow_threshold,omitempty"`
 	// The defName of ThingDefOf.Silver: the def Tradeable.IsCurrency tests, so
 	// the coin every price and the colony census count in.
 	CurrencyDef string `protobuf:"bytes,7,opt,name=currency_def,json=currencyDef,proto3" json:"currency_def,omitempty"`
@@ -43611,43 +43601,28 @@ type CatalogConstants struct {
 	// reaches its full rate of 1, found by evaluating the game's own function:
 	// food stored at or below it rots slower than the full rate.
 	FullRotRateC float32 `protobuf:"fixed32,8,opt,name=full_rot_rate_c,json=fullRotRateC,proto3" json:"full_rot_rate_c,omitempty"`
-	// RoofCollapseUtility.RoofMaxSupportDistance (a public const read from the
-	// assembly, not inlined): how far a roofed cell may lie from a roof holder
-	// before the game collapses it.
-	RoofMaxSupportDistance float32 `protobuf:"fixed32,9,opt,name=roof_max_support_distance,json=roofMaxSupportDistance,proto3" json:"roof_max_support_distance,omitempty"`
 	// The defName of ThingDefOf.Wort: what Building_FermentingBarrel takes in
 	// and turns into ThingDefOf.Beer, so the beer reserve names the
 	// intermediate without typing it.
-	WortDef string `protobuf:"bytes,10,opt,name=wort_def,json=wortDef,proto3" json:"wort_def,omitempty"`
-	// JobDriver_InteractAnimal: the ticks of one TalkToAnimal toil
-	// (TalkDuration, a private const) and of one feed (FeedDuration), the feeds
-	// per interaction (FeedCount), the share of the animal's food need one feed
-	// gives (NutritionPercentagePerFeed) capped at MaxMinNutritionPerFeed, and
-	// TrainableUtility.MinTrainInterval: the ticks between two training jobs.
-	AnimalInteractTalkTicks     int32   `protobuf:"varint,11,opt,name=animal_interact_talk_ticks,json=animalInteractTalkTicks,proto3" json:"animal_interact_talk_ticks,omitempty"`
-	AnimalInteractFeedTicks     int32   `protobuf:"varint,12,opt,name=animal_interact_feed_ticks,json=animalInteractFeedTicks,proto3" json:"animal_interact_feed_ticks,omitempty"`
-	AnimalInteractFeeds         int32   `protobuf:"varint,13,opt,name=animal_interact_feeds,json=animalInteractFeeds,proto3" json:"animal_interact_feeds,omitempty"`
-	AnimalFeedNutritionFraction float32 `protobuf:"fixed32,14,opt,name=animal_feed_nutrition_fraction,json=animalFeedNutritionFraction,proto3" json:"animal_feed_nutrition_fraction,omitempty"`
-	AnimalFeedNutritionCap      float32 `protobuf:"fixed32,15,opt,name=animal_feed_nutrition_cap,json=animalFeedNutritionCap,proto3" json:"animal_feed_nutrition_cap,omitempty"`
-	MinTrainIntervalTicks       int32   `protobuf:"varint,16,opt,name=min_train_interval_ticks,json=minTrainIntervalTicks,proto3" json:"min_train_interval_ticks,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	WortDef       string `protobuf:"bytes,10,opt,name=wort_def,json=wortDef,proto3" json:"wort_def,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CatalogConstants) Reset() {
-	*x = CatalogConstants{}
+func (x *CatalogDerived) Reset() {
+	*x = CatalogDerived{}
 	mi := &file_observations_proto_msgTypes[445]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CatalogConstants) String() string {
+func (x *CatalogDerived) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CatalogConstants) ProtoMessage() {}
+func (*CatalogDerived) ProtoMessage() {}
 
-func (x *CatalogConstants) ProtoReflect() protoreflect.Message {
+func (x *CatalogDerived) ProtoReflect() protoreflect.Message {
 	mi := &file_observations_proto_msgTypes[445]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -43659,121 +43634,30 @@ func (x *CatalogConstants) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CatalogConstants.ProtoReflect.Descriptor instead.
-func (*CatalogConstants) Descriptor() ([]byte, []int) {
+// Deprecated: Use CatalogDerived.ProtoReflect.Descriptor instead.
+func (*CatalogDerived) Descriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{445}
 }
 
-func (x *CatalogConstants) GetTicksPerHour() int32 {
-	if x != nil {
-		return x.TicksPerHour
-	}
-	return 0
-}
-
-func (x *CatalogConstants) GetTicksPerDay() int32 {
-	if x != nil {
-		return x.TicksPerDay
-	}
-	return 0
-}
-
-func (x *CatalogConstants) GetDaysPerYear() int32 {
-	if x != nil {
-		return x.DaysPerYear
-	}
-	return 0
-}
-
-func (x *CatalogConstants) GetBillStackMax() int32 {
-	if x != nil {
-		return x.BillStackMax
-	}
-	return 0
-}
-
-func (x *CatalogConstants) GetSkillMaxLevel() int32 {
-	if x != nil {
-		return x.SkillMaxLevel
-	}
-	return 0
-}
-
-func (x *CatalogConstants) GetLitGlowThreshold() float32 {
-	if x != nil {
-		return x.LitGlowThreshold
-	}
-	return 0
-}
-
-func (x *CatalogConstants) GetCurrencyDef() string {
+func (x *CatalogDerived) GetCurrencyDef() string {
 	if x != nil {
 		return x.CurrencyDef
 	}
 	return ""
 }
 
-func (x *CatalogConstants) GetFullRotRateC() float32 {
+func (x *CatalogDerived) GetFullRotRateC() float32 {
 	if x != nil {
 		return x.FullRotRateC
 	}
 	return 0
 }
 
-func (x *CatalogConstants) GetRoofMaxSupportDistance() float32 {
-	if x != nil {
-		return x.RoofMaxSupportDistance
-	}
-	return 0
-}
-
-func (x *CatalogConstants) GetWortDef() string {
+func (x *CatalogDerived) GetWortDef() string {
 	if x != nil {
 		return x.WortDef
 	}
 	return ""
-}
-
-func (x *CatalogConstants) GetAnimalInteractTalkTicks() int32 {
-	if x != nil {
-		return x.AnimalInteractTalkTicks
-	}
-	return 0
-}
-
-func (x *CatalogConstants) GetAnimalInteractFeedTicks() int32 {
-	if x != nil {
-		return x.AnimalInteractFeedTicks
-	}
-	return 0
-}
-
-func (x *CatalogConstants) GetAnimalInteractFeeds() int32 {
-	if x != nil {
-		return x.AnimalInteractFeeds
-	}
-	return 0
-}
-
-func (x *CatalogConstants) GetAnimalFeedNutritionFraction() float32 {
-	if x != nil {
-		return x.AnimalFeedNutritionFraction
-	}
-	return 0
-}
-
-func (x *CatalogConstants) GetAnimalFeedNutritionCap() float32 {
-	if x != nil {
-		return x.AnimalFeedNutritionCap
-	}
-	return 0
-}
-
-func (x *CatalogConstants) GetMinTrainIntervalTicks() int32 {
-	if x != nil {
-		return x.MinTrainIntervalTicks
-	}
-	return 0
 }
 
 // The player faction's primary ideoligion: FactionIdeosTracker.PrimaryIdeo.
@@ -52118,7 +52002,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_herd_radiusB\x17\n" +
 	"\x15_hunt_route_budget_msB\x1d\n" +
 	"\x1b_hunt_predator_margin_cellsB\x1a\n" +
-	"\x18_lines_of_fire_budget_ms\"\xe1\x06\n" +
+	"\x18_lines_of_fire_budget_ms\"\xdb\x06\n" +
 	"\x11DefinitionCatalog\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12H\n" +
 	"\bresearch\x18\x03 \x03(\v2,.rimgovernor.observations.v1.ResearchProjectR\bresearch\x12E\n" +
@@ -52126,9 +52010,9 @@ const file_observations_proto_rawDesc = "" +
 	"\aodyssey\x18\x06 \x01(\v2+.rimgovernor.observations.v1.OdysseyCatalogR\aodyssey\x12<\n" +
 	"\n" +
 	"thing_defs\x18\b \x03(\v2\x1d.rimgovernor.defs.v1.ThingDefR\tthingDefs\x12B\n" +
-	"\fterrain_defs\x18\t \x03(\v2\x1f.rimgovernor.defs.v1.TerrainDefR\vterrainDefs\x12K\n" +
-	"\tconstants\x18\n" +
-	" \x01(\v2-.rimgovernor.observations.v1.CatalogConstantsR\tconstants\x12J\n" +
+	"\fterrain_defs\x18\t \x03(\v2\x1f.rimgovernor.defs.v1.TerrainDefR\vterrainDefs\x12E\n" +
+	"\aderived\x18\n" +
+	" \x01(\v2+.rimgovernor.observations.v1.CatalogDerivedR\aderived\x12J\n" +
 	"\vstat_values\x18\v \x01(\v2).rimgovernor.observations.v1.DefStatTableR\n" +
 	"statValues\x120\n" +
 	"\x04defs\x18\f \x01(\v2\x1c.rimgovernor.defs.v1.DefSetsR\x04defs\x12J\n" +
@@ -52189,25 +52073,12 @@ const file_observations_proto_rawDesc = "" +
 	"stuff_name\x18\x02 \x01(\tR\tstuffName\x12\x12\n" +
 	"\x04stat\x18\x03 \x03(\x05R\x04stat\x12\x14\n" +
 	"\x05value\x18\x04 \x03(\x02R\x05value\x12;\n" +
-	"\x05costs\x18\x05 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05costs\"\x83\x06\n" +
-	"\x10CatalogConstants\x12$\n" +
-	"\x0eticks_per_hour\x18\x01 \x01(\x05R\fticksPerHour\x12\"\n" +
-	"\rticks_per_day\x18\x02 \x01(\x05R\vticksPerDay\x12\"\n" +
-	"\rdays_per_year\x18\x03 \x01(\x05R\vdaysPerYear\x12$\n" +
-	"\x0ebill_stack_max\x18\x04 \x01(\x05R\fbillStackMax\x12&\n" +
-	"\x0fskill_max_level\x18\x05 \x01(\x05R\rskillMaxLevel\x12,\n" +
-	"\x12lit_glow_threshold\x18\x06 \x01(\x02R\x10litGlowThreshold\x12!\n" +
+	"\x05costs\x18\x05 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05costs\"u\n" +
+	"\x0eCatalogDerived\x12!\n" +
 	"\fcurrency_def\x18\a \x01(\tR\vcurrencyDef\x12%\n" +
-	"\x0ffull_rot_rate_c\x18\b \x01(\x02R\ffullRotRateC\x129\n" +
-	"\x19roof_max_support_distance\x18\t \x01(\x02R\x16roofMaxSupportDistance\x12\x19\n" +
+	"\x0ffull_rot_rate_c\x18\b \x01(\x02R\ffullRotRateC\x12\x19\n" +
 	"\bwort_def\x18\n" +
-	" \x01(\tR\awortDef\x12;\n" +
-	"\x1aanimal_interact_talk_ticks\x18\v \x01(\x05R\x17animalInteractTalkTicks\x12;\n" +
-	"\x1aanimal_interact_feed_ticks\x18\f \x01(\x05R\x17animalInteractFeedTicks\x122\n" +
-	"\x15animal_interact_feeds\x18\r \x01(\x05R\x13animalInteractFeeds\x12C\n" +
-	"\x1eanimal_feed_nutrition_fraction\x18\x0e \x01(\x02R\x1banimalFeedNutritionFraction\x129\n" +
-	"\x19animal_feed_nutrition_cap\x18\x0f \x01(\x02R\x16animalFeedNutritionCap\x127\n" +
-	"\x18min_train_interval_ticks\x18\x10 \x01(\x05R\x15minTrainIntervalTicks\"\xb2\a\n" +
+	" \x01(\tR\awortDef\"\xb2\a\n" +
 	"\x10IdeologySnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12\x1c\n" +
 	"\aideo_id\x18\x02 \x01(\tH\x00R\x06ideoId\x88\x01\x01\x12\x14\n" +
@@ -53267,7 +53138,7 @@ var file_observations_proto_goTypes = []any{
 	(*RaceFacts)(nil),                      // 472: rimgovernor.observations.v1.RaceFacts
 	(*DefStatTable)(nil),                   // 473: rimgovernor.observations.v1.DefStatTable
 	(*DefStatRow)(nil),                     // 474: rimgovernor.observations.v1.DefStatRow
-	(*CatalogConstants)(nil),               // 475: rimgovernor.observations.v1.CatalogConstants
+	(*CatalogDerived)(nil),                 // 475: rimgovernor.observations.v1.CatalogDerived
 	(*IdeologySnapshot)(nil),               // 476: rimgovernor.observations.v1.IdeologySnapshot
 	(*IdeoPrecept)(nil),                    // 477: rimgovernor.observations.v1.IdeoPrecept
 	(*IdeoRole)(nil),                       // 478: rimgovernor.observations.v1.IdeoRole
@@ -54349,7 +54220,7 @@ var file_observations_proto_depIdxs = []int32{
 	485,  // 1012: rimgovernor.observations.v1.DefinitionCatalog.odyssey:type_name -> rimgovernor.observations.v1.OdysseyCatalog
 	536,  // 1013: rimgovernor.observations.v1.DefinitionCatalog.thing_defs:type_name -> rimgovernor.defs.v1.ThingDef
 	537,  // 1014: rimgovernor.observations.v1.DefinitionCatalog.terrain_defs:type_name -> rimgovernor.defs.v1.TerrainDef
-	475,  // 1015: rimgovernor.observations.v1.DefinitionCatalog.constants:type_name -> rimgovernor.observations.v1.CatalogConstants
+	475,  // 1015: rimgovernor.observations.v1.DefinitionCatalog.derived:type_name -> rimgovernor.observations.v1.CatalogDerived
 	473,  // 1016: rimgovernor.observations.v1.DefinitionCatalog.stat_values:type_name -> rimgovernor.observations.v1.DefStatTable
 	538,  // 1017: rimgovernor.observations.v1.DefinitionCatalog.defs:type_name -> rimgovernor.defs.v1.DefSets
 	470,  // 1018: rimgovernor.observations.v1.DefinitionCatalog.class_chains:type_name -> rimgovernor.observations.v1.ClassChain

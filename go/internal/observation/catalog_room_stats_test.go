@@ -21,7 +21,11 @@ func TestRecordedCatalogImpressivenessAndRoofSupport(t *testing.T) {
 	if want := (policy.ImpressivenessLevels{Dull: 20, Mediocre: 30, Decent: 40, SlightlyImpressive: 50}); levels.Dull != want.Dull || levels.Mediocre != want.Mediocre || levels.Decent != want.Decent || levels.SlightlyImpressive != want.SlightlyImpressive {
 		t.Errorf("levels %+v, want %+v", levels, want)
 	}
-	if got := catalog.Constants.RoofMaxSupportDistance; got != 6.9 {
+	game, err := catalog.GameConstants()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := game.GetRoofCollapseUtility().GetRoofMaxSupportDistance(); got != 6.9 {
 		t.Errorf("roof support %v, want 6.9", got)
 	}
 }

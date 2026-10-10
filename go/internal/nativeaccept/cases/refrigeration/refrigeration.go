@@ -447,7 +447,7 @@ func readFoodStorage(ctx context.Context, h *na.Harness, identity map[string]any
 	if err != nil {
 		return foodSummary{}, fmt.Errorf("%s: %w", label, err)
 	}
-	s := foodSummary{temperature: math.Inf(-1), chilledMaxC: float64(catalog.Constants.FullRotRateC)}
+	s := foodSummary{temperature: math.Inf(-1), chilledMaxC: float64(catalog.Derived.FullRotRateC)}
 	for _, raw := range meat {
 		stack, err := readRot(ctx, h, na.AsString(raw), label)
 		if err != nil {
