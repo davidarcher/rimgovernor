@@ -7,11 +7,15 @@
     <reportString>practising archery at the range.</reportString>
     <allowOpportunisticPrefix>false</allowOpportunisticPrefix>
   </JobDef>
-  <!-- A pawn's part in a sparring bout (JobDriver_Spar, #2708). -->
+  <!-- A pawn's part in a sparring bout (JobDriver_Spar, #2708, #2709). Never: a blow from a
+       sparring partner sets the struck pawn's meleeThreat, and the only way that reaches a
+       reaction mid-job is Pawn_JobTracker.Notify_DamageTaken consulting the think tree
+       (JobGiver_ReactToCloseMeleeThreat, fight back with its real gear). -->
   <JobDef>
     <defName>RimGovernor_Spar</defName>
     <driverClass>RimGovernor.Runtime.JobDriver_Spar</driverClass>
     <reportString>sparring at the ring.</reportString>
     <allowOpportunisticPrefix>false</allowOpportunisticPrefix>
+    <checkOverrideOnDamage>Never</checkOverrideOnDamage>
   </JobDef>
 </Defs>

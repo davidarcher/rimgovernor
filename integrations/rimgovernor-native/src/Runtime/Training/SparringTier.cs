@@ -20,7 +20,7 @@ namespace RimGovernor.Runtime
         // reference, so a project the game lacks never unlocks (as Go's census).
         public string gateResearch = "";
         // Practice apparel (#2706) the spar job issues with the weapon, by def
-        // name: the set a tier's swap puts on (the swap itself is #2709).
+        // name: the set JobDriver_Spar's swap puts on, with the weapon.
         public List<string> apparel = new List<string>();
     }
 

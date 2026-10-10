@@ -4,15 +4,18 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-// Bout formation (#2708): who spars with whom at the ring. The bout registry,
-// matchmaking and the work giver are native; the fixture's watcher samples the
-// registry every tick (the game runs thousands of ticks between two reads), so
-// the case asserts what the watcher saw, not a poll.
+// Bout formation (#2708) and the spar job (#2709): who spars with whom at the
+// ring, and what the fight does to the gear. The bout registry, matchmaking, the
+// work giver and the job driver are native; the fixture's watcher samples the
+// registry every tick (the game runs thousands of ticks between two reads) and
+// records what each spar job left behind the tick it ended, so the case asserts
+// what the watcher saw, not a poll.
 
 var sparringOps = []string{"test/sparring_prepare", "test/sparring_inspect"}
 
@@ -22,12 +25,15 @@ func init() {
 		Scope: "Bout formation at the sparring ring (#2708): with no order from Go the vanilla work scan offers eligible colonists a marker, and " +
 			"2, 3, 4 and 5 eligible colonists form bouts of 2; 3 (free-for-all); 4 (2v2, highest with lowest); and 3 + 2 at once. Every pawn and every " +
 			"marker is in at most one bout, a colonist above the ceiling and a drafted one are never seated, a pawn drafted while its bout gathers is " +
-			"dropped and the rest fight on, and every fighter's opponent is a member of another team. A Go snapshot test cannot see the work giver, " +
-			"the registry or the walk to the markers.",
+			"dropped and the rest fight on, and every fighter's opponent is a member of another team. The bouts then run end to end (#2709): each " +
+			"fighter swaps at its marker into the practice weapon and apparel set (its own gear held in its inventory), swings through the vanilla " +
+			"melee verb and is paid vanilla melee XP, the struck pawn neither flees nor fights back nor drops its job, and the gear is fully restored " +
+			"after a normal end (the exchange cap), a pawn leaving for pain or bleeding while the rest fight on, a pawn drafted mid-bout and a pawn " +
+			"killed mid-bout. A Go snapshot test cannot see the work giver, the registry, the walk, the swap or the vanilla verb.",
 		Start:       cases.Lab{Colonists: 8},
 		RequiredOps: sparringOps,
 		QuietWorld:  true,
-		Budget:      cases.LabBudget,
+		Budget:      12 * time.Minute,
 		Crew:        cases.Crew{Size: 3},
 		Run:         runSparring,
 	})
@@ -41,6 +47,9 @@ type sparringStage struct {
 	sizes      []int
 	ineligible bool
 	draft      bool
+	// scenario names a fight stage (#2709): the fixture's mid-bout event, and
+	// the stage waits for every spar job to end instead of the bouts to finish.
+	scenario string
 }
 
 func runSparring(ctx context.Context, s cases.Session) error {
@@ -52,6 +61,11 @@ func runSparring(ctx context.Context, s cases.Session) error {
 		{name: "five-two-bouts", eligible: 5, levels: "7,6,5,4,3", sizes: []int{3, 2}},
 		{name: "ineligible", eligible: 2, levels: "5,4", sizes: []int{2}, ineligible: true},
 		{name: "drafted-while-gathering", eligible: 4, levels: "7,5,4,2", sizes: []int{3}, draft: true},
+		{name: "fight-cap", eligible: 2, levels: "5,4", sizes: []int{2}, scenario: "cap"},
+		{name: "fight-pain", eligible: 3, levels: "6,5,4", sizes: []int{3}, scenario: "pain"},
+		{name: "fight-bleed", eligible: 2, levels: "5,4", sizes: []int{2}, scenario: "bleed"},
+		{name: "fight-draft", eligible: 3, levels: "6,5,4", sizes: []int{3}, scenario: "draft"},
+		{name: "fight-kill", eligible: 3, levels: "6,5,4", sizes: []int{3}, scenario: "kill"},
 	}
 	// A freshly loaded world has no bouts: the registry is runtime only.
 	fresh, err := h.Call(ctx, "sparring-inspect-fresh", "test/sparring_inspect", map[string]any{})
@@ -90,6 +104,7 @@ func prepareSparring(ctx context.Context, s cases.Session, h *na.Harness, args m
 func runSparringStage(ctx context.Context, s cases.Session, h *na.Harness, stage sparringStage) (map[string]any, error) {
 	prepared, err := prepareSparring(ctx, s, h, map[string]any{
 		"eligible": stage.eligible, "levels": stage.levels, "ineligible": stage.ineligible, "draftOnGather": stage.draft,
+		"scenario": stage.scenario,
 	})
 	if err != nil {
 		return nil, err
@@ -101,6 +116,15 @@ func runSparringStage(ctx context.Context, s cases.Session, h *na.Harness, stage
 			return "", false, err
 		}
 		last = got
+		if stage.scenario != "" {
+			ended := 0
+			for _, p := range sparringPawns(got) {
+				if p.ended {
+					ended++
+				}
+			}
+			return fmt.Sprint(got["active"], ended), ended >= stage.eligible, nil
+		}
 		done := 0
 		for _, b := range sparringBouts(got) {
 			if b.fighting != nil && b.finished {
@@ -111,7 +135,143 @@ func runSparringStage(ctx context.Context, s cases.Session, h *na.Harness, stage
 	}); err != nil {
 		return last, err
 	}
-	return last, checkSparringStage(stage, prepared, last)
+	if err := checkSparringStage(stage, prepared, last); err != nil {
+		return last, err
+	}
+	if stage.scenario != "" {
+		return last, checkSparringFight(stage, last)
+	}
+	return last, nil
+}
+
+type sparringPawn struct {
+	id         string
+	ended      bool
+	stop       string
+	exchanges  int
+	swapped    bool
+	swapSeen   bool
+	atMarker   bool
+	held       bool
+	dead       bool
+	drafted    bool
+	restored   bool
+	noPractice bool
+	originals  bool
+	threatNull bool
+	xp         bool
+}
+
+func sparringPawns(got map[string]any) []sparringPawn {
+	var out []sparringPawn
+	for _, raw := range na.AsSlice(got["pawns"]) {
+		row, _ := na.AsMap(raw)
+		flag := func(key string) bool { v, _ := na.AsBool(row[key]); return v }
+		out = append(out, sparringPawn{
+			id: na.AsString(row["id"]), ended: flag("ended"), stop: na.AsString(row["stop"]), exchanges: int(na.AsNumber(row["exchanges"])),
+			swapped: flag("swapped"), swapSeen: flag("swapSeen"), atMarker: flag("swapAtMarker"), held: flag("originalsHeld"),
+			dead: flag("dead"), drafted: flag("drafted"), restored: flag("restored"), noPractice: flag("noPractice"),
+			originals: flag("originals"), threatNull: flag("threatNull"), xp: flag("xp"),
+		})
+	}
+	return out
+}
+
+// checkSparringFight asserts what the spar job did in a fight stage: the swap at
+// the marker, the gear after the job ended, vanilla XP, and the scenario's own
+// claim. A pawn that never spars (the stage's eligible set is all of them) fails.
+func checkSparringFight(stage sparringStage, got map[string]any) error {
+	pawns := sparringPawns(got)
+	if len(pawns) != stage.eligible {
+		return fmt.Errorf("%d pawns tracked, want %d: %#v", len(pawns), stage.eligible, got)
+	}
+	if n := na.AsNumber(got["abandoned"]); n != 0 {
+		return fmt.Errorf("a fighter dropped its spar job %v times (the struck pawn must not flee or abandon): %#v", n, got)
+	}
+	if n := na.AsNumber(got["attackJobs"]); n != 0 {
+		return fmt.Errorf("a fighter took a real AttackMelee job %v times (meleeThreat reaction): %#v", n, got)
+	}
+	injured, hit := na.AsString(got["injected"]), na.AsString(got["hit"])
+	for _, p := range pawns {
+		killed := stage.scenario == "kill" && p.id == hit
+		switch {
+		case p.dead != killed:
+			return fmt.Errorf("%s dead=%v, want %v: %#v", p.id, p.dead, killed, got)
+		case !p.swapped || !p.swapSeen:
+			return fmt.Errorf("%s never swapped into practice gear: %#v", p.id, got)
+		case !p.atMarker:
+			return fmt.Errorf("%s did not swap at its marker: %#v", p.id, got)
+		case !p.held:
+			return fmt.Errorf("%s's own weapon and apparel were not held in its inventory while it wore practice gear: %#v", p.id, got)
+		case !p.noPractice:
+			return fmt.Errorf("%s left practice gear behind: %#v", p.id, got)
+		case !p.originals:
+			return fmt.Errorf("%s lost an original weapon or apparel piece: %#v", p.id, got)
+		case !killed && !p.restored:
+			return fmt.Errorf("%s's gear is not restored: %#v", p.id, got)
+		case !p.threatNull:
+			return fmt.Errorf("%s still had a meleeThreat when its job ended: %#v", p.id, got)
+		case p.exchanges > 12:
+			return fmt.Errorf("%s made %d exchanges, past the cap: %#v", p.id, p.exchanges, got)
+		case p.exchanges > 0 && !p.xp:
+			return fmt.Errorf("%s swung %d times and was paid no melee XP: %#v", p.id, p.exchanges, got)
+		}
+	}
+	by := map[string]sparringPawn{}
+	for _, p := range pawns {
+		by[p.id] = p
+	}
+	switch stage.scenario {
+	case "cap":
+		capped := 0
+		for _, p := range pawns {
+			if p.stop == "Pain" || p.stop == "Bleeding" {
+				return fmt.Errorf("%s stopped for %s with no pain possible: %#v", p.id, p.stop, got)
+			}
+			if p.stop == "Exchanges" && p.exchanges == 12 {
+				capped++
+			}
+		}
+		if capped == 0 {
+			return fmt.Errorf("no pawn ended at the 12-exchange cap: %#v", got)
+		}
+		if na.AsNumber(got["struck"]) == 0 {
+			return fmt.Errorf("no blow landed, so the struck pawn was never tested: %#v", got)
+		}
+	case "pain", "bleed":
+		want := map[string]string{"pain": "Pain", "bleed": "Bleeding"}[stage.scenario]
+		first, ok := by[injured]
+		if !ok || first.stop != want {
+			return fmt.Errorf("injured %q did not leave for %s: %#v", injured, want, got)
+		}
+		swings := 0
+		for _, p := range pawns {
+			if p.id != injured {
+				swings += p.exchanges
+			}
+		}
+		if stage.eligible > 2 && swings == 0 {
+			return fmt.Errorf("the rest of the bout did not fight on after %s left: %#v", injured, got)
+		}
+	case "draft", "kill":
+		victim, ok := by[hit]
+		if !ok || victim.exchanges < 2 {
+			return fmt.Errorf("%q was not hit mid-bout after swinging: %#v", hit, got)
+		}
+		if stage.scenario == "draft" && !victim.drafted {
+			return fmt.Errorf("%s was not drafted: %#v", hit, got)
+		}
+		swings := 0
+		for _, p := range pawns {
+			if p.id != hit {
+				swings += p.exchanges
+			}
+		}
+		if swings <= victim.exchanges {
+			return fmt.Errorf("the rest of the bout did not fight on after %s left: %#v", hit, got)
+		}
+	}
+	return nil
 }
 
 type sparringBout struct {

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using RimWorld;
 using Verse;
+using Verse.AI;
 
 namespace RimGovernor.Runtime
 {
@@ -16,6 +17,20 @@ namespace RimGovernor.Runtime
         public Thing Marker;
         public bool Arrived;
         public int Team;
+    }
+
+    // How one pawn's last spar job went: written by the driver's finish action on
+    // every end, read by the lab and by the later thought and statistics work.
+    public sealed class SparringSession
+    {
+        public int EndedTick;
+        public int Exchanges;
+        public SparringStop Stop;
+        // The pawn changed into practice gear (it reached the fighting toil).
+        public bool Swapped;
+        // How the job ended: Succeeded for a stop rule or a finished bout, an
+        // interrupt for a draft, a downing or a death.
+        public JobCondition Condition;
     }
 
     public sealed class Bout
@@ -53,8 +68,6 @@ namespace RimGovernor.Runtime
         // is dropped and sits out the cooldown.
         public const int InviteTicks = 900;
         public const int NoShowCooldownTicks = 1500;
-        // Placeholder stop rule until #2709 ends a bout on its own terms.
-        public const int FightTicks = 600;
 
         private static readonly ConditionalWeakTable<Map, SparringBouts> PerMap = new ConditionalWeakTable<Map, SparringBouts>();
 
@@ -62,6 +75,7 @@ namespace RimGovernor.Runtime
         private readonly List<Bout> bouts = new List<Bout>();
         private readonly Dictionary<int, int[]> previous = new Dictionary<int, int[]>();
         private readonly Dictionary<int, int> sitOutUntil = new Dictionary<int, int>();
+        private readonly Dictionary<int, SparringSession> sessions = new Dictionary<int, SparringSession>();
         private int nextBoutId = 1;
         private int upkeepTick = -1;
 
@@ -77,19 +91,32 @@ namespace RimGovernor.Runtime
 
         public static int Melee(Pawn pawn) => pawn.skills.GetSkill(SkillDefOf.Melee).Level;
 
-        // Who may spar: an adult colonist on the map, able to fight, unhurt, and
-        // below the unlocked tier's ceiling. Violent work disabled covers a
-        // pacifist trait and a violence restriction; a disabled Melee skill too.
-        public static bool Eligible(Pawn pawn)
+        // Who may take part: an adult colonist on the map, able to fight, not
+        // drafted or downed, and below the unlocked tier's ceiling. Violent work
+        // disabled covers a pacifist trait and a violence restriction; a disabled
+        // Melee skill too. A fighting pawn is held to this each tick; its injuries
+        // are the stop rule's (SparringStopRule), not this check's.
+        public static bool CanTakePart(Pawn pawn)
         {
             if (pawn == null || !pawn.Spawned || pawn.Dead || !pawn.IsColonist || pawn.Downed || pawn.Drafted) return false;
-            if (pawn.DevelopmentalStage != DevelopmentalStage.Adult || pawn.skills == null || pawn.equipment == null || pawn.inventory == null) return false;
+            if (pawn.DevelopmentalStage != DevelopmentalStage.Adult || pawn.skills == null || pawn.equipment == null || pawn.inventory == null || pawn.apparel == null) return false;
             if (pawn.WorkTagIsDisabled(WorkTags.Violent)) return false;
             var melee = pawn.skills.GetSkill(SkillDefOf.Melee);
-            if (melee.TotallyDisabled || melee.Level >= SparringRules.Ceiling) return false;
+            return !melee.TotallyDisabled && melee.Level < SparringRules.Ceiling;
+        }
+
+        // Who may join a bout: CanTakePart, and unhurt.
+        public static bool Eligible(Pawn pawn)
+        {
+            if (!CanTakePart(pawn)) return false;
             var health = pawn.health.hediffSet;
             return health.BleedRateTotal <= 0.01f && health.PainTotal <= 0.1f;
         }
+
+        // The pawn's last spar job, if it has had one since the game started.
+        public SparringSession LastSession(Pawn pawn) => sessions.TryGetValue(pawn.thingIDNumber, out var session) ? session : null;
+
+        public void Record(Pawn pawn, SparringSession session) { sessions[pawn.thingIDNumber] = session; }
 
         public Bout BoutOf(Pawn pawn) => bouts.FirstOrDefault(b => b.SlotOf(pawn) != null);
 
@@ -155,14 +182,22 @@ namespace RimGovernor.Runtime
             bout.LastArrivalTick = Now;
         }
 
-        // The spar job ended (any reason): the pawn gives up its place; a bout left
-        // below two pawns is over.
+        // The spar job ended (any reason): the pawn gives up its place. A bout still
+        // gathering is over below two pawns; a fighting one when fewer than two
+        // teams are left (a leaver's opponents are chosen afresh from whoever stands).
         public void Leave(Pawn pawn)
         {
             var bout = BoutOf(pawn);
             if (bout == null) return;
             bout.Slots.Remove(bout.SlotOf(pawn));
-            if (bout.Slots.Count < SparringFormation.MinSize) bouts.Remove(bout);
+            if (IsOver(bout)) bouts.Remove(bout);
+        }
+
+        private static bool IsOver(Bout bout)
+        {
+            return bout.State == BoutState.Gathering
+                ? bout.Slots.Count < SparringFormation.MinSize
+                : bout.Slots.Select(s => s.Team).Distinct().Count() < 2;
         }
 
         // The living, standing member of another team nearest the pawn; null when
@@ -185,7 +220,7 @@ namespace RimGovernor.Runtime
             upkeepTick = now;
             foreach (var bout in bouts.ToList())
             {
-                if (bout.State == BoutState.Gathering) Gather(bout, now); else Fight(bout, now);
+                if (bout.State == BoutState.Gathering) Gather(bout, now); else Fight(bout);
             }
         }
 
@@ -229,14 +264,16 @@ namespace RimGovernor.Runtime
             foreach (var id in ids) previous[id] = ids;
         }
 
-        private void Fight(Bout bout, int now)
+        // A fighter that can no longer take part (drafted, downed, dead, ceiling
+        // reached) drops out; the bout carries on or ends with whoever is left.
+        private void Fight(Bout bout)
         {
             foreach (var slot in bout.Slots.ToList())
             {
-                if (slot.Pawn.Spawned && !slot.Pawn.Dead && !slot.Pawn.Drafted) continue;
+                if (CanTakePart(slot.Pawn)) continue;
                 bout.Slots.Remove(slot);
             }
-            if (bout.Slots.Count < SparringFormation.MinSize || now - bout.FightStartTick >= FightTicks) bouts.Remove(bout);
+            if (IsOver(bout)) bouts.Remove(bout);
         }
     }
 }
