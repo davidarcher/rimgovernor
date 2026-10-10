@@ -134,15 +134,22 @@ namespace HomeBridge.BridgeTools
         {
             if (plans.TryGetValue(descriptor, out var plan))
             {
-                if (plan.Type != source.GetType())
+                if (plan.Type != source.GetType() && !(plan.Fields.Length == 0 && plan.Type.IsInstanceOfType(source)))
                     throw Fail(owner, field, $"{source.GetType().FullName} is not the mirrored class {plan.Clr} of {descriptor.Name}");
                 return plan;
             }
             var clr = Clr(descriptor);
             if (clr == null) throw Fail(owner, field, $"{descriptor.Name} has no clr_type option");
             var type = source.GetType();
-            if (type.FullName != clr) throw Fail(owner, field, $"{type.FullName} is not the mirrored class {clr} of {descriptor.Name}");
             var fields = descriptor.Fields.InFieldNumberOrder().ToArray();
+            if (type.FullName != clr)
+            {
+                // A fieldless extension point (DefModExtension) has no data to mirror, so a
+                // mod's own subclass of it (TrainingTier) mirrors as the empty base message.
+                var baseType = fields.Length == 0 ? BaseChain(type).FirstOrDefault(t => t.FullName == clr) : null;
+                if (baseType == null) throw Fail(owner, field, $"{type.FullName} is not the mirrored class {clr} of {descriptor.Name}");
+                return plans[descriptor] = new Plan { Clr = clr, Type = baseType };
+            }
             var readers = new Func<object, object?>[fields.Length];
             for (var i = 0; i < fields.Length; i++)
             {
@@ -164,6 +171,11 @@ namespace HomeBridge.BridgeTools
                 readers[i] = info.GetValue;
             }
             return plans[descriptor] = new Plan { Clr = clr, Type = type, Fields = fields, Readers = readers };
+        }
+
+        private static IEnumerable<Type> BaseChain(Type type)
+        {
+            for (var t = type.BaseType; t != null; t = t.BaseType) yield return t;
         }
 
         // The value of a dot-separated member path (fields or properties, any
