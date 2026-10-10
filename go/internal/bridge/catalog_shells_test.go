@@ -1,14 +1,15 @@
 package bridge
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
 
-func mortarShellSlice(t *testing.T) *recordedSlice {
-	return sliceRecorded(t, func(row *d.ThingDef) bool { return row.GetProjectileWhenLoaded() != "" }, "damage_defs")
+func mortarShellSlice(t *testing.T) *recordedrows.Slice {
+	return recordedrows.Take(t, func(row *d.ThingDef) bool { return row.GetProjectileWhenLoaded() != "" }, "damage_defs")
 }
 
 // TestMortarShellsFromDamageRows: the eight shell defs of Core,
@@ -26,14 +27,14 @@ func TestMortarShellsFromDamageRows(t *testing.T) {
 	}
 	// A second bomb-class shell inside the radius makes HE ambiguous: unset.
 	slice := mortarShellSlice(t)
-	slice.copyThing("Shell_HighExplosive", "Shell_Modded")
-	if got, err = slice.catalog().MortarShells(policy.MortarSafeRadius); err != nil || got.HE != "" || got.EMP != "Shell_EMP" {
+	slice.CopyThing("Shell_HighExplosive", "Shell_Modded")
+	if got, err = catalogOf(slice).MortarShells(policy.MortarSafeRadius); err != nil || got.HE != "" || got.EMP != "Shell_EMP" {
 		t.Fatalf("ambiguous HE: got %+v, %v", got, err)
 	}
 	// A shell whose damage def has no row is a contract error.
 	broken := mortarShellSlice(t)
-	broken.thing(broken.thing("Shell_HighExplosive").ProjectileWhenLoaded).Projectile.DamageDef = "Nope"
-	if _, err = broken.catalog().MortarShells(policy.MortarSafeRadius); err == nil {
+	broken.Thing(broken.Thing("Shell_HighExplosive").ProjectileWhenLoaded).Projectile.DamageDef = "Nope"
+	if _, err = catalogOf(broken).MortarShells(policy.MortarSafeRadius); err == nil {
 		t.Fatal("a shell with no damage def row was accepted")
 	}
 	var none *DefinitionCatalog

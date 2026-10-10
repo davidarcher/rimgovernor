@@ -62,8 +62,8 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoundsBuildingPlanner, *s
 		Consumers: []*o.FoodConsumer{{PawnId: proto.String("builder"), NutritionPerDay: proto.Float64(1.6)}},
 		Stocks: []*o.FoodStock{{Item: n.thing(&o.Thing{Thing: &o.EntityRef{Id: proto.String("meat"), DefName: proto.String("Meat_Muffalo")}, StackCount: proto.Int64(400), RotTicks: proto.Int64(2 * 60000), TemperatureC: proto.Float64(25), Roofed: proto.Bool(true), Room: &c.Ref{Id: proto.String("42")}}),
 			Nutrition: proto.Float64(20), Eaters: bridge.NewRefs([]string{"builder"})}}}}}
-	cooler200 := 200.0
-	n.putCatalog(bridge.FixtureDef{Name: "Cooler", ConstructionSkill: 4, Width: 1, Height: 1, PowerW: &cooler200})
+
+	setPowerW(n.buildable("Cooler", 4, 1, 1), 200)
 	n.buildings = &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: &o.BuildingsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: count(0)}}}
 	if cooler {
 		development := v.Development.GetObserved()

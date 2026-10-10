@@ -6,10 +6,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"os"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -42,31 +44,34 @@ type roundsNative struct {
 	// cells is the planning window the fake serves (ReadPlanningWindow);
 	// nil serves an empty window.
 	cells *bridge.PlanningWindow
-	// catalog is the definition catalog's rows; finished, when
-	// set, is the frame's finished research.
-	catalog  []bridge.FixtureDef
-	finished []string
+	// rows is the definition catalog's recorded rows, copied from the base on
+	// the first edit (catalogRows); decoded is their decode under decodedLoad
+	// and decodedRecipes, kept until the next edit. finished, when set, is the
+	// frame's finished research.
+	rows           *recordedrows.Slice
+	edited         bool
+	decoded        *bridge.DefinitionCatalog
+	decodedLoad    string
+	decodedRecipes []*d.RecipeDef
+	finished       []string
+	// framed is the frame tables' catalog for the def names framedNames.
+	framedMu    sync.Mutex
+	framed      *bridge.DefinitionCatalog
+	framedNames []string
 	// recipes are the def mirror's RecipeDef rows.
 	recipes []*d.RecipeDef
 	// buildings, pawns and things are the frame's keyed tables.
 	buildings bridge.Buildings
 	pawns     bridge.Pawns
 	things    bridge.Things
-	// itemDefs are the defs whose catalog facts a test sets (thingCatalog).
-	itemDefs map[string]itemDef
-	// races are the animal races whose catalog rows a test sets
-	// (thingCatalog), by def name.
-	races map[string]*d.RaceProperties
-	// mechs are the mechanoid races (thingCatalog), by def name.
-	mechs map[string]bool
 }
 
 func (n *roundsNative) FrameTables(context.Context, *c.Identity) (bridge.Tables, error) {
 	return bridge.Tables{Buildings: n.buildings, Pawns: n.pawns, Things: n.things, Catalog: n.thingCatalog()}, nil
 }
 
-// testDiningFurniture is what the fake catalog's dining rows derive to
-// (diningFixtureDefs): its chair, table and the foothold pin with the
+// testDiningFurniture is what the fake catalog's dining rows derive to: the
+// recorded DiningChair, Table1x2c and the foothold HorseshoesPin with the
 // six-cell lane of a watch stand distance of five.
 var testDiningFurniture = policy.DiningFurniture{
 	Chair: policy.InteriorPieceDef{Def: "DiningChair", Size: domain.Cell{X: 1, Z: 1}},
@@ -75,107 +80,64 @@ var testDiningFurniture = policy.DiningFurniture{
 	Lane:  6,
 }
 
-// diningFixtureDefs are the fake catalog's chair and table rows beside its
-// foothold pin: a sittable chair and a one-by-two eating surface.
-func diningFixtureDefs() []bridge.FixtureDef {
-	wood := []policy.Amount{{Resource: "WoodLog", Count: 20}}
-	return []bridge.FixtureDef{
-		{Name: "DiningChair", Sittable: true, Comfort: .7, Costs: wood},
-		{Name: "Table1x2c", Width: 1, Height: 2, EatSurface: true, Costs: wood},
-	}
-}
-
-// itemDef is what a test says about a def beyond the plain one: its base
-// deterioration and whether the game calls it medicine.
-type itemDef struct {
-	deterioration float32
-	medicine      bool
-}
-
-// thingCatalog is a decoded catalog with a plain def row for every def the
-// frame's things and buildings tables hold (a corpse's source race is a
-// humanlike "Human"), each with its game-computed flags and a base
-// deterioration from n.itemDefs: the def rows and stat values a food stock
-// and an upkeep item join to. A building def is a powered one too, so
-// a power row of any building resolves.
-func (n *roundsNative) thingCatalog() *bridge.DefinitionCatalog {
-	id := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
-	v := &o.DefinitionCatalog{Context: &c.ObservationContext{Identity: id, Tick: proto.Int64(1), NativeGeneration: proto.Uint64(1)},
-		TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}},
-		// The one joy building every fake colony can build: a watch-building
-		// pin that draws no power and needs no research, the recreation
-		// foothold.
-		ClassChains: []*o.ClassChain{{Name: "RimWorld.JoyGiver_WatchBuilding", Bases: []string{"RimWorld.JoyGiver"}}, {Name: "RimWorld.CompProperties_Power"},
-			{Name: "RimWorld.CompProperties_Battery", Bases: []string{"RimWorld.CompProperties_Power"}},
-			{Name: "RimWorld.CompPowerPlant"}, {Name: "RimWorld.CompPowerPlantSolar", Bases: []string{"RimWorld.CompPowerPlant"}}, {Name: "RimWorld.CompPowerPlantWind", Bases: []string{"RimWorld.CompPowerPlant"}}},
-		Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}}, RoomStatDefs: bridge.FixtureRoomStats(),
-			JobDefs:      []*d.JobDef{{DefName: "Play_Horseshoes", JoyGainRate: 1, JoyDuration: 1000}},
-			JoyGiverDefs: []*d.JoyGiverDef{{DefName: "Play_Horseshoes", GiverClass: "RimWorld.JoyGiver_WatchBuilding", ThingDefs: []string{"HorseshoesPin"}, JobDef: "Play_Horseshoes"}}},
-		StatValues: &o.DefStatTable{Stats: []string{bridge.StatDeteriorationRate}},
-		Constants:  &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver", WortDef: "Wort"}}
-	seen := map[string]bool{}
-	add := func(row *d.ThingDef) {
-		if row.DefName == "" || seen[row.DefName] {
-			return
-		}
-		seen[row.DefName] = true
-		item := n.itemDefs[row.DefName]
-		v.ThingDefs = append(v.ThingDefs, row)
-		v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: row.DefName, Medicine: item.medicine})
-		v.StatValues.Rows = append(v.StatValues.Rows, &o.DefStatRow{DefName: row.DefName, Stat: []int32{0}, Value: []float32{item.deterioration}})
-	}
-	add(&d.ThingDef{DefName: "HorseshoesPin", Building: &d.BuildingProperties{JoyKind: "Gaming_Dexterity"}})
-	add(&d.ThingDef{DefName: "Silver"})
-	// The power family's rows: each generator's power comp (negative draw, its
-	// plant class) and the battery's storage.
-	generator := func(name, class string, watts float32) {
-		add(&d.ThingDef{DefName: name, Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{CompClass: class, BasePowerConsumption: -watts}}}}}})
-	}
-	generator("SolarGenerator", "RimWorld.CompPowerPlantSolar", 1700)
-	generator("WindTurbine", "RimWorld.CompPowerPlantWind", 2300)
-	generator("WoodFiredGenerator", "RimWorld.CompPowerPlant", 1000)
-	generator("ChemfuelPoweredGenerator", "RimWorld.CompPowerPlant", 1000)
-	generator("GeothermalGenerator", "RimWorld.CompPowerPlant", 3600)
-	add(&d.ThingDef{DefName: "Battery", Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Battery{CompProperties_Battery: &d.CompProperties_Battery{StoredEnergyMax: 600, Efficiency: 0.5}}}}}})
-	add(&d.ThingDef{DefName: "Human", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_HUMANLIKE}})
-	for name, props := range n.races {
-		add(&d.ThingDef{DefName: name, Race: props})
-		for _, facts := range v.ThingFacts {
-			if facts.DefName == name {
-				facts.Race = &o.RaceFacts{Animal: true}
-			}
-		}
-	}
-	for name := range n.mechs {
-		add(&d.ThingDef{DefName: name, Race: &d.RaceProperties{}})
-		for _, facts := range v.ThingFacts {
-			if facts.DefName == name {
-				facts.Race = &o.RaceFacts{Mechanoid: true}
-			}
-		}
-	}
-	plain := func(name string) {
-		// A def a test gave a wattage (PowerW) draws it, as its row states.
-		var watts float32
-		for _, def := range n.catalog {
-			if def.Name == name && def.PowerW != nil {
-				watts = float32(*def.PowerW)
-			}
-		}
-		add(&d.ThingDef{DefName: name, Ingestible: &d.IngestibleProperties{SourceDef: "Human"},
-			Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{BasePowerConsumption: watts}}}}}})
-	}
+// thingNames are the names the frame's things and buildings tables hold.
+func (n *roundsNative) thingNames() []string {
+	var names []string
 	for row := range n.things.Values() {
-		plain(row.GetThing().GetDefName())
+		names = append(names, row.GetThing().GetDefName())
 	}
 	for row := range n.buildings.Values() {
-		plain(row.GetBuilding().GetDefName())
+		names = append(names, row.GetBuilding().GetDefName())
 	}
-	bridge.FixtureEnvironmentDefs(v)
-	catalog, err := bridge.DecodeDefinitionCatalog(v, id)
+	// A pawn's race row is its def's: only the races the game has.
+	for row := range n.pawns.Values() {
+		if name := row.GetPawn().GetDefName(); recordedrows.Recorded(name) {
+			names = append(names, name)
+		}
+	}
+	names = slices.DeleteFunc(names, func(name string) bool { return name == "" })
+	slices.Sort(names)
+	return slices.Compact(names)
+}
+
+// thingCatalog is a decoded catalog of the recorded rows of every def the
+// frame's things and buildings tables hold (a name the game does not have is a
+// copy of the recorded human corpse, whose source race is humanlike), beside
+// the foothold pin, the power family's generators and battery, and the human
+// race: the def rows and stat values a food stock and an upkeep item join to.
+func (n *roundsNative) thingCatalog() *bridge.DefinitionCatalog {
+	names := n.thingNames()
+	n.framedMu.Lock()
+	defer n.framedMu.Unlock()
+	if n.framed != nil && slices.Equal(n.framedNames, names) {
+		return n.framed
+	}
+	base := []string{"HorseshoesPin", "Silver", "SolarGenerator", "WindTurbine", "WoodFiredGenerator", "ChemfuelPoweredGenerator", "GeothermalGenerator", "Battery", "Human", "Corpse_Human"}
+	s := recordedrows.Take(recordedrows.Panic, recordedrows.Named(base...), "room_stat_defs", "weather_defs", "game_condition_defs", "biome_defs", "joy_giver_defs", "job_defs", "thing_category_defs")
+	for _, name := range base {
+		if n.rows != nil && n.rows.Has(name) {
+			s.Overwrite(n.rows, name)
+		}
+	}
+	for _, name := range names {
+		if recordedrows.Recorded(name) {
+			s.Add(name)
+			if n.rows != nil && n.rows.Has(name) {
+				s.Overwrite(n.rows, name)
+			}
+		} else if n.rows != nil && n.rows.Has(name) {
+			s.Import(n.rows, name)
+		} else {
+			s.CopyThing("Corpse_Human", name)
+		}
+	}
+	id := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
+	s.Wire.Context = &c.ObservationContext{Identity: id, Tick: proto.Int64(1), NativeGeneration: proto.Uint64(1)}
+	catalog, err := bridge.DecodeDefinitionCatalog(s.Wire, id)
 	if err != nil {
 		panic(err)
 	}
+	n.framed, n.framedNames = catalog, names
 	return catalog
 }
 
@@ -233,106 +195,29 @@ func (n *roundsNative) pawn(row *o.PawnState) *o.EntityRef {
 
 func (n *roundsNative) finishedResearch() []string { return n.finished }
 
-// DefinitionCatalog serves the fake's catalog rows under the asked load.
+// DefinitionCatalog serves the fake's catalog rows under the asked load, with
+// the def mirror's recipes when a test set them.
 func (n *roundsNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*bridge.DefinitionCatalog, error) {
-	// The fake's rows beside the one joy building every fake colony can
-	// build: a watch-building pin that draws no power and needs no research,
-	// the recreation foothold.
-	foothold := bridge.FixtureDef{Name: "HorseshoesPin", Joy: &bridge.FixtureJoy{Kind: "Gaming_Dexterity", WatchGiver: true}}
-	// The garments a gear census's loadout model may name, with the stat rows
-	// the model joins to.
-	skin := &bridge.FixtureApparel{Layers: []string{"OnSkin"}, Groups: []string{"Torso", "Arms"}, Tags: []string{"Worker", "Soldier"}, Sharp: .05}
-	cloth := []bridge.FixtureStuff{{Stuff: "Cloth"}}
-	garments := []bridge.FixtureDef{
-		{Name: "Apparel_BasicShirt", Apparel: skin, Stuffs: cloth},
-		{Name: "Apparel_Parka", Apparel: skin, Stuffs: cloth},
-		{Name: "Apparel_PowerArmor", Apparel: &bridge.FixtureApparel{Layers: []string{"Middle", "Shell"}, Groups: []string{"Torso", "Neck", "Shoulders", "Arms", "Legs"}, Tags: []string{"Soldier"}, Sharp: 1.2, Blunt: .5}},
-		{Name: "Apparel_ArmorRecon", Apparel: &bridge.FixtureApparel{Layers: []string{"Middle"}, Groups: []string{"Torso", "Neck"}, Tags: []string{"Soldier"}, Sharp: .9, Blunt: .3}},
-		{Name: "Apparel_FlakVest", Apparel: &bridge.FixtureApparel{Layers: []string{"Middle"}, Groups: []string{"Torso", "Neck"}, Tags: []string{"Soldier"}, Sharp: 1, Blunt: .36, Market: 223}},
-	}
-	named := map[string]bool{}
-	for _, def := range n.catalog {
-		named[def.Name] = true
-	}
-	defs := append([]bridge.FixtureDef{foothold}, diningFixtureDefs()...)
-	for _, g := range garments {
-		if !named[g.Name] {
-			defs = append(defs, g)
-		}
-	}
-	// The Core weapons every weapon score reads its rows from.
-	for _, w := range bridge.CoreWeaponFixtures() {
-		if !named[w.Name] {
-			defs = append(defs, w)
-		}
-	}
-	catalog := testCatalog(id, bridge.WithCoreFurniture(append(defs, n.catalog...))...)
-	shirt := &d.ApparelProperties{BodyPartGroups: []string{"Torso", "Arms"}, Layers: []string{"OnSkin"}, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}
-	for _, row := range []*d.ThingDef{{DefName: "Apparel_BasicShirt", Apparel: shirt}, {DefName: "Apparel_Parka", Apparel: shirt}, {DefName: "Bow_Short"}, {DefName: "WoodLog"}} {
-		if catalog.ThingDefs[row.DefName] == nil {
-			catalog.ThingDefs[row.DefName] = row
-		}
-	}
-	recorded, err := fullCatalogRows()
-	if err != nil {
-		return nil, err
-	}
-	for class, rows := range recorded {
-		catalog.Defs[class] = rows
-	}
-	if len(n.recipes) > 0 {
-		rows := map[string]proto.Message{}
-		for _, r := range n.recipes {
-			rows[r.DefName] = r
-		}
-		catalog.Defs[(&d.RecipeDef{}).ProtoReflect().Descriptor().FullName()] = rows
-	}
-	return catalog, nil
+	return n.definitions(id)
 }
 
-// testCatalog is a definition catalog of fixture defs under id's load.
-func testCatalog(id *c.Identity, rows ...bridge.FixtureDef) *bridge.DefinitionCatalog {
-	return bridge.FixtureCatalog(id.GetLoadToken(), rows...).FixtureItemFacts(policy.CoreItemFacts())
-}
-
-// madeOf is the stuff options of a def built from one stuff.
-func madeOf(stuff string) []observation.StuffOption {
-	return []observation.StuffOption{{Stuff: stuff}}
-}
-
-// testPieceShapes are the piece shapes of the Core furniture rows, which the
-// room observations of these tests carry as the projection would.
+// testPieceShapes are the piece shapes of the recorded Core furniture rows,
+// which the room observations of these tests carry as the projection would.
 var testPieceShapes = func() policy.PieceShapes {
-	shapes, err := bridge.FixtureCatalog("load", bridge.CoreFurnitureFixtures()...).PieceShapes()
+	catalog, err := sharedBaseCatalog("load")
+	if err != nil {
+		panic(err)
+	}
+	shapes, err := catalog.PieceShapes()
 	if err != nil {
 		panic(err)
 	}
 	return shapes
 }()
 
-// buildable is a plain buildable fixture def of the given construction skill
-// and size.
-func buildable(name string, skill, width, height int32) bridge.FixtureDef {
-	return bridge.FixtureDef{Name: name, ConstructionSkill: skill, Width: width, Height: height}
-}
-
-// putCatalog replaces or appends catalog rows by name.
-func (n *roundsNative) putCatalog(rows ...bridge.FixtureDef) {
-	for _, row := range rows {
-		*n.catalogRow(row.Name) = row
-	}
-}
-
-// catalogRow is a catalog row by name, appended when absent; the pointer is
-// good until the next append.
-func (n *roundsNative) catalogRow(name string) *bridge.FixtureDef {
-	for i := range n.catalog {
-		if n.catalog[i].Name == name {
-			return &n.catalog[i]
-		}
-	}
-	n.catalog = append(n.catalog, bridge.FixtureDef{Name: name})
-	return &n.catalog[len(n.catalog)-1]
+// madeOf is the stuff options of a def built from one stuff.
+func madeOf(stuff string) []observation.StuffOption {
+	return []observation.StuffOption{{Stuff: stuff}}
 }
 
 // ReadPlanningWindow serves the fake's planning window whatever region is
@@ -557,7 +442,7 @@ func TestRounderUsesConfiguredFieldReserve(t *testing.T) {
 	v.Issues = v.Issues[1:] // Complete native farm census replaces its unavailable issue.
 	v.Farms = []*o.FarmFacts{{Zone: &c.Ref{Id: proto.String("farm")}, Crop: proto.String("Plant_Rice"), EdibleCrop: proto.Bool(true), PlantedCells: proto.Uint32(73), FertilePlantedCells: proto.Uint32(73), UsableCells: proto.Uint32(73),
 		Temperature: proto.Float64(20), MinGrowthTemperature: proto.Float64(0), MinOptimalGrowthTemperature: proto.Float64(10), MaxOptimalGrowthTemperature: proto.Float64(30), MaxGrowthTemperature: proto.Float64(42)}}
-	n.catalog[0] = bridge.FixtureDef{Name: "Plant_Rice", Plant: &bridge.FixturePlant{GrowDays: 3, HarvestNutrition: 1}}
+	n.rice()
 	for _, reserve := range []float64{7, 14, 7} {
 		r.policy.FoodTargetDays = reserve
 		out, err := r.Step(context.Background())
@@ -613,7 +498,8 @@ func colonyCoreNative(t *testing.T) *roundsNative {
 		t.Fatal(err)
 	}
 	n.cells = fixtureCells(t)
-	n.catalog = []bridge.FixtureDef{{Name: "Wall", Stuffs: []bridge.FixtureStuff{{Stuff: "WoodLog", Costs: []policy.Amount{{Resource: "WoodLog", Count: 5}}}}}}
+	n.def("Wall")
+	n.onlyStuff("Wall", "WoodLog")
 	return n
 }
 

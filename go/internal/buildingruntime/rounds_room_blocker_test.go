@@ -34,7 +34,7 @@ func (n *refusingNative) PreviewBuilding(ctx context.Context, action domain.Acti
 func commitFurniture(t *testing.T, refuse string) (RoundsBuildingResult, string) {
 	t.Helper()
 	p, db, base, _ := refrigerationFixture(t, false)
-	base.putCatalog(bridge.FixtureDef{Name: "PenMarker", Width: 1, Height: 1})
+	base.buildable("PenMarker", 0, 1, 1)
 	p.native = &refusingNative{pricedNative: &pricedNative{refrigerationNative: base, available: 100}, def: refuse, blocker: policy.PlacementBlocker{Category: "Building", DefName: "Wall", Blueprint: true}}
 	ctx := context.Background()
 	state := p.reviewer.player.session.State()

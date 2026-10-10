@@ -17,10 +17,8 @@ func TestRoundsPowerCensusReachesDurableNeed(t *testing.T) {
 	t.Parallel()
 	r, _, _, _, native := roundsFixture(t)
 	v := native.reply.GetObserved()
-	watts := 200.0
-	consumer := buildable("PowerConsumer", 4, 1, 1)
-	consumer.PowerW = &watts
-	native.putCatalog(consumer)
+	consumer := native.invent("PowerConsumer", "StandingLamp")
+	setPowerW(consumer, 200)
 	for _, phase := range []string{"no-consumers", "disconnected", "powered", "unknown"} {
 		p := &o.DevelopmentFacts{}
 		want := domain.FindingMet

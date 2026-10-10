@@ -118,13 +118,6 @@ func ApparelIsArmor(a *d.ApparelProperties) bool {
 	return slices.Contains(tags, "Soldier") && !slices.Contains(tags, "Worker")
 }
 
-// FixtureItemFacts fixes the catalog's item facts for a test catalog that
-// stands in for a loaded one; a decoded catalog derives them itself.
-func (catalog *DefinitionCatalog) FixtureItemFacts(items policy.ItemFacts) *DefinitionCatalog {
-	catalog.itemsOnce.Do(func() { catalog.items = items })
-	return catalog
-}
-
 // stuffFactor is the stuff's stat factor, 1 when it has none.
 func stuffFactor(props *d.StuffProperties, stat string) float64 {
 	for _, mod := range props.StatFactors {

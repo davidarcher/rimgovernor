@@ -8,7 +8,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -112,10 +111,9 @@ func TestRoundsShelterLadderSpotsBedrollsBeds(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterSiteFixture(t)
 	ctx := context.Background()
-	n.catalogRow("Bed").Research = []string{"Beds"}
-	bedroll := buildable(policy.SleepingBedrollDefinition, 0, 1, 2)
-	bedroll.Stuffs = []bridge.FixtureStuff{{Stuff: "WoodLog"}}
-	n.putCatalog(bedroll)
+	n.def("Bed").ResearchPrerequisites = []string{"Beds"}
+	n.buildable(policy.SleepingBedrollDefinition, 0, 1, 2)
+	n.madeOf(policy.SleepingBedrollDefinition, "WoodLog")
 	step := func(method domain.MethodID) store.PlanState {
 		t.Helper()
 		result, err := r.Step(ctx)
@@ -148,7 +146,7 @@ func TestRoundsShelterLadderSpotsBedrollsBeds(t *testing.T) {
 	// Bed becomes buildable: the standing bedrolls are packed, not deleted.
 	settleBunks(t, r, db, n)
 	standBunks(n, standingBunks{policy.SleepingBedrollDefinition, slots})
-	n.catalogRow("Bed").Research = nil
+	n.def("Bed").ResearchPrerequisites = nil
 	for _, action := range step(shelterClearBedsMethod).Spec.Actions() {
 		if pack, ok := action.UninstallBuilding(); !ok || pack.Definition() != policy.SleepingBedrollDefinition {
 			t.Fatal("not a bedroll pack", action)
@@ -209,7 +207,7 @@ func TestRoundsShelterBedsRefusedFallsThroughToShell(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterSiteFixture(t)
 	ctx := context.Background()
-	n.catalogRow("Bed").Research = []string{"Beds"}
+	n.def("Bed").ResearchPrerequisites = []string{"Beds"}
 	first, err := r.Step(ctx)
 	if err != nil || first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first, err)

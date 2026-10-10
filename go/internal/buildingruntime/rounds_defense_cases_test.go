@@ -176,6 +176,11 @@ func TestDefenseSnapshotMechWithoutLayoutIsSquadDefense(t *testing.T) {
 	if step.CombatPawns, err = editRecordedPawns(step.CombatPawns, func(p map[string]any) {
 		if hostile, _ := p["hostile"].(bool); hostile {
 			p["kindDefName"], p["humanlike"], p["mechanoid"] = "Mech_Scyther", false, true
+			// The catalog's race row is the pawn's def's, so the raider is a
+			// Scyther by def too (the old fake called its def a mechanoid).
+			if pawn, ok := p["pawn"].(map[string]any); ok {
+				pawn["defName"] = "Mech_Scyther"
+			}
 		}
 	}); err != nil {
 		t.Fatal(err)

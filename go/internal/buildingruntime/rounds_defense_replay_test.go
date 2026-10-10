@@ -32,22 +32,14 @@ type defenseReplayNative struct {
 func (n *defenseReplayNative) combatMirror() []*mp.CombatPawn       { return n.frame.mirror }
 func (n *defenseReplayNative) combatMortars() []*mp.CombatMortarRow { return n.frame.mortars }
 
-func (n *defenseReplayNative) recordedWeaponDefs() []bridge.FixtureDef { return n.weapons.fixtures() }
+func (n *defenseReplayNative) recordedGuns() map[string]float32 { return n.weapons.guns() }
 
 func (n *defenseReplayNative) FrameThings(context.Context, *c.Identity) (bridge.Things, error) {
 	return n.weapons.things(), nil
 }
 
 func (n *defenseReplayNative) DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error) {
-	catalog := bridge.FixtureCatalog("load", append(bridge.CoreWeaponFixtures(), n.weapons.fixtures()...)...)
-	recorded, err := fullCatalogRows()
-	if err != nil {
-		return nil, err
-	}
-	for class, rows := range recorded {
-		catalog.Defs[class] = rows
-	}
-	return catalog, nil
+	return decodeRows(weaponRows(n.weapons.guns()), "load")
 }
 
 func (n *defenseReplayNative) context(raw []byte) *c.ObservationContext {

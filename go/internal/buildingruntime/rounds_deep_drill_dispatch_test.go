@@ -66,7 +66,7 @@ func deepDrillDispatchFixture(t *testing.T, existing bool, drills []*o.DeepDrill
 		},
 		Drills: drills,
 	}}}
-	sleeping.catalog = []bridge.FixtureDef{buildable("DeepDrill", 0, 1, 2)}
+	sleeping.buildable("DeepDrill", 0, 1, 2)
 	for i := range sleeping.cells.Cells {
 		cell := &sleeping.cells.Cells[i]
 		cell.Roof, cell.Roofed, cell.Indoors = domain.Unknown[string](), domain.Known(false), domain.Known(false)

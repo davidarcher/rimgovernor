@@ -46,25 +46,15 @@ func (n *workshopNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge
 // player-buildable benches that make the hosts the test sets: a host is
 // available when every research project it lists is finished.
 func (n *workshopNative) DefinitionCatalog(ctx context.Context, id *c.Identity) (*bridge.DefinitionCatalog, error) {
-	catalog, recipes := n.catalog, n.recipes
-	defer func() { n.catalog, n.recipes = catalog, recipes }()
-	n.catalog, n.recipes = slices.Clone(catalog), slices.Clone(recipes)
-	named := map[string]bool{}
-	for _, def := range n.catalog {
-		named[def.Name] = true
-	}
+	recipes := n.recipes
+	defer func() { n.recipes = recipes }()
+	n.recipes = slices.Clone(recipes)
 	for _, host := range n.hosts {
 		row := &d.RecipeDef{DefName: host.Definition, RecipeUsers: host.Benches, ResearchPrerequisites: host.Research}
 		for _, product := range host.Products {
 			row.Products = append(row.Products, &d.Opt_ThingDefCountClass{Value: &d.ThingDefCountClass{ThingDef: string(product), Count: 1}})
 		}
 		n.recipes = append(n.recipes, row)
-		for _, bench := range host.Benches {
-			if !named[bench] {
-				named[bench] = true
-				n.catalog = append(n.catalog, bridge.FixtureDef{Name: bench, BillWork: "Crafting"})
-			}
-		}
 	}
 	return n.roundsNative.DefinitionCatalog(ctx, id)
 }
@@ -159,6 +149,7 @@ func workshopFixture(t *testing.T) (*RoundsBuildingPlanner, *playerFakeSession, 
 	base, _, session, _, native := sleepingFixture(t)
 	source := &workshopNative{sleepingNative: native, hosts: []policy.RecipeHost{clubRecipe}}
 	native.setFloors(map[policy.Resource]int64{"MeleeWeapon_Club": 5})
+	native.catalogRows().Add("MedicineHerbal") // its medical reserve is the target a floorless review still holds
 	native.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("MeleeWeapon_Club"), Units: proto.Int64(0)}, {DefName: proto.String("WoodLog"), Units: proto.Int64(400)}, {DefName: proto.String("MedicineHerbal"), Units: proto.Int64(1000)}}
 	planner, err := NewRoundsWorkshopPlanner(base.reviewer, source)
 	if err != nil {

@@ -107,7 +107,12 @@ func sleepingFixtureAt(t *testing.T, plan func(*Rounder, domain.Cell)) (*RoundsB
 func sleepingFacts(n *roundsNative) {
 	v := n.reply.GetObserved()
 	v.Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(2)}
-	n.catalog = []bridge.FixtureDef{buildable("SleepingSpot", 0, 1, 2)}
+	// The site starts with the sleeping spot alone: a test that raises a ring
+	// names the wall and door it builds from.
+	if n.catalogRows().Has("Wall") {
+		n.rows.Drop("Wall")
+	}
+	n.buildable("SleepingSpot", 0, 1, 2)
 	cells := n.cells
 	cells.Region = policy.Rectangle{Width: 5, Height: 5}
 	cells.Cells = nil
@@ -171,7 +176,7 @@ func TestRoundsSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 			r, db, session, _, n := bedroomFixture(t)
 			switch change {
 			case "prerequisite":
-				n.catalog[0].ConstructionSkill = 20 // beyond every builder
+				n.def("SleepingSpot").ConstructionSkillPrerequisite = 20 // beyond every builder
 			case "unknown-room":
 				for i := range n.cells.Cells {
 					n.cells.Cells[i].Indoors = domain.Unknown[bool]()
@@ -372,4 +377,11 @@ func TestRoundsSleepingKeepsDoorwayAislesClear(t *testing.T) {
 			}
 		}
 	}
+}
+
+// oneCell makes the fake preview of a 1x1 def cover its anchor alone: the
+// default footprint is the 1x2 of a bunk.
+func oneCell(p *bridge.BuildingPreview) {
+	b, _ := p.Preview.Action.Building()
+	p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 }

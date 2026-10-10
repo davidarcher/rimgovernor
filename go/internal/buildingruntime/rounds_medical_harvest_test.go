@@ -31,6 +31,7 @@ func TestMedicalPlannerHarvestsWildHealrootWithoutBench(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, _, _, native := roundsFixture(t)
+	native.catalogRows().Add("MedicineHerbal")
 	submitted := playerPlan(t, db)
 	for _, action := range submitted.Spec.Actions() {
 		if _, err := db.Cancel(ctx, submitted.Spec.ID(), action.ID()); err != nil {

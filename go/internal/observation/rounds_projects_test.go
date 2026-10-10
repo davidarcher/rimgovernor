@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
@@ -20,26 +21,25 @@ import (
 
 type projectSource struct {
 	*colonySource
-	// extra is the definition catalog the frame carries, nil for none.
-	extra   []bridge.FixtureDef
+	// rows are the recorded rows of the definition catalog the frame carries,
+	// nil for none.
+	rows    *recordedrows.Slice
 	onFrame func()
 	frame   bridge.RoundsFrame
 }
 
-// diningFixtureDefs are the chair, table and foothold pin the dining
-// furniture rules need in a fixture catalog.
-func diningFixtureDefs() []bridge.FixtureDef {
-	wood := []policy.Amount{{Resource: "WoodLog", Count: 20}}
-	return []bridge.FixtureDef{
-		{Name: "Chair", Sittable: true, Comfort: .5, Costs: wood},
-		{Name: "Table", Width: 1, Height: 2, EatSurface: true, Costs: wood},
-		{Name: "Pin", Joy: &bridge.FixtureJoy{Kind: "Gaming_Dexterity", WatchGiver: true}},
-	}
-}
-
-// testCatalog is a definition catalog of fixture defs.
-func testCatalog(rows ...bridge.FixtureDef) *bridge.DefinitionCatalog {
-	return bridge.FixtureCatalog("load", rows...)
+// diningRows are the recorded rows the dining furniture rules need: the
+// chair, the table and the foothold pin, with the def sets they read.
+func diningRows(t testing.TB, names ...string) *recordedrows.Slice {
+	t.Helper()
+	s := recordedrows.Take(t, recordedrows.Named("DiningChair", "Table1x2c", "HorseshoesPin",
+		"Bed", "Bedroll", "SleepingSpot", "DoubleBed", "BedrollDouble", "RoyalBed", "DoubleSleepingSpot", "HospitalBed", "Door", "AnimalFlap",
+		"AnimalSleepingSpot", "AnimalBed", "EndTable", "Dresser", "StandingLamp", "Heater", "Cooler", "ToolCabinet", "ShelfSmall", "Campfire",
+		"CraftingSpot", "PartySpot", "PassiveCooler", "VitalsMonitor", "Sarcophagus", "FueledStove", "ElectricStove",
+		"TableStonecutter", "ElectricSmithy", "HandTailoringBench", "FabricationBench", "TableButcher", "SimpleResearchBench", "HiTechResearchBench"),
+		"stat_defs", "room_stat_defs", "thing_category_defs", "joy_giver_defs", "job_defs", "work_giver_defs", "damage_defs", "maneuver_defs")
+	s.Add(names...)
+	return s
 }
 
 // ReadRoundsFrame is the frame over the colony reply, with the sections
@@ -55,8 +55,8 @@ func (s *projectSource) ReadRoundsFrame(context.Context, *c.Identity) (bridge.Ro
 	if frame.Emergency.Context == nil {
 		frame.Emergency = bridge.EmergencyObservation{Context: observed.Context}
 	}
-	if s.extra != nil {
-		frame.Catalog = testCatalog(bridge.WithCoreFurniture(s.extra)...)
+	if s.rows != nil {
+		frame.Catalog = decodeRows(s.rows)
 	}
 	return frame, nil
 }
@@ -75,9 +75,20 @@ func TestRoundsProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			identity := func() *l.IdentityReply {
 				return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}}
 			}
-			wall := bridge.FixtureDef{Name: "Wall", Stuffs: []bridge.FixtureStuff{{Stuff: "WoodLog", Costs: []policy.Amount{{Resource: "WoodLog", Count: 5}}}}}
-			row := bridge.FixtureDef{Name: "SurgeryTable", ConstructionSkill: 8, Research: []string{"Medicine"}}
-			s := &projectSource{colonySource: &colonySource{reply: base}, extra: append([]bridge.FixtureDef{wall, row}, diningFixtureDefs()...)}
+			rows := diningRows(t)
+			rows.Add("Wall", "WoodLog")
+			// A furniture row may have pulled Wall in with every stuff: leave it wood.
+			keep := rows.Wire.StatValues.Rows[:0]
+			for _, row := range rows.Wire.StatValues.Rows {
+				if row.GetDefName() != "Wall" || row.GetStuffName() == "WoodLog" {
+					keep = append(keep, row)
+				}
+			}
+			rows.Wire.StatValues.Rows = keep
+			if phase != "uncataloged" {
+				rows.CopyThing("HospitalBed", "SurgeryTable").ResearchPrerequisites = []string{"Medicine"}
+			}
+			s := &projectSource{colonySource: &colonySource{reply: base}, rows: rows}
 			expected, err := DecodeIdentity(identity())
 			if err != nil {
 				t.Fatal(err)
@@ -93,8 +104,6 @@ func TestRoundsProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 				s.onFrame = func() { clock.Advance(2 * time.Second) }
 			case "cancelled":
 				s.onFrame = cancel
-			case "uncataloged":
-				s.extra[1].Name = "Door"
 			}
 			out, err := observeRoundsUnowned(ctx, s, clock, expected, time.Second, names...)
 			if phase == "expired" || phase == "cancelled" {

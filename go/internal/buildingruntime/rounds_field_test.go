@@ -38,7 +38,7 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	v.FoodSupply.GetObserved().Stocks = []*o.FoodStock{stock}
 	v.Forecast.GetObserved().CombinedFoodSupply.Stocks = []*o.FoodStock{proto.Clone(stock).(*o.FoodStock)}
 	v.Farms = nil
-	v.Biome = proto.String("FixtureLitBiome")
+	v.Biome = proto.String("TemperateForest")
 	v.FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(60), GrowingDaysRemaining: proto.Float64(60), GrowingDaysUntil: proto.Float64(0), NonGrowingDays: proto.Float64(0), SowingNow: proto.Bool(true)}
 	issues := v.Issues[:0]
 	for _, i := range v.Issues {
@@ -48,7 +48,7 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	}
 	v.Issues = issues
 	planning := v.Planning.GetObserved()
-	n.catalog = []bridge.FixtureDef{{Name: "Plant_Rice", Plant: &bridge.FixturePlant{Edible: true, GrowMinGlow: .5, GrowDays: 3, FertilityMin: .7, FertilitySensitivity: 1, HarvestNutrition: 1}}}
+	n.rice()
 	planning.Crops = []*o.EdibleCrop{{DefName: proto.String("Plant_Rice"), NutritionDemandPerDay: proto.Float64(5), DietAllowed: proto.Bool(true)}}
 	for i := range n.cells.Cells {
 		cell := &n.cells.Cells[i]

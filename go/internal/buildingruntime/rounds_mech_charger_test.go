@@ -43,9 +43,7 @@ type chargerDispatch struct {
 // Go code knows.
 func mechChargerFixture(t *testing.T, chargers []*o.MechChargerState, mechanitor bool) chargerDispatch {
 	t.Helper()
-	charger := buildable("Recharger_Test", 0, 1, 2)
-	charger.MechCharger = true
-	base, db, sleeping, source, review := biotechPlannerFixture(t, policy.EnsureMechCharger, &o.BiotechColonyFacts{Chargers: chargers}, charger, mechanitor)
+	base, db, sleeping, source, review := biotechPlannerFixture(t, policy.EnsureMechCharger, &o.BiotechColonyFacts{Chargers: chargers}, "Recharger_Test", "BasicRecharger", mechanitor)
 	planner, err := NewRoundsMechChargerPlanner(base.reviewer, source)
 	if err != nil {
 		t.Fatal(err)
@@ -61,13 +59,15 @@ func mechChargerFixture(t *testing.T, chargers []*o.MechChargerState, mechanitor
 // biotechPlannerFixture is a two-colonist colony with the given Biotech
 // colony facts and a catalog holding def (and a wall) under a name no Go
 // code knows; the first rounds has run with goal's method enabled.
-func biotechPlannerFixture(t *testing.T, goal policy.ConcernID, facts *o.BiotechColonyFacts, def bridge.FixtureDef, mechanitor bool) (*RoundsBuildingPlanner, *store.Store, *sleepingNative, chargerNative, store.Rounds) {
+func biotechPlannerFixture(t *testing.T, goal policy.ConcernID, facts *o.BiotechColonyFacts, def, like string, mechanitor bool) (*RoundsBuildingPlanner, *store.Store, *sleepingNative, chargerNative, store.Rounds) {
 	t.Helper()
 	base, db, _, _, sleeping := sleepingFixture(t)
 	base.reviewer.methods = domain.Known([]policy.ConcernID{goal})
 	v := sleeping.reply.GetObserved()
 	v.Biotech = &o.BiotechSection{Outcome: &o.BiotechSection_Observed{Observed: facts}}
-	sleeping.catalog = []bridge.FixtureDef{def, buildable("Wall", 0, 1, 1)}
+	sleeping.invent(def, like)
+	sleeping.buildable(def, 0, 1, 2)
+	sleeping.buildable("Wall", 0, 1, 1)
 	for i := range sleeping.cells.Cells {
 		sleeping.cells.Cells[i].Doorway = domain.Known(false)
 	}

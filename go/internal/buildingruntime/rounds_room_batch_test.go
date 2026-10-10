@@ -47,7 +47,9 @@ func admittedBuilds(t *testing.T, available int64) []domain.Building {
 func admittedActions(t *testing.T, available int64) ([]domain.Building, []domain.Fact[domain.ConstructionTier]) {
 	t.Helper()
 	p, db, base, _ := refrigerationFixture(t, false)
-	base.putCatalog(bridge.FixtureDef{Name: "Fence", ConstructionSkill: 0, Width: 1, Height: 1}, bridge.FixtureDef{Name: "FenceGate", ConstructionSkill: 0, Width: 1, Height: 1}, bridge.FixtureDef{Name: "PenMarker", Width: 1, Height: 1})
+	for _, name := range []string{"Fence", "FenceGate", "PenMarker"} {
+		base.buildable(name, 0, 1, 1)
+	}
 	p.native = &pricedNative{refrigerationNative: base, available: available}
 	ctx := context.Background()
 	state := p.reviewer.player.session.State()

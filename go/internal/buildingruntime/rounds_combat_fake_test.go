@@ -217,9 +217,9 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 // decode is decodeCombatWithCatalog with the fake's frame things table, which
 // the live read takes from the held frame.
 func (f framed) decode(ctx context.Context, identity *c.Identity, frame *o.BundleSnapshot) (bridge.Combat, error) {
-	var extra []bridge.FixtureDef
-	if source, ok := f.legacyDefense.(interface{ recordedWeaponDefs() []bridge.FixtureDef }); ok {
-		extra = source.recordedWeaponDefs()
+	var extra map[string]float32
+	if source, ok := f.legacyDefense.(interface{ recordedGuns() map[string]float32 }); ok {
+		extra = source.recordedGuns()
 	}
 	// The cut frame carries the primary weapons' rows of the things table.
 	things, err := frameThings(ctx, f.legacyDefense, identity)
@@ -232,7 +232,7 @@ func (f framed) decode(ctx context.Context, identity *c.Identity, frame *o.Bundl
 			frame.Things.Things = append(frame.Things.Things, held)
 		}
 	}
-	return decodeCombatWithCatalog(frame, extra...)
+	return decodeCombatWithCatalog(frame, extra)
 }
 
 // scopeRefs scopes every CAS snapshot ref in m to the frame's context, as

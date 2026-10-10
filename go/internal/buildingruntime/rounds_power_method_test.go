@@ -45,11 +45,9 @@ func powerFixture(t *testing.T, conduit bool) (*RoundsBuildingPlanner, *store.St
 		development.Power = append(development.Power, row("generator", "WoodFiredGenerator", 4))
 	}
 	v.Development = &o.DevelopmentSection{Outcome: &o.DevelopmentSection_Observed{Observed: development}}
-	n.catalog = nil
-	lampW, generatorW := 200.0, -1000.0
-	lamp, generator := buildable("StandingLamp", 4, 1, 1), buildable("WoodFiredGenerator", 4, 1, 1)
-	lamp.PowerW, generator.PowerW = &lampW, &generatorW
-	n.putCatalog(buildable("HiddenConduit", 4, 1, 1), lamp, generator)
+	setPowerW(n.buildable("StandingLamp", 4, 1, 1), 200)
+	setPowerW(n.buildable("WoodFiredGenerator", 4, 1, 1), -1000)
+	n.buildable("HiddenConduit", 4, 1, 1)
 	pawn := policy.WorkPawn{ID: "builder", Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(true), Ranged: domain.Known(false)}
 	var skills []policy.WorkSkill
 	for _, name := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {

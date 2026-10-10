@@ -42,7 +42,8 @@ func sleepingUpkeepFixture(t *testing.T) (*RoundsSleepingUpkeepPlanner, *store.S
 	// The shelter stands (both beds indoors): MaintainHousing is on its
 	// bedroom phase.
 	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(2), proto.Uint32(2)
-	native.putCatalog(buildable("Bed", 0, 1, 2))
+	native.buildable("Bed", 0, 1, 2)
+	native.madeOf("Bed", "WoodLog")
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
 	}
@@ -283,6 +284,7 @@ func TestSleepingUpkeepBuildsBedInWarmHostingRoom(t *testing.T) {
 	native.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
 		b, _ := p.Preview.Action.Building()
 		p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
+		p.Preview.MadeFromStuff = domain.Known(true)
 	}
 	result, err := planner.Step(ctx)
 	if err != nil || result.Verdict != BuildingReasonAdmitted || native.previews == 0 {

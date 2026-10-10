@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
 	"reflect"
 	"slices"
 	"testing"
@@ -10,9 +11,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func furnitureOf(t *testing.T, slice *recordedSlice) policy.RoomFurniture {
+func furnitureOf(t *testing.T, slice *recordedrows.Slice) policy.RoomFurniture {
 	t.Helper()
-	shapes, err := slice.catalog().PieceShapes()
+	shapes, err := catalogOf(slice).PieceShapes()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,8 +42,8 @@ func TestRoomFurnitureRanksBedsByComfortPerCost(t *testing.T) {
 	}
 	// A cheaper bed with the same comfort outranks the dearer one, whatever
 	// their names say.
-	slice.copyThing("Bed", "ZCot")
-	slice.scaleCosts("ZCot", 1, 4)
+	slice.CopyThing("Bed", "ZCot")
+	slice.ScaleCosts("ZCot", 1, 4)
 	if got := furnitureOf(t, slice).PrimaryBed(); got != "ZCot" {
 		t.Errorf("primary bed %q, want the cheaper ZCot", got)
 	}
@@ -69,15 +70,15 @@ func TestRoomFurnitureFacilitiesAreChosenFromTheLinks(t *testing.T) {
 	}
 	// A better table the bed does not link is ignored; one it links with more
 	// offset per cost wins.
-	fancy := slice.copyThing("EndTable", "FancyTable")
-	slice.scaleCosts("FancyTable", 1, 4)
+	fancy := slice.CopyThing("EndTable", "FancyTable")
+	slice.ScaleCosts("FancyTable", 1, 4)
 	for _, offset := range exactCompOf[*d.CompProperties_Facility](t, fancy).GetStatOffsets() {
 		offset.GetValue().Value *= 10
 	}
 	if got := furnitureOf(t, slice).EndTable.Def; got != "EndTable" {
 		t.Errorf("end table %q, an unlinked facility must not win", got)
 	}
-	links := exactCompOf[*d.CompProperties_AffectedByFacilities](t, slice.thing("Bed"))
+	links := exactCompOf[*d.CompProperties_AffectedByFacilities](t, slice.Thing("Bed"))
 	links.LinkableFacilities = append(links.LinkableFacilities, "FancyTable")
 	if got := furnitureOf(t, slice).EndTable.Def; got != "FancyTable" {
 		t.Errorf("end table %q, want the linked better one", got)
@@ -100,8 +101,8 @@ func TestRoomFurnitureHeaterIsChosenByTempControlRule(t *testing.T) {
 	if got := furnitureOf(t, slice).Heater; got != "Heater" {
 		t.Errorf("heater %q", got)
 	}
-	slice.copyThing("Heater", "ZRadiator")
-	slice.scaleCosts("ZRadiator", 1, 4)
+	slice.CopyThing("Heater", "ZRadiator")
+	slice.ScaleCosts("ZRadiator", 1, 4)
 	if got := furnitureOf(t, slice).Heater; got != "ZRadiator" {
 		t.Errorf("heater %q, want the cheaper ZRadiator", got)
 	}
@@ -114,8 +115,8 @@ func TestRoomFurnitureAnimalFlapIsTheDoorRoamersCanOpen(t *testing.T) {
 	if got := furnitureOf(t, slice).AnimalFlap; got != "AnimalFlap" {
 		t.Errorf("animal flap %q", got)
 	}
-	slice.copyThing("AnimalFlap", "ZCurtain")
-	slice.drop("AnimalFlap")
+	slice.CopyThing("AnimalFlap", "ZCurtain")
+	slice.Drop("AnimalFlap")
 	if got := furnitureOf(t, slice).AnimalFlap; got != "ZCurtain" {
 		t.Errorf("animal flap %q, want the renamed ZCurtain", got)
 	}

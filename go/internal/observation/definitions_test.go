@@ -3,7 +3,6 @@ package observation
 import (
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -14,11 +13,7 @@ import (
 // crop takes the map's demand and diet rows, and a name the catalog lacks
 // is unavailable.
 func TestDefinitionsResolveAgainstTheCatalog(t *testing.T) {
-	catalog := testCatalog(
-		bridge.FixtureDef{Name: "Wall"},
-		bridge.FixtureDef{Name: "Battery", Research: []string{"Batteries"}},
-		bridge.FixtureDef{Name: "Plant_Rice", Plant: &bridge.FixturePlant{GrowDays: 3, SowTags: []string{"Ground"}}},
-	)
+	catalog := catalogOf(t, "Wall", "Battery", "Plant_Rice")
 	crops := map[string]*o.EdibleCrop{"Plant_Rice": {DefName: proto.String("Plant_Rice"), NutritionDemandPerDay: proto.Float64(4), DietAllowed: proto.Bool(true)}}
 	names := []string{"Wall", "Battery", "Plant_Rice", "Missing", "Wall"}
 	unknown, err := definitionFacts{catalog: catalog, crops: crops}.appendDefinitions(nil, names)
@@ -45,7 +40,7 @@ func TestDefinitionsResolveAgainstTheCatalog(t *testing.T) {
 // A row the view needs and the catalog lacks fails the resolve: a
 // plant whose harvested product the catalog has no row for is no default.
 func TestDefinitionsFailWhenARowTheViewNeedsIsMissing(t *testing.T) {
-	catalog := testCatalog(bridge.FixtureDef{Name: "Plant_Rice", Plant: &bridge.FixturePlant{GrowDays: 3, SowTags: []string{"Ground"}}})
+	catalog := catalogOf(t, "Plant_Rice")
 	wire := catalog.ThingDefs["Plant_Rice"]
 	wire.Plant.HarvestedThingDef = "Rice_Missing"
 	if _, err := (definitionFacts{catalog: catalog}).resolve("Plant_Rice"); err == nil {
@@ -57,18 +52,17 @@ func TestDefinitionsFailWhenARowTheViewNeedsIsMissing(t *testing.T) {
 // and that a harvest fells it; a plant naming no product leaves the
 // harvest facts unknown rather than zero.
 func TestDefinitionsResolveCropHarvestFacts(t *testing.T) {
-	catalog := testCatalog(
-		bridge.FixtureDef{Name: "Plant_Cotton", Plant: &bridge.FixturePlant{GrowDays: 5, Yield: 7, SowMinSkill: 6}},
-		bridge.FixtureDef{Name: "Plant_Bush", Plant: &bridge.FixturePlant{GrowDays: 5, Persists: true}},
-		bridge.FixtureDef{Name: "Plant_Bare", Plant: &bridge.FixturePlant{GrowDays: 5, SowMinSkill: 2}},
-	)
-	catalog.ThingDefs["Plant_Bare"].Plant.HarvestedThingDef = ""
+	rows := recordedRows(t, "Plant_Cotton", "Plant_Rice")
+	rows.CopyThing("Plant_Cotton", "Plant_Bush").Plant.HarvestAfterGrowth = 0.3
+	rows.Thing("Plant_Rice").Plant.SowMinSkill = 2
+	catalog := decodeRows(rows)
+	catalog.ThingDefs["Plant_Rice"].Plant.HarvestedThingDef = ""
 	facts := definitionFacts{catalog: catalog}
 	cotton, err := facts.resolve("Plant_Cotton")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cotton.Edible != domain.Known(false) || cotton.HarvestedThingDef != domain.Known("Plant_Cotton_Product") || cotton.HarvestYield != domain.Known(7.0) || cotton.SowMinSkill != domain.Known(int32(6)) || cotton.HarvestDestroysPlant != domain.Known(true) {
+	if cotton.Edible != domain.Known(false) || cotton.HarvestedThingDef != domain.Known("Cloth") || cotton.HarvestYield != domain.Known(10.0) || cotton.SowMinSkill != domain.Known(int32(0)) || cotton.HarvestDestroysPlant != domain.Known(true) {
 		t.Fatalf("cotton: %+v", cotton)
 	}
 	bush, err := facts.resolve("Plant_Bush")
@@ -78,7 +72,7 @@ func TestDefinitionsResolveCropHarvestFacts(t *testing.T) {
 	if bush.HarvestDestroysPlant != domain.Known(false) {
 		t.Fatalf("a persisting plant destroyed: %+v", bush.HarvestDestroysPlant)
 	}
-	bare, err := facts.resolve("Plant_Bare")
+	bare, err := facts.resolve("Plant_Rice")
 	if err != nil {
 		t.Fatal(err)
 	}

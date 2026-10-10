@@ -2,19 +2,20 @@ package buildingruntime
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
 // decodeCombatWithCatalog is bridge.DecodeCombat with a catalog standing in
-// for the load's: the Core weapons the planning tests name, and a
-// plain ranged or melee weapon row for every other def a combat pawn holds.
-func decodeCombatWithCatalog(frame *o.BundleSnapshot, extra ...bridge.FixtureDef) (bridge.Combat, error) {
+// for the load's: the recorded Core weapons the planning tests name, the
+// guns the recorded gear named by range, a plain rifle for every other weapon
+// def a combat pawn holds, and the recorded race of each animal and mechanoid
+// in the frame.
+func decodeCombatWithCatalog(frame *o.BundleSnapshot, guns ...map[string]float32) (bridge.Combat, error) {
 	combat, err := bridge.DecodeCombat(frame)
 	if err != nil {
 		return combat, err
@@ -31,55 +32,47 @@ func decodeCombatWithCatalog(frame *o.BundleSnapshot, extra ...bridge.FixtureDef
 			combat.Things = combat.Things.With(equipment.GetPrimaryId(), &o.Thing{Thing: &o.EntityRef{Id: proto.String(equipment.GetPrimaryId()), DefName: proto.String(pawn.GetWeapon())}})
 		}
 	}
-	defs := append(bridge.CoreWeaponFixtures(), extra...)
+	named := map[string]float32{}
+	for _, m := range guns {
+		for def, reach := range m {
+			named[def] = reach
+		}
+	}
+	rows := weaponRows(named)
 	for _, pawn := range combat.Pawns {
 		name := pawn.GetWeapon()
-		if name == "" || slices.ContainsFunc(defs, func(d bridge.FixtureDef) bool { return d.Name == name }) {
+		if name == "" || rows.Has(name) {
 			continue
 		}
 		// The recordings no longer carry the weapon's class or range,
 		// so an unnamed recorded weapon is a plain 25-cell rifle.
-		weapon := &bridge.FixtureWeapon{VerbClass: "Verse.Verb_Shoot", Range: 25, DamageDef: "Bullet"}
-		defs = append(defs, bridge.FixtureDef{Name: name, Weapon: weapon})
+		rows.CopyThing("Gun_BoltActionRifle", name).Verbs[0].Value.Range = 25
 	}
 	// The race rows a live read would carry: the recordings hold pawn
-	// rows, not the catalog, so each animal and mechanoid in the frame is a
-	// race here, a recorded Cougar with the predator and manhunter numbers its
-	// rows held.
+	// rows, not the catalog, so each animal and mechanoid in the frame takes
+	// the recording's race row of its def (a mechanoid the game does not have
+	// takes the Scyther's).
 	races := map[string]bool{}
 	for row := range combat.Detail.Values() {
 		def := row.GetPawn().GetDefName()
-		if races[def] {
+		if races[def] || !(row.GetMechanoid() || row.GetAnimal()) {
 			continue
 		}
+		races[def] = true
 		switch {
+		case recordedrows.Recorded(def):
+			rows.Add(def)
 		case row.GetMechanoid():
-			races[def] = true
-			defs = append(defs, bridge.FixtureDef{Name: def, Race: &bridge.FixtureRace{Props: &d.RaceProperties{}, Facts: &o.RaceFacts{Mechanoid: true}}})
-		case row.GetAnimal():
-			races[def] = true
-			props, ok := recordedRaces[def]
-			if !ok {
-				return combat, fmt.Errorf("recorded animal %s has no recorded race row", def)
-			}
-			defs = append(defs, bridge.FixtureDef{Name: def, Race: &bridge.FixtureRace{Props: props, Facts: &o.RaceFacts{Animal: true}}})
+			rows.Add("Mech_Scyther")
+			rows.CopyThing("Mech_Scyther", def)
+		default:
+			return combat, fmt.Errorf("recorded animal %s has no recorded race row", def)
 		}
 	}
-	combat.Catalog = bridge.FixtureCatalog("load", defs...)
-	recorded, err := fullCatalogRows()
+	combat.Catalog, err = decodeRows(rows, "load")
 	if err != nil {
 		return combat, err
 	}
-	for class, rows := range recorded {
-		combat.Catalog.Defs[class] = rows
-	}
 	combat.Shells, err = combat.Catalog.MortarShells(policy.MortarSafeRadius)
 	return combat, err
-}
-
-// recordedRaces are the race rows the recorded fights' animals had before the
-// catalog carried them: a recorded Cougar is a predator of body size
-// 1 that turns on a hit half the time.
-var recordedRaces = map[string]*d.RaceProperties{
-	"Cougar": {Predator: true, BaseBodySize: 1, ManhunterOnDamageChance: 0.5},
 }

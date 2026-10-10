@@ -53,7 +53,7 @@ func (n *shrineTestNative) FrameThings(context.Context, *c.Identity) (bridge.Thi
 }
 
 func (n *shrineTestNative) DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error) {
-	return bridge.FixtureCatalog("load", bridge.CoreWeaponFixtures()...), nil
+	return sharedBaseCatalog("load")
 }
 
 func (n *shrineTestNative) ReadDefenseSite(ctx context.Context, _ *c.Identity, region bridge.CellRect) (bridge.DefenseSite, bridge.Result, error) {

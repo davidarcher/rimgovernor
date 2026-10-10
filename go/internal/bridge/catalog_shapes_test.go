@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
 	"strings"
 	"testing"
 
@@ -38,26 +39,26 @@ func TestPieceShapesRefuseACatalogTheTemplatesCannotUse(t *testing.T) {
 		return Buildable(row) && row.GetThingClass() == ClassBed && row.GetBuilding().GetBedHumanlike() && row.GetSize().GetX() == 2
 	}
 	for name, test := range map[string]struct {
-		strip func(*recordedSlice)
+		strip func(*recordedrows.Slice)
 		want  string
 	}{
-		"no end table":   {func(s *recordedSlice) { s.drop("EndTable") }, "end table"},
-		"no dresser":     {func(s *recordedSlice) { s.drop("Dresser") }, "dresser"},
-		"no cabinet":     {func(s *recordedSlice) { s.drop("ToolCabinet") }, "tool cabinet"},
-		"no monitor":     {func(s *recordedSlice) { s.drop("VitalsMonitor") }, "vitals monitor"},
-		"no sarcophagus": {func(s *recordedSlice) { s.drop("Sarcophagus") }, "Sarcophagus"},
-		"no stove":       {func(s *recordedSlice) { s.drop("FueledStove", "ElectricStove") }, "Kitchen"},
-		"no animal bed":  {func(s *recordedSlice) { s.drop("AnimalBed") }, "animal"},
-		"no animal flap": {func(s *recordedSlice) { s.drop("AnimalFlap") }, "animal flap"},
-		"no double bed":  {func(s *recordedSlice) { s.dropWhere(isDoubleBed) }, "double bed"},
-		"stoves not role": {func(s *recordedSlice) {
-			s.drop("ElectricStove")
-			s.thing("FueledStove").Building.WorkTableRoomRole = ""
+		"no end table":   {func(s *recordedrows.Slice) { s.Drop("EndTable") }, "end table"},
+		"no dresser":     {func(s *recordedrows.Slice) { s.Drop("Dresser") }, "dresser"},
+		"no cabinet":     {func(s *recordedrows.Slice) { s.Drop("ToolCabinet") }, "tool cabinet"},
+		"no monitor":     {func(s *recordedrows.Slice) { s.Drop("VitalsMonitor") }, "vitals monitor"},
+		"no sarcophagus": {func(s *recordedrows.Slice) { s.Drop("Sarcophagus") }, "Sarcophagus"},
+		"no stove":       {func(s *recordedrows.Slice) { s.Drop("FueledStove", "ElectricStove") }, "Kitchen"},
+		"no animal bed":  {func(s *recordedrows.Slice) { s.Drop("AnimalBed") }, "animal"},
+		"no animal flap": {func(s *recordedrows.Slice) { s.Drop("AnimalFlap") }, "animal flap"},
+		"no double bed":  {func(s *recordedrows.Slice) { s.DropWhere(isDoubleBed) }, "double bed"},
+		"stoves not role": {func(s *recordedrows.Slice) {
+			s.Drop("ElectricStove")
+			s.Thing("FueledStove").Building.WorkTableRoomRole = ""
 		}, "Kitchen"},
 	} {
 		slice := buildingsSlice(t)
 		test.strip(slice)
-		_, err := slice.catalog().PieceShapes()
+		_, err := catalogOf(slice).PieceShapes()
 		if err == nil || !strings.Contains(err.Error(), test.want) {
 			t.Errorf("%s: %v, want an error naming %q", name, err, test.want)
 		}

@@ -49,7 +49,11 @@ func TestDefenseCellFactsLeaveFogUnknown(t *testing.T) {
 
 func TestDefenderRangeUsesPrimaryRangedWeaponOnly(t *testing.T) {
 	t.Parallel()
-	arms := armament{catalog: bridge.FixtureCatalog("load", bridge.CoreWeaponFixtures()...)}
+	catalog, err := sharedBaseCatalog("load")
+	if err != nil {
+		t.Fatal(err)
+	}
+	arms := armament{catalog: catalog}
 	gear := func(id, def string) *o.GearItem {
 		arms.things = arms.things.With(id, &o.Thing{Thing: &o.EntityRef{Id: proto.String(id), DefName: proto.String(def)}})
 		return &o.GearItem{Thing: &c.Ref{Id: proto.String(id)}}

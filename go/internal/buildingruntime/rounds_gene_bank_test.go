@@ -26,9 +26,7 @@ type geneBankDispatch struct {
 // name no Go code knows.
 func geneBankFixture(t *testing.T, facts *o.BiotechColonyFacts) geneBankDispatch {
 	t.Helper()
-	bank := buildable("Vault_Test", 0, 1, 2)
-	bank.GeneBank = true
-	base, db, sleeping, source, _ := biotechPlannerFixture(t, policy.MaintainGeneBank, facts, bank, false)
+	base, db, sleeping, source, _ := biotechPlannerFixture(t, policy.MaintainGeneBank, facts, "Vault_Test", "GeneBank", false)
 	planner, err := NewRoundsGeneBankPlanner(base.reviewer, source)
 	if err != nil {
 		t.Fatal(err)

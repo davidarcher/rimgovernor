@@ -29,13 +29,11 @@ func shelterSiteFixture(t *testing.T) (*RoundsBuildingPlanner, *store.Store, *sl
 		}
 	}
 	for _, name := range []string{"Wall", "Door"} {
-		def := buildable(name, 0, 1, 1)
-		def.Stuffs = []bridge.FixtureStuff{{Stuff: "WoodLog"}}
-		n.putCatalog(def)
+		n.buildable(name, 0, 1, 1)
+		n.onlyStuff(name, "WoodLog")
 	}
-	bed := buildable("Bed", 0, 1, 2)
-	bed.Stuffs = []bridge.FixtureStuff{{Stuff: "WoodLog"}}
-	n.putCatalog(bed)
+	n.buildable("Bed", 0, 1, 2)
+	n.onlyStuff("Bed", "WoodLog")
 	// The row below the 9x9 site is the planned door's threshold: a cell
 	// the census must show open or the room reads as owing a dig.
 	n.cells.Region = policy.Rectangle{Z: -1, Width: 9, Height: 10}
@@ -258,7 +256,7 @@ func TestRoundsShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 			case "definition":
 				// Any shell piece wider than one cell is refused; the wall, since
 				// the Core door row now states its own 1x1 size.
-				n.catalogRow("Wall").Width = 2
+				n.def("Wall").Size.X = 2
 			}
 			result, err := r.Step(context.Background())
 			if err == nil && result.Verdict == BuildingReasonAdmitted {

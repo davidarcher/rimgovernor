@@ -13,7 +13,7 @@ func TestRoundsPowerReportsTheResearchItWaitsOn(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, _, n, _ := powerFixture(t, false)
-	n.catalogRow("WoodFiredGenerator").Research = []string{"Electricity"}
+	n.def("WoodFiredGenerator").ResearchPrerequisites = []string{"Electricity"}
 	n.finished = []string{}
 	result, err := p.Step(context.Background())
 	if err != nil || result.Verdict != researchWait("Electricity") {

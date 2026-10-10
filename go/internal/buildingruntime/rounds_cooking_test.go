@@ -30,7 +30,7 @@ func cookingFixtureAt(t *testing.T, plan func(*Rounder, domain.Cell)) (*RoundsBu
 		}
 	}
 	v.Issues = issues
-	native.catalog[0].Name = "Campfire"
+	native.buildable("Campfire", 0, 1, 1)
 	if _, err := sleeping.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -39,6 +39,7 @@ func cookingFixtureAt(t *testing.T, plan func(*Rounder, domain.Cell)) (*RoundsBu
 		t.Fatal(err)
 	}
 	native.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
+		oneCell(p)
 		p.Preview.Costs = domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 5}})
 		p.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(5))}}
 	}
@@ -50,10 +51,10 @@ func TestRoundsCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.T
 	t.Parallel()
 	p, db, native := cookingFixture(t)
 	result, err := p.Step(context.Background())
-	// Two previews: the shelter slot holds the campfire and the ring wave goes
-	// in right after it.
-	if err != nil || result.Verdict != BuildingReasonAdmitted || native.previews != 2 {
-		t.Fatal(result, err)
+	// One preview: the shelter slot holds the campfire and no ring wave goes
+	// in after it (the site names no wall).
+	if err != nil || result.Verdict != BuildingReasonAdmitted || native.previews != 1 {
+		t.Fatal(result, err, native.previews)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Decision.Project.Methods[0].Plan)
 	if err != nil || len(plan.Progress) != 1 || len(plan.Admissions) != 0 {
@@ -66,7 +67,7 @@ func TestRoundsCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.T
 	if b.Definition() != "Campfire" || plan.Progress[0].View().Attempt != 0 || result.Decision.Project.Project.Finding != domain.FindingUnmet {
 		t.Fatal(plan, result)
 	}
-	if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || native.previews != 2 {
+	if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || native.previews != 1 {
 		t.Fatal(next, err)
 	}
 }
@@ -93,7 +94,7 @@ func TestRoundsCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) {
 				v.Cooking = []*o.CookingFacts{bench}
 			case "definition":
 				want = fieldUnavailable("Campfire_availability")
-				native.catalog[0].Research = []string{"Unfinished"}
+				native.def("Campfire").ResearchPrerequisites = []string{"Unfinished"}
 			}
 			result, err := p.Step(context.Background())
 			if err != nil || result.Verdict != want || result.Decision.Admitted {
@@ -123,7 +124,7 @@ func TestRoundsCookingRestagesBurntOutCampfire(t *testing.T) {
 		t.Fatal(err)
 	}
 	again, err := p.Step(ctx)
-	if err != nil || again.Verdict != BuildingReasonAdmitted || native.previews != 4 {
+	if err != nil || again.Verdict != BuildingReasonAdmitted || native.previews != 2 {
 		t.Fatal(again, err, native.previews)
 	}
 	// The burnt-out campfire's plan retired on the census; the

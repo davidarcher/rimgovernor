@@ -56,7 +56,7 @@ func hospitalFixture(t *testing.T) (*RoundsHospitalPlanner, *store.Store, *hospi
 	// A known, empty construction census: the planned hospital is owed its ring.
 	native.built = map[domain.ActionID]*o.BuildingState{}
 	// The Core furniture rows put a Bed in the catalog; behind unfinished research it stays off the ladder, which stages the sleeping spot.
-	native.putCatalog(bridge.FixtureDef{Name: "Bed", Width: 1, Height: 2, Research: []string{"ComplexFurniture"}})
+	native.def("Bed").ResearchPrerequisites = []string{"ComplexFurniture"}
 	v := native.reply.GetObserved()
 	v.ColonistCount, v.WorkerCount = proto.Uint32(1), proto.Uint32(1)
 	// A spare sleeping place beyond the colonist: converting one bed keeps

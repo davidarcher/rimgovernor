@@ -381,7 +381,6 @@ func TestRoundsShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 	}
 	// Ready the gate: a spare bed, food, medicine and a hosted census the
 	// custody reading can count.
-	native.itemDefs = map[string]itemDef{"MedicineHerbal": {medicine: true}}
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
 		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 		Beds:    []*o.UpkeepBed{{Bed: native.head(&o.EntityRef{Id: proto.String("spare"), DefName: proto.String("Bed"), Position: &c.Cell{X: proto.Int32(0), Z: proto.Int32(0)}}), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},

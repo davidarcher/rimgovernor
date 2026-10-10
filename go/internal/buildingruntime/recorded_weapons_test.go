@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -102,11 +103,15 @@ func (r *recordedWeapons) things() bridge.Things {
 	return out
 }
 
-// fixtures are the def rows the recorded gear names.
-func (r *recordedWeapons) fixtures() []bridge.FixtureDef {
-	var out []bridge.FixtureDef
-	for def, reach := range r.ranges {
-		out = append(out, bridge.FixtureDef{Name: def, Weapon: &bridge.FixtureWeapon{VerbClass: "Verse.Verb_Shoot", Range: reach, DamageDef: "Bullet"}})
+// guns are the gun defs the recorded gear names, by their range.
+func (r *recordedWeapons) guns() map[string]float32 { return r.ranges }
+
+// weaponRows are the base rows plus a plain bolt-action rifle of the asked
+// range for every gun def the recorded gear names.
+func weaponRows(guns map[string]float32) *recordedrows.Slice {
+	rows := newCatalogRows()
+	for def, reach := range guns {
+		rows.CopyThing("Gun_BoltActionRifle", def).Verbs[0].Value.Range = reach
 	}
-	return out
+	return rows
 }

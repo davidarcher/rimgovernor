@@ -14,7 +14,10 @@ import (
 
 func TestArmoryPrimary(t *testing.T) {
 	id, def, q := "r1", "Gun_Revolver", o.Quality_QUALITY_GOOD
-	catalog := bridge.FixtureCatalog("load", bridge.CoreWeaponFixtures()...)
+	catalog, err := sharedBaseCatalog("load")
+	if err != nil {
+		t.Fatal(err)
+	}
 	row := &o.PawnState{Equipment: &o.PawnEquipment{PrimaryId: &id, Equipped: []*o.GearItem{{Thing: &c.Ref{Id: &id}, Quality: &q}}}}
 	got, ok, err := armoryPrimary(row, bridge.NewThings(&o.Thing{Thing: &o.EntityRef{Id: &id, DefName: &def}}), catalog)
 	if err != nil || !ok || got.Definition != def || !got.Ranged || got.Quality != 3 || !got.Facts.Ranged {

@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
 	"testing"
 
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
@@ -40,9 +41,9 @@ func TestWeatherAndConditionRows(t *testing.T) {
 func TestOutdoorsPermanentlyDark(t *testing.T) {
 	// Glowforest carries DarkenedSkies, a subclass of the no-sunlight family;
 	// Grasslands is given an unrelated condition and Desert none.
-	slice := sliceRecorded(t, named("Silver"), "biome_defs", "game_condition_defs")
-	setRow[*d.BiomeDef](slice, "Grasslands").BiomeMapConditions = []string{"ColdSnap"}
-	catalog := slice.catalog()
+	slice := recordedrows.Take(t, recordedrows.Named("Silver"), "biome_defs", "game_condition_defs")
+	recordedrows.SetRow[*d.BiomeDef](slice, "Grasslands").BiomeMapConditions = []string{"ColdSnap"}
+	catalog := catalogOf(slice)
 	for biome, want := range map[string]bool{"Glowforest": true, "Grasslands": false, "Desert": false} {
 		if got, err := catalog.OutdoorsPermanentlyDark(biome); err != nil || got != want {
 			t.Errorf("%s dark = %v, %v; want %v", biome, got, err, want)

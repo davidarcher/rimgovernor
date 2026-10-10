@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge/recordedrows"
 	"strings"
 	"testing"
 
@@ -15,7 +16,7 @@ func isEatSurface(row *d.ThingDef) bool {
 
 func TestDiningFurnitureIsARuleOverTheRows(t *testing.T) {
 	slice := buildingsSlice(t)
-	got, err := slice.catalog().DiningFurniture()
+	got, err := catalogOf(slice).DiningFurniture()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,27 +28,27 @@ func TestDiningFurnitureIsARuleOverTheRows(t *testing.T) {
 		t.Errorf("table size %+v", got.Table.Size)
 	}
 	// A pricier-per-comfort stool gives the chair to the next best.
-	slice.scaleCosts("Stool", 100, 1)
-	if got, err = slice.catalog().DiningFurniture(); err != nil || got.Chair.Def != "DiningChair" {
+	slice.ScaleCosts("Stool", 100, 1)
+	if got, err = catalogOf(slice).DiningFurniture(); err != nil || got.Chair.Def != "DiningChair" {
 		t.Errorf("chair %+v, %v", got.Chair, err)
 	}
 }
 
 func TestDiningFurnitureRefusesWhatItCannotFindOrLayOut(t *testing.T) {
 	for name, test := range map[string]struct {
-		strip func(*recordedSlice)
+		strip func(*recordedrows.Slice)
 		want  string
 	}{
-		"no chair": {func(s *recordedSlice) { s.dropWhere(isSittable) }, "sittable"},
-		"no table": {func(s *recordedSlice) { s.dropWhere(isEatSurface) }, "eating surface"},
-		"no pin":   {func(s *recordedSlice) { s.wire.Defs.JoyGiverDefs = nil }, "joy building"},
-		"odd table": {func(s *recordedSlice) {
-			s.dropWhere(func(row *d.ThingDef) bool { return isEatSurface(row) && row.GetDefName() != "Table2x2c" })
+		"no chair": {func(s *recordedrows.Slice) { s.DropWhere(isSittable) }, "sittable"},
+		"no table": {func(s *recordedrows.Slice) { s.DropWhere(isEatSurface) }, "eating surface"},
+		"no pin":   {func(s *recordedrows.Slice) { s.Wire.Defs.JoyGiverDefs = nil }, "joy building"},
+		"odd table": {func(s *recordedrows.Slice) {
+			s.DropWhere(func(row *d.ThingDef) bool { return isEatSurface(row) && row.GetDefName() != "Table2x2c" })
 		}, "2x2"},
 	} {
 		slice := buildingsSlice(t)
 		test.strip(slice)
-		_, err := slice.catalog().DiningFurniture()
+		_, err := catalogOf(slice).DiningFurniture()
 		if err == nil || !strings.Contains(err.Error(), test.want) {
 			t.Errorf("%s: %v, want an error naming %q", name, err, test.want)
 		}

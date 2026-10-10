@@ -36,10 +36,10 @@ func TestRoundsWorkReadbackRecoversInBothModesAndPreservesUnknown(t *testing.T) 
 		want := domain.FindingMet
 		switch phase {
 		case "project-skill":
-			n.catalog[0].ConstructionSkill = 11
+			n.def("Wall").ConstructionSkillPrerequisite = 11
 			want = domain.FindingUnmet
 		case "restored-project":
-			n.catalog[0].ConstructionSkill = 0
+			n.def("Wall").ConstructionSkillPrerequisite = 0
 		case "mismatch":
 			row.Settings.Work[0].Priority = proto.Int32(3)
 			want = domain.FindingUnmet

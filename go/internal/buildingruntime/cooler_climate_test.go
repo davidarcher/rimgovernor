@@ -18,7 +18,7 @@ func coolerSearch(t *testing.T, hot bool) (chosen domain.Cell, slots []domain.Ce
 	t.Helper()
 	ctx := context.Background()
 	planner, _, session, _, n := sleepingFixture(t)
-	n.putCatalog(buildable("PassiveCooler", 0, 1, 1))
+	n.buildable("PassiveCooler", 0, 1, 1)
 	n.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
 		b, _ := p.Preview.Action.Building()
 		p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
