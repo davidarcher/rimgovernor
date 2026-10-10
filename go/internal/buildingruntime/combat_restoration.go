@@ -10,6 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"slices"
 )
 
@@ -17,53 +18,58 @@ var errCombatRestorationPending = errors.New("combat restoration pending")
 
 // captureCombatSettings commits original settings before the first temporary
 // mutation. Subsequent tactical changes never replace the original values.
-func (r *RoundsDefensePlanner) captureCombatSettings(ctx context.Context, state ControlState, fight domain.PlanID, orders []policy.CombatOrder) error {
+// It returns the orders that may be sent: a door or animal order whose
+// original setting cannot be read is dropped (the next stop proposes it
+// again) rather than failing the batch, which also carries the drafts and
+// attacks that answer the hostile.
+func (r *RoundsDefensePlanner) captureCombatSettings(ctx context.Context, state ControlState, fight domain.PlanID, orders []policy.CombatOrder) ([]policy.CombatOrder, error) {
 	if !slices.ContainsFunc(orders, func(o policy.CombatOrder) bool { return o.Kind == policy.OrderDoor || o.Kind == policy.OrderAnimalArea }) {
-		return nil
+		return orders, nil
 	}
 	kept, exists, err := r.reviewer.player.journal.LoadCombatRestoration(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
 	if exists && (kept.Owner != fight || kept.World != world) {
-		return fmt.Errorf("%w: prior combat restoration pending", ErrControl)
+		return nil, fmt.Errorf("%w: prior combat restoration pending", ErrControl)
 	}
 	if !exists {
 		kept = store.CombatRestoration{World: world, Owner: fight}
 	}
 	combat, err := r.native.ReadCombat(ctx, boundary.Identity(state.Snapshot))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	doors, doorsKnown := combat.DoorStates.Value()
+	sendable := make([]policy.CombatOrder, 0, len(orders))
 	for _, o := range orders {
-		if o.Kind == policy.OrderDoor && !slices.ContainsFunc(kept.Doors, func(d store.CombatDoorRestoration) bool { return d.Cell == o.Cell }) {
+		switch {
+		case o.Kind == policy.OrderDoor && !slices.ContainsFunc(kept.Doors, func(d store.CombatDoorRestoration) bool { return d.Cell == o.Cell }):
 			i := slices.IndexFunc(doors, func(d policy.RoomDoor) bool { return d.Cell == o.Cell })
 			if !doorsKnown || i < 0 {
-				return fmt.Errorf("%w: original door setting unknown", ErrControl)
+				continue
 			}
 			hold, hk := doors[i].HoldOpen.Value()
 			forbidden, fk := doors[i].Forbidden.Value()
 			if !hk || !fk {
-				return fmt.Errorf("%w: original door setting unknown", ErrControl)
+				continue
 			}
 			kept.Doors = append(kept.Doors, store.CombatDoorRestoration{Cell: o.Cell, HoldOpen: hold, Forbidden: forbidden})
-		}
-		if o.Kind == policy.OrderAnimalArea && !slices.ContainsFunc(kept.Animals, func(a store.CombatAnimalRestoration) bool { return a.Pawn == o.Pawn }) {
+		case o.Kind == policy.OrderAnimalArea && !slices.ContainsFunc(kept.Animals, func(a store.CombatAnimalRestoration) bool { return a.Pawn == o.Pawn }):
 			p, ok := combat.Detail.Get(string(o.Pawn))
-			if !ok || p == nil || p.AnimalState == nil || p.AnimalState.SupportsAllowedAreas == nil {
-				return fmt.Errorf("%w: original animal area unknown", ErrControl)
-			}
-			for _, issue := range p.AnimalState.Issues {
-				if issue.GetField() == "allowed_area" {
-					return fmt.Errorf("%w: original animal area unknown", ErrControl)
-				}
+			if !ok || p == nil || p.AnimalState == nil || p.AnimalState.SupportsAllowedAreas == nil ||
+				slices.ContainsFunc(p.AnimalState.Issues, func(issue *n.ReadIssue) bool { return issue.GetField() == "allowed_area" }) {
+				continue
 			}
 			kept.Animals = append(kept.Animals, store.CombatAnimalRestoration{Pawn: o.Pawn, Area: p.AnimalState.GetAllowedAreaId()})
 		}
+		sendable = append(sendable, o)
 	}
-	return r.reviewer.player.journal.SaveCombatRestoration(ctx, kept)
+	if len(kept.Doors)+len(kept.Animals) == 0 {
+		return sendable, nil
+	}
+	return sendable, r.reviewer.player.journal.SaveCombatRestoration(ctx, kept)
 }
 
 // restoreCombatSettings issues only settings from save-owned restoration intent.

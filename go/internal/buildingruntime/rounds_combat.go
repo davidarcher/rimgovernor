@@ -293,8 +293,12 @@ func recordCombatDispatch(ctx context.Context, items []executor.BatchItem) {
 }
 
 func (r *RoundsDefensePlanner) sendCombatBatch(call context.Context, state ControlState, fight domain.PlanID, action string, drafts []domain.PawnID, orders []policy.CombatOrder) ([]bridge.CombatOrderResult, []policy.CombatOrder, error) {
-	if err := r.captureCombatSettings(call, state, fight, orders); err != nil {
+	orders, err := r.captureCombatSettings(call, state, fight, orders)
+	if err != nil {
 		return nil, nil, err
+	}
+	if len(drafts)+len(orders) == 0 {
+		return nil, nil, nil
 	}
 	plan, err := combatBatchPlan(fight, action, drafts, orders)
 	if err != nil {

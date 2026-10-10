@@ -71,7 +71,7 @@ func TestHuntCandidatesExposeRiskAndPursuitWork(t *testing.T) {
 	if !(down < ranged && ranged < melee) {
 		t.Fatal("pursuit work", rows)
 	}
-	if math.Abs(rows[1].Risk[0].Weight-0.15) > 1e-9 || rows[2].Risk[0].Weight != 0 {
+	if math.Abs(rows[1].Risk[0].Weight-0.075) > 1e-9 || rows[2].Risk[0].Weight != 0 {
 		t.Fatal("revenge risk", rows)
 	}
 	found := false
@@ -103,5 +103,16 @@ func TestSquadPreyIncludesRetaliatingRows(t *testing.T) {
 	got, err := SelectAcquisition(domain.Known([]AcquisitionSource{wolf, moose}), domain.Known(1.0), domain.Known(0.0), true, nil, domain.Known(2))
 	if err != nil || len(got) != 0 {
 		t.Fatalf("designated a retaliating row: %v, %v", got, err)
+	}
+}
+
+// The same risky herd costs a weak colony its full revenge exposure and a
+// strong one little, so only the weak colony prefers safer prey first.
+func TestHuntRevengeRiskScalesWithColonyStrength(t *testing.T) {
+	muffalo := []AcquisitionSource{{ID: "muffalo", Hunt: true, Food: true, NutritionYield: 100, RevengeChance: 0.2, HerdSize: 5}}
+	weak := HuntCandidates(muffalo, 0, domain.Fact[float64]{})[0].Risk[0].Weight
+	strong := HuntCandidates(muffalo, 15, domain.Fact[float64]{})[0].Risk[0].Weight
+	if math.Abs(weak-1) > 1e-9 || strong >= weak/3 {
+		t.Fatal("weak", weak, "strong", strong)
 	}
 }

@@ -104,6 +104,10 @@ func (s *Store) SaveCombatRestoration(ctx context.Context, r CombatRestoration) 
 				return ErrConflict
 			}
 		}
+		// putSingleton inserts; the superset replaces the kept row.
+		if _, err = tx.ExecContext(ctx, "DELETE FROM combat_restoration"); err != nil {
+			return err
+		}
 	}
 	if err = putSingleton(ctx, tx, "combat_restoration", r, maxCombatRestorationBytes); err != nil {
 		return err

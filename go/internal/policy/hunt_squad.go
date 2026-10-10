@@ -145,7 +145,7 @@ func HuntCandidates(sources []AcquisitionSource, gunners int, weatherAccuracy do
 // (shortened by weapon reach, halved asleep, only collection when downed)
 // scaled by weather, the worst revenge exposure among them as risk.
 func huntChannel(id string, prey []AcquisitionSource, formation bool, weather float64, gunners int) SupplyCandidate {
-	var nutrition, work, risk float64
+	var nutrition, work, risk, exposure float64
 	products := map[Resource]float64{}
 	var defs []Resource
 	c := FoodCandidate(CandidateHunt, id, domain.Unknown[float64]())
@@ -163,6 +163,7 @@ func huntChannel(id string, prey []AcquisitionSource, formation bool, weather fl
 		nutrition += s.NutritionYield
 		work += w * weather
 		risk = math.Max(risk, s.HuntRevengeCost())
+		exposure = math.Max(exposure, s.HuntRevengeCost()*huntWeakness(gunners, s.HerdSize))
 		for _, p := range s.Products {
 			if _, seen := products[p.Def]; !seen {
 				defs = append(defs, p.Def)
@@ -180,7 +181,7 @@ func huntChannel(id string, prey []AcquisitionSource, formation bool, weather fl
 	for _, def := range defs {
 		c.Yields = append(c.Yields, CandidateYield{Good: ResourceKey{Def: def}, PerDay: domain.Known(products[def] / FoodHuntCycleDays)})
 	}
-	c.Risk = []CandidateRisk{{CandidateRevenge, math.Min(1, risk)}}
+	c.Risk = []CandidateRisk{{CandidateRevenge, math.Min(1, exposure)}}
 	c.Terms = []CandidateTerm{{"estimated_cycle_days", FoodHuntCycleDays}, {"estimated_work_ticks", work}, {"prey", float64(len(prey))}, {"revenge_cost", risk}}
 	if len(prey) == 1 {
 		s := prey[0]
@@ -211,4 +212,12 @@ func HuntRequest(plan domain.Fact[FoodPlan]) []domain.PawnID {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
+}
+
+// huntWeakness scales a prey's revenge exposure by how little the colony can
+// answer it: 1 with no gunners, falling as the gunners per animal of the herd
+// grow. A strong colony takes a risky herd as readily as a safe one; a weak
+// one is steered to safer prey by the discount on the risky yield.
+func huntWeakness(gunners, herd int) float64 {
+	return 1 / (1 + float64(max(0, gunners))/float64(max(1, herd)))
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -91,6 +92,24 @@ func TestCombatSupersessionPreservesUncertaintyAndCleanup(t *testing.T) {
 	}
 	if err := s.CloseCombatFight(ctx, "fight"); err == nil {
 		t.Fatal("closed without restoring settings")
+	}
+}
+func TestCombatRestorationSaveGrowsKeptOriginals(t *testing.T) {
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	w := World{Colony: "c", Load: "l", Map: 1}
+	first := CombatRestoration{World: w, Owner: "fight", Doors: []CombatDoorRestoration{{Cell: domain.Cell{X: 3, Z: 5}}}}
+	if err := s.SaveCombatRestoration(ctx, first); err != nil {
+		t.Fatal(err)
+	}
+	grown := first
+	grown.Doors = append(slices.Clone(first.Doors), CombatDoorRestoration{Cell: domain.Cell{X: 4, Z: 5}, Forbidden: true})
+	if err := s.SaveCombatRestoration(ctx, grown); err != nil {
+		t.Fatal("second capture of the same fight must replace the kept row:", err)
+	}
+	got, ok, err := s.LoadCombatRestoration(ctx)
+	if err != nil || !ok || !reflect.DeepEqual(got, grown) {
+		t.Fatal(got, ok, err)
 	}
 }
 func TestCombatRestorationSaveContainsOnlyOriginalSettings(t *testing.T) {
