@@ -49,6 +49,12 @@ Still open under #2656 (def copies not yet retired): `RoyalTitleFacts`, `Bedroom
 
 Out of scope and unchanged: files classed state or code, and the excluded Biotech, Anomaly, Odyssey and Race items (#2630, #2631, #2632).
 
+### #2655 disposition
+
+Deleted: `ColonyFactsSnapshot.policy_resources` (never written or read), `ButcheringFacts.human_corpse_def` (no Go reader; the human corpse def is a `GameConstants` concern, not an observation), and the literal 60-day year in colony validation (now `domain.DaysPerYear`, which the catalog calendar check already pins to `GenDateConstants`).
+
+Kept, each one a native read of live pawn or map state that the mirror cannot reproduce today, and each one a separate rewrite with its own native case: the verb/weapon facts (`HuntVerbFacts`, `HuntWeaponFacts`) track the weapon a hunter actually holds and its projectile; the `AcquisitionFacts`, `FarmFacts`, `FoodCorpse`, `FoodSlaughterAnimal`, `AnimalFeed`, `ThreatPawn`, `GrowLight`, `PlantGrower`, `WorkLightCell`, `LampState` and `MineralScannerState` def-derived fields are read together with the live row they annotate, so removing one means moving its consumer to a catalog join in the same change. They stay until a follow-up converts a consumer to read the mirror; no wire shape changed for them here.
+
 ## Native files
 
 | File | Lines | Class | What it does | Static items | Replacement |
@@ -661,7 +667,7 @@ Out of scope and unchanged: files classed state or code, and the excluded Biotec
 | ButcherRecord | message | 1752 | 7 | state | Butcher event record |  |  |
 | DeliveryLedgerFacts | message | 1756 | 8 | state | Delivery counters epoch, kills, butchers |  |  |
 | DeliveryLedgerSection | message | 1758 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
-| ColonyFactsSnapshot | message | 1759 | 52 | mixed | Colony facts root: counts, food, sections | policy_resources (dead); player_tech_level (faction def) | policy_resources is never written natively: delete; player_tech_level = FactionDef.techLevel of the player faction (def key, keep as state name) |
+| ColonyFactsSnapshot | message | 1759 | 52 | mixed | Colony facts root: counts, food, sections | policy_resources (dead); player_tech_level (faction def) | policy_resources deleted (#2655); player_tech_level = FactionDef.techLevel of the player faction (def key, keep as state name) |
 | OdysseySection | message | 1811 | 2 | excluded | Odyssey section wrapper |  |  excluded #2632 |
 | OdysseyColonyFacts | message | 1812 | 4 | excluded | Odyssey colony facts |  |  excluded #2632 |
 | ActiveCondition | message | 1820 | 7 | excluded | Active game condition (Odyssey section) |  |  excluded #2632 |

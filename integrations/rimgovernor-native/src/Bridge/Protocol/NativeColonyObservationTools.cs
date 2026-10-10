@@ -165,7 +165,7 @@ namespace HomeBridge.BridgeTools
             Span("cf.recovery");
             result.Waste = HomeWasteTools.Project(map, context);
             Span("cf.waste");
-            foreach (var field in new[] { "policy_resources", "food_corpses" })
+            foreach (var field in new[] { "food_corpses" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
             try {
                 var (season, dayOfYear) = GrowingCalendar.Calendar(map);

@@ -1567,7 +1567,7 @@ message HuntButcherBill {
 }
 message HuntButcherBench { optional string bench_id = 1; optional bool usable = 2; repeated HuntButcherBill bills = 3; }
 message HuntCensus { repeated HunterFacts hunters = 1; repeated HuntButcherBench benches = 2; }
-message ButcheringFacts { rimgovernor.common.v1.Ref bench = 1; SnapshotRef bench_snapshot = 11; repeated BillState bills = 2; optional bool usable = 3; repeated RecipeState recipes = 4; rimgovernor.common.v1.Ref room = 5; repeated HumanButcherCandidate human_butchers = 6; optional double human_corpse_nutrition = 7; optional string human_corpse_def = 10; }
+message ButcheringFacts { rimgovernor.common.v1.Ref bench = 1; SnapshotRef bench_snapshot = 11; repeated BillState bills = 2; optional bool usable = 3; repeated RecipeState recipes = 4; rimgovernor.common.v1.Ref room = 5; repeated HumanButcherCandidate human_butchers = 6; optional double human_corpse_nutrition = 7; }
 message HumanButcherCandidate { string pawn_id = 1; optional bool can_work = 4; repeated Trait pawn_traits = 5; }
 message FoodCorpse { CorpseState corpse = 1; optional bool fresh = 2; optional bool reachable = 3; optional string meat_def = 4; optional double nutrition_yield = 5; }
 // One force-pausing Verse.Dialog_NodeTree the game opened by itself (an
@@ -1782,7 +1782,7 @@ message DeliveryLedgerSection { oneof outcome { DeliveryLedgerFacts observed = 1
 message ColonyFactsSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1;
   optional uint32 colonist_count = 3; optional uint32 worker_count = 4; rimgovernor.common.v1.Cell center = 5; MapSize map_size = 6;
-  optional string biome = 7; repeated Quantity resources = 8; repeated DefinitionRef policy_resources = 9;
+  optional string biome = 7; repeated Quantity resources = 8;
   optional double food_nutrition = 10; optional double nutrition_per_day = 11; optional double food_runway_days = 12;
   optional double pending_food_nutrition = 13; optional uint32 bed_capacity = 14; optional uint32 indoor_sleeping_capacity = 15;
   optional double sleeping_temperature_min_c = 16; optional double sleeping_temperature_max_c = 17; optional double outdoor_temperature_c = 18;

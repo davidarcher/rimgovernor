@@ -77,9 +77,6 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 				}
 			}
 		}
-		if b.HumanCorpseDef != nil && validID(b.GetHumanCorpseDef()) != nil {
-			return contract("invalid human corpse definition")
-		}
 		rows = append(rows, &o.CookingFacts{Bench: b.Bench, BenchSnapshot: b.BenchSnapshot, Usable: b.Usable, Bills: b.Bills, Recipes: b.Recipes})
 	}
 	benches := map[string]bool{}

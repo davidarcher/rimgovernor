@@ -140,7 +140,7 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	if err := validateChoiceDialog(v.Dialog); err != nil {
 		return err
 	}
-	if len(v.PolicyResources) != 0 || len(v.FoodCorpses) != 0 {
+	if len(v.FoodCorpses) != 0 {
 		return contract("unreviewed colony section")
 	}
 	if err := validateColonyWaste(v.Waste, v.MapSize, v.Context.Identity.GetMapId()); err != nil {
@@ -151,11 +151,11 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 			return err
 		}
 		for _, number := range []*float64{climate.GrowingDays, climate.GrowingDaysRemaining, climate.GrowingDaysUntil, climate.NonGrowingDays} {
-			if !combatNumber(number, true) || number != nil && *number > 60 {
+			if !combatNumber(number, true) || number != nil && *number > domain.DaysPerYear {
 				return contract("invalid seasonal crop budget")
 			}
 		}
-		if climate.DayOfYear != nil && (*climate.DayOfYear < 0 || *climate.DayOfYear >= 60) || climate.Season != nil && !validSeason(*climate.Season) {
+		if climate.DayOfYear != nil && (*climate.DayOfYear < 0 || *climate.DayOfYear >= domain.DaysPerYear) || climate.Season != nil && !validSeason(*climate.Season) {
 			return contract("invalid calendar")
 		}
 		for _, issue := range v.Issues {

@@ -70,9 +70,6 @@ namespace HomeBridge.BridgeTools
                 row.HumanButchers.Add(candidate);
             }
             row.HumanCorpseNutrition=CorpseNutrition(bench);
-            var corpse=map.listerThings.AllThings.OfType<Corpse>().FirstOrDefault(c=>c.InnerPawn.RaceProps.Humanlike&&c.GetRotStage()==RotStage.Fresh);
-            if(corpse==null)return;
-            row.HumanCorpseDef=corpse.def.defName;
         }
     }
 }
