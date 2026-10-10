@@ -22,17 +22,12 @@ namespace RimGovernor.Runtime
         public const string MeleeJob = "RimGovernor_TrainMelee";
         public const string WeaponDef = "Bow_Training";
 
-        // Tier-0 ceiling, TrainingTiers[0].Ceiling in go/internal/policy/training_tier.go:
-        // a colonist whose best enabled combat skill reaches it stops drilling.
-        public const int SkillTarget = 8;
-
-        // XP per cycle second (verbProps.AdjustedFullCycleTime), applied by direct
+        // Melee XP per cycle second (verbProps.AdjustedFullCycleTime), applied by direct
         // SkillRecord.Learn. Vanilla pays 170 (shooting at a hostile pawn) / 20
         // (a friendly pawn) and 200 (melee) per cycle second but pays nothing for a
         // non-pawn target (IsTargetImmobile), so this drill is the only source. The
-        // drill pays about 15% of the fight rate: a practice bow cycle is 3 s, so
-        // 75 XP a shot and about 90 per melee swing (the ratio keeps vanilla's 200:170).
-        public const float ShootingXpPerCycleSecond = 25f;
+        // drill pays about 15% of the fight rate: about 90 per melee swing. A shot
+        // pays the practice weapon's TrainingTier.xpPerShot (75 for the bow).
         public const float MeleeXpPerCycleSecond = 30f;
 
         // Direct Learn skips the 4,000 XP/day soft cap (it neither counts toward
@@ -53,7 +48,52 @@ namespace RimGovernor.Runtime
 
         public static float BowRange => BowDef?.Verbs.FirstOrDefault()?.range ?? 0f;
 
-        public static float CycleXp(bool shooting, float cycleSeconds) => (shooting ? ShootingXpPerCycleSecond : MeleeXpPerCycleSecond) * cycleSeconds;
+        // Practice weapons by rung, from their TrainingTier extensions (the defs are
+        // fixed once loaded).
+        private static List<ThingDef> tierWeapons;
+
+        private static List<ThingDef> TierWeapons
+        {
+            get
+            {
+                if (tierWeapons == null)
+                {
+                    tierWeapons = DefDatabase<ThingDef>.AllDefs.Where(d => d.GetModExtension<TrainingTier>() != null)
+                        .OrderBy(d => d.GetModExtension<TrainingTier>().tier).ToList();
+                }
+                return tierWeapons;
+            }
+        }
+
+        // The gate research is a name so an Odyssey project resolves without a
+        // reference; a project the game lacks never unlocks (as Go's census).
+        private static bool Unlocked(TrainingTier tier)
+        {
+            if (string.IsNullOrEmpty(tier.gateResearch)) return true;
+            var project = DefDatabase<ResearchProjectDef>.GetNamedSilentFail(tier.gateResearch);
+            return project != null && project.IsFinished;
+        }
+
+        // The best tier whose gate research is finished (UnlockedTrainingTier in
+        // go/internal/policy/training_tier.go): the weapon, XP and ceiling.
+        public static ThingDef UnlockedWeapon()
+        {
+            ThingDef best = null;
+            foreach (var weapon in TierWeapons)
+            {
+                if (Unlocked(weapon.GetModExtension<TrainingTier>())) best = weapon;
+            }
+            return best ?? BowDef;
+        }
+
+        public static int Ceiling => UnlockedWeapon()?.GetModExtension<TrainingTier>()?.skillCeiling ?? 0;
+
+        // A shot pays its weapon's xpPerShot; a melee swing pays by cycle second.
+        public static float CycleXp(ThingDef shotWeapon, float cycleSeconds)
+        {
+            var tier = shotWeapon?.GetModExtension<TrainingTier>();
+            return tier != null ? tier.xpPerShot : MeleeXpPerCycleSecond * cycleSeconds;
+        }
 
         public static float SpentToday(Pawn pawn)
         {
@@ -83,7 +123,7 @@ namespace RimGovernor.Runtime
             var melee = skills.GetSkill(SkillDefOf.Melee);
             var shooting = skills.GetSkill(SkillDefOf.Shooting);
             var best = BestEnabledLevel(melee.Level, !melee.TotallyDisabled, shooting.Level, !shooting.TotallyDisabled);
-            return best >= 0 && best < SkillTarget;
+            return best >= 0 && best < Ceiling;
         }
 
         public static bool Eligible(Pawn pawn)
@@ -93,7 +133,7 @@ namespace RimGovernor.Runtime
                 && BelowTarget(pawn) && Remaining(pawn) > 0f;
         }
 
-        // Which skill drills: the higher usable level (it reaches the target soonest),
+        // Which skill drills: the higher usable level (it reaches the ceiling soonest),
         // then the stronger passion, then shooting (the safer drill). Shooting is
         // unusable for a Brawler; melee for a pawn whose Melee is disabled.
         public static bool TryChoose(Pawn pawn, out bool shooting)

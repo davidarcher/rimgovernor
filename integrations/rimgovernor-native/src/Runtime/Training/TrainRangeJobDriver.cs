@@ -9,7 +9,7 @@ namespace RimGovernor.Runtime
     // One drill session at a range lane (#2610). TargetA is the lane's stand,
     // TargetB its dummy; job.maxNumStaticAttacks bounds the cycles.
     //
-    // Shooting: walk onto the stand, swap the pawn's weapon for a Bow_Training
+    // Shooting: walk onto the stand, swap the pawn's weapon for the best unlocked practice weapon (a Bow_Training at tier 0)
     // (the real one moves to the pawn's inventory), then fire the bow's real verb
     // at the dummy, so arrows hit the dummy or the partitions beside it.
     // Melee: walk to the lane cell before the dummy and strike it with the pawn's
@@ -75,7 +75,7 @@ namespace RimGovernor.Runtime
         private void SwapToBow()
         {
             var equipment = pawn.equipment;
-            var bowDef = RangeTraining.BowDef;
+            var bowDef = RangeTraining.UnlockedWeapon();
             if (bowDef == null || trainingBow != null && equipment.Contains(trainingBow))
             {
                 if (bowDef == null) EndJobWith(JobCondition.Incompletable);
@@ -159,7 +159,7 @@ namespace RimGovernor.Runtime
             cyclesDone++;
             var record = pawn.skills.GetSkill(Skill);
             var factor = record.LearnRateFactor(true);
-            var xp = RangeTraining.CycleXp(Shooting, verb.verbProps.AdjustedFullCycleTime(verb, pawn));
+            var xp = RangeTraining.CycleXp(Shooting ? trainingBow?.def : null, verb.verbProps.AdjustedFullCycleTime(verb, pawn));
             var applied = xp * factor;
             var remaining = RangeTraining.Remaining(pawn);
             if (applied > remaining)

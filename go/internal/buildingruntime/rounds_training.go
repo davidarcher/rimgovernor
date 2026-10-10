@@ -32,7 +32,7 @@ func trainingStands(facts observation.ColonyProjection) domain.Fact[int] {
 	if !known {
 		return domain.Unknown[int]()
 	}
-	return policy.TrainingStands(domain.Known(policy.Profiles(pawns)))
+	return policy.TrainingStands(domain.Known(policy.Profiles(pawns)), facts.Facts.Research)
 }
 
 // RoundsTrainingPlanner stages the training range of MaintainTraining.

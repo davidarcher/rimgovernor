@@ -567,7 +567,7 @@ free ground (the + end, then the - end), keeping every standing piece, and a
 smaller demand changes nothing. `RangeTemplate(room)` turns the layout into the
 `[]WantedPiece` the room reconciler builds. `MaintainTraining` (Military, #2619)
 demands it: while an adult colonist's best of Melee and Shooting is under
-`policy.TrainingSkillTarget`, the military store declares `RoomDemand.Ranges`
+the ceiling of `policy.UnlockedTrainingTier` (#2684: the best tier whose gate research is finished in the research census; an unknown census holds at the bow), the military store declares `RoomDemand.Ranges`
 (the stockpile review, so with the stockpiles family); `RoundsTrainingPlanner`
 (family `training`) then reconciles `RangeTemplate`, and takes no further action
 once the range stands (the native training job is #2610). No action kind or wire
@@ -580,7 +580,7 @@ unskilled rank 3 for every capable colonist and the bot, not the player, owns
 the priority ([work assignment](../contracts/work-assignment.md)); the lowest
 natural priority puts it behind every other work of an equal rank. The giver
 offers a lane only to an adult colonist whose best enabled combat skill is under
-`SkillTarget` (a Go test pins it to `policy.TrainingSkillTarget`) with budget
+the same ceiling (native `RangeTraining.Ceiling`, read from finished research, Odyssey projects by name; About.xml depends on Odyssey) with budget
 left, for a stand that is unreserved and unforbidden and a dummy on its row or
 column in the same room, in the bow's range and in sight. The job
 (`JobDriver_TrainRange`, `RimGovernor_TrainShooting` or `_TrainMelee`) trains
@@ -596,8 +596,8 @@ the higher usable skill (then the stronger passion, then shooting).
   pawn's own melee verb; no swap. The `lab/training-melee` case runs it.
 - **XP.** Vanilla pays nothing for a non-pawn target (`IsTargetImmobile`), so
   each completed cycle (a shot whose `LastShotTick` advanced, or a swing) calls
-  direct `SkillRecord.Learn`: 25 XP per second of `AdjustedFullCycleTime` for
-  shooting (75 a shot with the 3 s practice bow) and 30 for melee, about 15% of
+  direct `SkillRecord.Learn`: the weapon's `TrainingTier.xpPerShot` for
+  shooting (75 a shot with the practice bow, more for the unlocked tiers) and 30 per second of `AdjustedFullCycleTime` for melee, about 15% of
   vanilla's 170 and 200 per cycle second against a hostile pawn. Direct Learn
   keeps the passion factor but skips the 4,000 XP/day soft cap and does not count
   toward `xpSinceMidnight`, so the job bounds itself: at most 3,000 applied XP

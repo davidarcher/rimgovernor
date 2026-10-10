@@ -1,5 +1,11 @@
 package policy
 
+import (
+	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
+
 // TrainingTier is one rung of the shooting practice ladder: a practice weapon
 // the training drill issues, and what it pays. The table mirrors the
 // TrainingTier DefModExtension on each weapon def in
@@ -27,4 +33,18 @@ var TrainingTiers = []TrainingTier{
 	{Weapon: "Gun_PracticeRifle", Projectile: "Bullet_PracticeRubber", Multiplier: 1.5, XPPerShot: 112, Ceiling: 10, Gate: "Gunsmithing"},
 	{Weapon: "Gun_PracticePulseRifle", Projectile: "Bullet_PracticePulse", Multiplier: 2.5, XPPerShot: 187, Ceiling: 12, Gate: "ChargedShot"},
 	{Weapon: "Gun_PracticeBeamEmitter", Projectile: "Bullet_PracticeBeam", Multiplier: 4, XPPerShot: 300, Ceiling: 15, Gate: "BeamWeapons"},
+}
+
+// UnlockedTrainingTier is the best tier whose gate research is finished; tier 0
+// has no gate, so an unknown census (as ArmoryResearchTier) holds at the bow.
+// The native drill reads the same census through the same rule.
+func UnlockedTrainingTier(research domain.Fact[ResearchFacts]) TrainingTier {
+	facts, _ := research.Value()
+	best := TrainingTiers[0]
+	for _, tier := range TrainingTiers[1:] {
+		if slices.Contains(facts.Finished, ResearchProjectID(tier.Gate)) {
+			best = tier
+		}
+	}
+	return best
 }

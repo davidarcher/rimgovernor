@@ -4,7 +4,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // MaintainTraining is the Military department's standing skill gap (#2619):
 // colonists whose best combat skill (Melee or Shooting) is below
-// TrainingSkillTarget. It is a Standard whose target is no such colonist, and it
+// the unlocked tier's ceiling. It is a Standard whose target is no such colonist, and it
 // is not gated by defense admission: the gap is its own deficit. Open, it asks
 // layout for a training range (RoomDemand.Ranges); a standing range takes no
 // further action from the Concern, because the native training job (#2610)
@@ -14,12 +14,9 @@ const MaintainTraining ConcernID = "MaintainTraining"
 // trainingPriority ranks MaintainTraining with the other priority-3 chores.
 const trainingPriority = 3
 
-// TrainingSkillTarget is the tier-0 ceiling (TrainingTiers[0].Ceiling, a test
-// pins it): the combat skill level at which a colonist stops
-// counting toward the gap. RimWorld skills run 0 to 20.
-const TrainingSkillTarget = 8
-
-// TrainingReview counts the colony's colonists against TrainingSkillTarget.
+// TrainingReview counts the colony's colonists against the ceiling of the best
+// unlocked tier (UnlockedTrainingTier): the combat skill level at which a
+// colonist stops counting toward the gap. RimWorld skills run 0 to 20.
 type TrainingReview struct {
 	// Capable are the adult colonists with an enabled combat skill read.
 	Capable int
@@ -33,11 +30,12 @@ type TrainingReview struct {
 // combat-capable). A pawn whose profile carries neither skill row is unread: it
 // is no gap, and when no gap is found elsewhere the review is unknown rather
 // than closed.
-func ReviewTraining(profiles domain.Fact[[]PawnProfile]) domain.Fact[TrainingReview] {
+func ReviewTraining(profiles domain.Fact[[]PawnProfile], research domain.Fact[ResearchFacts]) domain.Fact[TrainingReview] {
 	list, known := profiles.Value()
 	if !known {
 		return domain.Unknown[TrainingReview]()
 	}
+	ceiling := UnlockedTrainingTier(research).Ceiling
 	var r TrainingReview
 	unread := false
 	for _, p := range list {
@@ -60,7 +58,7 @@ func ReviewTraining(profiles domain.Fact[[]PawnProfile]) domain.Fact[TrainingRev
 			continue
 		}
 		r.Capable++
-		if best < TrainingSkillTarget {
+		if best < ceiling {
 			r.Below++
 		}
 	}
@@ -75,8 +73,8 @@ func ReviewTraining(profiles domain.Fact[[]PawnProfile]) domain.Fact[TrainingRev
 // (every capable colonist, not only those under the target, so the count does
 // not fall as colonists train). Unknown while the profiles or their skills are
 // unread.
-func TrainingStands(profiles domain.Fact[[]PawnProfile]) domain.Fact[int] {
-	r, known := ReviewTraining(profiles).Value()
+func TrainingStands(profiles domain.Fact[[]PawnProfile], research domain.Fact[ResearchFacts]) domain.Fact[int] {
+	r, known := ReviewTraining(profiles, research).Value()
 	if !known {
 		return domain.Unknown[int]()
 	}
@@ -89,7 +87,7 @@ func TrainingStands(profiles domain.Fact[[]PawnProfile]) domain.Fact[int] {
 // inspectTraining raises MaintainTraining while a capable colonist is below the
 // target, its deficit the share of capable colonists that are.
 func inspectTraining(c *roundsRun) error {
-	review := ReviewTraining(c.f.WorkProfiles)
+	review := ReviewTraining(c.f.WorkProfiles, c.f.Research)
 	c.assess(MaintainTraining, trainingPriority, measured(review, func(r TrainingReview) bool { return r.Below == 0 }))
 	if r, known := review.Value(); known && r.Below > 0 {
 		c.raise(MaintainTraining, trainingPriority).Deficit = domain.Known(float64(r.Below) / float64(r.Capable))

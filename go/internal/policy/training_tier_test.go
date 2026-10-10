@@ -4,9 +4,12 @@ import (
 	"encoding/xml"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 type xmlTierDef struct {
@@ -91,8 +94,8 @@ func TestTrainingTiersMirrorTheNativeWeaponDefs(t *testing.T) {
 // XP per shot is the tier-0 XP times the multiplier, and the ceilings climb.
 func TestTrainingTierTableIsConsistent(t *testing.T) {
 	base := TrainingTiers[0]
-	if base.Ceiling != TrainingSkillTarget || base.Gate != "" {
-		t.Fatal("tier 0 is the bow with no gate at the existing skill target", base)
+	if base.Gate != "" {
+		t.Fatal("tier 0 is the bow with no gate", base)
 	}
 	for i, tier := range TrainingTiers {
 		if got := int(float64(base.XPPerShot) * tier.Multiplier); got != tier.XPPerShot {
@@ -101,5 +104,65 @@ func TestTrainingTierTableIsConsistent(t *testing.T) {
 		if i > 0 && tier.Ceiling <= TrainingTiers[i-1].Ceiling {
 			t.Fatal("ceilings must rise", i)
 		}
+	}
+}
+
+func TestUnlockedTrainingTierFollowsFinishedResearch(t *testing.T) {
+	t.Parallel()
+	known := func(done ...ResearchProjectID) domain.Fact[ResearchFacts] {
+		return domain.Known(ResearchFacts{Finished: done})
+	}
+	for _, tc := range []struct {
+		name     string
+		research domain.Fact[ResearchFacts]
+		ceiling  int
+	}{
+		{"unknown census holds at the bow", domain.Unknown[ResearchFacts](), 8},
+		{"nothing finished", known(), 8},
+		{"unrelated research", known("Smithing"), 8},
+		{"gunsmithing", known("Gunsmithing"), 10},
+		{"charged shot outranks gunsmithing", known("Gunsmithing", "ChargedShot"), 12},
+		{"beam weapons is the best", known("Gunsmithing", "ChargedShot", "BeamWeapons"), 15},
+		{"a higher gate alone still unlocks its tier", known("BeamWeapons"), 15},
+	} {
+		if got := UnlockedTrainingTier(tc.research).Ceiling; got != tc.ceiling {
+			t.Errorf("%s: ceiling %d, want %d", tc.name, got, tc.ceiling)
+		}
+	}
+}
+
+func TestTrainingReviewCeilingRisesWithResearch(t *testing.T) {
+	t.Parallel()
+	profiles := domain.Known([]PawnProfile{combatant("a", 9, 9)})
+	if n, _ := TrainingStands(profiles, domain.Known(ResearchFacts{})).Value(); n != 0 {
+		t.Fatal("level 9 is past the bow ceiling")
+	}
+	if n, _ := TrainingStands(profiles, domain.Known(ResearchFacts{Finished: []ResearchProjectID{"Gunsmithing"}})).Value(); n == 0 {
+		t.Fatal("level 9 is below the rifle ceiling")
+	}
+}
+
+// The mod loads only with Odyssey (the BeamWeapons gate lives there), and loads
+// after it.
+func TestAboutXMLDependsOnOdyssey(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "integrations", "rimgovernor-native", "About", "About.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var about struct {
+		Dependencies []struct {
+			PackageID string `xml:"packageId"`
+		} `xml:"modDependencies>li"`
+		LoadAfter []string `xml:"loadAfter>li"`
+	}
+	if err := xml.Unmarshal(raw, &about); err != nil {
+		t.Fatal(err)
+	}
+	depends := false
+	for _, d := range about.Dependencies {
+		depends = depends || d.PackageID == "ludeon.rimworld.odyssey"
+	}
+	if !depends || !slices.Contains(about.LoadAfter, "ludeon.rimworld.odyssey") {
+		t.Fatal("About.xml must list ludeon.rimworld.odyssey in modDependencies and loadAfter", about)
 	}
 }

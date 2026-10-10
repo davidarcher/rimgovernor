@@ -24,9 +24,9 @@ func TestTrainingReviewCountsTheGapAgainstTheBestCombatSkill(t *testing.T) {
 		profiles domain.Fact[[]PawnProfile]
 		want     domain.Fact[TrainingReview]
 	}{
-		{"at the target is no gap", domain.Known([]PawnProfile{combatant("a", TrainingSkillTarget, 0)}), domain.Known(TrainingReview{Capable: 1})},
-		{"one below the target is a gap", domain.Known([]PawnProfile{combatant("a", TrainingSkillTarget-1, TrainingSkillTarget-2)}), domain.Known(TrainingReview{Capable: 1, Below: 1})},
-		{"best skill decides", domain.Known([]PawnProfile{combatant("a", 2, TrainingSkillTarget+3), combatant("b", 1, 1)}), domain.Known(TrainingReview{Capable: 2, Below: 1})},
+		{"at the target is no gap", domain.Known([]PawnProfile{combatant("a", TrainingTiers[0].Ceiling, 0)}), domain.Known(TrainingReview{Capable: 1})},
+		{"one below the target is a gap", domain.Known([]PawnProfile{combatant("a", TrainingTiers[0].Ceiling-1, TrainingTiers[0].Ceiling-2)}), domain.Known(TrainingReview{Capable: 1, Below: 1})},
+		{"best skill decides", domain.Known([]PawnProfile{combatant("a", 2, TrainingTiers[0].Ceiling+3), combatant("b", 1, 1)}), domain.Known(TrainingReview{Capable: 2, Below: 1})},
 		{"a disabled skill is skipped", domain.Known([]PawnProfile{meleeOnly}), domain.Known(TrainingReview{Capable: 1, Below: 1})},
 		{"no combat-capable colonists", domain.Known([]PawnProfile{pacifist, child}), domain.Known(TrainingReview{})},
 		{"no colonists", domain.Known([]PawnProfile{}), domain.Known(TrainingReview{})},
@@ -34,7 +34,7 @@ func TestTrainingReviewCountsTheGapAgainstTheBestCombatSkill(t *testing.T) {
 		{"a pawn with unread skills and no gap elsewhere is unknown", domain.Known([]PawnProfile{{ID: "x"}, combatant("a", 15, 15)}), domain.Unknown[TrainingReview]()},
 		{"a gap is a gap despite an unread pawn", domain.Known([]PawnProfile{{ID: "x"}, combatant("a", 1, 1)}), domain.Known(TrainingReview{Capable: 1, Below: 1})},
 	} {
-		got, gk := ReviewTraining(tc.profiles).Value()
+		got, gk := ReviewTraining(tc.profiles, domain.Unknown[ResearchFacts]()).Value()
 		want, wk := tc.want.Value()
 		if gk != wk || got != want {
 			t.Errorf("%s: %+v (known %v), want %+v (known %v)", tc.name, got, gk, want, wk)
@@ -68,7 +68,7 @@ func TestTrainingConcernRaisesTheRangeDeficit(t *testing.T) {
 
 	// The open gap reaches layout as a range the plan lacks, through the
 	// shared store declaration.
-	view := StoreView{TrainingStands: TrainingStands(f.WorkProfiles)}
+	view := StoreView{TrainingStands: TrainingStands(f.WorkProfiles, f.Research)}
 	demand := DeclareStores(view).Apply(RoomDemand{})
 	if demand.Ranges != RangeMinStands {
 		t.Fatalf("open gap demands %d stands, want %d", demand.Ranges, RangeMinStands)
@@ -82,7 +82,7 @@ func TestTrainingConcernRaisesTheRangeDeficit(t *testing.T) {
 func TestTrainingConcernRaisesNothingWithoutAGap(t *testing.T) {
 	t.Parallel()
 	for name, profiles := range map[string]domain.Fact[[]PawnProfile]{
-		"everyone at the target": domain.Known([]PawnProfile{combatant("a", TrainingSkillTarget, 0)}),
+		"everyone at the target": domain.Known([]PawnProfile{combatant("a", TrainingTiers[0].Ceiling, 0)}),
 		"no combatants":          domain.Known([]PawnProfile{}),
 		"unread":                 domain.Unknown[[]PawnProfile](),
 	} {
@@ -97,7 +97,7 @@ func TestTrainingConcernRaisesNothingWithoutAGap(t *testing.T) {
 				t.Errorf("%s raised MaintainTraining", name)
 			}
 		}
-		if demand := DeclareStores(StoreView{TrainingStands: TrainingStands(profiles)}).Apply(RoomDemand{}); demand.Ranges != 0 {
+		if demand := DeclareStores(StoreView{TrainingStands: TrainingStands(profiles, domain.Unknown[ResearchFacts]())}).Apply(RoomDemand{}); demand.Ranges != 0 {
 			t.Errorf("%s demands %d ranges", name, demand.Ranges)
 		}
 	}
