@@ -1,7 +1,7 @@
 package policy
 
 // coreWeapons is test data: the def rows' facts of the weapons the
-// planning tests name, stated as bridge.CoreWeaponFixtures derives them.
+// planning tests name, as the recorded weapon rows derive them.
 var coreWeapons = map[string]WeaponDef{
 	"Weapon_GrenadeFrag":         {Ranged: true, Range: 12.9, Explosive: true, Blast: 1.9, DPS: 12.019, AP: .1, ForcedMiss: true},
 	"Weapon_GrenadeMolotov":      {Ranged: true, Range: 12.9, Explosive: true, Blast: 1.1, Incendiary: true, DPS: 2.404, ForcedMiss: true},
@@ -26,7 +26,7 @@ var coreWeapons = map[string]WeaponDef{
 	"MeleeWeapon_LongSword":      {Melee: true, DPS: 11.415, AP: .33},
 	"MeleeWeapon_Longsword":      {Melee: true, DPS: 11.415, AP: .33},
 	"WoodLog":                    {Melee: true, Blunt: true, DPS: 5.75, AP: .15},
-	// Not in bridge.CoreWeaponFixtures: round numbers for the tests that
+	// Not recorded weapons: round numbers for the tests that
 	// need a close-range shotgun, an SMG, a mid bow and a sling.
 	"Gun_ChainShotgun": {Ranged: true, Range: 12.9, DPS: 12, AP: .14},
 	"Gun_HeavySMG":     {Ranged: true, Range: 22.9, DPS: 9, AP: .18},
