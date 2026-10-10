@@ -69,7 +69,7 @@ func sleepingUpkeepFixture(t *testing.T) (*RoundsSleepingUpkeepPlanner, *store.S
 		return &o.UpkeepPerson{Pawn: &c.Ref{Id: proto.String(id)}, OwnedBed: bridge.NewRef(owned), ComfortableMinC: proto.Float64(10), ComfortableMaxC: proto.Float64(30)}
 	}
 	upkeepBed := func(ref *o.EntityRef, owners ...string) *o.UpkeepBed {
-		return &o.UpkeepBed{Bed: native.head(ref), Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), RestEffectiveness: proto.Float64(1), TemperatureC: proto.Float64(20), AccessibleTo: bridge.NewRefs([]string{"patient", "other"}), Owners: bridge.NewRefs(owners), Users: bridge.NewRefs(owners)}
+		return &o.UpkeepBed{Bed: native.head(ref), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), TemperatureC: proto.Float64(20), AccessibleTo: bridge.NewRefs([]string{"patient", "other"}), Owners: bridge.NewRefs(owners), Users: bridge.NewRefs(owners)}
 	}
 	otherBed := &o.EntityRef{Id: proto.String("bed-other"), DefName: proto.String("Bed"), MapId: proto.Int32(0), Position: cell(1, 0)}
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{

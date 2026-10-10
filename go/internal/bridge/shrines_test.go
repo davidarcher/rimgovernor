@@ -15,7 +15,7 @@ func cell(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32
 
 func shrineSnapshot() *o.AncientShrinesSnapshot {
 	shrine := &o.AncientShrine{ShrineId: proto.String("ancientTempleApproached-1"), Room: &o.Rectangle{Minimum: cell(10, 10), Maximum: cell(20, 18)}, Sealed: proto.Bool(true), InHome: proto.Bool(false), GuardsKnown: proto.Bool(false),
-		Caskets:     []*o.ShrineCasket{{EntityId: proto.String("AncientCryptosleepCasket1"), Cell: cell(12, 12), InteractionCell: cell(13, 12), HitPoints: proto.Uint32(250), MaxHitPoints: proto.Uint32(250), HasContents: proto.Bool(true), PlayerClaimed: proto.Bool(false)}},
+		Caskets:     []*o.ShrineCasket{{EntityId: proto.String("AncientCryptosleepCasket1"), Cell: cell(12, 12), InteractionCell: cell(13, 12), HitPoints: proto.Uint32(250), HasContents: proto.Bool(true), PlayerClaimed: proto.Bool(false)}},
 		BreachWalls: []*o.ShrineBreachWall{{EntityId: proto.String("Wall7"), Cell: cell(10, 14), Outside: cell(9, 14)}}}
 	return &o.AncientShrinesSnapshot{Context: pbContext(), Shrines: []*o.AncientShrine{shrine}}
 }
@@ -60,7 +60,6 @@ func TestShrinesRejectIncompleteAndUnsafeDefaults(t *testing.T) {
 			v.Shrines[0].Guards = []*o.ShrineGuard{{EntityId: proto.String("Scyther1"), Kind: o.ShrineGuardKind_SHRINE_GUARD_KIND_MECHANOID, Downed: proto.Bool(false), Dead: proto.Bool(false)}}
 		},
 		"bad room":          func(v *o.AncientShrinesSnapshot) { v.Shrines[0].Room.Maximum.X = proto.Int32(0) },
-		"casket hp":         func(v *o.AncientShrinesSnapshot) { v.Shrines[0].Caskets[0].HitPoints = proto.Uint32(300) },
 		"casket contents":   func(v *o.AncientShrinesSnapshot) { v.Shrines[0].Caskets[0].HasContents = nil },
 		"casket claimed":    func(v *o.AncientShrinesSnapshot) { v.Shrines[0].Caskets[0].PlayerClaimed = nil },
 		"wall not adjacent": func(v *o.AncientShrinesSnapshot) { v.Shrines[0].BreachWalls[0].Outside = cell(8, 14) },

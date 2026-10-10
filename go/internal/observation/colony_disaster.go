@@ -50,7 +50,7 @@ func colonyOutdoorsDark(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCata
 	return domain.Known(dark), nil
 }
 
-func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoundsFacts, buildings bridge.Buildings, conditions []policy.DisasterCondition, conditionsKnown bool) {
+func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoundsFacts, buildings bridge.Buildings, catalog *bridge.DefinitionCatalog, conditions []policy.DisasterCondition, conditionsKnown bool) error {
 	if conditionsKnown {
 		facts.DisasterConditions = domain.Known(conditions)
 	}
@@ -64,8 +64,15 @@ func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoundsFacts, buildin
 		rows := make([]policy.RecoveryBuilding, 0, len(recovery.Buildings))
 		for _, ref := range recovery.Buildings {
 			row, _ := buildings.Row(ref)
+			if catalog == nil {
+				return fmt.Errorf("recovery building %s: no definition catalog was loaded", ref.GetId())
+			}
+			usesHitPoints, err := catalog.UsesHitPoints(row.GetBuilding().GetDefName())
+			if err != nil {
+				return err
+			}
 			s := row.Service
-			b := policy.RecoveryBuilding{ID: ref.GetId(), UsesHitPoints: optional(row.UsesHitPoints), Broken: optional(s.BrokenDown), Forbidden: optional(row.Settings.Forbidden), Burning: optional(row.Burning), Fuel: optional(s.Fuel), FuelTarget: optional(s.TargetFuel)}
+			b := policy.RecoveryBuilding{ID: ref.GetId(), UsesHitPoints: domain.Known(usesHitPoints), Broken: optional(s.BrokenDown), Forbidden: optional(row.Settings.Forbidden), Burning: optional(row.Burning), Fuel: optional(s.Fuel), FuelTarget: optional(s.TargetFuel)}
 			if row.HitPoints != nil {
 				b.HitPoints = domain.Known(int64(row.GetHitPoints()))
 			}
@@ -84,6 +91,7 @@ func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoundsFacts, buildin
 		}
 		facts.RecoveryBuildings = domain.Known(rows)
 	}
+	return nil
 }
 
 func recoveryWorkers(pawns domain.Fact[[]policy.MoodPawn]) domain.Fact[[]policy.RecoveryWorker] {

@@ -115,7 +115,6 @@ namespace HomeBridge.BridgeTools
                 Index = (uint)index, LineId = "#" + index,
                 Definition = new Obs.DefinitionRef { DefName = def != null ? def.defName : "" },
                 Stuff = SafeText(() => t.StuffDef != null ? t.StuffDef.defName : ""),
-                Category = def != null && def.FirstThingCategory != null ? def.FirstThingCategory.defName : "",
                 ColonyCount = SafeInt(() => t.CountHeldBy(Transactor.Colony)), TraderCount = SafeInt(() => t.CountHeldBy(Transactor.Trader)),
                 // GetPriceFor memoises price factors inside the Tradeable: the
                 // session's own scratch state, the same write the vanilla dialog
@@ -125,7 +124,6 @@ namespace HomeBridge.BridgeTools
                 MarketValue = SafeFloat(() => t.BaseMarketValue),
                 TraderWillTrade = SafeBool(() => t.TraderWillTrade), Currency = SafeBool(() => t.IsCurrency), Pawn = pawn, Favor = favor,
                 TransferCount = SafeInt(() => t.CountToTransfer), MinimumCount = SafeInt(() => t.GetMinimumToTransfer()), MaximumCount = SafeInt(() => t.GetMaximumToTransfer()),
-                Food = pawn ? null : NativeTradeFoodFacts.Read(def),
             };
             if (!pawn)
             {

@@ -20,11 +20,11 @@ const (
 // InteractionCell is where a pawn stands to open it and where the ejected
 // occupant lands.
 type ShrineCasket struct {
-	EntityID                string
-	Cell, InteractionCell   domain.Cell
-	HitPoints, MaxHitPoints uint32
-	HasContents             bool
-	PlayerClaimed           bool
+	EntityID              string
+	Cell, InteractionCell domain.Cell
+	HitPoints             uint32
+	HasContents           bool
+	PlayerClaimed         bool
 }
 
 type ShrineGuard struct {

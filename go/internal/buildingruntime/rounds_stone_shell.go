@@ -184,7 +184,20 @@ func (r *RoundsStoneShellPlanner) propose(call, epoch context.Context, goal stor
 	if !site.Eligible() {
 		return RoundsStoneShellResult{}, false, nil
 	}
-	if len(site.ReplacementMaterials) == 0 {
+	catalog, err := pawnCatalog(call, r.native, boundary.Identity(state.Snapshot))
+	if err != nil {
+		return RoundsStoneShellResult{}, false, err
+	}
+	if catalog == nil {
+		return RoundsStoneShellResult{}, false, fmt.Errorf("%w: propose: the source serves no definition catalog", ErrControl)
+	}
+	// The candidate stuffs are the stony stuffs the wall can be made from,
+	// priced by the catalog rows.
+	materials, err := catalog.StuffMaterials("Wall", "Stony")
+	if err != nil {
+		return RoundsStoneShellResult{}, false, err
+	}
+	if len(materials) == 0 {
 		return RoundsStoneShellResult{Verdict: stoneShellUnstocked}, false, nil
 	}
 	backupCount := len(site.BackupCells)
@@ -194,10 +207,10 @@ func (r *RoundsStoneShellPlanner) propose(call, epoch context.Context, goal stor
 	// The backups and the permanent wall are funded from free stock, after
 	// construction and live bill jobs: the first stone the budget
 	// covers. Without a stock census the first stone is proposed.
-	material, funded := site.ReplacementMaterials[0], true
+	material, funded := materials[0], true
 	if budget, known := policy.MaterialBudget(projection.Facts.Resources, projection.Facts.ConstructionDeficit, projection.Facts.BillReservations, "").Value(); known {
 		funded = false
-		for _, option := range site.ReplacementMaterials {
+		for _, option := range materials {
 			if stoneShellFunded(budget, option, int64(backupCount+1)) {
 				material, funded = option, true
 				break

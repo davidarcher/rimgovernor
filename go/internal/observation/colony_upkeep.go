@@ -24,13 +24,24 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot, tables bridge.Tables) (policy.Upkeep
 	if !hasIssue(u.Issues, "structures") {
 		rows := []policy.UpkeepStructure{}
 		known := true
+		medical := map[string]bool{}
+		for _, bed := range u.Beds {
+			medical[bed.GetBed().GetId()] = bed.GetMedical()
+		}
 		for _, item := range u.Structures {
 			b, ok := buildings.Row(item.Building)
-			if !ok || item.Home == nil || item.RepairPriority == nil || b.HitPoints == nil || b.MaxHitPoints == nil {
+			if !ok || item.Home == nil || b.HitPoints == nil || b.MaxHitPoints == nil {
 				known = false
 				break
 			}
-			rows = append(rows, policy.UpkeepStructure{ID: item.Building.GetId(), Definition: b.GetBuilding().GetDefName(), Cell: domain.Cell{X: b.GetBuilding().GetPosition().GetX(), Z: b.GetBuilding().GetPosition().GetZ()}, Home: item.GetHome(), HitPoints: int64(b.GetHitPoints()), MaxHitPoints: int64(b.GetMaxHitPoints()), Priority: int(item.GetRepairPriority())})
+			if tables.Catalog == nil {
+				return r, fmt.Errorf("upkeep structures: no definition catalog was loaded")
+			}
+			priority, err := tables.Catalog.RepairPriority(b.GetBuilding().GetDefName(), medical[item.Building.GetId()])
+			if err != nil {
+				return r, fmt.Errorf("upkeep structure %s: %w", item.Building.GetId(), err)
+			}
+			rows = append(rows, policy.UpkeepStructure{ID: item.Building.GetId(), Definition: b.GetBuilding().GetDefName(), Cell: domain.Cell{X: b.GetBuilding().GetPosition().GetX(), Z: b.GetBuilding().GetPosition().GetZ()}, Home: item.GetHome(), HitPoints: int64(b.GetHitPoints()), MaxHitPoints: int64(b.GetMaxHitPoints()), Priority: priority})
 		}
 		if known {
 			r.Structures = domain.Known(rows)
@@ -217,9 +228,15 @@ func colonyLighting(section *o.LightingSection, buildings bridge.Buildings, cata
 	for _, row := range l.Lamps {
 		b, ok := buildings.Row(row.GetBuilding())
 		ref := b.GetBuilding()
-		radius, glows, err := catalog.GlowRadius(ref.GetDefName())
-		if !ok || err != nil || !glows || row.Lit == nil {
+		if !ok || row.Lit == nil {
 			return domain.Fact[policy.LightingObservation]{}, nil
+		}
+		radius, glows, err := catalog.GlowRadius(ref.GetDefName())
+		if err != nil {
+			return domain.Fact[policy.LightingObservation]{}, err
+		}
+		if !glows {
+			return domain.Fact[policy.LightingObservation]{}, fmt.Errorf("lamp %s: def %s has no glower comp", ref.GetId(), ref.GetDefName())
 		}
 		s := b.GetService()
 		fuels, err := catalog.RefuelFuels(ref.GetDefName())

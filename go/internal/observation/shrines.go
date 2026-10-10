@@ -69,7 +69,7 @@ func ObserveShrines(ctx context.Context, source ShrineSource, expected Identity)
 	for _, row := range v.Shrines {
 		shrine := AncientShrine{ID: row.GetShrineId(), Minimum: cell(row.Room.Minimum), Maximum: cell(row.Room.Maximum), Sealed: row.GetSealed(), InHome: row.GetInHome(), GuardsKnown: row.GetGuardsKnown()}
 		for _, casket := range row.Caskets {
-			shrine.Caskets = append(shrine.Caskets, policy.ShrineCasket{EntityID: casket.GetEntityId(), Cell: cell(casket.Cell), InteractionCell: cell(casket.InteractionCell), HitPoints: casket.GetHitPoints(), MaxHitPoints: casket.GetMaxHitPoints(), HasContents: casket.GetHasContents(), PlayerClaimed: casket.GetPlayerClaimed()})
+			shrine.Caskets = append(shrine.Caskets, policy.ShrineCasket{EntityID: casket.GetEntityId(), Cell: cell(casket.Cell), InteractionCell: cell(casket.InteractionCell), HitPoints: casket.GetHitPoints(), HasContents: casket.GetHasContents(), PlayerClaimed: casket.GetPlayerClaimed()})
 		}
 		for _, guard := range row.Guards {
 			shrine.Guards = append(shrine.Guards, policy.ShrineGuard{EntityID: guard.GetEntityId(), Kind: kinds[guard.Kind], Downed: guard.GetDowned(), Dead: guard.GetDead()})

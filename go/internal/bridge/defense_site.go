@@ -86,15 +86,13 @@ type RaidTrack struct {
 }
 
 // DefenseSite is one complete rectangle census with the context the caller
-// validates against its acting generation. CoverThreshold is the fill above
-// which the game's shooting model grants a block chance.
+// validates against its acting generation.
 type DefenseSite struct {
-	Context        *c.ObservationContext
-	Width, Height  uint32
-	Region         CellRect
-	Cells          []DefenseCell
-	CoverThreshold float64
-	Raids          []RaidTrack
+	Context       *c.ObservationContext
+	Width, Height uint32
+	Region        CellRect
+	Cells         []DefenseCell
+	Raids         []RaidTrack
 }
 
 // LineOfFire is the native shooting-model evidence for one (firing, approach)
@@ -291,10 +289,6 @@ func validateDefenseSite(v *o.DefenseSiteSnapshot, identity *c.Identity, region 
 		}
 		site.Cells = append(site.Cells, out)
 	}
-	if v.CoverThreshold == nil || !fraction(v.CoverThreshold) || v.GetCoverThreshold() >= 1 {
-		return DefenseSite{}, contract("defense site cover threshold missing")
-	}
-	site.CoverThreshold = v.GetCoverThreshold()
 	lords := map[string]bool{}
 	for _, row := range v.Raids {
 		spawn, ok := protoCell(row.GetSpawn())

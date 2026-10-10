@@ -1861,26 +1861,16 @@
     "Portfolio": [
      {
       "Channel": {
-       "Kind": "forage",
        "ID": "Thing_Plant_Berry16700",
-       "State": {
-        "v": "closed"
+       "Kind": "forage",
+       "LaborPerDay": {
+        "v": 2500
        },
-       "Yields": [
-        {
-         "Good": {
-          "Def": "Nutrition"
-         },
-         "PerDay": {
-          "v": 0.5000000074505806
-         }
-        }
-       ],
        "LeadDays": {
         "v": 0
        },
-       "LaborPerDay": {
-        "v": 2500
+       "State": {
+        "v": "closed"
        },
        "Terms": [
         {
@@ -1890,6 +1880,16 @@
         {
          "Name": "estimated_work_ticks",
          "Value": 2500
+        }
+       ],
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0.5000000074505806
+         }
         }
        ]
       },
@@ -1927,26 +1927,16 @@
      },
      {
       "Channel": {
-       "Kind": "forage",
        "ID": "Thing_Plant_Berry18230",
-       "State": {
-        "v": "closed"
+       "Kind": "forage",
+       "LaborPerDay": {
+        "v": 2500
        },
-       "Yields": [
-        {
-         "Good": {
-          "Def": "Nutrition"
-         },
-         "PerDay": {
-          "v": 0.5000000074505806
-         }
-        }
-       ],
        "LeadDays": {
         "v": 0
        },
-       "LaborPerDay": {
-        "v": 2500
+       "State": {
+        "v": "closed"
        },
        "Terms": [
         {
@@ -1956,6 +1946,16 @@
         {
          "Name": "estimated_work_ticks",
          "Value": 2500
+        }
+       ],
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0.5000000074505806
+         }
         }
        ]
       },
@@ -1993,26 +1993,16 @@
      },
      {
       "Channel": {
-       "Kind": "forage",
        "ID": "Thing_Plant_Berry18454",
-       "State": {
-        "v": "closed"
+       "Kind": "forage",
+       "LaborPerDay": {
+        "v": 2500
        },
-       "Yields": [
-        {
-         "Good": {
-          "Def": "Nutrition"
-         },
-         "PerDay": {
-          "v": 0.5000000074505806
-         }
-        }
-       ],
        "LeadDays": {
         "v": 0
        },
-       "LaborPerDay": {
-        "v": 2500
+       "State": {
+        "v": "closed"
        },
        "Terms": [
         {
@@ -2022,6 +2012,16 @@
         {
          "Name": "estimated_work_ticks",
          "Value": 2500
+        }
+       ],
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0.5000000074505806
+         }
         }
        ]
       },
@@ -2059,26 +2059,16 @@
      },
      {
       "Channel": {
-       "Kind": "forage",
        "ID": "Thing_Plant_Berry19222",
-       "State": {
-        "v": "closed"
+       "Kind": "forage",
+       "LaborPerDay": {
+        "v": 2500
        },
-       "Yields": [
-        {
-         "Good": {
-          "Def": "Nutrition"
-         },
-         "PerDay": {
-          "v": 0.5000000074505806
-         }
-        }
-       ],
        "LeadDays": {
         "v": 0
        },
-       "LaborPerDay": {
-        "v": 2500
+       "State": {
+        "v": "closed"
        },
        "Terms": [
         {
@@ -2088,6 +2078,16 @@
         {
          "Name": "estimated_work_ticks",
          "Value": 2500
+        }
+       ],
+       "Yields": [
+        {
+         "Good": {
+          "Def": "Nutrition"
+         },
+         "PerDay": {
+          "v": 0.5000000074505806
+         }
         }
        ]
       },
@@ -2125,11 +2125,27 @@
      },
      {
       "Channel": {
-       "Kind": "forage",
        "ID": "Thing_Plant_Berry20259",
+       "Kind": "forage",
+       "LaborPerDay": {
+        "v": 2500
+       },
+       "LeadDays": {
+        "v": 0
+       },
        "State": {
         "v": "closed"
        },
+       "Terms": [
+        {
+         "Name": "estimated_cycle_days",
+         "Value": 1
+        },
+        {
+         "Name": "estimated_work_ticks",
+         "Value": 2500
+        }
+       ],
        "Yields": [
         {
          "Good": {
@@ -2138,22 +2154,6 @@
          "PerDay": {
           "v": 0.3500000052154064
          }
-        }
-       ],
-       "LeadDays": {
-        "v": 0
-       },
-       "LaborPerDay": {
-        "v": 2500
-       },
-       "Terms": [
-        {
-         "Name": "estimated_cycle_days",
-         "Value": 1
-        },
-        {
-         "Name": "estimated_work_ticks",
-         "Value": 2500
         }
        ]
       },
@@ -2191,11 +2191,23 @@
      },
      {
       "Channel": {
-       "Kind": "cook",
        "ID": "cooking-capacity",
+       "Kind": "cook",
+       "LaborPerDay": {
+        "v": 0
+       },
+       "LeadDays": {
+        "v": 0
+       },
        "State": {
         "v": "closed"
        },
+       "Terms": [
+        {
+         "Name": "supporting_method",
+         "Value": 1
+        }
+       ],
        "Yields": [
         {
          "Good": {
@@ -2204,18 +2216,6 @@
          "PerDay": {
           "v": 0
          }
-        }
-       ],
-       "LeadDays": {
-        "v": 0
-       },
-       "LaborPerDay": {
-        "v": 0
-       },
-       "Terms": [
-        {
-         "Name": "supporting_method",
-         "Value": 1
         }
        ]
       },
@@ -2246,11 +2246,23 @@
      },
      {
       "Channel": {
-       "Kind": "crop",
        "ID": "field-capacity",
+       "Kind": "crop",
+       "LaborPerDay": {
+        "v": 0
+       },
+       "LeadDays": {
+        "v": 0
+       },
        "State": {
         "v": "closed"
        },
+       "Terms": [
+        {
+         "Name": "supporting_method",
+         "Value": 1
+        }
+       ],
        "Yields": [
         {
          "Good": {
@@ -2259,18 +2271,6 @@
          "PerDay": {
           "v": 0
          }
-        }
-       ],
-       "LeadDays": {
-        "v": 0
-       },
-       "LaborPerDay": {
-        "v": 0
-       },
-       "Terms": [
-        {
-         "Name": "supporting_method",
-         "Value": 1
         }
        ]
       },
@@ -2301,11 +2301,23 @@
      },
      {
       "Channel": {
-       "Kind": "reserve",
        "ID": "stock-protection",
+       "Kind": "reserve",
+       "LaborPerDay": {
+        "v": 0
+       },
+       "LeadDays": {
+        "v": 0
+       },
        "State": {
         "v": "closed"
        },
+       "Terms": [
+        {
+         "Name": "supporting_method",
+         "Value": 1
+        }
+       ],
        "Yields": [
         {
          "Good": {
@@ -2314,18 +2326,6 @@
          "PerDay": {
           "v": 0
          }
-        }
-       ],
-       "LeadDays": {
-        "v": 0
-       },
-       "LaborPerDay": {
-        "v": 0
-       },
-       "Terms": [
-        {
-         "Name": "supporting_method",
-         "Value": 1
         }
        ]
       },
@@ -10598,8 +10598,7 @@
         "InteractionCell": {
          "X": 113,
          "Z": 130
-        },
-        "MaxHitPoints": 250
+        }
        },
        {
         "Cell": {
@@ -10612,8 +10611,7 @@
         "InteractionCell": {
          "X": 115,
          "Z": 130
-        },
-        "MaxHitPoints": 250
+        }
        }
       ],
       "GuardsKnown": true,
@@ -11725,6 +11723,7 @@
   },
   "ColdEnter": 12,
   "ColdExit": 16,
+  "ConcernStallTicks": 2500,
   "Flooring": {
    "Clean": {
     "Beauty": 1,
@@ -11780,7 +11779,6 @@
   },
   "FoodTargetDays": 7,
   "FootholdFoodDays": 3,
-  "ConcernStallTicks": 2500,
   "HotEnter": 32,
   "HotExit": 28,
   "HuntStallTicks": 6000,
@@ -12006,160 +12004,6 @@
     }
    ]
   },
-  "Standards": [
-   {
-    "Standard": "routine-1bf97f76353844d2-AnswerDialog",
-    "Concern": "AnswerDialog"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-ActiveCombat",
-    "Concern": "ActiveCombat"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-CriticalMedical",
-    "Concern": "CriticalMedical"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-RestoreWorkers",
-    "Concern": "RestoreWorkers"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-AllowStartingSupplies",
-    "Concern": "AllowStartingSupplies"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-ManageSupplySafety",
-    "Concern": "ManageSupplySafety"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-EnsureWorkAssignments",
-    "Concern": "EnsureWorkAssignments"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-EnsureFoodSupply",
-    "Concern": "EnsureFoodSupply"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainHousing",
-    "Concern": "MaintainHousing"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-EnsureTemperatureSafety",
-    "Concern": "EnsureTemperatureSafety"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-EnsureCooking",
-    "Concern": "EnsureCooking"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-EnsureBasicPower",
-    "Concern": "EnsureBasicPower"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-EnsureBasicDefense",
-    "Concern": "EnsureBasicDefense"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainMedicalReserves",
-    "Concern": "MaintainMedicalReserves"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-EnsureComfort",
-    "Concern": "EnsureComfort"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-ClearPests",
-    "Concern": "ClearPests"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainEquipment",
-    "Concern": "MaintainEquipment"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-EnsureResearch",
-    "Concern": "EnsureResearch"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainResource",
-    "Concern": "MaintainResource"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-TradeWithCaravan",
-    "Concern": "TradeWithCaravan"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-EnsureDefensiveLayout",
-    "Concern": "EnsureDefensiveLayout"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainFireSafety",
-    "Concern": "MaintainFireSafety"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainEssentialRepairs",
-    "Concern": "MaintainEssentialRepairs"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainCleanFacilities",
-    "Concern": "MaintainCleanFacilities"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-ClearHomeObstructions",
-    "Concern": "ClearHomeObstructions"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-ClearAncientShrine",
-    "Concern": "ClearAncientShrine"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainHomeCoverage",
-    "Concern": "MaintainHomeCoverage"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainStoneShell",
-    "Concern": "MaintainStoneShell"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainFoodStorage",
-    "Concern": "MaintainFoodStorage"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainRefrigeration",
-    "Concern": "MaintainRefrigeration"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainLighting",
-    "Concern": "MaintainLighting"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainFlooring",
-    "Concern": "MaintainFlooring"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainRoutes",
-    "Concern": "MaintainRoutes"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainHerd",
-    "Concern": "MaintainHerd"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainPopulation",
-    "Concern": "MaintainPopulation"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-MaintainAnimalContainment",
-    "Concern": "MaintainAnimalContainment"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-RemoveBlight",
-    "Concern": "RemoveBlight"
-   },
-   {
-    "Standard": "routine-1bf97f76353844d2-RecoverDisasterServices",
-    "Concern": "RecoverDisasterServices"
-   }
-  ],
   "Latches": {
    "Cold": true,
    "Comfort": "basic",
@@ -12180,24 +12024,24 @@
   "Progress": [
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "AllowStartingSupplies",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515
    },
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "EnsureWorkAssignments",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515
    },
    {
     "Blocked": "prerequisite:EnsureCooking",
-    "Expected": "food days rise toward the target",
     "Concern": "EnsureFoodSupply",
+    "Expected": "food days rise toward the target",
     "LastProgress": 15,
     "Method": "acquire",
     "NextReview": 2515,
@@ -12205,32 +12049,32 @@
    },
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "MaintainHousing",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515
    },
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "EnsureTemperatureSafety",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515
    },
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "EnsureCooking",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515
    },
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "EnsureComfort",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515,
@@ -12238,8 +12082,8 @@
    },
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "MaintainEquipment",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515,
@@ -12247,8 +12091,8 @@
    },
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "MaintainResource",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515,
@@ -12256,24 +12100,24 @@
    },
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "MaintainCleanFacilities",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515
    },
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "ClearHomeObstructions",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515
    },
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "ClearAncientShrine",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515,
@@ -12281,8 +12125,8 @@
    },
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "MaintainMedicalReserves",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515,
@@ -12290,8 +12134,8 @@
    },
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "MaintainFoodStorage",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515,
@@ -12299,8 +12143,8 @@
    },
    {
     "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
     "Concern": "MaintainHerd",
+    "Expected": "deficit shrinks or the method's work settles",
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515
@@ -12309,7 +12153,6 @@
   "ReadyWork": {
    "Candidates": [
     {
-     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -12319,7 +12162,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -12329,7 +12171,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [],
      "ID": "1b9445522ab189b7",
      "Reason": "no plan or proposal",
@@ -12337,7 +12178,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainEquipment"
      ],
@@ -12347,7 +12187,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainFoodStorage"
      ],
@@ -12357,7 +12196,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "ClearAncientShrine"
      ],
@@ -12367,7 +12205,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "ClearHomeObstructions"
      ],
@@ -12377,7 +12214,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainResource"
      ],
@@ -12387,7 +12223,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHousing"
      ],
@@ -12397,7 +12232,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainHerd"
      ],
@@ -12407,7 +12241,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "EnsureComfort"
      ],
@@ -12417,7 +12250,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainMedicalReserves"
      ],
@@ -12427,7 +12259,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [],
      "ID": "fda7af2869c6a133",
      "Reason": "no plan or proposal",
@@ -12435,7 +12266,6 @@
      "State": "no_method"
     },
     {
-     
      "Concerns": [
       "MaintainCleanFacilities"
      ],
@@ -13368,6 +13198,160 @@
    "ProductionSince": 15,
    "Reason": "shelter unmet"
   },
+  "Standards": [
+   {
+    "Concern": "AnswerDialog",
+    "Standard": "routine-1bf97f76353844d2-AnswerDialog"
+   },
+   {
+    "Concern": "ActiveCombat",
+    "Standard": "routine-1bf97f76353844d2-ActiveCombat"
+   },
+   {
+    "Concern": "CriticalMedical",
+    "Standard": "routine-1bf97f76353844d2-CriticalMedical"
+   },
+   {
+    "Concern": "RestoreWorkers",
+    "Standard": "routine-1bf97f76353844d2-RestoreWorkers"
+   },
+   {
+    "Concern": "AllowStartingSupplies",
+    "Standard": "routine-1bf97f76353844d2-AllowStartingSupplies"
+   },
+   {
+    "Concern": "ManageSupplySafety",
+    "Standard": "routine-1bf97f76353844d2-ManageSupplySafety"
+   },
+   {
+    "Concern": "EnsureWorkAssignments",
+    "Standard": "routine-1bf97f76353844d2-EnsureWorkAssignments"
+   },
+   {
+    "Concern": "EnsureFoodSupply",
+    "Standard": "routine-1bf97f76353844d2-EnsureFoodSupply"
+   },
+   {
+    "Concern": "MaintainHousing",
+    "Standard": "routine-1bf97f76353844d2-MaintainHousing"
+   },
+   {
+    "Concern": "EnsureTemperatureSafety",
+    "Standard": "routine-1bf97f76353844d2-EnsureTemperatureSafety"
+   },
+   {
+    "Concern": "EnsureCooking",
+    "Standard": "routine-1bf97f76353844d2-EnsureCooking"
+   },
+   {
+    "Concern": "EnsureBasicPower",
+    "Standard": "routine-1bf97f76353844d2-EnsureBasicPower"
+   },
+   {
+    "Concern": "EnsureBasicDefense",
+    "Standard": "routine-1bf97f76353844d2-EnsureBasicDefense"
+   },
+   {
+    "Concern": "MaintainMedicalReserves",
+    "Standard": "routine-1bf97f76353844d2-MaintainMedicalReserves"
+   },
+   {
+    "Concern": "EnsureComfort",
+    "Standard": "routine-1bf97f76353844d2-EnsureComfort"
+   },
+   {
+    "Concern": "ClearPests",
+    "Standard": "routine-1bf97f76353844d2-ClearPests"
+   },
+   {
+    "Concern": "MaintainEquipment",
+    "Standard": "routine-1bf97f76353844d2-MaintainEquipment"
+   },
+   {
+    "Concern": "EnsureResearch",
+    "Standard": "routine-1bf97f76353844d2-EnsureResearch"
+   },
+   {
+    "Concern": "MaintainResource",
+    "Standard": "routine-1bf97f76353844d2-MaintainResource"
+   },
+   {
+    "Concern": "TradeWithCaravan",
+    "Standard": "routine-1bf97f76353844d2-TradeWithCaravan"
+   },
+   {
+    "Concern": "EnsureDefensiveLayout",
+    "Standard": "routine-1bf97f76353844d2-EnsureDefensiveLayout"
+   },
+   {
+    "Concern": "MaintainFireSafety",
+    "Standard": "routine-1bf97f76353844d2-MaintainFireSafety"
+   },
+   {
+    "Concern": "MaintainEssentialRepairs",
+    "Standard": "routine-1bf97f76353844d2-MaintainEssentialRepairs"
+   },
+   {
+    "Concern": "MaintainCleanFacilities",
+    "Standard": "routine-1bf97f76353844d2-MaintainCleanFacilities"
+   },
+   {
+    "Concern": "ClearHomeObstructions",
+    "Standard": "routine-1bf97f76353844d2-ClearHomeObstructions"
+   },
+   {
+    "Concern": "ClearAncientShrine",
+    "Standard": "routine-1bf97f76353844d2-ClearAncientShrine"
+   },
+   {
+    "Concern": "MaintainHomeCoverage",
+    "Standard": "routine-1bf97f76353844d2-MaintainHomeCoverage"
+   },
+   {
+    "Concern": "MaintainStoneShell",
+    "Standard": "routine-1bf97f76353844d2-MaintainStoneShell"
+   },
+   {
+    "Concern": "MaintainFoodStorage",
+    "Standard": "routine-1bf97f76353844d2-MaintainFoodStorage"
+   },
+   {
+    "Concern": "MaintainRefrigeration",
+    "Standard": "routine-1bf97f76353844d2-MaintainRefrigeration"
+   },
+   {
+    "Concern": "MaintainLighting",
+    "Standard": "routine-1bf97f76353844d2-MaintainLighting"
+   },
+   {
+    "Concern": "MaintainFlooring",
+    "Standard": "routine-1bf97f76353844d2-MaintainFlooring"
+   },
+   {
+    "Concern": "MaintainRoutes",
+    "Standard": "routine-1bf97f76353844d2-MaintainRoutes"
+   },
+   {
+    "Concern": "MaintainHerd",
+    "Standard": "routine-1bf97f76353844d2-MaintainHerd"
+   },
+   {
+    "Concern": "MaintainPopulation",
+    "Standard": "routine-1bf97f76353844d2-MaintainPopulation"
+   },
+   {
+    "Concern": "MaintainAnimalContainment",
+    "Standard": "routine-1bf97f76353844d2-MaintainAnimalContainment"
+   },
+   {
+    "Concern": "RemoveBlight",
+    "Standard": "routine-1bf97f76353844d2-RemoveBlight"
+   },
+   {
+    "Concern": "RecoverDisasterServices",
+    "Standard": "routine-1bf97f76353844d2-RecoverDisasterServices"
+   }
+  ],
   "Tick": 15
  },
  "Snapshot": {

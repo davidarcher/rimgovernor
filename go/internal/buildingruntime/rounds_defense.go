@@ -388,6 +388,13 @@ func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatIn
 	}
 	var in combatInputs
 	in.hostileIDs, in.hunting, in.buildings = defenseTargets(facts.Threats)
+	for i := range in.buildings {
+		mortar, err := combat.Catalog.IsMortar(in.buildings[i].Definition)
+		if err != nil {
+			return combatInputs{}, Verdict{}, err
+		}
+		in.buildings[i].Mortar = mortar
+	}
 	// A hunt origin is a fight with no hostile: its prey are the
 	// targets while the frame shows none.
 	if len(in.hostileIDs)+len(in.buildings) == 0 && !hasAggressiveBreak(facts) && facts.PodsOpen == 0 {

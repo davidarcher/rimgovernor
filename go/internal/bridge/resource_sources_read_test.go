@@ -60,7 +60,7 @@ func TestReadResourceSourcesDecodesAndOrdersByDistance(t *testing.T) {
 	if rows[1].Cell.X != 5 || rows[1].Cell.Z != 6 || rows[1].Token != "mine-tok2" {
 		t.Fatal(rows[1])
 	}
-	if storage.Resource != "Steel" || storage.Capacity != 50 || storage.Stored != 10 || storage.StackLimit != 75 || storage.Haulers != 1 {
+	if storage.Resource != "Steel" || storage.Capacity != 50 || storage.Stored != 10 || storage.Haulers != 1 {
 		t.Fatal(storage)
 	}
 	if len(storage.Candidates) != 2 || storage.Candidates[0].X != 11 || storage.Candidates[0].Z != 12 || storage.Candidates[1].X != 13 || storage.Candidates[1].Z != 14 {

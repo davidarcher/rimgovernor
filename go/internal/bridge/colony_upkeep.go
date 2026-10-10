@@ -30,8 +30,8 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	number := func(p *float64) bool { return p == nil || !math.IsNaN(*p) && !math.IsInf(*p, 0) && *p >= 0 }
 	seen := map[string]bool{}
 	for _, row := range v.Items {
-		if row == nil || !uniqueRef(row.Item, seen) || !number(row.DeteriorationRate) || row.Count != nil && row.GetCount() < 0 || row.RotTicks != nil && row.GetRotTicks() < 0 ||
-			!proto.Equal(row, &o.UpkeepItem{Item: row.Item, Count: row.Count, Roofed: row.Roofed, InStorage: row.InStorage, DeteriorationRate: row.DeteriorationRate, RotTicks: row.RotTicks, Forbidden: row.Forbidden}) {
+		if row == nil || !uniqueRef(row.Item, seen) || row.Count != nil && row.GetCount() < 0 || row.RotTicks != nil && row.GetRotTicks() < 0 ||
+			!proto.Equal(row, &o.UpkeepItem{Item: row.Item, Count: row.Count, Roofed: row.Roofed, InStorage: row.InStorage, RotTicks: row.RotTicks, Forbidden: row.Forbidden}) {
 			return contract("invalid upkeep item")
 		}
 	}
@@ -40,8 +40,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		if row == nil || row.Building == nil {
 			return contract("missing upkeep structure")
 		}
-		if !uniqueRef(row.Building, seen) || row.RepairPriority != nil && (row.GetRepairPriority() < 0 || row.GetRepairPriority() > 2) ||
-			!number(row.Flammability) || !proto.Equal(row, &o.UpkeepStructure{Building: row.Building, Home: row.Home, RepairPriority: row.RepairPriority, Flammability: row.Flammability}) {
+		if !uniqueRef(row.Building, seen) || !proto.Equal(row, &o.UpkeepStructure{Building: row.Building, Home: row.Home}) {
 			return contract("invalid upkeep structure")
 		}
 	}
@@ -66,7 +65,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Beds {
-		if row == nil || !uniqueRef(row.Bed, seen) || row.Slots != nil && row.GetSlots() > 256 || !finite(row.RestEffectiveness) || !finite(row.TemperatureC) || !validRefs(row.Owners) || !validRefs(row.Users) || !validRefs(row.AccessibleTo) || !optionalRef(row.Room) || row.Quality != nil && validID(row.GetQuality()) != nil || row.Stuff != nil && validID(row.GetStuff()) != nil || !proto.Equal(row, &o.UpkeepBed{Bed: row.Bed, Slots: row.Slots, Humanlike: row.Humanlike, RestEffectiveness: row.RestEffectiveness, Medical: row.Medical, Prisoners: row.Prisoners, Roofed: row.Roofed, TemperatureC: row.TemperatureC, Owners: row.Owners, Users: row.Users, AccessibleTo: row.AccessibleTo, Room: row.Room, Quality: row.Quality, Stuff: row.Stuff, ForSlaves: row.ForSlaves}) {
+		if row == nil || !uniqueRef(row.Bed, seen) || !finite(row.TemperatureC) || !validRefs(row.Owners) || !validRefs(row.Users) || !validRefs(row.AccessibleTo) || !optionalRef(row.Room) || row.Quality != nil && validID(row.GetQuality()) != nil || row.Stuff != nil && validID(row.GetStuff()) != nil || !proto.Equal(row, &o.UpkeepBed{Bed: row.Bed, Medical: row.Medical, Prisoners: row.Prisoners, Roofed: row.Roofed, TemperatureC: row.TemperatureC, Owners: row.Owners, Users: row.Users, AccessibleTo: row.AccessibleTo, Room: row.Room, Quality: row.Quality, Stuff: row.Stuff, ForSlaves: row.ForSlaves}) {
 			return contract("invalid upkeep bed")
 		}
 	}

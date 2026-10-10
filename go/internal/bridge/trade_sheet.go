@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"context"
-	"math"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
@@ -18,7 +17,6 @@ import (
 // isCurrency), with each optional proto field's presence
 // carried explicitly so an absent field is never read as a zero.
 type TradeSheetRow struct {
-	Food         *o.TradeFoodFacts
 	LineID       string
 	DefName      string
 	Stuff        string
@@ -204,18 +202,11 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 	if v == nil || validID(v.GetLineId()) != nil || v.Definition == nil || validID(v.Definition.GetDefName()) != nil && !(favor && v.Definition.GetDefName() == "") {
 		return TradeSheetRow{}, contract("invalid trade sheet line")
 	}
-	if !diagnostic(v.Stuff) || !diagnostic(v.Category) {
+	if !diagnostic(v.Stuff) {
 		return TradeSheetRow{}, contract("trade sheet line text invalid")
 	}
 	if v.GetColonyCount() < 0 || v.GetTraderCount() < 0 {
 		return TradeSheetRow{}, contract("trade sheet line count negative")
-	}
-	var food *o.TradeFoodFacts
-	if f := v.Food; f != nil {
-		if math.IsNaN(f.Nutrition) || math.IsInf(f.Nutrition, 0) || f.Nutrition <= 0 || v.GetPawn() || v.GetCurrency() {
-			return TradeSheetRow{}, contract("invalid trade food classification")
-		}
-		food = proto.CloneOf(f)
 	}
 	if !v.GetPawn() && (len(v.Skills) != 0 || v.ViolenceCapable != nil || v.GetPawnId() != "" || v.PawnGender != nil ||
 		v.GuestStatus != nil || v.PrisonerSecure != nil || v.PawnDowned != nil || v.ExtraHomeFaction != nil || v.ExtraHostFaction != nil) {
@@ -239,7 +230,7 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 		PawnID: v.GetPawnId(), PawnGender: v.GetPawnGender(), Skills: skills, ViolenceCapable: v.GetViolenceCapable(), ViolenceCapableKnown: v.ViolenceCapable != nil,
 		GuestStatus: v.GetGuestStatus(), PrisonerSecure: v.GetPrisonerSecure(), PrisonerSecureKnown: v.PrisonerSecure != nil, PawnDowned: v.GetPawnDowned(), PawnDownedKnown: v.PawnDowned != nil,
 		ExtraHomeFaction: v.GetExtraHomeFaction().GetId(), ExtraHostFaction: v.GetExtraHostFaction().GetId(),
-		Food: food, ThingID: v.GetThingId(), Quality: v.GetQuality(), QualityKnown: v.Quality != nil, HitPoints: v.GetHitPointsFraction(), HitPointsKnown: v.HitPointsFraction != nil, ZoneID: v.GetZoneId(),
+		ThingID: v.GetThingId(), Quality: v.GetQuality(), QualityKnown: v.Quality != nil, HitPoints: v.GetHitPointsFraction(), HitPointsKnown: v.HitPointsFraction != nil, ZoneID: v.GetZoneId(),
 		LineID: v.GetLineId(), DefName: v.Definition.GetDefName(), Stuff: v.GetStuff(),
 		ColonyCount: v.GetColonyCount(), TraderCount: v.GetTraderCount(),
 		BuyPrice: v.GetBuyPrice(), SellPrice: v.GetSellPrice(), MarketValue: v.GetMarketValue(),

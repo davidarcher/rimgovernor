@@ -1,6 +1,8 @@
 package observation
 
 import (
+	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -55,18 +57,27 @@ func colonyHomeCoverage(v *o.ColonyFactsSnapshot) domain.Fact[policy.HomeCoverag
 	}
 	return domain.Known(r)
 }
-func colonyStoneStructures(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) domain.Fact[[]policy.StoneStructure] {
+func colonyStoneStructures(v *o.ColonyFactsSnapshot, buildings bridge.Buildings, catalog *bridge.DefinitionCatalog) (domain.Fact[[]policy.StoneStructure], error) {
 	u := v.GetUpkeep().GetObserved()
 	if u == nil || hasIssue(u.Issues, "structures") {
-		return domain.Unknown[[]policy.StoneStructure]()
+		return domain.Unknown[[]policy.StoneStructure](), nil
 	}
 	rows := []policy.StoneStructure{}
 	for _, r := range u.Structures {
-		head := buildings.Entity(r.Building)
-		if head == nil {
-			return domain.Unknown[[]policy.StoneStructure]()
+		row, ok := buildings.Get(r.Building.GetId())
+		head := row.GetBuilding()
+		if !ok || head == nil {
+			return domain.Unknown[[]policy.StoneStructure](), nil
 		}
-		rows = append(rows, policy.StoneStructure{ID: r.Building.GetId(), Definition: policy.Resource(head.GetDefName()), Flammability: optional(r.Flammability)})
+		if catalog == nil {
+			return domain.Unknown[[]policy.StoneStructure](), fmt.Errorf("stone structures: no definition catalog was loaded")
+		}
+		// The flammability of the building as made: its def with its stuff.
+		flammability, err := catalog.PlannerStatValue(head.GetDefName(), row.GetStuff(), bridge.StatFlammability)
+		if err != nil {
+			return domain.Unknown[[]policy.StoneStructure](), fmt.Errorf("stone structure %s: %w", r.Building.GetId(), err)
+		}
+		rows = append(rows, policy.StoneStructure{ID: r.Building.GetId(), Definition: policy.Resource(head.GetDefName()), Flammability: domain.Known(float64(flammability))})
 	}
-	return domain.Known(rows)
+	return domain.Known(rows), nil
 }

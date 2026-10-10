@@ -34,9 +34,14 @@ func DefTables() []DefTable {
 		{"suitePressureThoughts", "RimWorld.ThoughtDef", sortedKeys(suitePressureThoughts)},
 		{"GameRoomRoleDefs", "Verse.ThingDef", sortedKeys(GameRoomRoleDefs)},
 		{"NonFleshMeatDefs", "Verse.ThingDef", slices.Clone(NonFleshMeatDefs)},
+		{"MortarProbeShells", "Verse.ThingDef", slices.Clone(MortarProbeShells)},
 		{"QuestGiftDefs", "Verse.ThingDef", slices.Clone(QuestGiftDefs)},
 	}
 }
+
+// MortarProbeShells is the one shell def BuildingProperties.IsMortar tests a
+// loadable turret gun's fixed storage filter against (ThingDefOf.Shell_HighExplosive).
+var MortarProbeShells = []string{"Shell_HighExplosive"}
 
 // QuestGiftDefs are the items a Beggars quest's request may be answered with.
 // Native gives whatever the lord toil requests, so which items the colony

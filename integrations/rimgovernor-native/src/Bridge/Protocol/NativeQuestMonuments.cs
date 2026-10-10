@@ -58,21 +58,10 @@ namespace HomeBridge.BridgeTools
                 var piece = new Obs.QuestMonumentPiece { DefName = entity.Buildable.defName, Stuff = entity.Stuff?.defName ?? "",
                     Offset = Cell(entity.pos), Rotation = entity is SketchThing thing ? thing.rot.AsInt : Rot4.North.AsInt };
                 var stuffs = marker.AllowedStuffsFor(entity);
-                if (entity.Buildable.MadeFromStuff) piece.AllowedStuffs.Add(stuffs.Select(s => s.defName));
                 foreach (var cell in entity.OccupiedRect) piece.Footprint.Add(Cell(cell));
                 foreach (var stuff in stuffs) materials.Add(stuff);
                 if (!entity.Buildable.MadeFromStuff || entity.Stuff != null)
                     foreach (var cost in entity.Buildable.CostListAdjusted(entity.Stuff, false)) materials.Add(cost.thingDef);
-                var options = entity.Buildable.MadeFromStuff
-                    ? entity.Stuff != null ? new[] { entity.Stuff } : stuffs.ToArray()
-                    : new ThingDef[] { null! };
-                foreach (var stuff in options)
-                {
-                    var option = new Obs.QuestMonumentBuildOption { Stuff = stuff?.defName ?? "",
-                        Work = entity.Buildable.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff) };
-                    option.Costs.Add(entity.Buildable.CostListAdjusted(stuff, false).Select(c => new Obs.Quantity { DefName = c.thingDef.defName, Units = c.count }));
-                    piece.BuildOptions.Add(option);
-                }
                 if (marker.Spawned)
                 {
                     var cell = marker.Position + entity.pos;

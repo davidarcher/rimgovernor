@@ -658,14 +658,19 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		r.Facts.ButcherBenches = domain.Known(standing)
 		r.ButcheringBenches = domain.Known(benches)
 	}
-	colonyDisaster(v, &r.Facts, buildings, conditions, conditionsKnown)
+	if err := colonyDisaster(v, &r.Facts, buildings, tables.Catalog, conditions, conditionsKnown); err != nil {
+		return ColonyProjection{}, err
+	}
 	var comfortErr error
 	if r.Facts.Comfort, comfortErr = colonyComfort(v, tables.Catalog); comfortErr != nil {
 		return ColonyProjection{}, comfortErr
 	}
 	r.Facts.BasicComfort = r.Facts.Comfort
 	r.Facts.HomeCoverage = colonyHomeCoverage(v)
-	r.Facts.StoneStructures = colonyStoneStructures(v, buildings)
+	var stoneErr error
+	if r.Facts.StoneStructures, stoneErr = colonyStoneStructures(v, buildings, tables.Catalog); stoneErr != nil {
+		return ColonyProjection{}, stoneErr
+	}
 	sleeping, sleepingErr := colonySleeping(v, buildings, tables.Catalog)
 	if sleepingErr != nil {
 		return ColonyProjection{}, sleepingErr

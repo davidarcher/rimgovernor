@@ -4,7 +4,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"math"
 )
 
 // Partial marker identities cannot become executable construction targets.
@@ -22,16 +21,6 @@ func validatedQuestMonument(m *o.QuestMonument) *o.QuestMonument {
 		for _, cell := range p.Footprint {
 			if !monumentCellKnown(cell) {
 				return nil
-			}
-		}
-		for _, option := range p.BuildOptions {
-			if option == nil || option.Work == nil || math.IsNaN(option.GetWork()) || math.IsInf(option.GetWork(), 0) || option.GetWork() < 0 {
-				return nil
-			}
-			for _, cost := range option.Costs {
-				if cost == nil || cost.GetDefName() == "" || cost.Units == nil || cost.GetUnits() < 0 {
-					return nil
-				}
 			}
 		}
 	}

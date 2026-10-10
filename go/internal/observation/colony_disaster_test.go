@@ -2,6 +2,7 @@ package observation
 
 import (
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/testkit/recordedcatalog"
 	"strings"
 	"testing"
 
@@ -39,7 +40,7 @@ func TestColonyDisasterPreservesServiceUnknowns(t *testing.T) {
 	if _, k := f.RecoveryBuildings.Value(); k {
 		t.Fatal("missing census became empty")
 	}
-	b := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("wall")}, UsesHitPoints: proto.Bool(true), HitPoints: proto.Int32(40), MaxHitPoints: proto.Int32(100), Burning: proto.Bool(false), Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}, Service: &o.BuildingServiceState{BrokenDown: proto.Bool(false)}}
+	b := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("wall"), DefName: proto.String("Wall")}, HitPoints: proto.Int32(40), MaxHitPoints: proto.Int32(100), Burning: proto.Bool(false), Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}, Service: &o.BuildingServiceState{BrokenDown: proto.Bool(false)}}
 	v.Recovery = &o.RecoveryReply{Outcome: &o.RecoveryReply_Observed{Observed: &o.RecoverySnapshot{Buildings: []*c.Ref{bridge.NewRef(b.Building.GetId())}}}}
 	table := buildingRows(b)
 	f = policy.RoundsFacts{}
@@ -107,7 +108,9 @@ func colonyDisasterTest(t *testing.T, v *o.ColonyFactsSnapshot, f *policy.Rounds
 	if err != nil {
 		t.Fatal(err)
 	}
-	colonyDisaster(v, f, buildings, conditions, known)
+	if err := colonyDisaster(v, f, buildings, recordedcatalog.Catalog(t), conditions, known); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // TestColonyConditionsReadTheDefRow: the power outage is the def's class, not

@@ -58,7 +58,7 @@ func ValidateAncientShrines(v *o.AncientShrinesSnapshot, identity *c.Identity) e
 		}
 		entities := map[string]bool{}
 		for _, casket := range row.Caskets {
-			if casket == nil || validID(casket.GetEntityId()) != nil || entities[casket.GetEntityId()] || validCell(casket.Cell) != nil || validCell(casket.InteractionCell) != nil || casket.HitPoints == nil || casket.MaxHitPoints == nil || casket.GetMaxHitPoints() == 0 || casket.GetHitPoints() > casket.GetMaxHitPoints() || casket.HasContents == nil || casket.PlayerClaimed == nil {
+			if casket == nil || validID(casket.GetEntityId()) != nil || entities[casket.GetEntityId()] || validCell(casket.Cell) != nil || validCell(casket.InteractionCell) != nil || casket.HitPoints == nil || casket.HasContents == nil || casket.PlayerClaimed == nil {
 				return contract("invalid shrine casket")
 			}
 			entities[casket.GetEntityId()] = true

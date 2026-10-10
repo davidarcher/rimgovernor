@@ -52,6 +52,12 @@ func decodeCombatWithCatalog(frame *o.BundleSnapshot, guns ...map[string]float32
 	// rows, not the catalog, so each animal and mechanoid in the frame takes
 	// the recording's race row of its def (a mechanoid the game does not have
 	// takes the Scyther's).
+	// A hostile building's row, which the mortar rule reads.
+	for _, threat := range combat.Emergency.Facts.Threats {
+		if threat.Kind == policy.HostileBuilding && recordedrows.Recorded(threat.Definition) {
+			rows.Add(threat.Definition)
+		}
+	}
 	races := map[string]bool{}
 	for row := range combat.Detail.Values() {
 		def := row.GetPawn().GetDefName()

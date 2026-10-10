@@ -11,7 +11,7 @@ import (
 
 func upkeepWire() *o.UpkeepFacts {
 	entity := NewRef
-	return &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: entity("item"), Count: proto.Int64(2), Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false)}}, Structures: []*o.UpkeepStructure{{Building: NewRef("wall"), Home: proto.Bool(true), RepairPriority: proto.Int32(1)}}, Fires: []*o.FireState{{Fire: entity("fire"), Home: proto.Bool(true), Size: proto.Float64(.5)}}, Filth: []*o.FilthState{{Filth: entity("filth"), Home: proto.Bool(true), Thickness: proto.Uint32(1), RoomRole: proto.String("Kitchen"), Room: &c.Ref{Id: proto.String("7")}}}}
+	return &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: entity("item"), Count: proto.Int64(2), Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false)}}, Structures: []*o.UpkeepStructure{{Building: NewRef("wall"), Home: proto.Bool(true)}}, Fires: []*o.FireState{{Fire: entity("fire"), Home: proto.Bool(true), Size: proto.Float64(.5)}}, Filth: []*o.FilthState{{Filth: entity("filth"), Home: proto.Bool(true), Thickness: proto.Uint32(1), RoomRole: proto.String("Kitchen"), Room: &c.Ref{Id: proto.String("7")}}}}
 }
 func TestDirectUpkeepBoundary(t *testing.T) {
 	size := &o.MapSize{Width: proto.Uint32(50), Height: proto.Uint32(50)}
@@ -23,7 +23,6 @@ func TestDirectUpkeepBoundary(t *testing.T) {
 		func(v *o.UpkeepFacts) { v.Items = []*o.UpkeepItem{{}} },
 		func(v *o.UpkeepFacts) { v.Issues = []*o.ReadIssue{{Field: proto.String("fires")}} },
 		func(v *o.UpkeepFacts) { v.Fires[0].Size = proto.Float64(math.NaN()) },
-		func(v *o.UpkeepFacts) { v.Structures[0].RepairPriority = proto.Int32(3) },
 		func(v *o.UpkeepFacts) { v.Filth[0].Cleanable = proto.Bool(true) },
 	} {
 		v := upkeepWire()

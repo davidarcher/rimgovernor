@@ -1,12 +1,13 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func questMonument(m *o.QuestMonument) domain.Fact[policy.QuestMonument] {
+func questMonument(m *o.QuestMonument, catalog *bridge.DefinitionCatalog) domain.Fact[policy.QuestMonument] {
 	if m == nil {
 		return domain.Unknown[policy.QuestMonument]()
 	}
@@ -26,16 +27,19 @@ func questMonument(m *o.QuestMonument) domain.Fact[policy.QuestMonument] {
 		row.InstallCells = append(row.InstallCells, domain.Cell{X: c.GetX(), Z: c.GetZ()})
 	}
 	for _, p := range m.Pieces {
-		row.Pieces = append(row.Pieces, policy.QuestMonumentPiece{Def: p.GetDefName(), Stuff: p.GetStuff(), Offset: domain.Cell{X: p.Offset.GetX(), Z: p.Offset.GetZ()}, Rotation: []domain.Rotation{domain.North, domain.East, domain.South, domain.West}[p.GetRotation()], Built: optional(p.Built), Queued: optional(p.Queued), Allowed: optional(p.Allowed), AllowedStuffs: append([]string(nil), p.AllowedStuffs...)})
+		row.Pieces = append(row.Pieces, policy.QuestMonumentPiece{Def: p.GetDefName(), Stuff: p.GetStuff(), Offset: domain.Cell{X: p.Offset.GetX(), Z: p.Offset.GetZ()}, Rotation: []domain.Rotation{domain.North, domain.East, domain.South, domain.West}[p.GetRotation()], Built: optional(p.Built), Queued: optional(p.Queued), Allowed: optional(p.Allowed)})
 	}
 	for i, p := range m.Pieces {
-		for _, option := range p.BuildOptions {
-			rowOption := policy.QuestMonumentBuildOption{Stuff: option.GetStuff(), Work: option.GetWork()}
-			for _, cost := range option.Costs {
-				rowOption.Costs = append(rowOption.Costs, policy.Amount{Resource: policy.Resource(cost.GetDefName()), Count: cost.GetUnits()})
-			}
-			row.Pieces[i].BuildOptions = append(row.Pieces[i].BuildOptions, rowOption)
+		// The stuffs and build options come from the catalog rows; a piece
+		// the catalog cannot answer for leaves the whole monument unknown.
+		if catalog == nil {
+			return domain.Unknown[policy.QuestMonument]()
 		}
+		allowed, options, err := monumentPieceOptions(catalog, p.GetDefName(), p.GetStuff())
+		if err != nil {
+			return domain.Unknown[policy.QuestMonument]()
+		}
+		row.Pieces[i].AllowedStuffs, row.Pieces[i].BuildOptions = allowed, options
 		for _, c := range p.Footprint {
 			row.Pieces[i].Footprint = append(row.Pieces[i].Footprint, domain.Cell{X: c.GetX(), Z: c.GetZ()})
 		}

@@ -383,7 +383,7 @@ func frameQuests(read *bridge.WorldProgressionRead, home domain.MapID, catalog *
 		for _, objective := range quest.Objectives {
 			row := policy.QuestObjective{Kind: objective.Kind, Def: objective.Def, Stuff: objective.Stuff, UnmetRequirement: objective.UnmetRequirement}
 			row.MinimumMood = optional(objective.MinimumMood)
-			row.Monument = questMonument(objective.Monument)
+			row.Monument = questMonument(objective.Monument, catalog)
 			row.GravEngine = questGravEngine(objective.GravEngine)
 			row.SurveyScanner = questSurveyScanner(objective.SurveyScanner)
 			questHackGift(objective, &row)

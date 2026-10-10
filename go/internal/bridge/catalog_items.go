@@ -201,7 +201,14 @@ func (catalog *DefinitionCatalog) TradeFood(name string) (good policy.TradeFoodG
 	if err != nil {
 		return policy.TradeFoodGood{}, false, err
 	}
-	return policy.TradeFoodGood{Class: class, Prepared: class == policy.IngredientAny, NonPerishable: !perishable, Crop: class == policy.IngredientVegetable}, true, nil
+	nutrition, shown, err := catalog.ShownStatValue(name, "", StatNutrition)
+	if err != nil {
+		return policy.TradeFoodGood{}, false, err
+	}
+	if !shown || nutrition <= 0 {
+		return policy.TradeFoodGood{}, false, nil
+	}
+	return policy.TradeFoodGood{Class: class, Prepared: class == policy.IngredientAny, NonPerishable: !perishable, Crop: class == policy.IngredientVegetable, Nutrition: float64(nutrition)}, true, nil
 }
 
 // categoriesWithin is every ThingCategoryDef the def sits within: its own

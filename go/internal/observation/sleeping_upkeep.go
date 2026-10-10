@@ -1,6 +1,8 @@
 package observation
 
 import (
+	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -41,7 +43,18 @@ func colonySleeping(v *o.ColonyFactsSnapshot, buildings bridge.Buildings, catalo
 		if head == nil {
 			return domain.Unknown[policy.SleepingObservation](), nil
 		}
-		r.Beds = append(r.Beds, policy.SleepingBed{ID: b.Bed.GetId(), Definition: policy.Resource(head.GetDefName()), Humanlike: optional(b.Humanlike), Medical: optional(b.Medical), Prisoners: optional(b.Prisoners), Slaves: b.GetForSlaves(), Roofed: optional(b.Roofed), RestEffectiveness: optional(b.RestEffectiveness), Temperature: optional(b.TemperatureC), Owners: ids(bridge.RefIDs(b.Owners)), Users: ids(bridge.RefIDs(b.Users)), AccessibleTo: ids(bridge.RefIDs(b.AccessibleTo)), Room: optionalRef(b.Room), Quality: optional(b.Quality), Stuff: optional(b.Stuff), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}})
+		if catalog == nil {
+			return domain.Unknown[policy.SleepingObservation](), fmt.Errorf("sleeping beds: no definition catalog was loaded")
+		}
+		humanlike, err := catalog.BedHumanlike(head.GetDefName())
+		if err != nil {
+			return domain.Unknown[policy.SleepingObservation](), fmt.Errorf("sleeping bed %s: %w", b.Bed.GetId(), err)
+		}
+		rest, err := catalog.PlannerStatValue(head.GetDefName(), b.GetStuff(), bridge.StatBedRestEffectiveness)
+		if err != nil {
+			return domain.Unknown[policy.SleepingObservation](), fmt.Errorf("sleeping bed %s: %w", b.Bed.GetId(), err)
+		}
+		r.Beds = append(r.Beds, policy.SleepingBed{ID: b.Bed.GetId(), Definition: policy.Resource(head.GetDefName()), Humanlike: domain.Known(humanlike), Medical: optional(b.Medical), Prisoners: optional(b.Prisoners), Slaves: b.GetForSlaves(), Roofed: optional(b.Roofed), RestEffectiveness: domain.Known(float64(rest)), Temperature: optional(b.TemperatureC), Owners: ids(bridge.RefIDs(b.Owners)), Users: ids(bridge.RefIDs(b.Users)), AccessibleTo: ids(bridge.RefIDs(b.AccessibleTo)), Room: optionalRef(b.Room), Quality: optional(b.Quality), Stuff: optional(b.Stuff), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}})
 	}
 	return domain.Known(r), nil
 }

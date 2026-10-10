@@ -84,7 +84,6 @@ namespace HomeBridge.BridgeTools
                     var rot = t.TryGetComp<CompRottable>();
                     var value = new Obs.UpkeepItem {
                         Item = NativeRef.Thing(t), Count = t.stackCount, Roofed = t.Position.Roofed(map), InStorage = t.IsInValidStorage(),
-                        DeteriorationRate = Number(t.GetStatValue(StatDefOf.DeteriorationRate)),
                         Forbidden = t.IsForbidden(Faction.OfPlayerSilentFail)
                     };
                     if (rot != null && rot.Active) value.RotTicks = Math.Max(0, rot.TicksUntilRotAtCurrentTemp);
@@ -98,10 +97,7 @@ namespace HomeBridge.BridgeTools
                 var rows = sets.PlayerBuildings.Where(b => b.def.useHitPoints).OrderBy(b => b.thingIDNumber).ToList();
                 var values = rows.Select(b => new Obs.UpkeepStructure {
                     Building = NativeBuildingObservationTools.Ref(b),
-                    Home = b.OccupiedRect().All(c => map.areaManager.Home[c]), Flammability = Number(b.GetStatValue(StatDefOf.Flammability)),
-                    RepairPriority = b.TryGetComp<CompTempControl>() != null || b.TryGetComp<CompPowerPlant>() != null
-                        || b is Building_Bed bed && bed.Medical ? 0
-                        : b.def.holdsRoof || b is Building_WorkTable || b is Building_Bed ? 1 : 2
+                    Home = b.OccupiedRect().All(c => map.areaManager.Home[c])
                 }).ToList();
                 result.Structures.AddRange(values);
             });
@@ -398,8 +394,7 @@ namespace HomeBridge.BridgeTools
                 var beds = sets.PlayerBuildings.OfType<Building_Bed>().OrderBy(b => b.thingIDNumber).ToList();
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => (p.IsFreeColonist || p.IsSlaveOfColony || HostedGuest(p)) && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
                 var values = beds.Select(b => {
-                    var row = new Obs.UpkeepBed { Bed = NativeBuildingObservationTools.Ref(b), Slots = checked((uint)b.SleepingSlotsCount),
-                        Humanlike = b.def.building.bed_humanlike, RestEffectiveness = Number(b.GetStatValue(StatDefOf.BedRestEffectiveness)),
+                    var row = new Obs.UpkeepBed { Bed = NativeBuildingObservationTools.Ref(b),
                         Medical = b.Medical, Prisoners = b.ForPrisoners, ForSlaves = b.ForSlaves, Roofed = b.OccupiedRect().All(c => c.Roofed(map)),
                         TemperatureC = Number(b.AmbientTemperature) };
                     var room = b.GetRoom();

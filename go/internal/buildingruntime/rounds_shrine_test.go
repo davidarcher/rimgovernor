@@ -285,7 +285,7 @@ func TestRoundsShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 	// the target read already shows as the player's is skipped.
 	opened.Guards[0].Dead = proto.Bool(true)
 	casket := func(id string, x int32, contents, claimed bool) *o.ShrineCasket {
-		return &o.ShrineCasket{EntityId: proto.String(id), Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(35)}, InteractionCell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(36)}, HitPoints: proto.Uint32(250), MaxHitPoints: proto.Uint32(250), HasContents: proto.Bool(contents), PlayerClaimed: proto.Bool(claimed)}
+		return &o.ShrineCasket{EntityId: proto.String(id), Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(35)}, InteractionCell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(36)}, HitPoints: proto.Uint32(250), HasContents: proto.Bool(contents), PlayerClaimed: proto.Bool(claimed)}
 	}
 	opened.Caskets = []*o.ShrineCasket{casket("filled", 33, true, false), casket("empty-b", 34, false, false), casket("empty-a", 35, false, false), casket("stale", 36, false, false), casket("mine", 37, false, true)}
 	source.owned = map[string]bool{"stale": true}
@@ -358,7 +358,7 @@ func TestRoundsShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 	source := &roundsShrineNative{roundsBlightNative: &roundsBlightNative{roundsNative: native}, squad: []string{"beta", "alpha", "gamma"}}
 	opened := shrineTestRow("shrine", false)
 	casket := func(id string, x int32) *o.ShrineCasket {
-		return &o.ShrineCasket{EntityId: proto.String(id), Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(35)}, InteractionCell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(36)}, HitPoints: proto.Uint32(250), MaxHitPoints: proto.Uint32(250), HasContents: proto.Bool(true), PlayerClaimed: proto.Bool(false)}
+		return &o.ShrineCasket{EntityId: proto.String(id), Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(35)}, InteractionCell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(36)}, HitPoints: proto.Uint32(250), HasContents: proto.Bool(true), PlayerClaimed: proto.Bool(false)}
 	}
 	opened.Caskets = []*o.ShrineCasket{casket("casket-b", 34), casket("casket-a", 33)}
 	source.shrines = []*o.AncientShrine{opened}
@@ -383,7 +383,7 @@ func TestRoundsShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 	// custody reading can count.
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
 		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
-		Beds:    []*o.UpkeepBed{{Bed: native.head(&o.EntityRef{Id: proto.String("spare"), DefName: proto.String("Bed"), Position: &c.Cell{X: proto.Int32(0), Z: proto.Int32(0)}}), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
+		Beds:    []*o.UpkeepBed{{Bed: native.head(&o.EntityRef{Id: proto.String("spare"), DefName: proto.String("Bed"), Position: &c.Cell{X: proto.Int32(0), Z: proto.Int32(0)}}), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
 		Items:   []*o.UpkeepItem{{Item: native.entity(&o.EntityRef{Id: proto.String("medicine"), DefName: proto.String("MedicineHerbal"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(0), Z: proto.Int32(0)}}), Count: proto.Int64(5), Forbidden: proto.Bool(false)}},
 	}}}
 	food := &o.FoodSupplyFacts{Consumers: []*o.FoodConsumer{{PawnId: proto.String("alpha"), NutritionPerDay: proto.Float64(1)}},

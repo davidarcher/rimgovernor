@@ -130,6 +130,25 @@ Kept, reason recorded:
 - `WorkTypeFor`: a skill has several work types in the defs (`Plants` feeds `Growing` and `PlantCutting`), so the one the team policy judges is a policy choice, not a row property; `ReadFacts` also reads `WorkTypeIsDisabled`, a live pawn check.
 - `ReadFacts` `constructionSkillPrerequisite` of `Wall`: read from the live `ThingDefOf.Wall` beside the pawn's live skills inside the seeded policy loop; it is one field on the same native team-policy path as above.
 
+### #2653 disposition
+
+Converted (Go evaluates the rule over the mirrored `ThingDef`/`TerrainDef` rows; the native copy and the proto field are gone). Each rule has a parity check against the native value for vanilla defs in `go/internal/bridge/catalog_def_stats_test.go`:
+- `StorageCapacity.stack_limit`: `DefinitionCatalog.StackLimit` (`ThingDef.stackLimit`); `acquireFromSources` fills it.
+- `BuildingState.uses_hit_points`: `DefinitionCatalog.UsesHitPoints`.
+- `UpkeepBed.humanlike`/`rest_effectiveness`: `BedHumanlike` (`BuildingProperties.bed_humanlike`) and `PlannerStatValue(BedRestEffectiveness)` over the bed's stuff. `UpkeepStructure.flammability`: `PlannerStatValue(Flammability)`.
+- `UpkeepStructure.repair_priority`: `RepairPriority` (a `CompTempControl` or `CompPowerPlant` comp, or a medical bed, is 0; `holdsRoof`, a `Building_WorkTable` or a bed class is 1; otherwise 2). The medical flag stays the live `UpkeepBed.medical`.
+- `LampState.glow_radius`: `GlowRadius` (`CompProperties_Glower.glowRadius`).
+- `ThreatBuilding.mortar`: `IsMortar`, the `BuildingProperties.IsMortar` rule over the gun's verb projectile and fixed-storage filter (shell def registered as `policy.MortarProbeShells`).
+- `WallUpgradeSite.replacement_materials` and `QuestMonumentPiece.allowed_stuffs`/`build_options`: `StuffMaterials`/`AllowedStuffs`, `AdjustedCosts` and `StatValue(WorkToBuild)` (terrain pieces use `TerrainAdjustedCosts`/`TerrainWorkToBuild`).
+- `TradeLine.food` and `category`: `TradeFood` now reads the `Nutrition` stat from the row too.
+
+Deleted as dead (no Go reader): `ConstructionState.total_work` (work left and percent complete remain live), `ShrineCasket.max_hit_points`, `ThreatBuilding.max_hit_points`, `UpkeepItem.hit_points`/`max_hit_points`/`deterioration_rate`, `UpkeepBed.slots`, `UpkeepStructure.holds_roof`, `WallUpgradeSite.costs`, and `DefenseSiteSnapshot.cover_threshold` (always 0, now the Go constant `defenseCoverFillThreshold`: any positive fill blocks).
+
+Kept, reason recorded:
+- `ConstructionState.minimum_finishing_skill`, `QuestSiteCargo.unit_mass`/`market_value`/`nutrition`: the value is the game worker's output for the live frame or quest, not a stat row read.
+- `StockItem.market_value`, `TradeLine.market_value`/`currency`: `StatWorker_MarketValue` including live quality, hit points and contents, and `Tradeable.IsCurrency` for the open session.
+- Live hit points (`hit_points` on buildings, items and pawns' gear, `max_hit_points` on instances): per-instance state.
+
 ## Native files
 
 | File | Lines | Class | What it does | Static items | Replacement |

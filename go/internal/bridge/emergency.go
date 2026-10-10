@@ -277,7 +277,7 @@ func emergencyBuilding(row *o.ThreatBuilding, ctx *c.ObservationContext) (policy
 	if row.BuildingSnapshot == nil || row.Building.DefName == nil {
 		return result, contract("threat building snapshot or definition missing")
 	}
-	if row.HitPoints != nil && row.GetHitPoints() < 0 || row.MaxHitPoints != nil && row.GetMaxHitPoints() < 0 || row.NearestColonistDistance != nil && row.GetNearestColonistDistance() < 0 {
+	if row.HitPoints != nil && row.GetHitPoints() < 0 || row.NearestColonistDistance != nil && row.GetNearestColonistDistance() < 0 {
 		return result, contract("invalid threat building facts")
 	}
 	// The occupied rect is the ranged target: every cell in bounds, none
@@ -287,7 +287,7 @@ func emergencyBuilding(row *o.ThreatBuilding, ctx *c.ObservationContext) (policy
 		return result, contract("invalid threat building occupied rect")
 	}
 	result = policy.EmergencyThreat{ID: policy.PawnID(row.Building.GetId()), Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false),
-		SnapshotToken: row.BuildingSnapshot.GetToken(), Definition: row.Building.GetDefName(), Cells: cells, Passive: emergencyBool(row.Passive), Mortar: row.GetMortar()}
+		SnapshotToken: row.BuildingSnapshot.GetToken(), Definition: row.Building.GetDefName(), Cells: cells, Passive: emergencyBool(row.Passive)}
 	if row.NearestColonistDistance != nil {
 		result.Distance = domain.Known(float64(row.GetNearestColonistDistance()))
 	}

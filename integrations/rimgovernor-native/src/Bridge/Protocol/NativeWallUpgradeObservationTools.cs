@@ -58,9 +58,8 @@ namespace HomeBridge.BridgeTools
                         var wall = walls.ById(parsed.TargetId);
                         if (wall == null)
                             return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned colonist wall with that id is on the current map.") });
-                        var materials = Materials();
                         foreach (var normal in WallUpgradeSafety.Directions)
-                            if (Replacement(map, wall, normal, materials, context) is Obs.WallUpgradeSite row) rows.Add(row);
+                            if (Replacement(map, wall, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
                     }
                     else
                     {
@@ -97,7 +96,7 @@ namespace HomeBridge.BridgeTools
             return edifice != null && edifice.def == ThingDefOf.Wall && edifice.Faction == Faction.OfPlayer ? edifice : null;
         }
 
-        internal static Obs.WallUpgradeSite? Replacement(Map map, Building wall, IntVec3 normal, List<Obs.StuffOption> materials, Common.ObservationContext context)
+        internal static Obs.WallUpgradeSite? Replacement(Map map, Building wall, IntVec3 normal, Common.ObservationContext context)
         {
             var origin = wall.Position;
             var outside = origin + normal;
@@ -128,7 +127,6 @@ namespace HomeBridge.BridgeTools
             else blocker = RoofSupportSafety.Blocker(wall, backups == null ? cells : null, out _);
             var row = Site(map, wall, wall, normal, cells, context, backups);
             if (blocker != null) row.Blocker = blocker;
-            row.ReplacementMaterials.AddRange(materials);
             return row;
         }
 
@@ -182,20 +180,11 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        internal static List<Obs.StuffOption> Materials()
-        {
-            var options = new List<Obs.StuffOption>();
-            foreach (var stuff in GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Where(s => s.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) == true).OrderBy(s => s.defName, StringComparer.Ordinal))
-            {
-                var option = new Obs.StuffOption { Stuff = Id(stuff.defName) };
-                foreach (var cost in ThingDefOf.Wall.CostListAdjusted(stuff))
-                    option.Costs.Add(new Obs.Quantity { DefName = Id(cost.thingDef.defName), Units = cost.count });
-                options.Add(option);
-            }
-            return options;
-        }
+        // The stony stuffs a wall may be rebuilt from, by name: the order a corner replacement tries them in.
+        internal static List<ThingDef> StonyStuffs() =>
+            GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Where(s => s.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) == true)
+                .OrderBy(s => s.defName, StringComparer.Ordinal).ToList();
 
-        private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
     }
 }

@@ -134,14 +134,13 @@ namespace HomeBridge.BridgeTools
                 colonistCells, radius, NativePawnObservationTools.Ref, pawn => NativeRef.Thing(HuntedPawn(pawn)!), threats);
             foreach (var building in HostileBuildings(map, player)) {
                 var row = new Obs.ThreatBuilding { Building = Entity(building), HostileReason = "faction:"+building.Faction!.GetUniqueLoadID(),
-                    HitPoints = building.HitPoints, MaxHitPoints = building.MaxHitPoints };
+                    HitPoints = building.HitPoints };
                 row.BuildingSnapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Building.Id, Token = Token(context.Identity, building) };
                 if (colonists.Count > 0) row.NearestColonistDistance = colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z)));
                 var rect = building.OccupiedRect();
                 row.Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) };
                 if (building is Hive) row.Passive = !HiveEngaging(building, colonists, spawned, player);
                 else if (Dormant(building) is bool dormant) row.Passive = dormant;
-                row.Mortar = building.def.building?.IsMortar == true;
                 threats.HostileBuildings.Add(row);
             }
             result.Threats=threats; return result;

@@ -23,7 +23,7 @@ func defenseSiteFixture() *o.DefenseSiteSnapshot {
 		CoverFill: proto.Float64(0.57), EdificeDefName: proto.String("Sandbags"), EdificeStuffDefName: proto.String("WoodLog"), PlayerOwned: proto.Bool(true), NaturalRock: proto.Bool(false), Door: proto.Bool(false), EdgeReachable: proto.Bool(true)}
 	return &o.DefenseSiteSnapshot{Context: pbContext(), MapSize: &o.MapSize{Width: proto.Uint32(250), Height: proto.Uint32(250)},
 		Region: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(4), Z: proto.Int32(6)}, Maximum: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)}},
-		Cells:  []*o.DefenseCell{open, sandbag}, CoverThreshold: proto.Float64(0),
+		Cells:  []*o.DefenseCell{open, sandbag},
 		Raids: []*o.RaidTrack{{LordId: proto.String("lord-7"), FactionDef: proto.String("TribeRough"), SpawnTick: proto.Int64(100), LastTick: proto.Int64(400), Ground: proto.Bool(true),
 			Spawn: &c.Cell{X: proto.Int32(0), Z: proto.Int32(120)}, Trail: []*c.Cell{{X: proto.Int32(0), Z: proto.Int32(120)}, {X: proto.Int32(3), Z: proto.Int32(118)}}}}}
 }
@@ -54,7 +54,7 @@ func TestDefenseSiteReadsCompleteCensus(t *testing.T) {
 	if got := site.Cells[0]; got.EdificeDefName != "" || got.PlayerOwned || got.CoverFill != 0 || !got.Walkable || got.Cover != nil {
 		t.Fatalf("%+v", got)
 	}
-	if site.CoverThreshold != 0 || len(site.Raids) != 1 || site.Raids[0].LordID != "lord-7" || !site.Raids[0].Ground || len(site.Raids[0].Trail) != 2 || site.Raids[0].Trail[1] != (domain.Cell{X: 3, Z: 118}) {
+	if len(site.Raids) != 1 || site.Raids[0].LordID != "lord-7" || !site.Raids[0].Ground || len(site.Raids[0].Trail) != 2 || site.Raids[0].Trail[1] != (domain.Cell{X: 3, Z: 118}) {
 		t.Fatalf("%+v", site.Raids)
 	}
 }
@@ -104,8 +104,6 @@ func TestDefenseSiteRejectsMalformed(t *testing.T) {
 		"walkable impassabl": func(s *o.DefenseSiteSnapshot) { s.Cells[0].Passable = proto.Bool(false) },
 		"identity":           func(s *o.DefenseSiteSnapshot) { s.Context.Identity.LoadToken = proto.String("other") },
 		"map size":           func(s *o.DefenseSiteSnapshot) { s.MapSize = nil },
-		"threshold missing":  func(s *o.DefenseSiteSnapshot) { s.CoverThreshold = nil },
-		"threshold one":      func(s *o.DefenseSiteSnapshot) { s.CoverThreshold = proto.Float64(1) },
 		"cover half named":   func(s *o.DefenseSiteSnapshot) { s.Cells[1].CoverThingId = proto.String("Thing_1") },
 		"cover on open cell": func(s *o.DefenseSiteSnapshot) {
 			s.Cells[0].CoverThingId, s.Cells[0].CoverDefName, s.Cells[0].CoverKind, s.Cells[0].CoverDesignated = proto.String("Thing_1"), proto.String("Plant_TreeOak"), o.CoverKind_COVER_KIND_PLANT.Enum(), proto.Bool(false)

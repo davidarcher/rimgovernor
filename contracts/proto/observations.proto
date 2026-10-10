@@ -144,7 +144,6 @@ message ShrineCasket {
   optional string entity_id = 1;
   rimgovernor.common.v1.Cell cell = 2;
   optional uint32 hit_points = 3;
-  optional uint32 max_hit_points = 4;
   optional bool has_contents = 5;
   optional bool player_claimed = 6;
   rimgovernor.common.v1.Cell interaction_cell = 7; // Where a pawn stands to open it; ejected contents drop near it.
@@ -680,7 +679,7 @@ message BuildingSettings {
   optional bool player_owned = 19;
 }
 message MaterialDeficit { optional string def_name = 1; optional int64 need = 2; optional int64 have = 3; optional int64 still_needed = 4; }
-message ConstructionState { optional double total_work = 1; optional double work_left = 2; optional double percent_complete = 3; repeated MaterialDeficit resources = 4; optional bool resources_complete = 5; optional bool completable_ever = 6; repeated ReadIssue issues = 7;
+message ConstructionState { optional double work_left = 2; optional double percent_complete = 3; repeated MaterialDeficit resources = 4; optional bool resources_complete = 5; optional bool completable_ever = 6; repeated ReadIssue issues = 7;
   optional int32 minimum_finishing_skill = 8;
   optional bool quality_sensitive = 9;
   optional int32 eligible_finishers = 10;
@@ -707,7 +706,7 @@ message BuildingState {
   optional int32 hit_points = 8; optional int32 max_hit_points = 9;
   ConstructionState construction = 11; BuildingServiceState service = 12; BuildingSettings settings = 13;
   repeated ThermalSide thermal_sides = 14; BillStack bills = 15; optional string inspect_text = 16;
-  optional bool burning = 17; optional bool uses_hit_points = 18; repeated ReadIssue issues = 19;
+  optional bool burning = 17; repeated ReadIssue issues = 19;
   SnapshotRef snapshot = 20;
   // The building's occupied rect, inclusive.
   Rectangle occupied = 22;
@@ -876,11 +875,9 @@ message RaidTrack {
   optional string lord_id = 1; optional string faction_def = 2; optional int64 spawn_tick = 3; rimgovernor.common.v1.Cell spawn = 4;
   optional bool ground = 5; repeated rimgovernor.common.v1.Cell trail = 6; optional int64 last_tick = 7;
 }
-// cover_threshold is the lowest positive fillPercent among loaded defs: the
-// floor below which nothing on the map gives CoverUtility a block chance.
 message DefenseSiteSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated DefenseCell cells = 4;
-  optional double cover_threshold = 6; repeated RaidTrack raids = 7;
+  repeated RaidTrack raids = 7;
 }
 message DefenseSiteRequest { ReadScope scope = 1; Rectangle region = 2; }
 message DefenseSiteReply { oneof outcome { DefenseSiteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -916,12 +913,9 @@ message ExcavationSiteSnapshot {
 }
 message ExcavationSiteRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell cells = 2; rimgovernor.common.v1.Cell access_cell = 3; }
 message ExcavationSiteReply { oneof outcome { ExcavationSiteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-// One material a stuffed definition may be built from, with the native cost
-// list for that material.
-message StuffOption { optional string stuff = 1; repeated Quantity costs = 2; }
 message WallUpgradeSite {
   rimgovernor.common.v1.Ref target = 1; optional bool target_present = 2;
-  repeated rimgovernor.common.v1.Cell backup_cells = 4; repeated Quantity costs = 5;
+  repeated rimgovernor.common.v1.Cell backup_cells = 4;
   repeated ResourceStock materials = 6; repeated rimgovernor.common.v1.Ref workers = 7; optional string blocker = 8;
   optional bool designated = 9; optional string removal_id = 10; optional int64 completed_tick = 11;
   SnapshotRef snapshot = 12; rimgovernor.common.v1.Cell normal = 13;
@@ -929,7 +923,6 @@ message WallUpgradeSite {
   repeated rimgovernor.common.v1.Ref completed_backups = 25; rimgovernor.common.v1.Ref replacement = 26;
   // The target's CAS token for the upgrade's guarded operations.
   SnapshotRef target_snapshot = 27;
-  repeated StuffOption replacement_materials = 19;
   CellsSnapshot geometry = 20; RoofSupportSnapshot roof_support = 21;
 }
 message WallUpgradeSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated WallUpgradeSite sites = 2; }
@@ -1176,11 +1169,8 @@ message QuestMonumentPiece {
   optional bool built = 5;
   optional bool queued = 6;
   optional bool allowed = 7;
-  repeated string allowed_stuffs = 8;
   repeated rimgovernor.common.v1.Cell footprint = 9;
-  repeated QuestMonumentBuildOption build_options = 10;
 }
-message QuestMonumentBuildOption { optional string stuff = 1; repeated Quantity costs = 2; optional double work = 3; }
 message QuestWorker { optional string pawn_id = 1; optional bool healthy_adult = 2; optional bool can_fight = 3; repeated QuestWorkRate rates = 4; optional double carry_capacity = 5; optional double carried_mass = 6; optional int32 social_level = 7; optional bool faction_leader = 8; optional double negotiation_ability = 9; }
 message QuestWorkRate { optional string stat = 1; optional double rate = 2; }
 message QuestMonumentResource {
@@ -1292,7 +1282,7 @@ message Trader { EntityRef trader = 1; optional string kind = 2; rimgovernor.com
 message TradersSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated Trader traders = 2; repeated rimgovernor.common.v1.Ref negotiators = 3; }
 message TradersRequest { ReadScope scope = 1; }
 message TradersReply { oneof outcome { TradersSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message TradeLine { optional uint32 index = 1; DefinitionRef definition = 2; optional string stuff = 3; optional string category = 4; optional int64 colony_count = 5; optional int64 trader_count = 6; optional double buy_price = 7; optional double sell_price = 8; optional rimgovernor.defs.v1.PriceType buy_price_type = 9; optional rimgovernor.defs.v1.PriceType sell_price_type = 10; optional double market_value = 11; optional bool trader_will_trade = 12; optional bool currency = 13; optional bool pawn = 14; optional string pawn_description = 15; optional int64 transfer_count = 16; optional int64 minimum_count = 17; optional int64 maximum_count = 18; repeated string cannot_sell_reasons = 20; optional string line_id = 21; TradeFoodFacts food = 22; repeated Skill skills = 23; optional bool violence_capable = 24; optional string pawn_id = 25; optional string thing_id = 26; optional int32 quality = 27; optional string pawn_gender = 28; optional double hit_points_fraction = 29; optional string zone_id = 30; optional bool favor = 31; optional string guest_status = 32; optional bool prisoner_secure = 33; optional bool pawn_downed = 34; rimgovernor.common.v1.Ref extra_home_faction = 35; rimgovernor.common.v1.Ref extra_host_faction = 36; }
+message TradeLine { optional uint32 index = 1; DefinitionRef definition = 2; optional string stuff = 3; optional int64 colony_count = 5; optional int64 trader_count = 6; optional double buy_price = 7; optional double sell_price = 8; optional rimgovernor.defs.v1.PriceType buy_price_type = 9; optional rimgovernor.defs.v1.PriceType sell_price_type = 10; optional double market_value = 11; optional bool trader_will_trade = 12; optional bool currency = 13; optional bool pawn = 14; optional string pawn_description = 15; optional int64 transfer_count = 16; optional int64 minimum_count = 17; optional int64 maximum_count = 18; repeated string cannot_sell_reasons = 20; optional string line_id = 21; repeated Skill skills = 23; optional bool violence_capable = 24; optional string pawn_id = 25; optional string thing_id = 26; optional int32 quality = 27; optional string pawn_gender = 28; optional double hit_points_fraction = 29; optional string zone_id = 30; optional bool favor = 31; optional string guest_status = 32; optional bool prisoner_secure = 33; optional bool pawn_downed = 34; rimgovernor.common.v1.Ref extra_home_faction = 35; rimgovernor.common.v1.Ref extra_host_faction = 36; }
 // TradeSession is the adapter's one live trade: the negotiator
 // walking to trader_id to open a session (open false), or the pair holding
 // the open session (open true). Both ids are absent when neither exists.
@@ -1372,10 +1362,10 @@ message ComfortFacility { optional string id = 1; optional string kind = 2; repe
 message JoyTolerance { string pawn = 1; repeated double tolerance = 2; repeated bool bored = 3; }
 message RecreationCensus { repeated string kinds = 1; repeated JoyTolerance pawns = 2; }
 message ComfortFacts { repeated string people = 1; repeated ComfortSurface surfaces = 2; repeated ComfortFacility dining = 3; repeated ComfortFacility recreation = 4; RecreationCensus joy = 6; }
-message UpkeepItem { rimgovernor.common.v1.Ref item = 1; optional int64 count = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional bool roofed = 5; optional bool in_storage = 6; optional double deterioration_rate = 7; optional int64 rot_ticks = 9; optional double temperature_c = 11; optional bool forbidden = 12; optional bool burning = 15; }
-message UpkeepBed { rimgovernor.common.v1.Ref bed = 1; optional uint32 slots = 2; optional bool humanlike = 3; optional double rest_effectiveness = 4; optional bool medical = 5; optional bool prisoners = 6; repeated rimgovernor.common.v1.Ref owners = 7; repeated rimgovernor.common.v1.Ref users = 8; repeated rimgovernor.common.v1.Ref accessible_to = 9; optional bool roofed = 10; optional double temperature_c = 11; rimgovernor.common.v1.Ref room = 12; optional string quality = 13; optional string stuff = 15; optional bool for_slaves = 16; }
+message UpkeepItem { rimgovernor.common.v1.Ref item = 1; optional int64 count = 2; optional bool roofed = 5; optional bool in_storage = 6; optional int64 rot_ticks = 9; optional double temperature_c = 11; optional bool forbidden = 12; optional bool burning = 15; }
+message UpkeepBed { rimgovernor.common.v1.Ref bed = 1; optional bool medical = 5; optional bool prisoners = 6; repeated rimgovernor.common.v1.Ref owners = 7; repeated rimgovernor.common.v1.Ref users = 8; repeated rimgovernor.common.v1.Ref accessible_to = 9; optional bool roofed = 10; optional double temperature_c = 11; rimgovernor.common.v1.Ref room = 12; optional string quality = 13; optional string stuff = 15; optional bool for_slaves = 16; }
 message ItemStorageCapacity { optional string item_id = 1; optional int64 unreserved_covered_capacity = 2; optional uint32 accepting_cells = 3; }
-message UpkeepStructure { rimgovernor.common.v1.Ref building = 7; optional bool home = 2; optional bool holds_roof = 3; optional int32 repair_priority = 4; optional double flammability = 5; optional bool roofed = 6; }
+message UpkeepStructure { rimgovernor.common.v1.Ref building = 7; optional bool home = 2; optional bool roofed = 6; }
 message FireState { rimgovernor.common.v1.Ref fire = 1; optional double size = 2; optional bool home = 3; repeated rimgovernor.common.v1.Ref safe_workers = 4; }
 message FilthState { rimgovernor.common.v1.Ref filth = 1; optional bool home = 2; optional uint32 thickness = 3; optional string room_role = 4; optional bool cleanable = 5; rimgovernor.common.v1.Ref room = 6; }
 // partners: lover, spouse and fiance relations to living pawns on the same
@@ -2094,10 +2084,9 @@ message ThreatPawn { rimgovernor.common.v1.Ref prey = 2; optional bool prey_is_o
 // nearest_colonist_distance is Chebyshev cells like a threat pawn's;
 // occupied is the building's occupied rect (inclusive), the cells a
 // ranged defender needs a line of fire to.
-// mortar is a turret whose verb fires mortar shells.
 // A hostile building's row: building is its head (no table holds hostile
 // buildings) and building_snapshot its CAS token.
-message ThreatBuilding { EntityRef building = 1; SnapshotRef building_snapshot = 10; optional string hostile_reason = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional int32 nearest_colonist_distance = 5; optional bool passive = 7; optional bool mortar = 8; Rectangle occupied = 9; }
+message ThreatBuilding { EntityRef building = 1; SnapshotRef building_snapshot = 10; optional string hostile_reason = 2; optional int32 hit_points = 3; optional int32 nearest_colonist_distance = 5; optional bool passive = 7; Rectangle occupied = 9; }
 message ThreatsSnapshot { repeated ThreatPawn pawns = 8; repeated ThreatBuilding hostile_buildings = 7; }
 // colonists references every spawned free colonist's pawn table row
 // complete unless issues name "colonists".
@@ -2528,8 +2517,6 @@ service Observations {
   rpc EvaluateStat(EvaluateStatRequest) returns (EvaluateStatReply);
 }
 
-// Native definition classification for bounded food purchases and crop exports.
-message TradeFoodFacts { double nutrition = 1; }
 
 // The pawn's current food policy: its load id and allowed definitions.
 message FoodRestriction {

@@ -29,7 +29,7 @@ func (n *nutritionMissionSource) ReadWorld(context.Context, *c.Identity, int32, 
 func TestSettlementNutritionMissionReadsCatalogStat(t *testing.T) {
 	catalog := recordedcatalog.Catalog(t)
 	food, known, err := catalog.TradeFood("MealSimple")
-	if err != nil || !known || !food.Prepared || food.Nutrition != 0 {
+	if err != nil || !known || !food.Prepared || float32(food.Nutrition) != 0.9 {
 		t.Fatal("classification contract changed", food, known, err)
 	}
 	kind := "Base_Outlander_Standard"

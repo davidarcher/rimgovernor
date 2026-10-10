@@ -154,7 +154,7 @@ namespace HomeBridge.BridgeTools
             if (!thing.Spawned || thing.Map == null) throw new InvalidOperationException("Building is not spawned.");
             var pending = thing is Blueprint || thing is Frame;
             var row = new Obs.BuildingState { Building = Head(thing), Status = Status(thing), Rotation = Rotation(thing.Rotation),
-                UsesHitPoints = thing.def.useHitPoints, Burning = thing.IsBurning() };
+                Burning = thing.IsBurning() };
             var stuff = pending && thing is IConstructible constructible ? constructible.EntityToBuildStuff() : thing.Stuff;
             if (stuff != null) row.Stuff = Id(stuff.defName);
             else row.Issues.Add(Issue("stuff", Common.UnavailableReason.NotApplicable, "No material definition applies."));
@@ -234,13 +234,12 @@ namespace HomeBridge.BridgeTools
             if (!(thing is IConstructible construction)) throw new InvalidOperationException("Constructible unavailable.");
             if (thing is Frame frame)
             {
-                row.TotalWork = Nonnegative(frame.WorkToBuild); row.WorkLeft = Nonnegative(frame.WorkLeft);
+                row.WorkLeft = Nonnegative(frame.WorkLeft);
                 row.PercentComplete = Fraction(frame.PercentComplete);
             }
             else
             {
-                row.TotalWork = Nonnegative(definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff));
-                row.WorkLeft = row.TotalWork; row.PercentComplete = 0;
+                row.WorkLeft = Nonnegative(definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff)); row.PercentComplete = 0;
             }
             var costs = construction.TotalMaterialCost() ?? throw new InvalidOperationException("Cost list unavailable.");
             var seen = new HashSet<string>(StringComparer.Ordinal);

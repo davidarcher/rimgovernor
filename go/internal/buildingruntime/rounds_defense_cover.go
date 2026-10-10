@@ -178,7 +178,10 @@ func (r *RoundsDefenseLayoutPlanner) clearCover(call, epoch context.Context, goa
 			request.Entrances = append(request.Entrances, cell.Cell)
 		}
 	}
-	request.Arrivals, request.CoverThreshold = defenseArrivals(site.Raids, region), domain.Known(site.CoverThreshold)
+	// The game's shooting model grants a block chance to any positive fill,
+	// so the cover threshold is zero.
+	const defenseCoverFillThreshold = 0.0
+	request.Arrivals, request.CoverThreshold = defenseArrivals(site.Raids, region), domain.Known(defenseCoverFillThreshold)
 	defenders, minRange, ok, err := r.defenderRange(call, state, read)
 	if err != nil {
 		return RoundsDefenseLayoutResult{}, false, err

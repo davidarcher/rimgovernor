@@ -714,24 +714,23 @@ func (r *RoundsTradePlanner) commit(call, epoch context.Context, state ControlSt
 	return RoundsTradeResult{Verdict: BuildingReasonAdmitted, Plan: id, Trader: trader, Phase: kind, NativeWorkTicks: ticks}, nil
 }
 
-// tradeFoodFact classifies a food line from the catalog's rows; native
-// supplies only the nutrition stat.
-func tradeFoodFact(food *o.TradeFoodFacts, def string, catalog *bridge.DefinitionCatalog) (domain.Fact[policy.TradeFoodGood], error) {
-	if food == nil {
+// tradeFoodFact classifies a food line from the catalog's rows and the
+// evaluated Nutrition stat; a pawn or currency line is never food.
+func tradeFoodFact(row bridge.TradeSheetRow, catalog *bridge.DefinitionCatalog) (domain.Fact[policy.TradeFoodGood], error) {
+	if row.Pawn || row.Currency || row.DefName == "" {
 		return domain.Unknown[policy.TradeFoodGood](), nil
 	}
-	good, ok, err := catalog.TradeFood(def)
+	good, ok, err := catalog.TradeFood(row.DefName)
 	if err != nil || !ok {
 		return domain.Unknown[policy.TradeFoodGood](), err
 	}
-	good.Nutrition = food.Nutrition
 	return domain.Known(good), nil
 }
 
 func tradeSheetRowFacts(rows []bridge.TradeSheetRow, catalog *bridge.DefinitionCatalog) ([]policy.TradeSheetRowFact, error) {
 	out := make([]policy.TradeSheetRowFact, 0, len(rows))
 	for _, row := range rows {
-		food, err := tradeFoodFact(row.Food, row.DefName, catalog)
+		food, err := tradeFoodFact(row, catalog)
 		if err != nil {
 			return nil, err
 		}

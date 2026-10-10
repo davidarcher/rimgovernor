@@ -132,9 +132,6 @@ namespace HomeBridge.BridgeTools
                 row.EdgeReachable = row.Passable && map.reachability.CanReachMapEdge(cell, raider);
                 snapshot.Cells.Add(row);
             }
-            // CoverUtility grants a block chance to any positive fill, so the
-            // floor is zero: nothing on the map is cover below it.
-            snapshot.CoverThreshold = 0;
             var raids = map.GetComponent<RaidArrivalState>();
             if (raids != null)
                 foreach (var track in raids.Tracks.Values.OrderBy(t => t.SpawnTick).ThenBy(t => t.LordId)) {

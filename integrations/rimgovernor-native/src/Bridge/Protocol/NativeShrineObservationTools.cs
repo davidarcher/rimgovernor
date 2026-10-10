@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
                             if (casket.Position.Fogged(map)) continue;
                             row.Caskets.Add(new Obs.ShrineCasket {
                                 EntityId = Id(casket.GetUniqueLoadID()), Cell = Cell(casket.Position.x, casket.Position.z),
-                                HitPoints = (uint)Math.Max(0, casket.HitPoints), MaxHitPoints = (uint)Math.Max(1, casket.MaxHitPoints),
+                                HitPoints = (uint)Math.Max(0, casket.HitPoints),
                                 HasContents = casket.HasAnyContents, PlayerClaimed = casket.Faction == player,
                                 InteractionCell = Cell(casket.InteractionCell.x, casket.InteractionCell.z)
                             });

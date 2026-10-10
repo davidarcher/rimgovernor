@@ -109,12 +109,15 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoundsStoneShellPlan
 	entity := &o.EntityRef{Id: proto.String("wall-1"), DefName: proto.String("Wall"), MapId: proto.Int32(0), Position: cell}
 	n.buildings = &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: &o.BuildingsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: count(1), Buildings: []*o.BuildingState{{Building: entity, Occupied: &o.Rectangle{Minimum: cell, Maximum: cell}, Status: o.BuildingStatus_BUILDING_STATUS_BUILT.Enum(), Rotation: pp.Rotation_ROTATION_NORTH.Enum(), Stuff: proto.String("WoodLog")}}}}}
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
-		Structures: []*o.UpkeepStructure{{Building: n.head(entity), Flammability: proto.Float64(1)}},
+		Structures: []*o.UpkeepStructure{{Building: n.head(entity)}},
 		Comfort:    &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 	}}}
+	// The replacement stuffs are the catalog's: the wall takes the stony stuffs.
+	rows := n.catalogRows()
+	rows.Add("Wall", "BlocksGranite")
+	rows.Thing("Wall").StuffCategories = []string{"Stony"}
 	n.sites = bridge.WallUpgradeSites{Context: proto.Clone(v.Context).(*c.ObservationContext), Sites: []bridge.WallUpgradeSite{{
 		TargetID: "wall-1", TargetPresent: true, X: 4, Z: 4, NX: 0, NZ: 1, LeftSupport: true, RightSupport: true,
-		ReplacementMaterials: []bridge.WallMaterial{{Stuff: "BlocksGranite", Costs: []bridge.Amount{{Resource: "BlocksGranite", Units: 5}}}},
 	}}}
 	n.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
 		b, _ := p.Preview.Action.Building()
@@ -252,7 +255,7 @@ func TestRoundsStoneShellWithholdsUnfundedUpgrade(t *testing.T) {
 	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, _, n := stoneShellFixture(t)
-	n.sites.Sites[0].ReplacementMaterials[0].Costs[0].Units = 500
+	n.def("Wall").CostStuffCount = 500
 	result, err := p.Step(context.Background())
 	if err != nil || result.Verdict == BuildingReasonAdmitted || n.previews != 0 {
 		t.Fatal(result, err, n.previews)

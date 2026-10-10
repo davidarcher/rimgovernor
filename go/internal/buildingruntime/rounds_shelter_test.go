@@ -481,7 +481,7 @@ func standBunks(n *sleepingNative, sets ...standingBunks) {
 				n.standing[cell] = true
 			}
 			ref := &o.EntityRef{Id: proto.String(fmt.Sprintf("%s-bunk%d", set.definition, len(beds))), DefName: proto.String(set.definition), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(b.anchor.X), Z: proto.Int32(b.anchor.Z)}}
-			beds = append(beds, &o.UpkeepBed{Bed: n.head(ref), Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(false), TemperatureC: proto.Float64(20)})
+			beds = append(beds, &o.UpkeepBed{Bed: n.head(ref), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(false), TemperatureC: proto.Float64(20)})
 		}
 	}
 	n.reply.GetObserved().Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{Beds: beds,

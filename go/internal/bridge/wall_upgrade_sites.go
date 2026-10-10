@@ -27,14 +27,13 @@ type Amount struct {
 // (unsupported roof, no interior, bounds); a returned row that still carries
 // a blocker is present for status but is not eligible.
 type WallUpgradeSite struct {
-	TargetID             string
-	TargetPresent        bool
-	Blocker              string
-	X, Z, NX, NZ         int32
-	BackupCells          []domain.Cell
-	LeftSupport          bool
-	RightSupport         bool
-	ReplacementMaterials []WallMaterial
+	TargetID      string
+	TargetPresent bool
+	Blocker       string
+	X, Z, NX, NZ  int32
+	BackupCells   []domain.Cell
+	LeftSupport   bool
+	RightSupport  bool
 }
 
 func (s WallUpgradeSite) Eligible() bool {
@@ -114,19 +113,6 @@ func validateWallUpgradeSites(v *o.WallUpgradeSnapshot, identity *c.Identity, bu
 				return nil, contract("invalid wall upgrade backup cell")
 			}
 			site.BackupCells = append(site.BackupCells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
-		}
-		for _, m := range row.ReplacementMaterials {
-			if m == nil || m.Stuff == nil {
-				return nil, contract("invalid wall upgrade material")
-			}
-			material := WallMaterial{Stuff: m.GetStuff()}
-			for _, q := range m.Costs {
-				if q == nil || q.DefName == nil || q.Units == nil {
-					return nil, contract("invalid wall upgrade material cost")
-				}
-				material.Costs = append(material.Costs, Amount{Resource: q.GetDefName(), Units: q.GetUnits()})
-			}
-			site.ReplacementMaterials = append(site.ReplacementMaterials, material)
 		}
 		rows = append(rows, site)
 	}

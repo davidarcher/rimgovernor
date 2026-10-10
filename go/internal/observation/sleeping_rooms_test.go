@@ -13,7 +13,7 @@ import (
 func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 	u := &o.UpkeepFacts{
 		People: []*o.UpkeepPerson{{Pawn: &commonpb.Ref{Id: proto.String("pawn")}, Partners: bridge.NewRefs([]string{"lover"}), BedSharingAllowed: proto.Bool(false), RoyalTitle: proto.String("Knight")}},
-		Beds:   []*o.UpkeepBed{{Bed: &commonpb.Ref{Id: proto.String("bed")}, Room: &commonpb.Ref{Id: proto.String("7")}, Quality: proto.String("Good"), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
+		Beds:   []*o.UpkeepBed{{Bed: &commonpb.Ref{Id: proto.String("bed")}, Room: &commonpb.Ref{Id: proto.String("7")}, Quality: proto.String("Good"), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
 	}
 	v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1), Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
 	if _, k := sleepingOf(t, v, bridge.Buildings{}, recordedCatalog(t)).Value(); k {

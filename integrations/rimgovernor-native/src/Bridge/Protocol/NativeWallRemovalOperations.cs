@@ -53,12 +53,12 @@ namespace HomeBridge.BridgeTools
         private static List<List<Candidate>> Resolve(Map map, Building wall, Common.ObservationContext context)
         {
             var id = wall.GetUniqueLoadID();
-            var materials = NativeWallUpgradeObservationTools.Materials();
+            var materials = NativeWallUpgradeObservationTools.StonyStuffs();
             var straight = new List<Candidate>(); var cleanup = new List<Candidate>(); var corner = new List<Candidate>();
             foreach (var normal in WallUpgradeSafety.Directions)
             {
                 var n = normal;
-                Func<Obs.WallUpgradeSite?> reread = () => NativeWallUpgradeObservationTools.Replacement(map, wall, n, materials, context);
+                Func<Obs.WallUpgradeSite?> reread = () => NativeWallUpgradeObservationTools.Replacement(map, wall, n, context);
                 var site = reread();
                 if (site == null) continue;
                 var left = site.LeftSupport.Id; var right = site.RightSupport.Id;
@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
                 }
                 foreach (var material in materials)
                 {
-                    var record = WallUpgradeSafety.NewRecord(map, id, id, left, right, Enumerable.Empty<string>(), "", material.Stuff,
+                    var record = WallUpgradeSafety.NewRecord(map, id, id, left, right, Enumerable.Empty<string>(), "", material.defName,
                         wall.Position.x, wall.Position.z, normal.x, normal.z);
                     if (Try(record, site, reread) is Candidate found) { corner.Add(found); break; }
                 }

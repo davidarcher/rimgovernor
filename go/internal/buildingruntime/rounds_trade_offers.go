@@ -118,7 +118,7 @@ func (r *RoundsTradePlanner) recordOffers(call context.Context, state ControlSta
 		if row.CurrencyKnown && row.Currency || row.TraderCount <= 0 || !row.BuyPriceKnown {
 			continue
 		}
-		food, err := tradeFoodFact(row.Food, row.DefName, tables.Catalog)
+		food, err := tradeFoodFact(row, tables.Catalog)
 		if err != nil {
 			return err
 		}
