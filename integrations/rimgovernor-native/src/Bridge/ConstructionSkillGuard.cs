@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
         {
             if (installed) return;
             var h = new Harmony("rimgovernor.construction-skill");
-            h.Patch(AccessTools.Method(typeof(WorkGiver_ConstructFinishFrames), nameof(WorkGiver_ConstructFinishFrames.HasJobOnThing)),
+            h.Patch(AccessTools.DeclaredMethod(typeof(WorkGiver_Scanner), nameof(WorkGiver_Scanner.HasJobOnThing)),
                 postfix: new HarmonyMethod(typeof(ConstructionSkillGuard), nameof(Eligible)));
             h.Patch(AccessTools.Method(typeof(Frame), nameof(Frame.CompleteConstruction)),
                 prefix: new HarmonyMethod(typeof(ConstructionSkillGuard), nameof(Complete)));
@@ -84,8 +84,10 @@ namespace HomeBridge.BridgeTools
                     postfix: new HarmonyMethod(typeof(ConstructionSkillGuard), nameof(Inspect)));
             installed = true;
         }
-        private static void Eligible(Pawn pawn, Thing t, ref bool __result)
-        { if (__result && !Allows(t, pawn)) { __result = false; JobFailReason.Is("construction finishing skill below target minimum"); } }
+        // WorkGiver_ConstructFinishFrames inherits HasJobOnThing, and Harmony only
+        // patches a declared virtual, so the base method is patched and filtered.
+        private static void Eligible(WorkGiver_Scanner __instance, Pawn pawn, Thing t, ref bool __result)
+        { if (__result && __instance is WorkGiver_ConstructFinishFrames && !Allows(t, pawn)) { __result = false; JobFailReason.Is("construction finishing skill below target minimum"); } }
         private static bool Complete(Frame __instance, Pawn worker)
         {
             if (Allows(__instance, worker)) return true;
