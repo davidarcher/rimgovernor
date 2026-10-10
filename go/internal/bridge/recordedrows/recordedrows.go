@@ -113,8 +113,8 @@ func Take(t Reporter, keep func(*d.ThingDef) bool, sets ...string) *Slice {
 }
 
 // Add copies the recorded thing defs with these names into the slice, with
-// the items and stuffs their cost and stat rows name and the projectiles they
-// fire, unless it holds them already. A name the game does not have fails.
+// the items and stuffs their cost and stat rows name, the projectiles they
+// fire and the meat of a race, unless it holds them already. A name the game does not have fails.
 func (s *Slice) Add(names ...string) {
 	s.T.Helper()
 	idx := recorded()
@@ -163,6 +163,9 @@ func (s *Slice) add(names []string) {
 				queue = append(queue, stat.GetStuffName())
 			}
 		}
+		// A race decodes only with its meat row: the animal race read takes the
+		// meat's nutrition from its stat row.
+		queue = append(queue, idx.facts[name].GetRace().GetMeatDef())
 		queue = append(queue, row.GetProjectileWhenLoaded(), row.GetPlant().GetHarvestedThingDef())
 		for _, verb := range row.GetVerbs() {
 			queue = append(queue, verb.GetValue().GetDefaultProjectile())
