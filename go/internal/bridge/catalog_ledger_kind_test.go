@@ -21,10 +21,10 @@ func TestRecipeLedgerKindComesFromTheRows(t *testing.T) {
 	categories := catalog.Defs[(&d.ThingCategoryDef{}).ProtoReflect().Descriptor().FullName()]
 	categories["BodyParts"] = &d.ThingCategoryDef{DefName: "BodyParts", Parent: "Root"}
 	categories["BodyPartsSimple"] = &d.ThingCategoryDef{DefName: "BodyPartsSimple", Parent: "BodyParts"}
-	catalog.ThingDefs["MedicineHerbal"] = &d.ThingDef{DefName: "MedicineHerbal"}
+	catalog.ThingDefs["MedicineHerbal"] = &d.ThingDef{DefName: "MedicineHerbal", StatBases: []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: "MedicalPotency", Value: 1}}}}
 	catalog.ThingDefs["SimpleProstheticLeg"] = &d.ThingDef{DefName: "SimpleProstheticLeg", ThingCategories: []string{"BodyPartsSimple"}}
 	catalog.ThingDefs["BabyFood"] = &d.ThingDef{DefName: "BabyFood", Ingestible: &d.IngestibleProperties{BabiesCanIngest: true}}
-	catalog.thingFacts["MedicineHerbal"] = &o.ThingDefFacts{DefName: "MedicineHerbal", Medicine: true}
+	catalog.thingFacts["MedicineHerbal"] = &o.ThingDefFacts{DefName: "MedicineHerbal"}
 	catalog.thingFacts["SimpleProstheticLeg"] = &o.ThingDefFacts{DefName: "SimpleProstheticLeg"}
 	catalog.thingFacts["BabyFood"] = &o.ThingDefFacts{DefName: "BabyFood"}
 	for recipe, want := range map[string]policy.LedgerBillKind{

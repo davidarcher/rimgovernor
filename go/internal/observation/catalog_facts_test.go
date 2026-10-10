@@ -48,8 +48,15 @@ func itemCatalog(t *testing.T, items map[string]itemFact, terrains map[string][3
 	v := &o.DefinitionCatalog{ThingDefs: []*d.ThingDef{{DefName: "Anchor"}},
 		StatValues: &o.DefStatTable{Stats: []string{"Beauty", "Cleanliness", "DeteriorationRate", "Flammability"}}}
 	for name, item := range items {
-		v.ThingDefs = append(v.ThingDefs, &d.ThingDef{DefName: name})
-		v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: name, Medicine: item.medicine, RawMeat: item.raw})
+		def := &d.ThingDef{DefName: name}
+		if item.medicine {
+			def.StatBases = []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: "MedicalPotency", Value: 1}}}
+		}
+		if item.raw {
+			def.Category, def.ThingCategories = d.ThingCategory_THING_CATEGORY_ITEM, []string{"MeatRaw"}
+		}
+		v.ThingDefs = append(v.ThingDefs, def)
+		v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: name})
 		v.StatValues.Rows = append(v.StatValues.Rows, &o.DefStatRow{DefName: name, Stat: []int32{2}, Value: []float32{item.deterioration}})
 	}
 	for name, stats := range terrains {

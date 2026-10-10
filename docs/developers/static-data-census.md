@@ -87,7 +87,7 @@ Out of scope and unchanged: files classed state or code, and the excluded Biotec
 | NativeClockEventProjection.cs | 212 | code | Projects clock-journal event rows into typed Clock.Event protos; clock transport infrastructure. |  |  |
 | NativeClockRuntime.cs | 549 | state | Clock epoch runtime: leases, speed, pause holds, event journal pages and authority. |  |  |
 | NativeClockTools.cs | 161 | state | Tool handlers for clock start/renew/change-speed/read-events. |  |  |
-| NativeColonyObservationTools.cs | 558 | mixed | Reads the whole colony facts frame (food, power, wealth, crops, conditions) from live game state. | GameRoomRoles (4 ThingDefOf checks: BabyDecoration/Blackboard/SchoolDesk/ToyBox); conduit defName list (PowerConduit/HiddenConduit/WaterproofConduit); CropDefs DefDatabase enumeration | room roles and conduits: Go rule over ThingDef rows (defName/thingClass/comps in defs.proto ThingDef); CropDefs: Go filter over ThingDef.plant |
+| NativeColonyObservationTools.cs | 558 | mixed | Reads the whole colony facts frame (food, power, wealth, crops, conditions) from live game state. | conduit defName list (PowerConduit/HiddenConduit/WaterproofConduit); CropDefs DefDatabase enumeration | room roles and conduits: Go rule over ThingDef rows (defName/thingClass/comps in defs.proto ThingDef); CropDefs: Go filter over ThingDef.plant |
 | NativeCombatGeometryTools.cs | 234 | code | Combat geometry read: cover, line of fire and path ticks via CoverUtility/GenSight/pathfinder. |  |  |
 | NativeCombatOperations.cs | 47 | code | Attack rules: picks melee or ranged attack job per vanilla float-menu logic. |  |  |
 | NativeCombatOrders.cs | 488 | state | Applies a batch of combat micro orders (draft, goto, attack, rescue, repair, mortar, animal orders). |  |  |
@@ -114,7 +114,7 @@ Out of scope and unchanged: files classed state or code, and the excluded Biotec
 | NativeExcavationSite.cs | 91 | code | Certifies a rock cell set for mining via reachability and support counterfactual. |  |  |
 | NativeFloorRemoval.cs | 56 | state | RemoveFloor designation on one constructed-floor cell. | DesignationDef RemoveFloor const | none needed |
 | NativeFoodChannels.cs | 187 | state | Reads livestock food channels (slaughter, milk, eggs, fishing water, feeder nutrition) from live pens and pawns. |  |  |
-| NativeFoodPolicy.cs | 137 | mixed | Food policy apply and read, plus per-ThingDef food classification (Kind, Facts) emitted into the def catalog. | Kind(ThingDef) preferability/foodType/IsMeat/IsFungus/IsAnimalProduct to Obs.FoodKind; Facts() ThingDefFacts (RawMeat, Medicine, MealIngredients via FoodUtility.GetFoodKind, FoodKind); IsFood predicate; Foods() DefDatabase enumeration; Eaters() babiesCanIngest rule | Go rule over ThingDef rows: ThingDef.ingestible.preferability, ingestible.foodType, ingestible.babiesCanIngest plus IsMeat/IsMedicine derivation; MealIngredients from RecipeDef ingredient filters (FoodKind enum in defs.proto) |
+| NativeFoodPolicy.cs | 137 | mixed | Food policy apply and read, plus per-ThingDef food classification (Kind, Facts) emitted into the def catalog. | Kind(ThingDef) preferability/foodType/IsMeat/IsFungus/IsAnimalProduct to Obs.FoodKind; Facts() ThingDefFacts (MealIngredients via FoodUtility.GetFoodKind, FoodKind; RawMeat and Medicine moved to Go in #2632; they stay native because CachedNutrition, ingestible.sourceDef and the hemogen special case are game code); IsFood predicate; Foods() DefDatabase enumeration; Eaters() babiesCanIngest rule | Go rule over ThingDef rows: ThingDef.ingestible.preferability, ingestible.foodType, ingestible.babiesCanIngest plus IsMeat/IsMedicine derivation; MealIngredients from RecipeDef ingredient filters (FoodKind enum in defs.proto) |
 | NativeGathering.cs | 93 | state | GatheringIntent apply: starts a vanilla gathering via GatheringDef.Worker.TryExecute and records the spot. |  |  |
 | NativeGearFacts.cs | 304 | mixed | Gear census per colonist (loadout, candidates, storage, climate, equipment) with a loadout model whose option catalog is built from RecipeDefs. | Catalog() producible-apparel recipes (RecipeDef.ProducedThingDef IsApparel, one per def); BillOption research prereqs and CostListAdjusted ingredients; Option() Smokepop verb check (Verb_SmokePop) | Go rule over rows: RecipeDef.products + ThingDef.apparel + RecipeDef.researchPrerequisite/researchPrerequisites + ThingDef.costList/stuffCategories; ThingDef.verbs[].verbClass for smokepop; caps are tool constants not game constants |
 | NativeGearOperations.cs | 58 | state | Wear order: validates pawn and apparel live and issues JobDefOf.Wear as ordered work. |  |  |
@@ -144,7 +144,7 @@ Out of scope and unchanged: files classed state or code, and the excluded Biotec
 | NativeObservationSnapshot.cs | 36 | code | Stateless SHA256 row-level CAS token helper. |  |  |
 | NativeObservationTools.cs | 389 | mixed | Status, cells and excavation-site read tools plus the threat, pawn-row, job-row and thing-row builders. | HiveBoundaryCells=10 hardcoded hive trespass radius; HostileBuilding rule (building.combatPower>0 or IsMortar, or Hive) | GameConstants (#2626) for the hive boundary radius if it mirrors a game value (else Go policy constant); BuildingProperties.combatPower/isMortar rows for the hostile-building rule |
 | NativeOdysseyColony.cs | 89 | excluded | Odyssey colony reads (not read). |  |  |
-| NativeOdysseyFacts.cs | 100 | excluded | Odyssey facts (not read). |  |  |
+| NativeOdysseyFacts.cs | 100 | excluded | Odyssey building hack and portal state and colony-map mutators (state); the catalog biome-animal and stockpile-type reads were deleted in #2632. |  |  |
 | NativeOpenCasketOperations.cs | 80 | state | Open job on an ancient cryptosleep casket with a temporary Open designation. |  |  |
 | NativeOperationTools.cs | 83 | code | Per-game operation state ledger holder and zone preview and receipt lookup tool entry points. |  |  |
 | NativeOrderDanger.cs | 16 | static | One constant: Danger.Deadly used for forced-order reach checks. | OrderDanger = Danger.Deadly | GameConstants (#2626): the Danger level vanilla float menu passes to CanReach |
@@ -177,7 +177,7 @@ Out of scope and unchanged: files classed state or code, and the excluded Biotec
 | NativeQuestThreats.cs | 42 | code | Sums scripted raider combat power and incident budgets from quest parts. |  |  |
 | NativeQuestWorkers.cs | 40 | mixed | Reads per-colonist quest worker facts: health, fighting ability, carry capacity, negotiation and work rates. | stats list = RecipeDef.workSpeedStat for all recipes plus ConstructionSpeed and PlantWorkSpeed | Go rule: distinct RecipeDef.workSpeedStat over recipe rows plus ConstructionSpeed and PlantWorkSpeed stat names; per-pawn stat values stay live |
 | NativeQuestWorkload.cs | 41 | code | Forecasts quest work amount and rate factor from plants or an existing usable bench recipe. |  |  |
-| NativeRaceFacts.cs | 85 | excluded | Race facts (Biotech/Odyssey race scope). |  |  |
+| NativeRaceFacts.cs | 85 | code | Edible foods, tameness decay, the wildness tame-chance curve and the adult feed per day (game code); the flags, trainables, meat and life stage ages moved to Go in #2632 (bridge/race_rules.go). |  |  |
 | NativeReadingPolicy.cs | 67 | mixed | Creates/updates ReadingPolicy allowing a set of book defs and exposes book enumeration. | IsBook (CompProperties_Book on ThingDef) and Books() enumerating all ThingDefs | ThingDef.comps containing CompProperties_Book (Go rule over ThingDef rows); policy allowed list stays live state |
 | NativeRecipeRoles.cs | 19 | code | Recipe role predicates by worker counter class and recipe lookup by name. | ButcherFlesh = WorkerCounter is RecipeWorkerCounter_ButcherAnimals | RecipeDef.workerCounter class equals RecipeWorkerCounter_ButcherAnimals (Go rule over rows) |
 | NativeRecoveryFacts.cs | 39 | state | Reads colonist buildings and per-pawn allowed area for the recovery census. |  |  |
@@ -718,8 +718,8 @@ Out of scope and unchanged: files classed state or code, and the excluded Biotec
 | SnapshotStreamRequest | message | 2247 | 5 | state | Stream subscription: resource sources, keyframe flag, budgets |  |  |
 | DefinitionCatalog | message | 2265 | 12 | static | Catalog envelope holding def mirror, stat table, facts, constants | thing_defs,terrain_defs,defs,class_chains,research | already the def mirror itself (defs.proto ThingDef/TerrainDef/DefSets); research duplicates DefSets ResearchProjectDef rows |
 | ClassChain | message | 2299 | 2 | static | CLR class and its bases for def class matching | name,bases | none in defs.proto; reflection over assemblies; keep as Go ClassIsA index |
-| ThingDefFacts | message | 2310 | 7 | code | Game-computed ThingDef flags (food kind, meal ingredients, raw meat, medicine, room roles) |  |  |
-| RaceFacts | message | 2329 | 15 | excluded | Game-computed race facts incl. husbandry ages and tameness |  | excluded owner owner Race |
+| ThingDefFacts | message | 2310 | 4 | code | Game-computed ThingDef flags (food kind, meal ingredients; raw meat, medicine and room roles are Go, #2632) |  |  |
+| RaceFacts | message | 2329 | 5 | code | Edible foods, tameness decay, tame-chance factor, adult feed (game code; the rest is Go, #2632) |  |  |
 | DefStatTable | message | 2370 | 3 | code | Game stat values per def and stuff (GetStatValueAbstract) |  |  |
 | DefStatRow | message | 2384 | 5 | code | One def/stuff stat value row with adjusted costs |  |  |
 | CatalogDerived | message | 2392 | 3 | code | Facts the game names or computes in code | currency_def,full_rot_rate_c,wort_def |  |
@@ -744,10 +744,6 @@ Out of scope and unchanged: files classed state or code, and the excluded Biotec
 | CurvePointRow | message | 2526 | 2 | excluded | Biotech curve point |  | excluded owner #2630 owner Biotech |
 | GeneTuningFacts | message | 2537 | 8 | excluded | Biotech gene tuning constants |  | excluded owner #2630 owner Biotech |
 | BiotechCatalog | message | 2543 | 7 | excluded | Biotech catalog container |  | excluded owner #2630 owner Biotech |
-| OdysseyCatalog | message | 2555 | 2 | excluded | Odyssey catalog container |  | excluded owner #2632 owner Odyssey |
-| BiomeAnimal | message | 2559 | 2 | excluded | Odyssey biome animal commonality |  | excluded owner #2632 owner Odyssey |
-| BiomeAnimals | message | 2562 | 4 | excluded | Odyssey biome animal tables |  | excluded owner #2632 owner Odyssey |
-| StockpileTypeRow | message | 2568 | 2 | excluded | Odyssey stockpile type enum row |  | excluded owner #2632 owner Odyssey |
 | OdysseyBuilding | message | 2573 | 3 | excluded | Odyssey building facts |  | excluded owner #2632 owner Odyssey |
 | HackableState | message | 2575 | 5 | excluded | Odyssey hackable state |  | excluded owner #2632 owner Odyssey |
 | PortalState | message | 2579 | 4 | excluded | Odyssey portal state |  | excluded owner #2632 owner Odyssey |

@@ -90,7 +90,7 @@ func buildBiotech(catalog *DefinitionCatalog, v *o.BiotechCatalog) (*BiotechCata
 // mechanoid with an overseer-subject comp. Bandwidth cost is the race's stat.
 func (catalog *DefinitionCatalog) mechKind(kind *d.PawnKindDef) (mechKindRow, bool, error) {
 	race := catalog.ThingDefs[kind.GetRace()]
-	if _, mechanoid, _ := catalog.RaceFlags(kind.GetRace()); race == nil || !mechanoid {
+	if mechanoid, _ := catalog.RaceFlags(kind.GetRace()); race == nil || !mechanoid {
 		return mechKindRow{}, false, nil
 	}
 	controllable, err := catalog.HasComp(race, classOverseerSubject)

@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"slices"
 	"testing"
 
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
@@ -12,24 +13,31 @@ import (
 // and the stat rows an animal race reads.
 func racesReply() *o.DefinitionCatalog {
 	v := catalogReply(authorityTestContext(7)).GetObserved()
+	pawn := d.ThingCategory_THING_CATEGORY_PAWN
 	v.ThingDefs = []*d.ThingDef{
-		{DefName: "Wolf", Race: &d.RaceProperties{Predator: true, BaseBodySize: 0.85, LifeExpectancy: 14, Trainability: "Intermediate", ManhunterOnDamageChance: 0.5}},
-		{DefName: "Alphabeaver", Race: &d.RaceProperties{BaseBodySize: 0.6, FoodType: d.FoodTypeFlags_FOOD_TYPE_FLAGS_TREE}},
-		{DefName: "Mech_Lancer", Race: &d.RaceProperties{BaseBodySize: 1}},
-		{DefName: "Human", Race: &d.RaceProperties{BaseBodySize: 1}},
+		{DefName: "Wolf", Category: pawn, Race: &d.RaceProperties{Predator: true, BaseBodySize: 0.85, LifeExpectancy: 14, Trainability: "Intermediate", ManhunterOnDamageChance: 0.5}},
+		{DefName: "Alphabeaver", Category: pawn, Race: &d.RaceProperties{BaseBodySize: 0.6, FoodType: d.FoodTypeFlags_FOOD_TYPE_FLAGS_TREE}},
+		{DefName: "Mech_Lancer", Category: pawn, Race: &d.RaceProperties{BaseBodySize: 1, FleshType: "Mechanoid"}},
+		{DefName: "Human", Category: pawn, Race: &d.RaceProperties{BaseBodySize: 1, Intelligence: d.Intelligence_INTELLIGENCE_HUMANLIKE}},
+		// A corpse def shares its pawn's race properties and is no race.
+		{DefName: "Corpse_Wolf", Race: &d.RaceProperties{BaseBodySize: 0.85}},
+	}
+	v.Defs = &d.DefSets{
+		FleshTypeDefs:    []*d.FleshTypeDef{{DefName: "Normal", IsOrganic: true}, {DefName: "Mechanoid"}},
+		TrainabilityDefs: []*d.TrainabilityDef{{DefName: "Intermediate", IntelligenceOrder: 2}, {DefName: "Advanced", IntelligenceOrder: 3}},
+		TrainableDefs: []*d.TrainableDef{{DefName: "Obedience", RequiredTrainability: "Intermediate"}, {DefName: "Release", RequiredTrainability: "Advanced"},
+			{DefName: "Haul", RequiredTrainability: "Intermediate", MinBodySize: 2}},
 	}
 	v.StatValues = &o.DefStatTable{
 		Stats: []string{StatCarryingCapacity, StatWildness, StatMarketValue, StatMinimumHandlingSkill},
 		Rows: []*o.DefStatRow{
 			{DefName: "Wolf", Stat: []int32{0, 1, 2, 3}, Value: []float32{40, 0.8, 250, 5}},
-			{DefName: "Alphabeaver"}, {DefName: "Mech_Lancer"}, {DefName: "Human"},
+			{DefName: "Alphabeaver"}, {DefName: "Mech_Lancer"}, {DefName: "Human"}, {DefName: "Corpse_Wolf"},
 		},
 	}
 	v.ThingFacts = []*o.ThingDefFacts{
-		{DefName: "Wolf", Race: &o.RaceFacts{Animal: true, Trainables: []string{"Obedience"}}},
-		{DefName: "Alphabeaver", Race: &o.RaceFacts{Animal: true}},
-		{DefName: "Mech_Lancer", Race: &o.RaceFacts{Mechanoid: true}},
-		{DefName: "Human", Race: &o.RaceFacts{}},
+		{DefName: "Wolf", Race: &o.RaceFacts{}}, {DefName: "Alphabeaver", Race: &o.RaceFacts{}}, {DefName: "Mech_Lancer", Race: &o.RaceFacts{}},
+		{DefName: "Human", Race: &o.RaceFacts{}}, {DefName: "Corpse_Wolf", Race: &o.RaceFacts{}},
 	}
 	return v
 }
@@ -62,17 +70,20 @@ func TestCatalogAnimalRaces(t *testing.T) {
 	if v, ok := wolf.CarryingCapacity.Value(); !ok || v != 40 {
 		t.Fatalf("wolf carrying capacity %v %v", v, ok)
 	}
+	if !slices.Equal(wolf.Trainables, []string{"Obedience"}) {
+		t.Fatalf("wolf trainables %v, want Obedience only (Release needs a higher rank, Haul a larger body)", wolf.Trainables)
+	}
 	if beaver, ok := races.Race("Alphabeaver"); !ok || !beaver.Pest {
 		t.Fatalf("alphabeaver %+v", beaver)
 	}
 	if _, ok := races.Race("Mech_Lancer"); ok {
 		t.Fatal("a mechanoid is no animal race")
 	}
-	if animal, mech, insect := catalog.RaceFlags("Mech_Lancer"); animal || !mech || insect {
-		t.Fatal("lancer flags", animal, mech, insect)
+	if mech, insect := catalog.RaceFlags("Mech_Lancer"); !mech || insect {
+		t.Fatal("lancer flags", mech, insect)
 	}
-	if animal, mech, _ := catalog.RaceFlags("Wolf"); !animal || mech {
-		t.Fatal("wolf flags", animal, mech)
+	if mech, _ := catalog.RaceFlags("Wolf"); mech {
+		t.Fatal("wolf flags", mech)
 	}
 	var none *DefinitionCatalog
 	if empty, err := none.AnimalRaces(); err != nil || len(empty.Races) != 0 {
@@ -112,14 +123,19 @@ func TestCatalogAnimalRaceHusbandryFacts(t *testing.T) {
 	animal.NutritionPercentagePerFeed, animal.MaxMinNutritionPerFeed, train.MinTrainInterval = 0.15, 0.3, 15000
 	wolf := reply.ThingFacts[0].Race
 	reproductive, milkable := int64(2700000), int64(3600000)
-	wolf.AdultMinAgeTicks, wolf.ReproductiveMinAgeTicks, wolf.MilkableMinAgeTicks = 7200000, &reproductive, &milkable
 	wolf.TamenessCanDecay, wolf.TamenessDecayPeriodTicks, wolf.TameChanceFactor = true, 450000, 0.25
-	wolf.MeatDef, wolf.MeatAmount = "Meat_Wolf", 70
+	stage := func(name string, minAge float32) *d.Opt_LifeStageAge {
+		return &d.Opt_LifeStageAge{Value: &d.LifeStageAge{Def: name, MinAge: minAge}}
+	}
+	reply.ThingDefs[0].Race.LifeStageAges = []*d.Opt_LifeStageAge{stage("Baby", 0), stage("Juvenile", 0.75), stage("Mid", 1), stage("Adult", 2)}
+	reply.Defs.LifeStageDefs = []*d.LifeStageDef{{DefName: "Baby"}, {DefName: "Juvenile", Reproductive: true}, {DefName: "Mid", Reproductive: true, Milkable: true}, {DefName: "Adult"}}
 	feed := 1.25
 	wolf.AdultFeedPerDay = &feed
 	reply.ThingDefs = append(reply.ThingDefs, &d.ThingDef{DefName: "Meat_Wolf"})
-	reply.StatValues.Stats = append(reply.StatValues.Stats, StatNutrition)
-	reply.StatValues.Rows = append(reply.StatValues.Rows, &o.DefStatRow{DefName: "Meat_Wolf", Stat: []int32{4}, Value: []float32{0.05}})
+	reply.StatValues.Stats = append(reply.StatValues.Stats, StatMeatAmount, StatNutrition)
+	reply.StatValues.Rows[0].Stat, reply.StatValues.Rows[0].Value = append(reply.StatValues.Rows[0].Stat, 4), append(reply.StatValues.Rows[0].Value, 70)
+	reply.ThingDefs[0].Race.HasMeat, reply.ThingDefs[0].Race.HasCorpse = true, true
+	reply.StatValues.Rows = append(reply.StatValues.Rows, &o.DefStatRow{DefName: "Meat_Wolf", Stat: []int32{5}, Value: []float32{0.05}})
 	catalog, err := DecodeDefinitionCatalog(reply, pbIdentity())
 	if err != nil {
 		t.Fatal(err)
@@ -190,7 +206,7 @@ func TestCatalogAnimalRaceHerdGrowth(t *testing.T) {
 	wolf := reply.ThingDefs[0].Race
 	wolf.LifeStageAges = []*d.Opt_LifeStageAge{{Value: &d.LifeStageAge{Def: "WolfBaby", MinAge: 0}}, {Value: &d.LifeStageAge{Def: "WolfAdult", MinAge: 0.5}}}
 	wolf.LitterSizeCurve = &d.SimpleCurve{Points: []*d.CurvePoint{point(1, 0), point(2, 1), point(3, 0)}}
-	reply.Defs = &d.DefSets{LifeStageDefs: []*d.LifeStageDef{{DefName: "WolfBaby", HungerRateFactor: 0.25}, {DefName: "WolfAdult", HungerRateFactor: 1}}}
+	reply.Defs.LifeStageDefs = []*d.LifeStageDef{{DefName: "WolfBaby", HungerRateFactor: 0.25}, {DefName: "WolfAdult", HungerRateFactor: 1}}
 	catalog, err := DecodeDefinitionCatalog(reply, pbIdentity())
 	if err != nil {
 		t.Fatal(err)

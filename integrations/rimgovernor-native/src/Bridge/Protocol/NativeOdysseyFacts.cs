@@ -10,50 +10,17 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Odyssey facts: the catalog's derived part (each biome's wild
-    // animal tables and the stockpile types; the defs themselves ride the def
-    // mirror), the building row block (hack progress, portal state) and
-    // the colony map's tile mutators. Everything is read from the game defs and
-    // objects, never from name lists, and is absent without Odyssey.
+    // Odyssey facts: the building row block (hack progress, portal state) and
+    // the colony map's tile mutators; the defs ride the def mirror and the stockpile
+    // type enum rides GameConstants. Read from the game objects and absent
+    // without Odyssey.
     internal static class NativeOdysseyFacts
     {
         private static string? Id(string? value) => value != null && ProtoBoundary.IsIdentifier(value) ? value : null;
         private static bool Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
-        private static IEnumerable<T> Sorted<T>(IEnumerable<T> defs) where T : Def =>
-            defs.Where(d => ProtoBoundary.IsIdentifier(d.defName)).OrderBy(d => d.defName, StringComparer.Ordinal);
         private static IEnumerable<string> Names(IEnumerable<Def>? defs) =>
             (defs ?? Enumerable.Empty<Def>()).Select(d => Id(d?.defName)).Where(n => n != null).Select(n => n!).Distinct(StringComparer.Ordinal).OrderBy(n => n, StringComparer.Ordinal);
 
-        internal static Obs.OdysseyCatalog? Catalog()
-        {
-            if (!ModsConfig.OdysseyActive) return null;
-            var catalog = new Obs.OdysseyCatalog();
-            var animals = Sorted(DefDatabase<PawnKindDef>.AllDefsListForReading.Where(k => k.RaceProps != null && k.RaceProps.Animal)).ToList();
-            foreach (var def in Sorted(DefDatabase<BiomeDef>.AllDefsListForReading)) catalog.BiomeAnimals.Add(Biome(def, animals));
-            var generatable = TileMutatorWorker_Stockpile.GeneratableStockpileTypes ?? new List<TileMutatorWorker_Stockpile.StockpileType>();
-            foreach (var name in Enum.GetNames(typeof(TileMutatorWorker_Stockpile.StockpileType)).OrderBy(n => n, StringComparer.Ordinal))
-                if (Id(name) is string id)
-                    catalog.StockpileTypes.Add(new Obs.StockpileTypeRow { Name = id, Generatable = generatable.Contains((TileMutatorWorker_Stockpile.StockpileType)Enum.Parse(typeof(TileMutatorWorker_Stockpile.StockpileType), name)) });
-            return catalog;
-        }
-
-        private static void Animals(Google.Protobuf.Collections.RepeatedField<Obs.BiomeAnimal> into, List<PawnKindDef> kinds, Func<PawnKindDef, float> commonality)
-        {
-            foreach (var kind in kinds)
-            {
-                var c = commonality(kind);
-                if (c > 0 && Finite(c)) into.Add(new Obs.BiomeAnimal { Kind = kind.defName, Commonality = c });
-            }
-        }
-
-        private static Obs.BiomeAnimals Biome(BiomeDef def, List<PawnKindDef> animals)
-        {
-            var row = new Obs.BiomeAnimals { Biome = def.defName };
-            Animals(row.WildAnimals, animals, def.CommonalityOfAnimal);
-            Animals(row.PollutionWildAnimals, animals, def.CommonalityOfPollutionAnimal);
-            Animals(row.CoastalWildAnimals, animals, def.CommonalityOfCoastalAnimal);
-            return row;
-        }
         // The colony map's world-tile mutators; empty without Odyssey.
         internal static IEnumerable<string> MapMutators(Map map) =>
             !ModsConfig.OdysseyActive || map.TileInfo == null ? Enumerable.Empty<string>() : Names(map.TileInfo.Mutators).ToList();

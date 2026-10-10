@@ -8,15 +8,6 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// OdysseyCatalog is the Odyssey facts the def mirror cannot give: each biome's wild animal tables by BiomeDef name, and the stockpile
-// types. Biome, tile mutator, hackable and portal defs are the mirror's
-// own rows. Nil without Odyssey. Animal kinds name PawnKindDefs; the races
-// are the catalog's race rows (AnimalRaces).
-type OdysseyCatalog struct {
-	BiomeAnimals   map[string]*o.BiomeAnimals
-	StockpileTypes map[string]*o.StockpileTypeRow
-}
-
 func odysseyNumbers(kind string, values ...*float64) error {
 	for _, v := range values {
 		if v != nil && (math.IsNaN(*v) || math.IsInf(*v, 0)) {
@@ -24,41 +15,6 @@ func odysseyNumbers(kind string, values ...*float64) error {
 		}
 	}
 	return nil
-}
-
-func odysseyAnimals(kind string, rows []*o.BiomeAnimal) error {
-	seen := map[string]bool{}
-	for _, a := range rows {
-		if a == nil || validID(a.GetKind()) != nil || seen[a.GetKind()] || a.Commonality == nil || math.IsNaN(a.GetCommonality()) || math.IsInf(a.GetCommonality(), 0) || a.GetCommonality() <= 0 {
-			return contract("invalid or duplicate odyssey biome %s animal", kind)
-		}
-		seen[a.GetKind()] = true
-	}
-	return nil
-}
-
-// DecodeOdysseyCatalog validates the catalog's Odyssey section; nil in, nil
-// out (the game has no Odyssey).
-func DecodeOdysseyCatalog(v *o.OdysseyCatalog) (*OdysseyCatalog, error) {
-	if v == nil {
-		return nil, nil
-	}
-	out := &OdysseyCatalog{}
-	var err error
-	if out.BiomeAnimals, err = catalogIndex("odyssey biome animals", v.BiomeAnimals, (*o.BiomeAnimals).GetBiome); err != nil {
-		return nil, err
-	}
-	if out.StockpileTypes, err = catalogIndex("odyssey stockpile type", v.StockpileTypes, (*o.StockpileTypeRow).GetName); err != nil {
-		return nil, err
-	}
-	for _, row := range v.BiomeAnimals {
-		for kind, rows := range map[string][]*o.BiomeAnimal{"wild": row.WildAnimals, "pollution": row.PollutionWildAnimals, "coastal": row.CoastalWildAnimals} {
-			if err := odysseyAnimals(kind, rows); err != nil {
-				return nil, err
-			}
-		}
-	}
-	return out, nil
 }
 
 // validateBuildingOdyssey bounds a building row's Odyssey block.

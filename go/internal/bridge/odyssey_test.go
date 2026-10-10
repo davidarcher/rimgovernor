@@ -9,42 +9,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func odysseyCatalogFixture() *o.OdysseyCatalog {
-	return &o.OdysseyCatalog{
-		BiomeAnimals: []*o.BiomeAnimals{
-			{Biome: proto.String("Glowforest"), WildAnimals: []*o.BiomeAnimal{{Kind: proto.String("Muffalo"), Commonality: proto.Float64(1)}}},
-			{Biome: proto.String("LavaField")},
-		},
-		StockpileTypes: []*o.StockpileTypeRow{{Name: proto.String("Gravcore"), Generatable: proto.Bool(false)}, {Name: proto.String("Medicine"), Generatable: proto.Bool(true)}},
-	}
-}
-
-// TestOdysseyCatalogDecode: the section decodes by name and refuses
-// duplicates and bad animal rows; absent stays nil.
-func TestOdysseyCatalogDecode(t *testing.T) {
-	got, err := DecodeOdysseyCatalog(odysseyCatalogFixture())
-	if err != nil || got.BiomeAnimals["Glowforest"] == nil || got.StockpileTypes["Gravcore"] == nil {
-		t.Fatalf("%+v %v", got, err)
-	}
-	if none, err := DecodeOdysseyCatalog(nil); none != nil || err != nil {
-		t.Fatal("Core-only catalog must decode to nil", none, err)
-	}
-	for name, mutate := range map[string]func(*o.OdysseyCatalog){
-		"duplicate biome":  func(v *o.OdysseyCatalog) { v.BiomeAnimals = append(v.BiomeAnimals, v.BiomeAnimals[0]) },
-		"zero commonality": func(v *o.OdysseyCatalog) { v.BiomeAnimals[0].WildAnimals[0].Commonality = proto.Float64(0) },
-		"duplicate animal": func(v *o.OdysseyCatalog) {
-			v.BiomeAnimals[0].WildAnimals = append(v.BiomeAnimals[0].WildAnimals, v.BiomeAnimals[0].WildAnimals[0])
-		},
-		"nan commonality": func(v *o.OdysseyCatalog) { v.BiomeAnimals[0].WildAnimals[0].Commonality = proto.Float64(math.NaN()) },
-	} {
-		v := odysseyCatalogFixture()
-		mutate(v)
-		if _, err := DecodeOdysseyCatalog(v); err == nil {
-			t.Errorf("%s accepted", name)
-		}
-	}
-}
-
 func odysseyBuildingFixture() *o.BuildingState {
 	return &o.BuildingState{Building: &o.EntityRef{Id: proto.String("Building_Hatch1")}, Odyssey: &o.OdysseyBuilding{
 		Hackable: &o.HackableState{ProgressPercent: proto.Float64(.25), Defence: proto.Float64(600), Hacked: proto.Bool(false), LockedOut: proto.Bool(false)},

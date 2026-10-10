@@ -533,7 +533,7 @@ func threatFacts(s policy.CombatPawnState, row *n.PawnState, catalog *bridge.Def
 	}
 	s.Kind = row.GetKindDefName()
 	// The race flags are the game's own, off the catalog's race rows.
-	_, s.Mech, s.Insect = catalog.RaceFlags(row.GetPawn().GetDefName())
+	s.Mech, s.Insect = catalog.RaceFlags(row.GetPawn().GetDefName())
 	if h := row.GetHealth(); h != nil {
 		if h.BloodLoss != nil {
 			s.BloodLoss = domain.Known(h.GetBloodLoss())

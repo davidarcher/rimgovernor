@@ -32,17 +32,6 @@ func (catalog *DefinitionCatalog) AnimalRaces() (policy.AnimalRaceCatalog, error
 	return catalog.races, catalog.racesErr
 }
 
-// RaceFlags are the game's own flags of def's race (animal, mechanoid,
-// insect); false and no error for a def without RaceProperties or in a
-// catalog that carries no thing facts.
-func (catalog *DefinitionCatalog) RaceFlags(def string) (animal, mechanoid, insect bool) {
-	if catalog == nil || catalog.thingFacts == nil {
-		return false, false, false
-	}
-	race := catalog.thingFacts[def].GetRace()
-	return race.GetAnimal(), race.GetMechanoid(), race.GetInsect()
-}
-
 func (catalog *DefinitionCatalog) buildRaces() (policy.AnimalRaceCatalog, error) {
 	out := policy.AnimalRaceCatalog{Races: map[policy.Resource]policy.AnimalRace{}, Interaction: catalog.animalInteraction()}
 	if catalog.thingFacts == nil {
@@ -63,7 +52,13 @@ func (catalog *DefinitionCatalog) buildRaces() (policy.AnimalRaceCatalog, error)
 		if row == nil || row.GetRace() == nil {
 			return out, contract("race facts for def %s without race properties", name)
 		}
-		if !facts.GetAnimal() {
+		// A corpse def shares its pawn's RaceProperties; the race is the pawn def.
+		if row.GetCategory() != d.ThingCategory_THING_CATEGORY_PAWN {
+			continue
+		}
+		if animal, err := catalog.raceIsAnimal(name, row.GetRace()); err != nil {
+			return out, err
+		} else if !animal {
 			continue
 		}
 		race, err := catalog.animalRace(name, row, facts, power, produced)
@@ -77,10 +72,15 @@ func (catalog *DefinitionCatalog) buildRaces() (policy.AnimalRaceCatalog, error)
 
 func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts *o.RaceFacts, power map[string]float64, produced []string) (policy.AnimalRace, error) {
 	props := row.GetRace()
-	race := policy.AnimalRace{Def: policy.Resource(name), Predator: props.GetPredator(), Mechanoid: facts.GetMechanoid(), Insect: facts.GetInsect(),
+	race := policy.AnimalRace{Def: policy.Resource(name), Predator: props.GetPredator(),
 		BodySize: domain.Known(float64(props.GetBaseBodySize())), LifeExpectancy: domain.Known(float64(props.GetLifeExpectancy())),
 		ManhunterOnTameFail: domain.Known(float64(props.GetManhunterOnTameFailChance())), ManhunterOnDamage: domain.Known(float64(props.GetManhunterOnDamageChance())),
-		Trainables: slices.Clone(facts.GetTrainables()), Edible: slices.Clone(facts.GetEdibleDefs())}
+		Edible: slices.Clone(facts.GetEdibleDefs())}
+	race.Mechanoid, race.Insect = catalog.RaceFlags(name)
+	var err error
+	if race.Trainables, err = catalog.raceTrainables(name, props); err != nil {
+		return race, err
+	}
 	// A pest is a tree eater: RaceProperties.Eats(FoodTypeFlags.Tree).
 	race.Pest = int32(props.GetFoodType())&int32(d.FoodTypeFlags_FOOD_TYPE_FLAGS_TREE) != 0
 	if t := props.GetTrainability(); t != "" {
@@ -129,11 +129,15 @@ func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts
 		race.CombatPower = domain.Known(p)
 	}
 	race.MateMtbHours = domain.Known(float64(props.GetMateMtbHours()))
-	race.AdultMinAgeTicks = domain.Known(facts.GetAdultMinAgeTicks())
+	ages, err := catalog.raceStageAges(name, props)
+	if err != nil {
+		return race, err
+	}
+	race.AdultMinAgeTicks = domain.Known(ages.Adult)
 	for _, stage := range []struct {
 		from *int64
 		into *domain.Fact[int64]
-	}{{facts.ReproductiveMinAgeTicks, &race.ReproductiveMinAgeTicks}, {facts.MilkableMinAgeTicks, &race.MilkableMinAgeTicks}, {facts.ShearableMinAgeTicks, &race.ShearableMinAgeTicks}} {
+	}{{ages.Reproductive, &race.ReproductiveMinAgeTicks}, {ages.Milkable, &race.MilkableMinAgeTicks}, {ages.Shearable, &race.ShearableMinAgeTicks}} {
 		if stage.from != nil {
 			*stage.into = domain.Known(*stage.from)
 		}
@@ -146,9 +150,16 @@ func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts
 	if feed := facts.AdultFeedPerDay; feed != nil && *feed > 0 {
 		race.AdultFeedPerDay = domain.Known(*feed)
 	}
-	if meat := facts.GetMeatDef(); meat != "" {
+	if meat := catalog.raceMeatDef(row); meat != "" {
+		amount, shown, err := catalog.ShownStatValue(name, "", StatMeatAmount)
+		if err != nil {
+			return race, err
+		}
+		if !shown {
+			return race, contract("race %s has meat %s but the stat table shows no %s", name, meat, StatMeatAmount)
+		}
 		race.MeatDef = policy.Resource(meat)
-		race.MeatAmount = domain.Known(float64(facts.GetMeatAmount()))
+		race.MeatAmount = domain.Known(float64(amount))
 	}
 	if race.Products, err = catalog.raceProducts(row); err != nil {
 		return race, err

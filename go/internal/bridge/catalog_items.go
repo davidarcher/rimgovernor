@@ -297,12 +297,6 @@ func decodeThingFacts(rows []*o.ThingDefFacts, things map[string]*d.ThingDef) (m
 		if row.FoodKind != nil && foodKinds[kind] == "" || row.MealIngredients != nil && (!meal || mealIngredients[row.GetMealIngredients()] == "") || row.FoodKind != nil && meal && row.MealIngredients == nil {
 			return nil, contract("catalog thing facts of %s carry an invalid food kind %v or ingredients %v", name, kind, row.GetMealIngredients())
 		}
-		roles := row.GetRoomRoles()
-		for i, role := range roles {
-			if !slices.Contains(policy.FurnitureRoles, policy.FurnitureRole(role)) || i > 0 && roles[i-1] >= role {
-				return nil, contract("catalog thing facts of %s carry invalid room roles %v", name, roles)
-			}
-		}
 		out[name] = row
 	}
 	return out, nil
@@ -347,14 +341,21 @@ func (catalog *DefinitionCatalog) FoodKindOf(name string) (policy.FoodKind, erro
 	return foodKinds[row.GetFoodKind()], nil
 }
 
-// RawMeat is ThingDef.IsMeat of the def.
+// RawMeat is ThingDef.IsMeat of the def: an item in the MeatRaw category.
 func (catalog *DefinitionCatalog) RawMeat(name string) (bool, error) {
-	row, err := catalog.thingFactsRow(name)
-	return row.GetRawMeat(), err
+	row := catalog.ThingDef(name)
+	if row == nil {
+		return false, contract("catalog has no def %s", name)
+	}
+	return row.GetCategory() == d.ThingCategory_THING_CATEGORY_ITEM && slices.Contains(row.GetThingCategories(), "MeatRaw"), nil
 }
 
-// Medicine is ThingDef.IsMedicine of the def.
+// Medicine is ThingDef.IsMedicine of the def: a def with a MedicalPotency
+// stat base.
 func (catalog *DefinitionCatalog) Medicine(name string) (bool, error) {
-	row, err := catalog.thingFactsRow(name)
-	return row.GetMedicine(), err
+	row := catalog.ThingDef(name)
+	if row == nil {
+		return false, contract("catalog has no def %s", name)
+	}
+	return slices.ContainsFunc(row.GetStatBases(), func(s *d.Opt_StatModifier) bool { return s.GetValue().GetStat() == "MedicalPotency" }), nil
 }

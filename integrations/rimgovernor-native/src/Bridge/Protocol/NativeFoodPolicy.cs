@@ -62,11 +62,10 @@ namespace HomeBridge.BridgeTools
 
         // The game's own classification of one ThingDef, computed once per load
         // for the definition catalog: the food kind and meal ingredients
-        // of a food a policy can allow, ThingDef.IsMeat and ThingDef.IsMedicine.
+        // of a food a policy can allow, and the race facts of a race def.
         internal static Obs.ThingDefFacts Facts(ThingDef d)
         {
-            var row = new Obs.ThingDefFacts { DefName = d.defName, RawMeat = d.IsMeat, Medicine = d.IsMedicine };
-            row.RoomRoles.Add(NativeColonyObservationTools.GameRoomRoles(d));
+            var row = new Obs.ThingDefFacts { DefName = d.defName };
             if (d.race != null) row.Race = NativeRaceFacts.Facts(d);
             if (!IsFood(d)) return row;
             var kind = Kind(d);

@@ -26,7 +26,7 @@ func factsReply() *o.DefinitionCatalog {
 	v.ClassChains = append(v.ClassChains, &o.ClassChain{Name: powerClass})
 	steel := building("Steel", "")
 	steel.DesignationCategory = ""
-	v.ThingDefs = []*d.ThingDef{building("Chess", "Cerebral"), building("Pin", "Dexterity"), steel, television, {DefName: "Wall"}, {DefName: "MeatRaw"}, {DefName: "Meal"}}
+	v.ThingDefs = []*d.ThingDef{building("Chess", "Cerebral"), building("Pin", "Dexterity"), steel, television, {DefName: "Wall"}, {DefName: "MeatRaw", Category: d.ThingCategory_THING_CATEGORY_ITEM, ThingCategories: []string{"MeatRaw"}}, {DefName: "Meal", StatBases: []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: "MedicalPotency", Value: 1}}}}}
 	v.TerrainDefs = []*d.TerrainDef{{DefName: "Soil", PathCost: 2, Natural: true}, {DefName: "Lava"}}
 	job := func(name string, rate float32, duration int32) *d.JobDef {
 		return &d.JobDef{DefName: name, JoyGainRate: rate, JoyDuration: duration}
@@ -59,8 +59,8 @@ func factsReply() *o.DefinitionCatalog {
 	}
 	v.ThingFacts = []*o.ThingDefFacts{
 		{DefName: "Chess"}, {DefName: "Pin"}, {DefName: "Steel"}, {DefName: "Television"}, {DefName: "Wall"},
-		{DefName: "MeatRaw", FoodKind: o.FoodKind_FOOD_KIND_HUMAN_MEAT.Enum(), RawMeat: true},
-		{DefName: "Meal", FoodKind: o.FoodKind_FOOD_KIND_MEAL_FINE.Enum(), MealIngredients: o.MealIngredients_MEAL_INGREDIENTS_NON_MEAT.Enum(), Medicine: true},
+		{DefName: "MeatRaw", FoodKind: o.FoodKind_FOOD_KIND_HUMAN_MEAT.Enum()},
+		{DefName: "Meal", FoodKind: o.FoodKind_FOOD_KIND_MEAL_FINE.Enum(), MealIngredients: o.MealIngredients_MEAL_INGREDIENTS_NON_MEAT.Enum()},
 	}
 	return v
 }

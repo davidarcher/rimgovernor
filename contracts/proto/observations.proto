@@ -2298,8 +2298,8 @@ message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1
   // The Ideology defs are rows of `defs` (MemeDef, PreceptDef, RitualPatternDef,
   // RitualBehaviorDef); field 5 carried the hand-written IdeologyCatalog.
 
-  // The Odyssey defs; absent without Odyssey.
-  OdysseyCatalog odyssey = 6;
+  // The Odyssey defs are rows of `defs` (BiomeDef, TileMutatorDef, hackable and
+  // portal comps) and the stockpile type enum is mirrored in `game_constants`.
   // The Anomaly defs are rows of `defs` (EntityCategoryDef, KnowledgeCategoryDef,
   // EntityCodexEntryDef, CreepJoiner*Def, IncidentDef, ThingDef comps); field 7
   // carried the hand-written AnomalyCatalog.
@@ -2337,48 +2337,25 @@ message ClassChain { string name = 1; repeated string bases = 2; }
 // meals by FoodPreferability, then kibble, hay, meat by FoodUtility
 // .GetMeatSourceCategory, IsFungus, IsAnimalProduct, a vegetable or fruit food
 // type, else other. `meal_ingredients` is set on meals only
-// (FoodUtility.GetFoodKind). `raw_meat` is ThingDef.IsMeat and `medicine` is
-// ThingDef.IsMedicine. `room_roles` are the furniture roles the game's own
-// room-role code scores the def for by name: Toy (ThingDefOf.ToyBox),
-// Decoration (BabyDecoration), Board (Blackboard) and Desk (SchoolDesk), sorted;
-// the roles the rows derive (baby beds, deathrest) are Go's.
+// (FoodUtility.GetFoodKind). Both stay native: whether a def gives nutrition
+// (IngestibleProperties.CachedNutrition), the source def a meat records
+// (IngestibleProperties.sourceDef, set while the game builds its meat defs) and
+// the Biotech hemogen special case are game code, not row fields. ThingDef.IsMeat,
+// ThingDef.IsMedicine and the room-role names are Go's (bridge/catalog_items.go).
 message ThingDefFacts {
   string def_name = 1;
   optional FoodKind food_kind = 2;
   optional MealIngredients meal_ingredients = 3;
-  bool raw_meat = 4;
-  bool medicine = 5;
-  repeated string room_roles = 6;
   // Set on a def with RaceProperties.
   optional RaceFacts race = 7;
 }
-// What the game's own race code says about one race, computed once per load
-// the race's numbers (body size, life expectancy, predator, the
-// manhunter chances, wildness, minimum handling skill, products, meat) are the
-// def rows and the stat table, not copied here. `animal` is RaceProperties
-// .Animal, `mechanoid` .IsMechanoid and `insect` .Insect. `trainables` are the
-// TrainableDefs the race can ever learn (Pawn_TrainingTracker.CanAssignToTrain's
-// race rules: trainability rank, minimum body size, the tag lists) and
-// `edible_defs` the foods (ThingDefFacts.food_kind set) RaceProperties
-// .CanEverEat accepts, both sorted.
+// What the game's own race code says about one race that its def fields do not:
+// `edible_defs` are the foods (ThingDefFacts.food_kind set) RaceProperties
+// .CanEverEat accepts, sorted. The race flags, trainables, meat and life stage
+// ages are Go's, derived from the RaceProperties, FleshTypeDef, LifeStageDef and
+// TrainableDef rows and the stat table (bridge/race_rules.go).
 message RaceFacts {
-  bool animal = 1;
-  bool mechanoid = 2;
-  bool insect = 3;
-  repeated string trainables = 4;
   repeated string edible_defs = 5;
-  // Husbandry facts, the game's own answers for the race def so no
-  // later round re-reads the race. `adult_min_age_ticks` is
-  // Pawn_AgeTracker.AdultMinAgeTicks (an animal's last life stage; a humanlike
-  // race's first adult stage; biological ticks run one per tick for an animal).
-  // `reproductive_min_age_ticks`, `milkable_min_age_ticks` and
-  // `shearable_min_age_ticks` are the minAge in ticks of the first life stage
-  // (LifeStageAge order) whose LifeStageDef is reproductive, milkable or
-  // shearable, absent when no stage is.
-  int64 adult_min_age_ticks = 6;
-  optional int64 reproductive_min_age_ticks = 7;
-  optional int64 milkable_min_age_ticks = 8;
-  optional int64 shearable_min_age_ticks = 9;
   // TrainableUtility.TamenessCanDecay(def) and DegradationPeriodTicks(def): a
   // tamed animal loses one Tameness step every period unless it cannot decay.
   bool tameness_can_decay = 10;
@@ -2387,11 +2364,6 @@ message RaceFacts {
   // stat: the factor a tame attempt's chance is multiplied by (before the
   // tamer's TameAnimalChance, bond, prison and venerated-animal factors).
   float tame_chance_factor = 12;
-  // RaceProperties.meatDef (empty for a race with no meat) and the
-  // GetStatValueAbstract(MeatAmount) of the race def: the meat a butchery
-  // yields before the butcher's efficiency.
-  string meat_def = 13;
-  float meat_amount = 14;
   // SimplifiedPastureNutritionSimulator.NutritionConsumedPerDay(def, adult
   // life stage): the nutrition per day one adult of the race eats, the
   // game's own feed figure for an owned adult, so a colony with none of the
@@ -2486,27 +2458,6 @@ message MechWorkModeRoles { optional string work = 1; optional string escort = 2
 // race, gene, xenotype, mech kind and work mode defs are the mirror's rows;
 // the decoded BiotechCatalog is built from them. Absent without Biotech.
 message BiotechCatalog { GeneTuningFacts gene_tuning = 1; MechWorkModeRoles mech_work_modes = 2; }
-// The Odyssey facts the def mirror (defs.proto) cannot give.
-// Biome, tile mutator, hackable and portal defs are the mirror's BiomeDef,
-// TileMutatorDef, CompProperties_Hackable and MapPortalProperties rows, and
-// the biome diseases its BiomeDef.diseases; none is repeated here. What
-// remains is derived natively: the wild animal tables per biome (the game
-// joins BiomeDef.wildAnimals with each race's wildBiomes) and the stockpile
-// type enum, which no def carries. Absent without Odyssey.
-message OdysseyCatalog {
-  repeated BiomeAnimals biome_animals = 6; repeated StockpileTypeRow stockpile_types = 5;
-}
-// A wild animal kind in a biome and its commonality there.
-message BiomeAnimal { optional string kind = 1; optional double commonality = 2; }
-// One BiomeDef's animal kinds with a nonzero commonality, split by the
-// inland, pollution and coastal tables; biome names the BiomeDef.
-message BiomeAnimals {
-  optional string biome = 1;
-  repeated BiomeAnimal wild_animals = 2; repeated BiomeAnimal pollution_wild_animals = 3; repeated BiomeAnimal coastal_wild_animals = 4;
-}
-// One value of the stockpile type enum an ancient hatch carries;
-// generatable: the world generator may place it.
-message StockpileTypeRow { optional string name = 1; optional bool generatable = 2; }
 // Odyssey facts of one building row. hackable: a building with
 // CompHackable; portal: a MapPortal (hatch, pit gate, cave exit). An absent
 // scalar is unknown; a failed sub-read leaves its block absent and adds a
@@ -2515,7 +2466,7 @@ message OdysseyBuilding { HackableState hackable = 1; PortalState portal = 2; re
 // CompHackable: progress_percent is 0..1, defence the hack work required.
 message HackableState { optional double progress_percent = 1; optional double defence = 2; optional bool hacked = 3; optional bool locked_out = 4; optional bool autohack = 5; }
 // MapPortal: pocket_map_exists and the pocket map's id once it exists;
-// an ancient hatch adds its stockpile type (StockpileTypeRow.name) and
+// an ancient hatch adds its stockpile type (TileMutatorWorker_Stockpile.StockpileType name) and
 // layout (LayoutDef name).
 message PortalState { optional bool pocket_map_exists = 1; optional int32 pocket_map_id = 2; optional string stockpile_type = 3; optional string layout = 4; }
 // EntityContainmentMode: what the player has ordered done with a held entity.

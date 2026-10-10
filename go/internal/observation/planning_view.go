@@ -177,11 +177,7 @@ func stuffView(catalog *bridge.DefinitionCatalog, v *PlanningDefinition, name st
 // names for the def (carried per def by the catalog), a baby bed (a bed flagged
 // bed_crib) and a deathrest-bindable building, a casket when it is a bed.
 func roomRoles(catalog *bridge.DefinitionCatalog, name string, row *d.ThingDef) ([]string, error) {
-	game, err := catalog.GameRoomRoles(name)
-	if err != nil {
-		return nil, err
-	}
-	roles := append([]string{}, game...)
+	roles := bridge.GameRoomRoles(name)
 	if row.GetBuilding().GetBedCrib() {
 		roles = append(roles, string(policy.RoleBabyBed))
 	}

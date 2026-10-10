@@ -412,18 +412,6 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        // The roles the game's room-role workers score by ThingDefOf name,
-        // sorted: the part of the room roles Go cannot derive from the def rows.
-        internal static IEnumerable<string> GameRoomRoles(ThingDef def)
-        {
-            var roles = new List<string>();
-            if (def == ThingDefOf.BabyDecoration) roles.Add("Decoration");
-            if (def == ThingDefOf.Blackboard) roles.Add("Board");
-            if (def == ThingDefOf.SchoolDesk) roles.Add("Desk");
-            if (def == ThingDefOf.ToyBox) roles.Add("Toy");
-            roles.Sort(StringComparer.Ordinal);
-            return roles;
-        }
         // Sun lamps, plant growers and rooms inside the planning region plus every
         // power network's headroom split by source. Lamp growth cells are the
         // native Building_SunLamp radius, not the glow radius, so the controller

@@ -163,28 +163,45 @@ func (s *Slice) add(names []string) {
 				queue = append(queue, stat.GetStuffName())
 			}
 		}
-		// A race decodes only with its meat row: the animal race read takes the
-		// meat's nutrition from its stat row.
-		queue = append(queue, idx.facts[name].GetRace().GetMeatDef())
 		queue = append(queue, row.GetProjectileWhenLoaded(), row.GetPlant().GetHarvestedThingDef())
+		// A race's meat (its stat rows price the butchery): the generated
+		// Meat_<race>, or the def the race names.
+		if race := row.GetRace(); race != nil {
+			queue = append(queue, "Meat_"+name, race.GetSpecificMeatDef(), race.GetUseMeatFrom())
+		}
 		for _, verb := range row.GetVerbs() {
 			queue = append(queue, verb.GetValue().GetDefaultProjectile())
 		}
 	}
+	races := false
 	for _, row := range recordedWire(s.T).ThingDefs {
 		name := row.GetDefName()
 		if !want[name] {
 			continue
 		}
+		races = races || row.GetRace() != nil
 		s.Wire.ThingDefs = append(s.Wire.ThingDefs, proto.Clone(row).(*d.ThingDef))
 		s.Wire.ThingFacts = append(s.Wire.ThingFacts, proto.Clone(idx.facts[name]).(*o.ThingDefFacts))
 		for _, stat := range idx.stats[name] {
 			s.Wire.StatValues.Rows = append(s.Wire.StatValues.Rows, proto.Clone(stat).(*o.DefStatRow))
 		}
 	}
+	// The decoder derives a race's flags, trainables and ages from these rows.
+	if races {
+		s.AddSets("flesh_type_defs", "trainability_defs", "trainable_defs", "life_stage_defs")
+	}
 }
 
-// AddSets copies every recorded row of the named def sets into the slice.
+// defNameOf is a def row's defName, empty for a message without one.
+func defNameOf(row protoreflect.Message) string {
+	if fd := row.Descriptor().Fields().ByName("defName"); fd != nil && fd.Kind() == protoreflect.StringKind {
+		return row.Get(fd).String()
+	}
+	return ""
+}
+
+// AddSets copies every recorded row of the named def sets into the slice, but
+// not a row whose defName the slice's set already holds.
 func (s *Slice) AddSets(sets ...string) {
 	s.T.Helper()
 	src, dst := recordedWire(s.T).Defs.ProtoReflect(), s.Wire.Defs.ProtoReflect()
@@ -194,8 +211,14 @@ func (s *Slice) AddSets(sets ...string) {
 			s.T.Fatalf("recorded def sets have no list %q", set)
 		}
 		from, to := src.Get(fd).List(), dst.Mutable(fd).List()
+		held := map[string]bool{}
+		for i := range to.Len() {
+			held[defNameOf(to.Get(i).Message())] = true
+		}
 		for i := range from.Len() {
-			to.Append(protoreflect.ValueOfMessage(proto.Clone(from.Get(i).Message().Interface()).ProtoReflect()))
+			if name := defNameOf(from.Get(i).Message()); name == "" || !held[name] {
+				to.Append(protoreflect.ValueOfMessage(proto.Clone(from.Get(i).Message().Interface()).ProtoReflect()))
+			}
 		}
 	}
 	// The decoder refuses a joy giver that offers a def the slice lacks, so a

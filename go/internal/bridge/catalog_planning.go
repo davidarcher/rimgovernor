@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"math"
 	"slices"
 
@@ -43,11 +44,19 @@ func (catalog *DefinitionCatalog) IsFood(name string) (bool, error) {
 	return row.FoodKind != nil, err
 }
 
+// gameRoomRoles are the ThingDefOf names the game's room-role workers score a
+// furniture role by: a def of the name has the role.
+var gameRoomRoles = map[string]policy.FurnitureRole{
+	"ToyBox": policy.RoleToy, "BabyDecoration": policy.RoleDecoration, "Blackboard": policy.RoleBoard, "SchoolDesk": policy.RoleDesk,
+}
+
 // GameRoomRoles are the furniture roles the game's room-role code scores the
-// def for by name (Toy, Decoration, Board, Desk), sorted.
-func (catalog *DefinitionCatalog) GameRoomRoles(name string) ([]string, error) {
-	row, err := catalog.thingFactsRow(name)
-	return row.GetRoomRoles(), err
+// def for by name (Toy, Decoration, Board, Desk): at most one.
+func GameRoomRoles(name string) []string {
+	if role, ok := gameRoomRoles[name]; ok {
+		return []string{string(role)}
+	}
+	return nil
 }
 
 // CompOf is the first comp of row whose class is base or derives from it (the
@@ -101,10 +110,7 @@ func (catalog *DefinitionCatalog) RoomRoleRows() ([]string, error) {
 		if !Buildable(row) {
 			continue
 		}
-		roles, err := catalog.GameRoomRoles(name)
-		if err != nil {
-			return nil, err
-		}
+		roles := GameRoomRoles(name)
 		rest, err := catalog.HasComp(row, ClassDeathrestComp)
 		if err != nil {
 			return nil, err
