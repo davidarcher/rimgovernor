@@ -430,6 +430,13 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	if policies, known := r.Policies.Value(); known {
 		policies.Books = tables.Catalog.Books()
 		policies.Foods = tables.Catalog.Foods()
+		if v.Biome != nil {
+			diseases, err := tables.Catalog.BiomeDiseases(v.GetBiome())
+			if err != nil {
+				return ColonyProjection{}, err
+			}
+			policies.BiomeDiseases = diseases
+		}
 		r.Policies = domain.Known(policies)
 	}
 	conditions, conditionsKnown, err := colonyConditions(v, tables.Catalog)
@@ -514,6 +521,12 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 				}
 				rainVulnerable = domain.Known(vulnerable)
 			}
+			var fuels []string
+			if def := b.GetBuilding().DefName; def != nil {
+				if fuels, err = tables.Catalog.RefuelFuels(*def); err != nil {
+					return ColonyProjection{}, err
+				}
+			}
 			baseW := domain.Unknown[float64]()
 			if def := b.GetBuilding().DefName; def != nil && tables.Catalog != nil {
 				if baseW, err = tables.Catalog.PowerBaseW(*def, tables.FinishedResearch); err != nil {
@@ -521,7 +534,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 				}
 			}
 			power = append(power, policy.PowerBuilding{BaseW: baseW, OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(b.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn),
-				Fuel: optional(s.Fuel), TargetFuel: optional(s.TargetFuel), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: append([]string(nil), s.AllowedFuelDefs...),
+				Fuel: optional(s.Fuel), TargetFuel: optional(s.TargetFuel), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: fuels,
 				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays), RainVulnerable: rainVulnerable, Roofed: optional(row.Roofed), TurretDPS: optional(row.TurretDps)})
 			ref := b.GetBuilding()
 			consumer, refuelable, err := fuelConsumer(tables.Catalog, ref.GetId(), ref.GetDefName(), power[len(power)-1])
@@ -621,7 +634,11 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts.BasicComfort = r.Facts.Comfort
 	r.Facts.HomeCoverage = colonyHomeCoverage(v)
 	r.Facts.StoneStructures = colonyStoneStructures(v, buildings)
-	r.Facts.Sleeping = colonySleeping(v, buildings)
+	sleeping, sleepingErr := colonySleeping(v, buildings, tables.Catalog)
+	if sleepingErr != nil {
+		return ColonyProjection{}, sleepingErr
+	}
+	r.Facts.Sleeping = sleeping
 	// The race rows are static for a load and come from the catalog; an
 	// unbuildable race table fails the reading.
 	races, racesErr := tables.Catalog.AnimalRaces()

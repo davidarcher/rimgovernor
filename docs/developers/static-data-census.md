@@ -45,7 +45,14 @@ Deleted (Go reads the `HediffDef` row by `Hediff.def_name` / `InstalledPart.defi
 
 Kept, reason recorded: `MissingBodyPart.vital` and `SurgeryOperation` kind, yields and market values are computed by vanilla surgery workers (`GetPartsToApplyOn`, harvest value of the live part), so they are game-method output, not a def copy.
 
-Still open under #2656 (def copies not yet retired): `RoyalTitleFacts`, `BedroomThingRequirement`, `ApparelRequirementFact`, `PawnPolicyInputs.title_apparel`, `PawnPsycast`, `NeuroformerStock`, `BiomeDef.diseases` in `NativePolicyFacts.cs`, prisoner `SupportedInteractions`, `NativeTeamPolicy.cs` trait degrees, `NativeSiteSecurity.ClosedPart/LoadedGroundPart`, `BuildingSettings.flickable/maximum_assigned_pawns` and `BuildingServiceState.allowed_fuel_defs`.
+Deleted, second pass (Go reads the mirror rows): `RoyalTitleFacts`, `BedroomThingRequirement` and `PawnPolicyInputs.title_apparel` (UpkeepPerson carries the live `royal_title`, `ascetic` and `precepts`; `DefinitionCatalog.RoyalTitleOf` applies `RoyalTitleDef.GetBedroomRequirements`, the Ascetic exemption and `RoomRequirement.disablingPrecepts`), `PawnPsycast` level, costs, cooldown and target kind and `PsycastTargetKind` (`DefinitionCatalog.Psycast`, `Ability_PsyfocusCost`/`Ability_EntropyGain` stat bases), `NeuroformerStock.teaches_psycast`/`tradeable` (`WithNeuroformerDefs`), `PolicyFacts.biome_diseases` (`BiomeDef.diseases`), `PopulationSnapshot.supported_interactions`, `BuildingSettings.flickable`/`maximum_assigned_pawns` and `BuildingServiceState.allowed_fuel_defs` (`CompProperties_Refuelable.fuelFilter`, `DefinitionCatalog.RefuelFuels`).
+
+Kept, reason recorded (second pass):
+- `ApparelRequirementFact` / `PawnPolicyInputs.role_apparel`: the requirements live on the pawn's `Precept_Role` instance, generated per ideoligion, not on a `PreceptDef` row.
+- `NativeSiteSecurity.ClosedPart/LoadedGroundPart`: the closed or loaded decision is `SitePartWorker` code run against the live site, game-method output, not a def flag.
+- `NativeTeamPolicy.cs` trait degrees: good/bad is already derived in `policy/trait_worth.go`; the live pawn's degree is instance state.
+- Prisoner interaction `Supported()` and the `PrisonerInteraction` def name: the apply-time gate is the game's `PrisonerInteractionModeDef` worker for the live pawn, and the Go side keeps only the chosen name.
+- `NativeTeamPolicy`/policy numbers stay in Go by the settled decision.
 
 Out of scope and unchanged: files classed state or code, and the excluded Biotech, Anomaly, Odyssey and Race items (#2630, #2631, #2632).
 
@@ -319,10 +326,10 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | Relation | message | 344 | 4 | state | Pawn relation to another pawn |  |  |
 | PawnSocial | message | 345 | 6 | state | Memories situational thoughts relations |  |  |
 | PawnSettings | message | 346 | 15 | state | Pawn medical care areas work priorities schedule policies |  |  |
-| PawnPolicyInputs | message | 363 | 18 | mixed | Inputs for per-pawn outfit drug food planners | title_apparel; role_apparel | title_apparel: RoyalTitleDef.requiredApparel; role_apparel: Precept_Role apparel requirements on the PreceptDef |
+| PawnPolicyInputs | message | 363 | 18 | mixed | Inputs for per-pawn outfit drug food planners | role_apparel | role_apparel: kept, the pawn's Precept_Role instance requirements (the role's ApparelRequirements are per-ideo instance state, not the PreceptDef row) |
 | InventoryStockSetting | message | 389 | 3 | state | Pawn inventory stock tracker entry |  |  |
 | ChemicalState | message | 393 | 4 | state | Pawn addiction and tolerance per chemical |  |  |
-| ApparelRequirementFact | message | 394 | 4 | static | Apparel requirement body-part groups required defs and tags | body_part_groups; required_defs; required_tags; allowed_tags | ApparelRequirement fields in defs.proto (bodyPartGroupsMatchAny requiredDefs requiredTags allowedTags) |
+| ApparelRequirementFact | message | 394 | 4 | state | Apparel requirement body-part groups required defs and tags of a pawn's Precept_Role (kept: ideology generates the roles' requirements per ideo, so the instance is not a def row) |  |  |
 | TrainingEntry | message | 395 | 5 | mixed | Animal training state per trainable | def_name | def_name is a TrainableDef key (static key only) |
 | AnimalState | message | 396 | 40 | mixed | Player animal husbandry facts and settings | tameable (partly) | tameable: Go rule over race wildness (RaceProperties) plus pawn state |
 | PawnState | message | 443 | 47 | state | Canonical pawn row with flags needs health gear social and status |  |  |
@@ -360,11 +367,11 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | IngredientReservation | message | 662 | 2 | state | Live bill job promised ingredients |  |  |
 | BillStack | message | 664 | 7 | state | Bench bill stack with usability and work speed |  |  |
 | RecipeState | message | 666 | 3 | mixed | Whether a bench offers a recipe now | recipe.label | RecipeDef.label |
-| BuildingSettings | message | 669 | 18 | mixed | Building forbid switch power temperature assignment settings | flickable; maximum_assigned_pawns | flickable: ThingDef.comps CompProperties_Flickable present; maximum_assigned_pawns: CompProperties_AssignableToPawn.maxAssignedPawnsCount (or bed slots from ThingDef) |
+| BuildingSettings | message | 669 | 18 | mixed | Building forbid switch power temperature assignment settings |  |  |
 | MaterialDeficit | message | 680 | 4 | state | Construction material need have still needed |  |  |
 | ConstructionState | message | 681 | 13 | mixed | Construction frame or blueprint progress and finishing gates | total_work; minimum_finishing_skill | total_work: ThingDef.statBases WorkToBuild with stuff factors (Go rule over rows); minimum_finishing_skill: ThingDef.constructionSkillPrerequisite |
 | ThermalSide | message | 689 | 8 | state | Thermal reading beside a building side |  |  |
-| BuildingServiceState | message | 690 | 11 | mixed | Building power fuel and breakdown state | allowed_fuel_defs | CompProperties_Refuelable.fuelFilter allowed defs on ThingDef.comps |
+| BuildingServiceState | message | 690 | 11 | mixed | Building power fuel and breakdown state |  |  |
 | BuildingStatus | enum | 696 | 4 | state | Construction stage tag |  |  |
 | BuildingState | message | 702 | 22 | mixed | Canonical building row | uses_hit_points | ThingDef.useHitPoints |
 | PowerNetwork | message | 718 | 15 | state | Power network aggregate producers consumers watts and storage |  |  |
@@ -564,13 +571,10 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | FireState | message | 1366 | 4 | state | Fire size and safe workers |  |  |
 | FilthState | message | 1367 | 6 | state | Filth thickness and room |  |  |
 | UpkeepPerson | message | 1373 | 8 | state | Pawn comfort temperature range, partners, title |  |  |
-| BedroomThingRequirement | message | 1377 | 2 | static | Bedroom requirement: any-of defs and count | any_of;count | RoyalTitleDef.bedroomRequirements (Opt_RoomRequirementAny) |
-| RoyalTitleFacts | message | 1378 | 6 | mixed | Holder royal title with bedroom requirements | def_name;seniority;bedroom_min_area;bedroom_min_impressiveness;bedroom_floored;bedroom_things | RoyalTitleDef.seniority and bedroomRequirements |
 | PermitCooldown | message | 1383 | 3 | state | Permit last used tick and cooldown remaining |  |  |
 | PawnRoyalHolding | message | 1384 | 6 | state | Pawn royal holding: title, favor, permits |  |  |
-| PsycastTargetKind | enum | 1395 | 5 | static | Psycast target kind tag (self/pawn/thing/cell) | all | Go rule over AbilityDef.verbProperties targeting |
-| PawnPsycast | message | 1396 | 7 | mixed | Known psycast with level, cost, cooldown | def_name;level;psyfocus_cost;entropy;target_kind;cooldown_ticks | AbilityDef.level, cooldownTicksRange, psyfocusCostRange, comps; target_kind = Go rule over AbilityDef.verbProperties |
-| NeuroformerStock | message | 1397 | 5 | mixed | Neuroformer stock with held/craftable/tradeable | teaches_psycast | Go rule over ThingDef.comps (neurotrainer ability) rows |
+| PawnPsycast | message | 1396 | 2 | state | Known psycast with its cooldown remaining (level, costs, cooldown and target kind are the AbilityDef row, `DefinitionCatalog.Psycast`, #2656) |  |  |
+| NeuroformerStock | message | 1397 | 3 | state | Neuroformer stock held and craftable (the ability taught and tradeability are the ThingDef row, `WithNeuroformerDefs`, #2656) |  |  |
 | PawnRoyalty | message | 1399 | 5 | state | Pawn royalty holdings, psycasts, psyfocus, entropy |  |  |
 | BestowingCeremony | message | 1409 | 10 | state | Pending bestowing ceremony |  |  |
 | RoyalThrone | message | 1414 | 3 | state | Player throne and owner |  |  |
@@ -686,7 +690,7 @@ Kept, each one a native read of live pawn or map state that the mirror cannot re
 | FoodKind | enum | 1926 | 14 | code | Tags a food ThingDef by game classification (meal tier, meat source, kibble) |  |  |
 | MealIngredients | enum | 1933 | 4 | code | Tags meal ingredient restriction (meat-only, meat-free, any) |  |  |
 | AllowedAreaEntry | message | 1936 | 3 | state | Allowed area and restricted pawns |  |  |
-| PolicyFacts | message | 1937 | 7 | mixed | Policy databases, allowed areas and food eaters | biome_diseases | BiomeDef.diseases[].diseaseInc mapped to the IncidentDef hediff (Go rule over BiomeDef row of the colony biome) |
+| PolicyFacts | message | 1937 | 7 | mixed | Policy databases, allowed areas and food eaters |  |  |
 | FoodEaterKind | enum | 1949 | 3 | state | Tags prisoner or animal food policy holder |  |  |
 | FoodEater | message | 1950 | 4 | state | Prisoner or animal food policy holder with traits and precepts |  |  |
 | PolicySection | message | 1951 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |

@@ -5,7 +5,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -13,15 +12,14 @@ import (
 
 func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 	u := &o.UpkeepFacts{
-		People: []*o.UpkeepPerson{{Pawn: &commonpb.Ref{Id: proto.String("pawn")}, Partners: bridge.NewRefs([]string{"lover"}), BedSharingAllowed: proto.Bool(false),
-			Title: &o.RoyalTitleFacts{DefName: proto.String("Knight"), Seniority: proto.Int32(100), BedroomMinArea: proto.Int32(24), BedroomMinImpressiveness: proto.Int32(40), BedroomFloored: proto.Bool(true), BedroomThings: []*o.BedroomThingRequirement{{AnyOf: []string{"DoubleBed", "RoyalBed"}, Count: proto.Int32(1)}}}}},
-		Beds: []*o.UpkeepBed{{Bed: &commonpb.Ref{Id: proto.String("bed")}, Room: &commonpb.Ref{Id: proto.String("7")}, Quality: proto.String("Good"), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
+		People: []*o.UpkeepPerson{{Pawn: &commonpb.Ref{Id: proto.String("pawn")}, Partners: bridge.NewRefs([]string{"lover"}), BedSharingAllowed: proto.Bool(false), RoyalTitle: proto.String("Knight")}},
+		Beds:   []*o.UpkeepBed{{Bed: &commonpb.Ref{Id: proto.String("bed")}, Room: &commonpb.Ref{Id: proto.String("7")}, Quality: proto.String("Good"), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
 	}
 	v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1), Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
-	if _, k := colonySleeping(v, bridge.Buildings{}).Value(); k {
+	if _, k := sleepingOf(t, v, bridge.Buildings{}, recordedCatalog(t)).Value(); k {
 		t.Fatal("an unresolved bed became a known census")
 	}
-	r, known := colonySleeping(v, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}})).Value()
+	r, known := sleepingOf(t, v, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}}), recordedCatalog(t)).Value()
 	if !known {
 		t.Fatal("unknown")
 	}
@@ -32,8 +30,8 @@ func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 	if share, k := p.BedSharingAllowed.Value(); !k || share {
 		t.Fatal("bed sharing", share, k)
 	}
-	if p.Title == nil || p.Title.Definition != "Knight" || p.Title.Seniority != 100 || p.Title.BedroomMinArea != 24 || p.Title.BedroomMinImpressiveness != 40 || !p.Title.BedroomFloored ||
-		len(p.Title.BedroomThings) != 1 || p.Title.BedroomThings[0].Count != 1 || p.Title.BedroomThings[0].AnyOf[1] != policy.Resource("RoyalBed") {
+	// The title's seniority and bedroom requirements are its catalog row.
+	if p.Title == nil || p.Title.Definition != "Knight" || p.Title.Seniority <= 0 || p.Title.BedroomMinArea <= 0 || p.Title.BedroomMinImpressiveness <= 0 || len(p.Title.BedroomThings) == 0 {
 		t.Fatal(p.Title)
 	}
 	if room, k := r.Beds[0].Room.Value(); !k || room != "7" {
@@ -72,8 +70,8 @@ func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 
 	// No title stays nil; the colony read alone leaves room quality unknown
 	// (the frame's rooms census fills it), and so does a bed of unknown kind.
-	u.People[0].Title = nil
-	r, known = colonySleeping(v, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}})).Value()
+	u.People[0].RoyalTitle = nil
+	r, known = sleepingOf(t, v, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}}), recordedCatalog(t)).Value()
 	if !known || r.People[0].Title != nil {
 		t.Fatal("title", r.People[0].Title)
 	}

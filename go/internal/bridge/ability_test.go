@@ -73,7 +73,7 @@ func TestAbilityRefusals(t *testing.T) {
 // The royalty read decodes each held permit's cooldown, and an absent
 // last use stays unknown rather than zero.
 func TestDecodeRoyaltyPermitCooldowns(t *testing.T) {
-	facts, err := decodeRoyalty(royaltyPawns())
+	facts, err := decodeRoyalty(t, royaltyPawns())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestDecodeRoyaltyPermitCooldowns(t *testing.T) {
 	}
 	pawns := royaltyPawns()
 	pawns.Pawns[1].Royalty.Holdings[0].PermitCooldowns = []*o.PermitCooldown{{Permit: proto.String("CallLaborerPack")}}
-	facts, err = decodeRoyalty(pawns)
+	facts, err = decodeRoyalty(t, pawns)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestDecodeRoyaltyPermitCooldowns(t *testing.T) {
 	} {
 		pawns := royaltyPawns()
 		pawns.Pawns[1].Royalty.Holdings[0].PermitCooldowns = bad
-		if _, err := decodeRoyalty(pawns); err == nil {
+		if _, err := decodeRoyalty(t, pawns); err == nil {
 			t.Fatalf("%s cooldown accepted", name)
 		}
 	}

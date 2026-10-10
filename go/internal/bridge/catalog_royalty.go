@@ -88,8 +88,45 @@ func (catalog *DefinitionCatalog) WithTitleDefs(f policy.RoyaltyFacts) (policy.R
 func (catalog *DefinitionCatalog) royalRung(title *d.RoyalTitleDef) (policy.RoyalRung, error) {
 	name := title.GetDefName()
 	rung := policy.RoyalRung{Title: name, Seniority: domain.Known(int(title.GetSeniority())), FavorNeeded: domain.Known(int(title.GetFavorCost()))}
-	var area, impressiveness int
-	var haveArea, haveImpressiveness, floored bool
+	bedroom, err := bedroomRequirements(title, func([]string) bool { return false })
+	if err != nil {
+		return policy.RoyalRung{}, err
+	}
+	rung.BedroomThings = bedroom.things
+	if bedroom.haveArea {
+		rung.BedroomMinArea = domain.Known(bedroom.area)
+	}
+	if bedroom.haveImpressiveness {
+		rung.BedroomMinImpressiveness = domain.Known(bedroom.impressiveness)
+	}
+	if bedroom.floored {
+		rung.BedroomFloored = domain.Known(true)
+	}
+	req, err := catalog.ThroneRequirements(name)
+	if err != nil {
+		return policy.RoyalRung{}, err
+	}
+	req.ForbiddenDefs = catalog.forbiddenDefs(req)
+	rung.Throne = domain.Known(req)
+	return rung, nil
+}
+
+// bedroom is a title's bedroom requirements: the largest area and
+// impressiveness any requires (have* when one does), whether a floor is
+// required, and the furniture.
+type bedroom struct {
+	area, impressiveness         int
+	haveArea, haveImpressiveness bool
+	floored                      bool
+	things                       []policy.BedroomThing
+}
+
+// bedroomRequirements reads title's bedroomRequirements, skipping each whose
+// disablingPrecepts disabled reports waived. A requirement with no furniture
+// or an invalid name is an error.
+func bedroomRequirements(title *d.RoyalTitleDef, disabled func(disablingPrecepts []string) bool) (bedroom, error) {
+	name := title.GetDefName()
+	var out bedroom
 	thing := func(anyOf []string, count int32) error {
 		if len(anyOf) == 0 || count < 1 {
 			return royaltyDefError("title", name, "invalid bedroom furniture requirement")
@@ -101,45 +138,42 @@ func (catalog *DefinitionCatalog) royalRung(title *d.RoyalTitleDef) (policy.Roya
 			}
 			row.AnyOf = append(row.AnyOf, policy.Resource(def))
 		}
-		rung.BedroomThings = append(rung.BedroomThings, row)
+		out.things = append(out.things, row)
 		return nil
 	}
 	for _, opt := range title.GetBedroomRequirements() {
 		var err error
 		switch req := opt.GetValue().GetValue().(type) {
 		case *d.RoomRequirementAny_RoomRequirement_Area:
-			haveArea, area = true, max(area, int(req.RoomRequirement_Area.GetArea()))
+			if !disabled(req.RoomRequirement_Area.GetDisablingPrecepts()) {
+				out.haveArea, out.area = true, max(out.area, int(req.RoomRequirement_Area.GetArea()))
+			}
 		case *d.RoomRequirementAny_RoomRequirement_Impressiveness:
-			haveImpressiveness, impressiveness = true, max(impressiveness, int(req.RoomRequirement_Impressiveness.GetImpressiveness()))
+			if !disabled(req.RoomRequirement_Impressiveness.GetDisablingPrecepts()) {
+				out.haveImpressiveness, out.impressiveness = true, max(out.impressiveness, int(req.RoomRequirement_Impressiveness.GetImpressiveness()))
+			}
 		case *d.RoomRequirementAny_RoomRequirement_TerrainWithTags:
-			floored = true
+			out.floored = out.floored || !disabled(req.RoomRequirement_TerrainWithTags.GetDisablingPrecepts())
 		case *d.RoomRequirementAny_RoomRequirement_ThingAnyOfCount:
-			err = thing(req.RoomRequirement_ThingAnyOfCount.GetThings(), req.RoomRequirement_ThingAnyOfCount.GetCount())
+			if !disabled(req.RoomRequirement_ThingAnyOfCount.GetDisablingPrecepts()) {
+				err = thing(req.RoomRequirement_ThingAnyOfCount.GetThings(), req.RoomRequirement_ThingAnyOfCount.GetCount())
+			}
 		case *d.RoomRequirementAny_RoomRequirement_ThingAnyOf:
-			err = thing(req.RoomRequirement_ThingAnyOf.GetThings(), 1)
+			if !disabled(req.RoomRequirement_ThingAnyOf.GetDisablingPrecepts()) {
+				err = thing(req.RoomRequirement_ThingAnyOf.GetThings(), 1)
+			}
 		case *d.RoomRequirementAny_RoomRequirement_ThingCount:
-			err = thing([]string{req.RoomRequirement_ThingCount.GetThingDef()}, req.RoomRequirement_ThingCount.GetCount())
+			if !disabled(req.RoomRequirement_ThingCount.GetDisablingPrecepts()) {
+				err = thing([]string{req.RoomRequirement_ThingCount.GetThingDef()}, req.RoomRequirement_ThingCount.GetCount())
+			}
 		case *d.RoomRequirementAny_RoomRequirement_Thing:
-			err = thing([]string{req.RoomRequirement_Thing.GetThingDef()}, 1)
+			if !disabled(req.RoomRequirement_Thing.GetDisablingPrecepts()) {
+				err = thing([]string{req.RoomRequirement_Thing.GetThingDef()}, 1)
+			}
 		}
 		if err != nil {
-			return policy.RoyalRung{}, err
+			return bedroom{}, err
 		}
 	}
-	if haveArea {
-		rung.BedroomMinArea = domain.Known(area)
-	}
-	if haveImpressiveness {
-		rung.BedroomMinImpressiveness = domain.Known(impressiveness)
-	}
-	if floored {
-		rung.BedroomFloored = domain.Known(true)
-	}
-	req, err := catalog.ThroneRequirements(name)
-	if err != nil {
-		return policy.RoyalRung{}, err
-	}
-	req.ForbiddenDefs = catalog.forbiddenDefs(req)
-	rung.Throne = domain.Known(req)
-	return rung, nil
+	return out, nil
 }

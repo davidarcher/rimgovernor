@@ -139,12 +139,6 @@ namespace HomeBridge.BridgeTools
                     snapshot.ColonyIdeoId = NativePawnObservationTools.Id(ideo.GetUniqueLoadID());
                 }
             }
-            // The installed subset of the modes PrisonerInteractionIntent accepts.
-            foreach (var name in new[] { "AttemptRecruit", "MaintainOnly", "ReduceResistance", "Release", "Enslave", "Convert" })
-            {
-                var def = DefDatabase<PrisonerInteractionModeDef>.GetNamedSilentFail(name);
-                if (def != null) snapshot.SupportedInteractions.Add(new Obs.DefinitionRef { DefName = NativePawnObservationTools.Id(def.defName), Label = NativePawnObservationTools.Text(def.label) });
-            }
             // Storyteller population outlook.
             var intent = StorytellerUtilityPopulation.PopulationIntent;
             var difficulty = Find.Storyteller.difficulty;

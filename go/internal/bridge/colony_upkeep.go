@@ -60,7 +60,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	seen = map[string]bool{}
 	finite := func(p *float64) bool { return p == nil || !math.IsNaN(*p) && !math.IsInf(*p, 0) }
 	for _, row := range append(append(append([]*o.UpkeepPerson{}, v.People...), v.Slaves...), v.Guests...) {
-		if row == nil || !uniqueRef(row.Pawn, seen) || !optionalRef(row.OwnedBed) || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !validRefs(row.Partners) || !validTitle(row.Title) || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBed: row.OwnedBed, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC, Partners: row.Partners, BedSharingAllowed: row.BedSharingAllowed, Title: row.Title}) {
+		if row == nil || !uniqueRef(row.Pawn, seen) || !optionalRef(row.OwnedBed) || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !validRefs(row.Partners) || !validTitle(row) || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBed: row.OwnedBed, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC, Partners: row.Partners, BedSharingAllowed: row.BedSharingAllowed, RoyalTitle: row.RoyalTitle, Ascetic: row.Ascetic, Precepts: row.Precepts}) {
 			return contract("invalid sleeping person")
 		}
 	}
@@ -153,27 +153,15 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	return nil
 }
 
-// validTitle checks a royal title row: a definition, a non-negative
-// seniority and bedroom requirements that are non-negative, with each thing
-// requirement naming 1-16 unique definitions and a positive count.
-func validTitle(t *o.RoyalTitleFacts) bool {
-	if t == nil {
-		return true
-	}
-	if t.DefName == nil || validID(t.GetDefName()) != nil || t.Seniority != nil && t.GetSeniority() < 0 || t.BedroomMinArea != nil && t.GetBedroomMinArea() < 0 || t.BedroomMinImpressiveness != nil && t.GetBedroomMinImpressiveness() < 0 ||
-		!proto.Equal(t, &o.RoyalTitleFacts{DefName: t.DefName, Seniority: t.Seniority, BedroomMinArea: t.BedroomMinArea, BedroomMinImpressiveness: t.BedroomMinImpressiveness, BedroomFloored: t.BedroomFloored, BedroomThings: t.BedroomThings}) {
+// validTitle checks a person's royal title inputs: the title and each precept
+// are definition names; the title's requirements are its catalog row.
+func validTitle(p *o.UpkeepPerson) bool {
+	if p.RoyalTitle != nil && validID(p.GetRoyalTitle()) != nil {
 		return false
 	}
-	for _, req := range t.BedroomThings {
-		if req == nil || len(req.AnyOf) == 0 || req.Count == nil || req.GetCount() < 1 || !proto.Equal(req, &o.BedroomThingRequirement{AnyOf: req.AnyOf, Count: req.Count}) {
+	for _, precept := range p.Precepts {
+		if validID(precept) != nil {
 			return false
-		}
-		seen := map[string]bool{}
-		for _, def := range req.AnyOf {
-			if validID(def) != nil || seen[def] {
-				return false
-			}
-			seen[def] = true
 		}
 	}
 	return true

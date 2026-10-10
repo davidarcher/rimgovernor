@@ -61,10 +61,6 @@ namespace HomeBridge.BridgeTools
                     }
                     facts.FoodEaters.Add(row);
                 }
-                foreach (var hediff in DefDatabase<IncidentDef>.AllDefsListForReading
-                    .Where(d => d.diseaseIncident != null && map.Biome.CommonalityOfDisease(d) > 0)
-                    .Select(d => d.diseaseIncident.defName).Distinct().OrderBy(n => n, StringComparer.Ordinal))
-                    facts.BiomeDiseases.Add(Id(hediff));
                 foreach (var area in map.areaManager.AllAreas.OfType<Area_Allowed>()) {
                     var row = new Obs.AllowedAreaEntry { Id = Id(area.GetUniqueLoadID()), Label = Text(area.Label ?? "") };
                     row.PawnIds.Add(pawns.Where(p => p.MapHeld == map && p.playerSettings?.AreaRestrictionInPawnCurrentMap == area)
@@ -109,10 +105,8 @@ namespace HomeBridge.BridgeTools
             if (pawn.genes != null)
                 row.DependencyChemicals.Add(pawn.genes.GenesListForReading.OfType<Gene_ChemicalDependency>()
                     .Where(g => g.def.chemical != null).Select(g => Id(g.def.chemical.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal));
-            if (ModsConfig.RoyaltyActive && pawn.royalty?.MostSeniorTitle is RoyalTitle title) {
+            if (ModsConfig.RoyaltyActive && pawn.royalty?.MostSeniorTitle is RoyalTitle title)
                 row.RoyalTitle = Id(title.def.defName);
-                foreach (var r in title.def.requiredApparel ?? new List<ApparelRequirement>()) row.TitleApparel.Add(Requirement(r));
-            }
             if (ModsConfig.IdeologyActive && pawn.Ideo is Ideo ideo) {
                 row.IdeoId = Id(ideo.GetUniqueLoadID());
                 if (pawn.ideo != null) row.IdeoCertainty = Number(pawn.ideo.Certainty);

@@ -17,22 +17,23 @@ func royaltyPawns() *o.PawnSnapshot {
 			{FactionDef: proto.String("Empire"), Title: proto.String("Knight"), Favor: proto.Int32(3), PermitPoints: proto.Int32(0), Permits: []string{"CallLaborerPack"}, PermitCooldowns: []*o.PermitCooldown{{Permit: proto.String("CallLaborerPack"), LastUsedTick: proto.Int32(100), CooldownRemainingTicks: proto.Int32(500)}}},
 			{FactionDef: proto.String("Other")},
 		}, Psycasts: []*o.PawnPsycast{
-			{DefName: proto.String("Skip"), Level: proto.Int32(1), PsyfocusCost: proto.Float64(0.1), Entropy: proto.Float64(12), TargetKind: o.PsycastTargetKind_PSYCAST_TARGET_KIND_CELL, CooldownTicks: proto.Int32(900), CooldownRemainingTicks: proto.Int32(40)},
+			{DefName: proto.String("Skip"), CooldownRemainingTicks: proto.Int32(40)},
 			{DefName: proto.String("Burden")},
 		}, Psyfocus: proto.Float64(0.6), Entropy: proto.Float64(10), EntropyMax: proto.Float64(100)}},
 	}}
 }
 
 // decodeRoyalty reads the pawn rows' royalty facts.
-func decodeRoyalty(pawns *o.PawnSnapshot) (*policy.RoyaltyFacts, error) {
-	facts, err := PawnRoyaltyFacts(pawns)
+func decodeRoyalty(t *testing.T, pawns *o.PawnSnapshot) (*policy.RoyaltyFacts, error) {
+	catalog := sharedRecordedCatalog(t)
+	facts, err := PawnRoyaltyFacts(pawns, catalog)
 	return &facts, err
 }
 
 // TestWithPawnRoyaltyRefusesMalformedRows: a pawn's royalty block that is
 // invalid, or whose read failed, leaves royalty unknown.
 func TestWithPawnRoyaltyRefusesMalformedRows(t *testing.T) {
-	for _, change := range []string{"pawn-id", "holding-faction", "holding-permit", "psycast-duplicate", "psycast-cost", "psycast-target", "read-issue", "no-rows"} {
+	for _, change := range []string{"pawn-id", "holding-faction", "holding-permit", "psycast-duplicate", "psycast-cooldown", "psycast-unlisted", "read-issue", "no-rows"} {
 		t.Run(change, func(t *testing.T) {
 			pawns := royaltyPawns()
 			row := pawns.Pawns[1]
@@ -45,17 +46,17 @@ func TestWithPawnRoyaltyRefusesMalformedRows(t *testing.T) {
 				row.Royalty.Holdings[0].Permits = []string{""}
 			case "psycast-duplicate":
 				row.Royalty.Psycasts = append(row.Royalty.Psycasts, row.Royalty.Psycasts[0])
-			case "psycast-cost":
-				row.Royalty.Psycasts[0].PsyfocusCost = proto.Float64(1.5)
-			case "psycast-target":
-				row.Royalty.Psycasts[0].TargetKind = o.PsycastTargetKind(99)
+			case "psycast-cooldown":
+				row.Royalty.Psycasts[0].CooldownRemainingTicks = proto.Int32(-1)
+			case "psycast-unlisted":
+				row.Royalty.Psycasts[0].DefName = proto.String("NoSuchPsycast")
 			case "read-issue":
 				row.Royalty = nil
 				row.Issues = []*o.ReadIssue{{Field: proto.String("royalty")}}
 			case "no-rows":
 				pawns = nil
 			}
-			if _, err := decodeRoyalty(pawns); err == nil {
+			if _, err := decodeRoyalty(t, pawns); err == nil {
 				t.Fatal("malformed royalty pawn rows accepted")
 			}
 		})
@@ -65,7 +66,7 @@ func TestWithPawnRoyaltyRefusesMalformedRows(t *testing.T) {
 // TestDecodeRoyaltyFacts: recorded facts decode, and an absent
 // scalar stays unknown rather than zero.
 func TestDecodeRoyaltyFacts(t *testing.T) {
-	facts, err := decodeRoyalty(royaltyPawns())
+	facts, err := decodeRoyalty(t, royaltyPawns())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,11 +81,11 @@ func TestDecodeRoyaltyFacts(t *testing.T) {
 		t.Fatal("absent favor read as known")
 	}
 	casts := facts.Psycasts[policy.PawnID("Human12")]
-	if len(casts) != 2 || casts[0].Target != policy.PsycastTargetCell {
+	if len(casts) != 2 || casts[0].Target != policy.PsycastTargetPawn {
 		t.Fatalf("psycasts %+v", casts)
 	}
-	if n, ok := casts[0].CooldownTicks.Value(); !ok || n != 900 {
-		t.Fatalf("cooldown %v %v", n, ok)
+	if lv, ok := casts[0].Level.Value(); !ok || lv != 4 {
+		t.Fatalf("level %v %v", lv, ok)
 	}
 	if n, ok := casts[0].CooldownRemaining.Value(); !ok || n != 40 {
 		t.Fatalf("cooldown remaining %v %v", n, ok)
@@ -99,7 +100,7 @@ func TestDecodeRoyaltyFacts(t *testing.T) {
 	if m, ok := state.EntropyMax.Value(); !ok || m != 100 {
 		t.Fatalf("entropy max %v %v", m, ok)
 	}
-	if _, ok := casts[1].PsyfocusCost.Value(); ok || casts[1].Target != "" {
-		t.Fatalf("absent psycast facts read as known: %+v", casts[1])
+	if cost, ok := casts[0].PsyfocusCost.Value(); !ok || cost != 0.02 {
+		t.Fatalf("psyfocus cost %v %v", cost, ok)
 	}
 }

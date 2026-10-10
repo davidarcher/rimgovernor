@@ -201,38 +201,27 @@ func run(ctx context.Context, s cases.Session) error {
 	// personRow reads the prisoner through rimgovernor/observations_read_population,
 	// the same read bridge.ReadRoundsPopulation decodes the current
 	// interaction from.
-	personRow := func(label string) (map[string]any, []string, error) {
+	personRow := func(label string) (map[string]any, error) {
 		reply, err := h.Wire(ctx, label, "observations_read_population", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		_, observed, err := na.Outcome(reply, "observed")
 		if err != nil {
-			return nil, nil, err
-		}
-		var supported []string
-		for _, entry := range na.AsSlice(observed["supportedInteractions"]) {
-			def, _ := na.AsMap(entry)
-			supported = append(supported, na.AsString(def["defName"]))
+			return nil, err
 		}
 		for _, entry := range na.AsSlice(observed["persons"]) {
 			person, _ := na.AsMap(entry)
 			if na.PawnRef(person) == candidateID {
 				// The custody facts ride the pawn table row.
-				return person, supported, h.JoinPawn(ctx, label, identity, person)
+				return person, h.JoinPawn(ctx, label, identity, person)
 			}
 		}
-		return nil, supported, fmt.Errorf("%s: candidate %s missing from the population census", label, candidateID)
+		return nil, fmt.Errorf("%s: candidate %s missing from the population census", label, candidateID)
 	}
-	prisonerBefore, supported, err := personRow("prisoner-before")
+	prisonerBefore, err := personRow("prisoner-before")
 	if err != nil {
 		return err
-	}
-	report["supported_interactions"] = supported
-	for _, core := range []string{"AttemptRecruit", "MaintainOnly", "ReduceResistance", "Release"} {
-		if !na.Contains(supported, core) {
-			return fmt.Errorf("prisoner-before: Core interaction %s missing from supportedInteractions %v", core, supported)
-		}
 	}
 	prisonerPawn, _ := na.AsMap(prisonerBefore["pawn"])
 	if prisoner, _ := na.AsBool(prisonerPawn["prisoner"]); !prisoner {
@@ -296,7 +285,7 @@ func run(ctx context.Context, s cases.Session) error {
 			return err
 		}
 	}
-	afterReduce, _, err := personRow("prisoner-after-reduce")
+	afterReduce, err := personRow("prisoner-after-reduce")
 	if err != nil {
 		return err
 	}
@@ -308,7 +297,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if err := appliedInteraction("apply-recruit", "prisoner-interaction-recruit", "PRISONER_INTERACTION_ATTEMPT_RECRUIT", "AttemptRecruit"); err != nil {
 		return err
 	}
-	afterSet, _, err := personRow("prisoner-after-recruit-order")
+	afterSet, err := personRow("prisoner-after-recruit-order")
 	if err != nil {
 		return err
 	}
@@ -326,7 +315,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if success, _ := na.AsBool(recruited["success"]); !success {
 		return fmt.Errorf("fixture-recruit: population_recruit refused: %#v", recruited)
 	}
-	afterRecruit, _, err := personRow("prisoner-after-recruit")
+	afterRecruit, err := personRow("prisoner-after-recruit")
 	if err != nil {
 		return err
 	}

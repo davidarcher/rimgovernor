@@ -211,7 +211,6 @@ namespace HomeBridge.BridgeTools
             if (fuel != null)
             {
                 service.Fuel = Nonnegative(fuel.Fuel); service.TargetFuel = Nonnegative(fuel.TargetFuelLevel); service.OutOfFuel = !fuel.HasFuel;
-                service.AllowedFuelDefs.Add(fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal));
             }
             else service.Issues.Add(Issue("fuel", Common.UnavailableReason.NotApplicable, "Building has no refuelable component."));
             return service;

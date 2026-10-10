@@ -7,10 +7,10 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func colonySleeping(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) domain.Fact[policy.SleepingObservation] {
+func colonySleeping(v *o.ColonyFactsSnapshot, buildings bridge.Buildings, catalog *bridge.DefinitionCatalog) (domain.Fact[policy.SleepingObservation], error) {
 	u := v.GetUpkeep().GetObserved()
 	if u == nil || v.ColonistCount == nil || hasIssue(u.Issues, "people") || hasIssue(u.Issues, "beds") {
-		return domain.Unknown[policy.SleepingObservation]()
+		return domain.Unknown[policy.SleepingObservation](), nil
 	}
 	r := policy.SleepingObservation{Colonists: int(v.GetColonistCount())}
 	ids := func(values []string) []policy.PawnID {
@@ -20,26 +20,30 @@ func colonySleeping(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) domain
 		}
 		return rows
 	}
-	person := func(p *o.UpkeepPerson) policy.SleepingPerson {
-		return policy.SleepingPerson{ID: policy.PawnID(p.Pawn.GetId()), OwnedBed: domain.Known(p.GetOwnedBed().GetId()), ComfortableMin: optional(p.ComfortableMinC), ComfortableMax: optional(p.ComfortableMaxC), Partners: ids(bridge.RefIDs(p.Partners)), BedSharingAllowed: optional(p.BedSharingAllowed), Title: royalTitle(p.Title)}
+	var err error
+	people := func(rows []*o.UpkeepPerson) []policy.SleepingPerson {
+		var out []policy.SleepingPerson
+		for _, p := range rows {
+			var title *policy.RoyalTitle
+			if err == nil && p.RoyalTitle != nil {
+				title, err = catalog.RoyalTitleOf(p.GetRoyalTitle(), p.GetAscetic(), p.Precepts)
+			}
+			out = append(out, policy.SleepingPerson{ID: policy.PawnID(p.Pawn.GetId()), OwnedBed: domain.Known(p.GetOwnedBed().GetId()), ComfortableMin: optional(p.ComfortableMinC), ComfortableMax: optional(p.ComfortableMaxC), Partners: ids(bridge.RefIDs(p.Partners)), BedSharingAllowed: optional(p.BedSharingAllowed), Title: title})
+		}
+		return out
 	}
-	for _, p := range u.People {
-		r.People = append(r.People, person(p))
-	}
-	for _, p := range u.Slaves {
-		r.Slaves = append(r.Slaves, person(p))
-	}
-	for _, p := range u.Guests {
-		r.Guests = append(r.Guests, person(p))
+	r.People, r.Slaves, r.Guests = people(u.People), people(u.Slaves), people(u.Guests)
+	if err != nil {
+		return domain.Unknown[policy.SleepingObservation](), err
 	}
 	for _, b := range u.Beds {
 		head := buildings.Entity(b.Bed)
 		if head == nil {
-			return domain.Unknown[policy.SleepingObservation]()
+			return domain.Unknown[policy.SleepingObservation](), nil
 		}
 		r.Beds = append(r.Beds, policy.SleepingBed{ID: b.Bed.GetId(), Definition: policy.Resource(head.GetDefName()), Humanlike: optional(b.Humanlike), Medical: optional(b.Medical), Prisoners: optional(b.Prisoners), Slaves: b.GetForSlaves(), Roofed: optional(b.Roofed), RestEffectiveness: optional(b.RestEffectiveness), Temperature: optional(b.TemperatureC), Owners: ids(bridge.RefIDs(b.Owners)), Users: ids(bridge.RefIDs(b.Users)), AccessibleTo: ids(bridge.RefIDs(b.AccessibleTo)), Room: optionalRef(b.Room), Quality: optional(b.Quality), Stuff: optional(b.Stuff), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}})
 	}
-	return domain.Known(r)
+	return domain.Known(r), nil
 }
 
 // upkeepRooms is the room-quality view of the frame's rooms census:
@@ -88,19 +92,4 @@ func upkeepRooms(census *o.RoomsSnapshot, beds []policy.SleepingBed) domain.Fact
 		rows = append(rows, policy.UpkeepRoom{ID: r.GetId(), Role: role, Quality: quality, Cells: cells, Beds: append([]string{}, owned[r.GetId()]...)})
 	}
 	return domain.Known(rows)
-}
-
-func royalTitle(t *o.RoyalTitleFacts) *policy.RoyalTitle {
-	if t == nil {
-		return nil
-	}
-	r := &policy.RoyalTitle{Definition: t.GetDefName(), Seniority: int(t.GetSeniority()), BedroomMinArea: int(t.GetBedroomMinArea()), BedroomMinImpressiveness: int(t.GetBedroomMinImpressiveness()), BedroomFloored: t.GetBedroomFloored()}
-	for _, req := range t.BedroomThings {
-		thing := policy.BedroomThing{Count: int(req.GetCount())}
-		for _, def := range req.AnyOf {
-			thing.AnyOf = append(thing.AnyOf, policy.Resource(def))
-		}
-		r.BedroomThings = append(r.BedroomThings, thing)
-	}
-	return r
 }

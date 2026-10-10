@@ -57,10 +57,10 @@ func TestPawnPolicyInputsDecode(t *testing.T) {
 		InventoryStock:  []*o.InventoryStockSetting{{Group: proto.String("Medicine"), ThingDef: proto.String("MedicineHerbal"), Count: proto.Int32(2)}},
 		Chemicals:       []*o.ChemicalState{{Chemical: proto.String("Alcohol"), Tolerance: proto.Float64(0.2)}, {Chemical: proto.String("GoJuice"), Addiction: proto.Float64(0.5), Withdrawal: proto.Bool(true)}},
 		RoyalTitle:      proto.String("Knight"),
-		TitleApparel:    []*o.ApparelRequirementFact{{BodyPartGroups: []string{"Torso"}, RequiredTags: []string{"Royal"}}},
+		RoleApparel:     []*o.ApparelRequirementFact{{BodyPartGroups: []string{"Torso"}, RequiredTags: []string{"Royal"}}},
 		GuestStatus:     proto.String("Prisoner"), PrisonerInteraction: proto.String("MaintainOnly"),
 	}).Value()
-	if !known || v.ReadingPolicy != "ReadingPolicy_1" || v.InventoryStock[0].Count != 2 || v.RoyalTitle != "Knight" || v.TitleApparel[0].RequiredTags[0] != "Royal" || v.GuestStatus != "Prisoner" || v.PrisonerInteraction != "MaintainOnly" {
+	if !known || v.ReadingPolicy != "ReadingPolicy_1" || v.InventoryStock[0].Count != 2 || v.RoyalTitle != "Knight" || v.RoleApparel[0].RequiredTags[0] != "Royal" || v.GuestStatus != "Prisoner" || v.PrisonerInteraction != "MaintainOnly" {
 		t.Fatal(v)
 	}
 	if _, k := v.Chemicals[0].Addiction.Value(); k {

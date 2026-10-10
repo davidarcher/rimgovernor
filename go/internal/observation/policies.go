@@ -35,7 +35,7 @@ type Policies struct {
 	// Books is every book definition and its kind, read from the
 	// definition catalog by DecodeColony; empty without one.
 	Books []policy.Book
-	// BiomeDiseases is the colony map biome's disease hediffs.
+	// BiomeDiseases is the colony map biome's disease hediffs (BiomeDef.diseases), set from the catalog.
 	BiomeDiseases []string
 	// Foods is every food definition and its kind, read from the
 	// definition catalog by DecodeColony; empty without one.
@@ -69,7 +69,7 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 		}
 		return r
 	}
-	r := Policies{Outfit: entries(f.Outfit), Drug: entries(f.Drug), Food: entries(f.Food), Reading: entries(f.Reading), BiomeDiseases: f.BiomeDiseases}
+	r := Policies{Outfit: entries(f.Outfit), Drug: entries(f.Drug), Food: entries(f.Food), Reading: entries(f.Reading)}
 	for _, e := range f.FoodEaters {
 		eater := policy.FoodEater{Pawn: policy.PawnID(e.GetPawnId()), Animal: e.GetKind() == o.FoodEaterKind_FOOD_EATER_KIND_ANIMAL, Precepts: e.Precepts}
 		for _, t := range e.PawnTraits {

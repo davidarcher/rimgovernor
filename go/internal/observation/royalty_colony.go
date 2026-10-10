@@ -40,10 +40,16 @@ func (p ColonyProjection) WithRoyaltyColony(f policy.RoyaltyFacts) domain.Fact[p
 // DLC sections: without it the fact is unknown and nothing is read. A pawn
 // row or def the read cannot use is an error and the fact stays unknown.
 func (p ColonyProjection) RoyaltyOf(pawns *o.PawnSnapshot, catalog *bridge.DefinitionCatalog) (domain.Fact[policy.RoyaltyFacts], error) {
-	if _, ok := p.RoyaltyColony.Value(); !ok {
+	colony, ok := p.RoyaltyColony.Value()
+	if !ok {
 		return domain.Unknown[policy.RoyaltyFacts](), nil
 	}
-	facts, err := bridge.PawnRoyaltyFacts(pawns)
+	colony, err := catalog.WithNeuroformerDefs(colony)
+	if err != nil {
+		return domain.Unknown[policy.RoyaltyFacts](), err
+	}
+	p.RoyaltyColony = domain.Known(colony)
+	facts, err := bridge.PawnRoyaltyFacts(pawns, catalog)
 	if err != nil {
 		return domain.Unknown[policy.RoyaltyFacts](), err
 	}

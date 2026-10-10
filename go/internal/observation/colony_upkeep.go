@@ -65,7 +65,11 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot, tables bridge.Tables) (policy.Upkeep
 		}
 	}
 	if !hasIssue(u.Issues, "lighting") {
-		r.Lighting = colonyLighting(u.Lighting, buildings)
+		lighting, err := colonyLighting(u.Lighting, buildings, tables.Catalog)
+		if err != nil {
+			return policy.UpkeepObservation{}, err
+		}
+		r.Lighting = lighting
 	}
 	if !hasIssue(u.Issues, "routes") {
 		r.Routes = colonyRoutes(u.Routes)
@@ -197,15 +201,15 @@ var trafficLayers = map[o.TrafficLayer]policy.TrafficLayer{
 // colonyLighting decodes the lighting section; any row missing a measured
 // glow, roof or lit flag leaves the whole census unknown so MaintainLighting
 // keeps its previous latch instead of reasoning from half a map.
-func colonyLighting(section *o.LightingSection, buildings bridge.Buildings) domain.Fact[policy.LightingObservation] {
+func colonyLighting(section *o.LightingSection, buildings bridge.Buildings, catalog *bridge.DefinitionCatalog) (domain.Fact[policy.LightingObservation], error) {
 	l := section.GetObserved()
 	if l == nil {
-		return domain.Fact[policy.LightingObservation]{}
+		return domain.Fact[policy.LightingObservation]{}, nil
 	}
 	r := policy.LightingObservation{WorkCells: []policy.WorkLightCell{}, Lamps: []policy.Lamp{}}
 	for _, row := range l.WorkCells {
 		if row.Glow == nil || row.Roofed == nil || buildings.Entity(row.Bench) == nil {
-			return domain.Fact[policy.LightingObservation]{}
+			return domain.Fact[policy.LightingObservation]{}, nil
 		}
 		r.WorkCells = append(r.WorkCells, policy.WorkLightCell{Bench: row.Bench.GetId(), Definition: buildings.Entity(row.Bench).GetDefName(), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Glow: row.GetGlow(), Roofed: row.GetRoofed(), Room: optionalRef(row.Room), LightSensitive: row.GetLightSensitive()})
 	}
@@ -213,11 +217,15 @@ func colonyLighting(section *o.LightingSection, buildings bridge.Buildings) doma
 		b, ok := buildings.Row(row.GetBuilding())
 		ref := b.GetBuilding()
 		if !ok || row.GlowRadius == nil || row.Lit == nil {
-			return domain.Fact[policy.LightingObservation]{}
+			return domain.Fact[policy.LightingObservation]{}, nil
 		}
 		s := b.GetService()
+		fuels, err := catalog.RefuelFuels(ref.GetDefName())
+		if err != nil {
+			return domain.Fact[policy.LightingObservation]{}, err
+		}
 		r.Lamps = append(r.Lamps, policy.Lamp{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Radius: row.GetGlowRadius(), Lit: row.GetLit(), Room: optionalRef(row.Room),
-			Powered: optional(s.PowerOn), Connected: optional(s.Connected), SwitchedOn: optional(s.SwitchedOn), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: append([]string(nil), s.GetAllowedFuelDefs()...)})
+			Powered: optional(s.PowerOn), Connected: optional(s.Connected), SwitchedOn: optional(s.SwitchedOn), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: fuels})
 	}
-	return domain.Known(r)
+	return domain.Known(r), nil
 }

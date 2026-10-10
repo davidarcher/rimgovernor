@@ -443,7 +443,7 @@ namespace HomeBridge.BridgeTools
         // SleepingRelations fills a colonist's partners (lover, spouse and
         // fiance relations to living pawns on the same map), the native
         // willingness to share a bed with each of them (the plain SharedBed
-        // precept when there is none) and the most senior royal title.
+        // precept when there is none), the most senior royal title and what the pawn waives of its requirements.
         // A hosted guest: a humanlike the player faction holds as a guest
         // (quest lodgers included), not a prisoner.
         internal static bool HostedGuest(Pawn p) => p.Spawned && !p.Dead && p.RaceProps.Humanlike && !p.IsPrisoner
@@ -460,28 +460,12 @@ namespace HomeBridge.BridgeTools
             if (!ModsConfig.RoyaltyActive) return;
             var title = p.royalty?.MostSeniorTitle?.def;
             if (title == null) return;
-            var facts = new Obs.RoyalTitleFacts { DefName = Id(title.defName), Seniority = title.seniority };
-            foreach (var req in title.GetBedroomRequirements(p) ?? Enumerable.Empty<RoomRequirement>()) {
-                if (req.disablingPrecepts != null && p.Ideo != null && p.Ideo.PreceptsListForReading.Any(x => req.disablingPrecepts.Contains(x.def))) continue;
-                switch (req) {
-                    case RoomRequirement_Area area: facts.BedroomMinArea = Math.Max(facts.BedroomMinArea, area.area); break;
-                    case RoomRequirement_Impressiveness imp: facts.BedroomMinImpressiveness = Math.Max(facts.BedroomMinImpressiveness, imp.impressiveness); break;
-                    case RoomRequirement_TerrainWithTags _: facts.BedroomFloored = true; break;
-                    case RoomRequirement_AllThingsAnyOfAreGlowing _: case RoomRequirement_HasAssignedThroneAnyOf _: break;
-                    case RoomRequirement_ThingAnyOfCount anyCount: facts.BedroomThings.Add(Things(anyCount.things, anyCount.count)); break;
-                    case RoomRequirement_ThingAnyOf any: facts.BedroomThings.Add(Things(any.things, 1)); break;
-                    case RoomRequirement_ThingCount count: facts.BedroomThings.Add(Things(new List<ThingDef> { count.thingDef }, count.count)); break;
-                    case RoomRequirement_Thing thing: facts.BedroomThings.Add(Things(new List<ThingDef> { thing.thingDef }, 1)); break;
-                }
-            }
-            row.Title = facts;
-        }
-
-        private static Obs.BedroomThingRequirement Things(List<ThingDef> defs, int count)
-        {
-            var row = new Obs.BedroomThingRequirement { Count = count };
-            row.AnyOf.AddRange(defs.Where(d => d != null).Select(d => Id(d.defName)));
-            return row;
+            // The title's requirements are its RoyalTitleDef row; what the
+            // pawn waives is its own state: the Ascetic trait drops them all and
+            // an ideoligion precept can disable one.
+            row.RoyalTitle = Id(title.defName);
+            row.Ascetic = p.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true;
+            if (p.Ideo != null) row.Precepts.AddRange(p.Ideo.PreceptsListForReading.Select(x => Id(x.def.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal));
         }
 
         private static void Read(string field, Obs.UpkeepFacts result, Action read)

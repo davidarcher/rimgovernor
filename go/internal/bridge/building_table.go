@@ -120,18 +120,11 @@ func validBuildingService(s *o.BuildingServiceState) error {
 	if s.PowerNetId != nil && (validID(s.GetPowerNetId()) != nil || s.Connected != nil && !s.GetConnected()) {
 		return contract("invalid building power network")
 	}
-	defs := map[string]bool{}
-	for _, d := range s.AllowedFuelDefs {
-		if validID(d) != nil || defs[d] {
-			return contract("invalid building fuel definition")
-		}
-		defs[d] = true
-	}
 	if err := pawnsIssues(s.Issues, s.ProtoReflect()); err != nil {
 		return err
 	}
 	for _, issue := range s.Issues {
-		if issue.GetField() != "fuel" || issue.GetUnavailable().GetReason() != c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE || s.Fuel != nil || s.TargetFuel != nil || len(s.AllowedFuelDefs) > 0 {
+		if issue.GetField() != "fuel" || issue.GetUnavailable().GetReason() != c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE || s.Fuel != nil || s.TargetFuel != nil {
 			return contract("conflicting building fuel availability")
 		}
 	}

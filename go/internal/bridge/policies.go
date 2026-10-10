@@ -53,11 +53,6 @@ func validatePolicies(v *o.ColonyFactsSnapshot) error {
 				return contract("several default policies")
 			}
 		}
-		for _, d := range f.BiomeDiseases {
-			if validID(d) != nil {
-				return contract("invalid biome disease")
-			}
-		}
 		ids, pawns := map[string]bool{}, map[string]bool{}
 		for _, row := range f.AllowedAreas {
 			if row == nil || validID(row.GetId()) != nil || ids[row.GetId()] || row.Label == nil || !diagnostic(row.Label) {
@@ -121,7 +116,7 @@ func validatePolicyInputs(p *o.PawnPolicyInputs) error {
 			}
 		}
 	}
-	for _, r := range append(append([]*o.ApparelRequirementFact(nil), p.TitleApparel...), p.RoleApparel...) {
+	for _, r := range p.RoleApparel {
 		if r == nil {
 			return contract("invalid apparel requirement")
 		}

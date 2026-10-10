@@ -12,14 +12,14 @@ import (
 // A reference resolves only to a row whose service state is well formed;
 // any other row, like an absent one, waits for a later frame.
 func TestBuildingTableResolvesWellFormedRows(t *testing.T) {
-	for _, phase := range []string{"valid", "unfuelled", "missing", "no-service", "no-settings", "negative-fuel", "bad-fuel-def", "nonfinite-output", "disconnected-network", "fuel-conflict"} {
+	for _, phase := range []string{"valid", "unfuelled", "missing", "no-service", "no-settings", "negative-fuel", "nonfinite-output", "disconnected-network", "fuel-conflict"} {
 		t.Run(phase, func(t *testing.T) {
 			ref := &o.EntityRef{Id: proto.String("generator"), MapId: proto.Int32(0)}
-			s := &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(false), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true), PowerNetId: proto.String("net"), Fuel: proto.Float64(0), TargetFuel: proto.Float64(30), OutOfFuel: proto.Bool(true), BrokenDown: proto.Bool(false), AllowedFuelDefs: []string{"WoodLog"}}
+			s := &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(false), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true), PowerNetId: proto.String("net"), Fuel: proto.Float64(0), TargetFuel: proto.Float64(30), OutOfFuel: proto.Bool(true), BrokenDown: proto.Bool(false)}
 			row := &o.BuildingState{Building: proto.Clone(ref).(*o.EntityRef), Service: s, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}
 			switch phase {
 			case "unfuelled":
-				s.Fuel, s.TargetFuel, s.OutOfFuel, s.AllowedFuelDefs = nil, nil, nil, nil
+				s.Fuel, s.TargetFuel, s.OutOfFuel = nil, nil, nil
 				s.Issues = []*o.ReadIssue{{Field: proto.String("fuel"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}
 			case "missing":
 				row.Building.Id = proto.String("other")
@@ -29,8 +29,6 @@ func TestBuildingTableResolvesWellFormedRows(t *testing.T) {
 				row.Settings = nil
 			case "negative-fuel":
 				s.Fuel = proto.Float64(-1)
-			case "bad-fuel-def":
-				s.AllowedFuelDefs = []string{""}
 			case "nonfinite-output":
 				s.PowerOutputW = proto.Float64(math.Inf(1))
 			case "disconnected-network":

@@ -33,14 +33,14 @@ func DecodeRoyaltyColony(v *o.RoyaltyColonyFacts) (policy.RoyaltyColony, error) 
 	out := policy.RoyaltyColony{Neuroformers: map[string]policy.Neuroformer{}}
 	for _, row := range v.Neuroformers {
 		name := row.GetDefName()
-		if validID(name) != nil || row.TeachesPsycast != nil && validID(row.GetTeachesPsycast()) != nil || row.GetHeld() < 0 {
+		if validID(name) != nil || row.GetHeld() < 0 {
 			return policy.RoyaltyColony{}, contract("invalid royalty neuroformer")
 		}
 		if _, exists := out.Neuroformers[name]; exists {
 			return policy.RoyaltyColony{}, contract("duplicate royalty neuroformer %s", name)
 		}
-		out.Neuroformers[name] = policy.Neuroformer{Def: name, TeachesPsycast: row.GetTeachesPsycast(), Held: optionalFact(intPtr(row.Held)),
-			Craftable: optionalFact(row.Craftable), Tradeable: optionalFact(row.Tradeable)}
+		out.Neuroformers[name] = policy.Neuroformer{Def: name, Held: optionalFact(intPtr(row.Held)),
+			Craftable: optionalFact(row.Craftable)}
 	}
 	seen := map[string]bool{}
 	for _, row := range v.Ceremonies {

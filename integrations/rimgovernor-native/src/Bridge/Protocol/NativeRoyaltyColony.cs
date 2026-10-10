@@ -98,11 +98,8 @@ namespace HomeBridge.BridgeTools
                 {
                     DefName = def.defName,
                     Held = maps.Sum(m => m.listerThings.ThingsOfDef(def).Where(t => !t.IsForbidden(Faction.OfPlayer)).Sum(t => t.stackCount)),
-                    Craftable = DefDatabase<RecipeDef>.AllDefsListForReading.Any(r => r.AvailableNow && r.products.Any(p => p.thingDef == def)),
-                    Tradeable = def.tradeability.TraderCanSell()
+                    Craftable = DefDatabase<RecipeDef>.AllDefsListForReading.Any(r => r.AvailableNow && r.products.Any(p => p.thingDef == def))
                 };
-                var teaches = def.comps?.OfType<CompProperties_UseEffect_GainAbility>().FirstOrDefault()?.ability;
-                if (teaches != null && ProtoBoundary.IsIdentifier(teaches.defName)) row.TeachesPsycast = teaches.defName;
                 facts.Neuroformers.Add(row);
             }
         }

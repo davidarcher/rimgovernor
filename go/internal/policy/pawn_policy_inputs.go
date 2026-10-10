@@ -14,7 +14,6 @@ type PawnPolicyInputs struct {
 	// DependencyChemicals names the chemicals of chemical-dependency genes.
 	DependencyChemicals []string
 	RoyalTitle          string
-	TitleApparel        []ApparelRequirement
 	// Ideo is the ideoligion load id; Precepts every precept defName of it;
 	// IdeoRole the pawn's role precept defName.
 	Ideo     string

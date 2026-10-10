@@ -15,8 +15,8 @@ func royaltyColonyRead() *o.RoyaltyColonyFacts {
 			Title: proto.String("Knight"), Accepted: proto.Bool(true), BestowerWaiting: proto.Bool(true), Spot: &c.Cell{X: proto.Int32(4), Z: proto.Int32(9)}, Attendees: []*c.Ref{{Id: proto.String("Human13")}}}},
 		Thrones: []*o.RoyalThrone{{Thing: &c.Ref{Id: proto.String("Throne_1")}, DefName: proto.String("Throne"), Owner: &c.Ref{Id: proto.String("Human12")}}, {Thing: &c.Ref{Id: proto.String("Throne_2")}, DefName: proto.String("Throne")}},
 		Neuroformers: []*o.NeuroformerStock{
-			{DefName: proto.String("PsychicAmplifier"), Held: proto.Int32(2), Craftable: proto.Bool(false), Tradeable: proto.Bool(true)},
-			{DefName: proto.String("Neurotrainer_Skip"), TeachesPsycast: proto.String("Skip")},
+			{DefName: proto.String("PsychicAmplifier"), Held: proto.Int32(2), Craftable: proto.Bool(false)},
+			{DefName: proto.String("Neurotrainer_Skip")},
 		},
 	}
 }
@@ -32,16 +32,10 @@ func TestDecodeRoyaltyColony(t *testing.T) {
 	if held, ok := amp.Held.Value(); !ok || held != 2 {
 		t.Fatalf("held %v %v", held, ok)
 	}
-	if tradeable, ok := amp.Tradeable.Value(); !ok || !tradeable {
-		t.Fatalf("tradeable %v %v", tradeable, ok)
-	}
 	if craftable, ok := amp.Craftable.Value(); !ok || craftable {
 		t.Fatalf("craftable %v %v", craftable, ok)
 	}
 	trainer := facts.Neuroformers["Neurotrainer_Skip"]
-	if trainer.TeachesPsycast != "Skip" {
-		t.Fatalf("trainer %+v", trainer)
-	}
 	if _, ok := trainer.Held.Value(); ok {
 		t.Fatal("absent held read as known")
 	}

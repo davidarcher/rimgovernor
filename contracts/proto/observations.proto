@@ -368,8 +368,8 @@ message PawnPolicyInputs {
   repeated ChemicalState chemicals = 5;
   // ChemicalDef defNames of the pawn's Gene_ChemicalDependency genes.
   repeated string dependency_chemicals = 6;
-  // Most senior royal title's defName and its requiredApparel.
-  optional string royal_title = 7; repeated ApparelRequirementFact title_apparel = 8;
+  // Most senior royal title's defName (its requiredApparel is the RoyalTitleDef row).
+  optional string royal_title = 7;
   // Ideo.GetUniqueLoadID(), the ideo's precept defNames (diet, apparel and
   // every other issue), the pawn's Precept_Role defName with its apparel
   // requirements, and the apparelDef of each Precept_Apparel.
@@ -390,6 +390,7 @@ message InventoryStockSetting { optional string group = 1; optional string thing
 // addiction is in its withdrawal stage; tolerance: the tolerance hediff's
 // severity, absent without one.
 message ChemicalState { optional string chemical = 1; optional double addiction = 2; optional bool withdrawal = 3; optional double tolerance = 4; }
+// A Precept_Role's apparel requirement: ideoligion instance state, not a def row.
 message ApparelRequirementFact { repeated string body_part_groups = 1; repeated string required_defs = 2; repeated string required_tags = 3; repeated string allowed_tags = 4; }
 message TrainingEntry { optional string def_name = 1; optional bool learned = 2; optional bool wanted = 3; optional bool available = 4; optional string reason = 5; }
 message AnimalState {
@@ -671,10 +672,10 @@ message RecipeState {
   DefinitionRef recipe = 1; optional bool available_now = 2; optional bool available_on_bench = 3;
 }
 message BuildingSettings {
-  SnapshotRef snapshot = 1; optional bool forbidden = 2; optional bool flickable = 3; optional bool desired_switch_on = 4;
+  SnapshotRef snapshot = 1; optional bool forbidden = 2; optional bool desired_switch_on = 4;
   optional bool switch_on = 5; optional bool flick_designated = 6; optional bool connected = 7; optional bool powered = 8;
   optional double target_temperature_c = 9; optional bool medical = 10; optional bool for_prisoners = 11;
-  repeated rimgovernor.common.v1.Ref assigned_pawns = 13; optional uint32 maximum_assigned_pawns = 14; repeated rimgovernor.common.v1.Ref assigning_candidates = 15;
+  repeated rimgovernor.common.v1.Ref assigned_pawns = 13; repeated rimgovernor.common.v1.Ref assigning_candidates = 15;
   optional bool room_can_be_prison_cell = 16; repeated ReadIssue issues = 17;
   // crop_def_name is a plant grower's current crop beside its own CAS snapshot (BuildingPatchIntent.plant_def).
   optional string crop_def_name = 18;
@@ -694,7 +695,7 @@ message ThermalSide { optional string side = 1; rimgovernor.common.v1.Cell posit
 message BuildingServiceState {
   optional bool connected = 1; optional bool power_on = 2; optional double power_output_w = 3; optional bool switched_on = 4;
   optional double fuel = 5; optional double target_fuel = 6; optional bool out_of_fuel = 7; optional bool broken_down = 8;
-  repeated string allowed_fuel_defs = 9; optional string power_net_id = 10; repeated ReadIssue issues = 11;
+  optional string power_net_id = 10; repeated ReadIssue issues = 11;
 }
 // BuildingStatus is the native construction stage of a building row.
 enum BuildingStatus { BUILDING_STATUS_UNSPECIFIED = 0; BUILDING_STATUS_BLUEPRINT = 1; BUILDING_STATUS_FRAME = 2; BUILDING_STATUS_BUILT = 3; }
@@ -1023,7 +1024,7 @@ message PopulationPerson { rimgovernor.common.v1.Ref pawn = 24; SnapshotRef pawn
   // Policy inputs, for a prisoner of the colony only: its current
   // drug policy id and chemical state, as on the work census settings row.
   PawnPolicyInputs policy_inputs = 26; optional bool will_join_if_rescued = 27; }
-message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2; repeated DefinitionRef supported_interactions = 3;
+message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2;
   // ModsConfig.IdeologyActive, IdeoManager.classicMode, the player faction's
   // primary ideoligion load id;
   // absent without Ideology; precepts ride the ideology section.
@@ -1395,14 +1396,12 @@ message FilthState { rimgovernor.common.v1.Ref filth = 1; optional bool home = 2
 // partners: lover, spouse and fiance relations to living pawns on the same
 // map (native direct relations). bed_sharing_allowed: the native willingness
 // to share a bed with every listed partner (the SharedBed precepts; with no
-// partner, the plain SharedBed precept), true without Ideology. title: the
-// most senior royal title, absent without one or when Royalty is inactive.
-message UpkeepPerson { rimgovernor.common.v1.Ref pawn = 9; rimgovernor.common.v1.Ref owned_bed = 2; optional double comfortable_min_c = 3; optional double comfortable_max_c = 4; optional double temperature_c = 5; repeated rimgovernor.common.v1.Ref partners = 6; optional bool bed_sharing_allowed = 7; RoyalTitleFacts title = 8; }
-// Bedroom requirements read from RoyalTitleDef.GetBedroomRequirements for the
-// holder (none for an ascetic), skipping requirements an ideo precept disables.
-// things: each row is one requirement met by count of any listed def.
-message BedroomThingRequirement { repeated string any_of = 1; optional int32 count = 2; }
-message RoyalTitleFacts { optional string def_name = 1; optional int32 seniority = 2; optional int32 bedroom_min_area = 3; optional int32 bedroom_min_impressiveness = 4; optional bool bedroom_floored = 5; repeated BedroomThingRequirement bedroom_things = 6; }
+// partner, the plain SharedBed precept), true without Ideology. royal_title:
+// the most senior royal title's defName, absent without one or when Royalty is
+// inactive; its seniority and bedroom requirements are the RoyalTitleDef row,
+// less what the pawn's own state waives (ascetic trait; precepts is the
+// ideoligion's precept defNames, whose disablingPrecepts drop a requirement).
+message UpkeepPerson { rimgovernor.common.v1.Ref pawn = 9; rimgovernor.common.v1.Ref owned_bed = 2; optional double comfortable_min_c = 3; optional double comfortable_max_c = 4; optional double temperature_c = 5; repeated rimgovernor.common.v1.Ref partners = 6; optional bool bed_sharing_allowed = 7; optional string royal_title = 10; optional bool ascetic = 11; repeated string precepts = 12; }
 // permit_cooldowns: one row per held permit.
 // last_used_tick is FactionPermit.LastUsedTick (absent when never used) and
 // cooldown_remaining_ticks the ticks until it can be used again (0 when ready),
@@ -1410,18 +1409,16 @@ message RoyalTitleFacts { optional string def_name = 1; optional int32 seniority
 message PermitCooldown { optional string permit = 1; optional int32 last_used_tick = 2; optional int32 cooldown_remaining_ticks = 3; }
 message PawnRoyalHolding { optional string faction_def = 1; optional string title = 2; optional int32 favor = 3; optional int32 permit_points = 4; repeated string permits = 5; repeated PermitCooldown permit_cooldowns = 6; }
 // Psycasts: psycasts holds each psycaster's known psycasts (Ability
-// defs with IsPsycast). level is the psylink level that unlocks it,
-// psyfocus_cost the Psyfocus it spends (0-1), entropy the neural heat it adds,
-// cooldown_ticks the longest cooldown. neuroformers: the psylink neuroformer
+// defs with IsPsycast); the level, costs, cooldown and target kind are the
+// AbilityDef row. neuroformers: the psylink neuroformer
 // and each psycast neurotrainer, with held (unforbidden spawned stacks on the
-// player's home maps), craftable (a recipe that is available now makes it)
-// and tradeable (a trader can sell it). teaches_psycast is the trainer's
-// ability def. For combat casts cooldown_remaining_ticks is the
+// player's home maps) and craftable (a recipe that is available now makes it);
+// what a trainer teaches and whether a trader sells it are its ThingDef row.
+// For combat casts cooldown_remaining_ticks is the
 // psycast's remaining cooldown and the pawn's psyfocus (0-1), entropy and
 // entropy_max are read at the read's tick; each is absent when unread.
-enum PsycastTargetKind { PSYCAST_TARGET_KIND_UNSPECIFIED = 0; PSYCAST_TARGET_KIND_SELF = 1; PSYCAST_TARGET_KIND_PAWN = 2; PSYCAST_TARGET_KIND_THING = 3; PSYCAST_TARGET_KIND_CELL = 4; }
-message PawnPsycast { optional string def_name = 1; optional int32 level = 2; optional double psyfocus_cost = 3; optional double entropy = 4; PsycastTargetKind target_kind = 5; optional int32 cooldown_ticks = 6; optional int32 cooldown_remaining_ticks = 7; }
-message NeuroformerStock { optional string def_name = 1; optional string teaches_psycast = 2; optional int32 held = 3; optional bool craftable = 4; optional bool tradeable = 5; }
+message PawnPsycast { optional string def_name = 1; optional int32 cooldown_remaining_ticks = 7; }
+message NeuroformerStock { optional string def_name = 1; optional int32 held = 3; optional bool craftable = 4; }
 // PawnState.royalty: the pawn is the row's.
 message PawnRoyalty { repeated PawnRoyalHolding holdings = 2; repeated PawnPsycast psycasts = 3; optional double psyfocus = 4; optional double entropy = 5; optional double entropy_max = 6; }
 // Pending bestowing ceremonies: one per colonist holding an ongoing or
@@ -1960,9 +1957,6 @@ message AllowedAreaEntry { optional string id = 1; optional string label = 2; re
 message PolicyFacts {
   repeated PolicyEntry outfit = 1; repeated PolicyEntry drug = 2; repeated PolicyEntry food = 3; repeated PolicyEntry reading = 4;
   repeated AllowedAreaEntry allowed_areas = 5;
-  // HediffDef defNames of the colony map biome's disease incidents
-  // (BiomeDef.diseases), e.g. Malaria, Plague.
-  repeated string biome_diseases = 7;
   repeated FoodEater food_eaters = 9;
 }
 // A food policy holder outside the work census: a prisoner of the

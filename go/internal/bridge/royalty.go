@@ -10,7 +10,7 @@ import (
 // ceremonies and thrones the colony section). A colonist with neither a holding nor a psycast is not
 // listed. A row whose royalty read failed (ReadIssue "royalty") or whose block
 // is invalid is an error: royalty stays unknown rather than read as empty.
-func PawnRoyaltyFacts(pawns *o.PawnSnapshot) (policy.RoyaltyFacts, error) {
+func PawnRoyaltyFacts(pawns *o.PawnSnapshot, catalog *DefinitionCatalog) (policy.RoyaltyFacts, error) {
 	if pawns == nil {
 		return policy.RoyaltyFacts{}, contract("no pawn rows for the royalty facts")
 	}
@@ -57,16 +57,16 @@ func PawnRoyaltyFacts(pawns *o.PawnSnapshot) (policy.RoyaltyFacts, error) {
 		known := map[string]bool{}
 		for _, cast := range row.Psycasts {
 			name := cast.GetDefName()
-			if validID(name) != nil || known[name] || cast.GetPsyfocusCost() < 0 || cast.GetPsyfocusCost() > 1 || cast.GetEntropy() < 0 || cast.GetCooldownTicks() < 0 || cast.GetLevel() < 0 {
+			if validID(name) != nil || known[name] || cast.GetCooldownRemainingTicks() < 0 {
 				return policy.RoyaltyFacts{}, contract("invalid royalty psycast")
 			}
 			known[name] = true
-			target, ok := psycastTargets[cast.GetTargetKind()]
-			if !ok {
-				return policy.RoyaltyFacts{}, contract("invalid royalty psycast target")
+			psycast, err := catalog.Psycast(name)
+			if err != nil {
+				return policy.RoyaltyFacts{}, err
 			}
-			casts = append(casts, policy.Psycast{Def: name, Level: optionalFact(intPtr(cast.Level)), PsyfocusCost: optionalFact(cast.PsyfocusCost), Entropy: optionalFact(cast.Entropy),
-				Target: target, CooldownTicks: optionalFact(intPtr(cast.CooldownTicks)), CooldownRemaining: optionalFact(intPtr(cast.CooldownRemainingTicks))})
+			psycast.CooldownRemaining = optionalFact(intPtr(cast.CooldownRemainingTicks))
+			casts = append(casts, psycast)
 		}
 		facts.Psycasts[policy.PawnID(id)] = casts
 		if row.GetPsyfocus() < 0 || row.GetPsyfocus() > 1 || row.GetEntropy() < 0 || row.GetEntropyMax() < 0 {
@@ -75,14 +75,6 @@ func PawnRoyaltyFacts(pawns *o.PawnSnapshot) (policy.RoyaltyFacts, error) {
 		facts.Casters[policy.PawnID(id)] = policy.PsycasterState{Psyfocus: optionalFact(row.Psyfocus), Entropy: optionalFact(row.Entropy), EntropyMax: optionalFact(row.EntropyMax)}
 	}
 	return facts, nil
-}
-
-var psycastTargets = map[o.PsycastTargetKind]policy.PsycastTarget{
-	o.PsycastTargetKind_PSYCAST_TARGET_KIND_UNSPECIFIED: "",
-	o.PsycastTargetKind_PSYCAST_TARGET_KIND_SELF:        policy.PsycastTargetSelf,
-	o.PsycastTargetKind_PSYCAST_TARGET_KIND_PAWN:        policy.PsycastTargetPawn,
-	o.PsycastTargetKind_PSYCAST_TARGET_KIND_THING:       policy.PsycastTargetThing,
-	o.PsycastTargetKind_PSYCAST_TARGET_KIND_CELL:        policy.PsycastTargetCell,
 }
 
 func intPtr(p *int32) *int {

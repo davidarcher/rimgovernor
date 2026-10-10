@@ -12,7 +12,8 @@ func roomQualityWire() *o.UpkeepFacts {
 	v := sleepingWire()
 	v.People[0].Partners = NewRefs([]string{"lover"})
 	v.People[0].BedSharingAllowed = proto.Bool(true)
-	v.People[0].Title = &o.RoyalTitleFacts{DefName: proto.String("Knight"), Seniority: proto.Int32(100), BedroomMinArea: proto.Int32(24), BedroomMinImpressiveness: proto.Int32(40), BedroomFloored: proto.Bool(true), BedroomThings: []*o.BedroomThingRequirement{{AnyOf: []string{"DoubleBed", "RoyalBed"}, Count: proto.Int32(1)}}}
+	v.People[0].RoyalTitle = proto.String("Knight")
+	v.People[0].Precepts = []string{"Bedroom_Ascetic"}
 	v.Beds[0].Room = &commonpb.Ref{Id: proto.String("7")}
 	v.Beds[0].Quality = proto.String("Good")
 	return v
@@ -29,10 +30,8 @@ func TestRoomQualityBoundary(t *testing.T) {
 	}
 	for name, mutate := range map[string]func(*o.UpkeepFacts){
 		"duplicate partner": func(v *o.UpkeepFacts) { v.People[0].Partners = NewRefs([]string{"lover", "lover"}) },
-		"blank title":       func(v *o.UpkeepFacts) { v.People[0].Title.DefName = nil },
-		"negative area":     func(v *o.UpkeepFacts) { v.People[0].Title.BedroomMinArea = proto.Int32(-1) },
-		"empty any-of":      func(v *o.UpkeepFacts) { v.People[0].Title.BedroomThings[0].AnyOf = nil },
-		"zero count":        func(v *o.UpkeepFacts) { v.People[0].Title.BedroomThings[0].Count = proto.Int32(0) },
+		"blank title":       func(v *o.UpkeepFacts) { v.People[0].RoyalTitle = proto.String("") },
+		"blank precept":     func(v *o.UpkeepFacts) { v.People[0].Precepts = []string{""} },
 		"blank bed room":    func(v *o.UpkeepFacts) { v.Beds[0].Room = &commonpb.Ref{Id: proto.String("")} },
 	} {
 		v := roomQualityWire()

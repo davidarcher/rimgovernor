@@ -74,17 +74,9 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        private static Obs.PawnPsycast Psycast(AbilityDef def, int cooldownRemaining)
-        {
-            var cast = new Obs.PawnPsycast { DefName = def.defName, Level = def.level, PsyfocusCost = def.PsyfocusCost, Entropy = def.EntropyGain, CooldownTicks = def.cooldownTicksRange.max, CooldownRemainingTicks = Math.Max(0, cooldownRemaining) };
-            var target = def.verbProperties?.targetParams;
-            if (target == null) return cast;
-            cast.TargetKind = target.canTargetSelf && !target.canTargetPawns && !target.canTargetLocations && !target.canTargetBuildings && !target.canTargetItems ? Obs.PsycastTargetKind.Self
-                : target.canTargetPawns ? Obs.PsycastTargetKind.Pawn
-                : target.canTargetBuildings || target.canTargetItems ? Obs.PsycastTargetKind.Thing
-                : target.canTargetLocations ? Obs.PsycastTargetKind.Cell
-                : Obs.PsycastTargetKind.Unspecified;
-            return cast;
-        }
+        // The ability's level, costs, cooldown and target kind are its AbilityDef row;
+        // only the cooldown left is live.
+        private static Obs.PawnPsycast Psycast(AbilityDef def, int cooldownRemaining) =>
+            new Obs.PawnPsycast { DefName = def.defName, CooldownRemainingTicks = Math.Max(0, cooldownRemaining) };
     }
 }
