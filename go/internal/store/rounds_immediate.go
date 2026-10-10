@@ -30,6 +30,13 @@ func retainOrdinaryRounds(ctx context.Context, tx *sql.Tx, r *Rounds, previous R
 	next.Incidents = mergeImmediateRows(previous.Incidents, r.Incidents, func(v RoundsIncident) domain.ConcernID { return v.Kind })
 	next.Emergency = mergeImmediateRows(previous.Emergency, r.Emergency, func(v domain.ConcernID) domain.ConcernID { return v })
 	next.NoOps = mergeImmediateRows(previous.NoOps, r.NoOps, func(v policy.NoOpRecord) domain.ConcernID { return v.Concern })
+	// The previous record may be a disabled round, which files no mood
+	// proposals; an enabled record carries one per mood state.
+	proposals, err := moodProposals(next.moodHistory())
+	if err != nil {
+		return err
+	}
+	next.MoodMethods = proposals
 	result.Standards, result.Projects, result.Incidents = nil, nil, nil
 	for _, b := range next.Standards {
 		state, err := loadStandard(ctx, tx, b.Standard)

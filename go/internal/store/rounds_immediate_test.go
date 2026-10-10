@@ -136,3 +136,28 @@ func TestImmediateRoundsKeepWorldRewindAndPauseInvariants(t *testing.T) {
 		})
 	}
 }
+
+// An immediate review that follows a disabled one keeps that record's mood
+// history, so it files the mood proposals the disabled record left empty; the
+// stored record must load back, or every later review fails on it.
+func TestImmediateRoundsAfterDisabledReviewFileMoodMethods(t *testing.T) {
+	ctx := context.Background()
+	path := memoryPath(t)
+	s := open(t, path)
+	defer func() { s.Close() }()
+	r := roundsRequest()
+	r.Facts.MoodPawns = domain.Known([]policy.MoodPawn{moodPerson()})
+	reviewRounds(t, s, &r)
+	r.Enabled, r.Tick = false, 20
+	reviewRounds(t, s, &r)
+	r.Enabled, r.Immediate, r.Tick = true, true, 30
+	after := reviewRounds(t, s, &r)
+	if len(after.Review.MoodMethods) != len(after.Review.Mood.States) || len(after.Review.MoodMethods) == 0 {
+		t.Fatalf("mood methods %d for %d states", len(after.Review.MoodMethods), len(after.Review.Mood.States))
+	}
+	s.Close()
+	s = open(t, path)
+	if _, err := s.LoadRounds(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
