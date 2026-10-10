@@ -3,7 +3,6 @@ package policy
 import (
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -88,13 +87,6 @@ func TestTrainingRangeCatalogRow(t *testing.T) {
 // range for, and the mod defines the work type, giver and jobs it runs under.
 func TestNativeTrainingJobMirrorsTheTarget(t *testing.T) {
 	native := filepath.Join("..", "..", "..", "integrations", "rimgovernor-native")
-	src, err := os.ReadFile(filepath.Join(native, "src", "Runtime", "Training", "RangeTraining.cs"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := "public const int SkillTarget = " + strconv.Itoa(TrainingSkillTarget) + ";"; !strings.Contains(string(src), want) {
-		t.Fatalf("native RangeTraining.SkillTarget drifted from TrainingSkillTarget; want %q", want)
-	}
 	for dir, names := range map[string][]string{
 		"WorkTypeDefs":  {"RimGovernorTraining"},
 		"WorkGiverDefs": {"RimGovernor_TrainRange"},

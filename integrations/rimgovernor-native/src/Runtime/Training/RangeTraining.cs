@@ -15,7 +15,7 @@ namespace RimGovernor.Runtime
         public const string MeleeJob = "RimGovernor_TrainMelee";
         public const string WeaponDef = "Bow_Training";
 
-        // Mirrors go/internal/policy TrainingSkillTarget (a Go test reads this line):
+        // Tier-0 ceiling, TrainingTiers[0].Ceiling in go/internal/policy/training_tier.go:
         // a colonist whose best enabled combat skill reaches it stops drilling.
         public const int SkillTarget = 8;
 

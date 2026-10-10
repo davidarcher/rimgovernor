@@ -14,7 +14,8 @@ const MaintainTraining ConcernID = "MaintainTraining"
 // trainingPriority ranks MaintainTraining with the other priority-3 chores.
 const trainingPriority = 3
 
-// TrainingSkillTarget is the combat skill level at which a colonist stops
+// TrainingSkillTarget is the tier-0 ceiling (TrainingTiers[0].Ceiling, a test
+// pins it): the combat skill level at which a colonist stops
 // counting toward the gap. RimWorld skills run 0 to 20.
 const TrainingSkillTarget = 8
 

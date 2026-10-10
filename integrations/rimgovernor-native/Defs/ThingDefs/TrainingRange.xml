@@ -151,7 +151,7 @@
       <li>
         <verbClass>Verb_Shoot</verbClass>
         <hasStandardCommand>true</hasStandardCommand>
-        <defaultProjectile>Arrow_Short</defaultProjectile>
+        <defaultProjectile>Arrow_Practice</defaultProjectile>
         <warmupTime>1.35</warmupTime>
         <range>22.9</range>
         <soundCast>Bow_Small</soundCast>
@@ -169,5 +169,244 @@
       </li>
     </tools>
     <rotateInShelves>false</rotateInShelves>
+    <modExtensions>
+      <li Class="RimGovernor.Runtime.TrainingTier">
+        <tier>0</tier>
+        <multiplier>1</multiplier>
+        <xpPerShot>75</xpPerShot>
+        <skillCeiling>8</skillCeiling>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
+  <!-- Practice projectiles: one themed projectile per tier, each doing exactly 1 damage
+       (never 0: Thing.TakeDamage returns early at 0). -->
+  <ThingDef ParentName="BaseProjectileNeolithic">
+    <defName>Arrow_Practice</defName>
+    <label>practice arrow</label>
+    <graphicData>
+      <texPath>Things/Projectile/Arrow_Small</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <projectile>
+      <damageDef>Blunt</damageDef>
+      <damageAmountBase>1</damageAmountBase>
+      <speed>44</speed>
+    </projectile>
+  </ThingDef>
+
+  <ThingDef ParentName="BaseBullet">
+    <defName>Bullet_PracticeRubber</defName>
+    <label>rubber bullet</label>
+    <graphicData>
+      <texPath>Things/Projectile/Bullet_Small</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <projectile>
+      <damageDef>Blunt</damageDef>
+      <damageAmountBase>1</damageAmountBase>
+      <speed>55</speed>
+    </projectile>
+  </ThingDef>
+
+  <ThingDef ParentName="BaseBullet">
+    <defName>Bullet_PracticePulse</defName>
+    <label>low-power pulse bolt</label>
+    <graphicData>
+      <texPath>Things/Projectile/Charge_Small</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <projectile>
+      <damageDef>Blunt</damageDef>
+      <damageAmountBase>1</damageAmountBase>
+      <speed>70</speed>
+    </projectile>
+  </ThingDef>
+
+  <ThingDef ParentName="BaseBullet">
+    <defName>Bullet_PracticeBeam</defName>
+    <label>hard-light bolt</label>
+    <graphicData>
+      <texPath>Things/Projectile/Bullet_Small</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <projectile>
+      <damageDef>Blunt</damageDef>
+      <damageAmountBase>1</damageAmountBase>
+      <speed>80</speed>
+    </projectile>
+  </ThingDef>
+
+  <!-- Practice weapons, tiers 1 to 3. Like Bow_Training: issued by the drill, no recipe,
+       category, weapon tag or trade tag. Every tier shares the bow's 3 s cycle
+       (1.35 s warmup + 1.65 s cooldown); the tier table is the TrainingTier extension. -->
+  <ThingDef ParentName="BaseWeapon">
+    <defName>Gun_PracticeRifle</defName>
+    <label>practice rifle</label>
+    <description>A rifle loaded with rubber rounds, kept at a training range lane. It cannot be made, bought or sold.</description>
+    <techLevel>Industrial</techLevel>
+    <graphicData>
+      <texPath>Things/Item/Equipment/WeaponRanged/BoltActionRifle</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <soundInteract>Interact_Rifle</soundInteract>
+    <tradeability>None</tradeability>
+    <statBases>
+      <Mass>3.5</Mass>
+      <AccuracyTouch>0.80</AccuracyTouch>
+      <AccuracyShort>0.80</AccuracyShort>
+      <AccuracyMedium>0.70</AccuracyMedium>
+      <AccuracyLong>0.55</AccuracyLong>
+      <RangedWeapon_Cooldown>1.65</RangedWeapon_Cooldown>
+    </statBases>
+    <weaponClasses>
+      <li>RangedHeavy</li>
+    </weaponClasses>
+    <verbs>
+      <li>
+        <verbClass>Verb_Shoot</verbClass>
+        <hasStandardCommand>true</hasStandardCommand>
+        <defaultProjectile>Bullet_PracticeRubber</defaultProjectile>
+        <warmupTime>1.35</warmupTime>
+        <range>25.9</range>
+        <soundCast>Shot_BoltActionRifle</soundCast>
+        <soundCastTail>GunTail_Heavy</soundCastTail>
+        <muzzleFlashScale>9</muzzleFlashScale>
+      </li>
+    </verbs>
+    <tools>
+      <li>
+        <label>stock</label>
+        <capacities>
+          <li>Blunt</li>
+        </capacities>
+        <power>9</power>
+        <cooldownTime>2</cooldownTime>
+      </li>
+    </tools>
+    <rotateInShelves>false</rotateInShelves>
+    <modExtensions>
+      <li Class="RimGovernor.Runtime.TrainingTier">
+        <tier>1</tier>
+        <multiplier>1.5</multiplier>
+        <xpPerShot>112</xpPerShot>
+        <skillCeiling>10</skillCeiling>
+        <gateResearch>Gunsmithing</gateResearch>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
+  <ThingDef ParentName="BaseWeapon">
+    <defName>Gun_PracticePulseRifle</defName>
+    <label>practice pulse rifle</label>
+    <description>A pulse rifle on a low-power setting, kept at a training range lane. It cannot be made, bought or sold.</description>
+    <techLevel>Spacer</techLevel>
+    <graphicData>
+      <texPath>Things/Item/Equipment/WeaponRanged/ChargeRifle</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <soundInteract>Interact_Rifle</soundInteract>
+    <tradeability>None</tradeability>
+    <statBases>
+      <Mass>3.5</Mass>
+      <AccuracyTouch>0.80</AccuracyTouch>
+      <AccuracyShort>0.85</AccuracyShort>
+      <AccuracyMedium>0.75</AccuracyMedium>
+      <AccuracyLong>0.60</AccuracyLong>
+      <RangedWeapon_Cooldown>1.65</RangedWeapon_Cooldown>
+    </statBases>
+    <weaponClasses>
+      <li>RangedHeavy</li>
+    </weaponClasses>
+    <verbs>
+      <li>
+        <verbClass>Verb_Shoot</verbClass>
+        <hasStandardCommand>true</hasStandardCommand>
+        <defaultProjectile>Bullet_PracticePulse</defaultProjectile>
+        <warmupTime>1.35</warmupTime>
+        <range>25.9</range>
+        <soundCast>Shot_ChargeRifle</soundCast>
+        <soundCastTail>GunTail_Medium</soundCastTail>
+        <muzzleFlashScale>9</muzzleFlashScale>
+      </li>
+    </verbs>
+    <tools>
+      <li>
+        <label>stock</label>
+        <capacities>
+          <li>Blunt</li>
+        </capacities>
+        <power>9</power>
+        <cooldownTime>2</cooldownTime>
+      </li>
+    </tools>
+    <rotateInShelves>false</rotateInShelves>
+    <modExtensions>
+      <li Class="RimGovernor.Runtime.TrainingTier">
+        <tier>2</tier>
+        <multiplier>2.5</multiplier>
+        <xpPerShot>187</xpPerShot>
+        <skillCeiling>12</skillCeiling>
+        <gateResearch>ChargedShot</gateResearch>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
+  <!-- The beam emitter's gate project (BeamWeapons) ships with Odyssey; the extension
+       names it as text, so this def loads without the expansion. -->
+  <ThingDef ParentName="BaseWeapon">
+    <defName>Gun_PracticeBeamEmitter</defName>
+    <label>beam practice emitter</label>
+    <description>A hard-light emitter on a harmless setting, kept at a training range lane. It cannot be made, bought or sold.</description>
+    <techLevel>Spacer</techLevel>
+    <graphicData>
+      <texPath>Things/Item/Equipment/WeaponRanged/ChargeRifle</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <soundInteract>Interact_Rifle</soundInteract>
+    <tradeability>None</tradeability>
+    <statBases>
+      <Mass>3</Mass>
+      <AccuracyTouch>0.85</AccuracyTouch>
+      <AccuracyShort>0.90</AccuracyShort>
+      <AccuracyMedium>0.80</AccuracyMedium>
+      <AccuracyLong>0.65</AccuracyLong>
+      <RangedWeapon_Cooldown>1.65</RangedWeapon_Cooldown>
+    </statBases>
+    <weaponClasses>
+      <li>RangedHeavy</li>
+    </weaponClasses>
+    <verbs>
+      <li>
+        <verbClass>Verb_Shoot</verbClass>
+        <hasStandardCommand>true</hasStandardCommand>
+        <defaultProjectile>Bullet_PracticeBeam</defaultProjectile>
+        <warmupTime>1.35</warmupTime>
+        <range>25.9</range>
+        <soundCast>Shot_ChargeRifle</soundCast>
+        <soundCastTail>GunTail_Medium</soundCastTail>
+        <muzzleFlashScale>9</muzzleFlashScale>
+      </li>
+    </verbs>
+    <tools>
+      <li>
+        <label>grip</label>
+        <capacities>
+          <li>Blunt</li>
+        </capacities>
+        <power>9</power>
+        <cooldownTime>2</cooldownTime>
+      </li>
+    </tools>
+    <rotateInShelves>false</rotateInShelves>
+    <modExtensions>
+      <li Class="RimGovernor.Runtime.TrainingTier">
+        <tier>3</tier>
+        <multiplier>4</multiplier>
+        <xpPerShot>300</xpPerShot>
+        <skillCeiling>15</skillCeiling>
+        <gateResearch>BeamWeapons</gateResearch>
+      </li>
+    </modExtensions>
   </ThingDef>
 </Defs>
