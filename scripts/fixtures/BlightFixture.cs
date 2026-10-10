@@ -74,7 +74,6 @@ namespace HomeBridge.BridgeTools
                 var infected = plants.OrderBy(p => p.thingIDNumber).Take(blighted).ToList();
                 foreach (var plant in infected) plant.CropBlighted();
                 if (infected.Any(p => !p.Blighted)) return Refuse("Blight did not take on the fixture plants.");
-                if (infected.Any(p => !NativeCutPlant.Eligible(p))) return Refuse("A blighted fixture plant is not census-eligible.");
 
                 var identity = Current.Game.GetComponent<ColonyIdentity>();
                 return new {
@@ -96,7 +95,7 @@ namespace HomeBridge.BridgeTools
                 var map = Find.CurrentMap;
                 if (map == null) return Refuse("No current map.");
                 var rows = map.listerThings.AllThings.OfType<Plant>().Where(p => p.Spawned && p.Blighted).OrderBy(p => p.thingIDNumber)
-                    .Select(p => new { id = p.GetUniqueLoadID(), designated = NativeCutPlant.Designated(p), inColony = NativeCutPlant.InColony(p, map),
+                    .Select(p => new { id = p.GetUniqueLoadID(), designated = NativeCutPlant.Designated(p),
                         cell = new { x = p.Position.x, z = p.Position.z } }).ToList();
                 var zones = map.zoneManager.AllZones.OfType<Zone_Growing>().Select(zone => new {
                     id = zone.ID,
