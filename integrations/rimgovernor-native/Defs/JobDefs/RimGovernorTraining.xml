@@ -18,4 +18,14 @@
     <allowOpportunisticPrefix>false</allowOpportunisticPrefix>
     <checkOverrideOnDamage>Never</checkOverrideOnDamage>
   </JobDef>
+  <!-- Watching a sparring bout from a spectator cell (JobDriver_WatchSparring, #2732). joyDuration
+       is the duration cap; the driver also ends when no bout is fighting or joy is full. -->
+  <JobDef>
+    <defName>RimGovernor_WatchSparring</defName>
+    <driverClass>RimGovernor.Runtime.JobDriver_WatchSparring</driverClass>
+    <reportString>watching a sparring match.</reportString>
+    <joyDuration>2000</joyDuration>
+    <joyKind>Social</joyKind>
+    <allowOpportunisticPrefix>false</allowOpportunisticPrefix>
+  </JobDef>
 </Defs>

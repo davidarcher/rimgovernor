@@ -702,6 +702,21 @@ Teams: pairs and threes free-for-all, a four 2v2 with the highest beside the low
 fight length is `SparringStopRule` (#2709, tuned in #2711). `lab/sparring` proves it; "empty after a
 load" holds by construction (the registry is keyed on the `Map`), not by a reload case.
 
+**Watching a bout (#2732, `SparringWatch.cs`).** `JoyGiver_WatchSparring`
+(`Defs/JoyGiverDefs/RimGovernorTraining.xml`, joy kind Social) offers
+`RimGovernor_WatchSparring` while a bout is fighting; vanilla's joy-time logic
+(`JobGiver_GetJoy`) decides who is free and when, so a drafted pawn, a pawn on a
+work-only schedule and a pawn in a bout are never offered it. The spectator cell is a
+standable, unforbidden, reachable, unreserved cell outside the ring interior (the box
+around the bout's ring markers), 3 to 8 cells from the nearest fighter and in line of
+sight of one; none means no offer. `JobDriver_WatchSparring` walks there, then ticks
+Joy through `JoyUtility.JoyTickCheckEnd` (tolerance included) facing the nearest
+fighter, until no bout is fighting, Joy is full or the job def's `joyDuration` (2000)
+passes. A watch that ends Succeeded after 300 ticks gains the memory
+`RimGovernor_WatchedSparring` (+2 mood, one day, stack 1). It reads the runtime
+registry (`SparringBouts.LiveFighting`) only: no saved state, action or wire field.
+`lab/sparring-watch` proves it.
+
 **Melee tiers and practice gear (#2703, #2704, `Runtime/Training/SparringTier.cs`).**
 The ring climbs a four-rung research-gated ladder with the same ceilings as the
 range. The best tier whose gate research is finished applies (`UnlockedSparringTier`

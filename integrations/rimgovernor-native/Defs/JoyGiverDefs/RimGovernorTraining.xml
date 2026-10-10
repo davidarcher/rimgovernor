@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <!-- Watching a live sparring bout (#2732, JoyGiver_WatchSparring). Vanilla's joy-time logic
+       decides who is free and when; the giver only offers a spectator cell. Social, like a
+       crowd at a game; no room, so it does not count toward a rec room. -->
+  <JoyGiverDef>
+    <defName>RimGovernor_WatchSparring</defName>
+    <giverClass>RimGovernor.Runtime.JoyGiver_WatchSparring</giverClass>
+    <baseChance>2</baseChance>
+    <jobDef>RimGovernor_WatchSparring</jobDef>
+    <joyKind>Social</joyKind>
+    <countsForRecRoom>false</countsForRecRoom>
+  </JoyGiverDef>
+</Defs>

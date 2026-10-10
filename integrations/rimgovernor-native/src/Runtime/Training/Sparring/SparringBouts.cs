@@ -85,6 +85,13 @@ namespace RimGovernor.Runtime
 
         public IReadOnlyList<Bout> Bouts => bouts;
 
+        // The bouts in the fighting state with someone still standing (the spectators', #2732).
+        public IEnumerable<Bout> LiveFighting()
+        {
+            Upkeep();
+            return bouts.Where(b => b.State == BoutState.Fighting && b.Slots.Any(s => s.Pawn.Spawned && !s.Pawn.Dead && !s.Pawn.Downed));
+        }
+
         public static ThingDef MarkerDef => DefDatabase<ThingDef>.GetNamedSilentFail(MarkerDefName);
 
         private static int Now => Find.TickManager.TicksGame;

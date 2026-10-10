@@ -15,4 +15,18 @@
       </li>
     </stages>
   </ThoughtDef>
+  <!-- A finished watch of a sparring bout (JobDriver_WatchSparring, #2732). -->
+  <ThoughtDef>
+    <defName>RimGovernor_WatchedSparring</defName>
+    <thoughtClass>Thought_Memory</thoughtClass>
+    <durationDays>1</durationDays>
+    <stackLimit>1</stackLimit>
+    <stages>
+      <li>
+        <label>watched a sparring match</label>
+        <description>I watched my colony-mates spar. Good sport.</description>
+        <baseMoodEffect>2</baseMoodEffect>
+      </li>
+    </stages>
+  </ThoughtDef>
 </Defs>
