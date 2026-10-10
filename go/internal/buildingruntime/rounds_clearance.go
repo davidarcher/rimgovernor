@@ -230,10 +230,8 @@ func colonyRooms(colony observation.ColonyProjection) policy.RoomObservation {
 // comes down one building per method, as home clearance does, so removals
 // cannot jointly invalidate the observed roof support; packing, floors and the
 // ready walls of every room go in one batch each, the roof first (#1366). A
-// door is swapped in place, one per method: no cleared ground, so the native
-// enclosure and roof-wait rules see a door that stays a wall.
+// door is swapped in place, one per method for a wall of its own stuff.
 func groundStepMethod(id domain.PlanID, step policy.GroundStep) (string, []domain.Action, error) {
-	var cleared []domain.GroundRect
 	var prefix string
 	switch step.Phase {
 	case policy.GroundFurniture:
@@ -251,12 +249,11 @@ func groundStepMethod(id domain.PlanID, step policy.GroundStep) (string, []domai
 		default:
 			prefix = batchPrefix("ground-walls", step.Targets[0].EntityID, len(step.Targets))
 		}
-		cleared = policy.GroundRects(step.Cleared)
 	default:
 		c := step.Floors[0].Cell
 		prefix = fmt.Sprintf("ground-floors-%d-%d-x%d-", c.X, c.Z, len(step.Floors))
 	}
-	actions, err := groundActions(id, step, cleared)
+	actions, err := groundActions(id, step)
 	return prefix, actions, err
 }
 
@@ -268,9 +265,9 @@ func batchPrefix(kind, first string, n int) string {
 }
 
 // groundActions is the step's intents in order: remove_roof first, then
-// one deconstruction per target carrying the cleared ground, then one floor
+// one deconstruction per target, then one floor
 // removal per floor cell.
-func groundActions(id domain.PlanID, step policy.GroundStep, cleared []domain.GroundRect) ([]domain.Action, error) {
+func groundActions(id domain.PlanID, step policy.GroundStep) ([]domain.Action, error) {
 	var actions []domain.Action
 	next := func() domain.ActionID { return domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))) }
 	if len(step.Roof) > 0 {
@@ -300,9 +297,6 @@ func groundActions(id domain.PlanID, step policy.GroundStep, cleared []domain.Gr
 		}
 		value, err := domain.NewDeconstruction(target.EntityID, target.DefName, target.Minimum)
 		if err != nil {
-			return nil, err
-		}
-		if value, err = value.WithClearedGround(cleared); err != nil {
 			return nil, err
 		}
 		if step.Phase == policy.GroundDoors {

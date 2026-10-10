@@ -58,7 +58,7 @@ func runAdoption(ctx context.Context, s cases.Session) error {
 }
 
 // deconstructIntent is the enclosure-guarded DECONSTRUCT Designate arm of one
-// building, with extra DesignateIntent fields (clearedGround, replaceWithWall).
+// building, with extra DesignateIntent fields (replaceWithWall).
 func deconstructIntent(key string, target any, extra map[string]any) map[string]any {
 	intent := map[string]any{"designation": "THING_DESIGNATION_DECONSTRUCT", "target": map[string]any{"id": target}, "guard": "DESIGNATION_GUARD_ENCLOSURE"}
 	for k, v := range extra {

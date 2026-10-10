@@ -79,7 +79,6 @@ func runClearedFloor(ctx context.Context, s cases.Session) error {
 	if _, err := na.GrantAuto(ctx, h.WireFunc(), "clear-authority", identity); err != nil {
 		return err
 	}
-	ground := []any{map[string]any{"origin": map[string]any{"x": cx + 3, "z": cz - 2}, "width": 5, "height": 5}}
 	apply := func(key string, intent map[string]any) error {
 		intent["key"] = key
 		reply, err := h.Wire(ctx, key, "operations_apply", map[string]any{"identity": identity, "actions": []any{intent}})
@@ -105,11 +104,11 @@ func runClearedFloor(ctx context.Context, s cases.Session) error {
 		return p, nil
 	}
 	// Clearance order: furniture, then walls (roof first), then floors.
-	if err := apply("stool", deconstructIntent("stool", stoolID, map[string]any{"clearedGround": ground})); err != nil {
+	if err := apply("stool", deconstructIntent("stool", stoolID, nil)); err != nil {
 		return err
 	}
 	for i, id := range wallIDs {
-		if err := apply(fmt.Sprintf("wall-%d", i), deconstructIntent("", id, map[string]any{"clearedGround": ground})); err != nil {
+		if err := apply(fmt.Sprintf("wall-%d", i), deconstructIntent("", id, nil)); err != nil {
 			return err
 		}
 	}

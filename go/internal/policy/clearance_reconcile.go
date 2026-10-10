@@ -64,12 +64,10 @@ func PlannedGroundStep(plan LayoutPlan, g GroundCensus, rows []ClearanceTarget, 
 				if op.Kind != kind {
 					continue
 				}
-				cleared := false
 				for _, t := range op.Targets {
 					if id := targetID(t); id != "" && !seen[id] {
 						seen[id] = true
 						step.Targets = append(step.Targets, t)
-						cleared = true
 					}
 				}
 				for _, f := range op.Floors {
@@ -85,9 +83,6 @@ func PlannedGroundStep(plan LayoutPlan, g GroundCensus, rows []ClearanceTarget, 
 							step.Roof = append(step.Roof, c)
 						}
 					}
-				}
-				if cleared && kind == OpWallOut {
-					step.Cleared = append(step.Cleared, roomGround(cr.room.Interior))
 				}
 			}
 		}

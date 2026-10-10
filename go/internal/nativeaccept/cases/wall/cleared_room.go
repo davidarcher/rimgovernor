@@ -15,7 +15,7 @@ func init() {
 		Name: "wall/cleared-room",
 		Scope: "Cleared-ground deconstruction (#1366, epic #1249): a small walled, roofed player room inside the " +
 			"cleared ground ends unroofed with its walls and door gone, through a remove_roof intent and " +
-			"DECONSTRUCT Designate.cleared_ground whose walls wait (designated, waitingForRoof) until pawns remove the roof; " +
+			"DECONSTRUCT Designate whose walls wait (designated, waitingForRoof) until pawns remove the roof; " +
 			"a wall of a room straddling the ground's edge is admitted and held by the roof-support wait. A Go snapshot test cannot see vanilla room " +
 			"geometry, the NoRoof area work or the native job guard.",
 		Start:       cases.LabStart(),
@@ -102,11 +102,6 @@ func runClearedRoom(ctx context.Context, s cases.Session) error {
 	if _, err := na.GrantAuto(ctx, h.WireFunc(), "clear-authority", identity); err != nil {
 		return err
 	}
-	rect := func(x, z, w, hgt int) map[string]any {
-		return map[string]any{"origin": map[string]any{"x": x, "z": z}, "width": w, "height": hgt}
-	}
-	// Ground covers all of room A and only the eastern part of room B.
-	ground := []any{rect(cx+3, cz-2, 5, 5), rect(cx-5, cz-2, 3, 5)}
 	apply := func(key string, intent map[string]any) (map[string]any, error) {
 		reply, err := h.Wire(ctx, key, "operations_apply", map[string]any{"identity": identity, "actions": []any{intent}})
 		if err != nil {
@@ -121,7 +116,7 @@ func runClearedRoom(ctx context.Context, s cases.Session) error {
 	}
 	// The straddling room's west wall (x0, cz) is admitted (no room-extent
 	// refusal); the work giver holds it while its removal would drop a roof.
-	straddle, err := apply("straddle", deconstructIntent("straddle", bIDs[2], map[string]any{"clearedGround": ground}))
+	straddle, err := apply("straddle", deconstructIntent("straddle", bIDs[2], nil))
 	if err != nil {
 		return err
 	}
@@ -132,7 +127,7 @@ func runClearedRoom(ctx context.Context, s cases.Session) error {
 	// Room A: designate its walls first, which wait on the roof, then the roof.
 	for i, id := range aIDs {
 		key := fmt.Sprintf("wall-a-%d", i)
-		result, err := apply(key, deconstructIntent(key, id, map[string]any{"clearedGround": ground}))
+		result, err := apply(key, deconstructIntent(key, id, nil))
 		if err != nil {
 			return err
 		}

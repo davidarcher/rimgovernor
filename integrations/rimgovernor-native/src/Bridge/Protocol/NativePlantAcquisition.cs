@@ -113,7 +113,7 @@ namespace HomeBridge.BridgeTools
         private static AcquireRequest? Request(Operations.DesignateIntent intent) =>
             intent.Target != null && ProtoBoundary.IsIdentifier(intent.Target.Id) && intent.HasExpectedDef && ProtoBoundary.IsIdentifier(intent.ExpectedDef)
             && intent.Cell != null && intent.Cell.HasX && intent.Cell.HasZ && intent.Cell.X >= 0 && intent.Cell.Z >= 0
-            && !intent.HasThingId && intent.ClearedGround.Count == 0 && !intent.ReplaceWithWall
+            && !intent.HasThingId && !intent.ReplaceWithWall
                 ? new AcquireRequest { SourceId = intent.Target.Id, ResourceDefName = intent.ExpectedDef, Cell = intent.Cell, Withdraw = intent.Withdraw } : null;
 
         // The designation a source takes: hunt an animal, mine a rock,

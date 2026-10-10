@@ -11,10 +11,8 @@ import (
 // Every action JSON the wall cases send must parse as an operations Action
 // with unknown fields refused, as native's ProtoJSON parser does.
 func TestCaseActionsParseAsProtoJSON(t *testing.T) {
-	ground := []any{map[string]any{"origin": map[string]any{"x": 1, "z": 2}, "width": 5, "height": 5}}
 	for name, action := range map[string]map[string]any{
 		"deconstruct":  deconstructIntent("k", "Thing_1", nil),
-		"cleared":      deconstructIntent("k", "Thing_1", map[string]any{"clearedGround": ground}),
 		"swap":         deconstructIntent("k", "Thing_1", map[string]any{"replaceWithWall": true}),
 		"wall-upgrade": {"key": "k", "designate": map[string]any{"designation": "THING_DESIGNATION_DECONSTRUCT", "cell": map[string]any{"x": 1, "z": 2}, "guard": "DESIGNATION_GUARD_WALL_UPGRADE", "target": map[string]any{"id": "Thing_1"}}},
 		"replace-wall": {"key": "k", "building": map[string]any{"placement": map[string]any{"defName": "Wall", "stuff": "WoodLog", "x": 1, "z": 2, "rotation": "ROTATION_NORTH"}, "replaceWall": true}},

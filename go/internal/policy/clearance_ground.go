@@ -163,16 +163,6 @@ type GroundStep struct {
 	Targets []ClearanceTarget
 	Floors  []ClearanceFloor
 	Roof    []domain.Cell
-	Cleared []Rectangle
-}
-
-// GroundRects is cleared ground in the deconstruction's shape.
-func GroundRects(ground []Rectangle) []domain.GroundRect {
-	out := make([]domain.GroundRect, 0, len(ground))
-	for _, g := range ground {
-		out = append(out, domain.GroundRect{Origin: domain.Cell{X: g.X, Z: g.Z}, Width: g.Width, Height: g.Height})
-	}
-	return out
 }
 
 // standInBed is a shelter sleeping spot: the colony's only bed until the room
@@ -219,7 +209,7 @@ func retiredGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 		case len(packs) > 0:
 			return GroundStep{Ground: g, Phase: GroundPack, Targets: packs}, true
 		case len(walls) > 0:
-			return GroundStep{Ground: g, Phase: GroundWalls, Targets: walls, Roof: enclosedRoof(walls, ground, rooms), Cleared: ground}, true
+			return GroundStep{Ground: g, Phase: GroundWalls, Targets: walls, Roof: enclosedRoof(walls, ground, rooms)}, true
 		}
 		var mine []ClearanceFloor
 		for _, f := range cells {

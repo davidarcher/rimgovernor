@@ -7,9 +7,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A deconstruction persists its cleared ground and door-to-wall
-// swap; one without keeps none.
-func TestDeconstructionClearedGroundRoundTrips(t *testing.T) {
+// A deconstruction persists its door-to-wall swap; one without keeps none.
+func TestDeconstructionSwapRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, path, g := goalFixture(t)
@@ -17,24 +16,16 @@ func TestDeconstructionClearedGroundRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cleared, err := base.WithClearedGround([]domain.GroundRect{{Origin: domain.Cell{X: 8, Z: 9}, Width: 6, Height: 5}, {Origin: domain.Cell{X: 1, Z: 2}, Width: 1, Height: 1}})
-	if err != nil {
-		t.Fatal(err)
-	}
 	a0, err := domain.NewDeconstructionAction("plain", base)
 	if err != nil {
 		t.Fatal(err)
 	}
-	a1, err := domain.NewDeconstructionAction("ground", cleared)
+	swap := base.WithWallReplacement()
+	a1, err := domain.NewDeconstructionAction("swap", swap)
 	if err != nil {
 		t.Fatal(err)
 	}
-	swap := cleared.WithWallReplacement()
-	a2, err := domain.NewDeconstructionAction("swap", swap)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p, err := domain.NewPlan("deconstruct-plan", 1, []domain.Action{a0, a1, a2})
+	p, err := domain.NewPlan("deconstruct-plan", 1, []domain.Action{a0, a1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,13 +39,12 @@ func TestDeconstructionClearedGroundRoundTrips(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := loaded.Spec.Actions()
-	if len(got) != 3 {
+	if len(got) != 2 {
 		t.Fatal(got)
 	}
 	v0, _ := got[0].Deconstruction()
 	v1, _ := got[1].Deconstruction()
-	v2, _ := got[2].Deconstruction()
-	if v0 != base || v1 != cleared || len(v1.ClearedGround()) != 2 || v1.ReplacesWithWall() || v2 != swap || !v2.ReplacesWithWall() {
+	if v0 != base || v0.ReplacesWithWall() || v1 != swap || !v1.ReplacesWithWall() {
 		t.Fatal(v0, v1)
 	}
 }

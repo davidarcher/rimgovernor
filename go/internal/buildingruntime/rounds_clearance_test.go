@@ -276,10 +276,9 @@ func TestClearancePendingWritesKeepTheSelectedPhase(t *testing.T) {
 	step := policy.GroundStep{Phase: policy.GroundFurniture,
 		Targets: []policy.ClearanceTarget{{EntityID: "pending", Designated: true}, {EntityID: "new"}},
 		Floors:  []policy.ClearanceFloor{{Cell: domain.Cell{X: 1}, Designated: true}, {Cell: domain.Cell{X: 2}}},
-		Cleared: []policy.Rectangle{{Width: 5, Height: 5}},
 	}
 	got := pendingClearanceStep(step)
-	if got.Phase != step.Phase || !slices.Equal(got.Cleared, step.Cleared) || len(got.Targets) != 1 || got.Targets[0].EntityID != "new" || len(got.Floors) != 1 || got.Floors[0].Cell.X != 2 {
+	if got.Phase != step.Phase || len(got.Targets) != 1 || got.Targets[0].EntityID != "new" || len(got.Floors) != 1 || got.Floors[0].Cell.X != 2 {
 		t.Fatal(got)
 	}
 	if len(step.Targets) != 2 || len(step.Floors) != 2 {
@@ -344,7 +343,7 @@ func TestRoundsClearanceRefusesPendingChunksWithoutAStore(t *testing.T) {
 func TestGroundStepMethodOrdersRoofBeforeWalls(t *testing.T) {
 	ground := []policy.Rectangle{{X: 9, Z: 9, Width: 5, Height: 5}}
 	wall := policy.ClearanceTarget{EntityID: "Wall1", DefName: "Wall", Minimum: domain.Cell{X: 11, Z: 11}, Maximum: domain.Cell{X: 11, Z: 11}, Player: true, EnclosesRoom: true}
-	prefix, actions, err := groundStepMethod("plan", policy.GroundStep{Ground: ground[0], Phase: policy.GroundWalls, Targets: []policy.ClearanceTarget{wall}, Roof: []domain.Cell{{X: 12, Z: 12}}, Cleared: ground})
+	prefix, actions, err := groundStepMethod("plan", policy.GroundStep{Ground: ground[0], Phase: policy.GroundWalls, Targets: []policy.ClearanceTarget{wall}, Roof: []domain.Cell{{X: 12, Z: 12}}})
 	if err != nil || prefix != "ground-walls-9-9-" || len(actions) != 2 {
 		t.Fatal(prefix, actions, err)
 	}
@@ -352,8 +351,8 @@ func TestGroundStepMethodOrdersRoofBeforeWalls(t *testing.T) {
 		t.Fatalf("remove_roof first: %v", actions[0].Kind())
 	}
 	cut, ok := actions[1].Deconstruction()
-	if !ok || cut.Target() != "Wall1" || len(cut.ClearedGround()) != 1 || cut.ClearedGround()[0] != (domain.GroundRect{Origin: domain.Cell{X: 9, Z: 9}, Width: 5, Height: 5}) {
-		t.Fatalf("wall with cleared ground: %+v", cut)
+	if !ok || cut.Target() != "Wall1" {
+		t.Fatalf("wall deconstruction: %+v", cut)
 	}
 
 	bed := policy.ClearanceTarget{EntityID: "Bed1", DefName: "Bed", Minimum: domain.Cell{X: 10, Z: 10}, Player: true}
@@ -361,7 +360,7 @@ func TestGroundStepMethodOrdersRoofBeforeWalls(t *testing.T) {
 	if err != nil || prefix != "deconstruct-Bed1-" || len(actions) != 1 {
 		t.Fatal(prefix, actions, err)
 	}
-	if cut, ok := actions[0].Deconstruction(); !ok || cut.ClearedGround() != nil {
+	if cut, ok := actions[0].Deconstruction(); !ok {
 		t.Fatalf("furniture is a plain deconstruction: %+v", cut)
 	}
 
@@ -379,8 +378,8 @@ func TestGroundStepMethodOrdersRoofBeforeWalls(t *testing.T) {
 	if err != nil || prefix != "swap-door-Door1-" || len(actions) != 1 {
 		t.Fatal(prefix, actions, err)
 	}
-	if cut, ok := actions[0].Deconstruction(); !ok || !cut.ReplacesWithWall() || cut.ClearedGround() != nil {
-		t.Fatalf("ring door is a wall swap without cleared ground: %+v", cut)
+	if cut, ok := actions[0].Deconstruction(); !ok || !cut.ReplacesWithWall() {
+		t.Fatalf("ring door is a wall swap: %+v", cut)
 	}
 
 	prefix, actions, err = groundStepMethod("plan", policy.GroundStep{Ground: ground[0], Phase: policy.GroundFloors, Floors: []policy.ClearanceFloor{{Cell: domain.Cell{X: 10, Z: 10}, DefName: "WoodPlankFloor"}}})

@@ -57,7 +57,7 @@ func recoveryStepMethod(id domain.PlanID, step policy.GroundStep) (string, []dom
 	if len(step.Targets) == 0 {
 		return groundStepMethod(id, step)
 	}
-	actions, err := groundActions(id, step, nil)
+	actions, err := groundActions(id, step)
 	return batchPrefix("deconstruct", step.Targets[0].EntityID, len(step.Targets)), actions, err
 }
 

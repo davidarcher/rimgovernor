@@ -12,14 +12,12 @@ using Operations = RimGovernor.Protocol.Operations;
 namespace HomeBridge.BridgeTools
 {
     // What a guard judges: the designation's map cell, its thing (the
-    // building, or the rock at a Mine cell) and the enclosure guard's
-    // cleared ground.
+    // building, or the rock at a Mine cell), plus the wall-upgrade site.
     internal sealed class GuardSubject
     {
         internal Map Map = null!;
         internal IntVec3 Cell;
         internal Thing? Target;
-        internal HashSet<IntVec3>? Ground;
         internal WallRemovalRecord? Wall;
     }
 
@@ -33,7 +31,7 @@ namespace HomeBridge.BridgeTools
     {
         internal static readonly GuardRegistry<GuardSubject> Registry = new GuardRegistry<GuardSubject>()
             .Register(GuardNames.Enclosure, s => s.Target is Building b ? Enclosure(b) :"The enclosure guard holds a building.",
-                s => s.Target is Building b ? RoofWait(b, s.Ground) : null)
+                s => s.Target is Building b ? RoofWait(b) : null)
             .Register(GuardNames.MineSafety, MineSafety, s => MineSafetyRule.Wait(CollapsePending(s.Map)))
             .Register(GuardNames.Acquisition, s => s.Target is Mineable rock ? ResourceAcquisitionTools.MiningBlocker(rock, s.Map) : null,
                 s => MineSafetyRule.Wait(ResourceAcquisitionTools.CollapsePending(s.Map)))
@@ -74,39 +72,15 @@ namespace HomeBridge.BridgeTools
         private static string? Enclosure(Building target) =>
             Safety(target) ?? (WallUpgradeSafety.Pending(target) != null ? "A pending wall upgrade owns the target." : null);
 
-        // The indoor rooms a player wall or door bounds, when every one lies
-        // inside the cleared ground; null when there is no ground, the target
-        // is not a player wall or door, or a room reaches outside (then only
-        // the support wait applies).
-        private static List<Room>? ClearedRooms(Building target, HashSet<IntVec3>? ground)
-        {
-            if (ground == null || target.Faction != Faction.OfPlayer || !(target.def == ThingDefOf.Wall || target.def.IsDoor)) return null;
-            // All eight neighbours: a corner holds the room's roof too.
-            var rooms = GenAdj.AdjacentCells.Select(d => target.Position + d)
-                .Where(c => c.InBounds(target.Map)).Select(c => c.GetRoom(target.Map)).OfType<Room>()
-                .Where(r => r.ProperRoom && !r.TouchesMapEdge && !r.IsDoorway).Distinct().ToList();
-            return rooms.All(r => r.Cells.All(ground.Contains)) ? rooms : null;
-        }
-        // A room's roof includes the roof vanilla builds over its walls.
-        private static IEnumerable<IntVec3> Footprint(Room room, Map map) => room.Cells
-            .SelectMany(c => GenAdj.AdjacentCellsAndInside.Select(d => c + d)).Where(c => c.InBounds(map)).Distinct();
-        private static bool Roofed(List<Room> rooms, Map map) => rooms.Any(r => Footprint(r, map).Any(c => c.Roofed(map)));
         // The roof-collapse guard, held at the work giver (Eligible) with a
         // completion-time backstop (BeforeRemoval): the designation stands
         // and pawns wait, losing no progress (the removal job resets its work
         // on every start), while taking the building down would collapse a
-        // roof. A cleared-ground wall or door waits for the roof over the
-        // rooms it bounds to come off first (clearance removes it); any
-        // other roof-holder waits until its support is proven.
-        internal static string? RoofWait(Building target, HashSet<IntVec3>? ground)
+        // roof. A roof-holder waits until its support is proven (clearance removes
+        // the roof first).
+        internal static string? RoofWait(Building target)
         {
             if (!target.Spawned) return null;
-            var rooms = ClearedRooms(target, ground);
-            if (rooms != null && Roofed(rooms, target.Map)) return "Waiting for the enclosed rooms' roof removal.";
-            return SupportWait(target);
-        }
-        private static string? SupportWait(Building target)
-        {
             if (!target.def.holdsRoof) return null;
             var shrineStructure = NativeShrineBreachSafety.StructuralCells(target);
             if (shrineStructure != null)
@@ -149,7 +123,7 @@ namespace HomeBridge.BridgeTools
             if (map == null) return null;
             var cell = CellOf(r);
             Thing? target = r.Designation == DesignationDefOf.Mine.defName ? ExcavationTools.RockAt(cell, map) : r.ThingId != null ? RefIndex.Thing(map, r.ThingId) : null;
-            return new GuardSubject { Map = map, Cell = cell, Target = target, Ground = r.Ground == null ? null : new HashSet<IntVec3>(r.Ground), Wall = r.Wall };
+            return new GuardSubject { Map = map, Cell = cell, Target = target, Wall = r.Wall };
         }
 
         // Hold is the in-progress re-check: true holds the job off the work.

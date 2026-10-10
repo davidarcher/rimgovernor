@@ -130,13 +130,11 @@ wall is admitted.
 
 - Roof collapse is a hold at the work giver, not an admission refusal: the
   `WorkGiver_Deconstruct.HasJobOnThing` postfix keeps pawns off a standing designation while
-  removal would drop a roof (unproven roof support, unknown support geometry, or, with
-  `cleared_ground`, a player wall or door whose every enclosed room (eight neighbours) lies
-  inside the ground and still has roof), reporting `DeconstructEffect.waiting_for_roof`. A
+  removal would drop a roof (unproven roof support or unknown support geometry), reporting `DeconstructEffect.waiting_for_roof`. A
   completion-time check in `FinishedRemoving` is the backstop. The removal job resets its
   work on every start, so a hold at the work giver loses no progress; the hold lifts when the
   support is proven. Clearance first issues `remove_roof` over the rooms.
-- `replace_with_wall` (no cleared ground) swaps a 1x1 player door for a Wall of the door's
+- `replace_with_wall` swaps a 1x1 player door for a Wall of the door's
   stuff when the door stands on a planned room's wall ring with no planned door: if
   `GenConstruct.CanPlaceBlueprintAt` accepts the wall over the door, native places it and the
   construct work giver removes the door; otherwise the door is designated, the nearest capable

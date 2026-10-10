@@ -32,7 +32,6 @@ namespace HomeBridge.BridgeTools
         public string? ThingId, WallStuff, ReplacementId, Blocker;
         public int MapId, X, Z, Finished = -1;
         public bool Cancelled;
-        public List<IntVec3>? Ground;
         // The wall_upgrade guard's site: the wall-upgrade geometry and
         // identities its re-check holds the demolition to.
         public WallRemovalRecord? Wall;
@@ -45,7 +44,6 @@ namespace HomeBridge.BridgeTools
             Scribe_Values.Look(ref ReplacementId, "replacementId"); Scribe_Values.Look(ref Blocker, "blocker");
             Scribe_Values.Look(ref MapId, "mapId"); Scribe_Values.Look(ref X, "x"); Scribe_Values.Look(ref Z, "z");
             Scribe_Values.Look(ref Finished, "finished", -1); Scribe_Values.Look(ref Cancelled, "cancelled");
-            Scribe_Collections.Look(ref Ground, "ground", LookMode.Value);
             Scribe_Deep.Look(ref Wall, "wallUpgrade");
         }
     }

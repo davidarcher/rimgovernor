@@ -73,8 +73,8 @@ func TestPlannedGroundStepOrder(t *testing.T) {
 	}
 	rooms.Rooms = nil
 	step, ok = PlannedGroundStep(plan, gap, []ClearanceTarget{wall}, floors, rooms, rg, wantsAll)
-	if !ok || step.Phase != GroundWalls || step.Targets[0].EntityID != "wall" || len(step.Cleared) != 1 {
-		t.Fatalf("wall on the cleared ground: %+v", step)
+	if !ok || step.Phase != GroundWalls || step.Targets[0].EntityID != "wall" {
+		t.Fatalf("wall on the ground: %+v", step)
 	}
 	step, ok = PlannedGroundStep(plan, gap, nil, floors, rooms, rg, wantsAll)
 	if !ok || step.Phase != GroundFloors || len(step.Floors) != 1 {

@@ -562,10 +562,6 @@ message DesignateIntent {
   rimgovernor.common.v1.Cell cell = 4;
   optional DesignationGuard guard = 5;
   optional string expected_def = 6;
-  // The enclosure guard's cleared ground: while a player wall or door's
-  // every enclosed room lies inside it and keeps any roof, the designation
-  // stands but pawns wait (DeconstructEffect.waiting_for_roof).
-  repeated Rectangle cleared_ground = 7;
   // DECONSTRUCT only: swap a 1x1 player door for a Wall of its own
   // stuff, ordering the nearest capable builder (player-forced work).
   optional bool replace_with_wall = 8;

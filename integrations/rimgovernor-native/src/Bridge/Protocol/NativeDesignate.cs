@@ -34,7 +34,6 @@ namespace HomeBridge.BridgeTools
             internal IntVec3 Cell;
             internal string ExpectedDef = "";
             internal string? Guard;
-            internal HashSet<IntVec3>? Ground;
             internal ThingDef? WallStuff;
             internal bool Present, Cleared;
         }
@@ -94,20 +93,6 @@ namespace HomeBridge.BridgeTools
             return "the native designator refuses the target" + (string.IsNullOrEmpty(report.Reason) ? "" : ": " + report.Reason);
         }
 
-        private static HashSet<IntVec3>? Ground(Operations.DesignateIntent intent, out string? refusal)
-        {
-            refusal = null;
-            if (intent.ClearedGround.Count == 0) return null;
-            var cells = new HashSet<IntVec3>();
-            foreach (var r in intent.ClearedGround)
-            {
-                if (r?.Origin == null || !r.Origin.HasX || !r.Origin.HasZ || r.Origin.X < 0 || r.Origin.Z < 0 || r.Width <= 0 || r.Height <= 0 || r.Width > 4096 || r.Height > 4096)
-                { refusal = "cleared ground rectangle is invalid"; return null; }
-                for (var x = r.Origin.X; x < r.Origin.X + r.Width; x++)
-                    for (var z = r.Origin.Z; z < r.Origin.Z + r.Height; z++) cells.Add(new IntVec3(x, 0, z));
-            }
-            return cells;
-        }
         private static ThingDef? WallStuff(Thing target) => target is Building && target.def.IsDoor && target.Faction == Faction.OfPlayer && target.def.size == IntVec2.One
             && target.Stuff != null && GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Contains(target.Stuff) ? target.Stuff : null;
         private static bool ValidCell(Common.Cell? c) => c != null && c.HasX && c.HasZ && c.X >= 0 && c.Z >= 0;
@@ -127,9 +112,6 @@ namespace HomeBridge.BridgeTools
             // A HAUL takes no guard, or the wastepack guard.
             if (intent.Designation == Operations.ThingDesignation.Haul && named == GuardNames.Wastepack) plan.Guard = named;
             if (named != plan.Guard) return plan.Guard == null ? "this designation takes no guard" : "this designation requires the " + plan.Guard + " guard";
-            plan.Ground = Ground(intent, out var groundRefusal);
-            if (groundRefusal != null) return groundRefusal;
-            if (plan.Ground != null && plan.Guard != GuardNames.Enclosure) return "cleared ground belongs to the enclosure guard";
             if (intent.Cell != null && !ValidCell(intent.Cell)) return "the cell is invalid";
             if (intent.Target != null)
             {
@@ -162,14 +144,13 @@ namespace HomeBridge.BridgeTools
             if (intent.ReplaceWithWall)
             {
                 if (intent.Designation != Operations.ThingDesignation.Deconstruct) return "only Deconstruct swaps a door for a wall";
-                if (plan.Ground != null) return "a door-to-wall swap carries no cleared ground";
                 plan.WallStuff = WallStuff(plan.Target!);
                 if (plan.WallStuff == null) return "only a 1x1 player door of a wall stuff swaps for a wall";
             }
             if (plan.Target != null && plan.Target.IsForbidden(Faction.OfPlayer)) return "the target is forbidden";
             if (plan.Guard != null)
             {
-                var blocker = NativeDesignationGuards.Registry.Admit(plan.Guard, new GuardSubject { Map = map, Cell = plan.Cell, Target = plan.Target, Ground = plan.Ground });
+                var blocker = NativeDesignationGuards.Registry.Admit(plan.Guard, new GuardSubject { Map = map, Cell = plan.Cell, Target = plan.Target });
                 if (blocker != null) return blocker;
             }
             plan.Present = Standing(plan);
@@ -222,7 +203,7 @@ namespace HomeBridge.BridgeTools
                 record = new GuardedDesignation { Id = "designation-" + Guid.NewGuid().ToString("N"), Guard = plan.Guard, Designation = plan.Def.defName,
                     ExpectedDef = plan.ExpectedDef, MapId = plan.Map.uniqueID, X = plan.Cell.x, Z = plan.Cell.z,
                     ThingId = plan.Designation == Operations.ThingDesignation.Mine ? null : plan.Target?.GetUniqueLoadID(),
-                    WallStuff = plan.WallStuff?.defName, Ground = plan.Ground?.ToList() };
+                    WallStuff = plan.WallStuff?.defName };
             if (plan.WallStuff != null)
             {
                 // A swap whose wall blueprint already stands applies again; a
@@ -271,7 +252,7 @@ namespace HomeBridge.BridgeTools
                 var target = (Building)p.Target!;
                 var effect = new Receipts.DeconstructEffect { TargetId = target.GetUniqueLoadID(), DesignationId = record?.Id ?? "",
                     DemolitionObserved = record != null && record.Finished >= 0,
-                    WaitingForRoof = record != null && record.Finished < 0 && NativeDesignationGuards.RoofWait(target, p.Ground) != null };
+                    WaitingForRoof = record != null && record.Finished < 0 && NativeDesignationGuards.RoofWait(target) != null };
                 if (record?.ReplacementId != null) effect.ReplacementId = record.ReplacementId;
                 return new Receipts.EffectEvidence { Deconstruct = effect };
             }
