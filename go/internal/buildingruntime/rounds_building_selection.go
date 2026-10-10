@@ -34,7 +34,7 @@ func NewRoundsButcherPlanner(reviewer *Rounder, native RoundsBuildingSource) (*R
 	if _, ok := native.(observation.RoundsSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoundsButcherPlanner: !ok", ErrControl)
 	}
-	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.MaintainButcherSpot, definition: "TableButcher", environment: policy.PlacementAnywhere}, nil
+	return &RoundsBuildingPlanner{reviewer: reviewer, native: native, concern: policy.EnsureFoodSupply, definition: "TableButcher", environment: policy.PlacementAnywhere}, nil
 }
 func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (int64, domain.MethodID, Verdict) {
 	count, known := facts.Facts.Colonists.Value()
@@ -42,18 +42,23 @@ func (r *RoundsBuildingPlanner) selection(facts observation.ColonyProjection) (i
 		return 0, "", fieldUnavailable("colonists")
 	}
 	switch r.concern {
-	case policy.MaintainButcherSpot:
+	case policy.EnsureFoodSupply:
 		if r.definition != "TableButcher" {
 			return 0, "", fieldUnavailable("butcher_table_definition")
 		}
-		// The butcher bill is the hunt row's precondition, so the real
-		// table is owed whenever the goal is: there is no stand-in,
-		// the table waits for wood and a builder and goes into the planned
-		// butchery. A standing table, shared with the kitchen or not, is the
-		// facility.
+		// The butcher facility stands in the planned butchery, whatever the
+		// food runway: the free, instant spot first, since the butcher bill is
+		// the hunt row's precondition, then the real table once the wood and
+		// a builder are there, after which the spot is deconstructed.
 		benches, bk := facts.ButcheringBenches.Value()
 		if !bk {
 			return 0, "", fieldUnavailable("butchering_benches")
+		}
+		if !butcherBenchApart(benches, facts.Rooms) {
+			return 1, "butcher-spot", Verdict{}
+		}
+		if _, retire := standingButcherSpot(facts); retire {
+			return 1, "butcher-spot-retire", Verdict{}
 		}
 		if butcherTableWanted(facts, benches) {
 			return 1, "butcher-table", Verdict{}
@@ -265,4 +270,56 @@ func butcherTableWanted(facts observation.ColonyProjection, benches []observatio
 	}
 	wood, known := facts.Facts.Wood.Value()
 	return known && wood >= policy.ButcherTableWood && comfortBuilderAvailable(facts, "TableButcher")
+}
+
+// butcherBenchApart is true when a butcher bench stands outside the kitchen:
+// the spot or the table the planned butchery holds.
+func butcherBenchApart(benches []observation.CookingBench, rooms domain.Fact[policy.RoomObservation]) bool {
+	return len(benches) > 0 && !butchersAllColocated(benches, rooms)
+}
+
+// butcherRoomWanted is true while the butcher facility is owed its planned
+// butchery: no bench stands apart yet, or the table is still to be built.
+func butcherRoomWanted(facts observation.ColonyProjection, benches []observation.CookingBench) bool {
+	return !butcherBenchApart(benches, facts.Rooms) || butcherTableWanted(facts, benches)
+}
+
+// standingButcherSpot is a standing butcher spot, found in the building
+// census, once a butcher table stands apart as well: the spot is
+// deconstructed then.
+func standingButcherSpot(facts observation.ColonyProjection) (policy.CurrentBuilding, bool) {
+	benches, bk := facts.ButcheringBenches.Value()
+	census, ck := facts.Facts.CurrentConstruction.Value()
+	if !bk || !ck {
+		return policy.CurrentBuilding{}, false
+	}
+	table := false
+	for _, bench := range benches {
+		table = table || bench.Definition == policy.ButcherTableDefinition
+	}
+	if !table {
+		return policy.CurrentBuilding{}, false
+	}
+	for _, bench := range benches {
+		if bench.Definition != policy.ButcherSpotDefinition {
+			continue
+		}
+		for _, b := range census.Buildings {
+			if b.ID == bench.ID && len(b.Cells) > 0 {
+				return b, true
+			}
+		}
+	}
+	return policy.CurrentBuilding{}, false
+}
+
+// butcherFacility reports the planner of EnsureFoodSupply's butcher facility,
+// the only building planner that goal has.
+func (r *RoundsBuildingPlanner) butcherFacility() bool {
+	return r.concern == policy.EnsureFoodSupply
+}
+
+// butcherBenchDefinition is a butcher bench the facility places.
+func butcherBenchDefinition(definition string) bool {
+	return definition == policy.ButcherTableDefinition || definition == policy.ButcherSpotDefinition
 }

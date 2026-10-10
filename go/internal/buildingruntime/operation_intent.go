@@ -22,7 +22,6 @@ var concernLabels = map[policy.ConcernID]string{
 	policy.MaintainHousing:          "Housing",
 	policy.EnsureTemperatureSafety:  "Temperature",
 	policy.EnsureCooking:            "Cooking",
-	policy.MaintainButcherSpot:      "Butcher spot",
 	policy.EnsureBasicPower:         "Power",
 	policy.EnsureBasicDefense:       "Defense",
 	policy.EnsureDefensiveLayout:    "Defense layout",

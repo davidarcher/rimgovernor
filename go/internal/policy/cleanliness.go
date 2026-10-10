@@ -61,6 +61,9 @@ func RoomLatchKey(room Room) string {
 	return fmt.Sprintf("%d,%d", low.X, low.Z)
 }
 
+// ButcherTableDefinition is the real butcher bench, built from stuff.
+const ButcherTableDefinition = "TableButcher"
+
 // cookingDefinitions and butcherDefinitions name the vanilla food-processing
 // benches the separation rule reasons about. Butchery generates blood filth
 // (and corpse rot) wherever it runs, so a room holding one is inherently
@@ -68,7 +71,7 @@ func RoomLatchKey(room Room) string {
 // game reads for food poisoning.
 var (
 	cookingDefinitions = map[Resource]bool{"Campfire": true, "FueledStove": true, "ElectricStove": true}
-	butcherDefinitions = map[Resource]bool{"ButcherSpot": true, "TableButcher": true}
+	butcherDefinitions = map[Resource]bool{ButcherSpotDefinition: true, ButcherTableDefinition: true}
 )
 
 func roomHolds(room Room, set map[Resource]bool) bool {

@@ -47,7 +47,7 @@ func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, 
 		}
 		for _, progress := range p.Progress {
 			action := progress.Action()
-			if acquisitionIndependentWork(action) || pest && action.Kind() == domain.AcquisitionAction {
+			if acquisitionIndependentWork(m.Method, action) || pest && action.Kind() == domain.AcquisitionAction {
 				continue
 			}
 			if hunts && action.Kind() == domain.AcquisitionAction {
@@ -78,8 +78,8 @@ func pestConcern(goal WorkOwner) bool {
 // acquisitionIndependentWork reports the action kinds whose open progress does
 // not block a fresh acquisition method for the same goal: a bill, a growing
 // zone, or the butcher spot being built for the hunt's corpse.
-func acquisitionIndependentWork(action domain.Action) bool {
-	if action.Kind() == domain.ProductionBillAction || action.Kind() == domain.CommsTradeRequestAction || butcherSpotBuilding(action) {
+func acquisitionIndependentWork(method domain.MethodID, action domain.Action) bool {
+	if action.Kind() == domain.ProductionBillAction || action.Kind() == domain.CommsTradeRequestAction || butcherFacilityWork(method, action) {
 		return true
 	}
 	zone, ok := action.ZoneCreate()

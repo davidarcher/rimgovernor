@@ -383,7 +383,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 			exempt = growerCropOpenWorkExempt(plan) || rulesAttachOnly(plan) || mealReplacementOpenWorkExempt(state, plan)
 		}
 		if !exempt {
-			exempt, err = foodFacilityOpenWorkExempt(ctx, tx, state, plan)
+			exempt, err = foodFacilityOpenWorkExempt(ctx, tx, state, method, plan)
 			if err != nil {
 				return err
 			}

@@ -18,27 +18,41 @@ func foodConcern(goal WorkOwner) bool {
 	return roundsStandardOwns(domain.ConcernID(goal.OwnerID()), policy.EnsureFoodSupply)
 }
 
-// butcherSpotBuilding reports a building action placing the butcher spot.
-func butcherSpotBuilding(action domain.Action) bool {
-	building, ok := action.Building()
-	return ok && building.Definition() == butcherSpotDefinition
+// butcherBenchAction reports an action placing or removing a butcher bench:
+// the spot or the table in the planned butchery, or the spot's deconstruction
+// once the table stands.
+func butcherBenchAction(action domain.Action) bool {
+	if building, ok := action.Building(); ok {
+		return building.Definition() == butcherSpotDefinition || building.Definition() == policy.ButcherTableDefinition
+	}
+	cut, ok := action.Deconstruction()
+	return ok && cut.Definition() == butcherSpotDefinition
 }
 
-// foodFacilityOpenWorkExempt lets EnsureFoodSupply's butcher spot and
-// its production bills be committed while the goal's fields, foraging and
-// hunts stay open: those methods run for days and the spot and bill are
-// the hunt row's precondition, so waiting on them would never end. A plan
-// made only of butcher-spot placements is blocked only by an open
-// butcher-spot placement; a plan made only of production bills only by an
-// open bill. Any other goal keeps the ordinary rule.
-func foodFacilityOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
+// butcherFacilityWork reports an action of the butcher facility under method:
+// a bench action, or any action of the planned butchery's ring wave.
+func butcherFacilityWork(method domain.MethodID, action domain.Action) bool {
+	return IsRoomShellMethod(method) || butcherBenchAction(action)
+}
+
+// foodFacilityOpenWorkExempt lets EnsureFoodSupply's butcher facility (the
+// spot, the table, the planned butchery's ring and the spot's removal) and its
+// production bills be committed while the goal's fields, foraging and hunts
+// stay open: those methods run for days and the spot and bill are the hunt
+// row's precondition, so waiting on them would never end. A plan made only of
+// facility actions is blocked only by an open facility action of the same kind
+// of method (a ring wave and the bench run side by side); a plan made only of
+// production bills only by an open bill. Any other goal keeps the ordinary
+// rule.
+func foodFacilityOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, method domain.MethodID, plan domain.PlanSpec) (bool, error) {
 	if len(plan.Actions()) == 0 || !foodConcern(goal) {
 		return false, nil
 	}
 	spot, bill := false, false
+	ring := IsRoomShellMethod(method)
 	for _, action := range plan.Actions() {
 		switch {
-		case butcherSpotBuilding(action):
+		case butcherFacilityWork(method, action):
 			spot = true
 		case action.Kind() == domain.ProductionBillAction:
 			bill = true
@@ -55,7 +69,7 @@ func foodFacilityOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner,
 			return false, err
 		}
 		for _, progress := range p.Progress {
-			own := spot && butcherSpotBuilding(progress.Action()) || bill && progress.Action().Kind() == domain.ProductionBillAction
+			own := spot && butcherFacilityWork(m.Method, progress.Action()) && IsRoomShellMethod(m.Method) == ring || bill && progress.Action().Kind() == domain.ProductionBillAction
 			if existing, ok := progress.Action().ProductionBill(); ok && existing.Mode() == domain.ButcherForever {
 				for _, action := range plan.Actions() {
 					if proposed, ok := action.ProductionBill(); ok && proposed.Mode() == domain.HumanButcherForever {

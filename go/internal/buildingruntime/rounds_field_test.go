@@ -133,7 +133,7 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 func TestFieldBlockingWorkIgnoresAcquisition(t *testing.T) {
 	t.Parallel()
 	hunt := dispatchedHunt(t, "hunt-deer", "deer", 100)
-	if fieldBlockingWork([]domain.Progress{hunt}) {
+	if fieldBlockingWork("", []domain.Progress{hunt}) {
 		t.Fatal("open hunt blocked fields")
 	}
 	zone, err := domain.NewZoneCreate(domain.GrowingZone, "Plant_Rice", []domain.Cell{{X: 1, Z: 1}, {X: 2, Z: 1}})
@@ -152,7 +152,7 @@ func TestFieldBlockingWorkIgnoresAcquisition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !fieldBlockingWork([]domain.Progress{hunt, p}) {
+	if !fieldBlockingWork("", []domain.Progress{hunt, p}) {
 		t.Fatal("pending zone did not block fields")
 	}
 	projection := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{{Name: "Plant_Rice", HarvestNutrition: domain.Known(1.0), GrowDays: domain.Known(2.0)}}}
@@ -171,7 +171,7 @@ func TestFieldBlockingWorkIgnoresAcquisition(t *testing.T) {
 	if p, err = p.Cancel(); err != nil {
 		t.Fatal(err)
 	}
-	if fieldBlockingWork([]domain.Progress{p}) {
+	if fieldBlockingWork("", []domain.Progress{p}) {
 		t.Fatal("cancelled zone blocked fields")
 	}
 }

@@ -9,7 +9,7 @@ import (
 // A hunter's weapon is the one prerequisite of a hunt that the plan prices as
 // its own produce step: craft one bow, at an estimated work and lead.
 // The butcher bill and the butcher spot are owed on the food runway alone
-// (their executors, ButcherFood and MaintainButcherSpot, never wait on a hunt
+// (their executors, ButcherFood and the butcher facility, never wait on a hunt
 // row), so they are not repriced here.
 const (
 	// HunterWeaponCraftTicks is the work of crafting one hunting weapon.

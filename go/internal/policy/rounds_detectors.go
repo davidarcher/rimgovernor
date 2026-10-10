@@ -141,10 +141,18 @@ func inspectFoodSupply(c *roundsRun) error {
 	f, l := c.f, c.l
 	foodMet, productionMet := footholdFood(f, c.p), footholdProduction(f)
 	fieldsCovered := measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })
-	if HumanFoodPending(f.FoodPlan) || l.Food || !positive(foodMet) || !positive(productionMet) || !positive(fieldsCovered) {
+	// The butcher facility (spot, then table, in the planned butchery) is
+	// owed whatever the food runway; an unread bench census raises nothing
+	// and recovers nothing.
+	butcherMet := butcherFacilityMet(f)
+	butcherOwed := false
+	if v, known := butcherMet.Value(); known && !v {
+		butcherOwed = true
+	}
+	if HumanFoodPending(f.FoodPlan) || l.Food || !positive(foodMet) || !positive(productionMet) || !positive(fieldsCovered) || butcherOwed {
 		c.raise(EnsureFoodSupply, 2)
 	}
-	c.assess(EnsureFoodSupply, 2, allFacts(domain.Known(!HumanFoodPending(f.FoodPlan)), foodMet, productionMet, fieldsCovered, latchRecovered(l.Food, f.FoodDays)))
+	c.assess(EnsureFoodSupply, 2, allFacts(domain.Known(!HumanFoodPending(f.FoodPlan)), foodMet, productionMet, fieldsCovered, butcherMet, latchRecovered(l.Food, f.FoodDays)))
 	return nil
 }
 
@@ -182,14 +190,6 @@ func inspectCooking(c *roundsRun) error {
 		c.raise(EnsureCooking, 2)
 	}
 	c.assess(EnsureCooking, 2, cookingMet(c.f))
-	return nil
-}
-
-func inspectButcherSpot(c *roundsRun) error {
-	if !positive(butcherSpotMet(c.f)) {
-		c.raise(MaintainButcherSpot, 2)
-	}
-	c.assess(MaintainButcherSpot, 2, butcherSpotMet(c.f))
 	return nil
 }
 

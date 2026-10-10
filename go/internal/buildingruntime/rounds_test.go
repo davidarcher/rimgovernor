@@ -501,6 +501,11 @@ func colonyCoreNative(t *testing.T) *roundsNative {
 	n.cells = fixtureCells(t)
 	n.def("Wall")
 	n.onlyStuff("Wall", "WoodLog")
+	// The fixture colony has no butcher census: unread, so the food goal owes
+	// no butcher facility (a read empty census would).
+	if v := n.reply.GetObserved(); v != nil {
+		v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("butchering"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}})
+	}
 	return n
 }
 

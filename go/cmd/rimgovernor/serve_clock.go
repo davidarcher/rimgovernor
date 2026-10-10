@@ -858,7 +858,7 @@ func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.Ro
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainResource, policy.ClearPests)
 	}
 	if sc.roundsBillPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainButcherSpot, policy.MaintainBabyFeeding)
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainBabyFeeding)
 	}
 	if sc.roundsBillPlans || sc.roundsGearPlans || sc.roundsArmoryPlans || sc.roundsArtPlans || sc.roundsPopulationJoinerPlans || sc.roundsFoodStorageUpkeepPlans || sc.roundsRefrigerationPlans || sc.roundsMedicalPlans || sc.roundsMechPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainWorkLedger)

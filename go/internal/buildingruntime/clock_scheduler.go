@@ -451,7 +451,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.ExportBills != nil && (config.Rounds == nil || config.ExportBills.reviewer != config.Rounds) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.ExportBills != nil && (config.Rounds == nil || config.ExportBills.reviewer != config.Rounds)", ErrControl)
 	}
-	if config.Butcher != nil && (config.Rounds == nil || config.Butcher.reviewer != config.Rounds || config.Butcher.concern != policy.MaintainButcherSpot) {
+	if config.Butcher != nil && (config.Rounds == nil || config.Butcher.reviewer != config.Rounds || config.Butcher.concern != policy.EnsureFoodSupply) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Butcher != nil && (config.Rounds == nil || config.Butcher.reviewer != config.Rounds || config.Butc", ErrControl)
 	}
 	if config.Fields != nil && (config.Rounds == nil || config.Fields.reviewer != config.Rounds) {

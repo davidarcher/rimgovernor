@@ -28,7 +28,7 @@ func coreRoomsWanted(projection observation.ColonyProjection) []policy.PlannedRo
 	want(known && !built || advanced, policy.PlannedLab)
 	want(recRoomWanted(projection), policy.PlannedRec)
 	benches, bk := projection.ButcheringBenches.Value()
-	want(bk && butcherTableWanted(projection, benches), policy.PlannedButchery)
+	want(bk && butcherRoomWanted(projection, benches), policy.PlannedButchery)
 	prisoners, pk := projection.Facts.Prisoners.Value()
 	want(pk && heldPrisoners(prisoners) > 0, policy.PlannedPrison)
 	// A generator stands: batteries bank its surplus.

@@ -280,11 +280,13 @@ Home at a time, nearest the colony center first.
   the doctor a `Clean` job around the patient's bed through the driver's finalizer-job slot
   (never when the doctor tends herself or the tend was player-forced). Acceptance: `clean/care`.
   It overlaps the Go `MaintainCleanFacilities` planners only in effect; neither consults the other.
-- Butcher placements never share a room with a cooking bench; a colony whose every butcher
-  bench shares a cooking room is admitted one more `ButcherSpot` outside. The spot and its
-  `ButcherCorpseFlesh` bill are foothold work owed whenever the food runway is under
-  `FoodTargetDays`, armed or not; the butcher bill waits until `butcher-spot-separated` has
-  been tried, then prefers the separated bench.
+- Butcher placements never share a room with a cooking bench. EnsureFoodSupply owns the
+  butcher facility and owes it whatever the food runway: the planned butchery (beside the
+  freezer) takes a `ButcherSpot` first, so hunts have a bench at once, then the real
+  `TableButcher` once the wood and a builder allow, and the spot is deconstructed when the
+  table stands. Neither waits for the room's walls: the plan must hold the butchery and its
+  interior is cleared of obstructions like any planned interior; without a planned butchery
+  the planner waits (`butchery_room`) and never places a bench elsewhere.
 - Methods preserve forbidden items, player work overrides, schedules, drafts,
   player-forced jobs, storage filters and home areas. Deterioration and growing fires do
   not reset the progress watchdog.

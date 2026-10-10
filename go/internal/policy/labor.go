@@ -32,7 +32,7 @@ type LaborProfile []WorkType
 // (emergencies, monitoring-only needs, configuration pushes) have no profile.
 func ConcernLabor(id ConcernID) LaborProfile {
 	switch id {
-	case ClearHomeObstructions, ClearAncientShrine, EnsureBasicDefense, EnsureComfort, MaintainHousing, MaintainEssentialRepairs, MaintainStoneShell, MaintainFoodStorage, MaintainButcherSpot, MaintainHomeCoverage, MaintainAnimalContainment, MaintainLighting, MaintainFlooring, MaintainRoutes, EnsureMechCharger, MaintainGeneBank:
+	case ClearHomeObstructions, ClearAncientShrine, EnsureBasicDefense, EnsureComfort, MaintainHousing, MaintainEssentialRepairs, MaintainStoneShell, MaintainFoodStorage, MaintainHomeCoverage, MaintainAnimalContainment, MaintainLighting, MaintainFlooring, MaintainRoutes, EnsureMechCharger, MaintainGeneBank:
 		return LaborProfile{WorkConstruction}
 	case RemoveBlight:
 		return LaborProfile{WorkPlantCutting}

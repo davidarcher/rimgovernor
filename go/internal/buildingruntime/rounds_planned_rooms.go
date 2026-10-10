@@ -24,8 +24,8 @@ func (r *RoundsBuildingPlanner) plannedRoomModule() (policy.PlannedRole, bool) {
 	switch {
 	case r.concern == policy.EnsureCooking && len(r.paste) == 0:
 		return policy.PlannedKitchen, true
-	// The butcher table goes in the planned butchery, ring and table together.
-	case r.concern == policy.MaintainButcherSpot && r.definition == "TableButcher":
+	// The butcher spot and table go in the planned butchery, ring and bench together.
+	case r.butcherFacility() && butcherBenchDefinition(r.definition):
 		return policy.PlannedButchery, true
 	case r.concern == policy.MaintainRefrigeration && r.refrigeration != nil && r.refrigeration.Method == policy.RefrigerationBuild:
 		return policy.PlannedFreezer, true
@@ -269,3 +269,18 @@ func plannedInteriorRooms(facts observation.ColonyProjection, keep func(policy.P
 // arms itself with. It lives here, not in rounds_armory.go, so the armory's
 // scope does not widen through the shelter slot predicate.
 const craftingSpotDefinition = "CraftingSpot"
+
+// plannedRoomPlanCells is the interior of the first planned room of module,
+// whether or not a wall or a roof stands; nil when the plan holds none.
+func plannedRoomPlanCells(facts observation.ColonyProjection, module policy.PlannedRole) []domain.Cell {
+	plan, known := facts.LayoutPlan.Value()
+	if !known {
+		return nil
+	}
+	for _, r := range plan.AllRooms() {
+		if r.Role == module {
+			return plannedRoomInterior(r)
+		}
+	}
+	return nil
+}

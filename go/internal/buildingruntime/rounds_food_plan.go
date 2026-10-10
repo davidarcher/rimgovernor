@@ -315,7 +315,7 @@ func foodPlanFieldRoom(p observation.ColonyProjection, plans []store.PlanState) 
 				}
 				cells = len(edit.Cells())
 			} else {
-				if b, building := progress.Action().Building(); building && b.Definition() != "TableButcher" {
+				if b, building := progress.Action().Building(); building && !IsShellMethod(existing.Method) && !butcherBenchDefinition(b.Definition()) {
 					return false
 				}
 				continue

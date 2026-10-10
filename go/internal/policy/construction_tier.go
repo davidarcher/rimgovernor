@@ -86,7 +86,8 @@ func PlannerTier(concern ConcernID, phase Phase) domain.ConstructionTier {
 		return domain.TierSurvive
 	case EnsureCooking, EnsureResearch:
 		return domain.TierSurvive
-	case MaintainButcherSpot, MaintainMedicalReserves, MaintainRefrigeration, MaintainStockpiles, MaintainFoodStorage:
+	// EnsureFoodSupply builds only the butcher facility.
+	case EnsureFoodSupply, MaintainMedicalReserves, MaintainRefrigeration, MaintainStockpiles, MaintainFoodStorage:
 		return domain.TierSustain
 	case EnsureBasicDefense, EnsureDefensiveLayout:
 		return domain.TierSecure

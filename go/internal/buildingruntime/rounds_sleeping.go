@@ -150,10 +150,11 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		if err != nil {
 			return RoundsBuildingResult{}, err
 		}
-		if r.concern == policy.MaintainButcherSpot {
-			// Only a pending spot of this definition is the planner's own work.
+		if r.butcherFacility() {
+			// Fields, foraging and hunts share the goal and run for days: only a
+			// pending bench is the planner's own work (the ring is its own wave).
 			for _, progress := range plan.Progress {
-				if pendingFacility(progress, r.definition) || pendingFacility(progress, "TableButcher") {
+				if pendingFacility(progress, "TableButcher") || pendingFacility(progress, policy.ButcherSpotDefinition) {
 					return RoundsBuildingResult{Verdict: BuildingReasonExistingWork}, nil
 				}
 			}
@@ -219,6 +220,9 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if r.concern == policy.EnsureCooking {
 		definitions = []string{"Campfire", "NutrientPasteDispenser", "Hopper"}
 	}
+	if r.butcherFacility() {
+		definitions = []string{"TableButcher", policy.ButcherSpotDefinition}
+	}
 	var furniture policy.DiningFurniture
 	if r.phase == policy.ComfortRanked || r.phase == policy.ComfortBasic {
 		var joy []string
@@ -280,8 +284,8 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if r.shelter && r.phase == policy.HousingShelter {
 		observed = append(append([]string(nil), definitions...), "SleepingSpot", shelterBedDefinition, policy.SleepingBedrollDefinition)
 	}
-	if r.concern == policy.EnsureCooking || r.concern == policy.MaintainRefrigeration {
-		// The planned kitchen or freezer is shelled first.
+	if r.concern == policy.EnsureCooking || r.concern == policy.MaintainRefrigeration || r.butcherFacility() {
+		// The planned kitchen, freezer or butchery is shelled first.
 		observed = append(append([]string(nil), observed...), "Wall", "Door")
 	}
 	if r.shelter {
@@ -291,7 +295,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	var reading observation.ColonyReading
 	_, roundsSource := r.native.(observation.RoundsSource)
-	separation := (r.concern == policy.MaintainButcherSpot || r.concern == policy.EnsureCooking) && roundsSource
+	separation := (r.butcherFacility() || r.concern == policy.EnsureCooking) && roundsSource
 	if r.phase == policy.ComfortSpot || r.concern == policy.EnsureTemperatureSafety || r.facilityLadder() || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes || separation {
 		// Cooking and butcher placements read rooms too when the source can
 		// serve them, so kitchen/butcher separation protects each other's
@@ -486,7 +490,17 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 		return result, err
 	}
 	missing, method, reason := r.selection(facts)
-	if method == "butcher-table" {
+	switch method {
+	case "butcher-spot-retire":
+		if spot, owed := standingButcherSpot(facts); owed {
+			return r.retireBuilding(call, epoch, state, review, goal, reading, spot.ID, spot.Building.Definition(), spot.Cells[0], "butcher-spot-retire", "stand-in_butcher_spot")
+		}
+	case "butcher-spot":
+		// The free spot stands in the planned butchery until the table is built.
+		spot := *r
+		spot.definition, spot.stuff = policy.ButcherSpotDefinition, ""
+		r = &spot
+	case "butcher-table":
 		// The real table goes in the planned butchery once the wood is in stock.
 		table := *r
 		table.definition = "TableButcher"
@@ -545,6 +559,20 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 		}
 	}
+	if r.butcherFacility() && r.cells == nil {
+		// The bench never falls back to a free search: it stands in the
+		// planned butchery, built or not, and waits for the plan to hold one.
+		cells := plannedRoomCells(facts, policy.PlannedButchery)
+		if cells == nil {
+			cells = plannedRoomPlanCells(facts, policy.PlannedButchery)
+		}
+		if cells == nil {
+			return RoundsBuildingResult{Verdict: awaitingPlan("butchery_room", "")}, nil
+		}
+		bench := *r
+		bench.cells, bench.environment = cells, policy.PlacementAnywhere
+		r = &bench
+	}
 	if r.concern == policy.EnsureCooking && r.definition == "Campfire" && r.cells == nil && len(r.paste) == 0 && !r.takesShelterSlot(facts) {
 		// The cooking campfire goes in the planned kitchen once it stands.
 		if cells := plannedRoomCells(facts, policy.PlannedKitchen); cells != nil {
@@ -552,6 +580,9 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 			fire.cells = cells
 			r = &fire
 		}
+	}
+	if r.butcherFacility() {
+		definitions = []string{r.definition}
 	}
 	if r.concern == policy.EnsureCooking {
 		definitions = []string{r.definition}
@@ -629,7 +660,7 @@ func (r *RoundsBuildingPlanner) step(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoundsBuildingResult{}, err
 	}
-	if r.concern == policy.MaintainButcherSpot || r.concern == policy.EnsureCooking || r.facilityLadder() || r.phase == policy.ComfortBasic || r.phase == policy.ComfortSpot || r.phase == policy.HousingExpansion || r.concern == policy.EnsureBasicPower || r.concern == policy.EnsureTemperatureSafety || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes {
+	if r.butcherFacility() || r.concern == policy.EnsureCooking || r.facilityLadder() || r.phase == policy.ComfortBasic || r.phase == policy.ComfortSpot || r.phase == policy.HousingExpansion || r.concern == policy.EnsureBasicPower || r.concern == policy.EnsureTemperatureSafety || r.concern == policy.MaintainRefrigeration || r.concern == policy.MaintainLighting || r.concern == policy.MaintainFlooring || r.concern == policy.MaintainRoutes {
 		pending := func(progress domain.Progress) bool {
 			if r.concern == policy.EnsureTemperatureSafety {
 				if r.temperature.Method == policy.TemperatureHeat {
@@ -884,8 +915,8 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		// then finds its slot taken and falls through to the kitchen.
 		protected = append(append([]domain.Cell(nil), protected...), shelterFurnitureCells(facts)...)
 	}
-	if r.definition == "TableButcher" || r.concern == policy.EnsureCooking {
-		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "TableButcher")...)
+	if butcherBenchDefinition(r.definition) || r.concern == policy.EnsureCooking {
+		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, butcherBenchDefinition(r.definition))...)
 	}
 	// The cooking campfire stands in the planned kitchen; on a cold map
 	// it takes the shelter's template slot. It has no outdoor stand-in.
@@ -1024,7 +1055,7 @@ func (r *RoundsBuildingPlanner) previewSearch(call context.Context, snapshot dom
 		}
 		searchRequest.Center = anchor
 	}
-	if r.concern == policy.EnsureCooking && r.definition == "Campfire" || r.definition == "TableButcher" {
+	if r.concern == policy.EnsureCooking && r.definition == "Campfire" || butcherBenchDefinition(r.definition) {
 		// The cooking campfire and the butcher table stand by the base, not the landing
 		// centroid.
 		if anchor, ok := planCore(facts); ok {

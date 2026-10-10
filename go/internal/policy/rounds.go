@@ -19,7 +19,6 @@ const (
 	MaintainHousing         ConcernID = "MaintainHousing"
 	EnsureTemperatureSafety ConcernID = "EnsureTemperatureSafety"
 	EnsureCooking           ConcernID = "EnsureCooking"
-	MaintainButcherSpot     ConcernID = "MaintainButcherSpot"
 	EnsureBasicPower        ConcernID = "EnsureBasicPower"
 	EnsureBasicDefense      ConcernID = "EnsureBasicDefense"
 	MaintainMedicalReserves ConcernID = "MaintainMedicalReserves"
@@ -583,7 +582,7 @@ type RoundsFacts struct {
 	// it opened by itself; AnswerDialog is the goal that answers it.
 	ChoiceDialog domain.Fact[bool]
 	// ButcherBenches are the standing butcher benches and the room each stands
-	// in; MaintainButcherSpot is recovered once one stands outside the kitchen.
+	// in; EnsureFoodSupply's butcher facility is met once a table stands outside the kitchen.
 	ButcherBenches                                          domain.Fact[[]ButcherBench]
 	Cooking, WorkCoverage, PowerRequired, DisabledConsumers domain.Fact[bool]
 	PowerWeatherSafe                                        domain.Fact[bool]
@@ -1016,17 +1015,18 @@ type ButcherBench struct {
 	Room       domain.Fact[string]
 }
 
-// ButcherTableWood is the WoodLog stock at which a stand-in butcher spot is
-// owed its table: the table is stuff-built, so the goal stays open below it
-// only to wait, never to starve the colony of wood.
+// ButcherTableWood is the WoodLog stock at which the butcher table is owed:
+// the table is stuff-built, so the butcher spot stands in for it below the
+// stock and the goal never starves the colony of wood.
 const ButcherTableWood int64 = 120
 
-// butcherSpotMet is MaintainButcherSpot's recovery: a butcher bench stands
-// that does not share a room with a cooking bench. A butcher bench inside
-// the kitchen keeps the colony fed but not clean, so the goal stays open for
-// a separate table, wanted whatever the food runway because hunts and
-// hides are processed on it.
-func butcherSpotMet(f RoundsFacts) domain.Fact[bool] {
+// butcherFacilityMet is EnsureFoodSupply's butcher-facility recovery. A bench
+// must stand apart from the kitchen: a butcher bench inside it keeps the
+// colony fed but not clean. The butcher spot stands in the planned butchery
+// until the table is built; below ButcherTableWood the spot alone is enough,
+// and a table standing beside its spot owes the spot's removal. It is wanted
+// whatever the food runway, because hunts and hides are processed on it.
+func butcherFacilityMet(f RoundsFacts) domain.Fact[bool] {
 	benches, known := f.ButcherBenches.Value()
 	if !known {
 		return domain.Unknown[bool]()
@@ -1042,10 +1042,26 @@ func butcherSpotMet(f RoundsFacts) domain.Fact[bool] {
 	for _, room := range shared {
 		colocated[room.ID] = true
 	}
+	apart, table, spot := false, false, false
 	for _, bench := range benches {
 		if room, known := bench.Room.Value(); !known || !colocated[room] {
-			return domain.Known(true)
+			apart = true
+			table = table || bench.Definition != ButcherSpotDefinition
+			spot = spot || bench.Definition == ButcherSpotDefinition
 		}
 	}
-	return domain.Known(false)
+	if !apart {
+		return domain.Known(false)
+	}
+	if table {
+		return domain.Known(!spot)
+	}
+	// Only the spot stands apart: with the wood to build the table, the goal
+	// stays open for it.
+	wood, ok := f.Wood.Value()
+	return domain.Known(!ok || wood < ButcherTableWood)
 }
+
+// ButcherSpotDefinition is the free, instant butcher bench that stands in the
+// planned butchery until the table is built.
+const ButcherSpotDefinition = "ButcherSpot"

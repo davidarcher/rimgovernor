@@ -14,7 +14,6 @@ var concernLabels = map[string]string{
 	"MaintainHousing":           "Keep everyone housed",
 	"EnsureTemperatureSafety":   "Protect against heat and cold",
 	"EnsureCooking":             "Keep meals being cooked",
-	"MaintainButcherSpot":       "Keep a place to butcher",
 	"EnsureBasicPower":          "Keep the power running",
 	"EnsureBasicDefense":        "Keep a basic defense ready",
 	"MaintainMedicalReserves":   "Stock medicine",

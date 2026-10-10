@@ -68,7 +68,7 @@ func (r *RoundsFieldPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if err != nil {
 			return RoundsFieldResult{}, err
 		}
-		blocked = blocked || fieldBlockingWork(plan.Progress)
+		blocked = blocked || fieldBlockingWork(method.Method, plan.Progress)
 	}
 	plans, err := p.journal.LoadPlans(call)
 	if err != nil {
@@ -604,14 +604,18 @@ func fieldAffordable(spent map[policy.Resource]int64, v policy.Preview, stock po
 
 // fieldBlockingWork is open zone or farm-infrastructure work under the goal:
 // a lamp still under construction must light its soil before the next batch.
-func fieldBlockingWork(progress []domain.Progress) bool {
+func fieldBlockingWork(method domain.MethodID, progress []domain.Progress) bool {
+	if IsShellMethod(method) {
+		// A planned room's ring wave (the butchery's) shares the goal, not the field.
+		return false
+	}
 	for _, p := range progress {
 		_, zone := p.Action().ZoneCreate()
 		_, grow := p.Action().ZoneCellEdit()
 		zone = zone || grow
 		building, isBuilding := p.Action().Building()
 		// The butcher table shares the goal but not the field.
-		if isBuilding && building.Definition() == "TableButcher" {
+		if isBuilding && butcherBenchDefinition(building.Definition()) {
 			continue
 		}
 		if (zone || isBuilding) && pendingWork(p) {

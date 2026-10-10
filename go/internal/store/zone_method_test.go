@@ -292,7 +292,7 @@ func TestCommitFieldInfrastructureExemptFromAcquisitionOpenWork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wall-1", buildingOnlyPlan(t, "wall-plan-1", "Wall")); err == nil {
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "cooler-1", buildingOnlyPlan(t, "cooler-plan-1", "Cooler")); err == nil {
 		t.Fatal("open acquisition did not block an unrelated building")
 	}
 	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "lamp-1", buildingOnlyPlan(t, "lamp-plan-1", "SunLamp")); err != nil {
@@ -333,7 +333,7 @@ func TestCommitGrowerCropExemptFromOpenFieldWork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wall-1", buildingOnlyPlan(t, "wall-plan-1", "Wall")); err == nil {
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "cooler-1", buildingOnlyPlan(t, "cooler-plan-1", "Cooler")); err == nil {
 		t.Fatal("open basin batch did not block an unrelated building")
 	}
 	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "fields-recrop-basin-1", growerCropPlan(t, "recrop-plan-1")); err != nil {

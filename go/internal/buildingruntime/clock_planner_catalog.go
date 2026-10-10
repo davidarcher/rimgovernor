@@ -270,7 +270,7 @@ var plannerCatalog = []plannerEntry{
 			out.Cooking = &method
 			return method.Verdict, nil
 		}},
-	{name: "butcher", concern: policy.MaintainButcherSpot, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
+	{name: "butcher", concern: policy.EnsureFoodSupply, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Butcher != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Butcher.step(ctx, epoch, arbiter)
