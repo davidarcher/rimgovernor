@@ -120,6 +120,7 @@ namespace RimGovernor.Runtime
                 EndJobWith(JobCondition.Succeeded);
                 return;
             }
+            GainJoy();
             if (pawn.stances.FullBodyBusy) return;
             var opponent = Bouts.OpponentOf(pawn);
             var verb = pawn.equipment.PrimaryEq?.PrimaryVerb;
@@ -135,6 +136,16 @@ namespace RimGovernor.Runtime
             }
             pawn.pather.StopDead();
             if (pawn.meleeVerbs.TryMeleeAttack(opponent, verb) && pawn.stances.FullBodyBusy) exchanges++;
+        }
+
+        // Fighting is recreation (#2731): vanilla's joy gain (JoyUtility.JoyTickCheckEnd) on the
+        // job def's joyKind, so tolerance applies. Unlike a vanilla joy job a full Joy need does
+        // not end the job: the bout, the stop rule and the exchange cap do.
+        private void GainJoy()
+        {
+            var kind = job.def.joyKind;
+            if (kind == null || pawn.needs?.joy == null) return;
+            pawn.needs.joy.GainJoy(job.def.joyGainRate * 0.36f / 2500f, kind);
         }
 
         private void Swap()

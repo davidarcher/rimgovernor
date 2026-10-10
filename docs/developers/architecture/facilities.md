@@ -774,6 +774,11 @@ heal it to realize scars, reset the pawn).
   10: that bout pays about 4,000 to 4,400, and later bouts pay about 720 to 1,200 a session.
   Sparring therefore stops teaching Melee quickly each day and leaves the rest to
   real work, much as the shooting drill's 3,000 XP daily budget does.
+- **Joy (#2731).** Fighting is recreation: each tick of the fight toil the driver
+  gains Joy on the existing Social kind through vanilla's `Need_Joy.GainJoy` (the
+  JobDef's `joyKind` and `joyGainRate`, so tolerance applies), about 0.3 Joy over a
+  bout. A full Joy need does not end the job as it does a vanilla joy job; the stop
+  rule, exchange cap and bout end alone do.
 - **Formation.** Seats every pawn at 2 to 12 eligible with no double booking; at
   levels 16 to 20 a lone high pawn pairs with the lowest available and a high-only
   crew pairs among itself. The fixture's colony cap is 12 for these cases.

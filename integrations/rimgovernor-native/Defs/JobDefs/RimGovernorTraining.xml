@@ -17,6 +17,11 @@
     <reportString>sparring at the ring.</reportString>
     <allowOpportunisticPrefix>false</allowOpportunisticPrefix>
     <checkOverrideOnDamage>Never</checkOverrideOnDamage>
+    <!-- Fighting is recreation (#2731): the driver gains Joy on this existing kind each tick of the
+         fight toil through the vanilla path (tolerance applies). A bout is about 1200 ticks, so rate 2
+         pays about 0.3 Joy over one, near a short vanilla joy job. The lab measures it. -->
+    <joyKind>Social</joyKind>
+    <joyGainRate>2</joyGainRate>
   </JobDef>
   <!-- Watching a sparring bout from a spectator cell (JobDriver_WatchSparring, #2732). joyDuration
        is the duration cap; the driver also ends when no bout is fighting or joy is full. -->

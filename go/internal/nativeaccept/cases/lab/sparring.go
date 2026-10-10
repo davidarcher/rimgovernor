@@ -29,10 +29,11 @@ func init() {
 			"fighter swaps at its marker into the practice weapon and apparel set (its own gear held in its inventory), swings through the vanilla " +
 			"melee verb and is paid vanilla melee XP, the struck pawn neither flees nor fights back nor drops its job, and the gear is fully restored " +
 			"after a normal end (the exchange cap), a pawn leaving for pain or bleeding while the rest fight on, a pawn drafted mid-bout and a pawn " +
-			"killed mid-bout. Every member whose session completed holds the shared trained-with thought (#2710); a pawn drafted or killed mid-bout does not. A Go snapshot test cannot see the work giver, the registry, the walk, the swap or the vanilla verb.",
+			"killed mid-bout. Every member whose session completed holds the shared trained-with thought (#2710); a pawn drafted or killed mid-bout does not. Each fighter's Joy and Social tolerance rise over the bout, and a fighter that began with a full Joy need still fights to the exchange cap (#2731). A Go snapshot test cannot see the work giver, the registry, the walk, the swap or the vanilla verb.",
 		Start:       cases.Lab{Colonists: 8},
 		RequiredOps: sparringOps,
 		QuietWorld:  true,
+		Keep:        []string{"Joy"},
 		Budget:      12 * time.Minute,
 		Crew:        cases.Crew{Size: 3},
 		Run:         runSparring,
@@ -199,6 +200,8 @@ type sparringPawn struct {
 	threatNull bool
 	xp         bool
 	trained    bool
+	// #2731: Joy and Social tolerance when the fight began and when the session ended.
+	joyStart, joyEnd, tolStart, tolEnd float64
 }
 
 func sparringPawns(got map[string]any) []sparringPawn {
@@ -211,6 +214,8 @@ func sparringPawns(got map[string]any) []sparringPawn {
 			swapped: flag("swapped"), swapSeen: flag("swapSeen"), atMarker: flag("swapAtMarker"), held: flag("originalsHeld"),
 			dead: flag("dead"), drafted: flag("drafted"), restored: flag("restored"), noPractice: flag("noPractice"),
 			originals: flag("originals"), threatNull: flag("threatNull"), xp: flag("xp"), trained: flag("trainedWith"),
+			joyStart: na.AsNumber(row["joyStart"]), joyEnd: na.AsNumber(row["joyEnd"]),
+			tolStart: na.AsNumber(row["toleranceStart"]), tolEnd: na.AsNumber(row["toleranceEnd"]),
 		})
 	}
 	return out
@@ -250,6 +255,14 @@ func checkSparringFight(stage sparringStage, got map[string]any) error {
 			return fmt.Errorf("%s's gear is not restored: %#v", p.id, got)
 		case !p.threatNull:
 			return fmt.Errorf("%s still had a meleeThreat when its job ended: %#v", p.id, got)
+		// #2731: a fighter gains Social joy over the bout (tolerance rises with it); one that
+		// started with a full Joy need keeps fighting to the normal end.
+		case p.joyStart >= 0.99 && (p.exchanges == 0 || !p.swapped):
+			return fmt.Errorf("%s began with full Joy and did not fight (exchanges %d): %#v", p.id, p.exchanges, got)
+		case !p.dead && p.joyStart >= 0 && p.joyStart < 0.99 && p.joyEnd <= p.joyStart:
+			return fmt.Errorf("%s Joy did not rise over the bout (%.3f to %.3f): %#v", p.id, p.joyStart, p.joyEnd, got)
+		case !p.dead && p.joyStart >= 0 && p.joyStart < 0.99 && p.tolEnd <= p.tolStart:
+			return fmt.Errorf("%s Social tolerance did not rise (%.4f to %.4f): %#v", p.id, p.tolStart, p.tolEnd, got)
 		case p.exchanges > 10:
 			return fmt.Errorf("%s made %d exchanges, past the cap: %#v", p.id, p.exchanges, got)
 		case p.exchanges > 0 && !p.xp:

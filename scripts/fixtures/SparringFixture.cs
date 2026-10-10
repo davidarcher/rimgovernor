@@ -228,6 +228,10 @@ namespace HomeBridge.BridgeTools
         public bool ThreatNull;
         public bool Thought;
         public int EndedTick;
+        public float JoyStart = -1f;
+        public float JoyEnd = -1f;
+        public float ToleranceStart;
+        public float ToleranceEnd;
     }
 
     // Named counters and histograms for the measure mode (#2711).
@@ -336,6 +340,7 @@ namespace HomeBridge.BridgeTools
                 swapSeen = g.SwapSeen, swapAtMarker = g.SwapAtMarker, originalsHeld = g.OriginalsHeld,
                 ended = g.Ended, stop = g.Stop, condition = g.Condition, exchanges = g.Exchanges, swapped = g.Swapped, dead = g.Dead, drafted = g.Drafted,
                 restored = g.Restored, noPractice = g.NoPractice, originals = g.Originals, threatNull = g.ThreatNull, trainedWith = g.Thought, endedTick = g.EndedTick,
+                joyStart = g.JoyStart, joyEnd = g.JoyEnd, toleranceStart = g.ToleranceStart, toleranceEnd = g.ToleranceEnd,
             };
         }
 
@@ -544,6 +549,12 @@ namespace HomeBridge.BridgeTools
                 {
                     g.SwapSeen = true;
                     g.SwapAtMarker = p.Position == slot.Marker.Position;
+                    // Joy (#2731) is set as the fight begins: set earlier, the idle colonist fills it with
+                    // vanilla joy jobs before it ever spars. Low, so the bout's gain shows; the cap
+                    // scenario's second fighter starts full, which must not end its job.
+                    if (p.needs?.joy != null) p.needs.joy.CurLevel = scenario == "cap" && Tracked.IndexOf(p) == 1 ? 1f : 0.1f;
+                    g.JoyStart = JoyOf(p);
+                    g.ToleranceStart = SocialTolerance(p);
                     var held = p.inventory.innerContainer.Select(t => t.thingIDNumber).ToHashSet();
                     g.OriginalsHeld = g.ApparelIds.All(held.Contains) && (g.WeaponId < 0 || held.Contains(g.WeaponId));
                 }
@@ -638,6 +649,8 @@ namespace HomeBridge.BridgeTools
             g.Drafted = p.Drafted;
             g.ThreatNull = p.mindState == null || p.mindState.meleeThreat == null;
             g.Thought = TrainingFixture.HasTrainedWith(p);
+            g.JoyEnd = JoyOf(p);
+            g.ToleranceEnd = SocialTolerance(p);
             var ground = map.listerThings.AllThings.Any(t => IsPractice(t.def));
             g.NoPractice = !Carries(p) && !ground;
             var all = g.ApparelIds.Select(id => FindThing(p, id)).ToList();
@@ -647,6 +660,11 @@ namespace HomeBridge.BridgeTools
             var held = p.inventory.innerContainer.Select(t => t.thingIDNumber).ToHashSet();
             g.Restored = worn.SetEquals(g.ApparelIds) && !g.ApparelIds.Any(held.Contains) && weaponBack;
         }
+
+        // Joy while fighting (#2731): the Joy level and the Social tolerance, -1 and 0 without a need.
+        private static float JoyOf(Pawn p) => p.needs?.joy?.CurLevel ?? -1f;
+
+        private static float SocialTolerance(Pawn p) => p.needs?.joy == null ? 0f : p.needs.joy.tolerances[JoyKindDefOf.Social];
 
         // An original thing, wherever it now is: worn, held, wielded or on the ground.
         private Thing FindThing(Pawn p, int id)
